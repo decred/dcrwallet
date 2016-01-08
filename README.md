@@ -48,7 +48,7 @@ incomplete in many ways.  To build from source:
    Make sure the installed binary is the first to be found according to your
    PATH environment variable.  Alternatively, this wallet binary can be copied
    to the Debug and/or Release bin Paymetheus directories so it will be used
-   instead of another installed version of wallet
+   instead of another installed version of wallet.
 
 2. Install `gencerts` from the `btcd` repo if it is not already available.
 
