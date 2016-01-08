@@ -1,0 +1,25 @@
+﻿<Application x:Class="Paymetheus.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Paymetheus"
+             xmlns:w="clr-namespace:Paymetheus.Bitcoin.Wallet;assembly=Paymetheus.Bitcoin"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <local:BooleanToVisibilityConverter x:Key="visibilityConverter" />
+        <local:BooleanToVisibilityConverter x:Key="invertedVisibilityConverter" True="Collapsed" False="Visible" />
+        <local:BooleanToVisibilityConverter x:Key="hiddenConverter" False="Hidden" />
+        <local:AmountConverter x:Key="amountConverter" />
+        
+        <DataTemplate x:Key="buttonTemplate">
+            <Button Content="{Binding ButtonLabel}" Command="{Binding}" Margin="6 2" Padding="10 2"/>
+        </DataTemplate>
+
+        <Style x:Key="alternatingListViewBackgrounds" TargetType="{x:Type ListViewItem}">
+            <Style.Triggers>
+                <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                    <Setter Property="Background" Value="#F5F5F5"></Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Application.Resources>
+</Application>

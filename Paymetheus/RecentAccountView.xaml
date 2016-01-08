@@ -1,0 +1,21 @@
+﻿<UserControl x:Class="Paymetheus.RecentAccountView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Paymetheus"
+             xmlns:btc="clr-namespace:Paymetheus.Bitcoin"
+             mc:Ignorable="d" 
+             d:DesignHeight="35" d:DesignWidth="200">
+    <DockPanel>
+        <!-- Text must be vertically aligned at the bottom so baselines line up.-->
+        <!-- TODO: Account name label should have ellipsis if clipped. -->
+        <Label DockPanel.Dock="Left" MaxWidth="100" VerticalAlignment="Bottom">
+            <TextBlock TextTrimming="CharacterEllipsis" Text="{Binding AccountName, Mode=OneWay}"/>
+        </Label>
+        <Label HorizontalAlignment="Right"
+               VerticalAlignment="Bottom"
+               Content="{Binding BalanceString, Mode=OneWay}"
+               FontFamily="Consolas"/>
+    </DockPanel>
+</UserControl>

@@ -1,0 +1,37 @@
+﻿<UserControl x:Class="Paymetheus.RecentTransactionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Paymetheus"
+             mc:Ignorable="d" 
+             d:DesignHeight="50" d:DesignWidth="350">
+
+    <!-- Text must be vertically aligned at the bottom so baselines line up.-->
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="outputTemplate">
+            <DockPanel>
+                <Label DockPanel.Dock="Left" Content="{Binding Destination}" Width="300" HorizontalAlignment="Left" VerticalAlignment="Bottom"/>
+                <Label HorizontalContentAlignment="Right" Content="{Binding Amount}" FontFamily="Consolas" VerticalAlignment="Bottom"/>
+            </DockPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Top">
+            <Label>
+                <TextBlock Text="{Binding Path=LocalSeenTime, StringFormat={}{0:yyyy-MM-dd HH:mm}}"/>
+            </Label>
+            <local:ConfirmationIndicator Visibility="{Binding ConfirmationsVisibility}" Confirmations="{Binding Confirmations}"/>
+        </StackPanel>
+
+        <ItemsControl ItemsSource="{Binding GroupedOutputs}" ItemTemplate="{StaticResource outputTemplate}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <VirtualizingStackPanel/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+        </ItemsControl>
+    </DockPanel>
+</UserControl>

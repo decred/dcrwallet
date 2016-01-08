@@ -1,0 +1,157 @@
+﻿<UserControl x:Class="Paymetheus.AccountHistoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Paymetheus"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300">
+    <UserControl.Resources>
+        <DataTemplate x:Key="transactionTemplate">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="120"/>
+                </Grid.ColumnDefinitions>
+                <Label Grid.Column="0" HorizontalContentAlignment="Left">
+                    <TextBlock Text="{Binding Path=LocalSeenTime, Mode=OneTime, StringFormat={}{0:yyyy-MM-dd HH:mm}}"/>
+                </Label>
+                <Label Grid.Column="2" HorizontalContentAlignment="Right" Content="{Binding AccountDebit, Mode=OneTime}" FontFamily="Consolas"/>
+                <Label Grid.Column="3" HorizontalContentAlignment="Right" Content="{Binding AccountCredit, Mode=OneTime}" FontFamily="Consolas"/>
+                <Label Grid.Column="4" HorizontalContentAlignment="Right" Content="{Binding Balance, Mode=OneTime}" FontFamily="Consolas"/>
+                <Label Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Bottom" MinWidth="100" DockPanel.Dock="Left">
+                    <TextBlock Text="{Binding TxHash, Mode=OneTime}" TextTrimming="CharacterEllipsis" />
+                </Label>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <!--
+    <Expander Header="{Binding}">
+                <Expander.HeaderTemplate>
+                    <DataTemplate>
+                        <DockPanel Loaded="Header_Loaded">
+                            <Label DockPanel.Dock="Right" HorizontalContentAlignment="Right" Content="{Binding Balance, Mode=OneTime}" Width="146" FontFamily="Consolas"/>
+                            <Label DockPanel.Dock="Right" HorizontalContentAlignment="Right" Content="{Binding BalanceDelta, Mode=OneTime}" Width="146" FontFamily="Consolas"/>
+                            <Label DockPanel.Dock="Right" HorizontalContentAlignment="Left" Width="120">
+                                <TextBlock Text="{Binding Path=LocalSeenTime, Mode=OneTime, StringFormat={}{0:yyyy-MM-dd HH:mm}}"/>
+                            </Label>
+                            <Label HorizontalAlignment="Left" VerticalAlignment="Bottom" MinWidth="100" DockPanel.Dock="Left">
+                                <TextBlock Text="{Binding TxHash, Mode=OneTime}" TextTrimming="CharacterEllipsis" />
+                            </Label>
+                        </DockPanel>
+                    </DataTemplate>
+                </Expander.HeaderTemplate>
+                <StackPanel Margin="25,0,0,0">
+                    <StackPanel Name="inputList" Margin="0 6 0 6">
+                        <DockPanel>
+                            <Label DockPanel.Dock="Left">
+                                <TextBlock><Bold>Inputs</Bold></TextBlock>
+                            </Label>
+                            <UserControl DockPanel.Dock="Right" Width="147"/>
+                            <Label DockPanel.Dock="Right" HorizontalContentAlignment="Right" FontFamily="Consolas">
+                                <TextBlock><Bold><Run Text="-11.23      "/></Bold></TextBlock>
+                            </Label>
+                        </DockPanel>
+                        <DockPanel>
+                            <Label DockPanel.Dock="Left" Content="Input 0"/>
+                            <UserControl DockPanel.Dock="Right" Width="147"/>
+                            <Label DockPanel.Dock="Right" HorizontalContentAlignment="Right" FontFamily="Consolas" Content="-1.23      "/>
+                        </DockPanel>
+                        <DockPanel>
+                            <Label DockPanel.Dock="Left" Content="Input 1"/>
+                            <UserControl DockPanel.Dock="Right" Width="147"/>
+                            <Label DockPanel.Dock="Right" HorizontalContentAlignment="Right" FontFamily="Consolas" Content="-10.0       "/>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <StackPanel Name="outputList" Margin="0 6 0 6">
+                        <DockPanel>
+                            <Label>
+                                <TextBlock><Bold>Outputs</Bold></TextBlock>
+                            </Label>
+                            <UserControl DockPanel.Dock="Right" Width="147"/>
+                            <Label DockPanel.Dock="Right" HorizontalContentAlignment="Right" FontFamily="Consolas">
+                                <TextBlock><Bold><Run Text="-10.77001   "/></Bold></TextBlock>
+                            </Label>
+                        </DockPanel>
+                        <DockPanel>
+                            <Label Content="Output 0 (123address)"/>
+                            <UserControl DockPanel.Dock="Right" Width="147"/>
+                            <Label DockPanel.Dock="Right" HorizontalContentAlignment="Right" FontFamily="Consolas" Content="-11.0       "/>
+                        </DockPanel>
+                        <DockPanel>
+                            <Label Content="Output 1 (change)"/>
+                            <UserControl DockPanel.Dock="Right" Width="147"/>
+                            <Label DockPanel.Dock="Right" HorizontalContentAlignment="Right" FontFamily="Consolas" Content="0.22999   "/>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <DockPanel Margin="0 6 0 6">
+                        <Label>
+                            <TextBlock><Bold>Fee</Bold></TextBlock>
+                        </Label>
+                        <UserControl DockPanel.Dock="Right" Width="147"/>
+                        <Label DockPanel.Dock="Right" HorizontalContentAlignment="Right" FontFamily="Consolas">
+                            <TextBlock><Bold><Run Text="-0.00001   "/></Bold></TextBlock>
+                        </Label>
+                    </DockPanel>
+                </StackPanel>
+            </Expander>
+        </DataTemplate>
+    -->
+
+    <ContentPresenter Content="{Binding}">
+        <ContentPresenter.ContentTemplate>
+            <DataTemplate>
+                <Grid>
+                    <!--<DockPanel Name="transactionList">
+                        <DockPanel DockPanel.Dock="Top" Margin="31,0,25,0">
+                            <Label DockPanel.Dock="Right" HorizontalContentAlignment="Center" Content="Balance" Width="146"/>
+                            <Label DockPanel.Dock="Right" HorizontalContentAlignment="Center" Content="Credit/Debit" Width="146"/>
+                            <Label DockPanel.Dock="Right" HorizontalContentAlignment="Left" Content="Date" Width="120"/>
+                            <Label HorizontalContentAlignment="Left" Content="Transaction hash"/>
+                        </DockPanel>-->
+                    <ListView Name="transactionList"
+                                  ItemsSource="{Binding TransactionHistory}"
+                                  ItemTemplate="{StaticResource transactionTemplate}"
+                                  BorderThickness="0"
+                                  HorizontalContentAlignment="Stretch"
+                                  ScrollViewer.VerticalScrollBarVisibility="Visible"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                  AlternationCount="2">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem" BasedOn="{StaticResource alternatingListViewBackgrounds}">
+                                <Setter Property="Focusable" Value="False"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <!--<ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Transaction hash"
+                                                DisplayMemberBinding="{Binding TxHash, Mode=OneTime}"/>
+                                <GridViewColumn Header="Date"
+                                                DisplayMemberBinding="{Binding Path=LocalSeenTime, Mode=OneTime, StringFormat={}{0:yyyy-MM-dd HH:mm}}"/>
+                                <GridViewColumn Header="Credit/Debit"
+                                                DisplayMemberBinding="{Binding BalanceDelta, Mode=OneTime}"/>
+                                <GridViewColumn Header="Balance"
+                                                DisplayMemberBinding="{Binding Balance, Mode=OneTime}"/>
+                            </GridView>
+                        </ListView.View>-->
+                    </ListView>
+
+                    <Label Name="noTransactions" Content="No transactions" Visibility="Collapsed"
+                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                </Grid>
+                <DataTemplate.Triggers>
+                    <DataTrigger Binding="{Binding TransactionHistory.Count}" Value="0">
+                        <Setter TargetName="transactionList" Property="Visibility" Value="Collapsed"/>
+                        <Setter TargetName="noTransactions" Property="Visibility" Value="Visible"/>
+                    </DataTrigger>
+                </DataTemplate.Triggers>
+            </DataTemplate>
+        </ContentPresenter.ContentTemplate>
+    </ContentPresenter>
+</UserControl>
