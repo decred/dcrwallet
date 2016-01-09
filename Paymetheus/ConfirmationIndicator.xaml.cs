@@ -31,7 +31,7 @@ namespace Paymetheus
         public int RequiredConfirmations
         {
             get { return (int)GetValue(RequiredConfirmationsProperty); }
-            set { SetValue(ConfirmationsProperty, value); }
+            set { SetValue(RequiredConfirmationsProperty, value); }
         }
 
         public static readonly DependencyProperty ConfirmationsProperty =
