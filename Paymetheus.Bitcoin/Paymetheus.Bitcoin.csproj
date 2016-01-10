@@ -73,6 +73,8 @@
     <Compile Include="Wallet\Checksum.cs" />
     <Compile Include="Ripemd160Hash.cs" />
     <Compile Include="Wallet\Accounting.cs" />
+    <Compile Include="Wallet\PgpWordList.cs" />
+    <Compile Include="Wallet\PgpWordListData.cs" />
     <Compile Include="Wallet\TransactionSet.cs" />
     <Compile Include="Wallet\UnspentOutput.cs" />
     <Compile Include="Wallet\Wallet.cs" />

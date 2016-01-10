@@ -66,6 +66,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Wallet\AddressTests.cs" />
     <Compile Include="Wallet\ChecksumTests.cs" />
+    <Compile Include="Wallet\PgpWordListTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
