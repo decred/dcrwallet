@@ -58,7 +58,7 @@ namespace Paymetheus.Rpc
 
             var rootCertificate = await TransportSecurity.ReadCertificate();
             var channel = new Channel(networkAddress, new SslCredentials(rootCertificate));
-            var deadline = DateTime.UtcNow.AddSeconds(1);
+            var deadline = DateTime.UtcNow.AddSeconds(3);
             try
             {
                 await channel.ConnectAsync(deadline);

@@ -1,5 +1,5 @@
 $ProtocDir = ".\packages\Google.Protobuf.3.0.0-alpha4\tools"
-$Tools = ".\packages\Grpc.Tools.0.7.1\tools"
+$Tools = ".\packages\Grpc.Tools.0.12.0\tools"
 $ProtoDir = ".\Paymetheus.Rpc\protos"
 $ToolsInclude = ".\packages\Google.ProtocolBuffers.2.4.1.555\tools"
 $OutDir = "Paymetheus.Rpc"
