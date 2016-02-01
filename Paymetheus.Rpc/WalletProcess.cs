@@ -25,7 +25,7 @@ namespace Paymetheus.Rpc
 
             var processInfo = new ProcessStartInfo();
             processInfo.FileName = "btcwallet";
-            processInfo.Arguments = networkFlag + " --noinitialload";
+            processInfo.Arguments = networkFlag + " --noinitialload --experimentalrpclisten=127.0.0.1:18332";
             processInfo.UseShellExecute = false;
             processInfo.RedirectStandardError = true;
             processInfo.RedirectStandardOutput = true;

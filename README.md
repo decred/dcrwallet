@@ -36,13 +36,10 @@ the project's Github issue tracker for known issues.
 No official binary release is available due to the project still being
 incomplete in many ways.  To build from source:
 
-1. Install the btcwallet development branch implementing the new RPC server.
+1. Install the latest btcwallet master branch.
 
    ```
-   PS> cd $env:GOPATH\src\github.com\btcsuite\btcwallet
-   PS> git fetch https://github.com/btcsuite/btcwallet grpc:grpc
-   PS> git checkout grpc
-   PS> go get
+   PS> go get https://github.com/btcsuite/btcwallet
    ```
 
    Make sure the installed binary is the first to be found according to your
@@ -69,9 +66,9 @@ incomplete in many ways.  To build from source:
 
 ## Testing
 
-Paymetheus uses the Xunit test framework to define and execute test code and the
-OpenCover and ReportGenerator tools to report test line coverage.  A PowerShell
-script is included to run these tests, but require the
+Paymetheus uses the xUnit.net test framework to define and execute test code and
+the OpenCover and ReportGenerator tools to report test line coverage.  A
+PowerShell script is included to run these tests, but require the
 `Paymetheus.Tests.Bitcoin` project to be compiled first.  From VS, using the
 Debug (not Release) solution configuration, build this project, and then run the
 script.
