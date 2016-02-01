@@ -1,13 +1,13 @@
-﻿using Paymetheus.Bitcoin;
+﻿// Copyright (c) 2016 The btcsuite developers
+// Licensed under the ISC license.  See LICENSE file in the project root for full license information.
+
+using Paymetheus.Bitcoin;
 using Paymetheus.Bitcoin.Wallet;
 using Paymetheus.Rpc;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
-// Copyright (c) 2016 The btcsuite developers
-// Licensed under the ISC license.  See LICENSE file in the project root for full license information.
-
 using System.Windows.Input;
 
 namespace Paymetheus
