@@ -14,7 +14,7 @@ unfamiliar with the technical details behind bitcoin.  It also attempts to hide
 details that can be dangerous if used improperly.  As an example, to avoid
 address reuse, addresses managed by the wallet are never displayed except when
 generating new addresses to receive a payment.  Instead, the btcwallet BIP0044
-account containing the address' cooresponding key is displayed when viewing
+account containing the address' corresponding key is displayed when viewing
 transaction history.
 
 The btcwallet binary is started in the background by Paymetheus so it is not
