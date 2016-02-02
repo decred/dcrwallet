@@ -201,8 +201,8 @@
     <Compile Include="TransactionView.xaml.cs">
       <DependentUpon>TransactionView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="BtcdConnectionOptionsView.xaml.cs">
-      <DependentUpon>BtcdConnectionOptionsView.xaml</DependentUpon>
+    <Compile Include="ConsensusServerConnectionOptionsView.xaml.cs">
+      <DependentUpon>ConsensusServerConnectionOptionsView.xaml</DependentUpon>
     </Compile>
     <Compile Include="ViewModelBase.cs" />
     <Compile Include="ViewModelMessage.cs" />
@@ -292,7 +292,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="BtcdConnectionOptionsView.xaml">
+    <Page Include="ConsensusServerConnectionOptionsView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

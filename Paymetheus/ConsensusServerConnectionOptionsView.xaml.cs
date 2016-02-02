@@ -1,6 +1,7 @@
 ﻿// Copyright (c) 2016 The btcsuite developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
+using Paymetheus.Rpc;
 using System;
 using System.IO;
 using System.Windows;
@@ -11,18 +12,18 @@ namespace Paymetheus
     /// <summary>
     /// Interaction logic for UserControl1.xaml
     /// </summary>
-    public partial class BtcdConnectionOptionsView : UserControl
+    public partial class ConsensusServerConnectionOptionsView : UserControl
     {
-        public BtcdConnectionOptionsView()
+        public ConsensusServerConnectionOptionsView()
         {
             InitializeComponent();
         }
 
-        private void TextBoxBtcdRpcPassword_PasswordChanged(object sender, RoutedEventArgs e)
+        private void TextBoxConsensusServerRpcPassword_PasswordChanged(object sender, RoutedEventArgs e)
         {
             if (DataContext != null)
             {
-                ((dynamic)DataContext).BtcdRpcPassword = ((PasswordBox)sender).Password;
+                ((dynamic)DataContext).ConsensusServerRpcPassword = ((PasswordBox)sender).Password;
             }
         }
 
@@ -33,10 +34,10 @@ namespace Paymetheus
                 return;
             }
 
-            var certificateFile = ((dynamic)DataContext).BtcdCertificateFile;
+            var certificateFile = ((dynamic)DataContext).ConsensusServerCertificateFile;
 
             var fileDialog = new Microsoft.Win32.OpenFileDialog();
-            fileDialog.Title = "Select btcd RPC certificate";
+            fileDialog.Title = $"Select {ConsensusServerRpcOptions.ApplicationName} RPC certificate";
             if (!string.IsNullOrWhiteSpace(certificateFile))
             {
                 fileDialog.InitialDirectory = Path.GetDirectoryName(certificateFile);
@@ -44,7 +45,7 @@ namespace Paymetheus
             }
             if (fileDialog.ShowDialog() ?? false)
             {
-                ((dynamic)DataContext).BtcdCertificateFile = fileDialog.FileName;
+                ((dynamic)DataContext).ConsensusServerCertificateFile = fileDialog.FileName;
             }
         }
     }

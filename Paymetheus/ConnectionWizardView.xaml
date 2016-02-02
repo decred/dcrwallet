@@ -7,8 +7,8 @@
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300">
     <UserControl.Resources>
-        <DataTemplate DataType="{x:Type local:BtcdRpcConnectionDialog}">
-            <local:BtcdConnectionOptionsView/>
+        <DataTemplate DataType="{x:Type local:ConsensusServerRpcConnectionDialog}">
+            <local:ConsensusServerConnectionOptionsView/>
         </DataTemplate>
         <DataTemplate DataType="{x:Type local:DisplaySeedDialog}">
             <local:DisplaySeedView/>

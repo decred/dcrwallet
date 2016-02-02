@@ -77,7 +77,7 @@
   <ItemGroup>
     <Compile Include="Api.cs" />
     <Compile Include="ApiGrpc.cs" />
-    <Compile Include="BtcdRpcOptions.cs" />
+    <Compile Include="ConsensusServerRpcOptions.cs" />
     <Compile Include="ConnectTimeoutException.cs" />
     <Compile Include="Marshalers.cs" />
     <Compile Include="Extensions.cs" />

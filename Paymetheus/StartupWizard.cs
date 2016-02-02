@@ -14,7 +14,7 @@ namespace Paymetheus
     {
         public StartupWizard(ShellViewModel shell) : base(shell)
         {
-            CurrentDialog = new BtcdRpcConnectionDialog(this);
+            CurrentDialog = new ConsensusServerRpcConnectionDialog(this);
             Shell = shell;
         }
 
@@ -40,24 +40,25 @@ namespace Paymetheus
         public StartupWizard Wizard { get; }
     }
 
-    class BtcdRpcConnectionDialog : ConnectionWizardDialog
+    class ConsensusServerRpcConnectionDialog : ConnectionWizardDialog
     {
-        public BtcdRpcConnectionDialog(StartupWizard wizard) : base(wizard)
+        public ConsensusServerRpcConnectionDialog(StartupWizard wizard) : base(wizard)
         {
             ConnectCommand = new DelegateCommand(Connect);
 
             // Do not autofill local defaults if they don't exist.
-            if (!File.Exists(BtcdCertificateFile))
+            if (!File.Exists(ConsensusServerCertificateFile))
             {
-                BtcdNetworkAddress = "";
-                BtcdCertificateFile = "";
+                ConsensusServerNetworkAddress = "";
+                ConsensusServerCertificateFile = "";
             }
         }
 
-        public string BtcdNetworkAddress { get; set; } = "localhost";
-        public string BtcdRpcUsername { get; set; } = "";
-        public string BtcdRpcPassword { private get; set; } = "";
-        public string BtcdCertificateFile { get; set; } = BtcdRpcOptions.LocalCertifiateFilePath;
+        public string ConsensusServerApplicationName => ConsensusServerRpcOptions.ApplicationName;
+        public string ConsensusServerNetworkAddress { get; set; } = "localhost";
+        public string ConsensusServerRpcUsername { get; set; } = "";
+        public string ConsensusServerRpcPassword { private get; set; } = "";
+        public string ConsensusServerCertificateFile { get; set; } = ConsensusServerRpcOptions.LocalCertifiateFilePath();
 
         public DelegateCommand ConnectCommand { get; }
         private async void Connect()
@@ -66,35 +67,36 @@ namespace Paymetheus
             {
                 ConnectCommand.Executable = false;
 
-                if (string.IsNullOrWhiteSpace(BtcdNetworkAddress))
+                if (string.IsNullOrWhiteSpace(ConsensusServerNetworkAddress))
                 {
                     MessageBox.Show("Network address is required");
                     return;
                 }
-                if (string.IsNullOrWhiteSpace(BtcdRpcUsername))
+                if (string.IsNullOrWhiteSpace(ConsensusServerRpcUsername))
                 {
                     MessageBox.Show("RPC username is required");
                     return;
                 }
-                if (BtcdRpcPassword.Length == 0)
+                if (ConsensusServerRpcPassword.Length == 0)
                 {
                     MessageBox.Show("RPC password may not be empty");
                     return;
                 }
-                if (!File.Exists(BtcdCertificateFile))
+                if (!File.Exists(ConsensusServerCertificateFile))
                 {
                     MessageBox.Show("Certificate file not found");
                     return;
                 }
 
-                var btcdOptions = new BtcdRpcOptions(BtcdNetworkAddress, BtcdRpcUsername, BtcdRpcPassword, BtcdCertificateFile);
+                var rpcOptions = new ConsensusServerRpcOptions(ConsensusServerNetworkAddress,
+                    ConsensusServerRpcUsername, ConsensusServerRpcPassword, ConsensusServerCertificateFile);
                 try
                 {
-                    await App.Current.WalletRpcClient.StartBtcdRpc(btcdOptions);
+                    await App.Current.WalletRpcClient.StartBtcdRpc(rpcOptions);
                 }
                 catch (Exception ex) when (ErrorHandling.IsTransient(ex) || ErrorHandling.IsClientError(ex))
                 {
-                    MessageBox.Show("Unable to start btcd RPC.\n\nCheck connection settings and try again.", "Error");
+                    MessageBox.Show($"Unable to start {ConsensusServerRpcOptions.ApplicationName} RPC.\n\nCheck connection settings and try again.", "Error");
                     MessageBox.Show(ex.Message);
                     return;
                 }
