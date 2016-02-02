@@ -58,7 +58,7 @@ namespace Paymetheus
         public string ConsensusServerNetworkAddress { get; set; } = "localhost";
         public string ConsensusServerRpcUsername { get; set; } = "";
         public string ConsensusServerRpcPassword { private get; set; } = "";
-        public string ConsensusServerCertificateFile { get; set; } = ConsensusServerRpcOptions.LocalCertifiateFilePath();
+        public string ConsensusServerCertificateFile { get; set; } = ConsensusServerRpcOptions.LocalCertificateFilePath();
 
         public DelegateCommand ConnectCommand { get; }
         private async void Connect()

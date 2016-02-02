@@ -23,7 +23,7 @@ namespace Paymetheus.Rpc
         public string RpcPassword { get; }
         public string CertificatePath { get; }
 
-        public static string LocalCertifiateFilePath() =>
+        public static string LocalCertificateFilePath() =>
             Path.Combine(Portability.LocalAppData(Environment.OSVersion.Platform, ApplicationName), "rpc.cert");
     }
 }
