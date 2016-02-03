@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace Paymetheus.Bitcoin.Wallet
 {
-    public class WalletChanges
+    public sealed class WalletChanges
     {
         public WalletChanges(HashSet<Sha256Hash> detachedBlocks,
             List<Block> attachedBlocks,
