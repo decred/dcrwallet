@@ -21,8 +21,8 @@ namespace Paymetheus
         {
             _wallet = wallet;
             _account = account;
-            _accountState = _wallet.LookupAccountState(_account);
-            UpdateAccountStateProperties(1, _accountState); // TODO: Don't hardcode confs
+            _accountProperties = _wallet.LookupAccountProperties(_account);
+            UpdateAccountProperties(1, _accountProperties); // TODO: Don't hardcode confs
 
             RenameAccount = new DelegateCommand(RenameAcountAction);
             ImportKey = new DelegateCommand(ImportKeyAction);
@@ -42,25 +42,25 @@ namespace Paymetheus
 
         private readonly Wallet _wallet;
         private readonly Account _account;
-        private AccountState _accountState;
+        private AccountProperties _accountProperties;
 
         public Account Account => _account;
 
-        public void UpdateAccountStateProperties(int requiredConfirmations, AccountState state)
+        public void UpdateAccountProperties(int requiredConfirmations, AccountProperties props)
         {
             RaisePropertyChanged(nameof(TotalBalance));
             SpendableBalance = _wallet.CalculateSpendableBalance(_account, requiredConfirmations);
 
-            ExternalAddressCount = state.ExternalKeyCount;
-            InternalAddressCount = state.InternalKeyCount;
-            ImportedAddressCount = state.ImportedKeyCount;
+            ExternalAddressCount = props.ExternalKeyCount;
+            InternalAddressCount = props.InternalKeyCount;
+            ImportedAddressCount = props.ImportedKeyCount;
         }
 
         #region Summary
         public uint CoinType => _wallet.ActiveChain.Bip44CoinType;
         public uint AccountNumber => _account.AccountNumber;
 
-        public Amount TotalBalance => _accountState.TotalBalance;
+        public Amount TotalBalance => _accountProperties.TotalBalance;
         private Amount _spendableBalance;
         public Amount SpendableBalance
         {

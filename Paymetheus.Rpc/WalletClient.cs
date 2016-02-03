@@ -390,7 +390,7 @@ namespace Paymetheus.Rpc
 
                 var accounts = rpcAccounts.Accounts.ToDictionary(
                     a => new Account(a.AccountNumber),
-                    a => new AccountState
+                    a => new AccountProperties
                     {
                         AccountName = a.AccountName,
                         TotalBalance = a.TotalBalance,

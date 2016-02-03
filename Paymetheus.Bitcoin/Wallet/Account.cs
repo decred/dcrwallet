@@ -24,16 +24,4 @@ namespace Paymetheus.Bitcoin.Wallet
 
         public override int GetHashCode() => AccountNumber.GetHashCode();
     }
-
-    public sealed class AccountState
-    {
-        public string AccountName { get; set; }
-        public Amount TotalBalance { get; set; }
-        public Amount ImmatureCoinbaseReward { get; set; }
-        public Amount ZeroConfSpendableBalance => TotalBalance - ImmatureCoinbaseReward;
-
-        public uint ExternalKeyCount { get; set; }
-        public uint InternalKeyCount { get; set; }
-        public uint ImportedKeyCount { get; set; }
-    }
 }

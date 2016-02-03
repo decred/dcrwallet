@@ -67,6 +67,7 @@
     <Compile Include="Util\LittleEndian.cs" />
     <Compile Include="Util\ValueArray.cs" />
     <Compile Include="Wallet\Account.cs" />
+    <Compile Include="Wallet\AccountProperties.cs" />
     <Compile Include="Wallet\Address.cs" />
     <Compile Include="Wallet\Block.cs" />
     <Compile Include="Wallet\Checksum.cs" />

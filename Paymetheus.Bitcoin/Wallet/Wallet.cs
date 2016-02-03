@@ -33,7 +33,7 @@ namespace Paymetheus.Bitcoin.Wallet
         /// </summary>
         public const int SeedLength = 32;
 
-        public Wallet(BlockChainIdentity activeChain, TransactionSet txSet, Dictionary<Account, AccountState> accounts, BlockIdentity chainTip)
+        public Wallet(BlockChainIdentity activeChain, TransactionSet txSet, Dictionary<Account, AccountProperties> accounts, BlockIdentity chainTip)
         {
             if (accounts == null)
                 throw new ArgumentNullException(nameof(accounts));
@@ -53,14 +53,14 @@ namespace Paymetheus.Bitcoin.Wallet
         }
 
         private int _transactionCount;
-        private readonly Dictionary<Account, AccountState> _accounts = new Dictionary<Account, AccountState>();
+        private readonly Dictionary<Account, AccountProperties> _accounts = new Dictionary<Account, AccountProperties>();
 
         public BlockChainIdentity ActiveChain { get; }
         public TransactionSet RecentTransactions { get; }
         public Amount TotalBalance { get; private set; }
         public BlockIdentity ChainTip { get; private set; }
 
-        private void AddTransactionToTotals(WalletTransaction tx, Dictionary<Account, AccountState> modifiedAccounts)
+        private void AddTransactionToTotals(WalletTransaction tx, Dictionary<Account, AccountProperties> modifiedAccounts)
         {
             var isCoinbase = BlockChain.IsCoinbase(tx.Transaction);
 
@@ -68,28 +68,28 @@ namespace Paymetheus.Bitcoin.Wallet
             {
                 TotalBalance -= input.Amount;
 
-                var accountState = _accounts[input.PreviousAccount];
-                accountState.TotalBalance -= input.Amount;
+                var accountProperties = _accounts[input.PreviousAccount];
+                accountProperties.TotalBalance -= input.Amount;
                 if (isCoinbase)
-                    accountState.ImmatureCoinbaseReward -= input.Amount;
-                modifiedAccounts[input.PreviousAccount] = accountState;
+                    accountProperties.ImmatureCoinbaseReward -= input.Amount;
+                modifiedAccounts[input.PreviousAccount] = accountProperties;
             }
 
             foreach (var output in tx.Outputs.OfType<WalletTransaction.Output.ControlledOutput>())
             {
                 TotalBalance += output.Amount;
 
-                var accountState = _accounts[output.Account];
-                accountState.TotalBalance += output.Amount;
+                var accountProperties = _accounts[output.Account];
+                accountProperties.TotalBalance += output.Amount;
                 if (isCoinbase)
-                    accountState.ImmatureCoinbaseReward += output.Amount;
-                modifiedAccounts[output.Account] = accountState;
+                    accountProperties.ImmatureCoinbaseReward += output.Amount;
+                modifiedAccounts[output.Account] = accountProperties;
             }
 
             _transactionCount++;
         }
 
-        private void RemoveTransactionFromTotals(WalletTransaction tx, Dictionary<Account, AccountState> modifiedAccounts)
+        private void RemoveTransactionFromTotals(WalletTransaction tx, Dictionary<Account, AccountProperties> modifiedAccounts)
         {
             var isCoinbase = BlockChain.IsCoinbase(tx.Transaction);
 
@@ -97,22 +97,22 @@ namespace Paymetheus.Bitcoin.Wallet
             {
                 TotalBalance += input.Amount;
 
-                var accountState = _accounts[input.PreviousAccount];
-                accountState.TotalBalance += input.Amount;
+                var accountProperties = _accounts[input.PreviousAccount];
+                accountProperties.TotalBalance += input.Amount;
                 if (isCoinbase)
-                    accountState.ImmatureCoinbaseReward += input.Amount;
-                modifiedAccounts[input.PreviousAccount] = accountState;
+                    accountProperties.ImmatureCoinbaseReward += input.Amount;
+                modifiedAccounts[input.PreviousAccount] = accountProperties;
             }
 
             foreach (var output in tx.Outputs.OfType<WalletTransaction.Output.ControlledOutput>())
             {
                 TotalBalance -= output.Amount;
 
-                var accountState = _accounts[output.Account];
-                accountState.TotalBalance -= output.Amount;
+                var accountProperties = _accounts[output.Account];
+                accountProperties.TotalBalance -= output.Amount;
                 if (isCoinbase)
-                    accountState.ImmatureCoinbaseReward -= output.Amount;
-                modifiedAccounts[output.Account] = accountState;
+                    accountProperties.ImmatureCoinbaseReward -= output.Amount;
+                modifiedAccounts[output.Account] = accountProperties;
             }
 
             _transactionCount--;
@@ -131,7 +131,7 @@ namespace Paymetheus.Bitcoin.Wallet
 
             public List<WalletTransaction> RemovedTransactions { get; } = new List<WalletTransaction>();
 
-            public Dictionary<Account, AccountState> ModifiedAccountStates { get; } = new Dictionary<Account, AccountState>();
+            public Dictionary<Account, AccountProperties> ModifiedAccountProperties { get; } = new Dictionary<Account, AccountProperties>();
         }
 
         public event EventHandler<ChangesProcessedEventArgs> ChangesProcessed;
@@ -173,7 +173,7 @@ namespace Paymetheus.Bitcoin.Wallet
             {
                 if (BlockChain.IsCoinbase(reorgedTx.Transaction) || !changes.AllUnminedHashes.Contains(reorgedTx.Hash))
                 {
-                    RemoveTransactionFromTotals(reorgedTx, eventArgs.ModifiedAccountStates);
+                    RemoveTransactionFromTotals(reorgedTx, eventArgs.ModifiedAccountProperties);
                 }
                 else
                 {
@@ -200,7 +200,7 @@ namespace Paymetheus.Bitcoin.Wallet
                     }
                     else if (!eventArgs.MovedTransactions.ContainsKey(tx.Hash))
                     {
-                        AddTransactionToTotals(tx, eventArgs.ModifiedAccountStates);
+                        AddTransactionToTotals(tx, eventArgs.ModifiedAccountProperties);
                         eventArgs.AddedTransactions.Add(Tuple.Create(tx, block.Identity));
                     }
                 }
@@ -212,7 +212,7 @@ namespace Paymetheus.Bitcoin.Wallet
             foreach (var tx in changes.NewUnminedTransactions.Where(tx => !RecentTransactions.UnminedTransactions.ContainsKey(tx.Hash)))
             {
                 RecentTransactions.UnminedTransactions[tx.Hash] = tx;
-                AddTransactionToTotals(tx, eventArgs.ModifiedAccountStates);
+                AddTransactionToTotals(tx, eventArgs.ModifiedAccountProperties);
 
                 // TODO: When reorgs are handled, this will need to check whether the transaction
                 // being added to the unmined collection was previously in a block.
@@ -227,7 +227,7 @@ namespace Paymetheus.Bitcoin.Wallet
                 // Transactions that were mined rather than being removed from the unmined
                 // set due to a conflict have already been removed.
                 RecentTransactions.UnminedTransactions.Remove(unmined.Key);
-                RemoveTransactionFromTotals(unmined.Value, eventArgs.ModifiedAccountStates);
+                RemoveTransactionFromTotals(unmined.Value, eventArgs.ModifiedAccountProperties);
                 eventArgs.RemovedTransactions.Add(unmined.Value);
             }
 
@@ -242,20 +242,20 @@ namespace Paymetheus.Bitcoin.Wallet
 
         public void UpdateAccountProperties(Account account, string name, uint externalKeyCount, uint internalKeyCount, uint importedKeyCount)
         {
-            AccountState stats;
-            if (!_accounts.TryGetValue(account, out stats))
+            AccountProperties props;
+            if (!_accounts.TryGetValue(account, out props))
             {
-                stats = new AccountState();
-                _accounts[account] = stats;
+                props = new AccountProperties();
+                _accounts[account] = props;
             }
 
-            stats.AccountName = name;
-            stats.ExternalKeyCount = externalKeyCount;
-            stats.InternalKeyCount = internalKeyCount;
-            stats.ImportedKeyCount = importedKeyCount;
+            props.AccountName = name;
+            props.ExternalKeyCount = externalKeyCount;
+            props.InternalKeyCount = internalKeyCount;
+            props.ImportedKeyCount = importedKeyCount;
 
             var eventArgs = new ChangesProcessedEventArgs();
-            eventArgs.ModifiedAccountStates[account] = stats;
+            eventArgs.ModifiedAccountProperties[account] = props;
             OnChangesProcessed(eventArgs);
         }
 
@@ -318,10 +318,10 @@ namespace Paymetheus.Bitcoin.Wallet
             }
         }
 
-        public AccountState LookupAccountState(Account account) => _accounts[account];
+        public AccountProperties LookupAccountProperties(Account account) => _accounts[account];
         public string AccountName(Account account) => _accounts[account].AccountName;
 
-        public IEnumerable<KeyValuePair<Account, AccountState>> EnumrateAccounts() => _accounts;
+        public IEnumerable<KeyValuePair<Account, AccountProperties>> EnumrateAccounts() => _accounts;
 
         public static byte[] RandomSeed()
         {

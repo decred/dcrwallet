@@ -132,7 +132,7 @@ namespace Paymetheus
         {
             foreach (var recentAccount in RecentAccounts)
             {
-                var currentState = _wallet.LookupAccountState(recentAccount.Account);
+                var currentState = _wallet.LookupAccountProperties(recentAccount.Account);
                 recentAccount.Balance = currentState.ZeroConfSpendableBalance;
             }
 
@@ -142,8 +142,8 @@ namespace Paymetheus
             if (_visibleContent is AccountViewModel)
             {
                 var accountViewModel = (AccountViewModel)_visibleContent;
-                var accountState = _wallet.LookupAccountState(accountViewModel.Account);
-                accountViewModel.UpdateAccountStateProperties(1, accountState); // TODO: don't hardcode confs
+                var accountProperties = _wallet.LookupAccountProperties(accountViewModel.Account);
+                accountViewModel.UpdateAccountProperties(1, accountProperties); // TODO: don't hardcode confs
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     accountViewModel.PopulateTransactionHistory();
@@ -161,7 +161,7 @@ namespace Paymetheus
 
             var newTxViewModels = e.AddedTransactions.Select(tx => new TransactionViewModel(_wallet, tx.Item1, tx.Item2)).ToList();
 
-            foreach (var kvp in e.ModifiedAccountStates)
+            foreach (var kvp in e.ModifiedAccountProperties)
             {
                 var account = kvp.Key;
                 var state = kvp.Value;
@@ -182,10 +182,10 @@ namespace Paymetheus
             if (VisibleContent is AccountViewModel)
             {
                 var accountViewModel = (AccountViewModel)VisibleContent;
-                AccountState accountState;
-                if (e.ModifiedAccountStates.TryGetValue(accountViewModel.Account, out accountState))
+                AccountProperties accountProperties;
+                if (e.ModifiedAccountProperties.TryGetValue(accountViewModel.Account, out accountProperties))
                 {
-                    accountViewModel.UpdateAccountStateProperties(1, accountState);
+                    accountViewModel.UpdateAccountProperties(1, accountProperties);
                 }
             }
 
