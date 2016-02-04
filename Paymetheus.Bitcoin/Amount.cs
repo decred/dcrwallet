@@ -37,6 +37,8 @@ namespace Paymetheus.Bitcoin
 
         public string FormatAmount(Amount amount)
         {
+            // The negative sign has to be printed separately.  It can not be displayed as a
+            // negative whole part, since there is no such thing as negative zero for longs.
             var negativeSign = "";
             var negative = amount < 0;
             if (negative)
