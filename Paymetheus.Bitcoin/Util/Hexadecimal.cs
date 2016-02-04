@@ -39,16 +39,17 @@ namespace Paymetheus.Bitcoin.Util
                     return false;
                 }
 
-                decodedResult[i / 2] = (byte)((uint)HexCharToByte(first) << 4 | HexCharToByte(second));
+                decodedResult[i / 2] = (byte)((uint)HexDigitToByte(first) << 4 | HexDigitToByte(second));
             }
 
             result = decodedResult;
             return true;
         }
 
-        private static bool IsHexDigit(char ch) => (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F');
+        private static bool IsHexDigit(char ch) =>
+            (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F');
         
-        private static byte HexCharToByte(char ch)
+        private static byte HexDigitToByte(char ch)
         {
             if (ch >= 'a')
                 return (byte)(ch - 'a' + 10);

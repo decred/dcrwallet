@@ -127,10 +127,8 @@ namespace Paymetheus.Bitcoin.Util
         /// </summary>
         /// <param name="value">The string to check.</param>
         /// <returns>True iff the value is valid base58.</returns>
-        public static bool IsBase58Encoded(string value)
-        {
-            return value.All(ch => ch < AsciiToDigitMap.Length && AsciiToDigitMap[ch] < Radix);
-        }
+        public static bool IsBase58Encoded(string value) =>
+            value.All(ch => ch < AsciiToDigitMap.Length && AsciiToDigitMap[ch] < Radix);
 
         public static string Encode(byte[] value)
         {

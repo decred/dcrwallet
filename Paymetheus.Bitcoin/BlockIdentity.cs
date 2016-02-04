@@ -20,7 +20,8 @@ namespace Paymetheus.Bitcoin
 
         public bool IsUnmined() => Height == Unmined.Height;
 
-        public static bool operator ==(BlockIdentity lhs, BlockIdentity rhs) => lhs.Height == rhs.Height && lhs.Hash.Equals(rhs.Hash);
+        public static bool operator ==(BlockIdentity lhs, BlockIdentity rhs) =>
+            lhs.Height == rhs.Height && lhs.Hash.Equals(rhs.Hash);
 
         public static bool operator !=(BlockIdentity lhs, BlockIdentity rhs) => !(lhs == rhs);
 

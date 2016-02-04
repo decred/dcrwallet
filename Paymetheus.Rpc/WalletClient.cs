@@ -139,7 +139,6 @@ namespace Paymetheus.Rpc
             {
                 Console.WriteLine(ex);
             }
-
         }
 
         public async Task<NetworkResponse> NetworkAsync()

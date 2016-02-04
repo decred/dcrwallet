@@ -319,6 +319,7 @@ namespace Paymetheus.Bitcoin.Wallet
         }
 
         public AccountProperties LookupAccountProperties(Account account) => _accounts[account];
+
         public string AccountName(Account account) => _accounts[account].AccountName;
 
         public IEnumerable<KeyValuePair<Account, AccountProperties>> EnumrateAccounts() => _accounts;

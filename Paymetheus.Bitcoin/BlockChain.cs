@@ -42,19 +42,13 @@ namespace Paymetheus.Bitcoin
                 return blockChainHeight - txHeight + 1;
         }
 
-        public static int ConfirmationHeight(int blockChainHeight, int minConf)
-        {
-            return blockChainHeight - minConf + 1;
-        }
+        public static int ConfirmationHeight(int blockChainHeight, int minConf) =>
+            blockChainHeight - minConf + 1;
 
-        public static bool IsConfirmed(int blockchainHeight, int txHeight, int minConfirmations)
-        {
-            return Confirmations(blockchainHeight, txHeight) >= minConfirmations;
-        }
+        public static bool IsConfirmed(int blockchainHeight, int txHeight, int minConfirmations) =>
+            Confirmations(blockchainHeight, txHeight) >= minConfirmations;
 
-        public static bool IsMatured(int blockchainHeight, int txHeight)
-        {
-            return IsConfirmed(blockchainHeight, txHeight, CoinbaseMaturity);
-        }
+        public static bool IsMatured(int blockchainHeight, int txHeight) =>
+            IsConfirmed(blockchainHeight, txHeight, CoinbaseMaturity);
     }
 }
