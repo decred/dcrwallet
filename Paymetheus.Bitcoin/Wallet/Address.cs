@@ -41,7 +41,7 @@ namespace Paymetheus.Bitcoin.Wallet
             public override string Encode()
             {
                 var buffer = new byte[1 + Ripemd160Hash.Length + Checksum.SumLength];
-                buffer[0] = IntendedBlockChain.AddressPubKeyHashID;
+                buffer[0] = AddressPrefix.PayToPubKeyHashPrefix(IntendedBlockChain);
                 Array.Copy(PubKeyHash, 0, buffer, 1, Ripemd160Hash.Length);
                 Checksum.WriteSum(buffer);
                 return Base58.Encode(buffer);
@@ -68,7 +68,7 @@ namespace Paymetheus.Bitcoin.Wallet
             public override string Encode()
             {
                 var buffer = new byte[1 + Ripemd160Hash.Length + Checksum.SumLength];
-                buffer[0] = IntendedBlockChain.AddressScriptHashID;
+                buffer[0] = AddressPrefix.PayToScriptHashPrefix(IntendedBlockChain);
                 Array.Copy(ScriptHash, 0, buffer, 1, Ripemd160Hash.Length);
                 Checksum.WriteSum(buffer);
                 return Base58.Encode(buffer);
@@ -106,14 +106,14 @@ namespace Paymetheus.Bitcoin.Wallet
 
             var addressID = base58DecodedAddress[0];
             BlockChainIdentity intendedBlockChain;
-            if (BlockChainIdentity.IdentityForPubKeyHashID(addressID, out intendedBlockChain))
+            if (AddressPrefix.IdentityForPubkeyHashPrefix(addressID, out intendedBlockChain))
             {
                 var pubKeyHash = new byte[Ripemd160Hash.Length];
                 Array.Copy(base58DecodedAddress, 1, pubKeyHash, 0, Ripemd160Hash.Length);
                 address = new PayToPubKeyHash(intendedBlockChain, pubKeyHash);
                 return true;
             }
-            else if (BlockChainIdentity.IdentityForScriptHashID(addressID, out intendedBlockChain))
+            else if (AddressPrefix.IdentityForScriptHashPrefix(addressID, out intendedBlockChain))
             {
                 var scriptHash = new byte[Ripemd160Hash.Length];
                 Array.Copy(base58DecodedAddress, 1, scriptHash, 0, Ripemd160Hash.Length);

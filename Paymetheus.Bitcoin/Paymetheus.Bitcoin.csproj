@@ -69,6 +69,7 @@
     <Compile Include="Wallet\Account.cs" />
     <Compile Include="Wallet\AccountProperties.cs" />
     <Compile Include="Wallet\Address.cs" />
+    <Compile Include="Wallet\AddressPrefix.cs" />
     <Compile Include="Wallet\Block.cs" />
     <Compile Include="Wallet\Checksum.cs" />
     <Compile Include="Ripemd160Hash.cs" />
