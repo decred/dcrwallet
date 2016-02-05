@@ -19,7 +19,7 @@ namespace Paymetheus.Tests.Bitcoin.Wallet
             Assert.True(Checksum.Verify(valueBytes));
 
             // Clear checksum before WriteSum
-            for (var i = valueBytes.Length - 4; i < valueBytes.Length; i++)
+            for (var i = valueBytes.Length - Checksum.SumLength; i < valueBytes.Length; i++)
                 valueBytes[i] = 0;
 
             Checksum.WriteSum(valueBytes);
