@@ -20,8 +20,6 @@ namespace Paymetheus.Rpc
 {
     public sealed class WalletClient : IDisposable
     {
-        public const string LocalNetworkAddress = "localhost:18332";
-
         public static void Initialize()
         {
             Environment.SetEnvironmentVariable("GRPC_SSL_CIPHER_SUITES", "HIGH+ECDSA");

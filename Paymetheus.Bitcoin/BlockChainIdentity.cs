@@ -56,5 +56,9 @@ namespace Paymetheus.Bitcoin
     public class UnknownBlockChainException : Exception
     {
         public UnknownBlockChainException(string message) : base(message) { }
+
+        public UnknownBlockChainException(BlockChainIdentity identity)
+            : base($"Unknown blockchain `{identity.Name}`")
+        { }
     }
 }

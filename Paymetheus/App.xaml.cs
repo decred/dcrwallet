@@ -53,12 +53,15 @@ namespace Paymetheus
                 await TransportSecurity.EnsureCertificatePairExists();
 
                 // TODO: Make network selectable (parse e.Args for a network)
-                var walletProcess = WalletProcess.Start(BlockChainIdentity.TestNet3);
+                var activeNetwork = BlockChainIdentity.TestNet3;
+
+                var walletProcess = WalletProcess.Start(activeNetwork);
 
                 WalletClient walletClient;
                 try
                 {
-                    walletClient = await WalletClient.ConnectAsync(WalletClient.LocalNetworkAddress);
+                    var listenAddress = WalletProcess.RpcListenAddress("localhost", activeNetwork);
+                    walletClient = await WalletClient.ConnectAsync(listenAddress);
                 }
                 catch (Exception)
                 {
