@@ -73,7 +73,10 @@
                     <UserControl Margin="0 5"/>
 
                     <Label Name="fee" FontSize="18">
-                        <TextBlock Text="{Binding Path=Fee, StringFormat=Fee: BTC {0}}"/>
+                        <TextBlock>
+                            <Run Text="{Binding CurrencyTicker, Mode=OneWay}"/>
+                            <Run Text="{Binding Path=Fee, Mode=OneWay}"/>
+                        </TextBlock>
                     </Label>
                 </StackPanel>
 

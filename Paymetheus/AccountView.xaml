@@ -78,10 +78,16 @@
                     <Label Content="Spendable" Grid.Column="0" Grid.Row="0"/>
                     <Label Content="Total" Grid.Column="0" Grid.Row="1"/>
                     <Label Grid.Column="1" Grid.Row="0">
-                        <TextBlock Text="{Binding SpendableBalance, Mode=OneWay, StringFormat={}BTC {0}}"/>
+                        <TextBlock>
+                            <Run Text="{Binding CurrencyTicker, Mode=OneWay}"/>
+                            <Run Text="{Binding SpendableBalance, Mode=OneWay}"/>
+                        </TextBlock>
                     </Label>
                     <Label Grid.Column="1" Grid.Row="1">
-                        <TextBlock Text="{Binding TotalBalance, Mode=OneWay, StringFormat={}BTC {0}}"/>
+                        <TextBlock>
+                            <Run Text="{Binding CurrencyTicker, Mode=OneWay}"/>
+                            <Run Text="{Binding TotalBalance, Mode=OneWay}"/>
+                        </TextBlock>
                     </Label>
                 </Grid>
 

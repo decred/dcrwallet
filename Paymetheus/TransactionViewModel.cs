@@ -69,6 +69,7 @@ namespace Paymetheus
         public Output[] Outputs { get; }
         public Amount? Fee => _transaction.Fee;
         public DateTime LocalSeenTime => _transaction.SeenTime.LocalDateTime;
+        public string CurrencyTicker => Denomination.Bitcoin.Ticker; // TODO: Denomination should be modifiable by user
 
         private BlockIdentity _location;
         public BlockIdentity Location

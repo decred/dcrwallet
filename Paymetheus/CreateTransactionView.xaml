@@ -50,10 +50,16 @@
             <Label Grid.Column="0" Grid.Row="0" Content="Estimated fee"/>
             <Label Grid.Column="0" Grid.Row="1" Content="Estimated remaining balance"/>
             <Label Grid.Column="1" Grid.Row="0">
-                <TextBlock Text="{Binding EstimatedFee, StringFormat='{}BTC {0}'}"/>
+                <TextBlock>
+                    <Run Text="{Binding CurrencyTicker, Mode=OneWay}"/>
+                    <Run Text="{Binding EstimatedFee, Mode=OneWay}"/>
+                </TextBlock>
             </Label>
             <Label Grid.Column="1" Grid.Row="1">
-                <TextBlock Text="{Binding EstimatedRemainingBalance, StringFormat='{}BTC {0}'}"/>
+                <TextBlock>
+                    <Run Text="{Binding CurrencyTicker, Mode=OneWay}"/>
+                    <Run Text="{Binding EstimatedRemainingBalance, Mode=OneWay}"/>
+                </TextBlock>
             </Label>
         </Grid>
 

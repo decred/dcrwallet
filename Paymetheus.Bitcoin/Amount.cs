@@ -15,25 +15,29 @@ namespace Paymetheus.Bitcoin
         private long val;
 
         public static implicit operator Amount(long value) => new Amount { val = value };
-        public static implicit operator long (Amount amount) => amount.val;
+        public static implicit operator long(Amount amount) => amount.val;
 
         public override string ToString() => Denomination.Bitcoin.FormatAmount(this);
     }
 
     public struct Denomination
     {
-        public static readonly Denomination Bitcoin = new Denomination((long)1e8, "{0}{1:#,0}{2,-9:.0#######}");
-        public static readonly Denomination MillaBitcoin = new Denomination((long)1e5, "{0}{1:#,0}{2,-6:.0####}");
-        public static readonly Denomination MicroBitcoin = new Denomination((long)1e2, "{0}{1:#,0}{2:.00}");
+        public static readonly Denomination Bitcoin = new Denomination((long)1e8, "{0}{1:#,0}{2,-9:.0#######}", "BTC");
+        public static readonly Denomination MillaBitcoin = new Denomination((long)1e5, "{0}{1:#,0}{2,-6:.0####}", "mBTC");
+        public static readonly Denomination MicroBitcoin = new Denomination((long)1e2, "{0}{1:#,0}{2:.00}", "μBTC");
 
-        private Denomination(long satoshisPerUnit, string formatString)
+        private Denomination(long satoshisPerUnit, string formatString, string ticker)
         {
             _satoshisPerUnit = satoshisPerUnit;
             _formatString = formatString;
+
+            Ticker = ticker;
         }
 
         private readonly long _satoshisPerUnit;
         private readonly string _formatString;
+
+        public string Ticker { get; }
 
         public string FormatAmount(Amount amount)
         {

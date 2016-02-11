@@ -45,6 +45,7 @@ namespace Paymetheus
         private AccountProperties _accountProperties;
 
         public Account Account => _account;
+        public string CurrencyTicker => Denomination.Bitcoin.Ticker; // TODO: Denomination should be modifiable by user
 
         public void UpdateAccountProperties(int requiredConfirmations, AccountProperties props)
         {
