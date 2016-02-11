@@ -49,12 +49,13 @@ namespace Paymetheus.Rpc
             await _channel.ShutdownAsync();
         }
 
-        public static async Task<WalletClient> ConnectAsync(string networkAddress)
+        public static async Task<WalletClient> ConnectAsync(string networkAddress, string rootCertificate)
         {
             if (networkAddress == null)
                 throw new ArgumentNullException(nameof(networkAddress));
+            if (rootCertificate == null)
+                throw new ArgumentNullException(nameof(rootCertificate));
 
-            var rootCertificate = await TransportSecurity.ReadCertificate();
             var channel = new Channel(networkAddress, new SslCredentials(rootCertificate));
             var deadline = DateTime.UtcNow.AddSeconds(3);
             try

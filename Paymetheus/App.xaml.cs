@@ -50,10 +50,14 @@ namespace Paymetheus
 
             var startupTask = Task.Run(async () =>
             {
-                await TransportSecurity.EnsureCertificatePairExists();
-
                 // TODO: Make network selectable (parse e.Args for a network)
                 var activeNetwork = BlockChainIdentity.TestNet3;
+
+                // Begin the asynchronous reading of the certificate before starting the wallet
+                // process.  This uses filesystem events to know when to begin reading the certificate,
+                // and if there is too much delay between wallet writing the cert and this process
+                // beginning to observe the change, the event may never fire and the cert won't be read.
+                var rootCertificateTask = TransportSecurity.ReadModifiedCertificateAsync();
 
                 var walletProcess = WalletProcess.Start(activeNetwork);
 
@@ -61,7 +65,8 @@ namespace Paymetheus
                 try
                 {
                     var listenAddress = WalletProcess.RpcListenAddress("localhost", activeNetwork);
-                    walletClient = await WalletClient.ConnectAsync(listenAddress);
+                    var rootCertificate = await rootCertificateTask;
+                    walletClient = await WalletClient.ConnectAsync(listenAddress, rootCertificate);
                 }
                 catch (Exception)
                 {
