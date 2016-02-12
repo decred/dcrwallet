@@ -4,7 +4,7 @@ Paymetheus is a graphical Windows client for
 [btcwallet](https://github.com/btcsuite/btcwallet) developed by the btcsuite
 project.  Unlike other btcwallet clients, Paymetheus was developed in
 conjunction with and uses the new btcwallet gRPC API. It is written using C# and
-WPF.
+WPF and targets .NET Framework 4.5.
 
 At the moment, Paymetheus is only usable on the Bitcoin testnet network (version
 3).
