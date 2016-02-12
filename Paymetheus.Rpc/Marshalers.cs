@@ -20,7 +20,21 @@ namespace Paymetheus.Rpc
                 .Select(i => new WalletTransaction.Input(i.PreviousAmount, new Account(i.PreviousAccount)))
                 .ToArray();
             var outputs = tx.Outputs
-                .Select((o, index) => MarshalWalletTransactionOutput(o, transaction.Outputs[index]))
+                .Select((o, index) =>
+                {
+                    // There are two kinds of transactions to care about when choosing which outputs
+                    // should be created: transactions created by other wallets (inputs.Length == 0)
+                    // and those that spend controlled outputs from this wallet (inputs.Length != 0).
+                    // If the transaction was created by this wallet, then all outputs (both controlled
+                    // and uncontrolled) should be included.  Otherwise, uncontrolled outputs can be
+                    // ignored since they are not relevant (they could be change outputs for the other
+                    // wallet or outputs created for another unrelated wallet).
+                    if (o.Mine || inputs.Length != 0)
+                        return MarshalWalletTransactionOutput(o, transaction.Outputs[index]);
+                    else
+                        return null;
+                })
+                .Where(o => o != null)
                 .ToArray();
             var fee = inputs.Length == transaction.Inputs.Length ? (Amount?)tx.Fee : null;
             var seenTime = DateTimeOffsetExtras.FromUnixTimeSeconds(tx.Timestamp);
