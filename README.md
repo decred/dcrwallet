@@ -25,7 +25,7 @@ will be prompted for when Paymetheus starts.
 
 While the entire program will only run on Windows (WPF is Windows-specific), a
 significant portion of the code not dealing with graphical layer (the Bitcoin
-and RPC code) are written in portable C# and should be reusable on any operating
+and RPC code) is written in portable C# and should be reusable on any operating
 system.
 
 Things are just getting started and there is much work left to do.  Check out
