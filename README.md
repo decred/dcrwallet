@@ -47,21 +47,14 @@ incomplete in many ways.  To build from source:
    to the Debug and/or Release bin Paymetheus directories so it will be used
    instead of another installed version of wallet.
 
-2. Install `gencerts` from the `btcd` repo if it is not already available.
-
-   ```
-   PS> cd $env:GOPATH\src\github.com\btcsuite\btcd\cmd\gencerts
-   PS> go get
-   ```
-
-3. Install Visual Studio 2015.  In theory, standalone Roslyn, NuGet, and msbuild
+2. Install Visual Studio 2015.  In theory, standalone Roslyn, NuGet, and msbuild
    installs will also be sufficient to build the project, but this is untested.
    The 2015 Community edition of Visual Studio (free to use for open source
    projects) can be obtained [here](https://www.visualstudio.com/en-us/products/visual-studio-community-vs.aspx).
 
-4. Clone the project repo and open the solution file in VS.
+3. Clone the project repo and open the solution file in VS.
 
-5. Click Debug -> Start Debugging (or press F5) to build and execute the
+4. Click Debug -> Start Debugging (or press F5) to build and execute the
    program.
 
 ## Testing
