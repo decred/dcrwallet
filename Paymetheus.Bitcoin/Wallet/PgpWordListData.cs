@@ -5,7 +5,7 @@ namespace Paymetheus.Bitcoin.Wallet
 {
     sealed partial class PgpWordList
     {
-        private static string WordList =
+        private const string WordList =
 @"aardvark
 adroitness
 absurd
