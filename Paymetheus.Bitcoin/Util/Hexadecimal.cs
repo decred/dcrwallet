@@ -61,6 +61,9 @@ namespace Paymetheus.Bitcoin.Util
 
         public static string Encode(byte[] bytes)
         {
+            if (bytes == null)
+                throw new ArgumentNullException(nameof(bytes));
+
             var s = new StringBuilder(bytes.Length * 2);
             foreach (var b in bytes)
             {

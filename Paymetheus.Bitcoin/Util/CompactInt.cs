@@ -26,6 +26,9 @@ namespace Paymetheus.Bitcoin.Util
         /// <returns>The number of bytes written to destination.</returns>
         public static int WriteCompact(byte[] destination, int offset, ulong value)
         {
+            if (destination == null)
+                throw new ArgumentNullException(nameof(destination));
+
             if (value < 0xfd)
             {
                 destination[offset] = (byte)value;
@@ -53,6 +56,9 @@ namespace Paymetheus.Bitcoin.Util
 
         public static ulong ReadCompact(byte[] source, int offset, out int bytesRead)
         {
+            if (source == null)
+                throw new ArgumentNullException(nameof(source));
+
             var discriminant = source[offset];
             switch (discriminant)
             {

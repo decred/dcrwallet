@@ -59,6 +59,9 @@ namespace Paymetheus.Bitcoin
 
         public Amount AmountFromString(string value)
         {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             var doubleValue = double.Parse(value);
 
             return AmountFromDouble(doubleValue);

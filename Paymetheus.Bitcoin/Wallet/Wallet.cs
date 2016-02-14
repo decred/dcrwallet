@@ -35,6 +35,8 @@ namespace Paymetheus.Bitcoin.Wallet
 
         public Wallet(BlockChainIdentity activeChain, TransactionSet txSet, Dictionary<Account, AccountProperties> accounts, BlockIdentity chainTip)
         {
+            if (activeChain == null)
+                throw new ArgumentNullException(nameof(activeChain));
             if (accounts == null)
                 throw new ArgumentNullException(nameof(accounts));
             if (chainTip == null)
@@ -299,6 +301,9 @@ namespace Paymetheus.Bitcoin.Wallet
 
         public string OutputDestination(WalletTransaction.Output output)
         {
+            if (output == null)
+                throw new ArgumentNullException(nameof(output));
+
             if (output is WalletTransaction.Output.ControlledOutput)
             {
                 var controlledOutput = (WalletTransaction.Output.ControlledOutput)output;

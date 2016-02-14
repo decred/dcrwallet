@@ -14,6 +14,9 @@ namespace Paymetheus.Bitcoin
         {
             public OutPoint(Sha256Hash hash, uint index)
             {
+                if (hash == null)
+                    throw new ArgumentNullException(nameof(hash));
+
                 Hash = hash;
                 Index = index;
             }
@@ -66,6 +69,11 @@ namespace Paymetheus.Bitcoin
 
         public Transaction(int version, Input[] inputs, Output[] outputs, uint lockTime)
         {
+            if (inputs == null)
+                throw new ArgumentNullException(nameof(inputs));
+            if (outputs == null)
+                throw new ArgumentNullException(nameof(outputs));
+
             Version = version;
             Inputs = inputs;
             Outputs = outputs;
@@ -158,6 +166,9 @@ namespace Paymetheus.Bitcoin
 
         public void SerializeTo(byte[] destination, int offset = 0)
         {
+            if (destination == null)
+                throw new ArgumentNullException(nameof(destination));
+
             var cursor = new ByteCursor(destination, offset);
 
             cursor.WriteInt32(Version);

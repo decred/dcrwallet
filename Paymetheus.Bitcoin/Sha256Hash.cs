@@ -132,6 +132,9 @@ namespace Paymetheus.Bitcoin
 
         void ByteCursor.IWriter.WriteToCursor(ByteCursor cursor)
         {
+            if (cursor == null)
+                throw new ArgumentNullException(nameof(cursor));
+
             _buffer.WriteToCursor(cursor);
         }
     }

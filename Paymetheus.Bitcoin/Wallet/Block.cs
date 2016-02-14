@@ -11,6 +11,8 @@ namespace Paymetheus.Bitcoin.Wallet
     {
         public Block(Sha256Hash hash, int height, long unixTime, List<WalletTransaction> transactions)
         {
+            if (hash == null)
+                throw new ArgumentNullException(nameof(hash));
             if (transactions == null)
                 throw new ArgumentNullException(nameof(transactions));
 

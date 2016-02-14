@@ -15,6 +15,15 @@ namespace Paymetheus.Bitcoin.Wallet
     {
         public WalletTransaction(Transaction transaction, Sha256Hash hash, Input[] inputs, Output[] outputs, Amount? fee, DateTimeOffset seenTime)
         {
+            if (transaction == null)
+                throw new ArgumentNullException(nameof(transaction));
+            if (hash == null)
+                throw new ArgumentNullException(nameof(hash));
+            if (inputs == null)
+                throw new ArgumentNullException(nameof(inputs));
+            if (outputs == null)
+                throw new ArgumentNullException(nameof(outputs));
+
             Hash = hash;
             Inputs = inputs;
             Outputs = outputs;

@@ -10,6 +10,11 @@ namespace Paymetheus.Bitcoin.Wallet
     {
         public UnspentOutput(Sha256Hash txHash, uint outputIndex, Amount amount, OutputScript pkScript, DateTimeOffset seenTime, bool isFromCoinbase)
         {
+            if (txHash == null)
+                throw new ArgumentNullException(nameof(txHash));
+            if (pkScript == null)
+                throw new ArgumentNullException(nameof(pkScript));
+
             TransactionHash = txHash;
             OutputIndex = outputIndex;
             Amount = amount;
