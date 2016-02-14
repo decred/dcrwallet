@@ -10,7 +10,7 @@ using System.Windows;
 
 namespace Paymetheus
 {
-    class StartupWizard : WizardViewModel
+    sealed class StartupWizard : WizardViewModelBase
     {
         public StartupWizard(ShellViewModel shell) : base(shell)
         {
@@ -40,7 +40,7 @@ namespace Paymetheus
         public StartupWizard Wizard { get; }
     }
 
-    class ConsensusServerRpcConnectionDialog : ConnectionWizardDialog
+    sealed class ConsensusServerRpcConnectionDialog : ConnectionWizardDialog
     {
         public ConsensusServerRpcConnectionDialog(StartupWizard wizard) : base(wizard)
         {
@@ -128,7 +128,7 @@ namespace Paymetheus
         }
     }
 
-    class DisplaySeedDialog : ConnectionWizardDialog
+    sealed class DisplaySeedDialog : ConnectionWizardDialog
     {
         public DisplaySeedDialog(StartupWizard wizard) : base(wizard)
         {
@@ -151,7 +151,7 @@ namespace Paymetheus
         }
     }
 
-    class ConfirmSeedBackupDialog : ConnectionWizardDialog
+    sealed class ConfirmSeedBackupDialog : ConnectionWizardDialog
     {
         public ConfirmSeedBackupDialog(StartupWizard wizard) : base(wizard)
         {
@@ -189,7 +189,7 @@ namespace Paymetheus
         }
     }
 
-    class PromptPassphrasesDialog : ConnectionWizardDialog
+    sealed class PromptPassphrasesDialog : ConnectionWizardDialog
     {
         public PromptPassphrasesDialog(StartupWizard wizard) : base(wizard)
         {
@@ -245,7 +245,7 @@ namespace Paymetheus
         }
     }
 
-    class PromptPublicPassphraseDialog : ConnectionWizardDialog
+    sealed class PromptPublicPassphraseDialog : ConnectionWizardDialog
     {
         public PromptPublicPassphraseDialog(StartupWizard wizard) : base(wizard)
         {

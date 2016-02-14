@@ -5,9 +5,9 @@ using Paymetheus.Bitcoin.Wallet;
 
 namespace Paymetheus
 {
-    class ViewModelMessage { }
+    class ViewModelMessageBase { }
 
-    class ShowTransactionMessage : ViewModelMessage
+    sealed class ShowTransactionMessage : ViewModelMessageBase
     {
         public ShowTransactionMessage(TransactionViewModel tx)
         {
@@ -17,7 +17,7 @@ namespace Paymetheus
         public TransactionViewModel Transaction { get; }
     }
 
-    class ShowAccountMessage : ViewModelMessage
+    sealed class ShowAccountMessage : ViewModelMessageBase
     {
         public ShowAccountMessage(Account account)
         {
@@ -27,7 +27,7 @@ namespace Paymetheus
         public Account Account { get; }
     }
 
-    class OpenDialogMessage : ViewModelMessage
+    sealed class OpenDialogMessage : ViewModelMessageBase
     {
         public OpenDialogMessage(DialogViewModelBase dialog)
         {
@@ -37,5 +37,5 @@ namespace Paymetheus
         public DialogViewModelBase Dialog { get; }
     }
 
-    class HideDialogMessage : ViewModelMessage { }
+    sealed class HideDialogMessage : ViewModelMessageBase { }
 }

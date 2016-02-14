@@ -8,7 +8,7 @@ using System.Windows.Input;
 
 namespace Paymetheus
 {
-    class PassphraseDialogViewModel : DialogViewModelBase
+    sealed class PassphraseDialogViewModel : DialogViewModelBase
     {
         public PassphraseDialogViewModel(ShellViewModel shell, string header, string buttonText, Func<string, Task> executeWithPassphrase)
             : base(shell)

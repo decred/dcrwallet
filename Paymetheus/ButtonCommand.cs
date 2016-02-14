@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace Paymetheus
 {
-    class ButtonCommand : DelegateCommand, INotifyPropertyChanged
+    sealed class ButtonCommand : DelegateCommand, INotifyPropertyChanged
     {
         public ButtonCommand(string label, Action action) : base(action)
         {
@@ -23,7 +23,7 @@ namespace Paymetheus
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        protected void RaisePropertyChanged([CallerMemberName] string propertyName = null)
+        void RaisePropertyChanged([CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }

@@ -8,7 +8,7 @@ using System.Windows.Data;
 
 namespace Paymetheus
 {
-    class AmountConverter : IValueConverter
+    sealed class AmountConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {

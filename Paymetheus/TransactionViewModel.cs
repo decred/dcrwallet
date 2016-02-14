@@ -10,7 +10,7 @@ using System.Windows;
 
 namespace Paymetheus
 {
-    class TransactionViewModel : ViewModelBase
+    sealed class TransactionViewModel : ViewModelBase
     {
         public TransactionViewModel(Wallet wallet, WalletTransaction transaction, BlockIdentity transactionLocation)
         {

@@ -23,7 +23,7 @@ namespace Paymetheus
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        public void PostMessage(ViewModelMessage message)
+        public void PostMessage(ViewModelMessageBase message)
         {
             var vm = _parentViewModel;
             while (vm != null)
@@ -40,7 +40,7 @@ namespace Paymetheus
         /// </summary>
         /// <param name="message">Child message to handle.</param>
         /// <returns>Returns true if the message was handled and should not be propigated to a parent view model.</returns>
-        protected virtual bool OnRoutedMessage(ViewModelBase sender, ViewModelMessage message)
+        protected virtual bool OnRoutedMessage(ViewModelBase sender, ViewModelMessageBase message)
         {
             return false;
         }

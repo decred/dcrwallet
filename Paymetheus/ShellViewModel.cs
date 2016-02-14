@@ -12,7 +12,7 @@ using System.Windows.Input;
 
 namespace Paymetheus
 {
-    class ShellViewModel : ViewModelBase
+    sealed class ShellViewModel : ViewModelBase
     {
         public ShellViewModel()
         {
@@ -266,7 +266,7 @@ namespace Paymetheus
             VisibleDialogContent = new CreateAccountDialogViewModel(this);
         }
 
-        protected override bool OnRoutedMessage(ViewModelBase sender, ViewModelMessage message)
+        protected override bool OnRoutedMessage(ViewModelBase sender, ViewModelMessageBase message)
         {
             var showTx = message as ShowTransactionMessage;
             if (showTx != null)

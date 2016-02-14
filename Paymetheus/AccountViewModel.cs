@@ -14,7 +14,7 @@ using System.Windows.Input;
 
 namespace Paymetheus
 {
-    class AccountViewModel : ViewModelBase
+    sealed class AccountViewModel : ViewModelBase
     {
         public AccountViewModel(ShellViewModel shell, Wallet wallet, Account account)
             : base(shell)

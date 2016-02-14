@@ -7,7 +7,7 @@ using System.Windows.Input;
 
 namespace Paymetheus
 {
-    class RenameAccountDialogViewModel : DialogViewModelBase
+    sealed class RenameAccountDialogViewModel : DialogViewModelBase
     {
         public RenameAccountDialogViewModel(ShellViewModel shell, Account account, string currentName)
             : base(shell)

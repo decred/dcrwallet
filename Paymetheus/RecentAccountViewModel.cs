@@ -6,7 +6,7 @@ using Paymetheus.Bitcoin.Wallet;
 
 namespace Paymetheus
 {
-    class RecentAccountViewModel : ViewModelBase
+    sealed class RecentAccountViewModel : ViewModelBase
     {
         public RecentAccountViewModel(ViewModelBase parent, Account account, string accountName, Amount balance)
             : base(parent)
