@@ -37,7 +37,7 @@ namespace Paymetheus.Bitcoin
             return buffer;
         }
 
-        public static bool Equals(ref Sha256HashBuffer first, ref Sha256HashBuffer second)
+        public static bool Equal(ref Sha256HashBuffer first, ref Sha256HashBuffer second)
         {
             unsafe
             {
@@ -123,7 +123,7 @@ namespace Paymetheus.Bitcoin
             if (other == null)
                 return false;
 
-            return Sha256HashBuffer.Equals(ref _buffer, ref other._buffer);
+            return Sha256HashBuffer.Equal(ref _buffer, ref other._buffer);
         }
 
         public override bool Equals(object obj) => obj is Sha256Hash && Equals((Sha256Hash)obj);
