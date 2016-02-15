@@ -10,6 +10,16 @@
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Connect" IsDefault="True" Command="{Binding ConnectCommand}" Width="100" Margin="6,12,3,6" Padding="10 2"/>
         </StackPanel>
+        <Label DockPanel.Dock="Top" ContentStringFormat="{}{0} connection options" Content="{Binding ConsensusServerApplicationName, Mode=OneWay}" FontSize="18"/>
+        <Label DockPanel.Dock="Top">
+            <TextBlock TextWrapping="Wrap">
+                <Run>Paymetheus requires an active</Run>
+                <Run Text="{Binding ConsensusServerApplicationName, Mode=OneWay}"/>
+                <Run>RPC server for sending and receiving transactions on the</Run>
+                <Run Text="{Binding CurrencyName, Mode=OneWay}"/>
+                <Run>network.  Enter your RPC connection information and credentials below:</Run>
+            </TextBlock>
+        </Label>
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="120"/>
@@ -20,17 +30,15 @@
                 <RowDefinition/>
                 <RowDefinition/>
                 <RowDefinition/>
-                <RowDefinition/>
             </Grid.RowDefinitions>
-            <Label Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" ContentStringFormat="{}{0} connection options" Content="{Binding ConsensusServerApplicationName}" FontSize="18"/>
-            <Label Grid.Column="0" Grid.Row="1" Content="Network address"/>
-            <TextBox Grid.Column="1" Grid.Row="1" Name="textBox" Text="{Binding ConsensusServerNetworkAddress}" Margin="6 2" Padding="2"/>
-            <Label Grid.Column="0" Grid.Row="2" Content="Username"/>
-            <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding ConsensusServerRpcUsername}" Margin="6 2" Padding="2"/>
-            <Label Grid.Column="0" Grid.Row="3" Content="Password"/>
-            <PasswordBox Grid.Column="1" Grid.Row="3" Name="TextboxConsensusServerRpcPassword" PasswordChanged="TextBoxConsensusServerRpcPassword_PasswordChanged" Margin="6 2" Padding="2"/>
-            <Label Grid.Column="0" Grid.Row="4" Content="Certificate"/>
-            <Button Grid.Column="1" Grid.Row="4" Content="Select file" Width="120" Click="Button_Click"/>
+            <Label Grid.Column="0" Grid.Row="0" Content="Network address"/>
+            <TextBox Grid.Column="1" Grid.Row="0" Name="textBox" Text="{Binding ConsensusServerNetworkAddress}" Margin="6 2" Padding="2"/>
+            <Label Grid.Column="0" Grid.Row="1" Content="Username"/>
+            <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding ConsensusServerRpcUsername}" Margin="6 2" Padding="2"/>
+            <Label Grid.Column="0" Grid.Row="2" Content="Password"/>
+            <PasswordBox Grid.Column="1" Grid.Row="2" Name="TextboxConsensusServerRpcPassword" PasswordChanged="TextBoxConsensusServerRpcPassword_PasswordChanged" Margin="6 2" Padding="2"/>
+            <Label Grid.Column="0" Grid.Row="3" Content="Certificate"/>
+            <Button Grid.Column="1" Grid.Row="3" Content="Select file" Width="120" Click="Button_Click"/>
         </Grid>
     </DockPanel>
 </UserControl>

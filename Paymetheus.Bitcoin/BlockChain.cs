@@ -7,6 +7,8 @@ namespace Paymetheus.Bitcoin
 {
     public static class BlockChain
     {
+        public const string CurrencyName = "Bitcoin";
+
         public const int CoinbaseMaturity = 100;
         public const int MinCoinbaseScriptLength = 2;
         public const int MaxCoinbaseScriptLength = 100;

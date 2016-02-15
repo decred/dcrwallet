@@ -1,6 +1,7 @@
 ﻿// Copyright (c) 2016 The btcsuite developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
+using Paymetheus.Bitcoin;
 using Paymetheus.Bitcoin.Util;
 using Paymetheus.Bitcoin.Wallet;
 using Paymetheus.Rpc;
@@ -55,6 +56,7 @@ namespace Paymetheus
         }
 
         public string ConsensusServerApplicationName => ConsensusServerRpcOptions.ApplicationName;
+        public string CurrencyName => BlockChain.CurrencyName;
         public string ConsensusServerNetworkAddress { get; set; } = "localhost";
         public string ConsensusServerRpcUsername { get; set; } = "";
         public string ConsensusServerRpcPassword { private get; set; } = "";
