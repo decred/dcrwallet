@@ -182,7 +182,12 @@ namespace Paymetheus
         #endregion
 
         #region CreateTransaction
-        public bool ManualInputSelection { get; set; }
+        private bool _manualInputSelection;
+        public bool ManualInputSelection
+        {
+            get { return _manualInputSelection; }
+            set { _manualInputSelection = value; RaisePropertyChanged(); }
+        }
 
         // TODO: input types for manual input selection.
 

@@ -29,6 +29,7 @@
     <StackPanel>
         <Label Content="Inputs" FontSize="18"/>
         <CheckBox Content="Manual input selection" Margin="6 2" IsChecked="{Binding ManualInputSelection}"/>
+        <Label Content="This feature is not yet implemented" FontStyle="Italic" Visibility="{Binding ManualInputSelection, Converter={StaticResource visibilityConverter}}"/>
 
         <UserControl Margin="0 5"/>
 
