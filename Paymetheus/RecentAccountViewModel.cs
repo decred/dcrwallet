@@ -3,17 +3,23 @@
 
 using Paymetheus.Bitcoin;
 using Paymetheus.Bitcoin.Wallet;
+using System;
 
 namespace Paymetheus
 {
     sealed class RecentAccountViewModel : ViewModelBase
     {
-        public RecentAccountViewModel(ViewModelBase parent, Account account, string accountName, Amount balance)
+        public RecentAccountViewModel(ViewModelBase parent, Account account, AccountProperties properties)
             : base(parent)
         {
+            if (parent == null)
+                throw new ArgumentNullException(nameof(parent));
+            if (properties == null)
+                throw new ArgumentNullException(nameof(properties));
+
             Account = account;
-            AccountName = accountName;
-            Balance = balance;
+            AccountName = properties.AccountName;
+            Balance = properties.TotalBalance;
         }
 
         public Account Account { get; }

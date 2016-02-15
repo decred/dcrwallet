@@ -114,7 +114,7 @@ namespace Paymetheus
                 .Concat(txSet.MinedTransactions.ReverseList().SelectMany(b => b.Transactions.Select(tx => new TransactionViewModel(_wallet, tx, b.Identity))))
                 .Take(10);
             var recentAccounts = _wallet.EnumrateAccounts()
-                .Select(a => new RecentAccountViewModel(this, a.Key, a.Value.AccountName, a.Value.TotalBalance));
+                .Select(a => new RecentAccountViewModel(this, a.Key, a.Value));
             Application.Current.Dispatcher.Invoke(() =>
             {
                 foreach (var tx in recentTx)
@@ -169,15 +169,18 @@ namespace Paymetheus
                 if (recentAccountVM != null)
                 {
                     recentAccountVM.AccountName = state.AccountName;
+                    recentAccountVM.Balance = state.TotalBalance;
                 }
                 else
                 {
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        RecentAccounts.Add(new RecentAccountViewModel(this, account, state.AccountName, state.TotalBalance));
+                        RecentAccounts.Add(new RecentAccountViewModel(this, account, state));
                     });
                 }
             }
+
+            RaisePropertyChanged(nameof(TotalBalance));
 
             if (VisibleContent is AccountViewModel)
             {

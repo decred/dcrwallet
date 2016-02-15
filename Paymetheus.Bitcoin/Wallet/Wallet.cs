@@ -55,7 +55,7 @@ namespace Paymetheus.Bitcoin.Wallet
         }
 
         private int _transactionCount;
-        private readonly Dictionary<Account, AccountProperties> _accounts = new Dictionary<Account, AccountProperties>();
+        private readonly Dictionary<Account, AccountProperties> _accounts;
 
         public BlockChainIdentity ActiveChain { get; }
         public TransactionSet RecentTransactions { get; }
