@@ -392,11 +392,11 @@ namespace Paymetheus.Rpc
                     {
                         AccountName = a.AccountName,
                         TotalBalance = a.TotalBalance,
-                        // TODO: uncomment these when added to protospec and wallet implements them.
+                        // TODO: uncomment when added to protospec and implemented by wallet.
                         //ImmatureCoinbaseReward = a.ImmatureBalance,
-                        //ExternalKeyCount = (int)a.ExternalKeyCount,
-                        //InternalKeyCount = (int)a.InternalKeyCount,
-                        //ImportedKeyCount = (int)a.ImportedKeyCount,
+                        ExternalKeyCount = a.ExternalKeyCount,
+                        InternalKeyCount = a.InternalKeyCount,
+                        ImportedKeyCount = a.ImportedKeyCount,
                     });
                 var chainTip = new BlockIdentity(lastAccountBlockHash, lastAccountBlockHeight);
                 var wallet = new Wallet(activeBlockChain, txSet, accounts, chainTip);
