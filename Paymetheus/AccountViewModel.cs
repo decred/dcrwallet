@@ -1,10 +1,10 @@
 ﻿// Copyright (c) 2016 The btcsuite developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
-using Paymetheus.Bitcoin;
-using Paymetheus.Bitcoin.Script;
-using Paymetheus.Bitcoin.Util;
-using Paymetheus.Bitcoin.Wallet;
+using Paymetheus.Decred;
+using Paymetheus.Decred.Script;
+using Paymetheus.Decred.Util;
+using Paymetheus.Decred.Wallet;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -45,7 +45,7 @@ namespace Paymetheus
         private AccountProperties _accountProperties;
 
         public Account Account => _account;
-        public string CurrencyTicker => Denomination.Bitcoin.Ticker; // TODO: Denomination should be modifiable by user
+        public string CurrencyTicker => Denomination.Decred.Ticker; // TODO: Denomination should be modifiable by user
 
         public void UpdateAccountProperties(int requiredConfirmations, AccountProperties props)
         {
@@ -117,7 +117,7 @@ namespace Paymetheus
             }
 
             private WalletTransaction _transaction;
-            public Sha256Hash TxHash => _transaction.Hash;
+            public Blake256Hash TxHash => _transaction.Hash;
             public DateTimeOffset LocalSeenTime => _transaction.SeenTime.LocalDateTime;
             public Amount BalanceDelta { get; }
             public Amount? AccountDebit => BalanceDelta < 0 ? BalanceDelta : (Amount?)null;
@@ -369,7 +369,11 @@ namespace Paymetheus
             {
                 if (SignTransaction)
                 {
-                    var outputs = PendingOutputs.Select(po => new Transaction.Output(po.OutputAmount, po.BuildOutputScript().Script)).ToArray();
+                    var outputs = PendingOutputs.Select(po =>
+                    {
+                        var script = po.BuildOutputScript().Script;
+                        return new Transaction.Output(po.OutputAmount, Transaction.Output.LatestPkScriptVersion, script);
+                    }).ToArray();
                     var shell = (ShellViewModel)_parentViewModel;
                     Func<string, Task> action = (passphrase) => SignTransactionWithPassphrase(passphrase, outputs, PublishTransaction);
                     var dialog = new PassphraseDialogViewModel(shell, "Enter passphrase to sign transaction", "Sign", action);
@@ -410,8 +414,8 @@ namespace Paymetheus
             var inputs = selectedOutputs
                 .Select(o =>
                 {
-                    var prevOutPoint = new Transaction.OutPoint(o.TransactionHash, o.OutputIndex);
-                    return new Transaction.Input(prevOutPoint, new byte[0], TransactionRules.MaxInputSequence);
+                    var prevOutPoint = new Transaction.OutPoint(o.TransactionHash, o.OutputIndex, 0);
+                    return Transaction.Input.CreateFromPrefix(prevOutPoint, TransactionRules.MaxInputSequence);
                 })
                 .ToArray();
 
@@ -423,7 +427,8 @@ namespace Paymetheus
             {
                 // Change output amount is calculated by solving for changeAmount with the equation:
                 //   estimatedFee = fundingAmount - (targetAmount + changeAmount)
-                var changeOutput = new Transaction.Output(fundingAmount - targetAmount - estimatedFee, changePkScript.Script);
+                var changeOutput = new Transaction.Output(fundingAmount - targetAmount - estimatedFee,
+                    Transaction.Output.LatestPkScriptVersion, changePkScript.Script);
                 var outputsList = outputs.ToList();
                 // TODO: Randomize change output position.
                 outputsList.Add(changeOutput);
@@ -431,7 +436,7 @@ namespace Paymetheus
             }
 
             // TODO: User may want to set the locktime.
-            var unsignedTransaction = new Transaction(Transaction.LatestVersion, inputs, outputs, 0);
+            var unsignedTransaction = new Transaction(Transaction.SupportedVersion, inputs, outputs, 0, 0);
 
             var signingResponse = await walletClient.SignTransactionAsync(passphrase, unsignedTransaction);
             var complete = signingResponse.Item2;

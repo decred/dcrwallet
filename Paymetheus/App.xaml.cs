@@ -1,7 +1,7 @@
 ﻿// Copyright (c) 2016 The btcsuite developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
-using Paymetheus.Bitcoin;
+using Paymetheus.Decred;
 using Paymetheus.Rpc;
 using System;
 using System.Diagnostics;
@@ -51,7 +51,7 @@ namespace Paymetheus
             var startupTask = Task.Run(async () =>
             {
                 // TODO: Make network selectable (parse e.Args for a network)
-                var activeNetwork = BlockChainIdentity.TestNet3;
+                var activeNetwork = BlockChainIdentity.TestNet;
 
                 // Begin the asynchronous reading of the certificate before starting the wallet
                 // process.  This uses filesystem events to know when to begin reading the certificate,

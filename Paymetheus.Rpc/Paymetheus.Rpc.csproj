@@ -101,9 +101,9 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Paymetheus.Bitcoin\Paymetheus.Bitcoin.csproj">
+    <ProjectReference Include="..\Paymetheus.Decred\Paymetheus.Decred.csproj">
       <Project>{93791f70-6590-4342-9774-64e97b7ef6a4}</Project>
-      <Name>Paymetheus.Bitcoin</Name>
+      <Name>Paymetheus.Decred</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

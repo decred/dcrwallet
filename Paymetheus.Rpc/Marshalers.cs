@@ -1,10 +1,10 @@
 ﻿// Copyright (c) 2016 The btcsuite developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
-using Paymetheus.Bitcoin;
-using Paymetheus.Bitcoin.Script;
-using Paymetheus.Bitcoin.Util;
-using Paymetheus.Bitcoin.Wallet;
+using Paymetheus.Decred;
+using Paymetheus.Decred.Script;
+using Paymetheus.Decred.Util;
+using Paymetheus.Decred.Wallet;
 using System.Linq;
 using Walletrpc;
 
@@ -15,7 +15,7 @@ namespace Paymetheus.Rpc
         public static WalletTransaction MarshalWalletTransaction(TransactionDetails tx)
         {
             var transaction = Transaction.Deserialize(tx.Transaction.ToByteArray());
-            var hash = new Sha256Hash(tx.Hash.ToByteArray());
+            var hash = new Blake256Hash(tx.Hash.ToByteArray());
             var inputs = tx.Debits
                 .Select(i => new WalletTransaction.Input(i.PreviousAmount, new Account(i.PreviousAccount)))
                 .ToArray();
@@ -52,7 +52,7 @@ namespace Paymetheus.Rpc
 
         public static Block MarshalBlock(BlockDetails b)
         {
-            var hash = new Sha256Hash(b.Hash.ToByteArray());
+            var hash = new Blake256Hash(b.Hash.ToByteArray());
             var height = b.Height;
             var unixTime = b.Timestamp;
             var transactions = b.Transactions.Select(MarshalWalletTransaction).ToList();
@@ -62,7 +62,7 @@ namespace Paymetheus.Rpc
 
         public static UnspentOutput MarshalUnspentOutput(FundTransactionResponse.Types.PreviousOutput o)
         {
-            var txHash = new Sha256Hash(o.TransactionHash.ToByteArray());
+            var txHash = new Blake256Hash(o.TransactionHash.ToByteArray());
             var outputIndex = o.OutputIndex;
             var amount = (Amount)o.Amount;
             var pkScript = OutputScript.ParseScript(o.PkScript.ToByteArray());

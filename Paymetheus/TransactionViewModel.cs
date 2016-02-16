@@ -1,8 +1,8 @@
 ﻿// Copyright (c) 2016 The btcsuite developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
-using Paymetheus.Bitcoin;
-using Paymetheus.Bitcoin.Wallet;
+using Paymetheus.Decred;
+using Paymetheus.Decred.Wallet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -64,12 +64,12 @@ namespace Paymetheus
             public string Destination { get; }
         }
 
-        public Sha256Hash TxHash => _transaction.Hash;
+        public Blake256Hash TxHash => _transaction.Hash;
         public Input[] Inputs { get; }
         public Output[] Outputs { get; }
         public Amount? Fee => _transaction.Fee;
         public DateTime LocalSeenTime => _transaction.SeenTime.LocalDateTime;
-        public string CurrencyTicker => Denomination.Bitcoin.Ticker; // TODO: Denomination should be modifiable by user
+        public string CurrencyTicker => Denomination.Decred.Ticker; // TODO: Denomination should be modifiable by user
 
         private BlockIdentity _location;
         public BlockIdentity Location

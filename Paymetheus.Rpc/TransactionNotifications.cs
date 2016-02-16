@@ -2,8 +2,8 @@
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
 using Grpc.Core;
-using Paymetheus.Bitcoin;
-using Paymetheus.Bitcoin.Wallet;
+using Paymetheus.Decred;
+using Paymetheus.Decred.Wallet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -69,10 +69,10 @@ namespace Paymetheus.Rpc
 
                         // Marshal the notification and append to the buffer.
                         var n = responses.Current;
-                        var detachedBlocks = n.DetachedBlocks.Select(hash => new Sha256Hash(hash.ToByteArray())).ToHashSet();
+                        var detachedBlocks = n.DetachedBlocks.Select(hash => new Blake256Hash(hash.ToByteArray())).ToHashSet();
                         var attachedBlocks = n.AttachedBlocks.Select(MarshalBlock).ToList();
                         var unminedTransactions = n.UnminedTransactions.Select(MarshalWalletTransaction).ToList();
-                        var unminedHashes = n.UnminedTransactionHashes.Select(hash => new Sha256Hash(hash.ToByteArray())).ToHashSet();
+                        var unminedHashes = n.UnminedTransactionHashes.Select(hash => new Blake256Hash(hash.ToByteArray())).ToHashSet();
 
                         var changes = new WalletChanges(detachedBlocks, attachedBlocks, unminedTransactions, unminedHashes);
                         _buffer.Post(changes);

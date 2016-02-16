@@ -76,3 +76,8 @@ Test coverage can be viewed in a web browser by navigating to
 ## License
 
 Paymetheus is licensed under the liberal ISC License.
+
+## Acknowledgements
+
+This project uses the BLAKE256 hashing functions from Dominik Reichl's
+[BlakeSharp](http://www.dominik-reichl.de/projects/blakesharp/).

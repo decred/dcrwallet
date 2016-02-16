@@ -8,7 +8,7 @@ namespace Paymetheus.Rpc
 {
     public class ConsensusServerRpcOptions
     {
-        public const string ApplicationName = "btcd";
+        public const string ApplicationName = "dcrd";
 
         public ConsensusServerRpcOptions(string networkAddr, string rpcUser, string rpcPass, string certPath)
         {

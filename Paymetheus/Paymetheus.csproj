@@ -338,9 +338,9 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Paymetheus.Bitcoin\Paymetheus.Bitcoin.csproj">
+    <ProjectReference Include="..\Paymetheus.Decred\Paymetheus.Decred.csproj">
       <Project>{93791f70-6590-4342-9774-64e97b7ef6a4}</Project>
-      <Name>Paymetheus.Bitcoin</Name>
+      <Name>Paymetheus.Decred</Name>
     </ProjectReference>
     <ProjectReference Include="..\Paymetheus.Rpc\Paymetheus.Rpc.csproj">
       <Project>{4bd3b218-0cb0-49d5-8231-b24265ea98b9}</Project>

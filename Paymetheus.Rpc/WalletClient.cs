@@ -3,9 +3,9 @@
 
 using Google.Protobuf;
 using Grpc.Core;
-using Paymetheus.Bitcoin;
-using Paymetheus.Bitcoin.Script;
-using Paymetheus.Bitcoin.Wallet;
+using Paymetheus.Decred;
+using Paymetheus.Decred.Script;
+using Paymetheus.Decred.Wallet;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -321,19 +321,18 @@ namespace Paymetheus.Rpc
                 notificationsTask = notifications.ListenAndBuffer();
 
                 var networkTask = NetworkAsync();
-
-                // Concurrently download transaction history and account properties.
-                var txSetTask = GetTransactionsAsync(Wallet.MinRecentTransactions, Wallet.NumRecentBlocks);
                 var accountsTask = AccountsAsync();
 
                 var networkResp = await networkTask;
                 var activeBlockChain = BlockChainIdentity.FromNetworkBits(networkResp.ActiveNetwork);
 
+                var txSetTask = GetTransactionsAsync(Wallet.MinRecentTransactions, Wallet.NumRecentBlocks(activeBlockChain));
+
                 var txSet = await txSetTask;
                 var rpcAccounts = await accountsTask;
 
                 var lastAccountBlockHeight = rpcAccounts.CurrentBlockHeight;
-                var lastAccountBlockHash = new Sha256Hash(rpcAccounts.CurrentBlockHash.ToByteArray());
+                var lastAccountBlockHash = new Blake256Hash(rpcAccounts.CurrentBlockHash.ToByteArray());
                 var lastTxBlock = txSet.MinedTransactions.LastOrDefault();
                 if (lastTxBlock != null)
                 {
