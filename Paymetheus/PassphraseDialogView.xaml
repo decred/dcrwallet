@@ -13,7 +13,7 @@
         </StackPanel>
         <StackPanel>
             <Label Content="{Binding Path=Header, FallbackValue='Unlock wallet'}" FontSize="18"/>
-            <Label Content="Private passhprase:"/>
+            <Label Content="Private passphrase:"/>
             <PasswordBox Name="textBox" PasswordChanged="textBox_PasswordChanged" Margin="6 2" Padding="2"/>
         </StackPanel>
     </DockPanel>
