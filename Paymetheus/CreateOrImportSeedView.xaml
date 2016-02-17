@@ -11,8 +11,16 @@
             <Button Content="Continue" IsDefault="True" Command="{Binding ContinueCommand}" Width="100" Margin="6,12,3,6" Padding="10 2"/>
         </StackPanel>
         <Label DockPanel.Dock="Top" FontSize="18" Content="Create or recover wallet"/>
-        <RadioButton GroupName="seedSelection" DockPanel.Dock="Top" Content="Create new wallet" IsChecked="{Binding CreateChecked}"/>
-        <RadioButton GroupName="seedSelection" DockPanel.Dock="Top" Content="Recover wallet from seed" IsChecked="{Binding ImportChecked}"/>
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" HorizontalAlignment="Center">
+            <StackPanel.Resources>
+                <Style TargetType="{x:Type RadioButton}">
+                    <Setter Property="Width" Value="160"/>
+                    <Setter Property="GroupName" Value="seedSelection"/>
+                </Style>
+            </StackPanel.Resources>
+            <RadioButton Content="Create new wallet" IsChecked="{Binding CreateChecked}"/>
+            <RadioButton Content="Recover wallet from seed" IsChecked="{Binding ImportChecked}"/>
+        </StackPanel>
         <Grid>
             <StackPanel Visibility="{Binding CreateChecked, Converter={StaticResource hiddenConverter}}">
                 <Label>
