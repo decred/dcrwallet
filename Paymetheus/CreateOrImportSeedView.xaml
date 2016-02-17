@@ -15,7 +15,6 @@
             <StackPanel.Resources>
                 <Style TargetType="{x:Type RadioButton}">
                     <Setter Property="Width" Value="160"/>
-                    <Setter Property="GroupName" Value="seedSelection"/>
                 </Style>
             </StackPanel.Resources>
             <RadioButton Content="Create new wallet" IsChecked="{Binding CreateChecked}"/>
