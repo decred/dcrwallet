@@ -138,8 +138,12 @@
       <DependentUpon>AccountView.xaml</DependentUpon>
     </Compile>
     <Compile Include="AccountViewModel.cs" />
+    <Compile Include="BindingProperties.cs" />
     <Compile Include="ConfirmSeedView.xaml.cs">
       <DependentUpon>ConfirmSeedView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="CreateOrImportSeedView.xaml.cs">
+      <DependentUpon>CreateOrImportSeedView.xaml</DependentUpon>
     </Compile>
     <Compile Include="StartupWizard.cs" />
     <Compile Include="ConnectionWizardView.xaml.cs">
@@ -160,9 +164,6 @@
       <DependentUpon>CreateTransactionView.xaml</DependentUpon>
     </Compile>
     <Compile Include="DialogViewModelBase.cs" />
-    <Compile Include="DisplaySeedView.xaml.cs">
-      <DependentUpon>DisplaySeedView.xaml</DependentUpon>
-    </Compile>
     <Compile Include="ImportDialogView.xaml.cs">
       <DependentUpon>ImportDialogView.xaml</DependentUpon>
     </Compile>
@@ -232,11 +233,11 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="CreateTransactionView.xaml">
+    <Page Include="CreateOrImportSeedView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="DisplaySeedView.xaml">
+    <Page Include="CreateTransactionView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

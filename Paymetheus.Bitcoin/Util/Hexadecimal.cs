@@ -12,7 +12,7 @@ namespace Paymetheus.Bitcoin.Util
         {
             byte[] result;
             if (!TryDecode(value, out result))
-                throw new Exception("Value is not a valid hexadecimal string");
+                throw new HexadecimalEncodingException();
             return result;
         }
 
@@ -71,5 +71,10 @@ namespace Paymetheus.Bitcoin.Util
             }
             return s.ToString();
         }
+    }
+
+    public class HexadecimalEncodingException : Exception
+    {
+        public HexadecimalEncodingException() : base("Value is not a valid hexadecimal string") { }
     }
 }

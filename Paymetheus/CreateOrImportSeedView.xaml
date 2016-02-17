@@ -1,0 +1,43 @@
+﻿<UserControl x:Class="Paymetheus.CreateOrImportSeedView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Paymetheus"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="600">
+    <DockPanel Focusable="False">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Continue" IsDefault="True" Command="{Binding ContinueCommand}" Width="100" Margin="6,12,3,6" Padding="10 2"/>
+        </StackPanel>
+        <Label DockPanel.Dock="Top" FontSize="18" Content="Create or recover wallet"/>
+        <RadioButton GroupName="seedSelection" DockPanel.Dock="Top" Content="Create new wallet" IsChecked="{Binding CreateChecked}"/>
+        <RadioButton GroupName="seedSelection" DockPanel.Dock="Top" Content="Recover wallet from seed" IsChecked="{Binding ImportChecked}"/>
+        <Grid>
+            <StackPanel Visibility="{Binding CreateChecked, Converter={StaticResource hiddenConverter}}">
+                <Label>
+                    <TextBlock TextWrapping="Wrap">
+                        The wallet seed must be backed up before the wallet may be used.
+                        This seed is necessary to recover wallet keys in case of data loss.
+                        Write down this seed and save it in a secure location.
+                        The next prompt will require entering this seed to confirm it has been saved.
+                    </TextBlock>
+                </Label>
+                <Label Content="{Binding Bip0032SeedHex}" FontSize="16" HorizontalContentAlignment="Center"/>
+            </StackPanel>
+            <StackPanel Visibility="{Binding ImportChecked, Converter={StaticResource hiddenConverter}}">
+                <Label>
+                    <TextBlock TextWrapping="Wrap">
+                        The seed from a previously-created wallet may be used to recreate the wallet
+                        with all of its addresses and keys.  The seed should be formatted as a
+                        hexadecimal number (64 characters between 0-9 and A-F) or a list of
+                        mneumonic words.
+                    </TextBlock>
+                </Label>
+                <Label Content="Seed:"/>
+                <TextBox Text="{Binding ImportedSeed, Mode=OneWayToSource}"
+                         local:BindingProperties.UpdateSourceOnEnterProperty="TextBox.Text"/>
+            </StackPanel>
+        </Grid>
+    </DockPanel>
+</UserControl>

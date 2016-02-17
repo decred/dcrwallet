@@ -1,7 +1,4 @@
-﻿// Copyright (c) 2016 The btcsuite developers
-// Licensed under the ISC license.  See LICENSE file in the project root for full license information.
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,11 +16,11 @@ using System.Windows.Shapes;
 namespace Paymetheus
 {
     /// <summary>
-    /// Interaction logic for DisplaySeedView.xaml
+    /// Interaction logic for CreateOrImportSeedView.xaml
     /// </summary>
-    public partial class DisplaySeedView : UserControl
+    public partial class CreateOrImportSeedView : UserControl
     {
-        public DisplaySeedView()
+        public CreateOrImportSeedView()
         {
             InitializeComponent();
         }

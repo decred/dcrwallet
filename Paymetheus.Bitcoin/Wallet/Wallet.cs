@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 
 namespace Paymetheus.Bitcoin.Wallet
 {
@@ -27,11 +26,6 @@ namespace Paymetheus.Bitcoin.Wallet
         /// saved in memory.
         /// </summary>
         public const int MinRecentTransactions = 10;
-
-        /// <summary>
-        /// The length in bytes of the wallet's BIP0032 seed.
-        /// </summary>
-        public const int SeedLength = 32;
 
         public Wallet(BlockChainIdentity activeChain, TransactionSet txSet, Dictionary<Account, AccountProperties> accounts, BlockIdentity chainTip)
         {
@@ -328,15 +322,5 @@ namespace Paymetheus.Bitcoin.Wallet
         public string AccountName(Account account) => _accounts[account].AccountName;
 
         public IEnumerable<KeyValuePair<Account, AccountProperties>> EnumrateAccounts() => _accounts;
-
-        public static byte[] RandomSeed()
-        {
-            var seed = new byte[SeedLength];
-            using (var prng = new RNGCryptoServiceProvider())
-            {
-                prng.GetBytes(seed);
-            }
-            return seed;
-        }
     }
 }
