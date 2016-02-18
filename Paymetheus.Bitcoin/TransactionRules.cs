@@ -105,7 +105,6 @@ namespace Paymetheus.Bitcoin
         }
     }
 
-    [Serializable]
     public class TransactionRuleException : Exception
     {
         public TransactionRuleException(string message) : base(message) { }

@@ -88,7 +88,6 @@ namespace Paymetheus.Bitcoin.Util
         }
     }
 
-    [Serializable]
     public class CanonicalCompactIntException : Exception
     {
         public CanonicalCompactIntException(string message) : base(message) { }

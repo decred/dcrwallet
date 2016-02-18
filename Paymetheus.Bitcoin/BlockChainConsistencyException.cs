@@ -5,7 +5,6 @@ using System;
 
 namespace Paymetheus.Bitcoin
 {
-    [Serializable]
     public class BlockChainConsistencyException : Exception
     {
         internal BlockChainConsistencyException(string message) : base(message) { }

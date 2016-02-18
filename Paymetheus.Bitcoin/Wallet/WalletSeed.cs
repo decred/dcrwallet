@@ -3,7 +3,7 @@
 
 using Paymetheus.Bitcoin.Util;
 using System;
-using System.Security.Cryptography;
+using static PCLCrypto.WinRTCrypto;
 
 namespace Paymetheus.Bitcoin.Wallet
 {
@@ -14,15 +14,7 @@ namespace Paymetheus.Bitcoin.Wallet
         /// </summary>
         public const int SeedLength = 32;
 
-        public static byte[] GenerateRandomSeed()
-        {
-            var seed = new byte[SeedLength];
-            using (var prng = new RNGCryptoServiceProvider())
-            {
-                prng.GetBytes(seed);
-            }
-            return seed;
-        }
+        public static byte[] GenerateRandomSeed() => CryptographicBuffer.GenerateRandom(SeedLength);
 
         /// <summary>
         /// Decodes user input as either the hexadecimal or PGP word list encoding

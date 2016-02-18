@@ -3,11 +3,9 @@
 
 using Paymetheus.Bitcoin.Util;
 using System;
-using System.Runtime.Serialization;
 
 namespace Paymetheus.Bitcoin
 {
-    [Serializable]
     public class EncodingException : Exception
     {
         private const string messageFormat = "Operation uses or creates an invalid encoding for type {0}";
@@ -27,21 +25,7 @@ namespace Paymetheus.Bitcoin
             Cursor = cursor;
         }
 
-        protected EncodingException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
-            ResultType = (Type)info.GetValue(nameof(ResultType), typeof(Type));
-            Cursor = (ByteCursor)info.GetValue(nameof(Cursor), typeof(ByteCursor));
-        }
-
         public Type ResultType { get; }
         public ByteCursor Cursor { get; }
-
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            base.GetObjectData(info, context);
-            info.AddValue(nameof(ResultType), ResultType);
-            info.AddValue(nameof(Cursor), Cursor);
-        }
     }
 }

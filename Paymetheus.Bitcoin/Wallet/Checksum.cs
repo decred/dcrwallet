@@ -1,8 +1,10 @@
 ﻿// Copyright (c) 2016 The btcsuite developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
+using PCLCrypto;
 using System;
-using System.Security.Cryptography;
+using System.IO;
+using static PCLCrypto.WinRTCrypto;
 
 namespace Paymetheus.Bitcoin.Wallet
 {
@@ -63,10 +65,15 @@ namespace Paymetheus.Bitcoin.Wallet
         private static byte[] Hash(byte[] value)
         {
             byte[] hash;
-            using (var hasher = SHA256.Create())
+            using (var hasher = HashAlgorithmProvider.OpenAlgorithm(HashAlgorithm.Sha256).CreateHash())
             {
-                var intermediateHash = hasher.ComputeHash(value, 0, value.Length - SumLength);
-                hash = hasher.ComputeHash(intermediateHash);
+                using (var stream = new CryptoStream(Stream.Null, hasher, CryptoStreamMode.Write))
+                {
+                    stream.Write(value, 0, value.Length - SumLength);
+                }
+                var intermediateHash = hasher.GetValueAndReset();
+                hasher.Append(intermediateHash);
+                hash = hasher.GetValueAndReset();
             }
 
             if (hash.Length != Sha256Hash.Length || hash.Length < SumLength)
@@ -76,7 +83,6 @@ namespace Paymetheus.Bitcoin.Wallet
         }
     }
 
-    [Serializable]
     public class ChecksumException : Exception
     {
         public ChecksumException(string message) : base(message) { }
