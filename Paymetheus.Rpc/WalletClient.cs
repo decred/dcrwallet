@@ -272,7 +272,7 @@ namespace Paymetheus.Rpc
             var outputs = response.SelectedOutputs.Select(MarshalUnspentOutput).ToList();
             var total = (Amount)response.TotalAmount;
             var changeScript = (OutputScript)null;
-            if (response.ChangePkScript != null)
+            if (response.ChangePkScript?.Length != 0)
             {
                 changeScript = OutputScript.ParseScript(response.ChangePkScript.ToByteArray());
             }

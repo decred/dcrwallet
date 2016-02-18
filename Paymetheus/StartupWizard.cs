@@ -21,7 +21,6 @@ namespace Paymetheus
         }
 
         public ShellViewModel Shell { get; }
-        public byte[] WalletSeed { get; set; }
 
         public event EventHandler WalletOpened;
 
@@ -107,7 +106,7 @@ namespace Paymetheus
                 var walletExists = await App.Current.WalletRpcClient.WalletExistsAsync();
                 if (!walletExists)
                 {
-                    _wizard.CurrentDialog = new DisplaySeedDialog(Wizard);
+                    _wizard.CurrentDialog = new CreateOrImportSeedDialog(Wizard);
                 }
                 else
                 {
@@ -131,41 +130,91 @@ namespace Paymetheus
         }
     }
 
-    sealed class DisplaySeedDialog : ConnectionWizardDialog
+    sealed class CreateOrImportSeedDialog : ConnectionWizardDialog
     {
-        public DisplaySeedDialog(StartupWizard wizard) : base(wizard)
+        public CreateOrImportSeedDialog(StartupWizard wizard) : base(wizard)
         {
-            AdvanceToConfirmationCommand = new DelegateCommand(AdvanceToConfirmation);
+            _randomSeed = WalletSeed.GenerateRandomSeed();
 
-            if (wizard.WalletSeed == null)
-            {
-                wizard.WalletSeed = Wallet.RandomSeed();
-            }
+            ContinueCommand = new DelegateCommand(Continue);
+            ContinueCommand.Executable = false;
         }
+
+        private byte[] _randomSeed;
+        private PgpWordList _pgpWordList = new PgpWordList();
 
         // TODO: Convert seed using a wordlist instead of encoding as hex so this is easier
         // for the user to write down and type into the next dialog.
-        public string Bip0032SeedHex => Hexadecimal.Encode(Wizard.WalletSeed);
+        public string Bip0032SeedHex => Hexadecimal.Encode(_randomSeed);
 
-        public DelegateCommand AdvanceToConfirmationCommand { get; }
-        private void AdvanceToConfirmation()
+        private bool _createChecked;
+        public bool CreateChecked
         {
-            Wizard.CurrentDialog = new ConfirmSeedBackupDialog(Wizard);
+            get { return _createChecked; }
+            set
+            {
+                _createChecked = value;
+                RaisePropertyChanged();
+                ContinueCommand.Executable = true;
+            }
+        }
+
+        private bool _importChecked;
+        public bool ImportChecked
+        {
+            get { return _importChecked; }
+            set
+            {
+                _importChecked = value;
+                RaisePropertyChanged();
+                ContinueCommand.Executable = true;
+            }
+        }
+
+        public string ImportedSeed { get; set; }
+
+        public DelegateCommand ContinueCommand { get; }
+        private void Continue()
+        {
+            try
+            {
+                ContinueCommand.Executable = false;
+
+                if (CreateChecked)
+                {
+                    Wizard.CurrentDialog = new ConfirmSeedBackupDialog(Wizard, _randomSeed, this);
+                }
+                else
+                {
+                    var seed = WalletSeed.DecodeAndValidateUserInput(ImportedSeed, _pgpWordList);
+                    Wizard.CurrentDialog = new PromptPassphrasesDialog(Wizard, seed);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error");
+            }
+            finally
+            {
+                ContinueCommand.Executable = true;
+            }
         }
     }
 
     sealed class ConfirmSeedBackupDialog : ConnectionWizardDialog
     {
-        public ConfirmSeedBackupDialog(StartupWizard wizard) : base(wizard)
+        public ConfirmSeedBackupDialog(StartupWizard wizard, byte[] seed, CreateOrImportSeedDialog previousDialog)
+            : base(wizard)
         {
-            if (wizard.WalletSeed == null)
-            {
-                throw new Exception("Verification dialog requires seed");
-            }
+            _seed = seed;
+            _previousDialog = previousDialog;
 
             ConfirmSeedCommand = new DelegateCommand(ConfirmSeed);
             BackCommand = new DelegateCommand(Back);
         }
+
+        private byte[] _seed;
+        private CreateOrImportSeedDialog _previousDialog;
 
         public string Input { get; set; } = "";
 
@@ -175,9 +224,9 @@ namespace Paymetheus
             byte[] decodedSeed;
             if (Hexadecimal.TryDecode(Input, out decodedSeed))
             {
-                if (ValueArray.ShallowEquals(Wizard.WalletSeed, decodedSeed))
+                if (ValueArray.ShallowEquals(_seed, decodedSeed))
                 {
-                    _wizard.CurrentDialog = new PromptPassphrasesDialog(Wizard);
+                    _wizard.CurrentDialog = new PromptPassphrasesDialog(Wizard, _seed);
                     return;
                 }
             }
@@ -188,19 +237,22 @@ namespace Paymetheus
         public DelegateCommand BackCommand { get; }
         private void Back()
         {
-            Wizard.CurrentDialog = new DisplaySeedDialog(Wizard);
+            Wizard.CurrentDialog = _previousDialog;
         }
     }
 
     sealed class PromptPassphrasesDialog : ConnectionWizardDialog
     {
-        public PromptPassphrasesDialog(StartupWizard wizard) : base(wizard)
+        public PromptPassphrasesDialog(StartupWizard wizard, byte[] seed) : base(wizard)
         {
+            _seed = seed;
+
             CreateWalletCommand = new DelegateCommand(CreateWallet);
         }
 
-        private bool _usePublicEncryption = false;
+        private byte[] _seed;
 
+        private bool _usePublicEncryption;
         public bool UsePublicEncryption
         {
             get { return _usePublicEncryption; }
@@ -236,9 +288,9 @@ namespace Paymetheus
                     }
                 }
 
-                await App.Current.WalletRpcClient.CreateWallet(publicPassphrase, PrivatePassphrase, Wizard.WalletSeed);
+                await App.Current.WalletRpcClient.CreateWallet(publicPassphrase, PrivatePassphrase, _seed);
 
-                ValueArray.Zero(Wizard.WalletSeed);
+                ValueArray.Zero(_seed);
                 Wizard.InvokeWalletOpened();
             }
             finally

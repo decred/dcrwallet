@@ -10,8 +10,8 @@
         <DataTemplate DataType="{x:Type local:ConsensusServerRpcConnectionDialog}">
             <local:ConsensusServerConnectionOptionsView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type local:DisplaySeedDialog}">
-            <local:DisplaySeedView/>
+        <DataTemplate DataType="{x:Type local:CreateOrImportSeedDialog}">
+            <local:CreateOrImportSeedView/>
         </DataTemplate>
         <DataTemplate DataType="{x:Type local:PromptPublicPassphraseDialog}">
             <local:PublicPassphrasePromptView/>

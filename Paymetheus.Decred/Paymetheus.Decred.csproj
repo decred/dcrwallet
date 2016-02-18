@@ -82,6 +82,7 @@
     <Compile Include="Wallet\UnspentOutput.cs" />
     <Compile Include="Wallet\Wallet.cs" />
     <Compile Include="Wallet\WalletChanges.cs" />
+    <Compile Include="Wallet\WalletSeed.cs" />
     <Compile Include="Wallet\WalletTransaction.cs" />
   </ItemGroup>
   <ItemGroup>
