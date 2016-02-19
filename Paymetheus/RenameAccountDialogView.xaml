@@ -29,7 +29,9 @@
                 </TextBlock>
             </Label>
             <Label Content="New name:"/>
-            <TextBox Name="textBox" Text="{Binding NewAccountName, UpdateSourceTrigger=Default}" Margin="6 2" Padding="2" KeyDown="textBox_KeyDown"/>
+            <TextBox Name="textBox" Margin="6 2" Padding="2"
+                     Text="{Binding NewAccountName, Mode=OneWayToSource}"
+                     local:BindingProperties.UpdateSourceOnEnterProperty="TextBox.Text"/>
         </StackPanel>
     </DockPanel>
 </UserControl>

@@ -28,18 +28,6 @@ namespace Paymetheus
             InitializeComponent();
         }
 
-        private void textBox_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-            {
-                var textBox = (TextBox)sender;
-                var prop = TextBox.TextProperty;
-
-                var binding = BindingOperations.GetBindingExpression(textBox, prop);
-                binding?.UpdateSource();
-            }
-        }
-
         private void PasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
         {
             if (DataContext != null)
