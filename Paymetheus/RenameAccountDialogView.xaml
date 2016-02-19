@@ -8,7 +8,17 @@
              d:DesignHeight="200" d:DesignWidth="500">
     <DockPanel FocusManager.FocusedElement="{Binding ElementName=textBox}">
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Rename" IsDefault="True" Command="{Binding Rename}" Width="100" Margin="6 12 3 6" Padding="10 2"/>
+            <Button Content="Rename" IsDefault="True" Command="{Binding Rename}" Width="100" Margin="6 12 3 6" Padding="10 2">
+                <Button.Style>
+                    <Style TargetType="{x:Type Button}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Text, ElementName=textBox}" Value="">
+                                <Setter Property="IsEnabled" Value="False"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
             <Button Content="Cancel" IsCancel="True" Command="{Binding HideDialogCommand}" Width="100" Margin="3 12 6 6" Padding="10 2"/>
         </StackPanel>
         <StackPanel>
