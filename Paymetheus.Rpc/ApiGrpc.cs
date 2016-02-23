@@ -169,7 +169,7 @@ namespace Walletrpc {
     // service descriptor
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
     {
-      get { return global::Walletrpc.Api.Descriptor.Services[0]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.Services[0]; }
     }
 
     // client interface
@@ -662,7 +662,7 @@ namespace Walletrpc {
     // service descriptor
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
     {
-      get { return global::Walletrpc.Api.Descriptor.Services[1]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.Services[1]; }
     }
 
     // client interface
