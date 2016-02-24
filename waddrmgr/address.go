@@ -498,13 +498,13 @@ func (a *scriptAddress) Script() ([]byte, error) {
 		return nil, managerError(ErrWatchingOnly, errWatchingOnly, nil)
 	}
 
-	a.manager.mtx.Lock()
-	defer a.manager.mtx.Unlock()
-
 	// Account manager must be unlocked to decrypt the script.
 	if a.manager.locked {
 		return nil, managerError(ErrLocked, errLocked, nil)
 	}
+
+	a.manager.mtx.Lock()
+	defer a.manager.mtx.Unlock()
 
 	// Decrypt the script as needed.  Also, make sure it's a copy since the
 	// script stored in memory can be cleared at any time.  Otherwise,
