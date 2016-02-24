@@ -542,10 +542,7 @@ func (w *Wallet) addRelevantTx(rec *wtxmgr.TxRecord,
 			// entire multisig output info, consider
 			// a specific exists function in wtxmgr. cj
 			mso, err := w.TxStore.GetMultisigOutput(&input.PreviousOutPoint)
-			if err != nil {
-				return err
-			}
-			if mso != nil {
+			if mso != nil && err == nil {
 				w.TxStore.SpendMultisigOut(&input.PreviousOutPoint,
 					rec.Hash,
 					uint32(i))
