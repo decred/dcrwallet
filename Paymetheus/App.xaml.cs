@@ -24,7 +24,16 @@ namespace Paymetheus
 
             Application.Current.Dispatcher.UnhandledException += (sender, args) =>
             {
-                MessageBox.Show(args.Exception.Message, "Error");
+                var ex = args.Exception;
+
+                var ae = ex as AggregateException;
+                Exception inner;
+                if (ae != null && ae.TryUnwrap(out inner))
+                {
+                    ex = inner;
+                }
+
+                MessageBox.Show(ex.Message, "Error");
                 UncleanShutdown();
                 Application.Current.Shutdown(1);
             };
