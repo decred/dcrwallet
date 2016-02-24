@@ -23,144 +23,151 @@ namespace Walletrpc {
     static ApiReflection() {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
-            "CglhcGkucHJvdG8SCXdhbGxldHJwYyLcAgoSVHJhbnNhY3Rpb25EZXRhaWxz",
-            "EgwKBGhhc2gYASABKAwSEwoLdHJhbnNhY3Rpb24YAiABKAwSMwoGZGViaXRz",
-            "GAMgAygLMiMud2FsbGV0cnBjLlRyYW5zYWN0aW9uRGV0YWlscy5JbnB1dBI1",
-            "CgdvdXRwdXRzGAQgAygLMiQud2FsbGV0cnBjLlRyYW5zYWN0aW9uRGV0YWls",
-            "cy5PdXRwdXQSCwoDZmVlGAUgASgDEhEKCXRpbWVzdGFtcBgGIAEoAxpJCgVJ",
-            "bnB1dBINCgVpbmRleBgBIAEoDRIYChBwcmV2aW91c19hY2NvdW50GAIgASgN",
-            "EhcKD3ByZXZpb3VzX2Ftb3VudBgDIAEoAxpMCgZPdXRwdXQSDAoEbWluZRgD",
-            "IAEoCBIPCgdhY2NvdW50GAQgASgNEhAKCGludGVybmFsGAUgASgIEhEKCWFk",
-            "ZHJlc3NlcxgGIAMoCSJ0CgxCbG9ja0RldGFpbHMSDAoEaGFzaBgBIAEoDBIO",
-            "CgZoZWlnaHQYAiABKAUSEQoJdGltZXN0YW1wGAMgASgDEjMKDHRyYW5zYWN0",
-            "aW9ucxgEIAMoCzIdLndhbGxldHJwYy5UcmFuc2FjdGlvbkRldGFpbHMiOAoO",
-            "QWNjb3VudEJhbGFuY2USDwoHYWNjb3VudBgBIAEoDRIVCg10b3RhbF9iYWxh",
-            "bmNlGAIgASgDIg0KC1BpbmdSZXF1ZXN0Ig4KDFBpbmdSZXNwb25zZSIQCg5O",
-            "ZXR3b3JrUmVxdWVzdCIpCg9OZXR3b3JrUmVzcG9uc2USFgoOYWN0aXZlX25l",
-            "dHdvcmsYASABKA0iLAoUQWNjb3VudE51bWJlclJlcXVlc3QSFAoMYWNjb3Vu",
-            "dF9uYW1lGAEgASgJIi8KFUFjY291bnROdW1iZXJSZXNwb25zZRIWCg5hY2Nv",
-            "dW50X251bWJlchgBIAEoDSIRCg9BY2NvdW50c1JlcXVlc3QiqAIKEEFjY291",
-            "bnRzUmVzcG9uc2USNQoIYWNjb3VudHMYASADKAsyIy53YWxsZXRycGMuQWNj",
-            "b3VudHNSZXNwb25zZS5BY2NvdW50EhoKEmN1cnJlbnRfYmxvY2tfaGFzaBgC",
-            "IAEoDBIcChRjdXJyZW50X2Jsb2NrX2hlaWdodBgDIAEoBRqiAQoHQWNjb3Vu",
-            "dBIWCg5hY2NvdW50X251bWJlchgBIAEoDRIUCgxhY2NvdW50X25hbWUYAiAB",
-            "KAkSFQoNdG90YWxfYmFsYW5jZRgDIAEoAxIaChJleHRlcm5hbF9rZXlfY291",
-            "bnQYBCABKA0SGgoSaW50ZXJuYWxfa2V5X2NvdW50GAUgASgNEhoKEmltcG9y",
-            "dGVkX2tleV9jb3VudBgGIAEoDSJAChRSZW5hbWVBY2NvdW50UmVxdWVzdBIW",
-            "Cg5hY2NvdW50X251bWJlchgBIAEoDRIQCghuZXdfbmFtZRgCIAEoCSIXChVS",
-            "ZW5hbWVBY2NvdW50UmVzcG9uc2UiPgoSTmV4dEFjY291bnRSZXF1ZXN0EhIK",
-            "CnBhc3NwaHJhc2UYASABKAwSFAoMYWNjb3VudF9uYW1lGAIgASgJIi0KE05l",
-            "eHRBY2NvdW50UmVzcG9uc2USFgoOYWNjb3VudF9udW1iZXIYASABKA0iiwEK",
-            "Ek5leHRBZGRyZXNzUmVxdWVzdBIPCgdhY2NvdW50GAEgASgNEjAKBGtpbmQY",
-            "AiABKA4yIi53YWxsZXRycGMuTmV4dEFkZHJlc3NSZXF1ZXN0LktpbmQiMgoE",
-            "S2luZBIUChBCSVAwMDQ0X0VYVEVSTkFMEAASFAoQQklQMDA0NF9JTlRFUk5B",
-            "TBABIiYKE05leHRBZGRyZXNzUmVzcG9uc2USDwoHYWRkcmVzcxgBIAEoCSJn",
-            "ChdJbXBvcnRQcml2YXRlS2V5UmVxdWVzdBISCgpwYXNzcGhyYXNlGAEgASgM",
-            "Eg8KB2FjY291bnQYAiABKA0SFwoPcHJpdmF0ZV9rZXlfd2lmGAMgASgJEg4K",
-            "BnJlc2NhbhgEIAEoCCIaChhJbXBvcnRQcml2YXRlS2V5UmVzcG9uc2UiSAoO",
-            "QmFsYW5jZVJlcXVlc3QSFgoOYWNjb3VudF9udW1iZXIYASABKA0SHgoWcmVx",
-            "dWlyZWRfY29uZmlybWF0aW9ucxgCIAEoBSJMCg9CYWxhbmNlUmVzcG9uc2US",
-            "DQoFdG90YWwYASABKAMSEQoJc3BlbmRhYmxlGAIgASgDEhcKD2ltbWF0dXJl",
-            "X3Jld2FyZBgDIAEoAyKxAQoWR2V0VHJhbnNhY3Rpb25zUmVxdWVzdBIbChNz",
-            "dGFydGluZ19ibG9ja19oYXNoGAEgASgMEh0KFXN0YXJ0aW5nX2Jsb2NrX2hl",
-            "aWdodBgCIAEoERIZChFlbmRpbmdfYmxvY2tfaGFzaBgDIAEoDBIbChNlbmRp",
-            "bmdfYmxvY2tfaGVpZ2h0GAQgASgFEiMKG21pbmltdW1fcmVjZW50X3RyYW5z",
-            "YWN0aW9ucxgFIAEoBSKLAQoXR2V0VHJhbnNhY3Rpb25zUmVzcG9uc2USMwoS",
-            "bWluZWRfdHJhbnNhY3Rpb25zGAEgAygLMhcud2FsbGV0cnBjLkJsb2NrRGV0",
-            "YWlscxI7ChR1bm1pbmVkX3RyYW5zYWN0aW9ucxgCIAMoCzIdLndhbGxldHJw",
-            "Yy5UcmFuc2FjdGlvbkRldGFpbHMingEKF0NoYW5nZVBhc3NwaHJhc2VSZXF1",
-            "ZXN0EjMKA2tleRgBIAEoDjImLndhbGxldHJwYy5DaGFuZ2VQYXNzcGhyYXNl",
-            "UmVxdWVzdC5LZXkSFgoOb2xkX3Bhc3NwaHJhc2UYAiABKAwSFgoObmV3X3Bh",
-            "c3NwaHJhc2UYAyABKAwiHgoDS2V5EgsKB1BSSVZBVEUQABIKCgZQVUJMSUMQ",
-            "ASIaChhDaGFuZ2VQYXNzcGhyYXNlUmVzcG9uc2UiowEKFkZ1bmRUcmFuc2Fj",
-            "dGlvblJlcXVlc3QSDwoHYWNjb3VudBgBIAEoDRIVCg10YXJnZXRfYW1vdW50",
-            "GAIgASgDEh4KFnJlcXVpcmVkX2NvbmZpcm1hdGlvbnMYAyABKAUSIgoaaW5j",
-            "bHVkZV9pbW1hdHVyZV9jb2luYmFzZXMYBCABKAgSHQoVaW5jbHVkZV9jaGFu",
-            "Z2Vfc2NyaXB0GAUgASgIIqkCChdGdW5kVHJhbnNhY3Rpb25SZXNwb25zZRJL",
-            "ChBzZWxlY3RlZF9vdXRwdXRzGAEgAygLMjEud2FsbGV0cnBjLkZ1bmRUcmFu",
-            "c2FjdGlvblJlc3BvbnNlLlByZXZpb3VzT3V0cHV0EhQKDHRvdGFsX2Ftb3Vu",
-            "dBgCIAEoAxIYChBjaGFuZ2VfcGtfc2NyaXB0GAMgASgMGpABCg5QcmV2aW91",
-            "c091dHB1dBIYChB0cmFuc2FjdGlvbl9oYXNoGAEgASgMEhQKDG91dHB1dF9p",
-            "bmRleBgCIAEoDRIOCgZhbW91bnQYAyABKAMSEQoJcGtfc2NyaXB0GAQgASgM",
-            "EhQKDHJlY2VpdmVfdGltZRgFIAEoAxIVCg1mcm9tX2NvaW5iYXNlGAYgASgI",
-            "ImMKFlNpZ25UcmFuc2FjdGlvblJlcXVlc3QSEgoKcGFzc3BocmFzZRgBIAEo",
-            "DBIeChZzZXJpYWxpemVkX3RyYW5zYWN0aW9uGAIgASgMEhUKDWlucHV0X2lu",
-            "ZGV4ZXMYAyADKA0iTgoXU2lnblRyYW5zYWN0aW9uUmVzcG9uc2USEwoLdHJh",
-            "bnNhY3Rpb24YASABKAwSHgoWdW5zaWduZWRfaW5wdXRfaW5kZXhlcxgCIAMo",
-            "DSI3ChlQdWJsaXNoVHJhbnNhY3Rpb25SZXF1ZXN0EhoKEnNpZ25lZF90cmFu",
-            "c2FjdGlvbhgBIAEoDCIcChpQdWJsaXNoVHJhbnNhY3Rpb25SZXNwb25zZSIh",
-            "Ch9UcmFuc2FjdGlvbk5vdGlmaWNhdGlvbnNSZXF1ZXN0Is4BCiBUcmFuc2Fj",
-            "dGlvbk5vdGlmaWNhdGlvbnNSZXNwb25zZRIwCg9hdHRhY2hlZF9ibG9ja3MY",
-            "ASADKAsyFy53YWxsZXRycGMuQmxvY2tEZXRhaWxzEhcKD2RldGFjaGVkX2Js",
-            "b2NrcxgCIAMoDBI7ChR1bm1pbmVkX3RyYW5zYWN0aW9ucxgDIAMoCzIdLndh",
-            "bGxldHJwYy5UcmFuc2FjdGlvbkRldGFpbHMSIgoadW5taW5lZF90cmFuc2Fj",
-            "dGlvbl9oYXNoZXMYBCADKAwiZAodU3BlbnRuZXNzTm90aWZpY2F0aW9uc1Jl",
-            "cXVlc3QSDwoHYWNjb3VudBgBIAEoDRIZChFub19ub3RpZnlfdW5zcGVudBgC",
-            "IAEoCBIXCg9ub19ub3RpZnlfc3BlbnQYAyABKAgizgEKHlNwZW50bmVzc05v",
-            "dGlmaWNhdGlvbnNSZXNwb25zZRIYChB0cmFuc2FjdGlvbl9oYXNoGAEgASgM",
-            "EhQKDG91dHB1dF9pbmRleBgCIAEoDRJCCgdzcGVuZGVyGAMgASgLMjEud2Fs",
-            "bGV0cnBjLlNwZW50bmVzc05vdGlmaWNhdGlvbnNSZXNwb25zZS5TcGVuZGVy",
-            "GjgKB1NwZW5kZXISGAoQdHJhbnNhY3Rpb25faGFzaBgBIAEoDBITCgtpbnB1",
-            "dF9pbmRleBgCIAEoDSIdChtBY2NvdW50Tm90aWZpY2F0aW9uc1JlcXVlc3Qi",
-            "oAEKHEFjY291bnROb3RpZmljYXRpb25zUmVzcG9uc2USFgoOYWNjb3VudF9u",
-            "dW1iZXIYASABKA0SFAoMYWNjb3VudF9uYW1lGAIgASgJEhoKEmV4dGVybmFs",
-            "X2tleV9jb3VudBgDIAEoDRIaChJpbnRlcm5hbF9rZXlfY291bnQYBCABKA0S",
-            "GgoSaW1wb3J0ZWRfa2V5X2NvdW50GAUgASgNIloKE0NyZWF0ZVdhbGxldFJl",
-            "cXVlc3QSGQoRcHVibGljX3Bhc3NwaHJhc2UYASABKAwSGgoScHJpdmF0ZV9w",
-            "YXNzcGhyYXNlGAIgASgMEgwKBHNlZWQYAyABKAwiFgoUQ3JlYXRlV2FsbGV0",
-            "UmVzcG9uc2UiLgoRT3BlbldhbGxldFJlcXVlc3QSGQoRcHVibGljX3Bhc3Nw",
-            "aHJhc2UYASABKAwiFAoST3BlbldhbGxldFJlc3BvbnNlIhQKEkNsb3NlV2Fs",
-            "bGV0UmVxdWVzdCIVChNDbG9zZVdhbGxldFJlc3BvbnNlIhUKE1dhbGxldEV4",
-            "aXN0c1JlcXVlc3QiJgoUV2FsbGV0RXhpc3RzUmVzcG9uc2USDgoGZXhpc3Rz",
-            "GAEgASgIImcKE1N0YXJ0QnRjZFJwY1JlcXVlc3QSFwoPbmV0d29ya19hZGRy",
-            "ZXNzGAEgASgJEhAKCHVzZXJuYW1lGAIgASgJEhAKCHBhc3N3b3JkGAMgASgM",
-            "EhMKC2NlcnRpZmljYXRlGAQgASgMIhYKFFN0YXJ0QnRjZFJwY1Jlc3BvbnNl",
-            "MtMLCg1XYWxsZXRTZXJ2aWNlEjcKBFBpbmcSFi53YWxsZXRycGMuUGluZ1Jl",
-            "cXVlc3QaFy53YWxsZXRycGMuUGluZ1Jlc3BvbnNlEkAKB05ldHdvcmsSGS53",
-            "YWxsZXRycGMuTmV0d29ya1JlcXVlc3QaGi53YWxsZXRycGMuTmV0d29ya1Jl",
-            "c3BvbnNlElIKDUFjY291bnROdW1iZXISHy53YWxsZXRycGMuQWNjb3VudE51",
-            "bWJlclJlcXVlc3QaIC53YWxsZXRycGMuQWNjb3VudE51bWJlclJlc3BvbnNl",
-            "EkMKCEFjY291bnRzEhoud2FsbGV0cnBjLkFjY291bnRzUmVxdWVzdBobLndh",
-            "bGxldHJwYy5BY2NvdW50c1Jlc3BvbnNlEkAKB0JhbGFuY2USGS53YWxsZXRy",
-            "cGMuQmFsYW5jZVJlcXVlc3QaGi53YWxsZXRycGMuQmFsYW5jZVJlc3BvbnNl",
-            "ElgKD0dldFRyYW5zYWN0aW9ucxIhLndhbGxldHJwYy5HZXRUcmFuc2FjdGlv",
-            "bnNSZXF1ZXN0GiIud2FsbGV0cnBjLkdldFRyYW5zYWN0aW9uc1Jlc3BvbnNl",
-            "EnUKGFRyYW5zYWN0aW9uTm90aWZpY2F0aW9ucxIqLndhbGxldHJwYy5UcmFu",
-            "c2FjdGlvbk5vdGlmaWNhdGlvbnNSZXF1ZXN0Gisud2FsbGV0cnBjLlRyYW5z",
-            "YWN0aW9uTm90aWZpY2F0aW9uc1Jlc3BvbnNlMAESbwoWU3BlbnRuZXNzTm90",
-            "aWZpY2F0aW9ucxIoLndhbGxldHJwYy5TcGVudG5lc3NOb3RpZmljYXRpb25z",
-            "UmVxdWVzdBopLndhbGxldHJwYy5TcGVudG5lc3NOb3RpZmljYXRpb25zUmVz",
-            "cG9uc2UwARJpChRBY2NvdW50Tm90aWZpY2F0aW9ucxImLndhbGxldHJwYy5B",
-            "Y2NvdW50Tm90aWZpY2F0aW9uc1JlcXVlc3QaJy53YWxsZXRycGMuQWNjb3Vu",
-            "dE5vdGlmaWNhdGlvbnNSZXNwb25zZTABElsKEENoYW5nZVBhc3NwaHJhc2US",
-            "Ii53YWxsZXRycGMuQ2hhbmdlUGFzc3BocmFzZVJlcXVlc3QaIy53YWxsZXRy",
-            "cGMuQ2hhbmdlUGFzc3BocmFzZVJlc3BvbnNlElIKDVJlbmFtZUFjY291bnQS",
-            "Hy53YWxsZXRycGMuUmVuYW1lQWNjb3VudFJlcXVlc3QaIC53YWxsZXRycGMu",
-            "UmVuYW1lQWNjb3VudFJlc3BvbnNlEkwKC05leHRBY2NvdW50Eh0ud2FsbGV0",
-            "cnBjLk5leHRBY2NvdW50UmVxdWVzdBoeLndhbGxldHJwYy5OZXh0QWNjb3Vu",
-            "dFJlc3BvbnNlEkwKC05leHRBZGRyZXNzEh0ud2FsbGV0cnBjLk5leHRBZGRy",
-            "ZXNzUmVxdWVzdBoeLndhbGxldHJwYy5OZXh0QWRkcmVzc1Jlc3BvbnNlElsK",
-            "EEltcG9ydFByaXZhdGVLZXkSIi53YWxsZXRycGMuSW1wb3J0UHJpdmF0ZUtl",
-            "eVJlcXVlc3QaIy53YWxsZXRycGMuSW1wb3J0UHJpdmF0ZUtleVJlc3BvbnNl",
-            "ElgKD0Z1bmRUcmFuc2FjdGlvbhIhLndhbGxldHJwYy5GdW5kVHJhbnNhY3Rp",
-            "b25SZXF1ZXN0GiIud2FsbGV0cnBjLkZ1bmRUcmFuc2FjdGlvblJlc3BvbnNl",
-            "ElgKD1NpZ25UcmFuc2FjdGlvbhIhLndhbGxldHJwYy5TaWduVHJhbnNhY3Rp",
-            "b25SZXF1ZXN0GiIud2FsbGV0cnBjLlNpZ25UcmFuc2FjdGlvblJlc3BvbnNl",
-            "EmEKElB1Ymxpc2hUcmFuc2FjdGlvbhIkLndhbGxldHJwYy5QdWJsaXNoVHJh",
-            "bnNhY3Rpb25SZXF1ZXN0GiUud2FsbGV0cnBjLlB1Ymxpc2hUcmFuc2FjdGlv",
-            "blJlc3BvbnNlMqEDChNXYWxsZXRMb2FkZXJTZXJ2aWNlEk8KDFdhbGxldEV4",
-            "aXN0cxIeLndhbGxldHJwYy5XYWxsZXRFeGlzdHNSZXF1ZXN0Gh8ud2FsbGV0",
-            "cnBjLldhbGxldEV4aXN0c1Jlc3BvbnNlEk8KDENyZWF0ZVdhbGxldBIeLndh",
-            "bGxldHJwYy5DcmVhdGVXYWxsZXRSZXF1ZXN0Gh8ud2FsbGV0cnBjLkNyZWF0",
-            "ZVdhbGxldFJlc3BvbnNlEkkKCk9wZW5XYWxsZXQSHC53YWxsZXRycGMuT3Bl",
-            "bldhbGxldFJlcXVlc3QaHS53YWxsZXRycGMuT3BlbldhbGxldFJlc3BvbnNl",
-            "EkwKC0Nsb3NlV2FsbGV0Eh0ud2FsbGV0cnBjLkNsb3NlV2FsbGV0UmVxdWVz",
-            "dBoeLndhbGxldHJwYy5DbG9zZVdhbGxldFJlc3BvbnNlEk8KDFN0YXJ0QnRj",
-            "ZFJwYxIeLndhbGxldHJwYy5TdGFydEJ0Y2RScGNSZXF1ZXN0Gh8ud2FsbGV0",
-            "cnBjLlN0YXJ0QnRjZFJwY1Jlc3BvbnNlYgZwcm90bzM="));
+            "CglhcGkucHJvdG8SCXdhbGxldHJwYyIQCg5WZXJzaW9uUmVxdWVzdCKCAQoP",
+            "VmVyc2lvblJlc3BvbnNlEhYKDnZlcnNpb25fc3RyaW5nGAEgASgJEg0KBW1h",
+            "am9yGAIgASgNEg0KBW1pbm9yGAMgASgNEg0KBXBhdGNoGAQgASgNEhIKCnBy",
+            "ZXJlbGVhc2UYBSABKAkSFgoOYnVpbGRfbWV0YWRhdGEYBiABKAki3AIKElRy",
+            "YW5zYWN0aW9uRGV0YWlscxIMCgRoYXNoGAEgASgMEhMKC3RyYW5zYWN0aW9u",
+            "GAIgASgMEjMKBmRlYml0cxgDIAMoCzIjLndhbGxldHJwYy5UcmFuc2FjdGlv",
+            "bkRldGFpbHMuSW5wdXQSNQoHb3V0cHV0cxgEIAMoCzIkLndhbGxldHJwYy5U",
+            "cmFuc2FjdGlvbkRldGFpbHMuT3V0cHV0EgsKA2ZlZRgFIAEoAxIRCgl0aW1l",
+            "c3RhbXAYBiABKAMaSQoFSW5wdXQSDQoFaW5kZXgYASABKA0SGAoQcHJldmlv",
+            "dXNfYWNjb3VudBgCIAEoDRIXCg9wcmV2aW91c19hbW91bnQYAyABKAMaTAoG",
+            "T3V0cHV0EgwKBG1pbmUYAyABKAgSDwoHYWNjb3VudBgEIAEoDRIQCghpbnRl",
+            "cm5hbBgFIAEoCBIRCglhZGRyZXNzZXMYBiADKAkidAoMQmxvY2tEZXRhaWxz",
+            "EgwKBGhhc2gYASABKAwSDgoGaGVpZ2h0GAIgASgFEhEKCXRpbWVzdGFtcBgD",
+            "IAEoAxIzCgx0cmFuc2FjdGlvbnMYBCADKAsyHS53YWxsZXRycGMuVHJhbnNh",
+            "Y3Rpb25EZXRhaWxzIjgKDkFjY291bnRCYWxhbmNlEg8KB2FjY291bnQYASAB",
+            "KA0SFQoNdG90YWxfYmFsYW5jZRgCIAEoAyINCgtQaW5nUmVxdWVzdCIOCgxQ",
+            "aW5nUmVzcG9uc2UiEAoOTmV0d29ya1JlcXVlc3QiKQoPTmV0d29ya1Jlc3Bv",
+            "bnNlEhYKDmFjdGl2ZV9uZXR3b3JrGAEgASgNIiwKFEFjY291bnROdW1iZXJS",
+            "ZXF1ZXN0EhQKDGFjY291bnRfbmFtZRgBIAEoCSIvChVBY2NvdW50TnVtYmVy",
+            "UmVzcG9uc2USFgoOYWNjb3VudF9udW1iZXIYASABKA0iEQoPQWNjb3VudHNS",
+            "ZXF1ZXN0IqgCChBBY2NvdW50c1Jlc3BvbnNlEjUKCGFjY291bnRzGAEgAygL",
+            "MiMud2FsbGV0cnBjLkFjY291bnRzUmVzcG9uc2UuQWNjb3VudBIaChJjdXJy",
+            "ZW50X2Jsb2NrX2hhc2gYAiABKAwSHAoUY3VycmVudF9ibG9ja19oZWlnaHQY",
+            "AyABKAUaogEKB0FjY291bnQSFgoOYWNjb3VudF9udW1iZXIYASABKA0SFAoM",
+            "YWNjb3VudF9uYW1lGAIgASgJEhUKDXRvdGFsX2JhbGFuY2UYAyABKAMSGgoS",
+            "ZXh0ZXJuYWxfa2V5X2NvdW50GAQgASgNEhoKEmludGVybmFsX2tleV9jb3Vu",
+            "dBgFIAEoDRIaChJpbXBvcnRlZF9rZXlfY291bnQYBiABKA0iQAoUUmVuYW1l",
+            "QWNjb3VudFJlcXVlc3QSFgoOYWNjb3VudF9udW1iZXIYASABKA0SEAoIbmV3",
+            "X25hbWUYAiABKAkiFwoVUmVuYW1lQWNjb3VudFJlc3BvbnNlIj4KEk5leHRB",
+            "Y2NvdW50UmVxdWVzdBISCgpwYXNzcGhyYXNlGAEgASgMEhQKDGFjY291bnRf",
+            "bmFtZRgCIAEoCSItChNOZXh0QWNjb3VudFJlc3BvbnNlEhYKDmFjY291bnRf",
+            "bnVtYmVyGAEgASgNIosBChJOZXh0QWRkcmVzc1JlcXVlc3QSDwoHYWNjb3Vu",
+            "dBgBIAEoDRIwCgRraW5kGAIgASgOMiIud2FsbGV0cnBjLk5leHRBZGRyZXNz",
+            "UmVxdWVzdC5LaW5kIjIKBEtpbmQSFAoQQklQMDA0NF9FWFRFUk5BTBAAEhQK",
+            "EEJJUDAwNDRfSU5URVJOQUwQASImChNOZXh0QWRkcmVzc1Jlc3BvbnNlEg8K",
+            "B2FkZHJlc3MYASABKAkiZwoXSW1wb3J0UHJpdmF0ZUtleVJlcXVlc3QSEgoK",
+            "cGFzc3BocmFzZRgBIAEoDBIPCgdhY2NvdW50GAIgASgNEhcKD3ByaXZhdGVf",
+            "a2V5X3dpZhgDIAEoCRIOCgZyZXNjYW4YBCABKAgiGgoYSW1wb3J0UHJpdmF0",
+            "ZUtleVJlc3BvbnNlIkgKDkJhbGFuY2VSZXF1ZXN0EhYKDmFjY291bnRfbnVt",
+            "YmVyGAEgASgNEh4KFnJlcXVpcmVkX2NvbmZpcm1hdGlvbnMYAiABKAUiTAoP",
+            "QmFsYW5jZVJlc3BvbnNlEg0KBXRvdGFsGAEgASgDEhEKCXNwZW5kYWJsZRgC",
+            "IAEoAxIXCg9pbW1hdHVyZV9yZXdhcmQYAyABKAMisQEKFkdldFRyYW5zYWN0",
+            "aW9uc1JlcXVlc3QSGwoTc3RhcnRpbmdfYmxvY2tfaGFzaBgBIAEoDBIdChVz",
+            "dGFydGluZ19ibG9ja19oZWlnaHQYAiABKBESGQoRZW5kaW5nX2Jsb2NrX2hh",
+            "c2gYAyABKAwSGwoTZW5kaW5nX2Jsb2NrX2hlaWdodBgEIAEoBRIjChttaW5p",
+            "bXVtX3JlY2VudF90cmFuc2FjdGlvbnMYBSABKAUiiwEKF0dldFRyYW5zYWN0",
+            "aW9uc1Jlc3BvbnNlEjMKEm1pbmVkX3RyYW5zYWN0aW9ucxgBIAMoCzIXLndh",
+            "bGxldHJwYy5CbG9ja0RldGFpbHMSOwoUdW5taW5lZF90cmFuc2FjdGlvbnMY",
+            "AiADKAsyHS53YWxsZXRycGMuVHJhbnNhY3Rpb25EZXRhaWxzIp4BChdDaGFu",
+            "Z2VQYXNzcGhyYXNlUmVxdWVzdBIzCgNrZXkYASABKA4yJi53YWxsZXRycGMu",
+            "Q2hhbmdlUGFzc3BocmFzZVJlcXVlc3QuS2V5EhYKDm9sZF9wYXNzcGhyYXNl",
+            "GAIgASgMEhYKDm5ld19wYXNzcGhyYXNlGAMgASgMIh4KA0tleRILCgdQUklW",
+            "QVRFEAASCgoGUFVCTElDEAEiGgoYQ2hhbmdlUGFzc3BocmFzZVJlc3BvbnNl",
+            "IqMBChZGdW5kVHJhbnNhY3Rpb25SZXF1ZXN0Eg8KB2FjY291bnQYASABKA0S",
+            "FQoNdGFyZ2V0X2Ftb3VudBgCIAEoAxIeChZyZXF1aXJlZF9jb25maXJtYXRp",
+            "b25zGAMgASgFEiIKGmluY2x1ZGVfaW1tYXR1cmVfY29pbmJhc2VzGAQgASgI",
+            "Eh0KFWluY2x1ZGVfY2hhbmdlX3NjcmlwdBgFIAEoCCKpAgoXRnVuZFRyYW5z",
+            "YWN0aW9uUmVzcG9uc2USSwoQc2VsZWN0ZWRfb3V0cHV0cxgBIAMoCzIxLndh",
+            "bGxldHJwYy5GdW5kVHJhbnNhY3Rpb25SZXNwb25zZS5QcmV2aW91c091dHB1",
+            "dBIUCgx0b3RhbF9hbW91bnQYAiABKAMSGAoQY2hhbmdlX3BrX3NjcmlwdBgD",
+            "IAEoDBqQAQoOUHJldmlvdXNPdXRwdXQSGAoQdHJhbnNhY3Rpb25faGFzaBgB",
+            "IAEoDBIUCgxvdXRwdXRfaW5kZXgYAiABKA0SDgoGYW1vdW50GAMgASgDEhEK",
+            "CXBrX3NjcmlwdBgEIAEoDBIUCgxyZWNlaXZlX3RpbWUYBSABKAMSFQoNZnJv",
+            "bV9jb2luYmFzZRgGIAEoCCJjChZTaWduVHJhbnNhY3Rpb25SZXF1ZXN0EhIK",
+            "CnBhc3NwaHJhc2UYASABKAwSHgoWc2VyaWFsaXplZF90cmFuc2FjdGlvbhgC",
+            "IAEoDBIVCg1pbnB1dF9pbmRleGVzGAMgAygNIk4KF1NpZ25UcmFuc2FjdGlv",
+            "blJlc3BvbnNlEhMKC3RyYW5zYWN0aW9uGAEgASgMEh4KFnVuc2lnbmVkX2lu",
+            "cHV0X2luZGV4ZXMYAiADKA0iNwoZUHVibGlzaFRyYW5zYWN0aW9uUmVxdWVz",
+            "dBIaChJzaWduZWRfdHJhbnNhY3Rpb24YASABKAwiHAoaUHVibGlzaFRyYW5z",
+            "YWN0aW9uUmVzcG9uc2UiIQofVHJhbnNhY3Rpb25Ob3RpZmljYXRpb25zUmVx",
+            "dWVzdCLOAQogVHJhbnNhY3Rpb25Ob3RpZmljYXRpb25zUmVzcG9uc2USMAoP",
+            "YXR0YWNoZWRfYmxvY2tzGAEgAygLMhcud2FsbGV0cnBjLkJsb2NrRGV0YWls",
+            "cxIXCg9kZXRhY2hlZF9ibG9ja3MYAiADKAwSOwoUdW5taW5lZF90cmFuc2Fj",
+            "dGlvbnMYAyADKAsyHS53YWxsZXRycGMuVHJhbnNhY3Rpb25EZXRhaWxzEiIK",
+            "GnVubWluZWRfdHJhbnNhY3Rpb25faGFzaGVzGAQgAygMImQKHVNwZW50bmVz",
+            "c05vdGlmaWNhdGlvbnNSZXF1ZXN0Eg8KB2FjY291bnQYASABKA0SGQoRbm9f",
+            "bm90aWZ5X3Vuc3BlbnQYAiABKAgSFwoPbm9fbm90aWZ5X3NwZW50GAMgASgI",
+            "Is4BCh5TcGVudG5lc3NOb3RpZmljYXRpb25zUmVzcG9uc2USGAoQdHJhbnNh",
+            "Y3Rpb25faGFzaBgBIAEoDBIUCgxvdXRwdXRfaW5kZXgYAiABKA0SQgoHc3Bl",
+            "bmRlchgDIAEoCzIxLndhbGxldHJwYy5TcGVudG5lc3NOb3RpZmljYXRpb25z",
+            "UmVzcG9uc2UuU3BlbmRlcho4CgdTcGVuZGVyEhgKEHRyYW5zYWN0aW9uX2hh",
+            "c2gYASABKAwSEwoLaW5wdXRfaW5kZXgYAiABKA0iHQobQWNjb3VudE5vdGlm",
+            "aWNhdGlvbnNSZXF1ZXN0IqABChxBY2NvdW50Tm90aWZpY2F0aW9uc1Jlc3Bv",
+            "bnNlEhYKDmFjY291bnRfbnVtYmVyGAEgASgNEhQKDGFjY291bnRfbmFtZRgC",
+            "IAEoCRIaChJleHRlcm5hbF9rZXlfY291bnQYAyABKA0SGgoSaW50ZXJuYWxf",
+            "a2V5X2NvdW50GAQgASgNEhoKEmltcG9ydGVkX2tleV9jb3VudBgFIAEoDSJa",
+            "ChNDcmVhdGVXYWxsZXRSZXF1ZXN0EhkKEXB1YmxpY19wYXNzcGhyYXNlGAEg",
+            "ASgMEhoKEnByaXZhdGVfcGFzc3BocmFzZRgCIAEoDBIMCgRzZWVkGAMgASgM",
+            "IhYKFENyZWF0ZVdhbGxldFJlc3BvbnNlIi4KEU9wZW5XYWxsZXRSZXF1ZXN0",
+            "EhkKEXB1YmxpY19wYXNzcGhyYXNlGAEgASgMIhQKEk9wZW5XYWxsZXRSZXNw",
+            "b25zZSIUChJDbG9zZVdhbGxldFJlcXVlc3QiFQoTQ2xvc2VXYWxsZXRSZXNw",
+            "b25zZSIVChNXYWxsZXRFeGlzdHNSZXF1ZXN0IiYKFFdhbGxldEV4aXN0c1Jl",
+            "c3BvbnNlEg4KBmV4aXN0cxgBIAEoCCJnChNTdGFydEJ0Y2RScGNSZXF1ZXN0",
+            "EhcKD25ldHdvcmtfYWRkcmVzcxgBIAEoCRIQCgh1c2VybmFtZRgCIAEoCRIQ",
+            "CghwYXNzd29yZBgDIAEoDBITCgtjZXJ0aWZpY2F0ZRgEIAEoDCIWChRTdGFy",
+            "dEJ0Y2RScGNSZXNwb25zZTJSCg5WZXJzaW9uU2VydmljZRJACgdWZXJzaW9u",
+            "Ehkud2FsbGV0cnBjLlZlcnNpb25SZXF1ZXN0Ghoud2FsbGV0cnBjLlZlcnNp",
+            "b25SZXNwb25zZTLTCwoNV2FsbGV0U2VydmljZRI3CgRQaW5nEhYud2FsbGV0",
+            "cnBjLlBpbmdSZXF1ZXN0Ghcud2FsbGV0cnBjLlBpbmdSZXNwb25zZRJACgdO",
+            "ZXR3b3JrEhkud2FsbGV0cnBjLk5ldHdvcmtSZXF1ZXN0Ghoud2FsbGV0cnBj",
+            "Lk5ldHdvcmtSZXNwb25zZRJSCg1BY2NvdW50TnVtYmVyEh8ud2FsbGV0cnBj",
+            "LkFjY291bnROdW1iZXJSZXF1ZXN0GiAud2FsbGV0cnBjLkFjY291bnROdW1i",
+            "ZXJSZXNwb25zZRJDCghBY2NvdW50cxIaLndhbGxldHJwYy5BY2NvdW50c1Jl",
+            "cXVlc3QaGy53YWxsZXRycGMuQWNjb3VudHNSZXNwb25zZRJACgdCYWxhbmNl",
+            "Ehkud2FsbGV0cnBjLkJhbGFuY2VSZXF1ZXN0Ghoud2FsbGV0cnBjLkJhbGFu",
+            "Y2VSZXNwb25zZRJYCg9HZXRUcmFuc2FjdGlvbnMSIS53YWxsZXRycGMuR2V0",
+            "VHJhbnNhY3Rpb25zUmVxdWVzdBoiLndhbGxldHJwYy5HZXRUcmFuc2FjdGlv",
+            "bnNSZXNwb25zZRJ1ChhUcmFuc2FjdGlvbk5vdGlmaWNhdGlvbnMSKi53YWxs",
+            "ZXRycGMuVHJhbnNhY3Rpb25Ob3RpZmljYXRpb25zUmVxdWVzdBorLndhbGxl",
+            "dHJwYy5UcmFuc2FjdGlvbk5vdGlmaWNhdGlvbnNSZXNwb25zZTABEm8KFlNw",
+            "ZW50bmVzc05vdGlmaWNhdGlvbnMSKC53YWxsZXRycGMuU3BlbnRuZXNzTm90",
+            "aWZpY2F0aW9uc1JlcXVlc3QaKS53YWxsZXRycGMuU3BlbnRuZXNzTm90aWZp",
+            "Y2F0aW9uc1Jlc3BvbnNlMAESaQoUQWNjb3VudE5vdGlmaWNhdGlvbnMSJi53",
+            "YWxsZXRycGMuQWNjb3VudE5vdGlmaWNhdGlvbnNSZXF1ZXN0Gicud2FsbGV0",
+            "cnBjLkFjY291bnROb3RpZmljYXRpb25zUmVzcG9uc2UwARJbChBDaGFuZ2VQ",
+            "YXNzcGhyYXNlEiIud2FsbGV0cnBjLkNoYW5nZVBhc3NwaHJhc2VSZXF1ZXN0",
+            "GiMud2FsbGV0cnBjLkNoYW5nZVBhc3NwaHJhc2VSZXNwb25zZRJSCg1SZW5h",
+            "bWVBY2NvdW50Eh8ud2FsbGV0cnBjLlJlbmFtZUFjY291bnRSZXF1ZXN0GiAu",
+            "d2FsbGV0cnBjLlJlbmFtZUFjY291bnRSZXNwb25zZRJMCgtOZXh0QWNjb3Vu",
+            "dBIdLndhbGxldHJwYy5OZXh0QWNjb3VudFJlcXVlc3QaHi53YWxsZXRycGMu",
+            "TmV4dEFjY291bnRSZXNwb25zZRJMCgtOZXh0QWRkcmVzcxIdLndhbGxldHJw",
+            "Yy5OZXh0QWRkcmVzc1JlcXVlc3QaHi53YWxsZXRycGMuTmV4dEFkZHJlc3NS",
+            "ZXNwb25zZRJbChBJbXBvcnRQcml2YXRlS2V5EiIud2FsbGV0cnBjLkltcG9y",
+            "dFByaXZhdGVLZXlSZXF1ZXN0GiMud2FsbGV0cnBjLkltcG9ydFByaXZhdGVL",
+            "ZXlSZXNwb25zZRJYCg9GdW5kVHJhbnNhY3Rpb24SIS53YWxsZXRycGMuRnVu",
+            "ZFRyYW5zYWN0aW9uUmVxdWVzdBoiLndhbGxldHJwYy5GdW5kVHJhbnNhY3Rp",
+            "b25SZXNwb25zZRJYCg9TaWduVHJhbnNhY3Rpb24SIS53YWxsZXRycGMuU2ln",
+            "blRyYW5zYWN0aW9uUmVxdWVzdBoiLndhbGxldHJwYy5TaWduVHJhbnNhY3Rp",
+            "b25SZXNwb25zZRJhChJQdWJsaXNoVHJhbnNhY3Rpb24SJC53YWxsZXRycGMu",
+            "UHVibGlzaFRyYW5zYWN0aW9uUmVxdWVzdBolLndhbGxldHJwYy5QdWJsaXNo",
+            "VHJhbnNhY3Rpb25SZXNwb25zZTKhAwoTV2FsbGV0TG9hZGVyU2VydmljZRJP",
+            "CgxXYWxsZXRFeGlzdHMSHi53YWxsZXRycGMuV2FsbGV0RXhpc3RzUmVxdWVz",
+            "dBofLndhbGxldHJwYy5XYWxsZXRFeGlzdHNSZXNwb25zZRJPCgxDcmVhdGVX",
+            "YWxsZXQSHi53YWxsZXRycGMuQ3JlYXRlV2FsbGV0UmVxdWVzdBofLndhbGxl",
+            "dHJwYy5DcmVhdGVXYWxsZXRSZXNwb25zZRJJCgpPcGVuV2FsbGV0Ehwud2Fs",
+            "bGV0cnBjLk9wZW5XYWxsZXRSZXF1ZXN0Gh0ud2FsbGV0cnBjLk9wZW5XYWxs",
+            "ZXRSZXNwb25zZRJMCgtDbG9zZVdhbGxldBIdLndhbGxldHJwYy5DbG9zZVdh",
+            "bGxldFJlcXVlc3QaHi53YWxsZXRycGMuQ2xvc2VXYWxsZXRSZXNwb25zZRJP",
+            "CgxTdGFydEJ0Y2RScGMSHi53YWxsZXRycGMuU3RhcnRCdGNkUnBjUmVxdWVz",
+            "dBofLndhbGxldHJwYy5TdGFydEJ0Y2RScGNSZXNwb25zZWIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedCodeInfo(null, new pbr::GeneratedCodeInfo[] {
+            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.VersionRequest), global::Walletrpc.VersionRequest.Parser, null, null, null, null),
+            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.VersionResponse), global::Walletrpc.VersionResponse.Parser, new[]{ "VersionString", "Major", "Minor", "Patch", "Prerelease", "BuildMetadata" }, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TransactionDetails), global::Walletrpc.TransactionDetails.Parser, new[]{ "Hash", "Transaction", "Debits", "Outputs", "Fee", "Timestamp" }, null, null, new pbr::GeneratedCodeInfo[] { new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TransactionDetails.Types.Input), global::Walletrpc.TransactionDetails.Types.Input.Parser, new[]{ "Index", "PreviousAccount", "PreviousAmount" }, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TransactionDetails.Types.Output), global::Walletrpc.TransactionDetails.Types.Output.Parser, new[]{ "Mine", "Account", "Internal", "Addresses" }, null, null, null)}),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.BlockDetails), global::Walletrpc.BlockDetails.Parser, new[]{ "Hash", "Height", "Timestamp", "Transactions" }, null, null, null),
@@ -216,12 +223,326 @@ namespace Walletrpc {
   }
   #region Messages
   [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+  public sealed partial class VersionRequest : pb::IMessage<VersionRequest> {
+    private static readonly pb::MessageParser<VersionRequest> _parser = new pb::MessageParser<VersionRequest>(() => new VersionRequest());
+    public static pb::MessageParser<VersionRequest> Parser { get { return _parser; } }
+
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[0]; }
+    }
+
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    public VersionRequest() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    public VersionRequest(VersionRequest other) : this() {
+    }
+
+    public VersionRequest Clone() {
+      return new VersionRequest(this);
+    }
+
+    public override bool Equals(object other) {
+      return Equals(other as VersionRequest);
+    }
+
+    public bool Equals(VersionRequest other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      return true;
+    }
+
+    public override int GetHashCode() {
+      int hash = 1;
+      return hash;
+    }
+
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    public void WriteTo(pb::CodedOutputStream output) {
+    }
+
+    public int CalculateSize() {
+      int size = 0;
+      return size;
+    }
+
+    public void MergeFrom(VersionRequest other) {
+      if (other == null) {
+        return;
+      }
+    }
+
+    public void MergeFrom(pb::CodedInputStream input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            input.SkipLastField();
+            break;
+        }
+      }
+    }
+
+  }
+
+  [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+  public sealed partial class VersionResponse : pb::IMessage<VersionResponse> {
+    private static readonly pb::MessageParser<VersionResponse> _parser = new pb::MessageParser<VersionResponse>(() => new VersionResponse());
+    public static pb::MessageParser<VersionResponse> Parser { get { return _parser; } }
+
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[1]; }
+    }
+
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    public VersionResponse() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    public VersionResponse(VersionResponse other) : this() {
+      versionString_ = other.versionString_;
+      major_ = other.major_;
+      minor_ = other.minor_;
+      patch_ = other.patch_;
+      prerelease_ = other.prerelease_;
+      buildMetadata_ = other.buildMetadata_;
+    }
+
+    public VersionResponse Clone() {
+      return new VersionResponse(this);
+    }
+
+    /// <summary>Field number for the "version_string" field.</summary>
+    public const int VersionStringFieldNumber = 1;
+    private string versionString_ = "";
+    public string VersionString {
+      get { return versionString_; }
+      set {
+        versionString_ = pb::Preconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "major" field.</summary>
+    public const int MajorFieldNumber = 2;
+    private uint major_;
+    public uint Major {
+      get { return major_; }
+      set {
+        major_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "minor" field.</summary>
+    public const int MinorFieldNumber = 3;
+    private uint minor_;
+    public uint Minor {
+      get { return minor_; }
+      set {
+        minor_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "patch" field.</summary>
+    public const int PatchFieldNumber = 4;
+    private uint patch_;
+    public uint Patch {
+      get { return patch_; }
+      set {
+        patch_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "prerelease" field.</summary>
+    public const int PrereleaseFieldNumber = 5;
+    private string prerelease_ = "";
+    public string Prerelease {
+      get { return prerelease_; }
+      set {
+        prerelease_ = pb::Preconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "build_metadata" field.</summary>
+    public const int BuildMetadataFieldNumber = 6;
+    private string buildMetadata_ = "";
+    public string BuildMetadata {
+      get { return buildMetadata_; }
+      set {
+        buildMetadata_ = pb::Preconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    public override bool Equals(object other) {
+      return Equals(other as VersionResponse);
+    }
+
+    public bool Equals(VersionResponse other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (VersionString != other.VersionString) return false;
+      if (Major != other.Major) return false;
+      if (Minor != other.Minor) return false;
+      if (Patch != other.Patch) return false;
+      if (Prerelease != other.Prerelease) return false;
+      if (BuildMetadata != other.BuildMetadata) return false;
+      return true;
+    }
+
+    public override int GetHashCode() {
+      int hash = 1;
+      if (VersionString.Length != 0) hash ^= VersionString.GetHashCode();
+      if (Major != 0) hash ^= Major.GetHashCode();
+      if (Minor != 0) hash ^= Minor.GetHashCode();
+      if (Patch != 0) hash ^= Patch.GetHashCode();
+      if (Prerelease.Length != 0) hash ^= Prerelease.GetHashCode();
+      if (BuildMetadata.Length != 0) hash ^= BuildMetadata.GetHashCode();
+      return hash;
+    }
+
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    public void WriteTo(pb::CodedOutputStream output) {
+      if (VersionString.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(VersionString);
+      }
+      if (Major != 0) {
+        output.WriteRawTag(16);
+        output.WriteUInt32(Major);
+      }
+      if (Minor != 0) {
+        output.WriteRawTag(24);
+        output.WriteUInt32(Minor);
+      }
+      if (Patch != 0) {
+        output.WriteRawTag(32);
+        output.WriteUInt32(Patch);
+      }
+      if (Prerelease.Length != 0) {
+        output.WriteRawTag(42);
+        output.WriteString(Prerelease);
+      }
+      if (BuildMetadata.Length != 0) {
+        output.WriteRawTag(50);
+        output.WriteString(BuildMetadata);
+      }
+    }
+
+    public int CalculateSize() {
+      int size = 0;
+      if (VersionString.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(VersionString);
+      }
+      if (Major != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Major);
+      }
+      if (Minor != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Minor);
+      }
+      if (Patch != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Patch);
+      }
+      if (Prerelease.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Prerelease);
+      }
+      if (BuildMetadata.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(BuildMetadata);
+      }
+      return size;
+    }
+
+    public void MergeFrom(VersionResponse other) {
+      if (other == null) {
+        return;
+      }
+      if (other.VersionString.Length != 0) {
+        VersionString = other.VersionString;
+      }
+      if (other.Major != 0) {
+        Major = other.Major;
+      }
+      if (other.Minor != 0) {
+        Minor = other.Minor;
+      }
+      if (other.Patch != 0) {
+        Patch = other.Patch;
+      }
+      if (other.Prerelease.Length != 0) {
+        Prerelease = other.Prerelease;
+      }
+      if (other.BuildMetadata.Length != 0) {
+        BuildMetadata = other.BuildMetadata;
+      }
+    }
+
+    public void MergeFrom(pb::CodedInputStream input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            input.SkipLastField();
+            break;
+          case 10: {
+            VersionString = input.ReadString();
+            break;
+          }
+          case 16: {
+            Major = input.ReadUInt32();
+            break;
+          }
+          case 24: {
+            Minor = input.ReadUInt32();
+            break;
+          }
+          case 32: {
+            Patch = input.ReadUInt32();
+            break;
+          }
+          case 42: {
+            Prerelease = input.ReadString();
+            break;
+          }
+          case 50: {
+            BuildMetadata = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+
+  }
+
+  [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
   public sealed partial class TransactionDetails : pb::IMessage<TransactionDetails> {
     private static readonly pb::MessageParser<TransactionDetails> _parser = new pb::MessageParser<TransactionDetails>(() => new TransactionDetails());
     public static pb::MessageParser<TransactionDetails> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[0]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[2]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -792,7 +1113,7 @@ namespace Walletrpc {
     public static pb::MessageParser<BlockDetails> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[1]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[3]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -968,7 +1289,7 @@ namespace Walletrpc {
     public static pb::MessageParser<AccountBalance> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[2]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[4]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -1098,7 +1419,7 @@ namespace Walletrpc {
     public static pb::MessageParser<PingRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[3]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[5]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -1174,7 +1495,7 @@ namespace Walletrpc {
     public static pb::MessageParser<PingResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[4]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[6]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -1250,7 +1571,7 @@ namespace Walletrpc {
     public static pb::MessageParser<NetworkRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[5]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[7]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -1326,7 +1647,7 @@ namespace Walletrpc {
     public static pb::MessageParser<NetworkResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[6]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[8]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -1429,7 +1750,7 @@ namespace Walletrpc {
     public static pb::MessageParser<AccountNumberRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[7]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[9]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -1532,7 +1853,7 @@ namespace Walletrpc {
     public static pb::MessageParser<AccountNumberResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[8]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[10]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -1635,7 +1956,7 @@ namespace Walletrpc {
     public static pb::MessageParser<AccountsRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[9]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[11]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -1711,7 +2032,7 @@ namespace Walletrpc {
     public static pb::MessageParser<AccountsResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[10]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[12]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -2105,7 +2426,7 @@ namespace Walletrpc {
     public static pb::MessageParser<RenameAccountRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[11]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[13]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -2235,7 +2556,7 @@ namespace Walletrpc {
     public static pb::MessageParser<RenameAccountResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[12]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[14]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -2311,7 +2632,7 @@ namespace Walletrpc {
     public static pb::MessageParser<NextAccountRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[13]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[15]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -2441,7 +2762,7 @@ namespace Walletrpc {
     public static pb::MessageParser<NextAccountResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[14]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[16]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -2544,7 +2865,7 @@ namespace Walletrpc {
     public static pb::MessageParser<NextAddressRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[15]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[17]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -2686,7 +3007,7 @@ namespace Walletrpc {
     public static pb::MessageParser<NextAddressResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[16]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[18]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -2789,7 +3110,7 @@ namespace Walletrpc {
     public static pb::MessageParser<ImportPrivateKeyRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[17]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[19]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -2973,7 +3294,7 @@ namespace Walletrpc {
     public static pb::MessageParser<ImportPrivateKeyResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[18]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[20]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -3049,7 +3370,7 @@ namespace Walletrpc {
     public static pb::MessageParser<BalanceRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[19]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[21]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -3179,7 +3500,7 @@ namespace Walletrpc {
     public static pb::MessageParser<BalanceResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[20]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[22]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -3336,7 +3657,7 @@ namespace Walletrpc {
     public static pb::MessageParser<GetTransactionsRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[21]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[23]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -3568,7 +3889,7 @@ namespace Walletrpc {
     public static pb::MessageParser<GetTransactionsResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[22]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[24]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -3682,7 +4003,7 @@ namespace Walletrpc {
     public static pb::MessageParser<ChangePassphraseRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[23]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[25]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -3851,7 +4172,7 @@ namespace Walletrpc {
     public static pb::MessageParser<ChangePassphraseResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[24]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[26]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -3927,7 +4248,7 @@ namespace Walletrpc {
     public static pb::MessageParser<FundTransactionRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[25]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[27]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -4138,7 +4459,7 @@ namespace Walletrpc {
     public static pb::MessageParser<FundTransactionResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[26]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[28]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -4532,7 +4853,7 @@ namespace Walletrpc {
     public static pb::MessageParser<SignTransactionRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[27]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[29]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -4689,7 +5010,7 @@ namespace Walletrpc {
     public static pb::MessageParser<SignTransactionResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[28]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[30]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -4812,7 +5133,7 @@ namespace Walletrpc {
     public static pb::MessageParser<PublishTransactionRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[29]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[31]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -4915,7 +5236,7 @@ namespace Walletrpc {
     public static pb::MessageParser<PublishTransactionResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[30]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[32]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -4991,7 +5312,7 @@ namespace Walletrpc {
     public static pb::MessageParser<TransactionNotificationsRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[31]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[33]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -5067,7 +5388,7 @@ namespace Walletrpc {
     public static pb::MessageParser<TransactionNotificationsResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[32]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[34]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -5239,7 +5560,7 @@ namespace Walletrpc {
     public static pb::MessageParser<SpentnessNotificationsRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[33]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[35]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -5396,7 +5717,7 @@ namespace Walletrpc {
     public static pb::MessageParser<SpentnessNotificationsResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[34]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[36]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -5696,7 +6017,7 @@ namespace Walletrpc {
     public static pb::MessageParser<AccountNotificationsRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[35]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[37]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -5772,7 +6093,7 @@ namespace Walletrpc {
     public static pb::MessageParser<AccountNotificationsResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[36]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[38]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -5983,7 +6304,7 @@ namespace Walletrpc {
     public static pb::MessageParser<CreateWalletRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[37]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[39]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6140,7 +6461,7 @@ namespace Walletrpc {
     public static pb::MessageParser<CreateWalletResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[38]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[40]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6216,7 +6537,7 @@ namespace Walletrpc {
     public static pb::MessageParser<OpenWalletRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[39]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[41]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6319,7 +6640,7 @@ namespace Walletrpc {
     public static pb::MessageParser<OpenWalletResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[40]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[42]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6395,7 +6716,7 @@ namespace Walletrpc {
     public static pb::MessageParser<CloseWalletRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[41]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[43]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6471,7 +6792,7 @@ namespace Walletrpc {
     public static pb::MessageParser<CloseWalletResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[42]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[44]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6547,7 +6868,7 @@ namespace Walletrpc {
     public static pb::MessageParser<WalletExistsRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[43]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[45]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6623,7 +6944,7 @@ namespace Walletrpc {
     public static pb::MessageParser<WalletExistsResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[44]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[46]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6726,7 +7047,7 @@ namespace Walletrpc {
     public static pb::MessageParser<StartBtcdRpcRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[45]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[47]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6910,7 +7231,7 @@ namespace Walletrpc {
     public static pb::MessageParser<StartBtcdRpcResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[46]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[48]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {

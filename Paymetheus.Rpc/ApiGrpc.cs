@@ -8,6 +8,83 @@ using System.Threading.Tasks;
 using Grpc.Core;
 
 namespace Walletrpc {
+  public static class VersionService
+  {
+    static readonly string __ServiceName = "walletrpc.VersionService";
+
+    static readonly Marshaller<global::Walletrpc.VersionRequest> __Marshaller_VersionRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.VersionRequest.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.VersionResponse> __Marshaller_VersionResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.VersionResponse.Parser.ParseFrom);
+
+    static readonly Method<global::Walletrpc.VersionRequest, global::Walletrpc.VersionResponse> __Method_Version = new Method<global::Walletrpc.VersionRequest, global::Walletrpc.VersionResponse>(
+        MethodType.Unary,
+        __ServiceName,
+        "Version",
+        __Marshaller_VersionRequest,
+        __Marshaller_VersionResponse);
+
+    // service descriptor
+    public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
+    {
+      get { return global::Walletrpc.ApiReflection.Descriptor.Services[0]; }
+    }
+
+    // client interface
+    public interface IVersionServiceClient
+    {
+      global::Walletrpc.VersionResponse Version(global::Walletrpc.VersionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
+      global::Walletrpc.VersionResponse Version(global::Walletrpc.VersionRequest request, CallOptions options);
+      AsyncUnaryCall<global::Walletrpc.VersionResponse> VersionAsync(global::Walletrpc.VersionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
+      AsyncUnaryCall<global::Walletrpc.VersionResponse> VersionAsync(global::Walletrpc.VersionRequest request, CallOptions options);
+    }
+
+    // server-side interface
+    public interface IVersionService
+    {
+      Task<global::Walletrpc.VersionResponse> Version(global::Walletrpc.VersionRequest request, ServerCallContext context);
+    }
+
+    // client stub
+    public class VersionServiceClient : ClientBase, IVersionServiceClient
+    {
+      public VersionServiceClient(Channel channel) : base(channel)
+      {
+      }
+      public global::Walletrpc.VersionResponse Version(global::Walletrpc.VersionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        var call = CreateCall(__Method_Version, new CallOptions(headers, deadline, cancellationToken));
+        return Calls.BlockingUnaryCall(call, request);
+      }
+      public global::Walletrpc.VersionResponse Version(global::Walletrpc.VersionRequest request, CallOptions options)
+      {
+        var call = CreateCall(__Method_Version, options);
+        return Calls.BlockingUnaryCall(call, request);
+      }
+      public AsyncUnaryCall<global::Walletrpc.VersionResponse> VersionAsync(global::Walletrpc.VersionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        var call = CreateCall(__Method_Version, new CallOptions(headers, deadline, cancellationToken));
+        return Calls.AsyncUnaryCall(call, request);
+      }
+      public AsyncUnaryCall<global::Walletrpc.VersionResponse> VersionAsync(global::Walletrpc.VersionRequest request, CallOptions options)
+      {
+        var call = CreateCall(__Method_Version, options);
+        return Calls.AsyncUnaryCall(call, request);
+      }
+    }
+
+    // creates service definition that can be registered with a server
+    public static ServerServiceDefinition BindService(IVersionService serviceImpl)
+    {
+      return ServerServiceDefinition.CreateBuilder(__ServiceName)
+          .AddMethod(__Method_Version, serviceImpl.Version).Build();
+    }
+
+    // creates a new client
+    public static VersionServiceClient NewClient(Channel channel)
+    {
+      return new VersionServiceClient(channel);
+    }
+
+  }
   public static class WalletService
   {
     static readonly string __ServiceName = "walletrpc.WalletService";
@@ -169,7 +246,7 @@ namespace Walletrpc {
     // service descriptor
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
     {
-      get { return global::Walletrpc.ApiReflection.Descriptor.Services[0]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.Services[1]; }
     }
 
     // client interface
@@ -662,7 +739,7 @@ namespace Walletrpc {
     // service descriptor
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
     {
-      get { return global::Walletrpc.ApiReflection.Descriptor.Services[1]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.Services[2]; }
     }
 
     // client interface
