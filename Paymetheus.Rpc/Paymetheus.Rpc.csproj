@@ -46,6 +46,7 @@
     <Compile Include="ProcessExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ErrorHandling.cs" />
+    <Compile Include="SemanticVersion.cs" />
     <Compile Include="TimeoutException.cs" />
     <Compile Include="TransactionNotifications.cs" />
     <Compile Include="TransportSecurity.cs" />

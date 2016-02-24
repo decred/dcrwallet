@@ -20,6 +20,8 @@ namespace Paymetheus.Rpc
 {
     public sealed class WalletClient : IDisposable
     {
+        private static readonly SemanticVersion RequiredRpcServerVersion = new SemanticVersion(0, 3, 0);
+
         public static void Initialize()
         {
             Environment.SetEnvironmentVariable("GRPC_SSL_CIPHER_SUITES", "HIGH+ECDSA");
@@ -67,6 +69,13 @@ namespace Paymetheus.Rpc
                 await channel.ShutdownAsync();
                 throw new ConnectTimeoutException();
             }
+
+            // Ensure the server is running a compatible version.
+            var versionClient = VersionService.NewClient(channel);
+            var response = await versionClient.VersionAsync(new VersionRequest(), deadline: deadline);
+            var serverVersion = new SemanticVersion(response.Major, response.Minor, response.Patch);
+            SemanticVersion.AssertCompatible(RequiredRpcServerVersion, serverVersion);
+
             return new WalletClient(channel);
         }
 
