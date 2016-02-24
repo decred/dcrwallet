@@ -170,7 +170,23 @@ namespace Paymetheus.Rpc
         public async Task<string> NextExternalAddressAsync(Account account)
         {
             var client = WalletService.NewClient(_channel);
-            var request = new NextAddressRequest { Account = account.AccountNumber };
+            var request = new NextAddressRequest
+            {
+                Account = account.AccountNumber,
+                Kind = NextAddressRequest.Types.Kind.BIP0044_EXTERNAL,
+            };
+            var resp = await client.NextAddressAsync(request, cancellationToken: _tokenSource.Token);
+            return resp.Address;
+        }
+
+        public async Task<string> NextInternalAddressAsync(Account account)
+        {
+            var client = WalletService.NewClient(_channel);
+            var request = new NextAddressRequest
+            {
+                Account = account.AccountNumber,
+                Kind = NextAddressRequest.Types.Kind.BIP0044_INTERNAL,
+            };
             var resp = await client.NextAddressAsync(request, cancellationToken: _tokenSource.Token);
             return resp.Address;
         }
