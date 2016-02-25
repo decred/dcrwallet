@@ -808,18 +808,18 @@ func (s *StakeStore) generateVote(blockHash *chainhash.Hash, height int64,
 		return nil, err
 	}
 
-	// Send the transaction.
-	ssgenSha, err := s.chainSvr.SendRawTransaction(msgTx, false)
-	if err != nil {
-		return nil, err
-	}
-
 	// Store the information about the SSGen.
 	err = s.insertSSGen(blockHash,
 		height,
 		ssgenSha,
 		voteBits,
 		sstx.Sha())
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the transaction.
+	ssgenSha, err := s.chainSvr.SendRawTransaction(msgTx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -998,17 +998,17 @@ func (s *StakeStore) generateRevocation(blockHash *chainhash.Hash, height int64,
 		return nil, err
 	}
 
-	// Send the transaction.
-	ssrtxSha, err := s.chainSvr.SendRawTransaction(msgTx, false)
-	if err != nil {
-		return nil, err
-	}
-
 	// Store the information about the SSRtx.
 	err = s.insertSSRtx(blockHash,
 		height,
 		ssrtxSha,
 		sstx.Sha())
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the transaction.
+	ssrtxSha, err := s.chainSvr.SendRawTransaction(msgTx, false)
 	if err != nil {
 		return nil, err
 	}
