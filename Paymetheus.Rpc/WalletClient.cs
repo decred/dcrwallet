@@ -20,7 +20,7 @@ namespace Paymetheus.Rpc
 {
     public sealed class WalletClient : IDisposable
     {
-        private static readonly SemanticVersion RequiredRpcServerVersion = new SemanticVersion(0, 3, 0);
+        private static readonly SemanticVersion RequiredRpcServerVersion = new SemanticVersion(1, 0, 0);
 
         public static void Initialize()
         {
@@ -86,18 +86,18 @@ namespace Paymetheus.Rpc
             return resp.Exists;
         }
 
-        public async Task StartBtcdRpc(ConsensusServerRpcOptions options)
+        public async Task StartConsensusRpc(ConsensusServerRpcOptions options)
         {
             var certificateTask = ReadFileAsync(options.CertificatePath);
             var client = WalletLoaderService.NewClient(_channel);
-            var request = new StartBtcdRpcRequest
+            var request = new StartConsensusRpcRequest
             {
                 NetworkAddress = options.NetworkAddress,
                 Username = options.RpcUser,
                 Password = ByteString.CopyFromUtf8(options.RpcPassword),
                 Certificate = ByteString.CopyFrom(await certificateTask),
             };
-            await client.StartBtcdRpcAsync(request, cancellationToken: _tokenSource.Token);
+            await client.StartConsensusRpcAsync(request, cancellationToken: _tokenSource.Token);
         }
 
         private async Task<byte[]> ReadFileAsync(string filePath)

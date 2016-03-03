@@ -698,8 +698,8 @@ namespace Walletrpc {
     static readonly Marshaller<global::Walletrpc.OpenWalletResponse> __Marshaller_OpenWalletResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.OpenWalletResponse.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.CloseWalletRequest> __Marshaller_CloseWalletRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.CloseWalletRequest.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.CloseWalletResponse> __Marshaller_CloseWalletResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.CloseWalletResponse.Parser.ParseFrom);
-    static readonly Marshaller<global::Walletrpc.StartBtcdRpcRequest> __Marshaller_StartBtcdRpcRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.StartBtcdRpcRequest.Parser.ParseFrom);
-    static readonly Marshaller<global::Walletrpc.StartBtcdRpcResponse> __Marshaller_StartBtcdRpcResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.StartBtcdRpcResponse.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.StartConsensusRpcRequest> __Marshaller_StartConsensusRpcRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.StartConsensusRpcRequest.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.StartConsensusRpcResponse> __Marshaller_StartConsensusRpcResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.StartConsensusRpcResponse.Parser.ParseFrom);
 
     static readonly Method<global::Walletrpc.WalletExistsRequest, global::Walletrpc.WalletExistsResponse> __Method_WalletExists = new Method<global::Walletrpc.WalletExistsRequest, global::Walletrpc.WalletExistsResponse>(
         MethodType.Unary,
@@ -729,12 +729,12 @@ namespace Walletrpc {
         __Marshaller_CloseWalletRequest,
         __Marshaller_CloseWalletResponse);
 
-    static readonly Method<global::Walletrpc.StartBtcdRpcRequest, global::Walletrpc.StartBtcdRpcResponse> __Method_StartBtcdRpc = new Method<global::Walletrpc.StartBtcdRpcRequest, global::Walletrpc.StartBtcdRpcResponse>(
+    static readonly Method<global::Walletrpc.StartConsensusRpcRequest, global::Walletrpc.StartConsensusRpcResponse> __Method_StartConsensusRpc = new Method<global::Walletrpc.StartConsensusRpcRequest, global::Walletrpc.StartConsensusRpcResponse>(
         MethodType.Unary,
         __ServiceName,
-        "StartBtcdRpc",
-        __Marshaller_StartBtcdRpcRequest,
-        __Marshaller_StartBtcdRpcResponse);
+        "StartConsensusRpc",
+        __Marshaller_StartConsensusRpcRequest,
+        __Marshaller_StartConsensusRpcResponse);
 
     // service descriptor
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
@@ -761,10 +761,10 @@ namespace Walletrpc {
       global::Walletrpc.CloseWalletResponse CloseWallet(global::Walletrpc.CloseWalletRequest request, CallOptions options);
       AsyncUnaryCall<global::Walletrpc.CloseWalletResponse> CloseWalletAsync(global::Walletrpc.CloseWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
       AsyncUnaryCall<global::Walletrpc.CloseWalletResponse> CloseWalletAsync(global::Walletrpc.CloseWalletRequest request, CallOptions options);
-      global::Walletrpc.StartBtcdRpcResponse StartBtcdRpc(global::Walletrpc.StartBtcdRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.StartBtcdRpcResponse StartBtcdRpc(global::Walletrpc.StartBtcdRpcRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.StartBtcdRpcResponse> StartBtcdRpcAsync(global::Walletrpc.StartBtcdRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.StartBtcdRpcResponse> StartBtcdRpcAsync(global::Walletrpc.StartBtcdRpcRequest request, CallOptions options);
+      global::Walletrpc.StartConsensusRpcResponse StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
+      global::Walletrpc.StartConsensusRpcResponse StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, CallOptions options);
+      AsyncUnaryCall<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpcAsync(global::Walletrpc.StartConsensusRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
+      AsyncUnaryCall<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpcAsync(global::Walletrpc.StartConsensusRpcRequest request, CallOptions options);
     }
 
     // server-side interface
@@ -774,7 +774,7 @@ namespace Walletrpc {
       Task<global::Walletrpc.CreateWalletResponse> CreateWallet(global::Walletrpc.CreateWalletRequest request, ServerCallContext context);
       Task<global::Walletrpc.OpenWalletResponse> OpenWallet(global::Walletrpc.OpenWalletRequest request, ServerCallContext context);
       Task<global::Walletrpc.CloseWalletResponse> CloseWallet(global::Walletrpc.CloseWalletRequest request, ServerCallContext context);
-      Task<global::Walletrpc.StartBtcdRpcResponse> StartBtcdRpc(global::Walletrpc.StartBtcdRpcRequest request, ServerCallContext context);
+      Task<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, ServerCallContext context);
     }
 
     // client stub
@@ -863,24 +863,24 @@ namespace Walletrpc {
         var call = CreateCall(__Method_CloseWallet, options);
         return Calls.AsyncUnaryCall(call, request);
       }
-      public global::Walletrpc.StartBtcdRpcResponse StartBtcdRpc(global::Walletrpc.StartBtcdRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public global::Walletrpc.StartConsensusRpcResponse StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_StartBtcdRpc, new CallOptions(headers, deadline, cancellationToken));
+        var call = CreateCall(__Method_StartConsensusRpc, new CallOptions(headers, deadline, cancellationToken));
         return Calls.BlockingUnaryCall(call, request);
       }
-      public global::Walletrpc.StartBtcdRpcResponse StartBtcdRpc(global::Walletrpc.StartBtcdRpcRequest request, CallOptions options)
+      public global::Walletrpc.StartConsensusRpcResponse StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_StartBtcdRpc, options);
+        var call = CreateCall(__Method_StartConsensusRpc, options);
         return Calls.BlockingUnaryCall(call, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.StartBtcdRpcResponse> StartBtcdRpcAsync(global::Walletrpc.StartBtcdRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public AsyncUnaryCall<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpcAsync(global::Walletrpc.StartConsensusRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_StartBtcdRpc, new CallOptions(headers, deadline, cancellationToken));
+        var call = CreateCall(__Method_StartConsensusRpc, new CallOptions(headers, deadline, cancellationToken));
         return Calls.AsyncUnaryCall(call, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.StartBtcdRpcResponse> StartBtcdRpcAsync(global::Walletrpc.StartBtcdRpcRequest request, CallOptions options)
+      public AsyncUnaryCall<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpcAsync(global::Walletrpc.StartConsensusRpcRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_StartBtcdRpc, options);
+        var call = CreateCall(__Method_StartConsensusRpc, options);
         return Calls.AsyncUnaryCall(call, request);
       }
     }
@@ -893,7 +893,7 @@ namespace Walletrpc {
           .AddMethod(__Method_CreateWallet, serviceImpl.CreateWallet)
           .AddMethod(__Method_OpenWallet, serviceImpl.OpenWallet)
           .AddMethod(__Method_CloseWallet, serviceImpl.CloseWallet)
-          .AddMethod(__Method_StartBtcdRpc, serviceImpl.StartBtcdRpc).Build();
+          .AddMethod(__Method_StartConsensusRpc, serviceImpl.StartConsensusRpc).Build();
     }
 
     // creates a new client
