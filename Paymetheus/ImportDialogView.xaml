@@ -14,7 +14,9 @@
         <StackPanel>
             <Label Content="Import key" FontSize="18"/>
             <Label Content="Private key (WIF):"/>
-            <TextBox Name="textBox" Text="{Binding PrivateKeyWif, UpdateSourceTrigger=Default}" Margin="6 2" Padding="2" KeyDown="textBox_KeyDown"/>
+            <TextBox Name="textBox" Margin="6 2" Padding="2"
+                     Text="{Binding PrivateKeyWif, Mode=OneWayToSource}"
+                     local:BindingProperties.UpdateSourceOnEnterProperty="TextBox.Text"/>
             <Label Content="Private passphrase:"/>
             <PasswordBox PasswordChanged="PasswordBox_PasswordChanged" Margin="6 2" Padding="2"/>
             <CheckBox Content="Rescan blockchain for unspent outputs" IsChecked="{Binding Rescan}" Margin="6"/>

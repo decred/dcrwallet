@@ -76,7 +76,6 @@ namespace Paymetheus.Decred.Wallet
         }
     }
 
-    [Serializable]
     public class ChecksumException : Exception
     {
         public ChecksumException(string message) : base(message) { }

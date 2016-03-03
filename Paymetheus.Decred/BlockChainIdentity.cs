@@ -58,7 +58,6 @@ namespace Paymetheus.Decred
         }
     }
 
-    [Serializable]
     public class UnknownBlockChainException : Exception
     {
         public UnknownBlockChainException(string message) : base(message) { }

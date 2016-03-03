@@ -89,7 +89,6 @@ namespace Paymetheus.Decred.Util
         }
     }
 
-    [Serializable]
     public class CanonicalCompactIntException : Exception
     {
         public CanonicalCompactIntException(string message) : base(message) { }

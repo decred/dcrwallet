@@ -182,7 +182,7 @@ namespace Paymetheus
 
                 if (CreateChecked)
                 {
-                    Wizard.CurrentDialog = new ConfirmSeedBackupDialog(Wizard, _randomSeed, this);
+                    Wizard.CurrentDialog = new ConfirmSeedBackupDialog(Wizard, this, _randomSeed, _pgpWordList);
                 }
                 else
                 {
@@ -203,35 +203,49 @@ namespace Paymetheus
 
     sealed class ConfirmSeedBackupDialog : ConnectionWizardDialog
     {
-        public ConfirmSeedBackupDialog(StartupWizard wizard, byte[] seed, CreateOrImportSeedDialog previousDialog)
+        public ConfirmSeedBackupDialog(StartupWizard wizard, CreateOrImportSeedDialog previousDialog,
+            byte[] seed, PgpWordList pgpWordlist)
             : base(wizard)
         {
-            _seed = seed;
             _previousDialog = previousDialog;
+            _seed = seed;
+            _pgpWordList = pgpWordlist;
 
             ConfirmSeedCommand = new DelegateCommand(ConfirmSeed);
             BackCommand = new DelegateCommand(Back);
         }
 
-        private byte[] _seed;
         private CreateOrImportSeedDialog _previousDialog;
+        private byte[] _seed;
+        private PgpWordList _pgpWordList;
 
         public string Input { get; set; } = "";
 
         public DelegateCommand ConfirmSeedCommand { get; }
         private void ConfirmSeed()
         {
-            byte[] decodedSeed;
-            if (Hexadecimal.TryDecode(Input, out decodedSeed))
+            try
             {
+                ConfirmSeedCommand.Executable = false;
+
+                var decodedSeed = WalletSeed.DecodeAndValidateUserInput(Input, _pgpWordList);
                 if (ValueArray.ShallowEquals(_seed, decodedSeed))
                 {
                     _wizard.CurrentDialog = new PromptPassphrasesDialog(Wizard, _seed);
-                    return;
+                }
+                else
+                {
+                    MessageBox.Show("Seed does not match");
                 }
             }
-
-            MessageBox.Show("Seed does not match");
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Invalid seed");
+            }
+            finally
+            {
+                ConfirmSeedCommand.Executable = true;
+            }
         }
 
         public DelegateCommand BackCommand { get; }

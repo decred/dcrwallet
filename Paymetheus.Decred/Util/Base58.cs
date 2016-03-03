@@ -4,7 +4,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using System.Text;
 
@@ -128,8 +127,15 @@ namespace Paymetheus.Decred.Util
         /// </summary>
         /// <param name="value">The string to check.</param>
         /// <returns>True iff the value is valid base58.</returns>
-        public static bool IsBase58Encoded(string value) =>
-            value.All(ch => ch < AsciiToDigitMap.Length && AsciiToDigitMap[ch] < Radix);
+        public static bool IsBase58Encoded(string value)
+        {
+            foreach (var ch in value)
+            {
+                if (!(ch < AsciiToDigitMap.Length && AsciiToDigitMap[ch] < Radix))
+                    return false;
+            }
+            return true;
+        }
 
         public static string Encode(byte[] value)
         {
@@ -166,7 +172,6 @@ namespace Paymetheus.Decred.Util
         }
     }
 
-    [Serializable]
     public class Base58Exception : Exception
     {
         public Base58Exception(string message) : base(message) { }

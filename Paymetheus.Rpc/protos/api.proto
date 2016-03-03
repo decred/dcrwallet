@@ -2,6 +2,20 @@ syntax = "proto3";
 
 package walletrpc;
 
+service VersionService {
+	rpc Version (VersionRequest) returns (VersionResponse);
+}
+
+message VersionRequest {}
+message VersionResponse {
+	string version_string = 1;
+	uint32 major = 2;
+	uint32 minor = 3;
+	uint32 patch = 4;
+	string prerelease = 5;
+	string build_metadata = 6;
+}
+
 service WalletService {
 	// Queries
 	rpc Ping (PingRequest) returns (PingResponse);
@@ -117,6 +131,11 @@ message NextAccountResponse {
 
 message NextAddressRequest {
 	uint32 account = 1;
+	enum Kind {
+	     BIP0044_EXTERNAL = 0;
+	     BIP0044_INTERNAL = 1;
+	}
+	Kind kind = 2;
 }
 message NextAddressResponse {
 	string address = 1;

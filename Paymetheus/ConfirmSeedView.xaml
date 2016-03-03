@@ -12,6 +12,7 @@
             <Button Content="Confirm" IsDefault="True" Command="{Binding ConfirmSeedCommand}" Width="100" Margin="6,12,3,6" Padding="10 2"/>
         </StackPanel>
         <Label DockPanel.Dock="Top" FontSize="18" Content="Confirm backup"/>
-        <TextBox x:Name="textBox" Text="{Binding Input}"/>
+        <TextBox x:Name="textBox" Text="{Binding Input, Mode=OneWayToSource}"
+                 local:BindingProperties.UpdateSourceOnEnterProperty="TextBox.Text"/>
     </DockPanel>
 </UserControl>

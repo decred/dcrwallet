@@ -6,7 +6,6 @@ using System;
 
 namespace Paymetheus.Decred
 {
-    [Serializable]
     public class BlockChainConsistencyException : Exception
     {
         internal BlockChainConsistencyException(string message) : base(message) { }
