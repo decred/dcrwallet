@@ -17,11 +17,18 @@ namespace Paymetheus.Rpc
             if (intendedNetwork == null)
                 throw new ArgumentNullException(nameof(intendedNetwork));
 
-            // Note: when mainnet becomes the default this should use "testnet" and
-            // not "testnet3" as the flag.
-            string networkFlag = "";
-            if (intendedNetwork != BlockChainIdentity.TestNet3)
+            var networkFlag = "";
+            if (intendedNetwork == BlockChainIdentity.TestNet3)
+            {
+                // While the actual name of the network is "testnet3", the wallet uses
+                // the --testnet flag for this network.
+                networkFlag = "--testnet";
+            }
+            else if (intendedNetwork != BlockChainIdentity.MainNet)
+            {
                 networkFlag = $"--{intendedNetwork.Name}";
+            }
+
             var v4ListenAddress = RpcListenAddress("127.0.0.1", intendedNetwork);
 
             var processInfo = new ProcessStartInfo();
