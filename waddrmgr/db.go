@@ -181,6 +181,25 @@ var (
 	// e.g. last account number
 	metaBucketName = []byte("meta")
 
+	// addrPoolMetaKeyLen is the byte length of the address pool
+	// prefixes. It is 11 bytes for the prefix and 4 bytes for
+	// the account number.
+	addrPoolMetaKeyLen = 15
+
+	// addrPoolKeyPrefixExt is the prefix for keys mapping the
+	// last used address pool index to a BIP0044 account. The
+	// BIP0044 account is appended to this slice in order to
+	// derive the key. This is the external branch.
+	// e.g. in pseudocode:
+	// key = append([]byte("addrpoolext"), []byte(account))
+	addrPoolKeyPrefixExt = []byte("addrpoolext")
+
+	// addrPoolKeyPrefixInt is the prefix for keys mapping the
+	// last used address pool index to a BIP0044 account. The
+	// BIP0044 account is appended to this slice in order to
+	// derive the key. This is the internal branch.
+	addrPoolKeyPrefixInt = []byte("addrpoolint")
+
 	// lastAccountName is used to store the metadata - last account
 	// in the manager
 	lastAccountName = []byte("lastaccount")
@@ -1557,44 +1576,54 @@ func putRecentBlocks(tx walletdb.Tx, recentHeight int32, recentHashes []chainhas
 	return nil
 }
 
-// fetchNextToUseAddrs loads the next to use addresses for the internal and
-// external default accounts as 20 byte P2PKH address scripts.
-func fetchNextToUseAddrs(tx walletdb.Tx) ([20]byte, [20]byte, error) {
-	bucket := tx.RootBucket().Bucket(mainBucketName)
-
-	// Load the master private key parameters if they were stored.
-	var nextToUsePkhs []byte
-	val := bucket.Get(lastDefaultAddsrName)
-	if val != nil {
-		nextToUsePkhs = make([]byte, len(val))
-		copy(nextToUsePkhs, val)
+// accountNumberToAddrPoolKey converts an account into a meta-bucket key for
+// the storage of the next to use address index as the value.
+func accountNumberToAddrPoolKey(isInternal bool, account uint32) []byte {
+	k := make([]byte, addrPoolMetaKeyLen)
+	if isInternal {
+		copy(k, addrPoolKeyPrefixInt)
+		binary.LittleEndian.PutUint32(k[addrPoolMetaKeyLen-4:], account)
 	} else {
-		str := "nextToUsePkhs is not present"
-		return [20]byte{}, [20]byte{}, managerError(ErrDatabase, str, nil)
+		copy(k, addrPoolKeyPrefixExt)
+		binary.LittleEndian.PutUint32(k[addrPoolMetaKeyLen-4:], account)
 	}
 
-	var addrExtPkh [20]byte
-	var addrIntPkh [20]byte
-	copy(addrExtPkh[:], nextToUsePkhs[:20])
-	copy(addrIntPkh[:], nextToUsePkhs[20:])
-
-	return addrExtPkh, addrIntPkh, nil
+	return k
 }
 
-// putNextToUseAddrs inserts the next to be used address into the waddrmgr
+// fetchNextToUseAddrPoolIdx retrieves an address pool address index for a
+// given account and branch from the meta bucket of the address manager
 // database.
-func putNextToUseAddrs(tx walletdb.Tx, addrExtPkh [20]byte,
-	addrIntPkh [20]byte) error {
-	bucket := tx.RootBucket().Bucket(mainBucketName)
+func fetchNextToUseAddrPoolIdx(tx walletdb.Tx, isInternal bool,
+	account uint32) (uint32, error) {
+	bucket := tx.RootBucket().Bucket(metaBucketName)
+	k := accountNumberToAddrPoolKey(isInternal, account)
+	val := bucket.Get(k)
 
-	// Enough space for 2x PKHs.
-	nextToUsePkhs := make([]byte, 40, 40)
-	copy(nextToUsePkhs[:20], addrExtPkh[:])
-	copy(nextToUsePkhs[20:], addrIntPkh[:])
+	// Value should be a uint32. The serialized format
+	// is simply a little endian slice 4 bytes long.
+	if len(val) < 4 {
+		str := fmt.Sprintf("short read for acct %v, isinternal %v",
+			account, isInternal)
+		err := fmt.Errorf("short read")
+		return 0, managerError(ErrMetaPoolIdxNoExist, str, err)
+	}
 
-	err := bucket.Put(lastDefaultAddsrName, nextToUsePkhs)
+	return binary.LittleEndian.Uint32(val[0:4]), nil
+}
+
+// putNextToUseAddrPoolIdx stores an address pool address index for a
+// given account and branch in the meta bucket of the address manager
+// database.
+func putNextToUseAddrPoolIdx(tx walletdb.Tx, isInternal bool, account uint32, index uint32) error {
+	bucket := tx.RootBucket().Bucket(metaBucketName)
+	k := accountNumberToAddrPoolKey(isInternal, account)
+	v := make([]byte, 4, 4)
+	binary.LittleEndian.PutUint32(v, index)
+
+	err := bucket.Put(k, v)
 	if err != nil {
-		str := "failed to store lastUsedPkhs"
+		str := "failed to store next to use idx"
 		return managerError(ErrDatabase, str, err)
 	}
 

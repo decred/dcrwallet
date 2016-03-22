@@ -1174,8 +1174,49 @@ func (w *Wallet) rescanActiveAddresses() error {
 		}
 
 		branchString := "external"
-		if i == 1 {
+		pool := w.externalPool
+		if i == waddrmgr.InternalBranch {
+			pool = w.internalPool
 			branchString = "internal"
+		}
+
+		// Spin up the address pools after the initial sync scans.
+		isInternal := i == waddrmgr.InternalBranch
+		oldIdx, err := w.Manager.NextToUseAddrPoolIndex(isInternal,
+			waddrmgr.DefaultAccountNum)
+		if err != nil {
+			mErr, ok := err.(waddrmgr.ManagerError)
+			unexpectedError := false
+			if !ok {
+				unexpectedError = true
+			} else {
+				// Skip errors where the account's address index
+				// has not been store. For this case, oldIdx will
+				// be the special case 0 which will always be
+				// skipped in the initialization step below.
+				if mErr.ErrorCode != waddrmgr.ErrMetaPoolIdxNoExist {
+					unexpectedError = true
+				}
+			}
+			if unexpectedError {
+				return fmt.Errorf("got unexpected error trying to "+
+					"retrieve last known addr index for acct %v, "+
+					"%s branch: %v", waddrmgr.DefaultAccountNum,
+					branchString, err)
+			}
+		}
+
+		// If the stored index is further along than the sync-to
+		// index determined by the contents of daemon's addrindex,
+		// use it to initialize the address pool instead.
+		if oldIdx > idx {
+			idx = oldIdx
+		}
+		err = pool.initialize(waddrmgr.DefaultAccountNum,
+			i, idx+1, w)
+		if err != nil {
+			return fmt.Errorf("Failed to start the default account %s "+
+				"branch address pool: %v", branchString, err)
 		}
 
 		if addr == nil && err == nil {
@@ -1215,8 +1256,8 @@ func (w *Wallet) rescanActiveAddresses() error {
 			return err
 		}
 		if exists {
-			log.Debugf("Wallet is already synchronized to address %v"+
-				" of default account %v branch", addr, branchString)
+			log.Debugf("Wallet is already synchronized to address %v (idx %v)"+
+				" of default account %v branch", addr, idx, branchString)
 			continue
 		}
 
@@ -1232,16 +1273,10 @@ func (w *Wallet) rescanActiveAddresses() error {
 
 			// Set the next address in the waddrmgr database so that the
 			// address pool can synchronize properly after.
-			addr, err := w.Manager.GetAddress(idx+1,
-				waddrmgr.DefaultAccountNum, i)
+			err = w.Manager.StoreNextToUseAddress(false,
+				waddrmgr.DefaultAccountNum, idx+1)
 			if err != nil {
-				log.Errorf("Encountered unexpected error when trying to get "+
-					"the next to use address for branch %v, index %v", i,
-					idx+1)
-			}
-			err = w.Manager.StoreNextToUseAddresses(addr, nil)
-			if err != nil {
-				log.Errorf("Failed to store next to use address for external "+
+				log.Errorf("Failed to store next to use pool idx for external "+
 					"pool in the manager on init sync: %v", err.Error())
 			}
 
@@ -1259,14 +1294,8 @@ func (w *Wallet) rescanActiveAddresses() error {
 
 			// Set the next address in the waddrmgr database so that the
 			// address pool can synchronize properly after.
-			addr, err := w.Manager.GetAddress(idx+1,
-				waddrmgr.DefaultAccountNum, i)
-			if err != nil {
-				log.Errorf("Encountered unexpected error when trying to get "+
-					"the next to use address for branch %v, index %v", i,
-					idx+1)
-			}
-			err = w.Manager.StoreNextToUseAddresses(nil, addr)
+			err = w.Manager.StoreNextToUseAddress(false,
+				waddrmgr.DefaultAccountNum, idx+1)
 			if err != nil {
 				log.Errorf("Failed to store next to use address for internal "+
 					"pool in the manager on init sync: %v", err.Error())
@@ -1286,11 +1315,7 @@ func (w *Wallet) rescanActiveAddresses() error {
 // outputs.  This is primarely intended to provide the parameters for a
 // rescan request.
 func (w *Wallet) activeData() ([]dcrutil.Address, []*wire.OutPoint, error) {
-	err := w.rescanActiveAddresses()
-	if err != nil {
-		return nil, nil, err
-	}
-
+	var err error
 	var addrs []dcrutil.Address
 	err = w.Manager.ForEachActiveAddress(func(addr dcrutil.Address) error {
 		addrs = append(addrs, addr)
@@ -1334,6 +1359,13 @@ func (w *Wallet) syncWithChain() error {
 	// Request notifications for transactions sending to all wallet
 	// addresses.
 	addrs, unspent, err := w.activeData()
+	if err != nil {
+		return err
+	}
+
+	// Rescan to the newest used addresses. This also initializes the
+	// address pools.
+	err = w.rescanActiveAddresses()
 	if err != nil {
 		return err
 	}
