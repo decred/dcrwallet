@@ -216,8 +216,16 @@ func (w *Wallet) CloseAddressPools() {
 		return
 	}
 
-	w.internalPool.Close()
-	w.externalPool.Close()
+	err := w.internalPool.Close()
+	if err != nil {
+		log.Errorf("failed to close default acct internal addr pool: %v",
+			err)
+	}
+	err = w.externalPool.Close()
+	if err != nil {
+		log.Errorf("failed to close default acct external addr pool: %v",
+			err)
+	}
 
 	return
 }
