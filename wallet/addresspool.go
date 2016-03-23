@@ -57,6 +57,9 @@ func NewAddressPool() *addressPool {
 // to the address index given.
 func (a *addressPool) initialize(account uint32, branch uint32, index uint32,
 	w *Wallet) error {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
 	// Do not reinitialize an address pool that was already started.
 	// This can happen if the RPC client dies due to a disconnect
 	// from the daemon.
