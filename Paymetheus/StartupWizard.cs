@@ -94,7 +94,7 @@ namespace Paymetheus
                     ConsensusServerRpcUsername, ConsensusServerRpcPassword, ConsensusServerCertificateFile);
                 try
                 {
-                    await App.Current.WalletRpcClient.StartBtcdRpc(rpcOptions);
+                    await App.Current.WalletRpcClient.StartConsensusRpc(rpcOptions);
                 }
                 catch (Exception ex) when (ErrorHandling.IsTransient(ex) || ErrorHandling.IsClientError(ex))
                 {

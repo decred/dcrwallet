@@ -115,54 +115,55 @@ namespace Walletrpc {
             "EhkKEXB1YmxpY19wYXNzcGhyYXNlGAEgASgMIhQKEk9wZW5XYWxsZXRSZXNw",
             "b25zZSIUChJDbG9zZVdhbGxldFJlcXVlc3QiFQoTQ2xvc2VXYWxsZXRSZXNw",
             "b25zZSIVChNXYWxsZXRFeGlzdHNSZXF1ZXN0IiYKFFdhbGxldEV4aXN0c1Jl",
-            "c3BvbnNlEg4KBmV4aXN0cxgBIAEoCCJnChNTdGFydEJ0Y2RScGNSZXF1ZXN0",
-            "EhcKD25ldHdvcmtfYWRkcmVzcxgBIAEoCRIQCgh1c2VybmFtZRgCIAEoCRIQ",
-            "CghwYXNzd29yZBgDIAEoDBITCgtjZXJ0aWZpY2F0ZRgEIAEoDCIWChRTdGFy",
-            "dEJ0Y2RScGNSZXNwb25zZTJSCg5WZXJzaW9uU2VydmljZRJACgdWZXJzaW9u",
-            "Ehkud2FsbGV0cnBjLlZlcnNpb25SZXF1ZXN0Ghoud2FsbGV0cnBjLlZlcnNp",
-            "b25SZXNwb25zZTLTCwoNV2FsbGV0U2VydmljZRI3CgRQaW5nEhYud2FsbGV0",
-            "cnBjLlBpbmdSZXF1ZXN0Ghcud2FsbGV0cnBjLlBpbmdSZXNwb25zZRJACgdO",
-            "ZXR3b3JrEhkud2FsbGV0cnBjLk5ldHdvcmtSZXF1ZXN0Ghoud2FsbGV0cnBj",
-            "Lk5ldHdvcmtSZXNwb25zZRJSCg1BY2NvdW50TnVtYmVyEh8ud2FsbGV0cnBj",
-            "LkFjY291bnROdW1iZXJSZXF1ZXN0GiAud2FsbGV0cnBjLkFjY291bnROdW1i",
-            "ZXJSZXNwb25zZRJDCghBY2NvdW50cxIaLndhbGxldHJwYy5BY2NvdW50c1Jl",
-            "cXVlc3QaGy53YWxsZXRycGMuQWNjb3VudHNSZXNwb25zZRJACgdCYWxhbmNl",
-            "Ehkud2FsbGV0cnBjLkJhbGFuY2VSZXF1ZXN0Ghoud2FsbGV0cnBjLkJhbGFu",
-            "Y2VSZXNwb25zZRJYCg9HZXRUcmFuc2FjdGlvbnMSIS53YWxsZXRycGMuR2V0",
-            "VHJhbnNhY3Rpb25zUmVxdWVzdBoiLndhbGxldHJwYy5HZXRUcmFuc2FjdGlv",
-            "bnNSZXNwb25zZRJ1ChhUcmFuc2FjdGlvbk5vdGlmaWNhdGlvbnMSKi53YWxs",
-            "ZXRycGMuVHJhbnNhY3Rpb25Ob3RpZmljYXRpb25zUmVxdWVzdBorLndhbGxl",
-            "dHJwYy5UcmFuc2FjdGlvbk5vdGlmaWNhdGlvbnNSZXNwb25zZTABEm8KFlNw",
-            "ZW50bmVzc05vdGlmaWNhdGlvbnMSKC53YWxsZXRycGMuU3BlbnRuZXNzTm90",
-            "aWZpY2F0aW9uc1JlcXVlc3QaKS53YWxsZXRycGMuU3BlbnRuZXNzTm90aWZp",
-            "Y2F0aW9uc1Jlc3BvbnNlMAESaQoUQWNjb3VudE5vdGlmaWNhdGlvbnMSJi53",
-            "YWxsZXRycGMuQWNjb3VudE5vdGlmaWNhdGlvbnNSZXF1ZXN0Gicud2FsbGV0",
-            "cnBjLkFjY291bnROb3RpZmljYXRpb25zUmVzcG9uc2UwARJbChBDaGFuZ2VQ",
-            "YXNzcGhyYXNlEiIud2FsbGV0cnBjLkNoYW5nZVBhc3NwaHJhc2VSZXF1ZXN0",
-            "GiMud2FsbGV0cnBjLkNoYW5nZVBhc3NwaHJhc2VSZXNwb25zZRJSCg1SZW5h",
-            "bWVBY2NvdW50Eh8ud2FsbGV0cnBjLlJlbmFtZUFjY291bnRSZXF1ZXN0GiAu",
-            "d2FsbGV0cnBjLlJlbmFtZUFjY291bnRSZXNwb25zZRJMCgtOZXh0QWNjb3Vu",
-            "dBIdLndhbGxldHJwYy5OZXh0QWNjb3VudFJlcXVlc3QaHi53YWxsZXRycGMu",
-            "TmV4dEFjY291bnRSZXNwb25zZRJMCgtOZXh0QWRkcmVzcxIdLndhbGxldHJw",
-            "Yy5OZXh0QWRkcmVzc1JlcXVlc3QaHi53YWxsZXRycGMuTmV4dEFkZHJlc3NS",
-            "ZXNwb25zZRJbChBJbXBvcnRQcml2YXRlS2V5EiIud2FsbGV0cnBjLkltcG9y",
-            "dFByaXZhdGVLZXlSZXF1ZXN0GiMud2FsbGV0cnBjLkltcG9ydFByaXZhdGVL",
-            "ZXlSZXNwb25zZRJYCg9GdW5kVHJhbnNhY3Rpb24SIS53YWxsZXRycGMuRnVu",
-            "ZFRyYW5zYWN0aW9uUmVxdWVzdBoiLndhbGxldHJwYy5GdW5kVHJhbnNhY3Rp",
-            "b25SZXNwb25zZRJYCg9TaWduVHJhbnNhY3Rpb24SIS53YWxsZXRycGMuU2ln",
-            "blRyYW5zYWN0aW9uUmVxdWVzdBoiLndhbGxldHJwYy5TaWduVHJhbnNhY3Rp",
-            "b25SZXNwb25zZRJhChJQdWJsaXNoVHJhbnNhY3Rpb24SJC53YWxsZXRycGMu",
-            "UHVibGlzaFRyYW5zYWN0aW9uUmVxdWVzdBolLndhbGxldHJwYy5QdWJsaXNo",
-            "VHJhbnNhY3Rpb25SZXNwb25zZTKhAwoTV2FsbGV0TG9hZGVyU2VydmljZRJP",
-            "CgxXYWxsZXRFeGlzdHMSHi53YWxsZXRycGMuV2FsbGV0RXhpc3RzUmVxdWVz",
-            "dBofLndhbGxldHJwYy5XYWxsZXRFeGlzdHNSZXNwb25zZRJPCgxDcmVhdGVX",
-            "YWxsZXQSHi53YWxsZXRycGMuQ3JlYXRlV2FsbGV0UmVxdWVzdBofLndhbGxl",
-            "dHJwYy5DcmVhdGVXYWxsZXRSZXNwb25zZRJJCgpPcGVuV2FsbGV0Ehwud2Fs",
-            "bGV0cnBjLk9wZW5XYWxsZXRSZXF1ZXN0Gh0ud2FsbGV0cnBjLk9wZW5XYWxs",
-            "ZXRSZXNwb25zZRJMCgtDbG9zZVdhbGxldBIdLndhbGxldHJwYy5DbG9zZVdh",
-            "bGxldFJlcXVlc3QaHi53YWxsZXRycGMuQ2xvc2VXYWxsZXRSZXNwb25zZRJP",
-            "CgxTdGFydEJ0Y2RScGMSHi53YWxsZXRycGMuU3RhcnRCdGNkUnBjUmVxdWVz",
-            "dBofLndhbGxldHJwYy5TdGFydEJ0Y2RScGNSZXNwb25zZWIGcHJvdG8z"));
+            "c3BvbnNlEg4KBmV4aXN0cxgBIAEoCCJsChhTdGFydENvbnNlbnN1c1JwY1Jl",
+            "cXVlc3QSFwoPbmV0d29ya19hZGRyZXNzGAEgASgJEhAKCHVzZXJuYW1lGAIg",
+            "ASgJEhAKCHBhc3N3b3JkGAMgASgMEhMKC2NlcnRpZmljYXRlGAQgASgMIhsK",
+            "GVN0YXJ0Q29uc2Vuc3VzUnBjUmVzcG9uc2UyUgoOVmVyc2lvblNlcnZpY2US",
+            "QAoHVmVyc2lvbhIZLndhbGxldHJwYy5WZXJzaW9uUmVxdWVzdBoaLndhbGxl",
+            "dHJwYy5WZXJzaW9uUmVzcG9uc2Uy0wsKDVdhbGxldFNlcnZpY2USNwoEUGlu",
+            "ZxIWLndhbGxldHJwYy5QaW5nUmVxdWVzdBoXLndhbGxldHJwYy5QaW5nUmVz",
+            "cG9uc2USQAoHTmV0d29yaxIZLndhbGxldHJwYy5OZXR3b3JrUmVxdWVzdBoa",
+            "LndhbGxldHJwYy5OZXR3b3JrUmVzcG9uc2USUgoNQWNjb3VudE51bWJlchIf",
+            "LndhbGxldHJwYy5BY2NvdW50TnVtYmVyUmVxdWVzdBogLndhbGxldHJwYy5B",
+            "Y2NvdW50TnVtYmVyUmVzcG9uc2USQwoIQWNjb3VudHMSGi53YWxsZXRycGMu",
+            "QWNjb3VudHNSZXF1ZXN0Ghsud2FsbGV0cnBjLkFjY291bnRzUmVzcG9uc2US",
+            "QAoHQmFsYW5jZRIZLndhbGxldHJwYy5CYWxhbmNlUmVxdWVzdBoaLndhbGxl",
+            "dHJwYy5CYWxhbmNlUmVzcG9uc2USWAoPR2V0VHJhbnNhY3Rpb25zEiEud2Fs",
+            "bGV0cnBjLkdldFRyYW5zYWN0aW9uc1JlcXVlc3QaIi53YWxsZXRycGMuR2V0",
+            "VHJhbnNhY3Rpb25zUmVzcG9uc2USdQoYVHJhbnNhY3Rpb25Ob3RpZmljYXRp",
+            "b25zEioud2FsbGV0cnBjLlRyYW5zYWN0aW9uTm90aWZpY2F0aW9uc1JlcXVl",
+            "c3QaKy53YWxsZXRycGMuVHJhbnNhY3Rpb25Ob3RpZmljYXRpb25zUmVzcG9u",
+            "c2UwARJvChZTcGVudG5lc3NOb3RpZmljYXRpb25zEigud2FsbGV0cnBjLlNw",
+            "ZW50bmVzc05vdGlmaWNhdGlvbnNSZXF1ZXN0Gikud2FsbGV0cnBjLlNwZW50",
+            "bmVzc05vdGlmaWNhdGlvbnNSZXNwb25zZTABEmkKFEFjY291bnROb3RpZmlj",
+            "YXRpb25zEiYud2FsbGV0cnBjLkFjY291bnROb3RpZmljYXRpb25zUmVxdWVz",
+            "dBonLndhbGxldHJwYy5BY2NvdW50Tm90aWZpY2F0aW9uc1Jlc3BvbnNlMAES",
+            "WwoQQ2hhbmdlUGFzc3BocmFzZRIiLndhbGxldHJwYy5DaGFuZ2VQYXNzcGhy",
+            "YXNlUmVxdWVzdBojLndhbGxldHJwYy5DaGFuZ2VQYXNzcGhyYXNlUmVzcG9u",
+            "c2USUgoNUmVuYW1lQWNjb3VudBIfLndhbGxldHJwYy5SZW5hbWVBY2NvdW50",
+            "UmVxdWVzdBogLndhbGxldHJwYy5SZW5hbWVBY2NvdW50UmVzcG9uc2USTAoL",
+            "TmV4dEFjY291bnQSHS53YWxsZXRycGMuTmV4dEFjY291bnRSZXF1ZXN0Gh4u",
+            "d2FsbGV0cnBjLk5leHRBY2NvdW50UmVzcG9uc2USTAoLTmV4dEFkZHJlc3MS",
+            "HS53YWxsZXRycGMuTmV4dEFkZHJlc3NSZXF1ZXN0Gh4ud2FsbGV0cnBjLk5l",
+            "eHRBZGRyZXNzUmVzcG9uc2USWwoQSW1wb3J0UHJpdmF0ZUtleRIiLndhbGxl",
+            "dHJwYy5JbXBvcnRQcml2YXRlS2V5UmVxdWVzdBojLndhbGxldHJwYy5JbXBv",
+            "cnRQcml2YXRlS2V5UmVzcG9uc2USWAoPRnVuZFRyYW5zYWN0aW9uEiEud2Fs",
+            "bGV0cnBjLkZ1bmRUcmFuc2FjdGlvblJlcXVlc3QaIi53YWxsZXRycGMuRnVu",
+            "ZFRyYW5zYWN0aW9uUmVzcG9uc2USWAoPU2lnblRyYW5zYWN0aW9uEiEud2Fs",
+            "bGV0cnBjLlNpZ25UcmFuc2FjdGlvblJlcXVlc3QaIi53YWxsZXRycGMuU2ln",
+            "blRyYW5zYWN0aW9uUmVzcG9uc2USYQoSUHVibGlzaFRyYW5zYWN0aW9uEiQu",
+            "d2FsbGV0cnBjLlB1Ymxpc2hUcmFuc2FjdGlvblJlcXVlc3QaJS53YWxsZXRy",
+            "cGMuUHVibGlzaFRyYW5zYWN0aW9uUmVzcG9uc2UysAMKE1dhbGxldExvYWRl",
+            "clNlcnZpY2USTwoMV2FsbGV0RXhpc3RzEh4ud2FsbGV0cnBjLldhbGxldEV4",
+            "aXN0c1JlcXVlc3QaHy53YWxsZXRycGMuV2FsbGV0RXhpc3RzUmVzcG9uc2US",
+            "TwoMQ3JlYXRlV2FsbGV0Eh4ud2FsbGV0cnBjLkNyZWF0ZVdhbGxldFJlcXVl",
+            "c3QaHy53YWxsZXRycGMuQ3JlYXRlV2FsbGV0UmVzcG9uc2USSQoKT3Blbldh",
+            "bGxldBIcLndhbGxldHJwYy5PcGVuV2FsbGV0UmVxdWVzdBodLndhbGxldHJw",
+            "Yy5PcGVuV2FsbGV0UmVzcG9uc2USTAoLQ2xvc2VXYWxsZXQSHS53YWxsZXRy",
+            "cGMuQ2xvc2VXYWxsZXRSZXF1ZXN0Gh4ud2FsbGV0cnBjLkNsb3NlV2FsbGV0",
+            "UmVzcG9uc2USXgoRU3RhcnRDb25zZW5zdXNScGMSIy53YWxsZXRycGMuU3Rh",
+            "cnRDb25zZW5zdXNScGNSZXF1ZXN0GiQud2FsbGV0cnBjLlN0YXJ0Q29uc2Vu",
+            "c3VzUnBjUmVzcG9uc2ViBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedCodeInfo(null, new pbr::GeneratedCodeInfo[] {
@@ -214,8 +215,8 @@ namespace Walletrpc {
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.CloseWalletResponse), global::Walletrpc.CloseWalletResponse.Parser, null, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.WalletExistsRequest), global::Walletrpc.WalletExistsRequest.Parser, null, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.WalletExistsResponse), global::Walletrpc.WalletExistsResponse.Parser, new[]{ "Exists" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.StartBtcdRpcRequest), global::Walletrpc.StartBtcdRpcRequest.Parser, new[]{ "NetworkAddress", "Username", "Password", "Certificate" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.StartBtcdRpcResponse), global::Walletrpc.StartBtcdRpcResponse.Parser, null, null, null, null)
+            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.StartConsensusRpcRequest), global::Walletrpc.StartConsensusRpcRequest.Parser, new[]{ "NetworkAddress", "Username", "Password", "Certificate" }, null, null, null),
+            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.StartConsensusRpcResponse), global::Walletrpc.StartConsensusRpcResponse.Parser, null, null, null, null)
           }));
     }
     #endregion
@@ -7042,9 +7043,9 @@ namespace Walletrpc {
   }
 
   [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-  public sealed partial class StartBtcdRpcRequest : pb::IMessage<StartBtcdRpcRequest> {
-    private static readonly pb::MessageParser<StartBtcdRpcRequest> _parser = new pb::MessageParser<StartBtcdRpcRequest>(() => new StartBtcdRpcRequest());
-    public static pb::MessageParser<StartBtcdRpcRequest> Parser { get { return _parser; } }
+  public sealed partial class StartConsensusRpcRequest : pb::IMessage<StartConsensusRpcRequest> {
+    private static readonly pb::MessageParser<StartConsensusRpcRequest> _parser = new pb::MessageParser<StartConsensusRpcRequest>(() => new StartConsensusRpcRequest());
+    public static pb::MessageParser<StartConsensusRpcRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
       get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[47]; }
@@ -7054,21 +7055,21 @@ namespace Walletrpc {
       get { return Descriptor; }
     }
 
-    public StartBtcdRpcRequest() {
+    public StartConsensusRpcRequest() {
       OnConstruction();
     }
 
     partial void OnConstruction();
 
-    public StartBtcdRpcRequest(StartBtcdRpcRequest other) : this() {
+    public StartConsensusRpcRequest(StartConsensusRpcRequest other) : this() {
       networkAddress_ = other.networkAddress_;
       username_ = other.username_;
       password_ = other.password_;
       certificate_ = other.certificate_;
     }
 
-    public StartBtcdRpcRequest Clone() {
-      return new StartBtcdRpcRequest(this);
+    public StartConsensusRpcRequest Clone() {
+      return new StartConsensusRpcRequest(this);
     }
 
     /// <summary>Field number for the "network_address" field.</summary>
@@ -7112,10 +7113,10 @@ namespace Walletrpc {
     }
 
     public override bool Equals(object other) {
-      return Equals(other as StartBtcdRpcRequest);
+      return Equals(other as StartConsensusRpcRequest);
     }
 
-    public bool Equals(StartBtcdRpcRequest other) {
+    public bool Equals(StartConsensusRpcRequest other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -7178,7 +7179,7 @@ namespace Walletrpc {
       return size;
     }
 
-    public void MergeFrom(StartBtcdRpcRequest other) {
+    public void MergeFrom(StartConsensusRpcRequest other) {
       if (other == null) {
         return;
       }
@@ -7226,9 +7227,9 @@ namespace Walletrpc {
   }
 
   [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-  public sealed partial class StartBtcdRpcResponse : pb::IMessage<StartBtcdRpcResponse> {
-    private static readonly pb::MessageParser<StartBtcdRpcResponse> _parser = new pb::MessageParser<StartBtcdRpcResponse>(() => new StartBtcdRpcResponse());
-    public static pb::MessageParser<StartBtcdRpcResponse> Parser { get { return _parser; } }
+  public sealed partial class StartConsensusRpcResponse : pb::IMessage<StartConsensusRpcResponse> {
+    private static readonly pb::MessageParser<StartConsensusRpcResponse> _parser = new pb::MessageParser<StartConsensusRpcResponse>(() => new StartConsensusRpcResponse());
+    public static pb::MessageParser<StartConsensusRpcResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
       get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[48]; }
@@ -7238,24 +7239,24 @@ namespace Walletrpc {
       get { return Descriptor; }
     }
 
-    public StartBtcdRpcResponse() {
+    public StartConsensusRpcResponse() {
       OnConstruction();
     }
 
     partial void OnConstruction();
 
-    public StartBtcdRpcResponse(StartBtcdRpcResponse other) : this() {
+    public StartConsensusRpcResponse(StartConsensusRpcResponse other) : this() {
     }
 
-    public StartBtcdRpcResponse Clone() {
-      return new StartBtcdRpcResponse(this);
+    public StartConsensusRpcResponse Clone() {
+      return new StartConsensusRpcResponse(this);
     }
 
     public override bool Equals(object other) {
-      return Equals(other as StartBtcdRpcResponse);
+      return Equals(other as StartConsensusRpcResponse);
     }
 
-    public bool Equals(StartBtcdRpcResponse other) {
+    public bool Equals(StartConsensusRpcResponse other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -7282,7 +7283,7 @@ namespace Walletrpc {
       return size;
     }
 
-    public void MergeFrom(StartBtcdRpcResponse other) {
+    public void MergeFrom(StartConsensusRpcResponse other) {
       if (other == null) {
         return;
       }
