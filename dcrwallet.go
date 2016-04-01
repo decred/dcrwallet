@@ -194,6 +194,7 @@ func startPromptPass(w *wallet.Wallet) {
 	// passphrase. The wallet should also request to be unlocked
 	// if stake mining is currently on, so users with this flag
 	// are prompted here as well.
+	inputFailed := false
 	for {
 		if w.ChainParams() == &chaincfg.SimNetParams {
 			var unlockAfter <-chan time.Time
@@ -207,8 +208,10 @@ func startPromptPass(w *wallet.Wallet) {
 			reader := bufio.NewReader(os.Stdin)
 			passphrase, err := prompt.PromptPass(reader, "", false)
 			if err != nil {
-				log.Errorf("Failed to input password. Please try again.")
-				continue
+				log.Errorf("Failure prompting for passphrase: %s",
+					err.Error())
+				inputFailed = true
+				break
 			}
 			defer zero.Bytes(passphrase)
 
@@ -222,6 +225,10 @@ func startPromptPass(w *wallet.Wallet) {
 
 			break
 		}
+	}
+
+	if inputFailed {
+		simulateInterrupt()
 	}
 }
 
