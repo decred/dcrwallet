@@ -5,6 +5,7 @@ using Paymetheus.Bitcoin;
 using Paymetheus.Rpc;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -62,13 +63,18 @@ namespace Paymetheus
                 // TODO: Make network selectable (parse e.Args for a network)
                 var activeNetwork = BlockChainIdentity.TestNet3;
 
+                var appDataDir = Portability.LocalAppData(Environment.OSVersion.Platform,
+                    AssemblyResources.Organization, AssemblyResources.ProductName);
+
+                Directory.CreateDirectory(appDataDir);
+
                 // Begin the asynchronous reading of the certificate before starting the wallet
                 // process.  This uses filesystem events to know when to begin reading the certificate,
                 // and if there is too much delay between wallet writing the cert and this process
                 // beginning to observe the change, the event may never fire and the cert won't be read.
-                var rootCertificateTask = TransportSecurity.ReadModifiedCertificateAsync();
+                var rootCertificateTask = TransportSecurity.ReadModifiedCertificateAsync(appDataDir);
 
-                var walletProcess = WalletProcess.Start(activeNetwork);
+                var walletProcess = WalletProcess.Start(activeNetwork, appDataDir);
 
                 WalletClient walletClient;
                 try

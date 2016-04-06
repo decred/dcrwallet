@@ -9,13 +9,12 @@ namespace Paymetheus.Rpc
 {
     public static class WalletProcess
     {
-        public static readonly string ApplicationDataDirectory =
-            Portability.LocalAppData(Environment.OSVersion.Platform, "Btcwallet");
-
-        public static Process Start(BlockChainIdentity intendedNetwork)
+        public static Process Start(BlockChainIdentity intendedNetwork, string appDataDirectory)
         {
             if (intendedNetwork == null)
                 throw new ArgumentNullException(nameof(intendedNetwork));
+            if (appDataDirectory == null)
+                throw new ArgumentNullException(nameof(appDataDirectory));
 
             var networkFlag = "";
             if (intendedNetwork == BlockChainIdentity.TestNet3)
@@ -33,7 +32,7 @@ namespace Paymetheus.Rpc
 
             var processInfo = new ProcessStartInfo();
             processInfo.FileName = "btcwallet";
-            processInfo.Arguments = $"{networkFlag} --noinitialload --experimentalrpclisten={v4ListenAddress} --onetimetlskey";
+            processInfo.Arguments = $"{networkFlag} --noinitialload --experimentalrpclisten={v4ListenAddress} --onetimetlskey --datadir=\"{appDataDirectory}\"";
             processInfo.UseShellExecute = false;
             processInfo.RedirectStandardError = true;
             processInfo.RedirectStandardOutput = true;
