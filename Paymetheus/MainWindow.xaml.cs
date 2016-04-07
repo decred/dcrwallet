@@ -1,6 +1,7 @@
 ﻿// Copyright (c) 2016 The btcsuite developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
+using Paymetheus.Bitcoin;
 using System.Windows;
 using System.Windows.Controls;
 

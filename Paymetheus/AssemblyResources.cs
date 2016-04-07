@@ -8,6 +8,7 @@ namespace Paymetheus
 {
     static class AssemblyResources
     {
+        public static string Title { get; }
         public static string ProductName { get; }
         public static string Organization { get; }
 
@@ -15,6 +16,16 @@ namespace Paymetheus
         {
             var asm = Assembly.GetEntryAssembly();
             var metadata = asm?.GetCustomAttributes<AssemblyMetadataAttribute>();
+
+            AssemblyTitleAttribute titleAttribute = null;
+            try
+            {
+                titleAttribute = asm?.GetCustomAttribute<AssemblyTitleAttribute>();
+            }
+            finally
+            {
+                Title = titleAttribute?.Title ?? "Paymetheus";
+            }
 
             AssemblyProductAttribute productAttribute = null;
             try

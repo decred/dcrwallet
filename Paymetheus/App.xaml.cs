@@ -46,6 +46,7 @@ namespace Paymetheus
 
         private bool _walletLoaded;
 
+        public BlockChainIdentity ActiveNetwork { get; private set; }
         public Process WalletRpcProcess { get; private set; }
         public WalletClient WalletRpcClient { get; private set; }
 
@@ -56,18 +57,18 @@ namespace Paymetheus
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
+            // TODO: Make network selectable (parse e.Args for a network)
+            var activeNetwork = BlockChainIdentity.TestNet3;
+
             WalletClient.Initialize();
+
+            var appDataDir = Portability.LocalAppData(Environment.OSVersion.Platform,
+                AssemblyResources.Organization, AssemblyResources.ProductName);
+
+            Directory.CreateDirectory(appDataDir);
 
             var startupTask = Task.Run(async () =>
             {
-                // TODO: Make network selectable (parse e.Args for a network)
-                var activeNetwork = BlockChainIdentity.TestNet3;
-
-                var appDataDir = Portability.LocalAppData(Environment.OSVersion.Platform,
-                    AssemblyResources.Organization, AssemblyResources.ProductName);
-
-                Directory.CreateDirectory(appDataDir);
-
                 // Begin the asynchronous reading of the certificate before starting the wallet
                 // process.  This uses filesystem events to know when to begin reading the certificate,
                 // and if there is too much delay between wallet writing the cert and this process
@@ -98,6 +99,7 @@ namespace Paymetheus
 
             startupTask.Wait();
             var startupResult = startupTask.Result;
+            ActiveNetwork = activeNetwork;
             WalletRpcProcess = startupResult.Item1;
             WalletRpcClient = startupResult.Item2;
             Application.Current.Exit += Application_Exit;
