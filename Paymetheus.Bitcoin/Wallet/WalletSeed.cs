@@ -50,5 +50,7 @@ namespace Paymetheus.Bitcoin.Wallet
             }
             return pgpWordList.Decode(splitInput);
         }
+
+        public static string[] EncodeWordList(PgpWordList pgpWordList, byte[] seed) => pgpWordList.Encode(seed);
     }
 }

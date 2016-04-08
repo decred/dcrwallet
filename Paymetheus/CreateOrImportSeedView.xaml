@@ -44,7 +44,8 @@
                         </Run>
                     </TextBlock>
                 </Label>
-                <Label Content="{Binding Bip0032SeedHex}" FontSize="16" HorizontalContentAlignment="Center"/>
+                <TextBlock Text="{Binding Path=Bip0032SeedWordList, Mode=OneTime}" FontSize="16" TextAlignment="Center" TextWrapping="Wrap"/>
+                <!--<TextBlock Text="{Binding Path=Bip0032SeedHex, Mode=OneTime}" FontSize="16" TextAlignment="Center"/>-->
             </StackPanel>
             <StackPanel Visibility="{Binding ImportChecked, Converter={StaticResource hiddenConverter}}">
                 <Label>
