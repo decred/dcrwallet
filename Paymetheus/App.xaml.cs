@@ -57,8 +57,9 @@ namespace Paymetheus
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
-            // TODO: Make network selectable (parse e.Args for a network)
-            var activeNetwork = BlockChainIdentity.TestNet3;
+            var args = ProcessArguments.ParseArguments(e.Args);
+
+            var activeNetwork = args.IntendedNetwork;
 
             WalletClient.Initialize();
 

@@ -162,6 +162,7 @@
       <DependentUpon>CreateOrImportSeedView.xaml</DependentUpon>
     </Compile>
     <Compile Include="AssemblyResources.cs" />
+    <Compile Include="ProcessArguments.cs" />
     <Compile Include="StartupWizard.cs" />
     <Compile Include="ConnectionWizardView.xaml.cs">
       <DependentUpon>ConnectionWizardView.xaml</DependentUpon>
