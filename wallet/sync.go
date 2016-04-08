@@ -419,7 +419,6 @@ func (w *Wallet) rescanActiveAddresses() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(blockCount)
 	// Check to see if block count != 0.  If it is then don't rescan
 	if blockCount == 0 {
 		log.Infof("No chain to sync, therefore skipping sync")
