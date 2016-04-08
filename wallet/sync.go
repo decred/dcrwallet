@@ -419,6 +419,7 @@ func (w *Wallet) rescanActiveAddresses() error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("here")
 	// Check to see if block count != 0.  If it is then don't rescan
 	if blockCount == 0 {
 		log.Infof("No chain to sync, therefore skipping sync")
@@ -427,6 +428,73 @@ func (w *Wallet) rescanActiveAddresses() error {
 			return err
 		}
 
+		// initialize internal
+		_, err = w.Manager.AddressDerivedFromDbAcct(
+			0, waddrmgr.DefaultAccountNum, uint32(1))
+		if err != nil {
+			return fmt.Errorf("failed to derive next address for "+
+				"account %v, branch %v: %s", waddrmgr.DefaultAccountNum, uint32(1),
+				err.Error())
+		}
+
+		// Synchronize the account manager to our address index plus
+		// an extra chunk of addresses that are used as a buffer
+		// in the address pool.
+		_, err = w.Manager.SyncAccountToAddrIndex(waddrmgr.DefaultAccountNum,
+			addressPoolBuffer, uint32(1))
+		if err != nil {
+			// A ErrSyncToIndex error indicates that we're already
+			// synced to beyond the end of the account in the
+			// waddrmgr.
+			errWaddrmgr, ok := err.(waddrmgr.ManagerError)
+			if !ok || errWaddrmgr.ErrorCode != waddrmgr.ErrSyncToIndex {
+				return fmt.Errorf("couldn't sync %s addresses in "+
+					"address manager: %v", "internal", err.Error())
+			}
+		}
+
+		// Set the next address in the waddrmgr database so that the
+		// address pool can synchronize properly after.
+		err = w.Manager.StoreNextToUseAddress(true, waddrmgr.DefaultAccountNum, 0)
+		if err != nil {
+			log.Errorf("Failed to store next to use pool idx for "+
+				"%s pool in the manager on init sync: %v",
+				"internal", err.Error())
+		}
+
+		// initialize external
+		_, err = w.Manager.AddressDerivedFromDbAcct(
+			0, waddrmgr.DefaultAccountNum, uint32(0))
+		if err != nil {
+			return fmt.Errorf("failed to derive next address for "+
+				"account %v, branch %v: %s", waddrmgr.DefaultAccountNum, uint32(0),
+				err.Error())
+		}
+
+		// Synchronize the account manager to our address index plus
+		// an extra chunk of addresses that are used as a buffer
+		// in the address pool.
+		_, err = w.Manager.SyncAccountToAddrIndex(waddrmgr.DefaultAccountNum,
+			addressPoolBuffer, uint32(0))
+		if err != nil {
+			// A ErrSyncToIndex error indicates that we're already
+			// synced to beyond the end of the account in the
+			// waddrmgr.
+			errWaddrmgr, ok := err.(waddrmgr.ManagerError)
+			if !ok || errWaddrmgr.ErrorCode != waddrmgr.ErrSyncToIndex {
+				return fmt.Errorf("couldn't sync %s addresses in "+
+					"address manager: %v", "internal", err.Error())
+			}
+		}
+
+		// Set the next address in the waddrmgr database so that the
+		// address pool can synchronize properly after.
+		err = w.Manager.StoreNextToUseAddress(false, waddrmgr.DefaultAccountNum, 0)
+		if err != nil {
+			log.Errorf("Failed to store next to use pool idx for "+
+				"%s pool in the manager on init sync: %v",
+				"internal", err.Error())
+		}
 		w.addrPools[waddrmgr.DefaultAccountNum] = pool
 		return nil
 	}
@@ -446,6 +514,7 @@ func (w *Wallet) rescanActiveAddresses() error {
 		}
 	}
 
+	fmt.Println("here not skipped", blockCount)
 	lastAcctMgr, err := w.Manager.LastAccount()
 	if err != nil {
 		return err
