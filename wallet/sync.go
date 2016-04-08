@@ -328,16 +328,6 @@ func (w *Wallet) scanAddressIndex(start int, end int, account uint32,
 		return 0, nil, err
 	}
 
-	blockCount, err := chainClient.GetBlockCount()
-	if err != nil {
-		return 0, nil, err
-	}
-	fmt.Println(blockCount)
-	// Check to see if block count != 0.  If it is then don't rescan
-	if blockCount == 0 {
-		return 0, nil, fmt.Errorf("No chain to sync, therefore skipping sync")
-	}
-
 	// Find the last used address. Scan from it to the end in case there was a
 	// gap from that position, which is possible. Then, return the address
 	// in that position.
@@ -417,14 +407,37 @@ func (w *Wallet) scanAddressIndex(start int, end int, account uint32,
 // have been used by an HD keychain stemming from this wallet in the default
 // account.
 func (w *Wallet) rescanActiveAddresses() error {
+
+	var err error
+	// Before anything check to see that chain is not empty (for cold wallets)
+	chainClient, err := w.requireChainClient()
+	if err != nil {
+		return err
+	}
+
+	blockCount, err := chainClient.GetBlockCount()
+	if err != nil {
+		return err
+	}
+	fmt.Println(blockCount)
+	// Check to see if block count != 0.  If it is then don't rescan
+	if blockCount == 0 {
+		log.Infof("No chain to sync, therefore skipping sync")
+		pool, err := newAddressPools(waddrmgr.DefaultAccountNum, 0, 0, w)
+		if err != nil {
+			return err
+		}
+
+		w.addrPools[waddrmgr.DefaultAccountNum] = pool
+		return nil
+	}
+
 	log.Infof("Beginning a rescan of active addresses using the daemon. " +
 		"This may take a while.")
-
 	// Start by rescanning the accounts and determining what the
 	// current account index is. This scan should only ever be
 	// performed if we're restoring our wallet from seed.
 	lastAcct := uint32(0)
-	var err error
 	if w.resyncAccounts {
 		min := 0
 		max := waddrmgr.MaxAccountNum
