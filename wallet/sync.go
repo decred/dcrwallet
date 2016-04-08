@@ -328,6 +328,16 @@ func (w *Wallet) scanAddressIndex(start int, end int, account uint32,
 		return 0, nil, err
 	}
 
+	blockCount, err := chainClient.GetBlockCount()
+	if err != nil {
+		return 0, nil, err
+	}
+	fmt.Println(blockCount)
+	// Check to see if block count != 0.  If it is then don't rescan
+	if blockCount == 0 {
+		return 0, nil, fmt.Errorf("No chain to sync, therefore skipping sync")
+	}
+
 	// Find the last used address. Scan from it to the end in case there was a
 	// gap from that position, which is possible. Then, return the address
 	// in that position.
