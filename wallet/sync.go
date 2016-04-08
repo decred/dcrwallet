@@ -423,10 +423,6 @@ func (w *Wallet) rescanActiveAddresses() error {
 	// Check to see if block count != 0.  If it is then don't rescan
 	if blockCount == 0 {
 		log.Infof("No chain to sync, therefore skipping sync")
-		pool, err := newAddressPools(waddrmgr.DefaultAccountNum, 0, 0, w)
-		if err != nil {
-			return err
-		}
 
 		// initialize internal
 		_, err = w.Manager.AddressDerivedFromDbAcct(
@@ -494,6 +490,10 @@ func (w *Wallet) rescanActiveAddresses() error {
 			log.Errorf("Failed to store next to use pool idx for "+
 				"%s pool in the manager on init sync: %v",
 				"internal", err.Error())
+		}
+		pool, err := newAddressPools(waddrmgr.DefaultAccountNum, 0, 0, w)
+		if err != nil {
+			return err
 		}
 		w.addrPools[waddrmgr.DefaultAccountNum] = pool
 		return nil
