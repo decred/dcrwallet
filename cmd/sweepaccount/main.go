@@ -111,7 +111,7 @@ func init() {
 		fatalf("RPC certificate file `%s` not found", opts.RPCCertificateFile)
 	}
 
-	if opts.FeeRate.Amount > 1e6 {
+	if opts.FeeRate.Amount > 1e8 {
 		fatalf("Fee rate `%v/kB` is exceptionally high", opts.FeeRate.Amount)
 	}
 	if opts.FeeRate.Amount < 1e2 {
