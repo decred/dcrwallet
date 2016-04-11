@@ -60,7 +60,7 @@ var opts = struct {
 	FeeRate:               &cfgutil.AmountFlag{txrules.DefaultRelayFeePerKb},
 	SourceAccount:         "imported",
 	DestinationAccount:    "default",
-	RequiredConfirmations: 1,
+	RequiredConfirmations: 2,
 }
 
 // Parse and validate flags.
