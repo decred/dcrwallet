@@ -1124,8 +1124,11 @@ func (w *Wallet) purchaseTicket(req purchaseTicketRequest) (interface{},
 	if balanceToMaintain > 0 {
 		bal, err := w.CalculateAccountBalance(account, req.minConf,
 			wtxmgr.BFBalanceSpendable)
-		estimatedFundsUsed := neededPerTicket * dcrutil.Amount(req.numTickets)
+		if err != nil {
+			return nil, err
+		}
 
+		estimatedFundsUsed := neededPerTicket * dcrutil.Amount(req.numTickets)
 		if balanceToMaintain+estimatedFundsUsed > bal {
 			return nil, fmt.Errorf("not enough funds; balance to maintain is %v "+
 				"and estimated cost is %v (resulting in %v funds needed) "+
