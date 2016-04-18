@@ -38,10 +38,14 @@ type InputSourceError interface {
 	InputSourceError()
 }
 
-// Default implementation of InputSourceError.
+// InsufficientFundsError is the default implementation of InputSourceError.
 type InsufficientFundsError struct{}
 
+// InputSourceError generates the InputSourceError interface for an
+// InsufficientFundsError.
 func (InsufficientFundsError) InputSourceError() {}
+
+// Error satistifies the error interface.
 func (InsufficientFundsError) Error() string {
 	return "insufficient funds available to construct transaction"
 }
