@@ -1114,14 +1114,10 @@ func (w *Wallet) purchaseTicket(req purchaseTicketRequest) (interface{},
 	}
 
 	// Make sure this doesn't over spend based on the balance to
-	// maintain. If the balance to maintain is zero, check the
-	// global balance to maintain. If that is non-zero, set it to
-	// that.
-	balanceToMaintain := req.minBalance
-	if balanceToMaintain == 0 {
-		balanceToMaintain = w.BalanceToMaintain()
-	}
-	if balanceToMaintain > 0 {
+	// maintain. This component of the API is inaccessible to the
+	// end user through the legacy RPC, so it should only ever be
+	// set by internal calls e.g. automatic ticket purchase.
+	if req.minBalance > 0 {
 		bal, err := w.CalculateAccountBalance(account, req.minConf,
 			wtxmgr.BFBalanceSpendable)
 		if err != nil {
@@ -1129,11 +1125,11 @@ func (w *Wallet) purchaseTicket(req purchaseTicketRequest) (interface{},
 		}
 
 		estimatedFundsUsed := neededPerTicket * dcrutil.Amount(req.numTickets)
-		if balanceToMaintain+estimatedFundsUsed > bal {
+		if req.minBalance+estimatedFundsUsed > bal {
 			return nil, fmt.Errorf("not enough funds; balance to maintain is %v "+
 				"and estimated cost is %v (resulting in %v funds needed) "+
-				"but wallet account %v only has %v", balanceToMaintain.ToCoin(),
-				estimatedFundsUsed.ToCoin(), balanceToMaintain.ToCoin()+
+				"but wallet account %v only has %v", req.minBalance.ToCoin(),
+				estimatedFundsUsed.ToCoin(), req.minBalance.ToCoin()+
 					estimatedFundsUsed.ToCoin(), account, bal.ToCoin())
 		}
 	}
