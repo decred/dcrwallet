@@ -154,39 +154,6 @@ type extendedOutPoint struct {
 // --------------------------------------------------------------------------------
 // Error Handling
 
-// InsufficientFundsError represents an error where there are not enough
-// funds from unspent tx outputs for a wallet to create a transaction.
-// This may be caused by not enough inputs for all of the desired total
-// transaction output amount, or due to
-type InsufficientFundsError struct {
-	in, out, fee dcrutil.Amount
-}
-
-// Error satisifies the builtin error interface.
-func (e InsufficientFundsError) Error() string {
-	total := e.out + e.fee
-	if e.fee == 0 {
-		return fmt.Sprintf("insufficient funds: transaction requires "+
-			"%s input but only %v spendable", total, e.in)
-	}
-	return fmt.Sprintf("insufficient funds: transaction requires %s input "+
-		"(%v output + %v fee) but only %v spendable", total, e.out,
-		e.fee, e.in)
-}
-
-// CreateTxFundsError represents an error where there are not enough
-// funds from unspent tx outputs for a wallet to create a transaction
-// through createtx. The amount needed and the fee required are passed
-// back.
-type CreateTxFundsError struct {
-	needed, fee dcrutil.Amount
-}
-
-// Error satisifies the builtin error interface.
-func (e CreateTxFundsError) Error() string {
-	return fmt.Sprintf("insufficient funds")
-}
-
 // ErrUnsupportedTransactionType represents an error where a transaction
 // cannot be signed as the API only supports spending P2PKH outputs.
 var ErrUnsupportedTransactionType = errors.New("Only P2PKH transactions " +
