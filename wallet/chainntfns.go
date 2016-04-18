@@ -14,6 +14,7 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/waddrmgr"
+	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wtxmgr"
 )
 
@@ -108,7 +109,7 @@ ticketPurchaseLoop:
 			w.PoolFees(),
 			0) // No expiry
 		if err != nil {
-			_, insufficientFunds := err.(*InsufficientFundsError)
+			_, insufficientFunds := err.(*txauthor.InsufficientFundsError)
 			switch {
 			case insufficientFunds:
 				break ticketPurchaseLoop

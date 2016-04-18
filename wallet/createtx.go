@@ -1100,11 +1100,6 @@ func (w *Wallet) purchaseTicket(req purchaseTicketRequest) (interface{},
 	// balance we have, wasting an address. In the future,
 	// address this better and prevent address burning.
 	account := req.account
-	bal, err := w.CalculateAccountBalance(account, req.minConf,
-		wtxmgr.BFBalanceSpendable)
-	if err != nil {
-		return nil, err
-	}
 
 	// Get the current ticket price.
 	ticketPrice := dcrutil.Amount(w.GetStakeDifficulty().StakeDifficulty)
@@ -1149,15 +1144,6 @@ func (w *Wallet) purchaseTicket(req purchaseTicketRequest) (interface{},
 		ticketFee = ((w.TicketFeeIncrement() * doubleInputTicketSize) /
 			1000)
 		neededPerTicket = ticketFee + ticketPrice
-	}
-
-	// Relay fee is added to account for the split transaction. We
-	// estimate here that each split output will cost as much as for
-	// 500 bytes of fees in the split transaction.
-	splitFeeEst := (w.RelayFee() / 2) * dcrutil.Amount(req.numTickets)
-	needed := splitFeeEst + (neededPerTicket * dcrutil.Amount(req.numTickets))
-	if bal < needed {
-		return nil, InsufficientFundsError{bal, needed, 0}
 	}
 
 	// Fetch the single use split address to break tickets into, to
