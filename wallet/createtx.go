@@ -1113,6 +1113,28 @@ func (w *Wallet) purchaseTicket(req purchaseTicketRequest) (interface{},
 		neededPerTicket = ticketFee + ticketPrice
 	}
 
+	// Make sure this doesn't over spend based on the balance to
+	// maintain. If the balance to maintain is zero, check the
+	// global balance to maintain. If that is non-zero, set it to
+	// that.
+	balanceToMaintain := req.minBalance
+	if balanceToMaintain == 0 {
+		balanceToMaintain = w.BalanceToMaintain()
+	}
+	if balanceToMaintain > 0 {
+		bal, err := w.CalculateAccountBalance(account, req.minConf,
+			wtxmgr.BFBalanceSpendable)
+		estimatedFundsUsed := neededPerTicket * dcrutil.Amount(req.numTickets)
+
+		if balanceToMaintain+estimatedFundsUsed > bal {
+			return nil, fmt.Errorf("not enough funds; balance to maintain is %v "+
+				"and estimated cost is %v (resulting in %v funds needed) "+
+				"but wallet account %v only has %v", balanceToMaintain.ToCoin(),
+				estimatedFundsUsed.ToCoin(), balanceToMaintain.ToCoin()+
+					estimatedFundsUsed.ToCoin(), account, bal.ToCoin())
+		}
+	}
+
 	// Fetch the single use split address to break tickets into, to
 	// immediately be consumed as tickets.
 	splitTxAddr, err := pool.GetNewAddress()
