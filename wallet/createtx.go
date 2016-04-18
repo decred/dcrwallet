@@ -1126,11 +1126,14 @@ func (w *Wallet) purchaseTicket(req purchaseTicketRequest) (interface{},
 
 		estimatedFundsUsed := neededPerTicket * dcrutil.Amount(req.numTickets)
 		if req.minBalance+estimatedFundsUsed > bal {
-			return nil, fmt.Errorf("not enough funds; balance to maintain is %v "+
-				"and estimated cost is %v (resulting in %v funds needed) "+
-				"but wallet account %v only has %v", req.minBalance.ToCoin(),
-				estimatedFundsUsed.ToCoin(), req.minBalance.ToCoin()+
-					estimatedFundsUsed.ToCoin(), account, bal.ToCoin())
+			notEnoughFundsStr := fmt.Sprintf("not enough funds; balance to "+
+				"maintain is %v and estimated cost is %v (resulting in %v "+
+				"funds needed) but wallet account %v only has %v",
+				req.minBalance.ToCoin(), estimatedFundsUsed.ToCoin(),
+				req.minBalance.ToCoin()+estimatedFundsUsed.ToCoin(),
+				account, bal.ToCoin())
+			log.Debugf("%s", notEnoughFundsStr)
+			return nil, txauthor.InsufficientFundsError{}
 		}
 	}
 

@@ -109,7 +109,7 @@ ticketPurchaseLoop:
 			w.PoolFees(),
 			0) // No expiry
 		if err != nil {
-			_, insufficientFunds := err.(*txauthor.InsufficientFundsError)
+			_, insufficientFunds := err.(txauthor.InsufficientFundsError)
 			switch {
 			case insufficientFunds:
 				break ticketPurchaseLoop
