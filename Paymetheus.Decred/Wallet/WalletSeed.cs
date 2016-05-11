@@ -51,5 +51,7 @@ namespace Paymetheus.Decred.Wallet
             }
             return pgpWordList.Decode(splitInput);
         }
+
+        public static string[] EncodeWordList(PgpWordList pgpWordList, byte[] seed) => pgpWordList.Encode(seed);
     }
 }

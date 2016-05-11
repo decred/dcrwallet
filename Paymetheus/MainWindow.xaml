@@ -5,7 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Paymetheus"
         mc:Ignorable="d"
-        Title="Paymetheus" Height="600" Width="1050" Closed="Window_Closed">
+        Title="{Binding Path=WindowTitle, Mode=OneTime}"
+        Height="600" Width="1050"
+        Closed="Window_Closed">
     <Window.Resources>
         <Style TargetType="{x:Type TextBox}">
             <Setter Property="Margin" Value="0,0,0,4" />

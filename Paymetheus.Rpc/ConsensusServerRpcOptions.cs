@@ -25,6 +25,6 @@ namespace Paymetheus.Rpc
         public string CertificatePath { get; }
 
         public static string LocalCertificateFilePath() =>
-            Path.Combine(Portability.LocalAppData(Environment.OSVersion.Platform, ApplicationName), "rpc.cert");
+            Path.Combine(Portability.LocalAppData(Environment.OSVersion.Platform, "", ApplicationName), "rpc.cert");
     }
 }

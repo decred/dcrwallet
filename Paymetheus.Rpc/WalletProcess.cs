@@ -10,22 +10,24 @@ namespace Paymetheus.Rpc
 {
     public static class WalletProcess
     {
-        public static readonly string ApplicationDataDirectory =
-            Portability.LocalAppData(Environment.OSVersion.Platform, "Dcrwallet");
-
-        public static Process Start(BlockChainIdentity intendedNetwork)
+        public static Process Start(BlockChainIdentity intendedNetwork, string appDataDirectory)
         {
             if (intendedNetwork == null)
                 throw new ArgumentNullException(nameof(intendedNetwork));
+            if (appDataDirectory == null)
+                throw new ArgumentNullException(nameof(appDataDirectory));
 
-            string networkFlag = "";
+            var networkFlag = "";
             if (intendedNetwork != BlockChainIdentity.MainNet)
+            {
                 networkFlag = $"--{intendedNetwork.Name}";
+            }
+
             var v4ListenAddress = RpcListenAddress("127.0.0.1", intendedNetwork);
 
             var processInfo = new ProcessStartInfo();
             processInfo.FileName = "dcrwallet";
-            processInfo.Arguments = $"{networkFlag} --noinitialload --experimentalrpclisten={v4ListenAddress} --onetimetlskey";
+            processInfo.Arguments = $"{networkFlag} --noinitialload --experimentalrpclisten={v4ListenAddress} --onetimetlskey --datadir=\"{appDataDirectory}\"";
             processInfo.UseShellExecute = false;
             processInfo.RedirectStandardError = true;
             processInfo.RedirectStandardOutput = true;

@@ -17,6 +17,19 @@ namespace Paymetheus
     {
         public ShellViewModel()
         {
+            // Set the window title to the title in the resources assembly.
+            // Append network name to window title if not running on mainnet.
+            var activeNetwork = App.Current.ActiveNetwork;
+            var productTitle = AssemblyResources.Title;
+            if (activeNetwork == BlockChainIdentity.MainNet)
+            {
+                WindowTitle = productTitle;
+            }
+            else
+            {
+                WindowTitle = $"{productTitle} [{activeNetwork.Name}]";
+            }
+
             CreateAccountCommand = new DelegateCommand(CreateAccount);
             NavigateBack = new DelegateCommand(ShowRecentActivity);
 
@@ -31,6 +44,8 @@ namespace Paymetheus
         private Wallet _wallet;
         private readonly RecentActivityViewModel _recentActivityViewModel;
         private AccountViewModel _accountViewModel;
+
+        public string WindowTitle { get; }
 
         private ViewModelBase _visibleContent;
         public ViewModelBase VisibleContent
@@ -101,14 +116,6 @@ namespace Paymetheus
 
         private void OnSyncedWallet()
         {
-            // Append network name to window title if not running on mainnet.
-            // TODO: Query product name from resources assembly.
-            const string ProductName = "Paymetheus";
-            if (_wallet.ActiveChain == BlockChainIdentity.MainNet)
-                Application.Current.MainWindow.Title = ProductName;
-            else
-                Application.Current.MainWindow.Title = $"{ProductName} [{_wallet.ActiveChain.Name}]";
-
             var txSet = _wallet.RecentTransactions;
             var recentTx = txSet.UnminedTransactions
                 .Select(x => new TransactionViewModel(_wallet, x.Value, BlockIdentity.Unmined))

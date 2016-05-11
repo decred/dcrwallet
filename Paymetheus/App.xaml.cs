@@ -6,6 +6,7 @@ using Paymetheus.Decred;
 using Paymetheus.Rpc;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -46,6 +47,7 @@ namespace Paymetheus
 
         private bool _walletLoaded;
 
+        public BlockChainIdentity ActiveNetwork { get; private set; }
         public Process WalletRpcProcess { get; private set; }
         public WalletClient WalletRpcClient { get; private set; }
 
@@ -56,20 +58,26 @@ namespace Paymetheus
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
+            var args = ProcessArguments.ParseArguments(e.Args);
+
+            var activeNetwork = args.IntendedNetwork;
+
             WalletClient.Initialize();
+
+            var appDataDir = Portability.LocalAppData(Environment.OSVersion.Platform,
+                AssemblyResources.Organization, AssemblyResources.ProductName);
+
+            Directory.CreateDirectory(appDataDir);
 
             var startupTask = Task.Run(async () =>
             {
-                // TODO: Make network selectable (parse e.Args for a network)
-                var activeNetwork = BlockChainIdentity.TestNet;
-
                 // Begin the asynchronous reading of the certificate before starting the wallet
                 // process.  This uses filesystem events to know when to begin reading the certificate,
                 // and if there is too much delay between wallet writing the cert and this process
                 // beginning to observe the change, the event may never fire and the cert won't be read.
-                var rootCertificateTask = TransportSecurity.ReadModifiedCertificateAsync();
+                var rootCertificateTask = TransportSecurity.ReadModifiedCertificateAsync(appDataDir);
 
-                var walletProcess = WalletProcess.Start(activeNetwork);
+                var walletProcess = WalletProcess.Start(activeNetwork, appDataDir);
 
                 WalletClient walletClient;
                 try
@@ -93,6 +101,7 @@ namespace Paymetheus
 
             startupTask.Wait();
             var startupResult = startupTask.Result;
+            ActiveNetwork = activeNetwork;
             WalletRpcProcess = startupResult.Item1;
             WalletRpcClient = startupResult.Item2;
             Application.Current.Exit += Application_Exit;

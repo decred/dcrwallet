@@ -7,26 +7,35 @@ using System.IO;
 
 namespace Paymetheus.Rpc
 {
-    static class Portability
+    public static class Portability
     {
-        public static string LocalAppData(PlatformID platform, string processName)
+        public static string LocalAppData(PlatformID platform, string organization, string product)
         {
-            if (processName == null)
-                throw new ArgumentNullException(nameof(processName));
-            if (processName.Length == 0)
-                throw new ArgumentException(nameof(processName) + " may not have zero length");
+            if (organization == null)
+                throw new ArgumentNullException(nameof(organization));
+            if (product == null)
+                throw new ArgumentNullException(nameof(product));
+            if (product.Length == 0)
+                throw new ArgumentException(nameof(product) + " may not have zero length");
 
             switch (platform)
             {
                 case PlatformID.Win32NT:
                     return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                        ToUpper(processName));
+                        ToUpper(organization), ToUpper(product));
                 case PlatformID.MacOSX:
                     return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal),
-                        "Library", "Application Support", ToUpper(processName));
+                        "Library", "Application Support", ToUpper(organization), ToUpper(product));
                 case PlatformID.Unix:
-                    return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal),
-                        ToDotLower(processName));
+                    var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
+                    if (organization == "")
+                    {
+                        return Path.Combine(homeDirectory, ToDotLower(product));
+                    }
+                    else
+                    {
+                        return Path.Combine(homeDirectory, ToDotLower(organization), product.ToLower());
+                    }
                 default:
                     throw new PlatformNotSupportedException($"PlatformID={platform}");
             }
@@ -34,8 +43,11 @@ namespace Paymetheus.Rpc
 
         private static string ToUpper(string value)
         {
+            if (value == "")
+                return "";
+
             var firstChar = value[0];
-            if (char.IsUpper(firstChar))
+            if (char.IsUpper(firstChar) || !char.IsLetter(firstChar))
                 return value;
             else
                 return char.ToUpper(firstChar) + value.Substring(1);
@@ -43,8 +55,10 @@ namespace Paymetheus.Rpc
 
         private static string ToDotLower(string value)
         {
-            var firstChar = value[0];
-            return "." + char.ToLower(firstChar) + value.Substring(1);
+            if (value == "")
+                return "";
+
+            return "." + value.ToLower();
         }
     }
 }

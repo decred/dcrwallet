@@ -6,6 +6,7 @@ using Paymetheus.Decred;
 using Paymetheus.Decred.Script;
 using Paymetheus.Decred.Util;
 using Paymetheus.Decred.Wallet;
+using System.Collections.Generic;
 using System.Linq;
 using Walletrpc;
 
@@ -20,35 +21,35 @@ namespace Paymetheus.Rpc
             var inputs = tx.Debits
                 .Select(i => new WalletTransaction.Input(i.PreviousAmount, new Account(i.PreviousAccount)))
                 .ToArray();
-            var outputs = tx.Outputs
-                .Select((o, index) =>
-                {
-                    // There are two kinds of transactions to care about when choosing which outputs
-                    // should be created: transactions created by other wallets (inputs.Length == 0)
-                    // and those that spend controlled outputs from this wallet (inputs.Length != 0).
-                    // If the transaction was created by this wallet, then all outputs (both controlled
-                    // and uncontrolled) should be included.  Otherwise, uncontrolled outputs can be
-                    // ignored since they are not relevant (they could be change outputs for the other
-                    // wallet or outputs created for another unrelated wallet).
-                    if (o.Mine || inputs.Length != 0)
-                        return MarshalWalletTransactionOutput(o, transaction.Outputs[index]);
-                    else
-                        return null;
-                })
-                .Where(o => o != null)
-                .ToArray();
+            // There are two kinds of transactions to care about when choosing which outputs
+            // should be created: transactions created by other wallets (inputs.Length == 0)
+            // and those that spend controlled outputs from this wallet (inputs.Length != 0).
+            // If the transaction was created by this wallet, then all outputs (both controlled
+            // and uncontrolled) should be included.  Otherwise, uncontrolled outputs can be
+            // ignored since they are not relevant (they could be change outputs for the other
+            // wallet or outputs created for another unrelated wallet).
+            var outputs = inputs.Length == 0
+                ? tx.Credits.Select((o, i) => MarshalControlledOutput(o, transaction.Outputs[i])).ToArray()
+                : MarshalCombinedOutputs(transaction, tx.Credits.GetEnumerator());
             var fee = inputs.Length == transaction.Inputs.Length ? (Amount?)tx.Fee : null;
             var seenTime = DateTimeOffsetExtras.FromUnixTimeSeconds(tx.Timestamp);
 
             return new WalletTransaction(transaction, hash, inputs, outputs, fee, seenTime);
         }
 
-        private static WalletTransaction.Output MarshalWalletTransactionOutput(TransactionDetails.Types.Output o, Transaction.Output txOutput)
+        private static WalletTransaction.Output MarshalControlledOutput(TransactionDetails.Types.Output o, Transaction.Output txOutput) =>
+            new WalletTransaction.Output.ControlledOutput(txOutput.Amount, new Account(o.Account), o.Internal);
+
+        private static WalletTransaction.Output[] MarshalCombinedOutputs(Transaction transaction, IEnumerator<TransactionDetails.Types.Output> credits)
         {
-            if (o.Mine)
-                return new WalletTransaction.Output.ControlledOutput(txOutput.Amount, new Account(o.Account), o.Internal);
-            else
-                return new WalletTransaction.Output.UncontrolledOutput(txOutput.Amount, txOutput.PkScript);
+            return transaction.Outputs.Select((output, index) =>
+            {
+                while (credits.Current?.Index < index)
+                    credits.MoveNext();
+                return credits.Current?.Index == index
+                    ? MarshalControlledOutput(credits.Current, output)
+                    : new WalletTransaction.Output.UncontrolledOutput(output.Amount, output.PkScript);
+            }).ToArray();
         }
 
         public static Block MarshalBlock(BlockDetails b)

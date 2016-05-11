@@ -2,6 +2,7 @@
 // Copyright (c) 2016 The Decred developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
+using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,21 +13,21 @@ namespace Paymetheus.Rpc
     {
         private const string CertificateFile = "rpc.cert";
 
-        private static string CertificatePath() =>
-            Path.Combine(WalletProcess.ApplicationDataDirectory, CertificateFile);
-
         // Need a non-void type to use for the TaskCompletionSource below.  Name is
         // borrowed from functional programming.
         private struct Unit { }
 
-        public static async Task<string> ReadModifiedCertificateAsync()
+        public static async Task<string> ReadModifiedCertificateAsync(string directory)
         {
+            if (directory == null)
+                throw new ArgumentNullException(nameof(directory));
+
             // Asynchronously wait until the certificate file has been written by the wallet
             // process before reading.
             var tcs = new TaskCompletionSource<Unit>();
             var fsw = new FileSystemWatcher
             {
-                Path = WalletProcess.ApplicationDataDirectory,
+                Path = directory,
                 EnableRaisingEvents = true,
             };
             using (fsw)
@@ -41,7 +42,7 @@ namespace Paymetheus.Rpc
                 await tcs.Task;
             }
 
-            var certificatePath = CertificatePath();
+            var certificatePath = Path.Combine(directory, CertificateFile);
 
             // On Windows, process file locks may prevent reading the file even after the
             // filesystem notification was received.  Polling for the unlocked file is icky

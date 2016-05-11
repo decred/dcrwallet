@@ -143,9 +143,8 @@ namespace Paymetheus
         private byte[] _randomSeed;
         private PgpWordList _pgpWordList = new PgpWordList();
 
-        // TODO: Convert seed using a wordlist instead of encoding as hex so this is easier
-        // for the user to write down and type into the next dialog.
         public string Bip0032SeedHex => Hexadecimal.Encode(_randomSeed);
+        public string Bip0032SeedWordList => string.Join(" ", WalletSeed.EncodeWordList(_pgpWordList, _randomSeed));
 
         private bool _createChecked;
         public bool CreateChecked
