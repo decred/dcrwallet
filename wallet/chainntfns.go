@@ -57,6 +57,7 @@ func (w *Wallet) handleChainNotifications() {
 			w.connectBlock(wtxmgr.BlockMeta(n))
 		case chain.BlockDisconnected:
 			err = w.disconnectBlock(wtxmgr.BlockMeta(n))
+			strErrType = "BlockDisconnected"
 		case chain.Reorganization:
 			w.handleReorganizing(n.OldHash, n.OldHeight, n.NewHash, n.NewHeight)
 		case chain.StakeDifficulty:
@@ -64,6 +65,7 @@ func (w *Wallet) handleChainNotifications() {
 			strErrType = "StakeDifficulty"
 		case chain.RelevantTx:
 			err = w.addRelevantTx(n.TxRecord, n.Block)
+			strErrType = "RelevantTx"
 
 		// The following are handled by the wallet's rescan
 		// goroutines, so just pass them there.
