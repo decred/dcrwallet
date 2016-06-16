@@ -106,7 +106,7 @@ func convertLegacyKeystore(legacyKeyStore *keystore.Store, manager *waddrmgr.Man
 // restored from seed, while the []byte passed is the private password required
 // to do the initial sync.
 func createWallet(cfg *config) error {
-	dbDir := networkDir(cfg.AppDataDir, activeNet.Params)
+	dbDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
 	stakeOptions := &wallet.StakeOptions{
 		VoteBits:           cfg.VoteBits,
 		StakeMiningEnabled: cfg.EnableStakeMining,
@@ -150,7 +150,7 @@ func createSimulationWallet(cfg *config) error {
 		return err
 	}
 
-	netDir := networkDir(cfg.AppDataDir, activeNet.Params)
+	netDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
 
 	// Write the seed to disk, so that we can restore it later
 	// if need be, for testing purposes.
@@ -217,7 +217,7 @@ func createWatchingOnlyWallet(cfg *config) error {
 		return err
 	}
 
-	netDir := networkDir(cfg.AppDataDir, activeNet.Params)
+	netDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
 
 	// Create the wallet.
 	dbPath := filepath.Join(netDir, walletDbName)
