@@ -197,8 +197,9 @@ func (w *Wallet) connectBlock(b wtxmgr.BlockMeta) error {
 	// Insert the block if we haven't already through a relevant tx.
 	err = w.TxStore.InsertBlock(&b)
 	if err != nil {
-		log.Errorf("Couldn't insert block %v into database: %v",
+		err = fmt.Errorf("Couldn't insert block %v into database: %v",
 			b.Hash, err)
+		return err
 	}
 
 	// Rollback testing for simulation network, if enabled.
@@ -268,8 +269,9 @@ func (w *Wallet) connectBlock(b wtxmgr.BlockMeta) error {
 	err = w.TxStore.PruneUnconfirmed(bs.Height,
 		stakeDifficultyInfo.StakeDifficulty)
 	if err != nil {
-		log.Errorf("Failed to prune unconfirmed transactions when "+
+		err = fmt.Errorf("Failed to prune unconfirmed transactions when "+
 			"connecting block height %v: %v", bs.Height, err.Error())
+		return err
 	}
 
 	// Notify interested clients of the connected block.
