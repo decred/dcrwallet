@@ -54,7 +54,8 @@ func (w *Wallet) handleChainNotifications() {
 			log.Infof("The client has successfully connected to dcrd and " +
 				"is now handling websocket notifications")
 		case chain.BlockConnected:
-			w.connectBlock(wtxmgr.BlockMeta(n))
+			err = w.connectBlock(wtxmgr.BlockMeta(n))
+			strErrType = "BlockConnected"
 		case chain.BlockDisconnected:
 			err = w.disconnectBlock(wtxmgr.BlockMeta(n))
 			strErrType = "BlockDisconnected"
@@ -158,7 +159,7 @@ ticketPurchaseLoop:
 // connectBlock handles a chain server notification by marking a wallet
 // that's currently in-sync with the chain server as being synced up to
 // the passed block.
-func (w *Wallet) connectBlock(b wtxmgr.BlockMeta) {
+func (w *Wallet) connectBlock(b wtxmgr.BlockMeta) error {
 	bs := waddrmgr.BlockStamp{
 		Height: b.Height,
 		Hash:   b.Hash,
@@ -172,8 +173,7 @@ func (w *Wallet) connectBlock(b wtxmgr.BlockMeta) {
 
 	chainClient, err := w.requireChainClient()
 	if err != nil {
-		log.Error(err)
-		return
+		return err
 	}
 
 	isReorganizing, topHash := chainClient.GetReorganizing()
@@ -274,6 +274,7 @@ func (w *Wallet) connectBlock(b wtxmgr.BlockMeta) {
 
 	// Notify interested clients of the connected block.
 	w.NtfnServer.notifyAttachedBlock(&b)
+	return nil
 }
 
 // disconnectBlock handles a chain server reorganize by rolling back all
