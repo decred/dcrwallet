@@ -1689,14 +1689,16 @@ func (w *Wallet) ListTransactions(from, count int) ([]dcrjson.ListTransactionsRe
 				continue
 			}
 
-			n++
-			if n > count {
-				return true, nil
-			}
-
 			jsonResults := ListTransactions(&details[i],
 				w.Manager, syncBlock.Height, w.chainParams)
 			txList = append(txList, jsonResults...)
+
+			if len(jsonResults) > 0 {
+				n++
+			}
+			if n >= count {
+				return true, nil
+			}
 		}
 
 		return false, nil
