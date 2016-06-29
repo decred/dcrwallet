@@ -1,0 +1,353 @@
+﻿<Page x:Class="Paymetheus.Send"
+      xmlns:local="clr-namespace:Paymetheus" 
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:vc="clr-namespace:Paymetheus.Framework.ValueConverters"
+      xmlns:v="clr-namespace:Paymetheus.Validation"
+      xmlns:f="clr-namespace:Paymetheus.Framework"
+      mc:Ignorable="d"
+      x:Name="Page"
+      WindowTitle="Page"
+      FlowDirection="LeftToRight"
+      d:DesignWidth="862.17" d:DesignHeight="549.293"
+      DataContext="{Binding Source={StaticResource ViewModelLocator}, Path=CreateTransactionViewModel}">
+
+    <Page.Resources>
+
+        <SolidColorBrush x:Key="Item.MouseOver.Background" Color="#1F26A0DA"/>
+        <SolidColorBrush x:Key="Item.MouseOver.Border" Color="#a826A0Da"/>
+        <SolidColorBrush x:Key="Item.SelectedInactive.Background" Color="#3DDADADA"/>
+        <SolidColorBrush x:Key="Item.SelectedInactive.Border" Color="#FFDADADA"/>
+        <SolidColorBrush x:Key="Item.SelectedActive.Background" Color="#3D26A0DA"/>
+        <SolidColorBrush x:Key="Item.SelectedActive.Border" Color="#FF26A0DA"/>
+
+        <Style x:Key="ListBoxItemStyle" TargetType="{x:Type ListBoxItem}">
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Padding" Value="4,1"/>
+            <Setter Property="HorizontalContentAlignment" Value="{Binding HorizontalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+            <Setter Property="VerticalContentAlignment" Value="{Binding VerticalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <Grid x:Name="grid1" Background="White"  d:DesignWidth="517.079" >
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid x:Name="grid2" Margin="0" VerticalAlignment="Top" Height="30">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition MinWidth="0" Width="*"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="120"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="textBlock3" HorizontalAlignment="Stretch" Margin="41,6.323,5,6.323" TextWrapping="Wrap" Text="Mar 14 2016 14:48" VerticalAlignment="Stretch" Foreground="#FF132F4B" TextAlignment="Left" FontSize="12" Grid.Column="0" Height="Auto" Grid.ColumnSpan="1" Grid.Row="0"/>
+                                <Image Grid.ColumnSpan="1" Margin="20,7,0,7" Source="Images/pm - icons - increase.png" Stretch="Fill" Width="16" Height="Auto" Grid.Column="0" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="textBlock3_Copy" HorizontalAlignment="Stretch" Margin="15,6.323,0,6.323" TextWrapping="Wrap" Text="45c7454df456ee810db7678149as6d4f000" VerticalAlignment="Stretch" Foreground="#FF132F4B" TextAlignment="Left" FontSize="12" Grid.Column="1" Height="Auto" Grid.Row="0" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="textBlock3_Copy1" HorizontalAlignment="Stretch" Margin="10,6.323,0,6.323" TextWrapping="Wrap" VerticalAlignment="Stretch" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="2" Height="Auto" Grid.Row="0"><Run FontWeight="Bold" Text="+10"/><Run FontSize="10" Text=".0001"/></TextBlock>
+                                <TextBlock x:Name="textBlock3_Copy2" HorizontalAlignment="Stretch" Margin="5,6.323,20,6.323" TextWrapping="Wrap" VerticalAlignment="Stretch" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="3" Height="Auto" Grid.Row="0"><Run Text="+459"/><Run FontSize="10" Text=".0001"/></TextBlock>
+                            </Grid>
+                            <Grid x:Name="grid" Margin="0,0.331,0,0" Grid.Row="1" Height="270" Background="#FFF4F7F9" Visibility="Collapsed">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="155"/>
+                                    <ColumnDefinition/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="58"/>
+                                    <RowDefinition Height="88.042"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,11.829,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="12" Grid.Column="1" Height="15.7" Grid.ColumnSpan="1" Grid.Row="1" FontWeight="Bold"><Run Text="311 "/><Run FontWeight="Normal" Text="confirmations"/></TextBlock>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,35.002,15,0" TextWrapping="Wrap" Text="To address:" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="0" Height="15.854" Grid.ColumnSpan="1" Grid.Row="1" Width="Auto" Grid.RowSpan="1"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,38.669,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="1" FontWeight="Bold" Grid.RowSpan="1"/>
+                                <Rectangle Fill="#FFA9B4BF" Height="1" VerticalAlignment="Top" Margin="20,0.5,20,0" Grid.Row="2" Grid.ColumnSpan="2"/>
+                                <local:TransactionUserControl HorizontalAlignment="Stretch" Margin="0,10.155,15,0" Grid.Row="1" VerticalAlignment="Top" Height="19.847" Status="Confirmed" Width="Auto"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,9.332,15,0" TextWrapping="Wrap" Text="Properties" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="0" Height="15.854" Grid.ColumnSpan="1" Grid.Row="2" Width="Auto" Grid.RowSpan="1" FontWeight="Bold"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,32.999,15,0" TextWrapping="Wrap" Text="Block" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="12.187" Grid.ColumnSpan="1" Grid.Row="2" Width="Auto" Grid.RowSpan="1"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,32.999,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="2" FontWeight="Normal"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,52.999,15,0" TextWrapping="Wrap" Text="Height" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="12.187" Grid.ColumnSpan="1" Grid.Row="2" Width="Auto" Grid.RowSpan="1"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,52.999,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="2" FontWeight="Normal"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,79.332,15,0" TextWrapping="Wrap" Text="Inputs" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="0" Height="15.854" Grid.ColumnSpan="1" Grid.Row="2" Width="Auto" Grid.RowSpan="2" FontWeight="Bold"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,14.957,15,0" TextWrapping="Wrap" Text="College funds" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="12.187" Grid.ColumnSpan="1" Grid.Row="3" Width="Auto" Grid.RowSpan="1"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,14.957,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="3" FontWeight="Normal"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,41.29,15,0" TextWrapping="Wrap" Text="Outputs" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="0" Height="15.854" Grid.ColumnSpan="1" Grid.Row="3" Width="Auto" Grid.RowSpan="1" FontWeight="Bold"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,64.957,15,0" TextWrapping="Wrap" Text="Tsgb8ihlh.." VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="12.187" Grid.ColumnSpan="1" Grid.Row="3" Width="Auto" Grid.RowSpan="1"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,64.957,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="3" FontWeight="Normal"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,84.957,15,0" TextWrapping="Wrap" Text="Change" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="12.187" Grid.ColumnSpan="1" Grid.Row="3" Width="Auto" Grid.RowSpan="1"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,84.957,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="3" FontWeight="Normal"/>
+                                <Rectangle Grid.Column="0" Fill="#FFA9B4BF" HorizontalAlignment="Stretch" Height="1" Margin="-15,0,0,0" Grid.Row="3" VerticalAlignment="Bottom" Grid.ColumnSpan="2"/>
+
+
+
+                            </Grid>
+                            <Rectangle Fill="#FFFAFBFC" Height="1" VerticalAlignment="Bottom" Margin="0" Grid.Row="1" Grid.ColumnSpan="1"/>
+
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Background" TargetName="grid2" Value="#FFE9F8FE"/>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Selector.IsSelectionActive" Value="False"/>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Visibility" TargetName="grid" Value="Visible"/>
+                                <Setter Property="Background" TargetName="grid1" Value="White"/>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Selector.IsSelectionActive" Value="True"/>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Visibility" TargetName="grid" Value="Visible"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Visibility" TargetName="textBlock3" Value="Collapsed"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ComboBoxStyleWithCurrency" TargetType="{x:Type ComboBox}">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
+            <Setter Property="Background" Value="{StaticResource ComboBox.Static.Background}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ComboBox.Static.Border}"/>
+            <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="Padding" Value="6,3,5,3"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="true"/>
+            <Setter Property="ScrollViewer.PanningMode" Value="Both"/>
+            <Setter Property="Stylus.IsFlicksEnabled" Value="False"/>
+            <Setter Property="Template" Value="{StaticResource ComboBoxTemplate}"/>
+            <Style.Triggers>
+                <Trigger Property="IsEditable" Value="true">
+                    <Setter Property="IsTabStop" Value="false"/>
+                    <Setter Property="Padding" Value="2"/>
+                    <Setter Property="Template" Value="{StaticResource ComboBoxEditableTemplate}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ButtonStyleOnlyCharacters" TargetType="{x:Type Button}">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
+            <Setter Property="Background" Value="{StaticResource Button.Static.Background}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Button.Static.Border}"/>
+            <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Grid Background="Transparent ">
+                            <Path Fill="Black" HorizontalAlignment="Stretch" Height="10" VerticalAlignment="Stretch" Data="M4.0000001,0 L6,0 6,4 10,4 10,6 6,6 6,10 4.0000001,10 4.0000001,6 0,6 0,4 4.0000001,4 z" Margin="0" RenderTransformOrigin="0.5,0.5" Stretch="Fill" Width="10">
+                                <Path.RenderTransform>
+                                    <TransformGroup>
+                                        <ScaleTransform/>
+                                        <SkewTransform/>
+                                        <RotateTransform Angle="45"/>
+                                        <TranslateTransform/>
+                                    </TransformGroup>
+                                </Path.RenderTransform>
+                            </Path>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsDefaulted" Value="true"/>
+                            <Trigger Property="IsMouseOver" Value="true"/>
+                            <Trigger Property="IsPressed" Value="true"/>
+                            <Trigger Property="IsEnabled" Value="false"/>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <SolidColorBrush x:Key="TextBox.Static.Border" Color="#FFABAdB3"/>
+        <Style TargetType="{x:Type TextBox}">
+            <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource TextBox.Static.Border}"/>
+            <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="KeyboardNavigation.TabNavigation" Value="None"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="AllowDrop" Value="true"/>
+            <Setter Property="ScrollViewer.PanningMode" Value="VerticalFirst"/>
+            <Setter Property="Stylus.IsFlicksEnabled" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}">
+                        <Border x:Name="border" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="false">
+                                <Setter Property="Opacity" TargetName="border" Value="0.56"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="true"/>
+                            <Trigger Property="IsKeyboardFocused" Value="true"/>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="IsInactiveSelectionHighlightEnabled" Value="true"/>
+                        <Condition Property="IsSelectionActive" Value="false"/>
+                    </MultiTrigger.Conditions>
+                    <Setter Property="SelectionBrush" Value="{DynamicResource {x:Static SystemColors.InactiveSelectionHighlightBrushKey}}"/>
+                </MultiTrigger>
+            </Style.Triggers>
+        </Style>
+    </Page.Resources>
+
+    <Grid Margin="40 60 0 0" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Row="0" Foreground="#FF5A6E81" FontSize="20" Text="Create transaction"/>
+        <TextBlock Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="#FF0C1E3E" FontSize="11" Width="340">
+            <Run Text="Decred addresses always begin with letter"/>
+            <Run FontWeight="Bold" Text="D"/>
+            <Run Text="and contain 26-35 alphanumeric characters"/>
+            <Run FontWeight="Bold" Text="e.g."/>
+            <Run Foreground="#FF828C9D" Text="DxxxXXXXXXXXXXXXXXXXXDXXx0XXx0X"/>
+        </TextBlock>
+        <Border BorderBrush="#FFD3D9DF" BorderThickness="0,1" Grid.Row="2" Background="White" Padding="0 20" VerticalAlignment="Top">
+            <Grid Margin="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="80"/>
+                    <ColumnDefinition Width="35"/>
+                    <ColumnDefinition Width="250"/>
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <Grid.Resources>
+                    <Style TargetType="{x:Type ComboBox}">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <LinearGradientBrush EndPoint="0,1" StartPoint="0,0">
+                                    <GradientStop Color="#FFF0F0F0" Offset="0"/>
+                                    <GradientStop Color="White" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+
+                    <DataTemplate x:Key="PendingOutput">
+                        <Grid>
+                            <Grid.Resources>
+                                <Style TargetType="{x:Type TextBox}">
+                                    <Style.Triggers>
+                                        <Trigger Property="Validation.HasError" Value="True">
+                                            <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Resources>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="35"/>
+                                <ColumnDefinition Width="250"/>
+                                <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="-"
+                                    Command="{Binding Source={StaticResource ViewModelLocator}, Path=CreateTransactionViewModel.RemovePendingOutputCommand}" CommandParameter="{Binding}"
+                                    Width="20" Height="20"/>
+                            <TextBox Grid.Column="1" Text="{Binding Destination, ValidatesOnExceptions=True}"
+                                    f:AttachableProperties.UpdateSourceOnEnterProperty="TextBox.Text"
+                                    Background="{x:Null}"/>
+                            <TextBox Grid.Column="2" HorizontalAlignment="Right" HorizontalContentAlignment="Right" VerticalContentAlignment="Center" Width="160"
+                                     Text="{Binding OutputAmountString, ValidatesOnExceptions=True}"
+                                     f:AttachableProperties.UpdateSourceOnEnterProperty="TextBox.Text"
+                                     PreviewTextInput="OutputAmountTextBox_PreviewTextInput"
+                                     FontFamily="Consolas" BorderThickness="0 0 0 1" Background="{x:Null}"/>
+                        </Grid>
+                    </DataTemplate>
+                </Grid.Resources>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" TextAlignment="Right" Text="From:" FontSize="16" Foreground="#FF0C1E3E"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" TextAlignment="Right" Text="To:" FontSize="16" Foreground="#FF0C1E3E"/>
+
+                <Image Grid.Row="0" Grid.Column="1" Source="Images/pm - icons - accounts.png" Stretch="UniformToFill"/>
+                <Button Grid.Row="2" Grid.Column="1" Content="+" Command="{Binding AddPendingOutputCommand}" Height="20" Width="20"/>
+
+                <ComboBox Grid.Row="0" Grid.Column="2"
+                          ItemsSource="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.Accounts}"
+                          SelectedItem="{Binding SelectedAccount}"
+                          ItemTemplate="{StaticResource ComboBoxAccountDataTemplate}"
+                          Style="{DynamicResource ComboBoxStyleWithCurrency}" Foreground="#FF2970FF" ItemContainerStyle="{DynamicResource ComboBoxItemStyle}"/>
+                <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" BorderBrush="#FFDEE0E1" BorderThickness="0 0 0 1">
+                    <ItemsControl Padding="0 0 40 0" ItemsSource="{Binding PendingOutputs}" ItemTemplate="{StaticResource PendingOutput}" ScrollViewer.CanContentScroll="True">
+                        <ItemsControl.ItemContainerStyle>
+                            <Style>
+                                <Setter Property="FrameworkElement.Margin" Value="0 0 0 5"/>
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
+                    </ItemsControl>
+                </Border>
+            </Grid>
+        </Border>
+        <Grid Margin="0,20,40,20" Grid.Row="3" VerticalAlignment="Top">
+            <Grid.Resources>
+                <Style TargetType="{x:Type local:AmountLabel}">
+                    <Setter Property="FontWeightWhole" Value="Bold"/>
+                    <Setter Property="FontSizeWhole" Value="12"/>
+                    <Setter Property="FontSizeDecimal" Value="12"/>
+                </Style>
+                <Style x:Key="CheckBoxStyle" TargetType="{x:Type CheckBox}">
+                    <Setter Property="Foreground" Value="#FF8392A1"/>
+                </Style>
+                <Style x:Key="TextBlockStyle" TargetType="{x:Type TextBlock}">
+                    <Setter Property="Foreground" Value="#FF8392A1"/>
+                </Style>
+            </Grid.Resources>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="115"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="160"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition/>
+                <RowDefinition/>
+            </Grid.RowDefinitions>
+            <ContentControl ContentTemplate="{StaticResource buttonTemplate}" Grid.RowSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center" Content="{Binding FinishCreateTransaction}" Width="100"/>
+            <!-- Hide these since viewing raw transactions without publishing is not yet implemented.
+            <CheckBox Grid.Row="0" Grid.Column="1" Content="Sign" HorizontalAlignment="Left" IsChecked="{Binding SignChecked}" Style="{StaticResource CheckBoxStyle}" />
+            <CheckBox Grid.Row="1" Grid.Column="1" Content="Publish" HorizontalAlignment="Left" IsChecked="{Binding PublishChecked}" IsEnabled="{Binding PublishActive}"  Style="{StaticResource CheckBoxStyle}" />
+            -->
+            <TextBlock Grid.Row="0" Grid.Column="2" Text="Estimated fee:" HorizontalAlignment="Right" Style="{StaticResource TextBlockStyle}" />
+            <TextBlock Grid.Row="1" Grid.Column="2" Text="Estimated remaining balance:" HorizontalAlignment="Right" Style="{StaticResource TextBlockStyle}" />
+            <local:AmountLabel Grid.Row="0" Grid.Column="3" HorizontalAlignment="Right" Value="{Binding EstimatedFee}" Visibility="{Binding EstimatedFee, Converter={StaticResource NullToHiddenConverter}}"/>
+            <local:AmountLabel Grid.Row="1" Grid.Column="3" HorizontalAlignment="Right" Value="{Binding EstimatedRemainingBalance}" Visibility="{Binding EstimatedRemainingBalance, Converter={StaticResource NullToHiddenConverter}}"/>
+        </Grid>
+    </Grid>
+</Page>

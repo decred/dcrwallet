@@ -4,6 +4,7 @@
 
 using Paymetheus.Decred.Util;
 using System;
+using System.Security.Cryptography;
 using static PCLCrypto.WinRTCrypto;
 
 namespace Paymetheus.Decred.Wallet
@@ -29,7 +30,18 @@ namespace Paymetheus.Decred.Wallet
                 throw new ArgumentNullException(nameof(pgpWordList));
 
             var decodedInput = DecodeUserInput(userInput, pgpWordList);
-            if (decodedInput.Length != SeedLength)
+            if (decodedInput.Length == (SeedLength + 1))
+            {
+                // deal with "checksum"
+                byte[] d = new byte[SeedLength];
+                Array.Copy(decodedInput, 0, d, 0, SeedLength);
+                var digest = DoubleSha256(d);
+                if (decodedInput[SeedLength] != digest[0])
+                {
+                    throw new ChecksumException("Invalid checksum");
+                }
+            }
+            else if (decodedInput.Length != SeedLength)
             {
                 throw new Exception($"Decoded seed must have byte length {SeedLength}");
             }
@@ -50,6 +62,16 @@ namespace Paymetheus.Decred.Wallet
                 throw new HexadecimalEncodingException();
             }
             return pgpWordList.Decode(splitInput);
+        }
+
+        // Returned array contains the double SHA256 hash.
+        public static byte[] DoubleSha256(byte[] value)
+        {
+            using (var hasher = new SHA256Managed())
+            {
+                var intermediateHash = hasher.ComputeHash(value);
+                return hasher.ComputeHash(intermediateHash);
+            }
         }
 
         public static string[] EncodeWordList(PgpWordList pgpWordList, byte[] seed) => pgpWordList.Encode(seed);

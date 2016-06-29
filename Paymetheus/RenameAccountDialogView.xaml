@@ -3,35 +3,28 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:f="clr-namespace:Paymetheus.Framework"
              xmlns:local="clr-namespace:Paymetheus"
              mc:Ignorable="d" 
-             d:DesignHeight="200" d:DesignWidth="500">
-    <DockPanel FocusManager.FocusedElement="{Binding ElementName=textBox}">
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Rename" IsDefault="True" Command="{Binding Rename}" Width="100" Margin="6 12 3 6" Padding="10 2">
-                <Button.Style>
-                    <Style TargetType="{x:Type Button}">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding Text, ElementName=textBox}" Value="">
-                                <Setter Property="IsEnabled" Value="False"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Button.Style>
-            </Button>
-            <Button Content="Cancel" IsCancel="True" Command="{Binding HideDialogCommand}" Width="100" Margin="3 12 6 6" Padding="10 2"/>
-        </StackPanel>
-        <StackPanel>
-            <Label FontSize="18">
-                <TextBlock>
-                    <Run Text="Rename account"/>
-                    <Run Text="{Binding CurrentAccountName, Mode=OneWay}"/>
-                </TextBlock>
-            </Label>
-            <Label Content="New name:"/>
-            <TextBox Name="textBox" Margin="6 2" Padding="2"
+             d:DesignWidth="300">
+    <StackPanel VerticalAlignment="Center">
+        <DockPanel FocusManager.FocusedElement="{Binding ElementName=textBox}">
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Rename" IsDefault="True" Command="{Binding Rename}" Style="{DynamicResource ButtonBlue}" Width="100" Margin="5"/>
+                <Button Content="Cancel" IsCancel="True" Command="{Binding HideDialogCommand}" Style="{DynamicResource ButtonWhite}" Width="100" Margin="5"/>
+            </StackPanel>
+            <StackPanel>
+                <Label>
+                    <TextBlock FontSize="18">
+                        <Run Text="Rename account"/>
+                        <Run Text="{Binding CurrentAccountName, Mode=OneWay, FallbackValue=Current Name}"/>
+                    </TextBlock>
+                </Label>
+                <Label Content="New name:"/>
+                <TextBox Name="textBox" Margin="5 2" Padding="2"
                      Text="{Binding NewAccountName, Mode=OneWayToSource}"
-                     local:BindingProperties.UpdateSourceOnEnterProperty="TextBox.Text"/>
-        </StackPanel>
-    </DockPanel>
+                     f:AttachableProperties.UpdateSourceOnEnterProperty="TextBox.Text"/>
+            </StackPanel>
+        </DockPanel>
+    </StackPanel>
 </UserControl>

@@ -1,0 +1,60 @@
+RPC/dcrwallet:
+
+- [post-release] New gRPC APIs to:
+  - purchase tickets
+- Update existing messages for stake related fields (cj has full list)
+- No recovery if previous process was killed and didn't get a chance to stop
+  the dcrwallet process.  Possible solutions are killing any dcrwallet
+  already running (hate!) or perhaps rigging the gRPC server in dcrwallet
+  to close the process after the client disconnects, but no idea if this
+  is possible.
+- Need to run dcrwallet gRPC server on different ports to not interfere with
+  a typical dcrwallet install
+
+Model/ViewModel:
+
+- [required] Add viewmodel for history
+- [required] Fee estimation (already ported and merged) needs to be hooked
+  up into create transaction viewmodel.
+- [required] Some address/script functionality (in
+  Paymetheus.Decred.Script.OutputScript and Paymetheus.Decred.Wallet.Address)
+  is not yet implemented.  This can cause application crashes when trying to
+  parse these scripts/addresses when decoding raw transactions returned by
+  the wallet. Search these classes for NotImplementedException.
+- [post-release] Add viewmodel for unspent outputs
+- Validation of user input in the startup dialogs would be nice (instead
+  of opening a message box with parse errors when trying to continue).
+- Don't save every transaction in memory (can fix post-release)
+- Remove all MessageBox usage, hook up everything to display in the Shell
+  view instead
+- Would be nice to make Paymetheus.Decred a PCL again (Paymetheus.Bitcoin is
+  in the btcsuite version), currently impossible because BlakeSharp requires
+  the older .NET cryptographic libraries (low prio for windows desktop and
+  maybe mono, but could be necessary for portability on other platforms).
+
+View:
+
+- [required] Request view doesn't hide UI elements depending on whether a
+  generated address is shown yet or not
+- [required] Bindings for history
+- [post-release] Bindings for unspent outputs
+- Offer to start dcrd for the user at beginning of startup dialog (if found
+  in the PATH), to avoid the need to run the process separately.  No RPC
+  credentials will need to be manually entered by the user since everything
+  will be known by Paymetheus already.
+- Textbox for amounts and destination strings in create transaction view
+  need restyling.
+- Some text is too small, make it bigger
+- In create transaction view, the type of output needs to be selectable
+  (such as paying to a raw script instead of an address), viewmodel already
+  supports this.
+- Still lots of hardcoded positions with margins in the new views.  These
+  need to be repositioned relative to other objects (using Grid, StackPanel,
+  DockPanel, Border, etc.).  Most of these are probably in the transaction
+  history view since i haven't gotten around to binding it yet.
+- Way too much duplicated xaml all over the place.  All common styles should
+  be put in <Application.Resources>.
+- Block hash of current block is no where to be found.  For desktop (mouse)
+  users it might be adequate to use a tooltip over the block height, but
+  this is a bad solution to those with touch screens.
+- Add/remove output buttons in create transaction view need restyling

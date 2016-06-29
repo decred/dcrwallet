@@ -4,26 +4,25 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Paymetheus"
+        xmlns:viewmodels="clr-namespace:Paymetheus.ViewModels"
         mc:Ignorable="d"
+        Background="{DynamicResource ColorDarkBlueFull}" 
         Title="{Binding Path=WindowTitle, Mode=OneTime}"
         Height="600" Width="1050"
-        Closed="Window_Closed">
+        Closed="Window_Closed"
+        DataContext="{Binding Source={StaticResource ViewModelLocator}, Path=ShellViewModel}">
     <Window.Resources>
         <Style TargetType="{x:Type TextBox}">
             <Setter Property="Margin" Value="0,0,0,4" />
         </Style>
     </Window.Resources>
-    <Window.DataContext>
-        <local:ShellViewModel x:Name="mainViewModel"/>
-    </Window.DataContext>
     <Grid>
         <UserControl Visibility="{Binding StartupWizardVisible, Converter={StaticResource visibilityConverter}}" Focusable="False">
             <local:ConnectionWizardView DataContext="{Binding StartupWizard}"
                                     VerticalAlignment="Center"
-                                    Width="600" Focusable="False"/>
+                                    Width="700" Focusable="False"/>
         </UserControl>
-        <local:ShellView HorizontalAlignment="Stretch"
-                         Visibility="{Binding ElementName=mainViewModel, Path=StartupWizardVisible, Converter={StaticResource invertedVisibilityConverter}}"
-                         Margin="1"/>
+        <local:ShellView x:Name="Shellview"
+                         Visibility="{Binding Path=StartupWizardVisible, Converter={StaticResource invertedVisibilityConverter}}"/>
     </Grid>
 </Window>

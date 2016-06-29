@@ -10,8 +10,8 @@ namespace Paymetheus.Tests.Decred
     public static class AmountTests
     {
         [Theory]
-        [InlineData((long)5e7, "0.5       ")]
-        [InlineData((long)-5e7, "-0.5       ")]
+        [InlineData((long)5e7, "0.5")]
+        [InlineData((long)-5e7, "-0.5")]
         public static void FormatTests(long atoms, string expected)
         {
             var amount = (Amount)atoms;

@@ -60,6 +60,7 @@
     <Compile Include="BlockChainConsistencyException.cs" />
     <Compile Include="BlockChainIdentity.cs" />
     <Compile Include="BlockIdentity.cs" />
+    <Compile Include="Errors.cs" />
     <Compile Include="Script\SignatureAlgorithm.cs" />
     <Compile Include="TransactionRules.cs" />
     <Compile Include="Util\Base58.cs" />
@@ -75,8 +76,10 @@
     <Compile Include="Transaction.cs" />
     <Compile Include="Util\DateTimeOffsetExtras.cs" />
     <Compile Include="Util\LittleEndian.cs" />
+    <Compile Include="Util\TupleValue.cs" />
     <Compile Include="Util\ValueArray.cs" />
     <Compile Include="Wallet\Account.cs" />
+    <Compile Include="Wallet\Balances.cs" />
     <Compile Include="Wallet\AccountProperties.cs" />
     <Compile Include="Wallet\Address.cs" />
     <Compile Include="Wallet\AddressPrefix.cs" />
@@ -86,6 +89,8 @@
     <Compile Include="Wallet\Accounting.cs" />
     <Compile Include="Wallet\PgpWordList.cs" />
     <Compile Include="Wallet\PgpWordListData.cs" />
+    <Compile Include="Wallet\TransactionAuthor.cs" />
+    <Compile Include="Wallet\TransactionFees.cs" />
     <Compile Include="Wallet\TransactionSet.cs" />
     <Compile Include="Wallet\UnspentOutput.cs" />
     <Compile Include="Wallet\Wallet.cs" />

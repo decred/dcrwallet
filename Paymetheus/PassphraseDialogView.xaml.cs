@@ -1,8 +1,4 @@
-﻿// Copyright (c) 2016 The btcsuite developers
-// Copyright (c) 2016 The Decred developers
-// Licensed under the ISC license.  See LICENSE file in the project root for full license information.
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -22,14 +18,14 @@ namespace Paymetheus
     /// <summary>
     /// Interaction logic for PassphraseDialogView.xaml
     /// </summary>
-    public partial class PassphraseDialogView : UserControl
+    public partial class PassphraseDialogView : StackPanel
     {
         public PassphraseDialogView()
         {
             InitializeComponent();
         }
 
-        private void textBox_PasswordChanged(object sender, RoutedEventArgs e)
+        private void passwordBox_PasswordChanged(object sender, RoutedEventArgs e)
         {
             if (DataContext != null)
             {

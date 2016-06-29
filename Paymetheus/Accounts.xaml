@@ -1,0 +1,234 @@
+﻿<Page
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+    xmlns:local="clr-namespace:Paymetheus" 
+    xmlns:i="clr-namespace:Paymetheus.Images"
+    mc:Ignorable="d"
+	x:Class="Paymetheus.Accounts"
+	x:Name="Page"
+	WindowTitle="Page"
+	FlowDirection="LeftToRight"
+	WindowWidth="640" WindowHeight="480" d:DesignWidth="862.17" d:DesignHeight="549.293">
+
+    <Page.Resources>
+
+        <SolidColorBrush x:Key="Item.MouseOver.Background" Color="#1F26A0DA"/>
+        <SolidColorBrush x:Key="Item.MouseOver.Border" Color="#a826A0Da"/>
+        <SolidColorBrush x:Key="Item.SelectedInactive.Background" Color="#3DDADADA"/>
+        <SolidColorBrush x:Key="Item.SelectedInactive.Border" Color="#FFDADADA"/>
+        <SolidColorBrush x:Key="Item.SelectedActive.Background" Color="#3D26A0DA"/>
+        <SolidColorBrush x:Key="Item.SelectedActive.Border" Color="#FF26A0DA"/>
+
+        <Style x:Key="ListBoxItemStyle" TargetType="{x:Type ListBoxItem}">
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Padding" Value="4,1"/>
+            <Setter Property="HorizontalContentAlignment" Value="{Binding HorizontalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+            <Setter Property="VerticalContentAlignment" Value="{Binding VerticalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <Grid x:Name="grid1" Background="White" d:DesignWidth="489.079" >
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid Margin="14,0,0,0" VerticalAlignment="Top">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="41*"/>
+                                    <RowDefinition Height="38*"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="textBlock" HorizontalAlignment="Stretch" Margin="12,15,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="#FF0C1E3E" FontSize="19.333" Grid.RowSpan="1" Height="26" Grid.Column="1" Width="Auto">
+                                    <Run Text="{Binding Path=AccountProperties.AccountName, FallbackValue='Account name'}"/>
+                                </TextBlock>
+                                <local:AmountLabel x:Name="totalAmount"
+                                                   Value="{Binding Balances.TotalBalance}"
+                                                   Grid.Row="0" Grid.Column="4"
+                                                   VerticalAlignment="Bottom"
+                                                   HorizontalContentAlignment="Right" Grid.ColumnSpan="2" Margin="0,0,39,0"
+                                                   ForegroundWhole="#FF0C1E3E" ForegroundDecimal="#FF0C1E3E" FontSizeWhole="19.333" FontSizeDecimal="8.667" FontWeightWhole="Bold"/>
+                                <Path x:Name="path" Data="M20.03125,11.625 L9.75,28.875 30.25,28.875 z" Fill="#FF2970FF" HorizontalAlignment="Left" Height="7" Stretch="Fill" VerticalAlignment="Top" Width="10" RenderTransformOrigin="0.5,0.5" Margin="-1.25,26.377,0,0" Grid.ColumnSpan="2" Grid.Row="0">
+                                    <Path.RenderTransform>
+                                        <TransformGroup>
+                                            <ScaleTransform/>
+                                            <SkewTransform/>
+                                            <RotateTransform Angle="90"/>
+                                            <TranslateTransform/>
+                                        </TransformGroup>
+                                    </Path.RenderTransform>
+                                </Path>
+                                <TextBlock x:Name="textBlock4" HorizontalAlignment="Left" Margin="12,5,0,21" TextWrapping="Wrap" Text="Last transaction:" VerticalAlignment="Stretch" Foreground="#FF919EAB" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="Auto" Grid.ColumnSpan="1" Width="69" Grid.Row="1"/>
+                                <TextBlock x:Name="textBlock5" HorizontalAlignment="Stretch" Margin="0,6,121,0" TextWrapping="Wrap" Text="Spendable" VerticalAlignment="Top" Foreground="#FF919EAB" TextAlignment="Left" FontSize="8.667" Grid.Column="3" Height="11" Grid.ColumnSpan="1" Grid.Row="1"/>
+                                <local:AmountLabel x:Name="spendableBalance"
+                                                   Value="{Binding Balances.SpendableBalance}"
+                                                   Grid.Row="1" Grid.Column="4"
+                                                   VerticalAlignment="Top"
+                                                   HorizontalContentAlignment="Right" Margin="0,6,39,0"
+                                                   ForegroundWhole="#FF919EAB" ForegroundDecimal="#FF919EAB" FontSizeWhole="8.667" FontSizeDecimal="8.667" FontWeightWhole="Bold"/>
+                            </Grid>
+                            <Grid x:Name="grid" Margin="14,0.331,0,0" Grid.Row="1" Height="161" Visibility="Collapsed">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="105.017"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="25"/>
+                                    <RowDefinition Height="20"/>
+                                    <RowDefinition Height="50.669"/>
+                                    <RowDefinition Height="20"/>
+                                    <RowDefinition Height="10"/>
+                                    <RowDefinition Height="32.373"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="21,0,0,0" TextWrapping="Wrap" Text="Properties" VerticalAlignment="Top" Foreground="#FF0C1E3E" TextAlignment="Left" FontSize="19.333" Grid.Column="0" Grid.RowSpan="2" Height="25.713" Grid.ColumnSpan="2"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,0,0.833,0" TextWrapping="Wrap" Text="Account number" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="10.854" Grid.ColumnSpan="1" Grid.Row="2" Width="90"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,0,0,0" TextWrapping="Wrap" Text="{Binding AccountNumber, Mode=OneWay}" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="2" FontWeight="Bold"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,20.001,0.833,0" TextWrapping="Wrap" Text="HD path" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="10.854" Grid.ColumnSpan="1" Grid.Row="2" Width="90"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,20.001,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="2" FontWeight="Bold">
+                                    <Run Text="m/44'/"/><Run Text="{Binding AccountNumber, Mode=OneWay}"/><Run Text="'"/>
+                                </TextBlock>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,40.002,0.833,0" TextWrapping="Wrap" Text="Keys" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="10.854" Grid.ColumnSpan="1" Grid.Row="2" Width="90" Grid.RowSpan="2"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,40.002,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="2" FontWeight="Bold" Grid.RowSpan="2">
+                                    <Run Text="{Binding AccountProperties.ExternalKeyCount}"/>
+                                    <Run Text="external,"/>
+                                    <Run Text="{Binding AccountProperties.InternalKeyCount}"/>
+                                    <Run Text="internal,"/>
+                                    <Run Text="{Binding AccountProperties.ImportedKeyCount}"/>
+                                    <Run Text="imported"/>
+                                </TextBlock>
+                                <Rectangle Fill="#FFA9B4BF" Height="1" VerticalAlignment="Top" Margin="0" Grid.Row="4" Grid.ColumnSpan="2"/>
+                                <Button Content="Reveal" HorizontalAlignment="Right" Height="20.096" Margin="0,0.333,286.105,0" VerticalAlignment="Top" Style="{DynamicResource ButtonWhiteFlat}" Foreground="#FF132F4B" Grid.RowSpan="1" Grid.Row="5" Grid.Column="1"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,5.995,0.833,0" TextWrapping="Wrap" Text="Public key address" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="10.854" Grid.ColumnSpan="1" Grid.Row="5" Width="90" Grid.RowSpan="1"/>
+
+                                <Button Command="{Binding OpenRenameAccountDialogCommand}" ToolTip="Rename account"
+                                        HorizontalAlignment="Right" Height="26" Margin="0,0,80.002,0" Grid.Row="5" VerticalAlignment="Top" Width="26" Grid.Column="1">
+                                    <Button.Template>
+                                        <ControlTemplate>
+                                            <Border HorizontalAlignment="Center" VerticalAlignment="Center" >
+                                                <Image Grid.Row="5" Source="Images/pm - icons - rename.png" Stretch="Fill" Width="26" Height="26"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+
+                                <!-- These buttons don't don anything useful right now so don't display them -->
+                                <!--
+                                <Button Command="{Binding OpenImportKeyDialogCommand}" ToolTip="Import key"
+                                        HorizontalAlignment="Right" Height="26" Margin="0,0,120.004,0" Grid.Row="5" VerticalAlignment="Top" Width="26" Grid.Column="1">
+                                    <Button.Template>
+                                        <ControlTemplate>
+                                            <Border HorizontalAlignment="Center" VerticalAlignment="Center" >
+                                                <Image Grid.Row="5" Source="Images/pm - icons - import.png" Stretch="Fill" Width="26" Height="26"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+
+                                <Button Command="{Binding HideAccountCommand}" ToolTip="Hide account"
+                                        HorizontalAlignment="Right" Height="26" Margin="0,0,40,0" Grid.Row="5" VerticalAlignment="Top" Width="26" Grid.Column="1">
+                                    <Button.Template>
+                                        <ControlTemplate>
+                                            <Border HorizontalAlignment="Center" VerticalAlignment="Center" >
+                                                <Image Grid.Row="5" Source="Images/pm - icons - hide.png" Stretch="Fill" Width="26" Height="26"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                -->
+
+                            </Grid>
+                            <Rectangle Fill="#FFA9B4BF" Height="1" VerticalAlignment="Bottom" Margin="0" Grid.Row="1" Grid.ColumnSpan="1"/>
+
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Selector.IsSelectionActive" Value="False"/>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Visibility" TargetName="grid" Value="Visible"/>
+                                <Setter Property="RenderTransform" TargetName="path">
+                                    <Setter.Value>
+                                        <TransformGroup>
+                                            <ScaleTransform/>
+                                            <SkewTransform/>
+                                            <RotateTransform Angle="90"/>
+                                            <TranslateTransform/>
+                                        </TransformGroup>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="Background" TargetName="grid1" Value="White"/>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Selector.IsSelectionActive" Value="True"/>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="RenderTransform" TargetName="path">
+                                    <Setter.Value>
+                                        <TransformGroup>
+                                            <ScaleTransform/>
+                                            <SkewTransform/>
+                                            <RotateTransform Angle="180"/>
+                                            <TranslateTransform/>
+                                        </TransformGroup>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="Visibility" TargetName="grid" Value="Visible"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="RenderTransform" TargetName="path">
+                                    <Setter.Value>
+                                        <TransformGroup>
+                                            <ScaleTransform/>
+                                            <SkewTransform/>
+                                            <RotateTransform Angle="90"/>
+                                            <TranslateTransform/>
+                                        </TransformGroup>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="Fill" TargetName="path" Value="#FFA9B4BF"/>
+                                <Setter Property="Foreground" TargetName="textBlock" Value="#FFA9B4BF"/>
+                                <Setter Property="Visibility" TargetName="totalAmount" Value="Collapsed"/>
+                                <Setter Property="Visibility" TargetName="textBlock4" Value="Collapsed"/>
+                                <Setter Property="Visibility" TargetName="textBlock5" Value="Collapsed"/>
+                                <Setter Property="Visibility" TargetName="spendableBalance" Value="Collapsed"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
+
+    <Grid x:Name="LayoutRoot" Margin="40 60 0 0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="1*"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" TextWrapping="Wrap" Text="Accounts" Foreground="#FF0C1E3E" FontSize="20"/>
+        <Button Grid.Row="0"  HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0 0 40 0"
+                Content="ADD A NEW ACCOUNT" Command="{Binding ShellViewModel.CreateAccountCommand, Source={StaticResource ViewModelLocator}}"
+                Style="{DynamicResource ButtonBlue}"/>
+        <ListBox x:Name="lstAccounts" Grid.Row="1" Margin="0 20 0 0"
+                 ItemsSource="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.Accounts}"
+                 ItemContainerStyle="{DynamicResource ListBoxItemStyle}"
+                 HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" VerticalContentAlignment="Stretch"
+                 BorderBrush="{x:Null}" BorderThickness="0"/>
+    </Grid>
+</Page>

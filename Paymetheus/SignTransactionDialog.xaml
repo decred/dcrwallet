@@ -1,0 +1,20 @@
+﻿<UserControl x:Class="Paymetheus.SignTransactionDialog"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Paymetheus"
+             mc:Ignorable="d" 
+             d:DesignHeight="215" d:DesignWidth="340">
+    <StackPanel>
+        <TextBlock Text="Sign transaction"
+                   TextWrapping="Wrap" Foreground="#FF0C1E3E" FontSize="16" Height="21.713" VerticalAlignment="Top" HorizontalAlignment="Left"/>
+        <TextBlock Text="Enter your private private passpharase to sign the transaction."
+                   TextWrapping="Wrap" Foreground="#FF0C1E3E" VerticalAlignment="Top" HorizontalAlignment="Left" FontSize="11.333"/>
+        <PasswordBox x:Name="PassphraseBox" HorizontalAlignment="Stretch" Height="40" Margin="0,30,0,20" VerticalAlignment="Top" Background="Transparent" BorderBrush="{x:Null}" FontSize="14" Foreground="#FF848484" Padding="5,12,5,0" SelectionBrush="{x:Null}"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+            <Button Content="SIGN" Height="36" Style="{DynamicResource ButtonBlue}" Foreground="#FF132F4B" VerticalAlignment="Top" Margin="0 0 10 0"/>
+            <Button Content="Cancel" Height="36" Style="{DynamicResource ButtonWhite}" Foreground="#FF132F4B" VerticalAlignment="Top"/>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

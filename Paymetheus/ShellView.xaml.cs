@@ -2,21 +2,9 @@
 // Copyright (c) 2016 The Decred developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Paymetheus.Framework;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Paymetheus
 {
@@ -25,52 +13,60 @@ namespace Paymetheus
     /// </summary>
     public partial class ShellView : UserControl
     {
+        private Navigator _navigator;
+        private Overview _overview;
+        private Request _request;
+
         public ShellView()
         {
             InitializeComponent();
+            _navigator = Navigator.GetInstance(ContentHolder);
         }
 
-        private LockableToggleButton _toggledSidebarButton;
-
-        private bool ReplaceCheckedSidebarButton(RoutedEventArgs e, LockableToggleButton replacement)
+        public void NavigateOverview(object sender, RoutedEventArgs e)
         {
-            if (_toggledSidebarButton != replacement)
+            if (_overview == null)
             {
-                if (_toggledSidebarButton != null)
-                {
-                    _toggledSidebarButton.Locked = false;
-                    _toggledSidebarButton.IsChecked = false;
-                }
-                _toggledSidebarButton = replacement;
-                _toggledSidebarButton.Locked = true;
-                return true;
+                _overview = new Overview();
+                //_overview.DataContext = Shell._overviewViewModel;
             }
-            else
-            {
-                return false;
-            }
+            NavigateTo(_overview);
         }
 
-        private void RecentActivityToggleButton_Checked(object sender, RoutedEventArgs e)
+        public void NavigateAccounts(object sender, RoutedEventArgs e)
         {
-            var button = (LockableToggleButton)e.Source;
-            if (ReplaceCheckedSidebarButton(e, button))
-            {
-                Console.WriteLine("todo");
-            }
+            NavigateTo(new Accounts());
         }
 
-        private void AccountToggleButton_Checked(object sender, RoutedEventArgs e)
+        public void NavigateSend(object sender, RoutedEventArgs e)
         {
-            var button = (LockableToggleButton)e.Source;
-            if (ReplaceCheckedSidebarButton(e, button))
+            NavigateTo(new Send());
+        }
+
+        public void NavigateRequest(object sender, RoutedEventArgs e)
+        {
+            if (_request == null)
             {
-                var selected = (RecentAccountViewModel)button.DataContext;
-                if (selected != null)
-                {
-                    selected.PostMessage(new ShowAccountMessage(selected.Account));
-                }
+                _request = new Request();
+                //_request.DataContext = new RequestViewModel(Shell);
             }
+            NavigateTo(_request);
+        }
+
+        public void NavigateHistory(object sender, RoutedEventArgs e)
+        {
+            NavigateTo(new History());
+        }
+
+        public void NavigateUnspent(object sender, RoutedEventArgs e)
+        {
+            NavigateTo(new Unspent());
+        }
+
+        public void NavigateTo(Page page)
+        {
+            if(_navigator != null)
+                _navigator.NavigateTo(page);
         }
     }
 }

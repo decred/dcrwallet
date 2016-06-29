@@ -4,15 +4,38 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Paymetheus"
-             mc:Ignorable="d" 
-             d:DesignHeight="300" d:DesignWidth="300">
-    <DockPanel FocusManager.FocusedElement="{Binding ElementName=textBox}">
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Back" Command="{Binding BackCommand}" Width="100" Margin="6,12,3,6" Padding="10 2"/>
-            <Button Content="Confirm" IsDefault="True" Command="{Binding ConfirmSeedCommand}" Width="100" Margin="6,12,3,6" Padding="10 2"/>
+             xmlns:f="clr-namespace:Paymetheus.Framework"
+             mc:Ignorable="d"
+	         Background="{DynamicResource ColorDarkBlueFull}" 
+             d:DesignWidth="842" d:DesignHeight="718"
+             >
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resource.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <Grid x:Name="LayoutRoot">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Height="532.452" Width="700" >
+            <Image Source="Images/paymetheus - 262x37.png" Stretch="Fill" Width="262" Height="37" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="219,24,219,0"/>
+            <DockPanel FocusManager.FocusedElement="{Binding ElementName=textBox}">
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Back" Command="{Binding BackCommand}" Width="100" Margin="6,12,3,6" Padding="10 2"/>
+                    <Button Content="Confirm" IsDefault="True" Command="{Binding ConfirmSeedCommand}" Width="100" Margin="6,12,3,6" Padding="10 2"/>
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Top" HorizontalAlignment="Left" Margin="50,300,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="340" Height="40" FontSize="24" Foreground="White" Text="Confirm backup" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Rectangle Visibility="{Binding UsePublicEncryption, Converter={StaticResource hiddenConverter}}" Width="610" Fill="#FFF4F4F5" Margin="0,0,0,0" RadiusY="5" RadiusX="5" Height="25" VerticalAlignment="Center" />
+                    <TextBox x:Name="textBox" BorderThickness="0" Height="20" Width="600" Margin="3" Text="{Binding Input, Mode=OneWayToSource}" f:AttachableProperties.UpdateSourceOnEnterProperty="TextBox.Text" VerticalAlignment="Center" />
+                </Grid>
+            </DockPanel>
         </StackPanel>
-        <Label DockPanel.Dock="Top" FontSize="18" Content="Confirm backup"/>
-        <TextBox x:Name="textBox" Text="{Binding Input, Mode=OneWayToSource}"
-                 local:BindingProperties.UpdateSourceOnEnterProperty="TextBox.Text"/>
-    </DockPanel>
+    </Grid>
 </UserControl>

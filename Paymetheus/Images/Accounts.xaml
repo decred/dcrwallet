@@ -1,0 +1,36 @@
+﻿<Page x:Class="Paymetheus.Images.Accounts"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Paymetheus.Images"
+             mc:Ignorable="d" 
+             d:DesignHeight="70" d:DesignWidth="70">
+    <Grid Width="70" Height="70">
+        <!-- Created with Ai->XAML Export Plug-In Version 0.2 (Mac)   -->
+        <!-- By Mike Swanson (http://blog.mikeswanson.com/)           -->
+        <Canvas>
+            <!-- Layer 1/<Group>/<Group>/<Rectangle> -->
+            <Path Data="F1 M 70.000,70.000 L 0.000,70.000 L 0.000,0.000 L 70.000,0.000 L 70.000,70.000 Z"/>
+
+            <!-- Layer 1/<Group>/<Group>/<Path> -->
+            <Path Fill="#FFC0F3E3" Data="F1 M 56.796,43.504 L 10.421,50.620 C 7.242,51.108 4.375,48.648 4.375,45.431 L 4.375,22.042 C 4.375,19.452 6.264,17.249 8.823,16.853 L 55.198,9.689 C 58.380,9.198 61.250,11.659 61.250,14.878 L 61.250,38.315 C 61.250,40.907 59.358,43.111 56.796,43.504 Z"/>
+
+            <!-- Layer 1/<Group>/<Group>/<Rectangle> -->
+            <Path Fill="#ff2dd7a2" Data="F1 M 61.641,61.201 L 9.625,61.201 C 6.726,61.201 4.375,58.850 4.375,55.951 L 4.375,22.790 C 4.375,19.891 6.726,17.540 9.625,17.540 L 61.641,17.540 C 64.541,17.540 66.891,19.891 66.891,22.790 L 66.891,55.951 C 66.891,58.850 64.541,61.201 61.641,61.201 Z"/>
+        </Canvas>
+
+        <Canvas>
+            <Canvas>
+                <!-- Layer 1/<Group>/<Group>/<Group>/<Path> -->
+                <Path Fill="#FFC0F3E3" Data="F1 M 66.891,33.000 L 66.891,28.000 L 42.985,28.000 L 41.562,28.000 L 39.000,28.000 L 39.000,30.629 L 39.000,50.000 L 42.985,50.000 L 66.891,50.000 L 66.891,46.000 L 44.000,46.000 L 44.000,33.000 L 66.891,33.000 Z"/>
+
+                <!-- Layer 1/<Group>/<Group>/<Group>/<Path> -->
+                <Path Fill="#FFC0F3E3" Data="F1 M 53.547,39.375 C 53.547,37.589 52.099,36.141 50.312,36.141 C 48.526,36.141 47.078,37.589 47.078,39.375 C 47.078,41.161 48.526,42.609 50.312,42.609 C 52.099,42.609 53.547,41.161 53.547,39.375 Z"/>
+            </Canvas>
+
+            <!-- Layer 1/<Group>/<Group>/<Path> -->
+            <Path Fill="#ff2dd7a2" Data="F1 M 58.000,28.000 L 58.000,33.000"/>
+        </Canvas>
+    </Grid>
+</Page>

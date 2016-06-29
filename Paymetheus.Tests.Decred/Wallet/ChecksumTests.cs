@@ -10,7 +10,7 @@ namespace Paymetheus.Tests.Decred.Wallet
 {
     public static class ChecksumTests
     {
-        [Theory]
+        [Theory(Skip = "Theories must be updated for Decred, SHA256 checksum replaced with BLAKE256")]
         [InlineData("1MirQ9bwyQcGVJPwKUgapu5ouK2E2Ey4gX")]
         [InlineData("12MzCDwodF9G1e7jfwLXfR164RNtx4BRVG")]
         [InlineData("mrX9vMRYLfVy1BnZbc5gZjuyaqH3ZW2ZHz")]
@@ -27,7 +27,7 @@ namespace Paymetheus.Tests.Decred.Wallet
             Assert.True(Checksum.Verify(valueBytes));
         }
 
-        [Theory]
+        [Theory(Skip = "Theories must be updated for Decred, SHA256 checksum replaced with BLAKE256")]
         [InlineData("")]
         [InlineData("1")]
         [InlineData("11")]

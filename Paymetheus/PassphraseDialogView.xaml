@@ -1,20 +1,20 @@
-﻿<UserControl x:Class="Paymetheus.PassphraseDialogView"
+﻿<StackPanel x:Class="Paymetheus.PassphraseDialogView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Paymetheus"
              mc:Ignorable="d" 
-             d:DesignHeight="200" d:DesignWidth="500">
-    <DockPanel FocusManager.FocusedElement="{Binding ElementName=textBox}">
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="{Binding Path=ExecuteText, FallbackValue='Unlock'}" Command="{Binding Path=Execute}" IsDefault="True" Width="100" Margin="6 12 3 6" Padding="10 2"/>
-            <Button Content="Cancel" IsCancel="True" Command="{Binding HideDialogCommand}" Width="100" Margin="3 12 6 6" Padding="10 2"/>
-        </StackPanel>
-        <StackPanel>
-            <Label Content="{Binding Path=Header, FallbackValue='Unlock wallet'}" FontSize="18"/>
-            <Label Content="Private passphrase:"/>
-            <PasswordBox Name="textBox" PasswordChanged="textBox_PasswordChanged" Margin="6 2" Padding="2"/>
-        </StackPanel>
-    </DockPanel>
-</UserControl>
+             d:DesignWidth="300"
+             FocusManager.FocusedElement="{Binding ElementName=passwordBox}">
+
+    <Label Content="{Binding Path=Header, FallbackValue='Unlock wallet'}" FontSize="18"/>
+    <Label Content="Private passhprase:"/>
+    <PasswordBox Name="passwordBox" PasswordChanged="passwordBox_PasswordChanged" Margin="5 2" Padding="2"/>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+        <Button Margin="5" Content="{Binding Path=ExecuteText, FallbackValue='Unlock'}" Command="{Binding Path=Execute}" IsDefault="True"
+                Width="100" Style="{StaticResource ButtonBlue}"/>
+        <Button Margin="5" Content="Cancel" IsCancel="True" Command="{Binding HideDialogCommand}"
+                Width="100" Style="{StaticResource ButtonWhite}" />
+    </StackPanel>
+</StackPanel>

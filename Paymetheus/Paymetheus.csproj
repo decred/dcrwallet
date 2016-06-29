@@ -122,11 +122,15 @@
       <HintPath>..\packages\PCLCrypto.1.0.86\lib\net40-Client\PCLCrypto.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="PresentationFramework.Aero2" />
     <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Interactive.Async, Version=1.2.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Ix-Async.1.2.5\lib\net45\System.Interactive.Async.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -147,95 +151,109 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="AccountHistoryView.xaml.cs">
-      <DependentUpon>AccountHistoryView.xaml</DependentUpon>
+    <Compile Include="Accounts.xaml.cs">
+      <DependentUpon>Accounts.xaml</DependentUpon>
     </Compile>
-    <Compile Include="AccountView.xaml.cs">
-      <DependentUpon>AccountView.xaml</DependentUpon>
+    <Compile Include="Framework\Messenger.cs" />
+    <Compile Include="Framework\ShellViewModelBase.cs" />
+    <Compile Include="Framework\SingletonViewModelLocator.cs" />
+    <Compile Include="Framework\ValueConverters\AmountConverter.cs" />
+    <Compile Include="Framework\ValueConverters\NullToHiddenConverter.cs" />
+    <Compile Include="Framework\ValueConverters\OneWayConverter.cs" />
+    <Compile Include="AccountToNameConverter.cs" />
+    <Compile Include="PassphraseDialogView.xaml.cs">
+      <DependentUpon>PassphraseDialogView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="AccountViewModel.cs" />
-    <Compile Include="BindingProperties.cs" />
+    <Compile Include="RenameAccountDialogView.xaml.cs">
+      <DependentUpon>RenameAccountDialogView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SignTransactionDialog.xaml.cs">
+      <DependentUpon>SignTransactionDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Validation\AmountValidator.cs" />
+    <Compile Include="ViewModels\AccountViewModel.cs" />
+    <Compile Include="AssemblyResources.cs" />
+    <Compile Include="Framework\AttachableProperties.cs" />
     <Compile Include="ConfirmSeedView.xaml.cs">
       <DependentUpon>ConfirmSeedView.xaml</DependentUpon>
     </Compile>
     <Compile Include="CreateOrImportSeedView.xaml.cs">
       <DependentUpon>CreateOrImportSeedView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="AssemblyResources.cs" />
+    <Compile Include="DTO\RecentActivity.cs" />
+    <Compile Include="Framework\Navigator.cs" />
+    <Compile Include="Helpers\PasswordBoxWaterMark.cs" />
+    <Compile Include="Helpers\Watermark.cs" />
+    <Compile Include="History.xaml.cs">
+      <DependentUpon>History.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Overview.xaml.cs">
+      <DependentUpon>Overview.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="OverviewDeeper.xaml.cs">
+      <DependentUpon>OverviewDeeper.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ViewModels\CreateTransactionViewModel.cs" />
+    <Compile Include="ViewModels\OverviewViewModel.cs" />
     <Compile Include="ProcessArguments.cs" />
-    <Compile Include="StartupWizard.cs" />
+    <Compile Include="Request.xaml.cs">
+      <DependentUpon>Request.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ViewModels\RequestViewModel.cs" />
+    <Compile Include="Send.xaml.cs">
+      <DependentUpon>Send.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ViewModels\SignTransactionDialogViewModel.cs" />
+    <Compile Include="ViewModels\StartupWizard.cs" />
     <Compile Include="ConnectionWizardView.xaml.cs">
       <DependentUpon>ConnectionWizardView.xaml</DependentUpon>
     </Compile>
     <Compile Include="CreateAccountDialogView.xaml.cs">
       <DependentUpon>CreateAccountDialogView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="CreateAccountDialogViewModel.cs" />
-    <Compile Include="DelegateCommand.cs" />
-    <Compile Include="AmountConverter.cs" />
-    <Compile Include="BooleanConverter.cs" />
-    <Compile Include="ButtonCommand.cs" />
-    <Compile Include="ConfirmationIndicator.xaml.cs">
-      <DependentUpon>ConfirmationIndicator.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="CreateTransactionView.xaml.cs">
-      <DependentUpon>CreateTransactionView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="DialogViewModelBase.cs" />
-    <Compile Include="ImportDialogView.xaml.cs">
-      <DependentUpon>ImportDialogView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="ImportDialogViewModel.cs" />
-    <Compile Include="LockableToggleButton.cs" />
-    <Compile Include="PassphraseDialogView.xaml.cs">
-      <DependentUpon>PassphraseDialogView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="PassphraseDialogViewModel.cs" />
+    <Compile Include="ViewModels\CreateAccountDialogViewModel.cs" />
+    <Compile Include="Framework\DelegateCommand.cs" />
+    <Compile Include="Framework\ValueConverters\BooleanConverter.cs" />
+    <Compile Include="Framework\ButtonCommand.cs" />
+    <Compile Include="Framework\DialogViewModelBase.cs" />
+    <Compile Include="ViewModels\ImportDialogViewModel.cs" />
+    <Compile Include="ViewModels\PassphraseDialogViewModel.cs" />
     <Compile Include="PromptPassphrasesView.xaml.cs">
       <DependentUpon>PromptPassphrasesView.xaml</DependentUpon>
     </Compile>
     <Compile Include="PublicPassphrasePromptView.xaml.cs">
       <DependentUpon>PublicPassphrasePromptView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="RecentActivityView.xaml.cs">
-      <DependentUpon>RecentActivityView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="RecentActivityViewModel.cs" />
-    <Compile Include="RenameAccountDialogView.xaml.cs">
-      <DependentUpon>RenameAccountDialogView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="RenameAccountDialogViewModel.cs" />
+    <Compile Include="ViewModels\RenameAccountDialogViewModel.cs" />
     <Compile Include="ShellView.xaml.cs">
       <DependentUpon>ShellView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ShellViewModel.cs" />
-    <Compile Include="RecentAccountView.xaml.cs">
-      <DependentUpon>RecentAccountView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="RecentAccountViewModel.cs" />
-    <Compile Include="RecentTransactionView.xaml.cs">
-      <DependentUpon>RecentTransactionView.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="TransactionViewModel.cs" />
-    <Compile Include="TransactionView.xaml.cs">
-      <DependentUpon>TransactionView.xaml</DependentUpon>
-    </Compile>
+    <Compile Include="ViewModels\ShellViewModel.cs" />
+    <Compile Include="ViewModels\RecentAccountViewModel.cs" />
+    <Compile Include="ViewModels\StartupWizardFinishedMessage.cs" />
+    <Compile Include="ViewModels\SynchronizerViewModel.cs" />
+    <Compile Include="ViewModels\TransactionViewModel.cs" />
     <Compile Include="ConsensusServerConnectionOptionsView.xaml.cs">
       <DependentUpon>ConsensusServerConnectionOptionsView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ViewModelBase.cs" />
-    <Compile Include="ViewModelMessage.cs" />
-    <Compile Include="WizardDialogViewModelBase.cs" />
-    <Compile Include="WizardViewModel.cs" />
-    <Page Include="AccountHistoryView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="AccountView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="ConfirmationIndicator.xaml">
+    <Compile Include="Framework\TypeConverters\AmountTypeConverter.cs" />
+    <Compile Include="Unspent.xaml.cs">
+      <DependentUpon>Unspent.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\AlignedAmount.xaml.cs">
+      <DependentUpon>AlignedAmount.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\AmountLabel.xaml.cs">
+      <DependentUpon>AmountLabel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\TransactionUserControl.xaml.cs">
+      <DependentUpon>TransactionUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Framework\ViewModelBase.cs" />
+    <Compile Include="Framework\WizardDialogViewModelBase.cs" />
+    <Compile Include="Framework\WizardViewModel.cs" />
+    <Compile Include="ViewModels\ViewModelLocator.cs" />
+    <Page Include="Accounts.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -255,11 +273,19 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="CreateTransactionView.xaml">
+    <Page Include="History.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="ImportDialogView.xaml">
+    <Page Include="Images\Accounts.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Overview.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="OverviewDeeper.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -275,11 +301,19 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="RecentActivityView.xaml">
+    <Page Include="RenameAccountDialogView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="RenameAccountDialogView.xaml">
+    <Page Include="Request.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Resource.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Send.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -299,19 +333,27 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Page Include="RecentAccountView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="RecentTransactionView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="TransactionView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
     <Page Include="ConsensusServerConnectionOptionsView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SignTransactionDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Unspent.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserControls\AlignedAmount.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserControls\AmountLabel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserControls\TransactionUserControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -367,6 +409,20 @@
       <Name>Paymetheus.Rpc</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Images\paymetheus - 137x20.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Images\paymetheus - 262x37.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Images\pm - icons - decrease.png" />
+    <Resource Include="Images\pm - icons - hide.png" />
+    <Resource Include="Images\pm - icons - import.png" />
+    <Resource Include="Images\pm - icons - increase.png" />
+    <Resource Include="Images\pm - icons - rename.png" />
+  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\grpc.native.csharp.0.13.0\build\portable-net45+netcore45+wpa81+wp8\grpc.native.csharp.targets" Condition="Exists('..\packages\grpc.native.csharp.0.13.0\build\portable-net45+netcore45+wpa81+wp8\grpc.native.csharp.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

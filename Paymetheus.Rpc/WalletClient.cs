@@ -423,8 +423,22 @@ namespace Paymetheus.Rpc
                         InternalKeyCount = a.InternalKeyCount,
                         ImportedKeyCount = a.ImportedKeyCount,
                     });
+                Func<AccountsResponse.Types.Account, AccountProperties> createProperties = a => new AccountProperties
+                {
+                    AccountName = a.AccountName,
+                    TotalBalance = a.TotalBalance,
+                    // TODO: uncomment when added to protospec and implemented by wallet.
+                    //ImmatureCoinbaseReward = a.ImmatureBalance,
+                    ExternalKeyCount = a.ExternalKeyCount,
+                    InternalKeyCount = a.InternalKeyCount,
+                    ImportedKeyCount = a.ImportedKeyCount,
+                };
+                // This assumes that all but the last account listed in the RPC response are
+                // BIP0032 accounts, with the same account number as their List index.
+                var bip0032Accounts = rpcAccounts.Accounts.Take(rpcAccounts.Accounts.Count - 1).Select(createProperties).ToList();
+                var importedAccount = createProperties(rpcAccounts.Accounts.Last());
                 var chainTip = new BlockIdentity(lastAccountBlockHash, lastAccountBlockHeight);
-                var wallet = new Wallet(activeBlockChain, txSet, accounts, chainTip);
+                var wallet = new Wallet(activeBlockChain, txSet, bip0032Accounts, importedAccount, chainTip);
                 wallet.ChangesProcessed += walletEventHandler;
 
                 var syncTask = Task.Run(async () =>

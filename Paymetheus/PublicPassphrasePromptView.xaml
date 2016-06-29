@@ -5,30 +5,29 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Paymetheus"
              mc:Ignorable="d" 
-             d:DesignHeight="300" d:DesignWidth="300">
-    <DockPanel FocusManager.FocusedElement="{Binding ElementName=PasswordBoxPublicPassphrase}">
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Open wallet" IsDefault="True" Command="{Binding OpenWalletCommand}" Width="100" Margin="6,12,3,6" Padding="10 2"/>
-        </StackPanel>
-        <Label DockPanel.Dock="Top" Content="Unlock public data" FontSize="18"/>
-        <Label DockPanel.Dock="Top">
-            <TextBlock TextWrapping="Wrap">
+	         Background="{DynamicResource ColorDarkBlueFull}" d:DesignWidth="842" d:DesignHeight="718">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resource.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <Grid x:Name="LayoutRoot">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Height="532.452" Width="700" >
+            <Image Source="Images/paymetheus - 262x37.png" Stretch="Fill" Width="262" Height="37" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="219,24,219,0"/>
+            <Label Margin="40 120 40 80">
+                <TextBlock TextWrapping="Wrap" HorizontalAlignment="Left" Foreground="#FFB7D1F0">
                 A public passphrase is only required to open the wallet when the optional
                 public data encryption feature is enabled.
                 Simply continue by opening the wallet with an empty passphrase if public
                 data encryption is disabled.
-            </TextBlock>
-        </Label>
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="120"/>
-                <ColumnDefinition/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition/>
-            </Grid.RowDefinitions>
-            <Label Grid.Column="0" Grid.Row="0" Content="Public passphrase"/>
-            <PasswordBox x:Name="PasswordBoxPublicPassphrase"  Grid.Column="1" Grid.Row="0" Margin="6 2" Padding="2" PasswordChanged="PasswordBoxPublicPassphrase_PasswordChanged"/>
-        </Grid>
-    </DockPanel>
+                </TextBlock>
+            </Label>
+            <Border Padding="5" CornerRadius="5" Background="White" Height="35" Width="700" VerticalAlignment="Top" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3">
+                <PasswordBox x:Name="PasswordBoxPublicPassphrase" BorderThickness="0" Background="{x:Null}" PasswordChanged="PasswordBoxPublicPassphrase_PasswordChanged"/>
+            </Border>
+            <Button Content="Open Wallet" Command="{Binding OpenWalletCommand}" HorizontalAlignment="Center" Height="35.5" Margin="288.5,0" VerticalAlignment="Top" Width="123" Style="{DynamicResource ButtonBlue}" Foreground="#FF132F4B"  Grid.Row="2" Grid.Column="1"  />
+        </StackPanel>
+    </Grid>
 </UserControl>

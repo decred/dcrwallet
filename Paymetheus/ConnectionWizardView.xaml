@@ -4,22 +4,23 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Paymetheus"
+             xmlns:vm="clr-namespace:Paymetheus.ViewModels"
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300">
     <UserControl.Resources>
-        <DataTemplate DataType="{x:Type local:ConsensusServerRpcConnectionDialog}">
+        <DataTemplate DataType="{x:Type vm:ConsensusServerRpcConnectionDialog}">
             <local:ConsensusServerConnectionOptionsView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type local:CreateOrImportSeedDialog}">
+        <DataTemplate DataType="{x:Type vm:CreateOrImportSeedDialog}">
             <local:CreateOrImportSeedView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type local:PromptPublicPassphraseDialog}">
+        <DataTemplate DataType="{x:Type vm:PromptPublicPassphraseDialog}">
             <local:PublicPassphrasePromptView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type local:ConfirmSeedBackupDialog}">
+        <DataTemplate DataType="{x:Type vm:ConfirmSeedBackupDialog}">
             <local:ConfirmSeedView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type local:PromptPassphrasesDialog}">
+        <DataTemplate DataType="{x:Type vm:PromptPassphrasesDialog}">
             <local:PromptPassphrasesView/>
         </DataTemplate>
     </UserControl.Resources>

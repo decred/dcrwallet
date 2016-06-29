@@ -23,22 +23,36 @@ namespace Paymetheus.Decred
 
     public struct Denomination
     {
-        public static readonly Denomination Decred = new Denomination((long)1e8, "{0}{1:#,0}{2,-9:.0#######}", "DCR");
-        public static readonly Denomination MillaDecred = new Denomination((long)1e5, "{0}{1:#,0}{2,-6:.0####}", "mDCR");
-        public static readonly Denomination MicroDecred = new Denomination((long)1e2, "{0}{1:#,0}{2:.00}", "μDCR");
+        public static readonly Denomination Decred = new Denomination((long)1e8, 8, "{0}{1:#,0}{2,-2:.0#######}", "DCR");
+        public static readonly Denomination MillaDecred = new Denomination((long)1e5, 5, "{0}{1:#,0}{2,-2:.0####}", "mDCR");
+        public static readonly Denomination MicroDecred = new Denomination((long)1e2, 2, "{0}{1:#,0}{2:.00}", "μDCR");
 
-        private Denomination(long atomsPerUnit, string formatString, string ticker)
+        private Denomination(long atomsPerUnit, int decimalPoints, string formatString, string ticker)
         {
             _atomsPerUnit = atomsPerUnit;
             _formatString = formatString;
 
+            DecimalPoints = decimalPoints;
             Ticker = ticker;
         }
 
         private readonly long _atomsPerUnit;
         private readonly string _formatString;
 
+        public int DecimalPoints { get; }
         public string Ticker { get; }
+
+        public Tuple<long, double> Split(Amount amount)
+        {
+            if (amount < 0)
+            {
+                amount = -amount;
+            }
+
+            var wholePart = amount / _atomsPerUnit;
+            var decimalPart = (double)(amount % _atomsPerUnit) / _atomsPerUnit;
+            return Tuple.Create(wholePart, decimalPart);
+        }
 
         public string FormatAmount(Amount amount)
         {

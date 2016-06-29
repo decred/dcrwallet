@@ -4,6 +4,7 @@
 
 using Paymetheus.Decred.Util;
 using System;
+using System.Linq;
 
 namespace Paymetheus.Decred
 {
@@ -254,6 +255,44 @@ namespace Paymetheus.Decred
                 cursor.WriteUInt32(input.BlockIndex);
                 cursor.WriteVarBytes(input.SignatureScript);
             }
+        }
+
+        private const int RedeemPayToPubKeyHashSigScriptSize = 1 + 73 + 1 + 33;
+        private const int PayToPubKeyHashPkScriptSize = 1 + 1 + 1 + 20 + 1 + 1;
+
+        // Worst case sizes for compressed p2pkh inputs and outputs.
+        // Used for estimating an unsigned transaction's worst case serialize size
+        // after it has been signed.
+        public const int RedeemPayToPubKeyHashInputSize = 32 + 4 + 1 + 8 + 4 + 4 + 1 + RedeemPayToPubKeyHashSigScriptSize + 4;
+        public const int PayToPubKeyHashOutputSize = 8 + 2 + 1 + PayToPubKeyHashPkScriptSize;
+
+        /// <summary>
+        /// Estimates the signed serialize size of an unsigned transaction, assuming all
+        /// inputs spend P2PKH outputs.  The estimate is a worst case, so the actual
+        /// serialize size after signing should always be less than or equal to this value.
+        /// </summary>
+        /// <param name="inputCount">Number of P2PKH outputs the transaction will redeem</param>
+        /// <param name="outputs">Transaction output array</param>
+        /// <param name="addChangeOutput">Add the serialize size for an additional P2PKH change output</param>
+        /// <returns>Estimated signed serialize size of the transaction</returns>
+        public static int EstimateSerializeSize(int inputCount, Output[] outputs, bool addChangeOutput)
+        {
+            if (outputs == null)
+                throw new ArgumentNullException(nameof(outputs));
+
+            var changeSize = 0;
+            var outputCount = outputs.Length;
+            if (addChangeOutput)
+            {
+                changeSize = PayToPubKeyHashOutputSize;
+                outputCount++;
+            }
+
+            return
+                12 + (2 * CompactInt.SerializeSize((ulong)inputCount)) + CompactInt.SerializeSize((ulong)outputCount) +
+                inputCount * RedeemPayToPubKeyHashInputSize +
+                outputs.Sum(o => o.SerializeSize) +
+                changeSize;
         }
     }
 }

@@ -27,7 +27,7 @@ namespace Paymetheus.Rpc
 
             var processInfo = new ProcessStartInfo();
             processInfo.FileName = "dcrwallet";
-            processInfo.Arguments = $"{networkFlag} --noinitialload --experimentalrpclisten={v4ListenAddress} --onetimetlskey --datadir=\"{appDataDirectory}\"";
+            processInfo.Arguments = $"{networkFlag} --noinitialload --experimentalrpclisten={v4ListenAddress} --onetimetlskey --appdata=\"{appDataDirectory}\"";
             processInfo.UseShellExecute = false;
             processInfo.RedirectStandardError = true;
             processInfo.RedirectStandardOutput = true;

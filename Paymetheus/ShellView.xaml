@@ -4,25 +4,164 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Paymetheus"
+             xmlns:viewmodels="clr-namespace:Paymetheus.ViewModels"
              mc:Ignorable="d" 
-             d:DesignHeight="550" d:DesignWidth="900">
+	         Background="{DynamicResource ColorDarkBlueFull}" 
+             d:DesignHeight="550" d:DesignWidth="900"
+             DataContext="{Binding ShellViewModel, Source={StaticResource ViewModelLocator}}">
     <UserControl.Resources>
-        <DataTemplate DataType="{x:Type local:CreateAccountDialogViewModel}">
-            <local:CreateAccountDialogView/>
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type local:RenameAccountDialogViewModel}">
-            <local:RenameAccountDialogView/>
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type local:ImportDialogViewModel}">
-            <local:ImportDialogView/>
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type local:PassphraseDialogViewModel}">
-            <local:PassphraseDialogView/>
-        </DataTemplate>
+        <SolidColorBrush x:Key="Item.MouseOver.Background" Color="#1F26A0DA"/>
+        <SolidColorBrush x:Key="Item.MouseOver.Border" Color="#a826A0Da"/>
+        <SolidColorBrush x:Key="Item.SelectedInactive.Background" Color="#3DDADADA"/>
+        <SolidColorBrush x:Key="Item.SelectedInactive.Border" Color="#FFDADADA"/>
+        <SolidColorBrush x:Key="Item.SelectedActive.Background" Color="#3D26A0DA"/>
+        <SolidColorBrush x:Key="Item.SelectedActive.Border" Color="#FF26A0DA"/>
+        <Style x:Key="ListBoxItemStyle" TargetType="{x:Type ListBoxItem}">
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Padding" Value="4,1"/>
+            <Setter Property="HorizontalContentAlignment" Value="{Binding HorizontalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+            <Setter Property="VerticalContentAlignment" Value="{Binding VerticalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <Grid x:Name="grid" Background="Transparent " Height="40">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="41"/>
+                                <ColumnDefinition/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="textBlock" HorizontalAlignment="Stretch" Height="20" Margin="0,10,0,0" TextWrapping="Wrap" Text="{TemplateBinding Content}" VerticalAlignment="Top" Width="Auto" TextAlignment="Left" Grid.Column="1" Foreground="#FFA9B4BF" Grid.ColumnSpan="1"/>
+                            <Rectangle x:Name="rectangle" Fill="#FF2ED8A3" HorizontalAlignment="Left" Stroke="{x:Null}" VerticalAlignment="Stretch" Width="5" RenderTransformOrigin="0.391,0.508" Margin="0" Visibility="Hidden"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Selector.IsSelectionActive" Value="False"/>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Background" TargetName="grid" Value="#FF09182D"/>
+                                <Setter Property="Visibility" TargetName="rectangle" Value="Visible"/>
+                                <Setter Property="Foreground" TargetName="textBlock" Value="White"/>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Selector.IsSelectionActive" Value="True"/>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Background" TargetName="grid" Value="#FF09182D"/>
+                                <Setter Property="Visibility" TargetName="rectangle" Value="Visible"/>
+                                <Setter Property="Foreground" TargetName="textBlock" Value="White"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsEnabled" Value="False"/>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
-    <Grid>
-        <UserControl Panel.ZIndex="1000" KeyboardNavigation.TabNavigation="Cycle" KeyboardNavigation.ControlTabNavigation="Cycle">
+    <Grid x:Name="LayoutRoot">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="250"/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <Grid Background="#FF0C1E3E">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="60"/>
+                <RowDefinition/>
+                <RowDefinition Height="80"/>
+            </Grid.RowDefinitions>
+            <Image Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="15,0,0,0" Stretch="Uniform" Source="Images/paymetheus - 137x20.png" Height="20"/>
+            <ListBox Grid.Row="1" Background="{x:Null}" Style="{DynamicResource ListBoxStyle}">
+                <ListBox.Resources>
+                    <SolidColorBrush x:Key="ListBox.Static.Background" Color="#FFFFFFFF"/>
+                    <SolidColorBrush x:Key="ListBox.Static.Border" Color="#FFABADB3"/>
+                    <SolidColorBrush x:Key="ListBox.Disabled.Background" Color="#FFFFFFFF"/>
+                    <SolidColorBrush x:Key="ListBox.Disabled.Border" Color="#FFD9D9D9"/>
+                    <Style x:Key="ListBoxStyle" TargetType="{x:Type ListBox}">
+                        <Setter Property="Background" Value="{StaticResource ListBox.Static.Background}"/>
+                        <Setter Property="BorderBrush" Value="{StaticResource ListBox.Static.Border}"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+                        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+                        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+                        <Setter Property="ScrollViewer.CanContentScroll" Value="true"/>
+                        <Setter Property="ScrollViewer.PanningMode" Value="Both"/>
+                        <Setter Property="Stylus.IsFlicksEnabled" Value="False"/>
+                        <Setter Property="VerticalContentAlignment" Value="Center"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="{x:Type ListBox}">
+                                    <Border x:Name="Bd" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" SnapsToDevicePixels="true">
+                                        <ScrollViewer Focusable="false" Padding="{TemplateBinding Padding}" Margin="-1">
+                                            <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsEnabled" Value="false">
+                                            <Setter Property="Background" TargetName="Bd" Value="{StaticResource ListBox.Disabled.Background}"/>
+                                            <Setter Property="BorderBrush" TargetName="Bd" Value="{StaticResource ListBox.Disabled.Border}"/>
+                                        </Trigger>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="IsGrouping" Value="true"/>
+                                                <Condition Property="VirtualizingPanel.IsVirtualizingWhenGrouping" Value="false"/>
+                                            </MultiTrigger.Conditions>
+                                            <Setter Property="ScrollViewer.CanContentScroll" Value="false"/>
+                                        </MultiTrigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.Resources>
+                <ListBoxItem Selected="NavigateOverview" Content="Overview" Style="{DynamicResource ListBoxItemStyle}" IsSelected="True"/>
+                <ListBoxItem Selected="NavigateAccounts" Content="Accounts" Style="{DynamicResource ListBoxItemStyle}"/>
+                <ListBoxItem Selected="NavigateSend" Content="Create transaction" Style="{DynamicResource ListBoxItemStyle}"/>
+                <ListBoxItem Selected="NavigateRequest" Content="Request payment" Style="{DynamicResource ListBoxItemStyle}"/>
+                <ListBoxItem Selected="NavigateHistory" Content="Transaction history" Style="{DynamicResource ListBoxItemStyle}"/>
+                <!--<ListBoxItem Selected="NavigateUnspent" Content="Unspent outputs" Style="{DynamicResource ListBoxItemStyle}"/>-->
+            </ListBox>
+            <Path Data="M52.666667,460 C55.333333,453.33333 125.33317,387.3335 125.33317,387.3335 L199.33249,461.33283 z" Fill="#FF69D5F7" HorizontalAlignment="Center" Height="3.868" Margin="121.166,0.547,121.167,0" Grid.Row="2" Stretch="Fill" Stroke="{x:Null}" VerticalAlignment="Top" Width="7.667"/>
+            <Rectangle Fill="#FF69D5F7" HorizontalAlignment="Center" Height="1" Margin="20,4.166,20,0" Grid.Row="2" Stroke="{x:Null}" VerticalAlignment="Top" Width="210"/>
+            <Grid Grid.Row="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="40"/>
+                    <RowDefinition Height="40"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Margin="20 0 0 0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                           Text="Total Balance"
+                           FontSize="12" Foreground="#FF69D5F7"/>
+                <local:AmountLabel Grid.Row="0" Margin="0 0 20 0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                   Value="{Binding Path=SynchronizerViewModel.TotalBalance, Source={StaticResource ViewModelLocator}}"
+                                   FontSizeWhole="12" FontSizeDecimal="12" ForegroundWhole="#FF2ED8a3" ForegroundDecimal="#FF2ED8a3"/>
+                <Border Grid.Row="2" Background="#FF09182D" Padding="20 0">
+                    <Grid VerticalAlignment="Center" Grid.Row="2">
+                        <Grid.Resources>
+                            <Style TargetType="{x:Type TextBlock}">
+                                <Setter Property="FontSize" Value="12"/>
+                            </Style>
+                        </Grid.Resources>
+                        <TextBlock Text="Latest block:" Foreground="#FF69D5F7"/>
+                        <TextBlock HorizontalAlignment="Right"
+                               Text="{Binding Path=SynchronizerViewModel.SyncedBlockHeight, StringFormat='{}{0:#,0}', FallbackValue='0', Source={StaticResource ViewModelLocator}}"
+                               Foreground="#FF2ED8A3"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <Frame Name="ContentHolder" Content="Frame" Source="/Paymetheus;component/Overview.xaml" NavigationUIVisibility="Hidden" Background="#FFF9FBFC"/>
+        </ScrollViewer>
+
+        <UserControl Grid.ColumnSpan="2" Panel.ZIndex="1000" KeyboardNavigation.TabNavigation="Cycle" KeyboardNavigation.ControlTabNavigation="Cycle">
             <UserControl.Style>
                 <Style TargetType="UserControl">
                     <Style.Triggers>
@@ -33,106 +172,11 @@
                 </Style>
             </UserControl.Style>
             <UserControl.Background>
-                <SolidColorBrush Color="{DynamicResource {x:Static SystemColors.ControlLightLightColorKey}}" Opacity="0.7"/>
+                <SolidColorBrush Color="#FF132F4B" Opacity="0.5"/>
             </UserControl.Background>
-            <UserControl MinHeight="180" VerticalAlignment="Center">
-                <UserControl.Background>
-                    <SolidColorBrush Color="{DynamicResource {x:Static SystemColors.ControlColorKey}}"/>
-                </UserControl.Background>
-                <ContentControl Content="{Binding VisibleDialogContent}" KeyboardNavigation.IsTabStop="False" Width="500" Margin="0 6"/>
-            </UserControl>
+            <Border CornerRadius="10,10,10,10" Padding="10" Background="#FFE9EDF1" MinWidth="340" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ContentControl Content="{Binding VisibleDialogContent}" KeyboardNavigation.IsTabStop="False"/>
+            </Border>
         </UserControl>
-
-        <DockPanel>
-            <DockPanel.Resources>
-                <DataTemplate x:Key="recentAccountTemplate">
-                    <local:RecentAccountView/>
-                </DataTemplate>
-
-                <DataTemplate DataType="{x:Type local:RecentActivityViewModel}">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <local:RecentActivityView/>
-                    </ScrollViewer>
-                </DataTemplate>
-                <DataTemplate DataType="{x:Type local:AccountViewModel}">
-                    <local:AccountView/>
-                </DataTemplate>
-                <DataTemplate DataType="{x:Type local:TransactionViewModel}">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <local:TransactionView/>
-                    </ScrollViewer>
-                </DataTemplate>
-            </DockPanel.Resources>
-
-            <DockPanel DockPanel.Dock="Left" Width="220">
-                <DockPanel.Background>
-                    <SolidColorBrush Color="{DynamicResource {x:Static SystemColors.ControlColorKey}}"/>
-                </DockPanel.Background>
-                <Label DockPanel.Dock="Top" FontSize="18" HorizontalAlignment="Left" Margin="3 6">
-                    <TextBlock>
-                            <Run Text="Block"/>
-                            <Run Text="{Binding SyncedBlockHeight, StringFormat='{}{0:#,0}', FallbackValue='0'}"/>
-                    </TextBlock>
-                </Label>
-
-                <local:LockableToggleButton DockPanel.Dock="Top"
-                                            Margin="0 6" Padding="9 6"
-                                            BorderThickness="0"
-                                            Background="Transparent"
-                                            FontSize="14"
-                                            HorizontalContentAlignment="Stretch"
-                                            Content="Recent activity"
-                                            Command="{Binding NavigateBack}" Checked="RecentActivityToggleButton_Checked"/>
-
-                <DockPanel DockPanel.Dock="Top" Margin="0 6">
-                    <Label DockPanel.Dock="Left" Content="Accounts" FontSize="14" Margin="3 0"/>
-                    <Button
-                        BorderThickness="0"
-                        Background="Transparent"
-                        Content="+"
-                        FontWeight="Bold"
-                        FontSize="14"
-                        Command="{Binding CreateAccountCommand}"
-                        Padding="8,0"
-                        Margin="0 0 9 0"
-                        HorizontalContentAlignment="Center"
-                        HorizontalAlignment="Right"/>
-                </DockPanel>
-
-                <Separator DockPanel.Dock="Top" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="9 0 9 6"/>
-                <DockPanel>
-                    <DockPanel DockPanel.Dock="Bottom" VerticalAlignment="Stretch" Margin="3 0 3 3">
-                        <Label DockPanel.Dock="Left" Content="Total"/>
-                        <Label HorizontalContentAlignment="Right" Content="{Binding Path=TotalBalance, Mode=OneWay}" FontFamily="Consolas"/>
-                    </DockPanel>
-                    <Separator DockPanel.Dock="Bottom" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="9 5"/>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemsSource="{Binding RecentAccounts}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <VirtualizingStackPanel/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <local:LockableToggleButton Margin="0" Padding="9 6" BorderThickness="0" Background="Transparent" HorizontalContentAlignment="Stretch" Checked="AccountToggleButton_Checked">
-                                        <DockPanel>
-                                            <TextBlock DockPanel.Dock="Left" TextTrimming="CharacterEllipsis" Text="{Binding AccountName}"/>
-                                            <TextBlock HorizontalAlignment="Right" Text="{Binding BalanceString}" FontFamily="Consolas"/>
-                                        </DockPanel>
-                                    </local:LockableToggleButton>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                </DockPanel>
-            </DockPanel>
-
-            <!--<StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
-                <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" />
-            </StackPanel>-->
-
-            <ContentControl Content="{Binding VisibleContent}" Margin="12 6"/>
-        </DockPanel>
     </Grid>
 </UserControl>

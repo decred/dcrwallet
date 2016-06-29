@@ -20,7 +20,7 @@ namespace Paymetheus.Tests.Decred
         {
             return new[]
             {
-                new object[] { TestTransactions.EmptyTransaction, 10},
+                new object[] { TestTransactions.EmptyTransaction, 15},
             };
         }
 

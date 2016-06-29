@@ -26,6 +26,26 @@ namespace Paymetheus.Decred
         /// </summary>
         public static bool IsSaneOutputValue(Amount a) => a >= 0 && a <= MaxOutputValue;
 
+        /// <summary>
+        /// Check whether an output is considered dust for a given transaction relay fee.
+        /// Transactions with dust outputs are rejected by mempool.
+        /// </summary>
+        /// <param name="output">Transaction output to check</param>
+        /// <param name="relayFeePerKb">Mempool relay fee/kB</param>
+        /// <returns>Whether the output is dust</returns>
+        public static bool IsDust(Transaction.Output output, Amount relayFeePerKb)
+        {
+            // TODO: Rather than assumming the output is P2PKH and using the size of a
+            // P2PKH input script to estimate the total cost to the network, a better
+            // estimate could be used if the output script is one of the other recognized
+            // script kinds.
+            var totalSize = output.SerializeSize + Transaction.RedeemPayToPubKeyHashInputSize;
+
+            // Dust is defined as an output value where the total cost to the network
+            // (output size + input size) is greater than 1/3 of the relay fee.
+            return output.Amount * 1000 / (3 * totalSize) < relayFeePerKb;
+        }
+
         public static void CheckSanity(Transaction tx)
         {
             if (tx == null)

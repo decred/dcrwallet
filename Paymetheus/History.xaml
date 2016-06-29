@@ -1,0 +1,199 @@
+﻿<Page
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+    xmlns:local="clr-namespace:Paymetheus" 
+    xmlns:i="clr-namespace:Paymetheus.Images"
+    mc:Ignorable="d"
+	x:Class="Paymetheus.History"
+	x:Name="Page"
+	WindowTitle="Page"
+	FlowDirection="LeftToRight"
+	WindowWidth="640" WindowHeight="480" d:DesignWidth="862.17" d:DesignHeight="549.293">
+
+    <Page.Resources>
+
+        <SolidColorBrush x:Key="Item.MouseOver.Background" Color="#1F26A0DA"/>
+        <SolidColorBrush x:Key="Item.MouseOver.Border" Color="#a826A0Da"/>
+        <SolidColorBrush x:Key="Item.SelectedInactive.Background" Color="#3DDADADA"/>
+        <SolidColorBrush x:Key="Item.SelectedInactive.Border" Color="#FFDADADA"/>
+        <SolidColorBrush x:Key="Item.SelectedActive.Background" Color="#3D26A0DA"/>
+        <SolidColorBrush x:Key="Item.SelectedActive.Border" Color="#FF26A0DA"/>
+
+        <Style x:Key="ListBoxItemStyle" TargetType="{x:Type ListBoxItem}">
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Padding" Value="4,1"/>
+            <Setter Property="HorizontalContentAlignment" Value="{Binding HorizontalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+            <Setter Property="VerticalContentAlignment" Value="{Binding VerticalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <Grid x:Name="grid1" Background="White"  d:DesignWidth="517.079" >
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid x:Name="grid2" Margin="0" VerticalAlignment="Top" Height="30">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition MinWidth="0" Width="*"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="120"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="textBlock3" HorizontalAlignment="Stretch" Margin="41,6.323,5,6.323" TextWrapping="Wrap" Text="Mar 14 2016 14:48" VerticalAlignment="Stretch" Foreground="#FF132F4B" TextAlignment="Left" FontSize="12" Grid.Column="0" Height="Auto" Grid.ColumnSpan="1" Grid.Row="0"/>
+                                <Image Grid.ColumnSpan="1" Margin="20,7,0,7" Source="Images/pm - icons - increase.png" Stretch="Fill" Width="16" Height="Auto" Grid.Column="0" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="textBlock3_Copy" HorizontalAlignment="Stretch" Margin="15,6.323,0,6.323" TextWrapping="Wrap" Text="45c7454df456ee810db7678149as6d4f000" VerticalAlignment="Stretch" Foreground="#FF132F4B" TextAlignment="Left" FontSize="12" Grid.Column="1" Height="Auto" Grid.Row="0" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="textBlock3_Copy1" HorizontalAlignment="Stretch" Margin="10,6.323,0,6.323" TextWrapping="Wrap" VerticalAlignment="Stretch" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="2" Height="Auto" Grid.Row="0"><Run FontWeight="Bold" Text="+10"/><Run FontSize="10" Text=".0001"/></TextBlock>
+                                <TextBlock x:Name="textBlock3_Copy2" HorizontalAlignment="Stretch" Margin="5,6.323,20,6.323" TextWrapping="Wrap" VerticalAlignment="Stretch" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="3" Height="Auto" Grid.Row="0"><Run Text="+459"/><Run FontSize="10" Text=".0001"/></TextBlock>
+                            </Grid>
+                            <Grid x:Name="grid" Margin="0,0.331,0,0" Grid.Row="1" Height="270" Background="#FFF4F7F9" Visibility="Collapsed">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="155"/>
+                                    <ColumnDefinition/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="58"/>
+                                    <RowDefinition Height="88.042"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,11.829,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="12" Grid.Column="1" Height="15.7" Grid.ColumnSpan="1" Grid.Row="1" FontWeight="Bold"><Run Text="311 "/><Run FontWeight="Normal" Text="confirmations"/></TextBlock>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,35.002,15,0" TextWrapping="Wrap" Text="To address:" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="0" Height="15.854" Grid.ColumnSpan="1" Grid.Row="1" Width="Auto" Grid.RowSpan="1"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,38.669,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="1" FontWeight="Bold" Grid.RowSpan="1"/>
+                                <Rectangle Fill="#FFA9B4BF" Height="1" VerticalAlignment="Top" Margin="20,0.5,20,0" Grid.Row="2" Grid.ColumnSpan="2"/>
+                                <local:TransactionUserControl HorizontalAlignment="Stretch" Margin="0,10.155,15,0" Grid.Row="1" VerticalAlignment="Top" Height="19.847" Status="Confirmed" Width="Auto"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,9.332,15,0" TextWrapping="Wrap" Text="Properties" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="0" Height="15.854" Grid.ColumnSpan="1" Grid.Row="2" Width="Auto" Grid.RowSpan="1" FontWeight="Bold"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,32.999,15,0" TextWrapping="Wrap" Text="Block" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="12.187" Grid.ColumnSpan="1" Grid.Row="2" Width="Auto" Grid.RowSpan="1"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,32.999,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="2" FontWeight="Normal"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,52.999,15,0" TextWrapping="Wrap" Text="Height" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="12.187" Grid.ColumnSpan="1" Grid.Row="2" Width="Auto" Grid.RowSpan="1"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,52.999,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="2" FontWeight="Normal"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,79.332,15,0" TextWrapping="Wrap" Text="Inputs" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="0" Height="15.854" Grid.ColumnSpan="1" Grid.Row="2" Width="Auto" Grid.RowSpan="2" FontWeight="Bold"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,14.957,15,0" TextWrapping="Wrap" Text="College funds" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="12.187" Grid.ColumnSpan="1" Grid.Row="3" Width="Auto" Grid.RowSpan="1"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,14.957,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="3" FontWeight="Normal"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,41.29,15,0" TextWrapping="Wrap" Text="Outputs" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="0" Height="15.854" Grid.ColumnSpan="1" Grid.Row="3" Width="Auto" Grid.RowSpan="1" FontWeight="Bold"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,64.957,15,0" TextWrapping="Wrap" Text="Tsgb8ihlh.." VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="12.187" Grid.ColumnSpan="1" Grid.Row="3" Width="Auto" Grid.RowSpan="1"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,64.957,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="3" FontWeight="Normal"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,84.957,15,0" TextWrapping="Wrap" Text="Change" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="12.187" Grid.ColumnSpan="1" Grid.Row="3" Width="Auto" Grid.RowSpan="1"/>
+                                <TextBlock HorizontalAlignment="Stretch" Margin="9.167,84.957,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="3" FontWeight="Normal"/>
+                                <Rectangle Grid.Column="0" Fill="#FFA9B4BF" HorizontalAlignment="Stretch" Height="1" Margin="-15,0,0,0" Grid.Row="3" VerticalAlignment="Bottom" Grid.ColumnSpan="2"/>
+
+
+
+                            </Grid>
+                            <Rectangle Fill="#FFFAFBFC" Height="1" VerticalAlignment="Bottom" Margin="0" Grid.Row="1" Grid.ColumnSpan="1"/>
+
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Background" TargetName="grid2" Value="#FFE9F8FE"/>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Selector.IsSelectionActive" Value="False"/>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Visibility" TargetName="grid" Value="Visible"/>
+                                <Setter Property="Background" TargetName="grid1" Value="White"/>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Selector.IsSelectionActive" Value="True"/>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Visibility" TargetName="grid" Value="Visible"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Visibility" TargetName="textBlock3" Value="Collapsed"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+
+        <Grid x:Name="LayoutRoot">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="60"/>
+                <RowDefinition Height="60"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Row="0" Background="White" BorderBrush="#FFA9B4BF" BorderThickness="0 0 0 1">
+                <TextBlock Margin="40 0 0 0" VerticalAlignment="Center" Text="Transaction history" Foreground="#FF5A6E81" FontSize="20" />
+            </Border>
+            <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="40 0 0 0" Foreground="#FF828C9D" FontSize="16" Text="{Binding SelectedAccount, FallbackValue=Selected account name}"/>
+            <Grid Margin="40,0,40,1.752" Grid.Row="2" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30"/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition/>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="120"/>
+                </Grid.ColumnDefinitions>
+                <Rectangle Grid.ColumnSpan="4" Fill="#FFCACFD6" Height="42.173" VerticalAlignment="Top" RadiusY="5" RadiusX="5" Stroke="#FFA9B4BF" Grid.RowSpan="2"/>
+                <ListBox HorizontalContentAlignment="Stretch" x:Name="lstRecentActivity" HorizontalAlignment="Stretch" BorderBrush="#FFCACFD6" ItemContainerStyle="{DynamicResource ListBoxItemStyle}" Grid.ColumnSpan="4" Grid.Row="1" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                <TextBlock Height="15" Margin="20.667,0,10,0" TextWrapping="Wrap" Text="Date" Foreground="#FF828C9D" FontWeight="Bold"/>
+                <TextBlock Height="15" Margin="10,7.5,5,7.5" TextWrapping="Wrap" Text="Transaction" Foreground="#FF828C9D" FontWeight="Bold" Grid.Column="1"/>
+                <Rectangle Fill="White" HorizontalAlignment="Left" Margin="0,10,0,8" Width="1" Grid.Column="1"/>
+                <TextBlock Height="15" Margin="10,7.5" TextWrapping="Wrap" Text="Amount" Foreground="#FF828C9D" FontWeight="Bold" Grid.Column="2" TextAlignment="Right"/>
+                <TextBlock Height="15" Margin="10,7.5" TextWrapping="Wrap" Text="Balance" Foreground="#FF828C9D" FontWeight="Bold" Grid.Column="3" TextAlignment="Right"/>
+                <Rectangle Fill="White" HorizontalAlignment="Left" Margin="0,10,0,8" Width="1" Grid.Column="2"/>
+                <Rectangle Fill="White" HorizontalAlignment="Left" Margin="0,10,0,8" Width="1" Grid.Column="3"/>
+            </Grid>
+            <ComboBox HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,40,0" Width="200" Style="{DynamicResource ComboBoxStyle}" ItemContainerStyle="{DynamicResource ComboBoxItemStyle}">
+                <ComboBox.Background>
+                    <LinearGradientBrush EndPoint="0,1" StartPoint="0,0">
+                        <GradientStop Color="#FFF0F0F0" Offset="0"/>
+                        <GradientStop Color="White" Offset="1"/>
+                    </LinearGradientBrush>
+                </ComboBox.Background>
+                <ComboBoxItem Content="Primary Account" IsSelected="True"/>
+                <ComboBoxItem Content="Second Account"/>
+            </ComboBox>
+            <Grid Margin="40,6.075,40,0" Grid.Row="3" ScrollViewer.VerticalScrollBarVisibility="Disabled" VerticalAlignment="Top" Height="75">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="50"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition/>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="120"/>
+                </Grid.ColumnDefinitions>
+                <Rectangle Fill="#FFCACFD6" HorizontalAlignment="Left" Margin="0,10,0,23.914" Width="1" Grid.Column="2"/>
+                <TextBlock Grid.Column="2" Height="16.834" Margin="22.819,5.5,3.678,0" TextWrapping="Wrap" Text="Debit" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right"/>
+                <TextBlock Grid.Column="2" Height="15.998" Margin="22.819,29.168,3.678,0" TextWrapping="Wrap" Text="Credit" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right"/>
+                <TextBlock Grid.Column="2" Height="22.666" Margin="22.819,52.334,3.678,-25" TextWrapping="Wrap" Text="Grand Total" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="16"/>
+                <TextBlock Grid.Column="3" Height="16.834" Margin="10,5.5,28.5,0" TextWrapping="Wrap" Text="0.2006" VerticalAlignment="Top" Foreground="#FFFD714B" TextAlignment="Right"/>
+                <TextBlock Grid.Column="3" Height="15" Margin="7.822,29.168,28.5,0" TextWrapping="Wrap" Text="45.45243009" VerticalAlignment="Top" Foreground="#FF41BF53" TextAlignment="Right"/>
+                <TextBlock Grid.Column="3" Height="22.666" Margin="10,52.334,28.5,-25" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right"><Run FontSize="16" Text="451."/><Run Text="2464646"/></TextBlock>
+                <TextBlock Grid.Column="3" Height="16.834" Margin="96.5,5.5,2.178,0" TextWrapping="Wrap" Text="DCR" VerticalAlignment="Top" Foreground="#FFFD714B" TextAlignment="Right" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="3" Height="15" Margin="0,29.168,2.178,0" TextWrapping="Wrap" Text="DC" VerticalAlignment="Top" Foreground="#FF41BF53" TextAlignment="Right" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="3" Height="15" Margin="0,57.5,2.178,-22.5" TextWrapping="Wrap" Text="DC" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="1" Height="16.834" Margin="0,5.5,10,0" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right"><Run FontWeight="Bold" Text="? "/><Run Text="transactions"/></TextBlock>
+            </Grid>
+            <Image Margin="510.836,12.4,326.333,12" Source="Images/pm - icons - accounts.png" Stretch="Fill" Width="25" Height="25.6"/>
+        </Grid>
+    </ScrollViewer>
+</Page>

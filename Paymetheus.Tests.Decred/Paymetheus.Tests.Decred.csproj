@@ -71,9 +71,11 @@
   <ItemGroup>
     <Compile Include="AmountTests.cs" />
     <Compile Include="Sha256HashTests.cs" />
+    <Compile Include="Sha256Tests.cs" />
     <Compile Include="TransactionTests.cs" />
     <Compile Include="Util\Base58Tests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Wallet\WalletSeedTests.cs" />
     <Compile Include="Wallet\AddressTests.cs" />
     <Compile Include="Wallet\ChecksumTests.cs" />
     <Compile Include="Wallet\PgpWordListTests.cs" />
