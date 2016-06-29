@@ -145,18 +145,10 @@
         </Style>
     </Page.Resources>
 
-    <Grid x:Name="LayoutRoot" Margin="40 60 40 0">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="27"/>
-            <RowDefinition Height="40"/>
-            <RowDefinition Height="381.293"/>
-        </Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" HorizontalAlignment="Left" Text="Request payment" Foreground="#FF5A6E81" FontSize="20"/>
-        <TextBlock Grid.Row="1" HorizontalAlignment="Left" Text="Each time you request a payment, create a new address to protect your privacy" Foreground="#FF0C1E3E" FontSize="11"/>
-        <Grid Grid.Row="2" Width="300">
+    <StackPanel Margin="40 60 40 0">
+        <TextBlock Margin="0 0 0 20" HorizontalAlignment="Left" Text="Request payment" Foreground="#FF5A6E81" FontSize="20"/>
+        <TextBlock Margin="0 0 0 40" HorizontalAlignment="Left" Text="Each time you request a payment, create a new address to protect your privacy" Foreground="#FF0C1E3E" FontSize="11"/>
+        <Grid Width="300" Margin="0 0 0 30">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition/>
@@ -175,16 +167,17 @@
                 </ComboBox.Background>
             </ComboBox>
         </Grid>
-        <Grid Margin="91,31,60.17,0" Grid.Row="4" Grid.RowSpan="2" VerticalAlignment="Top">
-            <Rectangle x:Name="RectangleGenerate" Visibility="{Binding HideWhenNoAddressToDisplay}" Fill="White" Height="68" Stroke="#FFD3D9DF" RadiusX="5" RadiusY="5"/>
-            <Button x:Name="ButtonGenerate" Visibility="{Binding HideIfAddressToDisplay}" Command="{Binding GenerateAddressCommand}"  Content="Generate a single-use address" Style="{DynamicResource HyperLinkButton}" FontSize="19.333" Foreground="#FF2970FF" Height="36.274" Width="299.774" />
-            <TextBlock x:Name="LblCode" Visibility="{Binding HideWhenNoAddressToDisplay}" Height="66" Margin="0,12,-0.17,0" TextWrapping="Wrap" Text="{Binding GeneratedAddress}" VerticalAlignment="Top" Foreground="#FF132F4B" FontSize="28" TextAlignment="Center"/>
-        </Grid>
-        <TextBlock Height="24" Margin="0,76.059,0,0" Grid.Row="5" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="#FF586D80" TextAlignment="Center">
-                <Run Text="Single use address generated for account"/>
-                <Run FontWeight="Bold" Text="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.SelectedAccount.AccountProperties.AccountName, Mode=OneWay, FallbackValue=Account Name}"/>
-                <Run Text="+ copied to clipboard"/>
-        </TextBlock>
-        <Button Name="GenerateAnotherBtn"  Visibility="{Binding HideWhenNoAddressToDisplay}" Content="GENERATE ANOTHER" Command="{Binding GenerateAddressCommand}" Height="35.5" Margin="0,128,0,0" Style="{DynamicResource ButtonBlue}" Foreground="#FF132F4B" Grid.Row="5" Width="162.697" VerticalAlignment="Top"/>
-    </Grid>
+        <Button Margin="0 0 0 30" HorizontalAlignment="Center" Content="GENERATE ADDRESS" Command="{Binding GenerateAddressCommand}" Style="{DynamicResource ButtonBlue}"/>
+        <Border Visibility="{Binding GeneratedAddress, Mode=OneWay, Converter={StaticResource NullToHiddenConverter}}" Background="White" BorderBrush="#FFD3D9DF" BorderThickness="2" CornerRadius="5" Padding="5">
+            <StackPanel>
+                <!-- TextBox is used rather than a TextBlock so the user can still manually select the address -->
+                <TextBox TextAlignment="Center" Text="{Binding GeneratedAddress, Mode=OneWay, FallbackValue=123Address}" IsReadOnly="True" Foreground="#FF132F4B" FontSize="28" BorderThickness="0"/>
+                <TextBlock Grid.Row="5" TextWrapping="Wrap" Foreground="#FF586D80" TextAlignment="Center">
+                    <Run Text="Single use address generated for account"/>
+                    <Run FontWeight="Bold" Text="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.SelectedAccount.AccountProperties.AccountName, Mode=OneWay, FallbackValue=Account Name}"/>
+                    <Run Text="+ copied to clipboard"/>
+                </TextBlock>
+            </StackPanel>
+        </Border>
+    </StackPanel>
 </Page>
