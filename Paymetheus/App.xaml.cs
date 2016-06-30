@@ -189,7 +189,7 @@ namespace Paymetheus
             catch (Exception) { }
             finally
             {
-                Synchronizer.WalletRpcProcess?.KillIfExecuting();
+                Synchronizer?.WalletRpcProcess?.KillIfExecuting();
             }
         }
     }
