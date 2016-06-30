@@ -101,7 +101,6 @@ namespace Paymetheus.ViewModels
                 catch (Exception ex) when (ErrorHandling.IsTransient(ex) || ErrorHandling.IsClientError(ex))
                 {
                     MessageBox.Show($"Unable to start {ConsensusServerRpcOptions.ApplicationName} RPC.\n\nCheck connection settings and try again.", "Error");
-                    MessageBox.Show(ex.Message);
                     return;
                 }
 
