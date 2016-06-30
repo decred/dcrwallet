@@ -8,6 +8,7 @@ using Paymetheus.Decred.Util;
 using Paymetheus.Decred.Wallet;
 using Paymetheus.Framework;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -33,6 +34,9 @@ namespace Paymetheus.ViewModels
 
             AddPendingOutput();
         }
+
+        private Transaction _pendingTransaction;
+        private Dictionary<Account, OutputScript> _unusedChangeScripts = new Dictionary<Account, OutputScript>();
 
         private AccountViewModel _selectedAccount;
         public AccountViewModel SelectedAccount
@@ -197,15 +201,23 @@ namespace Paymetheus.ViewModels
         public ICommand AddPendingOutputCommand { get; }
         public ICommand RemovePendingOutputCommand { get; }
 
-        private void AddPendingOutput()
+        private async void AddPendingOutput()
         {
             var pendingOutput = new PendingOutput();
             pendingOutput.Changed += PendingOutput_Changed;
             PendingOutputs.Add(pendingOutput);
-            RecalculateTransaction();
+
+            try
+            {
+                await RecalculatePendingTransaction();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error");
+            }
         }
 
-        private void RemovePendingOutput(PendingOutput item)
+        private async void RemovePendingOutput(PendingOutput item)
         {
             if (PendingOutputs.Remove(item))
             {
@@ -216,32 +228,110 @@ namespace Paymetheus.ViewModels
                     AddPendingOutput();
                 }
 
-                RecalculateTransaction();
+                try
+                {
+                    await RecalculatePendingTransaction();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message, "Error");
+                }
             }
         }
 
-        private void PendingOutput_Changed(object sender, EventArgs e)
+        private async void PendingOutput_Changed(object sender, EventArgs e)
         {
-            RecalculateTransaction();
+            try
+            {
+                await RecalculatePendingTransaction();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error");
+            }
         }
 
-        private void RecalculateTransaction()
+        private async Task RecalculatePendingTransaction()
         {
-            if (PendingOutputs.Count > 0 && PendingOutputs.All(x => x.IsValid))
+            if (PendingOutputs.Count == 0 || PendingOutputs.Any(x => !x.IsValid))
             {
-                // TODO: calculate estimated fee
-                EstimatedFee = 0;
-                EstimatedRemainingBalance = 0;
+                UnsetPendingTransaction();
+                return;
+            }
 
-                // TODO: only make executable if we know the transaction can be created
-                FinishCreateTransaction.Executable = true;
-            }
-            else
+            var walletClient = App.Current.Synchronizer?.WalletRpcClient;
+
+            var outputs = PendingOutputs.Select(po =>
             {
-                EstimatedFee = null;
-                EstimatedRemainingBalance = null;
-                FinishCreateTransaction.Executable = false;
+                var amount = po.OutputAmount;
+                var script = po.BuildOutputScript().Script;
+                return new Transaction.Output(amount, Transaction.Output.LatestPkScriptVersion, script);
+            }).ToArray();
+
+            TransactionAuthor.InputSource inputSource = async targetAmount =>
+            {
+                var inputs = new Transaction.Input[0];
+                // TODO: don't hardcode confs
+                var funding = await walletClient.FundTransactionAsync(SelectedAccount.Account, targetAmount, 1);
+                if (funding.Item2 >= targetAmount)
+                {
+                    inputs = funding.Item1.Select(o =>
+                        Transaction.Input.CreateFromPrefix(new Transaction.OutPoint(o.TransactionHash, o.OutputIndex, o.Tree),
+                                                           TransactionRules.MaxInputSequence)).ToArray();
+                }
+                return Tuple.Create(funding.Item2, inputs);
+            };
+            TransactionAuthor.ChangeSource changeSource = async () =>
+            {
+                // Use cached change script if one has already been generated for this account.
+                var selectedAccount = SelectedAccount.Account;
+                OutputScript cachedScript;
+                if (_unusedChangeScripts.TryGetValue(selectedAccount, out cachedScript))
+                    return cachedScript;
+
+                var changeAddress = await walletClient.NextInternalAddressAsync(SelectedAccount.Account);
+                var changeScript = Address.Decode(changeAddress).BuildScript();
+                _unusedChangeScripts[selectedAccount] = changeScript;
+                return changeScript;
+            };
+
+            try
+            {
+                var r = await TransactionAuthor.BuildUnsignedTransaction(outputs, TransactionFees.DefaultFeePerKb, inputSource, changeSource);
+                SetPendingTransaction(r.Item1, r.Item2, outputs.Sum(o => o.Amount));
             }
+            catch (Exception ex)
+            {
+                UnsetPendingTransaction();
+
+                // Insufficient funds will need a nicer error displayed somehow.  For now, hide it
+                // while disabling the UI to create the transaction.  All other errors are unexpected.
+                if (!(ex is InsufficientFundsException)) throw;
+            }
+        }
+
+        private void UnsetPendingTransaction()
+        {
+            _pendingTransaction = null;
+            EstimatedFee = null;
+            EstimatedRemainingBalance = null;
+            FinishCreateTransaction.Executable = false;
+        }
+
+        private void SetPendingTransaction(Transaction unsignedTransaction, Amount inputAmount, Amount targetOutput)
+        {
+            var wallet = App.Current.Synchronizer.Wallet;
+            if (wallet == null)
+                return;
+
+            var actualFee = TransactionFees.ActualFee(unsignedTransaction, inputAmount);
+            var totalAccountBalance = wallet.LookupAccountProperties(SelectedAccount.Account).TotalBalance;
+
+            _pendingTransaction = unsignedTransaction;
+
+            EstimatedFee = actualFee;
+            EstimatedRemainingBalance = totalAccountBalance - targetOutput - actualFee;
+            FinishCreateTransaction.Executable = true;
         }
 
         private void FinishCreateTransactionAction()
@@ -273,55 +363,16 @@ namespace Paymetheus.ViewModels
             var shell = ViewModelLocator.ShellViewModel as ShellViewModel;
             if (shell != null)
             {
-                Func<string, Task> action = (passphrase) => SignTransactionWithPassphrase(passphrase, outputs, publish);
+                Func<string, Task> action =
+                    passphrase => SignTransactionWithPassphrase(passphrase, _pendingTransaction, publish);
                 shell.VisibleDialogContent = new PassphraseDialogViewModel(shell, "Enter passphrase to sign transaction", "Sign", action);
             }
         }
 
-        private async Task SignTransactionWithPassphrase(string passphrase, Transaction.Output[] outputs, bool publishImmediately)
+        private async Task SignTransactionWithPassphrase(string passphrase, Transaction tx, bool publishImmediately)
         {
             var walletClient = App.Current.Synchronizer.WalletRpcClient;
-            var requiredConfirmations = 1; // TODO: Don't hardcode confs.
-            var targetAmount = outputs.Sum(o => o.Amount);
-            var targetFee = (Amount)1e6; // TODO: Don't hardcode fee/kB.
-            var funding = await walletClient.FundTransactionAsync(SelectedAccount.Account, targetAmount + targetFee, requiredConfirmations);
-            var fundingAmount = funding.Item2;
-            if (fundingAmount < targetAmount + targetFee)
-            {
-                MessageBox.Show($"Transaction requires {(Amount)(targetAmount + targetFee)} input value but only {fundingAmount} is spendable.",
-                    "Insufficient funds to create transaction.");
-                return;
-            }
-
-            var selectedOutputs = funding.Item1;
-            var inputs = selectedOutputs
-                .Select(o =>
-                {
-                    var prevOutPoint = new Transaction.OutPoint(o.TransactionHash, o.OutputIndex, 0);
-                    return Transaction.Input.CreateFromPrefix(prevOutPoint, TransactionRules.MaxInputSequence);
-                })
-                .ToArray();
-
-            // TODO: Port the fee estimation logic from btcwallet.  Using a hardcoded fee is unacceptable.
-            var estimatedFee = targetFee;
-
-            var changePkScript = funding.Item3;
-            if (changePkScript != null)
-            {
-                // Change output amount is calculated by solving for changeAmount with the equation:
-                //   estimatedFee = fundingAmount - (targetAmount + changeAmount)
-                var changeOutput = new Transaction.Output(fundingAmount - targetAmount - estimatedFee,
-                    Transaction.Output.LatestPkScriptVersion, changePkScript.Script);
-                var outputsList = outputs.ToList();
-                // TODO: Randomize change output position.
-                outputsList.Add(changeOutput);
-                outputs = outputsList.ToArray();
-            }
-
-            // TODO: User may want to set the locktime.
-            var unsignedTransaction = new Transaction(Transaction.SupportedVersion, inputs, outputs, 0, 0);
-
-            var signingResponse = await walletClient.SignTransactionAsync(passphrase, unsignedTransaction);
+            var signingResponse = await walletClient.SignTransactionAsync(passphrase, tx);
             var complete = signingResponse.Item2;
             if (!complete)
             {
@@ -330,18 +381,19 @@ namespace Paymetheus.ViewModels
             }
             var signedTransaction = signingResponse.Item1;
 
-            MessageBox.Show($"Created tx with {estimatedFee} fee.");
-
             if (!publishImmediately)
             {
                 MessageBox.Show("Reviewing signed transaction before publishing is not implemented yet.");
                 return;
             }
 
-            // TODO: The client just deserialized the transaction, so serializing it is a
-            // little silly.  This could be optimized.
             await walletClient.PublishTransactionAsync(signedTransaction.Serialize());
             MessageBox.Show("Published transaction.");
+
+            _pendingTransaction = null;
+            _unusedChangeScripts.Remove(SelectedAccount.Account);
+            PendingOutputs.Clear();
+            AddPendingOutput();
         }
     }
 }

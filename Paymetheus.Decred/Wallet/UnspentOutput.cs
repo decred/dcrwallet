@@ -9,7 +9,7 @@ namespace Paymetheus.Decred.Wallet
 {
     public sealed class UnspentOutput
     {
-        public UnspentOutput(Blake256Hash txHash, uint outputIndex, Amount amount, OutputScript pkScript, DateTimeOffset seenTime, bool isFromCoinbase)
+        public UnspentOutput(Blake256Hash txHash, uint outputIndex, byte tree, Amount amount, OutputScript pkScript, DateTimeOffset seenTime, bool isFromCoinbase)
         {
             if (txHash == null)
                 throw new ArgumentNullException(nameof(txHash));
@@ -18,6 +18,7 @@ namespace Paymetheus.Decred.Wallet
 
             TransactionHash = txHash;
             OutputIndex = outputIndex;
+            Tree = tree;
             Amount = amount;
             PkScript = pkScript;
             SeenTime = seenTime;
@@ -26,6 +27,7 @@ namespace Paymetheus.Decred.Wallet
 
         public Blake256Hash TransactionHash { get; }
         public uint OutputIndex { get; }
+        public byte Tree { get; }
         public Amount Amount { get; }
         public OutputScript PkScript { get; }
         public DateTimeOffset SeenTime { get; }

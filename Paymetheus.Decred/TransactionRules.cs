@@ -2,6 +2,7 @@
 // Copyright (c) 2016 The Decred developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
+using Paymetheus.Decred.Util;
 using System;
 using System.Collections.Generic;
 
@@ -27,23 +28,26 @@ namespace Paymetheus.Decred
         public static bool IsSaneOutputValue(Amount a) => a >= 0 && a <= MaxOutputValue;
 
         /// <summary>
-        /// Check whether an output is considered dust for a given transaction relay fee.
+        /// Check whether an output amount is considered dust for a given transaction relay fee.
         /// Transactions with dust outputs are rejected by mempool.
         /// </summary>
-        /// <param name="output">Transaction output to check</param>
+        /// <param name="amount">Output amount</param>
+        /// <param name="scriptSize">Size of the output script in bytes</param>
         /// <param name="relayFeePerKb">Mempool relay fee/kB</param>
         /// <returns>Whether the output is dust</returns>
-        public static bool IsDust(Transaction.Output output, Amount relayFeePerKb)
+        public static bool IsDustAmount(Amount amount, int scriptSize, Amount relayFeePerKb)
         {
-            // TODO: Rather than assumming the output is P2PKH and using the size of a
-            // P2PKH input script to estimate the total cost to the network, a better
-            // estimate could be used if the output script is one of the other recognized
-            // script kinds.
-            var totalSize = output.SerializeSize + Transaction.RedeemPayToPubKeyHashInputSize;
+            // Calculate the total (estimated) cost to the network.  This is
+            // calculated using the serialize size of the output plus the serial
+            // size of a transaction input which redeems it.  The output is assumed
+            // to be compressed P2PKH as this is the most common script type.  Use
+            // the average size of a compressed P2PKH redeem input (165) rather than
+            // the largest possible (Transaction.RedeemPayToPubKeyHashInputSize).
+            var totalSize = 8 + 2 + CompactInt.SerializeSize((ulong)scriptSize) + scriptSize + 165;
 
             // Dust is defined as an output value where the total cost to the network
             // (output size + input size) is greater than 1/3 of the relay fee.
-            return output.Amount * 1000 / (3 * totalSize) < relayFeePerKb;
+            return amount * 1000 / (3 * totalSize) < relayFeePerKb;
         }
 
         public static void CheckSanity(Transaction tx)

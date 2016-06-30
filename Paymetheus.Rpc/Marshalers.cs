@@ -66,12 +66,13 @@ namespace Paymetheus.Rpc
         {
             var txHash = new Blake256Hash(o.TransactionHash.ToByteArray());
             var outputIndex = o.OutputIndex;
+            var tree = (byte)o.Tree;
             var amount = (Amount)o.Amount;
             var pkScript = OutputScript.ParseScript(o.PkScript.ToByteArray());
             var seenTime = DateTimeOffsetExtras.FromUnixTimeSeconds(o.ReceiveTime);
             var isFromCoinbase = o.FromCoinbase;
 
-            return new UnspentOutput(txHash, outputIndex, amount, pkScript, seenTime, isFromCoinbase);
+            return new UnspentOutput(txHash, outputIndex, tree, amount, pkScript, seenTime, isFromCoinbase);
         }
     }
 }

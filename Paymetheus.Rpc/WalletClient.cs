@@ -5,7 +5,6 @@
 using Google.Protobuf;
 using Grpc.Core;
 using Paymetheus.Decred;
-using Paymetheus.Decred.Script;
 using Paymetheus.Decred.Wallet;
 using System;
 using System.Collections.Generic;
@@ -21,7 +20,7 @@ namespace Paymetheus.Rpc
 {
     public sealed class WalletClient : IDisposable
     {
-        private static readonly SemanticVersion RequiredRpcServerVersion = new SemanticVersion(2, 0, 2);
+        private static readonly SemanticVersion RequiredRpcServerVersion = new SemanticVersion(2, 1, 0);
 
         public static void Initialize()
         {
@@ -281,7 +280,7 @@ namespace Paymetheus.Rpc
             return Tuple.Create(outputs, total);
         }
 
-        public async Task<Tuple<List<UnspentOutput>, Amount, OutputScript>> FundTransactionAsync(
+        public async Task<Tuple<List<UnspentOutput>, Amount>> FundTransactionAsync(
             Account account, Amount targetAmount, int requiredConfirmations)
         {
             var client = WalletService.NewClient(_channel);
@@ -291,17 +290,12 @@ namespace Paymetheus.Rpc
                 TargetAmount = targetAmount,
                 RequiredConfirmations = requiredConfirmations,
                 IncludeImmatureCoinbases = false,
-                IncludeChangeScript = true,
+                IncludeChangeScript = false,
             };
             var response = await client.FundTransactionAsync(request, cancellationToken: _tokenSource.Token);
             var outputs = response.SelectedOutputs.Select(MarshalUnspentOutput).ToList();
             var total = (Amount)response.TotalAmount;
-            var changeScript = (OutputScript)null;
-            if (response.ChangePkScript?.Length != 0)
-            {
-                changeScript = OutputScript.ParseScript(response.ChangePkScript.ToByteArray());
-            }
-            return Tuple.Create(outputs, total, changeScript);
+            return Tuple.Create(outputs, total);
         }
 
         public async Task<Tuple<Transaction, bool>> SignTransactionAsync(string passphrase, Transaction tx)

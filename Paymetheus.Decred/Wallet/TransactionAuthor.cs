@@ -20,6 +20,12 @@ namespace Paymetheus.Decred.Wallet
         public delegate Task<Tuple<Amount, Transaction.Input[]>> InputSource(Amount target);
 
         /// <summary>
+        /// Provides P2PKH change output scripts for transaction creation.
+        /// </summary>
+        /// <returns>An output script used to return all extra input value</returns>
+        public delegate Task<OutputScript> ChangeSource();
+
+        /// <summary>
         /// Constructs an unsigned transaction by referencing previous unspent outputs.
         /// A change output is added when necessary to return extra value back to the wallet.
         /// </summary>
@@ -29,16 +35,16 @@ namespace Paymetheus.Decred.Wallet
         /// <returns>Unsigned transaction and total input amount.</returns>
         /// <exception cref="InsufficientFundsException">Input source was unable to provide enough input value.</exception>
         public static async Task<Tuple<Transaction, Amount>> BuildUnsignedTransaction(Transaction.Output[] outputs,
-                                                                                      OutputScript changeScript,
                                                                                       Amount feePerKb,
-                                                                                      InputSource fetchInputsAsync)
+                                                                                      InputSource fetchInputsAsync,
+                                                                                      ChangeSource fetchChangeAsync)
         {
             if (outputs == null)
                 throw new ArgumentNullException(nameof(outputs));
-            if (changeScript == null)
-                throw new ArgumentNullException(nameof(changeScript));
             if (fetchInputsAsync == null)
                 throw new ArgumentNullException(nameof(fetchInputsAsync));
+            if (fetchChangeAsync == null)
+                throw new ArgumentNullException(nameof(fetchChangeAsync));
 
             var targetAmount = outputs.Sum(o => o.Amount);
             var estimatedSize = Transaction.EstimateSerializeSize(1, outputs, true);
@@ -54,22 +60,35 @@ namespace Paymetheus.Decred.Wallet
                     throw new InsufficientFundsException();
                 }
 
-                var unsignedTransaction = new Transaction(Transaction.SupportedVersion, inputs, outputs, 0, 0);
-                if (inputAmount > targetAmount + targetFee)
+                var maxSignedSize = Transaction.EstimateSerializeSize(inputs.Length, outputs, true);
+                var maxRequiredFee = TransactionFees.FeeForSerializeSize(feePerKb, maxSignedSize);
+                var remainingAmount = inputAmount - maxRequiredFee;
+                if (remainingAmount < maxRequiredFee)
                 {
-                    unsignedTransaction = TransactionFees.AddChange(unsignedTransaction, inputAmount,
-                        changeScript, feePerKb);
+                    targetFee = maxRequiredFee;
+                    continue;
                 }
 
-                if (TransactionFees.EstimatedFeePerKb(unsignedTransaction, inputAmount) < feePerKb)
+                var unsignedTransaction = new Transaction(Transaction.SupportedVersion, inputs, outputs, 0, 0);
+                var changeAmount = inputAmount - targetAmount - targetFee;
+                if (changeAmount != 0 && !TransactionRules.IsDustAmount(changeAmount, Transaction.PayToPubKeyHashPkScriptSize, feePerKb))
                 {
-                    estimatedSize = Transaction.EstimateSerializeSize(inputs.Length, outputs, true);
-                    targetFee = TransactionFees.FeeForSerializeSize(feePerKb, estimatedSize);
+                    var changeScript = await fetchChangeAsync();
+                    if (changeScript.Script.Length > Transaction.PayToPubKeyHashPkScriptSize)
+                    {
+                        throw new Exception("Fee estimation requires change scripts no larger than P2PKH output scripts");
+                    }
+                    var changeOutput = new Transaction.Output(changeAmount, Transaction.Output.LatestPkScriptVersion, changeScript.Script);
+
+                    var outputList = unsignedTransaction.Outputs.ToList();
+                    outputList.Add(changeOutput);
+                    var outputsWithChange = outputList.ToArray();
+
+                    unsignedTransaction = new Transaction(unsignedTransaction.Version, unsignedTransaction.Inputs, outputsWithChange,
+                        unsignedTransaction.LockTime, unsignedTransaction.Expiry);
                 }
-                else
-                {
-                    return Tuple.Create(unsignedTransaction, inputAmount);
-                }
+
+                return Tuple.Create(unsignedTransaction, inputAmount);
             }
         }
     }

@@ -257,8 +257,8 @@ namespace Paymetheus.Decred
             }
         }
 
-        private const int RedeemPayToPubKeyHashSigScriptSize = 1 + 73 + 1 + 33;
-        private const int PayToPubKeyHashPkScriptSize = 1 + 1 + 1 + 20 + 1 + 1;
+        public const int RedeemPayToPubKeyHashSigScriptSize = 1 + 73 + 1 + 33;
+        public const int PayToPubKeyHashPkScriptSize = 1 + 1 + 1 + 20 + 1 + 1;
 
         // Worst case sizes for compressed p2pkh inputs and outputs.
         // Used for estimating an unsigned transaction's worst case serialize size
