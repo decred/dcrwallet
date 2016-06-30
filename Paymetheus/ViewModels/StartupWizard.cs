@@ -3,6 +3,9 @@
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
 using Grpc.Core;
+using IniParser;
+using IniParser.Model;
+using IniParser.Parser;
 using Paymetheus.Decred;
 using Paymetheus.Decred.Util;
 using Paymetheus.Decred.Wallet;
@@ -16,9 +19,9 @@ namespace Paymetheus.ViewModels
 {
     public sealed class StartupWizard : WizardViewModelBase
     {
-        public StartupWizard(ShellViewModelBase shell) : base()
+        public StartupWizard(ShellViewModelBase shell, ConsensusServerRpcOptions csro = null) : base()
         {
-            CurrentDialog = new ConsensusServerRpcConnectionDialog(this);
+            CurrentDialog = new ConsensusServerRpcConnectionDialog(this, csro);
         }
 
         public void OnFinished()
@@ -40,9 +43,21 @@ namespace Paymetheus.ViewModels
 
     sealed class ConsensusServerRpcConnectionDialog : ConnectionWizardDialog
     {
-        public ConsensusServerRpcConnectionDialog(StartupWizard wizard) : base(wizard)
+        public ConsensusServerRpcConnectionDialog(StartupWizard wizard, ConsensusServerRpcOptions csro = null) : base(wizard)
         {
             ConnectCommand = new DelegateCommand(Connect);
+
+            // apply defaults
+            if (csro != null)
+            {
+                ConsensusServerNetworkAddress = csro.NetworkAddress;
+                ConsensusServerRpcUsername = csro.RpcUser;
+                ConsensusServerRpcPassword = csro.RpcPassword;
+                if (!string.IsNullOrEmpty(csro.CertificatePath))
+                {
+                    ConsensusServerCertificateFile = csro.CertificatePath;
+                }
+            }
 
             // Do not autofill local defaults if they don't exist.
             if (!File.Exists(ConsensusServerCertificateFile))
@@ -99,6 +114,17 @@ namespace Paymetheus.ViewModels
                     MessageBox.Show(ex.Message);
                     return;
                 }
+
+                // save defaults to a file so that the user doesn't have to type this information again
+                var ini = new IniData();
+                ini.Sections.AddSection("Application Options");
+                ini["Application Options"]["rpcuser"] = ConsensusServerRpcUsername;
+                ini["Application Options"]["rpcpass"] = ConsensusServerRpcPassword;
+                ini["Application Options"]["rpclisten"] = ConsensusServerNetworkAddress;
+                var appDataDir = Portability.LocalAppData(Environment.OSVersion.Platform,
+                    AssemblyResources.Organization, AssemblyResources.ProductName);
+                var parser = new FileIniDataParser();
+                parser.WriteFile(Path.Combine(appDataDir, "defaults.ini"), ini);
 
                 var walletExists = await App.Current.Synchronizer.WalletRpcClient.WalletExistsAsync();
                 if (!walletExists)

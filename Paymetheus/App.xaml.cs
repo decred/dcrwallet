@@ -2,6 +2,8 @@
 // Copyright (c) 2016 The Decred developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
+using IniParser;
+using IniParser.Model;
 using Paymetheus.Decred;
 using Paymetheus.Framework;
 using Paymetheus.Rpc;
@@ -63,6 +65,8 @@ namespace Paymetheus
             _walletLoaded = true;
         }
 
+        public ConsensusServerRpcOptions DefaultCSRPO { get; private set; }
+
         private void Application_Startup(object sender, StartupEventArgs e)
         {
             var args = ProcessArguments.ParseArguments(e.Args);
@@ -75,6 +79,49 @@ namespace Paymetheus
                 AssemblyResources.Organization, AssemblyResources.ProductName);
 
             Directory.CreateDirectory(appDataDir);
+
+            // try to obtain some defaults
+            // try paymetheus defaults and if that fails try dcrd
+            var parser = new FileIniDataParser();
+            IniData ini = null;
+            string rpcuser = null, rpcpass = null, rpclisten = null, cert = "";
+            try
+            {
+                ini = parser.ReadFile(Path.Combine(appDataDir, "defaults.ini"));
+            }
+            catch
+            {
+
+                try
+                {
+                    var appDir = Portability.LocalAppData(Environment.OSVersion.Platform, "", "Dcrd");
+                    ini = parser.ReadFile(Path.Combine(appDir, "dcrd.conf"));
+                    cert = Path.Combine(appDir, "rpc.cert");
+                }
+                catch { };
+            }
+            finally
+            {
+                if (ini != null)
+                {
+                    // try to read defaults
+                    var section = ini["Application Options"] != null ? ini["Application Options"] : ini.Global;
+
+                    rpcuser = section["rpcuser"];
+                    rpcpass = section["rpcpass"];
+                    rpclisten = section["rpclisten"];
+                    if (string.IsNullOrEmpty(rpclisten))
+                    {
+                        rpclisten = "127.0.0.1";
+                    }
+
+                    // all or none but cert is special
+                    if (!(string.IsNullOrEmpty(rpcuser) || string.IsNullOrEmpty(rpcpass) || string.IsNullOrEmpty(rpclisten)))
+                    {
+                        DefaultCSRPO = new ConsensusServerRpcOptions(rpclisten, rpcuser, rpcpass, cert);
+                    }
+                }
+            }
 
             var syncTask = Task.Run(async () =>
             {

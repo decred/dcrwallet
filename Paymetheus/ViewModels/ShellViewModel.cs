@@ -4,6 +4,7 @@
 
 using Paymetheus.Decred;
 using Paymetheus.Framework;
+using System;
 using System.Windows.Input;
 
 namespace Paymetheus.ViewModels
@@ -27,7 +28,7 @@ namespace Paymetheus.ViewModels
 
             CreateAccountCommand = new DelegateCommand(CreateAccount);
 
-            StartupWizard = new StartupWizard(this);
+            StartupWizard = new StartupWizard(this, App.Current.DefaultCSRPO);
             StartupWizardVisible = true;
         }
 
