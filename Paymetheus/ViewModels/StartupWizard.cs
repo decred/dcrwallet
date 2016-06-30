@@ -13,6 +13,7 @@ using Paymetheus.Framework;
 using Paymetheus.Rpc;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace Paymetheus.ViewModels
@@ -104,16 +105,19 @@ namespace Paymetheus.ViewModels
                     return;
                 }
 
-                // save defaults to a file so that the user doesn't have to type this information again
-                var ini = new IniData();
-                ini.Sections.AddSection("Application Options");
-                ini["Application Options"]["rpcuser"] = ConsensusServerRpcUsername;
-                ini["Application Options"]["rpcpass"] = ConsensusServerRpcPassword;
-                ini["Application Options"]["rpclisten"] = ConsensusServerNetworkAddress;
-                var appDataDir = Portability.LocalAppData(Environment.OSVersion.Platform,
-                    AssemblyResources.Organization, AssemblyResources.ProductName);
-                var parser = new FileIniDataParser();
-                parser.WriteFile(Path.Combine(appDataDir, "defaults.ini"), ini);
+                await Task.Run(() =>
+                {
+                    // save defaults to a file so that the user doesn't have to type this information again
+                    var ini = new IniData();
+                    ini.Sections.AddSection("Application Options");
+                    ini["Application Options"]["rpcuser"] = ConsensusServerRpcUsername;
+                    ini["Application Options"]["rpcpass"] = ConsensusServerRpcPassword;
+                    ini["Application Options"]["rpclisten"] = ConsensusServerNetworkAddress;
+                    var appDataDir = Portability.LocalAppData(Environment.OSVersion.Platform,
+                                        AssemblyResources.Organization, AssemblyResources.ProductName);
+                    var parser = new FileIniDataParser();
+                    parser.WriteFile(Path.Combine(appDataDir, "defaults.ini"), ini);
+                });
 
                 var walletExists = await App.Current.Synchronizer.WalletRpcClient.WalletExistsAsync();
                 if (!walletExists)
