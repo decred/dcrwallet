@@ -80,48 +80,57 @@ namespace Paymetheus
 
             Directory.CreateDirectory(appDataDir);
 
-            // try to obtain some defaults
-            // try paymetheus defaults and if that fails try dcrd
-            var parser = new FileIniDataParser();
-            IniData ini = null;
-            string rpcuser = null, rpcpass = null, rpclisten = null, cert = "";
+            // try to obtain some default rpc settings to autofill the startup dialogs with.
+            // try paymetheus defaults first, and if that fails, look for a dcrd config.
             try
             {
-                ini = parser.ReadFile(Path.Combine(appDataDir, "defaults.ini"));
-            }
-            catch
-            {
-
-                try
+                var iniParser = new FileIniDataParser();
+                IniData config = null;
+                string defaultsFile = Path.Combine(appDataDir, "defaults.ini");
+                if (File.Exists(defaultsFile))
                 {
-                    var appDir = Portability.LocalAppData(Environment.OSVersion.Platform, "", "Dcrd");
-                    ini = parser.ReadFile(Path.Combine(appDir, "dcrd.conf"));
-                    cert = Path.Combine(appDir, "rpc.cert");
+                    config = iniParser.ReadFile(defaultsFile);
                 }
-                catch { };
-            }
-            finally
-            {
-                if (ini != null)
+                else
                 {
-                    // try to read defaults
-                    var section = ini["Application Options"] != null ? ini["Application Options"] : ini.Global;
-
-                    rpcuser = section["rpcuser"];
-                    rpcpass = section["rpcpass"];
-                    rpclisten = section["rpclisten"];
-                    if (string.IsNullOrEmpty(rpclisten))
+                    var consensusRpcAppData = Portability.LocalAppData(Environment.OSVersion.Platform,
+                        "", ConsensusServerRpcOptions.ApplicationName);
+                    var consensusRpcConfig = ConsensusServerRpcOptions.ApplicationName + ".conf";
+                    var consensusConfigFilePath = Path.Combine(consensusRpcAppData, consensusRpcConfig);
+                    if (File.Exists(consensusConfigFilePath))
                     {
-                        rpclisten = "127.0.0.1";
-                    }
-
-                    // all or none but cert is special
-                    if (!(string.IsNullOrEmpty(rpcuser) || string.IsNullOrEmpty(rpcpass) || string.IsNullOrEmpty(rpclisten)))
-                    {
-                        DefaultCSRPO = new ConsensusServerRpcOptions(rpclisten, rpcuser, rpcpass, cert);
+                        config = iniParser.ReadFile(consensusConfigFilePath);
                     }
                 }
+
+                if (config != null)
+                {
+                    // Settings can be found in either the Application Options or global sections.
+                    var section = config["Application Options"];
+                    if (section == null)
+                        section = config.Global;
+
+                    var rpcUser = section["rpcuser"] ?? "";
+                    var rpcPass = section["rpcpass"] ?? "";
+                    var rpcListen = section["rpclisten"] ?? "";
+                    var rpcCert = section["rpccert"] ?? "";
+
+                    // rpclisten and rpccert can be filled with sensible defaults when empty.  user and password can not.
+                    if (rpcListen == "")
+                    {
+                        rpcListen = "127.0.0.1";
+                    }
+                    if (rpcCert == "")
+                    {
+                        var localCertPath = ConsensusServerRpcOptions.LocalCertificateFilePath();
+                        if (File.Exists(localCertPath))
+                            rpcCert = localCertPath;
+                    }
+
+                    DefaultCSRPO = new ConsensusServerRpcOptions(rpcListen, rpcUser, rpcPass, rpcCert);
+                }
             }
+            catch { } // Ignore any errors, this will just result in leaving defaults empty.
 
             var syncTask = Task.Run(async () =>
             {

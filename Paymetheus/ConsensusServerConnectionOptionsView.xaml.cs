@@ -59,5 +59,14 @@ namespace Paymetheus
                 ((dynamic)DataContext).ConsensusServerCertificateFile = fileDialog.FileName;
             }
         }
+
+        private void TextboxConsensusServerRpcPassword_Loaded(object sender, RoutedEventArgs e)
+        {
+            var dataContext = DataContext;
+            if (dataContext == null)
+                return;
+
+            ((PasswordBox)sender).Password = ((dynamic)dataContext).ConsensusServerRpcPassword;
+        }
     }
 }

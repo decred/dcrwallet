@@ -47,32 +47,22 @@ namespace Paymetheus.ViewModels
         {
             ConnectCommand = new DelegateCommand(Connect);
 
-            // apply defaults
+            // Apply any discovered RPC defaults.
             if (csro != null)
             {
                 ConsensusServerNetworkAddress = csro.NetworkAddress;
                 ConsensusServerRpcUsername = csro.RpcUser;
                 ConsensusServerRpcPassword = csro.RpcPassword;
-                if (!string.IsNullOrEmpty(csro.CertificatePath))
-                {
-                    ConsensusServerCertificateFile = csro.CertificatePath;
-                }
-            }
-
-            // Do not autofill local defaults if they don't exist.
-            if (!File.Exists(ConsensusServerCertificateFile))
-            {
-                ConsensusServerNetworkAddress = "";
-                ConsensusServerCertificateFile = "";
+                ConsensusServerCertificateFile = csro.CertificatePath;
             }
         }
 
         public string ConsensusServerApplicationName => ConsensusServerRpcOptions.ApplicationName;
         public string CurrencyName => BlockChain.CurrencyName;
-        public string ConsensusServerNetworkAddress { get; set; } = "network address";
-        public string ConsensusServerRpcUsername { get; set; } = "username";
-        public string ConsensusServerRpcPassword { private get; set; } = "";
-        public string ConsensusServerCertificateFile { get; set; } = ConsensusServerRpcOptions.LocalCertificateFilePath();
+        public string ConsensusServerNetworkAddress { get; set; } = "";
+        public string ConsensusServerRpcUsername { get; set; } = "";
+        public string ConsensusServerRpcPassword { internal get; set; } = "";
+        public string ConsensusServerCertificateFile { get; set; } = "";
 
         public DelegateCommand ConnectCommand { get; }
         private async void Connect()
