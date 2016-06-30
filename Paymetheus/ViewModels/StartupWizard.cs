@@ -2,6 +2,7 @@
 // Copyright (c) 2016 The Decred developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
+using Grpc.Core;
 using Paymetheus.Decred;
 using Paymetheus.Decred.Util;
 using Paymetheus.Decred.Wallet;
@@ -337,11 +338,13 @@ namespace Paymetheus.ViewModels
                 await App.Current.Synchronizer.WalletRpcClient.OpenWallet(PublicPassphrase);
                 Wizard.OnFinished();
             }
-            catch (Exception ex) when (ErrorHandling.IsClientError(ex))
+            catch (RpcException ex) when (ex.Status.StatusCode == StatusCode.InvalidArgument)
             {
-                MessageBox.Show("Public data decryption was unsuccessful");
+                MessageBox.Show("Incorrect passphrase");
+            }
+            catch (Exception ex)
+            {
                 MessageBox.Show(ex.ToString());
-                return;
             }
             finally
             {
