@@ -175,7 +175,6 @@
                 <TextBlock Grid.Row="5" TextWrapping="Wrap" Foreground="#FF586D80" TextAlignment="Center">
                     <Run Text="Single use address generated for account"/>
                     <Run FontWeight="Bold" Text="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.SelectedAccount.AccountProperties.AccountName, Mode=OneWay, FallbackValue=Account Name}"/>
-                    <Run Text="+ copied to clipboard"/>
                 </TextBlock>
             </StackPanel>
         </Border>
