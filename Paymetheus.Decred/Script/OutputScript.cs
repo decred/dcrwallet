@@ -19,52 +19,6 @@ namespace Paymetheus.Decred.Script
 
         public byte[] Script { get; }
 
-        public sealed class PubKey : OutputScript
-        {
-            public PubKey(byte[] pubKey, SignatureAlgorithm.Kinds dsa) : base(BuildScript(pubKey, dsa))
-            {
-                PubKeyBytes = pubKey;
-                Dsa = dsa;
-            }
-
-            public byte[] PubKeyBytes { get; }
-            public SignatureAlgorithm.Kinds Dsa { get; }
-
-            public static PubKey FromScript(byte[] script)
-            {
-                PubKey pubKey;
-                if (!TryFromScript(script, out pubKey))
-                    throw new Exception("Script is not pay-to-pubkey");
-                return pubKey;
-            }
-
-            public static bool TryFromScript(byte[] script, out PubKey pubKey)
-            {
-                if (script == null)
-                    throw new ArgumentNullException(nameof(script));
-
-                throw new NotImplementedException();
-            }
-
-            private static byte[] BuildScript(byte[] pubKey, SignatureAlgorithm.Kinds dsa)
-            {
-                if (pubKey == null)
-                    throw new ArgumentNullException(nameof(pubKey));
-
-                switch (dsa)
-                {
-                    case SignatureAlgorithm.Kinds.Secp256k1:
-                        throw new NotImplementedException();
-                    case SignatureAlgorithm.Kinds.Ed25519:
-                        throw new NotImplementedException();
-                    case SignatureAlgorithm.Kinds.SecSchnorr:
-                        throw new NotImplementedException();
-                    default:
-                        throw new NotImplementedException($"Unknown conversion for {nameof(SignatureAlgorithm.Kinds)} value `{dsa}`");
-                }
-            }
-        }
-
         public sealed class Secp256k1PubKeyHash : OutputScript
         {
             private const int ScriptLength = 25;
@@ -360,10 +314,6 @@ namespace Paymetheus.Decred.Script
             ScriptHash scriptHash;
             if (ScriptHash.TryFromScript(script, out scriptHash))
                 return scriptHash;
-
-            PubKey pubKey;
-            if (PubKey.TryFromScript(script, out pubKey))
-                return pubKey;
 
             return new Unrecognized(script);
         }

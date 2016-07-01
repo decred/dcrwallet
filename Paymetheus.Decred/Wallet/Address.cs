@@ -25,31 +25,6 @@ namespace Paymetheus.Decred.Wallet
 
         public override string ToString() => Encode();
 
-        public sealed class PayToPubKey : Address
-        {
-            public PayToPubKey(BlockChainIdentity intendedBlockChain, byte[] pubKey, SignatureAlgorithm.Kinds dsa)
-                : base(intendedBlockChain)
-            {
-                if (pubKey == null)
-                    throw new ArgumentNullException(nameof(pubKey));
-                // TODO: Validate pubkey length, this could change based on the DSA
-                // These validation funcs should go in Signature class.
-
-                PubKey = pubKey;
-                Dsa = dsa;
-            }
-
-            public byte[] PubKey { get; }
-            public SignatureAlgorithm.Kinds Dsa { get; }
-
-            public override OutputScript BuildScript() => new OutputScript.PubKey(PubKey, Dsa);
-
-            public override string Encode()
-            {
-                throw new NotImplementedException();
-            }
-        }
-
         public sealed class PayToSecp256k1PubKeyHash : Address
         {
             public PayToSecp256k1PubKeyHash(BlockChainIdentity intendedBlockChain, byte[] pubKeyHash)
