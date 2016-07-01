@@ -113,6 +113,7 @@ namespace Paymetheus.ViewModels
                     ini["Application Options"]["rpcuser"] = ConsensusServerRpcUsername;
                     ini["Application Options"]["rpcpass"] = ConsensusServerRpcPassword;
                     ini["Application Options"]["rpclisten"] = ConsensusServerNetworkAddress;
+                    ini["Application Options"]["rpccert"] = ConsensusServerCertificateFile;
                     var appDataDir = Portability.LocalAppData(Environment.OSVersion.Platform,
                                         AssemblyResources.Organization, AssemblyResources.ProductName);
                     var parser = new FileIniDataParser();
