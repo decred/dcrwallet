@@ -203,6 +203,15 @@ namespace Paymetheus.ViewModels
                     Accounts[accountNumber].AccountProperties = accountProperties;
                 }
             }
+
+            if (e.NewChainTip != null)
+            {
+                SyncedBlockHeight = e.NewChainTip.Value.Height;
+            }
+            if (e.AddedTransactions.Count != 0 || e.RemovedTransactions.Count != 0)
+            {
+                RaisePropertyChanged(nameof(TotalBalance));
+            }
         }
 
         private void OnSyncedWallet()
