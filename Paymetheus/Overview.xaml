@@ -137,6 +137,5 @@
         </Border>
         <TextBlock Grid.Row="2" HorizontalAlignment="Left" Margin="0 10 0 20" Foreground="#FF0C1E3E" FontSize="20" Text="Recent activity" />
         <ListBox Grid.Row="3" x:Name="lstRecentActivity" BorderBrush="{x:Null}" ItemContainerStyle="{DynamicResource ListBoxItemStyle}"/>
-        <Button Grid.Row="4" HorizontalAlignment="Center" Margin="0 20" Content="View more" Style="{DynamicResource ButtonWhite}" Foreground="#FF132F4B"/>
     </Grid>
 </Page>
