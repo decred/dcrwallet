@@ -107,8 +107,6 @@
                                     <Run Text="imported"/>
                                 </TextBlock>
                                 <Rectangle Fill="#FFA9B4BF" Height="1" VerticalAlignment="Top" Margin="0" Grid.Row="4" Grid.ColumnSpan="2"/>
-                                <Button Content="Reveal" HorizontalAlignment="Right" Height="20.096" Margin="0,0.333,286.105,0" VerticalAlignment="Top" Style="{DynamicResource ButtonWhiteFlat}" Foreground="#FF132F4B" Grid.RowSpan="1" Grid.Row="5" Grid.Column="1"/>
-                                <TextBlock HorizontalAlignment="Stretch" Margin="14.5,5.995,0.833,0" TextWrapping="Wrap" Text="Public key address" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="10.854" Grid.ColumnSpan="1" Grid.Row="5" Width="90" Grid.RowSpan="1"/>
 
                                 <Button Command="{Binding OpenRenameAccountDialogCommand}" ToolTip="Rename account"
                                         HorizontalAlignment="Right" Height="26" Margin="0,0,80.002,0" Grid.Row="5" VerticalAlignment="Top" Width="26" Grid.Column="1">
