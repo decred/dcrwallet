@@ -30,7 +30,7 @@ namespace Paymetheus.Rpc
             // wallet or outputs created for another unrelated wallet).
             var outputs = inputs.Length == 0
                 ? tx.Credits.Select((o, i) => MarshalControlledOutput(o, transaction.Outputs[i])).ToArray()
-                : MarshalCombinedOutputs(transaction, tx.Credits.GetEnumerator());
+                : MarshalCombinedOutputs(transaction, tx.Credits);
             var fee = inputs.Length == transaction.Inputs.Length ? (Amount?)tx.Fee : null;
             var seenTime = DateTimeOffsetExtras.FromUnixTimeSeconds(tx.Timestamp);
 
@@ -40,15 +40,22 @@ namespace Paymetheus.Rpc
         private static WalletTransaction.Output MarshalControlledOutput(TransactionDetails.Types.Output o, Transaction.Output txOutput) =>
             new WalletTransaction.Output.ControlledOutput(txOutput.Amount, new Account(o.Account), o.Internal);
 
-        private static WalletTransaction.Output[] MarshalCombinedOutputs(Transaction transaction, IEnumerator<TransactionDetails.Types.Output> credits)
+        private static WalletTransaction.Output[] MarshalCombinedOutputs(Transaction transaction,
+            Google.Protobuf.Collections.RepeatedField<TransactionDetails.Types.Output> credits)
         {
-            return transaction.Outputs.Select((output, index) =>
+            var creditIndex = 0;
+            return transaction.Outputs.Select((output, outputIndex) =>
             {
-                while (credits.Current?.Index < index)
-                    credits.MoveNext();
-                return credits.Current?.Index == index
-                    ? MarshalControlledOutput(credits.Current, output)
-                    : new WalletTransaction.Output.UncontrolledOutput(output.Amount, output.PkScript);
+                if (creditIndex < credits.Count && credits[creditIndex].Index == outputIndex)
+                {
+                    var controlledOutput = MarshalControlledOutput(credits[creditIndex], output);
+                    creditIndex++;
+                    return controlledOutput;
+                }
+                else
+                {
+                    return new WalletTransaction.Output.UncontrolledOutput(output.Amount, output.PkScript);
+                }
             }).ToArray();
         }
 
