@@ -2,6 +2,7 @@
 // Copyright (c) 2016 The Decred developers
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
+using Grpc.Core;
 using Paymetheus.Decred;
 using Paymetheus.Decred.Script;
 using Paymetheus.Decred.Util;
@@ -371,8 +372,17 @@ namespace Paymetheus.ViewModels
 
         private async Task SignTransactionWithPassphrase(string passphrase, Transaction tx, bool publishImmediately)
         {
+            Tuple<Transaction, bool> signingResponse;
             var walletClient = App.Current.Synchronizer.WalletRpcClient;
-            var signingResponse = await walletClient.SignTransactionAsync(passphrase, tx);
+            try
+            {
+                signingResponse = await walletClient.SignTransactionAsync(passphrase, tx);
+            }
+            catch (RpcException ex) when (ex.Status.StatusCode == StatusCode.InvalidArgument)
+            {
+                MessageBox.Show(ex.Status.Detail);
+                return;
+            }
             var complete = signingResponse.Item2;
             if (!complete)
             {
