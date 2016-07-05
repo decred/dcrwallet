@@ -323,7 +323,9 @@ namespace Paymetheus.Decred.Wallet
         // TODO: set locked balances
         public Balances[] CalculateBalances(int requiredConfirmations)
         {
-            var balances = _bip0032Accounts.Select(a => new Balances(a.TotalBalance, 0, 0)).ToArray();
+            // Initial balances.  Unspendable outputs are subtracted from the totals.
+            // TODO: set locked balance
+            var balances = _bip0032Accounts.Select(a => new Balances(a.TotalBalance, a.TotalBalance, 0)).ToArray();
 
             if (requiredConfirmations == 0)
             {

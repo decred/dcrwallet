@@ -208,15 +208,20 @@ namespace Paymetheus.ViewModels
             {
                 SyncedBlockHeight = e.NewChainTip.Value.Height;
             }
-            if (e.AddedTransactions.Count != 0 || e.RemovedTransactions.Count != 0)
+            if (e.AddedTransactions.Count != 0 || e.RemovedTransactions.Count != 0 || e.NewChainTip != null)
             {
                 RaisePropertyChanged(nameof(TotalBalance));
+                var balances = Wallet.CalculateBalances(2); // TODO: don't hardcode confs
+                for (var i = 0; i < balances.Length; i++)
+                {
+                    Accounts[i].Balances = balances[i];
+                }
             }
         }
 
         private void OnSyncedWallet()
         {
-            var accountBalances = Wallet.CalculateBalances(1); // TODO: configurable confirmations
+            var accountBalances = Wallet.CalculateBalances(2); // TODO: configurable confirmations
             var accountViewModels = Wallet.EnumerateAccounts()
                 .Zip(accountBalances, (a, bals) => new AccountViewModel(a.Item1, a.Item2, bals))
                 .ToList();
