@@ -62,7 +62,7 @@ namespace Paymetheus.Decred.Wallet
 
                 var maxSignedSize = Transaction.EstimateSerializeSize(inputs.Length, outputs, true);
                 var maxRequiredFee = TransactionFees.FeeForSerializeSize(feePerKb, maxSignedSize);
-                var remainingAmount = inputAmount - maxRequiredFee;
+                var remainingAmount = inputAmount - targetAmount;
                 if (remainingAmount < maxRequiredFee)
                 {
                     targetFee = maxRequiredFee;
@@ -70,7 +70,7 @@ namespace Paymetheus.Decred.Wallet
                 }
 
                 var unsignedTransaction = new Transaction(Transaction.SupportedVersion, inputs, outputs, 0, 0);
-                var changeAmount = inputAmount - targetAmount - targetFee;
+                var changeAmount = inputAmount - targetAmount - maxRequiredFee;
                 if (changeAmount != 0 && !TransactionRules.IsDustAmount(changeAmount, Transaction.PayToPubKeyHashPkScriptSize, feePerKb))
                 {
                     var changeScript = await fetchChangeAsync();
