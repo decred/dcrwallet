@@ -364,13 +364,13 @@ namespace Paymetheus.ViewModels
             var shell = ViewModelLocator.ShellViewModel as ShellViewModel;
             if (shell != null)
             {
-                Func<string, Task> action =
+                Func<string, Task<bool>> action =
                     passphrase => SignTransactionWithPassphrase(passphrase, _pendingTransaction, publish);
                 shell.VisibleDialogContent = new PassphraseDialogViewModel(shell, "Enter passphrase to sign transaction", "Sign", action);
             }
         }
 
-        private async Task SignTransactionWithPassphrase(string passphrase, Transaction tx, bool publishImmediately)
+        private async Task<bool> SignTransactionWithPassphrase(string passphrase, Transaction tx, bool publishImmediately)
         {
             Tuple<Transaction, bool> signingResponse;
             var walletClient = App.Current.Synchronizer.WalletRpcClient;
@@ -381,20 +381,20 @@ namespace Paymetheus.ViewModels
             catch (RpcException ex) when (ex.Status.StatusCode == StatusCode.InvalidArgument)
             {
                 MessageBox.Show(ex.Status.Detail);
-                return;
+                return false;
             }
             var complete = signingResponse.Item2;
             if (!complete)
             {
                 MessageBox.Show("Failed to create transaction input signatures.");
-                return;
+                return false;
             }
             var signedTransaction = signingResponse.Item1;
 
             if (!publishImmediately)
             {
                 MessageBox.Show("Reviewing signed transaction before publishing is not implemented yet.");
-                return;
+                return false;
             }
 
             await walletClient.PublishTransactionAsync(signedTransaction.Serialize());
@@ -404,6 +404,8 @@ namespace Paymetheus.ViewModels
             _unusedChangeScripts.Remove(SelectedAccount.Account);
             PendingOutputs.Clear();
             AddPendingOutput();
+
+            return true;
         }
     }
 }

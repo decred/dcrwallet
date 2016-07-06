@@ -12,7 +12,7 @@ namespace Paymetheus.ViewModels
 {
     sealed class PassphraseDialogViewModel : DialogViewModelBase
     {
-        public PassphraseDialogViewModel(ShellViewModel shell, string header, string buttonText, Func<string, Task> executeWithPassphrase)
+        public PassphraseDialogViewModel(ShellViewModel shell, string header, string buttonText, Func<string, Task<bool>> executeWithPassphrase)
             : base(shell)
         {
             Header = header;
@@ -21,7 +21,7 @@ namespace Paymetheus.ViewModels
             Execute = new DelegateCommandAsync(ExecuteAction);
         }
 
-        private Func<string, Task> _execute;
+        private Func<string, Task<bool>> _execute;
 
         public string Header { get; }
         public string ExecuteText { get; }
@@ -33,8 +33,9 @@ namespace Paymetheus.ViewModels
         {
             try
             {
-                await _execute(Passphrase);
-                HideDialog();
+                var success = await _execute(Passphrase);
+                if (success)
+                    HideDialog();
             }
             catch (Exception ex)
             {
