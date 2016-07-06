@@ -18,7 +18,7 @@ namespace Paymetheus.ViewModels
             Header = header;
             ExecuteText = buttonText;
             _execute = executeWithPassphrase;
-            Execute = new DelegateCommand(ExecuteAction);
+            Execute = new DelegateCommandAsync(ExecuteAction);
         }
 
         private Func<string, Task> _execute;
@@ -29,7 +29,7 @@ namespace Paymetheus.ViewModels
 
         public ICommand Execute { get; }
 
-        private async void ExecuteAction()
+        private async Task ExecuteAction()
         {
             try
             {

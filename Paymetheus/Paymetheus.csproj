@@ -207,7 +207,6 @@
     <Compile Include="Send.xaml.cs">
       <DependentUpon>Send.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ViewModels\SignTransactionDialogViewModel.cs" />
     <Compile Include="ViewModels\StartupWizard.cs" />
     <Compile Include="ConnectionWizardView.xaml.cs">
       <DependentUpon>ConnectionWizardView.xaml</DependentUpon>

@@ -3,6 +3,7 @@
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
 using System;
+using System.Threading.Tasks;
 using System.Windows.Input;
 
 namespace Paymetheus.Framework
@@ -11,7 +12,9 @@ namespace Paymetheus.Framework
     {
         public bool Executable { get; set; } = true;
 
-        public bool CanExecute(object parameter) => Executable;
+        protected bool ActionExecuting = false;
+
+        public bool CanExecute(object parameter) => Executable && !ActionExecuting;
 
         public event EventHandler CanExecuteChanged
         {
@@ -31,6 +34,30 @@ namespace Paymetheus.Framework
 
         public void Execute(object parameter) => _execute();
     }
+
+    public class DelegateCommandAsync : DelegateCommandBase, ICommand
+    {
+        public DelegateCommandAsync(Func<Task> t)
+        {
+            _task = t;
+        }
+
+        private readonly Func<Task> _task;
+
+        public async void Execute(object parameter)
+        {
+            try
+            {
+                ActionExecuting = true;
+                await _task();
+            }
+            finally
+            {
+                ActionExecuting = false;
+            }
+        }
+    }
+
 
     public class DelegateCommand<T> : DelegateCommandBase, ICommand
     {
