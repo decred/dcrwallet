@@ -72,7 +72,7 @@
                                 <TextBlock HorizontalAlignment="Stretch" Margin="14.5,35.002,15,0" TextWrapping="Wrap" Text="To address:" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="0" Height="15.854" Grid.ColumnSpan="1" Grid.Row="1" Width="Auto" Grid.RowSpan="1"/>
                                 <TextBlock HorizontalAlignment="Stretch" Margin="9.167,38.669,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="1" FontWeight="Bold" Grid.RowSpan="1"/>
                                 <Rectangle Fill="#FFA9B4BF" Height="1" VerticalAlignment="Top" Margin="20,0.5,20,0" Grid.Row="2" Grid.ColumnSpan="2"/>
-                                <local:TransactionUserControl HorizontalAlignment="Stretch" Margin="0,10.155,15,0" Grid.Row="1" VerticalAlignment="Top" Height="19.847" Status="Confirmed" Width="Auto"/>
+                                <local:ConfirmationIndicator HorizontalAlignment="Stretch" Margin="0,10.155,15,0" Grid.Row="1" VerticalAlignment="Top" Height="19.847" Status="Confirmed" Width="Auto"/>
                                 <TextBlock HorizontalAlignment="Stretch" Margin="14.5,9.332,15,0" TextWrapping="Wrap" Text="Properties" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="12" Grid.Column="0" Height="15.854" Grid.ColumnSpan="1" Grid.Row="2" Width="Auto" Grid.RowSpan="1" FontWeight="Bold"/>
                                 <TextBlock HorizontalAlignment="Stretch" Margin="14.5,32.999,15,0" TextWrapping="Wrap" Text="Block" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Right" FontSize="8.667" Grid.Column="0" Height="12.187" Grid.ColumnSpan="1" Grid.Row="2" Width="Auto" Grid.RowSpan="1"/>
                                 <TextBlock HorizontalAlignment="Stretch" Margin="9.167,32.999,0,0" TextWrapping="Wrap" Text="Tsbd8egLÇhcecCRTYxwEsDFcTjkw9e81AJfajwYaweffg" VerticalAlignment="Top" Foreground="#FF132F4B" TextAlignment="Left" FontSize="8.667" Grid.Column="1" Height="10.854" Grid.ColumnSpan="1" Grid.Row="2" FontWeight="Normal"/>
@@ -219,135 +219,137 @@
         </Style>
     </Page.Resources>
 
-    <Grid Margin="40 60 0 0" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition/>
-        </Grid.ColumnDefinitions>
-        <TextBlock Grid.Row="0" Foreground="#FF5A6E81" FontSize="20" Text="Create transaction"/>
-        <TextBlock Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="#FF0C1E3E" FontSize="11" Width="340">
+    <ScrollViewer Style="{StaticResource MainPaneScrollViewerStyle}">
+        <Grid Margin="40 60 0 0" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Row="0" Foreground="#FF5A6E81" FontSize="20" Text="Create transaction"/>
+            <TextBlock Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="#FF0C1E3E" FontSize="11" Width="340">
             <Run Text="Decred addresses always begin with letter"/>
             <Run FontWeight="Bold" Text="D"/>
             <Run Text="and contain 26-35 alphanumeric characters"/>
             <Run FontWeight="Bold" Text="e.g."/>
             <Run Foreground="#FF828C9D" Text="DxxxXXXXXXXXXXXXXXXXXDXXx0XXx0X"/>
-        </TextBlock>
-        <Border BorderBrush="#FFD3D9DF" BorderThickness="0,1" Grid.Row="2" Background="White" Padding="0 20" VerticalAlignment="Top">
-            <Grid Margin="0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="80"/>
-                    <ColumnDefinition Width="35"/>
-                    <ColumnDefinition Width="250"/>
-                    <ColumnDefinition />
-                </Grid.ColumnDefinitions>
-                <Grid.Resources>
-                    <Style TargetType="{x:Type ComboBox}">
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <LinearGradientBrush EndPoint="0,1" StartPoint="0,0">
-                                    <GradientStop Color="#FFF0F0F0" Offset="0"/>
-                                    <GradientStop Color="White" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Setter.Value>
-                        </Setter>
-                    </Style>
+            </TextBlock>
+            <Border BorderBrush="#FFD3D9DF" BorderThickness="0,1" Grid.Row="2" Background="White" Padding="0 20" VerticalAlignment="Top">
+                <Grid Margin="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="35"/>
+                        <ColumnDefinition Width="250"/>
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <Grid.Resources>
+                        <Style TargetType="{x:Type ComboBox}">
+                            <Setter Property="Background">
+                                <Setter.Value>
+                                    <LinearGradientBrush EndPoint="0,1" StartPoint="0,0">
+                                        <GradientStop Color="#FFF0F0F0" Offset="0"/>
+                                        <GradientStop Color="White" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
 
-                    <DataTemplate x:Key="PendingOutput">
-                        <Grid>
-                            <Grid.Resources>
-                                <Style TargetType="{x:Type TextBox}">
-                                    <Style.Triggers>
-                                        <Trigger Property="Validation.HasError" Value="True">
-                                            <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Grid.Resources>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="35"/>
-                                <ColumnDefinition Width="250"/>
-                                <ColumnDefinition Width="1*"/>
-                            </Grid.ColumnDefinitions>
-                            <Button Grid.Column="0" Content="-"
+                        <DataTemplate x:Key="PendingOutput">
+                            <Grid>
+                                <Grid.Resources>
+                                    <Style TargetType="{x:Type TextBox}">
+                                        <Style.Triggers>
+                                            <Trigger Property="Validation.HasError" Value="True">
+                                                <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Grid.Resources>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="35"/>
+                                    <ColumnDefinition Width="250"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Content="-"
                                     Command="{Binding Source={StaticResource ViewModelLocator}, Path=CreateTransactionViewModel.RemovePendingOutputCommand}" CommandParameter="{Binding}"
                                     Width="20" Height="20"/>
-                            <TextBox Grid.Column="1" Text="{Binding Destination, ValidatesOnExceptions=True}"
+                                <TextBox Grid.Column="1" Text="{Binding Destination, ValidatesOnExceptions=True}"
                                     f:AttachableProperties.UpdateSourceOnEnterProperty="TextBox.Text"
                                     Background="{x:Null}"/>
-                            <TextBox Grid.Column="2" HorizontalAlignment="Right" HorizontalContentAlignment="Right" VerticalContentAlignment="Center" Width="160"
+                                <TextBox Grid.Column="2" HorizontalAlignment="Right" HorizontalContentAlignment="Right" VerticalContentAlignment="Center" Width="160"
                                      Text="{Binding OutputAmountString, ValidatesOnExceptions=True}"
                                      f:AttachableProperties.UpdateSourceOnEnterProperty="TextBox.Text"
                                      PreviewTextInput="OutputAmountTextBox_PreviewTextInput"
                                      FontFamily="Consolas" BorderThickness="0 0 0 1" Background="{x:Null}"/>
-                        </Grid>
-                    </DataTemplate>
-                </Grid.Resources>
+                            </Grid>
+                        </DataTemplate>
+                    </Grid.Resources>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" TextAlignment="Right" Text="From:" FontSize="16" Foreground="#FF0C1E3E"/>
-                <TextBlock Grid.Row="1" Grid.Column="0" TextAlignment="Right" Text="To:" FontSize="16" Foreground="#FF0C1E3E"/>
+                    <TextBlock Grid.Row="0" Grid.Column="0" TextAlignment="Right" Text="From:" FontSize="16" Foreground="#FF0C1E3E"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" TextAlignment="Right" Text="To:" FontSize="16" Foreground="#FF0C1E3E"/>
 
-                <Image Grid.Row="0" Grid.Column="1" Source="Images/pm - icons - accounts.png" Stretch="UniformToFill"/>
-                <Button Grid.Row="2" Grid.Column="1" Content="+" Command="{Binding AddPendingOutputCommand}" Height="20" Width="20"/>
+                    <Image Grid.Row="0" Grid.Column="1" Source="Images/pm - icons - accounts.png" Stretch="UniformToFill"/>
+                    <Button Grid.Row="2" Grid.Column="1" Content="+" Command="{Binding AddPendingOutputCommand}" Height="20" Width="20"/>
 
-                <ComboBox Grid.Row="0" Grid.Column="2"
+                    <ComboBox Grid.Row="0" Grid.Column="2"
                           ItemsSource="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.Accounts}"
                           SelectedItem="{Binding SelectedAccount}"
                           ItemTemplate="{StaticResource ComboBoxAccountDataTemplate}"
                           Style="{DynamicResource ComboBoxStyleWithCurrency}" Foreground="#FF2970FF" ItemContainerStyle="{DynamicResource ComboBoxItemStyle}"/>
-                <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" BorderBrush="#FFDEE0E1" BorderThickness="0 0 0 1">
-                    <ItemsControl Padding="0 0 40 0" ItemsSource="{Binding PendingOutputs}" ItemTemplate="{StaticResource PendingOutput}" ScrollViewer.CanContentScroll="True">
-                        <ItemsControl.ItemContainerStyle>
-                            <Style>
-                                <Setter Property="FrameworkElement.Margin" Value="0 0 0 5"/>
-                            </Style>
-                        </ItemsControl.ItemContainerStyle>
-                    </ItemsControl>
-                </Border>
+                    <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" BorderBrush="#FFDEE0E1" BorderThickness="0 0 0 1">
+                        <ItemsControl Padding="0 0 40 0" ItemsSource="{Binding PendingOutputs}" ItemTemplate="{StaticResource PendingOutput}" ScrollViewer.CanContentScroll="True">
+                            <ItemsControl.ItemContainerStyle>
+                                <Style>
+                                    <Setter Property="FrameworkElement.Margin" Value="0 0 0 5"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                        </ItemsControl>
+                    </Border>
+                </Grid>
+            </Border>
+            <Grid Margin="0,20,40,20" Grid.Row="3" VerticalAlignment="Top">
+                <Grid.Resources>
+                    <Style TargetType="{x:Type local:AmountLabel}">
+                        <Setter Property="FontWeightWhole" Value="Bold"/>
+                        <Setter Property="FontSizeWhole" Value="12"/>
+                        <Setter Property="FontSizeDecimal" Value="12"/>
+                    </Style>
+                    <Style x:Key="CheckBoxStyle" TargetType="{x:Type CheckBox}">
+                        <Setter Property="Foreground" Value="#FF8392A1"/>
+                    </Style>
+                    <Style x:Key="TextBlockStyle" TargetType="{x:Type TextBlock}">
+                        <Setter Property="Foreground" Value="#FF8392A1"/>
+                    </Style>
+                </Grid.Resources>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="115"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="1*"/>
+                    <ColumnDefinition Width="160"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <ContentControl ContentTemplate="{StaticResource buttonTemplate}" Grid.RowSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center" Content="{Binding FinishCreateTransaction}" Width="100"/>
+                <!-- Hide these since viewing raw transactions without publishing is not yet implemented.
+                <CheckBox Grid.Row="0" Grid.Column="1" Content="Sign" HorizontalAlignment="Left" IsChecked="{Binding SignChecked}" Style="{StaticResource CheckBoxStyle}" />
+                <CheckBox Grid.Row="1" Grid.Column="1" Content="Publish" HorizontalAlignment="Left" IsChecked="{Binding PublishChecked}" IsEnabled="{Binding PublishActive}"  Style="{StaticResource CheckBoxStyle}" />
+                -->
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Estimated fee:" HorizontalAlignment="Right" Style="{StaticResource TextBlockStyle}" />
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="Estimated remaining balance:" HorizontalAlignment="Right" Style="{StaticResource TextBlockStyle}" />
+                <local:AmountLabel Grid.Row="0" Grid.Column="3" HorizontalAlignment="Right" Value="{Binding EstimatedFee}" Visibility="{Binding EstimatedFee, Converter={StaticResource NullToHiddenConverter}}"/>
+                <local:AmountLabel Grid.Row="1" Grid.Column="3" HorizontalAlignment="Right" Value="{Binding EstimatedRemainingBalance}" Visibility="{Binding EstimatedRemainingBalance, Converter={StaticResource NullToHiddenConverter}}"/>
             </Grid>
-        </Border>
-        <Grid Margin="0,20,40,20" Grid.Row="3" VerticalAlignment="Top">
-            <Grid.Resources>
-                <Style TargetType="{x:Type local:AmountLabel}">
-                    <Setter Property="FontWeightWhole" Value="Bold"/>
-                    <Setter Property="FontSizeWhole" Value="12"/>
-                    <Setter Property="FontSizeDecimal" Value="12"/>
-                </Style>
-                <Style x:Key="CheckBoxStyle" TargetType="{x:Type CheckBox}">
-                    <Setter Property="Foreground" Value="#FF8392A1"/>
-                </Style>
-                <Style x:Key="TextBlockStyle" TargetType="{x:Type TextBlock}">
-                    <Setter Property="Foreground" Value="#FF8392A1"/>
-                </Style>
-            </Grid.Resources>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="115"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="1*"/>
-                <ColumnDefinition Width="160"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition/>
-                <RowDefinition/>
-            </Grid.RowDefinitions>
-            <ContentControl ContentTemplate="{StaticResource buttonTemplate}" Grid.RowSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center" Content="{Binding FinishCreateTransaction}" Width="100"/>
-            <!-- Hide these since viewing raw transactions without publishing is not yet implemented.
-            <CheckBox Grid.Row="0" Grid.Column="1" Content="Sign" HorizontalAlignment="Left" IsChecked="{Binding SignChecked}" Style="{StaticResource CheckBoxStyle}" />
-            <CheckBox Grid.Row="1" Grid.Column="1" Content="Publish" HorizontalAlignment="Left" IsChecked="{Binding PublishChecked}" IsEnabled="{Binding PublishActive}"  Style="{StaticResource CheckBoxStyle}" />
-            -->
-            <TextBlock Grid.Row="0" Grid.Column="2" Text="Estimated fee:" HorizontalAlignment="Right" Style="{StaticResource TextBlockStyle}" />
-            <TextBlock Grid.Row="1" Grid.Column="2" Text="Estimated remaining balance:" HorizontalAlignment="Right" Style="{StaticResource TextBlockStyle}" />
-            <local:AmountLabel Grid.Row="0" Grid.Column="3" HorizontalAlignment="Right" Value="{Binding EstimatedFee}" Visibility="{Binding EstimatedFee, Converter={StaticResource NullToHiddenConverter}}"/>
-            <local:AmountLabel Grid.Row="1" Grid.Column="3" HorizontalAlignment="Right" Value="{Binding EstimatedRemainingBalance}" Visibility="{Binding EstimatedRemainingBalance, Converter={StaticResource NullToHiddenConverter}}"/>
         </Grid>
-    </Grid>
+    </ScrollViewer>
 </Page>

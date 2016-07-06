@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Paymetheus.Decred.Wallet;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,7 +12,7 @@ namespace Paymetheus.DTO
         public bool IsDeposit { get; set; }
         public string WalletName { get; set; }
         public DateTime TransactionLocalTime { get; set; }
-        public TransactionUserControl.TransactionStatus Status { get; set; }
+        public ConfirmationStatus Status { get; set; }
         public double Ammount { get; set; }
         public string OperatingTo { get; set; }
         public int Confirmations { get; set; }

@@ -33,6 +33,7 @@ namespace Paymetheus
             SingletonViewModelLocator.RegisterFactory<Overview, OverviewViewModel>();
             SingletonViewModelLocator.RegisterFactory<Request, RequestViewModel>();
             SingletonViewModelLocator.RegisterFactory<Send, CreateTransactionViewModel>();
+            SingletonViewModelLocator.RegisterFactory<History, TransactionHistoryViewModel>();
 
             Application.Current.Dispatcher.UnhandledException += (sender, args) =>
             {

@@ -12,70 +12,41 @@
       WindowWidth="640" WindowHeight="480" d:DesignWidth="862.17" d:DesignHeight="549.293"
       DataContext="{Binding Source={StaticResource ViewModelLocator}, Path=RequestViewModel}">
 
-    <Page.Resources>
-
-        <SolidColorBrush x:Key="Item.MouseOver.Background" Color="#1F26A0DA"/>
-        <SolidColorBrush x:Key="Item.MouseOver.Border" Color="#a826A0Da"/>
-        <SolidColorBrush x:Key="Item.SelectedInactive.Background" Color="#3DDADADA"/>
-        <SolidColorBrush x:Key="Item.SelectedInactive.Border" Color="#FFDADADA"/>
-        <SolidColorBrush x:Key="Item.SelectedActive.Background" Color="#3D26A0DA"/>
-        <SolidColorBrush x:Key="Item.SelectedActive.Border" Color="#FF26A0DA"/>
-
-        <Style x:Key="ComboBoxStyleWithCurrency" TargetType="{x:Type ComboBox}">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
-            <Setter Property="Background" Value="{StaticResource ComboBox.Static.Background}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource ComboBox.Static.Border}"/>
-            <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
-            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
-            <Setter Property="Padding" Value="6,3,5,3"/>
-            <Setter Property="ScrollViewer.CanContentScroll" Value="true"/>
-            <Setter Property="ScrollViewer.PanningMode" Value="Both"/>
-            <Setter Property="Stylus.IsFlicksEnabled" Value="False"/>
-            <Setter Property="Template" Value="{StaticResource ComboBoxTemplate}"/>
-            <Style.Triggers>
-                <Trigger Property="IsEditable" Value="true">
-                    <Setter Property="IsTabStop" Value="false"/>
-                    <Setter Property="Padding" Value="2"/>
-                    <Setter Property="Template" Value="{StaticResource ComboBoxEditableTemplate}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-    </Page.Resources>
-
-    <StackPanel Margin="40 60 40 0">
-        <TextBlock Margin="0 0 0 20" HorizontalAlignment="Left" Text="Request payment" Foreground="#FF5A6E81" FontSize="20"/>
-        <TextBlock Margin="0 0 0 40" HorizontalAlignment="Left" Text="Each time you request a payment, create a new address to protect your privacy" Foreground="#FF0C1E3E" FontSize="11"/>
-        <Grid Width="300" Margin="0 0 0 30">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition/>
-            </Grid.ColumnDefinitions>
-            <Image Grid.Column="0" Source="Images/pm - icons - accounts.png" Stretch="Fill" Width="25" Height="25"/>
-            <ComboBox Grid.Column="1" ItemsSource="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.Accounts}"
+    <ScrollViewer Style="{StaticResource MainPaneScrollViewerStyle}">
+        <StackPanel Margin="40 60 40 0">
+            <TextBlock Margin="0 0 0 20" HorizontalAlignment="Left" Text="Request payment" Foreground="#FF5A6E81" FontSize="20"/>
+            <TextBlock Margin="0 0 0 40" HorizontalAlignment="Left" Text="Each time you request a payment, create a new address to protect your privacy" Foreground="#FF0C1E3E" FontSize="11"/>
+            <Grid Width="300" Margin="0 0 0 30">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Image Grid.Column="0" Source="Images/pm - icons - accounts.png" Stretch="Fill" Width="25" Height="25"/>
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.Accounts}"
                           SelectedItem="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.SelectedAccount}"
                           ItemTemplate="{StaticResource ComboBoxAccountDataTemplate}"
                           Height="23.356" Foreground="#FF2970FF"
                           Style="{DynamicResource ComboBoxStyleWithCurrency}" ItemContainerStyle="{DynamicResource ComboBoxItemStyle}">
-                <ComboBox.Background>
-                    <LinearGradientBrush EndPoint="0,1" StartPoint="0,0">
-                        <GradientStop Color="#FFF0F0F0" Offset="0"/>
-                        <GradientStop Color="White" Offset="1"/>
-                    </LinearGradientBrush>
-                </ComboBox.Background>
-            </ComboBox>
-        </Grid>
-        <Button Margin="0 0 0 30" HorizontalAlignment="Center" Content="GENERATE ADDRESS" Command="{Binding GenerateAddressCommand}" Style="{DynamicResource ButtonBlue}"/>
-        <Border Visibility="{Binding GeneratedAddress, Mode=OneWay, Converter={StaticResource NullToHiddenConverter}}" Background="White" BorderBrush="#FFD3D9DF" BorderThickness="2" CornerRadius="5" Padding="5">
-            <StackPanel>
-                <!-- TextBox is used rather than a TextBlock so the user can still manually select the address -->
-                <TextBox TextAlignment="Center" Text="{Binding GeneratedAddress, Mode=OneWay, FallbackValue=123Address}" IsReadOnly="True" Foreground="#FF132F4B" FontSize="28" BorderThickness="0"/>
-                <TextBlock TextWrapping="Wrap" Foreground="#FF586D80" TextAlignment="Center">
+                    <ComboBox.Background>
+                        <LinearGradientBrush EndPoint="0,1" StartPoint="0,0">
+                            <GradientStop Color="#FFF0F0F0" Offset="0"/>
+                            <GradientStop Color="White" Offset="1"/>
+                        </LinearGradientBrush>
+                    </ComboBox.Background>
+                </ComboBox>
+            </Grid>
+            <Button Margin="0 0 0 30" HorizontalAlignment="Center" Content="GENERATE ADDRESS" Command="{Binding GenerateAddressCommand}" Style="{DynamicResource ButtonBlue}"/>
+            <Border Visibility="{Binding GeneratedAddress, Mode=OneWay, Converter={StaticResource NullToHiddenConverter}}" Background="White" BorderBrush="#FFD3D9DF" BorderThickness="2" CornerRadius="5" Padding="5">
+                <StackPanel>
+                    <!-- TextBox is used rather than a TextBlock so the user can still manually select the address -->
+                    <TextBox TextAlignment="Center" Text="{Binding GeneratedAddress, Mode=OneWay, FallbackValue=123Address}" IsReadOnly="True" Foreground="#FF132F4B" FontSize="28" BorderThickness="0"/>
+                    <TextBlock TextWrapping="Wrap" Foreground="#FF586D80" TextAlignment="Center">
                     <Run Text="Single use address generated for account"/>
                     <Run FontWeight="Bold" Text="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.SelectedAccount.AccountProperties.AccountName, Mode=OneWay, FallbackValue=Account Name}"/>
-                </TextBlock>
-            </StackPanel>
-        </Border>
-    </StackPanel>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
 </Page>

@@ -408,4 +408,3 @@ namespace Paymetheus.Decred.Wallet
         }
     }
 }
-

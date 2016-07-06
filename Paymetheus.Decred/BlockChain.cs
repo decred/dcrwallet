@@ -25,7 +25,7 @@ namespace Paymetheus.Decred
             return previousOutput.Index == uint.MaxValue && previousOutput.Hash.Equals(Blake256Hash.Zero);
         }
 
-        public static int Confirmations(int blockChainHeight, BlockIdentity location)
+        public static int Depth(int blockChainHeight, BlockIdentity location)
         {
             if (location == null)
                 throw new ArgumentNullException(nameof(location));
@@ -36,7 +36,7 @@ namespace Paymetheus.Decred
                 return blockChainHeight - location.Height + 1;
         }
 
-        public static int Confirmations(int blockChainHeight, int txHeight)
+        public static int Depth(int blockChainHeight, int txHeight)
         {
             if (txHeight == -1 || txHeight > blockChainHeight)
                 return 0;
@@ -44,11 +44,11 @@ namespace Paymetheus.Decred
                 return blockChainHeight - txHeight + 1;
         }
 
-        public static int ConfirmationHeight(int blockChainHeight, int minConf) =>
-            blockChainHeight - minConf + 1;
+        public static int ConfirmationHeight(int blockChainHeight, int minDepth) =>
+            blockChainHeight - minDepth + 1;
 
-        public static bool IsConfirmed(int blockchainHeight, int txHeight, int minConfirmations) =>
-            Confirmations(blockchainHeight, txHeight) >= minConfirmations;
+        public static bool IsConfirmed(int blockchainHeight, int txHeight, int minDepth) =>
+            Depth(blockchainHeight, txHeight) >= minDepth;
 
         public static bool IsMatured(int blockchainHeight, int txHeight, BlockChainIdentity blockChain) =>
             IsConfirmed(blockchainHeight, txHeight, blockChain.Maturity);

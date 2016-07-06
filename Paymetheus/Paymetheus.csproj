@@ -174,6 +174,10 @@
     <Compile Include="SignTransactionDialog.xaml.cs">
       <DependentUpon>SignTransactionDialog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UserControls\TransactionCategoryIcon.xaml.cs">
+      <DependentUpon>TransactionCategoryIcon.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ViewModels\TransactionHistoryViewModel.cs" />
     <Compile Include="Validation\AmountValidator.cs" />
     <Compile Include="ViewModels\AccountViewModel.cs" />
     <Compile Include="AssemblyResources.cs" />
@@ -249,8 +253,8 @@
     <Compile Include="UserControls\AmountLabel.xaml.cs">
       <DependentUpon>AmountLabel.xaml</DependentUpon>
     </Compile>
-    <Compile Include="UserControls\TransactionUserControl.xaml.cs">
-      <DependentUpon>TransactionUserControl.xaml</DependentUpon>
+    <Compile Include="UserControls\ConfirmationIndicator.xaml.cs">
+      <DependentUpon>ConfirmationIndicator.xaml</DependentUpon>
     </Compile>
     <Compile Include="Framework\ViewModelBase.cs" />
     <Compile Include="Framework\WizardDialogViewModelBase.cs" />
@@ -356,7 +360,11 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="UserControls\TransactionUserControl.xaml">
+    <Page Include="UserControls\ConfirmationIndicator.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserControls\TransactionCategoryIcon.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

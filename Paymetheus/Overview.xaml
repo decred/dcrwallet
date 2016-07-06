@@ -48,7 +48,7 @@
                                 <TextBlock HorizontalAlignment="Stretch" Margin="0,15,5,0" TextWrapping="Wrap" Text="College funds" VerticalAlignment="Top" Foreground="#FF0C1E3E" TextAlignment="Left" FontSize="10.667" Grid.Column="1" Height="14.187"/>
                                 <TextBlock HorizontalAlignment="Stretch" Margin="0.903,15,0.403,0" TextWrapping="Wrap" Text="12 Mar 2016 14:57" VerticalAlignment="Top" Foreground="#FF0C1E3E" TextAlignment="Left" FontSize="10.667" Grid.Column="2" Height="14.187" FontWeight="Bold"/>
                                 <TextBlock HorizontalAlignment="Stretch" Margin="0,0,3.708,18" TextWrapping="Wrap" Text="Tsbd8gLgheCTtx4WFcTk/97AAjFwWf5g" VerticalAlignment="Bottom" Foreground="#FFE2E2E2" TextAlignment="Left" FontSize="9.333" Grid.Column="1" Height="10.854" Grid.ColumnSpan="2"/>
-                                <local:TransactionUserControl Status="Confirmed" Grid.Column="4" HorizontalAlignment="Stretch" Margin="0,15,0,0" VerticalAlignment="Top" Height="20"/>
+                                <local:ConfirmationIndicator Status="Confirmed" Grid.Column="4" HorizontalAlignment="Stretch" Margin="0,15,0,0" VerticalAlignment="Top" Height="20"/>
                                 <TextBlock HorizontalAlignment="Stretch" Margin="0.306,0,8.096,16" TextWrapping="Wrap" VerticalAlignment="Bottom" Foreground="#FFE2E2E2" TextAlignment="Left" FontSize="9.333" Grid.Column="4" Grid.ColumnSpan="1"><Run Text="0 confirm"/><Run Text="."/></TextBlock>
                                 <local:AlignedAmount Margin="0,13.56,65,0" Grid.Column="6" Amount="10" ForegroundWhole="#FF0C1E3E" ForegroundDecimal="#FF0C1E3E" FontSizeWhole="10.667" FontWeightWhole="Bold" FontSizeDecimal="9.333"/>
                                 <Rectangle Fill="#FFA9B4BF" Height="1" VerticalAlignment="Bottom" Margin="0" Grid.Row="0" Grid.ColumnSpan="7"/>
@@ -82,60 +82,62 @@
             </Setter>
         </Style>
     </Page.Resources>
-    <Grid Margin="40 60 0 0">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="60"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="1*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition/>
-        </Grid.ColumnDefinitions>
-        <TextBlock Grid.Row="0" HorizontalAlignment="Left" Margin="0 0 0 20" Text="Totals" VerticalAlignment="Top" Foreground="#FF0C1E3E" FontSize="20"/>
-        <Border Grid.Row="1" Margin="0 0 40 0" BorderBrush="#FFA9B4BF" BorderThickness="0 0 0 1" VerticalAlignment="Stretch">
-            <Grid VerticalAlignment="Top">
-                <Grid.Resources>
-                    <Style TargetType="{x:Type local:AmountLabel}">
-                        <Setter Property="FontSizeWhole" Value="28"/>
-                        <Setter Property="FontSizeDecimal" Value="11"/>
-                        <Setter Property="ForegroundWhole" Value="#FF0C1E3E"/>
-                        <Setter Property="ForegroundDecimal" Value="#FF0C1E3E"/>
-                        <Setter Property="FontWeightWhole" Value="Bold"/>
-                    </Style>
-                </Grid.Resources>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition/>
-                    <ColumnDefinition/>
-                    <ColumnDefinition/>
-                </Grid.ColumnDefinitions>
-                <Border Grid.Column="0" BorderBrush="#FFA9B4BF" BorderThickness="0 0 1 0" Padding="0 0 19 0">
-                    <Grid>
+    <ScrollViewer Style="{StaticResource MainPaneScrollViewerStyle}">
+        <Grid Margin="40 60 0 0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="60"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="1*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Row="0" HorizontalAlignment="Left" Margin="0 0 0 20" Text="Totals" VerticalAlignment="Top" Foreground="#FF0C1E3E" FontSize="20"/>
+            <Border Grid.Row="1" Margin="0 0 40 0" BorderBrush="#FFA9B4BF" BorderThickness="0 0 0 1" VerticalAlignment="Stretch">
+                <Grid VerticalAlignment="Top">
+                    <Grid.Resources>
+                        <Style TargetType="{x:Type local:AmountLabel}">
+                            <Setter Property="FontSizeWhole" Value="28"/>
+                            <Setter Property="FontSizeDecimal" Value="11"/>
+                            <Setter Property="ForegroundWhole" Value="#FF0C1E3E"/>
+                            <Setter Property="ForegroundDecimal" Value="#FF0C1E3E"/>
+                            <Setter Property="FontWeightWhole" Value="Bold"/>
+                        </Style>
+                    </Grid.Resources>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" BorderBrush="#FFA9B4BF" BorderThickness="0 0 1 0" Padding="0 0 19 0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <local:AmountLabel Margin="0" Grid.Row="0" HorizontalAlignment="Right" Value="{Binding Path=SynchronizerViewModel.TotalBalance, Source={StaticResource ViewModelLocator}}"/>
+                            <TextBlock Grid.Row="1" HorizontalAlignment="Right" Foreground="#FF0C1E3E" FontSize="11">
+                                grand total in
+                                <Run FontWeight="Bold" Text="{Binding AccountsCount, FallbackValue=0}"/>
+                                <Run FontWeight="Bold" Text="accounts"/>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Column="2">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <local:AmountLabel Margin="0" Grid.Row="0" HorizontalAlignment="Right" Value="{Binding Path=SynchronizerViewModel.TotalBalance, Source={StaticResource ViewModelLocator}}"/>
-                        <TextBlock Grid.Row="1" HorizontalAlignment="Right" Foreground="#FF0C1E3E" FontSize="11">
-                        grand total in
-                        <Run FontWeight="Bold" Text="{Binding AccountsCount, FallbackValue=0}"/>
-                        <Run FontWeight="Bold" Text="accounts"/>
-                        </TextBlock>
+                        <TextBlock Grid.Row="0" Foreground="#FF0C1E3E" FontSize="28" TextAlignment="Right" FontWeight="Bold" Text="{Binding TransactionCount, FallbackValue=0}"/>
+                        <TextBlock Grid.Row="1" HorizontalAlignment="Right" TextWrapping="Wrap" Foreground="#FF0C1E3E" FontSize="11" Text="transactions"/>
                     </Grid>
-                </Border>
-
-                <Grid Grid.Column="2">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Foreground="#FF0C1E3E" FontSize="28" TextAlignment="Right" FontWeight="Bold" Text="{Binding TransactionCount, FallbackValue=0}"/>
-                    <TextBlock Grid.Row="1" HorizontalAlignment="Right" TextWrapping="Wrap" Foreground="#FF0C1E3E" FontSize="11" Text="transactions"/>
                 </Grid>
-            </Grid>
-        </Border>
-        <TextBlock Grid.Row="2" HorizontalAlignment="Left" Margin="0 10 0 20" Foreground="#FF0C1E3E" FontSize="20" Text="Recent activity" />
-        <ListBox Grid.Row="3" x:Name="lstRecentActivity" BorderBrush="{x:Null}" ItemContainerStyle="{DynamicResource ListBoxItemStyle}"/>
-    </Grid>
+            </Border>
+            <TextBlock Grid.Row="2" HorizontalAlignment="Left" Margin="0 10 0 20" Foreground="#FF0C1E3E" FontSize="20" Text="Recent activity" />
+            <ListBox Grid.Row="3" x:Name="lstRecentActivity" BorderBrush="{x:Null}" ItemContainerStyle="{DynamicResource ListBoxItemStyle}"/>
+        </Grid>
+    </ScrollViewer>
 </Page>

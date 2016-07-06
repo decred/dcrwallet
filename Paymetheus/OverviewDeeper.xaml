@@ -64,7 +64,7 @@
             <TextBlock HorizontalAlignment="Left" Margin="0,395.99,0,0" TextWrapping="Wrap" Text="Change" VerticalAlignment="Top" Foreground="#FF0C1E3E" Width="90" TextAlignment="Right"/>
             <TextBlock HorizontalAlignment="Left" Margin="23,395.99,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="#FF0C1E3E" Grid.Column="1"><Run FontWeight="Bold" Text="4"/><Run Text=".999 "/><Run Text="DCR"/></TextBlock>
             <Button Content="Back" HorizontalAlignment="Right" Height="20.95" Margin="0,1,0,0" VerticalAlignment="Top" Width="72" Style="{DynamicResource ButtonWhite}" Foreground="#FF132F4B" Grid.Column="1" />
-            <local:TransactionUserControl Status="Confirmed" Margin="0,33.49,0,0" VerticalAlignment="Top" Width="90.024"/>
+            <local:ConfirmationIndicator Status="Confirmed" Margin="0,33.49,0,0" VerticalAlignment="Top" Width="90.024"/>
         </Grid>
     </Grid>
 </Page>

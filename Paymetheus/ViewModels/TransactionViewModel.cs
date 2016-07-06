@@ -33,7 +33,7 @@ namespace Paymetheus.ViewModels
                 return items;
             });
 
-            Confirmations = BlockChain.Confirmations(wallet.ChainTip.Height, transactionLocation);
+            Depth = BlockChain.Depth(wallet.ChainTip.Height, transactionLocation);
             Inputs = _transaction.Inputs.Select(input => new Input(-input.Amount, wallet.AccountName(input.PreviousAccount))).ToArray();
             Outputs = _transaction.Outputs.Select(output => new Output(output.Amount, wallet.OutputDestination(output))).ToArray();
             GroupedOutputs = groupedOutputs;
@@ -78,11 +78,35 @@ namespace Paymetheus.ViewModels
             internal set { _location = value; RaisePropertyChanged(); }
         }
 
-        private int _confirmations;
-        public int Confirmations
+        private int _depth;
+        public int Depth
         {
-            get { return _confirmations; }
-            set { _confirmations = value; RaisePropertyChanged(); }
+            get { return _depth; }
+            set { _depth = value; RaisePropertyChanged(); RaisePropertyChanged(nameof(ConfirmationStatus)); }
+        }
+
+        public ConfirmationStatus ConfirmationStatus
+        {
+            get
+            {
+                // TODO: required number of confirmations needs to be configurable
+                if (Depth >= 2)
+                    return ConfirmationStatus.Confirmed;
+                else
+                    return ConfirmationStatus.Pending;
+            }
+        }
+
+        // TODO: The category needs more sophisticated detection for other cateogry types.
+        public TransactionCategory Category
+        {
+            get
+            {
+                if (Inputs.Length > 0)
+                    return TransactionCategory.Send;
+                else
+                    return TransactionCategory.Receive;
+            }
         }
 
         public sealed class GroupedOutput

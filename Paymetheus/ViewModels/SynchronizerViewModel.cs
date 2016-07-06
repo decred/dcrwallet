@@ -162,13 +162,14 @@ namespace Paymetheus.ViewModels
 
         private void OnWalletChangesProcessed(object sender, Wallet.ChangesProcessedEventArgs e)
         {
+            var wallet = (Wallet)sender;
+            var currentHeight = e.NewChainTip?.Height ?? SyncedBlockHeight;
+
             // TODO: The OverviewViewModel should probably connect to this event.  This could be
             // done after the wallet is synced.
             var overviewViewModel = ViewModelLocator.OverviewViewModel as OverviewViewModel;
             if (overviewViewModel != null)
             {
-                var currentHeight = e.NewChainTip?.Height ?? SyncedBlockHeight;
-
                 var movedTxViewModels = overviewViewModel.RecentTransactions
                     .Where(txvm => e.MovedTransactions.ContainsKey(txvm.TxHash))
                     .Select(txvm => Tuple.Create(txvm, e.MovedTransactions[txvm.TxHash]));
@@ -181,7 +182,7 @@ namespace Paymetheus.ViewModels
                     var location = movedTx.Item2;
 
                     txvm.Location = location;
-                    txvm.Confirmations = BlockChain.Confirmations(currentHeight, location);
+                    txvm.Depth = BlockChain.Depth(currentHeight, location);
                 }
 
                 App.Current.Dispatcher.Invoke(() =>
@@ -192,6 +193,27 @@ namespace Paymetheus.ViewModels
                     }
                 });
             }
+
+            // TODO: same.. in fact these tx viewmodels should be reused so changes don't need to be recalculated.
+            // It would be a good idea for this synchronzier viewmodel to manage these and hand them out to other
+            // viewmodels for sorting and organization.
+            var transactionHistoryViewModel = ViewModelLocator.TransactionHistoryViewModel as TransactionHistoryViewModel;
+            if (transactionHistoryViewModel != null)
+            {
+                foreach (var tx in transactionHistoryViewModel.Transactions)
+                {
+                    var txvm = tx.Transaction;
+                    BlockIdentity newLocation;
+                    if (e.MovedTransactions.TryGetValue(txvm.TxHash, out newLocation))
+                    {
+                        txvm.Location = newLocation;
+                    }
+                    txvm.Depth = BlockChain.Depth(currentHeight, txvm.Location);
+                }
+
+                transactionHistoryViewModel.AppendNewTransactions(wallet, e.AddedTransactions);
+            }
+
 
             foreach (var modifiedAccount in e.ModifiedAccountProperties)
             {

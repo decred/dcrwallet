@@ -79,6 +79,7 @@
     <Compile Include="Util\TupleValue.cs" />
     <Compile Include="Util\ValueArray.cs" />
     <Compile Include="Wallet\Account.cs" />
+    <Compile Include="Wallet\AccountTransaction.cs" />
     <Compile Include="Wallet\Balances.cs" />
     <Compile Include="Wallet\AccountProperties.cs" />
     <Compile Include="Wallet\Address.cs" />
@@ -87,9 +88,11 @@
     <Compile Include="Wallet\Checksum.cs" />
     <Compile Include="Ripemd160Hash.cs" />
     <Compile Include="Wallet\Accounting.cs" />
+    <Compile Include="Wallet\ConfirmationStatus.cs" />
     <Compile Include="Wallet\PgpWordList.cs" />
     <Compile Include="Wallet\PgpWordListData.cs" />
     <Compile Include="Wallet\TransactionAuthor.cs" />
+    <Compile Include="Wallet\TransactionCategory.cs" />
     <Compile Include="Wallet\TransactionFees.cs" />
     <Compile Include="Wallet\TransactionSet.cs" />
     <Compile Include="Wallet\UnspentOutput.cs" />
