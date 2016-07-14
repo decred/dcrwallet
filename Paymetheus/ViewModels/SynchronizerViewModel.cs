@@ -29,7 +29,7 @@ namespace Paymetheus.ViewModels
         public WalletClient WalletRpcClient { get; }
         public Wallet Wallet { get; private set; }
 
-        public static async Task<SynchronizerViewModel> Startup(BlockChainIdentity activeNetwork, string walletAppDataDir)
+        public static async Task<SynchronizerViewModel> Startup(BlockChainIdentity activeNetwork, string walletAppDataDir, bool searchPath)
         {
             // Begin the asynchronous reading of the certificate before starting the wallet
             // process.  This uses filesystem events to know when to begin reading the certificate,
@@ -37,7 +37,13 @@ namespace Paymetheus.ViewModels
             // beginning to observe the change, the event may never fire and the cert won't be read.
             var rootCertificateTask = TransportSecurity.ReadModifiedCertificateAsync(walletAppDataDir);
 
-            var walletProcess = WalletProcess.Start(activeNetwork, walletAppDataDir);
+            string walletProcessPath = null;
+            if (!searchPath)
+            {
+                walletProcessPath = Portability.ExecutableInstallationPath(
+                    Environment.OSVersion.Platform, AssemblyResources.Organization, WalletProcess.ProcessName);
+            }
+            var walletProcess = WalletProcess.Start(activeNetwork, walletAppDataDir, walletProcessPath);
 
             WalletClient walletClient;
             try

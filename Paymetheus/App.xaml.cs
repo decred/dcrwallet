@@ -135,7 +135,7 @@ namespace Paymetheus
 
             var syncTask = Task.Run(async () =>
             {
-                return await SynchronizerViewModel.Startup(activeNetwork, appDataDir);
+                return await SynchronizerViewModel.Startup(activeNetwork, appDataDir, args.SearchPathForWalletProcess);
             });
             var synchronizer = syncTask.Result;
 

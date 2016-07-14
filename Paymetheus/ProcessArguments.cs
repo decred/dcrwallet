@@ -10,15 +10,18 @@ namespace Paymetheus
     class ProcessArguments
     {
         public BlockChainIdentity IntendedNetwork { get; }
+        public bool SearchPathForWalletProcess { get; }
 
-        private ProcessArguments(BlockChainIdentity intendedNetwork)
+        private ProcessArguments(BlockChainIdentity intendedNetwork, bool searchPathForWalletProcess)
         {
             IntendedNetwork = intendedNetwork;
+            SearchPathForWalletProcess = searchPathForWalletProcess;
         }
 
         public static ProcessArguments ParseArguments(string[] args)
         {
             var intendedNetwork = BlockChainIdentity.MainNet;
+            var searchPathForWalletProcess = false;
 
             foreach (var arg in args)
             {
@@ -27,12 +30,15 @@ namespace Paymetheus
                     case "-testnet":
                         intendedNetwork = BlockChainIdentity.TestNet;
                         break;
+                    case "-searchpath":
+                        searchPathForWalletProcess = true;
+                        break;
                     default:
                         throw new Exception($"Unrecognized argument `{arg}`");
                 }
             }
 
-            return new ProcessArguments(intendedNetwork);
+            return new ProcessArguments(intendedNetwork, searchPathForWalletProcess);
         }
     }
 }

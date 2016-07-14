@@ -10,7 +10,12 @@ namespace Paymetheus.Rpc
 {
     public static class WalletProcess
     {
-        public static Process Start(BlockChainIdentity intendedNetwork, string appDataDirectory)
+        public const string ProcessName = "dcrwallet";
+
+        // Error code taken from https://msdn.microsoft.com/en-us/library/cc231199.aspx
+        private const int ErrorFileNotFound = 2;
+
+        public static Process Start(BlockChainIdentity intendedNetwork, string appDataDirectory, string executablePath = null)
         {
             if (intendedNetwork == null)
                 throw new ArgumentNullException(nameof(intendedNetwork));
@@ -26,19 +31,26 @@ namespace Paymetheus.Rpc
             var v4ListenAddress = RpcListenAddress("127.0.0.1", intendedNetwork);
 
             var processInfo = new ProcessStartInfo();
-            processInfo.FileName = "dcrwallet";
+            processInfo.FileName = executablePath ?? ProcessName;
             processInfo.Arguments = $"{networkFlag} --noinitialload --experimentalrpclisten={v4ListenAddress} --onetimetlskey --appdata=\"{appDataDirectory}\"";
             processInfo.UseShellExecute = false;
             processInfo.RedirectStandardError = true;
             processInfo.RedirectStandardOutput = true;
             processInfo.CreateNoWindow = true;
 
-            var process = Process.Start(processInfo);
-            process.ErrorDataReceived += (sender, args) => Console.WriteLine("err> {0}", args.Data);
-            process.OutputDataReceived += (sender, args) => Console.WriteLine("{0}", args.Data);
-            process.BeginErrorReadLine();
-            process.BeginOutputReadLine();
-            return process;
+            try
+            {
+                var process = Process.Start(processInfo);
+                process.ErrorDataReceived += (sender, args) => Console.WriteLine("err> {0}", args.Data);
+                process.OutputDataReceived += (sender, args) => Console.WriteLine("{0}", args.Data);
+                process.BeginErrorReadLine();
+                process.BeginOutputReadLine();
+                return process;
+            }
+            catch (System.ComponentModel.Win32Exception w32ex) when (w32ex.NativeErrorCode == ErrorFileNotFound)
+            {
+                throw new ProcessNotFoundException(processInfo.FileName, w32ex);
+            }
         }
 
         public static string RpcListenAddress(string hostnameOrIp, BlockChainIdentity intendedNetwork)

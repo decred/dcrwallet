@@ -37,7 +37,7 @@ namespace Paymetheus.Rpc
                         return Path.Combine(homeDirectory, ToDotLower(organization), product.ToLower());
                     }
                 default:
-                    throw new PlatformNotSupportedException($"PlatformID={platform}");
+                    throw PlatformNotSupported(platform);
             }
         }
 
@@ -60,5 +60,26 @@ namespace Paymetheus.Rpc
 
             return "." + value.ToLower();
         }
+
+        public static string ExecutableInstallationPath(PlatformID platform, string organization, string executableName)
+        {
+            // Unix and Mac: Unsure where the expected installation paths are or would be.
+            // These are staying unimplemeted until it actually matters.
+            switch (platform)
+            {
+                case PlatformID.Win32NT:
+                    return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                        ToUpper(organization), "Paymetheus", executableName.ToLower() + ".exe");
+                case PlatformID.Unix:
+                    throw new NotImplementedException();
+                case PlatformID.MacOSX:
+                    throw new NotImplementedException();
+                default:
+                    throw PlatformNotSupported(platform);
+            }
+        }
+
+        private static PlatformNotSupportedException PlatformNotSupported(PlatformID platform) =>
+            new PlatformNotSupportedException($"PlatformID={platform}");
     }
 }
