@@ -27,6 +27,7 @@ clean:
 current: $(GOPATH)/src/$(DCRD) $(GOPATH)/src/$(DCRWALLET) $(GOPATH)/src/$(DCRTICKETBUYER)
 	cd $(GOPATH)/src/$(DCRD) && git checkout master
 	cd $(GOPATH)/src/$(DCRD) && git pull --ff
+	cd $(GOPATH)/src/$(DCRD) && glide install
 	# wallet
 	cd $(GOPATH)/src/$(DCRWALLET) && git checkout master
 	cd $(GOPATH)/src/$(DCRWALLET) && git pull --ff
@@ -46,7 +47,7 @@ dcrd: $(GOPATH)/src/$(DCRD)
 	cd $(GOPATH)/src/$(DCRD) && git checkout master
 	cd $(GOPATH)/src/$(DCRD) && git pull --ff
 	cd $(GOPATH)/src/$(DCRD) && git checkout $(DCRDDIGEST)
-#	cd $(GOPATH)/src/$(DCRD) && glide install
+	cd $(GOPATH)/src/$(DCRD) && glide install
 
 $(GOPATH)/src/$(DCRD):
 	go get -d -u -v $(DCRD)
