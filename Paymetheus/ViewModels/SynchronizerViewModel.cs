@@ -220,7 +220,6 @@ namespace Paymetheus.ViewModels
                 transactionHistoryViewModel.AppendNewTransactions(wallet, e.AddedTransactions);
             }
 
-
             foreach (var modifiedAccount in e.ModifiedAccountProperties)
             {
                 var accountNumber = checked((int)modifiedAccount.Key.AccountNumber);
@@ -230,6 +229,21 @@ namespace Paymetheus.ViewModels
                 {
                     Accounts[accountNumber].AccountProperties = accountProperties;
                 }
+            }
+
+            // TODO: this would be better if all new accounts were a field in the event message.
+            var newAccounts = e.ModifiedAccountProperties.
+                Where(kvp => kvp.Key.AccountNumber >= Accounts.Count).
+                OrderBy(kvp => kvp.Key.AccountNumber);
+            foreach (var modifiedAccount in newAccounts)
+            {
+                var accountNumber = checked((int)modifiedAccount.Key.AccountNumber);
+                var accountProperties = modifiedAccount.Value;
+
+                // TODO: This is very inefficient because it recalculates balances of every account, for each new account.
+                var accountBalance = Wallet.CalculateBalances(2)[accountNumber];
+                var accountViewModel = new AccountViewModel(modifiedAccount.Key, accountProperties, accountBalance);
+                App.Current.Dispatcher.Invoke(() => Accounts.Add(accountViewModel));
             }
 
             if (e.NewChainTip != null)
