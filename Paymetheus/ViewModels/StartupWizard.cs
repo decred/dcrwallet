@@ -154,7 +154,9 @@ namespace Paymetheus.ViewModels
             _randomSeed = WalletSeed.GenerateRandomSeed();
 
             ContinueCommand = new DelegateCommand(Continue);
-            ContinueCommand.Executable = false;
+
+            // false below and remove raise to require a selection.
+            ContinueCommand.Executable = true;
         }
 
         private byte[] _randomSeed;
@@ -163,7 +165,10 @@ namespace Paymetheus.ViewModels
         public string Bip0032SeedHex => Hexadecimal.Encode(_randomSeed);
         public string Bip0032SeedWordList => string.Join(" ", WalletSeed.EncodeWordList(_pgpWordList, _randomSeed));
 
-        private bool _createChecked;
+        // Do not initialize this as true to prevent automatic create 
+        // selection.
+        private bool _createChecked = true;
+
         public bool CreateChecked
         {
             get { return _createChecked; }

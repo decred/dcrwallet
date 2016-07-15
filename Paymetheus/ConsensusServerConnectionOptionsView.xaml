@@ -194,20 +194,20 @@
     </UserControl.Resources>
 
     <Grid x:Name="LayoutRoot" FocusManager.FocusedElement="{Binding ElementName=textBox}" Width="632" Height="654">
-        <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Height="532.452">
+        <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Height="580.452">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="20"/>
                 <ColumnDefinition Width="310"/>
                 <ColumnDefinition Width="20"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-                <RowDefinition Height="37"/>
-                <RowDefinition Height="30.726"/>
+                <RowDefinition Height="70"/>
+                <RowDefinition Height="10"/>
                 <RowDefinition Height="40"/>
                 <RowDefinition Height="424.726"/>
             </Grid.RowDefinitions>
-            <Image Margin="24.779,0,23.222,0" Source="Images/paymetheus - 262x37.png" Stretch="Fill" Width="261.999" Height="37" VerticalAlignment="Top" HorizontalAlignment="Center" Grid.Column="1"/>
             <Rectangle Fill="#FFE9EDF1" Height="417" Margin="-1.083,0,0,0" Stroke="#FFF4F7F9" Width="350" Grid.Row="2" RadiusY="22.5" RadiusX="22.5" HorizontalAlignment="Left" VerticalAlignment="Top" Grid.RowSpan="2" Grid.ColumnSpan="3"/>
+            <TextBlock Grid.Column="1" Grid.Row="2" Name="ConnectToDaemonTextBlock"  Text="Connect to dcrd" VerticalAlignment="Top" HorizontalAlignment="Left" Width="200" Height="30" Style="{StaticResource connectHeaderTextBlockStyle}" Margin="0 7 0 0"/>
             <TextBlock Grid.Column="1" Grid.Row="3" TextWrapping="Wrap" Text="Paymetheus requires an active dcrd RPC server for sending and receiving transactions on the Decred network. Enter your RPC connection information and credentials below." VerticalAlignment="Top" Foreground="#FF132F4B" Height="63.84"/>
             <Rectangle Grid.Column="1" Fill="#FFF4F4F5" Margin="0,68.84,0,310.886" RadiusY="5" Grid.Row="3" RadiusX="5"/>
             <Rectangle Grid.Column="1" Fill="#FFF4F4F5" Margin="0,122.84,0,256.886" RadiusY="5" Grid.Row="3" RadiusX="5"/>
@@ -219,7 +219,7 @@
             <Button Content="Need help?" Grid.Column="1" HorizontalAlignment="Center" Height="25.226" Margin="0,399.5,0,0" Grid.Row="3" VerticalAlignment="Center"  Width="98.333" Style="{DynamicResource HyperLinkButton}" FontSize="14" Foreground="#FF69D5F7" />
             <TextBox Name="Location" Text="{Binding ConsensusServerNetworkAddress}" Grid.Column="1" HorizontalAlignment="Left" Height="45.673" Margin="0,68.167,0,0" Grid.Row="3" TextWrapping="Wrap" VerticalAlignment="Top" Width="310" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" FontSize="14" Foreground="Black" Padding="5,12,5,0" />
             <TextBox Name="Username" Text="{Binding ConsensusServerRpcUsername}" Grid.Column="1" HorizontalAlignment="Left" Height="45.673" Margin="0,122.84,0,0" Grid.Row="3" TextWrapping="Wrap" VerticalAlignment="Top" Width="310" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" FontSize="14" Foreground="Black" Padding="5,12,5,0" />
-            <PasswordBox Tag="password" Name="TextboxConsensusServerRpcPassword" PasswordChanged="TextBoxConsensusServerRpcPassword_PasswordChanged" Grid.Column="1" Grid.Row="3" HorizontalAlignment="Left" Height="45.673" Margin="0,177.167,0,0" Background="Transparent" BorderBrush="Transparent" VerticalAlignment="Top" Width="310"  Foreground="Black" FontSize="14"  Padding="5,12,5,0" Loaded="TextboxConsensusServerRpcPassword_Loaded" />
+            <PasswordBox Tag="password" Name="TextboxConsensusServerRpcPassword" PasswordChanged="TextBoxConsensusServerRpcPassword_PasswordChanged" Grid.Column="1" Grid.Row="3" HorizontalAlignment="Left" Height="45.673" Margin="0,177.167,0,0" Background="Transparent" BorderBrush="Transparent" VerticalAlignment="Top" Width="310" Foreground="Black" FontSize="14"  Padding="5,12,5,0" Loaded="TextboxConsensusServerRpcPassword_Loaded" />
         </Grid>
     </Grid>
 </UserControl>

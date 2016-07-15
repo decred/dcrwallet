@@ -31,6 +31,39 @@
             <local:PassphraseDialogView/>
         </DataTemplate>
 
+        <!-- Text blocks -->
+        <Style x:Key="largeHeaderTextBlockStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="46"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+
+        <Style x:Key="mediumHeaderTextBlockStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="28"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="TextAlignment" Value="Left"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+
+        <Style x:Key="connectHeaderTextBlockStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="Foreground" Value="#FF132F4B"/>
+            <Setter Property="TextAlignment" Value="Left"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+
+        <Style x:Key="defaultInfoTextLightTextBlockStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#FFB7D1F0"/>
+            <Setter Property="TextAlignment" Value="Left"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+
+        <!-- Buttons -->
         <DataTemplate x:Key="buttonTemplate">
             <Button Content="{Binding ButtonLabel}" Command="{Binding}" Style="{DynamicResource ButtonBlue}"/>
         </DataTemplate>
@@ -221,6 +254,8 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Radio buttons -->
         <SolidColorBrush x:Key="RadioButton.Static.Background" Color="#FFFFFFFF"/>
         <SolidColorBrush x:Key="RadioButton.Static.Border" Color="#FF707070"/>
         <Style x:Key="OptionMarkFocusVisual">
@@ -295,6 +330,7 @@
             </Setter>
         </Style>
 
+        <!-- Combo boxes -->
         <LinearGradientBrush x:Key="ComboBox.Static.Background" EndPoint="0,1" StartPoint="0,0">
             <GradientStop Color="#FFF0F0F0" Offset="0.0"/>
             <GradientStop Color="#FFE5E5E5" Offset="1.0"/>

@@ -8,8 +8,11 @@
         mc:Ignorable="d"
         Background="{DynamicResource ColorDarkBlueFull}" 
         Title="{Binding Path=WindowTitle, Mode=OneTime}"
-        Height="600" Width="1050"
+        Height="680" Width="1050"
         Closed="Window_Closed"
+        Style="{DynamicResource MainWindow}"
+        ResizeMode="CanResize"
+        AllowsTransparency="False"
         DataContext="{Binding Source={StaticResource ViewModelLocator}, Path=ShellViewModel}">
     <Window.Resources>
         <Style TargetType="{x:Type TextBox}">

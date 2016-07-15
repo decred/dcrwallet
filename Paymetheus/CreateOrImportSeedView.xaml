@@ -7,7 +7,7 @@
              xmlns:vc="clr-namespace:Paymetheus.Framework.ValueConverters"
              mc:Ignorable="d" 
 	         Background="{DynamicResource ColorDarkBlueFull}" 
-             d:DesignWidth="842" d:DesignHeight="718">
+             d:DesignWidth="1050" d:DesignHeight="680">
     <UserControl.Resources>
         <vc:BooleanToVisibilityConverter x:Key="b2v" False="Hidden"/>
         <SolidColorBrush x:Key="TextBox.Static.Border" Color="#FFABAdB3"/>
@@ -27,7 +27,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type TextBox}">
-                        <Border x:Name="border" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                        <Border x:Name="border" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}">
                             <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -51,91 +51,92 @@
             </Style.Triggers>
         </Style>
     </UserControl.Resources>
-    <Grid HorizontalAlignment="Center" VerticalAlignment="Stretch" Width="700">
+
+    <!-- Radio buttons to select wallet creation or restore (disabled) -->
+    <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
         <Grid.RowDefinitions>
-            <RowDefinition Height="120"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <Image Grid.Row="0" Source="Images/paymetheus - 262x37.png" Stretch="Uniform" Height="37"/>
+        <Border Grid.Row="1" BorderThickness="0 0 0 0" BorderBrush="#FF69D5F7" Height="30" Width="340" Padding="0 0 0 0"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="30"/>
+                <ColumnDefinition Width="340"/>
+            </Grid.ColumnDefinitions>
+            <Grid.Resources>
+                <Style TargetType="{x:Type RadioButton}">
+                    <Setter Property="Focusable" Value="False"/>
+                    <Setter Property="GroupName" Value="group"/>
+                </Style>
+            </Grid.Resources>
+            <RadioButton Visibility="Hidden" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Content="Create new wallet" Name="CreateWallet" IsChecked="True" Style="{DynamicResource RadioButtonStyle}"/>
+            <RadioButton Visibility="Hidden" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Content="Recover wallet from seed" Name="ImportWallet"  IsChecked="False" Style="{DynamicResource RadioButtonStyle}"/>
+        </Grid>
 
-        <Border Grid.Row="1" BorderThickness="0 0 0 1" BorderBrush="#FF69D5F7" Width="340" Padding="0 0 0 15">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition/>
-                    <ColumnDefinition/>
-                </Grid.ColumnDefinitions>
-                <Grid.Resources>
-                    <Style TargetType="{x:Type RadioButton}">
-                        <Setter Property="Focusable" Value="False"/>
-                        <Setter Property="GroupName" Value="group"/>
-                    </Style>
-                </Grid.Resources>
-                <RadioButton Grid.Column="0" HorizontalAlignment="Left" Content="Create new wallet" Name="CreateWallet" IsChecked="{Binding CreateChecked}" Style="{DynamicResource RadioButtonStyle}"/>
-                <RadioButton Grid.Column="1" HorizontalAlignment="Right" Content="Recover wallet from seed" Name="ImportWallet"  IsChecked="{Binding ImportChecked}" Style="{DynamicResource RadioButtonStyle}"/>
-            </Grid>
-        </Border>
-
-        <Grid Grid.Row="2"
-              Visibility="{Binding IsChecked, ElementName=CreateWallet, Converter={StaticResource b2v}}">
+        <!-- Create wallet window -->
+        <Grid Visibility="{Binding IsChecked, ElementName=CreateWallet, Converter={StaticResource b2v}}" Margin="0,0,0,0">
             <Grid.RowDefinitions>
-                <RowDefinition/>
-                <RowDefinition/>
-                <RowDefinition/>
-                <RowDefinition/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="50"/>
             </Grid.RowDefinitions>
-            <TextBlock Grid.Row="0" Text="Create a new wallet" FontSize="22" Foreground="White"/>
-            <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" TextWrapping="Wrap" Foreground="#FFB7D1F0">
-                    Wallets are determinstically generated by a wallet seed.
-                    The seed is a master key to your wallet and entire wallet can be recreated any time using it.
-                    If the wallet encryption passphrase is forgotten or the wallet is destroyed, the seed can be used to recover the wallet.
-                    <LineBreak/>
-                    Write down the following seed and save it in a secure location.
-                    <LineBreak/>
-                    <LineBreak/>
-                    <Run Text="The next prompt will require entering this seed to confirm it has been saved." Foreground="#FF69D5F7"/>
-                </TextBlock>
-                <TextBlock Grid.Column="2" TextWrapping="Wrap" Foreground="#FFB7D1F0">
-                    To help avoid permanent loss of your wallet, the seed must be backed up before continuing.
-                    <LineBreak/>
-                    <LineBreak/>
-                    <Run Foreground="#FFFD714B" FontWeight="Bold" Text="Warning:"/>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="100"/>
+                <ColumnDefinition Width="480"/>
+                <ColumnDefinition Width="100"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Row="0" Grid.Column="1" Text="Create a new wallet" Style="{StaticResource mediumHeaderTextBlockStyle}" Width="480" HorizontalAlignment="Center"/>
+            <TextBlock Grid.Row="1" Grid.Column="1" Style="{StaticResource defaultInfoTextLightTextBlockStyle}" Width="480" HorizontalAlignment="Center">
+                Wallets are determinstically generated by a wallet seed. The seed is a master key to your wallet and entire wallet can be recreated any time using it. If the wallet encryption passphrase is forgotten or the wallet is destroyed, the seed can be used to recover the wallet. The seed will be destroyed after the generation of the wallet and will be unrecoverable from the wallet itself.
+            </TextBlock>
+            <TextBlock TextWrapping="Wrap" Style="{StaticResource defaultInfoTextLightTextBlockStyle}" TextAlignment="Left" Width="480" Grid.Row="2" Grid.Column="1" Padding="0 5 0 0">
+                    <Run Foreground="#FFFF0000" FontWeight="Bold" Text="WARNING:"/>
                     Failure to keep this seed private can result in the theft of your entire wallet.
                     Under no circumstances should this seed ever be revealed to someone else.
-                </TextBlock>
-            </Grid>
-
-            <Border Grid.Row="2" CornerRadius="5" Background="#FFF4F4F5" Padding="20">
-                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"
+                    To help avoid permanent loss of your wallet, the seed <Run FontWeight="Bold" Text="must"></Run> be stored or backed up before continuing.
+            </TextBlock>
+            <TextBlock Text="Write down the following seed and save it in a secure location." Foreground="White" Style="{StaticResource defaultInfoTextLightTextBlockStyle}" Grid.Row="3" Grid.Column="1" TextWrapping="Wrap" TextAlignment="left" Width="480" Padding="0 5 0 2"/>
+            <Border Grid.Row="4" Grid.Column="1" CornerRadius="5" Background="#FFF4F4F5" Padding="0 4 0 8" Width="480">
+                <TextBlock Grid.Row="4" Grid.Column="1" Margin="0 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Width="460"
                            Text="{Binding Bip0032SeedWordList}"
                            Foreground="{DynamicResource ColorDarkBlueFull}" FontSize="16"/>
             </Border>
-            <Button Grid.Row="3" Content="CONTINUE" Command="{Binding ContinueCommand}" HorizontalAlignment="Center" Style="{DynamicResource ButtonBlue}" Foreground="#FF132F4B"/>
+            <Button Grid.Row="5" Grid.Column="1" Content="CONTINUE" Command="{Binding ContinueCommand}" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{DynamicResource ButtonBlue}" Foreground="#FF132F4B" Padding="0 0 0 0"/>
         </Grid>
 
-        <Grid Grid.Row="2"
-              Visibility="{Binding IsChecked, ElementName=ImportWallet, Converter={StaticResource b2v}}">
+        <!-- Restore wallet window -->
+        <Grid Grid.Row="2" Visibility="{Binding IsChecked, ElementName=ImportWallet, Converter={StaticResource b2v}}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="1*"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="50"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" HorizontalAlignment="Left" Text="Recover from seed" FontSize="22" Foreground="White"/>
-            <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="#FFB7D1F0">
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="0"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Name="RecoverYourSeedTextBlock" Text="Recover from seed" Style="{StaticResource mediumHeaderTextBlockStyle}"/>
+                <TextBlock Style="{StaticResource defaultInfoTextLightTextBlockStyle}" Padding="0 27 0 0">
                 The seed from a previously-created wallet may be used to recreate the wallet with all of its addresses and keys.
                 <LineBreak/>
                 The seed should be formatted as a hexadecimal number (64 characters between 0-9 and A-F) or a list of mneumonic words.
-            </TextBlock>
-            <Border Grid.Row="2" VerticalAlignment="Center" CornerRadius="5" Background="#FFF4F4F5" Padding="5">
-                <TextBox Text="{Binding ImportedSeed, Mode=TwoWay}"  BorderThickness="0" Foreground="{DynamicResource ColorDarkBlueFull}" FontSize="16" />
+                <LineBreak/>
+                <LineBreak/>
+                <LineBreak/>
+                <LineBreak/>
+                <LineBreak/>
+                <Run FontSize="14" Text="&#x0a;&#x0a;Please enter your seed words." Foreground="#FF69D5F7"/>
+                </TextBlock>
+            </Grid>
+            <Border Grid.Row="2" VerticalAlignment="Center" CornerRadius="5" Background="#FFF4F4F5" Padding="5" Height="100">
+                <TextBox Text="{Binding ImportedSeed, Mode=TwoWay}" BorderThickness="0" Foreground="{DynamicResource ColorDarkBlueFull}" FontSize="16" TextWrapping="Wrap" Height="100"/>
             </Border>
             <Button Grid.Row="3" Content="CONTINUE" Command="{Binding ContinueCommand}" HorizontalAlignment="Center" Style="{DynamicResource ButtonBlue}" Foreground="#FF132F4B"/>
         </Grid>
