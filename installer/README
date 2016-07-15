@@ -1,0 +1,200 @@
+Before creating a release msi the current_digests file MUST be updated by hand.
+Each component must have a digest set that contains the required version of
+said component.  The build system will checkout and glide install all
+dependencies.
+
+There are 3 components (dcrd, dcrticketbuyer and paymetheus) that make up the
+decred msi.  Individual components can be made, installed and tested in their
+respective directories.
+
+Additionally, individual component versions and release type (alpha, beta, rc &
+release) must be set in the individual compent directory GNUmakefiles.
+Run something along the lines of:
+$ for i in dcrd dcrticketbuyer paymetheus decred; do vi $i/GNUmakefile; done
+...
+and change the following lines:
+VERS=0.6.0
+VERNAME=$(VERS)-beta
+
+Recap to create release msis:
+1. Update current_digests
+2. Update ALL GNUMakefile versions and type
+
+Creating release msi:
+$ make
+...
+
+Combined msis can now be found in decred directory.
+$ l decred/*.msi
+-rw-r--r-- 1 marco None 30904320 Jul 15 10:28 decred/decred_0.6.0-beta_x64.msi
+-rw-r--r-- 1 marco None 30203904 Jul 15 10:28 decred/decred_0.6.0-beta_x86.msi
+
+Individual msis can be found in their respective directories.  For example dcrd msis:
+$ l dcrd/*.msi
+-rw-r--r-- 1 marco None 10653696 Jul 15 10:25 dcrd/dcrd_standalone_0.6.0-beta_x64.msi
+-rw-r--r-- 1 marco None 10317824 Jul 15 10:25 dcrd/dcrd_standalone_0.6.0-beta_x86.msi
+
+If you want to create the latest and greatest of everything you must use the
+"current" target.  Creating current msi example:
+$ make current
+...
+
+Deleting all artifacts:
+$ make clean
+...
+
+The build environment is rather complex and requires a number of things to be
+installed and several environment variables to be set.
+
+Bash environment variables (note that this example setup is using self built
+go: ~/go/bin):
+GOPATH=~/git/go
+PATH=/c/Program\ Files\ \(x86\)/MSBuild/14.0/Bin/:$PATH
+PATH=/c/Program\ Files/Git/bin:$GOPATH/bin:~/go/bin:$PATH
+
+Major dependencies:
+* Windows 10
+* Visual Studio community 14 (2015 version)
+* msys2
+* Windows git (NOT msys2 git!!!!)
+* Latest go 1.6
+* glide
+* WiX toolset 3.10 (installer/GNUmakefile version MUST match!)
+
+Minor dependencies (installed via pacman and not all may be relevant to everyone):
+bash 4.3.042-4
+bash-completion 2.3-1
+binutils 2.25.1-2
+bsdcpio 3.2.0-1
+bsdtar 3.2.0-1
+bzip2 1.0.6-2
+ca-certificates 20150426-1
+catgets 1.1-2
+clang-svn 60106.1d5b05f-1
+coreutils 8.25-1
+crypt 1.3-1
+curl 7.49.1-1
+dash 0.5.8-1
+db 5.3.28-2
+expat 2.1.1-1
+file 5.25-1
+filesystem 2016.05-3
+findutils 4.6.0-1
+flex 2.6.0-1
+gawk 4.1.3-1
+gcc 5.3.0-3
+gcc-libs 5.3.0-3
+gdbm 1.11-3
+gettext 0.19.7-3
+gmp 6.1.0-2
+gnupg 1.4.20-1
+grep 2.22-3
+gzip 1.7-1
+heimdal 1.5.3-9
+heimdal-libs 1.5.3-9
+icu 56.1-1
+inetutils 1.9.2-1
+info 6.0-1
+isl 0.16.1-1
+less 481-1
+libarchive 3.2.0-1
+libasprintf 0.19.7-3
+libassuan 2.4.2-1
+libbz2 1.0.6-2
+libcatgets 1.1-2
+libcrypt 1.3-1
+libcurl 7.49.1-1
+libdb 5.3.28-2
+libedit 3.1-20150325
+libevent 2.1.4-1
+libexpat 2.1.1-1
+libffi 3.2.1-1
+libgdbm 1.11-3
+libgettextpo 0.19.7-3
+libgpg-error 1.21-1
+libgpgme 1.6.0-1
+libiconv 1.14-2
+libidn 1.32-1
+libintl 0.19.7-3
+liblzma 5.2.2-1
+liblzo2 2.09-1
+libmetalink 0.1.2-2
+libnettle 3.2-1
+libopenssl 1.0.2.h-1
+libp11-kit 0.23.2-1
+libpcre 8.38-1
+libpcre16 8.38-1
+libpcre32 8.38-1
+libpcrecpp 8.38-1
+libpcreposix 8.38-1
+libreadline 6.3.008-7
+libsqlite 3.10.0.0-1
+libssh2 1.7.0-1
+libtasn1 4.7-1
+libutil-linux 2.26.2-1
+libxml2 2.9.2-2
+llvm-svn 124592.2aebced-1
+lndir 1.0.3-1
+m4 1.4.17-4
+make 4.2.1-1
+mintty 1~2.2.3-1
+mpc 1.0.3-1
+mpfr 3.1.4-1
+msys2-keyring r9.397a52e-1
+msys2-launcher-git 0.3.29.4028b6c-1
+msys2-runtime 2.5.1-1
+msys2-runtime-devel 2.5.1-1
+msys2-w32api-headers 5.0.0.4633.4926421-1
+msys2-w32api-runtime 5.0.0.4633.4926421-1
+ncurses 6.0.20160220-1
+openssh 7.1p2-1
+openssl 1.0.2.h-1
+p11-kit 0.23.2-1
+pacman 5.0.1.6403.520736d-1
+pacman-mirrors 20160112-1
+pactoys-git r1.e58a7ac-1
+patch 2.7.5-1
+pax-git 20140703.2.1.g469552a-1
+pcre 8.38-1
+perl 5.22.1-1
+perl-Authen-SASL 2.16-2
+perl-Convert-BinHex 1.123-2
+perl-Encode-Locale 1.04-1
+perl-Error 0.17024-1
+perl-File-Listing 6.04-2
+perl-HTML-Parser 3.71-3
+perl-HTML-Tagset 3.20-2
+perl-HTTP-Cookies 6.01-2
+perl-HTTP-Daemon 6.01-2
+perl-HTTP-Date 6.02-2
+perl-HTTP-Message 6.06-2
+perl-HTTP-Negotiate 6.01-2
+perl-IO-Socket-SSL 2.016-1
+perl-IO-stringy 2.111-1
+perl-LWP-MediaTypes 6.02-2
+perl-MIME-tools 5.506-1
+perl-MailTools 2.14-1
+perl-Net-HTTP 6.09-1
+perl-Net-SMTP-SSL 1.02-1
+perl-Net-SSLeay 1.72-1
+perl-TermReadKey 2.33-1
+perl-TimeDate 2.30-2
+perl-URI 1.68-1
+perl-WWW-RobotRules 6.02-2
+perl-libwww 6.13-1
+pkgfile 15-1
+rebase 4.4.2-1
+sed 4.2.2-2
+tar 1.29-1
+tftp-hpa 5.2-1
+time 1.7-1
+tmux-git 2.1.263.g5083e93-1
+tzcode 2015.e-1
+unzip 6.0-2
+util-linux 2.26.2-1
+vim 7.4.1721-1
+wget 1.17.1-3
+which 2.21-2
+windows-default-manifest 6.4-1
+xz 5.2.2-1
+zlib 1.2.8-3

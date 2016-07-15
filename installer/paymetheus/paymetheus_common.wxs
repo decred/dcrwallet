@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?if $(sys.BUILDARCH) = x64 ?>
+  <?define PFF = "ProgramFiles64Folder" ?>
+<?else ?>
+  <?define PFF = "ProgramFilesFolder" ?>
+<?endif ?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment Id="PaymetheusCommonFragment">
+    <DirectoryRef Id="PAYMETHEUSROOT">
+      <!-- guid needed as no file to hash for automatic guid-->
+      <Component Id="PaymetheusPath" Guid="eaf96ccf-f3d0-445d-a077-2a108b481d08">
+        <CreateFolder/>
+      </Component>
+    </DirectoryRef>
+
+    <ComponentGroup Id="PaymetheusCore">
+      <ComponentGroupRef Id="PaymetheusCommonFiles" />
+      <ComponentGroupRef Id="PAYMETHEUSArchFiles" />
+      <ComponentRef Id="PaymetheusPath" />
+    </ComponentGroup>
+
+  </Fragment>
+</Wix>

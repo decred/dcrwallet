@@ -1,0 +1,4 @@
+*.msi
+*.wixlib
+*.wixobj
+staging

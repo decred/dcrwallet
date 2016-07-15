@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?if $(sys.BUILDARCH) = x64 ?>
+  <?define PFF = "ProgramFiles64Folder" ?>
+<?else ?>
+  <?define PFF = "ProgramFilesFolder" ?>
+<?endif ?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Module Id="Dcrd" Language="0" Version="$(var.Version)">
+
+    <Package Id="eb2bb9bf-cdbf-4de3-8162-8ed6bc3f567e" AdminImage="no"
+     Description="Dcrd merge module" Manufacturer="Company 0"
+     InstallerVersion="200" InstallScope="perMachine"
+     Platform="$(sys.BUILDARCH)" />
+
+    <!-- dir structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="$(var.PFF)" Name="PFiles">
+        <!-- app suite install dir -->
+        <Directory Id="APPSUITEDIR" Name="Decred">
+          <!-- app install dir -->
+          <Directory Id="DCRDROOT" Name="Dcrd" />
+        </Directory>
+      </Directory>
+
+      <!-- Start Menu -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="AppProgramMenuFolder" Name="Decred" />
+      </Directory>
+    </Directory>
+
+    <!-- harvested dcrd files -->
+    <ComponentGroupRef Id="DCRDCore" />
+
+  </Module>
+</Wix>

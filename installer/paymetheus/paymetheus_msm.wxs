@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?if $(sys.BUILDARCH) = x64 ?>
+  <?define PFF = "ProgramFiles64Folder" ?>
+<?else ?>
+  <?define PFF = "ProgramFilesFolder" ?>
+<?endif ?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Module Id="Paymetheus" Language="0" Version="$(var.Version)">
+
+    <Package Id="72cdbfdc-4559-41ba-90f6-9e58460c8ae1" AdminImage="no"
+     Description="Paymetheus merge module" Manufacturer="Company 0"
+     InstallerVersion="200" InstallScope="perMachine"
+     Platform="$(sys.BUILDARCH)" />
+
+    <!-- dir structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="$(var.PFF)">
+        <!-- app suite install dir -->
+        <Directory Id="APPSUITEDIR" Name="Decred">
+          <!-- app install dir -->
+          <Directory Id="PAYMETHEUSROOT" Name="Paymetheus" />
+        </Directory>
+      </Directory>
+
+      <!-- Start Menu -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="AppProgramMenuFolder" Name="Decred" />
+      </Directory>
+    </Directory>
+
+    <!-- harvested paymetheus files -->
+    <ComponentGroupRef Id="PaymetheusCore" />
+
+  </Module>
+</Wix>

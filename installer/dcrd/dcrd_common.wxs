@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?if $(sys.BUILDARCH) = x64 ?>
+  <?define PFF = "ProgramFiles64Folder" ?>
+<?else ?>
+  <?define PFF = "ProgramFilesFolder" ?>
+<?endif ?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment Id="DCRDCommonFragment">
+    <DirectoryRef Id="DCRDROOT">
+      <!-- guid needed as no file to hash for automatic guid-->
+      <Component Id="DCRDPath" Guid="9c0ddbac-59a3-4731-a70b-35764e4d9665">
+        <CreateFolder/>
+      </Component>
+    </DirectoryRef>
+
+    <ComponentGroup Id="DCRDCore">
+      <ComponentGroupRef Id="DCRDCommonFiles" />
+      <ComponentGroupRef Id="DCRDArchFiles" />
+      <ComponentRef Id="DCRDPath" />
+    </ComponentGroup>
+
+  </Fragment>
+</Wix>
