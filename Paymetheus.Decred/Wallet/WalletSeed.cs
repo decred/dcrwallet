@@ -74,6 +74,13 @@ namespace Paymetheus.Decred.Wallet
             }
         }
 
-        public static string[] EncodeWordList(PgpWordList pgpWordList, byte[] seed) => pgpWordList.Encode(seed);
+        public static string[] EncodeWordList(PgpWordList pgpWordList, byte[] seed)
+        {
+            var seedHash = DoubleSha256(seed);
+            var seedWithChecksum = new byte[seed.Length + 1];
+            Array.Copy(seed, seedWithChecksum, seed.Length);
+            seedWithChecksum[seedWithChecksum.Length - 1] = seedHash[0];
+            return pgpWordList.Encode(seedWithChecksum);
+        }
     }
 }
