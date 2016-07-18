@@ -98,7 +98,7 @@
                     Under no circumstances should this seed ever be revealed to someone else.
                     To help avoid permanent loss of your wallet, the seed <Run FontWeight="Bold" Text="must"></Run> be stored or backed up before continuing.
             </TextBlock>
-            <TextBlock Text="Write down the following seed and save it in a secure location." Foreground="White" Style="{StaticResource defaultInfoTextLightTextBlockStyle}" Grid.Row="3" Grid.Column="1" TextWrapping="Wrap" TextAlignment="left" Width="480" Padding="0 5 0 2"/>
+            <TextBlock Text="Write down the following seed and save it in a secure location." Foreground="#ff2ed8a3" Style="{StaticResource defaultInfoTextLightTextBlockStyle}" Grid.Row="3" Grid.Column="1" TextWrapping="Wrap" TextAlignment="left" Width="480" Padding="0 5 0 2"/>
             <Border Grid.Row="4" Grid.Column="1" CornerRadius="5" Background="#FFF4F4F5" Padding="0 4 0 8" Width="480">
                 <TextBlock Grid.Row="4" Grid.Column="1" Margin="0 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Width="460"
                            Text="{Binding Bip0032SeedWordList}"

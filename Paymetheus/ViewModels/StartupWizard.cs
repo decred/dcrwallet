@@ -304,7 +304,9 @@ namespace Paymetheus.ViewModels
             set { _usePublicEncryption = value; RaisePropertyChanged(); }
         }
         public string PublicPassphrase { private get; set; } = "";
+        public string PublicPassphraseConfirm { private get; set; } = "";
         public string PrivatePassphrase { private get; set; } = "";
+        public string PrivatePassphraseConfirm { private get; set; } = "";
 
         public DelegateCommand CreateWalletCommand { get; }
         private async void CreateWallet()
@@ -318,6 +320,16 @@ namespace Paymetheus.ViewModels
                     MessageBox.Show("Private passphrase is required");
                     return;
                 }
+                if (string.IsNullOrEmpty(PrivatePassphraseConfirm))
+                {
+                    MessageBox.Show("Confirm private passphrase");
+                    return;
+                }
+                if (!string.Equals(PrivatePassphrase, PrivatePassphraseConfirm))
+                {
+                    MessageBox.Show("Private passphrases do not match");
+                    return;
+                }
 
                 var publicPassphrase = PublicPassphrase;
                 if (!UsePublicEncryption)
@@ -329,6 +341,17 @@ namespace Paymetheus.ViewModels
                     if (string.IsNullOrEmpty(publicPassphrase))
                     {
                         MessageBox.Show("Public passphrase is required");
+                        return;
+                    }
+                    if (string.IsNullOrEmpty(PublicPassphraseConfirm))
+                    {
+                        MessageBox.Show("Confirm public passphrase");
+                        return;
+                    }
+
+                    if (!string.Equals(publicPassphrase, PublicPassphraseConfirm))
+                    {
+                        MessageBox.Show("Public passphrases do not match");
                         return;
                     }
                 }

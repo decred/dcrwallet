@@ -36,12 +36,26 @@ namespace Paymetheus
                 ((dynamic)DataContext).PrivatePassphrase = ((PasswordBox)sender).Password;
             }
         }
+        private void TextBoxPrivatePassphraseConfirm_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            if (DataContext != null)
+            {
+                ((dynamic)DataContext).PrivatePassphraseConfirm = ((PasswordBox)sender).Password;
+            }
+        }
 
         private void TextBoxPublicPassphrase_PasswordChanged(object sender, RoutedEventArgs e)
         {
             if (DataContext != null)
             {
                 ((dynamic)DataContext).PublicPassphrase = ((PasswordBox)sender).Password;
+            }
+        }
+        private void TextBoxPublicPassphraseConfirm_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            if (DataContext != null)
+            {
+                ((dynamic)DataContext).PublicPassphraseConfirm = ((PasswordBox)sender).Password;
             }
         }
     }

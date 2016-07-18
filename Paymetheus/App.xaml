@@ -46,6 +46,13 @@
             <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
 
+        <Style x:Key="subHeaderTextBlockStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="TextAlignment" Value="Left"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+
         <Style x:Key="connectHeaderTextBlockStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="22"/>
             <Setter Property="Foreground" Value="#FF132F4B"/>
