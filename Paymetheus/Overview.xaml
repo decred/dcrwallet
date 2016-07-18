@@ -1,143 +1,117 @@
-﻿<Page
-	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-	xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:local="clr-namespace:Paymetheus"
-    xmlns:viewmodels="clr-namespace:Paymetheus.ViewModels"
-    mc:Ignorable="d"
-	x:Class="Paymetheus.Overview"
-	x:Name="Page"
-	WindowTitle="Page"
-	FlowDirection="LeftToRight"
-	WindowWidth="640" WindowHeight="480" d:DesignWidth="862.17" d:DesignHeight="549.293"
-    DataContext="{Binding OverviewViewModel, Source={StaticResource ViewModelLocator}}">
+﻿<Page xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:local="clr-namespace:Paymetheus"
+      xmlns:viewmodels="clr-namespace:Paymetheus.ViewModels"
+      mc:Ignorable="d"
+      x:Class="Paymetheus.Overview"
+      x:Name="Page"
+      WindowTitle="Page"
+      FlowDirection="LeftToRight"
+      WindowWidth="640" WindowHeight="480" d:DesignWidth="862.17" d:DesignHeight="549.293"
+      DataContext="{Binding OverviewViewModel, Source={StaticResource ViewModelLocator}}">
+
     <Page.Resources>
+        <ControlTemplate x:Key="OverviewTxItemTemplate" TargetType="{x:Type ListBoxItem}">
+            <Grid x:Name="ItemGrid" Background="Transparent" Width="650">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="25"/>
+                    <RowDefinition Height="25" />
+                </Grid.RowDefinitions>
+                <local:TransactionCategoryIcon Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" VerticalAlignment="Center" Category="{Binding Category}"/>
+                <local:ConfirmationIndicator Grid.Row="0" Grid.Column="2" Status="{Binding ConfirmationStatus}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                <local:AmountLabel Grid.Row="0"  Grid.Column="1" VerticalAlignment="Center" Value="{Binding DebitCredit}" ForegroundWhole="#FF0C1E3E" ForegroundDecimal="#FF0C1E3E" FontSizeWhole="12" FontWeightWhole="Bold"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Text="{Binding LocalSeenTime, FallbackValue=date}" Foreground="#FF0C1E3E" FontSize="12"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Text="{Binding TxHash, FallbackValue=tx hash}"/>
 
-        <SolidColorBrush x:Key="Item.MouseOver.Background" Color="#1F26A0DA"/>
-        <SolidColorBrush x:Key="Item.MouseOver.Border" Color="#a826A0Da"/>
-        <SolidColorBrush x:Key="Item.SelectedInactive.Background" Color="#3DDADADA"/>
-        <SolidColorBrush x:Key="Item.SelectedInactive.Border" Color="#FFDADADA"/>
-        <SolidColorBrush x:Key="Item.SelectedActive.Background" Color="#3D26A0DA"/>
-        <SolidColorBrush x:Key="Item.SelectedActive.Border" Color="#FF26A0DA"/>
+                <Grid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Copy transaction hash" Command="local:Commands.CopyTxHash" CommandTarget="{Binding}" CommandParameter="{Binding TxHash}" />
+                    </ContextMenu>
+                </Grid.ContextMenu>
+            </Grid>
 
-        <Style x:Key="ListBoxItemStyle" TargetType="{x:Type ListBoxItem}">
-            <Setter Property="SnapsToDevicePixels" Value="True"/>
-            <Setter Property="Padding" Value="4,1"/>
-            <Setter Property="HorizontalContentAlignment" Value="{Binding HorizontalContentAlignment, Source={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
-            <Setter Property="VerticalContentAlignment" Value="{Binding VerticalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
-                        <Grid Background="White">
-                            <Grid Height="Auto" Width="Auto" x:Name="Bd">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <Image Margin="20,20,0,20" Source="Images/pm - icons - decrease.png" Stretch="Fill" Width="26" Height="Auto" HorizontalAlignment="Left"/>
-                                <TextBlock HorizontalAlignment="Stretch" Margin="0,15,5,0" TextWrapping="Wrap" Text="College funds" VerticalAlignment="Top" Foreground="#FF0C1E3E" TextAlignment="Left" FontSize="10.667" Grid.Column="1" Height="14.187"/>
-                                <TextBlock HorizontalAlignment="Stretch" Margin="0.903,15,0.403,0" TextWrapping="Wrap" Text="12 Mar 2016 14:57" VerticalAlignment="Top" Foreground="#FF0C1E3E" TextAlignment="Left" FontSize="10.667" Grid.Column="2" Height="14.187" FontWeight="Bold"/>
-                                <TextBlock HorizontalAlignment="Stretch" Margin="0,0,3.708,18" TextWrapping="Wrap" Text="Tsbd8gLgheCTtx4WFcTk/97AAjFwWf5g" VerticalAlignment="Bottom" Foreground="#FFE2E2E2" TextAlignment="Left" FontSize="9.333" Grid.Column="1" Height="10.854" Grid.ColumnSpan="2"/>
-                                <local:ConfirmationIndicator Status="Confirmed" Grid.Column="4" HorizontalAlignment="Stretch" Margin="0,15,0,0" VerticalAlignment="Top" Height="20"/>
-                                <TextBlock HorizontalAlignment="Stretch" Margin="0.306,0,8.096,16" TextWrapping="Wrap" VerticalAlignment="Bottom" Foreground="#FFE2E2E2" TextAlignment="Left" FontSize="9.333" Grid.Column="4" Grid.ColumnSpan="1"><Run Text="0 confirm"/><Run Text="."/></TextBlock>
-                                <local:AlignedAmount Margin="0,13.56,65,0" Grid.Column="6" Amount="10" ForegroundWhole="#FF0C1E3E" ForegroundDecimal="#FF0C1E3E" FontSizeWhole="10.667" FontWeightWhole="Bold" FontSizeDecimal="9.333"/>
-                                <Rectangle Fill="#FFA9B4BF" Height="1" VerticalAlignment="Bottom" Margin="0" Grid.Row="0" Grid.ColumnSpan="7"/>
-                            </Grid>
-
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="IsMouseOver" Value="True"/>
-                                </MultiTrigger.Conditions>
-                            </MultiTrigger>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="Selector.IsSelectionActive" Value="False"/>
-                                    <Condition Property="IsSelected" Value="True"/>
-                                </MultiTrigger.Conditions>
-                            </MultiTrigger>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="Selector.IsSelectionActive" Value="True"/>
-                                    <Condition Property="IsSelected" Value="True"/>
-                                </MultiTrigger.Conditions>
-                            </MultiTrigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="TextElement.Foreground" TargetName="Bd" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" TargetName="ItemGrid" Value="#152970ff"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" TargetName="ItemGrid" Value="#e9f8fe" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
     </Page.Resources>
-    <ScrollViewer Style="{StaticResource MainPaneScrollViewerStyle}">
-        <Grid Margin="40 60 0 0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="60"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="1*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Row="0" HorizontalAlignment="Left" Margin="0 0 0 20" Text="Totals" VerticalAlignment="Top" Foreground="#FF0C1E3E" FontSize="20"/>
-            <Border Grid.Row="1" Margin="0 0 40 0" BorderBrush="#FFA9B4BF" BorderThickness="0 0 0 1" VerticalAlignment="Stretch">
-                <Grid VerticalAlignment="Top">
-                    <Grid.Resources>
-                        <Style TargetType="{x:Type local:AmountLabel}">
-                            <Setter Property="FontSizeWhole" Value="28"/>
-                            <Setter Property="FontSizeDecimal" Value="11"/>
-                            <Setter Property="ForegroundWhole" Value="#FF0C1E3E"/>
-                            <Setter Property="ForegroundDecimal" Value="#FF0C1E3E"/>
-                            <Setter Property="FontWeightWhole" Value="Bold"/>
-                        </Style>
-                    </Grid.Resources>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition/>
-                        <ColumnDefinition/>
-                        <ColumnDefinition/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" BorderBrush="#FFA9B4BF" BorderThickness="0 0 1 0" Padding="0 0 19 0">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <local:AmountLabel Margin="0" Grid.Row="0" HorizontalAlignment="Right" Value="{Binding Path=SynchronizerViewModel.TotalBalance, Source={StaticResource ViewModelLocator}}"/>
-                            <TextBlock Grid.Row="1" HorizontalAlignment="Right" Foreground="#FF0C1E3E" FontSize="11">
-                                grand total in
-                                <Run FontWeight="Bold" Text="{Binding AccountsCount, FallbackValue=0}"/>
-                                <Run FontWeight="Bold" Text="accounts"/>
-                            </TextBlock>
-                        </Grid>
-                    </Border>
 
-                    <Grid Grid.Column="2">
+    <Grid Margin="40 60 0 0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="60"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Row="0" HorizontalAlignment="Left" Margin="0 0 0 20" Text="Totals" VerticalAlignment="Top" Foreground="#FF0C1E3E" FontSize="20"/>
+        <Border Grid.Row="1" Margin="0 0 40 0" BorderBrush="#FFA9B4BF" BorderThickness="0 0 0 1" VerticalAlignment="Stretch">
+            <Grid VerticalAlignment="Top">
+                <Grid.Resources>
+                    <Style TargetType="{x:Type local:AmountLabel}">
+                        <Setter Property="FontSizeWhole" Value="28"/>
+                        <Setter Property="FontSizeDecimal" Value="11"/>
+                        <Setter Property="ForegroundWhole" Value="#FF0C1E3E"/>
+                        <Setter Property="ForegroundDecimal" Value="#FF0C1E3E"/>
+                        <Setter Property="FontWeightWhole" Value="Bold"/>
+                    </Style>
+                </Grid.Resources>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" BorderBrush="#FFA9B4BF" BorderThickness="0 0 1 0" Padding="0 0 19 0">
+                    <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Foreground="#FF0C1E3E" FontSize="28" TextAlignment="Right" FontWeight="Bold" Text="{Binding Path=SynchronizerViewModel.TransactionCount, Source={StaticResource ViewModelLocator}}"/>
-                        <TextBlock Grid.Row="1" HorizontalAlignment="Right" TextWrapping="Wrap" Foreground="#FF0C1E3E" FontSize="11" Text="transactions"/>
+                        <local:AmountLabel Margin="0" Grid.Row="0" HorizontalAlignment="Right" Value="{Binding Path=SynchronizerViewModel.TotalBalance, Source={StaticResource ViewModelLocator}}"/>
+                        <TextBlock Grid.Row="1" HorizontalAlignment="Right" Foreground="#FF0C1E3E" FontSize="11">
+                                grand total in
+                                <Run FontWeight="Bold" Text="{Binding AccountsCount, FallbackValue=0}"/>
+                                <Run FontWeight="Bold" Text="accounts"/>
+                        </TextBlock>
                     </Grid>
+                </Border>
+
+                <Grid Grid.Column="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Foreground="#FF0C1E3E" FontSize="28" TextAlignment="Right" FontWeight="Bold" Text="{Binding Path=SynchronizerViewModel.TransactionCount, Source={StaticResource ViewModelLocator}}"/>
+                    <TextBlock Grid.Row="1" HorizontalAlignment="Right" TextWrapping="Wrap" Foreground="#FF0C1E3E" FontSize="11" Text="transactions"/>
                 </Grid>
-            </Border>
-            <TextBlock Grid.Row="2" HorizontalAlignment="Left" Margin="0 10 0 20" Foreground="#FF0C1E3E" FontSize="20" Text="Recent activity" />
-            <ListBox Grid.Row="3" x:Name="lstRecentActivity" BorderBrush="{x:Null}" ItemContainerStyle="{DynamicResource ListBoxItemStyle}"/>
-        </Grid>
-    </ScrollViewer>
+            </Grid>
+        </Border>
+        <TextBlock Grid.Row="2" HorizontalAlignment="Left" Margin="0 10 0 20" Foreground="#FF0C1E3E" FontSize="20" Text="Recent activity" />
+        <ListBox Grid.Row="3" ItemsSource="{Binding RecentTransactions}" Background="Transparent" BorderThickness="0" ScrollViewer.CanContentScroll="False">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="{x:Type ListBoxItem}">
+                    <Setter Property="Template" Value="{StaticResource OverviewTxItemTemplate}"/>
+                    <Setter Property="HorizontalAlignment" Value="Left"/>
+                </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.CommandBindings>
+                <CommandBinding Command="{x:Static local:Commands.CopyTxHash}" Executed="CopyTxHash_Executed"/>
+            </ListBox.CommandBindings>
+        </ListBox>
+    </Grid>
 </Page>

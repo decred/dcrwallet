@@ -161,6 +161,7 @@
     <Compile Include="Accounts.xaml.cs">
       <DependentUpon>Accounts.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Commands.cs" />
     <Compile Include="Framework\Messenger.cs" />
     <Compile Include="Framework\ShellViewModelBase.cs" />
     <Compile Include="Framework\SingletonViewModelLocator.cs" />
@@ -191,7 +192,6 @@
     <Compile Include="CreateOrImportSeedView.xaml.cs">
       <DependentUpon>CreateOrImportSeedView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="DTO\RecentActivity.cs" />
     <Compile Include="Framework\Navigator.cs" />
     <Compile Include="Helpers\PasswordBoxWaterMark.cs" />
     <Compile Include="Helpers\Watermark.cs" />
@@ -200,9 +200,6 @@
     </Compile>
     <Compile Include="Overview.xaml.cs">
       <DependentUpon>Overview.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="OverviewDeeper.xaml.cs">
-      <DependentUpon>OverviewDeeper.xaml</DependentUpon>
     </Compile>
     <Compile Include="ViewModels\CreateTransactionViewModel.cs" />
     <Compile Include="ViewModels\OverviewViewModel.cs" />
@@ -292,10 +289,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Overview.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="OverviewDeeper.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

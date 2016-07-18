@@ -1,7 +1,9 @@
-﻿using Paymetheus.DTO;
-using Paymetheus.Framework;
+﻿using Paymetheus.Framework;
 using System;
 using System.Collections.Generic;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace Paymetheus
 {
@@ -10,7 +12,6 @@ namespace Paymetheus
         public Overview()
         {
             InitializeComponent();
-            lstRecentActivity.MouseDoubleClick += TxSelected;
         }
 
         internal Overview(object dataContext) : this()
@@ -18,10 +19,9 @@ namespace Paymetheus
             DataContext = dataContext;
         }
 
-        private void TxSelected(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void CopyTxHash_Executed(object sender, ExecutedRoutedEventArgs e)
         {
-            var selectedItem = (RecentActivity)lstRecentActivity.SelectedItem;
-            Navigator.GetInstance().NavigateTo(new OverviewDeeper(selectedItem));
+            Clipboard.SetText(e.Parameter.ToString());
         }
     }
 }

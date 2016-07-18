@@ -204,6 +204,10 @@ namespace Paymetheus.ViewModels
                     {
                         overviewViewModel.RecentTransactions.Insert(0, txvm);
                     }
+                    while (overviewViewModel.RecentTransactions.Count > 10)
+                    {
+                        overviewViewModel.RecentTransactions.RemoveAt(10);
+                    }
                 });
             }
 

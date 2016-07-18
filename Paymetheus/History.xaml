@@ -139,7 +139,7 @@
                 </DataTrigger>
             </ControlTemplate.Triggers>
         </ControlTemplate>
-        
+
         <SolidColorBrush x:Key="Item.MouseOver.Background" Color="#1F26A0DA"/>
         <SolidColorBrush x:Key="Item.MouseOver.Border" Color="#a826A0Da"/>
         <SolidColorBrush x:Key="Item.SelectedInactive.Background" Color="#3DDADADA"/>
@@ -218,7 +218,7 @@
                         <Setter Property="Template" Value="{StaticResource HistoryItemTemplate}"/>
                     </Style>
                 </ListBox.ItemContainerStyle>
-            <ListBox.ItemsPanel>
+                <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
                         <VirtualizingStackPanel/>
                     </ItemsPanelTemplate>

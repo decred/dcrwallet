@@ -109,6 +109,24 @@ namespace Paymetheus.ViewModels
             }
         }
 
+        public Amount DebitCredit
+        {
+            get
+            {
+                Amount debitCredit = 0;
+                foreach (var controlledInput in _transaction.Inputs)
+                    debitCredit += controlledInput.Amount;
+                foreach (var controlledOutput in _transaction.Outputs.OfType<WalletTransaction.Output.ControlledOutput>())
+                {
+                    if (controlledOutput.Change)
+                        debitCredit -= controlledOutput.Amount;
+                    else
+                        debitCredit += controlledOutput.Amount;
+                }
+                return debitCredit;
+            }
+        }
+
         public sealed class GroupedOutput
         {
             public Amount Amount { get; set; }
