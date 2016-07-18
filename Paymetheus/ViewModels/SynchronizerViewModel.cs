@@ -67,6 +67,13 @@ namespace Paymetheus.ViewModels
 
         public Amount TotalBalance => Wallet?.TotalBalance ?? 0;
 
+        private int _transactionCount;
+        public int TransactionCount
+        {
+            get { return _transactionCount; }
+            set { _transactionCount = value; RaisePropertyChanged(); }
+        }
+
         private int _syncedBlockHeight;
         public int SyncedBlockHeight
         {
@@ -253,6 +260,7 @@ namespace Paymetheus.ViewModels
             if (e.AddedTransactions.Count != 0 || e.RemovedTransactions.Count != 0 || e.NewChainTip != null)
             {
                 RaisePropertyChanged(nameof(TotalBalance));
+                TransactionCount += e.AddedTransactions.Count - e.RemovedTransactions.Count;
                 var balances = Wallet.CalculateBalances(2); // TODO: don't hardcode confs
                 for (var i = 0; i < balances.Length; i++)
                 {
@@ -282,6 +290,7 @@ namespace Paymetheus.ViewModels
                 foreach (var tx in recentTx)
                     overviewViewModel.RecentTransactions.Add(tx);
             });
+            TransactionCount = txSet.TransactionCount();
             SyncedBlockHeight = Wallet.ChainTip.Height;
             SelectedAccount = accountViewModels[0];
             RaisePropertyChanged(nameof(TotalBalance));

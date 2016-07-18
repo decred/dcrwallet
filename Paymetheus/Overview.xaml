@@ -131,7 +131,7 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Foreground="#FF0C1E3E" FontSize="28" TextAlignment="Right" FontWeight="Bold" Text="{Binding TransactionCount, FallbackValue=0}"/>
+                        <TextBlock Grid.Row="0" Foreground="#FF0C1E3E" FontSize="28" TextAlignment="Right" FontWeight="Bold" Text="{Binding Path=SynchronizerViewModel.TransactionCount, Source={StaticResource ViewModelLocator}}"/>
                         <TextBlock Grid.Row="1" HorizontalAlignment="Right" TextWrapping="Wrap" Foreground="#FF0C1E3E" FontSize="11" Text="transactions"/>
                     </Grid>
                 </Grid>

@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Paymetheus.Decred.Wallet
 {
@@ -22,5 +23,7 @@ namespace Paymetheus.Decred.Wallet
 
         public List<Block> MinedTransactions { get; }
         public Dictionary<Blake256Hash, WalletTransaction> UnminedTransactions { get; }
+
+        public int TransactionCount() => MinedTransactions.SelectMany(b => b.Transactions).Count() + UnminedTransactions.Count;
     }
 }
