@@ -29,7 +29,7 @@ namespace Paymetheus.Rpc
             // ignored since they are not relevant (they could be change outputs for the other
             // wallet or outputs created for another unrelated wallet).
             var outputs = inputs.Length == 0
-                ? tx.Credits.Select((o, i) => MarshalControlledOutput(o, transaction.Outputs[i])).ToArray()
+                ? tx.Credits.Select(credit => MarshalControlledOutput(credit, transaction.Outputs[credit.Index])).ToArray()
                 : MarshalCombinedOutputs(transaction, tx.Credits);
             var fee = inputs.Length == transaction.Inputs.Length ? (Amount?)tx.Fee : null;
             var seenTime = DateTimeOffsetExtras.FromUnixTimeSeconds(tx.Timestamp);
