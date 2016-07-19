@@ -50,7 +50,7 @@ dcrd: $(GOPATH)/src/$(DCRD)
 	cd $(GOPATH)/src/$(DCRD) && glide install
 
 $(GOPATH)/src/$(DCRD):
-	go get -d -u -v $(DCRD)
+	cd `dirname $(GOPATH)/src/$(DCRD)` && git clone https://github.com/decred/`basename $(DCRD)`.git
 
 dcrwallet: $(GOPATH)/src/$(DCRWALLET)
 	cd $(GOPATH)/src/$(DCRWALLET) && git checkout master
@@ -59,7 +59,7 @@ dcrwallet: $(GOPATH)/src/$(DCRWALLET)
 	cd $(GOPATH)/src/$(DCRWALLET) && glide install
 
 $(GOPATH)/src/$(DCRWALLET):
-	cd `dirname $(GOPATH)/src/$(DCRWALLET)` && git clone git@github.com:decred/`basename $(DCRWALLET)`.git
+	cd `dirname $(GOPATH)/src/$(DCRWALLET)` && git clone https://github.com/decred/`basename $(DCRWALLET)`.git
 
 dcrticketbuyer: $(GOPATH)/src/$(DCRTICKETBUYER)
 	cd $(GOPATH)/src/$(DCRTICKETBUYER) && git checkout master
@@ -68,6 +68,6 @@ dcrticketbuyer: $(GOPATH)/src/$(DCRTICKETBUYER)
 	cd $(GOPATH)/src/$(DCRTICKETBUYER) && glide install
 
 $(GOPATH)/src/$(DCRTICKETBUYER):
-	cd `dirname $(GOPATH)/src/$(DCRTICKETBUYER)` && git clone git@github.com:decred/`basename $(DCRTICKETBUYER)`.git
+	cd `dirname $(GOPATH)/src/$(DCRTICKETBUYER)` && git clone https://github.com/decred/`basename $(DCRTICKETBUYER)`.git
 
 .PHONY: all clean dcrd dcrwallet dcrticketbuyer paymetheus
