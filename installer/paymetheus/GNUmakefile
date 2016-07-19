@@ -6,7 +6,7 @@ INSTALLERNAME="Paymetheus Installer"
 # Path to project and executables
 TOOLSDIR=../tools
 
-PAYMETHEUS=/c/Users/Marco/git/Paymetheus
+PAYMETHEUS=~/git/Paymetheus
 MSBUILD=/c/Program\ Files\ \(x86\)/MSBuild/14.0/Bin/MSbuild.exe
 
 # Support files
