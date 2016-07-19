@@ -8,6 +8,7 @@ TOOLSDIR=../tools
 
 PAYMETHEUS=~/git/Paymetheus
 MSBUILD=/c/Program\ Files\ \(x86\)/MSBuild/14.0/Bin/MSbuild.exe
+NUGET=~/bin/nuget.exe
 
 # Support files
 PROJFILES=Paymetheus/bin/x86/Release/*.exe
@@ -17,6 +18,12 @@ PROJFILES64=Paymetheus/bin/x64/Release/*.exe
 PROJFILES64+=Paymetheus/bin/x64/Release/*.dll
 PROJFILES64+=Paymetheus/bin/x64/Release/nativelibs
 PROJWALLET=github.com/decred/dcrwallet
+
+# nuget directories
+NUGETPKG=Paymetheus
+NUGETPKG+=Paymetheus.Decred
+NUGETPKG+=Paymetheus.Rpc
+NUGETPKG+=Paymetheus.Tests
 
 # Wix executables
 WIXDIR=$(WIX)bin
@@ -33,6 +40,7 @@ stage:
 	rm -rf staging
 	mkdir staging staging/common staging/x86 staging/x64
 	touch staging/common/deleteme
+	$(foreach PMDIR,$(NUGETPKG),$(NUGET) install $(PMDIR)/packages.config;)
 	cd $(PAYMETHEUS) && $(MSBUILD) -p:Configuration=Release -p:Platform=x86
 	cd $(PAYMETHEUS) && $(MSBUILD) -p:Configuration=Release -p:Platform=x64
 	(cd staging/x86 && GOARCH=386 go build $(PROJWALLET))
