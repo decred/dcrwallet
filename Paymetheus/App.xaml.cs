@@ -9,9 +9,11 @@ using Paymetheus.Framework;
 using Paymetheus.Rpc;
 using Paymetheus.ViewModels;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Markup;
 
 namespace Paymetheus
 {
@@ -70,6 +72,11 @@ namespace Paymetheus
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
+            // WPF defaults to using the en-US culture for all formatted bindings.
+            // Override this with the system's current culture.
+            FrameworkElement.LanguageProperty.OverrideMetadata(typeof(FrameworkElement),
+                new FrameworkPropertyMetadata(XmlLanguage.GetLanguage(CultureInfo.CurrentCulture.IetfLanguageTag)));
+
             var args = ProcessArguments.ParseArguments(e.Args);
 
             var activeNetwork = args.IntendedNetwork;
