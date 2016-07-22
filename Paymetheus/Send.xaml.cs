@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,6 +21,8 @@ namespace Paymetheus
     /// </summary>
     public partial class Send : Page
     {
+        string decimalSep = CultureInfo.CurrentCulture.NumberFormat.CurrencyDecimalSeparator;
+
         public Send()
         {
             InitializeComponent();
@@ -27,7 +30,7 @@ namespace Paymetheus
 
         private void OutputAmountTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
-            e.Handled = e.Text.All(ch => !((ch >= '0' && ch <= '9') || ch == '.'));
+            e.Handled = e.Text.All(ch => !((ch >= '0' && ch <= '9') || decimalSep.Contains(ch)));
         }
     }
 }
