@@ -31,7 +31,7 @@ the project's Github issue tracker for known issues.
 
 Paymetheus is available as a component in the Decred Windows installer.  The
 latest installer can be obtained
-[here](https://github.com/decred/decred-release/releases).
+[here](https://github.com/decred/decred-binaries/releases).
 
 For instructions on how to use dcrd and Paymetheus after installation, see the
 [quick start guide](./QUICKSTART.md).
