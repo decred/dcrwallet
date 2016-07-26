@@ -115,14 +115,9 @@ namespace Paymetheus.ViewModels
             {
                 Amount debitCredit = 0;
                 foreach (var controlledInput in _transaction.Inputs)
-                    debitCredit += controlledInput.Amount;
+                    debitCredit -= controlledInput.Amount;
                 foreach (var controlledOutput in _transaction.Outputs.OfType<WalletTransaction.Output.ControlledOutput>())
-                {
-                    if (controlledOutput.Change)
-                        debitCredit -= controlledOutput.Amount;
-                    else
-                        debitCredit += controlledOutput.Amount;
-                }
+                    debitCredit += controlledOutput.Amount;
                 return debitCredit;
             }
         }
