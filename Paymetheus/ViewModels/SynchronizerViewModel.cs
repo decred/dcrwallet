@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Management;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -43,6 +44,7 @@ namespace Paymetheus.ViewModels
                 walletProcessPath = Portability.ExecutableInstallationPath(
                     Environment.OSVersion.Platform, AssemblyResources.Organization, WalletProcess.ProcessName);
             }
+            KillLeftoverWalletProcess(activeNetwork);
             var walletProcess = WalletProcess.Start(activeNetwork, walletAppDataDir, walletProcessPath);
 
             WalletClient walletClient;
@@ -63,6 +65,22 @@ namespace Paymetheus.ViewModels
             }
 
             return new SynchronizerViewModel(walletProcess, walletClient);
+        }
+
+        private static void KillLeftoverWalletProcess(BlockChainIdentity intendedNetwork)
+        {
+            var v4ListenAddress = WalletProcess.RpcListenAddress("127.0.0.1", intendedNetwork);
+            var walletProcesses = new ManagementObjectSearcher($"SELECT * FROM Win32_Process WHERE Name='{WalletProcess.ProcessName}.exe'").Get();
+            foreach (var walletProcessInfo in walletProcesses)
+            {
+                var commandLine = (string)walletProcessInfo["CommandLine"];
+                if (commandLine.Contains($" --experimentalrpclisten={v4ListenAddress}"))
+                {
+                    var process = Process.GetProcessById((int)(uint)walletProcessInfo["ProcessID"]);
+                    process.KillIfExecuting();
+                    break;
+                }
+            }
         }
 
         public Amount TotalBalance => Wallet?.TotalBalance ?? 0;
