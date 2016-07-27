@@ -58,13 +58,17 @@ namespace Paymetheus.Rpc
             if (intendedNetwork == null)
                 throw new ArgumentNullException(nameof(intendedNetwork));
 
+            // Note: The standard ports for dcrwallet RPC are 9110, 19110, and 19557.
+            // The ports used by Paymetheus are 2 greater than this to avoid conflicts with
+            // other running dcrwallet instances using the default settings.
+            // The +1 port is reserved for running dcrd on a nonstandard port as well.
             string port;
             if (intendedNetwork == BlockChainIdentity.MainNet)
-                port = "9110";
+                port = "9112";
             else if (intendedNetwork == BlockChainIdentity.TestNet)
-                port = "19110";
+                port = "19112";
             else if (intendedNetwork == BlockChainIdentity.SimNet)
-                port = "19557";
+                port = "19559";
             else
                 throw new UnknownBlockChainException(intendedNetwork);
 
