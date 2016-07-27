@@ -99,9 +99,16 @@ namespace Paymetheus.ViewModels
                 {
                     await App.Current.Synchronizer.WalletRpcClient.StartConsensusRpc(rpcOptions);
                 }
+                catch (RpcException ex) when (ex.Status.StatusCode == StatusCode.NotFound)
+                {
+                    var msg = string.Format("Unable to connect to {0}.\n\nConnection could not be established with `{1}`.",
+                        ConsensusServerRpcOptions.ApplicationName, ConsensusServerNetworkAddress);
+                    MessageBox.Show(msg, "Error");
+                    return;
+                }
                 catch (Exception ex) when (ErrorHandling.IsTransient(ex) || ErrorHandling.IsClientError(ex))
                 {
-                    MessageBox.Show($"Unable to start {ConsensusServerRpcOptions.ApplicationName} RPC.\n\nCheck connection settings and try again.", "Error");
+                    MessageBox.Show($"Unable to connect to {ConsensusServerRpcOptions.ApplicationName}.\n\nCheck authentication settings and try again.", "Error");
                     return;
                 }
 
