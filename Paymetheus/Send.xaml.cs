@@ -32,5 +32,14 @@ namespace Paymetheus
         {
             e.Handled = e.Text.All(ch => !((ch >= '0' && ch <= '9') || decimalSep.Contains(ch)));
         }
+
+        private void Page_Loaded(object sender, RoutedEventArgs e)
+        {
+            var dataContext = this.DataContext;
+            if (dataContext != null)
+            {
+                ((dynamic)dataContext).PublishedTxHash = "";
+            }
+        }
     }
 }

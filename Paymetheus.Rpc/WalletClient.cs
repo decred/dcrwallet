@@ -20,7 +20,7 @@ namespace Paymetheus.Rpc
 {
     public sealed class WalletClient : IDisposable
     {
-        private static readonly SemanticVersion RequiredRpcServerVersion = new SemanticVersion(2, 1, 0);
+        private static readonly SemanticVersion RequiredRpcServerVersion = new SemanticVersion(2, 3, 0);
 
         public static void Initialize()
         {
@@ -249,7 +249,7 @@ namespace Paymetheus.Rpc
             await client.RenameAccountAsync(request, cancellationToken: _tokenSource.Token);
         }
 
-        public async Task PublishTransactionAsync(byte[] signedTransaction)
+        public async Task<Blake256Hash> PublishTransactionAsync(byte[] signedTransaction)
         {
             if (signedTransaction == null)
                 throw new ArgumentNullException(nameof(signedTransaction));
@@ -259,7 +259,8 @@ namespace Paymetheus.Rpc
             {
                 SignedTransaction = ByteString.CopyFrom(signedTransaction),
             };
-            await client.PublishTransactionAsync(request, cancellationToken: _tokenSource.Token);
+            var response = await client.PublishTransactionAsync(request, cancellationToken: _tokenSource.Token);
+            return new Blake256Hash(response.TransactionHash.ToByteArray());
         }
 
         public async Task<Tuple<List<UnspentOutput>, Amount>> SelectUnspentOutputs(Account account, Amount targetAmount,

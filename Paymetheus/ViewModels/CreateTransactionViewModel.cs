@@ -397,15 +397,23 @@ namespace Paymetheus.ViewModels
                 return false;
             }
 
-            await walletClient.PublishTransactionAsync(signedTransaction.Serialize());
-            MessageBox.Show("Published transaction.");
+            var serializedTransaction = signedTransaction.Serialize();
+            var publishedTxHash = await walletClient.PublishTransactionAsync(signedTransaction.Serialize());
 
             _pendingTransaction = null;
             _unusedChangeScripts.Remove(SelectedAccount.Account);
             PendingOutputs.Clear();
             AddPendingOutput();
+            PublishedTxHash = publishedTxHash.ToString();
 
             return true;
+        }
+
+        private string _publishedTxHash = "";
+        public string PublishedTxHash
+        {
+            get { return _publishedTxHash; }
+            set { _publishedTxHash = value;  RaisePropertyChanged(); }
         }
     }
 }

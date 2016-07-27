@@ -12,7 +12,7 @@
       WindowTitle="Page"
       FlowDirection="LeftToRight"
       d:DesignWidth="862.17" d:DesignHeight="549.293"
-      DataContext="{Binding Source={StaticResource ViewModelLocator}, Path=CreateTransactionViewModel}">
+      DataContext="{Binding Source={StaticResource ViewModelLocator}, Path=CreateTransactionViewModel}" Loaded="Page_Loaded">
 
     <Page.Resources>
 
@@ -226,6 +226,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
@@ -350,6 +351,21 @@
                 <local:AmountLabel Grid.Row="0" Grid.Column="3" HorizontalAlignment="Right" Value="{Binding EstimatedFee}" Visibility="{Binding EstimatedFee, Converter={StaticResource NullToHiddenConverter}}"/>
                 <local:AmountLabel Grid.Row="1" Grid.Column="3" HorizontalAlignment="Right" Value="{Binding EstimatedRemainingBalance}" Visibility="{Binding EstimatedRemainingBalance, Converter={StaticResource NullToHiddenConverter}}"/>
             </Grid>
+            <Border Grid.Row="4" Padding="0 0 0 20">
+                <StackPanel Orientation="Horizontal">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding PublishedTxHash}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Grid.Row="4" Text="Published transaction " Foreground="#FF0C1E3E" FontSize="14"/>
+                    <TextBox Style="{StaticResource SelectableText}" Text="{Binding PublishedTxHash, Mode=OneWay, FallbackValue=Hash}" Foreground="#FF0C1E3E" FontSize="14"/>
+                </StackPanel>
+            </Border>
         </Grid>
     </ScrollViewer>
 </Page>
