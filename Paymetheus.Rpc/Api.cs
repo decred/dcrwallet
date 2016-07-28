@@ -57,113 +57,137 @@ namespace Walletrpc {
             "ZXh0QWRkcmVzc1JlcXVlc3QSDwoHYWNjb3VudBgBIAEoDRIwCgRraW5kGAIg",
             "ASgOMiIud2FsbGV0cnBjLk5leHRBZGRyZXNzUmVxdWVzdC5LaW5kIjIKBEtp",
             "bmQSFAoQQklQMDA0NF9FWFRFUk5BTBAAEhQKEEJJUDAwNDRfSU5URVJOQUwQ",
-            "ASImChNOZXh0QWRkcmVzc1Jlc3BvbnNlEg8KB2FkZHJlc3MYASABKAkiZwoX",
+            "ASImChNOZXh0QWRkcmVzc1Jlc3BvbnNlEg8KB2FkZHJlc3MYASABKAkiegoX",
             "SW1wb3J0UHJpdmF0ZUtleVJlcXVlc3QSEgoKcGFzc3BocmFzZRgBIAEoDBIP",
             "CgdhY2NvdW50GAIgASgNEhcKD3ByaXZhdGVfa2V5X3dpZhgDIAEoCRIOCgZy",
-            "ZXNjYW4YBCABKAgiGgoYSW1wb3J0UHJpdmF0ZUtleVJlc3BvbnNlIkgKDkJh",
-            "bGFuY2VSZXF1ZXN0EhYKDmFjY291bnRfbnVtYmVyGAEgASgNEh4KFnJlcXVp",
-            "cmVkX2NvbmZpcm1hdGlvbnMYAiABKAUiTAoPQmFsYW5jZVJlc3BvbnNlEg0K",
-            "BXRvdGFsGAEgASgDEhEKCXNwZW5kYWJsZRgCIAEoAxIXCg9pbW1hdHVyZV9y",
-            "ZXdhcmQYAyABKAMisQEKFkdldFRyYW5zYWN0aW9uc1JlcXVlc3QSGwoTc3Rh",
-            "cnRpbmdfYmxvY2tfaGFzaBgBIAEoDBIdChVzdGFydGluZ19ibG9ja19oZWln",
-            "aHQYAiABKBESGQoRZW5kaW5nX2Jsb2NrX2hhc2gYAyABKAwSGwoTZW5kaW5n",
-            "X2Jsb2NrX2hlaWdodBgEIAEoBRIjChttaW5pbXVtX3JlY2VudF90cmFuc2Fj",
-            "dGlvbnMYBSABKAUiiwEKF0dldFRyYW5zYWN0aW9uc1Jlc3BvbnNlEjMKEm1p",
-            "bmVkX3RyYW5zYWN0aW9ucxgBIAMoCzIXLndhbGxldHJwYy5CbG9ja0RldGFp",
-            "bHMSOwoUdW5taW5lZF90cmFuc2FjdGlvbnMYAiADKAsyHS53YWxsZXRycGMu",
-            "VHJhbnNhY3Rpb25EZXRhaWxzIp4BChdDaGFuZ2VQYXNzcGhyYXNlUmVxdWVz",
-            "dBIzCgNrZXkYASABKA4yJi53YWxsZXRycGMuQ2hhbmdlUGFzc3BocmFzZVJl",
-            "cXVlc3QuS2V5EhYKDm9sZF9wYXNzcGhyYXNlGAIgASgMEhYKDm5ld19wYXNz",
-            "cGhyYXNlGAMgASgMIh4KA0tleRILCgdQUklWQVRFEAASCgoGUFVCTElDEAEi",
-            "GgoYQ2hhbmdlUGFzc3BocmFzZVJlc3BvbnNlIqMBChZGdW5kVHJhbnNhY3Rp",
-            "b25SZXF1ZXN0Eg8KB2FjY291bnQYASABKA0SFQoNdGFyZ2V0X2Ftb3VudBgC",
-            "IAEoAxIeChZyZXF1aXJlZF9jb25maXJtYXRpb25zGAMgASgFEiIKGmluY2x1",
-            "ZGVfaW1tYXR1cmVfY29pbmJhc2VzGAQgASgIEh0KFWluY2x1ZGVfY2hhbmdl",
-            "X3NjcmlwdBgFIAEoCCK3AgoXRnVuZFRyYW5zYWN0aW9uUmVzcG9uc2USSwoQ",
-            "c2VsZWN0ZWRfb3V0cHV0cxgBIAMoCzIxLndhbGxldHJwYy5GdW5kVHJhbnNh",
-            "Y3Rpb25SZXNwb25zZS5QcmV2aW91c091dHB1dBIUCgx0b3RhbF9hbW91bnQY",
-            "AiABKAMSGAoQY2hhbmdlX3BrX3NjcmlwdBgDIAEoDBqeAQoOUHJldmlvdXNP",
-            "dXRwdXQSGAoQdHJhbnNhY3Rpb25faGFzaBgBIAEoDBIUCgxvdXRwdXRfaW5k",
-            "ZXgYAiABKA0SDgoGYW1vdW50GAMgASgDEhEKCXBrX3NjcmlwdBgEIAEoDBIU",
-            "CgxyZWNlaXZlX3RpbWUYBSABKAMSFQoNZnJvbV9jb2luYmFzZRgGIAEoCBIM",
-            "CgR0cmVlGAcgASgFImMKFlNpZ25UcmFuc2FjdGlvblJlcXVlc3QSEgoKcGFz",
-            "c3BocmFzZRgBIAEoDBIeChZzZXJpYWxpemVkX3RyYW5zYWN0aW9uGAIgASgM",
-            "EhUKDWlucHV0X2luZGV4ZXMYAyADKA0iTgoXU2lnblRyYW5zYWN0aW9uUmVz",
-            "cG9uc2USEwoLdHJhbnNhY3Rpb24YASABKAwSHgoWdW5zaWduZWRfaW5wdXRf",
-            "aW5kZXhlcxgCIAMoDSI3ChlQdWJsaXNoVHJhbnNhY3Rpb25SZXF1ZXN0EhoK",
-            "EnNpZ25lZF90cmFuc2FjdGlvbhgBIAEoDCIcChpQdWJsaXNoVHJhbnNhY3Rp",
-            "b25SZXNwb25zZSIhCh9UcmFuc2FjdGlvbk5vdGlmaWNhdGlvbnNSZXF1ZXN0",
-            "Is4BCiBUcmFuc2FjdGlvbk5vdGlmaWNhdGlvbnNSZXNwb25zZRIwCg9hdHRh",
-            "Y2hlZF9ibG9ja3MYASADKAsyFy53YWxsZXRycGMuQmxvY2tEZXRhaWxzEhcK",
-            "D2RldGFjaGVkX2Jsb2NrcxgCIAMoDBI7ChR1bm1pbmVkX3RyYW5zYWN0aW9u",
-            "cxgDIAMoCzIdLndhbGxldHJwYy5UcmFuc2FjdGlvbkRldGFpbHMSIgoadW5t",
-            "aW5lZF90cmFuc2FjdGlvbl9oYXNoZXMYBCADKAwiZAodU3BlbnRuZXNzTm90",
-            "aWZpY2F0aW9uc1JlcXVlc3QSDwoHYWNjb3VudBgBIAEoDRIZChFub19ub3Rp",
-            "ZnlfdW5zcGVudBgCIAEoCBIXCg9ub19ub3RpZnlfc3BlbnQYAyABKAgizgEK",
-            "HlNwZW50bmVzc05vdGlmaWNhdGlvbnNSZXNwb25zZRIYChB0cmFuc2FjdGlv",
-            "bl9oYXNoGAEgASgMEhQKDG91dHB1dF9pbmRleBgCIAEoDRJCCgdzcGVuZGVy",
-            "GAMgASgLMjEud2FsbGV0cnBjLlNwZW50bmVzc05vdGlmaWNhdGlvbnNSZXNw",
-            "b25zZS5TcGVuZGVyGjgKB1NwZW5kZXISGAoQdHJhbnNhY3Rpb25faGFzaBgB",
-            "IAEoDBITCgtpbnB1dF9pbmRleBgCIAEoDSIdChtBY2NvdW50Tm90aWZpY2F0",
-            "aW9uc1JlcXVlc3QioAEKHEFjY291bnROb3RpZmljYXRpb25zUmVzcG9uc2US",
-            "FgoOYWNjb3VudF9udW1iZXIYASABKA0SFAoMYWNjb3VudF9uYW1lGAIgASgJ",
-            "EhoKEmV4dGVybmFsX2tleV9jb3VudBgDIAEoDRIaChJpbnRlcm5hbF9rZXlf",
-            "Y291bnQYBCABKA0SGgoSaW1wb3J0ZWRfa2V5X2NvdW50GAUgASgNIloKE0Ny",
-            "ZWF0ZVdhbGxldFJlcXVlc3QSGQoRcHVibGljX3Bhc3NwaHJhc2UYASABKAwS",
-            "GgoScHJpdmF0ZV9wYXNzcGhyYXNlGAIgASgMEgwKBHNlZWQYAyABKAwiFgoU",
-            "Q3JlYXRlV2FsbGV0UmVzcG9uc2UiLgoRT3BlbldhbGxldFJlcXVlc3QSGQoR",
-            "cHVibGljX3Bhc3NwaHJhc2UYASABKAwiFAoST3BlbldhbGxldFJlc3BvbnNl",
-            "IhQKEkNsb3NlV2FsbGV0UmVxdWVzdCIVChNDbG9zZVdhbGxldFJlc3BvbnNl",
-            "IhUKE1dhbGxldEV4aXN0c1JlcXVlc3QiJgoUV2FsbGV0RXhpc3RzUmVzcG9u",
-            "c2USDgoGZXhpc3RzGAEgASgIImwKGFN0YXJ0Q29uc2Vuc3VzUnBjUmVxdWVz",
-            "dBIXCg9uZXR3b3JrX2FkZHJlc3MYASABKAkSEAoIdXNlcm5hbWUYAiABKAkS",
-            "EAoIcGFzc3dvcmQYAyABKAwSEwoLY2VydGlmaWNhdGUYBCABKAwiGwoZU3Rh",
-            "cnRDb25zZW5zdXNScGNSZXNwb25zZTJSCg5WZXJzaW9uU2VydmljZRJACgdW",
-            "ZXJzaW9uEhkud2FsbGV0cnBjLlZlcnNpb25SZXF1ZXN0Ghoud2FsbGV0cnBj",
-            "LlZlcnNpb25SZXNwb25zZTLTCwoNV2FsbGV0U2VydmljZRI3CgRQaW5nEhYu",
-            "d2FsbGV0cnBjLlBpbmdSZXF1ZXN0Ghcud2FsbGV0cnBjLlBpbmdSZXNwb25z",
-            "ZRJACgdOZXR3b3JrEhkud2FsbGV0cnBjLk5ldHdvcmtSZXF1ZXN0Ghoud2Fs",
-            "bGV0cnBjLk5ldHdvcmtSZXNwb25zZRJSCg1BY2NvdW50TnVtYmVyEh8ud2Fs",
-            "bGV0cnBjLkFjY291bnROdW1iZXJSZXF1ZXN0GiAud2FsbGV0cnBjLkFjY291",
-            "bnROdW1iZXJSZXNwb25zZRJDCghBY2NvdW50cxIaLndhbGxldHJwYy5BY2Nv",
-            "dW50c1JlcXVlc3QaGy53YWxsZXRycGMuQWNjb3VudHNSZXNwb25zZRJACgdC",
-            "YWxhbmNlEhkud2FsbGV0cnBjLkJhbGFuY2VSZXF1ZXN0Ghoud2FsbGV0cnBj",
-            "LkJhbGFuY2VSZXNwb25zZRJYCg9HZXRUcmFuc2FjdGlvbnMSIS53YWxsZXRy",
-            "cGMuR2V0VHJhbnNhY3Rpb25zUmVxdWVzdBoiLndhbGxldHJwYy5HZXRUcmFu",
-            "c2FjdGlvbnNSZXNwb25zZRJ1ChhUcmFuc2FjdGlvbk5vdGlmaWNhdGlvbnMS",
-            "Ki53YWxsZXRycGMuVHJhbnNhY3Rpb25Ob3RpZmljYXRpb25zUmVxdWVzdBor",
-            "LndhbGxldHJwYy5UcmFuc2FjdGlvbk5vdGlmaWNhdGlvbnNSZXNwb25zZTAB",
-            "Em8KFlNwZW50bmVzc05vdGlmaWNhdGlvbnMSKC53YWxsZXRycGMuU3BlbnRu",
-            "ZXNzTm90aWZpY2F0aW9uc1JlcXVlc3QaKS53YWxsZXRycGMuU3BlbnRuZXNz",
-            "Tm90aWZpY2F0aW9uc1Jlc3BvbnNlMAESaQoUQWNjb3VudE5vdGlmaWNhdGlv",
-            "bnMSJi53YWxsZXRycGMuQWNjb3VudE5vdGlmaWNhdGlvbnNSZXF1ZXN0Gicu",
-            "d2FsbGV0cnBjLkFjY291bnROb3RpZmljYXRpb25zUmVzcG9uc2UwARJbChBD",
-            "aGFuZ2VQYXNzcGhyYXNlEiIud2FsbGV0cnBjLkNoYW5nZVBhc3NwaHJhc2VS",
-            "ZXF1ZXN0GiMud2FsbGV0cnBjLkNoYW5nZVBhc3NwaHJhc2VSZXNwb25zZRJS",
-            "Cg1SZW5hbWVBY2NvdW50Eh8ud2FsbGV0cnBjLlJlbmFtZUFjY291bnRSZXF1",
-            "ZXN0GiAud2FsbGV0cnBjLlJlbmFtZUFjY291bnRSZXNwb25zZRJMCgtOZXh0",
-            "QWNjb3VudBIdLndhbGxldHJwYy5OZXh0QWNjb3VudFJlcXVlc3QaHi53YWxs",
-            "ZXRycGMuTmV4dEFjY291bnRSZXNwb25zZRJMCgtOZXh0QWRkcmVzcxIdLndh",
-            "bGxldHJwYy5OZXh0QWRkcmVzc1JlcXVlc3QaHi53YWxsZXRycGMuTmV4dEFk",
-            "ZHJlc3NSZXNwb25zZRJbChBJbXBvcnRQcml2YXRlS2V5EiIud2FsbGV0cnBj",
-            "LkltcG9ydFByaXZhdGVLZXlSZXF1ZXN0GiMud2FsbGV0cnBjLkltcG9ydFBy",
-            "aXZhdGVLZXlSZXNwb25zZRJYCg9GdW5kVHJhbnNhY3Rpb24SIS53YWxsZXRy",
-            "cGMuRnVuZFRyYW5zYWN0aW9uUmVxdWVzdBoiLndhbGxldHJwYy5GdW5kVHJh",
-            "bnNhY3Rpb25SZXNwb25zZRJYCg9TaWduVHJhbnNhY3Rpb24SIS53YWxsZXRy",
-            "cGMuU2lnblRyYW5zYWN0aW9uUmVxdWVzdBoiLndhbGxldHJwYy5TaWduVHJh",
-            "bnNhY3Rpb25SZXNwb25zZRJhChJQdWJsaXNoVHJhbnNhY3Rpb24SJC53YWxs",
-            "ZXRycGMuUHVibGlzaFRyYW5zYWN0aW9uUmVxdWVzdBolLndhbGxldHJwYy5Q",
-            "dWJsaXNoVHJhbnNhY3Rpb25SZXNwb25zZTKwAwoTV2FsbGV0TG9hZGVyU2Vy",
-            "dmljZRJPCgxXYWxsZXRFeGlzdHMSHi53YWxsZXRycGMuV2FsbGV0RXhpc3Rz",
-            "UmVxdWVzdBofLndhbGxldHJwYy5XYWxsZXRFeGlzdHNSZXNwb25zZRJPCgxD",
-            "cmVhdGVXYWxsZXQSHi53YWxsZXRycGMuQ3JlYXRlV2FsbGV0UmVxdWVzdBof",
-            "LndhbGxldHJwYy5DcmVhdGVXYWxsZXRSZXNwb25zZRJJCgpPcGVuV2FsbGV0",
-            "Ehwud2FsbGV0cnBjLk9wZW5XYWxsZXRSZXF1ZXN0Gh0ud2FsbGV0cnBjLk9w",
-            "ZW5XYWxsZXRSZXNwb25zZRJMCgtDbG9zZVdhbGxldBIdLndhbGxldHJwYy5D",
-            "bG9zZVdhbGxldFJlcXVlc3QaHi53YWxsZXRycGMuQ2xvc2VXYWxsZXRSZXNw",
-            "b25zZRJeChFTdGFydENvbnNlbnN1c1JwYxIjLndhbGxldHJwYy5TdGFydENv",
-            "bnNlbnN1c1JwY1JlcXVlc3QaJC53YWxsZXRycGMuU3RhcnRDb25zZW5zdXNS",
-            "cGNSZXNwb25zZWIGcHJvdG8z"));
+            "ZXNjYW4YBCABKAgSEQoJc2Nhbl9mcm9tGAUgASgFIhoKGEltcG9ydFByaXZh",
+            "dGVLZXlSZXNwb25zZSJcChNJbXBvcnRTY3JpcHRSZXF1ZXN0EhIKCnBhc3Nw",
+            "aHJhc2UYASABKAwSDgoGc2NyaXB0GAIgASgMEg4KBnJlc2NhbhgDIAEoCBIR",
+            "CglzY2FuX2Zyb20YBCABKAUiFgoUSW1wb3J0U2NyaXB0UmVzcG9uc2UiSAoO",
+            "QmFsYW5jZVJlcXVlc3QSFgoOYWNjb3VudF9udW1iZXIYASABKA0SHgoWcmVx",
+            "dWlyZWRfY29uZmlybWF0aW9ucxgCIAEoBSJMCg9CYWxhbmNlUmVzcG9uc2US",
+            "DQoFdG90YWwYASABKAMSEQoJc3BlbmRhYmxlGAIgASgDEhcKD2ltbWF0dXJl",
+            "X3Jld2FyZBgDIAEoAyKxAQoWR2V0VHJhbnNhY3Rpb25zUmVxdWVzdBIbChNz",
+            "dGFydGluZ19ibG9ja19oYXNoGAEgASgMEh0KFXN0YXJ0aW5nX2Jsb2NrX2hl",
+            "aWdodBgCIAEoERIZChFlbmRpbmdfYmxvY2tfaGFzaBgDIAEoDBIbChNlbmRp",
+            "bmdfYmxvY2tfaGVpZ2h0GAQgASgFEiMKG21pbmltdW1fcmVjZW50X3RyYW5z",
+            "YWN0aW9ucxgFIAEoBSKLAQoXR2V0VHJhbnNhY3Rpb25zUmVzcG9uc2USMwoS",
+            "bWluZWRfdHJhbnNhY3Rpb25zGAEgAygLMhcud2FsbGV0cnBjLkJsb2NrRGV0",
+            "YWlscxI7ChR1bm1pbmVkX3RyYW5zYWN0aW9ucxgCIAMoCzIdLndhbGxldHJw",
+            "Yy5UcmFuc2FjdGlvbkRldGFpbHMiFAoSVGlja2V0UHJpY2VSZXF1ZXN0IjsK",
+            "E1RpY2tldFByaWNlUmVzcG9uc2USFAoMdGlja2V0X3ByaWNlGAEgASgDEg4K",
+            "BmhlaWdodBgCIAEoBSISChBTdGFrZUluZm9SZXF1ZXN0ItABChFTdGFrZUlu",
+            "Zm9SZXNwb25zZRIRCglwb29sX3NpemUYASABKA0SFwoPYWxsX21lbXBvb2xf",
+            "dGl4GAIgASgNEhcKD293bl9tZW1wb29sX3RpeBgDIAEoDRIQCghpbW1hdHVy",
+            "ZRgEIAEoDRIMCgRsaXZlGAUgASgNEg0KBXZvdGVkGAYgASgNEg4KBm1pc3Nl",
+            "ZBgHIAEoDRIPCgdyZXZva2VkGAggASgNEg8KB2V4cGlyZWQYCSABKA0SFQoN",
+            "dG90YWxfc3Vic2lkeRgKIAEoAyKeAQoXQ2hhbmdlUGFzc3BocmFzZVJlcXVl",
+            "c3QSMwoDa2V5GAEgASgOMiYud2FsbGV0cnBjLkNoYW5nZVBhc3NwaHJhc2VS",
+            "ZXF1ZXN0LktleRIWCg5vbGRfcGFzc3BocmFzZRgCIAEoDBIWCg5uZXdfcGFz",
+            "c3BocmFzZRgDIAEoDCIeCgNLZXkSCwoHUFJJVkFURRAAEgoKBlBVQkxJQxAB",
+            "IhoKGENoYW5nZVBhc3NwaHJhc2VSZXNwb25zZSKjAQoWRnVuZFRyYW5zYWN0",
+            "aW9uUmVxdWVzdBIPCgdhY2NvdW50GAEgASgNEhUKDXRhcmdldF9hbW91bnQY",
+            "AiABKAMSHgoWcmVxdWlyZWRfY29uZmlybWF0aW9ucxgDIAEoBRIiChppbmNs",
+            "dWRlX2ltbWF0dXJlX2NvaW5iYXNlcxgEIAEoCBIdChVpbmNsdWRlX2NoYW5n",
+            "ZV9zY3JpcHQYBSABKAgitwIKF0Z1bmRUcmFuc2FjdGlvblJlc3BvbnNlEksK",
+            "EHNlbGVjdGVkX291dHB1dHMYASADKAsyMS53YWxsZXRycGMuRnVuZFRyYW5z",
+            "YWN0aW9uUmVzcG9uc2UuUHJldmlvdXNPdXRwdXQSFAoMdG90YWxfYW1vdW50",
+            "GAIgASgDEhgKEGNoYW5nZV9wa19zY3JpcHQYAyABKAwangEKDlByZXZpb3Vz",
+            "T3V0cHV0EhgKEHRyYW5zYWN0aW9uX2hhc2gYASABKAwSFAoMb3V0cHV0X2lu",
+            "ZGV4GAIgASgNEg4KBmFtb3VudBgDIAEoAxIRCglwa19zY3JpcHQYBCABKAwS",
+            "FAoMcmVjZWl2ZV90aW1lGAUgASgDEhUKDWZyb21fY29pbmJhc2UYBiABKAgS",
+            "DAoEdHJlZRgHIAEoBSJjChZTaWduVHJhbnNhY3Rpb25SZXF1ZXN0EhIKCnBh",
+            "c3NwaHJhc2UYASABKAwSHgoWc2VyaWFsaXplZF90cmFuc2FjdGlvbhgCIAEo",
+            "DBIVCg1pbnB1dF9pbmRleGVzGAMgAygNIk4KF1NpZ25UcmFuc2FjdGlvblJl",
+            "c3BvbnNlEhMKC3RyYW5zYWN0aW9uGAEgASgMEh4KFnVuc2lnbmVkX2lucHV0",
+            "X2luZGV4ZXMYAiADKA0iNwoZUHVibGlzaFRyYW5zYWN0aW9uUmVxdWVzdBIa",
+            "ChJzaWduZWRfdHJhbnNhY3Rpb24YASABKAwiHAoaUHVibGlzaFRyYW5zYWN0",
+            "aW9uUmVzcG9uc2Ui/AEKFlB1cmNoYXNlVGlja2V0c1JlcXVlc3QSEgoKcGFz",
+            "c3BocmFzZRgBIAEoDBIPCgdhY2NvdW50GAIgASgNEhMKC3NwZW5kX2xpbWl0",
+            "GAMgASgDEh4KFnJlcXVpcmVkX2NvbmZpcm1hdGlvbnMYBCABKA0SFgoOdGlj",
+            "a2V0X2FkZHJlc3MYBSABKAkSEwoLbnVtX3RpY2tldHMYBiABKA0SFAoMcG9v",
+            "bF9hZGRyZXNzGAcgASgJEhEKCXBvb2xfZmVlcxgIIAEoARIOCgZleHBpcnkY",
+            "CSABKA0SDgoGdHhfZmVlGAogASgDEhIKCnRpY2tldF9mZWUYCyABKAMiMAoX",
+            "UHVyY2hhc2VUaWNrZXRzUmVzcG9uc2USFQoNdGlja2V0X2hhc2hlcxgBIAMo",
+            "DCIhCh9UcmFuc2FjdGlvbk5vdGlmaWNhdGlvbnNSZXF1ZXN0Is4BCiBUcmFu",
+            "c2FjdGlvbk5vdGlmaWNhdGlvbnNSZXNwb25zZRIwCg9hdHRhY2hlZF9ibG9j",
+            "a3MYASADKAsyFy53YWxsZXRycGMuQmxvY2tEZXRhaWxzEhcKD2RldGFjaGVk",
+            "X2Jsb2NrcxgCIAMoDBI7ChR1bm1pbmVkX3RyYW5zYWN0aW9ucxgDIAMoCzId",
+            "LndhbGxldHJwYy5UcmFuc2FjdGlvbkRldGFpbHMSIgoadW5taW5lZF90cmFu",
+            "c2FjdGlvbl9oYXNoZXMYBCADKAwiZAodU3BlbnRuZXNzTm90aWZpY2F0aW9u",
+            "c1JlcXVlc3QSDwoHYWNjb3VudBgBIAEoDRIZChFub19ub3RpZnlfdW5zcGVu",
+            "dBgCIAEoCBIXCg9ub19ub3RpZnlfc3BlbnQYAyABKAgizgEKHlNwZW50bmVz",
+            "c05vdGlmaWNhdGlvbnNSZXNwb25zZRIYChB0cmFuc2FjdGlvbl9oYXNoGAEg",
+            "ASgMEhQKDG91dHB1dF9pbmRleBgCIAEoDRJCCgdzcGVuZGVyGAMgASgLMjEu",
+            "d2FsbGV0cnBjLlNwZW50bmVzc05vdGlmaWNhdGlvbnNSZXNwb25zZS5TcGVu",
+            "ZGVyGjgKB1NwZW5kZXISGAoQdHJhbnNhY3Rpb25faGFzaBgBIAEoDBITCgtp",
+            "bnB1dF9pbmRleBgCIAEoDSIdChtBY2NvdW50Tm90aWZpY2F0aW9uc1JlcXVl",
+            "c3QioAEKHEFjY291bnROb3RpZmljYXRpb25zUmVzcG9uc2USFgoOYWNjb3Vu",
+            "dF9udW1iZXIYASABKA0SFAoMYWNjb3VudF9uYW1lGAIgASgJEhoKEmV4dGVy",
+            "bmFsX2tleV9jb3VudBgDIAEoDRIaChJpbnRlcm5hbF9rZXlfY291bnQYBCAB",
+            "KA0SGgoSaW1wb3J0ZWRfa2V5X2NvdW50GAUgASgNIloKE0NyZWF0ZVdhbGxl",
+            "dFJlcXVlc3QSGQoRcHVibGljX3Bhc3NwaHJhc2UYASABKAwSGgoScHJpdmF0",
+            "ZV9wYXNzcGhyYXNlGAIgASgMEgwKBHNlZWQYAyABKAwiFgoUQ3JlYXRlV2Fs",
+            "bGV0UmVzcG9uc2UiLgoRT3BlbldhbGxldFJlcXVlc3QSGQoRcHVibGljX3Bh",
+            "c3NwaHJhc2UYASABKAwiFAoST3BlbldhbGxldFJlc3BvbnNlIhQKEkNsb3Nl",
+            "V2FsbGV0UmVxdWVzdCIVChNDbG9zZVdhbGxldFJlc3BvbnNlIhUKE1dhbGxl",
+            "dEV4aXN0c1JlcXVlc3QiJgoUV2FsbGV0RXhpc3RzUmVzcG9uc2USDgoGZXhp",
+            "c3RzGAEgASgIImwKGFN0YXJ0Q29uc2Vuc3VzUnBjUmVxdWVzdBIXCg9uZXR3",
+            "b3JrX2FkZHJlc3MYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSEAoIcGFzc3dv",
+            "cmQYAyABKAwSEwoLY2VydGlmaWNhdGUYBCABKAwiGwoZU3RhcnRDb25zZW5z",
+            "dXNScGNSZXNwb25zZTJSCg5WZXJzaW9uU2VydmljZRJACgdWZXJzaW9uEhku",
+            "d2FsbGV0cnBjLlZlcnNpb25SZXF1ZXN0Ghoud2FsbGV0cnBjLlZlcnNpb25S",
+            "ZXNwb25zZTKUDgoNV2FsbGV0U2VydmljZRI3CgRQaW5nEhYud2FsbGV0cnBj",
+            "LlBpbmdSZXF1ZXN0Ghcud2FsbGV0cnBjLlBpbmdSZXNwb25zZRJACgdOZXR3",
+            "b3JrEhkud2FsbGV0cnBjLk5ldHdvcmtSZXF1ZXN0Ghoud2FsbGV0cnBjLk5l",
+            "dHdvcmtSZXNwb25zZRJSCg1BY2NvdW50TnVtYmVyEh8ud2FsbGV0cnBjLkFj",
+            "Y291bnROdW1iZXJSZXF1ZXN0GiAud2FsbGV0cnBjLkFjY291bnROdW1iZXJS",
+            "ZXNwb25zZRJDCghBY2NvdW50cxIaLndhbGxldHJwYy5BY2NvdW50c1JlcXVl",
+            "c3QaGy53YWxsZXRycGMuQWNjb3VudHNSZXNwb25zZRJACgdCYWxhbmNlEhku",
+            "d2FsbGV0cnBjLkJhbGFuY2VSZXF1ZXN0Ghoud2FsbGV0cnBjLkJhbGFuY2VS",
+            "ZXNwb25zZRJYCg9HZXRUcmFuc2FjdGlvbnMSIS53YWxsZXRycGMuR2V0VHJh",
+            "bnNhY3Rpb25zUmVxdWVzdBoiLndhbGxldHJwYy5HZXRUcmFuc2FjdGlvbnNS",
+            "ZXNwb25zZRJMCgtUaWNrZXRQcmljZRIdLndhbGxldHJwYy5UaWNrZXRQcmlj",
+            "ZVJlcXVlc3QaHi53YWxsZXRycGMuVGlja2V0UHJpY2VSZXNwb25zZRJGCglT",
+            "dGFrZUluZm8SGy53YWxsZXRycGMuU3Rha2VJbmZvUmVxdWVzdBocLndhbGxl",
+            "dHJwYy5TdGFrZUluZm9SZXNwb25zZRJ1ChhUcmFuc2FjdGlvbk5vdGlmaWNh",
+            "dGlvbnMSKi53YWxsZXRycGMuVHJhbnNhY3Rpb25Ob3RpZmljYXRpb25zUmVx",
+            "dWVzdBorLndhbGxldHJwYy5UcmFuc2FjdGlvbk5vdGlmaWNhdGlvbnNSZXNw",
+            "b25zZTABEm8KFlNwZW50bmVzc05vdGlmaWNhdGlvbnMSKC53YWxsZXRycGMu",
+            "U3BlbnRuZXNzTm90aWZpY2F0aW9uc1JlcXVlc3QaKS53YWxsZXRycGMuU3Bl",
+            "bnRuZXNzTm90aWZpY2F0aW9uc1Jlc3BvbnNlMAESaQoUQWNjb3VudE5vdGlm",
+            "aWNhdGlvbnMSJi53YWxsZXRycGMuQWNjb3VudE5vdGlmaWNhdGlvbnNSZXF1",
+            "ZXN0Gicud2FsbGV0cnBjLkFjY291bnROb3RpZmljYXRpb25zUmVzcG9uc2Uw",
+            "ARJbChBDaGFuZ2VQYXNzcGhyYXNlEiIud2FsbGV0cnBjLkNoYW5nZVBhc3Nw",
+            "aHJhc2VSZXF1ZXN0GiMud2FsbGV0cnBjLkNoYW5nZVBhc3NwaHJhc2VSZXNw",
+            "b25zZRJSCg1SZW5hbWVBY2NvdW50Eh8ud2FsbGV0cnBjLlJlbmFtZUFjY291",
+            "bnRSZXF1ZXN0GiAud2FsbGV0cnBjLlJlbmFtZUFjY291bnRSZXNwb25zZRJM",
+            "CgtOZXh0QWNjb3VudBIdLndhbGxldHJwYy5OZXh0QWNjb3VudFJlcXVlc3Qa",
+            "Hi53YWxsZXRycGMuTmV4dEFjY291bnRSZXNwb25zZRJMCgtOZXh0QWRkcmVz",
+            "cxIdLndhbGxldHJwYy5OZXh0QWRkcmVzc1JlcXVlc3QaHi53YWxsZXRycGMu",
+            "TmV4dEFkZHJlc3NSZXNwb25zZRJbChBJbXBvcnRQcml2YXRlS2V5EiIud2Fs",
+            "bGV0cnBjLkltcG9ydFByaXZhdGVLZXlSZXF1ZXN0GiMud2FsbGV0cnBjLklt",
+            "cG9ydFByaXZhdGVLZXlSZXNwb25zZRJPCgxJbXBvcnRTY3JpcHQSHi53YWxs",
+            "ZXRycGMuSW1wb3J0U2NyaXB0UmVxdWVzdBofLndhbGxldHJwYy5JbXBvcnRT",
+            "Y3JpcHRSZXNwb25zZRJYCg9GdW5kVHJhbnNhY3Rpb24SIS53YWxsZXRycGMu",
+            "RnVuZFRyYW5zYWN0aW9uUmVxdWVzdBoiLndhbGxldHJwYy5GdW5kVHJhbnNh",
+            "Y3Rpb25SZXNwb25zZRJYCg9TaWduVHJhbnNhY3Rpb24SIS53YWxsZXRycGMu",
+            "U2lnblRyYW5zYWN0aW9uUmVxdWVzdBoiLndhbGxldHJwYy5TaWduVHJhbnNh",
+            "Y3Rpb25SZXNwb25zZRJhChJQdWJsaXNoVHJhbnNhY3Rpb24SJC53YWxsZXRy",
+            "cGMuUHVibGlzaFRyYW5zYWN0aW9uUmVxdWVzdBolLndhbGxldHJwYy5QdWJs",
+            "aXNoVHJhbnNhY3Rpb25SZXNwb25zZRJYCg9QdXJjaGFzZVRpY2tldHMSIS53",
+            "YWxsZXRycGMuUHVyY2hhc2VUaWNrZXRzUmVxdWVzdBoiLndhbGxldHJwYy5Q",
+            "dXJjaGFzZVRpY2tldHNSZXNwb25zZTKwAwoTV2FsbGV0TG9hZGVyU2Vydmlj",
+            "ZRJPCgxXYWxsZXRFeGlzdHMSHi53YWxsZXRycGMuV2FsbGV0RXhpc3RzUmVx",
+            "dWVzdBofLndhbGxldHJwYy5XYWxsZXRFeGlzdHNSZXNwb25zZRJPCgxDcmVh",
+            "dGVXYWxsZXQSHi53YWxsZXRycGMuQ3JlYXRlV2FsbGV0UmVxdWVzdBofLndh",
+            "bGxldHJwYy5DcmVhdGVXYWxsZXRSZXNwb25zZRJJCgpPcGVuV2FsbGV0Ehwu",
+            "d2FsbGV0cnBjLk9wZW5XYWxsZXRSZXF1ZXN0Gh0ud2FsbGV0cnBjLk9wZW5X",
+            "YWxsZXRSZXNwb25zZRJMCgtDbG9zZVdhbGxldBIdLndhbGxldHJwYy5DbG9z",
+            "ZVdhbGxldFJlcXVlc3QaHi53YWxsZXRycGMuQ2xvc2VXYWxsZXRSZXNwb25z",
+            "ZRJeChFTdGFydENvbnNlbnN1c1JwYxIjLndhbGxldHJwYy5TdGFydENvbnNl",
+            "bnN1c1JwY1JlcXVlc3QaJC53YWxsZXRycGMuU3RhcnRDb25zZW5zdXNScGNS",
+            "ZXNwb25zZWIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedCodeInfo(null, new pbr::GeneratedCodeInfo[] {
@@ -187,12 +211,18 @@ namespace Walletrpc {
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.NextAccountResponse), global::Walletrpc.NextAccountResponse.Parser, new[]{ "AccountNumber" }, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.NextAddressRequest), global::Walletrpc.NextAddressRequest.Parser, new[]{ "Account", "Kind" }, null, new[]{ typeof(global::Walletrpc.NextAddressRequest.Types.Kind) }, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.NextAddressResponse), global::Walletrpc.NextAddressResponse.Parser, new[]{ "Address" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.ImportPrivateKeyRequest), global::Walletrpc.ImportPrivateKeyRequest.Parser, new[]{ "Passphrase", "Account", "PrivateKeyWif", "Rescan" }, null, null, null),
+            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.ImportPrivateKeyRequest), global::Walletrpc.ImportPrivateKeyRequest.Parser, new[]{ "Passphrase", "Account", "PrivateKeyWif", "Rescan", "ScanFrom" }, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.ImportPrivateKeyResponse), global::Walletrpc.ImportPrivateKeyResponse.Parser, null, null, null, null),
+            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.ImportScriptRequest), global::Walletrpc.ImportScriptRequest.Parser, new[]{ "Passphrase", "Script", "Rescan", "ScanFrom" }, null, null, null),
+            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.ImportScriptResponse), global::Walletrpc.ImportScriptResponse.Parser, null, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.BalanceRequest), global::Walletrpc.BalanceRequest.Parser, new[]{ "AccountNumber", "RequiredConfirmations" }, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.BalanceResponse), global::Walletrpc.BalanceResponse.Parser, new[]{ "Total", "Spendable", "ImmatureReward" }, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.GetTransactionsRequest), global::Walletrpc.GetTransactionsRequest.Parser, new[]{ "StartingBlockHash", "StartingBlockHeight", "EndingBlockHash", "EndingBlockHeight", "MinimumRecentTransactions" }, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.GetTransactionsResponse), global::Walletrpc.GetTransactionsResponse.Parser, new[]{ "MinedTransactions", "UnminedTransactions" }, null, null, null),
+            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TicketPriceRequest), global::Walletrpc.TicketPriceRequest.Parser, null, null, null, null),
+            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TicketPriceResponse), global::Walletrpc.TicketPriceResponse.Parser, new[]{ "TicketPrice", "Height" }, null, null, null),
+            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.StakeInfoRequest), global::Walletrpc.StakeInfoRequest.Parser, null, null, null, null),
+            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.StakeInfoResponse), global::Walletrpc.StakeInfoResponse.Parser, new[]{ "PoolSize", "AllMempoolTix", "OwnMempoolTix", "Immature", "Live", "Voted", "Missed", "Revoked", "Expired", "TotalSubsidy" }, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.ChangePassphraseRequest), global::Walletrpc.ChangePassphraseRequest.Parser, new[]{ "Key", "OldPassphrase", "NewPassphrase" }, null, new[]{ typeof(global::Walletrpc.ChangePassphraseRequest.Types.Key) }, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.ChangePassphraseResponse), global::Walletrpc.ChangePassphraseResponse.Parser, null, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.FundTransactionRequest), global::Walletrpc.FundTransactionRequest.Parser, new[]{ "Account", "TargetAmount", "RequiredConfirmations", "IncludeImmatureCoinbases", "IncludeChangeScript" }, null, null, null),
@@ -201,6 +231,8 @@ namespace Walletrpc {
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.SignTransactionResponse), global::Walletrpc.SignTransactionResponse.Parser, new[]{ "Transaction", "UnsignedInputIndexes" }, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.PublishTransactionRequest), global::Walletrpc.PublishTransactionRequest.Parser, new[]{ "SignedTransaction" }, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.PublishTransactionResponse), global::Walletrpc.PublishTransactionResponse.Parser, null, null, null, null),
+            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.PurchaseTicketsRequest), global::Walletrpc.PurchaseTicketsRequest.Parser, new[]{ "Passphrase", "Account", "SpendLimit", "RequiredConfirmations", "TicketAddress", "NumTickets", "PoolAddress", "PoolFees", "Expiry", "TxFee", "TicketFee" }, null, null, null),
+            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.PurchaseTicketsResponse), global::Walletrpc.PurchaseTicketsResponse.Parser, new[]{ "TicketHashes" }, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TransactionNotificationsRequest), global::Walletrpc.TransactionNotificationsRequest.Parser, null, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TransactionNotificationsResponse), global::Walletrpc.TransactionNotificationsResponse.Parser, new[]{ "AttachedBlocks", "DetachedBlocks", "UnminedTransactions", "UnminedTransactionHashes" }, null, null, null),
             new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.SpentnessNotificationsRequest), global::Walletrpc.SpentnessNotificationsRequest.Parser, new[]{ "Account", "NoNotifyUnspent", "NoNotifySpent" }, null, null, null),
@@ -3104,6 +3136,7 @@ namespace Walletrpc {
       account_ = other.account_;
       privateKeyWif_ = other.privateKeyWif_;
       rescan_ = other.rescan_;
+      scanFrom_ = other.scanFrom_;
     }
 
     public ImportPrivateKeyRequest Clone() {
@@ -3150,6 +3183,16 @@ namespace Walletrpc {
       }
     }
 
+    /// <summary>Field number for the "scan_from" field.</summary>
+    public const int ScanFromFieldNumber = 5;
+    private int scanFrom_;
+    public int ScanFrom {
+      get { return scanFrom_; }
+      set {
+        scanFrom_ = value;
+      }
+    }
+
     public override bool Equals(object other) {
       return Equals(other as ImportPrivateKeyRequest);
     }
@@ -3165,6 +3208,7 @@ namespace Walletrpc {
       if (Account != other.Account) return false;
       if (PrivateKeyWif != other.PrivateKeyWif) return false;
       if (Rescan != other.Rescan) return false;
+      if (ScanFrom != other.ScanFrom) return false;
       return true;
     }
 
@@ -3174,6 +3218,7 @@ namespace Walletrpc {
       if (Account != 0) hash ^= Account.GetHashCode();
       if (PrivateKeyWif.Length != 0) hash ^= PrivateKeyWif.GetHashCode();
       if (Rescan != false) hash ^= Rescan.GetHashCode();
+      if (ScanFrom != 0) hash ^= ScanFrom.GetHashCode();
       return hash;
     }
 
@@ -3198,6 +3243,10 @@ namespace Walletrpc {
         output.WriteRawTag(32);
         output.WriteBool(Rescan);
       }
+      if (ScanFrom != 0) {
+        output.WriteRawTag(40);
+        output.WriteInt32(ScanFrom);
+      }
     }
 
     public int CalculateSize() {
@@ -3213,6 +3262,9 @@ namespace Walletrpc {
       }
       if (Rescan != false) {
         size += 1 + 1;
+      }
+      if (ScanFrom != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(ScanFrom);
       }
       return size;
     }
@@ -3232,6 +3284,9 @@ namespace Walletrpc {
       }
       if (other.Rescan != false) {
         Rescan = other.Rescan;
+      }
+      if (other.ScanFrom != 0) {
+        ScanFrom = other.ScanFrom;
       }
     }
 
@@ -3256,6 +3311,10 @@ namespace Walletrpc {
           }
           case 32: {
             Rescan = input.ReadBool();
+            break;
+          }
+          case 40: {
+            ScanFrom = input.ReadInt32();
             break;
           }
         }
@@ -3341,12 +3400,272 @@ namespace Walletrpc {
   }
 
   [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+  public sealed partial class ImportScriptRequest : pb::IMessage<ImportScriptRequest> {
+    private static readonly pb::MessageParser<ImportScriptRequest> _parser = new pb::MessageParser<ImportScriptRequest>(() => new ImportScriptRequest());
+    public static pb::MessageParser<ImportScriptRequest> Parser { get { return _parser; } }
+
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[21]; }
+    }
+
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    public ImportScriptRequest() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    public ImportScriptRequest(ImportScriptRequest other) : this() {
+      passphrase_ = other.passphrase_;
+      script_ = other.script_;
+      rescan_ = other.rescan_;
+      scanFrom_ = other.scanFrom_;
+    }
+
+    public ImportScriptRequest Clone() {
+      return new ImportScriptRequest(this);
+    }
+
+    /// <summary>Field number for the "passphrase" field.</summary>
+    public const int PassphraseFieldNumber = 1;
+    private pb::ByteString passphrase_ = pb::ByteString.Empty;
+    public pb::ByteString Passphrase {
+      get { return passphrase_; }
+      set {
+        passphrase_ = pb::Preconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "script" field.</summary>
+    public const int ScriptFieldNumber = 2;
+    private pb::ByteString script_ = pb::ByteString.Empty;
+    public pb::ByteString Script {
+      get { return script_; }
+      set {
+        script_ = pb::Preconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "rescan" field.</summary>
+    public const int RescanFieldNumber = 3;
+    private bool rescan_;
+    public bool Rescan {
+      get { return rescan_; }
+      set {
+        rescan_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "scan_from" field.</summary>
+    public const int ScanFromFieldNumber = 4;
+    private int scanFrom_;
+    public int ScanFrom {
+      get { return scanFrom_; }
+      set {
+        scanFrom_ = value;
+      }
+    }
+
+    public override bool Equals(object other) {
+      return Equals(other as ImportScriptRequest);
+    }
+
+    public bool Equals(ImportScriptRequest other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (Passphrase != other.Passphrase) return false;
+      if (Script != other.Script) return false;
+      if (Rescan != other.Rescan) return false;
+      if (ScanFrom != other.ScanFrom) return false;
+      return true;
+    }
+
+    public override int GetHashCode() {
+      int hash = 1;
+      if (Passphrase.Length != 0) hash ^= Passphrase.GetHashCode();
+      if (Script.Length != 0) hash ^= Script.GetHashCode();
+      if (Rescan != false) hash ^= Rescan.GetHashCode();
+      if (ScanFrom != 0) hash ^= ScanFrom.GetHashCode();
+      return hash;
+    }
+
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    public void WriteTo(pb::CodedOutputStream output) {
+      if (Passphrase.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteBytes(Passphrase);
+      }
+      if (Script.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteBytes(Script);
+      }
+      if (Rescan != false) {
+        output.WriteRawTag(24);
+        output.WriteBool(Rescan);
+      }
+      if (ScanFrom != 0) {
+        output.WriteRawTag(32);
+        output.WriteInt32(ScanFrom);
+      }
+    }
+
+    public int CalculateSize() {
+      int size = 0;
+      if (Passphrase.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeBytesSize(Passphrase);
+      }
+      if (Script.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeBytesSize(Script);
+      }
+      if (Rescan != false) {
+        size += 1 + 1;
+      }
+      if (ScanFrom != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(ScanFrom);
+      }
+      return size;
+    }
+
+    public void MergeFrom(ImportScriptRequest other) {
+      if (other == null) {
+        return;
+      }
+      if (other.Passphrase.Length != 0) {
+        Passphrase = other.Passphrase;
+      }
+      if (other.Script.Length != 0) {
+        Script = other.Script;
+      }
+      if (other.Rescan != false) {
+        Rescan = other.Rescan;
+      }
+      if (other.ScanFrom != 0) {
+        ScanFrom = other.ScanFrom;
+      }
+    }
+
+    public void MergeFrom(pb::CodedInputStream input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            input.SkipLastField();
+            break;
+          case 10: {
+            Passphrase = input.ReadBytes();
+            break;
+          }
+          case 18: {
+            Script = input.ReadBytes();
+            break;
+          }
+          case 24: {
+            Rescan = input.ReadBool();
+            break;
+          }
+          case 32: {
+            ScanFrom = input.ReadInt32();
+            break;
+          }
+        }
+      }
+    }
+
+  }
+
+  [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+  public sealed partial class ImportScriptResponse : pb::IMessage<ImportScriptResponse> {
+    private static readonly pb::MessageParser<ImportScriptResponse> _parser = new pb::MessageParser<ImportScriptResponse>(() => new ImportScriptResponse());
+    public static pb::MessageParser<ImportScriptResponse> Parser { get { return _parser; } }
+
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[22]; }
+    }
+
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    public ImportScriptResponse() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    public ImportScriptResponse(ImportScriptResponse other) : this() {
+    }
+
+    public ImportScriptResponse Clone() {
+      return new ImportScriptResponse(this);
+    }
+
+    public override bool Equals(object other) {
+      return Equals(other as ImportScriptResponse);
+    }
+
+    public bool Equals(ImportScriptResponse other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      return true;
+    }
+
+    public override int GetHashCode() {
+      int hash = 1;
+      return hash;
+    }
+
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    public void WriteTo(pb::CodedOutputStream output) {
+    }
+
+    public int CalculateSize() {
+      int size = 0;
+      return size;
+    }
+
+    public void MergeFrom(ImportScriptResponse other) {
+      if (other == null) {
+        return;
+      }
+    }
+
+    public void MergeFrom(pb::CodedInputStream input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            input.SkipLastField();
+            break;
+        }
+      }
+    }
+
+  }
+
+  [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
   public sealed partial class BalanceRequest : pb::IMessage<BalanceRequest> {
     private static readonly pb::MessageParser<BalanceRequest> _parser = new pb::MessageParser<BalanceRequest>(() => new BalanceRequest());
     public static pb::MessageParser<BalanceRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[21]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[23]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -3476,7 +3795,7 @@ namespace Walletrpc {
     public static pb::MessageParser<BalanceResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[22]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[24]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -3633,7 +3952,7 @@ namespace Walletrpc {
     public static pb::MessageParser<GetTransactionsRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[23]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[25]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -3865,7 +4184,7 @@ namespace Walletrpc {
     public static pb::MessageParser<GetTransactionsResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[24]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[26]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -3974,12 +4293,640 @@ namespace Walletrpc {
   }
 
   [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+  public sealed partial class TicketPriceRequest : pb::IMessage<TicketPriceRequest> {
+    private static readonly pb::MessageParser<TicketPriceRequest> _parser = new pb::MessageParser<TicketPriceRequest>(() => new TicketPriceRequest());
+    public static pb::MessageParser<TicketPriceRequest> Parser { get { return _parser; } }
+
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[27]; }
+    }
+
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    public TicketPriceRequest() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    public TicketPriceRequest(TicketPriceRequest other) : this() {
+    }
+
+    public TicketPriceRequest Clone() {
+      return new TicketPriceRequest(this);
+    }
+
+    public override bool Equals(object other) {
+      return Equals(other as TicketPriceRequest);
+    }
+
+    public bool Equals(TicketPriceRequest other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      return true;
+    }
+
+    public override int GetHashCode() {
+      int hash = 1;
+      return hash;
+    }
+
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    public void WriteTo(pb::CodedOutputStream output) {
+    }
+
+    public int CalculateSize() {
+      int size = 0;
+      return size;
+    }
+
+    public void MergeFrom(TicketPriceRequest other) {
+      if (other == null) {
+        return;
+      }
+    }
+
+    public void MergeFrom(pb::CodedInputStream input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            input.SkipLastField();
+            break;
+        }
+      }
+    }
+
+  }
+
+  [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+  public sealed partial class TicketPriceResponse : pb::IMessage<TicketPriceResponse> {
+    private static readonly pb::MessageParser<TicketPriceResponse> _parser = new pb::MessageParser<TicketPriceResponse>(() => new TicketPriceResponse());
+    public static pb::MessageParser<TicketPriceResponse> Parser { get { return _parser; } }
+
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[28]; }
+    }
+
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    public TicketPriceResponse() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    public TicketPriceResponse(TicketPriceResponse other) : this() {
+      ticketPrice_ = other.ticketPrice_;
+      height_ = other.height_;
+    }
+
+    public TicketPriceResponse Clone() {
+      return new TicketPriceResponse(this);
+    }
+
+    /// <summary>Field number for the "ticket_price" field.</summary>
+    public const int TicketPriceFieldNumber = 1;
+    private long ticketPrice_;
+    public long TicketPrice {
+      get { return ticketPrice_; }
+      set {
+        ticketPrice_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "height" field.</summary>
+    public const int HeightFieldNumber = 2;
+    private int height_;
+    public int Height {
+      get { return height_; }
+      set {
+        height_ = value;
+      }
+    }
+
+    public override bool Equals(object other) {
+      return Equals(other as TicketPriceResponse);
+    }
+
+    public bool Equals(TicketPriceResponse other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (TicketPrice != other.TicketPrice) return false;
+      if (Height != other.Height) return false;
+      return true;
+    }
+
+    public override int GetHashCode() {
+      int hash = 1;
+      if (TicketPrice != 0L) hash ^= TicketPrice.GetHashCode();
+      if (Height != 0) hash ^= Height.GetHashCode();
+      return hash;
+    }
+
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    public void WriteTo(pb::CodedOutputStream output) {
+      if (TicketPrice != 0L) {
+        output.WriteRawTag(8);
+        output.WriteInt64(TicketPrice);
+      }
+      if (Height != 0) {
+        output.WriteRawTag(16);
+        output.WriteInt32(Height);
+      }
+    }
+
+    public int CalculateSize() {
+      int size = 0;
+      if (TicketPrice != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(TicketPrice);
+      }
+      if (Height != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(Height);
+      }
+      return size;
+    }
+
+    public void MergeFrom(TicketPriceResponse other) {
+      if (other == null) {
+        return;
+      }
+      if (other.TicketPrice != 0L) {
+        TicketPrice = other.TicketPrice;
+      }
+      if (other.Height != 0) {
+        Height = other.Height;
+      }
+    }
+
+    public void MergeFrom(pb::CodedInputStream input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            input.SkipLastField();
+            break;
+          case 8: {
+            TicketPrice = input.ReadInt64();
+            break;
+          }
+          case 16: {
+            Height = input.ReadInt32();
+            break;
+          }
+        }
+      }
+    }
+
+  }
+
+  [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+  public sealed partial class StakeInfoRequest : pb::IMessage<StakeInfoRequest> {
+    private static readonly pb::MessageParser<StakeInfoRequest> _parser = new pb::MessageParser<StakeInfoRequest>(() => new StakeInfoRequest());
+    public static pb::MessageParser<StakeInfoRequest> Parser { get { return _parser; } }
+
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[29]; }
+    }
+
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    public StakeInfoRequest() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    public StakeInfoRequest(StakeInfoRequest other) : this() {
+    }
+
+    public StakeInfoRequest Clone() {
+      return new StakeInfoRequest(this);
+    }
+
+    public override bool Equals(object other) {
+      return Equals(other as StakeInfoRequest);
+    }
+
+    public bool Equals(StakeInfoRequest other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      return true;
+    }
+
+    public override int GetHashCode() {
+      int hash = 1;
+      return hash;
+    }
+
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    public void WriteTo(pb::CodedOutputStream output) {
+    }
+
+    public int CalculateSize() {
+      int size = 0;
+      return size;
+    }
+
+    public void MergeFrom(StakeInfoRequest other) {
+      if (other == null) {
+        return;
+      }
+    }
+
+    public void MergeFrom(pb::CodedInputStream input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            input.SkipLastField();
+            break;
+        }
+      }
+    }
+
+  }
+
+  [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+  public sealed partial class StakeInfoResponse : pb::IMessage<StakeInfoResponse> {
+    private static readonly pb::MessageParser<StakeInfoResponse> _parser = new pb::MessageParser<StakeInfoResponse>(() => new StakeInfoResponse());
+    public static pb::MessageParser<StakeInfoResponse> Parser { get { return _parser; } }
+
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[30]; }
+    }
+
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    public StakeInfoResponse() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    public StakeInfoResponse(StakeInfoResponse other) : this() {
+      poolSize_ = other.poolSize_;
+      allMempoolTix_ = other.allMempoolTix_;
+      ownMempoolTix_ = other.ownMempoolTix_;
+      immature_ = other.immature_;
+      live_ = other.live_;
+      voted_ = other.voted_;
+      missed_ = other.missed_;
+      revoked_ = other.revoked_;
+      expired_ = other.expired_;
+      totalSubsidy_ = other.totalSubsidy_;
+    }
+
+    public StakeInfoResponse Clone() {
+      return new StakeInfoResponse(this);
+    }
+
+    /// <summary>Field number for the "pool_size" field.</summary>
+    public const int PoolSizeFieldNumber = 1;
+    private uint poolSize_;
+    public uint PoolSize {
+      get { return poolSize_; }
+      set {
+        poolSize_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "all_mempool_tix" field.</summary>
+    public const int AllMempoolTixFieldNumber = 2;
+    private uint allMempoolTix_;
+    public uint AllMempoolTix {
+      get { return allMempoolTix_; }
+      set {
+        allMempoolTix_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "own_mempool_tix" field.</summary>
+    public const int OwnMempoolTixFieldNumber = 3;
+    private uint ownMempoolTix_;
+    public uint OwnMempoolTix {
+      get { return ownMempoolTix_; }
+      set {
+        ownMempoolTix_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "immature" field.</summary>
+    public const int ImmatureFieldNumber = 4;
+    private uint immature_;
+    public uint Immature {
+      get { return immature_; }
+      set {
+        immature_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "live" field.</summary>
+    public const int LiveFieldNumber = 5;
+    private uint live_;
+    public uint Live {
+      get { return live_; }
+      set {
+        live_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "voted" field.</summary>
+    public const int VotedFieldNumber = 6;
+    private uint voted_;
+    public uint Voted {
+      get { return voted_; }
+      set {
+        voted_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "missed" field.</summary>
+    public const int MissedFieldNumber = 7;
+    private uint missed_;
+    public uint Missed {
+      get { return missed_; }
+      set {
+        missed_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "revoked" field.</summary>
+    public const int RevokedFieldNumber = 8;
+    private uint revoked_;
+    public uint Revoked {
+      get { return revoked_; }
+      set {
+        revoked_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "expired" field.</summary>
+    public const int ExpiredFieldNumber = 9;
+    private uint expired_;
+    public uint Expired {
+      get { return expired_; }
+      set {
+        expired_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "total_subsidy" field.</summary>
+    public const int TotalSubsidyFieldNumber = 10;
+    private long totalSubsidy_;
+    public long TotalSubsidy {
+      get { return totalSubsidy_; }
+      set {
+        totalSubsidy_ = value;
+      }
+    }
+
+    public override bool Equals(object other) {
+      return Equals(other as StakeInfoResponse);
+    }
+
+    public bool Equals(StakeInfoResponse other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (PoolSize != other.PoolSize) return false;
+      if (AllMempoolTix != other.AllMempoolTix) return false;
+      if (OwnMempoolTix != other.OwnMempoolTix) return false;
+      if (Immature != other.Immature) return false;
+      if (Live != other.Live) return false;
+      if (Voted != other.Voted) return false;
+      if (Missed != other.Missed) return false;
+      if (Revoked != other.Revoked) return false;
+      if (Expired != other.Expired) return false;
+      if (TotalSubsidy != other.TotalSubsidy) return false;
+      return true;
+    }
+
+    public override int GetHashCode() {
+      int hash = 1;
+      if (PoolSize != 0) hash ^= PoolSize.GetHashCode();
+      if (AllMempoolTix != 0) hash ^= AllMempoolTix.GetHashCode();
+      if (OwnMempoolTix != 0) hash ^= OwnMempoolTix.GetHashCode();
+      if (Immature != 0) hash ^= Immature.GetHashCode();
+      if (Live != 0) hash ^= Live.GetHashCode();
+      if (Voted != 0) hash ^= Voted.GetHashCode();
+      if (Missed != 0) hash ^= Missed.GetHashCode();
+      if (Revoked != 0) hash ^= Revoked.GetHashCode();
+      if (Expired != 0) hash ^= Expired.GetHashCode();
+      if (TotalSubsidy != 0L) hash ^= TotalSubsidy.GetHashCode();
+      return hash;
+    }
+
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    public void WriteTo(pb::CodedOutputStream output) {
+      if (PoolSize != 0) {
+        output.WriteRawTag(8);
+        output.WriteUInt32(PoolSize);
+      }
+      if (AllMempoolTix != 0) {
+        output.WriteRawTag(16);
+        output.WriteUInt32(AllMempoolTix);
+      }
+      if (OwnMempoolTix != 0) {
+        output.WriteRawTag(24);
+        output.WriteUInt32(OwnMempoolTix);
+      }
+      if (Immature != 0) {
+        output.WriteRawTag(32);
+        output.WriteUInt32(Immature);
+      }
+      if (Live != 0) {
+        output.WriteRawTag(40);
+        output.WriteUInt32(Live);
+      }
+      if (Voted != 0) {
+        output.WriteRawTag(48);
+        output.WriteUInt32(Voted);
+      }
+      if (Missed != 0) {
+        output.WriteRawTag(56);
+        output.WriteUInt32(Missed);
+      }
+      if (Revoked != 0) {
+        output.WriteRawTag(64);
+        output.WriteUInt32(Revoked);
+      }
+      if (Expired != 0) {
+        output.WriteRawTag(72);
+        output.WriteUInt32(Expired);
+      }
+      if (TotalSubsidy != 0L) {
+        output.WriteRawTag(80);
+        output.WriteInt64(TotalSubsidy);
+      }
+    }
+
+    public int CalculateSize() {
+      int size = 0;
+      if (PoolSize != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(PoolSize);
+      }
+      if (AllMempoolTix != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(AllMempoolTix);
+      }
+      if (OwnMempoolTix != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(OwnMempoolTix);
+      }
+      if (Immature != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Immature);
+      }
+      if (Live != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Live);
+      }
+      if (Voted != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Voted);
+      }
+      if (Missed != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Missed);
+      }
+      if (Revoked != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Revoked);
+      }
+      if (Expired != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Expired);
+      }
+      if (TotalSubsidy != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(TotalSubsidy);
+      }
+      return size;
+    }
+
+    public void MergeFrom(StakeInfoResponse other) {
+      if (other == null) {
+        return;
+      }
+      if (other.PoolSize != 0) {
+        PoolSize = other.PoolSize;
+      }
+      if (other.AllMempoolTix != 0) {
+        AllMempoolTix = other.AllMempoolTix;
+      }
+      if (other.OwnMempoolTix != 0) {
+        OwnMempoolTix = other.OwnMempoolTix;
+      }
+      if (other.Immature != 0) {
+        Immature = other.Immature;
+      }
+      if (other.Live != 0) {
+        Live = other.Live;
+      }
+      if (other.Voted != 0) {
+        Voted = other.Voted;
+      }
+      if (other.Missed != 0) {
+        Missed = other.Missed;
+      }
+      if (other.Revoked != 0) {
+        Revoked = other.Revoked;
+      }
+      if (other.Expired != 0) {
+        Expired = other.Expired;
+      }
+      if (other.TotalSubsidy != 0L) {
+        TotalSubsidy = other.TotalSubsidy;
+      }
+    }
+
+    public void MergeFrom(pb::CodedInputStream input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            input.SkipLastField();
+            break;
+          case 8: {
+            PoolSize = input.ReadUInt32();
+            break;
+          }
+          case 16: {
+            AllMempoolTix = input.ReadUInt32();
+            break;
+          }
+          case 24: {
+            OwnMempoolTix = input.ReadUInt32();
+            break;
+          }
+          case 32: {
+            Immature = input.ReadUInt32();
+            break;
+          }
+          case 40: {
+            Live = input.ReadUInt32();
+            break;
+          }
+          case 48: {
+            Voted = input.ReadUInt32();
+            break;
+          }
+          case 56: {
+            Missed = input.ReadUInt32();
+            break;
+          }
+          case 64: {
+            Revoked = input.ReadUInt32();
+            break;
+          }
+          case 72: {
+            Expired = input.ReadUInt32();
+            break;
+          }
+          case 80: {
+            TotalSubsidy = input.ReadInt64();
+            break;
+          }
+        }
+      }
+    }
+
+  }
+
+  [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
   public sealed partial class ChangePassphraseRequest : pb::IMessage<ChangePassphraseRequest> {
     private static readonly pb::MessageParser<ChangePassphraseRequest> _parser = new pb::MessageParser<ChangePassphraseRequest>(() => new ChangePassphraseRequest());
     public static pb::MessageParser<ChangePassphraseRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[25]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[31]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -4148,7 +5095,7 @@ namespace Walletrpc {
     public static pb::MessageParser<ChangePassphraseResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[26]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[32]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -4224,7 +5171,7 @@ namespace Walletrpc {
     public static pb::MessageParser<FundTransactionRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[27]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[33]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -4435,7 +5382,7 @@ namespace Walletrpc {
     public static pb::MessageParser<FundTransactionResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[28]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[34]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -4856,7 +5803,7 @@ namespace Walletrpc {
     public static pb::MessageParser<SignTransactionRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[29]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[35]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -5013,7 +5960,7 @@ namespace Walletrpc {
     public static pb::MessageParser<SignTransactionResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[30]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[36]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -5136,7 +6083,7 @@ namespace Walletrpc {
     public static pb::MessageParser<PublishTransactionRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[31]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[37]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -5239,7 +6186,7 @@ namespace Walletrpc {
     public static pb::MessageParser<PublishTransactionResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[32]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[38]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -5310,12 +6257,480 @@ namespace Walletrpc {
   }
 
   [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+  public sealed partial class PurchaseTicketsRequest : pb::IMessage<PurchaseTicketsRequest> {
+    private static readonly pb::MessageParser<PurchaseTicketsRequest> _parser = new pb::MessageParser<PurchaseTicketsRequest>(() => new PurchaseTicketsRequest());
+    public static pb::MessageParser<PurchaseTicketsRequest> Parser { get { return _parser; } }
+
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[39]; }
+    }
+
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    public PurchaseTicketsRequest() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    public PurchaseTicketsRequest(PurchaseTicketsRequest other) : this() {
+      passphrase_ = other.passphrase_;
+      account_ = other.account_;
+      spendLimit_ = other.spendLimit_;
+      requiredConfirmations_ = other.requiredConfirmations_;
+      ticketAddress_ = other.ticketAddress_;
+      numTickets_ = other.numTickets_;
+      poolAddress_ = other.poolAddress_;
+      poolFees_ = other.poolFees_;
+      expiry_ = other.expiry_;
+      txFee_ = other.txFee_;
+      ticketFee_ = other.ticketFee_;
+    }
+
+    public PurchaseTicketsRequest Clone() {
+      return new PurchaseTicketsRequest(this);
+    }
+
+    /// <summary>Field number for the "passphrase" field.</summary>
+    public const int PassphraseFieldNumber = 1;
+    private pb::ByteString passphrase_ = pb::ByteString.Empty;
+    public pb::ByteString Passphrase {
+      get { return passphrase_; }
+      set {
+        passphrase_ = pb::Preconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "account" field.</summary>
+    public const int AccountFieldNumber = 2;
+    private uint account_;
+    public uint Account {
+      get { return account_; }
+      set {
+        account_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "spend_limit" field.</summary>
+    public const int SpendLimitFieldNumber = 3;
+    private long spendLimit_;
+    public long SpendLimit {
+      get { return spendLimit_; }
+      set {
+        spendLimit_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "required_confirmations" field.</summary>
+    public const int RequiredConfirmationsFieldNumber = 4;
+    private uint requiredConfirmations_;
+    public uint RequiredConfirmations {
+      get { return requiredConfirmations_; }
+      set {
+        requiredConfirmations_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "ticket_address" field.</summary>
+    public const int TicketAddressFieldNumber = 5;
+    private string ticketAddress_ = "";
+    public string TicketAddress {
+      get { return ticketAddress_; }
+      set {
+        ticketAddress_ = pb::Preconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "num_tickets" field.</summary>
+    public const int NumTicketsFieldNumber = 6;
+    private uint numTickets_;
+    public uint NumTickets {
+      get { return numTickets_; }
+      set {
+        numTickets_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "pool_address" field.</summary>
+    public const int PoolAddressFieldNumber = 7;
+    private string poolAddress_ = "";
+    public string PoolAddress {
+      get { return poolAddress_; }
+      set {
+        poolAddress_ = pb::Preconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "pool_fees" field.</summary>
+    public const int PoolFeesFieldNumber = 8;
+    private double poolFees_;
+    public double PoolFees {
+      get { return poolFees_; }
+      set {
+        poolFees_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "expiry" field.</summary>
+    public const int ExpiryFieldNumber = 9;
+    private uint expiry_;
+    public uint Expiry {
+      get { return expiry_; }
+      set {
+        expiry_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "tx_fee" field.</summary>
+    public const int TxFeeFieldNumber = 10;
+    private long txFee_;
+    public long TxFee {
+      get { return txFee_; }
+      set {
+        txFee_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "ticket_fee" field.</summary>
+    public const int TicketFeeFieldNumber = 11;
+    private long ticketFee_;
+    public long TicketFee {
+      get { return ticketFee_; }
+      set {
+        ticketFee_ = value;
+      }
+    }
+
+    public override bool Equals(object other) {
+      return Equals(other as PurchaseTicketsRequest);
+    }
+
+    public bool Equals(PurchaseTicketsRequest other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (Passphrase != other.Passphrase) return false;
+      if (Account != other.Account) return false;
+      if (SpendLimit != other.SpendLimit) return false;
+      if (RequiredConfirmations != other.RequiredConfirmations) return false;
+      if (TicketAddress != other.TicketAddress) return false;
+      if (NumTickets != other.NumTickets) return false;
+      if (PoolAddress != other.PoolAddress) return false;
+      if (PoolFees != other.PoolFees) return false;
+      if (Expiry != other.Expiry) return false;
+      if (TxFee != other.TxFee) return false;
+      if (TicketFee != other.TicketFee) return false;
+      return true;
+    }
+
+    public override int GetHashCode() {
+      int hash = 1;
+      if (Passphrase.Length != 0) hash ^= Passphrase.GetHashCode();
+      if (Account != 0) hash ^= Account.GetHashCode();
+      if (SpendLimit != 0L) hash ^= SpendLimit.GetHashCode();
+      if (RequiredConfirmations != 0) hash ^= RequiredConfirmations.GetHashCode();
+      if (TicketAddress.Length != 0) hash ^= TicketAddress.GetHashCode();
+      if (NumTickets != 0) hash ^= NumTickets.GetHashCode();
+      if (PoolAddress.Length != 0) hash ^= PoolAddress.GetHashCode();
+      if (PoolFees != 0D) hash ^= PoolFees.GetHashCode();
+      if (Expiry != 0) hash ^= Expiry.GetHashCode();
+      if (TxFee != 0L) hash ^= TxFee.GetHashCode();
+      if (TicketFee != 0L) hash ^= TicketFee.GetHashCode();
+      return hash;
+    }
+
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    public void WriteTo(pb::CodedOutputStream output) {
+      if (Passphrase.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteBytes(Passphrase);
+      }
+      if (Account != 0) {
+        output.WriteRawTag(16);
+        output.WriteUInt32(Account);
+      }
+      if (SpendLimit != 0L) {
+        output.WriteRawTag(24);
+        output.WriteInt64(SpendLimit);
+      }
+      if (RequiredConfirmations != 0) {
+        output.WriteRawTag(32);
+        output.WriteUInt32(RequiredConfirmations);
+      }
+      if (TicketAddress.Length != 0) {
+        output.WriteRawTag(42);
+        output.WriteString(TicketAddress);
+      }
+      if (NumTickets != 0) {
+        output.WriteRawTag(48);
+        output.WriteUInt32(NumTickets);
+      }
+      if (PoolAddress.Length != 0) {
+        output.WriteRawTag(58);
+        output.WriteString(PoolAddress);
+      }
+      if (PoolFees != 0D) {
+        output.WriteRawTag(65);
+        output.WriteDouble(PoolFees);
+      }
+      if (Expiry != 0) {
+        output.WriteRawTag(72);
+        output.WriteUInt32(Expiry);
+      }
+      if (TxFee != 0L) {
+        output.WriteRawTag(80);
+        output.WriteInt64(TxFee);
+      }
+      if (TicketFee != 0L) {
+        output.WriteRawTag(88);
+        output.WriteInt64(TicketFee);
+      }
+    }
+
+    public int CalculateSize() {
+      int size = 0;
+      if (Passphrase.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeBytesSize(Passphrase);
+      }
+      if (Account != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Account);
+      }
+      if (SpendLimit != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(SpendLimit);
+      }
+      if (RequiredConfirmations != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(RequiredConfirmations);
+      }
+      if (TicketAddress.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(TicketAddress);
+      }
+      if (NumTickets != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(NumTickets);
+      }
+      if (PoolAddress.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(PoolAddress);
+      }
+      if (PoolFees != 0D) {
+        size += 1 + 8;
+      }
+      if (Expiry != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Expiry);
+      }
+      if (TxFee != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(TxFee);
+      }
+      if (TicketFee != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(TicketFee);
+      }
+      return size;
+    }
+
+    public void MergeFrom(PurchaseTicketsRequest other) {
+      if (other == null) {
+        return;
+      }
+      if (other.Passphrase.Length != 0) {
+        Passphrase = other.Passphrase;
+      }
+      if (other.Account != 0) {
+        Account = other.Account;
+      }
+      if (other.SpendLimit != 0L) {
+        SpendLimit = other.SpendLimit;
+      }
+      if (other.RequiredConfirmations != 0) {
+        RequiredConfirmations = other.RequiredConfirmations;
+      }
+      if (other.TicketAddress.Length != 0) {
+        TicketAddress = other.TicketAddress;
+      }
+      if (other.NumTickets != 0) {
+        NumTickets = other.NumTickets;
+      }
+      if (other.PoolAddress.Length != 0) {
+        PoolAddress = other.PoolAddress;
+      }
+      if (other.PoolFees != 0D) {
+        PoolFees = other.PoolFees;
+      }
+      if (other.Expiry != 0) {
+        Expiry = other.Expiry;
+      }
+      if (other.TxFee != 0L) {
+        TxFee = other.TxFee;
+      }
+      if (other.TicketFee != 0L) {
+        TicketFee = other.TicketFee;
+      }
+    }
+
+    public void MergeFrom(pb::CodedInputStream input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            input.SkipLastField();
+            break;
+          case 10: {
+            Passphrase = input.ReadBytes();
+            break;
+          }
+          case 16: {
+            Account = input.ReadUInt32();
+            break;
+          }
+          case 24: {
+            SpendLimit = input.ReadInt64();
+            break;
+          }
+          case 32: {
+            RequiredConfirmations = input.ReadUInt32();
+            break;
+          }
+          case 42: {
+            TicketAddress = input.ReadString();
+            break;
+          }
+          case 48: {
+            NumTickets = input.ReadUInt32();
+            break;
+          }
+          case 58: {
+            PoolAddress = input.ReadString();
+            break;
+          }
+          case 65: {
+            PoolFees = input.ReadDouble();
+            break;
+          }
+          case 72: {
+            Expiry = input.ReadUInt32();
+            break;
+          }
+          case 80: {
+            TxFee = input.ReadInt64();
+            break;
+          }
+          case 88: {
+            TicketFee = input.ReadInt64();
+            break;
+          }
+        }
+      }
+    }
+
+  }
+
+  [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+  public sealed partial class PurchaseTicketsResponse : pb::IMessage<PurchaseTicketsResponse> {
+    private static readonly pb::MessageParser<PurchaseTicketsResponse> _parser = new pb::MessageParser<PurchaseTicketsResponse>(() => new PurchaseTicketsResponse());
+    public static pb::MessageParser<PurchaseTicketsResponse> Parser { get { return _parser; } }
+
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[40]; }
+    }
+
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    public PurchaseTicketsResponse() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    public PurchaseTicketsResponse(PurchaseTicketsResponse other) : this() {
+      ticketHashes_ = other.ticketHashes_.Clone();
+    }
+
+    public PurchaseTicketsResponse Clone() {
+      return new PurchaseTicketsResponse(this);
+    }
+
+    /// <summary>Field number for the "ticket_hashes" field.</summary>
+    public const int TicketHashesFieldNumber = 1;
+    private static readonly pb::FieldCodec<pb::ByteString> _repeated_ticketHashes_codec
+        = pb::FieldCodec.ForBytes(10);
+    private readonly pbc::RepeatedField<pb::ByteString> ticketHashes_ = new pbc::RepeatedField<pb::ByteString>();
+    public pbc::RepeatedField<pb::ByteString> TicketHashes {
+      get { return ticketHashes_; }
+    }
+
+    public override bool Equals(object other) {
+      return Equals(other as PurchaseTicketsResponse);
+    }
+
+    public bool Equals(PurchaseTicketsResponse other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if(!ticketHashes_.Equals(other.ticketHashes_)) return false;
+      return true;
+    }
+
+    public override int GetHashCode() {
+      int hash = 1;
+      hash ^= ticketHashes_.GetHashCode();
+      return hash;
+    }
+
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    public void WriteTo(pb::CodedOutputStream output) {
+      ticketHashes_.WriteTo(output, _repeated_ticketHashes_codec);
+    }
+
+    public int CalculateSize() {
+      int size = 0;
+      size += ticketHashes_.CalculateSize(_repeated_ticketHashes_codec);
+      return size;
+    }
+
+    public void MergeFrom(PurchaseTicketsResponse other) {
+      if (other == null) {
+        return;
+      }
+      ticketHashes_.Add(other.ticketHashes_);
+    }
+
+    public void MergeFrom(pb::CodedInputStream input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            input.SkipLastField();
+            break;
+          case 10: {
+            ticketHashes_.AddEntriesFrom(input, _repeated_ticketHashes_codec);
+            break;
+          }
+        }
+      }
+    }
+
+  }
+
+  [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
   public sealed partial class TransactionNotificationsRequest : pb::IMessage<TransactionNotificationsRequest> {
     private static readonly pb::MessageParser<TransactionNotificationsRequest> _parser = new pb::MessageParser<TransactionNotificationsRequest>(() => new TransactionNotificationsRequest());
     public static pb::MessageParser<TransactionNotificationsRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[33]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[41]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -5391,7 +6806,7 @@ namespace Walletrpc {
     public static pb::MessageParser<TransactionNotificationsResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[34]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[42]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -5563,7 +6978,7 @@ namespace Walletrpc {
     public static pb::MessageParser<SpentnessNotificationsRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[35]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[43]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -5720,7 +7135,7 @@ namespace Walletrpc {
     public static pb::MessageParser<SpentnessNotificationsResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[36]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[44]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6020,7 +7435,7 @@ namespace Walletrpc {
     public static pb::MessageParser<AccountNotificationsRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[37]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[45]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6096,7 +7511,7 @@ namespace Walletrpc {
     public static pb::MessageParser<AccountNotificationsResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[38]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[46]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6307,7 +7722,7 @@ namespace Walletrpc {
     public static pb::MessageParser<CreateWalletRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[39]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[47]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6464,7 +7879,7 @@ namespace Walletrpc {
     public static pb::MessageParser<CreateWalletResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[40]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[48]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6540,7 +7955,7 @@ namespace Walletrpc {
     public static pb::MessageParser<OpenWalletRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[41]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[49]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6643,7 +8058,7 @@ namespace Walletrpc {
     public static pb::MessageParser<OpenWalletResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[42]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[50]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6719,7 +8134,7 @@ namespace Walletrpc {
     public static pb::MessageParser<CloseWalletRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[43]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[51]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6795,7 +8210,7 @@ namespace Walletrpc {
     public static pb::MessageParser<CloseWalletResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[44]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[52]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6871,7 +8286,7 @@ namespace Walletrpc {
     public static pb::MessageParser<WalletExistsRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[45]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[53]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -6947,7 +8362,7 @@ namespace Walletrpc {
     public static pb::MessageParser<WalletExistsResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[46]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[54]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -7050,7 +8465,7 @@ namespace Walletrpc {
     public static pb::MessageParser<StartConsensusRpcRequest> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[47]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[55]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {
@@ -7234,7 +8649,7 @@ namespace Walletrpc {
     public static pb::MessageParser<StartConsensusRpcResponse> Parser { get { return _parser; } }
 
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[48]; }
+      get { return global::Walletrpc.ApiReflection.Descriptor.MessageTypes[56]; }
     }
 
     pbr::MessageDescriptor pb::IMessage.Descriptor {

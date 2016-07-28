@@ -101,6 +101,10 @@ namespace Walletrpc {
     static readonly Marshaller<global::Walletrpc.BalanceResponse> __Marshaller_BalanceResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.BalanceResponse.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.GetTransactionsRequest> __Marshaller_GetTransactionsRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.GetTransactionsRequest.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.GetTransactionsResponse> __Marshaller_GetTransactionsResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.GetTransactionsResponse.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.TicketPriceRequest> __Marshaller_TicketPriceRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.TicketPriceRequest.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.TicketPriceResponse> __Marshaller_TicketPriceResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.TicketPriceResponse.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.StakeInfoRequest> __Marshaller_StakeInfoRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.StakeInfoRequest.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.StakeInfoResponse> __Marshaller_StakeInfoResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.StakeInfoResponse.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.TransactionNotificationsRequest> __Marshaller_TransactionNotificationsRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.TransactionNotificationsRequest.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.TransactionNotificationsResponse> __Marshaller_TransactionNotificationsResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.TransactionNotificationsResponse.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.SpentnessNotificationsRequest> __Marshaller_SpentnessNotificationsRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.SpentnessNotificationsRequest.Parser.ParseFrom);
@@ -117,12 +121,16 @@ namespace Walletrpc {
     static readonly Marshaller<global::Walletrpc.NextAddressResponse> __Marshaller_NextAddressResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.NextAddressResponse.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.ImportPrivateKeyRequest> __Marshaller_ImportPrivateKeyRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.ImportPrivateKeyRequest.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.ImportPrivateKeyResponse> __Marshaller_ImportPrivateKeyResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.ImportPrivateKeyResponse.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.ImportScriptRequest> __Marshaller_ImportScriptRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.ImportScriptRequest.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.ImportScriptResponse> __Marshaller_ImportScriptResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.ImportScriptResponse.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.FundTransactionRequest> __Marshaller_FundTransactionRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.FundTransactionRequest.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.FundTransactionResponse> __Marshaller_FundTransactionResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.FundTransactionResponse.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.SignTransactionRequest> __Marshaller_SignTransactionRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.SignTransactionRequest.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.SignTransactionResponse> __Marshaller_SignTransactionResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.SignTransactionResponse.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.PublishTransactionRequest> __Marshaller_PublishTransactionRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.PublishTransactionRequest.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.PublishTransactionResponse> __Marshaller_PublishTransactionResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.PublishTransactionResponse.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.PurchaseTicketsRequest> __Marshaller_PurchaseTicketsRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.PurchaseTicketsRequest.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.PurchaseTicketsResponse> __Marshaller_PurchaseTicketsResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.PurchaseTicketsResponse.Parser.ParseFrom);
 
     static readonly Method<global::Walletrpc.PingRequest, global::Walletrpc.PingResponse> __Method_Ping = new Method<global::Walletrpc.PingRequest, global::Walletrpc.PingResponse>(
         MethodType.Unary,
@@ -165,6 +173,20 @@ namespace Walletrpc {
         "GetTransactions",
         __Marshaller_GetTransactionsRequest,
         __Marshaller_GetTransactionsResponse);
+
+    static readonly Method<global::Walletrpc.TicketPriceRequest, global::Walletrpc.TicketPriceResponse> __Method_TicketPrice = new Method<global::Walletrpc.TicketPriceRequest, global::Walletrpc.TicketPriceResponse>(
+        MethodType.Unary,
+        __ServiceName,
+        "TicketPrice",
+        __Marshaller_TicketPriceRequest,
+        __Marshaller_TicketPriceResponse);
+
+    static readonly Method<global::Walletrpc.StakeInfoRequest, global::Walletrpc.StakeInfoResponse> __Method_StakeInfo = new Method<global::Walletrpc.StakeInfoRequest, global::Walletrpc.StakeInfoResponse>(
+        MethodType.Unary,
+        __ServiceName,
+        "StakeInfo",
+        __Marshaller_StakeInfoRequest,
+        __Marshaller_StakeInfoResponse);
 
     static readonly Method<global::Walletrpc.TransactionNotificationsRequest, global::Walletrpc.TransactionNotificationsResponse> __Method_TransactionNotifications = new Method<global::Walletrpc.TransactionNotificationsRequest, global::Walletrpc.TransactionNotificationsResponse>(
         MethodType.ServerStreaming,
@@ -222,6 +244,13 @@ namespace Walletrpc {
         __Marshaller_ImportPrivateKeyRequest,
         __Marshaller_ImportPrivateKeyResponse);
 
+    static readonly Method<global::Walletrpc.ImportScriptRequest, global::Walletrpc.ImportScriptResponse> __Method_ImportScript = new Method<global::Walletrpc.ImportScriptRequest, global::Walletrpc.ImportScriptResponse>(
+        MethodType.Unary,
+        __ServiceName,
+        "ImportScript",
+        __Marshaller_ImportScriptRequest,
+        __Marshaller_ImportScriptResponse);
+
     static readonly Method<global::Walletrpc.FundTransactionRequest, global::Walletrpc.FundTransactionResponse> __Method_FundTransaction = new Method<global::Walletrpc.FundTransactionRequest, global::Walletrpc.FundTransactionResponse>(
         MethodType.Unary,
         __ServiceName,
@@ -242,6 +271,13 @@ namespace Walletrpc {
         "PublishTransaction",
         __Marshaller_PublishTransactionRequest,
         __Marshaller_PublishTransactionResponse);
+
+    static readonly Method<global::Walletrpc.PurchaseTicketsRequest, global::Walletrpc.PurchaseTicketsResponse> __Method_PurchaseTickets = new Method<global::Walletrpc.PurchaseTicketsRequest, global::Walletrpc.PurchaseTicketsResponse>(
+        MethodType.Unary,
+        __ServiceName,
+        "PurchaseTickets",
+        __Marshaller_PurchaseTicketsRequest,
+        __Marshaller_PurchaseTicketsResponse);
 
     // service descriptor
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
@@ -276,6 +312,14 @@ namespace Walletrpc {
       global::Walletrpc.GetTransactionsResponse GetTransactions(global::Walletrpc.GetTransactionsRequest request, CallOptions options);
       AsyncUnaryCall<global::Walletrpc.GetTransactionsResponse> GetTransactionsAsync(global::Walletrpc.GetTransactionsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
       AsyncUnaryCall<global::Walletrpc.GetTransactionsResponse> GetTransactionsAsync(global::Walletrpc.GetTransactionsRequest request, CallOptions options);
+      global::Walletrpc.TicketPriceResponse TicketPrice(global::Walletrpc.TicketPriceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
+      global::Walletrpc.TicketPriceResponse TicketPrice(global::Walletrpc.TicketPriceRequest request, CallOptions options);
+      AsyncUnaryCall<global::Walletrpc.TicketPriceResponse> TicketPriceAsync(global::Walletrpc.TicketPriceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
+      AsyncUnaryCall<global::Walletrpc.TicketPriceResponse> TicketPriceAsync(global::Walletrpc.TicketPriceRequest request, CallOptions options);
+      global::Walletrpc.StakeInfoResponse StakeInfo(global::Walletrpc.StakeInfoRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
+      global::Walletrpc.StakeInfoResponse StakeInfo(global::Walletrpc.StakeInfoRequest request, CallOptions options);
+      AsyncUnaryCall<global::Walletrpc.StakeInfoResponse> StakeInfoAsync(global::Walletrpc.StakeInfoRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
+      AsyncUnaryCall<global::Walletrpc.StakeInfoResponse> StakeInfoAsync(global::Walletrpc.StakeInfoRequest request, CallOptions options);
       AsyncServerStreamingCall<global::Walletrpc.TransactionNotificationsResponse> TransactionNotifications(global::Walletrpc.TransactionNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
       AsyncServerStreamingCall<global::Walletrpc.TransactionNotificationsResponse> TransactionNotifications(global::Walletrpc.TransactionNotificationsRequest request, CallOptions options);
       AsyncServerStreamingCall<global::Walletrpc.SpentnessNotificationsResponse> SpentnessNotifications(global::Walletrpc.SpentnessNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
@@ -302,6 +346,10 @@ namespace Walletrpc {
       global::Walletrpc.ImportPrivateKeyResponse ImportPrivateKey(global::Walletrpc.ImportPrivateKeyRequest request, CallOptions options);
       AsyncUnaryCall<global::Walletrpc.ImportPrivateKeyResponse> ImportPrivateKeyAsync(global::Walletrpc.ImportPrivateKeyRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
       AsyncUnaryCall<global::Walletrpc.ImportPrivateKeyResponse> ImportPrivateKeyAsync(global::Walletrpc.ImportPrivateKeyRequest request, CallOptions options);
+      global::Walletrpc.ImportScriptResponse ImportScript(global::Walletrpc.ImportScriptRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
+      global::Walletrpc.ImportScriptResponse ImportScript(global::Walletrpc.ImportScriptRequest request, CallOptions options);
+      AsyncUnaryCall<global::Walletrpc.ImportScriptResponse> ImportScriptAsync(global::Walletrpc.ImportScriptRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
+      AsyncUnaryCall<global::Walletrpc.ImportScriptResponse> ImportScriptAsync(global::Walletrpc.ImportScriptRequest request, CallOptions options);
       global::Walletrpc.FundTransactionResponse FundTransaction(global::Walletrpc.FundTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
       global::Walletrpc.FundTransactionResponse FundTransaction(global::Walletrpc.FundTransactionRequest request, CallOptions options);
       AsyncUnaryCall<global::Walletrpc.FundTransactionResponse> FundTransactionAsync(global::Walletrpc.FundTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
@@ -314,6 +362,10 @@ namespace Walletrpc {
       global::Walletrpc.PublishTransactionResponse PublishTransaction(global::Walletrpc.PublishTransactionRequest request, CallOptions options);
       AsyncUnaryCall<global::Walletrpc.PublishTransactionResponse> PublishTransactionAsync(global::Walletrpc.PublishTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
       AsyncUnaryCall<global::Walletrpc.PublishTransactionResponse> PublishTransactionAsync(global::Walletrpc.PublishTransactionRequest request, CallOptions options);
+      global::Walletrpc.PurchaseTicketsResponse PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
+      global::Walletrpc.PurchaseTicketsResponse PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, CallOptions options);
+      AsyncUnaryCall<global::Walletrpc.PurchaseTicketsResponse> PurchaseTicketsAsync(global::Walletrpc.PurchaseTicketsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
+      AsyncUnaryCall<global::Walletrpc.PurchaseTicketsResponse> PurchaseTicketsAsync(global::Walletrpc.PurchaseTicketsRequest request, CallOptions options);
     }
 
     // server-side interface
@@ -325,6 +377,8 @@ namespace Walletrpc {
       Task<global::Walletrpc.AccountsResponse> Accounts(global::Walletrpc.AccountsRequest request, ServerCallContext context);
       Task<global::Walletrpc.BalanceResponse> Balance(global::Walletrpc.BalanceRequest request, ServerCallContext context);
       Task<global::Walletrpc.GetTransactionsResponse> GetTransactions(global::Walletrpc.GetTransactionsRequest request, ServerCallContext context);
+      Task<global::Walletrpc.TicketPriceResponse> TicketPrice(global::Walletrpc.TicketPriceRequest request, ServerCallContext context);
+      Task<global::Walletrpc.StakeInfoResponse> StakeInfo(global::Walletrpc.StakeInfoRequest request, ServerCallContext context);
       Task TransactionNotifications(global::Walletrpc.TransactionNotificationsRequest request, IServerStreamWriter<global::Walletrpc.TransactionNotificationsResponse> responseStream, ServerCallContext context);
       Task SpentnessNotifications(global::Walletrpc.SpentnessNotificationsRequest request, IServerStreamWriter<global::Walletrpc.SpentnessNotificationsResponse> responseStream, ServerCallContext context);
       Task AccountNotifications(global::Walletrpc.AccountNotificationsRequest request, IServerStreamWriter<global::Walletrpc.AccountNotificationsResponse> responseStream, ServerCallContext context);
@@ -333,9 +387,11 @@ namespace Walletrpc {
       Task<global::Walletrpc.NextAccountResponse> NextAccount(global::Walletrpc.NextAccountRequest request, ServerCallContext context);
       Task<global::Walletrpc.NextAddressResponse> NextAddress(global::Walletrpc.NextAddressRequest request, ServerCallContext context);
       Task<global::Walletrpc.ImportPrivateKeyResponse> ImportPrivateKey(global::Walletrpc.ImportPrivateKeyRequest request, ServerCallContext context);
+      Task<global::Walletrpc.ImportScriptResponse> ImportScript(global::Walletrpc.ImportScriptRequest request, ServerCallContext context);
       Task<global::Walletrpc.FundTransactionResponse> FundTransaction(global::Walletrpc.FundTransactionRequest request, ServerCallContext context);
       Task<global::Walletrpc.SignTransactionResponse> SignTransaction(global::Walletrpc.SignTransactionRequest request, ServerCallContext context);
       Task<global::Walletrpc.PublishTransactionResponse> PublishTransaction(global::Walletrpc.PublishTransactionRequest request, ServerCallContext context);
+      Task<global::Walletrpc.PurchaseTicketsResponse> PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, ServerCallContext context);
     }
 
     // client stub
@@ -462,6 +518,46 @@ namespace Walletrpc {
       public AsyncUnaryCall<global::Walletrpc.GetTransactionsResponse> GetTransactionsAsync(global::Walletrpc.GetTransactionsRequest request, CallOptions options)
       {
         var call = CreateCall(__Method_GetTransactions, options);
+        return Calls.AsyncUnaryCall(call, request);
+      }
+      public global::Walletrpc.TicketPriceResponse TicketPrice(global::Walletrpc.TicketPriceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        var call = CreateCall(__Method_TicketPrice, new CallOptions(headers, deadline, cancellationToken));
+        return Calls.BlockingUnaryCall(call, request);
+      }
+      public global::Walletrpc.TicketPriceResponse TicketPrice(global::Walletrpc.TicketPriceRequest request, CallOptions options)
+      {
+        var call = CreateCall(__Method_TicketPrice, options);
+        return Calls.BlockingUnaryCall(call, request);
+      }
+      public AsyncUnaryCall<global::Walletrpc.TicketPriceResponse> TicketPriceAsync(global::Walletrpc.TicketPriceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        var call = CreateCall(__Method_TicketPrice, new CallOptions(headers, deadline, cancellationToken));
+        return Calls.AsyncUnaryCall(call, request);
+      }
+      public AsyncUnaryCall<global::Walletrpc.TicketPriceResponse> TicketPriceAsync(global::Walletrpc.TicketPriceRequest request, CallOptions options)
+      {
+        var call = CreateCall(__Method_TicketPrice, options);
+        return Calls.AsyncUnaryCall(call, request);
+      }
+      public global::Walletrpc.StakeInfoResponse StakeInfo(global::Walletrpc.StakeInfoRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        var call = CreateCall(__Method_StakeInfo, new CallOptions(headers, deadline, cancellationToken));
+        return Calls.BlockingUnaryCall(call, request);
+      }
+      public global::Walletrpc.StakeInfoResponse StakeInfo(global::Walletrpc.StakeInfoRequest request, CallOptions options)
+      {
+        var call = CreateCall(__Method_StakeInfo, options);
+        return Calls.BlockingUnaryCall(call, request);
+      }
+      public AsyncUnaryCall<global::Walletrpc.StakeInfoResponse> StakeInfoAsync(global::Walletrpc.StakeInfoRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        var call = CreateCall(__Method_StakeInfo, new CallOptions(headers, deadline, cancellationToken));
+        return Calls.AsyncUnaryCall(call, request);
+      }
+      public AsyncUnaryCall<global::Walletrpc.StakeInfoResponse> StakeInfoAsync(global::Walletrpc.StakeInfoRequest request, CallOptions options)
+      {
+        var call = CreateCall(__Method_StakeInfo, options);
         return Calls.AsyncUnaryCall(call, request);
       }
       public AsyncServerStreamingCall<global::Walletrpc.TransactionNotificationsResponse> TransactionNotifications(global::Walletrpc.TransactionNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
@@ -594,6 +690,26 @@ namespace Walletrpc {
         var call = CreateCall(__Method_ImportPrivateKey, options);
         return Calls.AsyncUnaryCall(call, request);
       }
+      public global::Walletrpc.ImportScriptResponse ImportScript(global::Walletrpc.ImportScriptRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        var call = CreateCall(__Method_ImportScript, new CallOptions(headers, deadline, cancellationToken));
+        return Calls.BlockingUnaryCall(call, request);
+      }
+      public global::Walletrpc.ImportScriptResponse ImportScript(global::Walletrpc.ImportScriptRequest request, CallOptions options)
+      {
+        var call = CreateCall(__Method_ImportScript, options);
+        return Calls.BlockingUnaryCall(call, request);
+      }
+      public AsyncUnaryCall<global::Walletrpc.ImportScriptResponse> ImportScriptAsync(global::Walletrpc.ImportScriptRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        var call = CreateCall(__Method_ImportScript, new CallOptions(headers, deadline, cancellationToken));
+        return Calls.AsyncUnaryCall(call, request);
+      }
+      public AsyncUnaryCall<global::Walletrpc.ImportScriptResponse> ImportScriptAsync(global::Walletrpc.ImportScriptRequest request, CallOptions options)
+      {
+        var call = CreateCall(__Method_ImportScript, options);
+        return Calls.AsyncUnaryCall(call, request);
+      }
       public global::Walletrpc.FundTransactionResponse FundTransaction(global::Walletrpc.FundTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
         var call = CreateCall(__Method_FundTransaction, new CallOptions(headers, deadline, cancellationToken));
@@ -654,6 +770,26 @@ namespace Walletrpc {
         var call = CreateCall(__Method_PublishTransaction, options);
         return Calls.AsyncUnaryCall(call, request);
       }
+      public global::Walletrpc.PurchaseTicketsResponse PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        var call = CreateCall(__Method_PurchaseTickets, new CallOptions(headers, deadline, cancellationToken));
+        return Calls.BlockingUnaryCall(call, request);
+      }
+      public global::Walletrpc.PurchaseTicketsResponse PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, CallOptions options)
+      {
+        var call = CreateCall(__Method_PurchaseTickets, options);
+        return Calls.BlockingUnaryCall(call, request);
+      }
+      public AsyncUnaryCall<global::Walletrpc.PurchaseTicketsResponse> PurchaseTicketsAsync(global::Walletrpc.PurchaseTicketsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        var call = CreateCall(__Method_PurchaseTickets, new CallOptions(headers, deadline, cancellationToken));
+        return Calls.AsyncUnaryCall(call, request);
+      }
+      public AsyncUnaryCall<global::Walletrpc.PurchaseTicketsResponse> PurchaseTicketsAsync(global::Walletrpc.PurchaseTicketsRequest request, CallOptions options)
+      {
+        var call = CreateCall(__Method_PurchaseTickets, options);
+        return Calls.AsyncUnaryCall(call, request);
+      }
     }
 
     // creates service definition that can be registered with a server
@@ -666,6 +802,8 @@ namespace Walletrpc {
           .AddMethod(__Method_Accounts, serviceImpl.Accounts)
           .AddMethod(__Method_Balance, serviceImpl.Balance)
           .AddMethod(__Method_GetTransactions, serviceImpl.GetTransactions)
+          .AddMethod(__Method_TicketPrice, serviceImpl.TicketPrice)
+          .AddMethod(__Method_StakeInfo, serviceImpl.StakeInfo)
           .AddMethod(__Method_TransactionNotifications, serviceImpl.TransactionNotifications)
           .AddMethod(__Method_SpentnessNotifications, serviceImpl.SpentnessNotifications)
           .AddMethod(__Method_AccountNotifications, serviceImpl.AccountNotifications)
@@ -674,9 +812,11 @@ namespace Walletrpc {
           .AddMethod(__Method_NextAccount, serviceImpl.NextAccount)
           .AddMethod(__Method_NextAddress, serviceImpl.NextAddress)
           .AddMethod(__Method_ImportPrivateKey, serviceImpl.ImportPrivateKey)
+          .AddMethod(__Method_ImportScript, serviceImpl.ImportScript)
           .AddMethod(__Method_FundTransaction, serviceImpl.FundTransaction)
           .AddMethod(__Method_SignTransaction, serviceImpl.SignTransaction)
-          .AddMethod(__Method_PublishTransaction, serviceImpl.PublishTransaction).Build();
+          .AddMethod(__Method_PublishTransaction, serviceImpl.PublishTransaction)
+          .AddMethod(__Method_PurchaseTickets, serviceImpl.PurchaseTickets).Build();
     }
 
     // creates a new client
