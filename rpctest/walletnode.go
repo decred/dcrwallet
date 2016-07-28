@@ -42,6 +42,7 @@ type walletTestConfig struct {
 
 // newConfig returns a newConfig with all default values.
 func newWalletConfig(prefix, caFile, certFile, keyFile string, extra []string) (*walletTestConfig, error) {
+	// TODO: use defaultRPCPort and defaultWalletRPCPort instead of literals
 	a := &walletTestConfig{
 		rpcConnect: "127.0.0.1:19556",
 		rpcListen:  "127.0.0.1:19557",
@@ -181,9 +182,9 @@ type walletTest struct {
 	dataDir string
 }
 
-// newNode creates a new walletTest instance according to the passed config. dataDir
-// will be used to hold a file recording the pid of the launched process, and
-// as the base for the log and data directories for dcrwallet.
+// newWallet creates a new walletTest instance according to the passed config.
+// dataDir will be used to hold a file recording the pid of the launched
+// process, and as the base for the log and data directories for dcrwallet.
 func newWallet(config *walletTestConfig, dataDir string) (*walletTest, error) {
 	return &walletTest{
 		config:  config,
