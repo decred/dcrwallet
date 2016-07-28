@@ -232,12 +232,11 @@
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Row="0" Foreground="#FF5A6E81" FontSize="20" Text="Create transaction"/>
-            <TextBlock Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="#FF0C1E3E" FontSize="11" Width="340">
-            <Run Text="Decred addresses always begin with letter"/>
-            <Run FontWeight="Bold" Text="D"/>
-            <Run Text="and contain 26-35 alphanumeric characters"/>
-            <Run FontWeight="Bold" Text="e.g."/>
-            <Run Foreground="#FF828C9D" Text="DxxxXXXXXXXXXXXXXXXXXDXXx0XXx0X"/>
+            <TextBlock Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="#FF0C1E3E" FontSize="14" Width="600" Padding="0 10">
+                Decred addresses always begin with the letter <Run FontWeight="Bold" Text="D"/>.
+                <LineBreak/>Transaction fees are calculated based on transaction size, not output value.
+                As more output value is added, additional inputs may be spent by the transaction.  This may
+                increase the transaction size and required fee.
             </TextBlock>
             <Border BorderBrush="#FFD3D9DF" BorderThickness="0,1" Grid.Row="2" Background="White" Padding="0 20" VerticalAlignment="Top">
                 <Grid Margin="0">
