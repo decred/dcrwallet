@@ -299,7 +299,12 @@ namespace Paymetheus.ViewModels
             try
             {
                 var r = await TransactionAuthor.BuildUnsignedTransaction(outputs, TransactionFees.DefaultFeePerKb, inputSource, changeSource);
-                SetPendingTransaction(r.Item1, r.Item2, outputs.Sum(o => o.Amount));
+                Amount totalAccountBalance;
+                using (var walletGuard = await App.Current.Synchronizer.WalletMutex.LockAsync())
+                {
+                    totalAccountBalance = walletGuard.Instance.LookupAccountProperties(SelectedAccount.Account).TotalBalance;
+                }
+                SetPendingTransaction(totalAccountBalance, r.Item1, r.Item2, outputs.Sum(o => o.Amount));
             }
             catch (Exception ex)
             {
@@ -319,14 +324,9 @@ namespace Paymetheus.ViewModels
             FinishCreateTransaction.Executable = false;
         }
 
-        private void SetPendingTransaction(Transaction unsignedTransaction, Amount inputAmount, Amount targetOutput)
+        private void SetPendingTransaction(Amount totalAccountBalance, Transaction unsignedTransaction, Amount inputAmount, Amount targetOutput)
         {
-            var wallet = App.Current.Synchronizer.Wallet;
-            if (wallet == null)
-                return;
-
             var actualFee = TransactionFees.ActualFee(unsignedTransaction, inputAmount);
-            var totalAccountBalance = wallet.LookupAccountProperties(SelectedAccount.Account).TotalBalance;
 
             _pendingTransaction = unsignedTransaction;
 

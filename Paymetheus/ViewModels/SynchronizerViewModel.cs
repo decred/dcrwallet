@@ -2,6 +2,7 @@
 // Licensed under the ISC license.  See LICENSE file in the project root for full license information.
 
 using Paymetheus.Decred;
+using Paymetheus.Decred.Util;
 using Paymetheus.Decred.Wallet;
 using Paymetheus.Framework;
 using Paymetheus.Rpc;
@@ -28,7 +29,7 @@ namespace Paymetheus.ViewModels
 
         public Process WalletRpcProcess { get; }
         public WalletClient WalletRpcClient { get; }
-        public Wallet Wallet { get; private set; }
+        public Mutex<Wallet> WalletMutex { get; private set; }
 
         public static async Task<SynchronizerViewModel> Startup(BlockChainIdentity activeNetwork, string walletAppDataDir, bool searchPath)
         {
@@ -83,7 +84,12 @@ namespace Paymetheus.ViewModels
             }
         }
 
-        public Amount TotalBalance => Wallet?.TotalBalance ?? 0;
+        private Amount _totalBalance;
+        public Amount TotalBalance
+        {
+            get { return _totalBalance; }
+            set { _totalBalance = value;  RaisePropertyChanged(); }
+        }
 
         private int _transactionCount;
         public int TransactionCount
@@ -124,8 +130,11 @@ namespace Paymetheus.ViewModels
             try
             {
                 var syncingWallet = await WalletRpcClient.Synchronize(OnWalletChangesProcessed);
-                Wallet = syncingWallet.Item1;
-                OnSyncedWallet();
+                WalletMutex = syncingWallet.Item1;
+                using (var guard = await WalletMutex.LockAsync())
+                {
+                    OnSyncedWallet(guard.Instance);
+                }
 
                 var syncTask = syncingWallet.Item2;
                 await syncTask;
@@ -148,9 +157,14 @@ namespace Paymetheus.ViewModels
             }
             finally
             {
-                var wallet = Wallet;
-                if (wallet != null)
-                    wallet.ChangesProcessed -= OnWalletChangesProcessed;
+                if (WalletMutex != null)
+                {
+                    using (var walletGuard = await WalletMutex.LockAsync())
+                    {
+                        walletGuard.Instance.ChangesProcessed -= OnWalletChangesProcessed;
+                    }
+                }
+
                 var shell = (ShellViewModel)ViewModelLocator.ShellViewModel;
                 shell.StartupWizardVisible = true;
             }
@@ -205,7 +219,7 @@ namespace Paymetheus.ViewModels
                     .Where(txvm => e.MovedTransactions.ContainsKey(txvm.TxHash))
                     .Select(txvm => Tuple.Create(txvm, e.MovedTransactions[txvm.TxHash]));
 
-                var newTxViewModels = e.AddedTransactions.Select(tx => new TransactionViewModel(Wallet, tx.Item1, tx.Item2)).ToList();
+                var newTxViewModels = e.AddedTransactions.Select(tx => new TransactionViewModel(wallet, tx.Item1, tx.Item2)).ToList();
 
                 foreach (var movedTx in movedTxViewModels)
                 {
@@ -270,7 +284,7 @@ namespace Paymetheus.ViewModels
                 var accountProperties = modifiedAccount.Value;
 
                 // TODO: This is very inefficient because it recalculates balances of every account, for each new account.
-                var accountBalance = Wallet.CalculateBalances(2)[accountNumber];
+                var accountBalance = wallet.CalculateBalances(2)[accountNumber];
                 var accountViewModel = new AccountViewModel(modifiedAccount.Key, accountProperties, accountBalance);
                 App.Current.Dispatcher.Invoke(() => Accounts.Add(accountViewModel));
             }
@@ -281,9 +295,9 @@ namespace Paymetheus.ViewModels
             }
             if (e.AddedTransactions.Count != 0 || e.RemovedTransactions.Count != 0 || e.NewChainTip != null)
             {
-                RaisePropertyChanged(nameof(TotalBalance));
+                TotalBalance = wallet.TotalBalance;
                 TransactionCount += e.AddedTransactions.Count - e.RemovedTransactions.Count;
-                var balances = Wallet.CalculateBalances(2); // TODO: don't hardcode confs
+                var balances = wallet.CalculateBalances(2); // TODO: don't hardcode confs
                 for (var i = 0; i < balances.Length; i++)
                 {
                     Accounts[i].Balances = balances[i];
@@ -291,17 +305,17 @@ namespace Paymetheus.ViewModels
             }
         }
 
-        private void OnSyncedWallet()
+        private void OnSyncedWallet(Wallet wallet)
         {
-            var accountBalances = Wallet.CalculateBalances(2); // TODO: configurable confirmations
-            var accountViewModels = Wallet.EnumerateAccounts()
+            var accountBalances = wallet.CalculateBalances(2); // TODO: configurable confirmations
+            var accountViewModels = wallet.EnumerateAccounts()
                 .Zip(accountBalances, (a, bals) => new AccountViewModel(a.Item1, a.Item2, bals))
                 .ToList();
 
-            var txSet = Wallet.RecentTransactions;
+            var txSet = wallet.RecentTransactions;
             var recentTx = txSet.UnminedTransactions
-                .Select(x => new TransactionViewModel(Wallet, x.Value, BlockIdentity.Unmined))
-                .Concat(txSet.MinedTransactions.ReverseList().SelectMany(b => b.Transactions.Select(tx => new TransactionViewModel(Wallet, tx, b.Identity))))
+                .Select(x => new TransactionViewModel(wallet, x.Value, BlockIdentity.Unmined))
+                .Concat(txSet.MinedTransactions.ReverseList().SelectMany(b => b.Transactions.Select(tx => new TransactionViewModel(wallet, tx, b.Identity))))
                 .Take(10);
             var overviewViewModel = (OverviewViewModel)SingletonViewModelLocator.Resolve("Overview");
 
@@ -312,8 +326,9 @@ namespace Paymetheus.ViewModels
                 foreach (var tx in recentTx)
                     overviewViewModel.RecentTransactions.Add(tx);
             });
+            TotalBalance = wallet.TotalBalance;
             TransactionCount = txSet.TransactionCount();
-            SyncedBlockHeight = Wallet.ChainTip.Height;
+            SyncedBlockHeight = wallet.ChainTip.Height;
             SelectedAccount = accountViewModels[0];
             RaisePropertyChanged(nameof(TotalBalance));
             RaisePropertyChanged(nameof(AccountNames));

@@ -8,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -23,7 +22,7 @@ namespace Paymetheus.ViewModels
                 return;
 
             _selectedAccount = synchronizer.Accounts[0];
-            PopulateHistoryAsync(_selectedAccount.Account);
+            Task.Run(() => PopulateHistoryAsync(_selectedAccount.Account));
         }
 
         private AccountViewModel _selectedAccount;
@@ -35,7 +34,7 @@ namespace Paymetheus.ViewModels
                 _selectedAccount = value;
 
                 Transactions.Clear();
-                PopulateHistoryAsync(value.Account);
+                Task.Run(() => PopulateHistoryAsync(value.Account));
 
                 RaisePropertyChanged();
             }
@@ -75,26 +74,27 @@ namespace Paymetheus.ViewModels
         public ObservableCollection<HistoryItem> Transactions { get; } = new ObservableCollection<HistoryItem>();
 
         // TODO: Figure out what to do with exceptions.  another message box?
-        private Task PopulateHistoryAsync(Account account) => Task.Run(() => PopulateHistory(account));
-
-        private void PopulateHistory(Account account)
+        private async Task PopulateHistoryAsync(Account account)
         {
             var synchronizer = ViewModelLocator.SynchronizerViewModel as SynchronizerViewModel;
-            var wallet = synchronizer?.Wallet;
-            if (wallet == null)
+            var walletMutex = synchronizer?.WalletMutex;
+            if (walletMutex == null)
                 return;
 
-            Amount totalDebits = 0;
-            Amount totalCredits = 0;
-            foreach (var histItem in EnumerateAccountTransactions(wallet, account))
+            using (var walletGuard = await walletMutex.LockAsync())
             {
-                totalDebits += histItem.AccountDebit;
-                totalCredits += histItem.AccountCredit;
-                Application.Current.Dispatcher.Invoke(() => Transactions.Add(histItem));
-            }
+                Amount totalDebits = 0;
+                Amount totalCredits = 0;
+                foreach (var histItem in EnumerateAccountTransactions(walletGuard.Instance, account))
+                {
+                    totalDebits += histItem.AccountDebit;
+                    totalCredits += histItem.AccountCredit;
+                    Application.Current.Dispatcher.Invoke(() => Transactions.Add(histItem));
+                }
 
-            DebitSum = totalDebits;
-            CreditSum = totalCredits;
+                DebitSum = totalDebits;
+                CreditSum = totalCredits;
+            }
         }
 
         private static IEnumerable<HistoryItem> EnumerateAccountTransactions(Wallet wallet, Account account)

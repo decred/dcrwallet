@@ -75,6 +75,7 @@
     <Compile Include="TransactionTests.cs" />
     <Compile Include="Util\Base58Tests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Util\MutexTests.cs" />
     <Compile Include="Wallet\WalletSeedTests.cs" />
     <Compile Include="Wallet\AddressTests.cs" />
     <Compile Include="Wallet\ChecksumTests.cs" />

@@ -5,6 +5,7 @@
 using Google.Protobuf;
 using Grpc.Core;
 using Paymetheus.Decred;
+using Paymetheus.Decred.Util;
 using Paymetheus.Decred.Wallet;
 using System;
 using System.Collections.Generic;
@@ -322,7 +323,7 @@ namespace Paymetheus.Rpc
         /// </summary>
         /// <param name="walletEventHandler">Event handler for changes to wallet as new transactions are processed.</param>
         /// <returns>The synced Wallet and the Task that is keeping the wallet in sync.</returns>
-        public async Task<Tuple<Wallet, Task>> Synchronize(EventHandler<Wallet.ChangesProcessedEventArgs> walletEventHandler)
+        public async Task<Tuple<Mutex<Wallet>, Task>> Synchronize(EventHandler<Wallet.ChangesProcessedEventArgs> walletEventHandler)
         {
             if (walletEventHandler == null)
                 throw new ArgumentNullException(nameof(walletEventHandler));
@@ -435,6 +436,7 @@ namespace Paymetheus.Rpc
                 var chainTip = new BlockIdentity(lastAccountBlockHash, lastAccountBlockHeight);
                 var wallet = new Wallet(activeBlockChain, txSet, bip0032Accounts, importedAccount, chainTip);
                 wallet.ChangesProcessed += walletEventHandler;
+                var walletMutex = new Mutex<Wallet>(wallet);
 
                 var syncTask = Task.Run(async () =>
                 {
@@ -449,26 +451,31 @@ namespace Paymetheus.Rpc
                         {
                             break;
                         }
-                        if (completedTask == accountChangesTask)
+
+                        using (var walletGuard = await walletMutex.LockAsync())
                         {
-                            var accountProperties = accountsStream.ResponseStream.Current;
-                            var account = new Account(accountProperties.AccountNumber);
-                            wallet.UpdateAccountProperties(account, accountProperties.AccountName,
-                                accountProperties.ExternalKeyCount, accountProperties.InternalKeyCount,
-                                accountProperties.ImportedKeyCount);
-                            accountChangesTask = accountsStream.ResponseStream.MoveNext();
-                        }
-                        else if (completedTask == txChangesTask)
-                        {
-                            var changes = notifications.Buffer.Receive();
-                            wallet.ApplyTransactionChanges(changes);
+                            var w = walletGuard.Instance;
+                            if (completedTask == accountChangesTask)
+                            {
+                                var accountProperties = accountsStream.ResponseStream.Current;
+                                var account = new Account(accountProperties.AccountNumber);
+                                w.UpdateAccountProperties(account, accountProperties.AccountName,
+                                    accountProperties.ExternalKeyCount, accountProperties.InternalKeyCount,
+                                    accountProperties.ImportedKeyCount);
+                                accountChangesTask = accountsStream.ResponseStream.MoveNext();
+                            }
+                            else if (completedTask == txChangesTask)
+                            {
+                                var changes = notifications.Buffer.Receive();
+                                w.ApplyTransactionChanges(changes);
+                            }
                         }
                     }
 
                     await notificationsTask;
                 });
 
-                return Tuple.Create(wallet, syncTask);
+                return Tuple.Create(walletMutex, syncTask);
             }
         }
     }

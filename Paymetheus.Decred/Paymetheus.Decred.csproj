@@ -63,6 +63,7 @@
     <Compile Include="Errors.cs" />
     <Compile Include="Script\SignatureAlgorithm.cs" />
     <Compile Include="TransactionRules.cs" />
+    <Compile Include="Util\Mutex.cs" />
     <Compile Include="Util\Base58.cs" />
     <Compile Include="Util\ByteCursor.cs" />
     <Compile Include="EncodingException.cs" />
