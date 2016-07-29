@@ -24,5 +24,14 @@ namespace Paymetheus
         {
             InitializeComponent();
         }
+
+        private void Page_Loaded(object sender, RoutedEventArgs e)
+        {
+            var dataContext = this.DataContext;
+            if (dataContext != null)
+            {
+                ((dynamic)dataContext).GeneratedAddress = null;
+            }
+        }
     }
 }
