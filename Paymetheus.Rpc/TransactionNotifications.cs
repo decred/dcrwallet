@@ -20,12 +20,12 @@ namespace Paymetheus.Rpc
     {
         public TransactionNotifications(Channel channel, CancellationToken cancelToken)
         {
-            _client = WalletService.NewClient(channel);
+            _client = new WalletService.WalletServiceClient(channel);
             _buffer = new BufferBlock<WalletChanges>();
             _cancelToken = cancelToken;
         }
 
-        private readonly WalletService.IWalletServiceClient _client;
+        private readonly WalletService.WalletServiceClient _client;
         private readonly CancellationToken _cancelToken;
         private readonly BufferBlock<WalletChanges> _buffer;
 

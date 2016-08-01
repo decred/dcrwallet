@@ -190,65 +190,65 @@ namespace Walletrpc {
             "bGxldHJwYy5TdGFydENvbnNlbnN1c1JwY1Jlc3BvbnNlYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
-          new pbr::GeneratedCodeInfo(null, new pbr::GeneratedCodeInfo[] {
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.VersionRequest), global::Walletrpc.VersionRequest.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.VersionResponse), global::Walletrpc.VersionResponse.Parser, new[]{ "VersionString", "Major", "Minor", "Patch", "Prerelease", "BuildMetadata" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TransactionDetails), global::Walletrpc.TransactionDetails.Parser, new[]{ "Hash", "Transaction", "Debits", "Credits", "Fee", "Timestamp" }, null, null, new pbr::GeneratedCodeInfo[] { new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TransactionDetails.Types.Input), global::Walletrpc.TransactionDetails.Types.Input.Parser, new[]{ "Index", "PreviousAccount", "PreviousAmount" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TransactionDetails.Types.Output), global::Walletrpc.TransactionDetails.Types.Output.Parser, new[]{ "Index", "Account", "Internal" }, null, null, null)}),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.BlockDetails), global::Walletrpc.BlockDetails.Parser, new[]{ "Hash", "Height", "Timestamp", "Transactions" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.AccountBalance), global::Walletrpc.AccountBalance.Parser, new[]{ "Account", "TotalBalance" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.PingRequest), global::Walletrpc.PingRequest.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.PingResponse), global::Walletrpc.PingResponse.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.NetworkRequest), global::Walletrpc.NetworkRequest.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.NetworkResponse), global::Walletrpc.NetworkResponse.Parser, new[]{ "ActiveNetwork" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.AccountNumberRequest), global::Walletrpc.AccountNumberRequest.Parser, new[]{ "AccountName" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.AccountNumberResponse), global::Walletrpc.AccountNumberResponse.Parser, new[]{ "AccountNumber" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.AccountsRequest), global::Walletrpc.AccountsRequest.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.AccountsResponse), global::Walletrpc.AccountsResponse.Parser, new[]{ "Accounts", "CurrentBlockHash", "CurrentBlockHeight" }, null, null, new pbr::GeneratedCodeInfo[] { new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.AccountsResponse.Types.Account), global::Walletrpc.AccountsResponse.Types.Account.Parser, new[]{ "AccountNumber", "AccountName", "TotalBalance", "ExternalKeyCount", "InternalKeyCount", "ImportedKeyCount" }, null, null, null)}),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.RenameAccountRequest), global::Walletrpc.RenameAccountRequest.Parser, new[]{ "AccountNumber", "NewName" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.RenameAccountResponse), global::Walletrpc.RenameAccountResponse.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.NextAccountRequest), global::Walletrpc.NextAccountRequest.Parser, new[]{ "Passphrase", "AccountName" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.NextAccountResponse), global::Walletrpc.NextAccountResponse.Parser, new[]{ "AccountNumber" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.NextAddressRequest), global::Walletrpc.NextAddressRequest.Parser, new[]{ "Account", "Kind" }, null, new[]{ typeof(global::Walletrpc.NextAddressRequest.Types.Kind) }, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.NextAddressResponse), global::Walletrpc.NextAddressResponse.Parser, new[]{ "Address" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.ImportPrivateKeyRequest), global::Walletrpc.ImportPrivateKeyRequest.Parser, new[]{ "Passphrase", "Account", "PrivateKeyWif", "Rescan", "ScanFrom" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.ImportPrivateKeyResponse), global::Walletrpc.ImportPrivateKeyResponse.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.ImportScriptRequest), global::Walletrpc.ImportScriptRequest.Parser, new[]{ "Passphrase", "Script", "Rescan", "ScanFrom" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.ImportScriptResponse), global::Walletrpc.ImportScriptResponse.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.BalanceRequest), global::Walletrpc.BalanceRequest.Parser, new[]{ "AccountNumber", "RequiredConfirmations" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.BalanceResponse), global::Walletrpc.BalanceResponse.Parser, new[]{ "Total", "Spendable", "ImmatureReward" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.GetTransactionsRequest), global::Walletrpc.GetTransactionsRequest.Parser, new[]{ "StartingBlockHash", "StartingBlockHeight", "EndingBlockHash", "EndingBlockHeight", "MinimumRecentTransactions" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.GetTransactionsResponse), global::Walletrpc.GetTransactionsResponse.Parser, new[]{ "MinedTransactions", "UnminedTransactions" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TicketPriceRequest), global::Walletrpc.TicketPriceRequest.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TicketPriceResponse), global::Walletrpc.TicketPriceResponse.Parser, new[]{ "TicketPrice", "Height" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.StakeInfoRequest), global::Walletrpc.StakeInfoRequest.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.StakeInfoResponse), global::Walletrpc.StakeInfoResponse.Parser, new[]{ "PoolSize", "AllMempoolTix", "OwnMempoolTix", "Immature", "Live", "Voted", "Missed", "Revoked", "Expired", "TotalSubsidy" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.ChangePassphraseRequest), global::Walletrpc.ChangePassphraseRequest.Parser, new[]{ "Key", "OldPassphrase", "NewPassphrase" }, null, new[]{ typeof(global::Walletrpc.ChangePassphraseRequest.Types.Key) }, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.ChangePassphraseResponse), global::Walletrpc.ChangePassphraseResponse.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.FundTransactionRequest), global::Walletrpc.FundTransactionRequest.Parser, new[]{ "Account", "TargetAmount", "RequiredConfirmations", "IncludeImmatureCoinbases", "IncludeChangeScript" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.FundTransactionResponse), global::Walletrpc.FundTransactionResponse.Parser, new[]{ "SelectedOutputs", "TotalAmount", "ChangePkScript" }, null, null, new pbr::GeneratedCodeInfo[] { new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.FundTransactionResponse.Types.PreviousOutput), global::Walletrpc.FundTransactionResponse.Types.PreviousOutput.Parser, new[]{ "TransactionHash", "OutputIndex", "Amount", "PkScript", "ReceiveTime", "FromCoinbase", "Tree" }, null, null, null)}),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.SignTransactionRequest), global::Walletrpc.SignTransactionRequest.Parser, new[]{ "Passphrase", "SerializedTransaction", "InputIndexes" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.SignTransactionResponse), global::Walletrpc.SignTransactionResponse.Parser, new[]{ "Transaction", "UnsignedInputIndexes" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.PublishTransactionRequest), global::Walletrpc.PublishTransactionRequest.Parser, new[]{ "SignedTransaction" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.PublishTransactionResponse), global::Walletrpc.PublishTransactionResponse.Parser, new[]{ "TransactionHash" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.PurchaseTicketsRequest), global::Walletrpc.PurchaseTicketsRequest.Parser, new[]{ "Passphrase", "Account", "SpendLimit", "RequiredConfirmations", "TicketAddress", "NumTickets", "PoolAddress", "PoolFees", "Expiry", "TxFee", "TicketFee" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.PurchaseTicketsResponse), global::Walletrpc.PurchaseTicketsResponse.Parser, new[]{ "TicketHashes" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TransactionNotificationsRequest), global::Walletrpc.TransactionNotificationsRequest.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.TransactionNotificationsResponse), global::Walletrpc.TransactionNotificationsResponse.Parser, new[]{ "AttachedBlocks", "DetachedBlocks", "UnminedTransactions", "UnminedTransactionHashes" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.SpentnessNotificationsRequest), global::Walletrpc.SpentnessNotificationsRequest.Parser, new[]{ "Account", "NoNotifyUnspent", "NoNotifySpent" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.SpentnessNotificationsResponse), global::Walletrpc.SpentnessNotificationsResponse.Parser, new[]{ "TransactionHash", "OutputIndex", "Spender" }, null, null, new pbr::GeneratedCodeInfo[] { new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.SpentnessNotificationsResponse.Types.Spender), global::Walletrpc.SpentnessNotificationsResponse.Types.Spender.Parser, new[]{ "TransactionHash", "InputIndex" }, null, null, null)}),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.AccountNotificationsRequest), global::Walletrpc.AccountNotificationsRequest.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.AccountNotificationsResponse), global::Walletrpc.AccountNotificationsResponse.Parser, new[]{ "AccountNumber", "AccountName", "ExternalKeyCount", "InternalKeyCount", "ImportedKeyCount" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.CreateWalletRequest), global::Walletrpc.CreateWalletRequest.Parser, new[]{ "PublicPassphrase", "PrivatePassphrase", "Seed" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.CreateWalletResponse), global::Walletrpc.CreateWalletResponse.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.OpenWalletRequest), global::Walletrpc.OpenWalletRequest.Parser, new[]{ "PublicPassphrase" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.OpenWalletResponse), global::Walletrpc.OpenWalletResponse.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.CloseWalletRequest), global::Walletrpc.CloseWalletRequest.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.CloseWalletResponse), global::Walletrpc.CloseWalletResponse.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.WalletExistsRequest), global::Walletrpc.WalletExistsRequest.Parser, null, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.WalletExistsResponse), global::Walletrpc.WalletExistsResponse.Parser, new[]{ "Exists" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.StartConsensusRpcRequest), global::Walletrpc.StartConsensusRpcRequest.Parser, new[]{ "NetworkAddress", "Username", "Password", "Certificate" }, null, null, null),
-            new pbr::GeneratedCodeInfo(typeof(global::Walletrpc.StartConsensusRpcResponse), global::Walletrpc.StartConsensusRpcResponse.Parser, null, null, null, null)
+          new pbr::GeneratedClrTypeInfo(null, new pbr::GeneratedClrTypeInfo[] {
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.VersionRequest), global::Walletrpc.VersionRequest.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.VersionResponse), global::Walletrpc.VersionResponse.Parser, new[]{ "VersionString", "Major", "Minor", "Patch", "Prerelease", "BuildMetadata" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.TransactionDetails), global::Walletrpc.TransactionDetails.Parser, new[]{ "Hash", "Transaction", "Debits", "Credits", "Fee", "Timestamp" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.TransactionDetails.Types.Input), global::Walletrpc.TransactionDetails.Types.Input.Parser, new[]{ "Index", "PreviousAccount", "PreviousAmount" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.TransactionDetails.Types.Output), global::Walletrpc.TransactionDetails.Types.Output.Parser, new[]{ "Index", "Account", "Internal" }, null, null, null)}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.BlockDetails), global::Walletrpc.BlockDetails.Parser, new[]{ "Hash", "Height", "Timestamp", "Transactions" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.AccountBalance), global::Walletrpc.AccountBalance.Parser, new[]{ "Account", "TotalBalance" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.PingRequest), global::Walletrpc.PingRequest.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.PingResponse), global::Walletrpc.PingResponse.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.NetworkRequest), global::Walletrpc.NetworkRequest.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.NetworkResponse), global::Walletrpc.NetworkResponse.Parser, new[]{ "ActiveNetwork" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.AccountNumberRequest), global::Walletrpc.AccountNumberRequest.Parser, new[]{ "AccountName" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.AccountNumberResponse), global::Walletrpc.AccountNumberResponse.Parser, new[]{ "AccountNumber" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.AccountsRequest), global::Walletrpc.AccountsRequest.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.AccountsResponse), global::Walletrpc.AccountsResponse.Parser, new[]{ "Accounts", "CurrentBlockHash", "CurrentBlockHeight" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.AccountsResponse.Types.Account), global::Walletrpc.AccountsResponse.Types.Account.Parser, new[]{ "AccountNumber", "AccountName", "TotalBalance", "ExternalKeyCount", "InternalKeyCount", "ImportedKeyCount" }, null, null, null)}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.RenameAccountRequest), global::Walletrpc.RenameAccountRequest.Parser, new[]{ "AccountNumber", "NewName" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.RenameAccountResponse), global::Walletrpc.RenameAccountResponse.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.NextAccountRequest), global::Walletrpc.NextAccountRequest.Parser, new[]{ "Passphrase", "AccountName" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.NextAccountResponse), global::Walletrpc.NextAccountResponse.Parser, new[]{ "AccountNumber" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.NextAddressRequest), global::Walletrpc.NextAddressRequest.Parser, new[]{ "Account", "Kind" }, null, new[]{ typeof(global::Walletrpc.NextAddressRequest.Types.Kind) }, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.NextAddressResponse), global::Walletrpc.NextAddressResponse.Parser, new[]{ "Address" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.ImportPrivateKeyRequest), global::Walletrpc.ImportPrivateKeyRequest.Parser, new[]{ "Passphrase", "Account", "PrivateKeyWif", "Rescan", "ScanFrom" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.ImportPrivateKeyResponse), global::Walletrpc.ImportPrivateKeyResponse.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.ImportScriptRequest), global::Walletrpc.ImportScriptRequest.Parser, new[]{ "Passphrase", "Script", "Rescan", "ScanFrom" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.ImportScriptResponse), global::Walletrpc.ImportScriptResponse.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.BalanceRequest), global::Walletrpc.BalanceRequest.Parser, new[]{ "AccountNumber", "RequiredConfirmations" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.BalanceResponse), global::Walletrpc.BalanceResponse.Parser, new[]{ "Total", "Spendable", "ImmatureReward" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.GetTransactionsRequest), global::Walletrpc.GetTransactionsRequest.Parser, new[]{ "StartingBlockHash", "StartingBlockHeight", "EndingBlockHash", "EndingBlockHeight", "MinimumRecentTransactions" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.GetTransactionsResponse), global::Walletrpc.GetTransactionsResponse.Parser, new[]{ "MinedTransactions", "UnminedTransactions" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.TicketPriceRequest), global::Walletrpc.TicketPriceRequest.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.TicketPriceResponse), global::Walletrpc.TicketPriceResponse.Parser, new[]{ "TicketPrice", "Height" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.StakeInfoRequest), global::Walletrpc.StakeInfoRequest.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.StakeInfoResponse), global::Walletrpc.StakeInfoResponse.Parser, new[]{ "PoolSize", "AllMempoolTix", "OwnMempoolTix", "Immature", "Live", "Voted", "Missed", "Revoked", "Expired", "TotalSubsidy" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.ChangePassphraseRequest), global::Walletrpc.ChangePassphraseRequest.Parser, new[]{ "Key", "OldPassphrase", "NewPassphrase" }, null, new[]{ typeof(global::Walletrpc.ChangePassphraseRequest.Types.Key) }, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.ChangePassphraseResponse), global::Walletrpc.ChangePassphraseResponse.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.FundTransactionRequest), global::Walletrpc.FundTransactionRequest.Parser, new[]{ "Account", "TargetAmount", "RequiredConfirmations", "IncludeImmatureCoinbases", "IncludeChangeScript" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.FundTransactionResponse), global::Walletrpc.FundTransactionResponse.Parser, new[]{ "SelectedOutputs", "TotalAmount", "ChangePkScript" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.FundTransactionResponse.Types.PreviousOutput), global::Walletrpc.FundTransactionResponse.Types.PreviousOutput.Parser, new[]{ "TransactionHash", "OutputIndex", "Amount", "PkScript", "ReceiveTime", "FromCoinbase", "Tree" }, null, null, null)}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.SignTransactionRequest), global::Walletrpc.SignTransactionRequest.Parser, new[]{ "Passphrase", "SerializedTransaction", "InputIndexes" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.SignTransactionResponse), global::Walletrpc.SignTransactionResponse.Parser, new[]{ "Transaction", "UnsignedInputIndexes" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.PublishTransactionRequest), global::Walletrpc.PublishTransactionRequest.Parser, new[]{ "SignedTransaction" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.PublishTransactionResponse), global::Walletrpc.PublishTransactionResponse.Parser, new[]{ "TransactionHash" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.PurchaseTicketsRequest), global::Walletrpc.PurchaseTicketsRequest.Parser, new[]{ "Passphrase", "Account", "SpendLimit", "RequiredConfirmations", "TicketAddress", "NumTickets", "PoolAddress", "PoolFees", "Expiry", "TxFee", "TicketFee" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.PurchaseTicketsResponse), global::Walletrpc.PurchaseTicketsResponse.Parser, new[]{ "TicketHashes" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.TransactionNotificationsRequest), global::Walletrpc.TransactionNotificationsRequest.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.TransactionNotificationsResponse), global::Walletrpc.TransactionNotificationsResponse.Parser, new[]{ "AttachedBlocks", "DetachedBlocks", "UnminedTransactions", "UnminedTransactionHashes" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.SpentnessNotificationsRequest), global::Walletrpc.SpentnessNotificationsRequest.Parser, new[]{ "Account", "NoNotifyUnspent", "NoNotifySpent" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.SpentnessNotificationsResponse), global::Walletrpc.SpentnessNotificationsResponse.Parser, new[]{ "TransactionHash", "OutputIndex", "Spender" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.SpentnessNotificationsResponse.Types.Spender), global::Walletrpc.SpentnessNotificationsResponse.Types.Spender.Parser, new[]{ "TransactionHash", "InputIndex" }, null, null, null)}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.AccountNotificationsRequest), global::Walletrpc.AccountNotificationsRequest.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.AccountNotificationsResponse), global::Walletrpc.AccountNotificationsResponse.Parser, new[]{ "AccountNumber", "AccountName", "ExternalKeyCount", "InternalKeyCount", "ImportedKeyCount" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.CreateWalletRequest), global::Walletrpc.CreateWalletRequest.Parser, new[]{ "PublicPassphrase", "PrivatePassphrase", "Seed" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.CreateWalletResponse), global::Walletrpc.CreateWalletResponse.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.OpenWalletRequest), global::Walletrpc.OpenWalletRequest.Parser, new[]{ "PublicPassphrase" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.OpenWalletResponse), global::Walletrpc.OpenWalletResponse.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.CloseWalletRequest), global::Walletrpc.CloseWalletRequest.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.CloseWalletResponse), global::Walletrpc.CloseWalletResponse.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.WalletExistsRequest), global::Walletrpc.WalletExistsRequest.Parser, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.WalletExistsResponse), global::Walletrpc.WalletExistsResponse.Parser, new[]{ "Exists" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.StartConsensusRpcRequest), global::Walletrpc.StartConsensusRpcRequest.Parser, new[]{ "NetworkAddress", "Username", "Password", "Certificate" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Walletrpc.StartConsensusRpcResponse), global::Walletrpc.StartConsensusRpcResponse.Parser, null, null, null, null)
           }));
     }
     #endregion
@@ -369,7 +369,7 @@ namespace Walletrpc {
     public string VersionString {
       get { return versionString_; }
       set {
-        versionString_ = pb::Preconditions.CheckNotNull(value, "value");
+        versionString_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -409,7 +409,7 @@ namespace Walletrpc {
     public string Prerelease {
       get { return prerelease_; }
       set {
-        prerelease_ = pb::Preconditions.CheckNotNull(value, "value");
+        prerelease_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -419,7 +419,7 @@ namespace Walletrpc {
     public string BuildMetadata {
       get { return buildMetadata_; }
       set {
-        buildMetadata_ = pb::Preconditions.CheckNotNull(value, "value");
+        buildMetadata_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -607,7 +607,7 @@ namespace Walletrpc {
     public pb::ByteString Hash {
       get { return hash_; }
       set {
-        hash_ = pb::Preconditions.CheckNotNull(value, "value");
+        hash_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -617,7 +617,7 @@ namespace Walletrpc {
     public pb::ByteString Transaction {
       get { return transaction_; }
       set {
-        transaction_ = pb::Preconditions.CheckNotNull(value, "value");
+        transaction_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -1151,7 +1151,7 @@ namespace Walletrpc {
     public pb::ByteString Hash {
       get { return hash_; }
       set {
-        hash_ = pb::Preconditions.CheckNotNull(value, "value");
+        hash_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -1785,7 +1785,7 @@ namespace Walletrpc {
     public string AccountName {
       get { return accountName_; }
       set {
-        accountName_ = pb::Preconditions.CheckNotNull(value, "value");
+        accountName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -2078,7 +2078,7 @@ namespace Walletrpc {
     public pb::ByteString CurrentBlockHash {
       get { return currentBlockHash_; }
       set {
-        currentBlockHash_ = pb::Preconditions.CheckNotNull(value, "value");
+        currentBlockHash_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -2233,7 +2233,7 @@ namespace Walletrpc {
         public string AccountName {
           get { return accountName_; }
           set {
-            accountName_ = pb::Preconditions.CheckNotNull(value, "value");
+            accountName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
           }
         }
 
@@ -2472,7 +2472,7 @@ namespace Walletrpc {
     public string NewName {
       get { return newName_; }
       set {
-        newName_ = pb::Preconditions.CheckNotNull(value, "value");
+        newName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -2668,7 +2668,7 @@ namespace Walletrpc {
     public pb::ByteString Passphrase {
       get { return passphrase_; }
       set {
-        passphrase_ = pb::Preconditions.CheckNotNull(value, "value");
+        passphrase_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -2678,7 +2678,7 @@ namespace Walletrpc {
     public string AccountName {
       get { return accountName_; }
       set {
-        accountName_ = pb::Preconditions.CheckNotNull(value, "value");
+        accountName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -2907,7 +2907,7 @@ namespace Walletrpc {
 
     /// <summary>Field number for the "kind" field.</summary>
     public const int KindFieldNumber = 2;
-    private global::Walletrpc.NextAddressRequest.Types.Kind kind_ = global::Walletrpc.NextAddressRequest.Types.Kind.BIP0044_EXTERNAL;
+    private global::Walletrpc.NextAddressRequest.Types.Kind kind_ = 0;
     public global::Walletrpc.NextAddressRequest.Types.Kind Kind {
       get { return kind_; }
       set {
@@ -2934,7 +2934,7 @@ namespace Walletrpc {
     public override int GetHashCode() {
       int hash = 1;
       if (Account != 0) hash ^= Account.GetHashCode();
-      if (Kind != global::Walletrpc.NextAddressRequest.Types.Kind.BIP0044_EXTERNAL) hash ^= Kind.GetHashCode();
+      if (Kind != 0) hash ^= Kind.GetHashCode();
       return hash;
     }
 
@@ -2947,7 +2947,7 @@ namespace Walletrpc {
         output.WriteRawTag(8);
         output.WriteUInt32(Account);
       }
-      if (Kind != global::Walletrpc.NextAddressRequest.Types.Kind.BIP0044_EXTERNAL) {
+      if (Kind != 0) {
         output.WriteRawTag(16);
         output.WriteEnum((int) Kind);
       }
@@ -2958,7 +2958,7 @@ namespace Walletrpc {
       if (Account != 0) {
         size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Account);
       }
-      if (Kind != global::Walletrpc.NextAddressRequest.Types.Kind.BIP0044_EXTERNAL) {
+      if (Kind != 0) {
         size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Kind);
       }
       return size;
@@ -2971,7 +2971,7 @@ namespace Walletrpc {
       if (other.Account != 0) {
         Account = other.Account;
       }
-      if (other.Kind != global::Walletrpc.NextAddressRequest.Types.Kind.BIP0044_EXTERNAL) {
+      if (other.Kind != 0) {
         Kind = other.Kind;
       }
     }
@@ -3000,8 +3000,8 @@ namespace Walletrpc {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     public static partial class Types {
       public enum Kind {
-        BIP0044_EXTERNAL = 0,
-        BIP0044_INTERNAL = 1,
+        [pbr::OriginalName("BIP0044_EXTERNAL")] Bip0044External = 0,
+        [pbr::OriginalName("BIP0044_INTERNAL")] Bip0044Internal = 1,
       }
 
     }
@@ -3042,7 +3042,7 @@ namespace Walletrpc {
     public string Address {
       get { return address_; }
       set {
-        address_ = pb::Preconditions.CheckNotNull(value, "value");
+        address_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -3149,7 +3149,7 @@ namespace Walletrpc {
     public pb::ByteString Passphrase {
       get { return passphrase_; }
       set {
-        passphrase_ = pb::Preconditions.CheckNotNull(value, "value");
+        passphrase_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -3169,7 +3169,7 @@ namespace Walletrpc {
     public string PrivateKeyWif {
       get { return privateKeyWif_; }
       set {
-        privateKeyWif_ = pb::Preconditions.CheckNotNull(value, "value");
+        privateKeyWif_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -3435,7 +3435,7 @@ namespace Walletrpc {
     public pb::ByteString Passphrase {
       get { return passphrase_; }
       set {
-        passphrase_ = pb::Preconditions.CheckNotNull(value, "value");
+        passphrase_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -3445,7 +3445,7 @@ namespace Walletrpc {
     public pb::ByteString Script {
       get { return script_; }
       set {
-        script_ = pb::Preconditions.CheckNotNull(value, "value");
+        script_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -3992,7 +3992,7 @@ namespace Walletrpc {
     public pb::ByteString StartingBlockHash {
       get { return startingBlockHash_; }
       set {
-        startingBlockHash_ = pb::Preconditions.CheckNotNull(value, "value");
+        startingBlockHash_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -4018,7 +4018,7 @@ namespace Walletrpc {
     public pb::ByteString EndingBlockHash {
       get { return endingBlockHash_; }
       set {
-        endingBlockHash_ = pb::Preconditions.CheckNotNull(value, "value");
+        endingBlockHash_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -4951,7 +4951,7 @@ namespace Walletrpc {
 
     /// <summary>Field number for the "key" field.</summary>
     public const int KeyFieldNumber = 1;
-    private global::Walletrpc.ChangePassphraseRequest.Types.Key key_ = global::Walletrpc.ChangePassphraseRequest.Types.Key.PRIVATE;
+    private global::Walletrpc.ChangePassphraseRequest.Types.Key key_ = 0;
     public global::Walletrpc.ChangePassphraseRequest.Types.Key Key {
       get { return key_; }
       set {
@@ -4965,7 +4965,7 @@ namespace Walletrpc {
     public pb::ByteString OldPassphrase {
       get { return oldPassphrase_; }
       set {
-        oldPassphrase_ = pb::Preconditions.CheckNotNull(value, "value");
+        oldPassphrase_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -4975,7 +4975,7 @@ namespace Walletrpc {
     public pb::ByteString NewPassphrase {
       get { return newPassphrase_; }
       set {
-        newPassphrase_ = pb::Preconditions.CheckNotNull(value, "value");
+        newPassphrase_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -4998,7 +4998,7 @@ namespace Walletrpc {
 
     public override int GetHashCode() {
       int hash = 1;
-      if (Key != global::Walletrpc.ChangePassphraseRequest.Types.Key.PRIVATE) hash ^= Key.GetHashCode();
+      if (Key != 0) hash ^= Key.GetHashCode();
       if (OldPassphrase.Length != 0) hash ^= OldPassphrase.GetHashCode();
       if (NewPassphrase.Length != 0) hash ^= NewPassphrase.GetHashCode();
       return hash;
@@ -5009,7 +5009,7 @@ namespace Walletrpc {
     }
 
     public void WriteTo(pb::CodedOutputStream output) {
-      if (Key != global::Walletrpc.ChangePassphraseRequest.Types.Key.PRIVATE) {
+      if (Key != 0) {
         output.WriteRawTag(8);
         output.WriteEnum((int) Key);
       }
@@ -5025,7 +5025,7 @@ namespace Walletrpc {
 
     public int CalculateSize() {
       int size = 0;
-      if (Key != global::Walletrpc.ChangePassphraseRequest.Types.Key.PRIVATE) {
+      if (Key != 0) {
         size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Key);
       }
       if (OldPassphrase.Length != 0) {
@@ -5041,7 +5041,7 @@ namespace Walletrpc {
       if (other == null) {
         return;
       }
-      if (other.Key != global::Walletrpc.ChangePassphraseRequest.Types.Key.PRIVATE) {
+      if (other.Key != 0) {
         Key = other.Key;
       }
       if (other.OldPassphrase.Length != 0) {
@@ -5080,8 +5080,8 @@ namespace Walletrpc {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     public static partial class Types {
       public enum Key {
-        PRIVATE = 0,
-        PUBLIC = 1,
+        [pbr::OriginalName("PRIVATE")] Private = 0,
+        [pbr::OriginalName("PUBLIC")] Public = 1,
       }
 
     }
@@ -5430,7 +5430,7 @@ namespace Walletrpc {
     public pb::ByteString ChangePkScript {
       get { return changePkScript_; }
       set {
-        changePkScript_ = pb::Preconditions.CheckNotNull(value, "value");
+        changePkScript_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -5566,7 +5566,7 @@ namespace Walletrpc {
         public pb::ByteString TransactionHash {
           get { return transactionHash_; }
           set {
-            transactionHash_ = pb::Preconditions.CheckNotNull(value, "value");
+            transactionHash_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
           }
         }
 
@@ -5596,7 +5596,7 @@ namespace Walletrpc {
         public pb::ByteString PkScript {
           get { return pkScript_; }
           set {
-            pkScript_ = pb::Preconditions.CheckNotNull(value, "value");
+            pkScript_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
           }
         }
 
@@ -5832,7 +5832,7 @@ namespace Walletrpc {
     public pb::ByteString Passphrase {
       get { return passphrase_; }
       set {
-        passphrase_ = pb::Preconditions.CheckNotNull(value, "value");
+        passphrase_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -5842,7 +5842,7 @@ namespace Walletrpc {
     public pb::ByteString SerializedTransaction {
       get { return serializedTransaction_; }
       set {
-        serializedTransaction_ = pb::Preconditions.CheckNotNull(value, "value");
+        serializedTransaction_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -5988,7 +5988,7 @@ namespace Walletrpc {
     public pb::ByteString Transaction {
       get { return transaction_; }
       set {
-        transaction_ = pb::Preconditions.CheckNotNull(value, "value");
+        transaction_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -6110,7 +6110,7 @@ namespace Walletrpc {
     public pb::ByteString SignedTransaction {
       get { return signedTransaction_; }
       set {
-        signedTransaction_ = pb::Preconditions.CheckNotNull(value, "value");
+        signedTransaction_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -6213,7 +6213,7 @@ namespace Walletrpc {
     public pb::ByteString TransactionHash {
       get { return transactionHash_; }
       set {
-        transactionHash_ = pb::Preconditions.CheckNotNull(value, "value");
+        transactionHash_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -6326,7 +6326,7 @@ namespace Walletrpc {
     public pb::ByteString Passphrase {
       get { return passphrase_; }
       set {
-        passphrase_ = pb::Preconditions.CheckNotNull(value, "value");
+        passphrase_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -6366,7 +6366,7 @@ namespace Walletrpc {
     public string TicketAddress {
       get { return ticketAddress_; }
       set {
-        ticketAddress_ = pb::Preconditions.CheckNotNull(value, "value");
+        ticketAddress_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -6386,7 +6386,7 @@ namespace Walletrpc {
     public string PoolAddress {
       get { return poolAddress_; }
       set {
-        poolAddress_ = pb::Preconditions.CheckNotNull(value, "value");
+        poolAddress_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -7191,7 +7191,7 @@ namespace Walletrpc {
     public pb::ByteString TransactionHash {
       get { return transactionHash_; }
       set {
-        transactionHash_ = pb::Preconditions.CheckNotNull(value, "value");
+        transactionHash_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -7355,7 +7355,7 @@ namespace Walletrpc {
         public pb::ByteString TransactionHash {
           get { return transactionHash_; }
           set {
-            transactionHash_ = pb::Preconditions.CheckNotNull(value, "value");
+            transactionHash_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
           }
         }
 
@@ -7579,7 +7579,7 @@ namespace Walletrpc {
     public string AccountName {
       get { return accountName_; }
       set {
-        accountName_ = pb::Preconditions.CheckNotNull(value, "value");
+        accountName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -7778,7 +7778,7 @@ namespace Walletrpc {
     public pb::ByteString PublicPassphrase {
       get { return publicPassphrase_; }
       set {
-        publicPassphrase_ = pb::Preconditions.CheckNotNull(value, "value");
+        publicPassphrase_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -7788,7 +7788,7 @@ namespace Walletrpc {
     public pb::ByteString PrivatePassphrase {
       get { return privatePassphrase_; }
       set {
-        privatePassphrase_ = pb::Preconditions.CheckNotNull(value, "value");
+        privatePassphrase_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -7798,7 +7798,7 @@ namespace Walletrpc {
     public pb::ByteString Seed {
       get { return seed_; }
       set {
-        seed_ = pb::Preconditions.CheckNotNull(value, "value");
+        seed_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -8009,7 +8009,7 @@ namespace Walletrpc {
     public pb::ByteString PublicPassphrase {
       get { return publicPassphrase_; }
       set {
-        publicPassphrase_ = pb::Preconditions.CheckNotNull(value, "value");
+        publicPassphrase_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -8522,7 +8522,7 @@ namespace Walletrpc {
     public string NetworkAddress {
       get { return networkAddress_; }
       set {
-        networkAddress_ = pb::Preconditions.CheckNotNull(value, "value");
+        networkAddress_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -8532,7 +8532,7 @@ namespace Walletrpc {
     public string Username {
       get { return username_; }
       set {
-        username_ = pb::Preconditions.CheckNotNull(value, "value");
+        username_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -8542,7 +8542,7 @@ namespace Walletrpc {
     public pb::ByteString Password {
       get { return password_; }
       set {
-        password_ = pb::Preconditions.CheckNotNull(value, "value");
+        password_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -8552,7 +8552,7 @@ namespace Walletrpc {
     public pb::ByteString Certificate {
       get { return certificate_; }
       set {
-        certificate_ = pb::Preconditions.CheckNotNull(value, "value");
+        certificate_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 

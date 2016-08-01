@@ -72,7 +72,7 @@ namespace Paymetheus.Rpc
             }
 
             // Ensure the server is running a compatible version.
-            var versionClient = VersionService.NewClient(channel);
+            var versionClient = new VersionService.VersionServiceClient(channel);
             var response = await versionClient.VersionAsync(new VersionRequest(), deadline: deadline);
             var serverVersion = new SemanticVersion(response.Major, response.Minor, response.Patch);
             SemanticVersion.AssertCompatible(RequiredRpcServerVersion, serverVersion);
@@ -82,7 +82,7 @@ namespace Paymetheus.Rpc
 
         public async Task<bool> WalletExistsAsync()
         {
-            var client = WalletLoaderService.NewClient(_channel);
+            var client = new WalletLoaderService.WalletLoaderServiceClient(_channel);
             var resp = await client.WalletExistsAsync(new WalletExistsRequest(), cancellationToken: _tokenSource.Token);
             return resp.Exists;
         }
@@ -90,7 +90,7 @@ namespace Paymetheus.Rpc
         public async Task StartConsensusRpc(ConsensusServerRpcOptions options)
         {
             var certificateTask = ReadFileAsync(options.CertificatePath);
-            var client = WalletLoaderService.NewClient(_channel);
+            var client = new WalletLoaderService.WalletLoaderServiceClient(_channel);
             var request = new StartConsensusRpcRequest
             {
                 NetworkAddress = options.NetworkAddress,
@@ -117,7 +117,7 @@ namespace Paymetheus.Rpc
 
         public async Task CreateWallet(string pubPassphrase, string privPassphrase, byte[] seed)
         {
-            var client = WalletLoaderService.NewClient(_channel);
+            var client = new WalletLoaderService.WalletLoaderServiceClient(_channel);
             var request = new CreateWalletRequest
             {
                 PublicPassphrase = ByteString.CopyFromUtf8(pubPassphrase),
@@ -129,7 +129,7 @@ namespace Paymetheus.Rpc
 
         public async Task OpenWallet(string pubPassphrase)
         {
-            var client = WalletLoaderService.NewClient(_channel);
+            var client = new WalletLoaderService.WalletLoaderServiceClient(_channel);
             var request = new OpenWalletRequest
             {
                 PublicPassphrase = ByteString.CopyFromUtf8(pubPassphrase),
@@ -141,7 +141,7 @@ namespace Paymetheus.Rpc
         {
             try
             {
-                var client = WalletLoaderService.NewClient(_channel);
+                var client = new WalletLoaderService.WalletLoaderServiceClient(_channel);
                 await client.CloseWalletAsync(new CloseWalletRequest());
             }
             catch (Exception ex)
@@ -152,19 +152,19 @@ namespace Paymetheus.Rpc
 
         public async Task<NetworkResponse> NetworkAsync()
         {
-            var client = WalletService.NewClient(_channel);
+            var client = new WalletService.WalletServiceClient(_channel);
             return await client.NetworkAsync(new NetworkRequest(), cancellationToken: _tokenSource.Token);
         }
 
         public async Task<AccountsResponse> AccountsAsync()
         {
-            var client = WalletService.NewClient(_channel);
+            var client = new WalletService.WalletServiceClient(_channel);
             return await client.AccountsAsync(new AccountsRequest(), cancellationToken: _tokenSource.Token);
         }
 
         public async Task<TransactionSet> GetTransactionsAsync(int minRecentTransactions, int minRecentBlocks)
         {
-            var client = WalletService.NewClient(_channel);
+            var client = new WalletService.WalletServiceClient(_channel);
             var request = new GetTransactionsRequest
             {
                 // TODO: include these.  With these uncommented, all transactions are loaded.
@@ -179,11 +179,11 @@ namespace Paymetheus.Rpc
 
         public async Task<string> NextExternalAddressAsync(Account account)
         {
-            var client = WalletService.NewClient(_channel);
+            var client = new WalletService.WalletServiceClient(_channel);
             var request = new NextAddressRequest
             {
                 Account = account.AccountNumber,
-                Kind = NextAddressRequest.Types.Kind.BIP0044_EXTERNAL,
+                Kind = NextAddressRequest.Types.Kind.Bip0044External,
             };
             var resp = await client.NextAddressAsync(request, cancellationToken: _tokenSource.Token);
             return resp.Address;
@@ -191,11 +191,11 @@ namespace Paymetheus.Rpc
 
         public async Task<string> NextInternalAddressAsync(Account account)
         {
-            var client = WalletService.NewClient(_channel);
+            var client = new WalletService.WalletServiceClient(_channel);
             var request = new NextAddressRequest
             {
                 Account = account.AccountNumber,
-                Kind = NextAddressRequest.Types.Kind.BIP0044_INTERNAL,
+                Kind = NextAddressRequest.Types.Kind.Bip0044Internal,
             };
             var resp = await client.NextAddressAsync(request, cancellationToken: _tokenSource.Token);
             return resp.Address;
@@ -208,7 +208,7 @@ namespace Paymetheus.Rpc
             if (accountName == null)
                 throw new ArgumentNullException(nameof(accountName));
 
-            var client = WalletService.NewClient(_channel);
+            var client = new WalletService.WalletServiceClient(_channel);
             var request = new NextAccountRequest
             {
                 Passphrase = ByteString.CopyFromUtf8(passphrase),
@@ -225,7 +225,7 @@ namespace Paymetheus.Rpc
             if (passphrase == null)
                 throw new ArgumentNullException(nameof(passphrase));
 
-            var client = WalletService.NewClient(_channel);
+            var client = new WalletService.WalletServiceClient(_channel);
             var request = new ImportPrivateKeyRequest
             {
                 Account = account.AccountNumber,
@@ -241,7 +241,7 @@ namespace Paymetheus.Rpc
             if (newAccountName == null)
                 throw new ArgumentNullException(nameof(newAccountName));
 
-            var client = WalletService.NewClient(_channel);
+            var client = new WalletService.WalletServiceClient(_channel);
             var request = new RenameAccountRequest
             {
                 AccountNumber = account.AccountNumber,
@@ -255,7 +255,7 @@ namespace Paymetheus.Rpc
             if (signedTransaction == null)
                 throw new ArgumentNullException(nameof(signedTransaction));
 
-            var client = WalletService.NewClient(_channel);
+            var client = new WalletService.WalletServiceClient(_channel);
             var request = new PublishTransactionRequest
             {
                 SignedTransaction = ByteString.CopyFrom(signedTransaction),
@@ -267,7 +267,7 @@ namespace Paymetheus.Rpc
         public async Task<Tuple<List<UnspentOutput>, Amount>> SelectUnspentOutputs(Account account, Amount targetAmount,
             int requiredConfirmations)
         {
-            var client = WalletService.NewClient(_channel);
+            var client = new WalletService.WalletServiceClient(_channel);
             var request = new FundTransactionRequest
             {
                 Account = account.AccountNumber,
@@ -285,7 +285,7 @@ namespace Paymetheus.Rpc
         public async Task<Tuple<List<UnspentOutput>, Amount>> FundTransactionAsync(
             Account account, Amount targetAmount, int requiredConfirmations)
         {
-            var client = WalletService.NewClient(_channel);
+            var client = new WalletService.WalletServiceClient(_channel);
             var request = new FundTransactionRequest
             {
                 Account = account.AccountNumber,
@@ -302,7 +302,7 @@ namespace Paymetheus.Rpc
 
         public async Task<Tuple<Transaction, bool>> SignTransactionAsync(string passphrase, Transaction tx)
         {
-            var client = WalletService.NewClient(_channel);
+            var client = new WalletService.WalletServiceClient(_channel);
             var request = new SignTransactionRequest
             {
                 Passphrase = ByteString.CopyFromUtf8(passphrase),
@@ -440,7 +440,7 @@ namespace Paymetheus.Rpc
 
                 var syncTask = Task.Run(async () =>
                 {
-                    var client = WalletService.NewClient(_channel);
+                    var client = new WalletService.WalletServiceClient(_channel);
                     var accountsStream = client.AccountNotifications(new AccountNotificationsRequest(), cancellationToken: _tokenSource.Token);
                     var accountChangesTask = accountsStream.ResponseStream.MoveNext();
                     var txChangesTask = notifications.Buffer.OutputAvailableAsync();

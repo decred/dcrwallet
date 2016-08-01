@@ -22,66 +22,72 @@ namespace Walletrpc {
         __Marshaller_VersionRequest,
         __Marshaller_VersionResponse);
 
-    // service descriptor
+    /// <summary>Service descriptor</summary>
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
     {
       get { return global::Walletrpc.ApiReflection.Descriptor.Services[0]; }
     }
 
-    // client interface
-    public interface IVersionServiceClient
+    /// <summary>Base class for server-side implementations of VersionService</summary>
+    public abstract class VersionServiceBase
     {
-      global::Walletrpc.VersionResponse Version(global::Walletrpc.VersionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.VersionResponse Version(global::Walletrpc.VersionRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.VersionResponse> VersionAsync(global::Walletrpc.VersionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.VersionResponse> VersionAsync(global::Walletrpc.VersionRequest request, CallOptions options);
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.VersionResponse> Version(global::Walletrpc.VersionRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
     }
 
-    // server-side interface
-    public interface IVersionService
+    /// <summary>Client for VersionService</summary>
+    public class VersionServiceClient : ClientBase<VersionServiceClient>
     {
-      Task<global::Walletrpc.VersionResponse> Version(global::Walletrpc.VersionRequest request, ServerCallContext context);
-    }
-
-    // client stub
-    public class VersionServiceClient : ClientBase, IVersionServiceClient
-    {
+      /// <summary>Creates a new client for VersionService</summary>
+      /// <param name="channel">The channel to use to make remote calls.</param>
       public VersionServiceClient(Channel channel) : base(channel)
       {
       }
-      public global::Walletrpc.VersionResponse Version(global::Walletrpc.VersionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      /// <summary>Creates a new client for VersionService that uses a custom <c>CallInvoker</c>.</summary>
+      /// <param name="callInvoker">The callInvoker to use to make remote calls.</param>
+      public VersionServiceClient(CallInvoker callInvoker) : base(callInvoker)
       {
-        var call = CreateCall(__Method_Version, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
       }
-      public global::Walletrpc.VersionResponse Version(global::Walletrpc.VersionRequest request, CallOptions options)
+      /// <summary>Protected parameterless constructor to allow creation of test doubles.</summary>
+      protected VersionServiceClient() : base()
       {
-        var call = CreateCall(__Method_Version, options);
-        return Calls.BlockingUnaryCall(call, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.VersionResponse> VersionAsync(global::Walletrpc.VersionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      /// <summary>Protected constructor to allow creation of configured clients.</summary>
+      /// <param name="configuration">The client configuration.</param>
+      protected VersionServiceClient(ClientBaseConfiguration configuration) : base(configuration)
       {
-        var call = CreateCall(__Method_Version, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.VersionResponse> VersionAsync(global::Walletrpc.VersionRequest request, CallOptions options)
+
+      public virtual global::Walletrpc.VersionResponse Version(global::Walletrpc.VersionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_Version, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return Version(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual global::Walletrpc.VersionResponse Version(global::Walletrpc.VersionRequest request, CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_Version, null, options, request);
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.VersionResponse> VersionAsync(global::Walletrpc.VersionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        return VersionAsync(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.VersionResponse> VersionAsync(global::Walletrpc.VersionRequest request, CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_Version, null, options, request);
+      }
+      protected override VersionServiceClient NewInstance(ClientBaseConfiguration configuration)
+      {
+        return new VersionServiceClient(configuration);
       }
     }
 
-    // creates service definition that can be registered with a server
-    public static ServerServiceDefinition BindService(IVersionService serviceImpl)
+    /// <summary>Creates service definition that can be registered with a server</summary>
+    public static ServerServiceDefinition BindService(VersionServiceBase serviceImpl)
     {
-      return ServerServiceDefinition.CreateBuilder(__ServiceName)
+      return ServerServiceDefinition.CreateBuilder()
           .AddMethod(__Method_Version, serviceImpl.Version).Build();
-    }
-
-    // creates a new client
-    public static VersionServiceClient NewClient(Channel channel)
-    {
-      return new VersionServiceClient(channel);
     }
 
   }
@@ -279,523 +285,506 @@ namespace Walletrpc {
         __Marshaller_PurchaseTicketsRequest,
         __Marshaller_PurchaseTicketsResponse);
 
-    // service descriptor
+    /// <summary>Service descriptor</summary>
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
     {
       get { return global::Walletrpc.ApiReflection.Descriptor.Services[1]; }
     }
 
-    // client interface
-    public interface IWalletServiceClient
+    /// <summary>Base class for server-side implementations of WalletService</summary>
+    public abstract class WalletServiceBase
     {
-      global::Walletrpc.PingResponse Ping(global::Walletrpc.PingRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.PingResponse Ping(global::Walletrpc.PingRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.PingResponse> PingAsync(global::Walletrpc.PingRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.PingResponse> PingAsync(global::Walletrpc.PingRequest request, CallOptions options);
-      global::Walletrpc.NetworkResponse Network(global::Walletrpc.NetworkRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.NetworkResponse Network(global::Walletrpc.NetworkRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.NetworkResponse> NetworkAsync(global::Walletrpc.NetworkRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.NetworkResponse> NetworkAsync(global::Walletrpc.NetworkRequest request, CallOptions options);
-      global::Walletrpc.AccountNumberResponse AccountNumber(global::Walletrpc.AccountNumberRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.AccountNumberResponse AccountNumber(global::Walletrpc.AccountNumberRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.AccountNumberResponse> AccountNumberAsync(global::Walletrpc.AccountNumberRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.AccountNumberResponse> AccountNumberAsync(global::Walletrpc.AccountNumberRequest request, CallOptions options);
-      global::Walletrpc.AccountsResponse Accounts(global::Walletrpc.AccountsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.AccountsResponse Accounts(global::Walletrpc.AccountsRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.AccountsResponse> AccountsAsync(global::Walletrpc.AccountsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.AccountsResponse> AccountsAsync(global::Walletrpc.AccountsRequest request, CallOptions options);
-      global::Walletrpc.BalanceResponse Balance(global::Walletrpc.BalanceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.BalanceResponse Balance(global::Walletrpc.BalanceRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.BalanceResponse> BalanceAsync(global::Walletrpc.BalanceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.BalanceResponse> BalanceAsync(global::Walletrpc.BalanceRequest request, CallOptions options);
-      global::Walletrpc.GetTransactionsResponse GetTransactions(global::Walletrpc.GetTransactionsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.GetTransactionsResponse GetTransactions(global::Walletrpc.GetTransactionsRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.GetTransactionsResponse> GetTransactionsAsync(global::Walletrpc.GetTransactionsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.GetTransactionsResponse> GetTransactionsAsync(global::Walletrpc.GetTransactionsRequest request, CallOptions options);
-      global::Walletrpc.TicketPriceResponse TicketPrice(global::Walletrpc.TicketPriceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.TicketPriceResponse TicketPrice(global::Walletrpc.TicketPriceRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.TicketPriceResponse> TicketPriceAsync(global::Walletrpc.TicketPriceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.TicketPriceResponse> TicketPriceAsync(global::Walletrpc.TicketPriceRequest request, CallOptions options);
-      global::Walletrpc.StakeInfoResponse StakeInfo(global::Walletrpc.StakeInfoRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.StakeInfoResponse StakeInfo(global::Walletrpc.StakeInfoRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.StakeInfoResponse> StakeInfoAsync(global::Walletrpc.StakeInfoRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.StakeInfoResponse> StakeInfoAsync(global::Walletrpc.StakeInfoRequest request, CallOptions options);
-      AsyncServerStreamingCall<global::Walletrpc.TransactionNotificationsResponse> TransactionNotifications(global::Walletrpc.TransactionNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncServerStreamingCall<global::Walletrpc.TransactionNotificationsResponse> TransactionNotifications(global::Walletrpc.TransactionNotificationsRequest request, CallOptions options);
-      AsyncServerStreamingCall<global::Walletrpc.SpentnessNotificationsResponse> SpentnessNotifications(global::Walletrpc.SpentnessNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncServerStreamingCall<global::Walletrpc.SpentnessNotificationsResponse> SpentnessNotifications(global::Walletrpc.SpentnessNotificationsRequest request, CallOptions options);
-      AsyncServerStreamingCall<global::Walletrpc.AccountNotificationsResponse> AccountNotifications(global::Walletrpc.AccountNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncServerStreamingCall<global::Walletrpc.AccountNotificationsResponse> AccountNotifications(global::Walletrpc.AccountNotificationsRequest request, CallOptions options);
-      global::Walletrpc.ChangePassphraseResponse ChangePassphrase(global::Walletrpc.ChangePassphraseRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.ChangePassphraseResponse ChangePassphrase(global::Walletrpc.ChangePassphraseRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.ChangePassphraseResponse> ChangePassphraseAsync(global::Walletrpc.ChangePassphraseRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.ChangePassphraseResponse> ChangePassphraseAsync(global::Walletrpc.ChangePassphraseRequest request, CallOptions options);
-      global::Walletrpc.RenameAccountResponse RenameAccount(global::Walletrpc.RenameAccountRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.RenameAccountResponse RenameAccount(global::Walletrpc.RenameAccountRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.RenameAccountResponse> RenameAccountAsync(global::Walletrpc.RenameAccountRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.RenameAccountResponse> RenameAccountAsync(global::Walletrpc.RenameAccountRequest request, CallOptions options);
-      global::Walletrpc.NextAccountResponse NextAccount(global::Walletrpc.NextAccountRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.NextAccountResponse NextAccount(global::Walletrpc.NextAccountRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.NextAccountResponse> NextAccountAsync(global::Walletrpc.NextAccountRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.NextAccountResponse> NextAccountAsync(global::Walletrpc.NextAccountRequest request, CallOptions options);
-      global::Walletrpc.NextAddressResponse NextAddress(global::Walletrpc.NextAddressRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.NextAddressResponse NextAddress(global::Walletrpc.NextAddressRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.NextAddressResponse> NextAddressAsync(global::Walletrpc.NextAddressRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.NextAddressResponse> NextAddressAsync(global::Walletrpc.NextAddressRequest request, CallOptions options);
-      global::Walletrpc.ImportPrivateKeyResponse ImportPrivateKey(global::Walletrpc.ImportPrivateKeyRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.ImportPrivateKeyResponse ImportPrivateKey(global::Walletrpc.ImportPrivateKeyRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.ImportPrivateKeyResponse> ImportPrivateKeyAsync(global::Walletrpc.ImportPrivateKeyRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.ImportPrivateKeyResponse> ImportPrivateKeyAsync(global::Walletrpc.ImportPrivateKeyRequest request, CallOptions options);
-      global::Walletrpc.ImportScriptResponse ImportScript(global::Walletrpc.ImportScriptRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.ImportScriptResponse ImportScript(global::Walletrpc.ImportScriptRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.ImportScriptResponse> ImportScriptAsync(global::Walletrpc.ImportScriptRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.ImportScriptResponse> ImportScriptAsync(global::Walletrpc.ImportScriptRequest request, CallOptions options);
-      global::Walletrpc.FundTransactionResponse FundTransaction(global::Walletrpc.FundTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.FundTransactionResponse FundTransaction(global::Walletrpc.FundTransactionRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.FundTransactionResponse> FundTransactionAsync(global::Walletrpc.FundTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.FundTransactionResponse> FundTransactionAsync(global::Walletrpc.FundTransactionRequest request, CallOptions options);
-      global::Walletrpc.SignTransactionResponse SignTransaction(global::Walletrpc.SignTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.SignTransactionResponse SignTransaction(global::Walletrpc.SignTransactionRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.SignTransactionResponse> SignTransactionAsync(global::Walletrpc.SignTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.SignTransactionResponse> SignTransactionAsync(global::Walletrpc.SignTransactionRequest request, CallOptions options);
-      global::Walletrpc.PublishTransactionResponse PublishTransaction(global::Walletrpc.PublishTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.PublishTransactionResponse PublishTransaction(global::Walletrpc.PublishTransactionRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.PublishTransactionResponse> PublishTransactionAsync(global::Walletrpc.PublishTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.PublishTransactionResponse> PublishTransactionAsync(global::Walletrpc.PublishTransactionRequest request, CallOptions options);
-      global::Walletrpc.PurchaseTicketsResponse PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.PurchaseTicketsResponse PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.PurchaseTicketsResponse> PurchaseTicketsAsync(global::Walletrpc.PurchaseTicketsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.PurchaseTicketsResponse> PurchaseTicketsAsync(global::Walletrpc.PurchaseTicketsRequest request, CallOptions options);
+      /// <summary>
+      ///  Queries
+      /// </summary>
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.PingResponse> Ping(global::Walletrpc.PingRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.NetworkResponse> Network(global::Walletrpc.NetworkRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.AccountNumberResponse> AccountNumber(global::Walletrpc.AccountNumberRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.AccountsResponse> Accounts(global::Walletrpc.AccountsRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.BalanceResponse> Balance(global::Walletrpc.BalanceRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.GetTransactionsResponse> GetTransactions(global::Walletrpc.GetTransactionsRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.TicketPriceResponse> TicketPrice(global::Walletrpc.TicketPriceRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.StakeInfoResponse> StakeInfo(global::Walletrpc.StakeInfoRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      ///  Notifications
+      /// </summary>
+      public virtual global::System.Threading.Tasks.Task TransactionNotifications(global::Walletrpc.TransactionNotificationsRequest request, IServerStreamWriter<global::Walletrpc.TransactionNotificationsResponse> responseStream, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task SpentnessNotifications(global::Walletrpc.SpentnessNotificationsRequest request, IServerStreamWriter<global::Walletrpc.SpentnessNotificationsResponse> responseStream, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task AccountNotifications(global::Walletrpc.AccountNotificationsRequest request, IServerStreamWriter<global::Walletrpc.AccountNotificationsResponse> responseStream, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      ///  Control
+      /// </summary>
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.ChangePassphraseResponse> ChangePassphrase(global::Walletrpc.ChangePassphraseRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.RenameAccountResponse> RenameAccount(global::Walletrpc.RenameAccountRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.NextAccountResponse> NextAccount(global::Walletrpc.NextAccountRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.NextAddressResponse> NextAddress(global::Walletrpc.NextAddressRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.ImportPrivateKeyResponse> ImportPrivateKey(global::Walletrpc.ImportPrivateKeyRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.ImportScriptResponse> ImportScript(global::Walletrpc.ImportScriptRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.FundTransactionResponse> FundTransaction(global::Walletrpc.FundTransactionRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.SignTransactionResponse> SignTransaction(global::Walletrpc.SignTransactionRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.PublishTransactionResponse> PublishTransaction(global::Walletrpc.PublishTransactionRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.PurchaseTicketsResponse> PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
     }
 
-    // server-side interface
-    public interface IWalletService
+    /// <summary>Client for WalletService</summary>
+    public class WalletServiceClient : ClientBase<WalletServiceClient>
     {
-      Task<global::Walletrpc.PingResponse> Ping(global::Walletrpc.PingRequest request, ServerCallContext context);
-      Task<global::Walletrpc.NetworkResponse> Network(global::Walletrpc.NetworkRequest request, ServerCallContext context);
-      Task<global::Walletrpc.AccountNumberResponse> AccountNumber(global::Walletrpc.AccountNumberRequest request, ServerCallContext context);
-      Task<global::Walletrpc.AccountsResponse> Accounts(global::Walletrpc.AccountsRequest request, ServerCallContext context);
-      Task<global::Walletrpc.BalanceResponse> Balance(global::Walletrpc.BalanceRequest request, ServerCallContext context);
-      Task<global::Walletrpc.GetTransactionsResponse> GetTransactions(global::Walletrpc.GetTransactionsRequest request, ServerCallContext context);
-      Task<global::Walletrpc.TicketPriceResponse> TicketPrice(global::Walletrpc.TicketPriceRequest request, ServerCallContext context);
-      Task<global::Walletrpc.StakeInfoResponse> StakeInfo(global::Walletrpc.StakeInfoRequest request, ServerCallContext context);
-      Task TransactionNotifications(global::Walletrpc.TransactionNotificationsRequest request, IServerStreamWriter<global::Walletrpc.TransactionNotificationsResponse> responseStream, ServerCallContext context);
-      Task SpentnessNotifications(global::Walletrpc.SpentnessNotificationsRequest request, IServerStreamWriter<global::Walletrpc.SpentnessNotificationsResponse> responseStream, ServerCallContext context);
-      Task AccountNotifications(global::Walletrpc.AccountNotificationsRequest request, IServerStreamWriter<global::Walletrpc.AccountNotificationsResponse> responseStream, ServerCallContext context);
-      Task<global::Walletrpc.ChangePassphraseResponse> ChangePassphrase(global::Walletrpc.ChangePassphraseRequest request, ServerCallContext context);
-      Task<global::Walletrpc.RenameAccountResponse> RenameAccount(global::Walletrpc.RenameAccountRequest request, ServerCallContext context);
-      Task<global::Walletrpc.NextAccountResponse> NextAccount(global::Walletrpc.NextAccountRequest request, ServerCallContext context);
-      Task<global::Walletrpc.NextAddressResponse> NextAddress(global::Walletrpc.NextAddressRequest request, ServerCallContext context);
-      Task<global::Walletrpc.ImportPrivateKeyResponse> ImportPrivateKey(global::Walletrpc.ImportPrivateKeyRequest request, ServerCallContext context);
-      Task<global::Walletrpc.ImportScriptResponse> ImportScript(global::Walletrpc.ImportScriptRequest request, ServerCallContext context);
-      Task<global::Walletrpc.FundTransactionResponse> FundTransaction(global::Walletrpc.FundTransactionRequest request, ServerCallContext context);
-      Task<global::Walletrpc.SignTransactionResponse> SignTransaction(global::Walletrpc.SignTransactionRequest request, ServerCallContext context);
-      Task<global::Walletrpc.PublishTransactionResponse> PublishTransaction(global::Walletrpc.PublishTransactionRequest request, ServerCallContext context);
-      Task<global::Walletrpc.PurchaseTicketsResponse> PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, ServerCallContext context);
-    }
-
-    // client stub
-    public class WalletServiceClient : ClientBase, IWalletServiceClient
-    {
+      /// <summary>Creates a new client for WalletService</summary>
+      /// <param name="channel">The channel to use to make remote calls.</param>
       public WalletServiceClient(Channel channel) : base(channel)
       {
       }
-      public global::Walletrpc.PingResponse Ping(global::Walletrpc.PingRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      /// <summary>Creates a new client for WalletService that uses a custom <c>CallInvoker</c>.</summary>
+      /// <param name="callInvoker">The callInvoker to use to make remote calls.</param>
+      public WalletServiceClient(CallInvoker callInvoker) : base(callInvoker)
       {
-        var call = CreateCall(__Method_Ping, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
       }
-      public global::Walletrpc.PingResponse Ping(global::Walletrpc.PingRequest request, CallOptions options)
+      /// <summary>Protected parameterless constructor to allow creation of test doubles.</summary>
+      protected WalletServiceClient() : base()
       {
-        var call = CreateCall(__Method_Ping, options);
-        return Calls.BlockingUnaryCall(call, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.PingResponse> PingAsync(global::Walletrpc.PingRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      /// <summary>Protected constructor to allow creation of configured clients.</summary>
+      /// <param name="configuration">The client configuration.</param>
+      protected WalletServiceClient(ClientBaseConfiguration configuration) : base(configuration)
       {
-        var call = CreateCall(__Method_Ping, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.PingResponse> PingAsync(global::Walletrpc.PingRequest request, CallOptions options)
+
+      /// <summary>
+      ///  Queries
+      /// </summary>
+      public virtual global::Walletrpc.PingResponse Ping(global::Walletrpc.PingRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_Ping, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return Ping(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.NetworkResponse Network(global::Walletrpc.NetworkRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      /// <summary>
+      ///  Queries
+      /// </summary>
+      public virtual global::Walletrpc.PingResponse Ping(global::Walletrpc.PingRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_Network, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_Ping, null, options, request);
       }
-      public global::Walletrpc.NetworkResponse Network(global::Walletrpc.NetworkRequest request, CallOptions options)
+      /// <summary>
+      ///  Queries
+      /// </summary>
+      public virtual AsyncUnaryCall<global::Walletrpc.PingResponse> PingAsync(global::Walletrpc.PingRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_Network, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return PingAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.NetworkResponse> NetworkAsync(global::Walletrpc.NetworkRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      /// <summary>
+      ///  Queries
+      /// </summary>
+      public virtual AsyncUnaryCall<global::Walletrpc.PingResponse> PingAsync(global::Walletrpc.PingRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_Network, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_Ping, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.NetworkResponse> NetworkAsync(global::Walletrpc.NetworkRequest request, CallOptions options)
+      public virtual global::Walletrpc.NetworkResponse Network(global::Walletrpc.NetworkRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_Network, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return Network(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.AccountNumberResponse AccountNumber(global::Walletrpc.AccountNumberRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.NetworkResponse Network(global::Walletrpc.NetworkRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_AccountNumber, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_Network, null, options, request);
       }
-      public global::Walletrpc.AccountNumberResponse AccountNumber(global::Walletrpc.AccountNumberRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.NetworkResponse> NetworkAsync(global::Walletrpc.NetworkRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_AccountNumber, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return NetworkAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.AccountNumberResponse> AccountNumberAsync(global::Walletrpc.AccountNumberRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.NetworkResponse> NetworkAsync(global::Walletrpc.NetworkRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_AccountNumber, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_Network, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.AccountNumberResponse> AccountNumberAsync(global::Walletrpc.AccountNumberRequest request, CallOptions options)
+      public virtual global::Walletrpc.AccountNumberResponse AccountNumber(global::Walletrpc.AccountNumberRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_AccountNumber, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return AccountNumber(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.AccountsResponse Accounts(global::Walletrpc.AccountsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.AccountNumberResponse AccountNumber(global::Walletrpc.AccountNumberRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_Accounts, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_AccountNumber, null, options, request);
       }
-      public global::Walletrpc.AccountsResponse Accounts(global::Walletrpc.AccountsRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.AccountNumberResponse> AccountNumberAsync(global::Walletrpc.AccountNumberRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_Accounts, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return AccountNumberAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.AccountsResponse> AccountsAsync(global::Walletrpc.AccountsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.AccountNumberResponse> AccountNumberAsync(global::Walletrpc.AccountNumberRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_Accounts, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_AccountNumber, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.AccountsResponse> AccountsAsync(global::Walletrpc.AccountsRequest request, CallOptions options)
+      public virtual global::Walletrpc.AccountsResponse Accounts(global::Walletrpc.AccountsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_Accounts, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return Accounts(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.BalanceResponse Balance(global::Walletrpc.BalanceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.AccountsResponse Accounts(global::Walletrpc.AccountsRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_Balance, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_Accounts, null, options, request);
       }
-      public global::Walletrpc.BalanceResponse Balance(global::Walletrpc.BalanceRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.AccountsResponse> AccountsAsync(global::Walletrpc.AccountsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_Balance, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return AccountsAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.BalanceResponse> BalanceAsync(global::Walletrpc.BalanceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.AccountsResponse> AccountsAsync(global::Walletrpc.AccountsRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_Balance, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_Accounts, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.BalanceResponse> BalanceAsync(global::Walletrpc.BalanceRequest request, CallOptions options)
+      public virtual global::Walletrpc.BalanceResponse Balance(global::Walletrpc.BalanceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_Balance, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return Balance(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.GetTransactionsResponse GetTransactions(global::Walletrpc.GetTransactionsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.BalanceResponse Balance(global::Walletrpc.BalanceRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_GetTransactions, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_Balance, null, options, request);
       }
-      public global::Walletrpc.GetTransactionsResponse GetTransactions(global::Walletrpc.GetTransactionsRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.BalanceResponse> BalanceAsync(global::Walletrpc.BalanceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_GetTransactions, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return BalanceAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.GetTransactionsResponse> GetTransactionsAsync(global::Walletrpc.GetTransactionsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.BalanceResponse> BalanceAsync(global::Walletrpc.BalanceRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_GetTransactions, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_Balance, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.GetTransactionsResponse> GetTransactionsAsync(global::Walletrpc.GetTransactionsRequest request, CallOptions options)
+      public virtual global::Walletrpc.GetTransactionsResponse GetTransactions(global::Walletrpc.GetTransactionsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_GetTransactions, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return GetTransactions(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.TicketPriceResponse TicketPrice(global::Walletrpc.TicketPriceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.GetTransactionsResponse GetTransactions(global::Walletrpc.GetTransactionsRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_TicketPrice, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_GetTransactions, null, options, request);
       }
-      public global::Walletrpc.TicketPriceResponse TicketPrice(global::Walletrpc.TicketPriceRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.GetTransactionsResponse> GetTransactionsAsync(global::Walletrpc.GetTransactionsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_TicketPrice, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return GetTransactionsAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.TicketPriceResponse> TicketPriceAsync(global::Walletrpc.TicketPriceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.GetTransactionsResponse> GetTransactionsAsync(global::Walletrpc.GetTransactionsRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_TicketPrice, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_GetTransactions, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.TicketPriceResponse> TicketPriceAsync(global::Walletrpc.TicketPriceRequest request, CallOptions options)
+      public virtual global::Walletrpc.TicketPriceResponse TicketPrice(global::Walletrpc.TicketPriceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_TicketPrice, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return TicketPrice(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.StakeInfoResponse StakeInfo(global::Walletrpc.StakeInfoRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.TicketPriceResponse TicketPrice(global::Walletrpc.TicketPriceRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_StakeInfo, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_TicketPrice, null, options, request);
       }
-      public global::Walletrpc.StakeInfoResponse StakeInfo(global::Walletrpc.StakeInfoRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.TicketPriceResponse> TicketPriceAsync(global::Walletrpc.TicketPriceRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_StakeInfo, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return TicketPriceAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.StakeInfoResponse> StakeInfoAsync(global::Walletrpc.StakeInfoRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.TicketPriceResponse> TicketPriceAsync(global::Walletrpc.TicketPriceRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_StakeInfo, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_TicketPrice, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.StakeInfoResponse> StakeInfoAsync(global::Walletrpc.StakeInfoRequest request, CallOptions options)
+      public virtual global::Walletrpc.StakeInfoResponse StakeInfo(global::Walletrpc.StakeInfoRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_StakeInfo, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return StakeInfo(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncServerStreamingCall<global::Walletrpc.TransactionNotificationsResponse> TransactionNotifications(global::Walletrpc.TransactionNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.StakeInfoResponse StakeInfo(global::Walletrpc.StakeInfoRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_TransactionNotifications, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncServerStreamingCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_StakeInfo, null, options, request);
       }
-      public AsyncServerStreamingCall<global::Walletrpc.TransactionNotificationsResponse> TransactionNotifications(global::Walletrpc.TransactionNotificationsRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.StakeInfoResponse> StakeInfoAsync(global::Walletrpc.StakeInfoRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_TransactionNotifications, options);
-        return Calls.AsyncServerStreamingCall(call, request);
+        return StakeInfoAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncServerStreamingCall<global::Walletrpc.SpentnessNotificationsResponse> SpentnessNotifications(global::Walletrpc.SpentnessNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.StakeInfoResponse> StakeInfoAsync(global::Walletrpc.StakeInfoRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_SpentnessNotifications, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncServerStreamingCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_StakeInfo, null, options, request);
       }
-      public AsyncServerStreamingCall<global::Walletrpc.SpentnessNotificationsResponse> SpentnessNotifications(global::Walletrpc.SpentnessNotificationsRequest request, CallOptions options)
+      /// <summary>
+      ///  Notifications
+      /// </summary>
+      public virtual AsyncServerStreamingCall<global::Walletrpc.TransactionNotificationsResponse> TransactionNotifications(global::Walletrpc.TransactionNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_SpentnessNotifications, options);
-        return Calls.AsyncServerStreamingCall(call, request);
+        return TransactionNotifications(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncServerStreamingCall<global::Walletrpc.AccountNotificationsResponse> AccountNotifications(global::Walletrpc.AccountNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      /// <summary>
+      ///  Notifications
+      /// </summary>
+      public virtual AsyncServerStreamingCall<global::Walletrpc.TransactionNotificationsResponse> TransactionNotifications(global::Walletrpc.TransactionNotificationsRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_AccountNotifications, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncServerStreamingCall(call, request);
+        return CallInvoker.AsyncServerStreamingCall(__Method_TransactionNotifications, null, options, request);
       }
-      public AsyncServerStreamingCall<global::Walletrpc.AccountNotificationsResponse> AccountNotifications(global::Walletrpc.AccountNotificationsRequest request, CallOptions options)
+      public virtual AsyncServerStreamingCall<global::Walletrpc.SpentnessNotificationsResponse> SpentnessNotifications(global::Walletrpc.SpentnessNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_AccountNotifications, options);
-        return Calls.AsyncServerStreamingCall(call, request);
+        return SpentnessNotifications(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.ChangePassphraseResponse ChangePassphrase(global::Walletrpc.ChangePassphraseRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncServerStreamingCall<global::Walletrpc.SpentnessNotificationsResponse> SpentnessNotifications(global::Walletrpc.SpentnessNotificationsRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_ChangePassphrase, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.AsyncServerStreamingCall(__Method_SpentnessNotifications, null, options, request);
       }
-      public global::Walletrpc.ChangePassphraseResponse ChangePassphrase(global::Walletrpc.ChangePassphraseRequest request, CallOptions options)
+      public virtual AsyncServerStreamingCall<global::Walletrpc.AccountNotificationsResponse> AccountNotifications(global::Walletrpc.AccountNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_ChangePassphrase, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return AccountNotifications(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.ChangePassphraseResponse> ChangePassphraseAsync(global::Walletrpc.ChangePassphraseRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncServerStreamingCall<global::Walletrpc.AccountNotificationsResponse> AccountNotifications(global::Walletrpc.AccountNotificationsRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_ChangePassphrase, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncServerStreamingCall(__Method_AccountNotifications, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.ChangePassphraseResponse> ChangePassphraseAsync(global::Walletrpc.ChangePassphraseRequest request, CallOptions options)
+      /// <summary>
+      ///  Control
+      /// </summary>
+      public virtual global::Walletrpc.ChangePassphraseResponse ChangePassphrase(global::Walletrpc.ChangePassphraseRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_ChangePassphrase, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return ChangePassphrase(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.RenameAccountResponse RenameAccount(global::Walletrpc.RenameAccountRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      /// <summary>
+      ///  Control
+      /// </summary>
+      public virtual global::Walletrpc.ChangePassphraseResponse ChangePassphrase(global::Walletrpc.ChangePassphraseRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_RenameAccount, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_ChangePassphrase, null, options, request);
       }
-      public global::Walletrpc.RenameAccountResponse RenameAccount(global::Walletrpc.RenameAccountRequest request, CallOptions options)
+      /// <summary>
+      ///  Control
+      /// </summary>
+      public virtual AsyncUnaryCall<global::Walletrpc.ChangePassphraseResponse> ChangePassphraseAsync(global::Walletrpc.ChangePassphraseRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_RenameAccount, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return ChangePassphraseAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.RenameAccountResponse> RenameAccountAsync(global::Walletrpc.RenameAccountRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      /// <summary>
+      ///  Control
+      /// </summary>
+      public virtual AsyncUnaryCall<global::Walletrpc.ChangePassphraseResponse> ChangePassphraseAsync(global::Walletrpc.ChangePassphraseRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_RenameAccount, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_ChangePassphrase, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.RenameAccountResponse> RenameAccountAsync(global::Walletrpc.RenameAccountRequest request, CallOptions options)
+      public virtual global::Walletrpc.RenameAccountResponse RenameAccount(global::Walletrpc.RenameAccountRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_RenameAccount, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return RenameAccount(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.NextAccountResponse NextAccount(global::Walletrpc.NextAccountRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.RenameAccountResponse RenameAccount(global::Walletrpc.RenameAccountRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_NextAccount, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_RenameAccount, null, options, request);
       }
-      public global::Walletrpc.NextAccountResponse NextAccount(global::Walletrpc.NextAccountRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.RenameAccountResponse> RenameAccountAsync(global::Walletrpc.RenameAccountRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_NextAccount, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return RenameAccountAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.NextAccountResponse> NextAccountAsync(global::Walletrpc.NextAccountRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.RenameAccountResponse> RenameAccountAsync(global::Walletrpc.RenameAccountRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_NextAccount, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_RenameAccount, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.NextAccountResponse> NextAccountAsync(global::Walletrpc.NextAccountRequest request, CallOptions options)
+      public virtual global::Walletrpc.NextAccountResponse NextAccount(global::Walletrpc.NextAccountRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_NextAccount, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return NextAccount(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.NextAddressResponse NextAddress(global::Walletrpc.NextAddressRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.NextAccountResponse NextAccount(global::Walletrpc.NextAccountRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_NextAddress, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_NextAccount, null, options, request);
       }
-      public global::Walletrpc.NextAddressResponse NextAddress(global::Walletrpc.NextAddressRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.NextAccountResponse> NextAccountAsync(global::Walletrpc.NextAccountRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_NextAddress, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return NextAccountAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.NextAddressResponse> NextAddressAsync(global::Walletrpc.NextAddressRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.NextAccountResponse> NextAccountAsync(global::Walletrpc.NextAccountRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_NextAddress, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_NextAccount, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.NextAddressResponse> NextAddressAsync(global::Walletrpc.NextAddressRequest request, CallOptions options)
+      public virtual global::Walletrpc.NextAddressResponse NextAddress(global::Walletrpc.NextAddressRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_NextAddress, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return NextAddress(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.ImportPrivateKeyResponse ImportPrivateKey(global::Walletrpc.ImportPrivateKeyRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.NextAddressResponse NextAddress(global::Walletrpc.NextAddressRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_ImportPrivateKey, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_NextAddress, null, options, request);
       }
-      public global::Walletrpc.ImportPrivateKeyResponse ImportPrivateKey(global::Walletrpc.ImportPrivateKeyRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.NextAddressResponse> NextAddressAsync(global::Walletrpc.NextAddressRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_ImportPrivateKey, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return NextAddressAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.ImportPrivateKeyResponse> ImportPrivateKeyAsync(global::Walletrpc.ImportPrivateKeyRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.NextAddressResponse> NextAddressAsync(global::Walletrpc.NextAddressRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_ImportPrivateKey, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_NextAddress, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.ImportPrivateKeyResponse> ImportPrivateKeyAsync(global::Walletrpc.ImportPrivateKeyRequest request, CallOptions options)
+      public virtual global::Walletrpc.ImportPrivateKeyResponse ImportPrivateKey(global::Walletrpc.ImportPrivateKeyRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_ImportPrivateKey, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return ImportPrivateKey(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.ImportScriptResponse ImportScript(global::Walletrpc.ImportScriptRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.ImportPrivateKeyResponse ImportPrivateKey(global::Walletrpc.ImportPrivateKeyRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_ImportScript, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_ImportPrivateKey, null, options, request);
       }
-      public global::Walletrpc.ImportScriptResponse ImportScript(global::Walletrpc.ImportScriptRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.ImportPrivateKeyResponse> ImportPrivateKeyAsync(global::Walletrpc.ImportPrivateKeyRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_ImportScript, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return ImportPrivateKeyAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.ImportScriptResponse> ImportScriptAsync(global::Walletrpc.ImportScriptRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.ImportPrivateKeyResponse> ImportPrivateKeyAsync(global::Walletrpc.ImportPrivateKeyRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_ImportScript, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_ImportPrivateKey, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.ImportScriptResponse> ImportScriptAsync(global::Walletrpc.ImportScriptRequest request, CallOptions options)
+      public virtual global::Walletrpc.ImportScriptResponse ImportScript(global::Walletrpc.ImportScriptRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_ImportScript, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return ImportScript(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.FundTransactionResponse FundTransaction(global::Walletrpc.FundTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.ImportScriptResponse ImportScript(global::Walletrpc.ImportScriptRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_FundTransaction, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_ImportScript, null, options, request);
       }
-      public global::Walletrpc.FundTransactionResponse FundTransaction(global::Walletrpc.FundTransactionRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.ImportScriptResponse> ImportScriptAsync(global::Walletrpc.ImportScriptRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_FundTransaction, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return ImportScriptAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.FundTransactionResponse> FundTransactionAsync(global::Walletrpc.FundTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.ImportScriptResponse> ImportScriptAsync(global::Walletrpc.ImportScriptRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_FundTransaction, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_ImportScript, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.FundTransactionResponse> FundTransactionAsync(global::Walletrpc.FundTransactionRequest request, CallOptions options)
+      public virtual global::Walletrpc.FundTransactionResponse FundTransaction(global::Walletrpc.FundTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_FundTransaction, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return FundTransaction(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.SignTransactionResponse SignTransaction(global::Walletrpc.SignTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.FundTransactionResponse FundTransaction(global::Walletrpc.FundTransactionRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_SignTransaction, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_FundTransaction, null, options, request);
       }
-      public global::Walletrpc.SignTransactionResponse SignTransaction(global::Walletrpc.SignTransactionRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.FundTransactionResponse> FundTransactionAsync(global::Walletrpc.FundTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_SignTransaction, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return FundTransactionAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.SignTransactionResponse> SignTransactionAsync(global::Walletrpc.SignTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.FundTransactionResponse> FundTransactionAsync(global::Walletrpc.FundTransactionRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_SignTransaction, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_FundTransaction, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.SignTransactionResponse> SignTransactionAsync(global::Walletrpc.SignTransactionRequest request, CallOptions options)
+      public virtual global::Walletrpc.SignTransactionResponse SignTransaction(global::Walletrpc.SignTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_SignTransaction, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return SignTransaction(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.PublishTransactionResponse PublishTransaction(global::Walletrpc.PublishTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.SignTransactionResponse SignTransaction(global::Walletrpc.SignTransactionRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_PublishTransaction, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_SignTransaction, null, options, request);
       }
-      public global::Walletrpc.PublishTransactionResponse PublishTransaction(global::Walletrpc.PublishTransactionRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.SignTransactionResponse> SignTransactionAsync(global::Walletrpc.SignTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_PublishTransaction, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return SignTransactionAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.PublishTransactionResponse> PublishTransactionAsync(global::Walletrpc.PublishTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.SignTransactionResponse> SignTransactionAsync(global::Walletrpc.SignTransactionRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_PublishTransaction, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_SignTransaction, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.PublishTransactionResponse> PublishTransactionAsync(global::Walletrpc.PublishTransactionRequest request, CallOptions options)
+      public virtual global::Walletrpc.PublishTransactionResponse PublishTransaction(global::Walletrpc.PublishTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_PublishTransaction, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return PublishTransaction(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.PurchaseTicketsResponse PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.PublishTransactionResponse PublishTransaction(global::Walletrpc.PublishTransactionRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_PurchaseTickets, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_PublishTransaction, null, options, request);
       }
-      public global::Walletrpc.PurchaseTicketsResponse PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.PublishTransactionResponse> PublishTransactionAsync(global::Walletrpc.PublishTransactionRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_PurchaseTickets, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return PublishTransactionAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.PurchaseTicketsResponse> PurchaseTicketsAsync(global::Walletrpc.PurchaseTicketsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.PublishTransactionResponse> PublishTransactionAsync(global::Walletrpc.PublishTransactionRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_PurchaseTickets, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_PublishTransaction, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.PurchaseTicketsResponse> PurchaseTicketsAsync(global::Walletrpc.PurchaseTicketsRequest request, CallOptions options)
+      public virtual global::Walletrpc.PurchaseTicketsResponse PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_PurchaseTickets, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return PurchaseTickets(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual global::Walletrpc.PurchaseTicketsResponse PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_PurchaseTickets, null, options, request);
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.PurchaseTicketsResponse> PurchaseTicketsAsync(global::Walletrpc.PurchaseTicketsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        return PurchaseTicketsAsync(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.PurchaseTicketsResponse> PurchaseTicketsAsync(global::Walletrpc.PurchaseTicketsRequest request, CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_PurchaseTickets, null, options, request);
+      }
+      protected override WalletServiceClient NewInstance(ClientBaseConfiguration configuration)
+      {
+        return new WalletServiceClient(configuration);
       }
     }
 
-    // creates service definition that can be registered with a server
-    public static ServerServiceDefinition BindService(IWalletService serviceImpl)
+    /// <summary>Creates service definition that can be registered with a server</summary>
+    public static ServerServiceDefinition BindService(WalletServiceBase serviceImpl)
     {
-      return ServerServiceDefinition.CreateBuilder(__ServiceName)
+      return ServerServiceDefinition.CreateBuilder()
           .AddMethod(__Method_Ping, serviceImpl.Ping)
           .AddMethod(__Method_Network, serviceImpl.Network)
           .AddMethod(__Method_AccountNumber, serviceImpl.AccountNumber)
@@ -817,12 +806,6 @@ namespace Walletrpc {
           .AddMethod(__Method_SignTransaction, serviceImpl.SignTransaction)
           .AddMethod(__Method_PublishTransaction, serviceImpl.PublishTransaction)
           .AddMethod(__Method_PurchaseTickets, serviceImpl.PurchaseTickets).Build();
-    }
-
-    // creates a new client
-    public static WalletServiceClient NewClient(Channel channel)
-    {
-      return new WalletServiceClient(channel);
     }
 
   }
@@ -876,170 +859,160 @@ namespace Walletrpc {
         __Marshaller_StartConsensusRpcRequest,
         __Marshaller_StartConsensusRpcResponse);
 
-    // service descriptor
+    /// <summary>Service descriptor</summary>
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
     {
       get { return global::Walletrpc.ApiReflection.Descriptor.Services[2]; }
     }
 
-    // client interface
-    public interface IWalletLoaderServiceClient
+    /// <summary>Base class for server-side implementations of WalletLoaderService</summary>
+    public abstract class WalletLoaderServiceBase
     {
-      global::Walletrpc.WalletExistsResponse WalletExists(global::Walletrpc.WalletExistsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.WalletExistsResponse WalletExists(global::Walletrpc.WalletExistsRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.WalletExistsResponse> WalletExistsAsync(global::Walletrpc.WalletExistsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.WalletExistsResponse> WalletExistsAsync(global::Walletrpc.WalletExistsRequest request, CallOptions options);
-      global::Walletrpc.CreateWalletResponse CreateWallet(global::Walletrpc.CreateWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.CreateWalletResponse CreateWallet(global::Walletrpc.CreateWalletRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.CreateWalletResponse> CreateWalletAsync(global::Walletrpc.CreateWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.CreateWalletResponse> CreateWalletAsync(global::Walletrpc.CreateWalletRequest request, CallOptions options);
-      global::Walletrpc.OpenWalletResponse OpenWallet(global::Walletrpc.OpenWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.OpenWalletResponse OpenWallet(global::Walletrpc.OpenWalletRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.OpenWalletResponse> OpenWalletAsync(global::Walletrpc.OpenWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.OpenWalletResponse> OpenWalletAsync(global::Walletrpc.OpenWalletRequest request, CallOptions options);
-      global::Walletrpc.CloseWalletResponse CloseWallet(global::Walletrpc.CloseWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.CloseWalletResponse CloseWallet(global::Walletrpc.CloseWalletRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.CloseWalletResponse> CloseWalletAsync(global::Walletrpc.CloseWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.CloseWalletResponse> CloseWalletAsync(global::Walletrpc.CloseWalletRequest request, CallOptions options);
-      global::Walletrpc.StartConsensusRpcResponse StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      global::Walletrpc.StartConsensusRpcResponse StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, CallOptions options);
-      AsyncUnaryCall<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpcAsync(global::Walletrpc.StartConsensusRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken));
-      AsyncUnaryCall<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpcAsync(global::Walletrpc.StartConsensusRpcRequest request, CallOptions options);
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.WalletExistsResponse> WalletExists(global::Walletrpc.WalletExistsRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.CreateWalletResponse> CreateWallet(global::Walletrpc.CreateWalletRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.OpenWalletResponse> OpenWallet(global::Walletrpc.OpenWalletRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.CloseWalletResponse> CloseWallet(global::Walletrpc.CloseWalletRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
     }
 
-    // server-side interface
-    public interface IWalletLoaderService
+    /// <summary>Client for WalletLoaderService</summary>
+    public class WalletLoaderServiceClient : ClientBase<WalletLoaderServiceClient>
     {
-      Task<global::Walletrpc.WalletExistsResponse> WalletExists(global::Walletrpc.WalletExistsRequest request, ServerCallContext context);
-      Task<global::Walletrpc.CreateWalletResponse> CreateWallet(global::Walletrpc.CreateWalletRequest request, ServerCallContext context);
-      Task<global::Walletrpc.OpenWalletResponse> OpenWallet(global::Walletrpc.OpenWalletRequest request, ServerCallContext context);
-      Task<global::Walletrpc.CloseWalletResponse> CloseWallet(global::Walletrpc.CloseWalletRequest request, ServerCallContext context);
-      Task<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, ServerCallContext context);
-    }
-
-    // client stub
-    public class WalletLoaderServiceClient : ClientBase, IWalletLoaderServiceClient
-    {
+      /// <summary>Creates a new client for WalletLoaderService</summary>
+      /// <param name="channel">The channel to use to make remote calls.</param>
       public WalletLoaderServiceClient(Channel channel) : base(channel)
       {
       }
-      public global::Walletrpc.WalletExistsResponse WalletExists(global::Walletrpc.WalletExistsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      /// <summary>Creates a new client for WalletLoaderService that uses a custom <c>CallInvoker</c>.</summary>
+      /// <param name="callInvoker">The callInvoker to use to make remote calls.</param>
+      public WalletLoaderServiceClient(CallInvoker callInvoker) : base(callInvoker)
       {
-        var call = CreateCall(__Method_WalletExists, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
       }
-      public global::Walletrpc.WalletExistsResponse WalletExists(global::Walletrpc.WalletExistsRequest request, CallOptions options)
+      /// <summary>Protected parameterless constructor to allow creation of test doubles.</summary>
+      protected WalletLoaderServiceClient() : base()
       {
-        var call = CreateCall(__Method_WalletExists, options);
-        return Calls.BlockingUnaryCall(call, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.WalletExistsResponse> WalletExistsAsync(global::Walletrpc.WalletExistsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      /// <summary>Protected constructor to allow creation of configured clients.</summary>
+      /// <param name="configuration">The client configuration.</param>
+      protected WalletLoaderServiceClient(ClientBaseConfiguration configuration) : base(configuration)
       {
-        var call = CreateCall(__Method_WalletExists, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.WalletExistsResponse> WalletExistsAsync(global::Walletrpc.WalletExistsRequest request, CallOptions options)
+
+      public virtual global::Walletrpc.WalletExistsResponse WalletExists(global::Walletrpc.WalletExistsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_WalletExists, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return WalletExists(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.CreateWalletResponse CreateWallet(global::Walletrpc.CreateWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.WalletExistsResponse WalletExists(global::Walletrpc.WalletExistsRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_CreateWallet, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_WalletExists, null, options, request);
       }
-      public global::Walletrpc.CreateWalletResponse CreateWallet(global::Walletrpc.CreateWalletRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.WalletExistsResponse> WalletExistsAsync(global::Walletrpc.WalletExistsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_CreateWallet, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return WalletExistsAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.CreateWalletResponse> CreateWalletAsync(global::Walletrpc.CreateWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.WalletExistsResponse> WalletExistsAsync(global::Walletrpc.WalletExistsRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_CreateWallet, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_WalletExists, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.CreateWalletResponse> CreateWalletAsync(global::Walletrpc.CreateWalletRequest request, CallOptions options)
+      public virtual global::Walletrpc.CreateWalletResponse CreateWallet(global::Walletrpc.CreateWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_CreateWallet, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return CreateWallet(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.OpenWalletResponse OpenWallet(global::Walletrpc.OpenWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.CreateWalletResponse CreateWallet(global::Walletrpc.CreateWalletRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_OpenWallet, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_CreateWallet, null, options, request);
       }
-      public global::Walletrpc.OpenWalletResponse OpenWallet(global::Walletrpc.OpenWalletRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.CreateWalletResponse> CreateWalletAsync(global::Walletrpc.CreateWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_OpenWallet, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return CreateWalletAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.OpenWalletResponse> OpenWalletAsync(global::Walletrpc.OpenWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.CreateWalletResponse> CreateWalletAsync(global::Walletrpc.CreateWalletRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_OpenWallet, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_CreateWallet, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.OpenWalletResponse> OpenWalletAsync(global::Walletrpc.OpenWalletRequest request, CallOptions options)
+      public virtual global::Walletrpc.OpenWalletResponse OpenWallet(global::Walletrpc.OpenWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_OpenWallet, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return OpenWallet(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.CloseWalletResponse CloseWallet(global::Walletrpc.CloseWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.OpenWalletResponse OpenWallet(global::Walletrpc.OpenWalletRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_CloseWallet, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_OpenWallet, null, options, request);
       }
-      public global::Walletrpc.CloseWalletResponse CloseWallet(global::Walletrpc.CloseWalletRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.OpenWalletResponse> OpenWalletAsync(global::Walletrpc.OpenWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_CloseWallet, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return OpenWalletAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.CloseWalletResponse> CloseWalletAsync(global::Walletrpc.CloseWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.OpenWalletResponse> OpenWalletAsync(global::Walletrpc.OpenWalletRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_CloseWallet, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_OpenWallet, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.CloseWalletResponse> CloseWalletAsync(global::Walletrpc.CloseWalletRequest request, CallOptions options)
+      public virtual global::Walletrpc.CloseWalletResponse CloseWallet(global::Walletrpc.CloseWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_CloseWallet, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return CloseWallet(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public global::Walletrpc.StartConsensusRpcResponse StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual global::Walletrpc.CloseWalletResponse CloseWallet(global::Walletrpc.CloseWalletRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_StartConsensusRpc, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.BlockingUnaryCall(call, request);
+        return CallInvoker.BlockingUnaryCall(__Method_CloseWallet, null, options, request);
       }
-      public global::Walletrpc.StartConsensusRpcResponse StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, CallOptions options)
+      public virtual AsyncUnaryCall<global::Walletrpc.CloseWalletResponse> CloseWalletAsync(global::Walletrpc.CloseWalletRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_StartConsensusRpc, options);
-        return Calls.BlockingUnaryCall(call, request);
+        return CloseWalletAsync(request, new CallOptions(headers, deadline, cancellationToken));
       }
-      public AsyncUnaryCall<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpcAsync(global::Walletrpc.StartConsensusRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      public virtual AsyncUnaryCall<global::Walletrpc.CloseWalletResponse> CloseWalletAsync(global::Walletrpc.CloseWalletRequest request, CallOptions options)
       {
-        var call = CreateCall(__Method_StartConsensusRpc, new CallOptions(headers, deadline, cancellationToken));
-        return Calls.AsyncUnaryCall(call, request);
+        return CallInvoker.AsyncUnaryCall(__Method_CloseWallet, null, options, request);
       }
-      public AsyncUnaryCall<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpcAsync(global::Walletrpc.StartConsensusRpcRequest request, CallOptions options)
+      public virtual global::Walletrpc.StartConsensusRpcResponse StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
-        var call = CreateCall(__Method_StartConsensusRpc, options);
-        return Calls.AsyncUnaryCall(call, request);
+        return StartConsensusRpc(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual global::Walletrpc.StartConsensusRpcResponse StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_StartConsensusRpc, null, options, request);
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpcAsync(global::Walletrpc.StartConsensusRpcRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        return StartConsensusRpcAsync(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpcAsync(global::Walletrpc.StartConsensusRpcRequest request, CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_StartConsensusRpc, null, options, request);
+      }
+      protected override WalletLoaderServiceClient NewInstance(ClientBaseConfiguration configuration)
+      {
+        return new WalletLoaderServiceClient(configuration);
       }
     }
 
-    // creates service definition that can be registered with a server
-    public static ServerServiceDefinition BindService(IWalletLoaderService serviceImpl)
+    /// <summary>Creates service definition that can be registered with a server</summary>
+    public static ServerServiceDefinition BindService(WalletLoaderServiceBase serviceImpl)
     {
-      return ServerServiceDefinition.CreateBuilder(__ServiceName)
+      return ServerServiceDefinition.CreateBuilder()
           .AddMethod(__Method_WalletExists, serviceImpl.WalletExists)
           .AddMethod(__Method_CreateWallet, serviceImpl.CreateWallet)
           .AddMethod(__Method_OpenWallet, serviceImpl.OpenWallet)
           .AddMethod(__Method_CloseWallet, serviceImpl.CloseWallet)
           .AddMethod(__Method_StartConsensusRpc, serviceImpl.StartConsensusRpc).Build();
-    }
-
-    // creates a new client
-    public static WalletLoaderServiceClient NewClient(Channel channel)
-    {
-      return new WalletLoaderServiceClient(channel);
     }
 
   }
