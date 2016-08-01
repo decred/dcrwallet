@@ -9,13 +9,13 @@
       x:Name="Page"
       WindowTitle="Page"
       FlowDirection="LeftToRight"
-      WindowWidth="640" WindowHeight="480" d:DesignWidth="862.17" d:DesignHeight="549.293"
+      WindowWidth="640" WindowHeight="480" d:DesignWidth="640" d:DesignHeight="480"
       DataContext="{Binding Source={StaticResource ViewModelLocator}, Path=RequestViewModel}" Loaded="Page_Loaded">
 
     <ScrollViewer Style="{StaticResource MainPaneScrollViewerStyle}">
-        <StackPanel Margin="40 60 40 0">
-            <TextBlock Margin="0 0 0 20" HorizontalAlignment="Left" Text="Request payment" Foreground="#FF5A6E81" FontSize="20"/>
-            <TextBlock Margin="0 0 0 40" HorizontalAlignment="Left" Text="Each time you request a payment, create a new address to protect your privacy" Foreground="#FF0C1E3E" FontSize="11"/>
+        <StackPanel Margin="40 20 40 0">
+            <TextBlock Margin="0 0 0 10" Text="Request payment" Style="{StaticResource shellMediumHeaderTextBlockStyle}"/>
+            <TextBlock Margin="0 0 0 40" Text="Each time you request a payment, create a new address to protect your privacy" Style="{StaticResource shellDescriptionTextBlockStyle}"/>
             <Grid Width="300" Margin="0 0 0 30">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>

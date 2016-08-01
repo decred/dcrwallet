@@ -220,7 +220,7 @@
     </Page.Resources>
 
     <ScrollViewer Style="{StaticResource MainPaneScrollViewerStyle}">
-        <Grid Margin="40 60 0 0" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+        <Grid Margin="40 20 0 0" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -231,8 +231,8 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Row="0" Foreground="#FF5A6E81" FontSize="20" Text="Create transaction"/>
-            <TextBlock Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="#FF0C1E3E" FontSize="14" Width="600" Padding="0 10">
+            <TextBlock Grid.Row="0" Style="{StaticResource shellMediumHeaderTextBlockStyle}" Text="Create transaction"/>
+            <TextBlock Grid.Row="1" Style="{StaticResource shellDescriptionTextBlockStyle}" Width="600" Padding="0 10" VerticalAlignment="Top">
                 Decred addresses always begin with the letter <Run FontWeight="Bold" Text="D"/>.
                 <LineBreak/>Transaction fees are calculated based on transaction size, not output value.
                 As more output value is added, additional inputs may be spent by the transaction.  This may

@@ -32,7 +32,7 @@
                                 <ColumnDefinition Width="41"/>
                                 <ColumnDefinition/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="textBlock" HorizontalAlignment="Stretch" Height="20" Margin="0,10,0,0" TextWrapping="Wrap" Text="{TemplateBinding Content}" VerticalAlignment="Top" Width="Auto" TextAlignment="Left" Grid.Column="1" Foreground="#FFA9B4BF" Grid.ColumnSpan="1"/>
+                            <TextBlock x:Name="textBlock" HorizontalAlignment="Stretch" Height="20" Margin="0,10,0,0" TextWrapping="Wrap" Text="{TemplateBinding Content}" VerticalAlignment="Top" Width="Auto" TextAlignment="Left" Grid.Column="1" Foreground="#FFA9B4BF" FontSize="14" Grid.ColumnSpan="1"/>
                             <Rectangle x:Name="rectangle" Fill="#FF2ED8A3" HorizontalAlignment="Left" Stroke="{x:Null}" VerticalAlignment="Stretch" Width="5" RenderTransformOrigin="0.391,0.508" Margin="0" Visibility="Hidden"/>
                         </Grid>
                         <ControlTemplate.Triggers>

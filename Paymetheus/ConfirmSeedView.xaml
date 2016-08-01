@@ -23,8 +23,8 @@
                     <Button Content="BACK" Command="{Binding BackCommand}" Width="100" Margin="6,12,3,6" Padding="10 2" Style="{DynamicResource ButtonWhite}"/>
                     <Button Content="CONFIRM" IsDefault="True" Command="{Binding ConfirmSeedCommand}" Width="100" Margin="6,12,3,6" Padding="10 2"  Style="{DynamicResource ButtonBlue}"/>
                 </StackPanel>
-                <TextBlock DockPanel.Dock="Top" Margin="0,0,0,0" HorizontalAlignment="Center" TextAlignment="Left" TextWrapping="Wrap" Width="480" Height="40" Text="Confirm backup" Style="{StaticResource mediumHeaderTextBlockStyle}"/>
-                <TextBlock DockPanel.Dock="Top" Margin="0,0,0,0" HorizontalAlignment="Center" TextWrapping="Wrap" Width="480" Height="20" Text="Please enter the seed from the previous window into the text box below." Style="{StaticResource defaultInfoTextLightTextBlockStyle}"/>
+                <TextBlock DockPanel.Dock="Top" Margin="0,0,0,0" HorizontalAlignment="Center" TextAlignment="Left" TextWrapping="Wrap" Width="480" Height="40" Text="Confirm backup" Style="{StaticResource wizardMediumHeaderTextBlockStyle}"/>
+                <TextBlock DockPanel.Dock="Top" Margin="0,0,0,0" HorizontalAlignment="Center" TextWrapping="Wrap" Width="480" Height="20" Text="Please enter the seed from the previous window into the text box below." Style="{StaticResource wizardDefaultTextBlockStyle}"/>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />

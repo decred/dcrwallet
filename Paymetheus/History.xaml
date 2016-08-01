@@ -9,11 +9,10 @@
       x:Name="Page"
       WindowTitle="Page"
       FlowDirection="LeftToRight"
-      WindowWidth="640" WindowHeight="480" d:DesignWidth="860" d:DesignHeight="550"
+      WindowWidth="640" WindowHeight="480" d:DesignWidth="640" d:DesignHeight="480"
       DataContext="{Binding TransactionHistoryViewModel, Source={StaticResource ViewModelLocator}}">
 
     <Page.Resources>
-
         <ControlTemplate x:Key="HistoryItemTemplate" TargetType="{x:Type ListBoxItem}">
             <ControlTemplate.Resources>
                 <Style TargetType="{x:Type TextBlock}">
@@ -151,7 +150,7 @@
     <DockPanel x:Name="LayoutRoot">
         <Border DockPanel.Dock="Top" Height="60" Grid.Row="0" Background="White" BorderBrush="#FFA9B4BF" BorderThickness="0 0 0 1">
             <Grid>
-                <TextBlock Margin="40 0 0 0" VerticalAlignment="Center" Text="Transaction history" Foreground="#FF5A6E81" FontSize="20" />
+                <TextBlock Margin="40 9 0 0" VerticalAlignment="Center" Text="Transaction history" Foreground="#FF0C1E3E" FontSize="20" />
                 <Image Source="Images/pm - icons - accounts.png" Stretch="Fill" Width="25" Height="25.6"/>
                 <ComboBox HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,40,0" Width="200"
                           ItemsSource="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.Accounts}"

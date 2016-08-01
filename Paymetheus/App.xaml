@@ -32,41 +32,52 @@
         </DataTemplate>
 
         <!-- Text blocks -->
-        <Style x:Key="largeHeaderTextBlockStyle" TargetType="TextBlock">
+        <Style x:Key="wizardLargeHeaderTextBlockStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="46"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="TextAlignment" Value="Center"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
 
-        <Style x:Key="mediumHeaderTextBlockStyle" TargetType="TextBlock">
+        <Style x:Key="wizardMediumHeaderTextBlockStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="28"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="TextAlignment" Value="Left"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
 
-        <Style x:Key="subHeaderTextBlockStyle" TargetType="TextBlock">
+        <Style x:Key="wizardSubHeaderTextBlockStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="16"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="TextAlignment" Value="Left"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
 
-        <Style x:Key="connectHeaderTextBlockStyle" TargetType="TextBlock">
+        <Style x:Key="wizardConnectHeaderTextBlockStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="22"/>
             <Setter Property="Foreground" Value="#FF132F4B"/>
             <Setter Property="TextAlignment" Value="Left"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
 
-        <Style x:Key="defaultInfoTextLightTextBlockStyle" TargetType="TextBlock">
+        <Style x:Key="wizardDefaultTextBlockStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Foreground" Value="#FFB7D1F0"/>
             <Setter Property="TextAlignment" Value="Left"/>
             <Setter Property="HorizontalAlignment" Value="Left"/>
             <Setter Property="VerticalAlignment" Value="Top"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+
+        <Style x:Key="shellDescriptionTextBlockStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#FF0C1E3E"/>
+            <Setter Property="TextAlignment" Value="Left"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+
+        <Style x:Key="shellMediumHeaderTextBlockStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="Foreground" Value="#FF0C1E3E"/>
+            <Setter Property="TextAlignment" Value="Left"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
 

@@ -17,9 +17,9 @@
     </UserControl.Resources>
     <Grid x:Name="LayoutRoot">
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Height="185" Width="480">
-            <TextBlock Name="PublicPassphraseTextBlock" Text="Public Passphrase" VerticalAlignment="Top" HorizontalAlignment="left" Width="480" Height="40" Padding="0 0 0 0" Style="{StaticResource mediumHeaderTextBlockStyle}"/>
+            <TextBlock Name="PublicPassphraseTextBlock" Text="Public Passphrase" VerticalAlignment="Top" HorizontalAlignment="left" Width="480" Height="40" Padding="0 0 0 0" Style="{StaticResource wizardMediumHeaderTextBlockStyle}"/>
             <Label Margin="0 0 0 0">
-                <TextBlock Width="480" Margin="-5 -5 0 0" TextWrapping="Wrap" HorizontalAlignment="Left" TextAlignment="Left" Style="{StaticResource defaultInfoTextLightTextBlockStyle}">
+                <TextBlock Width="480" Margin="-5 -5 0 0" TextWrapping="Wrap" HorizontalAlignment="Left" TextAlignment="Left" Style="{StaticResource wizardDefaultTextBlockStyle}">
                 A public passphrase is only required to open the wallet when the optional
                 public data encryption feature is enabled.
                 Simply continue by opening the wallet with an empty passphrase if public

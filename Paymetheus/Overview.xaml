@@ -9,7 +9,7 @@
       x:Name="Page"
       WindowTitle="Page"
       FlowDirection="LeftToRight"
-      WindowWidth="640" WindowHeight="480" d:DesignWidth="862.17" d:DesignHeight="549.293"
+      WindowWidth="640" WindowHeight="480" d:DesignWidth="640" d:DesignHeight="480"
       DataContext="{Binding OverviewViewModel, Source={StaticResource ViewModelLocator}}">
 
     <Page.Resources>
@@ -48,7 +48,7 @@
         </ControlTemplate>
     </Page.Resources>
 
-    <Grid Margin="40 60 0 0">
+    <Grid Margin="40 20 0 0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="60"/>
@@ -59,7 +59,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition/>
         </Grid.ColumnDefinitions>
-        <TextBlock Grid.Row="0" HorizontalAlignment="Left" Margin="0 0 0 20" Text="Totals" VerticalAlignment="Top" Foreground="#FF0C1E3E" FontSize="20"/>
+        <TextBlock Grid.Row="0" Margin="0 0 0 20" Text="Totals" Style="{StaticResource shellMediumHeaderTextBlockStyle}"/>
         <Border Grid.Row="1" Margin="0 0 40 0" BorderBrush="#FFA9B4BF" BorderThickness="0 0 0 1" VerticalAlignment="Stretch">
             <Grid VerticalAlignment="Top">
                 <Grid.Resources>

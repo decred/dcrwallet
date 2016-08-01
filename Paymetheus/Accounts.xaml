@@ -10,10 +10,9 @@
 	x:Name="Page"
 	WindowTitle="Page"
 	FlowDirection="LeftToRight"
-	WindowWidth="640" WindowHeight="480" d:DesignWidth="862.17" d:DesignHeight="549.293">
+	WindowWidth="640" WindowHeight="480" d:DesignWidth="640" d:DesignHeight="480">
 
     <Page.Resources>
-
         <SolidColorBrush x:Key="Item.MouseOver.Background" Color="#1F26A0DA"/>
         <SolidColorBrush x:Key="Item.MouseOver.Border" Color="#a826A0Da"/>
         <SolidColorBrush x:Key="Item.SelectedInactive.Background" Color="#3DDADADA"/>
@@ -33,7 +32,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ListBoxItem}">
-                        <Grid x:Name="grid1" Background="White" d:DesignWidth="489.079" >
+                        <Grid x:Name="grid1" Background="White" d:DesignWidth="400" >
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -77,9 +76,9 @@
                                                    HorizontalContentAlignment="Right" Margin="0,6,39,0"
                                                    ForegroundWhole="#FF919EAB" ForegroundDecimal="#FF919EAB" FontSizeWhole="8.667" FontSizeDecimal="8.667" FontWeightWhole="Bold"/>
                             </Grid>
-                            <Grid x:Name="grid" Margin="14,0.331,0,0" Grid.Row="1" Height="161" Visibility="Collapsed">
+                            <Grid x:Name="grid" Margin="14,0,0,0" Grid.Row="1" Height="161" Visibility="Collapsed">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="105.017"/>
+                                    <ColumnDefinition Width="105"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
@@ -214,16 +213,16 @@
         </Style>
     </Page.Resources>
 
-    <Grid x:Name="LayoutRoot" Margin="40 60 0 0">
+    <Grid x:Name="LayoutRoot" Margin="40 20 40 20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="1*"/>
         </Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" TextWrapping="Wrap" Text="Accounts" Foreground="#FF0C1E3E" FontSize="20"/>
-        <Button Grid.Row="0"  HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0 0 40 0"
+        <TextBlock Grid.Row="0" Text="Accounts" Style="{StaticResource shellMediumHeaderTextBlockStyle}"/>
+        <Button Grid.Row="0"  HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0 0 0 0"
                 Content="ADD A NEW ACCOUNT" Command="{Binding ShellViewModel.CreateAccountCommand, Source={StaticResource ViewModelLocator}}"
                 Style="{DynamicResource ButtonBlue}"/>
-        <ListBox x:Name="lstAccounts" Grid.Row="1" Margin="0 20 0 0"
+        <ListBox x:Name="lstAccounts" Grid.Row="1" Margin="0 20 0 0" VerticalAlignment="Stretch"
                  ItemsSource="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.Accounts}"
                  ItemContainerStyle="{DynamicResource ListBoxItemStyle}"
                  HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" VerticalContentAlignment="Stretch"
