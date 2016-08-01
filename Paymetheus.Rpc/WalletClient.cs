@@ -468,6 +468,7 @@ namespace Paymetheus.Rpc
                             {
                                 var changes = notifications.Buffer.Receive();
                                 w.ApplyTransactionChanges(changes);
+                                txChangesTask = notifications.Buffer.OutputAvailableAsync();
                             }
                         }
                     }
