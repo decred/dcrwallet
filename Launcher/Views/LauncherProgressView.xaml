@@ -1,0 +1,20 @@
+﻿<UserControl x:Class="Launcher.Views.LauncherProgressView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Launcher.Views"
+             mc:Ignorable="d" 
+             DataContext="{Binding Source={StaticResource ViewModelLocator}, Path=LauncherProgressViewModel}"
+             d:DesignHeight="300" d:DesignWidth="300">
+    <Grid Background="{StaticResource BackgroundLightBlue}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition />
+        </Grid.RowDefinitions>
+        <Viewbox Width="160" Height="160">
+            <Frame Source="/Launcher;component/Images/logo.xaml" NavigationUIVisibility="Hidden" />
+        </Viewbox>
+        <TextBlock Grid.Row="1" Text="{Binding CurrentStatus, Mode=OneWay, FallbackValue=status text}" TextWrapping="Wrap" Margin="8 0" Foreground="{StaticResource ForegroundDark}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+    </Grid>
+</UserControl>

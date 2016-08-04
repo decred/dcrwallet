@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Paymetheus</RootNamespace>
     <AssemblyName>Paymetheus</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <WarningLevel>4</WarningLevel>
@@ -31,6 +31,7 @@
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
     <BootstrapperEnabled>true</BootstrapperEnabled>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -163,12 +164,6 @@
       <DependentUpon>Accounts.xaml</DependentUpon>
     </Compile>
     <Compile Include="Commands.cs" />
-    <Compile Include="Framework\Messenger.cs" />
-    <Compile Include="Framework\ShellViewModelBase.cs" />
-    <Compile Include="Framework\SingletonViewModelLocator.cs" />
-    <Compile Include="Framework\ValueConverters\AmountConverter.cs" />
-    <Compile Include="Framework\ValueConverters\NullToHiddenConverter.cs" />
-    <Compile Include="Framework\ValueConverters\OneWayConverter.cs" />
     <Compile Include="AccountToNameConverter.cs" />
     <Compile Include="ImportScriptDialogView.xaml.cs">
       <DependentUpon>ImportScriptDialogView.xaml</DependentUpon>
@@ -202,14 +197,12 @@
     <Compile Include="Validation\AmountValidator.cs" />
     <Compile Include="ViewModels\AccountViewModel.cs" />
     <Compile Include="AssemblyResources.cs" />
-    <Compile Include="Framework\AttachableProperties.cs" />
     <Compile Include="ConfirmSeedView.xaml.cs">
       <DependentUpon>ConfirmSeedView.xaml</DependentUpon>
     </Compile>
     <Compile Include="CreateOrImportSeedView.xaml.cs">
       <DependentUpon>CreateOrImportSeedView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Framework\Navigator.cs" />
     <Compile Include="Helpers\PasswordBoxWaterMark.cs" />
     <Compile Include="Helpers\Watermark.cs" />
     <Compile Include="History.xaml.cs">
@@ -236,10 +229,6 @@
       <DependentUpon>CreateAccountDialogView.xaml</DependentUpon>
     </Compile>
     <Compile Include="ViewModels\CreateAccountDialogViewModel.cs" />
-    <Compile Include="Framework\DelegateCommand.cs" />
-    <Compile Include="Framework\ValueConverters\BooleanConverter.cs" />
-    <Compile Include="Framework\ButtonCommand.cs" />
-    <Compile Include="Framework\DialogViewModelBase.cs" />
     <Compile Include="ViewModels\ImportDialogViewModel.cs" />
     <Compile Include="ViewModels\PassphraseDialogViewModel.cs" />
     <Compile Include="PromptPassphrasesView.xaml.cs">
@@ -260,7 +249,6 @@
     <Compile Include="ConsensusServerConnectionOptionsView.xaml.cs">
       <DependentUpon>ConsensusServerConnectionOptionsView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Framework\TypeConverters\AmountTypeConverter.cs" />
     <Compile Include="Unspent.xaml.cs">
       <DependentUpon>Unspent.xaml</DependentUpon>
     </Compile>
@@ -273,9 +261,6 @@
     <Compile Include="UserControls\ConfirmationIndicator.xaml.cs">
       <DependentUpon>ConfirmationIndicator.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Framework\ViewModelBase.cs" />
-    <Compile Include="Framework\WizardDialogViewModelBase.cs" />
-    <Compile Include="Framework\WizardViewModel.cs" />
     <Compile Include="ViewModels\ViewModelLocator.cs" />
     <Page Include="Accounts.xaml">
       <SubType>Designer</SubType>
@@ -443,6 +428,10 @@
     <ProjectReference Include="..\Paymetheus.Decred\Paymetheus.Decred.csproj">
       <Project>{93791f70-6590-4342-9774-64e97b7ef6a4}</Project>
       <Name>Paymetheus.Decred</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Paymetheus.Framework\Paymetheus.Framework.csproj">
+      <Project>{b400c1b9-35d7-4f27-b5a0-3bf91ff48e9d}</Project>
+      <Name>Paymetheus.Framework</Name>
     </ProjectReference>
     <ProjectReference Include="..\Paymetheus.Rpc\Paymetheus.Rpc.csproj">
       <Project>{4bd3b218-0cb0-49d5-8231-b24265ea98b9}</Project>

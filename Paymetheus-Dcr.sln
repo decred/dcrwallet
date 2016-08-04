@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.25008.0
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Paymetheus", "Paymetheus\Paymetheus.csproj", "{23FDCF32-22C6-4AC1-89CF-64B79A237CA3}"
 EndProject
@@ -13,6 +13,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Paymetheus.Tests.Decred", "
 	ProjectSection(ProjectDependencies) = postProject
 		{93791F70-6590-4342-9774-64E97B7EF6A4} = {93791F70-6590-4342-9774-64E97B7EF6A4}
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Launcher", "Launcher\Launcher.csproj", "{1BD8D957-AAA4-4BFB-9781-5FD8E15DECB7}"
+	ProjectSection(ProjectDependencies) = postProject
+		{23FDCF32-22C6-4AC1-89CF-64B79A237CA3} = {23FDCF32-22C6-4AC1-89CF-64B79A237CA3}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Paymetheus.Framework", "Paymetheus.Framework\Paymetheus.Framework.csproj", "{B400C1B9-35D7-4F27-B5A0-3BF91FF48E9D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -72,6 +79,30 @@ Global
 		{2F3EF667-ED59-4079-B979-E58D49047E55}.Release|x64.Build.0 = Release|Any CPU
 		{2F3EF667-ED59-4079-B979-E58D49047E55}.Release|x86.ActiveCfg = Release|Any CPU
 		{2F3EF667-ED59-4079-B979-E58D49047E55}.Release|x86.Build.0 = Release|Any CPU
+		{1BD8D957-AAA4-4BFB-9781-5FD8E15DECB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1BD8D957-AAA4-4BFB-9781-5FD8E15DECB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1BD8D957-AAA4-4BFB-9781-5FD8E15DECB7}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1BD8D957-AAA4-4BFB-9781-5FD8E15DECB7}.Debug|x64.Build.0 = Debug|Any CPU
+		{1BD8D957-AAA4-4BFB-9781-5FD8E15DECB7}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1BD8D957-AAA4-4BFB-9781-5FD8E15DECB7}.Debug|x86.Build.0 = Debug|Any CPU
+		{1BD8D957-AAA4-4BFB-9781-5FD8E15DECB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1BD8D957-AAA4-4BFB-9781-5FD8E15DECB7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1BD8D957-AAA4-4BFB-9781-5FD8E15DECB7}.Release|x64.ActiveCfg = Release|Any CPU
+		{1BD8D957-AAA4-4BFB-9781-5FD8E15DECB7}.Release|x64.Build.0 = Release|Any CPU
+		{1BD8D957-AAA4-4BFB-9781-5FD8E15DECB7}.Release|x86.ActiveCfg = Release|Any CPU
+		{1BD8D957-AAA4-4BFB-9781-5FD8E15DECB7}.Release|x86.Build.0 = Release|Any CPU
+		{B400C1B9-35D7-4F27-B5A0-3BF91FF48E9D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B400C1B9-35D7-4F27-B5A0-3BF91FF48E9D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B400C1B9-35D7-4F27-B5A0-3BF91FF48E9D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B400C1B9-35D7-4F27-B5A0-3BF91FF48E9D}.Debug|x64.Build.0 = Debug|Any CPU
+		{B400C1B9-35D7-4F27-B5A0-3BF91FF48E9D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B400C1B9-35D7-4F27-B5A0-3BF91FF48E9D}.Debug|x86.Build.0 = Debug|Any CPU
+		{B400C1B9-35D7-4F27-B5A0-3BF91FF48E9D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B400C1B9-35D7-4F27-B5A0-3BF91FF48E9D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B400C1B9-35D7-4F27-B5A0-3BF91FF48E9D}.Release|x64.ActiveCfg = Release|Any CPU
+		{B400C1B9-35D7-4F27-B5A0-3BF91FF48E9D}.Release|x64.Build.0 = Release|Any CPU
+		{B400C1B9-35D7-4F27-B5A0-3BF91FF48E9D}.Release|x86.ActiveCfg = Release|Any CPU
+		{B400C1B9-35D7-4F27-B5A0-3BF91FF48E9D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

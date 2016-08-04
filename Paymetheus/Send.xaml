@@ -6,7 +6,7 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:vc="clr-namespace:Paymetheus.Framework.ValueConverters"
       xmlns:v="clr-namespace:Paymetheus.Validation"
-      xmlns:f="clr-namespace:Paymetheus.Framework"
+      xmlns:f="clr-namespace:Paymetheus.Framework;assembly=Paymetheus.Framework"
       mc:Ignorable="d"
       x:Name="Page"
       WindowTitle="Page"

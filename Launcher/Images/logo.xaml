@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--This file is compatible with Silverlight-->
+<Canvas xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Name="svg4143" Width="255.99999" Height="255.99999">
+    <Canvas.RenderTransform>
+        <TranslateTransform X="0" Y="0"/>
+    </Canvas.RenderTransform>
+    <Canvas.Resources/>
+    <!--Unknown tag: sodipodi:namedview-->
+    <!--Unknown tag: metadata-->
+    <Canvas Name="layer1">
+        <Canvas.RenderTransform>
+            <TranslateTransform X="0" Y="-796.3622"/>
+        </Canvas.RenderTransform>
+        <Canvas Name="g4156">
+            <Canvas.RenderTransform>
+                <MatrixTransform Matrix="0.88803078 0 0 0.88803078 -213.40932 526.3884"/>
+            </Canvas.RenderTransform>
+            <Canvas Name="g43455" Opacity="1">
+                <Canvas.RenderTransform>
+                    <TranslateTransform X="0" Y="3.1445312e-6"/>
+                </Canvas.RenderTransform>
+                <Rectangle xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Canvas.Left="322" Canvas.Top="336" Width="55" Height="30" Name="rect41564" Fill="#FF222222" StrokeThickness="5" StrokeMiterLimit="4" StrokeLineJoin="Miter" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" Opacity="1"/>
+                <Rectangle xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Canvas.Left="373.66129" Canvas.Top="497.24371" Width="32.503082" Height="21.22061" Name="rect41609263" Fill="#FF222222" StrokeThickness="5" StrokeMiterLimit="4" StrokeLineJoin="Miter" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" Opacity="1"/>
+                <Path xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Name="path1486" Fill="#FF222222" Data="m 380.63768 536.90503 c 16.0261 -27.75858 31.99375 -55.49648 47.98645 -83.19557 l -17.54965 0 8.77472 -15.19795 35.09841 0 -65.58219 113.5914 -8.72774 -15.19788 z m -56.85416 -98.39353 78.51658 0 -8.77465 15.19796 -43.41799 0 21.70878 37.60104 12.9348 -22.4031 17.54905 0 -30.46045 52.75819 -48.05612 -83.15409"/>
+                <Rectangle xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Canvas.Left="372.21585" Canvas.Top="491.79318" Width="24.433889" Height="16.268501" Name="rect41609271" Fill="#FF222222" StrokeThickness="5" StrokeMiterLimit="4" StrokeLineJoin="Miter" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" Opacity="1"/>
+                <Rectangle xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Canvas.Left="353.78094" Canvas.Top="455.29233" Width="65.917618" Height="43.036289" Name="rect4160924" Fill="#FF222222" StrokeThickness="5" StrokeMiterLimit="4" StrokeLineJoin="Miter" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" Opacity="1"/>
+                <Rectangle xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Canvas.Left="334.69571" Canvas.Top="413.20941" Width="100.14104" Height="45.367767" Name="rect416099" Fill="#FF222222" StrokeThickness="5" StrokeMiterLimit="4" StrokeLineJoin="Miter" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" Opacity="1"/>
+                <Rectangle xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Canvas.Left="304.57025" Canvas.Top="344.13684" Width="160.7814" Height="72.840195" Name="rect41604" Fill="#FF222222" StrokeThickness="5" StrokeMiterLimit="4" StrokeLineJoin="Miter" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" Opacity="1"/>
+                <Path xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Name="path149" Fill="#FF222222" Data="M 401.69092 530.75169 C 370.04536 475.93892 338.51525 421.16693 306.93565 366.47159 l 34.65397 0 -17.32679 -30.01027 -69.30622 0 129.50026 224.30051 17.23405 -30.01014 z m 112.26569 -194.29038 -155.04086 0 17.32667 30.01026 85.73424 0 -42.86672 74.24801 -25.54138 -44.23775 -34.65278 0 60.14797 104.17766 94.89286 -164.19818"/>
+            </Canvas>
+            <Rectangle xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Canvas.Left="337.37006" Canvas.Top="354.14145" Width="41.214275" Height="22.594297" Name="rect4156" Fill="#FF222222" StrokeThickness="5" StrokeMiterLimit="4" StrokeLineJoin="Miter" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" Opacity="1"/>
+            <Rectangle xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Canvas.Left="376.32571" Canvas.Top="475.24066" Width="24.480904" Height="15.983089" Name="rect4160926" Fill="#FF222222" StrokeThickness="5" StrokeMiterLimit="4" StrokeLineJoin="Miter" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" Opacity="1"/>
+            <Path xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Name="path148" Fill="#FF222222" Data="m 381.58024 505.11307 c 12.07065 -20.90741 24.09728 -41.79924 36.14278 -62.66184 l -13.21817 0 6.609 -11.4469 26.43567 0 -49.39566 85.55559 -6.57362 -11.44685 z m -42.82182 -74.10874 59.13767 0 -6.60895 11.4469 -32.70187 0 16.35077 28.32062 9.74233 -16.87373 13.21772 0 -22.94242 39.7368 -36.19525 -62.63059"/>
+            <Rectangle xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Canvas.Left="375.23703" Canvas.Top="471.13541" Width="18.403292" Height="12.253226" Name="rect4160927" Fill="#FF222222" StrokeThickness="5" StrokeMiterLimit="4" StrokeLineJoin="Miter" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" Opacity="1"/>
+            <Rectangle xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Canvas.Left="361.35208" Canvas.Top="443.64343" Width="49.6483" Height="32.414379" Name="rect416092" Fill="#FF222222" StrokeThickness="5" StrokeMiterLimit="4" StrokeLineJoin="Miter" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" Opacity="1"/>
+            <Rectangle xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Canvas.Left="346.97733" Canvas.Top="411.94711" Width="75.424942" Height="34.170422" Name="rect41609" Fill="#FF222222" StrokeThickness="5" StrokeMiterLimit="4" StrokeLineJoin="Miter" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" Opacity="1"/>
+            <Rectangle xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Canvas.Left="324.28723" Canvas.Top="359.92255" Width="121.09849" Height="54.862297" Name="rect4160" Fill="#FF222222" StrokeThickness="5" StrokeMiterLimit="4" StrokeLineJoin="Miter" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" Opacity="1"/>
+            <Path xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Name="path143" Fill="#FF43A2CA" Data="M 397.43727 500.47845 C 373.60224 459.19418 349.85416 417.94062 326.06882 376.74479 l 26.10092 0 -13.05031 -22.60334 -52.20056 0 97.53794 168.94025 12.98046 -22.60325 z m 84.55707 -146.33701 -116.77478 0 13.05023 22.60334 64.57392 0 -32.28666 55.92265 -19.23744 -33.31931 -26.10003 0 45.30268 78.46528 71.47208 -123.67196"/>
+        </Canvas>
+    </Canvas>
+</Canvas>

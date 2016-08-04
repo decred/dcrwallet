@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 
 namespace Paymetheus.Framework
 {
-    sealed class ButtonCommand : DelegateCommand, INotifyPropertyChanged
+    public sealed class ButtonCommand : DelegateCommand, INotifyPropertyChanged
     {
         public ButtonCommand(string label, Action action) : base(action)
         {

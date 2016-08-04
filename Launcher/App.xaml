@@ -1,0 +1,15 @@
+﻿<Application x:Class="Launcher.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Launcher"
+             xmlns:viewmodels="clr-namespace:Launcher.ViewModels"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <viewmodels:ViewModelLocator x:Key="ViewModelLocator"/>
+        <Style TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+        <SolidColorBrush x:Key="BackgroundLightBlue" Color="#FFE9EDF1"/>
+        <SolidColorBrush x:Key="ForegroundDark" Color="#FF132F4B"/>
+    </Application.Resources>
+</Application>

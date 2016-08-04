@@ -69,7 +69,7 @@ namespace Paymetheus.Rpc
             {
                 case PlatformID.Win32NT:
                     return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-                        ToUpper(organization), "Paymetheus", executableName.ToLower() + ".exe");
+                        ToUpper(organization), ToUpper(executableName), executableName.ToLower() + ".exe");
                 case PlatformID.Unix:
                     throw new NotImplementedException();
                 case PlatformID.MacOSX:
