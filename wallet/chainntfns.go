@@ -279,9 +279,6 @@ func (w *Wallet) connectBlock(b wtxmgr.BlockMeta) error {
 // block history from the reorged block for a wallet in-sync with the chain
 // server.
 func (w *Wallet) disconnectBlock(b wtxmgr.BlockMeta) error {
-	if !w.ChainSynced() {
-		return nil
-	}
 	bs := waddrmgr.BlockStamp{
 		Height: b.Height,
 		Hash:   b.Hash,
