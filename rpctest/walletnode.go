@@ -1,4 +1,4 @@
-// Copyright (c) 2016 The decred developers
+// Copyright (c) 2016 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -133,7 +133,8 @@ func (n *walletTestConfig) arguments() []string {
 	return args
 }
 
-// command returns the exec.Cmd which will be used to start the dcrwallet process.
+// command returns the exec.Cmd which will be used to start the dcrwallet
+// process.
 func (n *walletTestConfig) command() *exec.Cmd {
 	return exec.Command(n.exe, n.arguments()...)
 }
@@ -171,8 +172,8 @@ func (n *walletTestConfig) cleanup() error {
 	return err
 }
 
-// walletTest houses the neccessary state required to configure, launch, and manaage
-// a dcrwallet process.
+// walletTest houses the neccessary state required to configure, launch, and
+// manaage a dcrwallet process.
 type walletTest struct {
 	config *walletTestConfig
 
@@ -193,11 +194,11 @@ func newWallet(config *walletTestConfig, dataDir string) (*walletTest, error) {
 	}, nil
 }
 
-// Start creates a new dcrwallet process, and writes its pid in a file reserved for
-// recording the pid of the launched process. This file can ue used to terminate
-// the procress in case of a hang, or panic. In the case of a failing test case,
-// or panic, it is important that the process be stopped via stop(), otherwise,
-// it will persist unless explicitly killed.
+// Start creates a new dcrwallet process, and writes its pid in a file reserved
+// for recording the pid of the launched process. This file can ue used to
+// terminate the process in case of a hang, or panic. In the case of a failing
+// test case, or panic, it is important that the process be stopped via Stop(),
+// otherwise, it will persist unless explicitly killed.
 func (n *walletTest) Start() error {
 	if err := n.cmd.Start(); err != nil {
 		return err
@@ -249,7 +250,7 @@ func (n *walletTest) Cleanup() error {
 	return n.config.cleanup()
 }
 
-// shutdown terminates the running dcrwallet process, and cleans up all
+// Shutdown terminates the running dcrwallet process, and cleans up all
 // file/directories created by walletTest.
 func (n *walletTest) Shutdown() error {
 	if err := n.Stop(); err != nil {
