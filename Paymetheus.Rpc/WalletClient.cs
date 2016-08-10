@@ -236,6 +236,24 @@ namespace Paymetheus.Rpc
             await client.ImportPrivateKeyAsync(request, cancellationToken: _tokenSource.Token);
         }
 
+        public async Task ImportScriptAsync(byte[] scriptBytes, bool rescan, int scanFrom, string passphrase)
+        {
+            if (scriptBytes == null)
+                throw new ArgumentNullException(nameof(scriptBytes));
+            if (passphrase == null)
+                throw new ArgumentNullException(nameof(passphrase));
+
+            var client = new WalletService.WalletServiceClient(_channel);
+            var request = new ImportScriptRequest
+            {
+                Script = ByteString.CopyFrom(scriptBytes),
+                Rescan = rescan,
+                Passphrase = ByteString.CopyFromUtf8(passphrase), // Poorly named: this outputs UTF8 from a UTF16 System.String
+                ScanFrom = scanFrom,
+            };
+            await client.ImportScriptAsync(request, cancellationToken: _tokenSource.Token);
+        }
+
         public async Task RenameAccountAsync(Account account, string newAccountName)
         {
             if (newAccountName == null)
@@ -312,6 +330,77 @@ namespace Paymetheus.Rpc
             var signedTransaction = Transaction.Deserialize(response.Transaction.ToByteArray());
             var complete = response.UnsignedInputIndexes.Count == 0;
             return Tuple.Create(signedTransaction, complete);
+        }
+
+        public async Task<List<Blake256Hash>> PurchaseTicketsAsync(Account account, Amount spendLimit, 
+            int reqConfs, Address ticketAddress, uint number, Address poolAddress, double poolFees, 
+            uint expiry, Amount txFee, Amount ticketFee, string passphrase)
+        {
+            var ticketAddressStr = "";
+            if (ticketAddress != null) {
+                ticketAddressStr = ticketAddress.ToString();
+            }
+            var poolAddressStr = "";
+            if (poolAddress != null)
+            {
+                poolAddressStr = poolAddress.ToString();
+            }
+            if (poolAddressStr == "") {
+                poolFees = 0.0;
+            }
+
+            var client = new WalletService.WalletServiceClient(_channel);
+            var request = new PurchaseTicketsRequest
+            {
+                Passphrase = ByteString.CopyFromUtf8(passphrase),
+                Account = account.AccountNumber,
+                SpendLimit = spendLimit,
+                RequiredConfirmations = (uint)reqConfs,
+                TicketAddress = ticketAddressStr,
+                NumTickets = number,
+                PoolAddress = poolAddressStr,
+                PoolFees = poolFees,
+                Expiry = expiry,
+                TxFee = txFee,
+                TicketFee = ticketFee,
+            };
+            var response = await client.PurchaseTicketsAsync(request, cancellationToken: _tokenSource.Token);
+
+            return response.TicketHashes.Select(h => new Blake256Hash(h.ToByteArray())).ToList();
+        }
+
+        public async Task<StakeDifficultyProperties> StakeDifficultyAsync()
+        {
+            var client = new WalletService.WalletServiceClient(_channel);
+            var request = new TicketPriceRequest { };
+            var response = await client.TicketPriceAsync(request, cancellationToken: _tokenSource.Token);
+            var properties = new StakeDifficultyProperties
+            {
+                HeightForTicketPrice = response.Height,
+                NextTicketPrice = response.TicketPrice,
+            };
+            return properties;
+        }
+
+        public async Task<StakeInfoProperties> StakeInfoAsync()
+        {
+            var client = new WalletService.WalletServiceClient(_channel);
+            var request = new StakeInfoRequest{};
+            var response = await client.StakeInfoAsync(request, cancellationToken: _tokenSource.Token);
+            var properties = new StakeInfoProperties
+            {
+                PoolSize = response.PoolSize,
+                AllMempoolTickets = response.AllMempoolTix,
+                OwnMempoolTickets = response.OwnMempoolTix,
+                Immature = response.Immature,
+                Live = response.Live,
+                Voted = response.Voted,
+                Missed = response.Missed,
+                Revoked = response.Revoked,
+                Expired = response.Expired,
+                TotalSubsidy = response.TotalSubsidy,
+            };
+            return properties;  
         }
 
         /// <summary>

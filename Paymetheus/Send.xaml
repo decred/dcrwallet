@@ -232,7 +232,7 @@
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Row="0" Style="{StaticResource shellMediumHeaderTextBlockStyle}" Text="Create transaction"/>
-            <TextBlock Grid.Row="1" Style="{StaticResource shellDescriptionTextBlockStyle}" Width="600" Padding="0 10" VerticalAlignment="Top">
+            <TextBlock Grid.Row="1" Style="{StaticResource shellDescriptionTextBlockStyle}" Width="575" Padding="0 10" VerticalAlignment="Top">
                 Decred addresses always begin with the letter <Run FontWeight="Bold" Text="D"/>.
                 <LineBreak/>Transaction fees are calculated based on transaction size, not output value.
                 As more output value is added, additional inputs may be spent by the transaction.  This may

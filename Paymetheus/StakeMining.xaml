@@ -1,0 +1,93 @@
+﻿<Page x:Class="Paymetheus.StakeMining"
+      xmlns:local="clr-namespace:Paymetheus" 
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:vm="clr-namespace:Paymetheus.ViewModels"
+      mc:Ignorable="d"
+      x:Name="Page"
+      WindowTitle="Page"
+      FlowDirection="LeftToRight"
+      WindowWidth="640" WindowHeight="480" d:DesignWidth="640" d:DesignHeight="480"
+      DataContext="{Binding Source={StaticResource ViewModelLocator}, Path=StakeMiningViewModel}">
+
+    <ScrollViewer Style="{StaticResource MainPaneScrollViewerStyle}">
+        <StackPanel Margin="40 20 40 0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="120"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Margin="0 0 0 10" Text="Stake mining" Grid.Column="0" Style="{StaticResource shellMediumHeaderTextBlockStyle}"/>
+                <Button Grid.Column="1"  HorizontalAlignment="Right" VerticalAlignment="Center" 
+                    Content="REFRESH" Command="{Binding FetchStakeInfoCommand}"
+                    Style="{StaticResource ButtonBlue}"/>
+            </Grid>
+            <Grid Margin="0 40 0 0">
+                <Grid.Resources>
+                    <Style x:Key="tableHeaderTextBlock" BasedOn="{StaticResource shellDescriptionTextBlockStyle}" TargetType="TextBlock">
+                        <Setter Property="FontWeight" Value="Bold"/>
+                        <Setter Property="Grid.Column" Value="0"/>
+                    </Style>
+                    <Style x:Key="tableItemDescriptionTextBlock" BasedOn="{StaticResource shellDescriptionTextBlockStyle}" TargetType="TextBlock">
+                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="Grid.Column" Value="0"/>
+                    </Style>
+                    <Style x:Key="tableItemValueTextBlock" BasedOn="{StaticResource shellDescriptionTextBlockStyle}" TargetType="TextBlock">
+                        <Setter Property="HorizontalAlignment" Value="Left"/>
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="Grid.Column" Value="2"/>
+                    </Style>
+                </Grid.Resources>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="225"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="25"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="25"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <!-- Network statistics -->
+                <TextBlock Text="Network statistics" Style="{StaticResource tableHeaderTextBlock}" Grid.Row="0"/>
+                <TextBlock Text="Number of live tickets" Style="{StaticResource tableItemDescriptionTextBlock}" Grid.Row="1"/>
+                <TextBlock Text="Number of tickets in mempool" Style="{StaticResource tableItemDescriptionTextBlock}" Grid.Row="2"/>
+                <TextBlock Text="Ticket difficulty" Style="{StaticResource tableItemDescriptionTextBlock}" Grid.Row="3"/>
+                <TextBlock Text="{Binding Path=StakeInfoProperties.PoolSize, FallbackValue='UNDECLARED'}" Style="{StaticResource tableItemValueTextBlock}" Grid.Row="1" />
+                <TextBlock Text="{Binding Path=StakeInfoProperties.AllMempoolTickets, FallbackValue='UNDECLARED'}" Style="{StaticResource tableItemValueTextBlock}" Grid.Row="2"/>
+                <TextBlock Text="{Binding Path=StakeDifficultyProperties.NextTicketPrice, FallbackValue='UNDECLARED'}" Style="{StaticResource tableItemValueTextBlock}" Grid.Row="3"/>
+
+                <!-- Wallet statistics -->
+                <TextBlock Text="Wallet statistics" FontWeight="Bold"  Style="{StaticResource tableHeaderTextBlock}" Grid.Row="5"/>
+                <TextBlock Text="Owned tickets in mempool" Style="{StaticResource tableItemDescriptionTextBlock}" Grid.Row="6"/>
+                <TextBlock Text="Owned live tickets" Style="{StaticResource tableItemDescriptionTextBlock}" Grid.Row="7"/>
+                <TextBlock Text="Owned immature tickets" Style="{StaticResource tableItemDescriptionTextBlock}" Grid.Row="8"/>
+                <TextBlock Text="Tickets missed" Style="{StaticResource tableItemDescriptionTextBlock}" Grid.Row="9"/>
+                <TextBlock Text="Tickets revoked" Style="{StaticResource tableItemDescriptionTextBlock}" Grid.Row="10"/>
+                <TextBlock Text="Tickets voted" Style="{StaticResource tableItemDescriptionTextBlock}" Grid.Row="11"/>
+                <TextBlock Text="Total subsidy earned" Style="{StaticResource tableItemDescriptionTextBlock}" Grid.Row="12"/>
+                <TextBlock Text="{Binding Path=StakeInfoProperties.OwnMempoolTickets, FallbackValue='UNDECLARED'}" Style="{StaticResource tableItemValueTextBlock}" Grid.Row="6"/>
+                <TextBlock Text="{Binding Path=StakeInfoProperties.Live, FallbackValue='UNDECLARED'}" Style="{StaticResource tableItemValueTextBlock}" Grid.Row="7"/>
+                <TextBlock Text="{Binding Path=StakeInfoProperties.Immature, FallbackValue='UNDECLARED'}" Style="{StaticResource tableItemValueTextBlock}" Grid.Row="8"/>
+                <TextBlock Text="{Binding Path=StakeInfoProperties.Missed, FallbackValue='UNDECLARED'}" Style="{StaticResource tableItemValueTextBlock}" Grid.Row="9"/>
+                <TextBlock Text="{Binding Path=StakeInfoProperties.Revoked, FallbackValue='UNDECLARED'}" Style="{StaticResource tableItemValueTextBlock}" Grid.Row="10"/>
+                <TextBlock Text="{Binding Path=StakeInfoProperties.Voted, FallbackValue='UNDECLARED'}" Style="{StaticResource tableItemValueTextBlock}" Grid.Row="11"/>
+                <TextBlock Text="{Binding Path=StakeInfoProperties.TotalSubsidy, FallbackValue='UNDECLARED'}" Style="{StaticResource tableItemValueTextBlock}" Grid.Row="12"/>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

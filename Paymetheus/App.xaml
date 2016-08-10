@@ -24,6 +24,9 @@
         <DataTemplate DataType="{x:Type viewmodels:CreateAccountDialogViewModel}">
             <local:CreateAccountDialogView/>
         </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodels:ImportScriptDialogViewModel}">
+            <local:ImportScriptDialogView/>
+        </DataTemplate>
         <DataTemplate DataType="{x:Type viewmodels:RenameAccountDialogViewModel}">
             <local:RenameAccountDialogView/>
         </DataTemplate>
@@ -751,6 +754,15 @@
         <DataTemplate x:Key="ComboBoxAccountDataTemplate">
             <TextBlock Grid.Column="0" Text="{Binding ., Converter={StaticResource accountToNameConverter}}"/>
         </DataTemplate>
+
+        <!-- Text boxes -->
+        <Style x:Key="tooltipAlertTextBox" TargetType="TextBox">
+            <Style.Triggers>
+                <Trigger Property="Validation.HasError" Value="True">
+                    <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
 
         <Style x:Key="MainPaneScrollViewerStyle" TargetType="{x:Type ScrollViewer}">
             <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>

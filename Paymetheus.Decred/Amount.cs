@@ -90,6 +90,11 @@ namespace Paymetheus.Decred
             return Round(value * _atomsPerUnit);
         }
 
+        public double DoubleFromAmount(Amount amount)
+        {
+            return (double)amount / _atomsPerUnit;
+        }
+
         private static Amount Round(double value)
         {
             if (value < 0)

@@ -19,7 +19,7 @@
                 <TextBox Name="textBox" Margin="5 2" Padding="2"
                      Text="{Binding AccountName, Mode=OneWayToSource}"
                      f:AttachableProperties.UpdateSourceOnEnterProperty="TextBox.Text"/>
-                <Label Content="Private passphrase:"/>
+                <Label Content="Private passphrase:" FontSize="14" Foreground="#FF0C1E3E"/>
                 <PasswordBox Name="passphraseTextBox" PasswordChanged="passphraseTextBox_PasswordChanged" Margin="5 2" Padding="2"/>
             </StackPanel>
         </DockPanel>

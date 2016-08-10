@@ -121,12 +121,15 @@
                         </Setter>
                     </Style>
                 </ListBox.Resources>
-                <ListBoxItem Selected="NavigateOverview" Content="Overview" Style="{DynamicResource ListBoxItemStyle}" IsSelected="True"/>
-                <ListBoxItem Selected="NavigateAccounts" Content="Accounts" Style="{DynamicResource ListBoxItemStyle}"/>
-                <ListBoxItem Selected="NavigateSend" Content="Create transaction" Style="{DynamicResource ListBoxItemStyle}"/>
-                <ListBoxItem Selected="NavigateRequest" Content="Request payment" Style="{DynamicResource ListBoxItemStyle}"/>
-                <ListBoxItem Selected="NavigateHistory" Content="Transaction history" Style="{DynamicResource ListBoxItemStyle}"/>
-                <!--<ListBoxItem Selected="NavigateUnspent" Content="Unspent outputs" Style="{DynamicResource ListBoxItemStyle}"/>-->
+                <ListBoxItem Selected="NavigateOverview" Content="Overview" Style="{StaticResource ListBoxItemStyle}" IsSelected="True"/>
+                <ListBoxItem Selected="NavigateAccounts" Content="Accounts" Style="{StaticResource ListBoxItemStyle}"/>
+                <ListBoxItem Selected="NavigateScripts" Content="Scripts" Style="{StaticResource ListBoxItemStyle}"/>
+                <ListBoxItem Selected="NavigateSend" Content="Create transaction" Style="{StaticResource ListBoxItemStyle}"/>
+                <ListBoxItem Selected="NavigatePurchaseTickets" Content="Purchase tickets" Style="{StaticResource ListBoxItemStyle}"/>
+                <ListBoxItem Selected="NavigateRequest" Content="Request payment" Style="{StaticResource ListBoxItemStyle}"/>
+                <ListBoxItem Selected="NavigateHistory" Content="Transaction history" Style="{StaticResource ListBoxItemStyle}"/>
+                <ListBoxItem Selected="NavigateStakeMining" Content="Stake mining" Style="{StaticResource ListBoxItemStyle}"/>
+                <!--<ListBoxItem Selected="NavigateUnspent" Content="Unspent outputs" Style="{StaticResource ListBoxItemStyle}"/>-->
             </ListBox>
             <Path Data="M52.666667,460 C55.333333,453.33333 125.33317,387.3335 125.33317,387.3335 L199.33249,461.33283 z" Fill="#FF69D5F7" HorizontalAlignment="Center" Height="3.868" Margin="121.166,0.547,121.167,0" Grid.Row="2" Stretch="Fill" Stroke="{x:Null}" VerticalAlignment="Top" Width="7.667"/>
             <Rectangle Fill="#FF69D5F7" HorizontalAlignment="Center" Height="1" Margin="20,4,20,0" Grid.Row="2" Stroke="{x:Null}" VerticalAlignment="Top" Width="210"/>
