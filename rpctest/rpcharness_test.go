@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	//"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrutil"
 )
@@ -24,6 +25,8 @@ var rpcTestCases = []rpcTestCase{
 
 var primaryHarness *Harness
 
+// TestMain manages the test harness and runs the tests instead of go test
+// running the tests directly.
 func TestMain(m *testing.M) {
 	var err error
 	primaryHarness, err = NewHarness(&chaincfg.SimNetParams, nil, nil)
@@ -34,13 +37,14 @@ func TestMain(m *testing.M) {
 
 	// Initialize the primary mining node with a chain of length 41,
 	// providing 25 mature coinbases to allow spending from for testing
-	// purposes.
+	// purposes (CoinbaseMaturity=16 for simnet).
 	if err = primaryHarness.SetUp(true, 25); err != nil {
 		fmt.Println("unable to setup test chain: ", err)
 		err = primaryHarness.TearDown()
 		os.Exit(1)
 	}
 
+	// Run the tests
 	exitCode := m.Run()
 
 	// Clean up the primary harness created above. This includes removing
@@ -203,44 +207,50 @@ func testSendFrom(r *Harness, t *testing.T) {
 }
 
 func testSendToAddress(r *Harness, t *testing.T) {
+	// Node (dcrd) RPC client
+	ncl := r.Node
+
 	// Get current blockheight to make sure chain is at the desiredHeight
-	bestBlockHash, err := r.Node.GetBestBlockHash()
+	bestBlockHash, err := ncl.GetBestBlockHash()
 	if err != nil {
 		t.Fatalf("unable to get best block hash: %v", err)
 	}
-	bestBlock, err := r.Node.GetBlock(bestBlockHash)
+	bestBlock, err := ncl.GetBlock(bestBlockHash)
 	if err != nil {
 		t.Fatalf("unable to get block: %v", err)
 	}
 
 	curBlockHeight := bestBlock.MsgBlock().Header.Height
 
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
 	// Grab a fresh address from the wallet.
-	addr, err := r.WalletRPC.GetNewAddress("default")
+	addr, err := wcl.GetNewAddress("default")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Check spendable balance of default account
-	_, err = r.WalletRPC.GetBalanceMinConfType("default", 1, "spendable")
+	_, err = wcl.GetBalanceMinConfType("default", 1, "spendable")
 	if err != nil {
-		t.Fatalf("getbalanceminconftype failed: %v", err)
+		t.Fatalf("GetBalanceMinConfType failed: %v", err)
 	}
 
 	// SendFromMinConf 1000 to addr
-	txid, err := r.WalletRPC.SendToAddress(addr, 1000000)
+	txid, err := wcl.SendToAddress(addr, 1000000)
 	if err != nil {
-		t.Fatalf("sendtoaddress failed: %v", err)
+		t.Fatalf("SendToAddress failed: %v", err)
 	}
 
-	// Generate a single block, the transaction the wallet created should
-	// be found in this block.
+	// Generate a single block, in which the transaction the wallet created
+	// should be found.
 	blockHashes, err := r.GenerateBlock(curBlockHeight)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	block, err := r.Node.GetBlock(blockHashes[0])
+	block, err := ncl.GetBlock(blockHashes[0])
 	if err != nil {
 		t.Fatalf("unable to get block: %v", err)
 	}
@@ -255,8 +265,38 @@ func testSendToAddress(r *Harness, t *testing.T) {
 
 	// We have confirmed that the expected tx was mined into the block.
 	// We should now check to confirm that the utxo that wallet used to create
-	// that sendfrom was properly marked to spent and removed from utxo set.
+	// that sendfrom was properly marked as spent and removed from utxo set.
 
+	// Try this a different way, without another ListUnspent call.  Use
+	// GetTxOut to tell if the outpoint is spent.
+
+	// The spending transaction has to be off the tip block for the previous
+	// outpoint be be spent, out of the UTXO set. Generate another block.
+	_, err = r.GenerateBlock(block.MsgBlock().Header.Height)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check the each PreviousOutPoint for the sending tx.
+
+	// Get the sending Tx
+	Tx, err := wcl.GetRawTransaction(txid)
+	if err != nil {
+		t.Fatal("Unable to get raw transaction for", Tx)
+	}
+	// txid is rawTx.MsgTx().TxIn[0].PreviousOutPoint.Hash
+
+	// Let's check all inputs
+	for ii, txIn := range Tx.MsgTx().TxIn {
+		prevOut := &txIn.PreviousOutPoint
+		t.Logf("Checking previous outpoint %v, %v", ii, prevOut.String())
+
+		// If a txout is spent (not in the UTXO set) GetTxOutResult will be nil
+		res, _ := wcl.GetTxOut(&prevOut.Hash, prevOut.Index, false)
+		if res != nil {
+			t.Errorf("Transaction output %v still unspent.", ii)
+		}
+	}
 }
 
 func testPurchaseTickets(r *Harness, t *testing.T) {
