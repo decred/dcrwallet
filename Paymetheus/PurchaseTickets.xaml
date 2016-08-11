@@ -21,10 +21,13 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Margin="0 0 0 10" Grid.Column="0" Text="Purchase tickets" Style="{StaticResource shellMediumHeaderTextBlockStyle}"/>
                 <TextBlock Margin="0 37 0 40" Grid.Column="0" Style="{StaticResource shellDescriptionTextBlockStyle}">
-                In order to stake mine, you must make a deposit to the network in the form of a ticket. 
-                The ticket enters the owner in a lottery for the next several months, at which time it 
-                may be chosen at any block for validation. The safest way to ensure that your vote 
-                succeeds is to use a stake pool.
+                    In order to stake mine, you must make a deposit to the network in the form of a ticket.
+                    The ticket enters the owner in a lottery for the next several months, at which time it
+                    may be chosen at any block for validation.
+                    <LineBreak/>After being chosen randomly, the ticket owner must produce a vote transaction to
+                    validate the previous block.  <Bold>Paymetheus does not vote</Bold> and tickets must only
+                    be purchased for voting addresses owned by an always running voting wallet.  The safest way
+                    to ensure that your vote succeeds is to delegate your voting rights to a stake pool.
                 </TextBlock>
                 <Button Grid.Column="1"  HorizontalAlignment="Right" VerticalAlignment="Top" 
                     Content="REFRESH" Command="{Binding FetchStakeDifficultyCommand}"
