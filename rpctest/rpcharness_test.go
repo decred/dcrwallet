@@ -12,6 +12,7 @@ import (
 
 	//"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrutil"
 )
 
@@ -114,31 +115,13 @@ func testSendFrom(r *Harness, t *testing.T) {
 		t.Fatalf("getbalanceminconftype failed: %v", err)
 	}
 	if sendFromBalanceAfterSendNoBlock != amountToSend {
-		t.Fatalf("balance for %s account incorrect:  want %v got %v", accountName, amountToSend, sendFromBalanceAfterSendNoBlock)
+		t.Fatalf("balance for %s account incorrect:  want %v got %v",
+			accountName, amountToSend, sendFromBalanceAfterSendNoBlock)
 	}
-
-	// Get current blockheight to make sure chain is at the desiredHeight
-	bestBlockHash, err := r.Node.GetBestBlockHash()
-	if err != nil {
-		t.Fatalf("unable to get best block hash: %v", err)
-	}
-	bestBlock, err := r.Node.GetBlock(bestBlockHash)
-	if err != nil {
-		t.Fatalf("unable to get block: %v", err)
-	}
-	curBlockHeight := bestBlock.MsgBlock().Header.Height
 
 	// Generate a single block, the transaction the wallet created should
 	// be found in this block.
-	blockHashes, err := r.GenerateBlock(curBlockHeight)
-	if err != nil {
-		t.Fatal(err)
-	}
-	block, err := r.Node.GetBlock(blockHashes[0])
-	if err != nil {
-		t.Fatalf("unable to get block: %v", err)
-	}
-	curBlockHeight = block.MsgBlock().Header.Height
+	curBlockHeight, block, _, _ := newBestBlock(r, t)
 
 	// Check to make sure the transaction that was sent was included in the block
 	if len(block.Transactions()) <= 1 {
@@ -147,7 +130,8 @@ func testSendFrom(r *Harness, t *testing.T) {
 	minedTx := block.Transactions()[1]
 	txSha := minedTx.Sha()
 	if !bytes.Equal(txid[:], txSha.Bytes()[:]) {
-		t.Fatalf("txid's don't match, %v vs %v", txSha, txid)
+		t.Fatalf("txid's don't match, %v vs. %v (actual vs. expected)",
+			txSha, txid)
 	}
 
 	// Generate another block, since it takes 2 blocks to validate a tx
@@ -178,7 +162,8 @@ func testSendFrom(r *Harness, t *testing.T) {
 	expectedBalance := defaultBalanceBeforeSend - (amountToSend + fee)
 
 	if expectedBalance != defaultBalanceAfterSendNoBlock {
-		t.Fatalf("balance for %s account incorrect: want %v got %v", "default", expectedBalance, defaultBalanceAfterSendNoBlock)
+		t.Fatalf("balance for %s account incorrect: want %v got %v", "default",
+			expectedBalance, defaultBalanceAfterSendNoBlock)
 	}
 
 	time.Sleep(10 * time.Second)
@@ -189,7 +174,8 @@ func testSendFrom(r *Harness, t *testing.T) {
 	}
 
 	if sendFromBalanceAfterSend1Block != amountToSend {
-		t.Fatalf("balance for %s account incorrect:  want %v got %v", accountName, amountToSend, sendFromBalanceAfterSend1Block)
+		t.Fatalf("balance for %s account incorrect:  want %v got %v",
+			accountName, amountToSend, sendFromBalanceAfterSend1Block)
 	}
 
 	// We have confirmed that the expected tx was mined into the block.
@@ -207,21 +193,6 @@ func testSendFrom(r *Harness, t *testing.T) {
 }
 
 func testSendToAddress(r *Harness, t *testing.T) {
-	// Node (dcrd) RPC client
-	ncl := r.Node
-
-	// Get current blockheight to make sure chain is at the desiredHeight
-	bestBlockHash, err := ncl.GetBestBlockHash()
-	if err != nil {
-		t.Fatalf("unable to get best block hash: %v", err)
-	}
-	bestBlock, err := ncl.GetBlock(bestBlockHash)
-	if err != nil {
-		t.Fatalf("unable to get block: %v", err)
-	}
-
-	curBlockHeight := bestBlock.MsgBlock().Header.Height
-
 	// Wallet RPC client
 	wcl := r.WalletRPC
 
@@ -245,25 +216,18 @@ func testSendToAddress(r *Harness, t *testing.T) {
 
 	// Generate a single block, in which the transaction the wallet created
 	// should be found.
-	blockHashes, err := r.GenerateBlock(curBlockHeight)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, block, _, _ := newBestBlock(r, t)
 
-	block, err := ncl.GetBlock(blockHashes[0])
-	if err != nil {
-		t.Fatalf("unable to get block: %v", err)
-	}
 	if len(block.Transactions()) <= 1 {
 		t.Fatalf("expected transaction not included in block")
 	}
+	// Confirm that the expected tx was mined into the block.
 	minedTx := block.Transactions()[1]
 	txSha := minedTx.Sha()
 	if !bytes.Equal(txid[:], txSha.Bytes()[:]) {
 		t.Fatalf("txid's don't match, %v vs %v", txSha, txid)
 	}
 
-	// We have confirmed that the expected tx was mined into the block.
 	// We should now check to confirm that the utxo that wallet used to create
 	// that sendfrom was properly marked as spent and removed from utxo set.
 
@@ -271,13 +235,13 @@ func testSendToAddress(r *Harness, t *testing.T) {
 	// GetTxOut to tell if the outpoint is spent.
 
 	// The spending transaction has to be off the tip block for the previous
-	// outpoint be be spent, out of the UTXO set. Generate another block.
+	// outpoint to be spent, out of the UTXO set. Generate another block.
 	_, err = r.GenerateBlock(block.MsgBlock().Header.Height)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Check the each PreviousOutPoint for the sending tx.
+	// Check each PreviousOutPoint for the sending tx.
 
 	// Get the sending Tx
 	Tx, err := wcl.GetRawTransaction(txid)
@@ -286,7 +250,7 @@ func testSendToAddress(r *Harness, t *testing.T) {
 	}
 	// txid is rawTx.MsgTx().TxIn[0].PreviousOutPoint.Hash
 
-	// Let's check all inputs
+	// Check all inputs
 	for ii, txIn := range Tx.MsgTx().TxIn {
 		prevOut := &txIn.PreviousOutPoint
 		t.Logf("Checking previous outpoint %v, %v", ii, prevOut.String())
@@ -312,31 +276,61 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	desiredHeight := uint32(150)
 
 	// Get current blockheight to make sure chain is at the desiredHeight
-	bestBlockHash, err := r.Node.GetBestBlockHash()
-	if err != nil {
-		t.Fatalf("unable to get best block hash: %v", err)
-	}
-	bestBlock, err := r.Node.GetBlock(bestBlockHash)
-	if err != nil {
-		t.Fatalf("unable to get block: %v", err)
-	}
-	curBlockHeight := bestBlock.MsgBlock().Header.Height
+	curBlockHeight, _, _, _ := getBestBlock(r, t)
 
 	// Keep generating blocks until desiredHeight is achieved
 	for curBlockHeight < desiredHeight {
 		_, err = r.WalletRPC.PurchaseTicket("default", 100000000,
 			&minConf, addr, &numTicket, nil, nil, &expiry)
+		// allow ErrSStxPriceExceedsSpendLimit (TODO)
 		if err != nil && err.Error() != "-4: ticket price exceeds spend limit" {
 			t.Fatal(err)
 		}
-		blockHashes, err := r.GenerateBlock(curBlockHeight)
-		if err != nil {
-			t.Fatalf("unable to generate single block: %v", err)
-		}
-		block, err := r.Node.GetBlock(blockHashes[0])
-		if err != nil {
-			t.Fatalf("unable to get block: %v", err)
-		}
-		curBlockHeight = block.MsgBlock().Header.Height
+		curBlockHeight, _, _, _ = newBlockAt(curBlockHeight, r, t)
 	}
+
+	// TODO: test pool fees
+
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Helper functions
+
+func newBlockAt(currentHeight uint32, r *Harness,
+	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash, error) {
+
+	blockHashes, err := r.GenerateBlock(currentHeight)
+	if err != nil {
+		t.Fatalf("Unable to generate single block: %v", err)
+	}
+
+	block, err := r.Node.GetBlock(blockHashes[0])
+	if err != nil {
+		t.Fatalf("Unable to get block: %v", err)
+	}
+
+	height := block.MsgBlock().Header.Height
+
+	return height, block, blockHashes, err
+}
+
+func getBestBlock(r *Harness, t *testing.T) (uint32, *dcrutil.Block, *chainhash.Hash, error) {
+	bestBlockHash, err := r.Node.GetBestBlockHash()
+	if err != nil {
+		t.Fatalf("Unable to get best block hash: %v", err)
+	}
+	bestBlock, err := r.Node.GetBlock(bestBlockHash)
+	if err != nil {
+		t.Fatalf("Unable to get block: %v", err)
+	}
+	curBlockHeight := bestBlock.MsgBlock().Header.Height
+
+	return curBlockHeight, bestBlock, bestBlockHash, err
+}
+
+func newBestBlock(r *Harness,
+	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash, error) {
+	height, _, _, _ := getBestBlock(r, t)
+	height, block, blockHash, err := newBlockAt(height, r, t)
+	return height, block, blockHash, err
 }
