@@ -13,7 +13,9 @@ import (
 	//"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrwallet/wallet"
 )
 
 type rpcTestCase func(r *Harness, t *testing.T)
@@ -166,7 +168,7 @@ func testSendFrom(r *Harness, t *testing.T) {
 			expectedBalance, defaultBalanceAfterSendNoBlock)
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(2 * time.Second)
 	// Check balance of sendfrom account
 	sendFromBalanceAfterSend1Block, err := r.WalletRPC.GetBalanceMinConfType(accountName, 1, "all")
 	if err != nil {
@@ -282,8 +284,10 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	for curBlockHeight < desiredHeight {
 		_, err = r.WalletRPC.PurchaseTicket("default", 100000000,
 			&minConf, addr, &numTicket, nil, nil, &expiry)
-		// allow ErrSStxPriceExceedsSpendLimit (TODO)
-		if err != nil && err.Error() != "-4: ticket price exceeds spend limit" {
+
+		// allow ErrSStxPriceExceedsSpendLimit
+		if err != nil && wallet.ErrSStxPriceExceedsSpendLimit.Error() !=
+			err.(*dcrjson.RPCError).Message {
 			t.Fatal(err)
 		}
 		curBlockHeight, _, _, _ = newBlockAt(curBlockHeight, r, t)
