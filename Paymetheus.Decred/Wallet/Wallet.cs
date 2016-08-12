@@ -29,7 +29,7 @@ namespace Paymetheus.Decred.Wallet
         /// </summary>
         public const int MinRecentTransactions = 10;
 
-        private const uint ImportedAccountNumber = 2147483647; // 2**31 - 1 
+        public const uint ImportedAccountNumber = 2147483647; // 2**31 - 1
 
         public Wallet(BlockChainIdentity activeChain, TransactionSet txSet, List<AccountProperties> bip0032Accounts,
             AccountProperties importedAccount, BlockIdentity chainTip)

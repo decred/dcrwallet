@@ -276,7 +276,7 @@ namespace Paymetheus.ViewModels
 
             // TODO: this would be better if all new accounts were a field in the event message.
             var newAccounts = e.ModifiedAccountProperties.
-                Where(kvp => kvp.Key.AccountNumber >= Accounts.Count).
+                Where(kvp => kvp.Key.AccountNumber >= Accounts.Count && kvp.Key.AccountNumber != Wallet.ImportedAccountNumber).
                 OrderBy(kvp => kvp.Key.AccountNumber);
             foreach (var modifiedAccount in newAccounts)
             {
