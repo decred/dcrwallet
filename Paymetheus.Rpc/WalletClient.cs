@@ -21,7 +21,7 @@ namespace Paymetheus.Rpc
 {
     public sealed class WalletClient : IDisposable
     {
-        private static readonly SemanticVersion RequiredRpcServerVersion = new SemanticVersion(2, 3, 0);
+        private static readonly SemanticVersion RequiredRpcServerVersion = new SemanticVersion(2, 4, 0);
 
         public static void Initialize()
         {
@@ -177,7 +177,12 @@ namespace Paymetheus.Rpc
             return new TransactionSet(minedTransactions.ToList(), unminedTransactions.ToDictionary(tx => tx.Hash));
         }
 
-        public async Task<string> NextExternalAddressAsync(Account account)
+        /// <summary>
+        /// Queries the RPC server for the next external BIP0044 address for an account
+        /// </summary>
+        /// <param name="account">Account to create address for</param>
+        /// <returns>Tuple containing the address and pubkey address strings</returns>
+        public async Task<TupleValue<string, string>> NextExternalAddressAsync(Account account)
         {
             var client = new WalletService.WalletServiceClient(_channel);
             var request = new NextAddressRequest
@@ -186,7 +191,7 @@ namespace Paymetheus.Rpc
                 Kind = NextAddressRequest.Types.Kind.Bip0044External,
             };
             var resp = await client.NextAddressAsync(request, cancellationToken: _tokenSource.Token);
-            return resp.Address;
+            return TupleValue.Create(resp.Address, resp.PublicKey);
         }
 
         public async Task<string> NextInternalAddressAsync(Account account)

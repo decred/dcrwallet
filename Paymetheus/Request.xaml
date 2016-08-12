@@ -41,9 +41,13 @@
                 <StackPanel>
                     <!-- TextBox is used rather than a TextBlock so the user can still manually select the address -->
                     <TextBox TextAlignment="Center" Text="{Binding GeneratedAddress, Mode=OneWay, FallbackValue=123Address}" IsReadOnly="True" Foreground="#FF132F4B" FontSize="28" BorderThickness="0"/>
-                    <TextBlock TextWrapping="Wrap" Foreground="#FF586D80" TextAlignment="Center">
-                    <Run Text="Single use address generated for account"/>
-                    <Run FontWeight="Bold" Text="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.SelectedAccount.AccountProperties.AccountName, Mode=OneWay, FallbackValue=Account Name}"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="Public key: " FontSize="14" Foreground="#FF132F4B" />
+                        <TextBox Text="{Binding GeneratedAddressPubKey, Mode=OneWay, FallbackValue=123AddressPubKey}" IsReadOnly="True" Foreground="#FF132F4B" FontSize="14" BorderThickness="0" />
+                    </StackPanel>
+                    <TextBlock TextWrapping="Wrap" Foreground="#FF586D80" TextAlignment="Center" Margin="0 12 0 0">
+                        <Run Text="Single use address generated for account"/>
+                        <Run FontWeight="Bold" Text="{Binding Source={StaticResource ViewModelLocator}, Path=SynchronizerViewModel.SelectedAccount.AccountProperties.AccountName, Mode=OneWay, FallbackValue=Account Name}"/>
                     </TextBlock>
                 </StackPanel>
             </Border>

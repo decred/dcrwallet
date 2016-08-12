@@ -22,6 +22,13 @@ namespace Paymetheus.ViewModels
             set { _generatedAddress = value; RaisePropertyChanged(); }
         }
 
+        private string _generatedAddressPubKey;
+        public string GeneratedAddressPubKey
+        {
+            get { return _generatedAddressPubKey; }
+            set { _generatedAddressPubKey = value; RaisePropertyChanged(); }
+        }
+
         private DelegateCommand _generateAddressCommand;
         public ICommand GenerateAddressCommand => _generateAddressCommand;
 
@@ -33,7 +40,8 @@ namespace Paymetheus.ViewModels
                 var synchronizer = App.Current.Synchronizer;
                 var account = synchronizer.SelectedAccount.Account;
                 var address = await synchronizer.WalletRpcClient.NextExternalAddressAsync(account);
-                GeneratedAddress = address;
+                GeneratedAddress = address.Item1;
+                GeneratedAddressPubKey = address.Item2;
             }
             catch (Exception ex)
             {
