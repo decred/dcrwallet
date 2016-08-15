@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,12 +22,15 @@ import (
 type rpcTestCase func(r *Harness, t *testing.T)
 
 var rpcTestCases = []rpcTestCase{
+	testGetNewAddress,
+	testValidateAddress,
 	testSendFrom,
 	testSendToAddress,
 	testPurchaseTickets,
 }
 
-var primaryHarness *Harness
+// TODO use a []*Harness instead
+var primaryHarness, secondaryHarness *Harness
 
 // TestMain manages the test harness and runs the tests instead of go test
 // running the tests directly.
@@ -34,7 +38,7 @@ func TestMain(m *testing.M) {
 	var err error
 	primaryHarness, err = NewHarness(&chaincfg.SimNetParams, nil, nil)
 	if err != nil {
-		fmt.Println("unable to create primary harness: ", err)
+		fmt.Println("Unable to create primary harness: ", err)
 		os.Exit(1)
 	}
 
@@ -42,8 +46,20 @@ func TestMain(m *testing.M) {
 	// providing 25 mature coinbases to allow spending from for testing
 	// purposes (CoinbaseMaturity=16 for simnet).
 	if err = primaryHarness.SetUp(true, 25); err != nil {
-		fmt.Println("unable to setup test chain: ", err)
+		fmt.Println("Unable to setup test chain: ", err)
 		err = primaryHarness.TearDown()
+		os.Exit(1)
+	}
+
+	// Secondary harness
+	secondaryHarness, err = NewHarness(&chaincfg.SimNetParams, nil, nil)
+	if err != nil {
+		fmt.Println("Unable to create secondary harness: ", err)
+		os.Exit(1)
+	}
+	if err = secondaryHarness.SetUp(true, 4); err != nil {
+		fmt.Println("Unable to setup test chain: ", err)
+		err = secondaryHarness.TearDown()
 		os.Exit(1)
 	}
 
@@ -53,7 +69,12 @@ func TestMain(m *testing.M) {
 	// Clean up the primary harness created above. This includes removing
 	// all temporary directories, and shutting down any created processes.
 	if err := primaryHarness.TearDown(); err != nil {
-		fmt.Println("unable to teardown test chain: ", err)
+		fmt.Println("Unable to teardown test chain: ", err)
+		os.Exit(1)
+	}
+
+	if err := secondaryHarness.TearDown(); err != nil {
+		fmt.Println("Unable to teardown secondary test chain: ", err)
 		os.Exit(1)
 	}
 
@@ -192,6 +213,174 @@ func testSendFrom(r *Harness, t *testing.T) {
 			t.Fatalf("found a utxo that should have been marked spent")
 		}
 	}
+}
+
+func testGetNewAddress(r *Harness, t *testing.T) {
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	// Get a new address from "default" account
+	addr, err := wcl.GetNewAddress("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify that address is for current network
+	if !addr.IsForNet(r.ActiveNet) {
+		t.Fatalf("Address not for active network (%s)", r.ActiveNet.Name)
+	}
+
+	// ValidateAddress
+	validRes, err := wcl.ValidateAddress(addr)
+	if err != nil {
+		t.Fatalf("Unable to validate address %s: %v", addr, err)
+	}
+	if !validRes.IsValid {
+		t.Fatalf("Address not valid: %s", addr)
+	}
+
+	// Create new account
+	accountName := "newAddressTest"
+	err = r.WalletRPC.CreateNewAccount(accountName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Get a new address from new "newAddressTest" account
+	addrA, err := r.WalletRPC.GetNewAddress(accountName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify that address is for current network
+	if !addrA.IsForNet(r.ActiveNet) {
+		t.Fatalf("Address not for active network (%s)", r.ActiveNet.Name)
+	}
+
+	validRes, err = wcl.ValidateAddress(addrA)
+	if err != nil {
+		t.Fatalf("Unable to validate address %s: %v", addrA, err)
+	}
+	if !validRes.IsValid {
+		t.Fatalf("Address not valid: %s", addr)
+	}
+
+	// Verbose - Get a new address from "default" account
+	// addr, err := wcl.GetNewAddress
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+
+	for i := 0; i < 100; i++ {
+		addr, err = wcl.GetNewAddress("default")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		validRes, err = wcl.ValidateAddress(addrA)
+		if err != nil {
+			t.Fatalf("Unable to validate address %s: %v", addrA, err)
+		}
+		if !validRes.IsValid {
+			t.Fatalf("Address not valid: %s", addr)
+		}
+	}
+}
+
+func testValidateAddress(r *Harness, t *testing.T) {
+	// Wallet RPC client
+	wcl := r.WalletRPC
+	// Also validate with non-owner wallet
+	wcl2 := secondaryHarness.WalletRPC
+
+	accounts := []string{"default", "testValidateAddress"}
+
+	for _, acct := range accounts {
+		// Create a non-default account
+		if strings.Compare("default", acct) != 0 &&
+			strings.Compare("imported", acct) != 0 {
+			err := r.WalletRPC.CreateNewAccount(acct)
+			if err != nil {
+				t.Fatalf("Unable to create account %s: %v", acct, err)
+			}
+		}
+
+		// Get a new address from current account
+		addr, err := wcl.GetNewAddress(acct)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Verify that address is for current network
+		if !addr.IsForNet(r.ActiveNet) {
+			t.Fatalf("Address not for active network (%s)", r.ActiveNet.Name)
+		}
+
+		// ValidateAddress
+		addrStr := addr.String()
+		validRes, err := wcl.ValidateAddress(addr)
+		if err != nil {
+			t.Fatalf("Unable to validate address %s: %v", addrStr, err)
+		}
+		if !validRes.IsValid {
+			t.Fatalf("Address not valid: %s", addrStr)
+		}
+		if !validRes.IsMine {
+			t.Fatalf("Address incorrectly identified as NOT mine: %s", addrStr)
+		}
+		if validRes.IsScript {
+			t.Fatalf("Address incorrectly identified as script: %s", addrStr)
+		}
+
+		// Address is "mine", so we can check account
+		if strings.Compare(acct, validRes.Account) != 0 {
+			t.Fatalf("Address %s reported as not from \"%s\" account",
+				addrStr, acct)
+		}
+
+		// Decode address
+		_, err = dcrutil.DecodeAddress(addrStr, r.ActiveNet)
+		if err != nil {
+			t.Fatalf("Unable to decode address %s: %v", addr.String(), err)
+		}
+
+		// Check ownership from secondary wallet
+		validRes, err = wcl2.ValidateAddress(addr)
+		if err != nil {
+			t.Fatalf("Unable to validate address %s with secondary wallet: %v",
+				addrStr, err)
+		}
+		if !validRes.IsValid {
+			t.Fatalf("Address not valid: %s", addrStr)
+		}
+		if validRes.IsMine {
+			t.Fatalf("Address incorrectly identified as mine: %s", addrStr)
+		}
+		if validRes.IsScript {
+			t.Fatalf("Address incorrectly identified as script: %s", addrStr)
+		}
+
+	}
+
+	// Validate simnet dev subsidy address
+	devSubAddrStr := chaincfg.SimNetParams.OrganizationAddress // "ScuQxvveKGfpG1ypt6u27F99Anf7EW3cqhq"
+	DevAddr, err := dcrutil.DecodeAddress(devSubAddrStr, &chaincfg.SimNetParams)
+	if err != nil {
+		t.Fatalf("Unable to decode address %s: %v", devSubAddrStr, err)
+	}
+
+	validRes, err := wcl.ValidateAddress(DevAddr)
+	if err != nil {
+		t.Fatalf("Unable to validate address %s: ", devSubAddrStr)
+	}
+	if !validRes.IsValid {
+		t.Fatalf("Address not valid: %s", devSubAddrStr)
+	}
+	if validRes.IsMine {
+		t.Fatalf("Address incorrectly identified as mine: %s", devSubAddrStr)
+	}
+	// for ismine==false, nothing else to test
+
 }
 
 func testSendToAddress(r *Harness, t *testing.T) {
