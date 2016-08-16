@@ -278,9 +278,9 @@ func testGetNewAddress(r *Harness, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		validRes, err = wcl.ValidateAddress(addrA)
+		validRes, err = wcl.ValidateAddress(addr)
 		if err != nil {
-			t.Fatalf("Unable to validate address %s: %v", addrA, err)
+			t.Fatalf("Unable to validate address %s: %v", addr, err)
 		}
 		if !validRes.IsValid {
 			t.Fatalf("Address not valid: %s", addr)
