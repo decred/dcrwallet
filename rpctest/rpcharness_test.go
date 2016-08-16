@@ -24,6 +24,7 @@ type rpcTestCase func(r *Harness, t *testing.T)
 var rpcTestCases = []rpcTestCase{
 	testGetNewAddress,
 	testValidateAddress,
+	testWalletPassphrase,
 	testSendFrom,
 	testSendToAddress,
 	testPurchaseTickets,
@@ -381,6 +382,113 @@ func testValidateAddress(r *Harness, t *testing.T) {
 	}
 	// for ismine==false, nothing else to test
 
+}
+
+func testWalletPassphrase(r *Harness, t *testing.T) {
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	// Remember to leave the wallet unlocked for any subsequent tests
+	defaultWalletPassphrase := "password"
+	defer wcl.WalletPassphrase(defaultWalletPassphrase, 0)
+
+	// Lock the wallet since test wallet is unlocked by default
+	err := wcl.WalletLock()
+	if err != nil {
+		t.Fatal("Unable to lock wallet.")
+	}
+
+	// Check that wallet is locked
+	walletInfo, err := wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("walletinfo failed.")
+	}
+	if walletInfo.Unlocked {
+		t.Fatal("WalletLock failed to lock the wallet")
+	}
+
+	// Try incorrect password
+	err = wcl.WalletPassphrase("Wrong Password", 0)
+	t.Log(err)
+	// Check for "-14: invalid passphrase for master private key"
+	if err != nil && err.(*dcrjson.RPCError).Code !=
+		dcrjson.ErrRPCWalletPassphraseIncorrect {
+		// dcrjson.ErrWalletPassphraseIncorrect.Code
+		t.Fatalf("WalletPassphrase with INCORRECT passphrase exited with: %v",
+			err)
+	}
+
+	// Check that wallet is still locked
+	walletInfo, err = wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("walletinfo failed.")
+	}
+	if walletInfo.Unlocked {
+		t.Fatal("WalletPassphrase unlocked the wallet with the wrong passphrase")
+	}
+
+	// TODO: Also test that a restricted operation fails?
+
+	// Unlock with correct passphrase
+	err = wcl.WalletPassphrase(defaultWalletPassphrase, 0)
+	t.Log(err)
+	if err != nil {
+		t.Fatalf("WalletPassphrase failed: %v", err)
+	}
+
+	// Check that wallet is now ulocked
+	walletInfo, err = wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("walletinfo failed.")
+	}
+	if !walletInfo.Unlocked {
+		t.Fatal("WalletPassphrase failed to unlock the wallet with the correct passphrase")
+	}
+
+	// Check for ErrRPCWalletAlreadyUnlocked
+	err = wcl.WalletPassphrase(defaultWalletPassphrase, 0)
+	t.Log(err)
+	// Check for "-17: Wallet is already unlocked"
+	if err != nil && err.(*dcrjson.RPCError).Code !=
+		dcrjson.ErrRPCWalletAlreadyUnlocked {
+		t.Fatalf("WalletPassphrase failed: %v", err)
+	}
+
+	// Re-lock wallet
+	err = wcl.WalletLock()
+	if err != nil {
+		t.Fatal("Unable to lock wallet.")
+	}
+
+	// Unlock with timeout
+	timeOut := int64(10)
+	err = wcl.WalletPassphrase(defaultWalletPassphrase, timeOut)
+	t.Log(err)
+	if err != nil {
+		t.Fatalf("WalletPassphrase failed: %v", err)
+	}
+
+	// Check that wallet is now unlocked
+	walletInfo, err = wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("walletinfo failed.")
+	}
+	if !walletInfo.Unlocked {
+		t.Fatal("WalletPassphrase failed to unlock the wallet with the correct passphrase")
+	}
+
+	time.Sleep(time.Duration(timeOut+2) * time.Second)
+
+	// Check that wallet is now locked
+	walletInfo, err = wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("walletinfo failed.")
+	}
+	if walletInfo.Unlocked {
+		t.Fatal("Wallet still unlocked after timeout")
+	}
+
+	// TODO: Watching-only error?
 }
 
 func testSendToAddress(r *Harness, t *testing.T) {
