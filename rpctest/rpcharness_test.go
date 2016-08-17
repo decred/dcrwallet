@@ -15,6 +15,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/wallet"
 )
@@ -25,6 +26,7 @@ var rpcTestCases = []rpcTestCase{
 	testGetNewAddress,
 	testValidateAddress,
 	testWalletPassphrase,
+	testGetBalance,
 	testSendFrom,
 	testSendToAddress,
 	testPurchaseTickets,
@@ -145,7 +147,7 @@ func testSendFrom(r *Harness, t *testing.T) {
 
 	// Generate a single block, the transaction the wallet created should
 	// be found in this block.
-	curBlockHeight, block, _, _ := newBestBlock(r, t)
+	curBlockHeight, block, _ := newBestBlock(r, t)
 
 	// Check to make sure the transaction that was sent was included in the block
 	if len(block.Transactions()) <= 1 {
@@ -491,6 +493,95 @@ func testWalletPassphrase(r *Harness, t *testing.T) {
 	// TODO: Watching-only error?
 }
 
+func testGetBalance(r *Harness, t *testing.T) {
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	accountName := "getBalanceTest"
+	err := wcl.CreateNewAccount(accountName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Grab a fresh address from the test account
+	addr, err := r.WalletRPC.GetNewAddress(accountName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check invalid balance type
+	balance, err := wcl.GetBalanceMinConfType(accountName, 0, "invalidBalanceType")
+	t.Log(balance, err)
+	if err == nil {
+		t.Fatalf("GetBalanceMinConfType failed to return non-nil error for invalid balance type: %v\n" +
+			"balance: %v", err, balance)
+	}
+
+	// Check invalid account name
+	balance, err = wcl.GetBalanceMinConfType("invalid account", 0, "spendable")
+	t.Log(balance, err)
+	if err == nil {
+		t.Fatalf("GetBalanceMinConfType failed to return non-nil error for invalid account name: %v", err)
+	}
+
+	// Check invalid minconf
+	balance, err = wcl.GetBalanceMinConfType("default", -1, "spendable")
+	t.Log(balance, err)
+	if err == nil {
+		t.Logf("GetBalanceMinConfType failed to return non-nil error for invalid minconf: %v", err)
+		// I think this is a bug in Store.balanceFullScan (tx.go), where the
+		// check is minConf == 0 instead of minConf < 1
+	}
+	
+	// Exercise all valid balance types
+	balanceTypes := []string{"all", "spendable", "locked" , "fullscan"}
+
+	// Check initial balances, including "*" case
+	initBalancesAllAccts := getBalances("*", balanceTypes, 0, t, wcl)
+	initBalancesDefaultAcct := getBalances("default", balanceTypes, 0, t, wcl)
+	initBalancesTestingAcct := getBalances(accountName, balanceTypes, 0, t, wcl)
+
+	t.Log(initBalancesAllAccts, initBalancesDefaultAcct, initBalancesTestingAcct)
+
+	// For individual accounts (not "*"), spendable is fullscan
+	if initBalancesDefaultAcct["spendable"] != initBalancesDefaultAcct["fullscan"] {
+		t.Fatalf("For individual account, fullscan should equal spendable. %v != %v",
+			initBalancesDefaultAcct["spendable"], initBalancesDefaultAcct["fullscan"])
+	}
+
+	// Sendn from defaut to test account
+	sendAmount := dcrutil.Amount(700000000)
+	wcl.SendFromMinConf("default", addr, sendAmount, 1)
+
+	// After send, but before new block check mempool (minconf=0) balances
+	postSendBalancesAllAccts := getBalances("*", balanceTypes, 0, t, wcl)
+	postSendBalancesDefaultAcct := getBalances("default", balanceTypes, 0, t, wcl)
+	postSendBalancesTestingAcct := getBalances(accountName, balanceTypes, 0, t, wcl)
+
+	t.Log(postSendBalancesAllAccts, postSendBalancesDefaultAcct, postSendBalancesTestingAcct)
+
+	// Fees prevent easy exact comparison
+	if initBalancesDefaultAcct["spendable"] <= postSendBalancesDefaultAcct["spendable"] {
+		t.Fatalf("spendable balance of sending account not decreased: %v <= %v",
+			initBalancesDefaultAcct["spendable"],
+			postSendBalancesDefaultAcct["spendable"])
+	}
+
+	if initBalancesTestingAcct["spendable"] >= postSendBalancesTestingAcct["spendable"] {
+		t.Fatalf("spendable balance of receiving account not increased: %v >= %v",
+			initBalancesTestingAcct["spendable"],
+			postSendBalancesTestingAcct["spendable"])
+	}
+
+	// Make sure "*" account balance has decreased (fees)
+	if postSendBalancesAllAccts["spendable"] >= initBalancesAllAccts["spendable"] {
+		t.Fatalf("Total balanance over all accounts not decreased after send.")
+	}
+
+	// Any need to mine a block?
+	newBestBlock(r, t)
+}
+
 func testSendToAddress(r *Harness, t *testing.T) {
 	// Wallet RPC client
 	wcl := r.WalletRPC
@@ -515,7 +606,7 @@ func testSendToAddress(r *Harness, t *testing.T) {
 
 	// Generate a single block, in which the transaction the wallet created
 	// should be found.
-	_, block, _, _ := newBestBlock(r, t)
+	_, block, _ := newBestBlock(r, t)
 
 	if len(block.Transactions()) <= 1 {
 		t.Fatalf("expected transaction not included in block")
@@ -575,7 +666,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	desiredHeight := uint32(150)
 
 	// Get current blockheight to make sure chain is at the desiredHeight
-	curBlockHeight, _, _, _ := getBestBlock(r, t)
+	curBlockHeight, _, _ := getBestBlock(r, t)
 
 	// Keep generating blocks until desiredHeight is achieved
 	for curBlockHeight < desiredHeight {
@@ -587,7 +678,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 			err.(*dcrjson.RPCError).Message {
 			t.Fatal(err)
 		}
-		curBlockHeight, _, _, _ = newBlockAt(curBlockHeight, r, t)
+		curBlockHeight, _, _ = newBlockAt(curBlockHeight, r, t)
 	}
 
 	// TODO: test pool fees
@@ -598,7 +689,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 // Helper functions
 
 func newBlockAt(currentHeight uint32, r *Harness,
-	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash, error) {
+	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash) {
 
 	blockHashes, err := r.GenerateBlock(currentHeight)
 	if err != nil {
@@ -612,10 +703,10 @@ func newBlockAt(currentHeight uint32, r *Harness,
 
 	height := block.MsgBlock().Header.Height
 
-	return height, block, blockHashes, err
+	return height, block, blockHashes
 }
 
-func getBestBlock(r *Harness, t *testing.T) (uint32, *dcrutil.Block, *chainhash.Hash, error) {
+func getBestBlock(r *Harness, t *testing.T) (uint32, *dcrutil.Block, *chainhash.Hash) {
 	bestBlockHash, err := r.Node.GetBestBlockHash()
 	if err != nil {
 		t.Fatalf("Unable to get best block hash: %v", err)
@@ -626,12 +717,29 @@ func getBestBlock(r *Harness, t *testing.T) (uint32, *dcrutil.Block, *chainhash.
 	}
 	curBlockHeight := bestBlock.MsgBlock().Header.Height
 
-	return curBlockHeight, bestBlock, bestBlockHash, err
+	return curBlockHeight, bestBlock, bestBlockHash
 }
 
 func newBestBlock(r *Harness,
-	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash, error) {
-	height, _, _, _ := getBestBlock(r, t)
-	height, block, blockHash, err := newBlockAt(height, r, t)
-	return height, block, blockHash, err
+	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash) {
+	height, _, _ := getBestBlock(r, t)
+	height, block, blockHash := newBlockAt(height, r, t)
+	return height, block, blockHash
+}
+
+func getBalances(account string, balanceTypes []string, minConf int,
+	t *testing.T, wcl *dcrrpcclient.Client) map[string]dcrutil.Amount {
+
+	balances := make(map[string]dcrutil.Amount)
+
+	for _, balType := range balanceTypes {
+
+		balance, err := wcl.GetBalanceMinConfType(account, 0, balType)
+		if err != nil {
+			t.Fatalf("getbalanceminconftype failed: %v", err)
+		}
+		balances[balType] = balance
+	}
+
+	return balances
 }
