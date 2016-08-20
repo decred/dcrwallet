@@ -5,6 +5,7 @@ package rpctest
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"reflect"
@@ -16,6 +17,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/wallet"
@@ -592,6 +594,59 @@ func testListUnspent(r *Harness, t *testing.T) {
 		if utxo.Spendable {
 			utxosBeforeSend[utxo.TxID] = utxo.Amount
 		}
+	}
+
+	// Check Min/Maxconf arguments
+	defaultMaxConf := 9999999
+
+	listMin1MaxBig, err := wcl.ListUnspentMinMax(1, defaultMaxConf)
+	if err != nil {
+		t.Fatalf("failed to get utxos")
+	}
+	if !reflect.DeepEqual(list, listMin1MaxBig) {
+		t.Fatal("Outputs from ListUnspent() and ListUnspentMinMax() do not match.")
+	}
+
+	// Grab an address from known unspents to test the filter
+	refOut := list[0]
+	PkScript, err := hex.DecodeString(refOut.ScriptPubKey)
+	if err != nil {
+		t.Fatalf("Failed to decode ScriptPubKey into PkScript.")
+	}
+	// The Address field is broken, including only one address, so don't use it
+	_, addrs, _, err := txscript.ExtractPkScriptAddrs(
+		txscript.DefaultScriptVersion, PkScript, r.ActiveNet)
+	if err != nil {
+		t.Fatal("Failed to extract addresses from PkScript.")
+	}
+	t.Log(addrs)
+
+	// List with all of the above address
+	listAddressesKnown, err := wcl.ListUnspentMinMaxAddresses(1, defaultMaxConf, addrs)
+	if err != nil {
+		t.Fatalf("Failed to get utxos with addresses argument.")
+	}
+
+	// Check that there is at least one output for the input addresses
+	// TODO: Better check?
+	if len(listAddressesKnown) == 0 {
+		t.Fatalf("Failed to find expected UTXOs with addresses.")
+	}
+
+	// Make sure each found output's txid is in original list (although this is
+	// not the same thing as checking if the output is there)
+	var foundTxID = false
+	for _, listRes := range listAddressesKnown {
+		if _, ok := utxosBeforeSend[listRes.TxID]; !ok {
+			t.Fatalf("Failed to find TxID")
+		}
+		// Also verify that the txid of the reference output is in the list
+		if listRes.TxID == refOut.TxID {
+			foundTxID = true
+		}
+	}
+	if !foundTxID {
+		t.Fatal("Original TxID not found in list by addresses.")
 	}
 
 	// SendFromMinConf 1000 to addr
