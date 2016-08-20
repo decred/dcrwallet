@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +28,7 @@ var rpcTestCases = []rpcTestCase{
 	testValidateAddress,
 	testWalletPassphrase,
 	testGetBalance,
+	testListAccounts,
 	testSendFrom,
 	testSendToAddress,
 	testPurchaseTickets,
@@ -513,7 +515,7 @@ func testGetBalance(r *Harness, t *testing.T) {
 	balance, err := wcl.GetBalanceMinConfType(accountName, 0, "invalidBalanceType")
 	t.Log(balance, err)
 	if err == nil {
-		t.Fatalf("GetBalanceMinConfType failed to return non-nil error for invalid balance type: %v\n" +
+		t.Fatalf("GetBalanceMinConfType failed to return non-nil error for invalid balance type: %v\n"+
 			"balance: %v", err, balance)
 	}
 
@@ -532,9 +534,9 @@ func testGetBalance(r *Harness, t *testing.T) {
 		// I think this is a bug in Store.balanceFullScan (tx.go), where the
 		// check is minConf == 0 instead of minConf < 1
 	}
-	
+
 	// Exercise all valid balance types
-	balanceTypes := []string{"all", "spendable", "locked" , "fullscan"}
+	balanceTypes := []string{"all", "spendable", "locked", "fullscan"}
 
 	// Check initial balances, including "*" case
 	initBalancesAllAccts := getBalances("*", balanceTypes, 0, t, wcl)
@@ -549,7 +551,7 @@ func testGetBalance(r *Harness, t *testing.T) {
 			initBalancesDefaultAcct["spendable"], initBalancesDefaultAcct["fullscan"])
 	}
 
-	// Sendn from defaut to test account
+	// Send from default to test account
 	sendAmount := dcrutil.Amount(700000000)
 	wcl.SendFromMinConf("default", addr, sendAmount, 1)
 
@@ -578,8 +580,111 @@ func testGetBalance(r *Harness, t *testing.T) {
 		t.Fatalf("Total balanance over all accounts not decreased after send.")
 	}
 
-	// Any need to mine a block?
+	// Test vanilla GetBalance()
+	amtGetBalance, err := wcl.GetBalance("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// For GetBalance(), default minconf=1, default balance type is spendable.
+	// Check spendable balance of "default" account with minconf=1
+	amtGetBalanceMinConf1TypeSpendable, err := wcl.GetBalanceMinConfType("default", 1, "spendable")
+	if err != nil {
+		t.Fatalf("GetBalanceMinConfType failed: %v", err)
+	}
+
+	if amtGetBalance != amtGetBalanceMinConf1TypeSpendable {
+		t.Fatalf(`Balance from GetBalance("default") does not equal amount `+
+			`from GetBalanceMinConfType: %v != %v`, amtGetBalance,
+			amtGetBalanceMinConf1TypeSpendable)
+	}
+
+	// Mine a block so other tests aren't surprised in certain cases, although
+	// we may want to use more test harnesses instead.
 	newBestBlock(r, t)
+}
+
+func testListAccounts(r *Harness, t *testing.T) {
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	// New account
+	accountName := "listaccountsTestAcct"
+	err := wcl.CreateNewAccount(accountName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Grab a fresh address from the test account
+	addr, err := r.WalletRPC.GetNewAddress(accountName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Note that for ListAccountsCmd: MinConf *int `jsonrpcdefault:"1"`
+	// Let's test this.
+	accountsBalancesDefault1, err := wcl.ListAccounts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(accountsBalancesDefault1)
+
+	accountsBalancesMinconf1, err := wcl.ListAccountsMinConf(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(accountsBalancesMinconf1)
+
+	if !reflect.DeepEqual(accountsBalancesDefault1, accountsBalancesMinconf1) {
+		t.Fatal("ListAccounts() returned different result from ListAccountsMinConf(1): ",
+			accountsBalancesDefault1, accountsBalancesMinconf1)
+	}
+
+	// Get accounts with minconf=0 pre-send
+	accountsBalancesMinconf0PreSend, err := wcl.ListAccountsMinConf(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Get balance of test account prior to a send
+	acctBalancePreSend := accountsBalancesMinconf0PreSend[accountName]
+
+	// Send from default to test account
+	sendAmount := dcrutil.Amount(700000000)
+	wcl.SendFromMinConf("default", addr, sendAmount, 1)
+
+	// Get accounts with minconf=0 post-send
+	accountsBalancesMinconf0PostSend, err := wcl.ListAccountsMinConf(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Get balance of test account prior to a send
+	acctBalancePostSend := accountsBalancesMinconf0PostSend[accountName]
+
+	// Check if reported balances match expectations
+	if sendAmount != (acctBalancePostSend - acctBalancePreSend) {
+		t.Fatalf("Test account balance not changed by expected amount.")
+	}
+
+	// Note that ListAccounts uses Store.balanceFullScan to handle a UTXO scan
+	// for each specific account. We can compare against GetBalanceMinConfType.
+	// Also, I think there is the same bug that allows negative minconf values,
+	// but does not handle unconfirmed outputs the same way as minconf=0.
+
+	GetBalancePostSend, err := wcl.GetBalanceMinConf(accountName, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Note that BFBalanceSpendable is used with GetBalanceMinConf (not Type),
+	// which uses BFBalanceFullScan when a single account is specified.
+	// Recall thet fullscan is used by listaccounts.
+
+	if GetBalancePostSend != acctBalancePostSend {
+		t.Fatalf("Balance for default account from GetBalanceMinConf does not "+
+			"match balance from ListAccounts: %v != %v", GetBalancePostSend,
+			acctBalancePostSend)
+	}
 }
 
 func testSendToAddress(r *Harness, t *testing.T) {
