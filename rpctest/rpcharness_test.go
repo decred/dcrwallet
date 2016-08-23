@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/wallet"
 )
 
@@ -288,7 +290,6 @@ func testWalletPassphrase(r *Harness, t *testing.T) {
 
 	// Try incorrect password
 	err = wcl.WalletPassphrase("Wrong Password", 0)
-	t.Log(err)
 	// Check for "-14: invalid passphrase for master private key"
 	if err != nil && err.(*dcrjson.RPCError).Code !=
 		dcrjson.ErrRPCWalletPassphraseIncorrect {
@@ -306,11 +307,21 @@ func testWalletPassphrase(r *Harness, t *testing.T) {
 		t.Fatal("WalletPassphrase unlocked the wallet with the wrong passphrase")
 	}
 
-	// TODO: Also test that a restricted operation fails?
+	// Verify that a restricted operation like createnewaccount fails
+	accountName := "cannotCreateThisAccount"
+	err = wcl.CreateNewAccount(accountName)
+	if err == nil {
+		t.Fatal("createnewaccount succeeded on a locked wallet.")
+	}
+	// dcrjson.ErrRPCWalletUnlockNeeded
+	if !strings.HasPrefix(err.Error(),
+		strconv.Itoa(int(legacyrpc.ErrWalletUnlockNeeded.Code))) {
+		t.Fatalf("createnewaccount returned error (%v) instead of %v",
+			err, legacyrpc.ErrWalletUnlockNeeded.Code)
+	}
 
 	// Unlock with correct passphrase
 	err = wcl.WalletPassphrase(defaultWalletPassphrase, 0)
-	t.Log(err)
 	if err != nil {
 		t.Fatalf("WalletPassphrase failed: %v", err)
 	}
@@ -326,7 +337,6 @@ func testWalletPassphrase(r *Harness, t *testing.T) {
 
 	// Check for ErrRPCWalletAlreadyUnlocked
 	err = wcl.WalletPassphrase(defaultWalletPassphrase, 0)
-	t.Log(err)
 	// Check for "-17: Wallet is already unlocked"
 	if err != nil && err.(*dcrjson.RPCError).Code !=
 		dcrjson.ErrRPCWalletAlreadyUnlocked {
@@ -342,7 +352,6 @@ func testWalletPassphrase(r *Harness, t *testing.T) {
 	// Unlock with timeout
 	timeOut := int64(10)
 	err = wcl.WalletPassphrase(defaultWalletPassphrase, timeOut)
-	t.Log(err)
 	if err != nil {
 		t.Fatalf("WalletPassphrase failed: %v", err)
 	}
@@ -388,7 +397,7 @@ func testGetBalance(r *Harness, t *testing.T) {
 
 	// Check invalid balance type
 	balance, err := wcl.GetBalanceMinConfType(accountName, 0, "invalidBalanceType")
-	t.Log(balance, err)
+	// -4: unknown balance type 'invalidBalanceType', please use spendable, locked, all, or fullscan
 	if err == nil {
 		t.Fatalf("GetBalanceMinConfType failed to return non-nil error for invalid balance type: %v\n"+
 			"balance: %v", err, balance)
@@ -396,18 +405,17 @@ func testGetBalance(r *Harness, t *testing.T) {
 
 	// Check invalid account name
 	balance, err = wcl.GetBalanceMinConfType("invalid account", 0, "spendable")
-	t.Log(balance, err)
+	// -4: account name 'invalid account' not found
 	if err == nil {
 		t.Fatalf("GetBalanceMinConfType failed to return non-nil error for invalid account name: %v", err)
 	}
 
 	// Check invalid minconf
 	balance, err = wcl.GetBalanceMinConfType("default", -1, "spendable")
-	t.Log(balance, err)
 	if err == nil {
-		t.Logf("GetBalanceMinConfType failed to return non-nil error for invalid minconf: %v", err)
-		// I think this is a bug in Store.balanceFullScan (tx.go), where the
-		// check is minConf == 0 instead of minConf < 1
+		t.Logf("GetBalanceMinConfType failed to return non-nil error for invalid minconf (-1)")
+		// TODO: I think this is a bug in Store.balanceFullScan (tx.go), where
+		// the check is minConf == 0 instead of minConf < 1
 	}
 
 	// Exercise all valid balance types
@@ -417,8 +425,6 @@ func testGetBalance(r *Harness, t *testing.T) {
 	initBalancesAllAccts := getBalances("*", balanceTypes, 0, t, wcl)
 	initBalancesDefaultAcct := getBalances("default", balanceTypes, 0, t, wcl)
 	initBalancesTestingAcct := getBalances(accountName, balanceTypes, 0, t, wcl)
-
-	t.Log(initBalancesAllAccts, initBalancesDefaultAcct, initBalancesTestingAcct)
 
 	// For individual accounts (not "*"), spendable is fullscan
 	if initBalancesDefaultAcct["spendable"] != initBalancesDefaultAcct["fullscan"] {
@@ -435,8 +441,6 @@ func testGetBalance(r *Harness, t *testing.T) {
 	postSendBalancesDefaultAcct := getBalances("default", balanceTypes, 0, t, wcl)
 	postSendBalancesTestingAcct := getBalances(accountName, balanceTypes, 0, t, wcl)
 
-	t.Log(postSendBalancesAllAccts, postSendBalancesDefaultAcct, postSendBalancesTestingAcct)
-
 	// Fees prevent easy exact comparison
 	if initBalancesDefaultAcct["spendable"] <= postSendBalancesDefaultAcct["spendable"] {
 		t.Fatalf("spendable balance of sending account not decreased: %v <= %v",
@@ -444,7 +448,7 @@ func testGetBalance(r *Harness, t *testing.T) {
 			postSendBalancesDefaultAcct["spendable"])
 	}
 
-	if initBalancesTestingAcct["spendable"] >= postSendBalancesTestingAcct["spendable"] {
+	if sendAmount != (postSendBalancesTestingAcct["spendable"] - initBalancesTestingAcct["spendable"]) {
 		t.Fatalf("spendable balance of receiving account not increased: %v >= %v",
 			initBalancesTestingAcct["spendable"],
 			postSendBalancesTestingAcct["spendable"])
@@ -474,21 +478,71 @@ func testGetBalance(r *Harness, t *testing.T) {
 			amtGetBalanceMinConf1TypeSpendable)
 	}
 
-	// Mine a block so other tests aren't surprised in certain cases, although
-	// we may want to use more test harnesses instead.
+	// Verify minconf=1 balances of receiving account before/after new block
+	// Before, getbalance minconf=1
+	amtTestMinconf1BeforeBlock, err := wcl.GetBalanceMinConfType(accountName, 1, "spendable")
+	if err != nil {
+		t.Fatalf("GetBalanceMinConfType failed: %v", err)
+	}
+
+	// Mine 2 new blocks to validate tx
 	newBestBlock(r, t)
 	newBestBlock(r, t)
+
+	// After, getbalance minconf=1
+	amtTestMinconf1AfterBlock, err := wcl.GetBalanceMinConfType(accountName, 1, "spendable")
+	if err != nil {
+		t.Fatalf("GetBalanceMinConfType failed: %v", err)
+	}
+
+	// Verify that balance (minconf=1) has increased
+	if sendAmount != (amtTestMinconf1AfterBlock - amtTestMinconf1BeforeBlock) {
+		t.Fatalf(`Balance (minconf=1) not increased after new block: %v - %v != %v`,
+			amtTestMinconf1AfterBlock, amtTestMinconf1BeforeBlock, sendAmount)
+	}
 }
 
 func testListAccounts(r *Harness, t *testing.T) {
 	// Wallet RPC client
 	wcl := r.WalletRPC
 
+	// Create a new account and verify that we can see it
+	listBeforeCreateAccount, err := wcl.ListAccounts()
+	if err != nil {
+		t.Fatal("Failed to create new account ", err)
+	}
+
 	// New account
 	accountName := "listaccountsTestAcct"
-	err := wcl.CreateNewAccount(accountName)
+	err = wcl.CreateNewAccount(accountName)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	// Account list after creating new
+	accountsBalancesDefault1, err := wcl.ListAccounts()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify that new account is in the list, with zero balance
+	foundNewAcct := false
+	for acct, amt := range accountsBalancesDefault1 {
+		if _, ok := listBeforeCreateAccount[acct]; !ok {
+			// Found new account.  Now check name and balance
+			if amt != 0 {
+				t.Fatalf("New account (%v) found with non-zero balance: %v",
+					acct, amt)
+			}
+			if accountName == acct {
+				foundNewAcct = true
+				break
+			}
+			t.Fatalf("Found new account, %v; Expected %v", acct, accountName)
+		}
+	}
+	if !foundNewAcct {
+		t.Fatalf("Failed to find newly created account, %v.", accountName)
 	}
 
 	// Grab a fresh address from the test account
@@ -497,19 +551,12 @@ func testListAccounts(r *Harness, t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Note that for ListAccountsCmd: MinConf *int `jsonrpcdefault:"1"`
-	// Let's test this.
-	accountsBalancesDefault1, err := wcl.ListAccounts()
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(accountsBalancesDefault1)
-
+	// For ListAccountsCmd: MinConf *int `jsonrpcdefault:"1"`
+	// Let's test that ListAccounts() is equivalent to explicit minconf=1
 	accountsBalancesMinconf1, err := wcl.ListAccountsMinConf(1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(accountsBalancesMinconf1)
 
 	if !reflect.DeepEqual(accountsBalancesDefault1, accountsBalancesMinconf1) {
 		t.Fatal("ListAccounts() returned different result from ListAccountsMinConf(1): ",
@@ -540,7 +587,39 @@ func testListAccounts(r *Harness, t *testing.T) {
 
 	// Check if reported balances match expectations
 	if sendAmount != (acctBalancePostSend - acctBalancePreSend) {
-		t.Fatalf("Test account balance not changed by expected amount.")
+		t.Fatalf("Test account balance not changed by expected amount after send: "+
+			"%v -%v != %v", acctBalancePostSend, acctBalancePreSend, sendAmount)
+	}
+
+	// Verify minconf>0 works: list, mine, list
+
+	// List BEFORE mining a block
+	accountsBalancesMinconf1PostSend, err := wcl.ListAccountsMinConf(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Get balance of test account prior to a send
+	acctBalanceMin1PostSend := accountsBalancesMinconf1PostSend[accountName]
+
+	// Mine 2 new blocks to validate tx
+	newBestBlock(r, t)
+	newBestBlock(r, t)
+
+	// List AFTER mining a block
+	accountsBalancesMinconf1PostMine, err := wcl.ListAccountsMinConf(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Get balance of test account prior to a send
+	acctBalanceMin1PostMine := accountsBalancesMinconf1PostMine[accountName]
+
+	// Check if reported balances match expectations
+	if sendAmount != (acctBalanceMin1PostMine - acctBalanceMin1PostSend) {
+		t.Fatalf("Test account balance (minconf=1) not changed by expected "+
+			"amount after new block: %v - %v != %v", acctBalanceMin1PostMine,
+			acctBalanceMin1PostSend, sendAmount)
 	}
 
 	// Note that ListAccounts uses Store.balanceFullScan to handle a UTXO scan
@@ -619,6 +698,7 @@ func testListUnspent(r *Harness, t *testing.T) {
 	if err != nil {
 		t.Fatal("Failed to extract addresses from PkScript.")
 	}
+	// This may be helpful to debug ListUnspentResult Address field
 	t.Log(addrs)
 
 	// List with all of the above address
@@ -678,11 +758,10 @@ func testListUnspent(r *Harness, t *testing.T) {
 	// First check to make sure we see these in the UTXO list prior to send,
 	// then not in the UTXO list after send.
 	for txinID, amt := range txInIDs {
-		utxoAmt, ok := utxosBeforeSend[txinID]
-		if !ok {
-			t.Fatalf("Failed to find txid %v in list of UTXOs", txinID)
+		if _, ok := utxosBeforeSend[txinID]; !ok {
+			t.Fatalf("Failed to find txid %v (%v DCR) in list of UTXOs",
+				txinID, amt)
 		}
-		t.Log(amt, utxoAmt)
 		// TODO: Is there a value/amount check?
 	}
 
@@ -944,6 +1023,8 @@ func newBlockAt(currentHeight uint32, r *Harness,
 	if err != nil {
 		t.Fatalf("Unable to generate single block: %v", err)
 	}
+
+	time.Sleep(2 * time.Second)
 
 	block, err := r.Node.GetBlock(blockHashes[0])
 	if err != nil {
