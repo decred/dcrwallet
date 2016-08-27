@@ -36,6 +36,7 @@ var rpcTestCases = []rpcTestCase{
 	testListUnspent,
 	testSendToAddress,
 	testSendFrom,
+	testSendMany,
 	testPurchaseTickets,
 }
 
@@ -910,7 +911,7 @@ func testSendFrom(r *Harness, t *testing.T) {
 
 	// Generate a single block, the transaction the wallet created should
 	// be found in this block.
-	curBlockHeight, block, _ := newBestBlock(r, t)
+	_, block, _ := newBestBlock(r, t)
 
 	// Check to make sure the transaction that was sent was included in the block
 	if len(block.Transactions()) <= 1 {
@@ -924,10 +925,7 @@ func testSendFrom(r *Harness, t *testing.T) {
 	}
 
 	// Generate another block, since it takes 2 blocks to validate a tx
-	_, err = r.GenerateBlock(curBlockHeight)
-	if err != nil {
-		t.Fatal(err)
-	}
+	newBestBlock(r, t)
 
 	// Get rawTx of sent txid so we can calculate the fee that was used
 	rawTx, err := r.chainClient.GetRawTransaction(txid)
@@ -977,6 +975,138 @@ func testSendFrom(r *Harness, t *testing.T) {
 	for _, utxo := range list {
 		if utxo.TxID == rawTx.MsgTx().TxIn[0].PreviousOutPoint.Hash.String() {
 			t.Fatalf("found a utxo that should have been marked spent")
+		}
+	}
+}
+
+func testSendMany(r *Harness, t *testing.T) {
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	// Create 2 accounts to receive funds
+	accountNames := []string{"sendManyTestA", "sendManyTestB"}
+	amountsToSend := []dcrutil.Amount{700000000, 1400000000}
+	addresses := []dcrutil.Address{}
+
+	var err error
+	for _, acct := range accountNames {
+		err = wcl.CreateNewAccount(acct)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Grab new addresses from the wallet, under each account.
+	// Set corresponding amount to send to each address.
+	addressAmounts := make(map[dcrutil.Address]dcrutil.Amount)
+	//var totalAmountToSend dcrutil.Amount
+	totalAmountToSend := dcrutil.Amount(0)
+
+	for i, acct := range accountNames {
+		addr, err := wcl.GetNewAddress(acct)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Set the amounts to send to each address
+		addresses = append(addresses, addr)
+		addressAmounts[addr] = amountsToSend[i]
+		totalAmountToSend += amountsToSend[i]
+	}
+
+	// Check spendable balance of default account
+	defaultBalanceBeforeSend, err := wcl.GetBalanceMinConfType("default", 0, "all")
+	if err != nil {
+		t.Fatalf("getbalanceminconftype failed: %v", err)
+	}
+
+	// SendMany to two addresses
+	txid, err := wcl.SendMany("default", addressAmounts)
+	if err != nil {
+		t.Fatalf("sendmany failed: %v", err)
+	}
+
+	time.Sleep(2 * time.Second)
+	// Check spendable balance of default account
+	defaultBalanceAfterSendUnmined, err := r.WalletRPC.GetBalanceMinConfType("default", 0, "all")
+	if err != nil {
+		t.Fatalf("getbalanceminconftype failed: %v", err)
+	}
+
+	// Check balance of each receiving account
+	for i, acct := range accountNames {
+		bal, err := r.WalletRPC.GetBalanceMinConfType(acct, 0, "all")
+		if err != nil {
+			t.Fatalf("getbalanceminconftype failed: %v", err)
+		}
+		addr := addresses[i]
+		if bal != addressAmounts[addr] {
+			t.Fatalf("Balance for %s account incorrect:  want %v got %v",
+				acct, addressAmounts[addr], bal)
+		}
+	}
+
+	// Get rawTx of sent txid so we can calculate the fee that was used
+	rawTx, err := r.chainClient.GetRawTransaction(txid)
+	if err != nil {
+		t.Fatalf("getrawtransaction failed: %v", err)
+	}
+
+	var totalSpent int64
+	for _, txIn := range rawTx.MsgTx().TxIn {
+		totalSpent += txIn.ValueIn
+	}
+
+	var totalSent int64
+	for _, txOut := range rawTx.MsgTx().TxOut {
+		totalSent += txOut.Value
+	}
+
+	fee := dcrutil.Amount(totalSpent - totalSent)
+
+	// Calculate the expected balance for the default account after the tx was sent
+	expectedBalance := defaultBalanceBeforeSend - (totalAmountToSend + fee)
+
+	if expectedBalance != defaultBalanceAfterSendUnmined {
+		t.Fatalf("Balance for %s account (sender) incorrect: want %v got %v",
+			"default", expectedBalance, defaultBalanceAfterSendUnmined)
+	}
+
+	// Generate a single block, the transaction the wallet created should
+	// be found in this block.
+	_, block, _ := newBestBlock(r, t)
+
+	// Check to make sure the transaction that was sent was included in the block
+	if !includesTx(txid, block, r, t) {
+		t.Fatalf("Expected transaction not included in block")
+	}
+
+	// Validate
+	newBestBlock(r, t)
+
+	// Check balance after confirmations
+	for i, acct := range accountNames {
+		balanceAcctValidated, err := wcl.GetBalanceMinConfType(acct, 1, "all")
+		if err != nil {
+			t.Fatalf("getbalanceminconftype failed: %v", err)
+		}
+
+		addr := addresses[i]
+		if balanceAcctValidated != addressAmounts[addr] {
+			t.Fatalf("Balance for %s account incorrect:  want %v got %v",
+				acct, addressAmounts[addr], balanceAcctValidated)
+		}
+	}
+
+	// Check all inputs
+	for ii, txIn := range rawTx.MsgTx().TxIn {
+		prevOut := &txIn.PreviousOutPoint
+		t.Logf("Checking previous outpoint %v, %v", ii, prevOut.String())
+
+		// If a txout is spent (not in the UTXO set) GetTxOutResult will be nil
+		res, _ := wcl.GetTxOut(&prevOut.Hash, prevOut.Index, false)
+		if res != nil {
+			t.Errorf("Transaction output %v still unspent.", ii)
 		}
 	}
 }
@@ -1072,4 +1202,23 @@ func getBalances(account string, balanceTypes []string, minConf int,
 	}
 
 	return balances
+}
+
+func includesTx(txHash *chainhash.Hash, block *dcrutil.Block,
+	r *Harness, t *testing.T) bool {
+
+	if len(block.Transactions()) <= 1 {
+		return false
+	}
+
+	blockTxs := block.Transactions()
+
+	for _, minedTx := range blockTxs {
+		txSha := minedTx.Sha()
+		if bytes.Equal(txHash[:], txSha.Bytes()[:]) {
+			return true
+		}
+	}
+
+	return false
 }
