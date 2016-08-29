@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"strconv"
 	"sync"
 	"time"
@@ -195,8 +196,7 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 		return err
 	}
 
-	// Start the dcrd node itself. This spawns a new process which will be
-	// managed
+	// Start dcrwallet. This spawns a new process which will be managed
 	if err = h.wallet.Start(); err != nil {
 		return err
 	}
@@ -369,6 +369,35 @@ func (h *Harness) connectRPCClient() error {
 // instance.
 func (h *Harness) RPCConfig() rpc.ConnConfig {
 	return h.node.config.rpcConnConfig()
+}
+
+// RPCWalletConfig returns the harnesses current rpc configuration. This allows other
+// potential RPC clients created within tests to connect to a given test harness
+// instance.
+func (h *Harness) RPCWalletConfig() rpc.ConnConfig {
+	return h.wallet.config.rpcConnConfig()
+}
+
+// RPCCertFile returns the full path the node RPC's TLS certifiate 
+func (h *Harness) RPCCertFile() string {
+	return h.node.CertFile()
+}
+
+// RPCWalletCertFile returns the full path the wallet RPC's TLS certifiate 
+func (h *Harness) RPCWalletCertFile() string {
+	return h.wallet.CertFile()
+}
+
+// FullNodeCommand returns the full command line of the node
+func (h *Harness) FullNodeCommand() string {
+	args := strings.Join(h.node.cmd.Args[1:], " ")
+	return h.node.cmd.Path + " " + args
+}
+
+// FullWalletCommand returns the full command line of the wallet
+func (h *Harness) FullWalletCommand() string {
+	args := strings.Join(h.wallet.cmd.Args[1:], " ")
+	return h.wallet.cmd.Path + " " + args
 }
 
 // generateListeningAddresses returns three strings representing listening

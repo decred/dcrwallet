@@ -43,7 +43,7 @@ var rpcTestCases = []rpcTestCase{
 // TODO use a []*Harness instead
 var primaryHarness, secondaryHarness *Harness
 
-// TestMain manages the test harness and runs the tests instead of go test
+// TestMain manages the test harnesses and runs the tests instead of go test
 // running the tests directly.
 func TestMain(m *testing.M) {
 	var err error
@@ -1051,18 +1051,17 @@ func testSendMany(r *Harness, t *testing.T) {
 	if err != nil {
 		t.Fatalf("getrawtransaction failed: %v", err)
 	}
+	fee := getWireMsgTxFee(rawTx)
+	t.Log("Raw TX before mining block: ", rawTx, " Fee: ", fee)
 
-	var totalSpent int64
-	for _, txIn := range rawTx.MsgTx().TxIn {
-		totalSpent += txIn.ValueIn
+	_, block, _ :=newBestBlock(r, t)
+
+	rawTx, err = r.chainClient.GetRawTransaction(txid)
+	if err != nil {
+		t.Fatalf("getrawtransaction failed: %v", err)
 	}
-
-	var totalSent int64
-	for _, txOut := range rawTx.MsgTx().TxOut {
-		totalSent += txOut.Value
-	}
-
-	fee := dcrutil.Amount(totalSpent - totalSent)
+	fee = getWireMsgTxFee(rawTx)
+	t.Log("Raw TX after mining block: ", rawTx, " Fee: ", fee)
 
 	// Calculate the expected balance for the default account after the tx was sent
 	expectedBalance := defaultBalanceBeforeSend - (totalAmountToSend + fee)
@@ -1074,7 +1073,7 @@ func testSendMany(r *Harness, t *testing.T) {
 
 	// Generate a single block, the transaction the wallet created should
 	// be found in this block.
-	_, block, _ := newBestBlock(r, t)
+	//_, block, _ := newBestBlock(r, t)
 
 	// Check to make sure the transaction that was sent was included in the block
 	if !includesTx(txid, block, r, t) {
@@ -1221,4 +1220,18 @@ func includesTx(txHash *chainhash.Hash, block *dcrutil.Block,
 	}
 
 	return false
+}
+
+func getWireMsgTxFee(tx *dcrutil.Tx) dcrutil.Amount {
+	var totalSpent int64
+	for _, txIn := range tx.MsgTx().TxIn {
+		totalSpent += txIn.ValueIn
+	}
+
+	var totalSent int64
+	for _, txOut := range tx.MsgTx().TxOut {
+		totalSent += txOut.Value
+	}
+
+	return dcrutil.Amount(totalSpent - totalSent)
 }
