@@ -27,6 +27,12 @@ namespace Paymetheus
         public ConfirmSeedView()
         {
             InitializeComponent();
+            DataObject.AddPastingHandler(ConfirmBackupSeedTextBox, OnPaste);
+        }
+
+        private void OnPaste(object sender, DataObjectPastingEventArgs e)
+        {
+            e.CancelCommand();
         }
     }
 }

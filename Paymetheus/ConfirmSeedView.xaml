@@ -33,7 +33,7 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <Border CornerRadius="5" Background="#FFF4F4F5">
-                        <TextBox Height="125" Margin="5" Text="{Binding Input, Mode=OneWayToSource}" f:AttachableProperties.UpdateSourceOnEnterProperty="TextBox.Text" TextWrapping="Wrap"   BorderThickness="0" FontSize="16" Background="{x:Null}"/>
+                        <TextBox x:Name="ConfirmBackupSeedTextBox" ContextMenu="{x:Null}" Height="125" Margin="5" Text="{Binding Input, Mode=OneWayToSource}" f:AttachableProperties.UpdateSourceOnEnterProperty="TextBox.Text" TextWrapping="Wrap"   BorderThickness="0" FontSize="16" Background="{x:Null}"/>
                     </Border>
                 </Grid>
             </DockPanel>
