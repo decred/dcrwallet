@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -37,15 +39,48 @@ var rpcTestCases = []rpcTestCase{
 	testSendToAddress,
 	testSendFrom,
 	testSendMany,
+	testListTransactions,
 	testPurchaseTickets,
 }
 
 // TODO use a []*Harness instead
 var primaryHarness, secondaryHarness *Harness
+var harnesses = make(map[string]*Harness)
+var needOwnHarness = map[string]bool{
+	"testGetNewAddress":    false,
+	"testValidateAddress":  true,
+	"testWalletPassphrase": false,
+	"testGetBalance":       false,
+	"testListAccounts":     false,
+	"testListUnspent":      false,
+	"testSendToAddress":    false,
+	"testSendFrom":         false,
+	"testListTransactions": true,
+	"testPurchaseTickets":  false,
+}
+
+var funcInModulePath = regexp.MustCompile(`^.*\.(.*)$`)
+
+func thisFuncName() string {
+	fnName := "unknown"
+	// PC of caller
+	if pc, _, _, ok := runtime.Caller(1); ok {
+		fnName = funcInModulePath.ReplaceAllString(runtime.FuncForPC(pc).Name(), "$1")
+	}
+
+	return fnName
+}
+
+func funcName(tc rpcTestCase) string {
+	fncName := runtime.FuncForPC(reflect.ValueOf(tc).Pointer()).Name()
+	return funcInModulePath.ReplaceAllString(fncName, "$1")
+}
 
 // TestMain manages the test harnesses and runs the tests instead of go test
 // running the tests directly.
 func TestMain(m *testing.M) {
+	// Create the primary/shared harness
+	fmt.Println("Generating primary test harness")
 	var err error
 	primaryHarness, err = NewHarness(&chaincfg.SimNetParams, nil, nil)
 	if err != nil {
@@ -62,16 +97,25 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	// Secondary harness
-	secondaryHarness, err = NewHarness(&chaincfg.SimNetParams, nil, nil)
-	if err != nil {
-		fmt.Println("Unable to create secondary harness: ", err)
-		os.Exit(1)
-	}
-	if err = secondaryHarness.SetUp(true, 4); err != nil {
-		fmt.Println("Unable to setup test chain: ", err)
-		err = secondaryHarness.TearDown()
-		os.Exit(1)
+	// Make a new harness for each test that needs one
+	for _, tc := range rpcTestCases {
+		tcName := funcName(tc)
+		harness := primaryHarness
+		if needOwnHarness[tcName] {
+			fmt.Println("Generating own harness for", tcName)
+			harness, err = NewHarness(&chaincfg.SimNetParams, nil, nil)
+			if err != nil {
+				fmt.Println("Unable to create harness: ", err)
+				os.Exit(1)
+			}
+
+			if err = harness.SetUp(true, 25); err != nil {
+				fmt.Println("Unable to setup test chain: ", err)
+				err = harness.TearDown()
+				os.Exit(1)
+			}
+		}
+		harnesses[tcName] = harness
 	}
 
 	// Run the tests
@@ -84,9 +128,13 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	if err := secondaryHarness.TearDown(); err != nil {
-		fmt.Println("Unable to teardown secondary test chain: ", err)
-		os.Exit(1)
+	for _, h := range harnesses {
+		if h.IsUp() {
+			if err := h.TearDown(); err != nil {
+				fmt.Println("Unable to teardown test chain: ", err)
+				os.Exit(1)
+			}
+		}
 	}
 
 	os.Exit(exitCode)
@@ -94,7 +142,7 @@ func TestMain(m *testing.M) {
 
 func TestRpcServer(t *testing.T) {
 	for _, testCase := range rpcTestCases {
-		testCase(primaryHarness, t)
+		testCase(harnesses[funcName(testCase)], t)
 	}
 }
 
@@ -174,7 +222,7 @@ func testValidateAddress(r *Harness, t *testing.T) {
 	// Wallet RPC client
 	wcl := r.WalletRPC
 	// Also validate with non-owner wallet
-	wcl2 := secondaryHarness.WalletRPC
+	wcl2 := primaryHarness.WalletRPC
 
 	accounts := []string{"default", "testValidateAddress"}
 
@@ -833,11 +881,11 @@ func testSendToAddress(r *Harness, t *testing.T) {
 	}
 
 	// Check each PreviousOutPoint for the sending tx.
-
+	time.Sleep(2 * time.Second)
 	// Get the sending Tx
 	Tx, err := wcl.GetRawTransaction(txid)
 	if err != nil {
-		t.Fatal("Unable to get raw transaction for", Tx)
+		t.Fatalf("Unable to get raw transaction %v: %v", txid, err)
 	}
 	// txid is rawTx.MsgTx().TxIn[0].PreviousOutPoint.Hash
 
@@ -1054,7 +1102,7 @@ func testSendMany(r *Harness, t *testing.T) {
 	fee := getWireMsgTxFee(rawTx)
 	t.Log("Raw TX before mining block: ", rawTx, " Fee: ", fee)
 
-	_, block, _ :=newBestBlock(r, t)
+	_, block, _ := newBestBlock(r, t)
 
 	rawTx, err = r.chainClient.GetRawTransaction(txid)
 	if err != nil {
@@ -1108,6 +1156,27 @@ func testSendMany(r *Harness, t *testing.T) {
 			t.Errorf("Transaction output %v still unspent.", ii)
 		}
 	}
+}
+
+func testListTransactions(r *Harness, t *testing.T) {
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	txList1, err := wcl.ListTransactionsCount("*", 1)
+	if err != nil {
+		fmt.Println("ListTransactionsCount failed:", err)
+	}
+
+	if len(txList1) != 1 {
+		fmt.Printf("Transaction list not len=1: %d", len(txList1))
+	}
+
+	if txList1[0].Address != r.miningAddr.String() {
+		fmt.Printf("Unexpected address in transaction: %v", txList1[0].Address)
+	}
+
+	// Another wallet to keep transaction list clearer
+	//wcl2 := primaryHarness.WalletRPC
 }
 
 func testPurchaseTickets(r *Harness, t *testing.T) {

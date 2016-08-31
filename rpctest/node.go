@@ -133,6 +133,7 @@ func (n *nodeConfig) arguments() []string {
 		// --debuglevel
 		args = append(args, fmt.Sprintf("--debuglevel=%s", n.debugLevel))
 	}
+	args = append(args, "--txindex")
 	args = append(args, n.extra...)
 	return args
 }
@@ -229,8 +230,8 @@ func (n *node) FullCommand() string {
 	args := strings.Join(n.cmd.Args, " ")
 	return n.cmd.Path + args
 }
- 
-// CertFile returns the node RPC's TLS certificate 
+
+// CertFile returns the node RPC's TLS certificate
 func (n *node) CertFile() string {
 	return n.config.certFile
 }

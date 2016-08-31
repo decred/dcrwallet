@@ -10,8 +10,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strings"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -81,6 +81,7 @@ type Harness struct {
 	testWalletDir  string
 	maxConnRetries int
 	nodeNum        int
+	miningAddr     dcrutil.Address
 }
 
 // NewHarness creates and initializes a new instance of the rpc test harness.
@@ -230,6 +231,7 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 		return fmt.Errorf("RPC not up for mining addr %v %v", h.testNodeDir,
 			h.testWalletDir)
 	}
+	h.miningAddr = miningAddr
 
 	var extraArgs []string
 	miningArg := fmt.Sprintf("--miningaddr=%s", miningAddr)
@@ -338,6 +340,12 @@ func (h *Harness) TearDown() error {
 	return nil
 }
 
+// IsUp checks if the harness is still being tracked by rpctest
+func (h *Harness) IsUp() bool {
+	_, up := testInstances[h.testNodeDir]
+	return up
+}
+
 // connectRPCClient attempts to establish an RPC connection to the created
 // dcrd process belonging to this Harness instance. If the initial connection
 // attempt fails, this function will retry h.maxConnRetries times, backing off
@@ -378,12 +386,12 @@ func (h *Harness) RPCWalletConfig() rpc.ConnConfig {
 	return h.wallet.config.rpcConnConfig()
 }
 
-// RPCCertFile returns the full path the node RPC's TLS certifiate 
+// RPCCertFile returns the full path the node RPC's TLS certifiate
 func (h *Harness) RPCCertFile() string {
 	return h.node.CertFile()
 }
 
-// RPCWalletCertFile returns the full path the wallet RPC's TLS certifiate 
+// RPCWalletCertFile returns the full path the wallet RPC's TLS certifiate
 func (h *Harness) RPCWalletCertFile() string {
 	return h.wallet.CertFile()
 }
