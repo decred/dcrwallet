@@ -927,9 +927,7 @@ out:
 
 		case txr := <-w.createSStxRequests:
 			// Initialize the address pool for use.
-			w.addrPoolsMtx.RLock()
-			pool := w.addrPools[waddrmgr.DefaultAccountNum].internal
-			w.addrPoolsMtx.RUnlock()
+			pool := w.getAddressPools(waddrmgr.DefaultAccountNum).internal
 			pool.mutex.Lock()
 			addrFunc := pool.getNewAddress
 
