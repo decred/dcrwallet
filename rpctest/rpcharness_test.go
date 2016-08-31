@@ -1172,7 +1172,27 @@ func testListTransactions(r *Harness, t *testing.T) {
 	}
 
 	if txList1[0].Address != r.miningAddr.String() {
-		fmt.Printf("Unexpected address in transaction: %v", txList1[0].Address)
+		fmt.Printf("Unexpected address in latest transaction: %v",
+			txList1[0].Address)
+	}
+
+	if !txList1[0].Generated {
+		fmt.Printf("Latest transaction output not a coinbase output.")
+	}
+
+	if txList1[0].Category != "immature" {
+		fmt.Printf("Latest transaction not immature. Category: %v",
+			txList1[0].Category)
+	}
+
+	// Verify blockhash is non-nil and valid
+	hash, err := chainhash.NewHashFromStr(txList1[0].BlockHash)
+	if err != nil {
+		fmt.Printf("Blockhash not valid")
+	}
+	_, err = wcl.GetBlock(hash)
+	if err != nil {
+		fmt.Printf("Blockhash does not refer to valid block")
 	}
 
 	// Another wallet to keep transaction list clearer
