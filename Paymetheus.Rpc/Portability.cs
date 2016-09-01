@@ -63,13 +63,18 @@ namespace Paymetheus.Rpc
 
         public static string ExecutableInstallationPath(PlatformID platform, string organization, string executableName)
         {
+            var folder = "Paymetheus";
+            // XXX: hack for the launcher, dcrd is not in Paymetheus folder.
+            if (executableName == "dcrd")
+                folder = "Dcrd";
+
             // Unix and Mac: Unsure where the expected installation paths are or would be.
             // These are staying unimplemeted until it actually matters.
             switch (platform)
             {
                 case PlatformID.Win32NT:
                     return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-                        ToUpper(organization), ToUpper(executableName), executableName.ToLower() + ".exe");
+                        ToUpper(organization), folder, executableName.ToLower() + ".exe");
                 case PlatformID.Unix:
                     throw new NotImplementedException();
                 case PlatformID.MacOSX:
