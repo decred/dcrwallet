@@ -33,7 +33,7 @@ namespace Launcher.ViewModels
 
         AnonymousPipeServerStream rxPipe = null, txPipe = null;
 
-        private string _currentStatus = "Starting dcrd...";
+        private string _currentStatus = "Starting consensus server...";
         public string CurrentStatus
         {
             get { return _currentStatus; }
