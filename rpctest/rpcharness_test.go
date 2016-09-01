@@ -819,6 +819,7 @@ func testListUnspent(r *Harness, t *testing.T) {
 	newBestBlock(r, t)
 
 	// Make sure these txInIDS are not in the new UTXO set
+	time.Sleep(4 * time.Second)
 	list, err = wcl.ListUnspent()
 	if err != nil {
 		t.Fatalf("Failed to get UTXOs")
@@ -1001,7 +1002,7 @@ func testSendFrom(r *Harness, t *testing.T) {
 			expectedBalance, defaultBalanceAfterSendNoBlock)
 	}
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(4 * time.Second)
 	// Check balance of sendfrom account
 	sendFromBalanceAfterSend1Block, err := r.WalletRPC.GetBalanceMinConfType(accountName, 1, "all")
 	if err != nil {
@@ -1162,41 +1163,208 @@ func testListTransactions(r *Harness, t *testing.T) {
 	// Wallet RPC client
 	wcl := r.WalletRPC
 
+	// List latest transaction
 	txList1, err := wcl.ListTransactionsCount("*", 1)
 	if err != nil {
-		fmt.Println("ListTransactionsCount failed:", err)
+		t.Error("ListTransactionsCount failed:", err)
 	}
 
+	// Verify that only one returned (a PoW coinbase)
 	if len(txList1) != 1 {
-		fmt.Printf("Transaction list not len=1: %d", len(txList1))
+		t.Errorf("Transaction list not len=1: %d", len(txList1))
 	}
 
+	// Verify paid to miningAddr
 	if txList1[0].Address != r.miningAddr.String() {
-		fmt.Printf("Unexpected address in latest transaction: %v",
+		t.Errorf("Unexpected address in latest transaction: %v",
 			txList1[0].Address)
 	}
 
+	// Verify that it is a coinbase
 	if !txList1[0].Generated {
-		fmt.Printf("Latest transaction output not a coinbase output.")
+		t.Error("Latest transaction output not a coinbase output.")
 	}
 
+	// Not "generate" category until mature
 	if txList1[0].Category != "immature" {
-		fmt.Printf("Latest transaction not immature. Category: %v",
+		t.Errorf("Latest transaction not immature. Category: %v",
 			txList1[0].Category)
 	}
 
 	// Verify blockhash is non-nil and valid
 	hash, err := chainhash.NewHashFromStr(txList1[0].BlockHash)
 	if err != nil {
-		fmt.Printf("Blockhash not valid")
+		t.Error("Blockhash not valid")
 	}
 	_, err = wcl.GetBlock(hash)
 	if err != nil {
-		fmt.Printf("Blockhash does not refer to valid block")
+		t.Error("Blockhash does not refer to valid block")
 	}
 
-	// Another wallet to keep transaction list clearer
-	//wcl2 := primaryHarness.WalletRPC
+	// "regular" not "stake" txtype
+	if *txList1[0].TxType != dcrjson.LTTTRegular {
+		t.Error(`txtype not "regular".`)
+	}
+
+	// Should only show validated (confirmations>=2) coinbase tx?
+	if txList1[0].Confirmations != 2 {
+		t.Errorf("Latest coinbase tx listed has %v confirmations, expected 2.",
+			txList1[0].Confirmations)
+	}
+
+	// Check txid
+	txid, err := chainhash.NewHashFromStr(txList1[0].TxID)
+	if err != nil {
+		t.Error("Invalid Txid: ", err)
+	}
+
+	rawTx, err := wcl.GetRawTransaction(txid)
+	if err != nil {
+		t.Error("Invalid Txid: ", err)
+	}
+
+	// Use Vout from listtransaction to index []TxOut from getrawtransaction.
+	if len(rawTx.MsgTx().TxOut) <= int(txList1[0].Vout) {
+		t.Error("Too few vouts.")
+	}
+	txOut := rawTx.MsgTx().TxOut[txList1[0].Vout]
+	voutAmt := dcrutil.Amount(txOut.Value).ToCoin()
+	// Verify amounts agree
+	if txList1[0].Amount != voutAmt {
+		t.Errorf("Listed amount %v does not match expected vout amount %v",
+			txList1[0].Amount, voutAmt)
+	}
+
+	// Test number of transactions.  With only coinbase in this harness,
+	// length of result slice should be equal to number requested.
+	// List latest transaction
+	txList2, err := wcl.ListTransactionsCount("*", 2)
+	if err != nil {
+		t.Error("ListTransactionsCount failed:", err)
+	}
+
+	// With only coinbase transactions, there will only be one result per tx
+	if len(txList2) != 2 {
+		t.Errorf("Expected 2 transactions, got %v", len(txList2))
+	}
+
+	// List all transactions via large number
+	txListAll, err := wcl.ListTransactionsCount("*", 9999999)
+	if err != nil {
+		t.Error("ListTransactionsCount failed:", err)
+	}
+	initNumTx := len(txListAll)
+
+	// Send within wallet, and check for both send and receive parts of tx.
+	accountName := "listTransactionsTest"
+	if wcl.CreateNewAccount(accountName) != nil {
+		t.Error("Failed to create account for listtransactions test")
+	}
+
+	addr, err := wcl.GetNewAddress(accountName)
+	if err != nil {
+		t.Error("Failed to get new address.")
+	}
+
+	sendAmount := dcrutil.Amount(240000000)
+	txHash, err := wcl.SendFromMinConf("default", addr, sendAmount, 6)
+	if err != nil {
+		t.Error("Failed to send:", err)
+	}
+
+	// Number of results should be +2 now
+	txListAll, err = wcl.ListTransactionsCount("*", 9999999)
+	if err != nil {
+		t.Error("ListTransactionsCount failed:", err)
+	}
+	if len(txListAll) != initNumTx+2 {
+		t.Errorf("Expected %v listtransactions results, got %v", initNumTx+2,
+			len(txListAll))
+	}
+
+	var sendResult, recvResult dcrjson.ListTransactionsResult
+	if txListAll[0].Category == txListAll[1].Category {
+		t.Error("Expected one send and one receive, got", txListAll[0].Category)
+	}
+	rxtxResults := map[string]dcrjson.ListTransactionsResult{
+		txListAll[0].Category: txListAll[0],
+		txListAll[1].Category: txListAll[1],
+	}
+	var ok bool
+	if sendResult, ok = rxtxResults["send"]; !ok {
+		t.Error("Expected send transaction not found.")
+	}
+	if recvResult, ok = rxtxResults["receive"]; !ok {
+		t.Error("Expected receive transaction not found.")
+	}
+
+	// Verify send result amount
+	if sendResult.Amount != -sendAmount.ToCoin() {
+		t.Errorf("Listed send tx amount incorrect. Expected %v, got %v",
+			-sendAmount.ToCoin(), sendResult.Amount)
+	}
+
+	// Verify send result fee
+	if sendResult.Fee == nil {
+		t.Error("Fee in send tx result is nil.")
+	}
+
+	// Now that there's a new Tx on top, skip back to previoius transaction
+	// using from=1
+	txList1New, err := wcl.ListTransactionsCountFrom("*", 1, 1)
+	if err != nil {
+		t.Error("Failed to listtransactions:", err)
+	}
+
+	// Should be equal to earlier result with implicit from=0
+	if !reflect.DeepEqual(txList1, txList1New) {
+		t.Error("Listtransaction results not equal.")
+	}
+
+	// Get rawTx of sent txid so we can calculate the fee that was used
+	newBestBlock(r, t) // or getrawtransaction is wrong
+	rawTx, err = r.chainClient.GetRawTransaction(txHash)
+	if err != nil {
+		t.Fatalf("getrawtransaction failed: %v", err)
+	}
+
+	expectedFee := getWireMsgTxFee(rawTx).ToCoin()
+	gotFee := -*sendResult.Fee
+	if gotFee != expectedFee {
+		t.Errorf("Expected fee %v, got %v", expectedFee, gotFee)
+	}
+
+	// Verify receive results amount
+	if recvResult.Amount != sendAmount.ToCoin() {
+		t.Errorf("Listed send tx amount incorrect. Expected %v, got %v",
+			sendAmount.ToCoin(), recvResult.Amount)
+	}
+
+	// Verify TxID in both send and receive results
+	txstr := txHash.String()
+	if sendResult.TxID != txstr {
+		t.Errorf("TxID in send tx result was %v, expected %v.",
+			sendResult.TxID, txstr)
+	}
+	if recvResult.TxID != txstr {
+		t.Errorf("TxID in receive tx result was %v, expected %v.",
+			recvResult.TxID, txstr)
+	}
+
+	// Should only accept "*" account
+	_, err = wcl.ListTransactions("default")
+	if err == nil {
+		t.Error(`Listtransactions should only work on "*" account. "default" succeeded.`)
+	}
+
+	txList0, err := wcl.ListTransactionsCount("*", 0)
+	if err != nil {
+		t.Error("listtransactions failed:", err)
+	}
+	if len(txList0) != 0 {
+		t.Error("Length of listransactions result not zero:", len(txList0))
+	}
+
 }
 
 func testPurchaseTickets(r *Harness, t *testing.T) {
@@ -1242,7 +1410,7 @@ func newBlockAt(currentHeight uint32, r *Harness,
 		t.Fatalf("Unable to generate single block: %v", err)
 	}
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	block, err := r.Node.GetBlock(blockHashes[0])
 	if err != nil {
