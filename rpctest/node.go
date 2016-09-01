@@ -133,6 +133,7 @@ func (n *nodeConfig) arguments() []string {
 		// --debuglevel
 		args = append(args, fmt.Sprintf("--debuglevel=%s", n.debugLevel))
 	}
+	args = append(args, "--txindex")
 	args = append(args, n.extra...)
 	return args
 }
