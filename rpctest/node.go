@@ -134,6 +134,7 @@ func (n *nodeConfig) arguments() []string {
 		args = append(args, fmt.Sprintf("--debuglevel=%s", n.debugLevel))
 	}
 	args = append(args, "--txindex")
+	args = append(args, "--addrindex")
 	args = append(args, n.extra...)
 	return args
 }
