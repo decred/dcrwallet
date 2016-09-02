@@ -142,7 +142,9 @@ func TestMain(m *testing.M) {
 
 func TestRpcServer(t *testing.T) {
 	for _, testCase := range rpcTestCases {
-		testCase(harnesses[funcName(testCase)], t)
+		testName := funcName(testCase)
+		fmt.Printf("Starting test %s\n", testName)
+		testCase(harnesses[testName], t)
 	}
 }
 
@@ -785,8 +787,8 @@ func testListUnspent(r *Harness, t *testing.T) {
 		t.Fatalf("sendfromminconf failed: %v", err)
 	}
 
-	time.Sleep(2 * time.Second)
 	newBestBlock(r, t)
+	time.Sleep(2 * time.Second)
 	// TODO: why is above necessary for GetRawTransaction to give a tx with
 	// sensible MsgTx().TxIn[:].ValueIn values?
 
@@ -977,7 +979,8 @@ func testSendFrom(r *Harness, t *testing.T) {
 	newBestBlock(r, t)
 
 	// Get rawTx of sent txid so we can calculate the fee that was used
-	rawTx, err := r.chainClient.GetRawTransaction(txid)
+	time.Sleep(2 * time.Second)
+	rawTx, err := r.WalletRPC.GetRawTransaction(txid)
 	if err != nil {
 		t.Fatalf("getrawtransaction failed: %v", err)
 	}
@@ -1002,7 +1005,7 @@ func testSendFrom(r *Harness, t *testing.T) {
 			expectedBalance, defaultBalanceAfterSendNoBlock)
 	}
 
-	time.Sleep(8 * time.Second)
+	time.Sleep(2 * time.Second)
 	// Check balance of sendfrom account
 	sendFromBalanceAfterSend1Block, err := r.WalletRPC.GetBalanceMinConfType(accountName, 1, "all")
 	if err != nil {
@@ -1019,11 +1022,11 @@ func testSendFrom(r *Harness, t *testing.T) {
 	// that sendfrom was properly marked to spent and removed from utxo set.
 	list, err = r.WalletRPC.ListUnspent()
 	if err != nil {
-		t.Fatalf("failed to get utxos")
+		t.Fatal("Failed to get utxos")
 	}
 	for _, utxo := range list {
 		if utxo.TxID == rawTx.MsgTx().TxIn[0].PreviousOutPoint.Hash.String() {
-			t.Fatalf("found a utxo that should have been marked spent")
+			t.Fatal("Found a utxo that should have been marked spent:", utxo.TxID)
 		}
 	}
 }
@@ -1410,7 +1413,7 @@ func newBlockAt(currentHeight uint32, r *Harness,
 		t.Fatalf("Unable to generate single block: %v", err)
 	}
 
-	time.Sleep(4 * time.Second)
+	time.Sleep(1500 * time.Millisecond)
 
 	block, err := r.Node.GetBlock(blockHashes[0])
 	if err != nil {

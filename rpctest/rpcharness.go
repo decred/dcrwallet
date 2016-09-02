@@ -194,7 +194,7 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	if err = h.node.Start(); err != nil {
 		return err
 	}
-	time.Sleep(4 * time.Second)
+	time.Sleep(200 * time.Millisecond)
 	if err := h.connectRPCClient(); err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	if err = h.wallet.Start(); err != nil {
 		return err
 	}
-	time.Sleep(4 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	// Connect walletClient so we can get the mining address
 	var walletClient *rpc.Client
@@ -213,6 +213,7 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 			time.Sleep(time.Duration(math.Log(float64(i+3))) * 50 * time.Millisecond)
 			continue
 		}
+		fmt.Printf("Wallet connected after %v retries.\n", i)
 		break
 	}
 	if walletClient == nil {
@@ -222,12 +223,14 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	h.WalletRPC = walletClient
 
 	// Get a new address from the wallet to be set with dcrd's --miningaddr
+	time.Sleep(4 * time.Second)
 	var miningAddr dcrutil.Address
 	for i := 0; i < 100; i++ {
 		if miningAddr, err = walletClient.GetNewAddress("default"); err != nil {
 			time.Sleep(time.Duration(math.Log(float64(i+3))) * 50 * time.Millisecond)
 			continue
 		}
+		fmt.Printf("Got miningaddr after %v retries.\n", i)
 		break
 	}
 	if miningAddr == nil {
@@ -264,19 +267,20 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	if err = h.node.Start(); err != nil {
 		return err
 	}
-	time.Sleep(4 * time.Second)
+	time.Sleep(3 * time.Second)
 	if err := h.connectRPCClient(); err != nil {
 		return err
 	}
 
-	// Create a test chain with the desired number of mature coinbase
-	// outputs.
+	// Create a test chain with the desired number of mature coinbase outputs
 	if createTestChain {
 		numToGenerate := uint32(h.ActiveNet.CoinbaseMaturity) + numMatureOutputs
+		fmt.Printf("Generating %v blocks...\n", numToGenerate)
 		_, err := h.Node.Generate(numToGenerate)
 		if err != nil {
 			return err
 		}
+		fmt.Println("Block generation complete.")
 	}
 
 	rpcConf := h.node.config.rpcConnConfig()
@@ -287,13 +291,15 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	}
 
 	// Start the goroutines in the underlying wallet.
+	// TODO: What is this second node RPC client for? unused notifications?
 	h.chainClient = rpcc
 	if err := h.chainClient.Start(); err != nil {
 		return err
 	}
 
 	// Wait for the wallet to sync up to the current height.
-	ticker := time.NewTicker(time.Millisecond * 100)
+	fmt.Println("Waiting for wallet to sync to current height.")
+	ticker := time.NewTicker(time.Millisecond * 500)
 	desiredHeight := int64(numMatureOutputs + uint32(h.ActiveNet.CoinbaseMaturity))
 out:
 	for {
@@ -309,6 +315,8 @@ out:
 		}
 	}
 	ticker.Stop()
+
+	fmt.Println("Wallet sync complete.")
 
 	return nil
 }
@@ -365,6 +373,7 @@ func (h *Harness) connectRPCClient() error {
 			time.Sleep(time.Duration(math.Log(float64(i+3))) * 50 * time.Millisecond)
 			continue
 		}
+		fmt.Printf("Node RPC client connected after %v retries.\n", i)
 		break
 	}
 
