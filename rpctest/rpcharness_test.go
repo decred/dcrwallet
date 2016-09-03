@@ -21,6 +21,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
@@ -79,10 +80,19 @@ func funcName(tc rpcTestCase) string {
 // TestMain manages the test harnesses and runs the tests instead of go test
 // running the tests directly.
 func TestMain(m *testing.M) {
+	ntfnHandlersNode := dcrrpcclient.NotificationHandlers{
+		OnBlockConnected: func(hash *chainhash.Hash, height int32,
+			time time.Time, vb uint16) {
+			if height > 41 {
+				fmt.Printf("New block connected, at height: %v\n", height)
+			}
+		},
+	}
+
 	// Create the primary/shared harness
 	fmt.Println("Generating primary test harness")
 	var err error
-	primaryHarness, err = NewHarness(&chaincfg.SimNetParams, nil, nil)
+	primaryHarness, err = NewHarness(&chaincfg.SimNetParams, &ntfnHandlersNode, nil)
 	if err != nil {
 		fmt.Println("Unable to create primary harness: ", err)
 		os.Exit(1)
@@ -721,9 +731,13 @@ func testListUnspent(r *Harness, t *testing.T) {
 	}
 	utxosBeforeSend := make(map[string]float64)
 	for _, utxo := range list {
-		if utxo.Spendable {
-			utxosBeforeSend[utxo.TxID] = utxo.Amount
+		// Get a OutPoint string in the form of hash:index
+		outpointStr, err := getOutPointString(&utxo)
+		if err != nil {
+			t.Fatal(err)
 		}
+		// if utxo.Spendable ...
+		utxosBeforeSend[outpointStr] = utxo.Amount
 	}
 
 	// Check Min/Maxconf arguments
@@ -768,7 +782,12 @@ func testListUnspent(r *Harness, t *testing.T) {
 	// not the same thing as checking if the output is there)
 	var foundTxID = false
 	for _, listRes := range listAddressesKnown {
-		if _, ok := utxosBeforeSend[listRes.TxID]; !ok {
+		// Get a OutPoint string in the form of hash:index
+		outpointStr, err := getOutPointString(&listRes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := utxosBeforeSend[outpointStr]; !ok {
 			t.Fatalf("Failed to find TxID")
 		}
 		// Also verify that the txid of the reference output is in the list
@@ -793,7 +812,7 @@ func testListUnspent(r *Harness, t *testing.T) {
 	// sensible MsgTx().TxIn[:].ValueIn values?
 
 	// Get *dcrutil.Tx of send to check the inputs
-	rawTx, err := r.chainClient.GetRawTransaction(txid)
+	rawTx, err := r.Node.GetRawTransaction(txid)
 	if err != nil {
 		t.Fatalf("getrawtransaction failed: %v", err)
 	}
@@ -802,7 +821,8 @@ func testListUnspent(r *Harness, t *testing.T) {
 	txInIDs := make(map[string]float64)
 	for _, txIn := range rawTx.MsgTx().TxIn {
 		prevOut := &txIn.PreviousOutPoint
-		txInIDs[prevOut.Hash.String()] = dcrutil.Amount(txIn.ValueIn).ToCoin()
+		// Outpoint.String() appends :index to the hash
+		txInIDs[prevOut.String()] = dcrutil.Amount(txIn.ValueIn).ToCoin()
 	}
 	t.Log("Number of TxIns: ", len(txInIDs))
 
@@ -827,9 +847,14 @@ func testListUnspent(r *Harness, t *testing.T) {
 		t.Fatalf("Failed to get UTXOs")
 	}
 	for _, utxo := range list {
-		if amt, ok := txInIDs[utxo.TxID]; ok {
+		// Get a OutPoint string in the form of hash:index
+		outpointStr, err := getOutPointString(&utxo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if amt, ok := txInIDs[outpointStr]; ok {
 			t.Fatalf("Found PreviousOutPoint of send still in UTXO set: %v, "+
-				"%v DCR", utxo.TxID, amt)
+				"%v DCR", outpointStr, amt)
 		}
 	}
 }
@@ -933,9 +958,13 @@ func testSendFrom(r *Harness, t *testing.T) {
 	}
 	utxosBeforeSend := make(map[string]float64)
 	for _, utxo := range list {
-		if utxo.Spendable {
-			utxosBeforeSend[utxo.TxID] = utxo.Amount
+		// Get a OutPoint string in the form of hash:index
+		outpointStr, err := getOutPointString(&utxo)
+		if err != nil {
+			t.Fatal(err)
 		}
+		// if utxo.Spendable ...
+		utxosBeforeSend[outpointStr] = utxo.Amount
 	}
 
 	// SendFromMinConf 1000 to addr
@@ -1099,7 +1128,7 @@ func testSendMany(r *Harness, t *testing.T) {
 	}
 
 	// Get rawTx of sent txid so we can calculate the fee that was used
-	rawTx, err := r.chainClient.GetRawTransaction(txid)
+	rawTx, err := r.Node.GetRawTransaction(txid)
 	if err != nil {
 		t.Fatalf("getrawtransaction failed: %v", err)
 	}
@@ -1108,7 +1137,7 @@ func testSendMany(r *Harness, t *testing.T) {
 
 	_, block, _ := newBestBlock(r, t)
 
-	rawTx, err = r.chainClient.GetRawTransaction(txid)
+	rawTx, err = r.Node.GetRawTransaction(txid)
 	if err != nil {
 		t.Fatalf("getrawtransaction failed: %v", err)
 	}
@@ -1280,6 +1309,8 @@ func testListTransactions(r *Harness, t *testing.T) {
 	if err != nil {
 		t.Fatal("ListTransactionsCount failed:", err)
 	}
+	// TODO: There are 3 extras, 2 for the amount sent/received, and one for
+	// send of generated funds (?).  Look into this.
 	if len(txListAll) != initNumTx+2 {
 		t.Fatalf("Expected %v listtransactions results, got %v", initNumTx+2,
 			len(txListAll))
@@ -1326,7 +1357,7 @@ func testListTransactions(r *Harness, t *testing.T) {
 
 	// Get rawTx of sent txid so we can calculate the fee that was used
 	newBestBlock(r, t) // or getrawtransaction is wrong
-	rawTx, err = r.chainClient.GetRawTransaction(txHash)
+	rawTx, err = r.Node.GetRawTransaction(txHash)
 	if err != nil {
 		t.Fatalf("getrawtransaction failed: %v", err)
 	}
@@ -1494,4 +1525,12 @@ func getWireMsgTxFee(tx *dcrutil.Tx) dcrutil.Amount {
 	}
 
 	return dcrutil.Amount(totalSpent - totalSent)
+}
+
+func getOutPointString(utxo *dcrjson.ListUnspentResult) (string, error) {
+	txhash, err := chainhash.NewHashFromStr(utxo.TxID)
+	if err != nil {
+		return "", err
+	}
+	return wire.NewOutPoint(txhash, utxo.Vout, utxo.Tree).String(), nil
 }
