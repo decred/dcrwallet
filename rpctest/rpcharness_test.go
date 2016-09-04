@@ -1309,10 +1309,12 @@ func testListTransactions(r *Harness, t *testing.T) {
 	if err != nil {
 		t.Fatal("ListTransactionsCount failed:", err)
 	}
-	// TODO: There are 3 extras, 2 for the amount sent/received, and one for
-	// send of generated funds (?).  Look into this.
-	if len(txListAll) != initNumTx+2 {
-		t.Fatalf("Expected %v listtransactions results, got %v", initNumTx+2,
+	// Expect 3 more results in the list: a receive for the owned address in
+	// the amount sent, a send in the amount sent, and the a send from the
+	// original outpoint for the mined coins.
+	expectedAdditional := 3
+	if len(txListAll) != initNumTx+expectedAdditional {
+		t.Fatalf("Expected %v listtransactions results, got %v", initNumTx+expectedAdditional,
 			len(txListAll))
 	}
 
