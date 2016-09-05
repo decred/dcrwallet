@@ -1036,7 +1036,7 @@ func testSendFrom(r *Harness, t *testing.T) {
 			expectedBalance, defaultBalanceAfterSendNoBlock)
 	}
 
-	time.Sleep(4 * time.Second)
+	time.Sleep(8 * time.Second)
 	// Check balance of sendfrom account
 	sendFromBalanceAfterSend1Block, err := r.WalletRPC.GetBalanceMinConfType(accountName, 1, "all")
 	if err != nil {
@@ -1306,7 +1306,7 @@ func testListTransactions(r *Harness, t *testing.T) {
 		t.Fatal("Failed to send:", err)
 	}
 
-	// Number of results should be +2 now
+	// Number of results should be +3 now
 	txListAll, err := wcl.ListTransactionsCount("*", 9999999)
 	if err != nil {
 		t.Fatal("ListTransactionsCount failed:", err)
@@ -1320,6 +1320,8 @@ func testListTransactions(r *Harness, t *testing.T) {
 			len(txListAll))
 	}
 
+	// The top of the list should be one send and one receive.  The coinbase
+	// spend should be lower in the list.
 	var sendResult, recvResult dcrjson.ListTransactionsResult
 	if txListAll[0].Category == txListAll[1].Category {
 		t.Fatal("Expected one send and one receive, got", txListAll[0].Category)
@@ -1403,6 +1405,53 @@ func testListTransactions(r *Harness, t *testing.T) {
 		t.Fatal("Length of listransactions result not zero:", len(txList0))
 	}
 
+	txListAll, err = wcl.ListTransactionsCount("*",99999999)
+
+	// Create 2 accounts to receive funds
+	accountNames := []string{"listTxA", "listTxB"}
+	amountsToSend := []dcrutil.Amount{700000000, 1400000000}
+	addresses := []dcrutil.Address{}
+
+	for _, acct := range accountNames {
+		err := wcl.CreateNewAccount(acct)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Grab new addresses from the wallet, under each account.
+	// Set corresponding amount to send to each address.
+	addressAmounts := make(map[dcrutil.Address]dcrutil.Amount)
+	//var totalAmountToSend dcrutil.Amount
+	totalAmountToSend := dcrutil.Amount(0)
+
+	for i, acct := range accountNames {
+		addr, err := wcl.GetNewAddress(acct)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Set the amounts to send to each address
+		addresses = append(addresses, addr)
+		addressAmounts[addr] = amountsToSend[i]
+		totalAmountToSend += amountsToSend[i]
+	}
+
+	// SendMany to two addresses
+	_, err = wcl.SendMany("default", addressAmounts)
+	if err != nil {
+		t.Fatalf("sendmany failed: %v", err)
+	}
+
+	// This should add 5 results: coinbase send, 2 receives, 2 sends
+	listSentMany, err := wcl.ListTransactionsCount("*",99999999)
+	if err != nil {
+		t.Fatal(`Listtransactions failed.`)
+	}
+	if len(listSentMany) != len(txListAll)+5 {
+		t.Fatalf("Expected %v tx results, got %v", len(txListAll)+5,
+			len(listSentMany))
+	}
 }
 
 func testPurchaseTickets(r *Harness, t *testing.T) {
