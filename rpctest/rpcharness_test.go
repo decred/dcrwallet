@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"os"
 	"reflect"
 	"regexp"
@@ -28,6 +29,9 @@ import (
 	"github.com/decred/dcrwallet/wallet"
 )
 
+// Tolerance on absolte difference in fee rate (set-actual)
+var absFeeDiffTolerance = 0.0005
+
 type rpcTestCase func(r *Harness, t *testing.T)
 
 var rpcTestCases = []rpcTestCase{
@@ -41,6 +45,8 @@ var rpcTestCases = []rpcTestCase{
 	testSendFrom,
 	testSendMany,
 	testListTransactions,
+	testGetSetRelayFee,
+	testGetSetTicketFee,
 	testPurchaseTickets,
 }
 
@@ -57,6 +63,8 @@ var needOwnHarness = map[string]bool{
 	"testSendToAddress":    false,
 	"testSendFrom":         false,
 	"testListTransactions": true,
+	"testGetSetRelayFee":   false,
+	"testGetSetTicketFee":  false,
 	"testPurchaseTickets":  false,
 }
 
@@ -111,7 +119,7 @@ func TestMain(m *testing.M) {
 	for _, tc := range rpcTestCases {
 		tcName := funcName(tc)
 		harness := primaryHarness
-		if needOwnHarness[tcName] {
+		if need, ok := needOwnHarness[tcName]; ok && need {
 			fmt.Println("Generating own harness for", tcName)
 			harness, err = NewHarness(&chaincfg.SimNetParams, nil, nil)
 			if err != nil {
@@ -1405,7 +1413,7 @@ func testListTransactions(r *Harness, t *testing.T) {
 		t.Fatal("Length of listransactions result not zero:", len(txList0))
 	}
 
-	txListAll, err = wcl.ListTransactionsCount("*",99999999)
+	txListAll, err = wcl.ListTransactionsCount("*", 99999999)
 
 	// Create 2 accounts to receive funds
 	accountNames := []string{"listTxA", "listTxB"}
@@ -1444,7 +1452,7 @@ func testListTransactions(r *Harness, t *testing.T) {
 	}
 
 	// This should add 5 results: coinbase send, 2 receives, 2 sends
-	listSentMany, err := wcl.ListTransactionsCount("*",99999999)
+	listSentMany, err := wcl.ListTransactionsCount("*", 99999999)
 	if err != nil {
 		t.Fatal(`Listtransactions failed.`)
 	}
@@ -1452,6 +1460,189 @@ func testListTransactions(r *Harness, t *testing.T) {
 		t.Fatalf("Expected %v tx results, got %v", len(txListAll)+5,
 			len(listSentMany))
 	}
+}
+
+func testGetSetRelayFee(r *Harness, t *testing.T) {
+	// dcrrpcclient does not have a getwalletfee or any direct method, so we
+	// need to use walletinfo to get.  SetTxFee can be used to set.
+
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	// Increase the ticket fee so these SSTx get mined first
+	walletInfo, err := wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("WalletInfo failed:", err)
+	}
+	origTxFee, err := dcrutil.NewAmount(walletInfo.TxFee)
+	if err != nil {
+		t.Fatal("Invalid Amount:", walletInfo.TxFee)
+	}
+	newTxFeeCoin := walletInfo.TxFee * 1.5
+	newTxFee, _ := dcrutil.NewAmount(newTxFeeCoin)
+	if err != nil {
+		t.Fatal("Invalid Amount:", newTxFeeCoin)
+	}
+
+	err = wcl.SetTxFee(newTxFee)
+	if err != nil {
+		t.Fatal("SetTxFee failed:", err)
+	}
+
+	walletInfo, err = wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("WalletInfo failed:", err)
+	}
+	newTxFeeActual, err := dcrutil.NewAmount(walletInfo.TxFee)
+	if err != nil {
+		t.Fatal("Invalid Amount:", walletInfo.TxFee)
+	}
+	if newTxFee != newTxFeeActual {
+		t.Fatalf("Expected tx fee %v, got %v.", newTxFee, newTxFeeActual)
+	}
+
+	// Send
+	accountName := "testGetSetRelayFee"
+	err = wcl.CreateNewAccount(accountName)
+	if err != nil {
+		t.Fatal("Failed to create account.")
+	}
+
+	// Grab a fresh address from the test account
+	addr, err := r.WalletRPC.GetNewAddress(accountName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// SendFromMinConf 1000 to addr
+	amountToSend := dcrutil.Amount(700000000)
+	txid, err := wcl.SendFromMinConf("default", addr, amountToSend, 0)
+	if err != nil {
+		t.Fatalf("sendfromminconf failed: %v", err)
+	}
+
+	newBestBlock(r, t)
+	time.Sleep(2 * time.Second)
+	// Give the tx a sensible MsgTx().TxIn[:].ValueIn values
+
+	// Get *dcrutil.Tx of send to check the inputs
+	rawTx, err := r.Node.GetRawTransaction(txid)
+	if err != nil {
+		t.Fatalf("getrawtransaction failed: %v", err)
+	}
+
+	fee := getWireMsgTxFee(rawTx)
+	feeRate := fee.ToCoin() / float64(rawTx.MsgTx().SerializeSize()) * 1000
+
+	t.Logf("Set relay fee: %v, actual: %v", walletInfo.TxFee, feeRate)
+	if math.Abs(walletInfo.TxFee-feeRate) > absFeeDiffTolerance {
+		t.Errorf("Regular tx fee rate difference (actual-set) too high: %v",
+			walletInfo.TxFee-feeRate)
+	}
+
+	// Negative fee
+	err = wcl.SetTxFee(dcrutil.Amount(-1))
+	if err == nil {
+		t.Fatal("SetTxFee accepted negative fee")
+	}
+
+	// Set it back
+	err = wcl.SetTxFee(origTxFee)
+	if err != nil {
+		t.Fatal("SetTxFee failed:", err)
+	}
+
+	// Validate last tx before we complete
+	newBestBlock(r, t)
+}
+
+func testGetSetTicketFee(r *Harness, t *testing.T) {
+	// dcrrpcclient does not have a getticketee or any direct method, so we
+	// need to use walletinfo to get.  SetTicketFee can be used to set.
+
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	// Increase the ticket fee so these SSTx get mined first
+	walletInfo, err := wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("WalletInfo failed:", err)
+	}
+	nominalTicketFee := walletInfo.TicketFee
+	origTicketFee, err := dcrutil.NewAmount(nominalTicketFee)
+	if err != nil {
+		t.Fatal("Invalid Amount:", nominalTicketFee)
+	}
+	newTicketFeeCoin := nominalTicketFee * 1.5
+	newTicketFee, _ := dcrutil.NewAmount(newTicketFeeCoin)
+	if err != nil {
+		t.Fatal("Invalid Amount:", newTicketFeeCoin)
+	}
+
+	err = wcl.SetTicketFee(newTicketFee)
+	if err != nil {
+		t.Fatal("SetTicketFee failed:", err)
+	}
+
+	walletInfo, err = wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("WalletInfo failed:", err)
+	}
+	nominalTicketFee = walletInfo.TicketFee
+	newTicketFeeActual, err := dcrutil.NewAmount(nominalTicketFee)
+	if err != nil {
+		t.Fatal("Invalid Amount:", nominalTicketFee)
+	}
+	if newTicketFee != newTicketFeeActual {
+		t.Fatalf("Expected ticket fee %v, got %v.", newTicketFee,
+			newTicketFeeActual)
+	}
+
+	// Purchase ticket
+	minConf, numTicket := 0, 1
+	hashes, err := wcl.PurchaseTicket("default", 100000000,
+		&minConf, nil, &numTicket, nil, nil, nil)
+	if err != nil {
+		t.Fatal("Unable to purchase with nil ticketAddr:", err)
+	}
+	if len(hashes) != 1 {
+		t.Fatal("More than one tx hash returned. Expected one.")
+	}
+
+	// Need 2 blocks or the vin is incorrect in getrawtransaction
+	// Not yet at StakeValidationHeight, so no voting.
+	newBestBlock(r, t)
+	newBestBlock(r, t)
+	time.Sleep(2 * time.Second)
+
+	rawTx, err := wcl.GetRawTransaction(hashes[0])
+	if err != nil {
+		t.Fatal("Invalid Txid:", err)
+	}
+
+	fee := getWireMsgTxFee(rawTx)
+	feeRate := fee.ToCoin() / float64(rawTx.MsgTx().SerializeSize()) * 1000
+
+	t.Logf("Set ticket fee: %v, actual: %v", nominalTicketFee, feeRate)
+	if math.Abs(nominalTicketFee-feeRate) > absFeeDiffTolerance {
+		t.Errorf("Ticket fee rate difference (actual-set) too high: %v",
+			nominalTicketFee-feeRate)
+	}
+
+	// Negative fee
+	err = wcl.SetTicketFee(dcrutil.Amount(-1))
+	if err == nil {
+		t.Fatal("SetTicketFee accepted negative fee")
+	}
+
+	// Set it back
+	err = wcl.SetTicketFee(origTicketFee)
+	if err != nil {
+		t.Fatal("SetTicketFee failed:", err)
+	}
+
+	// Validate last tx before we complete
+	newBestBlock(r, t)
 }
 
 func testPurchaseTickets(r *Harness, t *testing.T) {
