@@ -49,7 +49,7 @@ var primaryHarness, secondaryHarness *Harness
 var harnesses = make(map[string]*Harness)
 var needOwnHarness = map[string]bool{
 	"testGetNewAddress":    false,
-	"testValidateAddress":  true,
+	"testValidateAddress":  false,
 	"testWalletPassphrase": false,
 	"testGetBalance":       false,
 	"testListAccounts":     false,
@@ -83,9 +83,9 @@ func TestMain(m *testing.M) {
 	ntfnHandlersNode := dcrrpcclient.NotificationHandlers{
 		OnBlockConnected: func(hash *chainhash.Hash, height int32,
 			time time.Time, vb uint16) {
-			if height > 41 {
-				fmt.Printf("New block connected, at height: %v\n", height)
-			}
+			// if height > 41 {
+			// 	fmt.Printf("New block connected, at height: %v\n", height)
+			// }
 		},
 	}
 
@@ -233,8 +233,6 @@ func testGetNewAddress(r *Harness, t *testing.T) {
 func testValidateAddress(r *Harness, t *testing.T) {
 	// Wallet RPC client
 	wcl := r.WalletRPC
-	// Also validate with non-owner wallet
-	wcl2 := primaryHarness.WalletRPC
 
 	accounts := []string{"default", "testValidateAddress"}
 
@@ -287,8 +285,12 @@ func testValidateAddress(r *Harness, t *testing.T) {
 			t.Fatalf("Unable to decode address %s: %v", addr.String(), err)
 		}
 
-		// Check ownership from secondary wallet
-		validRes, err = wcl2.ValidateAddress(addr)
+		// Try to validate an address that is not owned by wallet
+		otherAddress, err := dcrutil.DecodeNetworkAddress("SsqvxBX8MZC5iiKCgBscwt69jg4u4hHhDKU")
+		if err != nil {
+			t.Fatalf("Unable to decode address %v: %v", otherAddress, err)
+		}
+		validRes, err = wcl.ValidateAddress(otherAddress)
 		if err != nil {
 			t.Fatalf("Unable to validate address %s with secondary wallet: %v",
 				addrStr, err)
@@ -1034,7 +1036,7 @@ func testSendFrom(r *Harness, t *testing.T) {
 			expectedBalance, defaultBalanceAfterSendNoBlock)
 	}
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(4 * time.Second)
 	// Check balance of sendfrom account
 	sendFromBalanceAfterSend1Block, err := r.WalletRPC.GetBalanceMinConfType(accountName, 1, "all")
 	if err != nil {
@@ -1404,8 +1406,13 @@ func testListTransactions(r *Harness, t *testing.T) {
 }
 
 func testPurchaseTickets(r *Harness, t *testing.T) {
+	// Wallet.purchaseTicket() in wallet/createtx.go
+
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
 	// Grab a fresh address from the wallet.
-	addr, err := r.WalletRPC.GetNewAddress("default")
+	addr, err := wcl.GetNewAddress("default")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1418,7 +1425,119 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	// Get current blockheight to make sure chain is at the desiredHeight
 	curBlockHeight, _, _ := getBestBlock(r, t)
 
+	// Test nil ticketAddress
+	oneTix := 1
+	hashes, err := wcl.PurchaseTicket("default", 100000000,
+		&minConf, nil, &oneTix, nil, nil, &expiry)
+	if err != nil {
+		t.Fatal("Unable to purchase with nil ticketAddr:", err)
+	}
+	if len(hashes) != 1 {
+		t.Fatal("More than one tx hash returned purchasing single ticket.")
+	}
+	_, err = wcl.GetRawTransaction(hashes[0])
+	if err != nil {
+		t.Fatal("Invalid Txid:", err)
+	}
+
+	// test numTickets == nil
+	hashes, err = wcl.PurchaseTicket("default", 100000000,
+		&minConf, nil, nil, nil, nil, &expiry)
+	if err != nil {
+		t.Fatal("Unable to purchase with nil numTickets:", err)
+	}
+	if len(hashes) != 1 {
+		t.Fatal("More than one tx hash returned. Expected one.")
+	}
+	_, err = wcl.GetRawTransaction(hashes[0])
+	if err != nil {
+		t.Fatal("Invalid Txid:", err)
+	}
+
+	// Test expiry - earliest is next height + 1
+	// invalid
+	expiry = int(curBlockHeight)
+	_, err = wcl.PurchaseTicket("default", 100000000,
+		&minConf, nil, nil, nil, nil, &expiry)
+	if err == nil {
+		t.Fatal("Invalid expiry used to purchase tickets")
+	}
+
+	expiry = int(curBlockHeight) + 1
+	_, err = wcl.PurchaseTicket("default", 100000000,
+		&minConf, nil, nil, nil, nil, &expiry)
+	if err == nil {
+		t.Fatal("Invalid expiry used to purchase tickets")
+	}
+
+	// valid expiry
+	expiry = int(curBlockHeight) + 2
+	hashes, err = wcl.PurchaseTicket("default", 100000000,
+		&minConf, nil, nil, nil, nil, &expiry)
+	if err != nil {
+		t.Fatal("Unable to purchase tickets:", err)
+	}
+	if len(hashes) != 1 {
+		t.Fatal("More than one tx hash returned. Expected one.")
+	}
+	ticketWithExpiry := hashes[0]
+	_, err = wcl.GetRawTransaction(ticketWithExpiry)
+	if err != nil {
+		t.Fatal("Invalid Txid:", err)
+	}
+
+	// Now purchase 2 blocks worth of tickets to be mined first
+
+	// Increase the ticket fee so these SSTx get mined first
+	walletInfo, _ := wcl.WalletInfo()
+	origTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee)
+	newTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
+
+	wcl.SetTicketFee(newTicketFee)
+
+	expiry = 0
+	numTicket = 2 * int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
+	_, err = r.WalletRPC.PurchaseTicket("default", 100000000,
+		&minConf, addr, &numTicket, nil, nil, &expiry)
+	if err != nil {
+		t.Fatal("Unable to purchase tickets:", err)
+	}
+
+	wcl.SetTicketFee(origTicketFee)
+
+	// Check for the ticket
+	_, err = wcl.GetTransaction(ticketWithExpiry)
+	if err != nil {
+		t.Fatal("Ticket not found:", err)
+	}
+
+	// Mine 2 blocks, should include the higher fee tickets with no expiry
+	curBlockHeight, _, _ = newBlockAt(curBlockHeight, r, t)
+	curBlockHeight, _, _ = newBlockAt(curBlockHeight, r, t)
+
+	// Ticket with expiry set should now be expired (unmined and removed from
+	// mempool)
+	// ticketsWithoutExired, err := wcl.GetTickets(true)
+	// for _, ticket := range ticketsWithoutExired {
+	// 	if ticket == ticketWithExpiry {
+	// 		t.Fatal("Expired ticket found:", ticketWithExpiry)
+	// 	}
+	// }
+	//tx, err := wcl.GetRawTransaction(ticketWithExpiry)
+	txRawVerbose, err := wcl.GetRawTransactionVerbose(ticketWithExpiry)
+	if err == nil {
+		t.Fatalf("Found transaction that should be expired (blockHeight %v): %v",
+			txRawVerbose.BlockHeight, err)
+	}
+
+	// NOTE: ticket maturity = 16 (spendable at 17), stakeenabled height = 144
+	// Must have tickets purchased before block 128
+	//ticketMaturity := chaincfg.SimNetParams.TicketMaturity
+	//stakeValidationHeight := chaincfg.SimNetParams.StakeValidationHeight
+
 	// Keep generating blocks until desiredHeight is achieved
+	expiry = 0
+	numTicket = 1
 	for curBlockHeight < desiredHeight {
 		_, err = r.WalletRPC.PurchaseTicket("default", 100000000,
 			&minConf, addr, &numTicket, nil, nil, &expiry)
