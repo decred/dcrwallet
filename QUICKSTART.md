@@ -1,10 +1,10 @@
 # Quick Start Guide
 
-Paymetheus is alpha software and the Decred developers recognize that using it
-with `dcrd` on Windows is not as intuitive as it could be.  This guide exists to
-explain how to correctly use Paymetheus and `dcrd` from the 0.2.0-alpha release
-on a single computer, as the same user.  Our goal is to improve the software in
-later versions to make the instructions in this guide obsolete.
+As of the 0.4.0 the binary builds of Paymetheus include a launcher to
+start and stop `dcrd` automatically in the background so users who
+wish to use a local `dcrd` no longer need these steps.  Users who want
+to use a remote dcrd or do not use the launcher can still follow the
+steps below.
 
 ## Starting `dcrd`
 
