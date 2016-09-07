@@ -50,8 +50,9 @@ var rpcTestCases = []rpcTestCase{
 	testPurchaseTickets,
 }
 
-// TODO use a []*Harness instead
-var primaryHarness, secondaryHarness *Harness
+// Not all tests need their own harness. Indicate here which get a dedicaed
+// harness, and use a map from function name to assigned harness.
+var primaryHarness *Harness
 var harnesses = make(map[string]*Harness)
 var needOwnHarness = map[string]bool{
 	"testGetNewAddress":    false,
@@ -68,8 +69,10 @@ var needOwnHarness = map[string]bool{
 	"testPurchaseTickets":  false,
 }
 
+// Get function name from module name
 var funcInModulePath = regexp.MustCompile(`^.*\.(.*)$`)
 
+// Get the name of a calling function
 func thisFuncName() string {
 	fnName := "unknown"
 	// PC of caller
@@ -80,6 +83,7 @@ func thisFuncName() string {
 	return fnName
 }
 
+// Get the name of a function type
 func funcName(tc rpcTestCase) string {
 	fncName := runtime.FuncForPC(reflect.ValueOf(tc).Pointer()).Name()
 	return funcInModulePath.ReplaceAllString(fncName, "$1")
@@ -161,7 +165,7 @@ func TestMain(m *testing.M) {
 func TestRpcServer(t *testing.T) {
 	for _, testCase := range rpcTestCases {
 		testName := funcName(testCase)
-		fmt.Printf("Starting test %s\n", testName)
+		// fmt.Printf("Starting test %s\n", testName)
 		testCase(harnesses[testName], t)
 	}
 }
@@ -774,7 +778,7 @@ func testListUnspent(r *Harness, t *testing.T) {
 		t.Fatal("Failed to extract addresses from PkScript.")
 	}
 	// This may be helpful to debug ListUnspentResult Address field
-	t.Log(addrs)
+	//t.Log(addrs)
 
 	// List with all of the above address
 	listAddressesKnown, err := wcl.ListUnspentMinMaxAddresses(1, defaultMaxConf, addrs)
@@ -788,8 +792,7 @@ func testListUnspent(r *Harness, t *testing.T) {
 		t.Fatalf("Failed to find expected UTXOs with addresses.")
 	}
 
-	// Make sure each found output's txid is in original list (although this is
-	// not the same thing as checking if the output is there)
+	// Make sure each found output's txid:vout is in original list
 	var foundTxID = false
 	for _, listRes := range listAddressesKnown {
 		// Get a OutPoint string in the form of hash:index
@@ -809,7 +812,7 @@ func testListUnspent(r *Harness, t *testing.T) {
 		t.Fatal("Original TxID not found in list by addresses.")
 	}
 
-	// SendFromMinConf 1000 to addr
+	// SendFromMinConf to addr
 	amountToSend := dcrutil.Amount(700000000)
 	txid, err := wcl.SendFromMinConf("default", addr, amountToSend, 0)
 	if err != nil {
@@ -834,7 +837,7 @@ func testListUnspent(r *Harness, t *testing.T) {
 		// Outpoint.String() appends :index to the hash
 		txInIDs[prevOut.String()] = dcrutil.Amount(txIn.ValueIn).ToCoin()
 	}
-	t.Log("Number of TxIns: ", len(txInIDs))
+	//t.Log("Number of TxIns: ", len(txInIDs))
 
 	// First check to make sure we see these in the UTXO list prior to send,
 	// then not in the UTXO list after send.
@@ -843,7 +846,7 @@ func testListUnspent(r *Harness, t *testing.T) {
 			t.Fatalf("Failed to find txid %v (%v DCR) in list of UTXOs",
 				txinID, amt)
 		}
-		// TODO: Is there a value/amount check?
+		// TODO: Is there a useful value/amount check?
 	}
 
 	// Validate the send Tx with 2 new blocks
@@ -885,7 +888,7 @@ func testSendToAddress(r *Harness, t *testing.T) {
 		t.Fatalf("GetBalanceMinConfType failed: %v", err)
 	}
 
-	// SendFromMinConf 1000 to addr
+	// SendToAddress
 	txid, err := wcl.SendToAddress(addr, 1000000)
 	if err != nil {
 		t.Fatalf("SendToAddress failed: %v", err)
@@ -1211,7 +1214,8 @@ func testListTransactions(r *Harness, t *testing.T) {
 		t.Fatal("ListTransactionsCount failed:", err)
 	}
 
-	// Verify that only one returned (a PoW coinbase)
+	// Verify that only one returned (a PoW coinbase since this is a fresh
+	// harness with only blocks generated and no other transactions).
 	if len(txList1) != 1 {
 		t.Fatalf("Transaction list not len=1: %d", len(txList1))
 	}
@@ -1248,7 +1252,8 @@ func testListTransactions(r *Harness, t *testing.T) {
 		t.Fatal(`txtype not "regular".`)
 	}
 
-	// Should only show validated (confirmations>=2) coinbase tx?
+	// ListUnspent only shows validated (confirmations>=2) coinbase tx, so the
+	// first result should have 2 confirmations.
 	if txList1[0].Confirmations != 2 {
 		t.Fatalf("Latest coinbase tx listed has %v confirmations, expected 2.",
 			txList1[0].Confirmations)
@@ -1277,9 +1282,8 @@ func testListTransactions(r *Harness, t *testing.T) {
 			txList1[0].Amount, voutAmt)
 	}
 
-	// Test number of transactions.  With only coinbase in this harness,
+	// Test number of transactions (count).  With only coinbase in this harness,
 	// length of result slice should be equal to number requested.
-	// List latest transaction
 	txList2, err := wcl.ListTransactionsCount("*", 2)
 	if err != nil {
 		t.Fatal("ListTransactionsCount failed:", err)
@@ -1290,7 +1294,7 @@ func testListTransactions(r *Harness, t *testing.T) {
 		t.Fatalf("Expected 2 transactions, got %v", len(txList2))
 	}
 
-	// List all transactions via large number
+	// List all transactions
 	txListAllInit, err := wcl.ListTransactionsCount("*", 9999999)
 	if err != nil {
 		t.Fatal("ListTransactionsCount failed:", err)
@@ -1332,8 +1336,9 @@ func testListTransactions(r *Harness, t *testing.T) {
 	// spend should be lower in the list.
 	var sendResult, recvResult dcrjson.ListTransactionsResult
 	if txListAll[0].Category == txListAll[1].Category {
-		t.Fatal("Expected one send and one receive, got", txListAll[0].Category)
+		t.Fatal("Expected one send and one receive, got two", txListAll[0].Category)
 	}
+	// Use a map since order doesn't matter, and keys are not duplicate
 	rxtxResults := map[string]dcrjson.ListTransactionsResult{
 		txListAll[0].Category: txListAll[0],
 		txListAll[1].Category: txListAll[1],
@@ -1855,6 +1860,7 @@ func getBalances(account string, balanceTypes []string, minConf int,
 	return balances
 }
 
+// includesTx checks if a block contains a transaction hash
 func includesTx(txHash *chainhash.Hash, block *dcrutil.Block,
 	r *Harness, t *testing.T) bool {
 
@@ -1874,6 +1880,8 @@ func includesTx(txHash *chainhash.Hash, block *dcrutil.Block,
 	return false
 }
 
+// getWireMsgTxFee computes the effective absolute fee from a Tx as the amount
+// spent minus sent.
 func getWireMsgTxFee(tx *dcrutil.Tx) dcrutil.Amount {
 	var totalSpent int64
 	for _, txIn := range tx.MsgTx().TxIn {
@@ -1888,6 +1896,8 @@ func getWireMsgTxFee(tx *dcrutil.Tx) dcrutil.Amount {
 	return dcrutil.Amount(totalSpent - totalSent)
 }
 
+// getOutPointString uses OutPoint.String() to combine the tx hash with vout
+// index from a ListUnspentResult.
 func getOutPointString(utxo *dcrjson.ListUnspentResult) (string, error) {
 	txhash, err := chainhash.NewHashFromStr(utxo.TxID)
 	if err != nil {
