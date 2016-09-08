@@ -18,7 +18,6 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	//"github.com/decred/dcrwallet/chain"
 
 	rpc "github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
@@ -207,7 +206,7 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	// Connect walletClient so we can get the mining address
 	var walletClient *rpc.Client
 	walletRPCConf := h.wallet.config.rpcConnConfig()
-	for i := 0; i < 2000; i++ {
+	for i := 0; i < 400; i++ {
 		if walletClient, err = rpc.New(&walletRPCConf, nil); err != nil {
 			time.Sleep(time.Duration(math.Log(float64(i+3))) * 50 * time.Millisecond)
 			continue
@@ -228,9 +227,6 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 			time.Sleep(time.Duration(math.Log(float64(i+3))) * 50 * time.Millisecond)
 			continue
 		}
-		if err != nil {
-			fmt.Printf("Got miningaddr after %v retries.\n", i)
-		}
 		break
 	}
 	if miningAddr == nil {
@@ -243,7 +239,7 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	miningArg := fmt.Sprintf("--miningaddr=%s", miningAddr)
 	extraArgs = append(extraArgs, miningArg)
 
-	// Shutdown
+	// Shutdown node so we can restart it with --miningaddr
 	if err := h.node.Shutdown(); err != nil {
 		return err
 	}
@@ -261,8 +257,8 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	if err != nil {
 		return err
 	}
-
 	h.node = node
+
 	// Restart node with mining address set
 	if err = h.node.Start(); err != nil {
 		return err
@@ -285,6 +281,8 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	}
 
 	// Wait for the wallet to sync up to the current height.
+	// TODO: Figure out why this is the longest wait, about 60 sec, when it
+	// should be almost immediate.
 	fmt.Println("Waiting for wallet to sync to current height.")
 	ticker := time.NewTicker(time.Millisecond * 500)
 	desiredHeight := int64(numMatureOutputs + uint32(h.ActiveNet.CoinbaseMaturity))
@@ -360,7 +358,7 @@ func (h *Harness) connectRPCClient() error {
 	}
 
 	if client == nil {
-		return fmt.Errorf("connection timedout")
+		return fmt.Errorf("Connection timedout, err: %v\n", err)
 	}
 
 	err = client.NotifyBlocks()
