@@ -28,7 +28,7 @@ namespace Launcher.ViewModels
             {
                 App.Current.LaunchConcensusServer(out rxPipe, out txPipe);
                 await HandleLifetimeEvents();
-            });
+            }).ContinueWith(App.Current.ExitIfFailed);
         }
 
         AnonymousPipeServerStream rxPipe = null, txPipe = null;

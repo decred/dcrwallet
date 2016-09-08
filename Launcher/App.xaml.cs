@@ -87,6 +87,20 @@ namespace Launcher
             _consensusServerProcess?.KillIfExecuting();
         }
 
+        public void ExitIfFailed(Task t)
+        {
+            if (t.Exception != null)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MainWindow.Hide();
+                    MessageBox.Show(t.Exception.ToString());
+                    UncleanShutdown();
+                    Shutdown(1);
+                });
+            }
+        }
+
         public void LaunchConcensusServer(out AnonymousPipeServerStream rx, out AnonymousPipeServerStream tx)
         {
             if (Interlocked.Exchange(ref _consensusServerStarted, 1) != 0)
