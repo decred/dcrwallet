@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"os"
 	"reflect"
 	"regexp"
@@ -28,9 +27,6 @@ import (
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/wallet"
 )
-
-// Tolerance on absolte difference in fee rate (set-actual)
-var absFeeDiffTolerance = 0.0005
 
 type rpcTestCase func(r *Harness, t *testing.T)
 
@@ -1542,9 +1538,9 @@ func testGetSetRelayFee(r *Harness, t *testing.T) {
 	fee := getWireMsgTxFee(rawTx)
 	feeRate := fee.ToCoin() / float64(rawTx.MsgTx().SerializeSize()) * 1000
 
-	// Compare set vs. actual within a Tolerance
+	// Ensure actual fee is at least nominal
 	t.Logf("Set relay fee: %v, actual: %v", walletInfo.TxFee, feeRate)
-	if math.Abs(walletInfo.TxFee-feeRate) > absFeeDiffTolerance {
+	if feeRate < walletInfo.TxFee {
 		t.Errorf("Regular tx fee rate difference (actual-set) too high: %v",
 			walletInfo.TxFee-feeRate)
 	}
@@ -1636,9 +1632,9 @@ func testGetSetTicketFee(r *Harness, t *testing.T) {
 	fee := getWireMsgTxFee(rawTx)
 	feeRate := fee.ToCoin() / float64(rawTx.MsgTx().SerializeSize()) * 1000
 
-	// Compare set vs actual within a tolerance
+	// Ensure actual fee is at least nominal
 	t.Logf("Set ticket fee: %v, actual: %v", nominalTicketFee, feeRate)
-	if math.Abs(nominalTicketFee-feeRate) > absFeeDiffTolerance {
+	if feeRate < nominalTicketFee {
 		t.Errorf("Ticket fee rate difference (actual-set) too high: %v",
 			nominalTicketFee-feeRate)
 	}
@@ -1803,7 +1799,8 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 			err.(*dcrjson.RPCError).Message {
 			t.Fatal(err)
 		}
-		curBlockHeight, _, _ = newBlockAt(curBlockHeight, r, t)
+		curBlockHeight, _, _ = newBlockAtQuick(curBlockHeight, r, t)
+		time.Sleep(600 * time.Millisecond)
 	}
 
 	// TODO: test pool fees
@@ -1817,13 +1814,20 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 
 func newBlockAt(currentHeight uint32, r *Harness,
 	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash) {
+	height, block, blockHashes := newBlockAtQuick(currentHeight, r, t)
+
+	time.Sleep(1500 * time.Millisecond)
+
+	return height, block, blockHashes
+}
+
+func newBlockAtQuick(currentHeight uint32, r *Harness,
+	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash) {
 
 	blockHashes, err := r.GenerateBlock(currentHeight)
 	if err != nil {
 		t.Fatalf("Unable to generate single block: %v", err)
 	}
-
-	time.Sleep(1500 * time.Millisecond)
 
 	block, err := r.Node.GetBlock(blockHashes[0])
 	if err != nil {
