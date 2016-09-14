@@ -17,6 +17,8 @@ import (
 	"time"
 
 	//"github.com/davecgh/go-spew/spew"
+	"github.com/decred/dcrd/blockchain"
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
@@ -43,7 +45,12 @@ var rpcTestCases = []rpcTestCase{
 	testListTransactions,
 	testGetSetRelayFee,
 	testGetSetTicketFee,
+	testGetTickets,
 	testPurchaseTickets,
+	//testGetSetTicketMaxPrice,
+	//testGetSetBalanceToMaintain,
+	//testGetStakeInfo,
+	//testWalletinfo,
 }
 
 // Not all tests need their own harness. Indicate here which get a dedicaed
@@ -51,18 +58,23 @@ var rpcTestCases = []rpcTestCase{
 var primaryHarness *Harness
 var harnesses = make(map[string]*Harness)
 var needOwnHarness = map[string]bool{
-	"testGetNewAddress":    false,
-	"testValidateAddress":  false,
-	"testWalletPassphrase": false,
-	"testGetBalance":       false,
-	"testListAccounts":     false,
-	"testListUnspent":      false,
-	"testSendToAddress":    false,
-	"testSendFrom":         false,
-	"testListTransactions": true,
-	"testGetSetRelayFee":   false,
-	"testGetSetTicketFee":  false,
-	"testPurchaseTickets":  false,
+	"testGetNewAddress":           false,
+	"testValidateAddress":         false,
+	"testWalletPassphrase":        false,
+	"testGetBalance":              false,
+	"testListAccounts":            false,
+	"testListUnspent":             false,
+	"testSendToAddress":           false,
+	"testSendFrom":                false,
+	"testListTransactions":        true,
+	"testGetSetRelayFee":          false,
+	"testGetSetTicketFee":         false,
+	"testPurchaseTickets":         false,
+	"testGetTickets":              false,
+	"testGetSetTicketMaxPrice":    false,
+	"testGetSetBalanceToMaintain": false,
+	"testGetStakeInfo":            false,
+	"testWalletinfo":              false,
 }
 
 // Get function name from module name
@@ -1653,6 +1665,41 @@ func testGetSetTicketFee(r *Harness, t *testing.T) {
 
 	// Validate last tx before we complete
 	newBestBlock(r, t)
+}
+
+func testGetTickets(r *Harness, t *testing.T) {
+	// Wallet.purchaseTicket() in wallet/createtx.go
+
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	ticketHashes, err := wcl.GetTickets(false)
+	if err != nil {
+		t.Fatal("GetTickets failed:", err)
+	}
+
+	numTickets := len(ticketHashes)
+	if numTickets == 0 {
+		t.Fatal("No tickets returned by GetTickets")
+	}
+
+	for _, hash := range ticketHashes {
+		tx, err := wcl.GetRawTransaction(hash)
+		if err != nil {
+			t.Fatalf("Invalid transaction %v: %v", tx, err)
+		}
+
+		isSSTx, err := stake.IsSStx(tx)
+		if err != nil {
+			t.Fatal("IsSSTx failed:", err)
+		}
+
+		if !isSSTx {
+			t.Fatal("Ticket hash is not for a SSTx.")
+		}
+
+		t.Log(blockchain.DebugMsgTxString(tx.MsgTx()))
+	}
 }
 
 func testPurchaseTickets(r *Harness, t *testing.T) {
