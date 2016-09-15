@@ -1623,9 +1623,9 @@ func testGetSetTicketFee(r *Harness, t *testing.T) {
 	hashes, err := wcl.PurchaseTicket("default", 100000000,
 		&minConf, nil, &numTicket, nil, nil, nil)
 	if err != nil {
-		t.Fatal("Unable to purchase with nil ticketAddr:", err)
+		t.Fatal("Unable to purchase ticket:", err)
 	}
-	if len(hashes) != 1 {
+	if len(hashes) != numTicket {
 		t.Fatal("More than one tx hash returned. Expected one.")
 	}
 
@@ -1673,32 +1673,82 @@ func testGetTickets(r *Harness, t *testing.T) {
 	// Wallet RPC client
 	wcl := r.WalletRPC
 
+	// Initial number of mature (live) tickets
 	ticketHashes, err := wcl.GetTickets(false)
 	if err != nil {
 		t.Fatal("GetTickets failed:", err)
 	}
+	numTicketsInitLive := len(ticketHashes)
 
-	numTickets := len(ticketHashes)
-	if numTickets == 0 {
-		t.Fatal("No tickets returned by GetTickets")
+	// Initial number of immature (not live) and unconfirmed (unmined) tickets
+	ticketHashes, err = wcl.GetTickets(true)
+	if err != nil {
+		t.Fatal("GetTickets failed:", err)
 	}
 
+	numTicketsInit := len(ticketHashes)
+
+	// Purchase 2 tickets
+	minConf, numTicketsPurchased := 1, 2
+	hashes, err := wcl.PurchaseTicket("default", 100000000,
+		&minConf, nil, &numTicketsPurchased, nil, nil, nil)
+	if err != nil {
+		t.Fatal("Unable to purchase tickets:", err)
+	}
+	if len(hashes) != numTicketsPurchased {
+		t.Fatalf("Expected %v ticket hashes, got %v.", numTicketsPurchased,
+			len(hashes))
+	}
+
+	// Verify GetTickets(true) sees these unconfirmed SSTx
+	ticketHashes, err = wcl.GetTickets(true)
+	if err != nil {
+		t.Fatal("GetTickets failed:", err)
+	}
+
+	if numTicketsInit+numTicketsPurchased != len(ticketHashes) {
+		t.Fatal("GetTickets(true) did not include unmined tickets")
+	}
+
+	// Ensure that there are more total tickets than live tickets
+	if len(ticketHashes) <= numTicketsInitLive {
+		t.Fatalf("Number of live tickets (%d) not less than total tickets (%d).",
+			numTicketsInitLive, len(ticketHashes))
+	}
+
+	// Mine the split tx and THEN stake submission itself
+	newBestBlock(r, t)
+	_, block, _ := newBestBlock(r, t)
+	//time.Sleep(2 * time.Second)
+
+	// Verify stake submissions were mined
+	for _, hash := range hashes {
+		if !includesStakeTx(hash, block, r, t) {
+			t.Errorf("SSTx expected, not found in block %v.", block.Height())
+		}
+		// rtx, _ := wcl.GetRawTransactionVerbose(hash)
+		// t.Log(rtx.BlockHeight)
+	}
+
+	// Verify each SSTx hash
 	for _, hash := range ticketHashes {
 		tx, err := wcl.GetRawTransaction(hash)
 		if err != nil {
 			t.Fatalf("Invalid transaction %v: %v", tx, err)
 		}
 
+		// Ensure result is a SSTx
 		isSSTx, err := stake.IsSStx(tx)
 		if err != nil {
 			t.Fatal("IsSSTx failed:", err)
 		}
 
 		if !isSSTx {
+			t.Log(blockchain.DebugMsgTxString(tx.MsgTx()))
 			t.Fatal("Ticket hash is not for a SSTx.")
 		}
+		//t.Log(blockchain.DebugMsgTxString(tx.MsgTx()))
 
-		t.Log(blockchain.DebugMsgTxString(tx.MsgTx()))
 	}
 }
 
@@ -1936,7 +1986,29 @@ func includesTx(txHash *chainhash.Hash, block *dcrutil.Block,
 
 	for _, minedTx := range blockTxs {
 		txSha := minedTx.Sha()
-		if bytes.Equal(txHash[:], txSha.Bytes()[:]) {
+		//if bytes.Equal(txHash[:], txSha.Bytes()[:]) {
+		if txHash.IsEqual(txSha) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// includesTx checks if a block contains a transaction hash
+func includesStakeTx(txHash *chainhash.Hash, block *dcrutil.Block,
+	r *Harness, t *testing.T) bool {
+
+	if len(block.STransactions()) <= 1 {
+		return false
+	}
+
+	blockTxs := block.STransactions()
+
+	for _, minedTx := range blockTxs {
+		txSha := minedTx.Sha()
+		//if bytes.Equal(txHash[:], txSha.Bytes()[:]) {
+		if txHash.IsEqual(txSha) {
 			return true
 		}
 	}
