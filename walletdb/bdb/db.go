@@ -71,9 +71,17 @@ func (tx *transaction) ReadWriteBucket(key []byte) walletdb.ReadWriteBucket {
 func (tx *transaction) CreateTopLevelBucket(key []byte) (walletdb.ReadWriteBucket, error) {
 	boltBucket, err := tx.boltTx.CreateBucket(key)
 	if err != nil {
-		return nil, err
+		return nil, convertErr(err)
 	}
 	return (*bucket)(boltBucket), nil
+}
+
+func (tx *transaction) DeleteTopLevelBucket(key []byte) error {
+	err := tx.boltTx.DeleteBucket(key)
+	if err != nil {
+		return convertErr(err)
+	}
+	return nil
 }
 
 // Commit commits all changes that have been made through the root bucket and
@@ -143,12 +151,12 @@ func (b *bucket) CreateBucketIfNotExists(key []byte) (walletdb.ReadWriteBucket, 
 	return (*bucket)(boltBucket), nil
 }
 
-// DeleteBucket removes a nested bucket with the given key.  Returns
+// DeleteNestedBucket removes a nested bucket with the given key.  Returns
 // ErrTxNotWritable if attempted against a read-only transaction and
 // ErrBucketNotFound if the specified bucket does not exist.
 //
 // This function is part of the walletdb.Bucket interface implementation.
-func (b *bucket) DeleteBucket(key []byte) error {
+func (b *bucket) DeleteNestedBucket(key []byte) error {
 	return convertErr((*bolt.Bucket)(b).DeleteBucket(key))
 }
 

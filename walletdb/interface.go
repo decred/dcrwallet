@@ -35,6 +35,11 @@ type ReadWriteTx interface {
 	// does not exist.  The newly-created bucket it returned.
 	CreateTopLevelBucket(key []byte) (ReadWriteBucket, error)
 
+	// DeleteTopLevelBucket deletes the top level bucket for a key.  This
+	// errors if the bucket can not be found or the key keys a single value
+	// instead of a bucket.
+	DeleteTopLevelBucket(key []byte) error
+
 	// Commit commits all changes that have been on the transaction's root
 	// buckets and all of their sub-buckets to persistent storage.
 	Commit() error
@@ -96,10 +101,10 @@ type ReadWriteBucket interface {
 	// backend.  Other errors are possible depending on the implementation.
 	CreateBucketIfNotExists(key []byte) (ReadWriteBucket, error)
 
-	// DeleteBucket removes a nested bucket with the given key.  Returns
-	// ErrTxNotWritable if attempted against a read-only transaction and
-	// ErrBucketNotFound if the specified bucket does not exist.
-	DeleteBucket(key []byte) error
+	// DeleteNestedBucket removes a nested bucket with the given key.
+	// Returns ErrTxNotWritable if attempted against a read-only transaction
+	// and ErrBucketNotFound if the specified bucket does not exist.
+	DeleteNestedBucket(key []byte) error
 
 	// Put saves the specified key/value pair to the bucket.  Keys that do
 	// not already exist are added and keys that already exist are
