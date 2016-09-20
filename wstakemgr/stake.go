@@ -1254,6 +1254,8 @@ func newStakeStore(params *chaincfg.Params, manager *waddrmgr.Manager) *StakeSto
 	}
 }
 
+// DoUpgrades performs any necessary upgrades to the stake manager contained in
+// the wallet database, namespaced by the top level bucket key namespaceKey.
 func DoUpgrades(db walletdb.DB, namespaceKey []byte) error {
 	// No upgrades
 	return nil

@@ -186,7 +186,7 @@ func (p SortableTxRecords) Less(i, j int) bool {
 }
 func (p SortableTxRecords) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 
-// pruneOldTickets prunes old stake tickets from before ticketCutoff from the
+// PruneOldTickets prunes old stake tickets from before ticketCutoff from the
 // database.
 func (s *Store) PruneOldTickets(ns walletdb.ReadWriteBucket) error {
 	ticketCutoff := s.chainParams.TimePerBlock *
@@ -376,8 +376,9 @@ type Store struct {
 	NotifyUnspent func(hash *chainhash.Hash, index uint32)
 }
 
-// DoUpgrades checks whether any upgrades are necessary and performs each
-// upgrade under its own write transaction.
+// DoUpgrades performs any necessary upgrades to the transaction history
+// contained in the wallet database, namespaced by the top level bucket key
+// namespaceKey.
 func DoUpgrades(db walletdb.DB, namespaceKey []byte) error {
 	// No upgrades
 	return nil

@@ -20,6 +20,7 @@ type UnstableAPI struct {
 	w *Wallet
 }
 
+// NewUnstableAPI allows access to unstable APIs for a wallet.
 func NewUnstableAPI(w *Wallet) UnstableAPI { return UnstableAPI{w} }
 
 // TxDetails calls wtxmgr.Store.TxDetails under a single database view transaction.

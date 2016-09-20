@@ -1452,6 +1452,7 @@ func (w *Wallet) AccountBranchAddressRange(start, end uint32, account uint32, br
 	return addrs, err
 }
 
+// PubKeyForAddress looks up the associated public key for a P2PKH address.
 func (w *Wallet) PubKeyForAddress(a dcrutil.Address) (chainec.PublicKey, error) {
 	var pubKey chainec.PublicKey
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
@@ -1470,6 +1471,8 @@ func (w *Wallet) PubKeyForAddress(a dcrutil.Address) (chainec.PublicKey, error) 
 	return pubKey, err
 }
 
+// PrivKeyForAddress looks up the associated private key for a P2PKH or P2PK
+// address.
 func (w *Wallet) PrivKeyForAddress(a dcrutil.Address) (chainec.PrivateKey, error) {
 	var privKey chainec.PrivateKey
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
@@ -1509,6 +1512,7 @@ func (w *Wallet) ExistsAddressOnChain(address dcrutil.Address) (bool, error) {
 	return w.existsAddressOnChain(address)
 }
 
+// HaveAddress returns whether the wallet is the owner of the address a.
 func (w *Wallet) HaveAddress(a dcrutil.Address) (bool, error) {
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
@@ -1536,6 +1540,7 @@ func (w *Wallet) AccountOfAddress(a dcrutil.Address) (uint32, error) {
 	return account, err
 }
 
+// AddressInfo returns detailed information regarding a wallet address.
 func (w *Wallet) AddressInfo(a dcrutil.Address) (waddrmgr.ManagedAddress, error) {
 	var managedAddress waddrmgr.ManagedAddress
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
@@ -2278,12 +2283,16 @@ func (w *Wallet) Accounts() (*AccountsResult, error) {
 	}, err
 }
 
+// AccountBalanceResult is a single result for the Wallet.AccountBalances method.
 type AccountBalanceResult struct {
 	AccountNumber  uint32
 	AccountName    string
 	AccountBalance dcrutil.Amount
 }
 
+// AccountBalances returns all accounts in the wallet and their balances.
+// Balances are determined by excluding transactions that have not met
+// requiredConfs confirmations.
 func (w *Wallet) AccountBalances(requiredConfs int32, balanceType wtxmgr.BehaviorFlags) ([]AccountBalanceResult, error) {
 	var results []AccountBalanceResult
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
@@ -3140,6 +3149,8 @@ func confirms(txHeight, curHeight int32) int32 {
 	}
 }
 
+// AccountTotalReceivedResult is a single result for the
+// Wallet.TotalReceivedForAccounts method.
 type AccountTotalReceivedResult struct {
 	AccountNumber    uint32
 	AccountName      string

@@ -2702,7 +2702,8 @@ func Open(ns walletdb.ReadBucket, pubPassphrase []byte, chainParams *chaincfg.Pa
 	return loadManager(ns, pubPassphrase, chainParams)
 }
 
-// DoUpgrades performs upgrades on the database, if necessary.
+// DoUpgrades performs any necessary upgrades to the address manager contained
+// in the wallet database, namespaced by the top level bucket key namespaceKey.
 func DoUpgrades(db walletdb.DB, namespaceKey []byte, pubPassphrase []byte,
 	chainParams *chaincfg.Params, cbs *OpenCallbacks) error {
 

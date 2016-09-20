@@ -12,6 +12,8 @@ import (
 	"github.com/decred/dcrwallet/wstakemgr"
 )
 
+// StakePoolUserInfo returns the stake pool user information for a user
+// identified by their P2SH voting address.
 func (w *Wallet) StakePoolUserInfo(userAddress dcrutil.Address) (*wstakemgr.StakePoolUser, error) {
 	switch userAddress.(type) {
 	case *dcrutil.AddressPubKeyHash: // ok

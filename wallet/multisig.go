@@ -79,7 +79,7 @@ func (w *Wallet) MakeSecp256k1MultiSigScript(secp256k1Addrs []dcrutil.Address, n
 	return txscript.MultiSigScript(secp256k1PubKeys, nRequired)
 }
 
-// ImportRedeemScript adds a P2SH redeem script to the wallet.
+// ImportP2SHRedeemScript adds a P2SH redeem script to the wallet.
 func (w *Wallet) ImportP2SHRedeemScript(script []byte) (*dcrutil.AddressScriptHash, error) {
 	var p2shAddr *dcrutil.AddressScriptHash
 	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
@@ -180,6 +180,7 @@ func (w *Wallet) FetchP2SHMultiSigOutput(outPoint *wire.OutPoint) (*P2SHMultiSig
 	return &multiSigOutput, nil
 }
 
+// FetchAllRedeemScripts returns all P2SH redeem scripts saved by the wallet.
 func (w *Wallet) FetchAllRedeemScripts() ([][]byte, error) {
 	var redeemScripts [][]byte
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
