@@ -1647,7 +1647,8 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 
-		account, err := w.Manager.LastAccount(addrmgrNs)
+		var err error
+		account, err = w.Manager.LastAccount(addrmgrNs)
 		if err != nil {
 			return err
 		}
