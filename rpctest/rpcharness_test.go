@@ -197,6 +197,7 @@ func testGetNewAddress(r *Harness, t *testing.T) {
 		t.Fatal(err)
 	}
 
+	time.Sleep(60 * time.Second)
 	// Get a new address from new "newAddressTest" account
 	addrA, err := r.WalletRPC.GetNewAddress(accountName)
 	if err != nil {

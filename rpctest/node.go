@@ -34,7 +34,7 @@ type nodeConfig struct {
 	profile    string
 	debugLevel string
 	extra      []string
-	prefix     string
+	appDataDir string
 
 	exe          string
 	endpoint     string
@@ -44,15 +44,15 @@ type nodeConfig struct {
 }
 
 // newConfig returns a nodeConfig with default values.
-func newConfig(prefix, certFile, keyFile string, extra []string) (*nodeConfig, error) {
+func newConfig(appDataDir, certFile, keyFile string, extra []string) (*nodeConfig, error) {
 	// TODO: use defaultP2pPort and defaultRPCPort instead of literals
 	a := &nodeConfig{
-		listen:    "127.0.0.1:18555",
-		rpcListen: "127.0.0.1:19556",
-		rpcUser:   "user",
-		rpcPass:   "pass",
-		extra:     extra,
-		prefix:    prefix,
+		listen:     "127.0.0.1:18555",
+		rpcListen:  "127.0.0.1:19556",
+		rpcUser:    "user",
+		rpcPass:    "pass",
+		extra:      extra,
+		appDataDir: appDataDir,
 
 		exe:      "dcrd",
 		endpoint: "ws",
@@ -69,16 +69,6 @@ func newConfig(prefix, certFile, keyFile string, extra []string) (*nodeConfig, e
 // temporary data, and log directories which must be cleaned up with a call to
 // cleanup().
 func (n *nodeConfig) setDefaults() error {
-	datadir, err := ioutil.TempDir(n.prefix, "data")
-	if err != nil {
-		return err
-	}
-	n.dataDir = datadir
-	logdir, err := ioutil.TempDir(n.prefix, "logs")
-	if err != nil {
-		return err
-	}
-	n.logDir = logdir
 	cert, err := ioutil.ReadFile(n.certFile)
 	if err != nil {
 		return err
@@ -117,10 +107,7 @@ func (n *nodeConfig) arguments() []string {
 	args = append(args, fmt.Sprintf("--rpccert=%s", n.certFile))
 	// --rpckey
 	args = append(args, fmt.Sprintf("--rpckey=%s", n.keyFile))
-	if n.dataDir != "" {
-		// --datadir
-		args = append(args, fmt.Sprintf("--datadir=%s", n.dataDir))
-	}
+	args = append(args, fmt.Sprintf("--appdata=%s", n.appDataDir))
 	if n.logDir != "" {
 		// --logdir
 		args = append(args, fmt.Sprintf("--logdir=%s", n.logDir))
@@ -159,22 +146,16 @@ func (n *nodeConfig) rpcConnConfig() rpc.ConnConfig {
 
 // String returns the string representation of this nodeConfig.
 func (n *nodeConfig) String() string {
-	return n.prefix
+	return n.appDataDir
 }
 
 // cleanup removes the tmp data and log directories.
 func (n *nodeConfig) cleanup() error {
-	dirs := []string{
-		n.logDir,
-		n.dataDir,
+	if err := os.RemoveAll(n.appDataDir); err != nil {
+		log.Printf("Cannot remove dir %s: %v", n.appDataDir, err)
+		return err
 	}
-	var err error
-	for _, dir := range dirs {
-		if err = os.RemoveAll(dir); err != nil {
-			log.Printf("Cannot remove dir %s: %v", dir, err)
-		}
-	}
-	return err
+	return nil
 }
 
 // node houses the neccessary state required to configure, launch, and manaage

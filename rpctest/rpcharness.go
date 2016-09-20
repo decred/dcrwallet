@@ -244,7 +244,7 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 		return err
 	}
 
-	config, err := newConfig(h.node.config.prefix, h.node.config.certFile,
+	config, err := newConfig(h.node.config.appDataDir, h.node.config.certFile,
 		h.node.config.keyFile, extraArgs)
 	if err != nil {
 		return err
