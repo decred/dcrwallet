@@ -1692,19 +1692,20 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 		}
 		return err
 	})
-
-	if err == nil {
-		w.NtfnServer.notifyAccountProperties(props)
-	}
-
-	// Initialize a new address pool for this account.
-	w.addrPoolsMtx.Lock()
-	defer w.addrPoolsMtx.Unlock()
-	w.addrPools[account], err = newAddressPools(account, 0, 0, w)
 	if err != nil {
 		return 0, err
 	}
 
+	w.NtfnServer.notifyAccountProperties(props)
+
+	// Initialize a new address pool for this account.
+	w.addrPoolsMtx.Lock()
+	defer w.addrPoolsMtx.Unlock()
+	pool, err := newAddressPools(account, 0, 0, w)
+	if err != nil {
+		return 0, err
+	}
+	w.addrPools[account] = pool
 	return account, nil
 }
 

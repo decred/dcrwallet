@@ -81,7 +81,7 @@ func (w *Wallet) handleChainNotifications() {
 
 // handleTicketPurchases autopurchases stake tickets for the wallet
 // if stake mining is enabled.
-func (w *Wallet) handleTicketPurchases() {
+func (w *Wallet) handleTicketPurchases(dbtx walletdb.ReadWriteTx) {
 	purchased := 0
 	attempts := 0
 
@@ -194,7 +194,7 @@ func (w *Wallet) connectBlock(dbtx walletdb.ReadWriteTx, b wtxmgr.BlockMeta) err
 	if bs.Height >= int32(w.chainParams.CoinbaseMaturity) &&
 		w.StakeMiningEnabled &&
 		!isReorganizing {
-		w.handleTicketPurchases()
+		w.handleTicketPurchases(dbtx)
 	}
 
 	// Insert the block if we haven't already through a relevant tx.
