@@ -249,12 +249,14 @@ func (n *node) Cleanup() error {
 
 // shutdown terminates the running dcrd process, and cleans up all
 // file/directories created by node.
-func (n *node) Shutdown() error {
+func (n *node) Shutdown(cleanup bool) error {
 	if err := n.Stop(); err != nil {
 		return err
 	}
-	if err := n.Cleanup(); err != nil {
-		return err
+	if cleanup {
+		if err := n.Cleanup(); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -240,7 +240,7 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	extraArgs = append(extraArgs, miningArg)
 
 	// Shutdown node so we can restart it with --miningaddr
-	if err := h.node.Shutdown(); err != nil {
+	if err := h.node.Shutdown(false); err != nil {
 		return err
 	}
 
@@ -313,7 +313,7 @@ func (h *Harness) TearDown() error {
 		h.Node.Shutdown()
 	}
 
-	if err := h.node.Shutdown(); err != nil {
+	if err := h.node.Shutdown(true); err != nil {
 		return err
 	}
 	if err := h.wallet.Shutdown(); err != nil {
