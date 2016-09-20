@@ -239,8 +239,8 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	miningArg := fmt.Sprintf("--miningaddr=%s", miningAddr)
 	extraArgs = append(extraArgs, miningArg)
 
-	// Shutdown node so we can restart it with --miningaddr
-	if err := h.node.Shutdown(false); err != nil {
+	// Stop node so we can restart it with --miningaddr
+	if err := h.node.Stop(); err != nil {
 		return err
 	}
 
@@ -313,10 +313,16 @@ func (h *Harness) TearDown() error {
 		h.Node.Shutdown()
 	}
 
-	if err := h.node.Shutdown(true); err != nil {
+	if err := h.node.Stop(); err != nil {
 		return err
 	}
-	if err := h.wallet.Shutdown(); err != nil {
+	if err := h.node.Cleanup(); err != nil {
+		return err
+	}
+	if err := h.wallet.Stop(); err != nil {
+		return err
+	}
+	if err := h.wallet.Cleanup(); err != nil {
 		return err
 	}
 
