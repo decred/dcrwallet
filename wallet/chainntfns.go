@@ -119,17 +119,20 @@ ticketPurchaseLoop:
 			break
 		}
 
-		_, err := w.PurchaseTickets(minBalance,
-			maxToPay,
-			0, // No minconf
-			w.TicketAddress(),
-			waddrmgr.DefaultAccountNum,
-			1, // One ticket at a time
-			w.PoolAddress(),
-			w.PoolFees(),
-			0, // No expiry
-			w.RelayFee(),
-			w.TicketFeeIncrement())
+		_, err := w.purchaseTicketsInternal(dbtx, purchaseTicketRequest{
+			minBalance:  minBalance,
+			spendLimit:  maxToPay,
+			minConf:     0, // No minconf
+			ticketAddr:  w.ticketAddress,
+			account:     waddrmgr.DefaultAccountNum,
+			numTickets:  1, // One ticket at a time
+			poolAddress: w.poolAddress,
+			poolFees:    w.poolFees,
+			expiry:      0, // No expiry
+			txFee:       w.RelayFee(),
+			ticketFee:   w.TicketFeeIncrement(),
+			resp:        nil, // not used, error is returned
+		})
 		if err != nil {
 			_, insufficientFunds := err.(txauthor.InsufficientFundsError)
 			switch {
