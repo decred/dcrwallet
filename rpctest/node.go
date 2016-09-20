@@ -29,8 +29,6 @@ type nodeConfig struct {
 	listen     string
 	rpcListen  string
 	rpcConnect string
-	dataDir    string
-	logDir     string
 	profile    string
 	debugLevel string
 	extra      []string
@@ -108,10 +106,6 @@ func (n *nodeConfig) arguments() []string {
 	// --rpckey
 	args = append(args, fmt.Sprintf("--rpckey=%s", n.keyFile))
 	args = append(args, fmt.Sprintf("--appdata=%s", n.appDataDir))
-	if n.logDir != "" {
-		// --logdir
-		args = append(args, fmt.Sprintf("--logdir=%s", n.logDir))
-	}
 	if n.profile != "" {
 		// --profile
 		args = append(args, fmt.Sprintf("--profile=%s", n.profile))
@@ -152,7 +146,6 @@ func (n *nodeConfig) String() string {
 // cleanup removes the tmp data and log directories.
 func (n *nodeConfig) cleanup() error {
 	if err := os.RemoveAll(n.appDataDir); err != nil {
-		log.Printf("Cannot remove dir %s: %v", n.appDataDir, err)
 		return err
 	}
 	return nil
