@@ -47,7 +47,7 @@ var rpcTestCases = []rpcTestCase{
 	testGetSetTicketFee,
 	testGetTickets,
 	testPurchaseTickets,
-	//testGetSetTicketMaxPrice,
+	testGetSetTicketMaxPrice,
 	//testGetSetBalanceToMaintain,
 	//testGetStakeInfo,
 	//testWalletinfo,
@@ -1904,6 +1904,130 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 
 	// Validate last tx
 	newBestBlock(r, t)
+}
+
+func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	// Get a known ticket address
+	ticketAddr, err := wcl.GetNewAddress("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Set various variables for the test
+	minConf := 0
+	expiry := 0
+
+	// Get current ticket max price via WalletInfo
+	walletInfoResult, err := wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("WalletInfo failed:", err)
+	}
+	maxPriceInit := walletInfoResult.TicketMaxPrice
+
+	// Get the current stake difficulty to know how low we need to set the
+	// wallet's max ticket price so that it should not purchase tickets.
+	stakeDiffResult, err := wcl.GetStakeDifficulty()
+	if err != nil {
+		t.Fatal("GetStakeDifficulty failed:", err)
+	}
+
+	// Make sure this isn't the end of a price window (or can we just use
+	// NextStakeDifficulty in all cases?)
+	if stakeDiffResult.CurrentStakeDifficulty != stakeDiffResult.NextStakeDifficulty {
+		newBestBlock(r, t)
+		stakeDiffResult, err = wcl.GetStakeDifficulty()
+		if err != nil {
+			t.Fatal("GetStakeDifficulty failed:", err)
+		}
+	}
+
+	stakeDiff := stakeDiffResult.CurrentStakeDifficulty
+
+	// Increase the ticket fee so these SSTx get mined first
+	walletInfo, _ := wcl.WalletInfo()
+	origTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee)
+	newTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
+
+	wcl.SetTicketFee(newTicketFee)
+
+	// Too low
+	lowTicketMaxPrice := stakeDiff / 2
+	lowPriceAmt, _ := dcrutil.NewAmount(lowTicketMaxPrice)
+
+	// Set ticket price to lower than current stake difficulty
+	err = wcl.SetTicketMaxPrice(lowTicketMaxPrice)
+	if err != nil {
+		t.Fatal("SetTicketMaxPrice failed:", err)
+	}
+
+	expiry = 0
+	numTickets := 1
+	// This purchase should fail
+	tooLowPriceTicketHashes, err := wcl.PurchaseTicket("default", lowPriceAmt,
+		&minConf, ticketAddr, &numTickets, nil, nil, &expiry)
+	if err == nil {
+		t.Fatalf("purchaseticket returned nil error purchasing ticket at %f,"+
+			" with max price set to %f", stakeDiff, lowTicketMaxPrice)
+	}
+
+	if len(tooLowPriceTicketHashes) > 0 {
+		t.Fatalf("Purchased %d ticket(s) at %f while max price was %f",
+			len(tooLowPriceTicketHashes), stakeDiff, lowTicketMaxPrice)
+	}
+
+	// Just high enough (max == diff + eps)
+	//stakeDiffPlusEpsilon := math.Nextafter(stakeDiff, stakeDiff+1)
+	adequateTicketMaxPrice := stakeDiff
+	adequatePriceAmt, _ := dcrutil.NewAmount(adequateTicketMaxPrice)
+
+	numTickets = 1
+	highEnoughTicketHashed, err := wcl.PurchaseTicket("default", adequatePriceAmt,
+		&minConf, ticketAddr, &numTickets, nil, nil, &expiry)
+	if err != nil {
+		t.Fatal("Unable to purchase tickets:", err)
+	}
+
+	if len(highEnoughTicketHashed) != numTickets {
+		t.Fatalf("Failed to purchase tickets at %f while max price was %f",
+			stakeDiff, adequateTicketMaxPrice)
+	}
+
+	// High enough
+	adequateTicketMaxPrice = stakeDiff * 2
+	adequatePriceAmt, _ = dcrutil.NewAmount(adequateTicketMaxPrice)
+
+	numTickets = 1
+	highEnoughTicketHashed, err = wcl.PurchaseTicket("default", adequatePriceAmt,
+		&minConf, ticketAddr, &numTickets, nil, nil, &expiry)
+	if err != nil {
+		t.Fatal("Unable to purchase tickets:", err)
+	}
+
+	if len(highEnoughTicketHashed) != numTickets {
+		t.Fatalf("Failed to purchase tickets at %f while max price was %f",
+			stakeDiff, adequateTicketMaxPrice)
+	}
+
+	// Mine 2 blocks, the first including the split tx and the second including
+	// stakesubmission
+	newBestBlock(r, t)
+	newBestBlock(r, t)
+
+	// Check for the ticket
+	_, err = wcl.GetTransaction(highEnoughTicketHashed[0])
+	if err != nil {
+		t.Fatal("Ticket not found:", err)
+	}
+
+	// reset ticket fee and max price
+	wcl.SetTicketFee(origTicketFee)
+	err = wcl.SetTicketMaxPrice(maxPriceInit)
+	if err != nil {
+		t.Fatal("SetTicketMaxPrice failed:", err)
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
