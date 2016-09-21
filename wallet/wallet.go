@@ -993,31 +993,13 @@ out:
 				txr.resp <- createSStxResponse{nil, err}
 				continue
 			}
-
-			// Initialize the address pool for use.
-			pool := w.getAddressPools(waddrmgr.DefaultAccountNum).internal
-			pool.mutex.Lock()
-			addrFunc := pool.getNewAddress
-
 			tx, err := w.txToSStx(txr.pair,
 				txr.usedInputs,
 				txr.inputs,
 				txr.couts,
 				waddrmgr.DefaultAccountNum,
-				addrFunc,
 				txr.minconf)
-			if err == nil {
-				err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-					addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-					pool.BatchFinish(addrmgrNs)
-					return nil
-				})
-			} else {
-				pool.BatchRollback()
-			}
-			pool.mutex.Unlock()
 			heldUnlock.release()
-
 			txr.resp <- createSStxResponse{tx, err}
 
 		case txr := <-w.createSSGenRequests:

@@ -346,13 +346,14 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 		pool = w.getAddressPools(account).internal
 	}
 
-	// TODO: Yes this looks suspicious but it's a simplification of what the
-	// code before it was doing.  Stop copy pasting code carelessly!
-	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
-	defer pool.BatchRollback()
-
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		// TODO: Yes this looks suspicious but it's a simplification of
+		// what the code before it was doing.  Stop copy pasting code
+		// carelessly!
+		pool.mutex.Lock()
+		defer pool.mutex.Unlock()
+		defer pool.BatchRollback()
+
 		var err error
 		atx, err = w.txToOutputsInternal(dbtx, outputs, account,
 			minconf, pool, chainClient, randomizeChangeIdx,
@@ -1354,9 +1355,35 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 // enough eligible unspent outputs to create the transaction.
 func (w *Wallet) txToSStx(pair map[string]dcrutil.Amount,
 	inputCredits []wtxmgr.Credit, inputs []dcrjson.SStxInput,
-	payouts []dcrjson.SStxCommitOut, account uint32,
-	addrFunc func(addrmgrNs walletdb.ReadWriteBucket) (dcrutil.Address, error), minconf int32) (*CreatedTx,
-	error) {
+	payouts []dcrjson.SStxCommitOut, account uint32, minconf int32) (*CreatedTx, error) {
+
+	var tx *CreatedTx
+	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		var err error
+		tx, err = w.txToSStxInternal(dbtx, pair, inputCredits, inputs,
+			payouts, account, minconf)
+		return err
+	})
+	return tx, err
+}
+
+func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcrutil.Amount,
+	inputCredits []wtxmgr.Credit, inputs []dcrjson.SStxInput,
+	payouts []dcrjson.SStxCommitOut, account uint32, minconf int32) (tx *CreatedTx, err error) {
+
+	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
+
+	pool := w.getAddressPools(waddrmgr.DefaultAccountNum).internal
+	pool.mutex.Lock()
+	addrFunc := pool.getNewAddress
+	defer func() {
+		if err == nil {
+			pool.BatchFinish(addrmgrNs)
+		} else {
+			pool.BatchRollback()
+		}
+		pool.mutex.Unlock()
+	}()
 
 	chainClient, err := w.requireChainClient()
 	if err != nil {
@@ -1442,12 +1469,8 @@ func (w *Wallet) txToSStx(pair map[string]dcrutil.Amount,
 		var addr dcrutil.Address
 
 		if payouts[i].Addr == "" {
-			err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-				addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-				var err error
-				addr, err = addrFunc(addrmgrNs)
-				return err
-			})
+			var err error
+			addr, err = addrFunc(addrmgrNs)
 			if err != nil {
 				return nil, err
 			}
@@ -1488,12 +1511,8 @@ func (w *Wallet) txToSStx(pair map[string]dcrutil.Amount,
 
 		// Add change to txouts.
 		if payouts[i].ChangeAddr == "" {
-			err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-				addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-				var err error
-				changeAddr, err = addrFunc(addrmgrNs)
-				return err
-			})
+			var err error
+			changeAddr, err = addrFunc(addrmgrNs)
 			if err != nil {
 				return nil, err
 			}

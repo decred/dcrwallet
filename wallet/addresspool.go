@@ -525,26 +525,26 @@ func (w *Wallet) SyncAddressPoolIndex(account uint32, branch uint32, index uint3
 // NewAddress checks the address pools and then attempts to return a new
 // address for the account and branch requested.
 func (w *Wallet) NewAddress(account uint32, branch uint32) (dcrutil.Address, error) {
-	err := w.CheckAddressPoolsInitialized(account)
-	if err != nil {
-		return nil, err
-	}
-
-	var addrPool *addressPool
-	switch branch {
-	case waddrmgr.ExternalBranch:
-		addrPool = w.getAddressPools(account).external
-	case waddrmgr.InternalBranch:
-		addrPool = w.getAddressPools(account).internal
-	default:
-		return nil, fmt.Errorf("new address failed; unknown branch number %v",
-			branch)
-	}
-
 	var address dcrutil.Address
-	err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 		waddrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-		var err error
+
+		err := w.CheckAddressPoolsInitialized(account)
+		if err != nil {
+			return err
+		}
+
+		var addrPool *addressPool
+		switch branch {
+		case waddrmgr.ExternalBranch:
+			addrPool = w.getAddressPools(account).external
+		case waddrmgr.InternalBranch:
+			addrPool = w.getAddressPools(account).internal
+		default:
+			return fmt.Errorf("new address failed; unknown branch number %v",
+				branch)
+		}
+
 		address, err = addrPool.GetNewAddress(waddrmgrNs)
 		return err
 	})
