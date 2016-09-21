@@ -312,19 +312,11 @@ func (w *Wallet) insertMultisigOutIntoTxMgr(ns walletdb.ReadWriteBucket, msgTx *
 	return w.TxStore.AddMultisigOut(ns, rec, nil, index)
 }
 
-// TxToOutputs is the exported version of txToOutputs that does all relevant
-// locking to ensure the safety of the wallet state to generate a transaction.
-// It then calls txToOutputs to generate a transaction.
-func (w *Wallet) TxToOutputs(outputs []*wire.TxOut, account uint32, minconf int32,
+// txToOutputs creates a transaction, selecting previous outputs from an account
+// with no less than minconf confirmations, and creates a signed transaction
+// that pays to each of the outputs.
+func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int32,
 	randomizeChangeIdx bool) (atx *txauthor.AuthoredTx, err error) {
-	// Address manager must be unlocked to compose transaction.  Grab
-	// the unlock if possible (to prevent future unlocks), or return the
-	// error if already locked.
-	heldUnlock, err := w.HoldUnlock()
-	if err != nil {
-		return nil, err
-	}
-	defer heldUnlock.Release()
 
 	chainClient, err := w.requireChainClient()
 	if err != nil {
@@ -355,32 +347,33 @@ func (w *Wallet) TxToOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 	}
 
 	// TODO: Yes this looks suspicious but it's a simplification of what the
-	// code before it was doing.  Stop copy pasting code carelessly.
+	// code before it was doing.  Stop copy pasting code carelessly!
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 	defer pool.BatchRollback()
 
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		var err error
-		atx, err = w.txToOutputs(dbtx, outputs, account, minconf, pool,
-			chainClient, randomizeChangeIdx, w.RelayFee())
+		atx, err = w.txToOutputsInternal(dbtx, outputs, account,
+			minconf, pool, chainClient, randomizeChangeIdx,
+			w.RelayFee())
 		return err
 	})
 	return atx, err
 }
 
-// txToOutputs creates a signed transaction which includes each output from
-// outputs.  Previous outputs to reedeem are chosen from the passed account's
-// UTXO set and minconf policy. An additional output may be added to return
-// change to the wallet.  An appropriate fee is included based on the wallet's
-// current relay fee.  The wallet must be unlocked to create the transaction.
-// The address pool passed must be locked and engaged in an address pool
-// batch call.
+// txToOutputsInternal creates a signed transaction which includes each output
+// from outputs.  Previous outputs to reedeem are chosen from the passed
+// account's UTXO set and minconf policy. An additional output may be added to
+// return change to the wallet.  An appropriate fee is included based on the
+// wallet's current relay fee.  The wallet must be unlocked to create the
+// transaction.  The address pool passed must be locked and engaged in an
+// address pool batch call.
 //
 // Decred: This func also sends the transaction, and if successful, inserts it
 // into the database, rather than delegating this work to the caller as
 // btcwallet does.
-func (w *Wallet) txToOutputs(dbtx walletdb.ReadWriteTx, outputs []*wire.TxOut,
+func (w *Wallet) txToOutputsInternal(dbtx walletdb.ReadWriteTx, outputs []*wire.TxOut,
 	account uint32, minconf int32, pool *addressPool, chainClient *chain.RPCClient,
 	randomizeChangeIdx bool, txFee dcrutil.Amount) (atx *txauthor.AuthoredTx, err error) {
 
@@ -475,9 +468,9 @@ func constructMultiSigScript(keys []dcrutil.AddressSecpPubKey,
 	return txscript.MultiSigScript(keysesPrecious, nRequired)
 }
 
-// TxToMultisig spends funds to a multisig output, partially signs the
+// txToMultisig spends funds to a multisig output, partially signs the
 // transaction, then returns fund
-func (w *Wallet) TxToMultisig(account uint32, amount dcrutil.Amount,
+func (w *Wallet) txToMultisig(account uint32, amount dcrutil.Amount,
 	pubkeys []*dcrutil.AddressSecpPubKey, nRequired int8,
 	minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
 
@@ -488,14 +481,14 @@ func (w *Wallet) TxToMultisig(account uint32, amount dcrutil.Amount,
 	)
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		var err error
-		ctx, addr, msScript, err = w.txToMultisig(dbtx, account, amount,
-			pubkeys, nRequired, minconf)
+		ctx, addr, msScript, err = w.txToMultisigInternal(dbtx,
+			account, amount, pubkeys, nRequired, minconf)
 		return err
 	})
 	return ctx, addr, msScript, err
 }
 
-func (w *Wallet) txToMultisig(dbtx walletdb.ReadWriteTx, account uint32,
+func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	amount dcrutil.Amount, pubkeys []*dcrutil.AddressSecpPubKey, nRequired int8,
 	minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
 
@@ -540,15 +533,6 @@ func (w *Wallet) txToMultisig(dbtx walletdb.ReadWriteTx, account uint32,
 	if isReorganizing {
 		return txToMultisigError(err)
 	}
-
-	// Address manager must be unlocked to compose transaction.  Grab
-	// the unlock if possible (to prevent future unlocks), or return the
-	// error if already locked.
-	heldUnlock, err := w.HoldUnlock()
-	if err != nil {
-		return txToMultisigError(err)
-	}
-	defer heldUnlock.Release()
 
 	// Get current block's height and hash.
 	bs, err := chainClient.BlockStamp()
@@ -712,19 +696,19 @@ func validateMsgTxCredits(tx *wire.MsgTx, prevCredits []wtxmgr.Credit) error {
 	return validateMsgTx(tx, prevScripts)
 }
 
-// CompressWallet compresses all the utxos in a wallet into a single change
+// compressWallet compresses all the utxos in a wallet into a single change
 // address. For use when it becomes dusty.
-func (w *Wallet) CompressWallet(maxNumIns int, account uint32, changeAddr dcrutil.Address) (*chainhash.Hash, error) {
+func (w *Wallet) compressWallet(maxNumIns int, account uint32, changeAddr dcrutil.Address) (*chainhash.Hash, error) {
 	var hash *chainhash.Hash
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		var err error
-		hash, err = w.compressWallet(dbtx, maxNumIns, account, changeAddr)
+		hash, err = w.compressWalletInternal(dbtx, maxNumIns, account, changeAddr)
 		return err
 	})
 	return hash, err
 }
 
-func (w *Wallet) compressWallet(dbtx walletdb.ReadWriteTx, maxNumIns int, account uint32,
+func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int, account uint32,
 	changeAddr dcrutil.Address) (*chainhash.Hash, error) {
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
@@ -1022,15 +1006,6 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 	}
 	pool = w.getAddressPools(req.account).internal
 
-	// Address manager must be unlocked to compose tickets.  Grab
-	// the unlock if possible (to prevent future unlocks), or return the
-	// error if already locked.
-	heldUnlock, err := w.HoldUnlock()
-	if err != nil {
-		return nil, err
-	}
-	defer heldUnlock.Release()
-
 	// Fire up the address pool for usage in generating tickets.
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
@@ -1209,7 +1184,7 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 	if txFeeIncrement == 0 {
 		txFeeIncrement = w.RelayFee()
 	}
-	splitTx, err := w.txToOutputs(dbtx, splitOuts, account, req.minConf, pool,
+	splitTx, err := w.txToOutputsInternal(dbtx, splitOuts, account, req.minConf, pool,
 		chainClient, false, txFeeIncrement)
 	if err != nil {
 		return nil, err
@@ -1393,15 +1368,6 @@ func (w *Wallet) txToSStx(pair map[string]dcrutil.Amount,
 	if isReorganizing {
 		return nil, ErrBlockchainReorganizing
 	}
-
-	// Address manager must be unlocked to compose transaction.  Grab
-	// the unlock if possible (to prevent future unlocks), or return the
-	// error if already locked.
-	heldUnlock, err := w.HoldUnlock()
-	if err != nil {
-		return nil, err
-	}
-	defer heldUnlock.Release()
 
 	if len(inputs) != len(payouts) {
 		return nil, fmt.Errorf("input and payout must have the same length")

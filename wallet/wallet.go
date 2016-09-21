@@ -169,7 +169,7 @@ type Wallet struct {
 	// Channels for the manager locker.
 	unlockRequests     chan unlockRequest
 	lockRequests       chan struct{}
-	holdUnlockRequests chan chan HeldUnlock
+	holdUnlockRequests chan chan heldUnlock
 	lockState          chan bool
 	changePassphrase   chan changePassphraseRequest
 
@@ -238,7 +238,7 @@ func newWallet(vb uint16, esm bool, btm dcrutil.Amount, addressReuse bool,
 		rollbackBlockDB:          rollbackBlockDB,
 		unlockRequests:           make(chan unlockRequest),
 		lockRequests:             make(chan struct{}),
-		holdUnlockRequests:       make(chan chan HeldUnlock),
+		holdUnlockRequests:       make(chan chan heldUnlock),
 		lockState:                make(chan bool),
 		changePassphrase:         make(chan changePassphraseRequest),
 		chainParams:              params,
@@ -955,19 +955,45 @@ out:
 	for {
 		select {
 		case txr := <-w.consolidateRequests:
-			txh, err := w.CompressWallet(txr.inputs, txr.account, txr.address)
+			heldUnlock, err := w.holdUnlock()
+			if err != nil {
+				txr.resp <- consolidateResponse{nil, err}
+				continue
+			}
+			txh, err := w.compressWallet(txr.inputs, txr.account, txr.address)
+			heldUnlock.release()
 			txr.resp <- consolidateResponse{txh, err}
 
 		case txr := <-w.createTxRequests:
-			tx, err := w.TxToOutputs(txr.outputs, txr.account, txr.minconf, true)
+			heldUnlock, err := w.holdUnlock()
+			if err != nil {
+				txr.resp <- createTxResponse{nil, err}
+				continue
+			}
+			tx, err := w.txToOutputs(txr.outputs, txr.account,
+				txr.minconf, true)
+			heldUnlock.release()
 			txr.resp <- createTxResponse{tx, err}
 
 		case txr := <-w.createMultisigTxRequests:
-			tx, address, redeemScript, err := w.TxToMultisig(txr.account,
+			heldUnlock, err := w.holdUnlock()
+			if err != nil {
+				txr.resp <- createMultisigTxResponse{nil, nil, nil, err}
+				continue
+			}
+			tx, address, redeemScript, err := w.txToMultisig(txr.account,
 				txr.amount, txr.pubkeys, txr.nrequired, txr.minconf)
+			heldUnlock.release()
 			txr.resp <- createMultisigTxResponse{tx, address, redeemScript, err}
 
 		case txr := <-w.createSStxRequests:
+			// TODO: check locking order on this and the address pool
+			heldUnlock, err := w.holdUnlock()
+			if err != nil {
+				txr.resp <- createSStxResponse{nil, err}
+				continue
+			}
+
 			// Initialize the address pool for use.
 			pool := w.getAddressPools(waddrmgr.DefaultAccountNum).internal
 			pool.mutex.Lock()
@@ -990,22 +1016,41 @@ out:
 				pool.BatchRollback()
 			}
 			pool.mutex.Unlock()
+			heldUnlock.release()
 
 			txr.resp <- createSStxResponse{tx, err}
 
 		case txr := <-w.createSSGenRequests:
+			heldUnlock, err := w.holdUnlock()
+			if err != nil {
+				txr.resp <- createSSGenResponse{nil, err}
+				continue
+			}
 			tx, err := w.txToSSGen(txr.tickethash,
 				txr.blockhash,
 				txr.height,
 				txr.votebits)
+			heldUnlock.release()
 			txr.resp <- createSSGenResponse{tx, err}
 
 		case txr := <-w.createSSRtxRequests:
+			heldUnlock, err := w.holdUnlock()
+			if err != nil {
+				txr.resp <- createSSRtxResponse{nil, err}
+				continue
+			}
 			tx, err := w.txToSSRtx(txr.tickethash)
+			heldUnlock.release()
 			txr.resp <- createSSRtxResponse{tx, err}
 
 		case txr := <-w.purchaseTicketRequests:
+			heldUnlock, err := w.holdUnlock()
+			if err != nil {
+				txr.resp <- purchaseTicketResponse{nil, err}
+				continue
+			}
 			data, err := w.purchaseTickets(txr)
+			heldUnlock.release()
 			txr.resp <- purchaseTicketResponse{data, err}
 
 		case <-quit:
@@ -1163,18 +1208,18 @@ type (
 		err      chan error
 	}
 
-	// HeldUnlock is a tool to prevent the wallet from automatically
+	// heldUnlock is a tool to prevent the wallet from automatically
 	// locking after some timeout before an operation which needed
-	// the unlocked wallet has finished.  Any aquired HeldUnlock
+	// the unlocked wallet has finished.  Any aquired heldUnlock
 	// *must* be released (preferably with a defer) or the wallet
 	// will forever remain unlocked.
-	HeldUnlock chan struct{}
+	heldUnlock chan struct{}
 )
 
 // walletLocker manages the locked/unlocked state of a wallet.
 func (w *Wallet) walletLocker() {
 	var timeout <-chan time.Time
-	holdChan := make(HeldUnlock)
+	holdChan := make(heldUnlock)
 	quit := w.quitChan()
 out:
 	for {
@@ -1277,14 +1322,14 @@ func (w *Wallet) Locked() bool {
 	return <-w.lockState
 }
 
-// HoldUnlock prevents the wallet from being locked.  The HeldUnlock object
+// holdUnlock prevents the wallet from being locked.  The heldUnlock object
 // *must* be released, or the wallet will forever remain unlocked.
 //
 // TODO: To prevent the above scenario, perhaps closures should be passed
 // to the walletLocker goroutine and disallow callers from explicitly
 // handling the locking mechanism.
-func (w *Wallet) HoldUnlock() (HeldUnlock, error) {
-	req := make(chan HeldUnlock)
+func (w *Wallet) holdUnlock() (heldUnlock, error) {
+	req := make(chan heldUnlock)
 	w.holdUnlockRequests <- req
 	hl, ok := <-req
 	if !ok {
@@ -1298,10 +1343,10 @@ func (w *Wallet) HoldUnlock() (HeldUnlock, error) {
 	return hl, nil
 }
 
-// Release releases the hold on the unlocked-state of the wallet and allows the
+// release releases the hold on the unlocked-state of the wallet and allows the
 // wallet to be locked again.  If a lock timeout has already expired, the
-// wallet is locked again as soon as Release is called.
-func (c HeldUnlock) Release() {
+// wallet is locked again as soon as release is called.
+func (c heldUnlock) release() {
 	c <- struct{}{}
 }
 
