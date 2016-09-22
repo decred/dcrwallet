@@ -323,8 +323,10 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 		return nil, err
 	}
 
-	isReorganizing, _ := chainClient.GetReorganizing()
-	if isReorganizing {
+	w.reorganizingLock.Lock()
+	reorg := w.reorganizing
+	w.reorganizingLock.Unlock()
+	if reorg {
 		return nil, ErrBlockchainReorganizing
 	}
 
@@ -527,9 +529,11 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 		return txToMultisigError(err)
 	}
 
-	isReorganizing, _ := chainClient.GetReorganizing()
-	if isReorganizing {
-		return txToMultisigError(err)
+	w.reorganizingLock.Lock()
+	reorg := w.reorganizing
+	w.reorganizingLock.Unlock()
+	if reorg {
+		return txToMultisigError(ErrBlockchainReorganizing)
 	}
 
 	// Get current block's height and hash.
@@ -717,8 +721,10 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 		return nil, err
 	}
 
-	isReorganizing, _ := chainClient.GetReorganizing()
-	if isReorganizing {
+	w.reorganizingLock.Lock()
+	reorg := w.reorganizing
+	w.reorganizingLock.Unlock()
+	if reorg {
 		return nil, ErrBlockchainReorganizing
 	}
 
@@ -1028,8 +1034,10 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 		return nil, err
 	}
 
-	isReorganizing, _ := chainClient.GetReorganizing()
-	if isReorganizing {
+	w.reorganizingLock.Lock()
+	reorg := w.reorganizing
+	w.reorganizingLock.Unlock()
+	if reorg {
 		return nil, ErrBlockchainReorganizing
 	}
 
@@ -1382,14 +1390,11 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 		pool.mutex.Unlock()
 	}()
 
-	chainClient, err := w.requireChainClient()
-	if err != nil {
-		return nil, err
-	}
-
 	// Quit if the blockchain is reorganizing.
-	isReorganizing, _ := chainClient.GetReorganizing()
-	if isReorganizing {
+	w.reorganizingLock.Lock()
+	reorg := w.reorganizing
+	w.reorganizingLock.Unlock()
+	if reorg {
 		return nil, ErrBlockchainReorganizing
 	}
 
@@ -1576,12 +1581,10 @@ func addOutputsSStx(msgtx *wire.MsgTx,
 // DECRED TODO
 func (w *Wallet) txToSSGen(ticketHash chainhash.Hash, blockHash chainhash.Hash,
 	height int64, votebits uint16) (*CreatedTx, error) {
-	chainClient, err := w.requireChainClient()
-	if err != nil {
-		return nil, err
-	}
-	isReorganizing, _ := chainClient.GetReorganizing()
-	if isReorganizing {
+	w.reorganizingLock.Lock()
+	reorg := w.reorganizing
+	w.reorganizingLock.Unlock()
+	if reorg {
 		return nil, ErrBlockchainReorganizing
 	}
 
@@ -1591,12 +1594,10 @@ func (w *Wallet) txToSSGen(ticketHash chainhash.Hash, blockHash chainhash.Hash,
 // txToSSRtx ...
 // DECRED TODO
 func (w *Wallet) txToSSRtx(ticketHash chainhash.Hash) (*CreatedTx, error) {
-	chainClient, err := w.requireChainClient()
-	if err != nil {
-		return nil, err
-	}
-	isReorganizing, _ := chainClient.GetReorganizing()
-	if isReorganizing {
+	w.reorganizingLock.Lock()
+	reorg := w.reorganizing
+	w.reorganizingLock.Unlock()
+	if reorg {
 		return nil, ErrBlockchainReorganizing
 	}
 

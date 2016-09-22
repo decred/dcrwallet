@@ -14,7 +14,6 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/waddrmgr"
-	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/walletdb"
 	"github.com/decred/dcrwallet/wstakemgr"
@@ -52,7 +51,33 @@ func (w *Wallet) handleChainNotifications() {
 			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 				return w.connectBlock(tx, wtxmgr.BlockMeta(n))
 			})
-			strErrType = "BlockConnected"
+			if err != nil {
+				strErrType = "BlockConnected"
+				break
+			}
+
+			// Purchase tickets when necessary, after the connected
+			// has been successfully processed.  This is NOT in
+			// response to a chain server notification so if it
+			// fails, log it here instead of below.
+			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+				err := w.handleTicketPurchases(tx)
+				if err != nil {
+					log.Errorf("Failed to perform automatic "+
+						"picket purchasing: %v", err)
+				}
+				// Do not roll back the transaction.  Many
+				// tickets may be purchased at a time and
+				// addresses created, and these changes must be
+				// saved to the DB.
+				return nil
+			})
+			if err != nil {
+				log.Errorf("Failed to commit ticket purchasing "+
+					"update tx: %v", err)
+				err = nil
+			}
+
 		case chain.BlockDisconnected:
 			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 				return w.disconnectBlock(tx, wtxmgr.BlockMeta(n))
@@ -81,9 +106,20 @@ func (w *Wallet) handleChainNotifications() {
 
 // handleTicketPurchases autopurchases stake tickets for the wallet
 // if stake mining is enabled.
-func (w *Wallet) handleTicketPurchases(dbtx walletdb.ReadWriteTx) {
-	purchased := 0
-	attempts := 0
+func (w *Wallet) handleTicketPurchases(dbtx walletdb.ReadWriteTx) error {
+	// Nothing to do when stake mining is disabled.
+	if !w.StakeMiningEnabled {
+		return nil
+	}
+
+	// Tickets are not purchased if the just there are still more blocks to
+	// connect to the best chain add as part of a reorg.
+	w.reorganizingLock.Lock()
+	reorg := w.reorganizing
+	w.reorganizingLock.Unlock()
+	if reorg {
+		return nil
+	}
 
 	// Parse the ticket purchase frequency. Positive numbers mean
 	// that many tickets per block. Negative numbers mean to only
@@ -91,72 +127,45 @@ func (w *Wallet) handleTicketPurchases(dbtx walletdb.ReadWriteTx) {
 	maxTickets := 1
 	switch {
 	case w.ticketBuyFreq == 0:
-		return
+		return nil
 	case w.ticketBuyFreq > 1:
 		maxTickets = w.ticketBuyFreq
 	case w.ticketBuyFreq < 0:
 		bs := w.Manager.SyncedTo()
 		if int(bs.Height)%w.ticketBuyFreq != 0 {
-			return
+			return nil
 		}
 	}
 
 	sdiff, err := w.StakeDifficulty()
 	if err != nil {
-		return
+		return err
 	}
 
 	maxToPay := w.GetTicketMaxPrice()
 	minBalance := w.BalanceToMaintain()
 
 	if sdiff > maxToPay {
-		return
+		log.Warnf("Stake difficulty %v is above maximum allowed value %v",
+			sdiff, maxToPay)
+		return nil
 	}
 
-ticketPurchaseLoop:
-	for {
-		if purchased >= maxTickets {
-			break
-		}
-
-		_, err := w.purchaseTicketsInternal(dbtx, purchaseTicketRequest{
-			minBalance:  minBalance,
-			spendLimit:  maxToPay,
-			minConf:     0, // No minconf
-			ticketAddr:  w.ticketAddress,
-			account:     waddrmgr.DefaultAccountNum,
-			numTickets:  1, // One ticket at a time
-			poolAddress: w.poolAddress,
-			poolFees:    w.poolFees,
-			expiry:      0, // No expiry
-			txFee:       w.RelayFee(),
-			ticketFee:   w.TicketFeeIncrement(),
-			resp:        nil, // not used, error is returned
-		})
-		if err != nil {
-			_, insufficientFunds := err.(txauthor.InsufficientFundsError)
-			switch {
-			case insufficientFunds:
-				break ticketPurchaseLoop
-			case waddrmgr.IsError(err, waddrmgr.ErrLocked):
-				log.Warnf("Ticket purchase for stake mining is enabled, " +
-					"but tickets could not be purchased because the " +
-					"wallet is currently locked!")
-				break ticketPurchaseLoop
-			case err == ErrTicketPriceNotSet:
-				log.Warnf("Tickets could not be purchased because the " +
-					"ticket price could not be established")
-				break ticketPurchaseLoop
-			default:
-				log.Errorf("PurchaseTicket error returned: %v", err)
-				break ticketPurchaseLoop
-			}
-		} else {
-			purchased++
-		}
-
-		attempts++
-	}
+	_, err = w.purchaseTicketsInternal(dbtx, purchaseTicketRequest{
+		minBalance:  minBalance,
+		spendLimit:  maxToPay,
+		minConf:     0, // No minconf
+		ticketAddr:  w.ticketAddress,
+		account:     waddrmgr.DefaultAccountNum,
+		numTickets:  maxTickets,
+		poolAddress: w.poolAddress,
+		poolFees:    w.poolFees,
+		expiry:      0, // No expiry
+		txFee:       w.RelayFee(),
+		ticketFee:   w.TicketFeeIncrement(),
+		resp:        nil, // not used, error is returned
+	})
+	return err
 }
 
 // connectBlock handles a chain server notification by marking a wallet
@@ -170,34 +179,11 @@ func (w *Wallet) connectBlock(dbtx walletdb.ReadWriteTx, b wtxmgr.BlockMeta) err
 		Height: b.Height,
 		Hash:   b.Hash,
 	}
-	if err := w.Manager.SetSyncedTo(addrmgrNs, &bs); err != nil {
-		log.Errorf("Failed to update address manager sync state in "+
-			"connect block for hash %v (height %d): %v", b.Hash,
-			b.Height, err)
-	}
 	log.Infof("Connecting block %v, height %v", bs.Hash, bs.Height)
 
-	chainClient, err := w.requireChainClient()
+	err := w.Manager.SetSyncedTo(addrmgrNs, &bs)
 	if err != nil {
 		return err
-	}
-
-	isReorganizing, topHash := chainClient.GetReorganizing()
-
-	// If we've made it to the height where the reorganization is finished,
-	// revert our reorganization state.
-	if isReorganizing {
-		if bs.Hash.IsEqual(&topHash) {
-			log.Infof("Wallet reorganization to block %v complete",
-				topHash)
-			chainClient.SetReorganizingState(false, chainhash.Hash{})
-		}
-	}
-
-	if bs.Height >= int32(w.chainParams.CoinbaseMaturity) &&
-		w.StakeMiningEnabled &&
-		!isReorganizing {
-		w.handleTicketPurchases(dbtx)
 	}
 
 	// Insert the block if we haven't already through a relevant tx.
@@ -283,6 +269,16 @@ func (w *Wallet) connectBlock(dbtx walletdb.ReadWriteTx, b wtxmgr.BlockMeta) err
 		return err
 	}
 
+	w.reorganizingLock.Lock()
+	isReorganizing, topHash := w.reorganizing, w.reorganizeToHash
+	// If we've made it to the height where the reorganization is finished,
+	// revert our reorganization state.
+	if isReorganizing && bs.Hash == topHash {
+		log.Infof("Wallet reorganization to block %v complete", topHash)
+		w.reorganizing = false
+	}
+	w.reorganizingLock.Unlock()
+
 	// Notify interested clients of the connected block.
 	//
 	// TODO: move all notifications outside of the database transaction.
@@ -339,13 +335,10 @@ func (w *Wallet) handleReorganizing(oldHash *chainhash.Hash, oldHeight int64,
 	log.Infof("New top block hash: %v", newHash)
 	log.Infof("New top block height: %v", newHeight)
 
-	chainClient, err := w.requireChainClient()
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	chainClient.SetReorganizingState(true, *newHash)
+	w.reorganizingLock.Lock()
+	w.reorganizing = true
+	w.reorganizeToHash = *newHash
+	w.reorganizingLock.Lock()
 }
 
 // evaluateStakePoolTicket evaluates a stake pool ticket to see if it's

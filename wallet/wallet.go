@@ -109,7 +109,7 @@ type Wallet struct {
 	VoteBits           uint16
 	StakeMiningEnabled bool
 	CurrentVotingInfo  *VotingInfo
-	TicketMaxPrice     dcrutil.Amount
+	ticketMaxPrice     dcrutil.Amount
 	ticketBuyFreq      int
 	balanceToMaintain  dcrutil.Amount
 	poolAddress        dcrutil.Address
@@ -173,6 +173,11 @@ type Wallet struct {
 	lockState          chan bool
 	changePassphrase   chan changePassphraseRequest
 
+	// Information for reorganization handling.
+	reorganizingLock sync.Mutex
+	reorganizeToHash chainhash.Hash
+	reorganizing     bool
+
 	NtfnServer *NotificationServer
 
 	chainParams *chaincfg.Params
@@ -225,7 +230,7 @@ func newWallet(vb uint16, esm bool, btm dcrutil.Amount, addressReuse bool,
 		addrPools:                make(map[uint32]*addressPools),
 		addressReuse:             addressReuse,
 		ticketAddress:            ticketAddress,
-		TicketMaxPrice:           tmp,
+		ticketMaxPrice:           tmp,
 		ticketBuyFreq:            ticketBuyFreq,
 		poolAddress:              poolAddress,
 		poolFees:                 pf,
@@ -370,7 +375,7 @@ func (w *Wallet) GetTicketMaxPrice() dcrutil.Amount {
 	w.stakeSettingsLock.Lock()
 	defer w.stakeSettingsLock.Unlock()
 
-	return w.TicketMaxPrice
+	return w.ticketMaxPrice
 }
 
 // SetTicketMaxPrice sets the current maximum price the user is willing to pay
@@ -379,7 +384,7 @@ func (w *Wallet) SetTicketMaxPrice(amt dcrutil.Amount) {
 	w.stakeSettingsLock.Lock()
 	defer w.stakeSettingsLock.Unlock()
 
-	w.TicketMaxPrice = amt
+	w.ticketMaxPrice = amt
 }
 
 // TicketAddress gets the ticket address for the wallet to give the ticket
