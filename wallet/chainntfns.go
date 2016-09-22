@@ -338,7 +338,7 @@ func (w *Wallet) handleReorganizing(oldHash *chainhash.Hash, oldHeight int64,
 	w.reorganizingLock.Lock()
 	w.reorganizing = true
 	w.reorganizeToHash = *newHash
-	w.reorganizingLock.Lock()
+	w.reorganizingLock.Unlock()
 }
 
 // evaluateStakePoolTicket evaluates a stake pool ticket to see if it's
