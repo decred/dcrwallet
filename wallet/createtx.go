@@ -401,10 +401,7 @@ func (w *Wallet) txToOutputsInternal(dbtx walletdb.ReadWriteTx, outputs []*wire.
 	}
 
 	// Get current block's height and hash.
-	bs, err := chainClient.BlockStamp()
-	if err != nil {
-		return nil, err
-	}
+	bs := w.Manager.SyncedTo()
 
 	inputSource := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 		minconf, bs.Height)
