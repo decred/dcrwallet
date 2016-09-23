@@ -14,6 +14,7 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/waddrmgr"
+	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/walletdb"
 	"github.com/decred/dcrwallet/wstakemgr"
@@ -62,7 +63,14 @@ func (w *Wallet) handleChainNotifications() {
 			// fails, log it here instead of below.
 			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 				err := w.handleTicketPurchases(tx)
-				if err != nil {
+				switch err.(type) {
+				case nil:
+					break
+				case txauthor.InsufficientFundsError:
+					log.Debugf("Insufficient funds to auto-purchase" +
+						"maximum number of tickets")
+					break
+				default:
 					log.Errorf("Failed to perform automatic "+
 						"picket purchasing: %v", err)
 				}
@@ -146,8 +154,9 @@ func (w *Wallet) handleTicketPurchases(dbtx walletdb.ReadWriteTx) error {
 	minBalance := w.BalanceToMaintain()
 
 	if sdiff > maxToPay {
-		log.Warnf("Stake difficulty %v is above maximum allowed value %v",
-			sdiff, maxToPay)
+		log.Debugf("No tickets will be auto-purchased: current stake "+
+			"difficulty %v is above maximum allowed price %v", sdiff,
+			maxToPay)
 		return nil
 	}
 
