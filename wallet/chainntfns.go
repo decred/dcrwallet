@@ -67,7 +67,7 @@ func (w *Wallet) handleChainNotifications() {
 				case nil:
 					break
 				case txauthor.InsufficientFundsError:
-					log.Debugf("Insufficient funds to auto-purchase" +
+					log.Debugf("Insufficient funds to auto-purchase " +
 						"maximum number of tickets")
 					break
 				default:
