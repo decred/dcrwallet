@@ -65,11 +65,9 @@ func (w *Wallet) handleChainNotifications() {
 				err := w.handleTicketPurchases(tx)
 				switch err.(type) {
 				case nil:
-					break
 				case txauthor.InsufficientFundsError:
 					log.Debugf("Insufficient funds to auto-purchase " +
 						"maximum number of tickets")
-					break
 				default:
 					log.Errorf("Failed to perform automatic "+
 						"picket purchasing: %v", err)
