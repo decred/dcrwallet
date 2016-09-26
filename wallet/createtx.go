@@ -330,35 +330,34 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 		return nil, ErrBlockchainReorganizing
 	}
 
-	// Initialize the address pool for use. If we
-	// are using an imported account, loopback to
-	// the default account to create change.
-	var pool *addressPool
+	// Initialize the address pool for use. If we are using an imported
+	// account, loopback to the default account to create change.
+	var internalPool *addressPool
 	if account == waddrmgr.ImportedAddrAccount {
 		err := w.CheckAddressPoolsInitialized(waddrmgr.DefaultAccountNum)
 		if err != nil {
 			return nil, err
 		}
-		pool = w.getAddressPools(waddrmgr.DefaultAccountNum).internal
+		internalPool = w.getAddressPools(waddrmgr.DefaultAccountNum).internal
 	} else {
 		err := w.CheckAddressPoolsInitialized(account)
 		if err != nil {
 			return nil, err
 		}
-		pool = w.getAddressPools(account).internal
+		internalPool = w.getAddressPools(account).internal
 	}
 
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		// TODO: Yes this looks suspicious but it's a simplification of
 		// what the code before it was doing.  Stop copy pasting code
 		// carelessly!
-		pool.mutex.Lock()
-		defer pool.mutex.Unlock()
-		defer pool.BatchRollback()
+		internalPool.mutex.Lock()
+		defer internalPool.mutex.Unlock()
+		defer internalPool.BatchRollback()
 
 		var err error
 		atx, err = w.txToOutputsInternal(dbtx, outputs, account,
-			minconf, pool, chainClient, randomizeChangeIdx,
+			minconf, internalPool, chainClient, randomizeChangeIdx,
 			w.RelayFee())
 		return err
 	})
@@ -377,36 +376,25 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 // into the database, rather than delegating this work to the caller as
 // btcwallet does.
 func (w *Wallet) txToOutputsInternal(dbtx walletdb.ReadWriteTx, outputs []*wire.TxOut,
-	account uint32, minconf int32, pool *addressPool, chainClient *chain.RPCClient,
+	account uint32, minconf int32, internalPool *addressPool, chainClient *chain.RPCClient,
 	randomizeChangeIdx bool, txFee dcrutil.Amount) (atx *txauthor.AuthoredTx, err error) {
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
-
-	// The change address is pulled here rather than after
-	// MakeInputSource is called because MakeInputSource
-	// accesses the database in a way that deadlocks other
-	// packages that also access the database like waddmgr.
-	// Because the address pool occasionally makes calls
-	// to the address manager to replenish the address pool,
-	// calling the address function after MakeInputSource
-	// and before inputSource.CloseTransaction() will
-	// sometimes cause a lockup.
-	changeAddrUsed := false
-	changeAddr, err := pool.getNewAddress(addrmgrNs)
-	if err != nil {
-		return nil, err
-	}
-	changeSource := func() ([]byte, error) {
-		changeAddrUsed = true
-		return txscript.PayToAddrScript(changeAddr)
-	}
 
 	// Get current block's height and hash.
 	bs := w.Manager.SyncedTo()
 
 	inputSource := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 		minconf, bs.Height)
+	changeSource := func() ([]byte, error) {
+		// Derive the change output script.
+		changeAddress, err := internalPool.getNewAddress(addrmgrNs)
+		if err != nil {
+			return nil, err
+		}
+		return txscript.PayToAddrScript(changeAddress)
+	}
 	tx, err := txauthor.NewUnsignedTransaction(outputs, txFee,
 		inputSource.SelectInputs, changeSource)
 	if err != nil {
@@ -502,27 +490,27 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 
 	// Initialize the address pool for use. If we are using an imported
 	// account, loopback to the default account to create change.
-	var pool *addressPool
+	var internalPool *addressPool
 	if account == waddrmgr.ImportedAddrAccount {
 		err := w.CheckAddressPoolsInitialized(waddrmgr.DefaultAccountNum)
 		if err != nil {
 			return txToMultisigError(err)
 		}
-		pool = w.getAddressPools(waddrmgr.DefaultAccountNum).internal
+		internalPool = w.getAddressPools(waddrmgr.DefaultAccountNum).internal
 	} else {
 		err := w.CheckAddressPoolsInitialized(account)
 		if err != nil {
 			return txToMultisigError(err)
 		}
-		pool = w.getAddressPools(account).internal
+		internalPool = w.getAddressPools(account).internal
 	}
 
 	// TODO: Yes this looks suspicious but it's a simplification of what the
 	// code before it was doing.  Stop copy pasting code carelessly.
-	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
-	defer pool.BatchRollback()
-	addrFunc := pool.getNewAddress
+	internalPool.mutex.Lock()
+	defer internalPool.mutex.Unlock()
+	defer internalPool.BatchRollback()
+	addrFunc := internalPool.getNewAddress
 
 	chainClient, err := w.requireChainClient()
 	if err != nil {
@@ -734,34 +722,33 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 		return nil, err
 	}
 
-	// Initialize the address pool for use. If we
-	// are using an imported account, loopback to
-	// the default account to create change.
-	var pool *addressPool
+	// Initialize the address pool for use. If we are using an imported
+	// account, loopback to the default account to create change.
+	var internalPool *addressPool
 	if account == waddrmgr.ImportedAddrAccount {
 		err := w.CheckAddressPoolsInitialized(waddrmgr.DefaultAccountNum)
 		if err != nil {
 			return nil, err
 		}
-		pool = w.getAddressPools(waddrmgr.DefaultAccountNum).internal
+		internalPool = w.getAddressPools(waddrmgr.DefaultAccountNum).internal
 	} else {
 		err := w.CheckAddressPoolsInitialized(account)
 		if err != nil {
 			return nil, err
 		}
-		pool = w.getAddressPools(account).internal
+		internalPool = w.getAddressPools(account).internal
 	}
 	txSucceeded := false
-	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
+	internalPool.mutex.Lock()
+	defer internalPool.mutex.Unlock()
 	defer func() {
 		if txSucceeded {
-			pool.BatchFinish(addrmgrNs)
+			internalPool.BatchFinish(addrmgrNs)
 		} else {
-			pool.BatchRollback()
+			internalPool.BatchRollback()
 		}
 	}()
-	addrFunc := pool.getNewAddress
+	addrFunc := internalPool.getNewAddress
 
 	minconf := int32(1)
 	eligible, err := w.findEligibleOutputs(dbtx, account, minconf, bs)
@@ -1003,25 +990,25 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 	}
 
 	// Initialize the address pool for use.
-	var pool *addressPool
+	var internalPool *addressPool
 	err := w.CheckAddressPoolsInitialized(req.account)
 	if err != nil {
 		return nil, err
 	}
-	pool = w.getAddressPools(req.account).internal
+	internalPool = w.getAddressPools(req.account).internal
 
 	// Fire up the address pool for usage in generating tickets.
-	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
+	internalPool.mutex.Lock()
+	defer internalPool.mutex.Unlock()
 	txSucceeded := false
 	defer func() {
 		if txSucceeded {
-			pool.BatchFinish(addrmgrNs)
+			internalPool.BatchFinish(addrmgrNs)
 		} else {
-			pool.BatchRollback()
+			internalPool.BatchRollback()
 		}
 	}()
-	addrFunc := pool.getNewAddress
+	addrFunc := internalPool.getNewAddress
 
 	if w.addressReuse {
 		addrFunc = func(ns walletdb.ReadWriteBucket) (dcrutil.Address, error) {
@@ -1141,7 +1128,7 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 
 	// Fetch the single use split address to break tickets into, to
 	// immediately be consumed as tickets.
-	splitTxAddr, err := pool.getNewAddress(addrmgrNs)
+	splitTxAddr, err := internalPool.getNewAddress(addrmgrNs)
 	if err != nil {
 		return nil, err
 	}
@@ -1190,7 +1177,7 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 	if txFeeIncrement == 0 {
 		txFeeIncrement = w.RelayFee()
 	}
-	splitTx, err := w.txToOutputsInternal(dbtx, splitOuts, account, req.minConf, pool,
+	splitTx, err := w.txToOutputsInternal(dbtx, splitOuts, account, req.minConf, internalPool,
 		chainClient, false, txFeeIncrement)
 	if err != nil {
 		return nil, err
@@ -1378,16 +1365,16 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 
-	pool := w.getAddressPools(waddrmgr.DefaultAccountNum).internal
-	pool.mutex.Lock()
-	addrFunc := pool.getNewAddress
+	internalPool := w.getAddressPools(waddrmgr.DefaultAccountNum).internal
+	internalPool.mutex.Lock()
+	addrFunc := internalPool.getNewAddress
 	defer func() {
 		if err == nil {
-			pool.BatchFinish(addrmgrNs)
+			internalPool.BatchFinish(addrmgrNs)
 		} else {
-			pool.BatchRollback()
+			internalPool.BatchRollback()
 		}
-		pool.mutex.Unlock()
+		internalPool.mutex.Unlock()
 	}()
 
 	// Quit if the blockchain is reorganizing.
