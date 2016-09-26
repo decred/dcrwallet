@@ -214,15 +214,15 @@ func (a *addressPool) getNewAddress(waddrmgrNs walletdb.ReadWriteBucket) (dcruti
 	log.Debugf("Get new address for branch %v returned %s (idx %v) from "+
 		"the address pool", a.branch, curAddressStr, a.index)
 
-	a.cursor++
-	a.index++
-
 	// Add the address to the notifications watcher.
 	addrs := make([]dcrutil.Address, 1)
 	addrs[0] = curAddress
 	if err := chainClient.NotifyReceived(addrs); err != nil {
 		return nil, err
 	}
+
+	a.cursor++
+	a.index++
 
 	return curAddress, nil
 }
