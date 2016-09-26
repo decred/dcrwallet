@@ -569,7 +569,6 @@ func (w *Wallet) CloseDatabases() {
 
 		// Store the current address pool last addresses.
 		w.CloseAddressPools(addrmgrNs)
-		w.TxStore.Close()
 		w.StakeMgr.Close()
 		return nil
 	})
