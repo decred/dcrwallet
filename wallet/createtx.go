@@ -430,17 +430,13 @@ func (w *Wallet) txToOutputsInternal(dbtx walletdb.ReadWriteTx, outputs []*wire.
 		return nil, err
 	}
 
-	// Create transaction record and insert into the db.
+	// Save the new transaction
 	rec, err := wtxmgr.NewTxRecordFromMsgTx(tx.Tx, time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("Cannot create record for created transaction: %v",
 			err)
 	}
-	err = w.TxStore.InsertTx(txmgrNs, addrmgrNs, rec, nil)
-	if err != nil {
-		return nil, fmt.Errorf("Error adding sent tx history: %v", err)
-	}
-	err = w.insertCreditsIntoTxMgr(dbtx, tx.Tx, rec)
+	err = w.addRelevantTx(dbtx, rec, nil)
 	if err != nil {
 		return nil, err
 	}
