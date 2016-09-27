@@ -348,17 +348,18 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 	}
 
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-		// TODO: Yes this looks suspicious but it's a simplification of
-		// what the code before it was doing.  Stop copy pasting code
-		// carelessly!
 		internalPool.mutex.Lock()
-		defer internalPool.mutex.Unlock()
-		defer internalPool.BatchRollback()
-
 		var err error
 		atx, err = w.txToOutputsInternal(dbtx, outputs, account,
 			minconf, internalPool, chainClient, randomizeChangeIdx,
 			w.RelayFee())
+		if err == nil {
+			addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
+			internalPool.BatchFinish(addrmgrNs)
+		} else {
+			internalPool.BatchRollback()
+		}
+		internalPool.mutex.Unlock()
 		return err
 	})
 	return atx, err
