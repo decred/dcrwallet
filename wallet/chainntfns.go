@@ -151,13 +151,18 @@ func (w *Wallet) connectBlock(dbtx walletdb.ReadWriteTx, b wtxmgr.BlockMeta) err
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
+	chainClient, err := w.requireChainClient()
+	if err != nil {
+		return err
+	}
+
 	bs := waddrmgr.BlockStamp{
 		Height: b.Height,
 		Hash:   b.Hash,
 	}
 	log.Infof("Connecting block %v, height %v", bs.Hash, bs.Height)
 
-	err := w.Manager.SetSyncedTo(addrmgrNs, &bs)
+	err = w.Manager.SetSyncedTo(addrmgrNs, &bs)
 	if err != nil {
 		return err
 	}
@@ -247,11 +252,11 @@ func (w *Wallet) connectBlock(dbtx walletdb.ReadWriteTx, b wtxmgr.BlockMeta) err
 
 	// Prune all expired transactions and all stake tickets that no longer
 	// meet the minimum stake difficulty.
-	stakeDifficulty, err := w.StakeDifficulty()
+	block, err := chainClient.GetBlock(&b.Hash)
 	if err != nil {
-		return fmt.Errorf("Failed to get stake difficulty for pruning: %s",
-			err.Error())
+		return err
 	}
+	stakeDifficulty := dcrutil.Amount(block.MsgBlock().Header.SBits)
 	err = w.TxStore.PruneUnconfirmed(txmgrNs, bs.Height, int64(stakeDifficulty))
 	if err != nil {
 		err = fmt.Errorf("Failed to prune unconfirmed transactions when "+
