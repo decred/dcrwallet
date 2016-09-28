@@ -52,38 +52,7 @@ func (w *Wallet) handleChainNotifications() {
 			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 				return w.connectBlock(tx, wtxmgr.BlockMeta(n))
 			})
-			if err != nil {
-				strErrType = "BlockConnected"
-				break
-			}
-
-			// Purchase tickets when necessary, after the connected
-			// has been successfully processed.  This is NOT in
-			// response to a chain server notification so if it
-			// fails, log it here instead of below.
-			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-				err := w.handleTicketPurchases(tx)
-				switch err.(type) {
-				case nil:
-				case txauthor.InsufficientFundsError:
-					log.Debugf("Insufficient funds to auto-purchase " +
-						"maximum number of tickets")
-				default:
-					log.Errorf("Failed to perform automatic "+
-						"picket purchasing: %v", err)
-				}
-				// Do not roll back the transaction.  Many
-				// tickets may be purchased at a time and
-				// addresses created, and these changes must be
-				// saved to the DB.
-				return nil
-			})
-			if err != nil {
-				log.Errorf("Failed to commit ticket purchasing "+
-					"update tx: %v", err)
-				err = nil
-			}
-
+			strErrType = "BlockConnected"
 		case chain.BlockDisconnected:
 			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 				return w.disconnectBlock(tx, wtxmgr.BlockMeta(n))
@@ -191,6 +160,20 @@ func (w *Wallet) connectBlock(dbtx walletdb.ReadWriteTx, b wtxmgr.BlockMeta) err
 	err := w.Manager.SetSyncedTo(addrmgrNs, &bs)
 	if err != nil {
 		return err
+	}
+
+	// Handle automatic ticket purchasing if enabled.  This function should
+	// not error due to an error purchasing tickets (several tickets may be
+	// have been purhcased and successfully published, as well as addresses
+	// created and used), so just log it instead.
+	err = w.handleTicketPurchases(dbtx)
+	switch err.(type) {
+	case nil:
+	case txauthor.InsufficientFundsError:
+		log.Debugf("Insufficient funds to auto-purchase maximum number " +
+			"of tickets")
+	default:
+		log.Errorf("Failed to perform automatic picket purchasing: %v", err)
 	}
 
 	// Insert the block if we haven't already through a relevant tx.

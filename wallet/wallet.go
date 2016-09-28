@@ -569,6 +569,7 @@ func (w *Wallet) CloseDatabases() {
 
 		// Store the current address pool last addresses.
 		w.CloseAddressPools(addrmgrNs)
+
 		w.StakeMgr.Close()
 		return nil
 	})
@@ -1722,7 +1723,7 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 				"account %v during createnewaccount: %s",
 				account, err.Error())
 		}
-		return err
+		return nil
 	})
 	if err != nil {
 		return 0, err
