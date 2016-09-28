@@ -134,7 +134,7 @@ func (w *Wallet) FetchP2SHMultiSigOutput(outPoint *wire.OutPoint) (*P2SHMultiSig
 			return err
 		}
 
-		redeemScript, err := w.TxStore.GetTxScript(txmgrNs, mso.ScriptHash[:])
+		redeemScript, err = w.TxStore.GetTxScript(txmgrNs, mso.ScriptHash[:])
 		if err != nil {
 			return err
 		}
