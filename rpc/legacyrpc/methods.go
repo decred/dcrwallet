@@ -1315,7 +1315,7 @@ func getTransaction(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		}
 	}
 
-	details, err := wallet.NewUnstableAPI(w).TxDetails(txSha)
+	details, err := wallet.UnstableAPI(w).TxDetails(txSha)
 	if err != nil {
 		return nil, err
 	}
@@ -1671,7 +1671,7 @@ func listReceivedByAddress(icmd interface{}, w *wallet.Wallet) (interface{}, err
 	} else {
 		endHeight = syncBlock.Height - int32(minConf) + 1
 	}
-	err = wallet.NewUnstableAPI(w).RangeTransactions(0, endHeight, func(details []wtxmgr.TxDetails) (bool, error) {
+	err = wallet.UnstableAPI(w).RangeTransactions(0, endHeight, func(details []wtxmgr.TxDetails) (bool, error) {
 		confirmations := confirms(details[0].Block.Height, syncBlock.Height)
 		for _, tx := range details {
 			for _, cred := range tx.Credits {
@@ -2190,7 +2190,7 @@ func redeemMultiSigOuts(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 	if !ok {
 		return nil, errors.New("address is not P2SH")
 	}
-	msos, err := wallet.NewUnstableAPI(w).UnspentMultisigCreditsForAddress(p2shAddr)
+	msos, err := wallet.UnstableAPI(w).UnspentMultisigCreditsForAddress(p2shAddr)
 	if err != nil {
 		return nil, err
 	}
