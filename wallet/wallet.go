@@ -992,7 +992,6 @@ out:
 			txr.resp <- createMultisigTxResponse{tx, address, redeemScript, err}
 
 		case txr := <-w.createSStxRequests:
-			// TODO: check locking order on this and the address pool
 			heldUnlock, err := w.holdUnlock()
 			if err != nil {
 				txr.resp <- createSStxResponse{nil, err}
