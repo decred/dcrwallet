@@ -324,6 +324,8 @@ func loadConfig() (*config, []string, error) {
 	_, err := preParser.Parse()
 	if err != nil {
 		if e, ok := err.(*flags.Error); !ok || e.Type != flags.ErrHelp {
+			preParser.WriteHelp(os.Stderr)
+		} else if e.Type == flags.ErrHelp {
 			preParser.WriteHelp(os.Stdout)
 		}
 		return loadConfigError(err)
