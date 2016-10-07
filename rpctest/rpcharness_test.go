@@ -1965,7 +1965,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 
 	expiry = 0
 	numTickets := 1
-	// This purchase should fail
+	// This purchase should fail since stake difficulty is above wallet's price
 	tooLowPriceTicketHashes, err := wcl.PurchaseTicket("default", lowPriceAmt,
 		&minConf, ticketAddr, &numTickets, nil, nil, &expiry)
 	if err == nil {
