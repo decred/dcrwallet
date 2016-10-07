@@ -28,6 +28,7 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/wallet"
+	//"math"
 )
 
 type rpcTestCase func(r *Harness, t *testing.T)
@@ -1911,14 +1912,20 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	wcl := r.WalletRPC
 
 	// Get a known ticket address
-	ticketAddr, err := wcl.GetNewAddress("default")
-	if err != nil {
-		t.Fatal(err)
-	}
+	// ticketAddr, err := wcl.GetNewAddress("default")
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// wcl.GetReceivedByAddress(ticketAddr)
 
-	// Set various variables for the test
-	minConf := 0
-	expiry := 0
+	// Increase the ticket fee so SSTx in this test get mined first. Or we could
+	// do this test in a fresh harness...
+	walletInfo, _ := wcl.WalletInfo()
+	origTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee)
+	newTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
+
+	wcl.SetTicketFee(newTicketFee)
+	//wcl.SetBalanceToMaintain(0)
 
 	// Get current ticket max price via WalletInfo
 	walletInfoResult, err := wcl.WalletInfo()
@@ -1926,6 +1933,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 		t.Fatal("WalletInfo failed:", err)
 	}
 	maxPriceInit := walletInfoResult.TicketMaxPrice
+	t.Log(walletInfoResult)
 
 	// Get the current stake difficulty to know how low we need to set the
 	// wallet's max ticket price so that it should not purchase tickets.
@@ -1934,92 +1942,115 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 		t.Fatal("GetStakeDifficulty failed:", err)
 	}
 
-	// Make sure this isn't the end of a price window (or can we just use
-	// NextStakeDifficulty in all cases?)
-	if stakeDiffResult.CurrentStakeDifficulty != stakeDiffResult.NextStakeDifficulty {
-		newBestBlock(r, t)
-		stakeDiffResult, err = wcl.GetStakeDifficulty()
-		if err != nil {
-			t.Fatal("GetStakeDifficulty failed:", err)
-		}
-	}
-
 	stakeDiff := stakeDiffResult.CurrentStakeDifficulty
 
-	// Increase the ticket fee so these SSTx get mined first
-	walletInfo, _ := wcl.WalletInfo()
-	origTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee)
-	newTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
+	// ensure there are many blocks left in this price window
+	var blocksLeftInWindow = func(height uint32) int64 {
+		windowIdx := int64(height) % chaincfg.SimNetParams.StakeDiffWindowSize
+		return chaincfg.SimNetParams.StakeDiffWindowSize - windowIdx
+	}
+	// Keep generating blocks until a new price window starts, giving us several
+	// blocks with the same stake difficulty
+	curBlockHeight, _, _ := getBestBlock(r, t)
+	for blocksLeftInWindow(curBlockHeight) != chaincfg.SimNetParams.StakeDiffWindowSize {
+		curBlockHeight, _, _ = newBestBlock(r, t)
+	}
 
-	wcl.SetTicketFee(newTicketFee)
+	// Count tickets before enabling auto-purchasing
+	ticketHashes, err := wcl.GetTickets(true)
+	if err != nil {
+		t.Fatal("GetTickets failed:", err)
+	}
+	ticketHashMap := make(map[chainhash.Hash]bool)
+	for _, tx := range ticketHashes {
+		ticketHashMap[*tx] = true
+	}
 
 	// Too low
 	lowTicketMaxPrice := stakeDiff / 2
-	lowPriceAmt, _ := dcrutil.NewAmount(lowTicketMaxPrice)
+	//lowPriceAmt, _ := dcrutil.NewAmount(lowTicketMaxPrice)
 
 	// Set ticket price to lower than current stake difficulty
-	err = wcl.SetTicketMaxPrice(lowTicketMaxPrice)
-	if err != nil {
+	if err = wcl.SetTicketMaxPrice(lowTicketMaxPrice); err != nil {
 		t.Fatal("SetTicketMaxPrice failed:", err)
 	}
 
-	expiry = 0
-	numTickets := 1
-	// This purchase should fail since stake difficulty is above wallet's price
-	tooLowPriceTicketHashes, err := wcl.PurchaseTicket("default", lowPriceAmt,
-		&minConf, ticketAddr, &numTickets, nil, nil, &expiry)
-	if err == nil {
-		t.Fatalf("purchaseticket returned nil error purchasing ticket at %f,"+
-			" with max price set to %f", stakeDiff, lowTicketMaxPrice)
+	// Enable stake mining so tickets get automatically purchased
+	if err = wcl.SetGenerate(true, 0); err != nil {
+		t.Fatal("SetGenerate failed:", err)
 	}
 
-	if len(tooLowPriceTicketHashes) > 0 {
-		t.Fatalf("Purchased %d ticket(s) at %f while max price was %f",
-			len(tooLowPriceTicketHashes), stakeDiff, lowTicketMaxPrice)
+	newBestBlock(r, t)
+	// SSTx would be happening now with high enough price
+	time.Sleep(5 * time.Second)
+	newBestBlock(r, t)
+
+	// Check for new tickets after enabling auto-purchasing, but with low price
+	ticketHashes, err = wcl.GetTickets(true)
+	if err != nil {
+		t.Fatal("GetTickets failed:", err)
+	}
+	for _, tx := range ticketHashes {
+		if ticketHashMap[*tx] == false {
+			t.Fatalf("Tickets were purchased at %f while max price was %f",
+				stakeDiff, lowTicketMaxPrice)
+		}
 	}
 
 	// Just high enough (max == diff + eps)
-	//stakeDiffPlusEpsilon := math.Nextafter(stakeDiff, stakeDiff+1)
-	adequateTicketMaxPrice := stakeDiff
-	adequatePriceAmt, _ := dcrutil.NewAmount(adequateTicketMaxPrice)
-
-	numTickets = 1
-	highEnoughTicketHashed, err := wcl.PurchaseTicket("default", adequatePriceAmt,
-		&minConf, ticketAddr, &numTickets, nil, nil, &expiry)
-	if err != nil {
-		t.Fatal("Unable to purchase tickets:", err)
+	//adequateTicketMaxPrice := math.Nextafter(stakeDiff, stakeDiff+1)
+	adequateTicketMaxPrice := stakeDiff + 1
+	//adequatePriceAmt, _ := dcrutil.NewAmount(adequateTicketMaxPrice)
+	if err = wcl.SetTicketMaxPrice(adequateTicketMaxPrice); err != nil {
+		t.Fatal("SetTicketMaxPrice failed:", err)
 	}
 
-	if len(highEnoughTicketHashed) != numTickets {
-		t.Fatalf("Failed to purchase tickets at %f while max price was %f",
+	newBestBlock(r, t)
+	// SSTx would be happening now with high enough price
+	time.Sleep(5 * time.Second)
+	newBestBlock(r, t)
+
+	// Check for new tickets after enabling auto-purchasing, but with low price
+	ticketHashes, err = wcl.GetTickets(true)
+	if err != nil {
+		t.Fatal("GetTickets failed:", err)
+	}
+	newTickets := false
+	for _, tx := range ticketHashes {
+		if ticketHashMap[*tx] == false {
+			newTickets = true
+			break
+		}
+	}
+	if newTickets == false {
+		t.Fatalf("Tickets were NOT purchased at %f, but max price was %f",
 			stakeDiff, adequateTicketMaxPrice)
 	}
 
-	// High enough
+	// Double.  Plenty high.
 	adequateTicketMaxPrice = stakeDiff * 2
-	adequatePriceAmt, _ = dcrutil.NewAmount(adequateTicketMaxPrice)
+	//adequatePriceAmt, _ = dcrutil.NewAmount(adequateTicketMaxPrice)
 
-	numTickets = 1
-	highEnoughTicketHashed, err = wcl.PurchaseTicket("default", adequatePriceAmt,
-		&minConf, ticketAddr, &numTickets, nil, nil, &expiry)
+	newBestBlock(r, t)
+	// SSTx would be happening now with high enough price
+	time.Sleep(5 * time.Second)
+	newBestBlock(r, t)
+
+	// Check for new tickets after enabling auto-purchasing, but with low price
+	ticketHashes, err = wcl.GetTickets(true)
 	if err != nil {
-		t.Fatal("Unable to purchase tickets:", err)
+		t.Fatal("GetTickets failed:", err)
 	}
-
-	if len(highEnoughTicketHashed) != numTickets {
-		t.Fatalf("Failed to purchase tickets at %f while max price was %f",
+	newTickets = false
+	for _, tx := range ticketHashes {
+		if ticketHashMap[*tx] == false {
+			newTickets = true
+			break
+		}
+	}
+	if newTickets == false {
+		t.Fatalf("Tickets were NOT purchased at %f, but max price was %f",
 			stakeDiff, adequateTicketMaxPrice)
-	}
-
-	// Mine 2 blocks, the first including the split tx and the second including
-	// stakesubmission
-	newBestBlock(r, t)
-	newBestBlock(r, t)
-
-	// Check for the ticket
-	_, err = wcl.GetTransaction(highEnoughTicketHashed[0])
-	if err != nil {
-		t.Fatal("Ticket not found:", err)
 	}
 
 	// reset ticket fee and max price
