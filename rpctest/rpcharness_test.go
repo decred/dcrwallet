@@ -29,6 +29,7 @@ import (
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/wallet"
 	//"math"
+	"math"
 )
 
 type rpcTestCase func(r *Harness, t *testing.T)
@@ -1911,6 +1912,8 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	// Wallet RPC client
 	wcl := r.WalletRPC
 
+	var err error
+
 	// Get a known ticket address
 	// ticketAddr, err := wcl.GetNewAddress("default")
 	// if err != nil {
@@ -1924,8 +1927,14 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	origTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee)
 	newTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
 
-	wcl.SetTicketFee(newTicketFee)
-	//wcl.SetBalanceToMaintain(0)
+	if err = wcl.SetTicketFee(newTicketFee); err != nil {
+		t.Fatal("SetTicketFee failed:", err)
+	}
+	// Drop the balance to maintain so tickets will be purchased.
+	// TODO: check balance to ensure we can afford all the tickets.
+	if err = wcl.SetBalanceToMaintain(10); err != nil {
+		t.Fatal("SetBalanceToMaintain failed:", err)
+	}
 
 	// Get current ticket max price via WalletInfo
 	walletInfoResult, err := wcl.WalletInfo()
@@ -1933,7 +1942,6 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 		t.Fatal("WalletInfo failed:", err)
 	}
 	maxPriceInit := walletInfoResult.TicketMaxPrice
-	t.Log(walletInfoResult)
 
 	// Get the current stake difficulty to know how low we need to set the
 	// wallet's max ticket price so that it should not purchase tickets.
@@ -1998,8 +2006,8 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	}
 
 	// Just high enough (max == diff + eps)
-	//adequateTicketMaxPrice := math.Nextafter(stakeDiff, stakeDiff+1)
-	adequateTicketMaxPrice := stakeDiff + 1
+	adequateTicketMaxPrice := math.Nextafter(stakeDiff, stakeDiff+1)
+	//adequateTicketMaxPrice := stakeDiff + 0.1
 	//adequatePriceAmt, _ := dcrutil.NewAmount(adequateTicketMaxPrice)
 	if err = wcl.SetTicketMaxPrice(adequateTicketMaxPrice); err != nil {
 		t.Fatal("SetTicketMaxPrice failed:", err)
