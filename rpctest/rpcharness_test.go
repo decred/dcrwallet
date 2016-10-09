@@ -1626,7 +1626,8 @@ func testGetSetTicketFee(r *Harness, t *testing.T) {
 
 	// Purchase ticket
 	minConf, numTicket := 0, 1
-	hashes, err := wcl.PurchaseTicket("default", 100000000,
+	priceLimit, _ := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+	hashes, err := wcl.PurchaseTicket("default", priceLimit,
 		&minConf, nil, &numTicket, nil, nil, nil)
 	if err != nil {
 		t.Fatal("Unable to purchase ticket:", err)
@@ -1694,9 +1695,10 @@ func testGetTickets(r *Harness, t *testing.T) {
 
 	numTicketsInit := len(ticketHashes)
 
-	// Purchase 20 tickets
-	minConf, numTicketsPurchased := 1, 20
-	hashes, err := wcl.PurchaseTicket("default", 100000000,
+	// Purchase a full blocks worth of tickets
+	minConf, numTicketsPurchased := 1, int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
+	priceLimit, _ := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+	hashes, err := wcl.PurchaseTicket("default", priceLimit,
 		&minConf, nil, &numTicketsPurchased, nil, nil, nil)
 	if err != nil {
 		t.Fatal("Unable to purchase tickets:", err)
@@ -1773,10 +1775,11 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	// Set various variables for the test
 	minConf := 0
 	expiry := 0
+	priceLimit, _ := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
 
 	// Test nil ticketAddress
 	oneTix := 1
-	hashes, err := wcl.PurchaseTicket("default", 100000000,
+	hashes, err := wcl.PurchaseTicket("default", priceLimit,
 		&minConf, nil, &oneTix, nil, nil, &expiry)
 	if err != nil {
 		t.Fatal("Unable to purchase with nil ticketAddr:", err)
@@ -1790,7 +1793,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	}
 
 	// test numTickets == nil
-	hashes, err = wcl.PurchaseTicket("default", 100000000,
+	hashes, err = wcl.PurchaseTicket("default", priceLimit,
 		&minConf, nil, nil, nil, nil, &expiry)
 	if err != nil {
 		t.Fatal("Unable to purchase with nil numTickets:", err)
@@ -1809,14 +1812,14 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	// Test expiry - earliest is next height + 1
 	// invalid
 	expiry = int(curBlockHeight)
-	_, err = wcl.PurchaseTicket("default", 100000000,
+	_, err = wcl.PurchaseTicket("default", priceLimit,
 		&minConf, nil, nil, nil, nil, &expiry)
 	if err == nil {
 		t.Fatal("Invalid expiry used to purchase tickets")
 	}
 	// invalid
 	expiry = int(curBlockHeight) + 1
-	_, err = wcl.PurchaseTicket("default", 100000000,
+	_, err = wcl.PurchaseTicket("default", priceLimit,
 		&minConf, nil, nil, nil, nil, &expiry)
 	if err == nil {
 		t.Fatal("Invalid expiry used to purchase tickets")
@@ -1824,7 +1827,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 
 	// valid expiry
 	expiry = int(curBlockHeight) + 2
-	hashes, err = wcl.PurchaseTicket("default", 100000000,
+	hashes, err = wcl.PurchaseTicket("default", priceLimit,
 		&minConf, nil, nil, nil, nil, &expiry)
 	if err != nil {
 		t.Fatal("Unable to purchase tickets:", err)
@@ -1850,7 +1853,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 
 	expiry = 0
 	numTicket := 2 * int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
-	_, err = r.WalletRPC.PurchaseTicket("default", 100000000,
+	_, err = r.WalletRPC.PurchaseTicket("default", priceLimit,
 		&minConf, addr, &numTicket, nil, nil, &expiry)
 	if err != nil {
 		t.Fatal("Unable to purchase tickets:", err)
@@ -1880,8 +1883,20 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	//tx, err := wcl.GetRawTransaction(ticketWithExpiry)
 	txRawVerbose, err := wcl.GetRawTransactionVerbose(ticketWithExpiry)
 	if err == nil {
-		t.Fatalf("Found transaction that should be expired (blockHeight %v): %v",
+		t.Fatalf("Found transaction that should be expired (height %v): %v",
 			txRawVerbose.BlockHeight, err)
+	}
+
+	// Test too low price
+	lowPrice := dcrutil.Amount(1)
+	hashes, err = wcl.PurchaseTicket("default", lowPrice,
+		&minConf, nil, nil, nil, nil, nil)
+	if err == nil {
+		t.Fatalf("PurchaseTicket succeeded with limit of %f, but diff was %f.",
+			lowPrice.ToCoin(), mustGetStakeDiff(r, t))
+	}
+	if len(hashes) > 0 {
+		t.Fatal("At least one tickets hash returned. Expected none.")
 	}
 
 	// NOTE: ticket maturity = 16 (spendable at 17), stakeenabled height = 144
@@ -1892,12 +1907,13 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	// Keep generating blocks until desiredHeight is achieved
 	desiredHeight := uint32(150)
 	expiry = 0
-	numTicket = 1
+	numTicket = int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
 	for curBlockHeight < desiredHeight {
-		_, err = r.WalletRPC.PurchaseTicket("default", 100000000,
+		priceLimit, _ = dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+		_, err = r.WalletRPC.PurchaseTicket("default", priceLimit,
 			&minConf, addr, &numTicket, nil, nil, &expiry)
 
-		// allow ErrSStxPriceExceedsSpendLimit
+		// allow ErrSStxPriceExceedsSpendLimit (TODO: why?)
 		if err != nil && wallet.ErrSStxPriceExceedsSpendLimit.Error() !=
 			err.(*dcrjson.RPCError).Message {
 			t.Fatal(err)
@@ -1906,10 +1922,24 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 		time.Sleep(600 * time.Millisecond)
 	}
 
-	// TODO: test pool fees
+	// and some more for the chain's good health
+	numBlocksWorth := 4
+	for i := 0; i < numBlocksWorth; i++ {
+		priceLimit, _ = dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+		numTicket = int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
+		_, err = r.WalletRPC.PurchaseTicket("default", priceLimit,
+			&minConf, addr, &numTicket, nil, nil, nil)
+		if err != nil {
+			t.Fatal("Failed to purchase tickets:", err)
+		}
+		newBestBlock(r, t)
+	}
 
 	// Validate last tx
 	newBestBlock(r, t)
+
+	// TODO: test pool fees
+
 }
 
 func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
@@ -1917,6 +1947,12 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	wcl := r.WalletRPC
 
 	var err error
+
+	height, _, _ := getBestBlock(r, t)
+	heightForVoting := uint32(chaincfg.SimNetParams.StakeValidationHeight)
+	if height < heightForVoting {
+		advanceToHeight(r, t, heightForVoting)
+	}
 
 	// Get a known ticket address
 	// ticketAddr, err := wcl.GetNewAddress("default")
@@ -1950,7 +1986,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	// Get the current stake difficulty to know how low we need to set the
 	// wallet's max ticket price so that it should not purchase tickets.
 	advanceToNewWindow(r, t)
-	stakeDiff := mustGetStakeDiff(r, t)
+	stakeDiff := mustGetStakeDiffNext(r, t)
 
 	// Count tickets before enabling auto-purchasing
 	ticketHashes, err := wcl.GetTickets(true)
@@ -2041,7 +2077,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	time.Sleep(5 * time.Second)
 	//newBestBlock(r, t)
 	// One should be enough for the test, but buy more to keep the chain alive
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 4; i++ {
 		newBestBlock(r, t)
 		time.Sleep(2 * time.Second)
 	}
@@ -2052,12 +2088,15 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 		t.Fatal("GetTickets failed:", err)
 	}
 	newTickets = false
+	numTicketsPurchased := 0
 	for _, tx := range ticketHashes {
 		if ticketHashMap[*tx] == false {
+			numTicketsPurchased++
 			newTickets = true
-			break
+			//break
 		}
 	}
+	t.Log("Number of tickets purchased over 4 blocks:", numTicketsPurchased)
 	if newTickets == false {
 		t.Fatalf("Tickets were NOT purchased at %f, but max price was %f",
 			stakeDiff, adequateTicketMaxPrice)
@@ -2083,6 +2122,12 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 	wcl := r.WalletRPC
 
 	var err error
+
+	height, _, _ := getBestBlock(r, t)
+	heightForVoting := uint32(chaincfg.SimNetParams.StakeValidationHeight)
+	if height < heightForVoting {
+		advanceToHeight(r, t, heightForVoting)
+	}
 
 	// Increase the ticket fee so SSTx in this test get mined first. Or we could
 	// do this test in a fresh harness...
@@ -2133,7 +2178,7 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 
 	// Get the current stake difficulty to know how low we need to set the
 	// wallet's max ticket price so that it should NOT purchase tickets.
-	stakeDiff := mustGetStakeDiff(r, t)
+	stakeDiff := mustGetStakeDiffNext(r, t)
 
 	// Set ticket price to higher than current stake difficulty
 	if err = wcl.SetTicketMaxPrice(stakeDiff * 2); err != nil {
@@ -2159,8 +2204,9 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 	}
 	for _, tx := range ticketHashes {
 		if ticketHashMap[*tx] == false {
-			t.Fatalf("Tickets were purchased with %v spendable balance; balance to maintain %v",
-				spendable.ToCoin(), walletInfoResult.BalanceToMaintain)
+			t.Fatalf("Tickets were purchased with %v spendable balance; "+
+				"balance to maintain %v", spendable.ToCoin(),
+				walletInfoResult.BalanceToMaintain)
 		}
 	}
 
@@ -2226,6 +2272,15 @@ func mustGetStakeDiff(r *Harness, t *testing.T) float64 {
 	return stakeDiffResult.CurrentStakeDifficulty
 }
 
+func mustGetStakeDiffNext(r *Harness, t *testing.T) float64 {
+	stakeDiffResult, err := r.WalletRPC.GetStakeDifficulty()
+	if err != nil {
+		t.Fatal("GetStakeDifficulty failed:", err)
+	}
+
+	return stakeDiffResult.NextStakeDifficulty
+}
+
 func advanceToNewWindow(r *Harness, t *testing.T) uint32 {
 	// ensure there are many blocks left in this price window
 	var blocksLeftInWindow = func(height uint32) int64 {
@@ -2235,11 +2290,32 @@ func advanceToNewWindow(r *Harness, t *testing.T) uint32 {
 	// Keep generating blocks until a new price window starts, giving us several
 	// blocks with the same stake difficulty
 	curBlockHeight, _, _ := getBestBlock(r, t)
-	for blocksLeftInWindow(curBlockHeight) != chaincfg.SimNetParams.StakeDiffWindowSize {
+	initHeight := curBlockHeight
+	for blocksLeftInWindow(curBlockHeight) !=
+		chaincfg.SimNetParams.StakeDiffWindowSize {
 		curBlockHeight, _, _ = newBestBlock(r, t)
 		time.Sleep(time.Second)
 	}
+	t.Logf("Advanced %d blocks to block height %d", curBlockHeight-initHeight,
+		curBlockHeight)
 	return curBlockHeight
+}
+
+func advanceToHeight(r *Harness, t *testing.T, height uint32) {
+	curBlockHeight, _, _ := getBestBlock(r, t)
+	initHeight := curBlockHeight
+
+	if curBlockHeight >= height {
+		return
+	}
+
+	for curBlockHeight != height {
+		curBlockHeight, _, _ = newBestBlock(r, t)
+		time.Sleep(time.Second)
+	}
+	t.Logf("Advanced %d blocks to block height %d", curBlockHeight-initHeight,
+		curBlockHeight)
+	return
 }
 
 func newBlockAt(currentHeight uint32, r *Harness,
