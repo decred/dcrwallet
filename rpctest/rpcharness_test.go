@@ -50,7 +50,7 @@ var rpcTestCases = []rpcTestCase{
 	testGetTickets,
 	testPurchaseTickets,
 	testGetSetTicketMaxPrice,
-	//testGetSetBalanceToMaintain,
+	testGetSetBalanceToMaintain,
 	//testGetStakeInfo,
 	//testWalletinfo,
 }
@@ -1690,8 +1690,8 @@ func testGetTickets(r *Harness, t *testing.T) {
 
 	numTicketsInit := len(ticketHashes)
 
-	// Purchase 2 tickets
-	minConf, numTicketsPurchased := 1, 2
+	// Purchase 20 tickets
+	minConf, numTicketsPurchased := 1, 20
 	hashes, err := wcl.PurchaseTicket("default", 100000000,
 		&minConf, nil, &numTicketsPurchased, nil, nil, nil)
 	if err != nil {
@@ -1942,27 +1942,11 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 		t.Fatal("WalletInfo failed:", err)
 	}
 	maxPriceInit := walletInfoResult.TicketMaxPrice
-
+	t.Log("Stake mining enabled:", walletInfoResult.StakeMining)
 	// Get the current stake difficulty to know how low we need to set the
 	// wallet's max ticket price so that it should not purchase tickets.
-	stakeDiffResult, err := wcl.GetStakeDifficulty()
-	if err != nil {
-		t.Fatal("GetStakeDifficulty failed:", err)
-	}
-
-	stakeDiff := stakeDiffResult.CurrentStakeDifficulty
-
-	// ensure there are many blocks left in this price window
-	var blocksLeftInWindow = func(height uint32) int64 {
-		windowIdx := int64(height) % chaincfg.SimNetParams.StakeDiffWindowSize
-		return chaincfg.SimNetParams.StakeDiffWindowSize - windowIdx
-	}
-	// Keep generating blocks until a new price window starts, giving us several
-	// blocks with the same stake difficulty
-	curBlockHeight, _, _ := getBestBlock(r, t)
-	for blocksLeftInWindow(curBlockHeight) != chaincfg.SimNetParams.StakeDiffWindowSize {
-		curBlockHeight, _, _ = newBestBlock(r, t)
-	}
+	advanceToNewWindow(r, t)
+	stakeDiff := mustGetStakeDiff(r, t)
 
 	// Count tickets before enabling auto-purchasing
 	ticketHashes, err := wcl.GetTickets(true)
@@ -1981,6 +1965,15 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	// Set ticket price to lower than current stake difficulty
 	if err = wcl.SetTicketMaxPrice(lowTicketMaxPrice); err != nil {
 		t.Fatal("SetTicketMaxPrice failed:", err)
+	}
+
+	// Verify set price
+	walletInfoResult, err = wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("WalletInfo failed:", err)
+	}
+	if lowTicketMaxPrice != walletInfoResult.TicketMaxPrice {
+		t.Fatalf("Set ticket max price failed.")
 	}
 
 	// Enable stake mining so tickets get automatically purchased
@@ -2043,6 +2036,11 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	// SSTx would be happening now with high enough price
 	time.Sleep(5 * time.Second)
 	newBestBlock(r, t)
+	// That should be enough for the test, but buy more to keep the chain alive
+	for i := 0; i < 10; i++ {
+		height, _, _ := getBestBlock(r, t)
+		newBlockAtQuick(height, r, t)
+	}
 
 	// Check for new tickets after enabling auto-purchasing, but with low price
 	ticketHashes, err = wcl.GetTickets(true)
@@ -2067,10 +2065,177 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	if err != nil {
 		t.Fatal("SetTicketMaxPrice failed:", err)
 	}
+
+	// Disable automatic ticket purchasing
+	if walletInfoResult.StakeMining == false {
+		if err = wcl.SetGenerate(false, 0); err != nil {
+			t.Fatal("SetGenerate failed:", err)
+		}
+	}
+}
+
+func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	var err error
+
+	// Increase the ticket fee so SSTx in this test get mined first. Or we could
+	// do this test in a fresh harness...
+	walletInfo, _ := wcl.WalletInfo()
+	origTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee)
+	newTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
+
+	if err = wcl.SetTicketFee(newTicketFee); err != nil {
+		t.Fatal("SetTicketFee failed:", err)
+	}
+
+	// Push BTM over spendable balance + at least 20 full block rewards
+	spendable, err := wcl.GetBalance("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newBTM := spendable + 20*dcrutil.Amount(chaincfg.SimNetParams.BaseSubsidy)
+	if err = wcl.SetBalanceToMaintain(newBTM.ToCoin()); err != nil {
+		t.Fatal("SetBalanceToMaintain failed:", err)
+	}
+
+	// Verify the set BTM
+	walletInfoResult, err := wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("WalletInfo failed:", err)
+	}
+
+	if walletInfoResult.BalanceToMaintain != newBTM.ToCoin() {
+		t.Fatalf("Balance to maintain set incorrectly.")
+	}
+
+	// Advance to new price window, but don't purchase tickets in this period
+	maxPriceInit := walletInfo.TicketMaxPrice
+	wcl.SetTicketMaxPrice(0)
+
+	advanceToNewWindow(r, t)
+
+	// Index before enabling auto-purchasing
+	ticketHashes, err := wcl.GetTickets(true)
+	if err != nil {
+		t.Fatal("GetTickets failed:", err)
+	}
+	ticketHashMap := make(map[chainhash.Hash]bool)
+	for _, tx := range ticketHashes {
+		ticketHashMap[*tx] = true
+	}
+
+	// Get the current stake difficulty to know how low we need to set the
+	// wallet's max ticket price so that it should NOT purchase tickets.
+	stakeDiff := mustGetStakeDiff(r, t)
+
+	// Set ticket price to higher than current stake difficulty
+	if err = wcl.SetTicketMaxPrice(stakeDiff * 2); err != nil {
+		t.Fatal("SetTicketMaxPrice failed:", err)
+	}
+
+	// Enable stake mining so tickets get automatically purchased
+	if err = wcl.SetGenerate(true, 0); err != nil {
+		// NOTE: This will "error" because of rejected TX (already ahve votes
+		// that get resent)
+		//t.Fatal("SetGenerate failed:", err)
+	}
+
+	newBestBlock(r, t)
+	// SSTx would be happening now with high enough price and low enough BTM
+	time.Sleep(5 * time.Second)
+	newBestBlock(r, t)
+
+	// Check for new tickets after enabling auto-purchasing, but with high BTM
+	ticketHashes, err = wcl.GetTickets(true)
+	if err != nil {
+		t.Fatal("GetTickets failed:", err)
+	}
+	for _, tx := range ticketHashes {
+		if ticketHashMap[*tx] == false {
+			t.Fatalf("Tickets were purchased with %v spendable balance; balance to maintain %v",
+				spendable.ToCoin(), walletInfoResult.BalanceToMaintain)
+		}
+	}
+
+	// Drop BTM under spendable balance by cost of at least 3 blocks worth of
+	// max fresh stake
+	spendable, err = wcl.GetBalance("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newBTMCoin := spendable.ToCoin() -
+		stakeDiff*3*float64(chaincfg.SimNetParams.MaxFreshStakePerBlock)
+	if err = wcl.SetBalanceToMaintain(newBTMCoin); err != nil {
+		t.Fatal("SetBalanceToMaintain failed:", err)
+	}
+
+	newBestBlock(r, t)
+	// SSTx would be happening now with high enough price
+	time.Sleep(5 * time.Second)
+	newBestBlock(r, t)
+
+	// Check for new tickets with low enough BTM and high enough max price
+	ticketHashes, err = wcl.GetTickets(true)
+	if err != nil {
+		t.Fatal("GetTickets failed:", err)
+	}
+	newTickets := false
+	for _, tx := range ticketHashes {
+		if ticketHashMap[*tx] == false {
+			newTickets = true
+			break
+		}
+	}
+	if newTickets == false {
+		t.Fatalf("Tickets were NOT purchased with %v spendable; BTM = %v",
+			spendable.ToCoin(), newBTMCoin)
+	}
+
+	// reset ticket fee and max price
+	wcl.SetTicketFee(origTicketFee)
+	err = wcl.SetTicketMaxPrice(maxPriceInit)
+	if err != nil {
+		t.Fatal("SetTicketMaxPrice failed:", err)
+	}
+
+	// Disable automatical tickets purchasing
+	if walletInfoResult.StakeMining == false {
+		if err = wcl.SetGenerate(false, 0); err != nil {
+			t.Fatal("SetGenerate failed:", err)
+		}
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Helper functions
+
+func mustGetStakeDiff(r *Harness, t *testing.T) float64 {
+	stakeDiffResult, err := r.WalletRPC.GetStakeDifficulty()
+	if err != nil {
+		t.Fatal("GetStakeDifficulty failed:", err)
+	}
+
+	return stakeDiffResult.CurrentStakeDifficulty
+}
+
+func advanceToNewWindow(r *Harness, t *testing.T) uint32 {
+	// ensure there are many blocks left in this price window
+	var blocksLeftInWindow = func(height uint32) int64 {
+		windowIdx := int64(height) % chaincfg.SimNetParams.StakeDiffWindowSize
+		return chaincfg.SimNetParams.StakeDiffWindowSize - windowIdx
+	}
+	// Keep generating blocks until a new price window starts, giving us several
+	// blocks with the same stake difficulty
+	curBlockHeight, _, _ := getBestBlock(r, t)
+	for blocksLeftInWindow(curBlockHeight) != chaincfg.SimNetParams.StakeDiffWindowSize {
+		curBlockHeight, _, _ = newBestBlock(r, t)
+	}
+	return curBlockHeight
+}
 
 func newBlockAt(currentHeight uint32, r *Harness,
 	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash) {
