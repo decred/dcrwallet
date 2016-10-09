@@ -309,6 +309,10 @@ out:
 // TearDown stops the running RPC test instance. All created processes killed,
 // and temporary directories removed.
 func (h *Harness) TearDown() error {
+	if h == nil {
+		return nil
+	}
+
 	if h.Node != nil {
 		h.Node.Shutdown()
 	}
@@ -341,6 +345,9 @@ func (h *Harness) TearDown() error {
 
 // IsUp checks if the harness is still being tracked by rpctest
 func (h *Harness) IsUp() bool {
+	if h == nil {
+		return false
+	}
 	_, up := testInstances[h.testNodeDir]
 	return up
 }

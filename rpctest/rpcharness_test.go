@@ -111,6 +111,24 @@ func TestMain(m *testing.M) {
 		},
 	}
 
+	var gracefulExit = func(code int) {
+		defer os.Exit(code)
+
+		if err := primaryHarness.TearDown(); err != nil {
+			fmt.Println("Unable to teardown test chain: ", err)
+			code = 1
+		}
+
+		for _, h := range harnesses {
+			if h.IsUp() {
+				if err := h.TearDown(); err != nil {
+					fmt.Println("Unable to teardown test chain: ", err)
+					code = 1
+				}
+			}
+		}
+	}
+
 	// Create the primary/shared harness
 	fmt.Println("Generating primary test harness")
 	var err error
@@ -138,13 +156,13 @@ func TestMain(m *testing.M) {
 			harness, err = NewHarness(&chaincfg.SimNetParams, nil, nil)
 			if err != nil {
 				fmt.Println("Unable to create harness: ", err)
-				os.Exit(1)
+				gracefulExit(1)
 			}
 
 			if err = harness.SetUp(true, 25); err != nil {
 				fmt.Println("Unable to setup test chain: ", err)
 				err = harness.TearDown()
-				os.Exit(1)
+				gracefulExit(1)
 			}
 		}
 		harnesses[tcName] = harness
@@ -155,21 +173,7 @@ func TestMain(m *testing.M) {
 
 	// Clean up the primary harness created above. This includes removing
 	// all temporary directories, and shutting down any created processes.
-	if err := primaryHarness.TearDown(); err != nil {
-		fmt.Println("Unable to teardown test chain: ", err)
-		os.Exit(1)
-	}
-
-	for _, h := range harnesses {
-		if h.IsUp() {
-			if err := h.TearDown(); err != nil {
-				fmt.Println("Unable to teardown test chain: ", err)
-				os.Exit(1)
-			}
-		}
-	}
-
-	os.Exit(exitCode)
+	gracefulExit(exitCode)
 }
 
 func TestRpcServer(t *testing.T) {
@@ -2035,11 +2039,11 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	newBestBlock(r, t)
 	// SSTx would be happening now with high enough price
 	time.Sleep(5 * time.Second)
-	newBestBlock(r, t)
-	// That should be enough for the test, but buy more to keep the chain alive
+	//newBestBlock(r, t)
+	// One should be enough for the test, but buy more to keep the chain alive
 	for i := 0; i < 10; i++ {
-		height, _, _ := getBestBlock(r, t)
-		newBlockAtQuick(height, r, t)
+		newBestBlock(r, t)
+		time.Sleep(2 * time.Second)
 	}
 
 	// Check for new tickets after enabling auto-purchasing, but with low price
@@ -2233,6 +2237,7 @@ func advanceToNewWindow(r *Harness, t *testing.T) uint32 {
 	curBlockHeight, _, _ := getBestBlock(r, t)
 	for blocksLeftInWindow(curBlockHeight) != chaincfg.SimNetParams.StakeDiffWindowSize {
 		curBlockHeight, _, _ = newBestBlock(r, t)
+		time.Sleep(time.Second)
 	}
 	return curBlockHeight
 }
