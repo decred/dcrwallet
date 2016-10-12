@@ -1932,7 +1932,8 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 		if err != nil {
 			t.Fatal("Failed to purchase tickets:", err)
 		}
-		newBestBlock(r, t)
+		curBlockHeight, _, _ = newBlockAtQuick(curBlockHeight, r, t)
+		time.Sleep(600 * time.Millisecond)
 	}
 
 	// Validate last tx
@@ -2079,7 +2080,6 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	// One should be enough for the test, but buy more to keep the chain alive
 	for i := 0; i < 4; i++ {
 		newBestBlock(r, t)
-		time.Sleep(2 * time.Second)
 	}
 
 	// Check for new tickets after enabling auto-purchasing, but with low price
@@ -2281,6 +2281,8 @@ func mustGetStakeDiffNext(r *Harness, t *testing.T) float64 {
 	return stakeDiffResult.NextStakeDifficulty
 }
 
+// TODO: test that advanceToNewWindow goes to the right block, e.g. not one
+// before or one afttr
 func advanceToNewWindow(r *Harness, t *testing.T) uint32 {
 	// ensure there are many blocks left in this price window
 	var blocksLeftInWindow = func(height uint32) int64 {
@@ -2293,8 +2295,9 @@ func advanceToNewWindow(r *Harness, t *testing.T) uint32 {
 	initHeight := curBlockHeight
 	for blocksLeftInWindow(curBlockHeight) !=
 		chaincfg.SimNetParams.StakeDiffWindowSize {
-		curBlockHeight, _, _ = newBestBlock(r, t)
-		time.Sleep(time.Second)
+		//curBlockHeight, _, _ = newBestBlock(r, t)
+		curBlockHeight, _, _ = newBlockAtQuick(curBlockHeight, r, t)
+		time.Sleep(500 * time.Millisecond)
 	}
 	t.Logf("Advanced %d blocks to block height %d", curBlockHeight-initHeight,
 		curBlockHeight)
@@ -2310,8 +2313,9 @@ func advanceToHeight(r *Harness, t *testing.T, height uint32) {
 	}
 
 	for curBlockHeight != height {
-		curBlockHeight, _, _ = newBestBlock(r, t)
-		time.Sleep(time.Second)
+		//curBlockHeight, _, _ = newBestBlock(r, t)
+		curBlockHeight, _, _ = newBlockAtQuick(curBlockHeight, r, t)
+		time.Sleep(500 * time.Millisecond)
 	}
 	t.Logf("Advanced %d blocks to block height %d", curBlockHeight-initHeight,
 		curBlockHeight)
