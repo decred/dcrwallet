@@ -1153,6 +1153,8 @@ func duplicateExistsInInvalTickets(record *chainhash.Hash,
 	return false
 }
 
+// removeStakePoolInvalUserTickets removes the ticket hash from the inval
+// ticket bucket
 func removeStakePoolInvalUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20]byte,
 	record *chainhash.Hash) error {
 	oldRecords, _ := fetchStakePoolUserInvalTickets(ns, scriptHash)

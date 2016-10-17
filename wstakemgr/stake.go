@@ -1109,6 +1109,8 @@ func (s *StakeStore) UpdateStakePoolUserTickets(ns walletdb.ReadWriteBucket, wad
 	return s.updateStakePoolUserTickets(ns, waddrmgrNs, user, ticket)
 }
 
+// removeStakePoolUserInvalTickets prepares the user.Address and asks stakedb
+// to remove the formerly invalid tickets
 func (s *StakeStore) removeStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address,
 	ticket *chainhash.Hash) error {
 
