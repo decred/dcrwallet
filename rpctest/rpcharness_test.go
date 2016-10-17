@@ -2298,15 +2298,67 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 	if err != nil {
 		t.Fatal("GetStakeInfo failed: ", err)
 	}
+	if stakeinfo.AllMempoolTix != 0 || stakeinfo.Immature != 0 ||
+		stakeinfo.Live != 0 {
+		t.Fatalf("GetStakeInfo reported active tickets. Expected 0, got:\n"+
+			"%d/%d/%d (allmempooltix/immature/live)", stakeinfo.AllMempoolTix,
+			stakeinfo.Immature, stakeinfo.Live)
+	}
 
 	if sdiff.CurrentStakeDifficulty != stakeinfo.Difficulty {
 		t.Fatalf("Stake difficulty mismatch: %f vs %f (getstakedifficulty, getstakeinfo)",
 			sdiff.CurrentStakeDifficulty, stakeinfo.Difficulty)
 	}
+
+	// Buy a ticket to check that it shows up in *mempooltix
+	minConf := 1
+	priceLimit, _ := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+	numTickets := int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
+	_, err = r.WalletRPC.PurchaseTicket("default", priceLimit,
+		&minConf, nil, &numTickets, nil, nil, nil)
+	if err != nil {
+		t.Fatal("Failed to purchase tickets:", err)
+	}
+
+	stakeinfo = mustGetStakeInfo(wcl, t)
+	if stakeinfo.AllMempoolTix != uint32(numTickets) {
+		t.Fatalf("getstakeinfo AllMempoolTix mismatch: %d vs %d",
+			stakeinfo.AllMempoolTix, numTickets)
+	}
+	if stakeinfo.AllMempoolTix != stakeinfo.OwnMempoolTix {
+		t.Fatalf("getstakeinfo AllMempoolTix/OwnMempoolTix mismatch: %d vs %d",
+			stakeinfo.AllMempoolTix, stakeinfo.OwnMempoolTix)
+	}
+
+	// Mine the split tx
+	height, _, _ := getBestBlock(r, t)
+	height, _, _ = newBlockAtQuick(height, r, t)
+	time.Sleep(500 * time.Millisecond)
+	// Mine SSTx
+	height, _, _ = newBlockAtQuick(height, r, t)
+	time.Sleep(500 * time.Millisecond)
+
+	stakeinfo = mustGetStakeInfo(wcl, t)
+	if stakeinfo.Immature != uint32(numTickets) {
+		t.Fatalf("Tickets not reported as immature (got %d, expected %d)",
+			stakeinfo.Immature, numTickets)
+	}
+	if stakeinfo.OwnMempoolTix != 0 {
+		t.Fatalf("Tickets reported in mempool (got %d, expected %d)",
+			stakeinfo.OwnMempoolTix, 0)
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Helper functions
+
+func mustGetStakeInfo(wcl *dcrrpcclient.Client, t *testing.T) *dcrjson.GetStakeInfoResult {
+	stakeinfo, err := wcl.GetStakeInfo()
+	if err != nil {
+		t.Fatal("GetStakeInfo failed: ", err)
+	}
+	return stakeinfo
+}
 
 func mustGetStakeDiff(r *Harness, t *testing.T) float64 {
 	stakeDiffResult, err := r.WalletRPC.GetStakeDifficulty()
