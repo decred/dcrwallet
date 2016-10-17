@@ -51,7 +51,7 @@ var rpcTestCases = []rpcTestCase{
 	testPurchaseTickets,
 	testGetSetTicketMaxPrice,
 	testGetSetBalanceToMaintain,
-	//testGetStakeInfo,
+	testGetStakeInfo,
 	//testWalletinfo,
 }
 
@@ -75,7 +75,7 @@ var needOwnHarness = map[string]bool{
 	"testGetTickets":              false,
 	"testGetSetTicketMaxPrice":    false,
 	"testGetSetBalanceToMaintain": false,
-	"testGetStakeInfo":            false,
+	"testGetStakeInfo":            true,
 	"testWalletinfo":              false,
 }
 
@@ -1035,7 +1035,7 @@ func testSendFrom(r *Harness, t *testing.T) {
 	newBestBlock(r, t)
 
 	// Get rawTx of sent txid so we can calculate the fee that was used
-	time.Sleep(2 * time.Second)
+	time.Sleep(6 * time.Second)
 	rawTx, err := r.WalletRPC.GetRawTransaction(txid)
 	if err != nil {
 		t.Fatalf("getrawtransaction failed: %v", err)
@@ -1061,7 +1061,7 @@ func testSendFrom(r *Harness, t *testing.T) {
 			expectedBalance, defaultBalanceAfterSendNoBlock)
 	}
 
-	time.Sleep(8 * time.Second)
+	time.Sleep(4 * time.Second)
 	// Check balance of sendfrom account
 	sendFromBalanceAfterSend1Block, err := r.WalletRPC.GetBalanceMinConfType(accountName, 1, "all")
 	if err != nil {
@@ -2258,6 +2258,51 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 			t.Fatal("SetGenerate failed:", err)
 		}
 	}
+
+	// Test too high amount for SetBalanceToMaintain
+	tooHighAmt := dcrutil.Amount(dcrutil.MaxAmount + 100).ToCoin()
+	expectedErr := legacyrpc.ErrNeedBelowMaxAmount
+	err = wcl.SetBalanceToMaintain(tooHighAmt)
+	if !strings.Contains(err.Error(), expectedErr.Error()) {
+		t.Fatalf("SetBalanceToMaintain failed to return \"%v\" for too high amount: %v",
+			expectedErr, err)
+	}
+
+	// Test below 0 for SetBalanceToMaintain
+	tooLowAmt := -1.0
+	expectedErr = legacyrpc.ErrNeedPositiveAmount
+	err = wcl.SetBalanceToMaintain(tooLowAmt)
+	if !strings.Contains(err.Error(), expectedErr.Error()) {
+		t.Fatalf("SetBalanceToMaintain failed to return \"%v\" for negative amount: %v",
+			expectedErr, err)
+	}
+
+	// Test invalid Amount to ensure it's checking error from NewAmount
+	err = wcl.SetBalanceToMaintain(math.NaN())
+	if err == nil {
+		t.Fatalf("SetBalanceToMaintain failed to return non-nil error for invalid amount.")
+	}
+}
+
+// testGetStakeInfo gets a FRESH harness
+func testGetStakeInfo(r *Harness, t *testing.T) {
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	sdiff, err := wcl.GetStakeDifficulty()
+	if err != nil {
+		t.Fatal("GetStakeDifficulty failed: ", err)
+	}
+
+	stakeinfo, err := wcl.GetStakeInfo()
+	if err != nil {
+		t.Fatal("GetStakeInfo failed: ", err)
+	}
+
+	if sdiff.CurrentStakeDifficulty != stakeinfo.Difficulty {
+		t.Fatalf("Stake difficulty mismatch: %f vs %f (getstakedifficulty, getstakeinfo)",
+			sdiff.CurrentStakeDifficulty, stakeinfo.Difficulty)
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2282,7 +2327,7 @@ func mustGetStakeDiffNext(r *Harness, t *testing.T) float64 {
 }
 
 // TODO: test that advanceToNewWindow goes to the right block, e.g. not one
-// before or one afttr
+// before or one after
 func advanceToNewWindow(r *Harness, t *testing.T) uint32 {
 	// ensure there are many blocks left in this price window
 	var blocksLeftInWindow = func(height uint32) int64 {
