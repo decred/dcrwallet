@@ -500,6 +500,14 @@ func addTicket(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	pkVersion := mtx.TxOut[0].Version
+	pkScript := mtx.TxOut[0].PkScript
+	_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkVersion,
+		pkScript, w.ChainParams())
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("%v", addrs)
 	err = w.AddTicket(dcrutil.NewTx(mtx))
 	return nil, err
 }
