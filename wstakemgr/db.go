@@ -1153,6 +1153,46 @@ func duplicateExistsInInvalTickets(record *chainhash.Hash,
 	return false
 }
 
+func removeStakePoolInvalUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20]byte,
+	record *chainhash.Hash) error {
+	oldRecords, _ := fetchStakePoolUserInvalTickets(ns, scriptHash)
+
+	// Don't need to remove records that don't exist.
+	if !duplicateExistsInInvalTickets(record, oldRecords) {
+		return nil
+	}
+
+	var newRecords []*chainhash.Hash
+	for i := range oldRecords {
+		if record == oldRecords[i] {
+			newRecords = make([]*chainhash.Hash, len(oldRecords)-1)
+			newRecords = append(oldRecords[0:i], oldRecords[i+1:]...)
+		}
+	}
+
+	if newRecords == nil {
+		return nil
+	}
+
+	bucket := ns.NestedReadWriteBucket(metaBucketName)
+	key := make([]byte, stakePoolInvalidPrefixSize+scriptHashSize)
+	copy(key[0:stakePoolInvalidPrefixSize], stakePoolInvalidPrefix)
+	copy(key[stakePoolInvalidPrefixSize:stakePoolInvalidPrefixSize+scriptHashSize],
+		scriptHash[:])
+
+	// Write the serialized invalid user ticket hashes.
+	serializedRecords := serializeUserInvalTickets(newRecords)
+
+	err := bucket.Put(key, serializedRecords)
+	if err != nil {
+		str := fmt.Sprintf("failed to store pool user invalid ticket "+
+			"records '%x'", scriptHash)
+		return stakeStoreError(ErrDatabase, str, err)
+	}
+
+	return nil
+}
+
 // updateStakePoolInvalUserTickets updates a database entry for a pool user's
 // invalid tickets. The function pulls the current entry in the database,
 // checks to see if the ticket is already there. If it is it returns, otherwise

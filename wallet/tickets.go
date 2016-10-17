@@ -10,6 +10,7 @@ import (
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/walletdb"
+	"github.com/decred/dcrwallet/wstakemgr"
 )
 
 func sliceContainsHash(s []chainhash.Hash, h chainhash.Hash) bool {
@@ -127,6 +128,29 @@ func (w *Wallet) TicketHashesForVotingAddress(votingAddr dcrutil.Address) ([]cha
 		return nil
 	})
 	return ticketHashes, err
+}
+
+func (w *Wallet) UpdateStakePoolTicket(addr dcrutil.Address, ticket *chainhash.Hash) error {
+	return walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
+		stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
+		err := w.StakeMgr.RemoveStakePoolUserInvalTickets(stakemgrNs, addr, ticket)
+		if err != nil {
+			return err
+		}
+		poolTicket := &wstakemgr.PoolTicket{
+			Ticket:       *ticket,
+			HeightTicket: 0,
+			Status:       wstakemgr.TSImmatureOrLive,
+		}
+
+		err = w.StakeMgr.UpdateStakePoolUserTickets(stakemgrNs, addrmgrNs, addr, poolTicket)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 // AddTicket adds a ticket transaction to the wallet.
