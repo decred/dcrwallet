@@ -156,7 +156,6 @@ func (w *Wallet) updateStakePoolInvalidTicket(stakemgrNs walletdb.ReadWriteBucke
 // AddTicket adds a ticket transaction to the wallet.
 func (w *Wallet) AddTicket(ticket *dcrutil.Tx) error {
 	return walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 		stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
 
 		// Insert the ticket to be tracked and voted
@@ -165,33 +164,36 @@ func (w *Wallet) AddTicket(ticket *dcrutil.Tx) error {
 			return err
 		}
 
-		// Pluck the ticketaddress to indentify the stakepool user
-		pkVersion := ticket.MsgTx().TxOut[0].Version
-		pkScript := ticket.MsgTx().TxOut[0].PkScript
-		_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkVersion,
-			pkScript, w.ChainParams())
-		if err != nil {
-			return err
-		}
+		if w.stakePoolEnabled {
+			addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 
-		ticketHash := ticket.MsgTx().TxSha()
+			// Pluck the ticketaddress to indentify the stakepool user
+			pkVersion := ticket.MsgTx().TxOut[0].Version
+			pkScript := ticket.MsgTx().TxOut[0].PkScript
+			_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkVersion,
+				pkScript, w.ChainParams())
+			if err != nil {
+				return err
+			}
 
-		chainClient, err := w.requireChainClient()
-		if err != nil {
-			return err
-		}
-		rawTx, err := chainClient.GetRawTransactionVerbose(&ticketHash)
-		if err != nil {
-			return err
-		}
+			ticketHash := ticket.MsgTx().TxSha()
 
-		// Update the pool ticket stake. This will include removing it from the
-		// invalid slice and adding a ImmatureOrLive ticket to the valid ones
-		err = w.updateStakePoolInvalidTicket(stakemgrNs, addrmgrNs, addrs[0], &ticketHash, rawTx.BlockHeight)
-		if err != nil {
-			return err
-		}
+			chainClient, err := w.requireChainClient()
+			if err != nil {
+				return err
+			}
+			rawTx, err := chainClient.GetRawTransactionVerbose(&ticketHash)
+			if err != nil {
+				return err
+			}
 
+			// Update the pool ticket stake. This will include removing it from the
+			// invalid slice and adding a ImmatureOrLive ticket to the valid ones
+			err = w.updateStakePoolInvalidTicket(stakemgrNs, addrmgrNs, addrs[0], &ticketHash, rawTx.BlockHeight)
+			if err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 }
