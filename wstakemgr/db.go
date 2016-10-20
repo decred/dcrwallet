@@ -1157,6 +1157,11 @@ func duplicateExistsInInvalTickets(record *chainhash.Hash,
 // ticket bucket.
 func removeStakePoolInvalUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20]byte,
 	record *chainhash.Hash) error {
+
+	// Fetch the current content of the key.
+	// Possible buggy behaviour: If deserialization fails,
+	// we won't detect it here. We assume we're throwing
+	// ErrPoolUserInvalTcktsNotFound.
 	oldRecords, _ := fetchStakePoolUserInvalTickets(ns, scriptHash)
 
 	// Don't need to remove records that don't exist.
