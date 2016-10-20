@@ -1172,8 +1172,8 @@ func removeStakePoolInvalUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20
 	var newRecords []*chainhash.Hash
 	for i := range oldRecords {
 		if record.IsEqual(oldRecords[i]) {
-			newRecords = make([]*chainhash.Hash, len(oldRecords)-1)
-			newRecords = append(oldRecords[0:i], oldRecords[i+1:]...)
+			copy(newRecords[:], oldRecords[0:i])
+			copy(newRecords[i:], oldRecords[i+1:])
 		}
 	}
 
