@@ -158,7 +158,7 @@ func (w *Wallet) AddTicket(ticket *dcrutil.Tx) error {
 	return walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 		stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
 
-		// Insert the ticket to be tracked and voted
+		// Insert the ticket to be tracked and voted.
 		err := w.StakeMgr.InsertSStx(stakemgrNs, ticket, w.VoteBits)
 		if err != nil {
 			return err
@@ -167,7 +167,7 @@ func (w *Wallet) AddTicket(ticket *dcrutil.Tx) error {
 		if w.stakePoolEnabled {
 			addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 
-			// Pluck the ticketaddress to indentify the stakepool user
+			// Pluck the ticketaddress to indentify the stakepool user.
 			pkVersion := ticket.MsgTx().TxOut[0].Version
 			pkScript := ticket.MsgTx().TxOut[0].PkScript
 			_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkVersion,
@@ -188,7 +188,7 @@ func (w *Wallet) AddTicket(ticket *dcrutil.Tx) error {
 			}
 
 			// Update the pool ticket stake. This will include removing it from the
-			// invalid slice and adding a ImmatureOrLive ticket to the valid ones
+			// invalid slice and adding a ImmatureOrLive ticket to the valid ones.
 			err = w.updateStakePoolInvalidTicket(stakemgrNs, addrmgrNs, addrs[0], &ticketHash, rawTx.BlockHeight)
 			if err != nil {
 				return err
