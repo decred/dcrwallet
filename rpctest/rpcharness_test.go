@@ -35,24 +35,24 @@ import (
 type rpcTestCase func(r *Harness, t *testing.T)
 
 var rpcTestCases = []rpcTestCase{
-	// testGetNewAddress,
-	// testValidateAddress,
-	// testWalletPassphrase,
-	// testGetBalance,
-	// testListAccounts,
-	// testListUnspent,
-	// testSendToAddress,
-	// testSendFrom,
-	// testSendMany,
-	// testListTransactions,
-	// testGetSetRelayFee,
-	// testGetSetTicketFee,
-	// testGetTickets,
-	// testPurchaseTickets,
-	// testGetSetTicketMaxPrice,
-	// testGetSetBalanceToMaintain,
+	testGetNewAddress,
+	testValidateAddress,
+	testWalletPassphrase,
+	testGetBalance,
+	testListAccounts,
+	testListUnspent,
+	testSendToAddress,
+	testSendFrom,
+	testSendMany,
+	testListTransactions,
+	testGetSetRelayFee,
+	testGetSetTicketFee,
+	testGetTickets,
+	testPurchaseTickets,
+	testGetSetTicketMaxPrice,
+	testGetSetBalanceToMaintain,
 	testGetStakeInfo,
-	//testWalletinfo,
+	testWalletInfo,
 }
 
 // Not all tests need their own harness. Indicate here which get a dedicaed
@@ -76,7 +76,7 @@ var needOwnHarness = map[string]bool{
 	"testGetSetTicketMaxPrice":    false,
 	"testGetSetBalanceToMaintain": false,
 	"testGetStakeInfo":            true,
-	"testWalletinfo":              false,
+	"testWalletInfo":              false,
 }
 
 // Get function name from module name
@@ -2372,7 +2372,7 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 	// validate the purchase
 	//newBestBlock(r, t)
 
-	// Compute the height at which these tickets matures
+	// Compute the height at which these tickets mature
 	ticketsTx, err := wcl.GetRawTransactionVerbose(tickets[0])
 	if err != nil {
 		t.Fatalf("Unable to gettransaction for ticket.")
@@ -2455,6 +2455,50 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 	// proportionLive = float64(stakeInfo.Live) / float64(stakeInfo.PoolSize)
 	// proportionMissed = float64(stakeInfo.Missed) /
 	//	(float64(stakeInfo.Voted) + float64(stakeInfo.Missed))
+}
+
+// testWalletInfo
+func testWalletInfo(r *Harness, t *testing.T) {
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	// WalletInfo is tested exhaustively in other test, so only do some basic
+	// checks here
+	walletInfo, err := wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("walletinfo failed.")
+	}
+	if !walletInfo.DaemonConnected {
+		t.Fatal("WalletInfo indicates that daemon is not connected.")
+	}
+
+	// Turn off stake mining
+	if err := wcl.SetGenerate(false, 0); err != nil {
+		t.Fatal("SetGenerate failed:", err)
+	}
+
+	// WalletInfo is tested exhaustively in other test, so only do a basic check
+	walletInfo, err = wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("walletinfo failed.")
+	}
+	if walletInfo.StakeMining {
+		t.Fatalf("WalletInfo indicades that stake mining is enabled.")
+	}
+
+	// Now turn on stake mining
+	if err = wcl.SetGenerate(true, 0); err != nil {
+		t.Fatal("SetGenerate failed:", err)
+	}
+
+	// WalletInfo is tested exhaustively in other test, so only do a basic check
+	walletInfo, err = wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("walletinfo failed.")
+	}
+	if !walletInfo.StakeMining {
+		t.Fatalf("WalletInfo indicades that stake mining is disabled.")
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
