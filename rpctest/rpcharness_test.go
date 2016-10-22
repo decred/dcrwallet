@@ -35,22 +35,22 @@ import (
 type rpcTestCase func(r *Harness, t *testing.T)
 
 var rpcTestCases = []rpcTestCase{
-	testGetNewAddress,
-	testValidateAddress,
-	testWalletPassphrase,
-	testGetBalance,
-	testListAccounts,
-	testListUnspent,
-	testSendToAddress,
-	testSendFrom,
-	testSendMany,
-	testListTransactions,
-	testGetSetRelayFee,
-	testGetSetTicketFee,
-	testGetTickets,
-	testPurchaseTickets,
-	testGetSetTicketMaxPrice,
-	testGetSetBalanceToMaintain,
+	// testGetNewAddress,
+	// testValidateAddress,
+	// testWalletPassphrase,
+	// testGetBalance,
+	// testListAccounts,
+	// testListUnspent,
+	// testSendToAddress,
+	// testSendFrom,
+	// testSendMany,
+	// testListTransactions,
+	// testGetSetRelayFee,
+	// testGetSetTicketFee,
+	// testGetTickets,
+	// testPurchaseTickets,
+	// testGetSetTicketMaxPrice,
+	// testGetSetBalanceToMaintain,
 	testGetStakeInfo,
 	//testWalletinfo,
 }
@@ -1807,7 +1807,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	}
 
 	// Get current blockheight to make sure chain is at the desiredHeight
-	curBlockHeight, _, _ := getBestBlock(r, t)
+	curBlockHeight := getBestBlockHeight(r, t)
 
 	// Test expiry - earliest is next height + 1
 	// invalid
@@ -1949,7 +1949,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 
 	var err error
 
-	height, _, _ := getBestBlock(r, t)
+	height := getBestBlockHeight(r, t)
 	heightForVoting := uint32(chaincfg.SimNetParams.StakeValidationHeight)
 	if height < heightForVoting {
 		advanceToHeight(r, t, heightForVoting)
@@ -2123,7 +2123,7 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 
 	var err error
 
-	height, _, _ := getBestBlock(r, t)
+	height := getBestBlockHeight(r, t)
 	heightForVoting := uint32(chaincfg.SimNetParams.StakeValidationHeight)
 	if height < heightForVoting {
 		advanceToHeight(r, t, heightForVoting)
@@ -2289,6 +2289,7 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 	// Wallet RPC client
 	wcl := r.WalletRPC
 
+	// Compare stake difficulty from getstakeinfo with getstakeinfo
 	sdiff, err := wcl.GetStakeDifficulty()
 	if err != nil {
 		t.Fatal("GetStakeDifficulty failed: ", err)
@@ -2298,28 +2299,59 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 	if err != nil {
 		t.Fatal("GetStakeInfo failed: ", err)
 	}
+	// Ensure we are starting with a fresh harness
 	if stakeinfo.AllMempoolTix != 0 || stakeinfo.Immature != 0 ||
 		stakeinfo.Live != 0 {
 		t.Fatalf("GetStakeInfo reported active tickets. Expected 0, got:\n"+
-			"%d/%d/%d (allmempooltix/immature/live)", stakeinfo.AllMempoolTix,
-			stakeinfo.Immature, stakeinfo.Live)
+			"%d/%d/%d (allmempooltix/immature/live)",
+			stakeinfo.AllMempoolTix, stakeinfo.Immature, stakeinfo.Live)
+	}
+	// At the expected block height
+	height, block, _ := getBestBlock(r, t)
+	if stakeinfo.BlockHeight != int64(height) {
+		t.Fatalf("Block height reported by GetStakeInfo incorrect. Expected %d, got %d.",
+			height, stakeinfo.BlockHeight)
+	}
+	poolSize := block.MsgBlock().Header.PoolSize
+	if stakeinfo.PoolSize != poolSize {
+		t.Fatalf("Reported pool size incorrect. Expected %d, got %d.",
+			poolSize, stakeinfo.PoolSize)
 	}
 
+	// Ticket fate values should also be zero
+	if stakeinfo.Voted != 0 || stakeinfo.Missed != 0 ||
+		stakeinfo.Revoked != 0 {
+		t.Fatalf("GetStakeInfo reported spent tickets:\n"+
+			"%d/%d/%d (voted/missed/revoked/pct. missed)", stakeinfo.Voted,
+			stakeinfo.Missed, stakeinfo.Revoked)
+	}
+	if stakeinfo.ProportionLive != 0 {
+		t.Fatalf("ProportionLive incorrect. Expected %d, got %d.", 0,
+			stakeinfo.ProportionLive)
+	}
+	if stakeinfo.ProportionMissed != 0 {
+		t.Fatalf("ProportionMissed incorrect. Expected %d, got %d.", 0,
+			stakeinfo.ProportionMissed)
+	}
+
+	// Verify getstakeinfo.difficulty == getstakedifficulty
 	if sdiff.CurrentStakeDifficulty != stakeinfo.Difficulty {
 		t.Fatalf("Stake difficulty mismatch: %f vs %f (getstakedifficulty, getstakeinfo)",
 			sdiff.CurrentStakeDifficulty, stakeinfo.Difficulty)
 	}
 
-	// Buy a ticket to check that it shows up in *mempooltix
+	// Buy tickets to check that they shows up in ownmempooltix/allmempooltix
 	minConf := 1
 	priceLimit, _ := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
 	numTickets := int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
-	_, err = r.WalletRPC.PurchaseTicket("default", priceLimit,
+	tickets, err := r.WalletRPC.PurchaseTicket("default", priceLimit,
 		&minConf, nil, &numTickets, nil, nil, nil)
 	if err != nil {
 		t.Fatal("Failed to purchase tickets:", err)
 	}
 
+	// Before mining a block allmempooltix and ownmempooltix should be equal to
+	// the number of tickets just purchesed in this fresh harness
 	stakeinfo = mustGetStakeInfo(wcl, t)
 	if stakeinfo.AllMempoolTix != uint32(numTickets) {
 		t.Fatalf("getstakeinfo AllMempoolTix mismatch: %d vs %d",
@@ -2330,23 +2362,99 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 			stakeinfo.AllMempoolTix, stakeinfo.OwnMempoolTix)
 	}
 
-	// Mine the split tx
-	height, _, _ := getBestBlock(r, t)
+	// Mine the split tx, which creates the correctly-sized outpoints for the
+	// actual SSTx
+	height = getBestBlockHeight(r, t)
 	height, _, _ = newBlockAtQuick(height, r, t)
 	time.Sleep(500 * time.Millisecond)
 	// Mine SSTx
-	height, _, _ = newBlockAtQuick(height, r, t)
-	time.Sleep(500 * time.Millisecond)
+	height, _, _ = newBestBlock(r, t)
+	// validate the purchase
+	//newBestBlock(r, t)
 
+	// Compute the height at which these tickets matures
+	ticketsTx, err := wcl.GetRawTransactionVerbose(tickets[0])
+	if err != nil {
+		t.Fatalf("Unable to gettransaction for ticket.")
+	}
+	maturityHeight := ticketsTx.BlockHeight + int64(chaincfg.SimNetParams.TicketMaturity)
+
+	// After mining tickets, immature should be the number of tickets
 	stakeinfo = mustGetStakeInfo(wcl, t)
 	if stakeinfo.Immature != uint32(numTickets) {
 		t.Fatalf("Tickets not reported as immature (got %d, expected %d)",
 			stakeinfo.Immature, numTickets)
 	}
+	// mempool tickets should be zero
 	if stakeinfo.OwnMempoolTix != 0 {
 		t.Fatalf("Tickets reported in mempool (got %d, expected %d)",
 			stakeinfo.OwnMempoolTix, 0)
 	}
+	// mempool tickets should be zero
+	if stakeinfo.AllMempoolTix != 0 {
+		t.Fatalf("Tickets reported in mempool (got %d, expected %d)",
+			stakeinfo.AllMempoolTix, 0)
+	}
+
+	// Advance to maturity height
+	t.Logf("Advancing to maturity height %d for tickets in block %d", maturityHeight,
+		ticketsTx.BlockHeight)
+	advanceToHeight(r, t, uint32(maturityHeight)) // +1?
+	// NOTE: voting does not begin until TicketValidationHeight
+
+	// mature should be number of tickets now
+	stakeinfo = mustGetStakeInfo(wcl, t)
+	if stakeinfo.Live != uint32(numTickets) {
+		t.Fatalf("Tickets not reported as live (got %d, expected %d)",
+			stakeinfo.Live, numTickets)
+	}
+	// immature tickets should be zero
+	if stakeinfo.Immature != 0 {
+		t.Fatalf("Tickets reported as immature (got %d, expected %d)",
+			stakeinfo.Immature, 0)
+	}
+
+	// Buy some more tickets (4 blocks worth) so chain doesn't stall when voting
+	// burns through the batch purchased above
+	for i := 0; i < 4; i++ {
+		priceLimit, _ := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+		numTickets := int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
+		_, err := r.WalletRPC.PurchaseTicket("default", priceLimit,
+			&minConf, nil, &numTickets, nil, nil, nil)
+		if err != nil {
+			t.Fatal("Failed to purchase tickets:", err)
+		}
+
+		newBestBlock(r, t)
+	}
+
+	// Advance to voting height and votes should happen right away
+	votingHeight := chaincfg.SimNetParams.StakeValidationHeight
+	advanceToHeight(r, t, uint32(votingHeight))
+	time.Sleep(time.Second)
+
+	// voted should be TicketsPerBlock
+	stakeinfo = mustGetStakeInfo(wcl, t)
+	fmt.Println(*stakeinfo)
+	expectedVotes := chaincfg.SimNetParams.TicketsPerBlock
+	if stakeinfo.Voted != uint32(expectedVotes) {
+		t.Fatalf("Tickets not reported as voted (got %d, expected %d)",
+			stakeinfo.Voted, expectedVotes)
+	}
+
+	newBestBlock(r, t)
+	// voted should be 2*TicketsPerBlock
+	stakeinfo = mustGetStakeInfo(wcl, t)
+	fmt.Println(*stakeinfo)
+	expectedVotes = 2 * chaincfg.SimNetParams.TicketsPerBlock
+	if stakeinfo.Voted != uint32(expectedVotes) {
+		t.Fatalf("Tickets not reported as voted (got %d, expected %d)",
+			stakeinfo.Voted, expectedVotes)
+	}
+
+	// proportionLive = float64(stakeInfo.Live) / float64(stakeInfo.PoolSize)
+	// proportionMissed = float64(stakeInfo.Missed) /
+	//	(float64(stakeInfo.Voted) + float64(stakeInfo.Missed))
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2388,7 +2496,7 @@ func advanceToNewWindow(r *Harness, t *testing.T) uint32 {
 	}
 	// Keep generating blocks until a new price window starts, giving us several
 	// blocks with the same stake difficulty
-	curBlockHeight, _, _ := getBestBlock(r, t)
+	curBlockHeight := getBestBlockHeight(r, t)
 	initHeight := curBlockHeight
 	for blocksLeftInWindow(curBlockHeight) !=
 		chaincfg.SimNetParams.StakeDiffWindowSize {
@@ -2402,7 +2510,7 @@ func advanceToNewWindow(r *Harness, t *testing.T) uint32 {
 }
 
 func advanceToHeight(r *Harness, t *testing.T, height uint32) {
-	curBlockHeight, _, _ := getBestBlock(r, t)
+	curBlockHeight := getBestBlockHeight(r, t)
 	initHeight := curBlockHeight
 
 	if curBlockHeight >= height {
@@ -2460,9 +2568,18 @@ func getBestBlock(r *Harness, t *testing.T) (uint32, *dcrutil.Block, *chainhash.
 	return curBlockHeight, bestBlock, bestBlockHash
 }
 
+func getBestBlockHeight(r *Harness, t *testing.T) uint32 {
+	_, height, err := r.Node.GetBestBlock()
+	if err != nil {
+		t.Fatalf("Failed to GetBestBlock: %v", err)
+	}
+
+	return uint32(height)
+}
+
 func newBestBlock(r *Harness,
 	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash) {
-	height, _, _ := getBestBlock(r, t)
+	height := getBestBlockHeight(r, t)
 	height, block, blockHash := newBlockAt(height, r, t)
 	return height, block, blockHash
 }
