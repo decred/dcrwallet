@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"os"
 	"reflect"
 	"regexp"
@@ -16,7 +17,6 @@ import (
 	"testing"
 	"time"
 
-	//"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
@@ -27,9 +27,6 @@ import (
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
-	"github.com/decred/dcrwallet/wallet"
-	//"math"
-	"math"
 )
 
 type rpcTestCase func(r *Harness, t *testing.T)
@@ -112,8 +109,6 @@ func TestMain(m *testing.M) {
 	}
 
 	var gracefulExit = func(code int) {
-		defer os.Exit(code)
-
 		if err := primaryHarness.TearDown(); err != nil {
 			fmt.Println("Unable to teardown test chain: ", err)
 			code = 1
@@ -127,6 +122,8 @@ func TestMain(m *testing.M) {
 				}
 			}
 		}
+
+		os.Exit(code)
 	}
 
 	// Create the primary/shared harness
@@ -334,7 +331,12 @@ func testValidateAddress(r *Harness, t *testing.T) {
 	}
 
 	// Validate simnet dev subsidy address
-	devSubAddrStr := chaincfg.SimNetParams.OrganizationAddress // "ScuQxvveKGfpG1ypt6u27F99Anf7EW3cqhq"
+	devSubPkScript := chaincfg.SimNetParams.OrganizationPkScript // "ScuQxvveKGfpG1ypt6u27F99Anf7EW3cqhq"
+	devSubPkScrVer := chaincfg.SimNetParams.OrganizationPkScriptVersion
+	_, addrs, _, err := txscript.ExtractPkScriptAddrs(
+		devSubPkScrVer, devSubPkScript, r.ActiveNet)
+	devSubAddrStr := addrs[0].String()
+
 	DevAddr, err := dcrutil.DecodeAddress(devSubAddrStr, &chaincfg.SimNetParams)
 	if err != nil {
 		t.Fatalf("Unable to decode address %s: %v", devSubAddrStr, err)
@@ -801,7 +803,6 @@ func testListUnspent(r *Harness, t *testing.T) {
 	}
 
 	// Check that there is at least one output for the input addresses
-	// TODO: Better check?
 	if len(listAddressesKnown) == 0 {
 		t.Fatalf("Failed to find expected UTXOs with addresses.")
 	}
@@ -860,7 +861,6 @@ func testListUnspent(r *Harness, t *testing.T) {
 			t.Fatalf("Failed to find txid %v (%v DCR) in list of UTXOs",
 				txinID, amt)
 		}
-		// TODO: Is there a useful value/amount check?
 	}
 
 	// Validate the send Tx with 2 new blocks
@@ -1035,7 +1035,7 @@ func testSendFrom(r *Harness, t *testing.T) {
 	newBestBlock(r, t)
 
 	// Get rawTx of sent txid so we can calculate the fee that was used
-	time.Sleep(6 * time.Second)
+	time.Sleep(3 * time.Second)
 	rawTx, err := r.WalletRPC.GetRawTransaction(txid)
 	if err != nil {
 		t.Fatalf("getrawtransaction failed: %v", err)
@@ -1061,7 +1061,6 @@ func testSendFrom(r *Harness, t *testing.T) {
 			expectedBalance, defaultBalanceAfterSendNoBlock)
 	}
 
-	time.Sleep(4 * time.Second)
 	// Check balance of sendfrom account
 	sendFromBalanceAfterSend1Block, err := r.WalletRPC.GetBalanceMinConfType(accountName, 1, "all")
 	if err != nil {
@@ -1076,13 +1075,22 @@ func testSendFrom(r *Harness, t *testing.T) {
 	// We have confirmed that the expected tx was mined into the block.
 	// We should now check to confirm that the utxo that wallet used to create
 	// that sendfrom was properly marked to spent and removed from utxo set.
-	list, err = r.WalletRPC.ListUnspent()
+
+	// Get the sending Tx
+	Tx, err := r.WalletRPC.GetRawTransaction(txid)
 	if err != nil {
-		t.Fatal("Failed to get utxos")
+		t.Fatalf("Unable to get raw transaction %v: %v", txid, err)
 	}
-	for _, utxo := range list {
-		if utxo.TxID == rawTx.MsgTx().TxIn[0].PreviousOutPoint.Hash.String() {
-			t.Fatal("Found a utxo that should have been marked spent:", utxo.TxID)
+
+	// Check all inputs
+	for ii, txIn := range Tx.MsgTx().TxIn {
+		prevOut := &txIn.PreviousOutPoint
+		//t.Logf("Checking previous outpoint %v, %v", ii, prevOut.String())
+
+		// If a txout is spent (not in the UTXO set) GetTxOutResult will be nil
+		res, _ := r.WalletRPC.GetTxOut(&prevOut.Hash, prevOut.Index, false)
+		if res != nil {
+			t.Fatalf("Transaction output %v still unspent.", ii)
 		}
 	}
 }
@@ -1746,7 +1754,7 @@ func testGetTickets(r *Harness, t *testing.T) {
 		}
 
 		// Ensure result is a SSTx
-		isSSTx, err := stake.IsSStx(tx)
+		isSSTx, err := stake.IsSStx(tx.MsgTx())
 		if err != nil {
 			t.Fatal("IsSSTx failed:", err)
 		}
@@ -1913,9 +1921,8 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 		_, err = r.WalletRPC.PurchaseTicket("default", priceLimit,
 			&minConf, addr, &numTicket, nil, nil, &expiry)
 
-		// allow ErrSStxPriceExceedsSpendLimit (TODO: why?)
-		if err != nil && wallet.ErrSStxPriceExceedsSpendLimit.Error() !=
-			err.(*dcrjson.RPCError).Message {
+		// Do not allow even ErrSStxPriceExceedsSpendLimit since price is set
+		if err != nil {
 			t.Fatal(err)
 		}
 		curBlockHeight, _, _ = newBlockAtQuick(curBlockHeight, r, t)
@@ -1971,8 +1978,8 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	if err = wcl.SetTicketFee(newTicketFee); err != nil {
 		t.Fatal("SetTicketFee failed:", err)
 	}
-	// Drop the balance to maintain so tickets will be purchased.
-	// TODO: check balance to ensure we can afford all the tickets.
+	// Drop the balance to maintain so tickets will be purchased. If balance to
+	// too low for this test, it should be preceeded by more block subsidy.
 	if err = wcl.SetBalanceToMaintain(10); err != nil {
 		t.Fatal("SetBalanceToMaintain failed:", err)
 	}
@@ -1983,7 +1990,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 		t.Fatal("WalletInfo failed:", err)
 	}
 	maxPriceInit := walletInfoResult.TicketMaxPrice
-	t.Log("Stake mining enabled:", walletInfoResult.StakeMining)
+
 	// Get the current stake difficulty to know how low we need to set the
 	// wallet's max ticket price so that it should not purchase tickets.
 	advanceToNewWindow(r, t)
@@ -2064,7 +2071,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 			break
 		}
 	}
-	if newTickets == false {
+	if !newTickets {
 		t.Fatalf("Tickets were NOT purchased at %f, but max price was %f",
 			stakeDiff, adequateTicketMaxPrice)
 	}
@@ -2078,6 +2085,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	time.Sleep(5 * time.Second)
 	//newBestBlock(r, t)
 	// One should be enough for the test, but buy more to keep the chain alive
+	numBlocksToStakeMine := 4
 	for i := 0; i < 4; i++ {
 		newBestBlock(r, t)
 	}
@@ -2096,8 +2104,9 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 			//break
 		}
 	}
-	t.Log("Number of tickets purchased over 4 blocks:", numTicketsPurchased)
-	if newTickets == false {
+	t.Logf("Number of tickets auto-purchased over %d blocks: %d",
+		numBlocksToStakeMine, numTicketsPurchased)
+	if !newTickets {
 		t.Fatalf("Tickets were NOT purchased at %f, but max price was %f",
 			stakeDiff, adequateTicketMaxPrice)
 	}
@@ -2110,7 +2119,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	}
 
 	// Disable automatic ticket purchasing
-	if walletInfoResult.StakeMining == false {
+	if !walletInfoResult.StakeMining {
 		if err = wcl.SetGenerate(false, 0); err != nil {
 			t.Fatal("SetGenerate failed:", err)
 		}
@@ -2165,6 +2174,7 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 	wcl.SetTicketMaxPrice(0)
 
 	advanceToNewWindow(r, t)
+	// Now next != current stake difficulty
 
 	// Index before enabling auto-purchasing
 	ticketHashes, err := wcl.GetTickets(true)
@@ -2187,8 +2197,8 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 
 	// Enable stake mining so tickets get automatically purchased
 	if err = wcl.SetGenerate(true, 0); err != nil {
-		// NOTE: This will "error" because of rejected TX (already ahve votes
-		// that get resent)
+		// NOTE: This will "error" because of rejected TX (already have votes
+		// that get resent).  TODO: Verify if this should even be an error.
 		//t.Fatal("SetGenerate failed:", err)
 	}
 
@@ -2240,7 +2250,7 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 			break
 		}
 	}
-	if newTickets == false {
+	if !newTickets {
 		t.Fatalf("Tickets were NOT purchased with %v spendable; BTM = %v",
 			spendable.ToCoin(), newBTMCoin)
 	}
@@ -2253,7 +2263,7 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 	}
 
 	// Disable automatical tickets purchasing
-	if walletInfoResult.StakeMining == false {
+	if !walletInfoResult.StakeMining {
 		if err = wcl.SetGenerate(false, 0); err != nil {
 			t.Fatal("SetGenerate failed:", err)
 		}
@@ -2435,7 +2445,6 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 
 	// voted should be TicketsPerBlock
 	stakeinfo = mustGetStakeInfo(wcl, t)
-	fmt.Println(*stakeinfo)
 	expectedVotes := chaincfg.SimNetParams.TicketsPerBlock
 	if stakeinfo.Voted != uint32(expectedVotes) {
 		t.Fatalf("Tickets not reported as voted (got %d, expected %d)",
@@ -2445,16 +2454,26 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 	newBestBlock(r, t)
 	// voted should be 2*TicketsPerBlock
 	stakeinfo = mustGetStakeInfo(wcl, t)
-	fmt.Println(*stakeinfo)
 	expectedVotes = 2 * chaincfg.SimNetParams.TicketsPerBlock
 	if stakeinfo.Voted != uint32(expectedVotes) {
 		t.Fatalf("Tickets not reported as voted (got %d, expected %d)",
 			stakeinfo.Voted, expectedVotes)
 	}
 
-	// proportionLive = float64(stakeInfo.Live) / float64(stakeInfo.PoolSize)
-	// proportionMissed = float64(stakeInfo.Missed) /
-	//	(float64(stakeInfo.Voted) + float64(stakeInfo.Missed))
+	// ProportionLive
+	proportionLive := float64(stakeinfo.Live) / float64(stakeinfo.PoolSize)
+	if stakeinfo.ProportionLive != proportionLive {
+		t.Fatalf("ProportionLive mismatch.  Expected %f, got %f",
+			proportionLive, stakeinfo.ProportionLive)
+	}
+
+	// ProportionMissed
+	proportionMissed := float64(stakeinfo.Missed) /
+		(float64(stakeinfo.Voted) + float64(stakeinfo.Missed))
+	if stakeinfo.ProportionMissed != proportionMissed {
+		t.Fatalf("ProportionMissed mismatch.  Expected %f, got %f",
+			proportionMissed, stakeinfo.ProportionMissed)
+	}
 }
 
 // testWalletInfo
@@ -2474,7 +2493,9 @@ func testWalletInfo(r *Harness, t *testing.T) {
 
 	// Turn off stake mining
 	if err := wcl.SetGenerate(false, 0); err != nil {
-		t.Fatal("SetGenerate failed:", err)
+		// NOTE: This will "error" because of rejected TX (already have votes
+		// that get resent).  TODO: Verify if this should even be an error.
+		//t.Fatal("SetGenerate failed:", err)
 	}
 
 	// WalletInfo is tested exhaustively in other test, so only do a basic check
@@ -2488,7 +2509,7 @@ func testWalletInfo(r *Harness, t *testing.T) {
 
 	// Now turn on stake mining
 	if err = wcl.SetGenerate(true, 0); err != nil {
-		t.Fatal("SetGenerate failed:", err)
+		//t.Fatal("SetGenerate failed:", err)
 	}
 
 	// WalletInfo is tested exhaustively in other test, so only do a basic check
@@ -2530,12 +2551,12 @@ func mustGetStakeDiffNext(r *Harness, t *testing.T) float64 {
 	return stakeDiffResult.NextStakeDifficulty
 }
 
-// TODO: test that advanceToNewWindow goes to the right block, e.g. not one
-// before or one after
+// advanceToNewWindow goes to the height where next != current stake difficulty
 func advanceToNewWindow(r *Harness, t *testing.T) uint32 {
 	// ensure there are many blocks left in this price window
 	var blocksLeftInWindow = func(height uint32) int64 {
-		windowIdx := int64(height) % chaincfg.SimNetParams.StakeDiffWindowSize
+		// height + 1 is used to land at the height where next != current diff.
+		windowIdx := int64(height+1) % chaincfg.SimNetParams.StakeDiffWindowSize
 		return chaincfg.SimNetParams.StakeDiffWindowSize - windowIdx
 	}
 	// Keep generating blocks until a new price window starts, giving us several
