@@ -2996,7 +2996,7 @@ func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 		expiredBitSetB, err := hex.DecodeString(expiredBitSetBStr)
 		if err != nil {
 			return fmt.Errorf("Failed to decode response for whether tickets "+
-				"were in live buckets when generating stake info (err %s)",
+				"were in expired bucket when generating stake info (err %s)",
 				err.Error())
 		}
 		expiredBitSet := bitset.Bytes(expiredBitSetB)
