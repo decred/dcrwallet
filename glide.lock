@@ -1,5 +1,5 @@
 hash: 5cc50197a8683b16e3e120937d59e244ba000d7c0d474d8b613e17a93b9723ef
-updated: 2016-10-14T13:42:35.5906491-04:00
+updated: 2016-10-24T10:40:37.005949731-05:00
 imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
@@ -15,12 +15,12 @@ imports:
   version: 53f62d9b43e87a6c56975cf862af7edf33a8d0df
   subpackages:
   - nacl/secretbox
-  - pbkdf2
-  - poly1305
   - ripemd160
-  - salsa20/salsa
   - scrypt
   - ssh/terminal
+  - poly1305
+  - salsa20/salsa
+  - pbkdf2
 - name: github.com/btcsuite/seelog
   version: 313961b101eb55f65ae0f03ddd4e322731763b6c
 - name: github.com/btcsuite/websocket
@@ -30,32 +30,32 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: cc25399f6a78b09957d82e2c98960b24685e1475
+  version: b086c13d6bca0016dfb22c9259f61afa68f64041
   subpackages:
   - blockchain
-  - blockchain/internal/dbnamespace
-  - blockchain/internal/progresslog
   - blockchain/stake
-  - blockchain/stake/internal/dbnamespace
-  - blockchain/stake/internal/ticketdb
-  - blockchain/stake/internal/tickettreap
   - chaincfg
   - chaincfg/chainec
   - chaincfg/chainhash
-  - database
-  - dcrec/edwards
-  - dcrec/secp256k1
-  - dcrec/secp256k1/schnorr
   - dcrjson
   - txscript
   - wire
+  - dcrec/secp256k1
+  - dcrec/edwards
+  - dcrec/secp256k1/schnorr
+  - blockchain/stake/internal/dbnamespace
+  - blockchain/stake/internal/ticketdb
+  - blockchain/stake/internal/tickettreap
+  - database
+  - blockchain/internal/dbnamespace
+  - blockchain/internal/progresslog
 - name: github.com/decred/dcrrpcclient
-  version: 0f562bb540de12dfd5248aee87063eaa4792705f
+  version: 4c252bef4ede28f54302049c3e7ecca2ef8c7214
 - name: github.com/decred/dcrutil
   version: 0484582bf5503574d824f110e836a8c48aa60c8c
   subpackages:
-  - base58
   - hdkeychain
+  - base58
 - name: github.com/decred/ed25519
   version: b0909d3f798b97a03c9e77023f97a5301a2a7900
   subpackages:
@@ -89,8 +89,8 @@ imports:
   - internal
   - metadata
   - naming
-  - peer
   - transport
+  - peer
 testImports:
 - name: github.com/davecgh/go-spew
   version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
