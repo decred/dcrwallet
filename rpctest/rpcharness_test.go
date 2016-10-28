@@ -99,12 +99,11 @@ func funcName(tc rpcTestCase) string {
 // TestMain manages the test harnesses and runs the tests instead of go test
 // running the tests directly.
 func TestMain(m *testing.M) {
+	// To timing of block generation, create a OnBlockConnected notification
 	ntfnHandlersNode := dcrrpcclient.NotificationHandlers{
 		OnBlockConnected: func(hash *chainhash.Hash, height int32,
 			time time.Time, vb uint16) {
-			// if height > 41 {
-			// 	fmt.Printf("New block connected, at height: %v\n", height)
-			// }
+			// fmt.Printf("New block connected, at height: %v\n", height)
 		},
 	}
 
@@ -231,12 +230,6 @@ func testGetNewAddress(r *Harness, t *testing.T) {
 		t.Fatalf("Address not valid: %s", addr)
 	}
 
-	// Verbose - Get a new address from "default" account
-	// addr, err := wcl.GetNewAddress
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-
 	for i := 0; i < 100; i++ {
 		addr, err = wcl.GetNewAddress("default")
 		if err != nil {
@@ -362,7 +355,11 @@ func testWalletPassphrase(r *Harness, t *testing.T) {
 
 	// Remember to leave the wallet unlocked for any subsequent tests
 	defaultWalletPassphrase := "password"
-	defer wcl.WalletPassphrase(defaultWalletPassphrase, 0)
+	defer func() {
+		if err := wcl.WalletPassphrase(defaultWalletPassphrase, 0); err != nil {
+			t.Fatal("Unable to lock wallet:", err)
+		}
+	}()
 
 	// Lock the wallet since test wallet is unlocked by default
 	err := wcl.WalletLock()
@@ -495,18 +492,18 @@ func testGetBalance(r *Harness, t *testing.T) {
 	}
 
 	// Check invalid account name
-	balance, err = wcl.GetBalanceMinConfType("invalid account", 0, "spendable")
+	_, err = wcl.GetBalanceMinConfType("invalid account", 0, "spendable")
 	// -4: account name 'invalid account' not found
 	if err == nil {
 		t.Fatalf("GetBalanceMinConfType failed to return non-nil error for invalid account name: %v", err)
 	}
 
 	// Check invalid minconf
-	balance, err = wcl.GetBalanceMinConfType("default", -1, "spendable")
+	_, err = wcl.GetBalanceMinConfType("default", -1, "spendable")
 	if err == nil {
 		t.Logf("GetBalanceMinConfType failed to return non-nil error for invalid minconf (-1)")
-		// TODO: I think this is a bug in Store.balanceFullScan (tx.go), where
-		// the check is minConf == 0 instead of minConf < 1
+		// TODO: This is a bug in Store.balanceFullScan (tx.go), where the check
+		// is minConf == 0 instead of minConf < 1
 	}
 
 	// Exercise all valid balance types
@@ -525,7 +522,9 @@ func testGetBalance(r *Harness, t *testing.T) {
 
 	// Send from default to test account
 	sendAmount := dcrutil.Amount(700000000)
-	wcl.SendFromMinConf("default", addr, sendAmount, 1)
+	if _, err = wcl.SendFromMinConf("default", addr, sendAmount, 1); err != nil {
+		t.Fatal("SendFromMinConf failed.", err)
+	}
 
 	// After send, but before new block check mempool (minconf=0) balances
 	postSendBalancesAllAccts := getBalances("*", balanceTypes, 0, t, wcl)
@@ -665,7 +664,9 @@ func testListAccounts(r *Harness, t *testing.T) {
 
 	// Send from default to test account
 	sendAmount := dcrutil.Amount(700000000)
-	wcl.SendFromMinConf("default", addr, sendAmount, 1)
+	if _, err = wcl.SendFromMinConf("default", addr, sendAmount, 1); err != nil {
+		t.Fatal("SendFromMinConf failed.", err)
+	}
 
 	// Get accounts with minconf=0 post-send
 	accountsBalancesMinconf0PostSend, err := wcl.ListAccountsMinConf(0)
@@ -793,8 +794,6 @@ func testListUnspent(r *Harness, t *testing.T) {
 	if err != nil {
 		t.Fatal("Failed to extract addresses from PkScript.")
 	}
-	// This may be helpful to debug ListUnspentResult Address field
-	//t.Log(addrs)
 
 	// List with all of the above address
 	listAddressesKnown, err := wcl.ListUnspentMinMaxAddresses(1, defaultMaxConf, addrs)
@@ -836,8 +835,8 @@ func testListUnspent(r *Harness, t *testing.T) {
 
 	newBestBlock(r, t)
 	time.Sleep(1 * time.Second)
-	// TODO: why is above necessary for GetRawTransaction to give a tx with
-	// sensible MsgTx().TxIn[:].ValueIn values?
+	// New block is necessary for GetRawTransaction to give a tx with sensible
+	// MsgTx().TxIn[:].ValueIn values.
 
 	// Get *dcrutil.Tx of send to check the inputs
 	rawTx, err := r.Node.GetRawTransaction(txid)
@@ -852,7 +851,6 @@ func testListUnspent(r *Harness, t *testing.T) {
 		// Outpoint.String() appends :index to the hash
 		txInIDs[prevOut.String()] = dcrutil.Amount(txIn.ValueIn).ToCoin()
 	}
-	//t.Log("Number of TxIns: ", len(txInIDs))
 
 	// First check to make sure we see these in the UTXO list prior to send,
 	// then not in the UTXO list after send.
@@ -923,11 +921,9 @@ func testSendToAddress(r *Harness, t *testing.T) {
 	}
 
 	// We should now check to confirm that the utxo that wallet used to create
-	// that sendfrom was properly marked as spent and removed from utxo set.
-
-	// Try this a different way, without another ListUnspent call.  Use
+	// that sendfrom was properly marked as spent and removed from utxo set. Use
 	// GetTxOut to tell if the outpoint is spent.
-
+	//
 	// The spending transaction has to be off the tip block for the previous
 	// outpoint to be spent, out of the UTXO set. Generate another block.
 	_, err = r.GenerateBlock(block.MsgBlock().Header.Height)
@@ -1085,7 +1081,6 @@ func testSendFrom(r *Harness, t *testing.T) {
 	// Check all inputs
 	for ii, txIn := range Tx.MsgTx().TxIn {
 		prevOut := &txIn.PreviousOutPoint
-		//t.Logf("Checking previous outpoint %v, %v", ii, prevOut.String())
 
 		// If a txout is spent (not in the UTXO set) GetTxOutResult will be nil
 		res, _ := r.WalletRPC.GetTxOut(&prevOut.Hash, prevOut.Index, false)
@@ -1115,7 +1110,6 @@ func testSendMany(r *Harness, t *testing.T) {
 	// Grab new addresses from the wallet, under each account.
 	// Set corresponding amount to send to each address.
 	addressAmounts := make(map[dcrutil.Address]dcrutil.Amount)
-	//var totalAmountToSend dcrutil.Amount
 	totalAmountToSend := dcrutil.Amount(0)
 
 	for i, acct := range accountNames {
@@ -1170,6 +1164,8 @@ func testSendMany(r *Harness, t *testing.T) {
 	fee := getWireMsgTxFee(rawTx)
 	t.Log("Raw TX before mining block: ", rawTx, " Fee: ", fee)
 
+	// Generate a single block, the transaction the wallet created should be
+	// found in this block.
 	_, block, _ := newBestBlock(r, t)
 
 	rawTx, err = r.Node.GetRawTransaction(txid)
@@ -1186,10 +1182,6 @@ func testSendMany(r *Harness, t *testing.T) {
 		t.Fatalf("Balance for %s account (sender) incorrect: want %v got %v",
 			"default", expectedBalance, defaultBalanceAfterSendUnmined)
 	}
-
-	// Generate a single block, the transaction the wallet created should
-	// be found in this block.
-	//_, block, _ := newBestBlock(r, t)
 
 	// Check to make sure the transaction that was sent was included in the block
 	if !includesTx(txid, block, r, t) {
@@ -1216,7 +1208,6 @@ func testSendMany(r *Harness, t *testing.T) {
 	// Check all inputs
 	for ii, txIn := range rawTx.MsgTx().TxIn {
 		prevOut := &txIn.PreviousOutPoint
-		//t.Logf("Checking previous outpoint %v, %v", ii, prevOut.String())
 
 		// If a txout is spent (not in the UTXO set) GetTxOutResult will be nil
 		res, _ := wcl.GetTxOut(&prevOut.Hash, prevOut.Index, false)
@@ -1457,8 +1448,7 @@ func testListTransactions(r *Harness, t *testing.T) {
 	// Grab new addresses from the wallet, under each account.
 	// Set corresponding amount to send to each address.
 	addressAmounts := make(map[dcrutil.Address]dcrutil.Amount)
-	//var totalAmountToSend dcrutil.Amount
-	totalAmountToSend := dcrutil.Amount(0)
+	//totalAmountToSend := dcrutil.Amount(0)
 
 	for i, acct := range accountNames {
 		addr, err := wcl.GetNewAddress(acct)
@@ -1469,7 +1459,7 @@ func testListTransactions(r *Harness, t *testing.T) {
 		// Set the amounts to send to each address
 		addresses = append(addresses, addr)
 		addressAmounts[addr] = amountsToSend[i]
-		totalAmountToSend += amountsToSend[i]
+		//totalAmountToSend += amountsToSend[i]
 	}
 
 	// SendMany to two addresses
@@ -1504,13 +1494,13 @@ func testGetSetRelayFee(r *Harness, t *testing.T) {
 	// Save the original fee
 	origTxFee, err := dcrutil.NewAmount(walletInfo.TxFee)
 	if err != nil {
-		t.Fatal("Invalid Amount:", walletInfo.TxFee)
+		t.Fatalf("Invalid Amount %f. %v", walletInfo.TxFee, err)
 	}
 	// Increase fee by 50%
 	newTxFeeCoin := walletInfo.TxFee * 1.5
-	newTxFee, _ := dcrutil.NewAmount(newTxFeeCoin)
+	newTxFee, err := dcrutil.NewAmount(newTxFeeCoin)
 	if err != nil {
-		t.Fatal("Invalid Amount:", newTxFeeCoin)
+		t.Fatalf("Invalid Amount %f. %v", newTxFeeCoin, err)
 	}
 
 	err = wcl.SetTxFee(newTxFee)
@@ -1525,7 +1515,7 @@ func testGetSetRelayFee(r *Harness, t *testing.T) {
 	}
 	newTxFeeActual, err := dcrutil.NewAmount(walletInfo.TxFee)
 	if err != nil {
-		t.Fatal("Invalid Amount:", walletInfo.TxFee)
+		t.Fatalf("Invalid Amount %f. %v", walletInfo.TxFee, err)
 	}
 	if newTxFee != newTxFeeActual {
 		t.Fatalf("Expected tx fee %v, got %v.", newTxFee, newTxFeeActual)
@@ -1552,8 +1542,6 @@ func testGetSetRelayFee(r *Harness, t *testing.T) {
 	}
 
 	newBestBlock(r, t)
-	//time.Sleep(1 * time.Second)
-	// Give the tx a sensible MsgTx().TxIn[:].ValueIn values
 
 	// Compute the fee
 	rawTx, err := r.Node.GetRawTransaction(txid)
@@ -1607,7 +1595,7 @@ func testGetSetTicketFee(r *Harness, t *testing.T) {
 
 	// Increase the ticket fee to ensure the SSTx in ths test gets mined
 	newTicketFeeCoin := nominalTicketFee * 1.5
-	newTicketFee, _ := dcrutil.NewAmount(newTicketFeeCoin)
+	newTicketFee, err := dcrutil.NewAmount(newTicketFeeCoin)
 	if err != nil {
 		t.Fatal("Invalid Amount:", newTicketFeeCoin)
 	}
@@ -1625,7 +1613,7 @@ func testGetSetTicketFee(r *Harness, t *testing.T) {
 	nominalTicketFee = walletInfo.TicketFee
 	newTicketFeeActual, err := dcrutil.NewAmount(nominalTicketFee)
 	if err != nil {
-		t.Fatal("Invalid Amount:", nominalTicketFee)
+		t.Fatalf("Invalid Amount %f. %v", nominalTicketFee, err)
 	}
 	if newTicketFee != newTicketFeeActual {
 		t.Fatalf("Expected ticket fee %v, got %v.", newTicketFee,
@@ -1634,7 +1622,10 @@ func testGetSetTicketFee(r *Harness, t *testing.T) {
 
 	// Purchase ticket
 	minConf, numTicket := 0, 1
-	priceLimit, _ := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+	priceLimit, err := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+	if err != nil {
+		t.Fatal("Invalid Amount. ", err)
+	}
 	hashes, err := wcl.PurchaseTicket("default", priceLimit,
 		&minConf, nil, &numTicket, nil, nil, nil)
 	if err != nil {
@@ -1648,7 +1639,6 @@ func testGetSetTicketFee(r *Harness, t *testing.T) {
 	// Not yet at StakeValidationHeight, so no voting.
 	newBestBlock(r, t)
 	newBestBlock(r, t)
-	//time.Sleep(2 * time.Second)
 
 	// Compute the actual fee for the ticket purchase
 	rawTx, err := wcl.GetRawTransaction(hashes[0])
@@ -1705,7 +1695,10 @@ func testGetTickets(r *Harness, t *testing.T) {
 
 	// Purchase a full blocks worth of tickets
 	minConf, numTicketsPurchased := 1, int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
-	priceLimit, _ := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+	priceLimit, err := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+	if err != nil {
+		t.Fatal("Invalid Amount. ", err)
+	}
 	hashes, err := wcl.PurchaseTicket("default", priceLimit,
 		&minConf, nil, &numTicketsPurchased, nil, nil, nil)
 	if err != nil {
@@ -1741,8 +1734,6 @@ func testGetTickets(r *Harness, t *testing.T) {
 		if !includesStakeTx(hash, block, r, t) {
 			t.Errorf("SSTx expected, not found in block %v.", block.Height())
 		}
-		// rtx, _ := wcl.GetRawTransactionVerbose(hash)
-		// t.Log(rtx.BlockHeight)
 	}
 
 	// Verify each SSTx hash
@@ -1762,8 +1753,6 @@ func testGetTickets(r *Harness, t *testing.T) {
 			t.Log(blockchain.DebugMsgTxString(tx.MsgTx()))
 			t.Fatal("Ticket hash is not for a SSTx.")
 		}
-		//t.Log(blockchain.DebugMsgTxString(tx.MsgTx()))
-
 	}
 }
 
@@ -1782,7 +1771,10 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	// Set various variables for the test
 	minConf := 0
 	expiry := 0
-	priceLimit, _ := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+	priceLimit, err := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+	if err != nil {
+		t.Fatal("Invalid Amount.", err)
+	}
 
 	// Test nil ticketAddress
 	oneTix := 1
@@ -1852,11 +1844,22 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	// ticket with an expiry 2 blocks away.
 
 	// Increase the ticket fee so these SSTx get mined first
-	walletInfo, _ := wcl.WalletInfo()
-	origTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee)
-	newTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
+	walletInfo, err := wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("WalletInfo failed.", err)
+	}
+	origTicketFee, err := dcrutil.NewAmount(walletInfo.TicketFee)
+	if err != nil {
+		t.Fatalf("Invalid Amount %f. %v", walletInfo.TicketFee, err)
+	}
+	newTicketFee, err := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
+	if err != nil {
+		t.Fatalf("Invalid Amount %f. %v", walletInfo.TicketFee, err)
+	}
 
-	wcl.SetTicketFee(newTicketFee)
+	if err = wcl.SetTicketFee(newTicketFee); err != nil {
+		t.Fatalf("SetTicketFee failed for Amount %v: %v", newTicketFee, err)
+	}
 
 	expiry = 0
 	numTicket := 2 * int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
@@ -1866,7 +1869,9 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 		t.Fatal("Unable to purchase tickets:", err)
 	}
 
-	wcl.SetTicketFee(origTicketFee)
+	if err = wcl.SetTicketFee(origTicketFee); err != nil {
+		t.Fatalf("SetTicketFee failed for Amount %v: %v", origTicketFee, err)
+	}
 
 	// Check for the ticket
 	_, err = wcl.GetTransaction(ticketWithExpiry)
@@ -1879,15 +1884,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	curBlockHeight, _, _ = newBlockAt(curBlockHeight, r, t)
 
 	// Ticket with expiry set should now be expired (unmined and removed from
-	// mempool)
-	// ticketsWithoutExired, err := wcl.GetTickets(true)
-	// for _, ticket := range ticketsWithoutExired {
-	// 	if ticket == ticketWithExpiry {
-	// 		t.Fatal("Expired ticket found:", ticketWithExpiry)
-	// 	}
-	// }
-	// An unmined and expired tx should have been removed/pruned
-	//tx, err := wcl.GetRawTransaction(ticketWithExpiry)
+	// mempool).  An unmined and expired tx should have been removed/pruned
 	txRawVerbose, err := wcl.GetRawTransactionVerbose(ticketWithExpiry)
 	if err == nil {
 		t.Fatalf("Found transaction that should be expired (height %v): %v",
@@ -1908,14 +1905,15 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 
 	// NOTE: ticket maturity = 16 (spendable at 17), stakeenabled height = 144
 	// Must have tickets purchased before block 128
-	//ticketMaturity := chaincfg.SimNetParams.TicketMaturity
-	//stakeValidationHeight := chaincfg.SimNetParams.StakeValidationHeight
 
 	// Keep generating blocks until desiredHeight is achieved
 	desiredHeight := uint32(150)
 	numTicket = int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
 	for curBlockHeight < desiredHeight {
-		priceLimit, _ = dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+		priceLimit, err = dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+		if err != nil {
+			t.Fatal("Invalid Amount.", err)
+		}
 		_, err = r.WalletRPC.PurchaseTicket("default", priceLimit,
 			&minConf, addr, &numTicket, nil, nil, nil)
 
@@ -1946,18 +1944,20 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 		advanceToHeight(r, t, heightForVoting)
 	}
 
-	// Get a known ticket address
-	// ticketAddr, err := wcl.GetNewAddress("default")
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// wcl.GetReceivedByAddress(ticketAddr)
-
 	// Increase the ticket fee so SSTx in this test get mined first. Or we could
 	// do this test in a fresh harness...
-	walletInfo, _ := wcl.WalletInfo()
-	origTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee)
-	newTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
+	walletInfo, err := wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("WalletInfo failed.", err)
+	}
+	origTicketFee, err := dcrutil.NewAmount(walletInfo.TicketFee)
+	if err != nil {
+		t.Fatalf("Invalid Amount %f. %v", walletInfo.TicketFee, err)
+	}
+	newTicketFee, err := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
+	if err != nil {
+		t.Fatalf("Invalid Amount %f. %v", walletInfo.TicketFee*1.5, err)
+	}
 
 	if err = wcl.SetTicketFee(newTicketFee); err != nil {
 		t.Fatal("SetTicketFee failed:", err)
@@ -1992,7 +1992,6 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 
 	// Too low
 	lowTicketMaxPrice := stakeDiff / 2
-	//lowPriceAmt, _ := dcrutil.NewAmount(lowTicketMaxPrice)
 
 	// Set ticket price to lower than current stake difficulty
 	if err = wcl.SetTicketMaxPrice(lowTicketMaxPrice); err != nil {
@@ -2024,7 +2023,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 		t.Fatal("GetTickets failed:", err)
 	}
 	for _, tx := range ticketHashes {
-		if ticketHashMap[*tx] == false {
+		if !ticketHashMap[*tx] {
 			t.Fatalf("Tickets were purchased at %f while max price was %f",
 				stakeDiff, lowTicketMaxPrice)
 		}
@@ -2032,8 +2031,6 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 
 	// Just high enough (max == diff + eps)
 	adequateTicketMaxPrice := math.Nextafter(stakeDiff, stakeDiff+1)
-	//adequateTicketMaxPrice := stakeDiff + 0.1
-	//adequatePriceAmt, _ := dcrutil.NewAmount(adequateTicketMaxPrice)
 	if err = wcl.SetTicketMaxPrice(adequateTicketMaxPrice); err != nil {
 		t.Fatal("SetTicketMaxPrice failed:", err)
 	}
@@ -2050,7 +2047,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	}
 	newTickets := false
 	for _, tx := range ticketHashes {
-		if ticketHashMap[*tx] == false {
+		if !ticketHashMap[*tx] {
 			newTickets = true
 			break
 		}
@@ -2062,12 +2059,11 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 
 	// Double.  Plenty high.
 	adequateTicketMaxPrice = stakeDiff * 2
-	//adequatePriceAmt, _ = dcrutil.NewAmount(adequateTicketMaxPrice)
 
 	newBestBlock(r, t)
 	// SSTx would be happening now with high enough price
 	time.Sleep(1 * time.Second)
-	//newBestBlock(r, t)
+
 	// One should be enough for the test, but buy more to keep the chain alive
 	numBlocksToStakeMine := 4
 	for i := 0; i < 4; i++ {
@@ -2082,7 +2078,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	newTickets = false
 	numTicketsPurchased := 0
 	for _, tx := range ticketHashes {
-		if ticketHashMap[*tx] == false {
+		if !ticketHashMap[*tx] {
 			numTicketsPurchased++
 			newTickets = true
 			//break
@@ -2096,7 +2092,9 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	}
 
 	// reset ticket fee and max price
-	wcl.SetTicketFee(origTicketFee)
+	if err = wcl.SetTicketFee(origTicketFee); err != nil {
+		t.Fatalf("SetTicketFee failed for Amount %v. %v", origTicketFee, err)
+	}
 	err = wcl.SetTicketMaxPrice(maxPriceInit)
 	if err != nil {
 		t.Fatal("SetTicketMaxPrice failed:", err)
@@ -2124,9 +2122,18 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 
 	// Increase the ticket fee so SSTx in this test get mined first. Or we could
 	// do this test in a fresh harness...
-	walletInfo, _ := wcl.WalletInfo()
-	origTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee)
-	newTicketFee, _ := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
+	walletInfo, err := wcl.WalletInfo()
+	if err != nil {
+		t.Fatal("WalletInfo failed.", err)
+	}
+	origTicketFee, err := dcrutil.NewAmount(walletInfo.TicketFee)
+	if err != nil {
+		t.Fatalf("Invalid Amount %f. %v", walletInfo.TicketFee, err)
+	}
+	newTicketFee, err := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
+	if err != nil {
+		t.Fatalf("Invalid Amount %f. %v", walletInfo.TicketFee*1.5, err)
+	}
 
 	if err = wcl.SetTicketFee(newTicketFee); err != nil {
 		t.Fatal("SetTicketFee failed:", err)
@@ -2155,7 +2162,9 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 
 	// Advance to new price window, but don't purchase tickets in this period
 	maxPriceInit := walletInfo.TicketMaxPrice
-	wcl.SetTicketMaxPrice(0)
+	if err = wcl.SetTicketMaxPrice(0); err != nil {
+		t.Fatal("SetTicketMaxPrice(0) failed.", err)
+	}
 
 	advanceToNewWindow(r, t)
 	// Now next != current stake difficulty
@@ -2181,8 +2190,8 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 
 	// Enable stake mining so tickets get automatically purchased
 	if err = wcl.SetGenerate(true, 0); err != nil {
-		// NOTE: This will "error" because of rejected TX (already have votes
-		// that get resent).  TODO: Verify if this should even be an error.
+		// TODO: This will "error" because of rejected TX (already have votes
+		// that get resent). Verify if this should even be an error.
 		//t.Fatal("SetGenerate failed:", err)
 	}
 
@@ -2197,7 +2206,7 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 		t.Fatal("GetTickets failed:", err)
 	}
 	for _, tx := range ticketHashes {
-		if ticketHashMap[*tx] == false {
+		if !ticketHashMap[*tx] {
 			t.Fatalf("Tickets were purchased with %v spendable balance; "+
 				"balance to maintain %v", spendable.ToCoin(),
 				walletInfoResult.BalanceToMaintain)
@@ -2229,7 +2238,7 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 	}
 	newTickets := false
 	for _, tx := range ticketHashes {
-		if ticketHashMap[*tx] == false {
+		if !ticketHashMap[*tx] {
 			newTickets = true
 			break
 		}
@@ -2240,9 +2249,10 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 	}
 
 	// reset ticket fee and max price
-	wcl.SetTicketFee(origTicketFee)
-	err = wcl.SetTicketMaxPrice(maxPriceInit)
-	if err != nil {
+	if err = wcl.SetTicketFee(origTicketFee); err != nil {
+		t.Fatalf("SetTicketFee failed for Amount %v. %v", origTicketFee, err)
+	}
+	if err = wcl.SetTicketMaxPrice(maxPriceInit); err != nil {
 		t.Fatal("SetTicketMaxPrice failed:", err)
 	}
 
@@ -2336,7 +2346,10 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 
 	// Buy tickets to check that they shows up in ownmempooltix/allmempooltix
 	minConf := 1
-	priceLimit, _ := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+	priceLimit, err := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+	if err != nil {
+		t.Fatal("Invalid Amount.", err)
+	}
 	numTickets := int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
 	tickets, err := r.WalletRPC.PurchaseTicket("default", priceLimit,
 		&minConf, nil, &numTickets, nil, nil, nil)
@@ -2358,13 +2371,9 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 
 	// Mine the split tx, which creates the correctly-sized outpoints for the
 	// actual SSTx
-	height = getBestBlockHeight(r, t)
-	height, _, _ = newBlockAtQuick(height, r, t)
-	time.Sleep(250 * time.Millisecond)
+	newBestBlock(r, t)
 	// Mine SSTx
-	height, _, _ = newBestBlock(r, t)
-	// validate the purchase
-	//newBestBlock(r, t)
+	newBestBlock(r, t)
 
 	// Compute the height at which these tickets mature
 	ticketsTx, err := wcl.GetRawTransactionVerbose(tickets[0])
@@ -2393,7 +2402,7 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 	// Advance to maturity height
 	t.Logf("Advancing to maturity height %d for tickets in block %d", maturityHeight,
 		ticketsTx.BlockHeight)
-	advanceToHeight(r, t, uint32(maturityHeight)) // +1?
+	advanceToHeight(r, t, uint32(maturityHeight))
 	// NOTE: voting does not begin until TicketValidationHeight
 
 	// mature should be number of tickets now
@@ -2411,9 +2420,12 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 	// Buy some more tickets (4 blocks worth) so chain doesn't stall when voting
 	// burns through the batch purchased above
 	for i := 0; i < 4; i++ {
-		priceLimit, _ := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+		priceLimit, err := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
+		if err != nil {
+			t.Fatal("Invalid Amount.", err)
+		}
 		numTickets := int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
-		_, err := r.WalletRPC.PurchaseTicket("default", priceLimit,
+		_, err = r.WalletRPC.PurchaseTicket("default", priceLimit,
 			&minConf, nil, &numTickets, nil, nil, nil)
 		if err != nil {
 			t.Fatal("Failed to purchase tickets:", err)
@@ -2477,12 +2489,11 @@ func testWalletInfo(r *Harness, t *testing.T) {
 
 	// Turn off stake mining
 	if err := wcl.SetGenerate(false, 0); err != nil {
-		// NOTE: This will "error" because of rejected TX (already have votes
-		// that get resent).  TODO: Verify if this should even be an error.
+		// TODO: This will "error" because of rejected TX (already have votes
+		// that get resent). Verify if this should even be an error.
 		//t.Fatal("SetGenerate failed:", err)
 	}
 
-	// WalletInfo is tested exhaustively in other test, so only do a basic check
 	walletInfo, err = wcl.WalletInfo()
 	if err != nil {
 		t.Fatal("walletinfo failed.")
@@ -2496,7 +2507,6 @@ func testWalletInfo(r *Harness, t *testing.T) {
 		//t.Fatal("SetGenerate failed:", err)
 	}
 
-	// WalletInfo is tested exhaustively in other test, so only do a basic check
 	walletInfo, err = wcl.WalletInfo()
 	if err != nil {
 		t.Fatal("walletinfo failed.")
@@ -2681,7 +2691,6 @@ func includesStakeTx(txHash *chainhash.Hash, block *dcrutil.Block,
 
 	for _, minedTx := range blockTxs {
 		txSha := minedTx.Sha()
-		//if bytes.Equal(txHash[:], txSha.Bytes()[:]) {
 		if txHash.IsEqual(txSha) {
 			return true
 		}
