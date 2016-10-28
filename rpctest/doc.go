@@ -23,5 +23,4 @@
 //    3. High balance to maintain (2000000 DCR).
 // Thus, a harness wallet will automatically vote on owned tickets, but not
 // automatically purchase tickets.
-
 package rpctest

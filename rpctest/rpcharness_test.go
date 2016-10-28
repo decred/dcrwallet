@@ -2320,11 +2320,11 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 			stakeinfo.Missed, stakeinfo.Revoked)
 	}
 	if stakeinfo.ProportionLive != 0 {
-		t.Fatalf("ProportionLive incorrect. Expected %d, got %d.", 0,
+		t.Fatalf("ProportionLive incorrect. Expected %f, got %f.", 0.0,
 			stakeinfo.ProportionLive)
 	}
 	if stakeinfo.ProportionMissed != 0 {
-		t.Fatalf("ProportionMissed incorrect. Expected %d, got %d.", 0,
+		t.Fatalf("ProportionMissed incorrect. Expected %f, got %f.", 0.0,
 			stakeinfo.ProportionMissed)
 	}
 
