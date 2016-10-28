@@ -99,7 +99,7 @@ func funcName(tc rpcTestCase) string {
 // TestMain manages the test harnesses and runs the tests instead of go test
 // running the tests directly.
 func TestMain(m *testing.M) {
-	// To timing of block generation, create a OnBlockConnected notification
+	// For timing of block generation, create an OnBlockConnected notification
 	ntfnHandlersNode := dcrrpcclient.NotificationHandlers{
 		OnBlockConnected: func(hash *chainhash.Hash, height int32,
 			time time.Time, vb uint16) {
@@ -357,7 +357,7 @@ func testWalletPassphrase(r *Harness, t *testing.T) {
 	defaultWalletPassphrase := "password"
 	defer func() {
 		if err := wcl.WalletPassphrase(defaultWalletPassphrase, 0); err != nil {
-			t.Fatal("Unable to lock wallet:", err)
+			t.Fatal("Unable to unlock wallet:", err)
 		}
 	}()
 
