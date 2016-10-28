@@ -441,7 +441,7 @@ func testWalletPassphrase(r *Harness, t *testing.T) {
 	}
 
 	// Unlock with timeout
-	timeOut := int64(10)
+	timeOut := int64(6)
 	err = wcl.WalletPassphrase(defaultWalletPassphrase, timeOut)
 	if err != nil {
 		t.Fatalf("WalletPassphrase failed: %v", err)
@@ -835,7 +835,7 @@ func testListUnspent(r *Harness, t *testing.T) {
 	}
 
 	newBestBlock(r, t)
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	// TODO: why is above necessary for GetRawTransaction to give a tx with
 	// sensible MsgTx().TxIn[:].ValueIn values?
 
@@ -868,7 +868,7 @@ func testListUnspent(r *Harness, t *testing.T) {
 	newBestBlock(r, t)
 
 	// Make sure these txInIDS are not in the new UTXO set
-	time.Sleep(4 * time.Second)
+	time.Sleep(2 * time.Second)
 	list, err = wcl.ListUnspent()
 	if err != nil {
 		t.Fatalf("Failed to get UTXOs")
@@ -936,7 +936,7 @@ func testSendToAddress(r *Harness, t *testing.T) {
 	}
 
 	// Check each PreviousOutPoint for the sending tx.
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	// Get the sending Tx
 	Tx, err := wcl.GetRawTransaction(txid)
 	if err != nil {
@@ -1035,7 +1035,7 @@ func testSendFrom(r *Harness, t *testing.T) {
 	newBestBlock(r, t)
 
 	// Get rawTx of sent txid so we can calculate the fee that was used
-	time.Sleep(3 * time.Second)
+	time.Sleep(1 * time.Second)
 	rawTx, err := r.WalletRPC.GetRawTransaction(txid)
 	if err != nil {
 		t.Fatalf("getrawtransaction failed: %v", err)
@@ -1142,7 +1142,7 @@ func testSendMany(r *Harness, t *testing.T) {
 		t.Fatalf("sendmany failed: %v", err)
 	}
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(250 * time.Millisecond)
 	// Check spendable balance of default account
 	defaultBalanceAfterSendUnmined, err := r.WalletRPC.GetBalanceMinConfType("default", 0, "all")
 	if err != nil {
@@ -1552,7 +1552,7 @@ func testGetSetRelayFee(r *Harness, t *testing.T) {
 	}
 
 	newBestBlock(r, t)
-	time.Sleep(2 * time.Second)
+	//time.Sleep(1 * time.Second)
 	// Give the tx a sensible MsgTx().TxIn[:].ValueIn values
 
 	// Compute the fee
@@ -1648,7 +1648,7 @@ func testGetSetTicketFee(r *Harness, t *testing.T) {
 	// Not yet at StakeValidationHeight, so no voting.
 	newBestBlock(r, t)
 	newBestBlock(r, t)
-	time.Sleep(2 * time.Second)
+	//time.Sleep(2 * time.Second)
 
 	// Compute the actual fee for the ticket purchase
 	rawTx, err := wcl.GetRawTransaction(hashes[0])
@@ -1735,7 +1735,6 @@ func testGetTickets(r *Harness, t *testing.T) {
 	// Mine the split tx and THEN stake submission itself
 	newBestBlock(r, t)
 	_, block, _ := newBestBlock(r, t)
-	//time.Sleep(2 * time.Second)
 
 	// Verify stake submissions were mined
 	for _, hash := range hashes {
@@ -1914,33 +1913,18 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 
 	// Keep generating blocks until desiredHeight is achieved
 	desiredHeight := uint32(150)
-	expiry = 0
 	numTicket = int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
 	for curBlockHeight < desiredHeight {
 		priceLimit, _ = dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
 		_, err = r.WalletRPC.PurchaseTicket("default", priceLimit,
-			&minConf, addr, &numTicket, nil, nil, &expiry)
+			&minConf, addr, &numTicket, nil, nil, nil)
 
 		// Do not allow even ErrSStxPriceExceedsSpendLimit since price is set
-		if err != nil {
-			t.Fatal(err)
-		}
-		curBlockHeight, _, _ = newBlockAtQuick(curBlockHeight, r, t)
-		time.Sleep(600 * time.Millisecond)
-	}
-
-	// and some more for the chain's good health
-	numBlocksWorth := 4
-	for i := 0; i < numBlocksWorth; i++ {
-		priceLimit, _ = dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
-		numTicket = int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
-		_, err = r.WalletRPC.PurchaseTicket("default", priceLimit,
-			&minConf, addr, &numTicket, nil, nil, nil)
 		if err != nil {
 			t.Fatal("Failed to purchase tickets:", err)
 		}
 		curBlockHeight, _, _ = newBlockAtQuick(curBlockHeight, r, t)
-		time.Sleep(600 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	// Validate last tx
@@ -2031,7 +2015,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 
 	newBestBlock(r, t)
 	// SSTx would be happening now with high enough price
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Second)
 	newBestBlock(r, t)
 
 	// Check for new tickets after enabling auto-purchasing, but with low price
@@ -2056,7 +2040,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 
 	newBestBlock(r, t)
 	// SSTx would be happening now with high enough price
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Second)
 	newBestBlock(r, t)
 
 	// Check for new tickets after enabling auto-purchasing, but with low price
@@ -2082,7 +2066,7 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 
 	newBestBlock(r, t)
 	// SSTx would be happening now with high enough price
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Second)
 	//newBestBlock(r, t)
 	// One should be enough for the test, but buy more to keep the chain alive
 	numBlocksToStakeMine := 4
@@ -2204,7 +2188,7 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 
 	newBestBlock(r, t)
 	// SSTx would be happening now with high enough price and low enough BTM
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Second)
 	newBestBlock(r, t)
 
 	// Check for new tickets after enabling auto-purchasing, but with high BTM
@@ -2235,7 +2219,7 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 
 	newBestBlock(r, t)
 	// SSTx would be happening now with high enough price
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Second)
 	newBestBlock(r, t)
 
 	// Check for new tickets with low enough BTM and high enough max price
@@ -2376,7 +2360,7 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 	// actual SSTx
 	height = getBestBlockHeight(r, t)
 	height, _, _ = newBlockAtQuick(height, r, t)
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(250 * time.Millisecond)
 	// Mine SSTx
 	height, _, _ = newBestBlock(r, t)
 	// validate the purchase
@@ -2441,7 +2425,7 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 	// Advance to voting height and votes should happen right away
 	votingHeight := chaincfg.SimNetParams.StakeValidationHeight
 	advanceToHeight(r, t, uint32(votingHeight))
-	time.Sleep(time.Second)
+	time.Sleep(250 * time.Millisecond)
 
 	// voted should be TicketsPerBlock
 	stakeinfo = mustGetStakeInfo(wcl, t)
@@ -2565,9 +2549,8 @@ func advanceToNewWindow(r *Harness, t *testing.T) uint32 {
 	initHeight := curBlockHeight
 	for blocksLeftInWindow(curBlockHeight) !=
 		chaincfg.SimNetParams.StakeDiffWindowSize {
-		//curBlockHeight, _, _ = newBestBlock(r, t)
 		curBlockHeight, _, _ = newBlockAtQuick(curBlockHeight, r, t)
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(75 * time.Millisecond)
 	}
 	t.Logf("Advanced %d blocks to block height %d", curBlockHeight-initHeight,
 		curBlockHeight)
@@ -2583,9 +2566,8 @@ func advanceToHeight(r *Harness, t *testing.T, height uint32) {
 	}
 
 	for curBlockHeight != height {
-		//curBlockHeight, _, _ = newBestBlock(r, t)
 		curBlockHeight, _, _ = newBlockAtQuick(curBlockHeight, r, t)
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(75 * time.Millisecond)
 	}
 	t.Logf("Advanced %d blocks to block height %d", curBlockHeight-initHeight,
 		curBlockHeight)
@@ -2596,7 +2578,7 @@ func newBlockAt(currentHeight uint32, r *Harness,
 	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash) {
 	height, block, blockHashes := newBlockAtQuick(currentHeight, r, t)
 
-	time.Sleep(1500 * time.Millisecond)
+	time.Sleep(700 * time.Millisecond)
 
 	return height, block, blockHashes
 }
