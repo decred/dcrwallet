@@ -934,21 +934,24 @@ func testSendToAddress(r *Harness, t *testing.T) {
 	// Check each PreviousOutPoint for the sending tx.
 	time.Sleep(1 * time.Second)
 	// Get the sending Tx
-	Tx, err := wcl.GetRawTransaction(txid)
+	rawTx, err := wcl.GetRawTransaction(txid)
 	if err != nil {
 		t.Fatalf("Unable to get raw transaction %v: %v", txid, err)
 	}
 	// txid is rawTx.MsgTx().TxIn[0].PreviousOutPoint.Hash
 
 	// Check all inputs
-	for ii, txIn := range Tx.MsgTx().TxIn {
+	for i, txIn := range rawTx.MsgTx().TxIn {
 		prevOut := &txIn.PreviousOutPoint
-		t.Logf("Checking previous outpoint %v, %v", ii, prevOut.String())
+		t.Logf("Checking previous outpoint %v, %v", i, prevOut.String())
 
 		// If a txout is spent (not in the UTXO set) GetTxOutResult will be nil
-		res, _ := wcl.GetTxOut(&prevOut.Hash, prevOut.Index, false)
+		res, err := wcl.GetTxOut(&prevOut.Hash, prevOut.Index, false)
+		if err != nil {
+			t.Fatal("GetTxOut failure:", err)
+		}
 		if res != nil {
-			t.Fatalf("Transaction output %v still unspent.", ii)
+			t.Fatalf("Transaction output %v still unspent.", i)
 		}
 	}
 }
@@ -1073,19 +1076,19 @@ func testSendFrom(r *Harness, t *testing.T) {
 	// that sendfrom was properly marked to spent and removed from utxo set.
 
 	// Get the sending Tx
-	Tx, err := r.WalletRPC.GetRawTransaction(txid)
+	rawTx, err = r.WalletRPC.GetRawTransaction(txid)
 	if err != nil {
 		t.Fatalf("Unable to get raw transaction %v: %v", txid, err)
 	}
 
 	// Check all inputs
-	for ii, txIn := range Tx.MsgTx().TxIn {
+	for i, txIn := range rawTx.MsgTx().TxIn {
 		prevOut := &txIn.PreviousOutPoint
 
 		// If a txout is spent (not in the UTXO set) GetTxOutResult will be nil
 		res, _ := r.WalletRPC.GetTxOut(&prevOut.Hash, prevOut.Index, false)
 		if res != nil {
-			t.Fatalf("Transaction output %v still unspent.", ii)
+			t.Fatalf("Transaction output %v still unspent.", i)
 		}
 	}
 }
@@ -1206,13 +1209,13 @@ func testSendMany(r *Harness, t *testing.T) {
 	}
 
 	// Check all inputs
-	for ii, txIn := range rawTx.MsgTx().TxIn {
+	for i, txIn := range rawTx.MsgTx().TxIn {
 		prevOut := &txIn.PreviousOutPoint
 
 		// If a txout is spent (not in the UTXO set) GetTxOutResult will be nil
 		res, _ := wcl.GetTxOut(&prevOut.Hash, prevOut.Index, false)
 		if res != nil {
-			t.Fatalf("Transaction output %v still unspent.", ii)
+			t.Fatalf("Transaction output %v still unspent.", i)
 		}
 	}
 }
