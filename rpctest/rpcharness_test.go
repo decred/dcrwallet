@@ -328,6 +328,9 @@ func testValidateAddress(r *Harness, t *testing.T) {
 	devSubPkScrVer := chaincfg.SimNetParams.OrganizationPkScriptVersion
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(
 		devSubPkScrVer, devSubPkScript, r.ActiveNet)
+	if err != nil {
+		t.Fatal("Failed to extract addresses from PkScript:", err)
+	}
 	devSubAddrStr := addrs[0].String()
 
 	DevAddr, err := dcrutil.DecodeAddress(devSubAddrStr, &chaincfg.SimNetParams)
@@ -792,7 +795,7 @@ func testListUnspent(r *Harness, t *testing.T) {
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(
 		txscript.DefaultScriptVersion, PkScript, r.ActiveNet)
 	if err != nil {
-		t.Fatal("Failed to extract addresses from PkScript.")
+		t.Fatal("Failed to extract addresses from PkScript:", err)
 	}
 
 	// List with all of the above address
@@ -1086,7 +1089,10 @@ func testSendFrom(r *Harness, t *testing.T) {
 		prevOut := &txIn.PreviousOutPoint
 
 		// If a txout is spent (not in the UTXO set) GetTxOutResult will be nil
-		res, _ := r.WalletRPC.GetTxOut(&prevOut.Hash, prevOut.Index, false)
+		res, err := r.WalletRPC.GetTxOut(&prevOut.Hash, prevOut.Index, false)
+		if err != nil {
+			t.Fatal("GetTxOut failure:", err)
+		}
 		if res != nil {
 			t.Fatalf("Transaction output %v still unspent.", i)
 		}
@@ -1213,7 +1219,10 @@ func testSendMany(r *Harness, t *testing.T) {
 		prevOut := &txIn.PreviousOutPoint
 
 		// If a txout is spent (not in the UTXO set) GetTxOutResult will be nil
-		res, _ := wcl.GetTxOut(&prevOut.Hash, prevOut.Index, false)
+		res, err := wcl.GetTxOut(&prevOut.Hash, prevOut.Index, false)
+		if err != nil {
+			t.Fatal("GetTxOut failure:", err)
+		}
 		if res != nil {
 			t.Fatalf("Transaction output %v still unspent.", i)
 		}
@@ -1451,7 +1460,6 @@ func testListTransactions(r *Harness, t *testing.T) {
 	// Grab new addresses from the wallet, under each account.
 	// Set corresponding amount to send to each address.
 	addressAmounts := make(map[dcrutil.Address]dcrutil.Amount)
-	//totalAmountToSend := dcrutil.Amount(0)
 
 	for i, acct := range accountNames {
 		addr, err := wcl.GetNewAddress(acct)
@@ -1462,7 +1470,6 @@ func testListTransactions(r *Harness, t *testing.T) {
 		// Set the amounts to send to each address
 		addresses = append(addresses, addr)
 		addressAmounts[addr] = amountsToSend[i]
-		//totalAmountToSend += amountsToSend[i]
 	}
 
 	// SendMany to two addresses
@@ -1624,18 +1631,19 @@ func testGetSetTicketFee(r *Harness, t *testing.T) {
 	}
 
 	// Purchase ticket
-	minConf, numTicket := 0, 1
+	minConf, numTickets := 0, 1
 	priceLimit, err := dcrutil.NewAmount(2 * mustGetStakeDiffNext(r, t))
 	if err != nil {
 		t.Fatal("Invalid Amount. ", err)
 	}
 	hashes, err := wcl.PurchaseTicket("default", priceLimit,
-		&minConf, nil, &numTicket, nil, nil, nil)
+		&minConf, nil, &numTickets, nil, nil, nil)
 	if err != nil {
 		t.Fatal("Unable to purchase ticket:", err)
 	}
-	if len(hashes) != numTicket {
-		t.Fatal("More than one tx hash returned. Expected one.")
+	if len(hashes) != numTickets {
+		t.Fatalf("Number of returned hashes does not equal expected."+
+			"got %v, want %v", len(hashes), numTickets)
 	}
 
 	// Need 2 blocks or the vin is incorrect in getrawtransaction
@@ -1722,7 +1730,10 @@ func testGetTickets(r *Harness, t *testing.T) {
 		t.Fatal("GetTickets(true) did not include unmined tickets")
 	}
 
-	// Ensure that there are more total tickets than live tickets
+	// Compare GetTickets(includeImmature = false) before the purchase with
+	// GetTickets(includeImmature = true) after the purchase. This tests that
+	// the former does exclude unconfirmed tickets, which we now have following
+	// the above purchase.
 	if len(ticketHashes) <= numTicketsInitLive {
 		t.Fatalf("Number of live tickets (%d) not less than total tickets (%d).",
 			numTicketsInitLive, len(ticketHashes))
@@ -2084,7 +2095,6 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 		if !ticketHashMap[*tx] {
 			numTicketsPurchased++
 			newTickets = true
-			//break
 		}
 	}
 	t.Logf("Number of tickets auto-purchased over %d blocks: %d",
