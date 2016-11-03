@@ -362,6 +362,13 @@ func (w *Wallet) SetTicketMaxPrice(amt dcrutil.Amount) {
 	w.ticketMaxPrice = amt
 }
 
+// SetTicketPurchaser is used to set the ticket purchaser for the wallet.
+func (w *Wallet) SetTicketPurchaser(purchaser *ticketbuyer.TicketPurchaser) {
+	w.stakeSettingsLock.Lock()
+	w.purchaser = purchaser
+	w.stakeSettingsLock.Unlock()
+}
+
 // TicketAddress gets the ticket address for the wallet to give the ticket
 // voting rights to.
 func (w *Wallet) TicketAddress() dcrutil.Address {
@@ -3847,13 +3854,6 @@ func Open(db walletdb.DB, pubPass []byte, cbs *waddrmgr.OpenCallbacks,
 		smgr,
 		&db,
 		params)
-
-	purchaser, err := ticketbuyer.NewTicketPurchaser(&ticketbuyer.Config{}, nil, nil, params)
-	if err != nil {
-		return nil, err
-	}
-
-	w.purchaser = purchaser
 
 	return w, nil
 }
