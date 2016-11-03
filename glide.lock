@@ -29,6 +29,12 @@ imports:
   version: 484b833245d5f9046e2893a6bd2e54b1df3a53a4
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
+- name: github.com/decred/dcrticketbuyer
+  vcs: git
+  repo: git@github.com:tuxcanfly/dcrticketbuyer.git
+  version: dc4b26ee646a340b485cc933bba2c35efdf93ab6
+  subpackages:
+  - ticketbuyer
 - name: github.com/decred/dcrd
   version: b89abb72e42184872b80bfe964c8b3a3214e3f24
   subpackages:
