@@ -27,6 +27,7 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrticketbuyer/ticketbuyer"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/chain"
@@ -160,6 +161,8 @@ type Wallet struct {
 	NtfnServer *NotificationServer
 
 	chainParams *chaincfg.Params
+
+	purchaser *ticketbuyer.TicketPurchaser
 
 	wg sync.WaitGroup
 
@@ -3844,6 +3847,13 @@ func Open(db walletdb.DB, pubPass []byte, cbs *waddrmgr.OpenCallbacks,
 		smgr,
 		&db,
 		params)
+
+	purchaser, err := ticketbuyer.NewTicketPurchaser(&ticketbuyer.Config{}, nil, nil, params)
+	if err != nil {
+		return nil, err
+	}
+
+	w.purchaser = purchaser
 
 	return w, nil
 }
