@@ -38,6 +38,16 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 				return w.onBlockConnected(tx, n.BlockHeader, n.Transactions)
 			})
+			strErrType = "BlockConnected"
+
+			if w.StakeMiningEnabled && w.purchaser != nil {
+				err = w.purchaser.Purchase(int64(wtxmgr.BlockMeta(n).Height))
+			}
+
+		case chain.BlockDisconnected:
+			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+				return w.disconnectBlock(tx, wtxmgr.BlockMeta(n))
+			})
 		case chain.Reorganization:
 			notificationName = "reorganizing"
 			err = w.handleReorganizing(n.OldHash, n.NewHash, n.OldHeight, n.NewHeight)
