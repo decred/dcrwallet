@@ -47,6 +47,26 @@ const (
 	defaultStakePoolColdExtKey = ""
 	defaultAllowHighFees       = false
 
+	defaultAccountName        = "default"
+	defaultTicketAddress      = ""
+	defaultPoolAddress        = ""
+	defaultMaxFee             = 1.0
+	defaultMinFee             = 0.01
+	defaultFeeSource          = "mean"
+	defaultMaxPriceAbsolute   = 100.0
+	defaultMaxPriceScale      = 2.0
+	defaultMinPriceScale      = 0.7
+	defaultPriceTarget        = 0.0
+	defaultAvgPriceMode       = "vwap"
+	defaultAvgVWAPPriceDelta  = 2880
+	defaultMaxPerBlock        = 3
+	defaultHighPricePenalty   = 1.3
+	defaultBlocksToAvg        = 11
+	defaultFeeTargetScaling   = 1.05
+	defaultDontWaitForTickets = false
+	defaultMaxInMempool       = 0
+	defaultExpiryDelta        = 16
+
 	walletDbName = "wallet.db"
 )
 
@@ -128,7 +148,6 @@ type config struct {
 	MaxPriceScale      float64 `long:"maxpricescale" description:"Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation (default: 2.0, 0.0 to disable)"`
 	MaxInMempool       int     `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets (default: 0)"`
 	PriceTarget        float64 `long:"pricetarget" description:"A target to try to seek setting the stake price to rather than meeting the average price (default: 0.0, 0.0 to disable)"`
-	TxFee              float64 `long:"txfee" description:"Default regular tx fee per KB, for consolidations (default: 0.01 Coin/KB)"`
 
 	// RPC server options
 	//
@@ -340,6 +359,26 @@ func loadConfig() (*config, []string, error) {
 		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
 		AllowHighFees:          defaultAllowHighFees,
 		DataDir:                defaultAppDataDir,
+
+		AccountName:        defaultAccountName,
+		TicketAddress:      defaultTicketAddress,
+		PoolAddress:        defaultPoolAddress,
+		MaxFee:             defaultMaxFee,
+		MinFee:             defaultMinFee,
+		FeeSource:          defaultFeeSource,
+		MaxPriceAbsolute:   defaultMaxPriceAbsolute,
+		MaxPriceScale:      defaultMaxPriceScale,
+		MinPriceScale:      defaultMinPriceScale,
+		PriceTarget:        defaultPriceTarget,
+		AvgPriceMode:       defaultAvgPriceMode,
+		AvgPriceVWAPDelta:  defaultAvgVWAPPriceDelta,
+		MaxPerBlock:        defaultMaxPerBlock,
+		HighPricePenalty:   defaultHighPricePenalty,
+		BlocksToAvg:        defaultBlocksToAvg,
+		FeeTargetScaling:   defaultFeeTargetScaling,
+		DontWaitForTickets: defaultDontWaitForTickets,
+		MaxInMempool:       defaultMaxInMempool,
+		ExpiryDelta:        defaultExpiryDelta,
 	}
 
 	// Pre-parse the command line options to see if an alternative config

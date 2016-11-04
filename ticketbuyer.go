@@ -78,7 +78,7 @@ func startTicketPurchase(w *wallet.Wallet) {
 		PoolFees:           cfg.PoolFees,
 		PriceTarget:        cfg.PriceTarget,
 		TicketAddress:      cfg.TicketAddress,
-		TxFee:              cfg.TxFee,
+		TxFee:              cfg.TicketFee,
 	}, dcrdClient, dcrwClient, activeNet.Params)
 	if err != nil {
 		log.Errorf("Error starting ticketbuyer: %v", err)
