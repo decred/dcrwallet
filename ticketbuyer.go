@@ -2,6 +2,7 @@ package main
 
 import (
 	"io/ioutil"
+	"time"
 
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrticketbuyer/ticketbuyer"
@@ -50,9 +51,17 @@ func getWalletRPCClient() (*dcrrpcclient.Client, error) {
 }
 
 func startTicketPurchase(w *wallet.Wallet) {
+	retryDuration := time.Second * 5
+	for {
+		if w.ChainClient() != nil {
+			break
+		}
+		time.Sleep(retryDuration)
+		tkbyLog.Debugf("Retring chain client connection in %v", retryDuration)
+	}
 	dcrwClient, err := getWalletRPCClient()
 	if err != nil {
-		log.Errorf("Error fetching wallet rpc client: %v", err)
+		tkbyLog.Errorf("Error fetching wallet rpc client: %v", err)
 		return
 	}
 	dcrdClient := w.ChainClient().Client
@@ -81,8 +90,13 @@ func startTicketPurchase(w *wallet.Wallet) {
 		TxFee:              cfg.TicketFee,
 	}, dcrdClient, dcrwClient, activeNet.Params)
 	if err != nil {
-		log.Errorf("Error starting ticketbuyer: %v", err)
+		tkbyLog.Errorf("Error starting ticketbuyer: %v", err)
 		return
 	}
+	tkbyLog.Debugf("Initialized ticket auto-ticketpurchaser")
 	w.SetTicketPurchaser(purchaser)
+	addInterruptHandler(func() {
+		dcrdClient.Disconnect()
+		dcrwClient.Disconnect()
+	})
 }
