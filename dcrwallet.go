@@ -137,7 +137,9 @@ func walletMain() error {
 			startPromptPass(w)
 		}
 		startWalletRPCServices(w, rpcs, legacyRPCServer)
-		startTicketPurchase(w)
+		if w.StakeMiningEnabled {
+			startTicketPurchase(w)
+		}
 	})
 
 	if !cfg.NoInitialLoad {
