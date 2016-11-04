@@ -56,7 +56,30 @@ func startTicketPurchase(w *wallet.Wallet) {
 		return
 	}
 	dcrdClient := w.ChainClient().Client
-	purchaser, err := ticketbuyer.NewTicketPurchaser(&ticketbuyer.Config{}, dcrdClient, dcrwClient, activeNet.Params)
+	purchaser, err := ticketbuyer.NewTicketPurchaser(&ticketbuyer.Config{
+		AccountName:        cfg.AccountName,
+		AvgPriceMode:       cfg.AvgPriceMode,
+		AvgPriceVWAPDelta:  cfg.AvgPriceVWAPDelta,
+		BalanceToMaintain:  cfg.BalanceToMaintain,
+		BlocksToAvg:        cfg.BlocksToAvg,
+		DontWaitForTickets: cfg.DontWaitForTickets,
+		ExpiryDelta:        cfg.ExpiryDelta,
+		FeeSource:          cfg.FeeSource,
+		FeeTargetScaling:   cfg.FeeTargetScaling,
+		HighPricePenalty:   cfg.HighPricePenalty,
+		MinFee:             cfg.MinFee,
+		MinPriceScale:      cfg.MinPriceScale,
+		MaxFee:             cfg.MaxFee,
+		MaxPerBlock:        cfg.MaxPerBlock,
+		MaxPriceAbsolute:   cfg.MaxPriceAbsolute,
+		MaxPriceScale:      cfg.MaxPriceScale,
+		MaxInMempool:       cfg.MaxInMempool,
+		PoolAddress:        cfg.PoolAddress,
+		PoolFees:           cfg.PoolFees,
+		PriceTarget:        cfg.PriceTarget,
+		TicketAddress:      cfg.TicketAddress,
+		TxFee:              cfg.TxFee,
+	}, dcrdClient, dcrwClient, activeNet.Params)
 	if err != nil {
 		log.Errorf("Error starting ticketbuyer: %v", err)
 		return

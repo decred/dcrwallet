@@ -110,6 +110,26 @@ type config struct {
 	ProxyUser        string `long:"proxyuser" description:"Username for proxy server"`
 	ProxyPass        string `long:"proxypass" default-mask:"-" description:"Password for proxy server"`
 
+	// Automatic ticket buyer settings
+	AccountName        string  `long:"accountname" description:"Name of the account to buy tickets from (default: default)"`
+	AvgPriceMode       string  `long:"avgpricemode" description:"The mode to use for calculating the average price if pricetarget is disabled (default: dual)"`
+	AvgPriceVWAPDelta  int     `long:"avgpricevwapdelta" description:"The number of blocks to use from the current block to calculate the VWAP (default: 2880)"`
+	BlocksToAvg        int     `long:"blockstoavg" description:"Number of blocks to average for fees calculation (default: 11)"`
+	DontWaitForTickets bool    `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
+	ExpiryDelta        int     `long:"expirydelta" description:"Number of blocks in the future before the ticket expires (default: 16)"`
+	FeeSource          string  `long:"feesource" description:"The fee source to use for ticket fee per KB (median or mean, default: mean)"`
+	FeeTargetScaling   float64 `long:"feetargetscaling" description:"The amount above the mean fee in the previous blocks to purchase tickets with, proportional e.g. 1.05 = 105% (default: 1.05)"`
+	HighPricePenalty   float64 `long:"highpricepenalty" description:"The exponential penalty to apply to the number of tickets to purchase above the ideal ticket pool price (default: 1.3)"`
+	MinFee             float64 `long:"minfee" description:"Minimum ticket fee per KB (default: 0.01 Coin/KB)"`
+	MinPriceScale      float64 `long:"minpricescale" description:"Attempt to prevent the stake difficulty from going below this multiplier (<1.0) by manipulation (default: 0.7, 0.0 to disable)"`
+	MaxFee             float64 `long:"maxfee" description:"Maximum ticket fee per KB (default: 1.0 Coin/KB)"`
+	MaxPerBlock        int     `long:"maxperblock" description:"Maximum tickets per block, with negative numbers indicating buy one ticket every 1-in-n blocks (default: 3)"`
+	MaxPriceAbsolute   float64 `long:"maxpriceabsolute" description:"The absolute maximum price to pay for a ticket (default: 100.0 Coin)"`
+	MaxPriceScale      float64 `long:"maxpricescale" description:"Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation (default: 2.0, 0.0 to disable)"`
+	MaxInMempool       int     `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets (default: 0)"`
+	PriceTarget        float64 `long:"pricetarget" description:"A target to try to seek setting the stake price to rather than meeting the average price (default: 0.0, 0.0 to disable)"`
+	TxFee              float64 `long:"txfee" description:"Default regular tx fee per KB, for consolidations (default: 0.01 Coin/KB)"`
+
 	// RPC server options
 	//
 	// The legacy server is still enabled by default (and eventually will be
