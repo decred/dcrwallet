@@ -178,6 +178,12 @@ func (w *Wallet) extendMainChain(dbtx walletdb.ReadWriteTx, block *wtxmgr.BlockH
 		return err
 	}
 	w.NtfnServer.notifyAttachedBlock(dbtx, &header, &block.BlockHash)
+	if w.StakeMiningEnabled && w.purchaser != nil {
+		err = w.purchaser.Purchase(int64(b.Height))
+		if err != nil {
+			log.Errorf("Failed to purchase tickets this round: %s", err.Error())
+		}
+	}
 
 	blockMeta, err := w.TxStore.GetBlockMetaForHash(txmgrNs, &block.BlockHash)
 	if err != nil {
