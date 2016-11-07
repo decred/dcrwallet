@@ -57,7 +57,7 @@ func startTicketPurchase(w *wallet.Wallet) {
 			break
 		}
 		time.Sleep(retryDuration)
-		tkbyLog.Debugf("Retring chain client connection in %v", retryDuration)
+		tkbyLog.Debugf("Retrying chain client connection in %v", retryDuration)
 	}
 	dcrwClient, err := getWalletRPCClient()
 	if err != nil {
