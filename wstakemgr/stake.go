@@ -330,7 +330,7 @@ func (s *StakeStore) dumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrut
 			str := "failure getting ticket 0th out script hashes from db"
 			return nil, stakeStoreError(ErrDatabase, str, err)
 		}
-		if addrIsP2SH && !p2sh {
+		if addrIsP2SH != p2sh {
 			continue
 		}
 
