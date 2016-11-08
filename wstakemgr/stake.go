@@ -18,7 +18,6 @@
 package wstakemgr
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"sync"
@@ -324,12 +323,12 @@ func (s *StakeStore) dumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrut
 
 	// Access the database and store the result locally.
 	for _, h := range allTickets {
-		thisScrHash, err := fetchSStxRecordSStxTicketScriptHash(ns, &h)
+		thisAddr, err := fetchSStxRecordSStxTicketAddress(ns, &h, s.Params)
 		if err != nil {
 			str := "failure getting ticket 0th out script hashes from db"
 			return nil, stakeStoreError(ErrDatabase, str, err)
 		}
-		if bytes.Equal(scriptHash, thisScrHash) {
+		if addr.String() == thisAddr.String() {
 			ticketsForAddr = append(ticketsForAddr, h)
 		}
 	}
@@ -353,20 +352,8 @@ func (s *StakeStore) DumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrut
 
 // sstxAddress returns the address for a given ticket.
 func (s *StakeStore) sstxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (dcrutil.Address, error) {
-	// Access the database and store the result locally.
-	thisScrHash, err := fetchSStxRecordSStxTicketScriptHash(ns, hash)
-	if err != nil {
-		str := "failure getting ticket 0th out script hashes from db"
-		return nil, stakeStoreError(ErrDatabase, str, err)
-	}
-	addr, err := dcrutil.NewAddressScriptHashFromHash(thisScrHash,
-		s.Params)
-	if err != nil {
-		str := "failure getting ticket 0th out script hashes from db"
-		return nil, stakeStoreError(ErrDatabase, str, err)
-	}
 
-	return addr, nil
+	return fetchSStxRecordSStxTicketAddress(ns, hash, s.Params)
 }
 
 // SStxAddress is the exported, concurrency safe version of sstxAddress.

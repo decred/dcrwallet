@@ -20,11 +20,13 @@ package wstakemgr
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"time"
 
 	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
@@ -612,6 +614,24 @@ func fetchSStxRecordSStxTicketScriptHash(ns walletdb.ReadBucket,
 	}
 
 	return deserializeSStxTicketScriptHash(val)
+}
+
+// fetchSStxRecordSStxTicketAddress takes the sstx hash and current params as
+// arguments and returns the address (whether it's p2pkh or p2sh) of the 0th
+// output script.
+func fetchSStxRecordSStxTicketAddress(ns walletdb.ReadBucket, hash *chainhash.Hash,
+	params *chaincfg.Params) (dcrutil.Address, error) {
+	scriptHash, err := fetchSStxRecordSStxTicketScriptHash(ns, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	addr, err := dcrutil.DecodeAddress(hex.EncodeToString(scriptHash), params)
+	if err != nil {
+		return nil, err
+	}
+
+	return addr, nil
 }
 
 // fetchSStxRecordVoteBits fetches an individual ticket's intended voteBits
