@@ -115,8 +115,8 @@ type Wallet struct {
 	initiallyUnlocked bool
 	addrIdxScanLen    int
 
-	chainClient        *chain.RPCClient
-	chainClientLock    sync.Mutex
+	chainClient     *chain.RPCClient
+	chainClientLock sync.Mutex
 
 	lockedOutpoints map[wire.OutPoint]struct{}
 
