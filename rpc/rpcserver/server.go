@@ -223,11 +223,6 @@ func (s *walletServer) Rescan(req *pb.RescanRequest, svr pb.WalletService_Rescan
 	cancel := make(chan struct{})
 	go s.wallet.RescanProgressFromHeight(chainClient, req.BeginHeight, progress, cancel)
 
-	err := <-s.wallet.RescanFromHeight(chainClient, req.BeginHeight)
-	if err != nil {
-		return translateError(err)
-	}
-
 	ctxDone := svr.Context().Done()
 	for {
 		select {
@@ -242,12 +237,12 @@ func (s *walletServer) Rescan(req *pb.RescanRequest, svr pb.WalletService_Rescan
 				}
 			}
 			if p.Err != nil {
-				return p.Err
+				return translateError(p.Err)
 			}
 			resp := &pb.RescanResponse{RescannedThrough: p.ScannedThrough}
 			err := svr.Send(resp)
 			if err != nil {
-				return err
+				return translateError(err)
 			}
 		case <-ctxDone:
 			close(cancel)
