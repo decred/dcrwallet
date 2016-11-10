@@ -41,13 +41,14 @@ import (
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/walletdb"
+	"github.com/decred/dcrwallet/wtxmgr"
 )
 
 // Public API version constants
 const (
-	semverString = "2.4.0"
+	semverString = "2.5.0"
 	semverMajor  = 2
-	semverMinor  = 4
+	semverMinor  = 5
 	semverPatch  = 0
 )
 
@@ -78,6 +79,15 @@ func errorCode(err error) codes.Code {
 			return codes.InvalidArgument
 		case waddrmgr.ErrDuplicateAccount:
 			return codes.AlreadyExists
+		}
+
+		err = e.Err
+	}
+
+	if e, ok := err.(wtxmgr.Error); ok {
+		switch e.Code {
+		case wtxmgr.ErrValueNoExists:
+			return codes.NotFound
 		}
 
 		err = e.Err
@@ -196,6 +206,25 @@ func (s *walletServer) RenameAccount(ctx context.Context, req *pb.RenameAccountR
 	}
 
 	return &pb.RenameAccountResponse{}, nil
+}
+
+func (s *walletServer) Rescan(ctx context.Context, req *pb.RescanRequest) (*pb.RescanResponse, error) {
+	chainClient := s.wallet.ChainClient()
+	if chainClient == nil {
+		return nil, grpc.Errorf(codes.FailedPrecondition,
+			"Cannot rescan without an associated consensus server RPC client")
+	}
+
+	if req.BeginHeight < 0 {
+		return nil, grpc.Errorf(codes.InvalidArgument, "begin height must be non-negative")
+	}
+
+	err := <-s.wallet.RescanFromHeight(chainClient, req.BeginHeight)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	return &pb.RescanResponse{}, nil
 }
 
 func (s *walletServer) NextAccount(ctx context.Context, req *pb.NextAccountRequest) (
