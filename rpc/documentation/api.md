@@ -561,14 +561,16 @@ active addresses and watched outpoints.  Rescans can be time consuming depending
 on the amount of data that must be checked, and the size of the blockchain.  If
 transactions being scanned for are known to only exist after some height, the
 request can specify which block height to begin scanning from.  This RPC returns
-when the rescan completes, or after the first error is encountered processing
-rescanned transactions.
+a stream of block heights the rescan has completed through.
 
 **Request:** `RescanRequest`
 
 - `int32 begin_height`: The block height to begin the rescan at (inclusive).
 
 **Response:** `RescanResponse`
+
+- `int32 rescanned_through`: The block height the rescan has completed through
+  (inclusive).
 
 **Expected errors:**
 

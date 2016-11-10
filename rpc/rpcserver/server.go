@@ -208,23 +208,51 @@ func (s *walletServer) RenameAccount(ctx context.Context, req *pb.RenameAccountR
 	return &pb.RenameAccountResponse{}, nil
 }
 
-func (s *walletServer) Rescan(ctx context.Context, req *pb.RescanRequest) (*pb.RescanResponse, error) {
+func (s *walletServer) Rescan(req *pb.RescanRequest, svr pb.WalletService_RescanServer) error {
 	chainClient := s.wallet.ChainClient()
 	if chainClient == nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition,
+		return grpc.Errorf(codes.FailedPrecondition,
 			"wallet is not associated with a consensus server RPC client")
 	}
 
 	if req.BeginHeight < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "begin height must be non-negative")
+		return grpc.Errorf(codes.InvalidArgument, "begin height must be non-negative")
 	}
+
+	progress := make(chan wallet.RescanProgress, 1)
+	cancel := make(chan struct{})
+	go s.wallet.RescanProgressFromHeight(chainClient, req.BeginHeight, progress, cancel)
 
 	err := <-s.wallet.RescanFromHeight(chainClient, req.BeginHeight)
 	if err != nil {
-		return nil, translateError(err)
+		return translateError(err)
 	}
 
-	return &pb.RescanResponse{}, nil
+	ctxDone := svr.Context().Done()
+	for {
+		select {
+		case p, ok := <-progress:
+			if !ok {
+				// finished or cancelled rescan without error
+				select {
+				case <-cancel:
+					return grpc.Errorf(codes.Canceled, "rescan canceled")
+				default:
+					return nil
+				}
+			}
+			if p.Err != nil {
+				return p.Err
+			}
+			resp := &pb.RescanResponse{RescannedThrough: p.ScannedThrough}
+			err := svr.Send(resp)
+			if err != nil {
+				return err
+			}
+		case <-ctxDone:
+			close(cancel)
+		}
+	}
 }
 
 func (s *walletServer) NextAccount(ctx context.Context, req *pb.NextAccountRequest) (

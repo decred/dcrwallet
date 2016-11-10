@@ -35,7 +35,7 @@ service WalletService {
 	// Control
 	rpc ChangePassphrase (ChangePassphraseRequest) returns (ChangePassphraseResponse);
 	rpc RenameAccount (RenameAccountRequest) returns (RenameAccountResponse);
-	rpc Rescan (RescanRequest) returns (RescanResponse);
+	rpc Rescan (RescanRequest) returns (stream RescanResponse);
 	rpc NextAccount (NextAccountRequest) returns (NextAccountResponse);
 	rpc NextAddress (NextAddressRequest) returns (NextAddressResponse);
 	rpc ImportPrivateKey (ImportPrivateKeyRequest) returns (ImportPrivateKeyResponse);
@@ -124,7 +124,9 @@ message RenameAccountResponse {}
 message RescanRequest {
 	int32 begin_height = 1;
 }
-message RescanResponse {}
+message RescanResponse {
+	int32 rescanned_through = 1;
+}
 
 message NextAccountRequest {
 	bytes passphrase = 1;
