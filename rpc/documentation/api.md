@@ -578,6 +578,8 @@ transactions.
 
 - `NotFound`: There is no known block in the main chain at the begin height.
 
+**Stability:** Unstable
+
 ___
 
 #### `NextAccount`
