@@ -556,13 +556,13 @@ ___
 
 #### `Rescan`
 
-The `Rescan` method begins a rescan of all active addresses and watched
-outpoints.  Rescans can be time consuming depending on the amount of data that
-must be checked, and the size of the blockchain.  If transactions being scanned
-for are known to only exist after some height, the request can specify which
-block height to begin scanning from.  This RPC returns when the rescan
-completes, or after the first error is encountered processing rescanned
-transactions.
+The `Rescan` method begins a rescan for all relevant transactions involving all
+active addresses and watched outpoints.  Rescans can be time consuming depending
+on the amount of data that must be checked, and the size of the blockchain.  If
+transactions being scanned for are known to only exist after some height, the
+request can specify which block height to begin scanning from.  This RPC returns
+when the rescan completes, or after the first error is encountered processing
+rescanned transactions.
 
 **Request:** `RescanRequest`
 
