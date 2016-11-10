@@ -246,6 +246,7 @@ func (s *walletServer) Rescan(req *pb.RescanRequest, svr pb.WalletService_Rescan
 			}
 		case <-ctxDone:
 			close(cancel)
+			ctxDone = nil
 		}
 	}
 }
