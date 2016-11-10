@@ -567,7 +567,7 @@ a stream of block heights the rescan has completed through.
 
 - `int32 begin_height`: The block height to begin the rescan at (inclusive).
 
-**Response:** `RescanResponse`
+**Response:** `stream RescanResponse`
 
 - `int32 rescanned_through`: The block height the rescan has completed through
   (inclusive).
