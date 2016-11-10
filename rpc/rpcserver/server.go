@@ -212,7 +212,7 @@ func (s *walletServer) Rescan(ctx context.Context, req *pb.RescanRequest) (*pb.R
 	chainClient := s.wallet.ChainClient()
 	if chainClient == nil {
 		return nil, grpc.Errorf(codes.FailedPrecondition,
-			"Cannot rescan without an associated consensus server RPC client")
+			"wallet is not associated with a consensus server RPC client")
 	}
 
 	if req.BeginHeight < 0 {
