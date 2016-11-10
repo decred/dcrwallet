@@ -38,16 +38,22 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 				return w.onBlockConnected(tx, n.BlockHeader, n.Transactions)
 			})
-			strErrType = "BlockConnected"
 
 			if w.StakeMiningEnabled && w.purchaser != nil {
-				err = w.purchaser.Purchase(int64(wtxmgr.BlockMeta(n).Height))
-			}
 
-		case chain.BlockDisconnected:
-			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-				return w.disconnectBlock(tx, wtxmgr.BlockMeta(n))
-			})
+				var blockHeader wire.BlockHeader
+				err = blockHeader.Deserialize(bytes.NewReader(n.BlockHeader))
+				if err != nil {
+					break
+				}
+				block := wtxmgr.BlockHeaderData{BlockHash: blockHeader.BlockSha()}
+				err = copyHeaderSliceToArray(&block.SerializedHeader, n.BlockHeader)
+				if err != nil {
+					break
+				}
+
+				err = w.purchaser.Purchase(int64(block.SerializedHeader.Height()))
+			}
 		case chain.Reorganization:
 			notificationName = "reorganizing"
 			err = w.handleReorganizing(n.OldHash, n.NewHash, n.OldHeight, n.NewHeight)
@@ -189,7 +195,7 @@ func (w *Wallet) extendMainChain(dbtx walletdb.ReadWriteTx, block *wtxmgr.BlockH
 	}
 	w.NtfnServer.notifyAttachedBlock(dbtx, &header, &block.BlockHash)
 	if w.StakeMiningEnabled && w.purchaser != nil {
-		err = w.purchaser.Purchase(int64(b.Height))
+		err = w.purchaser.Purchase(int64(block.SerializedHeader.Height()))
 		if err != nil {
 			log.Errorf("Failed to purchase tickets this round: %s", err.Error())
 		}
