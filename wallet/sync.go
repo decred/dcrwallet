@@ -63,7 +63,7 @@ const (
 
 // accountIsUsed checks if an account has ever been used by scanning the
 // first acctSeekWidth many addresses for usage.
-func (w *Wallet) accountIsUsed(account uint32, chainClient *chain.RPCClient) (bool, error) {
+func (w *Wallet) accountIsUsed(chainClient *chain.RPCClient, account uint32) (bool, error) {
 	// Search external branch then internal branch for a used
 	// address. We need to set the address function to use based
 	// on whether or not this is the initial sync. The function
@@ -113,7 +113,7 @@ func (w *Wallet) bisectLastAcctIndex(chainClient *chain.RPCClient, hi, low uint3
 	for i := hi - low - 1; i > 0; i /= 2 {
 		if i+offset+acctSeekWidth < waddrmgr.MaxAddressesPerAccount {
 			for j := i + offset + addrSeekWidth; j >= i+offset; j-- {
-				used, err := w.accountIsUsed(j, chainClient)
+				used, err := w.accountIsUsed(chainClient, j)
 				if err != nil {
 					return 0, err
 				}
@@ -122,7 +122,7 @@ func (w *Wallet) bisectLastAcctIndex(chainClient *chain.RPCClient, hi, low uint3
 				}
 			}
 		} else {
-			used, err := w.accountIsUsed(uint32(i+offset), chainClient)
+			used, err := w.accountIsUsed(chainClient, i+offset)
 			if err != nil {
 				return 0, err
 			}
@@ -174,7 +174,7 @@ func (w *Wallet) scanAccountIndex(chainClient *chain.RPCClient, start, end uint3
 	}
 	if lastUsed != 0 {
 		for i := lastUsed + finalAcctScanLength; i >= lastUsed; i-- {
-			used, err := w.accountIsUsed(i, chainClient)
+			used, err := w.accountIsUsed(chainClient, i)
 			if err != nil {
 				return 0, err
 			}
@@ -200,7 +200,7 @@ func (w *Wallet) scanAddressRange(account uint32, branch uint32, start, end uint
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
 		addresses, err = w.Manager.AddressesDerivedFromDbAcct(addrmgrNs,
-			uint32(start), uint32(end+1), account, branch)
+			start, end+1, account, branch)
 		return err
 	})
 	if err != nil {
@@ -274,7 +274,7 @@ func (w *Wallet) bisectLastAddrIndex(chainClient *chain.RPCClient, hi, low uint3
 				addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 				var err error
 				addr, err = w.Manager.AddressDerivedFromDbAcct(addrmgrNs,
-					uint32(i+offset), account, branch)
+					i+offset, account, branch)
 				return err
 			})
 			// Skip erroneous keys, which happen rarely.
@@ -338,7 +338,7 @@ func debugAccountAddrGapsString(chainClient *chain.RPCClient, scanBackFrom uint3
 			addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 			var err error
 			addr, err = w.Manager.AddressDerivedFromDbAcct(addrmgrNs,
-				uint32(i), account, branch)
+				i, account, branch)
 			return err
 		})
 		// Skip erroneous keys.
@@ -393,7 +393,7 @@ func debugAccountAddrGapsString(chainClient *chain.RPCClient, scanBackFrom uint3
 				addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 				var err error
 				addr, err = w.Manager.AddressDerivedFromDbAcct(addrmgrNs,
-					uint32(j), account, branch)
+					j, account, branch)
 				return err
 			})
 			if err != nil {
@@ -464,13 +464,13 @@ func (w *Wallet) scanAddressIndex(chainClient *chain.RPCClient, start, end uint3
 				addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 				var err error
 				addr, err = w.Manager.AddressDerivedFromDbAcct(addrmgrNs,
-					uint32(lastUsed), account, branch)
+					lastUsed, account, branch)
 				return err
 			})
 			if err != nil {
 				return 0, nil, err
 			}
-			return uint32(lastUsed), addr, nil
+			return lastUsed, addr, nil
 		}
 	}
 
