@@ -722,7 +722,7 @@ func (w *Wallet) syncWithChain() error {
 	}
 
 	// Discover any addresses for this wallet that have not yet been created.
-	err = w.discoverActiveAddresses()
+	err = w.discoverActiveAddresses(chainClient)
 	if err != nil {
 		return err
 	}
