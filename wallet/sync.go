@@ -61,27 +61,21 @@ const (
 	addrSeekWidth = 20
 )
 
+type discoveryContext struct {
+	chainClient *chain.RPCClient
+	deriveAddr  func(ns walletdb.ReadBucket, index uint32, account uint32, branch uint32) (dcrutil.Address, error)
+}
+
 // accountIsUsed checks if an account has ever been used by scanning the
 // first acctSeekWidth many addresses for usage.
-func (w *Wallet) accountIsUsed(chainClient *chain.RPCClient, account uint32) (bool, error) {
-	// Search external branch then internal branch for a used
-	// address. We need to set the address function to use based
-	// on whether or not this is the initial sync. The function
-	// AddressDerivedFromCointype is able to see addresses that
-	// exists in accounts that have not yet been created, while
-	// AddressDerivedFromDbAcct can not.
-	addrFunc := w.Manager.AddressDerivedFromDbAcct
-	if w.initiallyUnlocked {
-		addrFunc = w.Manager.AddressDerivedFromCointype
-	}
-
+func (w *Wallet) accountIsUsed(ctx *discoveryContext, account uint32) (bool, error) {
 	for branch := uint32(0); branch < 2; branch++ {
 		for i := uint32(0); i < acctSeekWidth; i++ {
 			var addr dcrutil.Address
 			err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 				addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 				var err error
-				addr, err = addrFunc(addrmgrNs, i, account, branch)
+				addr, err = ctx.deriveAddr(addrmgrNs, i, account, branch)
 				return err
 			})
 			// Skip erroneous keys, which happen rarely.
@@ -92,7 +86,7 @@ func (w *Wallet) accountIsUsed(chainClient *chain.RPCClient, account uint32) (bo
 				return false, err
 			}
 
-			exists, err := chainClient.ExistsAddress(addr)
+			exists, err := ctx.chainClient.ExistsAddress(addr)
 			if err != nil {
 				return false, err
 			}
@@ -108,12 +102,12 @@ func (w *Wallet) accountIsUsed(chainClient *chain.RPCClient, account uint32) (bo
 // bisectLastAcctIndex is a helper function for searching through accounts to
 // find the last used account. It uses logarithmic scanning to determine if
 // an account has been used.
-func (w *Wallet) bisectLastAcctIndex(chainClient *chain.RPCClient, hi, low uint32) (uint32, error) {
+func (w *Wallet) bisectLastAcctIndex(ctx *discoveryContext, hi, low uint32) (uint32, error) {
 	offset := low
 	for i := hi - low - 1; i > 0; i /= 2 {
 		if i+offset+acctSeekWidth < waddrmgr.MaxAddressesPerAccount {
 			for j := i + offset + addrSeekWidth; j >= i+offset; j-- {
-				used, err := w.accountIsUsed(chainClient, j)
+				used, err := w.accountIsUsed(ctx, j)
 				if err != nil {
 					return 0, err
 				}
@@ -122,7 +116,7 @@ func (w *Wallet) bisectLastAcctIndex(chainClient *chain.RPCClient, hi, low uint3
 				}
 			}
 		} else {
-			used, err := w.accountIsUsed(chainClient, i+offset)
+			used, err := w.accountIsUsed(ctx, i+offset)
 			if err != nil {
 				return 0, err
 			}
@@ -137,8 +131,8 @@ func (w *Wallet) bisectLastAcctIndex(chainClient *chain.RPCClient, hi, low uint3
 
 // findAcctEnd is a helper function for searching for the last used account by
 // logarithmic scanning of the account indexes.
-func (w *Wallet) findAcctEnd(chainClient *chain.RPCClient, start, stop uint32) (uint32, error) {
-	indexStart, err := w.bisectLastAcctIndex(chainClient, stop, start)
+func (w *Wallet) findAcctEnd(ctx *discoveryContext, start, stop uint32) (uint32, error) {
+	indexStart, err := w.bisectLastAcctIndex(ctx, stop, start)
 	if err != nil {
 		return 0, err
 	}
@@ -147,7 +141,7 @@ func (w *Wallet) findAcctEnd(chainClient *chain.RPCClient, start, stop uint32) (
 		indexLastStored := indexStart
 		low := indexLastStored
 		hi := indexLast + ((indexStart - indexLast) * 2) + 1
-		indexStart, err = w.bisectLastAcctIndex(chainClient, hi, low)
+		indexStart, err = w.bisectLastAcctIndex(ctx, hi, low)
 		if err != nil {
 			return 0, err
 		}
@@ -164,17 +158,17 @@ func (w *Wallet) findAcctEnd(chainClient *chain.RPCClient, start, stop uint32) (
 // scanAccountIndex identifies the last used address in an HD keychain of public
 // keys. It returns the index of the last used key, along with the address of
 // this key.
-func (w *Wallet) scanAccountIndex(chainClient *chain.RPCClient, start, end uint32) (uint32, error) {
+func (w *Wallet) scanAccountIndex(ctx *discoveryContext, start, end uint32) (uint32, error) {
 	// Find the last used account. Scan from it to the end in case there was a
 	// gap from that position, which is possible. Then, return the account
 	// in that position.
-	lastUsed, err := w.findAcctEnd(chainClient, start, end)
+	lastUsed, err := w.findAcctEnd(ctx, start, end)
 	if err != nil {
 		return 0, err
 	}
 	if lastUsed != 0 {
 		for i := lastUsed + finalAcctScanLength; i >= lastUsed; i-- {
-			used, err := w.accountIsUsed(chainClient, i)
+			used, err := w.accountIsUsed(ctx, i)
 			if err != nil {
 				return 0, err
 			}
@@ -192,8 +186,8 @@ func (w *Wallet) scanAccountIndex(chainClient *chain.RPCClient, start, end uint3
 // scanAddressRange scans backwards from end to start many addresses in the
 // account branch, and return the first index that is found on the blockchain.
 // If the address doesn't exist, false is returned as the first argument.
-func (w *Wallet) scanAddressRange(account uint32, branch uint32, start, end uint32,
-	chainClient *chain.RPCClient) (bool, uint32, error) {
+func (w *Wallet) scanAddressRange(ctx *discoveryContext,
+	account uint32, branch uint32, start, end uint32) (bool, uint32, error) {
 
 	var addresses []dcrutil.Address
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
@@ -209,7 +203,7 @@ func (w *Wallet) scanAddressRange(account uint32, branch uint32, start, end uint
 
 	// Whether or not the addresses exist is encoded as a binary
 	// bitset.
-	exists, err := chainClient.ExistsAddresses(addresses)
+	exists, err := ctx.chainClient.ExistsAddresses(addresses)
 	if err != nil {
 		return false, 0, err
 	}
@@ -242,7 +236,7 @@ func (w *Wallet) scanAddressRange(account uint32, branch uint32, start, end uint
 }
 
 // bisectLastAddrIndex is a helper function for search through addresses.
-func (w *Wallet) bisectLastAddrIndex(chainClient *chain.RPCClient, hi, low uint32,
+func (w *Wallet) bisectLastAddrIndex(ctx *discoveryContext, hi, low uint32,
 	account uint32, branch uint32) (uint32, error) {
 
 	// Logarithmically scan address indexes to find the last used
@@ -255,8 +249,7 @@ func (w *Wallet) bisectLastAddrIndex(chainClient *chain.RPCClient, hi, low uint3
 		if i+offset+addrSeekWidth < waddrmgr.MaxAddressesPerAccount {
 			start := i + offset
 			end := i + offset + addrSeekWidth
-			exists, idx, err := w.scanAddressRange(account, branch, start, end,
-				chainClient)
+			exists, idx, err := w.scanAddressRange(ctx, account, branch, start, end)
 			// Skip erroneous keys, which happen rarely. Don't skip
 			// other errors.
 			if e, ok := err.(waddrmgr.ManagerError); ok && e.Err == hdkeychain.ErrInvalidChild {
@@ -282,7 +275,7 @@ func (w *Wallet) bisectLastAddrIndex(chainClient *chain.RPCClient, hi, low uint3
 				continue
 			}
 
-			exists, err := chainClient.ExistsAddress(addr)
+			exists, err := ctx.chainClient.ExistsAddress(addr)
 			if err != nil {
 				return 0, err
 			}
@@ -296,10 +289,10 @@ func (w *Wallet) bisectLastAddrIndex(chainClient *chain.RPCClient, hi, low uint3
 }
 
 // findEnd is a helper function for searching for used addresses.
-func (w *Wallet) findAddrEnd(chainClient *chain.RPCClient, start, stop uint32,
+func (w *Wallet) findAddrEnd(ctx *discoveryContext, start, stop uint32,
 	account uint32, branch uint32) (uint32, error) {
 
-	indexStart, err := w.bisectLastAddrIndex(chainClient, stop, start, account, branch)
+	indexStart, err := w.bisectLastAddrIndex(ctx, stop, start, account, branch)
 	if err != nil {
 		return 0, err
 	}
@@ -308,7 +301,7 @@ func (w *Wallet) findAddrEnd(chainClient *chain.RPCClient, start, stop uint32,
 		indexLastStored := indexStart
 		low := indexLastStored
 		hi := indexLast + ((indexStart - indexLast) * 2) + 1
-		indexStart, err = w.bisectLastAddrIndex(chainClient, hi, low, account, branch)
+		indexStart, err = w.bisectLastAddrIndex(ctx, hi, low, account, branch)
 		if err != nil {
 			return 0, err
 		}
@@ -421,13 +414,13 @@ func debugAccountAddrGapsString(chainClient *chain.RPCClient, scanBackFrom uint3
 // scanAddressIndex identifies the last used address in an HD keychain of public
 // keys. It returns the index of the last used key, along with the address of
 // this key.
-func (w *Wallet) scanAddressIndex(chainClient *chain.RPCClient, start, end uint32,
+func (w *Wallet) scanAddressIndex(ctx *discoveryContext, start, end uint32,
 	account uint32, branch uint32) (uint32, dcrutil.Address, error) {
 
 	// Find the last used address. Scan from it to the end in case there was a
 	// gap from that position, which is possible. Then, return the address
 	// in that position.
-	lastUsed, err := w.findAddrEnd(chainClient, start, end, account, branch)
+	lastUsed, err := w.findAddrEnd(ctx, start, end, account, branch)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -435,7 +428,7 @@ func (w *Wallet) scanAddressIndex(chainClient *chain.RPCClient, start, end uint3
 	// If debug is on, do an exhaustive check and a graphical printout
 	// of what the used addresses currently look like.
 	if log.Level() <= btclog.DebugLvl {
-		dbgStr, err := debugAccountAddrGapsString(chainClient,
+		dbgStr, err := debugAccountAddrGapsString(ctx.chainClient,
 			lastUsed+debugAddrScanLength, account, branch, w)
 		if err != nil {
 			log.Debugf("Failed to debug address gaps for account %v, "+
@@ -451,8 +444,7 @@ func (w *Wallet) scanAddressIndex(chainClient *chain.RPCClient, start, end uint3
 	if lastUsed != 0 {
 		start := lastUsed
 		end := lastUsed + uint32(w.addrIdxScanLen)
-		exists, idx, err := w.scanAddressRange(account, branch, start, end,
-			chainClient)
+		exists, idx, err := w.scanAddressRange(ctx, account, branch, start, end)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -492,7 +484,7 @@ func (w *Wallet) scanAddressIndex(chainClient *chain.RPCClient, start, end uint3
 			return 0, nil, err
 		}
 
-		exists, err := chainClient.ExistsAddress(addr)
+		exists, err := ctx.chainClient.ExistsAddress(addr)
 		if err != nil {
 			return 0, nil, fmt.Errorf("failed to access chain server: %v",
 				err)
@@ -511,9 +503,21 @@ func (w *Wallet) scanAddressIndex(chainClient *chain.RPCClient, start, end uint3
 // discoverActiveAddresses accesses the consensus RPC server to discover all the
 // addresses that have been used by an HD keychain stemming from this wallet in
 // the default account.
-func (w *Wallet) discoverActiveAddresses(chainClient *chain.RPCClient) error {
+func (w *Wallet) discoverActiveAddresses(chainClient *chain.RPCClient, discoverAccts bool) error {
 	log.Infof("Beginning a rescan of active addresses using the daemon. " +
 		"This may take a while.")
+
+	// Search external branch then internal branch for a used address. We need
+	// to set the address function to use based on whether or not this is the
+	// initial sync. The function AddressDerivedFromCointype is able to see
+	// addresses that exists in accounts that have not yet been created, while
+	// AddressDerivedFromDbAcct can not.
+	derive := w.Manager.AddressDerivedFromDbAcct
+	if discoverAccts {
+		derive = w.Manager.AddressDerivedFromCointype
+	}
+
+	ctx := &discoveryContext{chainClient: chainClient, deriveAddr: derive}
 
 	// Start by rescanning the accounts and determining what the
 	// current account index is. This scan should only ever be
@@ -521,7 +525,7 @@ func (w *Wallet) discoverActiveAddresses(chainClient *chain.RPCClient) error {
 	var lastAcct uint32
 	if w.initiallyUnlocked {
 		var err error
-		lastAcct, err = w.scanAccountIndex(chainClient, 0, waddrmgr.MaxAccountNum)
+		lastAcct, err = w.scanAccountIndex(ctx, 0, waddrmgr.MaxAccountNum)
 		if err != nil {
 			return err
 		}
@@ -572,7 +576,7 @@ func (w *Wallet) discoverActiveAddresses(chainClient *chain.RPCClient) error {
 
 		// Do this for both external (0) and internal (1) branches.
 		for branch := uint32(0); branch < 2; branch++ {
-			idx, lastAddr, err := w.scanAddressIndex(chainClient, 0,
+			idx, lastAddr, err := w.scanAddressIndex(ctx, 0,
 				waddrmgr.MaxAddressesPerAccount, acct, branch)
 			if err != nil {
 				return err
