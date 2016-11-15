@@ -129,6 +129,15 @@ namespace Paymetheus.ViewModels
         {
             try
             {
+                await WalletRpcClient.DiscoverAddressesAsync();
+                await WalletRpcClient.SubscribeToBlockNotificationsAsync();
+                var headersResponse = await WalletRpcClient.FetchHeadersAsync();
+                await WalletRpcClient.LoadActiveDataFiltersAsync();
+                if (headersResponse.Item2 != null)
+                {
+                    await WalletRpcClient.RescanFromBlockHeightAsync(headersResponse.Item2.Value.Height);
+                }
+
                 var syncingWallet = await WalletRpcClient.Synchronize(OnWalletChangesProcessed);
                 WalletMutex = syncingWallet.Item1;
                 using (var guard = await WalletMutex.LockAsync())

@@ -21,7 +21,7 @@ namespace Paymetheus.Rpc
 {
     public sealed class WalletClient : IDisposable
     {
-        private static readonly SemanticVersion RequiredRpcServerVersion = new SemanticVersion(2, 4, 0);
+        private static readonly SemanticVersion RequiredRpcServerVersion = new SemanticVersion(3, 0, 0);
 
         public static void Initialize()
         {
@@ -337,12 +337,13 @@ namespace Paymetheus.Rpc
             return Tuple.Create(signedTransaction, complete);
         }
 
-        public async Task<List<Blake256Hash>> PurchaseTicketsAsync(Account account, Amount spendLimit, 
-            int reqConfs, Address ticketAddress, uint number, Address poolAddress, double poolFees, 
+        public async Task<List<Blake256Hash>> PurchaseTicketsAsync(Account account, Amount spendLimit,
+            int reqConfs, Address ticketAddress, uint number, Address poolAddress, double poolFees,
             uint expiry, Amount txFee, Amount ticketFee, string passphrase)
         {
             var ticketAddressStr = "";
-            if (ticketAddress != null) {
+            if (ticketAddress != null)
+            {
                 ticketAddressStr = ticketAddress.ToString();
             }
             var poolAddressStr = "";
@@ -350,7 +351,8 @@ namespace Paymetheus.Rpc
             {
                 poolAddressStr = poolAddress.ToString();
             }
-            if (poolAddressStr == "") {
+            if (poolAddressStr == "")
+            {
                 poolFees = 0.0;
             }
 
@@ -390,7 +392,7 @@ namespace Paymetheus.Rpc
         public async Task<StakeInfoProperties> StakeInfoAsync()
         {
             var client = new WalletService.WalletServiceClient(_channel);
-            var request = new StakeInfoRequest{};
+            var request = new StakeInfoRequest { };
             var response = await client.StakeInfoAsync(request, cancellationToken: _tokenSource.Token);
             var properties = new StakeInfoProperties
             {
@@ -405,7 +407,61 @@ namespace Paymetheus.Rpc
                 Expired = response.Expired,
                 TotalSubsidy = response.TotalSubsidy,
             };
-            return properties;  
+            return properties;
+        }
+
+        public async Task DiscoverAddressesAsync()
+        {
+            var client = new WalletLoaderService.WalletLoaderServiceClient(_channel);
+            var request = new DiscoverAddressesRequest();
+            await client.DiscoverAddressesAsync(request, cancellationToken: _tokenSource.Token);
+        }
+
+        public async Task DiscoverAccountsAsync(string passphrase)
+        {
+            var client = new WalletLoaderService.WalletLoaderServiceClient(_channel);
+            var request = new DiscoverAddressesRequest
+            {
+                DiscoverAccounts = true,
+                PrivatePassphrase = ByteString.CopyFromUtf8(passphrase),
+            };
+            await client.DiscoverAddressesAsync(request, cancellationToken: _tokenSource.Token);
+        }
+
+        public async Task SubscribeToBlockNotificationsAsync()
+        {
+            var client = new WalletLoaderService.WalletLoaderServiceClient(_channel);
+            var request = new SubscribeToBlockNotificationsRequest();
+            await client.SubscribeToBlockNotificationsAsync(request, cancellationToken: _tokenSource.Token);
+        }
+
+        public async Task<TupleValue<int, BlockIdentity?>> FetchHeadersAsync()
+        {
+            var client = new WalletLoaderService.WalletLoaderServiceClient(_channel);
+            var request = new FetchHeadersRequest();
+            var response = await client.FetchHeadersAsync(request, cancellationToken: _tokenSource.Token);
+            BlockIdentity? blockIdentity = null;
+            if (response.FetchedHeadersCount != 0)
+            {
+                blockIdentity = new BlockIdentity(new Blake256Hash(response.FirstNewBlockHash.ToByteArray()),
+                    response.FirstNewBlockHeight);
+            }
+            return TupleValue.Create((int)response.FetchedHeadersCount, blockIdentity);
+        }
+
+        public async Task LoadActiveDataFiltersAsync()
+        {
+            var client = new WalletService.WalletServiceClient(_channel);
+            var request = new LoadActiveDataFiltersRequest();
+            await client.LoadActiveDataFiltersAsync(request, cancellationToken: _tokenSource.Token);
+        }
+
+        public async Task RescanFromBlockHeightAsync(int beginHeight)
+        {
+            var client = new WalletService.WalletServiceClient(_channel);
+            var request = new RescanRequest { BeginHeight = beginHeight };
+            var responseServer = client.Rescan(request, cancellationToken: _tokenSource.Token);
+            while (await responseServer.ResponseStream.MoveNext()) { }
         }
 
         /// <summary>
