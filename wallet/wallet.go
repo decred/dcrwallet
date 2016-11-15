@@ -734,8 +734,8 @@ func (w *Wallet) fetchHeaders(chainClient *chain.RPCClient) (int, error) {
 // returned, along with the hash of the first previously-unseen block hash now
 // in the main chain.  This is the block a rescan should begin at (inclusive),
 // and is only relevant when the number of fetched headers is not zero.
-func (w *Wallet) FetchHeaders(chainClient *chain.RPCClient) (count int, rescanFrom chainhash.Hash,
-	rescanFromHeight int32, err error) {
+func (w *Wallet) FetchHeaders(chainClient *chain.RPCClient) (count int,
+	rescanFrom chainhash.Hash, rescanFromHeight int32, err error) {
 
 	// Unfortunately, getheaders is broken and needs a workaround when wallet's
 	// previous main chain is now a side chain.  Until this is fixed, do what
