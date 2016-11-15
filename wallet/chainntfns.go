@@ -70,7 +70,10 @@ func (w *Wallet) AssociateConsensusRPC(chainClient *chain.RPCClient) {
 	w.chainClient = chainClient
 
 	w.wg.Add(1)
-	go w.handleConsensusRPCNotifications(chainClient)
+	go func() {
+		w.handleConsensusRPCNotifications(chainClient)
+		w.wg.Done()
+	}()
 }
 
 // handleChainNotifications is the major chain notification handler that
