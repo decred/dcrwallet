@@ -121,6 +121,8 @@ namespace Walletrpc {
     static readonly Marshaller<global::Walletrpc.ChangePassphraseResponse> __Marshaller_ChangePassphraseResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.ChangePassphraseResponse.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.RenameAccountRequest> __Marshaller_RenameAccountRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.RenameAccountRequest.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.RenameAccountResponse> __Marshaller_RenameAccountResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.RenameAccountResponse.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.RescanRequest> __Marshaller_RescanRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.RescanRequest.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.RescanResponse> __Marshaller_RescanResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.RescanResponse.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.NextAccountRequest> __Marshaller_NextAccountRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.NextAccountRequest.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.NextAccountResponse> __Marshaller_NextAccountResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.NextAccountResponse.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.NextAddressRequest> __Marshaller_NextAddressRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.NextAddressRequest.Parser.ParseFrom);
@@ -137,6 +139,8 @@ namespace Walletrpc {
     static readonly Marshaller<global::Walletrpc.PublishTransactionResponse> __Marshaller_PublishTransactionResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.PublishTransactionResponse.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.PurchaseTicketsRequest> __Marshaller_PurchaseTicketsRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.PurchaseTicketsRequest.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.PurchaseTicketsResponse> __Marshaller_PurchaseTicketsResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.PurchaseTicketsResponse.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.LoadActiveDataFiltersRequest> __Marshaller_LoadActiveDataFiltersRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.LoadActiveDataFiltersRequest.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.LoadActiveDataFiltersResponse> __Marshaller_LoadActiveDataFiltersResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.LoadActiveDataFiltersResponse.Parser.ParseFrom);
 
     static readonly Method<global::Walletrpc.PingRequest, global::Walletrpc.PingResponse> __Method_Ping = new Method<global::Walletrpc.PingRequest, global::Walletrpc.PingResponse>(
         MethodType.Unary,
@@ -229,6 +233,13 @@ namespace Walletrpc {
         __Marshaller_RenameAccountRequest,
         __Marshaller_RenameAccountResponse);
 
+    static readonly Method<global::Walletrpc.RescanRequest, global::Walletrpc.RescanResponse> __Method_Rescan = new Method<global::Walletrpc.RescanRequest, global::Walletrpc.RescanResponse>(
+        MethodType.ServerStreaming,
+        __ServiceName,
+        "Rescan",
+        __Marshaller_RescanRequest,
+        __Marshaller_RescanResponse);
+
     static readonly Method<global::Walletrpc.NextAccountRequest, global::Walletrpc.NextAccountResponse> __Method_NextAccount = new Method<global::Walletrpc.NextAccountRequest, global::Walletrpc.NextAccountResponse>(
         MethodType.Unary,
         __ServiceName,
@@ -284,6 +295,13 @@ namespace Walletrpc {
         "PurchaseTickets",
         __Marshaller_PurchaseTicketsRequest,
         __Marshaller_PurchaseTicketsResponse);
+
+    static readonly Method<global::Walletrpc.LoadActiveDataFiltersRequest, global::Walletrpc.LoadActiveDataFiltersResponse> __Method_LoadActiveDataFilters = new Method<global::Walletrpc.LoadActiveDataFiltersRequest, global::Walletrpc.LoadActiveDataFiltersResponse>(
+        MethodType.Unary,
+        __ServiceName,
+        "LoadActiveDataFilters",
+        __Marshaller_LoadActiveDataFiltersRequest,
+        __Marshaller_LoadActiveDataFiltersResponse);
 
     /// <summary>Service descriptor</summary>
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
@@ -368,6 +386,11 @@ namespace Walletrpc {
         throw new RpcException(new Status(StatusCode.Unimplemented, ""));
       }
 
+      public virtual global::System.Threading.Tasks.Task Rescan(global::Walletrpc.RescanRequest request, IServerStreamWriter<global::Walletrpc.RescanResponse> responseStream, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
       public virtual global::System.Threading.Tasks.Task<global::Walletrpc.NextAccountResponse> NextAccount(global::Walletrpc.NextAccountRequest request, ServerCallContext context)
       {
         throw new RpcException(new Status(StatusCode.Unimplemented, ""));
@@ -404,6 +427,11 @@ namespace Walletrpc {
       }
 
       public virtual global::System.Threading.Tasks.Task<global::Walletrpc.PurchaseTicketsResponse> PurchaseTickets(global::Walletrpc.PurchaseTicketsRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.LoadActiveDataFiltersResponse> LoadActiveDataFilters(global::Walletrpc.LoadActiveDataFiltersRequest request, ServerCallContext context)
       {
         throw new RpcException(new Status(StatusCode.Unimplemented, ""));
       }
@@ -647,6 +675,14 @@ namespace Walletrpc {
       {
         return CallInvoker.AsyncUnaryCall(__Method_RenameAccount, null, options, request);
       }
+      public virtual AsyncServerStreamingCall<global::Walletrpc.RescanResponse> Rescan(global::Walletrpc.RescanRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        return Rescan(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual AsyncServerStreamingCall<global::Walletrpc.RescanResponse> Rescan(global::Walletrpc.RescanRequest request, CallOptions options)
+      {
+        return CallInvoker.AsyncServerStreamingCall(__Method_Rescan, null, options, request);
+      }
       public virtual global::Walletrpc.NextAccountResponse NextAccount(global::Walletrpc.NextAccountRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
       {
         return NextAccount(request, new CallOptions(headers, deadline, cancellationToken));
@@ -775,6 +811,22 @@ namespace Walletrpc {
       {
         return CallInvoker.AsyncUnaryCall(__Method_PurchaseTickets, null, options, request);
       }
+      public virtual global::Walletrpc.LoadActiveDataFiltersResponse LoadActiveDataFilters(global::Walletrpc.LoadActiveDataFiltersRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        return LoadActiveDataFilters(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual global::Walletrpc.LoadActiveDataFiltersResponse LoadActiveDataFilters(global::Walletrpc.LoadActiveDataFiltersRequest request, CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_LoadActiveDataFilters, null, options, request);
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.LoadActiveDataFiltersResponse> LoadActiveDataFiltersAsync(global::Walletrpc.LoadActiveDataFiltersRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        return LoadActiveDataFiltersAsync(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.LoadActiveDataFiltersResponse> LoadActiveDataFiltersAsync(global::Walletrpc.LoadActiveDataFiltersRequest request, CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_LoadActiveDataFilters, null, options, request);
+      }
       protected override WalletServiceClient NewInstance(ClientBaseConfiguration configuration)
       {
         return new WalletServiceClient(configuration);
@@ -798,6 +850,7 @@ namespace Walletrpc {
           .AddMethod(__Method_AccountNotifications, serviceImpl.AccountNotifications)
           .AddMethod(__Method_ChangePassphrase, serviceImpl.ChangePassphrase)
           .AddMethod(__Method_RenameAccount, serviceImpl.RenameAccount)
+          .AddMethod(__Method_Rescan, serviceImpl.Rescan)
           .AddMethod(__Method_NextAccount, serviceImpl.NextAccount)
           .AddMethod(__Method_NextAddress, serviceImpl.NextAddress)
           .AddMethod(__Method_ImportPrivateKey, serviceImpl.ImportPrivateKey)
@@ -805,7 +858,8 @@ namespace Walletrpc {
           .AddMethod(__Method_FundTransaction, serviceImpl.FundTransaction)
           .AddMethod(__Method_SignTransaction, serviceImpl.SignTransaction)
           .AddMethod(__Method_PublishTransaction, serviceImpl.PublishTransaction)
-          .AddMethod(__Method_PurchaseTickets, serviceImpl.PurchaseTickets).Build();
+          .AddMethod(__Method_PurchaseTickets, serviceImpl.PurchaseTickets)
+          .AddMethod(__Method_LoadActiveDataFilters, serviceImpl.LoadActiveDataFilters).Build();
     }
 
   }
@@ -823,6 +877,12 @@ namespace Walletrpc {
     static readonly Marshaller<global::Walletrpc.CloseWalletResponse> __Marshaller_CloseWalletResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.CloseWalletResponse.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.StartConsensusRpcRequest> __Marshaller_StartConsensusRpcRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.StartConsensusRpcRequest.Parser.ParseFrom);
     static readonly Marshaller<global::Walletrpc.StartConsensusRpcResponse> __Marshaller_StartConsensusRpcResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.StartConsensusRpcResponse.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.DiscoverAddressesRequest> __Marshaller_DiscoverAddressesRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.DiscoverAddressesRequest.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.DiscoverAddressesResponse> __Marshaller_DiscoverAddressesResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.DiscoverAddressesResponse.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.SubscribeToBlockNotificationsRequest> __Marshaller_SubscribeToBlockNotificationsRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.SubscribeToBlockNotificationsRequest.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.SubscribeToBlockNotificationsResponse> __Marshaller_SubscribeToBlockNotificationsResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.SubscribeToBlockNotificationsResponse.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.FetchHeadersRequest> __Marshaller_FetchHeadersRequest = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.FetchHeadersRequest.Parser.ParseFrom);
+    static readonly Marshaller<global::Walletrpc.FetchHeadersResponse> __Marshaller_FetchHeadersResponse = Marshallers.Create((arg) => global::Google.Protobuf.MessageExtensions.ToByteArray(arg), global::Walletrpc.FetchHeadersResponse.Parser.ParseFrom);
 
     static readonly Method<global::Walletrpc.WalletExistsRequest, global::Walletrpc.WalletExistsResponse> __Method_WalletExists = new Method<global::Walletrpc.WalletExistsRequest, global::Walletrpc.WalletExistsResponse>(
         MethodType.Unary,
@@ -859,6 +919,27 @@ namespace Walletrpc {
         __Marshaller_StartConsensusRpcRequest,
         __Marshaller_StartConsensusRpcResponse);
 
+    static readonly Method<global::Walletrpc.DiscoverAddressesRequest, global::Walletrpc.DiscoverAddressesResponse> __Method_DiscoverAddresses = new Method<global::Walletrpc.DiscoverAddressesRequest, global::Walletrpc.DiscoverAddressesResponse>(
+        MethodType.Unary,
+        __ServiceName,
+        "DiscoverAddresses",
+        __Marshaller_DiscoverAddressesRequest,
+        __Marshaller_DiscoverAddressesResponse);
+
+    static readonly Method<global::Walletrpc.SubscribeToBlockNotificationsRequest, global::Walletrpc.SubscribeToBlockNotificationsResponse> __Method_SubscribeToBlockNotifications = new Method<global::Walletrpc.SubscribeToBlockNotificationsRequest, global::Walletrpc.SubscribeToBlockNotificationsResponse>(
+        MethodType.Unary,
+        __ServiceName,
+        "SubscribeToBlockNotifications",
+        __Marshaller_SubscribeToBlockNotificationsRequest,
+        __Marshaller_SubscribeToBlockNotificationsResponse);
+
+    static readonly Method<global::Walletrpc.FetchHeadersRequest, global::Walletrpc.FetchHeadersResponse> __Method_FetchHeaders = new Method<global::Walletrpc.FetchHeadersRequest, global::Walletrpc.FetchHeadersResponse>(
+        MethodType.Unary,
+        __ServiceName,
+        "FetchHeaders",
+        __Marshaller_FetchHeadersRequest,
+        __Marshaller_FetchHeadersResponse);
+
     /// <summary>Service descriptor</summary>
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
     {
@@ -889,6 +970,21 @@ namespace Walletrpc {
       }
 
       public virtual global::System.Threading.Tasks.Task<global::Walletrpc.StartConsensusRpcResponse> StartConsensusRpc(global::Walletrpc.StartConsensusRpcRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.DiscoverAddressesResponse> DiscoverAddresses(global::Walletrpc.DiscoverAddressesRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.SubscribeToBlockNotificationsResponse> SubscribeToBlockNotifications(global::Walletrpc.SubscribeToBlockNotificationsRequest request, ServerCallContext context)
+      {
+        throw new RpcException(new Status(StatusCode.Unimplemented, ""));
+      }
+
+      public virtual global::System.Threading.Tasks.Task<global::Walletrpc.FetchHeadersResponse> FetchHeaders(global::Walletrpc.FetchHeadersRequest request, ServerCallContext context)
       {
         throw new RpcException(new Status(StatusCode.Unimplemented, ""));
       }
@@ -998,6 +1094,54 @@ namespace Walletrpc {
       {
         return CallInvoker.AsyncUnaryCall(__Method_StartConsensusRpc, null, options, request);
       }
+      public virtual global::Walletrpc.DiscoverAddressesResponse DiscoverAddresses(global::Walletrpc.DiscoverAddressesRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        return DiscoverAddresses(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual global::Walletrpc.DiscoverAddressesResponse DiscoverAddresses(global::Walletrpc.DiscoverAddressesRequest request, CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_DiscoverAddresses, null, options, request);
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.DiscoverAddressesResponse> DiscoverAddressesAsync(global::Walletrpc.DiscoverAddressesRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        return DiscoverAddressesAsync(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.DiscoverAddressesResponse> DiscoverAddressesAsync(global::Walletrpc.DiscoverAddressesRequest request, CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_DiscoverAddresses, null, options, request);
+      }
+      public virtual global::Walletrpc.SubscribeToBlockNotificationsResponse SubscribeToBlockNotifications(global::Walletrpc.SubscribeToBlockNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        return SubscribeToBlockNotifications(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual global::Walletrpc.SubscribeToBlockNotificationsResponse SubscribeToBlockNotifications(global::Walletrpc.SubscribeToBlockNotificationsRequest request, CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_SubscribeToBlockNotifications, null, options, request);
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.SubscribeToBlockNotificationsResponse> SubscribeToBlockNotificationsAsync(global::Walletrpc.SubscribeToBlockNotificationsRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        return SubscribeToBlockNotificationsAsync(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.SubscribeToBlockNotificationsResponse> SubscribeToBlockNotificationsAsync(global::Walletrpc.SubscribeToBlockNotificationsRequest request, CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_SubscribeToBlockNotifications, null, options, request);
+      }
+      public virtual global::Walletrpc.FetchHeadersResponse FetchHeaders(global::Walletrpc.FetchHeadersRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        return FetchHeaders(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual global::Walletrpc.FetchHeadersResponse FetchHeaders(global::Walletrpc.FetchHeadersRequest request, CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_FetchHeaders, null, options, request);
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.FetchHeadersResponse> FetchHeadersAsync(global::Walletrpc.FetchHeadersRequest request, Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default(CancellationToken))
+      {
+        return FetchHeadersAsync(request, new CallOptions(headers, deadline, cancellationToken));
+      }
+      public virtual AsyncUnaryCall<global::Walletrpc.FetchHeadersResponse> FetchHeadersAsync(global::Walletrpc.FetchHeadersRequest request, CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_FetchHeaders, null, options, request);
+      }
       protected override WalletLoaderServiceClient NewInstance(ClientBaseConfiguration configuration)
       {
         return new WalletLoaderServiceClient(configuration);
@@ -1012,7 +1156,10 @@ namespace Walletrpc {
           .AddMethod(__Method_CreateWallet, serviceImpl.CreateWallet)
           .AddMethod(__Method_OpenWallet, serviceImpl.OpenWallet)
           .AddMethod(__Method_CloseWallet, serviceImpl.CloseWallet)
-          .AddMethod(__Method_StartConsensusRpc, serviceImpl.StartConsensusRpc).Build();
+          .AddMethod(__Method_StartConsensusRpc, serviceImpl.StartConsensusRpc)
+          .AddMethod(__Method_DiscoverAddresses, serviceImpl.DiscoverAddresses)
+          .AddMethod(__Method_SubscribeToBlockNotifications, serviceImpl.SubscribeToBlockNotifications)
+          .AddMethod(__Method_FetchHeaders, serviceImpl.FetchHeaders).Build();
     }
 
   }
