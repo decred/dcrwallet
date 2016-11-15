@@ -307,6 +307,8 @@ background.
 
 - `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
 
+**Stability:** Unstable
+
 ___
 
 #### `FetchHeaders`
