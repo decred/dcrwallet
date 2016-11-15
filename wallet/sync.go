@@ -510,7 +510,7 @@ func (w *Wallet) scanAddressIndex(ctx *discoveryContext, start, end uint32,
 //
 // BUG(jrick): This function reassigns address pools, and if called multiple
 // times it would not be unlikely to see address reuse due to losing the address
-// pool's derivation index.  I am puning on this for now.  In the future,
+// pool's derivation index.  I am punting on this for now.  In the future,
 // address pools should be removed and all derivation should be done solely by
 // waddrmgr.  Use with caution.
 func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverAccts bool) error {
