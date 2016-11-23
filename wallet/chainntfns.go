@@ -52,7 +52,7 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 					break
 				}
 
-				err = w.purchaser.Purchase(int64(block.SerializedHeader.Height()))
+				_, err = w.purchaser.Purchase(int64(block.SerializedHeader.Height()))
 			}
 		case chain.Reorganization:
 			notificationName = "reorganizing"
@@ -195,7 +195,7 @@ func (w *Wallet) extendMainChain(dbtx walletdb.ReadWriteTx, block *wtxmgr.BlockH
 	}
 	w.NtfnServer.notifyAttachedBlock(dbtx, &header, &block.BlockHash)
 	if w.StakeMiningEnabled && w.purchaser != nil {
-		err = w.purchaser.Purchase(int64(block.SerializedHeader.Height()))
+		_, err = w.purchaser.Purchase(int64(block.SerializedHeader.Height()))
 		if err != nil {
 			log.Errorf("Failed to purchase tickets this round: %s", err.Error())
 		}
