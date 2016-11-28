@@ -517,7 +517,7 @@ transactions.
 
 To avoid exceeding the maximum message size with the return result, a stream is
 used to break up the response into several messages.  A single message will have
-results of a single block, and no unmined transactions, or only unmined
+results of a single block and no unmined transactions, or only unmined
 transactions (and no mined transactions).
 
 **Request:** `GetTransactionsRequest`
