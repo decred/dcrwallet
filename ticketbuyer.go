@@ -9,6 +9,7 @@ import (
 	"github.com/decred/dcrwallet/wallet"
 )
 
+// getWalletRPCClient returns a rpc client connected to the local wallet instance.
 func getWalletRPCClient() (*dcrrpcclient.Client, error) {
 	// Connect to the dcrwallet server RPC client.
 	var dcrwCerts []byte
@@ -50,6 +51,7 @@ func getWalletRPCClient() (*dcrrpcclient.Client, error) {
 	return dcrwClient, nil
 }
 
+// startTicketPurchase launches ticketbuyer to start purchasing tickets.
 func startTicketPurchase(w *wallet.Wallet) {
 	retryDuration := time.Second * 5
 	for {
