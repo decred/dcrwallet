@@ -40,7 +40,6 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 			})
 
 			if w.StakeMiningEnabled && w.purchaser != nil {
-
 				var blockHeader wire.BlockHeader
 				err = blockHeader.Deserialize(bytes.NewReader(n.BlockHeader))
 				if err != nil {
@@ -51,8 +50,8 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 				if err != nil {
 					break
 				}
-
-				_, err = w.purchaser.Purchase(int64(block.SerializedHeader.Height()))
+				_, err := w.purchaser.Purchase(int64(block.SerializedHeader.Height()))
+				log.Errorf("Failed to purchase tickets this round: %s", err)
 			}
 		case chain.Reorganization:
 			notificationName = "reorganizing"
