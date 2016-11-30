@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"io/ioutil"
 	"time"
 
@@ -20,8 +21,11 @@ func getWalletRPCClient() (*dcrrpcclient.Client, error) {
 			return nil, err
 		}
 	}
+	if len(cfg.LegacyRPCListeners) < 1 {
+		return nil, errors.New("No RPC listeners configured")
+	}
 	connCfgWallet := &dcrrpcclient.ConnConfig{
-		Host:         "localhost:19110", // TODO: Use cfg.ExperimentalRPCListeners/LegacyRPCListeners
+		Host:         cfg.LegacyRPCListeners[0],
 		Endpoint:     "ws",
 		User:         cfg.Username,
 		Pass:         cfg.Password,
