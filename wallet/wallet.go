@@ -362,11 +362,11 @@ func (w *Wallet) SetTicketMaxPrice(amt dcrutil.Amount) {
 	w.ticketMaxPrice = amt
 }
 
-// SetTicketPurchaser is used to set the ticket purchaser for the wallet.
+// SetTicketPurchaser is used to set the ticket purchaser for the wallet.  It
+// should only be called before setting up the consensus RPC notifications
+// handler.  It is not safe for concurrent access.
 func (w *Wallet) SetTicketPurchaser(purchaser *ticketbuyer.TicketPurchaser) {
-	w.stakeSettingsLock.Lock()
 	w.purchaser = purchaser
-	w.stakeSettingsLock.Unlock()
 }
 
 // TicketAddress gets the ticket address for the wallet to give the ticket
