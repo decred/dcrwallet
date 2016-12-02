@@ -32,7 +32,7 @@ imports:
 - name: github.com/decred/dcrticketbuyer
   vcs: git
   repo: https://github.com/tuxcanfly/dcrticketbuyer.git
-  version: f72a51e34367f8ff79d046c9e0eec3b875188833
+  version: dd0aa84a5675911b8af9dfc07aa853468aae61c8
   subpackages:
   - ticketbuyer
 - name: github.com/decred/dcrd
