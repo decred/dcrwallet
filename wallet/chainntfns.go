@@ -41,17 +41,18 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 
 			if w.StakeMiningEnabled && w.purchaser != nil {
 				var blockHeader wire.BlockHeader
-				err = blockHeader.Deserialize(bytes.NewReader(n.BlockHeader))
-				if err != nil {
+				if err := blockHeader.Deserialize(bytes.NewReader(n.BlockHeader)); err != nil {
+					log.Errorf("Failed to deserialize block header: %v", err)
 					break
 				}
 				block := wtxmgr.BlockHeaderData{BlockHash: blockHeader.BlockSha()}
-				err = copyHeaderSliceToArray(&block.SerializedHeader, n.BlockHeader)
-				if err != nil {
+				if err := copyHeaderSliceToArray(&block.SerializedHeader, n.BlockHeader); err != nil {
+					log.Errorf("Failed to read block header: %v", err)
 					break
 				}
-				_, err := w.purchaser.Purchase(int64(block.SerializedHeader.Height()))
-				log.Errorf("Failed to purchase tickets this round: %s", err)
+				if _, err := w.purchaser.Purchase(int64(block.SerializedHeader.Height())); err != nil {
+					log.Errorf("Failed to purchase tickets this round: %v", err)
+				}
 			}
 		case chain.Reorganization:
 			notificationName = "reorganizing"
