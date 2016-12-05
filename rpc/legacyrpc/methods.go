@@ -2500,7 +2500,7 @@ func sendToMultiSig(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCCl
 	}
 
 	result := &dcrjson.SendToMultiSigResult{
-		TxHash:       ctx.MsgTx.TxSha().String(),
+		TxHash:       ctx.MsgTx.TxHash().String(),
 		Address:      addr.EncodeAddress(),
 		RedeemScript: hex.EncodeToString(script),
 	}
@@ -2511,7 +2511,7 @@ func sendToMultiSig(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCCl
 	}
 
 	log.Infof("Successfully sent funds to multisignature output in "+
-		"transaction %v", ctx.MsgTx.TxSha().String())
+		"transaction %v", ctx.MsgTx.TxHash().String())
 
 	return result, nil
 }
@@ -2618,10 +2618,10 @@ func sendToSSGen(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		}
 	}
 
-	txSha := createdTx.MsgTx.TxSha()
+	txHash := createdTx.MsgTx.TxHash()
 
-	log.Infof("Successfully sent transaction %v", txSha)
-	return txSha.String(), nil
+	log.Infof("Successfully sent transaction %v", txHash)
+	return txHash.String(), nil
 }
 
 // sendToSSRtx handles a sendtossrtx RPC request by creating a new transaction
@@ -2817,7 +2817,7 @@ func signMessage(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	var buf bytes.Buffer
 	wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
 	wire.WriteVarString(&buf, 0, cmd.Message)
-	messageHash := chainhash.HashFuncB(buf.Bytes())
+	messageHash := chainhash.HashB(buf.Bytes())
 	pkCast, ok := privKey.(*secp256k1.PrivateKey)
 	if !ok {
 		return nil, fmt.Errorf("Unable to create secp256k1.PrivateKey" +
@@ -3282,7 +3282,7 @@ func verifyMessage(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	var buf bytes.Buffer
 	wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
 	wire.WriteVarString(&buf, 0, cmd.Message)
-	expectedMessageHash := chainhash.HashFuncB(buf.Bytes())
+	expectedMessageHash := chainhash.HashB(buf.Bytes())
 	pk, wasCompressed, err := chainec.Secp256k1.RecoverCompact(sig,
 		expectedMessageHash)
 	if err != nil {

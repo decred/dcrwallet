@@ -93,7 +93,7 @@ func (g *blockGenerator) generate(voteBits uint16) *wire.BlockHeader {
 		VoteBits:  voteBits,
 		Height:    uint32(g.lastHeight + 1),
 	}
-	g.lastHash = h.BlockSha()
+	g.lastHash = h.BlockHash()
 	g.lastHeight++
 	return h
 }
@@ -104,7 +104,7 @@ func makeHeaderData(h *wire.BlockHeader) BlockHeaderData {
 	if err != nil {
 		panic(err)
 	}
-	d := BlockHeaderData{BlockHash: h.BlockSha()}
+	d := BlockHeaderData{BlockHash: h.BlockHash()}
 	copy(d.SerializedHeader[:], b.Bytes())
 	return d
 }
@@ -120,7 +120,7 @@ func makeHeaderDataSlice(headers ...*wire.BlockHeader) []BlockHeaderData {
 func makeBlockMeta(h *wire.BlockHeader) *BlockMeta {
 	return &BlockMeta{
 		Block: Block{
-			Hash:   h.BlockSha(),
+			Hash:   h.BlockHash(),
 			Height: int32(h.Height),
 		},
 		Time: time.Time{},

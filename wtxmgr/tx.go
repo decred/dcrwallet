@@ -122,7 +122,7 @@ func NewTxRecord(serializedTx []byte, received time.Time) (*TxRecord, error) {
 		return nil, storeError(ErrInput, str, err)
 	}
 	rec.TxType = stake.DetermineTxType(&rec.MsgTx)
-	hash := rec.MsgTx.TxSha()
+	hash := rec.MsgTx.TxHash()
 	copy(rec.Hash[:], hash[:])
 	return rec, nil
 }
@@ -143,7 +143,7 @@ func NewTxRecordFromMsgTx(msgTx *wire.MsgTx, received time.Time) (*TxRecord,
 		SerializedTx: buf.Bytes(),
 	}
 	rec.TxType = stake.DetermineTxType(&rec.MsgTx)
-	hash := rec.MsgTx.TxSha()
+	hash := rec.MsgTx.TxHash()
 	copy(rec.Hash[:], hash[:])
 	return rec, nil
 }
@@ -189,7 +189,7 @@ func (p SortableTxRecords) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 // PruneOldTickets prunes old stake tickets from before ticketCutoff from the
 // database.
 func (s *Store) PruneOldTickets(ns walletdb.ReadWriteBucket) error {
-	ticketCutoff := s.chainParams.TimePerBlock *
+	ticketCutoff := s.chainParams.TargetTimePerBlock *
 		time.Duration(s.chainParams.WorkDiffWindowSize)
 
 	current := time.Now()
@@ -2297,7 +2297,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint,
 
 	var recK, recV, pkScript []byte
 	if !mined {
-		recK = op.Hash.Bytes()
+		recK = op.Hash[:]
 		recV = existsRawUnmined(ns, recK)
 		pkScript, err = fetchRawTxRecordPkScript(recK, recV, op.Index,
 			scrLoc, scrLen)
@@ -2910,7 +2910,7 @@ func (s *Store) fastCreditPkScriptLookup(ns walletdb.ReadBucket, credKey []byte,
 			return nil, err
 		}
 
-		recK = op.Hash.Bytes()
+		recK = op.Hash[:]
 		recV = existsRawUnmined(ns, recK)
 		pkScript, err = fetchRawTxRecordPkScript(recK, recV, op.Index,
 			scrLoc, scrLen)
