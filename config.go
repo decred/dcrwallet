@@ -98,6 +98,7 @@ type config struct {
 	AllowHighFees       bool    `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
 	RelayFee            float64 `long:"txfee" description:"Sets the wallet's tx fee per kb (default: 0.01)"`
 	TicketFee           float64 `long:"ticketfee" description:"Sets the wallet's ticket fee per kb (default: 0.01)"`
+	PipeRx              uint    `long:"piperx" description:"File descriptor of read end pipe to enable parent -> child process communication"`
 
 	// RPC client options
 	RPCConnect       string `short:"c" long:"rpcconnect" description:"Hostname/IP and port of dcrd RPC server to connect to (default localhost:9109, testnet: localhost:19109, simnet: localhost:18556)"`
