@@ -434,8 +434,8 @@ var helpDescsEnUS = map[string]string{
 
 	// SetTicketsVoteBits help.
 	"setticketsvotebits--synopsis":     "Set the vote bits for several tickets",
-	"setticketsvotebits-txhashes":      "The non-byte-reversed transaction hashes of each ticket being set, concatenated into a single hex string.",
-	"setticketsvotebits-votebitsbytes": "Hexadecimal encodings of a custom binary vote bits encoding for each ticket hash, concatenated together into a single hex string.",
+	"setticketsvotebits-txhashes":      "The non-byte-reversed transaction hashes of each ticket being set, concatenated into a single hex string",
+	"setticketsvotebits-votebitsbytes": "Hexadecimal encodings of a custom binary vote bits encoding for each ticket hash, concatenated together into a single hex string",
 
 	// SetTxFeeCmd help.
 	"settxfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored transaction.",
