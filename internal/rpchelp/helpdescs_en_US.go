@@ -572,6 +572,10 @@ var helpDescsEnUS = map[string]string{
 	"redeemmultisigouts-toaddress":      "Address to look for (if not internal addresses).",
 	"redeemmultisigouts-fromscraddress": "Input script hash address.",
 
+	// RescanWallet help.
+	"rescanwallet--synopsis":   "Rescan the block chain for wallet data, blocking until the rescan completes or exits with an error",
+	"rescanwallet-beginheight": "The height of the first block to begin the rescan from",
+
 	// RenameAccountCmd help.
 	"renameaccount--synopsis":  "Renames an account.",
 	"renameaccount-oldaccount": "The old account name to rename",

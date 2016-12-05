@@ -63,6 +63,7 @@ var Methods = []struct {
 	{"lockunspent", returnsBool},
 	{"redeemmultisigout", []interface{}{(*dcrjson.RedeemMultiSigOutResult)(nil)}},
 	{"redeemmultisigouts", []interface{}{(*dcrjson.RedeemMultiSigOutResult)(nil)}},
+	{"rescanwallet", nil},
 	{"sendfrom", returnsString},
 	{"sendmany", returnsString},
 	{"sendtoaddress", returnsString},
