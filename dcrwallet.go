@@ -149,6 +149,10 @@ func walletMain() error {
 		}
 	}
 
+	if cfg.PipeRx != 0 {
+		go serviceControlPipeRx(uintptr(cfg.PipeRx))
+	}
+
 	// Add interrupt handlers to shutdown the various process components
 	// before exiting.  Interrupt handlers run in LIFO order, so the wallet
 	// (which should be closed last) is added first.

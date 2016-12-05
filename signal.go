@@ -9,6 +9,10 @@ import (
 	"os/signal"
 )
 
+// shutdownRequestChannel is used to initiate shutdown from one of the
+// subsystems using the same code paths as when an interrupt signal is received.
+var shutdownRequestChannel = make(chan struct{})
+
 // interruptChannel is used to receive SIGINT (Ctrl+C) signals.
 var interruptChannel chan os.Signal
 
@@ -57,6 +61,11 @@ func mainInterruptHandler() {
 			log.Infof("Received signal (%s).  Shutting down...", sig)
 			invokeCallbacks()
 			return
+		case <-shutdownRequestChannel:
+			log.Info("Shutdown requested.  Shutting down...")
+			invokeCallbacks()
+			return
+
 		case <-simulateInterruptChannel:
 			log.Info("Received shutdown request.  Shutting down...")
 			invokeCallbacks()
