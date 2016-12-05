@@ -194,7 +194,7 @@ func walletMain() error {
 // startPromptPass prompts the user for a password to unlock their wallet in
 // the event that it was restored from seed or --promptpass flag is set.
 func startPromptPass(w *wallet.Wallet) {
-	promptPass := cfg.PromptPass
+	promptPass := cfg.PromptPass || cfg.EnableStakeMining
 
 	// Watching only wallets never require a password.
 	if w.Manager.WatchingOnly() {

@@ -45,7 +45,7 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 					log.Errorf("Failed to deserialize block header: %v", err)
 					break
 				}
-				block := wtxmgr.BlockHeaderData{BlockHash: blockHeader.BlockSha()}
+				block := wtxmgr.BlockHeaderData{BlockHash: blockHeader.BlockHash()}
 				if err := copyHeaderSliceToArray(&block.SerializedHeader, n.BlockHeader); err != nil {
 					log.Errorf("Failed to read block header: %v", err)
 					break
