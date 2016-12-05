@@ -258,7 +258,7 @@ func (w *Wallet) onBlockConnected(dbtx walletdb.ReadWriteTx, serializedBlockHead
 	if err != nil {
 		return err
 	}
-	block := wtxmgr.BlockHeaderData{BlockHash: blockHeader.BlockSha()}
+	block := wtxmgr.BlockHeaderData{BlockHash: blockHeader.BlockHash()}
 	err = copyHeaderSliceToArray(&block.SerializedHeader, serializedBlockHeader)
 	if err != nil {
 		return err
@@ -416,7 +416,7 @@ func (w *Wallet) evaluateStakePoolTicket(rec *wtxmgr.TxRecord,
 				"has less fees than are required to use this "+
 				"stake pool and is being skipped (required: %v"+
 				", found %v)", commitAddr.EncodeAddress(),
-				tx.TxSha(), feeNeeded, commitAmt)
+				tx.TxHash(), feeNeeded, commitAmt)
 
 			// Reject the entire transaction if it didn't
 			// pay the pool server fees.
@@ -424,12 +424,12 @@ func (w *Wallet) evaluateStakePoolTicket(rec *wtxmgr.TxRecord,
 		}
 	} else {
 		log.Warnf("Unknown pool commitment address %s for ticket %v",
-			commitAddr.EncodeAddress(), tx.TxSha())
+			commitAddr.EncodeAddress(), tx.TxHash())
 		return false, nil
 	}
 
 	log.Debugf("Accepted valid stake pool ticket %v committing %v in fees",
-		tx.TxSha(), tx.TxOut[0].Value)
+		tx.TxHash(), tx.TxOut[0].Value)
 
 	return true, nil
 }
@@ -534,7 +534,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 			err := w.StakeMgr.InsertSStx(stakemgrNs, tx, w.VoteBits)
 			if err != nil {
 				log.Errorf("Failed to insert SStx %v"+
-					"into the stake store.", tx.Sha())
+					"into the stake store.", tx.Hash())
 			}
 		}
 	}

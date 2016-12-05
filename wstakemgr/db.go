@@ -421,7 +421,7 @@ func serializeSSGenRecord(record *ssgenRecord) []byte {
 	curPos := 0
 
 	// Write the block hash.
-	copy(buf[curPos:curPos+hashSize], record.blockHash.Bytes())
+	copy(buf[curPos:curPos+hashSize], record.blockHash[:])
 	curPos += hashSize
 
 	// Write the block height.
@@ -429,7 +429,7 @@ func serializeSSGenRecord(record *ssgenRecord) []byte {
 	curPos += int32Size
 
 	// Write the tx hash.
-	copy(buf[curPos:curPos+hashSize], record.txHash.Bytes())
+	copy(buf[curPos:curPos+hashSize], record.txHash[:])
 	curPos += hashSize
 
 	// Write the vote bits.
@@ -541,7 +541,7 @@ func serializeSSRtxRecord(record *ssrtxRecord) []byte {
 	curPos := 0
 
 	// Write the block hash.
-	copy(buf[curPos:curPos+hashSize], record.blockHash.Bytes())
+	copy(buf[curPos:curPos+hashSize], record.blockHash[:])
 	curPos += hashSize
 
 	// Write the block height.
@@ -549,7 +549,7 @@ func serializeSSRtxRecord(record *ssrtxRecord) []byte {
 	curPos += int32Size
 
 	// Write the tx hash.
-	copy(buf[curPos:curPos+hashSize], record.txHash.Bytes())
+	copy(buf[curPos:curPos+hashSize], record.txHash[:])
 	curPos += hashSize
 
 	// Write the timestamp.
@@ -589,7 +589,7 @@ func stakeStoreExists(ns walletdb.ReadBucket) bool {
 func fetchSStxRecord(ns walletdb.ReadBucket, hash *chainhash.Hash) (*sstxRecord, error) {
 	bucket := ns.NestedReadBucket(sstxRecordsBucketName)
 
-	key := hash.Bytes()
+	key := hash[:]
 	val := bucket.Get(key)
 	if val == nil {
 		str := fmt.Sprintf("missing sstx record for hash '%s'", hash.String())
@@ -606,7 +606,7 @@ func fetchSStxRecordSStxTicketHash160(ns walletdb.ReadBucket,
 
 	bucket := ns.NestedReadBucket(sstxRecordsBucketName)
 
-	key := hash.Bytes()
+	key := hash[:]
 	val := bucket.Get(key)
 	if val == nil {
 		str := fmt.Sprintf("missing sstx record for hash '%s'", hash.String())
@@ -623,7 +623,7 @@ func fetchSStxRecordVoteBits(ns walletdb.ReadBucket, hash *chainhash.Hash) (bool
 
 	bucket := ns.NestedReadBucket(sstxRecordsBucketName)
 
-	key := hash.Bytes()
+	key := hash[:]
 	val := bucket.Get(key)
 	if val == nil {
 		str := fmt.Sprintf("missing sstx record for hash '%s'", hash.String())
@@ -673,7 +673,7 @@ func updateSStxRecordVoteBits(ns walletdb.ReadWriteBucket, hash *chainhash.Hash,
 
 	bucket := ns.NestedReadWriteBucket(sstxRecordsBucketName)
 
-	key := hash.Bytes()
+	key := hash[:]
 	val := bucket.Get(key)
 	if val == nil {
 		str := fmt.Sprintf("missing sstx record for hash '%s'", hash.String())
@@ -714,12 +714,12 @@ func updateSStxRecord(ns walletdb.ReadWriteBucket, record *sstxRecord, voteBits 
 	// Write the serialized txrecord keyed by the tx hash.
 	serializedSStxRecord, err := serializeSStxRecord(record, voteBits)
 	if err != nil {
-		str := fmt.Sprintf("failed to serialize sstxrecord '%s'", record.tx.Sha())
+		str := fmt.Sprintf("failed to serialize sstxrecord '%s'", record.tx.Hash())
 		return stakeStoreError(ErrDatabase, str, err)
 	}
-	err = bucket.Put(record.tx.Sha().Bytes(), serializedSStxRecord)
+	err = bucket.Put(record.tx.Hash()[:], serializedSStxRecord)
 	if err != nil {
-		str := fmt.Sprintf("failed to store sstxrecord '%s'", record.tx.Sha())
+		str := fmt.Sprintf("failed to store sstxrecord '%s'", record.tx.Hash())
 		return stakeStoreError(ErrDatabase, str, err)
 	}
 	return nil
@@ -737,7 +737,7 @@ func fetchSSGenRecords(ns walletdb.ReadBucket, hash *chainhash.Hash) ([]*ssgenRe
 
 	bucket := ns.NestedReadBucket(ssgenRecordsBucketName)
 
-	key := hash.Bytes()
+	key := hash[:]
 	val := bucket.Get(key)
 	if val == nil {
 		str := fmt.Sprintf("missing ssgen records for hash '%s'", hash.String())
@@ -788,7 +788,7 @@ func updateSSGenRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash,
 	// Write the serialized SSGens keyed by the sstx hash.
 	serializedSSGenRecords := serializeSSGenRecords(records)
 
-	err := bucket.Put(hash.Bytes(), serializedSSGenRecords)
+	err := bucket.Put(hash[:], serializedSSGenRecords)
 	if err != nil {
 		str := fmt.Sprintf("failed to store ssgen records '%s'", hash)
 		return stakeStoreError(ErrDatabase, str, err)
@@ -810,7 +810,7 @@ func fetchSSRtxRecords(ns walletdb.ReadBucket, hash *chainhash.Hash) ([]*ssrtxRe
 
 	bucket := ns.NestedReadBucket(ssrtxRecordsBucketName)
 
-	key := hash.Bytes()
+	key := hash[:]
 	val := bucket.Get(key)
 	if val == nil {
 		str := fmt.Sprintf("missing ssrtx records for hash '%s'", hash.String())
@@ -861,7 +861,7 @@ func updateSSRtxRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash,
 	// Write the serialized SSRtxs keyed by the sstx hash.
 	serializedSSRtxsRecords := serializeSSRtxRecords(records)
 
-	err := bucket.Put(hash.Bytes(), serializedSSRtxsRecords)
+	err := bucket.Put(hash[:], serializedSSRtxsRecords)
 	if err != nil {
 		str := fmt.Sprintf("failed to store ssrtx records '%s'", hash)
 		return stakeStoreError(ErrDatabase, str, err)

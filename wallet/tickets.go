@@ -178,7 +178,7 @@ func (w *Wallet) AddTicket(ticket *dcrutil.Tx) error {
 				return err
 			}
 
-			ticketHash := ticket.MsgTx().TxSha()
+			ticketHash := ticket.MsgTx().TxHash()
 
 			chainClient, err := w.requireChainClient()
 			if err != nil {

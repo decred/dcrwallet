@@ -31,7 +31,7 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 	}
 	block2Tx := wire.MsgTx{
 		TxIn: []*wire.TxIn{
-			{PreviousOutPoint: wire.OutPoint{Hash: block1Tx.TxSha(), Index: 0, Tree: 0}},
+			{PreviousOutPoint: wire.OutPoint{Hash: block1Tx.TxHash(), Index: 0, Tree: 0}},
 		},
 		TxOut: []*wire.TxOut{{Value: 1e8}},
 	}
@@ -106,7 +106,7 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 			t.Errorf("Expected only 1 credit, got %v", len(credits))
 			return nil
 		}
-		if credits[0].Hash != block2Tx.TxSha() {
+		if credits[0].Hash != block2Tx.TxHash() {
 			t.Errorf("Credit hash does match tx from block 2")
 			return nil
 		}
@@ -148,7 +148,7 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 			t.Errorf("Expected only 1 credit, got %v", len(credits))
 			return nil
 		}
-		if credits[0].Hash != block1Tx.TxSha() {
+		if credits[0].Hash != block1Tx.TxHash() {
 			t.Errorf("Credit hash does not match tx from block 1")
 			return nil
 		}
@@ -181,7 +181,7 @@ func TestStakeInvalidationTxInsert(t *testing.T) {
 	}
 	block2Tx := wire.MsgTx{
 		TxIn: []*wire.TxIn{
-			{PreviousOutPoint: wire.OutPoint{Hash: block1Tx.TxSha(), Index: 0, Tree: 0}},
+			{PreviousOutPoint: wire.OutPoint{Hash: block1Tx.TxHash(), Index: 0, Tree: 0}},
 		},
 		TxOut: []*wire.TxOut{{Value: 1e8}},
 	}
@@ -245,7 +245,7 @@ func TestStakeInvalidationTxInsert(t *testing.T) {
 			t.Errorf("Expected only 1 credit, got %v", len(credits))
 			return nil
 		}
-		if credits[0].Hash != block1Tx.TxSha() {
+		if credits[0].Hash != block1Tx.TxHash() {
 			t.Errorf("Credit hash does not match tx from block 1")
 			return nil
 		}

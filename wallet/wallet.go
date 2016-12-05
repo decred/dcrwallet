@@ -677,7 +677,7 @@ func createHeaderData(headers []string) ([]wtxmgr.BlockHeaderData, error) {
 		if err != nil {
 			return nil, err
 		}
-		headerData.BlockHash = decodedHeader.BlockSha()
+		headerData.BlockHash = decodedHeader.BlockHash()
 		data[i] = headerData
 	}
 	return data, nil
@@ -3114,7 +3114,7 @@ func (w *Wallet) resendUnminedTxs() {
 			// TODO(jrick): Check error for if this tx is a double spend,
 			// remove it if so.
 			log.Tracef("Could not resend transaction %v: %v",
-				tx.TxSha(), err)
+				tx.TxHash(), err)
 			continue
 		}
 		log.Tracef("Resent unmined transaction %v", resp)
@@ -3302,7 +3302,7 @@ func (w *Wallet) SendOutputs(outputs []*wire.TxOut, account uint32,
 
 	// TODO: The record already has the serialized tx, so no need to
 	// serialize it again.
-	hash := createdTx.Tx.TxSha()
+	hash := createdTx.Tx.TxHash()
 	return &hash, nil
 }
 

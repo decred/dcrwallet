@@ -163,10 +163,10 @@ func (s *StakeStore) addHashToStore(hash *chainhash.Hash) {
 func (s *StakeStore) insertSStx(ns walletdb.ReadWriteBucket, sstx *dcrutil.Tx, voteBits stake.VoteBits) error {
 	// If we already have the SStx, no need to
 	// try to include twice.
-	exists := s.checkHashInStore(sstx.Sha())
+	exists := s.checkHashInStore(sstx.Hash())
 	if exists {
 		log.Tracef("Attempted to insert SStx %v into the stake store, "+
-			"but the SStx already exists.", sstx.Sha())
+			"but the SStx already exists.", sstx.Hash())
 		return nil
 	}
 	record := &sstxRecord{
@@ -184,7 +184,7 @@ func (s *StakeStore) insertSStx(ns walletdb.ReadWriteBucket, sstx *dcrutil.Tx, v
 	}
 
 	// Add the SStx's hash to the internal list in the store.
-	s.addHashToStore(sstx.Sha())
+	s.addHashToStore(sstx.Hash())
 
 	return nil
 }
@@ -788,13 +788,13 @@ func (s *StakeStore) generateVote(ns walletdb.ReadWriteBucket, waddrmgrNs wallet
 	}
 
 	// Store the information about the SSGen.
-	hash := msgTx.TxSha()
+	hash := msgTx.TxHash()
 	err = s.insertSSGen(ns,
 		blockHash,
 		height,
 		&hash,
 		voteBits.Bits,
-		sstx.Sha())
+		sstx.Hash())
 	if err != nil {
 		return nil, err
 	}
@@ -816,7 +816,7 @@ func (s *StakeStore) generateVote(ns walletdb.ReadWriteBucket, waddrmgrNs wallet
 		BlockHash: *blockHash,
 		Height:    int32(height),
 		Amount:    0,
-		SStxIn:    *sstx.Sha(),
+		SStxIn:    *sstx.Hash(),
 		VoteBits:  voteBits.Bits,
 	}
 
@@ -950,33 +950,33 @@ func (s *StakeStore) generateRevocation(ns walletdb.ReadWriteBucket, waddrmgrNs 
 	}
 
 	// Store the information about the SSRtx.
-	hash := msgTx.TxSha()
+	hash := msgTx.TxHash()
 	err = s.insertSSRtx(ns,
 		blockHash,
 		height,
 		&hash,
-		sstx.Sha())
+		sstx.Hash())
 	if err != nil {
 		return nil, err
 	}
 
 	// Send the transaction.
-	ssrtxSha, err := s.chainSvr.SendRawTransaction(msgTx, allowHighFees)
+	ssrtxHash, err := s.chainSvr.SendRawTransaction(msgTx, allowHighFees)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Debugf("Generated SSRtx %v. The ticket used to "+
-		"generate the SSRtx was %v.", ssrtxSha, sstx.Sha())
+		"generate the SSRtx was %v.", ssrtxHash, sstx.Hash())
 
 	// Generate a notification to return.
 	ntfn := &StakeNotification{
 		TxType:    int8(stake.TxTypeSSRtx),
-		TxHash:    *ssrtxSha,
+		TxHash:    *ssrtxHash,
 		BlockHash: chainhash.Hash{},
 		Height:    0,
 		Amount:    0,
-		SStxIn:    *sstx.Sha(),
+		SStxIn:    *sstx.Hash(),
 		VoteBits:  0,
 	}
 

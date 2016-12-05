@@ -4,7 +4,6 @@
 package rpctest
 
 import (
-	"bytes"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -929,9 +928,9 @@ func testSendToAddress(r *Harness, t *testing.T) {
 	}
 	// Confirm that the expected tx was mined into the block.
 	minedTx := block.Transactions()[1]
-	txSha := minedTx.Sha()
-	if !bytes.Equal(txid[:], txSha.Bytes()[:]) {
-		t.Fatalf("txid's don't match, %v vs %v", txSha, txid)
+	txHash := minedTx.Hash()
+	if *txid != *txHash {
+		t.Fatalf("txid's don't match, %v vs %v", txHash, txid)
 	}
 
 	// We should now check to confirm that the utxo that wallet used to create
@@ -1038,10 +1037,10 @@ func testSendFrom(r *Harness, t *testing.T) {
 		t.Fatalf("expected transaction not included in block")
 	}
 	minedTx := block.Transactions()[1]
-	txSha := minedTx.Sha()
-	if !bytes.Equal(txid[:], txSha.Bytes()[:]) {
+	txHash := minedTx.Hash()
+	if *txid != *txHash {
 		t.Fatalf("txid's don't match, %v vs. %v (actual vs. expected)",
-			txSha, txid)
+			txHash, txid)
 	}
 
 	// Generate another block, since it takes 2 blocks to validate a tx
@@ -2693,9 +2692,8 @@ func includesTx(txHash *chainhash.Hash, block *dcrutil.Block,
 	blockTxs := block.Transactions()
 
 	for _, minedTx := range blockTxs {
-		txSha := minedTx.Sha()
-		//if bytes.Equal(txHash[:], txSha.Bytes()[:]) {
-		if txHash.IsEqual(txSha) {
+		minedTxHash := minedTx.Hash()
+		if *txHash == *minedTxHash {
 			return true
 		}
 	}
@@ -2714,8 +2712,8 @@ func includesStakeTx(txHash *chainhash.Hash, block *dcrutil.Block,
 	blockTxs := block.STransactions()
 
 	for _, minedTx := range blockTxs {
-		txSha := minedTx.Sha()
-		if txHash.IsEqual(txSha) {
+		minedTxHash := minedTx.Hash()
+		if *txHash == *minedTxHash {
 			return true
 		}
 	}

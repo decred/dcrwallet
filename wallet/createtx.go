@@ -1198,7 +1198,7 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 
 			eop = &extendedOutPoint{
 				op: &wire.OutPoint{
-					Hash:  splitTx.Tx.TxSha(),
+					Hash:  splitTx.Tx.TxHash(),
 					Index: uint32(i),
 					Tree:  wire.TxTreeRegular,
 				},
@@ -1213,7 +1213,7 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 
 			eopPool = &extendedOutPoint{
 				op: &wire.OutPoint{
-					Hash:  splitTx.Tx.TxSha(),
+					Hash:  splitTx.Tx.TxHash(),
 					Index: uint32(poolIdx),
 					Tree:  wire.TxTreeRegular,
 				},
@@ -1222,7 +1222,7 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 			}
 			eop = &extendedOutPoint{
 				op: &wire.OutPoint{
-					Hash:  splitTx.Tx.TxSha(),
+					Hash:  splitTx.Tx.TxHash(),
 					Index: uint32(userIdx),
 					Tree:  wire.TxTreeRegular,
 				},
@@ -1293,7 +1293,7 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 		}
 
 		// Send the ticket over the network.
-		txSha, err := chainClient.SendRawTransaction(ticket, w.AllowHighFees)
+		txHash, err := chainClient.SendRawTransaction(ticket, w.AllowHighFees)
 		if err != nil {
 			return nil, err
 		}
@@ -1318,13 +1318,13 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 				err = w.StakeMgr.InsertSStx(stakemgrNs, txTemp, w.VoteBits)
 				if err != nil {
 					return nil, fmt.Errorf("Failed to insert SStx %v"+
-						"into the stake store", txTemp.Sha())
+						"into the stake store", txTemp.Hash())
 				}
 			}
 		}
 
-		log.Infof("Successfully sent SStx purchase transaction %v", txSha)
-		ticketHashes[i] = txSha
+		log.Infof("Successfully sent SStx purchase transaction %v", txHash)
+		ticketHashes[i] = txHash
 	}
 
 	return ticketHashes, nil

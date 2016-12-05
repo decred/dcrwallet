@@ -60,7 +60,7 @@ func StakePoolTicketFee(stakeDiff dcrutil.Amount, relayFee dcrutil.Amount,
 	// ceiling of the ticket pool size divided by the
 	// reduction interval.
 	adjs := int(math.Ceil(float64(params.TicketPoolSize) /
-		float64(params.ReductionInterval)))
+		float64(params.SubsidyReductionInterval)))
 	initSubsidyCacheOnce.Do(func() {
 		subsidyCache = blockchain.NewSubsidyCache(int64(height), params)
 	})
