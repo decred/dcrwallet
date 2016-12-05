@@ -17,7 +17,6 @@ import (
 
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/internal/cfgutil"
-	"github.com/decred/dcrwallet/internal/legacy/keystore"
 	"github.com/decred/dcrwallet/netparams"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
@@ -545,19 +544,8 @@ func loadConfig() (*config, []string, error) {
 		// Created successfully, so exit now with success.
 		os.Exit(0)
 	} else if !dbFileExists && !cfg.NoInitialLoad {
-		keystorePath := filepath.Join(netDir, keystore.Filename)
-		keystoreExists, err := cfgutil.FileExists(keystorePath)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return loadConfigError(err)
-		}
-		if !keystoreExists {
-			err = fmt.Errorf("The wallet does not exist.  Run with the " +
-				"--create option to initialize and create it.")
-		} else {
-			err = fmt.Errorf("The wallet is in legacy format.  Run with the " +
-				"--create option to import it.")
-		}
+		err := fmt.Errorf("The wallet does not exist.  Run with the " +
+			"--create option to initialize and create it.")
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
