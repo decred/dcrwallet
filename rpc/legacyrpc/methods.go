@@ -2249,6 +2249,8 @@ func redeemMultiSigOuts(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 	return dcrjson.RedeemMultiSigOutsResult{Results: rmsoResults}, nil
 }
 
+// rescanWallet initiates a rescan of the block chain for wallet data, blocking
+// until the rescan completes or exits with an error.
 func rescanWallet(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient) (interface{}, error) {
 	cmd := icmd.(*dcrjson.RescanWalletCmd)
 	err := <-w.RescanFromHeight(chainClient, int32(*cmd.BeginHeight))
