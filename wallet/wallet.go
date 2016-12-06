@@ -3681,8 +3681,6 @@ func Open(db walletdb.DB, pubPass []byte, cbs *waddrmgr.OpenCallbacks,
 	addrIdxScanLen int, stakePoolColdExtKey string, autoRepair, allowHighFees bool,
 	relayFee float64, params *chaincfg.Params) (*Wallet, error) {
 
-	missingTxHistory := false
-
 	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
 		waddrmgrBucket := tx.ReadBucket(waddrmgrNamespaceKey)
 		if waddrmgrBucket == nil {
@@ -3692,32 +3690,14 @@ func Open(db walletdb.DB, pubPass []byte, cbs *waddrmgr.OpenCallbacks,
 		if wstakemgrBucket == nil {
 			return errors.New("missing stake manager namespace")
 		}
-		missingTxHistory = tx.ReadBucket(wtxmgrNamespaceKey) == nil
+		wtxmgrBucket := tx.ReadBucket(wtxmgrNamespaceKey)
+		if wtxmgrBucket == nil {
+			return errors.New("missing transaction manager namespace")
+		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
-	}
-
-	// The transaction history namespace is allowed to be missing as this
-	// means it was manually pruned from the database by other tooling, and
-	// the wallet should handle this with a full rescan.  When this is the
-	// case, recreate the history.
-	//
-	// After all upgrades have been performed, if the transaction history
-	// was missing, the wallet sync state (saved in the address manager)
-	// will be unset.
-	if missingTxHistory {
-		err := walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
-			txmgrNs, err := tx.CreateTopLevelBucket(wtxmgrNamespaceKey)
-			if err != nil {
-				return err
-			}
-			return wtxmgr.Create(txmgrNs, params)
-		})
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	// Perform upgrades as necessary.  Each upgrade is done under its own
