@@ -3583,13 +3583,21 @@ func Create(db walletdb.DB, pubPass, privPass, seed []byte, params *chaincfg.Par
 		if err != nil {
 			return err
 		}
+		txmgrNs, err := tx.CreateTopLevelBucket(wtxmgrNamespaceKey)
+		if err != nil {
+			return err
+		}
 
 		err = waddrmgr.Create(addrmgrNs, seed, pubPass, privPass,
 			params, nil, unsafeMainNet)
 		if err != nil {
 			return err
 		}
-		return wstakemgr.Create(stakemgrNs)
+		err = wstakemgr.Create(stakemgrNs)
+		if err != nil {
+			return err
+		}
+		return wtxmgr.Create(txmgrNs, params)
 	})
 }
 
