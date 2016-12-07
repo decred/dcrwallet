@@ -118,15 +118,16 @@ type config struct {
 	//
 	// Usernames can also be used for the consensus RPC client, so they
 	// aren't considered legacy.
-	RPCCert                string   `long:"rpccert" description:"File containing the certificate file"`
-	RPCKey                 string   `long:"rpckey" description:"File containing the certificate key"`
-	OneTimeTLSKey          bool     `long:"onetimetlskey" description:"Generate a new TLS certpair at startup, but only write the certificate to disk"`
-	DisableServerTLS       bool     `long:"noservertls" description:"Disable TLS for the RPC server -- NOTE: This is only allowed if the RPC server is bound to localhost"`
-	LegacyRPCListeners     []string `long:"rpclisten" description:"Listen for legacy RPC connections on this interface/port (default port: 9110, testnet: 19110, simnet: 18557)"`
-	LegacyRPCMaxClients    int64    `long:"rpcmaxclients" description:"Max number of legacy RPC clients for standard connections"`
-	LegacyRPCMaxWebsockets int64    `long:"rpcmaxwebsockets" description:"Max number of legacy RPC websocket connections"`
-	Username               string   `short:"u" long:"username" description:"Username for legacy RPC and dcrd authentication (if dcrdusername is unset)"`
-	Password               string   `short:"P" long:"password" default-mask:"-" description:"Password for legacy RPC and dcrd authentication (if dcrdpassword is unset)"`
+	RPCCert                string             `long:"rpccert" description:"File containing the certificate file"`
+	RPCKey                 string             `long:"rpckey" description:"File containing the certificate key"`
+	TLSCurve               *cfgutil.CurveFlag `long:"tlscurve" description:"Curve to use when generating TLS keypairs"`
+	OneTimeTLSKey          bool               `long:"onetimetlskey" description:"Generate a new TLS certpair at startup, but only write the certificate to disk"`
+	DisableServerTLS       bool               `long:"noservertls" description:"Disable TLS for the RPC server -- NOTE: This is only allowed if the RPC server is bound to localhost"`
+	LegacyRPCListeners     []string           `long:"rpclisten" description:"Listen for legacy RPC connections on this interface/port (default port: 9110, testnet: 19110, simnet: 18557)"`
+	LegacyRPCMaxClients    int64              `long:"rpcmaxclients" description:"Max number of legacy RPC clients for standard connections"`
+	LegacyRPCMaxWebsockets int64              `long:"rpcmaxwebsockets" description:"Max number of legacy RPC websocket connections"`
+	Username               string             `short:"u" long:"username" description:"Username for legacy RPC and dcrd authentication (if dcrdusername is unset)"`
+	Password               string             `short:"P" long:"password" default-mask:"-" description:"Password for legacy RPC and dcrd authentication (if dcrdpassword is unset)"`
 
 	// EXPERIMENTAL RPC server options
 	//
@@ -301,6 +302,7 @@ func loadConfig() (*config, []string, error) {
 		PromptPass:             defaultPromptPass,
 		RPCKey:                 defaultRPCKeyFile,
 		RPCCert:                defaultRPCCertFile,
+		TLSCurve:               cfgutil.NewCurveFlag(cfgutil.CurveP521),
 		LegacyRPCMaxClients:    defaultRPCMaxClients,
 		LegacyRPCMaxWebsockets: defaultRPCMaxWebsockets,
 		EnableStakeMining:      defaultEnableStakeMining,
