@@ -1345,7 +1345,7 @@ hexadecimal, and in a mnemonic word list format.
 
 **Response:** `GenerateRandomSeedResponse`
 
-- `bytes seed`: The generated seed in a binary format.
+- `bytes seed_bytes`: The generated seed in a binary format.
 
 - `string seed_hex`: The generated seed encoded as a hexadecimal string.
 
