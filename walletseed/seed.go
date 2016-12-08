@@ -77,7 +77,7 @@ func DecodeUserInput(input string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		if len(decoded) < 2 { // need data (0) and checksum (1) to do check checksum
+		if len(decoded) < 2 { // need data (0) and checksum (1) to check checksum
 			break
 		}
 		if checksumByte(decoded[:len(decoded)-1]) != decoded[len(decoded)-1] {
