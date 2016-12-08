@@ -58,6 +58,11 @@ service WalletLoaderService {
 	rpc FetchHeaders(FetchHeadersRequest) returns (FetchHeadersResponse);
 }
 
+service SeedService {
+	rpc GenerateRandomSeed (GenerateRandomSeedRequest) returns (GenerateRandomSeedResponse);
+	rpc DecodeSeed (DecodeSeedRequest) returns (DecodeSeedResponse);
+}
+
 message TransactionDetails {
 	message Input {
 		uint32 index = 1;
@@ -402,4 +407,20 @@ message FetchHeadersResponse {
 	uint32 fetched_headers_count = 1;
 	bytes first_new_block_hash = 2;
 	int32 first_new_block_height = 3;
+}
+
+message GenerateRandomSeedRequest {
+	uint32 seed_length = 1;
+}
+message GenerateRandomSeedResponse {
+	bytes seed_bytes = 1;
+	string seed_hex = 2;
+	string seed_mnemonic = 3;
+}
+
+message DecodeSeedRequest {
+	string user_input = 1;
+}
+message DecodeSeedResponse {
+	bytes decoded_seed = 1;
 }

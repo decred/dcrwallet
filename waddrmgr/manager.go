@@ -17,9 +17,9 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/internal/zero"
-	"github.com/decred/dcrwallet/pgpwordlist"
 	"github.com/decred/dcrwallet/snacl"
 	"github.com/decred/dcrwallet/walletdb"
+	"github.com/decred/dcrwallet/walletseed"
 )
 
 const (
@@ -491,7 +491,7 @@ func (m *Manager) GetSeed(ns walletdb.ReadBucket) (string, error) {
 		return "", managerError(ErrNoExist, str, nil)
 	}
 
-	return pgpwordlist.ToStringChecksum(seed)
+	return walletseed.EncodeMnemonic(seed), nil
 }
 
 // GetMasterPubKey gives the encoded string version of the HD master public key

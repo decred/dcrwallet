@@ -141,6 +141,7 @@ func startRPCServers(walletLoader *wallet.Loader) (*grpc.Server, *legacyrpc.Serv
 			server = grpc.NewServer(grpc.Creds(creds))
 			rpcserver.StartVersionService(server)
 			rpcserver.StartWalletLoaderService(server, walletLoader, activeNet)
+			rpcserver.StartSeedService(server)
 			for _, lis := range listeners {
 				lis := lis
 				go func() {
