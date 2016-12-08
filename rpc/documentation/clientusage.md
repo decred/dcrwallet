@@ -353,12 +353,14 @@ var grpc = require('grpc');
 var protoDescriptor = grpc.load('./api.proto');
 var walletrpc = protoDescriptor.walletrpc;
 
-var certPath = path.join(process.env.HOME, '.dcrwallet', 'rpc.cert');
-if (os.platform == 'win32') {
-    certPath = path.join(process.env.LOCALAPPDATA, 'Dcrwallet', 'rpc.cert');
-} else if (os.platform == 'darwin') {
-    certPath = path.join(process.env.HOME, 'Library', 'Application Support',
-        'Dcrwallet', 'rpc.cert');
+var certPath = '';
+if (os.platform() == 'win32') {
+  certPath = path.join(process.env.LOCALAPPDATA, 'Dcrwallet', 'rpc.cert');
+} else if (os.platform() == 'darwin') {
+  certPath = path.join(process.env.HOME, 'Library', 'Application Support',
+    'Dcrwallet', 'rpc.cert');
+} else {
+  certPath = path.join(process.env.HOME, '.dcrwallet', 'rpc.cert');
 }
 
 var cert = fs.readFileSync(certPath);
@@ -366,15 +368,15 @@ var creds = grpc.credentials.createSsl(cert);
 var client = new walletrpc.WalletService('localhost:19110', creds);
 
 var request = {
-    account_number: 0,
-    required_confirmations: 1
+  account_number: 0,
+  required_confirmations: 1
 };
 client.balance(request, function(err, response) {
-    if (err) {
-        console.error(err);
-    } else {
-        console.log('Spendable balance:', response.spendable, 'Satoshis');
-    }
+  if (err) {
+    console.error(err);
+  } else {
+    console.log('Spendable balance:', response.spendable, 'Satoshis');
+  }
 });
 ```
 
@@ -414,12 +416,13 @@ def main():
     # configured to use ECDSA TLS certificates (required by dcrwallet).
     os.environ['GRPC_SSL_CIPHER_SUITES'] = 'HIGH+ECDSA'
 
-    cert_file_path = os.path.join(os.environ['HOME'], '.dcrwallet', 'rpc.cert')
     if platform.system() == 'Windows':
         cert_file_path = os.path.join(os.environ['LOCALAPPDATA'], "Dcrwallet", "rpc.cert")
     elif platform.system() == 'Darwin':
         cert_file_path = os.path.join(os.environ['HOME'], 'Library', 'Application Support',
                                       'Dcrwallet', 'rpc.cert')
+    else:
+        cert_file_path = os.path.join(os.environ['HOME'], '.dcrwallet', 'rpc.cert')
 
     with open(cert_file_path, 'r') as f:
         cert = f.read()
