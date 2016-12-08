@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.0.2
+Version: 4.1.0
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -38,6 +38,7 @@ existing wallet.
 - [`VersionService`](#versionservice)
 - [`WalletLoaderService`](#walletloaderservice)
 - [`WalletService`](#walletservice)
+- [`SeedService`](#seedservice)
 
 ## `VersionService`
 
@@ -1317,3 +1318,62 @@ transaction was seen.
 **Stability**: Unstable: Since the caller is expected to decode the serialized
   transaction, and would have access to every output script, the output
   properties could be changed to only include outputs controlled by the wallet.
+
+## `SeedService`
+
+The `SeedService` service provides RPC clients with the ability to generate
+secure random seeds encoded in both binary and human-readable formats, and
+decode any human-readable input back to binary.  It has no depen and is always
+running.
+
+**Methods:**
+
+- [`GenerateRandomSeed`](#generaterandomseed)
+- [`DecodeSeed`](#decodeseed)
+
+### Methods
+
+#### `GenerateRandomSeed`
+
+The `GenerateRandomSeed` generates a secure random seed, returning it as binary,
+hexadecimal, and in a mnemonic word list format.
+
+**Request:** `GenerateRandomSeedRequest`
+
+- `uint32 seed_length`: The length of the seed to create.  If zero, the
+  recommended seed length is used instead.
+
+**Response:** `GenerateRandomSeedResponse`
+
+- `bytes seed_bytes`: The generated seed in a binary format.
+
+- `string seed_hex`: The generated seed encoded as a hexadecimal string.
+
+- `string seed_mnemonic`: The generated seed encoded as a mnemonic word list.
+
+**Expected errors:**
+
+- `InvalidArgument`: The non-zero seed length is invalid.
+
+**Stability:** Unstable
+
+___
+
+#### `DecodeSeed`
+
+The `DecodeSeed` decodes a human-readable form of the seed back into binary.  
+The user input can be either a hexadecimal string or a mnemonic word list.
+
+**Request:** `DecodeSeedRequest`
+
+- `string user_input`: The user input to decode.
+
+**Response:** `DecodeSeedResponse`
+
+- `bytes decoded_seed`: The seed resulting from the decoded user input. 
+
+**Expected errors:**
+
+- `InvalidArgument`: The input is invalid.
+
+**Stability:** Unstable

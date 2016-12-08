@@ -15,7 +15,7 @@ import (
 
 	"github.com/btcsuite/golangcrypto/ssh/terminal"
 	"github.com/decred/dcrutil/hdkeychain"
-	"github.com/decred/dcrwallet/pgpwordlist"
+	"github.com/decred/dcrwallet/walletseed"
 )
 
 // ProvideSeed is used to prompt for the wallet seed which maybe required during
@@ -240,11 +240,7 @@ func Seed(reader *bufio.Reader) ([]byte, error) {
 			return nil, err
 		}
 
-		seedStr, err := pgpwordlist.ToStringChecksum(seed)
-		if err != nil {
-			return nil, err
-		}
-		seedStrSplit := strings.Split(seedStr, " ")
+		seedStrSplit := walletseed.EncodeMnemonicSlice(seed)
 
 		fmt.Println("Your wallet generation seed is:")
 		for i := 0; i < hdkeychain.RecommendedSeedLen+1; i++ {
@@ -310,7 +306,7 @@ func Seed(reader *bufio.Reader) ([]byte, error) {
 				fmt.Printf("Input error: %v\n", err.Error())
 			}
 		} else {
-			seed, err = pgpwordlist.ToBytesChecksum(seedStrTrimmed)
+			seed, err = walletseed.DecodeUserInput(seedStrTrimmed)
 			if err != nil {
 				fmt.Printf("Input error: %v\n", err.Error())
 			}

@@ -17,122 +17,39 @@
 package pgpwordlist
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"strings"
 )
 
-func doubleSha256(b []byte) [sha256.Size]byte {
-	intermediateHash := sha256.Sum256(b)
-	return sha256.Sum256(intermediateHash[:])
+// ByteToMnemonic returns the PGP word list encoding of b when found at index.
+func ByteToMnemonic(b byte, index int) string {
+	bb := uint16(b) * 2
+	if index%2 != 0 {
+		bb++
+	}
+	return wordList[bb]
 }
 
-// ToString converts a byteslice to a string of words from the
-// PGP word list.
-func ToString(b []byte) (string, error) {
-	if b == nil {
-		return "", fmt.Errorf("missing data to string encode")
-	}
-
-	var buf bytes.Buffer
-
-	for i, e := range b {
-		toUse := uint16(0)
-		toUse = uint16(uint8(e)) * 2
-
-		// Odd numbered bytes.
-		if i%2 != 0 {
-			toUse++
+// DecodeMnemonics returns the decoded value that is encoded by words.  Any
+// words that are whitespace are empty are skipped.
+func DecodeMnemonics(words []string) ([]byte, error) {
+	decoded := make([]byte, len(words))
+	idx := 0
+	for _, w := range words[:len(words)] {
+		w = strings.TrimSpace(w)
+		if w == "" {
+			continue
 		}
-
-		buf.WriteString(WordList[toUse])
-
-		// Skip last space.
-		if i != len(b)-1 {
-			buf.WriteString(" ")
+		b, ok := wordIndexes[strings.ToLower(w)]
+		if !ok {
+			return nil, fmt.Errorf("word %v is not in the PGP word list", w)
 		}
-	}
-
-	return buf.String(), nil
-}
-
-// ToStringChecksum converts a byteslice to a string of words from the
-// PGP word list, along with a one word checksum appended to the end.
-// The checksum is the first byte of the sha256d hash.
-func ToStringChecksum(b []byte) (string, error) {
-	str, err := ToString(b)
-	if err != nil {
-		return "", err
-	}
-
-	hash := doubleSha256(b)
-
-	toUse := uint16(0)
-	toUse = uint16(uint8(hash[0])) * 2
-
-	// Odd numbered byte for last char.
-	if (len(b) % 2) != 0 {
-		toUse++
-	}
-
-	return str + " " + WordList[toUse], nil
-}
-
-// ToBytes converts a string to a byte slice using the PGP word
-// list. Notably, it strips words of their case, so any case input
-// is valid.
-func ToBytes(s string) ([]byte, error) {
-	if s == "" {
-		return nil, fmt.Errorf("missing string data to decode")
-	}
-
-	sLower := strings.ToLower(s)
-	strSlice := strings.Split(sLower, " ")
-
-	var buf bytes.Buffer
-
-	for _, w := range strSlice {
-		bLong, exists := WordMap[w]
-		if !exists {
-			return nil, fmt.Errorf("unidentifiable word %v", w)
+		if int(b%2) != idx%2 {
+			return nil, fmt.Errorf("word %v is not valid at position %v, "+
+				"check for missing words", w, idx)
 		}
-
-		b := uint8(bLong / 2)
-
-		buf.WriteByte(byte(b))
+		decoded[idx] = byte(b / 2)
+		idx++
 	}
-
-	return buf.Bytes(), nil
-}
-
-// ToBytesChecksum converts a string to a byte slice using the PGP
-// word list. Notably, it strips words of their case, so any case
-// input is valid. Unlike ToBytes, it uses a sha256d hash to verify
-// the integrity of the data after.
-func ToBytesChecksum(s string) ([]byte, error) {
-	b, err := ToBytes(s)
-	if err != nil {
-		return nil, err
-	}
-	bdata := b[:len(b)-1]
-
-	hash := doubleSha256(bdata)
-	toUse := uint16(0)
-	toUse = uint16(uint8(hash[0])) * 2
-	// Odd numbered byte for last char.
-	if (len(b) % 2) == 0 {
-		toUse++
-	}
-	checksumCalc := WordList[toUse]
-
-	strSlice := strings.Split(s, " ")
-	checksum := strings.ToLower(strSlice[len(strSlice)-1])
-
-	if checksum != strings.ToLower(checksumCalc) {
-		return nil, fmt.Errorf("checksum failure: got %v, expected %v",
-			checksum, checksumCalc)
-	}
-
-	return bdata, nil
+	return decoded[:idx], nil
 }

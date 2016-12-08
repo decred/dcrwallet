@@ -17,10 +17,10 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/internal/prompt"
-	"github.com/decred/dcrwallet/pgpwordlist"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/walletdb"
 	_ "github.com/decred/dcrwallet/walletdb/bdb"
+	"github.com/decred/dcrwallet/walletseed"
 )
 
 // networkDir returns the directory name of a network directory to hold wallet
@@ -95,11 +95,7 @@ func createSimulationWallet(cfg *config) error {
 
 	// Write the seed to disk, so that we can restore it later
 	// if need be, for testing purposes.
-	seedStr, err := pgpwordlist.ToStringChecksum(seed)
-	if err != nil {
-		return err
-	}
-
+	seedStr := walletseed.EncodeMnemonic(seed)
 	err = ioutil.WriteFile(filepath.Join(netDir, "seed"), []byte(seedStr), 0644)
 	if err != nil {
 		return err

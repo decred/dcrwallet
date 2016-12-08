@@ -18,6 +18,8 @@ package rpcserver
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"sync"
 	"time"
 
@@ -40,15 +42,16 @@ import (
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/walletdb"
+	"github.com/decred/dcrwallet/walletseed"
 	"github.com/decred/dcrwallet/wtxmgr"
 )
 
 // Public API version constants
 const (
-	semverString = "4.0.2"
+	semverString = "4.1.0"
 	semverMajor  = 4
-	semverMinor  = 0
-	semverPatch  = 2
+	semverMinor  = 1
+	semverPatch  = 0
 )
 
 // translateError creates a new gRPC error with an appropiate error code for
@@ -125,6 +128,12 @@ type loaderServer struct {
 	activeNet *netparams.Params
 	rpcClient *chain.RPCClient
 	mu        sync.Mutex
+}
+
+// seedServer provides RPC clients with the ability to generate secure random
+// seeds encoded in both binary and human-readable formats, and decode any
+// human-readable input back to binary.
+type seedServer struct {
 }
 
 // StartVersionService creates an implementation of the VersionService and
@@ -1228,4 +1237,43 @@ func (s *loaderServer) FetchHeaders(ctx context.Context, req *pb.FetchHeadersReq
 		res.FirstNewBlockHeight = rescanFromHeight
 	}
 	return res, nil
+}
+
+// StartSeedService creates an implementation of the SeedService and
+// registers it with the gRPC server.
+func StartSeedService(server *grpc.Server) {
+	pb.RegisterSeedServiceServer(server, &seedServer{})
+}
+
+func (s *seedServer) GenerateRandomSeed(ctx context.Context, req *pb.GenerateRandomSeedRequest) (
+	*pb.GenerateRandomSeedResponse, error) {
+
+	seedSize := req.SeedLength
+	if seedSize == 0 {
+		seedSize = hdkeychain.RecommendedSeedLen
+	}
+	if seedSize < hdkeychain.MinSeedBytes || seedSize > hdkeychain.MaxSeedBytes {
+		return nil, grpc.Errorf(codes.InvalidArgument, "invalid seed length")
+	}
+
+	seed := make([]byte, seedSize)
+	_, err := rand.Read(seed)
+	if err != nil {
+		return nil, grpc.Errorf(codes.Unavailable, "failed to read cryptographically-random data for seed: %v", err)
+	}
+
+	res := &pb.GenerateRandomSeedResponse{
+		SeedBytes:    seed,
+		SeedHex:      hex.EncodeToString(seed),
+		SeedMnemonic: walletseed.EncodeMnemonic(seed),
+	}
+	return res, nil
+}
+
+func (s *seedServer) DecodeSeed(ctx context.Context, req *pb.DecodeSeedRequest) (*pb.DecodeSeedResponse, error) {
+	seed, err := walletseed.DecodeUserInput(req.UserInput)
+	if err != nil {
+		return nil, grpc.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	return &pb.DecodeSeedResponse{DecodedSeed: seed}, nil
 }
