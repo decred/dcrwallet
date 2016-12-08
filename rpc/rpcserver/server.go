@@ -1252,7 +1252,7 @@ func (s *seedServer) GenerateRandomSeed(ctx context.Context, req *pb.GenerateRan
 	if seedSize == 0 {
 		seedSize = hdkeychain.RecommendedSeedLen
 	}
-	if req.SeedLength < hdkeychain.MinSeedBytes || req.SeedLength > hdkeychain.MaxSeedBytes {
+	if seedSize < hdkeychain.MinSeedBytes || seedSize > hdkeychain.MaxSeedBytes {
 		return nil, grpc.Errorf(codes.InvalidArgument, "invalid seed length")
 	}
 
