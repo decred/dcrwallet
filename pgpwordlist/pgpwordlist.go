@@ -34,7 +34,7 @@ func ByteToMnemonic(b byte, index int) string {
 // words that are whitespace are empty are skipped.
 func DecodeMnemonics(words []string) ([]byte, error) {
 	decoded := make([]byte, len(words))
-	idx := uint16(0)
+	idx := 0
 	for _, w := range words[:len(words)] {
 		w = strings.TrimSpace(w)
 		if w == "" {
@@ -44,7 +44,7 @@ func DecodeMnemonics(words []string) ([]byte, error) {
 		if !ok {
 			return nil, fmt.Errorf("word %v is not in the PGP word list", w)
 		}
-		if b%2 != idx%2 {
+		if int(b%2) != idx%2 {
 			return nil, fmt.Errorf("word %v is not valid at position %v, "+
 				"check for missing words", w, idx)
 		}
