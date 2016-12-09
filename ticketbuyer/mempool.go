@@ -1,4 +1,3 @@
-// helpers.go
 package ticketbuyer
 
 import (

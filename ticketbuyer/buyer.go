@@ -160,7 +160,7 @@ func NewTicketPurchaser(cfg *Config,
 	}, nil
 }
 
-// Purchase stats is a collection of statistics related to the ticket purchase.
+// PurchaseStats stats is a collection of statistics related to the ticket purchase.
 type PurchaseStats struct {
 	Height        int64
 	PriceMinScale float64

@@ -25,14 +25,14 @@ var (
 type avgPriceMode int
 
 const (
-	// VWAPMode indicates to use only the VWAP.
+	// AvgPriceVWAPMode indicates to use only the VWAP.
 	AvgPriceVWAPMode = iota
 
-	// PoolMode indicates to use only the average
+	// AvgPricePoolMode indicates to use only the average
 	// price in the ticket pool.
 	AvgPricePoolMode
 
-	// DualMode indicates to use bothe the VWAP and
+	// AvgPriceDualMode indicates to use bothe the VWAP and
 	// the average pool price.
 	AvgPriceDualMode
 )
@@ -76,7 +76,7 @@ func (t *TicketPurchaser) calcAverageTicketPrice(height int64) (dcrutil.Amount, 
 		// Do not allow zero pool sizes to prevent a possible
 		// panic below.
 		if poolSize == 0 {
-			poolSize += 1
+			poolSize++
 		}
 
 		avgPricePoolAmt = poolValue / dcrutil.Amount(poolSize)
