@@ -62,10 +62,10 @@ func (t *TicketPurchaser) ownTicketsInMempool() (int, error) {
 	// It can take a little while for the wallet to sync,
 	// so loop this and recheck to see if we've got the
 	// next block attached yet.
-	var curStakeInfo *dcrjson.GetStakeInfoResult
+	var ownMempoolTix uint32
 	var err error
 	for i := 0; i < stakeInfoReqTries; i++ {
-		curStakeInfo, err = t.dcrwChainSvr.GetStakeInfo()
+		ownMempoolTix, err = t.wallet.GetOwnMempoolTix()
 		if err != nil {
 			log.Tracef("Failed to fetch stake information "+
 				"on attempt %v: %v", i, err.Error())
@@ -80,7 +80,7 @@ func (t *TicketPurchaser) ownTicketsInMempool() (int, error) {
 		return 0, err
 	}
 
-	return int(curStakeInfo.OwnMempoolTix), nil
+	return int(ownMempoolTix), nil
 }
 
 // allTicketsInMempool fetches the number of tickets currently in the memory
