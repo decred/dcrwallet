@@ -40,14 +40,14 @@ func startTicketPurchase(w *wallet.Wallet) {
 			return nil
 		},
 		GetBalance: func() (dcrutil.Amount, error) {
-			account, err := w.AccountNumber(cfg.AccountName)
+			account, err := w.AccountNumber(cfg.PurchaseAccount)
 			if err != nil {
 				return 0, err
 			}
 			return w.CalculateAccountBalance(account, 0, wtxmgr.BFBalanceSpendable)
 		},
 		GetRawChangeAddress: func() (dcrutil.Address, error) {
-			account, err := w.AccountNumber(cfg.AccountName)
+			account, err := w.AccountNumber(cfg.PurchaseAccount)
 			if err != nil {
 				return nil, err
 			}
@@ -61,7 +61,7 @@ func startTicketPurchase(w *wallet.Wallet) {
 			poolAddress dcrutil.Address,
 			poolFees *dcrutil.Amount,
 			expiry *int) ([]*chainhash.Hash, error) {
-			account, err := w.AccountNumber(cfg.AccountName)
+			account, err := w.AccountNumber(cfg.PurchaseAccount)
 			if err != nil {
 				return nil, err
 			}
@@ -80,28 +80,25 @@ func startTicketPurchase(w *wallet.Wallet) {
 		},
 	}
 	purchaser, err := ticketbuyer.NewTicketPurchaser(&ticketbuyer.Config{
-		AccountName:        cfg.AccountName,
-		AvgPriceMode:       cfg.AvgPriceMode,
-		AvgPriceVWAPDelta:  cfg.AvgPriceVWAPDelta,
-		BalanceToMaintain:  cfg.BalanceToMaintain,
-		BlocksToAvg:        cfg.BlocksToAvg,
-		DontWaitForTickets: cfg.DontWaitForTickets,
-		ExpiryDelta:        cfg.ExpiryDelta,
-		FeeSource:          cfg.FeeSource,
-		FeeTargetScaling:   cfg.FeeTargetScaling,
-		HighPricePenalty:   cfg.HighPricePenalty,
-		MinFee:             cfg.MinFee,
-		MinPriceScale:      cfg.MinPriceScale,
-		MaxFee:             cfg.MaxFee,
-		MaxPerBlock:        cfg.MaxPerBlock,
-		MaxPriceAbsolute:   cfg.MaxPriceAbsolute,
-		MaxPriceScale:      cfg.MaxPriceScale,
-		MaxInMempool:       cfg.MaxInMempool,
-		PoolAddress:        cfg.PoolAddress,
-		PoolFees:           cfg.PoolFees,
-		PriceTarget:        cfg.PriceTarget,
-		TicketAddress:      cfg.TicketAddress,
-		TxFee:              cfg.TicketFee,
+		AccountName:        "default",
+		TicketAddress:      "",
+		PoolAddress:        "",
+		MaxFee:             1.0,
+		MinFee:             0.01,
+		FeeSource:          "mean",
+		MaxPriceAbsolute:   100.0,
+		MaxPriceScale:      2.0,
+		MinPriceScale:      0.7,
+		PriceTarget:        0.0,
+		AvgPriceMode:       "vwap",
+		AvgPriceVWAPDelta:  2880,
+		MaxPerBlock:        3,
+		HighPricePenalty:   1.3,
+		BlocksToAvg:        11,
+		FeeTargetScaling:   1.05,
+		DontWaitForTickets: false,
+		MaxInMempool:       0,
+		ExpiryDelta:        16,
 	}, dcrdClient, walletCfg, activeNet.Params)
 	if err != nil {
 		tkbyLog.Errorf("Error starting ticketbuyer: %v", err)

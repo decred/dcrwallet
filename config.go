@@ -38,6 +38,7 @@ const (
 	defaultReuseAddresses      = false
 	defaultRollbackTest        = false
 	defaultPruneTickets        = false
+	defaultPurchaseAccount     = "default"
 	defaultTicketMaxPrice      = 0.0
 	defaultTicketBuyFreq       = 1
 	defaultAutomaticRepair     = false
@@ -46,26 +47,6 @@ const (
 	defaultAddrIdxScanLen      = 750
 	defaultStakePoolColdExtKey = ""
 	defaultAllowHighFees       = false
-
-	defaultAccountName        = "default"
-	defaultTicketAddress      = ""
-	defaultPoolAddress        = ""
-	defaultMaxFee             = 1.0
-	defaultMinFee             = 0.01
-	defaultFeeSource          = "mean"
-	defaultMaxPriceAbsolute   = 100.0
-	defaultMaxPriceScale      = 2.0
-	defaultMinPriceScale      = 0.7
-	defaultPriceTarget        = 0.0
-	defaultAvgPriceMode       = "vwap"
-	defaultAvgVWAPPriceDelta  = 2880
-	defaultMaxPerBlock        = 3
-	defaultHighPricePenalty   = 1.3
-	defaultBlocksToAvg        = 11
-	defaultFeeTargetScaling   = 1.05
-	defaultDontWaitForTickets = false
-	defaultMaxInMempool       = 0
-	defaultExpiryDelta        = 16
 
 	walletDbName = "wallet.db"
 )
@@ -108,6 +89,7 @@ type config struct {
 	BalanceToMaintain   float64 `long:"balancetomaintain" description:"Minimum amount of funds to leave in wallet when stake mining (default: 0.0)"`
 	ReuseAddresses      bool    `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
 	PruneTickets        bool    `long:"prunetickets" description:"Prune old tickets from the wallet and restore their inputs"`
+	PurchaseAccount     string  `long:"purchaseaccount" description:"Name of the account to buy tickets from (default: default)"`
 	TicketAddress       string  `long:"ticketaddress" description:"Send all ticket outputs to this address (P2PKH or P2SH only)"`
 	TicketMaxPrice      float64 `long:"ticketmaxprice" description:"The maximum price the user is willing to spend on buying a ticket"`
 	TicketBuyFreq       int     `long:"ticketbuyfreq" description:"The number of tickets to try to buy per block (default: 1), where negative numbers indicate one ticket for each 1-in-? blocks"`
@@ -129,25 +111,6 @@ type config struct {
 	Proxy            string `long:"proxy" description:"Connect via SOCKS5 proxy (eg. 127.0.0.1:9050)"`
 	ProxyUser        string `long:"proxyuser" description:"Username for proxy server"`
 	ProxyPass        string `long:"proxypass" default-mask:"-" description:"Password for proxy server"`
-
-	// Automatic ticket buyer settings
-	AccountName        string  `long:"accountname" description:"Name of the account to buy tickets from (default: default)"`
-	AvgPriceMode       string  `long:"avgpricemode" description:"The mode to use for calculating the average price if pricetarget is disabled (default: dual)"`
-	AvgPriceVWAPDelta  int     `long:"avgpricevwapdelta" description:"The number of blocks to use from the current block to calculate the VWAP (default: 2880)"`
-	BlocksToAvg        int     `long:"blockstoavg" description:"Number of blocks to average for fees calculation (default: 11)"`
-	DontWaitForTickets bool    `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
-	ExpiryDelta        int     `long:"expirydelta" description:"Number of blocks in the future before the ticket expires (default: 16)"`
-	FeeSource          string  `long:"feesource" description:"The fee source to use for ticket fee per KB (median or mean, default: mean)"`
-	FeeTargetScaling   float64 `long:"feetargetscaling" description:"The amount above the mean fee in the previous blocks to purchase tickets with, proportional e.g. 1.05 = 105% (default: 1.05)"`
-	HighPricePenalty   float64 `long:"highpricepenalty" description:"The exponential penalty to apply to the number of tickets to purchase above the ideal ticket pool price (default: 1.3)"`
-	MinFee             float64 `long:"minfee" description:"Minimum ticket fee per KB (default: 0.01 Coin/KB)"`
-	MinPriceScale      float64 `long:"minpricescale" description:"Attempt to prevent the stake difficulty from going below this multiplier (<1.0) by manipulation (default: 0.7, 0.0 to disable)"`
-	MaxFee             float64 `long:"maxfee" description:"Maximum ticket fee per KB (default: 1.0 Coin/KB)"`
-	MaxPerBlock        int     `long:"maxperblock" description:"Maximum tickets per block, with negative numbers indicating buy one ticket every 1-in-n blocks (default: 3)"`
-	MaxPriceAbsolute   float64 `long:"maxpriceabsolute" description:"The absolute maximum price to pay for a ticket (default: 100.0 Coin)"`
-	MaxPriceScale      float64 `long:"maxpricescale" description:"Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation (default: 2.0, 0.0 to disable)"`
-	MaxInMempool       int     `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets (default: 0)"`
-	PriceTarget        float64 `long:"pricetarget" description:"A target to try to seek setting the stake price to rather than meeting the average price (default: 0.0, 0.0 to disable)"`
 
 	// RPC server options
 	//
@@ -351,6 +314,7 @@ func loadConfig() (*config, []string, error) {
 		ReuseAddresses:         defaultReuseAddresses,
 		RollbackTest:           defaultRollbackTest,
 		PruneTickets:           defaultPruneTickets,
+		PurchaseAccount:        defaultPurchaseAccount,
 		TicketMaxPrice:         defaultTicketMaxPrice,
 		TicketBuyFreq:          defaultTicketBuyFreq,
 		AutomaticRepair:        defaultAutomaticRepair,
@@ -359,26 +323,6 @@ func loadConfig() (*config, []string, error) {
 		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
 		AllowHighFees:          defaultAllowHighFees,
 		DataDir:                defaultAppDataDir,
-
-		AccountName:        defaultAccountName,
-		TicketAddress:      defaultTicketAddress,
-		PoolAddress:        defaultPoolAddress,
-		MaxFee:             defaultMaxFee,
-		MinFee:             defaultMinFee,
-		FeeSource:          defaultFeeSource,
-		MaxPriceAbsolute:   defaultMaxPriceAbsolute,
-		MaxPriceScale:      defaultMaxPriceScale,
-		MinPriceScale:      defaultMinPriceScale,
-		PriceTarget:        defaultPriceTarget,
-		AvgPriceMode:       defaultAvgPriceMode,
-		AvgPriceVWAPDelta:  defaultAvgVWAPPriceDelta,
-		MaxPerBlock:        defaultMaxPerBlock,
-		HighPricePenalty:   defaultHighPricePenalty,
-		BlocksToAvg:        defaultBlocksToAvg,
-		FeeTargetScaling:   defaultFeeTargetScaling,
-		DontWaitForTickets: defaultDontWaitForTickets,
-		MaxInMempool:       defaultMaxInMempool,
-		ExpiryDelta:        defaultExpiryDelta,
 	}
 
 	// Pre-parse the command line options to see if an alternative config
