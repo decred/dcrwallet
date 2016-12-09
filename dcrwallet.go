@@ -22,6 +22,7 @@ import (
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
+	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 )
 
@@ -138,7 +139,28 @@ func walletMain() error {
 		}
 		startWalletRPCServices(w, rpcs, legacyRPCServer)
 		if w.StakeMiningEnabled {
-			go startTicketPurchase(w)
+			ticketbuyerCfg := &ticketbuyer.Config{
+				AccountName:        "default",
+				TicketAddress:      "",
+				PoolAddress:        "",
+				MaxFee:             1.0,
+				MinFee:             0.01,
+				FeeSource:          "mean",
+				MaxPriceAbsolute:   100.0,
+				MaxPriceScale:      2.0,
+				MinPriceScale:      0.7,
+				PriceTarget:        0.0,
+				AvgPriceMode:       "vwap",
+				AvgPriceVWAPDelta:  2880,
+				MaxPerBlock:        3,
+				HighPricePenalty:   1.3,
+				BlocksToAvg:        11,
+				FeeTargetScaling:   1.05,
+				DontWaitForTickets: false,
+				MaxInMempool:       0,
+				ExpiryDelta:        16,
+			}
+			go startTicketPurchase(w, ticketbuyerCfg)
 		}
 	})
 
