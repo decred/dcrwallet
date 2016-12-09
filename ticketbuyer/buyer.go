@@ -200,6 +200,11 @@ type PurchaseStats struct {
 	TicketPrice   int64
 }
 
+// SetConfig sets the configuration to use for the ticket purchaser.
+func (t *TicketPurchaser) SetConfig(cfg *Config) {
+	t.cfg = cfg
+}
+
 // Purchase is the main handler for purchasing tickets for the user.
 // TODO Not make this an inlined pile of crap.
 func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
