@@ -13,10 +13,10 @@ import (
 	"github.com/btcsuite/seelog"
 
 	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrticketbuyer/ticketbuyer"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
+	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wstakemgr"
 	"github.com/decred/dcrwallet/wtxmgr"

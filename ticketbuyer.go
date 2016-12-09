@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrticketbuyer/ticketbuyer"
+	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 )
 
