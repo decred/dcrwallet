@@ -20,26 +20,26 @@ var (
 )
 
 const (
-	// useMeanStr is the string indicating that the mean ticket fee
+	// TicketFeeMean is the string indicating that the mean ticket fee
 	// should be used when determining ticket fee.
-	useMeanStr = "mean"
+	TicketFeeMean = "mean"
 
-	// useMedianStr is the string indicating that the median ticket fee
+	// TicketFeeMedian is the string indicating that the median ticket fee
 	// should be used when determining ticket fee.
-	useMedianStr = "median"
+	TicketFeeMedian = "median"
 
-	// useVWAPStr is the string indicating that the volume
+	// PriceTargetVWAP is the string indicating that the volume
 	// weighted average price should be used as the price target.
-	useVWAPStr = "vwap"
+	PriceTargetVWAP = "vwap"
 
-	// usePoolPriceStr is the string indicating that the ticket pool
+	// PriceTargetPool is the string indicating that the ticket pool
 	// price should be used as the price target.
-	usePoolPriceStr = "pool"
+	PriceTargetPool = "pool"
 
-	// useDualPriceStr is the string indicating that a combination of the
+	// PriceTargetDual is the string indicating that a combination of the
 	// ticket pool price and the ticket VWAP should be used as the
 	// price target.
-	useDualPriceStr = "dual"
+	PriceTargetDual = "dual"
 )
 
 // Config stores the configuration options for ticket buyer.
@@ -155,9 +155,9 @@ func NewTicketPurchaser(cfg *Config,
 
 	priceMode := avgPriceMode(AvgPriceVWAPMode)
 	switch cfg.AvgPriceMode {
-	case usePoolPriceStr:
+	case PriceTargetPool:
 		priceMode = AvgPricePoolMode
-	case useDualPriceStr:
+	case PriceTargetDual:
 		priceMode = AvgPriceDualMode
 	}
 
@@ -171,7 +171,7 @@ func NewTicketPurchaser(cfg *Config,
 		poolAddress:         poolAddress,
 		maintainMaxPrice:    maintainMaxPrice,
 		maintainMinPrice:    maintainMinPrice,
-		useMedian:           cfg.FeeSource == useMedianStr,
+		useMedian:           cfg.FeeSource == TicketFeeMedian,
 		priceMode:           priceMode,
 		heightCheck:         make(map[int64]struct{}),
 		prevToBuyDiffPeriod: cfg.PrevToBuyDiffPeriod,
