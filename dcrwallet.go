@@ -149,8 +149,8 @@ func walletMain() error {
 		}
 	}
 
-	if cfg.PipeRx != 0 {
-		go serviceControlPipeRx(uintptr(cfg.PipeRx))
+	if cfg.PipeRx != nil {
+		go serviceControlPipeRx(uintptr(*cfg.PipeRx))
 	}
 
 	// Add interrupt handlers to shutdown the various process components
