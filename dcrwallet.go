@@ -64,10 +64,10 @@ func walletMain() error {
 		for _, listenAddr := range cfg.Profile {
 			listenAddr := listenAddr // copy for closure
 			go func() {
-				log.Infof("Profile server listening on %s", listenAddr)
+				log.Infof("Starting profile server on %s", listenAddr)
 				err := http.ListenAndServe(listenAddr, nil)
 				if err != nil {
-					fatalf(err.Error())
+					fatalf("Unable to run profiler: %v", err)
 				}
 			}()
 		}
