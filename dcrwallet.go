@@ -9,7 +9,6 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -59,18 +58,19 @@ func walletMain() error {
 	// Show version at startup.
 	log.Infof("Version %s", version())
 
-	if cfg.Profile != "" {
-		go func() {
-			listenAddr := net.JoinHostPort("", cfg.Profile)
-			log.Infof("Profile server listening on %s", listenAddr)
-			profileRedirect := http.RedirectHandler("/debug/pprof",
-				http.StatusSeeOther)
-			http.Handle("/", profileRedirect)
-			err := http.ListenAndServe(listenAddr, nil)
-			if err != nil {
-				fatalf(err.Error())
-			}
-		}()
+	if len(cfg.Profile) > 0 {
+		profileRedirect := http.RedirectHandler("/debug/pprof", http.StatusSeeOther)
+		http.Handle("/", profileRedirect)
+		for _, listenAddr := range cfg.Profile {
+			listenAddr := listenAddr // copy for closure
+			go func() {
+				log.Infof("Starting profile server on %s", listenAddr)
+				err := http.ListenAndServe(listenAddr, nil)
+				if err != nil {
+					fatalf("Unable to run profiler: %v", err)
+				}
+			}()
+		}
 	}
 
 	// Write mem profile if requested.

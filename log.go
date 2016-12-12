@@ -165,9 +165,10 @@ func pickNoun(n int, singular, plural string) string {
 	return plural
 }
 
-// fatalf logs a string, then cleanly exits.
-func fatalf(str string) {
-	log.Errorf("Unable to create profiler: %v", str)
+// fatalf logs a message, flushes the logger, and finally exit the process with
+// a non-zero return code.
+func fatalf(format string, args ...interface{}) {
+	log.Errorf(format, args...)
 	backendLog.Flush()
 	os.Exit(1)
 }
