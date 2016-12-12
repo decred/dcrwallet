@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/waddrmgr"
@@ -13,16 +13,7 @@ import (
 )
 
 // startTicketPurchase launches ticketbuyer to start purchasing tickets.
-func startTicketPurchase(w *wallet.Wallet, ticketbuyerCfg *ticketbuyer.Config) {
-	retryDuration := time.Second * 5
-	for {
-		if w.ChainClient() != nil {
-			break
-		}
-		time.Sleep(retryDuration)
-		tkbyLog.Debugf("Retrying chain client connection in %v", retryDuration)
-	}
-	dcrdClient := w.ChainClient().Client
+func startTicketPurchase(w *wallet.Wallet, dcrdClient *dcrrpcclient.Client, ticketbuyerCfg *ticketbuyer.Config) {
 	walletCfg := &ticketbuyer.WalletCfg{
 		GetOwnMempoolTix: func() (uint32, error) {
 			sinfo, err := w.StakeInfo()
