@@ -53,14 +53,16 @@ func (InsufficientFundsError) Error() string {
 // AuthoredTx holds the state of a newly-created transaction and the change
 // output (if one was added).
 type AuthoredTx struct {
-	Tx          *wire.MsgTx
-	PrevScripts [][]byte
-	TotalInput  dcrutil.Amount
-	ChangeIndex int // negative if no change
+	Tx                           *wire.MsgTx
+	PrevScripts                  [][]byte
+	TotalInput                   dcrutil.Amount
+	ChangeIndex                  int // negative if no change
+	EstimatedSignedSerializeSize int
 }
 
-// ChangeSource provides P2PKH change output scripts for transaction creation.
-type ChangeSource func() ([]byte, error)
+// ChangeSource provides P2PKH change output scripts and versions for
+// transaction creation.
+type ChangeSource func() ([]byte, uint16, error)
 
 // NewUnsignedTransaction creates an unsigned transaction paying to one or more
 // non-change outputs.  An appropriate transaction fee is included based on the
@@ -117,7 +119,7 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 		changeAmount := inputAmount - targetAmount - maxRequiredFee
 		if changeAmount != 0 && !txrules.IsDustAmount(changeAmount,
 			txsizes.P2PKHPkScriptSize, relayFeePerKb) {
-			changeScript, err := fetchChange()
+			changeScript, changeScriptVersion, err := fetchChange()
 			if err != nil {
 				return nil, err
 			}
@@ -125,17 +127,24 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 				return nil, errors.New("fee estimation requires change " +
 					"scripts no larger than P2PKH output scripts")
 			}
-			change := wire.NewTxOut(int64(changeAmount), changeScript)
+			change := &wire.TxOut{
+				Value:    int64(changeAmount),
+				Version:  changeScriptVersion,
+				PkScript: changeScript,
+			}
 			l := len(outputs)
 			unsignedTransaction.TxOut = append(outputs[:l:l], change)
 			changeIndex = l
 		}
 
+		estSignedSize := txsizes.EstimateSerializeSize(len(unsignedTransaction.TxIn),
+			unsignedTransaction.TxOut, false)
 		return &AuthoredTx{
-			Tx:          unsignedTransaction,
-			PrevScripts: scripts,
-			TotalInput:  inputAmount,
-			ChangeIndex: changeIndex,
+			Tx:                           unsignedTransaction,
+			PrevScripts:                  scripts,
+			TotalInput:                   inputAmount,
+			ChangeIndex:                  changeIndex,
+			EstimatedSignedSerializeSize: estSignedSize,
 		}, nil
 	}
 }

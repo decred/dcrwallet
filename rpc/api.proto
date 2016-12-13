@@ -41,6 +41,7 @@ service WalletService {
 	rpc ImportPrivateKey (ImportPrivateKeyRequest) returns (ImportPrivateKeyResponse);
 	rpc ImportScript(ImportScriptRequest) returns (ImportScriptResponse);
 	rpc FundTransaction (FundTransactionRequest) returns (FundTransactionResponse);
+	rpc ConstructTransaction (ConstructTransactionRequest) returns (ConstructTransactionResponse);
 	rpc SignTransaction (SignTransactionRequest) returns (SignTransactionResponse);
 	rpc PublishTransaction (PublishTransactionRequest) returns (PublishTransactionResponse);
 	rpc PurchaseTickets(PurchaseTicketsRequest) returns (PurchaseTicketsResponse);
@@ -271,6 +272,35 @@ message FundTransactionResponse {
 	repeated PreviousOutput selected_outputs = 1;
 	int64 total_amount = 2;
 	bytes change_pk_script = 3;
+}
+
+message ConstructTransactionRequest {
+	message OutputDestination {
+		string address = 1;
+
+		bytes script = 2;
+		uint32 script_version = 3;
+	}
+	message Output {
+		OutputDestination destination = 1;
+		int64 amount = 2;
+	}
+	enum OutputSelectionAlgorithm {
+		UNSPECIFIED = 0;
+		ALL = 1;
+	}
+	uint32 source_account = 1;
+	int32 required_confirmations = 2;
+	int32 fee_per_kb = 3;
+	OutputSelectionAlgorithm output_selection_algorithm = 4;
+	repeated Output non_change_outputs = 5;
+	OutputDestination change_destination = 6;
+}
+message ConstructTransactionResponse {
+	bytes unsigned_transaction = 1;
+	int64 total_previous_output_amount = 2;
+	int64 total_output_amount = 3;
+	uint32 estimated_signed_size = 4;
 }
 
 message SignTransactionRequest {
