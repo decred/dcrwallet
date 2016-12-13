@@ -12,6 +12,9 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrwallet/waddrmgr"
+	"github.com/decred/dcrwallet/wallet"
+	"github.com/decred/dcrwallet/wtxmgr"
 )
 
 var (
@@ -71,24 +74,6 @@ type Config struct {
 	PrevToBuyHeight     int
 }
 
-// WalletCfg contains all functions related to wallet which are needed
-// by the ticket purchaser.
-type WalletCfg struct {
-	GetOwnMempoolTix    func() (uint32, error)
-	SetTxFee            func(fee dcrutil.Amount) error
-	SetTicketFee        func(fee dcrutil.Amount) error
-	GetBalance          func() (dcrutil.Amount, error)
-	GetRawChangeAddress func() (dcrutil.Address, error)
-	PurchaseTicket      func(
-		spendLimit dcrutil.Amount,
-		minConf *int,
-		ticketAddress dcrutil.Address,
-		numTickets *int,
-		poolAddress dcrutil.Address,
-		poolFees *dcrutil.Amount,
-		expiry *int) ([]*chainhash.Hash, error)
-}
-
 // TicketPurchaser is the main handler for purchasing tickets. It decides
 // whether or not to do so based on information obtained from daemon and
 // wallet chain servers.
@@ -100,9 +85,9 @@ type WalletCfg struct {
 // purchasedDiffPeriod tracks the number purchased in this period.
 type TicketPurchaser struct {
 	cfg                 *Config
-	wallet              *WalletCfg
 	activeNet           *chaincfg.Params
 	dcrdChainSvr        *dcrrpcclient.Client
+	wallet              *wallet.Wallet
 	ticketAddress       dcrutil.Address
 	poolAddress         dcrutil.Address
 	firstStart          bool
@@ -124,7 +109,7 @@ type TicketPurchaser struct {
 // NewTicketPurchaser creates a new TicketPurchaser.
 func NewTicketPurchaser(cfg *Config,
 	dcrdChainSvr *dcrrpcclient.Client,
-	walletCfg *WalletCfg,
+	w *wallet.Wallet,
 	activeNet *chaincfg.Params) (*TicketPurchaser, error) {
 	var ticketAddress dcrutil.Address
 	var err error
@@ -163,9 +148,9 @@ func NewTicketPurchaser(cfg *Config,
 
 	return &TicketPurchaser{
 		cfg:                 cfg,
-		wallet:              walletCfg,
 		activeNet:           activeNet,
 		dcrdChainSvr:        dcrdChainSvr,
+		wallet:              w,
 		firstStart:          true,
 		ticketAddress:       ticketAddress,
 		poolAddress:         poolAddress,
@@ -198,11 +183,6 @@ type PurchaseStats struct {
 	FeeOwn        float64
 	Balance       int64
 	TicketPrice   int64
-}
-
-// SetConfig sets the configuration to use for the ticket purchaser.
-func (t *TicketPurchaser) SetConfig(cfg *Config) {
-	t.cfg = cfg
 }
 
 // Purchase is the main handler for purchasing tickets for the user.
@@ -258,14 +238,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			log.Errorf("Failed to decode tx fee amount %v from config",
 				t.cfg.TxFee)
 		} else {
-			errSet := t.wallet.SetTxFee(txFeeAmt)
-			if errSet != nil {
-				log.Errorf("Failed to set tx fee amount %v in wallet",
-					txFeeAmt)
-			} else {
-				log.Tracef("Setting of network regular tx relay fee to %v "+
-					"was successful", txFeeAmt)
-			}
+			t.wallet.SetTicketFeeIncrement(txFeeAmt)
 		}
 	}
 
@@ -320,6 +293,13 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		maxPerBlock = 1
 	}
 
+	// Make sure that our wallet is connected to the daemon and the
+	// wallet is unlocked, otherwise abort.
+	// TODO: Check daemon connected
+	if t.wallet.Locked() {
+		return ps, fmt.Errorf("Wallet not unlocked to allow ticket purchases")
+	}
+
 	avgPriceAmt, err := t.calcAverageTicketPrice(height)
 	if err != nil {
 		return ps, fmt.Errorf("Failed to calculate average ticket price amount: %s",
@@ -329,15 +309,11 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	log.Tracef("Calculated average ticket price: %v", avgPriceAmt)
 	ps.PriceAverage = avgPrice
 
-	stakeDiffs, err := t.dcrdChainSvr.GetStakeDifficulty()
+	nextStakeDiff, err := t.wallet.StakeDifficulty()
 	if err != nil {
 		return ps, err
 	}
-	nextStakeDiff, err := dcrutil.NewAmount(stakeDiffs.NextStakeDifficulty)
-	if err != nil {
-		return ps, err
-	}
-	ps.PriceCurrent = stakeDiffs.NextStakeDifficulty
+	ps.PriceCurrent = float64(nextStakeDiff)
 	t.ticketPrice = nextStakeDiff
 	ps.TicketPrice = int64(nextStakeDiff)
 
@@ -373,7 +349,11 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	}
 	ps.PriceMinScale = minPriceScaledAmt.ToCoin()
 
-	balSpendable, err := t.wallet.GetBalance()
+	account, err := t.wallet.AccountNumber(t.cfg.AccountName)
+	if err != nil {
+		return ps, err
+	}
+	balSpendable, err := t.wallet.CalculateAccountBalance(account, 0, wtxmgr.BFBalanceSpendable)
 	if err != nil {
 		return ps, err
 	}
@@ -547,10 +527,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if err != nil {
 		return ps, err
 	}
-	err = t.wallet.SetTicketFee(feeToUseAmt)
-	if err != nil {
-		return ps, err
-	}
+	t.wallet.SetRelayFee(feeToUseAmt)
 
 	log.Debugf("Mean fee for the last blocks or window period was %v; "+
 		"this was scaled to %v", chainFee, feeToUse)
@@ -618,7 +595,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		ticketAddress = t.ticketAddress
 	} else {
 		ticketAddress, err =
-			t.wallet.GetRawChangeAddress()
+			t.wallet.NewAddress(account, waddrmgr.InternalBranch)
 		if err != nil {
 			return ps, err
 		}
@@ -629,16 +606,23 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if err != nil {
 		return ps, err
 	}
-	minConf := 0
-	expiry := int(height) + t.cfg.ExpiryDelta
-	tickets, err := t.wallet.PurchaseTicket(
+	expiry := int32(int(height) + t.cfg.ExpiryDelta)
+	hashes, err := t.wallet.PurchaseTickets(0,
 		maxPriceAbsAmt,
-		&minConf,
+		0,
 		ticketAddress,
-		&toBuyForBlock,
+		account,
+		toBuyForBlock,
 		t.poolAddress,
-		&poolFeesAmt,
-		&expiry)
+		poolFeesAmt.ToCoin(),
+		expiry,
+		t.wallet.RelayFee(),
+		t.wallet.TicketFeeIncrement(),
+	)
+	tickets, ok := hashes.([]*chainhash.Hash)
+	if !ok {
+		return nil, fmt.Errorf("Unable to decode ticket hashes")
+	}
 	if err != nil {
 		return ps, err
 	}
@@ -656,7 +640,8 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	log.Debugf("Tickets remaining to be purchased in this window: %v",
 		t.toBuyDiffPeriod-t.purchasedDiffPeriod)
 
-	balSpendable, err = t.wallet.GetBalance()
+	balSpendable, err = t.wallet.CalculateAccountBalance(account, 0,
+		wtxmgr.BFBalanceSpendable)
 	if err != nil {
 		return ps, err
 	}

@@ -30,7 +30,6 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/chain"
-	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
@@ -161,8 +160,6 @@ type Wallet struct {
 	NtfnServer *NotificationServer
 
 	chainParams *chaincfg.Params
-
-	purchaser *ticketbuyer.TicketPurchaser
 
 	wg sync.WaitGroup
 
@@ -360,13 +357,6 @@ func (w *Wallet) SetTicketMaxPrice(amt dcrutil.Amount) {
 	defer w.stakeSettingsLock.Unlock()
 
 	w.ticketMaxPrice = amt
-}
-
-// SetTicketPurchaser is used to set the ticket purchaser for the wallet.  It
-// should only be called before setting up the consensus RPC notifications
-// handler.  It is not safe for concurrent access.
-func (w *Wallet) SetTicketPurchaser(purchaser *ticketbuyer.TicketPurchaser) {
-	w.purchaser = purchaser
 }
 
 // TicketAddress gets the ticket address for the wallet to give the ticket

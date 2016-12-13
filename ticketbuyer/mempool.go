@@ -6,6 +6,7 @@ import (
 
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrwallet/wallet"
 )
 
 var (
@@ -62,10 +63,10 @@ func (t *TicketPurchaser) ownTicketsInMempool() (int, error) {
 	// It can take a little while for the wallet to sync,
 	// so loop this and recheck to see if we've got the
 	// next block attached yet.
-	var ownMempoolTix uint32
+	var curStakeInfo *wallet.StakeInfoData
 	var err error
 	for i := 0; i < stakeInfoReqTries; i++ {
-		ownMempoolTix, err = t.wallet.GetOwnMempoolTix()
+		curStakeInfo, err = t.wallet.StakeInfo()
 		if err != nil {
 			log.Tracef("Failed to fetch stake information "+
 				"on attempt %v: %v", i, err.Error())
@@ -80,7 +81,7 @@ func (t *TicketPurchaser) ownTicketsInMempool() (int, error) {
 		return 0, err
 	}
 
-	return int(ownMempoolTix), nil
+	return int(curStakeInfo.OwnMempoolTix), nil
 }
 
 // allTicketsInMempool fetches the number of tickets currently in the memory

@@ -1,83 +1,66 @@
 package main
 
 import (
-	"fmt"
-
-	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/ticketbuyer"
-	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/wallet"
-	"github.com/decred/dcrwallet/wtxmgr"
 )
+
+// blockChanSize is the size of the buffered block connected channel.
+const blockChanSize = 100
+
+// purchaseManager is the main handler of websocket notifications to
+// pass to the purchaser and internal quit notifications.
+type purchaseManager struct {
+	purchaser *ticketbuyer.TicketPurchaser
+	blockChan chan int64
+	quit      chan struct{}
+}
+
+// newPurchaseManager creates a new purchaseManager.
+func newPurchaseManager(purchaser *ticketbuyer.TicketPurchaser,
+	blockChan chan int64,
+	quit chan struct{}) *purchaseManager {
+	return &purchaseManager{
+		purchaser: purchaser,
+		blockChan: blockChan,
+		quit:      quit,
+	}
+}
+
+// blockConnectedHandler handles block connected notifications, which trigger
+// ticket purchases.
+func (p *purchaseManager) blockConnectedHandler() {
+out:
+	for {
+		select {
+		case height := <-p.blockChan:
+			tkbyLog.Infof("Block height %v connected", height)
+			purchaseInfo, err := p.purchaser.Purchase(height)
+			if err != nil {
+				tkbyLog.Errorf("Failed to purchase tickets this round: %s",
+					err.Error())
+				continue
+			}
+			tkbyLog.Debugf("Purchased %v tickets this round", purchaseInfo.Purchased)
+		case <-p.quit:
+			break out
+		}
+	}
+}
 
 // startTicketPurchase launches ticketbuyer to start purchasing tickets.
 func startTicketPurchase(w *wallet.Wallet, dcrdClient *dcrrpcclient.Client, ticketbuyerCfg *ticketbuyer.Config) {
-	walletCfg := &ticketbuyer.WalletCfg{
-		GetOwnMempoolTix: func() (uint32, error) {
-			sinfo, err := w.StakeInfo()
-			if err != nil {
-				return 0, err
-			}
-			return sinfo.OwnMempoolTix, nil
-		},
-		SetTxFee: func(fee dcrutil.Amount) error {
-			w.SetRelayFee(fee)
-			return nil
-		},
-		SetTicketFee: func(fee dcrutil.Amount) error {
-			w.SetTicketFeeIncrement(fee)
-			return nil
-		},
-		GetBalance: func() (dcrutil.Amount, error) {
-			account, err := w.AccountNumber(cfg.PurchaseAccount)
-			if err != nil {
-				return 0, err
-			}
-			return w.CalculateAccountBalance(account, 0, wtxmgr.BFBalanceSpendable)
-		},
-		GetRawChangeAddress: func() (dcrutil.Address, error) {
-			account, err := w.AccountNumber(cfg.PurchaseAccount)
-			if err != nil {
-				return nil, err
-			}
-			return w.NewAddress(account, waddrmgr.InternalBranch)
-		},
-		PurchaseTicket: func(
-			spendLimit dcrutil.Amount,
-			minConf *int,
-			ticketAddress dcrutil.Address,
-			numTickets *int,
-			poolAddress dcrutil.Address,
-			poolFees *dcrutil.Amount,
-			expiry *int) ([]*chainhash.Hash, error) {
-			account, err := w.AccountNumber(cfg.PurchaseAccount)
-			if err != nil {
-				return nil, err
-			}
-			hashes, err := w.PurchaseTickets(0, spendLimit, int32(*minConf), ticketAddress,
-				account, *numTickets, poolAddress, poolFees.ToCoin(), int32(*expiry), w.RelayFee(),
-				w.TicketFeeIncrement())
-			if err != nil {
-				return nil, err
-			}
-			hashesTyped, ok := hashes.([]*chainhash.Hash)
-			if !ok {
-				return nil, fmt.Errorf("Unable to cast response as a slice " +
-					"of hash strings")
-			}
-			return hashesTyped, err
-		},
-	}
-	purchaser, err := ticketbuyer.NewTicketPurchaser(ticketbuyerCfg,
-		dcrdClient, walletCfg, activeNet.Params)
+	p, err := ticketbuyer.NewTicketPurchaser(ticketbuyerCfg,
+		dcrdClient, w, activeNet.Params)
 	if err != nil {
 		tkbyLog.Errorf("Error starting ticketbuyer: %v", err)
 		return
 	}
-	tkbyLog.Debugf("Initialized ticket auto-ticketpurchaser")
-	w.SetTicketPurchaser(purchaser)
+	blockChan := make(chan int64, blockChanSize)
+	quit := make(chan struct{})
+	pm := newPurchaseManager(p, blockChan, quit)
+	go pm.blockConnectedHandler()
 	addInterruptHandler(func() {
 		dcrdClient.Disconnect()
 	})

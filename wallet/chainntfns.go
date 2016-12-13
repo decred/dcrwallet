@@ -38,22 +38,6 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 				return w.onBlockConnected(tx, n.BlockHeader, n.Transactions)
 			})
-
-			if w.StakeMiningEnabled && w.purchaser != nil {
-				var blockHeader wire.BlockHeader
-				if err := blockHeader.Deserialize(bytes.NewReader(n.BlockHeader)); err != nil {
-					log.Errorf("Failed to deserialize block header: %v", err)
-					break
-				}
-				block := wtxmgr.BlockHeaderData{BlockHash: blockHeader.BlockHash()}
-				if err := copyHeaderSliceToArray(&block.SerializedHeader, n.BlockHeader); err != nil {
-					log.Errorf("Failed to read block header: %v", err)
-					break
-				}
-				if _, err := w.purchaser.Purchase(int64(block.SerializedHeader.Height())); err != nil {
-					log.Errorf("Failed to purchase tickets this round: %v", err)
-				}
-			}
 		case chain.Reorganization:
 			notificationName = "reorganizing"
 			err = w.handleReorganizing(n.OldHash, n.NewHash, n.OldHeight, n.NewHeight)
@@ -194,6 +178,7 @@ func (w *Wallet) extendMainChain(dbtx walletdb.ReadWriteTx, block *wtxmgr.BlockH
 		return err
 	}
 	w.NtfnServer.notifyAttachedBlock(dbtx, &header, &block.BlockHash)
+
 	blockMeta, err := w.TxStore.GetBlockMetaForHash(txmgrNs, &block.BlockHash)
 	if err != nil {
 		return err

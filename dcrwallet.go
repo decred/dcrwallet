@@ -137,6 +137,7 @@ func walletMain() error {
 		if !cfg.NoInitialLoad {
 			startPromptPass(w)
 		}
+		startWalletRPCServices(w, rpcs, legacyRPCServer)
 	})
 
 	if !cfg.NoInitialLoad {
