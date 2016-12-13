@@ -6,43 +6,43 @@ import (
 	"github.com/decred/dcrwallet/wallet"
 )
 
-// blockChanSize is the size of the buffered block connected channel.
-const blockChanSize = 100
-
 // purchaseManager is the main handler of websocket notifications to
 // pass to the purchaser and internal quit notifications.
 type purchaseManager struct {
 	purchaser *ticketbuyer.TicketPurchaser
-	blockChan chan int64
+	ntfnChan  <-chan *wallet.TransactionNotifications
 	quit      chan struct{}
 }
 
 // newPurchaseManager creates a new purchaseManager.
 func newPurchaseManager(purchaser *ticketbuyer.TicketPurchaser,
-	blockChan chan int64,
+	ntfnChan <-chan *wallet.TransactionNotifications,
 	quit chan struct{}) *purchaseManager {
 	return &purchaseManager{
 		purchaser: purchaser,
-		blockChan: blockChan,
+		ntfnChan:  ntfnChan,
 		quit:      quit,
 	}
 }
 
-// blockConnectedHandler handles block connected notifications, which trigger
-// ticket purchases.
-func (p *purchaseManager) blockConnectedHandler() {
+// ntfnHandler handles notifications, which trigger ticket purchases.
+func (p *purchaseManager) ntfnHandler() {
 out:
 	for {
 		select {
-		case height := <-p.blockChan:
-			tkbyLog.Infof("Block height %v connected", height)
-			purchaseInfo, err := p.purchaser.Purchase(height)
-			if err != nil {
-				tkbyLog.Errorf("Failed to purchase tickets this round: %s",
-					err.Error())
-				continue
+		case v := <-p.ntfnChan:
+			if v != nil {
+				for _, block := range v.AttachedBlocks {
+					tkbyLog.Infof("Block height %v connected", block.Height)
+					purchaseInfo, err := p.purchaser.Purchase(int64(block.Height))
+					if err != nil {
+						tkbyLog.Errorf("Failed to purchase tickets this round: %s",
+							err.Error())
+						continue
+					}
+					tkbyLog.Debugf("Purchased %v tickets this round", purchaseInfo.Purchased)
+				}
 			}
-			tkbyLog.Debugf("Purchased %v tickets this round", purchaseInfo.Purchased)
 		case <-p.quit:
 			break out
 		}
@@ -50,18 +50,20 @@ out:
 }
 
 // startTicketPurchase launches ticketbuyer to start purchasing tickets.
-func startTicketPurchase(w *wallet.Wallet, dcrdClient *dcrrpcclient.Client, ticketbuyerCfg *ticketbuyer.Config) {
+func startTicketPurchase(w *wallet.Wallet, dcrdClient *dcrrpcclient.Client,
+	ticketbuyerCfg *ticketbuyer.Config) {
 	p, err := ticketbuyer.NewTicketPurchaser(ticketbuyerCfg,
 		dcrdClient, w, activeNet.Params)
 	if err != nil {
 		tkbyLog.Errorf("Error starting ticketbuyer: %v", err)
 		return
 	}
-	blockChan := make(chan int64, blockChanSize)
 	quit := make(chan struct{})
-	pm := newPurchaseManager(p, blockChan, quit)
-	go pm.blockConnectedHandler()
+	n := w.NtfnServer.TransactionNotifications()
+	pm := newPurchaseManager(p, n.C, quit)
+	go pm.ntfnHandler()
 	addInterruptHandler(func() {
-		dcrdClient.Disconnect()
+		n.Done()
+		close(pm.quit)
 	})
 }
