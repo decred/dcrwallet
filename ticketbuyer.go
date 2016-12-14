@@ -25,6 +25,17 @@ func newPurchaseManager(purchaser *ticketbuyer.TicketPurchaser,
 	}
 }
 
+// purchase purchases the tickets for the given block height.
+func (p *purchaseManager) purchase(height int64) {
+	tkbyLog.Infof("Block height %v connected", height)
+	purchaseInfo, err := p.purchaser.Purchase(height)
+	if err != nil {
+		tkbyLog.Errorf("Failed to purchase tickets this round: %v", err)
+		return
+	}
+	tkbyLog.Debugf("Purchased %v tickets this round", purchaseInfo.Purchased)
+}
+
 // ntfnHandler handles notifications, which trigger ticket purchases.
 func (p *purchaseManager) ntfnHandler() {
 out:
@@ -33,14 +44,7 @@ out:
 		case v := <-p.ntfnChan:
 			if v != nil {
 				for _, block := range v.AttachedBlocks {
-					tkbyLog.Infof("Block height %v connected", block.Height)
-					purchaseInfo, err := p.purchaser.Purchase(int64(block.Height))
-					if err != nil {
-						tkbyLog.Errorf("Failed to purchase tickets this round: %s",
-							err.Error())
-						continue
-					}
-					tkbyLog.Debugf("Purchased %v tickets this round", purchaseInfo.Purchased)
+					go p.purchase(int64(block.Height))
 				}
 			}
 		case <-p.quit:
