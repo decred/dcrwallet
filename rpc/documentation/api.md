@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.1.0
+Version: 4.2.0
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -362,6 +362,7 @@ The service provides the following methods:
 - [`ImportPrivateKey`](#importprivatekey)
 - [`ImportScript`](#importscript)
 - [`FundTransaction`](#fundtransaction)
+- [`ConstructTransaction`](#constructtransaction)
 - [`SignTransaction`](#signtransaction)
 - [`PublishTransaction`](#publishtransaction)
 - [`TicketPrice`](#ticketprice)
@@ -895,6 +896,90 @@ transaction paying to already known addresses or scripts.
 - `Aborted`: The wallet database is closed.
 
 - `NotFound`: The account does not exist.
+
+**Stability:** Unstable
+
+___
+
+#### `ConstructTransaction`
+
+The `ConstructTransaction` method constructs an unsigned transaction based on
+the request parameters, referencing unspent outputs from a wallet account.  If a
+change output is added, it is inserted at a random output position.
+
+**Request:** `ConstructTransactionRequest`
+
+- `uint32 source_account`: The account to select outputs from.
+
+- `int32 required_confirmations`: The number of block confirmations required
+  before an output is considered spendable.
+
+- `int32 fee_per_kb`: The transaction relay fee per kB.  If zero, the default
+  mempool policy relay fee is used.
+
+- `OutputSelectionAlgorithm output_selection_algorithm`: The algorithm used when
+  selecting transaction outputs.
+
+  **Nested enum:** `OutputSelectionAlgorithm`
+
+  - `UNSPECIFIED`: An unspecified selection algorithm is used.  At time of
+    writing the wallet only has one selection algorithm but it is not
+    optimized for any particular use case.  This will never use the `ALL`
+    algorithm, but as other algorithms are introduced, it may become an alias
+    for one of them.
+
+  - `ALL`: All spendable outputs from the account are used as inputs
+
+- `repeated Output non_change_outputs`: Non-change outputs to include in the
+  transaction.  Outputs are not guaranteed to appear in the same order as they
+  are in this repeated field.
+
+  **Nested message:** `Output`
+
+  - `OutputDestination destination`: The output destination (address, script,
+    etc.).
+
+  - `int64 amount`: The value created by the output.
+
+  **Nested message**: `OutputDestination`
+
+  - `string address`: Address string to use as the output destination.  If null
+    or the empty string, this is skipped and the next destination kind is
+    checked.
+
+  - `bytes script`: The script bytes to use in the output script.  Only checked
+    if none of the previous destination kinds were set.
+
+  - `uint32 script_version`: When the output destination is a script, this
+    specifies the script version to use in the output.
+
+- `OutputDestination change_destination`: Optional destination to use for any
+  transaction change.  If null and a change output is needed, an internal change
+  address is created for the wallet.
+
+**Response:** `ConstructTransactionResponse`
+
+- `bytes unsigned_transaction`: The raw serialized transaction.
+
+- `int64 total_previous_output_amount`: The total previous output amount
+  consumed by the transaction's inputs.
+
+- `int64 total_output_amount`: The total output value produced by the
+  transaction's outputs.
+
+- `uint32 estimated_signed_size`: An estimated size of the transaction once the
+  transaction is signed.
+
+**Expected errors:**
+
+- `InvalidArgument`: An output destination address could not be decoded.
+
+- `InvalidArgument`: No output destinations (change or non-change) were provided.
+
+- `NotFound`: The account does not exist.
+
+- `ResourceExhausted`: There was not enough available input value to construct
+  the transaction.
 
 **Stability:** Unstable
 

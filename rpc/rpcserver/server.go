@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -35,11 +36,13 @@ import (
 	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/internal/cfgutil"
+	h "github.com/decred/dcrwallet/internal/helpers"
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/netparams"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
 	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/wallet"
+	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/walletdb"
 	"github.com/decred/dcrwallet/walletseed"
@@ -48,9 +51,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.1.0"
+	semverString = "4.2.0"
 	semverMajor  = 4
-	semverMinor  = 1
+	semverMinor  = 2
 	semverPatch  = 0
 )
 
@@ -93,6 +96,11 @@ func errorCode(err error) codes.Code {
 		}
 
 		err = e.Err
+	}
+
+	switch err.(type) {
+	case txauthor.InputSourceError:
+		return codes.ResourceExhausted
 	}
 
 	switch err {
@@ -565,6 +573,104 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 		TotalAmount:     int64(totalAmount),
 		ChangePkScript:  changeScript,
 	}, nil
+}
+
+func decodeDestination(dest *pb.ConstructTransactionRequest_OutputDestination,
+	chainParams *chaincfg.Params) (pkScript []byte, version uint16, err error) {
+
+	switch {
+	case dest.Address != "":
+		addr, err := dcrutil.DecodeAddress(dest.Address, chainParams)
+		if err != nil {
+			return nil, 0, grpc.Errorf(codes.InvalidArgument, "invalid address string: %v", err)
+		}
+		pkScript, err = txscript.PayToAddrScript(addr)
+		if err != nil {
+			return nil, 0, translateError(err)
+		}
+		version = txscript.DefaultScriptVersion
+		return pkScript, txscript.DefaultScriptVersion, nil
+	case dest.Script != nil:
+		if dest.ScriptVersion > uint32(^uint16(0)) {
+			return nil, 0, grpc.Errorf(codes.InvalidArgument, "script_version overflows uint16")
+		}
+		return dest.Script, uint16(dest.ScriptVersion), nil
+	default:
+		return nil, 0, grpc.Errorf(codes.InvalidArgument, "unknown or missing output destination")
+	}
+}
+
+func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.ConstructTransactionRequest) (
+	*pb.ConstructTransactionResponse, error) {
+
+	chainParams := s.wallet.ChainParams()
+
+	if len(req.NonChangeOutputs) == 0 && req.ChangeDestination == nil {
+		return nil, grpc.Errorf(codes.InvalidArgument,
+			"non_change_outputs and change_destination may not both be empty or null")
+	}
+
+	outputs := make([]*wire.TxOut, 0, len(req.NonChangeOutputs))
+	for _, o := range req.NonChangeOutputs {
+		script, version, err := decodeDestination(o.Destination, chainParams)
+		if err != nil {
+			return nil, err
+		}
+		output := &wire.TxOut{
+			Value:    int64(o.Amount),
+			Version:  version,
+			PkScript: script,
+		}
+		outputs = append(outputs, output)
+	}
+
+	var algo wallet.OutputSelectionAlgorithm
+	switch req.OutputSelectionAlgorithm {
+	case pb.ConstructTransactionRequest_UNSPECIFIED:
+		algo = wallet.OutputSelectionAlgorithmDefault
+	case pb.ConstructTransactionRequest_ALL:
+		algo = wallet.OutputSelectionAlgorithmAll
+	default:
+		return nil, grpc.Errorf(codes.InvalidArgument, "unknown output selection algorithm")
+	}
+
+	feePerKb := txrules.DefaultRelayFeePerKb
+	if req.FeePerKb != 0 {
+		feePerKb = dcrutil.Amount(req.FeePerKb)
+	}
+
+	var changeSource txauthor.ChangeSource
+	if req.ChangeDestination != nil {
+		script, version, err := decodeDestination(req.ChangeDestination, chainParams)
+		if err != nil {
+			return nil, err
+		}
+		changeSource = func() ([]byte, uint16, error) { return script, version, nil }
+	}
+
+	tx, err := s.wallet.NewUnsignedTransaction(outputs, feePerKb, req.SourceAccount,
+		req.RequiredConfirmations, algo, changeSource)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	if tx.ChangeIndex >= 0 {
+		tx.RandomizeChangePosition()
+	}
+
+	var txBuf bytes.Buffer
+	err = tx.Tx.Serialize(&txBuf)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	res := &pb.ConstructTransactionResponse{
+		UnsignedTransaction:       txBuf.Bytes(),
+		TotalPreviousOutputAmount: int64(tx.TotalInput),
+		TotalOutputAmount:         int64(h.SumOutputValues(tx.Tx.TxOut)),
+		EstimatedSignedSize:       uint32(tx.EstimatedSignedSerializeSize),
+	}
+	return res, nil
 }
 
 // BUGS:

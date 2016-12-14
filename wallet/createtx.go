@@ -192,6 +192,98 @@ var ErrTicketPriceNotSet = errors.New("ticket price not yet established")
 // --------------------------------------------------------------------------------
 // Transaction creation
 
+// OutputSelectionAlgorithm specifies the algorithm to use when selecting outputs
+// to construct a transaction.
+type OutputSelectionAlgorithm uint
+
+const (
+	// OutputSelectionAlgorithmDefault describes the default output selection
+	// algorithm.  It is not optimized for any particular use case.
+	OutputSelectionAlgorithmDefault = iota
+
+	// OutputSelectionAlgorithmAll describes the output selection algorithm of
+	// picking every possible availble output.  This is useful for sweeping.
+	OutputSelectionAlgorithmAll
+)
+
+// NewUnsignedTransaction constructs an unsigned transaction using unspent
+// account outputs.
+//
+// The changeSource parameter is optional and can be nil.  When nil, and if a
+// change output should be added, an internal change address is created for the
+// account.
+func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount, account uint32, minConf int32,
+	algo OutputSelectionAlgorithm, changeSource txauthor.ChangeSource) (*txauthor.AuthoredTx, error) {
+
+	var authoredTx *txauthor.AuthoredTx
+	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
+		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+
+		if account != waddrmgr.ImportedAddrAccount {
+			lastAcct, err := w.Manager.LastAccount(addrmgrNs)
+			if err != nil {
+				return err
+			}
+			if account > lastAcct {
+				return waddrmgr.ManagerError{
+					ErrorCode:   waddrmgr.ErrAccountNotFound,
+					Description: "account not found",
+				}
+			}
+		}
+
+		sourceImpl := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
+			minConf, tipHeight)
+		var inputSource txauthor.InputSource
+		switch algo {
+		case OutputSelectionAlgorithmDefault:
+			inputSource = sourceImpl.SelectInputs
+		case OutputSelectionAlgorithmAll:
+			// Wrap the source with one that always fetches the max amount
+			// available and ignores any returned InputSourceErrors.
+			inputSource = func(dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error) {
+				total, inputs, prevScripts, err := sourceImpl.SelectInputs(dcrutil.MaxAmount)
+				switch err.(type) {
+				case txauthor.InputSourceError:
+					err = nil
+				}
+				return total, inputs, prevScripts, err
+			}
+		default:
+			return fmt.Errorf("unrecognized output selection algorithm %d", algo)
+		}
+
+		if changeSource == nil {
+			var internalPool *addressPool
+			if account == waddrmgr.ImportedAddrAccount {
+				internalPool = w.getAddressPools(waddrmgr.DefaultAccountNum).internal
+			} else {
+				internalPool = w.getAddressPools(account).internal
+			}
+			defer internalPool.mutex.Unlock()
+			internalPool.mutex.Lock()
+
+			changeSource = func() ([]byte, uint16, error) {
+				// Derive the change output script.
+				changeAddress, err := internalPool.getNewAddress(addrmgrNs)
+				if err != nil {
+					return nil, 0, err
+				}
+				script, err := txscript.PayToAddrScript(changeAddress)
+				return script, txscript.DefaultScriptVersion, err
+			}
+		}
+
+		var err error
+		authoredTx, err = txauthor.NewUnsignedTransaction(outputs, relayFeePerKb,
+			inputSource, changeSource)
+		return err
+	})
+	return authoredTx, err
+}
+
 // secretSource is an implementation of txauthor.SecretSource for the wallet's
 // address manager.
 type secretSource struct {
@@ -387,13 +479,14 @@ func (w *Wallet) txToOutputsInternal(dbtx walletdb.ReadWriteTx, outputs []*wire.
 
 	inputSource := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 		minconf, topHeight)
-	changeSource := func() ([]byte, error) {
+	changeSource := func() ([]byte, uint16, error) {
 		// Derive the change output script.
 		changeAddress, err := internalPool.getNewAddress(addrmgrNs)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		return txscript.PayToAddrScript(changeAddress)
+		script, err := txscript.PayToAddrScript(changeAddress)
+		return script, txscript.DefaultScriptVersion, err
 	}
 	tx, err := txauthor.NewUnsignedTransaction(outputs, txFee,
 		inputSource.SelectInputs, changeSource)

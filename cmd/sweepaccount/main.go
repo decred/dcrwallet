@@ -187,12 +187,13 @@ func makeInputSource(outputs []dcrjson.ListUnspentResult) txauthor.InputSource {
 // all correlated previous input value.  A non-change address is created by this
 // function.
 func makeDestinationScriptSource(rpcClient *dcrrpcclient.Client, accountName string) txauthor.ChangeSource {
-	return func() ([]byte, error) {
+	return func() ([]byte, uint16, error) {
 		destinationAddress, err := rpcClient.GetNewAddress(accountName)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		return txscript.PayToAddrScript(destinationAddress)
+		script, err := txscript.PayToAddrScript(destinationAddress)
+		return script, txscript.DefaultScriptVersion, err
 	}
 }
 
