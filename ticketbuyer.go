@@ -14,13 +14,13 @@ const (
 	defaultMinPriceScale      = 0.7
 	defaultPriceTarget        = 0.0
 	defaultAvgVWAPPriceDelta  = 2880
-	defaultMaxPerBlock        = 3
+	defaultMaxPerBlock        = 5
 	defaultHighPricePenalty   = 1.3
 	defaultTicketFeeInfo      = false
 	defaultBlocksToAvg        = 11
 	defaultFeeTargetScaling   = 1.05
 	defaultDontWaitForTickets = false
-	defaultMaxInMempool       = 0
+	defaultMaxInMempool       = 40
 	defaultExpiryDelta        = 16
 )
 
