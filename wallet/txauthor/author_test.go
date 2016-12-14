@@ -173,9 +173,9 @@ func TestNewUnsignedTransaction(t *testing.T) {
 		},
 	}
 
-	changeSource := func() ([]byte, error) {
+	changeSource := func() ([]byte, uint16, error) {
 		// Only length matters for these tests.
-		return make([]byte, txsizes.P2PKHPkScriptSize), nil
+		return make([]byte, txsizes.P2PKHPkScriptSize), 0, nil
 	}
 
 	for i, test := range tests {
