@@ -6,6 +6,24 @@ import (
 	"github.com/decred/dcrwallet/wallet"
 )
 
+const (
+	defaultTicketAddress      = ""
+	defaultMaxFee             = 1.0
+	defaultMinFee             = 0.01
+	defaultMaxPriceScale      = 2.0
+	defaultMinPriceScale      = 0.7
+	defaultPriceTarget        = 0.0
+	defaultAvgVWAPPriceDelta  = 2880
+	defaultMaxPerBlock        = 3
+	defaultHighPricePenalty   = 1.3
+	defaultTicketFeeInfo      = false
+	defaultBlocksToAvg        = 11
+	defaultFeeTargetScaling   = 1.05
+	defaultDontWaitForTickets = false
+	defaultMaxInMempool       = 0
+	defaultExpiryDelta        = 16
+)
+
 // purchaseManager is the main handler of websocket notifications to
 // pass to the purchaser and internal quit notifications.
 type purchaseManager struct {
