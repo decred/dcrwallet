@@ -619,12 +619,12 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		t.wallet.RelayFee(),
 		t.wallet.TicketFeeIncrement(),
 	)
+	if err != nil {
+		return ps, err
+	}
 	tickets, ok := hashes.([]*chainhash.Hash)
 	if !ok {
 		return nil, fmt.Errorf("Unable to decode ticket hashes")
-	}
-	if err != nil {
-		return ps, err
 	}
 	t.purchasedDiffPeriod += toBuyForBlock
 	ps.Purchased = toBuyForBlock
