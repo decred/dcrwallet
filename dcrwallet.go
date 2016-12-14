@@ -293,6 +293,7 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 					AccountName:        cfg.PurchaseAccount,
 					TicketAddress:      "",
 					PoolAddress:        "",
+					TxFee:              cfg.TicketFee,
 					MaxFee:             1.0,
 					MinFee:             0.01,
 					FeeSource:          ticketbuyer.TicketFeeMean,
