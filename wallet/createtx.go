@@ -221,6 +221,19 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 
+		if account != waddrmgr.ImportedAddrAccount {
+			lastAcct, err := w.Manager.LastAccount(addrmgrNs)
+			if err != nil {
+				return err
+			}
+			if account > lastAcct {
+				return waddrmgr.ManagerError{
+					ErrorCode:   waddrmgr.ErrAccountNotFound,
+					Description: "account not found",
+				}
+			}
+		}
+
 		sourceImpl := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 			minConf, tipHeight)
 		var inputSource txauthor.InputSource
