@@ -54,6 +54,10 @@ func walletMain() error {
 		return err
 	}
 	cfg = tcfg
+	_, err = loadTicketBuyerConfig()
+	if err != nil {
+		return err
+	}
 	defer backendLog.Flush()
 
 	// Show version at startup.
@@ -291,30 +295,34 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 				if w.Manager.IsLocked() {
 					startPromptPass(w)
 				}
+				tcfg, err := loadTicketBuyerConfig()
+				if err != nil {
+					log.Errorf("Unable to load ticket buyer config: %v", err)
+					return
+				}
 				ticketbuyerCfg := &ticketbuyer.Config{
 					AccountName:        cfg.PurchaseAccount,
-					AvgPriceMode:       ticketbuyer.PriceTargetVWAP,
-					AvgPriceVWAPDelta:  defaultAvgVWAPPriceDelta,
+					AvgPriceMode:       tcfg.AvgPriceMode,
+					AvgPriceVWAPDelta:  tcfg.AvgPriceVWAPDelta,
 					BalanceToMaintain:  cfg.BalanceToMaintain,
-					BlocksToAvg:        defaultBlocksToAvg,
-					DontWaitForTickets: defaultDontWaitForTickets,
-					ExpiryDelta:        defaultExpiryDelta,
-					FeeSource:          ticketbuyer.TicketFeeMean,
-					FeeTargetScaling:   defaultFeeTargetScaling,
-					HighPricePenalty:   defaultHighPricePenalty,
-					MinFee:             defaultMinFee,
-					MinPriceScale:      defaultMinPriceScale,
-					MaxFee:             defaultMaxFee,
-					MaxPerBlock:        defaultMaxPerBlock,
+					BlocksToAvg:        tcfg.BlocksToAvg,
+					DontWaitForTickets: tcfg.DontWaitForTickets,
+					ExpiryDelta:        tcfg.ExpiryDelta,
+					FeeSource:          tcfg.FeeSource,
+					FeeTargetScaling:   tcfg.FeeTargetScaling,
+					HighPricePenalty:   tcfg.HighPricePenalty,
+					MinFee:             tcfg.MinFee,
+					MinPriceScale:      tcfg.MinPriceScale,
+					MaxFee:             tcfg.MaxFee,
+					MaxPerBlock:        tcfg.MaxPerBlock,
 					MaxPriceAbsolute:   cfg.TicketMaxPrice,
-					MaxPriceScale:      defaultMaxPriceScale,
-					MaxInMempool:       defaultMaxInMempool,
+					MaxPriceScale:      tcfg.MaxPriceScale,
+					MaxInMempool:       tcfg.MaxInMempool,
 					PoolAddress:        cfg.PoolAddress,
 					PoolFees:           cfg.PoolFees,
-					PriceTarget:        defaultPriceTarget,
-					TicketAddress:      defaultTicketAddress,
+					PriceTarget:        tcfg.PriceTarget,
+					TicketAddress:      cfg.TicketAddress,
 					TxFee:              cfg.TicketFee,
-					TicketFeeInfo:      defaultTicketFeeInfo,
 				}
 				startTicketPurchase(w, chainClient.Client, nil, ticketbuyerCfg)
 			}
