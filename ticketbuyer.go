@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
@@ -73,12 +75,20 @@ out:
 
 // startTicketPurchase launches ticketbuyer to start purchasing tickets.
 func startTicketPurchase(w *wallet.Wallet, dcrdClient *dcrrpcclient.Client,
-	ticketbuyerCfg *ticketbuyer.Config) {
+	passphrase []byte, ticketbuyerCfg *ticketbuyer.Config) {
 	p, err := ticketbuyer.NewTicketPurchaser(ticketbuyerCfg,
 		dcrdClient, w, activeNet.Params)
 	if err != nil {
 		tkbyLog.Errorf("Error starting ticketbuyer: %v", err)
 		return
+	}
+	if passphrase != nil {
+		var unlockAfter <-chan time.Time
+		err = w.Unlock(passphrase, unlockAfter)
+		if err != nil {
+			tkbyLog.Errorf("Error unlocking wallet: %v", err)
+			return
+		}
 	}
 	quit := make(chan struct{})
 	n := w.NtfnServer.TransactionNotifications()
