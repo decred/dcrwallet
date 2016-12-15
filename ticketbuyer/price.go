@@ -41,7 +41,9 @@ const (
 // when the chain has not yet sufficiently synced to the chain tip.
 var vwapHeightOffsetErrStr = "beyond blockchain tip height"
 
-// containsHeightOffsetError specifies whether or not the reponse
+// containsVWAPHeightOffsetError specifies whether or not the error
+// matches the error returned when the chain has not yet sufficiently
+// synced to the chain tip.
 func containsVWAPHeightOffsetError(err error) bool {
 	if err == nil {
 		return false

@@ -194,10 +194,9 @@ func walletMain() error {
 }
 
 // startPromptPass prompts the user for a password to unlock their wallet in
-// the event that it was restored from seed or --promptpass/enablestakemining
-// flag is set.
+// the event that it was restored from seed or --promptpass flag is set.
 func startPromptPass(w *wallet.Wallet) {
-	promptPass := cfg.PromptPass || cfg.EnableStakeMining
+	promptPass := cfg.PromptPass
 
 	// Watching only wallets never require a password.
 	if w.Manager.WatchingOnly() {
@@ -292,9 +291,6 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 				legacyRPCServer.SetChainServer(chainClient)
 			}
 			if w.StakeMiningEnabled {
-				if w.Manager.IsLocked() {
-					startPromptPass(w)
-				}
 				tcfg, err := loadTicketBuyerConfig()
 				if err != nil {
 					log.Errorf("Unable to load ticket buyer config: %v", err)
