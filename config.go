@@ -33,7 +33,7 @@ const (
 	defaultRPCMaxWebsockets    = 25
 	defaultEnableStakeMining   = false
 	defaultVoteBits            = 0x0001
-	defaultVoteBitsExtended    = "02000000"
+	defaultVoteBitsExtended    = "03000000"
 	defaultBalanceToMaintain   = 0.0
 	defaultReuseAddresses      = false
 	defaultRollbackTest        = false
