@@ -40,8 +40,8 @@ func (p *PurchaseManager) purchase(height int64) {
 	log.Debugf("Purchased %v tickets this round", purchaseInfo.Purchased)
 }
 
-// NotificationHalder handles notifications, which trigger ticket purchases.
-func (p *PurchaseManager) NotificationHalder() {
+// NotificationHandler handles notifications, which trigger ticket purchases.
+func (p *PurchaseManager) NotificationHandler() {
 out:
 	for {
 		select {

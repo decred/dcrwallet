@@ -1,5 +1,5 @@
 hash: e8d332f58ad0a43b3d06d428ac2df127cbbff2042b3bfffa5e94cf90d0fd36b0
-updated: 2016-12-16T00:08:25.500002655+05:30
+updated: 2016-12-07T13:40:09.6559911-05:00
 imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
@@ -7,8 +7,6 @@ imports:
   version: 73889fb79bd687870312b6e40effcecffbd57d30
 - name: github.com/btcsuite/fastsha256
   version: 637e656429416087660c84436a2a035d69d54e2e
-- name: github.com/btcsuite/go-flags
-  version: 6c288d648c1cc1befcb90cb5511dcacf64ae8e61
 - name: github.com/btcsuite/go-socks
   version: cfe8b59e565c1a5bd4e2005d77cd9aa8b2e14524
   subpackages:

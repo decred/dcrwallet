@@ -54,10 +54,6 @@ func walletMain() error {
 		return err
 	}
 	cfg = tcfg
-	_, err = loadTicketBuyerConfig()
-	if err != nil {
-		return err
-	}
 	defer backendLog.Flush()
 
 	// Show version at startup.
@@ -290,36 +286,36 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 			if legacyRPCServer != nil {
 				legacyRPCServer.SetChainServer(chainClient)
 			}
-			tcfg, err := loadTicketBuyerConfig()
+			tcfg, err := loadTicketBuyerConfig(cfg.AppDataDir)
 			if err != nil {
 				log.Errorf("Unable to load ticket buyer config: %v", err)
-				return
+			} else {
+				ticketbuyerCfg := &ticketbuyer.Config{
+					AccountName:        cfg.PurchaseAccount,
+					AvgPriceMode:       tcfg.AvgPriceMode,
+					AvgPriceVWAPDelta:  tcfg.AvgPriceVWAPDelta,
+					BalanceToMaintain:  cfg.BalanceToMaintain,
+					BlocksToAvg:        tcfg.BlocksToAvg,
+					DontWaitForTickets: tcfg.DontWaitForTickets,
+					ExpiryDelta:        tcfg.ExpiryDelta,
+					FeeSource:          tcfg.FeeSource,
+					FeeTargetScaling:   tcfg.FeeTargetScaling,
+					HighPricePenalty:   tcfg.HighPricePenalty,
+					MinFee:             tcfg.MinFee,
+					MinPriceScale:      tcfg.MinPriceScale,
+					MaxFee:             tcfg.MaxFee,
+					MaxPerBlock:        tcfg.MaxPerBlock,
+					MaxPriceAbsolute:   cfg.TicketMaxPrice,
+					MaxPriceScale:      tcfg.MaxPriceScale,
+					MaxInMempool:       tcfg.MaxInMempool,
+					PoolAddress:        cfg.PoolAddress,
+					PoolFees:           cfg.PoolFees,
+					PriceTarget:        tcfg.PriceTarget,
+					TicketAddress:      cfg.TicketAddress,
+					TxFee:              cfg.TicketFee,
+				}
+				startTicketPurchase(w, chainClient.Client, nil, ticketbuyerCfg)
 			}
-			ticketbuyerCfg := &ticketbuyer.Config{
-				AccountName:        cfg.PurchaseAccount,
-				AvgPriceMode:       tcfg.AvgPriceMode,
-				AvgPriceVWAPDelta:  tcfg.AvgPriceVWAPDelta,
-				BalanceToMaintain:  cfg.BalanceToMaintain,
-				BlocksToAvg:        tcfg.BlocksToAvg,
-				DontWaitForTickets: tcfg.DontWaitForTickets,
-				ExpiryDelta:        tcfg.ExpiryDelta,
-				FeeSource:          tcfg.FeeSource,
-				FeeTargetScaling:   tcfg.FeeTargetScaling,
-				HighPricePenalty:   tcfg.HighPricePenalty,
-				MinFee:             tcfg.MinFee,
-				MinPriceScale:      tcfg.MinPriceScale,
-				MaxFee:             tcfg.MaxFee,
-				MaxPerBlock:        tcfg.MaxPerBlock,
-				MaxPriceAbsolute:   cfg.TicketMaxPrice,
-				MaxPriceScale:      tcfg.MaxPriceScale,
-				MaxInMempool:       tcfg.MaxInMempool,
-				PoolAddress:        cfg.PoolAddress,
-				PoolFees:           cfg.PoolFees,
-				PriceTarget:        tcfg.PriceTarget,
-				TicketAddress:      cfg.TicketAddress,
-				TxFee:              cfg.TicketFee,
-			}
-			startTicketPurchase(w, chainClient.Client, nil, ticketbuyerCfg)
 		}
 		mu := new(sync.Mutex)
 		loader.RunAfterLoad(func(w *wallet.Wallet) {

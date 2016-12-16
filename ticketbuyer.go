@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"time"
 
-	flags "github.com/btcsuite/go-flags"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
+	flags "github.com/jessevdk/go-flags"
 )
 
 const (
@@ -34,10 +34,6 @@ const (
 	defaultMaxPriceAbsolute          = 100.0
 	defaultAvgPriceMode              = ticketbuyer.PriceTargetVWAP
 	defaultTicketBuyerConfigFilename = "ticketbuyer.conf"
-)
-
-var (
-	defaultTicketBuyerConfigFile = filepath.Join(defaultAppDataDir, defaultTicketBuyerConfigFilename)
 )
 
 type ticketBuyerConfig struct {
@@ -89,11 +85,13 @@ type ticketBuyerConfig struct {
 }
 
 // loadTicketBuyerConfig initializes and parses the config using a config file.
-func loadTicketBuyerConfig() (*ticketBuyerConfig, error) {
+func loadTicketBuyerConfig(appDataDir string) (*ticketBuyerConfig, error) {
 	loadConfigError := func(err error) (*ticketBuyerConfig, error) {
 		return nil, err
 	}
 
+	defaultTicketBuyerConfigFile := filepath.Join(appDataDir,
+		defaultTicketBuyerConfigFilename)
 	// Default config.
 	cfg := ticketBuyerConfig{
 		ConfigFile:        defaultTicketBuyerConfigFile,
@@ -116,14 +114,8 @@ func loadTicketBuyerConfig() (*ticketBuyerConfig, error) {
 		TxFee:            defaultTxFee,
 	}
 
-	// A config file in the current directory takes precedence.
-	exists := false
-	if _, err := os.Stat(defaultTicketBuyerConfigFilename); !os.IsNotExist(err) {
-		exists = true
-	}
-
-	if exists {
-		cfg.ConfigFile = defaultTicketBuyerConfigFile
+	if _, err := os.Stat(defaultTicketBuyerConfigFile); os.IsNotExist(err) {
+		return &cfg, nil
 	}
 
 	// Load additional config from file.
@@ -132,7 +124,7 @@ func loadTicketBuyerConfig() (*ticketBuyerConfig, error) {
 	err := flags.NewIniParser(parser).ParseFile(cfg.ConfigFile)
 	if err != nil {
 		if _, ok := err.(*os.PathError); !ok {
-			fmt.Fprintln(os.Stderr, err)
+			log.Warn(err)
 			parser.WriteHelp(os.Stderr)
 			return loadConfigError(err)
 		}
@@ -145,36 +137,16 @@ func loadTicketBuyerConfig() (*ticketBuyerConfig, error) {
 
 	// Check deprecated aliases.
 	if cfg.AccountName != defaultAccountName {
-		fmt.Fprintln(os.Stderr, "accountname option has been replaced by "+
+		log.Warn("accountname option has been replaced by " +
 			"wallet option purchaseaccount -- please update your config")
 	}
 	if cfg.MaxPriceAbsolute != defaultMaxPriceAbsolute {
-		fmt.Fprintln(os.Stderr, "maxpriceabsolute option has been replaced by "+
+		log.Warn("maxpriceabsolute option has been replaced by " +
 			"wallet option ticketmaxprice -- please update your config")
 	}
 	if cfg.TxFee != defaultTxFee {
-		fmt.Fprintln(os.Stderr, "txfee option has been replaced by "+
+		log.Warn("txfee option has been replaced by " +
 			"wallet option ticketfee -- please update your config")
-	}
-
-	// Create the home directory if it doesn't already exist.
-	funcName := "loadTicketBuyerConfig"
-	err = os.MkdirAll(defaultAppDataDir, 0700)
-	if err != nil {
-		// Show a nicer error message if it's because a symlink is
-		// linked to a directory that does not exist (probably because
-		// it's not mounted).
-		if e, ok := err.(*os.PathError); ok && os.IsExist(err) {
-			if link, lerr := os.Readlink(e.Path); lerr == nil {
-				str := "is symlink %s -> %s mounted?"
-				err = fmt.Errorf(str, e.Path, link)
-			}
-		}
-
-		str := "%s: Failed to create home directory: %v"
-		err := fmt.Errorf(str, funcName, err)
-		fmt.Fprintln(os.Stderr, err)
-		return loadConfigError(err)
 	}
 
 	// Make sure the fee source type given is valid.
@@ -184,8 +156,7 @@ func loadTicketBuyerConfig() (*ticketBuyerConfig, error) {
 	default:
 		str := "%s: Invalid fee source '%s'"
 		err := fmt.Errorf(str, "loadTicketBuyerConfig", cfg.FeeSource)
-		fmt.Fprintln(os.Stderr, err)
-		parser.WriteHelp(os.Stderr)
+		log.Warnf(err.Error())
 		return loadConfigError(err)
 	}
 
@@ -197,8 +168,7 @@ func loadTicketBuyerConfig() (*ticketBuyerConfig, error) {
 	default:
 		str := "%s: Invalid average price mode '%s'"
 		err := fmt.Errorf(str, "loadTicketBuyerConfig", cfg.AvgPriceMode)
-		fmt.Fprintln(os.Stderr, err)
-		parser.WriteHelp(os.Stderr)
+		log.Warnf(err.Error())
 		return loadConfigError(err)
 	}
 
@@ -225,7 +195,7 @@ func startTicketPurchase(w *wallet.Wallet, dcrdClient *dcrrpcclient.Client,
 	quit := make(chan struct{})
 	n := w.NtfnServer.TransactionNotifications()
 	pm := ticketbuyer.NewPurchaseManager(w, p, n.C, quit)
-	go pm.NotificationHalder()
+	go pm.NotificationHandler()
 	addInterruptHandler(func() {
 		n.Done()
 		close(quit)
