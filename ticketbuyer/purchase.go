@@ -11,16 +11,18 @@ import (
 // PurchaseManager is the main handler of websocket notifications to
 // pass to the purchaser and internal quit notifications.
 type PurchaseManager struct {
+	w         *wallet.Wallet
 	purchaser *TicketPurchaser
 	ntfnChan  <-chan *wallet.TransactionNotifications
 	quit      chan struct{}
 }
 
 // NewPurchaseManager creates a new PurchaseManager.
-func NewPurchaseManager(purchaser *TicketPurchaser,
+func NewPurchaseManager(w *wallet.Wallet, purchaser *TicketPurchaser,
 	ntfnChan <-chan *wallet.TransactionNotifications,
 	quit chan struct{}) *PurchaseManager {
 	return &PurchaseManager{
+		w:         w,
 		purchaser: purchaser,
 		ntfnChan:  ntfnChan,
 		quit:      quit,
@@ -44,9 +46,11 @@ out:
 	for {
 		select {
 		case v := <-p.ntfnChan:
-			if v != nil {
-				for _, block := range v.AttachedBlocks {
-					go p.purchase(int64(block.Height))
+			if p.w.Generate() {
+				if v != nil {
+					for _, block := range v.AttachedBlocks {
+						go p.purchase(int64(block.Height))
+					}
 				}
 			}
 		case <-p.quit:
