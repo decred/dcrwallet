@@ -289,6 +289,7 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 			tcfg, err := loadTicketBuyerConfig(cfg.AppDataDir)
 			if err != nil {
 				log.Errorf("Unable to load ticket buyer config: %v", err)
+				log.Info("Ticket purchasing is disabled")
 			} else {
 				ticketbuyerCfg := &ticketbuyer.Config{
 					AccountName:        cfg.PurchaseAccount,
