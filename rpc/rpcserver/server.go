@@ -125,7 +125,7 @@ func errorCode(err error) codes.Code {
 func decodeAddress(a string, params *chaincfg.Params) (dcrutil.Address, error) {
 	addr, err := dcrutil.DecodeAddress(a, params)
 	if err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "invalid address %v", a)
+		return nil, grpc.Errorf(codes.InvalidArgument, "invalid address %v: %v", a, err)
 	}
 	if !addr.IsForNet(params) {
 		return nil, grpc.Errorf(codes.InvalidArgument,
