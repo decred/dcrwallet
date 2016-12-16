@@ -51,10 +51,10 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.2.0"
+	semverString = "4.2.1"
 	semverMajor  = 4
 	semverMinor  = 2
-	semverPatch  = 0
+	semverPatch  = 1
 )
 
 // translateError creates a new gRPC error with an appropiate error code for
@@ -117,6 +117,21 @@ func errorCode(err error) codes.Code {
 	default:
 		return codes.Unknown
 	}
+}
+
+// decodeAddress decodes an address and verifies it is intended for the active
+// network.  This should be used preferred to direct usage of
+// dcrutil.DecodeAddress, which does not perform the network check.
+func decodeAddress(a string, params *chaincfg.Params) (dcrutil.Address, error) {
+	addr, err := dcrutil.DecodeAddress(a, params)
+	if err != nil {
+		return nil, grpc.Errorf(codes.InvalidArgument, "invalid address %v: %v", a, err)
+	}
+	if !addr.IsForNet(params) {
+		return nil, grpc.Errorf(codes.InvalidArgument,
+			"address %v is not intended for use on %v", a, params.Name)
+	}
+	return addr, nil
 }
 
 // versionServer provides RPC clients with the ability to query the RPC server
@@ -580,9 +595,9 @@ func decodeDestination(dest *pb.ConstructTransactionRequest_OutputDestination,
 
 	switch {
 	case dest.Address != "":
-		addr, err := dcrutil.DecodeAddress(dest.Address, chainParams)
+		addr, err := decodeAddress(dest.Address, chainParams)
 		if err != nil {
-			return nil, 0, grpc.Errorf(codes.InvalidArgument, "invalid address string: %v", err)
+			return nil, 0, err
 		}
 		pkScript, err = txscript.PayToAddrScript(addr)
 		if err != nil {
@@ -854,25 +869,22 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}
 
 	minConf := int32(req.RequiredConfirmations)
+	params := s.wallet.ChainParams()
 
 	var ticketAddr dcrutil.Address
 	var err error
 	if req.TicketAddress != "" {
-		ticketAddr, err = dcrutil.DecodeAddress(req.TicketAddress,
-			s.wallet.ChainParams())
+		ticketAddr, err = decodeAddress(req.TicketAddress, params)
 		if err != nil {
-			return nil, grpc.Errorf(codes.InvalidArgument,
-				"Ticket address invalid: %v", err)
+			return nil, err
 		}
 	}
 
 	var poolAddr dcrutil.Address
 	if req.PoolAddress != "" {
-		poolAddr, err = dcrutil.DecodeAddress(req.PoolAddress,
-			s.wallet.ChainParams())
+		poolAddr, err = decodeAddress(req.PoolAddress, params)
 		if err != nil {
-			return nil, grpc.Errorf(codes.InvalidArgument,
-				"Pool address invalid: %v", err)
+			return nil, err
 		}
 	}
 
