@@ -18,7 +18,6 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/waddrmgr"
-	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/walletdb"
 	"github.com/decred/dcrwallet/wstakemgr"
@@ -301,20 +300,6 @@ func (w *Wallet) onBlockConnected(dbtx walletdb.ReadWriteTx, serializedBlockHead
 	}
 
 	height := int32(blockHeader.Height)
-
-	// Handle automatic ticket purchasing if enabled.  This function should
-	// not error due to an error purchasing tickets (several tickets may be
-	// have been purhcased and successfully published, as well as addresses
-	// created and used), so just log it instead.
-	err = w.handleTicketPurchases(dbtx, height)
-	switch err.(type) {
-	case nil:
-	case txauthor.InsufficientFundsError:
-		log.Debugf("Insufficient funds to auto-purchase maximum number " +
-			"of tickets")
-	default:
-		log.Errorf("Failed to perform automatic ticket purchasing: %v", err)
-	}
 
 	// Prune all expired transactions and all stake tickets that no longer
 	// meet the minimum stake difficulty.

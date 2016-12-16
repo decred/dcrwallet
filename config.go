@@ -38,7 +38,8 @@ const (
 	defaultReuseAddresses      = false
 	defaultRollbackTest        = false
 	defaultPruneTickets        = false
-	defaultTicketMaxPrice      = 0.0
+	defaultPurchaseAccount     = "default"
+	defaultTicketMaxPrice      = 100.0
 	defaultTicketBuyFreq       = 1
 	defaultAutomaticRepair     = false
 	defaultUnsafeMainNet       = false
@@ -88,8 +89,9 @@ type config struct {
 	BalanceToMaintain   float64 `long:"balancetomaintain" description:"Minimum amount of funds to leave in wallet when stake mining (default: 0.0)"`
 	ReuseAddresses      bool    `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
 	PruneTickets        bool    `long:"prunetickets" description:"Prune old tickets from the wallet and restore their inputs"`
+	PurchaseAccount     string  `long:"purchaseaccount" description:"Name of the account to buy tickets from (default: default)"`
 	TicketAddress       string  `long:"ticketaddress" description:"Send all ticket outputs to this address (P2PKH or P2SH only)"`
-	TicketMaxPrice      float64 `long:"ticketmaxprice" description:"The maximum price the user is willing to spend on buying a ticket"`
+	TicketMaxPrice      float64 `long:"ticketmaxprice" description:"The maximum price the user is willing to spend on buying a ticket (default: 100.0)"`
 	TicketBuyFreq       int     `long:"ticketbuyfreq" description:"The number of tickets to try to buy per block (default: 1), where negative numbers indicate one ticket for each 1-in-? blocks"`
 	PoolAddress         string  `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
 	PoolFees            float64 `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
@@ -312,6 +314,7 @@ func loadConfig() (*config, []string, error) {
 		ReuseAddresses:         defaultReuseAddresses,
 		RollbackTest:           defaultRollbackTest,
 		PruneTickets:           defaultPruneTickets,
+		PurchaseAccount:        defaultPurchaseAccount,
 		TicketMaxPrice:         defaultTicketMaxPrice,
 		TicketBuyFreq:          defaultTicketBuyFreq,
 		AutomaticRepair:        defaultAutomaticRepair,

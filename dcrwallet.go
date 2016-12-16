@@ -22,6 +22,7 @@ import (
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
+	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 )
 
@@ -284,6 +285,37 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 			w.SynchronizeRPC(chainClient)
 			if legacyRPCServer != nil {
 				legacyRPCServer.SetChainServer(chainClient)
+			}
+			tcfg, err := loadTicketBuyerConfig(cfg.AppDataDir)
+			if err != nil {
+				log.Errorf("Unable to load ticket buyer config: %v", err)
+				log.Info("Ticket purchasing is disabled")
+			} else {
+				ticketbuyerCfg := &ticketbuyer.Config{
+					AccountName:        cfg.PurchaseAccount,
+					AvgPriceMode:       tcfg.AvgPriceMode,
+					AvgPriceVWAPDelta:  tcfg.AvgPriceVWAPDelta,
+					BalanceToMaintain:  cfg.BalanceToMaintain,
+					BlocksToAvg:        tcfg.BlocksToAvg,
+					DontWaitForTickets: tcfg.DontWaitForTickets,
+					ExpiryDelta:        tcfg.ExpiryDelta,
+					FeeSource:          tcfg.FeeSource,
+					FeeTargetScaling:   tcfg.FeeTargetScaling,
+					HighPricePenalty:   tcfg.HighPricePenalty,
+					MinFee:             tcfg.MinFee,
+					MinPriceScale:      tcfg.MinPriceScale,
+					MaxFee:             tcfg.MaxFee,
+					MaxPerBlock:        tcfg.MaxPerBlock,
+					MaxPriceAbsolute:   cfg.TicketMaxPrice,
+					MaxPriceScale:      tcfg.MaxPriceScale,
+					MaxInMempool:       tcfg.MaxInMempool,
+					PoolAddress:        cfg.PoolAddress,
+					PoolFees:           cfg.PoolFees,
+					PriceTarget:        tcfg.PriceTarget,
+					TicketAddress:      cfg.TicketAddress,
+					TxFee:              cfg.TicketFee,
+				}
+				startTicketPurchase(w, chainClient.Client, nil, ticketbuyerCfg)
 			}
 		}
 		mu := new(sync.Mutex)

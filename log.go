@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
+	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wstakemgr"
 	"github.com/decred/dcrwallet/wtxmgr"
@@ -30,6 +31,7 @@ var (
 	log          = btclog.Disabled
 	walletLog    = btclog.Disabled
 	txmgrLog     = btclog.Disabled
+	tkbyLog      = btclog.Disabled
 	stkmLog      = btclog.Disabled
 	chainLog     = btclog.Disabled
 	grpcLog      = btclog.Disabled
@@ -41,6 +43,7 @@ var subsystemLoggers = map[string]btclog.Logger{
 	"DCRW": log,
 	"WLLT": walletLog,
 	"TMGR": txmgrLog,
+	"TKBY": tkbyLog,
 	"STKM": stkmLog,
 	"CHNS": chainLog,
 	"GRPC": grpcLog,
@@ -80,6 +83,9 @@ func useLogger(subsystemID string, logger btclog.Logger) {
 	case "TMGR":
 		txmgrLog = logger
 		wtxmgr.UseLogger(logger)
+	case "TKBY":
+		tkbyLog = logger
+		ticketbuyer.UseLogger(logger)
 	case "STKM":
 		stkmLog = logger
 		wstakemgr.UseLogger(logger)
