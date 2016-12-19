@@ -60,19 +60,20 @@ type Loader struct {
 
 // StakeOptions contains the various options necessary for stake mining.
 type StakeOptions struct {
-	VoteBits            uint16
-	VoteBitsExtended    string
-	StakeMiningEnabled  bool
-	BalanceToMaintain   float64
-	TicketFee           float64
-	PruneTickets        bool
-	AddressReuse        bool
-	TicketAddress       string
-	TicketMaxPrice      float64
-	TicketBuyFreq       int
-	PoolAddress         string
-	PoolFees            float64
-	StakePoolColdExtKey string
+	VoteBits                uint16
+	VoteBitsExtended        string
+	TicketPurchasingEnabled bool
+	VotingEnabled           bool
+	BalanceToMaintain       float64
+	TicketFee               float64
+	PruneTickets            bool
+	AddressReuse            bool
+	TicketAddress           string
+	TicketMaxPrice          float64
+	TicketBuyFreq           int
+	PoolAddress             string
+	PoolFees                float64
+	StakePoolColdExtKey     string
 }
 
 // NewLoader constructs a Loader.
@@ -164,8 +165,8 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	// Open the newly-created wallet.
 	so := l.stakeOptions
 	w, err = Open(db, pubPassphrase, nil, so.VoteBits, so.VoteBitsExtended,
-		so.StakeMiningEnabled, so.BalanceToMaintain, so.AddressReuse,
-		so.PruneTickets, so.TicketAddress, so.TicketMaxPrice,
+		so.TicketPurchasingEnabled, so.VotingEnabled, so.BalanceToMaintain,
+		so.AddressReuse, so.PruneTickets, so.TicketAddress, so.TicketMaxPrice,
 		so.TicketBuyFreq, so.PoolAddress, so.PoolFees, so.TicketFee,
 		l.addrIdxScanLen, so.StakePoolColdExtKey, l.autoRepair,
 		l.allowHighFees, l.relayFee, l.chainParams)
@@ -232,8 +233,8 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte, canConsolePrompt bool)
 	}
 	so := l.stakeOptions
 	w, err = Open(db, pubPassphrase, cbs, so.VoteBits, so.VoteBitsExtended,
-		so.StakeMiningEnabled, so.BalanceToMaintain, so.AddressReuse,
-		so.PruneTickets, so.TicketAddress, so.TicketMaxPrice,
+		so.TicketPurchasingEnabled, so.VotingEnabled, so.BalanceToMaintain,
+		so.AddressReuse, so.PruneTickets, so.TicketAddress, so.TicketMaxPrice,
 		so.TicketBuyFreq, so.PoolAddress, so.PoolFees, so.TicketFee,
 		l.addrIdxScanLen, so.StakePoolColdExtKey, l.autoRepair, l.allowHighFees,
 		l.relayFee, l.chainParams)

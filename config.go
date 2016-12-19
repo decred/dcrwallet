@@ -32,6 +32,8 @@ const (
 	defaultRPCMaxClients       = 10
 	defaultRPCMaxWebsockets    = 25
 	defaultEnableStakeMining   = false
+	defaultEnableTicketBuyer   = false
+	defaultEnableVoting        = false
 	defaultVoteBits            = 0x0001
 	defaultVoteBitsExtended    = "02000000"
 	defaultBalanceToMaintain   = 0.0
@@ -83,7 +85,8 @@ type config struct {
 	WalletPass          string  `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
 	PromptPass          bool    `long:"promptpass" description:"The private wallet password is prompted for at start up, so the wallet starts unlocked without a time limit"`
 	DisallowFree        bool    `long:"disallowfree" description:"Force transactions to always include a fee"`
-	EnableStakeMining   bool    `long:"enablestakemining" description:"Enable stake mining"`
+	EnableTicketBuyer   bool    `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
+	EnableVoting        bool    `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
 	VoteBits            uint16  `long:"votebits" description:"Set your stake mining votebits to value (default: 0xFFFF)"`
 	VoteBitsExtended    string  `long:"votebitsextended" description:"Set your stake mining extended votebits to the hexademical value indicated by the passed string"`
 	BalanceToMaintain   float64 `long:"balancetomaintain" description:"Minimum amount of funds to leave in wallet when stake mining (default: 0.0)"`
@@ -138,7 +141,8 @@ type config struct {
 	ExperimentalRPCListeners []string `long:"experimentalrpclisten" description:"Listen for RPC connections on this interface/port"`
 
 	// Deprecated options
-	DataDir string `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
+	DataDir           string `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
+	EnableStakeMining bool   `long:"enablestakemining" default-mask:"-" description:"DEPRECATED -- consider using enableticketbuyer and/or enablevoting instead"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -307,7 +311,8 @@ func loadConfig() (*config, []string, error) {
 		TLSCurve:               cfgutil.NewCurveFlag(cfgutil.CurveP521),
 		LegacyRPCMaxClients:    defaultRPCMaxClients,
 		LegacyRPCMaxWebsockets: defaultRPCMaxWebsockets,
-		EnableStakeMining:      defaultEnableStakeMining,
+		EnableTicketBuyer:      defaultEnableTicketBuyer,
+		EnableVoting:           defaultEnableVoting,
 		VoteBits:               defaultVoteBits,
 		VoteBitsExtended:       defaultVoteBitsExtended,
 		BalanceToMaintain:      defaultBalanceToMaintain,
@@ -323,6 +328,7 @@ func loadConfig() (*config, []string, error) {
 		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
 		AllowHighFees:          defaultAllowHighFees,
 		DataDir:                defaultAppDataDir,
+		EnableStakeMining:      defaultEnableStakeMining,
 	}
 
 	// Pre-parse the command line options to see if an alternative config
@@ -388,7 +394,7 @@ func loadConfig() (*config, []string, error) {
 		log.Warnf("%v", configFileError)
 	}
 
-	// Check deprecated aliases.  The new options receive priority when both
+	// Check deprecated options.  The new options receive priority when both
 	// are changed from the default.
 	if cfg.DataDir != defaultAppDataDir {
 		fmt.Fprintln(os.Stderr, "datadir option has been replaced by "+
@@ -396,6 +402,20 @@ func loadConfig() (*config, []string, error) {
 		if cfg.AppDataDir == defaultAppDataDir {
 			cfg.AppDataDir = cfg.DataDir
 		}
+	}
+	if cfg.EnableStakeMining {
+		fmt.Fprintln(os.Stderr, "enablestakemining option is deprecated -- "+
+			"consider updating your config to use enablevoting and enableticketbuyer")
+		if cfg.EnableTicketBuyer {
+			fmt.Fprintln(os.Stderr, "Because enableticketbuyer was set, "+
+				"tickets will be purchased using the new buyer")
+		} else {
+			fmt.Fprintln(os.Stderr, "Because enableticketbuyer was not set, "+
+				"tickets will be purchased using the old buyer")
+		}
+		// enablestakemining turns on voting/revocations, but never turns on the
+		// new ticket buyer.
+		cfg.EnableVoting = true
 	}
 
 	// If an alternate data directory was specified, and paths with defaults

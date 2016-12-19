@@ -46,11 +46,9 @@ out:
 	for {
 		select {
 		case v := <-p.ntfnChan:
-			if p.w.Generate() {
-				if v != nil {
-					for _, block := range v.AttachedBlocks {
-						go p.purchase(int64(block.Height))
-					}
+			if v != nil {
+				for _, block := range v.AttachedBlocks {
+					go p.purchase(int64(block.Height))
 				}
 			}
 		case <-p.quit:

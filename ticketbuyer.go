@@ -84,13 +84,36 @@ type ticketBuyerConfig struct {
 	BalanceToMaintain float64 `long:"balancetomaintain" description:"Balance to try to maintain in the wallet"`
 }
 
-// loadTicketBuyerConfig initializes and parses the config using a config file.
-func loadTicketBuyerConfig(appDataDir string) (*ticketBuyerConfig, error) {
-	loadConfigError := func(err error) (*ticketBuyerConfig, error) {
-		return nil, err
+func newTicketBuyerConfig(appConfig *config, parsedConfig *ticketBuyerConfig) *ticketbuyer.Config {
+	return &ticketbuyer.Config{
+		AccountName:        appConfig.PurchaseAccount,
+		AvgPriceMode:       parsedConfig.AvgPriceMode,
+		AvgPriceVWAPDelta:  parsedConfig.AvgPriceVWAPDelta,
+		BalanceToMaintain:  appConfig.BalanceToMaintain,
+		BlocksToAvg:        parsedConfig.BlocksToAvg,
+		DontWaitForTickets: parsedConfig.DontWaitForTickets,
+		ExpiryDelta:        parsedConfig.ExpiryDelta,
+		FeeSource:          parsedConfig.FeeSource,
+		FeeTargetScaling:   parsedConfig.FeeTargetScaling,
+		HighPricePenalty:   parsedConfig.HighPricePenalty,
+		MinFee:             parsedConfig.MinFee,
+		MinPriceScale:      parsedConfig.MinPriceScale,
+		MaxFee:             parsedConfig.MaxFee,
+		MaxPerBlock:        parsedConfig.MaxPerBlock,
+		MaxPriceAbsolute:   appConfig.TicketMaxPrice,
+		MaxPriceScale:      parsedConfig.MaxPriceScale,
+		MaxInMempool:       parsedConfig.MaxInMempool,
+		PoolAddress:        appConfig.PoolAddress,
+		PoolFees:           appConfig.PoolFees,
+		PriceTarget:        parsedConfig.PriceTarget,
+		TicketAddress:      appConfig.TicketAddress,
+		TxFee:              appConfig.TicketFee,
 	}
+}
 
-	defaultTicketBuyerConfigFile := filepath.Join(appDataDir,
+// loadTicketBuyerConfig initializes and parses the config using a config file.
+func loadTicketBuyerConfig(appConfig *config) (*ticketbuyer.Config, error) {
+	defaultTicketBuyerConfigFile := filepath.Join(appConfig.AppDataDir,
 		defaultTicketBuyerConfigFilename)
 	// Default config.
 	cfg := ticketBuyerConfig{
@@ -115,7 +138,7 @@ func loadTicketBuyerConfig(appDataDir string) (*ticketBuyerConfig, error) {
 	}
 
 	if _, err := os.Stat(defaultTicketBuyerConfigFile); os.IsNotExist(err) {
-		return &cfg, nil
+		return newTicketBuyerConfig(appConfig, &cfg), nil
 	}
 
 	// Load additional config from file.
@@ -126,7 +149,7 @@ func loadTicketBuyerConfig(appDataDir string) (*ticketBuyerConfig, error) {
 		if _, ok := err.(*os.PathError); !ok {
 			log.Warn(err)
 			parser.WriteHelp(os.Stderr)
-			return loadConfigError(err)
+			return nil, err
 		}
 		configFileError = err
 	}
@@ -157,7 +180,7 @@ func loadTicketBuyerConfig(appDataDir string) (*ticketBuyerConfig, error) {
 		str := "%s: Invalid fee source '%s'"
 		err := fmt.Errorf(str, "loadTicketBuyerConfig", cfg.FeeSource)
 		log.Warnf(err.Error())
-		return loadConfigError(err)
+		return nil, err
 	}
 
 	// Make sure a valid average price mode is given.
@@ -169,15 +192,18 @@ func loadTicketBuyerConfig(appDataDir string) (*ticketBuyerConfig, error) {
 		str := "%s: Invalid average price mode '%s'"
 		err := fmt.Errorf(str, "loadTicketBuyerConfig", cfg.AvgPriceMode)
 		log.Warnf(err.Error())
-		return loadConfigError(err)
+		return nil, err
 	}
 
-	return &cfg, nil
+	return newTicketBuyerConfig(appConfig, &cfg), nil
 }
 
 // startTicketPurchase launches ticketbuyer to start purchasing tickets.
 func startTicketPurchase(w *wallet.Wallet, dcrdClient *dcrrpcclient.Client,
 	passphrase []byte, ticketbuyerCfg *ticketbuyer.Config) {
+
+	tkbyLog.Infof("Starting ticket buyer")
+
 	p, err := ticketbuyer.NewTicketPurchaser(ticketbuyerCfg,
 		dcrdClient, w, activeNet.Params)
 	if err != nil {
@@ -198,6 +224,8 @@ func startTicketPurchase(w *wallet.Wallet, dcrdClient *dcrrpcclient.Client,
 	go pm.NotificationHandler()
 	go func() {
 		dcrdClient.WaitForShutdown()
+
+		tkbyLog.Infof("Stopping ticket buyer")
 		n.Done()
 		close(quit)
 	}()
