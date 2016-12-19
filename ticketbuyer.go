@@ -196,8 +196,9 @@ func startTicketPurchase(w *wallet.Wallet, dcrdClient *dcrrpcclient.Client,
 	n := w.NtfnServer.TransactionNotifications()
 	pm := ticketbuyer.NewPurchaseManager(w, p, n.C, quit)
 	go pm.NotificationHandler()
-	addInterruptHandler(func() {
+	go func() {
+		dcrdClient.WaitForShutdown()
 		n.Done()
 		close(quit)
-	})
+	}()
 }
