@@ -32,6 +32,7 @@ const (
 	defaultRPCMaxClients       = 10
 	defaultRPCMaxWebsockets    = 25
 	defaultEnableStakeMining   = false
+	defaultEnableTicketBuyer   = false
 	defaultVoteBits            = 0x0001
 	defaultVoteBitsExtended    = "02000000"
 	defaultBalanceToMaintain   = 0.0
@@ -84,6 +85,7 @@ type config struct {
 	PromptPass          bool    `long:"promptpass" description:"The private wallet password is prompted for at start up, so the wallet starts unlocked without a time limit"`
 	DisallowFree        bool    `long:"disallowfree" description:"Force transactions to always include a fee"`
 	EnableStakeMining   bool    `long:"enablestakemining" description:"Enable stake mining"`
+	EnableTicketBuyer   bool    `long:"enableticketbuyer" description:"Enable automatic ticket purchasing"`
 	VoteBits            uint16  `long:"votebits" description:"Set your stake mining votebits to value (default: 0xFFFF)"`
 	VoteBitsExtended    string  `long:"votebitsextended" description:"Set your stake mining extended votebits to the hexademical value indicated by the passed string"`
 	BalanceToMaintain   float64 `long:"balancetomaintain" description:"Minimum amount of funds to leave in wallet when stake mining (default: 0.0)"`
@@ -308,6 +310,7 @@ func loadConfig() (*config, []string, error) {
 		LegacyRPCMaxClients:    defaultRPCMaxClients,
 		LegacyRPCMaxWebsockets: defaultRPCMaxWebsockets,
 		EnableStakeMining:      defaultEnableStakeMining,
+		EnableTicketBuyer:      defaultEnableTicketBuyer,
 		VoteBits:               defaultVoteBits,
 		VoteBitsExtended:       defaultVoteBitsExtended,
 		BalanceToMaintain:      defaultBalanceToMaintain,
@@ -552,6 +555,15 @@ func loadConfig() (*config, []string, error) {
 	} else if !dbFileExists && !cfg.NoInitialLoad {
 		err := fmt.Errorf("The wallet does not exist.  Run with the " +
 			"--create option to initialize and create it.")
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+
+	// Old and new ticket buyers currently exist side by side in the code, and
+	// either can be used.  However, both can not be used at the same time.
+	if cfg.EnableStakeMining && cfg.EnableTicketBuyer {
+		err := fmt.Errorf("enablestakemining and enableticketbuyer should " +
+			"not be used together.")
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}

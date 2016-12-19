@@ -27,7 +27,8 @@ import (
 )
 
 var (
-	cfg *config
+	cfg       *config
+	ticketCfg *ticketBuyerConfig
 )
 
 func main() {
@@ -87,6 +88,14 @@ func walletMain() error {
 			pprof.WriteHeapProfile(f)
 			f.Close()
 		}()
+	}
+
+	// Load ticket buyer config, if any.  A missing config file causes this to
+	// returns a default config and no error.
+	ticketCfg, err = loadTicketBuyerConfig(cfg.AppDataDir)
+	if err != nil {
+		log.Warnf("Failed to read ticket buyer config: %v -- ticket buying "+
+			"will be disabled", err)
 	}
 
 	dbDir := networkDir(cfg.AppDataDir, activeNet.Params)
@@ -286,36 +295,39 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 			if legacyRPCServer != nil {
 				legacyRPCServer.SetChainServer(chainClient)
 			}
-			tcfg, err := loadTicketBuyerConfig(cfg.AppDataDir)
-			if err != nil {
-				log.Errorf("Unable to load ticket buyer config: %v", err)
-				log.Info("Ticket purchasing is disabled")
-			} else {
-				ticketbuyerCfg := &ticketbuyer.Config{
-					AccountName:        cfg.PurchaseAccount,
-					AvgPriceMode:       tcfg.AvgPriceMode,
-					AvgPriceVWAPDelta:  tcfg.AvgPriceVWAPDelta,
-					BalanceToMaintain:  cfg.BalanceToMaintain,
-					BlocksToAvg:        tcfg.BlocksToAvg,
-					DontWaitForTickets: tcfg.DontWaitForTickets,
-					ExpiryDelta:        tcfg.ExpiryDelta,
-					FeeSource:          tcfg.FeeSource,
-					FeeTargetScaling:   tcfg.FeeTargetScaling,
-					HighPricePenalty:   tcfg.HighPricePenalty,
-					MinFee:             tcfg.MinFee,
-					MinPriceScale:      tcfg.MinPriceScale,
-					MaxFee:             tcfg.MaxFee,
-					MaxPerBlock:        tcfg.MaxPerBlock,
-					MaxPriceAbsolute:   cfg.TicketMaxPrice,
-					MaxPriceScale:      tcfg.MaxPriceScale,
-					MaxInMempool:       tcfg.MaxInMempool,
-					PoolAddress:        cfg.PoolAddress,
-					PoolFees:           cfg.PoolFees,
-					PriceTarget:        tcfg.PriceTarget,
-					TicketAddress:      cfg.TicketAddress,
-					TxFee:              cfg.TicketFee,
+
+			if cfg.EnableTicketBuyer {
+				if ticketCfg == nil {
+					log.Warn("Ticket buying was set enabled but due to " +
+						"previous errors, automatic purchasing will be disabled")
+				} else {
+					ticketbuyerCfg := &ticketbuyer.Config{
+						AccountName:        cfg.PurchaseAccount,
+						AvgPriceMode:       ticketCfg.AvgPriceMode,
+						AvgPriceVWAPDelta:  ticketCfg.AvgPriceVWAPDelta,
+						BalanceToMaintain:  cfg.BalanceToMaintain,
+						BlocksToAvg:        ticketCfg.BlocksToAvg,
+						DontWaitForTickets: ticketCfg.DontWaitForTickets,
+						ExpiryDelta:        ticketCfg.ExpiryDelta,
+						FeeSource:          ticketCfg.FeeSource,
+						FeeTargetScaling:   ticketCfg.FeeTargetScaling,
+						HighPricePenalty:   ticketCfg.HighPricePenalty,
+						MinFee:             ticketCfg.MinFee,
+						MinPriceScale:      ticketCfg.MinPriceScale,
+						MaxFee:             ticketCfg.MaxFee,
+						MaxPerBlock:        ticketCfg.MaxPerBlock,
+						MaxPriceAbsolute:   cfg.TicketMaxPrice,
+						MaxPriceScale:      ticketCfg.MaxPriceScale,
+						MaxInMempool:       ticketCfg.MaxInMempool,
+						PoolAddress:        cfg.PoolAddress,
+						PoolFees:           cfg.PoolFees,
+						PriceTarget:        ticketCfg.PriceTarget,
+						TicketAddress:      cfg.TicketAddress,
+						TxFee:              cfg.TicketFee,
+					}
+					log.Infof("Starting ticket buyer")
+					startTicketPurchase(w, chainClient.Client, nil, ticketbuyerCfg)
 				}
-				startTicketPurchase(w, chainClient.Client, nil, ticketbuyerCfg)
 			}
 		}
 		mu := new(sync.Mutex)
