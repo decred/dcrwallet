@@ -238,7 +238,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			log.Errorf("Failed to decode tx fee amount %v from config",
 				t.cfg.TxFee)
 		} else {
-			t.wallet.SetTicketFeeIncrement(txFeeAmt)
+			t.wallet.SetRelayFee(txFeeAmt)
 		}
 	}
 
@@ -527,7 +527,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if err != nil {
 		return ps, err
 	}
-	t.wallet.SetRelayFee(feeToUseAmt)
+	t.wallet.SetTicketFeeIncrement(feeToUseAmt)
 
 	log.Debugf("Mean fee for the last blocks or window period was %v; "+
 		"this was scaled to %v", chainFee, feeToUse)
