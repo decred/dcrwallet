@@ -202,24 +202,37 @@ type sideChainBlock struct {
 
 // switchToSideChain performs a chain switch, switching the main chain to the
 // in-memory side chain.  The old side chain becomes the new main chain.
-func (w *Wallet) switchToSideChain(dbtx walletdb.ReadWriteTx) error {
+func (w *Wallet) switchToSideChain(dbtx walletdb.ReadWriteTx) (*MainTipChangedNotification, error) {
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
 	sideChain := w.sideChain
 	if len(sideChain) == 0 {
-		return errors.New("no side chain to switch to")
+		return nil, errors.New("no side chain to switch to")
 	}
 
 	sideChainForkHeight := sideChain[0].headerData.SerializedHeader.Height()
 
-	// Notify detached blocks for each removed block, in reversed order.
 	_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+
+	chainTipChanges := &MainTipChangedNotification{
+		AttachedBlocks: make([]*chainhash.Hash, len(sideChain)),
+		DetachedBlocks: make([]*chainhash.Hash, tipHeight-sideChainForkHeight+1),
+		NewHeight:      0, // Must be set by caller before sending
+	}
+
+	// Find hashes of removed blocks for notifications.
 	for i := tipHeight; i >= sideChainForkHeight; i-- {
 		hash, err := w.TxStore.GetMainChainBlockHashForHeight(txmgrNs, i)
 		if err != nil {
-			return err
+			return nil, err
 		}
+
+		// DetachedBlocks contains block hashes in order of increasing heights.
+		chainTipChanges.DetachedBlocks[i-sideChainForkHeight] = &hash
+
+		// For transaction notifications, the blocks are notified in reverse
+		// height order.
 		w.NtfnServer.notifyDetachedBlock(&hash)
 	}
 
@@ -227,7 +240,7 @@ func (w *Wallet) switchToSideChain(dbtx walletdb.ReadWriteTx) error {
 	// height of the block that begins the side chain.
 	err := w.TxStore.Rollback(txmgrNs, addrmgrNs, sideChainForkHeight)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Extend the main chain with each sidechain block.
@@ -235,11 +248,14 @@ func (w *Wallet) switchToSideChain(dbtx walletdb.ReadWriteTx) error {
 		scBlock := &sideChain[i]
 		err = w.extendMainChain(dbtx, &scBlock.headerData, scBlock.transactions)
 		if err != nil {
-			return err
+			return nil, err
 		}
+
+		// Add the block hash to the notification.
+		chainTipChanges.AttachedBlocks[i] = &scBlock.headerData.BlockHash
 	}
 
-	return nil
+	return chainTipChanges, nil
 }
 
 func copyHeaderSliceToArray(array *wtxmgr.RawBlockHeader, slice []byte) error {
@@ -264,6 +280,8 @@ func (w *Wallet) onBlockConnected(dbtx walletdb.ReadWriteTx, serializedBlockHead
 		return err
 	}
 
+	var chainTipChanges *MainTipChangedNotification
+
 	w.reorganizingLock.Lock()
 	reorg, reorgToHash := w.reorganizing, w.reorganizeToHash
 	w.reorganizingLock.Unlock()
@@ -283,7 +301,7 @@ func (w *Wallet) onBlockConnected(dbtx walletdb.ReadWriteTx, serializedBlockHead
 			return nil
 		}
 
-		err = w.switchToSideChain(dbtx)
+		chainTipChanges, err = w.switchToSideChain(dbtx)
 		if err != nil {
 			return err
 		}
@@ -298,9 +316,15 @@ func (w *Wallet) onBlockConnected(dbtx walletdb.ReadWriteTx, serializedBlockHead
 		if err != nil {
 			return err
 		}
+		chainTipChanges = &MainTipChangedNotification{
+			AttachedBlocks: []*chainhash.Hash{&block.BlockHash},
+			DetachedBlocks: nil,
+			NewHeight:      0, // set below
+		}
 	}
 
 	height := int32(blockHeader.Height)
+	chainTipChanges.NewHeight = height
 
 	// Handle automatic ticket purchasing if enabled.  This function should
 	// not error due to an error purchasing tickets (several tickets may be
@@ -325,6 +349,7 @@ func (w *Wallet) onBlockConnected(dbtx walletdb.ReadWriteTx, serializedBlockHead
 			"connecting block height %v: %s", height, err.Error())
 	}
 
+	w.NtfnServer.notifyMainChainTipChanged(chainTipChanges)
 	w.NtfnServer.sendAttachedBlockNotification(dbtx)
 
 	return nil
