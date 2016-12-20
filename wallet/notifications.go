@@ -630,8 +630,8 @@ type MainTipChangedNotification struct {
 	NewHeight      int32
 }
 
-// MainTipChangedNotificationsClient receives
-// AccountNoMainTipChangedNotifications over the channel C.
+// MainTipChangedNotificationsClient receives MainTipChangedNotifications over
+// the channel C.
 type MainTipChangedNotificationsClient struct {
 	C      chan *MainTipChangedNotification
 	server *NotificationServer
