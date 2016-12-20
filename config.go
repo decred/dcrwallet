@@ -41,7 +41,7 @@ const (
 	defaultRollbackTest        = false
 	defaultPruneTickets        = false
 	defaultPurchaseAccount     = "default"
-	defaultTicketMaxPrice      = 100.0
+	defaultTicketMaxPrice      = 0.0
 	defaultTicketBuyFreq       = 1
 	defaultAutomaticRepair     = false
 	defaultUnsafeMainNet       = false
