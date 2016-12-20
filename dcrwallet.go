@@ -27,7 +27,8 @@ import (
 )
 
 var (
-	cfg *config
+	cfg            *config
+	ticketBuyerCfg *ticketbuyer.Config
 )
 
 func main() {
@@ -89,21 +90,36 @@ func walletMain() error {
 		}()
 	}
 
+	// Load ticket buyer config, if any.  A missing config file causes this to
+	// returns a default config and no error.
+	ticketBuyerCfg, err = loadTicketBuyerConfig(cfg)
+	if err != nil {
+		s := fmt.Sprintf("Failed to read ticket buyer config: %v", err)
+		// Fatal error when ticket buyer is enabled.
+		if cfg.EnableTicketBuyer {
+			log.Error(s)
+			return err
+		}
+		// Otherwise just warn.
+		log.Warn(s)
+	}
+
 	dbDir := networkDir(cfg.AppDataDir, activeNet.Params)
 	stakeOptions := &wallet.StakeOptions{
-		VoteBits:            cfg.VoteBits,
-		VoteBitsExtended:    cfg.VoteBitsExtended,
-		StakeMiningEnabled:  cfg.EnableStakeMining,
-		BalanceToMaintain:   cfg.BalanceToMaintain,
-		PruneTickets:        cfg.PruneTickets,
-		AddressReuse:        cfg.ReuseAddresses,
-		TicketAddress:       cfg.TicketAddress,
-		TicketMaxPrice:      cfg.TicketMaxPrice,
-		TicketBuyFreq:       cfg.TicketBuyFreq,
-		PoolAddress:         cfg.PoolAddress,
-		PoolFees:            cfg.PoolFees,
-		StakePoolColdExtKey: cfg.StakePoolColdExtKey,
-		TicketFee:           cfg.TicketFee,
+		VoteBits:                cfg.VoteBits,
+		VoteBitsExtended:        cfg.VoteBitsExtended,
+		TicketPurchasingEnabled: cfg.EnableStakeMining && !cfg.EnableTicketBuyer,
+		VotingEnabled:           cfg.EnableVoting,
+		BalanceToMaintain:       cfg.BalanceToMaintain,
+		PruneTickets:            cfg.PruneTickets,
+		AddressReuse:            cfg.ReuseAddresses,
+		TicketAddress:           cfg.TicketAddress,
+		TicketMaxPrice:          cfg.TicketMaxPrice,
+		TicketBuyFreq:           cfg.TicketBuyFreq,
+		PoolAddress:             cfg.PoolAddress,
+		PoolFees:                cfg.PoolFees,
+		StakePoolColdExtKey:     cfg.StakePoolColdExtKey,
+		TicketFee:               cfg.TicketFee,
 	}
 	loader := wallet.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.AutomaticRepair, cfg.UnsafeMainNet, cfg.AddrIdxScanLen,
@@ -286,36 +302,8 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 			if legacyRPCServer != nil {
 				legacyRPCServer.SetChainServer(chainClient)
 			}
-			tcfg, err := loadTicketBuyerConfig(cfg.AppDataDir)
-			if err != nil {
-				log.Errorf("Unable to load ticket buyer config: %v", err)
-				log.Info("Ticket purchasing is disabled")
-			} else {
-				ticketbuyerCfg := &ticketbuyer.Config{
-					AccountName:        cfg.PurchaseAccount,
-					AvgPriceMode:       tcfg.AvgPriceMode,
-					AvgPriceVWAPDelta:  tcfg.AvgPriceVWAPDelta,
-					BalanceToMaintain:  cfg.BalanceToMaintain,
-					BlocksToAvg:        tcfg.BlocksToAvg,
-					DontWaitForTickets: tcfg.DontWaitForTickets,
-					ExpiryDelta:        tcfg.ExpiryDelta,
-					FeeSource:          tcfg.FeeSource,
-					FeeTargetScaling:   tcfg.FeeTargetScaling,
-					HighPricePenalty:   tcfg.HighPricePenalty,
-					MinFee:             tcfg.MinFee,
-					MinPriceScale:      tcfg.MinPriceScale,
-					MaxFee:             tcfg.MaxFee,
-					MaxPerBlock:        tcfg.MaxPerBlock,
-					MaxPriceAbsolute:   cfg.TicketMaxPrice,
-					MaxPriceScale:      tcfg.MaxPriceScale,
-					MaxInMempool:       tcfg.MaxInMempool,
-					PoolAddress:        cfg.PoolAddress,
-					PoolFees:           cfg.PoolFees,
-					PriceTarget:        tcfg.PriceTarget,
-					TicketAddress:      cfg.TicketAddress,
-					TxFee:              cfg.TicketFee,
-				}
-				startTicketPurchase(w, chainClient.Client, nil, ticketbuyerCfg)
+			if cfg.EnableTicketBuyer {
+				startTicketPurchase(w, chainClient.Client, nil, ticketBuyerCfg)
 			}
 		}
 		mu := new(sync.Mutex)

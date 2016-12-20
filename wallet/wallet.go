@@ -98,17 +98,18 @@ type Wallet struct {
 	StakeMgr *wstakemgr.StakeStore
 
 	// Handlers for stake system.
-	stakeSettingsLock  sync.Mutex
-	VoteBits           stake.VoteBits
-	StakeMiningEnabled bool
-	CurrentVotingInfo  *VotingInfo
-	ticketMaxPrice     dcrutil.Amount
-	ticketBuyFreq      int
-	balanceToMaintain  dcrutil.Amount
-	poolAddress        dcrutil.Address
-	poolFees           float64
-	stakePoolEnabled   bool
-	stakePoolColdAddrs map[string]struct{}
+	stakeSettingsLock       sync.Mutex
+	VoteBits                stake.VoteBits
+	ticketPurchasingEnabled bool
+	votingEnabled           bool
+	CurrentVotingInfo       *VotingInfo
+	ticketMaxPrice          dcrutil.Amount
+	ticketBuyFreq           int
+	balanceToMaintain       dcrutil.Amount
+	poolAddress             dcrutil.Address
+	poolFees                float64
+	stakePoolEnabled        bool
+	stakePoolColdAddrs      map[string]struct{}
 
 	// Start up flags/settings
 	automaticRepair   bool
@@ -170,8 +171,8 @@ type Wallet struct {
 
 // newWallet creates a new Wallet structure with the provided address manager
 // and transaction store.
-func newWallet(vb uint16, vbe []byte, esm bool, btm dcrutil.Amount,
-	addressReuse bool, ticketAddress dcrutil.Address,
+func newWallet(vb uint16, vbe []byte, ticketPurchasingEnabled bool, votingEnabled bool,
+	btm dcrutil.Amount, addressReuse bool, ticketAddress dcrutil.Address,
 	tmp dcrutil.Amount, ticketBuyFreq int, poolAddress dcrutil.Address, pf float64,
 	relayFee, ticketFee dcrutil.Amount, addrIdxScanLen int,
 	stakePoolColdAddrs map[string]struct{}, autoRepair, AllowHighFees bool,
@@ -187,7 +188,8 @@ func newWallet(vb uint16, vbe []byte, esm bool, btm dcrutil.Amount,
 		Manager:                  mgr,
 		TxStore:                  txs,
 		StakeMgr:                 smgr,
-		StakeMiningEnabled:       esm,
+		ticketPurchasingEnabled:  ticketPurchasingEnabled,
+		votingEnabled:            votingEnabled,
 		VoteBits:                 vbs,
 		balanceToMaintain:        btm,
 		lockedOutpoints:          map[wire.OutPoint]struct{}{},
@@ -265,21 +267,22 @@ func (w *Wallet) SetBalanceToMaintain(balance dcrutil.Amount) {
 	w.stakeSettingsLock.Unlock()
 }
 
-// Generate returns the current status of the generation stake of the wallet.
-func (w *Wallet) Generate() bool {
+// TicketPurchasingEnabled returns whether the wallet is configured to purchase tickets.
+func (w *Wallet) TicketPurchasingEnabled() bool {
 	w.stakeSettingsLock.Lock()
-	defer w.stakeSettingsLock.Unlock()
-	return w.StakeMiningEnabled
+	enabled := w.ticketPurchasingEnabled
+	w.stakeSettingsLock.Unlock()
+	return enabled
 }
 
-// SetGenerate is used to enable or disable stake mining in the
+// SetTicketPurchasingEnabled is used to enable or disable ticket purchasing in the
 // wallet.
-func (w *Wallet) SetGenerate(flag bool) error {
+func (w *Wallet) SetTicketPurchasingEnabled(flag bool) error {
 	w.stakeSettingsLock.Lock()
 	defer w.stakeSettingsLock.Unlock()
 
-	isChanged := w.StakeMiningEnabled != flag
-	w.StakeMiningEnabled = flag
+	isChanged := w.ticketPurchasingEnabled != flag
+	w.ticketPurchasingEnabled = flag
 
 	// If stake mining has been enabled again, make sure to
 	// try to submit any possible votes on the current top
@@ -304,10 +307,10 @@ func (w *Wallet) SetGenerate(flag bool) error {
 		}
 	}
 
-	if w.StakeMiningEnabled && isChanged {
-		log.Infof("Stake mining enabled")
-	} else if !w.StakeMiningEnabled && isChanged {
-		log.Infof("Stake mining disabled")
+	if w.ticketPurchasingEnabled && isChanged {
+		log.Infof("Wallet ticket purchasing enabled")
+	} else if !w.ticketPurchasingEnabled && isChanged {
+		log.Infof("wallet ticket purchasing disabled")
 	}
 
 	return nil
@@ -456,11 +459,18 @@ func (w *Wallet) SynchronizeRPC(chainClient *chain.RPCClient) {
 			"and missed tickets. Error: ", err.Error())
 	}
 
-	if w.StakeMiningEnabled {
-		log.Infof("Stake mining is enabled. Votebits: %v, minimum wallet "+
-			"balance %v", w.VoteBits, w.BalanceToMaintain().ToCoin())
-		log.Infof("PLEASE ENSURE YOUR WALLET REMAINS UNLOCKED SO IT MAY " +
-			"VOTE ON BLOCKS AND RECEIVE STAKE REWARDS")
+	ticketPurchasingEnabled := w.TicketPurchasingEnabled()
+	if ticketPurchasingEnabled {
+		log.Infof("Wallet ticket purchasing enabled: vote bits = %#x, "+
+			"extended vote bits = %x, balance to maintain = %v, max ticket price = %v",
+			w.VoteBits.Bits, w.VoteBits.ExtendedBits, w.balanceToMaintain, w.ticketMaxPrice)
+	}
+	if w.votingEnabled {
+		log.Infof("Wallet voting enabled")
+	}
+	if ticketPurchasingEnabled || w.votingEnabled {
+		log.Infof("Please ensure your wallet remains unlocked so it may " +
+			"create stake transactions")
 	}
 }
 
@@ -3682,8 +3692,8 @@ func decodeStakePoolColdExtKey(encStr string,
 
 // Open loads an already-created wallet from the passed database and namespaces.
 func Open(db walletdb.DB, pubPass []byte, cbs *waddrmgr.OpenCallbacks,
-	voteBits uint16, voteBitsExtended string, stakeMiningEnabled bool,
-	balanceToMaintain float64, addressReuse bool,
+	voteBits uint16, voteBitsExtended string, ticketPurchasingEnabled bool,
+	votingEnabled bool, balanceToMaintain float64, addressReuse bool,
 	pruneTickets bool, ticketAddress string, ticketMaxPrice float64,
 	ticketBuyFreq int, poolAddress string, poolFees float64, ticketFee float64,
 	addrIdxScanLen int, stakePoolColdExtKey string, autoRepair, allowHighFees bool,
@@ -3825,7 +3835,8 @@ func Open(db walletdb.DB, pubPass []byte, cbs *waddrmgr.OpenCallbacks,
 
 	w := newWallet(voteBits,
 		voteBitsExtendedB,
-		stakeMiningEnabled,
+		ticketPurchasingEnabled,
+		votingEnabled,
 		btm,
 		addressReuse,
 		ticketAddr,

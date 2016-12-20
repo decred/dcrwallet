@@ -18,6 +18,7 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/waddrmgr"
+	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/walletdb"
 	"github.com/decred/dcrwallet/wstakemgr"
@@ -94,8 +95,8 @@ func (w *Wallet) handleChainNotifications(chainClient *chain.RPCClient) {
 // handleTicketPurchases autopurchases stake tickets for the wallet
 // if stake mining is enabled.
 func (w *Wallet) handleTicketPurchases(dbtx walletdb.ReadWriteTx, currentHeight int32) error {
-	// Nothing to do when stake mining is disabled.
-	if !w.StakeMiningEnabled {
+	// Nothing to do when ticket purchasing is disabled.
+	if !w.TicketPurchasingEnabled() {
 		return nil
 	}
 
@@ -300,6 +301,20 @@ func (w *Wallet) onBlockConnected(dbtx walletdb.ReadWriteTx, serializedBlockHead
 	}
 
 	height := int32(blockHeader.Height)
+
+	// Handle automatic ticket purchasing if enabled.  This function should
+	// not error due to an error purchasing tickets (several tickets may be
+	// have been purchased and successfully published, as well as addresses
+	// created and used), so just log it instead.
+	err = w.handleTicketPurchases(dbtx, height)
+	switch err.(type) {
+	case nil:
+	case txauthor.InsufficientFundsError:
+		log.Debugf("Insufficient funds to auto-purchase maximum number " +
+			"of tickets")
+	default:
+		log.Errorf("Failed to perform automatic ticket purchasing: %v", err)
+	}
 
 	// Prune all expired transactions and all stake tickets that no longer
 	// meet the minimum stake difficulty.
@@ -912,6 +927,10 @@ func (w *Wallet) handleChainVotingNotifications(chainClient *chain.RPCClient) {
 func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chainhash.Hash,
 	blockHeight int64, tickets []*chainhash.Hash) error {
 
+	if !w.votingEnabled {
+		return nil
+	}
+
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
 	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -930,8 +949,7 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 		w.SetCurrentVotingInfo(blockHash, blockHeight, tickets)
 	}
 
-	if blockHeight >= w.chainParams.StakeValidationHeight-1 &&
-		w.StakeMiningEnabled {
+	if blockHeight >= w.chainParams.StakeValidationHeight-1 {
 		ntfns, err := w.StakeMgr.HandleWinningTicketsNtfn(
 			stakemgrNs,
 			addrmgrNs,
@@ -969,12 +987,11 @@ func (w *Wallet) handleMissedTickets(dbtx walletdb.ReadWriteTx, blockHash *chain
 	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
-	if !w.StakeMiningEnabled {
+	if !w.votingEnabled {
 		return nil
 	}
 
-	if blockHeight >= w.chainParams.StakeValidationHeight+1 &&
-		w.StakeMiningEnabled {
+	if blockHeight >= w.chainParams.StakeValidationHeight+1 {
 		ntfns, err := w.StakeMgr.HandleMissedTicketsNtfn(stakemgrNs, addrmgrNs,
 			blockHash, blockHeight, tickets, w.AllowHighFees)
 

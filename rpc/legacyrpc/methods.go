@@ -2671,19 +2671,15 @@ func sendToSSRtx(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClien
 	return txSha.String(), nil
 }
 
-// getGenerate returns if stake mining is enabled for the wallet.
+// getGenerate returns if the wallet is set to auto purchase tickets.
 func getGenerate(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	return w.StakeMiningEnabled, nil
+	return w.TicketPurchasingEnabled(), nil
 }
 
-// setGenerate enables or disables stake mining the wallet (ticket
-// autopurchase, vote generation, and revocation generation). The
-// number of processors may be declared but is ignored (as this is
-// non-PoW work).
+// setGenerate enables or disables the wallet's auto ticket purchaser.
 func setGenerate(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SetGenerateCmd)
-	err := w.SetGenerate(cmd.Generate)
-
+	err := w.SetTicketPurchasingEnabled(cmd.Generate)
 	return nil, err
 }
 
@@ -3337,7 +3333,7 @@ func walletInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient
 	tfi := w.TicketFeeIncrement()
 	tmp := w.GetTicketMaxPrice()
 	btm := w.BalanceToMaintain()
-	sm := w.Generate()
+	sm := w.TicketPurchasingEnabled()
 
 	return &dcrjson.WalletInfoResult{
 		DaemonConnected:   connected,
