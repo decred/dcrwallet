@@ -269,6 +269,7 @@ func startPromptPass(w *wallet.Wallet) {
 func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Loader) {
 	certs := readCAFile()
 
+	var pm *ticketbuyer.PurchaseManager
 	for {
 		chainClient, err := startChainRPC(certs)
 		if err != nil {
@@ -289,7 +290,12 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 				legacyRPCServer.SetChainServer(chainClient)
 			}
 			if cfg.EnableTicketBuyer {
-				startTicketPurchase(w, chainClient.Client, nil, &cfg.tbCfg)
+				pm, err = startTicketPurchase(w, chainClient.Client, nil, &cfg.tbCfg)
+				if err != nil {
+					log.Errorf("Unable to start ticket buyer: %v", err)
+					return
+				}
+				pm.Start()
 			}
 		}
 		mu := new(sync.Mutex)
@@ -303,6 +309,10 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 		})
 
 		chainClient.WaitForShutdown()
+
+		if pm != nil {
+			pm.Stop()
+		}
 
 		mu.Lock()
 		associateRPCClient = nil
@@ -361,33 +371,20 @@ func startChainRPC(certs []byte) (*chain.RPCClient, error) {
 
 // startTicketPurchase launches ticketbuyer to start purchasing tickets.
 func startTicketPurchase(w *wallet.Wallet, dcrdClient *dcrrpcclient.Client,
-	passphrase []byte, ticketbuyerCfg *ticketbuyer.Config) {
-
-	tkbyLog.Info("Starting ticket buyer")
-
+	passphrase []byte, ticketbuyerCfg *ticketbuyer.Config) (*ticketbuyer.PurchaseManager, error) {
 	p, err := ticketbuyer.NewTicketPurchaser(ticketbuyerCfg,
 		dcrdClient, w, activeNet.Params)
 	if err != nil {
-		tkbyLog.Errorf("Error starting ticketbuyer: %v", err)
-		return
+		return nil, err
 	}
 	if passphrase != nil {
 		var unlockAfter <-chan time.Time
 		err = w.Unlock(passphrase, unlockAfter)
 		if err != nil {
-			tkbyLog.Errorf("Error unlocking wallet: %v", err)
-			return
+			return nil, err
 		}
 	}
-	quit := make(chan struct{})
 	n := w.NtfnServer.MainTipChangedNotifications()
-	pm := ticketbuyer.NewPurchaseManager(w, p, n.C, quit)
-	go pm.NotificationHandler()
-	go func() {
-		dcrdClient.WaitForShutdown()
-
-		tkbyLog.Info("Stopping ticket buyer")
-		n.Done()
-		close(quit)
-	}()
+	pm := ticketbuyer.NewPurchaseManager(w, p, n.C)
+	return pm, nil
 }
