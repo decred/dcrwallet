@@ -42,15 +42,20 @@ func (p *PurchaseManager) purchase(height int64) {
 
 // NotificationHandler handles notifications, which trigger ticket purchases.
 func (p *PurchaseManager) NotificationHandler() {
+	s1, s2 := make(chan struct{}), make(chan struct{})
+	close(s1) // unblock first worker
 out:
 	for {
 		select {
 		case v := <-p.ntfnChan:
-			if v != nil {
+			go func(s1, s2 chan struct{}) {
+				<-s1 // wait for previous worker to finish
 				for _, block := range v.AttachedBlocks {
-					go p.purchase(int64(block.Height))
+					p.purchase(int64(block.Height))
 				}
-			}
+				close(s2) // unblock next worker
+			}(s1, s2)
+			s1, s2 = s2, make(chan struct{})
 		case <-p.quit:
 			break out
 		}
