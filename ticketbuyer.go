@@ -211,7 +211,7 @@ func startTicketPurchase(w *wallet.Wallet, dcrdClient *dcrrpcclient.Client,
 		}
 	}
 	quit := make(chan struct{})
-	n := w.NtfnServer.TransactionNotifications()
+	n := w.NtfnServer.MainTipChangedNotifications()
 	pm := ticketbuyer.NewPurchaseManager(w, p, n.C, quit)
 	go pm.NotificationHandler()
 	go func() {

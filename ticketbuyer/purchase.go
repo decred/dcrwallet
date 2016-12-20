@@ -13,13 +13,13 @@ import (
 type PurchaseManager struct {
 	w         *wallet.Wallet
 	purchaser *TicketPurchaser
-	ntfnChan  <-chan *wallet.TransactionNotifications
+	ntfnChan  <-chan *wallet.MainTipChangedNotification
 	quit      chan struct{}
 }
 
 // NewPurchaseManager creates a new PurchaseManager.
 func NewPurchaseManager(w *wallet.Wallet, purchaser *TicketPurchaser,
-	ntfnChan <-chan *wallet.TransactionNotifications,
+	ntfnChan <-chan *wallet.MainTipChangedNotification,
 	quit chan struct{}) *PurchaseManager {
 	return &PurchaseManager{
 		w:         w,
@@ -50,9 +50,14 @@ out:
 		case v := <-p.ntfnChan:
 			go func(s1, s2 chan struct{}) {
 				<-s1 // wait for previous worker to finish
-				for _, block := range v.AttachedBlocks {
-					p.purchase(int64(block.Height))
+
+				// Purchase tickets for each attached block, not just for the
+				// update to the main chain.  This is probably not optimal but
+				// it matches how dcrticketbuyer worked.
+				for h := v.NewHeight - int32(len(v.AttachedBlocks)) + 1; h <= v.NewHeight; h++ {
+					p.purchase(int64(h))
 				}
+
 				close(s2) // unblock next worker
 			}(s1, s2)
 			s1, s2 = s2, make(chan struct{})

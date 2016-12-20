@@ -36,11 +36,12 @@ type NotificationServer struct {
 	transactions []chan *TransactionNotifications
 	// Coalesce transaction notifications since wallet previously did not add
 	// mined txs together.  Now it does and this can be rewritten.
-	currentTxNtfn  *TransactionNotifications
-	spentness      map[uint32][]chan *SpentnessNotifications
-	accountClients []chan *AccountNotification
-	mu             sync.Mutex // Only protects registered client channels
-	wallet         *Wallet    // smells like hacks
+	currentTxNtfn     *TransactionNotifications
+	spentness         map[uint32][]chan *SpentnessNotifications
+	accountClients    []chan *AccountNotification
+	tipChangedClients []chan *MainTipChangedNotification
+	mu                sync.Mutex // Only protects registered client channels
+	wallet            *Wallet    // smells like hacks
 }
 
 func newNotificationServer(wallet *Wallet) *NotificationServer {
@@ -616,4 +617,69 @@ func (c *AccountNotificationsClient) Done() {
 		}
 		s.mu.Unlock()
 	}()
+}
+
+// MainTipChangedNotification describes processed changes to the main chain tip
+// block.  Attached and detached blocks are sorted by increasing heights.
+//
+// This is intended to be a lightweight alternative to TransactionNotifications
+// when only info regarding the main chain tip block changing is needed.
+type MainTipChangedNotification struct {
+	AttachedBlocks []*chainhash.Hash
+	DetachedBlocks []*chainhash.Hash
+	NewHeight      int32
+}
+
+// MainTipChangedNotificationsClient receives MainTipChangedNotifications over
+// the channel C.
+type MainTipChangedNotificationsClient struct {
+	C      chan *MainTipChangedNotification
+	server *NotificationServer
+}
+
+// MainTipChangedNotifications returns a client for receiving
+// MainTipChangedNotification over a channel.  The channel is unbuffered.  When
+// finished, the client's Done method should be called to disassociate the
+// client from the server.
+func (s *NotificationServer) MainTipChangedNotifications() MainTipChangedNotificationsClient {
+	c := make(chan *MainTipChangedNotification)
+	s.mu.Lock()
+	s.tipChangedClients = append(s.tipChangedClients, c)
+	s.mu.Unlock()
+	return MainTipChangedNotificationsClient{
+		C:      c,
+		server: s,
+	}
+}
+
+// Done deregisters the client from the server and drains any remaining
+// messages.  It must be called exactly once when the client is finished
+// receiving notifications.
+func (c *MainTipChangedNotificationsClient) Done() {
+	go func() {
+		for range c.C {
+		}
+	}()
+	go func() {
+		s := c.server
+		s.mu.Lock()
+		clients := s.tipChangedClients
+		for i, ch := range clients {
+			if c.C == ch {
+				clients[i] = clients[len(clients)-1]
+				s.tipChangedClients = clients[:len(clients)-1]
+				close(ch)
+				break
+			}
+		}
+		s.mu.Unlock()
+	}()
+}
+
+func (s *NotificationServer) notifyMainChainTipChanged(n *MainTipChangedNotification) {
+	s.mu.Lock()
+	for _, c := range s.tipChangedClients {
+		c <- n
+	}
+	s.mu.Unlock()
 }
