@@ -100,14 +100,14 @@ func newTicketBuyerConfig(appConfig *config, parsedConfig *ticketBuyerConfig) *t
 		MinPriceScale:      parsedConfig.MinPriceScale,
 		MaxFee:             parsedConfig.MaxFee,
 		MaxPerBlock:        parsedConfig.MaxPerBlock,
-		MaxPriceAbsolute:   appConfig.TicketMaxPrice,
+		MaxPriceAbsolute:   parsedConfig.MaxPriceAbsolute,
 		MaxPriceScale:      parsedConfig.MaxPriceScale,
 		MaxInMempool:       parsedConfig.MaxInMempool,
 		PoolAddress:        appConfig.PoolAddress,
 		PoolFees:           appConfig.PoolFees,
 		PriceTarget:        parsedConfig.PriceTarget,
 		TicketAddress:      appConfig.TicketAddress,
-		TxFee:              appConfig.TicketFee,
+		TxFee:              parsedConfig.TxFee,
 	}
 }
 
@@ -162,14 +162,6 @@ func loadTicketBuyerConfig(appConfig *config) (*ticketbuyer.Config, error) {
 	if cfg.AccountName != defaultAccountName {
 		log.Warn("accountname option has been replaced by " +
 			"wallet option purchaseaccount -- please update your config")
-	}
-	if cfg.MaxPriceAbsolute != defaultMaxPriceAbsolute {
-		log.Warn("maxpriceabsolute option has been replaced by " +
-			"wallet option ticketmaxprice -- please update your config")
-	}
-	if cfg.TxFee != defaultTxFee {
-		log.Warn("txfee option has been replaced by " +
-			"wallet option ticketfee -- please update your config")
 	}
 
 	// Make sure the fee source type given is valid.
