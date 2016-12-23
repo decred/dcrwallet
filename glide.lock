@@ -90,8 +90,6 @@ imports:
   - metadata
   - naming
   - peer
-  - stats
-  - tap
   - transport
 testImports:
 - name: github.com/davecgh/go-spew
