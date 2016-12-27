@@ -27,7 +27,7 @@ const (
 	defaultHighPricePenalty          = 1.3
 	defaultBlocksToAvg               = 11
 	defaultFeeTargetScaling          = 1.05
-	defaultMaxInMempool              = 40
+	defaultMaxInMempool              = 3
 	defaultExpiryDelta               = 16
 	defaultFeeSource                 = ticketbuyer.TicketFeeMean
 	defaultTxFee                     = 0.01
