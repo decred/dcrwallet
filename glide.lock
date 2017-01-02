@@ -1,5 +1,5 @@
 hash: e8d332f58ad0a43b3d06d428ac2df127cbbff2042b3bfffa5e94cf90d0fd36b0
-updated: 2016-12-23T16:10:39.724206806-06:00
+updated: 2017-01-02T17:50:32.829652208Z
 imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
@@ -30,7 +30,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: a4de23553143174ee9ab263e12fb7051e5d8581d
+  version: f3e94e109fb1813d089704d07a181821f208877c
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -61,13 +61,13 @@ imports:
   subpackages:
   - edwards25519
 - name: github.com/golang/protobuf
-  version: 4bd1920723d7b7c925de087aa32e2187708897f7
+  version: 8ee79997227bf9b34611aee7946ae64735e6fd93
   subpackages:
   - proto
 - name: github.com/jessevdk/go-flags
   version: 1679536dcc895411a9f5848d9a0250be7856448c
 - name: golang.org/x/net
-  version: 9ef22118a4b25863aa94546daffbc0a18feaafb3
+  version: 8fd7f25955530b92e73e9e1932a41b522b22ccd9
   subpackages:
   - context
   - http2
@@ -77,11 +77,11 @@ imports:
   - lex/httplex
   - trace
 - name: golang.org/x/sys
-  version: 9a2e24c3733eddc63871eda99f253e2db29bd3b9
+  version: d75a52659825e75fff6158388dddc6a5b04f9ba5
   subpackages:
   - unix
 - name: google.golang.org/grpc
-  version: 777daa17ff9b5daef1cfdf915088a2ada3332bf0
+  version: 708a7f9f3283aa2d4f6132d287d78683babe55c8
   subpackages:
   - codes
   - credentials
@@ -90,6 +90,8 @@ imports:
   - metadata
   - naming
   - peer
+  - stats
+  - tap
   - transport
 testImports:
 - name: github.com/davecgh/go-spew
@@ -97,10 +99,10 @@ testImports:
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib
-  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: 976c720a22c8eb4eb6a0b4348ad85ad12491a506
+  version: 2402e8e7a02fc811447d11f881aa9746cdc57983
   subpackages:
   - assert
