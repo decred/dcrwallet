@@ -243,11 +243,7 @@ func (s *Store) ExistsTx(ns walletdb.ReadBucket, txHash *chainhash.Hash) bool {
 	// Otherwise, if there exists a mined transaction with this matching
 	// hash, skip over to the newest and begin fetching the msgTx.
 	_, v = latestTxRecord(ns, txHash)
-	if v != nil {
-		return true
-	}
-
-	return false
+	return v != nil
 }
 
 // UniqueTxDetails looks up all recorded details for a transaction recorded

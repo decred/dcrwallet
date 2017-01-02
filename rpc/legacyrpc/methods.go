@@ -2189,11 +2189,7 @@ func redeemMultiSigOut(icmd interface{}, w *wallet.Wallet, chainClient *chain.RP
 		return nil, err
 	}
 	srtTyped := signedTxResult.(dcrjson.SignRawTransactionResult)
-	return dcrjson.RedeemMultiSigOutResult{
-		Hex:      srtTyped.Hex,
-		Complete: srtTyped.Complete,
-		Errors:   srtTyped.Errors,
-	}, nil
+	return dcrjson.RedeemMultiSigOutResult(srtTyped), nil
 }
 
 // redeemMultisigOuts receives a script hash (in the form of a
