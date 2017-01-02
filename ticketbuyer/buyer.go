@@ -484,10 +484,10 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	}
 	ps.MempoolOwn = inMP
 	if !t.cfg.DontWaitForTickets {
-		if inMP > t.cfg.MaxInMempool {
-			log.Debugf("Currently waiting for %v tickets to enter the "+
-				"blockchain before buying more tickets (in mempool: %v,"+
-				" max allowed in mempool %v)", inMP-t.cfg.MaxInMempool,
+		if inMP >= t.cfg.MaxInMempool {
+			log.Debugf("Waiting for tickets to enter the "+
+				"blockchain before buying more (in mempool: %v,"+
+				" max allowed in mempool %v)",
 				inMP, t.cfg.MaxInMempool)
 			return ps, nil
 		}
@@ -550,6 +550,13 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 				"%v (current estimate for next stake difficulty: %v) by "+
 				"purchasing an additional round of tickets",
 				minPriceScaledAmt, sDiffEsts.Expected)
+		}
+	}
+
+	// Do not buy more then allowed in mempool.
+	if !t.cfg.DontWaitForTickets {
+		if (t.cfg.MaxInMempool - inMP) < maxPerBlock {
+			toBuyForBlock = t.cfg.MaxInMempool - inMP
 		}
 	}
 
