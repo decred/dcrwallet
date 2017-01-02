@@ -1,5 +1,5 @@
 hash: e8d332f58ad0a43b3d06d428ac2df127cbbff2042b3bfffa5e94cf90d0fd36b0
-updated: 2016-12-23T16:10:39.724206806-06:00
+updated: 2017-01-02T17:41:43.866732382Z
 imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
@@ -30,7 +30,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: a4de23553143174ee9ab263e12fb7051e5d8581d
+  version: b89abb72e42184872b80bfe964c8b3a3214e3f24
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -52,7 +52,7 @@ imports:
 - name: github.com/decred/dcrrpcclient
   version: fc4826bb281f5b68af4cf95c20d8664419b4cc08
 - name: github.com/decred/dcrutil
-  version: b107d74547385caeaba836a213b9b6ffbd3d8096
+  version: 0484582bf5503574d824f110e836a8c48aa60c8c
   subpackages:
   - base58
   - hdkeychain
@@ -77,11 +77,11 @@ imports:
   - lex/httplex
   - trace
 - name: golang.org/x/sys
-  version: 9a2e24c3733eddc63871eda99f253e2db29bd3b9
+  version: b699b7032584f0953262cb2788a0ca19bb494703
   subpackages:
   - unix
 - name: google.golang.org/grpc
-  version: 777daa17ff9b5daef1cfdf915088a2ada3332bf0
+  version: 708a7f9f3283aa2d4f6132d287d78683babe55c8
   subpackages:
   - codes
   - credentials
@@ -90,10 +90,12 @@ imports:
   - metadata
   - naming
   - peer
+  - stats
+  - tap
   - transport
 testImports:
 - name: github.com/davecgh/go-spew
-  version: 346938d642f2ec3594ed81d874461961cd0faa76
+  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib
