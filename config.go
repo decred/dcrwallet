@@ -632,9 +632,9 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	localhostListeners := map[string]struct{}{
-		"localhost": struct{}{},
-		"127.0.0.1": struct{}{},
-		"::1":       struct{}{},
+		"localhost": {},
+		"127.0.0.1": {},
+		"::1":       {},
 	}
 	RPCHost, _, err := net.SplitHostPort(cfg.RPCConnect)
 	if err != nil {
