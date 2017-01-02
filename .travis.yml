@@ -10,10 +10,16 @@ before_install:
   - export PATH=$PATH:$PWD/linux-amd64/
   - glide install
 install:
-  - go install -v $(glide novendor)
-  - go get -v golang.org/x/tools/cmd/cover
-  - go get -v github.com/golang/lint/golint
-  - go get -v github.com/davecgh/go-spew/spew
+  - go get -v github.com/alecthomas/gometalinter
+  - gometalinter --install
 script:
   - export PATH=$PATH:$HOME/gopath/bin
-  - ./goclean.sh
+  - export GORACE="halt_on_error=1"
+  - test -z "$(gometalinter --disable-all
+    --enable=gofmt
+    --enable=golint
+    --enable=vet
+    --enable=gosimple
+    --enable=unconvert
+    --deadline=4m $(glide novendor) | grep -v 'ALL_CAPS\|OP_\|NewFieldVal\|RpcCommand\|RpcRawCommand\|RpcSend\|Dns\|api.pb.go\|StartConsensusRpc\|factory_test.go\|legacy\|UnstableAPI' | tee /dev/stderr)"
+  - go test -race -short $(glide novendor)

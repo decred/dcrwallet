@@ -1516,15 +1516,15 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 			}
 		}
 
-		if !(int8(input.Tree) == wire.TxTreeRegular ||
-			int8(input.Tree) == wire.TxTreeStake) {
+		if !(input.Tree == wire.TxTreeRegular ||
+			input.Tree == wire.TxTreeStake) {
 			return nil, dcrjson.Error{
 				Code:    dcrjson.ErrInvalidParameter.Code,
 				Message: "Invalid parameter, tx tree must be regular or stake",
 			}
 		}
 
-		prevOut := wire.NewOutPoint(txHash, uint32(input.Vout), int8(input.Tree))
+		prevOut := wire.NewOutPoint(txHash, input.Vout, input.Tree)
 		msgtx.AddTxIn(wire.NewTxIn(prevOut, nil))
 		totalAdded += dcrutil.Amount(input.Amt)
 	}

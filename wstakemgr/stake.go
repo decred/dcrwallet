@@ -215,12 +215,7 @@ func (s *StakeStore) sstxVoteBits(ns walletdb.ReadBucket, sstx *chainhash.Hash) 
 	}
 
 	// Attempt to update the SStx in the database.
-	voteBitsSet, voteBits, err := fetchSStxRecordVoteBits(ns, sstx)
-	if err != nil {
-		return voteBitsSet, voteBits, err
-	}
-
-	return voteBitsSet, voteBits, err
+	return fetchSStxRecordVoteBits(ns, sstx)
 }
 
 // SStxVoteBits is the exported version of sstxVoteBits that is
@@ -250,12 +245,7 @@ func (s *StakeStore) updateSStxVoteBits(ns walletdb.ReadWriteBucket,
 	}
 
 	// Attempt to update the SStx in the database.
-	err := updateSStxRecordVoteBits(ns, sstx, voteBits)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return updateSStxRecordVoteBits(ns, sstx, voteBits)
 }
 
 // UpdateSStxVoteBits is the exported version of updateSStxVoteBits that is
