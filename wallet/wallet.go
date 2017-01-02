@@ -461,7 +461,7 @@ func (w *Wallet) SynchronizeRPC(chainClient *chain.RPCClient) {
 
 	ticketPurchasingEnabled := w.TicketPurchasingEnabled()
 	if ticketPurchasingEnabled {
-		log.Infof("Wallet ticket purchasing enabled: vote bits = %#x, "+
+		log.Infof("Wallet ticket purchasing enabled: vote bits = %#04x, "+
 			"extended vote bits = %x, balance to maintain = %v, max ticket price = %v",
 			w.VoteBits.Bits, w.VoteBits.ExtendedBits, w.balanceToMaintain, w.ticketMaxPrice)
 	}
