@@ -316,23 +316,6 @@ func (w *Wallet) SetTicketPurchasingEnabled(flag bool) error {
 	return nil
 }
 
-// GetCurrentVotingInfo returns a copy of the current voting information.
-func (w *Wallet) GetCurrentVotingInfo() *VotingInfo {
-	if w.CurrentVotingInfo == nil {
-		return nil
-	}
-
-	var tickets []*chainhash.Hash
-	for _, ti := range w.CurrentVotingInfo.Tickets {
-		tickets = append(tickets, ti)
-	}
-	return &VotingInfo{
-		w.CurrentVotingInfo.BlockHash,
-		w.CurrentVotingInfo.BlockHeight,
-		w.CurrentVotingInfo.Tickets,
-	}
-}
-
 // SetCurrentVotingInfo is used to set the current tickets eligible
 // to vote on the top block, along with that block's hash and height.
 func (w *Wallet) SetCurrentVotingInfo(blockHash *chainhash.Hash,

@@ -1199,11 +1199,7 @@ func putScriptAddress(ns walletdb.ReadWriteBucket, addressID []byte, account uin
 		syncStatus: status,
 		rawData:    rawData,
 	}
-	if err := putAddress(ns, addressID, &addrRow); err != nil {
-		return err
-	}
-
-	return nil
+	return putAddress(ns, addressID, &addrRow)
 }
 
 // existsAddress returns whether or not the address id exists in the database.

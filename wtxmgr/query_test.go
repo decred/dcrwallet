@@ -519,8 +519,8 @@ func TestStoreQueries(t *testing.T) {
 	newState = lastState.deepCopy()
 	newState.blocks = [][]TxDetails{
 		newState.blocks[0],
-		[]TxDetails{newState.blocks[1][0]},
-		[]TxDetails{newState.blocks[1][1]},
+		{newState.blocks[1][0]},
+		{newState.blocks[1][1]},
 	}
 	newState.blocks[1][0].Block = b101
 	newState.txDetails[recA.Hash][1].Block = b101
@@ -561,20 +561,20 @@ func TestPreviousPkScripts(t *testing.T) {
 	buildTx := func(prevHash *chainhash.Hash, script0, script1 []byte) *wire.MsgTx {
 		return &wire.MsgTx{
 			TxIn: []*wire.TxIn{
-				&wire.TxIn{PreviousOutPoint: wire.OutPoint{
+				{PreviousOutPoint: wire.OutPoint{
 					Hash:  *prevHash,
 					Index: 0,
 					Tree:  dcrutil.TxTreeRegular,
 				}},
-				&wire.TxIn{PreviousOutPoint: wire.OutPoint{
+				{PreviousOutPoint: wire.OutPoint{
 					Hash:  *prevHash,
 					Index: 1,
 					Tree:  dcrutil.TxTreeRegular,
 				}},
 			},
 			TxOut: []*wire.TxOut{
-				&wire.TxOut{Value: 1e8, PkScript: script0},
-				&wire.TxOut{Value: 1e8, PkScript: script1},
+				{Value: 1e8, PkScript: script0},
+				{Value: 1e8, PkScript: script1},
 			},
 		}
 	}

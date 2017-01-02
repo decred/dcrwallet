@@ -390,7 +390,7 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 			"Attempted to scan from a negative block height")
 	}
 
-	if req.ScanFrom > 0 && req.Rescan == true {
+	if req.ScanFrom > 0 && req.Rescan {
 		return nil, grpc.Errorf(codes.InvalidArgument,
 			"Passed a rescan height without rescan set")
 	}
@@ -431,7 +431,7 @@ func (s *walletServer) ImportScript(ctx context.Context,
 			"Attempted to scan from a negative block height")
 	}
 
-	if req.ScanFrom > 0 && req.Rescan == true {
+	if req.ScanFrom > 0 && req.Rescan {
 		return nil, grpc.Errorf(codes.InvalidArgument,
 			"Passed a rescan height without rescan set")
 	}
@@ -632,7 +632,7 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 			return nil, err
 		}
 		output := &wire.TxOut{
-			Value:    int64(o.Amount),
+			Value:    o.Amount,
 			Version:  version,
 			PkScript: script,
 		}

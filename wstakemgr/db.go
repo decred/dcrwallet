@@ -170,7 +170,7 @@ func deserializeSStxRecord(serializedSStxRecord []byte) (*sstxRecord, error) {
 
 	// Read the intended voteBits and extended voteBits length (uint8).
 	record.voteBitsSet = false
-	voteBitsLen := uint8(serializedSStxRecord[curPos])
+	voteBitsLen := serializedSStxRecord[curPos]
 	if voteBitsLen != 0 {
 		record.voteBitsSet = true
 	}
@@ -201,7 +201,7 @@ func deserializeSStxRecord(serializedSStxRecord []byte) (*sstxRecord, error) {
 	}
 
 	// Create and save the dcrutil.Tx of the read MsgTx and set its index.
-	tx := dcrutil.NewTx((*wire.MsgTx)(msgTx))
+	tx := dcrutil.NewTx(msgTx)
 	tx.SetIndex(dcrutil.TxIndexUnknown)
 	tx.SetTree(wire.TxTreeStake)
 	record.tx = tx
@@ -640,7 +640,7 @@ func fetchSStxRecordVoteBits(ns walletdb.ReadBucket, hash *chainhash.Hash) (bool
 
 	// Read the intended votebits length (uint8). If it is unset, return now.
 	// Check it for sanity.
-	voteBitsLen := uint8(val[curPos])
+	voteBitsLen := val[curPos]
 	if voteBitsLen == 0 {
 		return false, stake.VoteBits{}, nil
 	}

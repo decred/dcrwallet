@@ -639,7 +639,7 @@ func TestFindingSpentCredits(t *testing.T) {
 func newCoinBase(outputValues ...int64) *wire.MsgTx {
 	tx := wire.MsgTx{
 		TxIn: []*wire.TxIn{
-			&wire.TxIn{
+			{
 				PreviousOutPoint: wire.OutPoint{Index: ^uint32(0)},
 			},
 		},
@@ -653,7 +653,7 @@ func newCoinBase(outputValues ...int64) *wire.MsgTx {
 func spendOutput(txHash *chainhash.Hash, index uint32, tree int8, outputValues ...int64) *wire.MsgTx {
 	tx := wire.MsgTx{
 		TxIn: []*wire.TxIn{
-			&wire.TxIn{
+			{
 				PreviousOutPoint: wire.OutPoint{Hash: *txHash, Index: index, Tree: tree},
 			},
 		},

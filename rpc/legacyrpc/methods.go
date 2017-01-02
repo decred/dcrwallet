@@ -1225,7 +1225,7 @@ func getStakeInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClie
 	resp := &dcrjson.GetStakeInfoResult{
 		BlockHeight:      stakeInfo.BlockHeight,
 		PoolSize:         stakeInfo.PoolSize,
-		Difficulty:       dcrutil.Amount(stakeDiff).ToCoin(),
+		Difficulty:       stakeDiff.ToCoin(),
 		AllMempoolTix:    stakeInfo.AllMempoolTix,
 		OwnMempoolTix:    stakeInfo.OwnMempoolTix,
 		Immature:         stakeInfo.Immature,
@@ -2188,12 +2188,12 @@ func redeemMultiSigOut(icmd interface{}, w *wallet.Wallet, chainClient *chain.RP
 	if signedTxResult == nil || err != nil {
 		return nil, err
 	}
-	srtTyped := signedTxResult.(dcrjson.SignRawTransactionResult)
-	return dcrjson.RedeemMultiSigOutResult{
-		Hex:      srtTyped.Hex,
-		Complete: srtTyped.Complete,
-		Errors:   srtTyped.Errors,
-	}, nil
+	srtTyped, ok := signedTxResult.(dcrjson.SignRawTransactionResult)
+	if !ok {
+		return nil, fmt.Errorf("invalid type")
+	}
+
+	return dcrjson.RedeemMultiSigOutResult(srtTyped), nil
 }
 
 // redeemMultisigOuts receives a script hash (in the form of a
