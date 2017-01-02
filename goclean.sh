@@ -8,10 +8,10 @@
 set -ex
 
 # Automatic checks
-test -z "$(go fmt $(glide novendor) | tee /dev/stderr)"
-# test -z "$(goimports -l -w . | tee /dev/stderr)"
-test -z "$(for package in $(glide novendor); do golint $package; done | grep -v 'ALL_CAPS\|OP_\|NewFieldVal\|RpcCommand\|RpcRawCommand\|RpcSend\|Dns\|api.pb.go\|StartConsensusRpc\|factory_test.go\|legacy\|UnstableAPI' | tee /dev/stderr)"
-test -z "$(go vet $(glide novendor) 2>&1 | grep -v '^exit status \|Example\|newestSha\| not a string in call to Errorf$' | tee /dev/stderr)"
+test -z "$(gometalinter --disable-all --enable=gofmt $(glide novendor) | tee /dev/stderr)"
+test -z "$(gometalinter --disable-all --enable=golint $(glide novendor) | egrep -v '(ALL_CAPS|OP_|NewFieldVal|RpcCommand|RpcRawCommand|RpcSend|Dns|api.pb.go|StartConsensusRpc|factory_test.go|legacy|UnstableAPI)' | tee /dev/stderr)"
+test -z "$(gometalinter --disable-all --enable=vet $(glide novendor) | egrep -v 'not a string in call to [A-Za-z]+f' | tee /dev/stderr)"
+
 env GORACE="halt_on_error=1" go test -race -short $(glide novendor)
 
 # Run test coverage on each subdirectories and merge the coverage profile.

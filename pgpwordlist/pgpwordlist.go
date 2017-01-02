@@ -35,7 +35,7 @@ func ByteToMnemonic(b byte, index int) string {
 func DecodeMnemonics(words []string) ([]byte, error) {
 	decoded := make([]byte, len(words))
 	idx := 0
-	for _, w := range words[:len(words)] {
+	for _, w := range words {
 		w = strings.TrimSpace(w)
 		if w == "" {
 			continue
