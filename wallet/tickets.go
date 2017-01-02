@@ -147,12 +147,7 @@ func (w *Wallet) updateStakePoolInvalidTicket(stakemgrNs walletdb.ReadWriteBucke
 		Status:       wstakemgr.TSImmatureOrLive,
 	}
 
-	err = w.StakeMgr.UpdateStakePoolUserTickets(stakemgrNs, addrmgrNs, addr, poolTicket)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return w.StakeMgr.UpdateStakePoolUserTickets(stakemgrNs, addrmgrNs, addr, poolTicket)
 }
 
 // AddTicket adds a ticket transaction to the wallet.

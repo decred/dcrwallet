@@ -8,7 +8,7 @@
 set -ex
 
 # Automatic checks
-test -z "$(gometalinter --disable-all --enable=gofmt $(glide novendor) | tee /dev/stderr)"
+test -z "$(gometalinter --disable-all --enable=gofmt --enable=gosimple --deadline=4m $(glide novendor) | tee /dev/stderr)"
 test -z "$(gometalinter --disable-all --enable=golint $(glide novendor) | egrep -v '(ALL_CAPS|OP_|NewFieldVal|RpcCommand|RpcRawCommand|RpcSend|Dns|api.pb.go|StartConsensusRpc|factory_test.go|legacy|UnstableAPI)' | tee /dev/stderr)"
 test -z "$(gometalinter --disable-all --enable=vet $(glide novendor) | egrep -v 'not a string in call to [A-Za-z]+f' | tee /dev/stderr)"
 

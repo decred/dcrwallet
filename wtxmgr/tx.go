@@ -1504,12 +1504,7 @@ func (s *Store) InsertMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Re
 		return err
 	}
 
-	err = putTxRecord(ns, rec, &block.Block)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return putTxRecord(ns, rec, &block.Block)
 }
 
 // AddCredit marks a transaction record as containing a transaction output
