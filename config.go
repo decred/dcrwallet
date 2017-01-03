@@ -181,6 +181,7 @@ type ticketBuyerOptions struct {
 	BlocksToAvg        int                 `long:"blockstoavg" description:"Number of blocks to average for fees calculation"`
 	FeeTargetScaling   float64             `long:"feetargetscaling" description:"Scaling factor for setting the ticket fee, multiplies by the average fee"`
 	DontWaitForTickets bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
+	BuyImmediately     bool                `long:"buyimmediately" description:"Buy tickets immediately. Overrides the default behavior of spreading purchases evenly throughout the window"`
 	MaxInMempool       int                 `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets"`
 	ExpiryDelta        int                 `long:"expirydelta" description:"Number of blocks in the future before the ticket expires"`
 	MaxPriceAbsolute   *cfgutil.AmountFlag `long:"maxpriceabsolute" description:"Maximum absolute price to purchase a ticket"`
@@ -933,6 +934,7 @@ func loadConfig() (*config, []string, error) {
 		AvgPriceVWAPDelta:  cfg.TBOpts.AvgPriceVWAPDelta,
 		BalanceToMaintain:  cfg.BalanceToMaintain.ToCoin(),
 		BlocksToAvg:        cfg.TBOpts.BlocksToAvg,
+		BuyImmediately:     cfg.TBOpts.BuyImmediately,
 		DontWaitForTickets: cfg.TBOpts.DontWaitForTickets,
 		ExpiryDelta:        cfg.TBOpts.ExpiryDelta,
 		FeeSource:          cfg.TBOpts.FeeSource,
