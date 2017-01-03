@@ -1225,7 +1225,7 @@ func getStakeInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClie
 	resp := &dcrjson.GetStakeInfoResult{
 		BlockHeight:      stakeInfo.BlockHeight,
 		PoolSize:         stakeInfo.PoolSize,
-		Difficulty:       dcrutil.Amount(stakeDiff).ToCoin(),
+		Difficulty:       stakeDiff.ToCoin(),
 		AllMempoolTix:    stakeInfo.AllMempoolTix,
 		OwnMempoolTix:    stakeInfo.OwnMempoolTix,
 		Immature:         stakeInfo.Immature,

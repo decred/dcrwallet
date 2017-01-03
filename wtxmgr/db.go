@@ -1888,8 +1888,8 @@ func fetchMultisigOut(k, v []byte) (*MultisigOut, error) {
 
 	copy(mso.ScriptHash[0:20], v[0:20])
 
-	mso.M = uint8(v[20])
-	mso.N = uint8(v[21])
+	mso.M = v[20]
+	mso.N = v[21]
 	mso.Spent = v[22]&(1<<0) != 0
 	mso.Tree = 0
 	isStakeTree := v[22]&(1<<1) != 0
@@ -1916,7 +1916,7 @@ func fetchMultisigOutScrHash(v []byte) [ripemd160.Size]byte {
 }
 
 func fetchMultisigOutMN(v []byte) (uint8, uint8) {
-	return uint8(v[20]), uint8(v[21])
+	return v[20], v[21]
 }
 
 func fetchMultisigOutSpent(v []byte) bool {

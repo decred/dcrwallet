@@ -78,8 +78,8 @@ func convertJSONUnspentToOutPoints(
 		op := new(wire.OutPoint)
 		hash, _ := chainhash.NewHashFromStr(utxo.TxID)
 		op.Hash = *hash
-		op.Index = uint32(utxo.Vout)
-		op.Tree = int8(utxo.Tree)
+		op.Index = utxo.Vout
+		op.Tree = utxo.Tree
 
 		pks, err := hex.DecodeString(utxo.ScriptPubKey)
 		if err != nil {

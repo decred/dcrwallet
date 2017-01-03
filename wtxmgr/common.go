@@ -54,7 +54,7 @@ func writeUnspentDebugDataToBuf(buf *bytes.Buffer, udd *unspentDebugData) {
 	buf.Write(udd.outPoint.Hash[:])
 
 	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, uint32(udd.outPoint.Index))
+	binary.LittleEndian.PutUint32(b, udd.outPoint.Index)
 	buf.Write(b)
 
 	buf.Write([]byte{byte(udd.outPoint.Tree)})
