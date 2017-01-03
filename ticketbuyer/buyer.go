@@ -463,14 +463,14 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// the absolute cutoff or if the estimated ticket price is above
 	// our scaled cutoff based on the ideal ticket price.
 	if nextStakeDiff > maxPriceAbsAmt {
-		log.Tracef("Aborting ticket purchases because the ticket price %v "+
+		log.Infof("Aborting ticket purchases because the ticket price %v "+
 			"is higher than the maximum absolute price %v", nextStakeDiff,
 			maxPriceAbsAmt)
 		return ps, nil
 	}
 	if t.maintainMaxPrice && (sDiffEsts.Expected > maxPriceScaledAmt.ToCoin()) &&
 		maxPriceScaledAmt != 0 {
-		log.Tracef("Aborting ticket purchases because the ticket price "+
+		log.Infof("Aborting ticket purchases because the ticket price "+
 			"next window estimate %v is higher than the maximum scaled "+
 			"price %v", sDiffEsts.Expected, maxPriceScaledAmt)
 		return ps, nil
@@ -485,7 +485,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	ps.MempoolOwn = inMP
 	if !t.cfg.DontWaitForTickets {
 		if inMP > t.cfg.MaxInMempool {
-			log.Debugf("Currently waiting for %v tickets to enter the "+
+			log.Infof("Currently waiting for %v tickets to enter the "+
 				"blockchain before buying more tickets (in mempool: %v,"+
 				" max allowed in mempool %v)", inMP-t.cfg.MaxInMempool,
 				inMP, t.cfg.MaxInMempool)
@@ -555,7 +555,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 	// We've already purchased all the tickets we need to.
 	if toBuyForBlock <= 0 {
-		log.Tracef("All tickets have been purchased, aborting further " +
+		log.Infof("All tickets have been purchased, aborting further " +
 			"ticket purchases")
 		return ps, nil
 	}
@@ -578,7 +578,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		}
 
 		if toBuyForBlock == 0 {
-			log.Tracef("Aborting purchasing of tickets because our balance "+
+			log.Infof("Aborting purchasing of tickets because our balance "+
 				"after buying tickets is estimated to be %v but balance "+
 				"to maintain is set to %v",
 				(balSpendable.ToCoin() - float64(toBuyForBlock)*
