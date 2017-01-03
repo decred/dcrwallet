@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -18,6 +18,7 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/internal/cfgutil"
 	"github.com/decred/dcrwallet/netparams"
+	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	flags "github.com/jessevdk/go-flags"
@@ -49,6 +50,21 @@ const (
 	defaultAddrIdxScanLen      = 750
 	defaultStakePoolColdExtKey = ""
 	defaultAllowHighFees       = false
+
+	// ticket buyer options
+	defaultMaxFee            = 1.0
+	defaultMinFee            = 0.01
+	defaultMaxPriceScale     = 2.0
+	defaultMinPriceScale     = 0.7
+	defaultAvgVWAPPriceDelta = 2880
+	defaultMaxPerBlock       = 5
+	defaultHighPricePenalty  = 1.3
+	defaultBlocksToAvg       = 11
+	defaultFeeTargetScaling  = 1.05
+	defaultMaxInMempool      = 40
+	defaultExpiryDelta       = 16
+	defaultFeeSource         = ticketbuyer.TicketFeeMean
+	defaultAvgPriceMode      = ticketbuyer.PriceTargetVWAP
 
 	walletDbName = "wallet.db"
 )
@@ -134,6 +150,9 @@ type config struct {
 	Username               string             `short:"u" long:"username" description:"Username for legacy RPC and dcrd authentication (if dcrdusername is unset)"`
 	Password               string             `short:"P" long:"password" default-mask:"-" description:"Password for legacy RPC and dcrd authentication (if dcrdpassword is unset)"`
 
+	TBOpts ticketBuyerOptions `group:"Ticket Buyer Options" namespace:"ticketbuyer"`
+	tbCfg  *ticketbuyer.Config
+
 	// EXPERIMENTAL RPC server options
 	//
 	// These options will change (and require changes to config files, etc.)
@@ -143,6 +162,24 @@ type config struct {
 	// Deprecated options
 	DataDir           string `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
 	EnableStakeMining bool   `long:"enablestakemining" default-mask:"-" description:"DEPRECATED -- consider using enableticketbuyer and/or enablevoting instead"`
+}
+
+type ticketBuyerOptions struct {
+	MaxPriceScale      float64 `long:"maxpricescale" description:"Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
+	MinPriceScale      float64 `long:"minpricescale" description:"Attempt to prevent the stake difficulty from going below this multiplier (<1.0) by manipulation, 0 to disable"`
+	PriceTarget        float64 `long:"pricetarget" description:"A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
+	AvgPriceMode       string  `long:"avgpricemode" description:"The mode to use for calculating the average price if pricetarget is disabled (vwap, pool, dual)"`
+	AvgPriceVWAPDelta  int     `long:"avgpricevwapdelta" description:"The number of blocks to use from the current block to calculate the VWAP"`
+	MaxFee             float64 `long:"maxfee" description:"Maximum ticket fee per KB"`
+	MinFee             float64 `long:"minfee" description:"Minimum ticket fee per KB"`
+	FeeSource          string  `long:"feesource" description:"The fee source to use for ticket fee per KB (median or mean)"`
+	MaxPerBlock        int     `long:"maxperblock" description:"Maximum tickets per block, with negative numbers indicating buy one ticket every 1-in-n blocks"`
+	HighPricePenalty   float64 `long:"highpricepenalty" description:"The exponential penalty to apply to the number of tickets to purchase above the ideal ticket pool price"`
+	BlocksToAvg        int     `long:"blockstoavg" description:"Number of blocks to average for fees calculation"`
+	FeeTargetScaling   float64 `long:"feetargetscaling" description:"The amount above the mean fee in the previous blocks to purchase tickets with, proportional e.g. 1.05 = 105%"`
+	DontWaitForTickets bool    `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
+	MaxInMempool       int     `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets"`
+	ExpiryDelta        int     `long:"expirydelta" description:"Number of blocks in the future before the ticket expires"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -329,6 +366,23 @@ func loadConfig() (*config, []string, error) {
 		AllowHighFees:          defaultAllowHighFees,
 		DataDir:                defaultAppDataDir,
 		EnableStakeMining:      defaultEnableStakeMining,
+
+		// Ticket Buyer Options
+		TBOpts: ticketBuyerOptions{
+			MinPriceScale:     defaultMinPriceScale,
+			MaxPriceScale:     defaultMaxPriceScale,
+			AvgPriceMode:      defaultAvgPriceMode,
+			AvgPriceVWAPDelta: defaultAvgVWAPPriceDelta,
+			MaxFee:            defaultMaxFee,
+			MinFee:            defaultMinFee,
+			FeeSource:         defaultFeeSource,
+			MaxPerBlock:       defaultMaxPerBlock,
+			HighPricePenalty:  defaultHighPricePenalty,
+			BlocksToAvg:       defaultBlocksToAvg,
+			FeeTargetScaling:  defaultFeeTargetScaling,
+			MaxInMempool:      defaultMaxInMempool,
+			ExpiryDelta:       defaultExpiryDelta,
+		},
 	}
 
 	// Pre-parse the command line options to see if an alternative config
@@ -416,6 +470,27 @@ func loadConfig() (*config, []string, error) {
 		// enablestakemining turns on voting/revocations, but never turns on the
 		// new ticket buyer.
 		cfg.EnableVoting = true
+	}
+
+	// Make sure the fee source type given is valid.
+	switch cfg.TBOpts.FeeSource {
+	case ticketbuyer.TicketFeeMean:
+	case ticketbuyer.TicketFeeMedian:
+	default:
+		str := "%s: Invalid fee source '%s'"
+		err := fmt.Errorf(str, funcName, cfg.TBOpts.FeeSource)
+		return loadConfigError(err)
+	}
+
+	// Make sure a valid average price mode is given.
+	switch cfg.TBOpts.AvgPriceMode {
+	case ticketbuyer.PriceTargetVWAP:
+	case ticketbuyer.PriceTargetPool:
+	case ticketbuyer.PriceTargetDual:
+	default:
+		str := "%s: Invalid average price mode '%s'"
+		err := fmt.Errorf(str, funcName, cfg.TBOpts.AvgPriceMode)
+		return loadConfigError(err)
 	}
 
 	// If an alternate data directory was specified, and paths with defaults
@@ -771,6 +846,42 @@ func loadConfig() (*config, []string, error) {
 	}
 	if cfg.DcrdPassword == "" {
 		cfg.DcrdPassword = cfg.Password
+	}
+
+	// Warn if user still has an old ticket buyer configuration file.
+	oldTBConfigFile := filepath.Join(cfg.AppDataDir, "ticketbuyer.conf")
+	if _, err := os.Stat(oldTBConfigFile); err == nil {
+		log.Warnf("%s is no longer used and should be removed. "+
+			"Please prepend 'ticketbuyer.' to each option and "+
+			"move it under the [Ticket Buyer Options] section "+
+			"of %s\n",
+			oldTBConfigFile, configFilePath)
+	}
+
+	// Build ticketbuyer config
+	cfg.tbCfg = &ticketbuyer.Config{
+		AccountName:        cfg.PurchaseAccount,
+		AvgPriceMode:       cfg.TBOpts.AvgPriceMode,
+		AvgPriceVWAPDelta:  cfg.TBOpts.AvgPriceVWAPDelta,
+		BalanceToMaintain:  cfg.BalanceToMaintain,
+		BlocksToAvg:        cfg.TBOpts.BlocksToAvg,
+		DontWaitForTickets: cfg.TBOpts.DontWaitForTickets,
+		ExpiryDelta:        cfg.TBOpts.ExpiryDelta,
+		FeeSource:          cfg.TBOpts.FeeSource,
+		FeeTargetScaling:   cfg.TBOpts.FeeTargetScaling,
+		HighPricePenalty:   cfg.TBOpts.HighPricePenalty,
+		MinFee:             cfg.TBOpts.MinFee,
+		MinPriceScale:      cfg.TBOpts.MinPriceScale,
+		MaxFee:             cfg.TBOpts.MaxFee,
+		MaxPerBlock:        cfg.TBOpts.MaxPerBlock,
+		MaxPriceAbsolute:   cfg.TicketMaxPrice,
+		MaxPriceScale:      cfg.TBOpts.MaxPriceScale,
+		MaxInMempool:       cfg.TBOpts.MaxInMempool,
+		PoolAddress:        cfg.PoolAddress,
+		PoolFees:           cfg.PoolFees,
+		PriceTarget:        cfg.TBOpts.PriceTarget,
+		TicketAddress:      cfg.TicketAddress,
+		TxFee:              cfg.RelayFee,
 	}
 
 	return &cfg, remainingArgs, nil

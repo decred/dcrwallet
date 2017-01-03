@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2015 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/internal/zero"
@@ -27,8 +28,7 @@ import (
 )
 
 var (
-	cfg            *config
-	ticketBuyerCfg *ticketbuyer.Config
+	cfg *config
 )
 
 func main() {
@@ -88,20 +88,6 @@ func walletMain() error {
 			pprof.WriteHeapProfile(f)
 			f.Close()
 		}()
-	}
-
-	// Load ticket buyer config, if any.  A missing config file causes this to
-	// returns a default config and no error.
-	ticketBuyerCfg, err = loadTicketBuyerConfig(cfg)
-	if err != nil {
-		s := fmt.Sprintf("Failed to read ticket buyer config: %v", err)
-		// Fatal error when ticket buyer is enabled.
-		if cfg.EnableTicketBuyer {
-			log.Error(s)
-			return err
-		}
-		// Otherwise just warn.
-		log.Warn(s)
 	}
 
 	dbDir := networkDir(cfg.AppDataDir, activeNet.Params)
@@ -303,7 +289,7 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 				legacyRPCServer.SetChainServer(chainClient)
 			}
 			if cfg.EnableTicketBuyer {
-				startTicketPurchase(w, chainClient.Client, nil, ticketBuyerCfg)
+				startTicketPurchase(w, chainClient.Client, nil, cfg.tbCfg)
 			}
 		}
 		mu := new(sync.Mutex)
@@ -371,4 +357,37 @@ func startChainRPC(certs []byte) (*chain.RPCClient, error) {
 	}
 	err = rpcc.Start()
 	return rpcc, err
+}
+
+// startTicketPurchase launches ticketbuyer to start purchasing tickets.
+func startTicketPurchase(w *wallet.Wallet, dcrdClient *dcrrpcclient.Client,
+	passphrase []byte, ticketbuyerCfg *ticketbuyer.Config) {
+
+	tkbyLog.Info("Starting ticket buyer")
+
+	p, err := ticketbuyer.NewTicketPurchaser(ticketbuyerCfg,
+		dcrdClient, w, activeNet.Params)
+	if err != nil {
+		tkbyLog.Errorf("Error starting ticketbuyer: %v", err)
+		return
+	}
+	if passphrase != nil {
+		var unlockAfter <-chan time.Time
+		err = w.Unlock(passphrase, unlockAfter)
+		if err != nil {
+			tkbyLog.Errorf("Error unlocking wallet: %v", err)
+			return
+		}
+	}
+	quit := make(chan struct{})
+	n := w.NtfnServer.MainTipChangedNotifications()
+	pm := ticketbuyer.NewPurchaseManager(w, p, n.C, quit)
+	go pm.NotificationHandler()
+	go func() {
+		dcrdClient.WaitForShutdown()
+
+		tkbyLog.Info("Stopping ticket buyer")
+		n.Done()
+		close(quit)
+	}()
 }
