@@ -51,10 +51,10 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.2.1"
+	semverString = "4.2.2"
 	semverMajor  = 4
 	semverMinor  = 2
-	semverPatch  = 1
+	semverPatch  = 2
 )
 
 // translateError creates a new gRPC error with an appropiate error code for
@@ -594,6 +594,11 @@ func decodeDestination(dest *pb.ConstructTransactionRequest_OutputDestination,
 	chainParams *chaincfg.Params) (pkScript []byte, version uint16, err error) {
 
 	switch {
+	case dest == nil:
+		fallthrough
+	default:
+		return nil, 0, grpc.Errorf(codes.InvalidArgument, "unknown or missing output destination")
+
 	case dest.Address != "":
 		addr, err := decodeAddress(dest.Address, chainParams)
 		if err != nil {
@@ -610,8 +615,6 @@ func decodeDestination(dest *pb.ConstructTransactionRequest_OutputDestination,
 			return nil, 0, grpc.Errorf(codes.InvalidArgument, "script_version overflows uint16")
 		}
 		return dest.Script, uint16(dest.ScriptVersion), nil
-	default:
-		return nil, 0, grpc.Errorf(codes.InvalidArgument, "unknown or missing output destination")
 	}
 }
 
