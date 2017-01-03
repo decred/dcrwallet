@@ -768,7 +768,7 @@ func stakeValidate(ns walletdb.ReadWriteBucket, height int32) error {
 				return err
 			}
 
-			minedBalance -= dcrutil.Amount(debitAmount)
+			minedBalance -= debitAmount
 		}
 	}
 
@@ -899,7 +899,7 @@ func stakeInvalidate(ns walletdb.ReadWriteBucket, height int32) error {
 				return err
 			}
 
-			minedBalance += dcrutil.Amount(debitAmount)
+			minedBalance += debitAmount
 		}
 	}
 

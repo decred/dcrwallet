@@ -413,7 +413,7 @@ func (w *Wallet) evaluateStakePoolTicket(rec *wtxmgr.TxRecord,
 				return false, fmt.Errorf("Failed to parse commit "+
 					"out amt for commit in vout %v: %s", i, err.Error())
 			}
-			in += dcrutil.Amount(commitAmt)
+			in += commitAmt
 		}
 	}
 	out := dcrutil.Amount(0)

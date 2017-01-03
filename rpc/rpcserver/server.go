@@ -635,7 +635,7 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 			return nil, err
 		}
 		output := &wire.TxOut{
-			Value:    int64(o.Amount),
+			Value:    o.Amount,
 			Version:  version,
 			PkScript: script,
 		}

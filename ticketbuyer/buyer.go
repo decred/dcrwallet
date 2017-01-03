@@ -368,7 +368,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// then check to make sure that it was from the same current stake
 	// diff window.
 	if t.prevToBuyDiffPeriod != 0 && t.prevToBuyHeight != 0 {
-		prevToBuyWindow := int(t.prevToBuyHeight / int(winSize))
+		prevToBuyWindow := t.prevToBuyHeight / int(winSize)
 		if t.windowPeriod == prevToBuyWindow {
 			log.Debugf("Previous tickets to buy amount for this "+
 				"window was found. Using %v for buy ticket amount.",
@@ -442,7 +442,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		if curPrice.ToCoin() > targetPrice {
 			toBuy := math.Floor(math.Pow(t.cfg.HighPricePenalty,
 				-(math.Abs(curPrice.ToCoin()-targetPrice))) * couldBuy)
-			t.toBuyDiffPeriod = int(float64(toBuy))
+			t.toBuyDiffPeriod = int(toBuy)
 
 			log.Debugf("The current price %v is above the target price %v, "+
 				"so the number of tickets to buy this window was "+
@@ -451,7 +451,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		} else {
 			// Below or equal to the average price. Buy as many
 			// tickets as possible.
-			t.toBuyDiffPeriod = int(float64(couldBuy))
+			t.toBuyDiffPeriod = int(couldBuy)
 
 			log.Debugf("The stake difficulty %v was below the target penalty "+
 				"cutoff %v; %v many tickets have been queued for purchase",
