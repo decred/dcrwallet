@@ -40,6 +40,7 @@ import (
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/netparams"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
+	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txauthor"
@@ -139,6 +140,27 @@ func decodeAddress(a string, params *chaincfg.Params) (dcrutil.Address, error) {
 type versionServer struct {
 }
 
+// ticketBuyerServer provides ticket buyer services for RPC clients.
+type ticketBuyerServer struct {
+	purchaseManager *ticketbuyer.PurchaseManager
+}
+
+// StartTicketPurchase enables ticket purchases in the ticket buyer.
+func (t *ticketBuyerServer) StartTicketPurchase(ctx context.Context, req *pb.StartTicketPurchaseRequest) (
+	*pb.StartTicketPurchaseResponse, error) {
+
+	t.purchaseManager.Start()
+	return &pb.StartTicketPurchaseResponse{}, nil
+}
+
+// StopTicketPurchase disables ticket purchases in the ticket buyer.
+func (t *ticketBuyerServer) StopTicketPurchase(ctx context.Context, req *pb.StopTicketPurchaseRequest) (
+	*pb.StopTicketPurchaseResponse, error) {
+
+	t.purchaseManager.Stop()
+	return &pb.StopTicketPurchaseResponse{}, nil
+}
+
 // walletServer provides wallet services for RPC clients.
 type walletServer struct {
 	wallet *wallet.Wallet
@@ -172,6 +194,13 @@ func (*versionServer) Version(ctx context.Context, req *pb.VersionRequest) (*pb.
 		Minor:         semverMinor,
 		Patch:         semverPatch,
 	}, nil
+}
+
+// StartTicketBuyerService creates an implementation of the TicketBuyerService
+// and registers it wih the gRPC server.
+func StartTicketBuyerService(server *grpc.Server, pm *ticketbuyer.PurchaseManager) {
+	service := &ticketBuyerServer{pm}
+	pb.RegisterTicketBuyerServiceServer(server, service)
 }
 
 // StartWalletService creates an implementation of the WalletService and

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
@@ -107,6 +108,9 @@ type TicketPurchaser struct {
 	balEstimated     dcrutil.Amount
 	ticketPrice      dcrutil.Amount
 	ProportionLive   float64
+
+	purchaserMtx      sync.Mutex
+	balanceToMaintain float64
 }
 
 // NewTicketPurchaser creates a new TicketPurchaser.
@@ -162,7 +166,24 @@ func NewTicketPurchaser(cfg *Config,
 		useMedian:        cfg.FeeSource == TicketFeeMedian,
 		priceMode:        priceMode,
 		heightCheck:      make(map[int64]struct{}),
+
+		balanceToMaintain: cfg.BalanceToMaintain,
 	}, nil
+}
+
+// BalanceToMaintain returns the balance to maintan in the wallet.
+func (t *TicketPurchaser) BalanceToMaintain() float64 {
+	t.purchaserMtx.Lock()
+	balance := t.balanceToMaintain
+	t.purchaserMtx.Unlock()
+	return balance
+}
+
+// SetBalanceToMaintain sets the balance to maintain in the wallet.
+func (t *TicketPurchaser) SetBalanceToMaintain(balanceToMaintain float64) {
+	t.purchaserMtx.Lock()
+	t.balanceToMaintain = balanceToMaintain
+	t.purchaserMtx.Unlock()
 }
 
 // PurchaseStats stats is a collection of statistics related to the ticket purchase.

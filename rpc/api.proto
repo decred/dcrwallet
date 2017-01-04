@@ -64,6 +64,11 @@ service SeedService {
 	rpc DecodeSeed (DecodeSeedRequest) returns (DecodeSeedResponse);
 }
 
+service TicketBuyerService {
+	rpc StartTicketPurchase (StartTicketPurchaseRequest) returns (StartTicketPurchaseResponse);
+	rpc StopTicketPurchase (StopTicketPurchaseRequest) returns (StopTicketPurchaseResponse);
+}
+
 message TransactionDetails {
 	message Input {
 		uint32 index = 1;
@@ -459,3 +464,9 @@ message DecodeSeedRequest {
 message DecodeSeedResponse {
 	bytes decoded_seed = 1;
 }
+
+message StartTicketPurchaseRequest {}
+message StartTicketPurchaseResponse {}
+
+message StopTicketPurchaseRequest {}
+message StopTicketPurchaseResponse {}

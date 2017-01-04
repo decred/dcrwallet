@@ -377,6 +377,8 @@ The service provides the following methods:
 - [`TransactionNotifications`](#transactionnotifications)
 - [`SpentnessNotifications`](#spentnessnotifications)
 - [`AccountNotifications`](#accountnotifications)
+- [`StartTicketPurchase`](#startticketpurchase)
+- [`StopTicketPurchase`](#stopticketpurchase)
 
 #### `Ping`
 
@@ -1474,5 +1476,27 @@ The user input can be either a hexadecimal string or a mnemonic word list.
 **Expected errors:**
 
 - `InvalidArgument`: The input is invalid.
+
+**Stability:** Unstable
+
+#### `StartTicketPurchase`
+
+The `StartTicketPurchase` method enables ticket purchases for stake mining in the wallet.
+
+**Request:** `StartTicketPurchaseRequest`
+
+**Response:** `StartTicketPurchaseResponse`
+
+**Stability:** Unstable
+
+___
+
+#### `StopTicketPurchase`
+
+The `StopTicketPurchase` method disables ticket purchases for stake mining in the wallet.
+
+**Request:** `StopTicketPurchaseRequest`
+
+**Response:** `StopTicketPurchaseResponse`
 
 **Stability:** Unstable
