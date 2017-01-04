@@ -6,6 +6,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/internal/cfgutil"
 	"github.com/decred/dcrwallet/netparams"
@@ -37,12 +39,12 @@ const (
 	defaultEnableVoting        = false
 	defaultVoteBits            = 0x0001
 	defaultVoteBitsExtended    = "03000000"
-	defaultBalanceToMaintain   = 0.0
+	defaultBalanceToMaintain   = 0
 	defaultReuseAddresses      = false
 	defaultRollbackTest        = false
 	defaultPruneTickets        = false
 	defaultPurchaseAccount     = "default"
-	defaultTicketMaxPrice      = 0.0
+	defaultTicketMaxPrice      = 0
 	defaultTicketBuyFreq       = 1
 	defaultAutomaticRepair     = false
 	defaultUnsafeMainNet       = false
@@ -52,19 +54,19 @@ const (
 	defaultAllowHighFees       = false
 
 	// ticket buyer options
-	defaultMaxFee            = 1.0
-	defaultMinFee            = 0.01
-	defaultMaxPriceScale     = 2.0
-	defaultMinPriceScale     = 0.7
-	defaultAvgVWAPPriceDelta = 2880
-	defaultMaxPerBlock       = 5
-	defaultHighPricePenalty  = 1.3
-	defaultBlocksToAvg       = 11
-	defaultFeeTargetScaling  = 1.05
-	defaultMaxInMempool      = 40
-	defaultExpiryDelta       = 16
-	defaultFeeSource         = ticketbuyer.TicketFeeMean
-	defaultAvgPriceMode      = ticketbuyer.PriceTargetVWAP
+	defaultMaxFee            dcrutil.Amount = 1e8
+	defaultMinFee            dcrutil.Amount = 1e6
+	defaultMaxPriceScale                    = 2.0
+	defaultMinPriceScale                    = 0.7
+	defaultAvgVWAPPriceDelta                = 2880
+	defaultMaxPerBlock                      = 5
+	defaultHighPricePenalty                 = 1.3
+	defaultBlocksToAvg                      = 11
+	defaultFeeTargetScaling                 = 1.05
+	defaultMaxInMempool                     = 40
+	defaultExpiryDelta                      = 16
+	defaultFeeSource                        = ticketbuyer.TicketFeeMean
+	defaultAvgPriceMode                     = ticketbuyer.PriceTargetVWAP
 
 	walletDbName = "wallet.db"
 )
@@ -86,8 +88,8 @@ type config struct {
 	CreateTemp         bool     `long:"createtemp" description:"Create a temporary simulation wallet (pass=password) in the data directory indicated; must call with --datadir"`
 	CreateWatchingOnly bool     `long:"createwatchingonly" description:"Create the wallet and instantiate it as watching only with an HD extended pubkey; must call with --create"`
 	AppDataDir         string   `short:"A" long:"appdata" description:"Application data directory for wallet config, databases and logs"`
-	TestNet            bool     `long:"testnet" description:"Use the test network (default mainnet)"`
-	SimNet             bool     `long:"simnet" description:"Use the simulation test network (default mainnet)"`
+	TestNet            bool     `long:"testnet" description:"Use the test network"`
+	SimNet             bool     `long:"simnet" description:"Use the simulation test network"`
 	NoInitialLoad      bool     `long:"noinitialload" description:"Defer wallet creation/opening on startup and enable loading wallets over RPC"`
 	DebugLevel         string   `short:"d" long:"debuglevel" description:"Logging level {trace, debug, info, warn, error, critical}"`
 	LogDir             string   `long:"logdir" description:"Directory to log output."`
@@ -98,31 +100,31 @@ type config struct {
 	UnsafeMainNet      bool     `long:"unsafemainnet" description:"Enable storage of master seed in mainnet wallet when calling --create and enable unsafe private information RPC commands"`
 
 	// Wallet options
-	WalletPass          string  `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
-	PromptPass          bool    `long:"promptpass" description:"The private wallet password is prompted for at start up, so the wallet starts unlocked without a time limit"`
-	DisallowFree        bool    `long:"disallowfree" description:"Force transactions to always include a fee"`
-	EnableTicketBuyer   bool    `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
-	EnableVoting        bool    `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
-	VoteBits            uint16  `long:"votebits" description:"Set your stake mining votebits to value (default: 0xFFFF)"`
-	VoteBitsExtended    string  `long:"votebitsextended" description:"Set your stake mining extended votebits to the hexademical value indicated by the passed string"`
-	BalanceToMaintain   float64 `long:"balancetomaintain" description:"Minimum amount of funds to leave in wallet when stake mining (default: 0.0)"`
-	ReuseAddresses      bool    `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
-	PruneTickets        bool    `long:"prunetickets" description:"Prune old tickets from the wallet and restore their inputs"`
-	PurchaseAccount     string  `long:"purchaseaccount" description:"Name of the account to buy tickets from (default: default)"`
-	TicketAddress       string  `long:"ticketaddress" description:"Send all ticket outputs to this address (P2PKH or P2SH only)"`
-	TicketMaxPrice      float64 `long:"ticketmaxprice" description:"The maximum price the user is willing to spend on buying a ticket (default: 100.0)"`
-	TicketBuyFreq       int     `long:"ticketbuyfreq" description:"The number of tickets to try to buy per block (default: 1), where negative numbers indicate one ticket for each 1-in-? blocks"`
-	PoolAddress         string  `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
-	PoolFees            float64 `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
-	AddrIdxScanLen      int     `long:"addridxscanlen" description:"The width of the scan for last used addresses on wallet restore and start up (default: 750)"`
-	StakePoolColdExtKey string  `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
-	AllowHighFees       bool    `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
-	RelayFee            float64 `long:"txfee" description:"Sets the wallet's tx fee per kb (default: 0.01)"`
-	TicketFee           float64 `long:"ticketfee" description:"Sets the wallet's ticket fee per kb (default: 0.01)"`
-	PipeRx              *uint   `long:"piperx" description:"File descriptor of read end pipe to enable parent -> child process communication"`
+	WalletPass          string              `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
+	PromptPass          bool                `long:"promptpass" description:"The private wallet password is prompted for at start up, so the wallet starts unlocked without a time limit"`
+	DisallowFree        bool                `long:"disallowfree" description:"Force transactions to always include a fee"`
+	EnableTicketBuyer   bool                `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
+	EnableVoting        bool                `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
+	VoteBits            uint16              `long:"votebits" hidden:"true" description:"Set your stake mining votebits to value" base:"16"`
+	VoteBitsExtended    string              `long:"votebitsextended" hidden:"true" description:"Set your stake mining extended votebits to the hexademical value indicated by the passed string"`
+	BalanceToMaintain   *cfgutil.AmountFlag `long:"balancetomaintain" description:"Minimum amount of funds to leave in wallet when stake mining"`
+	ReuseAddresses      bool                `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
+	PruneTickets        bool                `long:"prunetickets" description:"Prune old tickets from the wallet and restore their inputs"`
+	PurchaseAccount     string              `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
+	TicketAddress       string              `long:"ticketaddress" description:"Send all ticket outputs to this address (P2PKH or P2SH only)"`
+	TicketMaxPrice      *cfgutil.AmountFlag `long:"ticketmaxprice" description:"The maximum price the user is willing to spend on buying a ticket"`
+	TicketBuyFreq       int                 `long:"ticketbuyfreq" description:"The number of tickets to try to buy per block. Negative numbers indicate one ticket for each 1-in-? blocks"`
+	PoolAddress         string              `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
+	PoolFees            float64             `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
+	AddrIdxScanLen      int                 `long:"addridxscanlen" description:"The width of the scan for last used addresses on wallet restore and start up"`
+	StakePoolColdExtKey string              `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
+	AllowHighFees       bool                `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
+	RelayFee            *cfgutil.AmountFlag `long:"txfee" description:"Sets the wallet's tx fee per kb"`
+	TicketFee           *cfgutil.AmountFlag `long:"ticketfee" description:"Sets the wallet's ticket fee per kb"`
+	PipeRx              *uint               `long:"piperx" description:"File descriptor of read end pipe to enable parent -> child process communication"`
 
 	// RPC client options
-	RPCConnect       string `short:"c" long:"rpcconnect" description:"Hostname/IP and port of dcrd RPC server to connect to (default localhost:9109, testnet: localhost:19109, simnet: localhost:18556)"`
+	RPCConnect       string `short:"c" long:"rpcconnect" description:"Hostname/IP and port of dcrd RPC server to connect to"`
 	CAFile           string `long:"cafile" description:"File containing root certificates to authenticate a TLS connections with dcrd"`
 	DisableClientTLS bool   `long:"noclienttls" description:"Disable TLS for the RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
 	DcrdUsername     string `long:"dcrdusername" description:"Username for dcrd authentication"`
@@ -144,7 +146,7 @@ type config struct {
 	TLSCurve               *cfgutil.CurveFlag `long:"tlscurve" description:"Curve to use when generating TLS keypairs"`
 	OneTimeTLSKey          bool               `long:"onetimetlskey" description:"Generate a new TLS certpair at startup, but only write the certificate to disk"`
 	DisableServerTLS       bool               `long:"noservertls" description:"Disable TLS for the RPC server -- NOTE: This is only allowed if the RPC server is bound to localhost"`
-	LegacyRPCListeners     []string           `long:"rpclisten" description:"Listen for legacy RPC connections on this interface/port (default port: 9110, testnet: 19110, simnet: 18557)"`
+	LegacyRPCListeners     []string           `long:"rpclisten" description:"Listen for legacy RPC connections on this interface/port"`
 	LegacyRPCMaxClients    int64              `long:"rpcmaxclients" description:"Max number of legacy RPC clients for standard connections"`
 	LegacyRPCMaxWebsockets int64              `long:"rpcmaxwebsockets" description:"Max number of legacy RPC websocket connections"`
 	Username               string             `short:"u" long:"username" description:"Username for legacy RPC and dcrd authentication (if dcrdusername is unset)"`
@@ -165,21 +167,21 @@ type config struct {
 }
 
 type ticketBuyerOptions struct {
-	MaxPriceScale      float64 `long:"maxpricescale" description:"Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
-	MinPriceScale      float64 `long:"minpricescale" description:"Attempt to prevent the stake difficulty from going below this multiplier (<1.0) by manipulation, 0 to disable"`
-	PriceTarget        float64 `long:"pricetarget" description:"A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
-	AvgPriceMode       string  `long:"avgpricemode" description:"The mode to use for calculating the average price if pricetarget is disabled (vwap, pool, dual)"`
-	AvgPriceVWAPDelta  int     `long:"avgpricevwapdelta" description:"The number of blocks to use from the current block to calculate the VWAP"`
-	MaxFee             float64 `long:"maxfee" description:"Maximum ticket fee per KB"`
-	MinFee             float64 `long:"minfee" description:"Minimum ticket fee per KB"`
-	FeeSource          string  `long:"feesource" description:"The fee source to use for ticket fee per KB (median or mean)"`
-	MaxPerBlock        int     `long:"maxperblock" description:"Maximum tickets per block, with negative numbers indicating buy one ticket every 1-in-n blocks"`
-	HighPricePenalty   float64 `long:"highpricepenalty" description:"The exponential penalty to apply to the number of tickets to purchase above the ideal ticket pool price"`
-	BlocksToAvg        int     `long:"blockstoavg" description:"Number of blocks to average for fees calculation"`
-	FeeTargetScaling   float64 `long:"feetargetscaling" description:"The amount above the mean fee in the previous blocks to purchase tickets with, proportional e.g. 1.05 = 105%"`
-	DontWaitForTickets bool    `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
-	MaxInMempool       int     `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets"`
-	ExpiryDelta        int     `long:"expirydelta" description:"Number of blocks in the future before the ticket expires"`
+	MaxPriceScale      float64             `long:"maxpricescale" description:"Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
+	MinPriceScale      float64             `long:"minpricescale" description:"Attempt to prevent the stake difficulty from going below this multiplier (<1.0) by manipulation, 0 to disable"`
+	PriceTarget        *cfgutil.AmountFlag `long:"pricetarget" description:"A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
+	AvgPriceMode       string              `long:"avgpricemode" description:"The mode to use for calculating the average price if pricetarget is disabled (vwap, pool, dual)"`
+	AvgPriceVWAPDelta  int                 `long:"avgpricevwapdelta" description:"The number of blocks to use from the current block to calculate the VWAP"`
+	MaxFee             *cfgutil.AmountFlag `long:"maxfee" description:"Maximum ticket fee per KB"`
+	MinFee             *cfgutil.AmountFlag `long:"minfee" description:"Minimum ticket fee per KB"`
+	FeeSource          string              `long:"feesource" description:"The fee source to use for ticket fee per KB (median or mean)"`
+	MaxPerBlock        int                 `long:"maxperblock" description:"Maximum tickets per block, with negative numbers indicating buy one ticket every 1-in-n blocks"`
+	HighPricePenalty   float64             `long:"highpricepenalty" description:"The exponential penalty to apply to the number of tickets to purchase above the ideal ticket pool price"`
+	BlocksToAvg        int                 `long:"blockstoavg" description:"Number of blocks to average for fees calculation"`
+	FeeTargetScaling   float64             `long:"feetargetscaling" description:"The amount above the mean fee in the previous blocks to purchase tickets with, proportional e.g. 1.05 = 105%"`
+	DontWaitForTickets bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
+	MaxInMempool       int                 `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets"`
+	ExpiryDelta        int                 `long:"expirydelta" description:"Number of blocks in the future before the ticket expires"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -352,12 +354,12 @@ func loadConfig() (*config, []string, error) {
 		EnableVoting:           defaultEnableVoting,
 		VoteBits:               defaultVoteBits,
 		VoteBitsExtended:       defaultVoteBitsExtended,
-		BalanceToMaintain:      defaultBalanceToMaintain,
+		BalanceToMaintain:      cfgutil.NewAmountFlag(defaultBalanceToMaintain),
 		ReuseAddresses:         defaultReuseAddresses,
 		RollbackTest:           defaultRollbackTest,
 		PruneTickets:           defaultPruneTickets,
 		PurchaseAccount:        defaultPurchaseAccount,
-		TicketMaxPrice:         defaultTicketMaxPrice,
+		TicketMaxPrice:         cfgutil.NewAmountFlag(defaultTicketMaxPrice),
 		TicketBuyFreq:          defaultTicketBuyFreq,
 		AutomaticRepair:        defaultAutomaticRepair,
 		UnsafeMainNet:          defaultUnsafeMainNet,
@@ -366,6 +368,8 @@ func loadConfig() (*config, []string, error) {
 		AllowHighFees:          defaultAllowHighFees,
 		DataDir:                defaultAppDataDir,
 		EnableStakeMining:      defaultEnableStakeMining,
+		RelayFee:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
+		TicketFee:              cfgutil.NewAmountFlag(wallet.DefaultTicketFeeIncrement),
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
@@ -373,8 +377,8 @@ func loadConfig() (*config, []string, error) {
 			MaxPriceScale:     defaultMaxPriceScale,
 			AvgPriceMode:      defaultAvgPriceMode,
 			AvgPriceVWAPDelta: defaultAvgVWAPPriceDelta,
-			MaxFee:            defaultMaxFee,
-			MinFee:            defaultMinFee,
+			MaxFee:            cfgutil.NewAmountFlag(defaultMaxFee),
+			MinFee:            cfgutil.NewAmountFlag(defaultMinFee),
 			FeeSource:         defaultFeeSource,
 			MaxPerBlock:       defaultMaxPerBlock,
 			HighPricePenalty:  defaultHighPricePenalty,
@@ -684,17 +688,25 @@ func loadConfig() (*config, []string, error) {
 		}
 	}
 
-	if cfg.RPCConnect == "" {
-		cfg.RPCConnect = net.JoinHostPort("localhost", activeNet.RPCClientPort)
+	// Validate extended vote bits
+	vbeLen := len(cfg.VoteBitsExtended)
+	if vbeLen < 8 || vbeLen > stake.SSGenVoteBitsExtendedMaxSize*2 {
+		err = fmt.Errorf("bad extended votebits length: (got %v, "+
+			"min 8, max %v)", vbeLen, stake.SSGenVoteBitsExtendedMaxSize*2)
+		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, usageMessage)
+		return loadConfigError(err)
+	}
+	_, err = hex.DecodeString(cfg.VoteBitsExtended)
+	if err != nil {
+		err = fmt.Errorf("invalid votebitsextended setting: %v", err)
+		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, usageMessage)
+		return loadConfigError(err)
 	}
 
-	// Set ticketfee and txfee to defaults if none are set.  Avoiding using default
-	// confs because they are dcrutil.Amounts
-	if cfg.TicketFee == 0.0 {
-		cfg.TicketFee = wallet.DefaultTicketFeeIncrement.ToCoin()
-	}
-	if cfg.RelayFee == 0.0 {
-		cfg.RelayFee = txrules.DefaultRelayFeePerKb.ToCoin()
+	if cfg.RPCConnect == "" {
+		cfg.RPCConnect = net.JoinHostPort("localhost", activeNet.RPCClientPort)
 	}
 
 	// Add default port to connect flag if missing.
@@ -863,25 +875,25 @@ func loadConfig() (*config, []string, error) {
 		AccountName:        cfg.PurchaseAccount,
 		AvgPriceMode:       cfg.TBOpts.AvgPriceMode,
 		AvgPriceVWAPDelta:  cfg.TBOpts.AvgPriceVWAPDelta,
-		BalanceToMaintain:  cfg.BalanceToMaintain,
+		BalanceToMaintain:  cfg.BalanceToMaintain.ToCoin(),
 		BlocksToAvg:        cfg.TBOpts.BlocksToAvg,
 		DontWaitForTickets: cfg.TBOpts.DontWaitForTickets,
 		ExpiryDelta:        cfg.TBOpts.ExpiryDelta,
 		FeeSource:          cfg.TBOpts.FeeSource,
 		FeeTargetScaling:   cfg.TBOpts.FeeTargetScaling,
 		HighPricePenalty:   cfg.TBOpts.HighPricePenalty,
-		MinFee:             cfg.TBOpts.MinFee,
+		MinFee:             cfg.TBOpts.MinFee.ToCoin(),
 		MinPriceScale:      cfg.TBOpts.MinPriceScale,
-		MaxFee:             cfg.TBOpts.MaxFee,
+		MaxFee:             cfg.TBOpts.MaxFee.ToCoin(),
 		MaxPerBlock:        cfg.TBOpts.MaxPerBlock,
-		MaxPriceAbsolute:   cfg.TicketMaxPrice,
+		MaxPriceAbsolute:   cfg.TicketMaxPrice.ToCoin(),
 		MaxPriceScale:      cfg.TBOpts.MaxPriceScale,
 		MaxInMempool:       cfg.TBOpts.MaxInMempool,
 		PoolAddress:        cfg.PoolAddress,
 		PoolFees:           cfg.PoolFees,
-		PriceTarget:        cfg.TBOpts.PriceTarget,
+		PriceTarget:        cfg.TBOpts.PriceTarget.ToCoin(),
 		TicketAddress:      cfg.TicketAddress,
-		TxFee:              cfg.RelayFee,
+		TxFee:              cfg.RelayFee.ToCoin(),
 	}
 
 	return &cfg, remainingArgs, nil
