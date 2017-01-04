@@ -370,7 +370,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if t.prevToBuyDiffPeriod != 0 && t.prevToBuyHeight != 0 {
 		prevToBuyWindow := t.prevToBuyHeight / int(winSize)
 		if t.windowPeriod == prevToBuyWindow {
-			log.Debugf("Previous tickets to buy amount for this "+
+			log.Infof("Previous tickets to buy amount for this "+
 				"window was found. Using %v for buy ticket amount.",
 				t.prevToBuyDiffPeriod)
 			fillTicketQueue = false
@@ -407,7 +407,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		ticketsLeftInWindow := (winSize - diffPeriod) *
 			int64(t.activeNet.MaxFreshStakePerBlock)
 		if couldBuy > float64(ticketsLeftInWindow) {
-			log.Debugf("The total ticket allotment left in this stakediff window is %v. "+
+			log.Infof("The total ticket allotment left in this stakediff window is %v. "+
 				"So this wallet's possible tickets that could be bought is %v so it"+
 				" has been reduced to %v.",
 				ticketsLeftInWindow, couldBuy, ticketsLeftInWindow)
@@ -444,7 +444,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 				-(math.Abs(curPrice.ToCoin()-targetPrice))) * couldBuy)
 			t.toBuyDiffPeriod = int(toBuy)
 
-			log.Debugf("The current price %v is above the target price %v, "+
+			log.Infof("The current price %v is above the target price %v, "+
 				"so the number of tickets to buy this window was "+
 				"scaled from %v to %v", curPrice, targetPrice, couldBuy,
 				t.toBuyDiffPeriod)
@@ -453,8 +453,8 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			// tickets as possible.
 			t.toBuyDiffPeriod = int(couldBuy)
 
-			log.Debugf("The stake difficulty %v was below the target penalty "+
-				"cutoff %v; %v many tickets have been queued for purchase",
+			log.Infof("The stake difficulty %v was below the target penalty "+
+				"cutoff %v; %v tickets have been queued for purchase",
 				curPrice, targetPrice, t.toBuyDiffPeriod)
 		}
 	}
@@ -463,14 +463,14 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// the absolute cutoff or if the estimated ticket price is above
 	// our scaled cutoff based on the ideal ticket price.
 	if nextStakeDiff > maxPriceAbsAmt {
-		log.Tracef("Aborting ticket purchases because the ticket price %v "+
+		log.Infof("Aborting ticket purchases because the ticket price %v "+
 			"is higher than the maximum absolute price %v", nextStakeDiff,
 			maxPriceAbsAmt)
 		return ps, nil
 	}
 	if t.maintainMaxPrice && (sDiffEsts.Expected > maxPriceScaledAmt.ToCoin()) &&
 		maxPriceScaledAmt != 0 {
-		log.Tracef("Aborting ticket purchases because the ticket price "+
+		log.Infof("Aborting ticket purchases because the ticket price "+
 			"next window estimate %v is higher than the maximum scaled "+
 			"price %v", sDiffEsts.Expected, maxPriceScaledAmt)
 		return ps, nil
@@ -485,7 +485,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	ps.MempoolOwn = inMP
 	if !t.cfg.DontWaitForTickets {
 		if inMP > t.cfg.MaxInMempool {
-			log.Debugf("Currently waiting for %v tickets to enter the "+
+			log.Infof("Currently waiting for %v tickets to enter the "+
 				"blockchain before buying more tickets (in mempool: %v,"+
 				" max allowed in mempool %v)", inMP-t.cfg.MaxInMempool,
 				inMP, t.cfg.MaxInMempool)
@@ -555,7 +555,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 	// We've already purchased all the tickets we need to.
 	if toBuyForBlock <= 0 {
-		log.Tracef("All tickets have been purchased, aborting further " +
+		log.Infof("All tickets have been purchased, aborting further " +
 			"ticket purchases")
 		return ps, nil
 	}
@@ -578,7 +578,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		}
 
 		if toBuyForBlock == 0 {
-			log.Tracef("Aborting purchasing of tickets because our balance "+
+			log.Infof("Aborting purchasing of tickets because our balance "+
 				"after buying tickets is estimated to be %v but balance "+
 				"to maintain is set to %v",
 				(balSpendable.ToCoin() - float64(toBuyForBlock)*
