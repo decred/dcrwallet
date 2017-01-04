@@ -370,7 +370,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if t.prevToBuyDiffPeriod != 0 && t.prevToBuyHeight != 0 {
 		prevToBuyWindow := int(t.prevToBuyHeight / int(winSize))
 		if t.windowPeriod == prevToBuyWindow {
-			log.Debugf("Previous tickets to buy amount for this "+
+			log.Infof("Previous tickets to buy amount for this "+
 				"window was found. Using %v for buy ticket amount.",
 				t.prevToBuyDiffPeriod)
 			fillTicketQueue = false
@@ -407,7 +407,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		ticketsLeftInWindow := (winSize - diffPeriod) *
 			int64(t.activeNet.MaxFreshStakePerBlock)
 		if couldBuy > float64(ticketsLeftInWindow) {
-			log.Debugf("The total ticket allotment left in this stakediff window is %v. "+
+			log.Infof("The total ticket allotment left in this stakediff window is %v. "+
 				"So this wallet's possible tickets that could be bought is %v so it"+
 				" has been reduced to %v.",
 				ticketsLeftInWindow, couldBuy, ticketsLeftInWindow)
@@ -444,7 +444,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 				-(math.Abs(curPrice.ToCoin()-targetPrice))) * couldBuy)
 			t.toBuyDiffPeriod = int(float64(toBuy))
 
-			log.Debugf("The current price %v is above the target price %v, "+
+			log.Infof("The current price %v is above the target price %v, "+
 				"so the number of tickets to buy this window was "+
 				"scaled from %v to %v", curPrice, targetPrice, couldBuy,
 				t.toBuyDiffPeriod)
@@ -453,8 +453,8 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			// tickets as possible.
 			t.toBuyDiffPeriod = int(float64(couldBuy))
 
-			log.Debugf("The stake difficulty %v was below the target penalty "+
-				"cutoff %v; %v many tickets have been queued for purchase",
+			log.Infof("The stake difficulty %v was below the target penalty "+
+				"cutoff %v; %v tickets have been queued for purchase",
 				curPrice, targetPrice, t.toBuyDiffPeriod)
 		}
 	}
