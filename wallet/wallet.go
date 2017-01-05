@@ -3766,14 +3766,17 @@ func Open(db walletdb.DB, pubPass []byte, cbs *waddrmgr.OpenCallbacks,
 		return nil, err
 	}
 
+	// Validate extended vote bits
+	vbeLen := len(voteBitsExtended)
+	if vbeLen < 8 || vbeLen > stake.SSGenVoteBitsExtendedMaxSize*2 {
+		err = fmt.Errorf("bad extended votebits length: (got %v, "+
+			"min 8, max %v)", vbeLen,
+			stake.SSGenVoteBitsExtendedMaxSize*2)
+		return nil, err
+	}
 	voteBitsExtendedB, err := hex.DecodeString(voteBitsExtended)
 	if err != nil {
 		return nil, err
-	}
-	if len(voteBitsExtendedB) > stake.MaxSingleBytePushLength-2 {
-		return nil, fmt.Errorf("bad extended votebits length passed "+
-			"from configuration (got %v, max %v)", voteBitsExtendedB,
-			stake.MaxSingleBytePushLength-2)
 	}
 
 	var ticketAddr dcrutil.Address

@@ -96,20 +96,20 @@ func walletMain() error {
 		VoteBitsExtended:        cfg.VoteBitsExtended,
 		TicketPurchasingEnabled: cfg.EnableStakeMining && !cfg.EnableTicketBuyer,
 		VotingEnabled:           cfg.EnableVoting,
-		BalanceToMaintain:       cfg.BalanceToMaintain,
+		BalanceToMaintain:       cfg.BalanceToMaintain.ToCoin(),
 		PruneTickets:            cfg.PruneTickets,
 		AddressReuse:            cfg.ReuseAddresses,
 		TicketAddress:           cfg.TicketAddress,
-		TicketMaxPrice:          cfg.TicketMaxPrice,
+		TicketMaxPrice:          cfg.TicketMaxPrice.ToCoin(),
 		TicketBuyFreq:           cfg.TicketBuyFreq,
 		PoolAddress:             cfg.PoolAddress,
 		PoolFees:                cfg.PoolFees,
 		StakePoolColdExtKey:     cfg.StakePoolColdExtKey,
-		TicketFee:               cfg.TicketFee,
+		TicketFee:               cfg.TicketFee.ToCoin(),
 	}
 	loader := wallet.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.AutomaticRepair, cfg.UnsafeMainNet, cfg.AddrIdxScanLen,
-		cfg.AllowHighFees, cfg.RelayFee)
+		cfg.AllowHighFees, cfg.RelayFee.ToCoin())
 
 	// Create and start HTTP server to serve wallet client connections.
 	// This will be updated with the wallet and chain server RPC client

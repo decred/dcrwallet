@@ -51,16 +51,16 @@ func createWallet(cfg *config) error {
 		VoteBits:                cfg.VoteBits,
 		TicketPurchasingEnabled: cfg.EnableStakeMining && !cfg.EnableTicketBuyer,
 		VotingEnabled:           cfg.EnableVoting,
-		BalanceToMaintain:       cfg.BalanceToMaintain,
+		BalanceToMaintain:       cfg.BalanceToMaintain.ToCoin(),
 		PruneTickets:            cfg.PruneTickets,
 		AddressReuse:            cfg.ReuseAddresses,
 		TicketAddress:           cfg.TicketAddress,
-		TicketMaxPrice:          cfg.TicketMaxPrice,
-		TicketFee:               cfg.TicketFee,
+		TicketMaxPrice:          cfg.TicketMaxPrice.ToCoin(),
+		TicketFee:               cfg.TicketFee.ToCoin(),
 	}
 	loader := wallet.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.AutomaticRepair, cfg.UnsafeMainNet, cfg.AddrIdxScanLen, cfg.AllowHighFees,
-		cfg.RelayFee)
+		cfg.RelayFee.ToCoin())
 
 	reader := bufio.NewReader(os.Stdin)
 	privPass, pubPass, seed, err := prompt.Setup(reader,
