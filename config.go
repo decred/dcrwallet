@@ -60,13 +60,13 @@ const (
 	defaultMinPriceScale                    = 0.7
 	defaultAvgVWAPPriceDelta                = 2880
 	defaultMaxPerBlock                      = 5
-	defaultHighPricePenalty                 = 1.3
 	defaultBlocksToAvg                      = 11
 	defaultFeeTargetScaling                 = 1.05
 	defaultMaxInMempool                     = 40
 	defaultExpiryDelta                      = 16
 	defaultFeeSource                        = ticketbuyer.TicketFeeMean
 	defaultAvgPriceMode                     = ticketbuyer.PriceTargetVWAP
+	defaultMaxPriceRelative                 = 1.25
 
 	walletDbName = "wallet.db"
 )
@@ -176,12 +176,12 @@ type ticketBuyerOptions struct {
 	MinFee             *cfgutil.AmountFlag `long:"minfee" description:"Minimum ticket fee per KB"`
 	FeeSource          string              `long:"feesource" description:"The fee source to use for ticket fee per KB (median or mean)"`
 	MaxPerBlock        int                 `long:"maxperblock" description:"Maximum tickets per block, with negative numbers indicating buy one ticket every 1-in-n blocks"`
-	HighPricePenalty   float64             `long:"highpricepenalty" description:"The exponential penalty to apply to the number of tickets to purchase above the ideal ticket pool price"`
 	BlocksToAvg        int                 `long:"blockstoavg" description:"Number of blocks to average for fees calculation"`
 	FeeTargetScaling   float64             `long:"feetargetscaling" description:"The amount above the mean fee in the previous blocks to purchase tickets with, proportional e.g. 1.05 = 105%"`
 	DontWaitForTickets bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
 	MaxInMempool       int                 `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets"`
 	ExpiryDelta        int                 `long:"expirydelta" description:"Number of blocks in the future before the ticket expires"`
+	MaxPriceRelative   float64             `long:"maxpricerelative" description:"Scaling factor to multiply the average price for setting the maximum price to spend on buying a ticket"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -381,11 +381,11 @@ func loadConfig() (*config, []string, error) {
 			MinFee:            cfgutil.NewAmountFlag(defaultMinFee),
 			FeeSource:         defaultFeeSource,
 			MaxPerBlock:       defaultMaxPerBlock,
-			HighPricePenalty:  defaultHighPricePenalty,
 			BlocksToAvg:       defaultBlocksToAvg,
 			FeeTargetScaling:  defaultFeeTargetScaling,
 			MaxInMempool:      defaultMaxInMempool,
 			ExpiryDelta:       defaultExpiryDelta,
+			MaxPriceRelative:  defaultMaxPriceRelative,
 		},
 	}
 
@@ -483,6 +483,7 @@ func loadConfig() (*config, []string, error) {
 	default:
 		str := "%s: Invalid fee source '%s'"
 		err := fmt.Errorf(str, funcName, cfg.TBOpts.FeeSource)
+		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
 
@@ -494,6 +495,15 @@ func loadConfig() (*config, []string, error) {
 	default:
 		str := "%s: Invalid average price mode '%s'"
 		err := fmt.Errorf(str, funcName, cfg.TBOpts.AvgPriceMode)
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+
+	// Sanity check MaxPriceRelative
+	if cfg.TBOpts.MaxPriceRelative < 0 {
+		str := "%s: maxpricerelative cannot be negative: %v"
+		err := fmt.Errorf(str, funcName, cfg.TBOpts.MaxPriceRelative)
+		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
 
@@ -529,7 +539,6 @@ func loadConfig() (*config, []string, error) {
 			"together -- choose one"
 		err := fmt.Errorf(str, "loadConfig")
 		fmt.Fprintln(os.Stderr, err)
-		parser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
 	}
 
@@ -881,12 +890,12 @@ func loadConfig() (*config, []string, error) {
 		ExpiryDelta:        cfg.TBOpts.ExpiryDelta,
 		FeeSource:          cfg.TBOpts.FeeSource,
 		FeeTargetScaling:   cfg.TBOpts.FeeTargetScaling,
-		HighPricePenalty:   cfg.TBOpts.HighPricePenalty,
 		MinFee:             cfg.TBOpts.MinFee.ToCoin(),
 		MinPriceScale:      cfg.TBOpts.MinPriceScale,
 		MaxFee:             cfg.TBOpts.MaxFee.ToCoin(),
 		MaxPerBlock:        cfg.TBOpts.MaxPerBlock,
 		MaxPriceAbsolute:   cfg.TicketMaxPrice.ToCoin(),
+		MaxPriceRelative:   cfg.TBOpts.MaxPriceRelative,
 		MaxPriceScale:      cfg.TBOpts.MaxPriceScale,
 		MaxInMempool:       cfg.TBOpts.MaxInMempool,
 		PoolAddress:        cfg.PoolAddress,
