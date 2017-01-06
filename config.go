@@ -181,7 +181,7 @@ type ticketBuyerOptions struct {
 	DontWaitForTickets bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
 	MaxInMempool       int                 `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets"`
 	ExpiryDelta        int                 `long:"expirydelta" description:"Number of blocks in the future before the ticket expires"`
-	MaxPriceRelative   float64             `long:"maxpricerelative" description:"The max price to pay for tickets relative to the average price"`
+	MaxPriceRelative   float64             `long:"maxpricerelative" description:"Scaling factor to multiply the average price for setting the maximum price to spend on buying a ticket"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -483,6 +483,7 @@ func loadConfig() (*config, []string, error) {
 	default:
 		str := "%s: Invalid fee source '%s'"
 		err := fmt.Errorf(str, funcName, cfg.TBOpts.FeeSource)
+		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
 
@@ -494,6 +495,15 @@ func loadConfig() (*config, []string, error) {
 	default:
 		str := "%s: Invalid average price mode '%s'"
 		err := fmt.Errorf(str, funcName, cfg.TBOpts.AvgPriceMode)
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+
+	// Sanity check MaxPriceRelative
+	if cfg.TBOpts.MaxPriceRelative < 0 {
+		str := "%s: maxpricerelative cannot be negative: %v"
+		err := fmt.Errorf(str, funcName, cfg.TBOpts.MaxPriceRelative)
+		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
 
@@ -529,7 +539,6 @@ func loadConfig() (*config, []string, error) {
 			"together -- choose one"
 		err := fmt.Errorf(str, "loadConfig")
 		fmt.Fprintln(os.Stderr, err)
-		parser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
 	}
 
