@@ -217,9 +217,9 @@ func (w *Wallet) VoteBitsForTicket(ticketHash *chainhash.Hash) (stake.VoteBits, 
 func (w *Wallet) SetVoteBitsForTicket(ticket *chainhash.Hash,
 	voteBits stake.VoteBits) error {
 	// Sanity check for the extended voteBits length.
-	if len(voteBits.ExtendedBits) > stake.MaxSingleBytePushLength-2 {
+	if len(voteBits.ExtendedBits) > stake.SSGenVoteBitsExtendedMaxSize {
 		return fmt.Errorf("bad extended votebits length (got %v, max %v)",
-			len(voteBits.ExtendedBits), stake.MaxSingleBytePushLength-2)
+			len(voteBits.ExtendedBits), stake.SSGenVoteBitsExtendedMaxSize)
 	}
 
 	return walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
@@ -240,11 +240,10 @@ func (w *Wallet) SetVoteBitsForTickets(tickets []chainhash.Hash,
 
 	for i := range voteBitsSlice {
 		// Sanity check for the extended voteBits length.
-		if len(voteBitsSlice[i].ExtendedBits) >
-			stake.MaxSingleBytePushLength-2 {
+		if len(voteBitsSlice[i].ExtendedBits) > stake.SSGenVoteBitsExtendedMaxSize {
 			return fmt.Errorf("bad extended votebits length (got %v, max %v)",
 				len(voteBitsSlice[i].ExtendedBits),
-				stake.MaxSingleBytePushLength-2)
+				stake.SSGenVoteBitsExtendedMaxSize)
 		}
 	}
 
