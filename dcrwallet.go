@@ -101,7 +101,7 @@ func walletMain() error {
 		AddressReuse:            cfg.ReuseAddresses,
 		TicketAddress:           cfg.TicketAddress,
 		TicketMaxPrice:          cfg.TicketMaxPrice.ToCoin(),
-		TicketBuyFreq:           cfg.TicketBuyFreq,
+		TicketBuyFreq:           cfg.tbCfg.MaxPerBlock,
 		PoolAddress:             cfg.PoolAddress,
 		PoolFees:                cfg.PoolFees,
 		StakePoolColdExtKey:     cfg.StakePoolColdExtKey,
