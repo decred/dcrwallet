@@ -49,6 +49,7 @@ func createWallet(cfg *config) error {
 	dbDir := networkDir(cfg.AppDataDir, activeNet.Params)
 	stakeOptions := &wallet.StakeOptions{
 		VoteBits:                cfg.VoteBits,
+		VoteBitsExtended:        cfg.VoteBitsExtended,
 		TicketPurchasingEnabled: cfg.EnableStakeMining && !cfg.EnableTicketBuyer,
 		VotingEnabled:           cfg.EnableVoting,
 		BalanceToMaintain:       cfg.BalanceToMaintain.ToCoin(),
