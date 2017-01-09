@@ -67,6 +67,7 @@ const (
 	defaultFeeSource                        = ticketbuyer.TicketFeeMean
 	defaultAvgPriceMode                     = ticketbuyer.PriceTargetVWAP
 	defaultMaxPriceRelative                 = 1.25
+	defaultPriceTarget                      = 0
 
 	walletDbName = "wallet.db"
 )
@@ -386,6 +387,7 @@ func loadConfig() (*config, []string, error) {
 			MaxInMempool:      defaultMaxInMempool,
 			ExpiryDelta:       defaultExpiryDelta,
 			MaxPriceRelative:  defaultMaxPriceRelative,
+			PriceTarget:       cfgutil.NewAmountFlag(defaultPriceTarget),
 		},
 	}
 
