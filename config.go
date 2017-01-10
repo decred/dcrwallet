@@ -66,6 +66,7 @@ const (
 	defaultExpiryDelta                      = 16
 	defaultFeeSource                        = ticketbuyer.TicketFeeMedian
 	defaultAvgPriceMode                     = ticketbuyer.PriceTargetVWAP
+	defaultMaxPriceAbsolute                 = 0
 	defaultMaxPriceRelative                 = 1.25
 	defaultPriceTarget                      = 0
 
@@ -113,7 +114,6 @@ type config struct {
 	PruneTickets        bool                `long:"prunetickets" description:"Prune old tickets from the wallet and restore their inputs"`
 	PurchaseAccount     string              `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
 	TicketAddress       string              `long:"ticketaddress" description:"Send all ticket outputs to this address (P2PKH or P2SH only)"`
-	TicketMaxPrice      *cfgutil.AmountFlag `long:"ticketmaxprice" description:"The maximum price the user is willing to spend on buying a ticket"`
 	PoolAddress         string              `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
 	PoolFees            float64             `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
 	AddrIdxScanLen      int                 `long:"addridxscanlen" description:"The width of the scan for last used addresses on wallet restore and start up"`
@@ -162,9 +162,10 @@ type config struct {
 	ExperimentalRPCListeners []string `long:"experimentalrpclisten" description:"Listen for RPC connections on this interface/port"`
 
 	// Deprecated options
-	DataDir           string `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
-	EnableStakeMining bool   `long:"enablestakemining" default-mask:"-" description:"DEPRECATED -- consider using enableticketbuyer and/or enablevoting instead"`
-	TicketBuyFreq     int    `long:"ticketbuyfreq" default-mask:"-" description:"DEPRECATED -- use ticketbuyer.maxperblock instead"`
+	DataDir           string              `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
+	EnableStakeMining bool                `long:"enablestakemining" default-mask:"-" description:"DEPRECATED -- consider using enableticketbuyer and/or enablevoting instead"`
+	TicketBuyFreq     int                 `long:"ticketbuyfreq" default-mask:"-" description:"DEPRECATED -- use ticketbuyer.maxperblock instead"`
+	TicketMaxPrice    *cfgutil.AmountFlag `long:"ticketmaxprice" description:"DEPRECATED -- The maximum price the user is willing to spend on buying a ticket"`
 }
 
 type ticketBuyerOptions struct {
@@ -182,6 +183,7 @@ type ticketBuyerOptions struct {
 	DontWaitForTickets bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
 	MaxInMempool       int                 `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets"`
 	ExpiryDelta        int                 `long:"expirydelta" description:"Number of blocks in the future before the ticket expires"`
+	MaxPriceAbsolute   *cfgutil.AmountFlag `long:"maxpriceabsolute" description:"Maximum absolute price to purchase a ticket"`
 	MaxPriceRelative   float64             `long:"maxpricerelative" description:"Scaling factor for setting the maximum price, multiplies by the average price"`
 }
 
@@ -360,17 +362,19 @@ func loadConfig() (*config, []string, error) {
 		RollbackTest:           defaultRollbackTest,
 		PruneTickets:           defaultPruneTickets,
 		PurchaseAccount:        defaultPurchaseAccount,
-		TicketMaxPrice:         cfgutil.NewAmountFlag(defaultTicketMaxPrice),
 		AutomaticRepair:        defaultAutomaticRepair,
 		UnsafeMainNet:          defaultUnsafeMainNet,
 		AddrIdxScanLen:         defaultAddrIdxScanLen,
 		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
 		AllowHighFees:          defaultAllowHighFees,
-		DataDir:                defaultAppDataDir,
-		EnableStakeMining:      defaultEnableStakeMining,
 		RelayFee:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
 		TicketFee:              cfgutil.NewAmountFlag(wallet.DefaultTicketFeeIncrement),
-		TicketBuyFreq:          defaultTicketBuyFreq,
+
+		// TODO: DEPRECATED - remove.
+		DataDir:           defaultAppDataDir,
+		EnableStakeMining: defaultEnableStakeMining,
+		TicketBuyFreq:     defaultTicketBuyFreq,
+		TicketMaxPrice:    cfgutil.NewAmountFlag(defaultTicketMaxPrice),
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
@@ -386,6 +390,7 @@ func loadConfig() (*config, []string, error) {
 			FeeTargetScaling:  defaultFeeTargetScaling,
 			MaxInMempool:      defaultMaxInMempool,
 			ExpiryDelta:       defaultExpiryDelta,
+			MaxPriceAbsolute:  cfgutil.NewAmountFlag(defaultMaxPriceAbsolute),
 			MaxPriceRelative:  defaultMaxPriceRelative,
 			PriceTarget:       cfgutil.NewAmountFlag(defaultPriceTarget),
 		},
@@ -911,6 +916,16 @@ func loadConfig() (*config, []string, error) {
 		maxPerBlock = cfg.TicketBuyFreq
 	}
 
+	// Use --ticketmaxprice setting if it has been set and --ticketbuyer.maxpriceabsolute
+	// has not been changed.
+	maxPriceAbsolute := cfg.TBOpts.MaxPriceAbsolute.Amount
+	if cfg.TicketMaxPrice.Amount != defaultTicketMaxPrice &&
+		cfg.TBOpts.MaxPriceAbsolute.Amount == defaultMaxPriceAbsolute {
+
+		log.Warn("--ticketmaxprice is DEPRECATED.  Use --ticketbuyer.maxpriceabsolute instead")
+		maxPriceAbsolute = cfg.TicketMaxPrice.Amount
+	}
+
 	// Build ticketbuyer config
 	cfg.tbCfg = &ticketbuyer.Config{
 		AccountName:        cfg.PurchaseAccount,
@@ -926,7 +941,7 @@ func loadConfig() (*config, []string, error) {
 		MinPriceScale:      cfg.TBOpts.MinPriceScale,
 		MaxFee:             cfg.TBOpts.MaxFee.ToCoin(),
 		MaxPerBlock:        maxPerBlock,
-		MaxPriceAbsolute:   cfg.TicketMaxPrice.ToCoin(),
+		MaxPriceAbsolute:   maxPriceAbsolute.ToCoin(),
 		MaxPriceRelative:   cfg.TBOpts.MaxPriceRelative,
 		MaxPriceScale:      cfg.TBOpts.MaxPriceScale,
 		MaxInMempool:       cfg.TBOpts.MaxInMempool,
