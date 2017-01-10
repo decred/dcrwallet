@@ -54,17 +54,17 @@ const (
 	defaultAllowHighFees       = false
 
 	// ticket buyer options
-	defaultMaxFee            dcrutil.Amount = 1e8
+	defaultMaxFee            dcrutil.Amount = 1e7
 	defaultMinFee            dcrutil.Amount = 1e6
 	defaultMaxPriceScale                    = 2.0
 	defaultMinPriceScale                    = 0.7
 	defaultAvgVWAPPriceDelta                = 2880
 	defaultMaxPerBlock                      = 5
 	defaultBlocksToAvg                      = 11
-	defaultFeeTargetScaling                 = 1.05
+	defaultFeeTargetScaling                 = 1.0
 	defaultMaxInMempool                     = 40
 	defaultExpiryDelta                      = 16
-	defaultFeeSource                        = ticketbuyer.TicketFeeMean
+	defaultFeeSource                        = ticketbuyer.TicketFeeMedian
 	defaultAvgPriceMode                     = ticketbuyer.PriceTargetVWAP
 	defaultMaxPriceRelative                 = 1.25
 	defaultPriceTarget                      = 0
@@ -178,11 +178,11 @@ type ticketBuyerOptions struct {
 	FeeSource          string              `long:"feesource" description:"The fee source to use for ticket fee per KB (median or mean)"`
 	MaxPerBlock        int                 `long:"maxperblock" description:"Maximum tickets per block, with negative numbers indicating buy one ticket every 1-in-n blocks"`
 	BlocksToAvg        int                 `long:"blockstoavg" description:"Number of blocks to average for fees calculation"`
-	FeeTargetScaling   float64             `long:"feetargetscaling" description:"The amount above the mean fee in the previous blocks to purchase tickets with, proportional e.g. 1.05 = 105%"`
+	FeeTargetScaling   float64             `long:"feetargetscaling" description:"Scaling factor for setting the ticket fee, multiplies by the average fee"`
 	DontWaitForTickets bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
 	MaxInMempool       int                 `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets"`
 	ExpiryDelta        int                 `long:"expirydelta" description:"Number of blocks in the future before the ticket expires"`
-	MaxPriceRelative   float64             `long:"maxpricerelative" description:"Scaling factor to multiply the average price for setting the maximum price to spend on buying a ticket"`
+	MaxPriceRelative   float64             `long:"maxpricerelative" description:"Scaling factor for setting the maximum price, multiplies by the average price"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -505,6 +505,26 @@ func loadConfig() (*config, []string, error) {
 	if cfg.TBOpts.MaxPriceRelative < 0 {
 		str := "%s: maxpricerelative cannot be negative: %v"
 		err := fmt.Errorf(str, funcName, cfg.TBOpts.MaxPriceRelative)
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+
+	// Sanity check MinFee and MaxFee
+	if cfg.TBOpts.MinFee.ToCoin() > cfg.TBOpts.MaxFee.ToCoin() {
+		str := "%s: minfee cannot be higher than maxfee: (min %v, max %v)"
+		err := fmt.Errorf(str, funcName, cfg.TBOpts.MinFee, cfg.TBOpts.MaxFee)
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+	if cfg.TBOpts.MaxFee.ToCoin() < 0 {
+		str := "%s: maxfee cannot be less than zero: %v"
+		err := fmt.Errorf(str, funcName, cfg.TBOpts.MaxFee)
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+	if cfg.TBOpts.MinFee.ToCoin() < 0 {
+		str := "%s: minfee cannot be less than zero: %v"
+		err := fmt.Errorf(str, funcName, cfg.TBOpts.MinFee)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}

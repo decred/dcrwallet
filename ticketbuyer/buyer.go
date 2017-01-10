@@ -408,9 +408,9 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// for by the user.
 	feeToUse := chainFee * t.cfg.FeeTargetScaling
 	if feeToUse > t.cfg.MaxFee {
-		log.Tracef("Scaled fee is %v, but max fee is %v; using max",
+		log.Infof("Aborting ticket purchases because the scaled fee %v is above max fee %v",
 			feeToUse, t.cfg.MaxFee)
-		feeToUse = t.cfg.MaxFee
+		return ps, nil
 	}
 	if feeToUse < t.cfg.MinFee {
 		log.Tracef("Scaled fee is %v, but min fee is %v; using min",
@@ -423,8 +423,8 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	}
 	t.wallet.SetTicketFeeIncrement(feeToUseAmt)
 
-	log.Debugf("Mean fee for the last blocks or window period was %v; "+
-		"this was scaled to %v", chainFee, feeToUse)
+	log.Debugf("Mean fee for the last blocks or window period was %.8f; "+
+		"this was scaled to %.8f", chainFee, feeToUse)
 	ps.FeeOwn = feeToUse
 
 	// Calculate how many tickets we can buy at this difficulty.
