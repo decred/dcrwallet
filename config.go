@@ -45,7 +45,7 @@ const (
 	defaultPruneTickets        = false
 	defaultPurchaseAccount     = "default"
 	defaultTicketMaxPrice      = 0
-	defaultTicketBuyFreq       = 1
+	defaultTicketBuyFreq       = 0
 	defaultAutomaticRepair     = false
 	defaultUnsafeMainNet       = false
 	defaultPromptPass          = false
@@ -114,7 +114,6 @@ type config struct {
 	PurchaseAccount     string              `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
 	TicketAddress       string              `long:"ticketaddress" description:"Send all ticket outputs to this address (P2PKH or P2SH only)"`
 	TicketMaxPrice      *cfgutil.AmountFlag `long:"ticketmaxprice" description:"The maximum price the user is willing to spend on buying a ticket"`
-	TicketBuyFreq       int                 `long:"ticketbuyfreq" description:"The number of tickets to try to buy per block. Negative numbers indicate one ticket for each 1-in-? blocks"`
 	PoolAddress         string              `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
 	PoolFees            float64             `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
 	AddrIdxScanLen      int                 `long:"addridxscanlen" description:"The width of the scan for last used addresses on wallet restore and start up"`
@@ -165,6 +164,7 @@ type config struct {
 	// Deprecated options
 	DataDir           string `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
 	EnableStakeMining bool   `long:"enablestakemining" default-mask:"-" description:"DEPRECATED -- consider using enableticketbuyer and/or enablevoting instead"`
+	TicketBuyFreq     int    `long:"ticketbuyfreq" default-mask:"-" description:"DEPRECATED -- use ticketbuyer.maxperblock instead"`
 }
 
 type ticketBuyerOptions struct {
@@ -361,7 +361,6 @@ func loadConfig() (*config, []string, error) {
 		PruneTickets:           defaultPruneTickets,
 		PurchaseAccount:        defaultPurchaseAccount,
 		TicketMaxPrice:         cfgutil.NewAmountFlag(defaultTicketMaxPrice),
-		TicketBuyFreq:          defaultTicketBuyFreq,
 		AutomaticRepair:        defaultAutomaticRepair,
 		UnsafeMainNet:          defaultUnsafeMainNet,
 		AddrIdxScanLen:         defaultAddrIdxScanLen,
@@ -371,6 +370,7 @@ func loadConfig() (*config, []string, error) {
 		EnableStakeMining:      defaultEnableStakeMining,
 		RelayFee:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
 		TicketFee:              cfgutil.NewAmountFlag(wallet.DefaultTicketFeeIncrement),
+		TicketBuyFreq:          defaultTicketBuyFreq,
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
@@ -881,6 +881,16 @@ func loadConfig() (*config, []string, error) {
 			oldTBConfigFile, configFilePath)
 	}
 
+	// Use --ticketbuyfreq setting if it has been set and --ticketbuyer.maxperblock
+	// has not been changed.
+	maxPerBlock := cfg.TBOpts.MaxPerBlock
+	if cfg.TicketBuyFreq != defaultTicketBuyFreq &&
+		cfg.TBOpts.MaxPerBlock == defaultMaxPerBlock {
+
+		log.Warn("--ticketbuyfreq is DEPRECATED.  Use --ticketbuyer.maxperblock instead")
+		maxPerBlock = cfg.TicketBuyFreq
+	}
+
 	// Build ticketbuyer config
 	cfg.tbCfg = &ticketbuyer.Config{
 		AccountName:        cfg.PurchaseAccount,
@@ -895,7 +905,7 @@ func loadConfig() (*config, []string, error) {
 		MinFee:             cfg.TBOpts.MinFee.ToCoin(),
 		MinPriceScale:      cfg.TBOpts.MinPriceScale,
 		MaxFee:             cfg.TBOpts.MaxFee.ToCoin(),
-		MaxPerBlock:        cfg.TBOpts.MaxPerBlock,
+		MaxPerBlock:        maxPerBlock,
 		MaxPriceAbsolute:   cfg.TicketMaxPrice.ToCoin(),
 		MaxPriceRelative:   cfg.TBOpts.MaxPriceRelative,
 		MaxPriceScale:      cfg.TBOpts.MaxPriceScale,
