@@ -56,7 +56,7 @@ func createWallet(cfg *config) error {
 		PruneTickets:            cfg.PruneTickets,
 		AddressReuse:            cfg.ReuseAddresses,
 		TicketAddress:           cfg.TicketAddress,
-		TicketMaxPrice:          cfg.TicketMaxPrice.ToCoin(),
+		TicketMaxPrice:          cfg.tbCfg.MaxPriceAbsolute,
 		TicketFee:               cfg.TicketFee.ToCoin(),
 	}
 	loader := wallet.NewLoader(activeNet.Params, dbDir, stakeOptions,

@@ -100,7 +100,7 @@ func walletMain() error {
 		PruneTickets:            cfg.PruneTickets,
 		AddressReuse:            cfg.ReuseAddresses,
 		TicketAddress:           cfg.TicketAddress,
-		TicketMaxPrice:          cfg.TicketMaxPrice.ToCoin(),
+		TicketMaxPrice:          cfg.tbCfg.MaxPriceAbsolute,
 		TicketBuyFreq:           cfg.tbCfg.MaxPerBlock,
 		PoolAddress:             cfg.PoolAddress,
 		PoolFees:                cfg.PoolFees,
