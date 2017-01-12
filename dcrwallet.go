@@ -17,6 +17,8 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc"
+
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrwallet/chain"
@@ -123,7 +125,7 @@ func walletMain() error {
 	// Create and start chain RPC client so it's ready to connect to
 	// the wallet when loaded later.
 	if !cfg.NoInitialLoad {
-		go rpcClientConnectLoop(legacyRPCServer, loader)
+		go rpcClientConnectLoop(legacyRPCServer, rpcs, loader)
 	}
 
 	loader.RunAfterLoad(func(w *wallet.Wallet) {
@@ -266,7 +268,7 @@ func startPromptPass(w *wallet.Wallet) {
 // The legacy RPC is optional.  If set, the connected RPC client will be
 // associated with the server for RPC passthrough and to enable additional
 // methods.
-func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Loader) {
+func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, server *grpc.Server, loader *wallet.Loader) {
 	certs := readCAFile()
 
 	var pm *ticketbuyer.PurchaseManager
@@ -296,6 +298,7 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 					return
 				}
 				pm.Start()
+				startTicketBuyerService(server, pm)
 			}
 		}
 		mu := new(sync.Mutex)
