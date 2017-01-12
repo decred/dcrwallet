@@ -161,6 +161,24 @@ func (t *ticketBuyerServer) StopTicketPurchase(ctx context.Context, req *pb.Stop
 	return &pb.StopTicketPurchaseResponse{}, nil
 }
 
+// BalanceToMaintain returns the balance to maintain in the wallet when purchasing tickets.
+func (t *ticketBuyerServer) BalanceToMaintain(ctx context.Context, req *pb.BalanceToMaintainRequest) (
+	*pb.BalanceToMaintainResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	balance := purchaser.BalanceToMaintain()
+	return &pb.BalanceToMaintainResponse{BalanceToMaintain: int64(balance)}, nil
+}
+
+// SetBalanceToMaintain returns the balance to maintain in the wallet when purchasing tickets.
+func (t *ticketBuyerServer) SetBalanceToMaintain(ctx context.Context, req *pb.SetBalanceToMaintainRequest) (
+	*pb.SetBalanceToMaintainResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetBalanceToMaintain(float64(req.BalanceToMaintain))
+	return &pb.SetBalanceToMaintainResponse{}, nil
+}
+
 // walletServer provides wallet services for RPC clients.
 type walletServer struct {
 	wallet *wallet.Wallet

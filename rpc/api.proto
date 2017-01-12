@@ -67,6 +67,9 @@ service SeedService {
 service TicketBuyerService {
 	rpc StartTicketPurchase (StartTicketPurchaseRequest) returns (StartTicketPurchaseResponse);
 	rpc StopTicketPurchase (StopTicketPurchaseRequest) returns (StopTicketPurchaseResponse);
+
+	rpc BalanceToMaintain (BalanceToMaintainRequest) returns (BalanceToMaintainResponse);
+	rpc SetBalanceToMaintain (SetBalanceToMaintainRequest) returns (SetBalanceToMaintainResponse);
 }
 
 message TransactionDetails {
@@ -470,3 +473,13 @@ message StartTicketPurchaseResponse {}
 
 message StopTicketPurchaseRequest {}
 message StopTicketPurchaseResponse {}
+
+message BalanceToMaintainRequest{}
+message BalanceToMaintainResponse{
+    int64 balance_to_maintain = 1;
+}
+
+message SetBalanceToMaintainRequest{
+    int64 balance_to_maintain = 1;
+}
+message SetBalanceToMaintainResponse{}
