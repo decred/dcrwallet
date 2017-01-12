@@ -56,6 +56,7 @@ type Loader struct {
 	addrIdxScanLen int
 	allowHighFees  bool
 	relayFee       float64
+	waitFn         func()
 }
 
 // StakeOptions contains the various options necessary for stake mining.
@@ -276,6 +277,9 @@ func (l *Loader) UnloadWallet() error {
 		return ErrNotLoaded
 	}
 
+	if l.waitFn != nil {
+		l.waitFn()
+	}
 	l.wallet.Stop()
 	l.wallet.WaitForShutdown()
 	err := l.db.Close()
@@ -286,6 +290,16 @@ func (l *Loader) UnloadWallet() error {
 	l.wallet = nil
 	l.db = nil
 	return nil
+}
+
+// SetWaitFn sets a variable function which needs to be waited upon before
+// unloading.
+// TODO(tuxcanfly): Reconsider whether this is required after cleaner shutdown
+// is ported from dcrd in #481
+func (l *Loader) SetWaitFn(fn func()) {
+	l.mu.Lock()
+	l.waitFn = fn
+	l.mu.Unlock()
 }
 
 func fileExists(filePath string) (bool, error) {

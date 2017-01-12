@@ -293,9 +293,19 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 				pm, err = startTicketPurchase(w, chainClient.Client, nil, &cfg.tbCfg)
 				if err != nil {
 					log.Errorf("Unable to start ticket buyer: %v", err)
+					go func() {
+						loader.SetWaitFn(nil)
+					}()
 					return
 				}
 				pm.Start()
+				go func() {
+					loader.SetWaitFn(func() {
+						pm.Stop()
+						pm.WaitForShutdown()
+					})
+				}()
+
 			}
 		}
 		mu := new(sync.Mutex)
@@ -309,10 +319,6 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 		})
 
 		chainClient.WaitForShutdown()
-
-		if pm != nil {
-			pm.Stop()
-		}
 
 		mu.Lock()
 		associateRPCClient = nil
