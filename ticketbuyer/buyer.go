@@ -222,7 +222,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// Initialize based on where we are in the window
 	winSize := t.activeNet.StakeDiffWindowSize
 	thisIdxDiffPeriod := int(height % winSize)
-	nextIdxDiffPeriod := int(height + 1%winSize)
+	nextIdxDiffPeriod := int((height + 1) % winSize)
 	thisWindowPeriod := int(height / winSize)
 
 	refreshProportionLive := false
