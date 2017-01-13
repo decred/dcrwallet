@@ -153,7 +153,7 @@ type config struct {
 	Password               string             `short:"P" long:"password" default-mask:"-" description:"Password for legacy RPC and dcrd authentication (if dcrdpassword is unset)"`
 
 	TBOpts ticketBuyerOptions `group:"Ticket Buyer Options" namespace:"ticketbuyer"`
-	tbCfg  *ticketbuyer.Config
+	tbCfg  ticketbuyer.Config
 
 	// EXPERIMENTAL RPC server options
 	//
@@ -928,7 +928,7 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	// Build ticketbuyer config
-	cfg.tbCfg = &ticketbuyer.Config{
+	cfg.tbCfg = ticketbuyer.Config{
 		AccountName:           cfg.PurchaseAccount,
 		AvgPriceMode:          cfg.TBOpts.AvgPriceMode,
 		AvgPriceVWAPDelta:     cfg.TBOpts.AvgPriceVWAPDelta,
