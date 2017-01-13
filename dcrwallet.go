@@ -120,10 +120,14 @@ func walletMain() error {
 		return err
 	}
 
+	c := make(chan *chain.RPCClient)
+	loader.RunAfterLoad(func(w *wallet.Wallet) {
+		go chainClientLoop(w, loader, c)
+	})
 	// Create and start chain RPC client so it's ready to connect to
 	// the wallet when loaded later.
 	if !cfg.NoInitialLoad {
-		go rpcClientConnectLoop(legacyRPCServer, loader)
+		go rpcClientConnectLoop(legacyRPCServer, loader, c)
 	}
 
 	loader.RunAfterLoad(func(w *wallet.Wallet) {
@@ -266,10 +270,9 @@ func startPromptPass(w *wallet.Wallet) {
 // The legacy RPC is optional.  If set, the connected RPC client will be
 // associated with the server for RPC passthrough and to enable additional
 // methods.
-func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Loader) {
+func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Loader, c chan *chain.RPCClient) {
 	certs := readCAFile()
 
-	var pm *ticketbuyer.PurchaseManager
 	for {
 		chainClient, err := startChainRPC(certs)
 		if err != nil {
@@ -289,24 +292,7 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 			if legacyRPCServer != nil {
 				legacyRPCServer.SetChainServer(chainClient)
 			}
-			if cfg.EnableTicketBuyer {
-				pm, err = startTicketPurchase(w, chainClient.Client, nil, &cfg.tbCfg)
-				if err != nil {
-					log.Errorf("Unable to start ticket buyer: %v", err)
-					go func() {
-						loader.SetWaitFn(nil)
-					}()
-					return
-				}
-				pm.Start()
-				go func() {
-					loader.SetWaitFn(func() {
-						pm.Stop()
-						pm.WaitForShutdown()
-					})
-				}()
-
-			}
+			c <- chainClient
 		}
 		mu := new(sync.Mutex)
 		loader.RunAfterLoad(func(w *wallet.Wallet) {
@@ -337,6 +323,25 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 			loadedWallet.Stop()
 			loadedWallet.WaitForShutdown()
 			loadedWallet.Start()
+		}
+	}
+}
+
+// chainClientLoop receives a chain client when ready and runs any services
+// which depend on it.
+func chainClientLoop(w *wallet.Wallet, loader *wallet.Loader, c chan *chain.RPCClient) {
+	for chainClient := range c {
+		if cfg.EnableTicketBuyer {
+			pm, err := startTicketPurchase(w, chainClient.Client, nil, &cfg.tbCfg)
+			if err != nil {
+				log.Errorf("Unable to start ticket buyer: %v", err)
+				continue
+			}
+			pm.Start()
+			loader.RunBeforeUnload(func(w *wallet.Wallet) {
+				pm.Stop()
+				pm.WaitForShutdown()
+			})
 		}
 	}
 }

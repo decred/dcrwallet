@@ -43,12 +43,13 @@ var (
 //
 // Loader is safe for concurrent access.
 type Loader struct {
-	callbacks   []func(*Wallet)
-	chainParams *chaincfg.Params
-	dbDirPath   string
-	wallet      *Wallet
-	db          walletdb.DB
-	mu          sync.Mutex
+	loadCallbacks   []func(*Wallet)
+	unloadCallbacks []func(*Wallet)
+	chainParams     *chaincfg.Params
+	dbDirPath       string
+	wallet          *Wallet
+	db              walletdb.DB
+	mu              sync.Mutex
 
 	stakeOptions   *StakeOptions
 	autoRepair     bool
@@ -56,7 +57,6 @@ type Loader struct {
 	addrIdxScanLen int
 	allowHighFees  bool
 	relayFee       float64
-	waitFn         func()
 }
 
 // StakeOptions contains the various options necessary for stake mining.
@@ -96,13 +96,21 @@ func NewLoader(chainParams *chaincfg.Params, dbDirPath string,
 // onLoaded executes each added callback and prevents loader from loading any
 // additional wallets.  Requires mutex to be locked.
 func (l *Loader) onLoaded(w *Wallet, db walletdb.DB) {
-	for _, fn := range l.callbacks {
+	for _, fn := range l.loadCallbacks {
 		fn(w)
 	}
 
 	l.wallet = w
 	l.db = db
-	l.callbacks = nil // not needed anymore
+	l.loadCallbacks = nil // not needed anymore
+}
+
+// onUnload executes each added unload callback.  Requires mutex to be locked.
+func (l *Loader) onUnload(w *Wallet) {
+	for _, fn := range l.unloadCallbacks {
+		fn(w)
+	}
+	l.unloadCallbacks = nil // not needed anymore
 }
 
 // RunAfterLoad adds a function to be executed when the loader creates or opens
@@ -115,9 +123,18 @@ func (l *Loader) RunAfterLoad(fn func(*Wallet)) {
 		l.mu.Unlock()
 		fn(w)
 	} else {
-		l.callbacks = append(l.callbacks, fn)
+		l.loadCallbacks = append(l.loadCallbacks, fn)
 		l.mu.Unlock()
 	}
+}
+
+// RunBeforeUnload adds a function to be executed before the loader unloads a
+// wallet.  Functions are executed in a single goroutine in the order they are
+// added.
+func (l *Loader) RunBeforeUnload(fn func(*Wallet)) {
+	l.mu.Lock()
+	l.unloadCallbacks = append(l.unloadCallbacks, fn)
+	l.mu.Unlock()
 }
 
 // CreateNewWallet creates a new wallet using the provided public and private
@@ -276,10 +293,8 @@ func (l *Loader) UnloadWallet() error {
 	if l.wallet == nil {
 		return ErrNotLoaded
 	}
+	l.onUnload(l.wallet)
 
-	if l.waitFn != nil {
-		l.waitFn()
-	}
 	l.wallet.Stop()
 	l.wallet.WaitForShutdown()
 	err := l.db.Close()
@@ -290,16 +305,6 @@ func (l *Loader) UnloadWallet() error {
 	l.wallet = nil
 	l.db = nil
 	return nil
-}
-
-// SetWaitFn sets a variable function which needs to be waited upon before
-// unloading.
-// TODO(tuxcanfly): Reconsider whether this is required after cleaner shutdown
-// is ported from dcrd in #481
-func (l *Loader) SetWaitFn(fn func()) {
-	l.mu.Lock()
-	l.waitFn = fn
-	l.mu.Unlock()
 }
 
 func fileExists(filePath string) (bool, error) {
