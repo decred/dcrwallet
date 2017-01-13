@@ -57,33 +57,33 @@ const (
 
 // Config stores the configuration options for ticket buyer.
 type Config struct {
-	AccountName         string
-	AvgPriceMode        string
-	AvgPriceVWAPDelta   int
-	BalanceToMaintain   float64
-	BlocksToAvg         int
-	BuyImmediately      bool
-	DontWaitForTickets  bool
-	ExpiryDelta         int
-	FeeSource           string
-	FeeTargetScaling    float64
-	HighPricePenalty    float64
-	MinFee              float64
-	MinPriceScale       float64
-	MaxFee              float64
-	MaxPerBlock         int
-	MaxPriceAbsolute    float64
-	MaxPriceRelative    float64
-	MaxPriceScale       float64
-	MaxInMempool        int
-	PoolAddress         string
-	PoolFees            float64
-	PriceTarget         float64
-	TicketAddress       string
-	TxFee               float64
-	TicketFeeInfo       bool
-	PrevToBuyDiffPeriod int
-	PrevToBuyHeight     int
+	AccountName           string
+	AvgPriceMode          string
+	AvgPriceVWAPDelta     int
+	BalanceToMaintain     float64
+	BlocksToAvg           int
+	DontWaitForTickets    bool
+	ExpiryDelta           int
+	FeeSource             string
+	FeeTargetScaling      float64
+	HighPricePenalty      float64
+	MinFee                float64
+	MinPriceScale         float64
+	MaxFee                float64
+	MaxPerBlock           int
+	MaxPriceAbsolute      float64
+	MaxPriceRelative      float64
+	MaxPriceScale         float64
+	MaxInMempool          int
+	PoolAddress           string
+	PoolFees              float64
+	PriceTarget           float64
+	SpreadTicketPurchases bool
+	TicketAddress         string
+	TxFee                 float64
+	TicketFeeInfo         bool
+	PrevToBuyDiffPeriod   int
+	PrevToBuyHeight       int
 }
 
 // TicketPurchaser is the main handler for purchasing tickets. It decides
@@ -449,7 +449,11 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 	toBuyForBlock := int(math.Floor(balSpendable.ToCoin() / nextStakeDiff.ToCoin()))
 
-	if !t.cfg.BuyImmediately {
+	// For spreading your ticket purchases evenly throughout window.
+	// Use available funds to calculate how many tickets to buy, and also
+	// approximate the income you're going to have from older tickets that
+	// you've voted and are maturing during this window (tixWillRedeem)
+	if t.cfg.SpreadTicketPurchases {
 		log.Debugf("Spreading purchases throughout window")
 
 		// Number of blocks remaining to purchase tickets in this window
