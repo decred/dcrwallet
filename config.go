@@ -403,9 +403,11 @@ func loadConfig() (*config, []string, error) {
 	preParser := flags.NewParser(&preCfg, flags.Default)
 	_, err := preParser.Parse()
 	if err != nil {
-		if e, ok := err.(*flags.Error); !ok || e.Type != flags.ErrHelp {
-			preParser.WriteHelp(os.Stderr)
+		e, ok := err.(*flags.Error)
+		if ok && e.Type == flags.ErrHelp {
+			os.Exit(0)
 		}
+		preParser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
 	}
 
