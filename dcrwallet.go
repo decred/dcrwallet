@@ -289,7 +289,7 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 				legacyRPCServer.SetChainServer(chainClient)
 			}
 			if cfg.EnableTicketBuyer {
-				startTicketPurchase(w, chainClient.Client, nil, cfg.tbCfg)
+				startTicketPurchase(w, chainClient.Client, nil, &cfg.tbCfg)
 			}
 		}
 		mu := new(sync.Mutex)
