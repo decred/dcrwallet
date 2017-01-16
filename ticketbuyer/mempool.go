@@ -13,16 +13,6 @@ import (
 	"github.com/decred/dcrwallet/wallet"
 )
 
-var (
-	// stakeInfoReqTries is the maximum number of times to try
-	// GetStakeInfo before failing.
-	stakeInfoReqTries = 20
-
-	// stakeInfoReqTryDelay is the time in seconds to wait before
-	// doing another GetStakeInfo request.
-	stakeInfoReqTryDelay = time.Second * 1
-)
-
 // ownTicketsInMempool finds all the tickets owned by the user in the
 // daemon mempool. It searches for the ticket address if it is specified,
 // and otherwise uses getstakeinfo to determine this number.

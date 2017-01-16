@@ -31,7 +31,6 @@ func NewPurchaseManager(w *wallet.Wallet, purchaser *TicketPurchaser,
 
 // purchase purchases the tickets for the given block height.
 func (p *PurchaseManager) purchase(height int64) {
-	log.Infof("Block height %v connected", height)
 	purchaseInfo, err := p.purchaser.Purchase(height)
 	if err != nil {
 		log.Errorf("Failed to purchase tickets this round: %v", err)

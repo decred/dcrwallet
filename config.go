@@ -169,22 +169,23 @@ type config struct {
 }
 
 type ticketBuyerOptions struct {
-	MaxPriceScale      float64             `long:"maxpricescale" description:"Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
-	MinPriceScale      float64             `long:"minpricescale" description:"Attempt to prevent the stake difficulty from going below this multiplier (<1.0) by manipulation, 0 to disable"`
-	PriceTarget        *cfgutil.AmountFlag `long:"pricetarget" description:"A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
-	AvgPriceMode       string              `long:"avgpricemode" description:"The mode to use for calculating the average price if pricetarget is disabled (vwap, pool, dual)"`
-	AvgPriceVWAPDelta  int                 `long:"avgpricevwapdelta" description:"The number of blocks to use from the current block to calculate the VWAP"`
-	MaxFee             *cfgutil.AmountFlag `long:"maxfee" description:"Maximum ticket fee per KB"`
-	MinFee             *cfgutil.AmountFlag `long:"minfee" description:"Minimum ticket fee per KB"`
-	FeeSource          string              `long:"feesource" description:"The fee source to use for ticket fee per KB (median or mean)"`
-	MaxPerBlock        int                 `long:"maxperblock" description:"Maximum tickets per block, with negative numbers indicating buy one ticket every 1-in-n blocks"`
-	BlocksToAvg        int                 `long:"blockstoavg" description:"Number of blocks to average for fees calculation"`
-	FeeTargetScaling   float64             `long:"feetargetscaling" description:"Scaling factor for setting the ticket fee, multiplies by the average fee"`
-	DontWaitForTickets bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
-	MaxInMempool       int                 `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets"`
-	ExpiryDelta        int                 `long:"expirydelta" description:"Number of blocks in the future before the ticket expires"`
-	MaxPriceAbsolute   *cfgutil.AmountFlag `long:"maxpriceabsolute" description:"Maximum absolute price to purchase a ticket"`
-	MaxPriceRelative   float64             `long:"maxpricerelative" description:"Scaling factor for setting the maximum price, multiplies by the average price"`
+	MaxPriceScale         float64             `long:"maxpricescale" description:"Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
+	MinPriceScale         float64             `long:"minpricescale" description:"Attempt to prevent the stake difficulty from going below this multiplier (<1.0) by manipulation, 0 to disable"`
+	PriceTarget           *cfgutil.AmountFlag `long:"pricetarget" description:"A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
+	AvgPriceMode          string              `long:"avgpricemode" description:"The mode to use for calculating the average price if pricetarget is disabled (vwap, pool, dual)"`
+	AvgPriceVWAPDelta     int                 `long:"avgpricevwapdelta" description:"The number of blocks to use from the current block to calculate the VWAP"`
+	MaxFee                *cfgutil.AmountFlag `long:"maxfee" description:"Maximum ticket fee per KB"`
+	MinFee                *cfgutil.AmountFlag `long:"minfee" description:"Minimum ticket fee per KB"`
+	FeeSource             string              `long:"feesource" description:"The fee source to use for ticket fee per KB (median or mean)"`
+	MaxPerBlock           int                 `long:"maxperblock" description:"Maximum tickets per block, with negative numbers indicating buy one ticket every 1-in-n blocks"`
+	BlocksToAvg           int                 `long:"blockstoavg" description:"Number of blocks to average for fees calculation"`
+	FeeTargetScaling      float64             `long:"feetargetscaling" description:"Scaling factor for setting the ticket fee, multiplies by the average fee"`
+	DontWaitForTickets    bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
+	SpreadTicketPurchases bool                `long:"spreadticketpurchases" description:"Spread ticket purchases evenly throughout the window"`
+	MaxInMempool          int                 `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets"`
+	ExpiryDelta           int                 `long:"expirydelta" description:"Number of blocks in the future before the ticket expires"`
+	MaxPriceAbsolute      *cfgutil.AmountFlag `long:"maxpriceabsolute" description:"Maximum absolute price to purchase a ticket"`
+	MaxPriceRelative      float64             `long:"maxpricerelative" description:"Scaling factor for setting the maximum price, multiplies by the average price"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -928,28 +929,29 @@ func loadConfig() (*config, []string, error) {
 
 	// Build ticketbuyer config
 	cfg.tbCfg = &ticketbuyer.Config{
-		AccountName:        cfg.PurchaseAccount,
-		AvgPriceMode:       cfg.TBOpts.AvgPriceMode,
-		AvgPriceVWAPDelta:  cfg.TBOpts.AvgPriceVWAPDelta,
-		BalanceToMaintain:  cfg.BalanceToMaintain.ToCoin(),
-		BlocksToAvg:        cfg.TBOpts.BlocksToAvg,
-		DontWaitForTickets: cfg.TBOpts.DontWaitForTickets,
-		ExpiryDelta:        cfg.TBOpts.ExpiryDelta,
-		FeeSource:          cfg.TBOpts.FeeSource,
-		FeeTargetScaling:   cfg.TBOpts.FeeTargetScaling,
-		MinFee:             cfg.TBOpts.MinFee.ToCoin(),
-		MinPriceScale:      cfg.TBOpts.MinPriceScale,
-		MaxFee:             cfg.TBOpts.MaxFee.ToCoin(),
-		MaxPerBlock:        maxPerBlock,
-		MaxPriceAbsolute:   maxPriceAbsolute.ToCoin(),
-		MaxPriceRelative:   cfg.TBOpts.MaxPriceRelative,
-		MaxPriceScale:      cfg.TBOpts.MaxPriceScale,
-		MaxInMempool:       cfg.TBOpts.MaxInMempool,
-		PoolAddress:        cfg.PoolAddress,
-		PoolFees:           cfg.PoolFees,
-		PriceTarget:        cfg.TBOpts.PriceTarget.ToCoin(),
-		TicketAddress:      cfg.TicketAddress,
-		TxFee:              cfg.RelayFee.ToCoin(),
+		AccountName:           cfg.PurchaseAccount,
+		AvgPriceMode:          cfg.TBOpts.AvgPriceMode,
+		AvgPriceVWAPDelta:     cfg.TBOpts.AvgPriceVWAPDelta,
+		BalanceToMaintain:     cfg.BalanceToMaintain.ToCoin(),
+		BlocksToAvg:           cfg.TBOpts.BlocksToAvg,
+		DontWaitForTickets:    cfg.TBOpts.DontWaitForTickets,
+		ExpiryDelta:           cfg.TBOpts.ExpiryDelta,
+		FeeSource:             cfg.TBOpts.FeeSource,
+		FeeTargetScaling:      cfg.TBOpts.FeeTargetScaling,
+		MinFee:                cfg.TBOpts.MinFee.ToCoin(),
+		MinPriceScale:         cfg.TBOpts.MinPriceScale,
+		MaxFee:                cfg.TBOpts.MaxFee.ToCoin(),
+		MaxPerBlock:           maxPerBlock,
+		MaxPriceAbsolute:      maxPriceAbsolute.ToCoin(),
+		MaxPriceRelative:      cfg.TBOpts.MaxPriceRelative,
+		MaxPriceScale:         cfg.TBOpts.MaxPriceScale,
+		MaxInMempool:          cfg.TBOpts.MaxInMempool,
+		PoolAddress:           cfg.PoolAddress,
+		PoolFees:              cfg.PoolFees,
+		PriceTarget:           cfg.TBOpts.PriceTarget.ToCoin(),
+		SpreadTicketPurchases: cfg.TBOpts.SpreadTicketPurchases,
+		TicketAddress:         cfg.TicketAddress,
+		TxFee:                 cfg.RelayFee.ToCoin(),
 	}
 
 	return &cfg, remainingArgs, nil
