@@ -730,8 +730,8 @@ func (w *Wallet) fetchHeaders(chainClient *chain.RPCClient) (int, error) {
 // returned, along with the hash of the first previously-unseen block hash now
 // in the main chain.  This is the block a rescan should begin at (inclusive),
 // and is only relevant when the number of fetched headers is not zero.
-func (w *Wallet) FetchHeaders(chainClient *chain.RPCClient) (count int,
-	rescanFrom chainhash.Hash, rescanFromHeight int32, err error) {
+func (w *Wallet) FetchHeaders(chainClient *chain.RPCClient) (count int, rescanFrom chainhash.Hash, rescanFromHeight int32,
+	mainChainTipBlockHash chainhash.Hash, mainChainTipBlockHeight int32, err error) {
 
 	// Unfortunately, getheaders is broken and needs a workaround when wallet's
 	// previous main chain is now a side chain.  Until this is fixed, do what
@@ -814,6 +814,7 @@ func (w *Wallet) FetchHeaders(chainClient *chain.RPCClient) (count int,
 				copy(commonAncestor[:], wtxmgr.ExtractBlockHeaderParentHash(header))
 				commonAncestorHeight--
 			}
+			mainChainTipBlockHash, mainChainTipBlockHeight = w.TxStore.MainChainTip(txmgrNs)
 
 			rescanStartHeight = commonAncestorHeight + 1
 			rescanStart, err = w.TxStore.GetMainChainBlockHashForHeight(
@@ -823,9 +824,14 @@ func (w *Wallet) FetchHeaders(chainClient *chain.RPCClient) (count int,
 		if err != nil {
 			return
 		}
+	} else {
+		// fetchedHeaderCount is 0 so the current mainChainTip is the commonAncestor
+		mainChainTipBlockHash = commonAncestor
+		mainChainTipBlockHeight = commonAncestorHeight
 	}
 
-	return fetchedHeaderCount, rescanStart, rescanStartHeight, nil
+	return fetchedHeaderCount, rescanStart, rescanStartHeight, mainChainTipBlockHash,
+		mainChainTipBlockHeight, nil
 }
 
 // syncWithChain brings the wallet up to date with the current chain server
@@ -852,7 +858,7 @@ func (w *Wallet) syncWithChain(chainClient *chain.RPCClient) error {
 
 	// Fetch headers for unseen blocks in the main chain, determine whether a
 	// rescan is necessary, and when to begin it.
-	fetchedHeaderCount, rescanStart, _, err := w.FetchHeaders(chainClient)
+	fetchedHeaderCount, rescanStart, _, _, _, err := w.FetchHeaders(chainClient)
 	if err != nil {
 		return err
 	}

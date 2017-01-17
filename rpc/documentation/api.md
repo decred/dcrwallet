@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.2.x
+Version: 4.3.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -333,6 +333,12 @@ should begin at.
 
 - `int32 first_new_block_height`: The height of the first new block added to the
   main chain.  Only non-zero when `fetched_headers_count` is not zero.
+
+- `bytes main_chain_tip_block_hash`: The hash of the main chain tip block after 
+  the fetched headers have been applied to the previous tip.
+
+- `int32 main_chain_tip_block_height`: The height of the main chain tip block after
+  the fetched headers have been applied to the previous tip.
 
 **Expected errors:**
 

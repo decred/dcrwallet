@@ -437,6 +437,8 @@ message FetchHeadersResponse {
 	uint32 fetched_headers_count = 1;
 	bytes first_new_block_hash = 2;
 	int32 first_new_block_height = 3;
+	bytes main_chain_tip_block_hash = 4;
+	int32 main_chain_tip_block_height = 5;
 }
 
 message GenerateRandomSeedRequest {
