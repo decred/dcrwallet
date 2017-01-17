@@ -1345,13 +1345,16 @@ func (s *loaderServer) FetchHeaders(ctx context.Context, req *pb.FetchHeadersReq
 		return nil, grpc.Errorf(codes.FailedPrecondition, "consensus server RPC client has not been loaded")
 	}
 
-	fetchedHeaderCount, rescanFrom, rescanFromHeight, err := wallet.FetchHeaders(chainClient)
+	fetchedHeaderCount, rescanFrom, rescanFromHeight,
+		mainChainTipBlockHash, mainChainTipBlockHeight, err := wallet.FetchHeaders(chainClient)
 	if err != nil {
 		return nil, translateError(err)
 	}
 
 	res := &pb.FetchHeadersResponse{
-		FetchedHeadersCount: uint32(fetchedHeaderCount),
+		FetchedHeadersCount:     uint32(fetchedHeaderCount),
+		MainChainTipBlockHash:   mainChainTipBlockHash[:],
+		MainChainTipBlockHeight: mainChainTipBlockHeight,
 	}
 	if fetchedHeaderCount > 0 {
 		res.FirstNewBlockHash = rescanFrom[:]
