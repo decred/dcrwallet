@@ -179,6 +179,24 @@ func (t *ticketBuyerServer) SetBalanceToMaintain(ctx context.Context, req *pb.Se
 	return &pb.SetBalanceToMaintainResponse{}, nil
 }
 
+// MaxPriceAbsolute returns the max ticket price when purchasing tickets.
+func (t *ticketBuyerServer) MaxPriceAbsolute(ctx context.Context, req *pb.MaxPriceAbsoluteRequest) (
+	*pb.MaxPriceAbsoluteResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	maxPriceAbsolute := purchaser.MaxPriceAbsolute()
+	return &pb.MaxPriceAbsoluteResponse{MaxPriceAbsolute: int64(maxPriceAbsolute)}, nil
+}
+
+// SetMaxPriceAbsolute returns the max ticket price when purchasing tickets.
+func (t *ticketBuyerServer) SetMaxPriceAbsolute(ctx context.Context, req *pb.SetMaxPriceAbsoluteRequest) (
+	*pb.SetMaxPriceAbsoluteResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetMaxPriceAbsolute(float64(req.MaxPriceAbsolute))
+	return &pb.SetMaxPriceAbsoluteResponse{}, nil
+}
+
 // walletServer provides wallet services for RPC clients.
 type walletServer struct {
 	wallet *wallet.Wallet

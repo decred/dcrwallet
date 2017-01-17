@@ -111,6 +111,7 @@ type TicketPurchaser struct {
 
 	purchaserMtx      sync.Mutex
 	balanceToMaintain float64
+	maxPriceAbsolute  float64
 }
 
 // NewTicketPurchaser creates a new TicketPurchaser.
@@ -168,10 +169,11 @@ func NewTicketPurchaser(cfg *Config,
 		heightCheck:      make(map[int64]struct{}),
 
 		balanceToMaintain: cfg.BalanceToMaintain,
+		maxPriceAbsolute:  cfg.MaxPriceAbsolute,
 	}, nil
 }
 
-// BalanceToMaintain returns the balance to maintan in the wallet.
+// BalanceToMaintain returns the balance to maintain in the wallet.
 func (t *TicketPurchaser) BalanceToMaintain() float64 {
 	t.purchaserMtx.Lock()
 	balance := t.balanceToMaintain
@@ -183,6 +185,21 @@ func (t *TicketPurchaser) BalanceToMaintain() float64 {
 func (t *TicketPurchaser) SetBalanceToMaintain(balanceToMaintain float64) {
 	t.purchaserMtx.Lock()
 	t.balanceToMaintain = balanceToMaintain
+	t.purchaserMtx.Unlock()
+}
+
+// MaxPriceAbsolute returns the max price to pay for a ticket.
+func (t *TicketPurchaser) MaxPriceAbsolute() float64 {
+	t.purchaserMtx.Lock()
+	maxPriceAbsolute := t.maxPriceAbsolute
+	t.purchaserMtx.Unlock()
+	return maxPriceAbsolute
+}
+
+// SetMaxPriceAbsolute sets the max price to pay for a ticket.
+func (t *TicketPurchaser) SetMaxPriceAbsolute(maxPriceAbsolute float64) {
+	t.purchaserMtx.Lock()
+	t.maxPriceAbsolute = maxPriceAbsolute
 	t.purchaserMtx.Unlock()
 }
 

@@ -70,6 +70,8 @@ service TicketBuyerService {
 
 	rpc BalanceToMaintain (BalanceToMaintainRequest) returns (BalanceToMaintainResponse);
 	rpc SetBalanceToMaintain (SetBalanceToMaintainRequest) returns (SetBalanceToMaintainResponse);
+	rpc MaxPriceAbsolute (MaxPriceAbsoluteRequest) returns (MaxPriceAbsoluteResponse);
+	rpc SetMaxPriceAbsolute (SetMaxPriceAbsoluteRequest) returns (SetMaxPriceAbsoluteResponse);
 }
 
 message TransactionDetails {
@@ -483,3 +485,13 @@ message SetBalanceToMaintainRequest{
     int64 balance_to_maintain = 1;
 }
 message SetBalanceToMaintainResponse{}
+
+message MaxPriceAbsoluteRequest{}
+message MaxPriceAbsoluteResponse{
+    int64 max_price_absolute = 1;
+}
+
+message SetMaxPriceAbsoluteRequest{
+    int64 max_price_absolute = 1;
+}
+message SetMaxPriceAbsoluteResponse{}
