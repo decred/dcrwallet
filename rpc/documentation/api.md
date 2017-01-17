@@ -334,9 +334,11 @@ should begin at.
 - `int32 first_new_block_height`: The height of the first new block added to the
   main chain.  Only non-zero when `fetched_headers_count` is not zero.
 
-- `bytes main_chain_tip_block_hash`: The hash of the main chain tip block.
+- `bytes main_chain_tip_block_hash`: The hash of the main chain tip block after 
+  the fetched headers have been applied to the previous tip.
 
-- `int32 main_chain_tip_block_height`: The height of the main chain tip block.
+- `int32 main_chain_tip_block_height`: The height of the main chain tip block after
+  the fetched headers have been applied to the previous tip.
 
 **Expected errors:**
 
