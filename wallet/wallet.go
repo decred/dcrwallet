@@ -815,6 +815,8 @@ func (w *Wallet) FetchHeaders(chainClient *chain.RPCClient) (count int,
 				copy(commonAncestor[:], wtxmgr.ExtractBlockHeaderParentHash(header))
 				commonAncestorHeight--
 			}
+			mainChainTipBlockHash, mainChainTipBlockHeight = w.TxStore.MainChainTip(txmgrNs)
+
 			rescanStartHeight = commonAncestorHeight + 1
 			rescanStart, err = w.TxStore.GetMainChainBlockHashForHeight(
 				txmgrNs, rescanStartHeight)
@@ -823,12 +825,11 @@ func (w *Wallet) FetchHeaders(chainClient *chain.RPCClient) (count int,
 		if err != nil {
 			return
 		}
+	} else {
+		// fetchedHeaderCount is 0 so the current mainChainTip is the commonAncestor
+		mainChainTipBlockHash = commonAncestor
+		mainChainTipBlockHeight = commonAncestorHeight
 	}
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
-		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		mainChainTipBlockHash, mainChainTipBlockHeight = w.TxStore.MainChainTip(txmgrNs)
-		return nil
-	})
 
 	return fetchedHeaderCount, rescanStart, rescanStartHeight, mainChainTipBlockHash,
 		mainChainTipBlockHeight, nil
