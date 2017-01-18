@@ -690,17 +690,27 @@ func getBalance(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 			return nil, err
 		}
 
-		// For individual accounts, we always want to use full scan.
-		if balType == wtxmgr.BFBalanceSpendable {
-			balType = wtxmgr.BFBalanceFullScan
-		}
+		blockHash, _ := w.MainChainTip()
 
-		bal, err := w.CalculateAccountBalance(account, int32(*cmd.MinConf),
-			balType)
+		bal, err := w.CalculateAccountBalances(account, int32(*cmd.MinConf))
 		if err != nil {
 			return nil, err
 		}
-		balance = bal
+
+		return dcrjson.GetBalanceResult{
+			Balances: []dcrjson.GetAccountBalanceResult{
+				{
+					AccountName:             accountName,
+					ImmatureCoinbaseRewards: bal.ImmatureCoinbaseRewards.ToCoin(),
+					ImmatureStakeGeneration: bal.ImmatureStakeGeneration.ToCoin(),
+					LockedByTickets:         bal.LockedByTickets.ToCoin(),
+					Spendable:               bal.Spendable.ToCoin(),
+					Total:                   bal.Total.ToCoin(),
+					VotingAuthority:         bal.VotingAuthority.ToCoin(),
+				},
+			},
+			BlockHash: blockHash.String(),
+		}, nil
 	}
 	if err != nil {
 		return nil, err

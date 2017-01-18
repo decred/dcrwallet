@@ -3460,7 +3460,16 @@ func (s *Store) Balance(ns, addrmgrNs walletdb.ReadBucket, minConf int32,
 	_, syncHeight := s.MainChainTip(ns)
 	switch balanceType {
 	case BFBalanceFullScan:
-		return s.balanceFullScan(ns, addrmgrNs, minConf, syncHeight, all, account)
+		bals, err := s.balanceFullScan(ns, addrmgrNs, minConf, syncHeight)
+		if err != nil {
+			return 0, err
+		}
+		bal, ok := bals[account]
+		if !ok {
+			// No balance for the account was found so must be zero.
+			return 0, nil
+		}
+		return bal.Spendable, nil
 	case BFBalanceSpendable:
 		return s.balanceSpendable(ns, minConf, syncHeight)
 	case BFBalanceLockedStake:
@@ -3476,9 +3485,9 @@ func (s *Store) Balance(ns, addrmgrNs walletdb.ReadBucket, minConf int32,
 // It is less efficient than the other balance functions, but works fine for
 // accounts.
 func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32,
-	syncHeight int32, all bool, account uint32) (dcrutil.Amount, error) {
-	var amt dcrutil.Amount
+	syncHeight int32) (map[uint32]*Balances, error) {
 
+	accountBalances := make(map[uint32]*Balances)
 	err := ns.NestedReadBucket(bucketUnspent).ForEach(func(k, v []byte) error {
 		if existsRawUnminedInput(ns, k) != nil {
 			// Output is spent by an unmined transaction.
@@ -3492,24 +3501,20 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 		copy(cKey[36:68], v[4:36])  // Block hash
 		copy(cKey[68:72], k[32:36]) // Output index
 
+		// Skip unmined credits.
 		cVal := existsRawCredit(ns, cKey)
 		if cVal == nil {
 			return fmt.Errorf("couldn't find a credit for unspent txo")
 		}
 
 		// Check the account first.
-		if !all {
-			pkScript, err := s.fastCreditPkScriptLookup(ns, cKey, nil)
-			if err != nil {
-				return err
-			}
-			thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, cVal, nil, pkScript)
-			if err != nil {
-				return err
-			}
-			if account != thisAcct {
-				return nil
-			}
+		pkScript, err := s.fastCreditPkScriptLookup(ns, cKey, nil)
+		if err != nil {
+			return err
+		}
+		thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, cVal, nil, pkScript)
+		if err != nil {
+			return err
 		}
 
 		utxoAmt, err := fetchRawCreditAmount(cVal)
@@ -3520,8 +3525,19 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 		height := extractRawCreditHeight(cKey)
 		opcode := fetchRawCreditTagOpCode(cVal)
 
-		switch {
-		case opcode == OP_NONSTAKE:
+		ab, ok := accountBalances[thisAcct]
+		if !ok {
+			ab = &Balances{
+				Account: thisAcct,
+				Total:   utxoAmt,
+			}
+			accountBalances[thisAcct] = ab
+		} else {
+			ab.Total += utxoAmt
+		}
+
+		switch opcode {
+		case OP_NONSTAKE:
 			isConfirmed := confirmed(minConf, height, syncHeight)
 			creditFromCoinbase := fetchRawCreditIsCoinbase(cVal)
 			matureCoinbase := (creditFromCoinbase &&
@@ -3529,41 +3545,49 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 					height,
 					syncHeight))
 
-			if isConfirmed && !creditFromCoinbase {
-				amt += utxoAmt
+			if (isConfirmed && !creditFromCoinbase) ||
+				matureCoinbase {
+				ab.Spendable += utxoAmt
 			}
 
-			if creditFromCoinbase && matureCoinbase {
-				amt += utxoAmt
+		case txscript.OP_SSTX:
+			// Locked as stake ticket.
+			amtCredit, spent, err := fetchRawCreditAmountSpent(cVal)
+			if err != nil {
+				return err
 			}
+			if spent {
+				return fmt.Errorf("spend credit found in unspent bucket")
+			}
+			ab.LockedByTickets += amtCredit
 
-		case opcode == txscript.OP_SSTX:
-			// amt += utxoAmt
-			// Locked as stake ticket. These were never added to the
-			// balance in the first place, so ignore them.
-		case opcode == txscript.OP_SSGEN:
+		case txscript.OP_SSGEN:
+			fallthrough
+		case txscript.OP_SSRTX:
 			if confirmed(int32(s.chainParams.CoinbaseMaturity),
 				height, syncHeight) {
-				amt += utxoAmt
+				ab.Spendable += utxoAmt
+			} else {
+				ab.ImmatureStakeGeneration += utxoAmt
 			}
 
-		case opcode == txscript.OP_SSRTX:
-			if confirmed(int32(s.chainParams.CoinbaseMaturity),
-				height, syncHeight) {
-				amt += utxoAmt
-			}
-		case opcode == txscript.OP_SSTXCHANGE:
+		case txscript.OP_SSTXCHANGE:
 			if confirmed(int32(s.chainParams.SStxChangeMaturity),
 				height, syncHeight) {
-				amt += utxoAmt
+				ab.Spendable += utxoAmt
+			} else {
+				ab.ImmatureCoinbaseRewards += utxoAmt
 			}
+
+		default:
+			log.Warnf("Unhandled opcode: %v", opcode)
 		}
 
 		return nil
 	})
 	if err != nil {
 		str := "failed iterating mined credits bucket for fullscan balance"
-		return 0, storeError(ErrDatabase, str, err)
+		return nil, storeError(ErrDatabase, str, err)
 	}
 
 	// Unconfirmed transaction output handling.
@@ -3576,23 +3600,29 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			}
 
 			// Check the account first.
-			if !all {
-				pkScript, err := s.fastCreditPkScriptLookup(ns, nil, k)
-				if err != nil {
-					return err
-				}
-				thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, nil, v, pkScript)
-				if err != nil {
-					return err
-				}
-				if account != thisAcct {
-					return nil
-				}
+			pkScript, err := s.fastCreditPkScriptLookup(ns, nil, k)
+			if err != nil {
+				return err
+			}
+			thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, nil, v, pkScript)
+			if err != nil {
+				return err
 			}
 
 			utxoAmt, err := fetchRawUnminedCreditAmount(v)
 			if err != nil {
 				return err
+			}
+
+			ab, ok := accountBalances[thisAcct]
+			if !ok {
+				ab = &Balances{
+					Account: thisAcct,
+					Total:   utxoAmt,
+				}
+				accountBalances[thisAcct] = ab
+			} else {
+				ab.Total += utxoAmt
 			}
 
 			// Skip ticket outputs, as only SSGen can spend these.
@@ -3609,17 +3639,15 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 				return nil
 			}
 
-			amt += utxoAmt
-
 			return nil
 		})
 	}
 	if err != nil {
 		str := "failed iterating unmined credits bucket for fullscan balance"
-		return 0, storeError(ErrDatabase, str, err)
+		return nil, storeError(ErrDatabase, str, err)
 	}
 
-	return amt, nil
+	return accountBalances, nil
 }
 
 // balanceFullScanSimulated is a simulated version of the balanceFullScan
@@ -4170,12 +4198,15 @@ func (s *Store) balanceAll(ns, addrmgrNs walletdb.ReadBucket, minConf int32,
 	return amt, nil
 }
 
-// Balances records total, spendable (by policy), and immature coinbase
-// reward balance amounts.
+// Balances is an convenience type.
 type Balances struct {
-	Total          dcrutil.Amount
-	Spendable      dcrutil.Amount
-	ImmatureReward dcrutil.Amount
+	Account                 uint32
+	ImmatureCoinbaseRewards dcrutil.Amount
+	ImmatureStakeGeneration dcrutil.Amount
+	LockedByTickets         dcrutil.Amount
+	Spendable               dcrutil.Amount
+	Total                   dcrutil.Amount
+	VotingAuthority         dcrutil.Amount
 }
 
 // AccountBalances returns a Balances struct for some given account at
@@ -4184,36 +4215,18 @@ func (s *Store) AccountBalances(ns, addrmgrNs walletdb.ReadBucket,
 	minConf int32, account uint32) (Balances, error) {
 
 	_, syncHeight := s.MainChainTip(ns)
-	bal, err := s.balanceFullScan(ns, addrmgrNs, minConf, syncHeight,
-		false, account)
+	bal, err := s.balanceFullScan(ns, addrmgrNs, minConf, syncHeight)
 	if err != nil {
 		return Balances{}, err
 	}
 
-	bal0Conf, err := s.balanceFullScan(ns, addrmgrNs, 0, syncHeight,
-		false, account)
-	if err != nil {
-		return Balances{}, err
+	balance, ok := bal[account]
+	if !ok {
+		// No balance for the account was found so must be zero.
+		return Balances{}, nil
 	}
 
-	balTotal, err := s.balanceAll(ns, addrmgrNs, minConf, syncHeight,
-		false, account)
-	if err != nil {
-		return Balances{}, err
-	}
-
-	balAll, err := s.balanceAll(ns, addrmgrNs, 0, syncHeight,
-		false, account)
-	if err != nil {
-		return Balances{}, err
-	}
-
-	bals := Balances{
-		Total:          balTotal,
-		Spendable:      bal,
-		ImmatureReward: balAll - bal0Conf,
-	}
-	return bals, nil
+	return *balance, nil
 }
 
 // InsertTxScript is the exported version of insertTxScript.
