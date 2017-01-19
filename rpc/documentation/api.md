@@ -1399,7 +1399,7 @@ transaction was seen.
     account's internal key series.  This often means the output is a change
     output.
   - `int64 amount`: The amount for this output.
-  - `bytes from_address`: The address that this output originated from.
+  - `string address`: The address that this output originated from.
 
 - `int64 fee`: The transaction fee, if calculable.  The fee is only calculable
   when every previous output spent by this transaction is also recorded by
