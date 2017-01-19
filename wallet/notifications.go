@@ -81,7 +81,8 @@ func lookupInputAccount(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetai
 }
 
 func lookupOutputChain(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetails,
-	cred wtxmgr.CreditRecord) (account uint32, internal bool, address dcrutil.Address) {
+	cred wtxmgr.CreditRecord) (account uint32, internal bool, address dcrutil.Address,
+	amount int64) {
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
@@ -97,6 +98,7 @@ func lookupOutputChain(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetail
 		account = ma.Account()
 		internal = ma.Internal()
 		address = ma.Address()
+		amount = output.Value
 	}
 	return
 }
@@ -138,11 +140,12 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetails) T
 		if !mine {
 			continue
 		}
-		acct, internal, address := lookupOutputChain(dbtx, w, details, details.Credits[credIndex])
+		acct, internal, address, amount := lookupOutputChain(dbtx, w, details, details.Credits[credIndex])
 		output := TransactionSummaryOutput{
 			Index:       uint32(i),
 			Account:     acct,
 			Internal:    internal,
+			Amount:      dcrutil.Amount(amount),
 			FromAddress: address,
 		}
 		outputs = append(outputs, output)
