@@ -74,6 +74,8 @@ message TransactionDetails {
 		uint32 index = 1;
 		uint32 account = 2;
 		bool internal = 3;
+		int64 amount = 4;
+		bytes from_address = 5;
 	}
 	bytes hash = 1;
 	bytes transaction = 2;
