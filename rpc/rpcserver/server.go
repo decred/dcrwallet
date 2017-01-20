@@ -468,7 +468,7 @@ func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
 	resp := &pb.BalanceResponse{
 		Total:          int64(bals.Total),
 		Spendable:      int64(bals.Spendable),
-		ImmatureReward: int64(bals.ImmatureReward),
+		ImmatureReward: int64(bals.ImmatureStakeGeneration),
 	}
 	return resp, nil
 }
