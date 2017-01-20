@@ -1401,10 +1401,11 @@ transaction was seen.
 
   - `int64 amount`: The amount for this output.
 
-  - `string address`: The address to which the output script pays.  Note that 
-    this field may be null if the output script cannot parse a readable address.
+  - `string address`: The address that the output paid to, if the output script 
+    can be parsed to a known address type. Otherwise this will be null or the 
+    empty string.
 
-  - `bytes output_script`: The full output script.
+  - `bytes output_script`: The output script.
 
 - `int64 fee`: The transaction fee, if calculable.  The fee is only calculable
   when every previous output spent by this transaction is also recorded by
