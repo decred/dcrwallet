@@ -51,9 +51,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.3.0"
+	semverString = "4.4.0"
 	semverMajor  = 4
-	semverMinor  = 3
+	semverMinor  = 4
 	semverPatch  = 0
 )
 
@@ -984,10 +984,17 @@ func marshalTransactionOutputs(v []wallet.TransactionSummaryOutput) []*pb.Transa
 	outputs := make([]*pb.TransactionDetails_Output, len(v))
 	for i := range v {
 		output := &v[i]
+		address := ""
+		if output.Address != nil {
+			address = output.Address.String()
+		}
 		outputs[i] = &pb.TransactionDetails_Output{
-			Index:    output.Index,
-			Account:  output.Account,
-			Internal: output.Internal,
+			Index:        output.Index,
+			Account:      output.Account,
+			Internal:     output.Internal,
+			Amount:       int64(output.Amount),
+			Address:      address,
+			OutputScript: output.OutputScript,
 		}
 	}
 	return outputs

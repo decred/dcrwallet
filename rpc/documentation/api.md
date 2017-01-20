@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.3.x
+Version: 4.4.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -1398,6 +1398,14 @@ transaction was seen.
   - `bool internal`: Whether the output pays to an address derived from the
     account's internal key series.  This often means the output is a change
     output.
+
+  - `int64 amount`: The amount for this output.
+
+  - `string address`: The address that the output paid to, if the output script 
+    can be parsed to a known address type. Otherwise this will be null or the 
+    empty string.
+
+  - `bytes output_script`: The output script.
 
 - `int64 fee`: The transaction fee, if calculable.  The fee is only calculable
   when every previous output spent by this transaction is also recorded by

@@ -74,6 +74,9 @@ message TransactionDetails {
 		uint32 index = 1;
 		uint32 account = 2;
 		bool internal = 3;
+		int64 amount = 4;
+		string address = 5;
+		bytes output_script = 6;
 	}
 	bytes hash = 1;
 	bytes transaction = 2;
