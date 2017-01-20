@@ -76,6 +76,7 @@ message TransactionDetails {
 		bool internal = 3;
 		int64 amount = 4;
 		string address = 5;
+		bytes output_script = 6;
 	}
 	bytes hash = 1;
 	bytes transaction = 2;
