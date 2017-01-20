@@ -984,12 +984,16 @@ func marshalTransactionOutputs(v []wallet.TransactionSummaryOutput) []*pb.Transa
 	outputs := make([]*pb.TransactionDetails_Output, len(v))
 	for i := range v {
 		output := &v[i]
+		address := ""
+		if output.Address != nil {
+			address = output.Address.String()
+		}
 		outputs[i] = &pb.TransactionDetails_Output{
 			Index:    output.Index,
 			Account:  output.Account,
 			Internal: output.Internal,
 			Amount:   int64(output.Amount),
-			Address:  output.Address.String(),
+			Address:  address,
 		}
 	}
 	return outputs
