@@ -82,7 +82,7 @@ func lookupInputAccount(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetai
 
 func lookupOutputChain(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetails,
 	cred wtxmgr.CreditRecord) (account uint32, internal bool, address dcrutil.Address,
-	amount int64) {
+	amount int64, outputScript []byte) {
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
@@ -99,6 +99,7 @@ func lookupOutputChain(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetail
 		internal = ma.Internal()
 		address = ma.Address()
 		amount = output.Value
+		outputScript = output.PkScript
 	}
 	return
 }
@@ -140,13 +141,14 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetails) T
 		if !mine {
 			continue
 		}
-		acct, internal, address, amount := lookupOutputChain(dbtx, w, details, details.Credits[credIndex])
+		acct, internal, address, amount, outputScript := lookupOutputChain(dbtx, w, details, details.Credits[credIndex])
 		output := TransactionSummaryOutput{
-			Index:    uint32(i),
-			Account:  acct,
-			Internal: internal,
-			Amount:   dcrutil.Amount(amount),
-			Address:  address,
+			Index:        uint32(i),
+			Account:      acct,
+			Internal:     internal,
+			Amount:       dcrutil.Amount(amount),
+			Address:      address,
+			OutputScript: outputScript,
 		}
 		outputs = append(outputs, output)
 	}
@@ -371,11 +373,12 @@ type TransactionSummaryInput struct {
 // controlled by the wallet.  The Index field marks the transaction output index
 // of the transaction (not included here).
 type TransactionSummaryOutput struct {
-	Index    uint32
-	Account  uint32
-	Internal bool
-	Amount   dcrutil.Amount
-	Address  dcrutil.Address
+	Index        uint32
+	Account      uint32
+	Internal     bool
+	Amount       dcrutil.Amount
+	Address      dcrutil.Address
+	OutputScript []byte
 }
 
 // AccountBalance associates a total (zero confirmation) balance with an

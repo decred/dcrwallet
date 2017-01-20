@@ -989,11 +989,12 @@ func marshalTransactionOutputs(v []wallet.TransactionSummaryOutput) []*pb.Transa
 			address = output.Address.String()
 		}
 		outputs[i] = &pb.TransactionDetails_Output{
-			Index:    output.Index,
-			Account:  output.Account,
-			Internal: output.Internal,
-			Amount:   int64(output.Amount),
-			Address:  address,
+			Index:        output.Index,
+			Account:      output.Account,
+			Internal:     output.Internal,
+			Amount:       int64(output.Amount),
+			Address:      address,
+			OutputScript: output.OutputScript,
 		}
 	}
 	return outputs
