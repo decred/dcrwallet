@@ -1398,8 +1398,13 @@ transaction was seen.
   - `bool internal`: Whether the output pays to an address derived from the
     account's internal key series.  This often means the output is a change
     output.
+
   - `int64 amount`: The amount for this output.
-  - `string address`: The address that this output originated from.
+
+  - `string address`: The address to which the output script pays.  Note that 
+    this field may be null if the output script cannot parse a readable address.
+
+  - `bytes output_script`: The full output script.
 
 - `int64 fee`: The transaction fee, if calculable.  The fee is only calculable
   when every previous output spent by this transaction is also recorded by
