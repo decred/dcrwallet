@@ -16,7 +16,6 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/wallet"
-	"github.com/decred/dcrwallet/wtxmgr"
 )
 
 var (
@@ -362,12 +361,12 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if err != nil {
 		return ps, err
 	}
-	balSpendable, err := t.wallet.CalculateAccountBalance(account, 0, wtxmgr.BFBalanceSpendable)
+	bal, err := t.wallet.CalculateAccountBalance(account, 0)
 	if err != nil {
 		return ps, err
 	}
-	log.Debugf("Spendable balance for account '%s': %v", t.cfg.AccountName, balSpendable)
-	ps.Balance = int64(balSpendable)
+	log.Debugf("Spendable balance for account '%s': %v", t.cfg.AccountName, bal.Spendable)
+	ps.Balance = int64(bal.Spendable)
 
 	// Disable purchasing if the ticket price is too high based on
 	// the cutoff or if the estimated ticket price is above
@@ -447,7 +446,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	log.Tracef("Ticket allotment left in window is %v, blocks left is %v",
 		ticketsLeftInWindow, (int(winSize) - t.idxDiffPeriod))
 
-	toBuyForBlock := int(math.Floor(balSpendable.ToCoin() / nextStakeDiff.ToCoin()))
+	toBuyForBlock := int(math.Floor(bal.Spendable.ToCoin() / nextStakeDiff.ToCoin()))
 
 	// For spreading your ticket purchases evenly throughout window.
 	// Use available funds to calculate how many tickets to buy, and also
@@ -461,7 +460,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		// Estimated number of tickets you will vote on and redeem this window
 		tixWillRedeem := float64(blocksRemaining) * float64(t.activeNet.TicketsPerBlock) * t.ProportionLive
 		// Amount of tickets that can be bought with existing funds
-		tixCanBuy := balSpendable.ToCoin() / nextStakeDiff.ToCoin()
+		tixCanBuy := bal.Spendable.ToCoin() / nextStakeDiff.ToCoin()
 		// Estimated number of tickets you can buy with current funds and
 		// funds from incoming redeemed tickets
 		tixCanBuyAll := tixCanBuy + tixWillRedeem
@@ -562,8 +561,8 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		return (bal.ToCoin() - float64(toBuy)*sd.ToCoin()) <
 			t.cfg.BalanceToMaintain
 	}
-	if notEnough(balSpendable, toBuyForBlock, nextStakeDiff) {
-		for notEnough(balSpendable, toBuyForBlock, nextStakeDiff) {
+	if notEnough(bal.Spendable, toBuyForBlock, nextStakeDiff) {
+		for notEnough(bal.Spendable, toBuyForBlock, nextStakeDiff) {
 			if toBuyForBlock == 0 {
 				break
 			}
@@ -575,7 +574,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			log.Infof("Not buying because our balance "+
 				"after buying tickets is estimated to be %v but balance "+
 				"to maintain is set to %v",
-				(balSpendable.ToCoin() - float64(toBuyForBlock)*
+				(bal.Spendable.ToCoin() - float64(toBuyForBlock)*
 					nextStakeDiff.ToCoin()),
 				t.cfg.BalanceToMaintain)
 			return ps, nil
@@ -627,13 +626,12 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			feeToUseAmt.ToCoin())
 	}
 
-	balSpendable, err = t.wallet.CalculateAccountBalance(account, 0,
-		wtxmgr.BFBalanceSpendable)
+	bal, err = t.wallet.CalculateAccountBalance(account, 0)
 	if err != nil {
 		return ps, err
 	}
-	log.Debugf("Usable balance for account '%s' after purchases: %v", t.cfg.AccountName, balSpendable)
-	ps.Balance = int64(balSpendable)
+	log.Debugf("Usable balance for account '%s' after purchases: %v", t.cfg.AccountName, bal.Spendable)
+	ps.Balance = int64(bal.Spendable)
 
 	return ps, nil
 }

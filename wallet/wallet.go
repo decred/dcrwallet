@@ -1412,41 +1412,17 @@ func (w *Wallet) accountUsed(addrmgrNs walletdb.ReadBucket, account uint32) (boo
 	return used, err
 }
 
-// CalculateBalance sums the amounts of all unspent transaction
-// outputs to addresses of a wallet and returns the balance.
-//
-// If confirmations is 0, all UTXOs, even those not present in a
-// block (height -1), will be used to get the balance.  Otherwise,
-// a UTXO must be in a block.  If confirmations is 1 or greater,
-// the balance will be calculated based on how many how many blocks
-// include a UTXO.
-func (w *Wallet) CalculateBalance(confirms int32, balanceType wtxmgr.BehaviorFlags) (dcrutil.Amount, error) {
-	var balance dcrutil.Amount
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
-		var err error
-
-		balance, err = w.TxStore.Balance(txmgrNs, addrmgrNs, confirms,
-			balanceType, true, 0)
-		return err
-	})
-	return balance, err
-}
-
 // CalculateAccountBalance sums the amounts of all unspent transaction
 // outputs to the given account of a wallet and returns the balance.
-func (w *Wallet) CalculateAccountBalance(account uint32, confirms int32,
-	balanceType wtxmgr.BehaviorFlags) (dcrutil.Amount, error) {
-
-	var balance dcrutil.Amount
+func (w *Wallet) CalculateAccountBalance(account uint32, confirms int32) (wtxmgr.Balances, error) {
+	var balance wtxmgr.Balances
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
 
-		balance, err = w.TxStore.Balance(txmgrNs, addrmgrNs, confirms,
-			balanceType, false, account)
+		balance, err = w.TxStore.AccountBalance(txmgrNs, addrmgrNs,
+			confirms, account)
 		return err
 	})
 	return balance, err
@@ -1455,17 +1431,23 @@ func (w *Wallet) CalculateAccountBalance(account uint32, confirms int32,
 // CalculateAccountBalances calculates the values for the wtxmgr struct Balance,
 // which includes the total balance, the spendable balance, and the balance
 // which has yet to mature.
-func (w *Wallet) CalculateAccountBalances(account uint32, confirms int32) (wtxmgr.Balances, error) {
-	var balances wtxmgr.Balances
+func (w *Wallet) CalculateAccountBalances(confirms int32) (map[uint32]*wtxmgr.Balances, error) {
+	balances := make(map[uint32]*wtxmgr.Balances)
+
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
-		var err error
-
-		balances, err = w.TxStore.AccountBalances(txmgrNs, addrmgrNs,
-			confirms, account)
-		return err
+		return w.Manager.ForEachAccount(addrmgrNs, func(acct uint32) error {
+			balance, err := w.TxStore.AccountBalance(txmgrNs, addrmgrNs,
+				confirms, acct)
+			if err != nil {
+				return err
+			}
+			balances[acct] = &balance
+			return nil
+		})
 	})
+
 	return balances, err
 }
 
@@ -2340,43 +2322,6 @@ func (w *Wallet) Accounts() (*AccountsResult, error) {
 		CurrentBlockHash:   &tipHash,
 		CurrentBlockHeight: tipHeight,
 	}, err
-}
-
-// AccountBalanceResult is a single result for the Wallet.AccountBalances method.
-type AccountBalanceResult struct {
-	AccountNumber  uint32
-	AccountName    string
-	AccountBalance dcrutil.Amount
-}
-
-// AccountBalances returns all accounts in the wallet and their balances.
-// Balances are determined by excluding transactions that have not met
-// requiredConfs confirmations.
-func (w *Wallet) AccountBalances(requiredConfs int32, balanceType wtxmgr.BehaviorFlags) ([]AccountBalanceResult, error) {
-	var results []AccountBalanceResult
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
-
-		return w.Manager.ForEachAccount(addrmgrNs, func(account uint32) error {
-			accountName, err := w.Manager.AccountName(addrmgrNs, account)
-			if err != nil {
-				return err
-			}
-			balance, err := w.TxStore.Balance(txmgrNs, addrmgrNs,
-				requiredConfs, balanceType, false, account)
-			if err != nil {
-				return err
-			}
-			results = append(results, AccountBalanceResult{
-				AccountNumber:  account,
-				AccountName:    accountName,
-				AccountBalance: balance,
-			})
-			return nil
-		})
-	})
-	return results, err
 }
 
 // creditSlice satisifies the sort.Interface interface to provide sorting

@@ -67,11 +67,11 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 			return err
 		}
 
-		bal, err := s.Balance(ns, addrmgrNs, 0, balanceFlag, false, 0)
+		bal, err := s.AccountBalance(ns, addrmgrNs, 0, 0)
 		if err != nil {
 			return err
 		}
-		if bal != 1e8 {
+		if bal.Total != 1e8 {
 			t.Errorf("Wrong balance before mining either transaction: %v", bal)
 		}
 
@@ -91,11 +91,11 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 		}
 
 		// At this point there should only be one credit for the tx in block 2.
-		bal, err = s.Balance(ns, addrmgrNs, 1, balanceFlag, false, 0)
+		bal, err = s.AccountBalance(ns, addrmgrNs, 1, 0)
 		if err != nil {
 			return err
 		}
-		if bal != dcrutil.Amount(block2Tx.TxOut[0].Value) {
+		if bal.Total != dcrutil.Amount(block2Tx.TxOut[0].Value) {
 			t.Errorf("Wrong balance: expected %v got %v", dcrutil.Amount(block2Tx.TxOut[0].Value), bal)
 		}
 		credits, err := s.UnspentOutputs(ns)
@@ -133,11 +133,11 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 
 		// Now the transaction in block 2 is invalidated.  There should only be
 		// one unspent output, from block 1.
-		bal, err = s.Balance(ns, addrmgrNs, 1, balanceFlag, false, 0)
+		bal, err = s.AccountBalance(ns, addrmgrNs, 1, 0)
 		if err != nil {
 			return err
 		}
-		if bal != dcrutil.Amount(block1Tx.TxOut[0].Value) {
+		if bal.Total != dcrutil.Amount(block1Tx.TxOut[0].Value) {
 			t.Errorf("Wrong balance: expected %v got %v", dcrutil.Amount(block1Tx.TxOut[0].Value), bal)
 		}
 		credits, err = s.UnspentOutputs(ns)
@@ -223,18 +223,18 @@ func TestStakeInvalidationTxInsert(t *testing.T) {
 
 		// The transaction in block 2 was inserted invalidated.  There should
 		// only be one unspent output, from block 1.
-		bal, err := s.Balance(ns, addrmgrNs, 1, BFBalanceFullScan, true, 0)
+		bal, err := s.AccountBalance(ns, addrmgrNs, 1, 0)
 		if err != nil {
 			return err
 		}
-		if bal != dcrutil.Amount(block1Tx.TxOut[0].Value) {
+		if bal.Total != dcrutil.Amount(block1Tx.TxOut[0].Value) {
 			t.Errorf("Wrong balance: expected %v got %v", dcrutil.Amount(block1Tx.TxOut[0].Value), bal)
 		}
-		bal, err = s.Balance(ns, addrmgrNs, 1, BFBalanceSpendable, true, 0)
+		bal, err = s.AccountBalance(ns, addrmgrNs, 1, 0)
 		if err != nil {
 			return err
 		}
-		if bal != dcrutil.Amount(block1Tx.TxOut[0].Value) {
+		if bal.Total != dcrutil.Amount(block1Tx.TxOut[0].Value) {
 			t.Errorf("Wrong balance: expected %v got %v", dcrutil.Amount(block1Tx.TxOut[0].Value), bal)
 		}
 		credits, err := s.UnspentOutputs(ns)

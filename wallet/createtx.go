@@ -1194,20 +1194,19 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 	// end user through the legacy RPC, so it should only ever be
 	// set by internal calls e.g. automatic ticket purchase.
 	if req.minBalance > 0 {
-		bal, err := w.CalculateAccountBalance(account, req.minConf,
-			wtxmgr.BFBalanceSpendable)
+		bal, err := w.CalculateAccountBalance(account, req.minConf)
 		if err != nil {
 			return nil, err
 		}
 
 		estimatedFundsUsed := neededPerTicket * dcrutil.Amount(req.numTickets)
-		if req.minBalance+estimatedFundsUsed > bal {
+		if req.minBalance+estimatedFundsUsed > bal.Spendable {
 			notEnoughFundsStr := fmt.Sprintf("not enough funds; balance to "+
 				"maintain is %v and estimated cost is %v (resulting in %v "+
 				"funds needed) but wallet account %v only has %v",
 				req.minBalance.ToCoin(), estimatedFundsUsed.ToCoin(),
 				req.minBalance.ToCoin()+estimatedFundsUsed.ToCoin(),
-				account, bal.ToCoin())
+				account, bal.Spendable.ToCoin())
 			log.Debugf("%s", notEnoughFundsStr)
 			return nil, txauthor.InsufficientFundsError{}
 		}

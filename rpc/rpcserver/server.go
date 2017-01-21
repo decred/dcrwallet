@@ -458,7 +458,7 @@ func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
 
 	account := req.AccountNumber
 	reqConfs := req.RequiredConfirmations
-	bals, err := s.wallet.CalculateAccountBalances(account, reqConfs)
+	bals, err := s.wallet.CalculateAccountBalance(account, reqConfs)
 	if err != nil {
 		return nil, translateError(err)
 	}
