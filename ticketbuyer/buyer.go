@@ -109,10 +109,399 @@ type TicketPurchaser struct {
 	ticketPrice      dcrutil.Amount
 	ProportionLive   float64
 
-	purchaserMtx      sync.Mutex
-	balanceToMaintain float64
-	maxPriceAbsolute  float64
-	maxFee            float64
+	purchaserMtx          sync.Mutex
+	accountName           string
+	avgPriceMode          string
+	avgPriceVWAPDelta     int
+	balanceToMaintain     float64
+	blocksToAvg           int
+	dontWaitForTickets    bool
+	expiryDelta           int
+	feeSource             string
+	feeTargetScaling      float64
+	highPricePenalty      float64
+	minFee                float64
+	minPriceScale         float64
+	maxFee                float64
+	maxPerBlock           int
+	maxPriceAbsolute      float64
+	maxPriceRelative      float64
+	maxPriceScale         float64
+	maxInMempool          int
+	poolFees              float64
+	priceTarget           float64
+	spreadTicketPurchases bool
+	txFee                 float64
+}
+
+// AccountName returns the accountName of ticket purchaser configuration.
+func (t *TicketPurchaser) AccountName() string {
+	t.purchaserMtx.Lock()
+	accountName := t.accountName
+	t.purchaserMtx.Unlock()
+	return accountName
+}
+
+// SetAccountName sets the accountName of ticket purchaser configuration.
+func (t *TicketPurchaser) SetAccountName(accountName string) {
+	t.purchaserMtx.Lock()
+	t.accountName = accountName
+	t.purchaserMtx.Unlock()
+}
+
+// AvgPriceMode returns the avgPriceMode of ticket purchaser configuration.
+func (t *TicketPurchaser) AvgPriceMode() string {
+	t.purchaserMtx.Lock()
+	avgPriceMode := t.avgPriceMode
+	t.purchaserMtx.Unlock()
+	return avgPriceMode
+}
+
+// SetAvgPriceMode sets the avgPriceMode of ticket purchaser configuration.
+func (t *TicketPurchaser) SetAvgPriceMode(avgPriceMode string) {
+	t.purchaserMtx.Lock()
+	t.avgPriceMode = avgPriceMode
+	t.purchaserMtx.Unlock()
+}
+
+// AvgPriceVWAPDelta returns the avgPriceVWAPDelta of ticket purchaser configuration.
+func (t *TicketPurchaser) AvgPriceVWAPDelta() int {
+	t.purchaserMtx.Lock()
+	avgPriceVWAPDelta := t.avgPriceVWAPDelta
+	t.purchaserMtx.Unlock()
+	return avgPriceVWAPDelta
+}
+
+// SetAvgPriceVWAPDelta sets the avgPriceVWAPDelta of ticket purchaser configuration.
+func (t *TicketPurchaser) SetAvgPriceVWAPDelta(avgPriceVWAPDelta int) {
+	t.purchaserMtx.Lock()
+	t.avgPriceVWAPDelta = avgPriceVWAPDelta
+	t.purchaserMtx.Unlock()
+}
+
+// BalanceToMaintain returns the balanceToMaintain of ticket purchaser configuration.
+func (t *TicketPurchaser) BalanceToMaintain() float64 {
+	t.purchaserMtx.Lock()
+	balanceToMaintain := t.balanceToMaintain
+	t.purchaserMtx.Unlock()
+	return balanceToMaintain
+}
+
+// SetBalanceToMaintain sets the balanceToMaintain of ticket purchaser configuration.
+func (t *TicketPurchaser) SetBalanceToMaintain(balanceToMaintain float64) {
+	t.purchaserMtx.Lock()
+	t.balanceToMaintain = balanceToMaintain
+	t.purchaserMtx.Unlock()
+}
+
+// BlocksToAvg returns the blocksToAvg of ticket purchaser configuration.
+func (t *TicketPurchaser) BlocksToAvg() int {
+	t.purchaserMtx.Lock()
+	blocksToAvg := t.blocksToAvg
+	t.purchaserMtx.Unlock()
+	return blocksToAvg
+}
+
+// SetBlocksToAvg sets the blocksToAvg of ticket purchaser configuration.
+func (t *TicketPurchaser) SetBlocksToAvg(blocksToAvg int) {
+	t.purchaserMtx.Lock()
+	t.blocksToAvg = blocksToAvg
+	t.purchaserMtx.Unlock()
+}
+
+// DontWaitForTickets returns the dontWaitForTickets of ticket purchaser configuration.
+func (t *TicketPurchaser) DontWaitForTickets() bool {
+	t.purchaserMtx.Lock()
+	dontWaitForTickets := t.dontWaitForTickets
+	t.purchaserMtx.Unlock()
+	return dontWaitForTickets
+}
+
+// SetDontWaitForTickets sets the dontWaitForTickets of ticket purchaser configuration.
+func (t *TicketPurchaser) SetDontWaitForTickets(dontWaitForTickets bool) {
+	t.purchaserMtx.Lock()
+	t.dontWaitForTickets = dontWaitForTickets
+	t.purchaserMtx.Unlock()
+}
+
+// ExpiryDelta returns the expiryDelta of ticket purchaser configuration.
+func (t *TicketPurchaser) ExpiryDelta() int {
+	t.purchaserMtx.Lock()
+	expiryDelta := t.expiryDelta
+	t.purchaserMtx.Unlock()
+	return expiryDelta
+}
+
+// SetExpiryDelta sets the expiryDelta of ticket purchaser configuration.
+func (t *TicketPurchaser) SetExpiryDelta(expiryDelta int) {
+	t.purchaserMtx.Lock()
+	t.expiryDelta = expiryDelta
+	t.purchaserMtx.Unlock()
+}
+
+// FeeSource returns the feeSource of ticket purchaser configuration.
+func (t *TicketPurchaser) FeeSource() string {
+	t.purchaserMtx.Lock()
+	feeSource := t.feeSource
+	t.purchaserMtx.Unlock()
+	return feeSource
+}
+
+// SetFeeSource sets the feeSource of ticket purchaser configuration.
+func (t *TicketPurchaser) SetFeeSource(feeSource string) {
+	t.purchaserMtx.Lock()
+	t.feeSource = feeSource
+	t.purchaserMtx.Unlock()
+}
+
+// FeeTargetScaling returns the feeTargetScaling of ticket purchaser configuration.
+func (t *TicketPurchaser) FeeTargetScaling() float64 {
+	t.purchaserMtx.Lock()
+	feeTargetScaling := t.feeTargetScaling
+	t.purchaserMtx.Unlock()
+	return feeTargetScaling
+}
+
+// SetFeeTargetScaling sets the feeTargetScaling of ticket purchaser configuration.
+func (t *TicketPurchaser) SetFeeTargetScaling(feeTargetScaling float64) {
+	t.purchaserMtx.Lock()
+	t.feeTargetScaling = feeTargetScaling
+	t.purchaserMtx.Unlock()
+}
+
+// HighPricePenalty returns the highPricePenalty of ticket purchaser configuration.
+func (t *TicketPurchaser) HighPricePenalty() float64 {
+	t.purchaserMtx.Lock()
+	highPricePenalty := t.highPricePenalty
+	t.purchaserMtx.Unlock()
+	return highPricePenalty
+}
+
+// SetHighPricePenalty sets the highPricePenalty of ticket purchaser configuration.
+func (t *TicketPurchaser) SetHighPricePenalty(highPricePenalty float64) {
+	t.purchaserMtx.Lock()
+	t.highPricePenalty = highPricePenalty
+	t.purchaserMtx.Unlock()
+}
+
+// MinFee returns the minFee of ticket purchaser configuration.
+func (t *TicketPurchaser) MinFee() float64 {
+	t.purchaserMtx.Lock()
+	minFee := t.minFee
+	t.purchaserMtx.Unlock()
+	return minFee
+}
+
+// SetMinFee sets the minFee of ticket purchaser configuration.
+func (t *TicketPurchaser) SetMinFee(minFee float64) {
+	t.purchaserMtx.Lock()
+	t.minFee = minFee
+	t.purchaserMtx.Unlock()
+}
+
+// MinPriceScale returns the minPriceScale of ticket purchaser configuration.
+func (t *TicketPurchaser) MinPriceScale() float64 {
+	t.purchaserMtx.Lock()
+	minPriceScale := t.minPriceScale
+	t.purchaserMtx.Unlock()
+	return minPriceScale
+}
+
+// SetMinPriceScale sets the minPriceScale of ticket purchaser configuration.
+func (t *TicketPurchaser) SetMinPriceScale(minPriceScale float64) {
+	t.purchaserMtx.Lock()
+	t.minPriceScale = minPriceScale
+	t.purchaserMtx.Unlock()
+}
+
+// MaxFee returns the maxFee of ticket purchaser configuration.
+func (t *TicketPurchaser) MaxFee() float64 {
+	t.purchaserMtx.Lock()
+	maxFee := t.maxFee
+	t.purchaserMtx.Unlock()
+	return maxFee
+}
+
+// SetMaxFee sets the maxFee of ticket purchaser configuration.
+func (t *TicketPurchaser) SetMaxFee(maxFee float64) {
+	t.purchaserMtx.Lock()
+	t.maxFee = maxFee
+	t.purchaserMtx.Unlock()
+}
+
+// MaxPerBlock returns the maxPerBlock of ticket purchaser configuration.
+func (t *TicketPurchaser) MaxPerBlock() int {
+	t.purchaserMtx.Lock()
+	maxPerBlock := t.maxPerBlock
+	t.purchaserMtx.Unlock()
+	return maxPerBlock
+}
+
+// SetMaxPerBlock sets the maxPerBlock of ticket purchaser configuration.
+func (t *TicketPurchaser) SetMaxPerBlock(maxPerBlock int) {
+	t.purchaserMtx.Lock()
+	t.maxPerBlock = maxPerBlock
+	t.purchaserMtx.Unlock()
+}
+
+// MaxPriceAbsolute returns the maxPriceAbsolute of ticket purchaser configuration.
+func (t *TicketPurchaser) MaxPriceAbsolute() float64 {
+	t.purchaserMtx.Lock()
+	maxPriceAbsolute := t.maxPriceAbsolute
+	t.purchaserMtx.Unlock()
+	return maxPriceAbsolute
+}
+
+// SetMaxPriceAbsolute sets the maxPriceAbsolute of ticket purchaser configuration.
+func (t *TicketPurchaser) SetMaxPriceAbsolute(maxPriceAbsolute float64) {
+	t.purchaserMtx.Lock()
+	t.maxPriceAbsolute = maxPriceAbsolute
+	t.purchaserMtx.Unlock()
+}
+
+// MaxPriceRelative returns the maxPriceRelative of ticket purchaser configuration.
+func (t *TicketPurchaser) MaxPriceRelative() float64 {
+	t.purchaserMtx.Lock()
+	maxPriceRelative := t.maxPriceRelative
+	t.purchaserMtx.Unlock()
+	return maxPriceRelative
+}
+
+// SetMaxPriceRelative sets the maxPriceRelative of ticket purchaser configuration.
+func (t *TicketPurchaser) SetMaxPriceRelative(maxPriceRelative float64) {
+	t.purchaserMtx.Lock()
+	t.maxPriceRelative = maxPriceRelative
+	t.purchaserMtx.Unlock()
+}
+
+// MaxPriceScale returns the maxPriceScale of ticket purchaser configuration.
+func (t *TicketPurchaser) MaxPriceScale() float64 {
+	t.purchaserMtx.Lock()
+	maxPriceScale := t.maxPriceScale
+	t.purchaserMtx.Unlock()
+	return maxPriceScale
+}
+
+// SetMaxPriceScale sets the maxPriceScale of ticket purchaser configuration.
+func (t *TicketPurchaser) SetMaxPriceScale(maxPriceScale float64) {
+	t.purchaserMtx.Lock()
+	t.maxPriceScale = maxPriceScale
+	t.purchaserMtx.Unlock()
+}
+
+// MaxInMempool returns the maxInMempool of ticket purchaser configuration.
+func (t *TicketPurchaser) MaxInMempool() int {
+	t.purchaserMtx.Lock()
+	maxInMempool := t.maxInMempool
+	t.purchaserMtx.Unlock()
+	return maxInMempool
+}
+
+// SetMaxInMempool sets the maxInMempool of ticket purchaser configuration.
+func (t *TicketPurchaser) SetMaxInMempool(maxInMempool int) {
+	t.purchaserMtx.Lock()
+	t.maxInMempool = maxInMempool
+	t.purchaserMtx.Unlock()
+}
+
+// PoolAddress returns the poolAddress of ticket purchaser configuration.
+func (t *TicketPurchaser) PoolAddress() string {
+	t.purchaserMtx.Lock()
+	poolAddress := t.poolAddress
+	t.purchaserMtx.Unlock()
+	return poolAddress.String()
+}
+
+// SetPoolAddress sets the poolAddress of ticket purchaser configuration.
+func (t *TicketPurchaser) SetPoolAddress(poolAddress string) error {
+	t.purchaserMtx.Lock()
+	poolAddressDecoded, err := dcrutil.DecodeNetworkAddress(poolAddress)
+	if err != nil {
+		return err
+	}
+	t.poolAddress = poolAddressDecoded
+	t.purchaserMtx.Unlock()
+	return nil
+}
+
+// PoolFees returns the poolFees of ticket purchaser configuration.
+func (t *TicketPurchaser) PoolFees() float64 {
+	t.purchaserMtx.Lock()
+	poolFees := t.poolFees
+	t.purchaserMtx.Unlock()
+	return poolFees
+}
+
+// SetPoolFees sets the poolFees of ticket purchaser configuration.
+func (t *TicketPurchaser) SetPoolFees(poolFees float64) {
+	t.purchaserMtx.Lock()
+	t.poolFees = poolFees
+	t.purchaserMtx.Unlock()
+}
+
+// PriceTarget returns the priceTarget of ticket purchaser configuration.
+func (t *TicketPurchaser) PriceTarget() float64 {
+	t.purchaserMtx.Lock()
+	priceTarget := t.priceTarget
+	t.purchaserMtx.Unlock()
+	return priceTarget
+}
+
+// SetPriceTarget sets the priceTarget of ticket purchaser configuration.
+func (t *TicketPurchaser) SetPriceTarget(priceTarget float64) {
+	t.purchaserMtx.Lock()
+	t.priceTarget = priceTarget
+	t.purchaserMtx.Unlock()
+}
+
+// SpreadTicketPurchases returns the spreadTicketPurchases of ticket purchaser configuration.
+func (t *TicketPurchaser) SpreadTicketPurchases() bool {
+	t.purchaserMtx.Lock()
+	spreadTicketPurchases := t.spreadTicketPurchases
+	t.purchaserMtx.Unlock()
+	return spreadTicketPurchases
+}
+
+// SetSpreadTicketPurchases sets the spreadTicketPurchases of ticket purchaser configuration.
+func (t *TicketPurchaser) SetSpreadTicketPurchases(spreadTicketPurchases bool) {
+	t.purchaserMtx.Lock()
+	t.spreadTicketPurchases = spreadTicketPurchases
+	t.purchaserMtx.Unlock()
+}
+
+// TicketAddress returns the ticketAddress of ticket purchaser configuration.
+func (t *TicketPurchaser) TicketAddress() string {
+	t.purchaserMtx.Lock()
+	ticketAddress := t.ticketAddress
+	t.purchaserMtx.Unlock()
+	return ticketAddress.String()
+}
+
+// SetTicketAddress sets the ticketAddress of ticket purchaser configuration.
+func (t *TicketPurchaser) SetTicketAddress(ticketAddress string) error {
+	t.purchaserMtx.Lock()
+	ticketAddressDecoded, err := dcrutil.DecodeNetworkAddress(ticketAddress)
+	if err != nil {
+		return err
+	}
+	t.ticketAddress = ticketAddressDecoded
+	t.purchaserMtx.Unlock()
+	return nil
+}
+
+// TxFee returns the txFee of ticket purchaser configuration.
+func (t *TicketPurchaser) TxFee() float64 {
+	t.purchaserMtx.Lock()
+	txFee := t.txFee
+	t.purchaserMtx.Unlock()
+	return txFee
+}
+
+// SetTxFee sets the txFee of ticket purchaser configuration.
+func (t *TicketPurchaser) SetTxFee(txFee float64) {
+	t.purchaserMtx.Lock()
+	t.txFee = txFee
+	t.purchaserMtx.Unlock()
 }
 
 // NewTicketPurchaser creates a new TicketPurchaser.
@@ -169,55 +558,29 @@ func NewTicketPurchaser(cfg *Config,
 		priceMode:        priceMode,
 		heightCheck:      make(map[int64]struct{}),
 
-		balanceToMaintain: cfg.BalanceToMaintain,
-		maxPriceAbsolute:  cfg.MaxPriceAbsolute,
-		maxFee:            cfg.MaxFee,
+		accountName:        cfg.AccountName,
+		avgPriceMode:       cfg.AvgPriceMode,
+		avgPriceVWAPDelta:  cfg.AvgPriceVWAPDelta,
+		balanceToMaintain:  cfg.BalanceToMaintain,
+		blocksToAvg:        cfg.BlocksToAvg,
+		dontWaitForTickets: cfg.DontWaitForTickets,
+		expiryDelta:        cfg.ExpiryDelta,
+		feeSource:          cfg.FeeSource,
+		feeTargetScaling:   cfg.FeeTargetScaling,
+		highPricePenalty:   cfg.HighPricePenalty,
+		minFee:             cfg.MinFee,
+		minPriceScale:      cfg.MinPriceScale,
+		maxFee:             cfg.MaxFee,
+		maxPerBlock:        cfg.MaxPerBlock,
+		maxPriceAbsolute:   cfg.MaxPriceAbsolute,
+		maxPriceRelative:   cfg.MaxPriceRelative,
+		maxPriceScale:      cfg.MaxPriceScale,
+		maxInMempool:       cfg.MaxInMempool,
+		poolFees:           cfg.PoolFees,
+		priceTarget:        cfg.PriceTarget,
+		txFee:              cfg.TxFee,
+		spreadTicketPurchases: cfg.SpreadTicketPurchases,
 	}, nil
-}
-
-// BalanceToMaintain returns the balance to maintain in the wallet.
-func (t *TicketPurchaser) BalanceToMaintain() float64 {
-	t.purchaserMtx.Lock()
-	balance := t.balanceToMaintain
-	t.purchaserMtx.Unlock()
-	return balance
-}
-
-// SetBalanceToMaintain sets the balance to maintain in the wallet.
-func (t *TicketPurchaser) SetBalanceToMaintain(balanceToMaintain float64) {
-	t.purchaserMtx.Lock()
-	t.balanceToMaintain = balanceToMaintain
-	t.purchaserMtx.Unlock()
-}
-
-// MaxPriceAbsolute returns the max price to pay for a ticket.
-func (t *TicketPurchaser) MaxPriceAbsolute() float64 {
-	t.purchaserMtx.Lock()
-	maxPriceAbsolute := t.maxPriceAbsolute
-	t.purchaserMtx.Unlock()
-	return maxPriceAbsolute
-}
-
-// SetMaxPriceAbsolute sets the max price to pay for a ticket.
-func (t *TicketPurchaser) SetMaxPriceAbsolute(maxPriceAbsolute float64) {
-	t.purchaserMtx.Lock()
-	t.maxPriceAbsolute = maxPriceAbsolute
-	t.purchaserMtx.Unlock()
-}
-
-// MaxFee returns the maximum ticket fee to use.
-func (t *TicketPurchaser) MaxFee() float64 {
-	t.purchaserMtx.Lock()
-	maxFee := t.maxFee
-	t.purchaserMtx.Unlock()
-	return maxFee
-}
-
-// SetMaxFee sets the maximum ticket fee to use.
-func (t *TicketPurchaser) SetMaxFee(maxFee float64) {
-	t.purchaserMtx.Lock()
-	t.maxFee = maxFee
-	t.purchaserMtx.Unlock()
 }
 
 // PurchaseStats stats is a collection of statistics related to the ticket purchase.
