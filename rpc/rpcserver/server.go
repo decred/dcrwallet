@@ -51,10 +51,10 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.4.0"
+	semverString = "4.4.1"
 	semverMajor  = 4
 	semverMinor  = 4
-	semverPatch  = 0
+	semverPatch  = 1
 )
 
 // translateError creates a new gRPC error with an appropiate error code for
@@ -546,27 +546,29 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 		Account:               req.Account,
 		RequiredConfirmations: req.RequiredConfirmations,
 	}
-	unspentOutputs, err := s.wallet.UnspentOutputs(policy)
-	if err != nil {
+	totalAmount, inputs, scripts, err := s.wallet.SelectInputs(dcrutil.Amount(req.TargetAmount), policy)
+	// Do not return errors to caller when there was insufficient spendable
+	// outputs available for the target amount.
+	switch err.(type) {
+	case nil, txauthor.InputSourceError:
+	default:
 		return nil, translateError(err)
 	}
 
-	selectedOutputs := make([]*pb.FundTransactionResponse_PreviousOutput, 0, len(unspentOutputs))
-	var totalAmount dcrutil.Amount
-	for _, output := range unspentOutputs {
-		selectedOutputs = append(selectedOutputs, &pb.FundTransactionResponse_PreviousOutput{
-			TransactionHash: output.OutPoint.Hash[:],
-			OutputIndex:     output.OutPoint.Index,
-			Amount:          output.Output.Value,
-			PkScript:        output.Output.PkScript,
-			ReceiveTime:     output.ReceiveTime.Unix(),
-			FromCoinbase:    output.OutputKind == wallet.OutputKindCoinbase,
-			Tree:            int32(output.OutPoint.Tree),
-		})
-		totalAmount += dcrutil.Amount(output.Output.Value)
-
-		if req.TargetAmount != 0 && totalAmount > dcrutil.Amount(req.TargetAmount) {
-			break
+	selectedOutputs := make([]*pb.FundTransactionResponse_PreviousOutput, len(inputs))
+	for i, input := range inputs {
+		outputInfo, err := s.wallet.OutputInfo(&input.PreviousOutPoint)
+		if err != nil {
+			return nil, translateError(err)
+		}
+		selectedOutputs[i] = &pb.FundTransactionResponse_PreviousOutput{
+			TransactionHash: input.PreviousOutPoint.Hash[:],
+			OutputIndex:     input.PreviousOutPoint.Index,
+			Tree:            int32(input.PreviousOutPoint.Tree),
+			Amount:          int64(outputInfo.Amount),
+			PkScript:        scripts[i],
+			ReceiveTime:     outputInfo.Received.Unix(),
+			FromCoinbase:    outputInfo.FromCoinbase,
 		}
 	}
 
