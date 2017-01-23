@@ -129,6 +129,37 @@ type TicketPurchaser struct {
 	txFee                 float64
 }
 
+// Config returns the ticket buyer configuration.
+func (t *TicketPurchaser) Config() *Config {
+	t.purchaserMtx.Lock()
+	config := &Config{
+		AccountName:           t.accountName,
+		AvgPriceMode:          t.avgPriceMode,
+		AvgPriceVWAPDelta:     t.avgPriceVWAPDelta,
+		BalanceToMaintain:     t.balanceToMaintain,
+		BlocksToAvg:           t.blocksToAvg,
+		DontWaitForTickets:    t.dontWaitForTickets,
+		ExpiryDelta:           t.expiryDelta,
+		FeeSource:             t.feeSource,
+		FeeTargetScaling:      t.feeTargetScaling,
+		MinFee:                t.minFee,
+		MinPriceScale:         t.minPriceScale,
+		MaxFee:                t.maxFee,
+		MaxPerBlock:           t.maxPerBlock,
+		MaxPriceAbsolute:      t.maxPriceAbsolute,
+		MaxPriceRelative:      t.maxPriceRelative,
+		MaxPriceScale:         t.maxPriceScale,
+		MaxInMempool:          t.maxInMempool,
+		PoolAddress:           t.poolAddress.String(),
+		PoolFees:              t.poolFees,
+		SpreadTicketPurchases: t.spreadTicketPurchases,
+		TicketAddress:         t.ticketAddress.String(),
+		TxFee:                 t.txFee,
+	}
+	t.purchaserMtx.Unlock()
+	return config
+}
+
 // AccountName returns the accountName of ticket purchaser configuration.
 func (t *TicketPurchaser) AccountName() string {
 	t.purchaserMtx.Lock()
