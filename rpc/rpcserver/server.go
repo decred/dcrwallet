@@ -197,6 +197,24 @@ func (t *ticketBuyerServer) SetMaxPriceAbsolute(ctx context.Context, req *pb.Set
 	return &pb.SetMaxPriceAbsoluteResponse{}, nil
 }
 
+// MaxFee returns the max ticket fee when purchasing tickets.
+func (t *ticketBuyerServer) MaxFee(ctx context.Context, req *pb.MaxFeeRequest) (
+	*pb.MaxFeeResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	maxFee := purchaser.MaxFee()
+	return &pb.MaxFeeResponse{MaxFee: int64(maxFee)}, nil
+}
+
+// SetMaxFee returns the max ticket fee when purchasing tickets.
+func (t *ticketBuyerServer) SetMaxFee(ctx context.Context, req *pb.SetMaxFeeRequest) (
+	*pb.SetMaxFeeResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetMaxFee(float64(req.MaxFee))
+	return &pb.SetMaxFeeResponse{}, nil
+}
+
 // walletServer provides wallet services for RPC clients.
 type walletServer struct {
 	wallet *wallet.Wallet

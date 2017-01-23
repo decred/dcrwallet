@@ -112,6 +112,7 @@ type TicketPurchaser struct {
 	purchaserMtx      sync.Mutex
 	balanceToMaintain float64
 	maxPriceAbsolute  float64
+	maxFee            float64
 }
 
 // NewTicketPurchaser creates a new TicketPurchaser.
@@ -170,6 +171,7 @@ func NewTicketPurchaser(cfg *Config,
 
 		balanceToMaintain: cfg.BalanceToMaintain,
 		maxPriceAbsolute:  cfg.MaxPriceAbsolute,
+		maxFee:            cfg.MaxFee,
 	}, nil
 }
 
@@ -200,6 +202,21 @@ func (t *TicketPurchaser) MaxPriceAbsolute() float64 {
 func (t *TicketPurchaser) SetMaxPriceAbsolute(maxPriceAbsolute float64) {
 	t.purchaserMtx.Lock()
 	t.maxPriceAbsolute = maxPriceAbsolute
+	t.purchaserMtx.Unlock()
+}
+
+// MaxFee returns the maximum ticket fee to use.
+func (t *TicketPurchaser) MaxFee() float64 {
+	t.purchaserMtx.Lock()
+	maxFee := t.maxFee
+	t.purchaserMtx.Unlock()
+	return maxFee
+}
+
+// SetMaxFee sets the maximum ticket fee to use.
+func (t *TicketPurchaser) SetMaxFee(maxFee float64) {
+	t.purchaserMtx.Lock()
+	t.maxFee = maxFee
 	t.purchaserMtx.Unlock()
 }
 
@@ -461,9 +478,10 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// for by the user.
 	feeToUse := chainFee * t.cfg.FeeTargetScaling
 	log.Tracef("Average ticket fee: %.8f DCR", chainFee)
-	if feeToUse > t.cfg.MaxFee {
+	maxFee := t.MaxFee()
+	if feeToUse > maxFee {
 		log.Infof("Not buying because max fee exceed: (max fee: %.8f DCR,  scaled fee: %.8f DCR)",
-			t.cfg.MaxFee, feeToUse)
+			maxFee, feeToUse)
 		return ps, nil
 	}
 	if feeToUse < t.cfg.MinFee {
