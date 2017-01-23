@@ -950,7 +950,6 @@ func loadConfig() (*config, []string, error) {
 		MaxInMempool:          cfg.TBOpts.MaxInMempool,
 		PoolAddress:           cfg.PoolAddress,
 		PoolFees:              cfg.PoolFees,
-		PriceTarget:           cfg.TBOpts.PriceTarget.ToCoin(),
 		SpreadTicketPurchases: cfg.TBOpts.SpreadTicketPurchases,
 		TicketAddress:         cfg.TicketAddress,
 		TxFee:                 cfg.RelayFee.ToCoin(),

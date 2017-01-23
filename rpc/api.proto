@@ -65,15 +65,74 @@ service SeedService {
 }
 
 service TicketBuyerService {
-	rpc StartTicketPurchase (StartTicketPurchaseRequest) returns (StartTicketPurchaseResponse);
-	rpc StopTicketPurchase (StopTicketPurchaseRequest) returns (StopTicketPurchaseResponse);
+    rpc StartTicketPurchase (StartTicketPurchaseRequest) returns (StartTicketPurchaseResponse);
+    rpc StopTicketPurchase (StopTicketPurchaseRequest) returns (StopTicketPurchaseResponse);
 
-	rpc BalanceToMaintain (BalanceToMaintainRequest) returns (BalanceToMaintainResponse);
-	rpc SetBalanceToMaintain (SetBalanceToMaintainRequest) returns (SetBalanceToMaintainResponse);
-	rpc MaxPriceAbsolute (MaxPriceAbsoluteRequest) returns (MaxPriceAbsoluteResponse);
-	rpc SetMaxPriceAbsolute (SetMaxPriceAbsoluteRequest) returns (SetMaxPriceAbsoluteResponse);
-	rpc MaxFee (MaxFeeRequest) returns (MaxFeeResponse);
-	rpc SetMaxFee (SetMaxFeeRequest) returns (SetMaxFeeResponse);
+    rpc AccountName (AccountNameRequest) returns (AccountNameResponse);
+    rpc SetAccountName (SetAccountNameRequest) returns (SetAccountNameResponse);
+
+    rpc AvgPriceMode (AvgPriceModeRequest) returns (AvgPriceModeResponse);
+    rpc SetAvgPriceMode (SetAvgPriceModeRequest) returns (SetAvgPriceModeResponse);
+
+    rpc AvgPriceVWAPDelta (AvgPriceVWAPDeltaRequest) returns (AvgPriceVWAPDeltaResponse);
+    rpc SetAvgPriceVWAPDelta (SetAvgPriceVWAPDeltaRequest) returns (SetAvgPriceVWAPDeltaResponse);
+
+    rpc BalanceToMaintain (BalanceToMaintainRequest) returns (BalanceToMaintainResponse);
+    rpc SetBalanceToMaintain (SetBalanceToMaintainRequest) returns (SetBalanceToMaintainResponse);
+
+    rpc BlocksToAverage (BlocksToAverageRequest) returns (BlocksToAverageResponse);
+    rpc SetBlocksToAverage (SetBlocksToAverageRequest) returns (SetBlocksToAverageResponse);
+
+    rpc DontWaitForTickets (DontWaitForTicketsRequest) returns (DontWaitForTicketsResponse);
+    rpc SetDontWaitForTickets (SetDontWaitForTicketsRequest) returns (SetDontWaitForTicketsResponse);
+
+    rpc ExpiryDelta (ExpiryDeltaRequest) returns (ExpiryDeltaResponse);
+    rpc SetExpiryDelta (SetExpiryDeltaRequest) returns (SetExpiryDeltaResponse);
+
+    rpc FeeSource (FeeSourceRequest) returns (FeeSourceResponse);
+    rpc SetFeeSource (SetFeeSourceRequest) returns (SetFeeSourceResponse);
+
+    rpc FeeTargetScaling (FeeTargetScalingRequest) returns (FeeTargetScalingResponse);
+    rpc SetFeeTargetScaling (SetFeeTargetScalingRequest) returns (SetFeeTargetScalingResponse);
+
+    rpc MinFee (MinFeeRequest) returns (MinFeeResponse);
+    rpc SetMinFee (SetMinFeeRequest) returns (SetMinFeeResponse);
+
+    rpc MinPriceScale (MinPriceScaleRequest) returns (MinPriceScaleResponse);
+    rpc SetMinPriceScale (SetMinPriceScaleRequest) returns (SetMinPriceScaleResponse);
+
+    rpc MaxFee (MaxFeeRequest) returns (MaxFeeResponse);
+    rpc SetMaxFee (SetMaxFeeRequest) returns (SetMaxFeeResponse);
+
+    rpc MaxPerBlock (MaxPerBlockRequest) returns (MaxPerBlockResponse);
+    rpc SetMaxPerBlock (SetMaxPerBlockRequest) returns (SetMaxPerBlockResponse);
+
+    rpc MaxPriceAbsolute (MaxPriceAbsoluteRequest) returns (MaxPriceAbsoluteResponse);
+    rpc SetMaxPriceAbsolute (SetMaxPriceAbsoluteRequest) returns (SetMaxPriceAbsoluteResponse);
+
+    rpc MaxPriceRelative (MaxPriceRelativeRequest) returns (MaxPriceRelativeResponse);
+    rpc SetMaxPriceRelative (SetMaxPriceRelativeRequest) returns (SetMaxPriceRelativeResponse);
+
+    rpc MaxPriceScale (MaxPriceScaleRequest) returns (MaxPriceScaleResponse);
+    rpc SetMaxPriceScale (SetMaxPriceScaleRequest) returns (SetMaxPriceScaleResponse);
+
+    rpc MaxInMempool (MaxInMempoolRequest) returns (MaxInMempoolResponse);
+    rpc SetMaxInMempool (SetMaxInMempoolRequest) returns (SetMaxInMempoolResponse);
+
+    rpc PoolAddress (PoolAddressRequest) returns (PoolAddressResponse);
+    rpc SetPoolAddress (SetPoolAddressRequest) returns (SetPoolAddressResponse);
+
+    rpc PoolFees (PoolFeesRequest) returns (PoolFeesResponse);
+    rpc SetPoolFees (SetPoolFeesRequest) returns (SetPoolFeesResponse);
+
+    rpc SpreadTicketPurchases (SpreadTicketPurchasesRequest) returns (SpreadTicketPurchasesResponse);
+    rpc SetSpreadTicketPurchases (SetSpreadTicketPurchasesRequest) returns (SetSpreadTicketPurchasesResponse);
+
+    rpc TicketAddress (TicketAddressRequest) returns (TicketAddressResponse);
+    rpc SetTicketAddress (SetTicketAddressRequest) returns (SetTicketAddressResponse);
+
+    rpc TxFee (TxFeeRequest) returns (TxFeeResponse);
+    rpc SetTxFee (SetTxFeeRequest) returns (SetTxFeeResponse);
 }
 
 message TransactionDetails {
@@ -478,6 +537,36 @@ message StartTicketPurchaseResponse {}
 message StopTicketPurchaseRequest {}
 message StopTicketPurchaseResponse {}
 
+message AccountNameRequest{}
+message AccountNameResponse{
+    string account_name = 1;
+}
+
+message SetAccountNameRequest{
+    string account_name = 1;
+}
+message SetAccountNameResponse{}
+
+message AvgPriceModeRequest{}
+message AvgPriceModeResponse{
+    string avg_price_mode = 1;
+}
+
+message SetAvgPriceModeRequest{
+    string avg_price_mode = 1;
+}
+message SetAvgPriceModeResponse{}
+
+message AvgPriceVWAPDeltaRequest{}
+message AvgPriceVWAPDeltaResponse{
+    int64 avg_priceVWAP_delta = 1;
+}
+
+message SetAvgPriceVWAPDeltaRequest{
+    int64 avg_priceVWAP_delta = 1;
+}
+message SetAvgPriceVWAPDeltaResponse{}
+
 message BalanceToMaintainRequest{}
 message BalanceToMaintainResponse{
     int64 balance_to_maintain = 1;
@@ -487,6 +576,96 @@ message SetBalanceToMaintainRequest{
     int64 balance_to_maintain = 1;
 }
 message SetBalanceToMaintainResponse{}
+
+message BlocksToAverageRequest{}
+message BlocksToAverageResponse{
+    int64 blocks_to_average = 1;
+}
+
+message SetBlocksToAverageRequest{
+    int64 blocks_to_average = 1;
+}
+message SetBlocksToAverageResponse{}
+
+message DontWaitForTicketsRequest{}
+message DontWaitForTicketsResponse{
+    bool dont_wait_for_tickets = 1;
+}
+
+message SetDontWaitForTicketsRequest{
+    bool dont_wait_for_tickets = 1;
+}
+message SetDontWaitForTicketsResponse{}
+
+message ExpiryDeltaRequest{}
+message ExpiryDeltaResponse{
+    int64 expiry_delta = 1;
+}
+
+message SetExpiryDeltaRequest{
+    int64 expiry_delta = 1;
+}
+message SetExpiryDeltaResponse{}
+
+message FeeSourceRequest{}
+message FeeSourceResponse{
+    string fee_source = 1;
+}
+
+message SetFeeSourceRequest{
+    string fee_source = 1;
+}
+message SetFeeSourceResponse{}
+
+message FeeTargetScalingRequest{}
+message FeeTargetScalingResponse{
+    int64 fee_target_scaling = 1;
+}
+
+message SetFeeTargetScalingRequest{
+    int64 fee_target_scaling = 1;
+}
+message SetFeeTargetScalingResponse{}
+
+message MinFeeRequest{}
+message MinFeeResponse{
+    int64 min_fee = 1;
+}
+
+message SetMinFeeRequest{
+    int64 min_fee = 1;
+}
+message SetMinFeeResponse{}
+
+message MinPriceScaleRequest{}
+message MinPriceScaleResponse{
+    int64 min_price_scale = 1;
+}
+
+message SetMinPriceScaleRequest{
+    int64 min_price_scale = 1;
+}
+message SetMinPriceScaleResponse{}
+
+message MaxFeeRequest{}
+message MaxFeeResponse{
+    int64 max_fee = 1;
+}
+
+message SetMaxFeeRequest{
+    int64 max_fee = 1;
+}
+message SetMaxFeeResponse{}
+
+message MaxPerBlockRequest{}
+message MaxPerBlockResponse{
+    int64 max_per_block = 1;
+}
+
+message SetMaxPerBlockRequest{
+    int64 max_per_block = 1;
+}
+message SetMaxPerBlockResponse{}
 
 message MaxPriceAbsoluteRequest{}
 message MaxPriceAbsoluteResponse{
@@ -498,12 +677,82 @@ message SetMaxPriceAbsoluteRequest{
 }
 message SetMaxPriceAbsoluteResponse{}
 
-message MaxFeeRequest{}
-message MaxFeeResponse{
-    int64 max_fee = 1;
+message MaxPriceRelativeRequest{}
+message MaxPriceRelativeResponse{
+    int64 max_price_relative = 1;
 }
 
-message SetMaxFeeRequest{
-    int64 max_fee = 1;
+message SetMaxPriceRelativeRequest{
+    int64 max_price_relative = 1;
 }
-message SetMaxFeeResponse{}
+message SetMaxPriceRelativeResponse{}
+
+message MaxPriceScaleRequest{}
+message MaxPriceScaleResponse{
+    int64 max_price_scale = 1;
+}
+
+message SetMaxPriceScaleRequest{
+    int64 max_price_scale = 1;
+}
+message SetMaxPriceScaleResponse{}
+
+message MaxInMempoolRequest{}
+message MaxInMempoolResponse{
+    int64 max_in_mempool = 1;
+}
+
+message SetMaxInMempoolRequest{
+    int64 max_in_mempool = 1;
+}
+message SetMaxInMempoolResponse{}
+
+message PoolAddressRequest{}
+message PoolAddressResponse{
+    string pool_address = 1;
+}
+
+message SetPoolAddressRequest{
+    string pool_address = 1;
+}
+message SetPoolAddressResponse{}
+
+message PoolFeesRequest{}
+message PoolFeesResponse{
+    int64 pool_fees = 1;
+}
+
+message SetPoolFeesRequest{
+    int64 pool_fees = 1;
+}
+message SetPoolFeesResponse{}
+
+message SpreadTicketPurchasesRequest{}
+message SpreadTicketPurchasesResponse{
+    bool spread_ticket_purchases = 1;
+}
+
+message SetSpreadTicketPurchasesRequest{
+    bool spread_ticket_purchases = 1;
+}
+message SetSpreadTicketPurchasesResponse{}
+
+message TicketAddressRequest{}
+message TicketAddressResponse{
+    string ticket_address = 1;
+}
+
+message SetTicketAddressRequest{
+    string ticket_address = 1;
+}
+message SetTicketAddressResponse{}
+
+message TxFeeRequest{}
+message TxFeeResponse{
+    int64 tx_fee = 1;
+}
+
+message SetTxFeeRequest{
+    int64 tx_fee = 1;
+}
+message SetTxFeeResponse{}

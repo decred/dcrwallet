@@ -67,7 +67,6 @@ type Config struct {
 	ExpiryDelta           int
 	FeeSource             string
 	FeeTargetScaling      float64
-	HighPricePenalty      float64
 	MinFee                float64
 	MinPriceScale         float64
 	MaxFee                float64
@@ -78,13 +77,9 @@ type Config struct {
 	MaxInMempool          int
 	PoolAddress           string
 	PoolFees              float64
-	PriceTarget           float64
 	SpreadTicketPurchases bool
 	TicketAddress         string
 	TxFee                 float64
-	TicketFeeInfo         bool
-	PrevToBuyDiffPeriod   int
-	PrevToBuyHeight       int
 }
 
 // TicketPurchaser is the main handler for purchasing tickets. It decides
@@ -194,16 +189,16 @@ func (t *TicketPurchaser) SetBalanceToMaintain(balanceToMaintain float64) {
 	t.purchaserMtx.Unlock()
 }
 
-// BlocksToAvg returns the blocksToAvg of ticket purchaser configuration.
-func (t *TicketPurchaser) BlocksToAvg() int {
+// BlocksToAverage returns the blocksToAvg of ticket purchaser configuration.
+func (t *TicketPurchaser) BlocksToAverage() int {
 	t.purchaserMtx.Lock()
 	blocksToAvg := t.blocksToAvg
 	t.purchaserMtx.Unlock()
 	return blocksToAvg
 }
 
-// SetBlocksToAvg sets the blocksToAvg of ticket purchaser configuration.
-func (t *TicketPurchaser) SetBlocksToAvg(blocksToAvg int) {
+// SetBlocksToAverage sets the blocksToAvg of ticket purchaser configuration.
+func (t *TicketPurchaser) SetBlocksToAverage(blocksToAvg int) {
 	t.purchaserMtx.Lock()
 	t.blocksToAvg = blocksToAvg
 	t.purchaserMtx.Unlock()
@@ -266,21 +261,6 @@ func (t *TicketPurchaser) FeeTargetScaling() float64 {
 func (t *TicketPurchaser) SetFeeTargetScaling(feeTargetScaling float64) {
 	t.purchaserMtx.Lock()
 	t.feeTargetScaling = feeTargetScaling
-	t.purchaserMtx.Unlock()
-}
-
-// HighPricePenalty returns the highPricePenalty of ticket purchaser configuration.
-func (t *TicketPurchaser) HighPricePenalty() float64 {
-	t.purchaserMtx.Lock()
-	highPricePenalty := t.highPricePenalty
-	t.purchaserMtx.Unlock()
-	return highPricePenalty
-}
-
-// SetHighPricePenalty sets the highPricePenalty of ticket purchaser configuration.
-func (t *TicketPurchaser) SetHighPricePenalty(highPricePenalty float64) {
-	t.purchaserMtx.Lock()
-	t.highPricePenalty = highPricePenalty
 	t.purchaserMtx.Unlock()
 }
 
@@ -439,21 +419,6 @@ func (t *TicketPurchaser) SetPoolFees(poolFees float64) {
 	t.purchaserMtx.Unlock()
 }
 
-// PriceTarget returns the priceTarget of ticket purchaser configuration.
-func (t *TicketPurchaser) PriceTarget() float64 {
-	t.purchaserMtx.Lock()
-	priceTarget := t.priceTarget
-	t.purchaserMtx.Unlock()
-	return priceTarget
-}
-
-// SetPriceTarget sets the priceTarget of ticket purchaser configuration.
-func (t *TicketPurchaser) SetPriceTarget(priceTarget float64) {
-	t.purchaserMtx.Lock()
-	t.priceTarget = priceTarget
-	t.purchaserMtx.Unlock()
-}
-
 // SpreadTicketPurchases returns the spreadTicketPurchases of ticket purchaser configuration.
 func (t *TicketPurchaser) SpreadTicketPurchases() bool {
 	t.purchaserMtx.Lock()
@@ -558,28 +523,26 @@ func NewTicketPurchaser(cfg *Config,
 		priceMode:        priceMode,
 		heightCheck:      make(map[int64]struct{}),
 
-		accountName:        cfg.AccountName,
-		avgPriceMode:       cfg.AvgPriceMode,
-		avgPriceVWAPDelta:  cfg.AvgPriceVWAPDelta,
-		balanceToMaintain:  cfg.BalanceToMaintain,
-		blocksToAvg:        cfg.BlocksToAvg,
-		dontWaitForTickets: cfg.DontWaitForTickets,
-		expiryDelta:        cfg.ExpiryDelta,
-		feeSource:          cfg.FeeSource,
-		feeTargetScaling:   cfg.FeeTargetScaling,
-		highPricePenalty:   cfg.HighPricePenalty,
-		minFee:             cfg.MinFee,
-		minPriceScale:      cfg.MinPriceScale,
-		maxFee:             cfg.MaxFee,
-		maxPerBlock:        cfg.MaxPerBlock,
-		maxPriceAbsolute:   cfg.MaxPriceAbsolute,
-		maxPriceRelative:   cfg.MaxPriceRelative,
-		maxPriceScale:      cfg.MaxPriceScale,
-		maxInMempool:       cfg.MaxInMempool,
-		poolFees:           cfg.PoolFees,
-		priceTarget:        cfg.PriceTarget,
-		txFee:              cfg.TxFee,
+		accountName:           cfg.AccountName,
+		avgPriceMode:          cfg.AvgPriceMode,
+		avgPriceVWAPDelta:     cfg.AvgPriceVWAPDelta,
+		balanceToMaintain:     cfg.BalanceToMaintain,
+		blocksToAvg:           cfg.BlocksToAvg,
+		dontWaitForTickets:    cfg.DontWaitForTickets,
+		expiryDelta:           cfg.ExpiryDelta,
+		feeSource:             cfg.FeeSource,
+		feeTargetScaling:      cfg.FeeTargetScaling,
+		minFee:                cfg.MinFee,
+		minPriceScale:         cfg.MinPriceScale,
+		maxFee:                cfg.MaxFee,
+		maxPerBlock:           cfg.MaxPerBlock,
+		maxPriceAbsolute:      cfg.MaxPriceAbsolute,
+		maxPriceRelative:      cfg.MaxPriceRelative,
+		maxPriceScale:         cfg.MaxPriceScale,
+		maxInMempool:          cfg.MaxInMempool,
+		poolFees:              cfg.PoolFees,
 		spreadTicketPurchases: cfg.SpreadTicketPurchases,
+		txFee: cfg.TxFee,
 	}, nil
 }
 
@@ -617,25 +580,6 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		return ps, nil
 	}
 	t.heightCheck[height] = struct{}{}
-
-	if t.cfg.TicketFeeInfo {
-		oneBlock := uint32(1)
-		info, err := t.dcrdChainSvr.TicketFeeInfo(&oneBlock, &zeroUint32)
-		if err != nil {
-			return ps, err
-		}
-		ps.FeeMin = info.FeeInfoBlocks[0].Min
-		ps.FeeMax = info.FeeInfoBlocks[0].Max
-		ps.FeeMedian = info.FeeInfoBlocks[0].Median
-		ps.FeeMean = info.FeeInfoBlocks[0].Mean
-
-		// Expensive call to fetch all tickets in the mempool
-		all, err := t.allTicketsInMempool()
-		if err != nil {
-			return ps, err
-		}
-		ps.MempoolAll = all
-	}
 
 	// Initialize based on where we are in the window
 	winSize := t.activeNet.StakeDiffWindowSize
@@ -698,7 +642,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	case t.cfg.MaxPerBlock == 0:
 		return ps, nil
 	case t.cfg.MaxPerBlock > 0:
-		maxPerBlock = t.cfg.MaxPerBlock
+		maxPerBlock = int(t.cfg.MaxPerBlock)
 	case t.cfg.MaxPerBlock < 0:
 		if int(height)%t.cfg.MaxPerBlock != 0 {
 			return ps, nil
@@ -811,10 +755,10 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	}
 	ps.MempoolOwn = inMP
 	if !t.cfg.DontWaitForTickets {
-		if inMP > t.cfg.MaxInMempool {
+		if inMP > int(t.cfg.MaxInMempool) {
 			log.Infof("Currently waiting for %v tickets to enter the "+
 				"blockchain before buying more tickets (in mempool: %v,"+
-				" max allowed in mempool %v)", inMP-t.cfg.MaxInMempool,
+				" max allowed in mempool %v)", inMP-int(t.cfg.MaxInMempool),
 				inMP, t.cfg.MaxInMempool)
 			return ps, nil
 		}
@@ -824,7 +768,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// blocks to average fees from. Use data from the last
 	// window with the closest difficulty.
 	chainFee := 0.0
-	if t.idxDiffPeriod < t.cfg.BlocksToAvg {
+	if t.idxDiffPeriod < int(t.cfg.BlocksToAvg) {
 		chainFee, err = t.findClosestFeeWindows(nextStakeDiff.ToCoin(),
 			t.useMedian)
 		if err != nil {
