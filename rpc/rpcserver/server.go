@@ -40,6 +40,7 @@ import (
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/netparams"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
+	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txauthor"
@@ -139,6 +140,255 @@ func decodeAddress(a string, params *chaincfg.Params) (dcrutil.Address, error) {
 type versionServer struct {
 }
 
+// ticketBuyerServer provides ticket buyer services for RPC clients.
+type ticketBuyerServer struct {
+	purchaseManager *ticketbuyer.PurchaseManager
+}
+
+// StartTicketPurchase enables ticket purchases in the ticket buyer.
+func (t *ticketBuyerServer) StartTicketPurchase(ctx context.Context, req *pb.StartTicketPurchaseRequest) (
+	*pb.StartTicketPurchaseResponse, error) {
+
+	t.purchaseManager.Start()
+	return &pb.StartTicketPurchaseResponse{}, nil
+}
+
+// StopTicketPurchase disables ticket purchases in the ticket buyer.
+func (t *ticketBuyerServer) StopTicketPurchase(ctx context.Context, req *pb.StopTicketPurchaseRequest) (
+	*pb.StopTicketPurchaseResponse, error) {
+
+	t.purchaseManager.Stop()
+	return &pb.StopTicketPurchaseResponse{}, nil
+}
+
+// Config returns the configuration of the ticket buyer.
+func (t *ticketBuyerServer) Config(ctx context.Context, req *pb.TicketBuyerConfigRequest) (
+	*pb.TicketBuyerConfigResponse, error) {
+	config := t.purchaseManager.Purchaser().Config()
+	return &pb.TicketBuyerConfigResponse{
+		AccountName:           config.AccountName,
+		AvgPriceMode:          config.AvgPriceMode,
+		AvgPriceVWAPDelta:     int64(config.AvgPriceVWAPDelta),
+		BalanceToMaintain:     int64(config.BalanceToMaintain),
+		BlocksToAvg:           int64(config.BlocksToAvg),
+		DontWaitForTickets:    config.DontWaitForTickets,
+		ExpiryDelta:           int64(config.ExpiryDelta),
+		FeeSource:             config.FeeSource,
+		FeeTargetScaling:      int64(config.FeeTargetScaling),
+		MinFee:                int64(config.MinFee),
+		MinPriceScale:         int64(config.MinPriceScale),
+		MaxFee:                int64(config.MaxFee),
+		MaxPerBlock:           int64(config.MaxPerBlock),
+		MaxPriceAbsolute:      int64(config.MaxPriceAbsolute),
+		MaxPriceRelative:      int64(config.MaxPriceRelative),
+		MaxPriceScale:         int64(config.MaxPriceScale),
+		MaxInMempool:          int64(config.MaxInMempool),
+		PoolAddress:           config.PoolAddress,
+		PoolFees:              int64(config.PoolFees),
+		SpreadTicketPurchases: config.SpreadTicketPurchases,
+		TicketAddress:         config.TicketAddress,
+		TxFee:                 int64(config.TxFee),
+	}, nil
+}
+
+// SetAccountName returns the accountName in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetAccountName(ctx context.Context, req *pb.SetAccountNameRequest) (
+	*pb.SetAccountNameResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetAccountName(req.AccountName)
+	return &pb.SetAccountNameResponse{}, nil
+}
+
+// SetAvgPriceMode returns the avgPriceMode in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetAvgPriceMode(ctx context.Context, req *pb.SetAvgPriceModeRequest) (
+	*pb.SetAvgPriceModeResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetAvgPriceMode(req.AvgPriceMode)
+	return &pb.SetAvgPriceModeResponse{}, nil
+}
+
+// SetAvgPriceVWAPDelta returns the avgPriceVWAPDelta in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetAvgPriceVWAPDelta(ctx context.Context, req *pb.SetAvgPriceVWAPDeltaRequest) (
+	*pb.SetAvgPriceVWAPDeltaResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetAvgPriceVWAPDelta(int(req.AvgPriceVWAPDelta))
+	return &pb.SetAvgPriceVWAPDeltaResponse{}, nil
+}
+
+// SetBalanceToMaintain returns the balanceToMaintain in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetBalanceToMaintain(ctx context.Context, req *pb.SetBalanceToMaintainRequest) (
+	*pb.SetBalanceToMaintainResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetBalanceToMaintain(float64(req.BalanceToMaintain))
+	return &pb.SetBalanceToMaintainResponse{}, nil
+}
+
+// SetBlocksToAverage returns the blocksToAvg in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetBlocksToAverage(ctx context.Context, req *pb.SetBlocksToAverageRequest) (
+	*pb.SetBlocksToAverageResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetBlocksToAverage(int(req.BlocksToAverage))
+	return &pb.SetBlocksToAverageResponse{}, nil
+}
+
+// SetDontWaitForTickets returns the dontWaitForTickets in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetDontWaitForTickets(ctx context.Context, req *pb.SetDontWaitForTicketsRequest) (
+	*pb.SetDontWaitForTicketsResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetDontWaitForTickets(req.DontWaitForTickets)
+	return &pb.SetDontWaitForTicketsResponse{}, nil
+}
+
+// SetExpiryDelta returns the expiryDelta in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetExpiryDelta(ctx context.Context, req *pb.SetExpiryDeltaRequest) (
+	*pb.SetExpiryDeltaResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetExpiryDelta(int(req.ExpiryDelta))
+	return &pb.SetExpiryDeltaResponse{}, nil
+}
+
+// SetFeeSource returns the feeSource in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetFeeSource(ctx context.Context, req *pb.SetFeeSourceRequest) (
+	*pb.SetFeeSourceResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetFeeSource(req.FeeSource)
+	return &pb.SetFeeSourceResponse{}, nil
+}
+
+// SetFeeTargetScaling returns the feeTargetScaling in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetFeeTargetScaling(ctx context.Context, req *pb.SetFeeTargetScalingRequest) (
+	*pb.SetFeeTargetScalingResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetFeeTargetScaling(float64(req.FeeTargetScaling))
+	return &pb.SetFeeTargetScalingResponse{}, nil
+}
+
+// SetMinFee returns the minFee in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetMinFee(ctx context.Context, req *pb.SetMinFeeRequest) (
+	*pb.SetMinFeeResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetMinFee(float64(req.MinFee))
+	return &pb.SetMinFeeResponse{}, nil
+}
+
+// SetMinPriceScale returns the minPriceScale in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetMinPriceScale(ctx context.Context, req *pb.SetMinPriceScaleRequest) (
+	*pb.SetMinPriceScaleResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetMinPriceScale(float64(req.MinPriceScale))
+	return &pb.SetMinPriceScaleResponse{}, nil
+}
+
+// SetMaxFee returns the maxFee in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetMaxFee(ctx context.Context, req *pb.SetMaxFeeRequest) (
+	*pb.SetMaxFeeResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetMaxFee(float64(req.MaxFee))
+	return &pb.SetMaxFeeResponse{}, nil
+}
+
+// SetMaxPerBlock returns the maxPerBlock in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetMaxPerBlock(ctx context.Context, req *pb.SetMaxPerBlockRequest) (
+	*pb.SetMaxPerBlockResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetMaxPerBlock(int(req.MaxPerBlock))
+	return &pb.SetMaxPerBlockResponse{}, nil
+}
+
+// SetMaxPriceAbsolute returns the maxPriceAbsolute in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetMaxPriceAbsolute(ctx context.Context, req *pb.SetMaxPriceAbsoluteRequest) (
+	*pb.SetMaxPriceAbsoluteResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetMaxPriceAbsolute(float64(req.MaxPriceAbsolute))
+	return &pb.SetMaxPriceAbsoluteResponse{}, nil
+}
+
+// SetMaxPriceRelative returns the maxPriceRelative in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetMaxPriceRelative(ctx context.Context, req *pb.SetMaxPriceRelativeRequest) (
+	*pb.SetMaxPriceRelativeResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetMaxPriceRelative(float64(req.MaxPriceRelative))
+	return &pb.SetMaxPriceRelativeResponse{}, nil
+}
+
+// SetMaxPriceScale returns the maxPriceScale in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetMaxPriceScale(ctx context.Context, req *pb.SetMaxPriceScaleRequest) (
+	*pb.SetMaxPriceScaleResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetMaxPriceScale(float64(req.MaxPriceScale))
+	return &pb.SetMaxPriceScaleResponse{}, nil
+}
+
+// SetMaxInMempool returns the maxInMempool in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetMaxInMempool(ctx context.Context, req *pb.SetMaxInMempoolRequest) (
+	*pb.SetMaxInMempoolResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetMaxInMempool(int(req.MaxInMempool))
+	return &pb.SetMaxInMempoolResponse{}, nil
+}
+
+// SetPoolAddress returns the poolAddress in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetPoolAddress(ctx context.Context, req *pb.SetPoolAddressRequest) (
+	*pb.SetPoolAddressResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	err := purchaser.SetPoolAddress(req.PoolAddress)
+	return &pb.SetPoolAddressResponse{}, err
+}
+
+// SetPoolFees returns the poolFees in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetPoolFees(ctx context.Context, req *pb.SetPoolFeesRequest) (
+	*pb.SetPoolFeesResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetPoolFees(float64(req.PoolFees))
+	return &pb.SetPoolFeesResponse{}, nil
+}
+
+// SetSpreadTicketPurchases returns the spreadTicketPurchases in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetSpreadTicketPurchases(ctx context.Context, req *pb.SetSpreadTicketPurchasesRequest) (
+	*pb.SetSpreadTicketPurchasesResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetSpreadTicketPurchases(req.SpreadTicketPurchases)
+	return &pb.SetSpreadTicketPurchasesResponse{}, nil
+}
+
+// SetTicketAddress returns the ticketAddress in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetTicketAddress(ctx context.Context, req *pb.SetTicketAddressRequest) (
+	*pb.SetTicketAddressResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	err := purchaser.SetTicketAddress(req.TicketAddress)
+	return &pb.SetTicketAddressResponse{}, err
+}
+
+// SetTxFee returns the txFee in the ticket buyer configuration.
+func (t *ticketBuyerServer) SetTxFee(ctx context.Context, req *pb.SetTxFeeRequest) (
+	*pb.SetTxFeeResponse, error) {
+
+	purchaser := t.purchaseManager.Purchaser()
+	purchaser.SetTxFee(float64(req.TxFee))
+	return &pb.SetTxFeeResponse{}, nil
+}
+
 // walletServer provides wallet services for RPC clients.
 type walletServer struct {
 	wallet *wallet.Wallet
@@ -172,6 +422,13 @@ func (*versionServer) Version(ctx context.Context, req *pb.VersionRequest) (*pb.
 		Minor:         semverMinor,
 		Patch:         semverPatch,
 	}, nil
+}
+
+// StartTicketBuyerService creates an implementation of the TicketBuyerService
+// and registers it wih the gRPC server.
+func StartTicketBuyerService(server *grpc.Server, pm *ticketbuyer.PurchaseManager) {
+	service := &ticketBuyerServer{pm}
+	pb.RegisterTicketBuyerServiceServer(server, service)
 }
 
 // StartWalletService creates an implementation of the WalletService and

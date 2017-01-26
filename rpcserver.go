@@ -20,6 +20,7 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
+	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 
 	"google.golang.org/grpc"
@@ -255,5 +256,13 @@ func startWalletRPCServices(wallet *wallet.Wallet, server *grpc.Server, legacySe
 	}
 	if legacyServer != nil {
 		legacyServer.RegisterWallet(wallet)
+	}
+}
+
+// startTicketBuyerService associates the gRPC server with the ticket buyer to
+// enable remote ticket buyer access.
+func startTicketBuyerService(server *grpc.Server, pm *ticketbuyer.PurchaseManager) {
+	if server != nil {
+		rpcserver.StartTicketBuyerService(server, pm)
 	}
 }
