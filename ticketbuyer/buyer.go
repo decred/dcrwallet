@@ -673,7 +673,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	case t.MaxPerBlock() == 0:
 		return ps, nil
 	case t.MaxPerBlock() > 0:
-		maxPerBlock = int(t.MaxPerBlock())
+		maxPerBlock = t.MaxPerBlock()
 	case t.MaxPerBlock() < 0:
 		if int(height)%t.MaxPerBlock() != 0 {
 			return ps, nil
@@ -786,10 +786,10 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	}
 	ps.MempoolOwn = inMP
 	if !t.DontWaitForTickets() {
-		if inMP > int(t.MaxInMempool()) {
+		if inMP > t.MaxInMempool() {
 			log.Infof("Currently waiting for %v tickets to enter the "+
 				"blockchain before buying more tickets (in mempool: %v,"+
-				" max allowed in mempool %v)", inMP-int(t.MaxInMempool()),
+				" max allowed in mempool %v)", inMP-t.MaxInMempool(),
 				inMP, t.MaxInMempool())
 			return ps, nil
 		}
@@ -799,7 +799,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// blocks to average fees from. Use data from the last
 	// window with the closest difficulty.
 	chainFee := 0.0
-	if t.idxDiffPeriod < int(t.BlocksToAverage()) {
+	if t.idxDiffPeriod < t.BlocksToAverage() {
 		chainFee, err = t.findClosestFeeWindows(nextStakeDiff.ToCoin(),
 			t.useMedian)
 		if err != nil {

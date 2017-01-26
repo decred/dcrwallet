@@ -196,7 +196,7 @@ func (t *ticketBuyerServer) SetAccountName(ctx context.Context, req *pb.SetAccou
 	*pb.SetAccountNameResponse, error) {
 
 	purchaser := t.purchaseManager.Purchaser()
-	purchaser.SetAccountName(string(req.AccountName))
+	purchaser.SetAccountName(req.AccountName)
 	return &pb.SetAccountNameResponse{}, nil
 }
 
@@ -205,7 +205,7 @@ func (t *ticketBuyerServer) SetAvgPriceMode(ctx context.Context, req *pb.SetAvgP
 	*pb.SetAvgPriceModeResponse, error) {
 
 	purchaser := t.purchaseManager.Purchaser()
-	purchaser.SetAvgPriceMode(string(req.AvgPriceMode))
+	purchaser.SetAvgPriceMode(req.AvgPriceMode)
 	return &pb.SetAvgPriceModeResponse{}, nil
 }
 
@@ -241,7 +241,7 @@ func (t *ticketBuyerServer) SetDontWaitForTickets(ctx context.Context, req *pb.S
 	*pb.SetDontWaitForTicketsResponse, error) {
 
 	purchaser := t.purchaseManager.Purchaser()
-	purchaser.SetDontWaitForTickets(bool(req.DontWaitForTickets))
+	purchaser.SetDontWaitForTickets(req.DontWaitForTickets)
 	return &pb.SetDontWaitForTicketsResponse{}, nil
 }
 
@@ -259,7 +259,7 @@ func (t *ticketBuyerServer) SetFeeSource(ctx context.Context, req *pb.SetFeeSour
 	*pb.SetFeeSourceResponse, error) {
 
 	purchaser := t.purchaseManager.Purchaser()
-	purchaser.SetFeeSource(string(req.FeeSource))
+	purchaser.SetFeeSource(req.FeeSource)
 	return &pb.SetFeeSourceResponse{}, nil
 }
 
@@ -349,7 +349,7 @@ func (t *ticketBuyerServer) SetPoolAddress(ctx context.Context, req *pb.SetPoolA
 	*pb.SetPoolAddressResponse, error) {
 
 	purchaser := t.purchaseManager.Purchaser()
-	err := purchaser.SetPoolAddress(string(req.PoolAddress))
+	err := purchaser.SetPoolAddress(req.PoolAddress)
 	return &pb.SetPoolAddressResponse{}, err
 }
 
@@ -367,7 +367,7 @@ func (t *ticketBuyerServer) SetSpreadTicketPurchases(ctx context.Context, req *p
 	*pb.SetSpreadTicketPurchasesResponse, error) {
 
 	purchaser := t.purchaseManager.Purchaser()
-	purchaser.SetSpreadTicketPurchases(bool(req.SpreadTicketPurchases))
+	purchaser.SetSpreadTicketPurchases(req.SpreadTicketPurchases)
 	return &pb.SetSpreadTicketPurchasesResponse{}, nil
 }
 
@@ -376,7 +376,7 @@ func (t *ticketBuyerServer) SetTicketAddress(ctx context.Context, req *pb.SetTic
 	*pb.SetTicketAddressResponse, error) {
 
 	purchaser := t.purchaseManager.Purchaser()
-	err := purchaser.SetTicketAddress(string(req.TicketAddress))
+	err := purchaser.SetTicketAddress(req.TicketAddress)
 	return &pb.SetTicketAddressResponse{}, err
 }
 
