@@ -3447,40 +3447,6 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 	return InputSource{source: f}
 }
 
-// Balance returns the spendable wallet balance (total value of all unspent
-// transaction outputs) given a minimum of minConf confirmations, calculated
-// at a current chain height of curHeight.  Coinbase outputs are only included
-// in the balance if maturity has been reached.
-//
-// Balance may return unexpected results if syncHeight is lower than the block
-// height of the most recent mined transaction in the store.
-func (s *Store) Balance(ns, addrmgrNs walletdb.ReadBucket, minConf int32,
-	balanceType BehaviorFlags, all bool, account uint32) (dcrutil.Amount, error) {
-
-	_, syncHeight := s.MainChainTip(ns)
-	switch balanceType {
-	case BFBalanceFullScan:
-		bals, err := s.balanceFullScan(ns, addrmgrNs, minConf, syncHeight)
-		if err != nil {
-			return 0, err
-		}
-		bal, ok := bals[account]
-		if !ok {
-			// No balance for the account was found so must be zero.
-			return 0, nil
-		}
-		return bal.Spendable, nil
-	case BFBalanceSpendable:
-		return s.balanceSpendable(ns, minConf, syncHeight)
-	case BFBalanceLockedStake:
-		return s.balanceLockedStake(ns, addrmgrNs, minConf, syncHeight, all, account)
-	case BFBalanceAll:
-		return s.balanceAll(ns, addrmgrNs, minConf, syncHeight, all, account)
-	default:
-		return 0, fmt.Errorf("unknown balance type flag")
-	}
-}
-
 // balanceFullScan does a fullscan of the UTXO set to get the current balance.
 // It is less efficient than the other balance functions, but works fine for
 // accounts.
@@ -3627,16 +3593,20 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 
 			// Skip ticket outputs, as only SSGen can spend these.
 			opcode := fetchRawUnminedCreditTagOpcode(v)
-			if opcode == txscript.OP_SSTX {
-				return nil
-			}
 
-			// Skip outputs that are not mature.
-			if opcode == txscript.OP_SSGEN || opcode == txscript.OP_SSRTX {
+			switch opcode {
+			case OP_NONSTAKE:
+				fallthrough
+			case txscript.OP_SSTX:
+				ab.Spendable += utxoAmt
+			case txscript.OP_SSGEN:
+				fallthrough
+			case txscript.OP_SSRTX:
+				ab.ImmatureStakeGeneration += utxoAmt
+			case txscript.OP_SSTXCHANGE:
 				return nil
-			}
-			if opcode == txscript.OP_SSTXCHANGE {
-				return nil
+			default:
+				log.Warnf("Unhandled unconfirmed opcode %v: %v", opcode, v)
 			}
 
 			return nil
@@ -4209,24 +4179,34 @@ type Balances struct {
 	VotingAuthority         dcrutil.Amount
 }
 
-// AccountBalances returns a Balances struct for some given account at
-// syncHeight block height with all UTXOs that have minConf many confirms.
-func (s *Store) AccountBalances(ns, addrmgrNs walletdb.ReadBucket,
-	minConf int32, account uint32) (Balances, error) {
+// AccountBalance returns a Balances struct for some given account at
+// syncHeight block height with all UTXOS that have minConf manyn confirms.
+func (s *Store) AccountBalance(ns, addrmgrNs walletdb.ReadBucket, minConf int32,
+	account uint32) (Balances, error) {
 
-	_, syncHeight := s.MainChainTip(ns)
-	bal, err := s.balanceFullScan(ns, addrmgrNs, minConf, syncHeight)
+	balances, err := s.AccountBalances(ns, addrmgrNs, minConf)
 	if err != nil {
 		return Balances{}, err
 	}
 
-	balance, ok := bal[account]
+	balance, ok := balances[account]
 	if !ok {
 		// No balance for the account was found so must be zero.
-		return Balances{}, nil
+		return Balances{
+			Account: account,
+		}, nil
 	}
 
 	return *balance, nil
+}
+
+// AccountBalances returns a map of all account balances at syncHeight block
+// height with all UTXOs that have minConf many confirms.
+func (s *Store) AccountBalances(ns, addrmgrNs walletdb.ReadBucket,
+	minConf int32) (map[uint32]*Balances, error) {
+
+	_, syncHeight := s.MainChainTip(ns)
+	return s.balanceFullScan(ns, addrmgrNs, minConf, syncHeight)
 }
 
 // InsertTxScript is the exported version of insertTxScript.

@@ -658,64 +658,61 @@ func getBalance(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		return nil, InvalidParameterError{e}
 	}
 
-	var balance dcrutil.Amount
-	var err error
 	accountName := "*"
 	if cmd.Account != nil {
 		accountName = *cmd.Account
 	}
-	balType := wtxmgr.BFBalanceSpendable
-	if cmd.BalanceType != nil {
-		switch *cmd.BalanceType {
-		case "spendable":
-			balType = wtxmgr.BFBalanceSpendable
-		case "locked":
-			balType = wtxmgr.BFBalanceLockedStake
-		case "all":
-			balType = wtxmgr.BFBalanceAll
-		case "fullscan":
-			balType = wtxmgr.BFBalanceFullScan
-		default:
-			return nil, fmt.Errorf("unknown balance type '%v', please use "+
-				"spendable, locked, all, or fullscan", *cmd.BalanceType)
-		}
+
+	blockHash, _ := w.MainChainTip()
+	result := dcrjson.GetBalanceResult{
+		BlockHash: blockHash.String(),
 	}
+
 	if accountName == "*" {
-		balance, err = w.CalculateBalance(int32(*cmd.MinConf),
-			balType)
+		balances, err := w.CalculateAccountBalances(int32(*cmd.MinConf))
+		if err != nil {
+			return nil, err
+		}
+
+		for _, bal := range balances {
+			accountName, err := w.AccountName(bal.Account)
+			if err != nil {
+				return nil, err
+			}
+			json := dcrjson.GetAccountBalanceResult{
+				AccountName:             accountName,
+				ImmatureCoinbaseRewards: bal.ImmatureCoinbaseRewards.ToCoin(),
+				ImmatureStakeGeneration: bal.ImmatureStakeGeneration.ToCoin(),
+				LockedByTickets:         bal.LockedByTickets.ToCoin(),
+				Spendable:               bal.Spendable.ToCoin(),
+				Total:                   bal.Total.ToCoin(),
+				VotingAuthority:         bal.VotingAuthority.ToCoin(),
+			}
+			result.Balances = append(result.Balances, json)
+		}
 	} else {
-		var account uint32
-		account, err = w.AccountNumber(accountName)
+		account, err := w.AccountNumber(accountName)
 		if err != nil {
 			return nil, err
 		}
 
-		blockHash, _ := w.MainChainTip()
-
-		bal, err := w.CalculateAccountBalances(account, int32(*cmd.MinConf))
+		bal, err := w.CalculateAccountBalance(account, int32(*cmd.MinConf))
 		if err != nil {
 			return nil, err
 		}
+		json := dcrjson.GetAccountBalanceResult{
+			AccountName:             accountName,
+			ImmatureCoinbaseRewards: bal.ImmatureCoinbaseRewards.ToCoin(),
+			ImmatureStakeGeneration: bal.ImmatureStakeGeneration.ToCoin(),
+			LockedByTickets:         bal.LockedByTickets.ToCoin(),
+			Spendable:               bal.Spendable.ToCoin(),
+			Total:                   bal.Total.ToCoin(),
+			VotingAuthority:         bal.VotingAuthority.ToCoin(),
+		}
+		result.Balances = append(result.Balances, json)
+	}
 
-		return dcrjson.GetBalanceResult{
-			Balances: []dcrjson.GetAccountBalanceResult{
-				{
-					AccountName:             accountName,
-					ImmatureCoinbaseRewards: bal.ImmatureCoinbaseRewards.ToCoin(),
-					ImmatureStakeGeneration: bal.ImmatureStakeGeneration.ToCoin(),
-					LockedByTickets:         bal.LockedByTickets.ToCoin(),
-					Spendable:               bal.Spendable.ToCoin(),
-					Total:                   bal.Total.ToCoin(),
-					VotingAuthority:         bal.VotingAuthority.ToCoin(),
-				},
-			},
-			BlockHash: blockHash.String(),
-		}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return balance.ToCoin(), nil
+	return result, nil
 }
 
 // getBestBlock handles a getbestblock request by returning a JSON object
@@ -754,9 +751,14 @@ func getInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient) (
 		return nil, err
 	}
 
-	bal, err := w.CalculateBalance(1, wtxmgr.BFBalanceSpendable)
+	balances, err := w.CalculateAccountBalances(1)
 	if err != nil {
 		return nil, err
+	}
+
+	var bal dcrutil.Amount
+	for _, balance := range balances {
+		bal += balance.Spendable
 	}
 
 	// TODO(davec): This should probably have a database version as opposed
@@ -866,7 +868,7 @@ func getUnconfirmedBalance(icmd interface{}, w *wallet.Wallet) (interface{}, err
 	if err != nil {
 		return nil, err
 	}
-	bals, err := w.CalculateAccountBalances(account, 1)
+	bals, err := w.CalculateAccountBalance(account, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -1611,12 +1613,16 @@ func listAccounts(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListAccountsCmd)
 
 	accountBalances := map[string]float64{}
-	results, err := w.AccountBalances(int32(*cmd.MinConf), wtxmgr.BFBalanceFullScan)
+	results, err := w.CalculateAccountBalances(int32(*cmd.MinConf))
 	if err != nil {
 		return nil, err
 	}
 	for _, result := range results {
-		accountBalances[result.AccountName] = result.AccountBalance.ToCoin()
+		accountName, err := w.AccountName(result.Account)
+		if err != nil {
+			return nil, err
+		}
+		accountBalances[accountName] = result.Spendable.ToCoin()
 	}
 	// Return the map.  This will be marshaled into a JSON object.
 	return accountBalances, nil

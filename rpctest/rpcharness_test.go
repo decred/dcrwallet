@@ -487,105 +487,102 @@ func testGetBalance(r *Harness, t *testing.T) {
 	accountName := "getBalanceTest"
 	err := wcl.CreateNewAccount(accountName)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("CreateNewAccount failed: %v", err)
 	}
 
 	// Grab a fresh address from the test account
 	addr, err := r.WalletRPC.GetNewAddress(accountName)
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Check invalid balance type
-	balance, err := wcl.GetBalanceMinConfType(accountName, 0, "invalidBalanceType")
-	// -4: unknown balance type 'invalidBalanceType', please use spendable, locked, all, or fullscan
-	if err == nil {
-		t.Fatalf("GetBalanceMinConfType failed to return non-nil error for invalid balance type: %v\n"+
-			"balance: %v", err, balance)
+		t.Fatalf("GetNewAddress failed: %v", err)
 	}
 
 	// Check invalid account name
-	_, err = wcl.GetBalanceMinConfType("invalid account", 0, "spendable")
+	_, err = wcl.GetBalanceMinConf("invalid account", 0)
 	// -4: account name 'invalid account' not found
 	if err == nil {
 		t.Fatalf("GetBalanceMinConfType failed to return non-nil error for invalid account name: %v", err)
 	}
 
 	// Check invalid minconf
-	_, err = wcl.GetBalanceMinConfType("default", -1, "spendable")
+	_, err = wcl.GetBalanceMinConf("default", -1)
 	if err == nil {
-		t.Logf("GetBalanceMinConfType failed to return non-nil error for invalid minconf (-1)")
-		// TODO: This is a bug in Store.balanceFullScan (tx.go), where the check
-		// is minConf == 0 instead of minConf < 1
+		t.Fatalf("GetBalanceMinConf failed to return non-nil error for invalid minconf (-1)")
 	}
 
-	// Exercise all valid balance types
-	balanceTypes := []string{"all", "spendable", "locked", "fullscan"}
+	preBalances, err := wcl.GetBalanceMinConf("*", 0)
+	if err != nil {
+		t.Fatalf("GetBalanceMinConf(\"*\", 0) failed: %v", err)
+	}
 
-	// Check initial balances, including "*" case
-	initBalancesAllAccts := getBalances("*", balanceTypes, 0, t, wcl)
-	initBalancesDefaultAcct := getBalances("default", balanceTypes, 0, t, wcl)
-	initBalancesTestingAcct := getBalances(accountName, balanceTypes, 0, t, wcl)
-
-	// For individual accounts (not "*"), spendable is fullscan
-	if initBalancesDefaultAcct["spendable"] != initBalancesDefaultAcct["fullscan"] {
-		t.Fatalf("For individual account, fullscan should equal spendable. %v != %v",
-			initBalancesDefaultAcct["spendable"], initBalancesDefaultAcct["fullscan"])
+	preAccountBalanceSpendable := 0.0
+	preAccountBalances := make(map[string]dcrjson.GetAccountBalanceResult)
+	for _, bal := range preBalances.Balances {
+		preAccountBalanceSpendable += bal.Spendable
+		preAccountBalances[bal.AccountName] = bal
 	}
 
 	// Send from default to test account
 	sendAmount := dcrutil.Amount(700000000)
 	if _, err = wcl.SendFromMinConf("default", addr, sendAmount, 1); err != nil {
-		t.Fatal("SendFromMinConf failed.", err)
+		t.Fatalf("SendFromMinConf failed: %v", err)
 	}
 
-	// After send, but before new block check mempool (minconf=0) balances
-	postSendBalancesAllAccts := getBalances("*", balanceTypes, 0, t, wcl)
-	postSendBalancesDefaultAcct := getBalances("default", balanceTypes, 0, t, wcl)
-	postSendBalancesTestingAcct := getBalances(accountName, balanceTypes, 0, t, wcl)
+	// Check invalid minconf
+	postBalances, err := wcl.GetBalanceMinConf("*", 0)
+	if err != nil {
+		t.Fatalf("GetBalanceMinConf failed: %v", err)
+	}
+
+	postAccountBalanceSpendable := 0.0
+	postAccountBalances := make(map[string]dcrjson.GetAccountBalanceResult)
+	for _, bal := range postBalances.Balances {
+		postAccountBalanceSpendable += bal.Spendable
+		postAccountBalances[bal.AccountName] = bal
+	}
 
 	// Fees prevent easy exact comparison
-	if initBalancesDefaultAcct["spendable"] <= postSendBalancesDefaultAcct["spendable"] {
-		t.Fatalf("spendable balance of sending account not decreased: %v <= %v",
-			initBalancesDefaultAcct["spendable"],
-			postSendBalancesDefaultAcct["spendable"])
+	if preAccountBalances["default"].Spendable <= postAccountBalances["default"].Spendable {
+		t.Fatalf("spendable balance of account 'default' not decreased: %v <= %v",
+			preAccountBalances["default"].Spendable,
+			postAccountBalances["default"].Spendable)
 	}
 
-	if sendAmount != (postSendBalancesTestingAcct["spendable"] - initBalancesTestingAcct["spendable"]) {
-		t.Fatalf("spendable balance of receiving account not increased: %v >= %v",
-			initBalancesTestingAcct["spendable"],
-			postSendBalancesTestingAcct["spendable"])
+	if sendAmount.ToCoin() != (postAccountBalances[accountName].Spendable - preAccountBalances[accountName].Spendable) {
+		t.Fatalf("spendable balance of account '%s' not increased: %v >= %v",
+			accountName,
+			preAccountBalances[accountName].Spendable,
+			postAccountBalances[accountName].Spendable)
 	}
 
 	// Make sure "*" account balance has decreased (fees)
-	if postSendBalancesAllAccts["spendable"] >= initBalancesAllAccts["spendable"] {
-		t.Fatalf("Total balanance over all accounts not decreased after send.")
+	if postAccountBalanceSpendable >= preAccountBalanceSpendable {
+		t.Fatalf("Total balance over all accounts not decreased after send.")
 	}
 
 	// Test vanilla GetBalance()
 	amtGetBalance, err := wcl.GetBalance("default")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("GetBalance failed: %v", err)
 	}
 
-	// For GetBalance(), default minconf=1, default balance type is spendable.
-	// Check spendable balance of "default" account with minconf=1
-	amtGetBalanceMinConf1TypeSpendable, err := wcl.GetBalanceMinConfType("default", 1, "spendable")
+	// For GetBalance(), default minconf=1.
+	defaultBalanceMinConf1, err := wcl.GetBalanceMinConf("default", 1)
 	if err != nil {
 		t.Fatalf("GetBalanceMinConfType failed: %v", err)
 	}
 
-	if amtGetBalance != amtGetBalanceMinConf1TypeSpendable {
+	if amtGetBalance.Balances[0].Spendable != defaultBalanceMinConf1.Balances[0].Spendable {
 		t.Fatalf(`Balance from GetBalance("default") does not equal amount `+
-			`from GetBalanceMinConfType: %v != %v`, amtGetBalance,
-			amtGetBalanceMinConf1TypeSpendable)
+			`from GetBalanceMinConf: %v != %v`,
+			amtGetBalance.Balances[0].Spendable,
+			defaultBalanceMinConf1.Balances[0].Spendable)
 	}
 
 	// Verify minconf=1 balances of receiving account before/after new block
 	// Before, getbalance minconf=1
-	amtTestMinconf1BeforeBlock, err := wcl.GetBalanceMinConfType(accountName, 1, "spendable")
+	amtTestMinconf1BeforeBlock, err := wcl.GetBalanceMinConf(accountName, 1)
 	if err != nil {
-		t.Fatalf("GetBalanceMinConfType failed: %v", err)
+		t.Fatalf("GetBalanceMinConf failed: %v", err)
 	}
 
 	// Mine 2 new blocks to validate tx
@@ -593,15 +590,17 @@ func testGetBalance(r *Harness, t *testing.T) {
 	newBestBlock(r, t)
 
 	// After, getbalance minconf=1
-	amtTestMinconf1AfterBlock, err := wcl.GetBalanceMinConfType(accountName, 1, "spendable")
+	amtTestMinconf1AfterBlock, err := wcl.GetBalanceMinConf(accountName, 1)
 	if err != nil {
-		t.Fatalf("GetBalanceMinConfType failed: %v", err)
+		t.Fatalf("GetBalanceMinConf failed: %v", err)
 	}
 
 	// Verify that balance (minconf=1) has increased
-	if sendAmount != (amtTestMinconf1AfterBlock - amtTestMinconf1BeforeBlock) {
+	if sendAmount.ToCoin() != (amtTestMinconf1AfterBlock.Balances[0].Spendable - amtTestMinconf1BeforeBlock.Balances[0].Spendable) {
 		t.Fatalf(`Balance (minconf=1) not increased after new block: %v - %v != %v`,
-			amtTestMinconf1AfterBlock, amtTestMinconf1BeforeBlock, sendAmount)
+			amtTestMinconf1AfterBlock.Balances[0].Spendable,
+			amtTestMinconf1BeforeBlock.Balances[0].Spendable,
+			sendAmount)
 	}
 }
 
@@ -740,7 +739,7 @@ func testListAccounts(r *Harness, t *testing.T) {
 	// which uses BFBalanceFullScan when a single account is specified.
 	// Recall thet fullscan is used by listaccounts.
 
-	if GetBalancePostSend != acctBalancePostSend {
+	if GetBalancePostSend.Balances[0].Spendable != acctBalancePostSend.ToCoin() {
 		t.Fatalf("Balance for default account from GetBalanceMinConf does not "+
 			"match balance from ListAccounts: %v != %v", GetBalancePostSend,
 			acctBalancePostSend)
@@ -907,8 +906,8 @@ func testSendToAddress(r *Harness, t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Check spendable balance of default account
-	_, err = wcl.GetBalanceMinConfType("default", 1, "spendable")
+	// Check balance of default account
+	_, err = wcl.GetBalanceMinConf("default", 1)
 	if err != nil {
 		t.Fatalf("GetBalanceMinConfType failed: %v", err)
 	}
@@ -985,9 +984,9 @@ func testSendFrom(r *Harness, t *testing.T) {
 
 	amountToSend := dcrutil.Amount(1000000)
 	// Check spendable balance of default account
-	defaultBalanceBeforeSend, err := r.WalletRPC.GetBalanceMinConfType("default", 0, "all")
+	defaultBalanceBeforeSend, err := r.WalletRPC.GetBalanceMinConf("default", 0)
 	if err != nil {
-		t.Fatalf("getbalanceminconftype failed: %v", err)
+		t.Fatalf("GetBalanceMinConf failed: %v", err)
 	}
 
 	// Get utxo list before send
@@ -1013,19 +1012,19 @@ func testSendFrom(r *Harness, t *testing.T) {
 	}
 
 	// Check spendable balance of default account
-	defaultBalanceAfterSendNoBlock, err := r.WalletRPC.GetBalanceMinConfType("default", 0, "all")
+	defaultBalanceAfterSendNoBlock, err := r.WalletRPC.GetBalanceMinConf("default", 0)
 	if err != nil {
-		t.Fatalf("getbalanceminconftype failed: %v", err)
+		t.Fatalf("GetBalanceMinConf failed: %v", err)
 	}
 
 	// Check balance of sendfrom account
-	sendFromBalanceAfterSendNoBlock, err := r.WalletRPC.GetBalanceMinConfType(accountName, 0, "all")
+	sendFromBalanceAfterSendNoBlock, err := r.WalletRPC.GetBalanceMinConf(accountName, 0)
 	if err != nil {
-		t.Fatalf("getbalanceminconftype failed: %v", err)
+		t.Fatalf("GetBalanceMinConf failed: %v", err)
 	}
-	if sendFromBalanceAfterSendNoBlock != amountToSend {
+	if sendFromBalanceAfterSendNoBlock.Balances[0].Spendable != amountToSend.ToCoin() {
 		t.Fatalf("balance for %s account incorrect:  want %v got %v",
-			accountName, amountToSend, sendFromBalanceAfterSendNoBlock)
+			accountName, amountToSend, sendFromBalanceAfterSendNoBlock.Balances[0].Spendable)
 	}
 
 	// Generate a single block, the transaction the wallet created should
@@ -1066,22 +1065,22 @@ func testSendFrom(r *Harness, t *testing.T) {
 	fee := dcrutil.Amount(totalSpent - totalSent)
 
 	// Calculate the expected balance for the default account after the tx was sent
-	expectedBalance := defaultBalanceBeforeSend - (amountToSend + fee)
+	expectedBalance := defaultBalanceBeforeSend.Balances[0].Spendable - (amountToSend + fee).ToCoin()
 
-	if expectedBalance != defaultBalanceAfterSendNoBlock {
+	if expectedBalance != defaultBalanceAfterSendNoBlock.Balances[0].Spendable {
 		t.Fatalf("balance for %s account incorrect: want %v got %v", "default",
-			expectedBalance, defaultBalanceAfterSendNoBlock)
+			expectedBalance, defaultBalanceAfterSendNoBlock.Balances[0].Spendable)
 	}
 
 	// Check balance of sendfrom account
-	sendFromBalanceAfterSend1Block, err := r.WalletRPC.GetBalanceMinConfType(accountName, 1, "all")
+	sendFromBalanceAfterSend1Block, err := r.WalletRPC.GetBalanceMinConf(accountName, 1)
 	if err != nil {
 		t.Fatalf("getbalanceminconftype failed: %v", err)
 	}
 
-	if sendFromBalanceAfterSend1Block != amountToSend {
+	if sendFromBalanceAfterSend1Block.Balances[0].Total != amountToSend.ToCoin() {
 		t.Fatalf("balance for %s account incorrect:  want %v got %v",
-			accountName, amountToSend, sendFromBalanceAfterSend1Block)
+			accountName, amountToSend, sendFromBalanceAfterSend1Block.Balances[0].Total)
 	}
 
 	// We have confirmed that the expected tx was mined into the block.
@@ -1144,32 +1143,34 @@ func testSendMany(r *Harness, t *testing.T) {
 	}
 
 	// Check spendable balance of default account
-	defaultBalanceBeforeSend, err := wcl.GetBalanceMinConfType("default", 0, "all")
+	defaultBalanceBeforeSend, err := wcl.GetBalanceMinConf("default", 0)
 	if err != nil {
-		t.Fatalf("getbalanceminconftype failed: %v", err)
+		t.Fatalf("GetBalanceMinConf default failed: %v", err)
 	}
 
 	// SendMany to two addresses
 	txid, err := wcl.SendMany("default", addressAmounts)
 	if err != nil {
-		t.Fatalf("sendmany failed: %v", err)
+		t.Fatalf("SendMany failed: %v", err)
 	}
 
+	// XXX
 	time.Sleep(250 * time.Millisecond)
+
 	// Check spendable balance of default account
-	defaultBalanceAfterSendUnmined, err := r.WalletRPC.GetBalanceMinConfType("default", 0, "all")
+	defaultBalanceAfterSendUnmined, err := r.WalletRPC.GetBalanceMinConf("default", 0)
 	if err != nil {
-		t.Fatalf("getbalanceminconftype failed: %v", err)
+		t.Fatalf("GetBalanceMinConf failed: %v", err)
 	}
 
 	// Check balance of each receiving account
 	for i, acct := range accountNames {
-		bal, err := r.WalletRPC.GetBalanceMinConfType(acct, 0, "all")
+		bal, err := r.WalletRPC.GetBalanceMinConf(acct, 0)
 		if err != nil {
-			t.Fatalf("getbalanceminconftype failed: %v", err)
+			t.Fatalf("GetBalanceMinConf '%s' failed: %v", acct, err)
 		}
 		addr := addresses[i]
-		if bal != addressAmounts[addr] {
+		if bal.Balances[0].Total != addressAmounts[addr].ToCoin() {
 			t.Fatalf("Balance for %s account incorrect:  want %v got %v",
 				acct, addressAmounts[addr], bal)
 		}
@@ -1195,11 +1196,11 @@ func testSendMany(r *Harness, t *testing.T) {
 	t.Log("Raw TX after mining block: ", rawTx, " Fee: ", fee)
 
 	// Calculate the expected balance for the default account after the tx was sent
-	expectedBalance := defaultBalanceBeforeSend - (totalAmountToSend + fee)
+	expectedBalance := defaultBalanceBeforeSend.Balances[0].Spendable - (totalAmountToSend + fee).ToCoin()
 
-	if expectedBalance != defaultBalanceAfterSendUnmined {
+	if expectedBalance != defaultBalanceAfterSendUnmined.Balances[0].Spendable {
 		t.Fatalf("Balance for %s account (sender) incorrect: want %v got %v",
-			"default", expectedBalance, defaultBalanceAfterSendUnmined)
+			"default", expectedBalance, defaultBalanceAfterSendUnmined.Balances[0].Spendable)
 	}
 
 	// Check to make sure the transaction that was sent was included in the block
@@ -1212,15 +1213,15 @@ func testSendMany(r *Harness, t *testing.T) {
 
 	// Check balance after confirmations
 	for i, acct := range accountNames {
-		balanceAcctValidated, err := wcl.GetBalanceMinConfType(acct, 1, "all")
+		balanceAcctValidated, err := wcl.GetBalanceMinConf(acct, 1)
 		if err != nil {
-			t.Fatalf("getbalanceminconftype failed: %v", err)
+			t.Fatalf("GetBalanceMinConf '%s' failed: %v", acct, err)
 		}
 
 		addr := addresses[i]
-		if balanceAcctValidated != addressAmounts[addr] {
+		if balanceAcctValidated.Balances[0].Total != addressAmounts[addr].ToCoin() {
 			t.Fatalf("Balance for %s account incorrect:  want %v got %v",
-				acct, addressAmounts[addr], balanceAcctValidated)
+				acct, addressAmounts[addr].ToCoin(), balanceAcctValidated.Balances[0].Total)
 		}
 	}
 
@@ -1491,7 +1492,7 @@ func testListTransactions(r *Harness, t *testing.T) {
 	// This should add 5 results: coinbase send, 2 receives, 2 sends
 	listSentMany, err := wcl.ListTransactionsCount("*", 99999999)
 	if err != nil {
-		t.Fatal(`Listtransactions failed.`)
+		t.Fatalf("ListTransactionsCount failed: %v", err)
 	}
 	if len(listSentMany) != len(txListAll)+5 {
 		t.Fatalf("Expected %v tx results, got %v", len(txListAll)+5,
@@ -2168,9 +2169,14 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 		t.Fatal(err)
 	}
 
-	newBTM := spendable + 20*dcrutil.Amount(chaincfg.SimNetParams.BaseSubsidy)
+	btmSpendable, err := dcrutil.NewAmount(spendable.Balances[0].Spendable)
+	if err != nil {
+		t.Fatalf("NewAmount failed: %v", err)
+	}
+
+	newBTM := btmSpendable + 20*dcrutil.Amount(chaincfg.SimNetParams.BaseSubsidy)
 	if err = wcl.SetBalanceToMaintain(newBTM.ToCoin()); err != nil {
-		t.Fatal("SetBalanceToMaintain failed:", err)
+		t.Fatalf("SetBalanceToMaintain failed: %v", err)
 	}
 
 	// Verify the set BTM
@@ -2180,7 +2186,8 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 	}
 
 	if walletInfoResult.BalanceToMaintain != newBTM.ToCoin() {
-		t.Fatalf("Balance to maintain set incorrectly.")
+		t.Fatalf("Balance to maintain set incorrectly: %v != %v",
+			walletInfoResult.BalanceToMaintain, newBTM.ToCoin())
 	}
 
 	// Advance to new price window, but don't purchase tickets in this period
@@ -2231,7 +2238,7 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 	for _, tx := range ticketHashes {
 		if !ticketHashMap[*tx] {
 			t.Fatalf("Tickets were purchased with %v spendable balance; "+
-				"balance to maintain %v", spendable.ToCoin(),
+				"balance to maintain %v", spendable.Balances[0].Spendable,
 				walletInfoResult.BalanceToMaintain)
 		}
 	}
@@ -2243,7 +2250,7 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 		t.Fatal(err)
 	}
 
-	newBTMCoin := spendable.ToCoin() -
+	newBTMCoin := spendable.Balances[0].Spendable -
 		stakeDiff*3*float64(chaincfg.SimNetParams.MaxFreshStakePerBlock)
 	if err = wcl.SetBalanceToMaintain(newBTMCoin); err != nil {
 		t.Fatal("SetBalanceToMaintain failed:", err)
@@ -2268,7 +2275,7 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 	}
 	if !newTickets {
 		t.Fatalf("Tickets were NOT purchased with %v spendable; BTM = %v",
-			spendable.ToCoin(), newBTMCoin)
+			spendable.Balances[0].Spendable, newBTMCoin)
 	}
 
 	// reset ticket fee and max price
@@ -2662,23 +2669,6 @@ func newBestBlock(r *Harness,
 	height := getBestBlockHeight(r, t)
 	height, block, blockHash := newBlockAt(height, r, t)
 	return height, block, blockHash
-}
-
-func getBalances(account string, balanceTypes []string, minConf int,
-	t *testing.T, wcl *dcrrpcclient.Client) map[string]dcrutil.Amount {
-
-	balances := make(map[string]dcrutil.Amount)
-
-	for _, balType := range balanceTypes {
-
-		balance, err := wcl.GetBalanceMinConfType(account, 0, balType)
-		if err != nil {
-			t.Fatalf("getbalanceminconftype failed: %v", err)
-		}
-		balances[balType] = balance
-	}
-
-	return balances
 }
 
 // includesTx checks if a block contains a transaction hash
