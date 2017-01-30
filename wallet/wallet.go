@@ -7,7 +7,6 @@ package wallet
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -2977,16 +2976,6 @@ func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 		return nil
 	})
 	return resp, err
-}
-
-// exportBase64 exports a wallet's serialized database as a base64-encoded
-// string.
-func (w *Wallet) exportBase64() (string, error) {
-	var buf bytes.Buffer
-	if err := w.db.Copy(&buf); err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
 }
 
 // LockedOutpoint returns whether an outpoint has been marked as locked and
