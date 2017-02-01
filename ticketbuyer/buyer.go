@@ -589,7 +589,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// have enough moneys.
 	notEnough := func(bal dcrutil.Amount, toBuy int, sd dcrutil.Amount) bool {
 		return (bal.ToCoin() - float64(toBuy)*sd.ToCoin()) <
-			float64(balanceToMaintainAmt)
+			balanceToMaintainAmt.ToCoin()
 	}
 	if notEnough(bal.Spendable, toBuyForBlock, nextStakeDiff) {
 		for notEnough(bal.Spendable, toBuyForBlock, nextStakeDiff) {
@@ -602,7 +602,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 		if toBuyForBlock == 0 {
 			log.Infof("Not buying because "+
-				"spendable balance would be %v"+
+				"spendable balance would be %v "+
 				"but balance to maintain is %v",
 				(bal.Spendable.ToCoin() - float64(toBuyForBlock)*
 					nextStakeDiff.ToCoin()),
