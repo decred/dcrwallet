@@ -442,7 +442,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 	ps.FeeOwn = feeToUse
 
-	// Set the balancetomaintain to the configuration parameter that is lower
+	// Set the balancetomaintain to the configuration parameter that is higher
 	// Absolute or relative balance to maintain
 	var balanceToMaintainAmt dcrutil.Amount
 	if t.cfg.BalanceToMaintainAbsolute > 0 && t.cfg.BalanceToMaintainAbsolute >
@@ -471,7 +471,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		toBuyForBlock = 0
 	}
 	if toBuyForBlock == 0 {
-		log.Infof("Not enough funds to buy tickets (spendable %v, balancetomaintain %v) ",
+		log.Infof("Not enough funds to buy tickets: (spendable: %v, balancetomaintain: %v) ",
 			bal.Spendable.ToCoin(), balanceToMaintainAmt.ToCoin())
 	}
 
@@ -598,11 +598,11 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			}
 
 			toBuyForBlock--
+			log.Debugf("Not enough, decremented amount of tickets to buy")
 		}
 
 		if toBuyForBlock == 0 {
-			log.Infof("Not buying because "+
-				"spendable balance would be %v "+
+			log.Infof("Not buying because spendable balance would be %v "+
 				"but balance to maintain is %v",
 				(bal.Spendable.ToCoin() - float64(toBuyForBlock)*
 					nextStakeDiff.ToCoin()),
