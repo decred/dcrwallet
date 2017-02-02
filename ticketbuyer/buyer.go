@@ -56,33 +56,34 @@ const (
 
 // Config stores the configuration options for ticket buyer.
 type Config struct {
-	AccountName           string
-	AvgPriceMode          string
-	AvgPriceVWAPDelta     int
-	BalanceToMaintain     float64
-	BlocksToAvg           int
-	DontWaitForTickets    bool
-	ExpiryDelta           int
-	FeeSource             string
-	FeeTargetScaling      float64
-	HighPricePenalty      float64
-	MinFee                float64
-	MinPriceScale         float64
-	MaxFee                float64
-	MaxPerBlock           int
-	MaxPriceAbsolute      float64
-	MaxPriceRelative      float64
-	MaxPriceScale         float64
-	MaxInMempool          int
-	PoolAddress           string
-	PoolFees              float64
-	PriceTarget           float64
-	SpreadTicketPurchases bool
-	TicketAddress         string
-	TxFee                 float64
-	TicketFeeInfo         bool
-	PrevToBuyDiffPeriod   int
-	PrevToBuyHeight       int
+	AccountName               string
+	AvgPriceMode              string
+	AvgPriceVWAPDelta         int
+	BalanceToMaintainAbsolute float64
+	BalanceToMaintainRelative float64
+	BlocksToAvg               int
+	DontWaitForTickets        bool
+	ExpiryDelta               int
+	FeeSource                 string
+	FeeTargetScaling          float64
+	HighPricePenalty          float64
+	MinFee                    float64
+	MinPriceScale             float64
+	MaxFee                    float64
+	MaxPerBlock               int
+	MaxPriceAbsolute          float64
+	MaxPriceRelative          float64
+	MaxPriceScale             float64
+	MaxInMempool              int
+	PoolAddress               string
+	PoolFees                  float64
+	PriceTarget               float64
+	SpreadTicketPurchases     bool
+	TicketAddress             string
+	TxFee                     float64
+	TicketFeeInfo             bool
+	PrevToBuyDiffPeriod       int
+	PrevToBuyHeight           int
 }
 
 // TicketPurchaser is the main handler for purchasing tickets. It decides
@@ -444,18 +445,44 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 	ps.FeeOwn = feeToUse
 
+	// Set the balancetomaintain to the configuration parameter that is higher
+	// Absolute or relative balance to maintain
+	var balanceToMaintainAmt dcrutil.Amount
+	if t.cfg.BalanceToMaintainAbsolute > 0 && t.cfg.BalanceToMaintainAbsolute >
+		bal.Total.ToCoin()*t.cfg.BalanceToMaintainRelative {
+
+		balanceToMaintainAmt, err = dcrutil.NewAmount(t.cfg.BalanceToMaintainAbsolute)
+		if err != nil {
+			return ps, err
+		}
+		log.Debugf("Using absolute balancetomaintain: %v", balanceToMaintainAmt)
+	} else {
+		balanceToMaintainAmt, err = dcrutil.NewAmount(bal.Total.ToCoin() * t.cfg.BalanceToMaintainRelative)
+		if err != nil {
+			return ps, err
+		}
+		log.Debugf("Using relative balancetomaintain: %v", balanceToMaintainAmt)
+	}
+
 	// Calculate how many tickets to buy
 	ticketsLeftInWindow := (int(winSize) - t.idxDiffPeriod) * int(t.activeNet.MaxFreshStakePerBlock)
 	log.Tracef("Ticket allotment left in window is %v, blocks left is %v",
 		ticketsLeftInWindow, (int(winSize) - t.idxDiffPeriod))
 
-	toBuyForBlock := int(math.Floor(bal.Spendable.ToCoin() / nextStakeDiff.ToCoin()))
+	toBuyForBlock := int(math.Floor((bal.Spendable.ToCoin() - balanceToMaintainAmt.ToCoin()) / nextStakeDiff.ToCoin()))
+	if toBuyForBlock < 0 {
+		toBuyForBlock = 0
+	}
+	if toBuyForBlock == 0 {
+		log.Infof("Not enough funds to buy tickets: (spendable: %v, balancetomaintain: %v) ",
+			bal.Spendable.ToCoin(), balanceToMaintainAmt.ToCoin())
+	}
 
 	// For spreading your ticket purchases evenly throughout window.
 	// Use available funds to calculate how many tickets to buy, and also
 	// approximate the income you're going to have from older tickets that
 	// you've voted and are maturing during this window
-	if t.cfg.SpreadTicketPurchases {
+	if t.cfg.SpreadTicketPurchases && toBuyForBlock > 0 {
 		log.Debugf("Spreading purchases throughout window")
 
 		// same as proportionlive that getstakeinfo rpc shows
@@ -476,7 +503,10 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		// Estimated number of tickets to be bought with stake reward claimed this window
 		tixToBuyWithStakeRewardFunds := stakeRewardFunds / nextStakeDiff.ToCoin()
 		// Amount of tickets that can be bought with existing funds
-		tixCanBuy := bal.Spendable.ToCoin() / nextStakeDiff.ToCoin()
+		tixCanBuy := (bal.Spendable.ToCoin() - balanceToMaintainAmt.ToCoin()) / nextStakeDiff.ToCoin()
+		if tixCanBuy < 0 {
+			tixCanBuy = 0
+		}
 		// Estimated number of tickets you can buy with current funds and
 		// funds from incoming redeemed tickets
 		tixCanBuyAll := tixCanBuy + tixToBuyWithRedeemedFunds + tixToBuyWithStakeRewardFunds
@@ -487,7 +517,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 		log.Debugf("Your average purchase price for tickets in the pool is %.2f DCR", yourAvgTixPrice)
 		log.Debugf("Available funds of %.2f DCR can buy %.2f tickets, %.2f tickets per block",
-			bal.Spendable.ToCoin()-t.cfg.BalanceToMaintain, tixCanBuy, buyPerBlock)
+			bal.Spendable.ToCoin()-balanceToMaintainAmt.ToCoin(), tixCanBuy, buyPerBlock)
 		log.Debugf("With %.2f%% proportion live, you will redeem ~%.2f tickets in the remaining %d blocks",
 			proportionLive*100, tixWillRedeem, blocksRemaining)
 		log.Debugf("Redeemed ticket value expected is %.2f DCR, buys %.2f tickets, %.2f%% more",
@@ -578,7 +608,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// have enough moneys.
 	notEnough := func(bal dcrutil.Amount, toBuy int, sd dcrutil.Amount) bool {
 		return (bal.ToCoin() - float64(toBuy)*sd.ToCoin()) <
-			t.cfg.BalanceToMaintain
+			balanceToMaintainAmt.ToCoin()
 	}
 	if notEnough(bal.Spendable, toBuyForBlock, nextStakeDiff) {
 		for notEnough(bal.Spendable, toBuyForBlock, nextStakeDiff) {
@@ -587,15 +617,15 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			}
 
 			toBuyForBlock--
+			log.Debugf("Not enough, decremented amount of tickets to buy")
 		}
 
 		if toBuyForBlock == 0 {
-			log.Infof("Not buying because our balance "+
-				"after buying tickets is estimated to be %v but balance "+
-				"to maintain is set to %v",
+			log.Infof("Not buying because spendable balance would be %v "+
+				"but balance to maintain is %v",
 				(bal.Spendable.ToCoin() - float64(toBuyForBlock)*
 					nextStakeDiff.ToCoin()),
-				t.cfg.BalanceToMaintain)
+				balanceToMaintainAmt)
 			return ps, nil
 		}
 	}

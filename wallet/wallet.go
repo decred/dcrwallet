@@ -7,7 +7,6 @@ package wallet
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -870,6 +869,8 @@ func (w *Wallet) syncWithChain(chainClient *chain.RPCClient) error {
 			return err
 		}
 	}
+
+	w.resendUnminedTxs(chainClient)
 
 	// Send winning and missed ticket notifications out so that the wallet
 	// can immediately vote and redeem any tickets it may have missed on
@@ -2979,16 +2980,6 @@ func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 	return resp, err
 }
 
-// exportBase64 exports a wallet's serialized database as a base64-encoded
-// string.
-func (w *Wallet) exportBase64() (string, error) {
-	var buf bytes.Buffer
-	if err := w.db.Copy(&buf); err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
-}
-
 // LockedOutpoint returns whether an outpoint has been marked as locked and
 // should not be used as an input for created transactions.
 func (w *Wallet) LockedOutpoint(op wire.OutPoint) bool {
@@ -3033,15 +3024,9 @@ func (w *Wallet) LockedOutpoints() []dcrjson.TransactionInput {
 // resendUnminedTxs iterates through all transactions that spend from wallet
 // credits that are not known to have been mined into a block, and attempts
 // to send each to the chain server for relay.
-func (w *Wallet) resendUnminedTxs() {
-	chainClient, err := w.requireChainClient()
-	if err != nil {
-		log.Errorf("No chain server available to resend unmined transactions")
-		return
-	}
-
+func (w *Wallet) resendUnminedTxs(chainClient *chain.RPCClient) {
 	var txs []*wire.MsgTx
-	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
 		txs, err = w.TxStore.UnminedTxs(txmgrNs)
