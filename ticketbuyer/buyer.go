@@ -485,17 +485,16 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		// Amount of tickets that can be bought per block with current and redeemed funds
 		buyPerBlockAll := tixCanBuyAll / float64(blocksRemaining)
 
-		log.Debugf("To spend your available %.2f DCR within this window, you need %.2f tickets per block"+
-			", %.2f purchases total", tixCanBuy, buyPerBlock, tixCanBuy)
-		log.Debugf("With %.2f%% proportion live, you are expected to redeem %.2f tickets "+
-			"in the remaining %d usable blocks", proportionLive*100, tixWillRedeem, blocksRemaining)
-		log.Debugf("With %.2f DCR expected in redeemed ticket value, "+
-			"you can buy %.2f%% more tickets (%.2f tickets)",
-			redeemedFunds, tixToBuyWithRedeemedFunds/tixCanBuy*100, tixToBuyWithRedeemedFunds)
-		log.Debugf("With %.2f DCR expected in stake rewards, "+
-			"you can buy %.2f%% more tickets (%.2f tickets)",
-			stakeRewardFunds, tixToBuyWithStakeRewardFunds/tixCanBuy*100, tixToBuyWithStakeRewardFunds)
-		log.Infof("Will buy ~%.2f tickets per block, %.2f purchases total", buyPerBlockAll, tixCanBuyAll)
+		log.Debugf("Your average purchase price for tickets in the pool is %.2f DCR", yourAvgTixPrice)
+		log.Debugf("Available funds of %.2f DCR can buy %.2f tickets, %.2f tickets per block",
+			bal.Spendable.ToCoin()-t.cfg.BalanceToMaintain, tixCanBuy, buyPerBlock)
+		log.Debugf("With %.2f%% proportion live, you will redeem ~%.2f tickets in the remaining %d blocks",
+			proportionLive*100, tixWillRedeem, blocksRemaining)
+		log.Debugf("Redeemed ticket value expected is %.2f DCR, buys %.2f tickets, %.2f%% more",
+			redeemedFunds, tixToBuyWithRedeemedFunds, tixToBuyWithRedeemedFunds/tixCanBuy*100)
+		log.Debugf("Stake reward expected is %.2f DCR, buys %.2f tickets, %.2f%% more",
+			stakeRewardFunds, tixToBuyWithStakeRewardFunds, tixToBuyWithStakeRewardFunds/tixCanBuy*100)
+		log.Infof("Will buy ~%.2f tickets per block, %.2f ticket purchases remaining this window", buyPerBlockAll, tixCanBuyAll)
 
 		if blocksRemaining > 0 && tixCanBuy > 0 {
 			// rand is for the remainder
