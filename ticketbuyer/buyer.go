@@ -278,10 +278,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 		subsidyCache := blockchain.NewSubsidyCache(height, t.wallet.ChainParams())
 		subsidy := blockchain.CalcStakeVoteSubsidy(subsidyCache, height, t.wallet.ChainParams())
-		t.stakeVoteSubsidy, err = dcrutil.NewAmount(float64(subsidy) / 1e8)
-		if err != nil {
-			return ps, err
-		}
+		t.stakeVoteSubsidy = dcrutil.Amount(subsidy)
 		log.Tracef("Stake vote subsidy: %v", t.stakeVoteSubsidy)
 	}
 
