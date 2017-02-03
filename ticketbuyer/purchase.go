@@ -5,6 +5,8 @@
 package ticketbuyer
 
 import (
+	"sync"
+
 	"github.com/decred/dcrwallet/wallet"
 )
 
@@ -14,18 +16,19 @@ type PurchaseManager struct {
 	w         *wallet.Wallet
 	purchaser *TicketPurchaser
 	ntfnChan  <-chan *wallet.MainTipChangedNotification
+	wg        sync.WaitGroup
+	quitMtx   sync.Mutex
 	quit      chan struct{}
 }
 
 // NewPurchaseManager creates a new PurchaseManager.
 func NewPurchaseManager(w *wallet.Wallet, purchaser *TicketPurchaser,
-	ntfnChan <-chan *wallet.MainTipChangedNotification,
-	quit chan struct{}) *PurchaseManager {
+	ntfnChan <-chan *wallet.MainTipChangedNotification) *PurchaseManager {
 	return &PurchaseManager{
 		w:         w,
 		purchaser: purchaser,
 		ntfnChan:  ntfnChan,
-		quit:      quit,
+		quit:      make(chan struct{}),
 	}
 }
 
@@ -41,15 +44,24 @@ func (p *PurchaseManager) purchase(height int64) {
 
 // NotificationHandler handles notifications, which trigger ticket purchases.
 func (p *PurchaseManager) NotificationHandler() {
+	p.quitMtx.Lock()
+	quit := p.quit
+	p.quitMtx.Unlock()
+
 	s1, s2 := make(chan struct{}), make(chan struct{})
 	close(s1) // unblock first worker
 out:
 	for {
 		select {
 		case v := <-p.ntfnChan:
+			p.wg.Add(1)
 			go func(s1, s2 chan struct{}) {
-				<-s1 // wait for previous worker to finish
-
+				defer p.wg.Done()
+				select {
+				case <-s1: // wait for previous worker to finish
+				case <-quit:
+					return
+				}
 				// Purchase tickets for each attached block, not just for the
 				// update to the main chain.  This is probably not optimal but
 				// it matches how dcrticketbuyer worked.
@@ -60,8 +72,37 @@ out:
 				close(s2) // unblock next worker
 			}(s1, s2)
 			s1, s2 = s2, make(chan struct{})
-		case <-p.quit:
+		case <-quit:
 			break out
 		}
 	}
+	p.wg.Done()
+}
+
+// Start starts the purchase manager goroutines.
+func (p *PurchaseManager) Start() {
+	p.wg.Add(1)
+	go p.NotificationHandler()
+
+	log.Infof("Starting ticket buyer")
+}
+
+// WaitForShutdown blocks until all purchase manager goroutines have finished executing.
+func (p *PurchaseManager) WaitForShutdown() {
+	p.wg.Wait()
+}
+
+// Stop signals all purchase manager goroutines to shutdown.
+func (p *PurchaseManager) Stop() {
+	p.quitMtx.Lock()
+	quit := p.quit
+
+	log.Infof("Stopping ticket buyer")
+
+	select {
+	case <-quit:
+	default:
+		close(quit)
+	}
+	p.quitMtx.Unlock()
 }
