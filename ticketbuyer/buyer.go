@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrrpcclient"
@@ -109,6 +110,7 @@ type TicketPurchaser struct {
 	stakePoolSize    uint32
 	stakeLive        uint32
 	stakeImmature    uint32
+	stakeVoteSubsidy dcrutil.Amount
 }
 
 // NewTicketPurchaser creates a new TicketPurchaser.
@@ -273,6 +275,11 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		t.stakePoolSize = curStakeInfo.PoolSize
 		t.stakeLive = curStakeInfo.Live
 		t.stakeImmature = curStakeInfo.Immature
+
+		subsidyCache := blockchain.NewSubsidyCache(height, t.wallet.ChainParams())
+		subsidy := blockchain.CalcStakeVoteSubsidy(subsidyCache, height, t.wallet.ChainParams())
+		t.stakeVoteSubsidy, err = dcrutil.NewAmount(float64(subsidy) / 1e8)
+		log.Tracef("Stake vote subsidy: %v", t.stakeVoteSubsidy)
 	}
 
 	// Parse the ticket purchase frequency. Positive numbers mean
@@ -497,10 +504,9 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		redeemedFunds := tixWillRedeem * yourAvgTixPrice
 		// Estimated number of tickets to be bought with redeemed funds
 		tixToBuyWithRedeemedFunds := redeemedFunds / nextStakeDiff.ToCoin()
-		// Estimated number of tickets to be bought with stake reward claimed this window
-		// *Hard coded value needs to be replaced
-		stakeRewardFunds := 1.5962 * tixWillRedeem
-		// Estimated number of tickets to be bought with stake reward claimed this window
+		// Estimated amount of funds becoming available from stake vote reward
+		stakeRewardFunds := t.stakeVoteSubsidy.ToCoin() * tixWillRedeem
+		// Estimated number of tickets to be bought with new stake reward
 		tixToBuyWithStakeRewardFunds := stakeRewardFunds / nextStakeDiff.ToCoin()
 		// Amount of tickets that can be bought with existing funds
 		tixCanBuy := (bal.Spendable.ToCoin() - balanceToMaintainAmt.ToCoin()) / nextStakeDiff.ToCoin()
