@@ -69,7 +69,6 @@ type Config struct {
 	FeeTargetScaling          float64
 	HighPricePenalty          float64
 	MinFee                    float64
-	MinPriceScale             float64
 	MaxFee                    float64
 	MaxPerBlock               int
 	MaxPriceAbsolute          float64
@@ -100,8 +99,6 @@ type TicketPurchaser struct {
 	firstStart       bool
 	windowPeriod     int          // The current window period
 	idxDiffPeriod    int          // Relative block index within the difficulty period
-	maintainMaxPrice bool         // Flag for maximum price manipulation
-	maintainMinPrice bool         // Flag for minimum price manipulation
 	useMedian        bool         // Flag for using median for ticket fees
 	priceMode        avgPriceMode // Price mode to use to calc average price
 	heightCheck      map[int64]struct{}
@@ -135,16 +132,6 @@ func NewTicketPurchaser(cfg *Config,
 		}
 	}
 
-	maintainMaxPrice := false
-	if cfg.MaxPriceScale > 0.0 {
-		maintainMaxPrice = true
-	}
-
-	maintainMinPrice := false
-	if cfg.MinPriceScale > 0.0 {
-		maintainMinPrice = true
-	}
-
 	priceMode := avgPriceMode(AvgPriceVWAPMode)
 	switch cfg.AvgPriceMode {
 	case PriceTargetPool:
@@ -154,25 +141,22 @@ func NewTicketPurchaser(cfg *Config,
 	}
 
 	return &TicketPurchaser{
-		cfg:              cfg,
-		activeNet:        activeNet,
-		dcrdChainSvr:     dcrdChainSvr,
-		wallet:           w,
-		firstStart:       true,
-		ticketAddress:    ticketAddress,
-		poolAddress:      poolAddress,
-		maintainMaxPrice: maintainMaxPrice,
-		maintainMinPrice: maintainMinPrice,
-		useMedian:        cfg.FeeSource == TicketFeeMedian,
-		priceMode:        priceMode,
-		heightCheck:      make(map[int64]struct{}),
+		cfg:           cfg,
+		activeNet:     activeNet,
+		dcrdChainSvr:  dcrdChainSvr,
+		wallet:        w,
+		firstStart:    true,
+		ticketAddress: ticketAddress,
+		poolAddress:   poolAddress,
+		useMedian:     cfg.FeeSource == TicketFeeMedian,
+		priceMode:     priceMode,
+		heightCheck:   make(map[int64]struct{}),
 	}, nil
 }
 
 // PurchaseStats stats is a collection of statistics related to the ticket purchase.
 type PurchaseStats struct {
 	Height        int64
-	PriceMinScale float64
 	PriceMaxScale float64
 	PriceAverage  float64
 	PriceNext     float64
@@ -349,21 +333,13 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	}
 
 	// Scale the average price according to the configuration parameters
-	// to find minimum and maximum prices for users that are electing to
-	// attempting to manipulate the stake difficulty.
-	minPriceScaledAmt, err := dcrutil.NewAmount(t.cfg.MinPriceScale * avgPrice)
-	if err != nil {
-		return ps, err
-	}
-	if t.maintainMinPrice {
-		log.Debugf("Min price to maintain this window: %v", minPriceScaledAmt)
-	}
-	ps.PriceMinScale = minPriceScaledAmt.ToCoin()
+	// to find the maximum price for users that are electing to
+	// attempting to manipulate the stake difficulty
 	maxPriceScaledAmt, err := dcrutil.NewAmount(t.cfg.MaxPriceScale * avgPrice)
 	if err != nil {
 		return ps, err
 	}
-	if t.maintainMaxPrice {
+	if t.cfg.MaxPriceScale > 0.0 {
 		log.Debugf("Max price to maintain this window: %v", maxPriceScaledAmt)
 	}
 	ps.PriceMaxScale = maxPriceScaledAmt.ToCoin()
@@ -387,7 +363,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			"(max price: %v, ticket price: %v)", maxPriceAmt, nextStakeDiff)
 		return ps, nil
 	}
-	if t.maintainMaxPrice && (sDiffEsts.Expected > maxPriceScaledAmt.ToCoin()) &&
+	if t.cfg.MaxPriceScale > 0.0 && (sDiffEsts.Expected > maxPriceScaledAmt.ToCoin()) &&
 		maxPriceScaledAmt != 0 {
 		log.Infof("Not buying because the "+
 			"next window estimate %v DCR is higher than the scaled max "+
@@ -530,7 +506,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			redeemedFunds, tixToBuyWithRedeemedFunds, tixToBuyWithRedeemedFunds/tixCanBuy*100)
 		log.Debugf("Stake reward expected is %.2f DCR, buys %.2f tickets, %.2f%% more",
 			stakeRewardFunds, tixToBuyWithStakeRewardFunds, tixToBuyWithStakeRewardFunds/tixCanBuy*100)
-		log.Infof("Will buy ~%.2f tickets per block, %.2f ticket purchases remaining this window", buyPerBlockAll, tixCanBuyAll)
+		log.Infof("Will buy ~%.2f tickets per block, %.2f ticket purchases remain this window", buyPerBlockAll, tixCanBuyAll)
 
 		if blocksRemaining > 0 && tixCanBuy > 0 {
 			// rand is for the remainder
@@ -586,19 +562,6 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			log.Infof("Limiting to 1 purchase per block")
 		} else {
 			log.Infof("Limiting to %d purchases per block", maxPerBlock)
-		}
-	}
-
-	// Hijack the number to purchase for this block if we have minimum
-	// ticket price manipulation enabled.
-	if t.maintainMinPrice && toBuyForBlock < maxPerBlock {
-		if sDiffEsts.Expected < minPriceScaledAmt.ToCoin() {
-			toBuyForBlock = maxPerBlock
-			log.Debugf("Attempting to manipulate the stake difficulty "+
-				"so that the price does not fall below the set minimum "+
-				"%v (current estimate for next stake difficulty: %v) by "+
-				"purchasing an additional round of tickets",
-				minPriceScaledAmt, sDiffEsts.Expected)
 		}
 	}
 
