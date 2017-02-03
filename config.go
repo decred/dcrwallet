@@ -57,7 +57,6 @@ const (
 	defaultMaxFee                    dcrutil.Amount = 1e7
 	defaultMinFee                    dcrutil.Amount = 1e6
 	defaultMaxPriceScale                            = 2.0
-	defaultMinPriceScale                            = 0.7
 	defaultAvgVWAPPriceDelta                        = 2880
 	defaultMaxPerBlock                              = 5
 	defaultBlocksToAvg                              = 11
@@ -172,7 +171,6 @@ type config struct {
 
 type ticketBuyerOptions struct {
 	MaxPriceScale             float64             `long:"maxpricescale" description:"Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
-	MinPriceScale             float64             `long:"minpricescale" description:"Attempt to prevent the stake difficulty from going below this multiplier (<1.0) by manipulation, 0 to disable"`
 	PriceTarget               *cfgutil.AmountFlag `long:"pricetarget" description:"A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
 	AvgPriceMode              string              `long:"avgpricemode" description:"The mode to use for calculating the average price if pricetarget is disabled (vwap, pool, dual)"`
 	AvgPriceVWAPDelta         int                 `long:"avgpricevwapdelta" description:"The number of blocks to use from the current block to calculate the VWAP"`
@@ -383,7 +381,6 @@ func loadConfig() (*config, []string, error) {
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
-			MinPriceScale:             defaultMinPriceScale,
 			MaxPriceScale:             defaultMaxPriceScale,
 			AvgPriceMode:              defaultAvgPriceMode,
 			AvgPriceVWAPDelta:         defaultAvgVWAPPriceDelta,
@@ -980,7 +977,6 @@ func loadConfig() (*config, []string, error) {
 		FeeSource:                 cfg.TBOpts.FeeSource,
 		FeeTargetScaling:          cfg.TBOpts.FeeTargetScaling,
 		MinFee:                    cfg.TBOpts.MinFee.ToCoin(),
-		MinPriceScale:             cfg.TBOpts.MinPriceScale,
 		MaxFee:                    cfg.TBOpts.MaxFee.ToCoin(),
 		MaxPerBlock:               maxPerBlock,
 		MaxPriceAbsolute:          maxPriceAbsolute.ToCoin(),
