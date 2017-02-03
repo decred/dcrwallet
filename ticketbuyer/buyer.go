@@ -478,11 +478,11 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		yourAvgTixPrice := bal.LockedByTickets.ToCoin() / float64(t.stakeLive+t.stakeImmature)
 		// Estimated amount of funds to redeem in the remaining window
 		redeemedFunds := tixWillRedeem * yourAvgTixPrice
+		// Estimated amount of funds becoming available from stake vote reward
+		stakeRewardFunds := tixWillRedeem * t.stakeVoteSubsidy.ToCoin()
 		// Estimated number of tickets to be bought with redeemed funds
 		tixToBuyWithRedeemedFunds := redeemedFunds / nextStakeDiff.ToCoin()
-		// Estimated amount of funds becoming available from stake vote reward
-		stakeRewardFunds := t.stakeVoteSubsidy.ToCoin() * tixWillRedeem
-		// Estimated number of tickets to be bought with new stake reward
+		// Estimated number of tickets to be bought with stake reward
 		tixToBuyWithStakeRewardFunds := stakeRewardFunds / nextStakeDiff.ToCoin()
 		// Amount of tickets that can be bought with existing funds
 		tixCanBuy := (bal.Spendable.ToCoin() - balanceToMaintainAmt.ToCoin()) / nextStakeDiff.ToCoin()
