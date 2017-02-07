@@ -1,5 +1,5 @@
 hash: e131a09cdee55488fc872343167c3f23e5de31714be022b47cbc6842c33a44f6
-updated: 2017-01-24T11:30:08.73716262-05:00
+updated: 2017-02-07T00:28:33.566528601-05:00
 imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
@@ -50,7 +50,7 @@ imports:
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
-  version: a1200f54d5aff356f7db4699d64ccdf2e35e2876
+  version: 05e9423f948589f0446f13c66805ef7f5e82ea43
 - name: github.com/decred/dcrutil
   version: ba0a5f399a43abc0e1a0a0442509c36f35321bce
   subpackages:
