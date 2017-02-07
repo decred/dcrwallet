@@ -36,6 +36,14 @@ import (
 	"github.com/decred/dcrwallet/wtxmgr"
 )
 
+// API version constants
+const (
+	jsonrpcSemverString = "1.0.0"
+	jsonrpcSemverMajor  = 1
+	jsonrpcSemverMinor  = 0
+	jsonrpcSemverPatch  = 0
+)
+
 // confirmed checks whether a transaction at height txHeight has met minconf
 // confirmations for a blockchain at height curHeight.
 func confirmed(minconf, txHeight, curHeight int32) bool {
@@ -153,6 +161,7 @@ var rpcHandlers = map[string]struct {
 	"ticketsforaddress":       {handler: ticketsForAddress},
 	"validateaddress":         {handler: validateAddress},
 	"verifymessage":           {handler: verifyMessage},
+	"version":                 {handler: versionNoChainRPC, handlerWithChain: versionWithChainRPC},
 	"walletinfo":              {handlerWithChain: walletInfo},
 	"walletlock":              {handler: walletLock},
 	"walletpassphrase":        {handler: walletPassphrase},
@@ -3325,6 +3334,45 @@ func verifyMessage(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	default:
 		return nil, errors.New("address type not supported")
 	}
+}
+
+// versionWithChainRPC handles the version request when the RPC server has been
+// associated with a consensus RPC client.  The additional RPC client is used to
+// include the version results of the consensus RPC server via RPC passthrough.
+func versionWithChainRPC(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient) (interface{}, error) {
+	return version(icmd, w, chainClient)
+}
+
+// versionNoChainRPC handles the version request when the RPC server has not
+// been associated with a consesnus RPC client.  No version results are included
+// for passphrough requests.
+func versionNoChainRPC(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+	return version(icmd, w, nil)
+}
+
+// version handles the version command by returning the RPC API versions of the
+// wallet and, optionally, the consensus RPC server as well if it is associated
+// with the server.  The chainClient is optional, and this is simply a helper
+// function for the versionWithChainRPC and versionNoChainRPC handlers.
+func version(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient) (interface{}, error) {
+	var resp map[string]dcrjson.VersionResult
+	if chainClient != nil {
+		var err error
+		resp, err = chainClient.Version()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		resp = make(map[string]dcrjson.VersionResult)
+	}
+
+	resp["dcrwalletjsonrpcapi"] = dcrjson.VersionResult{
+		VersionString: jsonrpcSemverString,
+		Major:         jsonrpcSemverMajor,
+		Minor:         jsonrpcSemverMinor,
+		Patch:         jsonrpcSemverPatch,
+	}
+	return resp, nil
 }
 
 // walletInfo gets the current information about the wallet. If the daemon
