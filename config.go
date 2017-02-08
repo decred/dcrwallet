@@ -753,7 +753,7 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	// Validate extended vote bits.  Must be 8 characters (4 bytes) shorter than
-	// the actual max due to the appended version.
+	// the actual max due to the prepended version.
 	const maxExtVBLen = stake.SSGenVoteBitsExtendedMaxSize*2 - 8
 	vbeLen := len(cfg.VoteBitsExtended)
 	if vbeLen > maxExtVBLen {
@@ -771,7 +771,7 @@ func loadConfig() (*config, []string, error) {
 		return loadConfigError(err)
 	}
 
-	// Set the vote bits version based on the active network.
+	// Prepend the vote bits version based on the active network.
 	//
 	// Config parsing is very likely the wrong place to do this, especially with
 	// magic version constants, but it is the least invasive change to the
