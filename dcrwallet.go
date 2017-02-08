@@ -111,6 +111,32 @@ func walletMain() error {
 		cfg.AutomaticRepair, cfg.UnsafeMainNet, cfg.AddrIdxScanLen,
 		cfg.AllowHighFees, cfg.RelayFee.ToCoin())
 
+	if !cfg.NoInitialLoad {
+		walletPass := []byte(cfg.WalletPass)
+		defer zero.Bytes(walletPass)
+
+		if cfg.PromptPublicPass {
+			backendLog.Flush()
+			for {
+				reader := bufio.NewReader(os.Stdin)
+				walletPass, err = prompt.PassPrompt(reader, "Enter public wallet passphrase", false)
+				if err != nil {
+					fmt.Println("Failed to input password. Please try again.")
+					continue
+				}
+				break
+			}
+		}
+
+		// Load the wallet database.  It must have been created already
+		// or this will return an appropriate error.
+		_, err = loader.OpenExistingWallet(walletPass, true)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+	}
+
 	// Create and start HTTP server to serve wallet client connections.
 	// This will be updated with the wallet and chain server RPC client
 	// created below after each is created.
@@ -145,16 +171,6 @@ func walletMain() error {
 		}
 		startWalletRPCServices(w, rpcs, legacyRPCServer)
 	})
-
-	if !cfg.NoInitialLoad {
-		// Load the wallet database.  It must have been created already
-		// or this will return an appropriate error.
-		_, err = loader.OpenExistingWallet([]byte(cfg.WalletPass), true)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-	}
 
 	if cfg.PipeRx != nil {
 		go serviceControlPipeRx(uintptr(*cfg.PipeRx))
