@@ -752,13 +752,13 @@ func loadConfig() (*config, []string, error) {
 		}
 	}
 
-	// Validate extended vote bits
-	const minExtVBLen = 6
-	const maxExtVBLen = stake.SSGenVoteBitsExtendedMaxSize*2 - 2
+	// Validate extended vote bits.  Must be 8 characters (4 bytes) shorter than
+	// the actual max due to the appended version.
+	const maxExtVBLen = stake.SSGenVoteBitsExtendedMaxSize*2 - 8
 	vbeLen := len(cfg.VoteBitsExtended)
-	if vbeLen < minExtVBLen || vbeLen > maxExtVBLen {
+	if vbeLen > maxExtVBLen {
 		err = fmt.Errorf("bad extended votebits length: (got %v, "+
-			"min %v, max %v)", vbeLen, minExtVBLen, maxExtVBLen)
+			"max %v)", vbeLen, maxExtVBLen)
 		fmt.Fprintln(os.Stderr, err.Error())
 		fmt.Fprintln(os.Stderr, usageMessage)
 		return loadConfigError(err)
@@ -778,11 +778,11 @@ func loadConfig() (*config, []string, error) {
 	// existing wallet code.
 	switch activeNet {
 	case &netparams.MainNetParams:
-		cfg.VoteBitsExtended = "03" + cfg.VoteBitsExtended
+		cfg.VoteBitsExtended = "03000000" + cfg.VoteBitsExtended
 	case &netparams.TestNetParams:
-		cfg.VoteBitsExtended = "04" + cfg.VoteBitsExtended
+		cfg.VoteBitsExtended = "04000000" + cfg.VoteBitsExtended
 	case &netparams.SimNetParams:
-		cfg.VoteBitsExtended = "04" + cfg.VoteBitsExtended
+		cfg.VoteBitsExtended = "04000000" + cfg.VoteBitsExtended
 	}
 
 	if cfg.RPCConnect == "" {
