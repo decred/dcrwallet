@@ -38,7 +38,7 @@ const (
 	defaultEnableTicketBuyer   = false
 	defaultEnableVoting        = false
 	defaultVoteBits            = 0x0001
-	defaultVoteBitsExtended    = "000000" // does NOT include version.
+	defaultVoteBitsExtended    = "" // does NOT include version.
 	defaultBalanceToMaintain   = 0
 	defaultReuseAddresses      = false
 	defaultRollbackTest        = false
