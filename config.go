@@ -620,6 +620,39 @@ func loadConfig() (*config, []string, error) {
 		return loadConfigError(err)
 	}
 
+	// Validate extended vote bits.  Must be 8 characters (4 bytes) shorter than
+	// the actual max due to the prepended version.
+	const maxExtVBLen = stake.SSGenVoteBitsExtendedMaxSize*2 - 8
+	vbeLen := len(cfg.VoteBitsExtended)
+	if vbeLen > maxExtVBLen {
+		err = fmt.Errorf("bad extended votebits length: (got %v, "+
+			"max %v)", vbeLen, maxExtVBLen)
+		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, usageMessage)
+		return loadConfigError(err)
+	}
+	_, err = hex.DecodeString(cfg.VoteBitsExtended)
+	if err != nil {
+		err = fmt.Errorf("invalid votebitsextended setting: %v", err)
+		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, usageMessage)
+		return loadConfigError(err)
+	}
+
+	// Prepend the vote bits version based on the active network.
+	//
+	// Config parsing is very likely the wrong place to do this, especially with
+	// magic version constants, but it is the least invasive change to the
+	// existing wallet code.
+	switch activeNet {
+	case &netparams.MainNetParams:
+		cfg.VoteBitsExtended = "03000000" + cfg.VoteBitsExtended
+	case &netparams.TestNetParams:
+		cfg.VoteBitsExtended = "04000000" + cfg.VoteBitsExtended
+	case &netparams.SimNetParams:
+		cfg.VoteBitsExtended = "04000000" + cfg.VoteBitsExtended
+	}
+
 	// Exit if you try to use a simulation wallet with a standard
 	// data directory.
 	if cfg.AppDataDir == defaultAppDataDir && cfg.CreateTemp {
@@ -750,39 +783,6 @@ func loadConfig() (*config, []string, error) {
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return loadConfigError(err)
 		}
-	}
-
-	// Validate extended vote bits.  Must be 8 characters (4 bytes) shorter than
-	// the actual max due to the prepended version.
-	const maxExtVBLen = stake.SSGenVoteBitsExtendedMaxSize*2 - 8
-	vbeLen := len(cfg.VoteBitsExtended)
-	if vbeLen > maxExtVBLen {
-		err = fmt.Errorf("bad extended votebits length: (got %v, "+
-			"max %v)", vbeLen, maxExtVBLen)
-		fmt.Fprintln(os.Stderr, err.Error())
-		fmt.Fprintln(os.Stderr, usageMessage)
-		return loadConfigError(err)
-	}
-	_, err = hex.DecodeString(cfg.VoteBitsExtended)
-	if err != nil {
-		err = fmt.Errorf("invalid votebitsextended setting: %v", err)
-		fmt.Fprintln(os.Stderr, err.Error())
-		fmt.Fprintln(os.Stderr, usageMessage)
-		return loadConfigError(err)
-	}
-
-	// Prepend the vote bits version based on the active network.
-	//
-	// Config parsing is very likely the wrong place to do this, especially with
-	// magic version constants, but it is the least invasive change to the
-	// existing wallet code.
-	switch activeNet {
-	case &netparams.MainNetParams:
-		cfg.VoteBitsExtended = "03000000" + cfg.VoteBitsExtended
-	case &netparams.TestNetParams:
-		cfg.VoteBitsExtended = "04000000" + cfg.VoteBitsExtended
-	case &netparams.SimNetParams:
-		cfg.VoteBitsExtended = "04000000" + cfg.VoteBitsExtended
 	}
 
 	if cfg.RPCConnect == "" {
