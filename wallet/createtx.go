@@ -14,6 +14,7 @@ import (
 	"github.com/btcsuite/golangcrypto/ripemd160"
 
 	"bytes"
+
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
@@ -106,7 +107,7 @@ const (
 var (
 	// maxTxSize is the maximum size of a transaction we can
 	// build with the wallet.
-	maxTxSize = chaincfg.MainNetParams.MaximumBlockSize - 75000
+	maxTxSize = chaincfg.MainNetParams.MaxTxSize
 )
 
 func estimateTxSize(numInputs, numOutputs int) int {
