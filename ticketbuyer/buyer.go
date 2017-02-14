@@ -369,7 +369,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	}
 	ps.MempoolOwn = inMP
 	if !t.cfg.DontWaitForTickets {
-		if inMP > t.cfg.MaxInMempool {
+		if inMP >= t.cfg.MaxInMempool {
 			log.Infof("Currently waiting for %v tickets to enter the "+
 				"blockchain before buying more tickets (in mempool: %v,"+
 				" max allowed in mempool %v)", inMP-t.cfg.MaxInMempool,
