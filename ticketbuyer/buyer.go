@@ -534,9 +534,9 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if toBuyForBlock > maxPerBlock {
 		toBuyForBlock = maxPerBlock
 		if maxPerBlock == 1 {
-			log.Infof("Limiting to 1 purchase per block")
+			log.Infof("Limiting to 1 purchase so that maxperblock is not exceeded")
 		} else {
-			log.Infof("Limiting to %d purchases per block", maxPerBlock)
+			log.Infof("Limiting to %d purchases so that maxperblock is not exceeded", maxPerBlock)
 		}
 	}
 
@@ -571,6 +571,14 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 					nextStakeDiff.ToCoin()),
 				balanceToMaintainAmt)
 			return ps, nil
+		}
+	}
+
+	// When buying, do not exceed maxinmempool
+	if !t.cfg.DontWaitForTickets {
+		if toBuyForBlock+inMP > t.cfg.MaxInMempool {
+			toBuyForBlock = t.cfg.MaxInMempool - inMP
+			log.Debugf("Limiting to %d purchases so that maxinmempool is not exceeded", toBuyForBlock)
 		}
 	}
 
