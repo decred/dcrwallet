@@ -562,6 +562,14 @@ func loadConfig() (*config, []string, error) {
 		return loadConfigError(err)
 	}
 
+	// Sanity check ExpiryDelta
+	if cfg.TBOpts.ExpiryDelta <= 0 {
+		str := "%s: expirydelta must be greater then zero: %v"
+		err := fmt.Errorf(str, funcName, cfg.TBOpts.ExpiryDelta)
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+
 	// If an alternate data directory was specified, and paths with defaults
 	// relative to the data dir are unchanged, modify each path to be
 	// relative to the new data dir.
