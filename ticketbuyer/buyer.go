@@ -600,7 +600,8 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if err != nil {
 		return ps, err
 	}
-	expiry := int32(int(height) + t.cfg.ExpiryDelta)
+	// Ticket purchase requires 2 blocks to confirm
+	expiry := int32(int(height) + t.cfg.ExpiryDelta + 2)
 	hashes, err := t.wallet.PurchaseTickets(0,
 		maxPriceAmt,
 		0,
