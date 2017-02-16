@@ -13,9 +13,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/btcsuite/golangcrypto/ssh/terminal"
 	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/walletseed"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // ProvideSeed is used to prompt for the wallet seed which maybe required during
