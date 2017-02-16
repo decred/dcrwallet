@@ -1,5 +1,5 @@
-hash: e131a09cdee55488fc872343167c3f23e5de31714be022b47cbc6842c33a44f6
-updated: 2017-02-16T15:38:21.171164034Z
+hash: 5da93fdff30aec2a373fd7b4525267f9dadf5329933c2cace07ae5809f12f579
+updated: 2017-02-16T15:58:24.686782258Z
 imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
@@ -66,6 +66,10 @@ imports:
   - proto
 - name: github.com/jessevdk/go-flags
   version: 48cf8722c3375517aba351d1f7577c40663a4407
+- name: golang.org/x/crypto
+  version: 453249f01cfeb54c3d549ddb75ff152ca243f9d8
+  subpackages:
+  - ssh/terminal
 - name: golang.org/x/net
   version: b4690f45fa1cafc47b1c280c2e75116efe40cc13
   subpackages:
