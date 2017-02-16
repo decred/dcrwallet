@@ -1,5 +1,5 @@
 hash: e131a09cdee55488fc872343167c3f23e5de31714be022b47cbc6842c33a44f6
-updated: 2017-02-13T20:04:04.51439537Z
+updated: 2017-02-16T15:38:21.171164034Z
 imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
@@ -8,7 +8,7 @@ imports:
 - name: github.com/btcsuite/fastsha256
   version: 637e656429416087660c84436a2a035d69d54e2e
 - name: github.com/btcsuite/go-socks
-  version: cfe8b59e565c1a5bd4e2005d77cd9aa8b2e14524
+  version: 4720035b7bfd2a9bb130b1c184f8bbe41b6f0d0f
   subpackages:
   - socks
 - name: github.com/btcsuite/golangcrypto
@@ -30,7 +30,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: 1196130cbce1872788f572e252379c8c90ef528e
+  version: 31e7fb99e22b39af92f92d57fc104840589f1f3c
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -50,7 +50,7 @@ imports:
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
-  version: 4587f10de59ce3c041f2591871846398eea1406f
+  version: 014621ece62dcd82250370f186b09212e74dade1
 - name: github.com/decred/dcrutil
   version: ba0a5f399a43abc0e1a0a0442509c36f35321bce
   subpackages:
@@ -65,9 +65,9 @@ imports:
   subpackages:
   - proto
 - name: github.com/jessevdk/go-flags
-  version: 8bc97d602c3bfeb5fc6fc9b5a9c898f245495637
+  version: 48cf8722c3375517aba351d1f7577c40663a4407
 - name: golang.org/x/net
-  version: 69d4b8aa71caaaa75c3dfc11211d1be495abec7c
+  version: b4690f45fa1cafc47b1c280c2e75116efe40cc13
   subpackages:
   - context
   - http2
@@ -77,7 +77,7 @@ imports:
   - lex/httplex
   - trace
 - name: golang.org/x/sys
-  version: d75a52659825e75fff6158388dddc6a5b04f9ba5
+  version: e24f485414aeafb646f6fca458b0bf869c0880a1
   subpackages:
   - unix
 - name: google.golang.org/grpc
@@ -103,6 +103,6 @@ testImports:
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: 2402e8e7a02fc811447d11f881aa9746cdc57983
+  version: 4d4bfba8f1d1027c4fdbe371823030df51419987
   subpackages:
   - assert
