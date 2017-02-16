@@ -62,7 +62,7 @@ https://github.com/decred/decred-release/releases
 
 Building or updating from source requires the following build dependencies:
 
-- **Go 1.6 or 1.7**
+- **Go 1.7 or 1.8**
 
   Installation instructions can be found here: http://golang.org/doc/install.
   It is recommended to add `$GOPATH/bin` to your `PATH` at this point.
