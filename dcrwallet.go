@@ -120,10 +120,14 @@ func walletMain() error {
 		return err
 	}
 
+	c := make(chan *chain.RPCClient)
+	loader.RunAfterLoad(func(w *wallet.Wallet) {
+		go chainClientLoop(w, loader, c)
+	})
 	// Create and start chain RPC client so it's ready to connect to
 	// the wallet when loaded later.
 	if !cfg.NoInitialLoad {
-		go rpcClientConnectLoop(legacyRPCServer, loader)
+		go rpcClientConnectLoop(legacyRPCServer, loader, c)
 	}
 
 	loader.RunAfterLoad(func(w *wallet.Wallet) {
@@ -266,7 +270,7 @@ func startPromptPass(w *wallet.Wallet) {
 // The legacy RPC is optional.  If set, the connected RPC client will be
 // associated with the server for RPC passthrough and to enable additional
 // methods.
-func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Loader) {
+func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Loader, c chan *chain.RPCClient) {
 	certs := readCAFile()
 
 	for {
@@ -288,9 +292,7 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 			if legacyRPCServer != nil {
 				legacyRPCServer.SetChainServer(chainClient)
 			}
-			if cfg.EnableTicketBuyer {
-				startTicketPurchase(w, chainClient.Client, nil, &cfg.tbCfg)
-			}
+			c <- chainClient
 		}
 		mu := new(sync.Mutex)
 		loader.RunAfterLoad(func(w *wallet.Wallet) {
@@ -321,6 +323,25 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *wallet.Load
 			loadedWallet.Stop()
 			loadedWallet.WaitForShutdown()
 			loadedWallet.Start()
+		}
+	}
+}
+
+// chainClientLoop receives a chain client when ready and runs any services
+// which depend on it.
+func chainClientLoop(w *wallet.Wallet, loader *wallet.Loader, c chan *chain.RPCClient) {
+	for chainClient := range c {
+		if cfg.EnableTicketBuyer {
+			pm, err := startTicketPurchase(w, chainClient.Client, nil, &cfg.tbCfg)
+			if err != nil {
+				log.Errorf("Unable to start ticket buyer: %v", err)
+				continue
+			}
+			pm.Start()
+			loader.RunBeforeUnload(func(w *wallet.Wallet) {
+				pm.Stop()
+				pm.WaitForShutdown()
+			})
 		}
 	}
 }
@@ -361,33 +382,20 @@ func startChainRPC(certs []byte) (*chain.RPCClient, error) {
 
 // startTicketPurchase launches ticketbuyer to start purchasing tickets.
 func startTicketPurchase(w *wallet.Wallet, dcrdClient *dcrrpcclient.Client,
-	passphrase []byte, ticketbuyerCfg *ticketbuyer.Config) {
-
-	tkbyLog.Info("Starting ticket buyer")
-
+	passphrase []byte, ticketbuyerCfg *ticketbuyer.Config) (*ticketbuyer.PurchaseManager, error) {
 	p, err := ticketbuyer.NewTicketPurchaser(ticketbuyerCfg,
 		dcrdClient, w, activeNet.Params)
 	if err != nil {
-		tkbyLog.Errorf("Error starting ticketbuyer: %v", err)
-		return
+		return nil, err
 	}
 	if passphrase != nil {
 		var unlockAfter <-chan time.Time
 		err = w.Unlock(passphrase, unlockAfter)
 		if err != nil {
-			tkbyLog.Errorf("Error unlocking wallet: %v", err)
-			return
+			return nil, err
 		}
 	}
-	quit := make(chan struct{})
 	n := w.NtfnServer.MainTipChangedNotifications()
-	pm := ticketbuyer.NewPurchaseManager(w, p, n.C, quit)
-	go pm.NotificationHandler()
-	go func() {
-		dcrdClient.WaitForShutdown()
-
-		tkbyLog.Info("Stopping ticket buyer")
-		n.Done()
-		close(quit)
-	}()
+	pm := ticketbuyer.NewPurchaseManager(w, p, n.C)
+	return pm, nil
 }

@@ -1,8 +1,14 @@
 package wallet
 
 import (
+	"fmt"
+	"time"
+
+	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrutil"
+	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
@@ -86,4 +92,71 @@ func (w *Wallet) UnspentOutputs(policy OutputSelectionPolicy) ([]*TransactionOut
 		return nil
 	})
 	return outputResults, err
+}
+
+// SelectInputs selects transaction inputs to redeem unspent outputs stored in
+// the wallet.  It returns the total input amount referenced by the previous
+// transaction outputs, a slice of transaction inputs referencing these outputs,
+// and a slice of previous output scripts from each previous output referenced
+// by the corresponding input.
+func (w *Wallet) SelectInputs(targetAmount dcrutil.Amount, policy OutputSelectionPolicy) (total dcrutil.Amount,
+	inputs []*wire.TxIn, prevScripts [][]byte, err error) {
+
+	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+
+		if policy.Account != waddrmgr.ImportedAddrAccount {
+			lastAcct, err := w.Manager.LastAccount(addrmgrNs)
+			if err != nil {
+				return err
+			}
+			if policy.Account > lastAcct {
+				return waddrmgr.ManagerError{
+					ErrorCode:   waddrmgr.ErrAccountNotFound,
+					Description: "account not found",
+				}
+			}
+		}
+
+		sourceImpl := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, policy.Account,
+			policy.RequiredConfirmations, tipHeight)
+		var err error
+		total, inputs, prevScripts, err = sourceImpl.SelectInputs(targetAmount)
+		return err
+	})
+	return
+}
+
+// OutputInfo describes additional info about an output which can be queried
+// using an outpoint.
+type OutputInfo struct {
+	Received     time.Time
+	Amount       dcrutil.Amount
+	FromCoinbase bool
+}
+
+// OutputInfo queries the wallet for additional transaction output info
+// regarding an outpoint.
+func (w *Wallet) OutputInfo(op *wire.OutPoint) (OutputInfo, error) {
+	var info OutputInfo
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		txDetails, err := w.TxStore.TxDetails(txmgrNs, &op.Hash)
+		if err != nil {
+			return err
+		}
+		if op.Index >= uint32(len(txDetails.TxRecord.MsgTx.TxOut)) {
+			return fmt.Errorf("output %d not found, transaction only contains %d outputs",
+				op.Index, len(txDetails.TxRecord.MsgTx.TxOut))
+		}
+
+		info.Received = txDetails.Received
+		info.Amount = dcrutil.Amount(txDetails.TxRecord.MsgTx.TxOut[op.Index].Value)
+		info.FromCoinbase = blockchain.IsCoinBaseTx(&txDetails.TxRecord.MsgTx)
+		return nil
+	})
+	return info, err
 }

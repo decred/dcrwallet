@@ -143,7 +143,7 @@ func main() {
 		return
 	}
 
-	maxTxSize = params.MaximumBlockSize - 75000
+	maxTxSize = params.MaxTxSize
 
 	sendToAddress, err := dcrutil.DecodeAddress(cfg.SendToAddress, params)
 	if err != nil {

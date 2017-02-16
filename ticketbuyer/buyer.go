@@ -379,7 +379,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	}
 	ps.MempoolOwn = inMP
 	if !t.cfg.DontWaitForTickets {
-		if inMP > t.cfg.MaxInMempool {
+		if inMP >= t.cfg.MaxInMempool {
 			log.Infof("Currently waiting for %v tickets to enter the "+
 				"blockchain before buying more tickets (in mempool: %v,"+
 				" max allowed in mempool %v)", inMP-t.cfg.MaxInMempool,
@@ -559,9 +559,9 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if toBuyForBlock > maxPerBlock {
 		toBuyForBlock = maxPerBlock
 		if maxPerBlock == 1 {
-			log.Infof("Limiting to 1 purchase per block")
+			log.Infof("Limiting to 1 purchase so that maxperblock is not exceeded")
 		} else {
-			log.Infof("Limiting to %d purchases per block", maxPerBlock)
+			log.Infof("Limiting to %d purchases so that maxperblock is not exceeded", maxPerBlock)
 		}
 	}
 
@@ -599,6 +599,14 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		}
 	}
 
+	// When buying, do not exceed maxinmempool
+	if !t.cfg.DontWaitForTickets {
+		if toBuyForBlock+inMP > t.cfg.MaxInMempool {
+			toBuyForBlock = t.cfg.MaxInMempool - inMP
+			log.Debugf("Limiting to %d purchases so that maxinmempool is not exceeded", toBuyForBlock)
+		}
+	}
+
 	// If an address wasn't passed, create an internal address in
 	// the wallet for the ticket address.
 	var ticketAddress dcrutil.Address
@@ -617,7 +625,8 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if err != nil {
 		return ps, err
 	}
-	expiry := int32(int(height) + t.cfg.ExpiryDelta)
+	// Ticket purchase requires 2 blocks to confirm
+	expiry := int32(int(height) + t.cfg.ExpiryDelta + 2)
 	hashes, err := t.wallet.PurchaseTickets(0,
 		maxPriceAmt,
 		0,
