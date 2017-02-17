@@ -510,6 +510,12 @@ var helpDescsEnUS = map[string]string{
 	"verifymessage-message":   "The message to verify",
 	"verifymessage--result0":  "Whether the message was signed with the private key of 'address'",
 
+	// Version help
+	"version--synopsis":       "Returns application and API versions (semver) keyed by their names",
+	"version--result0--desc":  "Version objects keyed by the program or API name",
+	"version--result0--key":   "Program or API name",
+	"version--result0--value": "Object containing the semantic version",
+
 	// WalletLockCmd help.
 	"walletlock--synopsis": "Lock the wallet.",
 

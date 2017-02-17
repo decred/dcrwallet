@@ -38,7 +38,7 @@ const (
 	defaultEnableTicketBuyer   = false
 	defaultEnableVoting        = false
 	defaultVoteBits            = 0x0001
-	defaultVoteBitsExtended    = "03000000"
+	defaultVoteBitsExtended    = "" // does NOT include version.
 	defaultBalanceToMaintain   = 0
 	defaultReuseAddresses      = false
 	defaultRollbackTest        = false
@@ -111,7 +111,7 @@ type config struct {
 	EnableTicketBuyer   bool                `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
 	EnableVoting        bool                `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
 	VoteBits            uint16              `long:"votebits" hidden:"true" description:"Set your stake mining votebits to value" base:"16"`
-	VoteBitsExtended    string              `long:"votebitsextended" hidden:"true" description:"Set your stake mining extended votebits to the hexademical value indicated by the passed string"`
+	VoteBitsExtended    string              `long:"votebitsextended" hidden:"true" description:"Set your stake mining extended votebits to the hexademical value indicated by the passed string, must not include the version"`
 	ReuseAddresses      bool                `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
 	PruneTickets        bool                `long:"prunetickets" description:"Prune old tickets from the wallet and restore their inputs"`
 	PurchaseAccount     string              `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
@@ -565,6 +565,14 @@ func loadConfig() (*config, []string, error) {
 		return loadConfigError(err)
 	}
 
+	// Sanity check ExpiryDelta
+	if cfg.TBOpts.ExpiryDelta <= 0 {
+		str := "%s: expirydelta must be greater then zero: %v"
+		err := fmt.Errorf(str, funcName, cfg.TBOpts.ExpiryDelta)
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+
 	// If an alternate data directory was specified, and paths with defaults
 	// relative to the data dir are unchanged, modify each path to be
 	// relative to the new data dir.
@@ -621,6 +629,39 @@ func loadConfig() (*config, []string, error) {
 		fmt.Fprintln(os.Stderr, err)
 		parser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
+	}
+
+	// Validate extended vote bits.  Must be 8 characters (4 bytes) shorter than
+	// the actual max due to the prepended version.
+	const maxExtVBLen = stake.SSGenVoteBitsExtendedMaxSize*2 - 8
+	vbeLen := len(cfg.VoteBitsExtended)
+	if vbeLen > maxExtVBLen {
+		err = fmt.Errorf("bad extended votebits length: (got %v, "+
+			"max %v)", vbeLen, maxExtVBLen)
+		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, usageMessage)
+		return loadConfigError(err)
+	}
+	_, err = hex.DecodeString(cfg.VoteBitsExtended)
+	if err != nil {
+		err = fmt.Errorf("invalid votebitsextended setting: %v", err)
+		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, usageMessage)
+		return loadConfigError(err)
+	}
+
+	// Prepend the vote bits version based on the active network.
+	//
+	// Config parsing is very likely the wrong place to do this, especially with
+	// magic version constants, but it is the least invasive change to the
+	// existing wallet code.
+	switch activeNet {
+	case &netparams.MainNetParams:
+		cfg.VoteBitsExtended = "03000000" + cfg.VoteBitsExtended
+	case &netparams.TestNetParams:
+		cfg.VoteBitsExtended = "04000000" + cfg.VoteBitsExtended
+	case &netparams.SimNetParams:
+		cfg.VoteBitsExtended = "04000000" + cfg.VoteBitsExtended
 	}
 
 	// Exit if you try to use a simulation wallet with a standard
@@ -753,23 +794,6 @@ func loadConfig() (*config, []string, error) {
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return loadConfigError(err)
 		}
-	}
-
-	// Validate extended vote bits
-	vbeLen := len(cfg.VoteBitsExtended)
-	if vbeLen < 8 || vbeLen > stake.SSGenVoteBitsExtendedMaxSize*2 {
-		err = fmt.Errorf("bad extended votebits length: (got %v, "+
-			"min 8, max %v)", vbeLen, stake.SSGenVoteBitsExtendedMaxSize*2)
-		fmt.Fprintln(os.Stderr, err.Error())
-		fmt.Fprintln(os.Stderr, usageMessage)
-		return loadConfigError(err)
-	}
-	_, err = hex.DecodeString(cfg.VoteBitsExtended)
-	if err != nil {
-		err = fmt.Errorf("invalid votebitsextended setting: %v", err)
-		fmt.Fprintln(os.Stderr, err.Error())
-		fmt.Fprintln(os.Stderr, usageMessage)
-		return loadConfigError(err)
 	}
 
 	if cfg.RPCConnect == "" {

@@ -297,6 +297,7 @@ func (w *Wallet) SetTicketPurchasingEnabled(flag bool) error {
 				w.CurrentVotingInfo.BlockHeight,
 				w.CurrentVotingInfo.Tickets,
 				w.VoteBits,
+				w.stakePoolEnabled,
 				w.AllowHighFees,
 			)
 			return err

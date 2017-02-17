@@ -982,6 +982,7 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 			blockHeight,
 			tickets,
 			w.VoteBits,
+			w.stakePoolEnabled,
 			w.AllowHighFees,
 		)
 
