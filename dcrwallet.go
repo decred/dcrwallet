@@ -130,10 +130,23 @@ func walletMain() error {
 
 		// Load the wallet database.  It must have been created already
 		// or this will return an appropriate error.
-		_, err = loader.OpenExistingWallet(walletPass, true)
+		w, err := loader.OpenExistingWallet(walletPass, true)
 		if err != nil {
 			log.Error(err)
 			return err
+		}
+
+		// TODO(jrick): I think that this prompt should be removed
+		// entirely instead of enabling it when --noinitialload is
+		// unset.  It can be replaced with an RPC request (either
+		// providing the private passphrase as a parameter, or require
+		// unlocking the wallet first) to trigger a full accounts
+		// rescan.
+		//
+		// Until then, since --noinitialload users are expecting to use
+		// the wallet only over RPC, disable this feature for them.
+		if !cfg.NoInitialLoad {
+			startPromptPass(w)
 		}
 	}
 
@@ -157,18 +170,6 @@ func walletMain() error {
 	}
 
 	loader.RunAfterLoad(func(w *wallet.Wallet) {
-		// TODO(jrick): I think that this prompt should be removed
-		// entirely instead of enabling it when --noinitialload is
-		// unset.  It can be replaced with an RPC request (either
-		// providing the private passphrase as a parameter, or require
-		// unlocking the wallet first) to trigger a full accounts
-		// rescan.
-		//
-		// Until then, since --noinitialload users are expecting to use
-		// the wallet only over RPC, disable this feature for them.
-		if !cfg.NoInitialLoad {
-			startPromptPass(w)
-		}
 		startWalletRPCServices(w, rpcs, legacyRPCServer)
 	})
 
