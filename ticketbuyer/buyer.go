@@ -80,7 +80,6 @@ type Config struct {
 	SpreadTicketPurchases     bool
 	TicketAddress             string
 	TxFee                     float64
-	TicketFeeInfo             bool
 	PrevToBuyDiffPeriod       int
 	PrevToBuyHeight           int
 }
@@ -161,11 +160,6 @@ type PurchaseStats struct {
 	MempoolOwn    int
 	Purchased     int
 	LeftWindow    int
-	FeeMin        float64
-	FeeMax        float64
-	FeeMedian     float64
-	FeeMean       float64
-	FeeOwn        float64
 	Balance       int64
 	TicketPrice   int64
 }
@@ -183,25 +177,6 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		return ps, nil
 	}
 	t.heightCheck[height] = struct{}{}
-
-	if t.cfg.TicketFeeInfo {
-		oneBlock := uint32(1)
-		info, err := t.dcrdChainSvr.TicketFeeInfo(&oneBlock, &zeroUint32)
-		if err != nil {
-			return ps, err
-		}
-		ps.FeeMin = info.FeeInfoBlocks[0].Min
-		ps.FeeMax = info.FeeInfoBlocks[0].Max
-		ps.FeeMedian = info.FeeInfoBlocks[0].Median
-		ps.FeeMean = info.FeeInfoBlocks[0].Mean
-
-		// Expensive call to fetch all tickets in the mempool
-		all, err := t.allTicketsInMempool()
-		if err != nil {
-			return ps, err
-		}
-		ps.MempoolAll = all
-	}
 
 	// Initialize based on where we are in the window
 	winSize := t.activeNet.StakeDiffWindowSize
@@ -378,45 +353,56 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		}
 	}
 
-	// If might be the case that there weren't enough recent
-	// blocks to average fees from. Use data from the last
-	// window with the closest difficulty.
-	chainFee := 0.0
-	if t.idxDiffPeriod < t.cfg.BlocksToAvg {
-		chainFee, err = t.findClosestFeeWindows(nextStakeDiff.ToCoin(),
-			t.useMedian)
-		if err != nil {
-			return ps, err
-		}
-	} else {
-		chainFee, err = t.findTicketFeeBlocks(t.useMedian)
-		if err != nil {
-			return ps, err
-		}
+	oneBlock := uint32(1)
+	info, err := t.dcrdChainSvr.TicketFeeInfo(&oneBlock, &zeroUint32)
+	if err != nil {
+		return ps, err
 	}
+	ticketPurchasesInLastBlock := info.FeeInfoBlocks[0].Number
 
-	// Scale the mean fee upwards according to what was asked
-	// for by the user.
-	feeToUse := chainFee * t.cfg.FeeTargetScaling
-	log.Tracef("Average ticket fee: %.8f DCR", chainFee)
-	if feeToUse > t.cfg.MaxFee {
-		log.Infof("Not buying because max fee exceed: (max fee: %.8f DCR,  scaled fee: %.8f DCR)",
-			t.cfg.MaxFee, feeToUse)
-		return ps, nil
-	}
-	if feeToUse < t.cfg.MinFee {
-		log.Debugf("Using min ticket fee: %.8f DCR (scaled fee: %.8f DCR)", t.cfg.MinFee, feeToUse)
+	var feeToUse float64
+	if ticketPurchasesInLastBlock < uint32(t.activeNet.MaxFreshStakePerBlock) {
+		log.Debugf("Using min ticket fee: %.8f DCR (last block purchase slots not filled)", t.cfg.MinFee)
 		feeToUse = t.cfg.MinFee
 	} else {
-		log.Tracef("Using scaled ticket fee: %.8f DCR", feeToUse)
+		// If might be the case that there weren't enough recent
+		// blocks to average fees from. Use data from the last
+		// window with the closest difficulty.
+		chainFee := 0.0
+		if t.idxDiffPeriod < t.cfg.BlocksToAvg {
+			chainFee, err = t.findClosestFeeWindows(nextStakeDiff.ToCoin(),
+				t.useMedian)
+			if err != nil {
+				return ps, err
+			}
+		} else {
+			chainFee, err = t.findTicketFeeBlocks(t.useMedian)
+			if err != nil {
+				return ps, err
+			}
+		}
+
+		// Scale the mean fee upwards according to what was asked
+		// for by the user.
+		feeToUse = chainFee * t.cfg.FeeTargetScaling
+		log.Tracef("Average ticket fee: %.8f DCR", chainFee)
+		if feeToUse > t.cfg.MaxFee {
+			log.Infof("Not buying because max fee exceed: (max fee: %.8f DCR,  scaled fee: %.8f DCR)",
+				t.cfg.MaxFee, feeToUse)
+			return ps, nil
+		}
+		if feeToUse < t.cfg.MinFee {
+			log.Debugf("Using min ticket fee: %.8f DCR (scaled fee: %.8f DCR)", t.cfg.MinFee, feeToUse)
+			feeToUse = t.cfg.MinFee
+		} else {
+			log.Tracef("Using scaled ticket fee: %.8f DCR", feeToUse)
+		}
 	}
 	feeToUseAmt, err := dcrutil.NewAmount(feeToUse)
 	if err != nil {
 		return ps, err
 	}
 	t.wallet.SetTicketFeeIncrement(feeToUseAmt)
-
-	ps.FeeOwn = feeToUse
 
 	// Set the balancetomaintain to the configuration parameter that is higher
 	// Absolute or relative balance to maintain
