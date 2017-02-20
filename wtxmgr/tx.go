@@ -22,6 +22,7 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
@@ -3524,6 +3525,18 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			}
 			if spent {
 				return fmt.Errorf("spend credit found in unspent bucket")
+			}
+			ab.VotingAuthority += amtCredit
+			_, addrs, _, err := txscript.ExtractPkScriptAddrs(
+				txscript.DefaultScriptVersion, pkScript, s.chainParams)
+			if err != nil {
+				return err
+			}
+			if _, err := s.acctLookupFunc(addrmgrNs, addrs[0]); err != nil {
+				if waddrmgr.IsError(err, waddrmgr.ErrAddressNotFound) {
+					return nil
+				}
+				return err
 			}
 			ab.LockedByTickets += amtCredit
 

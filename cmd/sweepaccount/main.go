@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/btcsuite/golangcrypto/ssh/terminal"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
@@ -23,6 +22,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/jessevdk/go-flags"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (

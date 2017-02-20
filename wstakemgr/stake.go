@@ -658,7 +658,7 @@ func generateVoteScript(voteBits stake.VoteBits) ([]byte, error) {
 
 // generateVote creates a new SSGen given a header hash, height, sstx
 // tx hash, and votebits.
-func (s *StakeStore) generateVote(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash, defaultVoteBits stake.VoteBits, allowHighFees bool) (*StakeNotification, error) {
+func (s *StakeStore) generateVote(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash, defaultVoteBits stake.VoteBits, stakePoolEnabled, allowHighFees bool) (*StakeNotification, error) {
 	// 1. Fetch the SStx, then calculate all the values we'll need later for
 	// the generation of the SSGen tx outputs.
 	sstxRecord, err := s.getSStx(ns, sstxHash)
@@ -672,7 +672,8 @@ func (s *StakeStore) generateVote(ns walletdb.ReadWriteBucket, waddrmgrNs wallet
 	// In the case we're loading a legacy wallet and the voteBits are
 	// unset, just use the default voteBits as set by the user.
 	voteBits := defaultVoteBits
-	if sstxRecord.voteBitsSet {
+
+	if stakePoolEnabled && sstxRecord.voteBitsSet {
 		voteBits.Bits = sstxRecord.voteBits
 		voteBits.ExtendedBits = sstxRecord.voteBitsExt
 	}
@@ -976,7 +977,7 @@ func (s *StakeStore) generateRevocation(ns walletdb.ReadWriteBucket, waddrmgrNs 
 // HandleWinningTicketsNtfn scans the list of eligible tickets and, if any
 // of these tickets in the sstx store match these tickets, spends them as
 // votes.
-func (s StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, blockHeight int64, tickets []*chainhash.Hash, defaultVoteBits stake.VoteBits, allowHighFees bool) ([]*StakeNotification, error) {
+func (s StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, blockHeight int64, tickets []*chainhash.Hash, defaultVoteBits stake.VoteBits, stakePoolEnabled, allowHighFees bool) ([]*StakeNotification, error) {
 	if s.isClosed {
 		str := "stake store is closed"
 		return nil, stakeStoreError(ErrStoreClosed, str, nil)
@@ -1007,7 +1008,7 @@ func (s StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddrm
 	// Matching tickets (yay!), generate some SSGen.
 	for i, ticket := range ticketsToPull {
 		ntfns[i], voteErrors[i] = s.generateVote(ns, waddrmgrNs, blockHash,
-			blockHeight, ticket, defaultVoteBits, allowHighFees)
+			blockHeight, ticket, defaultVoteBits, stakePoolEnabled, allowHighFees)
 	}
 
 	errStr := ""
