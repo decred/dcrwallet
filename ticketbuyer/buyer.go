@@ -156,8 +156,6 @@ type PurchaseStats struct {
 	PriceAverage  float64
 	PriceNext     float64
 	PriceCurrent  float64
-	MempoolAll    int
-	MempoolOwn    int
 	Purchased     int
 	LeftWindow    int
 	Balance       int64
@@ -342,7 +340,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if err != nil {
 		return ps, err
 	}
-	ps.MempoolOwn = inMP
+	log.Tracef("Own tickets in mempool: %v", inMP)
 	if !t.cfg.DontWaitForTickets {
 		if inMP >= t.cfg.MaxInMempool {
 			log.Infof("Currently waiting for %v tickets to enter the "+
@@ -353,17 +351,33 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		}
 	}
 
+	// Lookup how many tickets purchase slots were filled in the last block
 	oneBlock := uint32(1)
 	info, err := t.dcrdChainSvr.TicketFeeInfo(&oneBlock, &zeroUint32)
 	if err != nil {
 		return ps, err
 	}
-	ticketPurchasesInLastBlock := info.FeeInfoBlocks[0].Number
+	ticketPurchasesInLastBlock := int(info.FeeInfoBlocks[0].Number)
+	log.Tracef("Ticket purchase slots filled in last block: %v", ticketPurchasesInLastBlock)
+
+	// Expensive call to fetch all tickets in the mempool
+	mempoolall, err := t.allTicketsInMempool()
+	if err != nil {
+		return ps, err
+	}
+	log.Tracef("All tickets in mempool: %v", mempoolall)
 
 	var feeToUse float64
-	if ticketPurchasesInLastBlock < uint32(t.activeNet.MaxFreshStakePerBlock) {
-		log.Debugf("Using min ticket fee: %.8f DCR (last block purchase slots not filled)", t.cfg.MinFee)
+	maxStake := int(t.activeNet.MaxFreshStakePerBlock)
+	if ticketPurchasesInLastBlock < maxStake && mempoolall < maxStake {
+		log.Debugf("Using min ticket fee: %.8f DCR", t.cfg.MinFee)
 		feeToUse = t.cfg.MinFee
+		if ticketPurchasesInLastBlock < maxStake {
+			log.Tracef("(ticket purchase slots available in last block)")
+		}
+		if mempoolall < maxStake {
+			log.Tracef("(total tickets in mempool is less than max per block)")
+		}
 	} else {
 		// If might be the case that there weren't enough recent
 		// blocks to average fees from. Use data from the last
