@@ -529,6 +529,47 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		}
 	}
 
+	// Limit the amount of tickets you are buying per block
+	// so that you do not exceed maxpricescale
+	if t.cfg.MaxPriceScale > 0.0 && maxPriceScaledAmt != 0 {
+		for buyPerBlockAll := 1; buyPerBlockAll <= ticketsLeftInWindow; buyPerBlockAll++ {
+			uint32BuyPerBlockAll := uint32(buyPerBlockAll)
+			estStakeDiff, err := t.dcrdChainSvr.EstimateStakeDiff(&uint32BuyPerBlockAll)
+			if err != nil {
+				return ps, err
+			}
+			estStakeDiffUser := *estStakeDiff.User
+			if estStakeDiffUser >= maxPriceScaledAmt.ToCoin() {
+				ratio := float64(buyPerBlockAll) / float64(ticketsLeftInWindow)
+				if float64(toBuyForBlock) > float64(t.activeNet.MaxFreshStakePerBlock)*ratio {
+					toBuyForBlockFloat := float64(t.activeNet.MaxFreshStakePerBlock) * ratio
+					log.Debugf("Reducing the number of tickets to buy per block "+
+						"to %.1f so that maxpricescale is not exceeded", toBuyForBlockFloat)
+					rand.Seed(time.Now().UTC().UnixNano())
+					blocksRemaining := int(winSize) - t.idxDiffPeriod
+					if buyPerBlockAll >= blocksRemaining {
+						// When buying one or more tickets per block
+						toBuyForBlock = int(math.Floor(toBuyForBlockFloat))
+						ticketRemainder := int(math.Floor(toBuyForBlockFloat)) % blocksRemaining
+						if rand.Float64() <= float64(ticketRemainder) {
+							toBuyForBlock++
+						}
+					} else {
+						// When buying less than one ticket per block
+						if rand.Float64() <= toBuyForBlockFloat {
+							log.Debugf("Buying one this round")
+							toBuyForBlock = 1
+						} else {
+							toBuyForBlock = 0
+							log.Debugf("Skipping this round")
+						}
+					}
+				}
+				break
+			}
+		}
+	}
+
 	// Only the maximum number of tickets at each block
 	// should be purchased, as specified by the user.
 	if toBuyForBlock > maxPerBlock {
