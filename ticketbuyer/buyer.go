@@ -543,67 +543,72 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// Limit the amount of tickets you are buying per block
 	// so that you do not exceed maxpricescale
 	if t.cfg.MaxPriceScale > 0.0 && maxPriceScaledAmt != 0 {
-		// loop buy count up to find the estimatestakediff needed
-		for buyThisWindow := 1; buyThisWindow <= ticketsLeftInWindow; buyThisWindow++ {
+		// loop buy count up to find the tickets needed to reach max price scale
+		var buyThisWindow int
+		var estStakeDiffUser float64
+		for buyThisWindow = 1; buyThisWindow <= ticketsLeftInWindow; buyThisWindow++ {
 			uint32BuyPerBlockAll := uint32(buyThisWindow)
 			estStakeDiff, err := t.dcrdChainSvr.EstimateStakeDiff(&uint32BuyPerBlockAll)
 			if err != nil {
 				return ps, err
 			}
-			estStakeDiffUser := *estStakeDiff.User
+			estStakeDiffUser = *estStakeDiff.User
 			// we have found the estimate value of tickets we need when it reaches our max scaled amount
 			if estStakeDiffUser >= maxPriceScaledAmt.ToCoin() {
-				// this block runs once, loop break is at the bottom
-				ratio := float64(buyThisWindow) / float64(ticketsLeftInWindow)
-				// if what we were planning to buy is greater then what we need to stay within
-				// our target price, then calc the new lower amount to buy per block and use that
-				if float64(toBuyForBlock) > float64(t.activeNet.MaxFreshStakePerBlock)*ratio {
-					toBuyForBlockFloat := float64(t.activeNet.MaxFreshStakePerBlock) * ratio
-					log.Infof("Reducing the number of tickets to buy per block "+
-						"to %.1f so that maxpricescale is not exceeded", toBuyForBlockFloat)
-					rand.Seed(time.Now().UTC().UnixNano())
-					blocksRemaining := int(winSize) - t.idxDiffPeriod
-					if buyThisWindow >= blocksRemaining {
-						// When buying one or more tickets per block
-						toBuyForBlock = int(math.Floor(toBuyForBlockFloat))
-						ticketRemainder := int(math.Floor(toBuyForBlockFloat)) % blocksRemaining
-						if rand.Float64() <= float64(ticketRemainder) {
-							toBuyForBlock++
-						}
-					} else {
-						// When buying less than one ticket per block
-						if rand.Float64() <= toBuyForBlockFloat {
-							log.Debugf("Buying one this round")
-							toBuyForBlock = 1
-						} else {
-							toBuyForBlock = 0
-							log.Debugf("Skipping this round")
-						}
-					}
-				} else {
-					log.Debugf("To reach maxpricescale would require %.1f buys per block",
-						float64(t.activeNet.MaxFreshStakePerBlock)*ratio)
-					if t.cfg.SpreadTicketPurchases {
-						blocksRemaining := int(winSize) - t.idxDiffPeriod
-						uint32BuyPerBlockAll = uint32(toBuyForBlock * blocksRemaining)
-					} else {
-						// legacy variable name toBuyForBlock is misleading here
-						// and will be cleaned up in another PR
-						uint32BuyPerBlockAll = uint32(toBuyForBlock)
-					}
-					if uint32(ticketsLeftInWindow) < uint32BuyPerBlockAll {
-						uint32BuyPerBlockAll = uint32(ticketsLeftInWindow)
-					}
-					estStakeDiff, err = t.dcrdChainSvr.EstimateStakeDiff(&uint32BuyPerBlockAll)
-					if err != nil {
-						return ps, err
-					}
-					estStakeDiffUser := *estStakeDiff.User
-					log.Debugf("At your current buying rate, the next sdiff will be %.2f",
-						estStakeDiffUser)
-				}
+				// this exits the loop when we found our buyThisWindow value
 				break
 			}
+		}
+		ratio := float64(buyThisWindow) / float64(ticketsLeftInWindow)
+		// if what we were planning to buy is greater then what we need to stay within
+		// our target price, then calc the new lower amount to buy per block and use that
+		if float64(toBuyForBlock) > float64(t.activeNet.MaxFreshStakePerBlock)*ratio {
+			toBuyForBlockFloat := float64(t.activeNet.MaxFreshStakePerBlock) * ratio
+			log.Infof("Reducing the number of tickets to buy per block "+
+				"to %.1f so that maxpricescale is not exceeded", toBuyForBlockFloat)
+			rand.Seed(time.Now().UTC().UnixNano())
+			blocksRemaining := int(winSize) - t.idxDiffPeriod
+			if buyThisWindow >= blocksRemaining {
+				// When buying one or more tickets per block
+				toBuyForBlock = int(math.Floor(toBuyForBlockFloat))
+				ticketRemainder := int(math.Floor(toBuyForBlockFloat)) % blocksRemaining
+				if rand.Float64() <= float64(ticketRemainder) {
+					toBuyForBlock++
+				}
+			} else {
+				// When buying less than one ticket per block
+				if rand.Float64() <= toBuyForBlockFloat {
+					log.Debugf("Buying one this round")
+					toBuyForBlock = 1
+				} else {
+					toBuyForBlock = 0
+					log.Debugf("Skipping this round")
+				}
+			}
+		} else {
+			// We are not changing toBuyForBlock, so just calculating values
+			// to show in logging output
+			log.Debugf("To reach maxpricescale would require %.1f buys per block",
+				float64(t.activeNet.MaxFreshStakePerBlock)*ratio)
+			var uint32BuyPerBlockAll uint32
+			if t.cfg.SpreadTicketPurchases {
+				blocksRemaining := int(winSize) - t.idxDiffPeriod
+				uint32BuyPerBlockAll = uint32(toBuyForBlock * blocksRemaining)
+			} else {
+				// legacy variable name toBuyForBlock is misleading here
+				// and will be cleaned up in another PR
+				uint32BuyPerBlockAll = uint32(toBuyForBlock)
+			}
+			if uint32(ticketsLeftInWindow) < uint32BuyPerBlockAll {
+				uint32BuyPerBlockAll = uint32(ticketsLeftInWindow)
+			}
+			estStakeDiff, err := t.dcrdChainSvr.EstimateStakeDiff(&uint32BuyPerBlockAll)
+			if err != nil {
+				return ps, err
+			}
+			estStakeDiffUser := *estStakeDiff.User
+			log.Debugf("At your current buying rate, the next window ticket price "+
+				"will be %.2f DCR", estStakeDiffUser)
 		}
 	}
 
