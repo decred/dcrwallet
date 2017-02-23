@@ -111,6 +111,45 @@ func walletMain() error {
 		cfg.AutomaticRepair, cfg.UnsafeMainNet, cfg.AddrIdxScanLen,
 		cfg.AllowHighFees, cfg.RelayFee.ToCoin())
 
+	if !cfg.NoInitialLoad {
+		walletPass := []byte(cfg.WalletPass)
+		defer zero.Bytes(walletPass)
+
+		if cfg.PromptPublicPass {
+			backendLog.Flush()
+			for {
+				reader := bufio.NewReader(os.Stdin)
+				walletPass, err = prompt.PassPrompt(reader, "Enter public wallet passphrase", false)
+				if err != nil {
+					fmt.Println("Failed to input password. Please try again.")
+					continue
+				}
+				break
+			}
+		}
+
+		// Load the wallet database.  It must have been created already
+		// or this will return an appropriate error.
+		w, err := loader.OpenExistingWallet(walletPass, true)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+
+		// TODO(jrick): I think that this prompt should be removed
+		// entirely instead of enabling it when --noinitialload is
+		// unset.  It can be replaced with an RPC request (either
+		// providing the private passphrase as a parameter, or require
+		// unlocking the wallet first) to trigger a full accounts
+		// rescan.
+		//
+		// Until then, since --noinitialload users are expecting to use
+		// the wallet only over RPC, disable this feature for them.
+		if !cfg.NoInitialLoad {
+			startPromptPass(w)
+		}
+	}
+
 	// Create and start HTTP server to serve wallet client connections.
 	// This will be updated with the wallet and chain server RPC client
 	// created below after each is created.
@@ -131,30 +170,8 @@ func walletMain() error {
 	}
 
 	loader.RunAfterLoad(func(w *wallet.Wallet) {
-		// TODO(jrick): I think that this prompt should be removed
-		// entirely instead of enabling it when --noinitialload is
-		// unset.  It can be replaced with an RPC request (either
-		// providing the private passphrase as a parameter, or require
-		// unlocking the wallet first) to trigger a full accounts
-		// rescan.
-		//
-		// Until then, since --noinitialload users are expecting to use
-		// the wallet only over RPC, disable this feature for them.
-		if !cfg.NoInitialLoad {
-			startPromptPass(w)
-		}
 		startWalletRPCServices(w, rpcs, legacyRPCServer)
 	})
-
-	if !cfg.NoInitialLoad {
-		// Load the wallet database.  It must have been created already
-		// or this will return an appropriate error.
-		_, err = loader.OpenExistingWallet([]byte(cfg.WalletPass), true)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-	}
 
 	if cfg.PipeRx != nil {
 		go serviceControlPipeRx(uintptr(*cfg.PipeRx))
