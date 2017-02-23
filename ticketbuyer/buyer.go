@@ -475,7 +475,10 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		// Estimated number of tickets you will vote on and redeem this window
 		tixWillRedeem := float64(blocksRemaining) * float64(t.activeNet.TicketsPerBlock) * proportionLive
 		// Average price of your tickets in the pool
-		yourAvgTixPrice := bal.LockedByTickets.ToCoin() / float64(t.stakeLive+t.stakeImmature)
+		yourAvgTixPrice := 0.0
+		if t.stakeLive+t.stakeImmature == 0 {
+			yourAvgTixPrice = bal.LockedByTickets.ToCoin() / float64(t.stakeLive+t.stakeImmature)
+		}
 		// Estimated amount of funds to redeem in the remaining window
 		redeemedFunds := tixWillRedeem * yourAvgTixPrice
 		// Estimated amount of funds becoming available from stake vote reward
