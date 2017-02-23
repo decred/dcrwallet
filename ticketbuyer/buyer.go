@@ -357,6 +357,9 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if err != nil {
 		return ps, err
 	}
+	if len(info.FeeInfoBlocks) != 1 {
+		return ps, fmt.Errorf("error FeeInfoBlocks bad length")
+	}
 	ticketPurchasesInLastBlock := int(info.FeeInfoBlocks[0].Number)
 	log.Tracef("Ticket purchase slots filled in last block: %v", ticketPurchasesInLastBlock)
 
