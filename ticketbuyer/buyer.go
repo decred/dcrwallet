@@ -590,19 +590,20 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			// to show in logging output
 			log.Debugf("To reach maxpricescale would require %.1f buys per block",
 				float64(t.activeNet.MaxFreshStakePerBlock)*ratio)
-			var uint32BuyPerBlockAll uint32
+			var buyThisWindow int
 			if t.cfg.SpreadTicketPurchases {
 				blocksRemaining := int(winSize) - t.idxDiffPeriod
-				uint32BuyPerBlockAll = uint32(toBuyForBlock * blocksRemaining)
+				buyThisWindow = toBuyForBlock * blocksRemaining
 			} else {
-				// legacy variable name toBuyForBlock is misleading here
-				// and will be cleaned up in another PR
-				uint32BuyPerBlockAll = uint32(toBuyForBlock)
+				// legacy variable name toBuyForBlock is misleading here,
+				// is actually amount to buy in the window
+				buyThisWindow = toBuyForBlock
 			}
-			if uint32(ticketsLeftInWindow) < uint32BuyPerBlockAll {
-				uint32BuyPerBlockAll = uint32(ticketsLeftInWindow)
+			if buyThisWindow > ticketsLeftInWindow {
+				buyThisWindow = ticketsLeftInWindow
 			}
-			estStakeDiff, err := t.dcrdChainSvr.EstimateStakeDiff(&uint32BuyPerBlockAll)
+			uint32BuyThisWindow := uint32(buyThisWindow)
+			estStakeDiff, err := t.dcrdChainSvr.EstimateStakeDiff(&uint32BuyThisWindow)
 			if err != nil {
 				return ps, err
 			}
