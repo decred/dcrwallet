@@ -586,7 +586,6 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			estStakeDiffUser = *estStakeDiff.User
 			// we have found the estimate value of tickets we need when it reaches our max scaled amount
 			if estStakeDiffUser >= maxPriceScaledAmt.ToCoin() {
-				// this exits the loop when we found our buyThisWindow value
 				break
 			}
 		}
@@ -616,31 +615,6 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 					log.Debugf("Skipping this round")
 				}
 			}
-		} else {
-			// We are not changing toBuyForBlock, so just calculating values
-			// to show in logging output
-			log.Debugf("To reach maxpricescale would require %.1f buys per block",
-				float64(t.activeNet.MaxFreshStakePerBlock)*ratio)
-			var buyThisWindow int
-			if t.cfg.SpreadTicketPurchases {
-				blocksRemaining := int(winSize) - t.idxDiffPeriod
-				buyThisWindow = toBuyForBlock * blocksRemaining
-			} else {
-				// legacy variable name toBuyForBlock is misleading here,
-				// is actually amount to buy in the window
-				buyThisWindow = toBuyForBlock
-			}
-			if buyThisWindow > ticketsLeftInWindow {
-				buyThisWindow = ticketsLeftInWindow
-			}
-			uint32BuyThisWindow := uint32(buyThisWindow)
-			estStakeDiff, err := t.dcrdChainSvr.EstimateStakeDiff(&uint32BuyThisWindow)
-			if err != nil {
-				return ps, err
-			}
-			estStakeDiffUser := *estStakeDiff.User
-			log.Debugf("At your current buying rate, the next window ticket price "+
-				"will be %.2f DCR", estStakeDiffUser)
 		}
 	}
 
