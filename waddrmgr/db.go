@@ -17,7 +17,7 @@ import (
 
 const (
 	// LatestMgrVersion is the most recent manager version.
-	LatestMgrVersion = 5
+	LatestMgrVersion = 6
 )
 
 var (
@@ -190,7 +190,6 @@ var (
 	lastAccountName = []byte("lastaccount")
 
 	mainBucketName = []byte("main")
-	syncBucketName = []byte("sync")
 
 	// Db related key names (main bucket).
 	mgrVersionName    = []byte("mgrver")
@@ -207,19 +206,11 @@ var (
 	coinTypePubKeyName  = []byte("ctpub")
 	watchingOnlyName    = []byte("watchonly")
 
-	// Sync related key names (sync bucket).
-	syncedToName     = []byte("syncedto")
-	startBlockName   = []byte("startblock")
-	recentBlocksName = []byte("recentblocks")
-
 	// Account related key names (account bucket).
 	acctNumAcctsName = []byte("numaccts")
 
 	// Used addresses (used bucket).
 	usedAddrBucketName = []byte("usedaddrs")
-
-	// Legacy buckets and names.
-	lastDefaultAddsrNameLegacyV4 = []byte("lastaddrs")
 )
 
 // uint32ToBytes converts a 32 bit unsigned integer into a 4-byte slice in
@@ -1508,12 +1499,6 @@ func createManagerNS(ns walletdb.ReadWriteBucket) error {
 		return managerError(ErrDatabase, str, err)
 	}
 
-	_, err = ns.CreateBucket(syncBucketName)
-	if err != nil {
-		str := "failed to create sync bucket"
-		return managerError(ErrDatabase, str, err)
-	}
-
 	// usedAddrBucketName bucket was added after manager version 1 release
 	_, err = ns.CreateBucket(usedAddrBucketName)
 	if err != nil {
@@ -1563,14 +1548,27 @@ func createManagerNS(ns walletdb.ReadWriteBucket) error {
 // Version 5 uses the metadata bucket to store the address pool indexes,
 // so lastAddrs can be removed from the db.
 func upgradeToVersion5(ns walletdb.ReadWriteBucket) error {
-	currentMgrVersion := uint32(5)
+	lastDefaultAddsrName := []byte("lastaddrs")
+
 	bucket := ns.NestedReadWriteBucket(mainBucketName)
-	err := bucket.Delete(lastDefaultAddsrNameLegacyV4)
+	err := bucket.Delete(lastDefaultAddsrName)
 	if err != nil {
 		return err
 	}
 
-	return putManagerVersion(ns, currentMgrVersion)
+	return putManagerVersion(ns, 5)
+}
+
+// upgradeToVersion6 upgrades the database from version 5 to 6.  Version 6
+// removes the synchronization buckets that were no longer updated after
+// switching the wallet to storing all block headers.
+func upgradeToVersion6(ns walletdb.ReadWriteBucket) error {
+	syncBucketName := []byte("sync")
+	err := ns.DeleteNestedBucket(syncBucketName)
+	if err != nil {
+		return err
+	}
+	return putManagerVersion(ns, 6)
 }
 
 // upgradeManager upgrades the data in the provided manager namespace to newer
@@ -1628,13 +1626,26 @@ func upgradeManager(db walletdb.DB, namespaceKey []byte, pubPassPhrase []byte,
 		version = 5
 	}
 
-	// Ensure the manager is upraded to the latest version.  This check is
-	// to intentionally cause a failure if the manager version is updated
-	// without writing code to handle the upgrade.
-	if version < latestMgrVersion {
-		str := fmt.Sprintf("the latest manager version is %d, but the "+
-			"current version after upgrades is only %d",
-			latestMgrVersion, version)
+	if version < 6 {
+		err := walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+			ns := tx.ReadWriteBucket(namespaceKey)
+			return upgradeToVersion6(ns)
+		})
+		if err != nil {
+			return err
+		}
+
+		// The manager is now at version 6.
+		version = 6
+	}
+
+	// Ensure the manager version is equal to the version used by the code.
+	// This causes failures if the database was not upgraded to the latest
+	// version or the there is a newer version that this code does not
+	// understand.
+	if version != latestMgrVersion {
+		str := fmt.Sprintf("the address manager db version %d does not equal "+
+			"the expected version %d", version, latestMgrVersion)
 		return managerError(ErrUpgrade, str, nil)
 	}
 
