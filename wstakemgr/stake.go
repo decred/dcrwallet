@@ -675,7 +675,9 @@ func (s *StakeStore) generateVote(ns walletdb.ReadWriteBucket, waddrmgrNs wallet
 
 	if stakePoolEnabled && sstxRecord.voteBitsSet {
 		voteBits.Bits = sstxRecord.voteBits
-		voteBits.ExtendedBits = sstxRecord.voteBitsExt
+		// This is not correct and therefore commented out.  For now, this will set
+		// extended voteBits to whatever the default is to the wallet.
+		// voteBits.ExtendedBits = sstxRecord.voteBitsExt
 	}
 
 	// Store the sstx pubkeyhashes and amounts as found in the transaction
