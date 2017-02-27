@@ -57,7 +57,7 @@ const (
 	// ticket buyer options
 	defaultMaxFee                    dcrutil.Amount = 1e7
 	defaultMinFee                    dcrutil.Amount = 1e6
-	defaultMaxPriceScale                            = 2.0
+	defaultMaxPriceScale                            = 0.0
 	defaultAvgVWAPPriceDelta                        = 2880
 	defaultMaxPerBlock                              = 5
 	defaultBlocksToAvg                              = 11
@@ -172,8 +172,6 @@ type config struct {
 }
 
 type ticketBuyerOptions struct {
-	MaxPriceScale             float64             `long:"maxpricescale" description:"Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
-	PriceTarget               *cfgutil.AmountFlag `long:"pricetarget" description:"A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
 	AvgPriceMode              string              `long:"avgpricemode" description:"The mode to use for calculating the average price if pricetarget is disabled (vwap, pool, dual)"`
 	AvgPriceVWAPDelta         int                 `long:"avgpricevwapdelta" description:"The number of blocks to use from the current block to calculate the VWAP"`
 	MaxFee                    *cfgutil.AmountFlag `long:"maxfee" description:"Maximum ticket fee per KB"`
@@ -190,6 +188,10 @@ type ticketBuyerOptions struct {
 	MaxPriceRelative          float64             `long:"maxpricerelative" description:"Scaling factor for setting the maximum price, multiplies by the average price"`
 	BalanceToMaintainAbsolute *cfgutil.AmountFlag `long:"balancetomaintainabsolute" description:"Amount of funds to keep in wallet when stake mining"`
 	BalanceToMaintainRelative float64             `long:"balancetomaintainrelative" description:"Proportion of funds to leave in wallet when stake mining"`
+
+	// Deprecated options
+	MaxPriceScale float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
+	PriceTarget   *cfgutil.AmountFlag `long:"pricetarget" description:"DEPRECATED -- A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
