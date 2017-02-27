@@ -14,6 +14,7 @@ import (
 
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
 	"github.com/decred/dcrwallet/ticketbuyer"
@@ -29,6 +30,7 @@ import (
 var (
 	backendLog   = seelog.Disabled
 	log          = btclog.Disabled
+	loaderLog    = btclog.Disabled
 	walletLog    = btclog.Disabled
 	txmgrLog     = btclog.Disabled
 	tkbyLog      = btclog.Disabled
@@ -41,6 +43,7 @@ var (
 // subsystemLoggers maps each subsystem identifier to its associated logger.
 var subsystemLoggers = map[string]btclog.Logger{
 	"DCRW": log,
+	"LODR": loaderLog,
 	"WLLT": walletLog,
 	"TMGR": txmgrLog,
 	"TKBY": tkbyLog,
@@ -77,6 +80,9 @@ func useLogger(subsystemID string, logger btclog.Logger) {
 	switch subsystemID {
 	case "DCRW":
 		log = logger
+	case "LODR":
+		loaderLog = logger
+		loader.UseLogger(logger)
 	case "WLLT":
 		walletLog = logger
 		wallet.UseLogger(logger)

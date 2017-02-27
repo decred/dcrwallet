@@ -22,6 +22,7 @@ import (
 	"github.com/btcsuite/websocket"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/wallet"
 )
 
@@ -60,7 +61,7 @@ func (c *websocketClient) send(b []byte) error {
 type Server struct {
 	httpServer    http.Server
 	wallet        *wallet.Wallet
-	walletLoader  *wallet.Loader
+	walletLoader  *loader.Loader
 	chainClient   *chain.RPCClient
 	handlerLookup func(string) (requestHandler, bool)
 	handlerMu     sync.Mutex
@@ -89,7 +90,7 @@ func jsonAuthFail(w http.ResponseWriter) {
 
 // NewServer creates a new server for serving legacy RPC client connections,
 // both HTTP POST and websocket.
-func NewServer(opts *Options, walletLoader *wallet.Loader, listeners []net.Listener) *Server {
+func NewServer(opts *Options, walletLoader *loader.Loader, listeners []net.Listener) *Server {
 	serveMux := http.NewServeMux()
 	const rpcAuthTimeoutSeconds = 10
 

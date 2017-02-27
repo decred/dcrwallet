@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
 	"github.com/decred/dcrwallet/wallet"
@@ -105,7 +106,7 @@ func generateRPCKeyPair(writeKey bool) (tls.Certificate, error) {
 	return keyPair, nil
 }
 
-func startRPCServers(walletLoader *wallet.Loader) (*grpc.Server, *legacyrpc.Server, error) {
+func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Server, error) {
 	var (
 		server       *grpc.Server
 		legacyServer *legacyrpc.Server

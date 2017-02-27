@@ -17,6 +17,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/internal/prompt"
+	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/walletdb"
 	_ "github.com/decred/dcrwallet/walletdb/bdb"
@@ -47,7 +48,7 @@ func networkDir(dataDir string, chainParams *chaincfg.Params) string {
 // to do the initial sync.
 func createWallet(cfg *config) error {
 	dbDir := networkDir(cfg.AppDataDir, activeNet.Params)
-	stakeOptions := &wallet.StakeOptions{
+	stakeOptions := &loader.StakeOptions{
 		VoteBits:                cfg.VoteBits,
 		VoteBitsExtended:        cfg.VoteBitsExtended,
 		TicketPurchasingEnabled: cfg.EnableStakeMining && !cfg.EnableTicketBuyer,
@@ -59,7 +60,7 @@ func createWallet(cfg *config) error {
 		TicketMaxPrice:          cfg.tbCfg.MaxPriceAbsolute,
 		TicketFee:               cfg.TicketFee.ToCoin(),
 	}
-	loader := wallet.NewLoader(activeNet.Params, dbDir, stakeOptions,
+	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.AutomaticRepair, cfg.UnsafeMainNet, cfg.AddrIdxScanLen, cfg.AllowHighFees,
 		cfg.RelayFee.ToCoin())
 
