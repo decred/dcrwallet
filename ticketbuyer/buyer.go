@@ -571,53 +571,6 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		}
 	}
 
-	// Limit the amount of tickets you are buying per block
-	// so that you do not exceed maxpricescale
-	if t.cfg.MaxPriceScale > 0.0 && maxPriceScaledAmt != 0 {
-		// loop buy count up to find the tickets needed to reach max price scale
-		var buyThisWindow int
-		var estStakeDiffUser float64
-		for buyThisWindow = 1; buyThisWindow <= ticketsLeftInWindow; buyThisWindow++ {
-			uint32BuyPerBlockAll := uint32(buyThisWindow)
-			estStakeDiff, err := t.dcrdChainSvr.EstimateStakeDiff(&uint32BuyPerBlockAll)
-			if err != nil {
-				return ps, err
-			}
-			estStakeDiffUser = *estStakeDiff.User
-			// we have found the estimate value of tickets we need when it reaches our max scaled amount
-			if estStakeDiffUser >= maxPriceScaledAmt.ToCoin() {
-				break
-			}
-		}
-		ratio := float64(buyThisWindow) / float64(ticketsLeftInWindow)
-		// if what we were planning to buy is greater then what we need to stay within
-		// our target price, then calc the new lower amount to buy per block and use that
-		if float64(toBuyForBlock) > float64(t.activeNet.MaxFreshStakePerBlock)*ratio {
-			toBuyForBlockFloat := float64(t.activeNet.MaxFreshStakePerBlock) * ratio
-			log.Infof("Reducing the number of tickets to buy per block "+
-				"to %.1f so that maxpricescale is not exceeded", toBuyForBlockFloat)
-			rand.Seed(time.Now().UTC().UnixNano())
-			blocksRemaining := int(winSize) - t.idxDiffPeriod
-			if buyThisWindow >= blocksRemaining {
-				// When buying one or more tickets per block
-				toBuyForBlock = int(math.Floor(toBuyForBlockFloat))
-				ticketRemainder := int(math.Floor(toBuyForBlockFloat)) % blocksRemaining
-				if rand.Float64() <= float64(ticketRemainder) {
-					toBuyForBlock++
-				}
-			} else {
-				// When buying less than one ticket per block
-				if rand.Float64() <= toBuyForBlockFloat {
-					log.Debugf("Buying one this round")
-					toBuyForBlock = 1
-				} else {
-					toBuyForBlock = 0
-					log.Debugf("Skipping this round")
-				}
-			}
-		}
-	}
-
 	// We've already purchased all the tickets we need to.
 	if toBuyForBlock <= 0 {
 		log.Infof("Not buying any tickets this round")
