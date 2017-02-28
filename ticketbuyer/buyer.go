@@ -255,13 +255,6 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		maxPerBlock = 1
 	}
 
-	// Make sure that our wallet is connected to the daemon and the
-	// wallet is unlocked, otherwise abort.
-	// TODO: Check daemon connected
-	if t.wallet.Locked() {
-		return ps, fmt.Errorf("Wallet not unlocked to allow ticket purchases")
-	}
-
 	avgPriceAmt, err := t.calcAverageTicketPrice(height)
 	if err != nil {
 		return ps, fmt.Errorf("Failed to calculate average ticket price amount: %s",
@@ -631,6 +624,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if err != nil {
 		return ps, err
 	}
+
 	// Ticket purchase requires 2 blocks to confirm
 	expiry := int32(int(height) + t.cfg.ExpiryDelta + 2)
 	hashes, err := t.wallet.PurchaseTickets(0,

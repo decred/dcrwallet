@@ -42,6 +42,7 @@ import (
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/netparams"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
+	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
@@ -52,10 +53,10 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.4.1"
+	semverString = "4.5.0"
 	semverMajor  = 4
-	semverMinor  = 4
-	semverPatch  = 1
+	semverMinor  = 5
+	semverPatch  = 0
 )
 
 // translateError creates a new gRPC error with an appropiate error code for
@@ -145,6 +146,13 @@ type loaderServer struct {
 	activeNet *netparams.Params
 	rpcClient *chain.RPCClient
 	mu        sync.Mutex
+}
+
+// ticketbuyerServer provides RPC clients with the ability to start/stop the
+// automatic ticket buyer service.
+type ticketbuyerServer struct {
+	loader         *loader.Loader
+	ticketbuyerCfg *ticketbuyer.Config
 }
 
 // seedServer provides RPC clients with the ability to generate secure random
@@ -1153,6 +1161,128 @@ func StartWalletLoaderService(server *grpc.Server, loader *loader.Loader,
 	pb.RegisterWalletLoaderServiceServer(server, service)
 }
 
+// StartTicketBuyerService creates an implementation of the TicketBuyerService
+// and registers it with the gRPC server.
+func StartTicketBuyerService(server *grpc.Server, loader *loader.Loader, tbCfg *ticketbuyer.Config) {
+	service := &ticketbuyerServer{loader: loader, ticketbuyerCfg: tbCfg}
+	pb.RegisterTicketBuyerServiceServer(server, service)
+}
+
+// StartAutoBuyer starts the automatic ticket buyer.
+func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAutoBuyerRequest) (
+	*pb.StartAutoBuyerResponse, error) {
+
+	wallet, ok := t.loader.LoadedWallet()
+	if !ok {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+	}
+	err := wallet.Unlock(req.Passphrase, nil)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	accountName, err := wallet.AccountName(req.Account)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	balanceToMaintain := dcrutil.Amount(req.BalanceToMaintain)
+	if balanceToMaintain < 0 {
+		return nil, grpc.Errorf(codes.InvalidArgument,
+			"Negative balance to maintain given")
+	}
+
+	maxFeePerKB := dcrutil.Amount(req.MaxFeePerKb)
+
+	if maxFeePerKB < 0 {
+		return nil, grpc.Errorf(codes.InvalidArgument,
+			"Negative max fee per KB given")
+	}
+
+	if req.MaxPriceAbsolute < 0 && req.MaxPriceRelative < 0 {
+		return nil, grpc.Errorf(codes.InvalidArgument,
+			"Negative max ticket price given")
+	}
+	params := wallet.ChainParams()
+
+	var votingAddress string
+	if req.VotingAddress != "" {
+		votingAddr, err := decodeAddress(req.VotingAddress, params)
+		if err != nil {
+			return nil, err
+		}
+		votingAddress = votingAddr.String()
+	}
+
+	var poolAddress string
+	if req.PoolAddress != "" {
+		poolAddr, err := decodeAddress(req.PoolAddress, params)
+		if err != nil {
+			return nil, err
+		}
+		poolAddress = poolAddr.String()
+	}
+
+	poolFees := req.PoolFees
+	switch {
+	case poolFees == 0 && poolAddress != "":
+		return nil, grpc.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
+	case poolFees != 0 && poolAddress == "":
+		return nil, grpc.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
+	case poolFees != 0 && poolAddress != "":
+		err = txrules.IsValidPoolFeeRate(poolFees)
+		if err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, "Pool fees amount invalid: %v", err)
+		}
+	}
+
+	config := &ticketbuyer.Config{
+		AccountName:               accountName,
+		AvgPriceMode:              t.ticketbuyerCfg.AvgPriceMode,
+		AvgPriceVWAPDelta:         t.ticketbuyerCfg.AvgPriceVWAPDelta,
+		BalanceToMaintainAbsolute: balanceToMaintain.ToCoin(),
+		BlocksToAvg:               t.ticketbuyerCfg.BlocksToAvg,
+		DontWaitForTickets:        t.ticketbuyerCfg.DontWaitForTickets,
+		ExpiryDelta:               t.ticketbuyerCfg.ExpiryDelta,
+		FeeSource:                 t.ticketbuyerCfg.FeeSource,
+		FeeTargetScaling:          t.ticketbuyerCfg.FeeTargetScaling,
+		MinFee:                    t.ticketbuyerCfg.MinFee,
+		MaxFee:                    dcrutil.Amount(req.MaxFeePerKb).ToCoin(),
+		MaxPerBlock:               int(req.MaxPerBlock),
+		MaxPriceAbsolute:          dcrutil.Amount(req.MaxPriceAbsolute).ToCoin(),
+		MaxPriceRelative:          req.MaxPriceRelative,
+		MaxPriceScale:             t.ticketbuyerCfg.MaxPriceScale,
+		MaxInMempool:              t.ticketbuyerCfg.MaxInMempool,
+		PoolAddress:               poolAddress,
+		PoolFees:                  poolFees,
+		SpreadTicketPurchases:     t.ticketbuyerCfg.SpreadTicketPurchases,
+		TicketAddress:             votingAddress,
+		TxFee:                     t.ticketbuyerCfg.TxFee,
+	}
+	err = t.loader.StartTicketPurchase(req.Passphrase, config)
+	if err == loader.ErrTicketBuyerStarted {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Ticket buyer is already started")
+	}
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.StartAutoBuyerResponse{}, err
+}
+
+// StopAutoBuyer stop the automatic ticket buyer.
+func (t *ticketbuyerServer) StopAutoBuyer(ctx context.Context, req *pb.StopAutoBuyerRequest) (
+	*pb.StopAutoBuyerResponse, error) {
+
+	err := t.loader.StopTicketPurchase()
+	if err == loader.ErrTicketBuyerStopped {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Ticket buyer is not running")
+	}
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.StopAutoBuyerResponse{}, nil
+}
+
 func (s *loaderServer) CreateWallet(ctx context.Context, req *pb.CreateWalletRequest) (
 	*pb.CreateWalletResponse, error) {
 
@@ -1212,7 +1342,7 @@ func (s *loaderServer) CloseWallet(ctx context.Context, req *pb.CloseWalletReque
 
 	err := s.loader.UnloadWallet()
 	if err == loader.ErrWalletNotLoaded {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "wallet is not loaded")
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Wallet is not loaded")
 	}
 	if err != nil {
 		return nil, translateError(err)
@@ -1273,14 +1403,14 @@ func (s *loaderServer) DiscoverAddresses(ctx context.Context, req *pb.DiscoverAd
 
 	wallet, ok := s.loader.LoadedWallet()
 	if !ok {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
 	}
 
 	s.mu.Lock()
 	chainClient := s.rpcClient
 	s.mu.Unlock()
 	if chainClient == nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "consensus server RPC client has not been loaded")
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Consensus server RPC client has not been loaded")
 	}
 
 	if req.DiscoverAccounts && len(req.PrivatePassphrase) == 0 {
@@ -1312,14 +1442,14 @@ func (s *loaderServer) SubscribeToBlockNotifications(ctx context.Context, req *p
 
 	wallet, ok := s.loader.LoadedWallet()
 	if !ok {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
 	}
 
 	s.mu.Lock()
 	chainClient := s.rpcClient
 	s.mu.Unlock()
 	if chainClient == nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "consensus server RPC client has not been loaded")
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Consensus server RPC client has not been loaded")
 	}
 
 	err := chainClient.NotifyBlocks()
@@ -1337,14 +1467,14 @@ func (s *loaderServer) FetchHeaders(ctx context.Context, req *pb.FetchHeadersReq
 
 	wallet, ok := s.loader.LoadedWallet()
 	if !ok {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
 	}
 
 	s.mu.Lock()
 	chainClient := s.rpcClient
 	s.mu.Unlock()
 	if chainClient == nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "consensus server RPC client has not been loaded")
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Consensus server RPC client has not been loaded")
 	}
 
 	fetchedHeaderCount, rescanFrom, rescanFromHeight,

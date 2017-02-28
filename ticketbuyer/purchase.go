@@ -13,32 +13,42 @@ import (
 // PurchaseManager is the main handler of websocket notifications to
 // pass to the purchaser and internal quit notifications.
 type PurchaseManager struct {
-	w         *wallet.Wallet
-	purchaser *TicketPurchaser
-	ntfnChan  <-chan *wallet.MainTipChangedNotification
-	wg        sync.WaitGroup
-	quitMtx   sync.Mutex
-	quit      chan struct{}
+	w          *wallet.Wallet
+	purchaser  *TicketPurchaser
+	ntfnChan   <-chan *wallet.MainTipChangedNotification
+	passphrase []byte
+	wg         sync.WaitGroup
+	quitMtx    sync.Mutex
+	quit       chan struct{}
 }
 
 // NewPurchaseManager creates a new PurchaseManager.
 func NewPurchaseManager(w *wallet.Wallet, purchaser *TicketPurchaser,
-	ntfnChan <-chan *wallet.MainTipChangedNotification) *PurchaseManager {
+	ntfnChan <-chan *wallet.MainTipChangedNotification, passphrase []byte) *PurchaseManager {
 	return &PurchaseManager{
-		w:         w,
-		purchaser: purchaser,
-		ntfnChan:  ntfnChan,
-		quit:      make(chan struct{}),
+		w:          w,
+		purchaser:  purchaser,
+		ntfnChan:   ntfnChan,
+		passphrase: passphrase,
+		quit:       make(chan struct{}),
 	}
 }
 
 // purchase purchases the tickets for the given block height.
 func (p *PurchaseManager) purchase(height int64) {
+	err := p.w.Unlock(p.passphrase, nil)
+	if err != nil {
+		log.Errorf("Failed to purchase tickets this round: %v", err)
+		return
+	}
 	purchaseInfo, err := p.purchaser.Purchase(height)
 	if err != nil {
 		log.Errorf("Failed to purchase tickets this round: %v", err)
 		return
 	}
+	// Since we don't know if the wallet had been unlocked before we unlocked
+	// it, avoid locking it here, even though we don't need it to remain
+	// unlocked.
 	log.Debugf("Purchased %v tickets this round", purchaseInfo.Purchased)
 }
 
