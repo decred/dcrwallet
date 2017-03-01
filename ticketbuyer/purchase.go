@@ -53,7 +53,10 @@ func (p *PurchaseManager) NotificationHandler() {
 out:
 	for {
 		select {
-		case v := <-p.ntfnChan:
+		case v, ok := <-p.ntfnChan:
+			if !ok {
+				break out
+			}
 			p.wg.Add(1)
 			go func(s1, s2 chan struct{}) {
 				defer p.wg.Done()

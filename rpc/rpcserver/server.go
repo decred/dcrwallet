@@ -38,6 +38,7 @@ import (
 	"github.com/decred/dcrwallet/internal/cfgutil"
 	h "github.com/decred/dcrwallet/internal/helpers"
 	"github.com/decred/dcrwallet/internal/zero"
+	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/netparams"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
 	"github.com/decred/dcrwallet/waddrmgr"
@@ -104,7 +105,7 @@ func errorCode(err error) codes.Code {
 	}
 
 	switch err {
-	case wallet.ErrLoaded:
+	case loader.ErrWalletLoaded:
 		return codes.FailedPrecondition
 	case walletdb.ErrDbNotOpen:
 		return codes.Aborted
@@ -147,7 +148,7 @@ type walletServer struct {
 // loaderServer provides RPC clients with the ability to load and close wallets,
 // as well as establishing a RPC connection to a dcrd consensus server.
 type loaderServer struct {
-	loader    *wallet.Loader
+	loader    *loader.Loader
 	activeNet *netparams.Params
 	rpcClient *chain.RPCClient
 	mu        sync.Mutex
@@ -1153,7 +1154,7 @@ func (s *walletServer) AccountNotifications(req *pb.AccountNotificationsRequest,
 
 // StartWalletLoaderService creates an implementation of the WalletLoaderService
 // and registers it with the gRPC server.
-func StartWalletLoaderService(server *grpc.Server, loader *wallet.Loader,
+func StartWalletLoaderService(server *grpc.Server, loader *loader.Loader,
 	activeNet *netparams.Params) {
 
 	service := &loaderServer{loader: loader, activeNet: activeNet}
@@ -1218,7 +1219,7 @@ func (s *loaderServer) CloseWallet(ctx context.Context, req *pb.CloseWalletReque
 	*pb.CloseWalletResponse, error) {
 
 	err := s.loader.UnloadWallet()
-	if err == wallet.ErrNotLoaded {
+	if err == loader.ErrWalletNotLoaded {
 		return nil, grpc.Errorf(codes.FailedPrecondition, "wallet is not loaded")
 	}
 	if err != nil {
