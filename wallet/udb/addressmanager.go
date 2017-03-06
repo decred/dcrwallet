@@ -1387,6 +1387,8 @@ func (m *Manager) Lock() error {
 // LookupAccount loads account number stored in the manager for the given
 // account name
 func (m *Manager) LookupAccount(ns walletdb.ReadBucket, name string) (uint32, error) {
+	// Mutex does not need to be held here as this does not read or write to any
+	// of the manager's members.
 	return fetchAccountByName(ns, name)
 }
 
