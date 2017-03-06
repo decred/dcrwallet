@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	initialVersion = iota + 1
+	initialVersion = 1
 
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
