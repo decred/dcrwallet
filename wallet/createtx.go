@@ -23,12 +23,12 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
-	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
+	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
-	"github.com/decred/dcrwallet/wtxmgr"
 )
 
 // --------------------------------------------------------------------------------
@@ -222,14 +222,14 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 
-		if account != waddrmgr.ImportedAddrAccount {
+		if account != udb.ImportedAddrAccount {
 			lastAcct, err := w.Manager.LastAccount(addrmgrNs)
 			if err != nil {
 				return err
 			}
 			if account > lastAcct {
-				return waddrmgr.ManagerError{
-					ErrorCode:   waddrmgr.ErrAccountNotFound,
+				return apperrors.E{
+					ErrorCode:   apperrors.ErrAccountNotFound,
 					Description: "account not found",
 				}
 			}
@@ -258,8 +258,8 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 
 		if changeSource == nil {
 			var internalPool *addressPool
-			if account == waddrmgr.ImportedAddrAccount {
-				internalPool = w.getAddressPools(waddrmgr.DefaultAccountNum).internal
+			if account == udb.ImportedAddrAccount {
+				internalPool = w.getAddressPools(udb.DefaultAccountNum).internal
 			} else {
 				internalPool = w.getAddressPools(account).internal
 			}
@@ -288,7 +288,7 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 // secretSource is an implementation of txauthor.SecretSource for the wallet's
 // address manager.
 type secretSource struct {
-	*waddrmgr.Manager
+	*udb.Manager
 	addrmgrNs walletdb.ReadBucket
 }
 
@@ -297,10 +297,10 @@ func (s secretSource) GetKey(addr dcrutil.Address) (chainec.PrivateKey, bool, er
 	if err != nil {
 		return nil, false, err
 	}
-	mpka, ok := ma.(waddrmgr.ManagedPubKeyAddress)
+	mpka, ok := ma.(udb.ManagedPubKeyAddress)
 	if !ok {
 		e := fmt.Errorf("managed address type for %v is `%T` but "+
-			"want waddrmgr.ManagedPubKeyAddress", addr, ma)
+			"want udb.ManagedPubKeyAddress", addr, ma)
 		return nil, false, e
 	}
 	privKey, err := mpka.PrivKey()
@@ -315,10 +315,10 @@ func (s secretSource) GetScript(addr dcrutil.Address) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	msa, ok := ma.(waddrmgr.ManagedScriptAddress)
+	msa, ok := ma.(udb.ManagedScriptAddress)
 	if !ok {
 		e := fmt.Errorf("managed address type for %v is `%T` but "+
-			"want waddrmgr.ManagedScriptAddress", addr, ma)
+			"want udb.ManagedScriptAddress", addr, ma)
 		return nil, e
 	}
 	return msa.Script()
@@ -335,9 +335,9 @@ type CreatedTx struct {
 
 // insertIntoTxMgr inserts a newly created transaction into the tx store
 // as unconfirmed.
-func (w *Wallet) insertIntoTxMgr(ns walletdb.ReadWriteBucket, msgTx *wire.MsgTx) (*wtxmgr.TxRecord, error) {
+func (w *Wallet) insertIntoTxMgr(ns walletdb.ReadWriteBucket, msgTx *wire.MsgTx) (*udb.TxRecord, error) {
 	// Create transaction record and insert into the db.
-	rec, err := wtxmgr.NewTxRecordFromMsgTx(msgTx, time.Now())
+	rec, err := udb.NewTxRecordFromMsgTx(msgTx, time.Now())
 	if err != nil {
 		return nil, dcrjson.ErrInternal
 	}
@@ -346,7 +346,7 @@ func (w *Wallet) insertIntoTxMgr(ns walletdb.ReadWriteBucket, msgTx *wire.MsgTx)
 }
 
 func (w *Wallet) insertCreditsIntoTxMgr(tx walletdb.ReadWriteTx,
-	msgTx *wire.MsgTx, rec *wtxmgr.TxRecord) error {
+	msgTx *wire.MsgTx, rec *udb.TxRecord) error {
 
 	addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 	txmgrNs := tx.ReadWriteBucket(wtxmgrNamespaceKey)
@@ -381,8 +381,8 @@ func (w *Wallet) insertCreditsIntoTxMgr(tx walletdb.ReadWriteTx,
 
 			// Missing addresses are skipped.  Other errors should
 			// be propagated.
-			code := err.(waddrmgr.ManagerError).ErrorCode
-			if code != waddrmgr.ErrAddressNotFound {
+			code := err.(apperrors.E).ErrorCode
+			if code != apperrors.ErrAddressNotFound {
 				return err
 			}
 		}
@@ -396,7 +396,7 @@ func (w *Wallet) insertCreditsIntoTxMgr(tx walletdb.ReadWriteTx,
 func (w *Wallet) insertMultisigOutIntoTxMgr(ns walletdb.ReadWriteBucket, msgTx *wire.MsgTx,
 	index uint32) error {
 	// Create transaction record and insert into the db.
-	rec, err := wtxmgr.NewTxRecordFromMsgTx(msgTx, time.Now())
+	rec, err := udb.NewTxRecordFromMsgTx(msgTx, time.Now())
 	if err != nil {
 		return err
 	}
@@ -425,12 +425,12 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 	// Initialize the address pool for use. If we are using an imported
 	// account, loopback to the default account to create change.
 	var internalPool *addressPool
-	if account == waddrmgr.ImportedAddrAccount {
-		err := w.CheckAddressPoolsInitialized(waddrmgr.DefaultAccountNum)
+	if account == udb.ImportedAddrAccount {
+		err := w.CheckAddressPoolsInitialized(udb.DefaultAccountNum)
 		if err != nil {
 			return nil, err
 		}
-		internalPool = w.getAddressPools(waddrmgr.DefaultAccountNum).internal
+		internalPool = w.getAddressPools(udb.DefaultAccountNum).internal
 	} else {
 		err := w.CheckAddressPoolsInitialized(account)
 		if err != nil {
@@ -512,7 +512,7 @@ func (w *Wallet) txToOutputsInternal(dbtx walletdb.ReadWriteTx, outputs []*wire.
 		return nil, err
 	}
 
-	if tx.ChangeIndex >= 0 && account == waddrmgr.ImportedAddrAccount {
+	if tx.ChangeIndex >= 0 && account == udb.ImportedAddrAccount {
 		changeAmount := dcrutil.Amount(tx.Tx.TxOut[tx.ChangeIndex].Value)
 		log.Warnf("Spend from imported account produced change: moving"+
 			" %v from imported account into default account.", changeAmount)
@@ -584,12 +584,12 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	// Initialize the address pool for use. If we are using an imported
 	// account, loopback to the default account to create change.
 	var internalPool *addressPool
-	if account == waddrmgr.ImportedAddrAccount {
-		err := w.CheckAddressPoolsInitialized(waddrmgr.DefaultAccountNum)
+	if account == udb.ImportedAddrAccount {
+		err := w.CheckAddressPoolsInitialized(udb.DefaultAccountNum)
 		if err != nil {
 			return txToMultisigError(err)
 		}
-		internalPool = w.getAddressPools(waddrmgr.DefaultAccountNum).internal
+		internalPool = w.getAddressPools(udb.DefaultAccountNum).internal
 	} else {
 		err := w.CheckAddressPoolsInitialized(account)
 		if err != nil {
@@ -648,7 +648,7 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	msgtx := wire.NewMsgTx()
 
 	// Fill out inputs.
-	var forSigning []wtxmgr.Credit
+	var forSigning []udb.Credit
 	totalInput := dcrutil.Amount(0)
 	numInputs := 0
 	for _, e := range eligible {
@@ -670,8 +670,7 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	_, err = w.Manager.ImportScript(addrmgrNs, msScript)
 	if err != nil {
 		// We don't care if we've already used this address.
-		if err.(waddrmgr.ManagerError).ErrorCode !=
-			waddrmgr.ErrDuplicateAddress {
+		if err.(apperrors.E).ErrorCode != apperrors.ErrDuplicateAddress {
 			return txToMultisigError(err)
 		}
 	}
@@ -769,7 +768,7 @@ func validateMsgTx(tx *wire.MsgTx, prevScripts [][]byte) error {
 	return nil
 }
 
-func validateMsgTxCredits(tx *wire.MsgTx, prevCredits []wtxmgr.Credit) error {
+func validateMsgTxCredits(tx *wire.MsgTx, prevCredits []udb.Credit) error {
 	prevScripts := make([][]byte, 0, len(prevCredits))
 	for _, c := range prevCredits {
 		prevScripts = append(prevScripts, c.PkScript)
@@ -813,12 +812,12 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 	// Initialize the address pool for use. If we are using an imported
 	// account, loopback to the default account to create change.
 	var internalPool *addressPool
-	if account == waddrmgr.ImportedAddrAccount {
-		err := w.CheckAddressPoolsInitialized(waddrmgr.DefaultAccountNum)
+	if account == udb.ImportedAddrAccount {
+		err := w.CheckAddressPoolsInitialized(udb.DefaultAccountNum)
 		if err != nil {
 			return nil, err
 		}
-		internalPool = w.getAddressPools(waddrmgr.DefaultAccountNum).internal
+		internalPool = w.getAddressPools(udb.DefaultAccountNum).internal
 	} else {
 		err := w.CheckAddressPoolsInitialized(account)
 		if err != nil {
@@ -883,7 +882,7 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 	// Add the txins using all the eligible outputs.
 	totalAdded := dcrutil.Amount(0)
 	count := 0
-	var forSigning []wtxmgr.Credit
+	var forSigning []udb.Credit
 	for _, e := range eligible {
 		if count >= maxNumIns {
 			break
@@ -1352,11 +1351,11 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 		if err != nil {
 			return nil, err
 		}
-		var forSigning []wtxmgr.Credit
+		var forSigning []udb.Credit
 		if eopPool != nil {
-			eopPoolCredit := wtxmgr.Credit{
+			eopPoolCredit := udb.Credit{
 				OutPoint:     *eopPool.op,
-				BlockMeta:    wtxmgr.BlockMeta{},
+				BlockMeta:    udb.BlockMeta{},
 				Amount:       dcrutil.Amount(eopPool.amt),
 				PkScript:     eopPool.pkScript,
 				Received:     time.Now(),
@@ -1364,9 +1363,9 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 			}
 			forSigning = append(forSigning, eopPoolCredit)
 		}
-		eopCredit := wtxmgr.Credit{
+		eopCredit := udb.Credit{
 			OutPoint:     *eop.op,
-			BlockMeta:    wtxmgr.BlockMeta{},
+			BlockMeta:    udb.BlockMeta{},
 			Amount:       dcrutil.Amount(eop.amt),
 			PkScript:     eop.pkScript,
 			Received:     time.Now(),
@@ -1433,7 +1432,7 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 // block hash) Utxo.  ErrInsufficientFunds is returned if there are not
 // enough eligible unspent outputs to create the transaction.
 func (w *Wallet) txToSStx(pair map[string]dcrutil.Amount,
-	inputCredits []wtxmgr.Credit, inputs []dcrjson.SStxInput,
+	inputCredits []udb.Credit, inputs []dcrjson.SStxInput,
 	payouts []dcrjson.SStxCommitOut, account uint32, minconf int32) (*CreatedTx, error) {
 
 	var tx *CreatedTx
@@ -1447,12 +1446,12 @@ func (w *Wallet) txToSStx(pair map[string]dcrutil.Amount,
 }
 
 func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcrutil.Amount,
-	inputCredits []wtxmgr.Credit, inputs []dcrjson.SStxInput,
+	inputCredits []udb.Credit, inputs []dcrjson.SStxInput,
 	payouts []dcrjson.SStxCommitOut, account uint32, minconf int32) (tx *CreatedTx, err error) {
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 
-	internalPool := w.getAddressPools(waddrmgr.DefaultAccountNum).internal
+	internalPool := w.getAddressPools(udb.DefaultAccountNum).internal
 	internalPool.mutex.Lock()
 	addrFunc := internalPool.getNewAddress
 	defer func() {
@@ -1692,7 +1691,7 @@ func addSStxChange(msgtx *wire.MsgTx, change dcrutil.Amount,
 }
 
 func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minconf int32,
-	currentHeight int32) ([]wtxmgr.Credit, error) {
+	currentHeight int32) ([]udb.Credit, error) {
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -1707,7 +1706,7 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 	// Because one of these filters requires matching the output script to
 	// the desired account, this change depends on making wtxmgr a waddrmgr
 	// dependancy and requesting unspent outputs for a single account.
-	eligible := make([]wtxmgr.Credit, 0, len(unspent))
+	eligible := make([]udb.Credit, 0, len(unspent))
 	for i := range unspent {
 		output := unspent[i]
 
@@ -1781,8 +1780,8 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 
 // FindEligibleOutputs is the exported version of findEligibleOutputs (which
 // tried to find unspent outputs that pass a maturity check).
-func (w *Wallet) FindEligibleOutputs(account uint32, minconf int32, currentHeight int32) ([]wtxmgr.Credit, error) {
-	var unspentOutputs []wtxmgr.Credit
+func (w *Wallet) FindEligibleOutputs(account uint32, minconf int32, currentHeight int32) ([]udb.Credit, error) {
+	var unspentOutputs []udb.Credit
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		unspentOutputs, err = w.findEligibleOutputs(dbtx, account, minconf, currentHeight)
@@ -1794,7 +1793,7 @@ func (w *Wallet) FindEligibleOutputs(account uint32, minconf int32, currentHeigh
 // findEligibleOutputsAmount uses wtxmgr to find a number of unspent
 // outputs while doing maturity checks there.
 func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32, minconf int32,
-	amount dcrutil.Amount, currentHeight int32) ([]wtxmgr.Credit, error) {
+	amount dcrutil.Amount, currentHeight int32) ([]udb.Credit, error) {
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -1805,7 +1804,7 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 		return nil, err
 	}
 
-	eligible := make([]wtxmgr.Credit, 0, len(unspent))
+	eligible := make([]udb.Credit, 0, len(unspent))
 	for i := range unspent {
 		output := unspent[i]
 
@@ -1846,8 +1845,8 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 // signMsgTx sets the SignatureScript for every item in msgtx.TxIn.
 // It must be called every time a msgtx is changed.
 // Only P2PKH outputs are supported at this point.
-func signMsgTx(msgtx *wire.MsgTx, prevOutputs []wtxmgr.Credit,
-	mgr *waddrmgr.Manager, addrmgrNs walletdb.ReadBucket, chainParams *chaincfg.Params) error {
+func signMsgTx(msgtx *wire.MsgTx, prevOutputs []udb.Credit,
+	mgr *udb.Manager, addrmgrNs walletdb.ReadBucket, chainParams *chaincfg.Params) error {
 	if len(prevOutputs) != len(msgtx.TxIn) {
 		return fmt.Errorf(
 			"Number of prevOutputs (%d) does not match number of tx inputs (%d)",
@@ -1871,7 +1870,7 @@ func signMsgTx(msgtx *wire.MsgTx, prevOutputs []wtxmgr.Credit,
 			return fmt.Errorf("cannot get address info: %v", err)
 		}
 
-		pka := ai.(waddrmgr.ManagedPubKeyAddress)
+		pka := ai.(udb.ManagedPubKeyAddress)
 		privkey, err := pka.PrivKey()
 		if err != nil {
 			return fmt.Errorf("cannot get private key: %v", err)
@@ -1895,7 +1894,7 @@ func signMsgTx(msgtx *wire.MsgTx, prevOutputs []wtxmgr.Credit,
 // less than 1 bitcent. Otherwise, the fee will be calculated using
 // incr, incrementing the fee for each kilobyte of transaction.
 func minimumFee(incr dcrutil.Amount, txLen int, outputs []*wire.TxOut,
-	prevOutputs []wtxmgr.Credit, height int32, disallowFree bool) dcrutil.Amount {
+	prevOutputs []udb.Credit, height int32, disallowFree bool) dcrutil.Amount {
 	allowFree := false
 	if !disallowFree {
 		allowFree = allowNoFeeTx(height, prevOutputs, txLen)
@@ -1925,7 +1924,7 @@ func minimumFee(incr dcrutil.Amount, txLen int, outputs []*wire.TxOut,
 // allowNoFeeTx calculates the transaction priority and checks that the
 // priority reaches a certain threshold.  If the threshhold is
 // reached, a free transaction fee is allowed.
-func allowNoFeeTx(curHeight int32, txouts []wtxmgr.Credit, txSize int) bool {
+func allowNoFeeTx(curHeight int32, txouts []udb.Credit, txSize int) bool {
 	const blocksPerDayEstimate = 144.0
 	const txSizeEstimate = 250.0
 	const threshold = dcrutil.AtomsPerCoin * blocksPerDayEstimate / txSizeEstimate

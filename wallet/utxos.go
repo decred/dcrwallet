@@ -8,7 +8,8 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
-	"github.com/decred/dcrwallet/waddrmgr"
+	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
@@ -107,14 +108,14 @@ func (w *Wallet) SelectInputs(targetAmount dcrutil.Amount, policy OutputSelectio
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 
-		if policy.Account != waddrmgr.ImportedAddrAccount {
+		if policy.Account != udb.ImportedAddrAccount {
 			lastAcct, err := w.Manager.LastAccount(addrmgrNs)
 			if err != nil {
 				return err
 			}
 			if policy.Account > lastAcct {
-				return waddrmgr.ManagerError{
-					ErrorCode:   waddrmgr.ErrAccountNotFound,
+				return apperrors.E{
+					ErrorCode:   apperrors.ErrAccountNotFound,
 					Description: "account not found",
 				}
 			}

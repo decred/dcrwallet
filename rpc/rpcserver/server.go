@@ -34,6 +34,7 @@ import (
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrutil/hdkeychain"
+	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/internal/cfgutil"
 	h "github.com/decred/dcrwallet/internal/helpers"
@@ -41,13 +42,12 @@ import (
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/netparams"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
-	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
+	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 	"github.com/decred/dcrwallet/walletseed"
-	"github.com/decred/dcrwallet/wtxmgr"
 )
 
 // Public API version constants
@@ -70,29 +70,22 @@ func translateError(err error) error {
 }
 
 func errorCode(err error) codes.Code {
-	// waddrmgr.IsError is convenient, but not granular enough when the
+	// apperrors.IsError is convenient, but not granular enough when the
 	// underlying error has to be checked.  Unwrap the underlying error
 	// if it exists.
-	if e, ok := err.(waddrmgr.ManagerError); ok {
-		// For these waddrmgr error codes, the underlying error isn't
-		// needed to determine the grpc error code.
+	if e, ok := err.(apperrors.E); ok {
+		// For these error codes, the underlying error isn't needed to determine
+		// the grpc error code.
 		switch e.ErrorCode {
-		case waddrmgr.ErrWrongPassphrase: // public and private
+		case apperrors.ErrWrongPassphrase: // public and private
 			return codes.InvalidArgument
-		case waddrmgr.ErrAccountNotFound:
+		case apperrors.ErrAccountNotFound:
 			return codes.NotFound
-		case waddrmgr.ErrInvalidAccount: // reserved account
+		case apperrors.ErrInvalidAccount: // reserved account
 			return codes.InvalidArgument
-		case waddrmgr.ErrDuplicateAccount:
+		case apperrors.ErrDuplicateAccount:
 			return codes.AlreadyExists
-		}
-
-		err = e.Err
-	}
-
-	if e, ok := err.(wtxmgr.Error); ok {
-		switch e.Code {
-		case wtxmgr.ErrValueNoExists:
+		case apperrors.ErrValueNoExists:
 			return codes.NotFound
 		}
 
@@ -328,12 +321,12 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	)
 	switch req.Kind {
 	case pb.NextAddressRequest_BIP0044_EXTERNAL:
-		addr, err = s.wallet.NewAddress(req.Account, waddrmgr.ExternalBranch)
+		addr, err = s.wallet.NewAddress(req.Account, udb.ExternalBranch)
 		if err != nil {
 			return nil, translateError(err)
 		}
 	case pb.NextAddressRequest_BIP0044_INTERNAL:
-		addr, err = s.wallet.NewAddress(req.Account, waddrmgr.InternalBranch)
+		addr, err = s.wallet.NewAddress(req.Account, udb.InternalBranch)
 		if err != nil {
 			return nil, translateError(err)
 		}
@@ -381,7 +374,7 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 
 	// At the moment, only the special-cased import account can be used to
 	// import keys.
-	if req.Account != waddrmgr.ImportedAddrAccount {
+	if req.Account != udb.ImportedAddrAccount {
 		return nil, grpc.Errorf(codes.InvalidArgument,
 			"Only the imported account accepts private key imports")
 	}
@@ -575,8 +568,7 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 
 	var changeScript []byte
 	if req.IncludeChangeScript && totalAmount > dcrutil.Amount(req.TargetAmount) {
-		changeAddr, err := s.wallet.NewAddress(req.Account,
-			waddrmgr.InternalBranch)
+		changeAddr, err := s.wallet.NewAddress(req.Account, udb.InternalBranch)
 		if err != nil {
 			return nil, translateError(err)
 		}

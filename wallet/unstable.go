@@ -7,8 +7,8 @@ package wallet
 import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
-	"github.com/decred/dcrwallet/wtxmgr"
 )
 
 type unstableAPI struct {
@@ -22,9 +22,9 @@ type unstableAPI struct {
 // functionality by itself.  New code should not be written using this API.
 func UnstableAPI(w *Wallet) unstableAPI { return unstableAPI{w} }
 
-// TxDetails calls wtxmgr.Store.TxDetails under a single database view transaction.
-func (u unstableAPI) TxDetails(txHash *chainhash.Hash) (*wtxmgr.TxDetails, error) {
-	var details *wtxmgr.TxDetails
+// TxDetails calls udb.Store.TxDetails under a single database view transaction.
+func (u unstableAPI) TxDetails(txHash *chainhash.Hash) (*udb.TxDetails, error) {
+	var details *udb.TxDetails
 	err := walletdb.View(u.w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
@@ -34,9 +34,9 @@ func (u unstableAPI) TxDetails(txHash *chainhash.Hash) (*wtxmgr.TxDetails, error
 	return details, err
 }
 
-// RangeTransactions calls wtxmgr.Store.RangeTransactions under a single
+// RangeTransactions calls udb.Store.RangeTransactions under a single
 // database view tranasction.
-func (u unstableAPI) RangeTransactions(begin, end int32, f func([]wtxmgr.TxDetails) (bool, error)) error {
+func (u unstableAPI) RangeTransactions(begin, end int32, f func([]udb.TxDetails) (bool, error)) error {
 	return walletdb.View(u.w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		return u.w.TxStore.RangeTransactions(txmgrNs, begin, end, f)
@@ -44,10 +44,10 @@ func (u unstableAPI) RangeTransactions(begin, end int32, f func([]wtxmgr.TxDetai
 }
 
 // UnspentMultisigCreditsForAddress calls
-// wtxmgr.Store.UnspentMultisigCreditsForAddress under a single database view
+// udb.Store.UnspentMultisigCreditsForAddress under a single database view
 // transaction.
-func (u unstableAPI) UnspentMultisigCreditsForAddress(p2shAddr *dcrutil.AddressScriptHash) ([]*wtxmgr.MultisigCredit, error) {
-	var multisigCredits []*wtxmgr.MultisigCredit
+func (u unstableAPI) UnspentMultisigCreditsForAddress(p2shAddr *dcrutil.AddressScriptHash) ([]*udb.MultisigCredit, error) {
+	var multisigCredits []*udb.MultisigCredit
 	err := walletdb.View(u.w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error

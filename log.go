@@ -19,8 +19,7 @@ import (
 	"github.com/decred/dcrwallet/rpc/rpcserver"
 	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
-	"github.com/decred/dcrwallet/wstakemgr"
-	"github.com/decred/dcrwallet/wtxmgr"
+	"github.com/decred/dcrwallet/wallet/udb"
 )
 
 // Loggers per subsytem.  Note that backendLog is a seelog logger that all of
@@ -31,10 +30,8 @@ var (
 	backendLog   = seelog.Disabled
 	log          = btclog.Disabled
 	loaderLog    = btclog.Disabled
-	walletLog    = btclog.Disabled
-	txmgrLog     = btclog.Disabled
+	walletLog    = btclog.Disabled // shared with wallet/udb
 	tkbyLog      = btclog.Disabled
-	stkmLog      = btclog.Disabled
 	chainLog     = btclog.Disabled
 	grpcLog      = btclog.Disabled
 	legacyRPCLog = btclog.Disabled
@@ -45,9 +42,7 @@ var subsystemLoggers = map[string]btclog.Logger{
 	"DCRW": log,
 	"LODR": loaderLog,
 	"WLLT": walletLog,
-	"TMGR": txmgrLog,
 	"TKBY": tkbyLog,
-	"STKM": stkmLog,
 	"CHNS": chainLog,
 	"GRPC": grpcLog,
 	"RPCS": legacyRPCLog,
@@ -86,15 +81,10 @@ func useLogger(subsystemID string, logger btclog.Logger) {
 	case "WLLT":
 		walletLog = logger
 		wallet.UseLogger(logger)
-	case "TMGR":
-		txmgrLog = logger
-		wtxmgr.UseLogger(logger)
+		udb.UseLogger(logger)
 	case "TKBY":
 		tkbyLog = logger
 		ticketbuyer.UseLogger(logger)
-	case "STKM":
-		stkmLog = logger
-		wstakemgr.UseLogger(logger)
 	case "CHNS":
 		chainLog = logger
 		chain.UseLogger(logger)

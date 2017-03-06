@@ -15,8 +15,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
-	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/wallet"
+	"github.com/decred/dcrwallet/wallet/udb"
 )
 
 var (
@@ -620,7 +620,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		ticketAddress = t.ticketAddress
 	} else {
 		ticketAddress, err =
-			t.wallet.NewAddress(account, waddrmgr.InternalBranch)
+			t.wallet.NewAddress(account, udb.InternalBranch)
 		if err != nil {
 			return ps, err
 		}

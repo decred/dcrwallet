@@ -2,8 +2,6 @@ package: github.com/decred/dcrwallet
 import:
 - package: github.com/btcsuite/btclog
   version: master
-- package: github.com/btcsuite/fastsha256
-  version: master
 - package: github.com/btcsuite/golangcrypto
   version: master
   subpackages:

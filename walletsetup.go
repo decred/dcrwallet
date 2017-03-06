@@ -61,7 +61,7 @@ func createWallet(cfg *config) error {
 		TicketFee:               cfg.TicketFee.ToCoin(),
 	}
 	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
-		cfg.AutomaticRepair, cfg.UnsafeMainNet, cfg.AddrIdxScanLen, cfg.AllowHighFees,
+		cfg.UnsafeMainNet, cfg.AddrIdxScanLen, cfg.AllowHighFees,
 		cfg.RelayFee.ToCoin())
 
 	reader := bufio.NewReader(os.Stdin)
