@@ -22,8 +22,6 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/walletdb"
 	_ "github.com/decred/dcrwallet/walletdb/bdb"
-	"github.com/decred/dcrwallet/wtxmgr"
-	. "github.com/decred/dcrwallet/wtxmgr"
 )
 
 // Received transaction output for mainnet outpoint
@@ -523,7 +521,7 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 			t.Fatalf("%s: got error: %v", test.name, err)
 		}
 		s = tmpStore
-		bal, err := s.Balance(1, TstRecvCurrentHeight, wtxmgr.BFBalanceSpendable,
+		bal, err := s.Balance(1, TstRecvCurrentHeight, BFBalanceSpendable,
 			true, defaultAccount)
 		if err != nil {
 			t.Fatalf("%s: Confirmed Balance failed: %v", test.name, err)
@@ -531,7 +529,7 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		if bal != test.bal {
 			t.Fatalf("%s: balance mismatch: expected: %d, got: %d", test.name, test.bal, bal)
 		}
-		unc, err := s.Balance(0, TstRecvCurrentHeight, wtxmgr.BFBalanceSpendable,
+		unc, err := s.Balance(0, TstRecvCurrentHeight, BFBalanceSpendable,
 			true, defaultAccount)
 		if err != nil {
 			t.Fatalf("%s: Unconfirmed Balance failed: %v", test.name, err)
@@ -615,7 +613,7 @@ func TestFindingSpentCredits(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bal, err := s.Balance(1, TstSignedTxBlockDetails.Height, wtxmgr.BFBalanceLockedStake, true, defaultAccount)
+	bal, err := s.Balance(1, TstSignedTxBlockDetails.Height, BFBalanceLockedStake, true, defaultAccount)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -778,7 +776,7 @@ func TestCoinbases(t *testing.T) {
 		},
 	}
 	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, wtxmgr.BFBalanceSpendable,
+		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
 			false, defaultAccount)
 		if err != nil {
 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
@@ -860,7 +858,7 @@ func TestCoinbases(t *testing.T) {
 	}
 	balTestsBeforeMaturity := balTests
 	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, wtxmgr.BFBalanceSpendable,
+		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
 			true, defaultAccount)
 		if err != nil {
 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
@@ -944,7 +942,7 @@ func TestCoinbases(t *testing.T) {
 		},
 	}
 	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, wtxmgr.BFBalanceSpendable,
+		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
 			true, defaultAccount)
 		if err != nil {
 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
@@ -978,7 +976,7 @@ func TestCoinbases(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, wtxmgr.BFBalanceSpendable,
+		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
 			true, defaultAccount)
 		if err != nil {
 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
@@ -999,7 +997,7 @@ func TestCoinbases(t *testing.T) {
 	}
 	balTests = balTestsBeforeMaturity
 	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, wtxmgr.BFBalanceSpendable,
+		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
 			true, defaultAccount)
 		if err != nil {
 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
@@ -1046,7 +1044,7 @@ func TestCoinbases(t *testing.T) {
 		},
 	}
 	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, wtxmgr.BFBalanceSpendable,
+		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
 			true, defaultAccount)
 		if err != nil {
 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
@@ -1214,7 +1212,7 @@ func TestMoveMultipleToSameBlock(t *testing.T) {
 		},
 	}
 	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, wtxmgr.BFBalanceSpendable,
+		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
 			true, defaultAccount)
 		if err != nil {
 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)

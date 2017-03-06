@@ -5,7 +5,7 @@
 
 //+build ignore
 
-package udb_test
+package udb
 
 import (
 	"fmt"
@@ -13,29 +13,28 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/wtxmgr"
 )
 
 var (
 	// Spends: bogus
 	// Outputs: 10 Coin
-	exampleTxRecordA *wtxmgr.TxRecord
+	exampleTxRecordA *TxRecord
 
 	// Spends: A:0
 	// Outputs: 5 Coin, 5 Coin
-	exampleTxRecordB *wtxmgr.TxRecord
+	exampleTxRecordB *TxRecord
 )
 
 func init() {
 	tx := spendOutput(&chainhash.Hash{}, 0, 0, 10e8)
-	rec, err := wtxmgr.NewTxRecordFromMsgTx(tx, timeNow())
+	rec, err := NewTxRecordFromMsgTx(tx, timeNow())
 	if err != nil {
 		panic(err)
 	}
 	exampleTxRecordA = rec
 
 	tx = spendOutput(&exampleTxRecordA.Hash, 0, 0, 5e8, 5e8)
-	rec, err = wtxmgr.NewTxRecordFromMsgTx(tx, timeNow())
+	rec, err = NewTxRecordFromMsgTx(tx, timeNow())
 	if err != nil {
 		panic(err)
 	}
@@ -99,12 +98,12 @@ func Example_basicUsage() {
 	}
 
 	// Create (or open) the transaction store in the provided namespace.
-	err = wtxmgr.Create(ns)
+	err = Create(ns)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	s, err := wtxmgr.Open(ns, &chaincfg.TestNetParams)
+	s, err := Open(ns, &chaincfg.TestNetParams)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -150,7 +149,7 @@ func Example_basicUsage() {
 	}
 
 	// Print the one confirmation balance.
-	bal, err := s.Balance(1, 100, wtxmgr.BFBalanceSpendable, true,
+	bal, err := s.Balance(1, 100, BFBalanceSpendable, true,
 		defaultAccount)
 	if err != nil {
 		fmt.Println(err)

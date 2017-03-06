@@ -5,7 +5,7 @@
 
 //+build ignore
 
-package udb_test
+package udb
 
 import (
 	"bytes"
@@ -17,7 +17,6 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
-	. "github.com/decred/dcrwallet/wtxmgr"
 )
 
 type queryState struct {
