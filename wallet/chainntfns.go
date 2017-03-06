@@ -16,13 +16,12 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
-	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
+	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
-	"github.com/decred/dcrwallet/wstakemgr"
-	"github.com/decred/dcrwallet/wtxmgr"
 )
 
 func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
@@ -144,7 +143,7 @@ func (w *Wallet) handleTicketPurchases(dbtx walletdb.ReadWriteTx, currentHeight 
 		spendLimit:  maxToPay,
 		minConf:     0, // No minconf
 		ticketAddr:  w.ticketAddress,
-		account:     waddrmgr.DefaultAccountNum,
+		account:     udb.DefaultAccountNum,
 		numTickets:  maxTickets,
 		poolAddress: w.poolAddress,
 		poolFees:    w.poolFees,
@@ -156,7 +155,7 @@ func (w *Wallet) handleTicketPurchases(dbtx walletdb.ReadWriteTx, currentHeight 
 	return err
 }
 
-func (w *Wallet) extendMainChain(dbtx walletdb.ReadWriteTx, block *wtxmgr.BlockHeaderData, transactions [][]byte) error {
+func (w *Wallet) extendMainChain(dbtx walletdb.ReadWriteTx, block *udb.BlockHeaderData, transactions [][]byte) error {
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
 	log.Infof("Connecting block %v, height %v", block.BlockHash,
@@ -166,7 +165,7 @@ func (w *Wallet) extendMainChain(dbtx walletdb.ReadWriteTx, block *wtxmgr.BlockH
 	if err != nil {
 		// Propagate the error unless this block is already included in the main
 		// chain.
-		if !wtxmgr.IsError(err, wtxmgr.ErrDuplicate) {
+		if !apperrors.IsError(err, apperrors.ErrDuplicate) {
 			return err
 		}
 	}
@@ -197,7 +196,7 @@ func (w *Wallet) extendMainChain(dbtx walletdb.ReadWriteTx, block *wtxmgr.BlockH
 
 type sideChainBlock struct {
 	transactions [][]byte
-	headerData   wtxmgr.BlockHeaderData
+	headerData   udb.BlockHeaderData
 }
 
 // switchToSideChain performs a chain switch, switching the main chain to the
@@ -258,8 +257,8 @@ func (w *Wallet) switchToSideChain(dbtx walletdb.ReadWriteTx) (*MainTipChangedNo
 	return chainTipChanges, nil
 }
 
-func copyHeaderSliceToArray(array *wtxmgr.RawBlockHeader, slice []byte) error {
-	if len(array) != len(wtxmgr.RawBlockHeader{}) {
+func copyHeaderSliceToArray(array *udb.RawBlockHeader, slice []byte) error {
+	if len(array) != len(udb.RawBlockHeader{}) {
 		return errors.New("block header has unexpected size")
 	}
 	copy(array[:], slice)
@@ -274,7 +273,7 @@ func (w *Wallet) onBlockConnected(dbtx walletdb.ReadWriteTx, serializedBlockHead
 	if err != nil {
 		return err
 	}
-	block := wtxmgr.BlockHeaderData{BlockHash: blockHeader.BlockHash()}
+	block := udb.BlockHeaderData{BlockHash: blockHeader.BlockHash()}
 	err = copyHeaderSliceToArray(&block.SerializedHeader, serializedBlockHeader)
 	if err != nil {
 		return err
@@ -386,7 +385,7 @@ func (w *Wallet) handleReorganizing(oldHash, newHash *chainhash.Hash, oldHeight,
 // evaluateStakePoolTicket evaluates a stake pool ticket to see if it's
 // acceptable to the stake pool. The ticket must pay out to the stake
 // pool cold wallet, and must have a sufficient fee.
-func (w *Wallet) evaluateStakePoolTicket(rec *wtxmgr.TxRecord,
+func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord,
 	blockHeight int32, poolUser dcrutil.Address) (bool, error) {
 	tx := rec.MsgTx
 
@@ -460,13 +459,13 @@ func (w *Wallet) evaluateStakePoolTicket(rec *wtxmgr.TxRecord,
 }
 
 func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []byte,
-	serializedHeader *wtxmgr.RawBlockHeader, blockMeta *wtxmgr.BlockMeta) error {
+	serializedHeader *udb.RawBlockHeader, blockMeta *udb.BlockMeta) error {
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
-	rec, err := wtxmgr.NewTxRecord(serializedTx, time.Now())
+	rec, err := udb.NewTxRecord(serializedTx, time.Now())
 	if err != nil {
 		return err
 	}
@@ -519,10 +518,10 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 					if valid {
 						// Be sure to insert this into the user's stake
 						// pool entry into the stake manager.
-						poolTicket := &wstakemgr.PoolTicket{
+						poolTicket := &udb.PoolTicket{
 							Ticket:       txHash,
 							HeightTicket: uint32(height),
-							Status:       wstakemgr.TSImmatureOrLive,
+							Status:       udb.TSImmatureOrLive,
 						}
 						errUpdate := w.StakeMgr.UpdateStakePoolUserTickets(
 							stakemgrNs, addrmgrNs, addr, poolTicket)
@@ -584,10 +583,10 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 			// the stake pool user ticket update too.
 			if w.stakePoolEnabled {
 				txInHeight := tx.MsgTx().TxIn[1].BlockHeight
-				poolTicket := &wstakemgr.PoolTicket{
+				poolTicket := &udb.PoolTicket{
 					Ticket:       txInHash,
 					HeightTicket: txInHeight,
-					Status:       wstakemgr.TSVoted,
+					Status:       udb.TSVoted,
 					SpentBy:      txHash,
 					HeightSpent:  uint32(height),
 				}
@@ -638,10 +637,10 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 			// the stake pool user ticket update too.
 			if w.stakePoolEnabled {
 				txInHeight := tx.MsgTx().TxIn[0].BlockHeight
-				poolTicket := &wstakemgr.PoolTicket{
+				poolTicket := &udb.PoolTicket{
 					Ticket:       txInHash,
 					HeightTicket: txInHeight,
-					Status:       wstakemgr.TSMissed,
+					Status:       udb.TSMissed,
 					SpentBy:      txHash,
 					HeightSpent:  uint32(height),
 				}
@@ -710,7 +709,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 				} else {
 					// Missing addresses are skipped.  Other errors should
 					// be propagated.
-					if !waddrmgr.IsError(err, waddrmgr.ErrAddressNotFound) {
+					if !apperrors.IsError(err, apperrors.ErrAddressNotFound) {
 						return err
 					}
 				}
@@ -727,8 +726,8 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 				if err != nil {
 					switch {
 					// Don't care if it's already there.
-					case waddrmgr.IsError(err, waddrmgr.ErrDuplicateAddress):
-					case waddrmgr.IsError(err, waddrmgr.ErrLocked):
+					case apperrors.IsError(err, apperrors.ErrDuplicateAddress):
+					case apperrors.IsError(err, apperrors.ErrLocked):
 						log.Warnf("failed to attempt script importation "+
 							"of incoming tx script %x because addrmgr "+
 							"was locked", rs)
@@ -751,7 +750,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 			// If we're spending a multisig outpoint we know about,
 			// update the outpoint. Inefficient because you deserialize
 			// the entire multisig output info. Consider a specific
-			// exists function in wtxmgr. The error here is skipped
+			// exists function in udb. The error here is skipped
 			// because the absence of an multisignature output for
 			// some script can not always be considered an error. For
 			// example, the wallet might be rescanning as called from
@@ -811,7 +810,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 
 			// Missing addresses are skipped.  Other errors should
 			// be propagated.
-			if !waddrmgr.IsError(err, waddrmgr.ErrAddressNotFound) {
+			if !apperrors.IsError(err, apperrors.ErrAddressNotFound) {
 				return err
 			}
 		}
@@ -834,7 +833,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 				if expandedScript == nil {
 					scrAddr, err := w.Manager.Address(addrmgrNs, addr)
 					if err == nil {
-						sa, ok := scrAddr.(waddrmgr.ManagedScriptAddress)
+						sa, ok := scrAddr.(udb.ManagedScriptAddress)
 						if !ok {
 							log.Warnf("address %v is not a script"+
 								" address (type %T)",

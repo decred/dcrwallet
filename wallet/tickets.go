@@ -12,8 +12,8 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
-	"github.com/decred/dcrwallet/wstakemgr"
 )
 
 func sliceContainsHash(s []chainhash.Hash, h chainhash.Hash) bool {
@@ -141,10 +141,10 @@ func (w *Wallet) updateStakePoolInvalidTicket(stakemgrNs walletdb.ReadWriteBucke
 	if err != nil {
 		return err
 	}
-	poolTicket := &wstakemgr.PoolTicket{
+	poolTicket := &udb.PoolTicket{
 		Ticket:       *ticket,
 		HeightTicket: uint32(ticketHeight),
-		Status:       wstakemgr.TSImmatureOrLive,
+		Status:       udb.TSImmatureOrLive,
 	}
 
 	return w.StakeMgr.UpdateStakePoolUserTickets(stakemgrNs, addrmgrNs, addr, poolTicket)

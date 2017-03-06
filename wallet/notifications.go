@@ -13,9 +13,8 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
-	"github.com/decred/dcrwallet/waddrmgr"
+	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
-	"github.com/decred/dcrwallet/wtxmgr"
 )
 
 // TODO: It would be good to send errors during notification creation to the rpc
@@ -51,7 +50,7 @@ func newNotificationServer(wallet *Wallet) *NotificationServer {
 	}
 }
 
-func lookupInputAccount(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetails, deb wtxmgr.DebitRecord) uint32 {
+func lookupInputAccount(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails, deb udb.DebitRecord) uint32 {
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -80,15 +79,15 @@ func lookupInputAccount(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetai
 	return inputAcct
 }
 
-func lookupOutputChain(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetails,
-	cred wtxmgr.CreditRecord) (account uint32, internal bool, address dcrutil.Address,
+func lookupOutputChain(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails,
+	cred udb.CreditRecord) (account uint32, internal bool, address dcrutil.Address,
 	amount int64, outputScript []byte) {
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
 	output := details.MsgTx.TxOut[cred.Index]
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(output.Version, output.PkScript, w.chainParams)
-	var ma waddrmgr.ManagedAddress
+	var ma udb.ManagedAddress
 	if err == nil && len(addrs) > 0 {
 		ma, err = w.Manager.Address(addrmgrNs, addrs[0])
 	}
@@ -104,7 +103,7 @@ func lookupOutputChain(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetail
 	return
 }
 
-func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetails) TransactionSummary {
+func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) TransactionSummary {
 	serializedTx := details.SerializedTx
 	if serializedTx == nil {
 		var buf bytes.Buffer
@@ -205,7 +204,7 @@ func relevantAccounts(w *Wallet, m map[uint32]dcrutil.Amount, txs []TransactionS
 	}
 }
 
-func (s *NotificationServer) notifyUnminedTransaction(dbtx walletdb.ReadTx, details *wtxmgr.TxDetails) {
+func (s *NotificationServer) notifyUnminedTransaction(dbtx walletdb.ReadTx, details *udb.TxDetails) {
 	// Sanity check: should not be currently coalescing a notification for
 	// mined transactions at the same time that an unmined tx is notified.
 	if s.currentTxNtfn != nil {
@@ -249,7 +248,7 @@ func (s *NotificationServer) notifyDetachedBlock(hash *chainhash.Hash) {
 	s.currentTxNtfn.DetachedBlocks = append(s.currentTxNtfn.DetachedBlocks, hash)
 }
 
-func (s *NotificationServer) notifyMinedTransaction(dbtx walletdb.ReadTx, details *wtxmgr.TxDetails, block *wtxmgr.BlockMeta) {
+func (s *NotificationServer) notifyMinedTransaction(dbtx walletdb.ReadTx, details *udb.TxDetails, block *udb.BlockMeta) {
 	if s.currentTxNtfn == nil {
 		s.currentTxNtfn = &TransactionNotifications{}
 	}
@@ -566,7 +565,7 @@ type AccountNotification struct {
 	ImportedKeyCount uint32
 }
 
-func (s *NotificationServer) notifyAccountProperties(props *waddrmgr.AccountProperties) {
+func (s *NotificationServer) notifyAccountProperties(props *udb.AccountProperties) {
 	defer s.mu.Unlock()
 	s.mu.Lock()
 	clients := s.accountClients

@@ -8,13 +8,13 @@ import (
 	"errors"
 
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
-	"github.com/decred/dcrwallet/wstakemgr"
 )
 
 // StakePoolUserInfo returns the stake pool user information for a user
 // identified by their P2SH voting address.
-func (w *Wallet) StakePoolUserInfo(userAddress dcrutil.Address) (*wstakemgr.StakePoolUser, error) {
+func (w *Wallet) StakePoolUserInfo(userAddress dcrutil.Address) (*udb.StakePoolUser, error) {
 	switch userAddress.(type) {
 	case *dcrutil.AddressPubKeyHash: // ok
 	case *dcrutil.AddressScriptHash: // ok
@@ -22,7 +22,7 @@ func (w *Wallet) StakePoolUserInfo(userAddress dcrutil.Address) (*wstakemgr.Stak
 		return nil, errors.New("stake pool user address must be P2PKH or P2SH")
 	}
 
-	var user *wstakemgr.StakePoolUser
+	var user *udb.StakePoolUser
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		stakemgrNs := tx.ReadBucket(wstakemgrNamespaceKey)
 		var err error

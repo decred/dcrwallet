@@ -13,9 +13,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/ticketbuyer"
-	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/walletdb"
 	_ "github.com/decred/dcrwallet/walletdb/bdb" // driver loaded during init
@@ -44,7 +42,6 @@ type Loader struct {
 	purchaseManager *ticketbuyer.PurchaseManager
 	ntfnClient      wallet.MainTipChangedNotificationsClient
 	stakeOptions    *StakeOptions
-	autoRepair      bool
 	unsafeMainNet   bool
 	addrIdxScanLen  int
 	allowHighFees   bool
@@ -71,13 +68,12 @@ type StakeOptions struct {
 
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string,
-	stakeOptions *StakeOptions, autoRepair bool, unsafeMainNet bool,
+	stakeOptions *StakeOptions, unsafeMainNet bool,
 	addrIdxScanLen int, allowHighFees bool, relayFee float64) *Loader {
 	return &Loader{
 		chainParams:    chainParams,
 		dbDirPath:      dbDirPath,
 		stakeOptions:   stakeOptions,
-		autoRepair:     autoRepair,
 		unsafeMainNet:  unsafeMainNet,
 		addrIdxScanLen: addrIdxScanLen,
 		allowHighFees:  allowHighFees,
@@ -173,12 +169,12 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 
 	// Open the newly-created wallet.
 	so := l.stakeOptions
-	w, err = wallet.Open(db, pubPassphrase, nil, so.VoteBits, so.VoteBitsExtended,
+	w, err = wallet.Open(db, pubPassphrase, so.VoteBits, so.VoteBitsExtended,
 		so.TicketPurchasingEnabled, so.VotingEnabled, so.BalanceToMaintain,
 		so.AddressReuse, so.PruneTickets, so.TicketAddress, so.TicketMaxPrice,
 		so.TicketBuyFreq, so.PoolAddress, so.PoolFees, so.TicketFee,
-		l.addrIdxScanLen, so.StakePoolColdExtKey, l.autoRepair,
-		l.allowHighFees, l.relayFee, l.chainParams)
+		l.addrIdxScanLen, so.StakePoolColdExtKey, l.allowHighFees, l.relayFee,
+		l.chainParams)
 	if err != nil {
 		return nil, err
 	}
@@ -223,25 +219,13 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte, canConsolePrompt bool)
 		}
 	}()
 
-	var cbs *waddrmgr.OpenCallbacks
-	if canConsolePrompt {
-		cbs = &waddrmgr.OpenCallbacks{
-			ObtainSeed:        prompt.ProvideSeed,
-			ObtainPrivatePass: prompt.ProvidePrivPassphrase,
-		}
-	} else {
-		cbs = &waddrmgr.OpenCallbacks{
-			ObtainSeed:        noConsole,
-			ObtainPrivatePass: noConsole,
-		}
-	}
 	so := l.stakeOptions
-	w, err = wallet.Open(db, pubPassphrase, cbs, so.VoteBits, so.VoteBitsExtended,
+	w, err = wallet.Open(db, pubPassphrase, so.VoteBits, so.VoteBitsExtended,
 		so.TicketPurchasingEnabled, so.VotingEnabled, so.BalanceToMaintain,
 		so.AddressReuse, so.PruneTickets, so.TicketAddress, so.TicketMaxPrice,
 		so.TicketBuyFreq, so.PoolAddress, so.PoolFees, so.TicketFee,
-		l.addrIdxScanLen, so.StakePoolColdExtKey, l.autoRepair, l.allowHighFees,
-		l.relayFee, l.chainParams)
+		l.addrIdxScanLen, so.StakePoolColdExtKey, l.allowHighFees, l.relayFee,
+		l.chainParams)
 	if err != nil {
 		return nil, err
 	}

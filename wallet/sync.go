@@ -28,8 +28,9 @@ import (
 	"github.com/decred/bitset"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrutil/hdkeychain"
+	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
-	"github.com/decred/dcrwallet/waddrmgr"
+	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
@@ -79,7 +80,7 @@ func (w *Wallet) accountIsUsed(ctx *discoveryContext, account uint32) (bool, err
 				return err
 			})
 			// Skip erroneous keys, which happen rarely.
-			if e, ok := err.(waddrmgr.ManagerError); ok && e.Err == hdkeychain.ErrInvalidChild {
+			if e, ok := err.(apperrors.E); ok && e.Err == hdkeychain.ErrInvalidChild {
 				continue
 			}
 			if err != nil {
@@ -105,7 +106,7 @@ func (w *Wallet) accountIsUsed(ctx *discoveryContext, account uint32) (bool, err
 func (w *Wallet) bisectLastAcctIndex(ctx *discoveryContext, hi, low uint32) (uint32, error) {
 	offset := low
 	for i := hi - low - 1; i > 0; i /= 2 {
-		if i+offset+acctSeekWidth < waddrmgr.MaxAddressesPerAccount {
+		if i+offset+acctSeekWidth < udb.MaxAddressesPerAccount {
 			for j := i + offset + addrSeekWidth; j >= i+offset; j-- {
 				used, err := w.accountIsUsed(ctx, j)
 				if err != nil {
@@ -246,13 +247,13 @@ func (w *Wallet) bisectLastAddrIndex(ctx *discoveryContext, hi, low uint32,
 	// repeats until it finds the last used index.
 	offset := low
 	for i := hi - low - 1; i > 0; i /= 2 {
-		if i+offset+addrSeekWidth < waddrmgr.MaxAddressesPerAccount {
+		if i+offset+addrSeekWidth < udb.MaxAddressesPerAccount {
 			start := i + offset
 			end := i + offset + addrSeekWidth
 			exists, idx, err := w.scanAddressRange(ctx, account, branch, start, end)
 			// Skip erroneous keys, which happen rarely. Don't skip
 			// other errors.
-			if e, ok := err.(waddrmgr.ManagerError); ok && e.Err == hdkeychain.ErrInvalidChild {
+			if e, ok := err.(apperrors.E); ok && e.Err == hdkeychain.ErrInvalidChild {
 				continue
 			}
 			if err != nil {
@@ -512,7 +513,7 @@ func (w *Wallet) scanAddressIndex(ctx *discoveryContext, start, end uint32,
 // times it would not be unlikely to see address reuse due to losing the address
 // pool's derivation index.  I am punting on this for now.  In the future,
 // address pools should be removed and all derivation should be done solely by
-// waddrmgr.  Use with caution.
+// udb.  Use with caution.
 func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverAccts bool) error {
 	log.Infof("Beginning a rescan of active addresses using the daemon. " +
 		"This may take a while.")
@@ -535,7 +536,7 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 	var lastAcct uint32
 	if w.initiallyUnlocked {
 		var err error
-		lastAcct, err = w.scanAccountIndex(ctx, 0, waddrmgr.MaxAccountNum)
+		lastAcct, err = w.scanAccountIndex(ctx, 0, udb.MaxAccountNum)
 		if err != nil {
 			return err
 		}
@@ -587,7 +588,7 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 		// Do this for both external (0) and internal (1) branches.
 		for branch := uint32(0); branch < 2; branch++ {
 			idx, lastAddr, err := w.scanAddressIndex(ctx, 0,
-				waddrmgr.MaxAddressesPerAccount, acct, branch)
+				udb.MaxAddressesPerAccount, acct, branch)
 			if err != nil {
 				return err
 			}
@@ -604,9 +605,9 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 					if err != nil {
 						// A ErrSyncToIndex error indicates that we're already
 						// synced to beyond the end of the account in the
-						// waddrmgr.
-						errWaddrmgr, ok := err.(waddrmgr.ManagerError)
-						if !ok || errWaddrmgr.ErrorCode != waddrmgr.ErrSyncToIndex {
+						// udb.
+						errWaddrmgr, ok := err.(apperrors.E)
+						if !ok || errWaddrmgr.ErrorCode != apperrors.ErrSyncToIndex {
 							return fmt.Errorf("failed to create initial waddrmgr "+
 								"address buffer for the address pool, "+
 								"account %v, branch %v: %v", acct, branch,
@@ -616,18 +617,18 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 				}
 
 				branchString := "external"
-				if branch == waddrmgr.InternalBranch {
+				if branch == udb.InternalBranch {
 					branchString = "internal"
 				}
 
 				// Fetch the address pool index for this account and
 				// branch from the database meta bucket.
-				isInternal := branch == waddrmgr.InternalBranch
+				isInternal := branch == udb.InternalBranch
 				oldIdx, err := w.Manager.NextToUseAddrPoolIndex(
 					addrmgrNs, isInternal, acct)
 				unexpectedError := false
 				if err != nil {
-					mErr, ok := err.(waddrmgr.ManagerError)
+					mErr, ok := err.(apperrors.E)
 					if !ok {
 						unexpectedError = true
 					} else {
@@ -635,7 +636,7 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 						// has not been store. For this case, oldIdx will
 						// be the special case 0 which will always be
 						// skipped in the initialization step below.
-						if mErr.ErrorCode != waddrmgr.ErrMetaPoolIdxNoExist {
+						if mErr.ErrorCode != apperrors.ErrMetaPoolIdxNoExist {
 							unexpectedError = true
 						}
 					}
@@ -679,9 +680,9 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 				if err != nil {
 					// A ErrSyncToIndex error indicates that we're already
 					// synced to beyond the end of the account in the
-					// waddrmgr.
-					errWaddrmgr, ok := err.(waddrmgr.ManagerError)
-					if !ok || errWaddrmgr.ErrorCode != waddrmgr.ErrSyncToIndex {
+					// udb.
+					errWaddrmgr, ok := err.(apperrors.E)
+					if !ok || errWaddrmgr.ErrorCode != apperrors.ErrSyncToIndex {
 						return fmt.Errorf("couldn't sync %s addresses in "+
 							"address manager: %v", branchString, err)
 					}

@@ -106,9 +106,8 @@ func walletMain() error {
 		StakePoolColdExtKey:     cfg.StakePoolColdExtKey,
 		TicketFee:               cfg.TicketFee.ToCoin(),
 	}
-	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
-		cfg.AutomaticRepair, cfg.UnsafeMainNet, cfg.AddrIdxScanLen,
-		cfg.AllowHighFees, cfg.RelayFee.ToCoin())
+	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions, cfg.UnsafeMainNet,
+		cfg.AddrIdxScanLen, cfg.AllowHighFees, cfg.RelayFee.ToCoin())
 
 	if !cfg.NoInitialLoad {
 		walletPass := []byte(cfg.WalletPass)
@@ -131,7 +130,7 @@ func walletMain() error {
 		// or this will return an appropriate error.
 		w, err := loader.OpenExistingWallet(walletPass, true)
 		if err != nil {
-			log.Error(err)
+			log.Errorf("Open failed: %v", err)
 			return err
 		}
 

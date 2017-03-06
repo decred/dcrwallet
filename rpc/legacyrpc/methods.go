@@ -23,17 +23,13 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-
 	"github.com/decred/dcrrpcclient"
-
 	"github.com/decred/dcrutil"
-
+	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
-	"github.com/decred/dcrwallet/waddrmgr"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
-	"github.com/decred/dcrwallet/wstakemgr"
-	"github.com/decred/dcrwallet/wtxmgr"
+	"github.com/decred/dcrwallet/wallet/udb"
 )
 
 // API version constants
@@ -317,9 +313,9 @@ func jsonError(err error) *dcrjson.RPCError {
 		code = dcrjson.ErrRPCInvalidParameter
 	case ParseError:
 		code = dcrjson.ErrRPCParse.Code
-	case waddrmgr.ManagerError:
+	case apperrors.E:
 		switch e.ErrorCode {
-		case waddrmgr.ErrWrongPassphrase:
+		case apperrors.ErrWrongPassphrase:
 			code = dcrjson.ErrRPCWalletPassphraseIncorrect
 		}
 	}
@@ -340,7 +336,7 @@ func accountAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, error
 
 	// The branch may only be internal or external.
 	branch := uint32(cmd.Branch)
-	if branch > waddrmgr.InternalBranch {
+	if branch > udb.InternalBranch {
 		return nil, fmt.Errorf("invalid branch %v", branch)
 	}
 
@@ -363,13 +359,13 @@ func accountFetchAddresses(icmd interface{}, w *wallet.Wallet) (interface{}, err
 
 	// The branch may only be internal or external.
 	branch := uint32(cmd.Branch)
-	if branch > waddrmgr.InternalBranch {
+	if branch > udb.InternalBranch {
 		return nil, fmt.Errorf("invalid branch %v", branch)
 	}
 
 	if cmd.End <= cmd.Start ||
-		cmd.Start > waddrmgr.MaxAddressesPerAccount ||
-		cmd.End > waddrmgr.MaxAddressesPerAccount {
+		cmd.Start > udb.MaxAddressesPerAccount ||
+		cmd.End > udb.MaxAddressesPerAccount {
 		return nil, fmt.Errorf("bad indexes start %v, end %v", cmd.Start,
 			cmd.End)
 	}
@@ -401,7 +397,7 @@ func accountSyncAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, e
 
 	// The branch may only be internal or external.
 	branch := uint32(cmd.Branch)
-	if branch > waddrmgr.InternalBranch {
+	if branch > udb.InternalBranch {
 		return nil, fmt.Errorf("invalid branch %v", branch)
 	}
 
@@ -467,7 +463,7 @@ func addMultiSigAddress(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 	cmd := icmd.(*dcrjson.AddMultisigAddressCmd)
 
 	// If an account is specified, ensure that is the imported account.
-	if cmd.Account != nil && *cmd.Account != waddrmgr.ImportedAddrAccountName {
+	if cmd.Account != nil && *cmd.Account != udb.ImportedAddrAccountName {
 		return nil, &ErrNotImportedAccount
 	}
 
@@ -522,7 +518,7 @@ func addTicket(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 func consolidate(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ConsolidateCmd)
 
-	account := uint32(waddrmgr.DefaultAccountNum)
+	account := uint32(udb.DefaultAccountNum)
 	var err error
 	if cmd.Account != nil {
 		account, err = w.AccountNumber(*cmd.Account)
@@ -587,7 +583,7 @@ func dumpPrivKey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	}
 
 	key, err := w.DumpWIFPrivateKey(addr)
-	if waddrmgr.IsError(err, waddrmgr.ErrLocked) {
+	if apperrors.IsError(err, apperrors.ErrLocked) {
 		// Address was found, but the private key isn't
 		// accessible.
 		return nil, &ErrWalletUnlockNeeded
@@ -600,7 +596,7 @@ func dumpPrivKey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // TODO: finish this to match bitcoind by writing the dump to a file.
 func dumpWallet(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	keys, err := w.DumpPrivKeys()
-	if waddrmgr.IsError(err, waddrmgr.ErrLocked) {
+	if apperrors.IsError(err, apperrors.ErrLocked) {
 		return nil, &ErrWalletUnlockNeeded
 	}
 
@@ -619,11 +615,11 @@ func getAddressesByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, err
 	}
 
 	// Find the current synced-to indexes from the address pool.
-	endExt, err := w.AddressPoolIndex(account, waddrmgr.ExternalBranch)
+	endExt, err := w.AddressPoolIndex(account, udb.ExternalBranch)
 	if err != nil {
 		return nil, err
 	}
-	endInt, err := w.AddressPoolIndex(account, waddrmgr.InternalBranch)
+	endInt, err := w.AddressPoolIndex(account, udb.InternalBranch)
 	if err != nil {
 		return nil, err
 	}
@@ -636,7 +632,7 @@ func getAddressesByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, err
 	// Derive the addresses.
 	addrsStr := make([]string, endInt+endExt)
 	addrsExt, err := w.AccountBranchAddressRange(0, endExt,
-		account, waddrmgr.ExternalBranch)
+		account, udb.ExternalBranch)
 	if err != nil {
 		return nil, err
 	}
@@ -644,7 +640,7 @@ func getAddressesByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, err
 		addrsStr[i] = addrsExt[i].EncodeAddress()
 	}
 	addrsInt, err := w.AccountBranchAddressRange(0, endInt,
-		account, waddrmgr.InternalBranch)
+		account, udb.InternalBranch)
 	if err != nil {
 		return nil, err
 	}
@@ -770,9 +766,7 @@ func getInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient) (
 		bal += balance.Spendable
 	}
 
-	// TODO(davec): This should probably have a database version as opposed
-	// to using the manager version.
-	info.WalletVersion = int32(waddrmgr.LatestMgrVersion)
+	info.WalletVersion = udb.DBVersion
 	info.Balance = bal.ToCoin()
 	info.KeypoolOldest = time.Now().Unix()
 	info.KeypoolSize = 0
@@ -893,7 +887,7 @@ func importPrivKey(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCCli
 	// Ensure that private keys are only imported to the correct account.
 	//
 	// Yes, Label is the account name.
-	if cmd.Label != nil && *cmd.Label != waddrmgr.ImportedAddrAccountName {
+	if cmd.Label != nil && *cmd.Label != udb.ImportedAddrAccountName {
 		return nil, &ErrNotImportedAccount
 	}
 
@@ -924,10 +918,10 @@ func importPrivKey(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCCli
 	// Import the private key, handling any errors.
 	_, err = w.ImportPrivateKey(wif)
 	switch {
-	case waddrmgr.IsError(err, waddrmgr.ErrDuplicateAddress):
+	case apperrors.IsError(err, apperrors.ErrDuplicateAddress):
 		// Do not return duplicate key errors to the client.
 		return nil, nil
-	case waddrmgr.IsError(err, waddrmgr.ErrLocked):
+	case apperrors.IsError(err, apperrors.ErrLocked):
 		return nil, &ErrWalletUnlockNeeded
 	}
 
@@ -991,7 +985,7 @@ func createNewAccount(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	}
 
 	_, err := w.NextAccount(cmd.Account)
-	if waddrmgr.IsError(err, waddrmgr.ErrLocked) {
+	if apperrors.IsError(err, apperrors.ErrLocked) {
 		return nil, &dcrjson.RPCError{
 			Code: dcrjson.ErrRPCWalletUnlockNeeded,
 			Message: "Creating an account requires the wallet to be unlocked. " +
@@ -1092,7 +1086,7 @@ func getNewAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		return nil, err
 	}
 
-	addr, err := w.NewAddress(account, waddrmgr.ExternalBranch)
+	addr, err := w.NewAddress(account, udb.ExternalBranch)
 	if err != nil {
 		return nil, err
 	}
@@ -1137,7 +1131,7 @@ func getRawChangeAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error
 	}
 
 	// Use the address pool for the default or imported accounts.
-	addr, err := w.NewAddress(account, waddrmgr.InternalBranch)
+	addr, err := w.NewAddress(account, udb.InternalBranch)
 	if err != nil {
 		return nil, err
 	}
@@ -1164,7 +1158,7 @@ func getReceivedByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, erro
 		return nil, err
 	}
 	acctIndex := int(account)
-	if account == waddrmgr.ImportedAddrAccount {
+	if account == udb.ImportedAddrAccount {
 		acctIndex = len(results) - 1
 	}
 	return results[acctIndex].TotalReceived.ToCoin(), nil
@@ -1201,7 +1195,7 @@ func getMasterPubkey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 	// If no account is passed, we provide the extended public key
 	// for the default account number.
-	account := uint32(waddrmgr.DefaultAccountNum)
+	account := uint32(udb.DefaultAccountNum)
 	if cmd.Account != nil {
 		var err error
 		account, err = w.AccountNumber(*cmd.Account)
@@ -1720,7 +1714,7 @@ func listReceivedByAddress(icmd interface{}, w *wallet.Wallet) (interface{}, err
 	} else {
 		endHeight = tipHeight - int32(minConf) + 1
 	}
-	err = wallet.UnstableAPI(w).RangeTransactions(0, endHeight, func(details []wtxmgr.TxDetails) (bool, error) {
+	err = wallet.UnstableAPI(w).RangeTransactions(0, endHeight, func(details []udb.TxDetails) (bool, error) {
 		confirmations := confirms(details[0].Block.Height, tipHeight)
 		for _, tx := range details {
 			for _, cred := range tx.Credits {
@@ -2098,7 +2092,7 @@ func sendPairs(w *wallet.Wallet, amounts map[string]dcrutil.Amount,
 		if err == txrules.ErrAmountNegative {
 			return "", ErrNeedPositiveAmount
 		}
-		if waddrmgr.IsError(err, waddrmgr.ErrLocked) {
+		if apperrors.IsError(err, apperrors.ErrLocked) {
 			return "", &ErrWalletUnlockNeeded
 		}
 		switch err.(type) {
@@ -2131,8 +2125,8 @@ func redeemMultiSigOut(icmd interface{}, w *wallet.Wallet, chainClient *chain.RP
 	if cmd.Address != nil {
 		addr, err = decodeAddress(*cmd.Address, w.ChainParams())
 	} else {
-		account := uint32(waddrmgr.DefaultAccountNum)
-		addr, err = w.NewAddress(account, waddrmgr.InternalBranch)
+		account := uint32(udb.DefaultAccountNum)
+		addr, err = w.NewAddress(account, udb.InternalBranch)
 		if err != nil {
 			return nil, err
 		}
@@ -2298,11 +2292,11 @@ func stakePoolUserInfo(icmd interface{}, w *wallet.Wallet) (interface{}, error) 
 
 		status := ""
 		switch ticket.Status {
-		case wstakemgr.TSImmatureOrLive:
+		case udb.TSImmatureOrLive:
 			status = "live"
-		case wstakemgr.TSVoted:
+		case udb.TSVoted:
 			status = "voted"
-		case wstakemgr.TSMissed:
+		case udb.TSMissed:
 			status = "missed"
 		}
 		ticketRes.Status = status
@@ -2467,7 +2461,7 @@ func sendToAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	}
 
 	// sendtoaddress always spends from the default account, this matches bitcoind
-	return sendPairs(w, pairs, waddrmgr.DefaultAccountNum, 1)
+	return sendPairs(w, pairs, udb.DefaultAccountNum, 1)
 }
 
 // sendToMultiSig handles a sendtomultisig RPC request by creating a new
@@ -2483,7 +2477,7 @@ func sendToAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // TODO Use with non-default accounts as well
 func sendToMultiSig(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SendToMultiSigCmd)
-	account := uint32(waddrmgr.DefaultAccountNum)
+	account := uint32(udb.DefaultAccountNum)
 	amount, err := dcrutil.NewAmount(cmd.Amount)
 	if err != nil {
 		return nil, err
@@ -2573,7 +2567,7 @@ func sendToSStx(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient
 	// Get current block's height.
 	_, tipHeight := w.MainChainTip()
 
-	usedEligible := []wtxmgr.Credit{}
+	usedEligible := []udb.Credit{}
 	eligible, err := w.FindEligibleOutputs(account, minconf, tipHeight)
 	if err != nil {
 		return nil, err
@@ -3217,7 +3211,7 @@ func validateAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 	ainfo, err := w.AddressInfo(addr)
 	if err != nil {
-		if waddrmgr.IsError(err, waddrmgr.ErrAddressNotFound) {
+		if apperrors.IsError(err, apperrors.ErrAddressNotFound) {
 			// No additional information available about the address.
 			return result, nil
 		}
@@ -3234,7 +3228,7 @@ func validateAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	result.Account = acctName
 
 	switch ma := ainfo.(type) {
-	case waddrmgr.ManagedPubKeyAddress:
+	case udb.ManagedPubKeyAddress:
 		result.IsCompressed = ma.Compressed()
 		result.PubKey = ma.ExportPubKey()
 		pubKeyBytes, err := hex.DecodeString(result.PubKey)
@@ -3248,7 +3242,7 @@ func validateAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		}
 		result.PubKeyAddr = pubKeyAddr.String()
 
-	case waddrmgr.ManagedScriptAddress:
+	case udb.ManagedScriptAddress:
 		result.IsScript = true
 
 		// The script is only available if the manager is unlocked, so
@@ -3448,7 +3442,7 @@ func walletPassphraseChange(icmd interface{}, w *wallet.Wallet) (interface{}, er
 
 	err := w.ChangePrivatePassphrase([]byte(cmd.OldPassphrase),
 		[]byte(cmd.NewPassphrase))
-	if waddrmgr.IsError(err, waddrmgr.ErrWrongPassphrase) {
+	if apperrors.IsError(err, apperrors.ErrWrongPassphrase) {
 		return nil, &dcrjson.RPCError{
 			Code:    dcrjson.ErrRPCWalletPassphraseIncorrect,
 			Message: "Incorrect passphrase",

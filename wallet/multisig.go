@@ -11,9 +11,9 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
-	"github.com/decred/dcrwallet/waddrmgr"
+	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
-	"github.com/decred/dcrwallet/wtxmgr"
 )
 
 // MakeSecp256k1MultiSigScript creates a multi-signature script that can be
@@ -64,7 +64,7 @@ func (w *Wallet) MakeSecp256k1MultiSigScript(secp256k1Addrs []dcrutil.Address, n
 			if err != nil {
 				return nil, err
 			}
-			serializedPubKey := addrInfo.(waddrmgr.ManagedPubKeyAddress).
+			serializedPubKey := addrInfo.(udb.ManagedPubKeyAddress).
 				PubKey().Serialize()
 
 			pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(
@@ -96,7 +96,7 @@ func (w *Wallet) ImportP2SHRedeemScript(script []byte) (*dcrutil.AddressScriptHa
 			// Don't care if it's already there, but still have to
 			// set the p2shAddr since the address manager didn't
 			// return anything useful.
-			if waddrmgr.IsError(err, waddrmgr.ErrDuplicateAddress) {
+			if apperrors.IsError(err, apperrors.ErrDuplicateAddress) {
 				// This function will never error as it always
 				// hashes the script to the correct length.
 				p2shAddr, _ = dcrutil.NewAddressScriptHash(script,
@@ -116,7 +116,7 @@ func (w *Wallet) ImportP2SHRedeemScript(script []byte) (*dcrutil.AddressScriptHa
 // multi-signature output.
 func (w *Wallet) FetchP2SHMultiSigOutput(outPoint *wire.OutPoint) (*P2SHMultiSigOutput, error) {
 	var (
-		mso          *wtxmgr.MultisigOut
+		mso          *udb.MultisigOut
 		redeemScript []byte
 	)
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {

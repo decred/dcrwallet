@@ -10,8 +10,8 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
-	"github.com/decred/dcrwallet/wtxmgr"
 )
 
 const maxBlocksPerRescan = 2000
@@ -58,7 +58,7 @@ func (w *Wallet) rescan(chainClient *chain.RPCClient, startHash *chainhash.Hash,
 		if err != nil {
 			return err
 		}
-		var rawBlockHeader wtxmgr.RawBlockHeader
+		var rawBlockHeader udb.RawBlockHeader
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 			txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 			for _, r := range rescanResults.DiscoveredData {
@@ -134,7 +134,7 @@ func (w *Wallet) Rescan(chainClient *chain.RPCClient, startHash *chainhash.Hash)
 			if err != nil {
 				return err
 			}
-			startHeight = wtxmgr.ExtractBlockHeaderHeight(header)
+			startHeight = udb.ExtractBlockHeaderHeight(header)
 			return nil
 		})
 		if err != nil {
