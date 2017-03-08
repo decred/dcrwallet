@@ -2123,13 +2123,6 @@ func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
 	if err != nil {
 		t.Fatal("SetTicketMaxPrice failed:", err)
 	}
-
-	// Disable automatic ticket purchasing
-	if !walletInfoResult.StakeMining {
-		if err = wcl.SetGenerate(false, 0); err != nil {
-			t.Fatal("SetGenerate failed:", err)
-		}
-	}
 }
 
 func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
@@ -2284,13 +2277,6 @@ func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
 	}
 	if err = wcl.SetTicketMaxPrice(maxPriceInit); err != nil {
 		t.Fatal("SetTicketMaxPrice failed:", err)
-	}
-
-	// Disable automatical tickets purchasing
-	if !walletInfoResult.StakeMining {
-		if err = wcl.SetGenerate(false, 0); err != nil {
-			t.Fatal("SetGenerate failed:", err)
-		}
 	}
 
 	// Test too high amount for SetBalanceToMaintain
@@ -2528,9 +2514,6 @@ func testWalletInfo(r *Harness, t *testing.T) {
 	if err != nil {
 		t.Fatal("walletinfo failed.")
 	}
-	if walletInfo.StakeMining {
-		t.Fatalf("WalletInfo indicades that stake mining is enabled.")
-	}
 
 	// Now turn on stake mining
 	if err = wcl.SetGenerate(true, 0); err != nil {
@@ -2540,9 +2523,6 @@ func testWalletInfo(r *Harness, t *testing.T) {
 	walletInfo, err = wcl.WalletInfo()
 	if err != nil {
 		t.Fatal("walletinfo failed.")
-	}
-	if !walletInfo.StakeMining {
-		t.Fatalf("WalletInfo indicades that stake mining is disabled.")
 	}
 }
 
