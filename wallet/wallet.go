@@ -276,7 +276,7 @@ func (w *Wallet) VotingEnabled() bool {
 	return enabled
 }
 
-// GetVoteBits returns the wallet setting for Extended Vote Bits.
+// GetVoteBits returns the wallet setting for Vote Bits.
 func (w *Wallet) GetVoteBits() uint16 {
 	return w.VoteBits.Bits
 }
