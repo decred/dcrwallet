@@ -8,6 +8,7 @@ package legacyrpc
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -34,9 +35,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "1.0.0"
+	jsonrpcSemverString = "1.1.0"
 	jsonrpcSemverMajor  = 1
-	jsonrpcSemverMinor  = 0
+	jsonrpcSemverMinor  = 1
 	jsonrpcSemverPatch  = 0
 )
 
@@ -3388,6 +3389,11 @@ func walletInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient
 	tmp := w.GetTicketMaxPrice()
 	btm := w.BalanceToMaintain()
 	sm := w.TicketPurchasingEnabled()
+	voteBits := w.GetVoteBits()
+	vbe := w.GetVoteBitsExtended()
+	var voteVersion uint32
+	_ = binary.Read(bytes.NewBuffer(vbe[0:4]), binary.LittleEndian, &voteVersion)
+	voting := w.VotingEnabled()
 
 	return &dcrjson.WalletInfoResult{
 		DaemonConnected:   connected,
@@ -3396,7 +3402,11 @@ func walletInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient
 		TicketFee:         tfi.ToCoin(),
 		TicketMaxPrice:    tmp.ToCoin(),
 		BalanceToMaintain: btm.ToCoin(),
-		StakeMining:       sm,
+		TicketPurchasing:  sm,
+		VoteBits:          voteBits,
+		VoteBitsExtended:  hex.EncodeToString(vbe),
+		VoteVersion:       voteVersion,
+		Voting:            voting,
 	}, nil
 }
 
