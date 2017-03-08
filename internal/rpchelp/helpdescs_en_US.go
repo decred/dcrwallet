@@ -600,7 +600,11 @@ var helpDescsEnUS = map[string]string{
 	"walletinforesult-ticketfee":         "Ticket fee per kB of the serialized tx size in coins",
 	"walletinforesult-ticketmaxprice":    "The maximum price to pay for a ticket",
 	"walletinforesult-balancetomaintain": "The balance to try to maintain while purchasing tickets",
-	"walletinforesult-stakemining":       "Whether or not the wallet is currently stake mining",
+	"walletinforesult-ticketpurchasing":  "Whether or not the wallet is currently purchasing tickets",
+	"walletinforesult-votebits":          "Vote bits setting",
+	"walletinforesult-votebitsextended":  "Extended vote bits setting",
+	"walletinforesult-voteversion":       "Version of votes that will be generated",
+	"walletinforesult-voting":            "Whether or not the wallet is currently voting tickets",
 
 	// TODO Alphabetize
 
