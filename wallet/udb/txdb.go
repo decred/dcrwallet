@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/btcsuite/golangcrypto/ripemd160"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -19,6 +18,7 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/walletdb"
+	"golang.org/x/crypto/ripemd160"
 )
 
 // Naming
