@@ -59,6 +59,11 @@ service WalletLoaderService {
 	rpc FetchHeaders(FetchHeadersRequest) returns (FetchHeadersResponse);
 }
 
+service TicketBuyerService {
+    rpc StartAutoBuyer (StartAutoBuyerRequest) returns (StartAutoBuyerResponse);
+    rpc StopAutoBuyer (StopAutoBuyerRequest) returns (StopAutoBuyerResponse);
+}
+
 service SeedService {
 	rpc GenerateRandomSeed (GenerateRandomSeedRequest) returns (GenerateRandomSeedResponse);
 	rpc DecodeSeed (DecodeSeedRequest) returns (DecodeSeedResponse);
@@ -459,3 +464,20 @@ message DecodeSeedRequest {
 message DecodeSeedResponse {
 	bytes decoded_seed = 1;
 }
+
+message StartAutoBuyerRequest {
+	bytes passphrase = 1;
+	uint32 account = 2;
+	int64 balance_to_maintain = 3;
+	int64 max_fee_per_kb = 4;
+	double max_price_relative = 5;
+	int64 max_price_absolute = 6;
+	string voting_address = 7;
+	string pool_address = 8;
+	double pool_fees = 9;
+	int64 max_per_block = 10;
+}
+message StartAutoBuyerResponse {}
+
+message StopAutoBuyerRequest {}
+message StopAutoBuyerResponse {}

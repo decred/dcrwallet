@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.4.x
+Version: 4.5.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -39,6 +39,7 @@ existing wallet.
 - [`WalletLoaderService`](#walletloaderservice)
 - [`WalletService`](#walletservice)
 - [`SeedService`](#seedservice)
+- [`TicketBuyerService`](#ticketbuyerservice)
 
 ## `VersionService`
 
@@ -1422,8 +1423,8 @@ transaction was seen.
 
 The `SeedService` service provides RPC clients with the ability to generate
 secure random seeds encoded in both binary and human-readable formats, and
-decode any human-readable input back to binary.  It has no depen and is always
-running.
+decode any human-readable input back to binary.  It has no dependencies and is
+always running.
 
 **Methods:**
 
@@ -1474,5 +1475,92 @@ The user input can be either a hexadecimal string or a mnemonic word list.
 **Expected errors:**
 
 - `InvalidArgument`: The input is invalid.
+
+**Stability:** Unstable
+
+## `TicketBuyerService`
+
+The `TicketBuyerService` service provides RPC clients with the ability to
+launch the automatic ticket buyer with given initial configuration parameters,
+and to stop it.  It is always running but depends on the wallet to be loaded.
+
+**Methods:**
+
+- [`StartAutoBuyer`](#startautobuyer)
+- [`StopAutoBuyer`](#stopautobuyer)
+
+### Methods
+
+#### `StartAutoBuyer`
+
+The `StartAutoBuyer` method starts an automatic ticket buyer with the given
+parameters.  Ticket purchase requires the wallet to be unlocked thus the
+private passphrase must be passed as a parameter when performing this action.
+
+**Request:** `StartAutoBuyerRequest`
+
+- `bytes passphrase`: The private passphrase to unlock the wallet.
+
+- `uint32 account`: The account number to use for purchasing tickets.
+
+- `int64 balance_to_maintain`: The minimum amount of funds to never dip below when purchasing tickets.
+
+- `int64 max_fee_per_kb`: The maximum ticket fee amount per KB.
+
+- `double max_price_relative`: The scaling factor for setting the maximum ticket price, multiplied by the average price.
+
+- `int64 max_price_absolute`: The maximum absolute ticket price.
+
+- `string voting_address`: The address to delegate voting rights to.
+
+- `string pool_address`: The stake pool address where ticket fees will go to.
+
+- `double pool_fees`: The absolute per ticket fee mandated by the stake pool as a percent.
+
+- `int64 max_per_block`: The maximum tickets per block. Negative number indicates one ticket every n blocks.
+
+**Response:** `StartAutoBuyerResponse`
+
+**Expected errors:**
+
+- `InvalidArgument`: The private passphrase is incorrect.
+
+- `NotFound`: The account does not exist.
+
+- `InvalidArgument`: An invalid balance to maintain was specified.
+
+- `InvalidArgument`: An invalid maximum ticket fee amount per KB was specified.
+
+- `InvalidArgument`: An invalid maximum ticket price was specified.
+
+- `InvalidArgument`: An invalid voting address was specified.
+
+- `InvalidArgument`: An invalid pool address was specified.
+
+- `InvalidArgument`: Pool address was specified, but pool fees were not.
+
+- `InvalidArgument`: Pool address was not specified, but pool fees were.
+
+- `InvalidArgument`: And invalid pool fees amount was given, either too large or too small.
+
+- `FailedPrecondition`: Wallet has not been loaded.
+
+- `FailedPrecondition`: Ticket buyer is already started.
+
+**Stability:** Unstable
+
+___
+
+#### `StopAutoBuyer`
+
+The `StopAutoBuyer` method stops the automatic ticket buyer.
+
+**Request:** `StopAutoBuyerRequest`
+
+**Response:** `StopAutoBuyerResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: Ticket buyer is not running.
 
 **Stability:** Unstable

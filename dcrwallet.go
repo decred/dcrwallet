@@ -109,6 +109,7 @@ func walletMain() error {
 	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions, cfg.UnsafeMainNet,
 		cfg.AddrIdxScanLen, cfg.AllowHighFees, cfg.RelayFee.ToCoin())
 
+	passphrase := []byte{}
 	if !cfg.NoInitialLoad {
 		walletPass := []byte(cfg.WalletPass)
 		defer zero.Bytes(walletPass)
@@ -144,7 +145,7 @@ func walletMain() error {
 		// Until then, since --noinitialload users are expecting to use
 		// the wallet only over RPC, disable this feature for them.
 		if !cfg.NoInitialLoad {
-			startPromptPass(w)
+			passphrase = startPromptPass(w)
 		}
 	}
 
@@ -160,7 +161,7 @@ func walletMain() error {
 	// Create and start chain RPC client so it's ready to connect to
 	// the wallet when loaded later.
 	if !cfg.NoInitialLoad {
-		go rpcClientConnectLoop(legacyRPCServer, loader)
+		go rpcClientConnectLoop(passphrase, legacyRPCServer, loader)
 	}
 
 	loader.RunAfterLoad(func(w *wallet.Wallet) {
@@ -211,12 +212,12 @@ func walletMain() error {
 
 // startPromptPass prompts the user for a password to unlock their wallet in
 // the event that it was restored from seed or --promptpass flag is set.
-func startPromptPass(w *wallet.Wallet) {
+func startPromptPass(w *wallet.Wallet) []byte {
 	promptPass := cfg.PromptPass
 
 	// Watching only wallets never require a password.
 	if w.Manager.WatchingOnly() {
-		return
+		return nil
 	}
 
 	// The wallet is totally desynced, so we need to resync accounts.
@@ -224,19 +225,23 @@ func startPromptPass(w *wallet.Wallet) {
 	// knows which address functions to call when resyncing.
 	needSync := w.NeedsAccountsSync()
 	if needSync {
+		fmt.Println("*** ATTENTION ***")
+		fmt.Println("Since this is your first time running we need to sync accounts. Please enter")
+		fmt.Println("the private wallet passphrase. This will complete syncing of the wallet")
+		fmt.Println("accounts and then leave your wallet unlocked. You may relock wallet after by")
+		fmt.Println("calling 'walletlock' through the RPC.")
+		fmt.Println("*****************")
 		promptPass = true
 	}
+	if cfg.EnableTicketBuyer {
+		promptPass = true
+	}
+
 	if !promptPass {
-		return
+		return nil
 	}
 	w.SetInitiallyUnlocked(true)
 	backendLog.Flush()
-	fmt.Println("*** ATTENTION ***")
-	fmt.Println("Since this is your first time running we need to sync accounts. Please enter")
-	fmt.Println("the private wallet passphrase. This will complete syncing of the wallet")
-	fmt.Println("accounts and then leave your wallet unlocked. You may relock wallet after by")
-	fmt.Println("calling 'walletlock' through the RPC.")
-	fmt.Println("*****************")
 
 	// We need to rescan accounts for the initial sync. Unlock the
 	// wallet after prompting for the passphrase. The special case
@@ -251,29 +256,25 @@ func startPromptPass(w *wallet.Wallet) {
 			err := w.Unlock(wallet.SimulationPassphrase, unlockAfter)
 			if err == nil {
 				// Unlock success with the default password.
-				return
+				return nil
 			}
 		}
-		if promptPass {
-			backendLog.Flush()
-			reader := bufio.NewReader(os.Stdin)
-			passphrase, err := prompt.PassPrompt(reader, "Enter private passphrase", false)
-			if err != nil {
-				fmt.Println("Failed to input password. Please try again.")
-				continue
-			}
-			defer zero.Bytes(passphrase)
-
-			var unlockAfter <-chan time.Time
-			err = w.Unlock(passphrase, unlockAfter)
-			if err != nil {
-				fmt.Println("Incorrect password entered. Please " +
-					"try again.")
-				continue
-			}
-
-			break
+		backendLog.Flush()
+		reader := bufio.NewReader(os.Stdin)
+		passphrase, err := prompt.PassPrompt(reader, "Enter private passphrase", false)
+		if err != nil {
+			fmt.Println("Failed to input password. Please try again.")
+			continue
 		}
+
+		var unlockAfter <-chan time.Time
+		err = w.Unlock(passphrase, unlockAfter)
+		if err != nil {
+			fmt.Println("Incorrect password entered. Please " +
+				"try again.")
+			continue
+		}
+		return passphrase
 	}
 }
 
@@ -284,7 +285,7 @@ func startPromptPass(w *wallet.Wallet) {
 // The legacy RPC is optional.  If set, the connected RPC client will be
 // associated with the server for RPC passthrough and to enable additional
 // methods.
-func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *ldr.Loader) {
+func rpcClientConnectLoop(passphrase []byte, legacyRPCServer *legacyrpc.Server, loader *ldr.Loader) {
 	certs := readCAFile()
 
 	for {
@@ -308,7 +309,7 @@ func rpcClientConnectLoop(legacyRPCServer *legacyrpc.Server, loader *ldr.Loader)
 			}
 			loader.SetChainClient(chainClient.Client)
 			if cfg.EnableTicketBuyer {
-				err := loader.StartTicketPurchase(nil, &cfg.tbCfg)
+				err = loader.StartTicketPurchase(passphrase, &cfg.tbCfg)
 				if err != nil {
 					log.Errorf("Unable to start ticket buyer: %v", err)
 				}

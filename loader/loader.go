@@ -264,6 +264,9 @@ func (l *Loader) UnloadWallet() error {
 		return ErrWalletNotLoaded
 	}
 
+	// Ignore err already stopped.
+	l.stopTicketPurchase()
+
 	l.wallet.Stop()
 	l.wallet.WaitForShutdown()
 	err := l.db.Close()
@@ -306,26 +309,17 @@ func (l *Loader) StartTicketPurchase(passphrase []byte, ticketbuyerCfg *ticketbu
 	if err != nil {
 		return err
 	}
-	if passphrase != nil {
-		err = w.Unlock(passphrase, nil)
-		if err != nil {
-			return err
-		}
-	}
 	n := w.NtfnServer.MainTipChangedNotifications()
-	pm := ticketbuyer.NewPurchaseManager(w, p, n.C)
+	pm := ticketbuyer.NewPurchaseManager(w, p, n.C, passphrase)
 	l.ntfnClient = n
 	l.purchaseManager = pm
 	pm.Start()
 	return nil
 }
 
-// StopTicketPurchase stops the ticket purchaser, waiting until it has finished.
-// If no ticket purchaser is running, it returns ErrTicketBuyerStopped.
-func (l *Loader) StopTicketPurchase() error {
-	defer l.mu.Unlock()
-	l.mu.Lock()
-
+// stopTicketPurchase stops the ticket purchaser, waiting until it has finished.
+// It must be called with the mutex lock held.
+func (l *Loader) stopTicketPurchase() error {
 	if l.purchaseManager == nil {
 		return ErrTicketBuyerStopped
 	}
@@ -335,6 +329,15 @@ func (l *Loader) StopTicketPurchase() error {
 	l.purchaseManager.WaitForShutdown()
 	l.purchaseManager = nil
 	return nil
+}
+
+// StopTicketPurchase stops the ticket purchaser, waiting until it has finished.
+// If no ticket purchaser is running, it returns ErrTicketBuyerStopped.
+func (l *Loader) StopTicketPurchase() error {
+	defer l.mu.Unlock()
+	l.mu.Lock()
+
+	return l.stopTicketPurchase()
 }
 
 // PurchaseManager returns the ticket purchaser instance. If ticket purchasing
