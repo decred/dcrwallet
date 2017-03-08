@@ -1,5 +1,5 @@
-hash: 5da93fdff30aec2a373fd7b4525267f9dadf5329933c2cace07ae5809f12f579
-updated: 2017-02-16T15:58:24.686782258Z
+hash: ed840e2cd19df32e8d5dc89987cdea36401f5e159926adc14727ec5f6f5b7bb3
+updated: 2017-03-08T10:28:50.5715224-05:00
 imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
@@ -14,13 +14,7 @@ imports:
 - name: github.com/btcsuite/golangcrypto
   version: 53f62d9b43e87a6c56975cf862af7edf33a8d0df
   subpackages:
-  - nacl/secretbox
-  - pbkdf2
-  - poly1305
   - ripemd160
-  - salsa20/salsa
-  - scrypt
-  - ssh/terminal
 - name: github.com/btcsuite/seelog
   version: 313961b101eb55f65ae0f03ddd4e322731763b6c
 - name: github.com/btcsuite/websocket
@@ -67,8 +61,14 @@ imports:
 - name: github.com/jessevdk/go-flags
   version: 48cf8722c3375517aba351d1f7577c40663a4407
 - name: golang.org/x/crypto
-  version: 453249f01cfeb54c3d549ddb75ff152ca243f9d8
+  version: 728b753d0135da6801d45a38e6f43ff55779c5c2
   subpackages:
+  - nacl/secretbox
+  - pbkdf2
+  - poly1305
+  - ripemd160
+  - salsa20/salsa
+  - scrypt
   - ssh/terminal
 - name: golang.org/x/net
   version: b4690f45fa1cafc47b1c280c2e75116efe40cc13

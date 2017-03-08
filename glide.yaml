@@ -2,13 +2,6 @@ package: github.com/decred/dcrwallet
 import:
 - package: github.com/btcsuite/btclog
   version: master
-- package: github.com/btcsuite/golangcrypto
-  version: master
-  subpackages:
-  - nacl/secretbox
-  - ripemd160
-  - scrypt
-  - ssh/terminal
 - package: github.com/btcsuite/seelog
   version: master
 - package: github.com/btcsuite/websocket
@@ -47,5 +40,9 @@ import:
 - package: github.com/boltdb/bolt
   version: ^1.3.0
 - package: golang.org/x/crypto
+  version: master
   subpackages:
+  - nacl/secretbox
+  - ripemd160
+  - scrypt
   - ssh/terminal

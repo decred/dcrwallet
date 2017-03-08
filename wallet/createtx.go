@@ -6,14 +6,11 @@
 package wallet
 
 import (
+	"bytes"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/btcsuite/golangcrypto/ripemd160"
-
-	"bytes"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
@@ -29,6 +26,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
+	"golang.org/x/crypto/ripemd160"
 )
 
 // --------------------------------------------------------------------------------
