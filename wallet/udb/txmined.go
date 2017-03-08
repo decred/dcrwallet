@@ -3444,6 +3444,8 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			if (isConfirmed && !creditFromCoinbase) ||
 				matureCoinbase {
 				ab.Spendable += utxoAmt
+			} else if creditFromCoinbase && !matureCoinbase {
+				ab.ImmatureCoinbaseRewards += utxoAmt
 			}
 
 		case txscript.OP_SSTX:
@@ -3483,8 +3485,6 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			if confirmed(int32(s.chainParams.SStxChangeMaturity),
 				height, syncHeight) {
 				ab.Spendable += utxoAmt
-			} else {
-				ab.ImmatureCoinbaseRewards += utxoAmt
 			}
 
 		default:
@@ -3499,61 +3499,74 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 	}
 
 	// Unconfirmed transaction output handling.
-	if minConf == 0 {
-		err = ns.NestedReadBucket(bucketUnminedCredits).ForEach(func(k, v []byte) error {
-			// Make sure this output was not spent by an unmined transaction.
-			// If it was, skip this credit.
-			if existsRawUnminedInput(ns, k) != nil {
-				return nil
-			}
-
-			// Check the account first.
-			pkScript, err := s.fastCreditPkScriptLookup(ns, nil, k)
-			if err != nil {
-				return err
-			}
-			thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, nil, v, pkScript)
-			if err != nil {
-				return err
-			}
-
-			utxoAmt, err := fetchRawUnminedCreditAmount(v)
-			if err != nil {
-				return err
-			}
-
-			ab, ok := accountBalances[thisAcct]
-			if !ok {
-				ab = &Balances{
-					Account: thisAcct,
-					Total:   utxoAmt,
-				}
-				accountBalances[thisAcct] = ab
-			} else {
-				ab.Total += utxoAmt
-			}
-
-			// Skip ticket outputs, as only SSGen can spend these.
-			opcode := fetchRawUnminedCreditTagOpcode(v)
-
-			switch opcode {
-			case OP_NONSTAKE:
-				fallthrough
-			case txscript.OP_SSTX:
-				ab.Spendable += utxoAmt
-			case txscript.OP_SSGEN:
-				fallthrough
-			case txscript.OP_SSRTX:
-				ab.ImmatureStakeGeneration += utxoAmt
-			case txscript.OP_SSTXCHANGE:
-				return nil
-			default:
-				log.Warnf("Unhandled unconfirmed opcode %v: %v", opcode, v)
-			}
-
+	err = ns.NestedReadBucket(bucketUnminedCredits).ForEach(func(k, v []byte) error {
+		// Make sure this output was not spent by an unmined transaction.
+		// If it was, skip this credit.
+		if existsRawUnminedInput(ns, k) != nil {
 			return nil
-		})
-	}
+		}
+
+		// Check the account first.
+		pkScript, err := s.fastCreditPkScriptLookup(ns, nil, k)
+		if err != nil {
+			return err
+		}
+		thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, nil, v, pkScript)
+		if err != nil {
+			return err
+		}
+
+		utxoAmt, err := fetchRawUnminedCreditAmount(v)
+		if err != nil {
+			return err
+		}
+
+		ab, ok := accountBalances[thisAcct]
+		if !ok {
+			ab = &Balances{
+				Account: thisAcct,
+				Total:   utxoAmt,
+			}
+			accountBalances[thisAcct] = ab
+		} else {
+			ab.Total += utxoAmt
+		}
+
+		// Skip ticket outputs, as only SSGen can spend these.
+		opcode := fetchRawUnminedCreditTagOpcode(v)
+
+		switch opcode {
+		case OP_NONSTAKE:
+			if minConf == 0 {
+				ab.Spendable += utxoAmt
+			}
+		case txscript.OP_SSTX:
+			ab.VotingAuthority += utxoAmt
+			_, addrs, _, err := txscript.ExtractPkScriptAddrs(
+				txscript.DefaultScriptVersion, pkScript, s.chainParams)
+			if err != nil {
+				return err
+			}
+			if _, err := s.acctLookupFunc(addrmgrNs, addrs[0]); err != nil {
+				if apperrors.IsError(err, apperrors.ErrAddressNotFound) {
+					return nil
+				}
+				return err
+			}
+			ab.LockedByTickets += utxoAmt
+
+		case txscript.OP_SSGEN:
+			fallthrough
+		case txscript.OP_SSRTX:
+			ab.ImmatureStakeGeneration += utxoAmt
+		case txscript.OP_SSTXCHANGE:
+			return nil
+		default:
+			log.Warnf("Unhandled unconfirmed opcode %v: %v", opcode, v)
+		}
+
+		return nil
+	})
 	if err != nil {
 		str := "failed iterating unmined credits bucket for fullscan balance"
 		return nil, storeError(apperrors.ErrDatabase, str, err)
