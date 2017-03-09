@@ -701,24 +701,36 @@ func (m *Manager) AccountProperties(ns walletdb.ReadBucket, account uint32) (*Ac
 	return props, nil
 }
 
-// AccountBranchExtendedPubKey returns the extended public key of an account's
-// branch, which then can be used to derive addreses belonging to the account.
-func (m *Manager) AccountBranchExtendedPubKey(dbtx walletdb.ReadTx, account, branch uint32) (*hdkeychain.ExtendedKey, error) {
+// AccountExtendedPubKey returns the extended public key for an account, which
+// can then be used to derive BIP0044 branch keys.
+func (m *Manager) AccountExtendedPubKey(dbtx walletdb.ReadTx, account uint32) (*hdkeychain.ExtendedKey, error) {
 	ns := dbtx.ReadBucket(waddrmgrBucketKey)
 	if account == ImportedAddrAccount {
 		const str = "the imported account does not contain an extended key"
 		return nil, apperrors.E{ErrorCode: apperrors.ErrInvalidAccount, Description: str, Err: nil}
 	}
+	m.mtx.Lock()
 	acctInfo, err := m.loadAccountInfo(ns, account)
+	m.mtx.Unlock()
 	if err != nil {
 		return nil, err
 	}
-	xpub, err := acctInfo.acctKeyPub.Child(branch)
+	return acctInfo.acctKeyPub, nil
+}
+
+// AccountBranchExtendedPubKey returns the extended public key of an account's
+// branch, which then can be used to derive addresses belonging to the account.
+func (m *Manager) AccountBranchExtendedPubKey(dbtx walletdb.ReadTx, account, branch uint32) (*hdkeychain.ExtendedKey, error) {
+	acctXpub, err := m.AccountExtendedPubKey(dbtx, account)
+	if err != nil {
+		return nil, err
+	}
+	branchXpub, err := acctXpub.Child(branch)
 	if err != nil {
 		const str = "failed to derive child xpub"
 		return nil, apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
 	}
-	return xpub, nil
+	return branchXpub, nil
 }
 
 // deriveKeyFromPath returns either a public or private derived extended key
