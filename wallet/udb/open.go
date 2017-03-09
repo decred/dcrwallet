@@ -41,8 +41,8 @@ func Open(db walletdb.DB, params *chaincfg.Params, pubPass []byte) (addrMgr *Man
 			return apperrors.E{ErrorCode: apperrors.ErrUnknownVersion, Description: str}
 		}
 
-		addrmgrNs := tx.ReadBucket([]byte(waddrmgrBucketKey))
-		stakemgrNs := tx.ReadBucket([]byte(wstakemgrBucketKey))
+		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
+		stakemgrNs := tx.ReadBucket(wstakemgrBucketKey)
 
 		addrMgr, err = loadManager(addrmgrNs, pubPass, params)
 		if err != nil {

@@ -47,8 +47,8 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 	const balanceFlag = BFBalanceSpendable
 
 	err = walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
-		ns := tx.ReadWriteBucket([]byte(wtxmgrBucketKey))
-		addrmgrNs := tx.ReadBucket([]byte(waddrmgrBucketKey))
+		ns := tx.ReadWriteBucket(wtxmgrBucketKey)
+		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
 
 		err := s.InsertMemPoolTx(ns, block1TxRec)
 		if err != nil {
@@ -195,8 +195,8 @@ func TestStakeInvalidationTxInsert(t *testing.T) {
 	}
 
 	err = walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
-		ns := tx.ReadWriteBucket([]byte(wtxmgrBucketKey))
-		addrmgrNs := tx.ReadBucket([]byte(waddrmgrBucketKey))
+		ns := tx.ReadWriteBucket(wtxmgrBucketKey)
+		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
 
 		headerData := makeHeaderDataSlice(block1Header, block2Header, block3Header)
 		err = s.InsertMainChainHeaders(ns, addrmgrNs, headerData)

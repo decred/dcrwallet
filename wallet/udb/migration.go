@@ -12,10 +12,10 @@ import (
 
 // Old package namespace bucket keys.  These are still used as of the very first
 // unified database layout.
-const (
-	waddrmgrBucketKey  = "waddrmgr"
-	wtxmgrBucketKey    = "wtxmgr"
-	wstakemgrBucketKey = "wstakemgr"
+var (
+	waddrmgrBucketKey  = []byte("waddrmgr")
+	wtxmgrBucketKey    = []byte("wtxmgr")
+	wstakemgrBucketKey = []byte("wstakemgr")
 )
 
 // NeedsMigration checks whether the database needs to be converted to the
@@ -35,9 +35,9 @@ func NeedsMigration(db walletdb.DB) (bool, error) {
 // performed.
 func Migrate(db walletdb.DB, params *chaincfg.Params) error {
 	return walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
-		addrmgrNs := tx.ReadWriteBucket([]byte(waddrmgrBucketKey))
-		txmgrNs := tx.ReadWriteBucket([]byte(wtxmgrBucketKey))
-		stakemgrNs := tx.ReadWriteBucket([]byte(wstakemgrBucketKey))
+		addrmgrNs := tx.ReadWriteBucket(waddrmgrBucketKey)
+		txmgrNs := tx.ReadWriteBucket(wtxmgrBucketKey)
+		stakemgrNs := tx.ReadWriteBucket(wstakemgrBucketKey)
 
 		stakeStoreVersionName := []byte("stakestorever")
 

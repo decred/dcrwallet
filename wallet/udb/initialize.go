@@ -23,15 +23,15 @@ func createBucketError(err error, bucketName string) error {
 // does not require any upgrades to use.
 func Initialize(db walletdb.DB, params *chaincfg.Params, seed, pubPass, privPass []byte, unsafeMainNet bool) error {
 	err := walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
-		addrmgrNs, err := tx.CreateTopLevelBucket([]byte(waddrmgrBucketKey))
+		addrmgrNs, err := tx.CreateTopLevelBucket(waddrmgrBucketKey)
 		if err != nil {
 			return createBucketError(err, "address manager")
 		}
-		txmgrNs, err := tx.CreateTopLevelBucket([]byte(wtxmgrBucketKey))
+		txmgrNs, err := tx.CreateTopLevelBucket(wtxmgrBucketKey)
 		if err != nil {
 			return createBucketError(err, "transaction store")
 		}
-		stakemgrNs, err := tx.CreateTopLevelBucket([]byte(wstakemgrBucketKey))
+		stakemgrNs, err := tx.CreateTopLevelBucket(wstakemgrBucketKey)
 		if err != nil {
 			return createBucketError(err, "stake store")
 		}
@@ -74,15 +74,15 @@ func Initialize(db walletdb.DB, params *chaincfg.Params, seed, pubPass, privPass
 // with the latest version and does not require any upgrades to use.
 func InitializeWatchOnly(db walletdb.DB, params *chaincfg.Params, hdPubKey string, pubPass []byte) error {
 	err := walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
-		addrmgrNs, err := tx.CreateTopLevelBucket([]byte(waddrmgrBucketKey))
+		addrmgrNs, err := tx.CreateTopLevelBucket(waddrmgrBucketKey)
 		if err != nil {
 			return createBucketError(err, "address manager")
 		}
-		txmgrNs, err := tx.CreateTopLevelBucket([]byte(wtxmgrBucketKey))
+		txmgrNs, err := tx.CreateTopLevelBucket(wtxmgrBucketKey)
 		if err != nil {
 			return createBucketError(err, "transaction store")
 		}
-		stakemgrNs, err := tx.CreateTopLevelBucket([]byte(wstakemgrBucketKey))
+		stakemgrNs, err := tx.CreateTopLevelBucket(wstakemgrBucketKey)
 		if err != nil {
 			return createBucketError(err, "stake store")
 		}

@@ -42,11 +42,11 @@ func setup() (db walletdb.DB, s *Store, teardown func(), err error) {
 		return
 	}
 	defer tx.Commit()
-	ns, err := tx.CreateTopLevelBucket([]byte(wtxmgrBucketKey))
+	ns, err := tx.CreateTopLevelBucket(wtxmgrBucketKey)
 	if err != nil {
 		return
 	}
-	_, err = tx.CreateTopLevelBucket([]byte(waddrmgrBucketKey))
+	_, err = tx.CreateTopLevelBucket(waddrmgrBucketKey)
 	if err != nil {
 		return
 	}

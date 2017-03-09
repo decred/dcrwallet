@@ -32,7 +32,7 @@ func TestCursorDeletions(t *testing.T) {
 			valueUnminedCredit(2e8, true, 0, false, scriptTypeP2PKH, 0, 0, 0),
 		}
 
-		ns := dbtx.ReadWriteBucket([]byte(wtxmgrBucketKey))
+		ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
 		for i := range ks {
 			err = putRawUnminedCredit(ns, ks[i], vs[i])
 			if err != nil {
@@ -89,7 +89,7 @@ func TestBoltDBCursorDeletion(t *testing.T) {
 	}
 
 	err = db.Update(func(dbtx *bolt.Tx) error {
-		b, err := dbtx.CreateBucket([]byte(wtxmgrBucketKey))
+		b, err := dbtx.CreateBucket(wtxmgrBucketKey)
 		if err != nil {
 			return err
 		}
