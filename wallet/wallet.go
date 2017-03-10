@@ -268,6 +268,24 @@ func (w *Wallet) TicketPurchasingEnabled() bool {
 	return enabled
 }
 
+// VotingEnabled returns whether the wallet is configured to vote tickets.
+func (w *Wallet) VotingEnabled() bool {
+	w.stakeSettingsLock.Lock()
+	enabled := w.votingEnabled
+	w.stakeSettingsLock.Unlock()
+	return enabled
+}
+
+// GetVoteBits returns the wallet setting for Vote Bits.
+func (w *Wallet) GetVoteBits() uint16 {
+	return w.VoteBits.Bits
+}
+
+// GetVoteBitsExtended returns the wallet setting for Extended Vote Bits.
+func (w *Wallet) GetVoteBitsExtended() []byte {
+	return w.VoteBits.ExtendedBits
+}
+
 // SetTicketPurchasingEnabled is used to enable or disable ticket purchasing in the
 // wallet.
 func (w *Wallet) SetTicketPurchasingEnabled(flag bool) error {
