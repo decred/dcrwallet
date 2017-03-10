@@ -38,7 +38,6 @@ var Methods = []struct {
 	{"getbestblockhash", returnsString},
 	{"getblockcount", returnsNumber},
 	{"getinfo", []interface{}{(*dcrjson.InfoWalletResult)(nil)}},
-	{"getgenerate", returnsBool},
 	{"getmasterpubkey", []interface{}{(*string)(nil)}},
 	{"getmultisigoutinfo", []interface{}{(*dcrjson.GetMultisigOutInfoResult)(nil)}},
 	{"getseed", []interface{}{(*string)(nil)}},
@@ -47,7 +46,6 @@ var Methods = []struct {
 	{"getreceivedbyaccount", returnsNumber},
 	{"getreceivedbyaddress", returnsNumber},
 	{"gettickets", []interface{}{(*dcrjson.GetTicketsResult)(nil)}},
-	{"getticketmaxprice", returnsNumber},
 	{"gettransaction", []interface{}{(*dcrjson.GetTransactionResult)(nil)}},
 	{"help", append(returnsString, returnsString[0])},
 	{"importprivkey", nil},
@@ -68,8 +66,6 @@ var Methods = []struct {
 	{"sendmany", returnsString},
 	{"sendtoaddress", returnsString},
 	{"sendtomultisig", returnsString},
-	{"setgenerate", nil},
-	{"setticketmaxprice", nil},
 	{"settxfee", returnsBool},
 	{"signmessage", returnsString},
 	{"signrawtransaction", []interface{}{(*dcrjson.SignRawTransactionResult)(nil)}},
@@ -106,8 +102,6 @@ var Methods = []struct {
 	{"addticket", nil},
 	{"listscripts", []interface{}{(*dcrjson.ListScriptsResult)(nil)}},
 	{"stakepooluserinfo", []interface{}{(*dcrjson.StakePoolUserInfoResult)(nil)}},
-	{"setbalancetomaintain", returnsBool},
-	{"getbalancetomaintain", returnsBool},
 	{"ticketsforaddress", returnsBool},
 }
 

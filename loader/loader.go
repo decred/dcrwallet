@@ -54,13 +54,10 @@ type StakeOptions struct {
 	VoteBitsExtended        string
 	TicketPurchasingEnabled bool
 	VotingEnabled           bool
-	BalanceToMaintain       float64
 	TicketFee               float64
 	PruneTickets            bool
 	AddressReuse            bool
 	TicketAddress           string
-	TicketMaxPrice          float64
-	TicketBuyFreq           int
 	PoolAddress             string
 	PoolFees                float64
 	StakePoolColdExtKey     string
@@ -170,11 +167,9 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	// Open the newly-created wallet.
 	so := l.stakeOptions
 	w, err = wallet.Open(db, pubPassphrase, so.VoteBits, so.VoteBitsExtended,
-		so.TicketPurchasingEnabled, so.VotingEnabled, so.BalanceToMaintain,
-		so.AddressReuse, so.PruneTickets, so.TicketAddress, so.TicketMaxPrice,
-		so.TicketBuyFreq, so.PoolAddress, so.PoolFees, so.TicketFee,
-		l.addrIdxScanLen, so.StakePoolColdExtKey, l.allowHighFees, l.relayFee,
-		l.chainParams)
+		so.VotingEnabled, so.AddressReuse, so.PruneTickets, so.TicketAddress,
+		so.PoolAddress, so.PoolFees, so.TicketFee, l.addrIdxScanLen,
+		so.StakePoolColdExtKey, l.allowHighFees, l.relayFee, l.chainParams)
 	if err != nil {
 		return nil, err
 	}
@@ -221,11 +216,9 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte, canConsolePrompt bool)
 
 	so := l.stakeOptions
 	w, err = wallet.Open(db, pubPassphrase, so.VoteBits, so.VoteBitsExtended,
-		so.TicketPurchasingEnabled, so.VotingEnabled, so.BalanceToMaintain,
-		so.AddressReuse, so.PruneTickets, so.TicketAddress, so.TicketMaxPrice,
-		so.TicketBuyFreq, so.PoolAddress, so.PoolFees, so.TicketFee,
-		l.addrIdxScanLen, so.StakePoolColdExtKey, l.allowHighFees, l.relayFee,
-		l.chainParams)
+		so.VotingEnabled, so.AddressReuse, so.PruneTickets, so.TicketAddress,
+		so.PoolAddress, so.PoolFees, so.TicketFee, l.addrIdxScanLen,
+		so.StakePoolColdExtKey, l.allowHighFees, l.relayFee, l.chainParams)
 	if err != nil {
 		return nil, err
 	}
@@ -314,6 +307,7 @@ func (l *Loader) StartTicketPurchase(passphrase []byte, ticketbuyerCfg *ticketbu
 	l.ntfnClient = n
 	l.purchaseManager = pm
 	pm.Start()
+	l.wallet.SetTicketPurchasingEnabled(true)
 	return nil
 }
 
@@ -328,6 +322,7 @@ func (l *Loader) stopTicketPurchase() error {
 	l.purchaseManager.Stop()
 	l.purchaseManager.WaitForShutdown()
 	l.purchaseManager = nil
+	l.wallet.SetTicketPurchasingEnabled(false)
 	return nil
 }
 

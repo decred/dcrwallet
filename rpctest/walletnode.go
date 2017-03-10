@@ -92,9 +92,7 @@ func (n *walletTestConfig) arguments() []string {
 	// --simnet
 	args = append(args, fmt.Sprintf("--%s", strings.ToLower(wire.SimNet.String())))
 	args = append(args, fmt.Sprintf("--createtemp"))
-	args = append(args, fmt.Sprintf("--enablestakemining"))
-	args = append(args, fmt.Sprintf("--balancetomaintain=2000000"))
-	args = append(args, fmt.Sprintf("--ticketmaxprice=0"))
+	args = append(args, fmt.Sprintf("--enableticketbuyer"))
 
 	if n.rpcUser != "" {
 		// --rpcuser

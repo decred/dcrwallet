@@ -94,10 +94,6 @@ var helpDescsEnUS = map[string]string{
 	// GetInfoCmd help.
 	"getinfo--synopsis": "Returns a JSON object containing various state info.",
 
-	// GetGenerate help
-	"getgenerate--synopsis": "Return current state of stake mining.",
-	"getgenerate--result0":  "True if stake mining is enabled, false if it is not.",
-
 	// GetMasterPubkey help.
 	"getmasterpubkey--synopsis": "Requests the master pubkey from the wallet.",
 	"getmasterpubkey-account":   "The account to get the master pubkey for",
@@ -592,19 +588,16 @@ var helpDescsEnUS = map[string]string{
 	"walletislocked--result0":  "Whether the wallet is locked",
 
 	// WalletInfoCmd help.
-	"walletinfo--synopsis": "Returns global information about the wallet",
-
-	"walletinforesult-daemonconnected":   "Whether or not the wallet is currently connected to the daemon RPC",
-	"walletinforesult-unlocked":          "Whether or not the wallet is unlocked",
-	"walletinforesult-txfee":             "Transaction fee per kB of the serialized tx size in coins",
-	"walletinforesult-ticketfee":         "Ticket fee per kB of the serialized tx size in coins",
-	"walletinforesult-ticketmaxprice":    "The maximum price to pay for a ticket",
-	"walletinforesult-balancetomaintain": "The balance to try to maintain while purchasing tickets",
-	"walletinforesult-ticketpurchasing":  "Whether or not the wallet is currently purchasing tickets",
-	"walletinforesult-votebits":          "Vote bits setting",
-	"walletinforesult-votebitsextended":  "Extended vote bits setting",
-	"walletinforesult-voteversion":       "Version of votes that will be generated",
-	"walletinforesult-voting":            "Whether or not the wallet is currently voting tickets",
+	"walletinfo--synopsis":              "Returns global information about the wallet",
+	"walletinforesult-daemonconnected":  "Whether or not the wallet is currently connected to the daemon RPC",
+	"walletinforesult-unlocked":         "Whether or not the wallet is unlocked",
+	"walletinforesult-txfee":            "Transaction fee per kB of the serialized tx size in coins",
+	"walletinforesult-ticketfee":        "Ticket fee per kB of the serialized tx size in coins",
+	"walletinforesult-ticketpurchasing": "Whether or not the wallet is currently purchasing tickets",
+	"walletinforesult-votebits":         "Vote bits setting",
+	"walletinforesult-votebitsextended": "Extended vote bits setting",
+	"walletinforesult-voteversion":      "Version of votes that will be generated",
+	"walletinforesult-voting":           "Whether or not the wallet is currently voting tickets",
 
 	// TODO Alphabetize
 
