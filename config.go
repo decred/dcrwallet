@@ -569,7 +569,7 @@ func loadConfig() (*config, []string, error) {
 	// Multiple networks can't be selected simultaneously.
 	numNets := 0
 	if cfg.TestNet {
-		activeNet = &netparams.TestNetParams
+		activeNet = &netparams.TestNet2Params
 		numNets++
 	}
 	if cfg.SimNet {
@@ -635,6 +635,8 @@ func loadConfig() (*config, []string, error) {
 	case &netparams.MainNetParams:
 		cfg.VoteBitsExtended = "03000000" + cfg.VoteBitsExtended
 	case &netparams.TestNetParams:
+		cfg.VoteBitsExtended = "04000000" + cfg.VoteBitsExtended
+	case &netparams.TestNet2Params:
 		cfg.VoteBitsExtended = "04000000" + cfg.VoteBitsExtended
 	case &netparams.SimNetParams:
 		cfg.VoteBitsExtended = "04000000" + cfg.VoteBitsExtended

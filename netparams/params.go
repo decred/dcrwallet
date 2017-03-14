@@ -31,6 +31,14 @@ var TestNetParams = Params{
 	RPCServerPort: "19110",
 }
 
+// TestNet2Params contains parameters specific running dcrwallet and
+// dcrd on the test network (version 2) (wire.TestNet2).
+var TestNet2Params = Params{
+	Params:        &chaincfg.TestNet2Params,
+	RPCClientPort: "19109",
+	RPCServerPort: "19110",
+}
+
 // SimNetParams contains parameters specific to the simulation test network
 // (wire.SimNet).
 var SimNetParams = Params{

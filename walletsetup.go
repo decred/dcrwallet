@@ -34,8 +34,11 @@ func networkDir(dataDir string, chainParams *chaincfg.Params) string {
 	// paramaters will likely be switched to being named "testnet" in the
 	// future.  This is done to future proof that change, and an upgrade
 	// plan to move the testnet data directory can be worked out later.
-	if chainParams.Net == wire.TestNet {
+	switch chainParams.Net {
+	case wire.TestNet:
 		netname = "testnet"
+	case wire.TestNet2:
+		netname = "testnet2"
 	}
 
 	return filepath.Join(dataDir, netname)
