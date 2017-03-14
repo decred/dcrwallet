@@ -57,7 +57,7 @@ func walletMain() error {
 	defer backendLog.Flush()
 
 	// Show version at startup.
-	log.Infof("Version %s", version())
+	log.Infof("Version %s (Go version %s)", version(), runtime.Version())
 
 	if len(cfg.Profile) > 0 {
 		profileRedirect := http.RedirectHandler("/debug/pprof", http.StatusSeeOther)
