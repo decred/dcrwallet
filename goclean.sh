@@ -15,7 +15,7 @@ set -ex
 linter_targets=$(glide novendor)
 
 # Automatic checks
-test -z "$(gometalinter --disable-all --enable=gofmt --enable=gosimple --enable=unconvert --deadline=4m $linter_targets 2>&1 | tee /dev/stderr)"
+test -z "$(gometalinter --disable-all --enable=gofmt --enable=gosimple --enable=unconvert --deadline=10m $linter_targets 2>&1 | tee /dev/stderr)"
 test -z "$(gometalinter --disable-all --enable=golint $linter_targets 2>&1 | egrep -v '(ALL_CAPS|OP_|NewFieldVal|RpcCommand|RpcRawCommand|RpcSend|Dns|api.pb.go|StartConsensusRpc|factory_test.go|legacy|UnstableAPI|_string.go)' | tee /dev/stderr)"
 test -z "$(gometalinter --disable-all --enable=vet $linter_targets 2>&1 | egrep -v 'not a string in call to [A-Za-z]+f' | tee /dev/stderr)"
 
