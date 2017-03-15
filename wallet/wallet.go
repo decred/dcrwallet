@@ -101,8 +101,6 @@ type Wallet struct {
 	ticketPurchasingEnabled bool
 	votingEnabled           bool
 	CurrentVotingInfo       *VotingInfo
-	ticketMaxPrice          dcrutil.Amount
-	ticketBuyFreq           int
 	balanceToMaintain       dcrutil.Amount
 	poolAddress             dcrutil.Address
 	poolFees                float64
@@ -168,13 +166,12 @@ type Wallet struct {
 
 // newWallet creates a new Wallet structure with the provided address manager
 // and transaction store.
-func newWallet(vb uint16, vbe []byte, ticketPurchasingEnabled bool, votingEnabled bool,
-	btm dcrutil.Amount, addressReuse bool, ticketAddress dcrutil.Address,
-	tmp dcrutil.Amount, ticketBuyFreq int, poolAddress dcrutil.Address, pf float64,
+func newWallet(vb uint16, vbe []byte, votingEnabled bool, addressReuse bool,
+	ticketAddress dcrutil.Address, poolAddress dcrutil.Address, pf float64,
 	relayFee, ticketFee dcrutil.Amount, addrIdxScanLen int,
 	stakePoolColdAddrs map[string]struct{}, AllowHighFees bool,
-	mgr *udb.Manager, txs *udb.Store, smgr *udb.StakeStore,
-	db *walletdb.DB, params *chaincfg.Params) *Wallet {
+	mgr *udb.Manager, txs *udb.Store, smgr *udb.StakeStore, db *walletdb.DB,
+	params *chaincfg.Params) *Wallet {
 
 	vbs := stake.VoteBits{
 		Bits:         vb,
@@ -185,10 +182,8 @@ func newWallet(vb uint16, vbe []byte, ticketPurchasingEnabled bool, votingEnable
 		Manager:                  mgr,
 		TxStore:                  txs,
 		StakeMgr:                 smgr,
-		ticketPurchasingEnabled:  ticketPurchasingEnabled,
 		votingEnabled:            votingEnabled,
 		VoteBits:                 vbs,
-		balanceToMaintain:        btm,
 		lockedOutpoints:          map[wire.OutPoint]struct{}{},
 		relayFee:                 relayFee,
 		ticketFeeIncrement:       ticketFee,
@@ -203,8 +198,6 @@ func newWallet(vb uint16, vbe []byte, ticketPurchasingEnabled bool, votingEnable
 		addrPools:                make(map[uint32]*addressPools),
 		addressReuse:             addressReuse,
 		ticketAddress:            ticketAddress,
-		ticketMaxPrice:           tmp,
-		ticketBuyFreq:            ticketBuyFreq,
 		poolAddress:              poolAddress,
 		poolFees:                 pf,
 		addrIdxScanLen:           addrIdxScanLen,
@@ -288,44 +281,10 @@ func (w *Wallet) GetVoteBitsExtended() []byte {
 
 // SetTicketPurchasingEnabled is used to enable or disable ticket purchasing in the
 // wallet.
-func (w *Wallet) SetTicketPurchasingEnabled(flag bool) error {
+func (w *Wallet) SetTicketPurchasingEnabled(flag bool) {
 	w.stakeSettingsLock.Lock()
-	defer w.stakeSettingsLock.Unlock()
-
-	isChanged := w.ticketPurchasingEnabled != flag
 	w.ticketPurchasingEnabled = flag
-
-	// If stake mining has been enabled again, make sure to
-	// try to submit any possible votes on the current top
-	// block.
-	if flag && isChanged && w.CurrentVotingInfo != nil {
-		err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-			stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
-			waddrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-			_, err := w.StakeMgr.HandleWinningTicketsNtfn(
-				stakemgrNs,
-				waddrmgrNs,
-				w.CurrentVotingInfo.BlockHash,
-				w.CurrentVotingInfo.BlockHeight,
-				w.CurrentVotingInfo.Tickets,
-				w.VoteBits,
-				w.stakePoolEnabled,
-				w.AllowHighFees,
-			)
-			return err
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	if w.ticketPurchasingEnabled && isChanged {
-		log.Infof("Wallet ticket purchasing enabled")
-	} else if !w.ticketPurchasingEnabled && isChanged {
-		log.Infof("wallet ticket purchasing disabled")
-	}
-
-	return nil
+	w.stakeSettingsLock.Unlock()
 }
 
 // SetCurrentVotingInfo is used to set the current tickets eligible
@@ -337,24 +296,6 @@ func (w *Wallet) SetCurrentVotingInfo(blockHash *chainhash.Hash,
 	defer w.stakeSettingsLock.Unlock()
 
 	w.CurrentVotingInfo = &VotingInfo{blockHash, blockHeight, tickets}
-}
-
-// GetTicketMaxPrice gets the current maximum price the user is willing to pay
-// for a ticket.
-func (w *Wallet) GetTicketMaxPrice() dcrutil.Amount {
-	w.stakeSettingsLock.Lock()
-	defer w.stakeSettingsLock.Unlock()
-
-	return w.ticketMaxPrice
-}
-
-// SetTicketMaxPrice sets the current maximum price the user is willing to pay
-// for a ticket.
-func (w *Wallet) SetTicketMaxPrice(amt dcrutil.Amount) {
-	w.stakeSettingsLock.Lock()
-	defer w.stakeSettingsLock.Unlock()
-
-	w.ticketMaxPrice = amt
 }
 
 // TicketAddress gets the ticket address for the wallet to give the ticket
@@ -457,8 +398,7 @@ func (w *Wallet) SynchronizeRPC(chainClient *chain.RPCClient) {
 	ticketPurchasingEnabled := w.TicketPurchasingEnabled()
 	if ticketPurchasingEnabled {
 		log.Infof("Wallet ticket purchasing enabled: vote bits = %#04x, "+
-			"extended vote bits = %x, balance to maintain = %v, max ticket price = %v",
-			w.VoteBits.Bits, w.VoteBits.ExtendedBits, w.balanceToMaintain, w.ticketMaxPrice)
+			"extended vote bits = %x", w.VoteBits.Bits, w.VoteBits.ExtendedBits)
 	}
 	if w.votingEnabled {
 		log.Infof("Wallet voting enabled")
@@ -3582,9 +3522,9 @@ func decodeStakePoolColdExtKey(encStr string,
 }
 
 // Open loads an already-created wallet from the passed database and namespaces.
-func Open(db walletdb.DB, pubPass []byte, voteBits uint16, voteBitsExtended string, ticketPurchasingEnabled bool,
-	votingEnabled bool, balanceToMaintain float64, addressReuse bool, pruneTickets bool, ticketAddress string,
-	ticketMaxPrice float64, ticketBuyFreq int, poolAddress string, poolFees float64, ticketFee float64,
+func Open(db walletdb.DB, pubPass []byte, voteBits uint16, voteBitsExtended string,
+	votingEnabled bool, addressReuse bool, pruneTickets bool, ticketAddress string,
+	poolAddress string, poolFees float64, ticketFee float64,
 	addrIdxScanLen int, stakePoolColdExtKey string, allowHighFees bool, relayFee float64,
 	params *chaincfg.Params) (*Wallet, error) {
 
@@ -3625,12 +3565,6 @@ func Open(db walletdb.DB, pubPass []byte, voteBits uint16, voteBitsExtended stri
 		}
 	}
 
-	// XXX Should we check error here?  Right now error gives default (0).
-	btm, err := dcrutil.NewAmount(balanceToMaintain)
-	if err != nil {
-		return nil, err
-	}
-
 	// Validate extended vote bits
 	vbeLen := len(voteBitsExtended)
 	if vbeLen < 8 || vbeLen > stake.SSGenVoteBitsExtendedMaxSize*2 {
@@ -3651,11 +3585,6 @@ func Open(db walletdb.DB, pubPass []byte, voteBits uint16, voteBitsExtended stri
 			return nil, fmt.Errorf("ticket address could not parse: %v",
 				err.Error())
 		}
-	}
-
-	tmp, err := dcrutil.NewAmount(ticketMaxPrice)
-	if err != nil {
-		return nil, err
 	}
 
 	var poolAddr dcrutil.Address
@@ -3686,13 +3615,9 @@ func Open(db walletdb.DB, pubPass []byte, voteBits uint16, voteBitsExtended stri
 
 	w := newWallet(voteBits,
 		voteBitsExtendedB,
-		ticketPurchasingEnabled,
 		votingEnabled,
-		btm,
 		addressReuse,
 		ticketAddr,
-		tmp,
-		ticketBuyFreq,
 		poolAddr,
 		poolFees,
 		relayFeeAmt,

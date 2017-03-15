@@ -49,16 +49,13 @@ func networkDir(dataDir string, chainParams *chaincfg.Params) string {
 func createWallet(cfg *config) error {
 	dbDir := networkDir(cfg.AppDataDir, activeNet.Params)
 	stakeOptions := &loader.StakeOptions{
-		VoteBits:                cfg.VoteBits,
-		VoteBitsExtended:        cfg.VoteBitsExtended,
-		TicketPurchasingEnabled: cfg.EnableStakeMining && !cfg.EnableTicketBuyer,
-		VotingEnabled:           cfg.EnableVoting,
-		BalanceToMaintain:       cfg.BalanceToMaintain.ToCoin(),
-		PruneTickets:            cfg.PruneTickets,
-		AddressReuse:            cfg.ReuseAddresses,
-		TicketAddress:           cfg.TicketAddress,
-		TicketMaxPrice:          cfg.tbCfg.MaxPriceAbsolute,
-		TicketFee:               cfg.TicketFee.ToCoin(),
+		VoteBits:         cfg.VoteBits,
+		VoteBitsExtended: cfg.VoteBitsExtended,
+		VotingEnabled:    cfg.EnableVoting,
+		PruneTickets:     cfg.PruneTickets,
+		AddressReuse:     cfg.ReuseAddresses,
+		TicketAddress:    cfg.TicketAddress,
+		TicketFee:        cfg.TicketFee.ToCoin(),
 	}
 	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.UnsafeMainNet, cfg.AddrIdxScanLen, cfg.AllowHighFees,

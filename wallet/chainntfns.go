@@ -18,7 +18,6 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
-	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
@@ -89,70 +88,6 @@ func (w *Wallet) handleChainNotifications(chainClient *chain.RPCClient) {
 
 	w.handleConsensusRPCNotifications(chainClient)
 	w.wg.Done()
-}
-
-// handleTicketPurchases autopurchases stake tickets for the wallet
-// if stake mining is enabled.
-func (w *Wallet) handleTicketPurchases(dbtx walletdb.ReadWriteTx, currentHeight int32) error {
-	// Nothing to do when ticket purchasing is disabled.
-	if !w.TicketPurchasingEnabled() {
-		return nil
-	}
-
-	// Tickets are not purchased if the just there are still more blocks to
-	// connect to the best chain add as part of a reorg.
-	w.reorganizingLock.Lock()
-	reorg := w.reorganizing
-	w.reorganizingLock.Unlock()
-	if reorg {
-		return nil
-	}
-
-	// Parse the ticket purchase frequency. Positive numbers mean
-	// that many tickets per block. Negative numbers mean to only
-	// purchase one ticket once every abs(num) blocks.
-	maxTickets := 1
-	switch {
-	case w.ticketBuyFreq == 0:
-		return nil
-	case w.ticketBuyFreq > 1:
-		maxTickets = w.ticketBuyFreq
-	case w.ticketBuyFreq < 0:
-		if int(currentHeight)%w.ticketBuyFreq != 0 {
-			return nil
-		}
-	}
-
-	sdiff, err := w.StakeDifficulty()
-	if err != nil {
-		return err
-	}
-
-	maxToPay := w.GetTicketMaxPrice()
-	minBalance := w.BalanceToMaintain()
-
-	if sdiff > maxToPay {
-		log.Debugf("No tickets will be auto-purchased: current stake "+
-			"difficulty %v is above maximum allowed price %v", sdiff,
-			maxToPay)
-		return nil
-	}
-
-	_, err = w.purchaseTicketsInternal(dbtx, purchaseTicketRequest{
-		minBalance:  minBalance,
-		spendLimit:  maxToPay,
-		minConf:     0, // No minconf
-		ticketAddr:  w.ticketAddress,
-		account:     udb.DefaultAccountNum,
-		numTickets:  maxTickets,
-		poolAddress: w.poolAddress,
-		poolFees:    w.poolFees,
-		expiry:      0, // No expiry
-		txFee:       w.RelayFee(),
-		ticketFee:   w.TicketFeeIncrement(),
-		resp:        nil, // not used, error is returned
-	})
-	return err
 }
 
 func (w *Wallet) extendMainChain(dbtx walletdb.ReadWriteTx, block *udb.BlockHeaderData, transactions [][]byte) error {
@@ -324,20 +259,6 @@ func (w *Wallet) onBlockConnected(dbtx walletdb.ReadWriteTx, serializedBlockHead
 
 	height := int32(blockHeader.Height)
 	chainTipChanges.NewHeight = height
-
-	// Handle automatic ticket purchasing if enabled.  This function should
-	// not error due to an error purchasing tickets (several tickets may be
-	// have been purchased and successfully published, as well as addresses
-	// created and used), so just log it instead.
-	err = w.handleTicketPurchases(dbtx, height)
-	switch err.(type) {
-	case nil:
-	case txauthor.InsufficientFundsError:
-		log.Debugf("Insufficient funds to auto-purchase maximum number " +
-			"of tickets")
-	default:
-		log.Errorf("Failed to perform automatic ticket purchasing: %v", err)
-	}
 
 	// Prune all expired transactions and all stake tickets that no longer
 	// meet the minimum stake difficulty.

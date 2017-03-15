@@ -35,9 +35,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "1.1.0"
-	jsonrpcSemverMajor  = 1
-	jsonrpcSemverMinor  = 1
+	jsonrpcSemverString = "2.0.0"
+	jsonrpcSemverMajor  = 2
+	jsonrpcSemverMinor  = 0
 	jsonrpcSemverPatch  = 0
 )
 
@@ -103,8 +103,6 @@ var rpcHandlers = map[string]struct {
 	"getbestblockhash":        {handler: getBestBlockHash},
 	"getblockcount":           {handler: getBlockCount},
 	"getinfo":                 {handlerWithChain: getInfo},
-	"getbalancetomaintain":    {handler: getBalanceToMaintain},
-	"getgenerate":             {handler: getGenerate},
 	"getmasterpubkey":         {handler: getMasterPubkey},
 	"getmultisigoutinfo":      {handlerWithChain: getMultisigOutInfo},
 	"getnewaddress":           {handler: getNewAddress},
@@ -114,7 +112,6 @@ var rpcHandlers = map[string]struct {
 	"getseed":                 {handler: getSeed, requireUnsafeOnMainNet: true},
 	"getstakeinfo":            {handlerWithChain: getStakeInfo},
 	"getticketfee":            {handler: getTicketFee},
-	"getticketmaxprice":       {handler: getTicketMaxPrice},
 	"gettickets":              {handlerWithChain: getTickets},
 	"getticketvotebits":       {handler: getTicketVoteBits},
 	"getticketsvotebits":      {handler: getTicketsVoteBits},
@@ -142,10 +139,7 @@ var rpcHandlers = map[string]struct {
 	"sendtosstx":              {handlerWithChain: sendToSStx},
 	"sendtossgen":             {handler: sendToSSGen},
 	"sendtossrtx":             {handlerWithChain: sendToSSRtx},
-	"setgenerate":             {handler: setGenerate},
-	"setbalancetomaintain":    {handler: setBalanceToMaintain},
 	"setticketfee":            {handler: setTicketFee},
-	"setticketmaxprice":       {handler: setTicketMaxPrice},
 	"setticketvotebits":       {handler: setTicketVoteBits},
 	"setticketsvotebits":      {handler: setTicketsVoteBits},
 	"settxfee":                {handler: setTxFee},
@@ -1182,13 +1176,6 @@ func getReceivedByAddress(icmd interface{}, w *wallet.Wallet) (interface{}, erro
 	return total.ToCoin(), nil
 }
 
-// getBalanceToMaintain handles a getbalancetomaintain request by returning the wallet
-// balancetomaintain as a float64.
-func getBalanceToMaintain(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	balance := w.BalanceToMaintain().ToCoin()
-	return balance, nil
-}
-
 // getMasterPubkey handles a getmasterpubkey request by returning the wallet
 // master pubkey encoded as a string.
 func getMasterPubkey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
@@ -1261,12 +1248,6 @@ func getStakeInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClie
 // getTicketFee gets the currently set price per kb for tickets
 func getTicketFee(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	return w.TicketFeeIncrement().ToCoin(), nil
-}
-
-// getTicketMaxPrice gets the maximum price the user is willing to pay for a
-// ticket.
-func getTicketMaxPrice(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	return w.GetTicketMaxPrice().ToCoin(), nil
 }
 
 // getTickets handles a gettickets request by returning the hashes of the tickets
@@ -2687,32 +2668,6 @@ func sendToSSRtx(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClien
 	return txSha.String(), nil
 }
 
-// getGenerate returns if the wallet is set to auto purchase tickets.
-func getGenerate(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	return w.TicketPurchasingEnabled(), nil
-}
-
-// setGenerate enables or disables the wallet's auto ticket purchaser.
-func setGenerate(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	cmd := icmd.(*dcrjson.SetGenerateCmd)
-	err := w.SetTicketPurchasingEnabled(cmd.Generate)
-	return nil, err
-}
-
-// setTicketMaxPrice sets the maximum price the user is willing to pay for a
-// ticket.
-func setTicketMaxPrice(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	cmd := icmd.(*dcrjson.SetTicketMaxPriceCmd)
-
-	amt, err := dcrutil.NewAmount(cmd.Max)
-	if err != nil {
-		return nil, err
-	}
-
-	w.SetTicketMaxPrice(amt)
-	return nil, nil
-}
-
 // setTicketVoteBits sets the per-ticket voteBits for a given ticket from
 // a ticket hash. Missing tickets return an error.
 func setTicketVoteBits(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
@@ -2755,31 +2710,6 @@ func setTicketsVoteBits(icmd interface{}, w *wallet.Wallet) (interface{}, error)
 
 	err = w.SetVoteBitsForTickets(tickets, voteBitsSlice)
 	return nil, err
-}
-
-// setBalanceToMaintain sets the balance to maintain for automatic ticket pur.
-func setBalanceToMaintain(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	cmd := icmd.(*dcrjson.SetBalanceToMaintainCmd)
-
-	// Check that amount is not negative.
-	if cmd.Balance < 0 {
-		return nil, ErrNeedPositiveAmount
-	}
-	// XXX this is a temporary check until proper checks are added to
-	// dcrutil.NewAmount() to avoid overflows
-	if cmd.Balance > dcrutil.Amount(dcrutil.MaxAmount).ToCoin() {
-		return nil, ErrNeedBelowMaxAmount
-	}
-
-	balance, err := dcrutil.NewAmount(cmd.Balance)
-	if err != nil {
-		return nil, err
-	}
-
-	w.SetBalanceToMaintain(balance)
-
-	// A boolean true result is returned upon success.
-	return nil, nil
 }
 
 // setTicketFee sets the transaction fee per kilobyte added to tickets.
@@ -3386,9 +3316,7 @@ func walletInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient
 	unlocked := !(w.Locked())
 	fi := w.RelayFee()
 	tfi := w.TicketFeeIncrement()
-	tmp := w.GetTicketMaxPrice()
-	btm := w.BalanceToMaintain()
-	sm := w.TicketPurchasingEnabled()
+	tp := w.TicketPurchasingEnabled()
 	voteBits := w.GetVoteBits()
 	vbe := w.GetVoteBitsExtended()
 	var voteVersion uint32
@@ -3396,17 +3324,15 @@ func walletInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient
 	voting := w.VotingEnabled()
 
 	return &dcrjson.WalletInfoResult{
-		DaemonConnected:   connected,
-		Unlocked:          unlocked,
-		TxFee:             fi.ToCoin(),
-		TicketFee:         tfi.ToCoin(),
-		TicketMaxPrice:    tmp.ToCoin(),
-		BalanceToMaintain: btm.ToCoin(),
-		TicketPurchasing:  sm,
-		VoteBits:          voteBits,
-		VoteBitsExtended:  hex.EncodeToString(vbe),
-		VoteVersion:       voteVersion,
-		Voting:            voting,
+		DaemonConnected:  connected,
+		Unlocked:         unlocked,
+		TxFee:            fi.ToCoin(),
+		TicketFee:        tfi.ToCoin(),
+		TicketPurchasing: tp,
+		VoteBits:         voteBits,
+		VoteBitsExtended: hex.EncodeToString(vbe),
+		VoteVersion:      voteVersion,
+		Voting:           voting,
 	}, nil
 }
 

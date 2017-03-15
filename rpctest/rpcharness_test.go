@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"math"
 	"os"
 	"reflect"
 	"regexp"
@@ -46,8 +45,6 @@ var rpcTestCases = []rpcTestCase{
 	testGetSetTicketFee,
 	testGetTickets,
 	testPurchaseTickets,
-	testGetSetTicketMaxPrice,
-	testGetSetBalanceToMaintain,
 	testGetStakeInfo,
 	testWalletInfo,
 }
@@ -57,23 +54,21 @@ var rpcTestCases = []rpcTestCase{
 var primaryHarness *Harness
 var harnesses = make(map[string]*Harness)
 var needOwnHarness = map[string]bool{
-	"testGetNewAddress":           false,
-	"testValidateAddress":         false,
-	"testWalletPassphrase":        false,
-	"testGetBalance":              false,
-	"testListAccounts":            false,
-	"testListUnspent":             false,
-	"testSendToAddress":           false,
-	"testSendFrom":                false,
-	"testListTransactions":        true,
-	"testGetSetRelayFee":          false,
-	"testGetSetTicketFee":         false,
-	"testPurchaseTickets":         false,
-	"testGetTickets":              false,
-	"testGetSetTicketMaxPrice":    false,
-	"testGetSetBalanceToMaintain": false,
-	"testGetStakeInfo":            true,
-	"testWalletInfo":              false,
+	"testGetNewAddress":    false,
+	"testValidateAddress":  false,
+	"testWalletPassphrase": false,
+	"testGetBalance":       false,
+	"testListAccounts":     false,
+	"testListUnspent":      false,
+	"testSendToAddress":    false,
+	"testSendFrom":         false,
+	"testListTransactions": true,
+	"testGetSetRelayFee":   false,
+	"testGetSetTicketFee":  false,
+	"testPurchaseTickets":  false,
+	"testGetTickets":       false,
+	"testGetStakeInfo":     true,
+	"testWalletInfo":       false,
 }
 
 // Get function name from module name
@@ -427,7 +422,7 @@ func testWalletPassphrase(r *Harness, t *testing.T) {
 		t.Fatalf("WalletPassphrase failed: %v", err)
 	}
 
-	// Check that wallet is now ulocked
+	// Check that wallet is now unlocked
 	walletInfo, err = wcl.WalletInfo()
 	if err != nil {
 		t.Fatal("walletinfo failed.")
@@ -1957,353 +1952,6 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 
 }
 
-func testGetSetTicketMaxPrice(r *Harness, t *testing.T) {
-	// Wallet RPC client
-	wcl := r.WalletRPC
-
-	var err error
-
-	height := getBestBlockHeight(r, t)
-	heightForVoting := uint32(chaincfg.SimNetParams.StakeValidationHeight)
-	if height < heightForVoting {
-		advanceToHeight(r, t, heightForVoting)
-	}
-
-	// Increase the ticket fee so SSTx in this test get mined first. Or we could
-	// do this test in a fresh harness...
-	walletInfo, err := wcl.WalletInfo()
-	if err != nil {
-		t.Fatal("WalletInfo failed.", err)
-	}
-	origTicketFee, err := dcrutil.NewAmount(walletInfo.TicketFee)
-	if err != nil {
-		t.Fatalf("Invalid Amount %f. %v", walletInfo.TicketFee, err)
-	}
-	newTicketFee, err := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
-	if err != nil {
-		t.Fatalf("Invalid Amount %f. %v", walletInfo.TicketFee*1.5, err)
-	}
-
-	if err = wcl.SetTicketFee(newTicketFee); err != nil {
-		t.Fatal("SetTicketFee failed:", err)
-	}
-	// Drop the balance to maintain so tickets will be purchased. If balance to
-	// too low for this test, it should be preceeded by more block subsidy.
-	if err = wcl.SetBalanceToMaintain(10); err != nil {
-		t.Fatal("SetBalanceToMaintain failed:", err)
-	}
-
-	// Get current ticket max price via WalletInfo
-	walletInfoResult, err := wcl.WalletInfo()
-	if err != nil {
-		t.Fatal("WalletInfo failed:", err)
-	}
-	maxPriceInit := walletInfoResult.TicketMaxPrice
-
-	// Get the current stake difficulty to know how low we need to set the
-	// wallet's max ticket price so that it should not purchase tickets.
-	advanceToNewWindow(r, t)
-	stakeDiff := mustGetStakeDiffNext(r, t)
-
-	// Count tickets before enabling auto-purchasing
-	ticketHashes, err := wcl.GetTickets(true)
-	if err != nil {
-		t.Fatal("GetTickets failed:", err)
-	}
-	ticketHashMap := make(map[chainhash.Hash]bool)
-	for _, tx := range ticketHashes {
-		ticketHashMap[*tx] = true
-	}
-
-	// Too low
-	lowTicketMaxPrice := stakeDiff / 2
-
-	// Set ticket price to lower than current stake difficulty
-	if err = wcl.SetTicketMaxPrice(lowTicketMaxPrice); err != nil {
-		t.Fatal("SetTicketMaxPrice failed:", err)
-	}
-
-	// Verify set price
-	walletInfoResult, err = wcl.WalletInfo()
-	if err != nil {
-		t.Fatal("WalletInfo failed:", err)
-	}
-	if lowTicketMaxPrice != walletInfoResult.TicketMaxPrice {
-		t.Fatalf("Set ticket max price failed.")
-	}
-
-	// Enable stake mining so tickets get automatically purchased
-	if err = wcl.SetGenerate(true, 0); err != nil {
-		t.Fatal("SetGenerate failed:", err)
-	}
-
-	newBestBlock(r, t)
-	// SSTx would be happening now with high enough price
-	time.Sleep(1 * time.Second)
-	newBestBlock(r, t)
-
-	// Check for new tickets after enabling auto-purchasing, but with low price
-	ticketHashes, err = wcl.GetTickets(true)
-	if err != nil {
-		t.Fatal("GetTickets failed:", err)
-	}
-	for _, tx := range ticketHashes {
-		if !ticketHashMap[*tx] {
-			t.Fatalf("Tickets were purchased at %f while max price was %f",
-				stakeDiff, lowTicketMaxPrice)
-		}
-	}
-
-	// Just high enough (max == diff + eps)
-	adequateTicketMaxPrice := math.Nextafter(stakeDiff, stakeDiff+1)
-	if err = wcl.SetTicketMaxPrice(adequateTicketMaxPrice); err != nil {
-		t.Fatal("SetTicketMaxPrice failed:", err)
-	}
-
-	newBestBlock(r, t)
-	// SSTx would be happening now with high enough price
-	time.Sleep(1 * time.Second)
-	newBestBlock(r, t)
-
-	// Check for new tickets after enabling auto-purchasing, but with low price
-	ticketHashes, err = wcl.GetTickets(true)
-	if err != nil {
-		t.Fatal("GetTickets failed:", err)
-	}
-	newTickets := false
-	for _, tx := range ticketHashes {
-		if !ticketHashMap[*tx] {
-			newTickets = true
-			break
-		}
-	}
-	if !newTickets {
-		t.Fatalf("Tickets were NOT purchased at %f, but max price was %f",
-			stakeDiff, adequateTicketMaxPrice)
-	}
-
-	// Double.  Plenty high.
-	adequateTicketMaxPrice = stakeDiff * 2
-
-	newBestBlock(r, t)
-	// SSTx would be happening now with high enough price
-	time.Sleep(1 * time.Second)
-
-	// One should be enough for the test, but buy more to keep the chain alive
-	numBlocksToStakeMine := 4
-	for i := 0; i < 4; i++ {
-		newBestBlock(r, t)
-	}
-
-	// Check for new tickets after enabling auto-purchasing, but with low price
-	ticketHashes, err = wcl.GetTickets(true)
-	if err != nil {
-		t.Fatal("GetTickets failed:", err)
-	}
-	newTickets = false
-	numTicketsPurchased := 0
-	for _, tx := range ticketHashes {
-		if !ticketHashMap[*tx] {
-			numTicketsPurchased++
-			newTickets = true
-		}
-	}
-	t.Logf("Number of tickets auto-purchased over %d blocks: %d",
-		numBlocksToStakeMine, numTicketsPurchased)
-	if !newTickets {
-		t.Fatalf("Tickets were NOT purchased at %f, but max price was %f",
-			stakeDiff, adequateTicketMaxPrice)
-	}
-
-	// reset ticket fee and max price
-	if err = wcl.SetTicketFee(origTicketFee); err != nil {
-		t.Fatalf("SetTicketFee failed for Amount %v. %v", origTicketFee, err)
-	}
-	err = wcl.SetTicketMaxPrice(maxPriceInit)
-	if err != nil {
-		t.Fatal("SetTicketMaxPrice failed:", err)
-	}
-}
-
-func testGetSetBalanceToMaintain(r *Harness, t *testing.T) {
-	// Wallet RPC client
-	wcl := r.WalletRPC
-
-	var err error
-
-	height := getBestBlockHeight(r, t)
-	heightForVoting := uint32(chaincfg.SimNetParams.StakeValidationHeight)
-	if height < heightForVoting {
-		advanceToHeight(r, t, heightForVoting)
-	}
-
-	// Increase the ticket fee so SSTx in this test get mined first. Or we could
-	// do this test in a fresh harness...
-	walletInfo, err := wcl.WalletInfo()
-	if err != nil {
-		t.Fatal("WalletInfo failed.", err)
-	}
-	origTicketFee, err := dcrutil.NewAmount(walletInfo.TicketFee)
-	if err != nil {
-		t.Fatalf("Invalid Amount %f. %v", walletInfo.TicketFee, err)
-	}
-	newTicketFee, err := dcrutil.NewAmount(walletInfo.TicketFee * 1.5)
-	if err != nil {
-		t.Fatalf("Invalid Amount %f. %v", walletInfo.TicketFee*1.5, err)
-	}
-
-	if err = wcl.SetTicketFee(newTicketFee); err != nil {
-		t.Fatal("SetTicketFee failed:", err)
-	}
-
-	// Push BTM over spendable balance + at least 20 full block rewards
-	spendable, err := wcl.GetBalance("default")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	btmSpendable, err := dcrutil.NewAmount(spendable.Balances[0].Spendable)
-	if err != nil {
-		t.Fatalf("NewAmount failed: %v", err)
-	}
-
-	newBTM := btmSpendable + 20*dcrutil.Amount(chaincfg.SimNetParams.BaseSubsidy)
-	if err = wcl.SetBalanceToMaintain(newBTM.ToCoin()); err != nil {
-		t.Fatalf("SetBalanceToMaintain failed: %v", err)
-	}
-
-	// Verify the set BTM
-	walletInfoResult, err := wcl.WalletInfo()
-	if err != nil {
-		t.Fatal("WalletInfo failed:", err)
-	}
-
-	if walletInfoResult.BalanceToMaintain != newBTM.ToCoin() {
-		t.Fatalf("Balance to maintain set incorrectly: %v != %v",
-			walletInfoResult.BalanceToMaintain, newBTM.ToCoin())
-	}
-
-	// Advance to new price window, but don't purchase tickets in this period
-	maxPriceInit := walletInfo.TicketMaxPrice
-	if err = wcl.SetTicketMaxPrice(0); err != nil {
-		t.Fatal("SetTicketMaxPrice(0) failed.", err)
-	}
-
-	advanceToNewWindow(r, t)
-	// Now next != current stake difficulty
-
-	// Index before enabling auto-purchasing
-	ticketHashes, err := wcl.GetTickets(true)
-	if err != nil {
-		t.Fatal("GetTickets failed:", err)
-	}
-	ticketHashMap := make(map[chainhash.Hash]bool)
-	for _, tx := range ticketHashes {
-		ticketHashMap[*tx] = true
-	}
-
-	// Get the current stake difficulty to know how low we need to set the
-	// wallet's max ticket price so that it should NOT purchase tickets.
-	stakeDiff := mustGetStakeDiffNext(r, t)
-
-	// Set ticket price to higher than current stake difficulty
-	if err = wcl.SetTicketMaxPrice(stakeDiff * 2); err != nil {
-		t.Fatal("SetTicketMaxPrice failed:", err)
-	}
-
-	// Enable stake mining so tickets get automatically purchased
-	if err = wcl.SetGenerate(true, 0); err != nil {
-		// TODO: This will "error" because of rejected TX (already have votes
-		// that get resent). Verify if this should even be an error.
-		//t.Fatal("SetGenerate failed:", err)
-	}
-
-	newBestBlock(r, t)
-	// SSTx would be happening now with high enough price and low enough BTM
-	time.Sleep(1 * time.Second)
-	newBestBlock(r, t)
-
-	// Check for new tickets after enabling auto-purchasing, but with high BTM
-	ticketHashes, err = wcl.GetTickets(true)
-	if err != nil {
-		t.Fatal("GetTickets failed:", err)
-	}
-	for _, tx := range ticketHashes {
-		if !ticketHashMap[*tx] {
-			t.Fatalf("Tickets were purchased with %v spendable balance; "+
-				"balance to maintain %v", spendable.Balances[0].Spendable,
-				walletInfoResult.BalanceToMaintain)
-		}
-	}
-
-	// Drop BTM under spendable balance by cost of at least 3 blocks worth of
-	// max fresh stake
-	spendable, err = wcl.GetBalance("default")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	newBTMCoin := spendable.Balances[0].Spendable -
-		stakeDiff*3*float64(chaincfg.SimNetParams.MaxFreshStakePerBlock)
-	if err = wcl.SetBalanceToMaintain(newBTMCoin); err != nil {
-		t.Fatal("SetBalanceToMaintain failed:", err)
-	}
-
-	newBestBlock(r, t)
-	// SSTx would be happening now with high enough price
-	time.Sleep(1 * time.Second)
-	newBestBlock(r, t)
-
-	// Check for new tickets with low enough BTM and high enough max price
-	ticketHashes, err = wcl.GetTickets(true)
-	if err != nil {
-		t.Fatal("GetTickets failed:", err)
-	}
-	newTickets := false
-	for _, tx := range ticketHashes {
-		if !ticketHashMap[*tx] {
-			newTickets = true
-			break
-		}
-	}
-	if !newTickets {
-		t.Fatalf("Tickets were NOT purchased with %v spendable; BTM = %v",
-			spendable.Balances[0].Spendable, newBTMCoin)
-	}
-
-	// reset ticket fee and max price
-	if err = wcl.SetTicketFee(origTicketFee); err != nil {
-		t.Fatalf("SetTicketFee failed for Amount %v. %v", origTicketFee, err)
-	}
-	if err = wcl.SetTicketMaxPrice(maxPriceInit); err != nil {
-		t.Fatal("SetTicketMaxPrice failed:", err)
-	}
-
-	// Test too high amount for SetBalanceToMaintain
-	tooHighAmt := dcrutil.Amount(dcrutil.MaxAmount + 100).ToCoin()
-	expectedErr := legacyrpc.ErrNeedBelowMaxAmount
-	err = wcl.SetBalanceToMaintain(tooHighAmt)
-	if !strings.Contains(err.Error(), expectedErr.Error()) {
-		t.Fatalf("SetBalanceToMaintain failed to return \"%v\" for too high amount: %v",
-			expectedErr, err)
-	}
-
-	// Test below 0 for SetBalanceToMaintain
-	tooLowAmt := -1.0
-	expectedErr = legacyrpc.ErrNeedPositiveAmount
-	err = wcl.SetBalanceToMaintain(tooLowAmt)
-	if !strings.Contains(err.Error(), expectedErr.Error()) {
-		t.Fatalf("SetBalanceToMaintain failed to return \"%v\" for negative amount: %v",
-			expectedErr, err)
-	}
-
-	// Test invalid Amount to ensure it's checking error from NewAmount
-	err = wcl.SetBalanceToMaintain(math.NaN())
-	if err == nil {
-		t.Fatalf("SetBalanceToMaintain failed to return non-nil error for invalid amount.")
-	}
-}
-
 // testGetStakeInfo gets a FRESH harness
 func testGetStakeInfo(r *Harness, t *testing.T) {
 	// Wallet RPC client
@@ -2501,28 +2149,6 @@ func testWalletInfo(r *Harness, t *testing.T) {
 	}
 	if !walletInfo.DaemonConnected {
 		t.Fatal("WalletInfo indicates that daemon is not connected.")
-	}
-
-	// Turn off stake mining
-	if err := wcl.SetGenerate(false, 0); err != nil {
-		// TODO: This will "error" because of rejected TX (already have votes
-		// that get resent). Verify if this should even be an error.
-		//t.Fatal("SetGenerate failed:", err)
-	}
-
-	walletInfo, err = wcl.WalletInfo()
-	if err != nil {
-		t.Fatal("walletinfo failed.")
-	}
-
-	// Now turn on stake mining
-	if err = wcl.SetGenerate(true, 0); err != nil {
-		//t.Fatal("SetGenerate failed:", err)
-	}
-
-	walletInfo, err = wcl.WalletInfo()
-	if err != nil {
-		t.Fatal("walletinfo failed.")
 	}
 }
 

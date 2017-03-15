@@ -34,18 +34,14 @@ const (
 	defaultLogFilename         = "dcrwallet.log"
 	defaultRPCMaxClients       = 10
 	defaultRPCMaxWebsockets    = 25
-	defaultEnableStakeMining   = false
 	defaultEnableTicketBuyer   = false
 	defaultEnableVoting        = false
 	defaultVoteBits            = 0x0001
 	defaultVoteBitsExtended    = "" // does NOT include version.
-	defaultBalanceToMaintain   = 0
 	defaultReuseAddresses      = false
 	defaultRollbackTest        = false
 	defaultPruneTickets        = false
 	defaultPurchaseAccount     = "default"
-	defaultTicketMaxPrice      = 0
-	defaultTicketBuyFreq       = 0
 	defaultAutomaticRepair     = false
 	defaultUnsafeMainNet       = false
 	defaultPromptPass          = false
@@ -164,11 +160,7 @@ type config struct {
 	ExperimentalRPCListeners []string `long:"experimentalrpclisten" description:"Listen for RPC connections on this interface/port"`
 
 	// Deprecated options
-	DataDir           string              `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
-	EnableStakeMining bool                `long:"enablestakemining" default-mask:"-" description:"DEPRECATED -- consider using enableticketbuyer and/or enablevoting instead"`
-	TicketBuyFreq     int                 `long:"ticketbuyfreq" default-mask:"-" description:"DEPRECATED -- use ticketbuyer.maxperblock instead"`
-	TicketMaxPrice    *cfgutil.AmountFlag `long:"ticketmaxprice" description:"DEPRECATED -- The maximum price the user is willing to spend on buying a ticket"`
-	BalanceToMaintain *cfgutil.AmountFlag `long:"balancetomaintain" description:"DEPRECATED -- Minimum amount of funds to leave in wallet when stake mining"`
+	DataDir string `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
 }
 
 type ticketBuyerOptions struct {
@@ -378,11 +370,7 @@ func loadConfig() (*config, []string, error) {
 		TicketFee:              cfgutil.NewAmountFlag(wallet.DefaultTicketFeeIncrement),
 
 		// TODO: DEPRECATED - remove.
-		DataDir:           defaultAppDataDir,
-		EnableStakeMining: defaultEnableStakeMining,
-		TicketBuyFreq:     defaultTicketBuyFreq,
-		TicketMaxPrice:    cfgutil.NewAmountFlag(defaultTicketMaxPrice),
-		BalanceToMaintain: cfgutil.NewAmountFlag(defaultBalanceToMaintain),
+		DataDir: defaultAppDataDir,
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
@@ -478,20 +466,6 @@ func loadConfig() (*config, []string, error) {
 		if cfg.AppDataDir == defaultAppDataDir {
 			cfg.AppDataDir = cfg.DataDir
 		}
-	}
-	if cfg.EnableStakeMining {
-		fmt.Fprintln(os.Stderr, "enablestakemining option is deprecated -- "+
-			"consider updating your config to use enablevoting and enableticketbuyer")
-		if cfg.EnableTicketBuyer {
-			fmt.Fprintln(os.Stderr, "Because enableticketbuyer was set, "+
-				"tickets will be purchased using the new buyer")
-		} else {
-			fmt.Fprintln(os.Stderr, "Because enableticketbuyer was not set, "+
-				"tickets will be purchased using the old buyer")
-		}
-		// enablestakemining turns on voting/revocations, but never turns on the
-		// new ticket buyer.
-		cfg.EnableVoting = true
 	}
 
 	// Make sure the fee source type given is valid.
@@ -963,42 +937,12 @@ func loadConfig() (*config, []string, error) {
 			oldTBConfigFile, configFilePath)
 	}
 
-	// Use --ticketbuyfreq setting if it has been set and --ticketbuyer.maxperblock
-	// has not been changed.
-	maxPerBlock := cfg.TBOpts.MaxPerBlock
-	if cfg.TicketBuyFreq != defaultTicketBuyFreq &&
-		cfg.TBOpts.MaxPerBlock == defaultMaxPerBlock {
-
-		log.Warn("--ticketbuyfreq is DEPRECATED.  Use --ticketbuyer.maxperblock instead")
-		maxPerBlock = cfg.TicketBuyFreq
-	}
-
-	// Use --ticketmaxprice setting if it has been set and --ticketbuyer.maxpriceabsolute
-	// has not been changed.
-	maxPriceAbsolute := cfg.TBOpts.MaxPriceAbsolute.Amount
-	if cfg.TicketMaxPrice.Amount != defaultTicketMaxPrice &&
-		cfg.TBOpts.MaxPriceAbsolute.Amount == defaultMaxPriceAbsolute {
-
-		log.Warn("--ticketmaxprice is DEPRECATED.  Use --ticketbuyer.maxpriceabsolute instead")
-		maxPriceAbsolute = cfg.TicketMaxPrice.Amount
-	}
-
-	// Use --balancetomaintain setting if it has been set and --ticketbuyer.balancetomaintainabsolute
-	// has not been changed.
-	balanceToMaintainAbsolute := cfg.TBOpts.BalanceToMaintainAbsolute.Amount
-	if cfg.BalanceToMaintain.Amount != defaultBalanceToMaintain &&
-		cfg.TBOpts.BalanceToMaintainAbsolute.Amount == defaultBalanceToMaintainAbsolute {
-
-		log.Warn("--balancetomaintain is DEPRECATED.  Use --ticketbuyer.balancetomaintainabsolute instead")
-		balanceToMaintainAbsolute = cfg.BalanceToMaintain.Amount
-	}
-
 	// Build ticketbuyer config
 	cfg.tbCfg = ticketbuyer.Config{
 		AccountName:               cfg.PurchaseAccount,
 		AvgPriceMode:              cfg.TBOpts.AvgPriceMode,
 		AvgPriceVWAPDelta:         cfg.TBOpts.AvgPriceVWAPDelta,
-		BalanceToMaintainAbsolute: balanceToMaintainAbsolute.ToCoin(),
+		BalanceToMaintainAbsolute: cfg.TBOpts.BalanceToMaintainAbsolute.ToCoin(),
 		BalanceToMaintainRelative: cfg.TBOpts.BalanceToMaintainRelative,
 		BlocksToAvg:               cfg.TBOpts.BlocksToAvg,
 		DontWaitForTickets:        cfg.TBOpts.DontWaitForTickets,
@@ -1007,8 +951,8 @@ func loadConfig() (*config, []string, error) {
 		FeeTargetScaling:          cfg.TBOpts.FeeTargetScaling,
 		MinFee:                    cfg.TBOpts.MinFee.ToCoin(),
 		MaxFee:                    cfg.TBOpts.MaxFee.ToCoin(),
-		MaxPerBlock:               maxPerBlock,
-		MaxPriceAbsolute:          maxPriceAbsolute.ToCoin(),
+		MaxPerBlock:               cfg.TBOpts.MaxPerBlock,
+		MaxPriceAbsolute:          cfg.TBOpts.MaxPriceAbsolute.ToCoin(),
 		MaxPriceRelative:          cfg.TBOpts.MaxPriceRelative,
 		MaxPriceScale:             cfg.TBOpts.MaxPriceScale,
 		MaxInMempool:              cfg.TBOpts.MaxInMempool,
