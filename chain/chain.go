@@ -363,6 +363,7 @@ func (c *RPCClient) handler() {
 	var dequeue chan interface{}
 	var next interface{}
 	pingChan := time.After(time.Minute)
+	pingChanReset := make(chan (<-chan time.Time))
 out:
 	for {
 		select {
@@ -399,16 +400,19 @@ out:
 			}
 
 		case <-pingChan:
-			// No notifications were received in the last 60s.
-			// Ensure the connection is still active by making a new
-			// request to the server.
-			// TODO: A minute timeout is used to prevent the handler
-			// loop from blocking here forever, but this is much larger
-			// than it needs to be due to dcrd processing websocket
-			// requests synchronously (see
-			// https://github.com/btcsuite/btcd/issues/504).  Decrease
-			// this to something saner like 3s when the above issue is
-			// fixed.
+			// No notifications were received in the last 60s. Ensure the
+			// connection is still active by making a new request to the server.
+			//
+			// This MUST wait for the response in a new goroutine so as to not
+			// block channel sends enqueueing more notifications.  Doing so
+			// would cause a deadlock and after the timeout expires, the client
+			// would be shut down.
+			//
+			// TODO: A minute timeout is used to prevent the handler loop from
+			// blocking here forever, but this is much larger than it needs to
+			// be due to dcrd processing websocket requests synchronously (see
+			// https://github.com/btcsuite/btcd/issues/504).  Decrease this to
+			// something saner like 3s when the above issue is fixed.
 			type sessionResult struct {
 				err error
 			}
@@ -417,22 +421,24 @@ out:
 				_, err := c.Session()
 				sessionResponse <- sessionResult{err}
 			}()
+			go func() {
+				select {
+				case resp := <-sessionResponse:
+					if resp.err != nil {
+						log.Errorf("Failed to receive session "+
+							"result: %v", resp.err)
+						c.Stop()
+					}
+					pingChanReset <- time.After(time.Minute)
 
-			select {
-			case resp := <-sessionResponse:
-				if resp.err != nil {
-					log.Errorf("Failed to receive session "+
-						"result: %v", resp.err)
+				case <-time.After(time.Minute):
+					log.Errorf("Timeout waiting for session RPC")
 					c.Stop()
-					break out
 				}
-				pingChan = time.After(time.Minute)
+			}()
 
-			case <-time.After(time.Minute):
-				log.Errorf("Timeout waiting for session RPC")
-				c.Stop()
-				break out
-			}
+		case ch := <-pingChanReset:
+			pingChan = ch
 
 		case <-c.quit:
 			break out
