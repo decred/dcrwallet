@@ -627,7 +627,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 	// Ticket purchase requires 2 blocks to confirm
 	expiry := int32(int(height) + t.cfg.ExpiryDelta + 2)
-	hashes, err := t.wallet.PurchaseTickets(0,
+	hashes, purchaseErr := t.wallet.PurchaseTickets(0,
 		maxPriceAmt,
 		0, // 0 minconf is used so tickets can be bought from split outputs
 		ticketAddress,
@@ -649,8 +649,8 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		}
 		ps.Purchased = len(tickets)
 	}
-	if err != nil {
-		log.Errorf("One or more tickets could not be purchased: %v", err)
+	if purchaseErr != nil {
+		log.Errorf("One or more tickets could not be purchased: %v", purchaseErr)
 	}
 
 	bal, err = t.wallet.CalculateAccountBalance(account, 0)
@@ -659,6 +659,10 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	}
 	log.Debugf("Usable balance for account '%s' after purchases: %v", t.cfg.AccountName, bal.Spendable)
 	ps.Balance = int64(bal.Spendable)
+
+	if len(tickets) == 0 && purchaseErr != nil {
+		return ps, purchaseErr
+	}
 
 	return ps, nil
 }
