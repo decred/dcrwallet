@@ -631,9 +631,9 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 	// Ticket purchase requires 2 blocks to confirm
 	expiry := int32(int(height) + t.cfg.ExpiryDelta + 2)
-	hashes, err := t.wallet.PurchaseTickets(0,
+	hashes, purchaseErr := t.wallet.PurchaseTickets(0,
 		maxPriceAmt,
-		0,
+		0, // 0 minconf is used so tickets can be bought from split outputs
 		ticketAddress,
 		account,
 		toBuyForBlock,
@@ -643,18 +643,18 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		t.wallet.RelayFee(),
 		t.wallet.TicketFeeIncrement(),
 	)
-	if err != nil {
-		return ps, err
-	}
+	// Not sure why but this is an empty interface.
 	tickets, ok := hashes.([]*chainhash.Hash)
-	if !ok {
-		return nil, fmt.Errorf("Unable to decode ticket hashes")
+	if ok {
+		for i := range tickets {
+			log.Infof("Purchased ticket %v at stake difficulty %v (%v "+
+				"fees per KB used)", tickets[i], nextStakeDiff.ToCoin(),
+				feeToUseAmt.ToCoin())
+		}
+		ps.Purchased = len(tickets)
 	}
-	ps.Purchased = toBuyForBlock
-	for i := range tickets {
-		log.Infof("Purchased ticket %v at stake difficulty %v (%v "+
-			"fees per KB used)", tickets[i], nextStakeDiff.ToCoin(),
-			feeToUseAmt.ToCoin())
+	if purchaseErr != nil {
+		log.Errorf("One or more tickets could not be purchased: %v", purchaseErr)
 	}
 
 	bal, err = t.wallet.CalculateAccountBalance(account, 0)
@@ -663,6 +663,10 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	}
 	log.Debugf("Usable balance for account '%s' after purchases: %v", t.cfg.AccountName, bal.Spendable)
 	ps.Balance = int64(bal.Spendable)
+
+	if len(tickets) == 0 && purchaseErr != nil {
+		return ps, purchaseErr
+	}
 
 	return ps, nil
 }
