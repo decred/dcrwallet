@@ -1045,15 +1045,26 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint,
 // return an error that not enough funds are available.
 func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, error) {
 	var ticketHashes []*chainhash.Hash
-	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-		var err error
+	var err error
+	dbErr := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		ticketHashes, err = w.purchaseTicketsInternal(dbtx, req)
-		return err
+		// This must never roll back the database transaction because doing so
+		// will cause double spend errors if multiple transactions were
+		// created and only some transactions were successful.
+		return nil
 	})
-	return ticketHashes, err
+	if err != nil {
+		// Still return the ticket hashes that were successfully published,
+		// along with the error.
+		return ticketHashes, err
+	}
+	if dbErr != nil {
+		return ticketHashes, dbErr
+	}
+	return ticketHashes, nil
 }
 
-func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchaseTicketRequest) ([]*chainhash.Hash, error) {
+func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchaseTicketRequest) (ticketHashes []*chainhash.Hash, err error) {
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
@@ -1076,7 +1087,7 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 
 	// Initialize the address pool for use.
 	var internalPool *addressPool
-	err := w.CheckAddressPoolsInitialized(req.account)
+	err = w.CheckAddressPoolsInitialized(req.account)
 	if err != nil {
 		return nil, err
 	}
@@ -1275,7 +1286,7 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 	txSucceeded = true
 
 	// Generate the tickets individually.
-	ticketHashes := make([]*chainhash.Hash, req.numTickets)
+	ticketHashes = make([]*chainhash.Hash, 0, req.numTickets)
 	for i := 0; i < req.numTickets; i++ {
 		// Generate the extended outpoints that we
 		// need to use for ticket inputs. There are
@@ -1333,21 +1344,21 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 			if addrVote == nil {
 				addrVote, err = addrFunc(addrmgrNs)
 				if err != nil {
-					return nil, err
+					return ticketHashes, err
 				}
 			}
 		}
 
 		addrSubsidy, err := addrFunc(addrmgrNs)
 		if err != nil {
-			return nil, err
+			return ticketHashes, err
 		}
 
 		// Generate the ticket msgTx and sign it.
 		ticket, err := makeTicket(w.ChainParams(), eopPool, eop, addrVote,
 			addrSubsidy, int64(ticketPrice), poolAddress)
 		if err != nil {
-			return nil, err
+			return ticketHashes, err
 		}
 		var forSigning []udb.Credit
 		if eopPool != nil {
@@ -1376,26 +1387,26 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 
 		if err = signMsgTx(ticket, forSigning, w.Manager, addrmgrNs,
 			w.chainParams); err != nil {
-			return nil, err
+			return ticketHashes, err
 		}
 		if err := validateMsgTxCredits(ticket, forSigning); err != nil {
-			return nil, err
+			return ticketHashes, err
 		}
 
 		// Send the ticket over the network.
 		txHash, err := chainClient.SendRawTransaction(ticket, w.AllowHighFees)
 		if err != nil {
-			return nil, err
+			return ticketHashes, err
 		}
 
 		// Insert the transaction and credits into the transaction manager.
 		rec, err := w.insertIntoTxMgr(txmgrNs, ticket)
 		if err != nil {
-			return nil, err
+			return ticketHashes, err
 		}
 		err = w.insertCreditsIntoTxMgr(dbtx, ticket, rec)
 		if err != nil {
-			return nil, err
+			return ticketHashes, err
 		}
 		txTemp := dcrutil.NewTx(ticket)
 
@@ -1407,14 +1418,14 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 			if w.ticketAddress == nil {
 				err = w.StakeMgr.InsertSStx(stakemgrNs, txTemp, w.VoteBits)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to insert SStx %v"+
+					return ticketHashes, fmt.Errorf("Failed to insert SStx %v"+
 						"into the stake store", txTemp.Hash())
 				}
 			}
 		}
 
 		log.Infof("Successfully sent SStx purchase transaction %v", txHash)
-		ticketHashes[i] = txHash
+		ticketHashes = append(ticketHashes, txHash)
 	}
 
 	return ticketHashes, nil

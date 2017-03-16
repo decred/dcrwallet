@@ -629,7 +629,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	expiry := int32(int(height) + t.cfg.ExpiryDelta + 2)
 	hashes, err := t.wallet.PurchaseTickets(0,
 		maxPriceAmt,
-		0,
+		0, // 0 minconf is used so tickets can be bought from split outputs
 		ticketAddress,
 		account,
 		toBuyForBlock,
@@ -639,18 +639,18 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		t.wallet.RelayFee(),
 		t.wallet.TicketFeeIncrement(),
 	)
-	if err != nil {
-		return ps, err
-	}
+	// Not sure why but this is an empty interface.
 	tickets, ok := hashes.([]*chainhash.Hash)
-	if !ok {
-		return nil, fmt.Errorf("Unable to decode ticket hashes")
+	if ok {
+		for i := range tickets {
+			log.Infof("Purchased ticket %v at stake difficulty %v (%v "+
+				"fees per KB used)", tickets[i], nextStakeDiff.ToCoin(),
+				feeToUseAmt.ToCoin())
+		}
+		ps.Purchased = len(tickets)
 	}
-	ps.Purchased = toBuyForBlock
-	for i := range tickets {
-		log.Infof("Purchased ticket %v at stake difficulty %v (%v "+
-			"fees per KB used)", tickets[i], nextStakeDiff.ToCoin(),
-			feeToUseAmt.ToCoin())
+	if err != nil {
+		log.Errorf("One or more tickets could not be purchased: %v", err)
 	}
 
 	bal, err = t.wallet.CalculateAccountBalance(account, 0)
