@@ -260,6 +260,10 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		return ps, fmt.Errorf("Failed to calculate average ticket price amount: %s",
 			err.Error())
 	}
+	if avgPriceAmt < dcrutil.Amount(t.activeNet.MinimumStakeDiff) {
+		avgPriceAmt = dcrutil.Amount(t.activeNet.MinimumStakeDiff)
+	}
+
 	avgPrice := avgPriceAmt.ToCoin()
 	log.Debugf("Calculated average ticket price: %v", avgPriceAmt)
 	ps.PriceAverage = avgPrice
