@@ -23,14 +23,6 @@ var MainNetParams = Params{
 	RPCServerPort: "9110",
 }
 
-// TestNetParams contains parameters specific running dcrwallet and
-// dcrd on the test network (version 1) (wire.TestNet).
-var TestNetParams = Params{
-	Params:        &chaincfg.TestNetParams,
-	RPCClientPort: "19109",
-	RPCServerPort: "19110",
-}
-
 // TestNet2Params contains parameters specific running dcrwallet and
 // dcrd on the test network (version 2) (wire.TestNet2).
 var TestNet2Params = Params{

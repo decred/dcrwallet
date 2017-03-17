@@ -50,12 +50,12 @@ func setup() (db walletdb.DB, s *Store, teardown func(), err error) {
 	if err != nil {
 		return
 	}
-	err = createStore(ns, &chaincfg.TestNetParams)
+	err = createStore(ns, &chaincfg.TestNet2Params)
 	if err != nil {
 		return
 	}
 	acctLookup := func(walletdb.ReadBucket, dcrutil.Address) (uint32, error) { return 0, nil }
-	s = &Store{chainParams: &chaincfg.TestNetParams, acctLookupFunc: acctLookup}
+	s = &Store{chainParams: &chaincfg.TestNet2Params, acctLookupFunc: acctLookup}
 	return
 }
 
@@ -79,7 +79,7 @@ type blockGenerator struct {
 }
 
 func makeBlockGenerator() blockGenerator {
-	return blockGenerator{lastHash: *chaincfg.TestNetParams.GenesisHash}
+	return blockGenerator{lastHash: *chaincfg.TestNet2Params.GenesisHash}
 }
 
 func (g *blockGenerator) generate(voteBits uint16) *wire.BlockHeader {

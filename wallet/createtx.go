@@ -624,7 +624,7 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	switch {
 	case w.chainParams == &chaincfg.MainNetParams:
 		feeEstForTx = 5e7
-	case w.chainParams == &chaincfg.TestNetParams:
+	case w.chainParams == &chaincfg.TestNet2Params:
 		feeEstForTx = 5e7
 	default:
 		feeEstForTx = 3e4

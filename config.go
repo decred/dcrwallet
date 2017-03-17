@@ -634,8 +634,6 @@ func loadConfig() (*config, []string, error) {
 	switch activeNet {
 	case &netparams.MainNetParams:
 		cfg.VoteBitsExtended = "03000000" + cfg.VoteBitsExtended
-	case &netparams.TestNetParams:
-		cfg.VoteBitsExtended = "04000000" + cfg.VoteBitsExtended
 	case &netparams.TestNet2Params:
 		cfg.VoteBitsExtended = "04000000" + cfg.VoteBitsExtended
 	case &netparams.SimNetParams:
