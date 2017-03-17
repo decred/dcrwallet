@@ -183,7 +183,7 @@ func deserializeSStxTicketHash160(serializedSStxRecord []byte) (hash160 []byte, 
 	// Pop off the script prefix, then pop off the 20 bytes
 	// HASH160 pubkey or script hash.
 	prefixBytes := serializedSStxRecord[actualLoc : actualLoc+3]
-	scriptHash := make([]byte, 20, 20)
+	scriptHash := make([]byte, 20)
 	p2sh = false
 	switch {
 	case bytes.Equal(prefixBytes, sstxTicket2PKHPrefix):
@@ -568,8 +568,7 @@ func fetchSStxRecordVoteBits(ns walletdb.ReadBucket, hash *chainhash.Hash) (bool
 		str := fmt.Sprintf("missing sstx record for hash '%s'", hash.String())
 		return false, stake.VoteBits{}, stakeStoreError(apperrors.ErrSStxNotFound, str, nil)
 	}
-	valLen := len(val)
-	valCopy := make([]byte, valLen, valLen)
+	valCopy := make([]byte, len(val))
 	copy(valCopy, val)
 
 	// Move the cursor to the voteBits position and rewrite it.
@@ -618,8 +617,7 @@ func updateSStxRecordVoteBits(ns walletdb.ReadWriteBucket, hash *chainhash.Hash,
 		str := fmt.Sprintf("missing sstx record for hash '%s'", hash.String())
 		return stakeStoreError(apperrors.ErrSStxNotFound, str, nil)
 	}
-	valLen := len(val)
-	valCopy := make([]byte, valLen, valLen)
+	valCopy := make([]byte, len(val))
 	copy(valCopy, val)
 
 	// Move the cursor to the voteBits position and rewrite it.

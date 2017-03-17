@@ -492,7 +492,7 @@ func (m *Manager) GetSeed(ns walletdb.ReadBucket) (string, error) {
 	if err != nil {
 		return "", maybeConvertDbError(err)
 	}
-	seedEnc := make([]byte, len(localSeed), len(localSeed))
+	seedEnc := make([]byte, len(localSeed))
 	copy(seedEnc, localSeed)
 
 	seed, err := m.cryptoKeyPriv.Decrypt(seedEnc)

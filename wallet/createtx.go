@@ -854,8 +854,7 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 	// Get an initial fee estimate based on the number of selected inputs
 	// and added outputs, with no change.
 	szEst := estimateTxSize(txInCount, 1)
-	var feeIncrement dcrutil.Amount
-	feeIncrement = w.RelayFee()
+	feeIncrement := w.RelayFee()
 
 	feeEst := feeForSize(feeIncrement, szEst)
 

@@ -1449,7 +1449,7 @@ func fetchNextToUseAddrPoolIdx(ns walletdb.ReadBucket, isInternal bool,
 func putNextToUseAddrPoolIdx(ns walletdb.ReadWriteBucket, isInternal bool, account uint32, index uint32) error {
 	bucket := ns.NestedReadWriteBucket(metaBucketName)
 	k := accountNumberToAddrPoolKey(isInternal, account)
-	v := make([]byte, 4, 4)
+	v := make([]byte, 4)
 	binary.LittleEndian.PutUint32(v, index)
 
 	err := bucket.Put(k, v)

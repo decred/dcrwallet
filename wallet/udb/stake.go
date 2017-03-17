@@ -996,8 +996,8 @@ func (s StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddrm
 		return nil, nil
 	}
 
-	ntfns := make([]*StakeNotification, len(ticketsToPull), len(ticketsToPull))
-	voteErrors := make([]error, len(ticketsToPull), len(ticketsToPull))
+	ntfns := make([]*StakeNotification, len(ticketsToPull))
+	voteErrors := make([]error, len(ticketsToPull))
 	// Matching tickets (yay!), generate some SSGen.
 	for i, ticket := range ticketsToPull {
 		ntfns[i], voteErrors[i] = s.generateVote(ns, waddrmgrNs, blockHash,
@@ -1050,8 +1050,8 @@ func (s StakeStore) HandleMissedTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmg
 		return nil, nil
 	}
 
-	ntfns := make([]*StakeNotification, len(ticketsToPull), len(ticketsToPull))
-	revocationErrors := make([]error, len(ticketsToPull), len(ticketsToPull))
+	ntfns := make([]*StakeNotification, len(ticketsToPull))
+	revocationErrors := make([]error, len(ticketsToPull))
 	// Matching tickets, generate some SSRtx.
 	for i, ticket := range ticketsToPull {
 		ntfns[i], revocationErrors[i] = s.generateRevocation(ns, waddrmgrNs,
