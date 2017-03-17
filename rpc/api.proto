@@ -63,7 +63,7 @@ service TicketBuyerService {
     rpc StartAutoBuyer (StartAutoBuyerRequest) returns (StartAutoBuyerResponse);
     rpc StopAutoBuyer (StopAutoBuyerRequest) returns (StopAutoBuyerResponse);
     rpc TicketBuyerConfig (TicketBuyerConfigRequest) returns (TicketBuyerConfigResponse);
-    rpc SetAccountName (SetAccountNameRequest) returns (SetAccountNameResponse);
+    rpc SetAccount (SetAccountRequest) returns (SetAccountResponse);
     rpc SetBalanceToMaintain (SetBalanceToMaintainRequest) returns (SetBalanceToMaintainResponse);
     rpc SetMaxFee (SetMaxFeeRequest) returns (SetMaxFeeResponse);
     rpc SetMaxPriceRelative (SetMaxPriceRelativeRequest) returns (SetMaxPriceRelativeResponse);
@@ -495,7 +495,7 @@ message TicketBuyerConfigRequest{
 }
 
 message TicketBuyerConfigResponse{
-    string account_name = 1;
+    uint32 account = 1;
     string avg_price_mode = 2;
     int64 avg_priceVWAP_delta = 3;
     int64 balance_to_maintain = 4;
@@ -517,10 +517,10 @@ message TicketBuyerConfigResponse{
     int64 tx_fee = 22;
 }
 
-message SetAccountNameRequest{
-    string account_name = 1;
+message SetAccountRequest{
+    uint32 account = 1;
 }
-message SetAccountNameResponse{}
+message SetAccountResponse{}
 
 message SetBalanceToMaintainRequest{
     int64 balance_to_maintain = 1;

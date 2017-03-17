@@ -145,8 +145,16 @@ func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.Ticke
 	if err != nil {
 		return nil, err
 	}
+	w, ok := t.loader.LoadedWallet()
+	if !ok {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
+	}
+	account, err := w.AccountNumber(config.AccountName)
+	if err != nil {
+		return nil, translateError(err)
+	}
 	return &pb.TicketBuyerConfigResponse{
-		AccountName:           config.AccountName,
+		Account:               account,
 		AvgPriceMode:          config.AvgPriceMode,
 		AvgPriceVWAPDelta:     int64(config.AvgPriceVWAPDelta),
 		BalanceToMaintain:     int64(config.BalanceToMaintainAbsolute),
@@ -169,24 +177,16 @@ func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.Ticke
 	}, nil
 }
 
-// SetAccountName sets the account name to use for purchasing tickets.
-func (t *ticketbuyerServer) SetAccountName(ctx context.Context, req *pb.SetAccountNameRequest) (
-	*pb.SetAccountNameResponse, error) {
+// SetAccount sets the account to use for purchasing tickets.
+func (t *ticketbuyerServer) SetAccount(ctx context.Context, req *pb.SetAccountRequest) (
+	*pb.SetAccountResponse, error) {
 
 	pm, err := t.requirePurchaseManager()
 	if err != nil {
 		return nil, err
 	}
-	w, ok := t.loader.LoadedWallet()
-	if !ok {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
-	}
-	account, err := w.AccountNumber(req.AccountName)
-	if err != nil {
-		return nil, err
-	}
-	pm.Purchaser().SetAccount(account)
-	return &pb.SetAccountNameResponse{}, nil
+	pm.Purchaser().SetAccount(req.Account)
+	return &pb.SetAccountResponse{}, nil
 }
 
 // SetBalanceToMaintain sets the balance to be maintained in the wallet.
