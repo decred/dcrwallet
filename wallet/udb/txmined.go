@@ -136,8 +136,10 @@ func NewTxRecord(serializedTx []byte, received time.Time) (*TxRecord, error) {
 // into the store.
 func NewTxRecordFromMsgTx(msgTx *wire.MsgTx, received time.Time) (*TxRecord,
 	error) {
-	buf := bytes.NewBuffer(make([]byte, 0, msgTx.SerializeSize()))
-	err := msgTx.Serialize(buf)
+
+	var buf bytes.Buffer
+	buf.Grow(msgTx.SerializeSize())
+	err := msgTx.Serialize(&buf)
 	if err != nil {
 		str := "failed to serialize transaction"
 		return nil, storeError(apperrors.ErrInput, str, err)

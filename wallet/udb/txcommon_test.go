@@ -95,6 +95,7 @@ func (g *blockGenerator) generate(voteBits uint16) *wire.BlockHeader {
 
 func makeHeaderData(h *wire.BlockHeader) BlockHeaderData {
 	var b bytes.Buffer
+	b.Grow(wire.MaxBlockHeaderPayload)
 	err := h.Serialize(&b)
 	if err != nil {
 		panic(err)

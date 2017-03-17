@@ -680,6 +680,7 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 	}
 
 	var txBuf bytes.Buffer
+	txBuf.Grow(tx.Tx.SerializeSize())
 	err = tx.Tx.Serialize(&txBuf)
 	if err != nil {
 		return nil, translateError(err)

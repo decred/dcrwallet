@@ -260,6 +260,7 @@ func serializeSStxRecord(record *sstxRecord, voteBits stake.VoteBits) ([]byte, e
 
 	// Serialize and write transaction.
 	var b bytes.Buffer
+	b.Grow(msgTx.SerializeSize())
 	err := msgTx.Serialize(&b)
 	if err != nil {
 		return buf, err
