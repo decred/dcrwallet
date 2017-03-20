@@ -10,6 +10,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/wallet/udb"
@@ -23,6 +24,27 @@ func sliceContainsHash(s []chainhash.Hash, h chainhash.Hash) bool {
 		}
 	}
 	return false
+}
+
+// GenerateVoteTx returns a hash
+func (w *Wallet) GenerateVoteTx(blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash, voteBits stake.VoteBits) (*wire.MsgTx, error) {
+	var msgtx *wire.MsgTx
+	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+		stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
+		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
+
+		shit, err := w.StakeMgr.GenerateVoteTx(stakemgrNs, addrmgrNs, blockHash, height, sstxHash, voteBits)
+		if err != nil {
+			return err
+		}
+		msgtx = shit
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return msgtx, nil
 }
 
 // LiveTicketHashes returns the hashes of live tickets that have been purchased
@@ -164,7 +186,7 @@ func (w *Wallet) AddTicket(ticket *dcrutil.Tx) error {
 		if w.stakePoolEnabled {
 			addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 
-			// Pluck the ticketaddress to indentify the stakepool user.
+			// Pluck the ticketaddress to identify the stakepool user.
 			pkVersion := ticket.MsgTx().TxOut[0].Version
 			pkScript := ticket.MsgTx().TxOut[0].PkScript
 			_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkVersion,

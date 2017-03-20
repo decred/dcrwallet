@@ -586,9 +586,9 @@ func generateVoteScript(voteBits stake.VoteBits) ([]byte, error) {
 	return blockVBScript, nil
 }
 
-// generateVote creates a new SSGen given a header hash, height, sstx
-// tx hash, and votebits.
-func (s *StakeStore) generateVote(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash, defaultVoteBits stake.VoteBits, stakePoolEnabled, allowHighFees bool) (*StakeNotification, error) {
+// generateVoteNtfn creates a new SSGen given a header hash, height, sstx
+// tx hash, and votebits and returns a notification.
+func (s *StakeStore) generateVoteNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash, defaultVoteBits stake.VoteBits, stakePoolEnabled, allowHighFees bool) (*StakeNotification, error) {
 	// 1. Fetch the SStx, then calculate all the values we'll need later for
 	// the generation of the SSGen tx outputs.
 	sstxRecord, err := s.getSStx(ns, sstxHash)
@@ -744,6 +744,142 @@ func (s *StakeStore) generateVote(ns walletdb.ReadWriteBucket, waddrmgrNs wallet
 	}
 
 	return ntfn, nil
+}
+
+// generateVoteTx creates a new SSGen given a header hash, height, sstx
+// tx hash, and votebits.
+func (s *StakeStore) generateVoteTx(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash, voteBits stake.VoteBits) (*wire.MsgTx, error) {
+	// 1. Fetch the SStx, then calculate all the values we'll need later for
+	// the generation of the SSGen tx outputs.
+	sstxRecord, err := s.getSStx(ns, sstxHash)
+	if err != nil {
+		return nil, err
+	}
+	sstx := sstxRecord.tx
+	sstxMsgTx := sstx.MsgTx()
+
+	// Store the sstx pubkeyhashes and amounts as found in the transaction
+	// outputs.
+	// TODO Get information on the allowable fee range for the vote
+	// and check to make sure we don't overflow that.
+	ssgenPayTypes, ssgenPkhs, sstxAmts, _, _, _ :=
+		stake.TxSStxStakeOutputInfo(sstxMsgTx)
+
+	// Get the current reward.
+	initSudsidyCacheOnce.Do(func() {
+		subsidyCache = blockchain.NewSubsidyCache(height, s.Params)
+	})
+	stakeVoteSubsidy := blockchain.CalcStakeVoteSubsidy(subsidyCache,
+		height, s.Params)
+
+	// Calculate the output values from this data.
+	ssgenCalcAmts := stake.CalculateRewards(sstxAmts,
+		sstxMsgTx.TxOut[0].Value,
+		stakeVoteSubsidy)
+
+	subsidyCache = blockchain.NewSubsidyCache(height, s.Params)
+	// 2. Add all transaction inputs to a new transaction after performing
+	// some validity checks. First, add the stake base, then the OP_SSTX
+	// tagged output.
+	msgTx := wire.NewMsgTx()
+
+	// Stakebase.
+	stakeBaseOutPoint := wire.NewOutPoint(&chainhash.Hash{},
+		uint32(0xFFFFFFFF),
+		wire.TxTreeRegular)
+	txInStakeBase := wire.NewTxIn(stakeBaseOutPoint, []byte{})
+	msgTx.AddTxIn(txInStakeBase)
+
+	// Add the subsidy amount into the input.
+	msgTx.TxIn[0].ValueIn = stakeVoteSubsidy
+
+	// SStx tagged output as an OutPoint.
+	prevOut := wire.NewOutPoint(sstxHash,
+		0, // Index 0
+		1) // Tree stake
+	txIn := wire.NewTxIn(prevOut, []byte{})
+	msgTx.AddTxIn(txIn)
+
+	// 3. Add the OP_RETURN null data pushes of the block header hash,
+	// the block height, and votebits, then add all the OP_SSGEN tagged
+	// outputs.
+	//
+	// Block reference output.
+	blockRefScript, err := txscript.GenerateSSGenBlockRef(*blockHash,
+		uint32(height))
+	if err != nil {
+		return nil, err
+	}
+	blockRefOut := wire.NewTxOut(0, blockRefScript)
+	msgTx.AddTxOut(blockRefOut)
+
+	// Votebits output.
+	blockVBScript, err := generateVoteScript(voteBits)
+	if err != nil {
+		return nil, err
+	}
+	blockVBOut := wire.NewTxOut(0, blockVBScript)
+	msgTx.AddTxOut(blockVBOut)
+
+	// Add all the SSGen-tagged transaction outputs to the transaction after
+	// performing some validity checks.
+	for i, ssgenPkh := range ssgenPkhs {
+		// Create a new script which pays to the provided address specified in
+		// the original ticket tx.
+		var ssgenOutScript []byte
+		switch ssgenPayTypes[i] {
+		case false: // P2PKH
+			ssgenOutScript, err = txscript.PayToSSGenPKHDirect(ssgenPkh)
+			if err != nil {
+				return nil, err
+			}
+		case true: // P2SH
+			ssgenOutScript, err = txscript.PayToSSGenSHDirect(ssgenPkh)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// Add the txout to our SSGen tx.
+		txOut := wire.NewTxOut(ssgenCalcAmts[i], ssgenOutScript)
+
+		msgTx.AddTxOut(txOut)
+	}
+
+	// Check to make sure our SSGen was created correctly.
+	_, err = stake.IsSSGen(msgTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sign the transaction.
+	err = signVRTransaction(s.Manager, waddrmgrNs, msgTx, sstx, true)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the information about the SSGen.
+	hash := msgTx.TxHash()
+	err = s.insertSSGen(ns,
+		blockHash,
+		height,
+		&hash,
+		voteBits.Bits,
+		sstx.Hash())
+	if err != nil {
+		return nil, err
+	}
+
+	return msgTx, nil
+}
+
+// GenerateVoteTx is the exported version of generateVoteTx that is safe for
+// concurrent access.
+func (s *StakeStore) GenerateVoteTx(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash, voteBits stake.VoteBits) (*wire.MsgTx, error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
+	return s.generateVoteTx(ns, waddrmgrNs, blockHash, height, sstxHash, voteBits)
 }
 
 // insertSSRtx inserts an SSRtx record into the DB (keyed to the SStx it
@@ -928,7 +1064,7 @@ func (s StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddrm
 	voteErrors := make([]error, len(ticketsToPull))
 	// Matching tickets (yay!), generate some SSGen.
 	for i, ticket := range ticketsToPull {
-		ntfns[i], voteErrors[i] = s.generateVote(ns, waddrmgrNs, blockHash,
+		ntfns[i], voteErrors[i] = s.generateVoteNtfn(ns, waddrmgrNs, blockHash,
 			blockHeight, ticket, defaultVoteBits, stakePoolEnabled, allowHighFees)
 	}
 

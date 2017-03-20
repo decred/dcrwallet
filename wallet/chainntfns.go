@@ -902,11 +902,12 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 			for _, ntfn := range ntfns {
 				// Inform the console that we've voted, too.
 				log.Infof("Voted on block %v (height %v) using ticket %v "+
-					"(vote hash: %v)",
+					"(vote hash: %v bits: %v)",
 					ntfn.BlockHash,
 					ntfn.Height,
 					ntfn.SStxIn,
-					ntfn.TxHash)
+					ntfn.TxHash,
+					ntfn.VoteBits)
 			}
 		}
 
