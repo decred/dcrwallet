@@ -67,6 +67,7 @@ const (
 	defaultPriceTarget                              = 0
 	defaultBalanceToMaintainAbsolute                = 0
 	defaultBalanceToMaintainRelative                = 0.3
+	defaultSpreadTicketPurchases                    = true
 
 	walletDbName = "wallet.db"
 )
@@ -390,6 +391,7 @@ func loadConfig() (*config, []string, error) {
 			PriceTarget:               cfgutil.NewAmountFlag(defaultPriceTarget),
 			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
 			BalanceToMaintainRelative: defaultBalanceToMaintainRelative,
+			SpreadTicketPurchases:     defaultSpreadTicketPurchases,
 		},
 	}
 
