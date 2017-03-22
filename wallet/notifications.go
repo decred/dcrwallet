@@ -107,6 +107,7 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 	serializedTx := details.SerializedTx
 	if serializedTx == nil {
 		var buf bytes.Buffer
+		buf.Grow(details.MsgTx.SerializeSize())
 		err := details.MsgTx.Serialize(&buf)
 		if err != nil {
 			log.Errorf("Transaction serialization: %v", err)

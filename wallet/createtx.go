@@ -526,6 +526,7 @@ func (w *Wallet) txToOutputsInternal(dbtx walletdb.ReadWriteTx, outputs []*wire.
 	// TODO: this can be improved by not using the same codepath as notified
 	// relevant transactions, since this does a lot of extra work.
 	var buf bytes.Buffer
+	buf.Grow(tx.Tx.SerializeSize())
 	err = tx.Tx.Serialize(&buf)
 	if err != nil {
 		return nil, err

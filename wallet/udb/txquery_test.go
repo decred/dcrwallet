@@ -191,10 +191,13 @@ func equalTxDetails(t *testing.T, got, exp *TxDetails) {
 
 func equalTxs(t *testing.T, got, exp *wire.MsgTx) {
 	var bufGot, bufExp bytes.Buffer
+
+	bufGot.Grow(got.SerializeSize())
 	err := got.Serialize(&bufGot)
 	if err != nil {
 		t.Fatal(err)
 	}
+	bufExp.Grow(exp.SerializeSize())
 	err = exp.Serialize(&bufExp)
 	if err != nil {
 		t.Fatal(err)
