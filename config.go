@@ -964,5 +964,18 @@ func loadConfig() (*config, []string, error) {
 		TxFee:                     cfg.RelayFee.ToCoin(),
 	}
 
+	// Make list of old versions of testnet directories.
+	var oldTestNets []string
+	oldTestNets = append(oldTestNets, filepath.Join(cfg.AppDataDir, "testnet"))
+	// Warn if old testnet directory is present.
+	for _, oldDir := range oldTestNets {
+		oldDirExists, _ := cfgutil.FileExists(oldDir)
+		if oldDirExists {
+			log.Warnf("Wallet data from previous testnet"+
+				" found (%v) and can probably be removed.",
+				oldDir)
+		}
+	}
+
 	return &cfg, remainingArgs, nil
 }
