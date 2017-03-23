@@ -451,6 +451,64 @@ func loadConfig() (*config, []string, error) {
 		return loadConfigError(err)
 	}
 
+	// If an alternate data directory was specified, and paths with defaults
+	// relative to the data dir are unchanged, modify each path to be
+	// relative to the new data dir.
+	if cfg.AppDataDir != defaultAppDataDir {
+		cfg.AppDataDir = cleanAndExpandPath(cfg.AppDataDir)
+		if cfg.RPCKey == defaultRPCKeyFile {
+			cfg.RPCKey = filepath.Join(cfg.AppDataDir, "rpc.key")
+		}
+		if cfg.RPCCert == defaultRPCCertFile {
+			cfg.RPCCert = filepath.Join(cfg.AppDataDir, "rpc.cert")
+		}
+		if cfg.LogDir == defaultLogDir {
+			cfg.LogDir = filepath.Join(cfg.AppDataDir, defaultLogDirname)
+		}
+	}
+
+	// Choose the active network params based on the selected network.
+	// Multiple networks can't be selected simultaneously.
+	numNets := 0
+	if cfg.TestNet {
+		activeNet = &netparams.TestNet2Params
+		numNets++
+	}
+	if cfg.SimNet {
+		activeNet = &netparams.SimNetParams
+		numNets++
+	}
+	if numNets > 1 {
+		str := "%s: The testnet and simnet params can't be used " +
+			"together -- choose one"
+		err := fmt.Errorf(str, "loadConfig")
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+
+	// Append the network type to the log directory so it is "namespaced"
+	// per network.
+	cfg.LogDir = cleanAndExpandPath(cfg.LogDir)
+	cfg.LogDir = filepath.Join(cfg.LogDir, activeNet.Params.Name)
+
+	// Special show command to list supported subsystems and exit.
+	if cfg.DebugLevel == "show" {
+		fmt.Println("Supported subsystems", supportedSubsystems())
+		os.Exit(0)
+	}
+
+	// Initialize logging at the default logging level.
+	initSeelogLogger(filepath.Join(cfg.LogDir, defaultLogFilename))
+	setLogLevels(defaultLogLevel)
+
+	// Parse, validate, and set debug log level(s).
+	if err := parseAndSetDebugLevels(cfg.DebugLevel); err != nil {
+		err := fmt.Errorf("%s: %v", "loadConfig", err.Error())
+		fmt.Fprintln(os.Stderr, err)
+		parser.WriteHelp(os.Stderr)
+		return loadConfigError(err)
+	}
+
 	// Warn about missing config file after the final command line parse
 	// succeeds.  This prevents the warning on help messages and invalid
 	// options.
@@ -546,64 +604,6 @@ func loadConfig() (*config, []string, error) {
 		str := "%s: expirydelta must be greater then zero: %v"
 		err := fmt.Errorf(str, funcName, cfg.TBOpts.ExpiryDelta)
 		fmt.Fprintln(os.Stderr, err)
-		return loadConfigError(err)
-	}
-
-	// If an alternate data directory was specified, and paths with defaults
-	// relative to the data dir are unchanged, modify each path to be
-	// relative to the new data dir.
-	if cfg.AppDataDir != defaultAppDataDir {
-		cfg.AppDataDir = cleanAndExpandPath(cfg.AppDataDir)
-		if cfg.RPCKey == defaultRPCKeyFile {
-			cfg.RPCKey = filepath.Join(cfg.AppDataDir, "rpc.key")
-		}
-		if cfg.RPCCert == defaultRPCCertFile {
-			cfg.RPCCert = filepath.Join(cfg.AppDataDir, "rpc.cert")
-		}
-		if cfg.LogDir == defaultLogDir {
-			cfg.LogDir = filepath.Join(cfg.AppDataDir, defaultLogDirname)
-		}
-	}
-
-	// Choose the active network params based on the selected network.
-	// Multiple networks can't be selected simultaneously.
-	numNets := 0
-	if cfg.TestNet {
-		activeNet = &netparams.TestNet2Params
-		numNets++
-	}
-	if cfg.SimNet {
-		activeNet = &netparams.SimNetParams
-		numNets++
-	}
-	if numNets > 1 {
-		str := "%s: The testnet and simnet params can't be used " +
-			"together -- choose one"
-		err := fmt.Errorf(str, "loadConfig")
-		fmt.Fprintln(os.Stderr, err)
-		return loadConfigError(err)
-	}
-
-	// Append the network type to the log directory so it is "namespaced"
-	// per network.
-	cfg.LogDir = cleanAndExpandPath(cfg.LogDir)
-	cfg.LogDir = filepath.Join(cfg.LogDir, activeNet.Params.Name)
-
-	// Special show command to list supported subsystems and exit.
-	if cfg.DebugLevel == "show" {
-		fmt.Println("Supported subsystems", supportedSubsystems())
-		os.Exit(0)
-	}
-
-	// Initialize logging at the default logging level.
-	initSeelogLogger(filepath.Join(cfg.LogDir, defaultLogFilename))
-	setLogLevels(defaultLogLevel)
-
-	// Parse, validate, and set debug log level(s).
-	if err := parseAndSetDebugLevels(cfg.DebugLevel); err != nil {
-		err := fmt.Errorf("%s: %v", "loadConfig", err.Error())
-		fmt.Fprintln(os.Stderr, err)
-		parser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
 	}
 
