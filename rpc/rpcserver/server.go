@@ -53,9 +53,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.5.0"
+	semverString = "4.6.0"
 	semverMajor  = 4
-	semverMinor  = 5
+	semverMinor  = 6
 	semverPatch  = 0
 )
 
@@ -185,6 +185,17 @@ func (t *ticketbuyerServer) SetAccount(ctx context.Context, req *pb.SetAccountRe
 	if err != nil {
 		return nil, err
 	}
+
+	wallet, ok := t.loader.LoadedWallet()
+	if !ok {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+	}
+
+	_, err = wallet.AccountName(req.Account)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
 	pm.Purchaser().SetAccount(req.Account)
 	return &pb.SetAccountResponse{}, nil
 }
@@ -196,6 +207,9 @@ func (t *ticketbuyerServer) SetBalanceToMaintain(ctx context.Context, req *pb.Se
 	pm, err := t.requirePurchaseManager()
 	if err != nil {
 		return nil, err
+	}
+	if req.BalanceToMaintain < 0 {
+		return nil, grpc.Errorf(codes.InvalidArgument, "Negative balance to maintain given")
 	}
 	pm.Purchaser().SetBalanceToMaintain(dcrutil.Amount(req.BalanceToMaintain).ToCoin())
 	return &pb.SetBalanceToMaintainResponse{}, nil
@@ -209,7 +223,10 @@ func (t *ticketbuyerServer) SetMaxFee(ctx context.Context, req *pb.SetMaxFeeRequ
 	if err != nil {
 		return nil, err
 	}
-	pm.Purchaser().SetMaxFee(dcrutil.Amount(req.MaxFee).ToCoin())
+	if req.MaxFeePerKb < 0 {
+		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max fee per KB given")
+	}
+	pm.Purchaser().SetMaxFee(dcrutil.Amount(req.MaxFeePerKb).ToCoin())
 	return &pb.SetMaxFeeResponse{}, nil
 }
 
@@ -220,6 +237,9 @@ func (t *ticketbuyerServer) SetMaxPriceRelative(ctx context.Context, req *pb.Set
 	pm, err := t.requirePurchaseManager()
 	if err != nil {
 		return nil, err
+	}
+	if req.MaxPriceRelative < 0 {
+		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max ticket price given")
 	}
 	pm.Purchaser().SetMaxPriceRelative(req.MaxPriceRelative)
 	return &pb.SetMaxPriceRelativeResponse{}, nil
@@ -232,6 +252,9 @@ func (t *ticketbuyerServer) SetMaxPriceAbsolute(ctx context.Context, req *pb.Set
 	pm, err := t.requirePurchaseManager()
 	if err != nil {
 		return nil, err
+	}
+	if req.MaxPriceAbsolute < 0 {
+		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max ticket price given")
 	}
 	pm.Purchaser().SetMaxPriceAbsolute(dcrutil.Amount(req.MaxPriceAbsolute).ToCoin())
 	return &pb.SetMaxPriceAbsoluteResponse{}, nil
@@ -269,11 +292,27 @@ func (t *ticketbuyerServer) SetPoolAddress(ctx context.Context, req *pb.SetPoolA
 	if !ok {
 		return nil, grpc.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
 	}
-	poolAddress, err := decodeAddress(req.PoolAddress, w.ChainParams())
+
+	poolAddress := req.PoolAddress
+	poolFees := pm.Purchaser().PoolFees()
+
+	switch {
+	case poolFees == 0 && poolAddress != "":
+		return nil, grpc.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
+	case poolFees != 0 && poolAddress == "":
+		return nil, grpc.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
+	case poolFees != 0 && poolAddress != "":
+		err = txrules.IsValidPoolFeeRate(poolFees)
+		if err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, "Pool fees amount invalid: %v", err)
+		}
+	}
+
+	poolAddr, err := decodeAddress(poolAddress, w.ChainParams())
 	if err != nil {
 		return nil, err
 	}
-	pm.Purchaser().SetPoolAddress(poolAddress)
+	pm.Purchaser().SetPoolAddress(poolAddr)
 	return &pb.SetPoolAddressResponse{}, nil
 }
 
@@ -285,6 +324,26 @@ func (t *ticketbuyerServer) SetPoolFees(ctx context.Context, req *pb.SetPoolFees
 	if err != nil {
 		return nil, err
 	}
+
+	var poolAddress string
+	poolAddr := pm.Purchaser().PoolAddress()
+	if poolAddr != nil {
+		poolAddress = poolAddr.String()
+	}
+
+	poolFees := req.PoolFees
+	switch {
+	case poolFees == 0 && poolAddress != "":
+		return nil, grpc.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
+	case poolFees != 0 && poolAddress == "":
+		return nil, grpc.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
+	case poolFees != 0 && poolAddress != "":
+		err = txrules.IsValidPoolFeeRate(poolFees)
+		if err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, "Pool fees amount invalid: %v", err)
+		}
+	}
+
 	pm.Purchaser().SetPoolFees(req.PoolFees)
 	return &pb.SetPoolFeesResponse{}, nil
 }

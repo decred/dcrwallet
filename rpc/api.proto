@@ -528,7 +528,7 @@ message SetBalanceToMaintainRequest{
 message SetBalanceToMaintainResponse{}
 
 message SetMaxFeeRequest{
-    int64 max_fee = 1;
+    int64 max_fee_per_kb = 1;
 }
 message SetMaxFeeResponse{}
 
