@@ -68,7 +68,7 @@ service TicketBuyerService {
     rpc SetMaxFee (SetMaxFeeRequest) returns (SetMaxFeeResponse);
     rpc SetMaxPriceRelative (SetMaxPriceRelativeRequest) returns (SetMaxPriceRelativeResponse);
     rpc SetMaxPriceAbsolute (SetMaxPriceAbsoluteRequest) returns (SetMaxPriceAbsoluteResponse);
-    rpc SetTicketAddress (SetTicketAddressRequest) returns (SetTicketAddressResponse);
+    rpc SetVotingAddress (SetVotingAddressRequest) returns (SetVotingAddressResponse);
     rpc SetPoolAddress (SetPoolAddressRequest) returns (SetPoolAddressResponse);
     rpc SetPoolFees (SetPoolFeesRequest) returns (SetPoolFeesResponse);
     rpc SetMaxPerBlock (SetMaxPerBlockRequest) returns (SetMaxPerBlockResponse);
@@ -513,7 +513,7 @@ message TicketBuyerConfigResponse{
     string pool_address = 18;
     double pool_fees = 19;
     bool spread_ticket_purchases = 20;
-    string ticket_address = 21;
+    string voting_address = 21;
     int64 tx_fee = 22;
 }
 
@@ -542,10 +542,10 @@ message SetMaxPriceAbsoluteRequest{
 }
 message SetMaxPriceAbsoluteResponse{}
 
-message SetTicketAddressRequest{
-    string ticket_address = 1;
+message SetVotingAddressRequest{
+    string voting_address = 1;
 }
-message SetTicketAddressResponse{}
+message SetVotingAddressResponse{}
 
 message SetPoolAddressRequest{
     string pool_address = 1;

@@ -1494,7 +1494,7 @@ and to stop it.  It is always running but depends on the wallet to be loaded.
 - [`SetMaxFee`](#setmaxfee)
 - [`SetMaxPriceRelative`](#setmaxpricerelative)
 - [`SetMaxPriceAbsolute`](#setmaxpriceabsolute)
-- [`SetTicketAddress`](#setticketaddress)
+- [`SetVotingAddress`](#setvotingaddress)
 - [`SetPoolAddress`](#setpooladdress)
 - [`SetPoolFees`](#setpoolfees)
 - [`SetMaxPerBlock`](#setmaxperblock)
@@ -1622,7 +1622,7 @@ automatic ticket buyer.
 
 - `bool spread_ticket_purchases`: If true, spread ticket purchases evenly throughout the window.
 
-- `string ticket_address`: The address to delegate voting rights to.
+- `string voting_address`: The address to delegate voting rights to.
 
 - `int64 tx_fee`: The transaction fee amount per KB.
 
@@ -1743,24 +1743,24 @@ automatic ticket buyer.
 
 ___
 
-#### `SetTicketAddress`
+#### `SetVotingAddress`
 
-The `SetTicketAddress` configures the ticket address for the automatic ticket
+The `SetVotingAddress` configures the ticket address for the automatic ticket
 buyer.
 
-**Request:** `SetTicketAddressRequest`
+**Request:** `SetVotingAddressRequest`
 
 - `string ticket_address`: The address to delegate voting rights to.
 
-**Response:** `SetTicketAddressResponse`
+**Response:** `SetVotingAddressResponse`
 
 **Expected errors:**
 
-- `FailedPrecondition`: Ticket buyer is not running.
+- `FailedPrecondition`: Voting buyer is not running.
 
 - `FailedPrecondition`: Wallet has not been loaded.
 
-- `InvalidArgument`: An invalid ticket address was specified.
+- `InvalidArgument`: An invalid voting address was specified.
 
 
 **Stability:** Unstable

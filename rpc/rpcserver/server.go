@@ -172,7 +172,7 @@ func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.Ticke
 		PoolAddress:           config.PoolAddress,
 		PoolFees:              config.PoolFees,
 		SpreadTicketPurchases: config.SpreadTicketPurchases,
-		TicketAddress:         config.TicketAddress,
+		VotingAddress:         config.TicketAddress,
 		TxFee:                 int64(config.TxFee),
 	}, nil
 }
@@ -260,9 +260,9 @@ func (t *ticketbuyerServer) SetMaxPriceAbsolute(ctx context.Context, req *pb.Set
 	return &pb.SetMaxPriceAbsoluteResponse{}, nil
 }
 
-// SetTicketAddress sets the address to send ticket outputs to.
-func (t *ticketbuyerServer) SetTicketAddress(ctx context.Context, req *pb.SetTicketAddressRequest) (
-	*pb.SetTicketAddressResponse, error) {
+// SetVotingAddress sets the address to send ticket outputs to.
+func (t *ticketbuyerServer) SetVotingAddress(ctx context.Context, req *pb.SetVotingAddressRequest) (
+	*pb.SetVotingAddressResponse, error) {
 
 	pm, err := t.requirePurchaseManager()
 	if err != nil {
@@ -272,12 +272,12 @@ func (t *ticketbuyerServer) SetTicketAddress(ctx context.Context, req *pb.SetTic
 	if !ok {
 		return nil, grpc.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
 	}
-	ticketAddress, err := decodeAddress(req.TicketAddress, w.ChainParams())
+	ticketAddress, err := decodeAddress(req.VotingAddress, w.ChainParams())
 	if err != nil {
 		return nil, err
 	}
 	pm.Purchaser().SetTicketAddress(ticketAddress)
-	return &pb.SetTicketAddressResponse{}, nil
+	return &pb.SetVotingAddressResponse{}, nil
 }
 
 // SetPoolAddress sets the pool address where ticket fees are sent.
