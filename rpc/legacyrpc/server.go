@@ -5,6 +5,7 @@
 package legacyrpc
 
 import (
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
@@ -18,7 +19,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/btcsuite/fastsha256"
 	"github.com/btcsuite/websocket"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrwallet/chain"
@@ -67,7 +67,7 @@ type Server struct {
 	handlerMu     sync.Mutex
 
 	listeners []net.Listener
-	authsha   [fastsha256.Size]byte
+	authsha   [sha256.Size]byte
 	upgrader  websocket.Upgrader
 
 	maxPostClients      int64 // Max concurrent HTTP POST clients.
@@ -108,7 +108,7 @@ func NewServer(opts *Options, walletLoader *loader.Loader, listeners []net.Liste
 		listeners:           listeners,
 		// A hash of the HTTP basic auth string is used for a constant
 		// time comparison.
-		authsha: fastsha256.Sum256(httpBasicAuth(opts.Username, opts.Password)),
+		authsha: sha256.Sum256(httpBasicAuth(opts.Username, opts.Password)),
 		upgrader: websocket.Upgrader{
 			// Allow all origins.
 			CheckOrigin: func(r *http.Request) bool { return true },
@@ -305,7 +305,7 @@ func (s *Server) checkAuthHeader(r *http.Request) error {
 		return ErrNoAuth
 	}
 
-	authsha := fastsha256.Sum256([]byte(authhdr[0]))
+	authsha := sha256.Sum256([]byte(authhdr[0]))
 	cmp := subtle.ConstantTimeCompare(authsha[:], s.authsha[:])
 	if cmp != 1 {
 		return errors.New("bad auth")
@@ -382,7 +382,7 @@ func (s *Server) invalidAuth(req *dcrjson.Request) bool {
 	// Check credentials.
 	login := authCmd.Username + ":" + authCmd.Passphrase
 	auth := "Basic " + base64.StdEncoding.EncodeToString([]byte(login))
-	authSha := fastsha256.Sum256([]byte(auth))
+	authSha := sha256.Sum256([]byte(auth))
 	return subtle.ConstantTimeCompare(authSha[:], s.authsha[:]) != 1
 }
 
