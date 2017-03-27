@@ -1734,7 +1734,7 @@ func listReceivedByAddress(icmd interface{}, w *wallet.Wallet) (interface{}, err
 
 	// Massage address data into output format.
 	numAddresses := len(allAddrData)
-	ret := make([]dcrjson.ListReceivedByAddressResult, numAddresses, numAddresses)
+	ret := make([]dcrjson.ListReceivedByAddressResult, numAddresses)
 	idx := 0
 	for address, addrData := range allAddrData {
 		ret[idx] = dcrjson.ListReceivedByAddressResult{
@@ -2221,7 +2221,7 @@ func redeemMultiSigOuts(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 	}
 
 	itr := uint32(0)
-	rmsoResults := make([]dcrjson.RedeemMultiSigOutResult, len(msos), len(msos))
+	rmsoResults := make([]dcrjson.RedeemMultiSigOutResult, len(msos))
 	for i, mso := range msos {
 		if itr > max {
 			break
@@ -3047,8 +3047,7 @@ func signRawTransactions(icmd interface{}, w *wallet.Wallet, chainClient *chain.
 
 	// Sign each transaction sequentially and record the results.
 	// Error out if we meet some unexpected failure.
-	results := make([]dcrjson.SignRawTransactionResult,
-		len(cmd.RawTxs), len(cmd.RawTxs))
+	results := make([]dcrjson.SignRawTransactionResult, len(cmd.RawTxs))
 	for i, etx := range cmd.RawTxs {
 		flagAll := "ALL"
 		srtc := &dcrjson.SignRawTransactionCmd{
@@ -3066,8 +3065,7 @@ func signRawTransactions(icmd interface{}, w *wallet.Wallet, chainClient *chain.
 
 	// If the user wants completed transactions to be automatically send,
 	// do that now. Otherwise, construct the slice and return it.
-	toReturn := make([]dcrjson.SignedTransaction,
-		len(cmd.RawTxs), len(cmd.RawTxs))
+	toReturn := make([]dcrjson.SignedTransaction, len(cmd.RawTxs))
 
 	if *cmd.Send {
 		for i, result := range results {
