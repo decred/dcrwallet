@@ -16,7 +16,6 @@ import (
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/wallet"
-	"github.com/decred/dcrwallet/wallet/udb"
 )
 
 var (
@@ -835,8 +834,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// the wallet for the ticket address.
 	ticketAddress := t.TicketAddress()
 	if ticketAddress == nil {
-		ticketAddress, err =
-			t.wallet.NewAddress(account, udb.InternalBranch)
+		ticketAddress, err = t.wallet.NewInternalAddress(account)
 		if err != nil {
 			return ps, err
 		}

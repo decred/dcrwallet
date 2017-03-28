@@ -219,8 +219,11 @@ func startPromptPass(w *wallet.Wallet) []byte {
 	// The wallet is totally desynced, so we need to resync accounts.
 	// Prompt for the password. Then, set the flag it wallet so it
 	// knows which address functions to call when resyncing.
-	needSync := w.NeedsAccountsSync()
-	if needSync {
+	needSync, err := w.NeedsAccountsSync()
+	if err != nil {
+		log.Errorf("Error determining whether an accounts sync is necessary: %v", err)
+	}
+	if err == nil && needSync {
 		fmt.Println("*** ATTENTION ***")
 		fmt.Println("Since this is your first time running we need to sync accounts. Please enter")
 		fmt.Println("the private wallet passphrase. This will complete syncing of the wallet")

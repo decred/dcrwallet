@@ -12,7 +12,9 @@ import (
 type unifiedDBMetadata struct {
 }
 
-func (unifiedDBMetadata) rootBucketKey() []byte { return []byte("meta") }
+var metadataRootBucketKey = []byte("meta")
+
+func (unifiedDBMetadata) rootBucketKey() []byte { return metadataRootBucketKey }
 
 const unifiedDBMetadataVersionKey = "ver"
 

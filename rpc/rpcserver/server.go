@@ -446,9 +446,7 @@ func (s *walletServer) AccountNumber(ctx context.Context, req *pb.AccountNumberR
 	return &pb.AccountNumberResponse{AccountNumber: accountNum}, nil
 }
 
-func (s *walletServer) Accounts(ctx context.Context, req *pb.AccountsRequest) (
-	*pb.AccountsResponse, error) {
-
+func (s *walletServer) Accounts(ctx context.Context, req *pb.AccountsRequest) (*pb.AccountsResponse, error) {
 	resp, err := s.wallet.Accounts()
 	if err != nil {
 		return nil, translateError(err)
@@ -460,8 +458,8 @@ func (s *walletServer) Accounts(ctx context.Context, req *pb.AccountsRequest) (
 			AccountNumber:    a.AccountNumber,
 			AccountName:      a.AccountName,
 			TotalBalance:     int64(a.TotalBalance),
-			ExternalKeyCount: a.ExternalKeyCount,
-			InternalKeyCount: a.InternalKeyCount,
+			ExternalKeyCount: a.LastUsedExternalIndex + 20, // Add gap limit
+			InternalKeyCount: a.LastUsedInternalIndex + 20,
 			ImportedKeyCount: a.ImportedKeyCount,
 		}
 	}
@@ -560,12 +558,12 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	)
 	switch req.Kind {
 	case pb.NextAddressRequest_BIP0044_EXTERNAL:
-		addr, err = s.wallet.NewAddress(req.Account, udb.ExternalBranch)
+		addr, err = s.wallet.NewExternalAddress(req.Account)
 		if err != nil {
 			return nil, translateError(err)
 		}
 	case pb.NextAddressRequest_BIP0044_INTERNAL:
-		addr, err = s.wallet.NewAddress(req.Account, udb.InternalBranch)
+		addr, err = s.wallet.NewInternalAddress(req.Account)
 		if err != nil {
 			return nil, translateError(err)
 		}
@@ -807,7 +805,7 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 
 	var changeScript []byte
 	if req.IncludeChangeScript && totalAmount > dcrutil.Amount(req.TargetAmount) {
-		changeAddr, err := s.wallet.NewAddress(req.Account, udb.InternalBranch)
+		changeAddr, err := s.wallet.NewInternalAddress(req.Account)
 		if err != nil {
 			return nil, translateError(err)
 		}

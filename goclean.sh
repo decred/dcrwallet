@@ -13,7 +13,7 @@
 set -ex
 
 # Automatic checks
-test -z "$(gometalinter -j 4 --disable-all --enable=gofmt --enable=gosimple --enable=unconvert --vendor --deadline=10m ./... 2>&1 | tee /dev/stderr)"
+test -z "$(gometalinter -j 4 --disable-all --enable=gofmt --enable=gosimple --enable=unconvert --vendor --deadline=10m ./... 2>&1 | egrep -v 'testdata/' | tee /dev/stderr)"
 test -z "$(gometalinter -j 4 --disable-all --enable=golint --vendor ./... 2>&1 | egrep -v '(ALL_CAPS|OP_|NewFieldVal|RpcCommand|RpcRawCommand|RpcSend|Dns|api.pb.go|StartConsensusRpc|factory_test.go|legacy|UnstableAPI|_string.go)' | tee /dev/stderr)"
 test -z "$(gometalinter -j 4 --disable-all --enable=vet --vendor ./... 2>&1 | egrep -v 'not a string in call to [A-Za-z]+f' | tee /dev/stderr)"
 

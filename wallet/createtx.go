@@ -255,24 +255,7 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 		}
 
 		if changeSource == nil {
-			var internalPool *addressPool
-			if account == udb.ImportedAddrAccount {
-				internalPool = w.getAddressPools(udb.DefaultAccountNum).internal
-			} else {
-				internalPool = w.getAddressPools(account).internal
-			}
-			defer internalPool.mutex.Unlock()
-			internalPool.mutex.Lock()
-
-			changeSource = func() ([]byte, uint16, error) {
-				// Derive the change output script.
-				changeAddress, err := internalPool.getNewAddress(addrmgrNs)
-				if err != nil {
-					return nil, 0, err
-				}
-				script, err := txscript.PayToAddrScript(changeAddress)
-				return script, txscript.DefaultScriptVersion, err
-			}
+			changeSource = w.changeSource(account)
 		}
 
 		var err error
@@ -288,38 +271,25 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 type secretSource struct {
 	*udb.Manager
 	addrmgrNs walletdb.ReadBucket
+	doneFuncs []func()
 }
 
-func (s secretSource) GetKey(addr dcrutil.Address) (chainec.PrivateKey, bool, error) {
-	ma, err := s.Address(s.addrmgrNs, addr)
+func (s *secretSource) GetKey(addr dcrutil.Address) (chainec.PrivateKey, bool, error) {
+	privKey, done, err := s.Manager.PrivateKey(s.addrmgrNs, addr)
 	if err != nil {
 		return nil, false, err
 	}
-	mpka, ok := ma.(udb.ManagedPubKeyAddress)
-	if !ok {
-		e := fmt.Errorf("managed address type for %v is `%T` but "+
-			"want udb.ManagedPubKeyAddress", addr, ma)
-		return nil, false, e
-	}
-	privKey, err := mpka.PrivKey()
-	if err != nil {
-		return nil, false, err
-	}
-	return privKey, ma.Compressed(), nil
+	s.doneFuncs = append(s.doneFuncs, done)
+	return privKey, true, nil
 }
 
-func (s secretSource) GetScript(addr dcrutil.Address) ([]byte, error) {
-	ma, err := s.Address(s.addrmgrNs, addr)
+func (s *secretSource) GetScript(addr dcrutil.Address) ([]byte, error) {
+	script, done, err := s.Manager.RedeemScript(s.addrmgrNs, addr)
 	if err != nil {
 		return nil, err
 	}
-	msa, ok := ma.(udb.ManagedScriptAddress)
-	if !ok {
-		e := fmt.Errorf("managed address type for %v is `%T` but "+
-			"want udb.ManagedScriptAddress", addr, ma)
-		return nil, e
-	}
-	return msa.Script()
+	s.doneFuncs = append(s.doneFuncs, done)
+	return script, nil
 }
 
 // CreatedTx holds the state of a newly-created transaction and the change
@@ -369,7 +339,7 @@ func (w *Wallet) insertCreditsIntoTxMgr(tx walletdb.ReadWriteTx,
 				if err != nil {
 					return err
 				}
-				err = w.Manager.MarkUsed(addrmgrNs, addr)
+				err = w.markUsedAddress(tx, ma)
 				if err != nil {
 					return err
 				}
@@ -420,36 +390,10 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 		return nil, ErrBlockchainReorganizing
 	}
 
-	// Initialize the address pool for use. If we are using an imported
-	// account, loopback to the default account to create change.
-	var internalPool *addressPool
-	if account == udb.ImportedAddrAccount {
-		err := w.CheckAddressPoolsInitialized(udb.DefaultAccountNum)
-		if err != nil {
-			return nil, err
-		}
-		internalPool = w.getAddressPools(udb.DefaultAccountNum).internal
-	} else {
-		err := w.CheckAddressPoolsInitialized(account)
-		if err != nil {
-			return nil, err
-		}
-		internalPool = w.getAddressPools(account).internal
-	}
-
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-		internalPool.mutex.Lock()
 		var err error
-		atx, err = w.txToOutputsInternal(dbtx, outputs, account,
-			minconf, internalPool, chainClient, randomizeChangeIdx,
-			w.RelayFee())
-		if err == nil {
-			addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
-			internalPool.BatchFinish(addrmgrNs)
-		} else {
-			internalPool.BatchRollback()
-		}
-		internalPool.mutex.Unlock()
+		atx, err = w.txToOutputsInternal(dbtx, outputs, account, minconf,
+			chainClient, randomizeChangeIdx, w.RelayFee())
 		return err
 	})
 	return atx, err
@@ -466,9 +410,8 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 // Decred: This func also sends the transaction, and if successful, inserts it
 // into the database, rather than delegating this work to the caller as
 // btcwallet does.
-func (w *Wallet) txToOutputsInternal(dbtx walletdb.ReadWriteTx, outputs []*wire.TxOut,
-	account uint32, minconf int32, internalPool *addressPool, chainClient *chain.RPCClient,
-	randomizeChangeIdx bool, txFee dcrutil.Amount) (atx *txauthor.AuthoredTx, err error) {
+func (w *Wallet) txToOutputsInternal(dbtx walletdb.ReadWriteTx, outputs []*wire.TxOut, account uint32, minconf int32,
+	chainClient *chain.RPCClient, randomizeChangeIdx bool, txFee dcrutil.Amount) (atx *txauthor.AuthoredTx, err error) {
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
@@ -478,15 +421,7 @@ func (w *Wallet) txToOutputsInternal(dbtx walletdb.ReadWriteTx, outputs []*wire.
 
 	inputSource := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 		minconf, topHeight)
-	changeSource := func() ([]byte, uint16, error) {
-		// Derive the change output script.
-		changeAddress, err := internalPool.getNewAddress(addrmgrNs)
-		if err != nil {
-			return nil, 0, err
-		}
-		script, err := txscript.PayToAddrScript(changeAddress)
-		return script, txscript.DefaultScriptVersion, err
-	}
+	changeSource := w.changeSource(account)
 	tx, err := txauthor.NewUnsignedTransaction(outputs, txFee,
 		inputSource.SelectInputs, changeSource)
 	if err != nil {
@@ -500,7 +435,11 @@ func (w *Wallet) txToOutputsInternal(dbtx walletdb.ReadWriteTx, outputs []*wire.
 		tx.RandomizeChangePosition()
 	}
 
-	err = tx.AddAllInputScripts(secretSource{w.Manager, addrmgrNs})
+	secrets := &secretSource{Manager: w.Manager, addrmgrNs: addrmgrNs}
+	err = tx.AddAllInputScripts(secrets)
+	for _, done := range secrets.doneFuncs {
+		done()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -532,6 +471,10 @@ func (w *Wallet) txToOutputsInternal(dbtx walletdb.ReadWriteTx, outputs []*wire.
 		return nil, err
 	}
 	err = w.processTransaction(dbtx, buf.Bytes(), nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	err = w.watchFutureAddresses(dbtx)
 	if err != nil {
 		return nil, err
 	}
@@ -579,30 +522,6 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 		func(err error) (*CreatedTx, dcrutil.Address, []byte, error) {
 			return nil, nil, nil, err
 		}
-
-	// Initialize the address pool for use. If we are using an imported
-	// account, loopback to the default account to create change.
-	var internalPool *addressPool
-	if account == udb.ImportedAddrAccount {
-		err := w.CheckAddressPoolsInitialized(udb.DefaultAccountNum)
-		if err != nil {
-			return txToMultisigError(err)
-		}
-		internalPool = w.getAddressPools(udb.DefaultAccountNum).internal
-	} else {
-		err := w.CheckAddressPoolsInitialized(account)
-		if err != nil {
-			return txToMultisigError(err)
-		}
-		internalPool = w.getAddressPools(account).internal
-	}
-
-	// TODO: Yes this looks suspicious but it's a simplification of what the
-	// code before it was doing.  Stop copy pasting code carelessly.
-	internalPool.mutex.Lock()
-	defer internalPool.mutex.Unlock()
-	defer internalPool.BatchRollback()
-	addrFunc := internalPool.getNewAddress
 
 	chainClient, err := w.requireChainClient()
 	if err != nil {
@@ -703,16 +622,11 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 			"multisig address after accounting for fees"))
 	}
 	if totalInput > amount+feeEst {
-		changeAddr, err := addrFunc(addrmgrNs)
+		pkScript, _, err := w.changeSource(account)()
 		if err != nil {
 			return txToMultisigError(err)
 		}
 		change := totalInput - (amount + feeEst)
-		pkScript, err := txscript.PayToAddrScript(changeAddr)
-		if err != nil {
-			return txToMultisigError(
-				fmt.Errorf("cannot create txout script: %s", err))
-		}
 		msgtx.AddTxOut(wire.NewTxOut(int64(change), pkScript))
 	}
 
@@ -808,34 +722,6 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 	// Get current block's height
 	_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 
-	// Initialize the address pool for use. If we are using an imported
-	// account, loopback to the default account to create change.
-	var internalPool *addressPool
-	if account == udb.ImportedAddrAccount {
-		err := w.CheckAddressPoolsInitialized(udb.DefaultAccountNum)
-		if err != nil {
-			return nil, err
-		}
-		internalPool = w.getAddressPools(udb.DefaultAccountNum).internal
-	} else {
-		err := w.CheckAddressPoolsInitialized(account)
-		if err != nil {
-			return nil, err
-		}
-		internalPool = w.getAddressPools(account).internal
-	}
-	txSucceeded := false
-	internalPool.mutex.Lock()
-	defer internalPool.mutex.Unlock()
-	defer func() {
-		if txSucceeded {
-			internalPool.BatchFinish(addrmgrNs)
-		} else {
-			internalPool.BatchRollback()
-		}
-	}()
-	addrFunc := internalPool.getNewAddress
-
 	minconf := int32(1)
 	eligible, err := w.findEligibleOutputs(dbtx, account, minconf, tipHeight)
 	if err != nil {
@@ -860,7 +746,7 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 
 	// Check if output address is default, and generate a new adress if needed
 	if changeAddr == nil {
-		changeAddr, err = addrFunc(addrmgrNs)
+		changeAddr, err = w.changeAddress(account)
 		if err != nil {
 			return nil, err
 		}
@@ -911,7 +797,6 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 	if err != nil {
 		return nil, err
 	}
-	txSucceeded = true
 
 	// Insert the transaction and credits into the transaction manager.
 	rec, err := w.insertIntoTxMgr(txmgrNs, msgtx)
@@ -1085,30 +970,17 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 			"given: %v, next height %v)", req.expiry, tipHeight+1)
 	}
 
-	// Initialize the address pool for use.
-	var internalPool *addressPool
-	err = w.CheckAddressPoolsInitialized(req.account)
-	if err != nil {
-		return nil, err
-	}
-	internalPool = w.getAddressPools(req.account).internal
-
-	// Fire up the address pool for usage in generating tickets.
-	internalPool.mutex.Lock()
-	defer internalPool.mutex.Unlock()
-	txSucceeded := false
-	defer func() {
-		if txSucceeded {
-			internalPool.BatchFinish(addrmgrNs)
-		} else {
-			internalPool.BatchRollback()
-		}
-	}()
-	addrFunc := internalPool.getNewAddress
+	addrFunc := w.NewInternalAddress
 
 	if w.addressReuse {
-		addrFunc = func(ns walletdb.ReadWriteBucket) (dcrutil.Address, error) {
-			return w.reusedAddress(ns)
+		xpub, err := w.Manager.AccountBranchExtendedPubKey(dbtx,
+			udb.DefaultAccountNum, udb.ExternalBranch)
+		if err != nil {
+			return nil, err
+		}
+		addr, err := deriveChildAddress(xpub, 0, w.chainParams)
+		addrFunc = func(uint32) (dcrutil.Address, error) {
+			return addr, err
 		}
 	}
 
@@ -1223,7 +1095,7 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 
 	// Fetch the single use split address to break tickets into, to
 	// immediately be consumed as tickets.
-	splitTxAddr, err := internalPool.getNewAddress(addrmgrNs)
+	splitTxAddr, err := w.NewInternalAddress(req.account)
 	if err != nil {
 		return nil, err
 	}
@@ -1272,18 +1144,11 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 	if txFeeIncrement == 0 {
 		txFeeIncrement = w.RelayFee()
 	}
-	splitTx, err := w.txToOutputsInternal(dbtx, splitOuts, account, req.minConf, internalPool,
+	splitTx, err := w.txToOutputsInternal(dbtx, splitOuts, account, req.minConf,
 		chainClient, false, txFeeIncrement)
 	if err != nil {
 		return nil, err
 	}
-
-	// At this point, addresses have been used in tx in the
-	// mempool, so we need to close the batch after. It might
-	// be the case that tickets fail after this, but it should
-	// be very unlikely since all tickets will use known,
-	// accepted outputs.
-	txSucceeded = true
 
 	// Generate the tickets individually.
 	ticketHashes = make([]*chainhash.Hash, 0, req.numTickets)
@@ -1342,14 +1207,14 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 		if addrVote == nil {
 			addrVote = w.ticketAddress
 			if addrVote == nil {
-				addrVote, err = addrFunc(addrmgrNs)
+				addrVote, err = addrFunc(req.account)
 				if err != nil {
 					return ticketHashes, err
 				}
 			}
 		}
 
-		addrSubsidy, err := addrFunc(addrmgrNs)
+		addrSubsidy, err := addrFunc(req.account)
 		if err != nil {
 			return ticketHashes, err
 		}
@@ -1385,11 +1250,12 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 		// Set the expiry.
 		ticket.Expiry = uint32(req.expiry)
 
-		if err = signMsgTx(ticket, forSigning, w.Manager, addrmgrNs,
-			w.chainParams); err != nil {
+		err = signMsgTx(ticket, forSigning, w.Manager, addrmgrNs, w.chainParams)
+		if err != nil {
 			return ticketHashes, err
 		}
-		if err := validateMsgTxCredits(ticket, forSigning); err != nil {
+		err = validateMsgTxCredits(ticket, forSigning)
+		if err != nil {
 			return ticketHashes, err
 		}
 
@@ -1409,6 +1275,20 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 			return ticketHashes, err
 		}
 		txTemp := dcrutil.NewTx(ticket)
+
+		// The subsidy address is now used.
+		ma, err := w.Manager.Address(addrmgrNs, addrSubsidy)
+		if err != nil {
+			return ticketHashes, err
+		}
+		err = w.markUsedAddress(dbtx, ma)
+		if err != nil {
+			return ticketHashes, err
+		}
+		err = w.watchFutureAddresses(dbtx)
+		if err != nil {
+			return ticketHashes, err
+		}
 
 		// The ticket address may be for another wallet. Don't insert the
 		// ticket into the stake manager unless we actually own output zero
@@ -1457,20 +1337,6 @@ func (w *Wallet) txToSStx(pair map[string]dcrutil.Amount,
 func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcrutil.Amount,
 	inputCredits []udb.Credit, inputs []dcrjson.SStxInput,
 	payouts []dcrjson.SStxCommitOut, account uint32, minconf int32) (tx *CreatedTx, err error) {
-
-	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
-
-	internalPool := w.getAddressPools(udb.DefaultAccountNum).internal
-	internalPool.mutex.Lock()
-	addrFunc := internalPool.getNewAddress
-	defer func() {
-		if err == nil {
-			internalPool.BatchFinish(addrmgrNs)
-		} else {
-			internalPool.BatchRollback()
-		}
-		internalPool.mutex.Unlock()
-	}()
 
 	// Quit if the blockchain is reorganizing.
 	w.reorganizingLock.Lock()
@@ -1554,7 +1420,7 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 
 		if payouts[i].Addr == "" {
 			var err error
-			addr, err = addrFunc(addrmgrNs)
+			addr, err = w.NewInternalAddress(udb.DefaultAccountNum)
 			if err != nil {
 				return nil, err
 			}
@@ -1596,7 +1462,7 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 		// Add change to txouts.
 		if payouts[i].ChangeAddr == "" {
 			var err error
-			changeAddr, err = addrFunc(addrmgrNs)
+			changeAddr, err = w.NewInternalAddress(udb.DefaultAccountNum)
 			if err != nil {
 				return nil, err
 			}
@@ -1874,20 +1740,14 @@ func signMsgTx(msgtx *wire.MsgTx, prevOutputs []udb.Credit,
 			return ErrUnsupportedTransactionType
 		}
 
-		ai, err := mgr.Address(addrmgrNs, apkh)
+		privKey, done, err := mgr.PrivateKey(addrmgrNs, apkh)
 		if err != nil {
-			return fmt.Errorf("cannot get address info: %v", err)
+			return err
 		}
+		defer done()
 
-		pka := ai.(udb.ManagedPubKeyAddress)
-		privkey, err := pka.PrivKey()
-		if err != nil {
-			return fmt.Errorf("cannot get private key: %v", err)
-		}
-
-		sigscript, err := txscript.SignatureScript(msgtx, i,
-			output.PkScript, txscript.SigHashAll, privkey,
-			ai.Compressed())
+		sigscript, err := txscript.SignatureScript(msgtx, i, output.PkScript,
+			txscript.SigHashAll, privKey, true)
 		if err != nil {
 			return fmt.Errorf("cannot create sigscript: %s", err)
 		}

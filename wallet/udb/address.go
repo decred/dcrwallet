@@ -7,15 +7,11 @@ package udb
 
 import (
 	"encoding/hex"
-	"fmt"
-	"sync"
 
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/internal/zero"
-	"github.com/decred/dcrwallet/walletdb"
 )
 
 // ManagedAddress is an interface that provides acces to information regarding
@@ -46,9 +42,6 @@ type ManagedAddress interface {
 
 	// Compressed returns true if the backing address is compressed.
 	Compressed() bool
-
-	// Used returns true if the backing address has been used in a transaction.
-	Used(ns walletdb.ReadBucket) bool
 }
 
 // ManagedPubKeyAddress extends ManagedAddress and additionally provides the
@@ -62,81 +55,34 @@ type ManagedPubKeyAddress interface {
 	// ExportPubKey returns the public key associated with the address
 	// serialized as a hex encoded string.
 	ExportPubKey() string
-
-	// PrivKey returns the private key for the address.  It can fail if the
-	// address manager is watching-only or locked, or the address does not
-	// have any keys.
-	PrivKey() (chainec.PrivateKey, error)
-
-	// ExportPrivKey returns the private key associated with the address
-	// serialized as Wallet Import Format (WIF).
-	ExportPrivKey() (*dcrutil.WIF, error)
 }
 
 // ManagedScriptAddress extends ManagedAddress and represents a pay-to-script-hash
-// style of addresses.  It additionally provides information about the script.
+// style of addresses.
 type ManagedScriptAddress interface {
 	ManagedAddress
 
-	// Script returns the script associated with the address.
-	Script() ([]byte, error)
+	// isScriptAddress tags the interface to the concrete type in this package.
+	// This prevents non-script types from being mistakenly type asserted as
+	// a ManagedScriptAddress.
+	isScriptAddress()
 }
 
 // managedAddress represents a public key address.  It also may or may not have
 // the private key associated with the public key.
 type managedAddress struct {
-	manager          *Manager
-	account          uint32
-	address          *dcrutil.AddressPubKeyHash
-	imported         bool
-	internal         bool
-	multisig         bool
-	compressed       bool
-	used             bool
-	pubKey           chainec.PublicKey
-	privKeyEncrypted []byte
-	privKeyCT        []byte // non-nil if unlocked
-	privKeyMutex     sync.Mutex
+	manager    *Manager
+	account    uint32
+	address    *dcrutil.AddressPubKeyHash
+	imported   bool
+	internal   bool
+	multisig   bool
+	compressed bool
+	pubKey     chainec.PublicKey
 }
 
 // Enforce managedAddress satisfies the ManagedPubKeyAddress interface.
 var _ ManagedPubKeyAddress = (*managedAddress)(nil)
-
-// unlock decrypts and stores a pointer to the associated private key.  It will
-// fail if the key is invalid or the encrypted private key is not available.
-// The returned clear text private key will always be a copy that may be safely
-// used by the caller without worrying about it being zeroed during an address
-// lock.
-func (a *managedAddress) unlock(key EncryptorDecryptor) ([]byte, error) {
-	// Protect concurrent access to clear text private key.
-	a.privKeyMutex.Lock()
-	defer a.privKeyMutex.Unlock()
-
-	if len(a.privKeyCT) == 0 {
-		privKey, err := key.Decrypt(a.privKeyEncrypted)
-		if err != nil {
-			str := fmt.Sprintf("failed to decrypt private key for "+
-				"%s", a.address)
-			return nil, managerError(apperrors.ErrCrypto, str, err)
-		}
-
-		a.privKeyCT = privKey
-	}
-
-	privKeyCopy := make([]byte, len(a.privKeyCT))
-	copy(privKeyCopy, a.privKeyCT)
-	return privKeyCopy, nil
-}
-
-// lock zeroes the associated clear text private key.
-func (a *managedAddress) lock() {
-	// Zero and nil the clear text private key associated with this
-	// address.
-	a.privKeyMutex.Lock()
-	zero.Bytes(a.privKeyCT)
-	a.privKeyCT = nil
-	a.privKeyMutex.Unlock()
-}
 
 // Account returns the account number the address is associated with.
 //
@@ -190,13 +136,6 @@ func (a *managedAddress) Compressed() bool {
 	return a.compressed
 }
 
-// Used returns true if the address has been used in a transaction.
-//
-// This is part of the ManagedAddress interface implementation.
-func (a *managedAddress) Used(ns walletdb.ReadBucket) bool {
-	return a.manager.fetchUsed(ns, a.AddrHash())
-}
-
 // PubKey returns the public key associated with the address.
 //
 // This is part of the ManagedPubKeyAddress interface implementation.
@@ -221,50 +160,6 @@ func (a *managedAddress) ExportPubKey() string {
 	return hex.EncodeToString(a.pubKeyBytes())
 }
 
-// PrivKey returns the private key for the address.  It can fail if the address
-// manager is watching-only or locked, or the address does not have any keys.
-//
-// This is part of the ManagedPubKeyAddress interface implementation.
-func (a *managedAddress) PrivKey() (chainec.PrivateKey, error) {
-	// No private keys are available for a watching-only address manager.
-	if a.manager.watchingOnly {
-		return nil, managerError(apperrors.ErrWatchingOnly, errWatchingOnly, nil)
-	}
-
-	a.manager.mtx.Lock()
-	defer a.manager.mtx.Unlock()
-
-	// Account manager must be unlocked to decrypt the private key.
-	if a.manager.locked {
-		return nil, managerError(apperrors.ErrLocked, errLocked, nil)
-	}
-
-	// Decrypt the key as needed.  Also, make sure it's a copy since the
-	// private key stored in memory can be cleared at any time.  Otherwise
-	// the returned private key could be invalidated from under the caller.
-	privKeyCopy, err := a.unlock(a.manager.cryptoKeyPriv)
-	if err != nil {
-		return nil, err
-	}
-
-	privKey, _ := chainec.Secp256k1.PrivKeyFromBytes(privKeyCopy)
-	zero.Bytes(privKeyCopy)
-	return privKey, nil
-}
-
-// ExportPrivKey returns the private key associated with the address in Wallet
-// Import Format (WIF).
-//
-// This is part of the ManagedPubKeyAddress interface implementation.
-func (a *managedAddress) ExportPrivKey() (*dcrutil.WIF, error) {
-	pk, err := a.PrivKey()
-	if err != nil {
-		return nil, err
-	}
-
-	return dcrutil.NewWIF(pk, a.manager.chainParams, chainec.ECTypeSecp256k1)
-}
-
 // newManagedAddressWithoutPrivKey returns a new managed address based on the
 // passed account, public key, and whether or not the public key should be
 // compressed.
@@ -283,53 +178,15 @@ func newManagedAddressWithoutPrivKey(m *Manager, account uint32, pubKey chainec.
 	}
 
 	return &managedAddress{
-		manager:          m,
-		address:          address,
-		account:          account,
-		imported:         false,
-		internal:         false,
-		multisig:         false,
-		compressed:       compressed,
-		pubKey:           pubKey,
-		privKeyEncrypted: nil,
-		privKeyCT:        nil,
+		manager:    m,
+		address:    address,
+		account:    account,
+		imported:   false,
+		internal:   false,
+		multisig:   false,
+		compressed: compressed,
+		pubKey:     pubKey,
 	}, nil
-}
-
-// newManagedAddress returns a new managed address based on the passed account,
-// private key, and whether or not the public key is compressed.  The managed
-// address will have access to the private and public keys.
-func newManagedAddress(m *Manager, account uint32,
-	privKey chainec.PrivateKey) (*managedAddress, error) {
-	if privKey == nil {
-		err := fmt.Errorf("missing private key")
-		return nil, managerError(apperrors.ErrNoExist, "nil pointer", err)
-	}
-
-	// Encrypt the private key.
-	//
-	// NOTE: The privKeyBytes here are set into the managed address which
-	// are cleared when locked, so they aren't cleared here.
-	privKeyBytes := privKey.Serialize()
-	privKeyEncrypted, err := m.cryptoKeyPriv.Encrypt(privKeyBytes)
-	if err != nil {
-		str := "failed to encrypt private key"
-		return nil, managerError(apperrors.ErrCrypto, str, err)
-	}
-
-	// Leverage the code to create a managed address without a private key
-	// and then add the private key to it.
-	pubx, puby := privKey.Public()
-	ecPubKey := chainec.Secp256k1.NewPublicKey(pubx, puby)
-	managedAddr, err := newManagedAddressWithoutPrivKey(m, account,
-		ecPubKey, true)
-	if err != nil {
-		return nil, err
-	}
-	managedAddr.privKeyEncrypted = privKeyEncrypted
-	managedAddr.privKeyCT = privKeyBytes
-
-	return managedAddr, nil
 }
 
 // newManagedAddressFromExtKey returns a new managed address based on the passed
@@ -337,84 +194,24 @@ func newManagedAddress(m *Manager, account uint32,
 // private and public keys if the provided extended key is private, otherwise it
 // will only have access to the public key.
 func newManagedAddressFromExtKey(m *Manager, account uint32, key *hdkeychain.ExtendedKey) (*managedAddress, error) {
-	// Create a new managed address based on the public or private key
-	// depending on whether the generated key is private.
-	var managedAddr *managedAddress
-	if key.IsPrivate() {
-		privKey, err := key.ECPrivKey()
-		if err != nil {
-			return nil, err
-		}
-
-		// Ensure the temp private key big integer is cleared after use.
-		managedAddr, err = newManagedAddress(m, account, privKey)
-		zero.BigInt(privKey.GetD())
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		pubKey, err := key.ECPubKey()
-		if err != nil {
-			return nil, err
-		}
-
-		managedAddr, err = newManagedAddressWithoutPrivKey(m, account,
-			pubKey, true)
-		if err != nil {
-			return nil, err
-		}
+	pubKey, err := key.ECPubKey()
+	if err != nil {
+		const str = "failed to create public key"
+		return nil, apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
 	}
 
-	return managedAddr, nil
+	return newManagedAddressWithoutPrivKey(m, account, pubKey, true)
 }
 
 // scriptAddress represents a pay-to-script-hash address.
 type scriptAddress struct {
-	manager         *Manager
-	account         uint32
-	address         *dcrutil.AddressScriptHash
-	scriptEncrypted []byte
-	scriptCT        []byte
-	scriptMutex     sync.Mutex
-	used            bool
+	manager *Manager
+	account uint32
+	address *dcrutil.AddressScriptHash
 }
 
 // Enforce scriptAddress satisfies the ManagedScriptAddress interface.
 var _ ManagedScriptAddress = (*scriptAddress)(nil)
-
-// unlock decrypts and stores the associated script.  It will fail if the key is
-// invalid or the encrypted script is not available.  The returned clear text
-// script will always be a copy that may be safely used by the caller without
-// worrying about it being zeroed during an address lock.
-func (a *scriptAddress) unlock(key EncryptorDecryptor) ([]byte, error) {
-	// Protect concurrent access to clear text script.
-	a.scriptMutex.Lock()
-	defer a.scriptMutex.Unlock()
-
-	if len(a.scriptCT) == 0 {
-		script, err := key.Decrypt(a.scriptEncrypted)
-		if err != nil {
-			str := fmt.Sprintf("failed to decrypt script for %s",
-				a.address)
-			return nil, managerError(apperrors.ErrCrypto, str, err)
-		}
-
-		a.scriptCT = script
-	}
-
-	scriptCopy := make([]byte, len(a.scriptCT))
-	copy(scriptCopy, a.scriptCT)
-	return scriptCopy, nil
-}
-
-// lock zeroes the associated clear text private key.
-func (a *scriptAddress) lock() {
-	// Zero and nil the clear text script associated with this address.
-	a.scriptMutex.Lock()
-	zero.Bytes(a.scriptCT)
-	a.scriptCT = nil
-	a.scriptMutex.Unlock()
-}
 
 // Account returns the account the address is associated with.  This will always
 // be the ImportedAddrAccount constant for script addresses.
@@ -472,38 +269,10 @@ func (a *scriptAddress) Compressed() bool {
 	return false
 }
 
-// Used returns true if the address has been used in a transaction.
-//
-// This is part of the ManagedAddress interface implementation.
-func (a *scriptAddress) Used(ns walletdb.ReadBucket) bool {
-	return a.manager.fetchUsed(ns, a.AddrHash())
-}
-
-// Script returns the script associated with the address.
-//
-// This implements the ScriptAddress interface.
-func (a *scriptAddress) Script() ([]byte, error) {
-	// No script is available for a watching-only address manager.
-	if a.manager.watchingOnly {
-		return nil, managerError(apperrors.ErrWatchingOnly, errWatchingOnly, nil)
-	}
-
-	a.manager.mtx.Lock()
-	defer a.manager.mtx.Unlock()
-
-	// Account manager must be unlocked to decrypt the script.
-	if a.manager.locked {
-		return nil, managerError(apperrors.ErrLocked, errLocked, nil)
-	}
-
-	// Decrypt the script as needed.  Also, make sure it's a copy since the
-	// script stored in memory can be cleared at any time.  Otherwise,
-	// the returned script could be invalidated from under the caller.
-	return a.unlock(a.manager.cryptoKeyScript)
-}
+func (*scriptAddress) isScriptAddress() {}
 
 // newScriptAddress initializes and returns a new pay-to-script-hash address.
-func newScriptAddress(m *Manager, account uint32, scriptHash, scriptEncrypted []byte) (*scriptAddress, error) {
+func newScriptAddress(m *Manager, account uint32, scriptHash []byte) (*scriptAddress, error) {
 	address, err := dcrutil.NewAddressScriptHashFromHash(scriptHash,
 		m.chainParams)
 	if err != nil {
@@ -511,9 +280,8 @@ func newScriptAddress(m *Manager, account uint32, scriptHash, scriptEncrypted []
 	}
 
 	return &scriptAddress{
-		manager:         m,
-		account:         account,
-		address:         address,
-		scriptEncrypted: scriptEncrypted,
+		manager: m,
+		account: account,
+		address: address,
 	}, nil
 }

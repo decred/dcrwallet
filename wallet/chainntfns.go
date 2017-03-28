@@ -36,6 +36,11 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 				return w.onBlockConnected(tx, n.BlockHeader, n.Transactions)
 			})
+			if err == nil {
+				err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+					return w.watchFutureAddresses(tx)
+				})
+			}
 		case chain.Reorganization:
 			notificationName = "reorganizing"
 			err = w.handleReorganizing(n.OldHash, n.NewHash, n.OldHeight, n.NewHeight)
@@ -44,6 +49,11 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 			err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 				return w.processTransaction(dbtx, n.Transaction, nil, nil)
 			})
+			if err == nil {
+				err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+					return w.watchFutureAddresses(tx)
+				})
+			}
 		}
 		if err != nil {
 			log.Errorf("Failed to process consensus server notification "+
@@ -619,10 +629,10 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 
 			isRelevant := false
 			for _, addr := range addrs {
-				_, err := w.Manager.Address(addrmgrNs, addr)
+				ma, err := w.Manager.Address(addrmgrNs, addr)
 				if err == nil {
 					isRelevant = true
-					err = w.Manager.MarkUsed(addrmgrNs, addr)
+					err = w.markUsedAddress(dbtx, ma)
 					if err != nil {
 						return err
 					}
@@ -721,7 +731,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 				if err != nil {
 					return err
 				}
-				err = w.Manager.MarkUsed(addrmgrNs, addr)
+				err = w.markUsedAddress(dbtx, ma)
 				if err != nil {
 					return err
 				}
@@ -744,41 +754,22 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 				// Search both the script store in the tx store
 				// and the address manager for the redeem script.
 				var err error
-				expandedScript, err =
-					w.TxStore.GetTxScript(txmgrNs,
-						addr.ScriptAddress())
+				expandedScript, err = w.TxStore.GetTxScript(txmgrNs,
+					addr.ScriptAddress())
 				if err != nil {
 					return err
 				}
 
 				if expandedScript == nil {
-					scrAddr, err := w.Manager.Address(addrmgrNs, addr)
-					if err == nil {
-						sa, ok := scrAddr.(udb.ManagedScriptAddress)
-						if !ok {
-							log.Warnf("address %v is not a script"+
-								" address (type %T)",
-								scrAddr.Address().EncodeAddress(),
-								scrAddr.Address())
-							continue
-						}
-						retrievedScript, err := sa.Script()
-						if err != nil {
-							log.Errorf("failed to decode redeemscript for "+
-								"address %v: %v", addr.EncodeAddress(),
-								err.Error())
-							continue
-						}
-						expandedScript = retrievedScript
-
-					} else {
-						// We can't find this redeem script anywhere.
-						// Skip this output.
+					script, done, err := w.Manager.RedeemScript(addrmgrNs, addr)
+					if err != nil {
 						log.Debugf("failed to find redeemscript for "+
 							"address %v in address manager: %v",
-							addr.EncodeAddress(), err.Error())
+							addr.EncodeAddress(), err)
 						continue
 					}
+					defer done()
+					expandedScript = script
 				}
 			}
 

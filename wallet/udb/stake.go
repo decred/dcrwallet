@@ -108,7 +108,6 @@ type StakeStore struct {
 	Params   *chaincfg.Params
 	Manager  *Manager
 	chainSvr *walletchain.RPCClient
-	isClosed bool
 
 	ownedSStxs map[chainhash.Hash]struct{}
 }
@@ -135,10 +134,6 @@ func (s *StakeStore) checkHashInStore(hash *chainhash.Hash) bool {
 // CheckHashInStore is the exported version of CheckHashInStore that is
 // safe for concurrent access.
 func (s *StakeStore) CheckHashInStore(hash *chainhash.Hash) bool {
-	if s.isClosed {
-		return false
-	}
-
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -183,11 +178,6 @@ func (s *StakeStore) insertSStx(ns walletdb.ReadWriteBucket, sstx *dcrutil.Tx, v
 // InsertSStx is the exported version of insertSStx that is safe for concurrent
 // access.
 func (s *StakeStore) InsertSStx(ns walletdb.ReadWriteBucket, sstx *dcrutil.Tx, voteBits stake.VoteBits) error {
-	if s.isClosed {
-		str := "stake store is closed"
-		return stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
-
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -212,11 +202,6 @@ func (s *StakeStore) sstxVoteBits(ns walletdb.ReadBucket, sstx *chainhash.Hash) 
 // SStxVoteBits is the exported version of sstxVoteBits that is
 // safe for concurrent access.
 func (s *StakeStore) SStxVoteBits(ns walletdb.ReadBucket, sstx *chainhash.Hash) (bool, stake.VoteBits, error) {
-	if s.isClosed {
-		str := "stake store is closed"
-		return false, stake.VoteBits{}, stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
-
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -243,10 +228,6 @@ func (s *StakeStore) updateSStxVoteBits(ns walletdb.ReadWriteBucket,
 // safe for concurrent access.
 func (s *StakeStore) UpdateSStxVoteBits(ns walletdb.ReadWriteBucket,
 	sstx *chainhash.Hash, voteBits stake.VoteBits) error {
-	if s.isClosed {
-		str := "stake store is closed"
-		return stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
@@ -257,10 +238,6 @@ func (s *StakeStore) UpdateSStxVoteBits(ns walletdb.ReadWriteBucket,
 // dumpSStxHashes dumps the hashes of all owned SStxs. Note
 // that this doesn't use the DB.
 func (s *StakeStore) dumpSStxHashes() []chainhash.Hash {
-	if s.isClosed {
-		return nil
-	}
-
 	// Copy the hash list of sstxs. You could pass the pointer
 	// directly but you risk that the size of the internal
 	// ownedSStxs is later modified while the end user is
@@ -279,11 +256,6 @@ func (s *StakeStore) dumpSStxHashes() []chainhash.Hash {
 // DumpSStxHashes is the exported version of dumpSStxHashes that is safe
 // for concurrent access.
 func (s *StakeStore) DumpSStxHashes() ([]chainhash.Hash, error) {
-	if s.isClosed {
-		str := "stake store is closed"
-		return nil, stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
-
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -326,11 +298,6 @@ func (s *StakeStore) dumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrut
 // DumpSStxHashesForAddress is the exported version of dumpSStxHashesForAddress
 // that is safe for concurrent access.
 func (s *StakeStore) DumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrutil.Address) ([]chainhash.Hash, error) {
-	if s.isClosed {
-		str := "stake store is closed"
-		return nil, stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
-
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -361,11 +328,6 @@ func (s *StakeStore) sstxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (
 
 // SStxAddress is the exported, concurrency safe version of sstxAddress.
 func (s *StakeStore) SStxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (dcrutil.Address, error) {
-	if s.isClosed {
-		str := "stake store is closed"
-		return nil, stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
-
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -399,11 +361,6 @@ func (s *StakeStore) dumpSSGenHashes(ns walletdb.ReadBucket) ([]chainhash.Hash, 
 // DumpSSGenHashes is the exported version of dumpSSGenHashes that is safe
 // for concurrent access.
 func (s *StakeStore) DumpSSGenHashes(ns walletdb.ReadBucket) ([]chainhash.Hash, error) {
-	if s.isClosed {
-		str := "stake store is closed"
-		return nil, stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
-
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -434,11 +391,6 @@ func (s *StakeStore) dumpSSRtxHashes(ns walletdb.ReadBucket) ([]chainhash.Hash, 
 // DumpSSRtxHashes is the exported version of dumpSSRtxHashes that is safe
 // for concurrent access.
 func (s *StakeStore) DumpSSRtxHashes(ns walletdb.ReadBucket) ([]chainhash.Hash, error) {
-	if s.isClosed {
-		str := "stake store is closed"
-		return nil, stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
-
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -469,11 +421,6 @@ func (s *StakeStore) dumpSSRtxTickets(ns walletdb.ReadBucket) ([]chainhash.Hash,
 // DumpSSRtxTickets is the exported version of dumpSSRtxTickets that is safe
 // for concurrent access.
 func (s *StakeStore) DumpSSRtxTickets(ns walletdb.ReadBucket) ([]chainhash.Hash, error) {
-	if s.isClosed {
-		str := "stake store is closed"
-		return nil, stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
-
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -509,11 +456,6 @@ func (s *StakeStore) insertSSGen(ns walletdb.ReadWriteBucket, blockHash *chainha
 // InsertSSGen is the exported version of insertSSGen that is safe for
 // concurrent access.
 func (s *StakeStore) InsertSSGen(ns walletdb.ReadWriteBucket, blockHash *chainhash.Hash, blockHeight int64, ssgenHash *chainhash.Hash, voteBits uint16, sstxHash *chainhash.Hash) error {
-	if s.isClosed {
-		str := "stake store is closed"
-		return stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
-
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -526,24 +468,17 @@ func (s *StakeStore) getSSGens(ns walletdb.ReadBucket, sstxHash *chainhash.Hash)
 	return fetchSSGenRecords(ns, sstxHash)
 }
 
-// SignVRTransaction signs a vote (SSGen) or revocation (SSRtx)
+// signVRTransaction signs a vote (SSGen) or revocation (SSRtx)
 // transaction. isSSGen indicates if it is an SSGen; if it's not,
 // it's an SSRtx.
-func (s *StakeStore) SignVRTransaction(waddrmgrNs walletdb.ReadBucket, msgTx *wire.MsgTx,
-	sstx *dcrutil.Tx, isSSGen bool) error {
-
-	if s.isClosed {
-		str := "stake store is closed"
-		return stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
-
+func signVRTransaction(m *Manager, ns walletdb.ReadBucket, msgTx *wire.MsgTx, sstx *dcrutil.Tx, isSSGen bool) error {
 	txInNumToSign := 0
 	hashType := txscript.SigHashAll
 
 	if isSSGen {
 		// For an SSGen tx, skip the first input as it is a stake base
 		// and doesn't need to be signed.
-		msgTx.TxIn[0].SignatureScript = s.Params.StakeBaseSigScript
+		msgTx.TxIn[0].SignatureScript = m.chainParams.StakeBaseSigScript
 		txInNumToSign = 1
 	}
 
@@ -551,11 +486,19 @@ func (s *StakeStore) SignVRTransaction(waddrmgrNs walletdb.ReadBucket, msgTx *wi
 	// to sign.
 	sstxOutScript := sstx.MsgTx().TxOut[0].PkScript
 
+	// Create a slice of functions to run after the retreived secrets are no
+	// longer needed.
+	doneFuncs := make([]func(), 0, len(msgTx.TxIn))
+	defer func() {
+		for _, done := range doneFuncs {
+			done()
+		}
+	}()
+
 	// Set up our callbacks that we pass to dcrscript so it can
 	// look up the appropriate keys and scripts by address.
-	getKey := txscript.KeyClosure(func(addr dcrutil.Address) (
-		chainec.PrivateKey, bool, error) {
-		address, err := s.Manager.Address(waddrmgrNs, addr)
+	var getKey txscript.KeyClosure = func(addr dcrutil.Address) (chainec.PrivateKey, bool, error) {
+		address, err := m.Address(ns, addr)
 		if err != nil {
 			return nil, false, err
 		}
@@ -566,31 +509,26 @@ func (s *StakeStore) SignVRTransaction(waddrmgrNs walletdb.ReadBucket, msgTx *wi
 				"a pubkey address")
 		}
 
-		key, err := pka.PrivKey()
+		key, done, err := m.PrivateKey(ns, addr)
 		if err != nil {
 			return nil, false, err
 		}
+		doneFuncs = append(doneFuncs, done)
 
 		return key, pka.Compressed(), nil
-	})
-
-	getScript := txscript.ScriptClosure(func(
-		addr dcrutil.Address) ([]byte, error) {
-		address, err := s.Manager.Address(waddrmgrNs, addr)
+	}
+	var getScript txscript.ScriptClosure = func(addr dcrutil.Address) ([]byte, error) {
+		script, done, err := m.RedeemScript(ns, addr)
 		if err != nil {
 			return nil, err
 		}
-		sa, ok := address.(ManagedScriptAddress)
-		if !ok {
-			return nil, fmt.Errorf("address is not a script" +
-				" address")
-		}
-
-		return sa.Script()
-	})
+		doneFuncs = append(doneFuncs, done)
+		return script, nil
+	}
 
 	// Attempt to generate the signed txin.
-	signedScript, err := txscript.SignTxOutput(s.Params,
+	signedScript, err := txscript.SignTxOutput(
+		m.chainParams,
 		msgTx,
 		txInNumToSign,
 		sstxOutScript,
@@ -598,7 +536,8 @@ func (s *StakeStore) SignVRTransaction(waddrmgrNs walletdb.ReadBucket, msgTx *wi
 		getKey,
 		getScript,
 		msgTx.TxIn[txInNumToSign].SignatureScript,
-		chainec.ECTypeSecp256k1)
+		chainec.ECTypeSecp256k1,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to sign ssgen or "+
 			"ssrtx, error: %v", err.Error())
@@ -766,7 +705,7 @@ func (s *StakeStore) generateVote(ns walletdb.ReadWriteBucket, waddrmgrNs wallet
 	}
 
 	// Sign the transaction.
-	err = s.SignVRTransaction(waddrmgrNs, msgTx, sstx, true)
+	err = signVRTransaction(s.Manager, waddrmgrNs, msgTx, sstx, true)
 	if err != nil {
 		return nil, err
 	}
@@ -829,12 +768,6 @@ func (s *StakeStore) insertSSRtx(ns walletdb.ReadWriteBucket, blockHash *chainha
 // InsertSSRtx is the exported version of insertSSRtx that is safe for
 // concurrent access.
 func (s *StakeStore) InsertSSRtx(ns walletdb.ReadWriteBucket, blockHash *chainhash.Hash, blockHeight int64, ssrtxHash *chainhash.Hash, sstxHash *chainhash.Hash) error {
-
-	if s.isClosed {
-		str := "stake store is closed"
-		return stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
-
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -928,7 +861,7 @@ func (s *StakeStore) generateRevocation(ns walletdb.ReadWriteBucket, waddrmgrNs 
 	}
 
 	// Sign the transaction.
-	err = s.SignVRTransaction(waddrmgrNs, msgTx, sstx, false)
+	err = signVRTransaction(s.Manager, waddrmgrNs, msgTx, sstx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -971,11 +904,6 @@ func (s *StakeStore) generateRevocation(ns walletdb.ReadWriteBucket, waddrmgrNs 
 // of these tickets in the sstx store match these tickets, spends them as
 // votes.
 func (s StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, blockHeight int64, tickets []*chainhash.Hash, defaultVoteBits stake.VoteBits, stakePoolEnabled, allowHighFees bool) ([]*StakeNotification, error) {
-	if s.isClosed {
-		str := "stake store is closed"
-		return nil, stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
-
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -1025,11 +953,6 @@ func (s StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddrm
 // of these tickets in the sstx store match these tickets, spends them as
 // SSRtx.
 func (s StakeStore) HandleMissedTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, blockHeight int64, tickets []*chainhash.Hash, allowHighFees bool) ([]*StakeNotification, error) {
-	if s.isClosed {
-		str := "stake store is closed"
-		return nil, stakeStoreError(apperrors.ErrStoreClosed, str, nil)
-	}
-
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -1266,7 +1189,6 @@ func newStakeStore(params *chaincfg.Params, manager *Manager) *StakeStore {
 		Params:     params,
 		Manager:    manager,
 		chainSvr:   nil,
-		isClosed:   false,
 		ownedSStxs: make(map[chainhash.Hash]struct{}),
 	}
 }
@@ -1293,13 +1215,4 @@ func openStakeStore(ns walletdb.ReadBucket, manager *Manager, params *chaincfg.P
 	}
 
 	return ss, nil
-}
-
-// Close cleanly shuts down the stake store.
-func (s *StakeStore) Close() error {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
-	s.isClosed = true
-	return nil
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
@@ -576,9 +577,19 @@ func (s *NotificationServer) notifyAccountProperties(props *udb.AccountPropertie
 	n := &AccountNotification{
 		AccountNumber:    props.AccountNumber,
 		AccountName:      props.AccountName,
-		ExternalKeyCount: props.ExternalKeyCount,
-		InternalKeyCount: props.InternalKeyCount,
+		ExternalKeyCount: 0,
+		InternalKeyCount: 0,
 		ImportedKeyCount: props.ImportedKeyCount,
+	}
+	// Key counts have to be fudged for BIP0044 accounts a little bit because
+	// only the last used child index is saved.  Add the gap limit since these
+	// addresses have also been generated and are being watched for transaction
+	// activity.
+	if props.AccountNumber <= udb.MaxAccountNum {
+		n.ExternalKeyCount = minUint32(hdkeychain.HardenedKeyStart,
+			props.LastUsedExternalIndex+uint32(s.wallet.gapLimit))
+		n.InternalKeyCount = minUint32(hdkeychain.HardenedKeyStart,
+			props.LastUsedInternalIndex+uint32(s.wallet.gapLimit))
 	}
 	for _, c := range clients {
 		c <- n

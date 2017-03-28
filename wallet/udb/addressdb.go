@@ -6,11 +6,11 @@
 package udb
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"time"
 
-	"crypto/sha256"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/walletdb"
 )
@@ -81,11 +81,13 @@ type dbAccountRow struct {
 // account in the database.
 type dbBIP0044AccountRow struct {
 	dbAccountRow
-	pubKeyEncrypted   []byte
-	privKeyEncrypted  []byte
-	nextExternalIndex uint32
-	nextInternalIndex uint32
-	name              string
+	pubKeyEncrypted       []byte
+	privKeyEncrypted      []byte
+	nextExternalIndex     uint32 // Removed by version 2
+	nextInternalIndex     uint32 // Removed by version 2
+	lastUsedExternalIndex uint32 // Added in version 2
+	lastUsedInternalIndex uint32 // Added in version 2
+	name                  string
 }
 
 // dbAddressRow houses common information stored about an address in the
@@ -172,12 +174,16 @@ var (
 	// derive the key. This is the external branch.
 	// e.g. in pseudocode:
 	// key = append([]byte("addrpoolext"), []byte(account))
+	//
+	// This was removed by database version 2.
 	addrPoolKeyPrefixExt = []byte("addrpoolext")
 
 	// addrPoolKeyPrefixInt is the prefix for keys mapping the
 	// last used address pool index to a BIP0044 account. The
 	// BIP0044 account is appended to this slice in order to
 	// derive the key. This is the internal branch.
+	//
+	// This was removed by database version 2.
 	addrPoolKeyPrefixInt = []byte("addrpoolint")
 
 	// lastAccountName is used to store the metadata - last account
@@ -204,7 +210,7 @@ var (
 	// Account related key names (account bucket).
 	acctNumAcctsName = []byte("numaccts")
 
-	// Used addresses (used bucket).
+	// Used addresses (used bucket).  This was removed by database version 2.
 	usedAddrBucketName = []byte("usedaddrs")
 )
 
@@ -538,14 +544,14 @@ func serializeAccountRow(row *dbAccountRow) []byte {
 
 // deserializeBIP0044AccountRow deserializes the raw data from the passed
 // account row as a BIP0044 account.
-func deserializeBIP0044AccountRow(accountID []byte, row *dbAccountRow) (*dbBIP0044AccountRow, error) {
+func deserializeBIP0044AccountRow(accountID []byte, row *dbAccountRow, dbVersion uint32) (*dbBIP0044AccountRow, error) {
 	// The serialized BIP0044 account raw data format is:
-	//   <encpubkeylen><encpubkey><encprivkeylen><encprivkey><nextextidx>
-	//   <nextintidx><namelen><name>
+	//   <encpubkeylen><encpubkey><encprivkeylen><encprivkey><lastusedext>
+	//   <lastusedint><namelen><name>
 	//
 	// 4 bytes encrypted pubkey len + encrypted pubkey + 4 bytes encrypted
-	// privkey len + encrypted privkey + 4 bytes next external index +
-	// 4 bytes next internal index + 4 bytes name len + name
+	// privkey len + encrypted privkey + 4 bytes last used external index +
+	// 4 bytes last used internal index + 4 bytes name len + name
 
 	// Given the above, the length of the entry must be at a minimum
 	// the constant value sizes.
@@ -568,10 +574,17 @@ func deserializeBIP0044AccountRow(accountID []byte, row *dbAccountRow) (*dbBIP00
 	retRow.privKeyEncrypted = make([]byte, privLen)
 	copy(retRow.privKeyEncrypted, row.rawData[offset:offset+privLen])
 	offset += privLen
-	retRow.nextExternalIndex = binary.LittleEndian.Uint32(row.rawData[offset : offset+4])
-	offset += 4
-	retRow.nextInternalIndex = binary.LittleEndian.Uint32(row.rawData[offset : offset+4])
-	offset += 4
+	switch {
+	case dbVersion == 1:
+		retRow.nextExternalIndex = binary.LittleEndian.Uint32(row.rawData[offset : offset+4])
+		offset += 4
+		retRow.nextInternalIndex = binary.LittleEndian.Uint32(row.rawData[offset : offset+4])
+		offset += 4
+	case dbVersion >= 2:
+		retRow.lastUsedExternalIndex = binary.LittleEndian.Uint32(row.rawData[offset : offset+4])
+		retRow.lastUsedInternalIndex = binary.LittleEndian.Uint32(row.rawData[offset+4 : offset+8])
+		offset += 8
+	}
 	nameLen := binary.LittleEndian.Uint32(row.rawData[offset : offset+4])
 	offset += 4
 	retRow.name = string(row.rawData[offset : offset+nameLen])
@@ -581,35 +594,68 @@ func deserializeBIP0044AccountRow(accountID []byte, row *dbAccountRow) (*dbBIP00
 
 // serializeBIP0044AccountRow returns the serialization of the raw data field
 // for a BIP0044 account.
-func serializeBIP0044AccountRow(encryptedPubKey,
-	encryptedPrivKey []byte, nextExternalIndex, nextInternalIndex uint32,
-	name string) []byte {
+func serializeBIP0044AccountRow(row *dbBIP0044AccountRow, dbVersion uint32) []byte {
 	// The serialized BIP0044 account raw data format is:
-	//   <encpubkeylen><encpubkey><encprivkeylen><encprivkey><nextextidx>
-	//   <nextintidx><namelen><name>
+	//   <encpubkeylen><encpubkey><encprivkeylen><encprivkey><lastusedext>
+	//   <lastusedint><namelen><name>
 	//
 	// 4 bytes encrypted pubkey len + encrypted pubkey + 4 bytes encrypted
-	// privkey len + encrypted privkey + 4 bytes next external index +
-	// 4 bytes next internal index + 4 bytes name len + name
-	pubLen := uint32(len(encryptedPubKey))
-	privLen := uint32(len(encryptedPrivKey))
-	nameLen := uint32(len(name))
+	// privkey len + encrypted privkey + 4 bytes last used external index +
+	// 4 bytes last used internal index + 4 bytes name len + name
+	pubLen := uint32(len(row.pubKeyEncrypted))
+	privLen := uint32(len(row.privKeyEncrypted))
+	nameLen := uint32(len(row.name))
 	rawData := make([]byte, 20+pubLen+privLen+nameLen)
 	binary.LittleEndian.PutUint32(rawData[0:4], pubLen)
-	copy(rawData[4:4+pubLen], encryptedPubKey)
+	copy(rawData[4:4+pubLen], row.pubKeyEncrypted)
 	offset := 4 + pubLen
 	binary.LittleEndian.PutUint32(rawData[offset:offset+4], privLen)
 	offset += 4
-	copy(rawData[offset:offset+privLen], encryptedPrivKey)
+	copy(rawData[offset:offset+privLen], row.privKeyEncrypted)
 	offset += privLen
-	binary.LittleEndian.PutUint32(rawData[offset:offset+4], nextExternalIndex)
-	offset += 4
-	binary.LittleEndian.PutUint32(rawData[offset:offset+4], nextInternalIndex)
-	offset += 4
+	switch {
+	case dbVersion == 1:
+		binary.LittleEndian.PutUint32(rawData[offset:offset+4], row.nextExternalIndex)
+		offset += 4
+		binary.LittleEndian.PutUint32(rawData[offset:offset+4], row.nextInternalIndex)
+		offset += 4
+	case dbVersion >= 2:
+		binary.LittleEndian.PutUint32(rawData[offset:offset+4], row.lastUsedExternalIndex)
+		binary.LittleEndian.PutUint32(rawData[offset+4:offset+8], row.lastUsedInternalIndex)
+		offset += 8
+	}
 	binary.LittleEndian.PutUint32(rawData[offset:offset+4], nameLen)
 	offset += 4
-	copy(rawData[offset:offset+nameLen], name)
+	copy(rawData[offset:offset+nameLen], row.name)
 	return rawData
+}
+
+func bip0044AccountInfo(pubKeyEnc, privKeyEnc []byte, nextExtIndex, nextIntIndex,
+	lastUsedExtIndex, lastUsedIntIndex uint32, name string, dbVersion uint32) *dbBIP0044AccountRow {
+
+	row := &dbBIP0044AccountRow{
+		dbAccountRow: dbAccountRow{
+			acctType: actBIP0044,
+			rawData:  nil,
+		},
+		pubKeyEncrypted:       pubKeyEnc,
+		privKeyEncrypted:      privKeyEnc,
+		nextExternalIndex:     0,
+		nextInternalIndex:     0,
+		lastUsedExternalIndex: 0,
+		lastUsedInternalIndex: 0,
+		name: name,
+	}
+	switch {
+	case dbVersion == 1:
+		row.nextExternalIndex = nextExtIndex
+		row.nextInternalIndex = nextIntIndex
+	case dbVersion >= 2:
+		row.lastUsedExternalIndex = lastUsedExtIndex
+		row.lastUsedInternalIndex = lastUsedIntIndex
+	}
+	row.rawData = serializeBIP0044AccountRow(row, dbVersion)
+	return row
 }
 
 // forEachAccount calls the given function with each account stored in
@@ -673,7 +719,7 @@ func fetchAccountByName(ns walletdb.ReadBucket, name string) (uint32, error) {
 
 // fetchAccountInfo loads information about the passed account from the
 // database.
-func fetchAccountInfo(ns walletdb.ReadBucket, account uint32) (*dbBIP0044AccountRow, error) {
+func fetchAccountInfo(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (*dbBIP0044AccountRow, error) {
 	bucket := ns.NestedReadBucket(acctBucketName)
 
 	accountID := uint32ToBytes(account)
@@ -690,7 +736,7 @@ func fetchAccountInfo(ns walletdb.ReadBucket, account uint32) (*dbBIP0044Account
 
 	switch row.acctType {
 	case actBIP0044:
-		return deserializeBIP0044AccountRow(accountID, row)
+		return deserializeBIP0044AccountRow(accountID, row, dbVersion)
 	}
 
 	str := fmt.Sprintf("unsupported account type '%d'", row.acctType)
@@ -787,30 +833,16 @@ func putAccountRow(ns walletdb.ReadWriteBucket, account uint32, row *dbAccountRo
 }
 
 // putAccountInfo stores the provided account information to the database.
-func putAccountInfo(ns walletdb.ReadWriteBucket, account uint32, encryptedPubKey,
-	encryptedPrivKey []byte, nextExternalIndex, nextInternalIndex uint32,
-	name string) error {
-
-	rawData := serializeBIP0044AccountRow(encryptedPubKey, encryptedPrivKey,
-		nextExternalIndex, nextInternalIndex, name)
-
-	acctRow := dbAccountRow{
-		acctType: actBIP0044,
-		rawData:  rawData,
-	}
-	if err := putAccountRow(ns, account, &acctRow); err != nil {
+func putAccountInfo(ns walletdb.ReadWriteBucket, account uint32, row *dbBIP0044AccountRow) error {
+	if err := putAccountRow(ns, account, &row.dbAccountRow); err != nil {
 		return err
 	}
 	// Update account id index
-	if err := putAccountIDIndex(ns, account, name); err != nil {
+	if err := putAccountIDIndex(ns, account, row.name); err != nil {
 		return err
 	}
 	// Update account name index
-	if err := putAccountNameIndex(ns, account, name); err != nil {
-		return err
-	}
-
-	return nil
+	return putAccountNameIndex(ns, account, row.name)
 }
 
 // putLastAccount stores the provided metadata - last account - to the database.
@@ -824,10 +856,6 @@ func putLastAccount(ns walletdb.ReadWriteBucket, account uint32) error {
 	}
 	return nil
 }
-
-// fetchAddressRow loads address information for the provided address id from
-// the database.  This is used as a common base for the various address types
-// to load the common information.
 
 // deserializeAddressRow deserializes the passed serialized address information.
 // This is used as a common base for the various address types to deserialize
@@ -1049,31 +1077,6 @@ func fetchAddressByHash(ns walletdb.ReadBucket, addrHash []byte) (interface{}, e
 	return nil, managerError(apperrors.ErrDatabase, str, nil)
 }
 
-// fetchAddressUsed returns true if the provided address id was flagged as used.
-func fetchAddressUsed(ns walletdb.ReadBucket, addressID []byte) bool {
-	bucket := ns.NestedReadBucket(usedAddrBucketName)
-
-	addrHash := sha256.Sum256(addressID)
-	return bucket.Get(addrHash[:]) != nil
-}
-
-// markAddressUsed flags the provided address id as used in the database.
-func markAddressUsed(ns walletdb.ReadWriteBucket, addressID []byte) error {
-	bucket := ns.NestedReadWriteBucket(usedAddrBucketName)
-
-	addrHash := sha256.Sum256(addressID)
-	val := bucket.Get(addrHash[:])
-	if val != nil {
-		return nil
-	}
-	err := bucket.Put(addrHash[:], []byte{0})
-	if err != nil {
-		str := fmt.Sprintf("failed to mark address used %x", addressID)
-		return managerError(apperrors.ErrDatabase, str, err)
-	}
-	return nil
-}
-
 // fetchAddress loads address information for the provided address id from the
 // database.  The returned value is one of the address rows for the specific
 // address type.  The caller should use type assertions to ascertain the type.
@@ -1114,48 +1117,7 @@ func putChainedAddress(ns walletdb.ReadWriteBucket, addressID []byte, account ui
 		syncStatus: status,
 		rawData:    serializeChainedAddress(branch, index),
 	}
-	if err := putAddress(ns, addressID, &addrRow); err != nil {
-		return err
-	}
-
-	// Update the next index for the appropriate internal or external
-	// branch.
-	accountID := uint32ToBytes(account)
-	bucket := ns.NestedReadWriteBucket(acctBucketName)
-	serializedAccount := bucket.Get(accountID)
-
-	// Deserialize the account row.
-	row, err := deserializeAccountRow(accountID, serializedAccount)
-
-	if err != nil {
-		return err
-	}
-	arow, err := deserializeBIP0044AccountRow(accountID, row)
-	if err != nil {
-		return err
-	}
-
-	// Increment the appropriate next index depending on whether the branch
-	// is internal or external.
-	nextExternalIndex := arow.nextExternalIndex
-	nextInternalIndex := arow.nextInternalIndex
-	if branch == InternalBranch {
-		nextInternalIndex = index + 1
-	} else {
-		nextExternalIndex = index + 1
-	}
-
-	// Reserialize the account with the updated index and store it.
-	row.rawData = serializeBIP0044AccountRow(arow.pubKeyEncrypted,
-		arow.privKeyEncrypted, nextExternalIndex, nextInternalIndex,
-		arow.name)
-	err = bucket.Put(accountID, serializeAccountRow(row))
-	if err != nil {
-		str := fmt.Sprintf("failed to update next index for "+
-			"address %x, account %d", addressID, account)
-		return managerError(apperrors.ErrDatabase, str, err)
-	}
-	return nil
+	return putAddress(ns, addressID, &addrRow)
 }
 
 // putImportedAddress stores the provided imported address information to the
@@ -1287,7 +1249,7 @@ func forEachActiveAddress(ns walletdb.ReadBucket, fn func(rowInterface interface
 // keys from the main database without also marking it watching-only will result
 // in an unusable database.  It will also make any imported scripts and private
 // keys unrecoverable unless there is a backup copy available.
-func deletePrivateKeys(ns walletdb.ReadWriteBucket) error {
+func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 	bucket := ns.NestedReadWriteBucket(mainBucketName)
 
 	// Delete the master private key params and the crypto private and
@@ -1325,18 +1287,18 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket) error {
 
 		switch row.acctType {
 		case actBIP0044:
-			arow, err := deserializeBIP0044AccountRow(k, row)
+			arow, err := deserializeBIP0044AccountRow(k, row, dbVersion)
 			if err != nil {
 				return err
 			}
 
 			// Reserialize the account without the private key and
 			// store it.
-			row.rawData = serializeBIP0044AccountRow(
-				arow.pubKeyEncrypted, nil,
+			row := bip0044AccountInfo(arow.pubKeyEncrypted, nil,
 				arow.nextExternalIndex, arow.nextInternalIndex,
-				arow.name)
-			err = bucket.Put(k, serializeAccountRow(row))
+				arow.lastUsedExternalIndex, arow.lastUsedInternalIndex,
+				arow.name, dbVersion)
+			err = bucket.Put(k, serializeAccountRow(&row.dbAccountRow))
 			if err != nil {
 				str := "failed to delete account private key"
 				return managerError(apperrors.ErrDatabase, str, err)
@@ -1420,27 +1382,6 @@ func accountNumberToAddrPoolKey(isInternal bool, account uint32) []byte {
 	}
 
 	return k
-}
-
-// fetchNextToUseAddrPoolIdx retrieves an address pool address index for a
-// given account and branch from the meta bucket of the address manager
-// database.
-func fetchNextToUseAddrPoolIdx(ns walletdb.ReadBucket, isInternal bool,
-	account uint32) (uint32, error) {
-	bucket := ns.NestedReadBucket(metaBucketName)
-	k := accountNumberToAddrPoolKey(isInternal, account)
-	val := bucket.Get(k)
-
-	// Value should be a uint32. The serialized format
-	// is simply a little endian slice 4 bytes long.
-	if len(val) < 4 {
-		str := fmt.Sprintf("short read for acct %v, isinternal %v",
-			account, isInternal)
-		err := fmt.Errorf("short read")
-		return 0, managerError(apperrors.ErrMetaPoolIdxNoExist, str, err)
-	}
-
-	return binary.LittleEndian.Uint32(val[0:4]), nil
 }
 
 // putNextToUseAddrPoolIdx stores an address pool address index for a

@@ -112,10 +112,6 @@ const (
 	// or external for some account.
 	ErrBranch
 
-	// ErrSyncToIndex indicates that the passed address index to sync
-	// an account branch to was erroneous.
-	ErrSyncToIndex
-
 	// ErrData describes an error where data stored in the transaction
 	// database is incorrect.  This may be due to missing values, values of
 	// wrong sizes, or data from different buckets that is inconsistent with
@@ -183,9 +179,18 @@ const (
 	// faulty.
 	ErrBadPoolUserAddr
 
-	// ErrStoreClosed indicates that a function was called after the stake
-	// store was closed.
-	ErrStoreClosed
+	// ErrUnimplemented describes any application error due to an unimplemented
+	// or missing feature.
+	ErrUnimplemented
+
+	// ErrExceedsGapLimit indicates that a new address could not be returned as
+	// there has been insufficient public usage on any of the previous derived
+	// addressesin the BIP0044 gap limit.
+	ErrExceedsGapLimit
+
+	// ErrExhaustedAccount indicates that all possible addresses for an account
+	// have been derived and no more can be created.
+	ErrExhaustedAccount
 )
 
 // E describes an application-level error.  An error code is provided to
@@ -211,4 +216,10 @@ func (e E) Error() string {
 func IsError(err error, code Code) bool {
 	e, ok := err.(E)
 	return ok && e.ErrorCode == code
+}
+
+// Wraps returns whether apperror is an apperror.E and wraps the error err.
+func Wraps(apperror, err error) bool {
+	e, ok := apperror.(E)
+	return ok && e.Err == err
 }

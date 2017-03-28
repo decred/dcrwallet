@@ -22,6 +22,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -109,7 +110,7 @@ type Wallet struct {
 
 	// Start up flags/settings
 	initiallyUnlocked bool
-	addrIdxScanLen    int
+	gapLimit          int
 
 	chainClient     *chain.RPCClient
 	chainClientLock sync.Mutex
@@ -135,10 +136,10 @@ type Wallet struct {
 	purchaseTicketRequests chan purchaseTicketRequest
 
 	// Internal address handling.
-	addrPools     map[uint32]*addressPools
-	addrPoolsMtx  sync.RWMutex
-	addressReuse  bool
-	ticketAddress dcrutil.Address
+	addressReuse     bool
+	ticketAddress    dcrutil.Address
+	addressBuffers   map[uint32]*bip0044AccountData
+	addressBuffersMu sync.Mutex
 
 	// Channels for the manager locker.
 	unlockRequests     chan unlockRequest
@@ -168,7 +169,7 @@ type Wallet struct {
 // and transaction store.
 func newWallet(vb uint16, vbe []byte, votingEnabled bool, addressReuse bool,
 	ticketAddress dcrutil.Address, poolAddress dcrutil.Address, pf float64,
-	relayFee, ticketFee dcrutil.Amount, addrIdxScanLen int,
+	relayFee, ticketFee dcrutil.Amount, gapLimit int,
 	stakePoolColdAddrs map[string]struct{}, AllowHighFees bool,
 	mgr *udb.Manager, txs *udb.Store, smgr *udb.StakeStore, db *walletdb.DB,
 	params *chaincfg.Params) *Wallet {
@@ -195,12 +196,12 @@ func newWallet(vb uint16, vbe []byte, votingEnabled bool, addressReuse bool,
 		createSSGenRequests:      make(chan createSSGenRequest),
 		createSSRtxRequests:      make(chan createSSRtxRequest),
 		purchaseTicketRequests:   make(chan purchaseTicketRequest),
-		addrPools:                make(map[uint32]*addressPools),
 		addressReuse:             addressReuse,
 		ticketAddress:            ticketAddress,
+		addressBuffers:           make(map[uint32]*bip0044AccountData),
 		poolAddress:              poolAddress,
 		poolFees:                 pf,
-		addrIdxScanLen:           addrIdxScanLen,
+		gapLimit:                 gapLimit,
 		stakePoolEnabled:         len(stakePoolColdAddrs) > 0,
 		stakePoolColdAddrs:       stakePoolColdAddrs,
 		initiallyUnlocked:        false,
@@ -212,6 +213,41 @@ func newWallet(vb uint16, vbe []byte, votingEnabled bool, addressReuse bool,
 		chainParams:              params,
 		quit:                     make(chan struct{}),
 	}
+
+	// TODO: remove newWallet, stick the above in Open, and don't ignore this
+	// error.
+	walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		ns := tx.ReadBucket(waddrmgrNamespaceKey)
+		lastAcct, err := w.Manager.LastAccount(ns)
+		if err != nil {
+			return err
+		}
+		for acct := uint32(0); acct <= lastAcct; acct++ {
+			xpub, err := w.Manager.AccountExtendedPubKey(tx, acct)
+			if err != nil {
+				return err
+			}
+			extKey, intKey, err := deriveBranches(xpub)
+			if err != nil {
+				return err
+			}
+			props, err := w.Manager.AccountProperties(ns, acct)
+			if err != nil {
+				return err
+			}
+			w.addressBuffers[acct] = &bip0044AccountData{
+				albExternal: addressBuffer{
+					branchXpub: extKey,
+					lastUsed:   props.LastUsedExternalIndex,
+				},
+				albInternal: addressBuffer{
+					branchXpub: intKey,
+					lastUsed:   props.LastUsedInternalIndex,
+				},
+			}
+		}
+		return nil
+	})
 
 	w.NtfnServer = newNotificationServer(w)
 	return w
@@ -474,18 +510,6 @@ func (w *Wallet) quitChan() <-chan struct{} {
 	c := w.quit
 	w.quitMu.Unlock()
 	return c
-}
-
-// CloseDatabases triggers the wallet databases to shut down.
-func (w *Wallet) CloseDatabases() error {
-	return walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-
-		// Store the current address pool last addresses.
-		w.CloseAddressPools(addrmgrNs)
-
-		return w.StakeMgr.Close()
-	})
 }
 
 // Stop signals all wallet goroutines to shutdown.
@@ -1346,27 +1370,6 @@ func (w *Wallet) ChangePublicPassphrase(old, new []byte) error {
 	})
 }
 
-var errBreak = errors.New("break")
-
-// accountUsed returns whether there are any recorded transactions spending to
-// a given account. It returns true if atleast one address in the account was
-// used and false if no address in the account was used.
-func (w *Wallet) accountUsed(addrmgrNs walletdb.ReadBucket, account uint32) (bool, error) {
-	var used bool
-	err := w.Manager.ForEachAccountAddress(addrmgrNs, account,
-		func(maddr udb.ManagedAddress) error {
-			used = maddr.Used(addrmgrNs)
-			if used {
-				return errBreak
-			}
-			return nil
-		})
-	if err == errBreak {
-		err = nil
-	}
-	return used, err
-}
-
 // CalculateAccountBalance sums the amounts of all unspent transaction
 // outputs to the given account of a wallet and returns the balance.
 func (w *Wallet) CalculateAccountBalance(account uint32, confirms int32) (udb.Balances, error) {
@@ -1411,41 +1414,49 @@ func (w *Wallet) CalculateAccountBalances(confirms int32) (map[uint32]*udb.Balan
 // spending to it in the blockchain or dcrd mempool), the next chained address
 // is returned.
 func (w *Wallet) CurrentAddress(account uint32) (dcrutil.Address, error) {
-	var addr dcrutil.Address
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		// Access the address index to get the next to use
-		// address.
-		nextToUseIdx, err := w.addressPoolIndex(addrmgrNs,
-			account, udb.ExternalBranch)
-		if err != nil {
-			return err
-		}
-		if nextToUseIdx <= 0 {
-			return fmt.Errorf("there have not been any addresses used for this account")
-		}
-		lastUsedIdx := nextToUseIdx - 1
+	defer w.addressBuffersMu.Unlock()
+	w.addressBuffersMu.Lock()
 
-		addr, err = w.Manager.AddressDerivedFromDbAcct(addrmgrNs,
-			lastUsedIdx, account, udb.ExternalBranch)
-		return err
-	})
-	return addr, err
+	data, ok := w.addressBuffers[account]
+	if !ok {
+		const str = "account not found"
+		return nil, apperrors.E{ErrorCode: apperrors.ErrAccountNotFound, Description: str, Err: nil}
+	}
+	buf := &data.albExternal
+
+	childIndex := buf.lastUsed + buf.cursor
+	child, err := buf.branchXpub.Child(childIndex)
+	if err != nil {
+		const str = "failed to derive child key"
+		return nil, apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: nil}
+	}
+	return child.Address(w.chainParams)
 }
 
 // AccountBranchAddressRange returns all addresses in the left-open,
 // right-closed range (start, end] belonging to the BIP0044 account and address
 // branch.
 func (w *Wallet) AccountBranchAddressRange(start, end uint32, account uint32, branch uint32) ([]dcrutil.Address, error) {
-	var addrs []dcrutil.Address
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		var err error
-		addrs, err = w.Manager.AddressesDerivedFromDbAcct(addrmgrNs,
-			start, end, account, branch)
-		return err
-	})
-	return addrs, err
+	defer w.addressBuffersMu.Unlock()
+	w.addressBuffersMu.Lock()
+
+	acctBufs, ok := w.addressBuffers[account]
+	if !ok {
+		const str = "account not found"
+		return nil, apperrors.E{ErrorCode: apperrors.ErrAccountNotFound, Description: str, Err: nil}
+	}
+
+	var buf *addressBuffer
+	switch branch {
+	case udb.ExternalBranch:
+		buf = &acctBufs.albExternal
+	case udb.InternalBranch:
+		buf = &acctBufs.albInternal
+	default:
+		const str = "unknown branch"
+		return nil, apperrors.E{ErrorCode: apperrors.ErrBranch, Description: str, Err: nil}
+	}
+	return deriveChildAddresses(buf.branchXpub, start+1, end-start+1, w.chainParams)
 }
 
 // PubKeyForAddress looks up the associated public key for a P2PKH address.
@@ -1467,24 +1478,35 @@ func (w *Wallet) PubKeyForAddress(a dcrutil.Address) (chainec.PublicKey, error) 
 	return pubKey, err
 }
 
-// PrivKeyForAddress looks up the associated private key for a P2PKH or P2PK
-// address.
-func (w *Wallet) PrivKeyForAddress(a dcrutil.Address) (chainec.PrivateKey, error) {
+// SignMessage returns the signature of a signed message using an address'
+// associated private key.
+func (w *Wallet) SignMessage(msg string, addr dcrutil.Address) (sig []byte, err error) {
+	var buf bytes.Buffer
+	wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
+	wire.WriteVarString(&buf, 0, msg)
+	messageHash := chainhash.HashB(buf.Bytes())
 	var privKey chainec.PrivateKey
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	var done func()
+	defer func() {
+		if done != nil {
+			done()
+		}
+	}()
+	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		managedAddr, err := w.Manager.Address(addrmgrNs, a)
-		if err != nil {
-			return err
-		}
-		managedPubKeyAddr, ok := managedAddr.(udb.ManagedPubKeyAddress)
-		if !ok {
-			return errors.New("address does not have an associated private key")
-		}
-		privKey, err = managedPubKeyAddr.PrivKey()
+		var err error
+		privKey, done, err = w.Manager.PrivateKey(addrmgrNs, addr)
 		return err
 	})
-	return privKey, err
+	if err != nil {
+		return nil, err
+	}
+	pkCast, ok := privKey.(*secp256k1.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("Unable to create secp256k1.PrivateKey" +
+			"from chainec.PrivateKey")
+	}
+	return secp256k1.SignCompact(secp256k1.S256(), pkCast, messageHash, true)
 }
 
 // existsAddressOnChain checks the chain on daemon to see if the given address
@@ -1580,36 +1602,10 @@ func (w *Wallet) AccountProperties(acct uint32) (*udb.AccountProperties, error) 
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		waddrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
-		props, err = w.accountProperties(waddrmgrNs, acct)
+		props, err = w.Manager.AccountProperties(waddrmgrNs, acct)
 		return err
 	})
 	return props, err
-}
-
-func (w *Wallet) accountProperties(waddrmgrNs walletdb.ReadBucket, acct uint32) (*udb.AccountProperties, error) {
-	props, err := w.Manager.AccountProperties(waddrmgrNs, acct)
-	if err != nil {
-		return nil, err
-	}
-
-	// Look up where the address pool index is, not the address forward
-	// buffer. Skip the imported account, which is not a BIP32-like
-	// account.
-	if acct != udb.ImportedAddrAccount {
-		extIdx, err := w.addressPoolIndex(waddrmgrNs, acct, udb.ExternalBranch)
-		if err != nil {
-			return nil, err
-		}
-		props.ExternalKeyCount = extIdx
-
-		intIdx, err := w.addressPoolIndex(waddrmgrNs, acct, udb.InternalBranch)
-		if err != nil {
-			return nil, err
-		}
-		props.InternalKeyCount = intIdx
-	}
-
-	return props, nil
 }
 
 // RenameAccount sets the name for an account number to newName.
@@ -1621,7 +1617,7 @@ func (w *Wallet) RenameAccount(account uint32, newName string) error {
 		if err != nil {
 			return err
 		}
-		props, err = w.accountProperties(addrmgrNs, account)
+		props, err = w.Manager.AccountProperties(addrmgrNs, account)
 		return err
 	})
 	if err == nil {
@@ -1640,23 +1636,36 @@ const maxEmptyAccounts = 100
 func (w *Wallet) NextAccount(name string) (uint32, error) {
 	var account uint32
 	var props *udb.AccountProperties
+	var xpub *hdkeychain.ExtendedKey
 	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 
+		// Ensure that there is transaction history in the last 100 accounts.
+		// This is performed by inspecting the
 		var err error
-		account, err = w.Manager.LastAccount(addrmgrNs)
+		lastAcct, err := w.Manager.LastAccount(addrmgrNs)
 		if err != nil {
 			return err
 		}
-		if account > maxEmptyAccounts {
-			used, err := w.accountUsed(addrmgrNs, account)
+		canCreate := false
+		for i := uint32(0); i < maxEmptyAccounts; i++ {
+			a := lastAcct - i
+			if a == 0 && i < maxEmptyAccounts-1 {
+				// Less than 100 accounts total.
+				canCreate = true
+				break
+			}
+			props, err := w.Manager.AccountProperties(addrmgrNs, a)
 			if err != nil {
 				return err
 			}
-			if !used {
-				return errors.New("cannot create account: " +
-					"previous account has no transaction history")
+			if props.LastUsedExternalIndex != 0 || props.LastUsedInternalIndex != 0 {
+				canCreate = true
+				break
 			}
+		}
+		if !canCreate {
+			return errors.New("last 100 accounts have no transaction history")
 		}
 
 		account, err = w.Manager.NewAccount(addrmgrNs, name)
@@ -1664,45 +1673,42 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 			return err
 		}
 
-		props, err = w.accountProperties(addrmgrNs, account)
+		props, err = w.Manager.AccountProperties(addrmgrNs, account)
 		if err != nil {
 			return err
 		}
 
-		// Start an address buffer for this account in the address
-		// manager for both the internal and external branches.
-		_, err = w.Manager.SyncAccountToAddrIndex(addrmgrNs, account,
-			addressPoolBuffer, udb.ExternalBranch)
+		xpub, err = w.Manager.AccountExtendedPubKey(tx, account)
 		if err != nil {
-			return fmt.Errorf("failed to create initial waddrmgr "+
-				"external address buffer for the address pool, "+
-				"account %v during createnewaccount: %s",
-				account, err.Error())
+			return err
 		}
-		_, err = w.Manager.SyncAccountToAddrIndex(addrmgrNs, account,
-			addressPoolBuffer, udb.InternalBranch)
+
+		gapLimit := uint32(w.gapLimit)
+		err = w.Manager.SyncAccountToAddrIndex(addrmgrNs, account,
+			gapLimit, udb.ExternalBranch)
 		if err != nil {
-			return fmt.Errorf("failed to create initial waddrmgr "+
-				"internal address buffer for the address pool, "+
-				"account %v during createnewaccount: %s",
-				account, err.Error())
+			return err
 		}
-		return nil
+		return w.Manager.SyncAccountToAddrIndex(addrmgrNs, account,
+			gapLimit, udb.InternalBranch)
 	})
 	if err != nil {
 		return 0, err
 	}
 
-	w.NtfnServer.notifyAccountProperties(props)
-
-	// Initialize a new address pool for this account.
-	w.addrPoolsMtx.Lock()
-	defer w.addrPoolsMtx.Unlock()
-	pool, err := newAddressPools(account, 0, 0, w)
+	extKey, intKey, err := deriveBranches(xpub)
 	if err != nil {
 		return 0, err
 	}
-	w.addrPools[account] = pool
+	w.addressBuffersMu.Lock()
+	w.addressBuffers[account] = &bip0044AccountData{
+		albExternal: addressBuffer{branchXpub: extKey},
+		albInternal: addressBuffer{branchXpub: intKey},
+	}
+	w.addressBuffersMu.Unlock()
+
+	w.NtfnServer.notifyAccountProperties(props)
+
 	return account, nil
 }
 
@@ -2237,7 +2243,7 @@ func (w *Wallet) Accounts() (*AccountsResult, error) {
 			return err
 		}
 		err = w.Manager.ForEachAccount(addrmgrNs, func(acct uint32) error {
-			props, err := w.accountProperties(addrmgrNs, acct)
+			props, err := w.Manager.AccountProperties(addrmgrNs, acct)
 			if err != nil {
 				return err
 			}
@@ -2506,61 +2512,26 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 	return results, err
 }
 
-// DumpPrivKeys returns the WIF-encoded private keys for all addresses with
-// private keys in a wallet.
-func (w *Wallet) DumpPrivKeys() ([]string, error) {
-	var privkeys []string
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		// Iterate over each active address, appending the private key to
-		// privkeys.
-		return w.Manager.ForEachActiveAddress(addrmgrNs, func(addr dcrutil.Address) error {
-			ma, err := w.Manager.Address(addrmgrNs, addr)
-			if err != nil {
-				return err
-			}
-
-			// Only those addresses with keys needed.
-			pka, ok := ma.(udb.ManagedPubKeyAddress)
-			if !ok {
-				return nil
-			}
-
-			wif, err := pka.ExportPrivKey()
-			if err != nil {
-				// It would be nice to zero out the array here. However,
-				// since strings in go are immutable, and we have no
-				// control over the caller I don't think we can. :(
-				return err
-			}
-			privkeys = append(privkeys, wif.String())
-			return nil
-		})
-	})
-	return privkeys, err
-}
-
 // DumpWIFPrivateKey returns the WIF encoded private key for a
 // single wallet address.
 func (w *Wallet) DumpWIFPrivateKey(addr dcrutil.Address) (string, error) {
-	var maddr udb.ManagedAddress
+	var privKey chainec.PrivateKey
+	var done func()
+	defer func() {
+		if done != nil {
+			done()
+		}
+	}()
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		waddrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		// Get private key from wallet if it exists.
+		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
-		maddr, err = w.Manager.Address(waddrmgrNs, addr)
+		privKey, done, err = w.Manager.PrivateKey(addrmgrNs, addr)
 		return err
 	})
 	if err != nil {
 		return "", err
 	}
-
-	pka, ok := maddr.(udb.ManagedPubKeyAddress)
-	if !ok {
-		return "", fmt.Errorf("address %s is not a key type", addr)
-	}
-
-	wif, err := pka.ExportPrivKey()
+	wif, err := dcrutil.NewWIF(privKey, w.chainParams, privKey.GetType())
 	if err != nil {
 		return "", err
 	}
@@ -2583,7 +2554,7 @@ func (w *Wallet) ImportPrivateKey(wif *dcrutil.WIF) (string, error) {
 		maddr, err := w.Manager.ImportPrivateKey(addrmgrNs, wif)
 		if err == nil {
 			addr = maddr.Address()
-			props, err = w.accountProperties(
+			props, err = w.Manager.AccountProperties(
 				addrmgrNs, udb.ImportedAddrAccount)
 		}
 		return err
@@ -2654,6 +2625,24 @@ func (w *Wallet) ImportScript(rs []byte) error {
 
 		return nil
 	})
+}
+
+// RedeemScriptCopy returns a copy of a redeem script to redeem outputs payed to
+// a P2SH address.
+func (w *Wallet) RedeemScriptCopy(addr dcrutil.Address) ([]byte, error) {
+	var scriptCopy []byte
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		ns := tx.ReadBucket(waddrmgrNamespaceKey)
+		script, done, err := w.Manager.RedeemScript(ns, addr)
+		if err != nil {
+			return err
+		}
+		defer done()
+		scriptCopy = make([]byte, len(script))
+		copy(scriptCopy, script)
+		return nil
+	})
+	return scriptCopy, err
 }
 
 // StakeInfoData is a struct containing the data that would be returned from
@@ -3210,6 +3199,13 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType,
 	additionalKeysByAddress map[string]*dcrutil.WIF,
 	p2shRedeemScriptsByAddress map[string][]byte) ([]SignatureError, error) {
 
+	var doneFuncs []func()
+	defer func() {
+		for _, f := range doneFuncs {
+			f()
+		}
+	}()
+
 	var signErrors []SignatureError
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
@@ -3267,12 +3263,11 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType,
 					return nil, false, fmt.Errorf("address %v is not "+
 						"a pubkey address", address.Address().EncodeAddress())
 				}
-
-				key, err := pka.PrivKey()
+				key, done, err := w.Manager.PrivateKey(addrmgrNs, addr)
 				if err != nil {
 					return nil, false, err
 				}
-
+				doneFuncs = append(doneFuncs, done)
 				return key, pka.Compressed(), nil
 			})
 			getScript := txscript.ScriptClosure(func(
@@ -3300,17 +3295,12 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType,
 				}
 
 				// Then check the address manager.
-				address, err := w.Manager.Address(addrmgrNs, addr)
+				script, done, err := w.Manager.RedeemScript(addrmgrNs, addr)
 				if err != nil {
 					return nil, err
 				}
-				sa, ok := address.(udb.ManagedScriptAddress)
-				if !ok {
-					return nil, errors.New("address is not a script" +
-						" address")
-				}
-
-				return sa.Script()
+				doneFuncs = append(doneFuncs, done)
+				return script, nil
 			})
 
 			// SigHashSingle inputs can only be signed if there's a
@@ -3412,29 +3402,38 @@ func (w *Wallet) ChainParams() *chaincfg.Params {
 // block as the main chain tip.  When these are both true, an accounts sync
 // should be performed to restore, per BIP0044, any generated accounts and
 // addresses from a restored seed.
-func (w *Wallet) NeedsAccountsSync() bool {
+func (w *Wallet) NeedsAccountsSync() (bool, error) {
 	_, tipHeight := w.MainChainTip()
 	if tipHeight != 0 {
-		return false
+		return false, nil
 	}
 
-	// If account 1 exists, there are more accounts than just the default
-	// account.
-	if w.getAddressPools(1) != nil {
-		return false
-	}
-
-	defaultPool := w.getAddressPools(0)
-	if defaultPool == nil {
-		return true
-	}
-	defaultPool.external.mutex.Lock()
-	extIndex := defaultPool.external.index
-	defaultPool.external.mutex.Unlock()
-	defaultPool.internal.mutex.Lock()
-	intIndex := defaultPool.internal.index
-	defaultPool.internal.mutex.Unlock()
-	return extIndex == 0 && intIndex == 0
+	needsSync := true
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
+		lastAcct, err := w.Manager.LastAccount(addrmgrNs)
+		if err != nil {
+			return err
+		}
+		if lastAcct != 0 {
+			// There are more accounts than just the default account and no
+			// accounts sync is required.
+			needsSync = false
+			return nil
+		}
+		// Begin iteration over all addresses in the first account.  If any
+		// exist, "break out" of the loop with a special error.
+		errBreak := errors.New("break")
+		err = w.Manager.ForEachAccountAddress(addrmgrNs, 0, func(udb.ManagedAddress) error {
+			needsSync = false
+			return errBreak
+		})
+		if apperrors.Wraps(err, errBreak) {
+			return nil
+		}
+		return err
+	})
+	return needsSync, err
 }
 
 // Create creates an new wallet, writing it to an empty database.  If the passed
@@ -3470,8 +3469,7 @@ func CreateWatchOnly(db walletdb.DB, extendedPubKey string, pubPass []byte, para
 // address index to scan to, exclusive. Effectively, it returns the derived
 // addresses for this public key for the address indexes [0,end). The branch
 // used for the derivation is always the external branch.
-func decodeStakePoolColdExtKey(encStr string,
-	params *chaincfg.Params) (map[string]struct{}, error) {
+func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[string]struct{}, error) {
 	// Default option; stake pool is disabled.
 	if encStr == "" {
 		return nil, nil
@@ -3507,8 +3505,7 @@ func decodeStakePoolColdExtKey(encStr string,
 		"for extended public key %s", end, splStrs[0])
 
 	// Derive the addresses from [0, end) for this extended public key.
-	addrs, err := udb.AddressesDerivedFromExtPub(0, uint32(end),
-		key, udb.ExternalBranch, params)
+	addrs, err := deriveChildAddresses(key, 0, uint32(end)+1, params)
 	if err != nil {
 		return nil, err
 	}
@@ -3525,7 +3522,7 @@ func decodeStakePoolColdExtKey(encStr string,
 func Open(db walletdb.DB, pubPass []byte, voteBits uint16, voteBitsExtended string,
 	votingEnabled bool, addressReuse bool, pruneTickets bool, ticketAddress string,
 	poolAddress string, poolFees float64, ticketFee float64,
-	addrIdxScanLen int, stakePoolColdExtKey string, allowHighFees bool, relayFee float64,
+	gapLimit int, stakePoolColdExtKey string, allowHighFees bool, relayFee float64,
 	params *chaincfg.Params) (*Wallet, error) {
 
 	// Migrate to the unified DB if necessary.
@@ -3541,7 +3538,7 @@ func Open(db walletdb.DB, pubPass []byte, voteBits uint16, voteBitsExtended stri
 	}
 
 	// Perform upgrades as necessary.
-	err = udb.Upgrade(db)
+	err = udb.Upgrade(db, pubPass)
 	if err != nil {
 		return nil, err
 	}
@@ -3622,7 +3619,7 @@ func Open(db walletdb.DB, pubPass []byte, voteBits uint16, voteBitsExtended stri
 		poolFees,
 		relayFeeAmt,
 		ticketFeeAmt,
-		addrIdxScanLen,
+		gapLimit,
 		stakePoolColdAddrs,
 		allowHighFees,
 		addrMgr,

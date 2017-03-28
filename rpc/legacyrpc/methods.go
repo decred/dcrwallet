@@ -20,7 +20,6 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrec/secp256k1"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -160,13 +159,13 @@ var rpcHandlers = map[string]struct {
 
 	// Reference implementation methods (still unimplemented)
 	"backupwallet":         {handler: unimplemented, noHelp: true},
-	"dumpwallet":           {handler: unimplemented, noHelp: true},
 	"getwalletinfo":        {handler: unimplemented, noHelp: true},
 	"importwallet":         {handler: unimplemented, noHelp: true},
 	"listaddressgroupings": {handler: unimplemented, noHelp: true},
 
 	// Reference methods which can't be implemented by dcrwallet due to
 	// design decision differences
+	"dumpwallet":    {handler: unsupported, noHelp: true},
 	"encryptwallet": {handler: unsupported, noHelp: true},
 	"move":          {handler: unsupported, noHelp: true},
 	"setaccount":    {handler: unsupported, noHelp: true},
@@ -329,18 +328,19 @@ func accountAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, error
 		return nil, err
 	}
 
-	// The branch may only be internal or external.
-	branch := uint32(cmd.Branch)
-	if branch > udb.InternalBranch {
-		return nil, fmt.Errorf("invalid branch %v", branch)
-	}
-
-	idx, err := w.AddressPoolIndex(account, branch)
+	extChild, intChild, err := w.BIP0044BranchIndexes(account)
 	if err != nil {
 		return nil, err
 	}
-
-	return idx, nil
+	switch uint32(cmd.Branch) {
+	case udb.ExternalBranch:
+		return extChild, nil
+	case udb.InternalBranch:
+		return intChild, nil
+	default:
+		// The branch may only be internal or external.
+		return nil, fmt.Errorf("invalid branch %v", cmd.Branch)
+	}
 }
 
 // accountFetchAddresses returns the all addresses from (start,end] for the
@@ -390,28 +390,35 @@ func accountSyncAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, e
 		return nil, err
 	}
 
-	// The branch may only be internal or external.
-	branch := uint32(cmd.Branch)
-	if branch > udb.InternalBranch {
-		return nil, fmt.Errorf("invalid branch %v", branch)
-	}
-
-	// Get the current address pool index for this branch
-	// and do basic sanity checks.
-	index := uint32(cmd.Index)
-	currentIndex, err := w.AddressPoolIndex(account, branch)
+	extChild, intChild, err := w.BIP0044BranchIndexes(account)
 	if err != nil {
 		return nil, err
 	}
-	if index < currentIndex {
-		return nil, fmt.Errorf("the passed index, %v, is before the "+
-			"currently synced to address index %v", index, currentIndex)
+	branch := uint32(cmd.Branch)
+	var currentChild uint32
+	switch branch {
+	case udb.ExternalBranch:
+		currentChild = extChild
+	case udb.InternalBranch:
+		currentChild = intChild
+	default:
+		// The branch may only be internal or external.
+		return nil, fmt.Errorf("invalid branch %v", branch)
 	}
-	if index == currentIndex {
+
+	index := uint32(cmd.Index)
+	if index < currentChild {
+		return nil, fmt.Errorf("the passed index, %v, is before the "+
+			"currently synced to address index %v", index, currentChild)
+	}
+	if index == currentChild {
 		return nil, nil
 	}
 
-	return nil, w.SyncAddressPoolIndex(account, branch, index)
+	// Additional addresses need to be watched.  Since addresses are derived
+	// based on the last used address, this RPC no longer changes the child
+	// indexes that new addresses are derived from.
+	return nil, w.ExtendWatchedAddresses(account, branch, index)
 }
 
 func makeMultiSigScript(w *wallet.Wallet, keys []string,
@@ -586,18 +593,6 @@ func dumpPrivKey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	return key, err
 }
 
-// dumpWallet handles a dumpwallet request by returning  all private
-// keys in a wallet, or an appropiate error if the wallet is locked.
-// TODO: finish this to match bitcoind by writing the dump to a file.
-func dumpWallet(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	keys, err := w.DumpPrivKeys()
-	if apperrors.IsError(err, apperrors.ErrLocked) {
-		return nil, &ErrWalletUnlockNeeded
-	}
-
-	return keys, err
-}
-
 // getAddressesByAccount handles a getaddressesbyaccount request by returning
 // all addresses for an account, or an error if the requested account does
 // not exist.
@@ -610,11 +605,7 @@ func getAddressesByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, err
 	}
 
 	// Find the current synced-to indexes from the address pool.
-	endExt, err := w.AddressPoolIndex(account, udb.ExternalBranch)
-	if err != nil {
-		return nil, err
-	}
-	endInt, err := w.AddressPoolIndex(account, udb.InternalBranch)
+	endExt, endInt, err := w.BIP0044BranchIndexes(account)
 	if err != nil {
 		return nil, err
 	}
@@ -1081,7 +1072,7 @@ func getNewAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		return nil, err
 	}
 
-	addr, err := w.NewAddress(account, udb.ExternalBranch)
+	addr, err := w.NewExternalAddress(account)
 	if err != nil {
 		return nil, err
 	}
@@ -1125,8 +1116,7 @@ func getRawChangeAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error
 		return nil, err
 	}
 
-	// Use the address pool for the default or imported accounts.
-	addr, err := w.NewAddress(account, udb.InternalBranch)
+	addr, err := w.NewInternalAddress(account)
 	if err != nil {
 		return nil, err
 	}
@@ -2102,7 +2092,7 @@ func redeemMultiSigOut(icmd interface{}, w *wallet.Wallet, chainClient *chain.RP
 		addr, err = decodeAddress(*cmd.Address, w.ChainParams())
 	} else {
 		account := uint32(udb.DefaultAccountNum)
-		addr, err = w.NewAddress(account, udb.InternalBranch)
+		addr, err = w.NewInternalAddress(account)
 		if err != nil {
 			return nil, err
 		}
@@ -2753,26 +2743,10 @@ func signMessage(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	privKey, err := w.PrivKeyForAddress(addr)
+	sig, err := w.SignMessage(cmd.Message, addr)
 	if err != nil {
 		return nil, err
 	}
-
-	var buf bytes.Buffer
-	wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
-	wire.WriteVarString(&buf, 0, cmd.Message)
-	messageHash := chainhash.HashB(buf.Bytes())
-	pkCast, ok := privKey.(*secp256k1.PrivateKey)
-	if !ok {
-		return nil, fmt.Errorf("Unable to create secp256k1.PrivateKey" +
-			"from chainec.PrivateKey")
-	}
-	sig, err := secp256k1.SignCompact(secp256k1.S256(), pkCast, messageHash, true)
-	if err != nil {
-		return nil, err
-	}
-
 	return base64.StdEncoding.EncodeToString(sig), nil
 }
 
@@ -3170,7 +3144,7 @@ func validateAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 		// The script is only available if the manager is unlocked, so
 		// just break out now if there is an error.
-		script, err := ma.Script()
+		script, err := w.RedeemScriptCopy(addr)
 		if err != nil {
 			break
 		}

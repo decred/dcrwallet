@@ -46,9 +46,6 @@ var (
 		P: 1,
 	}
 
-	// waddrmgrNamespaceKey is the namespace key for the waddrmgr package.
-	waddrmgrNamespaceKey = []byte("waddrmgrNamespace")
-
 	// expectedAddrs is the list of all expected addresses generated from the
 	// seed.
 	expectedAddrs = []expectedAddr{

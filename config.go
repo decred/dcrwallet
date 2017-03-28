@@ -46,7 +46,7 @@ const (
 	defaultUnsafeMainNet       = false
 	defaultPromptPass          = false
 	defaultPromptPublicPass    = false
-	defaultAddrIdxScanLen      = 750
+	defaultAddrIdxScanLen      = wallet.DefaultGapLimit
 	defaultStakePoolColdExtKey = ""
 	defaultAllowHighFees       = false
 
