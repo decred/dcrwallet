@@ -301,11 +301,6 @@ func (t *ticketbuyerServer) SetPoolAddress(ctx context.Context, req *pb.SetPoolA
 		return nil, grpc.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
 	case poolFees != 0 && poolAddress == "":
 		return nil, grpc.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
-	case poolFees != 0 && poolAddress != "":
-		err = txrules.IsValidPoolFeeRate(poolFees)
-		if err != nil {
-			return nil, grpc.Errorf(codes.InvalidArgument, "Pool fees amount invalid: %v", err)
-		}
 	}
 
 	poolAddr, err := decodeAddress(poolAddress, w.ChainParams())
