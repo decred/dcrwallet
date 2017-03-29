@@ -657,7 +657,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 					}
 				} else {
 					chainClient := w.ChainClient()
-					if chainClient == nil {
+					if chainClient != nil {
 						err := chainClient.LoadTxFilter(false,
 							[]dcrutil.Address{mscriptaddr.Address()}, nil)
 						if err != nil {
