@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.5.x
+Version: 4.6.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -1488,6 +1488,16 @@ and to stop it.  It is always running but depends on the wallet to be loaded.
 
 - [`StartAutoBuyer`](#startautobuyer)
 - [`StopAutoBuyer`](#stopautobuyer)
+- [`TicketBuyerConfig`](#ticketbuyerconfig)
+- [`SetAccount`](#setaccount)
+- [`SetBalanceToMaintain`](#setbalancectomaintain)
+- [`SetMaxFee`](#setmaxfee)
+- [`SetMaxPriceRelative`](#setmaxpricerelative)
+- [`SetMaxPriceAbsolute`](#setmaxpriceabsolute)
+- [`SetVotingAddress`](#setvotingaddress)
+- [`SetPoolAddress`](#setpooladdress)
+- [`SetPoolFees`](#setpoolfees)
+- [`SetMaxPerBlock`](#setmaxperblock)
 
 ### Methods
 
@@ -1564,3 +1574,266 @@ The `StopAutoBuyer` method stops the automatic ticket buyer.
 - `FailedPrecondition`: Ticket buyer is not running.
 
 **Stability:** Unstable
+
+___
+
+#### `TicketBuyerConfig`
+
+The `TicketBuyerConfig` method returns the current configuration of the
+automatic ticket buyer.
+
+**Request:** `TicketBuyerConfigRequest`
+
+**Response:** `TicketBuyerConfigResponse`
+
+- `uint32 account`: The account number to use for purchasing tickets.
+
+- `string avg_price_mode` : The mode to use for calculating the average price.
+
+- `int64 avg_priceVWAP_delta`: The number of blocks from the current block to use to calculate the VWAP.
+
+- `int64 balance_to_maintain`: The minimum amount of funds to never dip below when purchasing tickets.
+
+- `int64 blocks_to_avg`: The number of blocks to average for fees calculation.
+
+- `bool dont_wait_for_tickets`: If true, wait until the last round of tickets have entered the blockchain, before attempting more purchases.
+
+- `int64 expiry_delta`: The number of blocks in the future before the ticket expires.
+
+- `string fee_source`: The fee source to use for ticket fee per KB (median or mean).
+
+- `double fee_target_scaling`: The scaling factor for setting the ticket fee, multiplies by the average fee.
+
+- `int64 min_fee`: The minimum ticket fee amount per KB
+
+- `int64 max_fee`: The maximum ticket fee amount per KB.
+
+- `int64 max_per_block`: The maximum tickets per block. Negative number indicates one ticket every n blocks.
+
+- `int64 max_price_absolute`: The maximum absolute ticket price.
+
+- `double max_price_relative`: The scaling factor for setting the maximum ticket price, multiplied by the average price.
+
+- `int64 max_in_mempool`: The maximum number of own tickets in mempool before attempting more purchases.
+
+- `string pool_address`: The stake pool address where ticket fees will go to.
+
+- `double pool_fees`: The absolute per ticket fee mandated by the stake pool as a percent.
+
+- `bool spread_ticket_purchases`: If true, spread ticket purchases evenly throughout the window.
+
+- `string voting_address`: The address to delegate voting rights to.
+
+- `int64 tx_fee`: The transaction fee amount per KB.
+
+
+**Expected errors:**
+
+- `FailedPrecondition`: Ticket buyer is not running.
+
+- `FailedPrecondition`: Wallet has not been loaded.
+
+**Stability:** Unstable
+
+___
+
+#### `SetAccount`
+
+The `SetAccount` configures the account to use for the automatic ticket buyer.
+
+**Request:** `SetAccountRequest`
+
+- `uint32 account`: The account number to use for purchasing tickets.
+
+**Response:** `SetAccountResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: Ticket buyer is not running.
+
+- `FailedPrecondition`: Wallet has not been loaded.
+
+- `NotFound`: The account does not exist.
+
+**Stability:** Unstable
+
+___
+
+#### `SetBalanceToMaintain`
+
+The `SetBalanceToMaintain` configures the balance to maintain for the automatic
+ticket buyer.
+
+**Request:** `SetBalanceToMaintainRequest`
+
+- `int64 balance_to_maintain`: The minimum amount of funds to never dip below when purchasing tickets.
+
+**Response:** `SetBalanceToMaintainResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: Ticket buyer is not running.
+
+- `InvalidArgument`: An invalid balance to maintain was specified.
+
+**Stability:** Unstable
+
+___
+
+#### `SetMaxFee`
+
+The `SetMaxFee` configures the maximum ticket fee per KB for the automatic
+ticket buyer.
+
+**Request:** `SetMaxFeeRequest`
+
+- `int64 max_fee_per_kb`: The maximum ticket fee amount per KB.
+
+**Response:** `SetMaxFeeResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: Ticket buyer is not running.
+
+- `InvalidArgument`: An invalid maximum ticket fee amount per KB was specified.
+
+**Stability:** Unstable
+
+___
+
+#### `SetMaxPriceRelative`
+
+The `SetMaxPriceRelative` configures the maximum relative ticket price for the
+automatic ticket buyer.
+
+**Request:** `SetMaxPriceRelativeRequest`
+
+- `double max_price_relative`: The scaling factor for setting the maximum ticket price, multiplied by the average price.
+
+**Response:** `SetMaxPriceRelativeResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: Ticket buyer is not running.
+
+- `InvalidArgument`: An invalid maximum ticket price was specified.
+
+**Stability:** Unstable
+
+___
+
+#### `SetMaxPriceAbsolute`
+
+The `SetMaxPriceAbsolute` configures the maximum absolute ticket price for the
+automatic ticket buyer.
+
+**Request:** `SetMaxPriceAbsoluteRequest`
+
+- `int64 max_price_absolute`: The maximum absolute ticket price.
+
+**Response:** `SetMaxPriceAbsoluteResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: Ticket buyer is not running.
+
+- `InvalidArgument`: An invalid maximum ticket price was specified.
+
+**Stability:** Unstable
+
+___
+
+#### `SetVotingAddress`
+
+The `SetVotingAddress` configures the ticket address for the automatic ticket
+buyer.
+
+**Request:** `SetVotingAddressRequest`
+
+- `string ticket_address`: The address to delegate voting rights to.
+
+**Response:** `SetVotingAddressResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: Voting buyer is not running.
+
+- `FailedPrecondition`: Wallet has not been loaded.
+
+- `InvalidArgument`: An invalid voting address was specified.
+
+
+**Stability:** Unstable
+
+___
+
+#### `SetPoolAddress`
+
+The `SetPoolAddress` configures the pool address for the automatic ticket buyer.
+
+**Request:** `SetPoolAddressRequest`
+
+- `string pool_address`: The stake pool address where ticket fees will go to.
+
+**Response:** `SetPoolAddressResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: Ticket buyer is not running.
+
+- `FailedPrecondition`: Wallet has not been loaded.
+
+- `InvalidArgument`: Pool address was specified, but pool fees were not.
+
+- `InvalidArgument`: Pool address was not specified, but pool fees were.
+
+- `InvalidArgument`: An invalid pool address was specified.
+
+
+**Stability:** Unstable
+
+___
+
+#### `SetPoolFees`
+
+The `SetPoolFees` configures the pool fees for the automatic ticket buyer.
+
+**Request:** `SetPoolFeesRequest`
+
+- `double pool_fees`: The absolute per ticket fee mandated by the stake pool as a percent.
+
+**Response:** `SetPoolFeesResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: Ticket buyer is not running.
+
+- `InvalidArgument`: Pool address was specified, but pool fees were not.
+
+- `InvalidArgument`: Pool address was not specified, but pool fees were.
+
+- `InvalidArgument`: And invalid pool fees amount was given, either too large or too small.
+
+**Stability:** Unstable
+
+___
+
+#### `SetMaxPerBlock`
+
+The `SetMaxPerBlock` configures the maximum tickets per block for the automatic
+ticket buyer.
+
+**Request:** `SetMaxPerBlockRequest`
+
+- `int64 max_per_block`: The maximum tickets per block. Negative number indicates one ticket every n blocks.
+
+**Response:** `SetMaxPerBlockResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: Ticket buyer is not running.
+
+**Stability:** Unstable
+
+___
+

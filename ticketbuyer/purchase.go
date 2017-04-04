@@ -52,6 +52,12 @@ func (p *PurchaseManager) purchase(height int64) {
 	log.Debugf("Purchased %v tickets this round", purchaseInfo.Purchased)
 }
 
+// Purchaser returns the ticket buyer instance associated with the purchase
+// manager.
+func (p *PurchaseManager) Purchaser() *TicketPurchaser {
+	return p.purchaser
+}
+
 // NotificationHandler handles notifications, which trigger ticket purchases.
 func (p *PurchaseManager) NotificationHandler() {
 	p.quitMtx.Lock()
