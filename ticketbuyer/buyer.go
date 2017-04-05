@@ -641,19 +641,15 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 		// Scale the mean fee upwards according to what was asked
 		// for by the user.
-		feeToUse := chainFee * t.cfg.FeeTargetScaling
+		feeToUse = chainFee * t.cfg.FeeTargetScaling
 		log.Tracef("Average ticket fee: %.8f DCR", chainFee)
-		maxFee := t.MaxFee()
-		minFee := t.MinFee()
-		if feeToUse > maxFee {
+		if feeToUse > t.MaxFee() {
 			log.Infof("Not buying because max fee exceed: (max fee: %.8f DCR,  scaled fee: %.8f DCR)",
-				maxFee, feeToUse)
+				t.MaxFee(), feeToUse)
 			return ps, nil
 		}
-		if feeToUse < minFee {
-			log.Debugf("Using min ticket fee: %.8f DCR (scaled fee: %.8f DCR)", minFee, feeToUse)
-			feeToUse = minFee
-			log.Tracef("Using scaled ticket fee: %.8f DCR", feeToUse)
+		if feeToUse < t.MinFee() {
+			feeToUse = t.MinFee()
 		}
 	}
 	feeToUseAmt, err := dcrutil.NewAmount(feeToUse)
