@@ -649,9 +649,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			return ps, nil
 		}
 		if feeToUse < t.MinFee() {
-			log.Debugf("Using min ticket fee: %.8f DCR (scaled fee: %.8f DCR)", t.MaxFee(), feeToUse)
 			feeToUse = t.MinFee()
-			log.Tracef("Using scaled ticket fee: %.8f DCR", feeToUse)
 		}
 	}
 	feeToUseAmt, err := dcrutil.NewAmount(feeToUse)
