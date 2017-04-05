@@ -2024,15 +2024,9 @@ func purchaseTicket(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		return nil, err
 	}
 
-	hashesTyped, ok := hashes.([]*chainhash.Hash)
-	if !ok {
-		return nil, fmt.Errorf("Unable to cast response as a slice " +
-			"of hash strings")
-	}
-
-	hashStrs := make([]string, len(hashesTyped))
-	for i := range hashesTyped {
-		hashStrs[i] = hashesTyped[i].String()
+	hashStrs := make([]string, len(hashes))
+	for i := range hashes {
+		hashStrs[i] = hashes[i].String()
 	}
 
 	return hashStrs, err

@@ -927,7 +927,7 @@ type (
 		err error
 	}
 	purchaseTicketResponse struct {
-		data interface{}
+		data []*chainhash.Hash
 		err  error
 	}
 )
@@ -1148,7 +1148,7 @@ func (w *Wallet) CreateSSRtx(ticketHash chainhash.Hash) (*CreatedTx, error) {
 func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount,
 	minConf int32, ticketAddr dcrutil.Address, account uint32,
 	numTickets int, poolAddress dcrutil.Address, poolFees float64,
-	expiry int32, txFee dcrutil.Amount, ticketFee dcrutil.Amount) (interface{},
+	expiry int32, txFee dcrutil.Amount, ticketFee dcrutil.Amount) ([]*chainhash.Hash,
 	error) {
 
 	req := purchaseTicketRequest{
