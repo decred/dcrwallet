@@ -252,7 +252,7 @@ func startPromptPass(w *wallet.Wallet) []byte {
 			err := w.Unlock(wallet.SimulationPassphrase, unlockAfter)
 			if err == nil {
 				// Unlock success with the default password.
-				return nil
+				return wallet.SimulationPassphrase
 			}
 		}
 		backendLog.Flush()
