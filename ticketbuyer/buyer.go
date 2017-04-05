@@ -13,7 +13,6 @@ import (
 
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/wallet"
@@ -867,16 +866,12 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		t.wallet.RelayFee(),
 		t.wallet.TicketFeeIncrement(),
 	)
-	// Not sure why but this is an empty interface.
-	tickets, ok := hashes.([]*chainhash.Hash)
-	if ok {
-		for i := range tickets {
-			log.Infof("Purchased ticket %v at stake difficulty %v (%v "+
-				"fees per KB used)", tickets[i], nextStakeDiff.ToCoin(),
-				feeToUseAmt.ToCoin())
-		}
-		ps.Purchased = len(tickets)
+	for i := range hashes {
+		log.Infof("Purchased ticket %v at stake difficulty %v (%v "+
+			"fees per KB used)", hashes[i], nextStakeDiff.ToCoin(),
+			feeToUseAmt.ToCoin())
 	}
+	ps.Purchased = len(hashes)
 	if purchaseErr != nil {
 		log.Errorf("One or more tickets could not be purchased: %v", purchaseErr)
 	}
@@ -888,7 +883,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	log.Debugf("Usable balance for account '%s' after purchases: %v", accountName, bal.Spendable)
 	ps.Balance = int64(bal.Spendable)
 
-	if len(tickets) == 0 && purchaseErr != nil {
+	if len(hashes) == 0 && purchaseErr != nil {
 		return ps, purchaseErr
 	}
 

@@ -1176,12 +1176,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 			"Unable to purchase tickets: %v", err)
 	}
 
-	respTyped, ok := resp.([]*chainhash.Hash)
-	if !ok {
-		return nil, grpc.Errorf(codes.Internal,
-			"Unable to cast response as a slice of hash strings")
-	}
-	hashes := marshalHashes(respTyped)
+	hashes := marshalHashes(resp)
 
 	return &pb.PurchaseTicketsResponse{TicketHashes: hashes}, nil
 }
