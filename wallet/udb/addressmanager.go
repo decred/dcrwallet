@@ -516,16 +516,9 @@ func (m *Manager) GetSeed(ns walletdb.ReadBucket) (string, error) {
 func (m *Manager) getMasterPubkey(ns walletdb.ReadBucket, account uint32) (string, error) {
 	// The account is either invalid or just wasn't cached, so attempt to
 	// load the information from the database.
-	rowInterface, err := fetchAccountInfo(ns, account)
+	row, err := fetchAccountInfo(ns, account)
 	if err != nil {
 		return "", maybeConvertDbError(err)
-	}
-
-	// Ensure the account type is a BIP0044 account.
-	row, ok := rowInterface.(*dbBIP0044AccountRow)
-	if !ok {
-		str := fmt.Sprintf("unsupported account type %T", row)
-		err = managerError(apperrors.ErrDatabase, str, nil)
 	}
 
 	// Use the crypto public key to decrypt the account public extended key.
@@ -560,16 +553,9 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 
 	// The account is either invalid or just wasn't cached, so attempt to
 	// load the information from the database.
-	rowInterface, err := fetchAccountInfo(ns, account)
+	row, err := fetchAccountInfo(ns, account)
 	if err != nil {
 		return nil, maybeConvertDbError(err)
-	}
-
-	// Ensure the account type is a BIP0044 account.
-	row, ok := rowInterface.(*dbBIP0044AccountRow)
-	if !ok {
-		str := fmt.Sprintf("unsupported account type %T", row)
-		err = managerError(apperrors.ErrDatabase, str, nil)
 	}
 
 	// Use the crypto public key to decrypt the account public extended key.
@@ -2324,16 +2310,11 @@ func (m *Manager) RenameAccount(ns walletdb.ReadWriteBucket, account uint32, nam
 		return err
 	}
 
-	rowInterface, err := fetchAccountInfo(ns, account)
+	row, err := fetchAccountInfo(ns, account)
 	if err != nil {
 		return err
 	}
-	// Ensure the account type is a BIP0044 account.
-	row, ok := rowInterface.(*dbBIP0044AccountRow)
-	if !ok {
-		str := fmt.Sprintf("unsupported account type %T", row)
-		err = managerError(apperrors.ErrDatabase, str, nil)
-	}
+
 	// Remove the old name key from the accout id index
 	if err = deleteAccountIDIndex(ns, account); err != nil {
 		return err

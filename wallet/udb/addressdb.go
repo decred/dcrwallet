@@ -673,7 +673,7 @@ func fetchAccountByName(ns walletdb.ReadBucket, name string) (uint32, error) {
 
 // fetchAccountInfo loads information about the passed account from the
 // database.
-func fetchAccountInfo(ns walletdb.ReadBucket, account uint32) (interface{}, error) {
+func fetchAccountInfo(ns walletdb.ReadBucket, account uint32) (*dbBIP0044AccountRow, error) {
 	bucket := ns.NestedReadBucket(acctBucketName)
 
 	accountID := uint32ToBytes(account)
