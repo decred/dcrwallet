@@ -1618,6 +1618,7 @@ func (s *loaderServer) StartConsensusRpc(ctx context.Context, req *pb.StartConse
 	}
 
 	s.rpcClient = rpcClient
+	s.loader.SetChainClient(rpcClient.Client)
 
 	return &pb.StartConsensusRpcResponse{}, nil
 }
