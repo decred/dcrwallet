@@ -187,11 +187,13 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 			return err
 		}
 		if lastUsed != 0 {
+			var lastRecorded uint32
 			acctXpubs := make(map[uint32]*hdkeychain.ExtendedKey)
 			w.addressBuffersMu.Lock()
 			err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 				ns := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-				lastRecorded, err := w.Manager.LastAccount(ns)
+				var err error
+				lastRecorded, err = w.Manager.LastAccount(ns)
 				if err != nil {
 					return err
 				}
@@ -212,7 +214,7 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 				w.addressBuffersMu.Unlock()
 				return err
 			}
-			for acct := lastUsed; acct >= 0; acct-- {
+			for acct := lastRecorded + 1; acct <= lastUsed; acct++ {
 				_, ok := w.addressBuffers[acct]
 				if !ok {
 					extKey, intKey, err := deriveBranches(acctXpubs[acct])
