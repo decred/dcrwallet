@@ -57,6 +57,15 @@ var helpDescsEnUS = map[string]string{
 	"dumpprivkey-address":   "The address to return a private key for",
 	"dumpprivkey--result0":  "The WIF-encoded private key",
 
+	// GenerateVote help.
+	"generatevote--synopsis":   "Returns the vote transaction encoded as a hexadecimal string",
+	"generatevote-blockhash":   "Block hash for the ticket",
+	"generatevote-height":      "Block height for the ticket",
+	"generatevote-tickethash":  "The hash of the ticket",
+	"generatevote-votebits":    "The voteBits to set for the ticket",
+	"generatevote-votebitsext": "The extended voteBits to set for the ticket",
+	"generatevoteresult-hex":   "The hex encoded transaction",
+
 	// GetAccountCmd help.
 	"getaccount--synopsis": "DEPRECATED -- Lookup the account name that some wallet address belongs to.",
 	"getaccount-address":   "The address to query the account for",

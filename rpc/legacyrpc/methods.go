@@ -95,6 +95,7 @@ var rpcHandlers = map[string]struct {
 	"consolidate":             {handler: consolidate},
 	"createmultisig":          {handler: createMultiSig},
 	"dumpprivkey":             {handler: dumpPrivKey, requireUnsafeOnMainNet: true},
+	"generatevote":            {handler: generateVote},
 	"getaccount":              {handler: getAccount},
 	"getaccountaddress":       {handler: getAccountAddress},
 	"getaddressesbyaccount":   {handler: getAddressesByAccount},
@@ -591,6 +592,53 @@ func dumpPrivKey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		return nil, &ErrWalletUnlockNeeded
 	}
 	return key, err
+}
+
+// generateVote handles a generatevote request by constructing a signed
+// vote and returning it.
+func generateVote(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+	cmd := icmd.(*dcrjson.GenerateVoteCmd)
+
+	blockHash, err := chainhash.NewHashFromStr(cmd.BlockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	ticketHash, err := chainhash.NewHashFromStr(cmd.TicketHash)
+	if err != nil {
+		return nil, err
+	}
+
+	var voteBitsExt []byte
+	voteBitsExt, err = hex.DecodeString(cmd.VoteBitsExt)
+	if err != nil {
+		return nil, err
+	}
+	voteBits := stake.VoteBits{
+		Bits:         cmd.VoteBits,
+		ExtendedBits: voteBitsExt,
+	}
+
+	ssgentx, err := w.GenerateVoteTx(blockHash, cmd.Height, ticketHash, voteBits)
+	if err != nil {
+		return nil, err
+	}
+
+	txHex := ""
+	if ssgentx != nil {
+		// Serialize the transaction and convert to hex string.
+		buf := bytes.NewBuffer(make([]byte, 0, ssgentx.SerializeSize()))
+		if err := ssgentx.Serialize(buf); err != nil {
+			return nil, err
+		}
+		txHex = hex.EncodeToString(buf.Bytes())
+	}
+
+	resp := &dcrjson.GenerateVoteResult{
+		Hex: txHex,
+	}
+
+	return resp, nil
 }
 
 // getAddressesByAccount handles a getaddressesbyaccount request by returning
