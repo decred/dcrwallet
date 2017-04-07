@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -47,6 +47,7 @@ var Methods = []struct {
 	{"getreceivedbyaddress", returnsNumber},
 	{"gettickets", []interface{}{(*dcrjson.GetTicketsResult)(nil)}},
 	{"gettransaction", []interface{}{(*dcrjson.GetTransactionResult)(nil)}},
+	{"getvotechoices", []interface{}{(*dcrjson.GetVoteChoicesResult)(nil)}},
 	{"help", append(returnsString, returnsString[0])},
 	{"importprivkey", nil},
 	{"importscript", nil},
@@ -67,6 +68,7 @@ var Methods = []struct {
 	{"sendtoaddress", returnsString},
 	{"sendtomultisig", returnsString},
 	{"settxfee", returnsBool},
+	{"setvotechoice", nil},
 	{"signmessage", returnsString},
 	{"signrawtransaction", []interface{}{(*dcrjson.SignRawTransactionResult)(nil)}},
 	{"signrawtransactions", []interface{}{(*dcrjson.SignRawTransactionsResult)(nil)}},
@@ -91,10 +93,6 @@ var Methods = []struct {
 	{"sendtossrtx", returnsString},
 	{"sendtosstx", returnsString},
 	{"sendtossgen", returnsString},
-	{"getticketvotebits", []interface{}{(*dcrjson.GetTicketVoteBitsResult)(nil)}},
-	{"getticketsvotebits", []interface{}{(*dcrjson.GetTicketsVoteBitsResult)(nil)}},
-	{"setticketvotebits", nil},
-	{"setticketsvotebits", nil},
 	{"generatevote", []interface{}{(*dcrjson.GenerateVoteResult)(nil)}},
 	{"getstakeinfo", []interface{}{(*dcrjson.GetStakeInfoResult)(nil)}},
 	{"getticketfee", returnsNumber},

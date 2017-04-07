@@ -1,4 +1,4 @@
-// Copyright (c) 2015 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -93,109 +93,117 @@ var (
 )
 
 // deserializeSStxRecord deserializes the passed serialized tx record information.
-func deserializeSStxRecord(serializedSStxRecord []byte) (*sstxRecord, error) {
-	record := new(sstxRecord)
+func deserializeSStxRecord(serializedSStxRecord []byte, dbVersion uint32) (*sstxRecord, error) {
+	switch {
+	case dbVersion < 3:
+		record := new(sstxRecord)
 
-	curPos := 0
+		curPos := 0
 
-	// Read MsgTx size (as a uint64).
-	msgTxLen := int(binary.LittleEndian.Uint64(
-		serializedSStxRecord[curPos : curPos+int64Size]))
-	curPos += int64Size
+		// Read MsgTx size (as a uint64).
+		msgTxLen := int(binary.LittleEndian.Uint64(
+			serializedSStxRecord[curPos : curPos+int64Size]))
+		curPos += int64Size
 
-	// Pretend to read the pkScrLoc for the 0th output pkScript.
-	curPos += int32Size
+		// Pretend to read the pkScrLoc for the 0th output pkScript.
+		curPos += int32Size
 
-	// Read the intended voteBits and extended voteBits length (uint8).
-	record.voteBitsSet = false
-	voteBitsLen := serializedSStxRecord[curPos]
-	if voteBitsLen != 0 {
-		record.voteBitsSet = true
-	}
-	curPos += int8Size
-
-	// Read the assumed 2 byte VoteBits as well as the extended
-	// votebits (75 bytes max).
-	record.voteBits = binary.LittleEndian.Uint16(
-		serializedSStxRecord[curPos : curPos+int16Size])
-	curPos += int16Size
-	record.voteBitsExt = make([]byte, int(voteBitsLen)-int16Size)
-	copy(record.voteBitsExt[:],
-		serializedSStxRecord[curPos:curPos+int(voteBitsLen)-int16Size])
-	curPos += stake.MaxSingleBytePushLength - int16Size
-
-	// Prepare a buffer for the msgTx.
-	buf := bytes.NewBuffer(serializedSStxRecord[curPos : curPos+msgTxLen])
-	curPos += msgTxLen
-
-	// Deserialize transaction.
-	msgTx := new(wire.MsgTx)
-	err := msgTx.Deserialize(buf)
-	if err != nil {
-		if err == io.EOF {
-			err = io.ErrUnexpectedEOF
+		// Read the intended voteBits and extended voteBits length (uint8).
+		record.voteBitsSet = false
+		voteBitsLen := serializedSStxRecord[curPos]
+		if voteBitsLen != 0 {
+			record.voteBitsSet = true
 		}
-		return nil, err
+		curPos += int8Size
+
+		// Read the assumed 2 byte VoteBits as well as the extended
+		// votebits (75 bytes max).
+		record.voteBits = binary.LittleEndian.Uint16(
+			serializedSStxRecord[curPos : curPos+int16Size])
+		curPos += int16Size
+		record.voteBitsExt = make([]byte, int(voteBitsLen)-int16Size)
+		copy(record.voteBitsExt[:],
+			serializedSStxRecord[curPos:curPos+int(voteBitsLen)-int16Size])
+		curPos += stake.MaxSingleBytePushLength - int16Size
+
+		// Prepare a buffer for the msgTx.
+		buf := bytes.NewBuffer(serializedSStxRecord[curPos : curPos+msgTxLen])
+		curPos += msgTxLen
+
+		// Deserialize transaction.
+		msgTx := new(wire.MsgTx)
+		err := msgTx.Deserialize(buf)
+		if err != nil {
+			if err == io.EOF {
+				err = io.ErrUnexpectedEOF
+			}
+			return nil, err
+		}
+
+		// Create and save the dcrutil.Tx of the read MsgTx and set its index.
+		tx := dcrutil.NewTx(msgTx)
+		tx.SetIndex(dcrutil.TxIndexUnknown)
+		tx.SetTree(wire.TxTreeStake)
+		record.tx = tx
+
+		// Read received unix time (int64).
+		received := int64(binary.LittleEndian.Uint64(
+			serializedSStxRecord[curPos : curPos+int64Size]))
+		curPos += int64Size
+		record.ts = time.Unix(received, 0)
+
+		return record, nil
+
+	case dbVersion >= 3:
+		// Don't need to read the pkscript location, so first four bytes are
+		// skipped.
+		serializedSStxRecord = serializedSStxRecord[4:]
+
+		var tx wire.MsgTx
+		err := tx.Deserialize(bytes.NewReader(serializedSStxRecord))
+		if err != nil {
+			return nil, err
+		}
+		unixTime := int64(binary.LittleEndian.Uint64(serializedSStxRecord[tx.SerializeSize():]))
+		return &sstxRecord{tx: dcrutil.NewTx(&tx), ts: time.Unix(unixTime, 0)}, nil
+
+	default:
+		panic("unreachable")
 	}
-
-	// Create and save the dcrutil.Tx of the read MsgTx and set its index.
-	tx := dcrutil.NewTx(msgTx)
-	tx.SetIndex(dcrutil.TxIndexUnknown)
-	tx.SetTree(wire.TxTreeStake)
-	record.tx = tx
-
-	// Read received unix time (int64).
-	received := int64(binary.LittleEndian.Uint64(
-		serializedSStxRecord[curPos : curPos+int64Size]))
-	curPos += int64Size
-	record.ts = time.Unix(received, 0)
-
-	return record, nil
 }
 
 // deserializeSStxTicketHash160 deserializes and returns a 20 byte script
 // hash for a ticket's 0th output.
-func deserializeSStxTicketHash160(serializedSStxRecord []byte) (hash160 []byte, p2sh bool, err error) {
-	dataLen := len(serializedSStxRecord)
-	curPos := 0
-
-	// Skip transaction size.
-	curPos += int64Size
-
-	// Load the pkScript index.
-	pkScrLoc := int(binary.LittleEndian.Uint32(
-		serializedSStxRecord[curPos : curPos+int32Size]))
-	curPos += int32Size
-
-	// Skip intended votebits length (uint8).
-	curPos += int8Size
-
-	// Skip intended votebits (75 bytes).
-	curPos += stake.MaxSingleBytePushLength
-
-	// Figure out the actual location of the script.
-	actualLoc := curPos + pkScrLoc
-	if actualLoc+3 >= dataLen {
-		return nil, false, stakeStoreError(apperrors.ErrDatabase,
-			"bad serialized sstx record size", nil)
+func deserializeSStxTicketHash160(serializedSStxRecord []byte, dbVersion uint32) (hash160 []byte, p2sh bool, err error) {
+	var pkscriptLocOffset int
+	var txOffset int
+	switch {
+	case dbVersion < 3:
+		pkscriptLocOffset = 8 // After transaction size
+		txOffset = 8 + 4 + 1 + stake.MaxSingleBytePushLength
+	case dbVersion >= 3:
+		pkscriptLocOffset = 0
+		txOffset = 4
 	}
+
+	pkscriptLoc := int(binary.LittleEndian.Uint32(serializedSStxRecord[pkscriptLocOffset:])) + txOffset
 
 	// Pop off the script prefix, then pop off the 20 bytes
 	// HASH160 pubkey or script hash.
-	prefixBytes := serializedSStxRecord[actualLoc : actualLoc+3]
+	prefixBytes := serializedSStxRecord[pkscriptLoc : pkscriptLoc+3]
 	scriptHash := make([]byte, 20)
 	p2sh = false
 	switch {
 	case bytes.Equal(prefixBytes, sstxTicket2PKHPrefix):
-		scrHashLoc := actualLoc + 4
-		if scrHashLoc+20 >= dataLen {
+		scrHashLoc := pkscriptLoc + 4
+		if scrHashLoc+20 >= len(serializedSStxRecord) {
 			return nil, false, stakeStoreError(apperrors.ErrDatabase,
 				"bad serialized sstx record size for pubkey hash", nil)
 		}
 		copy(scriptHash, serializedSStxRecord[scrHashLoc:scrHashLoc+20])
 	case bytes.Equal(prefixBytes, sstxTicket2SHPrefix):
-		scrHashLoc := actualLoc + 3
-		if scrHashLoc+20 >= dataLen {
+		scrHashLoc := pkscriptLoc + 3
+		if scrHashLoc+20 >= len(serializedSStxRecord) {
 			return nil, false, stakeStoreError(apperrors.ErrDatabase,
 				"bad serialized sstx record size for script hash", nil)
 		}
@@ -207,79 +215,97 @@ func deserializeSStxTicketHash160(serializedSStxRecord []byte) (hash160 []byte, 
 }
 
 // serializeSSTxRecord returns the serialization of the passed txrecord row.
-func serializeSStxRecord(record *sstxRecord, voteBits stake.VoteBits) ([]byte, error) {
-	msgTx := record.tx.MsgTx()
-	msgTxSize := int64(msgTx.SerializeSize())
+func serializeSStxRecord(record *sstxRecord, dbVersion uint32) ([]byte, error) {
+	switch {
+	case dbVersion < 3:
+		msgTx := record.tx.MsgTx()
+		msgTxSize := int64(msgTx.SerializeSize())
 
-	size := 0
+		size := 0
 
-	// tx tree is implicit (stake)
+		// tx tree is implicit (stake)
 
-	// size of msgTx (recast to int64)
-	size += int64Size
+		// size of msgTx (recast to int64)
+		size += int64Size
 
-	// byte index of the ticket pk script
-	size += int32Size
+		// byte index of the ticket pk script
+		size += int32Size
 
-	// intended votebits length (uint8)
-	size += int8Size
+		// intended votebits length (uint8)
+		size += int8Size
 
-	// intended votebits (75 bytes)
-	size += stake.MaxSingleBytePushLength
+		// intended votebits (75 bytes)
+		size += stake.MaxSingleBytePushLength
 
-	// msgTx size is variable.
-	size += int(msgTxSize)
+		// msgTx size is variable.
+		size += int(msgTxSize)
 
-	// timestamp (int64)
-	size += int64Size
+		// timestamp (int64)
+		size += int64Size
 
-	buf := make([]byte, size)
+		buf := make([]byte, size)
 
-	curPos := 0
+		curPos := 0
 
-	// Write msgTx size (as a uint64).
-	binary.LittleEndian.PutUint64(buf[curPos:curPos+int64Size], uint64(msgTxSize))
-	curPos += int64Size
+		// Write msgTx size (as a uint64).
+		binary.LittleEndian.PutUint64(buf[curPos:curPos+int64Size], uint64(msgTxSize))
+		curPos += int64Size
 
-	// Write the pkScript loc for the ticket output as a uint32.
-	pkScrLoc := msgTx.PkScriptLocs()
-	binary.LittleEndian.PutUint32(buf[curPos:curPos+int32Size], uint32(pkScrLoc[0]))
-	curPos += int32Size
+		// Write the pkScript loc for the ticket output as a uint32.
+		pkScrLoc := msgTx.PkScriptLocs()
+		binary.LittleEndian.PutUint32(buf[curPos:curPos+int32Size], uint32(pkScrLoc[0]))
+		curPos += int32Size
 
-	// Write the intended votebits length (uint8). Hardcode the uint16
-	// size for now.
-	buf[curPos] = byte(int16Size + len(voteBits.ExtendedBits))
-	curPos += int8Size
+		// Write the intended votebits length (uint8). Hardcode the uint16
+		// size for now.
+		buf[curPos] = byte(int16Size + len(record.voteBitsExt))
+		curPos += int8Size
 
-	// Write the first two bytes for the intended votebits (75 bytes max),
-	// then write the extended vote bits.
-	binary.LittleEndian.PutUint16(buf[curPos:curPos+int16Size], voteBits.Bits)
-	curPos += int16Size
-	copy(buf[curPos:], voteBits.ExtendedBits[:])
-	curPos += stake.MaxSingleBytePushLength - 2
+		// Write the first two bytes for the intended votebits (75 bytes max),
+		// then write the extended vote bits.
+		binary.LittleEndian.PutUint16(buf[curPos:curPos+int16Size], record.voteBits)
+		curPos += int16Size
+		copy(buf[curPos:], record.voteBitsExt)
+		curPos += stake.MaxSingleBytePushLength - 2
 
-	// Serialize and write transaction.
-	var b bytes.Buffer
-	b.Grow(msgTx.SerializeSize())
-	err := msgTx.Serialize(&b)
-	if err != nil {
-		return buf, err
+		// Serialize and write transaction.
+		var b bytes.Buffer
+		b.Grow(msgTx.SerializeSize())
+		err := msgTx.Serialize(&b)
+		if err != nil {
+			return buf, err
+		}
+		copy(buf[curPos:curPos+int(msgTxSize)], b.Bytes())
+		curPos += int(msgTxSize)
+
+		// Write received unix time (int64).
+		binary.LittleEndian.PutUint64(buf[curPos:curPos+int64Size], uint64(record.ts.Unix()))
+		curPos += int64Size
+
+		return buf, nil
+
+	case dbVersion >= 3:
+		tx := record.tx.MsgTx()
+		txSize := tx.SerializeSize()
+
+		buf := make([]byte, 4+txSize+8) // pkscript location + tx + unix timestamp
+		pkScrLoc := tx.PkScriptLocs()
+		binary.LittleEndian.PutUint32(buf, uint32(pkScrLoc[0]))
+		err := tx.Serialize(bytes.NewBuffer(buf[4:4]))
+		if err != nil {
+			return nil, err
+		}
+		binary.LittleEndian.PutUint64(buf[4+txSize:], uint64(record.ts.Unix()))
+		return buf, nil
+
+	default:
+		panic("unreachable")
 	}
-	copy(buf[curPos:curPos+int(msgTxSize)], b.Bytes())
-	curPos += int(msgTxSize)
-
-	// Write received unix time (int64).
-	binary.LittleEndian.PutUint64(buf[curPos:curPos+int64Size], uint64(record.ts.Unix()))
-	curPos += int64Size
-
-	return buf, nil
 }
 
 // deserializeSSGenRecord deserializes the passed serialized tx
 // record information.
-func deserializeSSGenRecord(serializedSSGenRecord []byte) (*ssgenRecord,
-	error) {
-
+func deserializeSSGenRecord(serializedSSGenRecord []byte) (*ssgenRecord, error) {
 	// Cursory check to make sure that the size of the
 	// record makes sense.
 	if len(serializedSSGenRecord)%ssgenRecordSize != 0 {
@@ -321,9 +347,7 @@ func deserializeSSGenRecord(serializedSSGenRecord []byte) (*ssgenRecord,
 
 // deserializeSSGenRecords deserializes the passed serialized tx
 // record information.
-func deserializeSSGenRecords(serializedSSGenRecords []byte) ([]*ssgenRecord,
-	error) {
-
+func deserializeSSGenRecords(serializedSSGenRecords []byte) ([]*ssgenRecord, error) {
 	// Cursory check to make sure that the number of records
 	// makes sense.
 	if len(serializedSSGenRecords)%ssgenRecordSize != 0 {
@@ -525,7 +549,7 @@ func stakeStoreExists(ns walletdb.ReadBucket) bool {
 
 // fetchSStxRecord retrieves a tx record from the sstx records bucket
 // with the given hash.
-func fetchSStxRecord(ns walletdb.ReadBucket, hash *chainhash.Hash) (*sstxRecord, error) {
+func fetchSStxRecord(ns walletdb.ReadBucket, hash *chainhash.Hash, dbVersion uint32) (*sstxRecord, error) {
 	bucket := ns.NestedReadBucket(sstxRecordsBucketName)
 
 	key := hash[:]
@@ -535,13 +559,13 @@ func fetchSStxRecord(ns walletdb.ReadBucket, hash *chainhash.Hash) (*sstxRecord,
 		return nil, stakeStoreError(apperrors.ErrSStxNotFound, str, nil)
 	}
 
-	return deserializeSStxRecord(val)
+	return deserializeSStxRecord(val, dbVersion)
 }
 
 // fetchSStxRecordSStxTicketHash160 retrieves a ticket 0th output script or
 // pubkeyhash from the sstx records bucket with the given hash.
-func fetchSStxRecordSStxTicketHash160(ns walletdb.ReadBucket,
-	hash *chainhash.Hash) (hash160 []byte, p2sh bool, err error) {
+func fetchSStxRecordSStxTicketHash160(ns walletdb.ReadBucket, hash *chainhash.Hash,
+	dbVersion uint32) (hash160 []byte, p2sh bool, err error) {
 
 	bucket := ns.NestedReadBucket(sstxRecordsBucketName)
 
@@ -552,104 +576,15 @@ func fetchSStxRecordSStxTicketHash160(ns walletdb.ReadBucket,
 		return nil, false, stakeStoreError(apperrors.ErrSStxNotFound, str, nil)
 	}
 
-	return deserializeSStxTicketHash160(val)
+	return deserializeSStxTicketHash160(val, dbVersion)
 }
 
-// fetchSStxRecordVoteBits fetches an individual ticket's intended voteBits
-// which are used to override the default voteBits when voting.
-func fetchSStxRecordVoteBits(ns walletdb.ReadBucket, hash *chainhash.Hash) (bool,
-	stake.VoteBits, error) {
-
-	bucket := ns.NestedReadBucket(sstxRecordsBucketName)
-
-	key := hash[:]
-	val := bucket.Get(key)
-	if val == nil {
-		str := fmt.Sprintf("missing sstx record for hash '%s'", hash.String())
-		return false, stake.VoteBits{}, stakeStoreError(apperrors.ErrSStxNotFound, str, nil)
-	}
-	valCopy := make([]byte, len(val))
-	copy(valCopy, val)
-
-	// Move the cursor to the voteBits position and rewrite it.
-	curPos := 0
-	curPos += int64Size
-	curPos += int32Size
-
-	// Read the intended votebits length (uint8). If it is unset, return now.
-	// Check it for sanity.
-	voteBitsLen := val[curPos]
-	if voteBitsLen == 0 {
-		return false, stake.VoteBits{}, nil
-	}
-	if voteBitsLen < 2 || voteBitsLen > stake.MaxSingleBytePushLength {
-		str := fmt.Sprintf("corrupt votebits length '%v'", voteBitsLen)
-		return false, stake.VoteBits{}, stakeStoreError(apperrors.ErrData, str, nil)
-	}
-	curPos += int8Size
-
-	// Read the first two bytes for the intended votebits.
-	voteBits := binary.LittleEndian.Uint16(valCopy[curPos : curPos+int16Size])
-	curPos += int16Size
-
-	// Retrieve the extended vote bits.
-	voteBitsExt := make([]byte, voteBitsLen-int16Size)
-	copy(voteBitsExt[:], valCopy[curPos:(curPos+int(voteBitsLen)-int16Size)])
-
-	return true, stake.VoteBits{Bits: voteBits, ExtendedBits: voteBitsExt}, nil
-}
-
-// updateSStxRecordVoteBits updates an individual ticket's intended voteBits
-// which are used to override the default voteBits when voting.
-func updateSStxRecordVoteBits(ns walletdb.ReadWriteBucket, hash *chainhash.Hash,
-	voteBits stake.VoteBits) error {
-	if len(voteBits.ExtendedBits) > stake.MaxSingleBytePushLength-2 {
-		str := fmt.Sprintf("voteBitsExt too long (got %v bytes, want max %v)",
-			len(voteBits.ExtendedBits), stake.MaxSingleBytePushLength-2)
-		return stakeStoreError(apperrors.ErrData, str, nil)
-	}
-
-	bucket := ns.NestedReadWriteBucket(sstxRecordsBucketName)
-
-	key := hash[:]
-	val := bucket.Get(key)
-	if val == nil {
-		str := fmt.Sprintf("missing sstx record for hash '%s'", hash.String())
-		return stakeStoreError(apperrors.ErrSStxNotFound, str, nil)
-	}
-	valCopy := make([]byte, len(val))
-	copy(valCopy, val)
-
-	// Move the cursor to the voteBits position and rewrite it.
-	curPos := 0
-	curPos += int64Size
-	curPos += int32Size
-
-	// Write the intended votebits length (uint8).
-	valCopy[curPos] = byte(int16Size + len(voteBits.ExtendedBits))
-	curPos += int8Size
-
-	// Write the first two bytes for the intended votebits.
-	binary.LittleEndian.PutUint16(valCopy[curPos:curPos+int16Size], voteBits.Bits)
-	curPos += int16Size
-
-	// Copy the remaining data from voteBitsExt.
-	copy(valCopy[curPos:], voteBits.ExtendedBits[:])
-
-	err := bucket.Put(key, valCopy)
-	if err != nil {
-		str := fmt.Sprintf("failed to update sstxrecord votebits for '%s'", hash)
-		return stakeStoreError(apperrors.ErrDatabase, str, err)
-	}
-	return nil
-}
-
-// updateSStxRecord updates a sstx record in the sstx records bucket.
-func updateSStxRecord(ns walletdb.ReadWriteBucket, record *sstxRecord, voteBits stake.VoteBits) error {
+// putSStxRecord inserts a given SStx record to the SStxrecords bucket.
+func putSStxRecord(ns walletdb.ReadWriteBucket, record *sstxRecord, dbVersion uint32) error {
 	bucket := ns.NestedReadWriteBucket(sstxRecordsBucketName)
 
 	// Write the serialized txrecord keyed by the tx hash.
-	serializedSStxRecord, err := serializeSStxRecord(record, voteBits)
+	serializedSStxRecord, err := serializeSStxRecord(record, dbVersion)
 	if err != nil {
 		str := fmt.Sprintf("failed to serialize sstxrecord '%s'", record.tx.Hash())
 		return stakeStoreError(apperrors.ErrDatabase, str, err)
@@ -662,16 +597,9 @@ func updateSStxRecord(ns walletdb.ReadWriteBucket, record *sstxRecord, voteBits 
 	return nil
 }
 
-// putSStxRecord inserts a given SStx record to the SStxrecords bucket.
-func putSStxRecord(ns walletdb.ReadWriteBucket, record *sstxRecord, voteBits stake.VoteBits) error {
-	return updateSStxRecord(ns, record, voteBits)
-}
-
 // fetchSSGenRecords retrieves SSGen records from the SSGenRecords bucket with
 // the given hash.
-func fetchSSGenRecords(ns walletdb.ReadBucket, hash *chainhash.Hash) ([]*ssgenRecord,
-	error) {
-
+func fetchSSGenRecords(ns walletdb.ReadBucket, hash *chainhash.Hash) ([]*ssgenRecord, error) {
 	bucket := ns.NestedReadBucket(ssgenRecordsBucketName)
 
 	key := hash[:]
@@ -696,9 +624,7 @@ func ssgenRecordExistsInRecords(record *ssgenRecord, records []*ssgenRecord) boo
 }
 
 // updateSSGenRecord updates an SSGen record in the SSGen records bucket.
-func updateSSGenRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash,
-	record *ssgenRecord) error {
-
+func updateSSGenRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash, record *ssgenRecord) error {
 	// Fetch the current content of the key.
 	// Possible buggy behaviour: If deserialization fails,
 	// we won't detect it here. We assume we're throwing
@@ -734,16 +660,14 @@ func updateSSGenRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash,
 }
 
 // putSSGenRecord inserts a given SSGen record to the SSGenrecords bucket.
-func putSSGenRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash,
-	record *ssgenRecord) error {
+func putSSGenRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash, record *ssgenRecord) error {
 
 	return updateSSGenRecord(ns, hash, record)
 }
 
 // fetchSSRtxRecords retrieves SSRtx records from the SSRtxRecords bucket with
 // the given hash.
-func fetchSSRtxRecords(ns walletdb.ReadBucket, hash *chainhash.Hash) ([]*ssrtxRecord,
-	error) {
+func fetchSSRtxRecords(ns walletdb.ReadBucket, hash *chainhash.Hash) ([]*ssrtxRecord, error) {
 
 	bucket := ns.NestedReadBucket(ssrtxRecordsBucketName)
 
@@ -769,9 +693,7 @@ func ssrtxRecordExistsInRecords(record *ssrtxRecord, records []*ssrtxRecord) boo
 }
 
 // updateSSRtxRecord updates an SSRtx record in the SSRtx records bucket.
-func updateSSRtxRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash,
-	record *ssrtxRecord) error {
-
+func updateSSRtxRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash, record *ssrtxRecord) error {
 	// Fetch the current content of the key.
 	// Possible buggy behaviour: If deserialization fails,
 	// we won't detect it here. We assume we're throwing
@@ -807,9 +729,7 @@ func updateSSRtxRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash,
 }
 
 // putSSRtxRecord inserts a given SSRtxs record to the SSRtxs records bucket.
-func putSSRtxRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash,
-	record *ssrtxRecord) error {
-
+func putSSRtxRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash, record *ssrtxRecord) error {
 	return updateSSRtxRecord(ns, hash, record)
 }
 
@@ -854,9 +774,7 @@ func deserializeUserTicket(serializedTicket []byte) (*PoolTicket, error) {
 
 // deserializeUserTickets deserializes the passed serialized pool
 // users tickets information.
-func deserializeUserTickets(serializedTickets []byte) ([]*PoolTicket,
-	error) {
-
+func deserializeUserTickets(serializedTickets []byte) ([]*PoolTicket, error) {
 	// Cursory check to make sure that the number of records
 	// makes sense.
 	if len(serializedTickets)%stakePoolUserTicketSize != 0 {
@@ -936,9 +854,7 @@ func serializeUserTickets(records []*PoolTicket) []byte {
 
 // fetchStakePoolUserTickets retrieves pool user tickets from the meta bucket with
 // the given hash.
-func fetchStakePoolUserTickets(ns walletdb.ReadBucket,
-	scriptHash [20]byte) ([]*PoolTicket, error) {
-
+func fetchStakePoolUserTickets(ns walletdb.ReadBucket, scriptHash [20]byte) ([]*PoolTicket, error) {
 	bucket := ns.NestedReadBucket(metaBucketName)
 
 	key := make([]byte, stakePoolTicketsPrefixSize+scriptHashSize)
@@ -982,9 +898,7 @@ func recordExistsInUserTickets(record *PoolTicket, records []*PoolTicket) (bool,
 // The function pulls the current entry in the database, checks to see if the
 // ticket is already there, updates it accordingly, or adds it to the list of
 // tickets.
-func updateStakePoolUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20]byte,
-	record *PoolTicket) error {
-
+func updateStakePoolUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20]byte, record *PoolTicket) error {
 	// Fetch the current content of the key.
 	// Possible buggy behaviour: If deserialization fails,
 	// we won't detect it here. We assume we're throwing
@@ -1035,9 +949,7 @@ func updateStakePoolUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20]byte
 
 // deserializeUserInvalTickets deserializes the passed serialized pool
 // users invalid tickets information.
-func deserializeUserInvalTickets(serializedTickets []byte) ([]*chainhash.Hash,
-	error) {
-
+func deserializeUserInvalTickets(serializedTickets []byte) ([]*chainhash.Hash, error) {
 	// Cursory check to make sure that the number of records
 	// makes sense.
 	if len(serializedTickets)%chainhash.HashSize != 0 {
@@ -1085,9 +997,7 @@ func serializeUserInvalTickets(records []*chainhash.Hash) []byte {
 
 // fetchStakePoolUserInvalTickets retrieves the list of invalid pool user tickets
 // from the meta bucket with the given hash.
-func fetchStakePoolUserInvalTickets(ns walletdb.ReadBucket,
-	scriptHash [20]byte) ([]*chainhash.Hash, error) {
-
+func fetchStakePoolUserInvalTickets(ns walletdb.ReadBucket, scriptHash [20]byte) ([]*chainhash.Hash, error) {
 	bucket := ns.NestedReadBucket(metaBucketName)
 
 	key := make([]byte, stakePoolInvalidPrefixSize+scriptHashSize)
@@ -1106,22 +1016,18 @@ func fetchStakePoolUserInvalTickets(ns walletdb.ReadBucket,
 
 // duplicateExistsInInvalTickets checks to see if an exact duplicated of a
 // record already exists in a slice of invalid user ticket records.
-func duplicateExistsInInvalTickets(record *chainhash.Hash,
-	records []*chainhash.Hash) bool {
+func duplicateExistsInInvalTickets(record *chainhash.Hash, records []*chainhash.Hash) bool {
 	for _, r := range records {
 		if *r == *record {
 			return true
 		}
 	}
-
 	return false
 }
 
 // removeStakePoolInvalUserTickets removes the ticket hash from the inval
 // ticket bucket.
-func removeStakePoolInvalUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20]byte,
-	record *chainhash.Hash) error {
-
+func removeStakePoolInvalUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20]byte, record *chainhash.Hash) error {
 	// Fetch the current content of the key.
 	// Possible buggy behaviour: If deserialization fails,
 	// we won't detect it here. We assume we're throwing
@@ -1167,9 +1073,7 @@ func removeStakePoolInvalUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20
 // invalid tickets. The function pulls the current entry in the database,
 // checks to see if the ticket is already there. If it is it returns, otherwise
 // it adds it to the list of tickets.
-func updateStakePoolInvalUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20]byte,
-	record *chainhash.Hash) error {
-
+func updateStakePoolInvalUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20]byte, record *chainhash.Hash) error {
 	// Fetch the current content of the key.
 	// Possible buggy behaviour: If deserialization fails,
 	// we won't detect it here. We assume we're throwing

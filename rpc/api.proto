@@ -79,6 +79,15 @@ service SeedService {
 	rpc DecodeSeed (DecodeSeedRequest) returns (DecodeSeedResponse);
 }
 
+service AgendaService {
+	rpc Agendas (AgendasRequest) returns (AgendasResponse);
+}
+
+service VotingService {
+	rpc VoteChoices (VoteChoicesRequest) returns (VoteChoicesResponse);
+	rpc SetVoteChoices (SetVoteChoicesRequest) returns (SetVoteChoicesResponse);
+}
+
 message TransactionDetails {
 	message Input {
 		uint32 index = 1;
@@ -561,3 +570,45 @@ message SetMaxPerBlockRequest{
     int64 max_per_block = 1;
 }
 message SetMaxPerBlockResponse{}
+
+message AgendasRequest {}
+message AgendasResponse {
+	message Agenda {
+		string id = 1;
+		string description = 2;
+		uint32 mask = 3;
+		repeated Choice choices = 4;
+		int64 start_time = 5;
+		int64 expire_time = 6;
+	}
+	message Choice {
+		string id = 1;
+		string description = 2;
+		uint32 bits = 3;
+		bool is_abstain = 4;
+		bool is_no = 5;
+	}
+	uint32 version = 1;
+	repeated Agenda agendas = 2;
+}
+
+message VoteChoicesRequest {}
+message VoteChoicesResponse {
+	message Choice {
+		string agenda_id = 1;
+		string agenda_description = 2;
+		string choice_id = 3;
+		string choice_description = 4;
+	}
+	uint32 version = 1;
+	repeated Choice choices = 2;
+}
+
+message SetVoteChoicesRequest {
+	message Choice {
+		string agenda_id = 1;
+		string choice_id = 2;
+	}
+	repeated Choice choices = 1;
+}
+message SetVoteChoicesResponse {}

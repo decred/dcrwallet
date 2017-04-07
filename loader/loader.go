@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2016 The btcsuite developers
+// Copyright (c) 2015-2017 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -50,8 +50,6 @@ type Loader struct {
 
 // StakeOptions contains the various options necessary for stake mining.
 type StakeOptions struct {
-	VoteBits                uint16
-	VoteBitsExtended        string
 	TicketPurchasingEnabled bool
 	VotingEnabled           bool
 	TicketFee               float64
@@ -166,10 +164,10 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 
 	// Open the newly-created wallet.
 	so := l.stakeOptions
-	w, err = wallet.Open(db, pubPassphrase, so.VoteBits, so.VoteBitsExtended,
-		so.VotingEnabled, so.AddressReuse, so.PruneTickets, so.TicketAddress,
-		so.PoolAddress, so.PoolFees, so.TicketFee, l.addrIdxScanLen,
-		so.StakePoolColdExtKey, l.allowHighFees, l.relayFee, l.chainParams)
+	w, err = wallet.Open(db, pubPassphrase, so.VotingEnabled, so.AddressReuse,
+		so.PruneTickets, so.TicketAddress, so.PoolAddress, so.PoolFees,
+		so.TicketFee, l.addrIdxScanLen, so.StakePoolColdExtKey, l.allowHighFees,
+		l.relayFee, l.chainParams)
 	if err != nil {
 		return nil, err
 	}
@@ -215,10 +213,10 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte, canConsolePrompt bool)
 	}()
 
 	so := l.stakeOptions
-	w, err = wallet.Open(db, pubPassphrase, so.VoteBits, so.VoteBitsExtended,
-		so.VotingEnabled, so.AddressReuse, so.PruneTickets, so.TicketAddress,
-		so.PoolAddress, so.PoolFees, so.TicketFee, l.addrIdxScanLen,
-		so.StakePoolColdExtKey, l.allowHighFees, l.relayFee, l.chainParams)
+	w, err = wallet.Open(db, pubPassphrase, so.VotingEnabled, so.AddressReuse,
+		so.PruneTickets, so.TicketAddress, so.PoolAddress, so.PoolFees,
+		so.TicketFee, l.addrIdxScanLen, so.StakePoolColdExtKey, l.allowHighFees,
+		l.relayFee, l.chainParams)
 	if err != nil {
 		return nil, err
 	}

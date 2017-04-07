@@ -144,6 +144,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			rpcserver.StartWalletLoaderService(server, walletLoader, activeNet)
 			rpcserver.StartTicketBuyerService(server, walletLoader, &cfg.tbCfg)
 			rpcserver.StartSeedService(server)
+			rpcserver.StartAgendaService(server, activeNet.Params)
 			for _, lis := range listeners {
 				lis := lis
 				go func() {
@@ -254,6 +255,7 @@ func makeListeners(normalizedListenAddrs []string, listen listenFunc) []net.List
 func startWalletRPCServices(wallet *wallet.Wallet, server *grpc.Server, legacyServer *legacyrpc.Server) {
 	if server != nil {
 		rpcserver.StartWalletService(server, wallet)
+		rpcserver.StartVotingService(server, wallet)
 	}
 	if legacyServer != nil {
 		legacyServer.RegisterWallet(wallet)

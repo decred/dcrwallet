@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2016 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -34,8 +34,8 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "2.0.0"
-	jsonrpcSemverMajor  = 2
+	jsonrpcSemverString = "3.0.0"
+	jsonrpcSemverMajor  = 3
 	jsonrpcSemverMinor  = 0
 	jsonrpcSemverPatch  = 0
 )
@@ -113,9 +113,8 @@ var rpcHandlers = map[string]struct {
 	"getstakeinfo":            {handlerWithChain: getStakeInfo},
 	"getticketfee":            {handler: getTicketFee},
 	"gettickets":              {handlerWithChain: getTickets},
-	"getticketvotebits":       {handler: getTicketVoteBits},
-	"getticketsvotebits":      {handler: getTicketsVoteBits},
 	"gettransaction":          {handler: getTransaction},
+	"getvotechoices":          {handler: getVoteChoices},
 	"getwalletfee":            {handler: getWalletFee},
 	"help":                    {handler: helpNoChainRPC, handlerWithChain: helpWithChainRPC},
 	"importprivkey":           {handlerWithChain: importPrivKey},
@@ -140,9 +139,8 @@ var rpcHandlers = map[string]struct {
 	"sendtossgen":             {handler: sendToSSGen},
 	"sendtossrtx":             {handlerWithChain: sendToSSRtx},
 	"setticketfee":            {handler: setTicketFee},
-	"setticketvotebits":       {handler: setTicketVoteBits},
-	"setticketsvotebits":      {handler: setTicketsVoteBits},
 	"settxfee":                {handler: setTxFee},
+	"setvotechoice":           {handler: setVoteChoice},
 	"signmessage":             {handler: signMessage},
 	"signrawtransaction":      {handlerWithChain: signRawTransaction},
 	"signrawtransactions":     {handlerWithChain: signRawTransactions},
@@ -1307,60 +1305,6 @@ func getTickets(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient
 	return &dcrjson.GetTicketsResult{Hashes: ticketHashStrs}, nil
 }
 
-// getTicketVoteBits fetches the per-ticket voteBits for a given ticket from
-// a ticket hash. If the voteBits are unset, it returns the default voteBits.
-// Otherwise, it returns the voteBits it finds. Missing tickets return an
-// error.
-func getTicketVoteBits(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	cmd := icmd.(*dcrjson.GetTicketVoteBitsCmd)
-	ticket, err := chainhash.NewHashFromStr(cmd.TxHash)
-	if err != nil {
-		return nil, err
-	}
-
-	voteBits, err := w.VoteBitsForTicket(ticket)
-	if err != nil {
-		return nil, err
-	}
-	return &dcrjson.GetTicketVoteBitsResult{
-		VoteBitsData: dcrjson.VoteBitsData{
-			VoteBits:    voteBits.Bits,
-			VoteBitsExt: hex.EncodeToString(voteBits.ExtendedBits),
-		},
-	}, nil
-}
-
-// getTicketsVoteBits fetches the per-ticket voteBits for a given array of ticket
-// hashes. If the voteBits are unset, it returns the default voteBits.
-// Otherwise, it returns the voteBits it finds. Missing tickets return an
-// error.
-func getTicketsVoteBits(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	cmd := icmd.(*dcrjson.GetTicketsVoteBitsCmd)
-	ticketsLen := len(cmd.TxHashes)
-	ticketHashes := make([]*chainhash.Hash, 0, ticketsLen)
-	for _, thStr := range cmd.TxHashes {
-		h, err := chainhash.NewHashFromStr(thStr)
-		if err != nil {
-			return nil, err
-		}
-		ticketHashes = append(ticketHashes, h)
-	}
-
-	voteBitsData := make([]dcrjson.VoteBitsData, 0, ticketsLen)
-	for _, th := range ticketHashes {
-		voteBits, err := w.VoteBitsForTicket(th)
-		if err != nil {
-			return nil, err
-		}
-		voteBitsData = append(voteBitsData, dcrjson.VoteBitsData{
-			VoteBits:    voteBits.Bits,
-			VoteBitsExt: hex.EncodeToString(voteBits.ExtendedBits),
-		})
-	}
-
-	return &dcrjson.GetTicketsVoteBitsResult{VoteBitsList: voteBitsData}, nil
-}
-
 // getTransaction handles a gettransaction request by returning details about
 // a single transaction saved by wallet.
 func getTransaction(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
@@ -1503,6 +1447,38 @@ func getTransaction(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 	ret.Amount = creditTotal.ToCoin()
 	return ret, nil
+}
+
+// getVoteChoices handles a getvotechoices request by returning configured vote
+// preferences for each agenda of the latest supported stake version.
+func getVoteChoices(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+	version, agendas := wallet.CurrentAgendas(w.ChainParams())
+	resp := &dcrjson.GetVoteChoicesResult{
+		Version: version,
+		Choices: make([]dcrjson.VoteChoice, len(agendas)),
+	}
+
+	choices, err := w.AgendaChoices()
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range choices {
+		resp.Choices[i] = dcrjson.VoteChoice{
+			AgendaID:          choices[i].AgendaID,
+			AgendaDescription: agendas[i].Vote.Description,
+			ChoiceID:          choices[i].ChoiceID,
+			ChoiceDescription: "", // Set below
+		}
+		for j := range agendas[i].Vote.Choices {
+			if choices[i].ChoiceID == agendas[i].Vote.Choices[j].Id {
+				resp.Choices[i].ChoiceDescription = agendas[i].Vote.Choices[j].Description
+				break
+			}
+		}
+	}
+
+	return resp, nil
 }
 
 // getWalletFee returns the currently set tx fee for the requested wallet
@@ -2700,50 +2676,6 @@ func sendToSSRtx(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClien
 	return txSha.String(), nil
 }
 
-// setTicketVoteBits sets the per-ticket voteBits for a given ticket from
-// a ticket hash. Missing tickets return an error.
-func setTicketVoteBits(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	cmd := icmd.(*dcrjson.SetTicketVoteBitsCmd)
-	ticket, err := chainhash.NewHashFromStr(cmd.TxHash)
-	if err != nil {
-		return nil, err
-	}
-
-	var voteBitsExt []byte
-	if cmd.VoteBitsExt != nil {
-		voteBitsExt, err = hex.DecodeString(*cmd.VoteBitsExt)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	err = w.SetVoteBitsForTicket(ticket,
-		stake.VoteBits{
-			Bits:         cmd.VoteBits,
-			ExtendedBits: voteBitsExt,
-		})
-	return nil, err
-}
-
-// setTicketsVoteBits sets the per-ticket voteBits for a given ticket from
-// a ticket hash. Missing tickets return an error.
-func setTicketsVoteBits(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	cmd := icmd.(*dcrjson.SetTicketsVoteBitsCmd)
-
-	tickets, err := dcrjson.DecodeConcatenatedHashes(cmd.TxHashes)
-	if err != nil {
-		return nil, err
-	}
-
-	voteBitsSlice, err := dcrjson.DecodeConcatenatedVoteBits(cmd.VoteBitsBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	err = w.SetVoteBitsForTickets(tickets, voteBitsSlice)
-	return nil, err
-}
-
 // setTicketFee sets the transaction fee per kilobyte added to tickets.
 func setTicketFee(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SetTicketFeeCmd)
@@ -2780,6 +2712,17 @@ func setTxFee(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 	// A boolean true result is returned upon success.
 	return true, nil
+}
+
+// setVoteChoice handles a setvotechoice request by modifying the preferred
+// choice for a voting agenda.
+func setVoteChoice(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+	cmd := icmd.(*dcrjson.SetVoteChoiceCmd)
+	err := w.SetAgendaChoices(wallet.AgendaChoice{
+		AgendaID: cmd.AgendaID,
+		ChoiceID: cmd.ChoiceID,
+	})
+	return nil, err
 }
 
 // signMessage signs the given message with the private key for the given
@@ -3331,10 +3274,9 @@ func walletInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient
 	fi := w.RelayFee()
 	tfi := w.TicketFeeIncrement()
 	tp := w.TicketPurchasingEnabled()
-	voteBits := w.GetVoteBits()
-	vbe := w.GetVoteBitsExtended()
+	voteBits := w.VoteBits()
 	var voteVersion uint32
-	_ = binary.Read(bytes.NewBuffer(vbe[0:4]), binary.LittleEndian, &voteVersion)
+	_ = binary.Read(bytes.NewBuffer(voteBits.ExtendedBits[0:4]), binary.LittleEndian, &voteVersion)
 	voting := w.VotingEnabled()
 
 	return &dcrjson.WalletInfoResult{
@@ -3343,8 +3285,8 @@ func walletInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient
 		TxFee:            fi.ToCoin(),
 		TicketFee:        tfi.ToCoin(),
 		TicketPurchasing: tp,
-		VoteBits:         voteBits,
-		VoteBitsExtended: hex.EncodeToString(vbe),
+		VoteBits:         voteBits.Bits,
+		VoteBitsExtended: hex.EncodeToString(voteBits.ExtendedBits),
 		VoteVersion:      voteVersion,
 		Voting:           voting,
 	}, nil
