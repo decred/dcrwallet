@@ -53,9 +53,16 @@ func (w *Wallet) nextAddress(account, branch uint32) (dcrutil.Address, error) {
 	}
 
 	if alb.cursor >= uint32(w.gapLimit) {
-		const str = "deriving additional addresses violates the unused address gap limit"
-		err := apperrors.E{ErrorCode: apperrors.ErrExceedsGapLimit, Description: str, Err: nil}
-		return nil, err
+		// TODO: Ideally the user would be presented with this error and then
+		// given the choice to either violate the gap limit and continue
+		// deriving more addresses, or to wrap around to a previously generated
+		// address.  Older wallet versions used wraparound without user consent,
+		// so this behavior was kept.
+		//
+		//const str = "deriving additional addresses violates the unused address gap limit"
+		//err := apperrors.E{ErrorCode: apperrors.ErrExceedsGapLimit, Description: str, Err: nil}
+		//return nil, err
+		alb.cursor = 1
 	}
 
 	for {
