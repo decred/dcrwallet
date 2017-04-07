@@ -718,6 +718,7 @@ func loadConfig() (*config, []string, error) {
 		}
 
 		// Perform the initial wallet creation wizard.
+		backendLog.Flush()
 		if !cfg.CreateWatchingOnly {
 			if err = createWallet(&cfg); err != nil {
 				fmt.Fprintln(os.Stderr, "Unable to create wallet:", err)
