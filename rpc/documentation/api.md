@@ -1555,6 +1555,8 @@ private passphrase must be passed as a parameter when performing this action.
 
 - `FailedPrecondition`: Wallet has not been loaded.
 
+- `FailedPrecondition`: Chain client is not available.
+
 - `FailedPrecondition`: Ticket buyer is already started.
 
 **Stability:** Unstable
