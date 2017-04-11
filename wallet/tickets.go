@@ -1,12 +1,10 @@
-// Copyright (c) 2016 The Decred developers
+// Copyright (c) 2016-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package wallet
 
 import (
-	"fmt"
-
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
@@ -178,7 +176,7 @@ func (w *Wallet) AddTicket(ticket *dcrutil.Tx) error {
 		stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
 
 		// Insert the ticket to be tracked and voted.
-		err := w.StakeMgr.InsertSStx(stakemgrNs, ticket, w.VoteBits)
+		err := w.StakeMgr.InsertSStx(stakemgrNs, ticket)
 		if err != nil {
 			return err
 		}
@@ -213,73 +211,6 @@ func (w *Wallet) AddTicket(ticket *dcrutil.Tx) error {
 				return err
 			}
 		}
-		return nil
-	})
-}
-
-// VoteBitsForTicket returns the per-ticket vote bits, if any are saved, falling
-// back to the wallet's default vote bits when missing.
-func (w *Wallet) VoteBitsForTicket(ticketHash *chainhash.Hash) (stake.VoteBits, error) {
-	var voteBits stake.VoteBits
-	var ok bool
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		stakemgrNs := tx.ReadBucket(wstakemgrNamespaceKey)
-		var err error
-		ok, voteBits, err = w.StakeMgr.SStxVoteBits(stakemgrNs, ticketHash)
-		return err
-	})
-	if !ok {
-		voteBits = w.VoteBits
-	}
-	return voteBits, err
-}
-
-// SetVoteBitsForTicket sets the per-ticket vote bits.  These vote bits override
-// the wallet's default vote bits.
-func (w *Wallet) SetVoteBitsForTicket(ticket *chainhash.Hash,
-	voteBits stake.VoteBits) error {
-	// Sanity check for the extended voteBits length.
-	if len(voteBits.ExtendedBits) > stake.SSGenVoteBitsExtendedMaxSize {
-		return fmt.Errorf("bad extended votebits length (got %v, max %v)",
-			len(voteBits.ExtendedBits), stake.SSGenVoteBitsExtendedMaxSize)
-	}
-
-	return walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-		stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
-		return w.StakeMgr.UpdateSStxVoteBits(stakemgrNs, ticket,
-			voteBits)
-	})
-}
-
-// SetVoteBitsForTickets sets vote bits for many given tickets.  These vote bits
-// override the wallet's default vote bits.
-func (w *Wallet) SetVoteBitsForTickets(tickets []chainhash.Hash,
-	voteBitsSlice []stake.VoteBits) error {
-	if len(tickets) != len(voteBitsSlice) {
-		return fmt.Errorf("number of tickets (%v) and number of vote bits "+
-			"(%v) not equal", len(tickets), len(voteBitsSlice))
-	}
-
-	for i := range voteBitsSlice {
-		// Sanity check for the extended voteBits length.
-		if len(voteBitsSlice[i].ExtendedBits) > stake.SSGenVoteBitsExtendedMaxSize {
-			return fmt.Errorf("bad extended votebits length (got %v, max %v)",
-				len(voteBitsSlice[i].ExtendedBits),
-				stake.SSGenVoteBitsExtendedMaxSize)
-		}
-	}
-
-	return walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-		stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
-		var err error
-		for i := range tickets {
-			err = w.StakeMgr.UpdateSStxVoteBits(stakemgrNs, &tickets[i],
-				voteBitsSlice[i])
-			if err != nil {
-				return err
-			}
-		}
-
 		return nil
 	})
 }

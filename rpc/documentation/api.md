@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.6.x
+Version: 4.7.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -40,6 +40,8 @@ existing wallet.
 - [`WalletService`](#walletservice)
 - [`SeedService`](#seedservice)
 - [`TicketBuyerService`](#ticketbuyerservice)
+- [`AgendaService`](#agendaservice)
+- [`VotingService`](#votingservice)
 
 ## `VersionService`
 
@@ -1837,5 +1839,133 @@ ticket buyer.
 
 **Stability:** Unstable
 
+## `AgendaService`
+
+The `AgendaService` service provides RPC clients with the ability to query the
+agendas of the latest supported stake version.
+
+**Methods:**
+
+- [`Agendas`](#agendas)
+
+### Methods
+
+#### `Agendas`
+
+The `Agendas` method queries for defined agendas in the latest stake version
+supported by this software.
+
+**Request:** `AgendasRequest`
+
+**Response:** `AgendasResponse`
+
+- `uint32 version`: The latest stake version supported by the software and the
+  version of the included agendas.
+
+- `repeated Agenda agendas`: All agendas defined by the latest supported stake
+  version.
+
+  **Nested message:** `Agenda`
+
+  - `string id`: The ID for this agenda.
+
+  - `string description`: A description of what the agenda is voting about.
+
+  - `uint32 mask`: The bitmask of bits allocated to defining votes for this
+    agenda.  At the moment this is limited to 16 bits in the software, but
+    protobuf v3 requires this field to be at least 32 bits wide.
+
+  - `repeated Choice choices`: All possible vote choices for the agenda.
+
+  - `int64 start_time`: The Unix time that the agenda voting begins.
+
+  - `int64 expire_time`: The Unix time that the agenda voting expires.
+
+  **Nested message:** `Choice`
+
+  - `string id`: The ID for this agenda vote choice.
+
+  - `string description`: A description of what this agenda vote entails.
+
+  - `uint32 bits`: The bitmask of bits used to vote for this choice.  At the
+    moment this is limited to 16 bits in the software, but protobuf v3 requires
+    this field to be at least 32 bits wide.
+
+  - `bool is_abstain`: Whether the choice describes to abstain from the vote.
+
+  - `bool is_no`: Whether the choice describes to vote against all changes and
+    keep the current consensus rules (if the vote is for a concensus change).
+
+**ExpectedErrors:** None
+
+**Stability:** Unstable
+
+## `VotingService`
+
+The `VotingService` service provides RPC clients with the ability to query and
+set the vote preferences of a voting wallet.
+
+**Methods:**
+
+- [`VoteChoices`](#votechoices)
+- [`SetVoteChoices`](#setvotechoices)
+
+### Methods
+
+#### `VoteChoices`
+
+The `VoteChoices` method queries for the current vote choices used to define
+vote bits of the latest supported stake version agendas.
+
+**Request:** `VoteChoicesRequest`
+
+**Response:** `VoteChoicesResponse`
+
+- `uint32 version`: The latest stake version supported by the software and the
+  version of the included agendas.
+
+- `repeated Choice choices`: The currently configured agenda vote choices,
+  including abstaining votes.
+
+  **Nested message:** `Choice`
+
+  - `string agenda_id`: The ID for the agenda the choice concerns.
+
+  - `string agenda_description`: A description of the agenda the choice
+	  concerns.
+
+  - `string choice_id`: The ID of the current choice for this agenda.
+
+  - `string choice_description`: A description of the current choice for this
+    agenda.
+
+**ExpectedErrors:** None
+
+**Stability:** Unstable
+
 ___
 
+#### `SetVoteChoices`
+
+The `SetVoteChoices` method sets choices  for defined agendas in the latest stake version
+supported by this software.
+
+**Request:** `SetVoteChoicesRequest`
+
+- `repeated Choice choices`: Choices for each agenda to modify.  If a choice is
+  specified multiple times for an agenda, the last takes preference.
+
+  **Nested message:** `Choice`
+
+  - `string agenda_id`: The ID for the agenda to modify.
+
+  - `string choice_id`: The ID for the choice to choose.
+
+**Response:** `SetVoteChoicesResponse`
+
+**ExpectedErrors:**
+
+- `InvalidArgument`: An agenda ID or choice ID is not valid for the latest
+  supported stake version.
+
+**Stability:** Unstable

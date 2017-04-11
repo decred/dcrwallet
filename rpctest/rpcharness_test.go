@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -1770,7 +1769,6 @@ func testGetTickets(r *Harness, t *testing.T) {
 		}
 
 		if !isSSTx {
-			t.Log(blockchain.DebugMsgTxString(tx.MsgTx()))
 			t.Fatal("Ticket hash is not for a SSTx.")
 		}
 	}

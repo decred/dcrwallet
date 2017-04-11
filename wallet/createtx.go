@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2016 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1296,7 +1296,7 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 		// automatically insert it.
 		if _, err := w.Manager.Address(addrmgrNs, addrVote); err == nil {
 			if w.ticketAddress == nil {
-				err = w.StakeMgr.InsertSStx(stakemgrNs, txTemp, w.VoteBits)
+				err = w.StakeMgr.InsertSStx(stakemgrNs, txTemp)
 				if err != nil {
 					return ticketHashes, fmt.Errorf("Failed to insert SStx %v"+
 						"into the stake store", txTemp.Hash())

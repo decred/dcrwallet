@@ -1,5 +1,5 @@
 // Copyright (c) 2014-2015 The btcsuite developers
-// Copyright (c) 2015-2016 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -50,13 +50,11 @@ func networkDir(dataDir string, chainParams *chaincfg.Params) string {
 func createWallet(cfg *config) error {
 	dbDir := networkDir(cfg.AppDataDir, activeNet.Params)
 	stakeOptions := &loader.StakeOptions{
-		VoteBits:         cfg.VoteBits,
-		VoteBitsExtended: cfg.VoteBitsExtended,
-		VotingEnabled:    cfg.EnableVoting,
-		PruneTickets:     cfg.PruneTickets,
-		AddressReuse:     cfg.ReuseAddresses,
-		TicketAddress:    cfg.TicketAddress,
-		TicketFee:        cfg.TicketFee.ToCoin(),
+		VotingEnabled: cfg.EnableVoting,
+		PruneTickets:  cfg.PruneTickets,
+		AddressReuse:  cfg.ReuseAddresses,
+		TicketAddress: cfg.TicketAddress,
+		TicketFee:     cfg.TicketFee.ToCoin(),
 	}
 	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.UnsafeMainNet, cfg.AddrIdxScanLen, cfg.AllowHighFees,

@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/snacl"
@@ -31,16 +32,22 @@ const (
 	// path.
 	lastUsedAddressIndexVersion = 2
 
+	// votingPreferencesVersion is the third version of the database.  It
+	// removes all per-ticket vote bits, replacing them with vote preferences
+	// for choices on individual agendas from the current stake version.
+	votingPreferencesVersion = 3
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = lastUsedAddressIndexVersion
+	DBVersion = votingPreferencesVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
 // upgrade the database to the next version.
 var upgrades = [...]func(walletdb.ReadWriteTx, []byte) error{
-	initialVersion: lastUsedAddressIndexUpgrade,
+	initialVersion:              lastUsedAddressIndexUpgrade,
+	lastUsedAddressIndexVersion: votingPreferencesUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
@@ -203,6 +210,54 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 	if err != nil {
 		const str = "failed to remove used address tracking bucket"
 		return apperrors.E{ErrorCode: apperrors.ErrDatabase, Description: str, Err: err}
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func votingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+	const oldVersion = 2
+	const newVersion = 3
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	stakemgrBucket := tx.ReadWriteBucket(wstakemgrBucketKey)
+	ticketPurchasesBucket := stakemgrBucket.NestedReadWriteBucket(sstxRecordsBucketName)
+
+	// Assert that this function is only called on version 2 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		const str = "votingPreferencesUpgrade inappropriately called"
+		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+	}
+
+	// Update every ticket purchase with the new database version.  This removes
+	// all per-ticket vote bits.
+	ticketPurchases := make(map[chainhash.Hash]*sstxRecord)
+	c := ticketPurchasesBucket.ReadCursor()
+	for k, _ := c.First(); k != nil; k, _ = c.Next() {
+		var hash chainhash.Hash
+		copy(hash[:], k)
+		ticketPurchase, err := fetchSStxRecord(stakemgrBucket, &hash, oldVersion)
+		if err != nil {
+			return err
+		}
+		ticketPurchases[hash] = ticketPurchase
+	}
+	for _, ticketPurchase := range ticketPurchases {
+		err := putSStxRecord(stakemgrBucket, ticketPurchase, newVersion)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Create the top level bucket for agenda preferences.
+	_, err = tx.CreateTopLevelBucket(agendaPreferences.rootBucketKey())
+	if err != nil {
+		return err
 	}
 
 	// Write the new database version.

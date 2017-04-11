@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2015-2016 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -486,7 +486,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 		}
 
 		if insert {
-			err := w.StakeMgr.InsertSStx(stakemgrNs, tx, w.VoteBits)
+			err := w.StakeMgr.InsertSStx(stakemgrNs, tx)
 			if err != nil {
 				log.Errorf("Failed to insert SStx %v"+
 					"into the stake store.", tx.Hash())
@@ -503,7 +503,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 				err = w.StakeMgr.InsertSSGen(stakemgrNs, &blockMeta.Block.Hash,
 					int64(height),
 					&txHash,
-					w.VoteBits.Bits,
+					stake.SSGenVoteBits(&rec.MsgTx),
 					&txInHash)
 				if err != nil {
 					return err
@@ -892,7 +892,7 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 			blockHash,
 			blockHeight,
 			tickets,
-			w.VoteBits,
+			w.VoteBits(),
 			w.stakePoolEnabled,
 			w.AllowHighFees,
 		)

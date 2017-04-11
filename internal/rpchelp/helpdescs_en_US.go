@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015-2016 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -153,17 +153,18 @@ var helpDescsEnUS = map[string]string{
 	"gettickets--synopsis":       "Returning the hashes of the tickets currently owned by wallet.",
 	"gettickets-includeimmature": "If true include immature tickets in the results.",
 
-	// GetTicketVoteBits help.
-	"getticketvotebits--synopsis":          "Retrieve the intended voteBits for any given ticket",
-	"getticketvotebits-txhash":             "The hash of the ticket",
-	"getticketvotebitsresult-votebitsdata": "The voteBits and extended voteBits for this ticket",
-	"votebitsdata-votebits":                "The voteBits for this ticket",
-	"votebitsdata-votebitsext":             "The extended voteBits for this ticket",
+	// GetVoteChoices help.
+	"getvotechoices--synopsis": "Retrieve the currently configured vote choices for the latest supported stake agendas",
 
-	// GetTicketsVoteBits help.
-	"getticketsvotebits--synopsis":          "Retrieve the intended voteBits for any given list of tickets",
-	"getticketsvotebits-txhashes":           "The list of ticket hashes",
-	"getticketsvotebitsresult-votebitslist": "The voteBits and extended voteBits for all tickets passed",
+	// GetVoteChoicesResult help.
+	"getvotechoicesresult-version": "The latest stake version supported by the software and the version of the included agendas",
+	"getvotechoicesresult-choices": "The currently configured agenda vote choices, including abstaining votes",
+
+	// VoteChoice help.
+	"votechoice-agendaid":          "The ID for the agenda the choice concerns",
+	"votechoice-agendadescription": "A description of the agenda the choice concerns",
+	"votechoice-choiceid":          "The ID of the current choice for this agenda",
+	"votechoice-choicedescription": "A description of the current choice for this agenda",
 
 	// GetTicketMaxPrice help.
 	"getticketmaxprice--synopsis": "Returns the max price the wallet will pay for a ticket.",
@@ -431,21 +432,15 @@ var helpDescsEnUS = map[string]string{
 	"setticketmaxprice--synopsis": "Set the max price user is willing to pay for a ticket.",
 	"setticketmaxprice-max":       "The max price (in dcr).",
 
-	// SetTicketVoteBits
-	"setticketvotebits--synopsis":   "Set the voteBits to be used when voting for any given ticket",
-	"setticketvotebits-txhash":      "The hash of the ticket",
-	"setticketvotebits-votebits":    "The voteBits to set for the ticket",
-	"setticketvotebits-votebitsext": "The extended voteBits to set for the ticket",
-
-	// SetTicketsVoteBits help.
-	"setticketsvotebits--synopsis":     "Set the vote bits for several tickets",
-	"setticketsvotebits-txhashes":      "The non-byte-reversed transaction hashes of each ticket being set, concatenated into a single hex string",
-	"setticketsvotebits-votebitsbytes": "Hexadecimal encodings of a custom binary vote bits encoding for each ticket hash, concatenated together into a single hex string",
-
 	// SetTxFeeCmd help.
 	"settxfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored transaction.",
 	"settxfee-amount":    "The new fee per kB of the serialized tx size valued in decred",
 	"settxfee--result0":  "The boolean 'true'",
+
+	// SetVoteChoice help.
+	"setvotechoice--synopsis": "Sets choices for defined agendas in the latest stake version supported by this software",
+	"setvotechoice-agendaid":  "The ID for the agenda to modify",
+	"setvotechoice-choiceid":  "The ID for the choice to choose",
 
 	// SignMessageCmd help.
 	"signmessage--synopsis": "Signs a message using the private key of a payment address.",

@@ -1,4 +1,4 @@
-// Copyright (c) 2015 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -37,9 +37,9 @@ func stakeStoreError(code apperrors.Code, str string, err error) error {
 type sstxRecord struct {
 	tx          *dcrutil.Tx
 	ts          time.Time
-	voteBitsSet bool
-	voteBits    uint16
-	voteBitsExt []byte
+	voteBitsSet bool   // Removed in version 3
+	voteBits    uint16 // Removed in version 3
+	voteBitsExt []byte // Removed in version 3
 }
 
 // ssgenRecord is the structure for a stored SSGen tx. There's no
@@ -146,7 +146,7 @@ func (s *StakeStore) addHashToStore(hash *chainhash.Hash) {
 }
 
 // insertSStx inserts an SStx into the store.
-func (s *StakeStore) insertSStx(ns walletdb.ReadWriteBucket, sstx *dcrutil.Tx, voteBits stake.VoteBits) error {
+func (s *StakeStore) insertSStx(ns walletdb.ReadWriteBucket, sstx *dcrutil.Tx) error {
 	// If we already have the SStx, no need to
 	// try to include twice.
 	exists := s.checkHashInStore(sstx.Hash())
@@ -156,15 +156,12 @@ func (s *StakeStore) insertSStx(ns walletdb.ReadWriteBucket, sstx *dcrutil.Tx, v
 		return nil
 	}
 	record := &sstxRecord{
-		sstx,
-		time.Now(),
-		true,
-		voteBits.Bits,
-		voteBits.ExtendedBits,
+		tx: sstx,
+		ts: time.Now(),
 	}
 
 	// Add the SStx to the database.
-	err := putSStxRecord(ns, record, voteBits)
+	err := putSStxRecord(ns, record, DBVersion)
 	if err != nil {
 		return err
 	}
@@ -177,62 +174,11 @@ func (s *StakeStore) insertSStx(ns walletdb.ReadWriteBucket, sstx *dcrutil.Tx, v
 
 // InsertSStx is the exported version of insertSStx that is safe for concurrent
 // access.
-func (s *StakeStore) InsertSStx(ns walletdb.ReadWriteBucket, sstx *dcrutil.Tx, voteBits stake.VoteBits) error {
+func (s *StakeStore) InsertSStx(ns walletdb.ReadWriteBucket, sstx *dcrutil.Tx) error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	return s.insertSStx(ns, sstx, voteBits)
-}
-
-// sstxVoteBits fetches the intended voteBits for a given SStx. This per-
-// ticket voteBits will override the default voteBits set by the wallet.
-func (s *StakeStore) sstxVoteBits(ns walletdb.ReadBucket, sstx *chainhash.Hash) (bool, stake.VoteBits, error) {
-	// If we already have the SStx, no need to
-	// try to include twice.
-	exists := s.checkHashInStore(sstx)
-	if !exists {
-		str := fmt.Sprintf("ticket %v not found in store", sstx)
-		return false, stake.VoteBits{}, stakeStoreError(apperrors.ErrNoExist, str, nil)
-	}
-
-	// Attempt to update the SStx in the database.
-	return fetchSStxRecordVoteBits(ns, sstx)
-}
-
-// SStxVoteBits is the exported version of sstxVoteBits that is
-// safe for concurrent access.
-func (s *StakeStore) SStxVoteBits(ns walletdb.ReadBucket, sstx *chainhash.Hash) (bool, stake.VoteBits, error) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
-	return s.sstxVoteBits(ns, sstx)
-}
-
-// updateSStxVoteBits updates the intended voteBits for a given SStx. This per-
-// ticket voteBits will override the default voteBits set by the wallet.
-func (s *StakeStore) updateSStxVoteBits(ns walletdb.ReadWriteBucket,
-	sstx *chainhash.Hash, voteBits stake.VoteBits) error {
-	// If we already have the SStx, no need to
-	// try to include twice.
-	exists := s.checkHashInStore(sstx)
-	if !exists {
-		str := fmt.Sprintf("ticket %v not found in store", sstx)
-		return stakeStoreError(apperrors.ErrNoExist, str, nil)
-	}
-
-	// Attempt to update the SStx in the database.
-	return updateSStxRecordVoteBits(ns, sstx, voteBits)
-}
-
-// UpdateSStxVoteBits is the exported version of updateSStxVoteBits that is
-// safe for concurrent access.
-func (s *StakeStore) UpdateSStxVoteBits(ns walletdb.ReadWriteBucket,
-	sstx *chainhash.Hash, voteBits stake.VoteBits) error {
-
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
-	return s.updateSStxVoteBits(ns, sstx, voteBits)
+	return s.insertSStx(ns, sstx)
 }
 
 // dumpSStxHashes dumps the hashes of all owned SStxs. Note
@@ -278,7 +224,7 @@ func (s *StakeStore) dumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrut
 
 	// Access the database and store the result locally.
 	for _, h := range allTickets {
-		thisHash160, p2sh, err := fetchSStxRecordSStxTicketHash160(ns, &h)
+		thisHash160, p2sh, err := fetchSStxRecordSStxTicketHash160(ns, &h, DBVersion)
 		if err != nil {
 			str := "failure getting ticket 0th out script hashes from db"
 			return nil, stakeStoreError(apperrors.ErrDatabase, str, err)
@@ -307,7 +253,7 @@ func (s *StakeStore) DumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrut
 // sstxAddress returns the address for a given ticket.
 func (s *StakeStore) sstxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (dcrutil.Address, error) {
 	// Access the database and store the result locally.
-	thisHash160, p2sh, err := fetchSStxRecordSStxTicketHash160(ns, hash)
+	thisHash160, p2sh, err := fetchSStxRecordSStxTicketHash160(ns, hash, DBVersion)
 	if err != nil {
 		str := "failure getting ticket 0th out script hashes from db"
 		return nil, stakeStoreError(apperrors.ErrDatabase, str, err)
@@ -429,7 +375,7 @@ func (s *StakeStore) DumpSSRtxTickets(ns walletdb.ReadBucket) ([]chainhash.Hash,
 
 // A function to get a single owned SStx.
 func (s *StakeStore) getSStx(ns walletdb.ReadBucket, hash *chainhash.Hash) (*sstxRecord, error) {
-	return fetchSStxRecord(ns, hash)
+	return fetchSStxRecord(ns, hash, DBVersion)
 }
 
 // insertSSGen inserts an SSGen record into the DB (keyed to the SStx it
