@@ -309,7 +309,7 @@ func removeRawBlockRecord(v []byte, txHash *chainhash.Hash) ([]byte, error) {
 
 	newLength := length - 32 // size of hash
 	oldNumHashes := (length - 47) / 32
-	newValue := make([]byte, newLength, newLength)
+	newValue := make([]byte, newLength)
 	copy(newValue[0:47], v[0:47])
 
 	cursor := 47
@@ -1782,7 +1782,7 @@ func existsTxScript(ns walletdb.ReadBucket, hash []byte) []byte {
 	if vOrig == nil {
 		return nil
 	}
-	v := make([]byte, len(vOrig), len(vOrig))
+	v := make([]byte, len(vOrig))
 	copy(v, vOrig)
 	return v
 }
@@ -1818,7 +1818,7 @@ func valueMultisigOut(sh [ripemd160.Size]byte, m uint8, n uint8,
 	spent bool, tree int8, blockHash chainhash.Hash,
 	blockHeight uint32, amount dcrutil.Amount, spentBy chainhash.Hash,
 	sbi uint32, txHash chainhash.Hash) []byte {
-	v := make([]byte, 135, 135)
+	v := make([]byte, 135)
 
 	copy(v[0:20], sh[0:20])
 	v[20] = m
@@ -2008,7 +2008,7 @@ func existsMultisigOut(ns walletdb.ReadBucket, k []byte) []byte {
 	if vOrig == nil {
 		return nil
 	}
-	v := make([]byte, 135, 135)
+	v := make([]byte, 135)
 	copy(v, vOrig)
 	return v
 }

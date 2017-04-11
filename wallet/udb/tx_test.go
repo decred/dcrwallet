@@ -88,6 +88,7 @@ func testStore() (*Store, func(), error) {
 
 func serializeTx(tx *dcrutil.Tx) []byte {
 	var buf bytes.Buffer
+	buf.Grow(tx.MsgTx().SerializeSize())
 	err := tx.MsgTx().Serialize(&buf)
 	if err != nil {
 		panic(err)

@@ -1,12 +1,10 @@
 hash: ed840e2cd19df32e8d5dc89987cdea36401f5e159926adc14727ec5f6f5b7bb3
-updated: 2017-03-17T08:37:24.154959896-04:00
+updated: 2017-04-07T13:04:03.166550904-05:00
 imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
 - name: github.com/btcsuite/btclog
   version: 73889fb79bd687870312b6e40effcecffbd57d30
-- name: github.com/btcsuite/fastsha256
-  version: 637e656429416087660c84436a2a035d69d54e2e
 - name: github.com/btcsuite/go-socks
   version: 4720035b7bfd2a9bb130b1c184f8bbe41b6f0d0f
   subpackages:
@@ -20,7 +18,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: ef71103c95cbf77e5a0418e3d413b5906e710b25
+  version: 2acdc98135614bcc372f89ffa8be024dd6de7c9f
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -40,9 +38,9 @@ imports:
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
-  version: 0476421c0f19f8540fb0f584000b04f82b906610
+  version: 445536bae28af7891ab111836ca6aab62a51b4e5
 - name: github.com/decred/dcrutil
-  version: ee6d002bf0de123fe47a8d2b8489f75145ce746e
+  version: ebd2e98736e819ac043d54439969b30144b92ced
   subpackages:
   - base58
   - hdkeychain
