@@ -67,7 +67,6 @@ const (
 	defaultPriceTarget                              = 0
 	defaultBalanceToMaintainAbsolute                = 0
 	defaultBalanceToMaintainRelative                = 0.3
-	defaultNoSpreadTicketPurchases                  = false
 
 	walletDbName = "wallet.db"
 )
@@ -183,9 +182,9 @@ type ticketBuyerOptions struct {
 	NoSpreadTicketPurchases   bool                `long:"nospreadticketpurchases" description:"Do not spread ticket purchases evenly throughout the window"`
 
 	// Deprecated options
-	MaxPriceScale float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
-	PriceTarget   *cfgutil.AmountFlag `long:"pricetarget" description:"DEPRECATED -- A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
-	SpreadTicketPurchases   bool      `long:"spreadticketpurchases" description:"DEPRECATED -- Spread ticket purchases evenly throughout the window"`
+	MaxPriceScale         float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
+	PriceTarget           *cfgutil.AmountFlag `long:"pricetarget" description:"DEPRECATED -- A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
+	SpreadTicketPurchases bool                `long:"spreadticketpurchases" description:"DEPRECATED -- Spread ticket purchases evenly throughout the window"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -392,7 +391,6 @@ func loadConfig() (*config, []string, error) {
 			PriceTarget:               cfgutil.NewAmountFlag(defaultPriceTarget),
 			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
 			BalanceToMaintainRelative: defaultBalanceToMaintainRelative,
-			NoSpreadTicketPurchases:   defaultNoSpreadTicketPurchases,
 		},
 	}
 
@@ -959,9 +957,9 @@ func loadConfig() (*config, []string, error) {
 		MaxPriceAbsolute:          cfg.TBOpts.MaxPriceAbsolute.ToCoin(),
 		MaxPriceRelative:          cfg.TBOpts.MaxPriceRelative,
 		MaxInMempool:              cfg.TBOpts.MaxInMempool,
+		NoSpreadTicketPurchases:   cfg.TBOpts.NoSpreadTicketPurchases,
 		PoolAddress:               cfg.PoolAddress,
 		PoolFees:                  cfg.PoolFees,
-		NoSpreadTicketPurchases:   cfg.TBOpts.NoSpreadTicketPurchases,
 		TicketAddress:             cfg.TicketAddress,
 		TxFee:                     cfg.RelayFee.ToCoin(),
 	}

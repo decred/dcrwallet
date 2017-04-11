@@ -2405,26 +2405,26 @@ func (*TicketBuyerConfigRequest) ProtoMessage()               {}
 func (*TicketBuyerConfigRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{77} }
 
 type TicketBuyerConfigResponse struct {
-	Account               uint32  `protobuf:"varint,1,opt,name=account" json:"account,omitempty"`
-	AvgPriceMode          string  `protobuf:"bytes,2,opt,name=avg_price_mode,json=avgPriceMode" json:"avg_price_mode,omitempty"`
-	AvgPriceVWAPDelta     int64   `protobuf:"varint,3,opt,name=avg_priceVWAP_delta,json=avgPriceVWAPDelta" json:"avg_priceVWAP_delta,omitempty"`
-	BalanceToMaintain     int64   `protobuf:"varint,4,opt,name=balance_to_maintain,json=balanceToMaintain" json:"balance_to_maintain,omitempty"`
-	BlocksToAvg           int64   `protobuf:"varint,5,opt,name=blocks_to_avg,json=blocksToAvg" json:"blocks_to_avg,omitempty"`
-	DontWaitForTickets    bool    `protobuf:"varint,6,opt,name=dont_wait_for_tickets,json=dontWaitForTickets" json:"dont_wait_for_tickets,omitempty"`
-	ExpiryDelta           int64   `protobuf:"varint,7,opt,name=expiry_delta,json=expiryDelta" json:"expiry_delta,omitempty"`
-	FeeSource             string  `protobuf:"bytes,8,opt,name=fee_source,json=feeSource" json:"fee_source,omitempty"`
-	FeeTargetScaling      float64 `protobuf:"fixed64,9,opt,name=fee_target_scaling,json=feeTargetScaling" json:"fee_target_scaling,omitempty"`
-	MinFee                int64   `protobuf:"varint,10,opt,name=min_fee,json=minFee" json:"min_fee,omitempty"`
-	MaxFee                int64   `protobuf:"varint,12,opt,name=max_fee,json=maxFee" json:"max_fee,omitempty"`
-	MaxPerBlock           int64   `protobuf:"varint,13,opt,name=max_per_block,json=maxPerBlock" json:"max_per_block,omitempty"`
-	MaxPriceAbsolute      int64   `protobuf:"varint,14,opt,name=max_price_absolute,json=maxPriceAbsolute" json:"max_price_absolute,omitempty"`
-	MaxPriceRelative      float64 `protobuf:"fixed64,15,opt,name=max_price_relative,json=maxPriceRelative" json:"max_price_relative,omitempty"`
-	MaxInMempool          int64   `protobuf:"varint,17,opt,name=max_in_mempool,json=maxInMempool" json:"max_in_mempool,omitempty"`
-	PoolAddress           string  `protobuf:"bytes,18,opt,name=pool_address,json=poolAddress" json:"pool_address,omitempty"`
-	PoolFees              float64 `protobuf:"fixed64,19,opt,name=pool_fees,json=poolFees" json:"pool_fees,omitempty"`
-	SpreadTicketPurchases bool    `protobuf:"varint,20,opt,name=spread_ticket_purchases,json=spreadTicketPurchases" json:"spread_ticket_purchases,omitempty"`
-	VotingAddress         string  `protobuf:"bytes,21,opt,name=voting_address,json=votingAddress" json:"voting_address,omitempty"`
-	TxFee                 int64   `protobuf:"varint,22,opt,name=tx_fee,json=txFee" json:"tx_fee,omitempty"`
+	Account                 uint32  `protobuf:"varint,1,opt,name=account" json:"account,omitempty"`
+	AvgPriceMode            string  `protobuf:"bytes,2,opt,name=avg_price_mode,json=avgPriceMode" json:"avg_price_mode,omitempty"`
+	AvgPriceVWAPDelta       int64   `protobuf:"varint,3,opt,name=avg_priceVWAP_delta,json=avgPriceVWAPDelta" json:"avg_priceVWAP_delta,omitempty"`
+	BalanceToMaintain       int64   `protobuf:"varint,4,opt,name=balance_to_maintain,json=balanceToMaintain" json:"balance_to_maintain,omitempty"`
+	BlocksToAvg             int64   `protobuf:"varint,5,opt,name=blocks_to_avg,json=blocksToAvg" json:"blocks_to_avg,omitempty"`
+	DontWaitForTickets      bool    `protobuf:"varint,6,opt,name=dont_wait_for_tickets,json=dontWaitForTickets" json:"dont_wait_for_tickets,omitempty"`
+	ExpiryDelta             int64   `protobuf:"varint,7,opt,name=expiry_delta,json=expiryDelta" json:"expiry_delta,omitempty"`
+	FeeSource               string  `protobuf:"bytes,8,opt,name=fee_source,json=feeSource" json:"fee_source,omitempty"`
+	FeeTargetScaling        float64 `protobuf:"fixed64,9,opt,name=fee_target_scaling,json=feeTargetScaling" json:"fee_target_scaling,omitempty"`
+	MinFee                  int64   `protobuf:"varint,10,opt,name=min_fee,json=minFee" json:"min_fee,omitempty"`
+	MaxFee                  int64   `protobuf:"varint,12,opt,name=max_fee,json=maxFee" json:"max_fee,omitempty"`
+	MaxPerBlock             int64   `protobuf:"varint,13,opt,name=max_per_block,json=maxPerBlock" json:"max_per_block,omitempty"`
+	MaxPriceAbsolute        int64   `protobuf:"varint,14,opt,name=max_price_absolute,json=maxPriceAbsolute" json:"max_price_absolute,omitempty"`
+	MaxPriceRelative        float64 `protobuf:"fixed64,15,opt,name=max_price_relative,json=maxPriceRelative" json:"max_price_relative,omitempty"`
+	MaxInMempool            int64   `protobuf:"varint,17,opt,name=max_in_mempool,json=maxInMempool" json:"max_in_mempool,omitempty"`
+	NoSpreadTicketPurchases bool    `protobuf:"varint,20,opt,name=spread_ticket_purchases,json=noSpreadTicketPurchases" json:"no_spread_ticket_purchases,omitempty"`
+	PoolAddress             string  `protobuf:"bytes,18,opt,name=pool_address,json=poolAddress" json:"pool_address,omitempty"`
+	PoolFees                float64 `protobuf:"fixed64,19,opt,name=pool_fees,json=poolFees" json:"pool_fees,omitempty"`
+	VotingAddress           string  `protobuf:"bytes,21,opt,name=voting_address,json=votingAddress" json:"voting_address,omitempty"`
+	TxFee                   int64   `protobuf:"varint,22,opt,name=tx_fee,json=txFee" json:"tx_fee,omitempty"`
 }
 
 func (m *TicketBuyerConfigResponse) Reset()                    { *m = TicketBuyerConfigResponse{} }
@@ -2551,9 +2551,9 @@ func (m *TicketBuyerConfigResponse) GetPoolFees() float64 {
 	return 0
 }
 
-func (m *TicketBuyerConfigResponse) GetSpreadTicketPurchases() bool {
+func (m *TicketBuyerConfigResponse) GetNoSpreadTicketPurchases() bool {
 	if m != nil {
-		return m.SpreadTicketPurchases
+		return m.NoSpreadTicketPurchases
 	}
 	return false
 }
