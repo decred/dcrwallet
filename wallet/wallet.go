@@ -3658,8 +3658,14 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 	log.Infof("Please wait, deriving %v stake pool fees addresses "+
 		"for extended public key %s", end, splStrs[0])
 
+	// Derive from external branch
+	branchKey, err := key.Child(udb.ExternalBranch)
+	if err != nil {
+		return nil, err
+	}
+
 	// Derive the addresses from [0, end) for this extended public key.
-	addrs, err := deriveChildAddresses(key, 0, uint32(end)+1, params)
+	addrs, err := deriveChildAddresses(branchKey, 0, uint32(end)+1, params)
 	if err != nil {
 		return nil, err
 	}
