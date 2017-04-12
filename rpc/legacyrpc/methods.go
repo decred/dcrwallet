@@ -210,10 +210,10 @@ type lazyHandler func() (interface{}, *dcrjson.RPCError)
 // returning a closure that will execute it with the (required) wallet and
 // (optional) consensus RPC server.  If no handlers are found and the
 // chainClient is not nil, the returned handler performs RPC passthrough.
-func lazyApplyHandler(request *dcrjson.Request, w *wallet.Wallet, chainClient *chain.RPCClient, unsafeMainNet bool) lazyHandler {
+func lazyApplyHandler(request *dcrjson.Request, activeNet *chaincfg.Params, w *wallet.Wallet, chainClient *chain.RPCClient, unsafeMainNet bool) lazyHandler {
 	handlerData, ok := rpcHandlers[request.Method]
 	if ok && handlerData.requireUnsafeOnMainNet &&
-		w.ChainParams() == &chaincfg.MainNetParams && !unsafeMainNet {
+		activeNet == &chaincfg.MainNetParams && !unsafeMainNet {
 		return func() (interface{}, *dcrjson.RPCError) {
 			return nil, &ErrMainNetSafety
 		}

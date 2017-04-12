@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/websocket"
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/loader"
@@ -80,6 +81,7 @@ type Server struct {
 	requestShutdownChan chan struct{}
 
 	unsafeMainNet bool
+	activeNet     *chaincfg.Params
 }
 
 // jsonAuthFail sends a message back to the client if the http auth is rejected.
@@ -90,7 +92,7 @@ func jsonAuthFail(w http.ResponseWriter) {
 
 // NewServer creates a new server for serving legacy RPC client connections,
 // both HTTP POST and websocket.
-func NewServer(opts *Options, walletLoader *loader.Loader, listeners []net.Listener) *Server {
+func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.Loader, listeners []net.Listener) *Server {
 	serveMux := http.NewServeMux()
 	const rpcAuthTimeoutSeconds = 10
 
@@ -116,6 +118,7 @@ func NewServer(opts *Options, walletLoader *loader.Loader, listeners []net.Liste
 		quit:                make(chan struct{}),
 		requestShutdownChan: make(chan struct{}, 1),
 		unsafeMainNet:       opts.UnsafeMainNet,
+		activeNet:           activeNet,
 	}
 
 	serveMux.Handle("/", throttledFn(opts.MaxPOSTClients,
@@ -286,7 +289,7 @@ func (s *Server) handlerClosure(request *dcrjson.Request) lazyHandler {
 	}
 	s.handlerMu.Unlock()
 
-	return lazyApplyHandler(request, wallet, chainClient, s.unsafeMainNet)
+	return lazyApplyHandler(request, s.activeNet, wallet, chainClient, s.unsafeMainNet)
 }
 
 // ErrNoAuth represents an error where authentication could not succeed

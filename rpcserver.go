@@ -173,7 +173,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			MaxWebsocketClients: cfg.LegacyRPCMaxWebsockets,
 			UnsafeMainNet:       cfg.UnsafeMainNet,
 		}
-		legacyServer = legacyrpc.NewServer(&opts, walletLoader, listeners)
+		legacyServer = legacyrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
 	}
 
 	// Error when neither the GRPC nor legacy RPC servers can be started.
