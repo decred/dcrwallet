@@ -138,7 +138,7 @@ func (t *TicketPurchaser) Config() (*Config, error) {
 		ExpiryDelta:               t.cfg.ExpiryDelta,
 		FeeSource:                 t.cfg.FeeSource,
 		FeeTargetScaling:          t.cfg.FeeTargetScaling,
-		MinFee:                    t.cfg.MinFee,
+		MinFee:                    t.minFee,
 		MaxFee:                    t.maxFee,
 		MaxPerBlock:               t.maxPerBlock,
 		MaxPriceAbsolute:          t.maxPriceAbsolute,
@@ -393,6 +393,7 @@ func NewTicketPurchaser(cfg *Config,
 		account:           account,
 		balanceToMaintain: cfg.BalanceToMaintainAbsolute,
 		maxFee:            cfg.MaxFee,
+		minFee:            cfg.MinFee,
 		maxPerBlock:       cfg.MaxPerBlock,
 		maxPriceAbsolute:  cfg.MaxPriceAbsolute,
 		maxPriceRelative:  cfg.MaxPriceRelative,
@@ -491,14 +492,11 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// Parse the ticket purchase frequency. Positive numbers mean
 	// that many tickets per block. Negative numbers mean to only
 	// purchase one ticket once every abs(num) blocks.
-	maxPerBlock := 0
-	switch {
-	case t.cfg.MaxPerBlock == 0:
+	maxPerBlock := t.MaxPerBlock()
+	if maxPerBlock == 0 {
 		return ps, nil
-	case t.cfg.MaxPerBlock > 0:
-		maxPerBlock = t.cfg.MaxPerBlock
-	case t.cfg.MaxPerBlock < 0:
-		if int(height)%t.cfg.MaxPerBlock != 0 {
+	} else if maxPerBlock < 0 {
+		if int(height)%maxPerBlock != 0 {
 			return ps, nil
 		}
 		maxPerBlock = 1
@@ -612,8 +610,8 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	var feeToUse float64
 	maxStake := int(t.activeNet.MaxFreshStakePerBlock)
 	if ticketPurchasesInLastBlock < maxStake && mempoolall < maxStake {
-		log.Debugf("Using min ticket fee: %.8f DCR", t.cfg.MinFee)
-		feeToUse = t.cfg.MinFee
+		feeToUse = t.MinFee()
+		log.Debugf("Using min ticket fee: %.8f DCR", feeToUse)
 		if ticketPurchasesInLastBlock < maxStake {
 			log.Tracef("(ticket purchase slots available in last block)")
 		}
