@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2015-2016 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	xcontext "golang.org/x/net/context"
 	"io/ioutil"
 	"net"
 	"os"
@@ -25,6 +26,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/peer"
 )
 
 // openRPCKeyPair creates or loads the RPC TLS keypair specified by the
@@ -139,7 +141,11 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 				return nil, nil, err
 			}
 			creds := credentials.NewServerTLSFromCert(&keyPair)
-			server = grpc.NewServer(grpc.Creds(creds))
+			server = grpc.NewServer(
+				grpc.Creds(creds),
+				grpc.StreamInterceptor(logStreaming),
+				grpc.UnaryInterceptor(logUnary),
+			)
 			rpcserver.StartVersionService(server)
 			rpcserver.StartWalletLoaderService(server, walletLoader, activeNet)
 			rpcserver.StartTicketBuyerService(server, walletLoader, &cfg.tbCfg)
@@ -182,6 +188,34 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 	}
 
 	return server, legacyServer, nil
+}
+
+func logStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	p, ok := peer.FromContext(ss.Context())
+	if ok {
+		grpcLog.Infof("Streaming method %s invoked by %s", info.FullMethod,
+			p.Addr.String())
+	}
+	err := handler(srv, ss)
+	if err != nil && ok {
+		grpcLog.Errorf("Streaming method %s invoked by %s errored: %v",
+			info.FullMethod, p.Addr.String(), err)
+	}
+	return err
+}
+
+func logUnary(ctx xcontext.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	p, ok := peer.FromContext(ctx)
+	if ok {
+		grpcLog.Infof("Unary method %s invoked by %s", info.FullMethod,
+			p.Addr.String())
+	}
+	resp, err = handler(ctx, req)
+	if err != nil && ok {
+		grpcLog.Errorf("Unary method %s invoked by %s errored: %v",
+			info.FullMethod, p.Addr.String(), err)
+	}
+	return resp, err
 }
 
 type listenFunc func(net string, laddr string) (net.Listener, error)
