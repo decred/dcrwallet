@@ -53,9 +53,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.7.0"
+	semverString = "4.8.0"
 	semverMajor  = 4
-	semverMinor  = 7
+	semverMinor  = 8
 	semverPatch  = 0
 )
 
@@ -1011,13 +1011,23 @@ func marshalTransactionDetails(v []wallet.TransactionSummary) []*pb.TransactionD
 	txs := make([]*pb.TransactionDetails, len(v))
 	for i := range v {
 		tx := &v[i]
+		var txType = pb.TransactionDetails_REGULAR
+		switch tx.Type {
+		case wallet.TransactionTypeTicketPurchase:
+			txType = pb.TransactionDetails_TICKET_PURCHASE
+		case wallet.TransactionTypeVote:
+			txType = pb.TransactionDetails_VOTE
+		case wallet.TransactionTypeRevocation:
+			txType = pb.TransactionDetails_REVOCATION
+		}
 		txs[i] = &pb.TransactionDetails{
-			Hash:        tx.Hash[:],
-			Transaction: tx.Transaction,
-			Debits:      marshalTransactionInputs(tx.MyInputs),
-			Credits:     marshalTransactionOutputs(tx.MyOutputs),
-			Fee:         int64(tx.Fee),
-			Timestamp:   tx.Timestamp,
+			Hash:            tx.Hash[:],
+			Transaction:     tx.Transaction,
+			Debits:          marshalTransactionInputs(tx.MyInputs),
+			Credits:         marshalTransactionOutputs(tx.MyOutputs),
+			Fee:             int64(tx.Fee),
+			Timestamp:       tx.Timestamp,
+			TransactionType: txType,
 		}
 	}
 	return txs

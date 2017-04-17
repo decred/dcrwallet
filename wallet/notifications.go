@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"sync"
 
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -153,6 +154,26 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 		}
 		outputs = append(outputs, output)
 	}
+
+	var transactionType = TransactionTypeRegular
+	switch {
+	case true:
+		ok, _ := stake.IsSStx(&details.MsgTx)
+		if ok {
+			transactionType = TransactionTypeTicketPurchase
+			break
+		}
+		ok, _ = stake.IsSSGen(&details.MsgTx)
+		if ok {
+			transactionType = TransactionTypeVote
+			break
+		}
+		ok, _ = stake.IsSSRtx(&details.MsgTx)
+		if ok {
+			transactionType = TransactionTypeRevocation
+			break
+		}
+	}
 	return TransactionSummary{
 		Hash:        &details.Hash,
 		Transaction: serializedTx,
@@ -160,6 +181,7 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 		MyOutputs:   outputs,
 		Fee:         fee,
 		Timestamp:   details.Received.Unix(),
+		Type:        transactionType,
 	}
 }
 
@@ -358,7 +380,31 @@ type TransactionSummary struct {
 	MyOutputs   []TransactionSummaryOutput
 	Fee         dcrutil.Amount
 	Timestamp   int64
+	Type        TransactionType
 }
+
+// TransactionType decribes the which type of transaction is has been observed to be.
+// For instance, if it has a ticket as an input and a stake base reward as an ouput,
+// it is known to be a vote.
+type TransactionType int8
+
+const (
+	// TransactionTypeRegular transaction type for all non stake transactions.
+	TransactionTypeRegular TransactionType = iota
+
+	// TransactionTypeTicketPurchase transaction type for all transactions that
+	// consume regular transactions as inputs and have commitments for future votes
+	// as outputs.
+	TransactionTypeTicketPurchase
+
+	// TransactionTypeVote transaction type for all transactions that consume a ticket
+	// and also offer a stake base reward output.
+	TransactionTypeVote
+
+	// TransactionTypeRevocation transaction type for all transactions that consume a
+	// ticket, but offer no stake base reward.
+	TransactionTypeRevocation
+)
 
 // TransactionSummaryInput describes a transaction input that is relevant to the
 // wallet.  The Index field marks the transaction input index of the transaction

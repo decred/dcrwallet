@@ -108,6 +108,13 @@ message TransactionDetails {
 	repeated Output credits = 4;
 	int64 fee = 5;
 	int64 timestamp = 6; // May be earlier than a block timestamp, but never later.
+	enum TransactionType {
+		REGULAR = 0;
+		TICKET_PURCHASE = 1;
+		VOTE = 2;
+		REVOCATION = 3;
+	}
+	TransactionType transaction_type = 7;
 }
 
 message BlockDetails {
