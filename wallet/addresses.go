@@ -62,11 +62,11 @@ func (w *Wallet) nextAddress(account, branch uint32) (dcrutil.Address, error) {
 		//const str = "deriving additional addresses violates the unused address gap limit"
 		//err := apperrors.E{ErrorCode: apperrors.ErrExceedsGapLimit, Description: str, Err: nil}
 		//return nil, err
-		alb.cursor = 1
+		alb.cursor = 0
 	}
 
 	for {
-		childIndex := alb.lastUsed + alb.cursor
+		childIndex := alb.lastUsed + 1 + alb.cursor
 		if childIndex >= hdkeychain.HardenedKeyStart {
 			const str = "no more addresses can be derived for the account"
 			err := apperrors.E{ErrorCode: apperrors.ErrExhaustedAccount, Description: str, Err: nil}
@@ -167,32 +167,31 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 	// the cursor to point to the same child index relative to the new last used
 	// index.  Request transaction notifications for future addresses that will
 	// be returned by the buffer.
-	loadFilterErrs := make(chan error, len(m))
+	errs := make(chan error, len(m))
 	defer w.addressBuffersMu.Unlock()
 	w.addressBuffersMu.Lock()
 	for account, a := range w.addressBuffers {
 		storedLastUsed := m[account]
-		var childExt, childInt uint32
-
 		deriveExt := storedLastUsed.external - a.albExternal.lastUsed
 		deriveInt := storedLastUsed.internal - a.albInternal.lastUsed
-		if deriveExt >= 0 {
+		// Comparisons against 1<<31 are used to determine if there are a
+		// "positive" or "negative" number of addresses to derive after
+		// performing unsigned subtraction.  This works because the valid range
+		// of child addresses is [0,1<<31).
+		if (deriveExt == 0 || deriveExt >= 1<<31) && (deriveInt == 0 || deriveInt >= 1<<31) {
+			errs <- nil
+			continue
+		}
+		var childExt, childInt uint32
+		if deriveExt < 1<<31 {
 			a.albExternal.lastUsed = storedLastUsed.external
 			a.albExternal.cursor -= minUint32(a.albExternal.cursor, deriveExt)
-			if a.albExternal.cursor == 0 {
-				// Derive the next address after the last used one
-				a.albExternal.cursor = 1
-			}
-			childExt = a.albExternal.lastUsed + a.albExternal.cursor
+			childExt = a.albExternal.lastUsed + 1 + a.albExternal.cursor
 		}
-		if deriveInt >= 0 {
+		if deriveInt < 1<<31 {
 			a.albInternal.lastUsed = storedLastUsed.internal
 			a.albInternal.cursor -= minUint32(a.albInternal.cursor, deriveInt)
-			if a.albInternal.cursor == 0 {
-				// Derive the next address after the last used one
-				a.albInternal.cursor = 1
-			}
-			childInt = a.albInternal.lastUsed + a.albInternal.cursor
+			childInt = a.albInternal.lastUsed + 1 + a.albInternal.cursor
 		}
 
 		xpubBranchExt := a.albExternal.branchXpub
@@ -208,9 +207,7 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 			switch err {
 			case nil:
 			case hdkeychain.ErrInvalidChild:
-				// Skip to the next child while still generating the same number
-				// of addresses
-				i--
+				// Skip to the next child
 				continue
 			default:
 				return err
@@ -230,7 +227,6 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 			switch err {
 			case nil:
 			case hdkeychain.ErrInvalidChild:
-				i--
 				continue
 			default:
 				return err
@@ -243,12 +239,12 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 		}
 
 		go func() {
-			loadFilterErrs <- client.LoadTxFilter(false, addrs, nil)
+			errs <- client.LoadTxFilter(false, addrs, nil)
 		}()
 	}
 
-	for i := 0; i < cap(loadFilterErrs); i++ {
-		err := <-loadFilterErrs
+	for i := 0; i < cap(errs); i++ {
+		err := <-errs
 		if err != nil {
 			return err
 		}

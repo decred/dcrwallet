@@ -140,8 +140,10 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 			return apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
 		}
 
-		// Determine the last used internal and external address indexes.
-		var lastUsedExtIndex, lastUsedIntIndex uint32
+		// Determine the last used internal and external address indexes.  The
+		// sentinel value ^uint32(0) means that there has been no usage at all.
+		lastUsedExtIndex := ^uint32(0)
+		lastUsedIntIndex := ^uint32(0)
 		for child := uint32(0); child < hdkeychain.HardenedKeyStart; child++ {
 			xpubChild, err := xpubExtBranch.Child(child)
 			if err == hdkeychain.ErrInvalidChild {

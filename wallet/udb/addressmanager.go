@@ -181,7 +181,9 @@ type accountInfo struct {
 }
 
 // AccountProperties contains properties associated with each account, such as
-// the account name, number, and the nubmer of derived and imported keys.
+// the account name, number, and the nubmer of derived and imported keys.  If no
+// address usage has been recorded on any of the external or internal branches,
+// the child index is ^uint32(0).
 type AccountProperties struct {
 	AccountNumber         uint32
 	AccountName           string

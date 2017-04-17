@@ -99,7 +99,7 @@ func verifyV2Upgrade(t *testing.T, db walletdb.DB) {
 			totalAddrs uint32
 			lastUsed   uint32
 		}{
-			{0, 0},
+			{^uint32(0), ^uint32(0)},
 			{20, 18},
 			{20, 19},
 			{20, 19},

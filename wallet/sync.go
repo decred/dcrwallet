@@ -118,9 +118,12 @@ func (w *Wallet) branchUsed(client *chain.RPCClient, branchXpub *hdkeychain.Exte
 	return false, nil
 }
 
+// findLastUsedAddress returns the child index of the last used child address
+// derived from a branch key.  If no addresses are found, ^uint32(0) is
+// returned.
 func (w *Wallet) findLastUsedAddress(client *chain.RPCClient, xpub *hdkeychain.ExtendedKey) (uint32, error) {
 	var (
-		lastUsed uint32
+		lastUsed        = ^uint32(0)
 		scanLen         = uint32(w.gapLimit)
 		segments        = hdkeychain.HardenedKeyStart / scanLen
 		lo, hi   uint32 = 0, segments - 1
@@ -281,10 +284,15 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 				err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 					ns := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 
-					// SyncAccountToAddrIndex never removes derived addresses from
-					// an account, and can be called with just the discovered last
-					// used child index, plus the gap limit.  Cap it to the highest
-					// child index.
+					// SyncAccountToAddrIndex never removes derived addresses
+					// from an account, and can be called with just the
+					// discovered last used child index, plus the gap limit.
+					// Cap it to the highest child index.
+					//
+					// If no addresses were used for this branch, lastUsed is
+					// ^uint32(0) and adding the gap limit it will sync exactly
+					// gapLimit number of addresses (e.g. 0-19 when the gap
+					// limit is 20).
 					gapLimit := uint32(w.gapLimit)
 					err := w.Manager.SyncAccountToAddrIndex(ns, acct,
 						minUint32(lastUsed+gapLimit, hdkeychain.HardenedKeyStart-1),
@@ -292,9 +300,11 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 					if err != nil {
 						return err
 					}
-					err = w.Manager.MarkUsedChildIndex(tx, acct, branch, lastUsed)
-					if err != nil {
-						return err
+					if lastUsed < hdkeychain.HardenedKeyStart {
+						err = w.Manager.MarkUsedChildIndex(tx, acct, branch, lastUsed)
+						if err != nil {
+							return err
+						}
 					}
 
 					w.addressBuffersMu.Lock()
@@ -307,8 +317,8 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 					buf.cursor = 0
 					w.addressBuffersMu.Unlock()
 
-					log.Infof("Synchronized account %d branch %d to last used child index %v",
-						acct, branch, lastUsed)
+					log.Infof("Synchronized account %d branch %d to next child index %v",
+						acct, branch, lastUsed+1)
 					return nil
 				})
 				if err != nil {
