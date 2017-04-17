@@ -1430,6 +1430,8 @@ transaction was seen.
   - `REVOCATION`: A recovation transaction to free previously used utxos in 
     a ticket purchase.
 
+- `TransactionType transaction_type`: The observed type of transaction. 
+
 **Stability**: Unstable: Since the caller is expected to decode the serialized
   transaction, and would have access to every output script, the output
   properties could be changed to only include outputs controlled by the wallet.
