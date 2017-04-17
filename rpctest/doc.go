@@ -18,7 +18,7 @@
 // each harness, and cleaned up on shutdown.
 //
 // The default settings for a harness wallet are:
-//    1. Stake mining enabled (--enablestakemining).
+//    1. Ticket buyer enabled (--enableticketbuyer).
 //    2. Zero max ticket price.
 //    3. High balance to maintain (2000000 DCR).
 // Thus, a harness wallet will automatically vote on owned tickets, but not
