@@ -390,20 +390,20 @@ type TransactionType int8
 
 const (
 	// TransactionTypeRegular transaction type for all non stake transactions.
-	TransactionTypeRegular TransactionType = 0
+	TransactionTypeRegular TransactionType = iota
 
 	// TransactionTypeTicketPurchase transaction type for all transactions that
 	// consume regular transactions as inputs and have commitments for future votes
 	// as outputs.
-	TransactionTypeTicketPurchase TransactionType = 1
+	TransactionTypeTicketPurchase
 
 	// TransactionTypeVote transaction type for all transactions that consume a ticket
 	// and also offer a stake base reward output.
-	TransactionTypeVote TransactionType = 2
+	TransactionTypeVote
 
 	// TransactionTypeRevocation transaction type for all transactions that consume a
 	// ticket, but offer no stake base reward.
-	TransactionTypeRevocation TransactionType = 3
+	TransactionTypeRevocation
 )
 
 // TransactionSummaryInput describes a transaction input that is relevant to the
