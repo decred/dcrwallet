@@ -155,22 +155,22 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 		outputs = append(outputs, output)
 	}
 
-	var transactionType = TRANSACTION_TYPE_REGULAR
+	var transactionType = TransactionTypeRegular
 	switch {
 	case true:
 		ok, _ := stake.IsSStx(&details.MsgTx)
 		if ok {
-			transactionType = TRANSACTION_TYPE_TICKETPURCHASE
+			transactionType = TransactionTypeTicketPurchase
 			break
 		}
 		ok, _ = stake.IsSSGen(&details.MsgTx)
 		if ok {
-			transactionType = TRANSACTION_TYPE_VOTE
+			transactionType = TransactionTypeVote
 			break
 		}
 		ok, _ = stake.IsSSRtx(&details.MsgTx)
 		if ok {
-			transactionType = TRANSACTION_TYPE_REVOCATION
+			transactionType = TransactionTypeRevocation
 			break
 		}
 	}
@@ -380,15 +380,30 @@ type TransactionSummary struct {
 	MyOutputs   []TransactionSummaryOutput
 	Fee         dcrutil.Amount
 	Timestamp   int64
-	Type        int
+	Type        TransactionType
 }
 
-// Transaction type constants for use when producing TransactionSummary notifications
+// TransactionType decribes the which type of transaction is has been observed to be.
+// For instance, if it has a ticket as an input and a stake base reward as an ouput,
+// it is known to be a vote.
+type TransactionType int8
+
 const (
-	TRANSACTION_TYPE_REGULAR = iota
-	TRANSACTION_TYPE_TICKETPURCHASE
-	TRANSACTION_TYPE_VOTE
-	TRANSACTION_TYPE_REVOCATION
+	// TransactionTypeRegular transaction type for all non stake transactions.
+	TransactionTypeRegular TransactionType = 0
+
+	// TransactionTypeTicketPurchase transaction type for all transactions that
+	// consume regular transactions as inputs and have commitments for future votes
+	// as outputs.
+	TransactionTypeTicketPurchase TransactionType = 1
+
+	// TransactionTypeVote transaction type for all transactions that consume a ticket
+	// and also offer a stake base reward output.
+	TransactionTypeVote TransactionType = 2
+
+	// TransactionTypeRevocation transaction type for all transactions that consume a
+	// ticket, but offer no stake base reward.
+	TransactionTypeRevocation TransactionType = 3
 )
 
 // TransactionSummaryInput describes a transaction input that is relevant to the

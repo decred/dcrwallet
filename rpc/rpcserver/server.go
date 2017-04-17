@@ -1013,11 +1013,11 @@ func marshalTransactionDetails(v []wallet.TransactionSummary) []*pb.TransactionD
 		tx := &v[i]
 		var txType = pb.TransactionDetails_REGULAR
 		switch tx.Type {
-		case wallet.TRANSACTION_TYPE_TICKETPURCHASE:
+		case wallet.TransactionTypeTicketPurchase:
 			txType = pb.TransactionDetails_TICKET_PURCHASE
-		case wallet.TRANSACTION_TYPE_VOTE:
+		case wallet.TransactionTypeVote:
 			txType = pb.TransactionDetails_VOTE
-		case wallet.TRANSACTION_TYPE_REVOCATION:
+		case wallet.TransactionTypeRevocation:
 			txType = pb.TransactionDetails_REVOCATION
 		}
 		txs[i] = &pb.TransactionDetails{
