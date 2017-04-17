@@ -154,18 +154,25 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 		}
 		outputs = append(outputs, output)
 	}
+
 	var transactionType = TRANSACTION_TYPE_REGULAR
-	isSStx, _ := stake.IsSStx(&details.MsgTx)
-	if isSStx {
-		transactionType = TRANSACTION_TYPE_TICKETPURCHASE
-	}
-	isSSGen, _ := stake.IsSSGen(&details.MsgTx)
-	if isSSGen {
-		transactionType = TRANSACTION_TYPE_VOTE
-	}
-	isSSRtx, _ := stake.IsSSRtx(&details.MsgTx)
-	if isSSRtx {
-		transactionType = TRANSACTION_TYPE_REVOCATION
+	switch {
+	case true:
+		ok, _ := stake.IsSStx(&details.MsgTx)
+		if ok {
+			transactionType = TRANSACTION_TYPE_TICKETPURCHASE
+			break
+		}
+		ok, _ = stake.IsSSGen(&details.MsgTx)
+		if ok {
+			transactionType = TRANSACTION_TYPE_VOTE
+			break
+		}
+		ok, _ = stake.IsSSRtx(&details.MsgTx)
+		if ok {
+			transactionType = TRANSACTION_TYPE_REVOCATION
+			break
+		}
 	}
 	return TransactionSummary{
 		Hash:        &details.Hash,
