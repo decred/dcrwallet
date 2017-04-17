@@ -1422,13 +1422,13 @@ transaction was seen.
   - `REGULAR`: All normal regular tx tree transactions.
 
   - `TICKET_PURCHASE`: A transaction that purchases a ticket to be consumed later
-    by a vote tranasction upon random selection.
+    by a vote transaction upon random selection.
 
   - `VOTE`: A transaction that uses a ticket purchase transaction as an input 
     and receives a stake base reward as one of the outputs.
   
-  - `REVOCATION`: A recovation transaction to free previously used utxos in 
-    a ticket purchase.
+  - `REVOCATION`: A transaction that will free a previously locked utxos in 
+    a ticket purchase due to expiry or the ticket being missed.
 
 - `TransactionType transaction_type`: The observed type of transaction. 
 
