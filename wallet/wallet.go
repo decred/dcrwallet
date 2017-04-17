@@ -1008,11 +1008,11 @@ func (w *Wallet) syncWithChain(chainClient *chain.RPCClient) error {
 	// startup.
 	// TODO A proper pass through for dcrrpcclient for these cmds.
 	if w.initiallyUnlocked {
-		_, err = w.chainClient.RawRequest("rebroadcastwinners", nil)
+		_, err = chainClient.RawRequest("rebroadcastwinners", nil)
 		if err != nil {
 			return err
 		}
-		_, err = w.chainClient.RawRequest("rebroadcastmissed", nil)
+		_, err = chainClient.RawRequest("rebroadcastmissed", nil)
 		if err != nil {
 			return err
 		}
