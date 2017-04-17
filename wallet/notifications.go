@@ -376,6 +376,7 @@ type TransactionSummary struct {
 	Type        int
 }
 
+// Transaction type constants for use when producing TransactionSummary notifications
 const (
 	TRANSACTION_TYPE_REGULAR = iota
 	TRANSACTION_TYPE_TICKETPURCHASE

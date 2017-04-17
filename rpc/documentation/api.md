@@ -1417,6 +1417,19 @@ transaction was seen.
 - `int64 timestamp`: The Unix time of the earliest time this transaction was
   seen.
 
+  **Nested enum:** `TransactionType`
+
+  - `REGULAR`: All normal regular tx tree transactions.
+
+  - `TICKET_PURCHASE`: A transaction that purchases a ticket to be consumed later
+    by a vote tranasction upon random selection.
+
+  - `VOTE`: A transaction that uses a ticket purchase transaction as an input 
+    and receives a stake base reward as one of the outputs.
+  
+  - `REVOCATION`: A recovation transaction to free previously used utxos in 
+    a ticket purchase.
+
 **Stability**: Unstable: Since the caller is expected to decode the serialized
   transaction, and would have access to every output script, the output
   properties could be changed to only include outputs controlled by the wallet.
