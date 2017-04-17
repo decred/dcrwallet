@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"sync"
 
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -153,6 +154,19 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 		}
 		outputs = append(outputs, output)
 	}
+	var transactionType = TRANSACTION_TYPE_REGULAR
+	isSStx, _ := stake.IsSStx(&details.MsgTx)
+	if isSStx {
+		transactionType = TRANSACTION_TYPE_TICKETPURCHASE
+	}
+	isSSGen, _ := stake.IsSSGen(&details.MsgTx)
+	if isSSGen {
+		transactionType = TRANSACTION_TYPE_VOTE
+	}
+	isSSRtx, _ := stake.IsSSRtx(&details.MsgTx)
+	if isSSRtx {
+		transactionType = TRANSACTION_TYPE_REVOCATION
+	}
 	return TransactionSummary{
 		Hash:        &details.Hash,
 		Transaction: serializedTx,
@@ -160,6 +174,7 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 		MyOutputs:   outputs,
 		Fee:         fee,
 		Timestamp:   details.Received.Unix(),
+		Type:        transactionType,
 	}
 }
 
@@ -358,7 +373,15 @@ type TransactionSummary struct {
 	MyOutputs   []TransactionSummaryOutput
 	Fee         dcrutil.Amount
 	Timestamp   int64
+	Type        int
 }
+
+const (
+	TRANSACTION_TYPE_REGULAR = iota
+	TRANSACTION_TYPE_TICKETPURCHASE
+	TRANSACTION_TYPE_VOTE
+	TRANSACTION_TYPE_REVOCATION
+)
 
 // TransactionSummaryInput describes a transaction input that is relevant to the
 // wallet.  The Index field marks the transaction input index of the transaction

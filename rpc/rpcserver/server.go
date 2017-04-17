@@ -1011,13 +1011,23 @@ func marshalTransactionDetails(v []wallet.TransactionSummary) []*pb.TransactionD
 	txs := make([]*pb.TransactionDetails, len(v))
 	for i := range v {
 		tx := &v[i]
+		var txType = pb.TransactionDetails_REGULAR
+		switch tx.Type {
+		case wallet.TRANSACTION_TYPE_TICKETPURCHASE:
+			txType = pb.TransactionDetails_TICKET_PURCHASE
+		case wallet.TRANSACTION_TYPE_VOTE:
+			txType = pb.TransactionDetails_VOTE
+		case wallet.TRANSACTION_TYPE_REVOCATION:
+			txType = pb.TransactionDetails_REVOCATION
+		}
 		txs[i] = &pb.TransactionDetails{
-			Hash:        tx.Hash[:],
-			Transaction: tx.Transaction,
-			Debits:      marshalTransactionInputs(tx.MyInputs),
-			Credits:     marshalTransactionOutputs(tx.MyOutputs),
-			Fee:         int64(tx.Fee),
-			Timestamp:   tx.Timestamp,
+			Hash:            tx.Hash[:],
+			Transaction:     tx.Transaction,
+			Debits:          marshalTransactionInputs(tx.MyInputs),
+			Credits:         marshalTransactionOutputs(tx.MyOutputs),
+			Fee:             int64(tx.Fee),
+			Timestamp:       tx.Timestamp,
+			TransactionType: txType,
 		}
 	}
 	return txs
