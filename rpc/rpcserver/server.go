@@ -53,9 +53,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.8.0"
+	semverString = "4.9.0"
 	semverMajor  = 4
-	semverMinor  = 8
+	semverMinor  = 9
 	semverPatch  = 0
 )
 
@@ -1823,14 +1823,14 @@ func StartVotingService(server *grpc.Server, wallet *wallet.Wallet) {
 
 func (s *votingServer) VoteChoices(ctx context.Context, req *pb.VoteChoicesRequest) (*pb.VoteChoicesResponse, error) {
 	version, agendas := wallet.CurrentAgendas(s.wallet.ChainParams())
-	resp := &pb.VoteChoicesResponse{
-		Version: version,
-		Choices: make([]*pb.VoteChoicesResponse_Choice, len(agendas)),
-	}
-
-	choices, err := s.wallet.AgendaChoices()
+	choices, voteBits, err := s.wallet.AgendaChoices()
 	if err != nil {
 		return nil, translateError(err)
+	}
+	resp := &pb.VoteChoicesResponse{
+		Version:  version,
+		Choices:  make([]*pb.VoteChoicesResponse_Choice, len(agendas)),
+		Votebits: uint32(voteBits),
 	}
 
 	for i := range choices {
@@ -1858,9 +1858,12 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 			ChoiceID: c.ChoiceId,
 		}
 	}
-	err := s.wallet.SetAgendaChoices(choices...)
+	voteBits, err := s.wallet.SetAgendaChoices(choices...)
 	if err != nil {
 		return nil, translateError(err)
 	}
-	return &pb.SetVoteChoicesResponse{}, nil
+	resp := &pb.SetVoteChoicesResponse{
+		Votebits: uint32(voteBits),
+	}
+	return resp, nil
 }

@@ -609,6 +609,7 @@ message VoteChoicesResponse {
 	}
 	uint32 version = 1;
 	repeated Choice choices = 2;
+	uint32 votebits = 3;
 }
 
 message SetVoteChoicesRequest {
@@ -618,4 +619,6 @@ message SetVoteChoicesRequest {
 	}
 	repeated Choice choices = 1;
 }
-message SetVoteChoicesResponse {}
+message SetVoteChoicesResponse {
+	uint32 votebits = 1;
+}

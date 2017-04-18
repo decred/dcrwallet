@@ -377,10 +377,10 @@ type AgendaChoice struct {
 
 // AgendaChoices returns the choice IDs for every agenda of the supported stake
 // version.  Abstains are included.
-func (w *Wallet) AgendaChoices() (choices []AgendaChoice, err error) {
+func (w *Wallet) AgendaChoices() (choices []AgendaChoice, voteBits uint16, err error) {
 	version, deployments := CurrentAgendas(w.chainParams)
 	if len(deployments) == 0 {
-		return nil, nil
+		return nil, 0, nil
 	}
 	choices = make([]AgendaChoice, len(deployments))
 	for i := range choices {
@@ -388,6 +388,7 @@ func (w *Wallet) AgendaChoices() (choices []AgendaChoice, err error) {
 		choices[i].ChoiceID = "abstain"
 	}
 
+	voteBits = 1
 	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		for i := range deployments {
 			agenda := &deployments[i].Vote
@@ -396,19 +397,26 @@ func (w *Wallet) AgendaChoices() (choices []AgendaChoice, err error) {
 				continue
 			}
 			choices[i].ChoiceID = choice
+			for j := range agenda.Choices {
+				if agenda.Choices[j].Id == choice {
+					voteBits |= agenda.Choices[j].Bits
+					break
+				}
+			}
 		}
 		return nil
 	})
-	return choices, err
+	return choices, voteBits, err
 }
 
 // SetAgendaChoices sets the choices for agendas defined by the supported stake
-// version.  If a choice is set multiple times, the last takes preference.
-func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) error {
+// version.  If a choice is set multiple times, the last takes preference.  The
+// new votebits after each change is made are returned.
+func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) (voteBits uint16, err error) {
 	version, deployments := CurrentAgendas(w.chainParams)
 	if len(deployments) == 0 {
 		const str = "no agendas to set for this network"
-		return apperrors.E{ErrorCode: apperrors.ErrInput, Description: str, Err: nil}
+		return 0, apperrors.E{ErrorCode: apperrors.ErrInput, Description: str, Err: nil}
 	}
 
 	type maskChoice struct {
@@ -417,7 +425,7 @@ func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) error {
 	}
 	var appliedChoices []maskChoice
 
-	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 		for _, c := range choices {
 			var matchingAgenda *chaincfg.Vote
 			for i := range deployments {
@@ -455,7 +463,7 @@ func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) error {
 		return nil
 	})
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// With the DB update successful, modify the actual votebits cached by the
@@ -465,9 +473,10 @@ func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) error {
 		w.voteBits.Bits &^= c.mask // Clear all bits from this agenda
 		w.voteBits.Bits |= c.bits  // Set bits for this choice
 	}
+	voteBits = w.voteBits.Bits
 	w.stakeSettingsLock.Unlock()
 
-	return nil
+	return voteBits, nil
 }
 
 // SetTicketPurchasingEnabled is used to enable or disable ticket purchasing in the

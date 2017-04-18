@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.8.x
+Version: 4.9.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -1957,6 +1957,8 @@ vote bits of the latest supported stake version agendas.
   - `string choice_description`: A description of the current choice for this
     agenda.
 
+- `uint32 votebits`: The votebits of the currently-configured choices.
+
 **ExpectedErrors:** None
 
 **Stability:** Unstable
@@ -1980,6 +1982,8 @@ supported by this software.
   - `string choice_id`: The ID for the choice to choose.
 
 **Response:** `SetVoteChoicesResponse`
+
+  - `uint32 votebits`: The votebits for the wallet after setting choices.
 
 **ExpectedErrors:**
 

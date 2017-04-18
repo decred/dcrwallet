@@ -1458,7 +1458,7 @@ func getVoteChoices(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		Choices: make([]dcrjson.VoteChoice, len(agendas)),
 	}
 
-	choices, err := w.AgendaChoices()
+	choices, _, err := w.AgendaChoices()
 	if err != nil {
 		return nil, err
 	}
@@ -2718,7 +2718,7 @@ func setTxFee(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // choice for a voting agenda.
 func setVoteChoice(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SetVoteChoiceCmd)
-	err := w.SetAgendaChoices(wallet.AgendaChoice{
+	_, err := w.SetAgendaChoices(wallet.AgendaChoice{
 		AgendaID: cmd.AgendaID,
 		ChoiceID: cmd.ChoiceID,
 	})
