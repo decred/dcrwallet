@@ -1377,18 +1377,33 @@ out:
 	for {
 		select {
 		case req := <-w.unlockRequests:
+			hadTimeout := timeout != nil
+			var wasLocked bool
 			err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+				wasLocked = w.Manager.IsLocked()
 				addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 				return w.Manager.Unlock(addrmgrNs, req.passphrase)
 			})
 			if err != nil {
+				if !wasLocked {
+					log.Info("The wallet has been locked due to an incorrect passphrase.")
+				}
 				req.err <- err
 				continue
 			}
-			timeout = req.lockAfter
-			if timeout == nil {
-				log.Info("The wallet has been unlocked without a time limit")
+			// When the wallet was already unlocked without any timeout, do not
+			// set the timeout and instead wait until an explicit lock is
+			// performed.  Read the timeout in a new goroutine so that callers
+			// won't deadlock on the send.
+			if !wasLocked && !hadTimeout && req.lockAfter != nil {
+				go func() { <-req.lockAfter }()
 			} else {
+				timeout = req.lockAfter
+			}
+			switch {
+			case (wasLocked || hadTimeout) && timeout == nil:
+				log.Info("The wallet has been unlocked without a time limit")
+			case (wasLocked || !hadTimeout) && timeout != nil:
 				log.Info("The wallet has been temporarily unlocked")
 			}
 			req.err <- nil
