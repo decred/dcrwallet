@@ -25,6 +25,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/wallet"
@@ -389,29 +390,12 @@ func accountSyncAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, e
 		return nil, err
 	}
 
-	extChild, intChild, err := w.BIP0044BranchIndexes(account)
-	if err != nil {
-		return nil, err
-	}
 	branch := uint32(cmd.Branch)
-	var currentChild uint32
-	switch branch {
-	case udb.ExternalBranch:
-		currentChild = extChild
-	case udb.InternalBranch:
-		currentChild = intChild
-	default:
-		// The branch may only be internal or external.
-		return nil, fmt.Errorf("invalid branch %v", branch)
-	}
-
 	index := uint32(cmd.Index)
-	if index < currentChild {
-		return nil, fmt.Errorf("the passed index, %v, is before the "+
-			"currently synced to address index %v", index, currentChild)
-	}
-	if index == currentChild {
-		return nil, nil
+
+	if index >= hdkeychain.HardenedKeyStart {
+		return nil, fmt.Errorf("child index %d exceeds the maximum child index "+
+			"for an account", index)
 	}
 
 	// Additional addresses need to be watched.  Since addresses are derived

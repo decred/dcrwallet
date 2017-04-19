@@ -321,13 +321,13 @@ func (w *Wallet) ExtendWatchedAddresses(account, branch, child uint32) error {
 
 	if client := w.ChainClient(); client != nil {
 		gapLimit := uint32(w.gapLimit)
-		lastWatched := lastUsed + gapLimit - 1
+		lastWatched := lastUsed + gapLimit
 		if child <= lastWatched {
 			// No need to derive anything more.
 			return nil
 		}
 		additionalAddrs := child - lastWatched
-		addrs, err := deriveChildAddresses(branchXpub, lastUsed+gapLimit,
+		addrs, err := deriveChildAddresses(branchXpub, lastUsed+1+gapLimit,
 			additionalAddrs, w.chainParams)
 		if err != nil {
 			return err
