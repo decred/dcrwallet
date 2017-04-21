@@ -3458,26 +3458,47 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 
 		case txscript.OP_SSTX:
 			// Locked as stake ticket.
-			amtCredit, spent, err := fetchRawCreditAmountSpent(cVal)
+			txHash := extractRawCreditTxHash(k)
+
+			blockRec, err := fetchBlockRecord(ns, height)
 			if err != nil {
 				return err
 			}
-			if spent {
-				return fmt.Errorf("spend credit found in unspent bucket")
+
+			_, txv := existsTxRecord(ns, &txHash, &blockRec.Block)
+			if txv == nil {
+				str := fmt.Sprintf("missing transaction record for tx %v block %v",
+					txHash, &blockRec.Block.Hash)
+				return storeError(apperrors.ErrData, str, err)
 			}
-			ab.VotingAuthority += amtCredit
-			_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				txscript.DefaultScriptVersion, pkScript, s.chainParams)
+
+			var rec TxRecord
+			err = readRawTxRecord(&txHash, txv, &rec)
 			if err != nil {
 				return err
 			}
-			if _, err := s.acctLookupFunc(addrmgrNs, addrs[0]); err != nil {
-				if apperrors.IsError(err, apperrors.ErrAddressNotFound) {
-					return nil
+
+			for i, txout := range rec.MsgTx.TxOut {
+				if i%2 != 0 {
+					addr, err := stake.AddrFromSStxPkScrCommitment(txout.PkScript,
+						s.chainParams)
+					if err != nil {
+						return err
+					}
+					amt, err := stake.AmountFromSStxPkScrCommitment(txout.PkScript)
+					if err != nil {
+						return err
+					}
+					ab.VotingAuthority += amt
+					if _, err := s.acctLookupFunc(addrmgrNs, addr); err != nil {
+						if apperrors.IsError(err, apperrors.ErrAddressNotFound) {
+							continue
+						}
+						return err
+					}
+					ab.LockedByTickets += amt
 				}
-				return err
 			}
-			ab.LockedByTickets += amtCredit
 
 		case txscript.OP_SSGEN:
 			fallthrough
@@ -3549,17 +3570,8 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 				ab.Spendable += utxoAmt
 			}
 		case txscript.OP_SSTX:
-			ab.VotingAuthority += utxoAmt
-			_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				txscript.DefaultScriptVersion, pkScript, s.chainParams)
-			if err != nil {
-				return err
-			}
-			if _, err := s.acctLookupFunc(addrmgrNs, addrs[0]); err != nil {
-				if apperrors.IsError(err, apperrors.ErrAddressNotFound) {
-					return nil
-				}
-				return err
+			if minConf == 0 {
+				ab.VotingAuthority += utxoAmt
 			}
 			ab.LockedByTickets += utxoAmt
 
