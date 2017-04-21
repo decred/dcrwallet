@@ -925,10 +925,6 @@ func (w *Wallet) handleMissedTickets(dbtx walletdb.ReadWriteTx, blockHash *chain
 	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
-	if !w.votingEnabled {
-		return nil
-	}
-
 	if blockHeight >= w.chainParams.StakeValidationHeight+1 {
 		ntfns, err := w.StakeMgr.HandleMissedTicketsNtfn(stakemgrNs, addrmgrNs,
 			blockHash, blockHeight, tickets, w.AllowHighFees)
