@@ -1819,7 +1819,6 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 
 		// Ensure that there is transaction history in the last 100 accounts.
-		// This is performed by inspecting the
 		var err error
 		lastAcct, err := w.Manager.LastAccount(addrmgrNs)
 		if err != nil {
@@ -1884,6 +1883,29 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 		albInternal: addressBuffer{branchXpub: intKey},
 	}
 	w.addressBuffersMu.Unlock()
+
+	client := w.ChainClient()
+	if client != nil {
+		errs := make(chan error, 2)
+		for _, branchKey := range []*hdkeychain.ExtendedKey{extKey, intKey} {
+			branchKey := branchKey
+			go func() {
+				addrs, err := deriveChildAddresses(branchKey, 0,
+					uint32(w.gapLimit), w.chainParams)
+				if err != nil {
+					errs <- err
+					return
+				}
+				errs <- client.LoadTxFilter(false, addrs, nil)
+			}()
+		}
+		for i := 0; i < cap(errs); i++ {
+			err := <-errs
+			if err != nil {
+				return 0, err
+			}
+		}
+	}
 
 	w.NtfnServer.notifyAccountProperties(props)
 
