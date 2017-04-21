@@ -1161,9 +1161,7 @@ func (s *StakeStore) UpdateStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket
 	return s.updateStakePoolUserInvalTickets(ns, user, ticket)
 }
 
-// stakePoolUserInfo returns the stake pool user information for a given stake
-// pool user, keyed to their P2SH voting address.
-func (s *StakeStore) stakePoolUserInfo(ns walletdb.ReadBucket, user dcrutil.Address) (*StakePoolUser, error) {
+func stakePoolUserInfo(ns walletdb.ReadBucket, user dcrutil.Address) (*StakePoolUser, error) {
 	_, isScriptHash := user.(*dcrutil.AddressScriptHash)
 	_, isP2PKH := user.(*dcrutil.AddressPubKeyHash)
 	if !(isScriptHash || isP2PKH) {
@@ -1216,13 +1214,10 @@ func (s *StakeStore) stakePoolUserInfo(ns walletdb.ReadBucket, user dcrutil.Addr
 	return stakePoolUser, nil
 }
 
-// StakePoolUserInfo is the exported and concurrency safe form of
-// stakePoolUserInfo.
+// StakePoolUserInfo returns the stake pool user information for a given stake
+// pool user, keyed to their P2SH voting address.
 func (s *StakeStore) StakePoolUserInfo(ns walletdb.ReadBucket, user dcrutil.Address) (*StakePoolUser, error) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
-	return s.stakePoolUserInfo(ns, user)
+	return stakePoolUserInfo(ns, user)
 }
 
 // loadManager returns a new stake manager that results from loading it from
