@@ -1198,15 +1198,12 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 		return nil, translateError(err)
 	}
 
-	balanceToMaintain := dcrutil.Amount(req.BalanceToMaintain)
-	if balanceToMaintain < 0 {
+	if req.BalanceToMaintain < 0 {
 		return nil, grpc.Errorf(codes.InvalidArgument,
 			"Negative balance to maintain given")
 	}
 
-	maxFeePerKB := dcrutil.Amount(req.MaxFeePerKb)
-
-	if maxFeePerKB < 0 {
+	if req.MaxFeePerKb < 0 {
 		return nil, grpc.Errorf(codes.InvalidArgument,
 			"Negative max fee per KB given")
 	}
@@ -1252,16 +1249,16 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 		AccountName:               accountName,
 		AvgPriceMode:              t.ticketbuyerCfg.AvgPriceMode,
 		AvgPriceVWAPDelta:         t.ticketbuyerCfg.AvgPriceVWAPDelta,
-		BalanceToMaintainAbsolute: balanceToMaintain.ToCoin(),
+		BalanceToMaintainAbsolute: req.BalanceToMaintain,
 		BlocksToAvg:               t.ticketbuyerCfg.BlocksToAvg,
 		DontWaitForTickets:        t.ticketbuyerCfg.DontWaitForTickets,
 		ExpiryDelta:               t.ticketbuyerCfg.ExpiryDelta,
 		FeeSource:                 t.ticketbuyerCfg.FeeSource,
 		FeeTargetScaling:          t.ticketbuyerCfg.FeeTargetScaling,
 		MinFee:                    t.ticketbuyerCfg.MinFee,
-		MaxFee:                    dcrutil.Amount(req.MaxFeePerKb).ToCoin(),
+		MaxFee:                    req.MaxFeePerKb,
 		MaxPerBlock:               int(req.MaxPerBlock),
-		MaxPriceAbsolute:          dcrutil.Amount(req.MaxPriceAbsolute).ToCoin(),
+		MaxPriceAbsolute:          req.MaxPriceAbsolute,
 		MaxPriceRelative:          req.MaxPriceRelative,
 		MaxInMempool:              t.ticketbuyerCfg.MaxInMempool,
 		PoolAddress:               poolAddress,
@@ -1579,23 +1576,23 @@ func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.Ticke
 		Account:               account,
 		AvgPriceMode:          config.AvgPriceMode,
 		AvgPriceVWAPDelta:     int64(config.AvgPriceVWAPDelta),
-		BalanceToMaintain:     int64(config.BalanceToMaintainAbsolute),
+		BalanceToMaintain:     config.BalanceToMaintainAbsolute,
 		BlocksToAvg:           int64(config.BlocksToAvg),
 		DontWaitForTickets:    config.DontWaitForTickets,
 		ExpiryDelta:           int64(config.ExpiryDelta),
 		FeeSource:             config.FeeSource,
 		FeeTargetScaling:      config.FeeTargetScaling,
-		MinFee:                int64(config.MinFee),
-		MaxFee:                int64(config.MaxFee),
+		MinFee:                config.MinFee,
+		MaxFee:                config.MaxFee,
 		MaxPerBlock:           int64(config.MaxPerBlock),
-		MaxPriceAbsolute:      int64(config.MaxPriceAbsolute),
+		MaxPriceAbsolute:      config.MaxPriceAbsolute,
 		MaxPriceRelative:      config.MaxPriceRelative,
 		MaxInMempool:          int64(config.MaxInMempool),
 		PoolAddress:           config.PoolAddress,
 		PoolFees:              config.PoolFees,
 		SpreadTicketPurchases: config.SpreadTicketPurchases,
 		VotingAddress:         config.TicketAddress,
-		TxFee:                 int64(config.TxFee),
+		TxFee:                 config.TxFee,
 	}, nil
 }
 
@@ -1633,7 +1630,7 @@ func (t *ticketbuyerServer) SetBalanceToMaintain(ctx context.Context, req *pb.Se
 	if req.BalanceToMaintain < 0 {
 		return nil, grpc.Errorf(codes.InvalidArgument, "Negative balance to maintain given")
 	}
-	pm.Purchaser().SetBalanceToMaintain(dcrutil.Amount(req.BalanceToMaintain).ToCoin())
+	pm.Purchaser().SetBalanceToMaintain(req.BalanceToMaintain)
 	return &pb.SetBalanceToMaintainResponse{}, nil
 }
 
@@ -1648,7 +1645,7 @@ func (t *ticketbuyerServer) SetMaxFee(ctx context.Context, req *pb.SetMaxFeeRequ
 	if req.MaxFeePerKb < 0 {
 		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max fee per KB given")
 	}
-	pm.Purchaser().SetMaxFee(dcrutil.Amount(req.MaxFeePerKb).ToCoin())
+	pm.Purchaser().SetMaxFee(req.MaxFeePerKb)
 	return &pb.SetMaxFeeResponse{}, nil
 }
 
@@ -1678,7 +1675,7 @@ func (t *ticketbuyerServer) SetMaxPriceAbsolute(ctx context.Context, req *pb.Set
 	if req.MaxPriceAbsolute < 0 {
 		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max ticket price given")
 	}
-	pm.Purchaser().SetMaxPriceAbsolute(dcrutil.Amount(req.MaxPriceAbsolute).ToCoin())
+	pm.Purchaser().SetMaxPriceAbsolute(req.MaxPriceAbsolute)
 	return &pb.SetMaxPriceAbsoluteResponse{}, nil
 }
 
