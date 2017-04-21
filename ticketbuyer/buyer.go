@@ -123,7 +123,8 @@ func (t *TicketPurchaser) Config() (*Config, error) {
 	if t.poolAddress != nil {
 		poolAddress = t.poolAddress.String()
 	}
-	accountName, err := t.AccountName()
+
+	accountName, err := t.wallet.AccountName(t.account)
 	if err != nil {
 		return nil, err
 	}
