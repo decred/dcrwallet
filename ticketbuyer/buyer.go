@@ -640,7 +640,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		// Scale the mean fee upwards according to what was asked
 		// for by the user.
 		feeToUse = chainFee * t.cfg.FeeTargetScaling
-		log.Tracef("Average ticket fee: %v DCR", chainFee)
+		log.Tracef("Average ticket fee: %.8f DCR", chainFee)
 		if feeToUse > t.MaxFee().ToCoin() {
 			log.Infof("Not buying because max fee exceed: (max fee: %v,  scaled fee: %.8f DCR)",
 				t.MaxFee().ToCoin(), feeToUse)
