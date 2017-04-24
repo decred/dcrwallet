@@ -319,7 +319,7 @@ func jsonError(err error) *dcrjson.RPCError {
 	}
 }
 
-// accountAddressIndex returns the current address index for the passed
+// accountAddressIndex returns the next address index for the passed
 // account and branch.
 func accountAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	cmd := icmd.(*dcrjson.AccountAddressIndexCmd)
@@ -328,7 +328,7 @@ func accountAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, error
 		return nil, err
 	}
 
-	extChild, intChild, err := w.BIP0044BranchIndexes(account)
+	extChild, intChild, err := w.BIP0044BranchNextIndexes(account)
 	if err != nil {
 		return nil, err
 	}
@@ -365,8 +365,10 @@ func accountFetchAddresses(icmd interface{}, w *wallet.Wallet) (interface{}, err
 			cmd.End)
 	}
 
-	addrs, err := w.AccountBranchAddressRange(uint32(cmd.Start),
-		uint32(cmd.End), account, branch)
+	// AccountBranchAddressRange uses the range [start, end) but the RPC for
+	// some reason uses (start, end], so add to each index.
+	addrs, err := w.AccountBranchAddressRange(account, branch, uint32(cmd.Start)+1,
+		uint32(cmd.End)+1)
 	if err != nil {
 		return nil, err
 	}
@@ -634,8 +636,8 @@ func getAddressesByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, err
 		return nil, err
 	}
 
-	// Find the current synced-to indexes from the address pool.
-	endExt, endInt, err := w.BIP0044BranchIndexes(account)
+	// Find the next child address indexes for the account.
+	endExt, endInt, err := w.BIP0044BranchNextIndexes(account)
 	if err != nil {
 		return nil, err
 	}
@@ -647,16 +649,14 @@ func getAddressesByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, err
 
 	// Derive the addresses.
 	addrsStr := make([]string, endInt+endExt)
-	addrsExt, err := w.AccountBranchAddressRange(0, endExt,
-		account, udb.ExternalBranch)
+	addrsExt, err := w.AccountBranchAddressRange(account, udb.ExternalBranch, 0, endExt)
 	if err != nil {
 		return nil, err
 	}
 	for i := range addrsExt {
 		addrsStr[i] = addrsExt[i].EncodeAddress()
 	}
-	addrsInt, err := w.AccountBranchAddressRange(0, endInt,
-		account, udb.InternalBranch)
+	addrsInt, err := w.AccountBranchAddressRange(account, udb.InternalBranch, 0, endInt)
 	if err != nil {
 		return nil, err
 	}

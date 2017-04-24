@@ -262,9 +262,9 @@ func (w *Wallet) NewInternalAddress(account uint32) (dcrutil.Address, error) {
 	return w.nextAddress(account, udb.InternalBranch)
 }
 
-// BIP0044BranchIndexes returns the current external and internal branch child
+// BIP0044BranchNextIndexes returns the next external and internal branch child
 // indexes of an account.
-func (w *Wallet) BIP0044BranchIndexes(account uint32) (extChild, intChild uint32, err error) {
+func (w *Wallet) BIP0044BranchNextIndexes(account uint32) (extChild, intChild uint32, err error) {
 	defer w.addressBuffersMu.Unlock()
 	w.addressBuffersMu.Lock()
 
@@ -273,8 +273,8 @@ func (w *Wallet) BIP0044BranchIndexes(account uint32) (extChild, intChild uint32
 		const str = "account not found"
 		return 0, 0, apperrors.E{ErrorCode: apperrors.ErrAccountNotFound, Description: str, Err: nil}
 	}
-	extChild = acctData.albExternal.lastUsed + acctData.albExternal.cursor
-	intChild = acctData.albInternal.lastUsed + acctData.albInternal.cursor
+	extChild = acctData.albExternal.lastUsed + 1 + acctData.albExternal.cursor
+	intChild = acctData.albInternal.lastUsed + 1 + acctData.albInternal.cursor
 	return extChild, intChild, nil
 }
 
@@ -339,6 +339,36 @@ func (w *Wallet) ExtendWatchedAddresses(account, branch, child uint32) error {
 	}
 
 	return nil
+}
+
+// AccountBranchAddressRange returns all addresses in the range [start, end)
+// belonging to the BIP0044 account and address branch.
+func (w *Wallet) AccountBranchAddressRange(account, branch, start, end uint32) ([]dcrutil.Address, error) {
+	if end < start {
+		const str = "end index must not be less than start index"
+		return nil, apperrors.E{ErrorCode: apperrors.ErrInput, Description: str, Err: nil}
+	}
+
+	defer w.addressBuffersMu.Unlock()
+	w.addressBuffersMu.Lock()
+
+	acctBufs, ok := w.addressBuffers[account]
+	if !ok {
+		const str = "account not found"
+		return nil, apperrors.E{ErrorCode: apperrors.ErrAccountNotFound, Description: str, Err: nil}
+	}
+
+	var buf *addressBuffer
+	switch branch {
+	case udb.ExternalBranch:
+		buf = &acctBufs.albExternal
+	case udb.InternalBranch:
+		buf = &acctBufs.albInternal
+	default:
+		const str = "unknown branch"
+		return nil, apperrors.E{ErrorCode: apperrors.ErrBranch, Description: str, Err: nil}
+	}
+	return deriveChildAddresses(buf.branchXpub, start, end-start, w.chainParams)
 }
 
 func (w *Wallet) changeSource(account uint32) txauthor.ChangeSource {

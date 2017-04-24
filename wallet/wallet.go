@@ -1611,32 +1611,6 @@ func (w *Wallet) CurrentAddress(account uint32) (dcrutil.Address, error) {
 	return child.Address(w.chainParams)
 }
 
-// AccountBranchAddressRange returns all addresses in the left-open,
-// right-closed range (start, end] belonging to the BIP0044 account and address
-// branch.
-func (w *Wallet) AccountBranchAddressRange(start, end uint32, account uint32, branch uint32) ([]dcrutil.Address, error) {
-	defer w.addressBuffersMu.Unlock()
-	w.addressBuffersMu.Lock()
-
-	acctBufs, ok := w.addressBuffers[account]
-	if !ok {
-		const str = "account not found"
-		return nil, apperrors.E{ErrorCode: apperrors.ErrAccountNotFound, Description: str, Err: nil}
-	}
-
-	var buf *addressBuffer
-	switch branch {
-	case udb.ExternalBranch:
-		buf = &acctBufs.albExternal
-	case udb.InternalBranch:
-		buf = &acctBufs.albInternal
-	default:
-		const str = "unknown branch"
-		return nil, apperrors.E{ErrorCode: apperrors.ErrBranch, Description: str, Err: nil}
-	}
-	return deriveChildAddresses(buf.branchXpub, start+1, end-start+1, w.chainParams)
-}
-
 // PubKeyForAddress looks up the associated public key for a P2PKH address.
 func (w *Wallet) PubKeyForAddress(a dcrutil.Address) (chainec.PublicKey, error) {
 	var pubKey chainec.PublicKey
