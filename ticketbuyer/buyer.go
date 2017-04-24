@@ -612,7 +612,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	maxStake := int(t.activeNet.MaxFreshStakePerBlock)
 	if ticketPurchasesInLastBlock < maxStake && mempoolall < maxStake {
 		feeToUse = t.MinFee().ToCoin()
-		log.Debugf("Using min ticket fee: %.8f DCR", feeToUse)
+		log.Debugf("Using min ticket fee: %v DCR", feeToUse)
 		if ticketPurchasesInLastBlock < maxStake {
 			log.Tracef("(ticket purchase slots available in last block)")
 		}
@@ -640,10 +640,10 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		// Scale the mean fee upwards according to what was asked
 		// for by the user.
 		feeToUse = chainFee * t.cfg.FeeTargetScaling
-		log.Tracef("Average ticket fee: %.8f DCR", chainFee)
+		log.Tracef("Average ticket fee: %v DCR", chainFee)
 		if feeToUse > t.MaxFee().ToCoin() {
-			log.Infof("Not buying because max fee exceed: (max fee: %.8f DCR,  scaled fee: %.8f DCR)",
-				t.MaxFee(), feeToUse)
+			log.Infof("Not buying because max fee exceed: (max fee: %v DCR,  scaled fee: %.8f DCR)",
+				t.MaxFee().ToCoin(), feeToUse)
 			return ps, nil
 		}
 		if feeToUse < t.MinFee().ToCoin() {
