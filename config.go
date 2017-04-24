@@ -48,7 +48,7 @@ const (
 
 	// ticket buyer options
 	defaultMaxFee                    dcrutil.Amount = 1e7
-	defaultMinFee                    dcrutil.Amount = 1e6
+	defaultMinFee                    dcrutil.Amount = 1e5
 	defaultMaxPriceScale                            = 0.0
 	defaultAvgVWAPPriceDelta                        = 2880
 	defaultMaxPerBlock                              = 5
@@ -359,7 +359,7 @@ func loadConfig() (*config, []string, error) {
 		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
 		AllowHighFees:          defaultAllowHighFees,
 		RelayFee:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
-		TicketFee:              cfgutil.NewAmountFlag(wallet.DefaultTicketFeeIncrement),
+		TicketFee:              cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
 
 		// TODO: DEPRECATED - remove.
 		DataDir: defaultAppDataDir,

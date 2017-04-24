@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	revocationFeePerKB dcrutil.Amount = 1e6
+	revocationFeePerKB dcrutil.Amount = 1e5
 )
 
 func stakeStoreError(code apperrors.Code, str string, err error) error {
