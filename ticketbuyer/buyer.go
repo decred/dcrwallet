@@ -608,10 +608,10 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	}
 	log.Tracef("All tickets in mempool: %v", mempoolall)
 
-	var feeToUse float64
+	var feeToUse dcrutil.Amount
 	maxStake := int(t.activeNet.MaxFreshStakePerBlock)
 	if ticketPurchasesInLastBlock < maxStake && mempoolall < maxStake {
-		feeToUse = t.MinFee().ToCoin()
+		feeToUse = t.MinFee()
 		log.Debugf("Using min ticket fee: %v", feeToUse)
 		if ticketPurchasesInLastBlock < maxStake {
 			log.Tracef("(ticket purchase slots available in last block)")
@@ -639,22 +639,22 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 		// Scale the mean fee upwards according to what was asked
 		// for by the user.
-		feeToUse = chainFee * t.cfg.FeeTargetScaling
+		feeToUse, err = dcrutil.NewAmount(chainFee * t.cfg.FeeTargetScaling)
+		if err != nil {
+			return ps, err
+		}
+
 		log.Tracef("Average ticket fee: %.8f DCR", chainFee)
-		if feeToUse > t.MaxFee().ToCoin() {
-			log.Infof("Not buying because max fee exceed: (max fee: %v,  scaled fee: %.8f DCR)",
-				t.MaxFee().ToCoin(), feeToUse)
+		if feeToUse > t.MaxFee() {
+			log.Infof("Not buying because max fee exceed: (max fee: %v, scaled fee: %v)",
+				t.MaxFee(), feeToUse)
 			return ps, nil
 		}
-		if feeToUse < t.MinFee().ToCoin() {
-			feeToUse = t.MinFee().ToCoin()
+		if feeToUse < t.MinFee() {
+			feeToUse = t.MinFee()
 		}
 	}
-	feeToUseAmt, err := dcrutil.NewAmount(feeToUse)
-	if err != nil {
-		return ps, err
-	}
-	t.wallet.SetTicketFeeIncrement(feeToUseAmt)
+	t.wallet.SetTicketFeeIncrement(feeToUse)
 
 	// Set the balancetomaintain to the configuration parameter that is higher
 	// Absolute or relative balance to maintain
@@ -862,7 +862,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	for i := range hashes {
 		log.Infof("Purchased ticket %v at stake difficulty %v (%v "+
 			"fees per KB used)", hashes[i], nextStakeDiff.ToCoin(),
-			feeToUseAmt.ToCoin())
+			feeToUse.ToCoin())
 	}
 	ps.Purchased = len(hashes)
 	if purchaseErr != nil {
