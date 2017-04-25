@@ -24,25 +24,19 @@ func sliceContainsHash(s []chainhash.Hash, h chainhash.Hash) bool {
 	return false
 }
 
-// GenerateVoteTx returns a hash
+// GenerateVoteTx returns generated vote transaction for a chosen ticket
+// purchase hash using the provided votebits.
 func (w *Wallet) GenerateVoteTx(blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash, voteBits stake.VoteBits) (*wire.MsgTx, error) {
-	var msgtx *wire.MsgTx
-	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-		stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
+	var voteTx *wire.MsgTx
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		stakemgrNs := tx.ReadBucket(wstakemgrNamespaceKey)
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 
-		shit, err := w.StakeMgr.GenerateVoteTx(stakemgrNs, addrmgrNs, blockHash, height, sstxHash, voteBits)
-		if err != nil {
-			return err
-		}
-		msgtx = shit
-		return nil
+		var err error
+		voteTx, err = w.StakeMgr.GenerateVoteTx(stakemgrNs, addrmgrNs, blockHash, height, sstxHash, voteBits)
+		return err
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	return msgtx, nil
+	return voteTx, err
 }
 
 // LiveTicketHashes returns the hashes of live tickets that have been purchased

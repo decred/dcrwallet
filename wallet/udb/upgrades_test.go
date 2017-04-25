@@ -180,7 +180,7 @@ func verifyV3Upgrade(t *testing.T, db walletdb.DB) {
 		if err != nil {
 			return err
 		}
-		rec, err := smgr.getSStx(ns, ticketPurchaseHash)
+		rec, err := fetchSStxRecord(ns, ticketPurchaseHash, 3)
 		if err != nil {
 			return err
 		}

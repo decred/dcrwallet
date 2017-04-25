@@ -623,8 +623,8 @@ func ssgenRecordExistsInRecords(record *ssgenRecord, records []*ssgenRecord) boo
 	return false
 }
 
-// updateSSGenRecord updates an SSGen record in the SSGen records bucket.
-func updateSSGenRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash, record *ssgenRecord) error {
+// putSSGenRecord updates an SSGen record in the SSGen records bucket.
+func putSSGenRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash, record *ssgenRecord) error {
 	// Fetch the current content of the key.
 	// Possible buggy behaviour: If deserialization fails,
 	// we won't detect it here. We assume we're throwing
@@ -659,16 +659,9 @@ func updateSSGenRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash, record
 	return nil
 }
 
-// putSSGenRecord inserts a given SSGen record to the SSGenrecords bucket.
-func putSSGenRecord(ns walletdb.ReadWriteBucket, hash *chainhash.Hash, record *ssgenRecord) error {
-
-	return updateSSGenRecord(ns, hash, record)
-}
-
 // fetchSSRtxRecords retrieves SSRtx records from the SSRtxRecords bucket with
 // the given hash.
 func fetchSSRtxRecords(ns walletdb.ReadBucket, hash *chainhash.Hash) ([]*ssrtxRecord, error) {
-
 	bucket := ns.NestedReadBucket(ssrtxRecordsBucketName)
 
 	key := hash[:]
