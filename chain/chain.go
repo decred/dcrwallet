@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrrpcclient"
 )
 
-var requiredChainServerAPI = semver{major: 2, minor: 0, patch: 0}
+var requiredChainServerAPI = semver{major: 3, minor: 0, patch: 0}
 
 // RPCClient represents a persistent client connection to a decred RPC server
 // for information regarding the current best block chain.
