@@ -1803,7 +1803,7 @@ func (s *agendaServer) Agendas(ctx context.Context, req *pb.AgendasRequest) (*pb
 				Id:          choice.Id,
 				Description: choice.Description,
 				Bits:        uint32(choice.Bits),
-				IsAbstain:   choice.IsIgnore,
+				IsAbstain:   choice.IsAbstain,
 				IsNo:        choice.IsNo,
 			}
 		}

@@ -1,5 +1,5 @@
 hash: ed840e2cd19df32e8d5dc89987cdea36401f5e159926adc14727ec5f6f5b7bb3
-updated: 2017-04-11T12:15:49.0224503-04:00
+updated: 2017-04-26T14:27:53.1856818-04:00
 imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
@@ -18,7 +18,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: ff07aac47f0477f0021bc667dd7a794e67f4abd0
+  version: 5c3e0d6454001c8d14fcf06be94381d93991aaea
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
