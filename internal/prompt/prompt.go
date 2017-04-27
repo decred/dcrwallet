@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"unicode"
@@ -120,7 +121,17 @@ func PassPrompt(reader *bufio.Reader, prefix string, confirm bool) ([]byte, erro
 	prompt := fmt.Sprintf("%s: ", prefix)
 	for {
 		fmt.Print(prompt)
-		pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		var pass []byte
+		var err error
+		fd := int(os.Stdin.Fd())
+		if terminal.IsTerminal(fd) {
+			pass, err = terminal.ReadPassword(fd)
+		} else {
+			pass, err = reader.ReadBytes('\n')
+			if err == io.EOF {
+				err = nil
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
