@@ -441,7 +441,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if t.firstStart {
 		t.firstStart = false
 		log.Debugf("First run for ticket buyer")
-		log.Debugf("Transaction relay fee: %v DCR", t.cfg.TxFee)
+		log.Debugf("Transaction relay fee: %v", dcrutil.Amount(t.cfg.TxFee))
 		refreshStakeInfo = true
 	} else {
 		if nextIdxDiffPeriod == 0 {
