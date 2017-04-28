@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	revocationFeePerKB dcrutil.Amount = 1e5
+	revocationFeePerKB dcrutil.Amount = 1e6
 )
 
 func stakeStoreError(code apperrors.Code, str string, err error) error {
@@ -800,8 +800,8 @@ func (s *StakeStore) getSSRtxs(ns walletdb.ReadBucket, sstxHash *chainhash.Hash)
 // GenerateRevocation generates a revocation (SSRtx), signs it, and
 // submits it by SendRawTransaction. It also stores a record of it
 // in the local database.
-func (s *StakeStore) generateRevocation(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash,
-	allowHighFees bool) (*StakeNotification, error) {
+func (s *StakeStore) generateRevocation(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash,
+	height int64, sstxHash *chainhash.Hash, feePerKb dcrutil.Amount, allowHighFees bool) (*StakeNotification, error) {
 
 	// 1. Fetch the SStx, then calculate all the values we'll need later for
 	// the generation of the SSRtx tx outputs.
@@ -969,7 +969,9 @@ func (s StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddrm
 // HandleMissedTicketsNtfn scans the list of missed tickets and, if any
 // of these tickets in the sstx store match these tickets, spends them as
 // SSRtx.
-func (s StakeStore) HandleMissedTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, blockHeight int64, tickets []*chainhash.Hash, allowHighFees bool) ([]*StakeNotification, error) {
+func (s StakeStore) HandleMissedTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash,
+	blockHeight int64, tickets []*chainhash.Hash, feePerKb dcrutil.Amount, allowHighFees bool) ([]*StakeNotification, error) {
+
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -995,7 +997,7 @@ func (s StakeStore) HandleMissedTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmg
 	// Matching tickets, generate some SSRtx.
 	for i, ticket := range ticketsToPull {
 		ntfns[i], revocationErrors[i] = s.generateRevocation(ns, waddrmgrNs,
-			blockHash, blockHeight, ticket, allowHighFees)
+			blockHash, blockHeight, ticket, feePerKb, allowHighFees)
 	}
 
 	errStr := ""

@@ -927,7 +927,7 @@ func (w *Wallet) handleMissedTickets(dbtx walletdb.ReadWriteTx, blockHash *chain
 
 	if blockHeight >= w.chainParams.StakeValidationHeight+1 {
 		ntfns, err := w.StakeMgr.HandleMissedTicketsNtfn(stakemgrNs, addrmgrNs,
-			blockHash, blockHeight, tickets, w.AllowHighFees)
+			blockHash, blockHeight, tickets, w.RelayFee(), w.AllowHighFees)
 
 		if ntfns != nil {
 			// Send notifications for newly created revocations by the RPC.

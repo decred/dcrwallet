@@ -48,7 +48,7 @@ const (
 
 	// ticket buyer options
 	defaultMaxFee                    dcrutil.Amount = 1e7
-	defaultMinFee                    dcrutil.Amount = 1e5
+	defaultMinFee                    dcrutil.Amount = 1e6
 	defaultMaxPriceScale                            = 0.0
 	defaultAvgVWAPPriceDelta                        = 2880
 	defaultMaxPerBlock                              = 5
