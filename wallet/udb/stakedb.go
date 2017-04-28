@@ -110,7 +110,7 @@ func deserializeSStxRecord(serializedSStxRecord []byte, dbVersion uint32) (*sstx
 
 		// Read the intended voteBits and extended voteBits length (uint8).
 		record.voteBitsSet = false
-		voteBitsLen := serializedSStxRecord[curPos]
+		voteBitsLen := int(serializedSStxRecord[curPos])
 		if voteBitsLen != 0 {
 			record.voteBitsSet = true
 		}
@@ -121,9 +121,10 @@ func deserializeSStxRecord(serializedSStxRecord []byte, dbVersion uint32) (*sstx
 		record.voteBits = binary.LittleEndian.Uint16(
 			serializedSStxRecord[curPos : curPos+int16Size])
 		curPos += int16Size
-		record.voteBitsExt = make([]byte, int(voteBitsLen)-int16Size)
-		copy(record.voteBitsExt[:],
-			serializedSStxRecord[curPos:curPos+int(voteBitsLen)-int16Size])
+		if voteBitsLen != 0 {
+			record.voteBitsExt = make([]byte, voteBitsLen-int16Size)
+			copy(record.voteBitsExt, serializedSStxRecord[curPos:curPos+voteBitsLen-int16Size])
+		}
 		curPos += stake.MaxSingleBytePushLength - int16Size
 
 		// Prepare a buffer for the msgTx.
