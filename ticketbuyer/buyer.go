@@ -408,13 +408,13 @@ func NewTicketPurchaser(cfg *Config,
 type PurchaseStats struct {
 	Height        int64
 	PriceMaxScale float64
-	PriceAverage  float64
-	PriceNext     float64
-	PriceCurrent  float64
+	PriceAverage  dcrutil.Amount
+	PriceNext     dcrutil.Amount
+	PriceCurrent  dcrutil.Amount
 	Purchased     int
 	LeftWindow    int
-	Balance       int64
-	TicketPrice   int64
+	Balance       dcrutil.Amount
+	TicketPrice   dcrutil.Amount
 }
 
 // Purchase is the main handler for purchasing tickets for the user.
@@ -505,49 +505,48 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 	avgPriceAmt, err := t.calcAverageTicketPrice(height)
 	if err != nil {
-		return ps, fmt.Errorf("Failed to calculate average ticket price amount: %s",
-			err.Error())
+		return ps, fmt.Errorf("Failed to calculate average ticket "+
+			" price amount at height %v: %v", height, err)
 	}
 	if avgPriceAmt < dcrutil.Amount(t.activeNet.MinimumStakeDiff) {
 		avgPriceAmt = dcrutil.Amount(t.activeNet.MinimumStakeDiff)
 	}
 
-	avgPrice := avgPriceAmt.ToCoin()
 	log.Debugf("Calculated average ticket price: %v", avgPriceAmt)
-	ps.PriceAverage = avgPrice
+	ps.PriceAverage = avgPriceAmt
 
 	nextStakeDiff, err := t.wallet.StakeDifficulty()
 	log.Tracef("Next stake difficulty: %v", nextStakeDiff)
 	if err != nil {
 		return ps, err
 	}
-	ps.PriceCurrent = float64(nextStakeDiff)
+	ps.PriceCurrent = nextStakeDiff
 	t.ticketPrice = nextStakeDiff
-	ps.TicketPrice = int64(nextStakeDiff)
+	ps.TicketPrice = nextStakeDiff
 
 	sDiffEsts, err := t.dcrdChainSvr.EstimateStakeDiff(nil)
 	if err != nil {
 		return ps, err
 	}
-	ps.PriceNext = sDiffEsts.Expected
+	ps.PriceNext, err = dcrutil.NewAmount(sDiffEsts.Expected)
+	if err != nil {
+		return ps, err
+	}
+
 	log.Tracef("Estimated stake diff: (min: %v, expected: %v, max: %v)",
 		sDiffEsts.Min, sDiffEsts.Expected, sDiffEsts.Max)
 
 	// Set the max price to the configuration parameter that is lower
 	// Absolute or relative max price
 	var maxPriceAmt dcrutil.Amount
-	maxPriceAbs := t.MaxPriceAbsolute().ToCoin()
-	if maxPriceAbs > 0 && maxPriceAbs < avgPrice*t.cfg.MaxPriceRelative {
-		maxPriceAmt, err = dcrutil.NewAmount(maxPriceAbs)
-		if err != nil {
-			return ps, err
-		}
+	maxPriceAbs := t.MaxPriceAbsolute()
+
+	if maxPriceAbs > 0 &&
+		maxPriceAbs < avgPriceAmt.MulF64(t.MaxPriceRelative()) {
+		maxPriceAmt = maxPriceAbs
 		log.Debugf("Using absolute max price: %v", maxPriceAmt)
 	} else {
-		maxPriceAmt, err = dcrutil.NewAmount(avgPrice * t.MaxPriceRelative())
-		if err != nil {
-			return ps, err
-		}
+		maxPriceAmt = avgPriceAmt.MulF64(t.MaxPriceRelative())
 		log.Debugf("Using relative max price: %v", maxPriceAmt)
 	}
 
@@ -561,7 +560,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		return ps, err
 	}
 	log.Debugf("Spendable balance for account '%s': %v", accountName, bal.Spendable)
-	ps.Balance = int64(bal.Spendable)
+	ps.Balance = bal.Spendable
 
 	// Disable purchasing if the ticket price is too high based on
 	// the cutoff or if the estimated ticket price is above
@@ -623,9 +622,9 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		// If might be the case that there weren't enough recent
 		// blocks to average fees from. Use data from the last
 		// window with the closest difficulty.
-		chainFee := 0.0
+		var chainFee dcrutil.Amount
 		if t.idxDiffPeriod < t.cfg.BlocksToAvg {
-			chainFee, err = t.findClosestFeeWindows(nextStakeDiff.ToCoin(),
+			chainFee, err = t.findClosestFeeWindows(nextStakeDiff,
 				t.useMedian)
 			if err != nil {
 				return ps, err
@@ -639,12 +638,9 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 		// Scale the mean fee upwards according to what was asked
 		// for by the user.
-		feeToUse, err = dcrutil.NewAmount(chainFee * t.cfg.FeeTargetScaling)
-		if err != nil {
-			return ps, err
-		}
+		log.Tracef("Average ticket fee: %v", chainFee)
 
-		log.Tracef("Average ticket fee: %.8f DCR", chainFee)
+		feeToUse = chainFee.MulF64(t.cfg.FeeTargetScaling)
 		if feeToUse > t.MaxFee() {
 			log.Infof("Not buying because max fee exceed: (max fee: %v, scaled fee: %v)",
 				t.MaxFee(), feeToUse)
@@ -874,7 +870,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		return ps, err
 	}
 	log.Debugf("Usable balance for account '%s' after purchases: %v", accountName, bal.Spendable)
-	ps.Balance = int64(bal.Spendable)
+	ps.Balance = bal.Spendable
 
 	if len(hashes) == 0 && purchaseErr != nil {
 		return ps, purchaseErr

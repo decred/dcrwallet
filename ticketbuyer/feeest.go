@@ -6,7 +6,6 @@ package ticketbuyer
 
 import (
 	"fmt"
-	"math"
 	"sort"
 
 	"github.com/decred/dcrutil"
@@ -22,9 +21,9 @@ const (
 // diffPeriodFee defines some statistics about a difficulty fee period
 // compared to the current difficulty period.
 type diffPeriodFee struct {
-	difficulty float64
-	difference float64 // Difference from current difficulty
-	fee        float64
+	difficulty dcrutil.Amount
+	difference dcrutil.Amount // Difference from current difficulty
+	fee        dcrutil.Amount
 }
 
 // diffPeriodFees is slice type definition used to satisfy the sorting
@@ -41,8 +40,8 @@ func (p diffPeriodFees) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 // from recent blocks to figure out what to set the user's ticket fees to.
 // Instead, it uses data from the last windowsToConsider many windows and
 // takes an average fee from the closest one.
-func (t *TicketPurchaser) findClosestFeeWindows(difficulty float64,
-	useMedian bool) (float64, error) {
+func (t *TicketPurchaser) findClosestFeeWindows(difficulty dcrutil.Amount,
+	useMedian bool) (dcrutil.Amount, error) {
 	wtcUint32 := uint32(windowsToConsider)
 	info, err := t.dcrdChainSvr.TicketFeeInfo(&zeroUint32, &wtcUint32)
 	if err != nil {
@@ -69,30 +68,40 @@ func (t *TicketPurchaser) findClosestFeeWindows(difficulty float64,
 		startHeight := int64(info.FeeInfoWindows[i].StartHeight)
 		blH, err := t.dcrdChainSvr.GetBlockHash(startHeight)
 		if err != nil {
-			return 0.0, err
+			return 0, err
 		}
 		blkHeader, err := t.dcrdChainSvr.GetBlockHeader(blH)
 		if err != nil {
-			return 0.0, err
+			return 0, err
 		}
-		windowDiff := dcrutil.Amount(blkHeader.SBits).ToCoin()
 
-		fee := float64(0.0)
+		windowDiffAmt := dcrutil.Amount(blkHeader.SBits)
+
+		var fee dcrutil.Amount
 		if !useMedian {
-			fee = info.FeeInfoWindows[i].Mean
+			fee, err = dcrutil.NewAmount(info.FeeInfoWindows[i].Mean)
 		} else {
-			fee = info.FeeInfoWindows[i].Median
+			fee, err = dcrutil.NewAmount(info.FeeInfoWindows[i].Median)
+		}
+		if err != nil {
+			return 0, err
 		}
 
 		// Skip all windows for which fee information does not exist
 		// because tickets were not purchased.
-		if fee == 0.0 {
+		if fee == 0 {
 			continue
 		}
 
+		// Absolute value
+		diff := windowDiffAmt - difficulty
+		if diff < 0 {
+			diff *= -1
+		}
+
 		dpf := &diffPeriodFee{
-			difficulty: windowDiff,
-			difference: math.Abs(windowDiff - difficulty),
+			difficulty: windowDiffAmt,
+			difference: diff,
 			fee:        fee,
 		}
 		sortable = append(sortable, dpf)
@@ -110,21 +119,25 @@ func (t *TicketPurchaser) findClosestFeeWindows(difficulty float64,
 
 // findMeanTicketFeeBlocks finds the mean of the mean of fees from BlocksToAvg
 // many blocks using the ticketfeeinfo RPC API.
-func (t *TicketPurchaser) findTicketFeeBlocks(useMedian bool) (float64, error) {
+func (t *TicketPurchaser) findTicketFeeBlocks(useMedian bool) (dcrutil.Amount, error) {
 	btaUint32 := uint32(t.cfg.BlocksToAvg)
 	info, err := t.dcrdChainSvr.TicketFeeInfo(&btaUint32, nil)
 	if err != nil {
 		return 0.0, err
 	}
 
-	sum := 0.0
+	var sum, tmp dcrutil.Amount
 	for i := range info.FeeInfoBlocks {
 		if !useMedian {
-			sum += info.FeeInfoBlocks[i].Mean
+			tmp, err = dcrutil.NewAmount(info.FeeInfoBlocks[i].Mean)
 		} else {
-			sum += info.FeeInfoBlocks[i].Median
+			tmp, err = dcrutil.NewAmount(info.FeeInfoBlocks[i].Median)
 		}
+		if err != nil {
+			return 0, err
+		}
+		sum += tmp
 	}
 
-	return sum / float64(t.cfg.BlocksToAvg), nil
+	return sum / dcrutil.Amount(t.cfg.BlocksToAvg), nil
 }

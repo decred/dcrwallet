@@ -1653,12 +1653,13 @@ func (t *ticketbuyerServer) SetMaxFee(ctx context.Context, req *pb.SetMaxFeeRequ
 func (t *ticketbuyerServer) SetMaxPriceRelative(ctx context.Context, req *pb.SetMaxPriceRelativeRequest) (
 	*pb.SetMaxPriceRelativeResponse, error) {
 
+	if req.MaxPriceRelative < 0 {
+		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max ticket price given")
+	}
+
 	pm, err := t.requirePurchaseManager()
 	if err != nil {
 		return nil, err
-	}
-	if req.MaxPriceRelative < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max ticket price given")
 	}
 	pm.Purchaser().SetMaxPriceRelative(req.MaxPriceRelative)
 	return &pb.SetMaxPriceRelativeResponse{}, nil
