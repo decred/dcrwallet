@@ -21,7 +21,6 @@ import (
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/snacl"
 	"github.com/decred/dcrwallet/walletdb"
-	"github.com/decred/dcrwallet/walletseed"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -471,35 +470,6 @@ func deriveKey(acctInfo *accountInfo, branch, index uint32, private bool) (*hdke
 		return nil, managerError(apperrors.ErrKeyChain, str, err)
 	}
 	return addressKey, nil
-}
-
-// GetSeed gives the encoded string version of the seed if the
-// wallet is unlocked.
-func (m *Manager) GetSeed(ns walletdb.ReadBucket) (string, error) {
-	if m.locked {
-		str := "manager is locked"
-		return "", managerError(apperrors.ErrLocked, str, nil)
-	}
-
-	localSeed, err := fetchSeed(ns)
-	if err != nil {
-		return "", maybeConvertDbError(err)
-	}
-	seedEnc := make([]byte, len(localSeed))
-	copy(seedEnc, localSeed)
-
-	seed, err := m.cryptoKeyPriv.Decrypt(seedEnc)
-	if err != nil {
-		str := "failed to decrypt seed"
-		return "", managerError(apperrors.ErrCrypto, str, nil)
-	}
-
-	if bytes.Equal(seed, nullSeed) {
-		str := "wallet seed was never stored"
-		return "", managerError(apperrors.ErrNoExist, str, nil)
-	}
-
-	return walletseed.EncodeMnemonic(seed), nil
 }
 
 // GetMasterPubkey gives the encoded string version of the HD master public key
@@ -2216,7 +2186,7 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte,
 // A ManagerError with an error code of ErrAlreadyExists will be returned the
 // address manager already exists in the specified namespace.
 func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, privPassphrase []byte,
-	chainParams *chaincfg.Params, config *ScryptOptions, unsafeMainNet bool) error {
+	chainParams *chaincfg.Params, config *ScryptOptions) error {
 
 	err := func() error {
 		// Return an error if the manager has already been created in the given
@@ -2329,11 +2299,12 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		}
 		defer cryptoKeyPriv.Zero()
 
-		// For SimNet and TestNet wallets, store the seed. For MainNet
-		// wallets, encrypt and store a zeroed 32-byte slice instead.
-		if (chainParams == &chaincfg.MainNetParams) && !unsafeMainNet {
-			seed = nullSeed
-		}
+		// All current DB versions support saving the seed encrypted in the DB.
+		// This was a bad idea and is being removed.  The options to do this and
+		// to retreive the seed over RPC have been removed, but until a DB
+		// upgrade is performed that removes existing seeds, keep writing
+		// nonsense here.
+		seed = nullSeed
 		seedEnc, err := cryptoKeyPriv.Encrypt(seed)
 		if err != nil {
 			str := "failed to encrypt seed"

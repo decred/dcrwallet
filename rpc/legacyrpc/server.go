@@ -80,8 +80,7 @@ type Server struct {
 
 	requestShutdownChan chan struct{}
 
-	unsafeMainNet bool
-	activeNet     *chaincfg.Params
+	activeNet *chaincfg.Params
 }
 
 // jsonAuthFail sends a message back to the client if the http auth is rejected.
@@ -117,7 +116,6 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 		},
 		quit:                make(chan struct{}),
 		requestShutdownChan: make(chan struct{}, 1),
-		unsafeMainNet:       opts.UnsafeMainNet,
 		activeNet:           activeNet,
 	}
 
@@ -293,7 +291,7 @@ func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) l
 	}
 	s.handlerMu.Unlock()
 
-	return lazyApplyHandler(request, s.activeNet, wallet, chainClient, s.unsafeMainNet)
+	return lazyApplyHandler(request, s.activeNet, wallet, chainClient)
 }
 
 // ErrNoAuth represents an error where authentication could not succeed

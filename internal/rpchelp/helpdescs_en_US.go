@@ -126,10 +126,6 @@ var helpDescsEnUS = map[string]string{
 	"getmultisigoutinforesult-redeemscript": "Hex of the redeeming script.",
 	"getmultisigoutinforesult-address":      "Script address.",
 
-	// GetSeed help.
-	"getseed--synopsis": "Returns the seed needed to recreate the wallet.",
-	"getseed--result0":  "The seed cooresponding to the wallet.",
-
 	// GetStakeInfo help.
 	"getstakeinfo--synopsis": "Returns statistics about staking from the wallet.",
 

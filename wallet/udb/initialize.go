@@ -21,7 +21,7 @@ func createBucketError(err error, bucketName string) error {
 // Initialize prepares an empty database for usage by initializing all buckets
 // and key/value pairs.  The database is initialized with the latest version and
 // does not require any upgrades to use.
-func Initialize(db walletdb.DB, params *chaincfg.Params, seed, pubPass, privPass []byte, unsafeMainNet bool) error {
+func Initialize(db walletdb.DB, params *chaincfg.Params, seed, pubPass, privPass []byte) error {
 	err := walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs, err := tx.CreateTopLevelBucket(waddrmgrBucketKey)
 		if err != nil {
@@ -37,7 +37,7 @@ func Initialize(db walletdb.DB, params *chaincfg.Params, seed, pubPass, privPass
 		}
 
 		// Create the address manager, transaction store, and stake store.
-		err = createAddressManager(addrmgrNs, seed, pubPass, privPass, params, &defaultScryptOptions, unsafeMainNet)
+		err = createAddressManager(addrmgrNs, seed, pubPass, privPass, params, &defaultScryptOptions)
 		if err != nil {
 			return err
 		}

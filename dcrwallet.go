@@ -100,7 +100,7 @@ func walletMain() error {
 		StakePoolColdExtKey: cfg.StakePoolColdExtKey,
 		TicketFee:           cfg.TicketFee.ToCoin(),
 	}
-	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions, cfg.UnsafeMainNet,
+	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.AddrIdxScanLen, cfg.AllowHighFees, cfg.RelayFee.ToCoin())
 
 	passphrase := []byte{}

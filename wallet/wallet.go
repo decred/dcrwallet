@@ -1900,22 +1900,6 @@ func (w *Wallet) MasterPubKey(account uint32) (string, error) {
 	return masterPubKey, err
 }
 
-// Seed returns the wallet seed if it is saved by the wallet.  The wallet must
-// be unlocked to access the seed, and seeds are not saved by default for
-// mainnet wallets.
-//
-// TODO: This should not be returning the seed as a string
-func (w *Wallet) Seed() (string, error) {
-	var seed string
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		var err error
-		seed, err = w.Manager.GetSeed(addrmgrNs)
-		return err
-	})
-	return seed, err
-}
-
 // CreditCategory describes the type of wallet transaction output.  The category
 // of "sent transactions" (debits) is always "send", and is not expressed by
 // this type.
@@ -3613,7 +3597,7 @@ func (w *Wallet) NeedsAccountsSync() (bool, error) {
 // Create creates an new wallet, writing it to an empty database.  If the passed
 // seed is non-nil, it is used.  Otherwise, a secure random seed of the
 // recommended length is generated.
-func Create(db walletdb.DB, pubPass, privPass, seed []byte, params *chaincfg.Params, unsafeMainNet bool) error {
+func Create(db walletdb.DB, pubPass, privPass, seed []byte, params *chaincfg.Params) error {
 	// If a seed was provided, ensure that it is of valid length. Otherwise,
 	// we generate a random seed for the wallet with the recommended seed
 	// length.
@@ -3628,7 +3612,7 @@ func Create(db walletdb.DB, pubPass, privPass, seed []byte, params *chaincfg.Par
 		return hdkeychain.ErrInvalidSeedLen
 	}
 
-	return udb.Initialize(db, params, seed, pubPass, privPass, unsafeMainNet)
+	return udb.Initialize(db, params, seed, pubPass, privPass)
 }
 
 // CreateWatchOnly creates a watchonly wallet on the provided db.

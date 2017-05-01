@@ -177,7 +177,6 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			Password:            cfg.Password,
 			MaxPOSTClients:      cfg.LegacyRPCMaxClients,
 			MaxWebsocketClients: cfg.LegacyRPCMaxWebsockets,
-			UnsafeMainNet:       cfg.UnsafeMainNet,
 		}
 		legacyServer = legacyrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
 	}

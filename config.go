@@ -39,7 +39,6 @@ const (
 	defaultPruneTickets        = false
 	defaultPurchaseAccount     = "default"
 	defaultAutomaticRepair     = false
-	defaultUnsafeMainNet       = false
 	defaultPromptPass          = false
 	defaultPromptPublicPass    = false
 	defaultAddrIdxScanLen      = wallet.DefaultGapLimit
@@ -93,7 +92,6 @@ type config struct {
 	MemProfile         string   `long:"memprofile" description:"Write mem profile to the specified file"`
 	RollbackTest       bool     `long:"rollbacktest" description:"Rollback testing is a simnet testing mode that eventually stops wallet and examines wtxmgr database integrity"`
 	AutomaticRepair    bool     `long:"automaticrepair" description:"Attempt to repair the wallet automatically if a database inconsistency is found"`
-	UnsafeMainNet      bool     `long:"unsafemainnet" description:"Enable storage of master seed in mainnet wallet when calling --create and enable unsafe private information RPC commands"`
 
 	// Wallet options
 	WalletPass          string              `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
@@ -354,7 +352,6 @@ func loadConfig() (*config, []string, error) {
 		PruneTickets:           defaultPruneTickets,
 		PurchaseAccount:        defaultPurchaseAccount,
 		AutomaticRepair:        defaultAutomaticRepair,
-		UnsafeMainNet:          defaultUnsafeMainNet,
 		AddrIdxScanLen:         defaultAddrIdxScanLen,
 		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
 		AllowHighFees:          defaultAllowHighFees,

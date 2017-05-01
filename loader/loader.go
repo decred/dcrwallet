@@ -42,7 +42,6 @@ type Loader struct {
 	purchaseManager *ticketbuyer.PurchaseManager
 	ntfnClient      wallet.MainTipChangedNotificationsClient
 	stakeOptions    *StakeOptions
-	unsafeMainNet   bool
 	addrIdxScanLen  int
 	allowHighFees   bool
 	relayFee        float64
@@ -62,14 +61,13 @@ type StakeOptions struct {
 }
 
 // NewLoader constructs a Loader.
-func NewLoader(chainParams *chaincfg.Params, dbDirPath string,
-	stakeOptions *StakeOptions, unsafeMainNet bool,
-	addrIdxScanLen int, allowHighFees bool, relayFee float64) *Loader {
+func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, addrIdxScanLen int,
+	allowHighFees bool, relayFee float64) *Loader {
+
 	return &Loader{
 		chainParams:    chainParams,
 		dbDirPath:      dbDirPath,
 		stakeOptions:   stakeOptions,
-		unsafeMainNet:  unsafeMainNet,
 		addrIdxScanLen: addrIdxScanLen,
 		allowHighFees:  allowHighFees,
 		relayFee:       relayFee,
@@ -156,8 +154,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	}()
 
 	// Initialize the newly created database for the wallet before opening.
-	err = wallet.Create(db, pubPassphrase, privPassphrase, seed, l.chainParams,
-		l.unsafeMainNet)
+	err = wallet.Create(db, pubPassphrase, privPassphrase, seed, l.chainParams)
 	if err != nil {
 		return nil, err
 	}

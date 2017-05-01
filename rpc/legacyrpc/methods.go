@@ -82,10 +82,6 @@ var rpcHandlers = map[string]struct {
 	// for the unimplemented handlers so every method has exactly one
 	// handler function.
 	noHelp bool
-
-	// This is disabled on a mainnet wallet unless run with the specified
-	// flag.
-	requireUnsafeOnMainNet bool
 }{
 	// Reference implementation wallet methods (implemented)
 	"accountaddressindex":     {handler: accountAddressIndex},
@@ -95,7 +91,7 @@ var rpcHandlers = map[string]struct {
 	"addticket":               {handler: addTicket},
 	"consolidate":             {handler: consolidate},
 	"createmultisig":          {handler: createMultiSig},
-	"dumpprivkey":             {handler: dumpPrivKey, requireUnsafeOnMainNet: true},
+	"dumpprivkey":             {handler: dumpPrivKey},
 	"generatevote":            {handler: generateVote},
 	"getaccount":              {handler: getAccount},
 	"getaccountaddress":       {handler: getAccountAddress},
@@ -110,7 +106,6 @@ var rpcHandlers = map[string]struct {
 	"getrawchangeaddress":     {handler: getRawChangeAddress},
 	"getreceivedbyaccount":    {handler: getReceivedByAccount},
 	"getreceivedbyaddress":    {handler: getReceivedByAddress},
-	"getseed":                 {handler: getSeed, requireUnsafeOnMainNet: true},
 	"getstakeinfo":            {handlerWithChain: getStakeInfo},
 	"getticketfee":            {handler: getTicketFee},
 	"gettickets":              {handlerWithChain: getTickets},
@@ -211,14 +206,8 @@ type lazyHandler func() (interface{}, *dcrjson.RPCError)
 // returning a closure that will execute it with the (required) wallet and
 // (optional) consensus RPC server.  If no handlers are found and the
 // chainClient is not nil, the returned handler performs RPC passthrough.
-func lazyApplyHandler(request *dcrjson.Request, activeNet *chaincfg.Params, w *wallet.Wallet, chainClient *chain.RPCClient, unsafeMainNet bool) lazyHandler {
+func lazyApplyHandler(request *dcrjson.Request, activeNet *chaincfg.Params, w *wallet.Wallet, chainClient *chain.RPCClient) lazyHandler {
 	handlerData, ok := rpcHandlers[request.Method]
-	if ok && handlerData.requireUnsafeOnMainNet &&
-		activeNet == &chaincfg.MainNetParams && !unsafeMainNet {
-		return func() (interface{}, *dcrjson.RPCError) {
-			return nil, &ErrMainNetSafety
-		}
-	}
 	if ok && handlerData.handlerWithChain != nil && w != nil && chainClient != nil {
 		return func() (interface{}, *dcrjson.RPCError) {
 			cmd, err := dcrjson.UnmarshalCmd(request)
@@ -1213,12 +1202,6 @@ func getMasterPubkey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	}
 
 	return w.MasterPubKey(account)
-}
-
-// getSeed handles a getseed request by returning the wallet seed encoded as
-// a string.
-func getSeed(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	return w.Seed()
 }
 
 // getStakeInfo gets a large amounts of information about the stake environment
