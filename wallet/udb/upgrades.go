@@ -37,10 +37,15 @@ const (
 	// for choices on individual agendas from the current stake version.
 	votingPreferencesVersion = 3
 
+	// noEncryptedSeedVersion is the fourth version of the database.  It removes
+	// the encrypted seed that earlier versions may have saved in the database
+	// (or more commonly, encrypted zeros on mainnet wallets).
+	noEncryptedSeedVersion = 4
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = votingPreferencesVersion
+	DBVersion = noEncryptedSeedVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -48,6 +53,7 @@ const (
 var upgrades = [...]func(walletdb.ReadWriteTx, []byte) error{
 	initialVersion:              lastUsedAddressIndexUpgrade,
 	lastUsedAddressIndexVersion: votingPreferencesUpgrade,
+	votingPreferencesVersion:    noEncryptedSeedUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
@@ -258,6 +264,34 @@ func votingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) 
 
 	// Create the top level bucket for agenda preferences.
 	_, err = tx.CreateTopLevelBucket(agendaPreferences.rootBucketKey())
+	if err != nil {
+		return err
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func noEncryptedSeedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+	const oldVersion = 3
+	const newVersion = 4
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	addrmgrBucket := tx.ReadWriteBucket(waddrmgrBucketKey)
+	mainBucket := addrmgrBucket.NestedReadWriteBucket(mainBucketName)
+
+	// Assert that this function is only called on version 3 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		const str = "noEncryptedSeedUpgrade inappropriately called"
+		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+	}
+
+	// Remove encrypted seed (or encrypted zeros).
+	err = mainBucket.Delete(seedName)
 	if err != nil {
 		return err
 	}

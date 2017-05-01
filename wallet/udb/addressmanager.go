@@ -6,7 +6,6 @@
 package udb
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/sha512"
 	"fmt"
@@ -84,12 +83,6 @@ const (
 	// saltSize is the number of bytes of the salt used when hashing
 	// private passphrases.
 	saltSize = 32
-)
-
-var (
-	// nullSeed is an uninitialized wallet seed. It is stored as a
-	// dummy seed in mainnet wallets to protect the actual seed.
-	nullSeed = bytes.Repeat([]byte{0x00}, 32)
 )
 
 var (
@@ -2299,18 +2292,6 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		}
 		defer cryptoKeyPriv.Zero()
 
-		// All current DB versions support saving the seed encrypted in the DB.
-		// This was a bad idea and is being removed.  The options to do this and
-		// to retreive the seed over RPC have been removed, but until a DB
-		// upgrade is performed that removes existing seeds, keep writing
-		// nonsense here.
-		seed = nullSeed
-		seedEnc, err := cryptoKeyPriv.Encrypt(seed)
-		if err != nil {
-			str := "failed to encrypt seed"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-
 		cryptoKeyScript, err := newCryptoKey()
 		if err != nil {
 			str := "failed to generate crypto script key"
@@ -2382,12 +2363,6 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		if err != nil {
 			str := "failed to encrypt private key for account 0"
 			return managerError(apperrors.ErrCrypto, str, err)
-		}
-
-		// Save the encrypted seed.
-		err = putSeed(ns, seedEnc)
-		if err != nil {
-			return err
 		}
 
 		// Save the master key params to the database.
