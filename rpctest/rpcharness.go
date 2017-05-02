@@ -448,21 +448,21 @@ func (h *Harness) GenerateBlock(startHeight uint32) ([]*chainhash.Hash, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate single block: %v", err)
 	}
-	block, err := h.Node.GetBlock(blockHashes[0])
+	blockHeader, err := h.Node.GetBlockHeader(blockHashes[0])
 	if err != nil {
-		return nil, fmt.Errorf("unable to get block: %v", err)
+		return nil, fmt.Errorf("unable to get block header: %v", err)
 	}
-	newHeight := block.MsgBlock().Header.Height
+	newHeight := blockHeader.Height
 	for newHeight == startHeight {
 		blockHashes, err = h.Node.Generate(1)
 		if err != nil {
 			return nil, fmt.Errorf("unable to generate single block: %v", err)
 		}
-		block, err := h.Node.GetBlock(blockHashes[0])
+		blockHeader, err = h.Node.GetBlockHeader(blockHashes[0])
 		if err != nil {
-			return nil, fmt.Errorf("unable to get block: %v", err)
+			return nil, fmt.Errorf("unable to get block header: %v", err)
 		}
-		newHeight = block.MsgBlock().Header.Height
+		newHeight = blockHeader.Height
 	}
 	return blockHashes, nil
 }

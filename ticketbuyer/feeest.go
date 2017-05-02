@@ -71,12 +71,11 @@ func (t *TicketPurchaser) findClosestFeeWindows(difficulty float64,
 		if err != nil {
 			return 0.0, err
 		}
-		bl, err := t.dcrdChainSvr.GetBlock(blH)
+		blkHeader, err := t.dcrdChainSvr.GetBlockHeader(blH)
 		if err != nil {
 			return 0.0, err
 		}
-		windowDiffAmt := dcrutil.Amount(bl.MsgBlock().Header.SBits)
-		windowDiff := windowDiffAmt.ToCoin()
+		windowDiff := dcrutil.Amount(blkHeader.SBits).ToCoin()
 
 		fee := float64(0.0)
 		if !useMedian {
