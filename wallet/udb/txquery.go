@@ -270,6 +270,24 @@ func (s *Store) UniqueTxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash,
 	return s.minedTxDetails(ns, txHash, k, v)
 }
 
+// TxBlockHeight returns the block height of a mined transaction, or -1 for any
+// unmined transactions.
+func (s *Store) TxBlockHeight(dbtx walletdb.ReadTx, txHash *chainhash.Hash) (int32, error) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	v := existsRawUnmined(ns, txHash[:])
+	if v != nil {
+		return -1, nil
+	}
+	k, _ := latestTxRecord(ns, txHash)
+	if k == nil {
+		const str = "transaction not found"
+		return 0, apperrors.E{ErrorCode: apperrors.ErrValueNoExists, Description: str, Err: nil}
+	}
+	var height int32
+	err := readRawTxRecordBlockHeight(k, &height)
+	return height, err
+}
+
 // rangeUnminedTransactions executes the function f with TxDetails for every
 // unmined transaction.  f is not executed if no unmined transactions exist.
 // Error returns from f (if any) are propigated to the caller.  Returns true

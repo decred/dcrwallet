@@ -103,13 +103,12 @@ type StakePoolUser struct {
 // StakeStore represents a safely accessible database of
 // stake transactions.
 type StakeStore struct {
-	mtx *sync.Mutex
-
 	Params   *chaincfg.Params
 	Manager  *Manager
 	chainSvr *walletchain.RPCClient
 
 	ownedSStxs map[chainhash.Hash]struct{}
+	mtx        sync.RWMutex // only protects ownedSStxs
 }
 
 // StakeNotification is the data structure that contains information
@@ -134,10 +133,10 @@ func (s *StakeStore) checkHashInStore(hash *chainhash.Hash) bool {
 // CheckHashInStore is the exported version of CheckHashInStore that is
 // safe for concurrent access.
 func (s *StakeStore) CheckHashInStore(hash *chainhash.Hash) bool {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
-	return s.checkHashInStore(hash)
+	s.mtx.RLock()
+	exists := s.checkHashInStore(hash)
+	s.mtx.RUnlock()
+	return exists
 }
 
 // addHashToStore adds a hash into ownedSStxs.
@@ -176,9 +175,9 @@ func (s *StakeStore) insertSStx(ns walletdb.ReadWriteBucket, sstx *dcrutil.Tx) e
 // access.
 func (s *StakeStore) InsertSStx(ns walletdb.ReadWriteBucket, sstx *dcrutil.Tx) error {
 	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
-	return s.insertSStx(ns, sstx)
+	err := s.insertSStx(ns, sstx)
+	s.mtx.Unlock()
+	return err
 }
 
 // dumpSStxHashes dumps the hashes of all owned SStxs. Note
@@ -199,11 +198,10 @@ func (s *StakeStore) dumpSStxHashes() []chainhash.Hash {
 	return ownedSStxs
 }
 
-// DumpSStxHashes is the exported version of dumpSStxHashes that is safe
-// for concurrent access.
+// DumpSStxHashes returns the hashes of all wallet ticket purchase transactions.
 func (s *StakeStore) DumpSStxHashes() ([]chainhash.Hash, error) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	defer s.mtx.RUnlock()
+	s.mtx.RLock()
 
 	return s.dumpSStxHashes(), nil
 }
@@ -241,11 +239,11 @@ func (s *StakeStore) dumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrut
 	return ticketsForAddr, nil
 }
 
-// DumpSStxHashesForAddress is the exported version of dumpSStxHashesForAddress
-// that is safe for concurrent access.
+// DumpSStxHashesForAddress returns the hashes of all wallet ticket purchase
+// transactions for an address.
 func (s *StakeStore) DumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrutil.Address) ([]chainhash.Hash, error) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	defer s.mtx.RUnlock()
+	s.mtx.RLock()
 
 	return s.dumpSStxHashesForAddress(ns, addr)
 }
@@ -274,9 +272,6 @@ func (s *StakeStore) sstxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (
 
 // SStxAddress is the exported, concurrency safe version of sstxAddress.
 func (s *StakeStore) SStxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (dcrutil.Address, error) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
 	return s.sstxAddress(ns, hash)
 }
 
@@ -307,9 +302,6 @@ func (s *StakeStore) dumpSSGenHashes(ns walletdb.ReadBucket) ([]chainhash.Hash, 
 // DumpSSGenHashes is the exported version of dumpSSGenHashes that is safe
 // for concurrent access.
 func (s *StakeStore) DumpSSGenHashes(ns walletdb.ReadBucket) ([]chainhash.Hash, error) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
 	return s.dumpSSGenHashes(ns)
 }
 
@@ -337,9 +329,6 @@ func (s *StakeStore) dumpSSRtxTickets(ns walletdb.ReadBucket) ([]chainhash.Hash,
 // DumpSSRtxTickets is the exported version of dumpSSRtxTickets that is safe
 // for concurrent access.
 func (s *StakeStore) DumpSSRtxTickets(ns walletdb.ReadBucket) ([]chainhash.Hash, error) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
 	return s.dumpSSRtxTickets(ns)
 }
 
@@ -785,9 +774,6 @@ func (s *StakeStore) insertSSRtx(ns walletdb.ReadWriteBucket, blockHash *chainha
 // InsertSSRtx is the exported version of insertSSRtx that is safe for
 // concurrent access.
 func (s *StakeStore) InsertSSRtx(ns walletdb.ReadWriteBucket, blockHash *chainhash.Hash, blockHeight int64, ssrtxHash *chainhash.Hash, sstxHash *chainhash.Hash) error {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
 	return s.insertSSRtx(ns, blockHash, blockHeight, ssrtxHash, sstxHash)
 }
 
@@ -920,21 +906,18 @@ func (s *StakeStore) generateRevocation(ns walletdb.ReadWriteBucket, waddrmgrNs 
 // HandleWinningTicketsNtfn scans the list of eligible tickets and, if any
 // of these tickets in the sstx store match these tickets, spends them as
 // votes.
-func (s StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, blockHeight int64, tickets []*chainhash.Hash, defaultVoteBits stake.VoteBits, stakePoolEnabled, allowHighFees bool) ([]*StakeNotification, error) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
+func (s *StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, blockHeight int64, tickets []*chainhash.Hash, defaultVoteBits stake.VoteBits, stakePoolEnabled, allowHighFees bool) ([]*StakeNotification, error) {
 	// Go through the list of tickets and see any of the
 	// ones we own match those eligible.
 	var ticketsToPull []*chainhash.Hash
 
-	// Lock the mutex because checkHashInStore touches
-	// a mutable element of StakeStore s.
+	s.mtx.RLock()
 	for _, ticket := range tickets {
 		if s.checkHashInStore(ticket) {
 			ticketsToPull = append(ticketsToPull, ticket)
 		}
 	}
+	defer s.mtx.RUnlock()
 
 	// No matching tickets (boo!), return.
 	if len(ticketsToPull) == 0 {
@@ -969,23 +952,20 @@ func (s StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddrm
 // HandleMissedTicketsNtfn scans the list of missed tickets and, if any
 // of these tickets in the sstx store match these tickets, spends them as
 // SSRtx.
-func (s StakeStore) HandleMissedTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash,
+func (s *StakeStore) HandleMissedTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash,
 	blockHeight int64, tickets []*chainhash.Hash, feePerKb dcrutil.Amount, allowHighFees bool) ([]*StakeNotification, error) {
-
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
 
 	// Go through the list of tickets and see any of the
 	// ones we own match those eligible.
 	var ticketsToPull []*chainhash.Hash
 
-	// Lock the mutex because checkHashInStore touches
-	// a mutable element of StakeStore s.
+	s.mtx.RLock()
 	for _, ticket := range tickets {
 		if s.checkHashInStore(ticket) {
 			ticketsToPull = append(ticketsToPull, ticket)
 		}
 	}
+	s.mtx.RUnlock()
 
 	// No matching tickets, return.
 	if len(ticketsToPull) == 0 {
@@ -1037,9 +1017,6 @@ func (s *StakeStore) updateStakePoolUserTickets(ns walletdb.ReadWriteBucket, wad
 // UpdateStakePoolUserTickets is the exported and concurrency safe form of
 // updateStakePoolUserTickets.
 func (s *StakeStore) UpdateStakePoolUserTickets(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, user dcrutil.Address, ticket *PoolTicket) error {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
 	return s.updateStakePoolUserTickets(ns, waddrmgrNs, user, ticket)
 }
 
@@ -1065,10 +1042,6 @@ func (s *StakeStore) removeStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket
 // removetStakePoolUserInvalTickets.
 func (s *StakeStore) RemoveStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address,
 	ticket *chainhash.Hash) error {
-
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
 	return s.removeStakePoolUserInvalTickets(ns, user, ticket)
 }
 
@@ -1092,9 +1065,6 @@ func (s *StakeStore) updateStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket
 // UpdateStakePoolUserInvalTickets is the exported and concurrency safe form of
 // updateStakePoolUserInvalTickets.
 func (s *StakeStore) UpdateStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address, ticket *chainhash.Hash) error {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
 	return s.updateStakePoolUserInvalTickets(ns, user, ticket)
 }
 
@@ -1196,10 +1166,7 @@ func (s *StakeStore) SetChainSvr(chainSvr *walletchain.RPCClient) {
 
 // newStakeStore initializes a new stake store with the given parameters.
 func newStakeStore(params *chaincfg.Params, manager *Manager) *StakeStore {
-	var mtx = &sync.Mutex{}
-
 	return &StakeStore{
-		mtx:        mtx,
 		Params:     params,
 		Manager:    manager,
 		chainSvr:   nil,

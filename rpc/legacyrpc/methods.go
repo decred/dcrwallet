@@ -1207,13 +1207,10 @@ func getMasterPubkey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // getStakeInfo gets a large amounts of information about the stake environment
 // and a number of statistics about local staking in the wallet.
 func getStakeInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient) (interface{}, error) {
-	// Get the current difficulty.
-	stakeDiff, err := w.StakeDifficulty()
-	if err != nil {
-		return nil, err
-	}
+	// Asynchronously query for the stake difficulty.
+	sdiffFuture := chainClient.GetStakeDifficultyAsync()
 
-	stakeInfo, err := w.StakeInfo()
+	stakeInfo, err := w.StakeInfo(chainClient.Client)
 	if err != nil {
 		return nil, err
 	}
@@ -1228,10 +1225,15 @@ func getStakeInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClie
 			(float64(stakeInfo.Voted) + float64(stakeInfo.Missed))
 	}
 
+	sdiff, err := sdiffFuture.Receive()
+	if err != nil {
+		return nil, err
+	}
+
 	resp := &dcrjson.GetStakeInfoResult{
 		BlockHeight:      stakeInfo.BlockHeight,
 		PoolSize:         stakeInfo.PoolSize,
-		Difficulty:       stakeDiff.ToCoin(),
+		Difficulty:       sdiff.NextStakeDifficulty,
 		AllMempoolTix:    stakeInfo.AllMempoolTix,
 		OwnMempoolTix:    stakeInfo.OwnMempoolTix,
 		Immature:         stakeInfo.Immature,

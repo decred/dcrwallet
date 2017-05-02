@@ -509,9 +509,13 @@ func (s *walletServer) TicketPrice(ctx context.Context,
 	}, nil
 }
 
-func (s *walletServer) StakeInfo(ctx context.Context,
-	req *pb.StakeInfoRequest) (*pb.StakeInfoResponse, error) {
-	si, err := s.wallet.StakeInfo()
+func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) (*pb.StakeInfoResponse, error) {
+	chainClient, err := s.requireChainClient()
+	if err != nil {
+		return nil, err
+	}
+
+	si, err := s.wallet.StakeInfo(chainClient.Client)
 	if err != nil {
 		return nil, grpc.Errorf(codes.FailedPrecondition,
 			"Failed to query stake info: %s", err.Error())
