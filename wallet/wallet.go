@@ -743,29 +743,101 @@ func (w *Wallet) MainChainTip() (hash chainhash.Hash, height int32) {
 	return
 }
 
-// activeData returns the currently-active receiving addresses and all unspent
-// outputs.  This is primarely intended to provide the parameters for a
-// rescan request.
-func (w *Wallet) activeData(dbtx walletdb.ReadTx) ([]dcrutil.Address, []wire.OutPoint, error) {
+// loadActiveAddrs loads the consensus RPC server with active addresses for
+// transaction notifications.  For logging purposes, it returns the total number
+// of addresses loaded.
+func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *chain.RPCClient) (uint64, error) {
+	pool := sync.Pool{New: func() interface{} { return make([]dcrutil.Address, 0, 256) }}
+	recycleAddrs := func(addrs []dcrutil.Address) { pool.Put(addrs[:0]) }
+	getAddrs := func() []dcrutil.Address { return pool.Get().([]dcrutil.Address) }
+
+	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, n uint32, errs chan<- error) {
+		jobs := n/256 + 1
+		jobErrs := make(chan error, jobs)
+		for child := uint32(0); child < n; child += 256 {
+			go func(child uint32) {
+				addrs := getAddrs()
+				stop := minUint32(n, child+256)
+				for ; child < stop; child++ {
+					addr, err := deriveChildAddress(branchKey, child, w.chainParams)
+					if err == hdkeychain.ErrInvalidChild {
+						continue
+					}
+					if err != nil {
+						jobErrs <- err
+						return
+					}
+					addrs = append(addrs, addr)
+				}
+				future := chainClient.LoadTxFilterAsync(false, addrs, nil)
+				recycleAddrs(addrs)
+				jobErrs <- future.Receive()
+			}(child)
+		}
+		for i := 0; i < cap(jobErrs); i++ {
+			err := <-jobErrs
+			if err != nil {
+				errs <- err
+				return
+			}
+		}
+		errs <- nil
+	}
+
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-
-	var err error
-	var addrs []dcrutil.Address
-	err = w.Manager.ForEachActiveAddress(addrmgrNs, func(addr dcrutil.Address) error {
-		addrs = append(addrs, addr)
-		return nil
-	})
+	lastAcct, err := w.Manager.LastAccount(addrmgrNs)
 	if err != nil {
-		return nil, nil, err
+		return 0, err
+	}
+	errs := make(chan error, int(lastAcct+1)*2+1)
+	var bip0044AddrCount, importedAddrCount uint64
+	for acct := uint32(0); acct <= lastAcct; acct++ {
+		props, err := w.Manager.AccountProperties(addrmgrNs, acct)
+		if err != nil {
+			return 0, err
+		}
+		acctXpub, err := w.Manager.AccountExtendedPubKey(dbtx, acct)
+		if err != nil {
+			return 0, err
+		}
+		extKey, intKey, err := deriveBranches(acctXpub)
+		if err != nil {
+			return 0, err
+		}
+		gapLimit := uint32(w.gapLimit)
+		extn := minUint32(props.LastUsedExternalIndex+1+gapLimit, hdkeychain.HardenedKeyStart)
+		intn := minUint32(props.LastUsedInternalIndex+1+gapLimit, hdkeychain.HardenedKeyStart)
+		// pre-cache the pubkey results so concurrent access does not race.
+		extKey.ECPubKey()
+		intKey.ECPubKey()
+		go loadBranchAddrs(extKey, extn, errs)
+		go loadBranchAddrs(intKey, intn, errs)
+		bip0044AddrCount += uint64(extn) + uint64(intn)
+	}
+	go func() {
+		// Imported addresses are still sent as a single slice for now.  Could
+		// use the optimization above to avoid appends and reallocations.
+		var addrs []dcrutil.Address
+		err := w.Manager.ForEachAccountAddress(addrmgrNs, udb.ImportedAddrAccount,
+			func(a udb.ManagedAddress) error {
+				addrs = append(addrs, a.Address())
+				return nil
+			})
+		if err != nil {
+			errs <- err
+			return
+		}
+		importedAddrCount = uint64(len(addrs))
+		errs <- chainClient.LoadTxFilter(false, addrs, nil)
+	}()
+	for i := 0; i < cap(errs); i++ {
+		err := <-errs
+		if err != nil {
+			return 0, err
+		}
 	}
 
-	unspent, err := w.TxStore.UnspentOutpoints(txmgrNs)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return addrs, unspent, err
+	return bip0044AddrCount + importedAddrCount, nil
 }
 
 // LoadActiveDataFilters loads the consensus RPC server's websocket client
@@ -773,22 +845,31 @@ func (w *Wallet) activeData(dbtx walletdb.ReadTx) ([]dcrutil.Address, []wire.Out
 // wallet.
 func (w *Wallet) LoadActiveDataFilters(chainClient *chain.RPCClient) error {
 	log.Infof("Loading active addresses and unspent outputs...")
-	var (
-		addrs   []dcrutil.Address
-		unspent []wire.OutPoint
-	)
+
+	var addrCount, utxoCount uint64
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
-		addrs, unspent, err = w.activeData(dbtx)
+		addrCount, err = w.loadActiveAddrs(dbtx, chainClient)
+		if err != nil {
+			return err
+		}
+
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		unspent, err := w.TxStore.UnspentOutpoints(txmgrNs)
+		if err != nil {
+			return err
+		}
+		utxoCount = uint64(len(unspent))
+		err = chainClient.LoadTxFilter(false, nil, unspent)
 		return err
 	})
 	if err != nil {
 		return err
 	}
 
-	log.Infof("Registering for transaction notifications for %v address(es) "+
-		"and %v output(s)", len(addrs), len(unspent))
-	return chainClient.LoadTxFilter(true, addrs, unspent)
+	log.Infof("Registered for transaction notifications for %v address(es) "+
+		"and %v output(s)", addrCount, utxoCount)
+	return nil
 }
 
 // createHeaderData creates the header data to process from hex-encoded
