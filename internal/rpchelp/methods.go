@@ -25,7 +25,6 @@ var Methods = []struct {
 	ResultTypes []interface{}
 }{
 	{"accountaddressindex", []interface{}{(*int)(nil)}},
-	{"accountfetchaddresses", []interface{}{(*dcrjson.AccountFetchAddressesResult)(nil)}},
 	{"accountsyncaddressindex", nil},
 	{"addmultisigaddress", returnsString},
 	{"consolidate", returnsString},

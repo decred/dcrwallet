@@ -85,7 +85,6 @@ var rpcHandlers = map[string]struct {
 }{
 	// Reference implementation wallet methods (implemented)
 	"accountaddressindex":     {handler: accountAddressIndex},
-	"accountfetchaddresses":   {handler: accountFetchAddresses},
 	"accountsyncaddressindex": {handler: accountSyncAddressIndex},
 	"addmultisigaddress":      {handlerWithChain: addMultiSigAddress},
 	"addticket":               {handler: addTicket},
@@ -330,43 +329,6 @@ func accountAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, error
 		// The branch may only be internal or external.
 		return nil, fmt.Errorf("invalid branch %v", cmd.Branch)
 	}
-}
-
-// accountFetchAddresses returns the all addresses from (start,end] for the
-// passed account and branch.
-func accountFetchAddresses(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	cmd := icmd.(*dcrjson.AccountFetchAddressesCmd)
-	account, err := w.AccountNumber(cmd.Account)
-	if err != nil {
-		return nil, err
-	}
-
-	// The branch may only be internal or external.
-	branch := uint32(cmd.Branch)
-	if branch > udb.InternalBranch {
-		return nil, fmt.Errorf("invalid branch %v", branch)
-	}
-
-	if cmd.End <= cmd.Start ||
-		cmd.Start > udb.MaxAddressesPerAccount ||
-		cmd.End > udb.MaxAddressesPerAccount {
-		return nil, fmt.Errorf("bad indexes start %v, end %v", cmd.Start,
-			cmd.End)
-	}
-
-	// AccountBranchAddressRange uses the range [start, end) but the RPC for
-	// some reason uses (start, end], so add to each index.
-	addrs, err := w.AccountBranchAddressRange(account, branch, uint32(cmd.Start)+1,
-		uint32(cmd.End)+1)
-	if err != nil {
-		return nil, err
-	}
-	addrsStr := make([]string, cmd.End-cmd.Start)
-	for i := range addrs {
-		addrsStr[i] = addrs[i].EncodeAddress()
-	}
-
-	return dcrjson.AccountFetchAddressesResult{Addresses: addrsStr}, nil
 }
 
 // accountSyncAddressIndex synchronizes the address manager and local address
