@@ -3164,6 +3164,9 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 			return err
 		}
 
+		// Do not count expired tickets with missed.
+		missedCount -= expiredCount
+
 		resp = &StakeInfoData{
 			BlockHeight:   int64(tipHeight),
 			PoolSize:      poolSize,

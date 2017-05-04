@@ -53,10 +53,10 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.9.0"
+	semverString = "4.9.1"
 	semverMajor  = 4
 	semverMinor  = 9
-	semverPatch  = 0
+	semverPatch  = 1
 )
 
 // translateError creates a new gRPC error with an appropiate error code for
@@ -530,7 +530,7 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 		Voted:         si.Voted,
 		Missed:        si.Missed,
 		Revoked:       si.Revoked,
-		Expired:       0, // Placeholder
+		Expired:       si.Expired,
 		TotalSubsidy:  int64(si.TotalSubsidy),
 	}, nil
 }

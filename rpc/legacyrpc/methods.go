@@ -35,10 +35,10 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "3.0.0"
+	jsonrpcSemverString = "3.0.1"
 	jsonrpcSemverMajor  = 3
 	jsonrpcSemverMinor  = 0
-	jsonrpcSemverPatch  = 0
+	jsonrpcSemverPatch  = 1
 )
 
 // confirmed checks whether a transaction at height txHeight has met minconf
