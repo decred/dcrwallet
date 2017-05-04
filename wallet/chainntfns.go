@@ -673,7 +673,6 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 						if err != nil {
 							return err
 						}
-						w.Rescan(chainClient, w.chainParams.GenesisHash)
 					}
 				}
 			}
