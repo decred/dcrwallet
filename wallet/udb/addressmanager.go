@@ -1670,7 +1670,7 @@ func (m *Manager) RenameAccount(ns walletdb.ReadWriteBucket, account uint32, nam
 		return err
 	}
 	row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted,
-		0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex, row.name, DBVersion)
+		0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex, name, DBVersion)
 	err = putAccountInfo(ns, account, row)
 	if err != nil {
 		return err
