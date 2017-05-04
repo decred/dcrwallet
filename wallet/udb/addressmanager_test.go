@@ -1153,6 +1153,10 @@ func testLookupAccount(tc *testContext) bool {
 
 	// Test last account
 	lastAccount, err := tc.manager.LastAccount()
+	if err != nil {
+		tc.t.Errorf("LastAccount failed: %v", err)
+		return false
+	}
 	var expectedLastAccount uint32
 	expectedLastAccount = 1
 	if !tc.create {

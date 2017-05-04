@@ -150,7 +150,6 @@ func deserializeSStxRecord(serializedSStxRecord []byte, dbVersion uint32) (*sstx
 		// Read received unix time (int64).
 		received := int64(binary.LittleEndian.Uint64(
 			serializedSStxRecord[curPos : curPos+int64Size]))
-		curPos += int64Size
 		record.ts = time.Unix(received, 0)
 
 		return record, nil
@@ -281,7 +280,6 @@ func serializeSStxRecord(record *sstxRecord, dbVersion uint32) ([]byte, error) {
 
 		// Write received unix time (int64).
 		binary.LittleEndian.PutUint64(buf[curPos:curPos+int64Size], uint64(record.ts.Unix()))
-		curPos += int64Size
 
 		return buf, nil
 
@@ -341,7 +339,6 @@ func deserializeSSGenRecord(serializedSSGenRecord []byte) (*ssgenRecord, error) 
 		int64(binary.LittleEndian.Uint64(
 			serializedSSGenRecord[curPos:curPos+int64Size])),
 		0)
-	curPos += int64Size
 
 	return record, nil
 }
@@ -402,7 +399,6 @@ func serializeSSGenRecord(record *ssgenRecord) []byte {
 
 	// Write the timestamp.
 	binary.LittleEndian.PutUint64(buf[curPos:curPos+int64Size], uint64(record.ts.Unix()))
-	curPos += int64Size
 
 	return buf
 }
@@ -459,7 +455,6 @@ func deserializeSSRtxRecord(serializedSSRtxRecord []byte) (*ssrtxRecord,
 		int64(binary.LittleEndian.Uint64(
 			serializedSSRtxRecord[curPos:curPos+int64Size])),
 		0)
-	curPos += int64Size
 
 	return record, nil
 }
@@ -518,7 +513,6 @@ func serializeSSRtxRecord(record *ssrtxRecord) []byte {
 
 	// Write the timestamp.
 	binary.LittleEndian.PutUint64(buf[curPos:curPos+int64Size], uint64(record.ts.Unix()))
-	curPos += int64Size
 
 	return buf
 }
@@ -761,7 +755,6 @@ func deserializeUserTicket(serializedTicket []byte) (*PoolTicket, error) {
 
 	// Insert the spending hash into the record.
 	copy(record.SpentBy[:], serializedTicket[curPos:curPos+hashSize])
-	curPos += hashSize
 
 	return record, nil
 }
@@ -823,7 +816,6 @@ func serializeUserTicket(record *PoolTicket) []byte {
 
 	// Write the spending tx hash.
 	copy(buf[curPos:curPos+hashSize], record.SpentBy[:])
-	curPos += hashSize
 
 	return buf
 }
@@ -1169,10 +1161,9 @@ func initializeEmpty(ns walletdb.ReadWriteBucket) error {
 		return stakeStoreError(apperrors.ErrDatabase, str, err)
 	}
 
-	var createDate uint64
 	createBytes := mainBucket.Get(stakeStoreCreateDateName)
 	if createBytes == nil {
-		createDate = uint64(time.Now().Unix())
+		createDate := uint64(time.Now().Unix())
 		var buf [8]byte
 		binary.LittleEndian.PutUint64(buf[:], createDate)
 		err := mainBucket.Put(stakeStoreCreateDateName, buf[:])
@@ -1180,13 +1171,6 @@ func initializeEmpty(ns walletdb.ReadWriteBucket) error {
 			str := "failed to store database creation time"
 			return stakeStoreError(apperrors.ErrDatabase, str, err)
 		}
-	} else {
-		createDate = binary.LittleEndian.Uint64(createBytes)
-	}
-
-	if err != nil {
-		str := "failed to load database"
-		return stakeStoreError(apperrors.ErrDatabase, str, err)
 	}
 
 	return nil
