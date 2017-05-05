@@ -2219,6 +2219,9 @@ func stakePoolUserInfo(icmd interface{}, w *wallet.Wallet) (interface{}, error) 
 			status = "voted"
 		case udb.TSMissed:
 			status = "missed"
+			if ticket.HeightSpent-ticket.HeightTicket >= w.ChainParams().TicketExpiry {
+				status = "expired"
+			}
 		}
 		ticketRes.Status = status
 
