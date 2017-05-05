@@ -26,7 +26,6 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/loader"
-	"github.com/decred/dcrwallet/wallet"
 )
 
 type websocketClient struct {
@@ -61,7 +60,6 @@ func (c *websocketClient) send(b []byte) error {
 // config, shutdown, etc.)
 type Server struct {
 	httpServer    http.Server
-	wallet        *wallet.Wallet
 	walletLoader  *loader.Loader
 	chainClient   *chain.RPCClient
 	handlerLookup func(string) (requestHandler, bool)
@@ -203,14 +201,6 @@ func (s *Server) serve(lis net.Listener) {
 	}()
 }
 
-// RegisterWallet associates the legacy RPC server with the wallet.  This
-// function must be called before any wallet RPCs can be called by clients.
-func (s *Server) RegisterWallet(w *wallet.Wallet) {
-	s.handlerMu.Lock()
-	s.wallet = w
-	s.handlerMu.Unlock()
-}
-
 // Stop gracefully shuts down the rpc server by stopping and disconnecting all
 // clients, disconnecting the chain server connection, and closing the wallet's
 // account files.  This blocks until shutdown completes.
@@ -224,13 +214,13 @@ func (s *Server) Stop() {
 	}
 
 	// Stop the connected wallet and chain server, if any.
-	s.handlerMu.Lock()
-	wallet := s.wallet
-	chainClient := s.chainClient
-	s.handlerMu.Unlock()
-	if wallet != nil {
+	wallet, ok := s.walletLoader.LoadedWallet()
+	if ok {
 		wallet.Stop()
 	}
+	s.handlerMu.Lock()
+	chainClient := s.chainClient
+	s.handlerMu.Unlock()
 	if chainClient != nil {
 		chainClient.Stop()
 	}
@@ -281,9 +271,8 @@ func (s *Server) SetChainServer(chainClient *chain.RPCClient) {
 func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) lazyHandler {
 	log.Infof("RPC method %v invoked by client %v", request.Method, remoteAddr(ctx))
 
+	wallet, _ := s.walletLoader.LoadedWallet()
 	s.handlerMu.Lock()
-	// With the lock held, make copies of these pointers for the closure.
-	wallet := s.wallet
 	chainClient := s.chainClient
 	if wallet != nil && chainClient == nil {
 		chainClient = wallet.ChainClient()

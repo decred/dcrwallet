@@ -23,6 +23,7 @@ import (
 	"github.com/decred/dcrwallet/internal/zero"
 	ldr "github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
+	"github.com/decred/dcrwallet/rpc/rpcserver"
 	"github.com/decred/dcrwallet/wallet"
 )
 
@@ -158,9 +159,14 @@ func walletMain() error {
 		go rpcClientConnectLoop(passphrase, legacyRPCServer, loader)
 	}
 
-	loader.RunAfterLoad(func(w *wallet.Wallet) {
-		startWalletRPCServices(w, rpcs, legacyRPCServer)
-	})
+	// Start wallet and voting gRPC services after a wallet is loaded if the
+	// gRPC server was created.
+	if rpcs != nil {
+		loader.RunAfterLoad(func(w *wallet.Wallet) {
+			rpcserver.StartWalletService(rpcs, w)
+			rpcserver.StartVotingService(rpcs, w)
+		})
+	}
 
 	if cfg.PipeRx != nil {
 		go serviceControlPipeRx(uintptr(*cfg.PipeRx))
