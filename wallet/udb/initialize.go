@@ -107,15 +107,15 @@ func InitializeWatchOnly(db walletdb.DB, params *chaincfg.Params, hdPubKey strin
 		if err != nil {
 			return createBucketError(err, "metadata")
 		}
-		return unifiedDBMetadata{}.putVersion(metadataBucket, DBVersion)
+		return unifiedDBMetadata{}.putVersion(metadataBucket, initialVersion)
 	})
 	switch err.(type) {
 	case nil:
-		return nil
 	case apperrors.E:
 		return err
 	default:
 		const str = "db update failed"
 		return apperrors.E{ErrorCode: apperrors.ErrDatabase, Description: str, Err: err}
 	}
+	return Upgrade(db, pubPass)
 }
