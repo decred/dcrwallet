@@ -62,6 +62,9 @@ func createWallet(cfg *config) error {
 	reader := bufio.NewReader(os.Stdin)
 	privPass, pubPass, seed, err := prompt.Setup(reader,
 		[]byte(wallet.InsecurePubPassphrase), []byte(cfg.WalletPass))
+	if err != nil {
+		return err
+	}
 
 	fmt.Println("Creating the wallet...")
 	_, err = loader.CreateNewWallet(pubPass, privPass, seed)

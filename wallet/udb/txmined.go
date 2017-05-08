@@ -674,6 +674,9 @@ func stakeValidate(ns walletdb.ReadWriteBucket, height int32) error {
 		for i := range txRec.MsgTx.TxIn {
 			debKey, credKey, err := existsInvalidatedDebit(ns, &txRec.Hash, uint32(i),
 				&blockRec.Block)
+			if err != nil {
+				return err
+			}
 			if debKey == nil {
 				continue
 			}
@@ -806,6 +809,9 @@ func stakeInvalidate(ns walletdb.ReadWriteBucket, height int32) error {
 		for i := range txRec.MsgTx.TxIn {
 			debKey, credKey, err := existsDebit(ns, &txRec.Hash, uint32(i),
 				&blockRec.Block)
+			if err != nil {
+				return err
+			}
 			if debKey == nil {
 				continue
 			}

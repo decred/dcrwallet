@@ -576,7 +576,6 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	// Insert a multi-signature output, then insert this P2SH
 	// hash160 into the address manager and the transaction
 	// manager.
-	totalOutput := dcrutil.Amount(0)
 	msScript, err := txscript.MultiSigScript(pubkeys, int(nRequired))
 	if err != nil {
 		return txToMultisigError(err)
@@ -602,7 +601,6 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	}
 	txout := wire.NewTxOut(int64(amount), p2shScript)
 	msgtx.AddTxOut(txout)
-	totalOutput += amount
 
 	// Add change if we need it. The case in which
 	// totalInput == amount+feeEst is skipped because

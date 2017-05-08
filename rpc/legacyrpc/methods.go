@@ -2045,6 +2045,9 @@ func redeemMultiSigOut(icmd interface{}, w *wallet.Wallet, chainClient *chain.RP
 	var err error
 	if cmd.Address != nil {
 		addr, err = decodeAddress(*cmd.Address, w.ChainParams())
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		account := uint32(udb.DefaultAccountNum)
 		addr, err = w.NewInternalAddress(account)
