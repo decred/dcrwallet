@@ -54,6 +54,11 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 					return w.watchFutureAddresses(tx)
 				})
 			}
+		case chain.MissedTickets:
+			notificationName = "spentandmissedtickets"
+			err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+				return w.handleMissedTickets(dbtx, n.BlockHash, n.BlockHeight, n.Tickets)
+			})
 		}
 		if err != nil {
 			log.Errorf("Failed to process consensus server notification "+
@@ -841,11 +846,6 @@ func (w *Wallet) handleChainVotingNotifications(chainClient *chain.RPCClient) {
 				return w.handleWinningTickets(dbtx, n.BlockHash, n.BlockHeight, n.Tickets)
 			})
 			strErrType = "WinningTickets"
-		case chain.MissedTickets:
-			err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-				return w.handleMissedTickets(dbtx, n.BlockHash, n.BlockHeight, n.Tickets)
-			})
-			strErrType = "MissedTickets"
 		default:
 			err = fmt.Errorf("voting handler received unknown ntfn type")
 		}

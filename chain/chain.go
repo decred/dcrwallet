@@ -293,13 +293,12 @@ func (c *RPCClient) onReorganization(oldHash *chainhash.Hash, oldHeight int32,
 
 // onWinningTickets handles winning tickets notifications data and passes it
 // downstream to the notifications queue.
-func (c *RPCClient) onWinningTickets(hash *chainhash.Hash, height int64,
-	tickets []*chainhash.Hash) {
+func (c *RPCClient) onWinningTickets(hash *chainhash.Hash, height int64, tickets []*chainhash.Hash) {
 	select {
 	case c.enqueueVotingNotification <- WinningTickets{
-		hash,
-		height,
-		tickets,
+		BlockHash:   hash,
+		BlockHeight: height,
+		Tickets:     tickets,
 	}:
 	case <-c.quit:
 	}
@@ -307,26 +306,26 @@ func (c *RPCClient) onWinningTickets(hash *chainhash.Hash, height int64,
 
 // onSpentAndMissedTickets handles missed tickets notifications data and passes
 // it downstream to the notifications queue.
-func (c *RPCClient) onSpentAndMissedTickets(hash *chainhash.Hash,
-	height int64,
-	stakeDiff int64,
-	tickets map[chainhash.Hash]bool) {
-
+func (c *RPCClient) onSpentAndMissedTickets(blockHash *chainhash.Hash, height int64, sdiff int64, tickets map[chainhash.Hash]bool) {
 	var missedTickets []*chainhash.Hash
 
-	// Copy the missing ticket hashes to a slice.
-	for ticket, isSpent := range tickets {
-		newTicket := ticket
-		if !isSpent { // if missed
-			missedTickets = append(missedTickets, &newTicket)
+	// Copy the missed ticket hashes to a slice.
+	for ticketHash, spent := range tickets {
+		if !spent {
+			ticketHash := ticketHash
+			missedTickets = append(missedTickets, &ticketHash)
 		}
 	}
 
+	if len(missedTickets) == 0 {
+		return
+	}
+
 	select {
-	case c.enqueueVotingNotification <- MissedTickets{
-		hash,
-		height,
-		missedTickets,
+	case c.enqueueNotification <- MissedTickets{
+		BlockHash:   blockHash,
+		BlockHeight: height,
+		Tickets:     missedTickets,
 	}:
 	case <-c.quit:
 	}
