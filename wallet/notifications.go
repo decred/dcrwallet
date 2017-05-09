@@ -38,7 +38,6 @@ type NotificationServer struct {
 	// Coalesce transaction notifications since wallet previously did not add
 	// mined txs together.  Now it does and this can be rewritten.
 	currentTxNtfn     *TransactionNotifications
-	spentness         map[uint32][]chan *SpentnessNotifications
 	accountClients    []chan *AccountNotification
 	tipChangedClients []chan *MainTipChangedNotification
 	mu                sync.Mutex // Only protects registered client channels
@@ -47,8 +46,7 @@ type NotificationServer struct {
 
 func newNotificationServer(wallet *Wallet) *NotificationServer {
 	return &NotificationServer{
-		spentness: make(map[uint32][]chan *SpentnessNotifications),
-		wallet:    wallet,
+		wallet: wallet,
 	}
 }
 
@@ -479,121 +477,6 @@ func (c *TransactionNotificationsClient) Done() {
 			if c.C == ch {
 				clients[i] = clients[len(clients)-1]
 				s.transactions = clients[:len(clients)-1]
-				close(ch)
-				break
-			}
-		}
-		s.mu.Unlock()
-	}()
-}
-
-// SpentnessNotifications is a notification that is fired for transaction
-// outputs controlled by some account's keys.  The notification may be about a
-// newly added unspent transaction output or that a previously unspent output is
-// now spent.  When spent, the notification includes the spending transaction's
-// hash and input index.
-type SpentnessNotifications struct {
-	hash         *chainhash.Hash
-	spenderHash  *chainhash.Hash
-	index        uint32
-	spenderIndex uint32
-}
-
-// Hash returns the transaction hash of the spent output.
-func (n *SpentnessNotifications) Hash() *chainhash.Hash {
-	return n.hash
-}
-
-// Index returns the transaction output index of the spent output.
-func (n *SpentnessNotifications) Index() uint32 {
-	return n.index
-}
-
-// Spender returns the spending transction's hash and input index, if any.  If
-// the output is unspent, the final bool return is false.
-func (n *SpentnessNotifications) Spender() (*chainhash.Hash, uint32, bool) {
-	return n.spenderHash, n.spenderIndex, n.spenderHash != nil
-}
-
-// notifyUnspentOutput notifies registered clients of a new unspent output that
-// is controlled by the wallet.
-func (s *NotificationServer) notifyUnspentOutput(account uint32, hash *chainhash.Hash, index uint32) {
-	defer s.mu.Unlock()
-	s.mu.Lock()
-	clients := s.spentness[account]
-	if len(clients) == 0 {
-		return
-	}
-	n := &SpentnessNotifications{
-		hash:  hash,
-		index: index,
-	}
-	for _, c := range clients {
-		c <- n
-	}
-}
-
-// notifySpentOutput notifies registered clients that a previously-unspent
-// output is now spent, and includes the spender hash and input index in the
-// notification.
-func (s *NotificationServer) notifySpentOutput(account uint32, op *wire.OutPoint, spenderHash *chainhash.Hash, spenderIndex uint32) {
-	defer s.mu.Unlock()
-	s.mu.Lock()
-	clients := s.spentness[account]
-	if len(clients) == 0 {
-		return
-	}
-	n := &SpentnessNotifications{
-		hash:         &op.Hash,
-		index:        op.Index,
-		spenderHash:  spenderHash,
-		spenderIndex: spenderIndex,
-	}
-	for _, c := range clients {
-		c <- n
-	}
-}
-
-// SpentnessNotificationsClient receives SpentnessNotifications from the
-// NotificationServer over the channel C.
-type SpentnessNotificationsClient struct {
-	C       <-chan *SpentnessNotifications
-	account uint32
-	server  *NotificationServer
-}
-
-// AccountSpentnessNotifications registers a client for spentness changes of
-// outputs controlled by the account.
-func (s *NotificationServer) AccountSpentnessNotifications(account uint32) SpentnessNotificationsClient {
-	c := make(chan *SpentnessNotifications)
-	s.mu.Lock()
-	s.spentness[account] = append(s.spentness[account], c)
-	s.mu.Unlock()
-	return SpentnessNotificationsClient{
-		C:       c,
-		account: account,
-		server:  s,
-	}
-}
-
-// Done deregisters the client from the server and drains any remaining
-// messages.  It must be called exactly once when the client is finished
-// receiving notifications.
-func (c *SpentnessNotificationsClient) Done() {
-	go func() {
-		// Drain notifications until the client channel is removed from
-		// the server and closed.
-		for range c.C {
-		}
-	}()
-	go func() {
-		s := c.server
-		s.mu.Lock()
-		clients := s.spentness[c.account]
-		for i, ch := range clients {
-			if c.C == ch {
-				clients[i] = clients[len(clients)-1]
-				s.spentness[c.account] = clients[:len(clients)-1]
 				close(ch)
 				break
 			}

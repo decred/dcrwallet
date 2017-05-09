@@ -378,7 +378,6 @@ The service provides the following methods:
 - [`StakeInfo`](#stakeinfo)
 - [`PurchaseTickets`](#purchasetickets)
 - [`TransactionNotifications`](#transactionnotifications)
-- [`SpentnessNotifications`](#spentnessnotifications)
 - [`AccountNotifications`](#accountnotifications)
 
 #### `Ping`
@@ -1260,52 +1259,6 @@ regarding changes to the blockchain and transactions relevant to the wallet.
 - `Aborted`: The wallet database is closed.
 
 **Stability:** Unstable: This method could use a better name.
-
-___
-
-#### `SpentnessNotifications`
-
-The `SpentnessNotifications` method returns a stream of notifications regarding
-the spending of unspent outputs and/or the discovery of new unspent outputs for
-an account.
-
-**Request:** `SpentnessNotificationsRequest`
-
-- `uint32 account`: The account to create notifications for.
-
-- `bool no_notify_unspent`: If true, do not send any notifications for
-  newly-discovered unspent outputs controlled by the account.
-
-- `bool no_notify_spent`: If true, do not send any notifications for newly-spent
-  transactions controlled by the account.
-
-**Response:** `stream SpentnessNotificationsResponse`
-
-- `bytes transaction_hash`: The hash of the serialized transaction containing
-  the output being reported.
-
-- `uint32 output_index`: The output index of the output being reported.
-
-- `Spender spender`: If null, the output is a newly-discovered unspent output.
-  If not null, the message records the transaction input that spends the
-  previously-unspent output.
-
-  **Nested message:** `Spender`
-
-  - `bytes transaction_hash`: The hash of the serialized transaction that spends
-    the reported output.
-
-  - `uint32 input_index`: The index of the input that spends the reported
-    output.
-
-**Expected errors:**
-
-- `InvalidArgument`: The `no_notify_unspent` and `no_notify_spent` request
-  fields are both true.
-
-- `Aborted`: The wallet database is closed.
-
-**Stability:** Unstable
 
 ___
 

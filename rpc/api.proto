@@ -29,7 +29,6 @@ service WalletService {
 
 	// Notifications
 	rpc TransactionNotifications (TransactionNotificationsRequest) returns (stream TransactionNotificationsResponse);
-	rpc SpentnessNotifications (SpentnessNotificationsRequest) returns (stream SpentnessNotificationsResponse);
 	rpc AccountNotifications (AccountNotificationsRequest) returns (stream AccountNotificationsResponse);
 
 	// Control
@@ -402,22 +401,6 @@ message TransactionNotificationsResponse {
 	// Instead of notifying all of the removed unmined transactions,
 	// just send all of the current hashes.
 	repeated bytes unmined_transaction_hashes = 4;
-}
-
-message SpentnessNotificationsRequest {
-	uint32 account = 1;
-	bool no_notify_unspent = 2;
-	bool no_notify_spent = 3;
-}
-
-message SpentnessNotificationsResponse {
-	bytes transaction_hash = 1;
-	uint32 output_index = 2;
-	message Spender {
-		bytes transaction_hash = 1;
-		uint32 input_index = 2;
-	}
-	Spender spender = 3;
 }
 
 message AccountNotificationsRequest {}

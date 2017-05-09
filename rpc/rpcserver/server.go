@@ -1101,47 +1101,6 @@ func (s *walletServer) TransactionNotifications(req *pb.TransactionNotifications
 	}
 }
 
-func (s *walletServer) SpentnessNotifications(req *pb.SpentnessNotificationsRequest,
-	svr pb.WalletService_SpentnessNotificationsServer) error {
-
-	if req.NoNotifyUnspent && req.NoNotifySpent {
-		return grpc.Errorf(codes.InvalidArgument,
-			"no_notify_unspent and no_notify_spent may not both be true")
-	}
-
-	n := s.wallet.NtfnServer.AccountSpentnessNotifications(req.Account)
-	defer n.Done()
-
-	ctxDone := svr.Context().Done()
-	for {
-		select {
-		case v := <-n.C:
-			spenderHash, spenderIndex, spent := v.Spender()
-			if (spent && req.NoNotifySpent) || (!spent && req.NoNotifyUnspent) {
-				continue
-			}
-			index := v.Index()
-			resp := pb.SpentnessNotificationsResponse{
-				TransactionHash: v.Hash()[:],
-				OutputIndex:     index,
-			}
-			if spent {
-				resp.Spender = &pb.SpentnessNotificationsResponse_Spender{
-					TransactionHash: spenderHash[:],
-					InputIndex:      spenderIndex,
-				}
-			}
-			err := svr.Send(&resp)
-			if err != nil {
-				return translateError(err)
-			}
-
-		case <-ctxDone:
-			return nil
-		}
-	}
-}
-
 func (s *walletServer) AccountNotifications(req *pb.AccountNotificationsRequest,
 	svr pb.WalletService_AccountNotificationsServer) error {
 
