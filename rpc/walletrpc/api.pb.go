@@ -2448,26 +2448,26 @@ func (*TicketBuyerConfigRequest) ProtoMessage()               {}
 func (*TicketBuyerConfigRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{77} }
 
 type TicketBuyerConfigResponse struct {
-	Account                 uint32  `protobuf:"varint,1,opt,name=account" json:"account,omitempty"`
-	AvgPriceMode            string  `protobuf:"bytes,2,opt,name=avg_price_mode,json=avgPriceMode" json:"avg_price_mode,omitempty"`
-	AvgPriceVWAPDelta       int64   `protobuf:"varint,3,opt,name=avg_priceVWAP_delta,json=avgPriceVWAPDelta" json:"avg_priceVWAP_delta,omitempty"`
-	BalanceToMaintain       int64   `protobuf:"varint,4,opt,name=balance_to_maintain,json=balanceToMaintain" json:"balance_to_maintain,omitempty"`
-	BlocksToAvg             int64   `protobuf:"varint,5,opt,name=blocks_to_avg,json=blocksToAvg" json:"blocks_to_avg,omitempty"`
-	DontWaitForTickets      bool    `protobuf:"varint,6,opt,name=dont_wait_for_tickets,json=dontWaitForTickets" json:"dont_wait_for_tickets,omitempty"`
-	ExpiryDelta             int64   `protobuf:"varint,7,opt,name=expiry_delta,json=expiryDelta" json:"expiry_delta,omitempty"`
-	FeeSource               string  `protobuf:"bytes,8,opt,name=fee_source,json=feeSource" json:"fee_source,omitempty"`
-	FeeTargetScaling        float64 `protobuf:"fixed64,9,opt,name=fee_target_scaling,json=feeTargetScaling" json:"fee_target_scaling,omitempty"`
-	MinFee                  int64   `protobuf:"varint,10,opt,name=min_fee,json=minFee" json:"min_fee,omitempty"`
-	MaxFee                  int64   `protobuf:"varint,12,opt,name=max_fee,json=maxFee" json:"max_fee,omitempty"`
-	MaxPerBlock             int64   `protobuf:"varint,13,opt,name=max_per_block,json=maxPerBlock" json:"max_per_block,omitempty"`
-	MaxPriceAbsolute        int64   `protobuf:"varint,14,opt,name=max_price_absolute,json=maxPriceAbsolute" json:"max_price_absolute,omitempty"`
-	MaxPriceRelative        float64 `protobuf:"fixed64,15,opt,name=max_price_relative,json=maxPriceRelative" json:"max_price_relative,omitempty"`
-	MaxInMempool            int64   `protobuf:"varint,17,opt,name=max_in_mempool,json=maxInMempool" json:"max_in_mempool,omitempty"`
-	NoSpreadTicketPurchases bool    `protobuf:"varint,20,opt,name=spread_ticket_purchases,json=noSpreadTicketPurchases" json:"no_spread_ticket_purchases,omitempty"`
-	PoolAddress             string  `protobuf:"bytes,18,opt,name=pool_address,json=poolAddress" json:"pool_address,omitempty"`
-	PoolFees                float64 `protobuf:"fixed64,19,opt,name=pool_fees,json=poolFees" json:"pool_fees,omitempty"`
-	VotingAddress           string  `protobuf:"bytes,21,opt,name=voting_address,json=votingAddress" json:"voting_address,omitempty"`
-	TxFee                   int64   `protobuf:"varint,22,opt,name=tx_fee,json=txFee" json:"tx_fee,omitempty"`
+	Account               uint32  `protobuf:"varint,1,opt,name=account" json:"account,omitempty"`
+	AvgPriceMode          string  `protobuf:"bytes,2,opt,name=avg_price_mode,json=avgPriceMode" json:"avg_price_mode,omitempty"`
+	AvgPriceVWAPDelta     int64   `protobuf:"varint,3,opt,name=avg_priceVWAP_delta,json=avgPriceVWAPDelta" json:"avg_priceVWAP_delta,omitempty"`
+	BalanceToMaintain     int64   `protobuf:"varint,4,opt,name=balance_to_maintain,json=balanceToMaintain" json:"balance_to_maintain,omitempty"`
+	BlocksToAvg           int64   `protobuf:"varint,5,opt,name=blocks_to_avg,json=blocksToAvg" json:"blocks_to_avg,omitempty"`
+	DontWaitForTickets    bool    `protobuf:"varint,6,opt,name=dont_wait_for_tickets,json=dontWaitForTickets" json:"dont_wait_for_tickets,omitempty"`
+	ExpiryDelta           int64   `protobuf:"varint,7,opt,name=expiry_delta,json=expiryDelta" json:"expiry_delta,omitempty"`
+	FeeSource             string  `protobuf:"bytes,8,opt,name=fee_source,json=feeSource" json:"fee_source,omitempty"`
+	FeeTargetScaling      float64 `protobuf:"fixed64,9,opt,name=fee_target_scaling,json=feeTargetScaling" json:"fee_target_scaling,omitempty"`
+	MinFee                int64   `protobuf:"varint,10,opt,name=min_fee,json=minFee" json:"min_fee,omitempty"`
+	MaxFee                int64   `protobuf:"varint,12,opt,name=max_fee,json=maxFee" json:"max_fee,omitempty"`
+	MaxPerBlock           int64   `protobuf:"varint,13,opt,name=max_per_block,json=maxPerBlock" json:"max_per_block,omitempty"`
+	MaxPriceAbsolute      int64   `protobuf:"varint,14,opt,name=max_price_absolute,json=maxPriceAbsolute" json:"max_price_absolute,omitempty"`
+	MaxPriceRelative      float64 `protobuf:"fixed64,15,opt,name=max_price_relative,json=maxPriceRelative" json:"max_price_relative,omitempty"`
+	MaxInMempool          int64   `protobuf:"varint,17,opt,name=max_in_mempool,json=maxInMempool" json:"max_in_mempool,omitempty"`
+	PoolAddress           string  `protobuf:"bytes,18,opt,name=pool_address,json=poolAddress" json:"pool_address,omitempty"`
+	PoolFees              float64 `protobuf:"fixed64,19,opt,name=pool_fees,json=poolFees" json:"pool_fees,omitempty"`
+	SpreadTicketPurchases bool    `protobuf:"varint,20,opt,name=spread_ticket_purchases,json=spreadTicketPurchases" json:"spread_ticket_purchases,omitempty"`
+	VotingAddress         string  `protobuf:"bytes,21,opt,name=voting_address,json=votingAddress" json:"voting_address,omitempty"`
+	TxFee                 int64   `protobuf:"varint,22,opt,name=tx_fee,json=txFee" json:"tx_fee,omitempty"`
 }
 
 func (m *TicketBuyerConfigResponse) Reset()                    { *m = TicketBuyerConfigResponse{} }
@@ -2594,9 +2594,9 @@ func (m *TicketBuyerConfigResponse) GetPoolFees() float64 {
 	return 0
 }
 
-func (m *TicketBuyerConfigResponse) GetNoSpreadTicketPurchases() bool {
+func (m *TicketBuyerConfigResponse) GetSpreadTicketPurchases() bool {
 	if m != nil {
-		return m.NoSpreadTicketPurchases
+		return m.SpreadTicketPurchases
 	}
 	return false
 }
@@ -5247,7 +5247,7 @@ func init() { proto.RegisterFile("api.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
 	// 5023 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xa4, 0x7c, 0xdd, 0x6f, 0x1c, 0x47,
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x7c, 0xdd, 0x6f, 0x1c, 0x47,
 	0x72, 0xb8, 0x87, 0xcb, 0x8f, 0x65, 0x91, 0xbb, 0x5c, 0xf6, 0xf2, 0x63, 0x35, 0x12, 0xf5, 0x31,
 	0xb2, 0x2c, 0xdd, 0x9d, 0xcd, 0x93, 0x79, 0xbe, 0xb3, 0x7f, 0x3f, 0x3b, 0xb6, 0x29, 0x8a, 0xb2,
 	0x79, 0x92, 0x28, 0x66, 0x96, 0x92, 0x8d, 0x73, 0x90, 0xc1, 0x70, 0xa7, 0x49, 0xce, 0x71, 0x77,

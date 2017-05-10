@@ -77,6 +77,9 @@ type Config struct {
 	PoolFees                  float64
 	TicketAddress             string
 	TxFee                     int64
+
+	// Deprecated options
+	SpreadTicketPurchases bool
 }
 
 // TicketPurchaser is the main handler for purchasing tickets. It decides

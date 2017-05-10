@@ -516,6 +516,14 @@ func loadConfig() (*config, []string, error) {
 		}
 	}
 
+	if cfg.TBOpts.SpreadTicketPurchases {
+		str := "ticketbuyer.spreadticketpurchases option has been replaced by " +
+			"ticketbuyer.nospreadticketpurchases -- please update your config"
+		err := fmt.Errorf(str)
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+
 	// Make sure the fee source type given is valid.
 	switch cfg.TBOpts.FeeSource {
 	case ticketbuyer.TicketFeeMean:
@@ -918,6 +926,9 @@ func loadConfig() (*config, []string, error) {
 		PoolFees:                  cfg.PoolFees,
 		TicketAddress:             cfg.TicketAddress,
 		TxFee:                     int64(cfg.RelayFee.Amount),
+
+		// Deprecated options
+		SpreadTicketPurchases: cfg.TBOpts.SpreadTicketPurchases,
 	}
 
 	// Make list of old versions of testnet directories.
