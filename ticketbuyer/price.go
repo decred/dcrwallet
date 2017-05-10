@@ -69,11 +69,11 @@ func (t *TicketPurchaser) calcAverageTicketPrice(height int64) (dcrutil.Amount, 
 		if err != nil {
 			return 0, err
 		}
-		bestBlock, err := t.dcrdChainSvr.GetBlock(bestBlockH)
+		blkHeader, err := t.dcrdChainSvr.GetBlockHeader(bestBlockH)
 		if err != nil {
 			return 0, err
 		}
-		poolSize := bestBlock.MsgBlock().Header.PoolSize
+		poolSize := blkHeader.PoolSize
 
 		// Do not allow zero pool sizes to prevent a possible
 		// panic below.

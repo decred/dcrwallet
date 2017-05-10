@@ -14,15 +14,6 @@ var helpDescsEnUS = map[string]string{
 	"accountaddressindex-branch":    "Number for the branch (0=external, 1=internal)",
 	"accountaddressindex--result0":  "The address index for this account branch",
 
-	// AccountAddressIndexCmd help.
-	"accountfetchaddresses--synopsis": "Get the current address index for some account branch",
-	"accountfetchaddresses-account":   "String for the account",
-	"accountfetchaddresses-branch":    "Number for the branch (0=external, 1=internal)",
-	"accountfetchaddresses-start":     "The start address index to fetch, inclusive",
-	"accountfetchaddresses-end":       "The end address index to fetch, excluse",
-
-	"accountfetchaddressesresult-addresses": "The list of requested addresses for this account branch",
-
 	// AccountSyncAddressIndexCmd help.
 	"accountsyncaddressindex--synopsis": "Synchronize an account branch to some passed address index",
 	"accountsyncaddressindex-account":   "String for the account",
@@ -126,10 +117,6 @@ var helpDescsEnUS = map[string]string{
 	"getmultisigoutinforesult-redeemscript": "Hex of the redeeming script.",
 	"getmultisigoutinforesult-address":      "Script address.",
 
-	// GetSeed help.
-	"getseed--synopsis": "Returns the seed needed to recreate the wallet.",
-	"getseed--result0":  "The seed cooresponding to the wallet.",
-
 	// GetStakeInfo help.
 	"getstakeinfo--synopsis": "Returns statistics about staking from the wallet.",
 
@@ -144,7 +131,7 @@ var helpDescsEnUS = map[string]string{
 	"getstakeinforesult-proportionlive":   "(Live / PoolSize)",
 	"getstakeinforesult-voted":            "Number of votes cast by this wallet",
 	"getstakeinforesult-totalsubsidy":     "Total amount of coins earned by stake mining",
-	"getstakeinforesult-missed":           "Number of missed tickets (failing to vote or expired)",
+	"getstakeinforesult-missed":           "Number of missed tickets (failure to vote, not including expired)",
 	"getstakeinforesult-proportionmissed": "(Missed / (Missed + Voted))",
 	"getstakeinforesult-revoked":          "Number of missed tickets that were missed and then revoked",
 	"getstakeinforesult-expired":          "Number of tickets that have expired",

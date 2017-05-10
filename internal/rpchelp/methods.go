@@ -25,7 +25,6 @@ var Methods = []struct {
 	ResultTypes []interface{}
 }{
 	{"accountaddressindex", []interface{}{(*int)(nil)}},
-	{"accountfetchaddresses", []interface{}{(*dcrjson.AccountFetchAddressesResult)(nil)}},
 	{"accountsyncaddressindex", nil},
 	{"addmultisigaddress", returnsString},
 	{"consolidate", returnsString},
@@ -40,7 +39,6 @@ var Methods = []struct {
 	{"getinfo", []interface{}{(*dcrjson.InfoWalletResult)(nil)}},
 	{"getmasterpubkey", []interface{}{(*string)(nil)}},
 	{"getmultisigoutinfo", []interface{}{(*dcrjson.GetMultisigOutInfoResult)(nil)}},
-	{"getseed", []interface{}{(*string)(nil)}},
 	{"getnewaddress", returnsString},
 	{"getrawchangeaddress", returnsString},
 	{"getreceivedbyaccount", returnsNumber},

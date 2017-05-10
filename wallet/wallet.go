@@ -308,11 +308,11 @@ func (w *Wallet) VotingEnabled() bool {
 func voteVersion(params *chaincfg.Params) uint32 {
 	switch params.Net {
 	case wire.MainNet:
-		return 3
+		return 4
 	case wire.TestNet2:
-		return 4
+		return 5
 	case wire.SimNet:
-		return 4
+		return 5
 	default:
 		return 1
 	}
@@ -377,10 +377,10 @@ type AgendaChoice struct {
 
 // AgendaChoices returns the choice IDs for every agenda of the supported stake
 // version.  Abstains are included.
-func (w *Wallet) AgendaChoices() (choices []AgendaChoice, err error) {
+func (w *Wallet) AgendaChoices() (choices []AgendaChoice, voteBits uint16, err error) {
 	version, deployments := CurrentAgendas(w.chainParams)
 	if len(deployments) == 0 {
-		return nil, nil
+		return nil, 0, nil
 	}
 	choices = make([]AgendaChoice, len(deployments))
 	for i := range choices {
@@ -388,6 +388,7 @@ func (w *Wallet) AgendaChoices() (choices []AgendaChoice, err error) {
 		choices[i].ChoiceID = "abstain"
 	}
 
+	voteBits = 1
 	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		for i := range deployments {
 			agenda := &deployments[i].Vote
@@ -396,19 +397,26 @@ func (w *Wallet) AgendaChoices() (choices []AgendaChoice, err error) {
 				continue
 			}
 			choices[i].ChoiceID = choice
+			for j := range agenda.Choices {
+				if agenda.Choices[j].Id == choice {
+					voteBits |= agenda.Choices[j].Bits
+					break
+				}
+			}
 		}
 		return nil
 	})
-	return choices, err
+	return choices, voteBits, err
 }
 
 // SetAgendaChoices sets the choices for agendas defined by the supported stake
-// version.  If a choice is set multiple times, the last takes preference.
-func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) error {
+// version.  If a choice is set multiple times, the last takes preference.  The
+// new votebits after each change is made are returned.
+func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) (voteBits uint16, err error) {
 	version, deployments := CurrentAgendas(w.chainParams)
 	if len(deployments) == 0 {
 		const str = "no agendas to set for this network"
-		return apperrors.E{ErrorCode: apperrors.ErrInput, Description: str, Err: nil}
+		return 0, apperrors.E{ErrorCode: apperrors.ErrInput, Description: str, Err: nil}
 	}
 
 	type maskChoice struct {
@@ -417,7 +425,7 @@ func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) error {
 	}
 	var appliedChoices []maskChoice
 
-	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 		for _, c := range choices {
 			var matchingAgenda *chaincfg.Vote
 			for i := range deployments {
@@ -455,7 +463,7 @@ func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) error {
 		return nil
 	})
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// With the DB update successful, modify the actual votebits cached by the
@@ -465,9 +473,10 @@ func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) error {
 		w.voteBits.Bits &^= c.mask // Clear all bits from this agenda
 		w.voteBits.Bits |= c.bits  // Set bits for this choice
 	}
+	voteBits = w.voteBits.Bits
 	w.stakeSettingsLock.Unlock()
 
-	return nil
+	return voteBits, nil
 }
 
 // SetTicketPurchasingEnabled is used to enable or disable ticket purchasing in the
@@ -734,29 +743,101 @@ func (w *Wallet) MainChainTip() (hash chainhash.Hash, height int32) {
 	return
 }
 
-// activeData returns the currently-active receiving addresses and all unspent
-// outputs.  This is primarely intended to provide the parameters for a
-// rescan request.
-func (w *Wallet) activeData(dbtx walletdb.ReadTx) ([]dcrutil.Address, []wire.OutPoint, error) {
+// loadActiveAddrs loads the consensus RPC server with active addresses for
+// transaction notifications.  For logging purposes, it returns the total number
+// of addresses loaded.
+func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *chain.RPCClient) (uint64, error) {
+	pool := sync.Pool{New: func() interface{} { return make([]dcrutil.Address, 0, 256) }}
+	recycleAddrs := func(addrs []dcrutil.Address) { pool.Put(addrs[:0]) }
+	getAddrs := func() []dcrutil.Address { return pool.Get().([]dcrutil.Address) }
+
+	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, n uint32, errs chan<- error) {
+		jobs := n/256 + 1
+		jobErrs := make(chan error, jobs)
+		for child := uint32(0); child < n; child += 256 {
+			go func(child uint32) {
+				addrs := getAddrs()
+				stop := minUint32(n, child+256)
+				for ; child < stop; child++ {
+					addr, err := deriveChildAddress(branchKey, child, w.chainParams)
+					if err == hdkeychain.ErrInvalidChild {
+						continue
+					}
+					if err != nil {
+						jobErrs <- err
+						return
+					}
+					addrs = append(addrs, addr)
+				}
+				future := chainClient.LoadTxFilterAsync(false, addrs, nil)
+				recycleAddrs(addrs)
+				jobErrs <- future.Receive()
+			}(child)
+		}
+		for i := 0; i < cap(jobErrs); i++ {
+			err := <-jobErrs
+			if err != nil {
+				errs <- err
+				return
+			}
+		}
+		errs <- nil
+	}
+
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-
-	var err error
-	var addrs []dcrutil.Address
-	err = w.Manager.ForEachActiveAddress(addrmgrNs, func(addr dcrutil.Address) error {
-		addrs = append(addrs, addr)
-		return nil
-	})
+	lastAcct, err := w.Manager.LastAccount(addrmgrNs)
 	if err != nil {
-		return nil, nil, err
+		return 0, err
+	}
+	errs := make(chan error, int(lastAcct+1)*2+1)
+	var bip0044AddrCount, importedAddrCount uint64
+	for acct := uint32(0); acct <= lastAcct; acct++ {
+		props, err := w.Manager.AccountProperties(addrmgrNs, acct)
+		if err != nil {
+			return 0, err
+		}
+		acctXpub, err := w.Manager.AccountExtendedPubKey(dbtx, acct)
+		if err != nil {
+			return 0, err
+		}
+		extKey, intKey, err := deriveBranches(acctXpub)
+		if err != nil {
+			return 0, err
+		}
+		gapLimit := uint32(w.gapLimit)
+		extn := minUint32(props.LastUsedExternalIndex+1+gapLimit, hdkeychain.HardenedKeyStart)
+		intn := minUint32(props.LastUsedInternalIndex+1+gapLimit, hdkeychain.HardenedKeyStart)
+		// pre-cache the pubkey results so concurrent access does not race.
+		extKey.ECPubKey()
+		intKey.ECPubKey()
+		go loadBranchAddrs(extKey, extn, errs)
+		go loadBranchAddrs(intKey, intn, errs)
+		bip0044AddrCount += uint64(extn) + uint64(intn)
+	}
+	go func() {
+		// Imported addresses are still sent as a single slice for now.  Could
+		// use the optimization above to avoid appends and reallocations.
+		var addrs []dcrutil.Address
+		err := w.Manager.ForEachAccountAddress(addrmgrNs, udb.ImportedAddrAccount,
+			func(a udb.ManagedAddress) error {
+				addrs = append(addrs, a.Address())
+				return nil
+			})
+		if err != nil {
+			errs <- err
+			return
+		}
+		importedAddrCount = uint64(len(addrs))
+		errs <- chainClient.LoadTxFilter(false, addrs, nil)
+	}()
+	for i := 0; i < cap(errs); i++ {
+		err := <-errs
+		if err != nil {
+			return 0, err
+		}
 	}
 
-	unspent, err := w.TxStore.UnspentOutpoints(txmgrNs)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return addrs, unspent, err
+	return bip0044AddrCount + importedAddrCount, nil
 }
 
 // LoadActiveDataFilters loads the consensus RPC server's websocket client
@@ -764,22 +845,31 @@ func (w *Wallet) activeData(dbtx walletdb.ReadTx) ([]dcrutil.Address, []wire.Out
 // wallet.
 func (w *Wallet) LoadActiveDataFilters(chainClient *chain.RPCClient) error {
 	log.Infof("Loading active addresses and unspent outputs...")
-	var (
-		addrs   []dcrutil.Address
-		unspent []wire.OutPoint
-	)
+
+	var addrCount, utxoCount uint64
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
-		addrs, unspent, err = w.activeData(dbtx)
+		addrCount, err = w.loadActiveAddrs(dbtx, chainClient)
+		if err != nil {
+			return err
+		}
+
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		unspent, err := w.TxStore.UnspentOutpoints(txmgrNs)
+		if err != nil {
+			return err
+		}
+		utxoCount = uint64(len(unspent))
+		err = chainClient.LoadTxFilter(false, nil, unspent)
 		return err
 	})
 	if err != nil {
 		return err
 	}
 
-	log.Infof("Registering for transaction notifications for %v address(es) "+
-		"and %v output(s)", len(addrs), len(unspent))
-	return chainClient.LoadTxFilter(true, addrs, unspent)
+	log.Infof("Registered for transaction notifications for %v address(es) "+
+		"and %v output(s)", addrCount, utxoCount)
+	return nil
 }
 
 // createHeaderData creates the header data to process from hex-encoded
@@ -1008,11 +1098,11 @@ func (w *Wallet) syncWithChain(chainClient *chain.RPCClient) error {
 	// startup.
 	// TODO A proper pass through for dcrrpcclient for these cmds.
 	if w.initiallyUnlocked {
-		_, err = w.chainClient.RawRequest("rebroadcastwinners", nil)
+		_, err = chainClient.RawRequest("rebroadcastwinners", nil)
 		if err != nil {
 			return err
 		}
-		_, err = w.chainClient.RawRequest("rebroadcastmissed", nil)
+		_, err = chainClient.RawRequest("rebroadcastmissed", nil)
 		if err != nil {
 			return err
 		}
@@ -1377,18 +1467,33 @@ out:
 	for {
 		select {
 		case req := <-w.unlockRequests:
+			hadTimeout := timeout != nil
+			var wasLocked bool
 			err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+				wasLocked = w.Manager.IsLocked()
 				addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 				return w.Manager.Unlock(addrmgrNs, req.passphrase)
 			})
 			if err != nil {
+				if !wasLocked {
+					log.Info("The wallet has been locked due to an incorrect passphrase.")
+				}
 				req.err <- err
 				continue
 			}
-			timeout = req.lockAfter
-			if timeout == nil {
-				log.Info("The wallet has been unlocked without a time limit")
+			// When the wallet was already unlocked without any timeout, do not
+			// set the timeout and instead wait until an explicit lock is
+			// performed.  Read the timeout in a new goroutine so that callers
+			// won't deadlock on the send.
+			if !wasLocked && !hadTimeout && req.lockAfter != nil {
+				go func() { <-req.lockAfter }()
 			} else {
+				timeout = req.lockAfter
+			}
+			switch {
+			case (wasLocked || hadTimeout) && timeout == nil:
+				log.Info("The wallet has been unlocked without a time limit")
+			case (wasLocked || !hadTimeout) && timeout != nil:
 				log.Info("The wallet has been temporarily unlocked")
 			}
 			req.err <- nil
@@ -1587,32 +1692,6 @@ func (w *Wallet) CurrentAddress(account uint32) (dcrutil.Address, error) {
 	return child.Address(w.chainParams)
 }
 
-// AccountBranchAddressRange returns all addresses in the left-open,
-// right-closed range (start, end] belonging to the BIP0044 account and address
-// branch.
-func (w *Wallet) AccountBranchAddressRange(start, end uint32, account uint32, branch uint32) ([]dcrutil.Address, error) {
-	defer w.addressBuffersMu.Unlock()
-	w.addressBuffersMu.Lock()
-
-	acctBufs, ok := w.addressBuffers[account]
-	if !ok {
-		const str = "account not found"
-		return nil, apperrors.E{ErrorCode: apperrors.ErrAccountNotFound, Description: str, Err: nil}
-	}
-
-	var buf *addressBuffer
-	switch branch {
-	case udb.ExternalBranch:
-		buf = &acctBufs.albExternal
-	case udb.InternalBranch:
-		buf = &acctBufs.albInternal
-	default:
-		const str = "unknown branch"
-		return nil, apperrors.E{ErrorCode: apperrors.ErrBranch, Description: str, Err: nil}
-	}
-	return deriveChildAddresses(buf.branchXpub, start+1, end-start+1, w.chainParams)
-}
-
 // PubKeyForAddress looks up the associated public key for a P2PKH address.
 func (w *Wallet) PubKeyForAddress(a dcrutil.Address) (chainec.PublicKey, error) {
 	var pubKey chainec.PublicKey
@@ -1795,7 +1874,6 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 
 		// Ensure that there is transaction history in the last 100 accounts.
-		// This is performed by inspecting the
 		var err error
 		lastAcct, err := w.Manager.LastAccount(addrmgrNs)
 		if err != nil {
@@ -1861,6 +1939,29 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 	}
 	w.addressBuffersMu.Unlock()
 
+	client := w.ChainClient()
+	if client != nil {
+		errs := make(chan error, 2)
+		for _, branchKey := range []*hdkeychain.ExtendedKey{extKey, intKey} {
+			branchKey := branchKey
+			go func() {
+				addrs, err := deriveChildAddresses(branchKey, 0,
+					uint32(w.gapLimit), w.chainParams)
+				if err != nil {
+					errs <- err
+					return
+				}
+				errs <- client.LoadTxFilter(false, addrs, nil)
+			}()
+		}
+		for i := 0; i < cap(errs); i++ {
+			err := <-errs
+			if err != nil {
+				return 0, err
+			}
+		}
+	}
+
 	w.NtfnServer.notifyAccountProperties(props)
 
 	return account, nil
@@ -1878,22 +1979,6 @@ func (w *Wallet) MasterPubKey(account uint32) (string, error) {
 		return err
 	})
 	return masterPubKey, err
-}
-
-// Seed returns the wallet seed if it is saved by the wallet.  The wallet must
-// be unlocked to access the seed, and seeds are not saved by default for
-// mainnet wallets.
-//
-// TODO: This should not be returning the seed as a string
-func (w *Wallet) Seed() (string, error) {
-	var seed string
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		var err error
-		seed, err = w.Manager.GetSeed(addrmgrNs)
-		return err
-	})
-	return seed, err
 }
 
 // CreditCategory describes the type of wallet transaction output.  The category
@@ -2827,6 +2912,15 @@ func hashInPointerSlice(h chainhash.Hash, list []*chainhash.Hash) bool {
 	return false
 }
 
+func firstError(errs ...error) error {
+	for _, e := range errs {
+		if e != nil {
+			return e
+		}
+	}
+	return nil
+}
+
 // StakeInfo collects and returns staking statistics for this wallet to the end
 // user. This includes:
 //
@@ -2847,230 +2941,244 @@ func hashInPointerSlice(h chainhash.Hash, list []*chainhash.Hash) bool {
 //
 // Getting this information is extremely costly as in involves a massive
 // number of chain server calls.
-func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
-	// Get a safe pointer for the chain client.
-	chainClient, err := w.requireChainClient()
-	if err != nil {
-		return nil, err
-	}
-
+func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, error) {
 	var resp *StakeInfoData
-	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		stakemgrNs := tx.ReadBucket(wstakemgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
-		// Check to ensure both the wallet and the blockchain are synced.
-		// Return a failure if the wallet is currently processing a new
-		// block and is not yet synced.
+		mempoolTicketsFuture := chainClient.GetRawMempoolAsync(dcrjson.GRMTickets)
+		missedTicketsFuture := chainClient.MissedTicketsAsync()
+
+		var (
+			poolSize                                         uint32
+			ticketHashPtrs, voteHashPtrs, revocationHashPtrs []*chainhash.Hash
+			liveTicketsFuture                                dcrrpcclient.FutureExistsLiveTicketsResult
+			expiredTicketsFuture                             dcrrpcclient.FutureExistsExpiredTicketsResult
+
+			err1, err2, err3, err4, err5 error // for concurrent work
+			wg                           sync.WaitGroup
+		)
+
+		// DB calls in the same transaction MUST NOT be run concurrently.  bolt
+		// bucket usage is not concurrent safe due to subbucket caching and
+		// statistics counting.
+		//
+		// Therefore load up initial info out of the db serially and then spawn
+		// goroutines to use the results concurrently.
+		wg.Add(4)
+		ticketHashes, err := w.StakeMgr.DumpSStxHashes()
+		if err != nil {
+			return err
+		}
+		go func() {
+			ticketHashPtrs = make([]*chainhash.Hash, len(ticketHashes))
+			for i := range ticketHashes {
+				ticketHashPtrs[i] = &ticketHashes[i]
+			}
+			liveTicketsFuture = chainClient.ExistsLiveTicketsAsync(ticketHashPtrs)
+			wg.Done()
+		}()
+		revocationHashes, err := w.StakeMgr.DumpSSRtxTickets(stakemgrNs)
+		if err != nil {
+			return err
+		}
+		go func() {
+			revocationHashPtrs = make([]*chainhash.Hash, len(revocationHashes))
+			for i := range revocationHashes {
+				revocationHashPtrs[i] = &revocationHashes[i]
+			}
+			expiredTicketsFuture = chainClient.ExistsExpiredTicketsAsync(revocationHashPtrs)
+			wg.Done()
+		}()
+		voteHashes, err := w.StakeMgr.DumpSSGenHashes(stakemgrNs)
+		if err != nil {
+			return err
+		}
+		go func() {
+			voteHashPtrs = make([]*chainhash.Hash, len(voteHashes))
+			for i := range voteHashes {
+				voteHashPtrs[i] = &voteHashes[i]
+			}
+			wg.Done()
+		}()
 		tipHash, tipHeight := w.TxStore.MainChainTip(txmgrNs)
-		chainBest, _, err := chainClient.GetBestBlock()
-		if err != nil {
-			return err
-		}
-		if tipHash != *chainBest {
-			return fmt.Errorf("the wallet is currently syncing to " +
-				"the best block, please try again later")
-		}
-
-		// Load all transaction hash data about stake transactions from the
-		// stake manager.
-		localTickets, err := w.StakeMgr.DumpSStxHashes()
-		if err != nil {
-			return err
-		}
-		localVotes, err := w.StakeMgr.DumpSSGenHashes(stakemgrNs)
-		if err != nil {
-			return err
-		}
-		revokedTickets, err := w.StakeMgr.DumpSSRtxTickets(stakemgrNs)
-		if err != nil {
-			return err
-		}
-
-		// Get the poolsize estimate from the current best block.
-		// The correct poolsize would be the pool size to be mined
-		// into the next block, which takes into account maturing
-		// stake tickets, voters, and expiring tickets. There
-		// currently isn't a way to get this from the RPC, so
-		// just use the current block pool size as a "good
-		// enough" estimate for now.
 		serHeader, err := w.TxStore.GetSerializedBlockHeader(txmgrNs, &tipHash)
 		if err != nil {
 			return err
 		}
-		var tipHeader wire.BlockHeader
-		err = tipHeader.Deserialize(bytes.NewReader(serHeader))
-		if err != nil {
-			return err
-		}
-		poolSize := tipHeader.PoolSize
-
-		// Fetch all transactions from the mempool, and store only the
-		// the ticket hashes for transactions that are tickets. Then see
-		// how many of these mempool tickets also belong to the wallet.
-		allMempoolTickets, err := chainClient.GetRawMempool(dcrjson.GRMTickets)
-		if err != nil {
-			return err
-		}
-		var localTicketsInMempool []*chainhash.Hash
-		for i := range localTickets {
-			if hashInPointerSlice(localTickets[i], allMempoolTickets) {
-				localTicketsInMempool = append(localTicketsInMempool,
-					&localTickets[i])
+		go func() {
+			defer wg.Done()
+			var tipHeader wire.BlockHeader
+			err1 = tipHeader.Deserialize(bytes.NewReader(serHeader))
+			if err1 != nil {
+				return
 			}
+			// Get the poolsize estimate from the current best block.
+			// The correct poolsize would be the pool size to be mined
+			// into the next block, which takes into account maturing
+			// stake tickets, voters, and expiring tickets. There
+			// currently isn't a way to get this from the RPC, so
+			// just use the current block pool size as a "good
+			// enough" estimate for now.
+			poolSize = tipHeader.PoolSize
+		}()
+		wg.Wait()
+		if err1 != nil {
+			return err1
 		}
 
-		// Access the tickets the wallet owns against the chain server
-		// and see how many exist in the blockchain and how many are
-		// immature. The speed this up a little, cheaper ExistsLiveTicket
-		// calls are first used to determine which tickets are actually
-		// mature. These tickets are cached. Possibly immature tickets
-		// are then determined by checking against this list and
-		// assembling a maybeImmature list. All transactions in the
-		// maybeImmature list are pulled and their height checked.
-		// If they aren't in the blockchain, they are skipped, in they
-		// are in the blockchain and are immature, they are not included
-		// in the immature number of tickets.
-		//
-		// It's not immediately clear why to use this over gettickets.
-		// GetTickets will only return tickets which are directly held
-		// by this wallet's public keys and excludes things like P2SH
-		// scripts that stake pools use. Doing it this way will give
-		// more accurate results.
-		var maybeImmature []*chainhash.Hash
-		liveTicketNum := 0
-		immatureTicketNum := 0
-		localTicketPtrs := make([]*chainhash.Hash, len(localTickets))
-		for i := range localTickets {
-			localTicketPtrs[i] = &localTickets[i]
-		}
-
-		// Check the live ticket pool for the presense of tickets.
-		existsBitSetBStr, err := chainClient.ExistsLiveTickets(localTicketPtrs)
-		if err != nil {
-			return fmt.Errorf("Failed to find assess whether tickets "+
-				"were in live buckets when generating stake info (err %s)",
-				err.Error())
-		}
-		existsBitSetB, err := hex.DecodeString(existsBitSetBStr)
-		if err != nil {
-			return fmt.Errorf("Failed to decode response for whether tickets "+
-				"were in live buckets when generating stake info (err %s)",
-				err.Error())
-		}
-		existsBitSet := bitset.Bytes(existsBitSetB)
-		for i := range localTickets {
-			if existsBitSet.Get(i) {
-				liveTicketNum++
-			} else {
-				maybeImmature = append(maybeImmature, &localTickets[i])
+		var (
+			mempoolTicketCount      uint32
+			ownedMempoolTicketCount uint32
+			missedCount             uint32
+			liveCount               uint32
+			immatureCount           uint32
+			expiredCount            uint32
+			ownedMempoolTickets     []*chainhash.Hash
+			totalSubsidy            dcrutil.Amount
+			maybeImmature           = make(chan *chainhash.Hash, len(ticketHashPtrs))
+		)
+		wg.Add(5)
+		go func() {
+			// This looks extremely suspicious (why would another view need to
+			// be opened when we're already inside of a view?) but see the above
+			// comment regarding bolt concurrent usage.  Opening another view
+			// transaction means that database calls can safely be run
+			// concurrently with the already opened view.
+			err1 = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+				txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+				for _, voteHash := range voteHashPtrs {
+					msgTx, err := w.TxStore.Tx(txmgrNs, voteHash)
+					if err != nil || msgTx == nil {
+						log.Tracef("Failed to find vote in blockchain while generating "+
+							"stake info (hash %v, err %s)", voteHash, err)
+						continue
+					}
+					totalSubsidy += dcrutil.Amount(msgTx.TxIn[0].ValueIn)
+				}
+				return nil
+			})
+			wg.Done()
+		}()
+		go func() {
+			var mempoolTickets []*chainhash.Hash
+			mempoolTickets, err2 = mempoolTicketsFuture.Receive()
+			mempoolTicketCount = uint32(len(mempoolTickets))
+			ownedMempoolTickets = make([]*chainhash.Hash, 0, mempoolTicketCount)
+			for i := range ticketHashes {
+				ticketHash := &ticketHashes[i]
+				if hashInPointerSlice(*ticketHash, mempoolTickets) {
+					ownedMempoolTickets = append(ownedMempoolTickets, ticketHash)
+				}
 			}
-		}
+			ownedMempoolTicketCount = uint32(len(ownedMempoolTickets))
 
-		expiredTicketNum := 0
-		revokeTicketPtrs := make([]*chainhash.Hash, len(revokedTickets))
-		for i := range revokedTickets {
-			revokeTicketPtrs[i] = &revokedTickets[i]
-		}
+			ticketMaturity := int64(w.ChainParams().TicketMaturity)
+			for ticketHash := range maybeImmature {
+				// Skip tickets that aren't in the blockchain.
+				if hashInPointerSlice(*ticketHash, ownedMempoolTickets) {
+					continue
+				}
 
-		// Check the expired ticket pool for the presense of tickets.
-		expiredBitSetBStr, err := chainClient.ExistsExpiredTickets(revokeTicketPtrs)
-		if err != nil {
-			return fmt.Errorf("Failed to find assess whether tickets "+
-				"were in expired buckets when generating stake info (err %s)",
-				err.Error())
-		}
-		expiredBitSetB, err := hex.DecodeString(expiredBitSetBStr)
-		if err != nil {
-			return fmt.Errorf("Failed to decode response for whether tickets "+
-				"were in expired bucket when generating stake info (err %s)",
-				err.Error())
-		}
-		expiredBitSet := bitset.Bytes(expiredBitSetB)
-		for i := range revokedTickets {
-			if expiredBitSet.Get(i) {
-				expiredTicketNum++
-			}
-		}
+				height, err := w.TxStore.TxBlockHeight(tx, ticketHash)
+				if err != nil {
+					log.Tracef("Failed to find ticket in blockchain while generating "+
+						"stake info (hash %v, err %s)", ticketHash, err)
+					continue
+				}
 
-		ticketMaturity := int64(w.ChainParams().TicketMaturity)
-		for _, ticketHash := range maybeImmature {
-			// Skip tickets that aren't in the blockchain.
-			if hashInPointerSlice(*ticketHash, localTicketsInMempool) {
-				continue
+				if height != -1 && int64(tipHeight-height) < ticketMaturity {
+					immatureCount++
+				}
 			}
 
-			txResult, err := w.TxStore.TxDetails(txmgrNs, ticketHash)
-			if err != nil || txResult == nil {
-				log.Tracef("Failed to find ticket in blockchain while generating "+
-					"stake info (hash %v, err %s)", ticketHash, err)
-				continue
-			}
-
-			immature := (txResult.Block.Height != -1) &&
-				(int64(tipHeight-txResult.Block.Height) < ticketMaturity)
-			if immature {
-				immatureTicketNum++
-			}
-		}
-
-		// Get all the missed tickets from mainnet and determine how many
-		// from this wallet are still missed. Add the number of revoked
-		// tickets to this sum as well.
-		missedNum := 0
-		missedOnChain, err := chainClient.MissedTickets()
-		if err != nil {
-			return err
-		}
-		// Determine if one of your current localTickets has been missed on Chain
-		for i := range localTickets {
-			found := false
-			if hashInPointerSlice(localTickets[i], missedOnChain) {
-				// Increment missedNum if the missed ticket doesn't have a
-				// revoked associated with it
-				for j := range revokedTickets {
-					if localTickets[i] == revokedTickets[j] {
-						found = true
-						break
+			wg.Done()
+		}()
+		go func() {
+			var allMissedTickets []*chainhash.Hash
+			allMissedTickets, err3 = missedTicketsFuture.Receive()
+			for _, ticketHash := range ticketHashes {
+				found := false
+				if hashInPointerSlice(ticketHash, allMissedTickets) {
+					// Increment missedNum if the missed ticket doesn't have a
+					// revoked associated with it
+					for _, revocationHash := range revocationHashes {
+						if ticketHash == revocationHash {
+							found = true
+							break
+						}
+					}
+					if !found {
+						missedCount++
 					}
 				}
-				if !found {
-					missedNum++
+			}
+			missedCount += uint32(len(revocationHashes))
+			wg.Done()
+		}()
+		go func() {
+			defer func() {
+				close(maybeImmature)
+				wg.Done()
+			}()
+			exitsLiveTicketsHex, err := liveTicketsFuture.Receive()
+			if err != nil {
+				err4 = fmt.Errorf("existslivetickets: %v", err)
+				return
+			}
+			existsLiveTicketsBitset, err := hex.DecodeString(exitsLiveTicketsHex)
+			if err != nil {
+				err4 = fmt.Errorf("existslivetickets: %v", err)
+				return
+			}
+			for i, ticketHash := range ticketHashPtrs {
+				if bitset.Bytes(existsLiveTicketsBitset).Get(i) {
+					liveCount++
+				} else {
+					maybeImmature <- ticketHash
 				}
 			}
-		}
-
-		missedNum += len(revokedTickets)
-
-		// Get all the subsidy for votes cast by this wallet so far
-		// by accessing the votes directly from the daemon blockchain.
-		votesNum := 0
-		totalSubsidy := dcrutil.Amount(0)
-		for i := range localVotes {
-			msgTx, err := w.TxStore.Tx(txmgrNs, &localVotes[i])
-			if err != nil || msgTx == nil {
-				log.Tracef("Failed to find vote in blockchain while generating "+
-					"stake info (hash %v, err %s)", localVotes[i], err)
-				continue
+		}()
+		go func() {
+			defer wg.Done()
+			existsExpiredTicketsHex, err := expiredTicketsFuture.Receive()
+			if err != nil {
+				err5 = fmt.Errorf("existsexpiredtickets: %v", err)
+				return
 			}
-
-			votesNum++
-			totalSubsidy += dcrutil.Amount(msgTx.TxIn[0].ValueIn)
+			existsExpiredTicketsBitset, err := hex.DecodeString(existsExpiredTicketsHex)
+			if err != nil {
+				err5 = fmt.Errorf("existsexpiredtickets: %v", err)
+				return
+			}
+			for i := range revocationHashes {
+				if bitset.Bytes(existsExpiredTicketsBitset).Get(i) {
+					expiredCount++
+				}
+			}
+		}()
+		wg.Wait()
+		err = firstError(err1, err2, err3, err4, err5)
+		if err != nil {
+			return err
 		}
 
-		// Bring it all together.
+		// Do not count expired tickets with missed.
+		missedCount -= expiredCount
+
 		resp = &StakeInfoData{
 			BlockHeight:   int64(tipHeight),
 			PoolSize:      poolSize,
-			AllMempoolTix: uint32(len(allMempoolTickets)),
-			OwnMempoolTix: uint32(len(localTicketsInMempool)),
-			Immature:      uint32(immatureTicketNum),
-			Live:          uint32(liveTicketNum),
-			Voted:         uint32(votesNum),
+			AllMempoolTix: mempoolTicketCount,
+			OwnMempoolTix: ownedMempoolTicketCount,
+			Immature:      immatureCount,
+			Live:          liveCount,
+			Voted:         uint32(len(voteHashes)),
 			TotalSubsidy:  totalSubsidy,
-			Missed:        uint32(missedNum),
-			Revoked:       uint32(len(revokedTickets)),
-			Expired:       uint32(expiredTicketNum),
+			Missed:        missedCount,
+			Revoked:       uint32(len(revocationHashes)),
+			Expired:       expiredCount,
 		}
 		return nil
 	})
@@ -3593,7 +3701,7 @@ func (w *Wallet) NeedsAccountsSync() (bool, error) {
 // Create creates an new wallet, writing it to an empty database.  If the passed
 // seed is non-nil, it is used.  Otherwise, a secure random seed of the
 // recommended length is generated.
-func Create(db walletdb.DB, pubPass, privPass, seed []byte, params *chaincfg.Params, unsafeMainNet bool) error {
+func Create(db walletdb.DB, pubPass, privPass, seed []byte, params *chaincfg.Params) error {
 	// If a seed was provided, ensure that it is of valid length. Otherwise,
 	// we generate a random seed for the wallet with the recommended seed
 	// length.
@@ -3608,7 +3716,7 @@ func Create(db walletdb.DB, pubPass, privPass, seed []byte, params *chaincfg.Par
 		return hdkeychain.ErrInvalidSeedLen
 	}
 
-	return udb.Initialize(db, params, seed, pubPass, privPass, unsafeMainNet)
+	return udb.Initialize(db, params, seed, pubPass, privPass)
 }
 
 // CreateWatchOnly creates a watchonly wallet on the provided db.
@@ -3658,8 +3766,14 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 	log.Infof("Please wait, deriving %v stake pool fees addresses "+
 		"for extended public key %s", end, splStrs[0])
 
+	// Derive from external branch
+	branchKey, err := key.Child(udb.ExternalBranch)
+	if err != nil {
+		return nil, err
+	}
+
 	// Derive the addresses from [0, end) for this extended public key.
-	addrs, err := deriveChildAddresses(key, 0, uint32(end)+1, params)
+	addrs, err := deriveChildAddresses(branchKey, 0, uint32(end)+1, params)
 	if err != nil {
 		return nil, err
 	}

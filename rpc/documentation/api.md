@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.7.x
+Version: 4.9.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -1417,6 +1417,24 @@ transaction was seen.
 - `int64 timestamp`: The Unix time of the earliest time this transaction was
   seen.
 
+- `TransactionType transaction_type`: The observed type of transaction. 
+
+  **Nested enum:** `TransactionType`
+
+  - `REGULAR`: All normal regular tx tree transactions.
+
+  - `TICKET_PURCHASE`: A transaction that purchases a ticket to be consumed later
+    by a vote transaction upon random selection, or a recovation if the ticket
+    is expired or missed.
+
+  - `VOTE`: A transaction that uses a ticket purchase transaction as an input 
+    and includes a stake base reward as one of the outputs.
+  
+  - `REVOCATION`: A transaction that will free a previously locked utxos in 
+    a ticket purchase due to expiry or the ticket being missed.  Just as stakebase
+    rewards must reach maturity to be used, outputs from an revocation also must
+    mature that same amount.
+
 **Stability**: Unstable: Since the caller is expected to decode the serialized
   transaction, and would have access to every output script, the output
   properties could be changed to only include outputs controlled by the wallet.
@@ -1939,6 +1957,8 @@ vote bits of the latest supported stake version agendas.
   - `string choice_description`: A description of the current choice for this
     agenda.
 
+- `uint32 votebits`: The votebits of the currently-configured choices.
+
 **ExpectedErrors:** None
 
 **Stability:** Unstable
@@ -1962,6 +1982,8 @@ supported by this software.
   - `string choice_id`: The ID for the choice to choose.
 
 **Response:** `SetVoteChoicesResponse`
+
+  - `uint32 votebits`: The votebits for the wallet after setting choices.
 
 **ExpectedErrors:**
 

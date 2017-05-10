@@ -39,7 +39,6 @@ const (
 	defaultPruneTickets        = false
 	defaultPurchaseAccount     = "default"
 	defaultAutomaticRepair     = false
-	defaultUnsafeMainNet       = false
 	defaultPromptPass          = false
 	defaultPromptPublicPass    = false
 	defaultAddrIdxScanLen      = wallet.DefaultGapLimit
@@ -93,7 +92,6 @@ type config struct {
 	MemProfile         string   `long:"memprofile" description:"Write mem profile to the specified file"`
 	RollbackTest       bool     `long:"rollbacktest" description:"Rollback testing is a simnet testing mode that eventually stops wallet and examines wtxmgr database integrity"`
 	AutomaticRepair    bool     `long:"automaticrepair" description:"Attempt to repair the wallet automatically if a database inconsistency is found"`
-	UnsafeMainNet      bool     `long:"unsafemainnet" description:"Enable storage of master seed in mainnet wallet when calling --create and enable unsafe private information RPC commands"`
 
 	// Wallet options
 	WalletPass          string              `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
@@ -355,12 +353,11 @@ func loadConfig() (*config, []string, error) {
 		PruneTickets:           defaultPruneTickets,
 		PurchaseAccount:        defaultPurchaseAccount,
 		AutomaticRepair:        defaultAutomaticRepair,
-		UnsafeMainNet:          defaultUnsafeMainNet,
 		AddrIdxScanLen:         defaultAddrIdxScanLen,
 		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
 		AllowHighFees:          defaultAllowHighFees,
 		RelayFee:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
-		TicketFee:              cfgutil.NewAmountFlag(wallet.DefaultTicketFeeIncrement),
+		TicketFee:              cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
 
 		// TODO: DEPRECATED - remove.
 		DataDir: defaultAppDataDir,
@@ -903,24 +900,24 @@ func loadConfig() (*config, []string, error) {
 		AccountName:               cfg.PurchaseAccount,
 		AvgPriceMode:              cfg.TBOpts.AvgPriceMode,
 		AvgPriceVWAPDelta:         cfg.TBOpts.AvgPriceVWAPDelta,
-		BalanceToMaintainAbsolute: cfg.TBOpts.BalanceToMaintainAbsolute.ToCoin(),
+		BalanceToMaintainAbsolute: int64(cfg.TBOpts.BalanceToMaintainAbsolute.Amount),
 		BalanceToMaintainRelative: cfg.TBOpts.BalanceToMaintainRelative,
 		BlocksToAvg:               cfg.TBOpts.BlocksToAvg,
 		DontWaitForTickets:        cfg.TBOpts.DontWaitForTickets,
 		ExpiryDelta:               cfg.TBOpts.ExpiryDelta,
 		FeeSource:                 cfg.TBOpts.FeeSource,
 		FeeTargetScaling:          cfg.TBOpts.FeeTargetScaling,
-		MinFee:                    cfg.TBOpts.MinFee.ToCoin(),
-		MaxFee:                    cfg.TBOpts.MaxFee.ToCoin(),
+		MinFee:                    int64(cfg.TBOpts.MinFee.Amount),
+		MaxFee:                    int64(cfg.TBOpts.MaxFee.Amount),
 		MaxPerBlock:               cfg.TBOpts.MaxPerBlock,
-		MaxPriceAbsolute:          cfg.TBOpts.MaxPriceAbsolute.ToCoin(),
+		MaxPriceAbsolute:          int64(cfg.TBOpts.MaxPriceAbsolute.Amount),
 		MaxPriceRelative:          cfg.TBOpts.MaxPriceRelative,
 		MaxInMempool:              cfg.TBOpts.MaxInMempool,
 		NoSpreadTicketPurchases:   cfg.TBOpts.NoSpreadTicketPurchases,
 		PoolAddress:               cfg.PoolAddress,
 		PoolFees:                  cfg.PoolFees,
 		TicketAddress:             cfg.TicketAddress,
-		TxFee:                     cfg.RelayFee.ToCoin(),
+		TxFee:                     int64(cfg.RelayFee.Amount),
 	}
 
 	// Make list of old versions of testnet directories.

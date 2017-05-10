@@ -136,10 +136,6 @@ func FeeForSize(incr dcrutil.Amount, sz int) dcrutil.Amount {
 	return feeForSize(incr, sz)
 }
 
-// DefaultTicketFeeIncrement is the default minimum stake transaction fees per KB (0.01
-// coin, measured in atoms).
-const DefaultTicketFeeIncrement dcrutil.Amount = 1e6
-
 // EstMaxTicketFeeAmount is the estimated max ticket fee to be used for size
 // calculation for eligible utxos for ticket purchasing.
 const EstMaxTicketFeeAmount = 0.1 * 1e8
@@ -580,7 +576,6 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	// Insert a multi-signature output, then insert this P2SH
 	// hash160 into the address manager and the transaction
 	// manager.
-	totalOutput := dcrutil.Amount(0)
 	msScript, err := txscript.MultiSigScript(pubkeys, int(nRequired))
 	if err != nil {
 		return txToMultisigError(err)
@@ -606,7 +601,6 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	}
 	txout := wire.NewTxOut(int64(amount), p2shScript)
 	msgtx.AddTxOut(txout)
-	totalOutput += amount
 
 	// Add change if we need it. The case in which
 	// totalInput == amount+feeEst is skipped because

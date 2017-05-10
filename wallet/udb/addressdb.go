@@ -271,43 +271,6 @@ func putManagerVersion(ns walletdb.ReadWriteBucket, version uint32) error {
 	return nil
 }
 
-// fetchSeed loads the encrypted seed needed to restore the wallet. This will
-// return an error for watching only wallets.
-func fetchSeed(ns walletdb.ReadBucket) ([]byte, error) {
-	bucket := ns.NestedReadBucket(mainBucketName)
-
-	// Load the master private key parameters if they were stored.
-	var seed []byte
-	val := bucket.Get(seedName)
-	if val != nil {
-		seed = make([]byte, len(val))
-		copy(seed, val)
-	} else {
-		str := "seed is not present (watching only wallet?)"
-		return nil, managerError(apperrors.ErrDatabase, str, nil)
-	}
-
-	return seed, nil
-}
-
-// putSeed inserts the encrypted seed needed to restore the wallet.
-func putSeed(ns walletdb.ReadWriteBucket, seed []byte) error {
-	bucket := ns.NestedReadWriteBucket(mainBucketName)
-
-	if seed != nil {
-		err := bucket.Put(seedName, seed)
-		if err != nil {
-			str := "failed to store seed"
-			return managerError(apperrors.ErrDatabase, str, err)
-		}
-
-		return nil
-	}
-
-	str := "nil seed given"
-	return managerError(apperrors.ErrDatabase, str, nil)
-}
-
 // fetchMasterKeyParams loads the master key parameters needed to derive them
 // (when given the correct user-supplied passphrase) from the database.  Either
 // returned value can be nil, but in practice only the private key params will

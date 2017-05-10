@@ -60,7 +60,7 @@ func (t *TicketPurchaser) ownTicketsInMempool() (int, error) {
 	var curStakeInfo *wallet.StakeInfoData
 	var err error
 	for i := 0; i < stakeInfoReqTries; i++ {
-		curStakeInfo, err = t.wallet.StakeInfo()
+		curStakeInfo, err = t.wallet.StakeInfo(t.dcrdChainSvr)
 		if err != nil {
 			log.Tracef("Failed to fetch stake information "+
 				"on attempt %v: %v", i, err.Error())

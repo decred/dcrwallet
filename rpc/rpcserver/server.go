@@ -53,10 +53,10 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.7.0"
+	semverString = "4.9.1"
 	semverMajor  = 4
-	semverMinor  = 7
-	semverPatch  = 0
+	semverMinor  = 9
+	semverPatch  = 1
 )
 
 // translateError creates a new gRPC error with an appropiate error code for
@@ -509,9 +509,13 @@ func (s *walletServer) TicketPrice(ctx context.Context,
 	}, nil
 }
 
-func (s *walletServer) StakeInfo(ctx context.Context,
-	req *pb.StakeInfoRequest) (*pb.StakeInfoResponse, error) {
-	si, err := s.wallet.StakeInfo()
+func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) (*pb.StakeInfoResponse, error) {
+	chainClient, err := s.requireChainClient()
+	if err != nil {
+		return nil, err
+	}
+
+	si, err := s.wallet.StakeInfo(chainClient.Client)
 	if err != nil {
 		return nil, grpc.Errorf(codes.FailedPrecondition,
 			"Failed to query stake info: %s", err.Error())
@@ -526,7 +530,7 @@ func (s *walletServer) StakeInfo(ctx context.Context,
 		Voted:         si.Voted,
 		Missed:        si.Missed,
 		Revoked:       si.Revoked,
-		Expired:       0, // Placeholder
+		Expired:       si.Expired,
 		TotalSubsidy:  int64(si.TotalSubsidy),
 	}, nil
 }
@@ -1011,13 +1015,23 @@ func marshalTransactionDetails(v []wallet.TransactionSummary) []*pb.TransactionD
 	txs := make([]*pb.TransactionDetails, len(v))
 	for i := range v {
 		tx := &v[i]
+		var txType = pb.TransactionDetails_REGULAR
+		switch tx.Type {
+		case wallet.TransactionTypeTicketPurchase:
+			txType = pb.TransactionDetails_TICKET_PURCHASE
+		case wallet.TransactionTypeVote:
+			txType = pb.TransactionDetails_VOTE
+		case wallet.TransactionTypeRevocation:
+			txType = pb.TransactionDetails_REVOCATION
+		}
 		txs[i] = &pb.TransactionDetails{
-			Hash:        tx.Hash[:],
-			Transaction: tx.Transaction,
-			Debits:      marshalTransactionInputs(tx.MyInputs),
-			Credits:     marshalTransactionOutputs(tx.MyOutputs),
-			Fee:         int64(tx.Fee),
-			Timestamp:   tx.Timestamp,
+			Hash:            tx.Hash[:],
+			Transaction:     tx.Transaction,
+			Debits:          marshalTransactionInputs(tx.MyInputs),
+			Credits:         marshalTransactionOutputs(tx.MyOutputs),
+			Fee:             int64(tx.Fee),
+			Timestamp:       tx.Timestamp,
+			TransactionType: txType,
 		}
 	}
 	return txs
@@ -1188,15 +1202,12 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 		return nil, translateError(err)
 	}
 
-	balanceToMaintain := dcrutil.Amount(req.BalanceToMaintain)
-	if balanceToMaintain < 0 {
+	if req.BalanceToMaintain < 0 {
 		return nil, grpc.Errorf(codes.InvalidArgument,
 			"Negative balance to maintain given")
 	}
 
-	maxFeePerKB := dcrutil.Amount(req.MaxFeePerKb)
-
-	if maxFeePerKB < 0 {
+	if req.MaxFeePerKb < 0 {
 		return nil, grpc.Errorf(codes.InvalidArgument,
 			"Negative max fee per KB given")
 	}
@@ -1242,16 +1253,16 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 		AccountName:               accountName,
 		AvgPriceMode:              t.ticketbuyerCfg.AvgPriceMode,
 		AvgPriceVWAPDelta:         t.ticketbuyerCfg.AvgPriceVWAPDelta,
-		BalanceToMaintainAbsolute: balanceToMaintain.ToCoin(),
+		BalanceToMaintainAbsolute: req.BalanceToMaintain,
 		BlocksToAvg:               t.ticketbuyerCfg.BlocksToAvg,
 		DontWaitForTickets:        t.ticketbuyerCfg.DontWaitForTickets,
 		ExpiryDelta:               t.ticketbuyerCfg.ExpiryDelta,
 		FeeSource:                 t.ticketbuyerCfg.FeeSource,
 		FeeTargetScaling:          t.ticketbuyerCfg.FeeTargetScaling,
 		MinFee:                    t.ticketbuyerCfg.MinFee,
-		MaxFee:                    dcrutil.Amount(req.MaxFeePerKb).ToCoin(),
+		MaxFee:                    req.MaxFeePerKb,
 		MaxPerBlock:               int(req.MaxPerBlock),
-		MaxPriceAbsolute:          dcrutil.Amount(req.MaxPriceAbsolute).ToCoin(),
+		MaxPriceAbsolute:          req.MaxPriceAbsolute,
 		MaxPriceRelative:          req.MaxPriceRelative,
 		MaxInMempool:              t.ticketbuyerCfg.MaxInMempool,
 		NoSpreadTicketPurchases:   t.ticketbuyerCfg.NoSpreadTicketPurchases,
@@ -1566,26 +1577,27 @@ func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.Ticke
 		return nil, translateError(err)
 	}
 	return &pb.TicketBuyerConfigResponse{
-		Account:                 account,
-		AvgPriceMode:            config.AvgPriceMode,
-		AvgPriceVWAPDelta:       int64(config.AvgPriceVWAPDelta),
-		BalanceToMaintain:       int64(config.BalanceToMaintainAbsolute),
-		BlocksToAvg:             int64(config.BlocksToAvg),
-		DontWaitForTickets:      config.DontWaitForTickets,
-		ExpiryDelta:             int64(config.ExpiryDelta),
-		FeeSource:               config.FeeSource,
-		FeeTargetScaling:        config.FeeTargetScaling,
-		MinFee:                  int64(config.MinFee),
-		MaxFee:                  int64(config.MaxFee),
-		MaxPerBlock:             int64(config.MaxPerBlock),
-		MaxPriceAbsolute:        int64(config.MaxPriceAbsolute),
-		MaxPriceRelative:        config.MaxPriceRelative,
-		MaxInMempool:            int64(config.MaxInMempool),
-		PoolAddress:             config.PoolAddress,
-		PoolFees:                config.PoolFees,
+		Account:               account,
+		AvgPriceMode:          config.AvgPriceMode,
+		AvgPriceVWAPDelta:     int64(config.AvgPriceVWAPDelta),
+		BalanceToMaintain:     config.BalanceToMaintainAbsolute,
+		BlocksToAvg:           int64(config.BlocksToAvg),
+		DontWaitForTickets:    config.DontWaitForTickets,
+		ExpiryDelta:           int64(config.ExpiryDelta),
+		FeeSource:             config.FeeSource,
+		FeeTargetScaling:      config.FeeTargetScaling,
+		MinFee:                config.MinFee,
+		MaxFee:                config.MaxFee,
+		MaxPerBlock:           int64(config.MaxPerBlock),
+		MaxPriceAbsolute:      config.MaxPriceAbsolute,
+		MaxPriceRelative:      config.MaxPriceRelative,
+		MaxInMempool:          int64(config.MaxInMempool),
+		PoolAddress:           config.PoolAddress,
+		PoolFees:              config.PoolFees,
+		SpreadTicketPurchases: config.SpreadTicketPurchases,
 		NoSpreadTicketPurchases: config.NoSpreadTicketPurchases,
-		VotingAddress:           config.TicketAddress,
-		TxFee:                   int64(config.TxFee),
+		VotingAddress:         config.TicketAddress,
+		TxFee:                 config.TxFee,
 	}, nil
 }
 
@@ -1623,7 +1635,7 @@ func (t *ticketbuyerServer) SetBalanceToMaintain(ctx context.Context, req *pb.Se
 	if req.BalanceToMaintain < 0 {
 		return nil, grpc.Errorf(codes.InvalidArgument, "Negative balance to maintain given")
 	}
-	pm.Purchaser().SetBalanceToMaintain(dcrutil.Amount(req.BalanceToMaintain).ToCoin())
+	pm.Purchaser().SetBalanceToMaintain(req.BalanceToMaintain)
 	return &pb.SetBalanceToMaintainResponse{}, nil
 }
 
@@ -1638,7 +1650,7 @@ func (t *ticketbuyerServer) SetMaxFee(ctx context.Context, req *pb.SetMaxFeeRequ
 	if req.MaxFeePerKb < 0 {
 		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max fee per KB given")
 	}
-	pm.Purchaser().SetMaxFee(dcrutil.Amount(req.MaxFeePerKb).ToCoin())
+	pm.Purchaser().SetMaxFee(req.MaxFeePerKb)
 	return &pb.SetMaxFeeResponse{}, nil
 }
 
@@ -1646,12 +1658,13 @@ func (t *ticketbuyerServer) SetMaxFee(ctx context.Context, req *pb.SetMaxFeeRequ
 func (t *ticketbuyerServer) SetMaxPriceRelative(ctx context.Context, req *pb.SetMaxPriceRelativeRequest) (
 	*pb.SetMaxPriceRelativeResponse, error) {
 
+	if req.MaxPriceRelative < 0 {
+		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max ticket price given")
+	}
+
 	pm, err := t.requirePurchaseManager()
 	if err != nil {
 		return nil, err
-	}
-	if req.MaxPriceRelative < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max ticket price given")
 	}
 	pm.Purchaser().SetMaxPriceRelative(req.MaxPriceRelative)
 	return &pb.SetMaxPriceRelativeResponse{}, nil
@@ -1668,7 +1681,7 @@ func (t *ticketbuyerServer) SetMaxPriceAbsolute(ctx context.Context, req *pb.Set
 	if req.MaxPriceAbsolute < 0 {
 		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max ticket price given")
 	}
-	pm.Purchaser().SetMaxPriceAbsolute(dcrutil.Amount(req.MaxPriceAbsolute).ToCoin())
+	pm.Purchaser().SetMaxPriceAbsolute(req.MaxPriceAbsolute)
 	return &pb.SetMaxPriceAbsoluteResponse{}, nil
 }
 
@@ -1796,7 +1809,7 @@ func (s *agendaServer) Agendas(ctx context.Context, req *pb.AgendasRequest) (*pb
 				Id:          choice.Id,
 				Description: choice.Description,
 				Bits:        uint32(choice.Bits),
-				IsAbstain:   choice.IsIgnore,
+				IsAbstain:   choice.IsAbstain,
 				IsNo:        choice.IsNo,
 			}
 		}
@@ -1813,14 +1826,14 @@ func StartVotingService(server *grpc.Server, wallet *wallet.Wallet) {
 
 func (s *votingServer) VoteChoices(ctx context.Context, req *pb.VoteChoicesRequest) (*pb.VoteChoicesResponse, error) {
 	version, agendas := wallet.CurrentAgendas(s.wallet.ChainParams())
-	resp := &pb.VoteChoicesResponse{
-		Version: version,
-		Choices: make([]*pb.VoteChoicesResponse_Choice, len(agendas)),
-	}
-
-	choices, err := s.wallet.AgendaChoices()
+	choices, voteBits, err := s.wallet.AgendaChoices()
 	if err != nil {
 		return nil, translateError(err)
+	}
+	resp := &pb.VoteChoicesResponse{
+		Version:  version,
+		Choices:  make([]*pb.VoteChoicesResponse_Choice, len(agendas)),
+		Votebits: uint32(voteBits),
 	}
 
 	for i := range choices {
@@ -1848,9 +1861,12 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 			ChoiceID: c.ChoiceId,
 		}
 	}
-	err := s.wallet.SetAgendaChoices(choices...)
+	voteBits, err := s.wallet.SetAgendaChoices(choices...)
 	if err != nil {
 		return nil, translateError(err)
 	}
-	return &pb.SetVoteChoicesResponse{}, nil
+	resp := &pb.SetVoteChoicesResponse{
+		Votebits: uint32(voteBits),
+	}
+	return resp, nil
 }

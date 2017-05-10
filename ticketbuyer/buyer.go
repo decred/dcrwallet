@@ -59,24 +59,24 @@ type Config struct {
 	AccountName               string
 	AvgPriceMode              string
 	AvgPriceVWAPDelta         int
-	BalanceToMaintainAbsolute float64
+	BalanceToMaintainAbsolute int64
 	BalanceToMaintainRelative float64
 	BlocksToAvg               int
 	DontWaitForTickets        bool
 	ExpiryDelta               int
 	FeeSource                 string
 	FeeTargetScaling          float64
-	MinFee                    float64
-	MaxFee                    float64
+	MinFee                    int64
+	MaxFee                    int64
 	MaxPerBlock               int
-	MaxPriceAbsolute          float64
+	MaxPriceAbsolute          int64
 	MaxPriceRelative          float64
 	MaxInMempool              int
 	NoSpreadTicketPurchases   bool
 	PoolAddress               string
 	PoolFees                  float64
 	TicketAddress             string
-	TxFee                     float64
+	TxFee                     int64
 }
 
 // TicketPurchaser is the main handler for purchasing tickets. It decides
@@ -105,11 +105,11 @@ type TicketPurchaser struct {
 	// purchaserMtx protects the following runtime configurable options.
 	purchaserMtx      sync.Mutex
 	account           uint32
-	balanceToMaintain float64
-	maxPriceAbsolute  float64
+	balanceToMaintain dcrutil.Amount
+	maxPriceAbsolute  dcrutil.Amount
 	maxPriceRelative  float64
-	maxFee            float64
-	minFee            float64
+	maxFee            dcrutil.Amount
+	minFee            dcrutil.Amount
 	poolFees          float64
 	maxPerBlock       int
 	maxInMempool      int
@@ -123,7 +123,8 @@ func (t *TicketPurchaser) Config() (*Config, error) {
 	if t.poolAddress != nil {
 		poolAddress = t.poolAddress.String()
 	}
-	accountName, err := t.AccountName()
+
+	accountName, err := t.wallet.AccountName(t.account)
 	if err != nil {
 		return nil, err
 	}
@@ -132,16 +133,16 @@ func (t *TicketPurchaser) Config() (*Config, error) {
 		AccountName:               accountName,
 		AvgPriceMode:              t.cfg.AvgPriceMode,
 		AvgPriceVWAPDelta:         t.cfg.AvgPriceVWAPDelta,
-		BalanceToMaintainAbsolute: t.balanceToMaintain,
+		BalanceToMaintainAbsolute: int64(t.balanceToMaintain),
 		BlocksToAvg:               t.cfg.BlocksToAvg,
 		DontWaitForTickets:        t.cfg.DontWaitForTickets,
 		ExpiryDelta:               t.cfg.ExpiryDelta,
 		FeeSource:                 t.cfg.FeeSource,
 		FeeTargetScaling:          t.cfg.FeeTargetScaling,
-		MinFee:                    t.cfg.MinFee,
-		MaxFee:                    t.maxFee,
+		MinFee:                    int64(t.minFee),
+		MaxFee:                    int64(t.maxFee),
 		MaxPerBlock:               t.maxPerBlock,
-		MaxPriceAbsolute:          t.maxPriceAbsolute,
+		MaxPriceAbsolute:          int64(t.maxPriceAbsolute),
 		MaxPriceRelative:          t.maxPriceRelative,
 		MaxInMempool:              t.cfg.MaxInMempool,
 		NoSpreadTicketPurchases:   t.cfg.NoSpreadTicketPurchases,
@@ -178,7 +179,7 @@ func (t *TicketPurchaser) SetAccount(account uint32) {
 }
 
 // BalanceToMaintain returns the balance to be maintained in the wallet.
-func (t *TicketPurchaser) BalanceToMaintain() float64 {
+func (t *TicketPurchaser) BalanceToMaintain() dcrutil.Amount {
 	t.purchaserMtx.Lock()
 	balanceToMaintain := t.balanceToMaintain
 	t.purchaserMtx.Unlock()
@@ -186,14 +187,14 @@ func (t *TicketPurchaser) BalanceToMaintain() float64 {
 }
 
 // SetBalanceToMaintain sets the balance to be maintained in the wallet.
-func (t *TicketPurchaser) SetBalanceToMaintain(balanceToMaintain float64) {
+func (t *TicketPurchaser) SetBalanceToMaintain(balanceToMaintain int64) {
 	t.purchaserMtx.Lock()
-	t.balanceToMaintain = balanceToMaintain
+	t.balanceToMaintain = dcrutil.Amount(balanceToMaintain)
 	t.purchaserMtx.Unlock()
 }
 
 // MaxPriceAbsolute returns the max absolute price to purchase a ticket.
-func (t *TicketPurchaser) MaxPriceAbsolute() float64 {
+func (t *TicketPurchaser) MaxPriceAbsolute() dcrutil.Amount {
 	t.purchaserMtx.Lock()
 	maxPriceAbsolute := t.maxPriceAbsolute
 	t.purchaserMtx.Unlock()
@@ -201,9 +202,9 @@ func (t *TicketPurchaser) MaxPriceAbsolute() float64 {
 }
 
 // SetMaxPriceAbsolute sets the max absolute price to purchase a ticket.
-func (t *TicketPurchaser) SetMaxPriceAbsolute(maxPriceAbsolute float64) {
+func (t *TicketPurchaser) SetMaxPriceAbsolute(maxPriceAbsolute int64) {
 	t.purchaserMtx.Lock()
-	t.maxPriceAbsolute = maxPriceAbsolute
+	t.maxPriceAbsolute = dcrutil.Amount(maxPriceAbsolute)
 	t.purchaserMtx.Unlock()
 }
 
@@ -224,7 +225,7 @@ func (t *TicketPurchaser) SetMaxPriceRelative(maxPriceRelative float64) {
 }
 
 // MaxFee returns the max ticket fee per KB to use when purchasing tickets.
-func (t *TicketPurchaser) MaxFee() float64 {
+func (t *TicketPurchaser) MaxFee() dcrutil.Amount {
 	t.purchaserMtx.Lock()
 	maxFee := t.maxFee
 	t.purchaserMtx.Unlock()
@@ -232,14 +233,14 @@ func (t *TicketPurchaser) MaxFee() float64 {
 }
 
 // SetMaxFee sets the max ticket fee per KB to use when purchasing tickets.
-func (t *TicketPurchaser) SetMaxFee(maxFee float64) {
+func (t *TicketPurchaser) SetMaxFee(maxFee int64) {
 	t.purchaserMtx.Lock()
-	t.maxFee = maxFee
+	t.maxFee = dcrutil.Amount(maxFee)
 	t.purchaserMtx.Unlock()
 }
 
 // MinFee returns the min ticket fee per KB to use when purchasing tickets.
-func (t *TicketPurchaser) MinFee() float64 {
+func (t *TicketPurchaser) MinFee() dcrutil.Amount {
 	t.purchaserMtx.Lock()
 	minFee := t.minFee
 	t.purchaserMtx.Unlock()
@@ -247,9 +248,9 @@ func (t *TicketPurchaser) MinFee() float64 {
 }
 
 // SetMinFee sets the min ticket fee per KB to use when purchasing tickets.
-func (t *TicketPurchaser) SetMinFee(minFee float64) {
+func (t *TicketPurchaser) SetMinFee(minFee int64) {
 	t.purchaserMtx.Lock()
-	t.minFee = minFee
+	t.minFee = dcrutil.Amount(minFee)
 	t.purchaserMtx.Unlock()
 }
 
@@ -391,10 +392,11 @@ func NewTicketPurchaser(cfg *Config,
 		heightCheck:   make(map[int64]struct{}),
 
 		account:           account,
-		balanceToMaintain: cfg.BalanceToMaintainAbsolute,
-		maxFee:            cfg.MaxFee,
+		balanceToMaintain: dcrutil.Amount(cfg.BalanceToMaintainAbsolute),
+		maxFee:            dcrutil.Amount(cfg.MaxFee),
+		minFee:            dcrutil.Amount(cfg.MinFee),
 		maxPerBlock:       cfg.MaxPerBlock,
-		maxPriceAbsolute:  cfg.MaxPriceAbsolute,
+		maxPriceAbsolute:  dcrutil.Amount(cfg.MaxPriceAbsolute),
 		maxPriceRelative:  cfg.MaxPriceRelative,
 		poolFees:          cfg.PoolFees,
 		maxInMempool:      cfg.MaxInMempool,
@@ -406,13 +408,13 @@ func NewTicketPurchaser(cfg *Config,
 type PurchaseStats struct {
 	Height        int64
 	PriceMaxScale float64
-	PriceAverage  float64
-	PriceNext     float64
-	PriceCurrent  float64
+	PriceAverage  dcrutil.Amount
+	PriceNext     dcrutil.Amount
+	PriceCurrent  dcrutil.Amount
 	Purchased     int
 	LeftWindow    int
-	Balance       int64
-	TicketPrice   int64
+	Balance       dcrutil.Amount
+	TicketPrice   dcrutil.Amount
 }
 
 // Purchase is the main handler for purchasing tickets for the user.
@@ -439,7 +441,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if t.firstStart {
 		t.firstStart = false
 		log.Debugf("First run for ticket buyer")
-		log.Debugf("Transaction relay fee: %v DCR", t.cfg.TxFee)
+		log.Debugf("Transaction relay fee: %v", dcrutil.Amount(t.cfg.TxFee))
 		refreshStakeInfo = true
 	} else {
 		if nextIdxDiffPeriod == 0 {
@@ -463,7 +465,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		var curStakeInfo *wallet.StakeInfoData
 		var err error
 		for i := 1; i <= stakeInfoReqTries; i++ {
-			curStakeInfo, err = t.wallet.StakeInfo()
+			curStakeInfo, err = t.wallet.StakeInfo(t.dcrdChainSvr)
 			if err != nil {
 				log.Debugf("Waiting for StakeInfo, attempt %v: (%v)", i, err.Error())
 				time.Sleep(stakeInfoReqTryDelay)
@@ -491,14 +493,11 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// Parse the ticket purchase frequency. Positive numbers mean
 	// that many tickets per block. Negative numbers mean to only
 	// purchase one ticket once every abs(num) blocks.
-	maxPerBlock := 0
-	switch {
-	case t.cfg.MaxPerBlock == 0:
+	maxPerBlock := t.MaxPerBlock()
+	if maxPerBlock == 0 {
 		return ps, nil
-	case t.cfg.MaxPerBlock > 0:
-		maxPerBlock = t.cfg.MaxPerBlock
-	case t.cfg.MaxPerBlock < 0:
-		if int(height)%t.cfg.MaxPerBlock != 0 {
+	} else if maxPerBlock < 0 {
+		if int(height)%maxPerBlock != 0 {
 			return ps, nil
 		}
 		maxPerBlock = 1
@@ -506,31 +505,34 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 	avgPriceAmt, err := t.calcAverageTicketPrice(height)
 	if err != nil {
-		return ps, fmt.Errorf("Failed to calculate average ticket price amount: %s",
-			err.Error())
+		return ps, fmt.Errorf("Failed to calculate average ticket "+
+			" price amount at height %v: %v", height, err)
 	}
 	if avgPriceAmt < dcrutil.Amount(t.activeNet.MinimumStakeDiff) {
 		avgPriceAmt = dcrutil.Amount(t.activeNet.MinimumStakeDiff)
 	}
 
-	avgPrice := avgPriceAmt.ToCoin()
 	log.Debugf("Calculated average ticket price: %v", avgPriceAmt)
-	ps.PriceAverage = avgPrice
+	ps.PriceAverage = avgPriceAmt
 
 	nextStakeDiff, err := t.wallet.StakeDifficulty()
 	log.Tracef("Next stake difficulty: %v", nextStakeDiff)
 	if err != nil {
 		return ps, err
 	}
-	ps.PriceCurrent = float64(nextStakeDiff)
+	ps.PriceCurrent = nextStakeDiff
 	t.ticketPrice = nextStakeDiff
-	ps.TicketPrice = int64(nextStakeDiff)
+	ps.TicketPrice = nextStakeDiff
 
 	sDiffEsts, err := t.dcrdChainSvr.EstimateStakeDiff(nil)
 	if err != nil {
 		return ps, err
 	}
-	ps.PriceNext = sDiffEsts.Expected
+	ps.PriceNext, err = dcrutil.NewAmount(sDiffEsts.Expected)
+	if err != nil {
+		return ps, err
+	}
+
 	log.Tracef("Estimated stake diff: (min: %v, expected: %v, max: %v)",
 		sDiffEsts.Min, sDiffEsts.Expected, sDiffEsts.Max)
 
@@ -538,17 +540,13 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// Absolute or relative max price
 	var maxPriceAmt dcrutil.Amount
 	maxPriceAbs := t.MaxPriceAbsolute()
-	if maxPriceAbs > 0 && maxPriceAbs < avgPrice*t.cfg.MaxPriceRelative {
-		maxPriceAmt, err = dcrutil.NewAmount(maxPriceAbs)
-		if err != nil {
-			return ps, err
-		}
+
+	if maxPriceAbs > 0 &&
+		maxPriceAbs < avgPriceAmt.MulF64(t.MaxPriceRelative()) {
+		maxPriceAmt = maxPriceAbs
 		log.Debugf("Using absolute max price: %v", maxPriceAmt)
 	} else {
-		maxPriceAmt, err = dcrutil.NewAmount(avgPrice * t.MaxPriceRelative())
-		if err != nil {
-			return ps, err
-		}
+		maxPriceAmt = avgPriceAmt.MulF64(t.MaxPriceRelative())
 		log.Debugf("Using relative max price: %v", maxPriceAmt)
 	}
 
@@ -562,7 +560,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		return ps, err
 	}
 	log.Debugf("Spendable balance for account '%s': %v", accountName, bal.Spendable)
-	ps.Balance = int64(bal.Spendable)
+	ps.Balance = bal.Spendable
 
 	// Disable purchasing if the ticket price is too high based on
 	// the cutoff or if the estimated ticket price is above
@@ -609,11 +607,11 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	}
 	log.Tracef("All tickets in mempool: %v", mempoolall)
 
-	var feeToUse float64
+	var feeToUse dcrutil.Amount
 	maxStake := int(t.activeNet.MaxFreshStakePerBlock)
 	if ticketPurchasesInLastBlock < maxStake && mempoolall < maxStake {
-		log.Debugf("Using min ticket fee: %.8f DCR", t.cfg.MinFee)
-		feeToUse = t.cfg.MinFee
+		feeToUse = t.MinFee()
+		log.Debugf("Using min ticket fee: %v", feeToUse)
 		if ticketPurchasesInLastBlock < maxStake {
 			log.Tracef("(ticket purchase slots available in last block)")
 		}
@@ -624,9 +622,9 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		// If might be the case that there weren't enough recent
 		// blocks to average fees from. Use data from the last
 		// window with the closest difficulty.
-		chainFee := 0.0
+		var chainFee dcrutil.Amount
 		if t.idxDiffPeriod < t.cfg.BlocksToAvg {
-			chainFee, err = t.findClosestFeeWindows(nextStakeDiff.ToCoin(),
+			chainFee, err = t.findClosestFeeWindows(nextStakeDiff,
 				t.useMedian)
 			if err != nil {
 				return ps, err
@@ -640,10 +638,11 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 		// Scale the mean fee upwards according to what was asked
 		// for by the user.
-		feeToUse = chainFee * t.cfg.FeeTargetScaling
-		log.Tracef("Average ticket fee: %.8f DCR", chainFee)
+		log.Tracef("Average ticket fee: %v", chainFee)
+
+		feeToUse = chainFee.MulF64(t.cfg.FeeTargetScaling)
 		if feeToUse > t.MaxFee() {
-			log.Infof("Not buying because max fee exceed: (max fee: %.8f DCR,  scaled fee: %.8f DCR)",
+			log.Infof("Not buying because max fee exceed: (max fee: %v, scaled fee: %v)",
 				t.MaxFee(), feeToUse)
 			return ps, nil
 		}
@@ -651,15 +650,11 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 			feeToUse = t.MinFee()
 		}
 	}
-	feeToUseAmt, err := dcrutil.NewAmount(feeToUse)
-	if err != nil {
-		return ps, err
-	}
-	t.wallet.SetTicketFeeIncrement(feeToUseAmt)
+	t.wallet.SetTicketFeeIncrement(feeToUse)
 
 	// Set the balancetomaintain to the configuration parameter that is higher
 	// Absolute or relative balance to maintain
-	balanceToMaintainAmt := t.BalanceToMaintain()
+	balanceToMaintainAmt := t.BalanceToMaintain().ToCoin()
 	if balanceToMaintainAmt > bal.Total.ToCoin()*t.cfg.BalanceToMaintainRelative {
 		log.Debugf("Using absolute balancetomaintain: %v", balanceToMaintainAmt)
 	} else {
@@ -863,7 +858,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	for i := range hashes {
 		log.Infof("Purchased ticket %v at stake difficulty %v (%v "+
 			"fees per KB used)", hashes[i], nextStakeDiff.ToCoin(),
-			feeToUseAmt.ToCoin())
+			feeToUse.ToCoin())
 	}
 	ps.Purchased = len(hashes)
 	if purchaseErr != nil {
@@ -875,7 +870,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		return ps, err
 	}
 	log.Debugf("Usable balance for account '%s' after purchases: %v", accountName, bal.Spendable)
-	ps.Balance = int64(bal.Spendable)
+	ps.Balance = bal.Spendable
 
 	if len(hashes) == 0 && purchaseErr != nil {
 		return ps, purchaseErr

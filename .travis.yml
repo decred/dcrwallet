@@ -2,6 +2,7 @@ dist: trusty
 language: go
 go:
   - 1.7.x
+  - 1.8.x
 sudo: false
 before_install:
   - GLIDE_TAG=v0.12.3

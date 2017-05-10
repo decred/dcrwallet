@@ -6,7 +6,6 @@
 package udb
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/sha512"
 	"fmt"
@@ -21,7 +20,6 @@ import (
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/snacl"
 	"github.com/decred/dcrwallet/walletdb"
-	"github.com/decred/dcrwallet/walletseed"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -85,12 +83,6 @@ const (
 	// saltSize is the number of bytes of the salt used when hashing
 	// private passphrases.
 	saltSize = 32
-)
-
-var (
-	// nullSeed is an uninitialized wallet seed. It is stored as a
-	// dummy seed in mainnet wallets to protect the actual seed.
-	nullSeed = bytes.Repeat([]byte{0x00}, 32)
 )
 
 var (
@@ -181,7 +173,9 @@ type accountInfo struct {
 }
 
 // AccountProperties contains properties associated with each account, such as
-// the account name, number, and the nubmer of derived and imported keys.
+// the account name, number, and the nubmer of derived and imported keys.  If no
+// address usage has been recorded on any of the external or internal branches,
+// the child index is ^uint32(0).
 type AccountProperties struct {
 	AccountNumber         uint32
 	AccountName           string
@@ -469,35 +463,6 @@ func deriveKey(acctInfo *accountInfo, branch, index uint32, private bool) (*hdke
 		return nil, managerError(apperrors.ErrKeyChain, str, err)
 	}
 	return addressKey, nil
-}
-
-// GetSeed gives the encoded string version of the seed if the
-// wallet is unlocked.
-func (m *Manager) GetSeed(ns walletdb.ReadBucket) (string, error) {
-	if m.locked {
-		str := "manager is locked"
-		return "", managerError(apperrors.ErrLocked, str, nil)
-	}
-
-	localSeed, err := fetchSeed(ns)
-	if err != nil {
-		return "", maybeConvertDbError(err)
-	}
-	seedEnc := make([]byte, len(localSeed))
-	copy(seedEnc, localSeed)
-
-	seed, err := m.cryptoKeyPriv.Decrypt(seedEnc)
-	if err != nil {
-		str := "failed to decrypt seed"
-		return "", managerError(apperrors.ErrCrypto, str, nil)
-	}
-
-	if bytes.Equal(seed, nullSeed) {
-		str := "wallet seed was never stored"
-		return "", managerError(apperrors.ErrNoExist, str, nil)
-	}
-
-	return walletseed.EncodeMnemonic(seed), nil
 }
 
 // GetMasterPubkey gives the encoded string version of the HD master public key
@@ -1705,7 +1670,7 @@ func (m *Manager) RenameAccount(ns walletdb.ReadWriteBucket, account uint32, nam
 		return err
 	}
 	row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted,
-		0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex, row.name, DBVersion)
+		0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex, name, DBVersion)
 	err = putAccountInfo(ns, account, row)
 	if err != nil {
 		return err
@@ -2214,7 +2179,7 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte,
 // A ManagerError with an error code of ErrAlreadyExists will be returned the
 // address manager already exists in the specified namespace.
 func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, privPassphrase []byte,
-	chainParams *chaincfg.Params, config *ScryptOptions, unsafeMainNet bool) error {
+	chainParams *chaincfg.Params, config *ScryptOptions) error {
 
 	err := func() error {
 		// Return an error if the manager has already been created in the given
@@ -2327,17 +2292,6 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		}
 		defer cryptoKeyPriv.Zero()
 
-		// For SimNet and TestNet wallets, store the seed. For MainNet
-		// wallets, encrypt and store a zeroed 32-byte slice instead.
-		if (chainParams == &chaincfg.MainNetParams) && !unsafeMainNet {
-			seed = nullSeed
-		}
-		seedEnc, err := cryptoKeyPriv.Encrypt(seed)
-		if err != nil {
-			str := "failed to encrypt seed"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-
 		cryptoKeyScript, err := newCryptoKey()
 		if err != nil {
 			str := "failed to generate crypto script key"
@@ -2409,12 +2363,6 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		if err != nil {
 			str := "failed to encrypt private key for account 0"
 			return managerError(apperrors.ErrCrypto, str, err)
-		}
-
-		// Save the encrypted seed.
-		err = putSeed(ns, seedEnc)
-		if err != nil {
-			return err
 		}
 
 		// Save the master key params to the database.

@@ -57,12 +57,14 @@ func createWallet(cfg *config) error {
 		TicketFee:     cfg.TicketFee.ToCoin(),
 	}
 	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
-		cfg.UnsafeMainNet, cfg.AddrIdxScanLen, cfg.AllowHighFees,
-		cfg.RelayFee.ToCoin())
+		cfg.AddrIdxScanLen, cfg.AllowHighFees, cfg.RelayFee.ToCoin())
 
 	reader := bufio.NewReader(os.Stdin)
 	privPass, pubPass, seed, err := prompt.Setup(reader,
 		[]byte(wallet.InsecurePubPassphrase), []byte(cfg.WalletPass))
+	if err != nil {
+		return err
+	}
 
 	fmt.Println("Creating the wallet...")
 	_, err = loader.CreateNewWallet(pubPass, privPass, seed)
@@ -112,7 +114,7 @@ func createSimulationWallet(cfg *config) error {
 	defer db.Close()
 
 	// Create the wallet.
-	err = wallet.Create(db, pubPass, privPass, seed, activeNet.Params, cfg.UnsafeMainNet)
+	err = wallet.Create(db, pubPass, privPass, seed, activeNet.Params)
 	if err != nil {
 		return err
 	}

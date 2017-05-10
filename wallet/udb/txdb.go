@@ -675,6 +675,16 @@ func readRawTxRecord(txHash *chainhash.Hash, v []byte, rec *TxRecord) error {
 	return nil
 }
 
+func readRawTxRecordBlockHeight(k []byte, height *int32) error {
+	if len(k) < 68 {
+		str := fmt.Sprintf("%s: short key (expected %d bytes, read %d)",
+			bucketTxRecords, 68, len(k))
+		return storeError(apperrors.ErrData, str, nil)
+	}
+	*height = int32(byteOrder.Uint32(k[32:36]))
+	return nil
+}
+
 func readRawTxRecordBlock(k []byte, block *Block) error {
 	if len(k) < 68 {
 		str := fmt.Sprintf("%s: short key (expected %d bytes, read %d)",

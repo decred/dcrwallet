@@ -54,6 +54,11 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 					return w.watchFutureAddresses(tx)
 				})
 			}
+		case chain.MissedTickets:
+			notificationName = "spentandmissedtickets"
+			err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+				return w.handleMissedTickets(dbtx, n.BlockHash, n.BlockHeight, n.Tickets)
+			})
 		}
 		if err != nil {
 			log.Errorf("Failed to process consensus server notification "+
@@ -673,7 +678,6 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 						if err != nil {
 							return err
 						}
-						w.Rescan(chainClient, w.chainParams.GenesisHash)
 					}
 				}
 			}
@@ -842,11 +846,6 @@ func (w *Wallet) handleChainVotingNotifications(chainClient *chain.RPCClient) {
 				return w.handleWinningTickets(dbtx, n.BlockHash, n.BlockHeight, n.Tickets)
 			})
 			strErrType = "WinningTickets"
-		case chain.MissedTickets:
-			err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-				return w.handleMissedTickets(dbtx, n.BlockHash, n.BlockHeight, n.Tickets)
-			})
-			strErrType = "MissedTickets"
 		default:
 			err = fmt.Errorf("voting handler received unknown ntfn type")
 		}
@@ -925,13 +924,9 @@ func (w *Wallet) handleMissedTickets(dbtx walletdb.ReadWriteTx, blockHash *chain
 	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
-	if !w.votingEnabled {
-		return nil
-	}
-
 	if blockHeight >= w.chainParams.StakeValidationHeight+1 {
 		ntfns, err := w.StakeMgr.HandleMissedTicketsNtfn(stakemgrNs, addrmgrNs,
-			blockHash, blockHeight, tickets, w.AllowHighFees)
+			blockHash, blockHeight, tickets, w.RelayFee(), w.AllowHighFees)
 
 		if ntfns != nil {
 			// Send notifications for newly created revocations by the RPC.

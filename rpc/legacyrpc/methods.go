@@ -25,6 +25,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/wallet"
@@ -34,10 +35,10 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "3.0.0"
+	jsonrpcSemverString = "3.0.1"
 	jsonrpcSemverMajor  = 3
 	jsonrpcSemverMinor  = 0
-	jsonrpcSemverPatch  = 0
+	jsonrpcSemverPatch  = 1
 )
 
 // confirmed checks whether a transaction at height txHeight has met minconf
@@ -81,20 +82,15 @@ var rpcHandlers = map[string]struct {
 	// for the unimplemented handlers so every method has exactly one
 	// handler function.
 	noHelp bool
-
-	// This is disabled on a mainnet wallet unless run with the specified
-	// flag.
-	requireUnsafeOnMainNet bool
 }{
 	// Reference implementation wallet methods (implemented)
 	"accountaddressindex":     {handler: accountAddressIndex},
-	"accountfetchaddresses":   {handler: accountFetchAddresses},
 	"accountsyncaddressindex": {handler: accountSyncAddressIndex},
 	"addmultisigaddress":      {handlerWithChain: addMultiSigAddress},
 	"addticket":               {handler: addTicket},
 	"consolidate":             {handler: consolidate},
 	"createmultisig":          {handler: createMultiSig},
-	"dumpprivkey":             {handler: dumpPrivKey, requireUnsafeOnMainNet: true},
+	"dumpprivkey":             {handler: dumpPrivKey},
 	"generatevote":            {handler: generateVote},
 	"getaccount":              {handler: getAccount},
 	"getaccountaddress":       {handler: getAccountAddress},
@@ -109,7 +105,6 @@ var rpcHandlers = map[string]struct {
 	"getrawchangeaddress":     {handler: getRawChangeAddress},
 	"getreceivedbyaccount":    {handler: getReceivedByAccount},
 	"getreceivedbyaddress":    {handler: getReceivedByAddress},
-	"getseed":                 {handler: getSeed, requireUnsafeOnMainNet: true},
 	"getstakeinfo":            {handlerWithChain: getStakeInfo},
 	"getticketfee":            {handler: getTicketFee},
 	"gettickets":              {handlerWithChain: getTickets},
@@ -210,14 +205,8 @@ type lazyHandler func() (interface{}, *dcrjson.RPCError)
 // returning a closure that will execute it with the (required) wallet and
 // (optional) consensus RPC server.  If no handlers are found and the
 // chainClient is not nil, the returned handler performs RPC passthrough.
-func lazyApplyHandler(request *dcrjson.Request, w *wallet.Wallet, chainClient *chain.RPCClient, unsafeMainNet bool) lazyHandler {
+func lazyApplyHandler(request *dcrjson.Request, activeNet *chaincfg.Params, w *wallet.Wallet, chainClient *chain.RPCClient) lazyHandler {
 	handlerData, ok := rpcHandlers[request.Method]
-	if ok && handlerData.requireUnsafeOnMainNet &&
-		w.ChainParams() == &chaincfg.MainNetParams && !unsafeMainNet {
-		return func() (interface{}, *dcrjson.RPCError) {
-			return nil, &ErrMainNetSafety
-		}
-	}
 	if ok && handlerData.handlerWithChain != nil && w != nil && chainClient != nil {
 		return func() (interface{}, *dcrjson.RPCError) {
 			cmd, err := dcrjson.UnmarshalCmd(request)
@@ -318,7 +307,7 @@ func jsonError(err error) *dcrjson.RPCError {
 	}
 }
 
-// accountAddressIndex returns the current address index for the passed
+// accountAddressIndex returns the next address index for the passed
 // account and branch.
 func accountAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	cmd := icmd.(*dcrjson.AccountAddressIndexCmd)
@@ -327,7 +316,7 @@ func accountAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, error
 		return nil, err
 	}
 
-	extChild, intChild, err := w.BIP0044BranchIndexes(account)
+	extChild, intChild, err := w.BIP0044BranchNextIndexes(account)
 	if err != nil {
 		return nil, err
 	}
@@ -342,41 +331,6 @@ func accountAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, error
 	}
 }
 
-// accountFetchAddresses returns the all addresses from (start,end] for the
-// passed account and branch.
-func accountFetchAddresses(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	cmd := icmd.(*dcrjson.AccountFetchAddressesCmd)
-	account, err := w.AccountNumber(cmd.Account)
-	if err != nil {
-		return nil, err
-	}
-
-	// The branch may only be internal or external.
-	branch := uint32(cmd.Branch)
-	if branch > udb.InternalBranch {
-		return nil, fmt.Errorf("invalid branch %v", branch)
-	}
-
-	if cmd.End <= cmd.Start ||
-		cmd.Start > udb.MaxAddressesPerAccount ||
-		cmd.End > udb.MaxAddressesPerAccount {
-		return nil, fmt.Errorf("bad indexes start %v, end %v", cmd.Start,
-			cmd.End)
-	}
-
-	addrs, err := w.AccountBranchAddressRange(uint32(cmd.Start),
-		uint32(cmd.End), account, branch)
-	if err != nil {
-		return nil, err
-	}
-	addrsStr := make([]string, cmd.End-cmd.Start)
-	for i := range addrs {
-		addrsStr[i] = addrs[i].EncodeAddress()
-	}
-
-	return dcrjson.AccountFetchAddressesResult{Addresses: addrsStr}, nil
-}
-
 // accountSyncAddressIndex synchronizes the address manager and local address
 // pool for some account and branch to the passed index. If the current pool
 // index is beyond the passed index, an error is returned. If the passed index
@@ -389,29 +343,12 @@ func accountSyncAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, e
 		return nil, err
 	}
 
-	extChild, intChild, err := w.BIP0044BranchIndexes(account)
-	if err != nil {
-		return nil, err
-	}
 	branch := uint32(cmd.Branch)
-	var currentChild uint32
-	switch branch {
-	case udb.ExternalBranch:
-		currentChild = extChild
-	case udb.InternalBranch:
-		currentChild = intChild
-	default:
-		// The branch may only be internal or external.
-		return nil, fmt.Errorf("invalid branch %v", branch)
-	}
-
 	index := uint32(cmd.Index)
-	if index < currentChild {
-		return nil, fmt.Errorf("the passed index, %v, is before the "+
-			"currently synced to address index %v", index, currentChild)
-	}
-	if index == currentChild {
-		return nil, nil
+
+	if index >= hdkeychain.HardenedKeyStart {
+		return nil, fmt.Errorf("child index %d exceeds the maximum child index "+
+			"for an account", index)
 	}
 
 	// Additional addresses need to be watched.  Since addresses are derived
@@ -650,8 +587,8 @@ func getAddressesByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, err
 		return nil, err
 	}
 
-	// Find the current synced-to indexes from the address pool.
-	endExt, endInt, err := w.BIP0044BranchIndexes(account)
+	// Find the next child address indexes for the account.
+	endExt, endInt, err := w.BIP0044BranchNextIndexes(account)
 	if err != nil {
 		return nil, err
 	}
@@ -663,16 +600,14 @@ func getAddressesByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, err
 
 	// Derive the addresses.
 	addrsStr := make([]string, endInt+endExt)
-	addrsExt, err := w.AccountBranchAddressRange(0, endExt,
-		account, udb.ExternalBranch)
+	addrsExt, err := w.AccountBranchAddressRange(account, udb.ExternalBranch, 0, endExt)
 	if err != nil {
 		return nil, err
 	}
 	for i := range addrsExt {
 		addrsStr[i] = addrsExt[i].EncodeAddress()
 	}
-	addrsInt, err := w.AccountBranchAddressRange(0, endInt,
-		account, udb.InternalBranch)
+	addrsInt, err := w.AccountBranchAddressRange(account, udb.InternalBranch, 0, endInt)
 	if err != nil {
 		return nil, err
 	}
@@ -1231,22 +1166,13 @@ func getMasterPubkey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	return w.MasterPubKey(account)
 }
 
-// getSeed handles a getseed request by returning the wallet seed encoded as
-// a string.
-func getSeed(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	return w.Seed()
-}
-
 // getStakeInfo gets a large amounts of information about the stake environment
 // and a number of statistics about local staking in the wallet.
 func getStakeInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient) (interface{}, error) {
-	// Get the current difficulty.
-	stakeDiff, err := w.StakeDifficulty()
-	if err != nil {
-		return nil, err
-	}
+	// Asynchronously query for the stake difficulty.
+	sdiffFuture := chainClient.GetStakeDifficultyAsync()
 
-	stakeInfo, err := w.StakeInfo()
+	stakeInfo, err := w.StakeInfo(chainClient.Client)
 	if err != nil {
 		return nil, err
 	}
@@ -1261,10 +1187,15 @@ func getStakeInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClie
 			(float64(stakeInfo.Voted) + float64(stakeInfo.Missed))
 	}
 
+	sdiff, err := sdiffFuture.Receive()
+	if err != nil {
+		return nil, err
+	}
+
 	resp := &dcrjson.GetStakeInfoResult{
 		BlockHeight:      stakeInfo.BlockHeight,
 		PoolSize:         stakeInfo.PoolSize,
-		Difficulty:       stakeDiff.ToCoin(),
+		Difficulty:       sdiff.NextStakeDifficulty,
 		AllMempoolTix:    stakeInfo.AllMempoolTix,
 		OwnMempoolTix:    stakeInfo.OwnMempoolTix,
 		Immature:         stakeInfo.Immature,
@@ -1458,7 +1389,7 @@ func getVoteChoices(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		Choices: make([]dcrjson.VoteChoice, len(agendas)),
 	}
 
-	choices, err := w.AgendaChoices()
+	choices, _, err := w.AgendaChoices()
 	if err != nil {
 		return nil, err
 	}
@@ -2114,6 +2045,9 @@ func redeemMultiSigOut(icmd interface{}, w *wallet.Wallet, chainClient *chain.RP
 	var err error
 	if cmd.Address != nil {
 		addr, err = decodeAddress(*cmd.Address, w.ChainParams())
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		account := uint32(udb.DefaultAccountNum)
 		addr, err = w.NewInternalAddress(account)
@@ -2288,6 +2222,9 @@ func stakePoolUserInfo(icmd interface{}, w *wallet.Wallet) (interface{}, error) 
 			status = "voted"
 		case udb.TSMissed:
 			status = "missed"
+			if ticket.HeightSpent-ticket.HeightTicket >= w.ChainParams().TicketExpiry {
+				status = "expired"
+			}
 		}
 		ticketRes.Status = status
 
@@ -2718,7 +2655,7 @@ func setTxFee(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // choice for a voting agenda.
 func setVoteChoice(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SetVoteChoiceCmd)
-	err := w.SetAgendaChoices(wallet.AgendaChoice{
+	_, err := w.SetAgendaChoices(wallet.AgendaChoice{
 		AgendaID: cmd.AgendaID,
 		ChoiceID: cmd.ChoiceID,
 	})

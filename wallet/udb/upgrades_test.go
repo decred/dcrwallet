@@ -28,6 +28,7 @@ var dbUpgradeTests = [...]struct {
 }{
 	{verifyV2Upgrade, "v1.db.gz"},
 	{verifyV3Upgrade, "v2.db.gz"},
+	{verifyV4Upgrade, "v3.db.gz"},
 }
 
 var pubPass = []byte("public")
@@ -99,7 +100,7 @@ func verifyV2Upgrade(t *testing.T, db walletdb.DB) {
 			totalAddrs uint32
 			lastUsed   uint32
 		}{
-			{0, 0},
+			{^uint32(0), ^uint32(0)},
 			{20, 18},
 			{20, 19},
 			{20, 19},
@@ -180,7 +181,7 @@ func verifyV3Upgrade(t *testing.T, db walletdb.DB) {
 		if err != nil {
 			return err
 		}
-		rec, err := smgr.getSStx(ns, ticketPurchaseHash)
+		rec, err := fetchSStxRecord(ns, ticketPurchaseHash, 3)
 		if err != nil {
 			return err
 		}
@@ -216,6 +217,20 @@ func verifyV3Upgrade(t *testing.T, db walletdb.DB) {
 			t.Errorf("Agenda preferences bucket was not created")
 		}
 
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func verifyV4Upgrade(t *testing.T, db walletdb.DB) {
+	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
+		ns := tx.ReadBucket(waddrmgrBucketKey)
+		mainBucket := ns.NestedReadBucket(mainBucketName)
+		if mainBucket.Get(seedName) != nil {
+			t.Errorf("Seed was not deleted")
+		}
 		return nil
 	})
 	if err != nil {
