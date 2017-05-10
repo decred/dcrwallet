@@ -72,11 +72,14 @@ type Config struct {
 	MaxPriceAbsolute          int64
 	MaxPriceRelative          float64
 	MaxInMempool              int
+	NoSpreadTicketPurchases   bool
 	PoolAddress               string
 	PoolFees                  float64
-	SpreadTicketPurchases     bool
 	TicketAddress             string
 	TxFee                     int64
+
+	// Deprecated options
+	SpreadTicketPurchases bool
 }
 
 // TicketPurchaser is the main handler for purchasing tickets. It decides
@@ -145,9 +148,9 @@ func (t *TicketPurchaser) Config() (*Config, error) {
 		MaxPriceAbsolute:          int64(t.maxPriceAbsolute),
 		MaxPriceRelative:          t.maxPriceRelative,
 		MaxInMempool:              t.cfg.MaxInMempool,
+		NoSpreadTicketPurchases:   t.cfg.NoSpreadTicketPurchases,
 		PoolAddress:               poolAddress,
 		PoolFees:                  t.poolFees,
-		SpreadTicketPurchases:     t.cfg.SpreadTicketPurchases,
 		TicketAddress:             t.cfg.TicketAddress,
 		TxFee:                     t.cfg.TxFee,
 	}
@@ -680,7 +683,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// Use available funds to calculate how many tickets to buy, and also
 	// approximate the income you're going to have from older tickets that
 	// you've voted and are maturing during this window
-	if t.cfg.SpreadTicketPurchases && toBuyForBlock > 0 {
+	if !t.cfg.NoSpreadTicketPurchases && toBuyForBlock > 0 {
 		log.Debugf("Spreading purchases throughout window")
 
 		// same as proportionlive that getstakeinfo rpc shows

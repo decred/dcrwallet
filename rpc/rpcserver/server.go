@@ -1265,11 +1265,14 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 		MaxPriceAbsolute:          req.MaxPriceAbsolute,
 		MaxPriceRelative:          req.MaxPriceRelative,
 		MaxInMempool:              t.ticketbuyerCfg.MaxInMempool,
+		NoSpreadTicketPurchases:   t.ticketbuyerCfg.NoSpreadTicketPurchases,
 		PoolAddress:               poolAddress,
 		PoolFees:                  poolFees,
-		SpreadTicketPurchases:     t.ticketbuyerCfg.SpreadTicketPurchases,
 		TicketAddress:             votingAddress,
 		TxFee:                     t.ticketbuyerCfg.TxFee,
+
+		// Deprecated options
+		SpreadTicketPurchases: t.ticketbuyerCfg.SpreadTicketPurchases,
 	}
 	err = t.loader.StartTicketPurchase(req.Passphrase, config)
 	if err == loader.ErrTicketBuyerStarted {
@@ -1577,26 +1580,25 @@ func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.Ticke
 		return nil, translateError(err)
 	}
 	return &pb.TicketBuyerConfigResponse{
-		Account:               account,
-		AvgPriceMode:          config.AvgPriceMode,
-		AvgPriceVWAPDelta:     int64(config.AvgPriceVWAPDelta),
-		BalanceToMaintain:     config.BalanceToMaintainAbsolute,
-		BlocksToAvg:           int64(config.BlocksToAvg),
-		DontWaitForTickets:    config.DontWaitForTickets,
-		ExpiryDelta:           int64(config.ExpiryDelta),
-		FeeSource:             config.FeeSource,
-		FeeTargetScaling:      config.FeeTargetScaling,
-		MinFee:                config.MinFee,
-		MaxFee:                config.MaxFee,
-		MaxPerBlock:           int64(config.MaxPerBlock),
-		MaxPriceAbsolute:      config.MaxPriceAbsolute,
-		MaxPriceRelative:      config.MaxPriceRelative,
-		MaxInMempool:          int64(config.MaxInMempool),
-		PoolAddress:           config.PoolAddress,
-		PoolFees:              config.PoolFees,
-		SpreadTicketPurchases: config.SpreadTicketPurchases,
-		VotingAddress:         config.TicketAddress,
-		TxFee:                 config.TxFee,
+		Account:            account,
+		AvgPriceMode:       config.AvgPriceMode,
+		AvgPriceVWAPDelta:  int64(config.AvgPriceVWAPDelta),
+		BalanceToMaintain:  config.BalanceToMaintainAbsolute,
+		BlocksToAvg:        int64(config.BlocksToAvg),
+		DontWaitForTickets: config.DontWaitForTickets,
+		ExpiryDelta:        int64(config.ExpiryDelta),
+		FeeSource:          config.FeeSource,
+		FeeTargetScaling:   config.FeeTargetScaling,
+		MinFee:             config.MinFee,
+		MaxFee:             config.MaxFee,
+		MaxPerBlock:        int64(config.MaxPerBlock),
+		MaxPriceAbsolute:   config.MaxPriceAbsolute,
+		MaxPriceRelative:   config.MaxPriceRelative,
+		MaxInMempool:       int64(config.MaxInMempool),
+		PoolAddress:        config.PoolAddress,
+		PoolFees:           config.PoolFees,
+		VotingAddress:      config.TicketAddress,
+		TxFee:              config.TxFee,
 	}, nil
 }
 
