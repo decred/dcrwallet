@@ -53,10 +53,10 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.9.1"
+	semverString = "4.9.2"
 	semverMajor  = 4
 	semverMinor  = 9
-	semverPatch  = 1
+	semverPatch  = 2
 )
 
 // translateError creates a new gRPC error with an appropiate error code for
@@ -789,12 +789,23 @@ func (s *walletServer) ChangePassphrase(ctx context.Context, req *pb.ChangePassp
 		zero.Bytes(req.NewPassphrase)
 	}()
 
+	var (
+		oldPass = req.OldPassphrase
+		newPass = req.NewPassphrase
+	)
+
 	var err error
 	switch req.Key {
 	case pb.ChangePassphraseRequest_PRIVATE:
-		err = s.wallet.ChangePrivatePassphrase(req.OldPassphrase, req.NewPassphrase)
+		err = s.wallet.ChangePrivatePassphrase(oldPass, newPass)
 	case pb.ChangePassphraseRequest_PUBLIC:
-		err = s.wallet.ChangePublicPassphrase(req.OldPassphrase, req.NewPassphrase)
+		if len(oldPass) == 0 {
+			oldPass = []byte(wallet.InsecurePubPassphrase)
+		}
+		if len(newPass) == 0 {
+			newPass = []byte(wallet.InsecurePubPassphrase)
+		}
+		err = s.wallet.ChangePublicPassphrase(oldPass, newPass)
 	default:
 		return nil, grpc.Errorf(codes.InvalidArgument, "Unknown key type (%d)", req.Key)
 	}
