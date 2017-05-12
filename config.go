@@ -81,7 +81,7 @@ type config struct {
 	ShowVersion        bool     `short:"V" long:"version" description:"Display version information and exit"`
 	Create             bool     `long:"create" description:"Create the wallet if it does not exist"`
 	CreateTemp         bool     `long:"createtemp" description:"Create a temporary simulation wallet (pass=password) in the data directory indicated; must call with --datadir"`
-	CreateWatchingOnly bool     `long:"createwatchingonly" description:"Create the wallet and instantiate it as watching only with an HD extended pubkey; must call with --create"`
+	CreateWatchingOnly bool     `long:"createwatchingonly" description:"Create the wallet and instantiate it as watching only with an HD extended pubkey"`
 	AppDataDir         string   `short:"A" long:"appdata" description:"Application data directory for wallet config, databases and logs"`
 	TestNet            bool     `long:"testnet" description:"Use the test network"`
 	SimNet             bool     `long:"simnet" description:"Use the simulation test network"`
@@ -657,7 +657,7 @@ func loadConfig() (*config, []string, error) {
 				return loadConfigError(err)
 			}
 		}
-	} else if cfg.Create {
+	} else if cfg.Create || cfg.CreateWatchingOnly {
 		// Error if the create flag is set and the wallet already
 		// exists.
 		if dbFileExists {
@@ -675,16 +675,14 @@ func loadConfig() (*config, []string, error) {
 
 		// Perform the initial wallet creation wizard.
 		backendLog.Flush()
-		if !cfg.CreateWatchingOnly {
-			if err = createWallet(&cfg); err != nil {
-				fmt.Fprintln(os.Stderr, "Unable to create wallet:", err)
-				return loadConfigError(err)
-			}
-		} else if cfg.CreateWatchingOnly {
-			if err = createWatchingOnlyWallet(&cfg); err != nil {
-				fmt.Fprintln(os.Stderr, "Unable to create wallet:", err)
-				return loadConfigError(err)
-			}
+		if cfg.CreateWatchingOnly {
+			err = createWatchingOnlyWallet(&cfg)
+		} else {
+			err = createWallet(&cfg)
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Unable to create wallet:", err)
+			return loadConfigError(err)
 		}
 
 		// Created successfully, so exit now with success.
