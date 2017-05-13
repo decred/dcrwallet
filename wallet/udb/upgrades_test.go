@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sync"
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg"
@@ -41,14 +40,12 @@ func TestUpgrades(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(len(dbUpgradeTests))
-	for i, test := range dbUpgradeTests {
-		test := test
-		name := fmt.Sprintf("test%d", i)
-		go func() {
+	t.Run("group", func(t *testing.T) {
+		for i, test := range dbUpgradeTests {
+			test := test
+			name := fmt.Sprintf("test%d", i)
 			t.Run(name, func(t *testing.T) {
-				defer wg.Done()
+				t.Parallel()
 				testFile, err := os.Open(filepath.Join("testdata", test.filename))
 				if err != nil {
 					t.Fatal(err)
@@ -79,10 +76,9 @@ func TestUpgrades(t *testing.T) {
 				}
 				test.verify(t, db)
 			})
-		}()
-	}
+		}
+	})
 
-	wg.Wait()
 	os.RemoveAll(d)
 }
 
