@@ -372,27 +372,15 @@ func (w *Wallet) insertMultisigOutIntoTxMgr(ns walletdb.ReadWriteBucket, msgTx *
 // with no less than minconf confirmations, and creates a signed transaction
 // that pays to each of the outputs.
 func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int32,
-	randomizeChangeIdx bool) (atx *txauthor.AuthoredTx, err error) {
+	randomizeChangeIdx bool) (*txauthor.AuthoredTx, error) {
 
 	chainClient, err := w.requireChainClient()
 	if err != nil {
 		return nil, err
 	}
 
-	w.reorganizingLock.Lock()
-	reorg := w.reorganizing
-	w.reorganizingLock.Unlock()
-	if reorg {
-		return nil, ErrBlockchainReorganizing
-	}
-
-	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-		var err error
-		atx, err = w.txToOutputsInternal(dbtx, outputs, account, minconf,
-			chainClient, randomizeChangeIdx, w.RelayFee())
-		return err
-	})
-	return atx, err
+	return w.txToOutputsInternal(outputs, account, minconf, chainClient,
+		randomizeChangeIdx, w.RelayFee())
 }
 
 // txToOutputsInternal creates a signed transaction which includes each output
@@ -406,76 +394,94 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 // Decred: This func also sends the transaction, and if successful, inserts it
 // into the database, rather than delegating this work to the caller as
 // btcwallet does.
-func (w *Wallet) txToOutputsInternal(dbtx walletdb.ReadWriteTx, outputs []*wire.TxOut, account uint32, minconf int32,
-	chainClient *chain.RPCClient, randomizeChangeIdx bool, txFee dcrutil.Amount) (atx *txauthor.AuthoredTx, err error) {
+func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minconf int32, chainClient *chain.RPCClient,
+	randomizeChangeIdx bool, txFee dcrutil.Amount) (*txauthor.AuthoredTx, error) {
 
-	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
-	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
+	var atx *txauthor.AuthoredTx
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-	// Get current block's height and hash.
-	_, topHeight := w.TxStore.MainChainTip(txmgrNs)
+		// Create the unsigned transaction.
+		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+		inputSource := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
+			minconf, tipHeight)
+		changeSource := w.changeSource(account)
+		var err error
+		atx, err = txauthor.NewUnsignedTransaction(outputs, txFee,
+			inputSource.SelectInputs, changeSource)
+		if err != nil {
+			return err
+		}
 
-	inputSource := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
-		minconf, topHeight)
-	changeSource := w.changeSource(account)
-	tx, err := txauthor.NewUnsignedTransaction(outputs, txFee,
-		inputSource.SelectInputs, changeSource)
+		// Randomize change position, if change exists, before signing.  This
+		// doesn't affect the serialize size, so the change amount will still be
+		// valid.
+		if atx.ChangeIndex >= 0 && randomizeChangeIdx {
+			atx.RandomizeChangePosition()
+		}
+
+		// Sign the transaction
+		secrets := &secretSource{Manager: w.Manager, addrmgrNs: addrmgrNs}
+		err = atx.AddAllInputScripts(secrets)
+		for _, done := range secrets.doneFuncs {
+			done()
+		}
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	// Randomize change position, if change exists, before signing.  This
-	// doesn't affect the serialize size, so the change amount will still be
-	// valid.
-	if tx.ChangeIndex >= 0 && randomizeChangeIdx {
-		tx.RandomizeChangePosition()
-	}
-
-	secrets := &secretSource{Manager: w.Manager, addrmgrNs: addrmgrNs}
-	err = tx.AddAllInputScripts(secrets)
-	for _, done := range secrets.doneFuncs {
-		done()
-	}
+	// Ensure valid signatures were created.
+	err = validateMsgTx(atx.Tx, atx.PrevScripts)
 	if err != nil {
 		return nil, err
 	}
 
-	err = validateMsgTx(tx.Tx, tx.PrevScripts)
-	if err != nil {
-		return nil, err
-	}
-
-	if tx.ChangeIndex >= 0 && account == udb.ImportedAddrAccount {
-		changeAmount := dcrutil.Amount(tx.Tx.TxOut[tx.ChangeIndex].Value)
+	// Warn when spending UTXOs controlled by imported keys created change for
+	// the default account.
+	if atx.ChangeIndex >= 0 && account == udb.ImportedAddrAccount {
+		changeAmount := dcrutil.Amount(atx.Tx.TxOut[atx.ChangeIndex].Value)
 		log.Warnf("Spend from imported account produced change: moving"+
 			" %v from imported account into default account.", changeAmount)
 	}
 
-	_, err = chainClient.SendRawTransaction(tx.Tx, w.AllowHighFees)
-	if err != nil {
-		return nil, err
-	}
-
-	// Ensure the transaction is saved.
-	//
-	// TODO: this can be improved by not using the same codepath as notified
-	// relevant transactions, since this does a lot of extra work.
+	// The update below uses the same codepath as notified relevant transactions
+	// and requires a serialized transaction.
 	var buf bytes.Buffer
-	buf.Grow(tx.Tx.SerializeSize())
-	err = tx.Tx.Serialize(&buf)
-	if err != nil {
-		return nil, err
-	}
-	err = w.processTransaction(dbtx, buf.Bytes(), nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	err = w.watchFutureAddresses(dbtx)
+	buf.Grow(atx.Tx.SerializeSize())
+	err = atx.Tx.Serialize(&buf)
 	if err != nil {
 		return nil, err
 	}
 
-	return tx, nil
+	// Use a single DB update to store and publish the transaction.  If the
+	// transaction is rejected, the update is rolled back.
+	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		// TODO: this can be improved by not using the same codepath as notified
+		// relevant transactions, since this does a lot of extra work.
+		err = w.processTransaction(dbtx, buf.Bytes(), nil, nil)
+		if err != nil {
+			return err
+		}
+
+		_, err = chainClient.SendRawTransaction(atx.Tx, w.AllowHighFees)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Watch for future address usage.
+	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		return w.watchFutureAddresses(dbtx)
+	})
+	if err != nil {
+		log.Errorf("Failed to watch for future address usage after publishing "+
+			"transaction: %v", err)
+	}
+	return atx, nil
 }
 
 // constructMultiSigScript create a multisignature output script from a
@@ -923,71 +929,43 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint,
 // greater than or equal to 0, tickets that cost more than that limit will
 // return an error that not enough funds are available.
 func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, error) {
-	var ticketHashes []*chainhash.Hash
-	var err error
-	dbErr := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-		ticketHashes, err = w.purchaseTicketsInternal(dbtx, req)
-		// This must never roll back the database transaction because doing so
-		// will cause double spend errors if multiple transactions were
-		// created and only some transactions were successful.
-		return nil
-	})
+	chainClient, err := w.requireChainClient()
 	if err != nil {
-		// Still return the ticket hashes that were successfully published,
-		// along with the error.
-		return ticketHashes, err
+		return nil, err
 	}
-	if dbErr != nil {
-		return ticketHashes, dbErr
-	}
-	return ticketHashes, nil
-}
-
-func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchaseTicketRequest) (ticketHashes []*chainhash.Hash, err error) {
-	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
-	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
-	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
 
 	// Ensure the minimum number of required confirmations is positive.
 	if req.minConf < 0 {
 		return nil, fmt.Errorf("need positive minconf")
 	}
-
 	// Need a positive or zero expiry that is higher than the next block to
 	// generate.
 	if req.expiry < 0 {
 		return nil, fmt.Errorf("need positive expiry")
 	}
-	_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+
+	// Perform a sanity check on expiry.
+	var tipHeight int32
+	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		ns := tx.ReadBucket(wtxmgrNamespaceKey)
+		_, tipHeight = w.TxStore.MainChainTip(ns)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
 	if req.expiry <= tipHeight+1 && req.expiry > 0 {
 		return nil, fmt.Errorf("need expiry that is beyond next height ("+
 			"given: %v, next height %v)", req.expiry, tipHeight+1)
 	}
 
 	addrFunc := w.NewInternalAddress
-
 	if w.addressReuse {
-		xpub, err := w.Manager.AccountBranchExtendedPubKey(dbtx,
-			udb.DefaultAccountNum, udb.ExternalBranch)
-		if err != nil {
-			return nil, err
-		}
+		xpub := w.addressBuffers[udb.DefaultAccountNum].albExternal.branchXpub
 		addr, err := deriveChildAddress(xpub, 0, w.chainParams)
 		addrFunc = func(uint32) (dcrutil.Address, error) {
 			return addr, err
 		}
-	}
-
-	chainClient, err := w.requireChainClient()
-	if err != nil {
-		return nil, err
-	}
-
-	w.reorganizingLock.Lock()
-	reorg := w.reorganizing
-	w.reorganizingLock.Unlock()
-	if reorg {
-		return nil, ErrBlockchainReorganizing
 	}
 
 	// Fetch a new address for creating a split transaction. Then,
@@ -1138,20 +1116,31 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 	if txFeeIncrement == 0 {
 		txFeeIncrement = w.RelayFee()
 	}
-	splitTx, err := w.txToOutputsInternal(dbtx, splitOuts, account, req.minConf,
+	splitTx, err := w.txToOutputsInternal(splitOuts, account, req.minConf,
 		chainClient, false, txFeeIncrement)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to send split transaction: %v", err)
 	}
 
+	// After tickets are created and published, watch for future addresses used
+	// by the split tx and any published tickets.
+	defer func() {
+		err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+			return w.watchFutureAddresses(tx)
+		})
+		if err != nil {
+			log.Errorf("Failed to watch for future addresses after ticket "+
+				"purchases: %v", err)
+		}
+	}()
+
 	// Generate the tickets individually.
-	ticketHashes = make([]*chainhash.Hash, 0, req.numTickets)
+	ticketHashes := make([]*chainhash.Hash, 0, req.numTickets)
 	for i := 0; i < req.numTickets; i++ {
-		// Generate the extended outpoints that we
-		// need to use for ticket inputs. There are
-		// two inputs for pool tickets corresponding
-		// to the fees and the user subsidy, while
-		// user-handled tickets have only one input.
+		// Generate the extended outpoints that we need to use for ticket
+		// inputs. There are two inputs for pool tickets corresponding to the
+		// fees and the user subsidy, while user-handled tickets have only one
+		// input.
 		var eopPool, eop *extendedOutPoint
 		if poolAddress == nil {
 			txOut := splitTx.Tx.TxOut[i]
@@ -1214,7 +1203,7 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 		}
 
 		// Generate the ticket msgTx and sign it.
-		ticket, err := makeTicket(w.ChainParams(), eopPool, eop, addrVote,
+		ticket, err := makeTicket(w.chainParams, eopPool, eop, addrVote,
 			addrSubsidy, int64(ticketPrice), poolAddress)
 		if err != nil {
 			return ticketHashes, err
@@ -1244,7 +1233,10 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 		// Set the expiry.
 		ticket.Expiry = uint32(req.expiry)
 
-		err = signMsgTx(ticket, forSigning, w.Manager, addrmgrNs, w.chainParams)
+		err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+			ns := tx.ReadBucket(waddrmgrNamespaceKey)
+			return signMsgTx(ticket, forSigning, w.Manager, ns, w.chainParams)
+		})
 		if err != nil {
 			return ticketHashes, err
 		}
@@ -1253,53 +1245,50 @@ func (w *Wallet) purchaseTicketsInternal(dbtx walletdb.ReadWriteTx, req purchase
 			return ticketHashes, err
 		}
 
-		// Send the ticket over the network.
-		txHash, err := chainClient.SendRawTransaction(ticket, w.AllowHighFees)
-		if err != nil {
-			return ticketHashes, err
-		}
-
-		// Insert the transaction and credits into the transaction manager.
-		rec, err := w.insertIntoTxMgr(txmgrNs, ticket)
-		if err != nil {
-			return ticketHashes, err
-		}
-		err = w.insertCreditsIntoTxMgr(dbtx, ticket, rec)
-		if err != nil {
-			return ticketHashes, err
-		}
-		txTemp := dcrutil.NewTx(ticket)
-
-		// The subsidy address is now used.
-		ma, err := w.Manager.Address(addrmgrNs, addrSubsidy)
-		if err != nil {
-			return ticketHashes, err
-		}
-		err = w.markUsedAddress(dbtx, ma)
-		if err != nil {
-			return ticketHashes, err
-		}
-		err = w.watchFutureAddresses(dbtx)
-		if err != nil {
-			return ticketHashes, err
-		}
-
-		// The ticket address may be for another wallet. Don't insert the
-		// ticket into the stake manager unless we actually own output zero
-		// of it. If this is the case, the chainntfns.go handlers will
-		// automatically insert it.
-		if _, err := w.Manager.Address(addrmgrNs, addrVote); err == nil {
-			if w.ticketAddress == nil {
-				err = w.StakeMgr.InsertSStx(stakemgrNs, txTemp)
-				if err != nil {
-					return ticketHashes, fmt.Errorf("Failed to insert SStx %v"+
-						"into the stake store", txTemp.Hash())
+		// Open a DB update to insert and publish the transaction.  If
+		// publishing fails, the update is rolled back.
+		var ticketHash *chainhash.Hash
+		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+			addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+			txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
+			stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
+			rec, err := w.insertIntoTxMgr(txmgrNs, ticket)
+			if err != nil {
+				return err
+			}
+			err = w.insertCreditsIntoTxMgr(dbtx, ticket, rec)
+			if err != nil {
+				return err
+			}
+			ma, err := w.Manager.Address(addrmgrNs, addrSubsidy)
+			if err != nil {
+				return err
+			}
+			err = w.markUsedAddress(dbtx, ma)
+			if err != nil {
+				return err
+			}
+			// The ticket address may be for another wallet. Don't insert the
+			// ticket into the stake manager unless we actually own output zero
+			// of it. If this is the case, the chainntfns.go handlers will
+			// automatically insert it.
+			if _, err := w.Manager.Address(addrmgrNs, addrVote); err == nil {
+				if w.ticketAddress == nil {
+					err = w.StakeMgr.InsertSStx(stakemgrNs, dcrutil.NewTx(ticket))
+					if err != nil {
+						return err
+					}
 				}
 			}
-		}
 
-		log.Infof("Successfully sent SStx purchase transaction %v", txHash)
-		ticketHashes = append(ticketHashes, txHash)
+			ticketHash, err = chainClient.SendRawTransaction(ticket, w.AllowHighFees)
+			return err
+		})
+		if err != nil {
+			return ticketHashes, err
+		}
+		ticketHashes = append(ticketHashes, ticketHash)
+		log.Infof("Successfully sent SStx purchase transaction %v", ticketHash)
 	}
 
 	return ticketHashes, nil
