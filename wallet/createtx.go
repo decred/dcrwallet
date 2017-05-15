@@ -211,8 +211,8 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 	algo OutputSelectionAlgorithm, changeSource txauthor.ChangeSource) (*txauthor.AuthoredTx, error) {
 
 	var authoredTx *txauthor.AuthoredTx
-	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 
