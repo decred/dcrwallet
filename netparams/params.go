@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2016 The Decred developers
+// Copyright (c) 2016-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -11,30 +11,34 @@ import "github.com/decred/dcrd/chaincfg"
 // network and test networks.
 type Params struct {
 	*chaincfg.Params
-	RPCClientPort string
-	RPCServerPort string
+	JSONRPCClientPort string
+	JSONRPCServerPort string
+	GRPCServerPort    string
 }
 
 // MainNetParams contains parameters specific running dcrwallet and
 // dcrd on the main network (wire.MainNet).
 var MainNetParams = Params{
-	Params:        &chaincfg.MainNetParams,
-	RPCClientPort: "9109",
-	RPCServerPort: "9110",
+	Params:            &chaincfg.MainNetParams,
+	JSONRPCClientPort: "9109",
+	JSONRPCServerPort: "9110",
+	GRPCServerPort:    "9111",
 }
 
 // TestNet2Params contains parameters specific running dcrwallet and
 // dcrd on the test network (version 2) (wire.TestNet2).
 var TestNet2Params = Params{
-	Params:        &chaincfg.TestNet2Params,
-	RPCClientPort: "19109",
-	RPCServerPort: "19110",
+	Params:            &chaincfg.TestNet2Params,
+	JSONRPCClientPort: "19109",
+	JSONRPCServerPort: "19110",
+	GRPCServerPort:    "19111",
 }
 
 // SimNetParams contains parameters specific to the simulation test network
 // (wire.SimNet).
 var SimNetParams = Params{
-	Params:        &chaincfg.SimNetParams,
-	RPCClientPort: "19556",
-	RPCServerPort: "19557",
+	Params:            &chaincfg.SimNetParams,
+	JSONRPCClientPort: "19556",
+	JSONRPCServerPort: "19557",
+	GRPCServerPort:    "19558",
 }

@@ -1,5 +1,5 @@
 // Copyright (c) 2015-2016 The btcsuite developers
-// Copyright (c) 2016 The Decred developers
+// Copyright (c) 2016-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1346,7 +1346,7 @@ func (s *loaderServer) StartConsensusRpc(ctx context.Context, req *pb.StartConse
 	}
 
 	networkAddress, err := cfgutil.NormalizeAddress(req.NetworkAddress,
-		s.activeNet.RPCClientPort)
+		s.activeNet.JSONRPCClientPort)
 	if err != nil {
 		return nil, grpc.Errorf(codes.InvalidArgument,
 			"Network address is ill-formed: %v", err)

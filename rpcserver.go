@@ -133,8 +133,8 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			return tls.Listen(net, laddr, tlsConfig)
 		}
 
-		if len(cfg.ExperimentalRPCListeners) != 0 {
-			listeners := makeListeners(cfg.ExperimentalRPCListeners, net.Listen)
+		if len(cfg.GRPCListeners) != 0 {
+			listeners := makeListeners(cfg.GRPCListeners, net.Listen)
 			if len(listeners) == 0 {
 				err := errors.New("failed to create listeners for RPC server")
 				return nil, nil, err
@@ -153,11 +153,9 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			for _, lis := range listeners {
 				lis := lis
 				go func() {
-					log.Infof("Experimental RPC server listening on %s",
-						lis.Addr())
+					log.Infof("gRPC server listening on %s", lis.Addr())
 					err := server.Serve(lis)
-					log.Tracef("Finished serving expimental RPC: %v",
-						err)
+					log.Tracef("Finished serving gRPC: %v", err)
 				}()
 			}
 		}

@@ -1,5 +1,5 @@
 // Copyright (c) 2015-2016 The btcsuite developers
-// Copyright (c) 2016 The Decred developers
+// Copyright (c) 2016-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -93,7 +93,7 @@ func init() {
 	if opts.RPCConnect == "" {
 		fatalf("RPC hostname[:port] is required")
 	}
-	rpcConnect, err := cfgutil.NormalizeAddress(opts.RPCConnect, activeNet.RPCServerPort)
+	rpcConnect, err := cfgutil.NormalizeAddress(opts.RPCConnect, activeNet.JSONRPCServerPort)
 	if err != nil {
 		fatalf("Invalid RPC network address `%v`: %v", opts.RPCConnect, err)
 	}

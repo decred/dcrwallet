@@ -135,21 +135,18 @@ type config struct {
 	RPCKey                 string             `long:"rpckey" description:"File containing the certificate key"`
 	TLSCurve               *cfgutil.CurveFlag `long:"tlscurve" description:"Curve to use when generating TLS keypairs"`
 	OneTimeTLSKey          bool               `long:"onetimetlskey" description:"Generate a new TLS certpair at startup, but only write the certificate to disk"`
-	DisableServerTLS       bool               `long:"noservertls" description:"Disable TLS for the RPC server -- NOTE: This is only allowed if the RPC server is bound to localhost"`
-	LegacyRPCListeners     []string           `long:"rpclisten" description:"Listen for legacy RPC connections on this interface/port"`
-	LegacyRPCMaxClients    int64              `long:"rpcmaxclients" description:"Max number of legacy RPC clients for standard connections"`
-	LegacyRPCMaxWebsockets int64              `long:"rpcmaxwebsockets" description:"Max number of legacy RPC websocket connections"`
-	Username               string             `short:"u" long:"username" description:"Username for legacy RPC and dcrd authentication (if dcrdusername is unset)"`
-	Password               string             `short:"P" long:"password" default-mask:"-" description:"Password for legacy RPC and dcrd authentication (if dcrdpassword is unset)"`
+	DisableServerTLS       bool               `long:"noservertls" description:"Disable TLS for the RPC servers -- NOTE: This is only allowed if the RPC server is bound to localhost"`
+	GRPCListeners          []string           `long:"grpclisten" description:"Listen for gRPC connections on this interface/port"`
+	LegacyRPCListeners     []string           `long:"rpclisten" description:"Listen for legacy JSON-RPC connections on this interface/port"`
+	NoGRPC                 bool               `long:"nogrpc" description:"Disable the gRPC server"`
+	NoLegacyRPC            bool               `long:"nolegacyrpc" description:"Disable the legacy JSON-RPC server"`
+	LegacyRPCMaxClients    int64              `long:"rpcmaxclients" description:"Max number of legacy JSON-RPC clients for standard connections"`
+	LegacyRPCMaxWebsockets int64              `long:"rpcmaxwebsockets" description:"Max number of legacy JSON-RPC websocket connections"`
+	Username               string             `short:"u" long:"username" description:"Username for legacy JSON-RPC and dcrd authentication (if dcrdusername is unset)"`
+	Password               string             `short:"P" long:"password" default-mask:"-" description:"Password for legacy JSON-RPC and dcrd authentication (if dcrdpassword is unset)"`
 
 	TBOpts ticketBuyerOptions `group:"Ticket Buyer Options" namespace:"ticketbuyer"`
 	tbCfg  ticketbuyer.Config
-
-	// EXPERIMENTAL RPC server options
-	//
-	// These options will change (and require changes to config files, etc.)
-	// when the new gRPC server is enabled.
-	ExperimentalRPCListeners []string `long:"experimentalrpclisten" description:"Listen for RPC connections on this interface/port"`
 
 	// Deprecated options
 	DataDir string `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
@@ -728,12 +725,12 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	if cfg.RPCConnect == "" {
-		cfg.RPCConnect = net.JoinHostPort("localhost", activeNet.RPCClientPort)
+		cfg.RPCConnect = net.JoinHostPort("localhost", activeNet.JSONRPCClientPort)
 	}
 
 	// Add default port to connect flag if missing.
 	cfg.RPCConnect, err = cfgutil.NormalizeAddress(cfg.RPCConnect,
-		activeNet.RPCClientPort)
+		activeNet.JSONRPCClientPort)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
 			"Invalid rpcconnect network address: %v\n", err)
@@ -787,34 +784,43 @@ func loadConfig() (*config, []string, error) {
 		}
 	}
 
-	// Only set default RPC listeners when there are no listeners set for
-	// the experimental RPC server.  This is required to prevent the old RPC
-	// server from sharing listen addresses, since it is impossible to
-	// remove defaults from go-flags slice options without assigning
-	// specific behavior to a particular string.
-	if len(cfg.ExperimentalRPCListeners) == 0 && len(cfg.LegacyRPCListeners) == 0 {
-		addrs, err := net.LookupHost("localhost")
-		if err != nil {
-			return loadConfigError(err)
+	// Default to localhost listen addresses if no listeners were manually
+	// specified.  When the RPC server is configured to be disabled, remove all
+	// listeners so it is not started.
+	localhostAddrs, err := net.LookupHost("localhost")
+	if err != nil {
+		return loadConfigError(err)
+	}
+	if len(cfg.GRPCListeners) == 0 && !cfg.NoGRPC {
+		cfg.GRPCListeners = make([]string, 0, len(localhostAddrs))
+		for _, addr := range localhostAddrs {
+			cfg.GRPCListeners = append(cfg.GRPCListeners,
+				net.JoinHostPort(addr, activeNet.GRPCServerPort))
 		}
-		cfg.LegacyRPCListeners = make([]string, 0, len(addrs))
-		for _, addr := range addrs {
-			addr = net.JoinHostPort(addr, activeNet.RPCServerPort)
-			cfg.LegacyRPCListeners = append(cfg.LegacyRPCListeners, addr)
+	} else if cfg.NoGRPC {
+		cfg.GRPCListeners = nil
+	}
+	if len(cfg.LegacyRPCListeners) == 0 && !cfg.NoLegacyRPC {
+		cfg.LegacyRPCListeners = make([]string, 0, len(localhostAddrs))
+		for _, addr := range localhostAddrs {
+			cfg.LegacyRPCListeners = append(cfg.LegacyRPCListeners,
+				net.JoinHostPort(addr, activeNet.JSONRPCServerPort))
 		}
+	} else if cfg.NoLegacyRPC {
+		cfg.LegacyRPCListeners = nil
 	}
 
 	// Add default port to all rpc listener addresses if needed and remove
 	// duplicate addresses.
 	cfg.LegacyRPCListeners, err = cfgutil.NormalizeAddresses(
-		cfg.LegacyRPCListeners, activeNet.RPCServerPort)
+		cfg.LegacyRPCListeners, activeNet.JSONRPCServerPort)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
 			"Invalid network address in legacy RPC listeners: %v\n", err)
 		return loadConfigError(err)
 	}
-	cfg.ExperimentalRPCListeners, err = cfgutil.NormalizeAddresses(
-		cfg.ExperimentalRPCListeners, activeNet.RPCServerPort)
+	cfg.GRPCListeners, err = cfgutil.NormalizeAddresses(
+		cfg.GRPCListeners, activeNet.GRPCServerPort)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
 			"Invalid network address in RPC listeners: %v\n", err)
@@ -822,12 +828,12 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	// Both RPC servers may not listen on the same interface/port.
-	if len(cfg.LegacyRPCListeners) > 0 && len(cfg.ExperimentalRPCListeners) > 0 {
+	if len(cfg.LegacyRPCListeners) > 0 && len(cfg.GRPCListeners) > 0 {
 		seenAddresses := make(map[string]struct{}, len(cfg.LegacyRPCListeners))
 		for _, addr := range cfg.LegacyRPCListeners {
 			seenAddresses[addr] = struct{}{}
 		}
-		for _, addr := range cfg.ExperimentalRPCListeners {
+		for _, addr := range cfg.GRPCListeners {
 			_, seen := seenAddresses[addr]
 			if seen {
 				err := fmt.Errorf("Address `%s` may not be "+
@@ -842,8 +848,7 @@ func loadConfig() (*config, []string, error) {
 	// Only allow server TLS to be disabled if the RPC server is bound to
 	// localhost addresses.
 	if cfg.DisableServerTLS {
-		allListeners := append(cfg.LegacyRPCListeners,
-			cfg.ExperimentalRPCListeners...)
+		allListeners := append(cfg.LegacyRPCListeners, cfg.GRPCListeners...)
 		for _, addr := range allListeners {
 			host, _, err := net.SplitHostPort(addr)
 			if err != nil {
