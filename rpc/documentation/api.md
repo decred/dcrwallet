@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.9.x
+Version: 4.10.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -377,6 +377,7 @@ The service provides the following methods:
 - [`TicketPrice`](#ticketprice)
 - [`StakeInfo`](#stakeinfo)
 - [`PurchaseTickets`](#purchasetickets)
+- [`RevokeTickets`](#revoketickets)
 - [`TransactionNotifications`](#transactionnotifications)
 - [`AccountNotifications`](#accountnotifications)
 
@@ -1199,6 +1200,25 @@ these issues should disappear. They include the stake difficulty changing from t
 time it is queried, to the time the ticket is attempted to be purchased, to the 
 time the ticket hits the daemon mempool and out of date stake difficulties queried 
 from the daemon.
+
+___
+
+#### `RevokeTickets`
+
+The `RevokeTickets` method creates revocations for any missed or expired tickets
+that have not yet been revoked.
+
+**Request:** `RevokeTicketsRequest`
+
+- `bytes passphrase`: The wallet's private passphrase.
+
+**Response:** `RevokeTicketsResponse`
+
+**Expected errors:**
+
+- `InvalidArgument`: The private passphrase is incorrect.
+
+**Stability:** Unstable
 
 ___
 

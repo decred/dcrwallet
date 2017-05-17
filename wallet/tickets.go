@@ -5,6 +5,9 @@
 package wallet
 
 import (
+	"encoding/hex"
+
+	"github.com/decred/bitset"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
@@ -207,4 +210,80 @@ func (w *Wallet) AddTicket(ticket *dcrutil.Tx) error {
 		}
 		return nil
 	})
+}
+
+// RevokeTickets creates and sends revocation transactions for any unrevoked
+// missed and expired tickets.  The wallet must be unlocked to generate any
+// revocations.
+func (w *Wallet) RevokeTickets(chainClient *chain.RPCClient) error {
+	var ticketHashes []chainhash.Hash
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		ns := tx.ReadBucket(wtxmgrNamespaceKey)
+		var err error
+		_, tipHeight := w.TxStore.MainChainTip(ns)
+		ticketHashes, err = w.TxStore.UnspentTickets(ns, tipHeight, false)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	ticketHashPtrs := make([]*chainhash.Hash, len(ticketHashes))
+	for i := range ticketHashes {
+		ticketHashPtrs[i] = &ticketHashes[i]
+	}
+	expiredFuture := chainClient.ExistsExpiredTicketsAsync(ticketHashPtrs)
+	missedFuture := chainClient.ExistsMissedTicketsAsync(ticketHashPtrs)
+	expiredBitsHex, err := expiredFuture.Receive()
+	if err != nil {
+		return err
+	}
+	missedBitsHex, err := missedFuture.Receive()
+	if err != nil {
+		return err
+	}
+	expiredBits, err := hex.DecodeString(expiredBitsHex)
+	if err != nil {
+		return err
+	}
+	missedBits, err := hex.DecodeString(missedBitsHex)
+	if err != nil {
+		return err
+	}
+	revokableTickets := make([]*chainhash.Hash, 0, len(ticketHashes))
+	for i, p := range ticketHashPtrs {
+		if bitset.Bytes(expiredBits).Get(i) || bitset.Bytes(missedBits).Get(i) {
+			revokableTickets = append(revokableTickets, p)
+		}
+	}
+	feePerKb := w.RelayFee()
+	allowHighFees := w.AllowHighFees
+	for i := range revokableTickets {
+		err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+			addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
+			stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
+			txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+
+			tipHash, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+
+			// There is so much wrong with this method but it is the only way
+			// revocations can currently be created:
+			//
+			//   - It takes several tickets but only one revocation should be
+			//     performed per update, because...
+			//   - This method sends the transaction
+			//   - The transaction is also not added to txmgr and instead relies
+			//     on a notification to add it.
+			//   - Therefore, rapid calls to this method will cause double spend
+			//     errors.
+			_, err := w.StakeMgr.HandleMissedTicketsNtfn(stakemgrNs, addrmgrNs,
+				&tipHash, int64(tipHeight), revokableTickets[i:i+1], feePerKb,
+				allowHighFees)
+			return err
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

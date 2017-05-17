@@ -53,10 +53,10 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.9.2"
+	semverString = "4.10.0"
 	semverMajor  = 4
-	semverMinor  = 9
-	semverPatch  = 2
+	semverMinor  = 10
+	semverPatch  = 0
 )
 
 // translateError creates a new gRPC error with an appropiate error code for
@@ -971,6 +971,28 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	hashes := marshalHashes(resp)
 
 	return &pb.PurchaseTicketsResponse{TicketHashes: hashes}, nil
+}
+
+func (s *walletServer) RevokeTickets(ctx context.Context, req *pb.RevokeTicketsRequest) (*pb.RevokeTicketsResponse, error) {
+	chainClient, err := s.requireChainClient()
+	if err != nil {
+		return nil, err
+	}
+
+	lock := make(chan time.Time, 1)
+	defer func() {
+		lock <- time.Time{} // send matters, not the value
+	}()
+	err = s.wallet.Unlock(req.Passphrase, lock)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	err = s.wallet.RevokeTickets(chainClient)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.RevokeTicketsResponse{}, nil
 }
 
 func (s *walletServer) LoadActiveDataFilters(ctx context.Context, req *pb.LoadActiveDataFiltersRequest) (
