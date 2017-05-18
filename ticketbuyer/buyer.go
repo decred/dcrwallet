@@ -409,7 +409,6 @@ type PurchaseStats struct {
 	Height        int64
 	PriceMaxScale float64
 	PriceAverage  dcrutil.Amount
-	PriceNext     dcrutil.Amount
 	PriceCurrent  dcrutil.Amount
 	Purchased     int
 	LeftWindow    int
@@ -523,19 +522,19 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	ps.PriceCurrent = nextStakeDiff
 	t.ticketPrice = nextStakeDiff
 	ps.TicketPrice = nextStakeDiff
+	/*
+		sDiffEsts, err := t.dcrdChainSvr.EstimateStakeDiff(nil)
+		if err != nil {
+			return ps, err
+		}
+		ps.PriceNext, err = dcrutil.NewAmount(sDiffEsts.Expected)
+		if err != nil {
+			return ps, err
+		}
 
-	sDiffEsts, err := t.dcrdChainSvr.EstimateStakeDiff(nil)
-	if err != nil {
-		return ps, err
-	}
-	ps.PriceNext, err = dcrutil.NewAmount(sDiffEsts.Expected)
-	if err != nil {
-		return ps, err
-	}
-
-	log.Tracef("Estimated stake diff: (min: %v, expected: %v, max: %v)",
-		sDiffEsts.Min, sDiffEsts.Expected, sDiffEsts.Max)
-
+		log.Tracef("Estimated stake diff: (min: %v, expected: %v, max: %v)",
+			sDiffEsts.Min, sDiffEsts.Expected, sDiffEsts.Max)
+	*/
 	// Set the max price to the configuration parameter that is lower
 	// Absolute or relative max price
 	var maxPriceAmt dcrutil.Amount
