@@ -525,16 +525,15 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	ps.TicketPrice = nextStakeDiff
 
 	sDiffEsts, err := t.dcrdChainSvr.EstimateStakeDiff(nil)
-	if err != nil {
-		return ps, err
-	}
-	ps.PriceNext, err = dcrutil.NewAmount(sDiffEsts.Expected)
-	if err != nil {
-		return ps, err
-	}
+	if err == nil {
+		ps.PriceNext, err = dcrutil.NewAmount(sDiffEsts.Expected)
+		if err != nil {
+			return ps, err
+		}
 
-	log.Tracef("Estimated stake diff: (min: %v, expected: %v, max: %v)",
-		sDiffEsts.Min, sDiffEsts.Expected, sDiffEsts.Max)
+		log.Tracef("Estimated stake diff: (min: %v, expected: %v, max: %v)",
+			sDiffEsts.Min, sDiffEsts.Expected, sDiffEsts.Max)
+	}
 
 	// Set the max price to the configuration parameter that is lower
 	// Absolute or relative max price
