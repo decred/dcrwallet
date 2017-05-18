@@ -523,9 +523,9 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	ps.PriceCurrent = nextStakeDiff
 	t.ticketPrice = nextStakeDiff
 	ps.TicketPrice = nextStakeDiff
+
 	sDiffEsts, err := t.dcrdChainSvr.EstimateStakeDiff(nil)
 	if err == nil {
-		return ps, err
 		ps.PriceNext, err = dcrutil.NewAmount(sDiffEsts.Expected)
 		if err != nil {
 			return ps, err
