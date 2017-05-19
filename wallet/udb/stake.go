@@ -25,10 +25,6 @@ import (
 	"github.com/decred/dcrwallet/walletdb"
 )
 
-const (
-	revocationFeePerKB dcrutil.Amount = 1e6
-)
-
 func stakeStoreError(code apperrors.Code, str string, err error) error {
 	return apperrors.E{ErrorCode: code, Description: str, Err: err}
 }
@@ -786,8 +782,9 @@ func (s *StakeStore) getSSRtxs(ns walletdb.ReadBucket, sstxHash *chainhash.Hash)
 // GenerateRevocation generates a revocation (SSRtx), signs it, and
 // submits it by SendRawTransaction. It also stores a record of it
 // in the local database.
-func (s *StakeStore) generateRevocation(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash,
-	height int64, sstxHash *chainhash.Hash, feePerKb dcrutil.Amount, allowHighFees bool) (*StakeNotification, error) {
+func (s *StakeStore) generateRevocation(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket,
+	blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash, feePerKb dcrutil.Amount,
+	allowHighFees bool) (*StakeNotification, error) {
 
 	// 1. Fetch the SStx, then calculate all the values we'll need later for
 	// the generation of the SSRtx tx outputs.
@@ -809,7 +806,7 @@ func (s *StakeStore) generateRevocation(ns walletdb.ReadWriteBucket, waddrmgrNs 
 	// Calculate the fee to use for this revocation based on the fee
 	// per KB that is standard for mainnet.
 	revocationSizeEst := estimateSSRtxTxSize(1, len(sstxPkhs))
-	revocationFee := txrules.FeeForSerializeSize(revocationFeePerKB,
+	revocationFee := txrules.FeeForSerializeSize(feePerKb,
 		revocationSizeEst)
 
 	// 2. Add the only input.
