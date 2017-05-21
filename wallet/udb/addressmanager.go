@@ -772,7 +772,7 @@ func (m *Manager) loadAddress(ns walletdb.ReadBucket, address dcrutil.Address) (
 	if err != nil {
 		if merr, ok := err.(apperrors.E); ok {
 			desc := fmt.Sprintf("failed to fetch address '%s': %v",
-				address.ScriptAddress(), merr.Description)
+				address, merr.Description)
 			merr.Description = desc
 			return nil, merr
 		}

@@ -1157,7 +1157,7 @@ func forEachAccountAddress(ns walletdb.ReadBucket, account uint32, fn func(rowIn
 		addrRow, err := fetchAddressByHash(ns, k)
 		if err != nil {
 			if merr, ok := err.(apperrors.E); ok {
-				desc := fmt.Sprintf("failed to fetch address hash '%s': %v",
+				desc := fmt.Sprintf("failed to fetch address hash '%x': %v",
 					k, merr.Description)
 				merr.Description = desc
 				return merr
@@ -1188,7 +1188,7 @@ func forEachActiveAddress(ns walletdb.ReadBucket, fn func(rowInterface interface
 		// values.
 		addrRow, err := fetchAddressByHash(ns, k)
 		if merr, ok := err.(apperrors.E); ok {
-			desc := fmt.Sprintf("failed to fetch address hash '%s': %v",
+			desc := fmt.Sprintf("failed to fetch address hash '%x': %v",
 				k, merr.Description)
 			merr.Description = desc
 			return merr
