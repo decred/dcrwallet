@@ -30,6 +30,7 @@ service WalletService {
 	// Notifications
 	rpc TransactionNotifications (TransactionNotificationsRequest) returns (stream TransactionNotificationsResponse);
 	rpc AccountNotifications (AccountNotificationsRequest) returns (stream AccountNotificationsResponse);
+	rpc ConfirmationNotifications (stream ConfirmationNotificationsRequest) returns (stream ConfirmationNotificationsResponse);
 
 	// Control
 	rpc ChangePassphrase (ChangePassphraseRequest) returns (ChangePassphraseResponse);
@@ -420,6 +421,18 @@ message AccountNotificationsResponse {
 	uint32 external_key_count = 3;
 	uint32 internal_key_count = 4;
 	uint32 imported_key_count = 5;
+}
+
+message ConfirmationNotificationsRequest {
+    repeated bytes tx_hashes = 1;
+    int32 stop_after = 2;
+}
+message ConfirmationNotificationsResponse {
+    message TransactionConfirmations {
+        bytes tx_hash = 1;
+        int32 confirmations = 2;
+    }
+    repeated TransactionConfirmations confirmations = 1;
 }
 
 message CreateWalletRequest {

@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.12.x
+Version: 4.13.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -380,6 +380,7 @@ The service provides the following methods:
 - [`RevokeTickets`](#revoketickets)
 - [`TransactionNotifications`](#transactionnotifications)
 - [`AccountNotifications`](#accountnotifications)
+- [`ConfirmationNotifications`](#confirmationnotifications)
 
 #### `Ping`
 
@@ -1323,6 +1324,49 @@ property changes, such as name and key counts.
 
 **Stability:** Unstable: This should probably share a message with the
   `Accounts` method.
+
+___
+
+#### `ConfirmationNotifications`
+
+The `ConfirmationNotifications` method allows notifications of transaction
+confirmations.  Transaction hashes to watch are streamed as requests and a
+stream of responses is returned which include the number of confirmations of
+each watched transaction.  A response is immediately streamed that includes the
+current number of confirmations for all newly-watched transactions.  Further
+responses will continue to describe the number of confirmations of each
+transaction until the confirmation upper limit is met or the transaction is
+removed from the wallet (e.g. due to a double spend).
+
+**Request:** `stream ConfirmationNotificationsRequest`
+
+- `repeated bytes tx_hashes`: Hashes of transactions to begin watching.
+
+- `int32 stop_after`: The upper limit on how many confirmations is needed before
+  the transaction becomes unwatched.
+
+**Response:** `stream ConfirmationNotificationsResponse`
+
+- `repeated TransactionConfirmations confirmations`: Hashes of watched
+  transactions and their current number of confirmations.
+
+  **Nested message:** `TransactionConfirmations`
+
+  - `bytes tx_hash`: The hash of a watched transaction.
+
+  - `int32 confirmations`: The current number of confirmations of the
+    transaction.  If the transaction is unknown to the wallet or was removed due
+    to a double spend, this value is set to `-1`.
+
+**Expected errors:**
+
+- `InvalidArgument`: A transaction hash did not have the correct length.
+
+- `InvalidArgument`: A negative `stop_after` was specified.
+
+- `Aborted`: The wallet database is closed.
+
+**Stability:** Unstable
 
 ___
 

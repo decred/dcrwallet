@@ -7,6 +7,7 @@ package wallet
 
 import (
 	"bytes"
+	"context"
 	"sync"
 
 	"github.com/decred/dcrd/blockchain"
@@ -16,6 +17,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrutil/hdkeychain"
+	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
@@ -41,7 +43,8 @@ type NotificationServer struct {
 	currentTxNtfn     *TransactionNotifications
 	accountClients    []chan *AccountNotification
 	tipChangedClients []chan *MainTipChangedNotification
-	mu                sync.Mutex // Only protects registered client channels
+	confClients       []*ConfirmationNotificationsClient
+	mu                sync.Mutex // Only protects registered clients
 	wallet            *Wallet    // smells like hacks
 }
 
@@ -653,8 +656,189 @@ func (c *MainTipChangedNotificationsClient) Done() {
 
 func (s *NotificationServer) notifyMainChainTipChanged(n *MainTipChangedNotification) {
 	s.mu.Lock()
+
 	for _, c := range s.tipChangedClients {
 		c <- n
 	}
+
+	if len(s.confClients) > 0 {
+		var wg sync.WaitGroup
+		wg.Add(len(s.confClients))
+		for _, c := range s.confClients {
+			c := c
+			go func() {
+				c.process(n.NewHeight)
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+	}
+
 	s.mu.Unlock()
+}
+
+// ConfirmationNotifications registers a client for confirmation notifications
+// from the notification server.
+func (s *NotificationServer) ConfirmationNotifications(ctx context.Context) *ConfirmationNotificationsClient {
+	c := &ConfirmationNotificationsClient{
+		watched: make(map[chainhash.Hash]int32),
+		r:       make(chan *confNtfnResult),
+		ctx:     ctx,
+		s:       s,
+	}
+
+	// Register with the server
+	s.mu.Lock()
+	s.confClients = append(s.confClients, c)
+	s.mu.Unlock()
+
+	// Cleanup when caller signals done.
+	go func() {
+		<-ctx.Done()
+
+		// Remove item from notification server's slice
+		s.mu.Lock()
+		slice := &s.confClients
+		for i, sc := range *slice {
+			if c == sc {
+				(*slice)[i] = (*slice)[len(*slice)-1]
+				*slice = (*slice)[:len(*slice)-1]
+				break
+			}
+		}
+		s.mu.Unlock()
+	}()
+
+	return c
+}
+
+// ConfirmationNotificationsClient provides confirmation notifications of watched
+// transactions until the caller's context signals done.  Callers register for
+// notifications using Watch and receive notifications by calling Recv.
+type ConfirmationNotificationsClient struct {
+	watched map[chainhash.Hash]int32
+	mu      sync.Mutex
+
+	r   chan *confNtfnResult
+	ctx context.Context
+	s   *NotificationServer
+}
+
+type confNtfnResult struct {
+	result []ConfirmationNotification
+	err    error
+}
+
+// ConfirmationNotification describes the number of confirmations of a single
+// transaction, or -1 if the transaction is unknown or removed from the wallet.
+type ConfirmationNotification struct {
+	TxHash        *chainhash.Hash
+	Confirmations int32
+}
+
+// Watch adds additional transactions to watch and create confirmation results
+// for.  Results are immediately created with the current number of
+// confirmations and are watched until stopAfter confirmations is met or the
+// transaction is unknown or removed from the wallet.
+func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stopAfter int32) {
+	w := c.s.wallet
+	r := make([]ConfirmationNotification, 0, len(c.watched))
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		_, tipHeight := w.TxStore.MainChainTip(dbtx.ReadBucket(wtxmgrNamespaceKey))
+		// cannot range here, txHashes may be modified
+		for i := 0; i < len(txHashes); {
+			h := txHashes[i]
+			height, err := w.TxStore.TxBlockHeight(dbtx, h)
+			var confs int32
+			switch {
+			case apperrors.IsError(err, apperrors.ErrValueNoExists):
+				confs = -1
+			default:
+				confs = confirms(height, tipHeight)
+			case err != nil:
+				return err
+			}
+			r = append(r, ConfirmationNotification{h, confs})
+			if confs >= stopAfter || confs == -1 {
+				// Remove this hash from the slice so it is not added to the
+				// watch map.  Do not increment i so this same index is used
+				// next iteration with the new hash.
+				s := &txHashes
+				(*s)[i] = (*s)[len(*s)-1]
+				*s = (*s)[:len(*s)-1]
+			} else {
+				i++
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		r = nil
+	}
+	c.r <- &confNtfnResult{r, err}
+
+	c.mu.Lock()
+	for _, h := range txHashes {
+		c.watched[*h] = stopAfter
+	}
+	c.mu.Unlock()
+}
+
+// Recv waits for the next notification.  Returns context.Canceled when the
+// context is canceled.
+func (c *ConfirmationNotificationsClient) Recv() ([]ConfirmationNotification, error) {
+	select {
+	case <-c.ctx.Done():
+		return nil, context.Canceled
+	case r := <-c.r:
+		return r.result, r.err
+	}
+}
+
+func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
+	select {
+	case <-c.ctx.Done():
+		return
+	default:
+	}
+
+	c.mu.Lock()
+	w := c.s.wallet
+	r := &confNtfnResult{
+		result: make([]ConfirmationNotification, 0, len(c.watched)),
+	}
+	var unwatch []*chainhash.Hash
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		for txHash, stopAfter := range c.watched {
+			txHash := txHash // copy
+			height, err := w.TxStore.TxBlockHeight(dbtx, &txHash)
+			var confs int32
+			switch {
+			case apperrors.IsError(err, apperrors.ErrValueNoExists):
+				confs = -1
+			default:
+				confs = confirms(height, tipHeight)
+			case err != nil:
+				return err
+			}
+			r.result = append(r.result, ConfirmationNotification{&txHash, confs})
+			if confs >= stopAfter || confs == -1 {
+				unwatch = append(unwatch, &txHash)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		r.result = nil
+		r.err = err
+	}
+	for _, h := range unwatch {
+		delete(c.watched, *h)
+	}
+	c.mu.Unlock()
+
+	select {
+	case c.r <- r:
+	case <-c.ctx.Done():
+	}
 }

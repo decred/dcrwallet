@@ -54,9 +54,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.12.0"
+	semverString = "4.13.0"
 	semverMajor  = 4
-	semverMinor  = 12
+	semverMinor  = 13
 	semverPatch  = 0
 )
 
@@ -130,6 +130,18 @@ func decodeAddress(a string, params *chaincfg.Params) (dcrutil.Address, error) {
 			"address %v is not intended for use on %v", a, params.Name)
 	}
 	return addr, nil
+}
+
+func decodeHashes(in [][]byte) ([]*chainhash.Hash, error) {
+	out := make([]*chainhash.Hash, len(in))
+	var err error
+	for i, h := range in {
+		out[i], err = chainhash.NewHash(h)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "hash (hex %x): %v", h, err)
+		}
+	}
+	return out, nil
 }
 
 // versionServer provides RPC clients with the ability to query the RPC server
@@ -1159,6 +1171,67 @@ func (s *walletServer) AccountNotifications(req *pb.AccountNotificationsRequest,
 		case <-ctxDone:
 			return nil
 		}
+	}
+}
+
+func (s *walletServer) ConfirmationNotifications(svr pb.WalletService_ConfirmationNotificationsServer) error {
+	c := s.wallet.NtfnServer.ConfirmationNotifications(svr.Context())
+	errOut := make(chan error, 2)
+	go func() {
+		for {
+			req, err := svr.Recv()
+			if err != nil {
+				errOut <- err
+				return
+			}
+			txHashes, err := decodeHashes(req.TxHashes)
+			if err != nil {
+				errOut <- err
+				return
+			}
+			if req.StopAfter < 0 {
+				errOut <- status.Errorf(codes.InvalidArgument, "stop_after must be non-negative")
+				return
+			}
+			c.Watch(txHashes, req.StopAfter)
+		}
+	}()
+	go func() {
+		for {
+			n, err := c.Recv()
+			if err != nil {
+				errOut <- err
+				return
+			}
+			results := make([]*pb.ConfirmationNotificationsResponse_TransactionConfirmations, len(n))
+			for i, r := range n {
+				results[i] = &pb.ConfirmationNotificationsResponse_TransactionConfirmations{
+					TxHash:        r.TxHash[:],
+					Confirmations: r.Confirmations,
+				}
+			}
+			r := &pb.ConfirmationNotificationsResponse{
+				Confirmations: results,
+			}
+			err = svr.Send(r)
+			if err != nil {
+				errOut <- err
+				return
+			}
+		}
+	}()
+
+	select {
+	case <-svr.Context().Done():
+		return nil
+	case err := <-errOut:
+		if err == context.Canceled {
+			return nil
+		}
+		if _, ok := status.FromError(err); ok {
+			return err
+		}
+		return translateError(err)
 	}
 }
 
