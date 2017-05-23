@@ -294,6 +294,14 @@ func (w *Wallet) onBlockConnected(serializedBlockHeader []byte, transactions [][
 	w.NtfnServer.notifyMainChainTipChanged(chainTipChanges)
 	w.NtfnServer.sendAttachedBlockNotification()
 
+	// Parse vote version from extended bits.  Note that once ExtendedBits
+	// are used for other information as well this will need to be updated
+	// to accomodate.
+	voteVersion := binary.LittleEndian.Uint32(w.VoteBits().ExtendedBits)
+	if voteVersion < blockHeader.StakeVersion {
+		log.Warnf("Old vote version detected (v%v), please update your "+
+			"wallet to the latest version.", voteVersion)
+	}
 	return nil
 }
 
@@ -879,13 +887,6 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 
 	topHash, _ := w.TxStore.MainChainTip(txmgrNs)
 
-	blockHeader, err := w.TxStore.GetSerializedBlockHeader(txmgrNs, blockHash)
-	if err != nil {
-		return err
-	}
-	stakeVersionOffset := 176
-	stakeVersion := binary.LittleEndian.Uint32(blockHeader[stakeVersionOffset:])
-
 	// Even if stake voting is disabled, we should still store eligible
 	// tickets for the current top block.
 	// TODO The behavior of this is not quite right if tons of blocks
@@ -907,7 +908,6 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 			w.VoteBits(),
 			w.stakePoolEnabled,
 			w.AllowHighFees,
-			stakeVersion,
 		)
 
 		if ntfns != nil {
