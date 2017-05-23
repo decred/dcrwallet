@@ -173,7 +173,7 @@ type ticketBuyerOptions struct {
 	// Deprecated options
 	MaxPriceScale         float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
 	PriceTarget           *cfgutil.AmountFlag `long:"pricetarget" description:"DEPRECATED -- A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
-	SpreadTicketPurchases bool                `long:"spreadticketpurchases" description:"Spread ticket purchases evenly throughout the window"`
+	SpreadTicketPurchases bool                `long:"spreadticketpurchases" description:"DEPRECATED -- Spread ticket purchases evenly throughout the window"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
