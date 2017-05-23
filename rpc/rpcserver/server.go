@@ -1259,7 +1259,7 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 		MaxInMempool:              t.ticketbuyerCfg.MaxInMempool,
 		PoolAddress:               poolAddress,
 		PoolFees:                  poolFees,
-		SpreadTicketPurchases:     t.ticketbuyerCfg.SpreadTicketPurchases,
+		NoSpreadTicketPurchases:   t.ticketbuyerCfg.NoSpreadTicketPurchases,
 		TicketAddress:             votingAddress,
 		TxFee:                     t.ticketbuyerCfg.TxFee,
 	}
@@ -1586,7 +1586,7 @@ func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.Ticke
 		MaxInMempool:          int64(config.MaxInMempool),
 		PoolAddress:           config.PoolAddress,
 		PoolFees:              config.PoolFees,
-		SpreadTicketPurchases: config.SpreadTicketPurchases,
+		SpreadTicketPurchases: !config.NoSpreadTicketPurchases,
 		VotingAddress:         config.TicketAddress,
 		TxFee:                 config.TxFee,
 	}, nil

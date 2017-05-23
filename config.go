@@ -161,18 +161,19 @@ type ticketBuyerOptions struct {
 	MaxPerBlock               int                 `long:"maxperblock" description:"Maximum tickets per block, with negative numbers indicating buy one ticket every 1-in-n blocks"`
 	BlocksToAvg               int                 `long:"blockstoavg" description:"Number of blocks to average for fees calculation"`
 	FeeTargetScaling          float64             `long:"feetargetscaling" description:"Scaling factor for setting the ticket fee, multiplies by the average fee"`
-	DontWaitForTickets        bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
-	SpreadTicketPurchases     bool                `long:"spreadticketpurchases" description:"Spread ticket purchases evenly throughout the window"`
 	MaxInMempool              int                 `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets"`
 	ExpiryDelta               int                 `long:"expirydelta" description:"Number of blocks in the future before the ticket expires"`
 	MaxPriceAbsolute          *cfgutil.AmountFlag `long:"maxpriceabsolute" description:"Maximum absolute price to purchase a ticket"`
 	MaxPriceRelative          float64             `long:"maxpricerelative" description:"Scaling factor for setting the maximum price, multiplies by the average price"`
 	BalanceToMaintainAbsolute *cfgutil.AmountFlag `long:"balancetomaintainabsolute" description:"Amount of funds to keep in wallet when stake mining"`
 	BalanceToMaintainRelative float64             `long:"balancetomaintainrelative" description:"Proportion of funds to leave in wallet when stake mining"`
+	NoSpreadTicketPurchases   bool                `long:"nospreadticketpurchases" description:"Do not spread ticket purchases evenly throughout the window"`
+	DontWaitForTickets        bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
 
 	// Deprecated options
-	MaxPriceScale float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
-	PriceTarget   *cfgutil.AmountFlag `long:"pricetarget" description:"DEPRECATED -- A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
+	MaxPriceScale         float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
+	PriceTarget           *cfgutil.AmountFlag `long:"pricetarget" description:"DEPRECATED -- A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
+	SpreadTicketPurchases bool                `long:"spreadticketpurchases" description:"DEPRECATED -- Spread ticket purchases evenly throughout the window"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -510,6 +511,12 @@ func loadConfig() (*config, []string, error) {
 		if cfg.AppDataDir == defaultAppDataDir {
 			cfg.AppDataDir = cfg.DataDir
 		}
+	}
+
+	if cfg.TBOpts.SpreadTicketPurchases {
+		fmt.Fprintln(os.Stderr, "ticketbuyer.spreadticketpurchases option "+
+			"has been replaced by ticketbuyer.nospreadticketpurchases -- "+
+			"please update your config")
 	}
 
 	// Make sure the fee source type given is valid.
@@ -917,7 +924,7 @@ func loadConfig() (*config, []string, error) {
 		MaxInMempool:              cfg.TBOpts.MaxInMempool,
 		PoolAddress:               cfg.PoolAddress,
 		PoolFees:                  cfg.PoolFees,
-		SpreadTicketPurchases:     cfg.TBOpts.SpreadTicketPurchases,
+		NoSpreadTicketPurchases:   cfg.TBOpts.NoSpreadTicketPurchases,
 		TicketAddress:             cfg.TicketAddress,
 		TxFee:                     int64(cfg.RelayFee.Amount),
 	}
