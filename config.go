@@ -514,11 +514,9 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	if cfg.TBOpts.SpreadTicketPurchases {
-		str := "ticketbuyer.spreadticketpurchases option has been replaced by " +
-			"ticketbuyer.nospreadticketpurchases -- please update your config"
-		err := fmt.Errorf(str)
-		fmt.Fprintln(os.Stderr, err)
-		return loadConfigError(err)
+		fmt.Fprintln(os.Stderr, "ticketbuyer.spreadticketpurchases option "+
+			"has been deprecated and ticketbuyer.nospreadticketpurchases "+
+			"has been added. Please update your config accordingly.")
 	}
 
 	// Make sure the fee source type given is valid.
