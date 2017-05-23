@@ -247,6 +247,20 @@ func (s *Store) ExistsTx(ns walletdb.ReadBucket, txHash *chainhash.Hash) bool {
 	return v != nil
 }
 
+// ExistsUTXO checks to see if op refers to an unspent transaction output or a
+// credit spent by an unmined transaction.  This check is sufficient to
+// determine whether a transaction input is relevant to the wallet by spending a
+// UTXO or conflicting with another mempool transaction that double spends the
+// output.
+func (s *Store) ExistsUTXO(dbtx walletdb.ReadTx, op *wire.OutPoint) bool {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	k, v := existsUnspent(ns, op)
+	if v != nil {
+		return true
+	}
+	return existsRawUnminedCredit(ns, k) != nil
+}
+
 // UniqueTxDetails looks up all recorded details for a transaction recorded
 // mined in some particular block, or an unmined transaction if block is nil.
 //

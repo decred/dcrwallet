@@ -3639,18 +3639,66 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType,
 	return signErrors, err
 }
 
-// PublishTransaction sends the transaction to the consensus RPC server so it
-// can be propigated to other nodes and eventually mined.
-//
-// This function is unstable and will be removed once syncing code is moved out
-// of the wallet.
-func (w *Wallet) PublishTransaction(tx *wire.MsgTx) (*chainhash.Hash, error) {
-	server, err := w.requireChainClient()
+// isRelevantTx determines whether the transaction is relevant to the wallet and
+// should be recorded in the database.
+func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
+	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+
+	for _, in := range tx.TxIn {
+		// Input is relevant if it contains a saved redeem script or spends a
+		// wallet output.
+		rs, err := txscript.MultisigRedeemScriptFromScriptSig(in.SignatureScript)
+		if err == nil && rs != nil && w.Manager.ExistsAddress(addrmgrNs,
+			dcrutil.Hash160(rs)) {
+			return true
+		}
+		if w.TxStore.ExistsUTXO(dbtx, &in.PreviousOutPoint) {
+			return true
+		}
+	}
+	for _, out := range tx.TxOut {
+		_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
+			out.PkScript, w.chainParams)
+		if err != nil {
+			continue
+		}
+		for _, a := range addrs {
+			if w.Manager.ExistsAddress(addrmgrNs, a.Hash160()[:]) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// PublishTransaction saves (if relevant) and sends the transaction to the
+// consensus RPC server so it can be propigated to other nodes and eventually
+// mined.  If the send fails, the transaction is not added to the wallet.
+func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, client *chain.RPCClient) (*chainhash.Hash, error) {
+	var relevant bool
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		relevant = w.isRelevantTx(dbtx, tx)
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	return server.SendRawTransaction(tx, w.AllowHighFees)
+	if !relevant {
+		return client.SendRawTransaction(tx, w.AllowHighFees)
+	}
+
+	var txHash *chainhash.Hash
+	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err := w.processTransaction(dbtx, serializedTx, nil, nil)
+		if err != nil {
+			return err
+		}
+		txHash, err = client.SendRawTransaction(tx, w.AllowHighFees)
+		return err
+	})
+	return txHash, err
 }
 
 // ChainParams returns the network parameters for the blockchain the wallet

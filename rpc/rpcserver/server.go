@@ -862,24 +862,22 @@ func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransact
 	return resp, nil
 }
 
-// BUGS:
-// - The transaction is not inspected to be relevant before publishing using
-//   sendrawtransaction, so connection errors to dcrd could result in the tx
-//   never being added to the wallet database.
-// - Once the above bug is fixed, wallet will require a way to purge invalid
-//   transactions from the database when they are rejected by the network, other
-//   than double spending them.
 func (s *walletServer) PublishTransaction(ctx context.Context, req *pb.PublishTransactionRequest) (
 	*pb.PublishTransactionResponse, error) {
 
+	client, err := s.requireChainClient()
+	if err != nil {
+		return nil, err
+	}
+
 	var msgTx wire.MsgTx
-	err := msgTx.Deserialize(bytes.NewReader(req.SignedTransaction))
+	err = msgTx.Deserialize(bytes.NewReader(req.SignedTransaction))
 	if err != nil {
 		return nil, grpc.Errorf(codes.InvalidArgument,
 			"Bytes do not represent a valid raw transaction: %v", err)
 	}
 
-	txHash, err := s.wallet.PublishTransaction(&msgTx)
+	txHash, err := s.wallet.PublishTransaction(&msgTx, req.SignedTransaction, client)
 	if err != nil {
 		return nil, translateError(err)
 	}
