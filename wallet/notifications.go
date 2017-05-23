@@ -299,7 +299,16 @@ func (s *NotificationServer) notifyAttachedBlock(dbtx walletdb.ReadTx, block *wi
 	}
 }
 
-func (s *NotificationServer) sendAttachedBlockNotification(dbtx walletdb.ReadTx) {
+func (s *NotificationServer) sendAttachedBlockNotification() {
+	// Avoid work if possible
+	s.mu.Lock()
+	if len(s.transactions) == 0 {
+		s.mu.Unlock()
+		s.currentTxNtfn = nil
+		return
+	}
+	s.mu.Unlock()
+
 	// The UnminedTransactions field is intentionally not set.  Since the
 	// hashes of all detached blocks are reported, and all transactions
 	// moved from a mined block back to unconfirmed are either in the
@@ -307,30 +316,38 @@ func (s *NotificationServer) sendAttachedBlockNotification(dbtx walletdb.ReadTx)
 	// a mined transaction in the new best chain, there is no possiblity of
 	// a new, previously unseen transaction appearing in unconfirmed.
 
-	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-	unminedHashes, err := s.wallet.TxStore.UnminedTxHashes(txmgrNs)
-	if err != nil {
-		log.Errorf("Cannot fetch unmined transaction hashes: %v", err)
-		return
-	}
-	s.currentTxNtfn.UnminedTransactionHashes = unminedHashes
+	var (
+		w             = s.wallet
+		bals          = make(map[uint32]dcrutil.Amount)
+		unminedHashes []*chainhash.Hash
+	)
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		var err error
+		unminedHashes, err = w.TxStore.UnminedTxHashes(txmgrNs)
+		if err != nil {
+			return err
+		}
+		for _, b := range s.currentTxNtfn.AttachedBlocks {
+			relevantAccounts(w, bals, b.Transactions)
+		}
+		return totalBalances(dbtx, w, bals)
 
-	bals := make(map[uint32]dcrutil.Amount)
-	for _, b := range s.currentTxNtfn.AttachedBlocks {
-		relevantAccounts(s.wallet, bals, b.Transactions)
-	}
-	err = totalBalances(dbtx, s.wallet, bals)
+	})
 	if err != nil {
-		log.Errorf("Cannot determine balances for relevant accounts: %v", err)
+		log.Errorf("Failed to construct attached blocks notification: %v", err)
+		s.currentTxNtfn = nil
 		return
 	}
+
+	s.currentTxNtfn.UnminedTransactionHashes = unminedHashes
 	s.currentTxNtfn.NewBalances = flattenBalanceMap(bals)
 
-	defer s.mu.Unlock()
 	s.mu.Lock()
 	for _, c := range s.transactions {
 		c <- s.currentTxNtfn
 	}
+	s.mu.Unlock()
 	s.currentTxNtfn = nil
 }
 

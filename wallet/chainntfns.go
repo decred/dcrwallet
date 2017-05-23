@@ -33,9 +33,7 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 				"is now handling websocket notifications")
 		case chain.BlockConnected:
 			notificationName = "blockconnected"
-			err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-				return w.onBlockConnected(tx, n.BlockHeader, n.Transactions)
-			})
+			err = w.onBlockConnected(n.BlockHeader, n.Transactions)
 			if err == nil {
 				err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 					return w.watchFutureAddresses(tx)
@@ -217,7 +215,7 @@ func copyHeaderSliceToArray(array *udb.RawBlockHeader, slice []byte) error {
 
 // onBlockConnected is the entry point for processing chain server
 // blockconnected notifications.
-func (w *Wallet) onBlockConnected(dbtx walletdb.ReadWriteTx, serializedBlockHeader []byte, transactions [][]byte) error {
+func (w *Wallet) onBlockConnected(serializedBlockHeader []byte, transactions [][]byte) error {
 	var blockHeader wire.BlockHeader
 	err := blockHeader.Deserialize(bytes.NewReader(serializedBlockHeader))
 	if err != nil {
@@ -250,7 +248,11 @@ func (w *Wallet) onBlockConnected(dbtx walletdb.ReadWriteTx, serializedBlockHead
 			return nil
 		}
 
-		chainTipChanges, err = w.switchToSideChain(dbtx)
+		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+			var err error
+			chainTipChanges, err = w.switchToSideChain(dbtx)
+			return err
+		})
 		if err != nil {
 			return err
 		}
@@ -261,7 +263,9 @@ func (w *Wallet) onBlockConnected(dbtx walletdb.ReadWriteTx, serializedBlockHead
 		w.reorganizingLock.Unlock()
 		log.Infof("Wallet reorganization to block %v complete", reorgToHash)
 	} else {
-		err = w.extendMainChain(dbtx, &block, transactions)
+		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+			return w.extendMainChain(dbtx, &block, transactions)
+		})
 		if err != nil {
 			return err
 		}
@@ -277,15 +281,17 @@ func (w *Wallet) onBlockConnected(dbtx walletdb.ReadWriteTx, serializedBlockHead
 
 	// Prune all expired transactions and all stake tickets that no longer
 	// meet the minimum stake difficulty.
-	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
-	err = w.TxStore.PruneUnconfirmed(txmgrNs, height, blockHeader.SBits)
+	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
+		return w.TxStore.PruneUnconfirmed(txmgrNs, height, blockHeader.SBits)
+	})
 	if err != nil {
 		log.Errorf("Failed to prune unconfirmed transactions when "+
 			"connecting block height %v: %s", height, err.Error())
 	}
 
 	w.NtfnServer.notifyMainChainTipChanged(chainTipChanges)
-	w.NtfnServer.sendAttachedBlockNotification(dbtx)
+	w.NtfnServer.sendAttachedBlockNotification()
 
 	return nil
 }
