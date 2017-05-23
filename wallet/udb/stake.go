@@ -490,6 +490,20 @@ func (s *StakeStore) generateVoteNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs wa
 	// unset, just use the default voteBits as set by the user.
 	voteBits := defaultVoteBits
 
+	// Request current blockheader to check for vote version compatibility
+	blockHeader, err := s.chainSvr.GetBlockHeader(blockHash)
+	if err != nil {
+		return nil, err
+	}
+	// Parse vote version from extended bits.  Note that once ExtendedBits
+	// are used for other information as well this will need to be updated
+	// to accomodate.
+	voteVersion := binary.LittleEndian.Uint32(voteBits.ExtendedBits)
+	if voteVersion < blockHeader.StakeVersion {
+		log.Warnf("Old vote version detected (v%v), please update your "+
+			"wallet to version v%v", voteVersion, blockHeader.StakeVersion)
+	}
+
 	if stakePoolEnabled && sstxRecord.voteBitsSet {
 		voteBits.Bits = sstxRecord.voteBits
 		// This is not correct and therefore commented out.  For now, this will set
