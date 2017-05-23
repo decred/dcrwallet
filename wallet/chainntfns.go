@@ -7,6 +7,7 @@ package wallet
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"time"
@@ -878,6 +879,13 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 
 	topHash, _ := w.TxStore.MainChainTip(txmgrNs)
 
+	blockHeader, err := w.TxStore.GetSerializedBlockHeader(txmgrNs, blockHash)
+	if err != nil {
+		return err
+	}
+	stakeVersionOffset := 176
+	stakeVersion := binary.LittleEndian.Uint32(blockHeader[stakeVersionOffset:])
+
 	// Even if stake voting is disabled, we should still store eligible
 	// tickets for the current top block.
 	// TODO The behavior of this is not quite right if tons of blocks
@@ -889,7 +897,6 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 		topHash == *blockHash {
 		w.SetCurrentVotingInfo(blockHash, blockHeight, tickets)
 	}
-
 	if blockHeight >= w.chainParams.StakeValidationHeight-1 {
 		ntfns, err := w.StakeMgr.HandleWinningTicketsNtfn(
 			stakemgrNs,
@@ -900,6 +907,7 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 			w.VoteBits(),
 			w.stakePoolEnabled,
 			w.AllowHighFees,
+			stakeVersion,
 		)
 
 		if ntfns != nil {

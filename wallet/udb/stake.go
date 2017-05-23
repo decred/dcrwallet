@@ -475,7 +475,7 @@ func generateVoteScript(voteBits stake.VoteBits) ([]byte, error) {
 
 // generateVoteNtfn creates a new SSGen given a header hash, height, sstx
 // tx hash, and votebits and returns a notification.
-func (s *StakeStore) generateVoteNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash, defaultVoteBits stake.VoteBits, stakePoolEnabled, allowHighFees bool) (*StakeNotification, error) {
+func (s *StakeStore) generateVoteNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash, defaultVoteBits stake.VoteBits, stakePoolEnabled, allowHighFees bool, curStakeVersion uint32) (*StakeNotification, error) {
 	// 1. Fetch the SStx, then calculate all the values we'll need later for
 	// the generation of the SSGen tx outputs.
 	sstxRecord, err := fetchSStxRecord(ns, sstxHash, DBVersion)
@@ -490,16 +490,11 @@ func (s *StakeStore) generateVoteNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs wa
 	// unset, just use the default voteBits as set by the user.
 	voteBits := defaultVoteBits
 
-	// Request current blockheader to check for vote version compatibility
-	blockHeader, err := s.chainSvr.GetBlockHeader(blockHash)
-	if err != nil {
-		return nil, err
-	}
 	// Parse vote version from extended bits.  Note that once ExtendedBits
 	// are used for other information as well this will need to be updated
 	// to accomodate.
 	voteVersion := binary.LittleEndian.Uint32(voteBits.ExtendedBits)
-	if voteVersion < blockHeader.StakeVersion {
+	if voteVersion < curStakeVersion {
 		log.Warnf("Old vote version detected (v%v), please update your "+
 			"wallet to the latest version.", voteVersion)
 	}
@@ -917,7 +912,7 @@ func (s *StakeStore) generateRevocation(ns walletdb.ReadWriteBucket, waddrmgrNs 
 // HandleWinningTicketsNtfn scans the list of eligible tickets and, if any
 // of these tickets in the sstx store match these tickets, spends them as
 // votes.
-func (s *StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, blockHeight int64, tickets []*chainhash.Hash, defaultVoteBits stake.VoteBits, stakePoolEnabled, allowHighFees bool) ([]*StakeNotification, error) {
+func (s *StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, blockHash *chainhash.Hash, blockHeight int64, tickets []*chainhash.Hash, defaultVoteBits stake.VoteBits, stakePoolEnabled, allowHighFees bool, curStakeVersion uint32) ([]*StakeNotification, error) {
 	// Go through the list of tickets and see any of the
 	// ones we own match those eligible.
 	var ticketsToPull []*chainhash.Hash
@@ -940,7 +935,7 @@ func (s *StakeStore) HandleWinningTicketsNtfn(ns walletdb.ReadWriteBucket, waddr
 	// Matching tickets (yay!), generate some SSGen.
 	for i, ticket := range ticketsToPull {
 		ntfns[i], voteErrors[i] = s.generateVoteNtfn(ns, waddrmgrNs, blockHash,
-			blockHeight, ticket, defaultVoteBits, stakePoolEnabled, allowHighFees)
+			blockHeight, ticket, defaultVoteBits, stakePoolEnabled, allowHighFees, curStakeVersion)
 	}
 
 	errStr := ""
