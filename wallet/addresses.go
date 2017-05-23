@@ -383,7 +383,7 @@ func (w *Wallet) changeSource(account uint32) txauthor.ChangeSource {
 }
 
 func (w *Wallet) changeAddress(account uint32) (dcrutil.Address, error) {
-	// Addresses can not be generated for the default account, so as a
+	// Addresses can not be generated for the imported account, so as a
 	// workaround, change is sent to the first account.
 	//
 	// Yep, our accounts are broken.
