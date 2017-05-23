@@ -501,7 +501,7 @@ func (s *StakeStore) generateVoteNtfn(ns walletdb.ReadWriteBucket, waddrmgrNs wa
 	voteVersion := binary.LittleEndian.Uint32(voteBits.ExtendedBits)
 	if voteVersion < blockHeader.StakeVersion {
 		log.Warnf("Old vote version detected (v%v), please update your "+
-			"wallet to version v%v", voteVersion, blockHeader.StakeVersion)
+			"wallet to the latest version.", voteVersion)
 	}
 
 	if stakePoolEnabled && sstxRecord.voteBitsSet {
