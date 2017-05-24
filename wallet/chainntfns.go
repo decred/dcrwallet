@@ -302,6 +302,7 @@ func (w *Wallet) onBlockConnected(serializedBlockHeader []byte, transactions [][
 		log.Warnf("Old vote version detected (v%v), please update your "+
 			"wallet to the latest version.", voteVersion)
 	}
+
 	return nil
 }
 
@@ -894,6 +895,7 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 	// out of sync with the voting channel here. This should probably
 	// be fixed somehow, but this should be stable for networks that
 	// are voting at normal block speeds.
+
 	if blockHeight >= w.chainParams.StakeValidationHeight-1 &&
 		topHash == *blockHash {
 		w.SetCurrentVotingInfo(blockHash, blockHeight, tickets)
