@@ -895,11 +895,11 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 	// out of sync with the voting channel here. This should probably
 	// be fixed somehow, but this should be stable for networks that
 	// are voting at normal block speeds.
-
 	if blockHeight >= w.chainParams.StakeValidationHeight-1 &&
 		topHash == *blockHash {
 		w.SetCurrentVotingInfo(blockHash, blockHeight, tickets)
 	}
+
 	if blockHeight >= w.chainParams.StakeValidationHeight-1 {
 		ntfns, err := w.StakeMgr.HandleWinningTicketsNtfn(
 			stakemgrNs,
