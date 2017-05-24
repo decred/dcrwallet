@@ -26,6 +26,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -63,11 +64,11 @@ const (
 // recognized errors.
 //
 // This function is by no means complete and should be expanded based on other
-// known errors.  Any RPC handler not returning a gRPC error (with grpc.Errorf)
+// known errors.  Any RPC handler not returning a gRPC error (with status.Errorf)
 // should return this result instead.
 func translateError(err error) error {
 	code := errorCode(err)
-	return grpc.Errorf(code, "%s", err.Error())
+	return status.Errorf(code, "%s", err.Error())
 }
 
 func errorCode(err error) codes.Code {
@@ -122,10 +123,10 @@ func errorCode(err error) codes.Code {
 func decodeAddress(a string, params *chaincfg.Params) (dcrutil.Address, error) {
 	addr, err := dcrutil.DecodeAddress(a, params)
 	if err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "invalid address %v: %v", a, err)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid address %v: %v", a, err)
 	}
 	if !addr.IsForNet(params) {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"address %v is not intended for use on %v", a, params.Name)
 	}
 	return addr, nil
@@ -198,7 +199,7 @@ func StartWalletService(server *grpc.Server, wallet *wallet.Wallet) {
 func (s *walletServer) requireChainClient() (*chain.RPCClient, error) {
 	chainClient := s.wallet.ChainClient()
 	if chainClient == nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition,
+		return nil, status.Errorf(codes.FailedPrecondition,
 			"wallet is not associated with a consensus server RPC client")
 	}
 	return chainClient, nil
@@ -267,7 +268,7 @@ func (s *walletServer) Rescan(req *pb.RescanRequest, svr pb.WalletService_Rescan
 	}
 
 	if req.BeginHeight < 0 {
-		return grpc.Errorf(codes.InvalidArgument, "begin height must be non-negative")
+		return status.Errorf(codes.InvalidArgument, "begin height must be non-negative")
 	}
 
 	progress := make(chan wallet.RescanProgress, 1)
@@ -282,7 +283,7 @@ func (s *walletServer) Rescan(req *pb.RescanRequest, svr pb.WalletService_Rescan
 				// finished or cancelled rescan without error
 				select {
 				case <-cancel:
-					return grpc.Errorf(codes.Canceled, "rescan canceled")
+					return status.Errorf(codes.Canceled, "rescan canceled")
 				default:
 					return nil
 				}
@@ -308,7 +309,7 @@ func (s *walletServer) NextAccount(ctx context.Context, req *pb.NextAccountReque
 	defer zero.Bytes(req.Passphrase)
 
 	if req.AccountName == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, "account name may not be empty")
+		return nil, status.Errorf(codes.InvalidArgument, "account name may not be empty")
 	}
 
 	lock := make(chan time.Time, 1)
@@ -347,7 +348,7 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 			return nil, translateError(err)
 		}
 	default:
-		return nil, grpc.Errorf(codes.InvalidArgument, "kind=%v", req.Kind)
+		return nil, status.Errorf(codes.InvalidArgument, "kind=%v", req.Kind)
 	}
 	if err != nil {
 		return nil, translateError(err)
@@ -375,7 +376,7 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 
 	wif, err := dcrutil.DecodeWIF(req.PrivateKeyWif)
 	if err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Invalid WIF-encoded private key: %v", err)
 	}
 
@@ -391,17 +392,17 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 	// At the moment, only the special-cased import account can be used to
 	// import keys.
 	if req.Account != udb.ImportedAddrAccount {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Only the imported account accepts private key imports")
 	}
 
 	if req.ScanFrom < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Attempted to scan from a negative block height")
 	}
 
 	if req.ScanFrom > 0 && req.Rescan {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Passed a rescan height without rescan set")
 	}
 
@@ -437,12 +438,12 @@ func (s *walletServer) ImportScript(ctx context.Context,
 	}
 
 	if req.ScanFrom < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Attempted to scan from a negative block height")
 	}
 
 	if req.ScanFrom > 0 && req.Rescan {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Passed a rescan height without rescan set")
 	}
 
@@ -493,13 +494,13 @@ func (s *walletServer) TicketPrice(ctx context.Context,
 
 	tp, err := s.wallet.StakeDifficulty()
 	if err != nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition,
+		return nil, status.Errorf(codes.FailedPrecondition,
 			"Failed to query stake difficulty: %s", err.Error())
 	}
 
 	_, blockHeight, err := chainClient.GetBestBlock()
 	if err != nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition,
+		return nil, status.Errorf(codes.FailedPrecondition,
 			"Failed to query block height: %s", err.Error())
 	}
 
@@ -517,7 +518,7 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 
 	si, err := s.wallet.StakeInfo(chainClient.Client)
 	if err != nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition,
+		return nil, status.Errorf(codes.FailedPrecondition,
 			"Failed to query stake info: %s", err.Error())
 	}
 
@@ -612,7 +613,7 @@ func decodeDestination(dest *pb.ConstructTransactionRequest_OutputDestination,
 	case dest == nil:
 		fallthrough
 	default:
-		return nil, 0, grpc.Errorf(codes.InvalidArgument, "unknown or missing output destination")
+		return nil, 0, status.Errorf(codes.InvalidArgument, "unknown or missing output destination")
 
 	case dest.Address != "":
 		addr, err := decodeAddress(dest.Address, chainParams)
@@ -627,7 +628,7 @@ func decodeDestination(dest *pb.ConstructTransactionRequest_OutputDestination,
 		return pkScript, txscript.DefaultScriptVersion, nil
 	case dest.Script != nil:
 		if dest.ScriptVersion > uint32(^uint16(0)) {
-			return nil, 0, grpc.Errorf(codes.InvalidArgument, "script_version overflows uint16")
+			return nil, 0, status.Errorf(codes.InvalidArgument, "script_version overflows uint16")
 		}
 		return dest.Script, uint16(dest.ScriptVersion), nil
 	}
@@ -639,7 +640,7 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 	chainParams := s.wallet.ChainParams()
 
 	if len(req.NonChangeOutputs) == 0 && req.ChangeDestination == nil {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"non_change_outputs and change_destination may not both be empty or null")
 	}
 
@@ -664,7 +665,7 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 	case pb.ConstructTransactionRequest_ALL:
 		algo = wallet.OutputSelectionAlgorithmAll
 	default:
-		return nil, grpc.Errorf(codes.InvalidArgument, "unknown output selection algorithm")
+		return nil, status.Errorf(codes.InvalidArgument, "unknown output selection algorithm")
 	}
 
 	feePerKb := txrules.DefaultRelayFeePerKb
@@ -715,12 +716,12 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 
 	var startBlock, endBlock *wallet.BlockIdentifier
 	if req.StartingBlockHash != nil && req.StartingBlockHeight != 0 {
-		return grpc.Errorf(codes.InvalidArgument,
+		return status.Errorf(codes.InvalidArgument,
 			"starting block hash and height may not be specified simultaneously")
 	} else if req.StartingBlockHash != nil {
 		startBlockHash, err := chainhash.NewHash(req.StartingBlockHash)
 		if err != nil {
-			return grpc.Errorf(codes.InvalidArgument, "%s", err.Error())
+			return status.Errorf(codes.InvalidArgument, "%s", err.Error())
 		}
 		startBlock = wallet.NewBlockIdentifierFromHash(startBlockHash)
 	} else if req.StartingBlockHeight != 0 {
@@ -728,12 +729,12 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 	}
 
 	if req.EndingBlockHash != nil && req.EndingBlockHeight != 0 {
-		return grpc.Errorf(codes.InvalidArgument,
+		return status.Errorf(codes.InvalidArgument,
 			"ending block hash and height may not be specified simultaneously")
 	} else if req.EndingBlockHash != nil {
 		endBlockHash, err := chainhash.NewHash(req.EndingBlockHash)
 		if err != nil {
-			return grpc.Errorf(codes.InvalidArgument, "%s", err.Error())
+			return status.Errorf(codes.InvalidArgument, "%s", err.Error())
 		}
 		endBlock = wallet.NewBlockIdentifierFromHash(endBlockHash)
 	} else if req.EndingBlockHeight != 0 {
@@ -743,13 +744,13 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 	var minRecentTxs int
 	if req.MinimumRecentTransactions != 0 {
 		if endBlock != nil {
-			return grpc.Errorf(codes.InvalidArgument,
+			return status.Errorf(codes.InvalidArgument,
 				"ending block and minimum number of recent transactions "+
 					"may not be specified simultaneously")
 		}
 		minRecentTxs = int(req.MinimumRecentTransactions)
 		if minRecentTxs < 0 {
-			return grpc.Errorf(codes.InvalidArgument,
+			return status.Errorf(codes.InvalidArgument,
 				"minimum number of recent transactions may not be negative")
 		}
 	}
@@ -807,7 +808,7 @@ func (s *walletServer) ChangePassphrase(ctx context.Context, req *pb.ChangePassp
 		}
 		err = s.wallet.ChangePublicPassphrase(oldPass, newPass)
 	default:
-		return nil, grpc.Errorf(codes.InvalidArgument, "Unknown key type (%d)", req.Key)
+		return nil, status.Errorf(codes.InvalidArgument, "Unknown key type (%d)", req.Key)
 	}
 	if err != nil {
 		return nil, translateError(err)
@@ -825,7 +826,7 @@ func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransact
 	var tx wire.MsgTx
 	err := tx.Deserialize(bytes.NewReader(req.SerializedTransaction))
 	if err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Bytes do not represent a valid raw transaction: %v", err)
 	}
 
@@ -873,7 +874,7 @@ func (s *walletServer) PublishTransaction(ctx context.Context, req *pb.PublishTr
 	var msgTx wire.MsgTx
 	err = msgTx.Deserialize(bytes.NewReader(req.SignedTransaction))
 	if err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Bytes do not represent a valid raw transaction: %v", err)
 	}
 
@@ -892,7 +893,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	// purchase request.
 	spendLimit := dcrutil.Amount(req.SpendLimit)
 	if spendLimit < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Negative spend limit given")
 	}
 
@@ -919,24 +920,24 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	if req.PoolFees > 0 {
 		err = txrules.IsValidPoolFeeRate(req.PoolFees)
 		if err != nil {
-			return nil, grpc.Errorf(codes.InvalidArgument,
+			return nil, status.Errorf(codes.InvalidArgument,
 				"Pool fees amount invalid: %v", err)
 		}
 	}
 
 	if req.PoolFees > 0 && poolAddr == nil {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Pool fees set but no pool address given")
 	}
 
 	if req.PoolFees <= 0 && poolAddr != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Pool fees negative or unset but pool address given")
 	}
 
 	numTickets := int(req.NumTickets)
 	if numTickets < 1 {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Zero or negative number of tickets given")
 	}
 
@@ -945,7 +946,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	ticketFee := dcrutil.Amount(req.TicketFee)
 
 	if txFee < 0 || ticketFee < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Negative fees per KB given")
 	}
 
@@ -962,7 +963,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		ticketAddr, req.Account, numTickets, poolAddr, req.PoolFees,
 		expiry, txFee, ticketFee)
 	if err != nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition,
+		return nil, status.Errorf(codes.FailedPrecondition,
 			"Unable to purchase tickets: %v", err)
 	}
 
@@ -1180,7 +1181,7 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 
 	wallet, ok := t.loader.LoadedWallet()
 	if !ok {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
 	}
 	err := wallet.Unlock(req.Passphrase, nil)
 	if err != nil {
@@ -1193,17 +1194,17 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 	}
 
 	if req.BalanceToMaintain < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Negative balance to maintain given")
 	}
 
 	if req.MaxFeePerKb < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Negative max fee per KB given")
 	}
 
 	if req.MaxPriceAbsolute < 0 && req.MaxPriceRelative < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Negative max ticket price given")
 	}
 	params := wallet.ChainParams()
@@ -1229,13 +1230,13 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 	poolFees := req.PoolFees
 	switch {
 	case poolFees == 0 && poolAddress != "":
-		return nil, grpc.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
+		return nil, status.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
 	case poolFees != 0 && poolAddress == "":
-		return nil, grpc.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
+		return nil, status.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
 	case poolFees != 0 && poolAddress != "":
 		err = txrules.IsValidPoolFeeRate(poolFees)
 		if err != nil {
-			return nil, grpc.Errorf(codes.InvalidArgument, "Pool fees amount invalid: %v", err)
+			return nil, status.Errorf(codes.InvalidArgument, "Pool fees amount invalid: %v", err)
 		}
 	}
 
@@ -1263,7 +1264,7 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 	}
 	err = t.loader.StartTicketPurchase(req.Passphrase, config)
 	if err == loader.ErrTicketBuyerStarted {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Ticket buyer is already started")
+		return nil, status.Errorf(codes.FailedPrecondition, "Ticket buyer is already started")
 	}
 	if err != nil {
 		return nil, translateError(err)
@@ -1277,7 +1278,7 @@ func (t *ticketbuyerServer) StopAutoBuyer(ctx context.Context, req *pb.StopAutoB
 
 	err := t.loader.StopTicketPurchase()
 	if err == loader.ErrTicketBuyerStopped {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Ticket buyer is not running")
+		return nil, status.Errorf(codes.FailedPrecondition, "Ticket buyer is not running")
 	}
 	if err != nil {
 		return nil, translateError(err)
@@ -1301,7 +1302,7 @@ func (s *loaderServer) CreateWallet(ctx context.Context, req *pb.CreateWalletReq
 
 	// Seed is required.
 	if len(req.Seed) == 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "seed is a required parameter")
+		return nil, status.Errorf(codes.InvalidArgument, "seed is a required parameter")
 	}
 
 	_, err := s.loader.CreateNewWallet(pubPassphrase, req.PrivatePassphrase, req.Seed)
@@ -1344,7 +1345,7 @@ func (s *loaderServer) CloseWallet(ctx context.Context, req *pb.CloseWalletReque
 
 	err := s.loader.UnloadWallet()
 	if err == loader.ErrWalletNotLoaded {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Wallet is not loaded")
+		return nil, status.Errorf(codes.FailedPrecondition, "Wallet is not loaded")
 	}
 	if err != nil {
 		return nil, translateError(err)
@@ -1362,20 +1363,20 @@ func (s *loaderServer) StartConsensusRpc(ctx context.Context, req *pb.StartConse
 	s.mu.Lock()
 
 	if s.rpcClient != nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "RPC client already created")
+		return nil, status.Errorf(codes.FailedPrecondition, "RPC client already created")
 	}
 
 	networkAddress, err := cfgutil.NormalizeAddress(req.NetworkAddress,
 		s.activeNet.JSONRPCClientPort)
 	if err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument,
+		return nil, status.Errorf(codes.InvalidArgument,
 			"Network address is ill-formed: %v", err)
 	}
 
 	// Error if the wallet is already syncing with the network.
 	wallet, walletLoaded := s.loader.LoadedWallet()
 	if walletLoaded && wallet.SynchronizingToNetwork() {
-		return nil, grpc.Errorf(codes.FailedPrecondition,
+		return nil, status.Errorf(codes.FailedPrecondition,
 			"wallet is loaded and already synchronizing")
 	}
 
@@ -1388,10 +1389,10 @@ func (s *loaderServer) StartConsensusRpc(ctx context.Context, req *pb.StartConse
 	err = rpcClient.Start()
 	if err != nil {
 		if err == dcrrpcclient.ErrInvalidAuth {
-			return nil, grpc.Errorf(codes.InvalidArgument,
+			return nil, status.Errorf(codes.InvalidArgument,
 				"Invalid RPC credentials: %v", err)
 		}
-		return nil, grpc.Errorf(codes.NotFound,
+		return nil, status.Errorf(codes.NotFound,
 			"Connection to RPC server failed: %v", err)
 	}
 
@@ -1406,18 +1407,18 @@ func (s *loaderServer) DiscoverAddresses(ctx context.Context, req *pb.DiscoverAd
 
 	wallet, ok := s.loader.LoadedWallet()
 	if !ok {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
 	}
 
 	s.mu.Lock()
 	chainClient := s.rpcClient
 	s.mu.Unlock()
 	if chainClient == nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Consensus server RPC client has not been loaded")
+		return nil, status.Errorf(codes.FailedPrecondition, "Consensus server RPC client has not been loaded")
 	}
 
 	if req.DiscoverAccounts && len(req.PrivatePassphrase) == 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "private passphrase is required for discovering accounts")
+		return nil, status.Errorf(codes.InvalidArgument, "private passphrase is required for discovering accounts")
 	}
 
 	if req.DiscoverAccounts {
@@ -1445,14 +1446,14 @@ func (s *loaderServer) SubscribeToBlockNotifications(ctx context.Context, req *p
 
 	wallet, ok := s.loader.LoadedWallet()
 	if !ok {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
 	}
 
 	s.mu.Lock()
 	chainClient := s.rpcClient
 	s.mu.Unlock()
 	if chainClient == nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Consensus server RPC client has not been loaded")
+		return nil, status.Errorf(codes.FailedPrecondition, "Consensus server RPC client has not been loaded")
 	}
 
 	err := chainClient.NotifyBlocks()
@@ -1470,14 +1471,14 @@ func (s *loaderServer) FetchHeaders(ctx context.Context, req *pb.FetchHeadersReq
 
 	wallet, ok := s.loader.LoadedWallet()
 	if !ok {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
 	}
 
 	s.mu.Lock()
 	chainClient := s.rpcClient
 	s.mu.Unlock()
 	if chainClient == nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Consensus server RPC client has not been loaded")
+		return nil, status.Errorf(codes.FailedPrecondition, "Consensus server RPC client has not been loaded")
 	}
 
 	fetchedHeaderCount, rescanFrom, rescanFromHeight,
@@ -1512,13 +1513,13 @@ func (s *seedServer) GenerateRandomSeed(ctx context.Context, req *pb.GenerateRan
 		seedSize = hdkeychain.RecommendedSeedLen
 	}
 	if seedSize < hdkeychain.MinSeedBytes || seedSize > hdkeychain.MaxSeedBytes {
-		return nil, grpc.Errorf(codes.InvalidArgument, "invalid seed length")
+		return nil, status.Errorf(codes.InvalidArgument, "invalid seed length")
 	}
 
 	seed := make([]byte, seedSize)
 	_, err := rand.Read(seed)
 	if err != nil {
-		return nil, grpc.Errorf(codes.Unavailable, "failed to read cryptographically-random data for seed: %v", err)
+		return nil, status.Errorf(codes.Unavailable, "failed to read cryptographically-random data for seed: %v", err)
 	}
 
 	res := &pb.GenerateRandomSeedResponse{
@@ -1532,7 +1533,7 @@ func (s *seedServer) GenerateRandomSeed(ctx context.Context, req *pb.GenerateRan
 func (s *seedServer) DecodeSeed(ctx context.Context, req *pb.DecodeSeedRequest) (*pb.DecodeSeedResponse, error) {
 	seed, err := walletseed.DecodeUserInput(req.UserInput)
 	if err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "%v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	return &pb.DecodeSeedResponse{DecodedSeed: seed}, nil
 }
@@ -1542,7 +1543,7 @@ func (s *seedServer) DecodeSeed(ctx context.Context, req *pb.DecodeSeedRequest) 
 func (t *ticketbuyerServer) requirePurchaseManager() (*ticketbuyer.PurchaseManager, error) {
 	pm := t.loader.PurchaseManager()
 	if pm == nil {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "ticket buyer is not running")
+		return nil, status.Errorf(codes.FailedPrecondition, "ticket buyer is not running")
 	}
 	return pm, nil
 }
@@ -1560,7 +1561,7 @@ func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.Ticke
 	}
 	w, ok := t.loader.LoadedWallet()
 	if !ok {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
+		return nil, status.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
 	}
 	account, err := w.AccountNumber(config.AccountName)
 	if err != nil {
@@ -1601,7 +1602,7 @@ func (t *ticketbuyerServer) SetAccount(ctx context.Context, req *pb.SetAccountRe
 
 	wallet, ok := t.loader.LoadedWallet()
 	if !ok {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
 	}
 
 	_, err = wallet.AccountName(req.Account)
@@ -1622,7 +1623,7 @@ func (t *ticketbuyerServer) SetBalanceToMaintain(ctx context.Context, req *pb.Se
 		return nil, err
 	}
 	if req.BalanceToMaintain < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "Negative balance to maintain given")
+		return nil, status.Errorf(codes.InvalidArgument, "Negative balance to maintain given")
 	}
 	pm.Purchaser().SetBalanceToMaintain(req.BalanceToMaintain)
 	return &pb.SetBalanceToMaintainResponse{}, nil
@@ -1637,7 +1638,7 @@ func (t *ticketbuyerServer) SetMaxFee(ctx context.Context, req *pb.SetMaxFeeRequ
 		return nil, err
 	}
 	if req.MaxFeePerKb < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max fee per KB given")
+		return nil, status.Errorf(codes.InvalidArgument, "Negative max fee per KB given")
 	}
 	pm.Purchaser().SetMaxFee(req.MaxFeePerKb)
 	return &pb.SetMaxFeeResponse{}, nil
@@ -1648,7 +1649,7 @@ func (t *ticketbuyerServer) SetMaxPriceRelative(ctx context.Context, req *pb.Set
 	*pb.SetMaxPriceRelativeResponse, error) {
 
 	if req.MaxPriceRelative < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max ticket price given")
+		return nil, status.Errorf(codes.InvalidArgument, "Negative max ticket price given")
 	}
 
 	pm, err := t.requirePurchaseManager()
@@ -1668,7 +1669,7 @@ func (t *ticketbuyerServer) SetMaxPriceAbsolute(ctx context.Context, req *pb.Set
 		return nil, err
 	}
 	if req.MaxPriceAbsolute < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "Negative max ticket price given")
+		return nil, status.Errorf(codes.InvalidArgument, "Negative max ticket price given")
 	}
 	pm.Purchaser().SetMaxPriceAbsolute(req.MaxPriceAbsolute)
 	return &pb.SetMaxPriceAbsoluteResponse{}, nil
@@ -1684,7 +1685,7 @@ func (t *ticketbuyerServer) SetVotingAddress(ctx context.Context, req *pb.SetVot
 	}
 	w, ok := t.loader.LoadedWallet()
 	if !ok {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
+		return nil, status.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
 	}
 	ticketAddress, err := decodeAddress(req.VotingAddress, w.ChainParams())
 	if err != nil {
@@ -1704,7 +1705,7 @@ func (t *ticketbuyerServer) SetPoolAddress(ctx context.Context, req *pb.SetPoolA
 	}
 	w, ok := t.loader.LoadedWallet()
 	if !ok {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
+		return nil, status.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
 	}
 
 	poolAddress := req.PoolAddress
@@ -1712,9 +1713,9 @@ func (t *ticketbuyerServer) SetPoolAddress(ctx context.Context, req *pb.SetPoolA
 
 	switch {
 	case poolFees == 0 && poolAddress != "":
-		return nil, grpc.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
+		return nil, status.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
 	case poolFees != 0 && poolAddress == "":
-		return nil, grpc.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
+		return nil, status.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
 	}
 
 	poolAddr, err := decodeAddress(poolAddress, w.ChainParams())
@@ -1743,13 +1744,13 @@ func (t *ticketbuyerServer) SetPoolFees(ctx context.Context, req *pb.SetPoolFees
 	poolFees := req.PoolFees
 	switch {
 	case poolFees == 0 && poolAddress != "":
-		return nil, grpc.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
+		return nil, status.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
 	case poolFees != 0 && poolAddress == "":
-		return nil, grpc.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
+		return nil, status.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
 	case poolFees != 0 && poolAddress != "":
 		err = txrules.IsValidPoolFeeRate(poolFees)
 		if err != nil {
-			return nil, grpc.Errorf(codes.InvalidArgument, "Pool fees amount invalid: %v", err)
+			return nil, status.Errorf(codes.InvalidArgument, "Pool fees amount invalid: %v", err)
 		}
 	}
 
