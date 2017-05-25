@@ -88,7 +88,7 @@ func (w *Wallet) LiveTicketHashes(rpcClient *chain.RPCClient, includeImmature bo
 	// Get the raw transaction information from daemon and add
 	// any relevant tickets. The ticket output is always the
 	// zeroth output.
-	for i, h := range stakeMgrTickets {
+	for _, h := range stakeMgrTickets {
 		_, exists := ticketMap[h]
 		if exists {
 			continue
@@ -96,7 +96,7 @@ func (w *Wallet) LiveTicketHashes(rpcClient *chain.RPCClient, includeImmature bo
 
 		promisesGetTxOut = append(promisesGetTxOut, promiseGetTxOut{
 			result: rpcClient.GetTxOutAsync(&h, 0, true),
-			ticket: &stakeMgrTickets[i],
+			ticket: &h,
 		})
 	}
 
