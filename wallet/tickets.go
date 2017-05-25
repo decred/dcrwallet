@@ -82,8 +82,8 @@ func (w *Wallet) LiveTicketHashes(rpcClient *chain.RPCClient, includeImmature bo
 		ticketMap[h] = 1
 	}
 
-	promisesGetTxOut := make([]promiseGetTxOut, 0, 0)
-	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, 0)
+	promisesGetTxOut := make([]promiseGetTxOut, 0)
+	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0)
 
 	// Get the raw transaction information from daemon and add
 	// any relevant tickets. The ticket output is always the
