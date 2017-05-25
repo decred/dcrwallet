@@ -12,20 +12,12 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
-
-func sliceContainsHash(s []chainhash.Hash, h chainhash.Hash) bool {
-	for _, item := range s {
-		if h == item {
-			return true
-		}
-	}
-	return false
-}
 
 // GenerateVoteTx returns generated vote transaction for a chosen ticket
 // purchase hash using the provided votebits.
@@ -48,9 +40,19 @@ func (w *Wallet) LiveTicketHashes(rpcClient *chain.RPCClient, includeImmature bo
 	// This was mostly copied from an older version of the legacy RPC server
 	// implementation, hence the overall weirdness, inefficiencies, and the
 	// direct dependency on the consensus server RPC client.
+	type promiseGetTxOut struct {
+		result dcrrpcclient.FutureGetTxOutResult
+		ticket *chainhash.Hash
+	}
+
+	type promiseGetRawTransaction struct {
+		result dcrrpcclient.FutureGetRawTransactionVerboseResult
+		ticket *chainhash.Hash
+	}
 
 	var tipHeight int32
 	var ticketHashes []chainhash.Hash
+	ticketMap := make(map[chainhash.Hash]struct{})
 	var stakeMgrTickets []chainhash.Hash
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
@@ -76,15 +78,30 @@ func (w *Wallet) LiveTicketHashes(rpcClient *chain.RPCClient, includeImmature bo
 		return nil, err
 	}
 
-	for _, h := range stakeMgrTickets {
-		if sliceContainsHash(ticketHashes, h) {
+	for _, h := range ticketHashes {
+		ticketMap[h] = struct{}{}
+	}
+
+	promisesGetTxOut := make([]promiseGetTxOut, 0, len(stakeMgrTickets))
+	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, len(stakeMgrTickets))
+
+	// Get the raw transaction information from daemon and add
+	// any relevant tickets. The ticket output is always the
+	// zeroth output.
+	for i, h := range stakeMgrTickets {
+		_, exists := ticketMap[h]
+		if exists {
 			continue
 		}
 
-		// Get the raw transaction information from daemon and add
-		// any relevant tickets. The ticket output is always the
-		// zeroeth output.
-		spent, err := rpcClient.GetTxOut(&h, 0, true)
+		promisesGetTxOut = append(promisesGetTxOut, promiseGetTxOut{
+			result: rpcClient.GetTxOutAsync(&stakeMgrTickets[i], 0, true),
+			ticket: &stakeMgrTickets[i],
+		})
+	}
+
+	for _, p := range promisesGetTxOut {
+		spent, err := p.result.Receive()
 		if err != nil {
 			continue
 		}
@@ -93,7 +110,15 @@ func (w *Wallet) LiveTicketHashes(rpcClient *chain.RPCClient, includeImmature bo
 			continue
 		}
 
-		ticketTx, err := rpcClient.GetRawTransactionVerbose(&h)
+		promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
+			result: rpcClient.GetRawTransactionVerboseAsync(p.ticket),
+			ticket: p.ticket,
+		})
+
+	}
+
+	for _, p := range promisesGetRawTransaction {
+		ticketTx, err := p.result.Receive()
 		if err != nil {
 			continue
 		}
@@ -103,10 +128,10 @@ func (w *Wallet) LiveTicketHashes(rpcClient *chain.RPCClient, includeImmature bo
 		immature := (tipHeight-int32(txHeight) <
 			int32(w.ChainParams().TicketMaturity))
 		if includeImmature {
-			ticketHashes = append(ticketHashes, h)
+			ticketHashes = append(ticketHashes, *p.ticket)
 		} else {
 			if !(unconfirmed || immature) {
-				ticketHashes = append(ticketHashes, h)
+				ticketHashes = append(ticketHashes, *p.ticket)
 			}
 		}
 	}
