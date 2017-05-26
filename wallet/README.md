@@ -7,8 +7,7 @@ TODO: Flesh out this section
 
 ## Documentation
 
-[![GoDoc](https://godoc.org/github.com/decred/dcrwallet/wallet?status.png)]
-(http://godoc.org/github.com/decred/dcrwallet/wallet)
+[![GoDoc](https://godoc.org/github.com/decred/dcrwallet/wallet?status.png)](http://godoc.org/github.com/decred/dcrwallet/wallet)
 
 Full `go doc` style documentation for the project can be viewed online without
 installing this package by using the GoDoc site here:

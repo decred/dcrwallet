@@ -26,8 +26,7 @@ if err != nil {
 
 ## Documentation
 
-[![GoDoc](https://godoc.org/github.com/decred/dcrwallet/walletdb/bdb?status.png)]
-(http://godoc.org/github.com/decred/dcrwallet/walletdb/bdb)
+[![GoDoc](https://godoc.org/github.com/decred/dcrwallet/walletdb/bdb?status.png)](http://godoc.org/github.com/decred/dcrwallet/walletdb/bdb)
 
 Full `go doc` style documentation for the project can be viewed online without
 installing this package by using the GoDoc site here:

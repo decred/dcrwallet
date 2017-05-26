@@ -40,8 +40,7 @@ boltdb project at https://github.com/boltdb/bolt by Ben B. Johnson.
 
 ## Documentation
 
-[![GoDoc](https://godoc.org/github.com/decred/dcrwallet/walletdb?status.png)]
-(http://godoc.org/github.com/decred/dcrwallet/walletdb)
+[![GoDoc](https://godoc.org/github.com/decred/dcrwallet/walletdb?status.png)](http://godoc.org/github.com/decred/dcrwallet/walletdb)
 
 Full `go doc` style documentation for the project can be viewed online without
 installing this package by using the GoDoc site here:
@@ -59,8 +58,7 @@ $ go get github.com/decred/dcrwallet/walletdb
 
 ## Examples
 
-* [Basic Usage Example]
-  (http://godoc.org/github.com/decred/dcrwallet/walletdb#example-package--BasicUsage)  
+* [Basic Usage Example](http://godoc.org/github.com/decred/dcrwallet/walletdb#example-package--BasicUsage)  
   Demonstrates creating a new database, getting a namespace from it, and using a
   managed read-write transaction against the namespace to store and retrieve
   data.

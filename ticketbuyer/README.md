@@ -1,12 +1,11 @@
 ticketbuyer
 ===========
 
-Package ticketbuyer provides automatic purchase of tickets from a Decred wallet. 
+Package ticketbuyer provides automatic purchase of tickets from a Decred wallet.
 
 ## Documentation
 
-[![GoDoc](https://godoc.org/github.com/decred/dcrwallet/ticketbuyer?status.png)]
-(http://godoc.org/github.com/decred/dcrwallet/ticketbuyer)
+[![GoDoc](https://godoc.org/github.com/decred/dcrwallet/ticketbuyer?status.png)](http://godoc.org/github.com/decred/dcrwallet/ticketbuyer)
 
 Full `go doc` style documentation for the project can be viewed online without
 installing this package by using the GoDoc site here:
