@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"sync"
 
+	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
@@ -156,6 +157,10 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 	var transactionType = TransactionTypeRegular
 	switch {
 	case true:
+		if blockchain.IsCoinBaseTx(&details.MsgTx) {
+			transactionType = TransactionTypeCoinbase
+			break
+		}
 		ok, _ := stake.IsSStx(&details.MsgTx)
 		if ok {
 			transactionType = TransactionTypeTicketPurchase
@@ -404,8 +409,11 @@ type TransactionSummary struct {
 type TransactionType int8
 
 const (
-	// TransactionTypeRegular transaction type for all non stake transactions.
+	// TransactionTypeRegular transaction type for all regular transactions.
 	TransactionTypeRegular TransactionType = iota
+
+	// TransactionTypeCoinbase is the transaction type for all coinbase transactions.
+	TransactionTypeCoinbase
 
 	// TransactionTypeTicketPurchase transaction type for all transactions that
 	// consume regular transactions as inputs and have commitments for future votes

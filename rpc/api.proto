@@ -110,6 +110,7 @@ message TransactionDetails {
 	int64 timestamp = 6; // May be earlier than a block timestamp, but never later.
 	enum TransactionType {
 		REGULAR = 0;
+		COINBASE = 4;
 		TICKET_PURCHASE = 1;
 		VOTE = 2;
 		REVOCATION = 3;

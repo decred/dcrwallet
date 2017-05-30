@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.10.x
+Version: 4.11.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -1407,6 +1407,8 @@ transaction was seen.
     a ticket purchase due to expiry or the ticket being missed.  Just as stakebase
     rewards must reach maturity to be used, outputs from an revocation also must
     mature that same amount.
+
+  - `COINBASE`: A coinbase transaction in the regular tx tree.
 
 **Stability**: Unstable: Since the caller is expected to decode the serialized
   transaction, and would have access to every output script, the output

@@ -54,9 +54,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.10.0"
+	semverString = "4.11.0"
 	semverMajor  = 4
-	semverMinor  = 10
+	semverMinor  = 11
 	semverPatch  = 0
 )
 
@@ -1049,6 +1049,8 @@ func marshalTransactionDetails(v []wallet.TransactionSummary) []*pb.TransactionD
 		tx := &v[i]
 		var txType = pb.TransactionDetails_REGULAR
 		switch tx.Type {
+		case wallet.TransactionTypeCoinbase:
+			txType = pb.TransactionDetails_COINBASE
 		case wallet.TransactionTypeTicketPurchase:
 			txType = pb.TransactionDetails_TICKET_PURCHASE
 		case wallet.TransactionTypeVote:
