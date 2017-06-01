@@ -54,9 +54,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.11.0"
+	semverString = "4.12.0"
 	semverMajor  = 4
-	semverMinor  = 11
+	semverMinor  = 12
 	semverPatch  = 0
 )
 
@@ -428,11 +428,35 @@ func (s *walletServer) ImportScript(ctx context.Context,
 
 	defer zero.Bytes(req.Passphrase)
 
+	// TODO: Rather than assuming the "default" version, it must be a parameter
+	// to the request.
+	sc, addrs, requiredSigs, err := txscript.ExtractPkScriptAddrs(
+		txscript.DefaultScriptVersion, req.Script, s.wallet.ChainParams())
+	if err != nil && req.RequireRedeemable {
+		return nil, status.Errorf(codes.FailedPrecondition,
+			"The script is not redeemable by the wallet")
+	}
+	ownAddrs := 0
+	for _, a := range addrs {
+		haveAddr, err := s.wallet.HaveAddress(a)
+		if err != nil {
+			return nil, translateError(err)
+		}
+		if haveAddr {
+			ownAddrs++
+		}
+	}
+	redeemable := sc == txscript.MultiSigTy && ownAddrs >= requiredSigs
+	if !redeemable && req.RequireRedeemable {
+		return nil, status.Errorf(codes.FailedPrecondition,
+			"The script is not redeemable by the wallet")
+	}
+
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err := s.wallet.Unlock(req.Passphrase, lock)
+	err = s.wallet.Unlock(req.Passphrase, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -461,7 +485,12 @@ func (s *walletServer) ImportScript(ctx context.Context,
 		s.wallet.RescanFromHeight(chainClient, req.ScanFrom)
 	}
 
-	return &pb.ImportScriptResponse{}, nil
+	p2sh, err := dcrutil.NewAddressScriptHash(req.Script, s.wallet.ChainParams())
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	return &pb.ImportScriptResponse{P2ShAddress: p2sh.String(), Redeemable: redeemable}, nil
 }
 
 func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (

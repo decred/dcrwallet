@@ -209,8 +209,11 @@ message ImportScriptRequest {
 	bytes script = 2;
 	bool rescan = 3;
 	int32 scan_from = 4;
+	bool require_redeemable = 5;
 }
 message ImportScriptResponse {
+	string p2sh_address = 1;
+	bool redeemable = 2;
 }
 
 message BalanceRequest {

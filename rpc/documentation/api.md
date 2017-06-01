@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.11.x
+Version: 4.12.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -807,7 +807,17 @@ as an output or in a P2SH input.
 - `bool rescan`: Whether or not to perform a blockchain rescan for the imported
   script.
 
+- `int32 scan_from`: The block height to begin a rescan from.
+
+- `bool require_redeemable`: The script must be a multisig script where all of
+  the keys necessary to redeem the script are available to the wallet.
+
 **Response:** `ImportScriptResponse`
+
+- `string p2sh_address`: The pay-to-script-hash address for the imported script.
+
+- `bool redeemable`: Whether the imported script is a multisig script and all
+  of the keys necessary to redeem the script are available to the wallet.
 
 **Expected errors:**
 
@@ -821,6 +831,9 @@ as an output or in a P2SH input.
 - `Aborted`: The wallet database is closed.
 
 - `NotFound`: The account does not exist.
+
+- `FailedPrecondition`: A multisig script was required to be redeemable by the
+  wallet but is not without additional secrets.
 
 **Stability:** Unstable
 
