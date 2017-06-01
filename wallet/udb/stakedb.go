@@ -86,7 +86,6 @@ var (
 	sstxRecordsBucketName  = []byte("sstxrecords")
 	ssgenRecordsBucketName = []byte("ssgenrecords")
 	ssrtxRecordsBucketName = []byte("ssrtxrecords")
-	stakeMetaBucketName    = []byte("meta")
 
 	// Db related key names (main bucket).
 	stakeStoreCreateDateName = []byte("stakestorecreated")
@@ -1097,34 +1096,6 @@ func updateStakePoolInvalUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20
 		return stakeStoreError(apperrors.ErrDatabase, str, err)
 	}
 	return nil
-}
-
-// putMeta puts a k-v into the meta bucket.
-func putMeta(ns walletdb.ReadWriteBucket, key []byte, n int32) error {
-	bucket := ns.NestedReadWriteBucket(metaBucketName)
-	err := bucket.Put(key, uint32ToBytes(uint32(n)))
-	if err != nil {
-		str := fmt.Sprintf("failed to store meta key '%s'", key)
-		return stakeStoreError(apperrors.ErrDatabase, str, err)
-	}
-	return nil
-}
-
-// fetchMeta fetches a v from a k in the meta bucket.
-func fetchMeta(ns walletdb.ReadBucket, key []byte) (int32, error) {
-	bucket := ns.NestedReadBucket(metaBucketName)
-
-	val := bucket.Get(key)
-	// Return 0 if the metadata is uninitialized
-	if val == nil {
-		return 0, nil
-	}
-	if val == nil {
-		str := fmt.Sprintf("meta key not found %s", key)
-		return 0, stakeStoreError(apperrors.ErrDatabase, str, nil)
-	}
-
-	return int32(binary.LittleEndian.Uint32(val)), nil
 }
 
 // initialize creates the DB if it doesn't exist, and otherwise

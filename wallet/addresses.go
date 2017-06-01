@@ -18,8 +18,6 @@ import (
 // DefaultGapLimit is the default unused address gap limit defined by BIP0044.
 const DefaultGapLimit = 20
 
-type addressBufferError int
-
 type addressBuffer struct {
 	branchXpub *hdkeychain.ExtendedKey
 	lastUsed   uint32
@@ -391,21 +389,6 @@ func (w *Wallet) changeAddress(account uint32) (dcrutil.Address, error) {
 		account = udb.DefaultAccountNum
 	}
 	return w.NewInternalAddress(account)
-}
-
-func deriveChildren(key *hdkeychain.ExtendedKey, startIndex, count uint32) ([]*hdkeychain.ExtendedKey, error) {
-	children := make([]*hdkeychain.ExtendedKey, 0, count)
-	for i := uint32(0); i < count; i++ {
-		child, err := key.Child(i)
-		if err == hdkeychain.ErrInvalidChild {
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		children = append(children, child)
-	}
-	return children, nil
 }
 
 func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32, params *chaincfg.Params) ([]dcrutil.Address, error) {

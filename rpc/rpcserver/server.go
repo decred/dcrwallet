@@ -536,24 +536,6 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 	}, nil
 }
 
-// confirmed checks whether a transaction at height txHeight has met minconf
-// confirmations for a blockchain at height curHeight.
-func confirmed(minconf, txHeight, curHeight int32) bool {
-	return confirms(txHeight, curHeight) >= minconf
-}
-
-// confirms returns the number of confirmations for a transaction in a block at
-// height txHeight (or -1 for an unconfirmed tx) given the chain height
-// curHeight.
-func confirms(txHeight, curHeight int32) int32 {
-	switch {
-	case txHeight == -1, txHeight > curHeight:
-		return 0
-	default:
-		return curHeight - txHeight + 1
-	}
-}
-
 func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransactionRequest) (
 	*pb.FundTransactionResponse, error) {
 
@@ -1094,18 +1076,6 @@ func marshalHashes(v []*chainhash.Hash) [][]byte {
 		hashes[i] = hash[:]
 	}
 	return hashes
-}
-
-func marshalAccountBalances(v []wallet.AccountBalance) []*pb.AccountBalance {
-	balances := make([]*pb.AccountBalance, len(v))
-	for i := range v {
-		balance := &v[i]
-		balances[i] = &pb.AccountBalance{
-			Account:      balance.Account,
-			TotalBalance: int64(balance.TotalBalance),
-		}
-	}
-	return balances
 }
 
 func (s *walletServer) TransactionNotifications(req *pb.TransactionNotificationsRequest,

@@ -7,7 +7,6 @@ package wallet
 
 import (
 	"bytes"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"time"
@@ -26,7 +25,6 @@ import (
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
-	"golang.org/x/crypto/ripemd160"
 )
 
 // --------------------------------------------------------------------------------
@@ -50,20 +48,6 @@ const (
 	// fraud proof, and the estimated signature script size.
 	txInEstimate = chainhash.HashSize + 4 + 1 + 8 + 4 + 4 + sigScriptEstimate
 
-	// sstxTicketCommitmentEstimate =
-	// - version + amount +
-	// OP_SSTX OP_DUP OP_HASH160 OP_DATA_20 OP_EQUALVERIFY OP_CHECKSIG
-	sstxTicketCommitmentEstimate = 2 + 8 + 1 + 1 + 1 + 1 + 20 + 1 + 1
-
-	// sstxSubsidyCommitmentEstimate =
-	// version + amount + OP_RETURN OP_DATA_30
-	sstxSubsidyCommitmentEstimate = 2 + 8 + 2 + 30
-
-	// sstxChangeOutputEstimate =
-	// version + amount + OP_SSTXCHANGE OP_DUP OP_HASH160 OP_DATA_20
-	//	OP_EQUALVERIFY OP_CHECKSIG
-	sstxChangeOutputEstimate = 2 + 8 + 1 + 1 + 1 + 1 + 20 + 1 + 1
-
 	// A P2PKH pkScript contains the following bytes:
 	//  - OP_DUP
 	//  - OP_HASH160
@@ -72,16 +56,10 @@ const (
 	//  - OP_CHECKSIG
 	pkScriptEstimate = 1 + 1 + 1 + 20 + 1 + 1
 
-	// pkScriptEstimateSS is the estimated size of a ticket P2PKH output script.
-	pkScriptEstimateSS = 1 + 1 + 1 + 1 + 20 + 1 + 1
-
 	// txOutEstimate is a best case tx output serialization cost is 8 bytes
 	// of value, two bytes of version, one byte of varint, and the pkScript
 	// size.
 	txOutEstimate = 8 + 2 + 1 + pkScriptEstimate
-
-	// ssTxOutEsimate is the estimated size of a P2PKH ticket output.
-	ssTxOutEsimate = 8 + 2 + 1 + pkScriptEstimateSS
 
 	// singleInputTicketSize is the typical size of a normal P2PKH ticket
 	// in bytes when the ticket has one input, rounded up.
@@ -117,13 +95,6 @@ func estimateTxSize(numInputs, numOutputs int) int {
 // assumed overhead.
 func EstimateTxSize(numInputs, numOutputs int) int {
 	return estimateTxSize(numInputs, numOutputs)
-}
-
-func estimateSSTxSize(numInputs int) int {
-	return txOverheadEstimate + txInEstimate*numInputs +
-		sstxTicketCommitmentEstimate +
-		(sstxSubsidyCommitmentEstimate+
-			sstxChangeOutputEstimate)*numInputs
 }
 
 func feeForSize(incr dcrutil.Amount, sz int) dcrutil.Amount {
@@ -482,15 +453,6 @@ func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minc
 			"transaction: %v", err)
 	}
 	return atx, nil
-}
-
-// constructMultiSigScript create a multisignature output script from a
-// given list of public keys.
-func constructMultiSigScript(keys []dcrutil.AddressSecpPubKey,
-	nRequired int) ([]byte, error) {
-	keysesPrecious := make([]*dcrutil.AddressSecpPubKey, len(keys))
-
-	return txscript.MultiSigScript(keysesPrecious, nRequired)
 }
 
 // txToMultisig spends funds to a multisig output, partially signs the
@@ -1498,16 +1460,6 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 	return info, nil
 }
 
-// addOutputsSStx is used to add outputs for a stake SStx.
-// DECRED TODO
-func addOutputsSStx(msgtx *wire.MsgTx,
-	pair map[string]dcrutil.Amount,
-	amountsIn []int64,
-	payouts map[string]string) error {
-
-	return nil
-}
-
 // txToSSGen ...
 // DECRED TODO
 func (w *Wallet) txToSSGen(ticketHash chainhash.Hash, blockHash chainhash.Hash,
@@ -1738,79 +1690,4 @@ func signMsgTx(msgtx *wire.MsgTx, prevOutputs []udb.Credit,
 	}
 
 	return nil
-}
-
-// minimumFee estimates the minimum fee required for a transaction.
-// If cfg.DisallowFree is false, a fee may be zero so long as txLen
-// s less than 1 kilobyte and none of the outputs contain a value
-// less than 1 bitcent. Otherwise, the fee will be calculated using
-// incr, incrementing the fee for each kilobyte of transaction.
-func minimumFee(incr dcrutil.Amount, txLen int, outputs []*wire.TxOut,
-	prevOutputs []udb.Credit, height int32, disallowFree bool) dcrutil.Amount {
-	allowFree := false
-	if !disallowFree {
-		allowFree = allowNoFeeTx(height, prevOutputs, txLen)
-	}
-	fee := feeForSize(incr, txLen)
-
-	if allowFree && txLen < 1000 {
-		fee = 0
-	}
-
-	if fee < incr {
-		for _, txOut := range outputs {
-			if txOut.Value < dcrutil.AtomsPerCent {
-				return incr
-			}
-		}
-	}
-
-	// How can fee be smaller than 0 here?
-	if fee < 0 || fee > dcrutil.MaxAmount {
-		fee = dcrutil.MaxAmount
-	}
-
-	return fee
-}
-
-// allowNoFeeTx calculates the transaction priority and checks that the
-// priority reaches a certain threshold.  If the threshhold is
-// reached, a free transaction fee is allowed.
-func allowNoFeeTx(curHeight int32, txouts []udb.Credit, txSize int) bool {
-	const blocksPerDayEstimate = 144.0
-	const txSizeEstimate = 250.0
-	const threshold = dcrutil.AtomsPerCoin * blocksPerDayEstimate / txSizeEstimate
-
-	var weightedSum int64
-	for _, txout := range txouts {
-		depth := chainDepth(txout.Height, curHeight)
-		weightedSum += int64(txout.Amount) * int64(depth)
-	}
-	priority := float64(weightedSum) / float64(txSize)
-	return priority > threshold
-}
-
-// chainDepth returns the chaindepth of a target given the current
-// blockchain height.
-func chainDepth(target, current int32) int32 {
-	if target == -1 {
-		// target is not yet in a block.
-		return 0
-	}
-
-	// target is in a block.
-	return current - target + 1
-}
-
-// randomAddress returns a random address. Mainly used for 0-value (unspendable)
-// OP_SSTXCHANGE tagged outputs.
-func randomAddress(params *chaincfg.Params) (dcrutil.Address, error) {
-	b := make([]byte, ripemd160.Size)
-	_, err := rand.Read(b)
-	if err != nil {
-		return nil, err
-	}
-
-	return dcrutil.NewAddressPubKeyHash(b, params,
-		chainec.ECTypeSecp256k1)
 }

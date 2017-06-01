@@ -115,14 +115,6 @@ const (
 	// the output was stored as a legacy credit and that the
 	// script location was not stored.
 	scriptLocNotStored = 0
-
-	// hashOffsetP2PKH is the offset location of a pubkey
-	// hash in an output's pkScript.
-	hashOffsetP2PKH    = 3
-	hashOffsetP2SH     = 2
-	hashOffsetSP2PKH   = 4
-	hashOffsetSP2SH    = 3
-	hashOffsetP2PKHAlt = 3
 )
 
 // Big endian is the preferred byte order, due to cursor scans over integer
@@ -235,31 +227,12 @@ func keyBlockRecord(height int32) []byte {
 	return k
 }
 
-func valueBlockRecordEmpty(block *BlockMeta) []byte {
-	v := make([]byte, 47)
-	copy(v, block.Hash[:])
-	byteOrder.PutUint64(v[32:40], uint64(block.Time.Unix()))
-	byteOrder.PutUint16(v[40:42], block.VoteBits)
-	byteOrder.PutUint32(v[43:47], 0)
-	return v
-}
-
 func valueBlockRecordEmptyFromHeader(blockHash *chainhash.Hash, header *RawBlockHeader) []byte {
 	v := make([]byte, 47)
 	copy(v, blockHash[:])
 	byteOrder.PutUint64(v[32:40], uint64(extractBlockHeaderUnixTime(header[:])))
 	byteOrder.PutUint16(v[40:42], extractBlockHeaderVoteBits(header[:]))
 	byteOrder.PutUint32(v[43:47], 0)
-	return v
-}
-
-func valueBlockRecord(block *BlockMeta, txHash *chainhash.Hash) []byte {
-	v := make([]byte, 79)
-	copy(v, block.Hash[:])
-	byteOrder.PutUint64(v[32:40], uint64(block.Time.Unix()))
-	byteOrder.PutUint16(v[40:42], block.VoteBits)
-	byteOrder.PutUint32(v[43:47], 1)
-	copy(v[47:79], txHash[:])
 	return v
 }
 
@@ -296,48 +269,6 @@ func appendRawBlockRecord(v []byte, txHash *chainhash.Hash) ([]byte, error) {
 	return newv, nil
 }
 
-// removeRawBlockRecord returns a new block record value with a transaction
-// hash removed from the list of transaction and a decremented number of
-// transactions.
-func removeRawBlockRecord(v []byte, txHash *chainhash.Hash) ([]byte, error) {
-	length := len(v)
-	if length < 47 {
-		str := fmt.Sprintf("%s: short read for removeRawBlockRecord "+
-			"(expected %d bytes, read %d)", bucketBlocks, 47, len(v))
-		return nil, storeError(apperrors.ErrData, str, nil)
-	}
-
-	newLength := length - 32 // size of hash
-	oldNumHashes := (length - 47) / 32
-	newValue := make([]byte, newLength)
-	copy(newValue[0:47], v[0:47])
-
-	cursor := 47
-	newCursor := 47
-
-	// Only copy the hash in the new value if it's not the one we want to
-	// remove.
-	for i := 0; i < oldNumHashes; i++ {
-		h, err := chainhash.NewHash(v[cursor : cursor+32])
-		if err != nil {
-			return nil, err
-		}
-
-		if h.IsEqual(txHash) {
-			cursor += 32
-			continue
-		}
-
-		copy(newValue[newCursor:newCursor+32], v[cursor:cursor+32])
-		cursor += 32
-		newCursor += 32
-	}
-
-	n := byteOrder.Uint32(newValue[43:47])
-	byteOrder.PutUint32(newValue[43:47], n-1)
-	return newValue, nil
-}
-
 func putRawBlockRecord(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	err := ns.NestedReadWriteBucket(bucketBlocks).Put(k, v)
 	if err != nil {
@@ -345,13 +276,6 @@ func putRawBlockRecord(ns walletdb.ReadWriteBucket, k, v []byte) error {
 		return storeError(apperrors.ErrDatabase, str, err)
 	}
 	return nil
-}
-
-func putBlockRecord(ns walletdb.ReadWriteBucket, block *BlockMeta,
-	txHash *chainhash.Hash) error {
-	k := keyBlockRecord(block.Height)
-	v := valueBlockRecord(block, txHash)
-	return putRawBlockRecord(ns, k, v)
 }
 
 func fetchBlockTime(ns walletdb.ReadBucket, height int32) (time.Time, error) {
@@ -372,24 +296,6 @@ func fetchBlockRecord(ns walletdb.ReadBucket, height int32) (*blockRecord, error
 	err := readRawBlockRecord(k, v, br)
 
 	return br, err
-}
-
-func fetchChainHeight(ns walletdb.ReadBucket, startHeight int32) (int32, error) {
-	lastValidHeight := int32(0)
-	for i := startHeight; ; i++ {
-		_, v := existsBlockRecord(ns, i)
-		if v == nil {
-			break
-		}
-
-		lastValidHeight = i
-	}
-
-	if lastValidHeight == 0 {
-		return 0, fmt.Errorf("blockchain could not iterate to top block")
-	}
-
-	return lastValidHeight, nil
 }
 
 func existsBlockRecord(ns walletdb.ReadBucket, height int32) (k, v []byte) {
@@ -449,13 +355,6 @@ type blockIterator struct {
 	err  error
 }
 
-func makeBlockIterator(ns walletdb.ReadWriteBucket, height int32) blockIterator {
-	seek := make([]byte, 4)
-	byteOrder.PutUint32(seek, uint32(height))
-	c := ns.NestedReadWriteBucket(bucketBlocks).ReadWriteCursor()
-	return blockIterator{c: c, seek: seek}
-}
-
 func makeReadBlockIterator(ns walletdb.ReadBucket, height int32) blockIterator {
 	seek := make([]byte, 4)
 	byteOrder.PutUint32(seek, uint32(height))
@@ -470,13 +369,6 @@ func makeReverseBlockIterator(ns walletdb.ReadWriteBucket) blockIterator {
 	byteOrder.PutUint32(seek, ^uint32(0))
 	c := ns.NestedReadWriteBucket(bucketBlocks).ReadWriteCursor()
 	return blockIterator{c: c, seek: seek}
-}
-
-func makeReadReverseBlockIterator(ns walletdb.ReadBucket) blockIterator {
-	seek := make([]byte, 4)
-	byteOrder.PutUint32(seek, ^uint32(0))
-	c := ns.NestedReadBucket(bucketBlocks).ReadCursor()
-	return blockIterator{c: readCursor{c}, seek: seek}
 }
 
 func (it *blockIterator) next() bool {
@@ -750,15 +642,6 @@ func fetchRawTxRecordReceived(v []byte) time.Time {
 	return time.Unix(int64(byteOrder.Uint64(v)), 0)
 }
 
-func fetchTxRecord(ns walletdb.ReadBucket, txHash *chainhash.Hash, block *Block) (*TxRecord, error) {
-	k := keyTxRecord(txHash, block)
-	v := ns.NestedReadBucket(bucketTxRecords).Get(k)
-
-	rec := new(TxRecord)
-	err := readRawTxRecord(txHash, v, rec)
-	return rec, err
-}
-
 func existsTxRecord(ns walletdb.ReadBucket, txHash *chainhash.Hash, block *Block) (k, v []byte) {
 	k = keyTxRecord(txHash, block)
 	v = ns.NestedReadBucket(bucketTxRecords).Get(k)
@@ -899,13 +782,6 @@ func extractRawCreditTxRecordKey(k []byte) []byte {
 	return k[0:68]
 }
 
-func extractRawCreditBlock(k []byte) *Block {
-	hashBytes := k[36:68]
-	hash, _ := chainhash.NewHash(hashBytes)
-	height := int32(byteOrder.Uint32(k[32:36]))
-	return &Block{*hash, height}
-}
-
 func extractRawCreditHeight(k []byte) int32 {
 	return int32(byteOrder.Uint32(k[32:36]))
 }
@@ -966,15 +842,6 @@ func fetchRawCreditTagOpCode(v []byte) uint8 {
 // output or not.
 func fetchRawCreditIsCoinbase(v []byte) bool {
 	return v[8]&(1<<5) != 0
-}
-
-// fetchRawCreditScriptType returns the scriptType for the pkScript of this
-// credit.
-func fetchRawCreditScriptType(v []byte) scriptType {
-	if len(v) < creditValueSize {
-		return scriptTypeNonexisting
-	}
-	return scriptType(v[81] & ^accountExistsMask)
 }
 
 // fetchRawCreditScriptOffset returns the ScriptOffset for the pkScript of this
@@ -1075,15 +942,6 @@ func deleteRawCredit(ns walletdb.ReadWriteBucket, k []byte) error {
 	return nil
 }
 
-func deleteRawInvalidatedCredit(ns walletdb.ReadWriteBucket, k []byte) error {
-	err := ns.NestedReadWriteBucket(bucketStakeInvalidatedCredits).Delete(k)
-	if err != nil {
-		str := "failed to delete credit"
-		return storeError(apperrors.ErrDatabase, str, err)
-	}
-	return nil
-}
-
 // creditIterator allows for in-order iteration of all credit records for a
 // mined transaction.
 //
@@ -1111,11 +969,6 @@ type creditIterator struct {
 	cv     []byte
 	elem   CreditRecord
 	err    error
-}
-
-func makeCreditIterator(ns walletdb.ReadWriteBucket, prefix []byte) creditIterator {
-	c := ns.NestedReadWriteBucket(bucketCredits).ReadWriteCursor()
-	return creditIterator{c: c, prefix: prefix}
 }
 
 func makeReadCreditIterator(ns walletdb.ReadBucket, prefix []byte) creditIterator {
@@ -1385,11 +1238,6 @@ type debitIterator struct {
 	cv     []byte
 	elem   DebitRecord
 	err    error
-}
-
-func makeDebitIterator(ns walletdb.ReadWriteBucket, prefix []byte) debitIterator {
-	c := ns.NestedReadWriteBucket(bucketDebits).ReadWriteCursor()
-	return debitIterator{c: c, prefix: prefix}
 }
 
 func makeReadDebitIterator(ns walletdb.ReadBucket, prefix []byte) debitIterator {
@@ -1768,15 +1616,6 @@ func keyTxScript(script []byte) []byte {
 	return dcrutil.Hash160(script)
 }
 
-func deleteRawTxScript(ns walletdb.ReadWriteBucket, hash []byte) error {
-	err := ns.NestedReadWriteBucket(bucketScripts).Delete(hash)
-	if err != nil {
-		str := "failed to delete tx script"
-		return storeError(apperrors.ErrDatabase, str, err)
-	}
-	return nil
-}
-
 func putTxScript(ns walletdb.ReadWriteBucket, script []byte) error {
 	k := keyTxScript(script)
 	err := ns.NestedReadWriteBucket(bucketScripts).Put(k, script)
@@ -1973,37 +1812,6 @@ func setMultisigOutUnmined(v []byte) {
 	byteOrder.PutUint32(v[55:59], 0)
 }
 
-func deleteMultisigOut(ns walletdb.ReadWriteBucket, k []byte) error {
-	err := ns.NestedReadWriteBucket(bucketMultisig).Delete(k)
-	if err != nil {
-		str := "failed to delete multisig output"
-		return storeError(apperrors.ErrDatabase, str, err)
-	}
-	return nil
-}
-
-func putMultisigOut(ns walletdb.ReadWriteBucket, mso *MultisigOut) error {
-	msok := keyMultisigOut(mso.OutPoint.Hash,
-		mso.OutPoint.Index)
-	msov := valueMultisigOut(mso.ScriptHash,
-		mso.M,
-		mso.N,
-		mso.Spent,
-		mso.Tree,
-		mso.BlockHash,
-		mso.BlockHeight,
-		mso.Amount,
-		mso.SpentBy,
-		mso.SpentByIndex,
-		mso.TxHash)
-	err := ns.NestedReadWriteBucket(bucketMultisig).Put(msok, msov)
-	if err != nil {
-		str := "failed to put multisig output"
-		return storeError(apperrors.ErrDatabase, str, err)
-	}
-	return nil
-}
-
 func putMultisigOutRawValues(ns walletdb.ReadWriteBucket, k []byte, v []byte) error {
 	err := ns.NestedReadWriteBucket(bucketMultisig).Put(k, v)
 	if err != nil {
@@ -2023,27 +1831,9 @@ func existsMultisigOut(ns walletdb.ReadBucket, k []byte) []byte {
 	return v
 }
 
-// The multisignature unspent bucket simply keeps a list of all unspent
-// multisignature script outpoints. They are keyed [outpoint] -> [blank byte].
-func keyMultisigOutUS(hash chainhash.Hash, index uint32) []byte {
-	return canonicalOutPoint(&hash, index)
-}
-
 func putMultisigOutUS(ns walletdb.ReadWriteBucket, k []byte) error {
 	blank := []byte{0x00}
 	err := ns.NestedReadWriteBucket(bucketMultisigUsp).Put(k, blank)
-	if err != nil {
-		str := "failed to put unspent multisig output"
-		return storeError(apperrors.ErrDatabase, str, err)
-	}
-	return nil
-}
-
-func putMultisigOutOutpointUS(ns walletdb.ReadWriteBucket, op *wire.OutPoint) error {
-	msok := keyMultisigOut(op.Hash,
-		op.Index)
-	blank := []byte{0x00}
-	err := ns.NestedReadWriteBucket(bucketMultisigUsp).Put(msok, blank)
 	if err != nil {
 		str := "failed to put unspent multisig output"
 		return storeError(apperrors.ErrDatabase, str, err)

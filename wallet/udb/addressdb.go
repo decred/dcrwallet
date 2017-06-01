@@ -207,9 +207,6 @@ var (
 	coinTypePubKeyName  = []byte("ctpub")
 	watchingOnlyName    = []byte("watchonly")
 
-	// Account related key names (account bucket).
-	acctNumAcctsName = []byte("numaccts")
-
 	// Used addresses (used bucket).  This was removed by database version 2.
 	usedAddrBucketName = []byte("usedaddrs")
 )
@@ -219,14 +216,6 @@ var (
 func uint32ToBytes(number uint32) []byte {
 	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(buf, number)
-	return buf
-}
-
-// uint64ToBytes converts a 64 bit unsigned integer into a 8-byte slice in
-// little-endian order: 1 -> [1 0 0 0 0 0 0 0].
-func uint64ToBytes(number uint64) []byte {
-	buf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(buf, number)
 	return buf
 }
 

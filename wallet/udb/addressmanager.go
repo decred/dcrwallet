@@ -151,11 +151,6 @@ var defaultScryptOptions = ScryptOptions{
 	P: 1,
 }
 
-// addrKey is used to uniquely identify an address even when those addresses
-// would end up being the same address (as is the case for pay-to-pubkey
-// and pay-to-pubkey-hash style of addresses).
-type addrKey string
-
 // accountInfo houses the current state of the internal and external branches
 // of an account along with the extended keys needed to derive new keys.  It
 // also handles locking by keeping an encrypted version of the serialized
@@ -182,15 +177,6 @@ type AccountProperties struct {
 	LastUsedExternalIndex uint32
 	LastUsedInternalIndex uint32
 	ImportedKeyCount      uint32
-}
-
-// unlockDeriveInfo houses the information needed to derive a private key for a
-// managed address when the address manager is unlocked.  See the deriveOnUnlock
-// field in the Manager struct for more details on how this is used.
-type unlockDeriveInfo struct {
-	managedAddr *managedAddress
-	branch      uint32
-	index       uint32
 }
 
 // defaultNewSecretKey returns a new secret key.  See newSecretKey.

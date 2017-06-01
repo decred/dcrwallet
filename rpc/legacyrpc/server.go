@@ -12,7 +12,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -330,24 +329,6 @@ func throttled(threshold int64, h http.Handler) http.Handler {
 
 		h.ServeHTTP(w, r)
 	})
-}
-
-// sanitizeRequest returns a sanitized string for the request which may be
-// safely logged.  It is intended to strip private keys, passphrases, and any
-// other secrets from request parameters before they may be saved to a log file.
-func sanitizeRequest(r *dcrjson.Request) string {
-	// These are considered unsafe to log, so sanitize parameters.
-	switch r.Method {
-	case "encryptwallet", "importprivkey", "importwallet",
-		"signrawtransaction", "walletpassphrase",
-		"walletpassphrasechange":
-
-		return fmt.Sprintf(`{"id":%v,"method":"%s","params":SANITIZED %d parameters}`,
-			r.ID, r.Method, len(r.Params))
-	}
-
-	return fmt.Sprintf(`{"id":%v,"method":"%s","params":%v}`, r.ID,
-		r.Method, r.Params)
 }
 
 // idPointer returns a pointer to the passed ID, or nil if the interface is nil.
