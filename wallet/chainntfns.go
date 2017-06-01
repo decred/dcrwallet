@@ -295,7 +295,7 @@ func (w *Wallet) onBlockConnected(serializedBlockHeader []byte, transactions [][
 
 	if voteVersion(w.chainParams) < blockHeader.StakeVersion {
 		log.Warnf("Old vote version detected (v%v), please update your "+
-			"wallet to the latest version.", voteVersion)
+			"wallet to the latest version.", voteVersion(w.chainParams))
 	}
 
 	return nil
