@@ -7,7 +7,6 @@ package wallet
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"time"
@@ -294,11 +293,7 @@ func (w *Wallet) onBlockConnected(serializedBlockHeader []byte, transactions [][
 	w.NtfnServer.notifyMainChainTipChanged(chainTipChanges)
 	w.NtfnServer.sendAttachedBlockNotification()
 
-	// Parse vote version from extended bits.  Note that once ExtendedBits
-	// are used for other information as well this will need to be updated
-	// to accomodate.
-	voteVersion := binary.LittleEndian.Uint32(w.VoteBits().ExtendedBits)
-	if voteVersion < blockHeader.StakeVersion {
+	if voteVersion(w.chainParams) < blockHeader.StakeVersion {
 		log.Warnf("Old vote version detected (v%v), please update your "+
 			"wallet to the latest version.", voteVersion)
 	}
