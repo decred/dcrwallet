@@ -1534,7 +1534,6 @@ out:
 			break out
 
 		case <-w.lockRequests:
-			timeout = nil
 		case <-timeout:
 		}
 

@@ -8,7 +8,8 @@ set -ex
 # 3. go vet        (http://golang.org/cmd/vet)
 # 4. gosimple      (https://github.com/dominikh/go-simple)
 # 5. unconvert     (https://github.com/mdempsky/unconvert)
-# 6. race detector (http://blog.golang.org/race-detector)
+# 6. ineffassign   (https://github.com/gordonklaus/ineffassign)
+# 7. race detector (http://blog.golang.org/race-detector)
 
 # gometalinter (github.com/alecthomas/gometalinter) is used to run each each
 # static checker.
@@ -26,6 +27,7 @@ TESTCMD="test -z \"\$(gometalinter -j 4 --disable-all \
   --enable=gofmt \
   --enable=gosimple \
   --enable=unconvert \
+  --enable=ineffassign \
   --vendor \
   --deadline=10m ./... 2>&1 | egrep -v 'testdata/' | tee /dev/stderr)\" && \
   test -z \"\$(gometalinter -j 4 --disable-all \

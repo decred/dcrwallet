@@ -443,6 +443,9 @@ func TestStoreQueries(t *testing.T) {
 		iterations++
 		return true, nil
 	})
+	if err != nil {
+		t.Error("RangeTransactions (forwards) failed:", err)
+	}
 	if iterations != 1 {
 		t.Errorf("RangeTransactions (forwards) ran func %d times", iterations)
 	}
@@ -451,6 +454,10 @@ func TestStoreQueries(t *testing.T) {
 		iterations++
 		return true, nil
 	})
+	if err != nil {
+		t.Error("RangeTransactions (reverse) failed:", err)
+	}
+
 	if iterations != 1 {
 		t.Errorf("RangeTransactions (reverse) ran func %d times", iterations)
 	}
@@ -461,6 +468,9 @@ func TestStoreQueries(t *testing.T) {
 		iterations++
 		return true, nil
 	})
+	if err != nil {
+		t.Error("RangeTransactions (reverse) failed:", err)
+	}
 	if iterations != 1 {
 		t.Errorf("RangeTransactions (reverse) ran func %d times", iterations)
 	}
