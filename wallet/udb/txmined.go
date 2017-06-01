@@ -84,15 +84,6 @@ type indexedIncidence struct {
 	index uint32
 }
 
-// debit records the debits a transaction record makes from previous wallet
-// transaction credits.
-type debit struct {
-	txHash chainhash.Hash
-	index  uint32
-	amount dcrutil.Amount
-	spends indexedIncidence
-}
-
 // credit describes a transaction output which was or is spendable by wallet.
 type credit struct {
 	outPoint   wire.OutPoint

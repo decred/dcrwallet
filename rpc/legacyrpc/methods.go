@@ -41,12 +41,6 @@ const (
 	jsonrpcSemverPatch  = 1
 )
 
-// confirmed checks whether a transaction at height txHeight has met minconf
-// confirmations for a blockchain at height curHeight.
-func confirmed(minconf, txHeight, curHeight int32) bool {
-	return confirms(txHeight, curHeight) >= minconf
-}
-
 // confirms returns the number of confirmations for a transaction in a block at
 // height txHeight (or -1 for an unconfirmed tx) given the chain height
 // curHeight.
@@ -1737,13 +1731,6 @@ func listSinceBlock(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCCl
 	return res, nil
 }
 
-// scriptInfo models the binary or interface versions of JSON data to
-// return in a ListScriptsResult.
-type scriptInfo struct {
-	redeemScript []byte
-	address      dcrutil.Address
-}
-
 // listScripts handles a listscripts request by returning an
 // array of script details for all scripts in the wallet.
 func listScripts(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
@@ -1853,11 +1840,6 @@ func listUnspent(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	}
 
 	return w.ListUnspent(int32(*cmd.MinConf), int32(*cmd.MaxConf), addresses)
-}
-
-// listUnspentMultisig handles the listunspentmultisig command.
-func listUnspentMultisig(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	return nil, nil
 }
 
 // lockUnspent handles the lockunspent command.

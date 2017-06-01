@@ -5,7 +5,6 @@
 package loader
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -172,12 +171,6 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 
 	l.onLoaded(w, db)
 	return w, nil
-}
-
-var errNoConsole = errors.New("db upgrade requires console access for additional input")
-
-func noConsole() ([]byte, error) {
-	return nil, errNoConsole
 }
 
 // OpenExistingWallet opens the wallet from the loader's wallet database path

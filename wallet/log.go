@@ -38,19 +38,3 @@ type logClosure func() string
 func (c logClosure) String() string {
 	return c()
 }
-
-// newLogClosure returns a new closure over the passed function which allows
-// it to be used as a parameter in a logging function that is only invoked when
-// the logging level is such that the message will actually be logged.
-func newLogClosure(c func() string) logClosure {
-	return logClosure(c)
-}
-
-// pickNoun returns the singular or plural form of a noun depending
-// on the count n.
-func pickNoun(n int, singular, plural string) string {
-	if n == 1 {
-		return singular
-	}
-	return plural
-}
