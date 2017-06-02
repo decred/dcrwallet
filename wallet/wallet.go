@@ -2323,7 +2323,8 @@ func (w *Wallet) ListAllTransactions() ([]dcrjson.ListTransactionsResult, error)
 	return txList, err
 }
 
-// BlockIdentifier identifies a block by either a height or a hash.
+// BlockIdentifier identifies a block by either a height in the main chain or a
+// hash.
 type BlockIdentifier struct {
 	height int32
 	hash   *chainhash.Hash
@@ -2337,6 +2338,54 @@ func NewBlockIdentifierFromHeight(height int32) *BlockIdentifier {
 // NewBlockIdentifierFromHash constructs a BlockIdentifier for a block hash.
 func NewBlockIdentifierFromHash(hash *chainhash.Hash) *BlockIdentifier {
 	return &BlockIdentifier{hash: hash}
+}
+
+// BlockInfo records info pertaining to a block.  It does not include any
+// information about wallet transactions contained in the block.
+type BlockInfo struct {
+	Hash             chainhash.Hash
+	Height           int32
+	Confirmations    int32
+	Header           []byte
+	Timestamp        int64
+	StakeInvalidated bool
+}
+
+// BlockInfo returns info regarding a block recorded by the wallet.
+func (w *Wallet) BlockInfo(blockID *BlockIdentifier) (*BlockInfo, error) {
+	var blockInfo *BlockInfo
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+		blockHash := blockID.hash
+		if blockHash == nil {
+			hash, err := w.TxStore.GetBlockHash(txmgrNs, blockID.height)
+			if err != nil {
+				return err
+			}
+			blockHash = &hash
+		}
+		header, err := w.TxStore.GetSerializedBlockHeader(txmgrNs, blockHash)
+		if err != nil {
+			return err
+		}
+		height := udb.ExtractBlockHeaderHeight(header)
+		inMainChain, invalidated := w.TxStore.BlockInMainChain(dbtx, blockHash)
+		var confs int32
+		if inMainChain {
+			confs = confirms(height, tipHeight)
+		}
+		blockInfo = &BlockInfo{
+			Hash:             *blockHash,
+			Height:           height,
+			Confirmations:    confs,
+			Header:           header,
+			Timestamp:        udb.ExtractBlockHeaderTime(header),
+			StakeInvalidated: invalidated,
+		}
+		return nil
+	})
+	return blockInfo, err
 }
 
 // GetTransactionsResult is the result of the wallet's GetTransactions method.

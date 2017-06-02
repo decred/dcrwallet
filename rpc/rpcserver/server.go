@@ -54,7 +54,7 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.14.0"
+	semverString = "4.15.0"
 	semverMajor  = 4
 	semverMinor  = 14
 	semverPatch  = 0
@@ -574,6 +574,36 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 		Revoked:       si.Revoked,
 		Expired:       si.Expired,
 		TotalSubsidy:  int64(si.TotalSubsidy),
+	}, nil
+}
+
+func (s *walletServer) BlockInfo(ctx context.Context, req *pb.BlockInfoRequest) (*pb.BlockInfoResponse, error) {
+	var blockID *wallet.BlockIdentifier
+	switch {
+	case req.BlockHash != nil && req.BlockHeight != 0:
+		return nil, status.Errorf(codes.InvalidArgument, "block hash and height must not be set together")
+	case req.BlockHash != nil:
+		blockHash, err := chainhash.NewHash(req.BlockHash)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "block hash has invalid length")
+		}
+		blockID = wallet.NewBlockIdentifierFromHash(blockHash)
+	default:
+		blockID = wallet.NewBlockIdentifierFromHeight(req.BlockHeight)
+	}
+
+	b, err := s.wallet.BlockInfo(blockID)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	return &pb.BlockInfoResponse{
+		BlockHash:        b.Hash[:],
+		BlockHeight:      b.Height,
+		Confirmations:    b.Confirmations,
+		Timestamp:        b.Timestamp,
+		BlockHeader:      b.Header[:],
+		StakeInvalidated: b.StakeInvalidated,
 	}, nil
 }
 

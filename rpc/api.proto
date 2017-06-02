@@ -26,6 +26,7 @@ service WalletService {
 	rpc GetTransactions (GetTransactionsRequest) returns (stream GetTransactionsResponse);
 	rpc TicketPrice (TicketPriceRequest) returns (TicketPriceResponse);
 	rpc StakeInfo (StakeInfoRequest) returns (StakeInfoResponse);
+	rpc BlockInfo (BlockInfoRequest) returns (BlockInfoResponse);
 
 	// Notifications
 	rpc TransactionNotifications (TransactionNotificationsRequest) returns (stream TransactionNotificationsResponse);
@@ -278,6 +279,19 @@ message StakeInfoResponse {
 	uint32 revoked = 8;
 	uint32 expired = 9;
 	int64 total_subsidy = 10;
+}
+
+message BlockInfoRequest {
+    bytes block_hash = 1;
+    int32 block_height = 2;
+}
+message BlockInfoResponse {
+    bytes block_hash = 1;
+    int32 block_height = 2;
+    int32 confirmations = 3;
+    int64 timestamp = 4;
+    bytes block_header = 5;
+    bool stake_invalidated = 6;
 }
 
 message ChangePassphraseRequest {

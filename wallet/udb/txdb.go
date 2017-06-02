@@ -477,7 +477,7 @@ func fetchRawBlockHeader(ns walletdb.ReadBucket, k []byte) ([]byte, error) {
 	return vcopy, nil
 }
 
-func existsBlockHeader(ns walletdb.ReadWriteBucket, k []byte) []byte {
+func existsBlockHeader(ns walletdb.ReadBucket, k []byte) []byte {
 	return ns.NestedReadBucket(bucketHeaders).Get(k)
 }
 

@@ -541,6 +541,15 @@ func extractBlockHeaderUnixTime(header []byte) uint32 {
 	return binary.LittleEndian.Uint32(header[timestampOffset:])
 }
 
+// ExtractBlockHeaderTime returns the unix timestamp that is encoded in the
+// header.  Must only be called on known good input.  Header timestamps are only
+// 4 bytes and this value is actually limited to a maximum unix time of 2^32-1.
+//
+// TODO: This really should not be exported by this package.
+func ExtractBlockHeaderTime(header []byte) int64 {
+	return int64(extractBlockHeaderUnixTime(header))
+}
+
 func blockMetaFromHeader(blockHash *chainhash.Hash, header []byte) BlockMeta {
 	return BlockMeta{
 		Block: Block{
@@ -945,6 +954,26 @@ func (s *Store) GetMainChainBlockHashForHeight(ns walletdb.ReadBucket, height in
 // from the DB and are usable outside of the transaction.
 func (s *Store) GetSerializedBlockHeader(ns walletdb.ReadBucket, blockHash *chainhash.Hash) ([]byte, error) {
 	return fetchRawBlockHeader(ns, keyBlockHeader(blockHash))
+}
+
+// BlockInMainChain returns whether a block identified by its hash is in the
+// current main chain and if so, whether it has been stake invalidated by the
+// next main chain block.
+func (s *Store) BlockInMainChain(dbtx walletdb.ReadTx, blockHash *chainhash.Hash) (inMainChain bool, invalidated bool) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	header := existsBlockHeader(ns, keyBlockHeader(blockHash))
+	if header == nil {
+		return false, false
+	}
+
+	_, v := existsBlockRecord(ns, extractBlockHeaderHeight(header))
+	if v == nil {
+		return false, false
+	}
+	if !bytes.Equal(extractRawBlockRecordHash(v), blockHash[:]) {
+		return false, false
+	}
+	return true, extractRawBlockRecordStakeInvalid(v)
 }
 
 // GetBlockMetaForHash returns the BlockMeta for a block specified by its hash.

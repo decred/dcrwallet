@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.14.x
+Version: 4.15.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -362,6 +362,7 @@ The service provides the following methods:
 - [`AccountNumber`](#accountnumber)
 - [`Accounts`](#accounts)
 - [`Balance`](#balance)
+- [`BlockInfo`](#blockinfo)
 - [`GetTransactions`](#gettransactions)
 - [`ChangePassphrase`](#changepassphrase)
 - [`RenameAccount`](#renameaccount)
@@ -518,6 +519,54 @@ and unspendable immature coinbase balances.
 
 **Stability:** Unstable: It may prove useful to modify this RPC to query
   multiple accounts together.
+
+___
+
+#### `BlockInfo`
+
+The `BlockInfo` method queries for info pertaining to blocks that are recorded
+by the wallet.  Blocks are queried using either the block hash or height as an
+identifier.  Any block currently or previously in the main chain can be queried,
+but not all sidechain blocks may be known by the wallet.
+
+**Request:** `BlockInfoRequest`
+
+- `bytes block_hash`: The hash of the block being queried, or null to lookup
+  blocks by their height.
+
+- `int32 block_height`: The height of the block being queried.  Height lookup
+  only returns results of blocks in the main chain.
+
+**Response:** `BlockInfoResponse`
+
+- `bytes block_hash`: The hash of the queried block.
+
+- `int32 block_height`: The height of the queried block.  This is the height
+  recorded in the block header and will be the height in the sidechain for any
+  reorged blocks.
+
+- `int32 confirmations`: The number of block confirmations of all transactions
+  in the block.  If the block is not currently in the main chain, this field is
+  set to zero.
+
+- `int64 timestamp`: The unix timestamp of the block.
+
+- `bytes block_header`: The serialized block header.
+
+- `bool stake_invalidated`: Whether the queried block is in the main chain and
+  the next main chain block has stake invalidated the queried block.
+
+**Expected errors:**
+
+- `InvalidArgument`: The block hash and height were each set to non-default
+  values.
+
+- `Aborted`: The wallet database is closed.
+
+- `NotFound`: The block is not recorded by the wallet in the current main chain
+  or any old sidechain.
+
+**Stability:** Unstable
 
 ___
 
