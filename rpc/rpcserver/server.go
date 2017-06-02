@@ -56,7 +56,7 @@ import (
 const (
 	semverString = "4.15.0"
 	semverMajor  = 4
-	semverMinor  = 14
+	semverMinor  = 15
 	semverPatch  = 0
 )
 
