@@ -731,9 +731,14 @@ type confNtfnResult struct {
 
 // ConfirmationNotification describes the number of confirmations of a single
 // transaction, or -1 if the transaction is unknown or removed from the wallet.
+// If the transaction is mined (Confirmations >= 1), the block hash and height
+// is included.  Otherwise the block hash is nil and the block hegiht is set to
+// -1.
 type ConfirmationNotification struct {
 	TxHash        *chainhash.Hash
 	Confirmations int32
+	BlockHash     *chainhash.Hash // nil when unmined
+	BlockHeight   int32           // -1 when unmined
 }
 
 // Watch adds additional transactions to watch and create confirmation results
@@ -744,7 +749,8 @@ func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stop
 	w := c.s.wallet
 	r := make([]ConfirmationNotification, 0, len(c.watched))
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
-		_, tipHeight := w.TxStore.MainChainTip(dbtx.ReadBucket(wtxmgrNamespaceKey))
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 		// cannot range here, txHashes may be modified
 		for i := 0; i < len(txHashes); {
 			h := txHashes[i]
@@ -758,7 +764,24 @@ func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stop
 			case err != nil:
 				return err
 			}
-			r = append(r, ConfirmationNotification{h, confs})
+			r = append(r, ConfirmationNotification{
+				TxHash:        h,
+				Confirmations: confs,
+				BlockHeight:   -1,
+			})
+			if confs > 0 {
+				result := &r[len(r)-1]
+				height, err := w.TxStore.TxBlockHeight(dbtx, result.TxHash)
+				if err != nil {
+					return err
+				}
+				blockHash, err := w.TxStore.GetBlockHash(txmgrNs, height)
+				if err != nil {
+					return err
+				}
+				result.BlockHash = &blockHash
+				result.BlockHeight = height
+			}
 			if confs >= stopAfter || confs == -1 {
 				// Remove this hash from the slice so it is not added to the
 				// watch map.  Do not increment i so this same index is used
@@ -809,6 +832,7 @@ func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
 	}
 	var unwatch []*chainhash.Hash
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		for txHash, stopAfter := range c.watched {
 			txHash := txHash // copy
 			height, err := w.TxStore.TxBlockHeight(dbtx, &txHash)
@@ -821,7 +845,24 @@ func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
 			case err != nil:
 				return err
 			}
-			r.result = append(r.result, ConfirmationNotification{&txHash, confs})
+			r.result = append(r.result, ConfirmationNotification{
+				TxHash:        &txHash,
+				Confirmations: confs,
+				BlockHeight:   -1,
+			})
+			if confs > 0 {
+				result := &r.result[len(r.result)-1]
+				height, err := w.TxStore.TxBlockHeight(dbtx, result.TxHash)
+				if err != nil {
+					return err
+				}
+				blockHash, err := w.TxStore.GetBlockHash(txmgrNs, height)
+				if err != nil {
+					return err
+				}
+				result.BlockHash = &blockHash
+				result.BlockHeight = height
+			}
 			if confs >= stopAfter || confs == -1 {
 				unwatch = append(unwatch, &txHash)
 			}

@@ -431,6 +431,8 @@ message ConfirmationNotificationsResponse {
     message TransactionConfirmations {
         bytes tx_hash = 1;
         int32 confirmations = 2;
+        bytes block_hash = 3;
+        int32 block_height = 4;
     }
     repeated TransactionConfirmations confirmations = 1;
 }

@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.13.x
+Version: 4.14.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -1357,6 +1357,12 @@ removed from the wallet (e.g. due to a double spend).
   - `int32 confirmations`: The current number of confirmations of the
     transaction.  If the transaction is unknown to the wallet or was removed due
     to a double spend, this value is set to `-1`.
+
+  - `bytes block_hash`: The hash of the block the transaction is mined in, or
+    null if unmined.
+
+  - `int32 block_height`: The height of the block the transaction is mined in,
+    or `-1` if unmined.
 
 **Expected errors:**
 

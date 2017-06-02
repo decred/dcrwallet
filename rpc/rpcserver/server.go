@@ -54,9 +54,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.13.0"
+	semverString = "4.14.0"
 	semverMajor  = 4
-	semverMinor  = 13
+	semverMinor  = 14
 	semverPatch  = 0
 )
 
@@ -1205,9 +1205,15 @@ func (s *walletServer) ConfirmationNotifications(svr pb.WalletService_Confirmati
 			}
 			results := make([]*pb.ConfirmationNotificationsResponse_TransactionConfirmations, len(n))
 			for i, r := range n {
+				var blockHash []byte
+				if r.BlockHash != nil {
+					blockHash = r.BlockHash[:]
+				}
 				results[i] = &pb.ConfirmationNotificationsResponse_TransactionConfirmations{
 					TxHash:        r.TxHash[:],
 					Confirmations: r.Confirmations,
+					BlockHash:     blockHash,
+					BlockHeight:   r.BlockHeight,
 				}
 			}
 			r := &pb.ConfirmationNotificationsResponse{
