@@ -18,6 +18,61 @@ import (
 // DefaultGapLimit is the default unused address gap limit defined by BIP0044.
 const DefaultGapLimit = 20
 
+// gapPolicy defines the policy to use when the BIP0044 address gap limit is
+// exceeded.
+type gapPolicy int
+
+const (
+	gapPolicyError gapPolicy = iota
+	gapPolicyIgnore
+	gapPolicyWrap
+)
+
+type nextAddressCallOptions struct {
+	policy gapPolicy
+}
+
+// NextAddressCallOption defines a call option for the NextAddress family of
+// wallet methods.
+type NextAddressCallOption func(*nextAddressCallOptions)
+
+func withGapPolicy(policy gapPolicy) NextAddressCallOption {
+	return func(o *nextAddressCallOptions) {
+		o.policy = policy
+	}
+}
+
+// WithGapPolicyError configures the NextAddress family of methods to error
+// whenever the gap limit would be exceeded.  When this default policy is used,
+// callers should check errors against the apperrors.ErrExceedsGapLimit error
+// code and let users specify whether to ignore the gap limit or wrap around to
+// a previously returned address.
+func WithGapPolicyError() NextAddressCallOption {
+	return withGapPolicy(gapPolicyError)
+}
+
+// WithGapPolicyIgnore configures the NextAddress family of methods to ignore
+// the gap limit entirely when generating addresses.  Exceeding the gap limit
+// may result in unsynced address child indexes when seed restoring the wallet,
+// unless the restoring gap limit is increased, as well as breaking automatic
+// address synchronization of multiple running wallets.
+//
+// This is a good policy to use when addresses must never be reused, but be
+// aware of the issues noted above.
+func WithGapPolicyIgnore() NextAddressCallOption {
+	return withGapPolicy(gapPolicyIgnore)
+}
+
+// WithGapPolicyWrap configures the NextAddress family of methods to wrap around
+// to a previously returned address instead of erroring or ignoring the gap
+// limit and returning a new unused address.
+//
+// This is a good policy to use for most individual users' wallets where funds
+// are segmented by accounts and not the addresses that control each output.
+func WithGapPolicyWrap() NextAddressCallOption {
+	return withGapPolicy(gapPolicyWrap)
+}
+
 type addressBuffer struct {
 	branchXpub *hdkeychain.ExtendedKey
 	lastUsed   uint32
@@ -29,7 +84,14 @@ type bip0044AccountData struct {
 	albInternal addressBuffer
 }
 
-func (w *Wallet) nextAddress(account, branch uint32) (dcrutil.Address, error) {
+func (w *Wallet) nextAddress(account, branch uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
+	var opts nextAddressCallOptions // TODO: zero values for now, add to wallet config later.
+	for _, c := range callOpts {
+		c(&opts)
+	}
+
+	gapLimit := uint32(w.gapLimit)
+
 	defer w.addressBuffersMu.Unlock()
 	w.addressBuffersMu.Lock()
 	ad, ok := w.addressBuffers[account]
@@ -50,20 +112,42 @@ func (w *Wallet) nextAddress(account, branch uint32) (dcrutil.Address, error) {
 		return nil, err
 	}
 
-	if alb.cursor >= uint32(w.gapLimit) {
-		// TODO: Ideally the user would be presented with this error and then
-		// given the choice to either violate the gap limit and continue
-		// deriving more addresses, or to wrap around to a previously generated
-		// address.  Older wallet versions used wraparound without user consent,
-		// so this behavior was kept.
-		//
-		//const str = "deriving additional addresses violates the unused address gap limit"
-		//err := apperrors.E{ErrorCode: apperrors.ErrExceedsGapLimit, Description: str, Err: nil}
-		//return nil, err
-		alb.cursor = 0
-	}
-
 	for {
+		if alb.cursor >= gapLimit {
+			switch opts.policy {
+			case gapPolicyError:
+				const str = "deriving additional addresses violates the unused address gap limit"
+				err := apperrors.E{ErrorCode: apperrors.ErrExceedsGapLimit, Description: str, Err: nil}
+				return nil, err
+
+			case gapPolicyIgnore:
+				// Addresses beyond the last used child + gap limit are not
+				// already watched, so this must be done now if the wallet is
+				// connected to a consensus RPC server.  Watch addresses in
+				// batches of the gap limit at a time to avoid introducing many
+				// RPCs from repeated new address calls.
+				if alb.cursor%uint32(w.gapLimit) != 0 {
+					break
+				}
+				chainClient := w.ChainClient()
+				if chainClient == nil {
+					break
+				}
+				addrs, err := deriveChildAddresses(alb.branchXpub,
+					alb.lastUsed+1+alb.cursor, gapLimit, w.chainParams)
+				if err != nil {
+					return nil, err
+				}
+				err = chainClient.LoadTxFilter(false, addrs, nil)
+				if err != nil {
+					return nil, err
+				}
+
+			case gapPolicyWrap:
+				alb.cursor = 0
+			}
+		}
+
 		childIndex := alb.lastUsed + 1 + alb.cursor
 		if childIndex >= hdkeychain.HardenedKeyStart {
 			const str = "no more addresses can be derived for the account"
@@ -250,14 +334,29 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 	return nil
 }
 
-// NewExternalAddress returns an unused external address.
-func (w *Wallet) NewExternalAddress(account uint32) (dcrutil.Address, error) {
-	return w.nextAddress(account, udb.ExternalBranch)
+// NewExternalAddress returns an external address.
+func (w *Wallet) NewExternalAddress(account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
+	return w.nextAddress(account, udb.ExternalBranch, callOpts...)
 }
 
-// NewInternalAddress returns an unused internal address.
-func (w *Wallet) NewInternalAddress(account uint32) (dcrutil.Address, error) {
-	return w.nextAddress(account, udb.InternalBranch)
+// NewInternalAddress returns an internal address.
+func (w *Wallet) NewInternalAddress(account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
+	return w.nextAddress(account, udb.InternalBranch, callOpts...)
+}
+
+// NewChangeAddress returns an internal address.  This is identical to
+// NewInternalAddress but handles the imported account (which can't create
+// addresses) by using account 0 instead, and always uses the wrapping gap limit
+// policy.
+func (w *Wallet) NewChangeAddress(account uint32) (dcrutil.Address, error) {
+	// Addresses can not be generated for the imported account, so as a
+	// workaround, change is sent to the first account.
+	//
+	// Yep, our accounts are broken.
+	if account == udb.ImportedAddrAccount {
+		account = udb.DefaultAccountNum
+	}
+	return w.NewInternalAddress(account, WithGapPolicyWrap())
 }
 
 // BIP0044BranchNextIndexes returns the next external and internal branch child
@@ -371,24 +470,13 @@ func (w *Wallet) AccountBranchAddressRange(account, branch, start, end uint32) (
 
 func (w *Wallet) changeSource(account uint32) txauthor.ChangeSource {
 	return func() ([]byte, uint16, error) {
-		changeAddress, err := w.changeAddress(account)
+		changeAddress, err := w.NewChangeAddress(account)
 		if err != nil {
 			return nil, 0, err
 		}
 		script, err := txscript.PayToAddrScript(changeAddress)
 		return script, txscript.DefaultScriptVersion, err
 	}
-}
-
-func (w *Wallet) changeAddress(account uint32) (dcrutil.Address, error) {
-	// Addresses can not be generated for the imported account, so as a
-	// workaround, change is sent to the first account.
-	//
-	// Yep, our accounts are broken.
-	if account == udb.ImportedAddrAccount {
-		account = udb.DefaultAccountNum
-	}
-	return w.NewInternalAddress(account)
 }
 
 func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32, params *chaincfg.Params) ([]dcrutil.Address, error) {

@@ -344,18 +344,22 @@ func (s *walletServer) NextAccount(ctx context.Context, req *pb.NextAccountReque
 func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressRequest) (
 	*pb.NextAddressResponse, error) {
 
+	// Keep previous behavior and default to wraparound until the RPC request
+	// parameters are available to configure this.
+	gapPolicy := wallet.WithGapPolicyWrap()
+
 	var (
 		addr dcrutil.Address
 		err  error
 	)
 	switch req.Kind {
 	case pb.NextAddressRequest_BIP0044_EXTERNAL:
-		addr, err = s.wallet.NewExternalAddress(req.Account)
+		addr, err = s.wallet.NewExternalAddress(req.Account, gapPolicy)
 		if err != nil {
 			return nil, translateError(err)
 		}
 	case pb.NextAddressRequest_BIP0044_INTERNAL:
-		addr, err = s.wallet.NewInternalAddress(req.Account)
+		addr, err = s.wallet.NewInternalAddress(req.Account, gapPolicy)
 		if err != nil {
 			return nil, translateError(err)
 		}
@@ -642,7 +646,7 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 
 	var changeScript []byte
 	if req.IncludeChangeScript && totalAmount > dcrutil.Amount(req.TargetAmount) {
-		changeAddr, err := s.wallet.NewInternalAddress(req.Account)
+		changeAddr, err := s.wallet.NewChangeAddress(req.Account)
 		if err != nil {
 			return nil, translateError(err)
 		}

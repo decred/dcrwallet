@@ -828,7 +828,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	// the wallet for the ticket address.
 	ticketAddress := t.TicketAddress()
 	if ticketAddress == nil {
-		ticketAddress, err = t.wallet.NewInternalAddress(account)
+		ticketAddress, err = t.wallet.NewInternalAddress(account, wallet.WithGapPolicyWrap())
 		if err != nil {
 			return ps, err
 		}
