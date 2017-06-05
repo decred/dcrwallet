@@ -708,7 +708,7 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 
 	// Check if output address is default, and generate a new adress if needed
 	if changeAddr == nil {
-		changeAddr, err = w.changeAddress(account)
+		changeAddr, err = w.NewChangeAddress(account)
 		if err != nil {
 			return nil, err
 		}
@@ -921,7 +921,7 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 			"given: %v, next height %v)", req.expiry, tipHeight+1)
 	}
 
-	addrFunc := w.NewInternalAddress
+	addrFunc := w.NewChangeAddress
 	if w.addressReuse {
 		xpub := w.addressBuffers[udb.DefaultAccountNum].albExternal.branchXpub
 		addr, err := deriveChildAddress(xpub, 0, w.chainParams)
@@ -1028,7 +1028,7 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 
 	// Fetch the single use split address to break tickets into, to
 	// immediately be consumed as tickets.
-	splitTxAddr, err := w.NewInternalAddress(req.account)
+	splitTxAddr, err := w.NewInternalAddress(req.account, WithGapPolicyWrap())
 	if err != nil {
 		return nil, err
 	}
@@ -1364,7 +1364,7 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 
 		if payouts[i].Addr == "" {
 			var err error
-			addr, err = w.NewInternalAddress(udb.DefaultAccountNum)
+			addr, err = w.NewChangeAddress(udb.DefaultAccountNum)
 			if err != nil {
 				return nil, err
 			}
@@ -1406,7 +1406,7 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 		// Add change to txouts.
 		if payouts[i].ChangeAddr == "" {
 			var err error
-			changeAddr, err = w.NewInternalAddress(udb.DefaultAccountNum)
+			changeAddr, err = w.NewChangeAddress(udb.DefaultAccountNum)
 			if err != nil {
 				return nil, err
 			}

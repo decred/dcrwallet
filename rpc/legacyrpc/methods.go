@@ -1047,7 +1047,7 @@ func getNewAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		return nil, err
 	}
 
-	addr, err := w.NewExternalAddress(account)
+	addr, err := w.NewExternalAddress(account, wallet.WithGapPolicyWrap())
 	if err != nil {
 		return nil, err
 	}
@@ -1091,7 +1091,7 @@ func getRawChangeAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error
 		return nil, err
 	}
 
-	addr, err := w.NewInternalAddress(account)
+	addr, err := w.NewChangeAddress(account)
 	if err != nil {
 		return nil, err
 	}
@@ -2032,7 +2032,7 @@ func redeemMultiSigOut(icmd interface{}, w *wallet.Wallet, chainClient *chain.RP
 		}
 	} else {
 		account := uint32(udb.DefaultAccountNum)
-		addr, err = w.NewInternalAddress(account)
+		addr, err = w.NewInternalAddress(account, wallet.WithGapPolicyWrap())
 		if err != nil {
 			return nil, err
 		}
