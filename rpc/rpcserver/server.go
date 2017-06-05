@@ -678,7 +678,7 @@ func decodeDestination(dest *pb.ConstructTransactionRequest_OutputDestination,
 			return nil, 0, translateError(err)
 		}
 		version = txscript.DefaultScriptVersion
-		return pkScript, txscript.DefaultScriptVersion, nil
+		return pkScript, version, nil
 	case dest.Script != nil:
 		if dest.ScriptVersion > uint32(^uint16(0)) {
 			return nil, 0, status.Errorf(codes.InvalidArgument, "script_version overflows uint16")

@@ -138,7 +138,7 @@ func TestMain(m *testing.M) {
 	// purposes (CoinbaseMaturity=16 for simnet).
 	if err = primaryHarness.SetUp(true, 25); err != nil {
 		fmt.Println("Unable to setup test chain: ", err)
-		err = primaryHarness.TearDown()
+		_ = primaryHarness.TearDown()
 		os.Exit(1)
 	}
 
@@ -156,7 +156,7 @@ func TestMain(m *testing.M) {
 
 			if err = harness.SetUp(true, 25); err != nil {
 				fmt.Println("Unable to setup test chain: ", err)
-				err = harness.TearDown()
+				_ = harness.TearDown()
 				gracefulExit(1)
 			}
 		}
@@ -1449,6 +1449,9 @@ func testListTransactions(r *Harness, t *testing.T) {
 	}
 
 	txListAll, err = wcl.ListTransactionsCount("*", 99999999)
+	if err != nil {
+		t.Fatal("ListTransactionsCount failed:", err)
+	}
 
 	// Create 2 accounts to receive funds
 	accountNames := []string{"listTxA", "listTxB"}

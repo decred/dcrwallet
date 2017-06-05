@@ -976,8 +976,7 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 	// ticket required amounts depending on whether or not a
 	// pool output is needed. If the ticket fee increment is
 	// unset in the request, use the global ticket fee increment.
-	neededPerTicket := dcrutil.Amount(0)
-	ticketFee := dcrutil.Amount(0)
+	var neededPerTicket, ticketFee dcrutil.Amount
 	ticketFeeIncrement := req.ticketFee
 	if ticketFeeIncrement == 0 {
 		ticketFeeIncrement = w.TicketFeeIncrement()

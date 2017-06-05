@@ -31,7 +31,7 @@ func main() {
 	// purposes (CoinbaseMaturity=16 for simnet).
 	if err = primaryHarness.SetUp(true, 25); err != nil {
 		fmt.Println("Unable to setup test chain: ", err)
-		err = primaryHarness.TearDown()
+		_ = primaryHarness.TearDown()
 		os.Exit(1)
 	}
 
