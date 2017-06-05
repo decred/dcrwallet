@@ -38,7 +38,7 @@ const (
 
 	// A worst case signature script to redeem a P2PKH output for a
 	// compressed pubkey has 73 bytes of the possible DER signature
-	// (with no leading 0 bytes for R and S), 65 bytes of serialized pubkey,
+	// (with no leading 0 bytes for R and S), 33 bytes of compressed serialized pubkey,
 	// and data push opcodes for both, plus one byte for the hash type flag
 	// appended to the end of the signature.
 	sigScriptEstimate = 1 + 73 + 1 + 33 + 1
