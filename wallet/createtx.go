@@ -38,15 +38,16 @@ const (
 
 	// A worst case signature script to redeem a P2PKH output for a
 	// compressed pubkey has 73 bytes of the possible DER signature
-	// (with no leading 0 bytes for R and S), 65 bytes of serialized pubkey,
+	// (with no leading 0 bytes for R and S), 33 bytes of compressed serialized pubkey,
 	// and data push opcodes for both, plus one byte for the hash type flag
 	// appended to the end of the signature.
-	sigScriptEstimate = 1 + 73 + 1 + 65 + 1
+	sigScriptEstimate = 1 + 73 + 1 + 33 + 1
 
 	// A best case tx input serialization cost is chainhash.HashSize, 4 bytes
 	// of output index, 1 byte for tree, 4 bytes of sequence, 16 bytes for
-	// fraud proof, and the estimated signature script size.
-	txInEstimate = chainhash.HashSize + 4 + 1 + 8 + 4 + 4 + sigScriptEstimate
+	// fraud proof, 1 varint for the sigscript size, and the estimated
+	// signature script size.
+	txInEstimate = chainhash.HashSize + 4 + 1 + 4 + 16 + 1 + sigScriptEstimate
 
 	// A P2PKH pkScript contains the following bytes:
 	//  - OP_DUP
