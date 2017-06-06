@@ -181,6 +181,7 @@ var helpDescsEnUS = map[string]string{
 	// GetNewAddressCmd help.
 	"getnewaddress--synopsis": "Generates and returns a new payment address.",
 	"getnewaddress-account":   "Account name the new address will belong to (default=\"default\")",
+	"getnewaddress-gappolicy": `String defining the policy to use when the BIP0044 gap limit would be violated, may be "error", "ignore", or "wrap"`,
 	"getnewaddress--result0":  "The payment address",
 
 	// GetRawChangeAddressCmd help.

@@ -35,9 +35,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "4.0.0"
+	jsonrpcSemverString = "4.1.0"
 	jsonrpcSemverMajor  = 4
-	jsonrpcSemverMinor  = 0
+	jsonrpcSemverMinor  = 1
 	jsonrpcSemverPatch  = 0
 )
 
@@ -1038,6 +1038,24 @@ func getMultisigOutInfo(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 func getNewAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetNewAddressCmd)
 
+	var callOpts []wallet.NextAddressCallOption
+	if cmd.GapPolicy != nil {
+		switch *cmd.GapPolicy {
+		case "":
+		case "error":
+			callOpts = append(callOpts, wallet.WithGapPolicyError())
+		case "ignore":
+			callOpts = append(callOpts, wallet.WithGapPolicyIgnore())
+		case "wrap":
+			callOpts = append(callOpts, wallet.WithGapPolicyWrap())
+		default:
+			return nil, &dcrjson.RPCError{
+				Code:    dcrjson.ErrRPCInvalidParameter,
+				Message: fmt.Sprintf("Unknown gap policy '%s'", *cmd.GapPolicy),
+			}
+		}
+	}
+
 	acctName := "default"
 	if cmd.Account != nil {
 		acctName = *cmd.Account
@@ -1047,7 +1065,7 @@ func getNewAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		return nil, err
 	}
 
-	addr, err := w.NewExternalAddress(account, wallet.WithGapPolicyWrap())
+	addr, err := w.NewExternalAddress(account, callOpts...)
 	if err != nil {
 		return nil, err
 	}
