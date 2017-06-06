@@ -293,6 +293,11 @@ func (w *Wallet) onBlockConnected(serializedBlockHeader []byte, transactions [][
 	w.NtfnServer.notifyMainChainTipChanged(chainTipChanges)
 	w.NtfnServer.sendAttachedBlockNotification()
 
+	if voteVersion(w.chainParams) < blockHeader.StakeVersion {
+		log.Warnf("Old vote version detected (v%v), please update your "+
+			"wallet to the latest version.", voteVersion(w.chainParams))
+	}
+
 	return nil
 }
 
