@@ -32,23 +32,24 @@ SPV mode that is compatible with dcrd is planned for a future release.
 
 Wallet clients can use one of two RPC servers:
 
-  1. A legacy JSON-RPC server mostly compatible with Bitcoin Core
+  1. A legacy JSON-RPC server inspired by the Bitcoin Core rpc server
 
      The JSON-RPC server exists to ease the migration of wallet applications
      from Core, but complete compatibility is not guaranteed.  Some portions of
      the API (and especially accounts) have to work differently due to other
      design decisions (mostly due to BIP0044).  However, if you find a
      compatibility issue and feel that it could be reasonably supported, please
-     report an issue.  This server is enabled by default.
+     report an issue.  This server is enabled by default as long as a username
+     and password are provided.
 
-  2. An experimental gRPC server
+  2. A gRPC server
 
      The gRPC server uses a new API built for dcrwallet, but the API is not
-     stabilized and the server is feature gated behind a config option
-     (`--experimentalrpclisten`).  If you don't mind applications breaking due
-     to API changes, don't want to deal with issues of the legacy API, or need
-     notifications for changes to the wallet, this is the RPC server to use.
-     The gRPC server is documented [here](./rpc/documentation/README.md).
+     stabilized.  This server is enabled by default and may be disabled with
+     the config option `--nogrpc`.  If you don't mind applications breaking
+     due to API changes, don't want to deal with issues of the legacy API, or
+     need notifications for changes to the wallet, this is the RPC server to
+     use. The gRPC server is documented [here](./rpc/documentation/README.md).
 
 ## Installation and updating
 
