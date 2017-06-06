@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.15.x
+Version: 4.16.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -786,6 +786,26 @@ wallet.
 
   - `BIP0044_INTERNAL`: The request specifies to generate the next address for
     the account's BIP0044 internal key chain.
+
+- `GapPolicy gap_policy`: The policy to use when the BIP0044 unused address gap
+  limit would be violated.
+
+  **Nested enum:** `GapPolicy`
+
+  - `GAP_POLICY_UNSPECIFIED`: Do not specify any policy in particular.  This
+    will default to using the erroring policy unless otherwise changed in the
+    wallet's settings.
+
+  - `GAP_POLICY_ERROR`: Override any other specified gap policy in the wallet
+    settings.  If the gap limit would be violated, return an error.
+
+  - `GAP_POLICY_IGNORE`: Override any other specified gap policy in the wallet
+    settings.  Ignore any gap limit violations and return the next child address
+    anyways.
+
+  - `GAP_POLICY_WRAP`: Override any other specified gap policy in the wallet
+    settings.  If the gap limit would be violated, wrap around to the child
+    index after the last used address.
 
 **Response:** `NextAddressResponse`
 

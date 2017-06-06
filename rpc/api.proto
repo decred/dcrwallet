@@ -190,6 +190,13 @@ message NextAddressRequest {
 	     BIP0044_INTERNAL = 1;
 	}
 	Kind kind = 2;
+	enum GapPolicy {
+		GAP_POLICY_UNSPECIFIED = 0;
+		GAP_POLICY_ERROR = 1;
+		GAP_POLICY_IGNORE = 2;
+		GAP_POLICY_WRAP = 3;
+	}
+	GapPolicy gap_policy = 3;
 }
 message NextAddressResponse {
 	string address = 1;

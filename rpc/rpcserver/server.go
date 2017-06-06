@@ -54,9 +54,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.15.0"
+	semverString = "4.16.0"
 	semverMajor  = 4
-	semverMinor  = 15
+	semverMinor  = 16
 	semverPatch  = 0
 )
 
@@ -344,9 +344,18 @@ func (s *walletServer) NextAccount(ctx context.Context, req *pb.NextAccountReque
 func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressRequest) (
 	*pb.NextAddressResponse, error) {
 
-	// Keep previous behavior and default to wraparound until the RPC request
-	// parameters are available to configure this.
-	gapPolicy := wallet.WithGapPolicyWrap()
+	var callOpts []wallet.NextAddressCallOption
+	switch req.GapPolicy {
+	case pb.NextAddressRequest_GAP_POLICY_UNSPECIFIED:
+	case pb.NextAddressRequest_GAP_POLICY_ERROR:
+		callOpts = append(callOpts, wallet.WithGapPolicyError())
+	case pb.NextAddressRequest_GAP_POLICY_IGNORE:
+		callOpts = append(callOpts, wallet.WithGapPolicyIgnore())
+	case pb.NextAddressRequest_GAP_POLICY_WRAP:
+		callOpts = append(callOpts, wallet.WithGapPolicyWrap())
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "gap_policy=%v", req.GapPolicy)
+	}
 
 	var (
 		addr dcrutil.Address
@@ -354,12 +363,12 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	)
 	switch req.Kind {
 	case pb.NextAddressRequest_BIP0044_EXTERNAL:
-		addr, err = s.wallet.NewExternalAddress(req.Account, gapPolicy)
+		addr, err = s.wallet.NewExternalAddress(req.Account, callOpts...)
 		if err != nil {
 			return nil, translateError(err)
 		}
 	case pb.NextAddressRequest_BIP0044_INTERNAL:
-		addr, err = s.wallet.NewInternalAddress(req.Account, gapPolicy)
+		addr, err = s.wallet.NewInternalAddress(req.Account, callOpts...)
 		if err != nil {
 			return nil, translateError(err)
 		}
