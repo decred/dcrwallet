@@ -180,14 +180,12 @@ var helpDescsEnUS = map[string]string{
 
 	// GetNewAddressCmd help.
 	"getnewaddress--synopsis": "Generates and returns a new payment address.",
-	"getnewaddress-account":   "DEPRECATED -- Account name the new address will belong to (default=\"default\")",
-	"getnewaddress-verbose":   "Show pub key as well as address",
+	"getnewaddress-account":   "Account name the new address will belong to (default=\"default\")",
 	"getnewaddress--result0":  "The payment address",
 
 	// GetRawChangeAddressCmd help.
 	"getrawchangeaddress--synopsis": "Generates and returns a new internal payment address for use as a change address in raw transactions.",
 	"getrawchangeaddress-account":   "Account name the new internal address will belong to (default=\"default\")",
-	"getrawchangeaddress-verbose":   "Show pub key as well as address",
 	"getrawchangeaddress--result0":  "The internal payment address",
 
 	// GetReceivedByAccountCmd help.

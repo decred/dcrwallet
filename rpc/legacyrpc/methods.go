@@ -35,10 +35,10 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "3.0.1"
-	jsonrpcSemverMajor  = 3
+	jsonrpcSemverString = "4.0.0"
+	jsonrpcSemverMajor  = 4
 	jsonrpcSemverMinor  = 0
-	jsonrpcSemverPatch  = 1
+	jsonrpcSemverPatch  = 0
 )
 
 // confirms returns the number of confirmations for a transaction in a block at
@@ -1051,26 +1051,6 @@ func getNewAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	if *cmd.Verbose {
-		toReturn := make(map[string]string)
-		toReturn["address"] = addr.EncodeAddress()
-
-		pubKey, err := w.PubKeyForAddress(addr)
-		if err != nil {
-			return nil, err
-		}
-		pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(
-			pubKey.Serialize(), w.ChainParams())
-		if err != nil {
-			return nil, err
-		}
-		toReturn["pubkey"] = pubKeyAddr.String()
-
-		// Return the new payment address string along with the pubkey.
-		return toReturn, nil
-	}
-
 	return addr.EncodeAddress(), nil
 }
 
