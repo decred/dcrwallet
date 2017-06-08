@@ -506,8 +506,17 @@ and unspendable immature coinbase balances.
   required number of confirmations is zero and there are no immature coinbase
   outputs.
 
-- `int64 immature_reward`: The total value of all immature coinbase outputs,
+- `int64 immature_stake_rewards`: The total value of all immature stakebase outputs,
   counted in Satoshis.
+
+- `int64 immature_coinbase_rewards`: The total value of all immature coinbase outputs,
+  counted in Satoshis.
+
+- `int64 locked_by_tickets`: The total value of all tickets that are currently locked,
+  and awaiting vote.
+
+- `int64 voting_authority`: The total value of all tickets that the account has voting
+  authority over.  
 
 **Expected errors:**
 
