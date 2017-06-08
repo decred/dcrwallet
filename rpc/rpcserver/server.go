@@ -531,12 +531,12 @@ func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
 	// TODO: Spendable currently includes multisig outputs that may not
 	// actually be spendable without additional keys.
 	resp := &pb.BalanceResponse{
-		Total:                int64(bals.Total),
-		Spendable:            int64(bals.Spendable),
-		ImmatureReward:       int64(bals.ImmatureCoinbaseRewards),
-		ImmatureStakeRewards: int64(bals.ImmatureStakeGeneration),
-		LockedByTickets:      int64(bals.LockedByTickets),
-		VotingAuthority:      int64(bals.VotingAuthority),
+		Total:                   int64(bals.Total),
+		Spendable:               int64(bals.Spendable),
+		ImmatureReward:          int64(bals.ImmatureCoinbaseRewards),
+		ImmatureStakeGeneration: int64(bals.ImmatureStakeGeneration),
+		LockedByTickets:         int64(bals.LockedByTickets),
+		VotingAuthority:         int64(bals.VotingAuthority),
 	}
 	return resp, nil
 }
