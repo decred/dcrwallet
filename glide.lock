@@ -1,5 +1,5 @@
 hash: ed840e2cd19df32e8d5dc89987cdea36401f5e159926adc14727ec5f6f5b7bb3
-updated: 2017-06-06T15:17:39.603195-04:00
+updated: 2017-06-08T16:08:30.1819929-04:00
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -22,7 +22,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: f01a8bfd7a16dc849cba5e07a54a5012c1e079fc
+  version: 32ba1b00f99ad9984d2d18ba1d0c1d03d0f79be7
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -49,14 +49,14 @@ imports:
   - base58
   - hdkeychain
 - name: github.com/golang/protobuf
-  version: fec3b39b059c0f88fa6b20f5ed012b1aa203a8b4
+  version: 5a0f697c9ed9d68fef0116532c6e05cfeae00e55
   subpackages:
   - proto
   - ptypes/any
 - name: github.com/jessevdk/go-flags
   version: 48cf8722c3375517aba351d1f7577c40663a4407
 - name: golang.org/x/crypto
-  version: 0fe963104e9d1877082f8fb38f816fcd97eb1d10
+  version: e7ba82683099cae71475961448ab8f903ea77c26
   subpackages:
   - nacl/secretbox
   - pbkdf2
@@ -66,7 +66,7 @@ imports:
   - scrypt
   - ssh/terminal
 - name: golang.org/x/net
-  version: 513929065c19401a1c7b76ecd942f9f86a0c061b
+  version: 59a0b19b5533c7977ddeb86b017bf507ed407b12
   subpackages:
   - context
   - http2
@@ -76,22 +76,22 @@ imports:
   - lex/httplex
   - trace
 - name: golang.org/x/sys
-  version: 98b5b1e7e80eb60271c8dc4eba6521ec2c3e811e
+  version: 0b25a408a50076fbbcae6b7ac0ea5fbb0b085e79
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 19e51611da83d6be54ddafce4a4af510cb3e9ea4
+  version: eae24e7440a7aee8476ea69a0c574eafb42f5839
   subpackages:
   - secure/bidirule
   - transform
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: 411e09b969b1170a9f0c467558eb4c4c110d9c77
+  version: aa2eb687b4d3e17154372564ad8d6bf11c3cf21f
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: d2e1b51f33ff8c5e4a15560ff049d200e83726c5
+  version: d8960bd63c6743defa6d54926e5edfa8e4a28e43
   subpackages:
   - codes
   - credentials
@@ -116,6 +116,6 @@ testImports:
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: 4d4bfba8f1d1027c4fdbe371823030df51419987
+  version: f6abca593680b2315d2075e0f5e2a9751e3f431a
   subpackages:
   - assert
