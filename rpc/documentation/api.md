@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.16.x
+Version: 4.17.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -508,6 +508,15 @@ and unspendable immature coinbase balances.
 
 - `int64 immature_reward`: The total value of all immature coinbase outputs,
   counted in Satoshis.
+
+- `int64 immature_stake_rewards`: The total value of all immature stakebase outputs,
+  counted in Satoshis.
+
+- `int64 locked_by_tickets`: The total value of all tickets that are currently locked,
+  and awaiting vote.
+
+- `int64 voting_authority`: The total value of all tickets that the account has voting
+  authority over.  
 
 **Expected errors:**
 

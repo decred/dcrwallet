@@ -54,9 +54,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.16.0"
+	semverString = "4.17.0"
 	semverMajor  = 4
-	semverMinor  = 16
+	semverMinor  = 17
 	semverPatch  = 0
 )
 
@@ -531,9 +531,12 @@ func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
 	// TODO: Spendable currently includes multisig outputs that may not
 	// actually be spendable without additional keys.
 	resp := &pb.BalanceResponse{
-		Total:          int64(bals.Total),
-		Spendable:      int64(bals.Spendable),
-		ImmatureReward: int64(bals.ImmatureStakeGeneration),
+		Total:                int64(bals.Total),
+		Spendable:            int64(bals.Spendable),
+		ImmatureReward:       int64(bals.ImmatureCoinbaseRewards),
+		ImmatureStakeRewards: int64(bals.ImmatureStakeGeneration),
+		LockedByTickets:      int64(bals.LockedByTickets),
+		VotingAuthority:      int64(bals.VotingAuthority),
 	}
 	return resp, nil
 }
