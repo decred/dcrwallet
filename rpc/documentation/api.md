@@ -509,8 +509,8 @@ and unspendable immature coinbase balances.
 - `int64 immature_reward`: The total value of all immature coinbase outputs,
   counted in Satoshis.
 
-- `int64 immature_stake_rewards`: The total value of all immature stakebase outputs,
-  counted in Satoshis.
+- `int64 immature_stake_generation`: The total value of all immature stakebase outputs,
+  or any revocations, counted in Satoshis.
 
 - `int64 locked_by_tickets`: The total value of all tickets that are currently locked,
   and awaiting vote.
