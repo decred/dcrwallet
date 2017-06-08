@@ -76,7 +76,10 @@ func WithGapPolicyWrap() NextAddressCallOption {
 type addressBuffer struct {
 	branchXpub *hdkeychain.ExtendedKey
 	lastUsed   uint32
-	cursor     uint32 // added to lastUsed to derive child index
+	// cursor is added to lastUsed to derive child index
+	// warning: this is not decremented after errors, and therefore may refer
+	// to children beyond the last returned child recorded in the database.
+	cursor uint32
 }
 
 type bip0044AccountData struct {
@@ -84,7 +87,73 @@ type bip0044AccountData struct {
 	albInternal addressBuffer
 }
 
-func (w *Wallet) nextAddress(account, branch uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
+// persistReturnedChildFunc is the function used by nextAddress to update the
+// database with the child index of a returned address.  It is used to abstract
+// the correct database access required depending on the caller context.
+// Possible implementations can open a new database write transaction, use an
+// already open database transaction, or defer the update until a later time
+// when a write can be performed.
+type persistReturnedChildFunc func(account, branch, child uint32) error
+
+// persistReturnedChild returns a synchronous persistReturnedChildFunc which
+// causes the DB update to occur before nextAddress returns.
+//
+// The returned function may be called either inside of a DB update (in which
+// case maybeDBTX must be the non-nil transaction object) or not in any
+// transaction at all (in which case it must be nil and the method opens a
+// transaction).  It must never be called while inside a db view as this results
+// in a deadlock situation.
+func (w *Wallet) persistReturnedChild(maybeDBTX walletdb.ReadWriteTx) persistReturnedChildFunc {
+	return func(account, branch, child uint32) (rerr error) {
+		// Write the returned child index to the database, opening a write
+		// transaction as necessary.
+		if maybeDBTX == nil {
+			var err error
+			maybeDBTX, err = w.db.BeginReadWriteTx()
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if rerr == nil {
+					rerr = maybeDBTX.Commit()
+				} else {
+					maybeDBTX.Rollback()
+				}
+			}()
+		}
+		return w.Manager.MarkReturnedChildIndex(maybeDBTX, account, branch, child)
+	}
+}
+
+// deferPersistReturnedChild returns a persistReturnedChildFunc that is not
+// immediately written to the database.  Instead, an update function is appended
+// to the updates slice.  This allows all updates to be run under a single
+// database update later and allows deferred child persistence even when
+// generating addresess in a view (as long as the update is called after).
+//
+// This is preferable to running updates asynchronously using goroutines as it
+// allows the updates to not be performed if a later error occurs and the child
+// indexes should not be written.  It also allows the updates to be grouped
+// together in a single atomic transaction.
+func (w *Wallet) deferPersistReturnedChild(updates *[]func(walletdb.ReadWriteTx) error) persistReturnedChildFunc {
+	// These vars are closed-over by the update function and modified by the
+	// returned persist function.
+	var account, branch, child uint32
+	update := func(tx walletdb.ReadWriteTx) error {
+		persist := w.persistReturnedChild(tx)
+		return persist(account, branch, child)
+	}
+	*updates = append(*updates, update)
+	return func(a, b, c uint32) error {
+		account, branch, child = a, b, c
+		return nil
+	}
+}
+
+// nextAddress returns the next address of an account branch.
+func (w *Wallet) nextAddress(persist persistReturnedChildFunc, account, branch uint32,
+	callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
+
 	var opts nextAddressCallOptions // TODO: zero values for now, add to wallet config later.
 	for _, c := range callOpts {
 		c(&opts)
@@ -161,6 +230,11 @@ func (w *Wallet) nextAddress(account, branch uint32, callOpts ...NextAddressCall
 		addr, err := child.Address(w.chainParams)
 		switch err {
 		case nil:
+			// Write the returned child index to the database.
+			err := persist(account, branch, childIndex)
+			if err != nil {
+				return nil, err
+			}
 			alb.cursor++
 			return addr, nil
 		case hdkeychain.ErrInvalidChild:
@@ -336,19 +410,15 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 
 // NewExternalAddress returns an external address.
 func (w *Wallet) NewExternalAddress(account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
-	return w.nextAddress(account, udb.ExternalBranch, callOpts...)
+	return w.nextAddress(w.persistReturnedChild(nil), account, udb.ExternalBranch, callOpts...)
 }
 
 // NewInternalAddress returns an internal address.
 func (w *Wallet) NewInternalAddress(account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
-	return w.nextAddress(account, udb.InternalBranch, callOpts...)
+	return w.nextAddress(w.persistReturnedChild(nil), account, udb.InternalBranch, callOpts...)
 }
 
-// NewChangeAddress returns an internal address.  This is identical to
-// NewInternalAddress but handles the imported account (which can't create
-// addresses) by using account 0 instead, and always uses the wrapping gap limit
-// policy.
-func (w *Wallet) NewChangeAddress(account uint32) (dcrutil.Address, error) {
+func (w *Wallet) newChangeAddress(persist persistReturnedChildFunc, account uint32) (dcrutil.Address, error) {
 	// Addresses can not be generated for the imported account, so as a
 	// workaround, change is sent to the first account.
 	//
@@ -356,7 +426,15 @@ func (w *Wallet) NewChangeAddress(account uint32) (dcrutil.Address, error) {
 	if account == udb.ImportedAddrAccount {
 		account = udb.DefaultAccountNum
 	}
-	return w.NewInternalAddress(account, WithGapPolicyWrap())
+	return w.nextAddress(persist, account, udb.InternalBranch, WithGapPolicyWrap())
+}
+
+// NewChangeAddress returns an internal address.  This is identical to
+// NewInternalAddress but handles the imported account (which can't create
+// addresses) by using account 0 instead, and always uses the wrapping gap limit
+// policy.
+func (w *Wallet) NewChangeAddress(account uint32) (dcrutil.Address, error) {
+	return w.newChangeAddress(w.persistReturnedChild(nil), account)
 }
 
 // BIP0044BranchNextIndexes returns the next external and internal branch child
@@ -468,9 +546,9 @@ func (w *Wallet) AccountBranchAddressRange(account, branch, start, end uint32) (
 	return deriveChildAddresses(buf.branchXpub, start, end-start, w.chainParams)
 }
 
-func (w *Wallet) changeSource(account uint32) txauthor.ChangeSource {
+func (w *Wallet) changeSource(persist persistReturnedChildFunc, account uint32) txauthor.ChangeSource {
 	return func() ([]byte, uint16, error) {
-		changeAddress, err := w.NewChangeAddress(account)
+		changeAddress, err := w.newChangeAddress(persist, account)
 		if err != nil {
 			return nil, 0, err
 		}

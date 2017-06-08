@@ -307,14 +307,21 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 						}
 					}
 
+					props, err := w.Manager.AccountProperties(ns, acct)
+					if err != nil {
+						return err
+					}
+					lastReturned := props.LastReturnedExternalIndex
+
 					w.addressBuffersMu.Lock()
 					acctData := w.addressBuffers[acct]
 					buf := &acctData.albExternal
 					if branch == udb.InternalBranch {
 						buf = &acctData.albInternal
+						lastReturned = props.LastReturnedInternalIndex
 					}
 					buf.lastUsed = lastUsed
-					buf.cursor = 0
+					buf.cursor = lastReturned - lastUsed
 					w.addressBuffersMu.Unlock()
 
 					log.Infof("Synchronized account %d branch %d to next child index %v",

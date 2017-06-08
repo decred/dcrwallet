@@ -42,18 +42,27 @@ const (
 	// (or more commonly, encrypted zeros on mainnet wallets).
 	noEncryptedSeedVersion = 4
 
+	// lastReturnedAddressVersion is the fifth version of the database.  It adds
+	// additional indexes to each BIP0044 account row that keep track of the
+	// index of the last returned child address in the internal and external
+	// account branches.  This is used to prevent returning identical addresses
+	// across application restarts.
+	lastReturnedAddressVersion = 5
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = noEncryptedSeedVersion
+	DBVersion = lastReturnedAddressVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
-// upgrade the database to the next version.
+// upgrade the database to the next version.  Note that there was never a
+// version zero so upgrades[0] is nil.
 var upgrades = [...]func(walletdb.ReadWriteTx, []byte) error{
-	initialVersion:              lastUsedAddressIndexUpgrade,
-	lastUsedAddressIndexVersion: votingPreferencesUpgrade,
-	votingPreferencesVersion:    noEncryptedSeedUpgrade,
+	lastUsedAddressIndexVersion - 1: lastUsedAddressIndexUpgrade,
+	votingPreferencesVersion - 1:    votingPreferencesUpgrade,
+	noEncryptedSeedVersion - 1:      noEncryptedSeedUpgrade,
+	lastReturnedAddressVersion - 1:  lastReturnedAddressUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
@@ -195,7 +204,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 		// Convert account row values to the new serialization format that
 		// replaces the next to use indexes with the last used indexes.
 		row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted,
-			0, 0, lastUsedExtIndex, lastUsedIntIndex, row.name, newVersion)
+			0, 0, lastUsedExtIndex, lastUsedIntIndex, 0, 0, row.name, newVersion)
 		err = putAccountInfo(addrmgrBucket, account, row)
 		if err != nil {
 			return err
@@ -292,6 +301,68 @@ func noEncryptedSeedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) er
 
 	// Remove encrypted seed (or encrypted zeros).
 	err = mainBucket.Delete(seedName)
+	if err != nil {
+		return err
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func lastReturnedAddressUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+	const oldVersion = 4
+	const newVersion = 5
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	addrmgrBucket := tx.ReadWriteBucket(waddrmgrBucketKey)
+
+	// Assert that this function is only called on version 4 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		const str = "accountAddressCursorsUpgrade inappropriately called"
+		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+	}
+
+	upgradeAcct := func(account uint32) error {
+		// Load the old account info.
+		row, err := fetchAccountInfo(addrmgrBucket, account, oldVersion)
+		if err != nil {
+			return err
+		}
+
+		// Convert account row values to the new serialization format that adds
+		// the last returned indexes.  Assume that the last used address is also
+		// the last returned address.
+		row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted,
+			0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex,
+			row.lastUsedExternalIndex, row.lastUsedInternalIndex,
+			row.name, newVersion)
+		return putAccountInfo(addrmgrBucket, account, row)
+	}
+
+	// Determine how many BIP0044 accounts have been created.  Each of these
+	// accounts must be updated.
+	lastAccount, err := fetchLastAccount(addrmgrBucket)
+	if err != nil {
+		return err
+	}
+
+	// Perform account updates on all BIP0044 accounts created thus far.
+	for account := uint32(0); account <= lastAccount; account++ {
+		err := upgradeAcct(account)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Perform upgrade on the imported account, which is also using the BIP0044
+	// row serialization.  The last used and last returned indexes are not used
+	// by the imported account but the row must be upgraded regardless to avoid
+	// deserialization errors due to the row value length checks.
+	err = upgradeAcct(ImportedAddrAccount)
 	if err != nil {
 		return err
 	}

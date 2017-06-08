@@ -28,6 +28,7 @@ var dbUpgradeTests = [...]struct {
 	{verifyV2Upgrade, "v1.db.gz"},
 	{verifyV3Upgrade, "v2.db.gz"},
 	{verifyV4Upgrade, "v3.db.gz"},
+	{verifyV5Upgrade, "v4.db.gz"},
 }
 
 var pubPass = []byte("public")
@@ -227,6 +228,59 @@ func verifyV4Upgrade(t *testing.T, db walletdb.DB) {
 		if mainBucket.Get(seedName) != nil {
 			t.Errorf("Seed was not deleted")
 		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func verifyV5Upgrade(t *testing.T, db walletdb.DB) {
+	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
+		ns := tx.ReadBucket(waddrmgrBucketKey)
+
+		data := []struct {
+			acct             uint32
+			lastUsedExtChild uint32
+			lastUsedIntChild uint32
+		}{
+			{0, ^uint32(0), ^uint32(0)},
+			{1, 0, 0},
+			{2, 9, 9},
+			{3, 5, 15},
+			{4, 19, 20},
+			{5, 20, 19},
+			{6, 29, 30},
+			{7, 30, 29},
+			{8, 1<<31 - 1, 1<<31 - 1},
+			{ImportedAddrAccount, 0, 0},
+		}
+
+		const dbVersion = 5
+
+		for _, d := range data {
+			row, err := fetchAccountInfo(ns, d.acct, dbVersion)
+			if err != nil {
+				return err
+			}
+			if row.lastUsedExternalIndex != d.lastUsedExtChild {
+				t.Errorf("Account %d last used ext child mismatch %d != %d",
+					d.acct, row.lastUsedExternalIndex, d.lastUsedExtChild)
+			}
+			if row.lastReturnedExternalIndex != d.lastUsedExtChild {
+				t.Errorf("Account %d last returned ext child mismatch %d != %d",
+					d.acct, row.lastReturnedExternalIndex, d.lastUsedExtChild)
+			}
+			if row.lastUsedInternalIndex != d.lastUsedIntChild {
+				t.Errorf("Account %d last used int child mismatch %d != %d",
+					d.acct, row.lastUsedInternalIndex, d.lastUsedIntChild)
+			}
+			if row.lastReturnedInternalIndex != d.lastUsedIntChild {
+				t.Errorf("Account %d last returned int child mismatch %d != %d",
+					d.acct, row.lastReturnedInternalIndex, d.lastUsedIntChild)
+			}
+		}
+
 		return nil
 	})
 	if err != nil {

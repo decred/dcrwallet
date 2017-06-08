@@ -172,16 +172,17 @@ type accountInfo struct {
 // address usage has been recorded on any of the external or internal branches,
 // the child index is ^uint32(0).
 type AccountProperties struct {
-	AccountNumber         uint32
-	AccountName           string
-	LastUsedExternalIndex uint32
-	LastUsedInternalIndex uint32
-	ImportedKeyCount      uint32
+	AccountNumber             uint32
+	AccountName               string
+	LastUsedExternalIndex     uint32
+	LastUsedInternalIndex     uint32
+	LastReturnedExternalIndex uint32
+	LastReturnedInternalIndex uint32
+	ImportedKeyCount          uint32
 }
 
 // defaultNewSecretKey returns a new secret key.  See newSecretKey.
-func defaultNewSecretKey(passphrase *[]byte,
-	config *ScryptOptions) (*snacl.SecretKey, error) {
+func defaultNewSecretKey(passphrase *[]byte, config *ScryptOptions) (*snacl.SecretKey, error) {
 	return snacl.NewSecretKey(passphrase, config.N, config.R, config.P)
 }
 
@@ -575,6 +576,8 @@ func (m *Manager) AccountProperties(ns walletdb.ReadBucket, account uint32) (*Ac
 		}
 		props.LastUsedExternalIndex = row.lastUsedExternalIndex
 		props.LastUsedInternalIndex = row.lastUsedInternalIndex
+		props.LastReturnedExternalIndex = row.lastReturnedExternalIndex
+		props.LastReturnedInternalIndex = row.lastReturnedInternalIndex
 	} else {
 		props.AccountName = ImportedAddrAccountName // reserved, nonchangable
 
@@ -1310,6 +1313,13 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 	return nil
 }
 
+func maxUint32(a, b uint32) uint32 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // MarkUsed updates usage statistics of a BIP0044 account address so that the
 // last used address index can be tracked.  There is no effect when called on
 // P2SH addresses or any imported addresses.
@@ -1351,8 +1361,15 @@ func (m *Manager) MarkUsed(ns walletdb.ReadWriteBucket, address dcrutil.Address)
 		return nil
 	}
 
+	// The last returned indexes should never be less than the last used.  The
+	// weird addition and subtraction makes this calculation work correctly even
+	// when any of of the indexes are ^uint32(0).
+	lastRetExtIndex := maxUint32(lastUsedExtIndex+1, row.lastReturnedExternalIndex+1) - 1
+	lastRetIntIndex := maxUint32(lastUsedIntIndex+1, row.lastReturnedInternalIndex+1) - 1
+
 	row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted, 0, 0,
-		lastUsedExtIndex, lastUsedIntIndex, row.name, DBVersion)
+		lastUsedExtIndex, lastUsedIntIndex, lastRetExtIndex, lastRetIntIndex,
+		row.name, DBVersion)
 	return putAccountRow(ns, bip0044Addr.account, &row.dbAccountRow)
 }
 
@@ -1376,8 +1393,60 @@ func (m *Manager) MarkUsedChildIndex(tx walletdb.ReadWriteTx, account, branch, c
 		return apperrors.E{ErrorCode: apperrors.ErrBranch, Description: str, Err: nil}
 	}
 
+	if lastUsedExtIndex < row.lastUsedExternalIndex || lastUsedIntIndex < row.lastUsedInternalIndex {
+		// More recent addresses have already been marked used, nothing to
+		// update.
+		return nil
+	}
+
+	// The last returned indexes should never be less than the last used.  The
+	// weird addition and subtraction makes this calculation work correctly even
+	// when any of of the indexes are ^uint32(0).
+	lastRetExtIndex := maxUint32(lastUsedExtIndex+1, row.lastReturnedExternalIndex+1) - 1
+	lastRetIntIndex := maxUint32(lastUsedIntIndex+1, row.lastReturnedInternalIndex+1) - 1
+
 	row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted, 0, 0,
-		lastUsedExtIndex, lastUsedIntIndex, row.name, DBVersion)
+		lastUsedExtIndex, lastUsedIntIndex, lastRetExtIndex, lastRetIntIndex,
+		row.name, DBVersion)
+	return putAccountRow(ns, account, &row.dbAccountRow)
+}
+
+// MarkReturnedChildIndex marks a BIP0044 account branch child as returned to a
+// caller.  This method will never write an index lower than the existing index.
+func (m *Manager) MarkReturnedChildIndex(tx walletdb.ReadWriteTx, account, branch, child uint32) error {
+	ns := tx.ReadWriteBucket(waddrmgrBucketKey)
+
+	row, err := fetchAccountInfo(ns, account, DBVersion)
+	if err != nil {
+		return err
+	}
+	lastRetExtIndex := row.lastReturnedExternalIndex
+	lastRetIntIndex := row.lastReturnedInternalIndex
+	switch branch {
+	case ExternalBranch:
+		lastRetExtIndex = child
+	case InternalBranch:
+		lastRetIntIndex = child
+	default:
+		const str = "unsupported account branch"
+		return apperrors.E{ErrorCode: apperrors.ErrBranch, Description: str, Err: nil}
+	}
+
+	if lastRetExtIndex < row.lastReturnedExternalIndex || lastRetIntIndex < row.lastReturnedInternalIndex {
+		// Later child indexes have already been marked returned, nothing to
+		// update.
+		return nil
+	}
+
+	// The last returned indexes should never be less than the last used.  The
+	// weird addition and subtraction makes this calculation work correctly even
+	// when any of of the indexes are ^uint32(0).
+	lastRetExtIndex = maxUint32(row.lastUsedExternalIndex+1, lastRetExtIndex+1) - 1
+	lastRetIntIndex = maxUint32(row.lastUsedInternalIndex+1, lastRetIntIndex+1) - 1
+
+	row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted, 0, 0,
+		row.lastUsedExternalIndex, row.lastUsedInternalIndex,
+		lastRetExtIndex, lastRetIntIndex, row.name, DBVersion)
 	return putAccountRow(ns, account, &row.dbAccountRow)
 }
 
@@ -1604,7 +1673,8 @@ func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, 
 	}
 	// We have the encrypted account extended keys, so save them to the
 	// database
-	row := bip0044AccountInfo(acctPubEnc, acctPrivEnc, 0, 0, 0, 0, name, DBVersion)
+	row := bip0044AccountInfo(acctPubEnc, acctPrivEnc, 0, 0,
+		^uint32(0), ^uint32(0), 0, 0, name, DBVersion)
 	err = putAccountInfo(ns, account, row)
 	if err != nil {
 		return 0, err
@@ -1656,7 +1726,9 @@ func (m *Manager) RenameAccount(ns walletdb.ReadWriteBucket, account uint32, nam
 		return err
 	}
 	row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted,
-		0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex, name, DBVersion)
+		0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex,
+		row.lastReturnedExternalIndex, row.lastReturnedInternalIndex,
+		name, DBVersion)
 	err = putAccountInfo(ns, account, row)
 	if err != nil {
 		return err
@@ -2392,7 +2464,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		// Save the information for the imported account to the database.  Even
 		// though the imported account is a special and restricted account, the
 		// database used a BIP0044 row type for it.
-		importedRow := bip0044AccountInfo(nil, nil, 0, 0, 0, 0,
+		importedRow := bip0044AccountInfo(nil, nil, 0, 0, 0, 0, 0, 0,
 			ImportedAddrAccountName, initialVersion)
 		err = putAccountInfo(ns, ImportedAddrAccount, importedRow)
 		if err != nil {
@@ -2400,7 +2472,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		}
 
 		// Save the information for the default account to the database.
-		defaultRow := bip0044AccountInfo(acctPubEnc, acctPrivEnc, 0, 0, 0, 0,
+		defaultRow := bip0044AccountInfo(acctPubEnc, acctPrivEnc, 0, 0, 0, 0, 0, 0,
 			defaultAccountName, initialVersion)
 		return putAccountInfo(ns, DefaultAccountNum, defaultRow)
 	}()
@@ -2594,7 +2666,7 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string,
 	}
 
 	// Save the information for the imported account to the database.
-	importedRow := bip0044AccountInfo(nil, nil, 0, 0, 0, 0,
+	importedRow := bip0044AccountInfo(nil, nil, 0, 0, 0, 0, 0, 0,
 		ImportedAddrAccountName, initialVersion)
 	err = putAccountInfo(ns, ImportedAddrAccount, importedRow)
 	if err != nil {
@@ -2602,7 +2674,7 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string,
 	}
 
 	// Save the information for the default account to the database.
-	defaultRow := bip0044AccountInfo(acctPubEnc, acctPrivEnc, 0, 0, 0, 0,
+	defaultRow := bip0044AccountInfo(acctPubEnc, acctPrivEnc, 0, 0, 0, 0, 0, 0,
 		defaultAccountName, initialVersion)
 	return putAccountInfo(ns, DefaultAccountNum, defaultRow)
 }

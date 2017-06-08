@@ -81,13 +81,15 @@ type dbAccountRow struct {
 // account in the database.
 type dbBIP0044AccountRow struct {
 	dbAccountRow
-	pubKeyEncrypted       []byte
-	privKeyEncrypted      []byte
-	nextExternalIndex     uint32 // Removed by version 2
-	nextInternalIndex     uint32 // Removed by version 2
-	lastUsedExternalIndex uint32 // Added in version 2
-	lastUsedInternalIndex uint32 // Added in version 2
-	name                  string
+	pubKeyEncrypted           []byte
+	privKeyEncrypted          []byte
+	nextExternalIndex         uint32 // Removed by version 2
+	nextInternalIndex         uint32 // Removed by version 2
+	lastUsedExternalIndex     uint32 // Added in version 2
+	lastUsedInternalIndex     uint32 // Added in version 2
+	lastReturnedExternalIndex uint32 // Added in version 5
+	lastReturnedInternalIndex uint32 // Added in version 5
+	name                      string
 }
 
 // dbAddressRow houses common information stored about an address in the
@@ -499,15 +501,19 @@ func serializeAccountRow(row *dbAccountRow) []byte {
 func deserializeBIP0044AccountRow(accountID []byte, row *dbAccountRow, dbVersion uint32) (*dbBIP0044AccountRow, error) {
 	// The serialized BIP0044 account raw data format is:
 	//   <encpubkeylen><encpubkey><encprivkeylen><encprivkey><lastusedext>
-	//   <lastusedint><namelen><name>
+	//   <lastusedint><lastretext><lastretint><namelen><name>
 	//
 	// 4 bytes encrypted pubkey len + encrypted pubkey + 4 bytes encrypted
 	// privkey len + encrypted privkey + 4 bytes last used external index +
-	// 4 bytes last used internal index + 4 bytes name len + name
+	// 4 bytes last used internal index + 4 bytes last returned external +
+	// 4 bytes last returned internal + 4 bytes name len + name
 
 	// Given the above, the length of the entry must be at a minimum
 	// the constant value sizes.
-	if len(row.rawData) < 20 {
+	switch {
+	case dbVersion < 5 && len(row.rawData) < 20:
+		fallthrough
+	case dbVersion >= 5 && len(row.rawData) < 28:
 		str := fmt.Sprintf("malformed serialized bip0044 account for "+
 			"key %x", accountID)
 		return nil, managerError(apperrors.ErrDatabase, str, nil)
@@ -537,6 +543,12 @@ func deserializeBIP0044AccountRow(accountID []byte, row *dbAccountRow, dbVersion
 		retRow.lastUsedInternalIndex = binary.LittleEndian.Uint32(row.rawData[offset+4 : offset+8])
 		offset += 8
 	}
+	switch {
+	case dbVersion >= 5:
+		retRow.lastReturnedExternalIndex = binary.LittleEndian.Uint32(row.rawData[offset : offset+4])
+		retRow.lastReturnedInternalIndex = binary.LittleEndian.Uint32(row.rawData[offset+4 : offset+8])
+		offset += 8
+	}
 	nameLen := binary.LittleEndian.Uint32(row.rawData[offset : offset+4])
 	offset += 4
 	retRow.name = string(row.rawData[offset : offset+nameLen])
@@ -549,15 +561,21 @@ func deserializeBIP0044AccountRow(accountID []byte, row *dbAccountRow, dbVersion
 func serializeBIP0044AccountRow(row *dbBIP0044AccountRow, dbVersion uint32) []byte {
 	// The serialized BIP0044 account raw data format is:
 	//   <encpubkeylen><encpubkey><encprivkeylen><encprivkey><lastusedext>
-	//   <lastusedint><namelen><name>
+	//   <lastusedint><lastretext><lastretint><namelen><name>
 	//
 	// 4 bytes encrypted pubkey len + encrypted pubkey + 4 bytes encrypted
 	// privkey len + encrypted privkey + 4 bytes last used external index +
-	// 4 bytes last used internal index + 4 bytes name len + name
+	// 4 bytes last used internal index + 4 bytes last returned external +
+	// 4 bytes last returned internal + 4 bytes name len + name
 	pubLen := uint32(len(row.pubKeyEncrypted))
 	privLen := uint32(len(row.privKeyEncrypted))
 	nameLen := uint32(len(row.name))
-	rawData := make([]byte, 20+pubLen+privLen+nameLen)
+	rowSize := 28 + pubLen + privLen + nameLen
+	switch {
+	case dbVersion < 5:
+		rowSize -= 8
+	}
+	rawData := make([]byte, rowSize)
 	binary.LittleEndian.PutUint32(rawData[0:4], pubLen)
 	copy(rawData[4:4+pubLen], row.pubKeyEncrypted)
 	offset := 4 + pubLen
@@ -576,6 +594,12 @@ func serializeBIP0044AccountRow(row *dbBIP0044AccountRow, dbVersion uint32) []by
 		binary.LittleEndian.PutUint32(rawData[offset+4:offset+8], row.lastUsedInternalIndex)
 		offset += 8
 	}
+	switch {
+	case dbVersion >= 5:
+		binary.LittleEndian.PutUint32(rawData[offset:offset+4], row.lastReturnedExternalIndex)
+		binary.LittleEndian.PutUint32(rawData[offset+4:offset+8], row.lastReturnedInternalIndex)
+		offset += 8
+	}
 	binary.LittleEndian.PutUint32(rawData[offset:offset+4], nameLen)
 	offset += 4
 	copy(rawData[offset:offset+nameLen], row.name)
@@ -583,19 +607,22 @@ func serializeBIP0044AccountRow(row *dbBIP0044AccountRow, dbVersion uint32) []by
 }
 
 func bip0044AccountInfo(pubKeyEnc, privKeyEnc []byte, nextExtIndex, nextIntIndex,
-	lastUsedExtIndex, lastUsedIntIndex uint32, name string, dbVersion uint32) *dbBIP0044AccountRow {
+	lastUsedExtIndex, lastUsedIntIndex, lastRetExtIndex, lastRetIntIndex uint32,
+	name string, dbVersion uint32) *dbBIP0044AccountRow {
 
 	row := &dbBIP0044AccountRow{
 		dbAccountRow: dbAccountRow{
 			acctType: actBIP0044,
 			rawData:  nil,
 		},
-		pubKeyEncrypted:       pubKeyEnc,
-		privKeyEncrypted:      privKeyEnc,
-		nextExternalIndex:     0,
-		nextInternalIndex:     0,
-		lastUsedExternalIndex: 0,
-		lastUsedInternalIndex: 0,
+		pubKeyEncrypted:           pubKeyEnc,
+		privKeyEncrypted:          privKeyEnc,
+		nextExternalIndex:         0,
+		nextInternalIndex:         0,
+		lastUsedExternalIndex:     0,
+		lastUsedInternalIndex:     0,
+		lastReturnedExternalIndex: 0,
+		lastReturnedInternalIndex: 0,
 		name: name,
 	}
 	switch {
@@ -605,6 +632,11 @@ func bip0044AccountInfo(pubKeyEnc, privKeyEnc []byte, nextExtIndex, nextIntIndex
 	case dbVersion >= 2:
 		row.lastUsedExternalIndex = lastUsedExtIndex
 		row.lastUsedInternalIndex = lastUsedIntIndex
+	}
+	switch {
+	case dbVersion >= 5:
+		row.lastReturnedExternalIndex = lastRetExtIndex
+		row.lastReturnedInternalIndex = lastRetIntIndex
 	}
 	row.rawData = serializeBIP0044AccountRow(row, dbVersion)
 	return row
@@ -1249,6 +1281,7 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 			row := bip0044AccountInfo(arow.pubKeyEncrypted, nil,
 				arow.nextExternalIndex, arow.nextInternalIndex,
 				arow.lastUsedExternalIndex, arow.lastUsedInternalIndex,
+				arow.lastReturnedExternalIndex, arow.lastReturnedInternalIndex,
 				arow.name, dbVersion)
 			err = bucket.Put(k, serializeAccountRow(&row.dbAccountRow))
 			if err != nil {

@@ -233,10 +233,12 @@ func newWallet(votingEnabled bool, addressReuse bool, ticketAddress dcrutil.Addr
 				albExternal: addressBuffer{
 					branchXpub: extKey,
 					lastUsed:   props.LastUsedExternalIndex,
+					cursor:     props.LastReturnedExternalIndex - props.LastUsedExternalIndex,
 				},
 				albInternal: addressBuffer{
 					branchXpub: intKey,
 					lastUsed:   props.LastUsedInternalIndex,
+					cursor:     props.LastReturnedInternalIndex - props.LastUsedInternalIndex,
 				},
 			}
 		}
@@ -804,8 +806,8 @@ func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *chain.RPCCli
 			return 0, err
 		}
 		gapLimit := uint32(w.gapLimit)
-		extn := minUint32(props.LastUsedExternalIndex+gapLimit, hdkeychain.HardenedKeyStart-1)
-		intn := minUint32(props.LastUsedInternalIndex+gapLimit, hdkeychain.HardenedKeyStart-1)
+		extn := minUint32(props.LastReturnedExternalIndex+gapLimit, hdkeychain.HardenedKeyStart-1)
+		intn := minUint32(props.LastReturnedInternalIndex+gapLimit, hdkeychain.HardenedKeyStart-1)
 		// pre-cache the pubkey results so concurrent access does not race.
 		extKey.ECPubKey()
 		intKey.ECPubKey()
@@ -1681,7 +1683,7 @@ func (w *Wallet) CurrentAddress(account uint32) (dcrutil.Address, error) {
 	}
 	buf := &data.albExternal
 
-	childIndex := buf.lastUsed + buf.cursor
+	childIndex := buf.lastUsed + 1 + buf.cursor
 	child, err := buf.branchXpub.Child(childIndex)
 	if err != nil {
 		const str = "failed to derive child key"
@@ -1889,7 +1891,7 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 			if err != nil {
 				return err
 			}
-			if props.LastUsedExternalIndex != 0 || props.LastUsedInternalIndex != 0 {
+			if props.LastUsedExternalIndex != ^uint32(0) || props.LastUsedInternalIndex != ^uint32(0) {
 				canCreate = true
 				break
 			}
@@ -1932,8 +1934,8 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 	}
 	w.addressBuffersMu.Lock()
 	w.addressBuffers[account] = &bip0044AccountData{
-		albExternal: addressBuffer{branchXpub: extKey},
-		albInternal: addressBuffer{branchXpub: intKey},
+		albExternal: addressBuffer{branchXpub: extKey, lastUsed: ^uint32(0)},
+		albInternal: addressBuffer{branchXpub: intKey, lastUsed: ^uint32(0)},
 	}
 	w.addressBuffersMu.Unlock()
 

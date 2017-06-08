@@ -183,9 +183,10 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 	algo OutputSelectionAlgorithm, changeSource txauthor.ChangeSource) (*txauthor.AuthoredTx, error) {
 
 	var authoredTx *txauthor.AuthoredTx
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 
 		if account != udb.ImportedAddrAccount {
@@ -223,7 +224,8 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 		}
 
 		if changeSource == nil {
-			changeSource = w.changeSource(account)
+			persist := w.deferPersistReturnedChild(&changeSourceUpdates)
+			changeSource = w.changeSource(persist, account)
 		}
 
 		var err error
@@ -231,6 +233,20 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 			inputSource, changeSource)
 		return err
 	})
+	if err != nil {
+		return nil, err
+	}
+	if len(changeSourceUpdates) != 0 {
+		err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+			for _, up := range changeSourceUpdates {
+				err := up(tx)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
 	return authoredTx, err
 }
 
@@ -370,6 +386,7 @@ func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minc
 	randomizeChangeIdx bool, txFee dcrutil.Amount) (*txauthor.AuthoredTx, error) {
 
 	var atx *txauthor.AuthoredTx
+	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -378,7 +395,8 @@ func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minc
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 		inputSource := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 			minconf, tipHeight)
-		changeSource := w.changeSource(account)
+		persist := w.deferPersistReturnedChild(&changeSourceUpdates)
+		changeSource := w.changeSource(persist, account)
 		var err error
 		atx, err = txauthor.NewUnsignedTransaction(outputs, txFee,
 			inputSource.SelectInputs, changeSource)
@@ -431,6 +449,13 @@ func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minc
 	// Use a single DB update to store and publish the transaction.  If the
 	// transaction is rejected, the update is rolled back.
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		for _, up := range changeSourceUpdates {
+			err := up(dbtx)
+			if err != nil {
+				return err
+			}
+		}
+
 		// TODO: this can be improved by not using the same codepath as notified
 		// relevant transactions, since this does a lot of extra work.
 		err = w.processTransaction(dbtx, buf.Bytes(), nil, nil)
@@ -585,7 +610,7 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 			"multisig address after accounting for fees"))
 	}
 	if totalInput > amount+feeEst {
-		pkScript, _, err := w.changeSource(account)()
+		pkScript, _, err := w.changeSource(w.persistReturnedChild(dbtx), account)()
 		if err != nil {
 			return txToMultisigError(err)
 		}
@@ -709,7 +734,7 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 
 	// Check if output address is default, and generate a new adress if needed
 	if changeAddr == nil {
-		changeAddr, err = w.NewChangeAddress(account)
+		changeAddr, err = w.newChangeAddress(w.persistReturnedChild(dbtx), account)
 		if err != nil {
 			return nil, err
 		}
@@ -922,11 +947,12 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 			"given: %v, next height %v)", req.expiry, tipHeight+1)
 	}
 
-	addrFunc := w.NewChangeAddress
+	// addrFunc returns a change address.
+	addrFunc := w.newChangeAddress
 	if w.addressReuse {
 		xpub := w.addressBuffers[udb.DefaultAccountNum].albExternal.branchXpub
 		addr, err := deriveChildAddress(xpub, 0, w.chainParams)
-		addrFunc = func(uint32) (dcrutil.Address, error) {
+		addrFunc = func(persistReturnedChildFunc, uint32) (dcrutil.Address, error) {
 			return addr, err
 		}
 	}
@@ -1029,6 +1055,8 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 
 	// Fetch the single use split address to break tickets into, to
 	// immediately be consumed as tickets.
+	//
+	// This opens a write transaction.
 	splitTxAddr, err := w.NewInternalAddress(req.account, WithGapPolicyWrap())
 	if err != nil {
 		return nil, err
@@ -1148,18 +1176,22 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 		// request first, then check the ticket address
 		// stored from the configuation. Finally, generate
 		// an address.
-		addrVote := req.ticketAddr
-		if addrVote == nil {
-			addrVote = w.ticketAddress
+		var addrVote, addrSubsidy dcrutil.Address
+		err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+			addrVote = req.ticketAddr
 			if addrVote == nil {
-				addrVote, err = addrFunc(req.account)
-				if err != nil {
-					return ticketHashes, err
+				addrVote = w.ticketAddress
+				if addrVote == nil {
+					addrVote, err = addrFunc(w.persistReturnedChild(dbtx), req.account)
+					if err != nil {
+						return err
+					}
 				}
 			}
-		}
 
-		addrSubsidy, err := addrFunc(req.account)
+			addrSubsidy, err = addrFunc(w.persistReturnedChild(dbtx), req.account)
+			return err
+		})
 		if err != nil {
 			return ticketHashes, err
 		}
@@ -1365,7 +1397,8 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 
 		if payouts[i].Addr == "" {
 			var err error
-			addr, err = w.NewChangeAddress(udb.DefaultAccountNum)
+			addr, err = w.newChangeAddress(w.persistReturnedChild(dbtx),
+				udb.DefaultAccountNum)
 			if err != nil {
 				return nil, err
 			}
@@ -1407,7 +1440,8 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 		// Add change to txouts.
 		if payouts[i].ChangeAddr == "" {
 			var err error
-			changeAddr, err = w.NewChangeAddress(udb.DefaultAccountNum)
+			changeAddr, err = w.newChangeAddress(w.persistReturnedChild(dbtx),
+				udb.DefaultAccountNum)
 			if err != nil {
 				return nil, err
 			}
