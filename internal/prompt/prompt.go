@@ -279,7 +279,7 @@ func Seed(reader *bufio.Reader) ([]byte, error) {
 			}
 			confirmSeed = strings.TrimSpace(confirmSeed)
 			confirmSeed = strings.Trim(confirmSeed, `"`)
-			if confirmSeed == "OK" {
+			if strings.EqualFold("OK", confirmSeed) {
 				break
 			}
 		}
