@@ -236,7 +236,7 @@ func startPromptPass(w *wallet.Wallet) []byte {
 		fmt.Println("*****************")
 		promptPass = true
 	}
-	if cfg.EnableTicketBuyer {
+	if cfg.EnableTicketBuyer || cfg.EnableVoting {
 		promptPass = true
 	}
 
