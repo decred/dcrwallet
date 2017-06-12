@@ -568,6 +568,9 @@ var helpDescsEnUS = map[string]string{
 	"rescanwallet--synopsis":   "Rescan the block chain for wallet data, blocking until the rescan completes or exits with an error",
 	"rescanwallet-beginheight": "The height of the first block to begin the rescan from",
 
+	// RevokeTickets help.
+	"revoketickets--synopsis": "Requests the wallet create revovactions for any previously missed tickets.  Wallet must be unlocked.",
+
 	// RenameAccountCmd help.
 	"renameaccount--synopsis":  "Renames an account.",
 	"renameaccount-oldaccount": "The old account name to rename",
