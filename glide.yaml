@@ -9,6 +9,8 @@ import:
 - package: github.com/decred/bitset
   version: master
 - package: github.com/decred/dcrd
+  repo: git@github.com:alexlyp/dcrd
+  version: fb4ee972dac996a263cbf1efb34334c106dd05d2
   subpackages:
   - blockchain
   - blockchain/stake

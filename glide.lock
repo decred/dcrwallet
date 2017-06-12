@@ -1,5 +1,5 @@
-hash: ed840e2cd19df32e8d5dc89987cdea36401f5e159926adc14727ec5f6f5b7bb3
-updated: 2017-06-08T16:08:30.1819929-04:00
+hash: ac38cf3db4c52339821653c5dd24a30f6eac1e4931fb7c247ff2152c32a7edaa
+updated: 2017-06-12T21:43:18.377461724Z
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -8,7 +8,7 @@ imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
 - name: github.com/btcsuite/btclog
-  version: 1dfb68239632ee8c667290e30b31cf294bc3d6ae
+  version: 73889fb79bd687870312b6e40effcecffbd57d30
 - name: github.com/btcsuite/go-socks
   version: 4720035b7bfd2a9bb130b1c184f8bbe41b6f0d0f
   subpackages:
@@ -22,7 +22,8 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: 32ba1b00f99ad9984d2d18ba1d0c1d03d0f79be7
+  version: fb4ee972dac996a263cbf1efb34334c106dd05d2
+  repo: git@github.com:alexlyp/dcrd
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -44,7 +45,7 @@ imports:
 - name: github.com/decred/dcrrpcclient
   version: 662d2409dd72666076572cb6a2944875b892e9a5
 - name: github.com/decred/dcrutil
-  version: a5fab53cab39b793142c8453caa4c6f83bc152d4
+  version: ebd2e98736e819ac043d54439969b30144b92ced
   subpackages:
   - base58
   - hdkeychain
@@ -56,7 +57,7 @@ imports:
 - name: github.com/jessevdk/go-flags
   version: 48cf8722c3375517aba351d1f7577c40663a4407
 - name: golang.org/x/crypto
-  version: e7ba82683099cae71475961448ab8f903ea77c26
+  version: cbc3d0884eac986df6e78a039b8792e869bff863
   subpackages:
   - nacl/secretbox
   - pbkdf2
@@ -108,11 +109,11 @@ imports:
   - transport
 testImports:
 - name: github.com/davecgh/go-spew
-  version: 346938d642f2ec3594ed81d874461961cd0faa76
+  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib
-  version: 792786c7400a136282c1664665ae0a8db921c6c2
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
