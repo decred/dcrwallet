@@ -56,7 +56,7 @@ imports:
 - name: github.com/jessevdk/go-flags
   version: 48cf8722c3375517aba351d1f7577c40663a4407
 - name: golang.org/x/crypto
-  version: fea6c2c83557701d46ea1cc0ea4c8272632fa3bd
+  version: e7ba82683099cae71475961448ab8f903ea77c26
   subpackages:
   - nacl/secretbox
   - pbkdf2
