@@ -9,8 +9,6 @@ import:
 - package: github.com/decred/bitset
   version: master
 - package: github.com/decred/dcrd
-  repo: git@github.com:alexlyp/dcrd
-  version: ayp_revoke 
   subpackages:
   - blockchain
   - blockchain/stake
@@ -21,8 +19,6 @@ import:
   - txscript
   - wire
 - package: github.com/decred/dcrrpcclient
-  repo: git@github.com:alexlyp/dcrrpcclient
-  version: ayp_revoke
 - package: github.com/decred/dcrutil
   version: master
   subpackages:

@@ -1,5 +1,5 @@
-hash: 321f5b5b6d962933f8475ee95a575242508bb94ceaffe9d6c84620d52931d90b
-updated: 2017-06-13T14:52:54.747373984Z
+hash: ed840e2cd19df32e8d5dc89987cdea36401f5e159926adc14727ec5f6f5b7bb3
+updated: 2017-06-13T16:02:03.978544259Z
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -17,17 +17,12 @@ imports:
   version: 313961b101eb55f65ae0f03ddd4e322731763b6c
 - name: github.com/btcsuite/websocket
   version: 31079b6807923eb23992c421b114992b95131b55
-- name: github.com/davecgh/go-spew
-  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
-  subpackages:
-  - spew
 - name: github.com/decred/bitset
   version: 484b833245d5f9046e2893a6bd2e54b1df3a53a4
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: 69663df6232653a4049b137dc901db11f687dc5b
-  repo: git@github.com:alexlyp/dcrd
+  version: 9285b49550957c98b2aec09d965d3c726213e5a3
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -47,8 +42,7 @@ imports:
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
-  version: 3695c1e8d3b281334601f744a3c6a87daa06cf25
-  repo: git@github.com:alexlyp/dcrrpcclient
+  version: ed6074a30f888d3a15155561f514e188ecb32702
 - name: github.com/decred/dcrutil
   version: a5fab53cab39b793142c8453caa4c6f83bc152d4
   subpackages:
