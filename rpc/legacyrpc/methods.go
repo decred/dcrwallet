@@ -120,6 +120,7 @@ var rpcHandlers = map[string]struct {
 	"lockunspent":             {handler: lockUnspent},
 	"purchaseticket":          {handler: purchaseTicket},
 	"rescanwallet":            {handlerWithChain: rescanWallet},
+	"revoketickets":           {handlerWithChain: revokeTickets},
 	"sendfrom":                {handlerWithChain: sendFrom},
 	"sendmany":                {handler: sendMany},
 	"sendtoaddress":           {handler: sendToAddress},
@@ -2173,6 +2174,13 @@ func redeemMultiSigOuts(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 func rescanWallet(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient) (interface{}, error) {
 	cmd := icmd.(*dcrjson.RescanWalletCmd)
 	err := <-w.RescanFromHeight(chainClient, int32(*cmd.BeginHeight))
+	return nil, err
+}
+
+// revokeTickets initiates the wallet to issue revocations for any missing tickets that
+// not yet been revoked.
+func revokeTickets(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient) (interface{}, error) {
+	err := w.RevokeTickets(chainClient)
 	return nil, err
 }
 
