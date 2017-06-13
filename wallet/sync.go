@@ -325,7 +325,7 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 					w.addressBuffersMu.Unlock()
 
 					log.Infof("Synchronized account %d branch %d to next child index %v",
-						acct, branch, lastUsed+1)
+						acct, branch, lastReturned+1)
 					return nil
 				})
 				if err != nil {
