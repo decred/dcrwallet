@@ -1355,7 +1355,8 @@ func (m *Manager) MarkUsed(ns walletdb.ReadWriteBucket, address dcrutil.Address)
 		return apperrors.E{ErrorCode: apperrors.ErrData, Description: str, Err: nil}
 	}
 
-	if lastUsedExtIndex < row.lastUsedExternalIndex || lastUsedIntIndex < row.lastUsedInternalIndex {
+	if lastUsedExtIndex+1 < row.lastUsedExternalIndex+1 ||
+		lastUsedIntIndex+1 < row.lastUsedInternalIndex+1 {
 		// More recent addresses have already been marked used, nothing to
 		// update.
 		return nil
@@ -1393,7 +1394,8 @@ func (m *Manager) MarkUsedChildIndex(tx walletdb.ReadWriteTx, account, branch, c
 		return apperrors.E{ErrorCode: apperrors.ErrBranch, Description: str, Err: nil}
 	}
 
-	if lastUsedExtIndex < row.lastUsedExternalIndex || lastUsedIntIndex < row.lastUsedInternalIndex {
+	if lastUsedExtIndex+1 < row.lastUsedExternalIndex+1 ||
+		lastUsedIntIndex+1 < row.lastUsedInternalIndex+1 {
 		// More recent addresses have already been marked used, nothing to
 		// update.
 		return nil
@@ -1432,7 +1434,8 @@ func (m *Manager) MarkReturnedChildIndex(tx walletdb.ReadWriteTx, account, branc
 		return apperrors.E{ErrorCode: apperrors.ErrBranch, Description: str, Err: nil}
 	}
 
-	if lastRetExtIndex < row.lastReturnedExternalIndex || lastRetIntIndex < row.lastReturnedInternalIndex {
+	if lastRetExtIndex+1 < row.lastReturnedExternalIndex+1 ||
+		lastRetIntIndex+1 < row.lastReturnedInternalIndex+1 {
 		// Later child indexes have already been marked returned, nothing to
 		// update.
 		return nil
