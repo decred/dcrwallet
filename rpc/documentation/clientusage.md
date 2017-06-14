@@ -19,7 +19,7 @@ dcrwallet itself.
 
 The rest of this document provides short examples of how to quickly get started
 by implementing a basic client that fetches the balance of the default account
-(account 0) from a testnet wallet listening on `localhost:19110` in several
+(account 0) from a testnet wallet listening on `localhost:19111` in several
 different languages:
 
 - [Go](#go)
@@ -68,7 +68,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	conn, err := grpc.Dial("localhost:19110", grpc.WithTransportCredentials(creds))
+	conn, err := grpc.Dial("localhost:19111", grpc.WithTransportCredentials(creds))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -163,7 +163,7 @@ auto main() -> int {
         .pem_root_certs = read_file(wallet_tls_cert_file),
     };
     auto creds = grpc::SslCredentials(cred_options);
-    auto channel = grpc::CreateChannel("localhost:19110", creds);
+    auto channel = grpc::CreateChannel("localhost:19111", creds);
     auto stub = walletrpc::WalletService::NewStub(channel);
 
     grpc::ClientContext context{};
@@ -251,7 +251,7 @@ namespace Example
             var walletAppData = Portability.LocalAppData(Environment.OSVersion.Platform, "Dcrwallet");
             var walletTlsCertFile = Path.Combine(walletAppData, "rpc.cert");
             var cert = await FileUtils.ReadFileAsync(walletTlsCertFile);
-            var channel = new Channel("localhost:19110", new SslCredentials(cert));
+            var channel = new Channel("localhost:19111", new SslCredentials(cert));
             try
             {
                 var c = WalletService.NewClient(channel);
@@ -365,7 +365,7 @@ if (os.platform() == 'win32') {
 
 var cert = fs.readFileSync(certPath);
 var creds = grpc.credentials.createSsl(cert);
-var client = new walletrpc.WalletService('localhost:19110', creds);
+var client = new walletrpc.WalletService('localhost:19111', creds);
 
 var request = {
   account_number: 0,
@@ -427,7 +427,7 @@ def main():
     with open(cert_file_path, 'r') as f:
         cert = f.read()
     creds = implementations.ssl_client_credentials(cert, None, None)
-    channel = implementations.secure_channel('localhost', 19110, creds)
+    channel = implementations.secure_channel('localhost', 19111, creds)
     stub = walletrpc.beta_create_WalletService_stub(channel)
 
     request = walletrpc.BalanceRequest(account_number = 0, required_confirmations = 1)
