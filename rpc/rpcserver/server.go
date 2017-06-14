@@ -54,9 +54,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.17.0"
+	semverString = "4.18.0"
 	semverMajor  = 4
-	semverMinor  = 17
+	semverMinor  = 18
 	semverPatch  = 0
 )
 
@@ -777,6 +777,22 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 	return res, nil
 }
 
+func (s *walletServer) GetTransaction(ctx context.Context, req *pb.GetTransactionRequest) (*pb.GetTransactionResponse, error) {
+	txHash, err := chainhash.NewHash(req.TransactionHash)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "transaction_hash has invalid length")
+	}
+
+	txSummary, err := s.wallet.TransactionSummary(txHash)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	resp := &pb.GetTransactionResponse{
+		Transaction: marshalTransactionDetails(txSummary),
+	}
+	return resp, nil
+}
+
 // BUGS:
 // - MinimumRecentTransactions is ignored.
 // - Wrong error codes when a block height or hash is not recognized
@@ -841,7 +857,7 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 	}
 	if len(gtr.UnminedTransactions) > 0 {
 		resp := &pb.GetTransactionsResponse{
-			UnminedTransactions: marshalTransactionDetails(gtr.UnminedTransactions),
+			UnminedTransactions: marshalTransactionDetailsSlice(gtr.UnminedTransactions),
 		}
 		err = server.Send(resp)
 		if err != nil {
@@ -1112,30 +1128,33 @@ func marshalTransactionOutputs(v []wallet.TransactionSummaryOutput) []*pb.Transa
 	return outputs
 }
 
-func marshalTransactionDetails(v []wallet.TransactionSummary) []*pb.TransactionDetails {
+func marshalTransactionDetails(tx *wallet.TransactionSummary) *pb.TransactionDetails {
+	var txType = pb.TransactionDetails_REGULAR
+	switch tx.Type {
+	case wallet.TransactionTypeCoinbase:
+		txType = pb.TransactionDetails_COINBASE
+	case wallet.TransactionTypeTicketPurchase:
+		txType = pb.TransactionDetails_TICKET_PURCHASE
+	case wallet.TransactionTypeVote:
+		txType = pb.TransactionDetails_VOTE
+	case wallet.TransactionTypeRevocation:
+		txType = pb.TransactionDetails_REVOCATION
+	}
+	return &pb.TransactionDetails{
+		Hash:            tx.Hash[:],
+		Transaction:     tx.Transaction,
+		Debits:          marshalTransactionInputs(tx.MyInputs),
+		Credits:         marshalTransactionOutputs(tx.MyOutputs),
+		Fee:             int64(tx.Fee),
+		Timestamp:       tx.Timestamp,
+		TransactionType: txType,
+	}
+}
+
+func marshalTransactionDetailsSlice(v []wallet.TransactionSummary) []*pb.TransactionDetails {
 	txs := make([]*pb.TransactionDetails, len(v))
 	for i := range v {
-		tx := &v[i]
-		var txType = pb.TransactionDetails_REGULAR
-		switch tx.Type {
-		case wallet.TransactionTypeCoinbase:
-			txType = pb.TransactionDetails_COINBASE
-		case wallet.TransactionTypeTicketPurchase:
-			txType = pb.TransactionDetails_TICKET_PURCHASE
-		case wallet.TransactionTypeVote:
-			txType = pb.TransactionDetails_VOTE
-		case wallet.TransactionTypeRevocation:
-			txType = pb.TransactionDetails_REVOCATION
-		}
-		txs[i] = &pb.TransactionDetails{
-			Hash:            tx.Hash[:],
-			Transaction:     tx.Transaction,
-			Debits:          marshalTransactionInputs(tx.MyInputs),
-			Credits:         marshalTransactionOutputs(tx.MyOutputs),
-			Fee:             int64(tx.Fee),
-			Timestamp:       tx.Timestamp,
-			TransactionType: txType,
-		}
+		txs[i] = marshalTransactionDetails(&v[i])
 	}
 	return txs
 }
@@ -1145,7 +1164,7 @@ func marshalBlock(v *wallet.Block) *pb.BlockDetails {
 		Hash:         v.Hash[:],
 		Height:       v.Height,
 		Timestamp:    v.Timestamp,
-		Transactions: marshalTransactionDetails(v.Transactions),
+		Transactions: marshalTransactionDetailsSlice(v.Transactions),
 	}
 }
 
@@ -1178,7 +1197,7 @@ func (s *walletServer) TransactionNotifications(req *pb.TransactionNotifications
 			resp := pb.TransactionNotificationsResponse{
 				AttachedBlocks:           marshalBlocks(v.AttachedBlocks),
 				DetachedBlocks:           marshalHashes(v.DetachedBlocks),
-				UnminedTransactions:      marshalTransactionDetails(v.UnminedTransactions),
+				UnminedTransactions:      marshalTransactionDetailsSlice(v.UnminedTransactions),
 				UnminedTransactionHashes: marshalHashes(v.UnminedTransactionHashes),
 			}
 			err := svr.Send(&resp)

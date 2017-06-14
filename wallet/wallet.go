@@ -2390,6 +2390,23 @@ func (w *Wallet) BlockInfo(blockID *BlockIdentifier) (*BlockInfo, error) {
 	return blockInfo, err
 }
 
+// TransactionSummary returns details about a recorded transaction that is
+// relevant to the wallet in some way.
+func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (*TransactionSummary, error) {
+	var txSummary *TransactionSummary
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		txDetails, err := w.TxStore.TxDetails(ns, txHash)
+		if err != nil {
+			return err
+		}
+		txSummary = new(TransactionSummary)
+		*txSummary = makeTxSummary(dbtx, w, txDetails)
+		return nil
+	})
+	return txSummary, err
+}
+
 // GetTransactionsResult is the result of the wallet's GetTransactions method.
 // See GetTransactions for more details.
 type GetTransactionsResult struct {

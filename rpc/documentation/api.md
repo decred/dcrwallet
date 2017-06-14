@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.17.x
+Version: 4.18.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -363,6 +363,7 @@ The service provides the following methods:
 - [`Accounts`](#accounts)
 - [`Balance`](#balance)
 - [`BlockInfo`](#blockinfo)
+- [`GetTransaction`](#gettransaction)
 - [`GetTransactions`](#gettransactions)
 - [`ChangePassphrase`](#changepassphrase)
 - [`RenameAccount`](#renameaccount)
@@ -574,6 +575,34 @@ but not all sidechain blocks may be known by the wallet.
 
 - `NotFound`: The block is not recorded by the wallet in the current main chain
   or any old sidechain.
+
+**Stability:** Unstable
+
+___
+
+#### `GetTransaction`
+
+The `GetTransaction` method queries the wallet for a relevant transaction by its
+hash.
+
+**Request:** `GetTransactionRequest`
+
+- `bytes transaction_hash`: The hash of the transaction being queried.
+
+**Response:** ` GetTransactionResponse`
+
+- `TransactionDetails Transaction`: Wallet details regarding the transaction.
+
+  The `TransactionDetails` message is used by other methods and is documented
+  [here](#transactiondetails).
+
+**Expected errors:**
+
+- `InvalidArgument`: The transaction hash is of incorrect length.
+
+- `Aborted`: The wallet database is closed.
+
+- `NotFound`: The transaction is not recorded by the wallet.
 
 **Stability:** Unstable
 

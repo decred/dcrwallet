@@ -23,6 +23,7 @@ service WalletService {
 	rpc AccountNumber (AccountNumberRequest) returns (AccountNumberResponse);
 	rpc Accounts (AccountsRequest) returns (AccountsResponse);
 	rpc Balance (BalanceRequest) returns (BalanceResponse);
+	rpc GetTransaction (GetTransactionRequest) returns (GetTransactionResponse);
 	rpc GetTransactions (GetTransactionsRequest) returns (stream GetTransactionsResponse);
 	rpc TicketPrice (TicketPriceRequest) returns (TicketPriceResponse);
 	rpc StakeInfo (StakeInfoRequest) returns (StakeInfoResponse);
@@ -236,6 +237,13 @@ message BalanceResponse {
 	int64 immature_stake_generation = 4;
 	int64 locked_by_tickets = 5;
 	int64 voting_authority = 6;
+}
+
+message GetTransactionRequest {
+	bytes transaction_hash = 1;
+}
+message GetTransactionResponse {
+	TransactionDetails transaction = 1;
 }
 
 message GetTransactionsRequest {
