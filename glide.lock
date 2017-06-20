@@ -1,5 +1,5 @@
-hash: ed840e2cd19df32e8d5dc89987cdea36401f5e159926adc14727ec5f6f5b7bb3
-updated: 2017-06-13T16:45:14.354615311Z
+hash: 8821a10afa7fa0a739161963d37154c7ed31841dc915a29978f2d27885acffbc
+updated: 2017-06-20T11:36:44.3520942-04:00
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -8,13 +8,11 @@ imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
 - name: github.com/btcsuite/btclog
-  version: 1dfb68239632ee8c667290e30b31cf294bc3d6ae
+  version: 266a29b6e5ad061d4c055cec1c0049e4aae47092
 - name: github.com/btcsuite/go-socks
   version: 4720035b7bfd2a9bb130b1c184f8bbe41b6f0d0f
   subpackages:
   - socks
-- name: github.com/btcsuite/seelog
-  version: 313961b101eb55f65ae0f03ddd4e322731763b6c
 - name: github.com/btcsuite/websocket
   version: 31079b6807923eb23992c421b114992b95131b55
 - name: github.com/decred/bitset
@@ -22,7 +20,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: 9285b49550957c98b2aec09d965d3c726213e5a3
+  version: ce4b77d3d9e3a4d3393e1fa3baeee5679cad518d
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -42,7 +40,7 @@ imports:
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
-  version: ed6074a30f888d3a15155561f514e188ecb32702
+  version: e7732bfa71b4b098494fa0ce62d42fded970c393
 - name: github.com/decred/dcrutil
   version: a5fab53cab39b793142c8453caa4c6f83bc152d4
   subpackages:
@@ -55,6 +53,10 @@ imports:
   - ptypes/any
 - name: github.com/jessevdk/go-flags
   version: 48cf8722c3375517aba351d1f7577c40663a4407
+- name: github.com/jrick/logrotate
+  version: 4ed05ed86ef17d10ff99cce77481e0fcf6f2c7b0
+  subpackages:
+  - rotator
 - name: golang.org/x/crypto
   version: e7ba82683099cae71475961448ab8f903ea77c26
   subpackages:

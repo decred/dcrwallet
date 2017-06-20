@@ -49,13 +49,16 @@ func main() {
 func walletMain() error {
 	// Load configuration and parse command line.  This function also
 	// initializes logging and configures it accordingly.
-	log.Infof("load the config")
 	tcfg, _, err := loadConfig()
 	if err != nil {
 		return err
 	}
 	cfg = tcfg
-	defer backendLog.Flush()
+	defer func() {
+		if logRotator != nil {
+			logRotator.Close()
+		}
+	}()
 
 	// Show version at startup.
 	log.Infof("Version %s (Go version %s)", version(), runtime.Version())
@@ -110,7 +113,7 @@ func walletMain() error {
 		defer zero.Bytes(walletPass)
 
 		if cfg.PromptPublicPass {
-			backendLog.Flush()
+			os.Stdout.Sync()
 			for {
 				reader := bufio.NewReader(os.Stdin)
 				walletPass, err = prompt.PassPrompt(reader, "Enter public wallet passphrase", false)
@@ -244,7 +247,7 @@ func startPromptPass(w *wallet.Wallet) []byte {
 		return nil
 	}
 	w.SetInitiallyUnlocked(true)
-	backendLog.Flush()
+	os.Stdout.Sync()
 
 	// We need to rescan accounts for the initial sync. Unlock the
 	// wallet after prompting for the passphrase. The special case
@@ -262,7 +265,7 @@ func startPromptPass(w *wallet.Wallet) []byte {
 				return wallet.SimulationPassphrase
 			}
 		}
-		backendLog.Flush()
+		os.Stdout.Sync()
 		reader := bufio.NewReader(os.Stdin)
 		passphrase, err := prompt.PassPrompt(reader, "Enter private passphrase", false)
 		if err != nil {

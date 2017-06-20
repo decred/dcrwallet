@@ -2,8 +2,6 @@ package: github.com/decred/dcrwallet
 import:
 - package: github.com/btcsuite/btclog
   version: master
-- package: github.com/btcsuite/seelog
-  version: master
 - package: github.com/btcsuite/websocket
   version: master
 - package: github.com/decred/bitset
@@ -46,3 +44,7 @@ import:
   - ripemd160
   - scrypt
   - ssh/terminal
+- package: github.com/jrick/logrotate
+  version: master
+  subpackages:
+  - rotator

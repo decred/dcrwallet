@@ -484,9 +484,9 @@ func loadConfig() (*config, []string, error) {
 		os.Exit(0)
 	}
 
-	// Initialize logging at the default logging level.
-	initSeelogLogger(filepath.Join(cfg.LogDir, defaultLogFilename))
-	setLogLevels(defaultLogLevel)
+	// Initialize log rotation.  After log rotation has been initialized, the
+	// logger variables may be used.
+	initLogRotator(filepath.Join(cfg.LogDir, defaultLogFilename))
 
 	// Parse, validate, and set debug log level(s).
 	if err := parseAndSetDebugLevels(cfg.DebugLevel); err != nil {
@@ -678,7 +678,7 @@ func loadConfig() (*config, []string, error) {
 		}
 
 		// Perform the initial wallet creation wizard.
-		backendLog.Flush()
+		os.Stdout.Sync()
 		if cfg.CreateWatchingOnly {
 			err = createWatchingOnlyWallet(&cfg)
 		} else {
