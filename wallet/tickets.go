@@ -5,6 +5,7 @@
 package wallet
 
 import (
+	"bytes"
 	"encoding/hex"
 
 	"github.com/decred/bitset"
@@ -19,17 +20,23 @@ import (
 	"github.com/decred/dcrwallet/walletdb"
 )
 
-// GenerateVoteTx returns generated vote transaction for a chosen ticket
-// purchase hash using the provided votebits.
-func (w *Wallet) GenerateVoteTx(blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash, voteBits stake.VoteBits) (*wire.MsgTx, error) {
+// GenerateVoteTx creates a vote transaction for a chosen ticket purchase hash
+// using the provided votebits.  The ticket purchase transaction must be stored
+// by the wallet.
+func (w *Wallet) GenerateVoteTx(blockHash *chainhash.Hash, height int32, ticketHash *chainhash.Hash, voteBits stake.VoteBits) (*wire.MsgTx, error) {
 	var voteTx *wire.MsgTx
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		stakemgrNs := tx.ReadBucket(wstakemgrNamespaceKey)
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-
-		var err error
-		voteTx, err = w.StakeMgr.GenerateVoteTx(stakemgrNs, addrmgrNs, blockHash, height, sstxHash, voteBits)
-		return err
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		ticketPurchase, err := w.StakeMgr.TicketPurchase(dbtx, ticketHash)
+		if err != nil {
+			return err
+		}
+		vote, err := createUnsignedVote(ticketHash, ticketPurchase,
+			height, blockHash, voteBits, w.subsidyCache, w.chainParams)
+		if err != nil {
+			return err
+		}
+		return w.signVote(addrmgrNs, ticketPurchase, vote)
 	})
 	return voteTx, err
 }
@@ -71,8 +78,8 @@ func (w *Wallet) LiveTicketHashes(rpcClient *chain.RPCClient, includeImmature bo
 		// Access the stake manager and see if there are any extra tickets
 		// there. Likely they were either pruned because they failed to get
 		// into the blockchain or they are P2SH for some script we own.
-		stakeMgrTickets, err = w.StakeMgr.DumpSStxHashes()
-		return err
+		stakeMgrTickets = w.StakeMgr.DumpSStxHashes()
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -242,10 +249,12 @@ func (w *Wallet) AddTicket(ticket *dcrutil.Tx) error {
 // revocations.
 func (w *Wallet) RevokeTickets(chainClient *chain.RPCClient) error {
 	var ticketHashes []chainhash.Hash
+	var tipHash chainhash.Hash
+	var tipHeight int32
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
-		_, tipHeight := w.TxStore.MainChainTip(ns)
+		tipHash, tipHeight = w.TxStore.MainChainTip(ns)
 		ticketHashes, err = w.TxStore.UnspentTickets(ns, tipHeight, false)
 		return err
 	})
@@ -282,33 +291,59 @@ func (w *Wallet) RevokeTickets(chainClient *chain.RPCClient) error {
 		}
 	}
 	feePerKb := w.RelayFee()
-	allowHighFees := w.AllowHighFees
-	for i := range revokableTickets {
-		err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-			addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-			stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
-			txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	revocations := make([]*wire.MsgTx, 0, len(revokableTickets))
+	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		for _, ticketHash := range revokableTickets {
+			addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+			ticketPurchase, err := w.TxStore.Tx(txmgrNs, ticketHash)
+			if err != nil {
+				return err
+			}
+			revocation, err := createUnsignedRevocation(ticketHash,
+				ticketPurchase, feePerKb)
+			if err != nil {
+				return err
+			}
+			err = w.signRevocation(addrmgrNs, ticketPurchase, revocation)
+			if err != nil {
+				return err
+			}
+			revocations = append(revocations, revocation)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
 
-			tipHash, tipHeight := w.TxStore.MainChainTip(txmgrNs)
-
-			// There is so much wrong with this method but it is the only way
-			// revocations can currently be created:
-			//
-			//   - It takes several tickets but only one revocation should be
-			//     performed per update, because...
-			//   - This method sends the transaction
-			//   - The transaction is also not added to txmgr and instead relies
-			//     on a notification to add it.
-			//   - Therefore, rapid calls to this method will cause double spend
-			//     errors.
-			_, err := w.StakeMgr.HandleMissedTicketsNtfn(stakemgrNs, addrmgrNs,
-				&tipHash, int64(tipHeight), revokableTickets[i:i+1], feePerKb,
-				allowHighFees)
+	for i, revocation := range revocations {
+		revocationHash := revocation.TxHash()
+		var buf bytes.Buffer
+		buf.Grow(revocation.SerializeSize())
+		err := revocation.Serialize(&buf)
+		if err != nil {
+			return err
+		}
+		serializedRevocation := buf.Bytes()
+		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+			err = w.StakeMgr.StoreRevocationInfo(dbtx, revokableTickets[i],
+				&revocationHash, &tipHash, tipHeight)
+			// Could be more efficient by avoiding processTransaction, as we
+			// know it is a revocation.
+			err = w.processTransaction(dbtx, serializedRevocation, nil, nil)
+			if err != nil {
+				return err
+			}
+			_, err = chainClient.SendRawTransaction(revocation, true)
 			return err
 		})
 		if err != nil {
 			return err
 		}
+		log.Infof("Revoked ticket %v with revocation %v", revokableTickets[i],
+			&revocationHash)
 	}
+
 	return nil
 }

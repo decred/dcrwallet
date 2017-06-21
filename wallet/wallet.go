@@ -97,6 +97,7 @@ type Wallet struct {
 	poolFees                float64
 	stakePoolEnabled        bool
 	stakePoolColdAddrs      map[string]struct{}
+	subsidyCache            *blockchain.SubsidyCache
 
 	// Start up flags/settings
 	initiallyUnlocked bool
@@ -188,6 +189,7 @@ func newWallet(votingEnabled bool, addressReuse bool, ticketAddress dcrutil.Addr
 		gapLimit:                 gapLimit,
 		stakePoolEnabled:         len(stakePoolColdAddrs) > 0,
 		stakePoolColdAddrs:       stakePoolColdAddrs,
+		subsidyCache:             blockchain.NewSubsidyCache(0, params),
 		initiallyUnlocked:        false,
 		unlockRequests:           make(chan unlockRequest),
 		lockRequests:             make(chan struct{}),
@@ -3015,10 +3017,7 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 		// Therefore load up initial info out of the db serially and then spawn
 		// goroutines to use the results concurrently.
 		wg.Add(4)
-		ticketHashes, err := w.StakeMgr.DumpSStxHashes()
-		if err != nil {
-			return err
-		}
+		ticketHashes := w.StakeMgr.DumpSStxHashes()
 		go func() {
 			ticketHashPtrs = make([]*chainhash.Hash, len(ticketHashes))
 			for i := range ticketHashes {

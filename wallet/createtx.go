@@ -7,10 +7,12 @@ package wallet
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
@@ -21,6 +23,7 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrwallet/wallet/internal/txsizes"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
@@ -1724,4 +1727,212 @@ func signMsgTx(msgtx *wire.MsgTx, prevOutputs []udb.Credit,
 	}
 
 	return nil
+}
+
+// signVoteOrRevocation signs a vote or revocation, specified by the isVote
+// argument.  This signs the transaction by modifying tx's input scripts.
+func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurchase, tx *wire.MsgTx, isVote bool) error {
+	// Create a slice of functions to run after the retreived secrets are no
+	// longer needed.
+	doneFuncs := make([]func(), 0, len(tx.TxIn))
+	defer func() {
+		for _, done := range doneFuncs {
+			done()
+		}
+	}()
+
+	// Prepare functions to look up private key and script secrets so signing
+	// can be performed.
+	var getKey txscript.KeyClosure = func(addr dcrutil.Address) (chainec.PrivateKey, bool, error) {
+		address, err := w.Manager.Address(addrmgrNs, addr)
+		if err != nil {
+			return nil, false, err
+		}
+
+		pka, ok := address.(udb.ManagedPubKeyAddress)
+		if !ok {
+			return nil, false, errors.New("address is not a pubkey address")
+		}
+
+		key, done, err := w.Manager.PrivateKey(addrmgrNs, addr)
+		if err != nil {
+			return nil, false, err
+		}
+		doneFuncs = append(doneFuncs, done)
+
+		return key, pka.Compressed(), nil
+	}
+	var getScript txscript.ScriptClosure = func(addr dcrutil.Address) ([]byte, error) {
+		script, done, err := w.Manager.RedeemScript(addrmgrNs, addr)
+		if err != nil {
+			return nil, err
+		}
+		doneFuncs = append(doneFuncs, done)
+		return script, nil
+	}
+
+	// Revocations only contain one input, which is the input that must be
+	// signed.  The first input for a vote is the stakebase and the second input
+	// must be signed.
+	inputToSign := 0
+	if isVote {
+		inputToSign = 1
+	}
+
+	// Sign the input.
+	redeemTicketScript := ticketPurchase.TxOut[0].PkScript
+	signedScript, err := txscript.SignTxOutput(w.chainParams, tx, inputToSign,
+		redeemTicketScript, txscript.SigHashAll, getKey, getScript,
+		tx.TxIn[inputToSign].SignatureScript, chainec.ECTypeSecp256k1)
+	if err != nil {
+		return err
+	}
+	if isVote {
+		tx.TxIn[0].SignatureScript = w.chainParams.StakeBaseSigScript
+	}
+	tx.TxIn[inputToSign].SignatureScript = signedScript
+
+	return nil
+}
+
+// signVote signs a vote transaction.  This modifies the input scripts pointed
+// to by the vote transaction.
+func (w *Wallet) signVote(addrmgrNs walletdb.ReadBucket, ticketPurchase, vote *wire.MsgTx) error {
+	return w.signVoteOrRevocation(addrmgrNs, ticketPurchase, vote, true)
+}
+
+// signRevocation signs a revocation transaction.  This modifes the input
+// scripts pointed to by the revocation transaction.
+func (w *Wallet) signRevocation(addrmgrNs walletdb.ReadBucket, ticketPurchase, revocation *wire.MsgTx) error {
+	return w.signVoteOrRevocation(addrmgrNs, ticketPurchase, revocation, false)
+}
+
+// newVoteScript generates a voting script from the passed VoteBits, for
+// use in a vote.
+func newVoteScript(voteBits stake.VoteBits) ([]byte, error) {
+	b := make([]byte, 2+len(voteBits.ExtendedBits))
+	binary.LittleEndian.PutUint16(b[0:2], voteBits.Bits)
+	copy(b[2:], voteBits.ExtendedBits[:])
+	return txscript.GenerateProvablyPruneableOut(b)
+}
+
+// createUnsignedVote creates an unsigned vote transaction that votes using the
+// ticket specified by a ticket purchase hash and transaction with the provided
+// vote bits.  The block height and hash must be of the previous block the vote
+// is voting on.
+func createUnsignedVote(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx,
+	blockHeight int32, blockHash *chainhash.Hash, voteBits stake.VoteBits,
+	subsidyCache *blockchain.SubsidyCache, params *chaincfg.Params) (*wire.MsgTx, error) {
+
+	// Parse the ticket purchase transaction to determine the required output
+	// destinations for vote rewards or revocations.
+	ticketPayKinds, ticketHash160s, ticketValues, _, _, _ :=
+		stake.TxSStxStakeOutputInfo(ticketPurchase)
+
+	// Calculate the subsidy for votes at this height.
+	subsidy := blockchain.CalcStakeVoteSubsidy(subsidyCache, int64(blockHeight),
+		params)
+
+	// Calculate the output values from this vote using the subsidy.
+	voteRewardValues := stake.CalculateRewards(ticketValues,
+		ticketPurchase.TxOut[0].Value, subsidy)
+
+	// Begin constructing the vote transaction.
+	vote := wire.NewMsgTx()
+
+	// Add stakebase input to the vote.
+	stakebaseOutPoint := wire.NewOutPoint(&chainhash.Hash{}, ^uint32(0),
+		wire.TxTreeRegular)
+	stakebaseInput := wire.NewTxIn(stakebaseOutPoint, nil)
+	stakebaseInput.ValueIn = subsidy
+	vote.AddTxIn(stakebaseInput)
+
+	// Votes reference the ticket purchase with the second input.
+	ticketOutPoint := wire.NewOutPoint(ticketHash, 0, wire.TxTreeStake)
+	vote.AddTxIn(wire.NewTxIn(ticketOutPoint, nil))
+
+	// The first output references the previous block the vote is voting on.
+	// This function never errors.
+	blockRefScript, _ := txscript.GenerateSSGenBlockRef(*blockHash,
+		uint32(blockHeight))
+	vote.AddTxOut(wire.NewTxOut(0, blockRefScript))
+
+	// The second output contains the votebits encode as a null data script.
+	voteScript, err := newVoteScript(voteBits)
+	if err != nil {
+		return nil, err
+	}
+	vote.AddTxOut(wire.NewTxOut(0, voteScript))
+
+	// All remaining outputs pay to the output destinations and amounts tagged
+	// by the ticket purchase.
+	for i, hash160 := range ticketHash160s {
+		scriptFn := txscript.PayToSSGenPKHDirect
+		if ticketPayKinds[i] { // P2SH
+			scriptFn = txscript.PayToSSGenSHDirect
+		}
+		// Error is checking for a nil hash160, just ignore it.
+		script, _ := scriptFn(hash160)
+		vote.AddTxOut(wire.NewTxOut(voteRewardValues[i], script))
+	}
+
+	return vote, nil
+}
+
+// createUnsignedRevocation creates an unsigned revocation transaction that
+// revokes a missed or expired ticket.  Revocations must carry a relay fee and
+// this function can error if the revocation contains no suitable output to
+// decrease the estimated relay fee from.
+func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx, feePerKB dcrutil.Amount) (*wire.MsgTx, error) {
+	// Parse the ticket purchase transaction to determine the required output
+	// destinations for vote rewards or revocations.
+	ticketPayKinds, ticketHash160s, ticketValues, _, _, _ :=
+		stake.TxSStxStakeOutputInfo(ticketPurchase)
+
+	// Calculate the output values for the revocation.  Revocations do not
+	// contain any subsidy.
+	revocationValues := stake.CalculateRewards(ticketValues,
+		ticketPurchase.TxOut[0].Value, 0)
+
+	// Begin constructing the revocation transaction.
+	revocation := wire.NewMsgTx()
+
+	// Revocations reference the ticket purchase with the first (and only)
+	// input.
+	ticketOutPoint := wire.NewOutPoint(ticketHash, 0, wire.TxTreeStake)
+	revocation.AddTxIn(wire.NewTxIn(ticketOutPoint, nil))
+
+	// All remaining outputs pay to the output destinations and amounts tagged
+	// by the ticket purchase.
+	for i, hash160 := range ticketHash160s {
+		scriptFn := txscript.PayToSSRtxPKHDirect
+		if ticketPayKinds[i] { // P2SH
+			scriptFn = txscript.PayToSSRtxSHDirect
+		}
+		// Error is checking for a nil hash160, just ignore it.
+		script, _ := scriptFn(hash160)
+		revocation.AddTxOut(wire.NewTxOut(revocationValues[i], script))
+	}
+
+	// Revocations must pay a fee but do so by decreasing one of the output
+	// values instead of increasing the input value and using a change output.
+	// Calculate the estimated signed serialize size.
+	sizeEstimate := txsizes.EstimateSerializeSize(1, revocation.TxOut, false)
+	feeEstimate := txrules.FeeForSerializeSize(feePerKB, sizeEstimate)
+
+	// Reduce the output value of one of the outputs to accomodate for the relay
+	// fee.  To avoid creating dust outputs, a suitable output value is reduced
+	// by the fee estimate only if it is large enough to not create dust.  This
+	// code does not currently handle reducing the output values of multiple
+	// commitment outputs to accomodate for the fee.
+	for _, output := range revocation.TxOut {
+		if dcrutil.Amount(output.Value) > feeEstimate {
+			amount := dcrutil.Amount(output.Value) - feeEstimate
+			if !txrules.IsDustAmount(amount, len(output.PkScript), feePerKB) {
+				output.Value = int64(amount)
+				return revocation, nil
+			}
+		}
+	}
+	return nil, errors.New("no suitable revocation outputs to pay relay fee")
 }

@@ -549,7 +549,8 @@ func generateVote(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		ExtendedBits: voteBitsExt,
 	}
 
-	ssgentx, err := w.GenerateVoteTx(blockHash, cmd.Height, ticketHash, voteBits)
+	ssgentx, err := w.GenerateVoteTx(blockHash, int32(cmd.Height), ticketHash,
+		voteBits)
 	if err != nil {
 		return nil, err
 	}

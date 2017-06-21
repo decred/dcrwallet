@@ -54,9 +54,7 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 			}
 		case chain.MissedTickets:
 			notificationName = "spentandmissedtickets"
-			err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-				return w.handleMissedTickets(dbtx, n.BlockHash, n.BlockHeight, n.Tickets)
-			})
+			err = w.handleMissedTickets(n.BlockHash, int32(n.BlockHeight), n.Tickets)
 		}
 		if err != nil {
 			log.Errorf("Failed to process consensus server notification "+
@@ -571,10 +569,8 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 			txInHash := tx.MsgTx().TxIn[0].PreviousOutPoint.Hash
 
 			if w.StakeMgr.CheckHashInStore(&txInHash) {
-				err = w.StakeMgr.InsertSSRtx(stakemgrNs, &blockMeta.Hash,
-					int64(height),
-					&txHash,
-					&txInHash)
+				err = w.StakeMgr.StoreRevocationInfo(dbtx, &txInHash, &txHash,
+					&blockMeta.Hash, height)
 				if err != nil {
 					return err
 				}
@@ -853,9 +849,7 @@ func (w *Wallet) handleChainVotingNotifications(chainClient *chain.RPCClient) {
 
 		switch n := n.(type) {
 		case chain.WinningTickets:
-			err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-				return w.handleWinningTickets(dbtx, n.BlockHash, n.BlockHeight, n.Tickets)
-			})
+			err = w.handleWinningTickets(n.BlockHash, int32(n.BlockHeight), n.Tickets)
 			strErrType = "WinningTickets"
 		default:
 			err = fmt.Errorf("voting handler received unknown ntfn type")
@@ -870,15 +864,17 @@ func (w *Wallet) handleChainVotingNotifications(chainClient *chain.RPCClient) {
 
 // handleWinningTickets receives a list of hashes and some block information
 // and submits it to the wstakemgr to handle SSGen production.
-func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chainhash.Hash,
-	blockHeight int64, tickets []*chainhash.Hash) error {
+func (w *Wallet) handleWinningTickets(blockHash *chainhash.Hash,
+	blockHeight int32, winningTicketHashes []*chainhash.Hash) error {
 
-	if !w.votingEnabled {
+	if !w.votingEnabled || blockHeight < int32(w.chainParams.StakeValidationHeight)-1 {
 		return nil
 	}
 
-	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
+	chainClient, err := w.requireChainClient()
+	if err != nil {
+		return err
+	}
 
 	// TODO The behavior of this is not quite right if tons of blocks
 	// are coming in quickly, because the transaction store will end up
@@ -886,33 +882,66 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 	// be fixed somehow, but this should be stable for networks that
 	// are voting at normal block speeds.
 
-	if blockHeight >= w.chainParams.StakeValidationHeight-1 {
-		ntfns, err := w.StakeMgr.HandleWinningTicketsNtfn(
-			stakemgrNs,
-			addrmgrNs,
-			blockHash,
-			blockHeight,
-			tickets,
-			w.VoteBits(),
-			w.stakePoolEnabled,
-			w.AllowHighFees,
-		)
+	// Only consider tickets owned by this wallet.
+	ticketHashes := w.StakeMgr.OwnTickets(winningTicketHashes)
+	if len(ticketHashes) == 0 {
+		return nil
+	}
 
-		if ntfns != nil {
-			// Send notifications for newly created votes by the RPC.
-			for _, ntfn := range ntfns {
-				// Inform the console that we've voted, too.
-				log.Infof("Voted on block %v (height %v) using ticket %v "+
-					"(vote hash: %v bits: %v)",
-					ntfn.BlockHash,
-					ntfn.Height,
-					ntfn.SStxIn,
-					ntfn.TxHash,
-					ntfn.VoteBits)
+	votes := make([]*wire.MsgTx, len(ticketHashes))
+	voteBits := w.VoteBits()
+	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		for i, ticketHash := range ticketHashes {
+			ticketPurchase, err := w.StakeMgr.TicketPurchase(dbtx, ticketHash)
+			if err != nil {
+				log.Errorf("Failed to read ticket purchase transaction for "+
+					"owned winning ticket %v: %v", ticketHash, err)
+				continue
 			}
+			vote, err := createUnsignedVote(ticketHash, ticketPurchase,
+				blockHeight, blockHash, voteBits, w.subsidyCache, w.chainParams)
+			if err != nil {
+				log.Errorf("Failed to create vote transaction for ticket "+
+					"hash %v: %v", ticketHash, err)
+				continue
+			}
+			err = w.signVote(addrmgrNs, ticketPurchase, vote)
+			if err != nil {
+				log.Errorf("Failed to sign vote for ticket hash %v: %v",
+					ticketHash, err)
+				continue
+			}
+			votes[i] = vote
 		}
+		return nil
+	})
+	if err != nil {
+		log.Errorf("View failed: %v", err)
+	}
 
-		return err
+	for i, vote := range votes {
+		if vote == nil {
+			continue
+		}
+		voteHash := vote.TxHash()
+		err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+			err := w.StakeMgr.StoreVoteInfo(dbtx, ticketHashes[i], &voteHash,
+				blockHash, blockHeight, voteBits)
+			if err != nil {
+				return err
+			}
+			_, err = chainClient.SendRawTransaction(vote, true)
+			return err
+		})
+		if err != nil {
+			log.Errorf("Failed to send vote for ticket hash %v: %v",
+				ticketHashes[i], err)
+			continue
+		}
+		log.Infof("Voted on block %v (height %v) using ticket %v "+
+			"(vote hash: %v bits: %v", blockHash, blockHeight,
+			ticketHashes[i], &voteHash, voteBits.Bits)
 	}
 
 	return nil
@@ -920,29 +949,77 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 
 // handleMissedTickets receives a list of hashes and some block information
 // and submits it to the wstakemgr to handle SSRtx production.
-func (w *Wallet) handleMissedTickets(dbtx walletdb.ReadWriteTx, blockHash *chainhash.Hash,
-	blockHeight int64, tickets []*chainhash.Hash) error {
+func (w *Wallet) handleMissedTickets(blockHash *chainhash.Hash, blockHeight int32,
+	missedTicketHashes []*chainhash.Hash) error {
 
-	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
-	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+	if blockHeight < int32(w.chainParams.StakeValidationHeight)-1 {
+		return nil
+	}
 
-	if blockHeight >= w.chainParams.StakeValidationHeight+1 {
-		ntfns, err := w.StakeMgr.HandleMissedTicketsNtfn(stakemgrNs, addrmgrNs,
-			blockHash, blockHeight, tickets, w.RelayFee(), w.AllowHighFees)
-
-		if ntfns != nil {
-			// Send notifications for newly created revocations by the RPC.
-			for _, ntfn := range ntfns {
-				if ntfn != nil {
-					// Inform the console that we've revoked our ticket.
-					log.Infof("Revoked missed ticket %v (tx hash: %v)",
-						ntfn.SStxIn,
-						ntfn.TxHash)
-				}
-			}
-		}
-
+	chainClient, err := w.requireChainClient()
+	if err != nil {
 		return err
+	}
+
+	// Only consider tickets owned by this wallet.
+	ticketHashes := w.StakeMgr.OwnTickets(missedTicketHashes)
+	if len(ticketHashes) == 0 {
+		return nil
+	}
+
+	revocations := make([]*wire.MsgTx, len(ticketHashes))
+	relayFee := w.RelayFee()
+	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		for i, ticketHash := range ticketHashes {
+			ticketPurchase, err := w.StakeMgr.TicketPurchase(dbtx, ticketHash)
+			if err != nil {
+				log.Errorf("Failed to read ticket purchase transaction for "+
+					"missed or expired ticket %v: %v", ticketHash, err)
+				continue
+			}
+			revocation, err := createUnsignedRevocation(ticketHash, ticketPurchase,
+				relayFee)
+			if err != nil {
+				log.Errorf("Failed to create revocation transaction for ticket "+
+					"hash %v: %v", ticketHash, err)
+				continue
+			}
+			err = w.signRevocation(addrmgrNs, ticketPurchase, revocation)
+			if err != nil {
+				log.Errorf("Failed to sign revocation for ticket hash %v: %v",
+					ticketHash, err)
+				continue
+			}
+			revocations[i] = revocation
+		}
+		return nil
+	})
+	if err != nil {
+		log.Errorf("View failed: %v", err)
+	}
+
+	for i, revocation := range revocations {
+		if revocation == nil {
+			continue
+		}
+		revocationHash := revocation.TxHash()
+		err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+			err := w.StakeMgr.StoreRevocationInfo(dbtx, ticketHashes[i],
+				&revocationHash, blockHash, blockHeight)
+			if err != nil {
+				return err
+			}
+			_, err = chainClient.SendRawTransaction(revocation, true)
+			return err
+		})
+		if err != nil {
+			log.Errorf("Failed to send revocation %v for ticket hash %v: %v",
+				&revocationHash, ticketHashes[i], err)
+			continue
+		}
+		log.Infof("Revoked ticket %v with revocation %v", ticketHashes[i],
+			&revocationHash)
 	}
 
 	return nil
