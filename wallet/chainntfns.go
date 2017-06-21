@@ -879,21 +879,12 @@ func (w *Wallet) handleWinningTickets(dbtx walletdb.ReadWriteTx, blockHash *chai
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
-	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-	topHash, _ := w.TxStore.MainChainTip(txmgrNs)
-
-	// Even if stake voting is disabled, we should still store eligible
-	// tickets for the current top block.
 	// TODO The behavior of this is not quite right if tons of blocks
 	// are coming in quickly, because the transaction store will end up
 	// out of sync with the voting channel here. This should probably
 	// be fixed somehow, but this should be stable for networks that
 	// are voting at normal block speeds.
-	if blockHeight >= w.chainParams.StakeValidationHeight-1 &&
-		topHash == *blockHash {
-		w.SetCurrentVotingInfo(blockHash, blockHeight, tickets)
-	}
 
 	if blockHeight >= w.chainParams.StakeValidationHeight-1 {
 		ntfns, err := w.StakeMgr.HandleWinningTicketsNtfn(

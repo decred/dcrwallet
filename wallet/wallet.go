@@ -75,14 +75,6 @@ type StakeDifficultyInfo struct {
 	StakeDifficulty int64
 }
 
-// VotingInfo is a container for the current height, hash, and list
-// of eligible tickets.
-type VotingInfo struct {
-	BlockHash   *chainhash.Hash
-	BlockHeight int64
-	Tickets     []*chainhash.Hash
-}
-
 // Wallet is a structure containing all the components for a
 // complete wallet.  It contains the Armory-style key store
 // addresses and keys),
@@ -100,7 +92,6 @@ type Wallet struct {
 	voteBits                stake.VoteBits
 	ticketPurchasingEnabled bool
 	votingEnabled           bool
-	CurrentVotingInfo       *VotingInfo
 	balanceToMaintain       dcrutil.Amount
 	poolAddress             dcrutil.Address
 	poolFees                float64
@@ -485,15 +476,6 @@ func (w *Wallet) SetTicketPurchasingEnabled(flag bool) {
 	w.stakeSettingsLock.Lock()
 	w.ticketPurchasingEnabled = flag
 	w.stakeSettingsLock.Unlock()
-}
-
-// SetCurrentVotingInfo is used to set the current tickets eligible
-// to vote on the top block, along with that block's hash and height.
-func (w *Wallet) SetCurrentVotingInfo(blockHash *chainhash.Hash, blockHeight int64, tickets []*chainhash.Hash) {
-	w.stakeSettingsLock.Lock()
-	defer w.stakeSettingsLock.Unlock()
-
-	w.CurrentVotingInfo = &VotingInfo{blockHash, blockHeight, tickets}
 }
 
 // TicketAddress gets the ticket address for the wallet to give the ticket
