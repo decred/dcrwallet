@@ -44,7 +44,7 @@ type Loader struct {
 	stakeOptions    *StakeOptions
 	addrIdxScanLen  int
 	allowHighFees   bool
-	relayFee       	dcrutil.Amount 
+	relayFee        dcrutil.Amount
 }
 
 // StakeOptions contains the various options necessary for stake mining.
@@ -56,7 +56,7 @@ type StakeOptions struct {
 	AddressReuse            bool
 	TicketAddress           string
 	PoolAddress             string
-	PoolFees                float64
+	PoolFees                dcrutil.Amount
 	StakePoolColdExtKey     string
 }
 

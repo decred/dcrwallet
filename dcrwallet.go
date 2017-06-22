@@ -100,7 +100,7 @@ func walletMain() error {
 		AddressReuse:        cfg.ReuseAddresses,
 		TicketAddress:       cfg.TicketAddress,
 		PoolAddress:         cfg.PoolAddress,
-		PoolFees:            cfg.PoolFees,
+		PoolFees:            cfg.PoolFees.Amount,
 		StakePoolColdExtKey: cfg.StakePoolColdExtKey,
 		TicketFee:           cfg.TicketFee.Amount,
 	}

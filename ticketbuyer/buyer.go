@@ -73,7 +73,7 @@ type Config struct {
 	MaxPriceRelative          float64
 	MaxInMempool              int
 	PoolAddress               string
-	PoolFees                  float64
+	PoolFees                  dcrutil.Amount
 	NoSpreadTicketPurchases   bool
 	TicketAddress             string
 	TxFee                     int64
@@ -110,7 +110,7 @@ type TicketPurchaser struct {
 	maxPriceRelative  float64
 	maxFee            dcrutil.Amount
 	minFee            dcrutil.Amount
-	poolFees          float64
+	poolFees          dcrutil.Amount
 	maxPerBlock       int
 	maxInMempool      int
 	expiryDelta       int
@@ -285,7 +285,7 @@ func (t *TicketPurchaser) SetPoolAddress(poolAddress dcrutil.Address) {
 }
 
 // PoolFees returns the percent of ticket per ticket fee mandated by the pool.
-func (t *TicketPurchaser) PoolFees() float64 {
+func (t *TicketPurchaser) PoolFees() dcrutil.Amount {
 	t.purchaserMtx.Lock()
 	poolFees := t.poolFees
 	t.purchaserMtx.Unlock()
@@ -293,7 +293,7 @@ func (t *TicketPurchaser) PoolFees() float64 {
 }
 
 // SetPoolFees sets the percent of ticket per ticket fee mandated by the pool.
-func (t *TicketPurchaser) SetPoolFees(poolFees float64) {
+func (t *TicketPurchaser) SetPoolFees(poolFees dcrutil.Amount) {
 	t.purchaserMtx.Lock()
 	t.poolFees = poolFees
 	t.purchaserMtx.Unlock()
@@ -834,12 +834,6 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		}
 	}
 
-	// Purchase tickets.
-	poolFeesAmt, err := dcrutil.NewAmount(t.cfg.PoolFees)
-	if err != nil {
-		return ps, err
-	}
-
 	// Ticket purchase requires 2 blocks to confirm
 	expiry := int32(int(height) + t.ExpiryDelta() + 2)
 	hashes, purchaseErr := t.wallet.PurchaseTickets(0,
@@ -849,7 +843,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		account,
 		toBuyForBlock,
 		t.PoolAddress(),
-		poolFeesAmt.ToCoin(),
+		t.cfg.PoolFees,
 		expiry,
 		t.wallet.RelayFee(),
 		t.wallet.TicketFeeIncrement(),
