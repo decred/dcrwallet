@@ -54,10 +54,10 @@ func createWallet(cfg *config) error {
 		PruneTickets:  cfg.PruneTickets,
 		AddressReuse:  cfg.ReuseAddresses,
 		TicketAddress: cfg.TicketAddress,
-		TicketFee:     cfg.TicketFee.ToCoin(),
+		TicketFee:     cfg.TicketFee.Amount,
 	}
 	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
-		cfg.AddrIdxScanLen, cfg.AllowHighFees, cfg.RelayFee.ToCoin())
+		cfg.AddrIdxScanLen, cfg.AllowHighFees, cfg.RelayFee.Amount)
 
 	reader := bufio.NewReader(os.Stdin)
 	privPass, pubPass, seed, err := prompt.Setup(reader,

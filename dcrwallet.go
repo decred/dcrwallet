@@ -102,10 +102,10 @@ func walletMain() error {
 		PoolAddress:         cfg.PoolAddress,
 		PoolFees:            cfg.PoolFees,
 		StakePoolColdExtKey: cfg.StakePoolColdExtKey,
-		TicketFee:           cfg.TicketFee.ToCoin(),
+		TicketFee:           cfg.TicketFee.Amount,
 	}
 	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
-		cfg.AddrIdxScanLen, cfg.AllowHighFees, cfg.RelayFee.ToCoin())
+		cfg.AddrIdxScanLen, cfg.AllowHighFees, cfg.RelayFee.Amount)
 
 	passphrase := []byte{}
 	if !cfg.NoInitialLoad {
