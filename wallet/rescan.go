@@ -85,8 +85,8 @@ func (w *Wallet) rescan(chainClient *chain.RPCClient, startHash *chainhash.Hash,
 					if err != nil {
 						return err
 					}
-					err = w.processTransaction(dbtx, serTx, &rawBlockHeader,
-						&blockMeta)
+					err = w.processSerializedTransaction(dbtx, serTx,
+						&rawBlockHeader, &blockMeta)
 					if err != nil {
 						return err
 					}

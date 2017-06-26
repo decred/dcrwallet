@@ -45,7 +45,7 @@ func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
 		case chain.RelevantTxAccepted:
 			notificationName = "relevanttxaccepted"
 			err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-				return w.processTransaction(dbtx, n.Transaction, nil, nil)
+				return w.processSerializedTransaction(dbtx, n.Transaction, nil, nil)
 			})
 			if err == nil {
 				err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
@@ -130,7 +130,7 @@ func (w *Wallet) extendMainChain(dbtx walletdb.ReadWriteTx, block *udb.BlockHead
 	}
 
 	for _, serializedTx := range transactions {
-		err = w.processTransaction(dbtx, serializedTx,
+		err = w.processSerializedTransaction(dbtx, serializedTx,
 			&block.SerializedHeader, &blockMeta)
 		if err != nil {
 			return err
@@ -403,17 +403,22 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord,
 	return true, nil
 }
 
-func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []byte,
+func (w *Wallet) processSerializedTransaction(dbtx walletdb.ReadWriteTx, serializedTx []byte,
 	serializedHeader *udb.RawBlockHeader, blockMeta *udb.BlockMeta) error {
-
-	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
-	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
-	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
 	rec, err := udb.NewTxRecord(serializedTx, time.Now())
 	if err != nil {
 		return err
 	}
+	return w.processTransactionRecord(dbtx, rec, serializedHeader, blockMeta)
+}
+
+func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord,
+	serializedHeader *udb.RawBlockHeader, blockMeta *udb.BlockMeta) error {
+
+	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
+	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
+	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
 	height := int32(-1)
 	if serializedHeader != nil {
@@ -425,9 +430,6 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 	// added, but until then, simply insert the transaction because there
 	// should either be one or more relevant inputs or outputs.
 
-	tx := dcrutil.NewTx(&rec.MsgTx)
-	txHash := rec.Hash
-
 	// Handle incoming SStx; store them in the stake manager if we own
 	// the OP_SSTX tagged out, except if we're operating as a stake pool
 	// server. In that case, additionally consider the first commitment
@@ -435,75 +437,74 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 	if is, _ := stake.IsSStx(&rec.MsgTx); is {
 		// Errors don't matter here.  If addrs is nil, the range below
 		// does nothing.
-		txOut := tx.MsgTx().TxOut[0]
-
+		txOut := rec.MsgTx.TxOut[0]
 		_, addrs, _, _ := txscript.ExtractPkScriptAddrs(txOut.Version,
 			txOut.PkScript, w.chainParams)
 		insert := false
 		for _, addr := range addrs {
-			_, err := w.Manager.Address(addrmgrNs, addr)
-			if err == nil {
-				// We own the voting output pubkey or script and we're
-				// not operating as a stake pool, so simply insert this
-				// ticket now.
-				if !w.stakePoolEnabled {
-					insert = true
-					break
-				} else {
-					// We are operating as a stake pool. The below
-					// function will ONLY add the ticket into the
-					// stake pool if it has been found within a
-					// block.
-					if serializedHeader == nil {
-						break
-					}
+			if !w.Manager.ExistsAddress(addrmgrNs, addr.Hash160()[:]) {
+				continue
+			}
+			// We own the voting output pubkey or script and we're
+			// not operating as a stake pool, so simply insert this
+			// ticket now.
+			if !w.stakePoolEnabled {
+				insert = true
+				break
+			}
 
-					valid, errEval := w.evaluateStakePoolTicket(rec, height,
-						addr)
-					if valid {
-						// Be sure to insert this into the user's stake
-						// pool entry into the stake manager.
-						poolTicket := &udb.PoolTicket{
-							Ticket:       txHash,
-							HeightTicket: uint32(height),
-							Status:       udb.TSImmatureOrLive,
-						}
-						errUpdate := w.StakeMgr.UpdateStakePoolUserTickets(
-							stakemgrNs, addrmgrNs, addr, poolTicket)
-						if errUpdate != nil {
-							log.Warnf("Failed to insert stake pool "+
-								"user ticket: %s", err.Error())
-						}
-						log.Debugf("Inserted stake pool ticket %v for user %v "+
-							"into the stake store database", txHash, addr)
+			// We are operating as a stake pool. The below
+			// function will ONLY add the ticket into the
+			// stake pool if it has been found within a
+			// block.
+			if serializedHeader == nil {
+				break
+			}
 
-						insert = true
-						break
-					}
-
-					// Log errors if there were any. At this point the ticket
-					// must be invalid, so insert it into the list of invalid
-					// user tickets.
-					if errEval != nil {
-						log.Warnf("Ticket %v failed ticket evaluation for "+
-							"the stake pool: %s", rec.Hash, err.Error())
-					}
-					errUpdate := w.StakeMgr.UpdateStakePoolUserInvalTickets(
-						stakemgrNs, addr, &rec.Hash)
-					if errUpdate != nil {
-						log.Warnf("Failed to update pool user %v with "+
-							"invalid ticket %v", addr.EncodeAddress(),
-							rec.Hash)
-					}
+			valid, errEval := w.evaluateStakePoolTicket(rec, height,
+				addr)
+			if valid {
+				// Be sure to insert this into the user's stake
+				// pool entry into the stake manager.
+				poolTicket := &udb.PoolTicket{
+					Ticket:       rec.Hash,
+					HeightTicket: uint32(height),
+					Status:       udb.TSImmatureOrLive,
 				}
+				err := w.StakeMgr.UpdateStakePoolUserTickets(
+					stakemgrNs, addrmgrNs, addr, poolTicket)
+				if err != nil {
+					log.Warnf("Failed to insert stake pool "+
+						"user ticket: %v", err)
+				}
+				log.Debugf("Inserted stake pool ticket %v for user %v "+
+					"into the stake store database", &rec.Hash, addr)
+
+				insert = true
+				break
+			}
+
+			// Log errors if there were any. At this point the ticket
+			// must be invalid, so insert it into the list of invalid
+			// user tickets.
+			if errEval != nil {
+				log.Warnf("Ticket %v failed ticket evaluation for "+
+					"the stake pool: %s", &rec.Hash, errEval)
+			}
+			err := w.StakeMgr.UpdateStakePoolUserInvalTickets(
+				stakemgrNs, addr, &rec.Hash)
+			if err != nil {
+				log.Warnf("Failed to update pool user %v with "+
+					"invalid ticket %v", addr.EncodeAddress(),
+					rec.Hash)
 			}
 		}
 
 		if insert {
-			err := w.StakeMgr.InsertSStx(stakemgrNs, tx)
+			err := w.StakeMgr.InsertSStx(stakemgrNs, dcrutil.NewTx(&rec.MsgTx))
 			if err != nil {
 				log.Errorf("Failed to insert SStx %v"+
-					"into the stake store.", tx.Hash())
+					"into the stake store.", &rec.Hash)
 			}
 		}
 	}
@@ -512,13 +513,11 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 	// the ticket used to purchase them.
 	if is, _ := stake.IsSSGen(&rec.MsgTx); is {
 		if serializedHeader != nil {
-			txInHash := tx.MsgTx().TxIn[1].PreviousOutPoint.Hash
-			if w.StakeMgr.CheckHashInStore(&txInHash) {
-				err = w.StakeMgr.InsertSSGen(stakemgrNs, &blockMeta.Block.Hash,
-					int64(height),
-					&txHash,
-					stake.SSGenVoteBits(&rec.MsgTx),
-					&txInHash)
+			txInHash := &rec.MsgTx.TxIn[1].PreviousOutPoint.Hash
+			if w.StakeMgr.CheckHashInStore(txInHash) {
+				err := w.StakeMgr.InsertSSGen(stakemgrNs, &blockMeta.Block.Hash,
+					int64(height), &rec.Hash, stake.SSGenVoteBits(&rec.MsgTx),
+					txInHash)
 				if err != nil {
 					return err
 				}
@@ -527,16 +526,16 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 			// If we're running as a stake pool, insert
 			// the stake pool user ticket update too.
 			if w.stakePoolEnabled {
-				txInHeight := tx.MsgTx().TxIn[1].BlockHeight
+				txInHeight := rec.MsgTx.TxIn[1].BlockHeight
 				poolTicket := &udb.PoolTicket{
-					Ticket:       txInHash,
+					Ticket:       *txInHash,
 					HeightTicket: txInHeight,
 					Status:       udb.TSVoted,
-					SpentBy:      txHash,
+					SpentBy:      rec.Hash,
 					HeightSpent:  uint32(height),
 				}
 
-				poolUser, err := w.StakeMgr.SStxAddress(stakemgrNs, &txInHash)
+				poolUser, err := w.StakeMgr.SStxAddress(stakemgrNs, txInHash)
 				if err != nil {
 					log.Warnf("Failed to fetch stake pool user for "+
 						"ticket %v (voted ticket): %v", txInHash, err)
@@ -550,7 +549,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 					} else {
 						log.Debugf("Updated voted stake pool ticket %v "+
 							"for user %v into the stake store database ("+
-							"vote hash: %v)", txInHash, poolUser, txHash)
+							"vote hash: %v)", txInHash, poolUser, &rec.Hash)
 					}
 				}
 			}
@@ -564,51 +563,50 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, serializedTx []by
 
 	// Handle incoming SSRtx; store them if we own
 	// the ticket used to purchase them.
-	if is, _ := stake.IsSSRtx(&rec.MsgTx); is {
-		if serializedHeader != nil {
-			txInHash := tx.MsgTx().TxIn[0].PreviousOutPoint.Hash
+	if is, _ := stake.IsSSRtx(&rec.MsgTx); is && serializedHeader != nil {
+		txInHash := &rec.MsgTx.TxIn[0].PreviousOutPoint.Hash
 
-			if w.StakeMgr.CheckHashInStore(&txInHash) {
-				err = w.StakeMgr.StoreRevocationInfo(dbtx, &txInHash, &txHash,
-					&blockMeta.Hash, height)
-				if err != nil {
-					return err
-				}
+		if w.StakeMgr.CheckHashInStore(txInHash) {
+			err := w.StakeMgr.StoreRevocationInfo(dbtx, txInHash, &rec.Hash,
+				&blockMeta.Hash, height)
+			if err != nil {
+				return err
+			}
+		}
+
+		// If we're running as a stake pool, insert
+		// the stake pool user ticket update too.
+		if w.stakePoolEnabled {
+			txInHeight := rec.MsgTx.TxIn[0].BlockHeight
+			poolTicket := &udb.PoolTicket{
+				Ticket:       *txInHash,
+				HeightTicket: txInHeight,
+				Status:       udb.TSMissed,
+				SpentBy:      rec.Hash,
+				HeightSpent:  uint32(height),
 			}
 
-			// If we're running as a stake pool, insert
-			// the stake pool user ticket update too.
-			if w.stakePoolEnabled {
-				txInHeight := tx.MsgTx().TxIn[0].BlockHeight
-				poolTicket := &udb.PoolTicket{
-					Ticket:       txInHash,
-					HeightTicket: txInHeight,
-					Status:       udb.TSMissed,
-					SpentBy:      txHash,
-					HeightSpent:  uint32(height),
-				}
-
-				poolUser, err := w.StakeMgr.SStxAddress(stakemgrNs, &txInHash)
+			poolUser, err := w.StakeMgr.SStxAddress(stakemgrNs, txInHash)
+			if err != nil {
+				log.Warnf("failed to fetch stake pool user for "+
+					"ticket %v (missed ticket)", txInHash)
+			} else {
+				err = w.StakeMgr.UpdateStakePoolUserTickets(
+					stakemgrNs, addrmgrNs, poolUser, poolTicket)
 				if err != nil {
-					log.Warnf("failed to fetch stake pool user for "+
-						"ticket %v (missed ticket)", txInHash)
+					log.Warnf("failed to update stake pool ticket for "+
+						"stake pool user %s after revoking",
+						poolUser.EncodeAddress())
 				} else {
-					err = w.StakeMgr.UpdateStakePoolUserTickets(
-						stakemgrNs, addrmgrNs, poolUser, poolTicket)
-					if err != nil {
-						log.Warnf("failed to update stake pool ticket for "+
-							"stake pool user %s after revoking",
-							poolUser.EncodeAddress())
-					} else {
-						log.Debugf("Updated missed stake pool ticket %v "+
-							"for user %v into the stake store database ("+
-							"revocation hash: %v)", txInHash, poolUser, txHash)
-					}
+					log.Debugf("Updated missed stake pool ticket %v "+
+						"for user %v into the stake store database ("+
+						"revocation hash: %v)", txInHash, poolUser, &rec.Hash)
 				}
 			}
 		}
 	}
 
+	var err error
 	if serializedHeader == nil {
 		err = w.TxStore.InsertMemPoolTx(txmgrNs, rec)
 	} else {

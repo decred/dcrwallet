@@ -5,8 +5,8 @@
 package wallet
 
 import (
-	"bytes"
 	"encoding/hex"
+	"time"
 
 	"github.com/decred/bitset"
 	"github.com/decred/dcrd/blockchain/stake"
@@ -318,20 +318,19 @@ func (w *Wallet) RevokeTickets(chainClient *chain.RPCClient) error {
 	}
 
 	for i, revocation := range revocations {
-		revocationHash := revocation.TxHash()
-		var buf bytes.Buffer
-		buf.Grow(revocation.SerializeSize())
-		err := revocation.Serialize(&buf)
+		rec, err := udb.NewTxRecordFromMsgTx(revocation, time.Now())
 		if err != nil {
 			return err
 		}
-		serializedRevocation := buf.Bytes()
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 			err = w.StakeMgr.StoreRevocationInfo(dbtx, revokableTickets[i],
-				&revocationHash, &tipHash, tipHeight)
+				&rec.Hash, &tipHash, tipHeight)
+			if err != nil {
+				return err
+			}
 			// Could be more efficient by avoiding processTransaction, as we
 			// know it is a revocation.
-			err = w.processTransaction(dbtx, serializedRevocation, nil, nil)
+			err = w.processTransactionRecord(dbtx, rec, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -342,7 +341,7 @@ func (w *Wallet) RevokeTickets(chainClient *chain.RPCClient) error {
 			return err
 		}
 		log.Infof("Revoked ticket %v with revocation %v", revokableTickets[i],
-			&revocationHash)
+			&rec.Hash)
 	}
 
 	return nil

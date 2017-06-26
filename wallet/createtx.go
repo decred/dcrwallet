@@ -6,7 +6,6 @@
 package wallet
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -440,11 +439,7 @@ func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minc
 			" %v from imported account into default account.", changeAmount)
 	}
 
-	// The update below uses the same codepath as notified relevant transactions
-	// and requires a serialized transaction.
-	var buf bytes.Buffer
-	buf.Grow(atx.Tx.SerializeSize())
-	err = atx.Tx.Serialize(&buf)
+	rec, err := udb.NewTxRecordFromMsgTx(atx.Tx, time.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -461,7 +456,7 @@ func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minc
 
 		// TODO: this can be improved by not using the same codepath as notified
 		// relevant transactions, since this does a lot of extra work.
-		err = w.processTransaction(dbtx, buf.Bytes(), nil, nil)
+		err = w.processTransactionRecord(dbtx, rec, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -1242,42 +1237,19 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 			return ticketHashes, err
 		}
 
+		rec, err := udb.NewTxRecordFromMsgTx(ticket, time.Now())
+		if err != nil {
+			return ticketHashes, err
+		}
+
 		// Open a DB update to insert and publish the transaction.  If
 		// publishing fails, the update is rolled back.
 		var ticketHash *chainhash.Hash
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-			txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
-			stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
-			rec, err := w.insertIntoTxMgr(txmgrNs, ticket)
+			err = w.processTransactionRecord(dbtx, rec, nil, nil)
 			if err != nil {
 				return err
 			}
-			err = w.insertCreditsIntoTxMgr(dbtx, ticket, rec)
-			if err != nil {
-				return err
-			}
-			ma, err := w.Manager.Address(addrmgrNs, addrSubsidy)
-			if err != nil {
-				return err
-			}
-			err = w.markUsedAddress(dbtx, ma)
-			if err != nil {
-				return err
-			}
-			// The ticket address may be for another wallet. Don't insert the
-			// ticket into the stake manager unless we actually own output zero
-			// of it. If this is the case, the chainntfns.go handlers will
-			// automatically insert it.
-			if _, err := w.Manager.Address(addrmgrNs, addrVote); err == nil {
-				if w.ticketAddress == nil {
-					err = w.StakeMgr.InsertSStx(stakemgrNs, dcrutil.NewTx(ticket))
-					if err != nil {
-						return err
-					}
-				}
-			}
-
 			ticketHash, err = chainClient.SendRawTransaction(ticket, w.AllowHighFees)
 			return err
 		})

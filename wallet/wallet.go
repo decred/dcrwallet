@@ -3738,7 +3738,7 @@ func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, client 
 
 	var txHash *chainhash.Hash
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-		err := w.processTransaction(dbtx, serializedTx, nil, nil)
+		err := w.processSerializedTransaction(dbtx, serializedTx, nil, nil)
 		if err != nil {
 			return err
 		}
