@@ -24,21 +24,21 @@ import (
 // using the provided votebits.  The ticket purchase transaction must be stored
 // by the wallet.
 func (w *Wallet) GenerateVoteTx(blockHash *chainhash.Hash, height int32, ticketHash *chainhash.Hash, voteBits stake.VoteBits) (*wire.MsgTx, error) {
-	var voteTx *wire.MsgTx
+	var vote *wire.MsgTx
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		ticketPurchase, err := w.StakeMgr.TicketPurchase(dbtx, ticketHash)
 		if err != nil {
 			return err
 		}
-		vote, err := createUnsignedVote(ticketHash, ticketPurchase,
+		vote, err = createUnsignedVote(ticketHash, ticketPurchase,
 			height, blockHash, voteBits, w.subsidyCache, w.chainParams)
 		if err != nil {
 			return err
 		}
 		return w.signVote(addrmgrNs, ticketPurchase, vote)
 	})
-	return voteTx, err
+	return vote, err
 }
 
 // LiveTicketHashes returns the hashes of live tickets that have been purchased
