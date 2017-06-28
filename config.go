@@ -105,7 +105,7 @@ type config struct {
 	PurchaseAccount     string              `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
 	TicketAddress       string              `long:"ticketaddress" description:"Send all ticket outputs to this address (P2PKH or P2SH only)"`
 	PoolAddress         string              `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
-	PoolFees            float64             `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
+	PoolFees            *cfgutil.AmountFlag `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
 	AddrIdxScanLen      int                 `long:"addridxscanlen" description:"The width of the scan for last used addresses on wallet restore and start up"`
 	StakePoolColdExtKey string              `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
 	AllowHighFees       bool                `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
@@ -350,6 +350,7 @@ func loadConfig() (*config, []string, error) {
 		PruneTickets:           defaultPruneTickets,
 		PurchaseAccount:        defaultPurchaseAccount,
 		AutomaticRepair:        defaultAutomaticRepair,
+		PoolFees:               cfgutil.NewAmountFlag(0.0),
 		AddrIdxScanLen:         defaultAddrIdxScanLen,
 		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
 		AllowHighFees:          defaultAllowHighFees,
@@ -720,8 +721,8 @@ func loadConfig() (*config, []string, error) {
 		}
 	}
 
-	if cfg.PoolFees != 0.0 {
-		err := txrules.IsValidPoolFeeRate(cfg.PoolFees)
+	if cfg.PoolFees.Amount != 0 {
+		err := txrules.IsValidPoolFeeRate(cfg.PoolFees.Amount)
 		if err != nil {
 			err := fmt.Errorf("poolfees '%v' failed to decode: %v",
 				cfg.PoolFees, err)
@@ -923,7 +924,7 @@ func loadConfig() (*config, []string, error) {
 		MaxPriceRelative:          cfg.TBOpts.MaxPriceRelative,
 		MaxInMempool:              cfg.TBOpts.MaxInMempool,
 		PoolAddress:               cfg.PoolAddress,
-		PoolFees:                  cfg.PoolFees,
+		PoolFees:                  cfg.PoolFees.Amount,
 		NoSpreadTicketPurchases:   cfg.TBOpts.NoSpreadTicketPurchases,
 		TicketAddress:             cfg.TicketAddress,
 		TxFee:                     int64(cfg.RelayFee.Amount),

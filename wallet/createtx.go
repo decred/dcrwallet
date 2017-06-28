@@ -990,10 +990,11 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 		poolAddress = w.PoolAddress()
 	}
 	poolFees := req.poolFees
-	if poolFees == 0.0 {
+
+	if poolFees == 0 {
 		poolFees = w.PoolFees()
 	}
-	if poolAddress != nil && poolFees == 0.0 {
+	if poolAddress != nil && poolFees == 0 {
 		return nil, fmt.Errorf("pool address given, but pool fees not set")
 	}
 

@@ -16,16 +16,16 @@ import (
 )
 
 // maxPoolFeeRate is the maximum value of the pool fee
-const maxPoolFeeRate = 10000.0
+const maxPoolFeeRate = 100 * dcrutil.AtomsPerCoin // 100 DCR
+const minPoolFeeRate = 1 * dcrutil.AtomsPerCent   // 0.01 DCR
 
 // IsValidPoolFeeRate tests to see if a pool fee is a valid percentage from
 // 0.01% to 100.00%.
-func IsValidPoolFeeRate(feeRate float64) error {
-	poolFeeRateTest := feeRate * 100
-	poolFeeRateTest = math.Floor(poolFeeRateTest)
-	if poolFeeRateTest <= 0.0 || poolFeeRateTest > maxPoolFeeRate {
-		return fmt.Errorf("invalid pool fee %v, pool fee "+
-			"must be between 0.01 and 100.00", feeRate)
+func IsValidPoolFeeRate(feeRate dcrutil.Amount) error {
+	if feeRate <= minPoolFeeRate || feeRate > maxPoolFeeRate {
+		return fmt.Errorf("invalid pool fee %v: "+
+			"must be between %v and %v", feeRate,
+			minPoolFeeRate, maxPoolFeeRate)
 	}
 
 	return nil
@@ -41,15 +41,8 @@ var initSubsidyCacheOnce sync.Once
 //
 // See the included doc.go of this package for more information about the
 // calculation of this fee.
-func StakePoolTicketFee(stakeDiff dcrutil.Amount, relayFee dcrutil.Amount,
-	height int32, poolFee float64, params *chaincfg.Params) dcrutil.Amount {
-	// Shift the decimal two places, e.g. 1.00%
-	// to 100. This assumes that the proportion
-	// is already multiplied by 100 to give a
-	// percentage, thus making the entirety
-	// be a multiplication by 10000.
-	poolFeeAbs := math.Floor(poolFee * 100.0)
-	poolFeeInt := int64(poolFeeAbs)
+func StakePoolTicketFee(stakeDiff, relayFee dcrutil.Amount, height int32,
+	poolFee dcrutil.Amount, params *chaincfg.Params) dcrutil.Amount {
 
 	// Subsidy is fetched from the blockchain package, then
 	// pushed forward a number of adjustment periods for
@@ -76,7 +69,7 @@ func StakePoolTicketFee(stakeDiff dcrutil.Amount, relayFee dcrutil.Amount,
 	s := new(big.Int).SetInt64(subsidy)
 	v := new(big.Int).SetInt64(int64(stakeDiff))
 	z := new(big.Int).SetInt64(int64(relayFee))
-	num := new(big.Int).SetInt64(poolFeeInt)
+	num := new(big.Int).SetInt64(int64(poolFee))
 	num.Mul(num, s)
 	vPlusZ := new(big.Int).Add(v, z)
 	num.Mul(num, vPlusZ)

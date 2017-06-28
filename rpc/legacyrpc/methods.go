@@ -1916,7 +1916,7 @@ func purchaseTicket(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 	// Set pool address if specified.
 	var poolAddr dcrutil.Address
-	var poolFee float64
+	var poolFee dcrutil.Amount
 	if cmd.PoolAddress != nil {
 		if *cmd.PoolAddress != "" {
 			addr, err := decodeAddress(*cmd.PoolAddress, w.ChainParams())
@@ -1930,7 +1930,10 @@ func purchaseTicket(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 			if cmd.PoolFees == nil {
 				return nil, fmt.Errorf("gave pool address but no pool fee")
 			}
-			poolFee = *cmd.PoolFees
+			poolFee, err = dcrutil.NewAmount(*cmd.PoolFees)
+			if err != nil {
+				return nil, err
+			}
 			err = txrules.IsValidPoolFeeRate(poolFee)
 			if err != nil {
 				return nil, err

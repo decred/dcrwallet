@@ -100,12 +100,12 @@ func walletMain() error {
 		AddressReuse:        cfg.ReuseAddresses,
 		TicketAddress:       cfg.TicketAddress,
 		PoolAddress:         cfg.PoolAddress,
-		PoolFees:            cfg.PoolFees,
+		PoolFees:            cfg.PoolFees.Amount,
 		StakePoolColdExtKey: cfg.StakePoolColdExtKey,
-		TicketFee:           cfg.TicketFee.ToCoin(),
+		TicketFee:           cfg.TicketFee.Amount,
 	}
 	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
-		cfg.AddrIdxScanLen, cfg.AllowHighFees, cfg.RelayFee.ToCoin())
+		cfg.AddrIdxScanLen, cfg.AllowHighFees, cfg.RelayFee.Amount)
 
 	passphrase := []byte{}
 	if !cfg.NoInitialLoad {

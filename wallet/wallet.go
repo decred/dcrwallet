@@ -94,7 +94,7 @@ type Wallet struct {
 	votingEnabled           bool
 	balanceToMaintain       dcrutil.Amount
 	poolAddress             dcrutil.Address
-	poolFees                float64
+	poolFees                dcrutil.Amount
 	stakePoolEnabled        bool
 	stakePoolColdAddrs      map[string]struct{}
 	subsidyCache            *blockchain.SubsidyCache
@@ -159,7 +159,7 @@ type Wallet struct {
 // newWallet creates a new Wallet structure with the provided address manager
 // and transaction store.
 func newWallet(votingEnabled bool, addressReuse bool, ticketAddress dcrutil.Address,
-	poolAddress dcrutil.Address, pf float64, relayFee, ticketFee dcrutil.Amount,
+	poolAddress dcrutil.Address, pf, relayFee, ticketFee dcrutil.Amount,
 	gapLimit int, stakePoolColdAddrs map[string]struct{}, AllowHighFees bool,
 	mgr *udb.Manager, txs *udb.Store, smgr *udb.StakeStore, db *walletdb.DB,
 	params *chaincfg.Params) *Wallet {
@@ -492,7 +492,7 @@ func (w *Wallet) PoolAddress() dcrutil.Address {
 }
 
 // PoolFees gets the per-ticket pool fee for the wallet.
-func (w *Wallet) PoolFees() float64 {
+func (w *Wallet) PoolFees() dcrutil.Amount {
 	return w.poolFees
 }
 
@@ -1146,7 +1146,7 @@ type (
 		account     uint32
 		numTickets  int
 		poolAddress dcrutil.Address
-		poolFees    float64
+		poolFees    dcrutil.Amount
 		expiry      int32
 		txFee       dcrutil.Amount
 		ticketFee   dcrutil.Amount
@@ -1400,7 +1400,7 @@ func (w *Wallet) CreateSSRtx(ticketHash chainhash.Hash) (*CreatedTx, error) {
 // tickets.
 func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount,
 	minConf int32, ticketAddr dcrutil.Address, account uint32,
-	numTickets int, poolAddress dcrutil.Address, poolFees float64,
+	numTickets int, poolAddress dcrutil.Address, poolFees dcrutil.Amount,
 	expiry int32, txFee dcrutil.Amount, ticketFee dcrutil.Amount) ([]*chainhash.Hash,
 	error) {
 
@@ -3883,9 +3883,9 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 
 // Open loads an already-created wallet from the passed database and namespaces.
 func Open(db walletdb.DB, pubPass []byte, votingEnabled bool, addressReuse bool,
-	pruneTickets bool, ticketAddress string, poolAddress string, poolFees float64,
-	ticketFee float64, gapLimit int, stakePoolColdExtKey string, allowHighFees bool,
-	relayFee float64, params *chaincfg.Params) (*Wallet, error) {
+	pruneTickets bool, ticketAddress string, poolAddress string, poolFees,
+	ticketFee dcrutil.Amount, gapLimit int, stakePoolColdExtKey string, allowHighFees bool,
+	relayFee dcrutil.Amount, params *chaincfg.Params) (*Wallet, error) {
 
 	// Migrate to the unified DB if necessary.
 	needsMigration, err := udb.NeedsMigration(db)
@@ -3947,16 +3947,6 @@ func Open(db walletdb.DB, pubPass []byte, votingEnabled bool, addressReuse bool,
 		return nil, err
 	}
 
-	ticketFeeAmt, err := dcrutil.NewAmount(ticketFee)
-	if err != nil {
-		return nil, err
-	}
-
-	relayFeeAmt, err := dcrutil.NewAmount(relayFee)
-	if err != nil {
-		return nil, err
-	}
-
 	log.Infof("Opened wallet") // TODO: log balance? last sync height?
 
 	w := newWallet(
@@ -3965,8 +3955,8 @@ func Open(db walletdb.DB, pubPass []byte, votingEnabled bool, addressReuse bool,
 		ticketAddr,
 		poolAddr,
 		poolFees,
-		relayFeeAmt,
-		ticketFeeAmt,
+		relayFee,
+		ticketFee,
 		gapLimit,
 		stakePoolColdAddrs,
 		allowHighFees,

@@ -1002,20 +1002,24 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		}
 	}
 
-	if req.PoolFees > 0 {
-		err = txrules.IsValidPoolFeeRate(req.PoolFees)
+	poolFees, err := dcrutil.NewAmount(req.PoolFees)
+	if err != nil {
+		return nil, err
+	}
+	if poolFees > 0 {
+		err = txrules.IsValidPoolFeeRate(poolFees)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument,
 				"Pool fees amount invalid: %v", err)
 		}
 	}
 
-	if req.PoolFees > 0 && poolAddr == nil {
+	if poolFees > 0 && poolAddr == nil {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"Pool fees set but no pool address given")
 	}
 
-	if req.PoolFees <= 0 && poolAddr != nil {
+	if poolFees <= 0 && poolAddr != nil {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"Pool fees negative or unset but pool address given")
 	}
@@ -1045,7 +1049,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}
 
 	resp, err := s.wallet.PurchaseTickets(0, spendLimit, minConf,
-		ticketAddr, req.Account, numTickets, poolAddr, req.PoolFees,
+		ticketAddr, req.Account, numTickets, poolAddr, poolFees,
 		expiry, txFee, ticketFee)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition,
@@ -1372,7 +1376,11 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 		poolAddress = poolAddr.String()
 	}
 
-	poolFees := req.PoolFees
+	poolFees, err := dcrutil.NewAmount(req.PoolFees)
+	if err != nil {
+		return nil, err
+	}
+
 	switch {
 	case poolFees == 0 && poolAddress != "":
 		return nil, status.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
@@ -1729,7 +1737,7 @@ func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.Ticke
 		MaxPriceRelative:      config.MaxPriceRelative,
 		MaxInMempool:          int64(config.MaxInMempool),
 		PoolAddress:           config.PoolAddress,
-		PoolFees:              config.PoolFees,
+		PoolFees:              config.PoolFees.ToCoin(),
 		SpreadTicketPurchases: !config.NoSpreadTicketPurchases,
 		VotingAddress:         config.TicketAddress,
 		TxFee:                 config.TxFee,
@@ -1886,7 +1894,11 @@ func (t *ticketbuyerServer) SetPoolFees(ctx context.Context, req *pb.SetPoolFees
 		poolAddress = poolAddr.String()
 	}
 
-	poolFees := req.PoolFees
+	poolFees, err := dcrutil.NewAmount(req.PoolFees)
+	if err != nil {
+		return nil, err
+	}
+
 	switch {
 	case poolFees == 0 && poolAddress != "":
 		return nil, status.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
@@ -1899,7 +1911,7 @@ func (t *ticketbuyerServer) SetPoolFees(ctx context.Context, req *pb.SetPoolFees
 		}
 	}
 
-	pm.Purchaser().SetPoolFees(req.PoolFees)
+	pm.Purchaser().SetPoolFees(poolFees)
 	return &pb.SetPoolFeesResponse{}, nil
 }
 

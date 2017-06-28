@@ -12,6 +12,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/walletdb"
@@ -43,25 +44,25 @@ type Loader struct {
 	stakeOptions    *StakeOptions
 	addrIdxScanLen  int
 	allowHighFees   bool
-	relayFee        float64
+	relayFee        dcrutil.Amount
 }
 
 // StakeOptions contains the various options necessary for stake mining.
 type StakeOptions struct {
 	TicketPurchasingEnabled bool
 	VotingEnabled           bool
-	TicketFee               float64
+	TicketFee               dcrutil.Amount
 	PruneTickets            bool
 	AddressReuse            bool
 	TicketAddress           string
 	PoolAddress             string
-	PoolFees                float64
+	PoolFees                dcrutil.Amount
 	StakePoolColdExtKey     string
 }
 
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, addrIdxScanLen int,
-	allowHighFees bool, relayFee float64) *Loader {
+	allowHighFees bool, relayFee dcrutil.Amount) *Loader {
 
 	return &Loader{
 		chainParams:    chainParams,
