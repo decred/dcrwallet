@@ -1,5 +1,5 @@
 hash: 8821a10afa7fa0a739161963d37154c7ed31841dc915a29978f2d27885acffbc
-updated: 2017-06-20T11:36:44.3520942-04:00
+updated: 2017-06-28T15:29:12.707326-04:00
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -8,7 +8,7 @@ imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
 - name: github.com/btcsuite/btclog
-  version: 266a29b6e5ad061d4c055cec1c0049e4aae47092
+  version: 84c8d2346e9fc8c7b947e243b9c24e6df9fd206a
 - name: github.com/btcsuite/go-socks
   version: 4720035b7bfd2a9bb130b1c184f8bbe41b6f0d0f
   subpackages:
@@ -20,7 +20,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: ce4b77d3d9e3a4d3393e1fa3baeee5679cad518d
+  version: 713164983204ef44185aa4cd6a48fed096188d46
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -54,11 +54,11 @@ imports:
 - name: github.com/jessevdk/go-flags
   version: 48cf8722c3375517aba351d1f7577c40663a4407
 - name: github.com/jrick/logrotate
-  version: 4ed05ed86ef17d10ff99cce77481e0fcf6f2c7b0
+  version: a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a
   subpackages:
   - rotator
 - name: golang.org/x/crypto
-  version: e7ba82683099cae71475961448ab8f903ea77c26
+  version: 84f24dfdf3c414ed893ca1b318d0045ef5a1f607
   subpackages:
   - nacl/secretbox
   - pbkdf2
@@ -68,7 +68,7 @@ imports:
   - scrypt
   - ssh/terminal
 - name: golang.org/x/net
-  version: 59a0b19b5533c7977ddeb86b017bf507ed407b12
+  version: 8663ed5da4fd087c3cfb99a996e628b72e2f0948
   subpackages:
   - context
   - http2
@@ -78,11 +78,11 @@ imports:
   - lex/httplex
   - trace
 - name: golang.org/x/sys
-  version: 0b25a408a50076fbbcae6b7ac0ea5fbb0b085e79
+  version: 90796e5a05ce440b41c768bd9af257005e470461
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: eae24e7440a7aee8476ea69a0c574eafb42f5839
+  version: 6353ef0f924300eea566d3438817aa4d3374817e
   subpackages:
   - secure/bidirule
   - transform
