@@ -145,6 +145,11 @@ func walletMain() error {
 		if !cfg.NoInitialLoad {
 			passphrase = startPromptPass(w)
 		}
+
+		// Set the password if provided in the config
+		if len(cfg.Pass) > 0 {
+			passphrase = []byte(cfg.Pass)
+		}
 	}
 
 	// Create and start HTTP server to serve wallet client connections.

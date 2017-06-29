@@ -40,6 +40,7 @@ const (
 	defaultPurchaseAccount     = "default"
 	defaultAutomaticRepair     = false
 	defaultPromptPass          = false
+	defaultPass                = ""
 	defaultPromptPublicPass    = false
 	defaultAddrIdxScanLen      = wallet.DefaultGapLimit
 	defaultStakePoolColdExtKey = ""
@@ -96,6 +97,7 @@ type config struct {
 	// Wallet options
 	WalletPass          string              `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
 	PromptPass          bool                `long:"promptpass" description:"The private wallet password is prompted for at start up, so the wallet starts unlocked without a time limit"`
+	Pass                string              `long:"pass" description:"The private wallet password"`
 	PromptPublicPass    bool                `long:"promptpublicpass" description:"The public wallet password is prompted for at start up"`
 	DisallowFree        bool                `long:"disallowfree" description:"Force transactions to always include a fee"`
 	EnableTicketBuyer   bool                `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
@@ -337,6 +339,7 @@ func loadConfig() (*config, []string, error) {
 		LogDir:                 defaultLogDir,
 		WalletPass:             wallet.InsecurePubPassphrase,
 		PromptPass:             defaultPromptPass,
+		Pass:                   defaultPass,
 		PromptPublicPass:       defaultPromptPublicPass,
 		RPCKey:                 defaultRPCKeyFile,
 		RPCCert:                defaultRPCCertFile,
