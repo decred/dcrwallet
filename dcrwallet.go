@@ -143,12 +143,18 @@ func walletMain() error {
 		// Until then, since --noinitialload users are expecting to use
 		// the wallet only over RPC, disable this feature for them.
 		if !cfg.NoInitialLoad {
-			passphrase = startPromptPass(w)
-		}
-
-		// Set the password if provided in the config
-		if len(cfg.Pass) > 0 {
-			passphrase = []byte(cfg.Pass)
+			if cfg.Pass != "" {
+				passphrase = []byte(cfg.Pass)
+				w.SetInitiallyUnlocked(true)
+				var unlockAfter <-chan time.Time
+				err = w.Unlock(passphrase, unlockAfter)
+				if err != nil {
+					log.Errorf("Incorrect passphrase in pass config setting.")
+					return err
+				}
+			} else {
+				passphrase = startPromptPass(w)
+			}
 		}
 	}
 

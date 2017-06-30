@@ -97,7 +97,7 @@ type config struct {
 	// Wallet options
 	WalletPass          string              `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
 	PromptPass          bool                `long:"promptpass" description:"The private wallet password is prompted for at start up, so the wallet starts unlocked without a time limit"`
-	Pass                string              `long:"pass" description:"The private wallet password"`
+	Pass                string              `long:"pass" description:"The private wallet passphrase"`
 	PromptPublicPass    bool                `long:"promptpublicpass" description:"The public wallet password is prompted for at start up"`
 	DisallowFree        bool                `long:"disallowfree" description:"Force transactions to always include a fee"`
 	EnableTicketBuyer   bool                `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
