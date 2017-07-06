@@ -496,6 +496,13 @@ func loadConfig() (*config, []string, error) {
 		return loadConfigError(err)
 	}
 
+	// Error and shutdown if config file is specified on the command line
+	// but cannot be found.
+	if configFileError != nil && configFilePath != defaultConfigFile {
+		log.Errorf("%v", configFileError)
+		return loadConfigError(configFileError)
+	}
+
 	// Warn about missing config file after the final command line parse
 	// succeeds.  This prevents the warning on help messages and invalid
 	// options.
