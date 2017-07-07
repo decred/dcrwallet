@@ -132,7 +132,7 @@ var rpcHandlers = map[string]struct {
 	"settxfee":                {handler: setTxFee},
 	"setvotechoice":           {handler: setVoteChoice},
 	"signmessage":             {handler: signMessage},
-	"signrawtransaction":      {handlerWithChain: signRawTransaction},
+	"signrawtransaction":      {handler: signRawTransactionNoChainRPC, handlerWithChain: signRawTransaction},
 	"signrawtransactions":     {handlerWithChain: signRawTransactions},
 	"redeemmultisigout":       {handlerWithChain: redeemMultiSigOut},
 	"redeemmultisigouts":      {handlerWithChain: redeemMultiSigOuts},
@@ -2667,7 +2667,14 @@ func signMessage(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	return base64.StdEncoding.EncodeToString(sig), nil
 }
 
+func signRawTransactionNoChainRPC(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+	return signRawTransaction(icmd, w, nil)
+}
+
 // signRawTransaction handles the signrawtransaction command.
+//
+// chainClient may be nil, in which case it was called by the NoChainRPC
+// variant.  It must be checked before all usage.
 func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCClient) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SignRawTransactionCmd)
 
@@ -2755,57 +2762,6 @@ func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 		}] = script
 	}
 
-	for _, input := range tx.TxIn {
-		if txscript.IsMultisigSigScript(input.SignatureScript) {
-			rs, err :=
-				txscript.MultisigRedeemScriptFromScriptSig(
-					input.SignatureScript)
-			if err != nil {
-				return nil, err
-			}
-
-			class, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				txscript.DefaultScriptVersion, rs, w.ChainParams())
-			if err != nil {
-				// Non-standard outputs are skipped.
-				continue
-			}
-			if class != txscript.MultiSigTy {
-				// This should never happen, but be paranoid.
-				continue
-			}
-
-			isRelevant := false
-			for _, addr := range addrs {
-				haveAddr, err := w.HaveAddress(addr)
-				if err != nil {
-					return nil, err
-				}
-				if haveAddr {
-					isRelevant = true
-				}
-			}
-			// Add the script to the script databases.
-			if isRelevant {
-				p2shAddr, err := w.ImportP2SHRedeemScript(rs)
-				if err != nil {
-					return nil, err
-				}
-				err = chainClient.LoadTxFilter(false,
-					[]dcrutil.Address{p2shAddr}, nil)
-				if err != nil {
-					return nil, err
-				}
-
-				// This is the first time seeing this script
-				// address belongs to us, so do a rescan and see
-				// if there are any other outputs to this
-				// address.
-				w.Rescan(chainClient, w.ChainParams().GenesisHash)
-			}
-		}
-	}
-
 	// Now we go and look for any inputs that we were not provided by
 	// querying dcrd with getrawtransaction. We queue up a bunch of async
 	// requests and will wait for replies after we have checked the rest of
@@ -2824,6 +2780,12 @@ func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 		}
 
 		// Asynchronously request the output script.
+		if chainClient == nil {
+			return nil, &dcrjson.RPCError{
+				Code:    -1,
+				Message: "Chain RPC is inactive",
+			}
+		}
 		requested[txIn.PreviousOutPoint] = chainClient.GetTxOutAsync(
 			&txIn.PreviousOutPoint.Hash, txIn.PreviousOutPoint.Index,
 			true)
