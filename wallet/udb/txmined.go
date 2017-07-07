@@ -3513,7 +3513,6 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 					votingAuthorityAmt += amt
 					if _, err := s.acctLookupFunc(addrmgrNs, addr); err != nil {
 						if apperrors.IsError(err, apperrors.ErrAddressNotFound) {
-							fmt.Println(&txHash, addr, amt)
 							continue
 						}
 						return err
