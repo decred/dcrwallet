@@ -498,7 +498,7 @@ func loadConfig() (*config, []string, error) {
 
 	// Error and shutdown if config file is specified on the command line
 	// but cannot be found.
-	if configFileError != nil && configFilePath != defaultConfigFile {
+	if configFileError != nil && preCfg.ConfigFile != defaultConfigFile {
 		log.Errorf("%v", configFileError)
 		return loadConfigError(configFileError)
 	}
