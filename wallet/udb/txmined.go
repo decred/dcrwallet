@@ -3497,7 +3497,8 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			if err != nil {
 				return err
 			}
-
+			votingAuthorityAmt := dcrutil.Amount(0)
+			lockedByTicketsAmt := dcrutil.Amount(0)
 			for i, txout := range rec.MsgTx.TxOut {
 				if i%2 != 0 {
 					addr, err := stake.AddrFromSStxPkScrCommitment(txout.PkScript,
@@ -3509,16 +3510,21 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 					if err != nil {
 						return err
 					}
-					ab.VotingAuthority += amt
+					votingAuthorityAmt += amt
 					if _, err := s.acctLookupFunc(addrmgrNs, addr); err != nil {
 						if apperrors.IsError(err, apperrors.ErrAddressNotFound) {
+							fmt.Println(&txHash, addr, amt)
 							continue
 						}
 						return err
 					}
-					ab.LockedByTickets += amt
+					lockedByTicketsAmt += amt
 				}
 			}
+			fee := votingAuthorityAmt - utxoAmt
+
+			ab.LockedByTickets += lockedByTicketsAmt - fee
+			ab.VotingAuthority += votingAuthorityAmt - fee
 
 		case txscript.OP_SSGEN:
 			fallthrough
@@ -3594,7 +3600,7 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 				ab.VotingAuthority += utxoAmt
 			}
 			ab.LockedByTickets += utxoAmt
-
+			fmt.Println("here", utxoAmt)
 		case txscript.OP_SSGEN:
 			fallthrough
 		case txscript.OP_SSRTX:
