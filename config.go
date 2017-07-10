@@ -77,21 +77,21 @@ var (
 
 type config struct {
 	// General application behavior
-	ConfigFile         string   `short:"C" long:"configfile" description:"Path to configuration file"`
-	ShowVersion        bool     `short:"V" long:"version" description:"Display version information and exit"`
-	Create             bool     `long:"create" description:"Create the wallet if it does not exist"`
-	CreateTemp         bool     `long:"createtemp" description:"Create a temporary simulation wallet (pass=password) in the data directory indicated; must call with --datadir"`
-	CreateWatchingOnly bool     `long:"createwatchingonly" description:"Create the wallet and instantiate it as watching only with an HD extended pubkey"`
-	AppDataDir         string   `short:"A" long:"appdata" description:"Application data directory for wallet config, databases and logs"`
-	TestNet            bool     `long:"testnet" description:"Use the test network"`
-	SimNet             bool     `long:"simnet" description:"Use the simulation test network"`
-	NoInitialLoad      bool     `long:"noinitialload" description:"Defer wallet creation/opening on startup and enable loading wallets over RPC"`
-	DebugLevel         string   `short:"d" long:"debuglevel" description:"Logging level {trace, debug, info, warn, error, critical}"`
-	LogDir             string   `long:"logdir" description:"Directory to log output."`
-	Profile            []string `long:"profile" description:"Enable HTTP profiling this interface/port"`
-	MemProfile         string   `long:"memprofile" description:"Write mem profile to the specified file"`
-	RollbackTest       bool     `long:"rollbacktest" description:"Rollback testing is a simnet testing mode that eventually stops wallet and examines wtxmgr database integrity"`
-	AutomaticRepair    bool     `long:"automaticrepair" description:"Attempt to repair the wallet automatically if a database inconsistency is found"`
+	ConfigFile         *cfgutil.ExplicitString `short:"C" long:"configfile" description:"Path to configuration file"`
+	ShowVersion        bool                    `short:"V" long:"version" description:"Display version information and exit"`
+	Create             bool                    `long:"create" description:"Create the wallet if it does not exist"`
+	CreateTemp         bool                    `long:"createtemp" description:"Create a temporary simulation wallet (pass=password) in the data directory indicated; must call with --datadir"`
+	CreateWatchingOnly bool                    `long:"createwatchingonly" description:"Create the wallet and instantiate it as watching only with an HD extended pubkey"`
+	AppDataDir         *cfgutil.ExplicitString `short:"A" long:"appdata" description:"Application data directory for wallet config, databases and logs"`
+	TestNet            bool                    `long:"testnet" description:"Use the test network"`
+	SimNet             bool                    `long:"simnet" description:"Use the simulation test network"`
+	NoInitialLoad      bool                    `long:"noinitialload" description:"Defer wallet creation/opening on startup and enable loading wallets over RPC"`
+	DebugLevel         string                  `short:"d" long:"debuglevel" description:"Logging level {trace, debug, info, warn, error, critical}"`
+	LogDir             *cfgutil.ExplicitString `long:"logdir" description:"Directory to log output."`
+	Profile            []string                `long:"profile" description:"Enable HTTP profiling this interface/port"`
+	MemProfile         string                  `long:"memprofile" description:"Write mem profile to the specified file"`
+	RollbackTest       bool                    `long:"rollbacktest" description:"Rollback testing is a simnet testing mode that eventually stops wallet and examines wtxmgr database integrity"`
+	AutomaticRepair    bool                    `long:"automaticrepair" description:"Attempt to repair the wallet automatically if a database inconsistency is found"`
 
 	// Wallet options
 	WalletPass          string              `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
@@ -114,14 +114,14 @@ type config struct {
 	PipeRx              *uint               `long:"piperx" description:"File descriptor of read end pipe to enable parent -> child process communication"`
 
 	// RPC client options
-	RPCConnect       string `short:"c" long:"rpcconnect" description:"Hostname/IP and port of dcrd RPC server to connect to"`
-	CAFile           string `long:"cafile" description:"File containing root certificates to authenticate a TLS connections with dcrd"`
-	DisableClientTLS bool   `long:"noclienttls" description:"Disable TLS for the RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
-	DcrdUsername     string `long:"dcrdusername" description:"Username for dcrd authentication"`
-	DcrdPassword     string `long:"dcrdpassword" default-mask:"-" description:"Password for dcrd authentication"`
-	Proxy            string `long:"proxy" description:"Connect via SOCKS5 proxy (eg. 127.0.0.1:9050)"`
-	ProxyUser        string `long:"proxyuser" description:"Username for proxy server"`
-	ProxyPass        string `long:"proxypass" default-mask:"-" description:"Password for proxy server"`
+	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Hostname/IP and port of dcrd RPC server to connect to"`
+	CAFile           *cfgutil.ExplicitString `long:"cafile" description:"File containing root certificates to authenticate a TLS connections with dcrd"`
+	DisableClientTLS bool                    `long:"noclienttls" description:"Disable TLS for the RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
+	DcrdUsername     string                  `long:"dcrdusername" description:"Username for dcrd authentication"`
+	DcrdPassword     string                  `long:"dcrdpassword" default-mask:"-" description:"Password for dcrd authentication"`
+	Proxy            string                  `long:"proxy" description:"Connect via SOCKS5 proxy (eg. 127.0.0.1:9050)"`
+	ProxyUser        string                  `long:"proxyuser" description:"Username for proxy server"`
+	ProxyPass        string                  `long:"proxypass" default-mask:"-" description:"Password for proxy server"`
 
 	// RPC server options
 	//
@@ -131,25 +131,25 @@ type config struct {
 	//
 	// Usernames can also be used for the consensus RPC client, so they
 	// aren't considered legacy.
-	RPCCert                string             `long:"rpccert" description:"File containing the certificate file"`
-	RPCKey                 string             `long:"rpckey" description:"File containing the certificate key"`
-	TLSCurve               *cfgutil.CurveFlag `long:"tlscurve" description:"Curve to use when generating TLS keypairs"`
-	OneTimeTLSKey          bool               `long:"onetimetlskey" description:"Generate a new TLS certpair at startup, but only write the certificate to disk"`
-	DisableServerTLS       bool               `long:"noservertls" description:"Disable TLS for the RPC servers -- NOTE: This is only allowed if the RPC server is bound to localhost"`
-	GRPCListeners          []string           `long:"grpclisten" description:"Listen for gRPC connections on this interface/port"`
-	LegacyRPCListeners     []string           `long:"rpclisten" description:"Listen for legacy JSON-RPC connections on this interface/port"`
-	NoGRPC                 bool               `long:"nogrpc" description:"Disable the gRPC server"`
-	NoLegacyRPC            bool               `long:"nolegacyrpc" description:"Disable the legacy JSON-RPC server"`
-	LegacyRPCMaxClients    int64              `long:"rpcmaxclients" description:"Max number of legacy JSON-RPC clients for standard connections"`
-	LegacyRPCMaxWebsockets int64              `long:"rpcmaxwebsockets" description:"Max number of legacy JSON-RPC websocket connections"`
-	Username               string             `short:"u" long:"username" description:"Username for legacy JSON-RPC and dcrd authentication (if dcrdusername is unset)"`
-	Password               string             `short:"P" long:"password" default-mask:"-" description:"Password for legacy JSON-RPC and dcrd authentication (if dcrdpassword is unset)"`
+	RPCCert                *cfgutil.ExplicitString `long:"rpccert" description:"File containing the certificate file"`
+	RPCKey                 *cfgutil.ExplicitString `long:"rpckey" description:"File containing the certificate key"`
+	TLSCurve               *cfgutil.CurveFlag      `long:"tlscurve" description:"Curve to use when generating TLS keypairs"`
+	OneTimeTLSKey          bool                    `long:"onetimetlskey" description:"Generate a new TLS certpair at startup, but only write the certificate to disk"`
+	DisableServerTLS       bool                    `long:"noservertls" description:"Disable TLS for the RPC servers -- NOTE: This is only allowed if the RPC server is bound to localhost"`
+	GRPCListeners          []string                `long:"grpclisten" description:"Listen for gRPC connections on this interface/port"`
+	LegacyRPCListeners     []string                `long:"rpclisten" description:"Listen for legacy JSON-RPC connections on this interface/port"`
+	NoGRPC                 bool                    `long:"nogrpc" description:"Disable the gRPC server"`
+	NoLegacyRPC            bool                    `long:"nolegacyrpc" description:"Disable the legacy JSON-RPC server"`
+	LegacyRPCMaxClients    int64                   `long:"rpcmaxclients" description:"Max number of legacy JSON-RPC clients for standard connections"`
+	LegacyRPCMaxWebsockets int64                   `long:"rpcmaxwebsockets" description:"Max number of legacy JSON-RPC websocket connections"`
+	Username               string                  `short:"u" long:"username" description:"Username for legacy JSON-RPC and dcrd authentication (if dcrdusername is unset)"`
+	Password               string                  `short:"P" long:"password" default-mask:"-" description:"Password for legacy JSON-RPC and dcrd authentication (if dcrdpassword is unset)"`
 
 	TBOpts ticketBuyerOptions `group:"Ticket Buyer Options" namespace:"ticketbuyer"`
 	tbCfg  ticketbuyer.Config
 
 	// Deprecated options
-	DataDir string `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
+	DataDir *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
 }
 
 type ticketBuyerOptions struct {
@@ -332,14 +332,15 @@ func loadConfig() (*config, []string, error) {
 	// Default config.
 	cfg := config{
 		DebugLevel:             defaultLogLevel,
-		ConfigFile:             defaultConfigFile,
-		AppDataDir:             defaultAppDataDir,
-		LogDir:                 defaultLogDir,
+		ConfigFile:             cfgutil.NewExplicitString(defaultConfigFile),
+		AppDataDir:             cfgutil.NewExplicitString(defaultAppDataDir),
+		LogDir:                 cfgutil.NewExplicitString(defaultLogDir),
 		WalletPass:             wallet.InsecurePubPassphrase,
+		CAFile:                 cfgutil.NewExplicitString(""),
 		PromptPass:             defaultPromptPass,
 		PromptPublicPass:       defaultPromptPublicPass,
-		RPCKey:                 defaultRPCKeyFile,
-		RPCCert:                defaultRPCCertFile,
+		RPCKey:                 cfgutil.NewExplicitString(defaultRPCKeyFile),
+		RPCCert:                cfgutil.NewExplicitString(defaultRPCCertFile),
 		TLSCurve:               cfgutil.NewCurveFlag(cfgutil.CurveP521),
 		LegacyRPCMaxClients:    defaultRPCMaxClients,
 		LegacyRPCMaxWebsockets: defaultRPCMaxWebsockets,
@@ -357,7 +358,7 @@ func loadConfig() (*config, []string, error) {
 		TicketFee:              cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
 
 		// TODO: DEPRECATED - remove.
-		DataDir: defaultAppDataDir,
+		DataDir: cfgutil.NewExplicitString(defaultAppDataDir),
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
@@ -407,17 +408,17 @@ func loadConfig() (*config, []string, error) {
 	// Load additional config from file.
 	var configFileError error
 	parser := flags.NewParser(&cfg, flags.Default)
-	configFilePath := preCfg.ConfigFile
-	if configFilePath == defaultConfigFile {
-		appDataDir := preCfg.AppDataDir
-		if appDataDir == defaultAppDataDir && preCfg.DataDir != defaultAppDataDir {
-			appDataDir = cleanAndExpandPath(preCfg.DataDir)
+	configFilePath := preCfg.ConfigFile.Value
+	if preCfg.ConfigFile.ExplicitlySet() {
+		configFilePath = cleanAndExpandPath(configFilePath)
+	} else {
+		appDataDir := preCfg.AppDataDir.Value
+		if !preCfg.AppDataDir.ExplicitlySet() && preCfg.DataDir.ExplicitlySet() {
+			appDataDir = cleanAndExpandPath(preCfg.DataDir.Value)
 		}
 		if appDataDir != defaultAppDataDir {
 			configFilePath = filepath.Join(appDataDir, defaultConfigFilename)
 		}
-	} else {
-		configFilePath = cleanAndExpandPath(configFilePath)
 	}
 	err = flags.NewIniParser(parser).ParseFile(configFilePath)
 	if err != nil {
@@ -441,16 +442,16 @@ func loadConfig() (*config, []string, error) {
 	// If an alternate data directory was specified, and paths with defaults
 	// relative to the data dir are unchanged, modify each path to be
 	// relative to the new data dir.
-	if cfg.AppDataDir != defaultAppDataDir {
-		cfg.AppDataDir = cleanAndExpandPath(cfg.AppDataDir)
-		if cfg.RPCKey == defaultRPCKeyFile {
-			cfg.RPCKey = filepath.Join(cfg.AppDataDir, "rpc.key")
+	if cfg.AppDataDir.ExplicitlySet() {
+		cfg.AppDataDir.Value = cleanAndExpandPath(cfg.AppDataDir.Value)
+		if !cfg.RPCKey.ExplicitlySet() {
+			cfg.RPCKey.Value = filepath.Join(cfg.AppDataDir.Value, "rpc.key")
 		}
-		if cfg.RPCCert == defaultRPCCertFile {
-			cfg.RPCCert = filepath.Join(cfg.AppDataDir, "rpc.cert")
+		if !cfg.RPCCert.ExplicitlySet() {
+			cfg.RPCCert.Value = filepath.Join(cfg.AppDataDir.Value, "rpc.cert")
 		}
-		if cfg.LogDir == defaultLogDir {
-			cfg.LogDir = filepath.Join(cfg.AppDataDir, defaultLogDirname)
+		if !cfg.LogDir.ExplicitlySet() {
+			cfg.LogDir.Value = filepath.Join(cfg.AppDataDir.Value, defaultLogDirname)
 		}
 	}
 
@@ -475,8 +476,8 @@ func loadConfig() (*config, []string, error) {
 
 	// Append the network type to the log directory so it is "namespaced"
 	// per network.
-	cfg.LogDir = cleanAndExpandPath(cfg.LogDir)
-	cfg.LogDir = filepath.Join(cfg.LogDir, activeNet.Params.Name)
+	cfg.LogDir.Value = cleanAndExpandPath(cfg.LogDir.Value)
+	cfg.LogDir.Value = filepath.Join(cfg.LogDir.Value, activeNet.Params.Name)
 
 	// Special show command to list supported subsystems and exit.
 	if cfg.DebugLevel == "show" {
@@ -486,7 +487,7 @@ func loadConfig() (*config, []string, error) {
 
 	// Initialize log rotation.  After log rotation has been initialized, the
 	// logger variables may be used.
-	initLogRotator(filepath.Join(cfg.LogDir, defaultLogFilename))
+	initLogRotator(filepath.Join(cfg.LogDir.Value, defaultLogFilename))
 
 	// Parse, validate, and set debug log level(s).
 	if err := parseAndSetDebugLevels(cfg.DebugLevel); err != nil {
@@ -494,6 +495,15 @@ func loadConfig() (*config, []string, error) {
 		fmt.Fprintln(os.Stderr, err)
 		parser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
+	}
+
+	// Error and shutdown if config file is specified on the command line
+	// but cannot be found.
+	if configFileError != nil && cfg.ConfigFile.ExplicitlySet() {
+		if preCfg.ConfigFile.ExplicitlySet() || cfg.ConfigFile.ExplicitlySet() {
+			log.Errorf("%v", configFileError)
+			return loadConfigError(configFileError)
+		}
 	}
 
 	// Warn about missing config file after the final command line parse
@@ -505,11 +515,11 @@ func loadConfig() (*config, []string, error) {
 
 	// Check deprecated options.  The new options receive priority when both
 	// are changed from the default.
-	if cfg.DataDir != defaultAppDataDir {
+	if cfg.DataDir.ExplicitlySet() {
 		fmt.Fprintln(os.Stderr, "datadir option has been replaced by "+
 			"appdata -- please update your config")
-		if cfg.AppDataDir == defaultAppDataDir {
-			cfg.AppDataDir = cfg.DataDir
+		if !cfg.AppDataDir.ExplicitlySet() {
+			cfg.AppDataDir.Value = cfg.DataDir.Value
 		}
 	}
 
@@ -602,7 +612,7 @@ func loadConfig() (*config, []string, error) {
 
 	// Exit if you try to use a simulation wallet with a standard
 	// data directory.
-	if cfg.AppDataDir == defaultAppDataDir && cfg.CreateTemp {
+	if !(cfg.AppDataDir.ExplicitlySet() || cfg.DataDir.ExplicitlySet()) && cfg.CreateTemp {
 		fmt.Fprintln(os.Stderr, "Tried to create a temporary simulation "+
 			"wallet, but failed to specify data directory!")
 		os.Exit(0)
@@ -622,7 +632,7 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	// Ensure the wallet exists or create it when the create flag is set.
-	netDir := networkDir(cfg.AppDataDir, activeNet.Params)
+	netDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
 	dbPath := filepath.Join(netDir, walletDbName)
 
 	if cfg.CreateTemp && cfg.Create {
@@ -765,12 +775,12 @@ func loadConfig() (*config, []string, error) {
 		}
 	} else {
 		// If CAFile is unset, choose either the copy or local dcrd cert.
-		if cfg.CAFile == "" {
-			cfg.CAFile = filepath.Join(cfg.AppDataDir, defaultCAFilename)
+		if !cfg.CAFile.ExplicitlySet() {
+			cfg.CAFile.Value = filepath.Join(cfg.AppDataDir.Value, defaultCAFilename)
 
 			// If the CA copy does not exist, check if we're connecting to
 			// a local dcrd and switch to its RPC cert if it exists.
-			certExists, err := cfgutil.FileExists(cfg.CAFile)
+			certExists, err := cfgutil.FileExists(cfg.CAFile.Value)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				return loadConfigError(err)
@@ -784,7 +794,7 @@ func loadConfig() (*config, []string, error) {
 						return loadConfigError(err)
 					}
 					if dcrdCertExists {
-						cfg.CAFile = dcrdDefaultCAFile
+						cfg.CAFile.Value = dcrdDefaultCAFile
 					}
 				}
 			}
@@ -879,9 +889,9 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	// Expand environment variable and leading ~ for filepaths.
-	cfg.CAFile = cleanAndExpandPath(cfg.CAFile)
-	cfg.RPCCert = cleanAndExpandPath(cfg.RPCCert)
-	cfg.RPCKey = cleanAndExpandPath(cfg.RPCKey)
+	cfg.CAFile.Value = cleanAndExpandPath(cfg.CAFile.Value)
+	cfg.RPCCert.Value = cleanAndExpandPath(cfg.RPCCert.Value)
+	cfg.RPCKey.Value = cleanAndExpandPath(cfg.RPCKey.Value)
 
 	// If the dcrd username or password are unset, use the same auth as for
 	// the client.  The two settings were previously shared for dcrd and
@@ -895,7 +905,7 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	// Warn if user still has an old ticket buyer configuration file.
-	oldTBConfigFile := filepath.Join(cfg.AppDataDir, "ticketbuyer.conf")
+	oldTBConfigFile := filepath.Join(cfg.AppDataDir.Value, "ticketbuyer.conf")
 	if _, err := os.Stat(oldTBConfigFile); err == nil {
 		log.Warnf("%s is no longer used and should be removed. "+
 			"Please prepend 'ticketbuyer.' to each option and "+
@@ -931,7 +941,7 @@ func loadConfig() (*config, []string, error) {
 
 	// Make list of old versions of testnet directories.
 	var oldTestNets []string
-	oldTestNets = append(oldTestNets, filepath.Join(cfg.AppDataDir, "testnet"))
+	oldTestNets = append(oldTestNets, filepath.Join(cfg.AppDataDir.Value, "testnet"))
 	// Warn if old testnet directory is present.
 	for _, oldDir := range oldTestNets {
 		oldDirExists, _ := cfgutil.FileExists(oldDir)
