@@ -790,8 +790,8 @@ func extractRawCreditIndex(k []byte) uint32 {
 	return byteOrder.Uint32(k[68:72])
 }
 
-func extractRawUnminedTx(k []byte) []byte {
-	return k[8:]
+func extractRawUnminedTx(v []byte) []byte {
+	return v[8:]
 }
 
 func extractRawUnminedCreditTxHash(k []byte) []byte {
