@@ -790,6 +790,14 @@ func extractRawCreditIndex(k []byte) uint32 {
 	return byteOrder.Uint32(k[68:72])
 }
 
+func extractRawUnminedTx(v []byte) []byte {
+	return v[8:]
+}
+
+func extractRawUnminedCreditTxHash(k []byte) []byte {
+	return k[:32]
+}
+
 // fetchRawCreditAmount returns the amount of the credit.
 func fetchRawCreditAmount(v []byte) (dcrutil.Amount, error) {
 	if len(v) < 9 {
