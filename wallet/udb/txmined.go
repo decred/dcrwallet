@@ -3599,7 +3599,6 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 				ab.VotingAuthority += utxoAmt
 			}
 			ab.LockedByTickets += utxoAmt
-			fmt.Println("here", utxoAmt)
 		case txscript.OP_SSGEN:
 			fallthrough
 		case txscript.OP_SSRTX:
