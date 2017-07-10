@@ -3595,9 +3595,12 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 				ab.Spendable += utxoAmt
 			}
 		case txscript.OP_SSTX:
-			serializedTx := existsRawUnmined(ns, k)
+			serializedTx := existsRawUnmined(ns, k[0:32])
+			if serializedTx == nil {
+				return nil
+			}
 			var rec TxRecord
-			err = rec.MsgTx.Deserialize(bytes.NewReader(serializedTx))
+			err = rec.MsgTx.Deserialize(bytes.NewReader(serializedTx[8:]))
 			if err != nil {
 				return err
 			}
