@@ -3595,7 +3595,9 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 				ab.Spendable += utxoAmt
 			}
 		case txscript.OP_SSTX:
-			serializedTx := existsRawUnmined(ns, k[0:32])
+			txHash := extractRawUnminedHash(k)
+
+			serializedTx := existsRawUnmined(ns, txHash)
 			if serializedTx == nil {
 				return nil
 			}
