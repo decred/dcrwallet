@@ -794,6 +794,10 @@ func extractRawUnminedTx(k []byte) []byte {
 	return k[8:]
 }
 
+func extractRawUnminedCreditTxHash(k []byte) []byte {
+	return k[:32]
+}
+
 // fetchRawCreditAmount returns the amount of the credit.
 func fetchRawCreditAmount(v []byte) (dcrutil.Amount, error) {
 	if len(v) < 9 {
