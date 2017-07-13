@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/btcsuite/btclog"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/internal/cfgutil"
 	"github.com/decred/dcrwallet/netparams"
@@ -229,21 +230,8 @@ func cleanAndExpandPath(path string) string {
 
 // validLogLevel returns whether or not logLevel is a valid debug log level.
 func validLogLevel(logLevel string) bool {
-	switch logLevel {
-	case "trace":
-		fallthrough
-	case "debug":
-		fallthrough
-	case "info":
-		fallthrough
-	case "warn":
-		fallthrough
-	case "error":
-		fallthrough
-	case "critical":
-		return true
-	}
-	return false
+	_, ok := btclog.LevelFromString(logLevel)
+	return ok
 }
 
 // supportedSubsystems returns a sorted slice of the supported subsystems for
