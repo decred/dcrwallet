@@ -22,20 +22,25 @@ func TestThrottle(t *testing.T) {
 		}),
 	)
 
-	codes := make(chan int, 2)
-	for i := 0; i < cap(codes); i++ {
+	type resp struct {
+		resp *http.Response
+		err  error
+	}
+	responses := make(chan resp, 2)
+	for i := 0; i < cap(responses); i++ {
 		go func() {
-			res, err := http.Get(srv.URL)
-			if err != nil {
-				t.Fatal(err)
-			}
-			codes <- res.StatusCode
+			r, err := http.Get(srv.URL)
+			responses <- resp{r, err}
 		}()
 	}
 
-	got := make(map[int]int, cap(codes))
-	for i := 0; i < cap(codes); i++ {
-		got[<-codes]++
+	got := make(map[int]int, cap(responses))
+	for i := 0; i < cap(responses); i++ {
+		r := <-responses
+		if r.err != nil {
+			t.Fatal(r.err)
+		}
+		got[r.resp.StatusCode]++
 
 		if i == 0 {
 			close(busy)
