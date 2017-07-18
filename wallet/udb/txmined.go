@@ -1711,6 +1711,9 @@ func (s *Store) addMultisigOut(ns walletdb.ReadWriteBucket, rec *TxRecord,
 	p2shScript := rec.MsgTx.TxOut[index].PkScript
 	class, _, _, err := txscript.ExtractPkScriptAddrs(
 		rec.MsgTx.TxOut[index].Version, p2shScript, s.chainParams)
+	if err != nil {
+		return err
+	}
 	tree := wire.TxTreeRegular
 	isStakeType := class == txscript.StakeSubmissionTy ||
 		class == txscript.StakeSubChangeTy ||
