@@ -1445,7 +1445,6 @@ func testListTransactions(r *Harness, t *testing.T) {
 	// Create 2 accounts to receive funds
 	accountNames := []string{"listTxA", "listTxB"}
 	amountsToSend := []dcrutil.Amount{700000000, 1400000000}
-	addresses := []dcrutil.Address{}
 
 	for _, acct := range accountNames {
 		err := wcl.CreateNewAccount(acct)
@@ -1465,7 +1464,6 @@ func testListTransactions(r *Harness, t *testing.T) {
 		}
 
 		// Set the amounts to send to each address
-		addresses = append(addresses, addr)
 		addressAmounts[addr] = amountsToSend[i]
 	}
 
