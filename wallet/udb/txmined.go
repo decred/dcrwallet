@@ -1427,7 +1427,7 @@ func (s *Store) InsertMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Re
 	// mined balance.
 	err = putMinedBalance(ns, minedBalance)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// If a transaction record for this tx hash and block already exist,
