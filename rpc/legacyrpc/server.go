@@ -58,11 +58,10 @@ func (c *websocketClient) send(b []byte) error {
 // Server holds the items the RPC server may need to access (auth,
 // config, shutdown, etc.)
 type Server struct {
-	httpServer    http.Server
-	walletLoader  *loader.Loader
-	chainClient   *chain.RPCClient
-	handlerLookup func(string) (requestHandler, bool)
-	handlerMu     sync.Mutex
+	httpServer   http.Server
+	walletLoader *loader.Loader
+	chainClient  *chain.RPCClient
+	handlerMu    sync.Mutex
 
 	listeners []net.Listener
 	authsha   [sha256.Size]byte

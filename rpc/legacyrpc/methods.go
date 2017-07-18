@@ -1609,8 +1609,6 @@ func listReceivedByAddress(icmd interface{}, w *wallet.Wallet) (interface{}, err
 		confirmations int32
 		// Hashes of transactions which include an output paying to the address
 		tx []string
-		// Account which the address belongs to
-		account string
 	}
 
 	_, tipHeight := w.MainChainTip()

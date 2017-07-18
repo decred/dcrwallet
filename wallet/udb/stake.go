@@ -410,12 +410,6 @@ func (s *StakeStore) StoreRevocationInfo(dbtx walletdb.ReadWriteTx, ticketHash, 
 		ticketHash)
 }
 
-// getSSRtxs gets a list of SSRtxs that have been generated for some stake
-// ticket.
-func (s *StakeStore) getSSRtxs(ns walletdb.ReadBucket, sstxHash *chainhash.Hash) ([]*ssrtxRecord, error) {
-	return fetchSSRtxRecords(ns, sstxHash)
-}
-
 // updateStakePoolUserTickets updates a stake pool ticket for a given user.
 // If the ticket does not currently exist in the database, it adds it. If it
 // does exist (the ticket hash exists), it replaces the old record.

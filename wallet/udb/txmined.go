@@ -8,7 +8,6 @@ package udb
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -3652,92 +3651,6 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 	}
 
 	return accountBalances, nil
-}
-
-// balanceFullScanSimulated is a simulated version of the balanceFullScan
-// function that allows you to verify the integrity of a balance after
-// performing a rollback by using an old bucket of unmined inputs.
-// Use only with minconf>0.
-// It is only to be used for simulation testing of wallet database
-// integrity.
-func (s *Store) balanceFullScanSimulated(ns walletdb.ReadBucket, minConf int32,
-	syncHeight int32, unminedInputs map[string][]byte) (dcrutil.Amount, error) {
-	if minConf <= 0 {
-		return 0, storeError(apperrors.ErrInput, "0 or negative minconf given "+
-			"for fullscan request", nil)
-	}
-
-	var amt dcrutil.Amount
-
-	err := ns.NestedReadBucket(bucketUnspent).ForEach(func(k, v []byte) error {
-		strK := hex.EncodeToString(k)
-		_, ok := unminedInputs[strK]
-		if ok {
-			// Output is spent by an unmined transaction.
-			// Skip to next unmined credit.
-			return nil
-		}
-
-		cKey := make([]byte, 72)
-		copy(cKey[0:32], k[0:32])   // Tx hash
-		copy(cKey[32:36], v[0:4])   // Block height
-		copy(cKey[36:68], v[4:36])  // Block hash
-		copy(cKey[68:72], k[32:36]) // Output index
-
-		cVal := existsRawCredit(ns, cKey)
-		if cVal == nil {
-			return fmt.Errorf("couldn't find a credit for unspent txo")
-		}
-
-		utxoAmt, err := fetchRawCreditAmount(cVal)
-		if err != nil {
-			return err
-		}
-
-		height := extractRawCreditHeight(cKey)
-		opcode := fetchRawCreditTagOpCode(cVal)
-
-		switch {
-		case opcode == OP_NONSTAKE:
-			isConfirmed := confirmed(minConf, height, syncHeight)
-			creditFromCoinbase := fetchRawCreditIsCoinbase(cVal)
-			matureCoinbase := (creditFromCoinbase &&
-				confirmed(int32(s.chainParams.CoinbaseMaturity),
-					height,
-					syncHeight))
-
-			if isConfirmed && !creditFromCoinbase {
-				amt += utxoAmt
-			}
-
-			if creditFromCoinbase && matureCoinbase {
-				amt += utxoAmt
-			}
-
-		case opcode == txscript.OP_SSTX:
-			// Locked as stake ticket. These were never added to the
-			// balance in the first place, so ignore them.
-		case opcode == txscript.OP_SSGEN:
-			if confirmed(int32(s.chainParams.CoinbaseMaturity),
-				height, syncHeight) {
-				amt += utxoAmt
-			}
-
-		case opcode == txscript.OP_SSRTX:
-			if confirmed(int32(s.chainParams.CoinbaseMaturity),
-				height, syncHeight) {
-				amt += utxoAmt
-			}
-		case opcode == txscript.OP_SSTXCHANGE:
-			if confirmed(int32(s.chainParams.SStxChangeMaturity),
-				height, syncHeight) {
-				amt += utxoAmt
-			}
-		}
-
-		return nil
-	})
-	return amt, err
 }
 
 // Balances is an convenience type.

@@ -79,8 +79,6 @@ type StakeDifficultyInfo struct {
 // complete wallet.  It contains the Armory-style key store
 // addresses and keys),
 type Wallet struct {
-	publicPassphrase []byte
-
 	// Data stores
 	db       walletdb.DB
 	Manager  *udb.Manager

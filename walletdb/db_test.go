@@ -14,14 +14,6 @@ import (
 	_ "github.com/decred/dcrwallet/walletdb/bdb"
 )
 
-var (
-	// ignoreDbTypes are types which should be ignored when running tests
-	// that iterate all supported DB types.  This allows some tests to add
-	// bogus drivers for testing purposes while still allowing other tests
-	// to easily iterate all supported drivers.
-	ignoreDbTypes = map[string]bool{"createopenfail": true}
-)
-
 // TestAddDuplicateDriver ensures that adding a duplicate driver does not
 // overwrite an existing one.
 func TestAddDuplicateDriver(t *testing.T) {

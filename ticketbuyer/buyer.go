@@ -95,7 +95,6 @@ type TicketPurchaser struct {
 	useMedian        bool         // Flag for using median for ticket fees
 	priceMode        avgPriceMode // Price mode to use to calc average price
 	heightCheck      map[int64]struct{}
-	balEstimated     dcrutil.Amount
 	ticketPrice      dcrutil.Amount
 	stakePoolSize    uint32
 	stakeLive        uint32

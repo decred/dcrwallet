@@ -73,17 +73,6 @@ var needOwnHarness = map[string]bool{
 // Get function name from module name
 var funcInModulePath = regexp.MustCompile(`^.*\.(.*)$`)
 
-// Get the name of a calling function
-func thisFuncName() string {
-	fnName := "unknown"
-	// PC of caller
-	if pc, _, _, ok := runtime.Caller(1); ok {
-		fnName = funcInModulePath.ReplaceAllString(runtime.FuncForPC(pc).Name(), "$1")
-	}
-
-	return fnName
-}
-
 // Get the name of a function type
 func funcName(tc rpcTestCase) string {
 	fncName := runtime.FuncForPC(reflect.ValueOf(tc).Pointer()).Name()
@@ -2180,28 +2169,6 @@ func mustGetStakeDiffNext(r *Harness, t *testing.T) float64 {
 	}
 
 	return stakeDiffResult.NextStakeDifficulty
-}
-
-// advanceToNewWindow goes to the height where next != current stake difficulty
-func advanceToNewWindow(r *Harness, t *testing.T) uint32 {
-	// ensure there are many blocks left in this price window
-	var blocksLeftInWindow = func(height uint32) int64 {
-		// height + 1 is used to land at the height where next != current diff.
-		windowIdx := int64(height+1) % chaincfg.SimNetParams.StakeDiffWindowSize
-		return chaincfg.SimNetParams.StakeDiffWindowSize - windowIdx
-	}
-	// Keep generating blocks until a new price window starts, giving us several
-	// blocks with the same stake difficulty
-	curBlockHeight := getBestBlockHeight(r, t)
-	initHeight := curBlockHeight
-	for blocksLeftInWindow(curBlockHeight) !=
-		chaincfg.SimNetParams.StakeDiffWindowSize {
-		curBlockHeight, _, _ = newBlockAtQuick(curBlockHeight, r, t)
-		time.Sleep(75 * time.Millisecond)
-	}
-	t.Logf("Advanced %d blocks to block height %d", curBlockHeight-initHeight,
-		curBlockHeight)
-	return curBlockHeight
 }
 
 func advanceToHeight(r *Harness, t *testing.T, height uint32) {
