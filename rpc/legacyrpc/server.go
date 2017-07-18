@@ -278,7 +278,7 @@ func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) l
 	}
 	s.handlerMu.Unlock()
 
-	return lazyApplyHandler(request, s.activeNet, wallet, chainClient)
+	return lazyApplyHandler(request, wallet, chainClient)
 }
 
 // ErrNoAuth represents an error where authentication could not succeed
