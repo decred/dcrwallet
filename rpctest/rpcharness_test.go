@@ -2183,7 +2183,6 @@ func advanceToHeight(r *Harness, t *testing.T, height uint32) {
 	}
 	t.Logf("Advanced %d blocks to block height %d", curBlockHeight-initHeight,
 		curBlockHeight)
-	return
 }
 
 func newBlockAt(currentHeight uint32, r *Harness,

@@ -1335,13 +1335,6 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 			return nil, dcrjson.ErrDecodeHexString
 		}
 
-		if input.Vout < 0 {
-			return nil, dcrjson.Error{
-				Code:    dcrjson.ErrInvalidParameter.Code,
-				Message: "Invalid parameter, vout must be positive",
-			}
-		}
-
 		if !(input.Tree == wire.TxTreeRegular ||
 			input.Tree == wire.TxTreeStake) {
 			return nil, dcrjson.Error{
@@ -1357,10 +1350,6 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 
 	if totalAdded < minAmount {
 		return nil, ErrSStxNotEnoughFunds
-	}
-	rewards := []string{}
-	for _, value := range payouts {
-		rewards = append(rewards, value.Addr)
 	}
 
 	var changeAddr dcrutil.Address
