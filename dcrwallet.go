@@ -96,7 +96,6 @@ func walletMain() error {
 	dbDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
 	stakeOptions := &ldr.StakeOptions{
 		VotingEnabled:       cfg.EnableVoting,
-		PruneTickets:        cfg.PruneTickets,
 		AddressReuse:        cfg.ReuseAddresses,
 		TicketAddress:       cfg.TicketAddress,
 		PoolAddress:         cfg.PoolAddress,

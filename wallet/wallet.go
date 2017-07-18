@@ -3881,8 +3881,8 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 
 // Open loads an already-created wallet from the passed database and namespaces.
 func Open(db walletdb.DB, pubPass []byte, votingEnabled bool, addressReuse bool,
-	pruneTickets bool, ticketAddress string, poolAddress string, poolFees float64,
-	ticketFee float64, gapLimit int, stakePoolColdExtKey string, allowHighFees bool,
+	ticketAddress string, poolAddress string, poolFees float64, ticketFee float64,
+	gapLimit int, stakePoolColdExtKey string, allowHighFees bool,
 	relayFee float64, params *chaincfg.Params) (*Wallet, error) {
 
 	// Migrate to the unified DB if necessary.
@@ -3907,19 +3907,6 @@ func Open(db walletdb.DB, pubPass []byte, votingEnabled bool, addressReuse bool,
 	addrMgr, txMgr, smgr, err := udb.Open(db, params, pubPass)
 	if err != nil {
 		return nil, err
-	}
-
-	// If configured to prune old tickets from transaction history, do so
-	// now.  This step is always skipped on simnet because adjustment times
-	// are shorter.
-	if pruneTickets && params != &chaincfg.SimNetParams {
-		err := walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
-			bucket := tx.ReadWriteBucket(wtxmgrNamespaceKey)
-			return txMgr.PruneOldTickets(bucket)
-		})
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	var ticketAddr dcrutil.Address

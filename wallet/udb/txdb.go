@@ -2024,28 +2024,22 @@ func upgradeTxDB(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params) erro
 		return storeError(apperrors.ErrData, str, nil)
 	}
 
-	// Perform upgrades from version 1 to 2 when necessary.
-	if version == 1 {
-		err := upgradeToVersion2(ns)
+	// Perform version upgrades as necessary.
+	for {
+		var err error
+		switch version {
+		case 1:
+			err = upgradeToVersion2(ns)
+		case 2:
+			err = upgradeToVersion3(ns, chainParams)
+		default: // >= 3
+			return nil
+		}
 		if err != nil {
 			return err
 		}
 		version++
 	}
-
-	if version == 2 {
-		err := upgradeToVersion3(ns, chainParams)
-		if err != nil {
-			return err
-		}
-		version++
-	}
-
-	if version != 3 {
-
-	}
-
-	return nil
 }
 
 // upgradeToVersion2 upgrades the transaction store from version 1 to version 2.

@@ -51,7 +51,6 @@ func createWallet(cfg *config) error {
 	dbDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
 	stakeOptions := &loader.StakeOptions{
 		VotingEnabled: cfg.EnableVoting,
-		PruneTickets:  cfg.PruneTickets,
 		AddressReuse:  cfg.ReuseAddresses,
 		TicketAddress: cfg.TicketAddress,
 		TicketFee:     cfg.TicketFee.ToCoin(),

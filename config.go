@@ -104,7 +104,6 @@ type config struct {
 	EnableTicketBuyer   bool                `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
 	EnableVoting        bool                `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
 	ReuseAddresses      bool                `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
-	PruneTickets        bool                `long:"prunetickets" description:"Prune old tickets from the wallet and restore their inputs"`
 	PurchaseAccount     string              `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
 	TicketAddress       string              `long:"ticketaddress" description:"Send all ticket outputs to this address (P2PKH or P2SH only)"`
 	PoolAddress         string              `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
@@ -152,7 +151,8 @@ type config struct {
 	tbCfg  ticketbuyer.Config
 
 	// Deprecated options
-	DataDir *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
+	DataDir      *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
+	PruneTickets bool                    `long:"prunetickets" description:"DEPRECATED -- old tickets are always pruned"`
 }
 
 type ticketBuyerOptions struct {
@@ -512,6 +512,10 @@ func loadConfig() (*config, []string, error) {
 		if !cfg.AppDataDir.ExplicitlySet() {
 			cfg.AppDataDir.Value = cfg.DataDir.Value
 		}
+	}
+	if cfg.PruneTickets {
+		fmt.Fprintln(os.Stderr, "prunetickets option is no longer necessary "+
+			"or used -- please update your config")
 	}
 
 	if cfg.TBOpts.SpreadTicketPurchases {
