@@ -1467,7 +1467,7 @@ func (s *loaderServer) OpenWallet(ctx context.Context, req *pb.OpenWalletRequest
 		pubPassphrase = []byte(wallet.InsecurePubPassphrase)
 	}
 
-	_, err := s.loader.OpenExistingWallet(pubPassphrase, false)
+	_, err := s.loader.OpenExistingWallet(pubPassphrase)
 	if err != nil {
 		return nil, translateError(err)
 	}

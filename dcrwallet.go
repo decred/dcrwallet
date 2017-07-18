@@ -126,7 +126,7 @@ func walletMain() error {
 
 		// Load the wallet database.  It must have been created already
 		// or this will return an appropriate error.
-		w, err := loader.OpenExistingWallet(walletPass, true)
+		w, err := loader.OpenExistingWallet(walletPass)
 		if err != nil {
 			log.Errorf("Open failed: %v", err)
 			return err

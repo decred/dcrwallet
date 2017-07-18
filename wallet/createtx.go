@@ -1280,7 +1280,7 @@ func (w *Wallet) txToSStx(pair map[string]dcrutil.Amount,
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		var err error
 		tx, err = w.txToSStxInternal(dbtx, pair, inputCredits, inputs,
-			payouts, account, minconf)
+			payouts)
 		return err
 	})
 	return tx, err
@@ -1288,7 +1288,7 @@ func (w *Wallet) txToSStx(pair map[string]dcrutil.Amount,
 
 func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcrutil.Amount,
 	inputCredits []udb.Credit, inputs []dcrjson.SStxInput,
-	payouts []dcrjson.SStxCommitOut, account uint32, minconf int32) (tx *CreatedTx, err error) {
+	payouts []dcrjson.SStxCommitOut) (tx *CreatedTx, err error) {
 
 	// Quit if the blockchain is reorganizing.
 	w.reorganizingLock.Lock()

@@ -413,7 +413,7 @@ func (s *StakeStore) StoreRevocationInfo(dbtx walletdb.ReadWriteTx, ticketHash, 
 // updateStakePoolUserTickets updates a stake pool ticket for a given user.
 // If the ticket does not currently exist in the database, it adds it. If it
 // does exist (the ticket hash exists), it replaces the old record.
-func (s *StakeStore) updateStakePoolUserTickets(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, user dcrutil.Address, ticket *PoolTicket) error {
+func (s *StakeStore) updateStakePoolUserTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address, ticket *PoolTicket) error {
 	_, isScriptHash := user.(*dcrutil.AddressScriptHash)
 	_, isP2PKH := user.(*dcrutil.AddressPubKeyHash)
 	if !(isScriptHash || isP2PKH) {
@@ -429,8 +429,8 @@ func (s *StakeStore) updateStakePoolUserTickets(ns walletdb.ReadWriteBucket, wad
 
 // UpdateStakePoolUserTickets is the exported and concurrency safe form of
 // updateStakePoolUserTickets.
-func (s *StakeStore) UpdateStakePoolUserTickets(ns walletdb.ReadWriteBucket, waddrmgrNs walletdb.ReadBucket, user dcrutil.Address, ticket *PoolTicket) error {
-	return s.updateStakePoolUserTickets(ns, waddrmgrNs, user, ticket)
+func (s *StakeStore) UpdateStakePoolUserTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address, ticket *PoolTicket) error {
+	return s.updateStakePoolUserTickets(ns, user, ticket)
 }
 
 // removeStakePoolUserInvalTickets prepares the user.Address and asks stakedb

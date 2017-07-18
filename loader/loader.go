@@ -176,7 +176,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 // and the public passphrase.  If the loader is being called by a context where
 // standard input prompts may be used during wallet upgrades, setting
 // canConsolePrompt will enable these prompts.
-func (l *Loader) OpenExistingWallet(pubPassphrase []byte, canConsolePrompt bool) (w *wallet.Wallet, rerr error) {
+func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rerr error) {
 	defer l.mu.Unlock()
 	l.mu.Lock()
 

@@ -1187,7 +1187,7 @@ func testSendMany(r *Harness, t *testing.T) {
 	}
 
 	// Check to make sure the transaction that was sent was included in the block
-	if !includesTx(txid, block, r, t) {
+	if !includesTx(txid, block) {
 		t.Fatalf("Expected transaction not included in block")
 	}
 
@@ -1740,7 +1740,7 @@ func testGetTickets(r *Harness, t *testing.T) {
 
 	// Verify stake submissions were mined
 	for _, hash := range hashes {
-		if !includesStakeTx(hash, block, r, t) {
+		if !includesStakeTx(hash, block) {
 			t.Errorf("SSTx expected, not found in block %v.", block.Height())
 		}
 	}
@@ -2244,9 +2244,7 @@ func newBestBlock(r *Harness,
 }
 
 // includesTx checks if a block contains a transaction hash
-func includesTx(txHash *chainhash.Hash, block *dcrutil.Block,
-	r *Harness, t *testing.T) bool {
-
+func includesTx(txHash *chainhash.Hash, block *dcrutil.Block) bool {
 	if len(block.Transactions()) <= 1 {
 		return false
 	}
@@ -2264,9 +2262,7 @@ func includesTx(txHash *chainhash.Hash, block *dcrutil.Block,
 }
 
 // includesTx checks if a block contains a transaction hash
-func includesStakeTx(txHash *chainhash.Hash, block *dcrutil.Block,
-	r *Harness, t *testing.T) bool {
-
+func includesStakeTx(txHash *chainhash.Hash, block *dcrutil.Block) bool {
 	if len(block.STransactions()) <= 1 {
 		return false
 	}

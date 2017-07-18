@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Decred developers
+ * Copyright (c) 2016-2017 The Decred developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,17 +17,13 @@
 package main
 
 import (
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
 )
 
 // makeTx generates a transaction spending outputs to a single address.
-func makeTx(params *chaincfg.Params,
-	inputs []*extendedOutPoint,
-	addr dcrutil.Address,
-	txFee int64) (*wire.MsgTx, error) {
+func makeTx(inputs []*extendedOutPoint, addr dcrutil.Address, txFee int64) (*wire.MsgTx, error) {
 	mtx := wire.NewMsgTx()
 
 	allInAmts := int64(0)

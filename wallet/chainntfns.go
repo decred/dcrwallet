@@ -472,7 +472,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 					Status:       udb.TSImmatureOrLive,
 				}
 				err := w.StakeMgr.UpdateStakePoolUserTickets(
-					stakemgrNs, addrmgrNs, addr, poolTicket)
+					stakemgrNs, addr, poolTicket)
 				if err != nil {
 					log.Warnf("Failed to insert stake pool "+
 						"user ticket: %v", err)
@@ -541,7 +541,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 						"ticket %v (voted ticket): %v", txInHash, err)
 				} else {
 					err = w.StakeMgr.UpdateStakePoolUserTickets(
-						stakemgrNs, addrmgrNs, poolUser, poolTicket)
+						stakemgrNs, poolUser, poolTicket)
 					if err != nil {
 						log.Warnf("Failed to update stake pool ticket for "+
 							"stake pool user %s after voting",
@@ -592,7 +592,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 					"ticket %v (missed ticket)", txInHash)
 			} else {
 				err = w.StakeMgr.UpdateStakePoolUserTickets(
-					stakemgrNs, addrmgrNs, poolUser, poolTicket)
+					stakemgrNs, poolUser, poolTicket)
 				if err != nil {
 					log.Warnf("failed to update stake pool ticket for "+
 						"stake pool user %s after revoking",

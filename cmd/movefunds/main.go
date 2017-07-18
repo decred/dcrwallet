@@ -163,7 +163,7 @@ func main() {
 	sz := float64(estimateTxSize(len(utxosToUse), 1)) / 1000
 	feeEst := int64(math.Ceil(sz * float64(cfg.TxFee)))
 
-	tx, err := makeTx(params, utxosToUse, sendToAddress, feeEst)
+	tx, err := makeTx(utxosToUse, sendToAddress, feeEst)
 	if err != nil {
 		fmt.Println("Couldn't produce tx: ", err.Error())
 		return
