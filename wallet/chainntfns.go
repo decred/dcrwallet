@@ -698,9 +698,12 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			// included yet.
 			mso, err := w.TxStore.GetMultisigOutput(txmgrNs, &input.PreviousOutPoint)
 			if mso != nil && err == nil {
-				w.TxStore.SpendMultisigOut(txmgrNs, &input.PreviousOutPoint,
+				err = w.TxStore.SpendMultisigOut(txmgrNs, &input.PreviousOutPoint,
 					rec.Hash,
 					uint32(i))
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
