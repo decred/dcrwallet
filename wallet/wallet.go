@@ -2991,13 +2991,13 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
 		mempoolTicketsFuture := chainClient.GetRawMempoolAsync(dcrjson.GRMTickets)
-		missedTicketsFuture := chainClient.MissedTicketsAsync()
 
 		var (
 			poolSize                                         uint32
 			ticketHashPtrs, voteHashPtrs, revocationHashPtrs []*chainhash.Hash
 			liveTicketsFuture                                dcrrpcclient.FutureExistsLiveTicketsResult
 			expiredTicketsFuture                             dcrrpcclient.FutureExistsExpiredTicketsResult
+			missedTicketsFuture                              dcrrpcclient.FutureExistsMissedTicketsResult
 
 			err1, err2, err3, err4, err5 error // for concurrent work
 			wg                           sync.WaitGroup
@@ -3017,6 +3017,7 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 				ticketHashPtrs[i] = &ticketHashes[i]
 			}
 			liveTicketsFuture = chainClient.ExistsLiveTicketsAsync(ticketHashPtrs)
+			missedTicketsFuture = chainClient.ExistsMissedTicketsAsync(ticketHashPtrs)
 			wg.Done()
 		}()
 		revocationHashes, err := w.StakeMgr.DumpSSRtxTickets(stakemgrNs)
@@ -3136,15 +3137,30 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 			wg.Done()
 		}()
 		go func() {
-			var allMissedTickets []*chainhash.Hash
-			allMissedTickets, err3 = missedTicketsFuture.Receive()
-			for _, ticketHash := range ticketHashes {
-				found := false
-				if hashInPointerSlice(ticketHash, allMissedTickets) {
-					// Increment missedNum if the missed ticket doesn't have a
-					// revoked associated with it
-					for _, revocationHash := range revocationHashes {
-						if ticketHash == revocationHash {
+			defer wg.Done()
+			var missedTicketsBitsetHex string
+			var missedTicketsBitset []byte
+			missedTicketsBitsetHex, err3 = missedTicketsFuture.Receive()
+			if err3 != nil {
+				return
+			}
+			missedTicketsBitset, err3 = hex.DecodeString(missedTicketsBitsetHex)
+			if err3 != nil {
+				return
+			}
+			for i := 0; i < len(ticketHashes); i++ {
+				if bitset.Bytes(missedTicketsBitset).Get(i) {
+					// Tickets hashes for revoked tickets created by this wallet
+					// execution are never removed from the
+					// w.StakeMgr.DumpSStxHashes result but are removed from the
+					// results after restarting the wallet.  Therefore to
+					// prevent double counting missed tickets when revocations
+					// have been created during this wallet's execution, only
+					// increment the missed count if the ticket is not one of
+					// the already known revoked tickets.
+					found := false
+					for _, revokedTicket := range revocationHashPtrs {
+						if ticketHashes[i] == *revokedTicket {
 							found = true
 							break
 						}
@@ -3155,7 +3171,6 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 				}
 			}
 			missedCount += uint32(len(revocationHashes))
-			wg.Done()
 		}()
 		go func() {
 			defer func() {
