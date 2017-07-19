@@ -1043,7 +1043,7 @@ func (s *Store) moveMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Read
 
 	// For each output of the record that is marked as a credit, if the
 	// output is marked as a credit by the unconfirmed store, remove the
-	// marker and mark the output as a credit in the db.
+	// marker and mark the output as a mined credit in the db.
 	//
 	// Moved credits are added as unspents, even if there is another
 	// unconfirmed transaction which spends them.
@@ -1052,31 +1052,32 @@ func (s *Store) moveMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Read
 		block:    block.Block,
 		spentBy:  indexedIncidence{index: ^uint32(0)},
 	}
-	it := makeUnminedCreditIterator(ns, &rec.Hash)
-	for it.next() {
+	for i := uint32(0); i < uint32(len(rec.MsgTx.TxOut)); i++ {
+		k := canonicalOutPoint(&rec.Hash, i)
+		v := existsRawUnminedCredit(ns, k)
+		if v == nil {
+			continue
+		}
+
 		// TODO: This should use the raw apis.  The credit value (it.cv)
 		// can be moved from unmined directly to the credits bucket.
 		// The key needs a modification to include the block
 		// height/hash.
-		index, err := fetchRawUnminedCreditIndex(it.ck)
+		amount, change, err := fetchRawUnminedCreditAmountChange(v)
 		if err != nil {
 			return err
 		}
-		amount, change, err := fetchRawUnminedCreditAmountChange(it.cv)
-		if err != nil {
-			return err
-		}
-		cred.outPoint.Index = index
+		cred.outPoint.Index = i
 		cred.amount = amount
 		cred.change = change
-		cred.opCode = fetchRawUnminedCreditTagOpcode(it.cv)
-		cred.isCoinbase = fetchRawUnminedCreditTagIsCoinbase(it.cv)
+		cred.opCode = fetchRawUnminedCreditTagOpcode(v)
+		cred.isCoinbase = fetchRawUnminedCreditTagIsCoinbase(v)
 
 		// Legacy credit output values may be of the wrong
 		// size.
-		scrType := fetchRawUnminedCreditScriptType(it.cv)
-		scrPos := fetchRawUnminedCreditScriptOffset(it.cv)
-		scrLen := fetchRawUnminedCreditScriptLength(it.cv)
+		scrType := fetchRawUnminedCreditScriptType(v)
+		scrPos := fetchRawUnminedCreditScriptOffset(v)
+		scrLen := fetchRawUnminedCreditScriptLength(v)
 
 		// Grab the pkScript quickly.
 		pkScript, err := fetchRawTxRecordPkScript(recKey, recVal,
@@ -1085,11 +1086,15 @@ func (s *Store) moveMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Read
 			return err
 		}
 
-		acct, err := s.fetchAccountForPkScript(addrmgrNs, nil, it.cv, pkScript)
+		acct, err := s.fetchAccountForPkScript(addrmgrNs, nil, v, pkScript)
 		if err != nil {
 			return err
 		}
 
+		err = deleteRawUnminedCredit(ns, k)
+		if err != nil {
+			return err
+		}
 		err = putUnspentCredit(ns, &cred, scrType, scrPos, scrLen, acct)
 		if err != nil {
 			return err
@@ -1099,32 +1104,9 @@ func (s *Store) moveMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Read
 			return err
 		}
 
-		// reposition cursor before deleting, since the above puts have
-		// invalidated the cursor.
-		it.reposition(&rec.Hash, index)
-
-		// Avoid cursor deletion until bolt issue #620 is resolved.
-		// err = it.delete()
-		// if err != nil {
-		// 	return err
-		// }
-
 		// Do not increment ticket credits.
 		if !(cred.opCode == txscript.OP_SSTX) {
 			minedBalance += amount
-		}
-	}
-	if it.err != nil {
-		return it.err
-	}
-
-	// Delete all possible credits outside of the iteration since the cursor
-	// deletion is broken.
-	for i := 0; i < len(rec.MsgTx.TxOut); i++ {
-		k := canonicalOutPoint(&rec.Hash, uint32(i))
-		err = deleteRawUnminedCredit(ns, k)
-		if err != nil {
-			return err
 		}
 	}
 

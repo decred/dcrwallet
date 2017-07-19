@@ -1518,11 +1518,6 @@ func (r readCursor) Delete() error {
 	return storeError(apperrors.ErrDatabase, str, walletdb.ErrTxNotWritable)
 }
 
-func makeUnminedCreditIterator(ns walletdb.ReadWriteBucket, txHash *chainhash.Hash) unminedCreditIterator {
-	c := ns.NestedReadWriteBucket(bucketUnminedCredits).ReadWriteCursor()
-	return unminedCreditIterator{c: c, prefix: txHash[:]}
-}
-
 func makeReadUnminedCreditIterator(ns walletdb.ReadBucket, txHash *chainhash.Hash) unminedCreditIterator {
 	c := ns.NestedReadBucket(bucketUnminedCredits).ReadCursor()
 	return unminedCreditIterator{c: readCursor{c}, prefix: txHash[:]}
