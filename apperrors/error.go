@@ -223,3 +223,14 @@ func Wraps(apperror, err error) bool {
 	e, ok := apperror.(E)
 	return ok && e.Err == err
 }
+
+// New returns a new application error with the code and description.
+func New(code Code, desc string) error {
+	return E{ErrorCode: code, Description: desc, Err: nil}
+}
+
+// Wrap returns a new application error that wraps err with an error code and
+// description.
+func Wrap(err error, code Code, desc string) error {
+	return E{ErrorCode: code, Description: desc, Err: err}
+}

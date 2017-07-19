@@ -8,12 +8,19 @@ package udb
 import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
 // InsertMemPoolTx inserts a memory pool transaction record.  It also marks
 // previous outputs referenced by its inputs as spent.
 func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) error {
+	_, recVal := latestTxRecord(ns, &rec.Hash)
+	if recVal != nil {
+		const str = "transaction already exists mined"
+		return apperrors.New(apperrors.ErrDuplicate, str)
+	}
+
 	v := existsRawUnmined(ns, rec.Hash[:])
 	if v != nil {
 		// TODO: compare serialized txs to ensure this isn't a hash collision?

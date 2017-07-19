@@ -609,6 +609,11 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 	var err error
 	if serializedHeader == nil {
 		err = w.TxStore.InsertMemPoolTx(txmgrNs, rec)
+		if apperrors.IsError(err, apperrors.ErrDuplicate) {
+			log.Warnf("Refusing to add unmined transaction %v since same "+
+				"transaction already exists mined", &rec.Hash)
+			return nil
+		}
 	} else {
 		err = w.TxStore.InsertMinedTx(txmgrNs, addrmgrNs, rec, &blockMeta.Hash)
 	}

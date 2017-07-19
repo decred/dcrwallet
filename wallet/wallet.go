@@ -56,11 +56,6 @@ var (
 	SimulationPassphrase = []byte("password")
 )
 
-// ErrNotSynced describes an error where an operation cannot complete
-// due wallet being out of sync (and perhaps currently syncing with)
-// the remote chain server.
-var ErrNotSynced = errors.New("wallet is not synchronized with the chain server")
-
 // Namespace bucket keys.
 var (
 	waddrmgrNamespaceKey  = []byte("waddrmgr")
