@@ -946,7 +946,7 @@ func (w *Wallet) handleWinningTickets(blockHash *chainhash.Hash,
 			continue
 		}
 		log.Infof("Voted on block %v (height %v) using ticket %v "+
-			"(vote hash: %v bits: %v", blockHash, blockHeight,
+			"(vote hash: %v bits: %v)", blockHash, blockHeight,
 			ticketHashes[i], &voteHash, voteBits.Bits)
 	}
 
