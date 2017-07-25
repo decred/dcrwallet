@@ -380,6 +380,8 @@ The service provides the following methods:
 - [`StakeInfo`](#stakeinfo)
 - [`PurchaseTickets`](#purchasetickets)
 - [`RevokeTickets`](#revoketickets)
+- [`LoadActiveDataFilters](#loadactivedatafilters)
+- [`SignMessage`](#signmessage)
 - [`TransactionNotifications`](#transactionnotifications)
 - [`AccountNotifications`](#accountnotifications)
 - [`ConfirmationNotifications`](#confirmationnotifications)
@@ -1358,6 +1360,36 @@ associated consensus RPC server for all active addresses and watched outpoints.
 
 **Stability:** Unstable: this method requires an associated consensus server RPC
 client and functionality might move for any future SPV support.
+
+___
+
+#### `SignMessage`
+
+The `SignMessage` method creates a signature of a message using the private key
+of an address.
+
+**Request:** `SignMessageRequest`
+
+- `string address`: The associated address of the private key to use to sign the
+  message.  Must be P2PKH or P2PK.
+
+- `string message`: The message to sign.
+
+- `bytes passphrase`: The wallet's private passphrase.
+
+**Response:** `SignMessageResponse`
+
+- `bytes signature`: The signature of the message.
+
+**Expected errors:**
+
+- `InvalidArgument`: The address cannot be decoded, is for the wrong network, or
+  is not P2PKH or P2PK.
+
+- `InvalidArgument`: The private passphrase is incorrect.
+
+**Stability:** Unstable: this method may require API changes to support
+signature algorithms other than secp256k1.
 
 ___
 

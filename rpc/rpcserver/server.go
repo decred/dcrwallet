@@ -1095,6 +1095,29 @@ func (s *walletServer) LoadActiveDataFilters(ctx context.Context, req *pb.LoadAc
 	return &pb.LoadActiveDataFiltersResponse{}, nil
 }
 
+func (s *walletServer) SignMessage(cts context.Context, req *pb.SignMessageRequest) (*pb.SignMessageResponse, error) {
+	lock := make(chan time.Time, 1)
+	defer func() {
+		lock <- time.Time{} // send matters, not the value
+	}()
+	err := s.wallet.Unlock(req.Passphrase, lock)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	addr, err := decodeAddress(req.Address, s.wallet.ChainParams())
+	if err != nil {
+		return nil, err
+	}
+
+	sig, err := s.wallet.SignMessage(req.Message, addr)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	return &pb.SignMessageResponse{Signature: sig}, nil
+}
+
 func marshalTransactionInputs(v []wallet.TransactionSummaryInput) []*pb.TransactionDetails_Input {
 	inputs := make([]*pb.TransactionDetails_Input, len(v))
 	for i := range v {

@@ -49,6 +49,7 @@ service WalletService {
 	rpc PurchaseTickets(PurchaseTicketsRequest) returns (PurchaseTicketsResponse);
 	rpc RevokeTickets(RevokeTicketsRequest) returns (RevokeTicketsResponse);
 	rpc LoadActiveDataFilters(LoadActiveDataFiltersRequest) returns (LoadActiveDataFiltersResponse);
+	rpc SignMessage (SignMessageRequest) returns (SignMessageResponse);
 }
 
 service WalletLoaderService {
@@ -422,6 +423,15 @@ message RevokeTicketsResponse {}
 
 message LoadActiveDataFiltersRequest {}
 message LoadActiveDataFiltersResponse {}
+
+message SignMessageRequest{
+	string address = 1;
+	string message = 2;
+	bytes passphrase = 3;
+}
+message SignMessageResponse{
+	bytes signature = 1;
+}
 
 message TransactionNotificationsRequest {}
 message TransactionNotificationsResponse {
