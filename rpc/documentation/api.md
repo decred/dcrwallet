@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.19.x
+Version: 4.20.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -42,6 +42,7 @@ existing wallet.
 - [`TicketBuyerService`](#ticketbuyerservice)
 - [`AgendaService`](#agendaservice)
 - [`VotingService`](#votingservice)
+- [`MessageVerificationService`](#messageverificationservice)
 
 ## `VersionService`
 
@@ -2166,5 +2167,42 @@ supported by this software.
 
 - `InvalidArgument`: An agenda ID or choice ID is not valid for the latest
   supported stake version.
+
+**Stability:** Unstable
+
+## `MessageVerificationService`
+
+The `MessageVerificationService` service provides the caller with the ability to
+verify that a message was signed using the private key of a particular address.
+
+**Methods:**
+
+- [`VerifyMessage`](#verifymessage)
+
+### Methods
+
+#### `VerifyMessage`
+
+The `VerifyMessage` method verifies that a signature is a valid signature of a
+message and was created using the secp256k1 private key for an address.
+
+**Request:** `VerifyMessageRequest`
+
+- `string address`: The address to compare against a recovered public key from
+  the signature.  Must be secp256k1 P2PK or P2PKH.
+
+- `string message`: The message to verify.
+
+- `bytes signature`: The signature of the message.
+
+**Response:** `VerifyMessageResponse`
+
+- `bool valid`: The signature is valid and was signed by the private key of the
+  address.
+
+**Expected errors:**
+
+- `InvalidArgument`: The address cannot be decoded or is not secp256k1 P2PK or
+  P2PKH.
 
 **Stability:** Unstable

@@ -92,6 +92,10 @@ service VotingService {
 	rpc SetVoteChoices (SetVoteChoicesRequest) returns (SetVoteChoicesResponse);
 }
 
+service MessageVerificationService {
+	rpc VerifyMessage (VerifyMessageRequest) returns (VerifyMessageResponse);
+}
+
 message TransactionDetails {
 	message Input {
 		uint32 index = 1;
@@ -671,4 +675,13 @@ message SetVoteChoicesRequest {
 }
 message SetVoteChoicesResponse {
 	uint32 votebits = 1;
+}
+
+message VerifyMessageRequest {
+	string address = 1;
+	string message = 2;
+	bytes signature = 3;
+}
+message VerifyMessageResponse {
+	bool valid = 1;
 }

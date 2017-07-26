@@ -3060,48 +3060,40 @@ func validateAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 func verifyMessage(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	cmd := icmd.(*dcrjson.VerifyMessageCmd)
 
-	addr, err := decodeAddress(cmd.Address, w.ChainParams())
+	var valid bool
+
+	// Decode address and base64 signature from the request.
+	addr, err := dcrutil.DecodeNetworkAddress(cmd.Address)
 	if err != nil {
 		return nil, err
 	}
-
-	// decode base64 signature
 	sig, err := base64.StdEncoding.DecodeString(cmd.Signature)
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate the signature - this just shows that it was valid at all.
-	// we will compare it with the key next.
-	var buf bytes.Buffer
-	wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
-	wire.WriteVarString(&buf, 0, cmd.Message)
-	expectedMessageHash := chainhash.HashB(buf.Bytes())
-	pk, wasCompressed, err := chainec.Secp256k1.RecoverCompact(sig,
-		expectedMessageHash)
-	if err != nil {
-		return nil, err
-	}
-
-	// Decred: This should actually be a universalized constructor.
-	pkDcr := chainec.Secp256k1.NewPublicKey(pk.GetX(), pk.GetY())
-
-	var serializedPubKey []byte
-	if wasCompressed {
-		serializedPubKey = pkDcr.SerializeCompressed()
-	} else {
-		serializedPubKey = pkDcr.SerializeUncompressed()
-	}
-	// Verify that the signed-by address matches the given address
-	switch checkAddr := addr.(type) {
-	case *dcrutil.AddressPubKeyHash: // ok
-		return bytes.Equal(dcrutil.Hash160(serializedPubKey),
-			checkAddr.Hash160()[:]), nil
-	case *dcrutil.AddressSecpPubKey: // ok
-		return string(serializedPubKey) == checkAddr.String(), nil
+	// Addresses must have an associated secp256k1 private key and therefore
+	// must be P2PK or P2PKH (P2SH is not allowed).
+	switch a := addr.(type) {
+	case *dcrutil.AddressSecpPubKey:
+	case *dcrutil.AddressPubKeyHash:
+		if a.DSA(a.Net()) != chainec.ECTypeSecp256k1 {
+			goto WrongAddrKind
+		}
 	default:
-		return nil, errors.New("address type not supported")
+		goto WrongAddrKind
 	}
+
+	valid, err = wallet.VerifyMessage(cmd.Message, addr, sig)
+	if err != nil {
+		// Mirror Bitcoin Core behavior, which treats all erorrs as an invalid
+		// signature.
+		return false, nil
+	}
+	return valid, nil
+
+WrongAddrKind:
+	return nil, InvalidParameterError{errors.New("address must be secp256k1 P2PK or P2PKH")}
 }
 
 // versionWithChainRPC handles the version request when the RPC server has been

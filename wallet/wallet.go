@@ -1719,6 +1719,37 @@ func (w *Wallet) SignMessage(msg string, addr dcrutil.Address) (sig []byte, err 
 	return secp256k1.SignCompact(secp256k1.S256(), pkCast, messageHash, true)
 }
 
+// VerifyMessage verifies that sig is a valid signature of msg and was created
+// using the secp256k1 private key for addr.
+func VerifyMessage(msg string, addr dcrutil.Address, sig []byte) (bool, error) {
+	// Validate the signature - this just shows that it was valid for any pubkey
+	// at all. Whether the pubkey matches is checked below.
+	var buf bytes.Buffer
+	wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
+	wire.WriteVarString(&buf, 0, msg)
+	expectedMessageHash := chainhash.HashB(buf.Bytes())
+	pk, wasCompressed, err := chainec.Secp256k1.RecoverCompact(sig,
+		expectedMessageHash)
+	if err != nil {
+		return false, err
+	}
+
+	// Reconstruct the address from the recovered pubkey.
+	var serializedPK []byte
+	if wasCompressed {
+		serializedPK = pk.SerializeCompressed()
+	} else {
+		serializedPK = pk.SerializeUncompressed()
+	}
+	recoveredAddr, err := dcrutil.NewAddressSecpPubKey(serializedPK, addr.Net())
+	if err != nil {
+		return false, err
+	}
+
+	// Return whether addresses match.
+	return recoveredAddr.EncodeAddress() == addr.EncodeAddress(), nil
+}
+
 // existsAddressOnChain checks the chain on daemon to see if the given address
 // has been used before on the main chain.
 func (w *Wallet) existsAddressOnChain(address dcrutil.Address) (bool, error) {

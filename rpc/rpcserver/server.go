@@ -29,6 +29,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -54,9 +55,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.19.0"
+	semverString = "4.20.0"
 	semverMajor  = 4
-	semverMinor  = 19
+	semverMinor  = 20
 	semverPatch  = 0
 )
 
@@ -183,6 +184,10 @@ type agendaServer struct {
 type votingServer struct {
 	wallet *wallet.Wallet
 }
+
+// messageVerificationServer provides RPC clients with the ability to verify
+// that a message was signed using the private key of a particular address.
+type messageVerificationServer struct{}
 
 // StartVersionService creates an implementation of the VersionService and
 // registers it with the gRPC server.
@@ -1096,6 +1101,8 @@ func (s *walletServer) LoadActiveDataFilters(ctx context.Context, req *pb.LoadAc
 }
 
 func (s *walletServer) SignMessage(cts context.Context, req *pb.SignMessageRequest) (*pb.SignMessageResponse, error) {
+	var sig []byte
+
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
@@ -1110,12 +1117,26 @@ func (s *walletServer) SignMessage(cts context.Context, req *pb.SignMessageReque
 		return nil, err
 	}
 
-	sig, err := s.wallet.SignMessage(req.Message, addr)
+	// Addresses must have an associated secp256k1 private key and therefore
+	// must be P2PK or P2PKH (P2SH is not allowed).
+	switch a := addr.(type) {
+	case *dcrutil.AddressSecpPubKey:
+	case *dcrutil.AddressPubKeyHash:
+		if a.DSA(a.Net()) != chainec.ECTypeSecp256k1 {
+			goto WrongAddrKind
+		}
+	default:
+		goto WrongAddrKind
+	}
+
+	sig, err = s.wallet.SignMessage(req.Message, addr)
 	if err != nil {
 		return nil, translateError(err)
 	}
-
 	return &pb.SignMessageResponse{Signature: sig}, nil
+
+WrongAddrKind:
+	return nil, status.Error(codes.InvalidArgument, "address must be secp256k1 P2PK or P2PKH")
 }
 
 func marshalTransactionInputs(v []wallet.TransactionSummaryInput) []*pb.TransactionDetails_Input {
@@ -2027,4 +2048,42 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 		Votebits: uint32(voteBits),
 	}
 	return resp, nil
+}
+
+// StartMessageVerificationService creates an implementation of the
+// MessageVerificationService and registers it with the gRPC server.
+func StartMessageVerificationService(server *grpc.Server) {
+	pb.RegisterMessageVerificationServiceServer(server, &messageVerificationServer{})
+}
+
+func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.VerifyMessageRequest) (
+	*pb.VerifyMessageResponse, error) {
+
+	var valid bool
+
+	addr, err := dcrutil.DecodeNetworkAddress(req.Address)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	// Addresses must have an associated secp256k1 private key and therefore
+	// must be P2PK or P2PKH (P2SH is not allowed).
+	switch a := addr.(type) {
+	case *dcrutil.AddressSecpPubKey:
+	case *dcrutil.AddressPubKeyHash:
+		if a.DSA(a.Net()) != chainec.ECTypeSecp256k1 {
+			goto WrongAddrKind
+		}
+	default:
+		goto WrongAddrKind
+	}
+
+	valid, err = wallet.VerifyMessage(req.Message, addr, req.Signature)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.VerifyMessageResponse{Valid: valid}, nil
+
+WrongAddrKind:
+	return nil, status.Error(codes.InvalidArgument, "address must be secp256k1 P2PK or P2PKH")
 }
