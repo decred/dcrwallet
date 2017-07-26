@@ -135,6 +135,15 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 		return nil, ErrWalletExists
 	}
 
+	// At this point it is asserted that there is no existing database file, and
+	// deleting anything won't destroy a wallet in use.  Defer a function that
+	// attempts to remove any written database file if this function errors.
+	defer func() {
+		if err != nil {
+			_ = os.Remove(dbPath)
+		}
+	}()
+
 	// Create the wallet database backed by bolt db.
 	err = os.MkdirAll(l.dbDirPath, 0700)
 	if err != nil {
@@ -144,12 +153,6 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	if err != nil {
 		return nil, err
 	}
-	// Attempt to remove database file if this function errors.
-	defer func() {
-		if err != nil {
-			_ = os.Remove(dbPath)
-		}
-	}()
 
 	// Initialize the newly created database for the wallet before opening.
 	err = wallet.Create(db, pubPassphrase, privPassphrase, seed, l.chainParams)
