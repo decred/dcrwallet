@@ -1592,7 +1592,8 @@ func (s *Store) spendMultisigOut(ns walletdb.ReadWriteBucket, op *wire.OutPoint,
 		if spendHash.IsEqual(&foundSpendHash) && foundSpendIndex == spendIndex {
 			return nil
 		}
-		str := "tried to doublespend multisig output"
+		str := fmt.Sprintf("transaction %v tried to doublespend multisig "+
+			"output %v already spent by %v", &spendHash, op, &foundSpendHash)
 		return storeError(apperrors.ErrDoubleSpend, str, nil)
 	}
 	setMultisigOutSpent(val, spendHash, spendIndex)
