@@ -105,7 +105,6 @@ type config struct {
 	EnableVoting        bool                `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
 	ReuseAddresses      bool                `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
 	PurchaseAccount     string              `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
-	PoolAddress         string              `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
 	PoolFees            float64             `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
 	AddrIdxScanLen      int                 `long:"addridxscanlen" description:"The width of the scan for last used addresses on wallet restore and start up"`
 	StakePoolColdExtKey string              `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
@@ -173,6 +172,8 @@ type ticketBuyerOptions struct {
 	DontWaitForTickets        bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
 	TicketAddress             string              `long:"ticketaddress" description:"Send all ticket outputs to this addres
 s (P2PKH or P2SH only)"`
+	PoolAddress string `long:"pooladdress" description:"The ticket pool address where ticket fee
+s will go to"`
 
 	// Deprecated options
 	MaxPriceScale         float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
@@ -715,11 +716,11 @@ func loadConfig() (*config, []string, error) {
 		}
 	}
 
-	if len(cfg.PoolAddress) != 0 {
-		_, err := dcrutil.DecodeAddress(cfg.PoolAddress)
+	if len(cfg.TBOpts.PoolAddress) != 0 {
+		_, err := dcrutil.DecodeAddress(cfg.TBOpts.PoolAddress)
 		if err != nil {
 			err := fmt.Errorf("pooladdress '%s' failed to decode: %v",
-				cfg.PoolAddress, err)
+				cfg.TBOpts.PoolAddress, err)
 			fmt.Fprintln(os.Stderr, err.Error())
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return loadConfigError(err)
@@ -928,7 +929,7 @@ func loadConfig() (*config, []string, error) {
 		MaxPriceAbsolute:          int64(cfg.TBOpts.MaxPriceAbsolute.Amount),
 		MaxPriceRelative:          cfg.TBOpts.MaxPriceRelative,
 		MaxInMempool:              cfg.TBOpts.MaxInMempool,
-		PoolAddress:               cfg.PoolAddress,
+		PoolAddress:               cfg.TBOpts.PoolAddress,
 		PoolFees:                  cfg.PoolFees,
 		NoSpreadTicketPurchases:   cfg.TBOpts.NoSpreadTicketPurchases,
 		TicketAddress:             cfg.TBOpts.TicketAddress,
