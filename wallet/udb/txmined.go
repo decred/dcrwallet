@@ -3384,7 +3384,13 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			}
 			votingAuthorityAmt := dcrutil.Amount(0)
 			lockedByTicketsAmt := dcrutil.Amount(0)
+			totalIn := int64(0)
+			for _, txIn := range rec.MsgTx.TxIn {
+				totalIn += txIn.ValueIn
+			}
+			totalOut := int64(0)
 			for i, txout := range rec.MsgTx.TxOut {
+				totalOut += txout.Value
 				if i%2 != 0 {
 					addr, err := stake.AddrFromSStxPkScrCommitment(txout.PkScript,
 						s.chainParams)
@@ -3405,10 +3411,11 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 					lockedByTicketsAmt += amt
 				}
 			}
-			fee := votingAuthorityAmt - utxoAmt
-			fmt.Println(lockedByTicketsAmt, fee)
-			ab.LockedByTickets += lockedByTicketsAmt - fee
-			ab.VotingAuthority += votingAuthorityAmt - fee
+			fee := totalIn - totalOut
+			if lockedByTicketsAmt > 0 {
+				ab.LockedByTickets += lockedByTicketsAmt - dcrutil.Amount(fee)
+			}
+			ab.VotingAuthority += votingAuthorityAmt - dcrutil.Amount(fee)
 
 		case txscript.OP_SSGEN:
 			fallthrough
