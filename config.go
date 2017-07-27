@@ -38,7 +38,6 @@ const (
 	defaultReuseAddresses      = false
 	defaultRollbackTest        = false
 	defaultPruneTickets        = false
-	defaultPurchaseAccount     = "default"
 	defaultAutomaticRepair     = false
 	defaultPromptPass          = false
 	defaultPass                = ""
@@ -64,6 +63,7 @@ const (
 	defaultPriceTarget                              = 0
 	defaultBalanceToMaintainAbsolute                = 0
 	defaultBalanceToMaintainRelative                = 0.3
+	defaultPurchaseAccount                          = "default"
 
 	walletDbName = "wallet.db"
 )
@@ -104,7 +104,6 @@ type config struct {
 	EnableTicketBuyer   bool                `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
 	EnableVoting        bool                `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
 	ReuseAddresses      bool                `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
-	PurchaseAccount     string              `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
 	PoolFees            float64             `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
 	AddrIdxScanLen      int                 `long:"addridxscanlen" description:"The width of the scan for last used addresses on wallet restore and start up"`
 	StakePoolColdExtKey string              `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
@@ -174,6 +173,8 @@ type ticketBuyerOptions struct {
 s (P2PKH or P2SH only)"`
 	PoolAddress string `long:"pooladdress" description:"The ticket pool address where ticket fee
 s will go to"`
+	PurchaseAccount string `long:"purchaseaccount" description:"Name of the account to buy tickets f
+rom"`
 
 	// Deprecated options
 	MaxPriceScale         float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
@@ -342,7 +343,6 @@ func loadConfig() (*config, []string, error) {
 		ReuseAddresses:         defaultReuseAddresses,
 		RollbackTest:           defaultRollbackTest,
 		PruneTickets:           defaultPruneTickets,
-		PurchaseAccount:        defaultPurchaseAccount,
 		AutomaticRepair:        defaultAutomaticRepair,
 		AddrIdxScanLen:         defaultAddrIdxScanLen,
 		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
@@ -371,6 +371,7 @@ func loadConfig() (*config, []string, error) {
 			PriceTarget:               cfgutil.NewAmountFlag(defaultPriceTarget),
 			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
 			BalanceToMaintainRelative: defaultBalanceToMaintainRelative,
+			PurchaseAccount:           defaultPurchaseAccount,
 		},
 	}
 
@@ -913,7 +914,7 @@ func loadConfig() (*config, []string, error) {
 
 	// Build ticketbuyer config
 	cfg.tbCfg = ticketbuyer.Config{
-		AccountName:               cfg.PurchaseAccount,
+		AccountName:               cfg.TBOpts.PurchaseAccount,
 		AvgPriceMode:              cfg.TBOpts.AvgPriceMode,
 		AvgPriceVWAPDelta:         cfg.TBOpts.AvgPriceVWAPDelta,
 		BalanceToMaintainAbsolute: int64(cfg.TBOpts.BalanceToMaintainAbsolute.Amount),
