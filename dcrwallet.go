@@ -99,7 +99,7 @@ func walletMain() error {
 		AddressReuse:        cfg.ReuseAddresses,
 		TicketAddress:       cfg.TBOpts.TicketAddress,
 		PoolAddress:         cfg.TBOpts.PoolAddress,
-		PoolFees:            cfg.PoolFees,
+		PoolFees:            cfg.TBOpts.PoolFees,
 		StakePoolColdExtKey: cfg.StakePoolColdExtKey,
 		TicketFee:           cfg.TicketFee.ToCoin(),
 	}
