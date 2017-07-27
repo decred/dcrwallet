@@ -105,7 +105,6 @@ type config struct {
 	EnableVoting        bool                `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
 	ReuseAddresses      bool                `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
 	PurchaseAccount     string              `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
-	TicketAddress       string              `long:"ticketaddress" description:"Send all ticket outputs to this address (P2PKH or P2SH only)"`
 	PoolAddress         string              `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
 	PoolFees            float64             `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
 	AddrIdxScanLen      int                 `long:"addridxscanlen" description:"The width of the scan for last used addresses on wallet restore and start up"`
@@ -172,6 +171,8 @@ type ticketBuyerOptions struct {
 	BalanceToMaintainRelative float64             `long:"balancetomaintainrelative" description:"Proportion of funds to leave in wallet when stake mining"`
 	NoSpreadTicketPurchases   bool                `long:"nospreadticketpurchases" description:"Do not spread ticket purchases evenly throughout the window"`
 	DontWaitForTickets        bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
+	TicketAddress             string              `long:"ticketaddress" description:"Send all ticket outputs to this addres
+s (P2PKH or P2SH only)"`
 
 	// Deprecated options
 	MaxPriceScale         float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
@@ -703,11 +704,11 @@ func loadConfig() (*config, []string, error) {
 		return loadConfigError(err)
 	}
 
-	if len(cfg.TicketAddress) != 0 {
-		_, err := dcrutil.DecodeAddress(cfg.TicketAddress)
+	if len(cfg.TBOpts.TicketAddress) != 0 {
+		_, err := dcrutil.DecodeAddress(cfg.TBOpts.TicketAddress)
 		if err != nil {
 			err := fmt.Errorf("ticketaddress '%s' failed to decode: %v",
-				cfg.TicketAddress, err)
+				cfg.TBOpts.TicketAddress, err)
 			fmt.Fprintln(os.Stderr, err)
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return loadConfigError(err)
@@ -930,7 +931,7 @@ func loadConfig() (*config, []string, error) {
 		PoolAddress:               cfg.PoolAddress,
 		PoolFees:                  cfg.PoolFees,
 		NoSpreadTicketPurchases:   cfg.TBOpts.NoSpreadTicketPurchases,
-		TicketAddress:             cfg.TicketAddress,
+		TicketAddress:             cfg.TBOpts.TicketAddress,
 		TxFee:                     int64(cfg.RelayFee.Amount),
 	}
 

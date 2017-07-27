@@ -52,7 +52,7 @@ func createWallet(cfg *config) error {
 	stakeOptions := &loader.StakeOptions{
 		VotingEnabled: cfg.EnableVoting,
 		AddressReuse:  cfg.ReuseAddresses,
-		TicketAddress: cfg.TicketAddress,
+		TicketAddress: cfg.TBOpts.TicketAddress,
 		TicketFee:     cfg.TicketFee.ToCoin(),
 	}
 	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
