@@ -758,7 +758,7 @@ func decodeAddress(s string, params *chaincfg.Params) (dcrutil.Address, error) {
 		return pubKeyAddr, nil
 	}
 
-	addr, err := dcrutil.DecodeAddress(s, params)
+	addr, err := dcrutil.DecodeAddress(s)
 	if err != nil {
 		msg := fmt.Sprintf("Invalid address %q: decode failed with %#q", s, err)
 		return nil, &dcrjson.RPCError{
@@ -1964,7 +1964,7 @@ func purchaseTicket(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) ([]*wire.TxOut, error) {
 	outputs := make([]*wire.TxOut, 0, len(pairs))
 	for addrStr, amt := range pairs {
-		addr, err := dcrutil.DecodeAddress(addrStr, chainParams)
+		addr, err := dcrutil.DecodeAddress(addrStr)
 		if err != nil {
 			return nil, fmt.Errorf("cannot decode address: %s", err)
 		}
@@ -2188,7 +2188,7 @@ func revokeTickets(icmd interface{}, w *wallet.Wallet, chainClient *chain.RPCCli
 func stakePoolUserInfo(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	cmd := icmd.(*dcrjson.StakePoolUserInfoCmd)
 
-	userAddr, err := dcrutil.DecodeAddress(cmd.User, w.ChainParams())
+	userAddr, err := dcrutil.DecodeAddress(cmd.User)
 	if err != nil {
 		return nil, err
 	}
@@ -2237,7 +2237,7 @@ func stakePoolUserInfo(icmd interface{}, w *wallet.Wallet) (interface{}, error) 
 func ticketsForAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	cmd := icmd.(*dcrjson.TicketsForAddressCmd)
 
-	addr, err := dcrutil.DecodeAddress(cmd.Address, w.ChainParams())
+	addr, err := dcrutil.DecodeAddress(cmd.Address)
 	if err != nil {
 		return nil, err
 	}
@@ -3063,7 +3063,7 @@ func verifyMessage(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	var valid bool
 
 	// Decode address and base64 signature from the request.
-	addr, err := dcrutil.DecodeNetworkAddress(cmd.Address)
+	addr, err := dcrutil.DecodeAddress(cmd.Address)
 	if err != nil {
 		return nil, err
 	}

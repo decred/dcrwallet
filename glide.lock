@@ -20,7 +20,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: 713164983204ef44185aa4cd6a48fed096188d46
+  version: 1c618ec5e119fa9ff4008e9fffd978b71ce68bbd
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -40,9 +40,9 @@ imports:
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
-  version: e7732bfa71b4b098494fa0ce62d42fded970c393
+  version: 5dcd9e5b9cf04d8c624f6068f18c4195d19907d3
 - name: github.com/decred/dcrutil
-  version: a5fab53cab39b793142c8453caa4c6f83bc152d4
+  version: 58e046aab848365647c44b295f4fab078fbc3392
   subpackages:
   - base58
   - hdkeychain

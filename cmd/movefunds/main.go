@@ -145,7 +145,7 @@ func main() {
 
 	maxTxSize = params.MaxTxSize
 
-	sendToAddress, err := dcrutil.DecodeAddress(cfg.SendToAddress, params)
+	sendToAddress, err := dcrutil.DecodeAddress(cfg.SendToAddress)
 	if err != nil {
 		fmt.Println("Failed to parse tx address: ", err.Error())
 	}

@@ -3937,7 +3937,7 @@ func Open(db walletdb.DB, pubPass []byte, votingEnabled bool, addressReuse bool,
 
 	var ticketAddr dcrutil.Address
 	if ticketAddress != "" {
-		ticketAddr, err = dcrutil.DecodeAddress(ticketAddress, params)
+		ticketAddr, err = dcrutil.DecodeAddress(ticketAddress)
 		if err != nil {
 			return nil, fmt.Errorf("ticket address could not parse: %v",
 				err.Error())
@@ -3946,7 +3946,7 @@ func Open(db walletdb.DB, pubPass []byte, votingEnabled bool, addressReuse bool,
 
 	var poolAddr dcrutil.Address
 	if poolAddress != "" {
-		poolAddr, err = dcrutil.DecodeAddress(poolAddress, params)
+		poolAddr, err = dcrutil.DecodeAddress(poolAddress)
 		if err != nil {
 			return nil, fmt.Errorf("pool address could not parse: %v",
 				err.Error())

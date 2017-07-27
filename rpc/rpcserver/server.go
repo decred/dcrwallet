@@ -122,7 +122,7 @@ func errorCode(err error) codes.Code {
 // network.  This should be used preferred to direct usage of
 // dcrutil.DecodeAddress, which does not perform the network check.
 func decodeAddress(a string, params *chaincfg.Params) (dcrutil.Address, error) {
-	addr, err := dcrutil.DecodeAddress(a, params)
+	addr, err := dcrutil.DecodeAddress(a)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid address %v: %v", a, err)
 	}
@@ -2061,7 +2061,7 @@ func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.V
 
 	var valid bool
 
-	addr, err := dcrutil.DecodeNetworkAddress(req.Address)
+	addr, err := dcrutil.DecodeAddress(req.Address)
 	if err != nil {
 		return nil, translateError(err)
 	}

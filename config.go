@@ -704,7 +704,7 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	if len(cfg.TicketAddress) != 0 {
-		_, err := dcrutil.DecodeAddress(cfg.TicketAddress, activeNet.Params)
+		_, err := dcrutil.DecodeAddress(cfg.TicketAddress)
 		if err != nil {
 			err := fmt.Errorf("ticketaddress '%s' failed to decode: %v",
 				cfg.TicketAddress, err)
@@ -715,7 +715,7 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	if len(cfg.PoolAddress) != 0 {
-		_, err := dcrutil.DecodeAddress(cfg.PoolAddress, activeNet.Params)
+		_, err := dcrutil.DecodeAddress(cfg.PoolAddress)
 		if err != nil {
 			err := fmt.Errorf("pooladdress '%s' failed to decode: %v",
 				cfg.PoolAddress, err)

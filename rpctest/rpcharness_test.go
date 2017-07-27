@@ -289,13 +289,13 @@ func testValidateAddress(r *Harness, t *testing.T) {
 		}
 
 		// Decode address
-		_, err = dcrutil.DecodeAddress(addrStr, r.ActiveNet)
+		_, err = dcrutil.DecodeAddress(addrStr)
 		if err != nil {
 			t.Fatalf("Unable to decode address %s: %v", addr.String(), err)
 		}
 
 		// Try to validate an address that is not owned by wallet
-		otherAddress, err := dcrutil.DecodeNetworkAddress("SsqvxBX8MZC5iiKCgBscwt69jg4u4hHhDKU")
+		otherAddress, err := dcrutil.DecodeAddress("SsqvxBX8MZC5iiKCgBscwt69jg4u4hHhDKU")
 		if err != nil {
 			t.Fatalf("Unable to decode address %v: %v", otherAddress, err)
 		}
@@ -326,7 +326,7 @@ func testValidateAddress(r *Harness, t *testing.T) {
 	}
 	devSubAddrStr := addrs[0].String()
 
-	DevAddr, err := dcrutil.DecodeAddress(devSubAddrStr, &chaincfg.SimNetParams)
+	DevAddr, err := dcrutil.DecodeAddress(devSubAddrStr)
 	if err != nil {
 		t.Fatalf("Unable to decode address %s: %v", devSubAddrStr, err)
 	}

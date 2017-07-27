@@ -351,15 +351,14 @@ func NewTicketPurchaser(cfg *Config,
 	var ticketAddress dcrutil.Address
 	var err error
 	if cfg.TicketAddress != "" {
-		ticketAddress, err = dcrutil.DecodeAddress(cfg.TicketAddress,
-			activeNet)
+		ticketAddress, err = dcrutil.DecodeAddress(cfg.TicketAddress)
 		if err != nil {
 			return nil, err
 		}
 	}
 	var poolAddress dcrutil.Address
 	if cfg.PoolAddress != "" {
-		poolAddress, err = dcrutil.DecodeNetworkAddress(cfg.PoolAddress)
+		poolAddress, err = dcrutil.DecodeAddress(cfg.PoolAddress)
 		if err != nil {
 			return nil, err
 		}

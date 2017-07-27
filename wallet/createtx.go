@@ -1311,7 +1311,7 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 			return nil, ErrNonPositiveAmount
 		}
 		minAmount += amt
-		addr, err := dcrutil.DecodeAddress(addrStr, w.chainParams)
+		addr, err := dcrutil.DecodeAddress(addrStr)
 		if err != nil {
 			return nil, fmt.Errorf("cannot decode address: %s", err)
 		}
@@ -1367,8 +1367,7 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 				return nil, err
 			}
 		} else {
-			addr, err = dcrutil.DecodeAddress(payouts[i].Addr,
-				w.chainParams)
+			addr, err = dcrutil.DecodeAddress(payouts[i].Addr)
 			if err != nil {
 				return nil, fmt.Errorf("cannot decode address: %s", err)
 			}
@@ -1410,7 +1409,7 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 				return nil, err
 			}
 		} else {
-			a, err := dcrutil.DecodeAddress(payouts[i].ChangeAddr, w.chainParams)
+			a, err := dcrutil.DecodeAddress(payouts[i].ChangeAddr)
 			if err != nil {
 				return nil, err
 			}
