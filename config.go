@@ -147,8 +147,12 @@ type config struct {
 	tbCfg  ticketbuyer.Config
 
 	// Deprecated options
-	DataDir      *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
-	PruneTickets bool                    `long:"prunetickets" description:"DEPRECATED -- old tickets are always pruned"`
+	DataDir         *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
+	PruneTickets    bool                    `long:"prunetickets" description:"DEPRECATED -- old tickets are always pruned"`
+	TicketAddress   string                  `long:"ticketaddress" description:"DEPRECATED -- send all ticket outputs to this address (P2PKH or P2SH only)"`
+	PoolAddress     string                  `long:"pooladdress" description:"DEPRECATED -- the ticket pool address where ticket fees will go to"`
+	PoolFees        float64                 `long:"poolfees" description:"DEPRECATED -- the per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
+	PurchaseAccount string                  `long:"purchaseaccount" description:"DEPRECATED -- name of the account to buy tickets from"`
 }
 
 type ticketBuyerOptions struct {
@@ -340,6 +344,7 @@ func loadConfig() (*config, []string, error) {
 		ReuseAddresses:         defaultReuseAddresses,
 		RollbackTest:           defaultRollbackTest,
 		PruneTickets:           defaultPruneTickets,
+		PurchaseAccount:        defaultPurchaseAccount,
 		AutomaticRepair:        defaultAutomaticRepair,
 		AddrIdxScanLen:         defaultAddrIdxScanLen,
 		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
@@ -517,7 +522,22 @@ func loadConfig() (*config, []string, error) {
 		fmt.Fprintln(os.Stderr, "prunetickets option is no longer necessary "+
 			"or used -- please update your config")
 	}
-
+	if len(cfg.TicketAddress) > 0 {
+		fmt.Fprintln(os.Stderr, "ticketaddress option is "+
+			"deprecated -- please use ticketbuyer.ticketaddress")
+	}
+	if len(cfg.PoolAddress) > 0 {
+		fmt.Fprintln(os.Stderr, "pooladdress option is "+
+			"deprecated -- please use ticketbuyer.pooladdress")
+	}
+	if cfg.PoolFees != 0.0 {
+		fmt.Fprintln(os.Stderr, "poolfees option is "+
+			"deprecated -- please use ticketbuyer.poolfees")
+	}
+	if cfg.PurchaseAccount != defaultPurchaseAccount {
+		fmt.Fprintln(os.Stderr, "purchaseaccount option is "+
+			"deprecated -- please use ticketbuyer.purchaseaccount")
+	}
 	if cfg.TBOpts.SpreadTicketPurchases {
 		fmt.Fprintln(os.Stderr, "ticketbuyer.spreadticketpurchases option "+
 			"has been replaced by ticketbuyer.nospreadticketpurchases -- "+
