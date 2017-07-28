@@ -3413,9 +3413,9 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			}
 			if lockedByTicketsAmt > 0 {
 				// Only calculate proper lockedbyticketstamt if > 0
-				ab.LockedByTickets += lockedByTicketsAmt - dcrutil.Amount(fee)
+				ab.LockedByTickets += lockedByTicketsAmt - fee
 			}
-			ab.VotingAuthority += votingAuthorityAmt - dcrutil.Amount(fee)
+			ab.VotingAuthority += votingAuthorityAmt - fee
 		case txscript.OP_SSGEN:
 			fallthrough
 		case txscript.OP_SSRTX:
@@ -3529,9 +3529,9 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			}
 			if lockedByTicketsAmt > 0 {
 				// Only calculate proper lockedbyticketstamt if > 0
-				ab.LockedByTickets += lockedByTicketsAmt - dcrutil.Amount(fee)
+				ab.LockedByTickets += lockedByTicketsAmt - fee
 			}
-			ab.VotingAuthority += votingAuthorityAmt - dcrutil.Amount(fee)
+			ab.VotingAuthority += votingAuthorityAmt - fee
 		case txscript.OP_SSGEN:
 			fallthrough
 		case txscript.OP_SSRTX:
