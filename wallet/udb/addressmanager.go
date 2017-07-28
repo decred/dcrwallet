@@ -1677,7 +1677,7 @@ func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, 
 	// We have the encrypted account extended keys, so save them to the
 	// database
 	row := bip0044AccountInfo(acctPubEnc, acctPrivEnc, 0, 0,
-		^uint32(0), ^uint32(0), 0, 0, name, DBVersion)
+		^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0), name, DBVersion)
 	err = putAccountInfo(ns, account, row)
 	if err != nil {
 		return 0, err
