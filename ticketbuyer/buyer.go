@@ -72,10 +72,10 @@ type Config struct {
 	MaxPriceAbsolute          int64
 	MaxPriceRelative          float64
 	MaxInMempool              int
-	PoolAddress               string
+	PoolAddress               dcrutil.Address
 	PoolFees                  float64
 	NoSpreadTicketPurchases   bool
-	TicketAddress             string
+	TicketAddress             dcrutil.Address
 	TxFee                     int64
 }
 
@@ -118,11 +118,6 @@ type TicketPurchaser struct {
 // Config returns the current ticket buyer configuration.
 func (t *TicketPurchaser) Config() (*Config, error) {
 	t.purchaserMtx.Lock()
-	var poolAddress string
-	if t.poolAddress != nil {
-		poolAddress = t.poolAddress.String()
-	}
-
 	accountName, err := t.wallet.AccountName(t.account)
 	if err != nil {
 		return nil, err
@@ -144,7 +139,7 @@ func (t *TicketPurchaser) Config() (*Config, error) {
 		MaxPriceAbsolute:          int64(t.maxPriceAbsolute),
 		MaxPriceRelative:          t.maxPriceRelative,
 		MaxInMempool:              t.cfg.MaxInMempool,
-		PoolAddress:               poolAddress,
+		PoolAddress:               t.cfg.PoolAddress,
 		PoolFees:                  t.poolFees,
 		NoSpreadTicketPurchases:   t.cfg.NoSpreadTicketPurchases,
 		TicketAddress:             t.cfg.TicketAddress,
@@ -348,22 +343,6 @@ func NewTicketPurchaser(cfg *Config,
 	dcrdChainSvr *dcrrpcclient.Client,
 	w *wallet.Wallet,
 	activeNet *chaincfg.Params) (*TicketPurchaser, error) {
-	var ticketAddress dcrutil.Address
-	var err error
-	if cfg.TicketAddress != "" {
-		ticketAddress, err = dcrutil.DecodeAddress(cfg.TicketAddress)
-		if err != nil {
-			return nil, err
-		}
-	}
-	var poolAddress dcrutil.Address
-	if cfg.PoolAddress != "" {
-		poolAddress, err = dcrutil.DecodeAddress(cfg.PoolAddress)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	priceMode := avgPriceMode(AvgPriceVWAPMode)
 	switch cfg.AvgPriceMode {
 	case PriceTargetPool:
@@ -383,8 +362,8 @@ func NewTicketPurchaser(cfg *Config,
 		dcrdChainSvr:  dcrdChainSvr,
 		wallet:        w,
 		firstStart:    true,
-		ticketAddress: ticketAddress,
-		poolAddress:   poolAddress,
+		ticketAddress: cfg.TicketAddress,
+		poolAddress:   cfg.PoolAddress,
 		useMedian:     cfg.FeeSource == TicketFeeMedian,
 		priceMode:     priceMode,
 		heightCheck:   make(map[int64]struct{}),

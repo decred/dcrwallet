@@ -12,6 +12,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/walletdb"
@@ -52,8 +53,8 @@ type StakeOptions struct {
 	VotingEnabled           bool
 	TicketFee               float64
 	AddressReuse            bool
-	TicketAddress           string
-	PoolAddress             string
+	TicketAddress           dcrutil.Address
+	PoolAddress             dcrutil.Address
 	PoolFees                float64
 	StakePoolColdExtKey     string
 }
