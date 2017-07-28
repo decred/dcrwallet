@@ -3405,11 +3405,14 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 					lockedByTicketsAmt += amt
 				}
 			}
+			// Calculate the fee here due to the commitamt in the OP_SSTX output script being the total
+			// value in.
 			fee := dcrutil.Amount(0)
 			if votingAuthorityAmt > 0 {
 				fee = votingAuthorityAmt - utxoAmt
 			}
 			if lockedByTicketsAmt > 0 {
+				// Only calculate proper lockedbyticketstamt if > 0
 				ab.LockedByTickets += lockedByTicketsAmt - dcrutil.Amount(fee)
 			}
 			ab.VotingAuthority += votingAuthorityAmt - dcrutil.Amount(fee)
@@ -3518,11 +3521,14 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 					lockedByTicketsAmt += amt
 				}
 			}
+			// Calculate the fee here due to the commitamt in the OP_SSTX output script being the total
+			// value in.
 			fee := dcrutil.Amount(0)
 			if votingAuthorityAmt > 0 {
 				fee = votingAuthorityAmt - utxoAmt
 			}
 			if lockedByTicketsAmt > 0 {
+				// Only calculate proper lockedbyticketstamt if > 0
 				ab.LockedByTickets += lockedByTicketsAmt - dcrutil.Amount(fee)
 			}
 			ab.VotingAuthority += votingAuthorityAmt - dcrutil.Amount(fee)
