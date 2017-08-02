@@ -1,11 +1,14 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package udb
 
 import (
+	"fmt"
+
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/apperrors"
@@ -13,9 +16,11 @@ import (
 )
 
 // InsertMemPoolTx inserts a memory pool transaction record.  It also marks
-// previous outputs referenced by its inputs as spent.
+// previous outputs referenced by its inputs as spent.  Errors with the
+// apperrors.ErrDoubleSpend code if another unmined transaction is a double
+// spend of this transaction.
 func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) error {
-	_, recVal := latestTxRecord(ns, &rec.Hash)
+	_, recVal := latestTxRecord(ns, rec.Hash[:])
 	if recVal != nil {
 		const str = "transaction already exists mined"
 		return apperrors.New(apperrors.ErrDuplicate, str)
@@ -25,6 +30,22 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 	if v != nil {
 		// TODO: compare serialized txs to ensure this isn't a hash collision?
 		return nil
+	}
+
+	// Check for other unmined transactions which cause this tx to be a double
+	// spend.  Unlike mined transactions that double spend an unmined tx,
+	// existing unmined txs are not removed when inserting a double spending
+	// unmined tx.
+	for _, input := range rec.MsgTx.TxIn {
+		prevOut := &input.PreviousOutPoint
+		k := canonicalOutPoint(&prevOut.Hash, prevOut.Index)
+		if v := existsRawUnminedInput(ns, k); v != nil {
+			var spenderHash chainhash.Hash
+			readRawUnminedInputSpenderHash(v, &spenderHash)
+			str := fmt.Sprintf("unmined transaction %v is a double spend of "+
+				"unmined transaction %v", &rec.Hash, &spenderHash)
+			return apperrors.New(apperrors.ErrDoubleSpend, str)
+		}
 	}
 
 	log.Infof("Inserting unconfirmed transaction %v", rec.Hash)
@@ -37,12 +58,32 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 		return err
 	}
 
-	for _, input := range rec.MsgTx.TxIn {
+	txType := stake.DetermineTxType(&rec.MsgTx)
+
+	for i, input := range rec.MsgTx.TxIn {
+		// Skip stakebases for votes.
+		if i == 0 && txType == stake.TxTypeSSGen {
+			continue
+		}
 		prevOut := &input.PreviousOutPoint
 		k := canonicalOutPoint(&prevOut.Hash, prevOut.Index)
 		err = putRawUnminedInput(ns, k, rec.Hash[:])
 		if err != nil {
 			return err
+		}
+	}
+
+	// If the transaction is a ticket purchase, record it in the ticket
+	// purchases bucket.
+	if txType == stake.TxTypeSStx {
+		tk := rec.Hash[:]
+		tv := existsRawTicketRecord(ns, tk)
+		if tv == nil {
+			tv = valueTicketRecord(-1)
+			err := putRawTicketRecord(ns, tk, tv)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -127,6 +168,21 @@ func (s *Store) removeUnconfirmed(ns walletdb.ReadWriteBucket, rec *TxRecord) er
 		err := deleteRawUnminedInput(ns, k)
 		if err != nil {
 			return err
+		}
+
+		// If a multisig output is recorded for this input, mark it unspent.
+		if v := existsMultisigOut(ns, k); v != nil {
+			vcopy := make([]byte, len(v))
+			copy(vcopy, v)
+			setMultisigOutUnSpent(vcopy)
+			err := putMultisigOutRawValues(ns, k, vcopy)
+			if err != nil {
+				return err
+			}
+			err = putMultisigOutUS(ns, k)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

@@ -29,6 +29,7 @@ var dbUpgradeTests = [...]struct {
 	{verifyV3Upgrade, "v2.db.gz"},
 	{verifyV4Upgrade, "v3.db.gz"},
 	{verifyV5Upgrade, "v4.db.gz"},
+	{verifyV6Upgrade, "v5.db.gz"},
 }
 
 var pubPass = []byte("public")
@@ -279,6 +280,58 @@ func verifyV5Upgrade(t *testing.T, db walletdb.DB) {
 				t.Errorf("Account %d last returned int child mismatch %d != %d",
 					d.acct, row.lastReturnedInternalIndex, d.lastUsedIntChild)
 			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func verifyV6Upgrade(t *testing.T, db walletdb.DB) {
+	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
+		ns := tx.ReadBucket(wtxmgrBucketKey)
+
+		data := []*chainhash.Hash{
+			decodeHash("7bc19eb0bf3a57be73d6879b6c411404b14b0156353dd47c5e0456768704bfd1"),
+			decodeHash("a6abeb0127c347b5f38ebc2401134b324612d5b1ad9a9b8bdf6a91521842b7b1"),
+			decodeHash("1107757fa4f238803192c617c7b60bf35bdc57bc0fc94b408c71239ff9eaeb98"),
+			decodeHash("3fd00cda28c4d148e0cd38e1d646ba1365116b3ddd9a49aca4483bef80513ff9"),
+			decodeHash("f4bdebefaa174470182960046fa53f554108b8ea09a86de5306a14c3a0124566"),
+			decodeHash("bca8c2649860585f10b27d774b354ea7b80007e9ad79c090ea05596d63995cf5"),
+		}
+
+		const dbVersion = 6
+
+		c := ns.NestedReadBucket(bucketTickets).ReadCursor()
+		found := 0
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			var hash chainhash.Hash
+			copy(hash[:], k)
+			var foundHash *chainhash.Hash
+			for _, foundHash = range data {
+				if hash == *foundHash {
+					goto Found
+				}
+			}
+			t.Errorf("tickets bucket records %v as a ticket", &hash)
+			continue
+		Found:
+			found++
+			if extractRawTicketPickedHeight(v) != -1 {
+				t.Errorf("ticket purchase %v was not set with picked height -1", foundHash)
+			}
+		}
+		if found != len(data) {
+			t.Errorf("missing ticket purchase transactions from tickets bucket")
+		}
+
+		// Ensure that the stakebase input recorded for an unmined vote was
+		// removed.
+		stakebaseKey := canonicalOutPoint(&chainhash.Hash{}, ^uint32(0))
+		if ns.NestedReadBucket(bucketUnminedInputs).Get(stakebaseKey) != nil {
+			t.Errorf("stakebase input for unmined vote was not removed")
 		}
 
 		return nil

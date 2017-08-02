@@ -441,7 +441,7 @@ func addTicket(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = w.AddTicket(dcrutil.NewTx(mtx))
+	err = w.AddTicket(mtx)
 
 	return nil, err
 }

@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015-2016 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -138,6 +138,7 @@ var (
 	bucketUnmined                 = []byte("m")
 	bucketUnminedCredits          = []byte("mc")
 	bucketUnminedInputs           = []byte("mi")
+	bucketTickets                 = []byte("tix")
 	bucketScripts                 = []byte("sc")
 	bucketMultisig                = []byte("ms")
 	bucketMultisigUsp             = []byte("mu")
@@ -567,6 +568,16 @@ func readRawTxRecord(txHash *chainhash.Hash, v []byte, rec *TxRecord) error {
 	return nil
 }
 
+func readRawTxRecordHash(k []byte, hash *chainhash.Hash) error {
+	if len(k) < 68 {
+		str := fmt.Sprintf("%s: short key (expected %d bytes, read %d)",
+			bucketTxRecords, 68, len(k))
+		return storeError(apperrors.ErrData, str, nil)
+	}
+	copy(hash[:], k[:32])
+	return nil
+}
+
 func readRawTxRecordBlockHeight(k []byte, height *int32) error {
 	if len(k) < 68 {
 		str := fmt.Sprintf("%s: short key (expected %d bytes, read %d)",
@@ -660,12 +671,11 @@ func deleteTxRecord(ns walletdb.ReadWriteBucket, txHash *chainhash.Hash, block *
 // latestTxRecord searches for the newest recorded mined transaction record with
 // a matching hash.  In case of a hash collision, the record from the newest
 // block is returned.  Returns (nil, nil) if no matching transactions are found.
-func latestTxRecord(ns walletdb.ReadBucket, txHash *chainhash.Hash) (k, v []byte) {
-	prefix := txHash[:]
+func latestTxRecord(ns walletdb.ReadBucket, txHash []byte) (k, v []byte) {
 	c := ns.NestedReadBucket(bucketTxRecords).ReadCursor()
-	ck, cv := c.Seek(prefix)
+	ck, cv := c.Seek(txHash)
 	var lastKey, lastVal []byte
-	for bytes.HasPrefix(ck, prefix) {
+	for bytes.HasPrefix(ck, txHash) {
 		lastKey, lastVal = ck, cv
 		ck, cv = c.Next()
 	}
@@ -790,12 +800,16 @@ func extractRawCreditIndex(k []byte) uint32 {
 	return byteOrder.Uint32(k[68:72])
 }
 
-func extractRawUnminedTx(v []byte) []byte {
-	return v[8:]
-}
-
 func extractRawUnminedCreditTxHash(k []byte) []byte {
 	return k[:32]
+}
+
+func extractRawCreditIsSpent(k []byte) bool {
+	return k[8]&1<<0 != 0
+}
+
+func extractRawCreditSpenderDebitKey(v []byte) []byte {
+	return v[9:81]
 }
 
 // fetchRawCreditAmount returns the amount of the credit.
@@ -1171,6 +1185,10 @@ func putRawDebit(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	return nil
 }
 
+func extractRawDebitHash(k []byte) []byte {
+	return k[:32]
+}
+
 func extractRawDebitAmount(v []byte) dcrutil.Amount {
 	return dcrutil.Amount(byteOrder.Uint64(v[:8]))
 }
@@ -1327,6 +1345,10 @@ func deleteRawUnmined(ns walletdb.ReadWriteBucket, k []byte) error {
 		return storeError(apperrors.ErrDatabase, str, err)
 	}
 	return nil
+}
+
+func extractRawUnminedTx(v []byte) []byte {
+	return v[8:]
 }
 
 // Unmined transaction credits use the canonical serialization format:
@@ -1613,6 +1635,48 @@ func deleteRawUnminedInput(ns walletdb.ReadWriteBucket, k []byte) error {
 	return nil
 }
 
+func readRawUnminedInputSpenderHash(v []byte, hash *chainhash.Hash) {
+	copy(hash[:], v[:32])
+}
+
+// Ticket purchase metadata is recorded in the tickets bucket.  The bucket key
+// is the ticket purchase transaction hash.  The value is serialized as such:
+//
+//   [0:4]		Block height ticket was picked (-1 if not picked)
+
+type ticketRecord struct {
+	pickedHeight int32
+}
+
+func valueTicketRecord(pickedHeight int32) []byte {
+	v := make([]byte, 4)
+	byteOrder.PutUint32(v, uint32(pickedHeight))
+	return v
+}
+
+func putRawTicketRecord(ns walletdb.ReadWriteBucket, k, v []byte) error {
+	err := ns.NestedReadWriteBucket(bucketTickets).Put(k, v)
+	if err != nil {
+		const str = "failed to put ticket record"
+		return apperrors.Wrap(err, apperrors.ErrDatabase, str)
+	}
+	return nil
+}
+
+func putTicketRecord(ns walletdb.ReadWriteBucket, ticketHash *chainhash.Hash, pickedHeight int32) error {
+	k := ticketHash[:]
+	v := valueTicketRecord(pickedHeight)
+	return putRawTicketRecord(ns, k, v)
+}
+
+func existsRawTicketRecord(ns walletdb.ReadBucket, k []byte) (v []byte) {
+	return ns.NestedReadBucket(bucketTickets).Get(k)
+}
+
+func extractRawTicketPickedHeight(v []byte) int32 {
+	return int32(byteOrder.Uint32(v))
+}
+
 // Tx scripts are stored as the raw serialized script. The key in the database
 // for the TxScript itself is the hash160 of the script.
 func keyTxScript(script []byte) []byte {
@@ -1825,6 +1889,10 @@ func putMultisigOutRawValues(ns walletdb.ReadWriteBucket, k []byte, v []byte) er
 }
 
 func existsMultisigOut(ns walletdb.ReadBucket, k []byte) []byte {
+	return ns.NestedReadBucket(bucketMultisig).Get(k)
+}
+
+func existsMultisigOutCopy(ns walletdb.ReadBucket, k []byte) []byte {
 	vOrig := ns.NestedReadBucket(bucketMultisig).Get(k)
 	if vOrig == nil {
 		return nil

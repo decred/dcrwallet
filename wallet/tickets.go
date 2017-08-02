@@ -13,8 +13,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
@@ -27,9 +27,14 @@ func (w *Wallet) GenerateVoteTx(blockHash *chainhash.Hash, height int32, ticketH
 	var vote *wire.MsgTx
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-		ticketPurchase, err := w.StakeMgr.TicketPurchase(dbtx, ticketHash)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		ticketPurchase, err := w.TxStore.Tx(txmgrNs, ticketHash)
 		if err != nil {
 			return err
+		}
+		if ticketPurchase == nil {
+			const str = "ticket purchase transaction not found"
+			return apperrors.New(apperrors.ErrSStxNotFound, str)
 		}
 		vote, err = createUnsignedVote(ticketHash, ticketPurchase,
 			height, blockHash, voteBits, w.subsidyCache, w.chainParams)
@@ -43,103 +48,65 @@ func (w *Wallet) GenerateVoteTx(blockHash *chainhash.Hash, height int32, ticketH
 
 // LiveTicketHashes returns the hashes of live tickets that have been purchased
 // by the wallet.
-func (w *Wallet) LiveTicketHashes(rpcClient *chain.RPCClient, includeImmature bool) ([]chainhash.Hash, error) {
-	// This was mostly copied from an older version of the legacy RPC server
-	// implementation, hence the overall weirdness, inefficiencies, and the
-	// direct dependency on the consensus server RPC client.
-	type promiseGetTxOut struct {
-		result dcrrpcclient.FutureGetTxOutResult
-		ticket *chainhash.Hash
-	}
-
-	type promiseGetRawTransaction struct {
-		result dcrrpcclient.FutureGetRawTransactionVerboseResult
-		ticket *chainhash.Hash
-	}
-
-	var tipHeight int32
+func (w *Wallet) LiveTicketHashes(chainClient *chain.RPCClient, includeImmature bool) ([]chainhash.Hash, error) {
 	var ticketHashes []chainhash.Hash
-	ticketMap := make(map[chainhash.Hash]struct{})
-	var stakeMgrTickets []chainhash.Hash
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	var maybeLive []*chainhash.Hash
 
-		_, tipHeight = w.TxStore.MainChainTip(txmgrNs)
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-		// UnspentTickets collects all the tickets that pay out to a
-		// public key hash for a public key owned by this wallet.
-		var err error
-		ticketHashes, err = w.TxStore.UnspentTickets(txmgrNs, tipHeight,
-			includeImmature)
-		if err != nil {
-			return err
+		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+
+		it := w.TxStore.IterateTickets(dbtx)
+		for it.Next() {
+			// Tickets that are mined at a height beyond the expiry height can
+			// not be live.
+			if confirmed(int32(w.chainParams.TicketExpiry), it.Block.Height,
+				tipHeight) {
+				continue
+			}
+
+			// Tickets that have not reached ticket maturity are immature.
+			// Exclude them unless the caller requested to include immature
+			// tickets.
+			if !confirmed(int32(w.chainParams.TicketMaturity)+1, it.Block.Height,
+				tipHeight) {
+				if includeImmature {
+					ticketHashes = append(ticketHashes, it.Hash)
+				}
+				continue
+			}
+
+			// The ticket may be live.  Because the selected state of tickets is
+			// not yet known by the wallet, this must be queried over RPC.  Add
+			// this hash to a slice of ticket purchase hashes to check later.
+			hash := it.Hash
+			maybeLive = append(maybeLive, &hash)
 		}
-
-		// Access the stake manager and see if there are any extra tickets
-		// there. Likely they were either pruned because they failed to get
-		// into the blockchain or they are P2SH for some script we own.
-		stakeMgrTickets = w.StakeMgr.DumpSStxHashes()
-		return nil
+		return it.Err()
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	for _, h := range ticketHashes {
-		ticketMap[h] = struct{}{}
+	// If there are no possibly live tickets to check, ticketHashes contains all
+	// of the results.
+	if len(maybeLive) == 0 {
+		return ticketHashes, nil
 	}
 
-	promisesGetTxOut := make([]promiseGetTxOut, 0, len(stakeMgrTickets))
-	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, len(stakeMgrTickets))
-
-	// Get the raw transaction information from daemon and add
-	// any relevant tickets. The ticket output is always the
-	// zeroth output.
-	for i, h := range stakeMgrTickets {
-		_, exists := ticketMap[h]
-		if exists {
-			continue
-		}
-
-		promisesGetTxOut = append(promisesGetTxOut, promiseGetTxOut{
-			result: rpcClient.GetTxOutAsync(&stakeMgrTickets[i], 0, true),
-			ticket: &stakeMgrTickets[i],
-		})
+	// Use RPC to query which of the possibly-live tickets are really live.
+	liveBitsetHex, err := chainClient.ExistsLiveTickets(maybeLive)
+	if err != nil {
+		return nil, err
 	}
-
-	for _, p := range promisesGetTxOut {
-		spent, err := p.result.Receive()
-		if err != nil {
-			continue
-		}
-		// This returns nil if the output is spent.
-		if spent == nil {
-			continue
-		}
-
-		promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
-			result: rpcClient.GetRawTransactionVerboseAsync(p.ticket),
-			ticket: p.ticket,
-		})
-
+	liveBitset, err := hex.DecodeString(liveBitsetHex)
+	if err != nil {
+		return nil, err
 	}
-
-	for _, p := range promisesGetRawTransaction {
-		ticketTx, err := p.result.Receive()
-		if err != nil {
-			continue
-		}
-
-		txHeight := ticketTx.BlockHeight
-		unconfirmed := (txHeight == 0)
-		immature := (tipHeight-int32(txHeight) <
-			int32(w.ChainParams().TicketMaturity))
-		if includeImmature {
-			ticketHashes = append(ticketHashes, *p.ticket)
-		} else {
-			if !(unconfirmed || immature) {
-				ticketHashes = append(ticketHashes, *p.ticket)
-			}
+	for i, h := range maybeLive {
+		if bitset.Bytes(liveBitset).Get(i) {
+			ticketHashes = append(ticketHashes, *h)
 		}
 	}
 
@@ -186,6 +153,7 @@ func (w *Wallet) TicketHashesForVotingAddress(votingAddr dcrutil.Address) ([]cha
 // it then creates a new entry in the validly tracked pool ticket db.
 func (w *Wallet) updateStakePoolInvalidTicket(stakemgrNs walletdb.ReadWriteBucket,
 	addr dcrutil.Address, ticket *chainhash.Hash, ticketHeight int64) error {
+
 	err := w.StakeMgr.RemoveStakePoolUserInvalTickets(stakemgrNs, addr, ticket)
 	if err != nil {
 		return err
@@ -199,28 +167,35 @@ func (w *Wallet) updateStakePoolInvalidTicket(stakemgrNs walletdb.ReadWriteBucke
 	return w.StakeMgr.UpdateStakePoolUserTickets(stakemgrNs, addr, poolTicket)
 }
 
-// AddTicket adds a ticket transaction to the wallet.
-func (w *Wallet) AddTicket(ticket *dcrutil.Tx) error {
+// AddTicket adds a ticket transaction to the stake manager.  It is not added to
+// the transaction manager because it is unknown where the transaction belongs
+// on the blockchain.  It will be used to create votes.
+func (w *Wallet) AddTicket(ticket *wire.MsgTx) error {
+	_, err := stake.IsSStx(ticket)
+	if err != nil {
+		return err
+	}
+
 	return walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 		stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
 
 		// Insert the ticket to be tracked and voted.
-		err := w.StakeMgr.InsertSStx(stakemgrNs, ticket)
+		err := w.StakeMgr.InsertSStx(stakemgrNs, dcrutil.NewTx(ticket))
 		if err != nil {
 			return err
 		}
 
 		if w.stakePoolEnabled {
 			// Pluck the ticketaddress to identify the stakepool user.
-			pkVersion := ticket.MsgTx().TxOut[0].Version
-			pkScript := ticket.MsgTx().TxOut[0].PkScript
+			pkVersion := ticket.TxOut[0].Version
+			pkScript := ticket.TxOut[0].PkScript
 			_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkVersion,
 				pkScript, w.ChainParams())
 			if err != nil {
 				return err
 			}
 
-			ticketHash := ticket.MsgTx().TxHash()
+			ticketHash := ticket.TxHash()
 
 			chainClient, err := w.requireChainClient()
 			if err != nil {
@@ -239,6 +214,7 @@ func (w *Wallet) AddTicket(ticket *dcrutil.Tx) error {
 				return err
 			}
 		}
+
 		return nil
 	})
 }
@@ -254,7 +230,7 @@ func (w *Wallet) RevokeTickets(chainClient *chain.RPCClient) error {
 		ns := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
 		tipHash, tipHeight = w.TxStore.MainChainTip(ns)
-		ticketHashes, err = w.TxStore.UnspentTickets(ns, tipHeight, false)
+		ticketHashes, err = w.TxStore.UnspentTickets(tx, tipHeight, false)
 		return err
 	})
 	if err != nil {

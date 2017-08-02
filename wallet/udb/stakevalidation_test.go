@@ -44,8 +44,6 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	const balanceFlag = BFBalanceSpendable
-
 	err = walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(wtxmgrBucketKey)
 		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)

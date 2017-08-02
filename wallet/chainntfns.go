@@ -429,6 +429,20 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 	// relevant.  This assumption will not hold true when SPV support is
 	// added, but until then, simply insert the transaction because there
 	// should either be one or more relevant inputs or outputs.
+	var err error
+	if serializedHeader == nil {
+		err = w.TxStore.InsertMemPoolTx(txmgrNs, rec)
+		if apperrors.IsError(err, apperrors.ErrDuplicate) {
+			log.Warnf("Refusing to add unmined transaction %v since same "+
+				"transaction already exists mined", &rec.Hash)
+			return nil
+		}
+	} else {
+		err = w.TxStore.InsertMinedTx(txmgrNs, addrmgrNs, rec, &blockMeta.Hash)
+	}
+	if err != nil {
+		return err
+	}
 
 	// Handle incoming SStx; store them in the stake manager if we own
 	// the OP_SSTX tagged out, except if we're operating as a stake pool
@@ -509,64 +523,57 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 		}
 	}
 
-	// Handle incoming SSGen; store them if we own
+	// Handle incoming votes.  Save a stake manager record for them if we own
 	// the ticket used to purchase them.
-	if is, _ := stake.IsSSGen(&rec.MsgTx); is {
-		if serializedHeader != nil {
-			txInHash := &rec.MsgTx.TxIn[1].PreviousOutPoint.Hash
-			if w.StakeMgr.CheckHashInStore(txInHash) {
-				err := w.StakeMgr.InsertSSGen(stakemgrNs, &blockMeta.Block.Hash,
-					int64(height), &rec.Hash, stake.SSGenVoteBits(&rec.MsgTx),
-					txInHash)
-				if err != nil {
-					return err
-				}
+	if isVote(&rec.MsgTx) && serializedHeader != nil {
+		ticketHash := &rec.MsgTx.TxIn[1].PreviousOutPoint.Hash
+		if w.TxStore.OwnTicket(dbtx, ticketHash) || w.StakeMgr.OwnTicket(ticketHash) {
+			err := w.StakeMgr.InsertSSGen(stakemgrNs, &blockMeta.Block.Hash,
+				int64(height), &rec.Hash, stake.SSGenVoteBits(&rec.MsgTx),
+				ticketHash)
+			if err != nil {
+				return err
+			}
+		}
+
+		// If we're running as a stake pool, insert
+		// the stake pool user ticket update too.
+		if w.stakePoolEnabled {
+			txInHeight := rec.MsgTx.TxIn[1].BlockHeight
+			poolTicket := &udb.PoolTicket{
+				Ticket:       *ticketHash,
+				HeightTicket: txInHeight,
+				Status:       udb.TSVoted,
+				SpentBy:      rec.Hash,
+				HeightSpent:  uint32(height),
 			}
 
-			// If we're running as a stake pool, insert
-			// the stake pool user ticket update too.
-			if w.stakePoolEnabled {
-				txInHeight := rec.MsgTx.TxIn[1].BlockHeight
-				poolTicket := &udb.PoolTicket{
-					Ticket:       *txInHash,
-					HeightTicket: txInHeight,
-					Status:       udb.TSVoted,
-					SpentBy:      rec.Hash,
-					HeightSpent:  uint32(height),
-				}
-
-				poolUser, err := w.StakeMgr.SStxAddress(stakemgrNs, txInHash)
+			poolUser, err := w.StakeMgr.SStxAddress(stakemgrNs, ticketHash)
+			if err != nil {
+				log.Warnf("Failed to fetch stake pool user for "+
+					"ticket %v (voted ticket): %v", ticketHash, err)
+			} else {
+				err = w.StakeMgr.UpdateStakePoolUserTickets(
+					stakemgrNs, poolUser, poolTicket)
 				if err != nil {
-					log.Warnf("Failed to fetch stake pool user for "+
-						"ticket %v (voted ticket): %v", txInHash, err)
+					log.Warnf("Failed to update stake pool ticket for "+
+						"stake pool user %s after voting",
+						poolUser.EncodeAddress())
 				} else {
-					err = w.StakeMgr.UpdateStakePoolUserTickets(
-						stakemgrNs, poolUser, poolTicket)
-					if err != nil {
-						log.Warnf("Failed to update stake pool ticket for "+
-							"stake pool user %s after voting",
-							poolUser.EncodeAddress())
-					} else {
-						log.Debugf("Updated voted stake pool ticket %v "+
-							"for user %v into the stake store database ("+
-							"vote hash: %v)", txInHash, poolUser, &rec.Hash)
-					}
+					log.Debugf("Updated voted stake pool ticket %v "+
+						"for user %v into the stake store database ("+
+						"vote hash: %v)", ticketHash, poolUser, &rec.Hash)
 				}
 			}
-		} else {
-			// If there's no associated block, it's potentially a
-			// doublespent SSGen. Just ignore it and wait for it
-			// to later get into a block.
-			return nil
 		}
 	}
 
-	// Handle incoming SSRtx; store them if we own
-	// the ticket used to purchase them.
-	if is, _ := stake.IsSSRtx(&rec.MsgTx); is && serializedHeader != nil {
+	// Handle incoming revocations.  Store a stake manager record for them if we
+	// own the ticket used to purchase them.
+	if isRevocation(&rec.MsgTx) && serializedHeader != nil {
 		txInHash := &rec.MsgTx.TxIn[0].PreviousOutPoint.Hash
 
-		if w.StakeMgr.CheckHashInStore(txInHash) {
+		if w.TxStore.OwnTicket(dbtx, txInHash) || w.StakeMgr.OwnTicket(txInHash) {
 			err := w.StakeMgr.StoreRevocationInfo(dbtx, txInHash, &rec.Hash,
 				&blockMeta.Hash, height)
 			if err != nil {
@@ -604,21 +611,6 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 				}
 			}
 		}
-	}
-
-	var err error
-	if serializedHeader == nil {
-		err = w.TxStore.InsertMemPoolTx(txmgrNs, rec)
-		if apperrors.IsError(err, apperrors.ErrDuplicate) {
-			log.Warnf("Refusing to add unmined transaction %v since same "+
-				"transaction already exists mined", &rec.Hash)
-			return nil
-		}
-	} else {
-		err = w.TxStore.InsertMinedTx(txmgrNs, addrmgrNs, rec, &blockMeta.Hash)
-	}
-	if err != nil {
-		return err
 	}
 
 	// Handle input scripts that contain P2PKs that we care about.
@@ -868,6 +860,21 @@ func (w *Wallet) handleChainVotingNotifications(chainClient *chain.RPCClient) {
 	w.wg.Done()
 }
 
+// selectOwnedTickets returns a slice of tickets hashes from the tickets
+// argument that are owned by the wallet.
+//
+// Because votes must be created for tickets tracked by both the transaction
+// manager and the stake manager, this function checks both.
+func selectOwnedTickets(w *Wallet, dbtx walletdb.ReadTx, tickets []*chainhash.Hash) []*chainhash.Hash {
+	var owned []*chainhash.Hash
+	for _, ticketHash := range tickets {
+		if w.TxStore.OwnTicket(dbtx, ticketHash) || w.StakeMgr.OwnTicket(ticketHash) {
+			owned = append(owned, ticketHash)
+		}
+	}
+	return owned
+}
+
 // handleWinningTickets receives a list of hashes and some block information
 // and submits it to the wstakemgr to handle SSGen production.
 func (w *Wallet) handleWinningTickets(blockHash *chainhash.Hash,
@@ -888,18 +895,26 @@ func (w *Wallet) handleWinningTickets(blockHash *chainhash.Hash,
 	// be fixed somehow, but this should be stable for networks that
 	// are voting at normal block speeds.
 
-	// Only consider tickets owned by this wallet.
-	ticketHashes := w.StakeMgr.OwnTickets(winningTicketHashes)
-	if len(ticketHashes) == 0 {
-		return nil
-	}
-
-	votes := make([]*wire.MsgTx, len(ticketHashes))
+	var ticketHashes []*chainhash.Hash
+	var votes []*wire.MsgTx
 	voteBits := w.VoteBits()
 	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		// Only consider tickets owned by this wallet.
+		ticketHashes = selectOwnedTickets(w, dbtx, winningTicketHashes)
+		if len(ticketHashes) == 0 {
+			return nil
+		}
+
+		votes = make([]*wire.MsgTx, len(ticketHashes))
+
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		for i, ticketHash := range ticketHashes {
-			ticketPurchase, err := w.StakeMgr.TicketPurchase(dbtx, ticketHash)
+			ticketPurchase, err := w.TxStore.Tx(txmgrNs, ticketHash)
+			if err != nil || ticketPurchase == nil {
+				ticketPurchase, err = w.StakeMgr.TicketPurchase(dbtx, ticketHash)
+			}
 			if err != nil {
 				log.Errorf("Failed to read ticket purchase transaction for "+
 					"owned winning ticket %v: %v", ticketHash, err)
@@ -930,9 +945,19 @@ func (w *Wallet) handleWinningTickets(blockHash *chainhash.Hash,
 		if vote == nil {
 			continue
 		}
-		voteHash := vote.TxHash()
-		err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			err := w.StakeMgr.StoreVoteInfo(dbtx, ticketHashes[i], &voteHash,
+		txRec, err := udb.NewTxRecordFromMsgTx(vote, time.Now())
+		if err != nil {
+			log.Errorf("Failed to create transaction record for vote %v: %v",
+				ticketHashes[i], err)
+			continue
+		}
+		voteHash := &txRec.Hash
+		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+			err := w.processTransactionRecord(dbtx, txRec, nil, nil)
+			if err != nil {
+				return err
+			}
+			err = w.StakeMgr.StoreVoteInfo(dbtx, ticketHashes[i], voteHash,
 				blockHash, blockHeight, voteBits)
 			if err != nil {
 				return err
@@ -947,7 +972,7 @@ func (w *Wallet) handleWinningTickets(blockHash *chainhash.Hash,
 		}
 		log.Infof("Voted on block %v (height %v) using ticket %v "+
 			"(vote hash: %v bits: %v)", blockHash, blockHeight,
-			ticketHashes[i], &voteHash, voteBits.Bits)
+			ticketHashes[i], voteHash, voteBits.Bits)
 	}
 
 	return nil
@@ -967,18 +992,26 @@ func (w *Wallet) handleMissedTickets(blockHash *chainhash.Hash, blockHeight int3
 		return err
 	}
 
-	// Only consider tickets owned by this wallet.
-	ticketHashes := w.StakeMgr.OwnTickets(missedTicketHashes)
-	if len(ticketHashes) == 0 {
-		return nil
-	}
-
-	revocations := make([]*wire.MsgTx, len(ticketHashes))
+	var ticketHashes []*chainhash.Hash
+	var revocations []*wire.MsgTx
 	relayFee := w.RelayFee()
 	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		// Only consider tickets owned by this wallet.
+		ticketHashes = selectOwnedTickets(w, dbtx, missedTicketHashes)
+		if len(ticketHashes) == 0 {
+			return nil
+		}
+
+		revocations = make([]*wire.MsgTx, len(ticketHashes))
+
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		for i, ticketHash := range ticketHashes {
-			ticketPurchase, err := w.StakeMgr.TicketPurchase(dbtx, ticketHash)
+			ticketPurchase, err := w.TxStore.Tx(txmgrNs, ticketHash)
+			if err != nil || ticketPurchase == nil {
+				ticketPurchase, err = w.StakeMgr.TicketPurchase(dbtx, ticketHash)
+			}
 			if err != nil {
 				log.Errorf("Failed to read ticket purchase transaction for "+
 					"missed or expired ticket %v: %v", ticketHash, err)
@@ -1009,10 +1042,20 @@ func (w *Wallet) handleMissedTickets(blockHash *chainhash.Hash, blockHeight int3
 		if revocation == nil {
 			continue
 		}
-		revocationHash := revocation.TxHash()
-		err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			err := w.StakeMgr.StoreRevocationInfo(dbtx, ticketHashes[i],
-				&revocationHash, blockHash, blockHeight)
+		txRec, err := udb.NewTxRecordFromMsgTx(revocation, time.Now())
+		if err != nil {
+			log.Errorf("Failed to create transaction record for revocation %v: %v",
+				ticketHashes[i], err)
+			continue
+		}
+		revocationHash := &txRec.Hash
+		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+			err := w.processTransactionRecord(dbtx, txRec, nil, nil)
+			if err != nil {
+				return err
+			}
+			err = w.StakeMgr.StoreRevocationInfo(dbtx, ticketHashes[i],
+				revocationHash, blockHash, blockHeight)
 			if err != nil {
 				return err
 			}
@@ -1021,11 +1064,11 @@ func (w *Wallet) handleMissedTickets(blockHash *chainhash.Hash, blockHeight int3
 		})
 		if err != nil {
 			log.Errorf("Failed to send revocation %v for ticket hash %v: %v",
-				&revocationHash, ticketHashes[i], err)
+				revocationHash, ticketHashes[i], err)
 			continue
 		}
 		log.Infof("Revoked ticket %v with revocation %v", ticketHashes[i],
-			&revocationHash)
+			revocationHash)
 	}
 
 	return nil

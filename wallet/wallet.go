@@ -2974,25 +2974,19 @@ type StakeInfoData struct {
 	TotalSubsidy  dcrutil.Amount
 }
 
-// hashInPointerSlice returns whether a hash exists in a slice of hash pointers
-// or not.
-func hashInPointerSlice(h chainhash.Hash, list []*chainhash.Hash) bool {
-	for _, hash := range list {
-		if h == *hash {
-			return true
-		}
-	}
-
-	return false
+func isTicketPurchase(tx *wire.MsgTx) bool {
+	b, _ := stake.IsSStx(tx)
+	return b
 }
 
-func firstError(errs ...error) error {
-	for _, e := range errs {
-		if e != nil {
-			return e
-		}
-	}
-	return nil
+func isVote(tx *wire.MsgTx) bool {
+	b, _ := stake.IsSSGen(tx)
+	return b
+}
+
+func isRevocation(tx *wire.MsgTx) bool {
+	b, _ := stake.IsSSRtx(tx)
+	return b
 }
 
 // StakeInfo collects and returns staking statistics for this wallet to the end
@@ -3007,8 +3001,8 @@ func firstError(errs ...error) error {
 //     Live             uint32   Number of mature, active tickets owned by this
 //                                 wallet
 //     Voted            uint32   Number of votes cast by this wallet
-//     Missed           uint32   Number of missed tickets (failing to vote or
-//                                 expired)
+//     Missed           uint32   Number of missed tickets (failing to vote)
+//     Expired          uint32   Number of expired tickets
 //     Revoked          uint32   Number of missed tickets that were missed and
 //                                 then revoked
 //     TotalSubsidy     int64    Total amount of coins earned by stake mining
@@ -3016,244 +3010,153 @@ func firstError(errs ...error) error {
 // Getting this information is extremely costly as in involves a massive
 // number of chain server calls.
 func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, error) {
-	var resp *StakeInfoData
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		stakemgrNs := tx.ReadBucket(wstakemgrNamespaceKey)
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	// This is only needed for the total count and can be optimized.
+	mempoolTicketsFuture := chainClient.GetRawMempoolAsync(dcrjson.GRMTickets)
 
-		mempoolTicketsFuture := chainClient.GetRawMempoolAsync(dcrjson.GRMTickets)
-		missedTicketsFuture := chainClient.MissedTicketsAsync()
+	res := &StakeInfoData{}
 
-		var (
-			poolSize                                         uint32
-			ticketHashPtrs, voteHashPtrs, revocationHashPtrs []*chainhash.Hash
-			liveTicketsFuture                                dcrrpcclient.FutureExistsLiveTicketsResult
-			expiredTicketsFuture                             dcrrpcclient.FutureExistsExpiredTicketsResult
+	// Wallet does not yet know if/when a ticket was selected.  Keep track of
+	// all tickets that are either live, expired, or missed and determine their
+	// states later by querying the consensus RPC server.
+	var liveOrExpiredOrMissed []*chainhash.Hash
 
-			err1, err2, err3, err4, err5 error // for concurrent work
-			wg                           sync.WaitGroup
-		)
-
-		// DB calls in the same transaction MUST NOT be run concurrently.  bolt
-		// bucket usage is not concurrent safe due to subbucket caching and
-		// statistics counting.
-		//
-		// Therefore load up initial info out of the db serially and then spawn
-		// goroutines to use the results concurrently.
-		wg.Add(4)
-		ticketHashes := w.StakeMgr.DumpSStxHashes()
-		go func() {
-			ticketHashPtrs = make([]*chainhash.Hash, len(ticketHashes))
-			for i := range ticketHashes {
-				ticketHashPtrs[i] = &ticketHashes[i]
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		tipHash, tipHeight := w.TxStore.MainChainTip(ns)
+		res.BlockHeight = int64(tipHeight)
+		it := w.TxStore.IterateTickets(dbtx)
+		for it.Next() {
+			// Check for tickets in mempool
+			if it.Block.Height == -1 {
+				res.OwnMempoolTix++
+				continue
 			}
-			liveTicketsFuture = chainClient.ExistsLiveTicketsAsync(ticketHashPtrs)
-			wg.Done()
-		}()
-		revocationHashes, err := w.StakeMgr.DumpSSRtxTickets(stakemgrNs)
-		if err != nil {
-			return err
-		}
-		go func() {
-			revocationHashPtrs = make([]*chainhash.Hash, len(revocationHashes))
-			for i := range revocationHashes {
-				revocationHashPtrs[i] = &revocationHashes[i]
-			}
-			expiredTicketsFuture = chainClient.ExistsExpiredTicketsAsync(revocationHashPtrs)
-			wg.Done()
-		}()
-		voteHashes, err := w.StakeMgr.DumpSSGenHashes(stakemgrNs)
-		if err != nil {
-			return err
-		}
-		go func() {
-			voteHashPtrs = make([]*chainhash.Hash, len(voteHashes))
-			for i := range voteHashes {
-				voteHashPtrs[i] = &voteHashes[i]
-			}
-			wg.Done()
-		}()
-		tipHash, tipHeight := w.TxStore.MainChainTip(txmgrNs)
-		serHeader, err := w.TxStore.GetSerializedBlockHeader(txmgrNs, &tipHash)
-		if err != nil {
-			return err
-		}
-		go func() {
-			defer wg.Done()
-			var tipHeader wire.BlockHeader
-			err1 = tipHeader.Deserialize(bytes.NewReader(serHeader))
-			if err1 != nil {
-				return
-			}
-			// Get the poolsize estimate from the current best block.
-			// The correct poolsize would be the pool size to be mined
-			// into the next block, which takes into account maturing
-			// stake tickets, voters, and expiring tickets. There
-			// currently isn't a way to get this from the RPC, so
-			// just use the current block pool size as a "good
-			// enough" estimate for now.
-			poolSize = tipHeader.PoolSize
-		}()
-		wg.Wait()
-		if err1 != nil {
-			return err1
-		}
 
-		var (
-			mempoolTicketCount      uint32
-			ownedMempoolTicketCount uint32
-			missedCount             uint32
-			liveCount               uint32
-			immatureCount           uint32
-			expiredCount            uint32
-			ownedMempoolTickets     []*chainhash.Hash
-			totalSubsidy            dcrutil.Amount
-			maybeImmature           = make(chan *chainhash.Hash, len(ticketHashPtrs))
-		)
-		wg.Add(5)
-		go func() {
-			// This looks extremely suspicious (why would another view need to
-			// be opened when we're already inside of a view?) but see the above
-			// comment regarding bolt concurrent usage.  Opening another view
-			// transaction means that database calls can safely be run
-			// concurrently with the already opened view.
-			err1 = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-				txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
-				for _, voteHash := range voteHashPtrs {
-					msgTx, err := w.TxStore.Tx(txmgrNs, voteHash)
-					if err != nil || msgTx == nil {
-						log.Tracef("Failed to find vote in blockchain while generating "+
-							"stake info (hash %v, err %s)", voteHash, err)
-						continue
-					}
-					totalSubsidy += dcrutil.Amount(msgTx.TxIn[0].ValueIn)
-				}
-				return nil
-			})
-			wg.Done()
-		}()
-		go func() {
-			var mempoolTickets []*chainhash.Hash
-			mempoolTickets, err2 = mempoolTicketsFuture.Receive()
-			mempoolTicketCount = uint32(len(mempoolTickets))
-			ownedMempoolTickets = make([]*chainhash.Hash, 0, mempoolTicketCount)
-			for i := range ticketHashes {
-				ticketHash := &ticketHashes[i]
-				if hashInPointerSlice(*ticketHash, mempoolTickets) {
-					ownedMempoolTickets = append(ownedMempoolTickets, ticketHash)
-				}
+			// Check for immature tickets
+			if !confirmed(int32(w.chainParams.TicketMaturity)+1,
+				it.Block.Height, tipHeight) {
+				res.Immature++
+				continue
 			}
-			ownedMempoolTicketCount = uint32(len(ownedMempoolTickets))
 
-			ticketMaturity := int64(w.ChainParams().TicketMaturity)
-			for ticketHash := range maybeImmature {
-				// Skip tickets that aren't in the blockchain.
-				if hashInPointerSlice(*ticketHash, ownedMempoolTickets) {
-					continue
-				}
-
-				height, err := w.TxStore.TxBlockHeight(tx, ticketHash)
+			// If the ticket was spent, look up the spending tx and determine if
+			// it is a vote or revocation.  If it is a vote, add the earned
+			// subsidy.
+			if it.SpenderHash != (chainhash.Hash{}) {
+				spender, err := w.TxStore.Tx(ns, &it.SpenderHash)
 				if err != nil {
-					log.Tracef("Failed to find ticket in blockchain while generating "+
-						"stake info (hash %v, err %s)", ticketHash, err)
-					continue
+					return err
 				}
+				if spender == nil {
+					str := fmt.Sprintf("failed to look up ticket spender "+
+						"transaction %v", &it.SpenderHash)
+					return apperrors.New(apperrors.ErrValueNoExists, str)
+				}
+				switch {
+				case isVote(spender):
+					res.Voted++
 
-				if height != -1 && int64(tipHeight-height) < ticketMaturity {
-					immatureCount++
+					// Add the subsidy.
+					//
+					// This is not the actual subsidy that was earned by this
+					// wallet, but rather the stakebase sum.  If a user uses a
+					// stakepool for voting, this value will include the total
+					// subsidy earned by both the user and the pool together.
+					// Similarily, for stakepool wallets, this includes the
+					// customer's subsidy rather than being just the subsidy
+					// earned by fees.
+					res.TotalSubsidy += dcrutil.Amount(spender.TxIn[0].ValueIn)
+
+				case isRevocation(spender):
+					res.Revoked++
+
+					// The ticket was revoked because it was either expired or
+					// missed.  Append it to the liveOrExpiredOrMissed slice to
+					// check this later.
+					ticketHash := it.Hash
+					liveOrExpiredOrMissed = append(liveOrExpiredOrMissed, &ticketHash)
+
+				default:
+					str := fmt.Sprintf("recorded ticket spender %v is neither "+
+						"a vote nor revocation", &it.SpenderHash)
+					return apperrors.New(apperrors.ErrData, str)
 				}
+				continue
 			}
 
-			wg.Done()
-		}()
-		go func() {
-			var allMissedTickets []*chainhash.Hash
-			allMissedTickets, err3 = missedTicketsFuture.Receive()
-			for _, ticketHash := range ticketHashes {
-				found := false
-				if hashInPointerSlice(ticketHash, allMissedTickets) {
-					// Increment missedNum if the missed ticket doesn't have a
-					// revoked associated with it
-					for _, revocationHash := range revocationHashes {
-						if ticketHash == revocationHash {
-							found = true
-							break
-						}
-					}
-					if !found {
-						missedCount++
-					}
-				}
-			}
-			missedCount += uint32(len(revocationHashes))
-			wg.Done()
-		}()
-		go func() {
-			defer func() {
-				close(maybeImmature)
-				wg.Done()
-			}()
-			exitsLiveTicketsHex, err := liveTicketsFuture.Receive()
-			if err != nil {
-				err4 = fmt.Errorf("existslivetickets: %v", err)
-				return
-			}
-			existsLiveTicketsBitset, err := hex.DecodeString(exitsLiveTicketsHex)
-			if err != nil {
-				err4 = fmt.Errorf("existslivetickets: %v", err)
-				return
-			}
-			for i, ticketHash := range ticketHashPtrs {
-				if bitset.Bytes(existsLiveTicketsBitset).Get(i) {
-					liveCount++
-				} else {
-					maybeImmature <- ticketHash
-				}
-			}
-		}()
-		go func() {
-			defer wg.Done()
-			existsExpiredTicketsHex, err := expiredTicketsFuture.Receive()
-			if err != nil {
-				err5 = fmt.Errorf("existsexpiredtickets: %v", err)
-				return
-			}
-			existsExpiredTicketsBitset, err := hex.DecodeString(existsExpiredTicketsHex)
-			if err != nil {
-				err5 = fmt.Errorf("existsexpiredtickets: %v", err)
-				return
-			}
-			for i := range revocationHashes {
-				if bitset.Bytes(existsExpiredTicketsBitset).Get(i) {
-					expiredCount++
-				}
-			}
-		}()
-		wg.Wait()
-		err = firstError(err1, err2, err3, err4, err5)
-		if err != nil {
+			// Ticket is matured but unspent.  Possible states are that the
+			// ticket is live, expired, or missed.
+			ticketHash := it.Hash
+			liveOrExpiredOrMissed = append(liveOrExpiredOrMissed, &ticketHash)
+		}
+		if err := it.Err(); err != nil {
 			return err
 		}
 
-		// Do not count expired tickets with missed.
-		missedCount -= expiredCount
-
-		resp = &StakeInfoData{
-			BlockHeight:   int64(tipHeight),
-			PoolSize:      poolSize,
-			AllMempoolTix: mempoolTicketCount,
-			OwnMempoolTix: ownedMempoolTicketCount,
-			Immature:      immatureCount,
-			Live:          liveCount,
-			Voted:         uint32(len(voteHashes)),
-			TotalSubsidy:  totalSubsidy,
-			Missed:        missedCount,
-			Revoked:       uint32(len(revocationHashes)),
-			Expired:       expiredCount,
+		// Include an estimate of the live ticket pool size. The correct
+		// poolsize would be the pool size to be mined into the next block,
+		// which takes into account maturing stake tickets, voters, and expiring
+		// tickets. There currently isn't a way to get this from the consensus
+		// RPC server, so just use the current block pool size as a "good
+		// enough" estimate for now.
+		serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, &tipHash)
+		if err != nil {
+			return err
 		}
+		var tipHeader wire.BlockHeader
+		err = tipHeader.Deserialize(bytes.NewReader(serHeader))
+		if err != nil {
+			return err
+		}
+		res.PoolSize = tipHeader.PoolSize
+
 		return nil
 	})
-	return resp, err
+	if err != nil {
+		return nil, err
+	}
+
+	// As the wallet is unaware of when a ticket was selected or missed, this
+	// info must be queried from the consensus server.  If the ticket is neither
+	// live nor expired, it is assumed missed.
+	expiredFuture := chainClient.ExistsExpiredTicketsAsync(liveOrExpiredOrMissed)
+	liveFuture := chainClient.ExistsLiveTicketsAsync(liveOrExpiredOrMissed)
+	expiredBitsetHex, err := expiredFuture.Receive()
+	if err != nil {
+		return nil, err
+	}
+	liveBitsetHex, err := liveFuture.Receive()
+	if err != nil {
+		return nil, err
+	}
+	expiredBitset, err := hex.DecodeString(expiredBitsetHex)
+	if err != nil {
+		return nil, err
+	}
+	liveBitset, err := hex.DecodeString(liveBitsetHex)
+	if err != nil {
+		return nil, err
+	}
+	for i := range liveOrExpiredOrMissed {
+		switch {
+		case bitset.Bytes(liveBitset).Get(i):
+			res.Live++
+		case bitset.Bytes(expiredBitset).Get(i):
+			res.Expired++
+		default:
+			res.Missed++
+		}
+	}
+
+	// Receive the mempool tickets future called at the beginning of the
+	// function and determine the total count of tickets in the mempool.
+	mempoolTickets, err := mempoolTicketsFuture.Receive()
+	if err != nil {
+		return nil, err
+	}
+	res.AllMempoolTix = uint32(len(mempoolTickets))
+
+	return res, nil
 }
 
 // LockedOutpoint returns whether an outpoint has been marked as locked and

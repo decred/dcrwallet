@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2015-2016 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -29,18 +29,7 @@ func storeError(code apperrors.Code, str string, err error) error {
 	return apperrors.E{ErrorCode: code, Description: str, Err: err}
 }
 
-// BehaviorFlags is a bitmask defining tweaks to the normal behavior when
-// performing chain processing and consensus rules checks.
-type BehaviorFlags uint32
-
-const (
-	OP_NONSTAKE = txscript.OP_NOP10
-
-	BFBalanceAll BehaviorFlags = iota
-	BFBalanceLockedStake
-	BFBalanceSpendable
-	BFBalanceFullScan
-)
+const opNonstake = txscript.OP_NOP10
 
 // Block contains the minimum amount of data to uniquely identify any block on
 // either the best or side chain.
@@ -124,9 +113,7 @@ func NewTxRecord(serializedTx []byte, received time.Time) (*TxRecord, error) {
 
 // NewTxRecordFromMsgTx creates a new transaction record that may be inserted
 // into the store.
-func NewTxRecordFromMsgTx(msgTx *wire.MsgTx, received time.Time) (*TxRecord,
-	error) {
-
+func NewTxRecordFromMsgTx(msgTx *wire.MsgTx, received time.Time) (*TxRecord, error) {
 	var buf bytes.Buffer
 	buf.Grow(msgTx.SerializeSize())
 	err := msgTx.Serialize(&buf)
@@ -846,59 +833,38 @@ func (s *Store) GetMainChainBlockHashes(ns walletdb.ReadBucket, startHash *chain
 // PruneUnconfirmed prunes old stake tickets that are below the current stake
 // difficulty or any unconfirmed transaction which is expired.
 func (s *Store) PruneUnconfirmed(ns walletdb.ReadWriteBucket, height int32, stakeDiff int64) error {
-	var unconfTxRs []*TxRecord
-	var uTxRstoRemove []*TxRecord
-
 	// Read all data before removing
-	errDb := ns.NestedReadBucket(bucketUnmined).ForEach(func(k, v []byte) error {
-		// TODO: Parsing transactions from the db may be a little
-		// expensive.  It's possible the caller only wants the
-		// serialized transactions.
+	var recs []*TxRecord
+	c := ns.NestedReadBucket(bucketUnmined).ReadCursor()
+	for k, v := c.First(); k != nil; k, v = c.Next() {
 		var txHash chainhash.Hash
-		errLocal := readRawUnminedHash(k, &txHash)
-		if errLocal != nil {
-			return errLocal
+		err := readRawUnminedHash(k, &txHash)
+		if err != nil {
+			return err
 		}
 
 		var rec TxRecord
-		errLocal = readRawTxRecord(&txHash, v, &rec)
-		if errLocal != nil {
-			return errLocal
+		err = readRawTxRecord(&txHash, v, &rec)
+		if err != nil {
+			return err
 		}
 
-		unconfTxRs = append(unconfTxRs, &rec)
-
-		return nil
-	})
-	if errDb != nil {
-		return errDb
+		recs = append(recs, &rec)
 	}
 
-	for _, uTxR := range unconfTxRs {
-		// Tag all transactions that are expired.
-		if uTxR.MsgTx.Expiry <= uint32(height) &&
-			uTxR.MsgTx.Expiry != wire.NoExpiryValue {
-			log.Debugf("Tagging expired tx %v for removal (expiry %v, "+
-				"height %v)", uTxR.Hash, uTxR.MsgTx.Expiry, height)
-			uTxRstoRemove = append(uTxRstoRemove, uTxR)
+	for _, rec := range recs {
+		switch {
+		// Remove expired transactions
+		case rec.MsgTx.Expiry != wire.NoExpiryValue && rec.MsgTx.Expiry <= uint32(height):
+		// Remove ticket purchases with a different current stake difficulty
+		case rec.TxType == stake.TxTypeSStx && rec.MsgTx.TxOut[0].Value != stakeDiff:
+		// Skip others
+		default:
+			continue
 		}
-
-		// Tag all stake tickets which are below
-		// network difficulty.
-		if uTxR.TxType == stake.TxTypeSStx {
-			if uTxR.MsgTx.TxOut[0].Value < stakeDiff {
-				log.Debugf("Tagging low diff ticket %v for removal "+
-					"(stake %v, target %v)", uTxR.Hash,
-					uTxR.MsgTx.TxOut[0].Value, stakeDiff)
-				uTxRstoRemove = append(uTxRstoRemove, uTxR)
-			}
-		}
-	}
-
-	for _, uTxR := range uTxRstoRemove {
-		errLocal := s.removeUnconfirmed(ns, uTxR)
-		if errLocal != nil {
-			return errLocal
+		err := s.removeUnconfirmed(ns, rec)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -1119,9 +1085,9 @@ func (s *Store) moveMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Read
 }
 
 // InsertMinedTx inserts a new transaction record for a mined transaction into
-// the database.  The block header must have been previously saved.  It is
-// expected that the exact transation does not already exist in the unmined
-// buckets, but unmined double spends (including mutations) are removed.
+// the database.  The block header must have been previously saved.  If the
+// exact transaction is already saved as an unmined transaction, it is moved to
+// a block.  Other unmined transactions which become double spends are removed.
 func (s *Store) InsertMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket, rec *TxRecord,
 	blockHash *chainhash.Hash) error {
 
@@ -1233,6 +1199,20 @@ func (s *Store) InsertMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Re
 		return nil
 	}
 
+	// If the transaction is a ticket purchase, record it in the ticket
+	// purchases bucket.
+	if txType == stake.TxTypeSStx {
+		tk := rec.Hash[:]
+		tv := existsRawTicketRecord(ns, tk)
+		if tv == nil {
+			tv = valueTicketRecord(-1)
+			err := putRawTicketRecord(ns, tk, tv)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	// If the exact tx (not a double spend) is already included but
 	// unconfirmed, move it to a block.
 	v = existsRawUnmined(ns, rec.Hash[:])
@@ -1323,7 +1303,7 @@ func (s *Store) AddCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 	return err
 }
 
-// getP2PKHOpCode returns OP_NONSTAKE for non-stake transactions, or
+// getP2PKHOpCode returns opNonstake for non-stake transactions, or
 // the stake op code tag for stake transactions.
 func getP2PKHOpCode(pkScript []byte) uint8 {
 	class := txscript.GetScriptClass(txscript.DefaultScriptVersion, pkScript)
@@ -1338,7 +1318,7 @@ func getP2PKHOpCode(pkScript []byte) uint8 {
 		return txscript.OP_SSTXCHANGE
 	}
 
-	return OP_NONSTAKE
+	return opNonstake
 }
 
 // pkScriptType determines the general type of pkScript for the purposes of
@@ -1476,7 +1456,7 @@ func (s *Store) addMultisigOut(ns walletdb.ReadWriteBucket, rec *TxRecord,
 	// Check to see if the output already exists and is now being
 	// mined into a block. If it does, update the record and return.
 	key := keyMultisigOut(rec.Hash, index)
-	val := existsMultisigOut(ns, key)
+	val := existsMultisigOutCopy(ns, key)
 	if val != nil && block != nil {
 		blockHashV, _ := fetchMultisigOutMined(val)
 		if blockHashV.IsEqual(empty) {
@@ -1577,19 +1557,18 @@ func (s *Store) spendMultisigOut(ns walletdb.ReadWriteBucket, op *wire.OutPoint,
 	spendHash chainhash.Hash, spendIndex uint32) error {
 	// Mark the output spent.
 	key := keyMultisigOut(op.Hash, op.Index)
-	val := existsMultisigOut(ns, key)
+	val := existsMultisigOutCopy(ns, key)
 	if val == nil {
 		str := "tried to spend multisig output that doesn't exist"
 		return storeError(apperrors.ErrValueNoExists, str, nil)
 	}
 	// Attempting to double spend an outpoint is an error.
-	previouslyMarkedSpent := fetchMultisigOutSpent(val)
-	if previouslyMarkedSpent {
+	if fetchMultisigOutSpent(val) {
 		_, foundSpendHash, foundSpendIndex := fetchMultisigOutSpentVerbose(val)
 		// It's not technically an error to try to respend
 		// the output with exactly the same transaction.
 		// However, there's no need to set it again. Just return.
-		if spendHash.IsEqual(&foundSpendHash) && foundSpendIndex == spendIndex {
+		if spendHash == foundSpendHash && foundSpendIndex == spendIndex {
 			return nil
 		}
 		str := fmt.Sprintf("transaction %v tried to doublespend multisig "+
@@ -1722,7 +1701,7 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 					// P2SH output. If it is, access the value
 					// for the key and mark it unmined.
 					msKey := keyMultisigOut(*txHash, uint32(i))
-					msVal := existsMultisigOut(ns, msKey)
+					msVal := existsMultisigOutCopy(ns, msKey)
 					if msVal != nil {
 						setMultisigOutUnmined(msVal)
 						err := putMultisigOutRawValues(ns, msKey, msVal)
@@ -1828,7 +1807,7 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 				// Check if this input uses a multisignature P2SH
 				// output. If it did, mark the output unspent
 				// and create an entry in the unspent bucket.
-				msVal := existsMultisigOut(ns, prevOutKey)
+				msVal := existsMultisigOutCopy(ns, prevOutKey)
 				if msVal != nil {
 					setMultisigOutUnSpent(msVal)
 					err := putMultisigOutRawValues(ns, prevOutKey, msVal)
@@ -1903,7 +1882,7 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 				// P2SH output. If it is, access the value
 				// for the key and mark it unmined.
 				msKey := keyMultisigOut(*txHash, uint32(i))
-				msVal := existsMultisigOut(ns, msKey)
+				msVal := existsMultisigOutCopy(ns, msKey)
 				if msVal != nil {
 					setMultisigOutUnmined(msVal)
 					err := putMultisigOutRawValues(ns, msKey, msVal)
@@ -2067,7 +2046,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint,
 	}
 
 	op.Tree = wire.TxTreeRegular
-	if opCode != OP_NONSTAKE {
+	if opCode != opNonstake {
 		op.Tree = wire.TxTreeStake
 	}
 
@@ -2211,7 +2190,7 @@ func (s *Store) UnspentOutpoints(ns walletdb.ReadBucket) ([]wire.OutPoint, error
 		vC := existsRawCredit(ns, kC)
 		opCode := fetchRawCreditTagOpCode(vC)
 		op.Tree = wire.TxTreeRegular
-		if opCode != OP_NONSTAKE {
+		if opCode != opNonstake {
 			op.Tree = wire.TxTreeStake
 		}
 
@@ -2242,7 +2221,7 @@ func (s *Store) UnspentOutpoints(ns walletdb.ReadBucket) ([]wire.OutPoint, error
 
 		opCode := fetchRawUnminedCreditTagOpcode(v)
 		op.Tree = wire.TxTreeRegular
-		if opCode != OP_NONSTAKE {
+		if opCode != opNonstake {
 			op.Tree = wire.TxTreeStake
 		}
 
@@ -2265,91 +2244,197 @@ func (s *Store) UnspentOutpoints(ns walletdb.ReadBucket) ([]wire.OutPoint, error
 }
 
 // UnspentTickets returns all unspent tickets that are known for this wallet.
-// The order is undefined.
-func (s *Store) UnspentTickets(ns walletdb.ReadBucket, syncHeight int32,
-	includeImmature bool) ([]chainhash.Hash, error) {
-
-	return s.unspentTickets(ns, syncHeight, includeImmature)
-}
-
-func (s *Store) unspentTickets(ns walletdb.ReadBucket, syncHeight int32,
-	includeImmature bool) ([]chainhash.Hash, error) {
-
+// Tickets that have been spent by an unmined vote that is not a vote on the tip
+// block are also considered unspent and are returned.  The order of the hashes
+// is undefined.
+func (s *Store) UnspentTickets(dbtx walletdb.ReadTx, syncHeight int32, includeImmature bool) ([]chainhash.Hash, error) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	tipBlock, _ := s.MainChainTip(ns)
 	var tickets []chainhash.Hash
-	numTickets := 0
+	c := ns.NestedReadBucket(bucketTickets).ReadCursor()
+	var hash chainhash.Hash
+	for ticketHash, _ := c.First(); ticketHash != nil; ticketHash, _ = c.Next() {
+		copy(hash[:], ticketHash)
 
-	var op wire.OutPoint
-	var block Block
-	err := ns.NestedReadBucket(bucketUnspent).ForEach(func(k, v []byte) error {
-		err := readCanonicalOutPoint(k, &op)
-		if err != nil {
-			return err
+		// Skip over tickets that are spent by votes or revocations.  As long as
+		// the ticket is relevant to the wallet, output zero is recorded as a
+		// credit.  Use the credit's spent tracking to determine if the ticket
+		// is spent or not.
+		opKey := canonicalOutPoint(&hash, 0)
+		if existsRawUnspent(ns, opKey) == nil {
+			// No unspent record indicates the output was spent by a mined
+			// transaction.
+			continue
 		}
-		if existsRawUnminedInput(ns, k) != nil {
-			// Output is spent by an unmined transaction.
-			// Skip this k/v pair.
-			return nil
-		}
-		err = readUnspentBlock(v, &block)
-		if err != nil {
-			return err
-		}
-
-		kC := keyCredit(&op.Hash, op.Index, &block)
-		vC := existsRawCredit(ns, kC)
-		opCode := fetchRawCreditTagOpCode(vC)
-		if opCode == txscript.OP_SSTX {
-			if !includeImmature &&
-				!confirmed(int32(s.chainParams.TicketMaturity)+1,
-					block.Height, syncHeight) {
-				return nil
+		if spenderHash := existsRawUnminedInput(ns, opKey); spenderHash != nil {
+			// A non-nil record for the outpoint indicates that there exists an
+			// unmined transaction that spends the output.  Determine if the
+			// spender is a vote, and append the hash if the vote is not for the
+			// tip block height.  Otherwise continue to the next ticket.
+			serializedSpender := extractRawUnminedTx(existsRawUnmined(ns, spenderHash))
+			if serializedSpender == nil {
+				continue
 			}
-			tickets = append(tickets, op.Hash)
-			numTickets++
-		}
-
-		return nil
-	})
-	if err != nil {
-		if _, ok := err.(apperrors.E); ok {
-			return nil, err
-		}
-		str := "failed iterating unspent bucket"
-		return nil, storeError(apperrors.ErrDatabase, str, err)
-	}
-
-	if includeImmature {
-		err = ns.NestedReadBucket(bucketUnminedCredits).ForEach(func(k, v []byte) error {
-			if existsRawUnminedInput(ns, k) != nil {
-				// Output is spent by an unmined transaction.
-				// Skip to next unmined credit.
-				return nil
+			var spender wire.MsgTx
+			err := spender.Deserialize(bytes.NewReader(serializedSpender))
+			if err != nil {
+				const str = "unmined tx decode failed"
+				return nil, apperrors.Wrap(err, apperrors.ErrData, str)
 			}
-			opCode := fetchRawUnminedCreditTagOpcode(v)
-			if opCode == txscript.OP_SSTX {
-				err := readCanonicalOutPoint(k, &op)
-				if err != nil {
-					return err
+			if isVote, _ := stake.IsSSGen(&spender); isVote {
+				voteBlock, _, _ := stake.SSGenBlockVotedOn(&spender)
+				if voteBlock != tipBlock {
+					goto Include
 				}
-				tickets = append(tickets, op.Hash)
-				numTickets++
 			}
 
-			return nil
-		})
-		if err != nil {
-			if _, ok := err.(apperrors.E); ok {
+			continue
+		}
+
+		// When configured to exclude immature tickets, skip the transaction if
+		// is unmined or has not reached ticket maturity yet.
+		if !includeImmature {
+			txRecKey, _ := latestTxRecord(ns, ticketHash)
+			if txRecKey == nil {
+				continue
+			}
+			var height int32
+			err := readRawTxRecordBlockHeight(txRecKey, &height)
+			if err != nil {
 				return nil, err
 			}
-			str := "failed iterating unmined credits bucket"
-			return nil, storeError(apperrors.ErrDatabase, str, err)
+			if !confirmed(int32(s.chainParams.TicketMaturity)+1, height, syncHeight) {
+				continue
+			}
 		}
+
+	Include:
+		tickets = append(tickets, hash)
 	}
-
-	log.Tracef("%v many tickets found", numTickets)
-
 	return tickets, nil
 }
+
+// OwnTicket returns whether ticketHash is the hash of a ticket purchase
+// transaction managed by the wallet.
+func (s *Store) OwnTicket(dbtx walletdb.ReadTx, ticketHash *chainhash.Hash) bool {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	v := existsRawTicketRecord(ns, ticketHash[:])
+	return v != nil
+}
+
+// Ticket embeds a TxRecord for a ticket purchase transaction, the block it is
+// mined in (if any), and the transaction hash of the vote or revocation
+// transaction that spends the ticket (if any).
+type Ticket struct {
+	TxRecord
+	Block       Block          // Height -1 if unmined
+	SpenderHash chainhash.Hash // Zero value if unspent
+}
+
+// TicketIterator is used to iterate over all ticket purchase transactions.
+type TicketIterator struct {
+	Ticket
+	ns     walletdb.ReadBucket
+	c      walletdb.ReadCursor
+	ck, cv []byte
+	err    error
+}
+
+// IterateTickets returns an object used to iterate over all ticket purchase
+// transactions.
+func (s *Store) IterateTickets(dbtx walletdb.ReadTx) *TicketIterator {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	c := ns.NestedReadBucket(bucketTickets).ReadCursor()
+	ck, cv := c.First()
+	return &TicketIterator{ns: ns, c: c, ck: ck, cv: cv}
+}
+
+// Next reads the next Ticket from the database, writing it to the iterator's
+// embedded Ticket member.  Returns false after all tickets have been iterated
+// over or an error occurs.
+func (it *TicketIterator) Next() bool {
+	if it.err != nil {
+		return false
+	}
+
+	// Some tickets may be recorded in the tickets bucket but the transaction
+	// records for them are missing because they were double spent and removed.
+	// Add a label here so that the code below can branch back here to skip to
+	// the next ticket.  This could also be implemented using a for loop, but at
+	// the loss of an indent.
+CheckNext:
+
+	// The cursor value will be nil when all items in the bucket have been
+	// iterated over.
+	if it.cv == nil {
+		return false
+	}
+
+	// Determine whether there is a mined transaction record for the ticket
+	// purchase, an unmined transaction record, or no recorded transaction at
+	// all.
+	var ticketHash chainhash.Hash
+	copy(ticketHash[:], it.ck)
+	if k, v := latestTxRecord(it.ns, it.ck); v != nil {
+		// Ticket is recorded mined
+		err := readRawTxRecordBlock(k, &it.Block)
+		if err != nil {
+			it.err = err
+			return false
+		}
+		err = readRawTxRecord(&ticketHash, v, &it.TxRecord)
+		if err != nil {
+			it.err = err
+			return false
+		}
+
+		// Check if the ticket is spent or not.  Look up the credit for output 0
+		// and check if either a debit is recorded or the output is spent by an
+		// unmined transaction.
+		_, credVal := existsCredit(it.ns, &ticketHash, 0, &it.Block)
+		if credVal != nil {
+			if extractRawCreditIsSpent(credVal) {
+				debKey := extractRawCreditSpenderDebitKey(credVal)
+				debHash := extractRawDebitHash(debKey)
+				copy(it.SpenderHash[:], debHash)
+			} else {
+				it.SpenderHash = chainhash.Hash{}
+			}
+		} else {
+			opKey := canonicalOutPoint(&ticketHash, 0)
+			spenderVal := existsRawUnminedInput(it.ns, opKey)
+			if spenderVal != nil {
+				copy(it.SpenderHash[:], spenderVal)
+			} else {
+				it.SpenderHash = chainhash.Hash{}
+			}
+		}
+	} else if v := existsRawUnmined(it.ns, ticketHash[:]); v != nil {
+		// Ticket is recorded unmined
+		it.Block = Block{Height: -1}
+		// Unmined tickets cannot be spent
+		it.SpenderHash = chainhash.Hash{}
+		err := readRawTxRecord(&ticketHash, v, &it.TxRecord)
+		if err != nil {
+			it.err = err
+			return false
+		}
+	} else {
+		// Transaction was removed, skip to next
+		it.ck, it.cv = it.c.Next()
+		goto CheckNext
+	}
+
+	// Advance the cursor to the next item before returning.  Next expects the
+	// cursor key and value to be set to the next item to read.
+	it.ck, it.cv = it.c.Next()
+
+	return true
+}
+
+// Err returns the final error state of the iterator.  It should be checked
+// after iteration completes when Next returns false.
+func (it *TicketIterator) Err() error { return it.err }
 
 // MultisigCredit is a redeemable P2SH multisignature credit.
 type MultisigCredit struct {
@@ -2374,7 +2459,7 @@ func (s *Store) getMultisigCredit(ns walletdb.ReadBucket,
 		return nil, storeError(apperrors.ErrInput, str, nil)
 	}
 
-	val := existsMultisigOut(ns, canonicalOutPoint(&op.Hash, op.Index))
+	val := existsMultisigOutCopy(ns, canonicalOutPoint(&op.Hash, op.Index))
 	if val == nil {
 		str := fmt.Sprintf("missing multisignature output for outpoint "+
 			"hash %v, index %v (while getting ms credit)", op.Hash, op.Index)
@@ -2428,7 +2513,7 @@ func (s *Store) getMultisigOutput(ns walletdb.ReadBucket, op *wire.OutPoint) (*M
 	}
 
 	key := canonicalOutPoint(&op.Hash, op.Index)
-	val := existsMultisigOut(ns, key)
+	val := existsMultisigOutCopy(ns, key)
 	if val == nil {
 		str := fmt.Sprintf("missing multisignature output for outpoint "+
 			"hash %v, index %v", op.Hash, op.Index)
@@ -2462,7 +2547,7 @@ func (s *Store) unspentMultisigCredits(ns walletdb.ReadBucket) ([]*MultisigCredi
 
 	var mscs []*MultisigCredit
 	for _, key := range unspentKeys {
-		val := existsMultisigOut(ns, key)
+		val := existsMultisigOutCopy(ns, key)
 		if val == nil {
 			str := "failed to get unspent multisig credits: " +
 				"does not exist in bucket"
@@ -2528,7 +2613,7 @@ func (s *Store) unspentMultisigCreditsForAddress(ns walletdb.ReadBucket,
 
 	var mscs []*MultisigCredit
 	for _, key := range unspentKeys {
-		val := existsMultisigOut(ns, key)
+		val := existsMultisigOutCopy(ns, key)
 		if val == nil {
 			str := "failed to get unspent multisig credits: " +
 				"does not exist in bucket"
@@ -2591,13 +2676,13 @@ type minimalCredit struct {
 	unmined     bool
 }
 
-// ByUtxoAmount defines the methods needed to satisify sort.Interface to
+// byUtxoAmount defines the methods needed to satisify sort.Interface to
 // sort a slice of Utxos by their amount.
-type ByUtxoAmount []*minimalCredit
+type byUtxoAmount []*minimalCredit
 
-func (u ByUtxoAmount) Len() int           { return len(u) }
-func (u ByUtxoAmount) Less(i, j int) bool { return u[i].Amount < u[j].Amount }
-func (u ByUtxoAmount) Swap(i, j int)      { u[i], u[j] = u[j], u[i] }
+func (u byUtxoAmount) Len() int           { return len(u) }
+func (u byUtxoAmount) Less(i, j int) bool { return u[i].Amount < u[j].Amount }
+func (u byUtxoAmount) Swap(i, j int)      { u[i], u[j] = u[j], u[i] }
 
 // confirmed checks whether a transaction at height txHeight has met minConf
 // confirmations for a blockchain at height curHeight.
@@ -2804,7 +2889,7 @@ func (s *Store) unspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 		}
 
 		// Skip outputs that are not mature.
-		if opcode == OP_NONSTAKE && fetchRawCreditIsCoinbase(cVal) {
+		if opcode == opNonstake && fetchRawCreditIsCoinbase(cVal) {
 			if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
 				syncHeight) {
 				return nil
@@ -2826,7 +2911,7 @@ func (s *Store) unspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 		// Determine the txtree for the outpoint by whether or not it's
 		// using stake tagged outputs.
 		tree := wire.TxTreeRegular
-		if opcode != OP_NONSTAKE {
+		if opcode != opNonstake {
 			tree = wire.TxTreeStake
 		}
 
@@ -2903,7 +2988,7 @@ func (s *Store) unspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 			// Determine the txtree for the outpoint by whether or not it's
 			// using stake tagged outputs.
 			tree := wire.TxTreeRegular
-			if opcode != OP_NONSTAKE {
+			if opcode != opNonstake {
 				tree = wire.TxTreeStake
 			}
 
@@ -2938,7 +3023,7 @@ func (s *Store) unspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 	}
 
 	// Sort by amount, descending.
-	sort.Sort(sort.Reverse(ByUtxoAmount(eligible)))
+	sort.Sort(sort.Reverse(byUtxoAmount(eligible)))
 
 	sum := int64(0)
 	for _, mc := range eligible {
@@ -3080,7 +3165,7 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			}
 
 			// Skip outputs that are not mature.
-			if opcode == OP_NONSTAKE && fetchRawCreditIsCoinbase(cVal) {
+			if opcode == opNonstake && fetchRawCreditIsCoinbase(cVal) {
 				if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
 					syncHeight) {
 					continue
@@ -3102,7 +3187,7 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			// Determine the txtree for the outpoint by whether or not it's
 			// using stake tagged outputs.
 			tree := wire.TxTreeRegular
-			if opcode != OP_NONSTAKE {
+			if opcode != opNonstake {
 				tree = wire.TxTreeStake
 			}
 
@@ -3182,7 +3267,7 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			// Determine the txtree for the outpoint by whether or not it's
 			// using stake tagged outputs.
 			tree := wire.TxTreeRegular
-			if opcode != OP_NONSTAKE {
+			if opcode != opNonstake {
 				tree = wire.TxTreeStake
 			}
 
@@ -3261,7 +3346,7 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 		}
 
 		switch opcode {
-		case OP_NONSTAKE:
+		case opNonstake:
 			isConfirmed := confirmed(minConf, height, syncHeight)
 			creditFromCoinbase := fetchRawCreditIsCoinbase(cVal)
 			matureCoinbase := (creditFromCoinbase &&
@@ -3390,7 +3475,7 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 		opcode := fetchRawUnminedCreditTagOpcode(v)
 
 		switch opcode {
-		case OP_NONSTAKE:
+		case opNonstake:
 			if minConf == 0 {
 				ab.Spendable += utxoAmt
 			}

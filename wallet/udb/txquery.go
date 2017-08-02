@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015 The Decred developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -186,7 +186,7 @@ func (s *Store) TxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash) (*TxDe
 
 	// Otherwise, if there exists a mined transaction with this matching
 	// hash, skip over to the newest and begin fetching all details.
-	k, v := latestTxRecord(ns, txHash)
+	k, v := latestTxRecord(ns, txHash[:])
 	if v == nil {
 		// not found
 		return nil, nil
@@ -224,7 +224,7 @@ func (s *Store) Tx(ns walletdb.ReadBucket, txHash *chainhash.Hash) (*wire.MsgTx,
 
 	// Otherwise, if there exists a mined transaction with this matching
 	// hash, skip over to the newest and begin fetching the msgTx.
-	_, v = latestTxRecord(ns, txHash)
+	_, v = latestTxRecord(ns, txHash[:])
 	if v == nil {
 		// not found
 		return nil, nil
@@ -243,7 +243,7 @@ func (s *Store) ExistsTx(ns walletdb.ReadBucket, txHash *chainhash.Hash) bool {
 
 	// Otherwise, if there exists a mined transaction with this matching
 	// hash, skip over to the newest and begin fetching the msgTx.
-	_, v = latestTxRecord(ns, txHash)
+	_, v = latestTxRecord(ns, txHash[:])
 	return v != nil
 }
 
@@ -292,7 +292,7 @@ func (s *Store) TxBlockHeight(dbtx walletdb.ReadTx, txHash *chainhash.Hash) (int
 	if v != nil {
 		return -1, nil
 	}
-	k, _ := latestTxRecord(ns, txHash)
+	k, _ := latestTxRecord(ns, txHash[:])
 	if k == nil {
 		const str = "transaction not found"
 		return 0, apperrors.E{ErrorCode: apperrors.ErrValueNoExists, Description: str, Err: nil}

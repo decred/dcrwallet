@@ -109,32 +109,17 @@ func (s *StakeStore) checkHashInStore(hash *chainhash.Hash) bool {
 	return exists
 }
 
-// CheckHashInStore is the exported version of CheckHashInStore that is
-// safe for concurrent access.
-func (s *StakeStore) CheckHashInStore(hash *chainhash.Hash) bool {
+// OwnTicket returns whether the ticket is tracked by the stake manager.
+func (s *StakeStore) OwnTicket(hash *chainhash.Hash) bool {
 	s.mtx.RLock()
-	exists := s.checkHashInStore(hash)
+	owned := s.checkHashInStore(hash)
 	s.mtx.RUnlock()
-	return exists
+	return owned
 }
 
 // addHashToStore adds a hash into ownedSStxs.
 func (s *StakeStore) addHashToStore(hash *chainhash.Hash) {
 	s.ownedSStxs[*hash] = struct{}{}
-}
-
-// OwnTickets returns the hashes of tickets frrom the ticketHashes argument that
-// are owned by this wallet.
-func (s *StakeStore) OwnTickets(ticketHashes []*chainhash.Hash) []*chainhash.Hash {
-	var owned []*chainhash.Hash
-	s.mtx.RLock()
-	for _, hash := range ticketHashes {
-		if _, ok := s.ownedSStxs[*hash]; ok {
-			owned = append(owned, hash)
-		}
-	}
-	s.mtx.RUnlock()
-	return owned
 }
 
 // insertSStx inserts an SStx into the store.

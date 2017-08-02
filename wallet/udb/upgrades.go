@@ -7,6 +7,7 @@ package udb
 import (
 	"crypto/sha256"
 
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrutil/hdkeychain"
@@ -49,10 +50,16 @@ const (
 	// across application restarts.
 	lastReturnedAddressVersion = 5
 
+	// ticketBucketVersion is the sixth version of the database.  It adds a
+	// bucket for recording the hashes of all tickets and provides additional
+	// APIs to check the status of tickets and whether they are spent by a vote
+	// or revocation.
+	ticketBucketVersion = 6
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = lastReturnedAddressVersion
+	DBVersion = ticketBucketVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -63,6 +70,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte) error{
 	votingPreferencesVersion - 1:    votingPreferencesUpgrade,
 	noEncryptedSeedVersion - 1:      noEncryptedSeedUpgrade,
 	lastReturnedAddressVersion - 1:  lastReturnedAddressUpgrade,
+	ticketBucketVersion - 1:         ticketBucketUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
@@ -371,6 +379,86 @@ func lastReturnedAddressUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
+func ticketBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+	const oldVersion = 5
+	const newVersion = 6
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	txmgrBucket := tx.ReadWriteBucket(wtxmgrBucketKey)
+
+	// Assert that this function is only called on version 5 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		const str = "ticketBucketUpgrade inappropriately called"
+		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+	}
+
+	// Create the tickets bucket.
+	_, err = txmgrBucket.CreateBucket(bucketTickets)
+	if err != nil {
+		return err
+	}
+
+	// Add an entry in the tickets bucket for every mined and unmined ticket
+	// purchase transaction.  Use -1 as the selected height since this value is
+	// unknown at this time and the field is not yet being used.
+	ticketHashes := make(map[chainhash.Hash]struct{})
+	c := txmgrBucket.NestedReadBucket(bucketTxRecords).ReadCursor()
+	for k, v := c.First(); v != nil; k, v = c.Next() {
+		var hash chainhash.Hash
+		err := readRawTxRecordHash(k, &hash)
+		if err != nil {
+			return err
+		}
+		var rec TxRecord
+		err = readRawTxRecord(&hash, v, &rec)
+		if err != nil {
+			return err
+		}
+		isTicket, err := stake.IsSStx(&rec.MsgTx)
+		if err == nil && isTicket {
+			ticketHashes[hash] = struct{}{}
+		}
+	}
+	c = txmgrBucket.NestedReadBucket(bucketUnmined).ReadCursor()
+	for k, v := c.First(); v != nil; k, v = c.Next() {
+		var hash chainhash.Hash
+		err := readRawUnminedHash(k, &hash)
+		if err != nil {
+			return err
+		}
+		var rec TxRecord
+		err = readRawTxRecord(&hash, v, &rec)
+		if err != nil {
+			return err
+		}
+		isTicket, err := stake.IsSStx(&rec.MsgTx)
+		if err == nil && isTicket {
+			ticketHashes[hash] = struct{}{}
+		}
+	}
+	for ticketHash := range ticketHashes {
+		err := putTicketRecord(txmgrBucket, &ticketHash, -1)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Remove previous stakebase input from the unmined inputs bucket, if any
+	// was recorded.
+	stakebaseOutpoint := canonicalOutPoint(&chainhash.Hash{}, ^uint32(0))
+	err = txmgrBucket.NestedReadWriteBucket(bucketUnminedInputs).Delete(stakebaseOutpoint)
+	if err != nil {
+		return err
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
 // Upgrade checks whether the any upgrades are necessary before the database is
 // ready for application usage.  If any are, they are performed.
 func Upgrade(db walletdb.DB, publicPassphrase []byte) error {
@@ -400,6 +488,8 @@ func Upgrade(db walletdb.DB, publicPassphrase []byte) error {
 		// No upgrades necessary.
 		return nil
 	}
+
+	log.Infof("Upgrading database from version %d to %d", version, DBVersion)
 
 	err = walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
 		// Execute all necessary upgrades in order.
