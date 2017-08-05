@@ -20,6 +20,16 @@ import (
 	"github.com/decred/dcrwallet/wallet/internal/txsizes"
 )
 
+const (
+	// generatedTxVersion is the version of the transaction being generated.
+	// It is defined as a constant here rather than using the wire.TxVersion
+	// constant since a change in the transaction version will potentially
+	// require changes to the generated transaction.  Thus, using the wire
+	// constant for the generated transaction version could allow creation
+	// of invalid transactions for the updated version.
+	generatedTxVersion = 1
+)
+
 // InputSource provides transaction inputs referencing spendable outputs to
 // construct a transaction outputting some target amount.  If the target amount
 // can not be satisified, this can be signaled by returning a total amount less
@@ -109,7 +119,8 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 		}
 
 		unsignedTransaction := &wire.MsgTx{
-			Version:  wire.DefaultMsgTxVersion(),
+			SerType:  wire.TxSerializeFull,
+			Version:  generatedTxVersion,
 			TxIn:     inputs,
 			TxOut:    outputs,
 			LockTime: 0,

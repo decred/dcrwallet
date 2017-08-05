@@ -1,5 +1,5 @@
 hash: 8821a10afa7fa0a739161963d37154c7ed31841dc915a29978f2d27885acffbc
-updated: 2017-08-07T16:54:11.2859253-05:00
+updated: 2017-08-07T17:59:15.1279423-05:00
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -20,7 +20,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: 1c618ec5e119fa9ff4008e9fffd978b71ce68bbd
+  version: fce24223cd8d60c32a1ee107e3e1a2c7d837ecf1
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -42,7 +42,7 @@ imports:
 - name: github.com/decred/dcrrpcclient
   version: abc326aeb97b299c7eb6b13b81353fc375e9b95d
 - name: github.com/decred/dcrutil
-  version: 58e046aab848365647c44b295f4fab078fbc3392
+  version: 166211f0196be1d3be344ae64149e7c4f5ca36b0
   subpackages:
   - base58
   - hdkeychain
