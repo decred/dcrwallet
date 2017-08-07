@@ -2207,9 +2207,7 @@ func newBlockAtQuick(currentHeight uint32, r *Harness,
 		t.Fatalf("Unable to get block: %v", err)
 	}
 
-	height := block.MsgBlock().Header.Height
-
-	return height, block, blockHashes
+	return block.Header.Height, dcrutil.NewBlock(block), blockHashes
 }
 
 func getBestBlock(r *Harness, t *testing.T) (uint32, *dcrutil.Block, *chainhash.Hash) {
@@ -2221,9 +2219,9 @@ func getBestBlock(r *Harness, t *testing.T) (uint32, *dcrutil.Block, *chainhash.
 	if err != nil {
 		t.Fatalf("Unable to get block: %v", err)
 	}
-	curBlockHeight := bestBlock.MsgBlock().Header.Height
+	curBlockHeight := bestBlock.Header.Height
 
-	return curBlockHeight, bestBlock, bestBlockHash
+	return curBlockHeight, dcrutil.NewBlock(bestBlock), bestBlockHash
 }
 
 func getBestBlockHeight(r *Harness, t *testing.T) uint32 {

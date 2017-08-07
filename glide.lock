@@ -1,5 +1,5 @@
 hash: 8821a10afa7fa0a739161963d37154c7ed31841dc915a29978f2d27885acffbc
-updated: 2017-06-28T15:29:12.707326-04:00
+updated: 2017-08-07T16:54:11.2859253-05:00
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -40,7 +40,7 @@ imports:
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
-  version: 5dcd9e5b9cf04d8c624f6068f18c4195d19907d3
+  version: abc326aeb97b299c7eb6b13b81353fc375e9b95d
 - name: github.com/decred/dcrutil
   version: 58e046aab848365647c44b295f4fab078fbc3392
   subpackages:
