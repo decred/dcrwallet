@@ -48,11 +48,11 @@ const (
 	defaultAllowHighFees       = false
 
 	// ticket buyer options
-	defaultMaxFee                    dcrutil.Amount = 1e7
+	defaultMaxFee                    dcrutil.Amount = 1e6
 	defaultMinFee                    dcrutil.Amount = 1e5
 	defaultMaxPriceScale                            = 0.0
 	defaultAvgVWAPPriceDelta                        = 2880
-	defaultMaxPerBlock                              = 5
+	defaultMaxPerBlock                              = 1
 	defaultBlocksToAvg                              = 11
 	defaultFeeTargetScaling                         = 1.0
 	defaultMaxInMempool                             = 40
