@@ -1142,11 +1142,6 @@ func (m *Manager) ImportScript(ns walletdb.ReadWriteBucket, script []byte) (Mana
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
-	// The manager must be unlocked to encrypt the imported script.
-	if m.locked && !m.watchingOnly {
-		return nil, managerError(apperrors.ErrLocked, errLocked, nil)
-	}
-
 	// Prevent duplicates.
 	scriptHash := dcrutil.Hash160(script)
 	alreadyExists := existsAddress(ns, scriptHash)
@@ -1154,6 +1149,11 @@ func (m *Manager) ImportScript(ns walletdb.ReadWriteBucket, script []byte) (Mana
 		str := fmt.Sprintf("address for script hash %x already exists",
 			scriptHash)
 		return nil, managerError(apperrors.ErrDuplicateAddress, str, nil)
+	}
+
+	// The manager must be unlocked to encrypt the imported script.
+	if m.locked && !m.watchingOnly {
+		return nil, managerError(apperrors.ErrLocked, errLocked, nil)
 	}
 
 	// Encrypt the script hash using the crypto public key so it is
