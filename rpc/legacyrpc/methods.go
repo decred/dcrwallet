@@ -654,6 +654,7 @@ func getBalance(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 				LockedByTickets:         bal.LockedByTickets.ToCoin(),
 				Spendable:               bal.Spendable.ToCoin(),
 				Total:                   bal.Total.ToCoin(),
+				Unconfirmed:             bal.Unconfirmed.ToCoin(),
 				VotingAuthority:         bal.VotingAuthority.ToCoin(),
 			}
 			result.Balances = append(result.Balances, json)
@@ -675,6 +676,7 @@ func getBalance(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 			LockedByTickets:         bal.LockedByTickets.ToCoin(),
 			Spendable:               bal.Spendable.ToCoin(),
 			Total:                   bal.Total.ToCoin(),
+			Unconfirmed:             bal.Unconfirmed.ToCoin(),
 			VotingAuthority:         bal.VotingAuthority.ToCoin(),
 		}
 		result.Balances = append(result.Balances, json)
