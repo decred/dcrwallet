@@ -3428,7 +3428,7 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			// Calculate the fee here due to the commitamt in the OP_SSTX output script being the total
 			// value in.
 			fee := dcrutil.Amount(0)
-			if votingAuthorityAmt > 0 {
+			if totalInputAmount > 0 {
 				fee = totalInputAmount - utxoAmt
 			}
 			if lockedByTicketsAmt > 0 {
@@ -3520,23 +3520,37 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			}
 			votingAuthorityAmt := dcrutil.Amount(0)
 			lockedByTicketsAmt := dcrutil.Amount(0)
-			for i, txin := range rec.MsgTx.TxIn {
-				_, credKey, err := exists
-				if err != nil {
-					return err
+			totalInputAmount := dcrutil.Amount(0)
+			for _, txin := range rec.MsgTx.TxIn {
+				rawUnmined := existsRawUnmined(ns, txin.PreviousOutPoint.Hash[:])
+				if rawUnmined != nil {
+					serializedTx := extractRawUnminedTx(rawUnmined)
+					var txInRec TxRecord
+					err = txInRec.MsgTx.Deserialize(bytes.NewReader(serializedTx))
+					if err != nil {
+						return err
+					}
+					for j, txout := range txInRec.MsgTx.TxOut {
+						if uint32(j) == txin.PreviousOutPoint.Index {
+							totalInputAmount += dcrutil.Amount(txout.Value)
+						}
+					}
+				} else {
+					_, txVal := latestTxRecord(ns, txin.PreviousOutPoint.Hash[:])
+					if txVal == nil {
+						continue
+					}
+					var txInRec TxRecord
+					err = readRawTxRecord(&txin.PreviousOutPoint.Hash, txVal, &txInRec)
+					if err != nil {
+						return err
+					}
+					for j, txout := range txInRec.MsgTx.TxOut {
+						if uint32(j) == txin.PreviousOutPoint.Index {
+							totalInputAmount += dcrutil.Amount(txout.Value)
+						}
+					}
 				}
-				if credKey == nil {
-					continue
-				}
-				credVal := existsRawCredit(ns, credKey)
-				if cVal == nil {
-					return fmt.Errorf("couldn't find a credit for unspent txo")
-				}
-				inputAmount, err := fetchRawCreditAmount(credVal)
-				if err != nil {
-					return err
-				}
-				totalInputAmount += inputAmount
 			}
 			for i, txout := range rec.MsgTx.TxOut {
 				if i%2 != 0 {
@@ -3562,8 +3576,8 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			// Calculate the fee here due to the commitamt in the OP_SSTX output script being the total
 			// value in.
 			fee := dcrutil.Amount(0)
-			if votingAuthorityAmt > 0 {
-				fee = votingAuthorityAmt - utxoAmt
+			if totalInputAmount > 0 {
+				fee = totalInputAmount - utxoAmt
 			}
 			if lockedByTicketsAmt > 0 {
 				// Only calculate proper lockedbyticketstamt if > 0
