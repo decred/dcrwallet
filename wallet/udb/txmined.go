@@ -3520,6 +3520,24 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			}
 			votingAuthorityAmt := dcrutil.Amount(0)
 			lockedByTicketsAmt := dcrutil.Amount(0)
+			for i, txin := range rec.MsgTx.TxIn {
+				_, credKey, err := exists
+				if err != nil {
+					return err
+				}
+				if credKey == nil {
+					continue
+				}
+				credVal := existsRawCredit(ns, credKey)
+				if cVal == nil {
+					return fmt.Errorf("couldn't find a credit for unspent txo")
+				}
+				inputAmount, err := fetchRawCreditAmount(credVal)
+				if err != nil {
+					return err
+				}
+				totalInputAmount += inputAmount
+			}
 			for i, txout := range rec.MsgTx.TxOut {
 				if i%2 != 0 {
 					addr, err := stake.AddrFromSStxPkScrCommitment(txout.PkScript,
