@@ -3525,15 +3525,13 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 				rawUnmined := existsRawUnmined(ns, txin.PreviousOutPoint.Hash[:])
 				if rawUnmined != nil {
 					serializedTx := extractRawUnminedTx(rawUnmined)
-					var txInRec TxRecord
-					err = txInRec.MsgTx.Deserialize(bytes.NewReader(serializedTx))
+					var tx wire.MsgTx
+					err = tx.Deserialize(bytes.NewReader(serializedTx))
 					if err != nil {
 						return err
 					}
-					for j, txout := range txInRec.MsgTx.TxOut {
-						if uint32(j) == txin.PreviousOutPoint.Index {
-							totalInputAmount += dcrutil.Amount(txout.Value)
-						}
+					if int(txin.PreviousOutPoint.Index) < len(tx.TxOut) {
+						totalInputAmount += dcrutil.Amount(tx.TxOut[txin.PreviousOutPoint.Index].Value)
 					}
 				} else {
 					_, txVal := latestTxRecord(ns, txin.PreviousOutPoint.Hash[:])
@@ -3545,10 +3543,8 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 					if err != nil {
 						return err
 					}
-					for j, txout := range txInRec.MsgTx.TxOut {
-						if uint32(j) == txin.PreviousOutPoint.Index {
-							totalInputAmount += dcrutil.Amount(txout.Value)
-						}
+					if int(txin.PreviousOutPoint.Index) < len(txInRec.MsgTx.TxOut) {
+						totalInputAmount += dcrutil.Amount(txInRec.MsgTx.TxOut[txin.PreviousOutPoint.Index].Value)
 					}
 				}
 			}
