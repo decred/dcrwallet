@@ -13,6 +13,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
@@ -3384,6 +3385,32 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			}
 			votingAuthorityAmt := dcrutil.Amount(0)
 			lockedByTicketsAmt := dcrutil.Amount(0)
+			totalInputAmount := dcrutil.Amount(0)
+			for _, txin := range rec.MsgTx.TxIn {
+				prevOut := txin.PreviousOutPoint
+
+				debitKey, credKey, err := existsDebit(ns,
+					&prevOut.Hash, prevOut.Index, &blockRec.Block)
+				if err != nil {
+					return err
+				}
+
+				spew.Dump(debitKey, credKey)
+				// Skip unmined credits.
+				if credKey == nil {
+					continue
+				}
+				credVal := existsRawCredit(ns, credKey)
+				if cVal == nil {
+					return fmt.Errorf("couldn't find a credit for unspent txo")
+				}
+				spew.Dump(credVal)
+				inputAmount, err := fetchRawCreditAmount(credVal)
+				if err != nil {
+					return err
+				}
+				totalInputAmount += inputAmount
+			}
 			for i, txout := range rec.MsgTx.TxOut {
 				if i%2 != 0 {
 					addr, err := stake.AddrFromSStxPkScrCommitment(txout.PkScript,
@@ -3415,6 +3442,7 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 				// Only calculate proper lockedbyticketstamt if > 0
 				ab.LockedByTickets += lockedByTicketsAmt - fee
 			}
+			fmt.Println(fee, totalInputAmount)
 			ab.VotingAuthority += votingAuthorityAmt - fee
 		case txscript.OP_SSGEN:
 			fallthrough
