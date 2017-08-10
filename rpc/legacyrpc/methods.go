@@ -1964,9 +1964,9 @@ func purchaseTicket(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) ([]*wire.TxOut, error) {
 	outputs := make([]*wire.TxOut, 0, len(pairs))
 	for addrStr, amt := range pairs {
-		addr, err := dcrutil.DecodeAddress(addrStr)
+		addr, err := decodeAddress(addrStr, chainParams)
 		if err != nil {
-			return nil, fmt.Errorf("cannot decode address: %s", err)
+			return nil, err
 		}
 
 		pkScript, err := txscript.PayToAddrScript(addr)
