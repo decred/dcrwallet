@@ -324,6 +324,11 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 					buf.cursor = lastReturned - lastUsed
 					w.addressBuffersMu.Unlock()
 
+					// Unfortunately if the cursor is equal to or greater than
+					// the gap limit, the next child index isn't completely
+					// known.  Depending on the gap limit policy being used, the
+					// next address could be the index after the last returned
+					// child or the child may wrap around to a lower value.
 					log.Infof("Synchronized account %d branch %d to next child index %v",
 						acct, branch, lastReturned+1)
 					return nil

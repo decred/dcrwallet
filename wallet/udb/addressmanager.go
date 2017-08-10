@@ -1414,7 +1414,9 @@ func (m *Manager) MarkUsedChildIndex(tx walletdb.ReadWriteTx, account, branch, c
 }
 
 // MarkReturnedChildIndex marks a BIP0044 account branch child as returned to a
-// caller.  This method will never write an index lower than the existing index.
+// caller.  This method will write returned child indexes that are lower than
+// the currently-recorded last returned indexes, but these indexes will never be
+// lower than the last used index.
 func (m *Manager) MarkReturnedChildIndex(tx walletdb.ReadWriteTx, account, branch, child uint32) error {
 	ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 
@@ -1432,13 +1434,6 @@ func (m *Manager) MarkReturnedChildIndex(tx walletdb.ReadWriteTx, account, branc
 	default:
 		const str = "unsupported account branch"
 		return apperrors.E{ErrorCode: apperrors.ErrBranch, Description: str, Err: nil}
-	}
-
-	if lastRetExtIndex+1 < row.lastReturnedExternalIndex+1 ||
-		lastRetIntIndex+1 < row.lastReturnedInternalIndex+1 {
-		// Later child indexes have already been marked returned, nothing to
-		// update.
-		return nil
 	}
 
 	// The last returned indexes should never be less than the last used.  The
