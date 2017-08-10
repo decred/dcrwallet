@@ -3538,13 +3538,13 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 					if txVal == nil {
 						continue
 					}
-					var txInRec TxRecord
-					err = readRawTxRecord(&txin.PreviousOutPoint.Hash, txVal, &txInRec)
+					var tx wire.MsgTx
+					err = readRawTxRecordMsgTx(&txin.PreviousOutPoint.Hash, txVal, &tx)
 					if err != nil {
 						return err
 					}
-					if int(txin.PreviousOutPoint.Index) < len(txInRec.MsgTx.TxOut) {
-						totalInputAmount += dcrutil.Amount(txInRec.MsgTx.TxOut[txin.PreviousOutPoint.Index].Value)
+					if int(txin.PreviousOutPoint.Index) < len(tx.TxOut) {
+						totalInputAmount += dcrutil.Amount(tx.TxOut[txin.PreviousOutPoint.Index].Value)
 					}
 				}
 			}
