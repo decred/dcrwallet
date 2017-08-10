@@ -551,7 +551,7 @@ func readRawTxRecordMsgTx(txHash *chainhash.Hash, v []byte, msgTx *wire.MsgTx) e
 	if len(v) < 8 {
 		str := fmt.Sprintf("%s: short read for raw tx record msg tx(expected %d "+
 			"bytes, read %d, txHash %v)", bucketTxRecords, 8, len(v), txHash)
-		return storeError(apperrors.ErrData, str, nil)
+		return apperrors.New(apperrors.ErrData, str)
 	}
 	err := msgTx.Deserialize(bytes.NewReader(v[8:]))
 	if err != nil {
