@@ -3400,7 +3400,7 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 				}
 				credVal := existsRawCredit(ns, credKey)
 				if credVal == nil {
-					return apperrors.New(apperrors.ErrNoExist, "couldn't find a credit for unspent txo")
+					return apperrors.New(apperrors.ErrData, "couldn't find a credit for unspent txo")
 				}
 				inputAmount, err := fetchRawCreditAmount(credVal)
 				if err != nil {
