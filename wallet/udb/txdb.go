@@ -547,6 +547,22 @@ func putRawTxRecord(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	return nil
 }
 
+func readRawTxRecordMsgTx(txHash *chainhash.Hash, v []byte, msgTx *wire.MsgTx) error {
+	if len(v) < 8 {
+		str := fmt.Sprintf("%s: short read for raw tx record msg tx(expected %d "+
+			"bytes, read %d, txHash %v)", bucketTxRecords, 8, len(v), txHash)
+		return apperrors.New(apperrors.ErrData, str)
+	}
+	err := msgTx.Deserialize(bytes.NewReader(v[8:]))
+	if err != nil {
+		str := fmt.Sprintf("%s: failed to deserialize transaction %v",
+			bucketTxRecords, txHash)
+		return storeError(apperrors.ErrData, str, err)
+	}
+
+	return nil
+}
+
 func readRawTxRecord(txHash *chainhash.Hash, v []byte, rec *TxRecord) error {
 	if len(v) < 8 {
 		str := fmt.Sprintf("%s: short read for raw tx record (expected %d "+
