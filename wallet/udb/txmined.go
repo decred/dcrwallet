@@ -3384,6 +3384,10 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			}
 			votingAuthorityAmt := dcrutil.Amount(0)
 			lockedByTicketsAmt := dcrutil.Amount(0)
+
+			// Calculate total input amount which will allow a proper fee calculation.
+			// Fee is needed to be removed from the stake.AmountFromSStxPkScrCommitment
+			// due to the way tickets are constructed and rewards are calculated.
 			totalInputAmount := dcrutil.Amount(0)
 			for i := range rec.MsgTx.TxIn {
 				_, credKey, err := existsDebit(ns,
@@ -3395,8 +3399,8 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 					continue
 				}
 				credVal := existsRawCredit(ns, credKey)
-				if cVal == nil {
-					return fmt.Errorf("couldn't find a credit for unspent txo")
+				if credVal == nil {
+					return apperrors.New(apperrors.ErrNoExist, "couldn't find a credit for unspent txo")
 				}
 				inputAmount, err := fetchRawCreditAmount(credVal)
 				if err != nil {
@@ -3520,6 +3524,10 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			}
 			votingAuthorityAmt := dcrutil.Amount(0)
 			lockedByTicketsAmt := dcrutil.Amount(0)
+
+			// Calculate total input amount which will allow a proper fee calculation.
+			// Fee is needed to be removed from the stake.AmountFromSStxPkScrCommitment
+			// due to the way tickets are constructed and rewards are calculated.
 			totalInputAmount := dcrutil.Amount(0)
 			for _, txin := range rec.MsgTx.TxIn {
 				rawUnmined := existsRawUnmined(ns, txin.PreviousOutPoint.Hash[:])
