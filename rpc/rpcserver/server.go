@@ -55,9 +55,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.20.0"
+	semverString = "4.21.0"
 	semverMajor  = 4
-	semverMinor  = 20
+	semverMinor  = 21
 	semverPatch  = 0
 )
 
@@ -929,7 +929,17 @@ func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransact
 		return nil, translateError(err)
 	}
 
-	invalidSigs, err := s.wallet.SignTransaction(&tx, txscript.SigHashAll, nil, nil, nil)
+	var additionalPkScripts map[wire.OutPoint][]byte
+	if len(req.AdditionalScripts) > 0 {
+		additionalPkScripts = make(map[wire.OutPoint][]byte, len(req.AdditionalScripts))
+		for _, s := range req.AdditionalScripts {
+			op := wire.OutPoint{Index: s.OutputIndex, Tree: int8(s.Tree)}
+			copy(op.Hash[:], s.TransactionHash)
+			additionalPkScripts[op] = s.PkScript
+		}
+	}
+
+	invalidSigs, err := s.wallet.SignTransaction(&tx, txscript.SigHashAll, additionalPkScripts, nil, nil)
 	if err != nil {
 		return nil, translateError(err)
 	}

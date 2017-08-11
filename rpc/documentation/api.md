@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.20.x
+Version: 4.21.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -1132,6 +1132,20 @@ transaction using a wallet private keys.
 - `repeated uint32 input_indexes`: The input indexes that signature scripts must
   be created for.  If there are no indexes, input scripts are created for every
   input that is missing an input script.
+
+- `repeated AdditionalScript additional_scripts`: Additional output scripts of
+  previous outputs spent by the transaction that the wallet may not be aware of.
+  Offline signing may require previous outputs to be provided to the wallet.
+
+  **Nested message:** `AdditionalScript`
+
+  - `bytes transaction_hash`: The transaction hash of the previous output.
+
+  - `uint32 output_index`: The output index of the previous output.
+
+  - `int32 tree`: The transaction tree the previous transaction belongs to.
+
+  - `bytes pk_script`: The output script of the previous output.
 
 **Response:** `SignTransactionResponse`
 
