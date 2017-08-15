@@ -56,13 +56,14 @@ func (w *Wallet) LiveTicketHashes(chainClient *chain.RPCClient, includeImmature 
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+		expiryConfs := int32(w.chainParams.TicketExpiry) +
+			int32(w.chainParams.TicketMaturity) + 1
 
 		it := w.TxStore.IterateTickets(dbtx)
 		for it.Next() {
 			// Tickets that are mined at a height beyond the expiry height can
 			// not be live.
-			if confirmed(int32(w.chainParams.TicketExpiry), it.Block.Height,
-				tipHeight) {
+			if confirmed(expiryConfs, it.Block.Height, tipHeight) {
 				continue
 			}
 
