@@ -3508,6 +3508,8 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 		case opNonstake:
 			if minConf == 0 {
 				ab.Spendable += utxoAmt
+			} else if !fetchRawCreditIsCoinbase(v) {
+				ab.Unconfirmed += utxoAmt
 			}
 		case txscript.OP_SSTX:
 			txHash := extractRawUnminedCreditTxHash(k)
@@ -3617,6 +3619,7 @@ type Balances struct {
 	Spendable               dcrutil.Amount
 	Total                   dcrutil.Amount
 	VotingAuthority         dcrutil.Amount
+	Unconfirmed             dcrutil.Amount
 }
 
 // AccountBalance returns a Balances struct for some given account at
