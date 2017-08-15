@@ -1,5 +1,5 @@
 hash: 8821a10afa7fa0a739161963d37154c7ed31841dc915a29978f2d27885acffbc
-updated: 2017-08-13T20:38:09.686996602Z
+updated: 2017-08-15T18:20:35.2879746-04:00
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -20,7 +20,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: bf4c1253ff7d0977882910172ea3b4be8284c0b8
+  version: 4c1f4f10382dc5ae0ce3fe13c69e588099a3e674
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -58,7 +58,7 @@ imports:
   subpackages:
   - rotator
 - name: golang.org/x/crypto
-  version: 84f24dfdf3c414ed893ca1b318d0045ef5a1f607
+  version: b176d7def5d71bdd214203491f89843ed217f420
   subpackages:
   - nacl/secretbox
   - pbkdf2
@@ -68,7 +68,7 @@ imports:
   - scrypt
   - ssh/terminal
 - name: golang.org/x/net
-  version: 8663ed5da4fd087c3cfb99a996e628b72e2f0948
+  version: 1c05540f6879653db88113bc4a2b70aec4bd491f
   subpackages:
   - context
   - http2
@@ -78,11 +78,12 @@ imports:
   - lex/httplex
   - trace
 - name: golang.org/x/sys
-  version: 90796e5a05ce440b41c768bd9af257005e470461
+  version: 9f7170bcd8e9f4d3691c06401119c46a769a1e03
   subpackages:
   - unix
+  - windows
 - name: golang.org/x/text
-  version: 6353ef0f924300eea566d3438817aa4d3374817e
+  version: e56139fd9c5bc7244c76116c68e500765bb6db6b
   subpackages:
   - secure/bidirule
   - transform
