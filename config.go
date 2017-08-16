@@ -38,7 +38,6 @@ const (
 	defaultReuseAddresses      = false
 	defaultRollbackTest        = false
 	defaultPruneTickets        = false
-	defaultPurchaseAccount     = "default"
 	defaultAutomaticRepair     = false
 	defaultPromptPass          = false
 	defaultPass                = ""
@@ -64,6 +63,7 @@ const (
 	defaultPriceTarget                              = 0
 	defaultBalanceToMaintainAbsolute                = 0
 	defaultBalanceToMaintainRelative                = 0.3
+	defaultPurchaseAccount                          = "default"
 
 	walletDbName = "wallet.db"
 )
@@ -104,10 +104,6 @@ type config struct {
 	EnableTicketBuyer   bool                `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
 	EnableVoting        bool                `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
 	ReuseAddresses      bool                `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
-	PurchaseAccount     string              `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
-	TicketAddress       string              `long:"ticketaddress" description:"Send all ticket outputs to this address (P2PKH or P2SH only)"`
-	PoolAddress         string              `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
-	PoolFees            float64             `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
 	AddrIdxScanLen      int                 `long:"addridxscanlen" description:"The width of the scan for last used addresses on wallet restore and start up"`
 	StakePoolColdExtKey string              `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
 	AllowHighFees       bool                `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
@@ -151,8 +147,12 @@ type config struct {
 	tbCfg  ticketbuyer.Config
 
 	// Deprecated options
-	DataDir      *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
-	PruneTickets bool                    `long:"prunetickets" description:"DEPRECATED -- old tickets are always pruned"`
+	DataDir         *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
+	PruneTickets    bool                    `long:"prunetickets" description:"DEPRECATED -- old tickets are always pruned"`
+	TicketAddress   string                  `long:"ticketaddress" description:"DEPRECATED -- send all ticket outputs to this address (P2PKH or P2SH only)"`
+	PoolAddress     string                  `long:"pooladdress" description:"DEPRECATED -- the ticket pool address where ticket fees will go to"`
+	PoolFees        float64                 `long:"poolfees" description:"DEPRECATED -- the per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
+	PurchaseAccount string                  `long:"purchaseaccount" description:"DEPRECATED -- name of the account to buy tickets from"`
 }
 
 type ticketBuyerOptions struct {
@@ -172,6 +172,10 @@ type ticketBuyerOptions struct {
 	BalanceToMaintainRelative float64             `long:"balancetomaintainrelative" description:"Proportion of funds to leave in wallet when stake mining"`
 	NoSpreadTicketPurchases   bool                `long:"nospreadticketpurchases" description:"Do not spread ticket purchases evenly throughout the window"`
 	DontWaitForTickets        bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
+	TicketAddress             string              `long:"ticketaddress" description:"Send all ticket outputs to this address (P2PKH or P2SH only)"`
+	PoolAddress               string              `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
+	PoolFees                  float64             `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
+	PurchaseAccount           string              `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
 
 	// Deprecated options
 	MaxPriceScale         float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
@@ -369,6 +373,7 @@ func loadConfig() (*config, []string, error) {
 			PriceTarget:               cfgutil.NewAmountFlag(defaultPriceTarget),
 			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
 			BalanceToMaintainRelative: defaultBalanceToMaintainRelative,
+			PurchaseAccount:           defaultPurchaseAccount,
 		},
 	}
 
@@ -517,7 +522,22 @@ func loadConfig() (*config, []string, error) {
 		fmt.Fprintln(os.Stderr, "prunetickets option is no longer necessary "+
 			"or used -- please update your config")
 	}
-
+	if len(cfg.TicketAddress) > 0 {
+		fmt.Fprintln(os.Stderr, "ticketaddress option is "+
+			"deprecated -- please use ticketbuyer.ticketaddress")
+	}
+	if len(cfg.PoolAddress) > 0 {
+		fmt.Fprintln(os.Stderr, "pooladdress option is "+
+			"deprecated -- please use ticketbuyer.pooladdress")
+	}
+	if cfg.PoolFees != 0.0 {
+		fmt.Fprintln(os.Stderr, "poolfees option is "+
+			"deprecated -- please use ticketbuyer.poolfees")
+	}
+	if cfg.PurchaseAccount != defaultPurchaseAccount {
+		fmt.Fprintln(os.Stderr, "purchaseaccount option is "+
+			"deprecated -- please use ticketbuyer.purchaseaccount")
+	}
 	if cfg.TBOpts.SpreadTicketPurchases {
 		fmt.Fprintln(os.Stderr, "ticketbuyer.spreadticketpurchases option "+
 			"has been replaced by ticketbuyer.nospreadticketpurchases -- "+
@@ -703,33 +723,33 @@ func loadConfig() (*config, []string, error) {
 		return loadConfigError(err)
 	}
 
-	if len(cfg.TicketAddress) != 0 {
-		_, err := dcrutil.DecodeAddress(cfg.TicketAddress)
+	if len(cfg.TBOpts.TicketAddress) != 0 {
+		_, err := dcrutil.DecodeAddress(cfg.TBOpts.TicketAddress)
 		if err != nil {
 			err := fmt.Errorf("ticketaddress '%s' failed to decode: %v",
-				cfg.TicketAddress, err)
+				cfg.TBOpts.TicketAddress, err)
 			fmt.Fprintln(os.Stderr, err)
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return loadConfigError(err)
 		}
 	}
 
-	if len(cfg.PoolAddress) != 0 {
-		_, err := dcrutil.DecodeAddress(cfg.PoolAddress)
+	if len(cfg.TBOpts.PoolAddress) != 0 {
+		_, err := dcrutil.DecodeAddress(cfg.TBOpts.PoolAddress)
 		if err != nil {
 			err := fmt.Errorf("pooladdress '%s' failed to decode: %v",
-				cfg.PoolAddress, err)
+				cfg.TBOpts.PoolAddress, err)
 			fmt.Fprintln(os.Stderr, err.Error())
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return loadConfigError(err)
 		}
 	}
 
-	if cfg.PoolFees != 0.0 {
-		err := txrules.IsValidPoolFeeRate(cfg.PoolFees)
+	if cfg.TBOpts.PoolFees != 0.0 {
+		err := txrules.IsValidPoolFeeRate(cfg.TBOpts.PoolFees)
 		if err != nil {
 			err := fmt.Errorf("poolfees '%v' failed to decode: %v",
-				cfg.PoolFees, err)
+				cfg.TBOpts.PoolFees, err)
 			fmt.Fprintln(os.Stderr, err.Error())
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return loadConfigError(err)
@@ -911,7 +931,7 @@ func loadConfig() (*config, []string, error) {
 
 	// Build ticketbuyer config
 	cfg.tbCfg = ticketbuyer.Config{
-		AccountName:               cfg.PurchaseAccount,
+		AccountName:               cfg.TBOpts.PurchaseAccount,
 		AvgPriceMode:              cfg.TBOpts.AvgPriceMode,
 		AvgPriceVWAPDelta:         cfg.TBOpts.AvgPriceVWAPDelta,
 		BalanceToMaintainAbsolute: int64(cfg.TBOpts.BalanceToMaintainAbsolute.Amount),
@@ -927,10 +947,10 @@ func loadConfig() (*config, []string, error) {
 		MaxPriceAbsolute:          int64(cfg.TBOpts.MaxPriceAbsolute.Amount),
 		MaxPriceRelative:          cfg.TBOpts.MaxPriceRelative,
 		MaxInMempool:              cfg.TBOpts.MaxInMempool,
-		PoolAddress:               cfg.PoolAddress,
-		PoolFees:                  cfg.PoolFees,
+		PoolAddress:               cfg.TBOpts.PoolAddress,
+		PoolFees:                  cfg.TBOpts.PoolFees,
 		NoSpreadTicketPurchases:   cfg.TBOpts.NoSpreadTicketPurchases,
-		TicketAddress:             cfg.TicketAddress,
+		TicketAddress:             cfg.TBOpts.TicketAddress,
 		TxFee:                     int64(cfg.RelayFee.Amount),
 	}
 
