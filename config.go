@@ -96,24 +96,24 @@ type config struct {
 	AutomaticRepair    bool                    `long:"automaticrepair" description:"Attempt to repair the wallet automatically if a database inconsistency is found"`
 
 	// Wallet options
-	WalletPass          string              `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
-	PromptPass          bool                `long:"promptpass" description:"The private wallet password is prompted for at start up, so the wallet starts unlocked without a time limit"`
-	Pass                string              `long:"pass" description:"The private wallet passphrase"`
-	PromptPublicPass    bool                `long:"promptpublicpass" description:"The public wallet password is prompted for at start up"`
-	DisallowFree        bool                `long:"disallowfree" description:"Force transactions to always include a fee"`
-	EnableTicketBuyer   bool                `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
-	EnableVoting        bool                `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
-	ReuseAddresses      bool                `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
-	PurchaseAccount     string              `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
-	TicketAddress       string              `long:"ticketaddress" description:"Send all ticket outputs to this address (P2PKH or P2SH only)"`
-	PoolAddress         string              `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
-	PoolFees            float64             `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
-	AddrIdxScanLen      int                 `long:"addridxscanlen" description:"The width of the scan for last used addresses on wallet restore and start up"`
-	StakePoolColdExtKey string              `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
-	AllowHighFees       bool                `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
-	RelayFee            *cfgutil.AmountFlag `long:"txfee" description:"Sets the wallet's tx fee per kb"`
-	TicketFee           *cfgutil.AmountFlag `long:"ticketfee" description:"Sets the wallet's ticket fee per kb"`
-	PipeRx              *uint               `long:"piperx" description:"File descriptor of read end pipe to enable parent -> child process communication"`
+	WalletPass          string               `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
+	PromptPass          bool                 `long:"promptpass" description:"The private wallet password is prompted for at start up, so the wallet starts unlocked without a time limit"`
+	Pass                string               `long:"pass" description:"The private wallet passphrase"`
+	PromptPublicPass    bool                 `long:"promptpublicpass" description:"The public wallet password is prompted for at start up"`
+	DisallowFree        bool                 `long:"disallowfree" description:"Force transactions to always include a fee"`
+	EnableTicketBuyer   bool                 `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
+	EnableVoting        bool                 `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
+	ReuseAddresses      bool                 `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
+	PurchaseAccount     string               `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
+	TicketAddress       *cfgutil.AddressFlag `long:"ticketaddress" description:"Send all ticket outputs to this address (P2PKH or P2SH only)"`
+	PoolAddress         *cfgutil.AddressFlag `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
+	PoolFees            float64              `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
+	AddrIdxScanLen      int                  `long:"addridxscanlen" description:"The width of the scan for last used addresses on wallet restore and start up"`
+	StakePoolColdExtKey string               `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
+	AllowHighFees       bool                 `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
+	RelayFee            *cfgutil.AmountFlag  `long:"txfee" description:"Sets the wallet's tx fee per kb"`
+	TicketFee           *cfgutil.AmountFlag  `long:"ticketfee" description:"Sets the wallet's ticket fee per kb"`
+	PipeRx              *uint                `long:"piperx" description:"File descriptor of read end pipe to enable parent -> child process communication"`
 
 	// RPC client options
 	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Hostname/IP and port of dcrd RPC server to connect to"`
@@ -347,6 +347,8 @@ func loadConfig() (*config, []string, error) {
 		AllowHighFees:          defaultAllowHighFees,
 		RelayFee:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
 		TicketFee:              cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
+		TicketAddress:          cfgutil.NewAddressFlag(nil),
+		PoolAddress:            cfgutil.NewAddressFlag(nil),
 
 		// TODO: DEPRECATED - remove.
 		DataDir: cfgutil.NewExplicitString(defaultAppDataDir),
@@ -701,28 +703,6 @@ func loadConfig() (*config, []string, error) {
 			"--create option to initialize and create it.")
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
-	}
-
-	if len(cfg.TicketAddress) != 0 {
-		_, err := dcrutil.DecodeAddress(cfg.TicketAddress)
-		if err != nil {
-			err := fmt.Errorf("ticketaddress '%s' failed to decode: %v",
-				cfg.TicketAddress, err)
-			fmt.Fprintln(os.Stderr, err)
-			fmt.Fprintln(os.Stderr, usageMessage)
-			return loadConfigError(err)
-		}
-	}
-
-	if len(cfg.PoolAddress) != 0 {
-		_, err := dcrutil.DecodeAddress(cfg.PoolAddress)
-		if err != nil {
-			err := fmt.Errorf("pooladdress '%s' failed to decode: %v",
-				cfg.PoolAddress, err)
-			fmt.Fprintln(os.Stderr, err.Error())
-			fmt.Fprintln(os.Stderr, usageMessage)
-			return loadConfigError(err)
-		}
 	}
 
 	if cfg.PoolFees != 0.0 {

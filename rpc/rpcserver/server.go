@@ -1408,31 +1408,29 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 	}
 	params := wallet.ChainParams()
 
-	var votingAddress string
+	var votingAddress dcrutil.Address
 	if req.VotingAddress != "" {
-		votingAddr, err := decodeAddress(req.VotingAddress, params)
+		votingAddress, err = decodeAddress(req.VotingAddress, params)
 		if err != nil {
 			return nil, err
 		}
-		votingAddress = votingAddr.String()
 	}
 
-	var poolAddress string
+	var poolAddress dcrutil.Address
 	if req.PoolAddress != "" {
-		poolAddr, err := decodeAddress(req.PoolAddress, params)
+		poolAddress, err = decodeAddress(req.PoolAddress, params)
 		if err != nil {
 			return nil, err
 		}
-		poolAddress = poolAddr.String()
 	}
 
 	poolFees := req.PoolFees
 	switch {
-	case poolFees == 0 && poolAddress != "":
+	case poolFees == 0 && poolAddress != nil:
 		return nil, status.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
-	case poolFees != 0 && poolAddress == "":
+	case poolFees != 0 && poolAddress == nil:
 		return nil, status.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
-	case poolFees != 0 && poolAddress != "":
+	case poolFees != 0 && poolAddress != nil:
 		err = txrules.IsValidPoolFeeRate(poolFees)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Pool fees amount invalid: %v", err)
@@ -1766,6 +1764,14 @@ func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.Ticke
 	if err != nil {
 		return nil, translateError(err)
 	}
+	votingAddress := ""
+	if config.TicketAddress != nil {
+		votingAddress = config.TicketAddress.String()
+	}
+	poolAddress := ""
+	if config.PoolAddress != nil {
+		poolAddress = config.PoolAddress.String()
+	}
 	return &pb.TicketBuyerConfigResponse{
 		Account:               account,
 		AvgPriceMode:          config.AvgPriceMode,
@@ -1782,10 +1788,10 @@ func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.Ticke
 		MaxPriceAbsolute:      config.MaxPriceAbsolute,
 		MaxPriceRelative:      config.MaxPriceRelative,
 		MaxInMempool:          int64(config.MaxInMempool),
-		PoolAddress:           config.PoolAddress,
+		PoolAddress:           poolAddress,
 		PoolFees:              config.PoolFees,
 		SpreadTicketPurchases: !config.NoSpreadTicketPurchases,
-		VotingAddress:         config.TicketAddress,
+		VotingAddress:         votingAddress,
 		TxFee:                 config.TxFee,
 	}, nil
 }

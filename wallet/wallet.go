@@ -3810,7 +3810,7 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 
 // Open loads an already-created wallet from the passed database and namespaces.
 func Open(db walletdb.DB, pubPass []byte, votingEnabled bool, addressReuse bool,
-	ticketAddress string, poolAddress string, poolFees float64, ticketFee float64,
+	ticketAddress dcrutil.Address, poolAddress dcrutil.Address, poolFees float64, ticketFee float64,
 	gapLimit int, stakePoolColdExtKey string, allowHighFees bool,
 	relayFee float64, params *chaincfg.Params) (*Wallet, error) {
 
@@ -3838,23 +3838,6 @@ func Open(db walletdb.DB, pubPass []byte, votingEnabled bool, addressReuse bool,
 		return nil, err
 	}
 
-	var ticketAddr dcrutil.Address
-	if ticketAddress != "" {
-		ticketAddr, err = dcrutil.DecodeAddress(ticketAddress)
-		if err != nil {
-			return nil, fmt.Errorf("ticket address could not parse: %v",
-				err.Error())
-		}
-	}
-
-	var poolAddr dcrutil.Address
-	if poolAddress != "" {
-		poolAddr, err = dcrutil.DecodeAddress(poolAddress)
-		if err != nil {
-			return nil, fmt.Errorf("pool address could not parse: %v",
-				err.Error())
-		}
-	}
 	stakePoolColdAddrs, err := decodeStakePoolColdExtKey(stakePoolColdExtKey,
 		params)
 	if err != nil {
@@ -3876,8 +3859,8 @@ func Open(db walletdb.DB, pubPass []byte, votingEnabled bool, addressReuse bool,
 	w := newWallet(
 		votingEnabled,
 		addressReuse,
-		ticketAddr,
-		poolAddr,
+		ticketAddress,
+		poolAddress,
 		poolFees,
 		relayFeeAmt,
 		ticketFeeAmt,
