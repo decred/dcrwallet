@@ -907,10 +907,10 @@ func loadConfig() (*config, []string, error) {
 		MaxPriceAbsolute:          int64(cfg.TBOpts.MaxPriceAbsolute.Amount),
 		MaxPriceRelative:          cfg.TBOpts.MaxPriceRelative,
 		MaxInMempool:              cfg.TBOpts.MaxInMempool,
-		PoolAddress:               cfg.PoolAddress,
+		PoolAddress:               cfg.PoolAddress.Address,
 		PoolFees:                  cfg.PoolFees,
 		NoSpreadTicketPurchases:   cfg.TBOpts.NoSpreadTicketPurchases,
-		TicketAddress:             cfg.TicketAddress,
+		TicketAddress:             cfg.TicketAddress.Address,
 		TxFee:                     int64(cfg.RelayFee.Amount),
 	}
 
