@@ -142,15 +142,13 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			creds := credentials.NewServerTLSFromCert(&keyPair)
 			server = grpc.NewServer(
 				grpc.Creds(creds),
-				grpc.StreamInterceptor(logStreaming),
-				grpc.UnaryInterceptor(logUnary),
+				grpc.StreamInterceptor(interceptStreaming),
+				grpc.UnaryInterceptor(interceptUnary),
 			)
-			rpcserver.StartVersionService(server)
+			rpcserver.RegisterServices(server)
 			rpcserver.StartWalletLoaderService(server, walletLoader, activeNet)
 			rpcserver.StartTicketBuyerService(server, walletLoader, &cfg.tbCfg)
-			rpcserver.StartSeedService(server)
 			rpcserver.StartAgendaService(server, activeNet.Params)
-			rpcserver.StartMessageVerificationService(server)
 			for _, lis := range listeners {
 				lis := lis
 				go func() {
@@ -187,13 +185,26 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 	return server, legacyServer, nil
 }
 
-func logStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+// serviceName returns the package.service segment from the full gRPC method
+// name `/package.service/method`.
+func serviceName(method string) string {
+	// Slice off first /
+	method = method[1:]
+	// Keep everything before the next /
+	return method[:strings.IndexRune(method, '/')]
+}
+
+func interceptStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	p, ok := peer.FromContext(ss.Context())
 	if ok {
 		grpcLog.Infof("Streaming method %s invoked by %s", info.FullMethod,
 			p.Addr.String())
 	}
-	err := handler(srv, ss)
+	err := rpcserver.ServiceReady(serviceName(info.FullMethod))
+	if err != nil {
+		return err
+	}
+	err = handler(srv, ss)
 	if err != nil && ok {
 		grpcLog.Errorf("Streaming method %s invoked by %s errored: %v",
 			info.FullMethod, p.Addr.String(), err)
@@ -201,11 +212,15 @@ func logStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServer
 	return err
 }
 
-func logUnary(ctx xcontext.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+func interceptUnary(ctx xcontext.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 	p, ok := peer.FromContext(ctx)
 	if ok {
 		grpcLog.Infof("Unary method %s invoked by %s", info.FullMethod,
 			p.Addr.String())
+	}
+	err = rpcserver.ServiceReady(serviceName(info.FullMethod))
+	if err != nil {
+		return nil, err
 	}
 	resp, err = handler(ctx, req)
 	if err != nil && ok {

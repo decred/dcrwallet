@@ -21,6 +21,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/context"
@@ -147,17 +148,18 @@ func decodeHashes(in [][]byte) ([]*chainhash.Hash, error) {
 
 // versionServer provides RPC clients with the ability to query the RPC server
 // version.
-type versionServer struct {
-}
+type versionServer struct{}
 
 // walletServer provides wallet services for RPC clients.
 type walletServer struct {
+	ready  uint32 // atomic
 	wallet *wallet.Wallet
 }
 
 // loaderServer provides RPC clients with the ability to load and close wallets,
 // as well as establishing a RPC connection to a dcrd consensus server.
 type loaderServer struct {
+	ready     uint32 // atomic
 	loader    *loader.Loader
 	activeNet *netparams.Params
 	rpcClient *chain.RPCClient
@@ -167,21 +169,23 @@ type loaderServer struct {
 // seedServer provides RPC clients with the ability to generate secure random
 // seeds encoded in both binary and human-readable formats, and decode any
 // human-readable input back to binary.
-type seedServer struct {
-}
+type seedServer struct{}
 
 // ticketbuyerServer provides RPC clients with the ability to start/stop the
 // automatic ticket buyer service.
 type ticketbuyerServer struct {
+	ready          uint32 // atomic
 	loader         *loader.Loader
 	ticketbuyerCfg *ticketbuyer.Config
 }
 
 type agendaServer struct {
+	ready     uint32 // atomic
 	activeNet *chaincfg.Params
 }
 
 type votingServer struct {
+	ready  uint32 // atomic
 	wallet *wallet.Wallet
 }
 
@@ -189,10 +193,61 @@ type votingServer struct {
 // that a message was signed using the private key of a particular address.
 type messageVerificationServer struct{}
 
-// StartVersionService creates an implementation of the VersionService and
-// registers it with the gRPC server.
-func StartVersionService(server *grpc.Server) {
-	pb.RegisterVersionServiceServer(server, &versionServer{})
+// Singleton implementations of each service.  Not all services are immediately
+// usable.
+var (
+	versionService             versionServer
+	walletService              walletServer
+	loaderService              loaderServer
+	seedService                seedServer
+	ticketBuyerService         ticketbuyerServer
+	agendaService              agendaServer
+	votingService              votingServer
+	messageVerificationService messageVerificationServer
+)
+
+// RegisterServices registers implementations of each gRPC service and registers
+// it with the server.  Not all service are ready to be used after registration.
+func RegisterServices(server *grpc.Server) {
+	pb.RegisterVersionServiceServer(server, &versionService)
+	pb.RegisterWalletServiceServer(server, &walletService)
+	pb.RegisterWalletLoaderServiceServer(server, &loaderService)
+	pb.RegisterSeedServiceServer(server, &seedService)
+	pb.RegisterTicketBuyerServiceServer(server, &ticketBuyerService)
+	pb.RegisterAgendaServiceServer(server, &agendaService)
+	pb.RegisterVotingServiceServer(server, &votingService)
+	pb.RegisterMessageVerificationServiceServer(server, &messageVerificationService)
+}
+
+var serviceMap = map[string]interface{}{
+	"walletrpc.VersionService":             &versionService,
+	"walletrpc.WalletService":              &walletService,
+	"walletrpc.WalletLoaderService":        &loaderService,
+	"walletrpc.SeedService":                &seedService,
+	"walletrpc.TicketBuyerService":         &ticketBuyerService,
+	"walletrpc.AgendaService":              &agendaService,
+	"walletrpc.VotingService":              &votingService,
+	"walletrpc.MessageVerificationService": &messageVerificationService,
+}
+
+// ServiceReady returns nil when the service is ready and a gRPC error when not.
+func ServiceReady(service string) error {
+	s, ok := serviceMap[service]
+	if !ok {
+		return status.Errorf(codes.Unimplemented, "service %s not found", service)
+	}
+	type readyChecker interface {
+		checkReady() bool
+	}
+	ready := true
+	r, ok := s.(readyChecker)
+	if ok {
+		ready = r.checkReady()
+	}
+	if !ready {
+		return status.Errorf(codes.FailedPrecondition, "service %v is not ready", service)
+	}
+	return nil
 }
 
 func (*versionServer) Version(ctx context.Context, req *pb.VersionRequest) (*pb.VersionResponse, error) {
@@ -204,11 +259,16 @@ func (*versionServer) Version(ctx context.Context, req *pb.VersionRequest) (*pb.
 	}, nil
 }
 
-// StartWalletService creates an implementation of the WalletService and
-// registers it with the gRPC server.
+// StartWalletService starts the WalletService.
 func StartWalletService(server *grpc.Server, wallet *wallet.Wallet) {
-	service := &walletServer{wallet}
-	pb.RegisterWalletServiceServer(server, service)
+	walletService.wallet = wallet
+	if atomic.SwapUint32(&walletService.ready, 1) != 0 {
+		panic("service already started")
+	}
+}
+
+func (s *walletServer) checkReady() bool {
+	return atomic.LoadUint32(&s.ready) != 0
 }
 
 // requireChainClient checks whether the wallet has been associated with the
@@ -1360,18 +1420,30 @@ func (s *walletServer) ConfirmationNotifications(svr pb.WalletService_Confirmati
 	}
 }
 
-// StartWalletLoaderService creates an implementation of the WalletLoaderService
-// and registers it with the gRPC server.
+// StartWalletLoaderService starts the WalletLoaderService.
 func StartWalletLoaderService(server *grpc.Server, loader *loader.Loader, activeNet *netparams.Params) {
-	service := &loaderServer{loader: loader, activeNet: activeNet}
-	pb.RegisterWalletLoaderServiceServer(server, service)
+	loaderService.loader = loader
+	loaderService.activeNet = activeNet
+	if atomic.SwapUint32(&loaderService.ready, 1) != 0 {
+		panic("service already started")
+	}
 }
 
-// StartTicketBuyerService creates an implementation of the TicketBuyerService
-// and registers it with the gRPC server.
+func (s *loaderServer) checkReady() bool {
+	return atomic.LoadUint32(&s.ready) != 0
+}
+
+// StartTicketBuyerService starts the TicketBuyerService.
 func StartTicketBuyerService(server *grpc.Server, loader *loader.Loader, tbCfg *ticketbuyer.Config) {
-	service := &ticketbuyerServer{loader: loader, ticketbuyerCfg: tbCfg}
-	pb.RegisterTicketBuyerServiceServer(server, service)
+	ticketBuyerService.loader = loader
+	ticketBuyerService.ticketbuyerCfg = tbCfg
+	if atomic.SwapUint32(&ticketBuyerService.ready, 1) != 0 {
+		panic("service already started")
+	}
+}
+
+func (t *ticketbuyerServer) checkReady() bool {
+	return atomic.LoadUint32(&t.ready) != 0
 }
 
 // StartAutoBuyer starts the automatic ticket buyer.
@@ -1696,12 +1768,6 @@ func (s *loaderServer) FetchHeaders(ctx context.Context, req *pb.FetchHeadersReq
 	return res, nil
 }
 
-// StartSeedService creates an implementation of the SeedService and
-// registers it with the gRPC server.
-func StartSeedService(server *grpc.Server) {
-	pb.RegisterSeedServiceServer(server, &seedServer{})
-}
-
 func (s *seedServer) GenerateRandomSeed(ctx context.Context, req *pb.GenerateRandomSeedRequest) (
 	*pb.GenerateRandomSeedResponse, error) {
 
@@ -1975,11 +2041,16 @@ func (t *ticketbuyerServer) SetMaxPerBlock(ctx context.Context, req *pb.SetMaxPe
 	return &pb.SetMaxPerBlockResponse{}, nil
 }
 
-// StartAgendaService creates an implementation of the AgendaService and
-// registers it with the gRPC server.
+// StartAgendaService starts the AgendaService.
 func StartAgendaService(server *grpc.Server, activeNet *chaincfg.Params) {
-	service := &agendaServer{activeNet}
-	pb.RegisterAgendaServiceServer(server, service)
+	agendaService.activeNet = activeNet
+	if atomic.SwapUint32(&agendaService.ready, 1) != 0 {
+		panic("service already started")
+	}
+}
+
+func (s *agendaServer) checkReady() bool {
+	return atomic.LoadUint32(&s.ready) != 0
 }
 
 func (s *agendaServer) Agendas(ctx context.Context, req *pb.AgendasRequest) (*pb.AgendasResponse, error) {
@@ -2012,11 +2083,16 @@ func (s *agendaServer) Agendas(ctx context.Context, req *pb.AgendasRequest) (*pb
 	return resp, nil
 }
 
-// StartVotingService creates an implementation of the VotingService and
-// registers it with the gRPC server.
+// StartVotingService starts the VotingService.
 func StartVotingService(server *grpc.Server, wallet *wallet.Wallet) {
-	service := &votingServer{wallet}
-	pb.RegisterVotingServiceServer(server, service)
+	votingService.wallet = wallet
+	if atomic.SwapUint32(&votingService.ready, 1) != 0 {
+		panic("service already started")
+	}
+}
+
+func (s *votingServer) checkReady() bool {
+	return atomic.LoadUint32(&s.ready) != 0
 }
 
 func (s *votingServer) VoteChoices(ctx context.Context, req *pb.VoteChoicesRequest) (*pb.VoteChoicesResponse, error) {
@@ -2064,12 +2140,6 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 		Votebits: uint32(voteBits),
 	}
 	return resp, nil
-}
-
-// StartMessageVerificationService creates an implementation of the
-// MessageVerificationService and registers it with the gRPC server.
-func StartMessageVerificationService(server *grpc.Server) {
-	pb.RegisterMessageVerificationServiceServer(server, &messageVerificationServer{})
 }
 
 func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.VerifyMessageRequest) (
