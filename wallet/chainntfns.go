@@ -456,7 +456,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			txOut.PkScript, w.chainParams)
 		insert := false
 		for _, addr := range addrs {
-			if !w.Manager.ExistsAddress(addrmgrNs, addr.Hash160()[:]) {
+			if !w.Manager.ExistsHash160(addrmgrNs, addr.Hash160()[:]) {
 				continue
 			}
 			// We own the voting output pubkey or script and we're
@@ -920,6 +920,17 @@ func (w *Wallet) handleWinningTickets(blockHash *chainhash.Hash,
 					"owned winning ticket %v: %v", ticketHash, err)
 				continue
 			}
+
+			// Don't create votes when this wallet doesn't have voting
+			// authority.
+			owned, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
+			if err != nil {
+				return err
+			}
+			if !owned {
+				continue
+			}
+
 			vote, err := createUnsignedVote(ticketHash, ticketPurchase,
 				blockHeight, blockHash, voteBits, w.subsidyCache, w.chainParams)
 			if err != nil {
@@ -1017,6 +1028,17 @@ func (w *Wallet) handleMissedTickets(blockHash *chainhash.Hash, blockHeight int3
 					"missed or expired ticket %v: %v", ticketHash, err)
 				continue
 			}
+
+			// Don't create revocations when this wallet doesn't have voting
+			// authority.
+			owned, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
+			if err != nil {
+				return err
+			}
+			if !owned {
+				continue
+			}
+
 			revocation, err := createUnsignedRevocation(ticketHash, ticketPurchase,
 				relayFee)
 			if err != nil {

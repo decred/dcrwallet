@@ -2989,6 +2989,23 @@ func isRevocation(tx *wire.MsgTx) bool {
 	return b
 }
 
+// hasVotingAuthority returns whether the 0th output of a ticket purchase can be
+// spent by a vote or revocation created by this wallet.
+func (w *Wallet) hasVotingAuthority(addrmgrNs walletdb.ReadBucket, ticketPurchase *wire.MsgTx) (bool, error) {
+	out := ticketPurchase.TxOut[0]
+	_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
+		out.PkScript, w.chainParams)
+	if err != nil {
+		return false, err
+	}
+	for _, a := range addrs {
+		if w.Manager.ExistsHash160(addrmgrNs, a.Hash160()[:]) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // StakeInfo collects and returns staking statistics for this wallet to the end
 // user. This includes:
 //
@@ -3021,11 +3038,21 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 	var liveOrExpiredOrMissed []*chainhash.Hash
 
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
-		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		tipHash, tipHeight := w.TxStore.MainChainTip(ns)
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		tipHash, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 		res.BlockHeight = int64(tipHeight)
 		it := w.TxStore.IterateTickets(dbtx)
 		for it.Next() {
+			// Skip tickets which are not owned by this wallet.
+			owned, err := w.hasVotingAuthority(addrmgrNs, &it.MsgTx)
+			if err != nil {
+				return err
+			}
+			if !owned {
+				continue
+			}
+
 			// Check for tickets in mempool
 			if it.Block.Height == -1 {
 				res.OwnMempoolTix++
@@ -3043,7 +3070,7 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 			// it is a vote or revocation.  If it is a vote, add the earned
 			// subsidy.
 			if it.SpenderHash != (chainhash.Hash{}) {
-				spender, err := w.TxStore.Tx(ns, &it.SpenderHash)
+				spender, err := w.TxStore.Tx(txmgrNs, &it.SpenderHash)
 				if err != nil {
 					return err
 				}
@@ -3099,7 +3126,7 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 		// tickets. There currently isn't a way to get this from the consensus
 		// RPC server, so just use the current block pool size as a "good
 		// enough" estimate for now.
-		serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, &tipHash)
+		serHeader, err := w.TxStore.GetSerializedBlockHeader(txmgrNs, &tipHash)
 		if err != nil {
 			return err
 		}
@@ -3622,7 +3649,7 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 		// Input is relevant if it contains a saved redeem script or spends a
 		// wallet output.
 		rs, err := txscript.MultisigRedeemScriptFromScriptSig(in.SignatureScript)
-		if err == nil && rs != nil && w.Manager.ExistsAddress(addrmgrNs,
+		if err == nil && rs != nil && w.Manager.ExistsHash160(addrmgrNs,
 			dcrutil.Hash160(rs)) {
 			return true
 		}
@@ -3637,7 +3664,7 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 			continue
 		}
 		for _, a := range addrs {
-			if w.Manager.ExistsAddress(addrmgrNs, a.Hash160()[:]) {
+			if w.Manager.ExistsHash160(addrmgrNs, a.Hash160()[:]) {
 				return true
 			}
 		}

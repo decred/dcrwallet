@@ -276,6 +276,17 @@ func (w *Wallet) RevokeTickets(chainClient *chain.RPCClient) error {
 			if err != nil {
 				return err
 			}
+
+			// Don't create revocations when this wallet doesn't have voting
+			// authority.
+			owned, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
+			if err != nil {
+				return err
+			}
+			if !owned {
+				continue
+			}
+
 			revocation, err := createUnsignedRevocation(ticketHash,
 				ticketPurchase, feePerKb)
 			if err != nil {

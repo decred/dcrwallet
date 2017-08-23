@@ -1036,10 +1036,10 @@ func (m *Manager) ConvertToWatchingOnly(ns walletdb.ReadWriteBucket) error {
 
 }
 
-// ExistsAddress returns whether or not the passed address is known to the
-// address manager.
-func (m *Manager) ExistsAddress(ns walletdb.ReadBucket, addressID []byte) bool {
-	return existsAddress(ns, addressID)
+// ExistsHash160 returns whether or not the 20 byte P2PKH or P2SH HASH160 is
+// known to the address manager.
+func (m *Manager) ExistsHash160(ns walletdb.ReadBucket, hash160 []byte) bool {
+	return existsAddress(ns, hash160)
 }
 
 // ImportPrivateKey imports a WIF private key into the address manager.  The
