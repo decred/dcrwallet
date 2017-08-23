@@ -2165,6 +2165,15 @@ func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (*TransactionSummary
 	return txSummary, err
 }
 
+type GetTicketsResult struct {
+	Tickets []Ticket
+}
+
+func (w *Wallet) GetTickets(startBlock, endBlock *BlockIdentifier, cancel <-chan struct{}) (*GetTicketsResult, error) {
+	var res GetTicketsResult
+	return &res, nil
+}
+
 // GetTransactionsResult is the result of the wallet's GetTransactions method.
 // See GetTransactions for more details.
 type GetTransactionsResult struct {

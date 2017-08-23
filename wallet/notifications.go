@@ -401,6 +401,24 @@ type Block struct {
 	Transactions []TransactionSummary
 }
 
+// Ticket contains the properties to
+type Ticket struct {
+	Hash        *chainhash.Hash
+	SpenderHash *chainhash.Hash
+	Status      TicketStatus
+}
+
+type TicketStatus int8
+
+const (
+	TicketStatusLive TicketStatus = iota
+	TicketStatusImmature
+	TicketStatusVoted
+	TicketStatusRevoked
+	TicketStatusMissed
+	TicketStatusExpired
+)
+
 // TransactionSummary contains a transaction relevant to the wallet and marks
 // which inputs and outputs were relevant.
 type TransactionSummary struct {
