@@ -180,13 +180,20 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 			break
 		}
 	}
+
+	// Use earliest of receive time or block time if the transaction is mined.
+	receiveTime := details.Received
+	if details.Height() >= 0 && details.Block.Time.Before(receiveTime) {
+		receiveTime = details.Block.Time
+	}
+
 	return TransactionSummary{
 		Hash:        &details.Hash,
 		Transaction: serializedTx,
 		MyInputs:    inputs,
 		MyOutputs:   outputs,
 		Fee:         fee,
-		Timestamp:   details.Received.Unix(),
+		Timestamp:   receiveTime.Unix(),
 		Type:        transactionType,
 	}
 }
