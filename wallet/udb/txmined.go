@@ -862,7 +862,7 @@ func (s *Store) PruneUnconfirmed(ns walletdb.ReadWriteBucket, height int32, stak
 		default:
 			continue
 		}
-		err := s.removeUnconfirmed(ns, rec)
+		err := s.removeUnconfirmed(ns, &rec.MsgTx, &rec.Hash)
 		if err != nil {
 			return err
 		}
@@ -1930,7 +1930,7 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 
 			log.Debugf("Transaction %v spends a removed coinbase "+
 				"output -- removing as well", unminedRec.Hash)
-			err = s.removeUnconfirmed(ns, &unminedRec)
+			err = s.removeUnconfirmed(ns, &unminedRec.MsgTx, &unminedRec.Hash)
 			if err != nil {
 				return err
 			}

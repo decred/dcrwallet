@@ -6,6 +6,7 @@
 package udb
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/decred/dcrd/blockchain/stake"
@@ -36,12 +37,52 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 	// spend.  Unlike mined transactions that double spend an unmined tx,
 	// existing unmined txs are not removed when inserting a double spending
 	// unmined tx.
+	//
+	// An exception is made for this rule for revocations that double spend an
+	// unmined vote that doesn't vote on the tip block.
 	for _, input := range rec.MsgTx.TxIn {
 		prevOut := &input.PreviousOutPoint
 		k := canonicalOutPoint(&prevOut.Hash, prevOut.Index)
 		if v := existsRawUnminedInput(ns, k); v != nil {
 			var spenderHash chainhash.Hash
 			readRawUnminedInputSpenderHash(v, &spenderHash)
+
+			// A switch is used here instead of an if statement so it can be
+			// broken out of to the error below.
+		RevocationCheck:
+			switch {
+			case rec.TxType == stake.TxTypeSSRtx:
+				spenderVal := existsRawUnmined(ns, spenderHash[:])
+				spenderTxBytes := extractRawUnminedTx(spenderVal)
+				var spenderTx wire.MsgTx
+				err := spenderTx.Deserialize(bytes.NewReader(spenderTxBytes))
+				if err != nil {
+					str := fmt.Sprintf("failed to deserialize unmined "+
+						"transaction %v", &spenderHash)
+					return apperrors.Wrap(err, apperrors.ErrData, str)
+				}
+				if stake.DetermineTxType(&spenderTx) != stake.TxTypeSSGen {
+					break RevocationCheck
+				}
+				votedBlock, _, err := stake.SSGenBlockVotedOn(&spenderTx)
+				if err != nil {
+					const str = "failed to determine voted block"
+					return apperrors.Wrap(err, apperrors.ErrData, str)
+				}
+				tipBlock, _ := s.MainChainTip(ns)
+				if votedBlock == tipBlock {
+					const str = "revocation double spends unmined vote on " +
+						"the tip block"
+					return apperrors.New(apperrors.ErrDoubleSpend, str)
+				}
+
+				err = s.removeUnconfirmed(ns, &spenderTx, &spenderHash)
+				if err != nil {
+					return err
+				}
+				continue
+			}
+
 			str := fmt.Sprintf("unmined transaction %v is a double spend of "+
 				"unmined transaction %v", &rec.Hash, &spenderHash)
 			return apperrors.New(apperrors.ErrDoubleSpend, str)
@@ -114,7 +155,7 @@ func (s *Store) removeDoubleSpends(ns walletdb.ReadWriteBucket, rec *TxRecord) e
 
 			log.Debugf("Removing double spending transaction %v",
 				doubleSpend.Hash)
-			err = s.removeUnconfirmed(ns, &doubleSpend)
+			err = s.removeUnconfirmed(ns, &doubleSpend.MsgTx, &doubleSpend.Hash)
 			if err != nil {
 				return err
 			}
@@ -129,13 +170,13 @@ func (s *Store) removeDoubleSpends(ns walletdb.ReadWriteBucket, rec *TxRecord) e
 // and to remove transactions that spend coinbase transactions on reorgs. It
 // can also be used to remove old tickets that do not meet the network difficulty
 // and expired transactions.
-func (s *Store) removeUnconfirmed(ns walletdb.ReadWriteBucket, rec *TxRecord) error {
+func (s *Store) removeUnconfirmed(ns walletdb.ReadWriteBucket, tx *wire.MsgTx, txHash *chainhash.Hash) error {
 	// For each potential credit for this record, each spender (if any) must
 	// be recursively removed as well.  Once the spenders are removed, the
 	// credit is deleted.
-	numOuts := uint32(len(rec.MsgTx.TxOut))
+	numOuts := uint32(len(tx.TxOut))
 	for i := uint32(0); i < numOuts; i++ {
-		k := canonicalOutPoint(&rec.Hash, i)
+		k := canonicalOutPoint(txHash, i)
 		spenderHash := existsRawUnminedInput(ns, k)
 		if spenderHash != nil {
 			var spender TxRecord
@@ -148,7 +189,7 @@ func (s *Store) removeUnconfirmed(ns walletdb.ReadWriteBucket, rec *TxRecord) er
 
 			log.Debugf("Transaction %v is part of a removed conflict "+
 				"chain -- removing as well", spender.Hash)
-			err = s.removeUnconfirmed(ns, &spender)
+			err = s.removeUnconfirmed(ns, &spender.MsgTx, &spender.Hash)
 			if err != nil {
 				return err
 			}
@@ -162,7 +203,7 @@ func (s *Store) removeUnconfirmed(ns walletdb.ReadWriteBucket, rec *TxRecord) er
 	// If this tx spends any previous credits (either mined or unmined), set
 	// each unspent.  Mined transactions are only marked spent by having the
 	// output in the unmined inputs bucket.
-	for _, input := range rec.MsgTx.TxIn {
+	for _, input := range tx.TxIn {
 		prevOut := &input.PreviousOutPoint
 		k := canonicalOutPoint(&prevOut.Hash, prevOut.Index)
 		err := deleteRawUnminedInput(ns, k)
@@ -186,7 +227,7 @@ func (s *Store) removeUnconfirmed(ns walletdb.ReadWriteBucket, rec *TxRecord) er
 		}
 	}
 
-	return deleteRawUnmined(ns, rec.Hash[:])
+	return deleteRawUnmined(ns, txHash[:])
 }
 
 // UnminedTxs returns the underlying transactions for all unmined transactions
