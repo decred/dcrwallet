@@ -20,7 +20,7 @@ set -ex
 # for more details.
 
 #Default GOVERSION
-GOVERSION=${1:-1.8}
+GOVERSION=${1:-1.9}
 REPO=dcrwallet
 
 TESTCMD="test -z \"\$(gometalinter -j 4 --disable-all \
