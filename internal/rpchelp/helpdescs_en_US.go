@@ -595,8 +595,8 @@ var helpDescsEnUS = map[string]string{
 	// TODO Alphabetize
 
 	// AddTicketCmd help.
-	"addticket--synopsis": "Add ticket to stakepool for watching",
-	"addticket-tickethex": "Hash of ticket that is attempting to be added",
+	"addticket--synopsis": "Add a ticket to the wallet for vote and revocation creation.  Added tickets are auxiliary to transaction history and do not appear in getstakeinfo stats.",
+	"addticket-tickethex": "Hex-encoded serialized transaction",
 
 	// GetWalletFeeCmd help.
 	"getwalletfee--synopsis": "Get currently set transaction fee for the wallet",
