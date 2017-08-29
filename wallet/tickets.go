@@ -18,6 +18,7 @@ import (
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
+	"golang.org/x/sync/errgroup"
 )
 
 // GenerateVoteTx creates a vote transaction for a chosen ticket purchase hash
@@ -46,18 +47,34 @@ func (w *Wallet) GenerateVoteTx(blockHash *chainhash.Hash, height int32, ticketH
 	return vote, err
 }
 
-// LiveTicketHashes returns the hashes of live tickets that have been purchased
-// by the wallet.
+// LiveTicketHashes returns the hashes of live tickets that the wallet has
+// purchased or has voting authority for.
 func (w *Wallet) LiveTicketHashes(chainClient *chain.RPCClient, includeImmature bool) ([]chainhash.Hash, error) {
 	var ticketHashes []chainhash.Hash
 	var maybeLive []*chainhash.Hash
 
+	extraTickets := w.StakeMgr.DumpSStxHashes()
+
+	expiryConfs := int32(w.chainParams.TicketExpiry) +
+		int32(w.chainParams.TicketMaturity) + 1
+
+	var tipHeight int32 // Assigned in view below.
+
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
-		expiryConfs := int32(w.chainParams.TicketExpiry) +
-			int32(w.chainParams.TicketMaturity) + 1
+		// Remove tickets from the extraTickets slice if they will appear in the
+		// ticket iteration below.
+		for i := 0; i < len(extraTickets); {
+			if !w.TxStore.ExistsTx(txmgrNs, &extraTickets[i]) {
+				i++
+				continue
+			}
+			extraTickets[i] = extraTickets[len(extraTickets)-1]
+			extraTickets = extraTickets[:len(extraTickets)-1]
+		}
+
+		_, tipHeight = w.TxStore.MainChainTip(txmgrNs)
 
 		it := w.TxStore.IterateTickets(dbtx)
 		for it.Next() {
@@ -88,6 +105,55 @@ func (w *Wallet) LiveTicketHashes(chainClient *chain.RPCClient, includeImmature 
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// Determine if the extra tickets are immature or possibly live.  Because
+	// these transactions are not part of the wallet's transaction history, dcrd
+	// must be queried for their blockchain height.  This functionality requires
+	// the dcrd transaction index to be enabled.
+	var g errgroup.Group
+	type extraTicketResult struct {
+		valid  bool // unspent with known height
+		height int32
+	}
+	extraTicketResults := make([]extraTicketResult, len(extraTickets))
+	for i := range extraTickets {
+		i := i
+		g.Go(func() error {
+			// gettxout is used first as an optimization to check that output 0
+			// of the ticket is unspent.
+			getTxOutResult, err := chainClient.GetTxOut(&extraTickets[i], 0, true)
+			if err != nil || getTxOutResult == nil {
+				return nil
+			}
+			r, err := chainClient.GetRawTransactionVerbose(&extraTickets[i])
+			if err != nil {
+				return nil
+			}
+			extraTicketResults[i] = extraTicketResult{true, int32(r.BlockHeight)}
+			return nil
+		})
+	}
+	err = g.Wait()
+	if err != nil {
+		return nil, err
+	}
+	for i := range extraTickets {
+		r := &extraTicketResults[i]
+		if !r.valid {
+			continue
+		}
+		// Same checks as above in the db view.
+		if confirmed(expiryConfs, r.height, tipHeight) {
+			continue
+		}
+		if !confirmed(int32(w.chainParams.TicketMaturity)+1, r.height, tipHeight) {
+			if includeImmature {
+				ticketHashes = append(ticketHashes, extraTickets[i])
+			}
+			continue
+		}
+		maybeLive = append(maybeLive, &extraTickets[i])
 	}
 
 	// If there are no possibly live tickets to check, ticketHashes contains all

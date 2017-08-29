@@ -48,3 +48,6 @@ import:
   version: master
   subpackages:
   - rotator
+- package: golang.org/x/sync
+  subpackages:
+  - errgroup

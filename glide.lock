@@ -1,5 +1,5 @@
-hash: 8821a10afa7fa0a739161963d37154c7ed31841dc915a29978f2d27885acffbc
-updated: 2017-08-24T17:19:47.1727897-04:00
+hash: fa5adea36a6205cd9c044a9f5be3028655687bae161c14fea83e0558e36fb1e5
+updated: 2017-08-29T11:57:22.1477733-04:00
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -77,6 +77,10 @@ imports:
   - internal/timeseries
   - lex/httplex
   - trace
+- name: golang.org/x/sync
+  version: f52d1811a62927559de87708c8913c1650ce4f26
+  subpackages:
+  - errgroup
 - name: golang.org/x/sys
   version: 07c182904dbd53199946ba614a412c61d3c548f5
   subpackages:
