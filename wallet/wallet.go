@@ -790,7 +790,10 @@ func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *chain.RPCCli
 		intKey.ECPubKey()
 		go loadBranchAddrs(extKey, extn, errs)
 		go loadBranchAddrs(intKey, intn, errs)
-		bip0044AddrCount += uint64(extn) + uint64(intn)
+		// loadBranchAddrs loads addresses through extn/intn, and the actual
+		// number of watched addresses is one more for each branch due to zero
+		// indexing.
+		bip0044AddrCount += uint64(extn) + uint64(intn) + 2
 	}
 	go func() {
 		// Imported addresses are still sent as a single slice for now.  Could
