@@ -142,7 +142,7 @@ synchronizes the wallet to the consensus server if it was previously loaded.
   encryption.  This passphrase protects data that is made public on the
   blockchain.  If this passphrase has zero length, an insecure default is used
   instead.
-  
+
 - `bytes private_passphrase`: The passphrase used for the inner wallet
   encryption.  This is the passphrase used for data that must always remain
   private, such as private keys.  The length of this field must not be zero.
@@ -338,7 +338,7 @@ should begin at.
 - `int32 first_new_block_height`: The height of the first new block added to the
   main chain.  Only non-zero when `fetched_headers_count` is not zero.
 
-- `bytes main_chain_tip_block_hash`: The hash of the main chain tip block after 
+- `bytes main_chain_tip_block_hash`: The hash of the main chain tip block after
   the fetched headers have been applied to the previous tip.
 
 - `int32 main_chain_tip_block_height`: The height of the main chain tip block after
@@ -456,20 +456,20 @@ the wallet.
   message types, one per account, ordered by increasing account numbers.
 
   **Nested message:** `Account`
-  
+
   - `uint32 account_number`: The BIP0044 account number.
-  
+
   - `string account_name`: The name of the account.
-  
+
   - `int64 total_balance`: The total (zero-conf and immature) balance, counted
     in Satoshis.
-  
+
   - `uint32 external_key_count`: The number of derived keys in the external
      key chain.
-     
+
   - `uint32 internal_key_count`: The number of derived keys in the internal
      key chain.
-     
+
   - `uint32 imported_key_count`: The number of imported keys.
 
 - `bytes current_block_hash`: The hash of the block wallet is considered to
@@ -852,7 +852,7 @@ wallet.
 
 - `string address`: The payment address string.
 
-- `string public_key`: The public key encoded as a string in the Decred encoding 
+- `string public_key`: The public key encoded as a string in the Decred encoding
   format.
 
 **Expected errors:**
@@ -890,7 +890,7 @@ search for transactions involving the private key's associated payment address.
 
 - `InvalidArgument`: The private key WIF string is not a valid WIF encoding.
 
-- `InvalidArgument`: A rescan height was specified, but the rescan option was 
+- `InvalidArgument`: A rescan height was specified, but the rescan option was
   not set.
 
 - `InvalidArgument`: A negative rescan height was passed.
@@ -905,8 +905,8 @@ ___
 
 #### `ImportScript`
 
-The `ImportScript` method imports a script into the wallet.  A rescan may 
-optionally be started to search for transactions involving the script, either 
+The `ImportScript` method imports a script into the wallet.  A rescan may
+optionally be started to search for transactions involving the script, either
 as an output or in a P2SH input.
 
 **Request:** `ImportScriptRequest`
@@ -934,7 +934,7 @@ as an output or in a P2SH input.
 
 - `InvalidArgument`: The private passphrase is incorrect.
 
-- `InvalidArgument`: A rescan height was specified, but the rescan option was 
+- `InvalidArgument`: A rescan height was specified, but the rescan option was
   not set.
 
 - `InvalidArgument`: A negative rescan height was passed.
@@ -1197,8 +1197,8 @@ ___
 
 #### `TicketPrice`
 
-The `TicketPrice` method returns the price of a ticket for the next block, also 
-known as the stake difficulty. May be incorrect if the daemon is currently 
+The `TicketPrice` method returns the price of a ticket for the next block, also
+known as the stake difficulty. May be incorrect if the daemon is currently
 syncing.
 
 **Request:** `TicketPriceRequest`
@@ -1211,20 +1211,20 @@ syncing.
 
 **Expected errors:** None
 
-**Stability:** Unstable: The ticket price and height are pulled from separate 
-daemon passthroughs and may race. Ideally these would be returned from stored 
-values in the wallet when it updates from incoming stake ticket price 
-notifications passed from the JSON RPC of dcrd. Right now, wallet block processing 
-is very slow and it's difficult for these notifications to stay in sync. In the 
-future, this API may be completely removed in favour of a passthrough for that 
+**Stability:** Unstable: The ticket price and height are pulled from separate
+daemon passthroughs and may race. Ideally these would be returned from stored
+values in the wallet when it updates from incoming stake ticket price
+notifications passed from the JSON RPC of dcrd. Right now, wallet block processing
+is very slow and it's difficult for these notifications to stay in sync. In the
+future, this API may be completely removed in favour of a passthrough for that
 set of notifications.
 
 ___
 
 #### `StakeInfo`
 
-The `StakeInfo` method returns various statistics about the wallet in relation 
-to tickets owned fully or completely by the wallet, such as number of tickets 
+The `StakeInfo` method returns various statistics about the wallet in relation
+to tickets owned fully or completely by the wallet, such as number of tickets
 owned and votes cast.
 
 **Request:** `StakeInfoRequest`
@@ -1235,10 +1235,10 @@ owned and votes cast.
 
 - `uint32 all_mempool_tix`: The number of tickets in the mempool.
 
-- `uint32 own_mempool_tix`: The number of tickets in the mempool owned by this 
+- `uint32 own_mempool_tix`: The number of tickets in the mempool owned by this
   wallet.
 
-- `uint32 immature`: The number of tickets in the blockchain that are not yet 
+- `uint32 immature`: The number of tickets in the blockchain that are not yet
   mature (can't yet be used to vote on blocks).
 
 - `uint32 live`: The number of active tickets owned by the user.
@@ -1261,11 +1261,11 @@ ___
 
 #### `PurchaseTickets`
 
-The `PurchaseTickets` method is used to purchase tickets. It can use a specified 
-address for voting rights, and can additionally be used in conjunction with a 
-stake pool. An expiration value can be set for the tickets. Expired tickets are 
-pruned from the wallet and funds and then restored to the user. The following 
-fields can be left unset, and unset (empty or zero) behaviour is given below: 
+The `PurchaseTickets` method is used to purchase tickets. It can use a specified
+address for voting rights, and can additionally be used in conjunction with a
+stake pool. An expiration value can be set for the tickets. Expired tickets are
+pruned from the wallet and funds and then restored to the user. The following
+fields can be left unset, and unset (empty or zero) behaviour is given below:
 ticker_address, pool_address, expiry, tx_fee, ticket_fee.
 
 **Request:** `PurchaseTicketsRequest`
@@ -1274,34 +1274,34 @@ ticker_address, pool_address, expiry, tx_fee, ticket_fee.
 
 - `uint32 account`: The account to use to purchase the tickets.
 
-- `int64 spend_limit`: The maximum amount to pay for a single ticket. If the 
+- `int64 spend_limit`: The maximum amount to pay for a single ticket. If the
   current stake difficulty is above this amount, the wallet will return an error.
 
-- `uint32 required_confirmations`: The number of required confirmations for 
-  funds used to purchase a ticket. If set to zero, it will use unconfirmed and 
+- `uint32 required_confirmations`: The number of required confirmations for
+  funds used to purchase a ticket. If set to zero, it will use unconfirmed and
   confirmed outputs to purchase tickets.
 
-- `string ticket_address`: The address to give voting rights to. If it is set 
+- `string ticket_address`: The address to give voting rights to. If it is set
   to an empty string, an internal address will be used from the wallet.
 
-- `uint32 num_tickets`: The number of tickets to purchase. It must be set and 
+- `uint32 num_tickets`: The number of tickets to purchase. It must be set and
   at least 1.
 
-- `string pool_address`: The address of the stake pool used. Pool mode will 
+- `string pool_address`: The address of the stake pool used. Pool mode will
   be disabled if an empty string is passed.
 
-- `double pool_fees`: The stake pool fees amount. This must be set to a positive 
-  value in the allowed range of 0.01 to 100.00 to be valid. It must be set when 
+- `double pool_fees`: The stake pool fees amount. This must be set to a positive
+  value in the allowed range of 0.01 to 100.00 to be valid. It must be set when
   the pool_address is also set.
 
-- `uint32 expiry`: The height at which the tickets expire and can no longer enter 
+- `uint32 expiry`: The height at which the tickets expire and can no longer enter
   the blockchain. It defaults to 0 (no expiry).
 
-- `int64 tx_fee`: Fees per kB to use for the transaction generating outputs to use 
-  for buying tickets. If 0 is passed, the global value for a transaction fee 
+- `int64 tx_fee`: Fees per kB to use for the transaction generating outputs to use
+  for buying tickets. If 0 is passed, the global value for a transaction fee
   will be used.
 
-- `int64 ticket_fee`: Fees per kB to use for all purchased tickets. If 0 is 
+- `int64 ticket_fee`: Fees per kB to use for all purchased tickets. If 0 is
   passed, the global value for a ticket fee will be used.
 
 **Response:** `PurchaseTicketsResponse`
@@ -1324,19 +1324,19 @@ ticker_address, pool_address, expiry, tx_fee, ticket_fee.
 
 - `InvalidArgument`: Pool address was not specified, but pool fees were.
 
-- `InvalidArgument`: And invalid pool fees amount was given, either too large or 
+- `InvalidArgument`: And invalid pool fees amount was given, either too large or
   small.
 
 - `InvalidArgument`: A negative fees per kB was set.
 
 - `FailedPrecondition`: The wallet balance was not enough to buy tickets.
 
-**Stability:** Unstable: there are a number of current bugs with ticket purchase 
-and querying for stake difficulty. When the wallet has a more suitable means to 
-track stake difficulty, and daemon is patched to better handle ticket purchases, 
-these issues should disappear. They include the stake difficulty changing from the 
-time it is queried, to the time the ticket is attempted to be purchased, to the 
-time the ticket hits the daemon mempool and out of date stake difficulties queried 
+**Stability:** Unstable: there are a number of current bugs with ticket purchase
+and querying for stake difficulty. When the wallet has a more suitable means to
+track stake difficulty, and daemon is patched to better handle ticket purchases,
+these issues should disappear. They include the stake difficulty changing from the
+time it is queried, to the time the ticket is attempted to be purchased, to the
+time the ticket hits the daemon mempool and out of date stake difficulties queried
 from the daemon.
 
 ___
@@ -1594,8 +1594,8 @@ transaction was seen.
 
   - `int64 amount`: The amount for this output.
 
-  - `string address`: The address that the output paid to, if the output script 
-    can be parsed to a known address type. Otherwise this will be null or the 
+  - `string address`: The address that the output paid to, if the output script
+    can be parsed to a known address type. Otherwise this will be null or the
     empty string.
 
   - `bytes output_script`: The output script.
@@ -1607,7 +1607,7 @@ transaction was seen.
 - `int64 timestamp`: The Unix time of the earliest time this transaction was
   seen.
 
-- `TransactionType transaction_type`: The observed type of transaction. 
+- `TransactionType transaction_type`: The observed type of transaction.
 
   **Nested enum:** `TransactionType`
 
@@ -1617,10 +1617,10 @@ transaction was seen.
     by a vote transaction upon random selection, or a recovation if the ticket
     is expired or missed.
 
-  - `VOTE`: A transaction that uses a ticket purchase transaction as an input 
+  - `VOTE`: A transaction that uses a ticket purchase transaction as an input
     and includes a stake base reward as one of the outputs.
-  
-  - `REVOCATION`: A transaction that will free a previously locked utxos in 
+
+  - `REVOCATION`: A transaction that will free a previously locked utxos in
     a ticket purchase due to expiry or the ticket being missed.  Just as stakebase
     rewards must reach maturity to be used, outputs from an revocation also must
     mature that same amount.
@@ -1682,7 +1682,7 @@ The user input can be either a hexadecimal string or a mnemonic word list.
 
 **Response:** `DecodeSeedResponse`
 
-- `bytes decoded_seed`: The seed resulting from the decoded user input. 
+- `bytes decoded_seed`: The seed resulting from the decoded user input.
 
 **Expected errors:**
 
