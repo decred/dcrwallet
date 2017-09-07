@@ -3643,6 +3643,44 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType,
 	return signErrors, err
 }
 
+// CreateSignature returns the raw signature created by the private key of addr
+// for tx's idx'th input script and the serialized compressed pubkey for the
+// address.
+func (w *Wallet) CreateSignature(tx *wire.MsgTx, idx uint32, addr dcrutil.Address,
+	hashType txscript.SigHashType, prevPkScript []byte) (sig, pubkey []byte, err error) {
+
+	var privKey chainec.PrivateKey
+	var pubKey chainec.PublicKey
+	var done func()
+	defer func() {
+		if done != nil {
+			done()
+		}
+	}()
+
+	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
+
+		var err error
+		privKey, done, err = w.Manager.PrivateKey(ns, addr)
+		if err != nil {
+			return err
+		}
+		pubKey = chainec.Secp256k1.NewPublicKey(privKey.Public())
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sig, err = txscript.RawTxInSignature(tx, int(idx), prevPkScript, hashType, privKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return sig, pubKey.SerializeCompressed(), nil
+}
+
 // isRelevantTx determines whether the transaction is relevant to the wallet and
 // should be recorded in the database.
 func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {

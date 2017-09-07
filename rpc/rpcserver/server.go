@@ -56,9 +56,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.21.0"
+	semverString = "4.22.0"
 	semverMajor  = 4
-	semverMinor  = 21
+	semverMinor  = 22
 	semverPatch  = 0
 )
 
@@ -1021,6 +1021,46 @@ func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransact
 		UnsignedInputIndexes: invalidInputIndexes,
 	}
 	return resp, nil
+}
+
+func (s *walletServer) CreateSignature(ctx context.Context, req *pb.CreateSignatureRequest) (
+	*pb.CreateSignatureResponse, error) {
+
+	defer zero.Bytes(req.Passphrase)
+
+	var tx wire.MsgTx
+	err := tx.Deserialize(bytes.NewReader(req.SerializedTransaction))
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"Bytes do not represent a valid raw transaction: %v", err)
+	}
+
+	if req.InputIndex >= uint32(len(tx.TxIn)) {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"transaction input %d does not exist", req.InputIndex)
+	}
+
+	lock := make(chan time.Time, 1)
+	defer func() {
+		lock <- time.Time{} // send matters, not the value
+	}()
+	err = s.wallet.Unlock(req.Passphrase, lock)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	addr, err := decodeAddress(req.Address, s.wallet.ChainParams())
+	if err != nil {
+		return nil, err
+	}
+
+	hashType := txscript.SigHashType(req.HashType)
+	sig, pubkey, err := s.wallet.CreateSignature(&tx, req.InputIndex, addr, hashType, req.PreviousPkScript)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	return &pb.CreateSignatureResponse{Signature: sig, PublicKey: pubkey}, nil
 }
 
 func (s *walletServer) PublishTransaction(ctx context.Context, req *pb.PublishTransactionRequest) (

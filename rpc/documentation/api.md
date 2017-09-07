@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.21.x
+Version: 4.22.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -376,12 +376,13 @@ The service provides the following methods:
 - [`FundTransaction`](#fundtransaction)
 - [`ConstructTransaction`](#constructtransaction)
 - [`SignTransaction`](#signtransaction)
+- [`CreateSignature`](#createsignature)
 - [`PublishTransaction`](#publishtransaction)
 - [`TicketPrice`](#ticketprice)
 - [`StakeInfo`](#stakeinfo)
 - [`PurchaseTickets`](#purchasetickets)
 - [`RevokeTickets`](#revoketickets)
-- [`LoadActiveDataFilters](#loadactivedatafilters)
+- [`LoadActiveDataFilters`](#loadactivedatafilters)
 - [`SignMessage`](#signmessage)
 - [`TransactionNotifications`](#transactionnotifications)
 - [`AccountNotifications`](#accountnotifications)
@@ -1166,6 +1167,57 @@ transaction using a wallet private keys.
   and only secrets of that account are used when creating input scripts.  It's
   also missing options similar to Core's signrawtransaction, such as the sighash
   flags and additional keys.
+
+___
+
+#### `CreateSignature`
+
+The `CreateSignature` method creates a raw signature created by the private key
+of a wallet address for transaction input script.  The serialized compressed
+public key of the address is also returned.  The raw signature and public key
+are useful when creating custom input scripts.
+
+**Request:** `CreateSignatureRequest`
+
+- `bytes passphrase`: The wallet's private passphrase.
+
+- `string address`: The address of the private key to use to create the
+  signature.
+
+- `bytes serialized_transaction`: The transaction to add input signatures to.
+
+- `uint32 input_index`: The index of the transaction input to sign.
+
+- `SigHashType hash_type`: The signature hash flags to use.
+
+  **Nested enum:** `SigHashType`
+
+  - `SIGHASH_OLD`
+  - `SIGHASH_ALL`
+  - `SIGHASH_NONE`
+  - `SIGHASH_SINGLE`
+  - `SIGHASH_ALLVALUE`
+  - `SIGHASH_ANYONECANPAY`
+
+- `bytes previous_pk_script`: The previous output script or P2SH redeem script.
+
+**Response:** `CreateSignatureResponse`
+
+- `bytes signature`: The raw signature.
+
+- `bytes public_key`: The serialized compressed pubkey of the address.
+
+**Expected errors:**
+
+- `InvalidArgument`: The private passphrase is incorrect.
+
+- `InvalidArgument`: The address can not be decoded.
+
+- `NotFound`: The address is unknown by the wallet.
+
+- `InvalidArgument`: The serialized transaction can not be decoded.
+
+- `InvalidArgument`: The input index does not exist in the transaction.
 
 ___
 
