@@ -294,11 +294,11 @@ func (w *Wallet) VotingEnabled() bool {
 func voteVersion(params *chaincfg.Params) uint32 {
 	switch params.Net {
 	case wire.MainNet:
-		return 4
+		return 5
 	case wire.TestNet2:
-		return 5
+		return 6
 	case wire.SimNet:
-		return 5
+		return 6
 	default:
 		return 1
 	}

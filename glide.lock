@@ -1,5 +1,5 @@
 hash: fa5adea36a6205cd9c044a9f5be3028655687bae161c14fea83e0558e36fb1e5
-updated: 2017-08-29T11:57:22.1477733-04:00
+updated: 2017-09-14T13:24:09.992918164-05:00
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -20,7 +20,7 @@ imports:
 - name: github.com/decred/bitset
   version: 484b833245d5f9046e2893a6bd2e54b1df3a53a4
 - name: github.com/decred/dcrd
-  version: aa2b50714e27326abf240da092123c66c5f008c8
+  version: 11ae59977a4a9a7797ec8411f9299e31c48db931
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -40,9 +40,9 @@ imports:
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
-  version: abc326aeb97b299c7eb6b13b81353fc375e9b95d
+  version: bd992834efae9f8a81842221a634f4af22b77a0f
 - name: github.com/decred/dcrutil
-  version: 166211f0196be1d3be344ae64149e7c4f5ca36b0
+  version: ddbde93f65ab0692e54ed8a5ad325fa2e8af4daa
   subpackages:
   - base58
   - hdkeychain
