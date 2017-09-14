@@ -56,9 +56,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.22.0"
+	semverString = "4.23.0"
 	semverMajor  = 4
-	semverMinor  = 22
+	semverMinor  = 23
 	semverPatch  = 0
 )
 
@@ -602,6 +602,7 @@ func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
 		ImmatureStakeGeneration: int64(bals.ImmatureStakeGeneration),
 		LockedByTickets:         int64(bals.LockedByTickets),
 		VotingAuthority:         int64(bals.VotingAuthority),
+		Unconfirmed:             int64(bals.Unconfirmed),
 	}
 	return resp, nil
 }

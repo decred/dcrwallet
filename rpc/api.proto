@@ -243,6 +243,7 @@ message BalanceResponse {
 	int64 immature_stake_generation = 4;
 	int64 locked_by_tickets = 5;
 	int64 voting_authority = 6;
+	int64 unconfirmed = 7;
 }
 
 message GetTransactionRequest {
@@ -269,7 +270,7 @@ message GetTransactionsRequest {
 	// through the best block, and include all unmined transactions.
 	bytes ending_block_hash = 3;
 	int32 ending_block_height = 4;
-	
+
 	// Include at least this many of the newest transactions if they exist.
 	// Cannot be used when the ending block hash is specified.
 	//
@@ -389,7 +390,7 @@ message SignTransactionRequest {
 	}
 
 	bytes passphrase = 1;
-	
+
 	bytes serialized_transaction = 2;
 
 	// If no indexes are specified, signatures scripts will be added for
@@ -478,7 +479,7 @@ message TransactionNotificationsResponse {
 	// transactions that are no longer in the best chain.  These are those
 	// block's hashes.
 	repeated bytes detached_blocks = 2;
-	
+
 	// Any new unmined transactions are included here.  These unmined transactions
 	// refer to the current best chain, so transactions from detached blocks may
 	// be moved to mempool and included here if they are not mined or double spent

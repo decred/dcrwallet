@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.22.x
+Version: 4.23.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -522,6 +522,12 @@ and unspendable immature coinbase balances.
 
 - `int64 voting_authority`: The total value of all tickets that the account has voting
   authority over.  
+  
+- `int64 unconfirmed`: The total value of all unconfirmed transactions with
+   with reference to the minimum number of confirmations for a transaction
+   (minconf). If minconf is 0 unconfirmed will be 0, otherwise unconfirmed
+   will be the total balance of transactions that do fulfill the requested
+   minconf.  
 
 **Expected errors:**
 
