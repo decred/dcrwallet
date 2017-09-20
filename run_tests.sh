@@ -23,6 +23,7 @@ set -ex
 GOVERSION=${1:-1.9}
 REPO=dcrwallet
 
+TESTDIRS=$(go list ./... | grep -v '/vendor/')
 TESTCMD="test -z \"\$(gometalinter -j 4 --disable-all \
   --enable=gofmt \
   --enable=gosimple \
@@ -38,7 +39,7 @@ TESTCMD="test -z \"\$(gometalinter -j 4 --disable-all \
   --enable=vet \
   --vendor \
   --deadline=10m ./... 2>&1 | egrep -v 'not a string in call to [A-Za-z]+f' | tee /dev/stderr)\" && \
-  env GORACE='halt_on_error=1' go test -short -race \$(glide novendor)"
+  env GORACE='halt_on_error=1' go test -short -race \${TESTDIRS}"
 
 if [ $GOVERSION == "local" ]; then
     eval $TESTCMD
@@ -53,8 +54,8 @@ docker run --rm -it -v $(pwd):/src decred/$DOCKER_IMAGE_TAG /bin/bash -c "\
   rsync -ra --filter=':- .gitignore'  \
   /src/ /go/src/github.com/decred/$REPO/ && \
   cd github.com/decred/$REPO/ && \
-  glide install && \
-  go install \$(glide novendor) && \
+  dep ensure && \
+  go install . ./cmd/... && \
   $TESTCMD
 "
 
