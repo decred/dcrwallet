@@ -17,6 +17,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/mempool"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
@@ -81,6 +82,11 @@ const (
 	// for mining.
 	// TODO: import from dcrd.
 	maxStandardTxSize = 100000
+
+	// sanityVerifyFlags are the flags used to enable and disable features of
+	// the txscript engine used for sanity checking of transactions signed by
+	// the wallet.
+	sanityVerifyFlags = mempool.BaseStandardVerifyFlags
 )
 
 var (
@@ -655,7 +661,7 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 func validateMsgTx(tx *wire.MsgTx, prevScripts [][]byte) error {
 	for i, prevScript := range prevScripts {
 		vm, err := txscript.NewEngine(prevScript, tx, i,
-			txscript.StandardVerifyFlags, txscript.DefaultScriptVersion, nil)
+			sanityVerifyFlags, txscript.DefaultScriptVersion, nil)
 		if err != nil {
 			return fmt.Errorf("cannot create script engine: %s", err)
 		}

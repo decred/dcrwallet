@@ -3606,7 +3606,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType,
 			// Either it was already signed or we just signed it.
 			// Find out if it is completely satisfied or still needs more.
 			vm, err := txscript.NewEngine(prevOutScript, tx, i,
-				txscript.StandardVerifyFlags, txscript.DefaultScriptVersion, nil)
+				sanityVerifyFlags, txscript.DefaultScriptVersion, nil)
 			if err == nil {
 				err = vm.Execute()
 			}
