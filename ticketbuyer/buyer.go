@@ -660,7 +660,10 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		log.Debugf("Spreading purchases throughout window")
 
 		// same as proportionlive that getstakeinfo rpc shows
-		proportionLive := float64(t.stakeLive) / float64(t.stakePoolSize)
+		proportionLive := 0.0
+		if t.stakeLive > 0 {
+			proportionLive = float64(t.stakeLive) / float64(t.stakePoolSize)
+		}
 		// Number of blocks remaining to purchase tickets in this window
 		blocksRemaining := int(winSize) - t.idxDiffPeriod
 		// Estimated number of tickets you will vote on and redeem this window
