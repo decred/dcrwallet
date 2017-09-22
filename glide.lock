@@ -1,5 +1,5 @@
 hash: fa5adea36a6205cd9c044a9f5be3028655687bae161c14fea83e0558e36fb1e5
-updated: 2017-09-20T20:38:59.92760126-04:00
+updated: 2017-09-22T12:57:41.808723375-04:00
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -20,9 +20,10 @@ imports:
 - name: github.com/decred/bitset
   version: 484b833245d5f9046e2893a6bd2e54b1df3a53a4
 - name: github.com/decred/dcrd
-  version: ecf5f0a00e3ae1463f46b1c52d2a6a93fed8eb62
+  version: 1500e972e2b0f0a687bc83308c868708ca5f7c16
   subpackages:
   - blockchain
+  - blockchain/indexers
   - blockchain/internal/dbnamespace
   - blockchain/internal/progresslog
   - blockchain/stake
@@ -37,6 +38,8 @@ imports:
   - dcrec/secp256k1
   - dcrec/secp256k1/schnorr
   - dcrjson
+  - mempool
+  - mining
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
