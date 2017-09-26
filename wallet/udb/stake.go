@@ -17,7 +17,6 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/apperrors"
-	walletchain "github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
@@ -95,9 +94,8 @@ type StakePoolUser struct {
 // StakeStore represents a safely accessible database of
 // stake transactions.
 type StakeStore struct {
-	Params   *chaincfg.Params
-	Manager  *Manager
-	chainSvr *walletchain.RPCClient
+	Params  *chaincfg.Params
+	Manager *Manager
 
 	ownedSStxs map[chainhash.Hash]struct{}
 	mtx        sync.RWMutex // only protects ownedSStxs
@@ -556,18 +554,11 @@ func (s *StakeStore) loadOwnedSStxs(ns walletdb.ReadBucket) error {
 	return nil
 }
 
-// SetChainSvr is used to set the chainSvr to a given pointer. Should
-// be called after chainSvr is initialized in wallet.
-func (s *StakeStore) SetChainSvr(chainSvr *walletchain.RPCClient) {
-	s.chainSvr = chainSvr
-}
-
 // newStakeStore initializes a new stake store with the given parameters.
 func newStakeStore(params *chaincfg.Params, manager *Manager) *StakeStore {
 	return &StakeStore{
 		Params:     params,
 		Manager:    manager,
-		chainSvr:   nil,
 		ownedSStxs: make(map[chainhash.Hash]struct{}),
 	}
 }

@@ -546,8 +546,6 @@ func (w *Wallet) SynchronizeRPC(chainClient *chain.RPCClient) {
 	w.chainClient = chainClient
 	w.chainClientLock.Unlock()
 
-	w.StakeMgr.SetChainSvr(chainClient)
-
 	// TODO: It would be preferable to either run these goroutines
 	// separately from the wallet (use wallet mutator functions to
 	// make changes from the RPC client) and not have to stop and
