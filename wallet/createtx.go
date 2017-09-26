@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/decred/dcrrpcclient"
 	"time"
 
 	"github.com/decred/dcrd/blockchain"
@@ -22,7 +23,6 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/wallet/internal/txsizes"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
@@ -390,8 +390,8 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 // Decred: This func also sends the transaction, and if successful, inserts it
 // into the database, rather than delegating this work to the caller as
 // btcwallet does.
-func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minconf int32, chainClient *chain.RPCClient,
-	randomizeChangeIdx bool, txFee dcrutil.Amount) (*txauthor.AuthoredTx, error) {
+func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minconf int32,
+	chainClient *dcrrpcclient.Client, randomizeChangeIdx bool, txFee dcrutil.Amount) (*txauthor.AuthoredTx, error) {
 
 	var atx *txauthor.AuthoredTx
 	var changeSourceUpdates []func(walletdb.ReadWriteTx) error

@@ -23,6 +23,7 @@ import (
 	"github.com/btcsuite/websocket"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/loader"
 )
@@ -272,13 +273,23 @@ func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) l
 	wallet, _ := s.walletLoader.LoadedWallet()
 	s.handlerMu.Lock()
 	chainClient := s.chainClient
-	if wallet != nil && chainClient == nil {
-		chainClient = wallet.ChainClient()
-		s.chainClient = chainClient
-	}
 	s.handlerMu.Unlock()
 
-	return lazyApplyHandler(request, wallet, chainClient)
+	var rpcClient *dcrrpcclient.Client
+	if chainClient != nil {
+		// The "help" RPC must use an HTTP POST client when calling down to dcrd
+		// for additional help methods.  This is required to avoid including
+		// websocket-only requests in the help, which are not callable by wallet
+		// JSON-RPC clients.  Any errors creating the POST client may be ignored
+		// since the client is not necessary for the request.
+		if request.Method == "help" {
+			rpcClient, _ = chainClient.POSTClient()
+		} else {
+			rpcClient = chainClient.Client
+		}
+	}
+
+	return lazyApplyHandler(request, wallet, rpcClient)
 }
 
 // ErrNoAuth represents an error where authentication could not succeed

@@ -92,7 +92,7 @@ func (w *Wallet) handleChainNotifications(chainClient *chain.RPCClient) {
 	// some reason, however, the wallet will not be marked synced
 	// and many methods will error early since the wallet is known
 	// to be out of date.
-	err := w.syncWithChain(chainClient)
+	err := w.syncWithChain(chainClient.Client)
 	if err != nil && !w.ShuttingDown() {
 		log.Warnf("Unable to synchronize wallet to chain: %v", err)
 	}

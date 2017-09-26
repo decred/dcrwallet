@@ -273,7 +273,7 @@ func (s *walletServer) checkReady() bool {
 
 // requireChainClient checks whether the wallet has been associated with the
 // consensus server RPC client, returning a gRPC error when it is not.
-func (s *walletServer) requireChainClient() (*chain.RPCClient, error) {
+func (s *walletServer) requireChainClient() (*dcrrpcclient.Client, error) {
 	chainClient := s.wallet.ChainClient()
 	if chainClient == nil {
 		return nil, status.Errorf(codes.FailedPrecondition,
@@ -639,7 +639,7 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 		return nil, err
 	}
 
-	si, err := s.wallet.StakeInfo(chainClient.Client)
+	si, err := s.wallet.StakeInfo(chainClient)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition,
 			"Failed to query stake info: %s", err.Error())
@@ -1743,7 +1743,7 @@ func (s *loaderServer) DiscoverAddresses(ctx context.Context, req *pb.DiscoverAd
 		}
 	}
 
-	err := wallet.DiscoverActiveAddresses(chainClient, req.DiscoverAccounts)
+	err := wallet.DiscoverActiveAddresses(chainClient.Client, req.DiscoverAccounts)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1792,7 +1792,7 @@ func (s *loaderServer) FetchHeaders(ctx context.Context, req *pb.FetchHeadersReq
 	}
 
 	fetchedHeaderCount, rescanFrom, rescanFromHeight,
-		mainChainTipBlockHash, mainChainTipBlockHeight, err := wallet.FetchHeaders(chainClient)
+		mainChainTipBlockHash, mainChainTipBlockHeight, err := wallet.FetchHeaders(chainClient.Client)
 	if err != nil {
 		return nil, translateError(err)
 	}

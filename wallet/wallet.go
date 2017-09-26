@@ -587,14 +587,14 @@ func (w *Wallet) SynchronizeRPC(chainClient *chain.RPCClient) {
 // consensus RPC server is set.  This function and all functions that call it
 // are unstable and will need to be moved when the syncing code is moved out of
 // the wallet.
-func (w *Wallet) requireChainClient() (*chain.RPCClient, error) {
+func (w *Wallet) requireChainClient() (*dcrrpcclient.Client, error) {
 	w.chainClientLock.Lock()
 	chainClient := w.chainClient
 	w.chainClientLock.Unlock()
 	if chainClient == nil {
 		return nil, errors.New("blockchain RPC is inactive")
 	}
-	return chainClient, nil
+	return chainClient.Client, nil
 }
 
 // ChainClient returns the optional consensus RPC client associated with the
@@ -602,11 +602,14 @@ func (w *Wallet) requireChainClient() (*chain.RPCClient, error) {
 //
 // This function is unstable and will be removed once sync logic is moved out of
 // the wallet.
-func (w *Wallet) ChainClient() *chain.RPCClient {
+func (w *Wallet) ChainClient() *dcrrpcclient.Client {
 	w.chainClientLock.Lock()
 	chainClient := w.chainClient
 	w.chainClientLock.Unlock()
-	return chainClient
+	if chainClient == nil {
+		return nil
+	}
+	return chainClient.Client
 }
 
 // RelayFee returns the current minimum relay fee (per kB of serialized
@@ -721,7 +724,7 @@ func (w *Wallet) MainChainTip() (hash chainhash.Hash, height int32) {
 // loadActiveAddrs loads the consensus RPC server with active addresses for
 // transaction notifications.  For logging purposes, it returns the total number
 // of addresses loaded.
-func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *chain.RPCClient) (uint64, error) {
+func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *dcrrpcclient.Client) (uint64, error) {
 	pool := sync.Pool{New: func() interface{} { return make([]dcrutil.Address, 0, 256) }}
 	recycleAddrs := func(addrs []dcrutil.Address) { pool.Put(addrs[:0]) }
 	getAddrs := func() []dcrutil.Address { return pool.Get().([]dcrutil.Address) }
@@ -822,7 +825,7 @@ func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *chain.RPCCli
 // LoadActiveDataFilters loads the consensus RPC server's websocket client
 // transaction filter with all active addresses and unspent outpoints for this
 // wallet.
-func (w *Wallet) LoadActiveDataFilters(chainClient *chain.RPCClient) error {
+func (w *Wallet) LoadActiveDataFilters(chainClient *dcrrpcclient.Client) error {
 	log.Infof("Loading active addresses and unspent outputs...")
 
 	var addrCount, utxoCount uint64
@@ -875,7 +878,7 @@ func createHeaderData(headers []string) ([]udb.BlockHeaderData, error) {
 	return data, nil
 }
 
-func (w *Wallet) fetchHeaders(chainClient *chain.RPCClient) (int, error) {
+func (w *Wallet) fetchHeaders(chainClient *dcrrpcclient.Client) (int, error) {
 	fetchedHeaders := 0
 
 	var blockLocators []chainhash.Hash
@@ -929,7 +932,7 @@ func (w *Wallet) fetchHeaders(chainClient *chain.RPCClient) (int, error) {
 // returned, along with the hash of the first previously-unseen block hash now
 // in the main chain.  This is the block a rescan should begin at (inclusive),
 // and is only relevant when the number of fetched headers is not zero.
-func (w *Wallet) FetchHeaders(chainClient *chain.RPCClient) (count int, rescanFrom chainhash.Hash, rescanFromHeight int32,
+func (w *Wallet) FetchHeaders(chainClient *dcrrpcclient.Client) (count int, rescanFrom chainhash.Hash, rescanFromHeight int32,
 	mainChainTipBlockHash chainhash.Hash, mainChainTipBlockHeight int32, err error) {
 
 	// Unfortunately, getheaders is broken and needs a workaround when wallet's
@@ -1036,7 +1039,7 @@ func (w *Wallet) FetchHeaders(chainClient *chain.RPCClient) (count int, rescanFr
 // syncWithChain brings the wallet up to date with the current chain server
 // connection.  It creates a rescan request and blocks until the rescan has
 // finished.
-func (w *Wallet) syncWithChain(chainClient *chain.RPCClient) error {
+func (w *Wallet) syncWithChain(chainClient *dcrrpcclient.Client) error {
 	// Request notifications for connected and disconnected blocks.
 	err := chainClient.NotifyBlocks()
 	if err != nil {
@@ -3231,7 +3234,7 @@ func (w *Wallet) LockedOutpoints() []dcrjson.TransactionInput {
 // resendUnminedTxs iterates through all transactions that spend from wallet
 // credits that are not known to have been mined into a block, and attempts
 // to send each to the chain server for relay.
-func (w *Wallet) resendUnminedTxs(chainClient *chain.RPCClient) {
+func (w *Wallet) resendUnminedTxs(chainClient *dcrrpcclient.Client) {
 	var txs []*wire.MsgTx
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
@@ -3715,7 +3718,7 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 // PublishTransaction saves (if relevant) and sends the transaction to the
 // consensus RPC server so it can be propigated to other nodes and eventually
 // mined.  If the send fails, the transaction is not added to the wallet.
-func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, client *chain.RPCClient) (*chainhash.Hash, error) {
+func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, client *dcrrpcclient.Client) (*chainhash.Hash, error) {
 	var relevant bool
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		relevant = w.isRelevantTx(dbtx, tx)

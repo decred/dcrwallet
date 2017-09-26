@@ -10,13 +10,13 @@ import (
 	"sync"
 
 	"github.com/decred/bitset"
+	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil/hdkeychain"
-	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
-func (w *Wallet) findLastUsedAccount(client *chain.RPCClient, coinTypeXpriv *hdkeychain.ExtendedKey) (uint32, error) {
+func (w *Wallet) findLastUsedAccount(client *dcrrpcclient.Client, coinTypeXpriv *hdkeychain.ExtendedKey) (uint32, error) {
 	const scanLen = 100
 	var (
 		lastUsed uint32
@@ -74,7 +74,7 @@ Bsearch:
 	return lastUsed, nil
 }
 
-func (w *Wallet) accountUsed(client *chain.RPCClient, xpub *hdkeychain.ExtendedKey) (bool, error) {
+func (w *Wallet) accountUsed(client *dcrrpcclient.Client, xpub *hdkeychain.ExtendedKey) (bool, error) {
 	extKey, intKey, err := deriveBranches(xpub)
 	if err != nil {
 		return false, err
@@ -101,7 +101,7 @@ func (w *Wallet) accountUsed(client *chain.RPCClient, xpub *hdkeychain.ExtendedK
 	return false, nil
 }
 
-func (w *Wallet) branchUsed(client *chain.RPCClient, branchXpub *hdkeychain.ExtendedKey) (bool, error) {
+func (w *Wallet) branchUsed(client *dcrrpcclient.Client, branchXpub *hdkeychain.ExtendedKey) (bool, error) {
 	addrs, err := deriveChildAddresses(branchXpub, 0, uint32(w.gapLimit), w.chainParams)
 	if err != nil {
 		return false, err
@@ -121,7 +121,7 @@ func (w *Wallet) branchUsed(client *chain.RPCClient, branchXpub *hdkeychain.Exte
 // findLastUsedAddress returns the child index of the last used child address
 // derived from a branch key.  If no addresses are found, ^uint32(0) is
 // returned.
-func (w *Wallet) findLastUsedAddress(client *chain.RPCClient, xpub *hdkeychain.ExtendedKey) (uint32, error) {
+func (w *Wallet) findLastUsedAddress(client *dcrrpcclient.Client, xpub *hdkeychain.ExtendedKey) (uint32, error) {
 	var (
 		lastUsed        = ^uint32(0)
 		scanLen         = uint32(w.gapLimit)
@@ -165,7 +165,7 @@ Bsearch:
 // account extended pubkeys.
 //
 // A transaction filter (re)load and rescan should be performed after discovery.
-func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverAccts bool) error {
+func (w *Wallet) DiscoverActiveAddresses(chainClient *dcrrpcclient.Client, discoverAccts bool) error {
 	// Start by rescanning the accounts and determining what the
 	// current account index is. This scan should only ever be
 	// performed if we're restoring our wallet from seed.

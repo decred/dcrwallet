@@ -9,7 +9,7 @@ import (
 	"encoding/hex"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
@@ -23,7 +23,7 @@ const maxBlocksPerRescan = 2000
 // startHash and height up through the recorded main chain tip block.  The
 // progress channel, if non-nil, is sent non-error progress notifications with
 // the heights the rescan has completed through, starting with the start height.
-func (w *Wallet) rescan(chainClient *chain.RPCClient, startHash *chainhash.Hash, height int32,
+func (w *Wallet) rescan(chainClient *dcrrpcclient.Client, startHash *chainhash.Hash, height int32,
 	p chan<- RescanProgress, cancel <-chan struct{}) error {
 
 	blockHashStorage := make([]chainhash.Hash, maxBlocksPerRescan)
@@ -112,7 +112,7 @@ func (w *Wallet) rescan(chainClient *chain.RPCClient, startHash *chainhash.Hash,
 // An error channel is returned for consumers of this API, but it is not
 // required to be read.  If the error can not be immediately written to the
 // returned channel, the error will be logged and the channel will be closed.
-func (w *Wallet) Rescan(chainClient *chain.RPCClient, startHash *chainhash.Hash) <-chan error {
+func (w *Wallet) Rescan(chainClient *dcrrpcclient.Client, startHash *chainhash.Hash) <-chan error {
 	errc := make(chan error)
 
 	go func() (err error) {
@@ -149,7 +149,7 @@ func (w *Wallet) Rescan(chainClient *chain.RPCClient, startHash *chainhash.Hash)
 
 // RescanFromHeight is an alternative to Rescan that takes a block height
 // instead of a hash.  See Rescan for more details.
-func (w *Wallet) RescanFromHeight(chainClient *chain.RPCClient, startHeight int32) <-chan error {
+func (w *Wallet) RescanFromHeight(chainClient *dcrrpcclient.Client, startHeight int32) <-chan error {
 	errc := make(chan error)
 
 	go func() (err error) {
@@ -193,7 +193,7 @@ type RescanProgress struct {
 // the main chain starting at startHeight.  Progress notifications and any
 // errors are sent to the channel p.  This function blocks until the rescan
 // completes or ends in an error.  p is closed before returning.
-func (w *Wallet) RescanProgressFromHeight(chainClient *chain.RPCClient, startHeight int32, p chan<- RescanProgress, cancel <-chan struct{}) {
+func (w *Wallet) RescanProgressFromHeight(chainClient *dcrrpcclient.Client, startHeight int32, p chan<- RescanProgress, cancel <-chan struct{}) {
 	defer close(p)
 
 	var startHash chainhash.Hash
