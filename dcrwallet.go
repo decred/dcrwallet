@@ -97,7 +97,7 @@ func walletMain() error {
 	stakeOptions := &ldr.StakeOptions{
 		VotingEnabled:       cfg.EnableVoting,
 		AddressReuse:        cfg.ReuseAddresses,
-		TicketAddress:       cfg.TicketAddress.Address,
+		VotingAddress:       cfg.TBOpts.VotingAddress.Address,
 		PoolAddress:         cfg.PoolAddress.Address,
 		PoolFees:            cfg.PoolFees,
 		StakePoolColdExtKey: cfg.StakePoolColdExtKey,

@@ -19,9 +19,9 @@ import (
 func (t *TicketPurchaser) ownTicketsInMempool() (int, error) {
 	tickets := 0
 
-	// Ticket address is specified and may not belong to our own
+	// Voting address is specified and may not belong to our own
 	// wallet. Search the mempool directly for the number of tickets.
-	if t.ticketAddress != nil {
+	if t.votingAddress != nil {
 		tiHashes, err := t.dcrdChainSvr.GetRawMempool(dcrjson.GRMTickets)
 		if err != nil {
 			return 0, err
@@ -42,7 +42,7 @@ func (t *TicketPurchaser) ownTicketsInMempool() (int, error) {
 				return 0, err
 			}
 			if bytes.Equal(addr.ScriptAddress(),
-				t.ticketAddress.ScriptAddress()) {
+				t.votingAddress.ScriptAddress()) {
 				tickets++
 			}
 		}

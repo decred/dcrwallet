@@ -1569,7 +1569,7 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 		PoolAddress:               poolAddress,
 		PoolFees:                  poolFees,
 		NoSpreadTicketPurchases:   t.ticketbuyerCfg.NoSpreadTicketPurchases,
-		TicketAddress:             votingAddress,
+		VotingAddress:             votingAddress,
 		TxFee:                     t.ticketbuyerCfg.TxFee,
 	}
 	err = t.loader.StartTicketPurchase(req.Passphrase, config)
@@ -1872,8 +1872,8 @@ func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.Ticke
 		return nil, translateError(err)
 	}
 	votingAddress := ""
-	if config.TicketAddress != nil {
-		votingAddress = config.TicketAddress.String()
+	if config.VotingAddress != nil {
+		votingAddress = config.VotingAddress.String()
 	}
 	poolAddress := ""
 	if config.PoolAddress != nil {
@@ -1999,11 +1999,11 @@ func (t *ticketbuyerServer) SetVotingAddress(ctx context.Context, req *pb.SetVot
 	if !ok {
 		return nil, status.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
 	}
-	ticketAddress, err := decodeAddress(req.VotingAddress, w.ChainParams())
+	votingAddress, err := decodeAddress(req.VotingAddress, w.ChainParams())
 	if err != nil {
 		return nil, err
 	}
-	pm.Purchaser().SetTicketAddress(ticketAddress)
+	pm.Purchaser().SetVotingAddress(votingAddress)
 	return &pb.SetVotingAddressResponse{}, nil
 }
 
