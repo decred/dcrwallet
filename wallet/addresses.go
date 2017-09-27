@@ -5,6 +5,8 @@
 package wallet
 
 import (
+	"context"
+
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain"
@@ -198,8 +200,8 @@ func (w *Wallet) nextAddress(persist persistReturnedChildFunc, account, branch u
 				if alb.cursor%uint32(w.gapLimit) != 0 {
 					break
 				}
-				chainClient := w.ChainClient()
-				if chainClient == nil {
+				n, err := w.NetworkBackend()
+				if err != nil {
 					break
 				}
 				addrs, err := deriveChildAddresses(alb.branchXpub,
@@ -207,7 +209,7 @@ func (w *Wallet) nextAddress(persist persistReturnedChildFunc, account, branch u
 				if err != nil {
 					return nil, err
 				}
-				err = chainClient.LoadTxFilter(false, addrs, nil)
+				err = n.LoadTxFilter(context.TODO(), false, addrs, nil)
 				if err != nil {
 					return nil, err
 				}
@@ -289,7 +291,7 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 
 	gapLimit := uint32(w.gapLimit)
 
-	client, err := w.requireChainClient()
+	n, err := w.NetworkBackend()
 	if err != nil {
 		return err
 	}
@@ -380,7 +382,7 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 		}
 
 		go func() {
-			errs <- client.LoadTxFilter(false, addrs, nil)
+			errs <- n.LoadTxFilter(context.TODO(), false, addrs, nil)
 		}()
 	}
 
@@ -479,7 +481,7 @@ func (w *Wallet) ExtendWatchedAddresses(account, branch, child uint32) error {
 		return err
 	}
 
-	if client := w.ChainClient(); client != nil {
+	if n, err := w.NetworkBackend(); err == nil {
 		gapLimit := uint32(w.gapLimit)
 		lastWatched := lastUsed + gapLimit
 		if child <= lastWatched {
@@ -492,7 +494,7 @@ func (w *Wallet) ExtendWatchedAddresses(account, branch, child uint32) error {
 		if err != nil {
 			return err
 		}
-		err = client.LoadTxFilter(false, addrs, nil)
+		err = n.LoadTxFilter(context.TODO(), false, addrs, nil)
 		if err != nil {
 			return err
 		}

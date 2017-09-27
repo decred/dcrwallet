@@ -3684,3 +3684,39 @@ func (s *Store) storedTxScripts(ns walletdb.ReadBucket) ([][]byte, error) {
 	}
 	return scripts, err
 }
+
+// TotalInput calculates the input value referenced by all transaction inputs.
+// If this is not calculable, this returns 0.
+func (s *Store) TotalInput(dbtx walletdb.ReadTx, tx *wire.MsgTx) (dcrutil.Amount, error) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+
+	var total dcrutil.Amount
+	for _, in := range tx.TxIn {
+		var tx wire.MsgTx
+		if v := existsRawUnmined(ns, in.PreviousOutPoint.Hash[:]); v != nil {
+			err := tx.Deserialize(bytes.NewReader(extractRawUnminedTx(v)))
+			if err != nil {
+				desc := fmt.Sprintf("failed to deserialize unmined tx %v",
+					&in.PreviousOutPoint.Hash)
+				return 0, apperrors.Wrap(err, apperrors.ErrData, desc)
+			}
+		} else if _, v := latestTxRecord(ns, in.PreviousOutPoint.Hash[:]); v != nil {
+			err := readRawTxRecordMsgTx(&in.PreviousOutPoint.Hash, v, &tx)
+			if err != nil {
+				return 0, err
+			}
+		} else {
+			return 0, nil
+		}
+
+		if in.PreviousOutPoint.Index >= uint32(len(tx.TxOut)) {
+			desc := fmt.Sprintf("previous output index %d does not exist in "+
+				"transaction %v", in.PreviousOutPoint.Index, &in.PreviousOutPoint.Hash)
+			return 0, apperrors.New(apperrors.ErrInput, desc)
+		}
+
+		total += dcrutil.Amount(tx.TxOut[in.PreviousOutPoint.Index].Value)
+	}
+
+	return total, nil
+}

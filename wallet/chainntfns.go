@@ -7,6 +7,7 @@ package wallet
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -17,89 +18,10 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
-
-func (w *Wallet) handleConsensusRPCNotifications(chainClient *chain.RPCClient) {
-	for n := range chainClient.Notifications() {
-		var notificationName string
-		var err error
-		switch n := n.(type) {
-		case chain.ClientConnected:
-			log.Infof("The client has successfully connected to dcrd and " +
-				"is now handling websocket notifications")
-		case chain.BlockConnected:
-			notificationName = "blockconnected"
-			err = w.onBlockConnected(n.BlockHeader, n.Transactions)
-			if err == nil {
-				err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-					return w.watchFutureAddresses(tx)
-				})
-			}
-		case chain.Reorganization:
-			notificationName = "reorganizing"
-			err = w.handleReorganizing(n.OldHash, n.NewHash, n.OldHeight, n.NewHeight)
-		case chain.RelevantTxAccepted:
-			notificationName = "relevanttxaccepted"
-			err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-				return w.processSerializedTransaction(dbtx, n.Transaction, nil, nil)
-			})
-			if err == nil {
-				err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-					return w.watchFutureAddresses(tx)
-				})
-			}
-		case chain.MissedTickets:
-			notificationName = "spentandmissedtickets"
-			err = w.handleMissedTickets(n.BlockHash, int32(n.BlockHeight), n.Tickets)
-		}
-		if err != nil {
-			log.Errorf("Failed to process consensus server notification "+
-				"(name: `%s`, detail: `%v`)", notificationName, err)
-		}
-	}
-}
-
-// AssociateConsensusRPC associates the wallet with the consensus JSON-RPC
-// server and begins handling all notifications in a background goroutine.  Any
-// previously associated client, if it is a different instance than the passed
-// client, is stopped.
-func (w *Wallet) AssociateConsensusRPC(chainClient *chain.RPCClient) {
-	w.chainClientLock.Lock()
-	defer w.chainClientLock.Unlock()
-	if w.chainClient != nil {
-		if w.chainClient != chainClient {
-			w.chainClient.Stop()
-		}
-	}
-
-	w.chainClient = chainClient
-
-	w.wg.Add(1)
-	go func() {
-		w.handleConsensusRPCNotifications(chainClient)
-		w.wg.Done()
-	}()
-}
-
-// handleChainNotifications is the major chain notification handler that
-// receives websocket notifications about the blockchain.
-func (w *Wallet) handleChainNotifications(chainClient *chain.RPCClient) {
-	// At the moment there is no recourse if the rescan fails for
-	// some reason, however, the wallet will not be marked synced
-	// and many methods will error early since the wallet is known
-	// to be out of date.
-	err := w.syncWithChain(chainClient.Client)
-	if err != nil && !w.ShuttingDown() {
-		log.Warnf("Unable to synchronize wallet to chain: %v", err)
-	}
-
-	w.handleConsensusRPCNotifications(chainClient)
-	w.wg.Done()
-}
 
 func (w *Wallet) extendMainChain(dbtx walletdb.ReadWriteTx, block *udb.BlockHeaderData, transactions [][]byte) error {
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
@@ -211,11 +133,23 @@ func copyHeaderSliceToArray(array *udb.RawBlockHeader, slice []byte) error {
 	return nil
 }
 
-// onBlockConnected is the entry point for processing chain server
-// blockconnected notifications.
-func (w *Wallet) onBlockConnected(serializedBlockHeader []byte, transactions [][]byte) error {
+// ConnectBlock attaches a block and relevant wallet transactions to the
+// wallet's main chain or side chain depending on whether the wallet is
+// reorganizing.
+func (w *Wallet) ConnectBlock(serializedBlockHeader []byte, transactions [][]byte) (err error) {
+	defer func() {
+		if err == nil {
+			err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+				return w.watchFutureAddresses(tx)
+			})
+			if err != nil {
+				log.Errorf("Failed to watch for future address usage: %v", err)
+			}
+		}
+	}()
+
 	var blockHeader wire.BlockHeader
-	err := blockHeader.Deserialize(bytes.NewReader(serializedBlockHeader))
+	err = blockHeader.Deserialize(bytes.NewReader(serializedBlockHeader))
 	if err != nil {
 		return err
 	}
@@ -299,10 +233,10 @@ func (w *Wallet) onBlockConnected(serializedBlockHeader []byte, transactions [][
 	return nil
 }
 
-// handleReorganizing handles a blockchain reorganization notification. It
-// sets the chain server to indicate that currently the wallet state is in
-// reorganizing, and what the final block of the reorganization is by hash.
-func (w *Wallet) handleReorganizing(oldHash, newHash *chainhash.Hash, oldHeight, newHeight int64) error {
+// StartReorganize sets the wallet to a reorganizing state where all attached
+// blocks will attach to a sidechain until the final block is reached, at which
+// point a chain switch occurs.
+func (w *Wallet) StartReorganize(oldHash, newHash *chainhash.Hash, oldHeight, newHeight int64) error {
 	w.reorganizingLock.Lock()
 	if w.reorganizing {
 		reorganizeToHash := w.reorganizeToHash
@@ -401,6 +335,22 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord,
 		tx.TxHash(), tx.TxOut[0].Value)
 
 	return true, nil
+}
+
+// AcceptMempoolTx adds a relevant unmined transaction to the wallet.
+func (w *Wallet) AcceptMempoolTx(serializedTx []byte) error {
+	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		return w.processSerializedTransaction(dbtx, serializedTx, nil, nil)
+	})
+	if err == nil {
+		err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+			return w.watchFutureAddresses(tx)
+		})
+		if err != nil {
+			log.Errorf("Failed to watch for future address usage: %v", err)
+		}
+	}
+	return err
 }
 
 func (w *Wallet) processSerializedTransaction(dbtx walletdb.ReadWriteTx, serializedTx []byte,
@@ -655,10 +605,10 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 						return err
 					}
 				} else {
-					chainClient := w.ChainClient()
-					if chainClient != nil {
-						err := chainClient.LoadTxFilter(false,
-							[]dcrutil.Address{mscriptaddr.Address()}, nil)
+					if n, err := w.NetworkBackend(); err == nil {
+						addr := mscriptaddr.Address()
+						err := n.LoadTxFilter(context.TODO(),
+							false, []dcrutil.Address{addr}, nil)
 						if err != nil {
 							return err
 						}
@@ -822,26 +772,6 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 	return nil
 }
 
-func (w *Wallet) handleChainVotingNotifications(chainClient *chain.RPCClient) {
-	for n := range chainClient.NotificationsVoting() {
-		var err error
-		strErrType := ""
-
-		switch n := n.(type) {
-		case chain.WinningTickets:
-			err = w.handleWinningTickets(n.BlockHash, int32(n.BlockHeight), n.Tickets)
-			strErrType = "WinningTickets"
-		default:
-			err = fmt.Errorf("voting handler received unknown ntfn type")
-		}
-		if err != nil {
-			log.Errorf("Cannot handle chain server voting "+
-				"notification %v: %v", strErrType, err)
-		}
-	}
-	w.wg.Done()
-}
-
 // selectOwnedTickets returns a slice of tickets hashes from the tickets
 // argument that are owned by the wallet.
 //
@@ -857,16 +787,18 @@ func selectOwnedTickets(w *Wallet, dbtx walletdb.ReadTx, tickets []*chainhash.Ha
 	return owned
 }
 
-// handleWinningTickets receives a list of hashes and some block information
-// and submits it to the wstakemgr to handle SSGen production.
-func (w *Wallet) handleWinningTickets(blockHash *chainhash.Hash,
-	blockHeight int32, winningTicketHashes []*chainhash.Hash) error {
+// VoteOnOwnedTickets creates and publishes vote transactions for all owned
+// tickets in the winningTicketHashes slice if wallet voting is enabled.  The
+// vote is only valid when voting on the block described by the passed block
+// hash and height.
+func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash,
+	blockHash *chainhash.Hash, blockHeight int32) error {
 
 	if !w.votingEnabled || blockHeight < int32(w.chainParams.StakeValidationHeight)-1 {
 		return nil
 	}
 
-	chainClient, err := w.requireChainClient()
+	n, err := w.NetworkBackend()
 	if err != nil {
 		return err
 	}
@@ -950,8 +882,7 @@ func (w *Wallet) handleWinningTickets(blockHash *chainhash.Hash,
 			if err != nil {
 				return err
 			}
-			_, err = chainClient.SendRawTransaction(vote, true)
-			return err
+			return n.PublishTransaction(context.TODO(), vote)
 		})
 		if err != nil {
 			log.Errorf("Failed to send vote for ticket hash %v: %v",
@@ -966,16 +897,10 @@ func (w *Wallet) handleWinningTickets(blockHash *chainhash.Hash,
 	return nil
 }
 
-// handleMissedTickets receives a list of hashes and some block information
-// and submits it to the wstakemgr to handle SSRtx production.
-func (w *Wallet) handleMissedTickets(blockHash *chainhash.Hash, blockHeight int32,
-	missedTicketHashes []*chainhash.Hash) error {
-
-	if blockHeight < int32(w.chainParams.StakeValidationHeight)-1 {
-		return nil
-	}
-
-	chainClient, err := w.requireChainClient()
+// RevokeOwnedTickets revokes any owned tickets specified in the
+// missedTicketHashes slice.
+func (w *Wallet) RevokeOwnedTickets(missedTicketHashes []*chainhash.Hash) error {
+	n, err := w.NetworkBackend()
 	if err != nil {
 		return err
 	}
@@ -1029,6 +954,11 @@ func (w *Wallet) handleMissedTickets(blockHash *chainhash.Hash, blockHeight int3
 					ticketHash, err)
 				continue
 			}
+			err = w.checkHighFees(dcrutil.Amount(ticketPurchase.TxOut[0].Value), revocation)
+			if err != nil {
+				log.Errorf("Revocation pays exceedingly high fees")
+				continue
+			}
 			revocations[i] = revocation
 		}
 		return nil
@@ -1053,8 +983,7 @@ func (w *Wallet) handleMissedTickets(blockHash *chainhash.Hash, blockHeight int3
 			if err != nil {
 				return err
 			}
-			_, err = chainClient.SendRawTransaction(revocation, true)
-			return err
+			return n.PublishTransaction(context.TODO(), revocation)
 		})
 		if err != nil {
 			log.Errorf("Failed to send revocation %v for ticket hash %v: %v",

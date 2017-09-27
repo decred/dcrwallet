@@ -191,6 +191,18 @@ const (
 	// ErrExhaustedAccount indicates that all possible addresses for an account
 	// have been derived and no more can be created.
 	ErrExhaustedAccount
+
+	// ErrDisconnected indicates that the operation could not be completed due
+	// to being disconnected from the Decred network.
+	ErrDisconnected
+
+	// ErrUnsupported indicates the operation is unsupported.
+	ErrUnsupported
+
+	// ErrHighFees indicates the transaction pays much more fee that should be
+	// required, and an error is returned to prevent an accident where a
+	// significant amount of value is lost to fees.
+	ErrHighFees
 )
 
 // E describes an application-level error.  An error code is provided to

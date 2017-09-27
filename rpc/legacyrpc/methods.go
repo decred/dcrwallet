@@ -7,6 +7,7 @@ package legacyrpc
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -27,6 +28,7 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
@@ -912,7 +914,8 @@ func importPrivKey(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient
 	}
 
 	if rescan {
-		w.RescanFromHeight(chainClient, scanFrom)
+		n := chain.BackendFromRPCClient(chainClient)
+		go w.RescanFromHeight(context.Background(), n, scanFrom)
 	}
 
 	return nil, err
@@ -946,7 +949,8 @@ func importScript(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.
 	}
 
 	if rescan {
-		w.RescanFromHeight(chainClient, int32(scanFrom))
+		n := chain.BackendFromRPCClient(chainClient)
+		go w.RescanFromHeight(context.Background(), n, int32(scanFrom))
 	}
 
 	return nil, nil
@@ -2172,7 +2176,8 @@ func redeemMultiSigOuts(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcc
 // until the rescan completes or exits with an error.
 func rescanWallet(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
 	cmd := icmd.(*dcrjson.RescanWalletCmd)
-	err := <-w.RescanFromHeight(chainClient, int32(*cmd.BeginHeight))
+	n := chain.BackendFromRPCClient(chainClient)
+	err := w.RescanFromHeight(context.TODO(), n, int32(*cmd.BeginHeight))
 	return nil, err
 }
 
@@ -3139,13 +3144,16 @@ func version(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Clien
 // is connected and fails to ping, the function will still return that the
 // daemon is disconnected.
 func walletInfo(icmd interface{}, w *wallet.Wallet, l *loader.Loader) (interface{}, error) {
-	chainClient := w.ChainClient()
-	connected := chainClient != nil
+	n, err := w.NetworkBackend()
+	connected := err == nil
 	if connected {
-		err := chainClient.Ping()
+		chainClient, err := chain.RPCClientFromBackend(n)
 		if err != nil {
-			log.Warnf("Ping failed on connected daemon client: %v", err)
-			connected = false
+			err := chainClient.Ping()
+			if err != nil {
+				log.Warnf("Ping failed on connected daemon client: %v", err)
+				connected = false
+			}
 		}
 	}
 

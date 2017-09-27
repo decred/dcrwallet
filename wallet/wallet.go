@@ -7,6 +7,7 @@ package wallet
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -30,7 +31,6 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
@@ -96,8 +96,8 @@ type Wallet struct {
 	initiallyUnlocked bool
 	gapLimit          int
 
-	chainClient     *chain.RPCClient
-	chainClientLock sync.Mutex
+	networkBackend   NetworkBackend
+	networkBackendMu sync.Mutex
 
 	lockedOutpoints map[wire.OutPoint]struct{}
 
@@ -239,24 +239,13 @@ func newWallet(votingEnabled bool, addressReuse bool, ticketAddress dcrutil.Addr
 	return w
 }
 
-// StakeDifficulty is used to get the current stake difficulty from the daemon.
+// StakeDifficulty is used to get the next block's stake difficulty.
 func (w *Wallet) StakeDifficulty() (dcrutil.Amount, error) {
-	chainClient, err := w.requireChainClient()
+	n, err := w.NetworkBackend()
 	if err != nil {
 		return 0, err
 	}
-
-	sdResp, err := chainClient.GetStakeDifficulty()
-	if err != nil {
-		return 0, err
-	}
-
-	sd, err := dcrutil.NewAmount(sdResp.NextStakeDifficulty)
-	if err != nil {
-		return 0, err
-	}
-
-	return sd, nil
+	return n.StakeDifficulty(context.TODO())
 }
 
 // BalanceToMaintain is used to get the current balancetomaintain for the wallet.
@@ -504,89 +493,6 @@ func (w *Wallet) Start() {
 	go w.walletLocker()
 }
 
-// SynchronizeRPC associates the wallet with the consensus RPC client,
-// synchronizes the wallet with the latest changes to the blockchain, and
-// continuously updates the wallet through RPC notifications.
-//
-// This method is unstable and will be removed when all syncing logic is moved
-// outside of the wallet package.
-func (w *Wallet) SynchronizeRPC(chainClient *chain.RPCClient) {
-	w.quitMu.Lock()
-	select {
-	case <-w.quit:
-		w.quitMu.Unlock()
-		return
-	default:
-	}
-	w.quitMu.Unlock()
-
-	// TODO: Ignoring the new client when one is already set breaks callers
-	// who are replacing the client, perhaps after a disconnect.
-	w.chainClientLock.Lock()
-	if w.chainClient != nil {
-		w.chainClientLock.Unlock()
-		return
-	}
-	w.chainClient = chainClient
-	w.chainClientLock.Unlock()
-
-	// TODO: It would be preferable to either run these goroutines
-	// separately from the wallet (use wallet mutator functions to
-	// make changes from the RPC client) and not have to stop and
-	// restart them each time the client disconnects and reconnets.
-	w.wg.Add(2)
-	go w.handleChainNotifications(chainClient)
-	go w.handleChainVotingNotifications(chainClient)
-
-	// Request notifications for winning tickets.
-	err := chainClient.NotifyWinningTickets()
-	if err != nil {
-		log.Error("Unable to request transaction updates for "+
-			"winning tickets. Error: ", err.Error())
-	}
-
-	// Request notifications for spent and missed tickets.
-	err = chainClient.NotifySpentAndMissedTickets()
-	if err != nil {
-		log.Error("Unable to request transaction updates for spent "+
-			"and missed tickets. Error: ", err.Error())
-	}
-
-	if w.votingEnabled {
-		log.Infof("Wallet voting enabled")
-		log.Infof("Please ensure your wallet remains unlocked so it may vote")
-	}
-}
-
-// requireChainClient marks that a wallet method can only be completed when the
-// consensus RPC server is set.  This function and all functions that call it
-// are unstable and will need to be moved when the syncing code is moved out of
-// the wallet.
-func (w *Wallet) requireChainClient() (*dcrrpcclient.Client, error) {
-	w.chainClientLock.Lock()
-	chainClient := w.chainClient
-	w.chainClientLock.Unlock()
-	if chainClient == nil {
-		return nil, errors.New("blockchain RPC is inactive")
-	}
-	return chainClient.Client, nil
-}
-
-// ChainClient returns the optional consensus RPC client associated with the
-// wallet.
-//
-// This function is unstable and will be removed once sync logic is moved out of
-// the wallet.
-func (w *Wallet) ChainClient() *dcrrpcclient.Client {
-	w.chainClientLock.Lock()
-	chainClient := w.chainClient
-	w.chainClientLock.Unlock()
-	if chainClient == nil {
-		return nil
-	}
-	return chainClient.Client
-}
-
 // RelayFee returns the current minimum relay fee (per kB of serialized
 // transaction) used when constructing transactions.
 func (w *Wallet) RelayFee() dcrutil.Amount {
@@ -638,47 +544,12 @@ func (w *Wallet) Stop() {
 	case <-quit:
 	default:
 		close(quit)
-		w.chainClientLock.Lock()
-		if w.chainClient != nil {
-			w.chainClient.Stop()
-			w.chainClient = nil
-		}
-		w.chainClientLock.Unlock()
-	}
-}
-
-// ShuttingDown returns whether the wallet is currently in the process of
-// shutting down or not.
-func (w *Wallet) ShuttingDown() bool {
-	select {
-	case <-w.quitChan():
-		return true
-	default:
-		return false
 	}
 }
 
 // WaitForShutdown blocks until all wallet goroutines have finished executing.
 func (w *Wallet) WaitForShutdown() {
-	w.chainClientLock.Lock()
-	if w.chainClient != nil {
-		w.chainClient.WaitForShutdown()
-	}
-	w.chainClientLock.Unlock()
 	w.wg.Wait()
-}
-
-// SynchronizingToNetwork returns whether the wallet is currently synchronizing
-// with the Bitcoin network.
-func (w *Wallet) SynchronizingToNetwork() bool {
-	// At the moment, RPC is the only synchronization method.  In the
-	// future, when SPV is added, a separate check will also be needed, or
-	// SPV could always be enabled if RPC was not explicitly specified when
-	// creating the wallet.
-	w.chainClientLock.Lock()
-	syncing := w.chainClient != nil
-	w.chainClientLock.Unlock()
-	return syncing
 }
 
 // MainChainTip returns the hash and height of the tip-most block in the main
@@ -699,7 +570,7 @@ func (w *Wallet) MainChainTip() (hash chainhash.Hash, height int32) {
 // loadActiveAddrs loads the consensus RPC server with active addresses for
 // transaction notifications.  For logging purposes, it returns the total number
 // of addresses loaded.
-func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *dcrrpcclient.Client) (uint64, error) {
+func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, nb NetworkBackend) (uint64, error) {
 	// loadBranchAddrs loads addresses for the branch with the child range [0,n].
 	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, n uint32, errs chan<- error) {
 		const step = 256
@@ -719,7 +590,7 @@ func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *dcrrpcclient
 					}
 					addrs = append(addrs, addr)
 				}
-				return chainClient.LoadTxFilter(false, addrs, nil)
+				return nb.LoadTxFilter(context.TODO(), false, addrs, nil)
 			})
 		}
 		errs <- g.Wait()
@@ -772,7 +643,7 @@ func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *dcrrpcclient
 			return
 		}
 		importedAddrCount = uint64(len(addrs))
-		errs <- chainClient.LoadTxFilter(false, addrs, nil)
+		errs <- nb.LoadTxFilter(context.TODO(), false, addrs, nil)
 	}()
 	for i := 0; i < cap(errs); i++ {
 		err := <-errs
@@ -784,16 +655,15 @@ func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *dcrrpcclient
 	return bip0044AddrCount + importedAddrCount, nil
 }
 
-// LoadActiveDataFilters loads the consensus RPC server's websocket client
-// transaction filter with all active addresses and unspent outpoints for this
-// wallet.
-func (w *Wallet) LoadActiveDataFilters(chainClient *dcrrpcclient.Client) error {
+// LoadActiveDataFilters loads filters for all active addresses and unspent
+// outpoints for this wallet.
+func (w *Wallet) LoadActiveDataFilters(n NetworkBackend) error {
 	log.Infof("Loading active addresses and unspent outputs...")
 
 	var addrCount, utxoCount uint64
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
-		addrCount, err = w.loadActiveAddrs(dbtx, chainClient)
+		addrCount, err = w.loadActiveAddrs(dbtx, n)
 		if err != nil {
 			return err
 		}
@@ -804,7 +674,7 @@ func (w *Wallet) LoadActiveDataFilters(chainClient *dcrrpcclient.Client) error {
 			return err
 		}
 		utxoCount = uint64(len(unspent))
-		err = chainClient.LoadTxFilter(false, nil, unspent)
+		err = n.LoadTxFilter(context.TODO(), false, nil, unspent)
 		return err
 	})
 	if err != nil {
@@ -818,19 +688,13 @@ func (w *Wallet) LoadActiveDataFilters(chainClient *dcrrpcclient.Client) error {
 
 // createHeaderData creates the header data to process from hex-encoded
 // serialized block headers.
-func createHeaderData(headers []string) ([]udb.BlockHeaderData, error) {
+func createHeaderData(headers [][]byte) ([]udb.BlockHeaderData, error) {
 	data := make([]udb.BlockHeaderData, len(headers))
-	hexbuf := make([]byte, len(udb.RawBlockHeader{})*2)
 	var decodedHeader wire.BlockHeader
 	for i, header := range headers {
 		var headerData udb.BlockHeaderData
-		copy(hexbuf, header)
-		_, err := hex.Decode(headerData.SerializedHeader[:], hexbuf)
-		if err != nil {
-			return nil, err
-		}
-		r := bytes.NewReader(headerData.SerializedHeader[:])
-		err = decodedHeader.Deserialize(r)
+		copy(headerData.SerializedHeader[:], header)
+		err := decodedHeader.Deserialize(bytes.NewReader(header))
 		if err != nil {
 			return nil, err
 		}
@@ -840,7 +704,7 @@ func createHeaderData(headers []string) ([]udb.BlockHeaderData, error) {
 	return data, nil
 }
 
-func (w *Wallet) fetchHeaders(chainClient *dcrrpcclient.Client) (int, error) {
+func (w *Wallet) fetchHeaders(n NetworkBackend) (int, error) {
 	fetchedHeaders := 0
 
 	var blockLocators []chainhash.Hash
@@ -856,16 +720,16 @@ func (w *Wallet) fetchHeaders(chainClient *dcrrpcclient.Client) (int, error) {
 	// Fetch and process headers until no more are returned.
 	hashStop := chainhash.Hash{}
 	for {
-		response, err := chainClient.GetHeaders(blockLocators, &hashStop)
+		headers, err := n.GetHeaders(context.TODO(), blockLocators, &hashStop)
 		if err != nil {
 			return 0, err
 		}
 
-		if len(response.Headers) == 0 {
+		if len(headers) == 0 {
 			return fetchedHeaders, nil
 		}
 
-		headerData, err := createHeaderData(response.Headers)
+		headerData, err := createHeaderData(headers)
 		if err != nil {
 			return 0, err
 		}
@@ -885,7 +749,7 @@ func (w *Wallet) fetchHeaders(chainClient *dcrrpcclient.Client) (int, error) {
 			return 0, err
 		}
 
-		fetchedHeaders += len(response.Headers)
+		fetchedHeaders += len(headers)
 	}
 }
 
@@ -894,7 +758,7 @@ func (w *Wallet) fetchHeaders(chainClient *dcrrpcclient.Client) (int, error) {
 // returned, along with the hash of the first previously-unseen block hash now
 // in the main chain.  This is the block a rescan should begin at (inclusive),
 // and is only relevant when the number of fetched headers is not zero.
-func (w *Wallet) FetchHeaders(chainClient *dcrrpcclient.Client) (count int, rescanFrom chainhash.Hash, rescanFromHeight int32,
+func (w *Wallet) FetchHeaders(n NetworkBackend) (count int, rescanFrom chainhash.Hash, rescanFromHeight int32,
 	mainChainTipBlockHash chainhash.Hash, mainChainTipBlockHeight int32, err error) {
 
 	// Unfortunately, getheaders is broken and needs a workaround when wallet's
@@ -917,7 +781,7 @@ func (w *Wallet) FetchHeaders(chainClient *dcrrpcclient.Client) (count int, resc
 		hash, height := commonAncestor, commonAncestorHeight
 
 		for height != 0 {
-			mainChainHash, err := chainClient.GetBlockHash(int64(height))
+			mainChainHash, err := n.GetBlockHash(context.TODO(), height)
 			if err == nil && hash == *mainChainHash {
 				// found it
 				break
@@ -945,7 +809,7 @@ func (w *Wallet) FetchHeaders(chainClient *dcrrpcclient.Client) (count int, resc
 	}
 
 	log.Infof("Fetching headers")
-	fetchedHeaderCount, err := w.fetchHeaders(chainClient)
+	fetchedHeaderCount, err := w.fetchHeaders(n)
 	if err != nil {
 		return
 	}
@@ -996,65 +860,6 @@ func (w *Wallet) FetchHeaders(chainClient *dcrrpcclient.Client) (count int, resc
 
 	return fetchedHeaderCount, rescanStart, rescanStartHeight, mainChainTipBlockHash,
 		mainChainTipBlockHeight, nil
-}
-
-// syncWithChain brings the wallet up to date with the current chain server
-// connection.  It creates a rescan request and blocks until the rescan has
-// finished.
-func (w *Wallet) syncWithChain(chainClient *dcrrpcclient.Client) error {
-	// Request notifications for connected and disconnected blocks.
-	err := chainClient.NotifyBlocks()
-	if err != nil {
-		return err
-	}
-
-	// Discover any addresses for this wallet that have not yet been created.
-	err = w.DiscoverActiveAddresses(chainClient, w.initiallyUnlocked)
-	if err != nil {
-		return err
-	}
-
-	// Load transaction filters with all active addresses and watched outpoints.
-	err = w.LoadActiveDataFilters(chainClient)
-	if err != nil {
-		return err
-	}
-
-	// Fetch headers for unseen blocks in the main chain, determine whether a
-	// rescan is necessary, and when to begin it.
-	fetchedHeaderCount, rescanStart, _, _, _, err := w.FetchHeaders(chainClient)
-	if err != nil {
-		return err
-	}
-
-	// Rescan when necessary.
-	if fetchedHeaderCount != 0 {
-		err = <-w.Rescan(chainClient, &rescanStart)
-		if err != nil {
-			return err
-		}
-	}
-
-	w.resendUnminedTxs(chainClient)
-
-	// Send winning and missed ticket notifications out so that the wallet
-	// can immediately vote and redeem any tickets it may have missed on
-	// startup.
-	// TODO A proper pass through for dcrrpcclient for these cmds.
-	if w.initiallyUnlocked {
-		_, err = chainClient.RawRequest("rebroadcastwinners", nil)
-		if err != nil {
-			return err
-		}
-		_, err = chainClient.RawRequest("rebroadcastmissed", nil)
-		if err != nil {
-			return err
-		}
-	}
-
-	log.Infof("Blockchain sync completed, wallet ready for general usage.")
-
-	return nil
 }
 
 type (
@@ -1716,27 +1521,6 @@ func VerifyMessage(msg string, addr dcrutil.Address, sig []byte) (bool, error) {
 	return recoveredAddr.EncodeAddress() == addr.EncodeAddress(), nil
 }
 
-// existsAddressOnChain checks the chain on daemon to see if the given address
-// has been used before on the main chain.
-func (w *Wallet) existsAddressOnChain(address dcrutil.Address) (bool, error) {
-	chainClient, err := w.requireChainClient()
-	if err != nil {
-		return false, err
-	}
-	exists, err := chainClient.ExistsAddress(address)
-	if err != nil {
-		return false, err
-	}
-
-	return exists, nil
-}
-
-// ExistsAddressOnChain is the exported version of existsAddressOnChain that is
-// safe for concurrent access.
-func (w *Wallet) ExistsAddressOnChain(address dcrutil.Address) (bool, error) {
-	return w.existsAddressOnChain(address)
-}
-
 // HaveAddress returns whether the wallet is the owner of the address a.
 func (w *Wallet) HaveAddress(a dcrutil.Address) (bool, error) {
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
@@ -1913,8 +1697,7 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 	}
 	w.addressBuffersMu.Unlock()
 
-	client := w.ChainClient()
-	if client != nil {
+	if n, err := w.NetworkBackend(); err == nil {
 		errs := make(chan error, 2)
 		for _, branchKey := range []*hdkeychain.ExtendedKey{extKey, intKey} {
 			branchKey := branchKey
@@ -1925,7 +1708,7 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 					errs <- err
 					return
 				}
-				errs <- client.LoadTxFilter(false, addrs, nil)
+				errs <- n.LoadTxFilter(context.TODO(), false, addrs, nil)
 			}()
 		}
 		for i := 0; i < cap(errs); i++ {
@@ -2815,15 +2598,10 @@ func (w *Wallet) DumpWIFPrivateKey(addr dcrutil.Address) (string, error) {
 // ImportPrivateKey imports a private key to the wallet and writes the new
 // wallet to disk.
 func (w *Wallet) ImportPrivateKey(wif *dcrutil.WIF) (string, error) {
-	chainClient, err := w.requireChainClient()
-	if err != nil {
-		return "", err
-	}
-
 	// Attempt to import private key into wallet.
 	var addr dcrutil.Address
 	var props *udb.AccountProperties
-	err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 		maddr, err := w.Manager.ImportPrivateKey(addrmgrNs, wif)
 		if err == nil {
@@ -2837,10 +2615,12 @@ func (w *Wallet) ImportPrivateKey(wif *dcrutil.WIF) (string, error) {
 		return "", err
 	}
 
-	err = chainClient.LoadTxFilter(false, []dcrutil.Address{addr}, nil)
-	if err != nil {
-		return "", fmt.Errorf("Failed to subscribe for address ntfns for "+
-			"address %s: %s", addr.EncodeAddress(), err)
+	if n, err := w.NetworkBackend(); err == nil {
+		err := n.LoadTxFilter(context.TODO(), false, []dcrutil.Address{addr}, nil)
+		if err != nil {
+			return "", fmt.Errorf("Failed to subscribe for address ntfns for "+
+				"address %v: %s", addr, err)
+		}
 	}
 
 	addrStr := addr.EncodeAddress()
@@ -2856,11 +2636,6 @@ func (w *Wallet) ImportPrivateKey(wif *dcrutil.WIF) (string, error) {
 // user to specify whether or not they want the redeemscript to be rescanned,
 // and how far back they wish to rescan.
 func (w *Wallet) ImportScript(rs []byte) error {
-	chainClient, err := w.requireChainClient()
-	if err != nil {
-		return err
-	}
-
 	return walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadWriteBucket(wtxmgrNamespaceKey)
@@ -2870,7 +2645,6 @@ func (w *Wallet) ImportScript(rs []byte) error {
 			return err
 		}
 
-		// Get current block's height and hash.
 		mscriptaddr, err := w.Manager.ImportScript(addrmgrNs, rs)
 		if err != nil {
 			switch {
@@ -2885,18 +2659,17 @@ func (w *Wallet) ImportScript(rs []byte) error {
 				return err
 			}
 		}
-		err = chainClient.LoadTxFilter(false,
-			[]dcrutil.Address{mscriptaddr.Address()}, nil)
-		if err != nil {
-			return fmt.Errorf("Failed to subscribe for address ntfns for "+
-				"address %s: %s", mscriptaddr.Address().EncodeAddress(),
-				err.Error())
+		addr := mscriptaddr.Address()
+
+		if n, err := w.NetworkBackend(); err == nil {
+			err := n.LoadTxFilter(context.TODO(), false, []dcrutil.Address{addr}, nil)
+			if err != nil {
+				return fmt.Errorf("failed to subscribe for address ntfns for "+
+					"address %v: %v", addr, err)
+			}
 		}
 
-		log.Infof("Redeem script hash %x (address %v) successfully added.",
-			mscriptaddr.Address().ScriptAddress(),
-			mscriptaddr.Address().EncodeAddress())
-
+		log.Infof("Imported script with P2SH address %v", addr)
 		return nil
 	})
 }
@@ -3188,10 +2961,10 @@ func (w *Wallet) LockedOutpoints() []dcrjson.TransactionInput {
 	return locked
 }
 
-// resendUnminedTxs iterates through all transactions that spend from wallet
-// credits that are not known to have been mined into a block, and attempts
-// to send each to the chain server for relay.
-func (w *Wallet) resendUnminedTxs(chainClient *dcrrpcclient.Client) {
+// UnminedTransactions returns all unmined transactions from the wallet.
+// Transactions are sorted in dependency order making it suitable to range them
+// in order to broadcast at wallet startup.
+func (w *Wallet) UnminedTransactions() ([]*wire.MsgTx, error) {
 	var txs []*wire.MsgTx
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
@@ -3199,22 +2972,7 @@ func (w *Wallet) resendUnminedTxs(chainClient *dcrrpcclient.Client) {
 		txs, err = w.TxStore.UnminedTxs(txmgrNs)
 		return err
 	})
-	if err != nil {
-		log.Errorf("Cannot load unmined transactions for resending: %v", err)
-		return
-	}
-
-	for _, tx := range txs {
-		resp, err := chainClient.SendRawTransaction(tx, w.AllowHighFees)
-		if err != nil {
-			// TODO(jrick): Check error for if this tx is a double spend,
-			// remove it if so.
-			log.Tracef("Could not resend transaction %v: %v",
-				tx.TxHash(), err)
-			continue
-		}
-		log.Tracef("Resent unmined transaction %v", resp)
-	}
+	return txs, err
 }
 
 // SortedActivePaymentAddresses returns a slice of all active payment
@@ -3675,10 +3433,24 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 // PublishTransaction saves (if relevant) and sends the transaction to the
 // consensus RPC server so it can be propigated to other nodes and eventually
 // mined.  If the send fails, the transaction is not added to the wallet.
-func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, client *dcrrpcclient.Client) (*chainhash.Hash, error) {
+func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, n NetworkBackend) (*chainhash.Hash, error) {
 	var relevant bool
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		relevant = w.isRelevantTx(dbtx, tx)
+
+		// Prevent high fee transactions from being published, if disabled and
+		// the fee can be calculated.
+		if relevant && !w.AllowHighFees {
+			totalInput, err := w.TxStore.TotalInput(dbtx, tx)
+			if err != nil {
+				return err
+			}
+			err = w.checkHighFees(totalInput, tx)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -3686,7 +3458,12 @@ func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, client 
 	}
 
 	if !relevant {
-		return client.SendRawTransaction(tx, w.AllowHighFees)
+		err := n.PublishTransaction(context.TODO(), tx)
+		if err != nil {
+			return nil, err
+		}
+		txHash := tx.TxHash()
+		return &txHash, nil
 	}
 
 	var txHash *chainhash.Hash
@@ -3695,8 +3472,13 @@ func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, client 
 		if err != nil {
 			return err
 		}
-		txHash, err = client.SendRawTransaction(tx, w.AllowHighFees)
-		return err
+		err = n.PublishTransaction(context.TODO(), tx)
+		if err != nil {
+			return err
+		}
+		h := tx.TxHash()
+		txHash = &h
+		return nil
 	})
 	return txHash, err
 }

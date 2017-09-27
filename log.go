@@ -54,7 +54,7 @@ var (
 	loaderLog    = backendLog.Logger("LODR")
 	walletLog    = backendLog.Logger("WLLT")
 	tkbyLog      = backendLog.Logger("TKBY")
-	chainLog     = backendLog.Logger("CHNS")
+	syncLog      = backendLog.Logger("SYNC")
 	grpcLog      = backendLog.Logger("GRPC")
 	legacyRPCLog = backendLog.Logger("RPCS")
 )
@@ -65,8 +65,8 @@ func init() {
 	wallet.UseLogger(walletLog)
 	udb.UseLogger(walletLog)
 	ticketbuyer.UseLogger(tkbyLog)
-	chain.UseLogger(chainLog)
-	dcrrpcclient.UseLogger(chainLog)
+	chain.UseLogger(syncLog)
+	dcrrpcclient.UseLogger(syncLog)
 	rpcserver.UseLogger(grpcLog)
 	legacyrpc.UseLogger(legacyRPCLog)
 }
@@ -77,7 +77,7 @@ var subsystemLoggers = map[string]btclog.Logger{
 	"LODR": loaderLog,
 	"WLLT": walletLog,
 	"TKBY": tkbyLog,
-	"CHNS": chainLog,
+	"SYNC": syncLog,
 	"GRPC": grpcLog,
 	"RPCS": legacyRPCLog,
 }

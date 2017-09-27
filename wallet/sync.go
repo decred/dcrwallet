@@ -5,19 +5,17 @@
 package wallet
 
 import (
-	"encoding/hex"
+	"context"
 	"fmt"
 	"sync"
 
 	"github.com/decred/dcrd/hdkeychain"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
-	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
 
-func (w *Wallet) findLastUsedAccount(client *dcrrpcclient.Client, coinTypeXpriv *hdkeychain.ExtendedKey) (uint32, error) {
+func (w *Wallet) findLastUsedAccount(n NetworkBackend, coinTypeXpriv *hdkeychain.ExtendedKey) (uint32, error) {
 	const scanLen = 100
 	var (
 		lastUsed uint32
@@ -50,7 +48,7 @@ Bsearch:
 			}
 			wg.Add(1)
 			go func() {
-				used, err := w.accountUsed(client, xpub)
+				used, err := w.accountUsed(n, xpub)
 				xpriv.Zero()
 				results[i] = result{used, account, err}
 				wg.Done()
@@ -75,7 +73,7 @@ Bsearch:
 	return lastUsed, nil
 }
 
-func (w *Wallet) accountUsed(client *dcrrpcclient.Client, xpub *hdkeychain.ExtendedKey) (bool, error) {
+func (w *Wallet) accountUsed(n NetworkBackend, xpub *hdkeychain.ExtendedKey) (bool, error) {
 	extKey, intKey, err := deriveBranches(xpub)
 	if err != nil {
 		return false, err
@@ -88,8 +86,8 @@ func (w *Wallet) accountUsed(client *dcrrpcclient.Client, xpub *hdkeychain.Exten
 	merge := func(used bool, err error) {
 		results <- result{used, err}
 	}
-	go func() { merge(w.branchUsed(client, extKey)) }()
-	go func() { merge(w.branchUsed(client, intKey)) }()
+	go func() { merge(w.branchUsed(n, extKey)) }()
+	go func() { merge(w.branchUsed(n, intKey)) }()
 	for i := 0; i < 2; i++ {
 		r := <-results
 		if r.err != nil {
@@ -102,17 +100,17 @@ func (w *Wallet) accountUsed(client *dcrrpcclient.Client, xpub *hdkeychain.Exten
 	return false, nil
 }
 
-func (w *Wallet) branchUsed(client *dcrrpcclient.Client, branchXpub *hdkeychain.ExtendedKey) (bool, error) {
+func (w *Wallet) branchUsed(n NetworkBackend, branchXpub *hdkeychain.ExtendedKey) (bool, error) {
 	addrs, err := deriveChildAddresses(branchXpub, 0, uint32(w.gapLimit), w.chainParams)
 	if err != nil {
 		return false, err
 	}
-	existsBitsHex, err := client.ExistsAddresses(addrs)
+	bits, err := n.AddressesUsed(context.TODO(), addrs)
 	if err != nil {
 		return false, err
 	}
-	for _, r := range existsBitsHex {
-		if r != '0' {
+	for _, b := range bits {
+		if b != 0 {
 			return true, nil
 		}
 	}
@@ -122,7 +120,7 @@ func (w *Wallet) branchUsed(client *dcrrpcclient.Client, branchXpub *hdkeychain.
 // findLastUsedAddress returns the child index of the last used child address
 // derived from a branch key.  If no addresses are found, ^uint32(0) is
 // returned.
-func (w *Wallet) findLastUsedAddress(client *dcrrpcclient.Client, xpub *hdkeychain.ExtendedKey) (uint32, error) {
+func (w *Wallet) findLastUsedAddress(n NetworkBackend, xpub *hdkeychain.ExtendedKey) (uint32, error) {
 	var (
 		lastUsed        = ^uint32(0)
 		scanLen         = uint32(w.gapLimit)
@@ -136,16 +134,12 @@ Bsearch:
 		if err != nil {
 			return 0, err
 		}
-		existsBitsHex, err := client.ExistsAddresses(addrs)
-		if err != nil {
-			return 0, err
-		}
-		existsBits, err := hex.DecodeString(existsBitsHex)
+		existsBits, err := n.AddressesUsed(context.TODO(), addrs)
 		if err != nil {
 			return 0, err
 		}
 		for i := len(addrs) - 1; i >= 0; i-- {
-			if bitset.Bytes(existsBits).Get(i) {
+			if existsBits.Get(i) {
 				lastUsed = mid*scanLen + uint32(i)
 				lo = mid + 1
 				continue Bsearch
@@ -166,7 +160,7 @@ Bsearch:
 // account extended pubkeys.
 //
 // A transaction filter (re)load and rescan should be performed after discovery.
-func (w *Wallet) DiscoverActiveAddresses(chainClient *dcrrpcclient.Client, discoverAccts bool) error {
+func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) error {
 	// Start by rescanning the accounts and determining what the
 	// current account index is. This scan should only ever be
 	// performed if we're restoring our wallet from seed.
@@ -186,7 +180,7 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *dcrrpcclient.Client, disco
 		if err != nil {
 			return err
 		}
-		lastUsed, err := w.findLastUsedAccount(chainClient, coinTypePrivKey)
+		lastUsed, err := w.findLastUsedAccount(n, coinTypePrivKey)
 		if err != nil {
 			return err
 		}
@@ -266,7 +260,7 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *dcrrpcclient.Client, disco
 					return err
 				}
 
-				lastUsed, err := w.findLastUsedAddress(chainClient, branchXpub)
+				lastUsed, err := w.findLastUsedAddress(n, branchXpub)
 				if err != nil {
 					return err
 				}

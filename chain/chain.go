@@ -65,7 +65,6 @@ func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, cert
 		quit: make(chan struct{}),
 	}
 	ntfnCallbacks := &dcrrpcclient.NotificationHandlers{
-		OnClientConnected:       client.onClientConnect,
 		OnBlockConnected:        client.onBlockConnected,
 		OnBlockDisconnected:     client.onBlockDisconnected,
 		OnRelevantTxAccepted:    client.onRelevantTxAccepted,
@@ -88,7 +87,7 @@ func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, cert
 // function gives up, and therefore will not block forever waiting for the
 // connection to be established to a server that may not exist.
 func (c *RPCClient) Start(ctx context.Context, retry bool) (err error) {
-	err = c.Connect(ctx, retry)
+	err = c.Client.Connect(ctx, retry)
 	if err != nil {
 		return err
 	}
@@ -100,7 +99,7 @@ func (c *RPCClient) Start(ctx context.Context, retry bool) (err error) {
 	}()
 
 	// Verify that the server is running on the expected network.
-	net, err := c.GetCurrentNet()
+	net, err := c.Client.GetCurrentNet()
 	if err != nil {
 		return err
 	}
@@ -110,7 +109,7 @@ func (c *RPCClient) Start(ctx context.Context, retry bool) (err error) {
 
 	// Ensure the RPC server has a compatible API version.
 	var serverAPI semver
-	versions, err := c.Version()
+	versions, err := c.Client.Version()
 	if err == nil {
 		versionResult := versions["dcrdjsonrpcapi"]
 		serverAPI = semver{
@@ -165,89 +164,78 @@ func (c *RPCClient) WaitForShutdown() {
 // dcrrpcclient callbacks, which isn't very Go-like and doesn't allow
 // blocking client calls.
 type (
-	// ClientConnected is a notification for when a client connection is
-	// opened or reestablished to the chain server.
-	ClientConnected struct{}
-
-	// BlockConnected is a notification for a newly-attached block to the
+	// blockConnected is a notification for a newly-attached block to the
 	// best chain.
-	BlockConnected struct {
-		BlockHeader  []byte
-		Transactions [][]byte
+	blockConnected struct {
+		blockHeader  []byte
+		transactions [][]byte
 	}
 
-	// BlockDisconnected is a notifcation that the block described by the
-	// BlockStamp was reorganized out of the best chain.
-	BlockDisconnected struct {
-		BlockHeader []byte
+	// blockDisconnected is a notifcation that the block described by the header
+	// was reorganized out of the best chain.
+	blockDisconnected struct {
+		blockHeader []byte
 	}
 
-	// RelevantTxAccepted is a notification that a transaction accepted by
+	// relevantTxAccepted is a notification that a transaction accepted by
 	// mempool passed the client's transaction filter.
-	RelevantTxAccepted struct {
-		Transaction []byte
+	relevantTxAccepted struct {
+		transaction []byte
 	}
 
-	// Reorganization is a notification that a reorg has happen with the new
+	// reorganization is a notification that a reorg has happen with the new
 	// old and new tip included.
-	Reorganization struct {
-		OldHash   *chainhash.Hash
-		OldHeight int64
-		NewHash   *chainhash.Hash
-		NewHeight int64
+	reorganization struct {
+		oldHash   *chainhash.Hash
+		oldHeight int64
+		newHash   *chainhash.Hash
+		newHeight int64
 	}
 
-	// WinningTickets is a notification with the winning tickets (and the
+	// winningTickets is a notification with the winning tickets (and the
 	// block they are in.
-	WinningTickets struct {
-		BlockHash   *chainhash.Hash
-		BlockHeight int64
-		Tickets     []*chainhash.Hash
+	winningTickets struct {
+		blockHash   *chainhash.Hash
+		blockHeight int64
+		tickets     []*chainhash.Hash
 	}
 
-	// MissedTickets is a notifcation for tickets that have been missed.
-	MissedTickets struct {
-		BlockHash   *chainhash.Hash
-		BlockHeight int64
-		Tickets     []*chainhash.Hash
+	// missedTickets is a notifcation for tickets that have been missed.
+	missedTickets struct {
+		blockHash   *chainhash.Hash
+		blockHeight int64
+		tickets     []*chainhash.Hash
 	}
 
-	// StakeDifficulty is a notification for the current stake difficulty.
-	StakeDifficulty struct {
-		BlockHash   *chainhash.Hash
-		BlockHeight int64
-		StakeDiff   int64
+	// stakeDifficulty is a notification for the current stake difficulty.
+	stakeDifficulty struct {
+		blockHash   *chainhash.Hash
+		blockHeight int64
+		stakeDiff   int64
 	}
 )
 
-// Notifications returns a channel of parsed notifications sent by the remote
+// notifications returns a channel of parsed notifications sent by the remote
 // decred RPC server.  This channel must be continually read or the process
 // may abort for running out memory, as unread notifications are queued for
 // later reads.
-func (c *RPCClient) Notifications() <-chan interface{} {
+func (c *RPCClient) notifications() <-chan interface{} {
 	return c.dequeueNotification
 }
 
-// NotificationsVoting returns a channel of parsed voting notifications sent
+// notificationsVoting returns a channel of parsed voting notifications sent
 // by the remote RPC server.  This channel must be continually read or the
 // process may abort for running out memory, as unread notifications are
 // queued for later reads.
-func (c *RPCClient) NotificationsVoting() <-chan interface{} {
+func (c *RPCClient) notificationsVoting() <-chan interface{} {
 	return c.dequeueVotingNotification
-}
-
-func (c *RPCClient) onClientConnect() {
-	select {
-	case c.enqueueNotification <- ClientConnected{}:
-	case <-c.quit:
-	}
 }
 
 func (c *RPCClient) onBlockConnected(header []byte, transactions [][]byte) {
 	select {
-	case c.enqueueNotification <- BlockConnected{
-		BlockHeader:  header,
-		Transactions: transactions,
+	case c.enqueueNotification <- blockConnected{
+		blockHeader:  header,
+		transactions: transactions,
 	}:
 	case <-c.quit:
 	}
@@ -255,8 +243,8 @@ func (c *RPCClient) onBlockConnected(header []byte, transactions [][]byte) {
 
 func (c *RPCClient) onBlockDisconnected(header []byte) {
 	select {
-	case c.enqueueNotification <- BlockDisconnected{
-		BlockHeader: header,
+	case c.enqueueNotification <- blockDisconnected{
+		blockHeader: header,
 	}:
 	case <-c.quit:
 	}
@@ -264,8 +252,8 @@ func (c *RPCClient) onBlockDisconnected(header []byte) {
 
 func (c *RPCClient) onRelevantTxAccepted(transaction []byte) {
 	select {
-	case c.enqueueNotification <- RelevantTxAccepted{
-		Transaction: transaction,
+	case c.enqueueNotification <- relevantTxAccepted{
+		transaction: transaction,
 	}:
 	case <-c.quit:
 	}
@@ -276,7 +264,7 @@ func (c *RPCClient) onRelevantTxAccepted(transaction []byte) {
 func (c *RPCClient) onReorganization(oldHash *chainhash.Hash, oldHeight int32,
 	newHash *chainhash.Hash, newHeight int32) {
 	select {
-	case c.enqueueNotification <- Reorganization{
+	case c.enqueueNotification <- reorganization{
 		oldHash,
 		int64(oldHeight),
 		newHash,
@@ -290,10 +278,10 @@ func (c *RPCClient) onReorganization(oldHash *chainhash.Hash, oldHeight int32,
 // downstream to the notifications queue.
 func (c *RPCClient) onWinningTickets(hash *chainhash.Hash, height int64, tickets []*chainhash.Hash) {
 	select {
-	case c.enqueueVotingNotification <- WinningTickets{
-		BlockHash:   hash,
-		BlockHeight: height,
-		Tickets:     tickets,
+	case c.enqueueVotingNotification <- winningTickets{
+		blockHash:   hash,
+		blockHeight: height,
+		tickets:     tickets,
 	}:
 	case <-c.quit:
 	}
@@ -302,25 +290,25 @@ func (c *RPCClient) onWinningTickets(hash *chainhash.Hash, height int64, tickets
 // onSpentAndMissedTickets handles missed tickets notifications data and passes
 // it downstream to the notifications queue.
 func (c *RPCClient) onSpentAndMissedTickets(blockHash *chainhash.Hash, height int64, sdiff int64, tickets map[chainhash.Hash]bool) {
-	var missedTickets []*chainhash.Hash
+	var missed []*chainhash.Hash
 
 	// Copy the missed ticket hashes to a slice.
 	for ticketHash, spent := range tickets {
 		if !spent {
 			ticketHash := ticketHash
-			missedTickets = append(missedTickets, &ticketHash)
+			missed = append(missed, &ticketHash)
 		}
 	}
 
-	if len(missedTickets) == 0 {
+	if len(missed) == 0 {
 		return
 	}
 
 	select {
-	case c.enqueueNotification <- MissedTickets{
-		BlockHash:   blockHash,
-		BlockHeight: height,
-		Tickets:     missedTickets,
+	case c.enqueueNotification <- missedTickets{
+		blockHash:   blockHash,
+		blockHeight: height,
+		tickets:     missed,
 	}:
 	case <-c.quit:
 	}
@@ -333,7 +321,7 @@ func (c *RPCClient) onStakeDifficulty(hash *chainhash.Hash,
 	stakeDiff int64) {
 
 	select {
-	case c.enqueueNotification <- StakeDifficulty{
+	case c.enqueueNotification <- stakeDifficulty{
 		hash,
 		height,
 		stakeDiff,

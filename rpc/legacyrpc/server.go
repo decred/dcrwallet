@@ -201,8 +201,7 @@ func (s *Server) serve(lis net.Listener) {
 }
 
 // Stop gracefully shuts down the rpc server by stopping and disconnecting all
-// clients, disconnecting the chain server connection, and closing the wallet's
-// account files.  This blocks until shutdown completes.
+// clients.  This blocks until shutdown completes.
 func (s *Server) Stop() {
 	s.quitMtx.Lock()
 	select {
@@ -210,18 +209,6 @@ func (s *Server) Stop() {
 		s.quitMtx.Unlock()
 		return
 	default:
-	}
-
-	// Stop the connected wallet and chain server, if any.
-	wallet, ok := s.walletLoader.LoadedWallet()
-	if ok {
-		wallet.Stop()
-	}
-	s.handlerMu.Lock()
-	chainClient := s.chainClient
-	s.handlerMu.Unlock()
-	if chainClient != nil {
-		chainClient.Stop()
 	}
 
 	// Stop all the listeners.
@@ -236,15 +223,6 @@ func (s *Server) Stop() {
 	// Signal the remaining goroutines to stop.
 	close(s.quit)
 	s.quitMtx.Unlock()
-
-	// First wait for the wallet and chain server to stop, if they
-	// were ever set.
-	if wallet != nil {
-		wallet.WaitForShutdown()
-	}
-	if chainClient != nil {
-		chainClient.WaitForShutdown()
-	}
 
 	// Wait for all remaining goroutines to exit.
 	s.wg.Wait()
@@ -640,10 +618,7 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) requestProcessShutdown() {
-	select {
-	case s.requestShutdownChan <- struct{}{}:
-	default:
-	}
+	s.requestShutdownChan <- struct{}{}
 }
 
 // RequestProcessShutdown returns a channel that is sent to when an authorized

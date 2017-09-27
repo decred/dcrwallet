@@ -5,6 +5,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 )
@@ -13,80 +14,58 @@ import (
 // subsystems using the same code paths as when an interrupt signal is received.
 var shutdownRequestChannel = make(chan struct{})
 
-// interruptChannel is used to receive SIGINT (Ctrl+C) signals.
-var interruptChannel chan os.Signal
-
-// addHandlerChannel is used to add an interrupt handler to the list of handlers
-// to be invoked on SIGINT (Ctrl+C) signals.
-var addHandlerChannel = make(chan func())
-
-// interruptHandlersDone is closed after all interrupt handlers run the first
-// time an interrupt is signaled.
-var interruptHandlersDone = make(chan struct{})
-
-var simulateInterruptChannel = make(chan struct{}, 1)
+// shutdownSignaled is closed whenever shutdown is invoked through an interrupt
+// signal or from an JSON-RPC stop request.  Any contexts created using
+// withShutdownChannel are cancelled when this is closed.
+var shutdownSignaled = make(chan struct{})
 
 // signals defines the signals that are handled to do a clean shutdown.
 // Conditional compilation is used to also include SIGTERM on Unix.
 var signals = []os.Signal{os.Interrupt}
 
-// simulateInterrupt requests invoking the clean termination process by an
-// internal component instead of a SIGINT.
-func simulateInterrupt() {
-	select {
-	case simulateInterruptChannel <- struct{}{}:
-	default:
-	}
+// withShutdownCancel creates a copy of a context that is cancelled whenever
+// shutdown is invoked through an interrupt signal or from an JSON-RPC stop
+// request.
+func withShutdownCancel(ctx context.Context) context.Context {
+	ctx, cancel := context.WithCancel(ctx)
+	go func() {
+		<-shutdownSignaled
+		cancel()
+	}()
+	return ctx
 }
 
-// mainInterruptHandler listens for SIGINT (Ctrl+C) signals on the
-// interruptChannel and invokes the registered interruptCallbacks accordingly.
-// It also listens for callback registration.  It must be run as a goroutine.
-func mainInterruptHandler() {
-	// interruptCallbacks is a list of callbacks to invoke when a
-	// SIGINT (Ctrl+C) is received.
-	var interruptCallbacks []func()
-	invokeCallbacks := func() {
-		// run handlers in LIFO order.
-		for i := range interruptCallbacks {
-			idx := len(interruptCallbacks) - 1 - i
-			interruptCallbacks[idx]()
-		}
-		close(interruptHandlersDone)
+// requestShutdown signals for starting the clean shutdown of the process
+// through an internal component (such as through the JSON-RPC stop request).
+func requestShutdown() {
+	shutdownRequestChannel <- struct{}{}
+}
+
+// shutdownListener listens for shutdown requests and cancels all contexts
+// created from withShutdownCancel.  This function never returns and is intended
+// to be spawned in a new goroutine.
+func shutdownListener() {
+	interruptChannel := make(chan os.Signal, 1)
+	signal.Notify(interruptChannel, signals...)
+
+	// Listen for the initial shutdown signal
+	select {
+	case sig := <-interruptChannel:
+		log.Infof("Received signal (%s).  Shutting down...", sig)
+	case <-shutdownRequestChannel:
+		log.Info("Shutdown requested.  Shutting down...")
 	}
 
+	// Cancel all contexts created from withShutdownCancel.
+	close(shutdownSignaled)
+
+	// Listen for any more shutdown signals and log that shutdown has already
+	// been signaled.
 	for {
 		select {
-		case sig := <-interruptChannel:
-			log.Infof("Received signal (%s).  Shutting down...", sig)
-			invokeCallbacks()
-			return
+		case <-interruptChannel:
 		case <-shutdownRequestChannel:
-			log.Info("Shutdown requested.  Shutting down...")
-			invokeCallbacks()
-			return
-
-		case <-simulateInterruptChannel:
-			log.Info("Received shutdown request.  Shutting down...")
-			invokeCallbacks()
-			return
-
-		case handler := <-addHandlerChannel:
-			interruptCallbacks = append(interruptCallbacks, handler)
 		}
+		log.Info("Shutdown signaled.  Already shutting down...")
 	}
-}
-
-// addInterruptHandler adds a handler to call when a SIGINT (Ctrl+C) is
-// received.
-func addInterruptHandler(handler func()) {
-	// Create the channel and start the main interrupt handler which invokes
-	// all other callbacks and exits if not already done.
-	if interruptChannel == nil {
-		interruptChannel = make(chan os.Signal, 1)
-		signal.Notify(interruptChannel, signals...)
-		go mainInterruptHandler()
-	}
-
-	addHandlerChannel <- handler
 }

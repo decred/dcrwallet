@@ -1,4 +1,5 @@
 // Copyright (c) 2016 The btcsuite developers
+// Copyright (c) 2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -38,8 +39,5 @@ func serviceControlPipeRx(fd uintptr) {
 		}
 	}
 
-	select {
-	case shutdownRequestChannel <- struct{}{}:
-	default:
-	}
+	shutdownRequestChannel <- struct{}{}
 }

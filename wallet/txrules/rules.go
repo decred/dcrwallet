@@ -11,6 +11,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
+	h "github.com/decred/dcrwallet/internal/helpers"
 )
 
 // DefaultRelayFeePerKb is the default minimum relay fee policy for a mempool.
@@ -88,4 +89,18 @@ func FeeForSerializeSize(relayFeePerKb dcrutil.Amount, txSerializeSize int) dcru
 	}
 
 	return fee
+}
+
+// PaysHighFees checks whether the signed transaction pays insanely high fees.
+// Transactons are defined to have a high fee if they have pay a fee rate that
+// is 1000 time higher than the default fee.
+func PaysHighFees(totalInput dcrutil.Amount, tx *wire.MsgTx) bool {
+	fee := totalInput - h.SumOutputValues(tx.TxOut)
+	if fee <= 0 {
+		// Impossible to determine
+		return false
+	}
+
+	maxFee := FeeForSerializeSize(1000*DefaultRelayFeePerKb, tx.SerializeSize())
+	return fee > maxFee
 }
