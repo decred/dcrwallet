@@ -36,6 +36,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -725,42 +726,29 @@ func (w *Wallet) MainChainTip() (hash chainhash.Hash, height int32) {
 // transaction notifications.  For logging purposes, it returns the total number
 // of addresses loaded.
 func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *dcrrpcclient.Client) (uint64, error) {
-	pool := sync.Pool{New: func() interface{} { return make([]dcrutil.Address, 0, 256) }}
-	recycleAddrs := func(addrs []dcrutil.Address) { pool.Put(addrs[:0]) }
-	getAddrs := func() []dcrutil.Address { return pool.Get().([]dcrutil.Address) }
-
 	// loadBranchAddrs loads addresses for the branch with the child range [0,n].
 	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, n uint32, errs chan<- error) {
-		jobs := n/256 + 1
-		jobErrs := make(chan error, jobs)
-		for child := uint32(0); child <= n; child += 256 {
-			go func(child uint32) {
-				addrs := getAddrs()
-				stop := minUint32(n+1, child+256)
+		const step = 256
+		var g errgroup.Group
+		for child := uint32(0); child <= n; child += step {
+			child := child
+			g.Go(func() error {
+				addrs := make([]dcrutil.Address, 0, step)
+				stop := minUint32(n+1, child+step)
 				for ; child < stop; child++ {
 					addr, err := deriveChildAddress(branchKey, child, w.chainParams)
 					if err == hdkeychain.ErrInvalidChild {
 						continue
 					}
 					if err != nil {
-						jobErrs <- err
-						return
+						return err
 					}
 					addrs = append(addrs, addr)
 				}
-				future := chainClient.LoadTxFilterAsync(false, addrs, nil)
-				recycleAddrs(addrs)
-				jobErrs <- future.Receive()
-			}(child)
+				return chainClient.LoadTxFilter(false, addrs, nil)
+			})
 		}
-		for i := 0; i < cap(jobErrs); i++ {
-			err := <-jobErrs
-			if err != nil {
-				errs <- err
-				return
-			}
-		}
-		errs <- nil
+		errs <- g.Wait()
 	}
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
