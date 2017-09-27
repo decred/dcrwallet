@@ -2440,47 +2440,41 @@ type GetTransactionsResult struct {
 func (w *Wallet) GetTransactions(startBlock, endBlock *BlockIdentifier, cancel <-chan struct{}) (*GetTransactionsResult, error) {
 	var start, end int32 = 0, -1
 
-	w.chainClientLock.Lock()
-	chainClient := w.chainClient
-	w.chainClientLock.Unlock()
-
-	// TODO: Fetching block heights by their hashes is inherently racy
-	// because not all block headers are saved but when they are for SPV the
-	// db can be queried directly without this.
-	var startResp, endResp dcrrpcclient.FutureGetBlockVerboseResult
 	if startBlock != nil {
 		if startBlock.hash == nil {
 			start = startBlock.height
 		} else {
-			if chainClient == nil {
-				return nil, errors.New("no chain server client")
+			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+				meta, err := w.TxStore.GetBlockMetaForHash(ns, startBlock.hash)
+				if err != nil {
+					return err
+				}
+				start = meta.Height
+				return nil
+			})
+			if err != nil {
+				return nil, err
 			}
-			startResp = chainClient.GetBlockVerboseAsync(startBlock.hash, false)
 		}
 	}
 	if endBlock != nil {
 		if endBlock.hash == nil {
 			end = endBlock.height
 		} else {
-			if chainClient == nil {
-				return nil, errors.New("no chain server client")
+			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+				meta, err := w.TxStore.GetBlockMetaForHash(ns, endBlock.hash)
+				if err != nil {
+					return err
+				}
+				end = meta.Height
+				return nil
+			})
+			if err != nil {
+				return nil, err
 			}
-			endResp = chainClient.GetBlockVerboseAsync(endBlock.hash, false)
 		}
-	}
-	if startResp != nil {
-		resp, err := startResp.Receive()
-		if err != nil {
-			return nil, err
-		}
-		start = int32(resp.Height)
-	}
-	if endResp != nil {
-		resp, err := endResp.Receive()
-		if err != nil {
-			return nil, err
-		}
-		end = int32(resp.Height)
 	}
 
 	var res GetTransactionsResult
