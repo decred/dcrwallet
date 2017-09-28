@@ -75,7 +75,7 @@ type Config struct {
 	PoolAddress               dcrutil.Address
 	PoolFees                  float64
 	NoSpreadTicketPurchases   bool
-	TicketAddress             dcrutil.Address
+	VotingAddress             dcrutil.Address
 	TxFee                     int64
 }
 
@@ -87,7 +87,7 @@ type TicketPurchaser struct {
 	activeNet        *chaincfg.Params
 	dcrdChainSvr     *dcrrpcclient.Client
 	wallet           *wallet.Wallet
-	ticketAddress    dcrutil.Address
+	votingAddress    dcrutil.Address
 	poolAddress      dcrutil.Address
 	firstStart       bool
 	windowPeriod     int          // The current window period
@@ -142,8 +142,8 @@ func (t *TicketPurchaser) Config() (*Config, error) {
 		PoolAddress:               t.cfg.PoolAddress,
 		PoolFees:                  t.poolFees,
 		NoSpreadTicketPurchases:   t.cfg.NoSpreadTicketPurchases,
-		TicketAddress:             t.cfg.TicketAddress,
-		TxFee:                     t.cfg.TxFee,
+		TxFee:         t.cfg.TxFee,
+		VotingAddress: t.cfg.VotingAddress,
 	}
 	t.purchaserMtx.Unlock()
 	return config, nil
@@ -248,18 +248,18 @@ func (t *TicketPurchaser) SetMinFee(minFee int64) {
 	t.purchaserMtx.Unlock()
 }
 
-// TicketAddress returns the address to send ticket outputs to.
-func (t *TicketPurchaser) TicketAddress() dcrutil.Address {
+// VotingAddress returns the address to send ticket outputs to.
+func (t *TicketPurchaser) VotingAddress() dcrutil.Address {
 	t.purchaserMtx.Lock()
-	ticketAddress := t.ticketAddress
+	votingAddress := t.votingAddress
 	t.purchaserMtx.Unlock()
-	return ticketAddress
+	return votingAddress
 }
 
-// SetTicketAddress sets the address to send ticket outputs to.
-func (t *TicketPurchaser) SetTicketAddress(ticketAddress dcrutil.Address) {
+// SetVotingAddress sets the address to send ticket outputs to.
+func (t *TicketPurchaser) SetVotingAddress(votingAddress dcrutil.Address) {
 	t.purchaserMtx.Lock()
-	t.ticketAddress = ticketAddress
+	t.votingAddress = votingAddress
 	t.purchaserMtx.Unlock()
 }
 
@@ -362,7 +362,7 @@ func NewTicketPurchaser(cfg *Config,
 		dcrdChainSvr:  dcrdChainSvr,
 		wallet:        w,
 		firstStart:    true,
-		ticketAddress: cfg.TicketAddress,
+		votingAddress: cfg.VotingAddress,
 		poolAddress:   cfg.PoolAddress,
 		useMedian:     cfg.FeeSource == TicketFeeMedian,
 		priceMode:     priceMode,
@@ -806,9 +806,9 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 	// If an address wasn't passed, create an internal address in
 	// the wallet for the ticket address.
-	ticketAddress := t.TicketAddress()
-	if ticketAddress == nil {
-		ticketAddress, err = t.wallet.NewInternalAddress(account, wallet.WithGapPolicyWrap())
+	votingAddress := t.VotingAddress()
+	if votingAddress == nil {
+		votingAddress, err = t.wallet.NewInternalAddress(account, wallet.WithGapPolicyWrap())
 		if err != nil {
 			return ps, err
 		}
@@ -825,7 +825,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	hashes, purchaseErr := t.wallet.PurchaseTickets(0,
 		maxPriceAmt,
 		0, // 0 minconf is used so tickets can be bought from split outputs
-		ticketAddress,
+		votingAddress,
 		account,
 		toBuyForBlock,
 		t.PoolAddress(),
