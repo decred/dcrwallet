@@ -78,7 +78,7 @@ const (
 // ticket information when they have an account at the stake pool.
 type PoolTicket struct {
 	Ticket       chainhash.Hash
-	HeightTicket uint32
+	HeightTicket uint32 // Not used or guaranteed to be correct
 	Status       TicketStatus
 	HeightSpent  uint32
 	SpentBy      chainhash.Hash
