@@ -280,12 +280,10 @@ func (w *Wallet) AddTicket(ticket *wire.MsgTx) error {
 // revocations.
 func (w *Wallet) RevokeTickets(chainClient *dcrrpcclient.Client) error {
 	var ticketHashes []chainhash.Hash
-	var tipHash chainhash.Hash
-	var tipHeight int32
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
-		tipHash, tipHeight = w.TxStore.MainChainTip(ns)
+		_, tipHeight := w.TxStore.MainChainTip(ns)
 		ticketHashes, err = w.TxStore.UnspentTickets(tx, tipHeight, false)
 		return err
 	})
@@ -365,11 +363,6 @@ func (w *Wallet) RevokeTickets(chainClient *dcrrpcclient.Client) error {
 			return err
 		}
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			err = w.StakeMgr.StoreRevocationInfo(dbtx, revokableTickets[i],
-				&rec.Hash, &tipHash, tipHeight)
-			if err != nil {
-				return err
-			}
 			// Could be more efficient by avoiding processTransaction, as we
 			// know it is a revocation.
 			err = w.processTransactionRecord(dbtx, rec, nil, nil)

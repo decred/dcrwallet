@@ -523,18 +523,9 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 		}
 	}
 
-	// Handle incoming votes.  Save a stake manager record for them if we own
-	// the ticket used to purchase them.
+	// Handle incoming votes.
 	if isVote(&rec.MsgTx) && serializedHeader != nil {
 		ticketHash := &rec.MsgTx.TxIn[1].PreviousOutPoint.Hash
-		if w.TxStore.OwnTicket(dbtx, ticketHash) || w.StakeMgr.OwnTicket(ticketHash) {
-			err := w.StakeMgr.InsertSSGen(stakemgrNs, &blockMeta.Block.Hash,
-				int64(height), &rec.Hash, stake.SSGenVoteBits(&rec.MsgTx),
-				ticketHash)
-			if err != nil {
-				return err
-			}
-		}
 
 		// If we're running as a stake pool, insert
 		// the stake pool user ticket update too.
@@ -568,18 +559,9 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 		}
 	}
 
-	// Handle incoming revocations.  Store a stake manager record for them if we
-	// own the ticket used to purchase them.
+	// Handle incoming revocations.
 	if isRevocation(&rec.MsgTx) && serializedHeader != nil {
 		txInHash := &rec.MsgTx.TxIn[0].PreviousOutPoint.Hash
-
-		if w.TxStore.OwnTicket(dbtx, txInHash) || w.StakeMgr.OwnTicket(txInHash) {
-			err := w.StakeMgr.StoreRevocationInfo(dbtx, txInHash, &rec.Hash,
-				&blockMeta.Hash, height)
-			if err != nil {
-				return err
-			}
-		}
 
 		// If we're running as a stake pool, insert
 		// the stake pool user ticket update too.
@@ -968,11 +950,6 @@ func (w *Wallet) handleWinningTickets(blockHash *chainhash.Hash,
 			if err != nil {
 				return err
 			}
-			err = w.StakeMgr.StoreVoteInfo(dbtx, ticketHashes[i], voteHash,
-				blockHash, blockHeight, voteBits)
-			if err != nil {
-				return err
-			}
 			_, err = chainClient.SendRawTransaction(vote, true)
 			return err
 		})
@@ -1073,11 +1050,6 @@ func (w *Wallet) handleMissedTickets(blockHash *chainhash.Hash, blockHeight int3
 		revocationHash := &txRec.Hash
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 			err := w.processTransactionRecord(dbtx, txRec, nil, nil)
-			if err != nil {
-				return err
-			}
-			err = w.StakeMgr.StoreRevocationInfo(dbtx, ticketHashes[i],
-				revocationHash, blockHash, blockHeight)
 			if err != nil {
 				return err
 			}
