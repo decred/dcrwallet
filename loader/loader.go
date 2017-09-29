@@ -49,14 +49,13 @@ type Loader struct {
 
 // StakeOptions contains the various options necessary for stake mining.
 type StakeOptions struct {
-	TicketPurchasingEnabled bool
-	VotingEnabled           bool
-	TicketFee               float64
-	AddressReuse            bool
-	VotingAddress           dcrutil.Address
-	PoolAddress             dcrutil.Address
-	PoolFees                float64
-	StakePoolColdExtKey     string
+	VotingEnabled       bool
+	TicketFee           float64
+	AddressReuse        bool
+	VotingAddress       dcrutil.Address
+	PoolAddress         dcrutil.Address
+	PoolFees            float64
+	StakePoolColdExtKey string
 }
 
 // NewLoader constructs a Loader.
@@ -298,7 +297,6 @@ func (l *Loader) StartTicketPurchase(passphrase []byte, ticketbuyerCfg *ticketbu
 	l.ntfnClient = n
 	l.purchaseManager = pm
 	pm.Start()
-	l.wallet.SetTicketPurchasingEnabled(true)
 	return nil
 }
 
@@ -313,7 +311,6 @@ func (l *Loader) stopTicketPurchase() error {
 	l.purchaseManager.Stop()
 	l.purchaseManager.WaitForShutdown()
 	l.purchaseManager = nil
-	l.wallet.SetTicketPurchasingEnabled(false)
 	return nil
 }
 

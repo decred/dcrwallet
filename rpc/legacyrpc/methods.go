@@ -27,6 +27,7 @@ import (
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
@@ -59,12 +60,18 @@ func confirms(txHeight, curHeight int32) int32 {
 // catch-all error code, dcrjson.ErrRPCWallet.
 type requestHandler func(interface{}, *wallet.Wallet) (interface{}, error)
 
-// requestHandlerChain is a requestHandler that also takes a parameter for
+// requestHandlerChain is a requestHandler that also takes a parameter for the
+// RPC client.
 type requestHandlerChainRequired func(interface{}, *wallet.Wallet, *dcrrpcclient.Client) (interface{}, error)
 
+// requestHandlerLoader is a requestHandler that also takes a parameter for the
+// subsystem loader.
+type requestHandlerLoader func(interface{}, *wallet.Wallet, *loader.Loader) (interface{}, error)
+
 var rpcHandlers = map[string]struct {
-	handler          requestHandler
-	handlerWithChain requestHandlerChainRequired
+	handler           requestHandler
+	handlerWithChain  requestHandlerChainRequired
+	handlerWithLoader requestHandlerLoader
 
 	// Function variables cannot be compared against anything but nil, so
 	// use a boolean to record whether help generation is necessary.  This
@@ -140,7 +147,7 @@ var rpcHandlers = map[string]struct {
 	"validateaddress":         {handler: validateAddress},
 	"verifymessage":           {handler: verifyMessage},
 	"version":                 {handler: versionNoChainRPC, handlerWithChain: versionWithChainRPC},
-	"walletinfo":              {handlerWithChain: walletInfo},
+	"walletinfo":              {handlerWithLoader: walletInfo},
 	"walletlock":              {handler: walletLock},
 	"walletpassphrase":        {handler: walletPassphrase},
 	"walletpassphrasechange":  {handler: walletPassphraseChange},
@@ -199,7 +206,9 @@ type lazyHandler func() (interface{}, *dcrjson.RPCError)
 // returning a closure that will execute it with the (required) wallet and
 // (optional) consensus RPC server.  If no handlers are found and the
 // chainClient is not nil, the returned handler performs RPC passthrough.
-func lazyApplyHandler(request *dcrjson.Request, w *wallet.Wallet, chainClient *dcrrpcclient.Client) lazyHandler {
+func lazyApplyHandler(request *dcrjson.Request, w *wallet.Wallet,
+	chainClient *dcrrpcclient.Client, l *loader.Loader) lazyHandler {
+
 	handlerData, ok := rpcHandlers[request.Method]
 	if ok && handlerData.handlerWithChain != nil && w != nil && chainClient != nil {
 		return func() (interface{}, *dcrjson.RPCError) {
@@ -208,6 +217,19 @@ func lazyApplyHandler(request *dcrjson.Request, w *wallet.Wallet, chainClient *d
 				return nil, dcrjson.ErrRPCInvalidRequest
 			}
 			resp, err := handlerData.handlerWithChain(cmd, w, chainClient)
+			if err != nil {
+				return nil, jsonError(err)
+			}
+			return resp, nil
+		}
+	}
+	if ok && handlerData.handlerWithLoader != nil && w != nil {
+		return func() (interface{}, *dcrjson.RPCError) {
+			cmd, err := dcrjson.UnmarshalCmd(request)
+			if err != nil {
+				return nil, dcrjson.ErrRPCInvalidRequest
+			}
+			resp, err := handlerData.handlerWithLoader(cmd, w, l)
 			if err != nil {
 				return nil, jsonError(err)
 			}
@@ -3116,12 +3138,13 @@ func version(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Clien
 // walletInfo gets the current information about the wallet. If the daemon
 // is connected and fails to ping, the function will still return that the
 // daemon is disconnected.
-func walletInfo(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
-	connected := !(chainClient.Disconnected())
+func walletInfo(icmd interface{}, w *wallet.Wallet, l *loader.Loader) (interface{}, error) {
+	chainClient := w.ChainClient()
+	connected := chainClient != nil
 	if connected {
 		err := chainClient.Ping()
 		if err != nil {
-			log.Warnf("Ping failed on connected daemon client: %s", err.Error())
+			log.Warnf("Ping failed on connected daemon client: %v", err)
 			connected = false
 		}
 	}
@@ -3129,7 +3152,7 @@ func walletInfo(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Cl
 	unlocked := !(w.Locked())
 	fi := w.RelayFee()
 	tfi := w.TicketFeeIncrement()
-	tp := w.TicketPurchasingEnabled()
+	tp := l.PurchaseManager() != nil
 	voteBits := w.VoteBits()
 	var voteVersion uint32
 	_ = binary.Read(bytes.NewBuffer(voteBits.ExtendedBits[0:4]), binary.LittleEndian, &voteVersion)

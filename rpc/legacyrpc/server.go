@@ -289,7 +289,7 @@ func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) l
 		}
 	}
 
-	return lazyApplyHandler(request, wallet, rpcClient)
+	return lazyApplyHandler(request, wallet, rpcClient, s.walletLoader)
 }
 
 // ErrNoAuth represents an error where authentication could not succeed

@@ -82,16 +82,15 @@ type Wallet struct {
 	StakeMgr *udb.StakeStore
 
 	// Handlers for stake system.
-	stakeSettingsLock       sync.Mutex
-	voteBits                stake.VoteBits
-	ticketPurchasingEnabled bool
-	votingEnabled           bool
-	balanceToMaintain       dcrutil.Amount
-	poolAddress             dcrutil.Address
-	poolFees                float64
-	stakePoolEnabled        bool
-	stakePoolColdAddrs      map[string]struct{}
-	subsidyCache            *blockchain.SubsidyCache
+	stakeSettingsLock  sync.Mutex
+	voteBits           stake.VoteBits
+	votingEnabled      bool
+	balanceToMaintain  dcrutil.Amount
+	poolAddress        dcrutil.Address
+	poolFees           float64
+	stakePoolEnabled   bool
+	stakePoolColdAddrs map[string]struct{}
+	subsidyCache       *blockchain.SubsidyCache
 
 	// Start up flags/settings
 	initiallyUnlocked bool
@@ -276,14 +275,6 @@ func (w *Wallet) SetBalanceToMaintain(balance dcrutil.Amount) {
 	w.stakeSettingsLock.Unlock()
 }
 
-// TicketPurchasingEnabled returns whether the wallet is configured to purchase tickets.
-func (w *Wallet) TicketPurchasingEnabled() bool {
-	w.stakeSettingsLock.Lock()
-	enabled := w.ticketPurchasingEnabled
-	w.stakeSettingsLock.Unlock()
-	return enabled
-}
-
 // VotingEnabled returns whether the wallet is configured to vote tickets.
 func (w *Wallet) VotingEnabled() bool {
 	w.stakeSettingsLock.Lock()
@@ -466,14 +457,6 @@ func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) (voteBits uint16, err
 	return voteBits, nil
 }
 
-// SetTicketPurchasingEnabled is used to enable or disable ticket purchasing in the
-// wallet.
-func (w *Wallet) SetTicketPurchasingEnabled(flag bool) {
-	w.stakeSettingsLock.Lock()
-	w.ticketPurchasingEnabled = flag
-	w.stakeSettingsLock.Unlock()
-}
-
 // TicketAddress gets the ticket address for the wallet to give the ticket
 // voting rights to.
 func (w *Wallet) TicketAddress() dcrutil.Address {
@@ -569,18 +552,9 @@ func (w *Wallet) SynchronizeRPC(chainClient *chain.RPCClient) {
 			"and missed tickets. Error: ", err.Error())
 	}
 
-	ticketPurchasingEnabled := w.TicketPurchasingEnabled()
-	if ticketPurchasingEnabled {
-		vb := w.VoteBits()
-		log.Infof("Wallet ticket purchasing enabled: vote bits = %#04x, "+
-			"extended vote bits = %x", vb.Bits, vb.ExtendedBits)
-	}
 	if w.votingEnabled {
 		log.Infof("Wallet voting enabled")
-	}
-	if ticketPurchasingEnabled || w.votingEnabled {
-		log.Infof("Please ensure your wallet remains unlocked so it may " +
-			"create stake transactions")
+		log.Infof("Please ensure your wallet remains unlocked so it may vote")
 	}
 }
 
