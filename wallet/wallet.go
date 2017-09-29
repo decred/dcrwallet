@@ -2361,7 +2361,8 @@ func (w *Wallet) BlockInfo(blockID *BlockIdentifier) (*BlockInfo, error) {
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 		blockHash := blockID.hash
 		if blockHash == nil {
-			hash, err := w.TxStore.GetBlockHash(txmgrNs, blockID.height)
+			hash, err := w.TxStore.GetMainChainBlockHashForHeight(txmgrNs,
+				blockID.height)
 			if err != nil {
 				return err
 			}

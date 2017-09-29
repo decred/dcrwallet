@@ -782,7 +782,7 @@ func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stop
 				if err != nil {
 					return err
 				}
-				blockHash, err := w.TxStore.GetBlockHash(txmgrNs, height)
+				blockHash, err := w.TxStore.GetMainChainBlockHashForHeight(txmgrNs, height)
 				if err != nil {
 					return err
 				}
@@ -863,7 +863,7 @@ func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
 				if err != nil {
 					return err
 				}
-				blockHash, err := w.TxStore.GetBlockHash(txmgrNs, height)
+				blockHash, err := w.TxStore.GetMainChainBlockHashForHeight(txmgrNs, height)
 				if err != nil {
 					return err
 				}
