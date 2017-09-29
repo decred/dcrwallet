@@ -38,8 +38,8 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 	// existing unmined txs are not removed when inserting a double spending
 	// unmined tx.
 	//
-	// An exception is made for this rule for revocations that double spend an
-	// unmined vote that doesn't vote on the tip block.
+	// An exception is made for this rule for votes and revocations that double
+	// spend an unmined vote that doesn't vote on the tip block.
 	for _, input := range rec.MsgTx.TxIn {
 		prevOut := &input.PreviousOutPoint
 		k := canonicalOutPoint(&prevOut.Hash, prevOut.Index)
@@ -49,9 +49,9 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 
 			// A switch is used here instead of an if statement so it can be
 			// broken out of to the error below.
-		RevocationCheck:
-			switch {
-			case rec.TxType == stake.TxTypeSSRtx:
+		DoubleSpendVoteCheck:
+			switch rec.TxType {
+			case stake.TxTypeSSGen, stake.TxTypeSSRtx:
 				spenderVal := existsRawUnmined(ns, spenderHash[:])
 				spenderTxBytes := extractRawUnminedTx(spenderVal)
 				var spenderTx wire.MsgTx
@@ -62,7 +62,7 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 					return apperrors.Wrap(err, apperrors.ErrData, str)
 				}
 				if stake.DetermineTxType(&spenderTx) != stake.TxTypeSSGen {
-					break RevocationCheck
+					break DoubleSpendVoteCheck
 				}
 				votedBlock, _, err := stake.SSGenBlockVotedOn(&spenderTx)
 				if err != nil {
@@ -71,8 +71,8 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 				}
 				tipBlock, _ := s.MainChainTip(ns)
 				if votedBlock == tipBlock {
-					const str = "revocation double spends unmined vote on " +
-						"the tip block"
+					const str = "vote or revocation double spends unmined vote " +
+						"on the tip block"
 					return apperrors.New(apperrors.ErrDoubleSpend, str)
 				}
 
