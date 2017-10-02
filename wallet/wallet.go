@@ -2165,13 +2165,84 @@ func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (*TransactionSummary
 	return txSummary, err
 }
 
+// GetTicketsResult response struct for gettickets rpc request
 type GetTicketsResult struct {
-	Tickets []Ticket
+	Tickets []TicketSummary
 }
 
+// GetTickets implements the rpc request command for gettickets
 func (w *Wallet) GetTickets(startBlock, endBlock *BlockIdentifier, cancel <-chan struct{}) (*GetTicketsResult, error) {
+	var start, end int32 = 0, -1
+
+	if startBlock != nil {
+		if startBlock.hash == nil {
+			start = startBlock.height
+		} else {
+			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+				meta, err := w.TxStore.GetBlockMetaForHash(ns, startBlock.hash)
+				if err != nil {
+					return err
+				}
+				start = meta.Height
+				return nil
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	if endBlock != nil {
+		if endBlock.hash == nil {
+			end = endBlock.height
+		} else {
+			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+				meta, err := w.TxStore.GetBlockMetaForHash(ns, endBlock.hash)
+				if err != nil {
+					return err
+				}
+				end = meta.Height
+				return nil
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	var res GetTicketsResult
-	return &res, nil
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		rangeFn := func(details []udb.TxDetails) (bool, error) {
+			// TODO: probably should make RangeTransactions not reuse the
+			// details backing array memory.
+			dets := make([]udb.TxDetails, len(details))
+			copy(dets, details)
+			details = dets
+			tickets := make([]TicketSummary, 0, len(details))
+			for i := range details {
+				ok, _ := stake.IsSStx(&details[i].MsgTx)
+				if !ok {
+					continue
+				}
+				res.Tickets = append(res.Tickets, TicketSummary{
+					Hash: &details[i].Hash,
+				})
+			}
+			res.Tickets = tickets
+			select {
+			case <-cancel:
+				return true, nil
+			default:
+				return false, nil
+			}
+		}
+
+		return w.TxStore.RangeTransactions(txmgrNs, start, end, rangeFn)
+	})
+	return &res, err
 }
 
 // GetTransactionsResult is the result of the wallet's GetTransactions method.

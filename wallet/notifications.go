@@ -431,6 +431,12 @@ type TransactionSummary struct {
 	Type        TransactionType
 }
 
+// TicketSummary contains a ticket relevant to the wallet
+type TicketSummary struct {
+	Hash        *chainhash.Hash
+	SpenderHash *chainhash.Hash
+}
+
 // TransactionType decribes the which type of transaction is has been observed to be.
 // For instance, if it has a ticket as an input and a stake base reward as an ouput,
 // it is known to be a vote.
