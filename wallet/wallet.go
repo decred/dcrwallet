@@ -2227,6 +2227,7 @@ func (w *Wallet) GetTickets(startBlock, endBlock *BlockIdentifier, cancel <-chan
 				if !ok {
 					continue
 				}
+
 				res.Tickets = append(res.Tickets, TicketSummary{
 					Hash: &details[i].Hash,
 				})

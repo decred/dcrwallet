@@ -401,21 +401,28 @@ type Block struct {
 	Transactions []TransactionSummary
 }
 
-// Ticket contains the properties to
-type Ticket struct {
+// TicketSummary contains the properties to describe a ticket's current status
+type TicketSummary struct {
 	Hash        *chainhash.Hash
 	SpenderHash *chainhash.Hash
 	Status      TicketStatus
 }
 
+// TicketStatus describes the current status a ticket can be observed to be.
 type TicketStatus int8
 
 const (
+	// TicketStatusLive any currently live ticket.
 	TicketStatusLive TicketStatus = iota
+	// TicketStatusImmature any so to be live ticket.
 	TicketStatusImmature
+	// TicketStatusVoted any ticket that was seen to have voted.
 	TicketStatusVoted
+	// TicketStatusRevoked any ticket that has been previously revoked.
 	TicketStatusRevoked
+	// TicketStatusMissed any ticket that has yet to be revoked, and was missed.
 	TicketStatusMissed
+	// TicketStatusExpired any ticket that has yet to be revoked, and was expired.
 	TicketStatusExpired
 )
 
@@ -431,13 +438,7 @@ type TransactionSummary struct {
 	Type        TransactionType
 }
 
-// TicketSummary contains a ticket relevant to the wallet
-type TicketSummary struct {
-	Hash        *chainhash.Hash
-	SpenderHash *chainhash.Hash
-}
-
-// TransactionType decribes the which type of transaction is has been observed to be.
+// TransactionType describes the which type of transaction is has been observed to be.
 // For instance, if it has a ticket as an input and a stake base reward as an ouput,
 // it is known to be a vote.
 type TransactionType int8
