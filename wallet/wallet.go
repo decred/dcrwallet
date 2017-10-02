@@ -2228,6 +2228,8 @@ func (w *Wallet) GetTickets(startBlock, endBlock *BlockIdentifier, cancel <-chan
 					continue
 				}
 
+				// XXX Here is where I would look up the ticket information from the db so I can populate spenderhash and ticket status
+
 				res.Tickets = append(res.Tickets, TicketSummary{
 					Hash: &details[i].Hash,
 				})
