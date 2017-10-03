@@ -200,9 +200,8 @@ func (s *Store) TxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash) (*TxDe
 // regarding a relevant transaction and which inputs and outputs are credit or
 // debits.
 type TicketDetails struct {
-	Hash        chainhash.Hash
-	SpenderHash chainhash.Hash
-	Status      TicketStatus
+	Ticket  *TxDetails
+	Spender *TxDetails
 }
 
 // TicketDetails looks up all recorded details regarding a ticket with some
@@ -216,33 +215,30 @@ func (s *Store) TicketDetails(ns walletdb.ReadBucket, txDetails *TxDetails) (*Ti
 	if !ok {
 		return nil, nil
 	}
-	ticketDetails.Hash = txDetails.Hash
-	if _, v := latestTxRecord(ns, txDetails.Hash[:]); v != nil {
-		// Check if the ticket is spent or not.  Look up the credit for output 0
-		// and check if either a debit is recorded or the output is spent by an
-		// unmined transaction.
-		_, credVal := existsCredit(ns, &txDetails.Hash, 0, &txDetails.Block.Block)
-		if credVal != nil {
-			if extractRawCreditIsSpent(credVal) {
-				debKey := extractRawCreditSpenderDebitKey(credVal)
-				debHash := extractRawDebitHash(debKey)
-				copy(ticketDetails.SpenderHash[:], debHash)
-			} else {
-				ticketDetails.SpenderHash = chainhash.Hash{}
-			}
-		} else {
-			opKey := canonicalOutPoint(&txDetails.Hash, 0)
-			spenderVal := existsRawUnminedInput(ns, opKey)
-			if spenderVal != nil {
-				copy(ticketDetails.SpenderHash[:], spenderVal)
-			} else {
-				ticketDetails.SpenderHash = chainhash.Hash{}
-			}
+	ticketDetails.Ticket = txDetails
+	var spenderHash = chainhash.Hash{}
+	// Check if the ticket is spent or not.  Look up the credit for output 0
+	// and check if either a debit is recorded or the output is spent by an
+	// unmined transaction.
+	_, credVal := existsCredit(ns, &txDetails.Hash, 0, &txDetails.Block.Block)
+	if credVal != nil {
+		if extractRawCreditIsSpent(credVal) {
+			debKey := extractRawCreditSpenderDebitKey(credVal)
+			debHash := extractRawDebitHash(debKey)
+			copy(spenderHash[:], debHash)
 		}
-	} else if v := existsRawUnmined(ns, txDetails.Hash[:]); v != nil {
-		// Unmined tickets cannot be spent
-		ticketDetails.SpenderHash = chainhash.Hash{}
+	} else {
+		opKey := canonicalOutPoint(&txDetails.Hash, 0)
+		spenderVal := existsRawUnminedInput(ns, opKey)
+		if spenderVal != nil {
+			copy(spenderHash[:], spenderVal)
+		}
 	}
+	spenderDetails, err := s.TxDetails(ns, &spenderHash)
+	if err != nil {
+		return nil, err
+	}
+	ticketDetails.Spender = spenderDetails
 	return ticketDetails, nil
 }
 

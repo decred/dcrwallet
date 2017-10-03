@@ -8,6 +8,7 @@ package wallet
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/decred/dcrd/blockchain"
@@ -200,13 +201,22 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 
 func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) TicketSummary {
 	var ticketStatus = TicketStatusLive
-	/*
-	 figure out status
-	*/
+	if details.Ticket != nil && details.Spender != nil {
+		ticketPrice := dcrutil.Amount(details.Ticket.TxRecord.MsgTx.TxOut[0].Value)
+		reward := dcrutil.Amount(0)
+		for _, credit := range details.Spender.Credits {
+			reward += credit.Amount
+		}
+		roi := float32(reward-ticketPrice) / float32(ticketPrice)
+		if details.Spender.TxType == 2 {
+			fmt.Printf("Vote: age %v ticketprice %v reward %v roi %f\n", details.Spender.Height()-details.Ticket.Height(), ticketPrice, reward, roi)
+		} else if details.Spender.TxType == 3 {
+			fmt.Printf("Revoke: age %v ticketprice %v return %v roi %f\n", details.Spender.Height()-details.Ticket.Height(), ticketPrice, reward, roi)
+		}
+	}
 	return TicketSummary{
-		Hash:        &details.Hash,
-		SpenderHash: &details.SpenderHash,
-		Status:      ticketStatus,
+		Hash:   &details.Ticket.Hash,
+		Status: ticketStatus,
 	}
 }
 
