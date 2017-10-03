@@ -2222,14 +2222,14 @@ func (w *Wallet) GetTickets(startBlock, endBlock *BlockIdentifier, cancel <-chan
 			copy(dets, details)
 			details = dets
 			for i := range details {
-				ok, _ := stake.IsSStx(&details[i].MsgTx)
-				if !ok {
-					continue
-				}
 				// XXX Here is where I would look up the ticket information from the db so I can populate spenderhash and ticket status
 				ticketInfo, err := w.TxStore.TicketDetails(txmgrNs, &details[i])
 				if err != nil {
 					log.Errorf("error while trying to get ticket details for ")
+					continue
+				}
+				// Continue if not a ticket
+				if ticketInfo == nil {
 					continue
 				}
 				res.Tickets = append(res.Tickets, makeTicketSummary(dbtx, w, ticketInfo))

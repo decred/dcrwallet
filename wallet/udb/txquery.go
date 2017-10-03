@@ -8,6 +8,8 @@ package udb
 import (
 	"fmt"
 
+	"github.com/decred/dcrd/blockchain/stake"
+
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
@@ -210,6 +212,10 @@ type TicketDetails struct {
 // a nil TicketDetiails is returned.
 func (s *Store) TicketDetails(ns walletdb.ReadBucket, txDetails *TxDetails) (*TicketDetails, error) {
 	var ticketDetails = &TicketDetails{}
+	ok, _ := stake.IsSStx(&txDetails.MsgTx)
+	if !ok {
+		return nil, nil
+	}
 	ticketDetails.Hash = txDetails.Hash
 	if _, v := latestTxRecord(ns, txDetails.Hash[:]); v != nil {
 		// Check if the ticket is spent or not.  Look up the credit for output 0
@@ -236,8 +242,6 @@ func (s *Store) TicketDetails(ns walletdb.ReadBucket, txDetails *TxDetails) (*Ti
 	} else if v := existsRawUnmined(ns, txDetails.Hash[:]); v != nil {
 		// Unmined tickets cannot be spent
 		ticketDetails.SpenderHash = chainhash.Hash{}
-		// Set status to denote unmined
-		ticketDetails.Status = 0
 	}
 	return ticketDetails, nil
 }
