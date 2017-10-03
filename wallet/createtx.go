@@ -6,10 +6,11 @@
 package wallet
 
 import (
-	"encoding/binary"
-	"errors"
 	"fmt"
 	"time"
+	"errors"
+	"encoding/binary"
+	"crypto/rand"
 
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
@@ -27,6 +28,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
+	"golang.org/x/crypto/ripemd160"
 )
 
 // --------------------------------------------------------------------------------
@@ -1895,4 +1897,18 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 		}
 	}
 	return nil, errors.New("no suitable revocation outputs to pay relay fee")
+}
+
+
+
+// randomAddress returns a random address. Mainly used for 0-value (unspendable)
+// OP_SSTXCHANGE tagged outputs.
+func randomAddress(params *chaincfg.Params) (dcrutil.Address, error) {
+	b := make([]byte, ripemd160.Size)
+	_, err := rand.Read(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return dcrutil.NewAddressPubKeyHash(b, params, chainec.ECTypeSecp256k1)
 }
