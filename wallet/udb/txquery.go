@@ -208,7 +208,7 @@ type TicketDetails struct {
 //
 // Not finding a ticket with this hash is not an error.  In this case,
 // a nil TicketDetiails is returned.
-func (s *Store) TicketDetails(ns walletdb.ReadBucket, txDetails TxDetails) (*TicketDetails, error) {
+func (s *Store) TicketDetails(ns walletdb.ReadBucket, txDetails *TxDetails) (*TicketDetails, error) {
 	var ticketDetails = &TicketDetails{}
 	ticketDetails.Hash = txDetails.Hash
 	if _, v := latestTxRecord(ns, txDetails.Hash[:]); v != nil {

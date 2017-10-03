@@ -198,6 +198,18 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 	}
 }
 
+func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) TicketSummary {
+	var ticketStatus = TicketStatusLive
+	/*
+	 figure out status
+	*/
+	return TicketSummary{
+		Hash:        &details.Hash,
+		SpenderHash: &details.SpenderHash,
+		Status:      ticketStatus,
+	}
+}
+
 func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]dcrutil.Amount) error {
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	unspent, err := w.TxStore.UnspentOutputs(dbtx.ReadBucket(wtxmgrNamespaceKey))

@@ -968,7 +968,7 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 	}
 	for i := range gt.Tickets {
 		resp := &pb.GetTicketsResponse{
-			Ticket: marshalTicket(&gt.Tickets[i]),
+			Ticket: marshalTicketDetails(&gt.Tickets[i]),
 		}
 		err = server.Send(resp)
 		if err != nil {
@@ -1363,8 +1363,31 @@ func marshalTransactionDetailsSlice(v []wallet.TransactionSummary) []*pb.Transac
 	return txs
 }
 
-func marshalTicket(v *wallet.Ticket) *pb.TicketDetails {
-	return &pb.TicketDetails{}
+func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.TicketDetails {
+	var ticketStatus = pb.TicketDetails_LIVE
+	switch ticket.Status {
+	case wallet.TicketStatusExpired:
+		ticketStatus = pb.TicketDetails_EXPIRED
+	case wallet.TicketStatusImmature:
+		ticketStatus = pb.TicketDetails_IMMATURE
+	case wallet.TicketStatusVoted:
+		ticketStatus = pb.TicketDetails_VOTED
+	case wallet.TicketStatusRevoked:
+		ticketStatus = pb.TicketDetails_REVOKED
+	}
+	return &pb.TicketDetails{
+		Hash:         ticket.Hash[:],
+		SpenderHash:  ticket.SpenderHash[:],
+		TicketStatus: ticketStatus,
+	}
+}
+
+func marshalTicketDetailsSlice(v []wallet.TicketSummary) []*pb.TicketDetails {
+	txs := make([]*pb.TicketDetails, len(v))
+	for i := range v {
+		txs[i] = marshalTicketDetails(&v[i])
+	}
+	return txs
 }
 
 func marshalBlock(v *wallet.Block) *pb.BlockDetails {

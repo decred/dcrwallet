@@ -2167,7 +2167,7 @@ func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (*TransactionSummary
 
 // GetTicketsResult response struct for gettickets rpc request
 type GetTicketsResult struct {
-	Tickets []TicketDetails
+	Tickets []TicketSummary
 }
 
 // GetTickets implements the rpc request command for gettickets
@@ -2221,18 +2221,19 @@ func (w *Wallet) GetTickets(startBlock, endBlock *BlockIdentifier, cancel <-chan
 			dets := make([]udb.TxDetails, len(details))
 			copy(dets, details)
 			details = dets
+			tickets := make([]TicketSummary, 0, len(details))
 			for i := range details {
 				ok, _ := stake.IsSStx(&details[i].MsgTx)
 				if !ok {
 					continue
 				}
-
-				ticketInfo, err := w.TxStore.TicketDetails(&details[i])
-				if err {
+				// XXX Here is where I would look up the ticket information from the db so I can populate spenderhash and ticket status
+				ticketInfo, err := w.TxStore.TicketDetails(txmgrNs, &details[i])
+				if err != nil {
 					log.Errorf("error while trying to get ticket details for ")
 					continue
 				}
-				res.Tickets = append(res.Tickets, ticketInfo)
+				res.Tickets = append(res.Tickets, makeTicketSummary(dbtx, w, ticketInfo))
 			}
 			res.Tickets = tickets
 			select {
