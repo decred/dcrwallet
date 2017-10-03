@@ -83,6 +83,20 @@ const (
 	// for mining.
 	// TODO: import from dcrd.
 	maxStandardTxSize = 100000
+
+	// sstxTicketCommitmentEstimate =
+	// - version + amount +
+	// OP_SSTX OP_DUP OP_HASH160 OP_DATA_20 OP_EQUALVERIFY OP_CHECKSIG
+	sstxTicketCommitmentEstimate = 2 + 8 + 1 + 1 + 1 + 1 + 20 + 1 + 1
+
+	// sstxSubsidyCommitmentEstimate =
+	// version + amount + OP_RETURN OP_DATA_30
+	sstxSubsidyCommitmentEstimate = 2 + 8 + 2 + 30
+
+	// sstxChangeOutputEstimate =
+	// version + amount + OP_SSTXCHANGE OP_DUP OP_HASH160 OP_DATA_20
+	//	OP_EQUALVERIFY OP_CHECKSIG
+	sstxChangeOutputEstimate = 2 + 8 + 1 + 1 + 1 + 1 + 20 + 1 + 1
 )
 
 var (
@@ -1897,6 +1911,32 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 		}
 	}
 	return nil, errors.New("no suitable revocation outputs to pay relay fee")
+}
+
+
+// sanityCheckExpiry performs a sanity check on expiry
+// returns  tipHeight and error
+func (w *Wallet) sanityCheckExpiry(expiry int32) (int32, error) {
+	// Need a positive or zero expiry that is higher than the next block to
+	// generate.
+	if expiry < 0 {
+		return 0, fmt.Errorf("need positive expiry")
+	}
+	// Perform a sanity check on expiry.
+	var tipHeight int32
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		ns := tx.ReadBucket(wtxmgrNamespaceKey)
+		_, tipHeight = w.TxStore.MainChainTip(ns)
+		return nil
+	})
+	if err != nil {
+		return tipHeight, err
+	}
+	if expiry <= tipHeight+1 && expiry > 0 {
+		return tipHeight, fmt.Errorf("need expiry that is beyond next height ("+
+			"given: %v, next height %v)", expiry, tipHeight+1)
+	}
+	return tipHeight, err
 }
 
 // fetchAddressFunc returns a change address
