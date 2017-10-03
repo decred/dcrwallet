@@ -201,18 +201,30 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 
 func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) TicketSummary {
 	var ticketStatus = TicketStatusLive
-	if details.Ticket != nil && details.Spender != nil {
+	if details.Spender != nil {
 		ticketPrice := dcrutil.Amount(details.Ticket.TxRecord.MsgTx.TxOut[0].Value)
 		reward := dcrutil.Amount(0)
 		for _, credit := range details.Spender.Credits {
 			reward += credit.Amount
 		}
 		roi := float32(reward-ticketPrice) / float32(ticketPrice)
-		if details.Spender.TxType == 2 {
+		if details.Spender.TxType == stake.TxTypeSSGen {
+			ticketStatus = TicketStatusVoted
 			fmt.Printf("Vote: age %v ticketprice %v reward %v roi %f\n", details.Spender.Height()-details.Ticket.Height(), ticketPrice, reward, roi)
-		} else if details.Spender.TxType == 3 {
+		} else if details.Spender.TxType == stake.TxTypeSSRtx {
+			ticketStatus = TicketStatusRevoked
 			fmt.Printf("Revoke: age %v ticketprice %v return %v roi %f\n", details.Spender.Height()-details.Ticket.Height(), ticketPrice, reward, roi)
 		}
+	} else {
+		if details.Ticket.Height() == int32(-1) {
+			return TicketSummary{
+				Hash:   &details.Ticket.Hash,
+				Status: TicketStatusUnmined,
+			}
+		}
+		ticketStatus = TicketStatusExpired
+		ticketStatus = TicketStatusMissed
+		ticketStatus = TicketStatusImmature
 	}
 	return TicketSummary{
 		Hash:   &details.Ticket.Hash,
