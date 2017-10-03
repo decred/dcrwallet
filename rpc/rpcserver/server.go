@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -967,10 +966,9 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 	if err != nil {
 		return translateError(err)
 	}
-	fmt.Printf("get tickets response %v\n", len(gt.Tickets))
-	if len(gt.Tickets) > 0 {
+	for i := range gt.Tickets {
 		resp := &pb.GetTicketsResponse{
-			Tickets: marshalTicketDetailsSlice(gt.Tickets),
+			Ticket: marshalTicketDetails(&gt.Tickets[i]),
 		}
 		err = server.Send(resp)
 		if err != nil {
