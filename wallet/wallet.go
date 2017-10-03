@@ -2221,7 +2221,6 @@ func (w *Wallet) GetTickets(startBlock, endBlock *BlockIdentifier, cancel <-chan
 			dets := make([]udb.TxDetails, len(details))
 			copy(dets, details)
 			details = dets
-			tickets := make([]TicketSummary, 0, len(details))
 			for i := range details {
 				ok, _ := stake.IsSStx(&details[i].MsgTx)
 				if !ok {
@@ -2235,7 +2234,6 @@ func (w *Wallet) GetTickets(startBlock, endBlock *BlockIdentifier, cancel <-chan
 				}
 				res.Tickets = append(res.Tickets, makeTicketSummary(dbtx, w, ticketInfo))
 			}
-			res.Tickets = tickets
 			select {
 			case <-cancel:
 				return true, nil
