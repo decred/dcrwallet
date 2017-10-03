@@ -1900,6 +1900,12 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 }
 
 
+func estimateSSTxSize(numInputs int) int {
+	return txOverheadEstimate + txInEstimate*numInputs +
+		sstxTicketCommitmentEstimate +
+		(sstxSubsidyCommitmentEstimate+
+			sstxChangeOutputEstimate)*numInputs
+}
 
 // randomAddress returns a random address. Mainly used for 0-value (unspendable)
 // OP_SSTXCHANGE tagged outputs.
