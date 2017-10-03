@@ -306,7 +306,7 @@ message GetTicketsRequest {
 	int32 ending_block_height = 4;
 }
 message GetTicketsResponse {
-	repeated TicketDetails ticket = 1;
+	repeated TicketDetails tickets = 1;
 }
 
 message TicketPriceRequest {

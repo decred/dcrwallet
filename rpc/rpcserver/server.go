@@ -968,7 +968,7 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 		return translateError(err)
 	}
 	fmt.Printf("get tickets response %v\n", len(gt.Tickets))
-	for i := range gt.Tickets {
+	if len(gt.Tickets) > 0 {
 		resp := &pb.GetTicketsResponse{
 			Tickets: marshalTicketDetailsSlice(gt.Tickets),
 		}
