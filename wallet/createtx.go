@@ -1899,6 +1899,18 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 	return nil, errors.New("no suitable revocation outputs to pay relay fee")
 }
 
+// fetchAddressFunc returns a change address
+func (w *Wallet) fetchAddressFunc() func(persistReturnedChildFunc, uint32) (dcrutil.Address, error) {
+	addrFunc := w.newChangeAddress
+	if w.addressReuse {
+		xpub := w.addressBuffers[udb.DefaultAccountNum].albExternal.branchXpub
+		addr, err := deriveChildAddress(xpub, 0, w.chainParams)
+		addrFunc = func(persistReturnedChildFunc, uint32) (dcrutil.Address, error) {
+			return addr, err
+		}
+	}
+	return addrFunc
+}
 
 func estimateSSTxSize(numInputs int) int {
 	return txOverheadEstimate + txInEstimate*numInputs +
