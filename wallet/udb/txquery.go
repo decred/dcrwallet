@@ -194,6 +194,54 @@ func (s *Store) TxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash) (*TxDe
 	return s.minedTxDetails(ns, txHash, k, v)
 }
 
+// TicketDetails is intended to provide callers with access to rich details
+// regarding a relevant transaction and which inputs and outputs are credit or
+// debits.
+type TicketDetails struct {
+	Hash        chainhash.Hash
+	SpenderHash chainhash.Hash
+	Status      TicketStatus
+}
+
+// TicketDetails looks up all recorded details regarding a ticket with some
+// hash.
+//
+// Not finding a ticket with this hash is not an error.  In this case,
+// a nil TicketDetiails is returned.
+func (s *Store) TicketDetails(ns walletdb.ReadBucket, txDetails TxDetails) (*TicketDetails, error) {
+	var ticketDetails = &TicketDetails{}
+	ticketDetails.Hash = txDetails.Hash
+	if _, v := latestTxRecord(ns, txDetails.Hash[:]); v != nil {
+		// Check if the ticket is spent or not.  Look up the credit for output 0
+		// and check if either a debit is recorded or the output is spent by an
+		// unmined transaction.
+		_, credVal := existsCredit(ns, &txDetails.Hash, 0, &txDetails.Block.Block)
+		if credVal != nil {
+			if extractRawCreditIsSpent(credVal) {
+				debKey := extractRawCreditSpenderDebitKey(credVal)
+				debHash := extractRawDebitHash(debKey)
+				copy(ticketDetails.SpenderHash[:], debHash)
+			} else {
+				ticketDetails.SpenderHash = chainhash.Hash{}
+			}
+		} else {
+			opKey := canonicalOutPoint(&txDetails.Hash, 0)
+			spenderVal := existsRawUnminedInput(ns, opKey)
+			if spenderVal != nil {
+				copy(ticketDetails.SpenderHash[:], spenderVal)
+			} else {
+				ticketDetails.SpenderHash = chainhash.Hash{}
+			}
+		}
+	} else if v := existsRawUnmined(ns, txDetails.Hash[:]); v != nil {
+		// Unmined tickets cannot be spent
+		ticketDetails.SpenderHash = chainhash.Hash{}
+		// Set status to denote unmined
+		ticketDetails.Status = 0
+	}
+	return ticketDetails, nil
+}
+
 // parseTx deserializes a transaction into a MsgTx using the readRawTxRecord
 // method.
 func (s *Store) parseTx(txHash chainhash.Hash, v []byte) (*wire.MsgTx, error) {
