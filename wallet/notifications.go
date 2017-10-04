@@ -252,7 +252,7 @@ func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetai
 			} else if ticketAge >= int64(w.ChainParams().TicketExpiry) {
 				ticketStatus = TicketStatusExpired
 			} else {
-				// final check to see if ticket was missed otherwise it's liveMissed
+				// Final check to see if ticket was missed otherwise it's live
 				live, err := w.chainClient.ExistsLiveTicket(&details.Ticket.Hash)
 				if err != nil {
 					log.Errorf("Unable to check if ticket was live for ticket status: %v", &details.Ticket.Hash)

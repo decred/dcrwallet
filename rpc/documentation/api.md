@@ -366,6 +366,7 @@ The service provides the following methods:
 - [`BlockInfo`](#blockinfo)
 - [`GetTransaction`](#gettransaction)
 - [`GetTransactions`](#gettransactions)
+- [`GetTickets`](#gettickets)
 - [`ChangePassphrase`](#changepassphrase)
 - [`RenameAccount`](#renameaccount)
 - [`Rescan`](#rescan)
@@ -669,6 +670,71 @@ transactions (and no mined transactions).
 
   The `TransactionDetails` message is used by other methods and is documented
   [here](#transactiondetails).
+
+**Expected errors:**
+
+- `InvalidArgument`: A non-default block hash field did not have the correct length.
+
+- `Aborted`: The wallet database is closed.
+
+- `NotFound`: A block, specified by its height or hash, is unknown to the
+  wallet.
+
+**Stability:** Unstable
+
+- There is currently no way to get only unmined transactions due to the way
+  the block range is specified.
+
+- It would be useful to ignore the block range and return some minimum number of
+  the most recent transaction, but it is unclear if that should be added to this
+  method's request object, or to make a new method.
+
+- A specified ordering (such as dependency order) for all returned unmined
+  transactions would be useful.
+
+___
+
+#### `GetTickets`
+
+The `GetTickets` method queries the wallet for relevant tickets.  The
+query set may be specified using a block range, inclusive, with the heights or
+hashes of the minimum and maximum block.
+
+To avoid exceeding the maximum message size with the return result, a stream is
+used to break up the response into several messages.  A single message will have
+results of a single ticket.
+
+**Request:** `GetTicketsRequest`
+
+- `bytes starting_block_hash`: The block hash of the block to begin including
+  tickets from.  If this field is set to the default, the
+  `starting_block_height` field is used instead.  If changed, the byte array
+  must have length 32 and `starting_block_height` must be zero.
+
+- `sint32 starting_block_height`: The block height to begin including
+  tickets from.  If this field is non-zero, `starting_block_hash` must be
+  set to its default value to avoid ambiguity.  If positive, the field is
+  interpreted as a block height.  If negative, the height is subtracted from the
+  block wallet considers itself in sync with.
+
+- `bytes ending_block_hash`: The block hash of the last block to include
+  tickets from.  If this default is set to the default, the
+  `ending_block_height` field is used instead.  If changed, the byte array must
+  have length 32 and `ending_block_height` must be zero.
+
+- `int32 ending_block_height`: The block height of the last block to include
+  tickets from.  If non-zero, the `ending_block_hash` field must be set to
+  its default value to avoid ambiguity.  If both this field and
+  `ending_block_hash` are set to their default values, no upper block limit is
+  used and transactions through the best block and all unmined transactions are
+  included.
+
+**Response:** `stream GetTicketsResponse`
+
+- `TicketDetails tickets`: A given ticket's details.
+
+  The `TicketDetails` message is used by other methods and is documented
+  [here](#ticketdetails).
 
 **Expected errors:**
 
@@ -1613,6 +1679,53 @@ wallet's relevant transactions contained therein.
 
 **Stability**: Unstable: This should probably include the block version.
 
+___
+
+#### `TicketDetails`
+
+The `TicketDetails` message is included in responses to report transactions
+relevant to the wallet.  The message includes details such as which previous
+wallet inputs are spent by this transaction, whether each output is controlled
+by the wallet or not, the total fee (if calculable), and the earlist time the
+transaction was seen.
+
+- `bytes hash`: The hash of the given ticket.
+
+- `bytes spender_hash`: The hash of the spender (if applicable, otherwise empty).
+
+- `int64 ticket_age`: If unspent the blocks since being mined.  Otherwise,
+   the number of blocks from when it was mined to when it was spent.
+
+- `int64 ticket_price`: The value of the first output from the ticket transaction.
+  Due to the way tickets are constructed, we know that this is always the 'price'
+  of any given ticket.
+
+- `int64 ticket_cost`: The total cost of the wallet to purchase the ticket.  Typically,
+  this would just be the ticket fee.
+
+- `int64 spender_return`: The total return from the spender transaction.  If a vote,
+  this number should be positive (PoS vote subsidy - poolfee).  If a revocation, 
+  this would be negative (minus txfee and poolfee). 
+
+- `TicketStatus ticket_status`: The observed status of the given ticket.
+
+  **Nested enum:** `TicketStatus`
+
+  - `LIVE`: A currently live ticket that is waiting to be voted.
+
+  - `IMMATURE`: A ticket that has not yet matured enough to be live.
+
+  - `VOTED`: A ticket that has been voted.
+
+  - `REVOKED`: A ticket that has been revoked.
+
+  - `MISSED`: A ticket that was missed but not yet revoked.
+
+  - `EXPIRED`: A ticket that is expired but not yet revoked.
+
+  - `UNMINED`: A ticket that has yet to be mined into a block.
+
+**Stability**: Unstable:
 ___
 
 #### `TransactionDetails`
