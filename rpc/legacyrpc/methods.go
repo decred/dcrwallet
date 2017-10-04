@@ -1944,11 +1944,11 @@ func purchaseTicket(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		expiry = int32(*cmd.Expiry)
 	}
 
-	useSplitTransaction := false // TODO Get This Value from dcrdjson cmd
+	noSplitTransaction := true //TODO cmd.NoSplitTransaction
 
 	hashes, err := w.PurchaseTickets(0, spendLimit, minConf, ticketAddr,
 		account, numTickets, poolAddr, poolFee, expiry, w.RelayFee(),
-		w.TicketFeeIncrement(), useSplitTransaction)
+		w.TicketFeeIncrement(), noSplitTransaction)
 	if err != nil {
 		return nil, err
 	}
