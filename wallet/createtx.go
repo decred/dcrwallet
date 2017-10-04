@@ -1501,19 +1501,23 @@ func (w *Wallet) purchaseTicketsSimple(req purchaseTicketRequest) ([]*chainhash.
 	// ticket into the stake manager unless we actually own output zero
 	// of it. If this is the case, the chainntfns.go handlers will
 	// automatically insert it.
-	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-		rwBucket := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
-		_, err := w.Manager.Address(rwBucket, ticketAddress)
-		if err != nil {
-			return err
-		}
-
-		err = w.StakeMgr.InsertSStx(rwBucket, txTemp)
+	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		rBucket := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		_, err := w.Manager.Address(rBucket, ticketAddress)
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
+
+	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		rwBucket := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
+		return w.StakeMgr.InsertSStx(rwBucket, txTemp)
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	log.Infof("Successfully sent SStx purchase transaction %v", ticketHash)
 	// Func is expected to return a slice
 	ticketHashSlice := make([]*chainhash.Hash, 0)
