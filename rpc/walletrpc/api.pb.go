@@ -2045,7 +2045,7 @@ type PurchaseTicketsRequest struct {
 	Expiry                uint32  `protobuf:"varint,9,opt,name=expiry" json:"expiry,omitempty"`
 	TxFee                 int64   `protobuf:"varint,10,opt,name=tx_fee,json=txFee" json:"tx_fee,omitempty"`
 	TicketFee             int64   `protobuf:"varint,11,opt,name=ticket_fee,json=ticketFee" json:"ticket_fee,omitempty"`
-	UseSplitTransaction   bool    `protobuf:"varint,12,opt,name=use_split_transaction,json=useSplitTransaction" json:"use_split_transaction,omitempty"`
+	NoSplitTransaction    bool     `protobuf:"varint,12,opt,name=use_split_transaction,json=no_split_transaction" json:"use_split_transaction,omitempty"`
 }
 
 func (m *PurchaseTicketsRequest) Reset()                    { *m = PurchaseTicketsRequest{} }
@@ -2130,9 +2130,8 @@ func (m *PurchaseTicketsRequest) GetTicketFee() int64 {
 	return 0
 }
 
-func (m *PurchaseTicketsRequest) GetUseSplitTransaction() bool {
-	// No need to check for existence as this returns bools zero value which is our default
-	return m.UseSplitTransaction
+func (m *PurchaseTicketsRequest) GetNoSplitTransaction() bool {
+	return m.NoSplitTransaction
 }
 
 type PurchaseTicketsResponse struct {
