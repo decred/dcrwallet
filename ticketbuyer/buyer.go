@@ -18,6 +18,7 @@ import (
 	"github.com/decred/dcrwallet/wallet"
 )
 
+
 var (
 	// zeroUint32 is the zero value for a uint32.
 	zeroUint32 = uint32(0)
