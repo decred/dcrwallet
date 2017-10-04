@@ -967,12 +967,14 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 		return translateError(err)
 	}
 	for i := range gt.Tickets {
-		resp := &pb.GetTicketsResponse{
-			Ticket: marshalTicketDetails(gt.Tickets[i]),
-		}
-		err = server.Send(resp)
-		if err != nil {
-			return err
+		if gt.Tickets[i] != nil {
+			resp := &pb.GetTicketsResponse{
+				Ticket: marshalTicketDetails(gt.Tickets[i]),
+			}
+			err = server.Send(resp)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
