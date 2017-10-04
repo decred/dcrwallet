@@ -235,7 +235,6 @@ func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetai
 			fmt.Printf("Revoke: age %v ticketprice %v cost %v return %v\n", ticketAge, ticketPrice, ticketCost, spenderReturn)
 		}
 	} else {
-
 		if details.Ticket.Height() == int32(-1) {
 			ticketAge = int64(details.Ticket.Height())
 			ticketStatus = TicketStatusUnmined
@@ -252,8 +251,15 @@ func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetai
 			} else if ticketAge >= int64(w.ChainParams().TicketExpiry) {
 				ticketStatus = TicketStatusExpired
 			} else {
-				// final check to see if ticket was missed otherwise it's live
-				//ticketStatus = TicketStatusMissed
+				// final check to see if ticket was missed otherwise it's liveMissed
+				live, err := w.chainClient.ExistsLiveTicket(&details.Ticket.Hash)
+				if err != nil {
+					fmt.Println("Some error occurred!")
+				}
+				if !live {
+					ticketStatus = TicketStatusMissed
+				}
+				//
 			}
 		}
 	}
