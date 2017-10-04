@@ -200,11 +200,11 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 
 func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
 	var ticketStatus = TicketStatusLive
-	ticketAge := int64(0)
+	var ticketAge int64
+	var ticketPrice dcrutil.Amount
 	spenderReturn := dcrutil.Amount(0)
 	spenderHash := chainhash.Hash{}
 	ticketDebits := dcrutil.Amount(0)
-	ticketPrice := dcrutil.Amount(0)
 	if details.Ticket != nil {
 		log.Errorf("Ticket is nil, no ticket summary to create")
 		return nil
