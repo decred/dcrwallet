@@ -101,6 +101,9 @@ service MessageVerificationService {
 message TicketDetails {
 	bytes hash = 1;
 	bytes spender_hash = 2;
+	int64 ticket_age = 3;
+	int64 ticket_cost = 4;
+	int64 spender_return = 6;
 	enum TicketStatus {
 		LIVE = 0;
 		IMMATURE = 1;
@@ -109,7 +112,7 @@ message TicketDetails {
 		MISSED = 4;
 		EXPIRED = 5;
 	}
-	TicketStatus ticket_status = 3;
+	TicketStatus ticket_status = 7;
 }
 
 message TransactionDetails {
