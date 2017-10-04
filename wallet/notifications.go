@@ -204,6 +204,7 @@ func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetai
 	ticketAge := int64(0)
 	ticketPrice := dcrutil.Amount(0)
 	spenderReturn := dcrutil.Amount(0)
+	spenderHash := chainhash.Hash{}
 	ticketDebits := dcrutil.Amount(0)
 	for _, debit := range details.Ticket.Debits {
 		ticketDebits += debit.Amount
@@ -214,6 +215,7 @@ func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetai
 	}
 	ticketCost := ticketCredits - ticketDebits
 	if details.Spender != nil {
+		spenderHash = details.Spender.Hash
 		spenderDebits := dcrutil.Amount(0)
 		for _, debit := range details.Spender.Debits {
 			spenderDebits += debit.Amount
@@ -260,7 +262,7 @@ func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetai
 		Status:        ticketStatus,
 		Age:           ticketAge,
 		Cost:          int64(ticketCost),
-		SpenderHash:   &details.Spender.Hash,
+		SpenderHash:   &spenderHash,
 		SpenderReturn: int64(spenderReturn),
 	}
 }
