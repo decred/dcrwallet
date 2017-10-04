@@ -496,7 +496,7 @@ type TicketStatus int8
 const (
 	// TicketStatusLive any currently live ticket.
 	TicketStatusLive TicketStatus = iota
-	// TicketStatusLive any currently live ticket.
+	// TicketStatusUnmined any not yet mined ticket.
 	TicketStatusUnmined
 	// TicketStatusImmature any so to be live ticket.
 	TicketStatusImmature
