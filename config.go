@@ -64,7 +64,7 @@ const (
 	defaultPriceTarget                              = 0
 	defaultBalanceToMaintainAbsolute                = 0
 	defaultBalanceToMaintainRelative                = 0.3
-	defaultUseSplitTransaction                      = false
+	defaultNoSplitTransaction                       = true
 
 	walletDbName = "wallet.db"
 )
@@ -173,7 +173,7 @@ type ticketBuyerOptions struct {
 	BalanceToMaintainRelative float64             `long:"balancetomaintainrelative" description:"Proportion of funds to leave in wallet when stake mining"`
 	NoSpreadTicketPurchases   bool                `long:"nospreadticketpurchases" description:"Do not spread ticket purchases evenly throughout the window"`
 	DontWaitForTickets        bool                `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
-	UseSplitTransaction       bool                `long:"usesplittransaction" description:"Enable the use of split transactions in ticket purchase"`
+	NoSplitTransaction       bool                 `long:"nosplittransaction" description:"Do not use split transaction when purchasing tickets"`
 
 	// Deprecated options
 	MaxPriceScale         float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
@@ -373,7 +373,7 @@ func loadConfig() (*config, []string, error) {
 			PriceTarget:               cfgutil.NewAmountFlag(defaultPriceTarget),
 			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
 			BalanceToMaintainRelative: defaultBalanceToMaintainRelative,
-			UseSplitTransaction:       defaultUseSplitTransaction,
+			NoSplitTransaction:       defaultNoSplitTransaction,
 		},
 	}
 
@@ -915,7 +915,7 @@ func loadConfig() (*config, []string, error) {
 		NoSpreadTicketPurchases:   cfg.TBOpts.NoSpreadTicketPurchases,
 		TicketAddress:             cfg.TicketAddress.Address,
 		TxFee:                     int64(cfg.RelayFee.Amount),
-		UseSplitTransaction:       cfg.TBOpts.UseSplitTransaction,
+		NoSplitTransaction:       cfg.TBOpts.NoSplitTransaction,
 	}
 
 	// Make list of old versions of testnet directories.
