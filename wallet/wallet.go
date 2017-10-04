@@ -2167,7 +2167,7 @@ func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (*TransactionSummary
 
 // GetTicketsResult response struct for gettickets rpc request
 type GetTicketsResult struct {
-	Tickets []TicketSummary
+	Tickets []*TicketSummary
 }
 
 // GetTickets implements the rpc request command for gettickets

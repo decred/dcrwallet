@@ -968,7 +968,7 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 	}
 	for i := range gt.Tickets {
 		resp := &pb.GetTicketsResponse{
-			Ticket: marshalTicketDetails(&gt.Tickets[i]),
+			Ticket: marshalTicketDetails(gt.Tickets[i]),
 		}
 		err = server.Send(resp)
 		if err != nil {
@@ -1374,6 +1374,10 @@ func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.TicketDetails {
 		ticketStatus = pb.TicketDetails_VOTED
 	case wallet.TicketStatusRevoked:
 		ticketStatus = pb.TicketDetails_REVOKED
+	case wallet.TicketStatusUnmined:
+		ticketStatus = pb.TicketDetails_UNMINED
+	case wallet.TicketStatusMissed:
+		ticketStatus = pb.TicketDetails_MISSED
 	}
 	return &pb.TicketDetails{
 		Hash:          ticket.Hash[:],

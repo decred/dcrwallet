@@ -102,7 +102,8 @@ message TicketDetails {
 	bytes hash = 1;
 	bytes spender_hash = 2;
 	int64 ticket_age = 3;
-	int64 ticket_cost = 4;
+	int64 ticket_price = 4;
+	int64 ticket_cost = 5;
 	int64 spender_return = 6;
 	enum TicketStatus {
 		LIVE = 0;
@@ -111,6 +112,7 @@ message TicketDetails {
 		REVOKED = 3;
 		MISSED = 4;
 		EXPIRED = 5;
+		UNMINED = 6;
 	}
 	TicketStatus ticket_status = 7;
 }

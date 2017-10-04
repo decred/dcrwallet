@@ -8,7 +8,6 @@ package wallet
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/decred/dcrd/blockchain"
@@ -199,13 +198,18 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 	}
 }
 
-func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) TicketSummary {
+func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
 	var ticketStatus = TicketStatusLive
 	ticketAge := int64(0)
-	ticketPrice := dcrutil.Amount(0)
 	spenderReturn := dcrutil.Amount(0)
 	spenderHash := chainhash.Hash{}
 	ticketDebits := dcrutil.Amount(0)
+	ticketPrice := dcrutil.Amount(0)
+	if details.Ticket != nil {
+		log.Errorf("Ticket is nil, no ticket summary to create")
+		return nil
+	}
+	ticketPrice = dcrutil.Amount(details.Ticket.TxRecord.MsgTx.TxOut[0].Value)
 	for _, debit := range details.Ticket.Debits {
 		ticketDebits += debit.Amount
 	}
@@ -226,13 +230,10 @@ func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetai
 		}
 		spenderReturn = spenderCredits - spenderDebits
 		ticketAge = int64(details.Spender.Height() - details.Ticket.Height())
-		ticketPrice = dcrutil.Amount(details.Ticket.TxRecord.MsgTx.TxOut[0].Value)
 		if details.Spender.TxType == stake.TxTypeSSGen {
 			ticketStatus = TicketStatusVoted
-			fmt.Printf("Vote: age %v ticketprice %v cost %v return %v\n", ticketAge, ticketPrice, ticketCost, spenderReturn)
 		} else if details.Spender.TxType == stake.TxTypeSSRtx {
 			ticketStatus = TicketStatusRevoked
-			fmt.Printf("Revoke: age %v ticketprice %v cost %v return %v\n", ticketAge, ticketPrice, ticketCost, spenderReturn)
 		}
 	} else {
 		if details.Ticket.Height() == int32(-1) {
@@ -254,7 +255,8 @@ func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetai
 				// final check to see if ticket was missed otherwise it's liveMissed
 				live, err := w.chainClient.ExistsLiveTicket(&details.Ticket.Hash)
 				if err != nil {
-					fmt.Println("Some error occurred!")
+					log.Errorf("Unable to check if ticket was live for ticket status: %v", &details.Ticket.Hash)
+					return nil
 				}
 				if !live {
 					ticketStatus = TicketStatusMissed
@@ -263,10 +265,11 @@ func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetai
 			}
 		}
 	}
-	return TicketSummary{
+	return &TicketSummary{
 		Hash:          &details.Ticket.Hash,
 		Status:        ticketStatus,
 		Age:           ticketAge,
+		Price:         int64(ticketPrice),
 		Cost:          int64(ticketCost),
 		SpenderHash:   &spenderHash,
 		SpenderReturn: int64(spenderReturn),
@@ -481,6 +484,7 @@ type TicketSummary struct {
 	Hash          *chainhash.Hash
 	SpenderHash   *chainhash.Hash
 	Age           int64
+	Price         int64
 	Cost          int64
 	SpenderReturn int64
 	Status        TicketStatus
