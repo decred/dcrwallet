@@ -1529,10 +1529,10 @@ func (w *Wallet) purchaseTicketsSimple(req purchaseTicketRequest) ([]*chainhash.
 // purchaseTickets calls the purchaseTicketsSplit or purchaseTicketsSimple functons
 // depending on the UseSplitTransaction config variable
 func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, error) {
-	if req.useSplitTransaction {
-		return w.purchaseTicketsSplit(req)
+	if req.noSplitTransaction {
+		return w.purchaseTicketsSimple(req)
 	}
-	return w.purchaseTicketsSimple(req)
+	return w.purchaseTicketsSplit(req)
 }
 
 // txToSStx creates a raw SStx transaction sending the amounts for each
