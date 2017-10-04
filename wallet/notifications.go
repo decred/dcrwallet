@@ -201,34 +201,67 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 
 func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) TicketSummary {
 	var ticketStatus = TicketStatusLive
+	ticketAge := int64(0)
+	ticketPrice := dcrutil.Amount(0)
+	spenderReturn := dcrutil.Amount(0)
+	ticketDebits := dcrutil.Amount(0)
+	for _, debit := range details.Ticket.Debits {
+		ticketDebits += debit.Amount
+	}
+	ticketCredits := dcrutil.Amount(0)
+	for _, credit := range details.Ticket.Credits {
+		ticketCredits += credit.Amount
+	}
+	ticketCost := ticketCredits - ticketDebits
 	if details.Spender != nil {
-		ticketPrice := dcrutil.Amount(details.Ticket.TxRecord.MsgTx.TxOut[0].Value)
-		reward := dcrutil.Amount(0)
-		for _, credit := range details.Spender.Credits {
-			reward += credit.Amount
+		spenderDebits := dcrutil.Amount(0)
+		for _, debit := range details.Spender.Debits {
+			spenderDebits += debit.Amount
 		}
-		roi := float32(reward-ticketPrice) / float32(ticketPrice)
+		spenderCredits := dcrutil.Amount(0)
+		for _, credit := range details.Spender.Credits {
+			spenderCredits += credit.Amount
+		}
+		spenderReturn = spenderCredits - spenderDebits
+		ticketAge = int64(details.Spender.Height() - details.Ticket.Height())
+		ticketPrice = dcrutil.Amount(details.Ticket.TxRecord.MsgTx.TxOut[0].Value)
 		if details.Spender.TxType == stake.TxTypeSSGen {
 			ticketStatus = TicketStatusVoted
-			fmt.Printf("Vote: age %v ticketprice %v reward %v roi %f\n", details.Spender.Height()-details.Ticket.Height(), ticketPrice, reward, roi)
+			fmt.Printf("Vote: age %v ticketprice %v cost %v return %v\n", ticketAge, ticketPrice, ticketCost, spenderReturn)
 		} else if details.Spender.TxType == stake.TxTypeSSRtx {
 			ticketStatus = TicketStatusRevoked
-			fmt.Printf("Revoke: age %v ticketprice %v return %v roi %f\n", details.Spender.Height()-details.Ticket.Height(), ticketPrice, reward, roi)
+			fmt.Printf("Revoke: age %v ticketprice %v cost %v return %v\n", ticketAge, ticketPrice, ticketCost, spenderReturn)
 		}
 	} else {
+
 		if details.Ticket.Height() == int32(-1) {
-			return TicketSummary{
-				Hash:   &details.Ticket.Hash,
-				Status: TicketStatusUnmined,
+			ticketAge = int64(details.Ticket.Height())
+			ticketStatus = TicketStatusUnmined
+		} else {
+			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+			_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+			ticketAge = int64(tipHeight - details.Ticket.Height())
+
+			// Check if ticket age is not yet mature
+			if ticketAge <= int64(w.ChainParams().TicketMaturity) {
+				ticketStatus = TicketStatusImmature
+				// Check if ticket age is over TicketExpiry limit and therefore expired
+			} else if ticketAge >= int64(w.ChainParams().TicketExpiry) {
+				ticketStatus = TicketStatusExpired
+			} else {
+				// final check to see if ticket was missed otherwise it's live
+				//ticketStatus = TicketStatusMissed
 			}
 		}
-		ticketStatus = TicketStatusExpired
-		ticketStatus = TicketStatusMissed
-		ticketStatus = TicketStatusImmature
 	}
 	return TicketSummary{
-		Hash:   &details.Ticket.Hash,
-		Status: ticketStatus,
+		Hash:          &details.Ticket.Hash,
+		Status:        ticketStatus,
+		Age:           ticketAge,
+		Cost:          int64(ticketCost),
+		SpenderHash:   &details.Spender.Hash,
+		SpenderReturn: int64(spenderReturn),
 	}
 }
 
@@ -437,9 +470,12 @@ type Block struct {
 
 // TicketSummary contains the properties to describe a ticket's current status
 type TicketSummary struct {
-	Hash        *chainhash.Hash
-	SpenderHash *chainhash.Hash
-	Status      TicketStatus
+	Hash          *chainhash.Hash
+	SpenderHash   *chainhash.Hash
+	Age           int64
+	Cost          int64
+	SpenderReturn int64
+	Status        TicketStatus
 }
 
 // TicketStatus describes the current status a ticket can be observed to be.

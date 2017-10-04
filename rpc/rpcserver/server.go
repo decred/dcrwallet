@@ -1376,9 +1376,12 @@ func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.TicketDetails {
 		ticketStatus = pb.TicketDetails_REVOKED
 	}
 	return &pb.TicketDetails{
-		Hash:         ticket.Hash[:],
-		SpenderHash:  ticket.SpenderHash[:],
-		TicketStatus: ticketStatus,
+		Hash:          ticket.Hash[:],
+		SpenderHash:   ticket.SpenderHash[:],
+		TicketAge:     ticket.Age,
+		TicketCost:    ticket.Cost,
+		SpenderReturn: ticket.SpenderReturn,
+		TicketStatus:  ticketStatus,
 	}
 }
 
