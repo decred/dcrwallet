@@ -1385,6 +1385,7 @@ func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.TicketDetails {
 		Hash:          ticket.Hash[:],
 		SpenderHash:   ticket.SpenderHash[:],
 		TicketAge:     ticket.Age,
+		TicketPrice:   ticket.Price,
 		TicketCost:    ticket.Cost,
 		SpenderReturn: ticket.SpenderReturn,
 		TicketStatus:  ticketStatus,
