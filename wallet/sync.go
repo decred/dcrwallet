@@ -14,6 +14,7 @@ import (
 	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
+	"golang.org/x/sync/errgroup"
 )
 
 func (w *Wallet) findLastUsedAccount(client *dcrrpcclient.Client, coinTypeXpriv *hdkeychain.ExtendedKey) (uint32, error) {
@@ -250,17 +251,11 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *dcrrpcclient.Client, disco
 
 	// Rescan addresses for the both the internal and external
 	// branches of the account.
-	errs := make(chan error, lastAcct+1)
-	var wg sync.WaitGroup
-	wg.Add(int(lastAcct + 1))
+	var g errgroup.Group
 	for acct := uint32(0); acct <= lastAcct; acct++ {
-		// Address usage discovery for each account can be performed
-		// concurrently.
-		acct := acct
-		go func() {
-			defer wg.Done()
-			// Do this for both external (0) and internal (1) branches.
-			for branch := uint32(0); branch < 2; branch++ {
+		for branch := uint32(0); branch < 2; branch++ {
+			acct, branch := acct, branch
+			g.Go(func() error {
 				var branchXpub *hdkeychain.ExtendedKey
 				err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 					var err error
@@ -268,20 +263,18 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *dcrrpcclient.Client, disco
 					return err
 				})
 				if err != nil {
-					errs <- err
-					return
+					return err
 				}
 
 				lastUsed, err := w.findLastUsedAddress(chainClient, branchXpub)
 				if err != nil {
-					errs <- err
-					return
+					return err
 				}
 
 				// Save discovered addresses for the account plus additional
 				// addresses that may be used by other wallets sharing the same
 				// seed.
-				err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+				return walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 					ns := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 
 					// SyncAccountToAddrIndex never removes derived addresses
@@ -333,29 +326,14 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *dcrrpcclient.Client, disco
 						acct, branch, lastReturned+1)
 					return nil
 				})
-				if err != nil {
-					errs <- err
-					return
-				}
-			}
-		}()
+			})
+		}
 	}
-	wg.Wait()
-	select {
-	case err := <-errs:
-		// Drain remaining
-		go func() {
-			for {
-				select {
-				case <-errs:
-				default:
-					return
-				}
-			}
-		}()
+	err = g.Wait()
+	if err != nil {
 		return err
-	default:
-		log.Infof("Finished address discovery")
-		return nil
 	}
+
+	log.Infof("Finished address discovery")
+	return nil
 }
