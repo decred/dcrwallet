@@ -13,10 +13,6 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/decred/bitset"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/decred/dcrd"
 
 [[constraint]]
@@ -34,6 +30,10 @@
 [[constraint]]
   name = "github.com/jessevdk/go-flags"
   version = "1.1.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/jrick/bitset"
 
 [[constraint]]
   branch = "master"

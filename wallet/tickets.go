@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"time"
 
-	"github.com/decred/bitset"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
@@ -18,6 +17,7 @@ import (
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
+	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
 

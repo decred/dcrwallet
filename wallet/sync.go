@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/decred/bitset"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
+	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
 
