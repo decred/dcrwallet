@@ -45,12 +45,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/decred/bitset"
-  packages = ["."]
-  revision = "484b833245d5f9046e2893a6bd2e54b1df3a53a4"
-
-[[projects]]
-  branch = "master"
   name = "github.com/decred/dcrd"
   packages = ["blockchain","blockchain/indexers","blockchain/internal/dbnamespace","blockchain/internal/progresslog","blockchain/stake","blockchain/stake/internal/dbnamespace","blockchain/stake/internal/ticketdb","blockchain/stake/internal/tickettreap","chaincfg","chaincfg/chainec","chaincfg/chainhash","database","dcrec/edwards","dcrec/secp256k1","dcrec/secp256k1/schnorr","dcrjson","mempool","mining","txscript","wire"]
   revision = "f11fac8134626768ef7b1f278fd4331f004bfb49"
@@ -78,6 +72,12 @@
   packages = ["."]
   revision = "96dc06278ce32a0e9d957d590bb987c81ee66407"
   version = "v1.3.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/jrick/bitset"
+  packages = ["."]
+  revision = "06eae37cdf93c699c0503c23f998167ce841974c"
 
 [[projects]]
   branch = "master"
@@ -142,6 +142,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "992a0cc42a59c024030ee407abe8a2be1ffd2c346904bccd42307822b8d7fd19"
+  inputs-digest = "8910a14c21eaea713daeddc32fbfbd75f1372b147ed04842c22460bf86fa8300"
   solver-name = "gps-cdcl"
   solver-version = 1

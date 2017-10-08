@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/bitset"
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
@@ -36,6 +35,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
+	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
 
