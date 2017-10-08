@@ -249,17 +249,6 @@ func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *BlockHeader
 	return putRawBlockRecord(ns, blockKey, blockVal)
 }
 
-// GetBlockHash fetches the block hash for the block at the given height,
-// and returns an error if it's missing.
-func (s *Store) GetBlockHash(ns walletdb.ReadBucket, height int32) (chainhash.Hash, error) {
-	br, err := fetchBlockRecord(ns, height)
-	if err != nil {
-		return chainhash.Hash{}, err
-	}
-
-	return br.Block.Hash, nil
-}
-
 // log2 calculates an integer approximation of log2(x).  This is used to
 // approximate the cap to use when allocating memory for the block locators.
 func log2(x int) int {

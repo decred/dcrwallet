@@ -36,6 +36,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -81,16 +82,15 @@ type Wallet struct {
 	StakeMgr *udb.StakeStore
 
 	// Handlers for stake system.
-	stakeSettingsLock       sync.Mutex
-	voteBits                stake.VoteBits
-	ticketPurchasingEnabled bool
-	votingEnabled           bool
-	balanceToMaintain       dcrutil.Amount
-	poolAddress             dcrutil.Address
-	poolFees                float64
-	stakePoolEnabled        bool
-	stakePoolColdAddrs      map[string]struct{}
-	subsidyCache            *blockchain.SubsidyCache
+	stakeSettingsLock  sync.Mutex
+	voteBits           stake.VoteBits
+	votingEnabled      bool
+	balanceToMaintain  dcrutil.Amount
+	poolAddress        dcrutil.Address
+	poolFees           float64
+	stakePoolEnabled   bool
+	stakePoolColdAddrs map[string]struct{}
+	subsidyCache       *blockchain.SubsidyCache
 
 	// Start up flags/settings
 	initiallyUnlocked bool
@@ -275,14 +275,6 @@ func (w *Wallet) SetBalanceToMaintain(balance dcrutil.Amount) {
 	w.stakeSettingsLock.Unlock()
 }
 
-// TicketPurchasingEnabled returns whether the wallet is configured to purchase tickets.
-func (w *Wallet) TicketPurchasingEnabled() bool {
-	w.stakeSettingsLock.Lock()
-	enabled := w.ticketPurchasingEnabled
-	w.stakeSettingsLock.Unlock()
-	return enabled
-}
-
 // VotingEnabled returns whether the wallet is configured to vote tickets.
 func (w *Wallet) VotingEnabled() bool {
 	w.stakeSettingsLock.Lock()
@@ -465,14 +457,6 @@ func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) (voteBits uint16, err
 	return voteBits, nil
 }
 
-// SetTicketPurchasingEnabled is used to enable or disable ticket purchasing in the
-// wallet.
-func (w *Wallet) SetTicketPurchasingEnabled(flag bool) {
-	w.stakeSettingsLock.Lock()
-	w.ticketPurchasingEnabled = flag
-	w.stakeSettingsLock.Unlock()
-}
-
 // TicketAddress gets the ticket address for the wallet to give the ticket
 // voting rights to.
 func (w *Wallet) TicketAddress() dcrutil.Address {
@@ -546,8 +530,6 @@ func (w *Wallet) SynchronizeRPC(chainClient *chain.RPCClient) {
 	w.chainClient = chainClient
 	w.chainClientLock.Unlock()
 
-	w.StakeMgr.SetChainSvr(chainClient)
-
 	// TODO: It would be preferable to either run these goroutines
 	// separately from the wallet (use wallet mutator functions to
 	// make changes from the RPC client) and not have to stop and
@@ -570,18 +552,9 @@ func (w *Wallet) SynchronizeRPC(chainClient *chain.RPCClient) {
 			"and missed tickets. Error: ", err.Error())
 	}
 
-	ticketPurchasingEnabled := w.TicketPurchasingEnabled()
-	if ticketPurchasingEnabled {
-		vb := w.VoteBits()
-		log.Infof("Wallet ticket purchasing enabled: vote bits = %#04x, "+
-			"extended vote bits = %x", vb.Bits, vb.ExtendedBits)
-	}
 	if w.votingEnabled {
 		log.Infof("Wallet voting enabled")
-	}
-	if ticketPurchasingEnabled || w.votingEnabled {
-		log.Infof("Please ensure your wallet remains unlocked so it may " +
-			"create stake transactions")
+		log.Infof("Please ensure your wallet remains unlocked so it may vote")
 	}
 }
 
@@ -589,14 +562,14 @@ func (w *Wallet) SynchronizeRPC(chainClient *chain.RPCClient) {
 // consensus RPC server is set.  This function and all functions that call it
 // are unstable and will need to be moved when the syncing code is moved out of
 // the wallet.
-func (w *Wallet) requireChainClient() (*chain.RPCClient, error) {
+func (w *Wallet) requireChainClient() (*dcrrpcclient.Client, error) {
 	w.chainClientLock.Lock()
 	chainClient := w.chainClient
 	w.chainClientLock.Unlock()
 	if chainClient == nil {
 		return nil, errors.New("blockchain RPC is inactive")
 	}
-	return chainClient, nil
+	return chainClient.Client, nil
 }
 
 // ChainClient returns the optional consensus RPC client associated with the
@@ -604,11 +577,14 @@ func (w *Wallet) requireChainClient() (*chain.RPCClient, error) {
 //
 // This function is unstable and will be removed once sync logic is moved out of
 // the wallet.
-func (w *Wallet) ChainClient() *chain.RPCClient {
+func (w *Wallet) ChainClient() *dcrrpcclient.Client {
 	w.chainClientLock.Lock()
 	chainClient := w.chainClient
 	w.chainClientLock.Unlock()
-	return chainClient
+	if chainClient == nil {
+		return nil
+	}
+	return chainClient.Client
 }
 
 // RelayFee returns the current minimum relay fee (per kB of serialized
@@ -723,43 +699,30 @@ func (w *Wallet) MainChainTip() (hash chainhash.Hash, height int32) {
 // loadActiveAddrs loads the consensus RPC server with active addresses for
 // transaction notifications.  For logging purposes, it returns the total number
 // of addresses loaded.
-func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *chain.RPCClient) (uint64, error) {
-	pool := sync.Pool{New: func() interface{} { return make([]dcrutil.Address, 0, 256) }}
-	recycleAddrs := func(addrs []dcrutil.Address) { pool.Put(addrs[:0]) }
-	getAddrs := func() []dcrutil.Address { return pool.Get().([]dcrutil.Address) }
-
+func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *dcrrpcclient.Client) (uint64, error) {
 	// loadBranchAddrs loads addresses for the branch with the child range [0,n].
 	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, n uint32, errs chan<- error) {
-		jobs := n/256 + 1
-		jobErrs := make(chan error, jobs)
-		for child := uint32(0); child <= n; child += 256 {
-			go func(child uint32) {
-				addrs := getAddrs()
-				stop := minUint32(n+1, child+256)
+		const step = 256
+		var g errgroup.Group
+		for child := uint32(0); child <= n; child += step {
+			child := child
+			g.Go(func() error {
+				addrs := make([]dcrutil.Address, 0, step)
+				stop := minUint32(n+1, child+step)
 				for ; child < stop; child++ {
 					addr, err := deriveChildAddress(branchKey, child, w.chainParams)
 					if err == hdkeychain.ErrInvalidChild {
 						continue
 					}
 					if err != nil {
-						jobErrs <- err
-						return
+						return err
 					}
 					addrs = append(addrs, addr)
 				}
-				future := chainClient.LoadTxFilterAsync(false, addrs, nil)
-				recycleAddrs(addrs)
-				jobErrs <- future.Receive()
-			}(child)
+				return chainClient.LoadTxFilter(false, addrs, nil)
+			})
 		}
-		for i := 0; i < cap(jobErrs); i++ {
-			err := <-jobErrs
-			if err != nil {
-				errs <- err
-				return
-			}
-		}
-		errs <- nil
+		errs <- g.Wait()
 	}
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
@@ -824,7 +787,7 @@ func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, chainClient *chain.RPCCli
 // LoadActiveDataFilters loads the consensus RPC server's websocket client
 // transaction filter with all active addresses and unspent outpoints for this
 // wallet.
-func (w *Wallet) LoadActiveDataFilters(chainClient *chain.RPCClient) error {
+func (w *Wallet) LoadActiveDataFilters(chainClient *dcrrpcclient.Client) error {
 	log.Infof("Loading active addresses and unspent outputs...")
 
 	var addrCount, utxoCount uint64
@@ -877,7 +840,7 @@ func createHeaderData(headers []string) ([]udb.BlockHeaderData, error) {
 	return data, nil
 }
 
-func (w *Wallet) fetchHeaders(chainClient *chain.RPCClient) (int, error) {
+func (w *Wallet) fetchHeaders(chainClient *dcrrpcclient.Client) (int, error) {
 	fetchedHeaders := 0
 
 	var blockLocators []chainhash.Hash
@@ -931,7 +894,7 @@ func (w *Wallet) fetchHeaders(chainClient *chain.RPCClient) (int, error) {
 // returned, along with the hash of the first previously-unseen block hash now
 // in the main chain.  This is the block a rescan should begin at (inclusive),
 // and is only relevant when the number of fetched headers is not zero.
-func (w *Wallet) FetchHeaders(chainClient *chain.RPCClient) (count int, rescanFrom chainhash.Hash, rescanFromHeight int32,
+func (w *Wallet) FetchHeaders(chainClient *dcrrpcclient.Client) (count int, rescanFrom chainhash.Hash, rescanFromHeight int32,
 	mainChainTipBlockHash chainhash.Hash, mainChainTipBlockHeight int32, err error) {
 
 	// Unfortunately, getheaders is broken and needs a workaround when wallet's
@@ -1038,7 +1001,7 @@ func (w *Wallet) FetchHeaders(chainClient *chain.RPCClient) (count int, rescanFr
 // syncWithChain brings the wallet up to date with the current chain server
 // connection.  It creates a rescan request and blocks until the rescan has
 // finished.
-func (w *Wallet) syncWithChain(chainClient *chain.RPCClient) error {
+func (w *Wallet) syncWithChain(chainClient *dcrrpcclient.Client) error {
 	// Request notifications for connected and disconnected blocks.
 	err := chainClient.NotifyBlocks()
 	if err != nil {
@@ -2374,7 +2337,8 @@ func (w *Wallet) BlockInfo(blockID *BlockIdentifier) (*BlockInfo, error) {
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 		blockHash := blockID.hash
 		if blockHash == nil {
-			hash, err := w.TxStore.GetBlockHash(txmgrNs, blockID.height)
+			hash, err := w.TxStore.GetMainChainBlockHashForHeight(txmgrNs,
+				blockID.height)
 			if err != nil {
 				return err
 			}
@@ -2441,47 +2405,41 @@ type GetTransactionsResult struct {
 func (w *Wallet) GetTransactions(startBlock, endBlock *BlockIdentifier, cancel <-chan struct{}) (*GetTransactionsResult, error) {
 	var start, end int32 = 0, -1
 
-	w.chainClientLock.Lock()
-	chainClient := w.chainClient
-	w.chainClientLock.Unlock()
-
-	// TODO: Fetching block heights by their hashes is inherently racy
-	// because not all block headers are saved but when they are for SPV the
-	// db can be queried directly without this.
-	var startResp, endResp dcrrpcclient.FutureGetBlockVerboseResult
 	if startBlock != nil {
 		if startBlock.hash == nil {
 			start = startBlock.height
 		} else {
-			if chainClient == nil {
-				return nil, errors.New("no chain server client")
+			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+				meta, err := w.TxStore.GetBlockMetaForHash(ns, startBlock.hash)
+				if err != nil {
+					return err
+				}
+				start = meta.Height
+				return nil
+			})
+			if err != nil {
+				return nil, err
 			}
-			startResp = chainClient.GetBlockVerboseAsync(startBlock.hash, false)
 		}
 	}
 	if endBlock != nil {
 		if endBlock.hash == nil {
 			end = endBlock.height
 		} else {
-			if chainClient == nil {
-				return nil, errors.New("no chain server client")
+			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+				meta, err := w.TxStore.GetBlockMetaForHash(ns, endBlock.hash)
+				if err != nil {
+					return err
+				}
+				end = meta.Height
+				return nil
+			})
+			if err != nil {
+				return nil, err
 			}
-			endResp = chainClient.GetBlockVerboseAsync(endBlock.hash, false)
 		}
-	}
-	if startResp != nil {
-		resp, err := startResp.Receive()
-		if err != nil {
-			return nil, err
-		}
-		start = int32(resp.Height)
-	}
-	if endResp != nil {
-		resp, err := endResp.Receive()
-		if err != nil {
-			return nil, err
-		}
-		end = int32(resp.Height)
 	}
 
 	var res GetTransactionsResult
@@ -3235,7 +3193,7 @@ func (w *Wallet) LockedOutpoints() []dcrjson.TransactionInput {
 // resendUnminedTxs iterates through all transactions that spend from wallet
 // credits that are not known to have been mined into a block, and attempts
 // to send each to the chain server for relay.
-func (w *Wallet) resendUnminedTxs(chainClient *chain.RPCClient) {
+func (w *Wallet) resendUnminedTxs(chainClient *dcrrpcclient.Client) {
 	var txs []*wire.MsgTx
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
@@ -3608,7 +3566,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType,
 			// Either it was already signed or we just signed it.
 			// Find out if it is completely satisfied or still needs more.
 			vm, err := txscript.NewEngine(prevOutScript, tx, i,
-				txscript.StandardVerifyFlags, txscript.DefaultScriptVersion, nil)
+				sanityVerifyFlags, txscript.DefaultScriptVersion, nil)
 			if err == nil {
 				err = vm.Execute()
 			}
@@ -3719,7 +3677,7 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 // PublishTransaction saves (if relevant) and sends the transaction to the
 // consensus RPC server so it can be propigated to other nodes and eventually
 // mined.  If the send fails, the transaction is not added to the wallet.
-func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, client *chain.RPCClient) (*chainhash.Hash, error) {
+func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, client *dcrrpcclient.Client) (*chainhash.Hash, error) {
 	var relevant bool
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		relevant = w.isRelevantTx(dbtx, tx)

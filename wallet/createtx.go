@@ -7,6 +7,7 @@ package wallet
 
 import (
 	"fmt"
+	"github.com/decred/dcrrpcclient"
 	"time"
 	"errors"
 	"encoding/binary"
@@ -18,11 +19,11 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/mempool"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/wallet/internal/txsizes"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
@@ -97,6 +98,10 @@ const (
 	// version + amount + OP_SSTXCHANGE OP_DUP OP_HASH160 OP_DATA_20
 	//	OP_EQUALVERIFY OP_CHECKSIG
 	sstxChangeOutputEstimate = 2 + 8 + 1 + 1 + 1 + 1 + 20 + 1 + 1
+	// sanityVerifyFlags are the flags used to enable and disable features of
+	// the txscript engine used for sanity checking of transactions signed by
+	// the wallet.
+	sanityVerifyFlags = mempool.BaseStandardVerifyFlags
 )
 
 var (
@@ -409,8 +414,8 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 // Decred: This func also sends the transaction, and if successful, inserts it
 // into the database, rather than delegating this work to the caller as
 // btcwallet does.
-func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minconf int32, chainClient *chain.RPCClient,
-	randomizeChangeIdx bool, txFee dcrutil.Amount) (*txauthor.AuthoredTx, error) {
+func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minconf int32,
+	chainClient *dcrrpcclient.Client, randomizeChangeIdx bool, txFee dcrutil.Amount) (*txauthor.AuthoredTx, error) {
 
 	var atx *txauthor.AuthoredTx
 	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
@@ -680,7 +685,7 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 func validateMsgTx(tx *wire.MsgTx, prevScripts [][]byte) error {
 	for i, prevScript := range prevScripts {
 		vm, err := txscript.NewEngine(prevScript, tx, i,
-			txscript.StandardVerifyFlags, txscript.DefaultScriptVersion, nil)
+			sanityVerifyFlags, txscript.DefaultScriptVersion, nil)
 		if err != nil {
 			return fmt.Errorf("cannot create script engine: %s", err)
 		}

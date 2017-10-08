@@ -273,7 +273,7 @@ func (s *walletServer) checkReady() bool {
 
 // requireChainClient checks whether the wallet has been associated with the
 // consensus server RPC client, returning a gRPC error when it is not.
-func (s *walletServer) requireChainClient() (*chain.RPCClient, error) {
+func (s *walletServer) requireChainClient() (*dcrrpcclient.Client, error) {
 	chainClient := s.wallet.ChainClient()
 	if chainClient == nil {
 		return nil, status.Errorf(codes.FailedPrecondition,
@@ -639,7 +639,7 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 		return nil, err
 	}
 
-	si, err := s.wallet.StakeInfo(chainClient.Client)
+	si, err := s.wallet.StakeInfo(chainClient)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition,
 			"Failed to query stake info: %s", err.Error())
@@ -1569,7 +1569,7 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 		PoolAddress:               poolAddress,
 		PoolFees:                  poolFees,
 		NoSpreadTicketPurchases:   t.ticketbuyerCfg.NoSpreadTicketPurchases,
-		TicketAddress:             votingAddress,
+		VotingAddress:             votingAddress,
 		TxFee:                     t.ticketbuyerCfg.TxFee,
 	}
 	err = t.loader.StartTicketPurchase(req.Passphrase, config)
@@ -1743,7 +1743,7 @@ func (s *loaderServer) DiscoverAddresses(ctx context.Context, req *pb.DiscoverAd
 		}
 	}
 
-	err := wallet.DiscoverActiveAddresses(chainClient, req.DiscoverAccounts)
+	err := wallet.DiscoverActiveAddresses(chainClient.Client, req.DiscoverAccounts)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1792,7 +1792,7 @@ func (s *loaderServer) FetchHeaders(ctx context.Context, req *pb.FetchHeadersReq
 	}
 
 	fetchedHeaderCount, rescanFrom, rescanFromHeight,
-		mainChainTipBlockHash, mainChainTipBlockHeight, err := wallet.FetchHeaders(chainClient)
+		mainChainTipBlockHash, mainChainTipBlockHeight, err := wallet.FetchHeaders(chainClient.Client)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1872,8 +1872,8 @@ func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.Ticke
 		return nil, translateError(err)
 	}
 	votingAddress := ""
-	if config.TicketAddress != nil {
-		votingAddress = config.TicketAddress.String()
+	if config.VotingAddress != nil {
+		votingAddress = config.VotingAddress.String()
 	}
 	poolAddress := ""
 	if config.PoolAddress != nil {
@@ -1999,11 +1999,11 @@ func (t *ticketbuyerServer) SetVotingAddress(ctx context.Context, req *pb.SetVot
 	if !ok {
 		return nil, status.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
 	}
-	ticketAddress, err := decodeAddress(req.VotingAddress, w.ChainParams())
+	votingAddress, err := decodeAddress(req.VotingAddress, w.ChainParams())
 	if err != nil {
 		return nil, err
 	}
-	pm.Purchaser().SetTicketAddress(ticketAddress)
+	pm.Purchaser().SetVotingAddress(votingAddress)
 	return &pb.SetVotingAddressResponse{}, nil
 }
 

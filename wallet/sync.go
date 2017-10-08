@@ -10,13 +10,14 @@ import (
 	"sync"
 
 	"github.com/decred/bitset"
+	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil/hdkeychain"
-	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
+	"golang.org/x/sync/errgroup"
 )
 
-func (w *Wallet) findLastUsedAccount(client *chain.RPCClient, coinTypeXpriv *hdkeychain.ExtendedKey) (uint32, error) {
+func (w *Wallet) findLastUsedAccount(client *dcrrpcclient.Client, coinTypeXpriv *hdkeychain.ExtendedKey) (uint32, error) {
 	const scanLen = 100
 	var (
 		lastUsed uint32
@@ -74,7 +75,7 @@ Bsearch:
 	return lastUsed, nil
 }
 
-func (w *Wallet) accountUsed(client *chain.RPCClient, xpub *hdkeychain.ExtendedKey) (bool, error) {
+func (w *Wallet) accountUsed(client *dcrrpcclient.Client, xpub *hdkeychain.ExtendedKey) (bool, error) {
 	extKey, intKey, err := deriveBranches(xpub)
 	if err != nil {
 		return false, err
@@ -101,7 +102,7 @@ func (w *Wallet) accountUsed(client *chain.RPCClient, xpub *hdkeychain.ExtendedK
 	return false, nil
 }
 
-func (w *Wallet) branchUsed(client *chain.RPCClient, branchXpub *hdkeychain.ExtendedKey) (bool, error) {
+func (w *Wallet) branchUsed(client *dcrrpcclient.Client, branchXpub *hdkeychain.ExtendedKey) (bool, error) {
 	addrs, err := deriveChildAddresses(branchXpub, 0, uint32(w.gapLimit), w.chainParams)
 	if err != nil {
 		return false, err
@@ -121,7 +122,7 @@ func (w *Wallet) branchUsed(client *chain.RPCClient, branchXpub *hdkeychain.Exte
 // findLastUsedAddress returns the child index of the last used child address
 // derived from a branch key.  If no addresses are found, ^uint32(0) is
 // returned.
-func (w *Wallet) findLastUsedAddress(client *chain.RPCClient, xpub *hdkeychain.ExtendedKey) (uint32, error) {
+func (w *Wallet) findLastUsedAddress(client *dcrrpcclient.Client, xpub *hdkeychain.ExtendedKey) (uint32, error) {
 	var (
 		lastUsed        = ^uint32(0)
 		scanLen         = uint32(w.gapLimit)
@@ -165,7 +166,7 @@ Bsearch:
 // account extended pubkeys.
 //
 // A transaction filter (re)load and rescan should be performed after discovery.
-func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverAccts bool) error {
+func (w *Wallet) DiscoverActiveAddresses(chainClient *dcrrpcclient.Client, discoverAccts bool) error {
 	// Start by rescanning the accounts and determining what the
 	// current account index is. This scan should only ever be
 	// performed if we're restoring our wallet from seed.
@@ -250,17 +251,11 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 
 	// Rescan addresses for the both the internal and external
 	// branches of the account.
-	errs := make(chan error, lastAcct+1)
-	var wg sync.WaitGroup
-	wg.Add(int(lastAcct + 1))
+	var g errgroup.Group
 	for acct := uint32(0); acct <= lastAcct; acct++ {
-		// Address usage discovery for each account can be performed
-		// concurrently.
-		acct := acct
-		go func() {
-			defer wg.Done()
-			// Do this for both external (0) and internal (1) branches.
-			for branch := uint32(0); branch < 2; branch++ {
+		for branch := uint32(0); branch < 2; branch++ {
+			acct, branch := acct, branch
+			g.Go(func() error {
 				var branchXpub *hdkeychain.ExtendedKey
 				err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 					var err error
@@ -268,20 +263,18 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 					return err
 				})
 				if err != nil {
-					errs <- err
-					return
+					return err
 				}
 
 				lastUsed, err := w.findLastUsedAddress(chainClient, branchXpub)
 				if err != nil {
-					errs <- err
-					return
+					return err
 				}
 
 				// Save discovered addresses for the account plus additional
 				// addresses that may be used by other wallets sharing the same
 				// seed.
-				err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+				return walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 					ns := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 
 					// SyncAccountToAddrIndex never removes derived addresses
@@ -333,29 +326,14 @@ func (w *Wallet) DiscoverActiveAddresses(chainClient *chain.RPCClient, discoverA
 						acct, branch, lastReturned+1)
 					return nil
 				})
-				if err != nil {
-					errs <- err
-					return
-				}
-			}
-		}()
+			})
+		}
 	}
-	wg.Wait()
-	select {
-	case err := <-errs:
-		// Drain remaining
-		go func() {
-			for {
-				select {
-				case <-errs:
-				default:
-					return
-				}
-			}
-		}()
+	err = g.Wait()
+	if err != nil {
 		return err
-	default:
-		log.Infof("Finished address discovery")
-		return nil
 	}
+
+	log.Infof("Finished address discovery")
+	return nil
 }

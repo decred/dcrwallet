@@ -49,14 +49,13 @@ type Loader struct {
 
 // StakeOptions contains the various options necessary for stake mining.
 type StakeOptions struct {
-	TicketPurchasingEnabled bool
-	VotingEnabled           bool
-	TicketFee               float64
-	AddressReuse            bool
-	TicketAddress           dcrutil.Address
-	PoolAddress             dcrutil.Address
-	PoolFees                float64
-	StakePoolColdExtKey     string
+	VotingEnabled       bool
+	TicketFee           float64
+	AddressReuse        bool
+	VotingAddress       dcrutil.Address
+	PoolAddress         dcrutil.Address
+	PoolFees            float64
+	StakePoolColdExtKey string
 }
 
 // NewLoader constructs a Loader.
@@ -164,7 +163,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	// Open the newly-created wallet.
 	so := l.stakeOptions
 	w, err = wallet.Open(db, pubPassphrase, so.VotingEnabled, so.AddressReuse,
-		so.TicketAddress, so.PoolAddress, so.PoolFees, so.TicketFee,
+		so.VotingAddress, so.PoolAddress, so.PoolFees, so.TicketFee,
 		l.addrIdxScanLen, so.StakePoolColdExtKey, l.allowHighFees,
 		l.relayFee, l.chainParams)
 	if err != nil {
@@ -207,7 +206,7 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 
 	so := l.stakeOptions
 	w, err = wallet.Open(db, pubPassphrase, so.VotingEnabled, so.AddressReuse,
-		so.TicketAddress, so.PoolAddress, so.PoolFees, so.TicketFee,
+		so.VotingAddress, so.PoolAddress, so.PoolFees, so.TicketFee,
 		l.addrIdxScanLen, so.StakePoolColdExtKey, l.allowHighFees,
 		l.relayFee, l.chainParams)
 	if err != nil {
@@ -298,7 +297,6 @@ func (l *Loader) StartTicketPurchase(passphrase []byte, ticketbuyerCfg *ticketbu
 	l.ntfnClient = n
 	l.purchaseManager = pm
 	pm.Start()
-	l.wallet.SetTicketPurchasingEnabled(true)
 	return nil
 }
 
@@ -313,7 +311,6 @@ func (l *Loader) stopTicketPurchase() error {
 	l.purchaseManager.Stop()
 	l.purchaseManager.WaitForShutdown()
 	l.purchaseManager = nil
-	l.wallet.SetTicketPurchasingEnabled(false)
 	return nil
 }
 
