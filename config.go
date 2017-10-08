@@ -64,6 +64,7 @@ const (
 	defaultPriceTarget                              = 0
 	defaultBalanceToMaintainAbsolute                = 0
 	defaultBalanceToMaintainRelative                = 0.3
+	defaultNoSplitTransaction                       = true
 
 	walletDbName = "wallet.db"
 )
@@ -172,6 +173,7 @@ type ticketBuyerOptions struct {
 	BalanceToMaintainRelative float64              `long:"balancetomaintainrelative" description:"Proportion of funds to leave in wallet when stake mining"`
 	NoSpreadTicketPurchases   bool                 `long:"nospreadticketpurchases" description:"Do not spread ticket purchases evenly throughout the window"`
 	DontWaitForTickets        bool                 `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
+	NoSplitTransaction        bool                 `long:"nosplittransaction" description:"Do not use split transaction when purchasing tickets"`
 	VotingAddress             *cfgutil.AddressFlag `long:"votingaddress" description:"Purchase tickets with voting rights assigned to this address"`
 
 	// Deprecated options
@@ -372,6 +374,7 @@ func loadConfig() (*config, []string, error) {
 			PriceTarget:               cfgutil.NewAmountFlag(defaultPriceTarget),
 			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
 			BalanceToMaintainRelative: defaultBalanceToMaintainRelative,
+			NoSplitTransaction:        defaultNoSplitTransaction,
 			VotingAddress:             cfgutil.NewAddressFlag(nil),
 		},
 	}
@@ -924,6 +927,7 @@ func loadConfig() (*config, []string, error) {
 		NoSpreadTicketPurchases:   cfg.TBOpts.NoSpreadTicketPurchases,
 		VotingAddress:             votingAddress,
 		TxFee:                     int64(cfg.RelayFee.Amount),
+		NoSplitTransaction:        cfg.TBOpts.NoSplitTransaction,
 	}
 
 	// Make list of old versions of testnet directories.
