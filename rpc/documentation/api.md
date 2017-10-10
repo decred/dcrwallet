@@ -735,24 +735,13 @@ results of a single ticket.
 
   **Nested Message** `TicketDetails`
 
-  - `bytes hash`: The hash of the given ticket.
+  - `TransactionDetails ticket`: The transaction details of a given ticket.
 
-  - `bytes spender_hash`: The hash of the spender (if applicable, otherwise the
-    default value).
+  - `TransactionDetails spender`: The transaction details of the ticket's
+    spender if applicable (otherwise emtpy).
 
-  - `int64 ticket_age`: If unspent the blocks since being mined.  Otherwise,
-    the number of blocks from when it was mined to when it was spent.
-
-  - `int64 ticket_price`: The value of the first output from the ticket transaction.
-    Due to the way tickets are constructed, we know that this is always the 'price'
-    of any given ticket.
-
-  - `int64 ticket_cost`: The total cost of the wallet to purchase the ticket.  Typically,
-    this would just be the ticket fee.
-
-  - `int64 spender_return`: The total return from the spender transaction.  If a vote,
-    this number should be positive (PoS vote subsidy - poolfee).  If a revocation, 
-    this would be negative (minus txfee and poolfee). 
+    The `TransactionDetails` message is used by other methods and is documented
+    [here](#transactiondetails).
 
   - `TicketStatus ticket_status`: The observed status of the given ticket.
 

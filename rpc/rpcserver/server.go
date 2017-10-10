@@ -1365,39 +1365,31 @@ func marshalTransactionDetailsSlice(v []wallet.TransactionSummary) []*pb.Transac
 	return txs
 }
 
-func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.TicketDetails {
-	var ticketStatus = pb.TicketDetails_LIVE
+func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.GetTicketsResponse_TicketDetails {
+	var ticketStatus = pb.GetTicketsResponse_TicketDetails_LIVE
 	switch ticket.Status {
 	case wallet.TicketStatusExpired:
-		ticketStatus = pb.TicketDetails_EXPIRED
+		ticketStatus = pb.GetTicketsResponse_TicketDetails_EXPIRED
 	case wallet.TicketStatusImmature:
-		ticketStatus = pb.TicketDetails_IMMATURE
+		ticketStatus = pb.GetTicketsResponse_TicketDetails_IMMATURE
 	case wallet.TicketStatusVoted:
-		ticketStatus = pb.TicketDetails_VOTED
+		ticketStatus = pb.GetTicketsResponse_TicketDetails_VOTED
 	case wallet.TicketStatusRevoked:
-		ticketStatus = pb.TicketDetails_REVOKED
+		ticketStatus = pb.GetTicketsResponse_TicketDetails_REVOKED
 	case wallet.TicketStatusUnmined:
-		ticketStatus = pb.TicketDetails_UNMINED
+		ticketStatus = pb.GetTicketsResponse_TicketDetails_UNMINED
 	case wallet.TicketStatusMissed:
-		ticketStatus = pb.TicketDetails_MISSED
+		ticketStatus = pb.GetTicketsResponse_TicketDetails_MISSED
 	}
-	return &pb.TicketDetails{
-		Hash:          ticket.Hash[:],
-		SpenderHash:   ticket.SpenderHash[:],
-		TicketAge:     ticket.Age,
-		TicketPrice:   ticket.Price,
-		TicketCost:    ticket.Cost,
-		SpenderReturn: ticket.SpenderReturn,
-		TicketStatus:  ticketStatus,
+	spender := &pb.TransactionDetails{}
+	if ticket.Spender != nil {
+		spender = marshalTransactionDetails(ticket.Spender)
 	}
-}
-
-func marshalTicketDetailsSlice(v []wallet.TicketSummary) []*pb.TicketDetails {
-	txs := make([]*pb.TicketDetails, len(v))
-	for i := range v {
-		txs[i] = marshalTicketDetails(&v[i])
+	return &pb.GetTicketsResponse_TicketDetails{
+		Ticket:       marshalTransactionDetails(ticket.Ticket),
+		Spender:      spender,
+		TicketStatus: ticketStatus,
 	}
-	return txs
 }
 
 func marshalBlock(v *wallet.Block) *pb.BlockDetails {

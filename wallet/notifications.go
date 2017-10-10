@@ -200,79 +200,52 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 
 func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
 	var ticketStatus = TicketStatusLive
-	var ticketAge int64
-	var ticketPrice dcrutil.Amount
-	spenderReturn := dcrutil.Amount(0)
-	spenderHash := chainhash.Hash{}
-	ticketDebits := dcrutil.Amount(0)
-	if details.Ticket == nil {
-		log.Errorf("Ticket is nil, no ticket summary to create")
-		return nil
-	}
-	ticketPrice = dcrutil.Amount(details.Ticket.TxRecord.MsgTx.TxOut[0].Value)
-	for _, debit := range details.Ticket.Debits {
-		ticketDebits += debit.Amount
-	}
-	ticketCredits := dcrutil.Amount(0)
-	for _, credit := range details.Ticket.Credits {
-		ticketCredits += credit.Amount
-	}
-	ticketCost := ticketCredits - ticketDebits
+
+	ticketTransactionDetails := makeTxSummary(dbtx, w, details.Ticket)
 	if details.Spender != nil {
-		spenderHash = details.Spender.Hash
-		spenderDebits := dcrutil.Amount(0)
-		for _, debit := range details.Spender.Debits {
-			spenderDebits += debit.Amount
-		}
-		spenderCredits := dcrutil.Amount(0)
-		for _, credit := range details.Spender.Credits {
-			spenderCredits += credit.Amount
-		}
-		spenderReturn = spenderCredits - spenderDebits
-		ticketAge = int64(details.Spender.Height() - details.Ticket.Height())
+		spenderTransactionDetails := makeTxSummary(dbtx, w, details.Spender)
 		if details.Spender.TxType == stake.TxTypeSSGen {
 			ticketStatus = TicketStatusVoted
 		} else if details.Spender.TxType == stake.TxTypeSSRtx {
 			ticketStatus = TicketStatusRevoked
 		}
+		return &TicketSummary{
+			Ticket:  &ticketTransactionDetails,
+			Spender: &spenderTransactionDetails,
+			Status:  ticketStatus,
+		}
+	}
+
+	if details.Ticket.Height() == int32(-1) {
+		ticketStatus = TicketStatusUnmined
 	} else {
-		if details.Ticket.Height() == int32(-1) {
-			ticketAge = int64(details.Ticket.Height())
-			ticketStatus = TicketStatusUnmined
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+		ticketAge := int64(tipHeight - details.Ticket.Height())
+
+		// Check if ticket age is not yet mature
+		if ticketAge <= int64(w.ChainParams().TicketMaturity) {
+			ticketStatus = TicketStatusImmature
+			// Check if ticket age is over TicketExpiry limit and therefore expired
+		} else if ticketAge >= int64(w.ChainParams().TicketExpiry) {
+			ticketStatus = TicketStatusExpired
 		} else {
-			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-
-			_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
-			ticketAge = int64(tipHeight - details.Ticket.Height())
-
-			// Check if ticket age is not yet mature
-			if ticketAge <= int64(w.ChainParams().TicketMaturity) {
-				ticketStatus = TicketStatusImmature
-				// Check if ticket age is over TicketExpiry limit and therefore expired
-			} else if ticketAge >= int64(w.ChainParams().TicketExpiry) {
-				ticketStatus = TicketStatusExpired
-			} else {
-				// Final check to see if ticket was missed otherwise it's live
-				live, err := w.chainClient.ExistsLiveTicket(&details.Ticket.Hash)
-				if err != nil {
-					log.Errorf("Unable to check if ticket was live for ticket status: %v", &details.Ticket.Hash)
-					return nil
-				}
-				if !live {
-					ticketStatus = TicketStatusMissed
-				}
-				//
+			// Final check to see if ticket was missed otherwise it's live
+			live, err := w.chainClient.ExistsLiveTicket(&details.Ticket.Hash)
+			if err != nil {
+				log.Errorf("Unable to check if ticket was live for ticket status: %v", &details.Ticket.Hash)
+				return nil
+			}
+			if !live {
+				ticketStatus = TicketStatusMissed
 			}
 		}
 	}
 	return &TicketSummary{
-		Hash:          &details.Ticket.Hash,
-		Status:        ticketStatus,
-		Age:           ticketAge,
-		Price:         int64(ticketPrice),
-		Cost:          int64(ticketCost),
-		SpenderHash:   &spenderHash,
-		SpenderReturn: int64(spenderReturn),
+		Ticket:  &ticketTransactionDetails,
+		Spender: nil,
+		Status:  ticketStatus,
 	}
 }
 
@@ -481,13 +454,9 @@ type Block struct {
 
 // TicketSummary contains the properties to describe a ticket's current status
 type TicketSummary struct {
-	Hash          *chainhash.Hash
-	SpenderHash   *chainhash.Hash
-	Age           int64
-	Price         int64
-	Cost          int64
-	SpenderReturn int64
-	Status        TicketStatus
+	Ticket  *TransactionSummary
+	Spender *TransactionSummary
+	Status  TicketStatus
 }
 
 // TicketStatus describes the current status a ticket can be observed to be.

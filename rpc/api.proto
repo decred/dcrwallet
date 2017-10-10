@@ -98,25 +98,6 @@ service MessageVerificationService {
 	rpc VerifyMessage (VerifyMessageRequest) returns (VerifyMessageResponse);
 }
 
-message TicketDetails {
-	bytes hash = 1;
-	bytes spender_hash = 2;
-	int64 ticket_age = 3;
-	int64 ticket_price = 4;
-	int64 ticket_cost = 5;
-	int64 spender_return = 6;
-	enum TicketStatus {
-		LIVE = 0;
-		IMMATURE = 1;
-		VOTED = 2;
-		REVOKED = 3;
-		MISSED = 4;
-		EXPIRED = 5;
-		UNMINED = 6;
-	}
-	TicketStatus ticket_status = 7;
-}
-
 message TransactionDetails {
 	message Input {
 		uint32 index = 1;
@@ -311,6 +292,20 @@ message GetTicketsRequest {
 	int32 ending_block_height = 4;
 }
 message GetTicketsResponse {
+	message TicketDetails {
+		TransactionDetails ticket = 1;
+		TransactionDetails spender = 2;
+		enum TicketStatus {
+			UNMINED = 0;
+			IMMATURE = 1;
+			LIVE = 2;
+			VOTED = 3;
+			MISSED = 4;
+			EXPIRED = 5;
+			REVOKED = 6;
+		}
+		TicketStatus ticket_status = 3;
+	}
 	TicketDetails ticket = 1;
 }
 
