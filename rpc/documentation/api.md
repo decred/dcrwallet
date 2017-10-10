@@ -733,8 +733,44 @@ results of a single ticket.
 
 - `TicketDetails tickets`: A given ticket's details.
 
-  The `TicketDetails` message is used by other methods and is documented
-  [here](#ticketdetails).
+  **Nested Message** `TicketDetails`
+
+  - `bytes hash`: The hash of the given ticket.
+
+  - `bytes spender_hash`: The hash of the spender (if applicable, otherwise the
+    default value).
+
+  - `int64 ticket_age`: If unspent the blocks since being mined.  Otherwise,
+    the number of blocks from when it was mined to when it was spent.
+
+  - `int64 ticket_price`: The value of the first output from the ticket transaction.
+    Due to the way tickets are constructed, we know that this is always the 'price'
+    of any given ticket.
+
+  - `int64 ticket_cost`: The total cost of the wallet to purchase the ticket.  Typically,
+    this would just be the ticket fee.
+
+  - `int64 spender_return`: The total return from the spender transaction.  If a vote,
+    this number should be positive (PoS vote subsidy - poolfee).  If a revocation, 
+    this would be negative (minus txfee and poolfee). 
+
+  - `TicketStatus ticket_status`: The observed status of the given ticket.
+
+    **Nested enum:** `TicketStatus`
+
+    - `UNMINED`: A ticket that has yet to be mined into a block.
+
+    - `IMMATURE`: A ticket that has not yet matured enough to be live.
+
+    - `LIVE`: A currently live ticket that is waiting to be voted.
+
+    - `VOTED`: A ticket that has been voted.
+    
+    - `EXPIRED`: A ticket that is expired but not yet revoked.
+
+    - `MISSED`: A ticket that was missed but not yet revoked.
+
+    - `REVOKED`: A ticket that has been revoked.
 
 **Expected errors:**
 
@@ -1679,53 +1715,6 @@ wallet's relevant transactions contained therein.
 
 **Stability**: Unstable: This should probably include the block version.
 
-___
-
-#### `TicketDetails`
-
-The `TicketDetails` message is included in responses to report transactions
-relevant to the wallet.  The message includes details such as which previous
-wallet inputs are spent by this transaction, whether each output is controlled
-by the wallet or not, the total fee (if calculable), and the earlist time the
-transaction was seen.
-
-- `bytes hash`: The hash of the given ticket.
-
-- `bytes spender_hash`: The hash of the spender (if applicable, otherwise empty).
-
-- `int64 ticket_age`: If unspent the blocks since being mined.  Otherwise,
-   the number of blocks from when it was mined to when it was spent.
-
-- `int64 ticket_price`: The value of the first output from the ticket transaction.
-  Due to the way tickets are constructed, we know that this is always the 'price'
-  of any given ticket.
-
-- `int64 ticket_cost`: The total cost of the wallet to purchase the ticket.  Typically,
-  this would just be the ticket fee.
-
-- `int64 spender_return`: The total return from the spender transaction.  If a vote,
-  this number should be positive (PoS vote subsidy - poolfee).  If a revocation, 
-  this would be negative (minus txfee and poolfee). 
-
-- `TicketStatus ticket_status`: The observed status of the given ticket.
-
-  **Nested enum:** `TicketStatus`
-
-  - `LIVE`: A currently live ticket that is waiting to be voted.
-
-  - `IMMATURE`: A ticket that has not yet matured enough to be live.
-
-  - `VOTED`: A ticket that has been voted.
-
-  - `REVOKED`: A ticket that has been revoked.
-
-  - `MISSED`: A ticket that was missed but not yet revoked.
-
-  - `EXPIRED`: A ticket that is expired but not yet revoked.
-
-  - `UNMINED`: A ticket that has yet to be mined into a block.
-
-**Stability**: Unstable:
 ___
 
 #### `TransactionDetails`
