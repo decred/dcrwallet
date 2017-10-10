@@ -31,6 +31,7 @@ import (
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
+	"github.com/decred/dcrwallet/wif"
 )
 
 // API version constants
@@ -877,7 +878,7 @@ func importPrivKey(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient
 		return nil, &ErrNotImportedAccount
 	}
 
-	wif, err := dcrutil.DecodeWIF(cmd.PrivKey)
+	wif, err := wif.DecodeWIF(cmd.PrivKey)
 	if err != nil {
 		return nil, &dcrjson.RPCError{
 			Code:    dcrjson.ErrRPCInvalidAddressOrKey,
@@ -2792,12 +2793,12 @@ func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcc
 	// Parse list of private keys, if present. If there are any keys here
 	// they are the keys that we may use for signing. If empty we will
 	// use any keys known to us already.
-	var keys map[string]*dcrutil.WIF
+	var keys map[string]*wif.WIF
 	if cmd.PrivKeys != nil {
-		keys = make(map[string]*dcrutil.WIF)
+		keys = make(map[string]*wif.WIF)
 
 		for _, key := range *cmd.PrivKeys {
-			wif, err := dcrutil.DecodeWIF(key)
+			wif, err := wif.DecodeWIF(key)
 			if err != nil {
 				return nil, DeserializationError{err}
 			}

@@ -52,6 +52,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 	"github.com/decred/dcrwallet/walletseed"
+	"github.com/decred/dcrwallet/wif"
 )
 
 // Public API version constants
@@ -464,7 +465,7 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 
 	defer zero.Bytes(req.Passphrase)
 
-	wif, err := dcrutil.DecodeWIF(req.PrivateKeyWif)
+	wif, err := wif.DecodeWIF(req.PrivateKeyWif)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"Invalid WIF-encoded private key: %v", err)
