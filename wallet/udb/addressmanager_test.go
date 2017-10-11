@@ -651,7 +651,7 @@ func testImportPrivateKey(tc *testContext) bool {
 	if tc.create {
 		for i, test := range tests {
 			test.expected.privKeyWIF = test.in
-			wif, err := wif.DecodeWIF(test.in)
+			wif, err := dcrutil.DecodeWIF(test.in)
 			if err != nil {
 				tc.t.Errorf("%s DecodeWIF #%d (%s) (%s): unexpected "+
 					"error: %v", prefix, i, test.in, test.name, err)

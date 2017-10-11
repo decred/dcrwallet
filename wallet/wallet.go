@@ -35,7 +35,6 @@ import (
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
-	"github.com/decred/dcrwallet/wif"
 	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
@@ -2806,7 +2805,7 @@ func (w *Wallet) DumpWIFPrivateKey(addr dcrutil.Address) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	wif, err := wif.NewWIF(privKey, w.chainParams, privKey.GetType())
+	wif, err := dcrutil.NewWIF(privKey, w.chainParams, privKey.GetType())
 	if err != nil {
 		return "", err
 	}
@@ -2815,7 +2814,7 @@ func (w *Wallet) DumpWIFPrivateKey(addr dcrutil.Address) (string, error) {
 
 // ImportPrivateKey imports a private key to the wallet and writes the new
 // wallet to disk.
-func (w *Wallet) ImportPrivateKey(wif *wif.WIF) (string, error) {
+func (w *Wallet) ImportPrivateKey(wif *dcrutil.WIF) (string, error) {
 	chainClient, err := w.requireChainClient()
 	if err != nil {
 		return "", err
@@ -3421,7 +3420,7 @@ type SignatureError struct {
 // The transaction pointed to by tx is modified by this function.
 func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType,
 	additionalPrevScripts map[wire.OutPoint][]byte,
-	additionalKeysByAddress map[string]*wif.WIF,
+	additionalKeysByAddress map[string]*dcrutil.WIF,
 	p2shRedeemScriptsByAddress map[string][]byte) ([]SignatureError, error) {
 
 	var doneFuncs []func()

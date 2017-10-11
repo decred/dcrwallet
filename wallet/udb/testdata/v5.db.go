@@ -100,7 +100,7 @@ func setup() error {
 		}
 
 		privKey, _ := secp256k1.PrivKeyFromBytes(secp256k1.S256(), privKey)
-		wif, err := wif.NewWIF(privKey, chainParams, chainec.ECTypeSecp256k1)
+		wif, err := dcrutil.NewWIF(privKey, chainParams, chainec.ECTypeSecp256k1)
 		if err != nil {
 			return err
 		}

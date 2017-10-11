@@ -20,7 +20,6 @@ import (
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/snacl"
 	"github.com/decred/dcrwallet/walletdb"
-	"github.com/decred/dcrwallet/wif"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -1060,7 +1059,7 @@ func (m *Manager) ExistsHash160(ns walletdb.ReadBucket, hash160 []byte) bool {
 // watching-only, or not for the same network as the key trying to be imported.
 // It will also return an error if the address already exists.  Any other errors
 // returned are generally unexpected.
-func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *wif.WIF) (ManagedPubKeyAddress, error) {
+func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF) (ManagedPubKeyAddress, error) {
 	// Ensure the address is intended for network the address manager is
 	// associated with.
 	if !wif.IsForNet(m.chainParams) {
