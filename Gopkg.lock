@@ -45,21 +45,15 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/decred/dcrd"
-  packages = ["blockchain","blockchain/indexers","blockchain/internal/dbnamespace","blockchain/internal/progresslog","blockchain/stake","blockchain/stake/internal/dbnamespace","blockchain/stake/internal/ticketdb","blockchain/stake/internal/tickettreap","chaincfg","chaincfg/chainec","chaincfg/chainhash","database","dcrec/edwards","dcrec/secp256k1","dcrec/secp256k1/schnorr","dcrjson","mempool","mining","txscript","wire"]
-  revision = "f11fac8134626768ef7b1f278fd4331f004bfb49"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/decred/dcrrpcclient"
+  name = "github.com/decred/base58"
   packages = ["."]
-  revision = "ac5d8e421125a2ef7e887ccb4ef10c81cfb29822"
+  revision = "b3520e187fa8ebe65eb74245408cf4b83e6a65d3"
 
 [[projects]]
   branch = "master"
-  name = "github.com/decred/dcrutil"
-  packages = [".","base58","hdkeychain"]
-  revision = "ddbde93f65ab0692e54ed8a5ad325fa2e8af4daa"
+  name = "github.com/decred/dcrd"
+  packages = ["blockchain","blockchain/indexers","blockchain/internal/dbnamespace","blockchain/internal/progresslog","blockchain/stake","blockchain/stake/internal/dbnamespace","blockchain/stake/internal/ticketdb","blockchain/stake/internal/tickettreap","certgen","chaincfg","chaincfg/chainec","chaincfg/chainhash","database","dcrec/edwards","dcrec/secp256k1","dcrec/secp256k1/schnorr","dcrjson","dcrutil","hdkeychain","mempool","mining","rpcclient","txscript","wire"]
+  revision = "65001cd49eb6ca9b7d2088f861860896e5d1efe9"
 
 [[projects]]
   branch = "master"
@@ -142,6 +136,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8910a14c21eaea713daeddc32fbfbd75f1372b147ed04842c22460bf86fa8300"
+  inputs-digest = "1dbc675d3a3b4557ec94bea9940ee54cde41c803bde70067168b3463231b1aa2"
   solver-name = "gps-cdcl"
   solver-version = 1

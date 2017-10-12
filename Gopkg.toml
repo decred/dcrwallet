@@ -17,14 +17,6 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/decred/dcrrpcclient"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/decred/dcrutil"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/golang/protobuf"
 
 [[constraint]]

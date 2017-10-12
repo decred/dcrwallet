@@ -9,7 +9,7 @@ import (
 	"encoding/hex"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrrpcclient"
+	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )

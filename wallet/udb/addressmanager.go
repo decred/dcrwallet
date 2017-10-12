@@ -14,8 +14,8 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
-	"github.com/decred/dcrutil"
-	"github.com/decred/dcrutil/hdkeychain"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/hdkeychain"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/snacl"

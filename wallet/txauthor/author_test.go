@@ -8,8 +8,8 @@ package txauthor_test
 import (
 	"testing"
 
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrutil"
 	. "github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 

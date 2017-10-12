@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrwallet/wallet"
 )
 

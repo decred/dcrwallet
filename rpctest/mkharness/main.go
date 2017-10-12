@@ -11,8 +11,8 @@ import (
 	//"time"
 
 	"github.com/decred/dcrd/chaincfg"
-	//"github.com/decred/dcrrpcclient"
-	//"github.com/decred/dcrutil"
+	//dcrrpcclient "github.com/decred/dcrd/rpcclient"
+	//"github.com/decred/dcrd/dcrutil"
 	//"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpctest"
 )

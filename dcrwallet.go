@@ -7,6 +7,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -393,10 +394,10 @@ func readCAFile() []byte {
 func startChainRPC(certs []byte) (*chain.RPCClient, error) {
 	log.Infof("Attempting RPC client connection to %v", cfg.RPCConnect)
 	rpcc, err := chain.NewRPCClient(activeNet.Params, cfg.RPCConnect,
-		cfg.DcrdUsername, cfg.DcrdPassword, certs, cfg.DisableClientTLS, 0)
+		cfg.DcrdUsername, cfg.DcrdPassword, certs, cfg.DisableClientTLS)
 	if err != nil {
 		return nil, err
 	}
-	err = rpcc.Start()
+	err = rpcc.Start(context.TODO(), true)
 	return rpcc, err
 }

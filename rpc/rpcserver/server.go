@@ -32,11 +32,11 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/hdkeychain"
+	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
-	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/internal/cfgutil"
@@ -1691,12 +1691,12 @@ func (s *loaderServer) StartConsensusRpc(ctx context.Context, req *pb.StartConse
 	}
 
 	rpcClient, err := chain.NewRPCClient(s.activeNet.Params, networkAddress, req.Username,
-		string(req.Password), req.Certificate, len(req.Certificate) == 0, 1)
+		string(req.Password), req.Certificate, len(req.Certificate) == 0)
 	if err != nil {
 		return nil, translateError(err)
 	}
 
-	err = rpcClient.Start()
+	err = rpcClient.Start(ctx, false)
 	if err != nil {
 		if err == dcrrpcclient.ErrInvalidAuth {
 			return nil, status.Errorf(codes.InvalidArgument,

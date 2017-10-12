@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil/hdkeychain"
+	"github.com/decred/dcrd/hdkeychain"
+	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 	"github.com/jrick/bitset"

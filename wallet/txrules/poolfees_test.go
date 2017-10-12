@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/dcrutil"
 	. "github.com/decred/dcrwallet/wallet/txrules"
 )
 

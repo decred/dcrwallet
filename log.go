@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/btcsuite/btclog"
-	"github.com/decred/dcrrpcclient"
+	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"

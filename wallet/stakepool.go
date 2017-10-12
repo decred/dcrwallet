@@ -7,7 +7,7 @@ package wallet
 import (
 	"errors"
 
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )

@@ -6,6 +6,7 @@
 package chain
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -13,7 +14,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrrpcclient"
+	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 )
 
 var requiredChainServerAPI = semver{major: 3, minor: 1, patch: 0}
@@ -22,9 +23,8 @@ var requiredChainServerAPI = semver{major: 3, minor: 1, patch: 0}
 // for information regarding the current best block chain.
 type RPCClient struct {
 	*dcrrpcclient.Client
-	connConfig        *dcrrpcclient.ConnConfig // Work around unexported field
-	chainParams       *chaincfg.Params
-	reconnectAttempts int
+	connConfig  *dcrrpcclient.ConnConfig // Work around unexported field
+	chainParams *chaincfg.Params
 
 	enqueueNotification       chan interface{}
 	dequeueNotification       chan interface{}
@@ -44,11 +44,7 @@ type RPCClient struct {
 // operate on the same bitcoin network as described by the passed chain
 // parameters, the connection will be disconnected.
 func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, certs []byte,
-	disableTLS bool, reconnectAttempts int) (*RPCClient, error) {
-
-	if reconnectAttempts < 0 {
-		return nil, errors.New("reconnectAttempts must be positive")
-	}
+	disableTLS bool) (*RPCClient, error) {
 
 	client := &RPCClient{
 		connConfig: &dcrrpcclient.ConnConfig{
@@ -62,7 +58,6 @@ func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, cert
 			DisableTLS:           disableTLS,
 		},
 		chainParams:               chainParams,
-		reconnectAttempts:         reconnectAttempts,
 		enqueueNotification:       make(chan interface{}),
 		dequeueNotification:       make(chan interface{}),
 		enqueueVotingNotification: make(chan interface{}),
@@ -92,8 +87,8 @@ func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, cert
 // sent by the server.  After a limited number of connection attempts, this
 // function gives up, and therefore will not block forever waiting for the
 // connection to be established to a server that may not exist.
-func (c *RPCClient) Start() (err error) {
-	err = c.Connect(c.reconnectAttempts)
+func (c *RPCClient) Start(ctx context.Context, retry bool) (err error) {
+	err = c.Connect(ctx, retry)
 	if err != nil {
 		return err
 	}

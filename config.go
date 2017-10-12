@@ -16,7 +16,7 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btclog"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrwallet/internal/cfgutil"
 	"github.com/decred/dcrwallet/netparams"
 	"github.com/decred/dcrwallet/ticketbuyer"

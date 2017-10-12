@@ -8,9 +8,9 @@ import (
 	"errors"
 
 	"github.com/decred/dcrd/chaincfg/chainec"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"

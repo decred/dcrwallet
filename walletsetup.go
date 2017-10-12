@@ -14,8 +14,8 @@ import (
 	"strings"
 
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/hdkeychain"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrutil/hdkeychain"
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/wallet"
