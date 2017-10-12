@@ -197,7 +197,8 @@ func run(ctx context.Context) error {
 		// Until then, since --noinitialload users are expecting to use
 		// the wallet only over RPC, disable this feature for them.
 		if cfg.Pass != "" {
-			err = w.Unlock([]byte(cfg.Pass), nil)
+			passphrase = []byte(cfg.Pass)
+			err = w.Unlock(passphrase, nil)
 			if err != nil {
 				log.Errorf("Incorrect passphrase in pass config setting.")
 				return err
