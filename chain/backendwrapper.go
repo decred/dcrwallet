@@ -10,7 +10,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
-	rpcclient "github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/wallet"
