@@ -387,6 +387,7 @@ The service provides the following methods:
 - [`RevokeTickets`](#revoketickets)
 - [`LoadActiveDataFilters`](#loadactivedatafilters)
 - [`SignMessage`](#signmessage)
+- [`ValidateAddress`](#validateaddress)
 - [`TransactionNotifications`](#transactionnotifications)
 - [`AccountNotifications`](#accountnotifications)
 - [`ConfirmationNotifications`](#confirmationnotifications)
@@ -525,7 +526,7 @@ and unspendable immature coinbase balances.
 
 - `int64 voting_authority`: The total value of all tickets that the account has voting
   authority over.  
-  
+
 - `int64 unconfirmed`: The total value of all unconfirmed transactions with
    with reference to the minimum number of confirmations for a transaction
    (minconf). If minconf is 0 unconfirmed will be 0, otherwise unconfirmed
@@ -1558,6 +1559,42 @@ of an address.
 
 **Stability:** Unstable: this method may require API changes to support
 signature algorithms other than secp256k1.
+
+___
+
+#### `ValidateAddress`
+
+The `ValidateAddress` method verifies if an address is valid.
+
+**Request:** `ValidateAddressRequest`
+
+- `string address`: The address to be validated.
+
+**Response:** `ValidateAddressResponse`
+
+- `bool is_valid`: True if valid, false if not.
+
+- `string address`: The validated address.
+
+- `bool is_mine`: True if the address is an address of querying wallet, false if not.
+
+- `bool is_watch_only`: True if the querying wallet is watch-only, false if not.
+
+- `string pub_key_addr`: The public key address.
+
+- `string pub_key`: The hex encoded string public key associated with the address.
+
+- `string is_compressed`: True if address uses a compressed format, false if not.
+
+- `string account`:  The account name of the wallet owning the address.
+
+- `repeated string addresses`: A collection of addresses extracted from the address if it's a script.
+
+- `string hex`: The hex encoded redeem script if the address is p2sh
+
+- `string script`: The script type
+
+- `string sigs_required`: The number of signatures required for the address.
 
 ___
 
