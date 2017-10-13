@@ -286,3 +286,77 @@ func (s *Store) unminedTxHashes(ns walletdb.ReadBucket) ([]*chainhash.Hash, erro
 	})
 	return hashes, err
 }
+
+// PruneUnmined removes unmined transactions that no longer belong in the
+// unmined tx set.  This includes:
+//
+//   * Any transactions past a set expiry
+//   * Ticket purchases with a different ticket price than the passed stake
+//     difficulty
+//   * Votes that do not vote on the tip block
+func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) error {
+	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
+
+	tipHash, tipHeight := s.MainChainTip(ns)
+
+	type removeTx struct {
+		tx   wire.MsgTx
+		hash *chainhash.Hash
+	}
+	var toRemove []*removeTx
+
+	c := ns.NestedReadBucket(bucketUnmined).ReadCursor()
+	for k, v := c.First(); k != nil; k, v = c.Next() {
+		var tx wire.MsgTx
+		err := tx.Deserialize(bytes.NewReader(extractRawUnminedTx(v)))
+		if err != nil {
+			return apperrors.Wrap(err, apperrors.ErrData,
+				"invalid transaction recorded in unmined bucket")
+		}
+
+		var expired bool
+		isTicketPurchase, _ := stake.IsSStx(&tx)
+		isVote, _ := stake.IsSSGen(&tx)
+		switch {
+		case tx.Expiry != wire.NoExpiryValue && tx.Expiry <= uint32(tipHeight):
+			expired = true
+		case isTicketPurchase:
+			if tx.TxOut[0].Value == stakeDiff {
+				continue
+			}
+		case isVote:
+			// This will never actually error
+			votedBlockHash, _, _ := stake.SSGenBlockVotedOn(&tx)
+			if votedBlockHash == tipHash {
+				continue
+			}
+		default:
+			continue
+		}
+
+		txHash, err := chainhash.NewHash(k)
+		if err != nil {
+			return apperrors.Wrap(err, apperrors.ErrData,
+				"invalid transaction hash used as unmined bucket key")
+		}
+
+		if expired {
+			log.Infof("Removing expired unmined transaction %v", txHash)
+		} else if isTicketPurchase {
+			log.Infof("Removing old unmined ticket purchase %v", txHash)
+		} else if isVote {
+			log.Infof("Removing missed or invalid vote %v", txHash)
+		}
+
+		toRemove = append(toRemove, &removeTx{tx, txHash})
+	}
+
+	for _, r := range toRemove {
+		err := s.removeUnconfirmed(ns, &r.tx, r.hash)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

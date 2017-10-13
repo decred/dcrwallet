@@ -819,46 +819,6 @@ func (s *Store) GetMainChainBlockHashes(ns walletdb.ReadBucket, startHash *chain
 	return storage[:storageUsed], nil
 }
 
-// PruneUnconfirmed prunes old stake tickets that are below the current stake
-// difficulty or any unconfirmed transaction which is expired.
-func (s *Store) PruneUnconfirmed(ns walletdb.ReadWriteBucket, height int32, stakeDiff int64) error {
-	// Read all data before removing
-	var recs []*TxRecord
-	c := ns.NestedReadBucket(bucketUnmined).ReadCursor()
-	for k, v := c.First(); k != nil; k, v = c.Next() {
-		var txHash chainhash.Hash
-		err := readRawUnminedHash(k, &txHash)
-		if err != nil {
-			return err
-		}
-
-		var rec TxRecord
-		err = readRawTxRecord(&txHash, v, &rec)
-		if err != nil {
-			return err
-		}
-
-		recs = append(recs, &rec)
-	}
-
-	for _, rec := range recs {
-		switch {
-		// Remove expired transactions
-		case rec.MsgTx.Expiry != wire.NoExpiryValue && rec.MsgTx.Expiry <= uint32(height):
-		// Remove ticket purchases with a different current stake difficulty
-		case rec.TxType == stake.TxTypeSStx && rec.MsgTx.TxOut[0].Value != stakeDiff:
-		// Skip others
-		default:
-			continue
-		}
-		err := s.removeUnconfirmed(ns, &rec.MsgTx, &rec.Hash)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // fetchAccountForPkScript fetches an account for a given pkScript given a
 // credit value, the script, and an account lookup function. It does this
 // to maintain compatibility with older versions of the database.

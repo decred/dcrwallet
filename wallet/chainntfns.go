@@ -211,15 +211,15 @@ func (w *Wallet) ConnectBlock(serializedBlockHeader []byte, transactions [][]byt
 	height := int32(blockHeader.Height)
 	chainTipChanges.NewHeight = height
 
-	// Prune all expired transactions and all stake tickets that no longer
-	// meet the minimum stake difficulty.
+	// Prune unnmined transactions that don't belong on the extended chain.
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-		txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
-		return w.TxStore.PruneUnconfirmed(txmgrNs, height, blockHeader.SBits)
+		// TODO: The stake difficulty passed here is not correct.  This must be
+		// the difficulty of the next block, not the tip block.
+		return w.TxStore.PruneUnmined(dbtx, blockHeader.SBits)
 	})
 	if err != nil {
-		log.Errorf("Failed to prune unconfirmed transactions when "+
-			"connecting block height %v: %s", height, err.Error())
+		log.Errorf("Failed to prune unmined transactions when "+
+			"connecting block height %v: %v", height, err)
 	}
 
 	w.NtfnServer.notifyMainChainTipChanged(chainTipChanges)
