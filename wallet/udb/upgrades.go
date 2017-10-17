@@ -56,10 +56,19 @@ const (
 	// or revocation.
 	ticketBucketVersion = 6
 
+	// slip0044CoinTypeVersion is the seventh version of the database.  It
+	// introduces the possibility of the BIP0044 coin type key being either the
+	// legacy coin type used by earlier versions of the wallet, or the coin type
+	// assigned to Decred in SLIP0044.  The upgrade does not add or remove any
+	// required keys (the upgrade is done in a backwards-compatible way) but the
+	// database version is bumped to prevent older software from assuming that
+	// coin type 20 exists (the upgrade is not forwards-compatible).
+	slip0044CoinTypeVersion = 7
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = ticketBucketVersion
+	DBVersion = slip0044CoinTypeVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -71,6 +80,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte) error{
 	noEncryptedSeedVersion - 1:      noEncryptedSeedUpgrade,
 	lastReturnedAddressVersion - 1:  lastReturnedAddressUpgrade,
 	ticketBucketVersion - 1:         ticketBucketUpgrade,
+	slip0044CoinTypeVersion - 1:     slip0044CoinTypeUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
@@ -453,6 +463,26 @@ func ticketBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error
 	err = txmgrBucket.NestedReadWriteBucket(bucketUnminedInputs).Delete(stakebaseOutpoint)
 	if err != nil {
 		return err
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func slip0044CoinTypeUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+	const oldVersion = 6
+	const newVersion = 7
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 6 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		const str = "slip0044CoinTypeUpgrade inappropriately called"
+		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
 	}
 
 	// Write the new database version.

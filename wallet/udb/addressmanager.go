@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/snacl"
@@ -659,6 +660,177 @@ func (m *Manager) CoinTypePrivKey(dbtx walletdb.ReadTx) (*hdkeychain.ExtendedKey
 		return nil, managerError(apperrors.ErrKeyChain, str, err)
 	}
 	return coinTypeKeyPriv, nil
+}
+
+// CoinType returns the BIP0044 coin type currently in use.  Early versions of
+// the wallet used coin types that conflicted with other coins, preventing use
+// of the same seed in multicurrency wallets.  New (not restored) wallets are
+// now created using the coin types assigned to Decred in SLIP0044:
+//
+//  https://github.com/satoshilabs/slips/blob/master/slip-0044.md
+//
+// The address manager should be upgraded to the SLIP0044 coin type if it is
+// currently using the legacy coin type and there are no used accounts or
+// addresses.  This procedure must be performed for seed restored wallets which
+// save both coin types and, for backwards compatibility reasons, default to the
+// legacy coin type.  Both coin types for a network may be queried using the
+// CoinTypes func and upgrades are performed using the UpgradeToSLIP0044CoinType
+// method.
+//
+// Watching-only wallets that are created using an account xpub do not save the
+// coin type keys and this method will return an error with code
+// ErrValueNoExists on these wallets.
+func (m *Manager) CoinType(dbtx walletdb.ReadTx) (uint32, error) {
+	ns := dbtx.ReadBucket(waddrmgrBucketKey)
+	mainBucket := ns.NestedReadBucket(mainBucketName)
+
+	legacyCoinType, slip0044CoinType := CoinTypes(m.chainParams)
+
+	if mainBucket.Get(coinTypeLegacyPubKeyName) != nil {
+		return legacyCoinType, nil
+	}
+	if mainBucket.Get(coinTypeSLIP0044PubKeyName) != nil {
+		return slip0044CoinType, nil
+	}
+
+	return 0, apperrors.New(apperrors.ErrValueNoExists, "coin type keys are not saved")
+}
+
+// UpgradeToSLIP0044CoinType upgrades a wallet from using the legacy coin type
+// to the coin type registered to Decred as per SLIP0044.  On mainnet, this
+// upgrades the coin type from 20 to 42.  On testnet and simnet, the coin type
+// is upgraded to 1.  This upgrade is only possible if the SLIP0044 coin type
+// private key is saved and there is no address use for keys derived by the
+// legacy coin type.
+func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
+	coinType, err := m.CoinType(dbtx)
+	if err != nil {
+		return err
+	}
+	legacyCoinType, _ := CoinTypes(m.chainParams)
+	if coinType != legacyCoinType {
+		const desc = "upgrade to SLIP0044 coin type must be performed on legacy coin type wallet"
+		return apperrors.New(apperrors.ErrUnsupported, desc)
+	}
+
+	ns := dbtx.ReadWriteBucket(waddrmgrBucketKey)
+	mainBucket := ns.NestedReadWriteBucket(mainBucketName)
+
+	coinTypeSLIP0044PubKeyEnc := mainBucket.Get(coinTypeSLIP0044PubKeyName)
+	coinTypeSLIP0044PrivKeyEnc := mainBucket.Get(coinTypeSLIP0044PrivKeyName)
+	if coinTypeSLIP0044PubKeyEnc == nil || coinTypeSLIP0044PrivKeyEnc == nil {
+		const desc = "upgrade to SLIP0044 coin type requires SLIP0044 coin type keys saved"
+		return apperrors.New(apperrors.ErrUnsupported, desc)
+	}
+
+	// Refuse to upgrade the coin type if any accounts or addresses have been
+	// used or derived.
+	lastAcct, err := m.LastAccount(ns)
+	if err != nil {
+		return err
+	}
+	acctProps, err := m.AccountProperties(ns, lastAcct)
+	if err != nil {
+		return err
+	}
+	if lastAcct != 0 || acctProps.LastReturnedExternalIndex != ^uint32(0) ||
+		acctProps.LastReturnedInternalIndex != ^uint32(0) {
+		const desc = "wallets with account or address usage may not be " +
+			"upgraded to SLIP0044 coin type"
+		return apperrors.New(apperrors.ErrUnsupported, desc)
+	}
+
+	// Delete the legacy coin type keys.  With these missing, the SLIP0044 coin
+	// type keys (which have already been checked to exist) will be used
+	// instead.
+	err = mainBucket.Delete(coinTypeLegacyPubKeyName)
+	if err != nil {
+		const desc = "failed to delete legacy coin type pubkey"
+		return apperrors.Wrap(err, apperrors.ErrDatabase, desc)
+	}
+	err = mainBucket.Delete(coinTypeLegacyPrivKeyName)
+	if err != nil {
+		const desc = "failed to delete legacy coin type privkey"
+		return apperrors.Wrap(err, apperrors.ErrDatabase, desc)
+	}
+
+	// Rewrite the account 0 row using the SLIP0044 coin type key derivations.
+	serializedRow := mainBucket.Get(slip0044Account0RowName)
+	if serializedRow == nil {
+		const desc = "missing SLIP0044 coin type account row"
+		return apperrors.New(apperrors.ErrData, desc)
+	}
+	accountID := uint32ToBytes(0)
+	row, err := deserializeAccountRow(accountID, serializedRow)
+	if err != nil {
+		return err
+	}
+	if row.acctType != actBIP0044 {
+		desc := fmt.Sprintf("unsupported account row type %d", row.acctType)
+		return apperrors.New(apperrors.ErrData, desc)
+	}
+	bip0044Row, err := deserializeBIP0044AccountRow(accountID, row, initialVersion)
+	if err != nil {
+		return err
+	}
+	// Keep previous name of account 0
+	bip0044Row.name = acctProps.AccountName
+	bip0044Row.rawData = serializeBIP0044AccountRow(bip0044Row, DBVersion)
+	err = putAccountRow(ns, 0, &bip0044Row.dbAccountRow)
+	if err != nil {
+		return err
+	}
+	err = mainBucket.Delete(slip0044Account0RowName)
+	if err != nil {
+		const desc = "failed to delete SLIP0044 coin type account row"
+		return apperrors.Wrap(err, apperrors.ErrDatabase, desc)
+	}
+
+	// Acquire the manager mutex for the remainder of the call so that caches
+	// can be updated.
+	defer m.mtx.Unlock()
+	m.mtx.Lock()
+
+	// Check if the account info cache exists and must be updated for the
+	// SLIP044 coin type derivations.
+	acctInfo, ok := m.acctInfo[0]
+	if !ok {
+		return nil
+	}
+
+	// Decrypt the SLIP0044 coin type account xpub so the in memory account
+	// information can be updated.
+	acctExtPubKeyStr, err := m.cryptoKeyPub.Decrypt(bip0044Row.pubKeyEncrypted)
+	if err != nil {
+		const desc = "failed to decrypt SLIP0044 coin type account xpub"
+		return apperrors.Wrap(err, apperrors.ErrCrypto, desc)
+	}
+	acctExtPubKey, err := hdkeychain.NewKeyFromString(string(acctExtPubKeyStr))
+	if err != nil {
+		const desc = "failed to deserialize SLIP0044 coin type account xpub"
+		return apperrors.Wrap(err, apperrors.ErrKeyChain, desc)
+	}
+
+	// When unlocked, decrypt the SLIP0044 coin type account xpriv as well.
+	var acctExtPrivKey *hdkeychain.ExtendedKey
+	if !m.locked {
+		acctExtPrivKeyStr, err := m.cryptoKeyPriv.Decrypt(bip0044Row.privKeyEncrypted)
+		if err != nil {
+			const desc = "failed to decrypt SLIP0044 coin type account xpriv"
+			return apperrors.Wrap(err, apperrors.ErrCrypto, desc)
+		}
+		acctExtPrivKey, err = hdkeychain.NewKeyFromString(string(acctExtPrivKeyStr))
+		if err != nil {
+			const desc = "failed to deserialize SLIP0044 coin type account xpriv"
+			return apperrors.Wrap(err, apperrors.ErrKeyChain, desc)
+		}
+	}
+
+	acctInfo.acctKeyEncrypted = bip0044Row.privKeyEncrypted
+	acctInfo.acctKeyPriv = acctExtPrivKey
+	acctInfo.acctKeyPub = acctExtPubKey
+
+	return nil
 }
 
 // deriveKeyFromPath returns either a public or private derived extended key
@@ -2220,6 +2392,22 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte,
 	return mgr, nil
 }
 
+// CoinTypes returns the legacy and SLIP0044 coin types for the chain
+// parameters.  At the moment, the parameters have not been upgraded for the new
+// coin types.
+func CoinTypes(params *chaincfg.Params) (legacyCoinType, slip0044CoinType uint32) {
+	// This will need to be rewritten after the chaincfg parameters are updated
+	// for the SLIP0044 coin types.  A test function, TestCoinTypes, exists to
+	// check that the output of this function remains correct after the
+	// parameters are eventually changed.
+	switch params.Net {
+	case wire.MainNet:
+		return params.HDCoinType, 42
+	default:
+		return params.HDCoinType, 1
+	}
+}
+
 // createAddressManager creates a new address manager in the given namespace.
 // The seed must conform to the standards described in hdkeychain.NewMaster and
 // will be used to create the master root node from which all hierarchical
@@ -2266,16 +2454,35 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 			return managerError(apperrors.ErrKeyChain, str, err)
 		}
 
-		// Derive the cointype key according to BIP0044.
-		coinTypeKeyPriv, err := deriveCoinTypeKey(root, chainParams.HDCoinType)
+		// Derive the cointype keys according to BIP0044.
+		legacyCoinType, slip0044CoinType := CoinTypes(chainParams)
+		coinTypeLegacyKeyPriv, err := deriveCoinTypeKey(root, legacyCoinType)
 		if err != nil {
-			str := "failed to derive cointype extended key"
+			str := "failed to derive legacy cointype extended key"
 			return managerError(apperrors.ErrKeyChain, str, err)
 		}
-		defer coinTypeKeyPriv.Zero()
+		defer coinTypeLegacyKeyPriv.Zero()
+		coinTypeSLIP0044KeyPriv, err := deriveCoinTypeKey(root, slip0044CoinType)
+		if err != nil {
+			str := "failed to derive SLIP0044 cointype extended key"
+			return managerError(apperrors.ErrKeyChain, str, err)
+		}
+		defer coinTypeSLIP0044KeyPriv.Zero()
 
 		// Derive the account key for the first account according to BIP0044.
-		acctKeyPriv, err := deriveAccountKey(coinTypeKeyPriv, 0)
+		acctKeyLegacyPriv, err := deriveAccountKey(coinTypeLegacyKeyPriv, 0)
+		if err != nil {
+			// The seed is unusable if the any of the children in the
+			// required hierarchy can't be derived due to invalid child.
+			if err == hdkeychain.ErrInvalidChild {
+				str := "the provided seed is unusable"
+				return managerError(apperrors.ErrKeyChain, str,
+					hdkeychain.ErrUnusableSeed)
+			}
+
+			return err
+		}
+		acctKeySLIP0044Priv, err := deriveAccountKey(coinTypeSLIP0044KeyPriv, 0)
 		if err != nil {
 			// The seed is unusable if the any of the children in the
 			// required hierarchy can't be derived due to invalid child.
@@ -2290,7 +2497,18 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 
 		// Ensure the branch keys can be derived for the provided seed according
 		// to BIP0044.
-		if err := checkBranchKeys(acctKeyPriv); err != nil {
+		if err := checkBranchKeys(acctKeyLegacyPriv); err != nil {
+			// The seed is unusable if the any of the children in the
+			// required hierarchy can't be derived due to invalid child.
+			if err == hdkeychain.ErrInvalidChild {
+				str := "the provided seed is unusable"
+				return managerError(apperrors.ErrKeyChain, str,
+					hdkeychain.ErrUnusableSeed)
+			}
+
+			return err
+		}
+		if err := checkBranchKeys(acctKeySLIP0044Priv); err != nil {
 			// The seed is unusable if the any of the children in the
 			// required hierarchy can't be derived due to invalid child.
 			if err == hdkeychain.ErrInvalidChild {
@@ -2303,9 +2521,14 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		}
 
 		// The address manager needs the public extended key for the account.
-		acctKeyPub, err := acctKeyPriv.Neuter()
+		acctKeyLegacyPub, err := acctKeyLegacyPriv.Neuter()
 		if err != nil {
-			str := "failed to convert private key for account 0"
+			str := "failed to convert private key for legacy account 0"
+			return managerError(apperrors.ErrKeyChain, str, err)
+		}
+		acctKeySLIP0044Pub, err := acctKeySLIP0044Priv.Neuter()
+		if err != nil {
+			str := "failed to convert private key for SLIP0044 account 0"
 			return managerError(apperrors.ErrKeyChain, str, err)
 		}
 
@@ -2372,50 +2595,97 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 			return managerError(apperrors.ErrCrypto, str, err)
 		}
 
-		// Encrypt the cointype keys with the associated crypto keys.
-		coinTypeKeyPub, err := coinTypeKeyPriv.Neuter()
+		// Encrypt the legacy cointype keys with the associated crypto keys.
+		coinTypeLegacyKeyPub, err := coinTypeLegacyKeyPriv.Neuter()
 		if err != nil {
-			str := "failed to convert cointype private key"
+			str := "failed to convert legacy cointype private key"
 			return managerError(apperrors.ErrKeyChain, str, err)
 		}
-		ctpes, err := coinTypeKeyPub.String()
+		ctpes, err := coinTypeLegacyKeyPub.String()
 		if err != nil {
-			str := "failed to convert cointype public key string"
+			str := "failed to convert legacy cointype public key string"
 			return managerError(apperrors.ErrKeyChain, str, err)
 		}
-		coinTypePubEnc, err := cryptoKeyPub.Encrypt([]byte(ctpes))
+		coinTypeLegacyPubEnc, err := cryptoKeyPub.Encrypt([]byte(ctpes))
 		if err != nil {
-			str := "failed to encrypt cointype public key"
+			str := "failed to encrypt legacy cointype public key"
 			return managerError(apperrors.ErrCrypto, str, err)
 		}
-		ctpes, err = coinTypeKeyPriv.String()
+		ctpes, err = coinTypeLegacyKeyPriv.String()
 		if err != nil {
-			str := "failed to convert cointype private key string"
+			str := "failed to convert legacy cointype private key string"
 			return managerError(apperrors.ErrKeyChain, str, err)
 		}
-		coinTypePrivEnc, err := cryptoKeyPriv.Encrypt([]byte(ctpes))
+		coinTypeLegacyPrivEnc, err := cryptoKeyPriv.Encrypt([]byte(ctpes))
 		if err != nil {
-			str := "failed to encrypt cointype private key"
+			str := "failed to encrypt legacy cointype private key"
+			return managerError(apperrors.ErrCrypto, str, err)
+		}
+
+		// Encrypt the SLIP0044 cointype keys with the associated crypto keys.
+		coinTypeSLIP0044KeyPub, err := coinTypeSLIP0044KeyPriv.Neuter()
+		if err != nil {
+			str := "failed to convert SLIP0044 cointype private key"
+			return managerError(apperrors.ErrKeyChain, str, err)
+		}
+		ctpes, err = coinTypeSLIP0044KeyPub.String()
+		if err != nil {
+			str := "failed to convert SLIP0044 cointype public key string"
+			return managerError(apperrors.ErrKeyChain, str, err)
+		}
+		coinTypeSLIP0044PubEnc, err := cryptoKeyPub.Encrypt([]byte(ctpes))
+		if err != nil {
+			str := "failed to encrypt SLIP0044 cointype public key"
+			return managerError(apperrors.ErrCrypto, str, err)
+		}
+		ctpes, err = coinTypeSLIP0044KeyPriv.String()
+		if err != nil {
+			str := "failed to convert SLIP0044 cointype private key string"
+			return managerError(apperrors.ErrKeyChain, str, err)
+		}
+		coinTypeSLIP0044PrivEnc, err := cryptoKeyPriv.Encrypt([]byte(ctpes))
+		if err != nil {
+			str := "failed to encrypt SLIP0044 cointype private key"
 			return managerError(apperrors.ErrCrypto, str, err)
 		}
 
 		// Encrypt the default account keys with the associated crypto keys.
-		apes, err := acctKeyPub.String()
+		apes, err := acctKeyLegacyPub.String()
 		if err != nil {
 			str := "failed to convert public key string for account 0"
 			return managerError(apperrors.ErrKeyChain, str, err)
 		}
-		acctPubEnc, err := cryptoKeyPub.Encrypt([]byte(apes))
+		acctPubLegacyEnc, err := cryptoKeyPub.Encrypt([]byte(apes))
 		if err != nil {
 			str := "failed to encrypt public key for account 0"
 			return managerError(apperrors.ErrCrypto, str, err)
 		}
-		apes, err = acctKeyPriv.String()
+		apes, err = acctKeyLegacyPriv.String()
 		if err != nil {
 			str := "failed to convert private key string for account 0"
 			return managerError(apperrors.ErrKeyChain, str, err)
 		}
-		acctPrivEnc, err := cryptoKeyPriv.Encrypt([]byte(apes))
+		acctPrivLegacyEnc, err := cryptoKeyPriv.Encrypt([]byte(apes))
+		if err != nil {
+			str := "failed to encrypt private key for account 0"
+			return managerError(apperrors.ErrCrypto, str, err)
+		}
+		apes, err = acctKeySLIP0044Pub.String()
+		if err != nil {
+			str := "failed to convert public key string for account 0"
+			return managerError(apperrors.ErrKeyChain, str, err)
+		}
+		acctPubSLIP0044Enc, err := cryptoKeyPub.Encrypt([]byte(apes))
+		if err != nil {
+			str := "failed to encrypt public key for account 0"
+			return managerError(apperrors.ErrCrypto, str, err)
+		}
+		apes, err = acctKeySLIP0044Priv.String()
+		if err != nil {
+			str := "failed to convert private key string for account 0"
+			return managerError(apperrors.ErrKeyChain, str, err)
+		}
+		acctPrivSLIP0044Enc, err := cryptoKeyPriv.Encrypt([]byte(apes))
 		if err != nil {
 			str := "failed to encrypt private key for account 0"
 			return managerError(apperrors.ErrCrypto, str, err)
@@ -2436,14 +2706,20 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 			return err
 		}
 
-		// Save the encrypted cointype keys to the database.
-		err = putCoinTypeKeys(ns, coinTypePubEnc, coinTypePrivEnc)
+		// Save the encrypted legacy cointype keys to the database.
+		err = putCoinTypeLegacyKeys(ns, coinTypeLegacyPubEnc, coinTypeLegacyPrivEnc)
 		if err != nil {
 			return err
 		}
 
-		// Save the fact this is a watching-only address manager to
-		// the database.
+		// Save the encrypted SLIP0044 cointype keys.
+		err = putCoinTypeSLIP0044Keys(ns, coinTypeSLIP0044PubEnc, coinTypeSLIP0044PrivEnc)
+		if err != nil {
+			return err
+		}
+
+		// Save the fact this is not a watching-only address manager to the
+		// database.
 		err = putWatchingOnly(ns, false)
 		if err != nil {
 			return err
@@ -2469,10 +2745,27 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 			return err
 		}
 
-		// Save the information for the default account to the database.
-		defaultRow := bip0044AccountInfo(acctPubEnc, acctPrivEnc, 0, 0, 0, 0, 0, 0,
-			defaultAccountName, initialVersion)
-		return putAccountInfo(ns, DefaultAccountNum, defaultRow)
+		// Save the information for the default account to the database.  This
+		// account is derived from the legacy coin type.
+		defaultRow := bip0044AccountInfo(acctPubLegacyEnc, acctPrivLegacyEnc,
+			0, 0, 0, 0, 0, 0, defaultAccountName, initialVersion)
+		err = putAccountInfo(ns, DefaultAccountNum, defaultRow)
+		if err != nil {
+			return err
+		}
+
+		// Save the account row for the 0th account derived from the coin type
+		// 42 key.
+		slip0044Account0Row := bip0044AccountInfo(acctPubSLIP0044Enc, acctPrivSLIP0044Enc,
+			0, 0, 0, 0, 0, 0, defaultAccountName, initialVersion)
+		mainBucket := ns.NestedReadWriteBucket(mainBucketName)
+		err = mainBucket.Put(slip0044Account0RowName, serializeAccountRow(&slip0044Account0Row.dbAccountRow))
+		if err != nil {
+			const desc = "failed to write SLIP0044 account row to main bucket"
+			return apperrors.Wrap(err, apperrors.ErrDatabase, desc)
+		}
+
+		return nil
 	}()
 	if err != nil {
 		return maybeConvertDbError(err)
@@ -2646,8 +2939,7 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string,
 		return err
 	}
 
-	// Save the fact this is not a watching-only address manager to
-	// the database.
+	// Save the fact this is a watching-only address manager to the database.
 	err = putWatchingOnly(ns, true)
 	if err != nil {
 		return err

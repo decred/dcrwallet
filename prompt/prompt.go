@@ -15,6 +15,6 @@ import (
 // randomly generated seed of the recommended length will be generated and
 // returned after the user has confirmed the seed has been backed up to a secure
 // location.
-func Setup(r *bufio.Reader) (privPass, pubPass, seed []byte, err error) {
+func Setup(r *bufio.Reader) (privPass, pubPass, seed []byte, imported bool, err error) {
 	return prompt.Setup(r, []byte(wallet.InsecurePubPassphrase), nil)
 }

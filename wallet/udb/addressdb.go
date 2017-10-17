@@ -199,15 +199,18 @@ var (
 	mgrCreateDateName = []byte("mgrcreated")
 
 	// Crypto related key names (main bucket).
-	seedName            = []byte("seed")
-	masterPrivKeyName   = []byte("mpriv")
-	masterPubKeyName    = []byte("mpub")
-	cryptoPrivKeyName   = []byte("cpriv")
-	cryptoPubKeyName    = []byte("cpub")
-	cryptoScriptKeyName = []byte("cscript")
-	coinTypePrivKeyName = []byte("ctpriv")
-	coinTypePubKeyName  = []byte("ctpub")
-	watchingOnlyName    = []byte("watchonly")
+	seedName                    = []byte("seed")
+	masterPrivKeyName           = []byte("mpriv")
+	masterPubKeyName            = []byte("mpub")
+	cryptoPrivKeyName           = []byte("cpriv")
+	cryptoPubKeyName            = []byte("cpub")
+	cryptoScriptKeyName         = []byte("cscript")
+	coinTypeLegacyPrivKeyName   = []byte("ctpriv")
+	coinTypeLegacyPubKeyName    = []byte("ctpub")
+	coinTypeSLIP0044PrivKeyName = []byte("ctpriv-slip0044")
+	coinTypeSLIP0044PubKeyName  = []byte("ctpub-slip0044")
+	watchingOnlyName            = []byte("watchonly")
+	slip0044Account0RowName     = []byte("slip0044acct0")
 
 	// Used addresses (used bucket).  This was removed by database version 2.
 	usedAddrBucketName = []byte("usedaddrs")
@@ -316,42 +319,80 @@ func putMasterKeyParams(ns walletdb.ReadWriteBucket, pubParams, privParams []byt
 }
 
 // fetchCoinTypeKeys loads the encrypted cointype keys which are in turn used to
-// derive the extended keys for all accounts.
+// derive the extended keys for all accounts.  If both the legacy and SLIP0044
+// coin type keys are saved, the legacy keys are used for backwards
+// compatibility reasons.
 func fetchCoinTypeKeys(ns walletdb.ReadBucket) ([]byte, []byte, error) {
 	bucket := ns.NestedReadBucket(mainBucketName)
 
-	coinTypePubKeyEnc := bucket.Get(coinTypePubKeyName)
+	var coinTypeSLIP0044 bool
+
+	coinTypePubKeyEnc := bucket.Get(coinTypeLegacyPubKeyName)
+	if coinTypePubKeyEnc == nil {
+		coinTypeSLIP0044 = true
+		coinTypePubKeyEnc = bucket.Get(coinTypeSLIP0044PubKeyName)
+	}
 	if coinTypePubKeyEnc == nil {
 		str := "required encrypted cointype public key not stored in database"
 		return nil, nil, managerError(apperrors.ErrDatabase, str, nil)
 	}
 
+	coinTypePrivKeyName := coinTypeLegacyPrivKeyName
+	if coinTypeSLIP0044 {
+		coinTypePrivKeyName = coinTypeSLIP0044PrivKeyName
+	}
 	coinTypePrivKeyEnc := bucket.Get(coinTypePrivKeyName)
 	if coinTypePrivKeyEnc == nil {
 		str := "required encrypted cointype private key not stored in database"
 		return nil, nil, managerError(apperrors.ErrDatabase, str, nil)
 	}
+
 	return coinTypePubKeyEnc, coinTypePrivKeyEnc, nil
 }
 
-// putCoinTypeKeys stores the encrypted cointype keys which are in turn used to
-// derive the extended keys for all accounts.  Either parameter can be nil in which
-// case no value is written for the parameter.
-func putCoinTypeKeys(ns walletdb.ReadWriteBucket, coinTypePubKeyEnc []byte, coinTypePrivKeyEnc []byte) error {
+// putCoinTypeLegacyKeys stores the encrypted legacy cointype keys which are in
+// turn used to derive the extended keys for all accounts.  Either parameter can
+// be nil in which case no value is written for the parameter.
+func putCoinTypeLegacyKeys(ns walletdb.ReadWriteBucket, coinTypePubKeyEnc []byte, coinTypePrivKeyEnc []byte) error {
 	bucket := ns.NestedReadWriteBucket(mainBucketName)
 
 	if coinTypePubKeyEnc != nil {
-		err := bucket.Put(coinTypePubKeyName, coinTypePubKeyEnc)
+		err := bucket.Put(coinTypeLegacyPubKeyName, coinTypePubKeyEnc)
 		if err != nil {
-			str := "failed to store encrypted cointype public key"
+			str := "failed to store encrypted legacy cointype public key"
 			return managerError(apperrors.ErrDatabase, str, err)
 		}
 	}
 
 	if coinTypePrivKeyEnc != nil {
-		err := bucket.Put(coinTypePrivKeyName, coinTypePrivKeyEnc)
+		err := bucket.Put(coinTypeLegacyPrivKeyName, coinTypePrivKeyEnc)
 		if err != nil {
-			str := "failed to store encrypted cointype private key"
+			str := "failed to store encrypted legacy cointype private key"
+			return managerError(apperrors.ErrDatabase, str, err)
+		}
+	}
+
+	return nil
+}
+
+// putCoinTypeSLIP0044Keys stores the encrypted SLIP0044 cointype keys which are
+// in turn used to derive the extended keys for all accounts.  Either parameter
+// can be nil in which case no value is written for the parameter.
+func putCoinTypeSLIP0044Keys(ns walletdb.ReadWriteBucket, coinTypePubKeyEnc []byte, coinTypePrivKeyEnc []byte) error {
+	bucket := ns.NestedReadWriteBucket(mainBucketName)
+
+	if coinTypePubKeyEnc != nil {
+		err := bucket.Put(coinTypeSLIP0044PubKeyName, coinTypePubKeyEnc)
+		if err != nil {
+			str := "failed to store encrypted SLIP0044 cointype public key"
+			return managerError(apperrors.ErrDatabase, str, err)
+		}
+	}
+
+	if coinTypePrivKeyEnc != nil {
+		err := bucket.Put(coinTypeSLIP0044PrivKeyName, coinTypePrivKeyEnc)
+		if err != nil {
+			str := "failed to store encrypted SLIP0044 cointype private key"
 			return managerError(apperrors.ErrDatabase, str, err)
 		}
 	}
@@ -1250,8 +1291,12 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 		str := "failed to delete crypto script key"
 		return managerError(apperrors.ErrDatabase, str, err)
 	}
-	if err := bucket.Delete(coinTypePrivKeyName); err != nil {
-		str := "failed to delete cointype private key"
+	if err := bucket.Delete(coinTypeLegacyPrivKeyName); err != nil {
+		str := "failed to delete legacy cointype private key"
+		return managerError(apperrors.ErrDatabase, str, err)
+	}
+	if err := bucket.Delete(coinTypeSLIP0044PrivKeyName); err != nil {
+		str := "failed to delete SLIP0044 cointype private key"
 		return managerError(apperrors.ErrDatabase, str, err)
 	}
 

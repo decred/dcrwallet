@@ -159,8 +159,26 @@ Bsearch:
 // feature requires the wallet to be unlocked in order to derive hardened
 // account extended pubkeys.
 //
+// If the wallet is currently on the legacy coin type and no address or account
+// usage is observed, the wallet will be upgraded to the SLIP0044 coin type and
+// the address discovery will occur again.
+//
 // A transaction filter (re)load and rescan should be performed after discovery.
 func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) error {
+	_, slip0044CoinType := udb.CoinTypes(w.chainParams)
+	var activeCoinType uint32
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		var err error
+		activeCoinType, err = w.Manager.CoinType(dbtx)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	isSLIP0044CoinType := activeCoinType == slip0044CoinType
+
+	log.Debugf("DiscoverActiveAddresses: activeCoinType=%d", activeCoinType)
+
 	// Start by rescanning the accounts and determining what the
 	// current account index is. This scan should only ever be
 	// performed if we're restoring our wallet from seed.
@@ -231,7 +249,7 @@ func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) e
 	}
 
 	var lastAcct uint32
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
 		lastAcct, err = w.Manager.LastAccount(ns)
@@ -246,6 +264,7 @@ func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) e
 	// Rescan addresses for the both the internal and external
 	// branches of the account.
 	var g errgroup.Group
+	var lastAcct0ExtAddr, lastAcct0IntAddr uint32
 	for acct := uint32(0); acct <= lastAcct; acct++ {
 		for branch := uint32(0); branch < 2; branch++ {
 			acct, branch := acct, branch
@@ -311,6 +330,14 @@ func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) e
 					buf.cursor = lastReturned - lastUsed
 					w.addressBuffersMu.Unlock()
 
+					if acct == 0 {
+						if branch == 0 {
+							lastAcct0ExtAddr = lastReturned
+						} else {
+							lastAcct0IntAddr = lastReturned
+						}
+					}
+
 					// Unfortunately if the cursor is equal to or greater than
 					// the gap limit, the next child index isn't completely
 					// known.  Depending on the gap limit policy being used, the
@@ -329,5 +356,31 @@ func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) e
 	}
 
 	log.Infof("Finished address discovery")
-	return nil
+
+	// When the wallet uses the SLIP0044 coin type, there is nothing more to do.
+	if isSLIP0044CoinType {
+		return nil
+	}
+
+	// Do not upgrade legacy coin type wallets if there are returned or used
+	// addresses.
+	if !isSLIP0044CoinType && (lastAcct != 0 || lastAcct0ExtAddr != ^uint32(0) ||
+		lastAcct0IntAddr != ^uint32(0)) {
+		log.Warnf("Wallet contains addresses derived for the legacy BIP0044 " +
+			"coin type and seed restores may not work with some other wallet " +
+			"software")
+		return nil
+	}
+
+	// Upgrade the coin type.
+	log.Infof("Upgrading wallet from legacy coin type %d to SLIP0044 coin type %d",
+		activeCoinType, slip0044CoinType)
+	err = w.UpgradeToSLIP0044CoinType()
+	if err != nil {
+		return err
+	}
+	log.Infof("Upgraded coin type.")
+
+	// Perform address discovery a second time using the upgraded coin type.
+	return w.DiscoverActiveAddresses(n, discoverAccts)
 }

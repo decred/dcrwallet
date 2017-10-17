@@ -30,6 +30,7 @@ var dbUpgradeTests = [...]struct {
 	{verifyV4Upgrade, "v3.db.gz"},
 	{verifyV5Upgrade, "v4.db.gz"},
 	{verifyV6Upgrade, "v5.db.gz"},
+	// No upgrade test for V7, it is a backwards-compatible upgrade
 }
 
 var pubPass = []byte("public")

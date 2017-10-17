@@ -60,10 +60,12 @@ func createWallet(ctx context.Context, cfg *config) error {
 		cfg.AddrIdxScanLen, cfg.AllowHighFees, cfg.RelayFee.ToCoin())
 
 	var privPass, pubPass, seed []byte
+	var imported bool
 	var err error
 	c := make(chan struct{}, 1)
 	go func() {
-		privPass, pubPass, seed, err = prompt.Setup(bufio.NewReader(os.Stdin),
+		reader := bufio.NewReader(os.Stdin)
+		privPass, pubPass, seed, imported, err = prompt.Setup(reader,
 			[]byte(wallet.InsecurePubPassphrase), []byte(cfg.WalletPass))
 		c <- struct{}{}
 	}()
@@ -77,9 +79,16 @@ func createWallet(ctx context.Context, cfg *config) error {
 	}
 
 	fmt.Println("Creating the wallet...")
-	_, err = loader.CreateNewWallet(pubPass, privPass, seed)
+	w, err := loader.CreateNewWallet(pubPass, privPass, seed)
 	if err != nil {
 		return err
+	}
+
+	if !imported {
+		err := w.UpgradeToSLIP0044CoinType()
+		if err != nil {
+			return err
+		}
 	}
 
 	fmt.Println("The wallet has been created successfully.")

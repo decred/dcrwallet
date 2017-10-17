@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"testing"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -70,6 +71,23 @@ func setupBoltDB() (db *bolt.DB, teardown func(), err error) {
 		os.Remove(f.Name())
 	}
 	db, err = bolt.Open(f.Name(), 0600, nil)
+	return
+}
+
+func tempDB(t *testing.T) (db walletdb.DB, teardown func()) {
+	f, err := ioutil.TempFile("", "udb")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	db, err = walletdb.Create("bdb", f.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	teardown = func() {
+		db.Close()
+		os.Remove(f.Name())
+	}
 	return
 }
 
