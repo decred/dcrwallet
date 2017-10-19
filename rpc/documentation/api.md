@@ -747,6 +747,8 @@ results of a single ticket.
 
     **Nested enum:** `TicketStatus`
 
+    - `UNKNOWN`: A ticket whose status was unable to be determined.
+
     - `UNMINED`: A ticket that has yet to be mined into a block.
 
     - `IMMATURE`: A ticket that has not yet matured enough to be live.
@@ -760,8 +762,6 @@ results of a single ticket.
     - `MISSED`: A ticket that was missed but not yet revoked.
 
     - `REVOKED`: A ticket that has been revoked.
-
-    - `UNKNOWN`: A ticket whose status was unable to be determined.
 
 **Expected errors:**
 

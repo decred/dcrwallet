@@ -465,8 +465,10 @@ type TicketSummary struct {
 type TicketStatus int8
 
 const (
+	// TicketStatusUnknown any ticket that its status was unable to be determined.
+	TicketStatusUnknown TicketStatus = iota
 	// TicketStatusUnmined any not yet mined ticket.
-	TicketStatusUnmined TicketStatus = iota
+	TicketStatusUnmined
 	// TicketStatusImmature any so to be live ticket.
 	TicketStatusImmature
 	// TicketStatusLive any currently live ticket.
@@ -479,8 +481,6 @@ const (
 	TicketStatusMissed
 	// TicketStatusExpired any ticket that has yet to be revoked, and was expired.
 	TicketStatusExpired
-	// TicketStatusUnknown any ticket that its status was unable to be determined.
-	TicketStatusUnknown
 )
 
 // TransactionSummary contains a transaction relevant to the wallet and marks
