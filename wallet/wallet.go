@@ -2245,7 +2245,7 @@ func (w *Wallet) GetTickets(ctx context.Context, chainClient *dcrrpcclient.Clien
 			}
 			select {
 			case <-ctx.Done():
-				return true, nil
+				return true, ctx.Err()
 			default:
 				return false, nil
 			}
