@@ -303,6 +303,7 @@ message GetTicketsResponse {
 			MISSED = 4;
 			EXPIRED = 5;
 			REVOKED = 6;
+			UNKNOWN = 7;
 		}
 		TicketStatus ticket_status = 3;
 	}

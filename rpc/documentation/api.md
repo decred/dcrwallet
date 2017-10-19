@@ -761,6 +761,8 @@ results of a single ticket.
 
     - `REVOKED`: A ticket that has been revoked.
 
+    - `UNKNOWN`: A ticket whose status was unable to be determined.
+
 **Expected errors:**
 
 - `InvalidArgument`: A non-default block hash field did not have the correct length.

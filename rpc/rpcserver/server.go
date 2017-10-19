@@ -1388,6 +1388,8 @@ func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.GetTicketsResponse_T
 		ticketStatus = pb.GetTicketsResponse_TicketDetails_UNMINED
 	case wallet.TicketStatusMissed:
 		ticketStatus = pb.GetTicketsResponse_TicketDetails_MISSED
+	case wallet.TicketStatusUnknown:
+		ticketStatus = pb.GetTicketsResponse_TicketDetails_UNKNOWN
 	}
 	spender := &pb.TransactionDetails{}
 	if ticket.Spender != nil {
