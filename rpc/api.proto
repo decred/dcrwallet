@@ -25,6 +25,7 @@ service WalletService {
 	rpc Balance (BalanceRequest) returns (BalanceResponse);
 	rpc GetTransaction (GetTransactionRequest) returns (GetTransactionResponse);
 	rpc GetTransactions (GetTransactionsRequest) returns (stream GetTransactionsResponse);
+	rpc GetTickets (GetTicketsRequest) returns (stream GetTicketsResponse);
 	rpc TicketPrice (TicketPriceRequest) returns (TicketPriceResponse);
 	rpc StakeInfo (StakeInfoRequest) returns (StakeInfoResponse);
 	rpc BlockInfo (BlockInfoRequest) returns (BlockInfoResponse);
@@ -282,6 +283,31 @@ message GetTransactionsRequest {
 message GetTransactionsResponse {
 	BlockDetails mined_transactions = 1;
 	repeated TransactionDetails unmined_transactions = 2;
+}
+
+message GetTicketsRequest {
+	bytes starting_block_hash = 1;
+	sint32 starting_block_height = 2;
+	bytes ending_block_hash = 3;
+	int32 ending_block_height = 4;
+}
+message GetTicketsResponse {
+	message TicketDetails {
+		TransactionDetails ticket = 1;
+		TransactionDetails spender = 2;
+		enum TicketStatus {
+			UNKNOWN = 0;
+			UNMINED = 1;
+			IMMATURE = 2;
+			LIVE = 3;
+			VOTED = 4;
+			MISSED = 5;
+			EXPIRED = 6;
+			REVOKED = 7;
+		}
+		TicketStatus ticket_status = 3;
+	}
+	TicketDetails ticket = 1;
 }
 
 message TicketPriceRequest {

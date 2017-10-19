@@ -8,6 +8,7 @@ package udb
 import (
 	"fmt"
 
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
@@ -192,6 +193,52 @@ func (s *Store) TxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash) (*TxDe
 		return nil, nil
 	}
 	return s.minedTxDetails(ns, txHash, k, v)
+}
+
+// TicketDetails is intended to provide callers with access to rich details
+// regarding a relevant transaction and which inputs and outputs are credit or
+// debits.
+type TicketDetails struct {
+	Ticket  *TxDetails
+	Spender *TxDetails
+}
+
+// TicketDetails looks up all recorded details regarding a ticket with some
+// hash.
+//
+// Not finding a ticket with this hash is not an error.  In this case,
+// a nil TicketDetiails is returned.
+func (s *Store) TicketDetails(ns walletdb.ReadBucket, txDetails *TxDetails) (*TicketDetails, error) {
+	var ticketDetails = &TicketDetails{}
+	ok, _ := stake.IsSStx(&txDetails.MsgTx)
+	if !ok {
+		return nil, nil
+	}
+	ticketDetails.Ticket = txDetails
+	var spenderHash = chainhash.Hash{}
+	// Check if the ticket is spent or not.  Look up the credit for output 0
+	// and check if either a debit is recorded or the output is spent by an
+	// unmined transaction.
+	_, credVal := existsCredit(ns, &txDetails.Hash, 0, &txDetails.Block.Block)
+	if credVal != nil {
+		if extractRawCreditIsSpent(credVal) {
+			debKey := extractRawCreditSpenderDebitKey(credVal)
+			debHash := extractRawDebitHash(debKey)
+			copy(spenderHash[:], debHash)
+		}
+	} else {
+		opKey := canonicalOutPoint(&txDetails.Hash, 0)
+		spenderVal := existsRawUnminedInput(ns, opKey)
+		if spenderVal != nil {
+			copy(spenderHash[:], spenderVal)
+		}
+	}
+	spenderDetails, err := s.TxDetails(ns, &spenderHash)
+	if err != nil {
+		return nil, err
+	}
+	ticketDetails.Spender = spenderDetails
+	return ticketDetails, nil
 }
 
 // parseTx deserializes a transaction into a MsgTx using the readRawTxRecord
