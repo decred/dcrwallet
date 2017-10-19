@@ -15,6 +15,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain"
+	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/apperrors"
@@ -198,7 +199,7 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 	}
 }
 
-func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
+func makeTicketSummary(chainClient *dcrrpcclient.Client, dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
 	var ticketStatus = TicketStatusLive
 
 	ticketTransactionDetails := makeTxSummary(dbtx, w, details.Ticket)
@@ -222,22 +223,23 @@ func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetai
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
-		ticketAge := int64(tipHeight - details.Ticket.Height())
+
+		expiryConfs := int32(w.chainParams.TicketExpiry) +
+			int32(w.chainParams.TicketMaturity) + 1
 
 		// Check if ticket age is not yet mature
-		if ticketAge <= int64(w.ChainParams().TicketMaturity) {
+		if !confirmed(int32(w.chainParams.TicketMaturity)+1, details.Ticket.Height(), tipHeight) {
 			ticketStatus = TicketStatusImmature
 			// Check if ticket age is over TicketExpiry limit and therefore expired
-		} else if ticketAge >= int64(w.ChainParams().TicketExpiry) {
+		} else if confirmed(expiryConfs, details.Ticket.Height(), tipHeight) {
 			ticketStatus = TicketStatusExpired
 		} else {
 			// Final check to see if ticket was missed otherwise it's live
-			live, err := w.chainClient.ExistsLiveTicket(&details.Ticket.Hash)
+			live, err := chainClient.ExistsLiveTicket(&details.Ticket.Hash)
 			if err != nil {
 				log.Errorf("Unable to check if ticket was live for ticket status: %v", &details.Ticket.Hash)
-				return nil
-			}
-			if !live {
+				ticketStatus = TicketStatusUnknown
+			} else if !live {
 				ticketStatus = TicketStatusMissed
 			}
 		}
@@ -463,12 +465,12 @@ type TicketSummary struct {
 type TicketStatus int8
 
 const (
-	// TicketStatusLive any currently live ticket.
-	TicketStatusLive TicketStatus = iota
 	// TicketStatusUnmined any not yet mined ticket.
-	TicketStatusUnmined
+	TicketStatusUnmined TicketStatus = iota
 	// TicketStatusImmature any so to be live ticket.
 	TicketStatusImmature
+	// TicketStatusLive any currently live ticket.
+	TicketStatusLive
 	// TicketStatusVoted any ticket that was seen to have voted.
 	TicketStatusVoted
 	// TicketStatusRevoked any ticket that has been previously revoked.
@@ -477,6 +479,8 @@ const (
 	TicketStatusMissed
 	// TicketStatusExpired any ticket that has yet to be revoked, and was expired.
 	TicketStatusExpired
+	// TicketStatusUnknown any ticket that its status was unable to be determined.
+	TicketStatusUnknown
 )
 
 // TransactionSummary contains a transaction relevant to the wallet and marks

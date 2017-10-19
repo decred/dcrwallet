@@ -2171,7 +2171,7 @@ type GetTicketsResult struct {
 }
 
 // GetTickets implements the rpc request command for gettickets
-func (w *Wallet) GetTickets(startBlock, endBlock *BlockIdentifier, cancel <-chan struct{}) (*GetTicketsResult, error) {
+func (w *Wallet) GetTickets(chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier, cancel <-chan struct{}) (*GetTicketsResult, error) {
 	var start, end int32 = 0, -1
 
 	if startBlock != nil {
@@ -2232,7 +2232,7 @@ func (w *Wallet) GetTickets(startBlock, endBlock *BlockIdentifier, cancel <-chan
 				if ticketInfo == nil {
 					continue
 				}
-				res.Tickets = append(res.Tickets, makeTicketSummary(dbtx, w, ticketInfo))
+				res.Tickets = append(res.Tickets, makeTicketSummary(chainClient, dbtx, w, ticketInfo))
 			}
 			select {
 			case <-cancel:

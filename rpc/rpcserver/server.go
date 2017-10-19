@@ -935,6 +935,11 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 	server pb.WalletService_GetTicketsServer) error {
 
+	chainClient, err := chain.RPCClientFromBackend(n)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
 	var startBlock, endBlock *wallet.BlockIdentifier
 	if req.StartingBlockHash != nil && req.StartingBlockHeight != 0 {
 		return status.Errorf(codes.InvalidArgument,
@@ -962,7 +967,7 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 		endBlock = wallet.NewBlockIdentifierFromHeight(req.EndingBlockHeight)
 	}
 
-	gt, err := s.wallet.GetTickets(startBlock, endBlock, server.Context().Done())
+	gt, err := s.wallet.GetTickets(chainClient, startBlock, endBlock, server.Context().Done())
 	if err != nil {
 		return translateError(err)
 	}
