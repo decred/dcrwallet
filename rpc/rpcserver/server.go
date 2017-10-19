@@ -967,7 +967,7 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 		endBlock = wallet.NewBlockIdentifierFromHeight(req.EndingBlockHeight)
 	}
 
-	gt, err := s.wallet.GetTickets(chainClient, startBlock, endBlock, server.Context().Done())
+	gt, err := s.wallet.GetTickets(server.Context(), chainClient, startBlock, endBlock, server.Context().Done())
 	if err != nil {
 		return translateError(err)
 	}
