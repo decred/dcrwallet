@@ -2180,11 +2180,16 @@ func (w *Wallet) GetTickets(chainClient *dcrrpcclient.Client, startBlock, endBlo
 		} else {
 			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-				meta, err := w.TxStore.GetBlockMetaForHash(ns, startBlock.hash)
+				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, startBlock.hash)
 				if err != nil {
 					return err
 				}
-				start = meta.Height
+				var startHeader wire.BlockHeader
+				err = startHeader.Deserialize(bytes.NewReader(serHeader))
+				if err != nil {
+					return err
+				}
+				start = int32(startHeader.Height)
 				return nil
 			})
 			if err != nil {
@@ -2198,11 +2203,16 @@ func (w *Wallet) GetTickets(chainClient *dcrrpcclient.Client, startBlock, endBlo
 		} else {
 			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-				meta, err := w.TxStore.GetBlockMetaForHash(ns, endBlock.hash)
+				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, endBlock.hash)
 				if err != nil {
 					return err
 				}
-				end = meta.Height
+				var endHeader wire.BlockHeader
+				err = endHeader.Deserialize(bytes.NewReader(serHeader))
+				if err != nil {
+					return err
+				}
+				end = int32(endHeader.Height)
 				return nil
 			})
 			if err != nil {
@@ -2225,8 +2235,7 @@ func (w *Wallet) GetTickets(chainClient *dcrrpcclient.Client, startBlock, endBlo
 				// XXX Here is where I would look up the ticket information from the db so I can populate spenderhash and ticket status
 				ticketInfo, err := w.TxStore.TicketDetails(txmgrNs, &details[i])
 				if err != nil {
-					log.Errorf("error while trying to get ticket details for ")
-					continue
+					return false, fmt.Errorf("%v while trying to get ticket details for txhash: %v", err, &details[i].Hash)
 				}
 				// Continue if not a ticket
 				if ticketInfo == nil {
