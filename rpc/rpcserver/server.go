@@ -907,7 +907,7 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 
 	_ = minRecentTxs
 
-	gtr, err := s.wallet.GetTransactions(startBlock, endBlock, server.Context().Done())
+	gtr, err := s.wallet.GetTransactions(server.Context(), startBlock, endBlock)
 	if err != nil {
 		return translateError(err)
 	}
@@ -934,10 +934,13 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 
 func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 	server pb.WalletService_GetTicketsServer) error {
-
+	n, err := s.requireNetworkBackend()
+	if err != nil {
+		return err
+	}
 	chainClient, err := chain.RPCClientFromBackend(n)
 	if err != nil {
-		return nil, translateError(err)
+		return translateError(err)
 	}
 
 	var startBlock, endBlock *wallet.BlockIdentifier
@@ -967,7 +970,7 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 		endBlock = wallet.NewBlockIdentifierFromHeight(req.EndingBlockHeight)
 	}
 
-	gt, err := s.wallet.GetTickets(server.Context(), chainClient, startBlock, endBlock, server.Context().Done())
+	gt, err := s.wallet.GetTickets(server.Context(), chainClient, startBlock, endBlock)
 	if err != nil {
 		return translateError(err)
 	}
