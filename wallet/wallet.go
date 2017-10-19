@@ -2170,7 +2170,10 @@ type GetTicketsResult struct {
 	Tickets []*TicketSummary
 }
 
-// GetTickets implements the rpc request command for gettickets
+// GetTickets returns a list of TicketSummarys that are located in between the
+// given startBlock and endBlock.  TicketSummary includes TransactionSummmary
+// for the ticket and the spender (if already spent) and the ticket's current
+// status.
 func (w *Wallet) GetTickets(ctx context.Context, chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) (*GetTicketsResult, error) {
 	var start, end int32 = 0, -1
 
