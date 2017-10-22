@@ -759,7 +759,7 @@ results of a single ticket.
     - `LIVE`: A currently live ticket that is waiting to be voted.
 
     - `VOTED`: A ticket that has been voted.
-    
+
     - `EXPIRED`: A ticket that is expired but not yet revoked.
 
     - `MISSED`: A ticket that was missed but not yet revoked.
