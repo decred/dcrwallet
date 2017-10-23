@@ -1126,12 +1126,19 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 
 			splitOuts = append(splitOuts, wire.NewTxOut(int64(userAmt), pkScript))
 		}
-
 	}
 
+	// get the estimated fee for the tx
+	sizeEstimate := txsizes.EstimateSerializeSize(len(splitOuts), splitOuts, false)
+	feeEstimate := txrules.FeeForSerializeSize(w.RelayFee(), sizeEstimate)
 	txFeeIncrement := req.txFee
 	if txFeeIncrement == 0 {
 		txFeeIncrement = w.RelayFee()
+	}
+
+	// ensure the fee provided is adequate for the tx
+	if txFeeIncrement < feeEstimate {
+		txFeeIncrement = feeEstimate
 	}
 	splitTx, err := w.txToOutputsInternal(splitOuts, account, req.minConf,
 		n, false, txFeeIncrement)
