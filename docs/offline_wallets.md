@@ -19,7 +19,7 @@ cold wallet. It can be used to get new addresses and supply a UTXO list with
 the command 'listunspent'.
 
 Cold wallets are typically used in the following configuration:
-1. Online computer computer with both a hot wallet used to handle funds and a 
+1. Online computer with both a hot wallet used to handle funds and a 
     watch only wallet configured to watch an account from the cold wallet.
 2. Offline computer with a cold wallet.
 
