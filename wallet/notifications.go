@@ -213,12 +213,12 @@ func makeTicketSummary(chainClient *dcrrpcclient.Client, dbtx walletdb.ReadTx, w
 			ticketStatus = TicketStatusRevoked
 		}
 		return &TicketSummary{
-			Ticket:  &ticketTransactionDetails,
-			Spender: &spenderTransactionDetails,
-			Status:  ticketStatus,
-			VoteBits: details.VoteBits,
-			VoteVersion: details.VoteVersion,
-			TicketPrice: details.TicketPrice,
+			Ticket:       &ticketTransactionDetails,
+			Spender:      &spenderTransactionDetails,
+			Status:       ticketStatus,
+			VoteBits:     details.VoteBits,
+			VoteVersion:  details.VoteVersion,
+			TicketPrice:  details.TicketPrice,
 			TicketReward: details.TicketReward,
 		}
 	}

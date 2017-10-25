@@ -1383,7 +1383,7 @@ func marshalVoteBits(voteBits *stake.VoteBits) *pb.VoteBits {
 	}
 
 	return &pb.VoteBits{
-		Bits: uint32(voteBits.Bits),
+		Bits:         uint32(voteBits.Bits),
 		ExtendedBits: extendedBits,
 	}
 }
@@ -1411,7 +1411,7 @@ func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.GetTicketsResponse_T
 		spender = marshalTransactionDetails(ticket.Spender)
 	}
 	voteBits := &pb.VoteBits{}
-	if (ticket.VoteBits != nil) {
+	if ticket.VoteBits != nil {
 		voteBits = marshalVoteBits(ticket.VoteBits)
 	}
 	return &pb.GetTicketsResponse_TicketDetails{
