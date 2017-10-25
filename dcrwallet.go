@@ -227,6 +227,7 @@ func run(ctx context.Context) error {
 		loader.RunAfterLoad(func(w *wallet.Wallet) {
 			rpcserver.StartWalletService(gRPCServer, w)
 			rpcserver.StartVotingService(gRPCServer, w)
+			rpcserver.StartDecodeMessageService(gRPCServer, w)
 		})
 		defer func() {
 			log.Warn("Stopping gRPC server...")
