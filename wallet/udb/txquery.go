@@ -199,12 +199,12 @@ func (s *Store) TxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash) (*TxDe
 // regarding a relevant transaction and which inputs and outputs are credit or
 // debits.
 type TicketDetails struct {
-	Ticket  		*TxDetails
-	Spender 		*TxDetails
-	VoteBits 		*stake.VoteBits
-	VoteVersion		uint32
-	TicketPrice 	int64
-	TicketReward 	int64
+	Ticket       *TxDetails
+	Spender      *TxDetails
+	VoteBits     *stake.VoteBits
+	VoteVersion  uint32
+	TicketPrice  int64
+	TicketReward int64
 }
 
 // TicketDetails looks up all recorded details regarding a ticket with some

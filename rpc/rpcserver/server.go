@@ -1363,7 +1363,7 @@ func marshalTransactionDetails(tx *wallet.TransactionSummary) *pb.TransactionDet
 		Fee:             int64(tx.Fee),
 		Timestamp:       tx.Timestamp,
 		TransactionType: txType,
-		BlockHash:		 tx.BlockHash[:],
+		BlockHash:       tx.BlockHash[:],
 		BlockHeight:     tx.BlockHeight,
 	}
 }

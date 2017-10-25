@@ -196,7 +196,7 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 		Fee:         fee,
 		Timestamp:   receiveTime.Unix(),
 		Type:        transactionType,
-		BlockHash: 	 &details.Block.Hash,
+		BlockHash:   &details.Block.Hash,
 		BlockHeight: details.Block.Height,
 	}
 }
@@ -503,7 +503,7 @@ type TransactionSummary struct {
 	Fee         dcrutil.Amount
 	Timestamp   int64
 	Type        TransactionType
-	BlockHash	*chainhash.Hash
+	BlockHash   *chainhash.Hash
 	BlockHeight int32
 }
 
