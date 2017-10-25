@@ -98,6 +98,11 @@ service MessageVerificationService {
 	rpc VerifyMessage (VerifyMessageRequest) returns (VerifyMessageResponse);
 }
 
+message VoteBits {
+	uint32 bits = 1;
+	bytes extended_bits = 2;
+}
+
 message TransactionDetails {
 	message Input {
 		uint32 index = 1;
@@ -126,6 +131,8 @@ message TransactionDetails {
 		REVOCATION = 3;
 	}
 	TransactionType transaction_type = 7;
+	bytes blockHash = 8;
+	int32 blockHeight = 9;
 }
 
 message BlockDetails {
@@ -306,6 +313,10 @@ message GetTicketsResponse {
 			REVOKED = 7;
 		}
 		TicketStatus ticket_status = 3;
+		VoteBits vote_bits = 4;
+		uint32 vote_version = 5;
+		int64 ticket_price = 6;
+		int64 ticket_reward = 7;
 	}
 	TicketDetails ticket = 1;
 }

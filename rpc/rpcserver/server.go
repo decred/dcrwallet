@@ -29,6 +29,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -1362,6 +1363,8 @@ func marshalTransactionDetails(tx *wallet.TransactionSummary) *pb.TransactionDet
 		Fee:             int64(tx.Fee),
 		Timestamp:       tx.Timestamp,
 		TransactionType: txType,
+		BlockHash:		 tx.BlockHash[:],
+		BlockHeight:     tx.BlockHeight,
 	}
 }
 
@@ -1371,6 +1374,18 @@ func marshalTransactionDetailsSlice(v []wallet.TransactionSummary) []*pb.Transac
 		txs[i] = marshalTransactionDetails(&v[i])
 	}
 	return txs
+}
+
+func marshalVoteBits(voteBits *stake.VoteBits) *pb.VoteBits {
+	var extendedBits []byte
+	if voteBits.ExtendedBits != nil {
+		extendedBits = voteBits.ExtendedBits[:]
+	}
+
+	return &pb.VoteBits{
+		Bits: uint32(voteBits.Bits),
+		ExtendedBits: extendedBits,
+	}
 }
 
 func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.GetTicketsResponse_TicketDetails {
@@ -1395,10 +1410,18 @@ func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.GetTicketsResponse_T
 	if ticket.Spender != nil {
 		spender = marshalTransactionDetails(ticket.Spender)
 	}
+	voteBits := &pb.VoteBits{}
+	if (ticket.VoteBits != nil) {
+		voteBits = marshalVoteBits(ticket.VoteBits)
+	}
 	return &pb.GetTicketsResponse_TicketDetails{
 		Ticket:       marshalTransactionDetails(ticket.Ticket),
 		Spender:      spender,
 		TicketStatus: ticketStatus,
+		VoteBits:     voteBits,
+		VoteVersion:  ticket.VoteVersion,
+		TicketReward: ticket.TicketReward,
+		TicketPrice:  ticket.TicketPrice,
 	}
 }
 
