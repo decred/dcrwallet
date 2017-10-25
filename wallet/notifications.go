@@ -196,6 +196,8 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 		Fee:         fee,
 		Timestamp:   receiveTime.Unix(),
 		Type:        transactionType,
+		BlockHash:   &details.Block.Hash,
+		BlockHeight: details.Block.Height,
 	}
 }
 
@@ -211,9 +213,13 @@ func makeTicketSummary(chainClient *dcrrpcclient.Client, dbtx walletdb.ReadTx, w
 			ticketStatus = TicketStatusRevoked
 		}
 		return &TicketSummary{
-			Ticket:  &ticketTransactionDetails,
-			Spender: &spenderTransactionDetails,
-			Status:  ticketStatus,
+			Ticket:       &ticketTransactionDetails,
+			Spender:      &spenderTransactionDetails,
+			Status:       ticketStatus,
+			VoteBits:     details.VoteBits,
+			VoteVersion:  details.VoteVersion,
+			TicketPrice:  details.TicketPrice,
+			TicketReward: details.TicketReward,
 		}
 	}
 
@@ -456,9 +462,13 @@ type Block struct {
 
 // TicketSummary contains the properties to describe a ticket's current status
 type TicketSummary struct {
-	Ticket  *TransactionSummary
-	Spender *TransactionSummary
-	Status  TicketStatus
+	Ticket       *TransactionSummary
+	Spender      *TransactionSummary
+	Status       TicketStatus
+	VoteBits     *stake.VoteBits
+	VoteVersion  uint32
+	TicketPrice  int64
+	TicketReward int64
 }
 
 // TicketStatus describes the current status a ticket can be observed to be.
@@ -493,6 +503,8 @@ type TransactionSummary struct {
 	Fee         dcrutil.Amount
 	Timestamp   int64
 	Type        TransactionType
+	BlockHash   *chainhash.Hash
+	BlockHeight int32
 }
 
 // TransactionType describes the which type of transaction is has been observed to be.

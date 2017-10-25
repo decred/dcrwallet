@@ -199,8 +199,12 @@ func (s *Store) TxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash) (*TxDe
 // regarding a relevant transaction and which inputs and outputs are credit or
 // debits.
 type TicketDetails struct {
-	Ticket  *TxDetails
-	Spender *TxDetails
+	Ticket       *TxDetails
+	Spender      *TxDetails
+	VoteBits     *stake.VoteBits
+	VoteVersion  uint32
+	TicketPrice  int64
+	TicketReward int64
 }
 
 // TicketDetails looks up all recorded details regarding a ticket with some
@@ -215,6 +219,7 @@ func (s *Store) TicketDetails(ns walletdb.ReadBucket, txDetails *TxDetails) (*Ti
 		return nil, nil
 	}
 	ticketDetails.Ticket = txDetails
+	ticketDetails.TicketPrice = txDetails.MsgTx.TxOut[0].Value
 	var spenderHash = chainhash.Hash{}
 	// Check if the ticket is spent or not.  Look up the credit for output 0
 	// and check if either a debit is recorded or the output is spent by an
@@ -238,6 +243,15 @@ func (s *Store) TicketDetails(ns walletdb.ReadBucket, txDetails *TxDetails) (*Ti
 		return nil, err
 	}
 	ticketDetails.Spender = spenderDetails
+	if spenderDetails != nil {
+		ok, _ = stake.IsSSGen(&spenderDetails.MsgTx)
+		if ok {
+			ticketDetails.VoteBits = new(stake.VoteBits)
+			ticketDetails.VoteBits.Bits = stake.SSGenVoteBits(&spenderDetails.MsgTx)
+			ticketDetails.VoteVersion = stake.SSGenVersion(&spenderDetails.MsgTx)
+			ticketDetails.TicketReward = spenderDetails.MsgTx.TxIn[0].ValueIn
+		}
+	}
 	return ticketDetails, nil
 }
 
