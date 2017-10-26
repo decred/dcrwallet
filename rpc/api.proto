@@ -749,46 +749,62 @@ service DecodeMessageService {
 }
 
 message DecodedTransaction {
-	message ScriptSig {
-		string asm = 1;
-		string hex = 2;
-	}
 	message ScriptPubKeyResult {
-		string asm = 1;
-		string hex = 2;
-		int32 req_sigs = 3;
-		string type = 4;
+		bytes script = 1;
+		string script_asm = 2;
+		int32 required_signatures = 3;
+		enum ScriptClass {
+			NONSTANDARDTY = 0;
+			PUBKEYTY = 1;
+			PUBKEYHASHTY = 2;
+			SCRIPTHASHTY = 3;
+			MULTISIGTY = 4;
+			NULLDATATY = 5;
+			STAKESUBMISSIONTY = 6;
+			STAKEGENTY = 7;
+			STAKEREVOCATIONTY = 8;
+			STAKESUBCHANGETY = 9;
+			PUBKEYALTTY = 10;
+			PUBKEYHASHALTTY = 11;
+		}
+		ScriptClass script_class = 4;
 		repeated string addresses = 5;
-		int64 commit_amt = 6;
+		int64 commitment_amount = 6;
 	}
-	message Vin {
-		string coinbase = 1;
-		string stakebase = 2;
-		string txid = 3;
-		uint32 vout = 4;
-		int32 tree = 5;
+	message Input {
+		bytes coinbase_script = 1;
+		bytes stakebase_script = 2;
+		bytes previous_transaction_hash = 3;
+		uint32 previous_transaction_index = 4;
+		enum TreeType {
+			REGULAR = 0;
+			UNKNOWN = -1;
+			STAKE = 1;
+		}
+		TreeType tree = 5;
 		uint32 sequence = 6;
 		int64 amount_in = 7;
 		uint32 block_height = 8;
 		uint32 block_index = 9;
-		ScriptSig script_sig = 10;
+		bytes script_sig = 10;
+		string script_sig_asm = 11;
 	}
-	message Vout {
+	message Output {
 		int64 value = 1;
 		uint32 n = 2;
 		int32 version = 3;
 		ScriptPubKeyResult script_pub_key = 4;
 	}
-	bytes txid = 1;
+	bytes transaction_hash = 1;
 	int32 version = 2;
 	uint32 lock_time = 3;
 	uint32 expiry = 4;
-	repeated Vin vin = 5;
-	repeated Vout vout = 6;
+	repeated Input inputs = 5;
+	repeated Output outputs = 6;
 }
 
 message DecodeRawTransactionRequest {
-	string transaction = 1;
+	bytes serialized_transaction = 1;
 }
 message DecodeRawTransactionResponse {
 	DecodedTransaction transaction = 1;

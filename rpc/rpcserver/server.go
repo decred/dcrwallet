@@ -63,9 +63,6 @@ const (
 	semverMajor  = 4
 	semverMinor  = 24
 	semverPatch  = 0
-
-	// copied from dcrd's rpc package
-	sstxCommitmentString = "sstxcommitment"
 )
 
 // translateError creates a new gRPC error with an appropiate error code for
@@ -2333,19 +2330,19 @@ func StartDecodeMessageService(server *grpc.Server, wallet *wallet.Wallet) {
 	decodeMessageService.chainParams = wallet.ChainParams()
 }
 
-func marshalDecodedTxVin(mtx *wire.MsgTx) []*pb.DecodedTransaction_Vin {
-	vinList := make([]*pb.DecodedTransaction_Vin, len(mtx.TxIn))
+func marshalDecodedTxInputs(mtx *wire.MsgTx) []*pb.DecodedTransaction_Input {
+	inputs := make([]*pb.DecodedTransaction_Input, len(mtx.TxIn))
 
 	if blockchain.IsCoinBaseTx(mtx) {
 		txIn := mtx.TxIn[0]
-		vinList[0] = &pb.DecodedTransaction_Vin{
-			Coinbase:    hex.EncodeToString(txIn.SignatureScript),
-			Sequence:    txIn.Sequence,
-			AmountIn:    txIn.ValueIn,
-			BlockHeight: txIn.BlockHeight,
-			BlockIndex:  txIn.BlockIndex,
+		inputs[0] = &pb.DecodedTransaction_Input{
+			CoinbaseScript: txIn.SignatureScript[:],
+			Sequence:       txIn.Sequence,
+			AmountIn:       txIn.ValueIn,
+			BlockHeight:    txIn.BlockHeight,
+			BlockIndex:     txIn.BlockIndex,
 		}
-		return vinList
+		return inputs
 	}
 
 	// Stakebase transactions (votes) have two inputs: a null stake base
@@ -2355,12 +2352,12 @@ func marshalDecodedTxVin(mtx *wire.MsgTx) []*pb.DecodedTransaction_Vin {
 	for i, txIn := range mtx.TxIn {
 		// Handle only the null input of a stakebase differently.
 		if stakeTx && i == 0 {
-			vinList[0] = &pb.DecodedTransaction_Vin{
-				Stakebase:   hex.EncodeToString(txIn.SignatureScript),
-				Sequence:    txIn.Sequence,
-				AmountIn:    txIn.ValueIn,
-				BlockHeight: txIn.BlockHeight,
-				BlockIndex:  txIn.BlockIndex,
+			inputs[0] = &pb.DecodedTransaction_Input{
+				StakebaseScript: txIn.SignatureScript[:],
+				Sequence:        txIn.Sequence,
+				AmountIn:        txIn.ValueIn,
+				BlockHeight:     txIn.BlockHeight,
+				BlockIndex:      txIn.BlockIndex,
 			}
 			continue
 		}
@@ -2370,26 +2367,24 @@ func marshalDecodedTxVin(mtx *wire.MsgTx) []*pb.DecodedTransaction_Vin {
 		// error here.
 		disbuf, _ := txscript.DisasmString(txIn.SignatureScript)
 
-		vinList[i] = &pb.DecodedTransaction_Vin{
-			Txid:        txIn.PreviousOutPoint.Hash.String(),
-			Vout:        txIn.PreviousOutPoint.Index,
-			Tree:        int32(txIn.PreviousOutPoint.Tree),
-			Sequence:    txIn.Sequence,
-			AmountIn:    txIn.ValueIn,
-			BlockHeight: txIn.BlockHeight,
-			BlockIndex:  txIn.BlockIndex,
-			ScriptSig: &pb.DecodedTransaction_ScriptSig{
-				Asm: disbuf,
-				Hex: hex.EncodeToString(txIn.SignatureScript),
-			},
+		inputs[i] = &pb.DecodedTransaction_Input{
+			PreviousTransactionHash:  txIn.PreviousOutPoint.Hash[:],
+			PreviousTransactionIndex: txIn.PreviousOutPoint.Index,
+			Tree:         pb.DecodedTransaction_Input_TreeType(txIn.PreviousOutPoint.Tree),
+			Sequence:     txIn.Sequence,
+			AmountIn:     txIn.ValueIn,
+			BlockHeight:  txIn.BlockHeight,
+			BlockIndex:   txIn.BlockIndex,
+			ScriptSig:    txIn.SignatureScript[:],
+			ScriptSigAsm: disbuf,
 		}
 	}
 
-	return vinList
+	return inputs
 }
 
-func marshalDecodedTxVout(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*pb.DecodedTransaction_Vout {
-	voutList := make([]*pb.DecodedTransaction_Vout, len(mtx.TxOut))
+func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*pb.DecodedTransaction_Output {
+	outputs := make([]*pb.DecodedTransaction_Output, len(mtx.TxOut))
 	txType := stake.DetermineTxType(mtx)
 
 	for i, v := range mtx.TxOut {
@@ -2403,11 +2398,11 @@ func marshalDecodedTxVout(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*pb.D
 		// accordingly.
 		var addrs []dcrutil.Address
 		var addrsErrors []string
-		var scriptClass string
+		var scriptClass txscript.ScriptClass
 		var reqSigs int
 		var commitAmt *dcrutil.Amount
 		if txType == stake.TxTypeSStx && (i%2 != 0) {
-			scriptClass = sstxCommitmentString
+			//scriptClass = sstxCommitmentString
 			addr, err := stake.AddrFromSStxPkScrCommitment(v.PkScript,
 				chainParams)
 			if err != nil {
@@ -2431,10 +2426,8 @@ func marshalDecodedTxVout(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*pb.D
 			// Ignore the error here since an error means the script
 			// couldn't parse and there is no additional information
 			// about it anyways.
-			var sc txscript.ScriptClass
-			sc, addrs, reqSigs, _ = txscript.ExtractPkScriptAddrs(
+			scriptClass, addrs, reqSigs, _ = txscript.ExtractPkScriptAddrs(
 				v.Version, v.PkScript, chainParams)
-			scriptClass = sc.String()
 		}
 
 		encodedAddrs := make([]string, len(addrs)+len(addrsErrors))
@@ -2446,56 +2439,48 @@ func marshalDecodedTxVout(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*pb.D
 			encodedAddrs[j+len(addrs)] = addrErr
 		}
 
-		voutList[i] = &pb.DecodedTransaction_Vout{
+		outputs[i] = &pb.DecodedTransaction_Output{
 			N:       uint32(i),
 			Value:   v.Value,
 			Version: int32(v.Version),
 			ScriptPubKey: &pb.DecodedTransaction_ScriptPubKeyResult{
-				Addresses: encodedAddrs,
-				Asm:       disbuf,
-				Hex:       hex.EncodeToString(v.PkScript),
-				Type:      scriptClass,
-				ReqSigs:   int32(reqSigs),
+				Addresses:          encodedAddrs,
+				ScriptAsm:          disbuf,
+				Script:             v.PkScript,
+				ScriptClass:        pb.DecodedTransaction_ScriptPubKeyResult_ScriptClass(scriptClass),
+				RequiredSignatures: int32(reqSigs),
 			},
 		}
 		if commitAmt != nil {
-			voutList[i].ScriptPubKey.CommitAmt = int64(*commitAmt)
+			outputs[i].ScriptPubKey.CommitmentAmount = int64(*commitAmt)
 		}
 	}
 
-	return voutList
+	return outputs
 }
 
 func (s *decodeMessageServer) DecodeRawTransaction(ctx context.Context, req *pb.DecodeRawTransactionRequest) (
 	*pb.DecodeRawTransactionResponse, error) {
 
 	// Deserialize the transaction.
-	hexStr := req.GetTransaction()
-	if len(hexStr)%2 != 0 {
-		hexStr = "0" + hexStr
-	}
-	serializedTx, err := hex.DecodeString(hexStr)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument,
-			"Argument must be hexadecimal string (not %q)", hexStr)
-	}
+	serializedTx := req.GetSerializedTransaction()
 
 	var mtx wire.MsgTx
-	err = mtx.Deserialize(bytes.NewReader(serializedTx))
+	err := mtx.Deserialize(bytes.NewReader(serializedTx))
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not decode Tx: %v",
+		return nil, status.Errorf(codes.InvalidArgument, "Could not decode Tx: %v",
 			err)
 	}
 
 	txHash := mtx.TxHash()
 	resp := &pb.DecodeRawTransactionResponse{
 		Transaction: &pb.DecodedTransaction{
-			Txid:     txHash[:],
-			Version:  int32(mtx.Version),
-			LockTime: mtx.LockTime,
-			Expiry:   mtx.Expiry,
-			Vin:      marshalDecodedTxVin(&mtx),
-			Vout:     marshalDecodedTxVout(&mtx, s.chainParams),
+			TransactionHash: txHash[:],
+			Version:         int32(mtx.Version),
+			LockTime:        mtx.LockTime,
+			Expiry:          mtx.Expiry,
+			Inputs:          marshalDecodedTxInputs(&mtx),
+			Outputs:         marshalDecodedTxOutputs(&mtx, s.chainParams),
 		},
 	}
 
