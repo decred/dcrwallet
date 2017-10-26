@@ -34,37 +34,6 @@ import (
 // Constants and simple functions
 
 const (
-	// All transactions have 4 bytes for version, 4 bytes of locktime,
-	// 4 bytes of expiry, and 2 varints for the number of inputs and
-	// outputs, and 1 varint for the witnesses.
-	txOverheadEstimate = 4 + 4 + 4 + 1 + 1 + 1
-
-	// A worst case signature script to redeem a P2PKH output for a
-	// compressed pubkey has 73 bytes of the possible DER signature
-	// (with no leading 0 bytes for R and S), 33 bytes of compressed serialized pubkey,
-	// and data push opcodes for both, plus one byte for the hash type flag
-	// appended to the end of the signature.
-	sigScriptEstimate = 1 + 73 + 1 + 33 + 1
-
-	// A best case tx input serialization cost is chainhash.HashSize, 4 bytes
-	// of output index, 1 byte for tree, 4 bytes of sequence, 16 bytes for
-	// fraud proof, 1 varint for the sigscript size, and the estimated
-	// signature script size.
-	txInEstimate = chainhash.HashSize + 4 + 1 + 4 + 16 + 1 + sigScriptEstimate
-
-	// A P2PKH pkScript contains the following bytes:
-	//  - OP_DUP
-	//  - OP_HASH160
-	//  - OP_DATA_20 + 20 bytes of pubkey hash
-	//  - OP_EQUALVERIFY
-	//  - OP_CHECKSIG
-	pkScriptEstimate = 1 + 1 + 1 + 20 + 1 + 1
-
-	// txOutEstimate is a best case tx output serialization cost is 8 bytes
-	// of value, two bytes of version, one byte of varint, and the pkScript
-	// size.
-	txOutEstimate = 8 + 2 + 1 + pkScriptEstimate
-
 	// singleInputTicketSize is the typical size of a normal P2PKH ticket
 	// in bytes when the ticket has one input, rounded up.
 	singleInputTicketSize = 300
@@ -94,31 +63,6 @@ var (
 	// build with the wallet.
 	maxTxSize = chaincfg.MainNetParams.MaxTxSize
 )
-
-func estimateTxSize(numInputs, numOutputs int) int {
-	return txOverheadEstimate + txInEstimate*numInputs + txOutEstimate*numOutputs
-}
-
-// EstimateTxSize is the exported version of estimateTxSize which provides
-// an estimate of the tx size based on the number of inputs, outputs, and some
-// assumed overhead.
-func EstimateTxSize(numInputs, numOutputs int) int {
-	return estimateTxSize(numInputs, numOutputs)
-}
-
-func feeForSize(incr dcrutil.Amount, sz int) dcrutil.Amount {
-	return dcrutil.Amount(1+sz/1000) * incr
-}
-
-// FeeForSize is the exported version of feeForSize which returns a fee
-// based on the provided feeIncrement and provided size.
-func FeeForSize(incr dcrutil.Amount, sz int) dcrutil.Amount {
-	return feeForSize(incr, sz)
-}
-
-// EstMaxTicketFeeAmount is the estimated max ticket fee to be used for size
-// calculation for eligible utxos for ticket purchasing.
-const EstMaxTicketFeeAmount = 0.1 * 1e8
 
 // extendedOutPoint is a UTXO with an amount.
 type extendedOutPoint struct {
@@ -620,10 +564,8 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	// totalInput == amount+feeEst is skipped because
 	// we don't need to add a change output in this
 	// case.
-	feeSize := estimateTxSize(numInputs, 2)
-	feeIncrement := w.RelayFee()
-
-	feeEst := feeForSize(feeIncrement, feeSize)
+	feeSize := txsizes.EstimateSerializeSize(numInputs, msgtx.TxOut, false)
+	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), feeSize)
 
 	if totalInput < amount+feeEst {
 		return txToMultisigError(fmt.Errorf("Not enough funds to send to " +
@@ -750,13 +692,6 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 		txInCount = maxNumIns
 	}
 
-	// Get an initial fee estimate based on the number of selected inputs
-	// and added outputs, with no change.
-	szEst := estimateTxSize(txInCount, 1)
-	feeIncrement := w.RelayFee()
-
-	feeEst := feeForSize(feeIncrement, szEst)
-
 	// Check if output address is default, and generate a new adress if needed
 	if changeAddr == nil {
 		changeAddr, err = w.newChangeAddress(w.persistReturnedChild(dbtx), account)
@@ -770,11 +705,15 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 	}
 	msgtx := wire.NewMsgTx()
 	msgtx.AddTxOut(wire.NewTxOut(0, pkScript))
-	msgTxSize := msgtx.SerializeSize()
 	maximumTxSize := maxTxSize
 	if w.chainParams.Net == wire.MainNet {
 		maximumTxSize = maxStandardTxSize
 	}
+
+	// Get an initial fee estimate based on the number of selected inputs
+	// and added outputs, with no change.
+	szEst := txsizes.EstimateSerializeSize(txInCount, msgtx.TxOut, false)
+	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), szEst)
 
 	// Add the txins using all the eligible outputs.
 	totalAdded := dcrutil.Amount(0)
@@ -785,8 +724,7 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 			break
 		}
 		// Add the size of a wire.OutPoint
-		msgTxSize += txInEstimate
-		if msgTxSize > maximumTxSize {
+		if msgtx.SerializeSize() > maximumTxSize {
 			break
 		}
 		msgtx.AddTxIn(wire.NewTxIn(&e.OutPoint, nil))
