@@ -61,7 +61,7 @@ func done(ctx context.Context) bool {
 func run(ctx context.Context) error {
 	// Load configuration and parse command line.  This function also
 	// initializes logging and configures it accordingly.
-	tcfg, _, err := loadConfig()
+	tcfg, _, err := loadConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -159,16 +159,7 @@ func run(ctx context.Context) error {
 		defer zero.Bytes(walletPass)
 
 		if cfg.PromptPublicPass {
-			os.Stdout.Sync()
-			for {
-				reader := bufio.NewReader(os.Stdin)
-				walletPass, err = prompt.PassPrompt(reader, "Enter public wallet passphrase", false)
-				if err != nil {
-					fmt.Println("Failed to input password. Please try again.")
-					continue
-				}
-				break
-			}
+			walletPass, _ = passPrompt(ctx, "Enter public wallet passphrase", false)
 		}
 
 		if done(ctx) {
@@ -205,7 +196,7 @@ func run(ctx context.Context) error {
 			}
 			w.SetInitiallyUnlocked(true)
 		} else {
-			passphrase = startPromptPass(w)
+			passphrase = startPromptPass(ctx, w)
 		}
 	}
 
@@ -271,9 +262,24 @@ func run(ctx context.Context) error {
 	return ctx.Err()
 }
 
+func passPrompt(ctx context.Context, prefix string, confirm bool) (passphrase []byte, err error) {
+	os.Stdout.Sync()
+	c := make(chan struct{}, 1)
+	go func() {
+		passphrase, err = prompt.PassPrompt(bufio.NewReader(os.Stdin), prefix, confirm)
+		c <- struct{}{}
+	}()
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-c:
+		return passphrase, err
+	}
+}
+
 // startPromptPass prompts the user for a password to unlock their wallet in
 // the event that it was restored from seed or --promptpass flag is set.
-func startPromptPass(w *wallet.Wallet) []byte {
+func startPromptPass(ctx context.Context, w *wallet.Wallet) []byte {
 	promptPass := cfg.PromptPass
 
 	// Watching only wallets never require a password.
@@ -304,8 +310,6 @@ func startPromptPass(w *wallet.Wallet) []byte {
 	if !promptPass {
 		return nil
 	}
-	w.SetInitiallyUnlocked(true)
-	os.Stdout.Sync()
 
 	// We need to rescan accounts for the initial sync. Unlock the
 	// wallet after prompting for the passphrase. The special case
@@ -316,28 +320,26 @@ func startPromptPass(w *wallet.Wallet) []byte {
 	// are prompted here as well.
 	for {
 		if w.ChainParams() == &chaincfg.SimNetParams {
-			var unlockAfter <-chan time.Time
-			err := w.Unlock(wallet.SimulationPassphrase, unlockAfter)
+			err := w.Unlock(wallet.SimulationPassphrase, nil)
 			if err == nil {
 				// Unlock success with the default password.
+				w.SetInitiallyUnlocked(true)
 				return wallet.SimulationPassphrase
 			}
 		}
-		os.Stdout.Sync()
-		reader := bufio.NewReader(os.Stdin)
-		passphrase, err := prompt.PassPrompt(reader, "Enter private passphrase", false)
+
+		passphrase, err := passPrompt(ctx, "Enter private passphrase", false)
 		if err != nil {
-			fmt.Println("Failed to input password. Please try again.")
-			continue
+			return nil
 		}
 
-		var unlockAfter <-chan time.Time
-		err = w.Unlock(passphrase, unlockAfter)
+		err = w.Unlock(passphrase, nil)
 		if err != nil {
 			fmt.Println("Incorrect password entered. Please " +
 				"try again.")
 			continue
 		}
+		w.SetInitiallyUnlocked(true)
 		return passphrase
 	}
 }

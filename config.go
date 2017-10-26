@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -315,7 +316,7 @@ func parseAndSetDebugLevels(debugLevel string) error {
 // The bool returned indicates whether or not the wallet was recreated from a
 // seed and needs to perform the initial resync. The []byte is the private
 // passphrase required to do the sync for this special case.
-func loadConfig() (*config, []string, error) {
+func loadConfig(ctx context.Context) (*config, []string, error) {
 	loadConfigError := func(err error) (*config, []string, error) {
 		return nil, nil, err
 	}
@@ -691,7 +692,7 @@ func loadConfig() (*config, []string, error) {
 		if cfg.CreateWatchingOnly {
 			err = createWatchingOnlyWallet(&cfg)
 		} else {
-			err = createWallet(&cfg)
+			err = createWallet(ctx, &cfg)
 		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Unable to create wallet:", err)

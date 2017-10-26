@@ -7,6 +7,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -47,7 +48,7 @@ func networkDir(dataDir string, chainParams *chaincfg.Params) string {
 // provided path. The bool passed back gives whether or not the wallet was
 // restored from seed, while the []byte passed is the private password required
 // to do the initial sync.
-func createWallet(cfg *config) error {
+func createWallet(ctx context.Context, cfg *config) error {
 	dbDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
 	stakeOptions := &loader.StakeOptions{
 		VotingEnabled: cfg.EnableVoting,
@@ -58,11 +59,21 @@ func createWallet(cfg *config) error {
 	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.AddrIdxScanLen, cfg.AllowHighFees, cfg.RelayFee.ToCoin())
 
-	reader := bufio.NewReader(os.Stdin)
-	privPass, pubPass, seed, err := prompt.Setup(reader,
-		[]byte(wallet.InsecurePubPassphrase), []byte(cfg.WalletPass))
-	if err != nil {
-		return err
+	var privPass, pubPass, seed []byte
+	var err error
+	c := make(chan struct{}, 1)
+	go func() {
+		privPass, pubPass, seed, err = prompt.Setup(bufio.NewReader(os.Stdin),
+			[]byte(wallet.InsecurePubPassphrase), []byte(cfg.WalletPass))
+		c <- struct{}{}
+	}()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-c:
+		if err != nil {
+			return err
+		}
 	}
 
 	fmt.Println("Creating the wallet...")
