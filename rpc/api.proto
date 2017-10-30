@@ -749,58 +749,54 @@ service DecodeMessageService {
 }
 
 message DecodedTransaction {
-	message ScriptPubKeyResult {
-		bytes script = 1;
-		string script_asm = 2;
-		int32 required_signatures = 3;
-		enum ScriptClass {
-			NONSTANDARDTY = 0;
-			PUBKEYTY = 1;
-			PUBKEYHASHTY = 2;
-			SCRIPTHASHTY = 3;
-			MULTISIGTY = 4;
-			NULLDATATY = 5;
-			STAKESUBMISSIONTY = 6;
-			STAKEGENTY = 7;
-			STAKEREVOCATIONTY = 8;
-			STAKESUBCHANGETY = 9;
-			PUBKEYALTTY = 10;
-			PUBKEYHASHALTTY = 11;
-		}
-		ScriptClass script_class = 4;
-		repeated string addresses = 5;
-		int64 commitment_amount = 6;
-	}
 	message Input {
-		bytes coinbase_script = 1;
-		bytes stakebase_script = 2;
-		bytes previous_transaction_hash = 3;
-		uint32 previous_transaction_index = 4;
+		bytes previous_transaction_hash = 1;
+		uint32 previous_transaction_index = 2;
 		enum TreeType {
 			REGULAR = 0;
 			UNKNOWN = -1;
 			STAKE = 1;
 		}
-		TreeType tree = 5;
-		uint32 sequence = 6;
-		int64 amount_in = 7;
-		uint32 block_height = 8;
-		uint32 block_index = 9;
-		bytes script_sig = 10;
-		string script_sig_asm = 11;
+		TreeType tree = 3;
+		uint32 sequence = 4;
+		int64 amount_in = 5;
+		uint32 block_height = 6;
+		uint32 block_index = 7;
+		bytes signature_script = 8;
+		string signature_script_asm = 9;
 	}
 	message Output {
 		int64 value = 1;
 		uint32 n = 2;
 		int32 version = 3;
-		ScriptPubKeyResult script_pub_key = 4;
+		bytes script = 4;
+		string script_asm = 5;
+		int32 required_signatures = 6;
+		enum ScriptClass {
+			NON_STANDARD = 0;
+			PUB_KEY = 1;
+			PUB_KEY_HASH = 2;
+			SCRIPT_HASH = 3;
+			MULTI_SIG = 4;
+			NULL_DATA = 5;
+			STAKE_SUBMISSION = 6;
+			STAKE_GEN = 7;
+			STAKE_REVOCATION = 8;
+			STAKE_SUB_CHANGE = 9;
+			PUB_KEY_ALT = 10;
+			PUB_KEY_HASH_ALT = 11;
+		}
+		ScriptClass script_class = 7;
+		repeated string addresses = 8;
+		int64 commitment_amount = 9;
 	}
 	bytes transaction_hash = 1;
 	int32 version = 2;
 	uint32 lock_time = 3;
 	uint32 expiry = 4;
-	repeated Input inputs = 5;
-	repeated Output outputs = 6;
+	TransactionDetails.TransactionType transaction_type = 5;
+	repeated Input inputs = 6;
+	repeated Output outputs = 7;
 }
 
 message DecodeRawTransactionRequest {

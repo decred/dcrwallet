@@ -158,29 +158,7 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 		outputs = append(outputs, output)
 	}
 
-	var transactionType = TransactionTypeRegular
-	switch {
-	case true:
-		if blockchain.IsCoinBaseTx(&details.MsgTx) {
-			transactionType = TransactionTypeCoinbase
-			break
-		}
-		ok, _ := stake.IsSStx(&details.MsgTx)
-		if ok {
-			transactionType = TransactionTypeTicketPurchase
-			break
-		}
-		ok, _ = stake.IsSSGen(&details.MsgTx)
-		if ok {
-			transactionType = TransactionTypeVote
-			break
-		}
-		ok, _ = stake.IsSSRtx(&details.MsgTx)
-		if ok {
-			transactionType = TransactionTypeRevocation
-			break
-		}
-	}
+	var transactionType = TxTransactionType(&details.MsgTx)
 
 	// Use earliest of receive time or block time if the transaction is mined.
 	receiveTime := details.Received
@@ -520,6 +498,21 @@ const (
 	// ticket, but offer no stake base reward.
 	TransactionTypeRevocation
 )
+
+// TxTransactionType returns the correct TransactionType given a wire transaction
+func TxTransactionType(tx *wire.MsgTx) TransactionType {
+	if blockchain.IsCoinBaseTx(tx) {
+		return TransactionTypeCoinbase
+	} else if ok, _ := stake.IsSStx(tx); ok {
+		return TransactionTypeTicketPurchase
+	} else if ok, _ = stake.IsSSGen(tx); ok {
+		return TransactionTypeVote
+	} else if ok, _ = stake.IsSSRtx(tx); ok {
+		return TransactionTypeRevocation
+	} else {
+		return TransactionTypeRegular
+	}
+}
 
 // TransactionSummaryInput describes a transaction input that is relevant to the
 // wallet.  The Index field marks the transaction input index of the transaction
