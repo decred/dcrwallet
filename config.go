@@ -21,6 +21,7 @@ import (
 	"github.com/decred/dcrwallet/internal/cfgutil"
 	"github.com/decred/dcrwallet/netparams"
 	"github.com/decred/dcrwallet/ticketbuyer"
+	"github.com/decred/dcrwallet/version"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	flags "github.com/jessevdk/go-flags"
@@ -397,7 +398,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	appName = strings.TrimSuffix(appName, filepath.Ext(appName))
 	usageMessage := fmt.Sprintf("Use %s -h to show usage", appName)
 	if preCfg.ShowVersion {
-		fmt.Printf("%s version %s (Go version %s)\n", appName, version(), runtime.Version())
+		fmt.Printf("%s version %s (Go version %s)\n", appName, version.String(), runtime.Version())
 		os.Exit(0)
 	}
 

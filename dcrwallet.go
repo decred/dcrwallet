@@ -24,6 +24,7 @@ import (
 	ldr "github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
+	"github.com/decred/dcrwallet/version"
 	"github.com/decred/dcrwallet/wallet"
 )
 
@@ -73,7 +74,7 @@ func run(ctx context.Context) error {
 	}()
 
 	// Show version at startup.
-	log.Infof("Version %s (Go version %s)", version(), runtime.Version())
+	log.Infof("Version %s (Go version %s)", version.String(), runtime.Version())
 
 	// Read IPC messages from the read end of a pipe created and passed by the
 	// parent process, if any.  When this pipe is closed, shutdown is
