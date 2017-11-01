@@ -767,7 +767,7 @@ message DecodedTransaction {
 	}
 	message Output {
 		int64 value = 1;
-		uint32 n = 2;
+		uint32 index = 2;
 		int32 version = 3;
 		bytes script = 4;
 		string script_asm = 5;

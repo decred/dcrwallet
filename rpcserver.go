@@ -156,6 +156,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			rpcserver.StartWalletLoaderService(server, walletLoader, activeNet)
 			rpcserver.StartTicketBuyerService(server, walletLoader, &cfg.tbCfg)
 			rpcserver.StartAgendaService(server, activeNet.Params)
+			rpcserver.StartDecodeMessageService(server, activeNet.Params)
 			for _, lis := range listeners {
 				lis := lis
 				go func() {

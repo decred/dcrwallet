@@ -2330,8 +2330,8 @@ WrongAddrKind:
 }
 
 // StartDecodeMessageService starts the MessageDecode service
-func StartDecodeMessageService(server *grpc.Server, wallet *wallet.Wallet) {
-	decodeMessageService.chainParams = wallet.ChainParams()
+func StartDecodeMessageService(server *grpc.Server, chainParams *chaincfg.Params) {
+	decodeMessageService.chainParams = chainParams
 }
 
 func marshalDecodedTxInputs(mtx *wire.MsgTx) []*pb.DecodedTransaction_Input {
@@ -2351,7 +2351,7 @@ func marshalDecodedTxInputs(mtx *wire.MsgTx) []*pb.DecodedTransaction_Input {
 			AmountIn:           txIn.ValueIn,
 			BlockHeight:        txIn.BlockHeight,
 			BlockIndex:         txIn.BlockIndex,
-			SignatureScript:    txIn.SignatureScript[:],
+			SignatureScript:    txIn.SignatureScript,
 			SignatureScriptAsm: disbuf,
 		}
 	}
@@ -2377,7 +2377,11 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 		var scriptClass txscript.ScriptClass
 		var reqSigs int
 		var commitAmt *dcrutil.Amount
-		if txType == stake.TxTypeSStx && (i%2 != 0) {
+		var isStakeSubmission bool
+		if txType == stake.TxTypeSStx {
+			isStakeSubmission, _ = stake.IsStakeSubmissionTxOut(mtx, i)
+		}
+		if isStakeSubmission {
 			scriptClass = txscript.StakeSubmissionTy
 			addr, err := stake.AddrFromSStxPkScrCommitment(v.PkScript,
 				chainParams)
@@ -2406,7 +2410,7 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 		}
 
 		outputs[i] = &pb.DecodedTransaction_Output{
-			N:                  uint32(i),
+			Index:              uint32(i),
 			Value:              v.Value,
 			Version:            int32(v.Version),
 			Addresses:          encodedAddrs,
@@ -2426,7 +2430,7 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 func (s *decodeMessageServer) DecodeRawTransaction(ctx context.Context, req *pb.DecodeRawTransactionRequest) (
 	*pb.DecodeRawTransactionResponse, error) {
 
-	serializedTx := req.GetSerializedTransaction()
+	serializedTx := req.SerializedTransaction
 
 	var mtx wire.MsgTx
 	err := mtx.Deserialize(bytes.NewReader(serializedTx))
