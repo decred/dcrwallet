@@ -108,6 +108,13 @@ func generateRPCKeyPair(writeKey bool) (tls.Certificate, error) {
 }
 
 func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Server, error) {
+	var jsonrpcAddrNotifier jsonrpcListenerEventServer
+	var grpcAddrNotifier grpcListenerEventServer
+	if cfg.RPCListenerEvents {
+		jsonrpcAddrNotifier = newJSONRPCListenerEventServer(outgoingPipeMessages)
+		grpcAddrNotifier = newGRPCListenerEventServer(outgoingPipeMessages)
+	}
+
 	var (
 		server       *grpc.Server
 		legacyServer *legacyrpc.Server
@@ -152,7 +159,9 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			for _, lis := range listeners {
 				lis := lis
 				go func() {
-					log.Infof("gRPC server listening on %s", lis.Addr())
+					laddr := lis.Addr().String()
+					grpcAddrNotifier.notify(laddr)
+					log.Infof("gRPC server listening on %s", laddr)
 					err := server.Serve(lis)
 					log.Tracef("Finished serving gRPC: %v", err)
 				}()
@@ -175,6 +184,9 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			MaxWebsocketClients: cfg.LegacyRPCMaxWebsockets,
 		}
 		legacyServer = legacyrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
+		for _, lis := range listeners {
+			jsonrpcAddrNotifier.notify(lis.Addr().String())
+		}
 	}
 
 	// Error when neither the GRPC nor legacy RPC servers can be started.

@@ -114,7 +114,6 @@ type config struct {
 	AllowHighFees       bool                 `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
 	RelayFee            *cfgutil.AmountFlag  `long:"txfee" description:"Sets the wallet's tx fee per kb"`
 	TicketFee           *cfgutil.AmountFlag  `long:"ticketfee" description:"Sets the wallet's ticket fee per kb"`
-	PipeRx              *uint                `long:"piperx" description:"File descriptor of read end pipe to enable parent -> child process communication"`
 
 	// RPC client options
 	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Hostname/IP and port of dcrd RPC server to connect to"`
@@ -147,6 +146,11 @@ type config struct {
 	LegacyRPCMaxWebsockets int64                   `long:"rpcmaxwebsockets" description:"Max number of legacy JSON-RPC websocket connections"`
 	Username               string                  `short:"u" long:"username" description:"Username for legacy JSON-RPC and dcrd authentication (if dcrdusername is unset)"`
 	Password               string                  `short:"P" long:"password" default-mask:"-" description:"Password for legacy JSON-RPC and dcrd authentication (if dcrdpassword is unset)"`
+
+	// IPC options
+	PipeTx            *uint `long:"pipetx" description:"File descriptor or handle of write end pipe to enable child -> parent process communication"`
+	PipeRx            *uint `long:"piperx" description:"File descriptor or handle of read end pipe to enable parent -> child process communication"`
+	RPCListenerEvents bool  `long:"rpclistenerevents" description:"Notify JSON-RPC and gRPC listener addresses over the TX pipe"`
 
 	TBOpts ticketBuyerOptions `group:"Ticket Buyer Options" namespace:"ticketbuyer"`
 	tbCfg  ticketbuyer.Config

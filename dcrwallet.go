@@ -82,6 +82,11 @@ func run(ctx context.Context) error {
 	if cfg.PipeRx != nil {
 		go serviceControlPipeRx(uintptr(*cfg.PipeRx))
 	}
+	if cfg.PipeTx != nil {
+		go serviceControlPipeTx(uintptr(*cfg.PipeTx))
+	} else {
+		go drainOutgoingPipeMessages()
+	}
 
 	// Run the pprof profiler if enabled.
 	if len(cfg.Profile) > 0 {
