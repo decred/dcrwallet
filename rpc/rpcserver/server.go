@@ -2377,11 +2377,7 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 		var scriptClass txscript.ScriptClass
 		var reqSigs int
 		var commitAmt *dcrutil.Amount
-		var isStakeSubmission bool
-		if txType == stake.TxTypeSStx {
-			isStakeSubmission, _ = stake.IsStakeSubmissionTxOut(mtx, i)
-		}
-		if isStakeSubmission {
+		if (txType == stake.TxTypeSStx) && (stake.IsStakeSubmissionTxOut(mtx, i)) {
 			scriptClass = txscript.StakeSubmissionTy
 			addr, err := stake.AddrFromSStxPkScrCommitment(v.PkScript,
 				chainParams)
