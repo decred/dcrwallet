@@ -1799,15 +1799,20 @@ the wallet (in contrast with [`TransactionDetails`](#transactiondetails)).
 
 - `uint32 expiry`: The expiry field of the transaction.
 
-- `TransactionDetails.TransactionType transaction_type`: The type of the transaction. Note the available types are defined in the [`TransactionDetails`](#transactiondetails) message.
+- `TransactionDetails.TransactionType transaction_type`: The type of the
+transaction. Note the available types are defined in the [`TransactionDetails`]
+(#transactiondetails) message.
 
-- `repeated Input inputs`: Information available on the inputs of the transaction.
+- `repeated Input inputs`: Information available on the inputs of the
+transaction.
 
   **Nested message:** `Input`
 
-  - `bytes previous_transaction_hash`: The hash of the transaction from where this input is being spent.
+  - `bytes previous_transaction_hash`: The hash of the transaction from where
+  this input is being spent.
 
-  - `uint32 previous_transaction_index`: The index of the output, on the previous transaction, from where this input is being spent.
+  - `uint32 previous_transaction_index`: The index of the output, on the
+  previous transaction, from where this input is being spent.
 
   - `TreeType tree`: The type of blockchain tree this input belongs to.
 
@@ -1830,9 +1835,11 @@ the wallet (in contrast with [`TransactionDetails`](#transactiondetails)).
 
   - `bytes signature_script`: The serialized signature script of witness inputs.
 
-  - `string signature_script_asm`: The disassembled version of the signature script of witness inputs.
+  - `string signature_script_asm`: The disassembled version of the signature
+  script of witness inputs.
 
-- `repeated Output outputs`: Information available on the outputs of the transaction.
+- `repeated Output outputs`: Information available on the outputs of the
+transaction.
 
   **Nested Message** `Output`
 
@@ -1846,7 +1853,8 @@ the wallet (in contrast with [`TransactionDetails`](#transactiondetails)).
 
   - `string script_asm`: The disassembled output script.
 
-  - `int32 required_signatures`: The number of required signatures for the output.
+  - `int32 required_signatures`: The number of required signatures for the
+  output.
 
   - `ScriptClass script_class`: The type of the output script.
 
@@ -1875,9 +1883,11 @@ the wallet (in contrast with [`TransactionDetails`](#transactiondetails)).
 
     - `PUB_KEY_HASH_ALT`: Alternative Pay to PubKey Hash script.
 
-  - `repeated string addresses`: Addresses found when decoding the output script.
+  - `repeated string addresses`: Addresses found when decoding the output
+  script.
 
-  - `int64 commitment_amount`: Amount commited to a ticket on an SStx transaction.
+  - `int64 commitment_amount`: Amount commited to a ticket on an SStx
+  transaction.
 
 **Stability**: Unstable.
 
