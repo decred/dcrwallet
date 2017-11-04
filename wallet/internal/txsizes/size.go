@@ -34,6 +34,16 @@ const (
 	//   - OP_CHECKSIG
 	P2PKHPkScriptSize = 1 + 1 + 1 + 20 + 1 + 1
 
+	// P2SHScriptSize is the size of a transaction output script that
+	// pays to a script hash.  It is calculated as:
+	//
+	//   - OP_DUP
+	//   - OP_HASH160
+	//   - OP_DATA_20
+	//   - 20 bytes pubkey hash
+	//   - OP_EQUAL
+	P2SHScriptSize = 1 + 1 + 1 + 20 + 1
+
 	// RedeemP2PKHInputSize is the worst case (largest) serialize size of a
 	// transaction input redeeming a compressed P2PKH output.  It is
 	// calculated as:
@@ -77,4 +87,18 @@ func EstimateSerializeSize(inputCount int, txOuts []*wire.TxOut, addChangeOutput
 		inputCount*RedeemP2PKHInputSize +
 		h.SumOutputSerializeSizes(txOuts) +
 		changeSize
+}
+
+// GenerateInputSize returns the worst case serialize size estimate for a tx input
+//   - 32 bytes previous tx
+//   - 4 bytes output index
+//   - 1 byte tree
+//   - 8 bytes amount
+//   - 4 bytes block height
+//   - 4 bytes block index
+//   - 1 byte compact int encoding value 107
+//   - the supplied script size
+//   - 4 bytes sequence
+func GenerateInputSize(scriptSize int) int {
+	return 32 + 4 + 1 + 8 + 4 + 4 + 1 + scriptSize + 4
 }
