@@ -30,6 +30,7 @@ import (
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/loader"
+	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
@@ -42,6 +43,20 @@ const (
 	jsonrpcSemverMinor  = 0
 	jsonrpcSemverPatch  = 0
 )
+
+// Handler represents a JSON-RPC handler
+type Handler struct {
+	handler func(interface{}) (interface{}, error)
+}
+
+// LegacyServer represents a generic JSON-RPC server
+type LegacyServer struct {
+	wallet      *wallet.Wallet
+	rpcClient   *dcrrpcclient.Client
+	loader      *loader.Loader
+	tCfg        *ticketbuyer.Config
+	rpcHandlers map[string]Handler
+}
 
 // confirms returns the number of confirmations for a transaction in a block at
 // height txHeight (or -1 for an unconfirmed tx) given the chain height
