@@ -7,7 +7,6 @@ package txsizes
 
 import (
 	"github.com/decred/dcrd/wire"
-
 	h "github.com/decred/dcrwallet/internal/helpers"
 )
 
@@ -73,18 +72,25 @@ const (
 // signed transaction that spends inputCount number of compressed P2PKH outputs
 // and contains each transaction output from txOuts.  The estimated size is
 // incremented for an additional P2PKH change output if addChangeOutput is true.
-func EstimateSerializeSize(inputCount int, txOuts []*wire.TxOut, addChangeOutput bool) int {
-	changeSize := 0
+func EstimateSerializeSize(txIns []*wire.TxIn, txOuts []*wire.TxOut, addChangeOutput bool) int {
+	// generate the estimated sizes of the inputs
+	txInsSize := 0
+	inputCount := len(txIns)
+	for _, txIn := range txIns {
+		txInsSize += GenerateInputSize(len(txIn.SignatureScript))
+	}
+
 	outputCount := len(txOuts)
+	changeSize := 0
 	if addChangeOutput {
-		changeSize = P2PKHOutputSize
+		changeSize = P2PKHOutputSize // is the change output always P2PKH ?
 		outputCount++
 	}
 
 	// 12 additional bytes are for version, locktime and expiry.
 	return 12 + (2 * wire.VarIntSerializeSize(uint64(inputCount))) +
 		wire.VarIntSerializeSize(uint64(outputCount)) +
-		inputCount*RedeemP2PKHInputSize +
+		txInsSize +
 		h.SumOutputSerializeSizes(txOuts) +
 		changeSize
 }
@@ -96,9 +102,9 @@ func EstimateSerializeSize(inputCount int, txOuts []*wire.TxOut, addChangeOutput
 //   - 8 bytes amount
 //   - 4 bytes block height
 //   - 4 bytes block index
-//   - 1 byte compact int encoding value 107
+//   - the compact int representation of the script size
 //   - the supplied script size
 //   - 4 bytes sequence
 func GenerateInputSize(scriptSize int) int {
-	return 32 + 4 + 1 + 8 + 4 + 4 + 1 + scriptSize + 4
+	return 32 + 4 + 1 + 8 + 4 + 4 + wire.VarIntSerializeSize(uint64(scriptSize)) + scriptSize + 4
 }
