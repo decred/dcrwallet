@@ -743,3 +743,65 @@ message VerifyMessageRequest {
 message VerifyMessageResponse {
 	bool valid = 1;
 }
+
+service DecodeMessageService {
+	rpc DecodeRawTransaction (DecodeRawTransactionRequest) returns (DecodeRawTransactionResponse);
+}
+
+message DecodedTransaction {
+	message Input {
+		bytes previous_transaction_hash = 1;
+		uint32 previous_transaction_index = 2;
+		enum TreeType {
+			REGULAR = 0;
+			UNKNOWN = -1;
+			STAKE = 1;
+		}
+		TreeType tree = 3;
+		uint32 sequence = 4;
+		int64 amount_in = 5;
+		uint32 block_height = 6;
+		uint32 block_index = 7;
+		bytes signature_script = 8;
+		string signature_script_asm = 9;
+	}
+	message Output {
+		int64 value = 1;
+		uint32 index = 2;
+		int32 version = 3;
+		bytes script = 4;
+		string script_asm = 5;
+		int32 required_signatures = 6;
+		enum ScriptClass {
+			NON_STANDARD = 0;
+			PUB_KEY = 1;
+			PUB_KEY_HASH = 2;
+			SCRIPT_HASH = 3;
+			MULTI_SIG = 4;
+			NULL_DATA = 5;
+			STAKE_SUBMISSION = 6;
+			STAKE_GEN = 7;
+			STAKE_REVOCATION = 8;
+			STAKE_SUB_CHANGE = 9;
+			PUB_KEY_ALT = 10;
+			PUB_KEY_HASH_ALT = 11;
+		}
+		ScriptClass script_class = 7;
+		repeated string addresses = 8;
+		int64 commitment_amount = 9;
+	}
+	bytes transaction_hash = 1;
+	int32 version = 2;
+	uint32 lock_time = 3;
+	uint32 expiry = 4;
+	TransactionDetails.TransactionType transaction_type = 5;
+	repeated Input inputs = 6;
+	repeated Output outputs = 7;
+}
+
+message DecodeRawTransactionRequest {
+	bytes serialized_transaction = 1;
+}
+message DecodeRawTransactionResponse {
+	DecodedTransaction transaction = 1;
+}

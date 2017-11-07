@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.24.x
+Version: 4.25.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -43,6 +43,7 @@ existing wallet.
 - [`AgendaService`](#agendaservice)
 - [`VotingService`](#votingservice)
 - [`MessageVerificationService`](#messageverificationservice)
+- [`DecodeMessageService`](#decodemessageservice)
 
 ## `VersionService`
 
@@ -101,6 +102,7 @@ no dependencies and is always running.
 
 - [`BlockDetails`](#blockdetails)
 - [`TransactionDetails`](#transactiondetails)
+- [`DecodedTransaction`](#decodedtransaction)
 
 ### Methods
 
@@ -1782,6 +1784,113 @@ transaction was seen.
   transaction, and would have access to every output script, the output
   properties could be changed to only include outputs controlled by the wallet.
 
+___
+#### `DecodedTransaction`
+
+The `DecodedTransaction` message is included in responses that provide full
+transaction details. This message includes inputs and outputs not belonging to
+the wallet (in contrast with [`TransactionDetails`](#transactiondetails)).
+
+- `bytes transaction_hash`: The hash of the transaction.
+
+- `int32 version`: The version of the transaction.
+
+- `uint32 lock_time`: The lock time field of the transaction.
+
+- `uint32 expiry`: The expiry field of the transaction.
+
+- `TransactionDetails.TransactionType transaction_type`: The type of the
+transaction. Note the available types are defined in the
+[`TransactionDetails`](#transactiondetails) message.
+
+- `repeated Input inputs`: Information available on the inputs of the
+transaction.
+
+  **Nested message:** `Input`
+
+  - `bytes previous_transaction_hash`: The hash of the transaction from where
+  this input is being spent.
+
+  - `uint32 previous_transaction_index`: The index of the output, on the
+  previous transaction, from where this input is being spent.
+
+  - `TreeType tree`: The type of blockchain tree this input belongs to.
+
+    **Nested Enum** `TreeType`
+
+    - `REGULAR`: An input belonging to the regular chain of transactions.
+
+    - `UNKNOWN`: An input on an unknown chain.
+
+    - `STAKE`: An input belonging to the stake chain of transactions.
+
+
+  - `uint32 sequence`: The sequence number of this input.
+
+  - `int64 amount_in`: The amount (in atoms) of the input.
+
+  - `uint32 block_height`: The block height field of witness inputs.
+
+  - `uint32 block_index`: The block index field of witness inputs.
+
+  - `bytes signature_script`: The serialized signature script of witness inputs.
+
+  - `string signature_script_asm`: The disassembled version of the signature
+  script of witness inputs.
+
+- `repeated Output outputs`: Information available on the outputs of the
+transaction.
+
+  **Nested Message** `Output`
+
+  - `int64 value`: The amount (in atoms) of the output.
+
+  - `uint32 index`: The index of the output in the transaction.
+
+  - `int32 version`: The version field of the output.
+
+  - `bytes script`: The serialized output script.
+
+  - `string script_asm`: The disassembled output script.
+
+  - `int32 required_signatures`: The number of required signatures for the
+  output.
+
+  - `ScriptClass script_class`: The type of the output script.
+
+    **Nested Enum** `ScriptClass`
+    - `NON_STANDARD`: A non-standard (or unidentifiable) output script.
+
+    - `PUB_KEY`: A Pay to PubKey script.
+
+    - `PUB_KEY_HASH`: A Pay to PubKey Hash script.
+
+    - `SCRIPT_HASH`: A Pay to Script Hash script.
+
+    - `MULTI_SIG`:  A Multi Signature script.
+
+    - `NULL_DATA`: An empty data script.
+
+    - `STAKE_SUBMISSION`: A Stake Submission script.
+
+    - `STAKE_GEN`: A Stake Generation script.
+
+    - `STAKE_REVOCATION`: A Stake Revocation script.
+
+    - `STAKE_SUB_CHANGE`: Change for a Stake Submission transaction.
+
+    - `PUB_KEY_ALT`: Alternative Pay to PubKey script.
+
+    - `PUB_KEY_HASH_ALT`: Alternative Pay to PubKey Hash script.
+
+  - `repeated string addresses`: Addresses found when decoding the output
+  script.
+
+  - `int64 commitment_amount`: Amount commited to a ticket on an SStx
+  transaction.
+
+**Stability**: Unstable.
+
 ## `SeedService`
 
 The `SeedService` service provides RPC clients with the ability to generate
@@ -2369,5 +2478,43 @@ message and was created using the secp256k1 private key for an address.
 
 - `InvalidArgument`: The address cannot be decoded or is not secp256k1 P2PK or
   P2PKH.
+
+**Stability:** Unstable
+
+## `DecodeMessageService`
+
+The `DecodeMessageService` service provides the caller with the ability to
+decode various messages and structures given their serialized (binary)
+representation.
+
+Unless otherwise noted, all serialized parameters on requests **MUST** belong
+to the same network (mainnet/testnet) as the wallet, otherwise the returned
+data may contain incorrect information.
+
+**Methods:**
+
+- [`DecodeRawTransaction`](#decoderawtransaction)
+
+### Methods
+
+#### `DecodeRawTransaction`
+
+The `DecodeRawTransaction` method takes a serialized transaction and decodes as
+much information as possible.
+
+**Request:** `DecodeRawTransactionRequest`
+
+- `bytes serialized_transaction`: The raw, serialized transaction.
+
+**Response:** `DecodeRawTransactionResponse`
+
+- `DecodedTransaction transaction`: The decoded transaction data.
+
+The `DecodedTransaction` message is documented [here](#decodedtransaction).
+
+**Expected errors:**
+
+- `InvalidArgument`: The serialized transaction could not be decoded.
+
 
 **Stability:** Unstable

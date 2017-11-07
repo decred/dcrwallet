@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -56,9 +58,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.24.0"
+	semverString = "4.25.0"
 	semverMajor  = 4
-	semverMinor  = 24
+	semverMinor  = 25
 	semverPatch  = 0
 )
 
@@ -197,6 +199,10 @@ type votingServer struct {
 // that a message was signed using the private key of a particular address.
 type messageVerificationServer struct{}
 
+type decodeMessageServer struct {
+	chainParams *chaincfg.Params
+}
+
 // Singleton implementations of each service.  Not all services are immediately
 // usable.
 var (
@@ -208,6 +214,7 @@ var (
 	agendaService              agendaServer
 	votingService              votingServer
 	messageVerificationService messageVerificationServer
+	decodeMessageService       decodeMessageServer
 )
 
 // RegisterServices registers implementations of each gRPC service and registers
@@ -221,6 +228,7 @@ func RegisterServices(server *grpc.Server) {
 	pb.RegisterAgendaServiceServer(server, &agendaService)
 	pb.RegisterVotingServiceServer(server, &votingService)
 	pb.RegisterMessageVerificationServiceServer(server, &messageVerificationService)
+	pb.RegisterDecodeMessageServiceServer(server, &decodeMessageService)
 }
 
 var serviceMap = map[string]interface{}{
@@ -232,6 +240,7 @@ var serviceMap = map[string]interface{}{
 	"walletrpc.AgendaService":              &agendaService,
 	"walletrpc.VotingService":              &votingService,
 	"walletrpc.MessageVerificationService": &messageVerificationService,
+	"walletrpc.DecodeMessageService":       &decodeMessageService,
 }
 
 // ServiceReady returns nil when the service is ready and a gRPC error when not.
@@ -1342,18 +1351,23 @@ func marshalTransactionOutputs(v []wallet.TransactionSummaryOutput) []*pb.Transa
 	return outputs
 }
 
-func marshalTransactionDetails(tx *wallet.TransactionSummary) *pb.TransactionDetails {
-	var txType = pb.TransactionDetails_REGULAR
-	switch tx.Type {
+func marshalTxType(walletTxType wallet.TransactionType) pb.TransactionDetails_TransactionType {
+	switch walletTxType {
 	case wallet.TransactionTypeCoinbase:
-		txType = pb.TransactionDetails_COINBASE
+		return pb.TransactionDetails_COINBASE
 	case wallet.TransactionTypeTicketPurchase:
-		txType = pb.TransactionDetails_TICKET_PURCHASE
+		return pb.TransactionDetails_TICKET_PURCHASE
 	case wallet.TransactionTypeVote:
-		txType = pb.TransactionDetails_VOTE
+		return pb.TransactionDetails_VOTE
 	case wallet.TransactionTypeRevocation:
-		txType = pb.TransactionDetails_REVOCATION
+		return pb.TransactionDetails_REVOCATION
+	default:
+		return pb.TransactionDetails_REGULAR
 	}
+}
+
+func marshalTransactionDetails(tx *wallet.TransactionSummary) *pb.TransactionDetails {
+
 	return &pb.TransactionDetails{
 		Hash:            tx.Hash[:],
 		Transaction:     tx.Transaction,
@@ -1361,7 +1375,7 @@ func marshalTransactionDetails(tx *wallet.TransactionSummary) *pb.TransactionDet
 		Credits:         marshalTransactionOutputs(tx.MyOutputs),
 		Fee:             int64(tx.Fee),
 		Timestamp:       tx.Timestamp,
-		TransactionType: txType,
+		TransactionType: marshalTxType(tx.Type),
 	}
 }
 
@@ -2313,4 +2327,126 @@ func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.V
 
 WrongAddrKind:
 	return nil, status.Error(codes.InvalidArgument, "address must be secp256k1 P2PK or P2PKH")
+}
+
+// StartDecodeMessageService starts the MessageDecode service
+func StartDecodeMessageService(server *grpc.Server, chainParams *chaincfg.Params) {
+	decodeMessageService.chainParams = chainParams
+}
+
+func marshalDecodedTxInputs(mtx *wire.MsgTx) []*pb.DecodedTransaction_Input {
+	inputs := make([]*pb.DecodedTransaction_Input, len(mtx.TxIn))
+
+	for i, txIn := range mtx.TxIn {
+		// The disassembled string will contain [error] inline
+		// if the script doesn't fully parse, so ignore the
+		// error here.
+		disbuf, _ := txscript.DisasmString(txIn.SignatureScript)
+
+		inputs[i] = &pb.DecodedTransaction_Input{
+			PreviousTransactionHash:  txIn.PreviousOutPoint.Hash[:],
+			PreviousTransactionIndex: txIn.PreviousOutPoint.Index,
+			Tree:               pb.DecodedTransaction_Input_TreeType(txIn.PreviousOutPoint.Tree),
+			Sequence:           txIn.Sequence,
+			AmountIn:           txIn.ValueIn,
+			BlockHeight:        txIn.BlockHeight,
+			BlockIndex:         txIn.BlockIndex,
+			SignatureScript:    txIn.SignatureScript,
+			SignatureScriptAsm: disbuf,
+		}
+	}
+
+	return inputs
+}
+
+func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*pb.DecodedTransaction_Output {
+	outputs := make([]*pb.DecodedTransaction_Output, len(mtx.TxOut))
+	txType := stake.DetermineTxType(mtx)
+
+	for i, v := range mtx.TxOut {
+		// The disassembled string will contain [error] inline if the
+		// script doesn't fully parse, so ignore the error here.
+		disbuf, _ := txscript.DisasmString(v.PkScript)
+
+		// Attempt to extract addresses from the public key script.  In
+		// the case of stake submission transactions, the odd outputs
+		// contain a commitment address, so detect that case
+		// accordingly.
+		var addrs []dcrutil.Address
+		var encodedAddrs []string
+		var scriptClass txscript.ScriptClass
+		var reqSigs int
+		var commitAmt *dcrutil.Amount
+		if (txType == stake.TxTypeSStx) && (stake.IsStakeSubmissionTxOut(i)) {
+			scriptClass = txscript.StakeSubmissionTy
+			addr, err := stake.AddrFromSStxPkScrCommitment(v.PkScript,
+				chainParams)
+			if err != nil {
+				encodedAddrs = []string{fmt.Sprintf(
+					"[error] failed to decode ticket "+
+						"commitment addr output for tx hash "+
+						"%v, output idx %v", mtx.TxHash(), i)}
+			} else {
+				encodedAddrs = []string{addr.EncodeAddress()}
+			}
+			amt, err := stake.AmountFromSStxPkScrCommitment(v.PkScript)
+			if err != nil {
+				commitAmt = &amt
+			}
+		} else {
+			// Ignore the error here since an error means the script
+			// couldn't parse and there is no additional information
+			// about it anyways.
+			scriptClass, addrs, reqSigs, _ = txscript.ExtractPkScriptAddrs(
+				v.Version, v.PkScript, chainParams)
+			encodedAddrs := make([]string, len(addrs))
+			for j, addr := range addrs {
+				encodedAddrs[j] = addr.EncodeAddress()
+			}
+		}
+
+		outputs[i] = &pb.DecodedTransaction_Output{
+			Index:              uint32(i),
+			Value:              v.Value,
+			Version:            int32(v.Version),
+			Addresses:          encodedAddrs,
+			Script:             v.PkScript,
+			ScriptAsm:          disbuf,
+			ScriptClass:        pb.DecodedTransaction_Output_ScriptClass(scriptClass),
+			RequiredSignatures: int32(reqSigs),
+		}
+		if commitAmt != nil {
+			outputs[i].CommitmentAmount = int64(*commitAmt)
+		}
+	}
+
+	return outputs
+}
+
+func (s *decodeMessageServer) DecodeRawTransaction(ctx context.Context, req *pb.DecodeRawTransactionRequest) (
+	*pb.DecodeRawTransactionResponse, error) {
+
+	serializedTx := req.SerializedTransaction
+
+	var mtx wire.MsgTx
+	err := mtx.Deserialize(bytes.NewReader(serializedTx))
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Could not decode Tx: %v",
+			err)
+	}
+
+	txHash := mtx.TxHash()
+	resp := &pb.DecodeRawTransactionResponse{
+		Transaction: &pb.DecodedTransaction{
+			TransactionHash: txHash[:],
+			TransactionType: marshalTxType(wallet.TxTransactionType(&mtx)),
+			Version:         int32(mtx.Version),
+			LockTime:        mtx.LockTime,
+			Expiry:          mtx.Expiry,
+			Inputs:          marshalDecodedTxInputs(&mtx),
+			Outputs:         marshalDecodedTxOutputs(&mtx, s.chainParams),
+		},
+	}
+
+	return resp, nil
 }
