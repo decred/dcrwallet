@@ -6,12 +6,17 @@
 package txsizes
 
 import (
+	"fmt"
+
 	"github.com/decred/dcrd/wire"
 	h "github.com/decred/dcrwallet/internal/helpers"
 )
 
 // Worst case script and input/output size estimates.
 const (
+	// sig script descriptor flags
+	P2SHSigScript  = "P2SH"
+	P2PKHSigScript = "P2PKH"
 	// RedeemP2PKHSigScriptSize is the worst case (largest) serialize size
 	// of a transaction input script that redeems a compressed P2PKH output.
 	// It is calculated as:
@@ -21,6 +26,18 @@ const (
 	//   - OP_DATA_33
 	//   - 33 bytes serialized compressed pubkey
 	RedeemP2PKHSigScriptSize = 1 + 73 + 1 + 33
+
+	// RedeemP2SHSigScriptSize is the worst case (largest) serialize size
+	// of a transaction input script that redeems a P2SH output.
+	// It is calculated as:
+	//
+	//  - OP_DATA_73
+	//  - 73-byte signature
+	//  - OP_DATA_35
+	//  - OP_DATA_33
+	//  - 33 bytes serialized compressed pubkey
+	//  - OP_CHECKSIG
+	RedeemP2SHSigScriptSize = 1 + 73 + 1 + 1 + 33 + 1
 
 	// P2PKHPkScriptSize is the size of a transaction output script that
 	// pays to a compressed pubkey hash.  It is calculated as:
@@ -69,21 +86,33 @@ const (
 )
 
 // EstimateSerializeSize returns a worst case serialize size estimate for a
-// signed transaction that spends inputCount number of compressed P2PKH outputs
+// signed transaction that spends inputCount number of outputs,
+// signed by their corresponding signature scripts descriped by txInSigDescs
 // and contains each transaction output from txOuts.  The estimated size is
-// incremented for an additional P2PKH change output if addChangeOutput is true.
-func EstimateSerializeSize(txIns []*wire.TxIn, txOuts []*wire.TxOut, addChangeOutput bool) int {
+// incremented for an additional P2PKH change output if addChangeOutput is
+// true.
+func EstimateSerializeSize(inputCount int, txOuts []*wire.TxOut, addChangeOutput bool, txInSigDescs []string) (int, error) {
 	// generate the estimated sizes of the inputs
+	descCount := len(txInSigDescs)
+	if inputCount != descCount {
+		return 0, fmt.Errorf("txscript descriptor count (%d) does not match inputs count (%d)", descCount, inputCount)
+	}
+
 	txInsSize := 0
-	inputCount := len(txIns)
-	for _, txIn := range txIns {
-		txInsSize += GenerateInputSize(len(txIn.SignatureScript))
+	for _, scriptDesc := range txInSigDescs {
+		if scriptDesc == P2PKHSigScript {
+			txInsSize += EstimateInputSize(RedeemP2SHSigScriptSize)
+		} else if scriptDesc == P2SHSigScript {
+			txInsSize += EstimateInputSize(RedeemP2PKHSigScriptSize)
+		} else {
+			return 0, fmt.Errorf("unknown sig script desc: %s", scriptDesc)
+		}
 	}
 
 	outputCount := len(txOuts)
 	changeSize := 0
 	if addChangeOutput {
-		changeSize = P2PKHOutputSize // is the change output always P2PKH ?
+		changeSize = P2PKHOutputSize
 		outputCount++
 	}
 
@@ -92,10 +121,10 @@ func EstimateSerializeSize(txIns []*wire.TxIn, txOuts []*wire.TxOut, addChangeOu
 		wire.VarIntSerializeSize(uint64(outputCount)) +
 		txInsSize +
 		h.SumOutputSerializeSizes(txOuts) +
-		changeSize
+		changeSize, nil
 }
 
-// GenerateInputSize returns the worst case serialize size estimate for a tx input
+// EstimateInputSize returns the worst case serialize size estimate for a tx input
 //   - 32 bytes previous tx
 //   - 4 bytes output index
 //   - 1 byte tree
@@ -105,6 +134,6 @@ func EstimateSerializeSize(txIns []*wire.TxIn, txOuts []*wire.TxOut, addChangeOu
 //   - the compact int representation of the script size
 //   - the supplied script size
 //   - 4 bytes sequence
-func GenerateInputSize(scriptSize int) int {
+func EstimateInputSize(scriptSize int) int {
 	return 32 + 4 + 1 + 8 + 4 + 4 + wire.VarIntSerializeSize(uint64(scriptSize)) + scriptSize + 4
 }

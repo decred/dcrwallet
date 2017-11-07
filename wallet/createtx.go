@@ -527,7 +527,6 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 		msgtx.AddTxIn(wire.NewTxIn(&e.OutPoint, nil))
 		totalInput += e.Amount
 		forSigning = append(forSigning, e)
-
 		numInputs++
 	}
 
