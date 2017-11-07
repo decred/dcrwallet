@@ -1800,8 +1800,8 @@ the wallet (in contrast with [`TransactionDetails`](#transactiondetails)).
 - `uint32 expiry`: The expiry field of the transaction.
 
 - `TransactionDetails.TransactionType transaction_type`: The type of the
-transaction. Note the available types are defined in the [`TransactionDetails`]
-(#transactiondetails) message.
+transaction. Note the available types are defined in the
+[`TransactionDetails`](#transactiondetails) message.
 
 - `repeated Input inputs`: Information available on the inputs of the
 transaction.
@@ -1820,7 +1820,7 @@ transaction.
 
     - `REGULAR`: An input belonging to the regular chain of transactions.
 
-    - `UNKNOWN`: An input on an unknwon chain.
+    - `UNKNOWN`: An input on an unknown chain.
 
     - `STAKE`: An input belonging to the stake chain of transactions.
 
