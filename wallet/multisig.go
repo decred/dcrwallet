@@ -192,9 +192,15 @@ func (w *Wallet) FetchAllRedeemScripts() ([][]byte, error) {
 // PrepareRedeemMultiSigOutTxOutput estimates the tx value for a MultiSigOutTx
 // output and adds it
 func (w *Wallet) PrepareRedeemMultiSigOutTxOutput(msgTx *wire.MsgTx, p2shOutput *P2SHMultiSigOutput, pkScript *[]byte) error {
+	scriptSizers := []txsizes.ScriptSizer{}
+	// generate the script sizers for the inputs
+	for range msgTx.TxIn {
+		scriptSizers = append(scriptSizers, txsizes.P2SHScriptSize)
+	}
+
 	// estimate the output fee
 	txOut := wire.NewTxOut(0, *pkScript)
-	feeSize := txsizes.EstimateSerializeSize(len(msgTx.TxIn), []*wire.TxOut{txOut}, false)
+	feeSize := txsizes.EstimateSerializeSize(scriptSizers, []*wire.TxOut{txOut}, false)
 	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), feeSize)
 	if feeEst >= p2shOutput.OutputAmount {
 		return fmt.Errorf("multisig out amt is too small "+

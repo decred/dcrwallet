@@ -10,7 +10,7 @@ import (
 	h "github.com/decred/dcrwallet/internal/helpers"
 )
 
-// Script sizer interface
+// ScriptSizer signature script sizing interface
 type ScriptSizer interface {
 	ScriptSize() int
 }
@@ -45,6 +45,32 @@ const (
 	//  - OP_CHECKSIG
 	RedeemP2SHSigScriptSize = 1 + 73 + 1 + 1 + 33 + 1
 
+	// RedeemP2PKHInputSize is the worst case (largest) serialize size of a
+	// transaction input redeeming a compressed P2PKH output.  It is
+	// calculated as:
+	//
+	//   - 32 bytes previous tx
+	//   - 4 bytes output index
+	//   - 1 byte tree
+	//   - 8 bytes amount
+	//   - 4 bytes block height
+	//   - 4 bytes block index
+	//   - 1 byte compact int encoding value 107
+	//   - 107 bytes signature script
+	//   - 4 bytes sequence
+	RedeemP2PKHInputSize = 32 + 4 + 1 + 8 + 4 + 4 + 1 + RedeemP2PKHSigScriptSize + 4
+
+	// P2PKHPkScriptSize is the size of a transaction output script that
+	// pays to a compressed pubkey hash.  It is calculated as:
+	//
+	//   - OP_DUP
+	//   - OP_HASH160
+	//   - OP_DATA_20
+	//   - 20 bytes pubkey hash
+	//   - OP_EQUALVERIFY
+	//   - OP_CHECKSIG
+	P2PKHPkScriptSize = 1 + 1 + 1 + 20 + 1 + 1
+
 	// P2PKHOutputSize is the serialize size of a transaction output with a
 	// P2PKH output script.  It is calculated as:
 	//
@@ -63,14 +89,14 @@ const (
 // signed transaction that spends a number of outputs and contains each
 // transaction output from txOuts.  The estimated size is incremented for an
 // additional P2PKH change output if addChangeOutput is true.
-func EstimateSerializeSize(txInScriptSizers []ScriptSizer, txOuts []*wire.TxOut, addChangeOutput bool) int {
+func EstimateSerializeSize(scriptSizers []ScriptSizer, txOuts []*wire.TxOut, addChangeOutput bool) int {
 	// generate the estimated sizes of the inputs
 	txInsSize := 0
-	for _, sizer := range txInScriptSizers {
+	for _, sizer := range scriptSizers {
 		txInsSize += EstimateInputSize(sizer.ScriptSize())
 	}
 
-	inputCount := len(txInScriptSizers)
+	inputCount := len(scriptSizers)
 	outputCount := len(txOuts)
 	changeSize := 0
 	if addChangeOutput {

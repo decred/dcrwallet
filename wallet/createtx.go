@@ -518,16 +518,15 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	}
 
 	msgtx := wire.NewMsgTx()
-
+	scriptSizers := []txsizes.ScriptSizer{}
 	// Fill out inputs.
 	var forSigning []udb.Credit
 	totalInput := dcrutil.Amount(0)
-	numInputs := 0
 	for _, e := range eligible {
 		msgtx.AddTxIn(wire.NewTxIn(&e.OutPoint, nil))
 		totalInput += e.Amount
 		forSigning = append(forSigning, e)
-		numInputs++
+		scriptSizers = append(scriptSizers, txsizes.P2SHScriptSize)
 	}
 
 	// Insert a multi-signature output, then insert this P2SH
@@ -563,7 +562,7 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	// totalInput == amount+feeEst is skipped because
 	// we don't need to add a change output in this
 	// case.
-	feeSize := txsizes.EstimateSerializeSize(numInputs, msgtx.TxOut, false)
+	feeSize := txsizes.EstimateSerializeSize(scriptSizers, msgtx.TxOut, false)
 	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), feeSize)
 
 	if totalInput < amount+feeEst {
@@ -686,11 +685,6 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 		return nil, ErrNoOutsToConsolidate
 	}
 
-	txInCount := len(eligible)
-	if maxNumIns < txInCount {
-		txInCount = maxNumIns
-	}
-
 	// Check if output address is default, and generate a new adress if needed
 	if changeAddr == nil {
 		changeAddr, err = w.newChangeAddress(w.persistReturnedChild(dbtx), account)
@@ -709,13 +703,9 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 		maximumTxSize = maxStandardTxSize
 	}
 
-	// Get an initial fee estimate based on the number of selected inputs
-	// and added outputs, with no change.
-	szEst := txsizes.EstimateSerializeSize(txInCount, msgtx.TxOut, false)
-	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), szEst)
-
 	// Add the txins using all the eligible outputs.
 	totalAdded := dcrutil.Amount(0)
+	scriptSizers := []txsizes.ScriptSizer{}
 	count := 0
 	var forSigning []udb.Credit
 	for _, e := range eligible {
@@ -729,9 +719,14 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 		msgtx.AddTxIn(wire.NewTxIn(&e.OutPoint, nil))
 		totalAdded += e.Amount
 		forSigning = append(forSigning, e)
-
+		scriptSizers = append(scriptSizers, txsizes.P2PKHScriptSize)
 		count++
 	}
+
+	// Get an initial fee estimate based on the number of selected inputs
+	// and added outputs, with no change.
+	szEst := txsizes.EstimateSerializeSize(scriptSizers, msgtx.TxOut, false)
+	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), szEst)
 
 	msgtx.TxOut[0].Value = int64(totalAdded - feeEst)
 
@@ -1831,6 +1826,7 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 	// input.
 	ticketOutPoint := wire.NewOutPoint(ticketHash, 0, wire.TxTreeStake)
 	revocation.AddTxIn(wire.NewTxIn(ticketOutPoint, nil))
+	scriptSizers := []txsizes.ScriptSizer{txsizes.P2SHScriptSize}
 
 	// All remaining outputs pay to the output destinations and amounts tagged
 	// by the ticket purchase.
@@ -1847,7 +1843,7 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 	// Revocations must pay a fee but do so by decreasing one of the output
 	// values instead of increasing the input value and using a change output.
 	// Calculate the estimated signed serialize size.
-	sizeEstimate := txsizes.EstimateSerializeSize(1, revocation.TxOut, false)
+	sizeEstimate := txsizes.EstimateSerializeSize(scriptSizers, revocation.TxOut, false)
 	feeEstimate := txrules.FeeForSerializeSize(feePerKB, sizeEstimate)
 
 	// Reduce the output value of one of the outputs to accomodate for the relay
