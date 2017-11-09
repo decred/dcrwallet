@@ -26,6 +26,7 @@ import (
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/loader"
+	"github.com/decred/dcrwallet/ticketbuyer"
 )
 
 type websocketClient struct {
@@ -59,14 +60,14 @@ func (c *websocketClient) send(b []byte) error {
 // Server holds the items the RPC server may need to access (auth,
 // config, shutdown, etc.)
 type Server struct {
-	httpServer   http.Server
-	walletLoader *loader.Loader
-	chainClient  *chain.RPCClient
-	handlerMu    sync.Mutex
-
-	listeners []net.Listener
-	authsha   [sha256.Size]byte
-	upgrader  websocket.Upgrader
+	httpServer        http.Server
+	walletLoader      *loader.Loader
+	chainClient       *chain.RPCClient
+	ticketbuyerConfig *ticketbuyer.Config
+	handlerMu         sync.Mutex
+	listeners         []net.Listener
+	authsha           [sha256.Size]byte
+	upgrader          websocket.Upgrader
 
 	maxPostClients      int64 // Max concurrent HTTP POST clients.
 	maxWebsocketClients int64 // Max concurrent websocket clients.
@@ -78,6 +79,13 @@ type Server struct {
 	requestShutdownChan chan struct{}
 
 	activeNet *chaincfg.Params
+
+	handlers map[string]Handler
+}
+
+type Handler struct {
+	fn     func(interface{}) (interface{}, error)
+	noHelp bool
 }
 
 // jsonAuthFail sends a message back to the client if the http auth is rejected.
@@ -88,7 +96,7 @@ func jsonAuthFail(w http.ResponseWriter) {
 
 // NewServer creates a new server for serving legacy RPC client connections,
 // both HTTP POST and websocket.
-func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.Loader, listeners []net.Listener) *Server {
+func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.Loader, ticketBuyerConfig *ticketbuyer.Config, listeners []net.Listener) *Server {
 	serveMux := http.NewServeMux()
 	const rpcAuthTimeoutSeconds = 10
 
@@ -104,6 +112,7 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 		maxPostClients:      opts.MaxPOSTClients,
 		maxWebsocketClients: opts.MaxWebsocketClients,
 		listeners:           listeners,
+		ticketbuyerConfig:   ticketBuyerConfig,
 		// A hash of the HTTP basic auth string is used for a constant
 		// time comparison.
 		authsha: sha256.Sum256(httpBasicAuth(opts.Username, opts.Password)),
@@ -115,6 +124,8 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 		requestShutdownChan: make(chan struct{}, 1),
 		activeNet:           activeNet,
 	}
+
+	// map methods to functions here
 
 	serveMux.Handle("/", throttledFn(opts.MaxPOSTClients,
 		func(w http.ResponseWriter, r *http.Request) {
@@ -267,7 +278,7 @@ func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) l
 		}
 	}
 
-	return lazyApplyHandler(request, wallet, rpcClient, s.walletLoader)
+	return s.lazyApplyHandler(request, wallet, rpcClient)
 }
 
 // ErrNoAuth represents an error where authentication could not succeed

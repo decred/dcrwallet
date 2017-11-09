@@ -30,7 +30,6 @@ import (
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/loader"
-	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
@@ -44,20 +43,6 @@ const (
 	jsonrpcSemverPatch  = 0
 )
 
-// Handler represents a JSON-RPC handler
-type Handler struct {
-	handler func(interface{}) (interface{}, error)
-}
-
-// LegacyServer represents a generic JSON-RPC server
-type LegacyServer struct {
-	wallet      *wallet.Wallet
-	rpcClient   *dcrrpcclient.Client
-	loader      *loader.Loader
-	tCfg        *ticketbuyer.Config
-	rpcHandlers map[string]Handler
-}
-
 // confirms returns the number of confirmations for a transaction in a block at
 // height txHeight (or -1 for an unconfirmed tx) given the chain height
 // curHeight.
@@ -70,20 +55,17 @@ func confirms(txHeight, curHeight int32) int32 {
 	}
 }
 
-// requestHandler is a handler function to handle an unmarshaled and parsed
-// request into a marshalable response.  If the error is a *dcrjson.RPCError
-// or any of the above special error classes, the server will respond with
-// the JSON-RPC appropiate error code.  All other errors use the wallet
-// catch-all error code, dcrjson.ErrRPCWallet.
-type requestHandler func(interface{}, *wallet.Wallet) (interface{}, error)
+func (s *Server) registerHandlers() {
 
-// requestHandlerChain is a requestHandler that also takes a parameter for the
-// RPC client.
-type requestHandlerChainRequired func(interface{}, *wallet.Wallet, *dcrrpcclient.Client) (interface{}, error)
-
-// requestHandlerLoader is a requestHandler that also takes a parameter for the
-// subsystem loader.
-type requestHandlerLoader func(interface{}, *wallet.Wallet, *loader.Loader) (interface{}, error)
+	s.handlers = map[string]Handler{
+		// Reference methods which can't be implemented by dcrwallet due to
+		// design decision differences
+		"dumpwallet":    Handler{fn: s.unsupported, noHelp: true},
+		"encryptwallet": Handler{fn: s.unsupported, noHelp: true},
+		"move":          Handler{fn: s.unsupported, noHelp: true},
+		"setaccount":    Handler{fn: s.unsupported, noHelp: true},
+	}
+}
 
 var rpcHandlers = map[string]struct {
 	handler           requestHandler
@@ -195,7 +177,7 @@ var rpcHandlers = map[string]struct {
 
 // unimplemented handles an unimplemented RPC request with the
 // appropiate error.
-func unimplemented(interface{}, *wallet.Wallet) (interface{}, error) {
+func (s *Server) unimplemented(interface{}) (interface{}, error) {
 	return nil, &dcrjson.RPCError{
 		Code:    dcrjson.ErrRPCUnimplemented,
 		Message: "Method unimplemented",
@@ -204,7 +186,7 @@ func unimplemented(interface{}, *wallet.Wallet) (interface{}, error) {
 
 // unsupported handles a standard bitcoind RPC request which is
 // unsupported by dcrwallet due to design differences.
-func unsupported(interface{}, *wallet.Wallet) (interface{}, error) {
+func (s *Server) unsupported(interface{}) (interface{}, error) {
 	return nil, &dcrjson.RPCError{
 		Code:    -1,
 		Message: "Request unsupported by dcrwallet",
@@ -220,10 +202,9 @@ type lazyHandler func() (interface{}, *dcrjson.RPCError)
 // returning a closure that will execute it with the (required) wallet and
 // (optional) consensus RPC server.  If no handlers are found and the
 // chainClient is not nil, the returned handler performs RPC passthrough.
-func lazyApplyHandler(request *dcrjson.Request, w *wallet.Wallet,
-	chainClient *dcrrpcclient.Client, l *loader.Loader) lazyHandler {
-
-	handlerData, ok := rpcHandlers[request.Method]
+func (s *Server) lazyApplyHandler(request *dcrjson.Request, w *wallet.Wallet,
+	chainClient *dcrrpcclient.Client) lazyHandler {
+	handlerData, ok := s.rpcHandlers[request.Method]
 	if ok && handlerData.handlerWithChain != nil && w != nil && chainClient != nil {
 		return func() (interface{}, *dcrjson.RPCError) {
 			cmd, err := dcrjson.UnmarshalCmd(request)
@@ -243,7 +224,7 @@ func lazyApplyHandler(request *dcrjson.Request, w *wallet.Wallet,
 			if err != nil {
 				return nil, dcrjson.ErrRPCInvalidRequest
 			}
-			resp, err := handlerData.handlerWithLoader(cmd, w, l)
+			resp, err := handlerData.handlerWithLoader(cmd, w, s.walletLoader)
 			if err != nil {
 				return nil, jsonError(err)
 			}
