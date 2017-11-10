@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.25.x
+Version: 4.26.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -1561,7 +1561,6 @@ of an address.
 signature algorithms other than secp256k1.
 
 ___
-
 #### `ValidateAddress`
 
 The `ValidateAddress` method verifies if an address is valid.
@@ -1574,28 +1573,23 @@ The `ValidateAddress` method verifies if an address is valid.
 
 - `bool is_valid`: True if valid, false if not.
 
-- `string address`: The validated address.
+- `bool is_mine`: True if the address is an address of the querying wallet, false if not.
 
-- `bool is_mine`: True if the address is an address of querying wallet, false if not.
-
-- `bool is_watch_only`: True if the querying wallet is watch-only, false if not.
+- `uint32 account_number`:  The account number of the wallet.
 
 - `string pub_key_addr`: The public key address.
 
-- `string pub_key`: The hex encoded string public key associated with the address.
+- `bytes pub_key`: The serialized public key.
 
-- `string is_compressed`: True if address uses a compressed format, false if not.
+- `bool is_script`: True if the address pays to a script.
 
-- `string account`:  The account name of the wallet owning the address.
+- `repeated string pk_script_addrs`: the address(es) being paid to by the redeem script.
 
-- `repeated string addresses`: A collection of addresses extracted from the address if it's a script.
+- `ScriptType script_type`: The script type.
 
-- `string hex`: The hex encoded redeem script if the address is p2sh
+- `bytes pay_to_addr_script`: The redeem script.
 
-- `string script`: The script type
-
-- `string sigs_required`: The number of signatures required for the address.
-
+- `uint32 sigs_required`: The number of signatures required.
 ___
 
 #### `TransactionNotifications`
