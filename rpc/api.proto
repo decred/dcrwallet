@@ -745,7 +745,6 @@ message VerifyMessageResponse {
 	bool valid = 1;
 }
 
-<<<<<<< HEAD
 service DecodeMessageService {
 	rpc DecodeRawTransaction (DecodeRawTransactionRequest) returns (DecodeRawTransactionResponse);
 }
@@ -806,24 +805,4 @@ message DecodeRawTransactionRequest {
 }
 message DecodeRawTransactionResponse {
 	DecodedTransaction transaction = 1;
-=======
-message ValidateAddressRequest {
-	string address = 1;
-}
-
-message ValidateAddressResponse {
-	bool is_valid = 1;
-	string address = 2;
-	bool is_mine = 3;
-	bool is_watch_only = 4;
-	bool is_script = 5;
-	string pub_key_addr = 6;
-	string pub_key = 7;
-	bool is_compressed = 8;
-	string account = 9;
-	repeated string addresses = 10;
-	string hex = 11;
-	string script = 12;
-	int32 sigs_required = 13;
->>>>>>> rpc: add ValidateAddress grpc request
 }

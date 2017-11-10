@@ -1326,10 +1326,8 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 		return result, nil
 	}
 
-	result.Address = addr.EncodeAddress()
 	result.IsValid = true
-
-	ainfo, err := s.wallet.AddressInfo(addr)
+	addrInfo, err := s.wallet.AddressInfo(addr)
 	if err != nil {
 		if apperrors.IsError(err, apperrors.ErrAddressNotFound) {
 			// No additional information available about the address.
@@ -1341,26 +1339,26 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 	// The address lookup was successful which means there is further
 	// information about it available and it is "mine".
 	result.IsMine = true
-	acctName, err := s.wallet.AccountName(ainfo.Account())
+	acctName, err := s.wallet.AccountName(addrInfo.Account())
 	if err != nil {
 		return nil, &legacyrpc.ErrAccountNameNotFound
 	}
-	result.Account = acctName
 
-	switch ma := ainfo.(type) {
+	acctNumber, err := s.wallet.AccountNumber(acctName)
+	if err != nil {
+		return nil, err
+	}
+	result.AccountNumber = acctNumber
+
+	switch ma := addrInfo.(type) {
 	case udb.ManagedPubKeyAddress:
-		result.IsCompressed = ma.Compressed()
-		result.PubKey = ma.ExportPubKey()
-		pubKeyBytes, err := hex.DecodeString(result.PubKey)
-		if err != nil {
-			return nil, err
-		}
-		pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(pubKeyBytes,
+		result.PubKey = ma.PubKey().Serialize()
+		pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(result.PubKey,
 			s.wallet.ChainParams())
 		if err != nil {
 			return nil, err
 		}
-		result.PubKeyAddr = pubKeyAddr.String()
+		result.PubKeyAddr = pubKeyAddr.EncodeAddress()
 
 	case udb.ManagedScriptAddress:
 		result.IsScript = true
@@ -1371,7 +1369,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 		if err != nil {
 			break
 		}
-		result.Hex = hex.EncodeToString(script)
+		result.PayToAddrScript = script
 
 		// This typically shouldn't fail unless an invalid script was
 		// imported.  However, if it fails for any reason, there is no
@@ -1380,7 +1378,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 		class, addrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
 			txscript.DefaultScriptVersion, script, s.wallet.ChainParams())
 		if err != nil {
-			result.Script = txscript.NonStandardTy.String()
+			result.ScriptType = pb.ValidateAddressResponse_NonStandardTy
 			break
 		}
 
@@ -1388,13 +1386,13 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 		for i, a := range addrs {
 			addrStrings[i] = a.EncodeAddress()
 		}
-		result.Addresses = addrStrings
+		result.PkScriptAddrs = addrStrings
 
 		// Multi-signature scripts also provide the number of required
 		// signatures.
-		result.Script = class.String()
+		result.ScriptType = pb.ValidateAddressResponse_ScriptType(uint32(class))
 		if class == txscript.MultiSigTy {
-			result.SigsRequired = int32(reqSigs)
+			result.SigsRequired = uint32(reqSigs)
 		}
 	}
 
