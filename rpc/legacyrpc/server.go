@@ -23,6 +23,7 @@ import (
 	"github.com/btcsuite/websocket"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
+	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/ticketbuyer"
@@ -63,6 +64,7 @@ type Server struct {
 	httpServer        http.Server
 	walletLoader      *loader.Loader
 	chainClient       *chain.RPCClient
+	dcrrpcClient      *dcrrpcclient.Client
 	ticketbuyerConfig *ticketbuyer.Config
 	handlerMu         sync.Mutex
 	listeners         []net.Listener
@@ -125,6 +127,7 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 		activeNet:           activeNet,
 	}
 
+	walletLoader.LoadedWallet()
 	// map methods to functions here
 
 	serveMux.Handle("/", throttledFn(opts.MaxPOSTClients,
@@ -246,6 +249,7 @@ func (s *Server) Stop() {
 func (s *Server) SetChainServer(chainClient *chain.RPCClient) {
 	s.handlerMu.Lock()
 	s.chainClient = chainClient
+	s.dcrrpcClient, _ = chainClient.POSTClient()
 	s.handlerMu.Unlock()
 }
 
