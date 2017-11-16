@@ -9,7 +9,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	xcontext "golang.org/x/net/context"
 	"io/ioutil"
 	"net"
 	"os"
@@ -17,6 +16,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	xcontext "golang.org/x/net/context"
 
 	"github.com/decred/dcrd/certgen"
 	"github.com/decred/dcrwallet/loader"
@@ -184,7 +185,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			MaxPOSTClients:      cfg.LegacyRPCMaxClients,
 			MaxWebsocketClients: cfg.LegacyRPCMaxWebsockets,
 		}
-		legacyServer = legacyrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
+		legacyServer = legacyrpc.NewServer(&opts, activeNet.Params, walletLoader, &cfg.tbCfg, listeners)
 		for _, lis := range listeners {
 			jsonrpcAddrNotifier.notify(lis.Addr().String())
 		}

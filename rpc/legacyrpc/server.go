@@ -86,7 +86,7 @@ type Server struct {
 }
 
 type Handler struct {
-	fn     func(interface{}) (interface{}, error)
+	fn     func(*Server, interface{}) (interface{}, error)
 	noHelp bool
 }
 
@@ -102,6 +102,7 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 	serveMux := http.NewServeMux()
 	const rpcAuthTimeoutSeconds = 10
 
+	walletLoader.LoadedWallet()
 	server := &Server{
 		httpServer: http.Server{
 			Handler: serveMux,
@@ -126,9 +127,6 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 		requestShutdownChan: make(chan struct{}, 1),
 		activeNet:           activeNet,
 	}
-
-	walletLoader.LoadedWallet()
-	// map methods to functions here
 
 	serveMux.Handle("/", throttledFn(opts.MaxPOSTClients,
 		func(w http.ResponseWriter, r *http.Request) {
@@ -262,7 +260,7 @@ func (s *Server) SetChainServer(chainClient *chain.RPCClient) {
 // known) and handled accordingly.
 func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) lazyHandler {
 	log.Infof("RPC method %v invoked by client %v", request.Method, remoteAddr(ctx))
-	return s.lazyApplyHandler(request)
+	return lazyApplyHandler(s, request)
 }
 
 // ErrNoAuth represents an error where authentication could not succeed
