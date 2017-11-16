@@ -22,42 +22,66 @@ set -ex
 #Default GOVERSION
 GOVERSION=${1:-1.9}
 REPO=dcrwallet
+DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
 
-TESTDIRS=$(go list ./... | grep -v '/vendor/')
-TESTCMD="test -z \"\$(gometalinter -j 4 --disable-all \
-  --enable=gofmt \
-  --enable=gosimple \
-  --enable=unconvert \
-  --enable=ineffassign \
-  --vendor \
-  --deadline=10m ./... 2>&1 | egrep -v 'testdata/' | tee /dev/stderr)\" && \
-  test -z \"\$(gometalinter -j 4 --disable-all \
-  --enable=golint \
-  --vendor \
-  --deadline=10m ./... 2>&1 | egrep -v '(ALL_CAPS|OP_|NewFieldVal|RpcCommand|RpcRawCommand|RpcSend|Dns|api.pb.go|StartConsensusRpc|factory_test.go|legacy|UnstableAPI|_string.go)' | tee /dev/stderr)\" && \
-  test -z \"\$(gometalinter -j 4 --disable-all \
-  --enable=vet \
-  --vendor \
-  --deadline=10m ./... 2>&1 | egrep -v 'not a string in call to [A-Za-z]+f' | tee /dev/stderr)\" && \
-  env GORACE='halt_on_error=1' go test -short -race \${TESTDIRS}"
+testrepo () {
+  TESTDIRS=$(go list ./... | grep -v '/vendor/')
+  TMPFILE=$(mktemp)
+
+  # Check lockfile
+  cp Gopkg.lock $TMPFILE && dep ensure && diff Gopkg.lock $TMPFILE >/dev/null
+  if [ $? != 0 ]; then
+    echo 'lockfile must be updated with dep ensure'
+    exit 1
+  fi
+
+  # Check linters
+  gometalinter --vendor --disable-all --deadline=10m \
+    --enable=gofmt \
+    --enable=gosimple \
+    --enable=unconvert \
+    --enable=ineffassign \
+    -s testdata ./... | tee /dev/stderr
+  if [ $? != 0 ]; then
+    echo 'gometalinter has some complaints'
+    exit 1
+  fi
+
+  # Test application install
+  go install . ./cmd/...
+  if [ $? != 0 ]; then
+    echo 'go install failed'
+    exit 1
+  fi
+
+  # Check tests
+  env GORACE='halt_on_error=1' go test -short -race $TESTDIRS
+  if [ $? != 0 ]; then
+    echo 'go tests failed'
+    exit 1
+  fi
+
+  echo "------------------------------------------"
+  echo "Tests completed successfully!"
+}
 
 if [ $GOVERSION == "local" ]; then
-    eval $TESTCMD
+    testrepo
     exit
 fi
 
-DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
-
 docker pull decred/$DOCKER_IMAGE_TAG
+if [ $? != 0 ]; then
+        echo 'docker pull failed'
+        exit 1
+fi
 
 docker run --rm -it -v $(pwd):/src decred/$DOCKER_IMAGE_TAG /bin/bash -c "\
   rsync -ra --filter=':- .gitignore'  \
   /src/ /go/src/github.com/decred/$REPO/ && \
   cd github.com/decred/$REPO/ && \
-  dep ensure && \
-  go install . ./cmd/... && \
-  $TESTCMD
-"
-
-echo "------------------------------------------"
-echo "Tests complete."
+  bash run_tests.sh local"
+if [ $? != 0 ]; then
+        echo 'docker run failed'
+        exit 1
+fi
