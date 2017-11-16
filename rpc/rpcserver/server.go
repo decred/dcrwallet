@@ -46,6 +46,7 @@ import (
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/netparams"
+	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
 	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
@@ -1316,6 +1317,86 @@ func (s *walletServer) SignMessage(cts context.Context, req *pb.SignMessageReque
 
 WrongAddrKind:
 	return nil, status.Error(codes.InvalidArgument, "address must be secp256k1 P2PK or P2PKH")
+}
+
+func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddressRequest) (*pb.ValidateAddressResponse, error) {
+	result := &pb.ValidateAddressResponse{}
+	addr, err := decodeAddress(req.GetAddress(), s.wallet.ChainParams())
+	if err != nil {
+		return result, nil
+	}
+
+	result.IsValid = true
+	addrInfo, err := s.wallet.AddressInfo(addr)
+	if err != nil {
+		if apperrors.IsError(err, apperrors.ErrAddressNotFound) {
+			// No additional information available about the address.
+			return result, nil
+		}
+		return nil, err
+	}
+
+	// The address lookup was successful which means there is further
+	// information about it available and it is "mine".
+	result.IsMine = true
+	acctName, err := s.wallet.AccountName(addrInfo.Account())
+	if err != nil {
+		return nil, &legacyrpc.ErrAccountNameNotFound
+	}
+
+	acctNumber, err := s.wallet.AccountNumber(acctName)
+	if err != nil {
+		return nil, err
+	}
+	result.AccountNumber = acctNumber
+
+	switch ma := addrInfo.(type) {
+	case udb.ManagedPubKeyAddress:
+		result.PubKey = ma.PubKey().Serialize()
+		pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(result.PubKey,
+			s.wallet.ChainParams())
+		if err != nil {
+			return nil, err
+		}
+		result.PubKeyAddr = pubKeyAddr.EncodeAddress()
+
+	case udb.ManagedScriptAddress:
+		result.IsScript = true
+
+		// The script is only available if the manager is unlocked, so
+		// just break out now if there is an error.
+		script, err := s.wallet.RedeemScriptCopy(addr)
+		if err != nil {
+			break
+		}
+		result.PayToAddrScript = script
+
+		// This typically shouldn't fail unless an invalid script was
+		// imported.  However, if it fails for any reason, there is no
+		// further information available, so just set the script type
+		// a non-standard and break out now.
+		class, addrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
+			txscript.DefaultScriptVersion, script, s.wallet.ChainParams())
+		if err != nil {
+			result.ScriptType = pb.ValidateAddressResponse_NonStandardTy
+			break
+		}
+
+		addrStrings := make([]string, len(addrs))
+		for i, a := range addrs {
+			addrStrings[i] = a.EncodeAddress()
+		}
+		result.PkScriptAddrs = addrStrings
+
+		// Multi-signature scripts also provide the number of required
+		// signatures.
+		result.ScriptType = pb.ValidateAddressResponse_ScriptType(uint32(class))
+		if class == txscript.MultiSigTy {
+			result.SigsRequired = uint32(reqSigs)
+		}
+	}
+
+	return result, nil
 }
 
 func marshalTransactionInputs(v []wallet.TransactionSummaryInput) []*pb.TransactionDetails_Input {

@@ -52,6 +52,7 @@ service WalletService {
 	rpc RevokeTickets(RevokeTicketsRequest) returns (RevokeTicketsResponse);
 	rpc LoadActiveDataFilters(LoadActiveDataFiltersRequest) returns (LoadActiveDataFiltersResponse);
 	rpc SignMessage (SignMessageRequest) returns (SignMessageResponse);
+	rpc ValidateAddress (ValidateAddressRequest) returns (ValidateAddressResponse);
 }
 
 service WalletLoaderService {
@@ -804,4 +805,35 @@ message DecodeRawTransactionRequest {
 }
 message DecodeRawTransactionResponse {
 	DecodedTransaction transaction = 1;
+}
+
+message ValidateAddressRequest {
+	string address = 1;
+}
+
+message ValidateAddressResponse {
+	bool is_valid = 1;
+	bool is_mine = 2;
+	uint32 account_number = 3;
+	string pub_key_addr = 4;
+	bytes pub_key = 5;
+	bool is_script = 6;
+	repeated string pk_script_addrs = 7;
+	enum ScriptType {
+		NonStandardTy = 0;
+		PubKeyTy  = 1;
+		PubKeyHashTy = 2;
+		ScriptHashTy = 3;
+		MultiSigTy = 4;
+		NullDataTy = 5;
+		StakeSubmissionTy = 6;
+		StakeGenTy = 7;
+		StakeRevocationTy = 8;
+		StakeSubChangeTy = 9;
+		PubkeyAltTy = 10;
+		PubkeyHashAltTy = 11;
+	}
+	ScriptType script_type = 8;
+	bytes pay_to_addr_script = 9;
+	uint32 sigs_required = 10;
 }
