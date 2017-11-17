@@ -200,8 +200,8 @@ You can also run the wallet with docker:
 Volumes:
 
 - `/etc/dcrwallet` **mandatory** hold `config`, `rpc.cert ` and `rpc.key`
-- `/var/log/dcrwallet` are the logs files
-- `/var/lib/dcrwallet` **important** hold the private keys, don't keep that volume in a temporary file system.
+- `/var/log/dcrwallet` is where the log files are stored
+- `/var/lib/dcrwallet` **important** hold the private keys, don't keep that volume ogn a temporary file system.
 
 Ports:
 
