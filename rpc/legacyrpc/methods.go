@@ -197,22 +197,18 @@ func lazyApplyHandler(s *Server, request *dcrjson.Request) lazyHandler {
 		}
 	}
 
-	if s.chainClient != nil {
-		return func() (interface{}, *dcrjson.RPCError) {
-			cmd, err := dcrjson.UnmarshalCmd(request)
-			if err != nil {
-				return nil, dcrjson.ErrRPCInvalidRequest
-			}
-
-			resp, err := handlerData.fn(s, cmd)
-			if err != nil {
-				return nil, jsonError(err)
-			}
-			return resp, nil
+	return func() (interface{}, *dcrjson.RPCError) {
+		cmd, err := dcrjson.UnmarshalCmd(request)
+		if err != nil {
+			return nil, dcrjson.ErrRPCInvalidRequest
 		}
-	}
 
-	return nil
+		resp, err := handlerData.fn(s, cmd)
+		if err != nil {
+			return nil, jsonError(err)
+		}
+		return resp, nil
+	}
 }
 
 // makeResponse makes the JSON-RPC response struct for the result and error
@@ -404,6 +400,13 @@ func addMultiSigAddress(s *Server, icmd interface{}) (interface{}, error) {
 	p2shAddr, err := w.ImportP2SHRedeemScript(script)
 	if err != nil {
 		return nil, err
+	}
+
+	if s.chainClient == nil {
+		return nil, &dcrjson.RPCError{
+			Code:    -1,
+			Message: "Chain RPC is inactive",
+		}
 	}
 
 	err = s.chainClient.LoadTxFilter(false, []dcrutil.Address{p2shAddr}, nil)
@@ -748,6 +751,14 @@ func getInfo(s *Server, icmd interface{}) (interface{}, error) {
 	if !ok {
 		return nil, ErrUnloadedWallet
 	}
+
+	if s.chainClient == nil {
+		return nil, &dcrjson.RPCError{
+			Code:    -1,
+			Message: "Chain RPC is inactive",
+		}
+	}
+
 	// Call down to dcrd for all of the information in this command known
 	// by them.
 	info, err := s.chainClient.GetInfo()
@@ -1258,6 +1269,13 @@ func getStakeInfo(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, ErrUnloadedWallet
+	}
+
+	if s.chainClient == nil {
+		return nil, &dcrjson.RPCError{
+			Code:    -1,
+			Message: "Chain RPC is inactive",
+		}
 	}
 
 	// Asynchronously query for the stake difficulty.
@@ -1795,6 +1813,13 @@ func listSinceBlock(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, ErrUnloadedWallet
+	}
+
+	if s.chainClient == nil {
+		return nil, &dcrjson.RPCError{
+			Code:    -1,
+			Message: "Chain RPC is inactive",
+		}
 	}
 
 	_, tipHeight := w.MainChainTip()
@@ -2623,6 +2648,13 @@ func sendToMultiSig(s *Server, icmd interface{}) (interface{}, error) {
 		RedeemScript: hex.EncodeToString(script),
 	}
 
+	if s.chainClient == nil {
+		return nil, &dcrjson.RPCError{
+			Code:    -1,
+			Message: "Chain RPC is inactive",
+		}
+	}
+
 	err = s.chainClient.LoadTxFilter(false, []dcrutil.Address{addr}, nil)
 	if err != nil {
 		return nil, err
@@ -2835,6 +2867,7 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 				Message: "Chain RPC is inactive",
 			}
 		}
+
 		requested[txIn.PreviousOutPoint] = s.chainClient.GetTxOutAsync(
 			&txIn.PreviousOutPoint.Hash, txIn.PreviousOutPoint.Index,
 			true)
@@ -2943,6 +2976,13 @@ func signRawTransactions(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, ErrUnloadedWallet
+	}
+
+	if s.chainClient == nil {
+		return nil, &dcrjson.RPCError{
+			Code:    -1,
+			Message: "Chain RPC is inactive",
+		}
 	}
 
 	// Sign each transaction sequentially and record the results.
