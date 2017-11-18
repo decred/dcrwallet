@@ -208,7 +208,7 @@ Ports:
 - `9110` Legacy RPC
 - `9111` gRPC
 
-Any command passed to the container are `btcwallet` arguments, like `--help`.
+Any command passed to the container are `dcrwallet` arguments, like `--help`.
 
 ## Issue Tracker
 
