@@ -2480,7 +2480,7 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 			// about it anyways.
 			scriptClass, addrs, reqSigs, _ = txscript.ExtractPkScriptAddrs(
 				v.Version, v.PkScript, chainParams)
-			encodedAddrs := make([]string, len(addrs))
+			encodedAddrs = make([]string, len(addrs))
 			for j, addr := range addrs {
 				encodedAddrs[j] = addr.EncodeAddress()
 			}
