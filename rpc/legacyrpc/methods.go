@@ -55,7 +55,7 @@ func confirms(txHeight, curHeight int32) int32 {
 }
 
 // the registered rpc handlers
-var handlers = map[string]Handler{
+var handlers = map[string]handler{
 	// Reference implementation wallet methods (implemented)
 	"accountaddressindex":     {fn: accountAddressIndex},
 	"accountsyncaddressindex": {fn: accountSyncAddressIndex},
@@ -104,9 +104,6 @@ var handlers = map[string]Handler{
 	"sendmany":                {fn: sendMany},
 	"sendtoaddress":           {fn: sendToAddress},
 	"sendtomultisig":          {fn: sendToMultiSig},
-	"sendtosstx":              {fn: sendToSStx},
-	"sendtossgen":             {fn: sendToSSGen},
-	"sendtossrtx":             {fn: sendToSSRtx},
 	"setticketfee":            {fn: setTicketFee},
 	"settxfee":                {fn: setTxFee},
 	"setvotechoice":           {fn: setVoteChoice},
@@ -183,8 +180,8 @@ func lazyApplyHandler(s *Server, request *dcrjson.Request) lazyHandler {
 	handlerData, ok := handlers[request.Method]
 	if !ok {
 		return func() (interface{}, *dcrjson.RPCError) {
-			chainClient := s.GetChainServer()
-			if chainClient == nil {
+			chainClient, ok := s.requireChainClient()
+			if !ok {
 				return nil, &dcrjson.RPCError{
 					Code:    -1,
 					Message: "Chain RPC is inactive",
@@ -403,8 +400,8 @@ func addMultiSigAddress(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	chainClient := s.GetChainServer()
-	if chainClient == nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		return nil, &dcrjson.RPCError{
 			Code:    -1,
 			Message: "Chain RPC is inactive",
@@ -754,8 +751,8 @@ func getInfo(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, ErrUnloadedWallet
 	}
 
-	chainClient := s.GetChainServer()
-	if chainClient == nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		return nil, &dcrjson.RPCError{
 			Code:    -1,
 			Message: "Chain RPC is inactive",
@@ -914,8 +911,8 @@ func importPrivKey(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, ErrUnloadedWallet
 	}
 
-	chainClient := s.GetChainServer()
-	if chainClient == nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		return nil, &dcrjson.RPCError{
 			Code:    -1,
 			Message: "Chain RPC is inactive",
@@ -984,8 +981,8 @@ func importScript(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, ErrUnloadedWallet
 	}
 
-	chainClient := s.GetChainServer()
-	if chainClient == nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		return nil, &dcrjson.RPCError{
 			Code:    -1,
 			Message: "Chain RPC is inactive",
@@ -1300,8 +1297,8 @@ func getStakeInfo(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, ErrUnloadedWallet
 	}
 
-	chainClient := s.GetChainServer()
-	if chainClient == nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		return nil, &dcrjson.RPCError{
 			Code:    -1,
 			Message: "Chain RPC is inactive",
@@ -1374,8 +1371,8 @@ func getTickets(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, ErrUnloadedWallet
 	}
 
-	chainClient := s.GetChainServer()
-	if chainClient == nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		return nil, &dcrjson.RPCError{
 			Code:    -1,
 			Message: "Chain RPC is inactive",
@@ -1629,8 +1626,8 @@ func help(s *Server, icmd interface{}) (interface{}, error) {
 	// JSON-RPC clients.  Any errors creating the POST client may be ignored
 	// since the client is not necessary for the request.
 
-	chainClient := s.GetChainServer()
-	if chainClient == nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		return nil, &dcrjson.RPCError{
 			Code:    -1,
 			Message: "Chain RPC is inactive",
@@ -1876,8 +1873,8 @@ func listSinceBlock(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, ErrUnloadedWallet
 	}
 
-	chainClient := s.GetChainServer()
-	if chainClient == nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		return nil, &dcrjson.RPCError{
 			Code:    -1,
 			Message: "Chain RPC is inactive",
@@ -2409,8 +2406,8 @@ func rescanWallet(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, ErrUnloadedWallet
 	}
 
-	chainClient := s.GetChainServer()
-	if chainClient == nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		return nil, &dcrjson.RPCError{
 			Code:    -1,
 			Message: "Chain RPC is inactive",
@@ -2435,8 +2432,8 @@ func revokeTickets(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, ErrUnloadedWallet
 	}
 
-	chainClient := s.GetChainServer()
-	if chainClient == nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		return nil, &dcrjson.RPCError{
 			Code:    -1,
 			Message: "Chain RPC is inactive",
@@ -2737,8 +2734,8 @@ func sendToMultiSig(s *Server, icmd interface{}) (interface{}, error) {
 		RedeemScript: hex.EncodeToString(script),
 	}
 
-	chainClient := s.GetChainServer()
-	if chainClient == nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		return nil, &dcrjson.RPCError{
 			Code:    -1,
 			Message: "Chain RPC is inactive",
@@ -2950,15 +2947,15 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 			continue
 		}
 
-		chainClient := s.GetChainServer()
-		// Asynchronously request the output script.
-		if chainClient == nil {
+		chainClient, ok := s.requireChainClient()
+		if !ok {
 			return nil, &dcrjson.RPCError{
 				Code:    -1,
 				Message: "Chain RPC is inactive",
 			}
 		}
 
+		// Asynchronously request the output script.
 		requested[txIn.PreviousOutPoint] = chainClient.GetTxOutAsync(
 			&txIn.PreviousOutPoint.Hash, txIn.PreviousOutPoint.Index,
 			true)
@@ -3069,8 +3066,8 @@ func signRawTransactions(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, ErrUnloadedWallet
 	}
 
-	chainClient := s.GetChainServer()
-	if chainClient == nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		return nil, &dcrjson.RPCError{
 			Code:    -1,
 			Message: "Chain RPC is inactive",
@@ -3293,8 +3290,8 @@ WrongAddrKind:
 // function for the versionWithChainRPC and versionNoChainRPC handlers.
 func version(s *Server, icmd interface{}) (interface{}, error) {
 	var resp map[string]dcrjson.VersionResult
-	chainClient := s.GetChainServer()
-	if chainClient != nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		var err error
 		resp, err = chainClient.Version()
 		if err != nil {

@@ -58,7 +58,6 @@ func (c *websocketClient) send(b []byte) error {
 
 // Server holds the items the RPC server may need to access (auth,
 // config, shutdown, etc.)
-
 type Server struct {
 	httpServer   http.Server
 	walletLoader *loader.Loader
@@ -83,10 +82,10 @@ type Server struct {
 
 	activeNet *chaincfg.Params
 
-	handlers map[string]Handler
+	handlers map[string]handler
 }
 
-type Handler struct {
+type handler struct {
 	fn     func(*Server, interface{}) (interface{}, error)
 	noHelp bool
 }
@@ -251,13 +250,17 @@ func (s *Server) SetChainServer(chainClient *chain.RPCClient) {
 	s.handlerMu.Unlock()
 }
 
-// GetChainServer get the chain server client component needed to run a fully
+// requireChainClient get the chain server client component needed to run a fully
 // functional decred wallet RPC server.
-func (s *Server) GetChainServer() *chain.RPCClient {
+func (s *Server) requireChainClient() (*chain.RPCClient, bool) {
 	s.handlerMu.Lock()
 	chainClient := s.chainClient
 	s.handlerMu.Unlock()
-	return chainClient
+	if chainClient != nil {
+		return chainClient, true
+	}
+
+	return nil, false
 }
 
 // handlerClosure creates a closure function for handling requests of the given
