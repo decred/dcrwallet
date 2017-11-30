@@ -46,6 +46,7 @@ var opts = struct {
 	SimNet                bool                `long:"simnet" description:"Use the simulation decred network"`
 	RPCConnect            string              `short:"c" long:"connect" description:"Hostname[:port] of wallet RPC server"`
 	RPCUsername           string              `short:"u" long:"rpcuser" description:"Wallet RPC username"`
+	RPCPassword           string              `short:"P" long:"rpcpass" description:"Wallet RPC password"`
 	RPCCertificateFile    string              `long:"cafile" description:"Wallet RPC TLS certificate"`
 	FeeRate               *cfgutil.AmountFlag `long:"feerate" description:"Transaction fee per kilobyte"`
 	SourceAccount         string              `long:"sourceacct" description:"Account to sweep outputs from"`
@@ -56,6 +57,7 @@ var opts = struct {
 	SimNet:                false,
 	RPCConnect:            "localhost",
 	RPCUsername:           "",
+	RPCPassword:           "",
 	RPCCertificateFile:    filepath.Join(walletDataDirectory, "rpc.cert"),
 	FeeRate:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
 	SourceAccount:         "imported",
@@ -205,9 +207,15 @@ func main() {
 }
 
 func sweep() error {
-	rpcPassword, err := promptSecret("Wallet RPC password")
-	if err != nil {
-		return errContext(err, "failed to read RPC password")
+	rpcPassword := opts.RPCPassword
+
+	if rpcPassword == "" {
+		secret, err := promptSecret("Wallet RPC password")
+		if err != nil {
+			return errContext(err, "failed to read RPC password")
+		}
+
+		rpcPassword = secret
 	}
 
 	// Open RPC client.
