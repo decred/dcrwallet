@@ -54,6 +54,7 @@ var opts = struct {
 	DestinationAccount    string              `long:"destacct" description:"Account to send sweeped outputs to"`
 	DestinationAddress    string              `long:"destaddr" description:"Address to send sweeped outputs to"`
 	RequiredConfirmations int64               `long:"minconf" description:"Required confirmations to include an output"`
+	DryRun                bool                `long:"dryrun" description:"Do not actually send any transactions but output what would have happened"`
 }{
 	TestNet:               false,
 	SimNet:                false,
@@ -67,6 +68,7 @@ var opts = struct {
 	DestinationAccount:    "",
 	DestinationAddress:    "",
 	RequiredConfirmations: 2,
+	DryRun:                false,
 }
 
 // Parse and validate flags.
@@ -348,10 +350,17 @@ func sweep() error {
 		}
 
 		// Publish the signed sweep transaction.
-		txHash, err := rpcClient.SendRawTransaction(signedTransaction, false)
-		if err != nil {
-			reportError("Failed to publish transaction: %v", err)
-			continue
+		txHash := "DRYRUN"
+		if opts.DryRun {
+			fmt.Printf("DRY RUN: not actually sending transaction\n")
+		} else {
+			hash, err := rpcClient.SendRawTransaction(signedTransaction, false)
+			if err != nil {
+				reportError("Failed to publish transaction: %v", err)
+				continue
+			}
+
+			txHash = hash.String()
 		}
 
 		outputAmount := dcrutil.Amount(tx.Tx.TxOut[0].Value)
