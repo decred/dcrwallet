@@ -2266,18 +2266,23 @@ type GetTransactionsResult struct {
 	UnminedTransactions []TransactionSummary
 }
 
-// GetTransactions returns transaction results between a starting and ending
-// block.  Blocks in the block range may be specified by either a height or a
-// hash.
+// GetTransactions runs the function f on all transactions between a starting
+// and ending block.  Blocks in the block range may be specified by either a
+// height or a hash.
 //
-// Because this is a possibly lenghtly operation, a cancel channel is provided
-// to cancel the task.  If this channel unblocks, the results created thus far
-// will be returned.
+// The function f may return an error which, if non-nil, is propagated to the
+// caller.  Additionally, a boolean return value allows exiting the function
+// early without reading any additional transactions when true.
 //
 // Transaction results are organized by blocks in ascending order and unmined
 // transactions in an unspecified order.  Mined transactions are saved in a
-// Block structure which records properties about the block.
-func (w *Wallet) GetTransactions(ctx context.Context, startBlock, endBlock *BlockIdentifier) (*GetTransactionsResult, error) {
+// Block structure which records properties about the block. Unmined
+// transactions are returned on a Block structure with height == -1.
+//
+// Internally this function uses the udb store RangeTransactions function,
+// therefore the notes and restrictions of that function also apply here.
+func (w *Wallet) GetTransactions(f func(*Block) (bool, error), startBlock, endBlock *BlockIdentifier) error {
+
 	var start, end int32 = 0, -1
 
 	if startBlock != nil {
@@ -2299,7 +2304,7 @@ func (w *Wallet) GetTransactions(ctx context.Context, startBlock, endBlock *Bloc
 				return nil
 			})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
@@ -2322,13 +2327,12 @@ func (w *Wallet) GetTransactions(ctx context.Context, startBlock, endBlock *Bloc
 				return nil
 			})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
 
-	var res GetTransactionsResult
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	return walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
@@ -2343,29 +2347,27 @@ func (w *Wallet) GetTransactions(ctx context.Context, startBlock, endBlock *Bloc
 				txs = append(txs, makeTxSummary(dbtx, w, &details[i]))
 			}
 
+			var block *Block
 			if details[0].Block.Height != -1 {
 				blockHash := details[0].Block.Hash
-				res.MinedTransactions = append(res.MinedTransactions, Block{
+				block = &Block{
 					Hash:         &blockHash,
 					Height:       details[0].Block.Height,
 					Timestamp:    details[0].Block.Time.Unix(),
 					Transactions: txs,
-				})
+				}
 			} else {
-				res.UnminedTransactions = txs
+				block = &Block{
+					Height:       -1,
+					Transactions: txs,
+				}
 			}
 
-			select {
-			case <-ctx.Done():
-				return true, ctx.Err()
-			default:
-				return false, nil
-			}
+			return f(block)
 		}
 
 		return w.TxStore.RangeTransactions(txmgrNs, start, end, rangeFn)
 	})
-	return &res, err
 }
 
 // AccountResult is a single account result for the AccountsResult type.
