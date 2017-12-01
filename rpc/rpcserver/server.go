@@ -59,9 +59,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.26.0"
+	semverString = "4.27.0"
 	semverMajor  = 4
-	semverMinor  = 26
+	semverMinor  = 27
 	semverPatch  = 0
 )
 
@@ -914,31 +914,44 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 				"minimum number of recent transactions may not be negative")
 		}
 	}
-
 	_ = minRecentTxs
 
-	gtr, err := s.wallet.GetTransactions(server.Context(), startBlock, endBlock)
+	targetTxCount := int(req.TargetTransactionCount)
+	if targetTxCount < 0 {
+		return status.Errorf(codes.InvalidArgument,
+			"maximum transaction count may not be negative")
+	}
+
+	ctx := server.Context()
+	txCount := 0
+
+	rangeFn := func(block *wallet.Block) (bool, error) {
+		var resp *pb.GetTransactionsResponse
+		if block.Height != -1 {
+			resp = &pb.GetTransactionsResponse{
+				MinedTransactions: marshalBlock(block),
+			}
+		} else {
+			resp = &pb.GetTransactionsResponse{
+				UnminedTransactions: marshalTransactionDetailsSlice(block.Transactions),
+			}
+		}
+		txCount += len(block.Transactions)
+
+		select {
+		case <-ctx.Done():
+			return true, ctx.Err()
+		default:
+			err := server.Send(resp)
+			return (err != nil) || ((targetTxCount > 0) && (txCount >= targetTxCount)), err
+		}
+	}
+
+	err := s.wallet.GetTransactions(rangeFn, startBlock, endBlock)
 	if err != nil {
 		return translateError(err)
 	}
-	for i := range gtr.MinedTransactions {
-		resp := &pb.GetTransactionsResponse{
-			MinedTransactions: marshalBlock(&gtr.MinedTransactions[i]),
-		}
-		err = server.Send(resp)
-		if err != nil {
-			return err
-		}
-	}
-	if len(gtr.UnminedTransactions) > 0 {
-		resp := &pb.GetTransactionsResponse{
-			UnminedTransactions: marshalTransactionDetailsSlice(gtr.UnminedTransactions),
-		}
-		err = server.Send(resp)
-		if err != nil {
-			return err
-		}
-	}
+
 	return nil
 }
 

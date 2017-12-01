@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.26.x
+Version: 4.27.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -627,7 +627,7 @@ ___
 The `GetTransactions` method queries the wallet for relevant transactions.  The
 query set may be specified using a block range, inclusive, with the heights or
 hashes of the minimum and maximum block.  Transaction results are grouped
-grouped by the block they are mined in, or grouped together with other unmined
+by the block they are mined in, or grouped together with other unmined
 transactions.
 
 To avoid exceeding the maximum message size with the return result, a stream is
@@ -659,6 +659,14 @@ transactions (and no mined transactions).
   `ending_block_hash` are set to their default values, no upper block limit is
   used and transactions through the best block and all unmined transactions are
   included.
+
+- `int32 target_transaction_count`: Try to return at most this amount of
+  transactions. Both mined and unmined transactions count towards this limit.
+  Note that as transactions are returned on a per-block basis, **more** than
+  this amount of transactions may be returned in total, to prevent transactions
+  from not being seen. The caller is responsible for further clipping of the
+  dataset if it has a hard requirement on the number of total transactions it
+  manages.
 
 **Response:** `stream GetTransactionsResponse`
 
