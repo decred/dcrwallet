@@ -1311,7 +1311,7 @@ func getTransaction(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 		debitTotal  dcrutil.Amount
 		creditTotal dcrutil.Amount // Excludes change
 		fee         dcrutil.Amount
-		feeF64      float64
+		negFeeF64   float64
 	)
 	for _, deb := range details.Debits {
 		debitTotal += deb.Amount
@@ -1328,7 +1328,7 @@ func getTransaction(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 			outputTotal += dcrutil.Amount(output.Value)
 		}
 		fee = debitTotal - outputTotal
-		feeF64 = fee.ToCoin()
+		negFeeF64 = (-fee).ToCoin()
 	}
 
 	if len(details.Debits) == 0 {
@@ -1354,9 +1354,9 @@ func getTransaction(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 			// listtransactions (but using the short result format).
 			Category: "send",
 			Amount:   (-debitTotal).ToCoin(), // negative since it is a send
-			Fee:      &feeF64,
+			Fee:      &negFeeF64,
 		}
-		ret.Fee = feeF64
+		ret.Fee = negFeeF64
 	}
 
 	credCat := wallet.RecvCategory(details, tipHeight,
