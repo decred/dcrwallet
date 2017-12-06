@@ -1791,7 +1791,7 @@ func RecvCategory(details *udb.TxDetails, syncHeight int32,
 //
 // TODO: This should be moved to the legacyrpc package.
 func listTransactions(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb.Manager,
-	syncHeight int32, net *chaincfg.Params) []dcrjson.ListTransactionsResult {
+	syncHeight int32, net *chaincfg.Params) (sends, receives []dcrjson.ListTransactionsResult) {
 
 	addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 
@@ -1806,7 +1806,6 @@ func listTransactions(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb.M
 		confirmations = int64(confirms(details.Block.Height, syncHeight))
 	}
 
-	results := []dcrjson.ListTransactionsResult{}
 	txHashStr := details.Hash.String()
 	received := details.Received.Unix()
 	generated := blockchain.IsCoinBaseTx(&details.MsgTx)
@@ -1843,19 +1842,14 @@ func listTransactions(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb.M
 
 outputs:
 	for i, output := range details.MsgTx.TxOut {
-		// Determine if this output is a credit, and if so, determine
-		// its spentness.
+		// Determine if this output is a credit.  Change outputs are skipped.
 		var isCredit bool
-		var spentCredit bool
 		for _, cred := range details.Credits {
 			if cred.Index == uint32(i) {
-				// Change outputs are ignored.
 				if cred.Change {
 					continue outputs
 				}
-
 				isCredit = true
-				spentCredit = cred.Spent
 				break
 			}
 		}
@@ -1910,21 +1904,21 @@ outputs:
 		// controlled by this wallet, all non-credits from transactions
 		// with debits are grouped under the send category.
 
-		if send || spentCredit {
+		if send {
 			result.Category = "send"
 			result.Amount = -amountF64
 			result.Fee = &feeF64
-			results = append(results, result)
+			sends = append(sends, result)
 		}
 		if isCredit {
 			result.Account = accountName
 			result.Category = recvCat
 			result.Amount = amountF64
 			result.Fee = nil
-			results = append(results, result)
+			receives = append(receives, result)
 		}
 	}
-	return results
+	return sends, receives
 }
 
 // ListSinceBlock returns a slice of objects with details about transactions
@@ -1937,9 +1931,10 @@ func (w *Wallet) ListSinceBlock(start, end, syncHeight int32) ([]dcrjson.ListTra
 
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
 			for _, detail := range details {
-				jsonResults := listTransactions(tx, &detail,
+				sends, receives := listTransactions(tx, &detail,
 					w.Manager, syncHeight, w.chainParams)
-				txList = append(txList, jsonResults...)
+				txList = append(txList, receives...)
+				txList = append(txList, sends...)
 			}
 			return false, nil
 		}
@@ -1981,11 +1976,12 @@ func (w *Wallet) ListTransactions(from, count int) ([]dcrjson.ListTransactionsRe
 					continue
 				}
 
-				jsonResults := listTransactions(tx, &details[i],
+				sends, receives := listTransactions(tx, &details[i],
 					w.Manager, tipHeight, w.chainParams)
-				txList = append(txList, jsonResults...)
+				txList = append(txList, sends...)
+				txList = append(txList, receives...)
 
-				if len(jsonResults) > 0 {
+				if len(sends) != 0 || len(receives) != 0 {
 					n++
 				}
 			}
@@ -1997,6 +1993,14 @@ func (w *Wallet) ListTransactions(from, count int) ([]dcrjson.ListTransactionsRe
 		// down to the genesis block.
 		return w.TxStore.RangeTransactions(txmgrNs, -1, 0, rangeFn)
 	})
+
+	// reverse the list so that it is sorted from old to new.
+	for i, j := 0, len(txList)-1; i < j; {
+		txList[i], txList[j] = txList[j], txList[i]
+		i++
+		j--
+	}
+
 	return txList, err
 }
 
@@ -2032,12 +2036,13 @@ func (w *Wallet) ListAddressTransactions(pkHashes map[string]struct{}) ([]dcrjso
 						continue
 					}
 
-					jsonResults := listTransactions(tx, detail,
+					sends, receives := listTransactions(tx, detail,
 						w.Manager, tipHeight, w.chainParams)
 					if err != nil {
 						return false, err
 					}
-					txList = append(txList, jsonResults...)
+					txList = append(txList, receives...)
+					txList = append(txList, sends...)
 					continue loopDetails
 				}
 			}
@@ -2068,9 +2073,10 @@ func (w *Wallet) ListAllTransactions() ([]dcrjson.ListTransactionsResult, error)
 			// transactions in the reverse order they were marked
 			// mined.
 			for i := len(details) - 1; i >= 0; i-- {
-				jsonResults := listTransactions(tx, &details[i],
+				sends, receives := listTransactions(tx, &details[i],
 					w.Manager, tipHeight, w.chainParams)
-				txList = append(txList, jsonResults...)
+				txList = append(txList, sends...)
+				txList = append(txList, receives...)
 			}
 			return false, nil
 		}
@@ -2079,6 +2085,14 @@ func (w *Wallet) ListAllTransactions() ([]dcrjson.ListTransactionsResult, error)
 		// working down to the genesis block.
 		return w.TxStore.RangeTransactions(txmgrNs, -1, 0, rangeFn)
 	})
+
+	// reverse the list so that it is sorted from old to new.
+	for i, j := 0, len(txList)-1; i < j; {
+		txList[i], txList[j] = txList[j], txList[i]
+		i++
+		j--
+	}
+
 	return txList, err
 }
 
