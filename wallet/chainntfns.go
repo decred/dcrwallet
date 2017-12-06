@@ -14,6 +14,7 @@ import (
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -885,9 +886,20 @@ func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash,
 			return n.PublishTransaction(context.TODO(), vote)
 		})
 		if err != nil {
-			log.Errorf("Failed to send vote for ticket hash %v: %v",
-				ticketHashes[i], err)
-			continue
+			rpcErr, ok := err.(*dcrjson.RPCError)
+			if ok {
+				if rpcErr.Code != dcrjson.ErrRPCDuplicateTx {
+					log.Errorf("Failed to send vote for ticket hash %v: %v",
+						ticketHashes[i], err)
+					continue
+				}
+				// log duplicate vote transactions as info, not errors
+				log.Infof("Vote tx for ticket %v already in mempool, "+
+					"rejected duplicate. Voted on block %v (height %v) "+
+					"using ticket %v (vote hash: %v bits: %v)", ticketHashes[i], blockHash,
+					blockHeight, ticketHashes[i], voteHash, voteBits.Bits)
+				continue
+			}
 		}
 		log.Infof("Voted on block %v (height %v) using ticket %v "+
 			"(vote hash: %v bits: %v)", blockHash, blockHeight,
