@@ -81,6 +81,7 @@ type credit struct {
 	spentBy    indexedIncidence // Index == ^uint32(0) if unspent
 	opCode     uint8
 	isCoinbase bool
+	hasExpiry  bool
 }
 
 // TxRecord represents a transaction managed by the Store.
@@ -159,6 +160,7 @@ type Credit struct {
 	PkScript     []byte
 	Received     time.Time
 	FromCoinBase bool
+	HasExpiry    bool
 }
 
 // Store implements a transaction store for storing and managing wallet
@@ -1010,7 +1012,7 @@ func (s *Store) moveMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Read
 		if err != nil {
 			return err
 		}
-		err = putUnspentCredit(ns, &cred, scrType, scrPos, scrLen, acct)
+		err = putUnspentCredit(ns, &cred, scrType, scrPos, scrLen, acct, DBVersion)
 		if err != nil {
 			return err
 		}
@@ -1234,11 +1236,12 @@ func (s *Store) AddCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 			spentBy:    indexedIncidence{index: ^uint32(0)},
 			opCode:     getP2PKHOpCode(pkScript),
 			isCoinbase: blockchain.IsCoinBaseTx(&rec.MsgTx),
+			hasExpiry:  rec.MsgTx.Expiry != 0,
 		}
 		scTy := pkScriptType(pkScript)
 		scLoc := uint32(rec.MsgTx.PkScriptLocs()[index])
 		v := valueUnspentCredit(&cred, scTy, scLoc, uint32(len(pkScript)),
-			account)
+			account, DBVersion)
 		err := ns.NestedReadWriteBucket(bucketStakeInvalidatedCredits).
 			Put(k, v)
 		if err != nil {
@@ -1312,6 +1315,7 @@ func (s *Store) addCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 
 	opCode := getP2PKHOpCode(rec.MsgTx.TxOut[index].PkScript)
 	isCoinbase := blockchain.IsCoinBaseTx(&rec.MsgTx)
+	hasExpiry := rec.MsgTx.Expiry != wire.NoExpiryValue
 
 	if block == nil {
 		// Unmined tx must have been already added for the credit to be added.
@@ -1329,8 +1333,8 @@ func (s *Store) addCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 		scrLen := len(rec.MsgTx.TxOut[index].PkScript)
 
 		v := valueUnminedCredit(dcrutil.Amount(rec.MsgTx.TxOut[index].Value),
-			change, opCode, isCoinbase, scrType, uint32(scrLoc),
-			uint32(scrLen), account)
+			change, opCode, isCoinbase, hasExpiry, scrType, uint32(scrLoc),
+			uint32(scrLen), account, DBVersion)
 		return true, putRawUnminedCredit(ns, k, v)
 	}
 
@@ -1354,6 +1358,7 @@ func (s *Store) addCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 		spentBy:    indexedIncidence{index: ^uint32(0)},
 		opCode:     opCode,
 		isCoinbase: isCoinbase,
+		hasExpiry:  rec.MsgTx.Expiry != wire.NoExpiryValue,
 	}
 	scrType := pkScriptType(rec.MsgTx.TxOut[index].PkScript)
 	pkScrLocs := rec.MsgTx.PkScriptLocs()
@@ -1361,7 +1366,7 @@ func (s *Store) addCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 	scrLen := len(rec.MsgTx.TxOut[index].PkScript)
 
 	v = valueUnspentCredit(&cred, scrType, uint32(scrLoc), uint32(scrLen),
-		account)
+		account, DBVersion)
 	err := putRawCredit(ns, k, v)
 	if err != nil {
 		return false, err
@@ -1789,6 +1794,7 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 				}
 				opCode := fetchRawCreditTagOpCode(v)
 				isCoinbase := fetchRawCreditIsCoinbase(v)
+				hasExpiry := fetchRawCreditHasExpiry(v)
 
 				scrType := pkScriptType(output.PkScript)
 				scrLoc := rec.MsgTx.PkScriptLocs()[i]
@@ -1801,8 +1807,8 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 
 				outPointKey := canonicalOutPoint(&rec.Hash, uint32(i))
 				unminedCredVal := valueUnminedCredit(amt, change, opCode,
-					isCoinbase, scrType, uint32(scrLoc), uint32(scrLen),
-					acct)
+					isCoinbase, hasExpiry, scrType, uint32(scrLoc), uint32(scrLen),
+					acct, DBVersion)
 				err = putRawUnminedCredit(ns, outPointKey, unminedCredVal)
 				if err != nil {
 					return err
@@ -1942,6 +1948,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint,
 	var amt dcrutil.Amount
 	var opCode uint8
 	var isCoinbase bool
+	var hasExpiry bool
 	var scrLoc, scrLen uint32
 
 	mined := false
@@ -1953,6 +1960,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint,
 
 		opCode = fetchRawUnminedCreditTagOpcode(unminedCredV)
 		isCoinbase = fetchRawCreditIsCoinbase(unminedCredV)
+		hasExpiry = fetchRawCreditHasExpiry(unminedCredV)
 
 		// These errors are skipped because they may throw incorrectly
 		// on values recorded in older versions of the wallet. 0-offset
@@ -1970,6 +1978,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint,
 
 		opCode = fetchRawCreditTagOpCode(minedCredV)
 		isCoinbase = fetchRawCreditIsCoinbase(minedCredV)
+		hasExpiry = fetchRawCreditHasExpiry(minedCredV)
 
 		// Same error caveat as above.
 		scrLoc = fetchRawCreditScriptOffset(minedCredV)
@@ -2018,6 +2027,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint,
 			PkScript:     pkScript,
 			Received:     fetchRawTxRecordReceived(recV),
 			FromCoinBase: isCoinbase,
+			HasExpiry:    hasExpiry,
 		}
 	} else {
 		c = &Credit{
@@ -2030,6 +2040,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint,
 			PkScript:     pkScript,
 			Received:     fetchRawTxRecordReceived(recV),
 			FromCoinBase: isCoinbase,
+			HasExpiry:    hasExpiry,
 		}
 	}
 
@@ -2838,7 +2849,15 @@ func (s *Store) unspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 		}
 
 		// Skip outputs that are not mature.
-		if opcode == opNonstake && fetchRawCreditIsCoinbase(cVal) {
+		if fetchRawCreditIsCoinbase(cVal) {
+			if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
+				syncHeight) {
+				return nil
+			}
+		}
+		// Skip outputs that have an expiry but have not yet reached
+		// coinbase maturity .
+		if fetchRawCreditHasExpiry(cVal) {
 			if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
 				syncHeight) {
 				return nil
