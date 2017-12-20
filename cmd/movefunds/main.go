@@ -207,7 +207,7 @@ func main() {
 	}
 	buf.WriteString("]' ")
 	buf.WriteString("| jq -r .hex")
-	err = ioutil.WriteFile("sign.sh", []byte(buf.String()), 0755)
+	err = ioutil.WriteFile("sign.sh", buf.Bytes(), 0755)
 	if err != nil {
 		fmt.Println("Failed to write signing script: ", err.Error())
 		return
