@@ -900,6 +900,14 @@ func fetchRawCreditScriptLength(v []byte) uint32 {
 	return byteOrder.Uint32(v[86:90])
 }
 
+// fetchRawCreditScriptType returns the script type of the credit's pkScript
+func fetchRawCreditScriptType(v []byte) scriptType {
+	if len(v) < creditValueSize {
+		return scriptTypeNonexisting
+	}
+	return scriptType(v[81] & ^accountExistsMask)
+}
+
 // fetchRawCreditAccount returns the account for the pkScript of this
 // credit.
 func fetchRawCreditAccount(v []byte) (uint32, error) {
