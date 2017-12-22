@@ -114,7 +114,6 @@ type Wallet struct {
 	createMultisigTxRequests chan createMultisigTxRequest
 
 	// Channels for stake tx creation requests.
-	createSStxRequests     chan createSStxRequest
 	purchaseTicketRequests chan purchaseTicketRequest
 
 	// Internal address handling.
@@ -168,7 +167,6 @@ func newWallet(votingEnabled bool, addressReuse bool, ticketAddress dcrutil.Addr
 		consolidateRequests:      make(chan consolidateRequest),
 		createTxRequests:         make(chan createTxRequest),
 		createMultisigTxRequests: make(chan createMultisigTxRequest),
-		createSStxRequests:       make(chan createSStxRequest),
 		purchaseTicketRequests:   make(chan purchaseTicketRequest),
 		addressReuse:             addressReuse,
 		ticketAddress:            ticketAddress,
@@ -879,25 +877,6 @@ type (
 		minconf   int32
 		resp      chan createMultisigTxResponse
 	}
-	createSStxRequest struct {
-		usedInputs []udb.Credit
-		pair       map[string]dcrutil.Amount
-		couts      []dcrjson.SStxCommitOut
-		inputs     []dcrjson.SStxInput
-		minconf    int32
-		resp       chan createSStxResponse
-	}
-	createSSGenRequest struct {
-		tickethash chainhash.Hash
-		blockhash  chainhash.Hash
-		height     int64
-		votebits   uint16
-		resp       chan createSSGenResponse
-	}
-	createSSRtxRequest struct {
-		tickethash chainhash.Hash
-		resp       chan createSSRtxResponse
-	}
 	purchaseTicketRequest struct {
 		minBalance  dcrutil.Amount
 		spendLimit  dcrutil.Amount
@@ -926,18 +905,6 @@ type (
 		address      dcrutil.Address
 		redeemScript []byte
 		err          error
-	}
-	createSStxResponse struct {
-		tx  *CreatedTx
-		err error
-	}
-	createSSGenResponse struct {
-		tx  *CreatedTx
-		err error
-	}
-	createSSRtxResponse struct {
-		tx  *CreatedTx
-		err error
 	}
 	purchaseTicketResponse struct {
 		data []*chainhash.Hash
@@ -991,21 +958,6 @@ out:
 				txr.amount, txr.pubkeys, txr.nrequired, txr.minconf)
 			heldUnlock.release()
 			txr.resp <- createMultisigTxResponse{tx, address, redeemScript, err}
-
-		case txr := <-w.createSStxRequests:
-			heldUnlock, err := w.holdUnlock()
-			if err != nil {
-				txr.resp <- createSStxResponse{nil, err}
-				continue
-			}
-			tx, err := w.txToSStx(txr.pair,
-				txr.usedInputs,
-				txr.inputs,
-				txr.couts,
-				udb.DefaultAccountNum,
-				txr.minconf)
-			heldUnlock.release()
-			txr.resp <- createSStxResponse{tx, err}
 
 		case txr := <-w.purchaseTicketRequests:
 			heldUnlock, err := w.holdUnlock()
@@ -1077,27 +1029,6 @@ func (w *Wallet) CreateMultisigTx(account uint32, amount dcrutil.Amount,
 	w.createMultisigTxRequests <- req
 	resp := <-req.resp
 	return resp.tx, resp.address, resp.redeemScript, resp.err
-}
-
-// CreateSStxTx receives a request from the RPC and ships it to txCreator to
-// generate a new SStx.
-func (w *Wallet) CreateSStxTx(pair map[string]dcrutil.Amount,
-	usedInputs []udb.Credit,
-	inputs []dcrjson.SStxInput,
-	couts []dcrjson.SStxCommitOut,
-	minconf int32) (*CreatedTx, error) {
-
-	req := createSStxRequest{
-		usedInputs: usedInputs,
-		pair:       pair,
-		inputs:     inputs,
-		couts:      couts,
-		minconf:    minconf,
-		resp:       make(chan createSStxResponse),
-	}
-	w.createSStxRequests <- req
-	resp := <-req.resp
-	return resp.tx, resp.err
 }
 
 // PurchaseTickets receives a request from the RPC and ships it to txCreator

@@ -89,7 +89,6 @@ var Methods = []struct {
 
 	// TODO Alphabetize
 	{"purchaseticket", returnsString},
-	{"sendtosstx", returnsString},
 	{"generatevote", []interface{}{(*dcrjson.GenerateVoteResult)(nil)}},
 	{"getstakeinfo", []interface{}{(*dcrjson.GetStakeInfoResult)(nil)}},
 	{"getticketfee", returnsNumber},

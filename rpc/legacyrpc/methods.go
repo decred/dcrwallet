@@ -37,9 +37,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "4.1.0"
-	jsonrpcSemverMajor  = 4
-	jsonrpcSemverMinor  = 1
+	jsonrpcSemverString = "5.0.0"
+	jsonrpcSemverMajor  = 5
+	jsonrpcSemverMinor  = 0
 	jsonrpcSemverPatch  = 0
 )
 
@@ -133,7 +133,6 @@ var rpcHandlers = map[string]struct {
 	"sendmany":                {handler: sendMany},
 	"sendtoaddress":           {handler: sendToAddress},
 	"sendtomultisig":          {handlerWithChain: sendToMultiSig},
-	"sendtosstx":              {handlerWithChain: sendToSStx},
 	"setticketfee":            {handler: setTicketFee},
 	"settxfee":                {handler: setTxFee},
 	"setvotechoice":           {handler: setVoteChoice},
@@ -2455,71 +2454,6 @@ func sendToMultiSig(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclien
 		"transaction %v", ctx.MsgTx.TxHash().String())
 
 	return result, nil
-}
-
-// sendToSStx handles a sendtosstx RPC request by creating a new transaction
-// payment addresses.  Leftover inputs not sent to the payment address
-// or a fee for the miner are sent back to a new address in the wallet.
-// Upon success, the TxID for the created transaction is returned.
-// DECRED TODO: Clean these up
-func sendToSStx(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
-	cmd := icmd.(*dcrjson.SendToSStxCmd)
-	minconf := int32(*cmd.MinConf)
-
-	account, err := w.AccountNumber(cmd.FromAccount)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check that minconf is positive.
-	if minconf < 0 {
-		return nil, ErrNeedPositiveMinconf
-	}
-
-	// Recreate address/amount pairs, using dcrutil.Amount.
-	pair := make(map[string]dcrutil.Amount, len(cmd.Amounts))
-	for k, v := range cmd.Amounts {
-		pair[k] = dcrutil.Amount(v)
-	}
-	// Get current block's height.
-	_, tipHeight := w.MainChainTip()
-
-	usedEligible := []udb.Credit{}
-	eligible, err := w.FindEligibleOutputs(account, minconf, tipHeight)
-	if err != nil {
-		return nil, err
-	}
-	// check to properly find utxos from eligible to help signMsgTx later on
-	for _, input := range cmd.Inputs {
-		for _, allEligible := range eligible {
-
-			if allEligible.Hash.String() == input.Txid &&
-				allEligible.Index == input.Vout &&
-				allEligible.Tree == input.Tree {
-				usedEligible = append(usedEligible, allEligible)
-				break
-			}
-		}
-	}
-	// Create transaction, replying with an error if the creation
-	// was not successful.
-	createdTx, err := w.CreateSStxTx(pair, usedEligible, cmd.Inputs,
-		cmd.COuts, minconf)
-	if err != nil {
-		switch err {
-		case wallet.ErrNonPositiveAmount:
-			return nil, ErrNeedPositiveAmount
-		default:
-			return nil, err
-		}
-	}
-
-	txSha, err := chainClient.SendRawTransaction(createdTx.MsgTx, w.AllowHighFees)
-	if err != nil {
-		return nil, err
-	}
-	log.Infof("Successfully sent SStx purchase transaction %v", txSha)
-	return txSha.String(), nil
 }
 
 // setTicketFee sets the transaction fee per kilobyte added to tickets.

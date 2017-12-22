@@ -643,28 +643,6 @@ var helpDescsEnUS = map[string]string{
 	"purchaseticket-nosplittransaction": "Use ticket purchase change outputs instead of a split transaction",
 	"purchaseticket-comment":            "Unused",
 
-	// SendToSStxCmd help.
-	"sendtosstx--synopsis":      "Send to SStx",
-	"sendtosstx--result0":       "txid of the resulting transaction",
-	"sendtosstx-comment":        "Unused",
-	"sendtosstx-minconf":        "Minimum number of block confirmations required",
-	"sendtosstx-couts":          "Couts for the tx",
-	"sendtosstx-inputs":         "Inputs for the tx",
-	"sendtosstx-amounts--desc":  "Unused",
-	"sendtosstx-amounts--value": "Value",
-	"sendtosstx-amounts--key":   "Key",
-	"sendtosstx-amounts":        "Amounts to send",
-	"sendtosstx-account":        "The account to use (default=\"default\")",
-	"sendtosstx-fromaccount":    "The account sent from",
-	"sstxcommitout-changeamt":   "Change amount",
-	"sstxcommitout-changeaddr":  "Change address to use",
-	"sstxcommitout-commitamt":   "Amount to commit",
-	"sstxcommitout-addr":        "Address to use",
-	"sstxinput-amt":             "Amount",
-	"sstxinput-tree":            "Input tree",
-	"sstxinput-vout":            "Vout for the input tx",
-	"sstxinput-txid":            "Txid to use",
-
 	// SetTicketFeeCmd help.
 	"setticketfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored stake transaction.",
 	"setticketfee-fee":       "The new fee per kB of the serialized tx size valued in decred",
