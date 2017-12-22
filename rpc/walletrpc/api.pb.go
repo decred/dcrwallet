@@ -1450,6 +1450,7 @@ type GetTicketsRequest struct {
 	StartingBlockHeight int32  `protobuf:"zigzag32,2,opt,name=starting_block_height,json=startingBlockHeight" json:"starting_block_height,omitempty"`
 	EndingBlockHash     []byte `protobuf:"bytes,3,opt,name=ending_block_hash,json=endingBlockHash,proto3" json:"ending_block_hash,omitempty"`
 	EndingBlockHeight   int32  `protobuf:"varint,4,opt,name=ending_block_height,json=endingBlockHeight" json:"ending_block_height,omitempty"`
+	TargetTicketCount   int32  `protobuf:"varint,5,opt,name=target_ticket_count,json=targetTicketCount" json:"target_ticket_count,omitempty"`
 }
 
 func (m *GetTicketsRequest) Reset()                    { *m = GetTicketsRequest{} }
@@ -1485,8 +1486,16 @@ func (m *GetTicketsRequest) GetEndingBlockHeight() int32 {
 	return 0
 }
 
+func (m *GetTicketsRequest) GetTargetTicketCount() int32 {
+	if m != nil {
+		return m.TargetTicketCount
+	}
+	return 0
+}
+
 type GetTicketsResponse struct {
 	Ticket *GetTicketsResponse_TicketDetails `protobuf:"bytes,1,opt,name=ticket" json:"ticket,omitempty"`
+	Block  *GetTicketsResponse_BlockMeta     `protobuf:"bytes,2,opt,name=block" json:"block,omitempty"`
 }
 
 func (m *GetTicketsResponse) Reset()                    { *m = GetTicketsResponse{} }
@@ -1497,6 +1506,13 @@ func (*GetTicketsResponse) Descriptor() ([]byte, []int) { return fileDescriptor0
 func (m *GetTicketsResponse) GetTicket() *GetTicketsResponse_TicketDetails {
 	if m != nil {
 		return m.Ticket
+	}
+	return nil
+}
+
+func (m *GetTicketsResponse) GetBlock() *GetTicketsResponse_BlockMeta {
+	if m != nil {
+		return m.Block
 	}
 	return nil
 }
@@ -1533,6 +1549,40 @@ func (m *GetTicketsResponse_TicketDetails) GetTicketStatus() GetTicketsResponse_
 		return m.TicketStatus
 	}
 	return GetTicketsResponse_TicketDetails_UNKNOWN
+}
+
+type GetTicketsResponse_BlockMeta struct {
+	Hash      []byte `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
+	Height    int32  `protobuf:"varint,2,opt,name=height" json:"height,omitempty"`
+	Timestamp int64  `protobuf:"varint,3,opt,name=timestamp" json:"timestamp,omitempty"`
+}
+
+func (m *GetTicketsResponse_BlockMeta) Reset()         { *m = GetTicketsResponse_BlockMeta{} }
+func (m *GetTicketsResponse_BlockMeta) String() string { return proto.CompactTextString(m) }
+func (*GetTicketsResponse_BlockMeta) ProtoMessage()    {}
+func (*GetTicketsResponse_BlockMeta) Descriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{32, 1}
+}
+
+func (m *GetTicketsResponse_BlockMeta) GetHash() []byte {
+	if m != nil {
+		return m.Hash
+	}
+	return nil
+}
+
+func (m *GetTicketsResponse_BlockMeta) GetHeight() int32 {
+	if m != nil {
+		return m.Height
+	}
+	return 0
+}
+
+func (m *GetTicketsResponse_BlockMeta) GetTimestamp() int64 {
+	if m != nil {
+		return m.Timestamp
+	}
+	return 0
 }
 
 type TicketPriceRequest struct {
@@ -4422,6 +4472,7 @@ func init() {
 	proto.RegisterType((*GetTicketsRequest)(nil), "walletrpc.GetTicketsRequest")
 	proto.RegisterType((*GetTicketsResponse)(nil), "walletrpc.GetTicketsResponse")
 	proto.RegisterType((*GetTicketsResponse_TicketDetails)(nil), "walletrpc.GetTicketsResponse.TicketDetails")
+	proto.RegisterType((*GetTicketsResponse_BlockMeta)(nil), "walletrpc.GetTicketsResponse.BlockMeta")
 	proto.RegisterType((*TicketPriceRequest)(nil), "walletrpc.TicketPriceRequest")
 	proto.RegisterType((*TicketPriceResponse)(nil), "walletrpc.TicketPriceResponse")
 	proto.RegisterType((*StakeInfoRequest)(nil), "walletrpc.StakeInfoRequest")

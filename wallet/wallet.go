@@ -1989,11 +1989,19 @@ type GetTicketsResult struct {
 	Tickets []*TicketSummary
 }
 
-// GetTickets returns a list of TicketSummarys that are located in between the
+// GetTickets calls function f for all tickets located in between the
 // given startBlock and endBlock.  TicketSummary includes TransactionSummmary
 // for the ticket and the spender (if already spent) and the ticket's current
-// status.
-func (w *Wallet) GetTickets(ctx context.Context, chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) (*GetTicketsResult, error) {
+// status. The function f also receives block metadata of the ticket. All
+// tickets on a given call belong to the same block and at least one ticket
+// is present when f is called.
+//
+// The function f may return an error which, if non-nil, is propagated to the
+// caller.  Additionally, a boolean return value allows exiting the function
+// early without reading any additional transactions when true.
+//
+// The arguments to f may be reused and should not be kept by the caller.
+func (w *Wallet) GetTickets(f func([]*TicketSummary, *udb.BlockMeta) (bool, error), chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
 	var start, end int32 = 0, -1
 
 	if startBlock != nil {
@@ -2015,7 +2023,7 @@ func (w *Wallet) GetTickets(ctx context.Context, chainClient *dcrrpcclient.Clien
 				return nil
 			})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
@@ -2038,21 +2046,17 @@ func (w *Wallet) GetTickets(ctx context.Context, chainClient *dcrrpcclient.Clien
 				return nil
 			})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
 
-	var res GetTicketsResult
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	return walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
-			// TODO: probably should make RangeTransactions not reuse the
-			// details backing array memory.
-			dets := make([]udb.TxDetails, len(details))
-			copy(dets, details)
-			details = dets
+			tickets := make([]*TicketSummary, 0, len(details))
+
 			for i := range details {
 				// XXX Here is where I would look up the ticket information from the db so I can populate spenderhash and ticket status
 				ticketInfo, err := w.TxStore.TicketDetails(txmgrNs, &details[i])
@@ -2063,19 +2067,21 @@ func (w *Wallet) GetTickets(ctx context.Context, chainClient *dcrrpcclient.Clien
 				if ticketInfo == nil {
 					continue
 				}
-				res.Tickets = append(res.Tickets, makeTicketSummary(chainClient, dbtx, w, ticketInfo))
+				tickets = append(tickets, makeTicketSummary(chainClient, dbtx, w, ticketInfo))
 			}
-			select {
-			case <-ctx.Done():
-				return true, ctx.Err()
-			default:
+
+			if len(tickets) == 0 {
 				return false, nil
 			}
+
+			// current contract for RangeTransactions() guarantees at least 1
+			// txdetail and all of the same block, so safe to send block meta
+			// from the first transaction
+			return f(tickets, &details[0].Block)
 		}
 
 		return w.TxStore.RangeTransactions(txmgrNs, start, end, rangeFn)
 	})
-	return &res, err
 }
 
 // GetTransactionsResult is the result of the wallet's GetTransactions method.

@@ -1053,21 +1053,45 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 		endBlock = wallet.NewBlockIdentifierFromHeight(req.EndingBlockHeight)
 	}
 
-	gt, err := s.wallet.GetTickets(server.Context(), chainClient, startBlock, endBlock)
+	targetTicketCount := int(req.TargetTicketCount)
+	if targetTicketCount < 0 {
+		return status.Errorf(codes.InvalidArgument,
+			"target ticket count may not be negative")
+	}
+
+	ticketCount := 0
+	ctx := server.Context()
+
+	rangeFn := func(tickets []*wallet.TicketSummary, block *udb.BlockMeta) (bool, error) {
+		resp := &pb.GetTicketsResponse{
+			Block: marshalBlockMeta(block),
+		}
+
+		// current contract for grpc GetTickets is for one ticket per response.
+		// To make sure we don't miss any while paginating, we only check for
+		// the targetTicketCount after sending all from this block.
+		for _, t := range tickets {
+			resp.Ticket = marshalTicketDetails(t)
+			err := server.Send(resp)
+			if err != nil {
+				return true, err
+			}
+		}
+		ticketCount += len(tickets)
+
+		select {
+		case <-ctx.Done():
+			return true, ctx.Err()
+		default:
+			return ((targetTicketCount > 0) && (ticketCount >= targetTicketCount)), nil
+		}
+	}
+
+	err = s.wallet.GetTickets(rangeFn, chainClient, startBlock, endBlock)
 	if err != nil {
 		return translateError(err)
 	}
-	for i := range gt.Tickets {
-		if gt.Tickets[i] != nil {
-			resp := &pb.GetTicketsResponse{
-				Ticket: marshalTicketDetails(gt.Tickets[i]),
-			}
-			err = server.Send(resp)
-			if err != nil {
-				return err
-			}
-		}
-	}
+
 	return nil
 }
 
@@ -1572,6 +1596,14 @@ func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.GetTicketsResponse_T
 		Ticket:       marshalTransactionDetails(ticket.Ticket),
 		Spender:      spender,
 		TicketStatus: ticketStatus,
+	}
+}
+
+func marshalBlockMeta(v *udb.BlockMeta) *pb.GetTicketsResponse_BlockMeta {
+	return &pb.GetTicketsResponse_BlockMeta{
+		Hash:      v.Hash[:],
+		Height:    v.Height,
+		Timestamp: v.Time.Unix(),
 	}
 }
 

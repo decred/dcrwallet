@@ -742,6 +742,11 @@ results of a single ticket.
   used and transactions through the best block and all unmined transactions are
   included.
 
+- `int32 target_ticket_count`: Try to return at most this amount of tickets.
+  Both mined and unmined tickets count towards this limit. Note that the number
+  of tickets returned may be higher or lower than this specified target and
+  callers are responsible for further clipping of the dataset if required.
+
 **Response:** `stream GetTicketsResponse`
 
 - `TicketDetails tickets`: A given ticket's details.
@@ -775,6 +780,19 @@ results of a single ticket.
     - `MISSED`: A ticket that was missed but not yet revoked.
 
     - `REVOKED`: A ticket that has been revoked.
+
+- `BlockMeta block`: The block the ticket was mined
+
+  **Nested Message** `BlockMeta`
+
+  - `bytes hash`: The binary hash of the block. Block hash value is undefined
+    for unmined tickets.
+
+  - `int32 height`: The block height. Will be -1 for unmined tickets.
+
+  - `int64 timestamp`: The timestamp the block was mined. Undefined for unmined
+    tickets.
+
 
 **Expected errors:**
 
