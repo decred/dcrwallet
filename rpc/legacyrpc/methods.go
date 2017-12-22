@@ -134,8 +134,6 @@ var rpcHandlers = map[string]struct {
 	"sendtoaddress":           {handler: sendToAddress},
 	"sendtomultisig":          {handlerWithChain: sendToMultiSig},
 	"sendtosstx":              {handlerWithChain: sendToSStx},
-	"sendtossgen":             {handler: sendToSSGen},
-	"sendtossrtx":             {handlerWithChain: sendToSSRtx},
 	"setticketfee":            {handler: setTicketFee},
 	"settxfee":                {handler: setTxFee},
 	"setvotechoice":           {handler: setVoteChoice},
@@ -2521,87 +2519,6 @@ func sendToSStx(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Cl
 		return nil, err
 	}
 	log.Infof("Successfully sent SStx purchase transaction %v", txSha)
-	return txSha.String(), nil
-}
-
-// sendToSSGen handles a sendtossgen RPC request by creating a new transaction
-// spending a stake ticket and generating stake rewards.
-// Upon success, the TxID for the created transaction is returned.
-// DECRED TODO: Clean these up
-func sendToSSGen(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	cmd := icmd.(*dcrjson.SendToSSGenCmd)
-
-	_, err := w.AccountNumber(cmd.FromAccount)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get the tx hash for the ticket.
-	ticketHash, err := chainhash.NewHashFromStr(cmd.TicketHash)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get the block header hash that the SSGen tx votes on.
-	blockHash, err := chainhash.NewHashFromStr(cmd.BlockHash)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create transaction, replying with an error if the creation
-	// was not successful.
-	createdTx, err := w.CreateSSGenTx(*ticketHash, *blockHash,
-		cmd.Height, cmd.VoteBits)
-	if err != nil {
-		switch err {
-		case wallet.ErrNonPositiveAmount:
-			return nil, ErrNeedPositiveAmount
-		default:
-			return nil, err
-		}
-	}
-
-	txHash := createdTx.MsgTx.TxHash()
-
-	log.Infof("Successfully sent transaction %v", txHash)
-	return txHash.String(), nil
-}
-
-// sendToSSRtx handles a sendtossrtx RPC request by creating a new transaction
-// spending a stake ticket and generating stake rewards.
-// Upon success, the TxID for the created transaction is returned.
-// DECRED TODO: Clean these up
-func sendToSSRtx(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
-	cmd := icmd.(*dcrjson.SendToSSRtxCmd)
-
-	_, err := w.AccountNumber(cmd.FromAccount)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get the tx hash for the ticket.
-	ticketHash, err := chainhash.NewHashFromStr(cmd.TicketHash)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create transaction, replying with an error if the creation
-	// was not successful.
-	createdTx, err := w.CreateSSRtx(*ticketHash)
-	if err != nil {
-		switch err {
-		case wallet.ErrNonPositiveAmount:
-			return nil, ErrNeedPositiveAmount
-		default:
-			return nil, err
-		}
-	}
-
-	txSha, err := chainClient.SendRawTransaction(createdTx.MsgTx, w.AllowHighFees)
-	if err != nil {
-		return nil, err
-	}
-	log.Infof("Successfully sent transaction %v", txSha)
 	return txSha.String(), nil
 }
 

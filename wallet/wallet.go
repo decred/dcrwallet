@@ -115,8 +115,6 @@ type Wallet struct {
 
 	// Channels for stake tx creation requests.
 	createSStxRequests     chan createSStxRequest
-	createSSGenRequests    chan createSSGenRequest
-	createSSRtxRequests    chan createSSRtxRequest
 	purchaseTicketRequests chan purchaseTicketRequest
 
 	// Internal address handling.
@@ -171,8 +169,6 @@ func newWallet(votingEnabled bool, addressReuse bool, ticketAddress dcrutil.Addr
 		createTxRequests:         make(chan createTxRequest),
 		createMultisigTxRequests: make(chan createMultisigTxRequest),
 		createSStxRequests:       make(chan createSStxRequest),
-		createSSGenRequests:      make(chan createSSGenRequest),
-		createSSRtxRequests:      make(chan createSSRtxRequest),
 		purchaseTicketRequests:   make(chan purchaseTicketRequest),
 		addressReuse:             addressReuse,
 		ticketAddress:            ticketAddress,
@@ -1011,29 +1007,6 @@ out:
 			heldUnlock.release()
 			txr.resp <- createSStxResponse{tx, err}
 
-		case txr := <-w.createSSGenRequests:
-			heldUnlock, err := w.holdUnlock()
-			if err != nil {
-				txr.resp <- createSSGenResponse{nil, err}
-				continue
-			}
-			tx, err := w.txToSSGen(txr.tickethash,
-				txr.blockhash,
-				txr.height,
-				txr.votebits)
-			heldUnlock.release()
-			txr.resp <- createSSGenResponse{tx, err}
-
-		case txr := <-w.createSSRtxRequests:
-			heldUnlock, err := w.holdUnlock()
-			if err != nil {
-				txr.resp <- createSSRtxResponse{nil, err}
-				continue
-			}
-			tx, err := w.txToSSRtx(txr.tickethash)
-			heldUnlock.release()
-			txr.resp <- createSSRtxResponse{tx, err}
-
 		case txr := <-w.purchaseTicketRequests:
 			heldUnlock, err := w.holdUnlock()
 			if err != nil {
@@ -1123,38 +1096,6 @@ func (w *Wallet) CreateSStxTx(pair map[string]dcrutil.Amount,
 		resp:       make(chan createSStxResponse),
 	}
 	w.createSStxRequests <- req
-	resp := <-req.resp
-	return resp.tx, resp.err
-}
-
-// CreateSSGenTx receives a request from the RPC and ships it to txCreator to
-// generate a new SSGen.
-func (w *Wallet) CreateSSGenTx(ticketHash chainhash.Hash,
-	blockHash chainhash.Hash,
-	height int64,
-	voteBits uint16) (*CreatedTx, error) {
-
-	req := createSSGenRequest{
-		tickethash: ticketHash,
-		blockhash:  blockHash,
-		height:     height,
-		votebits:   voteBits,
-		resp:       make(chan createSSGenResponse),
-	}
-	w.createSSGenRequests <- req
-	resp := <-req.resp
-	return resp.tx, resp.err
-}
-
-// CreateSSRtx receives a request from the RPC and ships it to txCreator to
-// generate a new SSRtx.
-func (w *Wallet) CreateSSRtx(ticketHash chainhash.Hash) (*CreatedTx, error) {
-
-	req := createSSRtxRequest{
-		tickethash: ticketHash,
-		resp:       make(chan createSSRtxResponse),
-	}
-	w.createSSRtxRequests <- req
 	resp := <-req.resp
 	return resp.tx, resp.err
 }

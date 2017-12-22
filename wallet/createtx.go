@@ -1490,33 +1490,6 @@ func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcr
 	return info, nil
 }
 
-// txToSSGen ...
-// DECRED TODO
-func (w *Wallet) txToSSGen(ticketHash chainhash.Hash, blockHash chainhash.Hash,
-	height int64, votebits uint16) (*CreatedTx, error) {
-	w.reorganizingLock.Lock()
-	reorg := w.reorganizing
-	w.reorganizingLock.Unlock()
-	if reorg {
-		return nil, ErrBlockchainReorganizing
-	}
-
-	return nil, nil
-}
-
-// txToSSRtx ...
-// DECRED TODO
-func (w *Wallet) txToSSRtx(ticketHash chainhash.Hash) (*CreatedTx, error) {
-	w.reorganizingLock.Lock()
-	reorg := w.reorganizing
-	w.reorganizingLock.Unlock()
-	if reorg {
-		return nil, ErrBlockchainReorganizing
-	}
-
-	return nil, nil
-}
-
 // addSStxChange adds a new output with the given amount and address, and
 // randomizes the index (and returns it) of the newly added output.
 func addSStxChange(msgtx *wire.MsgTx, change dcrutil.Amount,

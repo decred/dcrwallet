@@ -643,13 +643,6 @@ var helpDescsEnUS = map[string]string{
 	"purchaseticket-nosplittransaction": "Use ticket purchase change outputs instead of a split transaction",
 	"purchaseticket-comment":            "Unused",
 
-	// SendToSSRtxCmd help.
-	"sendtossrtx--synopsis":   "Send to SS Revocation transaction",
-	"sendtossrtx--result0":    "txid of the resulting transaction",
-	"sendtossrtx-comment":     "Unused",
-	"sendtossrtx-tickethash":  "Hash of the ticket to be revoked",
-	"sendtossrtx-fromaccount": "The account to spend a stake ticket from (default=\"default\")",
-
 	// SendToSStxCmd help.
 	"sendtosstx--synopsis":      "Send to SStx",
 	"sendtosstx--result0":       "txid of the resulting transaction",
@@ -671,16 +664,6 @@ var helpDescsEnUS = map[string]string{
 	"sstxinput-tree":            "Input tree",
 	"sstxinput-vout":            "Vout for the input tx",
 	"sstxinput-txid":            "Txid to use",
-
-	// SendToSSGenCmd help.
-	"sendtossgen--synopsis":   "Generate a vote tx",
-	"sendtossgen--result0":    "txid of the resulting transaction",
-	"sendtossgen-comment":     "Unused",
-	"sendtossgen-votebits":    "Votebits to set",
-	"sendtossgen-height":      "Blockheight for vote",
-	"sendtossgen-blockhash":   "Hash for the block being voted on",
-	"sendtossgen-tickethash":  "Hash of the ticket used for vote",
-	"sendtossgen-fromaccount": "The account to use (default=\"default\")",
 
 	// SetTicketFeeCmd help.
 	"setticketfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored stake transaction.",
