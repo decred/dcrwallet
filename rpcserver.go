@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	xcontext "golang.org/x/net/context"
 	"io/ioutil"
 	"net"
 	"os"
@@ -16,8 +17,6 @@ import (
 	"runtime"
 	"strings"
 	"time"
-
-	xcontext "golang.org/x/net/context"
 
 	"github.com/decred/dcrd/certgen"
 	"github.com/decred/dcrwallet/loader"

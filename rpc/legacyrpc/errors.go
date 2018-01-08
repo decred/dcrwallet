@@ -71,6 +71,11 @@ var (
 		Message: "Request requires a wallet but wallet has not loaded yet",
 	}
 
+	ErrClientNotConnected = dcrjson.RPCError{
+		Code:    dcrjson.ErrRPCClientNotConnected,
+		Message: "RPC client has not connected yet",
+	}
+
 	ErrWalletUnlockNeeded = dcrjson.RPCError{
 		Code:    dcrjson.ErrRPCWalletUnlockNeeded,
 		Message: "Enter the wallet passphrase with walletpassphrase first",

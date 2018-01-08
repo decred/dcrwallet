@@ -101,8 +101,6 @@ func jsonAuthFail(w http.ResponseWriter) {
 func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.Loader, ticketBuyerConfig *ticketbuyer.Config, listeners []net.Listener) *Server {
 	serveMux := http.NewServeMux()
 	const rpcAuthTimeoutSeconds = 10
-
-	walletLoader.LoadedWallet()
 	server := &Server{
 		httpServer: http.Server{
 			Handler: serveMux,
@@ -250,17 +248,13 @@ func (s *Server) SetChainServer(chainClient *chain.RPCClient) {
 	s.handlerMu.Unlock()
 }
 
-// requireChainClient get the chain server client component needed to run a fully
-// functional decred wallet RPC server.
+// requireChainClient gets the chain server client component needed to run a
+// fully functional decred wallet RPC server.
 func (s *Server) requireChainClient() (*chain.RPCClient, bool) {
 	s.handlerMu.Lock()
 	chainClient := s.chainClient
 	s.handlerMu.Unlock()
-	if chainClient != nil {
-		return chainClient, true
-	}
-
-	return nil, false
+	return chainClient, chainClient != nil
 }
 
 // handlerClosure creates a closure function for handling requests of the given
