@@ -48,6 +48,7 @@ service WalletService {
 	rpc SignTransaction (SignTransactionRequest) returns (SignTransactionResponse);
 	rpc CreateSignature (CreateSignatureRequest) returns (CreateSignatureResponse);
 	rpc PublishTransaction (PublishTransactionRequest) returns (PublishTransactionResponse);
+	rpc PublishUnminedTransactions (PublishUnminedTransactionsRequest) returns (PublishUnminedTransactionsResponse);
 	rpc PurchaseTickets(PurchaseTicketsRequest) returns (PurchaseTicketsResponse);
 	rpc RevokeTickets(RevokeTicketsRequest) returns (RevokeTicketsResponse);
 	rpc LoadActiveDataFilters(LoadActiveDataFiltersRequest) returns (LoadActiveDataFiltersResponse);
@@ -462,6 +463,9 @@ message PublishTransactionRequest {
 message PublishTransactionResponse {
 	bytes transaction_hash = 1;
 }
+
+message PublishUnminedTransactionsRequest {}
+message PublishUnminedTransactionsResponse {}
 
 message PurchaseTicketsRequest {
 	bytes passphrase = 1;
