@@ -206,20 +206,10 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 		}
 	}
 
-	unminedTxs, err := s.wallet.UnminedTransactions()
+	// Rebroadcast unmined transactions
+	err = s.wallet.PublishUnminedTransactions(ctx, n)
 	if err != nil {
-		log.Errorf("Cannot load unmined transactions for resending: %v", err)
-		unminedTxs = nil
-	}
-	for _, tx := range unminedTxs {
-		txHash := tx.TxHash()
-		err := n.PublishTransaction(ctx, tx)
-		if err != nil {
-			// TODO: Transactions should be removed if this is a double spend.
-			log.Tracef("Could not resend transaction %v: %v", &txHash, err)
-			continue
-		}
-		log.Tracef("Resent unmined transaction %v", &txHash)
+		return err
 	}
 
 	_, err = s.rpcClient.RawRequest("rebroadcastwinners", nil)

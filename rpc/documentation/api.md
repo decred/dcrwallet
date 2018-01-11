@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.27.x
+Version: 4.28.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -381,6 +381,7 @@ The service provides the following methods:
 - [`SignTransaction`](#signtransaction)
 - [`CreateSignature`](#createsignature)
 - [`PublishTransaction`](#publishtransaction)
+- [`PublishUnminedTransactions`](#publishunminedtransactions)
 - [`TicketPrice`](#ticketprice)
 - [`StakeInfo`](#stakeinfo)
 - [`PurchaseTickets`](#purchasetickets)
@@ -1355,6 +1356,21 @@ wallet and republished later if it or a double spend are not mined.
 
 **Stability:** Unstable
 
+___
+
+#### `PublishUnminedTransactions`
+
+The `PublishTransactions` method re-broadcasts all unmined transactions
+to the consensus RPC server so it can be propagated to other nodes
+and eventually mined.
+
+**Request:** `PublishUnminedTransactionsRequest`
+
+**Response:** `PublishUnminedTransactionsResponse`
+
+**Expected errors:**: None
+
+**Stability:** Unstable
 ___
 
 #### `TicketPrice`

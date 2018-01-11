@@ -352,6 +352,20 @@ func (s *walletServer) RenameAccount(ctx context.Context, req *pb.RenameAccountR
 	return &pb.RenameAccountResponse{}, nil
 }
 
+func (s *walletServer) PublishUnminedTransactions(ctx context.Context, req *pb.PublishUnminedTransactionsRequest) (
+	*pb.PublishUnminedTransactionsResponse, error) {
+	n, err := s.requireNetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+	err = s.wallet.PublishUnminedTransactions(ctx, n)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	return &pb.PublishUnminedTransactionsResponse{}, nil
+}
+
 func (s *walletServer) Rescan(req *pb.RescanRequest, svr pb.WalletService_RescanServer) error {
 	n, err := s.requireNetworkBackend()
 	if err != nil {

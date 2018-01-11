@@ -3423,7 +3423,7 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 }
 
 // PublishTransaction saves (if relevant) and sends the transaction to the
-// consensus RPC server so it can be propigated to other nodes and eventually
+// consensus RPC server so it can be propagated to other nodes and eventually
 // mined.  If the send fails, the transaction is not added to the wallet.
 func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, n NetworkBackend) (*chainhash.Hash, error) {
 	var relevant bool
@@ -3473,6 +3473,28 @@ func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, n Netwo
 		return nil
 	})
 	return txHash, err
+}
+
+// PublishUnminedTransactions rebroadcasts all unmined transactions
+// to the consensus RPC server so it can be propagated to other nodes
+// and eventually mined.
+func (w *Wallet) PublishUnminedTransactions(ctx context.Context, backend NetworkBackend) error {
+	unminedTxs, err := w.UnminedTransactions()
+	if err != nil {
+		log.Errorf("Cannot load unmined transactions for resending: %v", err)
+		return err
+	}
+	for _, tx := range unminedTxs {
+		txHash := tx.TxHash()
+		err := backend.PublishTransaction(ctx, tx)
+		if err != nil {
+			// TODO: Transactions should be removed if this is a double spend.
+			log.Tracef("Could not resend transaction %v: %v", &txHash, err)
+			continue
+		}
+		log.Tracef("Resent unmined transaction %v", &txHash)
+	}
+	return nil
 }
 
 // ChainParams returns the network parameters for the blockchain the wallet
