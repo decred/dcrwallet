@@ -844,43 +844,26 @@ message ValidateAddressResponse {
 }
 
 service SummariesService {
-	rpc CalculateSummary (CalculateSummaryRequest) returns (stream CalculateSummaryResponse);
-	rpc AvailableSummaries (AvailableSummariesRequest) returns (AvailableSummariesResponse);
+	rpc BalancesSummary (BalancesSummaryRequest) returns (stream BalancesSummaryResponse);
 }
 
-message CalculateSummaryRequest {
-	enum SummaryResolution {
-		Block = 0;
-		Hour = 1;
-		Day = 2;
-		Month = 3;
-		Year = 4;
-		All = 5;
-	}
-	string name = 1;
+enum SummaryResolution {
+	Block = 0;
+	Hour = 1;
+	Day = 2;
+	Month = 3;
+	Year = 4;
+	All = 5;
+}
+
+message BalancesSummaryRequest {
 	SummaryResolution resolution = 2;
 	int32 begin_height = 3;
 	int32 end_height = 4;
 }
 
-message SummaryResultDataPoint {
-	oneof value_oneof {
-		int64 int_value = 1;
-		double float_value = 2;
-	}
-}
-
-message SummaryResult {
-	int64 timestamp = 1;
-	map<uint32, SummaryResultDataPoint> data = 2;
-}
-
-message CalculateSummaryResponse {
-	SummaryResult result = 1;
-}
-
-message AvailableSummariesRequest {}
-
-message AvailableSummariesResponse {
-	repeated string name = 1;
+message BalancesSummaryResponse {
+	int64 timestmap = 1;
+	int64 spendable = 2;
+	int64 total = 3;
 }
