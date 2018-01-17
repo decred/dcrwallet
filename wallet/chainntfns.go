@@ -341,7 +341,29 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord,
 // AcceptMempoolTx adds a relevant unmined transaction to the wallet.
 func (w *Wallet) AcceptMempoolTx(serializedTx []byte) error {
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-		return w.processSerializedTransaction(dbtx, serializedTx, nil, nil)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		rec, err := udb.NewTxRecord(serializedTx, time.Now())
+		if err != nil {
+			return err
+		}
+
+		// Prevent orphan votes from entering the wallet's unmined transaction
+		// set.
+		if isVote(&rec.MsgTx) {
+			votedBlock, _, err := stake.SSGenBlockVotedOn(&rec.MsgTx)
+			if err != nil {
+				return err
+			}
+			tipBlock, _ := w.TxStore.MainChainTip(txmgrNs)
+			if votedBlock != tipBlock {
+				log.Debugf("Rejected unmined orphan vote %v which votes on block %v",
+					&rec.Hash, &votedBlock)
+				return nil
+			}
+		}
+
+		return w.processTransactionRecord(dbtx, rec, nil, nil)
 	})
 	if err == nil {
 		err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
