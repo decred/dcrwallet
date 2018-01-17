@@ -3691,10 +3691,10 @@ func Open(cfg *Config) (*Wallet, error) {
 	}
 
 	// FIXME just a test. Remove.
-	fn := func (refTime time.Time, dps summaries.SummaryResult) (bool, error) {
+	fn := func(refTime time.Time, dps summaries.SummaryResult) (bool, error) {
 		fmt.Printf("%s %15.8f %15.8f\n", refTime.Format(time.RFC3339),
-		float64(dps[summaries.BalanceSeriesSpendable].IntValue) / 10e7,
-		float64(dps[summaries.BalanceSeriesTotal].IntValue) / 10e7)
+			float64(dps[summaries.BalanceSeriesSpendable].IntValue)/10e7,
+			float64(dps[summaries.BalanceSeriesTotal].IntValue)/10e7)
 		return false, nil
 	}
 
@@ -3717,7 +3717,6 @@ func Open(cfg *Config) (*Wallet, error) {
 	}
 
 	panic("Done!")
-
 
 	return w, nil
 }

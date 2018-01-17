@@ -2,9 +2,10 @@ package summaries
 
 import (
 	"fmt"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/blockchain/stake"
 	"time"
+
+	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/dcrutil"
 
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
@@ -31,17 +32,17 @@ func (bs *BalancesSummary) previousBalance(beginHeight int32) (SummaryResult, er
 
 	res := SummaryResult{
 		BalanceSeriesSpendable: &SummaryResultDataPoint{},
-		BalanceSeriesTotal: &SummaryResultDataPoint{},
+		BalanceSeriesTotal:     &SummaryResultDataPoint{},
 	}
 
 	if beginHeight < 1 {
 		return res, nil
 	}
 
-	f := func (ts time.Time, dps SummaryResult) (bool, error) {
+	f := func(ts time.Time, dps SummaryResult) (bool, error) {
 		res = SummaryResult{
 			BalanceSeriesSpendable: &SummaryResultDataPoint{IntValue: dps[BalanceSeriesSpendable].IntValue},
-			BalanceSeriesTotal: &SummaryResultDataPoint{IntValue: dps[BalanceSeriesTotal].IntValue},
+			BalanceSeriesTotal:     &SummaryResultDataPoint{IntValue: dps[BalanceSeriesTotal].IntValue},
 		}
 		return false, nil
 	}
@@ -97,16 +98,16 @@ func (bs *BalancesSummary) Calculate(beginHeight, endHeight int32,
 	}
 	txChange := SummaryResult{
 		BalanceSeriesSpendable: &SummaryResultDataPoint{IntValue: 0},
-		BalanceSeriesTotal: &SummaryResultDataPoint{IntValue: 0},
+		BalanceSeriesTotal:     &SummaryResultDataPoint{IntValue: 0},
 	}
 
 	lastRefTime := epochTime
 
-	return walletdb.View(bs.sm.getDb(), func (dbtx walletdb.ReadTx) error {
-		rangeFn := func (details []udb.TxDetails) (bool, error) {
+	return walletdb.View(bs.sm.getDb(), func(dbtx walletdb.ReadTx) error {
+		rangeFn := func(details []udb.TxDetails) (bool, error) {
 			refTime := referenceTime(details[0].Block.Time, resolution)
-			if (!refTime.Equal(lastRefTime))  {
-				if (!lastRefTime.Equal(epochTime)) {
+			if !refTime.Equal(lastRefTime) {
+				if !lastRefTime.Equal(epochTime) {
 					brk, err := f(lastRefTime, dps)
 					if (err != nil) || brk {
 						return brk, err
@@ -126,8 +127,8 @@ func (bs *BalancesSummary) Calculate(beginHeight, endHeight int32,
 				// 	float64(txChange[BalanceSeriesSpendable].IntValue) / 10e7,
 				// 	float64(txChange[BalanceSeriesTotal].IntValue) / 10e7)
 
-				dps[BalanceSeriesSpendable].IntValue += int64(txChange[BalanceSeriesSpendable].IntValue)
-				dps[BalanceSeriesTotal].IntValue += int64(txChange[BalanceSeriesTotal].IntValue)
+				dps[BalanceSeriesSpendable].IntValue += txChange[BalanceSeriesSpendable].IntValue
+				dps[BalanceSeriesTotal].IntValue += txChange[BalanceSeriesTotal].IntValue
 			}
 
 			return false, nil
