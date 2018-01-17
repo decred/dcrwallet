@@ -842,3 +842,45 @@ message ValidateAddressResponse {
 	bytes pay_to_addr_script = 9;
 	uint32 sigs_required = 10;
 }
+
+service SummariesService {
+	rpc CalculateSummary (CalculateSummaryRequest) returns (stream CalculateSummaryResponse);
+	rpc AvailableSummaries (AvailableSummariesRequest) returns (AvailableSummariesResponse);
+}
+
+message CalculateSummaryRequest {
+	enum SummaryResolution {
+		Block = 0;
+		Hour = 1;
+		Day = 2;
+		Month = 3;
+		Year = 4;
+		All = 5;
+	}
+	string name = 1;
+	SummaryResolution resolution = 2;
+	int32 begin_height = 3;
+	int32 end_height = 4;
+}
+
+message SummaryResultDataPoint {
+	oneof value_oneof {
+		int64 int_value = 1;
+		double float_value = 2;
+	}
+}
+
+message SummaryResult {
+	int64 timestamp = 1;
+	map<uint32, SummaryResultDataPoint> data = 2;
+}
+
+message CalculateSummaryResponse {
+	SummaryResult result = 1;
+}
+
+message AvailableSummariesRequest {}
+
+message AvailableSummariesResponse {
+	repeated string name = 1;
+}
