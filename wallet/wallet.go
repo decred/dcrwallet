@@ -1292,7 +1292,7 @@ func (w *Wallet) SignMessage(msg string, addr dcrutil.Address) (sig []byte, err 
 		return nil, fmt.Errorf("Unable to create secp256k1.PrivateKey" +
 			"from chainec.PrivateKey")
 	}
-	return secp256k1.SignCompact(secp256k1.S256(), pkCast, messageHash, true)
+	return secp256k1.SignCompact(pkCast, messageHash, true)
 }
 
 // VerifyMessage verifies that sig is a valid signature of msg and was created
