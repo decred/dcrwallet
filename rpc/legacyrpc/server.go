@@ -23,9 +23,9 @@ import (
 	"github.com/btcsuite/websocket"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/loader"
+	"github.com/decred/dcrwallet/ticketbuyer"
 )
 
 type websocketClient struct {
@@ -61,12 +61,15 @@ func (c *websocketClient) send(b []byte) error {
 type Server struct {
 	httpServer   http.Server
 	walletLoader *loader.Loader
-	chainClient  *chain.RPCClient
-	handlerMu    sync.Mutex
-
-	listeners []net.Listener
-	authsha   [sha256.Size]byte
-	upgrader  websocket.Upgrader
+	// NOTE: The chainClient field of the server struct can be changed at any time
+	// by the reconnection loop goroutine for example, using this field directly
+	// will cause a data race.  Use Server.GetChainServer instead.
+	chainClient       *chain.RPCClient
+	ticketbuyerConfig *ticketbuyer.Config
+	handlerMu         sync.Mutex
+	listeners         []net.Listener
+	authsha           [sha256.Size]byte
+	upgrader          websocket.Upgrader
 
 	maxPostClients      int64 // Max concurrent HTTP POST clients.
 	maxWebsocketClients int64 // Max concurrent websocket clients.
@@ -78,6 +81,13 @@ type Server struct {
 	requestShutdownChan chan struct{}
 
 	activeNet *chaincfg.Params
+
+	handlers map[string]handler
+}
+
+type handler struct {
+	fn     func(*Server, interface{}) (interface{}, error)
+	noHelp bool
 }
 
 // jsonAuthFail sends a message back to the client if the http auth is rejected.
@@ -88,10 +98,9 @@ func jsonAuthFail(w http.ResponseWriter) {
 
 // NewServer creates a new server for serving legacy RPC client connections,
 // both HTTP POST and websocket.
-func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.Loader, listeners []net.Listener) *Server {
+func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.Loader, ticketBuyerConfig *ticketbuyer.Config, listeners []net.Listener) *Server {
 	serveMux := http.NewServeMux()
 	const rpcAuthTimeoutSeconds = 10
-
 	server := &Server{
 		httpServer: http.Server{
 			Handler: serveMux,
@@ -104,6 +113,7 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 		maxPostClients:      opts.MaxPOSTClients,
 		maxWebsocketClients: opts.MaxWebsocketClients,
 		listeners:           listeners,
+		ticketbuyerConfig:   ticketBuyerConfig,
 		// A hash of the HTTP basic auth string is used for a constant
 		// time comparison.
 		authsha: sha256.Sum256(httpBasicAuth(opts.Username, opts.Password)),
@@ -238,6 +248,15 @@ func (s *Server) SetChainServer(chainClient *chain.RPCClient) {
 	s.handlerMu.Unlock()
 }
 
+// requireChainClient gets the chain server client component needed to run a
+// fully functional decred wallet RPC server.
+func (s *Server) requireChainClient() (*chain.RPCClient, bool) {
+	s.handlerMu.Lock()
+	chainClient := s.chainClient
+	s.handlerMu.Unlock()
+	return chainClient, chainClient != nil
+}
+
 // handlerClosure creates a closure function for handling requests of the given
 // method.  This may be a request that is handled directly by dcrwallet, or
 // a chain server request that is handled by passing the request down to dcrd.
@@ -247,27 +266,7 @@ func (s *Server) SetChainServer(chainClient *chain.RPCClient) {
 // known) and handled accordingly.
 func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) lazyHandler {
 	log.Infof("RPC method %v invoked by client %v", request.Method, remoteAddr(ctx))
-
-	wallet, _ := s.walletLoader.LoadedWallet()
-	s.handlerMu.Lock()
-	chainClient := s.chainClient
-	s.handlerMu.Unlock()
-
-	var rpcClient *dcrrpcclient.Client
-	if chainClient != nil {
-		// The "help" RPC must use an HTTP POST client when calling down to dcrd
-		// for additional help methods.  This is required to avoid including
-		// websocket-only requests in the help, which are not callable by wallet
-		// JSON-RPC clients.  Any errors creating the POST client may be ignored
-		// since the client is not necessary for the request.
-		if request.Method == "help" {
-			rpcClient, _ = chainClient.POSTClient()
-		} else {
-			rpcClient = chainClient.Client
-		}
-	}
-
-	return lazyApplyHandler(request, wallet, rpcClient, s.walletLoader)
+	return lazyApplyHandler(s, request)
 }
 
 // ErrNoAuth represents an error where authentication could not succeed

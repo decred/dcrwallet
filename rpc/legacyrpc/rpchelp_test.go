@@ -25,7 +25,7 @@ import (
 
 func serverMethods() map[string]struct{} {
 	m := make(map[string]struct{})
-	for method, handlerData := range rpcHandlers {
+	for method, handlerData := range handlers {
 		if !handlerData.noHelp {
 			m[method] = struct{}{}
 		}

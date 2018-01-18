@@ -29,7 +29,6 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
-	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
@@ -55,132 +54,104 @@ func confirms(txHeight, curHeight int32) int32 {
 	}
 }
 
-// requestHandler is a handler function to handle an unmarshaled and parsed
-// request into a marshalable response.  If the error is a *dcrjson.RPCError
-// or any of the above special error classes, the server will respond with
-// the JSON-RPC appropiate error code.  All other errors use the wallet
-// catch-all error code, dcrjson.ErrRPCWallet.
-type requestHandler func(interface{}, *wallet.Wallet) (interface{}, error)
-
-// requestHandlerChain is a requestHandler that also takes a parameter for the
-// RPC client.
-type requestHandlerChainRequired func(interface{}, *wallet.Wallet, *dcrrpcclient.Client) (interface{}, error)
-
-// requestHandlerLoader is a requestHandler that also takes a parameter for the
-// subsystem loader.
-type requestHandlerLoader func(interface{}, *wallet.Wallet, *loader.Loader) (interface{}, error)
-
-var rpcHandlers = map[string]struct {
-	handler           requestHandler
-	handlerWithChain  requestHandlerChainRequired
-	handlerWithLoader requestHandlerLoader
-
-	// Function variables cannot be compared against anything but nil, so
-	// use a boolean to record whether help generation is necessary.  This
-	// is used by the tests to ensure that help can be generated for every
-	// implemented method.
-	//
-	// A single map and this bool is here is used rather than several maps
-	// for the unimplemented handlers so every method has exactly one
-	// handler function.
-	noHelp bool
-}{
+// the registered rpc handlers
+var handlers = map[string]handler{
 	// Reference implementation wallet methods (implemented)
-	"accountaddressindex":     {handler: accountAddressIndex},
-	"accountsyncaddressindex": {handler: accountSyncAddressIndex},
-	"addmultisigaddress":      {handlerWithChain: addMultiSigAddress},
-	"addticket":               {handler: addTicket},
-	"consolidate":             {handler: consolidate},
-	"createmultisig":          {handler: createMultiSig},
-	"dumpprivkey":             {handler: dumpPrivKey},
-	"generatevote":            {handler: generateVote},
-	"getaccount":              {handler: getAccount},
-	"getaccountaddress":       {handler: getAccountAddress},
-	"getaddressesbyaccount":   {handler: getAddressesByAccount},
-	"getbalance":              {handler: getBalance},
-	"getbestblockhash":        {handler: getBestBlockHash},
-	"getblockcount":           {handler: getBlockCount},
-	"getinfo":                 {handlerWithChain: getInfo},
-	"getmasterpubkey":         {handler: getMasterPubkey},
-	"getmultisigoutinfo":      {handlerWithChain: getMultisigOutInfo},
-	"getnewaddress":           {handler: getNewAddress},
-	"getrawchangeaddress":     {handler: getRawChangeAddress},
-	"getreceivedbyaccount":    {handler: getReceivedByAccount},
-	"getreceivedbyaddress":    {handler: getReceivedByAddress},
-	"getstakeinfo":            {handlerWithChain: getStakeInfo},
-	"getticketfee":            {handler: getTicketFee},
-	"gettickets":              {handlerWithChain: getTickets},
-	"gettransaction":          {handler: getTransaction},
-	"getvotechoices":          {handler: getVoteChoices},
-	"getwalletfee":            {handler: getWalletFee},
-	"help":                    {handler: helpNoChainRPC, handlerWithChain: helpWithChainRPC},
-	"importprivkey":           {handlerWithChain: importPrivKey},
-	"importscript":            {handlerWithChain: importScript},
-	"keypoolrefill":           {handler: keypoolRefill},
-	"listaccounts":            {handler: listAccounts},
-	"listlockunspent":         {handler: listLockUnspent},
-	"listreceivedbyaccount":   {handler: listReceivedByAccount},
-	"listreceivedbyaddress":   {handler: listReceivedByAddress},
-	"listsinceblock":          {handlerWithChain: listSinceBlock},
-	"listscripts":             {handler: listScripts},
-	"listtransactions":        {handler: listTransactions},
-	"listunspent":             {handler: listUnspent},
-	"lockunspent":             {handler: lockUnspent},
-	"purchaseticket":          {handler: purchaseTicket},
-	"rescanwallet":            {handlerWithChain: rescanWallet},
-	"revoketickets":           {handlerWithChain: revokeTickets},
-	"sendfrom":                {handlerWithChain: sendFrom},
-	"sendmany":                {handler: sendMany},
-	"sendtoaddress":           {handler: sendToAddress},
-	"sendtomultisig":          {handlerWithChain: sendToMultiSig},
-	"setticketfee":            {handler: setTicketFee},
-	"settxfee":                {handler: setTxFee},
-	"setvotechoice":           {handler: setVoteChoice},
-	"signmessage":             {handler: signMessage},
-	"signrawtransaction":      {handler: signRawTransactionNoChainRPC, handlerWithChain: signRawTransaction},
-	"signrawtransactions":     {handlerWithChain: signRawTransactions},
-	"redeemmultisigout":       {handlerWithChain: redeemMultiSigOut},
-	"redeemmultisigouts":      {handlerWithChain: redeemMultiSigOuts},
-	"stakepooluserinfo":       {handler: stakePoolUserInfo},
-	"ticketsforaddress":       {handler: ticketsForAddress},
-	"validateaddress":         {handler: validateAddress},
-	"verifymessage":           {handler: verifyMessage},
-	"version":                 {handler: versionNoChainRPC, handlerWithChain: versionWithChainRPC},
-	"walletinfo":              {handlerWithLoader: walletInfo},
-	"walletlock":              {handler: walletLock},
-	"walletpassphrase":        {handler: walletPassphrase},
-	"walletpassphrasechange":  {handler: walletPassphraseChange},
-
-	// Reference implementation methods (still unimplemented)
-	"backupwallet":         {handler: unimplemented, noHelp: true},
-	"getwalletinfo":        {handler: unimplemented, noHelp: true},
-	"importwallet":         {handler: unimplemented, noHelp: true},
-	"listaddressgroupings": {handler: unimplemented, noHelp: true},
-
-	// Reference methods which can't be implemented by dcrwallet due to
-	// design decision differences
-	"dumpwallet":    {handler: unsupported, noHelp: true},
-	"encryptwallet": {handler: unsupported, noHelp: true},
-	"move":          {handler: unsupported, noHelp: true},
-	"setaccount":    {handler: unsupported, noHelp: true},
+	"accountaddressindex":     {fn: accountAddressIndex},
+	"accountsyncaddressindex": {fn: accountSyncAddressIndex},
+	"addmultisigaddress":      {fn: addMultiSigAddress},
+	"addticket":               {fn: addTicket},
+	"consolidate":             {fn: consolidate},
+	"createmultisig":          {fn: createMultiSig},
+	"dumpprivkey":             {fn: dumpPrivKey},
+	"generatevote":            {fn: generateVote},
+	"getaccount":              {fn: getAccount},
+	"getaccountaddress":       {fn: getAccountAddress},
+	"getaddressesbyaccount":   {fn: getAddressesByAccount},
+	"getbalance":              {fn: getBalance},
+	"getbestblockhash":        {fn: getBestBlockHash},
+	"getblockcount":           {fn: getBlockCount},
+	"getinfo":                 {fn: getInfo},
+	"getmasterpubkey":         {fn: getMasterPubkey},
+	"getmultisigoutinfo":      {fn: getMultisigOutInfo},
+	"getnewaddress":           {fn: getNewAddress},
+	"getrawchangeaddress":     {fn: getRawChangeAddress},
+	"getreceivedbyaccount":    {fn: getReceivedByAccount},
+	"getreceivedbyaddress":    {fn: getReceivedByAddress},
+	"getstakeinfo":            {fn: getStakeInfo},
+	"getticketfee":            {fn: getTicketFee},
+	"gettickets":              {fn: getTickets},
+	"gettransaction":          {fn: getTransaction},
+	"getvotechoices":          {fn: getVoteChoices},
+	"getwalletfee":            {fn: getWalletFee},
+	"help":                    {fn: help},
+	"importprivkey":           {fn: importPrivKey},
+	"importscript":            {fn: importScript},
+	"keypoolrefill":           {fn: keypoolRefill},
+	"listaccounts":            {fn: listAccounts},
+	"listlockunspent":         {fn: listLockUnspent},
+	"listreceivedbyaccount":   {fn: listReceivedByAccount},
+	"listreceivedbyaddress":   {fn: listReceivedByAddress},
+	"listsinceblock":          {fn: listSinceBlock},
+	"listscripts":             {fn: listScripts},
+	"listtransactions":        {fn: listTransactions},
+	"listunspent":             {fn: listUnspent},
+	"lockunspent":             {fn: lockUnspent},
+	"purchaseticket":          {fn: purchaseTicket},
+	"rescanwallet":            {fn: rescanWallet},
+	"revoketickets":           {fn: revokeTickets},
+	"sendfrom":                {fn: sendFrom},
+	"sendmany":                {fn: sendMany},
+	"sendtoaddress":           {fn: sendToAddress},
+	"sendtomultisig":          {fn: sendToMultiSig},
+	"setticketfee":            {fn: setTicketFee},
+	"settxfee":                {fn: setTxFee},
+	"setvotechoice":           {fn: setVoteChoice},
+	"signmessage":             {fn: signMessage},
+	"signrawtransaction":      {fn: signRawTransaction},
+	"signrawtransactions":     {fn: signRawTransactions},
+	"redeemmultisigout":       {fn: redeemMultiSigOut},
+	"redeemmultisigouts":      {fn: redeemMultiSigOuts},
+	"stakepooluserinfo":       {fn: stakePoolUserInfo},
+	"ticketsforaddress":       {fn: ticketsForAddress},
+	"validateaddress":         {fn: validateAddress},
+	"verifymessage":           {fn: verifyMessage},
+	"version":                 {fn: version},
+	"walletinfo":              {fn: walletInfo},
+	"walletlock":              {fn: walletLock},
+	"walletpassphrase":        {fn: walletPassphrase},
+	"walletpassphrasechange":  {fn: walletPassphraseChange},
 
 	// Extensions to the reference client JSON-RPC API
-	"createnewaccount": {handler: createNewAccount},
-	"getbestblock":     {handler: getBestBlock},
+	"getbestblock":     {fn: getBestBlock},
+	"createnewaccount": {fn: createNewAccount},
 	// This was an extension but the reference implementation added it as
 	// well, but with a different API (no account parameter).  It's listed
 	// here because it hasn't been update to use the reference
 	// implemenation's API.
-	"getunconfirmedbalance":   {handler: getUnconfirmedBalance},
-	"listaddresstransactions": {handler: listAddressTransactions},
-	"listalltransactions":     {handler: listAllTransactions},
-	"renameaccount":           {handler: renameAccount},
-	"walletislocked":          {handler: walletIsLocked},
+	"getunconfirmedbalance":   {fn: getUnconfirmedBalance},
+	"listaddresstransactions": {fn: listAddressTransactions},
+	"listalltransactions":     {fn: listAllTransactions},
+	"renameaccount":           {fn: renameAccount},
+	"walletislocked":          {fn: walletIsLocked},
+
+	// Reference implementation methods (still unimplemented)
+	"backupwallet":         {fn: unimplemented, noHelp: true},
+	"getwalletinfo":        {fn: unimplemented, noHelp: true},
+	"importwallet":         {fn: unimplemented, noHelp: true},
+	"listaddressgroupings": {fn: unimplemented, noHelp: true},
+
+	// Reference methods which can't be implemented by dcrwallet due to
+	// design decision differences
+	"dumpwallet":    {fn: unsupported, noHelp: true},
+	"encryptwallet": {fn: unsupported, noHelp: true},
+	"move":          {fn: unsupported, noHelp: true},
+	"setaccount":    {fn: unsupported, noHelp: true},
 }
 
 // unimplemented handles an unimplemented RPC request with the
 // appropiate error.
-func unimplemented(interface{}, *wallet.Wallet) (interface{}, error) {
+func unimplemented(*Server, interface{}) (interface{}, error) {
 	return nil, &dcrjson.RPCError{
 		Code:    dcrjson.ErrRPCUnimplemented,
 		Message: "Method unimplemented",
@@ -189,7 +160,7 @@ func unimplemented(interface{}, *wallet.Wallet) (interface{}, error) {
 
 // unsupported handles a standard bitcoind RPC request which is
 // unsupported by dcrwallet due to design differences.
-func unsupported(interface{}, *wallet.Wallet) (interface{}, error) {
+func unsupported(*Server, interface{}) (interface{}, error) {
 	return nil, &dcrjson.RPCError{
 		Code:    -1,
 		Message: "Request unsupported by dcrwallet",
@@ -205,63 +176,33 @@ type lazyHandler func() (interface{}, *dcrjson.RPCError)
 // returning a closure that will execute it with the (required) wallet and
 // (optional) consensus RPC server.  If no handlers are found and the
 // chainClient is not nil, the returned handler performs RPC passthrough.
-func lazyApplyHandler(request *dcrjson.Request, w *wallet.Wallet,
-	chainClient *dcrrpcclient.Client, l *loader.Loader) lazyHandler {
-
-	handlerData, ok := rpcHandlers[request.Method]
-	if ok && handlerData.handlerWithChain != nil && w != nil && chainClient != nil {
+func lazyApplyHandler(s *Server, request *dcrjson.Request) lazyHandler {
+	handlerData, ok := handlers[request.Method]
+	if !ok {
 		return func() (interface{}, *dcrjson.RPCError) {
-			cmd, err := dcrjson.UnmarshalCmd(request)
-			if err != nil {
-				return nil, dcrjson.ErrRPCInvalidRequest
+			chainClient, ok := s.requireChainClient()
+			if !ok {
+				return nil, &ErrClientNotConnected
 			}
-			resp, err := handlerData.handlerWithChain(cmd, w, chainClient)
+			resp, err := chainClient.RawRequest(request.Method, request.Params)
 			if err != nil {
 				return nil, jsonError(err)
 			}
-			return resp, nil
-		}
-	}
-	if ok && handlerData.handlerWithLoader != nil && w != nil {
-		return func() (interface{}, *dcrjson.RPCError) {
-			cmd, err := dcrjson.UnmarshalCmd(request)
-			if err != nil {
-				return nil, dcrjson.ErrRPCInvalidRequest
-			}
-			resp, err := handlerData.handlerWithLoader(cmd, w, l)
-			if err != nil {
-				return nil, jsonError(err)
-			}
-			return resp, nil
-		}
-	}
-	if ok && handlerData.handler != nil && w != nil {
-		return func() (interface{}, *dcrjson.RPCError) {
-			cmd, err := dcrjson.UnmarshalCmd(request)
-			if err != nil {
-				return nil, dcrjson.ErrRPCInvalidRequest
-			}
-			resp, err := handlerData.handler(cmd, w)
-			if err != nil {
-				return nil, jsonError(err)
-			}
-			return resp, nil
+			return &resp, nil
 		}
 	}
 
-	// Fallback to RPC passthrough
 	return func() (interface{}, *dcrjson.RPCError) {
-		if chainClient == nil {
-			return nil, &dcrjson.RPCError{
-				Code:    -1,
-				Message: "Chain RPC is inactive",
-			}
+		cmd, err := dcrjson.UnmarshalCmd(request)
+		if err != nil {
+			return nil, dcrjson.ErrRPCInvalidRequest
 		}
-		resp, err := chainClient.RawRequest(request.Method, request.Params)
+
+		resp, err := handlerData.fn(s, cmd)
 		if err != nil {
 			return nil, jsonError(err)
 		}
-		return &resp, nil
+		return resp, nil
 	}
 }
 
@@ -324,8 +265,13 @@ func jsonError(err error) *dcrjson.RPCError {
 
 // accountAddressIndex returns the next address index for the passed
 // account and branch.
-func accountAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func accountAddressIndex(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.AccountAddressIndexCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
 		return nil, err
@@ -351,8 +297,13 @@ func accountAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, error
 // index is beyond the passed index, an error is returned. If the passed index
 // is the same as the current pool index, nothing is returned. If the syncing
 // is successful, nothing is returned.
-func accountSyncAddressIndex(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func accountSyncAddressIndex(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.AccountSyncAddressIndexCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
 		return nil, err
@@ -412,12 +363,16 @@ func makeMultiSigScript(w *wallet.Wallet, keys []string,
 
 // addMultiSigAddress handles an addmultisigaddress request by adding a
 // multisig address to the given wallet.
-func addMultiSigAddress(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func addMultiSigAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.AddMultisigAddressCmd)
-
 	// If an account is specified, ensure that is the imported account.
 	if cmd.Account != nil && *cmd.Account != udb.ImportedAddrAccountName {
 		return nil, &ErrNotImportedAccount
+	}
+
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
 	}
 
 	secp256k1Addrs := make([]dcrutil.Address, len(cmd.Keys))
@@ -439,6 +394,11 @@ func addMultiSigAddress(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcc
 		return nil, err
 	}
 
+	chainClient, ok := s.requireChainClient()
+	if !ok {
+		return nil, &ErrClientNotConnected
+	}
+
 	err = chainClient.LoadTxFilter(false, []dcrutil.Address{p2shAddr}, nil)
 	if err != nil {
 		return nil, err
@@ -448,8 +408,12 @@ func addMultiSigAddress(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcc
 }
 
 // addTicket adds a ticket to the stake manager manually.
-func addTicket(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func addTicket(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.AddTicketCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	rawTx, err := hex.DecodeString(cmd.TicketHex)
 	if err != nil {
@@ -468,8 +432,12 @@ func addTicket(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // consolidate handles a consolidate request by returning attempting to compress
 // as many inputs as given and then returning the txHash and error.
-func consolidate(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func consolidate(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ConsolidateCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	account := uint32(udb.DefaultAccountNum)
 	var err error
@@ -504,8 +472,12 @@ func consolidate(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // createMultiSig handles an createmultisig request by returning a
 // multisig address for the given inputs.
-func createMultiSig(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func createMultiSig(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.CreateMultisigCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	script, err := makeMultiSigScript(w, cmd.Keys, cmd.NRequired)
 	if err != nil {
@@ -527,8 +499,12 @@ func createMultiSig(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // dumpPrivKey handles a dumpprivkey request with the private key
 // for a single address, or an appropiate error if the wallet
 // is locked.
-func dumpPrivKey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func dumpPrivKey(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.DumpPrivKeyCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	addr, err := decodeAddress(cmd.Address, w.ChainParams())
 	if err != nil {
@@ -546,8 +522,12 @@ func dumpPrivKey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // generateVote handles a generatevote request by constructing a signed
 // vote and returning it.
-func generateVote(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func generateVote(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GenerateVoteCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	blockHash, err := chainhash.NewHashFromStr(cmd.BlockHash)
 	if err != nil {
@@ -595,8 +575,12 @@ func generateVote(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // getAddressesByAccount handles a getaddressesbyaccount request by returning
 // all addresses for an account, or an error if the requested account does
 // not exist.
-func getAddressesByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getAddressesByAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetAddressesByAccountCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
@@ -637,8 +621,12 @@ func getAddressesByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, err
 // getBalance handles a getbalance request by returning the balance for an
 // account (wallet), or an error if the requested account does not
 // exist.
-func getBalance(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetBalanceCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	minConf := int32(*cmd.MinConf)
 	if minConf < 0 {
@@ -707,7 +695,12 @@ func getBalance(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // getBestBlock handles a getbestblock request by returning a JSON object
 // with the height and hash of the most recently processed block.
-func getBestBlock(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getBestBlock(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	hash, height := w.MainChainTip()
 	result := &dcrjson.GetBestBlockResult{
 		Hash:   hash.String(),
@@ -718,14 +711,24 @@ func getBestBlock(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // getBestBlockHash handles a getbestblockhash request by returning the hash
 // of the most recently processed block.
-func getBestBlockHash(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getBestBlockHash(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	hash, _ := w.MainChainTip()
 	return hash.String(), nil
 }
 
 // getBlockCount handles a getblockcount request by returning the chain height
 // of the most recently processed block.
-func getBlockCount(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getBlockCount(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	_, height := w.MainChainTip()
 	return height, nil
 }
@@ -733,7 +736,17 @@ func getBlockCount(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // getInfo handles a getinfo request by returning the a structure containing
 // information about the current state of dcrcwallet.
 // exist.
-func getInfo(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func getInfo(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
+	chainClient, ok := s.requireChainClient()
+	if !ok {
+		return nil, &ErrClientNotConnected
+	}
+
 	// Call down to dcrd for all of the information in this command known
 	// by them.
 	info, err := chainClient.GetInfo()
@@ -801,8 +814,12 @@ func decodeAddress(s string, params *chaincfg.Params) (dcrutil.Address, error) {
 
 // getAccount handles a getaccount request by returning the account name
 // associated with a single address.
-func getAccount(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetAccountCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	addr, err := decodeAddress(cmd.Address, w.ChainParams())
 	if err != nil {
@@ -828,8 +845,12 @@ func getAccount(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // If the most recently-requested address has been used, a new address (the
 // next chained address in the keypool) is used.  This can fail if the keypool
 // runs out (and will return dcrjson.ErrRPCWalletKeypoolRanOut if that happens).
-func getAccountAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getAccountAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetAccountAddressCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
@@ -845,8 +866,12 @@ func getAccountAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) 
 
 // getUnconfirmedBalance handles a getunconfirmedbalance extension request
 // by returning the current unconfirmed balance of an account.
-func getUnconfirmedBalance(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getUnconfirmedBalance(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetUnconfirmedBalanceCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	acctName := "default"
 	if cmd.Account != nil {
@@ -866,8 +891,17 @@ func getUnconfirmedBalance(icmd interface{}, w *wallet.Wallet) (interface{}, err
 
 // importPrivKey handles an importprivkey request by parsing
 // a WIF-encoded private key and adding it to an account.
-func importPrivKey(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func importPrivKey(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ImportPrivKeyCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
+	chainClient, ok := s.requireChainClient()
+	if !ok {
+		return nil, &ErrClientNotConnected
+	}
 
 	// Ensure that private keys are only imported to the correct account.
 	//
@@ -911,7 +945,7 @@ func importPrivKey(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient
 	}
 
 	if rescan {
-		n := chain.BackendFromRPCClient(chainClient)
+		n := chain.BackendFromRPCClient(chainClient.Client)
 		go w.RescanFromHeight(context.Background(), n, scanFrom)
 	}
 
@@ -919,8 +953,18 @@ func importPrivKey(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient
 }
 
 // importScript imports a redeem script for a P2SH output.
-func importScript(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func importScript(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ImportScriptCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
+	chainClient, ok := s.requireChainClient()
+	if !ok {
+		return nil, &ErrClientNotConnected
+	}
+
 	rs, err := hex.DecodeString(cmd.Hex)
 	if err != nil {
 		return nil, err
@@ -946,7 +990,7 @@ func importScript(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.
 	}
 
 	if rescan {
-		n := chain.BackendFromRPCClient(chainClient)
+		n := chain.BackendFromRPCClient(chainClient.Client)
 		go w.RescanFromHeight(context.Background(), n, int32(scanFrom))
 	}
 
@@ -955,15 +999,19 @@ func importScript(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.
 
 // keypoolRefill handles the keypoolrefill command. Since we handle the keypool
 // automatically this does nothing since refilling is never manually required.
-func keypoolRefill(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func keypoolRefill(s *Server, icmd interface{}) (interface{}, error) {
 	return nil, nil
 }
 
 // createNewAccount handles a createnewaccount request by creating and
 // returning a new account. If the last account has no transaction history
 // as per BIP 0044 a new account cannot be created so an error will be returned.
-func createNewAccount(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func createNewAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.CreateNewAccountCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	// The wildcard * is reserved by the rpc server with the special meaning
 	// of "all accounts", so disallow naming accounts to this string.
@@ -984,8 +1032,12 @@ func createNewAccount(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // renameAccount handles a renameaccount request by renaming an account.
 // If the account does not exist an appropiate error will be returned.
-func renameAccount(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func renameAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.RenameAccountCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	// The wildcard * is reserved by the rpc server with the special meaning
 	// of "all accounts", so disallow naming accounts to this string.
@@ -1003,8 +1055,12 @@ func renameAccount(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // getMultisigOutInfo displays information about a given multisignature
 // output.
-func getMultisigOutInfo(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func getMultisigOutInfo(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetMultisigOutInfoCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	hash, err := chainhash.NewHashFromStr(cmd.Hash)
 	if err != nil {
@@ -1061,8 +1117,12 @@ func getMultisigOutInfo(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcc
 // error is returned.
 // TODO: Follow BIP 0044 and warn if number of unused addresses exceeds
 // the gap limit.
-func getNewAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getNewAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetNewAddressCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	var callOpts []wallet.NextAddressCallOption
 	if cmd.GapPolicy != nil {
@@ -1103,8 +1163,12 @@ func getNewAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 //
 // Note: bitcoind allows specifying the account as an optional parameter,
 // but ignores the parameter.
-func getRawChangeAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getRawChangeAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetRawChangeAddressCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	acctName := "default"
 	if cmd.Account != nil {
@@ -1126,8 +1190,12 @@ func getRawChangeAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error
 
 // getReceivedByAccount handles a getreceivedbyaccount request by returning
 // the total amount received by addresses of an account.
-func getReceivedByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getReceivedByAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetReceivedByAccountCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
@@ -1150,8 +1218,12 @@ func getReceivedByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, erro
 
 // getReceivedByAddress handles a getreceivedbyaddress request by returning
 // the total amount received by a single address.
-func getReceivedByAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getReceivedByAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetReceivedByAddressCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	addr, err := decodeAddress(cmd.Address, w.ChainParams())
 	if err != nil {
@@ -1167,8 +1239,12 @@ func getReceivedByAddress(icmd interface{}, w *wallet.Wallet) (interface{}, erro
 
 // getMasterPubkey handles a getmasterpubkey request by returning the wallet
 // master pubkey encoded as a string.
-func getMasterPubkey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getMasterPubkey(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetMasterPubkeyCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	// If no account is passed, we provide the extended public key
 	// for the default account number.
@@ -1186,11 +1262,20 @@ func getMasterPubkey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // getStakeInfo gets a large amounts of information about the stake environment
 // and a number of statistics about local staking in the wallet.
-func getStakeInfo(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func getStakeInfo(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
+	chainClient, ok := s.requireChainClient()
+	if !ok {
+		return nil, &ErrClientNotConnected
+	}
+
 	// Asynchronously query for the stake difficulty.
 	sdiffFuture := chainClient.GetStakeDifficultyAsync()
-
-	stakeInfo, err := w.StakeInfo(chainClient)
+	stakeInfo, err := w.StakeInfo(chainClient.Client)
 	if err != nil {
 		return nil, err
 	}
@@ -1231,16 +1316,30 @@ func getStakeInfo(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.
 }
 
 // getTicketFee gets the currently set price per kb for tickets
-func getTicketFee(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getTicketFee(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	return w.TicketFeeIncrement().ToCoin(), nil
 }
 
 // getTickets handles a gettickets request by returning the hashes of the tickets
 // currently owned by wallet, encoded as strings.
-func getTickets(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func getTickets(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetTicketsCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
-	ticketHashes, err := w.LiveTicketHashes(chainClient, cmd.IncludeImmature)
+	chainClient, ok := s.requireChainClient()
+	if !ok {
+		return nil, &ErrClientNotConnected
+	}
+
+	ticketHashes, err := w.LiveTicketHashes(chainClient.Client, cmd.IncludeImmature)
 	if err != nil {
 		return nil, err
 	}
@@ -1256,8 +1355,12 @@ func getTickets(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Cl
 
 // getTransaction handles a gettransaction request by returning details about
 // a single transaction saved by wallet.
-func getTransaction(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetTransactionCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	txSha, err := chainhash.NewHashFromStr(cmd.Txid)
 	if err != nil {
@@ -1400,7 +1503,12 @@ func getTransaction(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // getVoteChoices handles a getvotechoices request by returning configured vote
 // preferences for each agenda of the latest supported stake version.
-func getVoteChoices(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getVoteChoices(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	version, agendas := wallet.CurrentAgendas(w.ChainParams())
 	resp := &dcrjson.GetVoteChoicesResult{
 		Version: version,
@@ -1431,7 +1539,12 @@ func getVoteChoices(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 }
 
 // getWalletFee returns the currently set tx fee for the requested wallet
-func getWalletFee(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func getWalletFee(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	return w.RelayFee().ToCoin(), nil
 }
 
@@ -1456,41 +1569,34 @@ func getWalletFee(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 var helpDescs map[string]string
 var helpDescsMu sync.Mutex // Help may execute concurrently, so synchronize access.
 
-// helpWithChainRPC handles the help request when the RPC server has been
-// associated with a consensus RPC client.  The additional RPC client is used to
-// include help messages for methods implemented by the consensus server via RPC
-// passthrough.
-func helpWithChainRPC(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
-	return help(icmd, w, chainClient)
-}
-
-// helpNoChainRPC handles the help request when the RPC server has not been
-// associated with a consensus RPC client.  No help messages are included for
-// passthrough requests.
-func helpNoChainRPC(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	return help(icmd, w, nil)
-}
-
 // help handles the help request by returning one line usage of all available
 // methods, or full help for a specific method.  The chainClient is optional,
 // and this is simply a helper function for the HelpNoChainRPC and
 // HelpWithChainRPC handlers.
-func help(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func help(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.HelpCmd)
-
+	// The "help" RPC must use an HTTP POST client when calling down to dcrd
+	// for additional help methods. This is required to avoid including
+	// websocket-only requests in the help, which are not callable by wallet
+	// JSON-RPC clients.  Any errors creating the POST client may be ignored
+	// since the client is not necessary for the request.
+	chainClient, _ := s.requireChainClient()
 	if cmd.Command == nil || *cmd.Command == "" {
 		// Prepend chain server usage if it is available.
 		usages := requestUsages
 		if chainClient != nil {
-			rawChainUsage, err := chainClient.RawRequest("help", nil)
-			var chainUsage string
+			postClient, err := chainClient.POSTClient()
 			if err == nil {
-				_ = json.Unmarshal([]byte(rawChainUsage), &chainUsage)
-			}
-			if chainUsage != "" {
-				usages = "Chain server usage:\n\n" + chainUsage + "\n\n" +
-					"Wallet server usage (overrides chain requests):\n\n" +
-					requestUsages
+				rawChainUsage, err := postClient.RawRequest("help", nil)
+				var chainUsage string
+				if err == nil {
+					_ = json.Unmarshal([]byte(rawChainUsage), &chainUsage)
+				}
+				if chainUsage != "" {
+					usages = "Chain server usage:\n\n" + chainUsage + "\n\n" +
+						"Wallet server usage (overrides chain requests):\n\n" +
+						requestUsages
+				}
 			}
 		}
 		return usages, nil
@@ -1518,9 +1624,12 @@ func help(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) 
 		param[0] = '"'
 		copy(param[1:], *cmd.Command)
 		param[len(param)-1] = '"'
-		rawChainHelp, err := chainClient.RawRequest("help", []json.RawMessage{param})
+		postClient, err := chainClient.POSTClient()
 		if err == nil {
-			_ = json.Unmarshal([]byte(rawChainHelp), &chainHelp)
+			rawChainHelp, err := postClient.RawRequest("help", []json.RawMessage{param})
+			if err == nil {
+				_ = json.Unmarshal([]byte(rawChainHelp), &chainHelp)
+			}
 		}
 	}
 	if chainHelp != "" {
@@ -1534,8 +1643,12 @@ func help(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) 
 
 // listAccounts handles a listaccounts request by returning a map of account
 // names to their balances.
-func listAccounts(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func listAccounts(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListAccountsCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	accountBalances := map[string]float64{}
 	results, err := w.CalculateAccountBalances(int32(*cmd.MinConf))
@@ -1555,7 +1668,12 @@ func listAccounts(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // listLockUnspent handles a listlockunspent request by returning an slice of
 // all locked outpoints.
-func listLockUnspent(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func listLockUnspent(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	return w.LockedOutpoints(), nil
 }
 
@@ -1569,8 +1687,12 @@ func listLockUnspent(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 //             default: one;
 //  "includeempty": whether or not to include addresses that have no transactions -
 //                  default: false.
-func listReceivedByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func listReceivedByAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListReceivedByAccountCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	results, err := w.TotalReceivedForAccounts(int32(*cmd.MinConf))
 	if err != nil {
@@ -1599,8 +1721,12 @@ func listReceivedByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, err
 //             default: one;
 //  "includeempty": whether or not to include addresses that have no transactions -
 //                  default: false.
-func listReceivedByAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func listReceivedByAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListReceivedByAddressCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	// Intermediate data for each address.
 	type AddrData struct {
@@ -1688,8 +1814,17 @@ func listReceivedByAddress(icmd interface{}, w *wallet.Wallet) (interface{}, err
 
 // listSinceBlock handles a listsinceblock request by returning an array of maps
 // with details of sent and received wallet transactions since the given block.
-func listSinceBlock(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func listSinceBlock(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListSinceBlockCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
+	chainClient, ok := s.requireChainClient()
+	if !ok {
+		return nil, &ErrClientNotConnected
+	}
 
 	_, tipHeight := w.MainChainTip()
 	targetConf := int64(*cmd.TargetConfirmations)
@@ -1732,7 +1867,12 @@ func listSinceBlock(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclien
 
 // listScripts handles a listscripts request by returning an
 // array of script details for all scripts in the wallet.
-func listScripts(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func listScripts(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	redeemScripts, err := w.FetchAllRedeemScripts()
 	if err != nil {
 		return nil, err
@@ -1755,8 +1895,12 @@ func listScripts(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // listTransactions handles a listtransactions request by returning an
 // array of maps with details of sent and recevied wallet transactions.
-func listTransactions(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func listTransactions(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListTransactionsCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	// TODO: ListTransactions does not currently understand the difference
 	// between transactions pertaining to one account from another.  This
@@ -1780,8 +1924,12 @@ func listTransactions(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // transactions.  The form of the reply is identical to listtransactions,
 // but the array elements are limited to transaction details which are
 // about the addresess included in the request.
-func listAddressTransactions(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func listAddressTransactions(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListAddressTransactionsCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	if cmd.Account != nil && *cmd.Account != "*" {
 		return nil, &dcrjson.RPCError{
@@ -1808,8 +1956,12 @@ func listAddressTransactions(icmd interface{}, w *wallet.Wallet) (interface{}, e
 // a map with details of sent and recevied wallet transactions.  This is
 // similar to ListTransactions, except it takes only a single optional
 // argument for the account name and replies with all transactions.
-func listAllTransactions(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func listAllTransactions(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListAllTransactionsCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	if cmd.Account != nil && *cmd.Account != "*" {
 		return nil, &dcrjson.RPCError{
@@ -1822,8 +1974,12 @@ func listAllTransactions(icmd interface{}, w *wallet.Wallet) (interface{}, error
 }
 
 // listUnspent handles the listunspent command.
-func listUnspent(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func listUnspent(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListUnspentCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	var addresses map[string]struct{}
 	if cmd.Addresses != nil {
@@ -1842,8 +1998,12 @@ func listUnspent(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 }
 
 // lockUnspent handles the lockunspent command.
-func lockUnspent(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func lockUnspent(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.LockUnspentCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	switch {
 	case cmd.Unlock && len(cmd.Transactions) == 0:
@@ -1868,9 +2028,14 @@ func lockUnspent(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // purchaseTicket indicates to the wallet that a ticket should be purchased
 // using all currently available funds. If the ticket could not be purchased
 // because there are not enough eligible funds, an error will be returned.
-func purchaseTicket(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 	// Enforce valid and positive spend limit.
 	cmd := icmd.(*dcrjson.PurchaseTicketCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	spendLimit, err := dcrutil.NewAmount(cmd.SpendLimit)
 	if err != nil {
 		return nil, err
@@ -2016,8 +2181,12 @@ func sendPairs(w *wallet.Wallet, amounts map[string]dcrutil.Amount,
 // construct a transaction with a single P2PKH paying to a specified address.
 // It signs any inputs that it can, then provides the raw transaction to
 // the user to export to others to sign.
-func redeemMultiSigOut(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func redeemMultiSigOut(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.RedeemMultiSigOutCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	// Convert the address to a useable format. If
 	// we have no address, create a new address in
@@ -2108,7 +2277,7 @@ func redeemMultiSigOut(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpccl
 	}
 
 	// Sign it and give the results to the user.
-	signedTxResult, err := signRawTransaction(srtc, w, chainClient)
+	signedTxResult, err := signRawTransaction(s, srtc)
 	if signedTxResult == nil || err != nil {
 		return nil, err
 	}
@@ -2121,8 +2290,12 @@ func redeemMultiSigOut(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpccl
 // with that address, then generates a list of partially signed
 // transactions spending to either an address specified or internal
 // addresses in this wallet.
-func redeemMultiSigOuts(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func redeemMultiSigOuts(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.RedeemMultiSigOutsCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	// Get all the multisignature outpoints that are unspent for this
 	// address.
@@ -2156,7 +2329,7 @@ func redeemMultiSigOuts(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcc
 			Tree:    mso.OutPoint.Tree,
 			Address: cmd.ToAddress,
 		}
-		redeemResult, err := redeemMultiSigOut(rmsoRequest, w, chainClient)
+		redeemResult, err := redeemMultiSigOut(s, rmsoRequest)
 		if err != nil {
 			return nil, err
 		}
@@ -2171,24 +2344,48 @@ func redeemMultiSigOuts(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcc
 
 // rescanWallet initiates a rescan of the block chain for wallet data, blocking
 // until the rescan completes or exits with an error.
-func rescanWallet(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func rescanWallet(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.RescanWalletCmd)
-	n := chain.BackendFromRPCClient(chainClient)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
+	chainClient, ok := s.requireChainClient()
+	if !ok {
+		return nil, &ErrClientNotConnected
+	}
+
+	n := chain.BackendFromRPCClient(chainClient.Client)
 	err := w.RescanFromHeight(context.TODO(), n, int32(*cmd.BeginHeight))
 	return nil, err
 }
 
 // revokeTickets initiates the wallet to issue revocations for any missing tickets that
 // not yet been revoked.
-func revokeTickets(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
-	err := w.RevokeTickets(chainClient)
+func revokeTickets(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
+	chainClient, ok := s.requireChainClient()
+	if !ok {
+		return nil, &ErrClientNotConnected
+	}
+
+	err := w.RevokeTickets(chainClient.Client)
 	return nil, err
 }
 
 // stakePoolUserInfo returns the ticket information for a given user from the
 // stake pool.
-func stakePoolUserInfo(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func stakePoolUserInfo(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.StakePoolUserInfoCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	userAddr, err := dcrutil.DecodeAddress(cmd.User)
 	if err != nil {
@@ -2236,8 +2433,12 @@ func stakePoolUserInfo(icmd interface{}, w *wallet.Wallet) (interface{}, error) 
 // ticketsForAddress retrieves all ticket hashes that have the passed voting
 // address. It will only return tickets that are in the mempool or blockchain,
 // and should not return pruned tickets.
-func ticketsForAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func ticketsForAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.TicketsForAddressCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	addr, err := dcrutil.DecodeAddress(cmd.Address)
 	if err != nil {
@@ -2266,8 +2467,12 @@ func isNilOrEmpty(s *string) bool {
 // address.  Leftover inputs not sent to the payment address or a fee for
 // the miner are sent back to a new address in the wallet.  Upon success,
 // the TxID for the created transaction is returned.
-func sendFrom(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func sendFrom(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SendFromCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	// Transaction comments are not yet supported.  Error instead of
 	// pretending to save them.
@@ -2308,8 +2513,12 @@ func sendFrom(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Clie
 // payment addresses.  Leftover inputs not sent to the payment address
 // or a fee for the miner are sent back to a new address in the wallet.
 // Upon success, the TxID for the created transaction is returned.
-func sendMany(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func sendMany(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SendManyCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	// Transaction comments are not yet supported.  Error instead of
 	// pretending to save them.
@@ -2349,8 +2558,12 @@ func sendMany(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // payment address.  Leftover inputs not sent to the payment address or a fee
 // for the miner are sent back to a new address in the wallet.  Upon success,
 // the TxID for the created transaction is returned.
-func sendToAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func sendToAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SendToAddressCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	// Transaction comments are not yet supported.  Error instead of
 	// pretending to save them.
@@ -2391,8 +2604,13 @@ func sendToAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // The function returns a tx hash, P2SH address, and a multisig script if
 // successful.
 // TODO Use with non-default accounts as well
-func sendToMultiSig(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func sendToMultiSig(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SendToMultiSigCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	account := uint32(udb.DefaultAccountNum)
 	amount, err := dcrutil.NewAmount(cmd.Amount)
 	if err != nil {
@@ -2445,6 +2663,11 @@ func sendToMultiSig(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclien
 		RedeemScript: hex.EncodeToString(script),
 	}
 
+	chainClient, ok := s.requireChainClient()
+	if !ok {
+		return nil, &ErrClientNotConnected
+	}
+
 	err = chainClient.LoadTxFilter(false, []dcrutil.Address{addr}, nil)
 	if err != nil {
 		return nil, err
@@ -2457,8 +2680,12 @@ func sendToMultiSig(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclien
 }
 
 // setTicketFee sets the transaction fee per kilobyte added to tickets.
-func setTicketFee(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func setTicketFee(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SetTicketFeeCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	// Check that amount is not negative.
 	if cmd.Fee < 0 {
@@ -2476,8 +2703,12 @@ func setTicketFee(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 }
 
 // setTxFee sets the transaction fee per kilobyte added to transactions.
-func setTxFee(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func setTxFee(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SetTxFeeCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	// Check that amount is not negative.
 	if cmd.Amount < 0 {
@@ -2496,8 +2727,13 @@ func setTxFee(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // setVoteChoice handles a setvotechoice request by modifying the preferred
 // choice for a voting agenda.
-func setVoteChoice(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func setVoteChoice(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SetVoteChoiceCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	_, err := w.SetAgendaChoices(wallet.AgendaChoice{
 		AgendaID: cmd.AgendaID,
 		ChoiceID: cmd.ChoiceID,
@@ -2507,8 +2743,12 @@ func setVoteChoice(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // signMessage signs the given message with the private key for the given
 // address
-func signMessage(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func signMessage(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SignMessageCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	addr, err := decodeAddress(cmd.Address, w.ChainParams())
 	if err != nil {
@@ -2521,16 +2761,16 @@ func signMessage(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	return base64.StdEncoding.EncodeToString(sig), nil
 }
 
-func signRawTransactionNoChainRPC(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	return signRawTransaction(icmd, w, nil)
-}
-
 // signRawTransaction handles the signrawtransaction command.
 //
 // chainClient may be nil, in which case it was called by the NoChainRPC
 // variant.  It must be checked before all usage.
-func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SignRawTransactionCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	serializedTx, err := decodeHexStr(cmd.RawTx)
 	if err != nil {
@@ -2633,13 +2873,12 @@ func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcc
 			continue
 		}
 
-		// Asynchronously request the output script.
-		if chainClient == nil {
-			return nil, &dcrjson.RPCError{
-				Code:    -1,
-				Message: "Chain RPC is inactive",
-			}
+		chainClient, ok := s.requireChainClient()
+		if !ok {
+			return nil, &ErrClientNotConnected
 		}
+
+		// Asynchronously request the output script.
 		requested[txIn.PreviousOutPoint] = chainClient.GetTxOutAsync(
 			&txIn.PreviousOutPoint.Hash, txIn.PreviousOutPoint.Index,
 			true)
@@ -2743,8 +2982,17 @@ func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcc
 }
 
 // signRawTransactions handles the signrawtransactions command.
-func signRawTransactions(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func signRawTransactions(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SignRawTransactionsCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
+	chainClient, ok := s.requireChainClient()
+	if !ok {
+		return nil, &ErrClientNotConnected
+	}
 
 	// Sign each transaction sequentially and record the results.
 	// Error out if we meet some unexpected failure.
@@ -2755,7 +3003,7 @@ func signRawTransactions(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpc
 			RawTx: etx,
 			Flags: &flagAll,
 		}
-		result, err := signRawTransaction(srtc, w, chainClient)
+		result, err := signRawTransaction(s, srtc)
 		if err != nil {
 			return nil, err
 		}
@@ -2822,8 +3070,12 @@ func signRawTransactions(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpc
 }
 
 // validateAddress handles the validateaddress command.
-func validateAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func validateAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ValidateAddressCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	result := dcrjson.ValidateAddressWalletResult{}
 	addr, err := decodeAddress(cmd.Address, w.ChainParams())
@@ -2913,7 +3165,7 @@ func validateAddress(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 
 // verifyMessage handles the verifymessage command by verifying the provided
 // compact signature for the given address and message.
-func verifyMessage(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func verifyMessage(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.VerifyMessageCmd)
 
 	var valid bool
@@ -2952,27 +3204,14 @@ WrongAddrKind:
 	return nil, InvalidParameterError{errors.New("address must be secp256k1 P2PK or P2PKH")}
 }
 
-// versionWithChainRPC handles the version request when the RPC server has been
-// associated with a consensus RPC client.  The additional RPC client is used to
-// include the version results of the consensus RPC server via RPC passthrough.
-func versionWithChainRPC(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
-	return version(icmd, w, chainClient)
-}
-
-// versionNoChainRPC handles the version request when the RPC server has not
-// been associated with a consesnus RPC client.  No version results are included
-// for passphrough requests.
-func versionNoChainRPC(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
-	return version(icmd, w, nil)
-}
-
 // version handles the version command by returning the RPC API versions of the
 // wallet and, optionally, the consensus RPC server as well if it is associated
 // with the server.  The chainClient is optional, and this is simply a helper
 // function for the versionWithChainRPC and versionNoChainRPC handlers.
-func version(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Client) (interface{}, error) {
+func version(s *Server, icmd interface{}) (interface{}, error) {
 	var resp map[string]dcrjson.VersionResult
-	if chainClient != nil {
+	chainClient, ok := s.requireChainClient()
+	if !ok {
 		var err error
 		resp, err = chainClient.Version()
 		if err != nil {
@@ -2994,7 +3233,12 @@ func version(icmd interface{}, w *wallet.Wallet, chainClient *dcrrpcclient.Clien
 // walletInfo gets the current information about the wallet. If the daemon
 // is connected and fails to ping, the function will still return that the
 // daemon is disconnected.
-func walletInfo(icmd interface{}, w *wallet.Wallet, l *loader.Loader) (interface{}, error) {
+func walletInfo(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	n, err := w.NetworkBackend()
 	connected := err == nil
 	if connected {
@@ -3011,7 +3255,7 @@ func walletInfo(icmd interface{}, w *wallet.Wallet, l *loader.Loader) (interface
 	unlocked := !(w.Locked())
 	fi := w.RelayFee()
 	tfi := w.TicketFeeIncrement()
-	tp := l.PurchaseManager() != nil
+	tp := s.walletLoader.PurchaseManager() != nil
 	voteBits := w.VoteBits()
 	var voteVersion uint32
 	_ = binary.Read(bytes.NewBuffer(voteBits.ExtendedBits[0:4]), binary.LittleEndian, &voteVersion)
@@ -3033,14 +3277,24 @@ func walletInfo(icmd interface{}, w *wallet.Wallet, l *loader.Loader) (interface
 // walletIsLocked handles the walletislocked extension request by
 // returning the current lock state (false for unlocked, true for locked)
 // of an account.
-func walletIsLocked(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func walletIsLocked(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	return w.Locked(), nil
 }
 
 // walletLock handles a walletlock request by locking the all account
 // wallets, returning an error if any wallet is not encrypted (for example,
 // a watching-only wallet).
-func walletLock(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func walletLock(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
 	w.Lock()
 	return nil, nil
 }
@@ -3048,8 +3302,12 @@ func walletLock(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 // walletPassphrase responds to the walletpassphrase request by unlocking
 // the wallet.  The decryption key is saved in the wallet until timeout
 // seconds expires, after which the wallet is locked.
-func walletPassphrase(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func walletPassphrase(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.WalletPassphraseCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	timeout := time.Second * time.Duration(cmd.Timeout)
 	var unlockAfter <-chan time.Time
@@ -3067,8 +3325,12 @@ func walletPassphrase(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 //
 // If the old passphrase is correct and the passphrase is changed, all
 // wallets will be immediately locked.
-func walletPassphraseChange(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
+func walletPassphraseChange(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.WalletPassphraseChangeCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
 
 	err := w.ChangePrivatePassphrase([]byte(cmd.OldPassphrase),
 		[]byte(cmd.NewPassphrase))

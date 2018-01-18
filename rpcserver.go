@@ -184,7 +184,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			MaxPOSTClients:      cfg.LegacyRPCMaxClients,
 			MaxWebsocketClients: cfg.LegacyRPCMaxWebsockets,
 		}
-		legacyServer = legacyrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
+		legacyServer = legacyrpc.NewServer(&opts, activeNet.Params, walletLoader, &cfg.tbCfg, listeners)
 		for _, lis := range listeners {
 			jsonrpcAddrNotifier.notify(lis.Addr().String())
 		}
