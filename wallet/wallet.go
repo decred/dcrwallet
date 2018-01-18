@@ -154,7 +154,7 @@ type Config struct {
 
 	VotingEnabled bool
 	AddressReuse  bool
-	TicketAddress dcrutil.Address
+	VotingAddress dcrutil.Address
 	PoolAddress   dcrutil.Address
 	PoolFees      float64
 	TicketFee     float64
@@ -3569,7 +3569,7 @@ func Open(cfg *Config) (*Wallet, error) {
 		// StakeOptions
 		votingEnabled: cfg.VotingEnabled,
 		addressReuse:  cfg.AddressReuse,
-		ticketAddress: cfg.TicketAddress,
+		ticketAddress: cfg.VotingAddress,
 		poolAddress:   cfg.PoolAddress,
 		poolFees:      cfg.PoolFees,
 
