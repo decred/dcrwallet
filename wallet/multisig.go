@@ -6,12 +6,15 @@ package wallet
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/wallet/internal/txsizes"
+	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
@@ -184,4 +187,29 @@ func (w *Wallet) FetchAllRedeemScripts() ([][]byte, error) {
 		return err
 	})
 	return redeemScripts, err
+}
+
+// PrepareRedeemMultiSigOutTxOutput estimates the tx value for a MultiSigOutTx
+// output and adds it
+func (w *Wallet) PrepareRedeemMultiSigOutTxOutput(msgTx *wire.MsgTx, p2shOutput *P2SHMultiSigOutput, pkScript *[]byte) error {
+	scriptSizers := []txsizes.ScriptSizer{}
+	// generate the script sizers for the inputs
+	for range msgTx.TxIn {
+		scriptSizers = append(scriptSizers, txsizes.P2SHScriptSize)
+	}
+
+	// estimate the output fee
+	txOut := wire.NewTxOut(0, *pkScript)
+	feeSize := txsizes.EstimateSerializeSize(scriptSizers, []*wire.TxOut{txOut}, false)
+	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), feeSize)
+	if feeEst >= p2shOutput.OutputAmount {
+		return fmt.Errorf("multisig out amt is too small "+
+			"(have %v, %v fee suggested)", p2shOutput.OutputAmount, feeEst)
+	}
+
+	toReceive := p2shOutput.OutputAmount - feeEst
+	// set the output value and add to the tx
+	txOut.Value = int64(toReceive)
+	msgTx.AddTxOut(txOut)
+	return nil
 }

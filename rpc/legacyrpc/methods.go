@@ -2230,20 +2230,15 @@ func redeemMultiSigOut(s *Server, icmd interface{}) (interface{}, error) {
 	var msgTx wire.MsgTx
 	msgTx.AddTxIn(wire.NewTxIn(&op, nil))
 
-	// Calculate the fees required, and make sure we have enough.
-	// Then produce the txout.
-	size := wallet.EstimateTxSize(1, 1)
-	feeEst := wallet.FeeForSize(w.RelayFee(), size)
-	if feeEst >= p2shOutput.OutputAmount {
-		return nil, fmt.Errorf("multisig out amt is too small "+
-			"(have %v, %v fee suggested)", p2shOutput.OutputAmount, feeEst)
-	}
-	toReceive := p2shOutput.OutputAmount - feeEst
 	pkScript, err := txscript.PayToAddrScript(addr)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create txout script: %s", err)
 	}
-	msgTx.AddTxOut(wire.NewTxOut(int64(toReceive), pkScript))
+
+	err = w.PrepareRedeemMultiSigOutTxOutput(&msgTx, p2shOutput, &pkScript)
+	if err != nil {
+		return nil, err
+	}
 
 	// Start creating the SignRawTransactionCmd.
 	outpointScript, err := txscript.PayToScriptHashScript(p2shOutput.P2SHAddress.Hash160()[:])

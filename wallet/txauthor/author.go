@@ -98,7 +98,8 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	fetchInputs InputSource, fetchChange ChangeSource) (*AuthoredTx, error) {
 
 	targetAmount := h.SumOutputValues(outputs)
-	estimatedSize := txsizes.EstimateSerializeSize(1, outputs, true)
+	scriptSizers := []txsizes.ScriptSizer{txsizes.P2PKHScriptSize}
+	estimatedSize := txsizes.EstimateSerializeSize(scriptSizers, outputs, true)
 	targetFee := txrules.FeeForSerializeSize(relayFeePerKb, estimatedSize)
 
 	for {
@@ -106,11 +107,17 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 		if err != nil {
 			return nil, err
 		}
+
 		if inputAmount < targetAmount+targetFee {
 			return nil, InsufficientFundsError{}
 		}
 
-		maxSignedSize := txsizes.EstimateSerializeSize(len(inputs), outputs, true)
+		scriptSizers := []txsizes.ScriptSizer{}
+		for range inputs {
+			scriptSizers = append(scriptSizers, txsizes.P2PKHScriptSize)
+		}
+
+		maxSignedSize := txsizes.EstimateSerializeSize(scriptSizers, outputs, true)
 		maxRequiredFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
 		remainingAmount := inputAmount - targetAmount
 		if remainingAmount < maxRequiredFee {
@@ -148,7 +155,7 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 			changeIndex = l
 		}
 
-		estSignedSize := txsizes.EstimateSerializeSize(len(unsignedTransaction.TxIn),
+		estSignedSize := txsizes.EstimateSerializeSize(scriptSizers,
 			unsignedTransaction.TxOut, false)
 		return &AuthoredTx{
 			Tx:                           unsignedTransaction,
