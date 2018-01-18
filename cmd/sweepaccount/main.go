@@ -46,21 +46,29 @@ var opts = struct {
 	SimNet                bool                `long:"simnet" description:"Use the simulation decred network"`
 	RPCConnect            string              `short:"c" long:"connect" description:"Hostname[:port] of wallet RPC server"`
 	RPCUsername           string              `short:"u" long:"rpcuser" description:"Wallet RPC username"`
+	RPCPassword           string              `short:"P" long:"rpcpass" description:"Wallet RPC password"`
 	RPCCertificateFile    string              `long:"cafile" description:"Wallet RPC TLS certificate"`
 	FeeRate               *cfgutil.AmountFlag `long:"feerate" description:"Transaction fee per kilobyte"`
 	SourceAccount         string              `long:"sourceacct" description:"Account to sweep outputs from"`
+	SourceAddress         string              `long:"sourceaddr" description:"Address to sweep outputs from"`
 	DestinationAccount    string              `long:"destacct" description:"Account to send sweeped outputs to"`
+	DestinationAddress    string              `long:"destaddr" description:"Address to send sweeped outputs to"`
 	RequiredConfirmations int64               `long:"minconf" description:"Required confirmations to include an output"`
+	DryRun                bool                `long:"dryrun" description:"Do not actually send any transactions but output what would have happened"`
 }{
 	TestNet:               false,
 	SimNet:                false,
 	RPCConnect:            "localhost",
 	RPCUsername:           "",
+	RPCPassword:           "",
 	RPCCertificateFile:    filepath.Join(walletDataDirectory, "rpc.cert"),
 	FeeRate:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
-	SourceAccount:         "imported",
-	DestinationAccount:    "default",
+	SourceAccount:         "",
+	SourceAddress:         "",
+	DestinationAccount:    "",
+	DestinationAddress:    "",
 	RequiredConfirmations: 2,
+	DryRun:                false,
 }
 
 // Parse and validate flags.
@@ -117,8 +125,17 @@ func init() {
 	if opts.FeeRate.Amount < 1e2 {
 		fatalf("Fee rate `%v/kB` is exceptionally low", opts.FeeRate.Amount)
 	}
-	if opts.SourceAccount == opts.DestinationAccount {
+	if opts.SourceAccount == "" && opts.SourceAddress == "" {
+		fatalf("A source is required")
+	}
+	if opts.SourceAccount != "" && opts.SourceAccount == opts.DestinationAccount {
 		fatalf("Source and destination accounts should not be equal")
+	}
+	if opts.DestinationAccount == "" && opts.DestinationAddress == "" {
+		fatalf("A destination is required")
+	}
+	if opts.DestinationAccount != "" && opts.DestinationAddress != "" {
+		fatalf("Destination must be either an account or an address")
 	}
 	if opts.RequiredConfirmations < 0 {
 		fatalf("Required confirmations must be non-negative")
@@ -183,12 +200,25 @@ func makeInputSource(outputs []dcrjson.ListUnspentResult) txauthor.InputSource {
 	}
 }
 
-// makeDestinationScriptSource creates a ChangeSource which is used to receive
-// all correlated previous input value.  A non-change address is created by this
-// function.
-func makeDestinationScriptSource(rpcClient *dcrrpcclient.Client, accountName string) txauthor.ChangeSource {
+// makeDestinationScriptSourceToAccount creates a ChangeSource which is used to
+// receive all correlated previous input value.  A non-change address is created
+// by this function.
+func makeDestinationScriptSourceToAccount(rpcClient *dcrrpcclient.Client, accountName string) txauthor.ChangeSource {
 	return func() ([]byte, uint16, error) {
 		destinationAddress, err := rpcClient.GetNewAddress(accountName)
+		if err != nil {
+			return nil, 0, err
+		}
+		script, err := txscript.PayToAddrScript(destinationAddress)
+		return script, txscript.DefaultScriptVersion, err
+	}
+}
+
+// makeDestinationScriptSourceToAddress creates a ChangeSource which is used to
+// receive all correlated previous input value.
+func makeDestinationScriptSourceToAddress(rpcClient *dcrrpcclient.Client, address string) txauthor.ChangeSource {
+	return func() ([]byte, uint16, error) {
+		destinationAddress, err := dcrutil.DecodeAddress(address)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -205,9 +235,15 @@ func main() {
 }
 
 func sweep() error {
-	rpcPassword, err := promptSecret("Wallet RPC password")
-	if err != nil {
-		return errContext(err, "failed to read RPC password")
+	rpcPassword := opts.RPCPassword
+
+	if rpcPassword == "" {
+		secret, err := promptSecret("Wallet RPC password")
+		if err != nil {
+			return errContext(err, "failed to read RPC password")
+		}
+
+		rpcPassword = secret
 	}
 
 	// Open RPC client.
@@ -243,11 +279,20 @@ func sweep() error {
 		if unspentOutput.Confirmations < opts.RequiredConfirmations {
 			continue
 		}
-		if unspentOutput.Account != opts.SourceAccount {
+		if opts.SourceAccount != "" && opts.SourceAccount != unspentOutput.Account {
+			continue
+		}
+		if opts.SourceAddress != "" && opts.SourceAddress != unspentOutput.Address {
 			continue
 		}
 		sourceAddressOutputs := sourceOutputs[unspentOutput.Address]
 		sourceOutputs[unspentOutput.Address] = append(sourceAddressOutputs, unspentOutput)
+	}
+
+	for address, outputs := range sourceOutputs {
+		outputNoun := pickNoun(len(outputs), "output", "outputs")
+		fmt.Printf("Found %d matching unspent %s for address %s\n",
+			len(outputs), outputNoun, address)
 	}
 
 	var privatePassphrase string
@@ -267,7 +312,17 @@ func sweep() error {
 	}
 	for _, previousOutputs := range sourceOutputs {
 		inputSource := makeInputSource(previousOutputs)
-		destinationSource := makeDestinationScriptSource(rpcClient, opts.DestinationAccount)
+
+		var destinationSource txauthor.ChangeSource
+
+		if opts.DestinationAccount != "" {
+			destinationSource = makeDestinationScriptSourceToAccount(rpcClient, opts.DestinationAccount)
+		}
+
+		if opts.DestinationAddress != "" {
+			destinationSource = makeDestinationScriptSourceToAddress(rpcClient, opts.DestinationAddress)
+		}
+
 		tx, err := txauthor.NewUnsignedTransaction(nil, opts.FeeRate.Amount,
 			inputSource, destinationSource)
 		if err != nil {
@@ -295,14 +350,21 @@ func sweep() error {
 		}
 
 		// Publish the signed sweep transaction.
-		txHash, err := rpcClient.SendRawTransaction(signedTransaction, false)
-		if err != nil {
-			reportError("Failed to publish transaction: %v", err)
-			continue
+		txHash := "DRYRUN"
+		if opts.DryRun {
+			fmt.Printf("DRY RUN: not actually sending transaction\n")
+		} else {
+			hash, err := rpcClient.SendRawTransaction(signedTransaction, false)
+			if err != nil {
+				reportError("Failed to publish transaction: %v", err)
+				continue
+			}
+
+			txHash = hash.String()
 		}
 
 		outputAmount := dcrutil.Amount(tx.Tx.TxOut[0].Value)
-		fmt.Printf("Swept %v to destination account with transaction %v\n",
+		fmt.Printf("Swept %v to destination with transaction %v\n",
 			outputAmount, txHash)
 		totalSwept += outputAmount
 	}
@@ -310,7 +372,7 @@ func sweep() error {
 	numPublished := len(sourceOutputs) - numErrors
 	transactionNoun := pickNoun(numErrors, "transaction", "transactions")
 	if numPublished != 0 {
-		fmt.Printf("Swept %v to destination account across %d %s\n",
+		fmt.Printf("Swept %v to destination across %d %s\n",
 			totalSwept, numPublished, transactionNoun)
 	}
 	if numErrors > 0 {
