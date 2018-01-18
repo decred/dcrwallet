@@ -162,10 +162,22 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 
 	// Open the newly-created wallet.
 	so := l.stakeOptions
-	w, err = wallet.Open(db, pubPassphrase, so.VotingEnabled, so.AddressReuse,
-		so.VotingAddress, so.PoolAddress, so.PoolFees, so.TicketFee,
-		l.addrIdxScanLen, so.StakePoolColdExtKey, l.allowHighFees,
-		l.relayFee, l.chainParams)
+	cfg := &wallet.Config{
+		DB:                  db,
+		PubPassphrase:       pubPassphrase,
+		VotingEnabled:       so.VotingEnabled,
+		AddressReuse:        so.AddressReuse,
+		VotingAddress:       so.VotingAddress,
+		PoolAddress:         so.PoolAddress,
+		PoolFees:            so.PoolFees,
+		TicketFee:           so.TicketFee,
+		GapLimit:            l.addrIdxScanLen,
+		StakePoolColdExtKey: so.StakePoolColdExtKey,
+		AllowHighFees:       l.allowHighFees,
+		RelayFee:            l.relayFee,
+		Params:              l.chainParams,
+	}
+	w, err = wallet.Open(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -205,10 +217,22 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 	}()
 
 	so := l.stakeOptions
-	w, err = wallet.Open(db, pubPassphrase, so.VotingEnabled, so.AddressReuse,
-		so.VotingAddress, so.PoolAddress, so.PoolFees, so.TicketFee,
-		l.addrIdxScanLen, so.StakePoolColdExtKey, l.allowHighFees,
-		l.relayFee, l.chainParams)
+	cfg := &wallet.Config{
+		DB:                  db,
+		PubPassphrase:       pubPassphrase,
+		VotingEnabled:       so.VotingEnabled,
+		AddressReuse:        so.AddressReuse,
+		VotingAddress:       so.VotingAddress,
+		PoolAddress:         so.PoolAddress,
+		PoolFees:            so.PoolFees,
+		TicketFee:           so.TicketFee,
+		GapLimit:            l.addrIdxScanLen,
+		StakePoolColdExtKey: so.StakePoolColdExtKey,
+		AllowHighFees:       l.allowHighFees,
+		RelayFee:            l.relayFee,
+		Params:              l.chainParams,
+	}
+	w, err = wallet.Open(cfg)
 	if err != nil {
 		return nil, err
 	}

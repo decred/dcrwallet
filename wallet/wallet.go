@@ -146,91 +146,24 @@ type Wallet struct {
 	quitMu  sync.Mutex
 }
 
-// newWallet creates a new Wallet structure with the provided address manager
-// and transaction store.
-func newWallet(votingEnabled bool, addressReuse bool, ticketAddress dcrutil.Address,
-	poolAddress dcrutil.Address, pf float64, relayFee, ticketFee dcrutil.Amount,
-	gapLimit int, stakePoolColdAddrs map[string]struct{}, AllowHighFees bool,
-	mgr *udb.Manager, txs *udb.Store, smgr *udb.StakeStore, db *walletdb.DB,
-	params *chaincfg.Params) *Wallet {
+// Config represents the configuration options needed to initialize a wallet.
+type Config struct {
+	DB walletdb.DB
 
-	w := &Wallet{
-		db:                       *db,
-		Manager:                  mgr,
-		TxStore:                  txs,
-		StakeMgr:                 smgr,
-		votingEnabled:            votingEnabled,
-		lockedOutpoints:          map[wire.OutPoint]struct{}{},
-		relayFee:                 relayFee,
-		ticketFeeIncrement:       ticketFee,
-		AllowHighFees:            AllowHighFees,
-		consolidateRequests:      make(chan consolidateRequest),
-		createTxRequests:         make(chan createTxRequest),
-		createMultisigTxRequests: make(chan createMultisigTxRequest),
-		purchaseTicketRequests:   make(chan purchaseTicketRequest),
-		addressReuse:             addressReuse,
-		ticketAddress:            ticketAddress,
-		addressBuffers:           make(map[uint32]*bip0044AccountData),
-		poolAddress:              poolAddress,
-		poolFees:                 pf,
-		gapLimit:                 gapLimit,
-		stakePoolEnabled:         len(stakePoolColdAddrs) > 0,
-		stakePoolColdAddrs:       stakePoolColdAddrs,
-		subsidyCache:             blockchain.NewSubsidyCache(0, params),
-		initiallyUnlocked:        false,
-		unlockRequests:           make(chan unlockRequest),
-		lockRequests:             make(chan struct{}),
-		holdUnlockRequests:       make(chan chan heldUnlock),
-		lockState:                make(chan bool),
-		changePassphrase:         make(chan changePassphraseRequest),
-		chainParams:              params,
-		quit:                     make(chan struct{}),
-	}
+	PubPassphrase []byte
 
-	// TODO: remove newWallet, stick the above in Open, and don't ignore this
-	// error.
-	var vb stake.VoteBits
-	walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		ns := tx.ReadBucket(waddrmgrNamespaceKey)
-		lastAcct, err := w.Manager.LastAccount(ns)
-		if err != nil {
-			return err
-		}
-		for acct := uint32(0); acct <= lastAcct; acct++ {
-			xpub, err := w.Manager.AccountExtendedPubKey(tx, acct)
-			if err != nil {
-				return err
-			}
-			extKey, intKey, err := deriveBranches(xpub)
-			if err != nil {
-				return err
-			}
-			props, err := w.Manager.AccountProperties(ns, acct)
-			if err != nil {
-				return err
-			}
-			w.addressBuffers[acct] = &bip0044AccountData{
-				albExternal: addressBuffer{
-					branchXpub: extKey,
-					lastUsed:   props.LastUsedExternalIndex,
-					cursor:     props.LastReturnedExternalIndex - props.LastUsedExternalIndex,
-				},
-				albInternal: addressBuffer{
-					branchXpub: intKey,
-					lastUsed:   props.LastUsedInternalIndex,
-					cursor:     props.LastReturnedInternalIndex - props.LastUsedInternalIndex,
-				},
-			}
-		}
+	VotingEnabled bool
+	AddressReuse  bool
+	VotingAddress dcrutil.Address
+	PoolAddress   dcrutil.Address
+	PoolFees      float64
+	TicketFee     float64
 
-		vb = w.readDBVoteBits(tx)
-
-		return nil
-	})
-
-	w.NtfnServer = newNotificationServer(w)
-	w.voteBits = vb
-	return w
+	GapLimit            int
+	StakePoolColdExtKey string
+	AllowHighFees       bool
+	RelayFee            float64
+	Params              *chaincfg.Params
 }
 
 // StakeDifficulty is used to get the next block's stake difficulty.
@@ -3630,71 +3563,131 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 	return addrMap, nil
 }
 
-// Open loads an already-created wallet from the passed database and namespaces.
-func Open(db walletdb.DB, pubPass []byte, votingEnabled bool, addressReuse bool,
-	ticketAddress dcrutil.Address, poolAddress dcrutil.Address, poolFees float64, ticketFee float64,
-	gapLimit int, stakePoolColdExtKey string, allowHighFees bool,
-	relayFee float64, params *chaincfg.Params) (*Wallet, error) {
+// Open loads an already-created wallet from the passed database and namespaces
+// configuration options and sets it up it according to the rest of options.
+func Open(cfg *Config) (*Wallet, error) {
 
 	// Migrate to the unified DB if necessary.
-	needsMigration, err := udb.NeedsMigration(db)
+	needsMigration, err := udb.NeedsMigration(cfg.DB)
 	if err != nil {
 		return nil, err
 	}
 	if needsMigration {
-		err := udb.Migrate(db, params)
+		err := udb.Migrate(cfg.DB, cfg.Params)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Perform upgrades as necessary.
-	err = udb.Upgrade(db, pubPass)
+	err = udb.Upgrade(cfg.DB, cfg.PubPassphrase)
 	if err != nil {
 		return nil, err
+	}
+
+	w := &Wallet{
+		db: cfg.DB,
+
+		// StakeOptions
+		votingEnabled: cfg.VotingEnabled,
+		addressReuse:  cfg.AddressReuse,
+		ticketAddress: cfg.VotingAddress,
+		poolAddress:   cfg.PoolAddress,
+		poolFees:      cfg.PoolFees,
+
+		// LoaderOptions
+		gapLimit:      cfg.GapLimit,
+		AllowHighFees: cfg.AllowHighFees,
+
+		// Chain params
+		subsidyCache: blockchain.NewSubsidyCache(0, cfg.Params),
+		chainParams:  cfg.Params,
+
+		lockedOutpoints: map[wire.OutPoint]struct{}{},
+
+		initiallyUnlocked: false,
+
+		consolidateRequests:      make(chan consolidateRequest),
+		createTxRequests:         make(chan createTxRequest),
+		createMultisigTxRequests: make(chan createMultisigTxRequest),
+		purchaseTicketRequests:   make(chan purchaseTicketRequest),
+		addressBuffers:           make(map[uint32]*bip0044AccountData),
+		unlockRequests:           make(chan unlockRequest),
+		lockRequests:             make(chan struct{}),
+		holdUnlockRequests:       make(chan chan heldUnlock),
+		lockState:                make(chan bool),
+		changePassphrase:         make(chan changePassphraseRequest),
+		quit:                     make(chan struct{}),
 	}
 
 	// Open database managers
-	addrMgr, txMgr, smgr, err := udb.Open(db, params, pubPass)
+	w.Manager, w.TxStore, w.StakeMgr, err = udb.Open(cfg.DB, cfg.Params, cfg.PubPassphrase)
 	if err != nil {
 		return nil, err
 	}
-
-	stakePoolColdAddrs, err := decodeStakePoolColdExtKey(stakePoolColdExtKey,
-		params)
-	if err != nil {
-		return nil, err
-	}
-
-	ticketFeeAmt, err := dcrutil.NewAmount(ticketFee)
-	if err != nil {
-		return nil, err
-	}
-
-	relayFeeAmt, err := dcrutil.NewAmount(relayFee)
-	if err != nil {
-		return nil, err
-	}
-
 	log.Infof("Opened wallet") // TODO: log balance? last sync height?
 
-	w := newWallet(
-		votingEnabled,
-		addressReuse,
-		ticketAddress,
-		poolAddress,
-		poolFees,
-		relayFeeAmt,
-		ticketFeeAmt,
-		gapLimit,
-		stakePoolColdAddrs,
-		allowHighFees,
-		addrMgr,
-		txMgr,
-		smgr,
-		&db,
-		params,
-	)
+	var vb stake.VoteBits
+	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		ns := tx.ReadBucket(waddrmgrNamespaceKey)
+		lastAcct, err := w.Manager.LastAccount(ns)
+		if err != nil {
+			return err
+		}
+		for acct := uint32(0); acct <= lastAcct; acct++ {
+			xpub, err := w.Manager.AccountExtendedPubKey(tx, acct)
+			if err != nil {
+				return err
+			}
+			extKey, intKey, err := deriveBranches(xpub)
+			if err != nil {
+				return err
+			}
+			props, err := w.Manager.AccountProperties(ns, acct)
+			if err != nil {
+				return err
+			}
+			w.addressBuffers[acct] = &bip0044AccountData{
+				albExternal: addressBuffer{
+					branchXpub: extKey,
+					lastUsed:   props.LastUsedExternalIndex,
+					cursor:     props.LastReturnedExternalIndex - props.LastUsedExternalIndex,
+				},
+				albInternal: addressBuffer{
+					branchXpub: intKey,
+					lastUsed:   props.LastUsedInternalIndex,
+					cursor:     props.LastReturnedInternalIndex - props.LastUsedInternalIndex,
+				},
+			}
+		}
+
+		vb = w.readDBVoteBits(tx)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	w.NtfnServer = newNotificationServer(w)
+	w.voteBits = vb
+
+	w.stakePoolColdAddrs, err = decodeStakePoolColdExtKey(cfg.StakePoolColdExtKey,
+		cfg.Params)
+	if err != nil {
+		return nil, err
+	}
+	w.stakePoolEnabled = len(w.stakePoolColdAddrs) > 0
+
+	// Amounts
+	w.ticketFeeIncrement, err = dcrutil.NewAmount(cfg.TicketFee)
+	if err != nil {
+		return nil, err
+	}
+	w.relayFee, err = dcrutil.NewAmount(cfg.RelayFee)
+	if err != nil {
+		return nil, err
+	}
 
 	return w, nil
 }
