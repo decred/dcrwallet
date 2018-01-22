@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/decred/dcrd/hdkeychain"
+	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 	"golang.org/x/sync/errgroup"
@@ -167,17 +168,24 @@ Bsearch:
 func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) error {
 	_, slip0044CoinType := udb.CoinTypes(w.chainParams)
 	var activeCoinType uint32
+	var coinTypeKnown, isSLIP0044CoinType bool
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		activeCoinType, err = w.Manager.CoinType(dbtx)
-		return err
+		if apperrors.IsError(err, apperrors.ErrValueNoExists) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		coinTypeKnown = true
+		isSLIP0044CoinType = activeCoinType == slip0044CoinType
+		log.Debugf("DiscoverActiveAddresses: activeCoinType=%d", activeCoinType)
+		return nil
 	})
 	if err != nil {
 		return err
 	}
-	isSLIP0044CoinType := activeCoinType == slip0044CoinType
-
-	log.Debugf("DiscoverActiveAddresses: activeCoinType=%d", activeCoinType)
 
 	// Start by rescanning the accounts and determining what the
 	// current account index is. This scan should only ever be
@@ -357,8 +365,10 @@ func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) e
 
 	log.Infof("Finished address discovery")
 
-	// When the wallet uses the SLIP0044 coin type, there is nothing more to do.
-	if isSLIP0044CoinType {
+	// If the wallet does not know the current coin type (e.g. it is a watching
+	// only wallet created from an account master pubkey) or when the wallet
+	// uses the SLIP0044 coin type, there is nothing more to do.
+	if !coinTypeKnown || isSLIP0044CoinType {
 		return nil
 	}
 
