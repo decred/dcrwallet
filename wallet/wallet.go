@@ -3709,9 +3709,16 @@ func Open(cfg *Config) (*Wallet, error) {
 
 	fmt.Println("\n\nBy day")
 	fmt.Println("time                            spendable           total")
-	sums = summaries.NewManager(db, txMgr, params, wtxmgrNamespaceKey)
 	err = sums.Calculate(summaries.BalancesSummaryName, 0, 400000,
 		summaries.SummaryResolutionDay, fn)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("\n\nAll")
+	fmt.Println("time                            spendable           total")
+	err = sums.Calculate(summaries.BalancesSummaryName, 0000, 140000,
+		summaries.SummaryResolutionAll, fn)
 	if err != nil {
 		panic(err)
 	}

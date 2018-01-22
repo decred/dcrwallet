@@ -2,7 +2,6 @@ package summaries
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/dcrutil"
@@ -26,30 +25,6 @@ func NewBalancesSummary(sm SummaryManager) *BalancesSummary {
 	return &BalancesSummary{
 		sm: sm,
 	}
-}
-
-func (bs *BalancesSummary) previousBalance(beginHeight int32) (SummaryResult, error) {
-
-	res := SummaryResult{
-		BalanceSeriesSpendable: &SummaryResultDataPoint{},
-		BalanceSeriesTotal:     &SummaryResultDataPoint{},
-	}
-
-	if beginHeight < 1 {
-		return res, nil
-	}
-
-	f := func(ts time.Time, dps SummaryResult) (bool, error) {
-		res = SummaryResult{
-			BalanceSeriesSpendable: &SummaryResultDataPoint{IntValue: dps[BalanceSeriesSpendable].IntValue},
-			BalanceSeriesTotal:     &SummaryResultDataPoint{IntValue: dps[BalanceSeriesTotal].IntValue},
-		}
-		return false, nil
-	}
-
-	err := bs.Calculate(0, beginHeight-1, SummaryResolutionAll, f)
-
-	return res, err
 }
 
 func (bs *BalancesSummary) txBalanceChange(tx udb.TxDetails, res SummaryResult) error {
@@ -83,67 +58,65 @@ func (bs *BalancesSummary) txBalanceChange(tx udb.TxDetails, res SummaryResult) 
 		return fmt.Errorf("Unknown tx type in includeTx()")
 	}
 
-	res[BalanceSeriesSpendable].IntValue = int64(spendable)
-	res[BalanceSeriesTotal].IntValue = int64(total)
+	res[BalanceSeriesSpendable].IntValue += int64(spendable)
+	res[BalanceSeriesTotal].IntValue += int64(total)
 
 	return nil
 }
 
-func (bs *BalancesSummary) Calculate(beginHeight, endHeight int32,
+func (bs *BalancesSummary) calculate(dbtx walletdb.ReadTx, beginHeight, endHeight int32,
 	resolution SummaryResolution, f SummaryResultFunc) error {
 
-	dps, err := bs.previousBalance(beginHeight)
-	if err != nil {
-		return err
-	}
-	txChange := SummaryResult{
+	res := SummaryResult{
 		BalanceSeriesSpendable: &SummaryResultDataPoint{IntValue: 0},
 		BalanceSeriesTotal:     &SummaryResultDataPoint{IntValue: 0},
 	}
 
 	lastRefTime := epochTime
+	refTime := lastRefTime
+	gotData := false
+
+	rangeFn := func(details []udb.TxDetails) (bool, error) {
+		if details[0].Block.Height > beginHeight {
+			refTime = referenceTime(details[0].Block.Time, resolution)
+			gotData = true
+		}
+
+		if !refTime.Equal(lastRefTime) && !lastRefTime.Equal(epochTime) {
+			brk, err := f(lastRefTime, res)
+			if (err != nil) || brk {
+				return brk, err
+			}
+		}
+		lastRefTime = refTime
+
+		for _, tx := range details {
+			err := bs.txBalanceChange(tx, res)
+			if err != nil {
+				return true, err
+			}
+		}
+
+		return false, nil
+	}
+
+	ns := dbtx.ReadBucket(bs.sm.getTxMgrNs())
+	err := bs.sm.getTxStore().RangeTransactions(ns, 0, endHeight, rangeFn)
+	if err != nil {
+		return err
+	}
+
+	if gotData {
+		_, err = f(lastRefTime, res)
+	}
+
+	return err
+}
+
+func (bs *BalancesSummary) Calculate(beginHeight, endHeight int32,
+	resolution SummaryResolution, f SummaryResultFunc) error {
 
 	return walletdb.View(bs.sm.getDb(), func(dbtx walletdb.ReadTx) error {
-		rangeFn := func(details []udb.TxDetails) (bool, error) {
-			refTime := referenceTime(details[0].Block.Time, resolution)
-			if !refTime.Equal(lastRefTime) {
-				if !lastRefTime.Equal(epochTime) {
-					brk, err := f(lastRefTime, dps)
-					if (err != nil) || brk {
-						return brk, err
-					}
-				}
-				lastRefTime = refTime
-			}
-
-			for _, tx := range details {
-				err := bs.txBalanceChange(tx, txChange)
-				if err != nil {
-					return true, err
-				}
-
-				// FIXME: remove (here just to help out during development)
-				// fmt.Printf("%s %14.8f %14.8f  change \n", refTime.Format(time.RFC3339),
-				// 	float64(txChange[BalanceSeriesSpendable].IntValue) / 10e7,
-				// 	float64(txChange[BalanceSeriesTotal].IntValue) / 10e7)
-
-				dps[BalanceSeriesSpendable].IntValue += txChange[BalanceSeriesSpendable].IntValue
-				dps[BalanceSeriesTotal].IntValue += txChange[BalanceSeriesTotal].IntValue
-			}
-
-			return false, nil
-		}
-
-		ns := dbtx.ReadBucket(bs.sm.getTxMgrNs())
-		err := bs.sm.getTxStore().RangeTransactions(ns, beginHeight, endHeight, rangeFn)
-		if err != nil {
-			return err
-		}
-
-		if (lastRefTime != epochTime) && (resolution != SummaryResolutionAll) {
-			_, err = f(lastRefTime, dps)
-		}
-
-		return err
+		return bs.calculate(dbtx, beginHeight, endHeight, resolution, f)
 	})
 }
