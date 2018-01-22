@@ -31,7 +31,6 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/wallet/summaries"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
@@ -3691,34 +3690,34 @@ func Open(cfg *Config) (*Wallet, error) {
 	}
 
 	// FIXME just a test. Remove.
-	fn := func(refTime time.Time, dps summaries.SummaryResult) (bool, error) {
+	fn := func(refTime time.Time, dps SummaryResult) (bool, error) {
 		fmt.Printf("%s %15.8f %15.8f\n", refTime.Format(time.RFC3339),
-			float64(dps[summaries.BalanceSeriesSpendable].IntValue)/10e7,
-			float64(dps[summaries.BalanceSeriesTotal].IntValue)/10e7)
+			float64(dps[BalanceSeriesSpendable].IntValue)/10e7,
+			float64(dps[BalanceSeriesTotal].IntValue)/10e7)
 		return false, nil
 	}
 
 	fmt.Println("\n\nBy block")
 	fmt.Println("time                            spendable           total")
-	sums := summaries.NewManager(db, txMgr, params, wtxmgrNamespaceKey)
-	err = sums.Calculate(summaries.BalancesSummaryName, 0, 400000,
-		summaries.SummaryResolutionBlock, fn)
+	sums := NewSummariesManager(db, txMgr, params, wtxmgrNamespaceKey)
+	err = sums.Calculate(BalancesSummaryName, 0, 400000,
+		SummaryResolutionBlock, fn)
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println("\n\nBy day")
 	fmt.Println("time                            spendable           total")
-	err = sums.Calculate(summaries.BalancesSummaryName, 0, 400000,
-		summaries.SummaryResolutionDay, fn)
+	err = sums.Calculate(BalancesSummaryName, 0, 400000,
+		SummaryResolutionDay, fn)
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println("\n\nAll")
 	fmt.Println("time                            spendable           total")
-	err = sums.Calculate(summaries.BalancesSummaryName, 0000, 140000,
-		summaries.SummaryResolutionAll, fn)
+	err = sums.Calculate(BalancesSummaryName, 0000, 140000,
+		SummaryResolutionAll, fn)
 	if err != nil {
 		panic(err)
 	}
