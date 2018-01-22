@@ -781,22 +781,23 @@ results of a single ticket.
 
     - `REVOKED`: A ticket that has been revoked.
 
-- `BlockMeta block`: The block the ticket was mined
+- `BlockDetails block`: The block the ticket was mined. It is null if the
+   ticket hasn't been mined yet.
 
-  **Nested Message** `BlockMeta`
+  **Nested Message** `BlockDetails`
 
-  - `bytes hash`: The binary hash of the block. Block hash value is undefined
-    for unmined tickets.
+  - `bytes hash`: The binary hash of the block.
 
-  - `int32 height`: The block height. Will be -1 for unmined tickets.
+  - `int32 height`: The block height.
 
-  - `int64 timestamp`: The timestamp the block was mined. Undefined for unmined
-    tickets.
+  - `int64 timestamp`: The timestamp the block was mined.
 
 
 **Expected errors:**
 
 - `InvalidArgument`: A non-default block hash field did not have the correct length.
+
+- `InvalidArgument`: A negative target value was provided.
 
 - `Aborted`: The wallet database is closed.
 

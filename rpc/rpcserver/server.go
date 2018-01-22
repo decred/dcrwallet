@@ -1064,7 +1064,7 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 
 	rangeFn := func(tickets []*wallet.TicketSummary, block *udb.BlockMeta) (bool, error) {
 		resp := &pb.GetTicketsResponse{
-			Block: marshalBlockMeta(block),
+			Block: marshalGetTicketBlockDetails(block),
 		}
 
 		// current contract for grpc GetTickets is for one ticket per response.
@@ -1599,8 +1599,12 @@ func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.GetTicketsResponse_T
 	}
 }
 
-func marshalBlockMeta(v *udb.BlockMeta) *pb.GetTicketsResponse_BlockMeta {
-	return &pb.GetTicketsResponse_BlockMeta{
+func marshalGetTicketBlockDetails(v *udb.BlockMeta) *pb.GetTicketsResponse_BlockDetails {
+	if v == nil || v.Height < 0 {
+		return nil
+	}
+
+	return &pb.GetTicketsResponse_BlockDetails{
 		Hash:      v.Hash[:],
 		Height:    v.Height,
 		Timestamp: v.Time.Unix(),
