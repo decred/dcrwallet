@@ -3699,7 +3699,7 @@ func Open(cfg *Config) (*Wallet, error) {
 
 	fmt.Println("\n\nBy block")
 	fmt.Println("time                            spendable           total")
-	sums := NewSummariesManager(db, txMgr, params, wtxmgrNamespaceKey)
+	sums := NewSummariesManager(w.db, w.TxStore, w.chainParams, wtxmgrNamespaceKey)
 	err = sums.Calculate(BalancesSummaryName, 0, 400000,
 		SummaryResolutionBlock, fn)
 	if err != nil {
