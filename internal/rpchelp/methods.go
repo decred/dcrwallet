@@ -33,7 +33,7 @@ var Methods = []struct {
 	{"getaccount", returnsString},
 	{"getaccountaddress", returnsString},
 	{"getaddressesbyaccount", returnsStringArray},
-	{"getbalance", append(returnsNumber, returnsNumber[0])},
+	{"getbalance", returnsNumber},
 	{"getbestblockhash", returnsString},
 	{"getblockcount", returnsNumber},
 	{"getinfo", []interface{}{(*dcrjson.InfoWalletResult)(nil)}},
