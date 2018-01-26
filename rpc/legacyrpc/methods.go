@@ -651,7 +651,8 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 			totalBalance += bal.Total.ToCoin()
 		}
 
-		result = fmt.Sprintf("%v The balance of all accounts valued in decred", totalBalance)
+		result = fmt.Sprintf("%v The balance of all accounts valued in decred",
+			totalBalance)
 	} else {
 		account, err := w.AccountNumber(accountName)
 		if err != nil {
