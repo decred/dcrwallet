@@ -74,14 +74,20 @@ var helpDescsEnUS = map[string]string{
 	"getaddressesbyaccount--result0":  "All addresses controlled by 'account'",
 
 	// GetBalanceCmd help.
-	"getbalance--synopsis":   "Calculates and returns the balance of one or all accounts.",
-	"getbalance-minconf":     "Minimum number of block confirmations required before an unspent output's value is included in the balance",
-	"getbalance-account":     "DEPRECATED -- The account name to query the balance for, or \"*\" to consider all accounts (default=\"*\")",
-	"getbalance-balancetype": "The type of balance to return, 'spendable', 'locked', 'all', or 'fullscan'",
-	"getbalance--condition0": "account != \"*\"",
-	"getbalance--condition1": "account = \"*\"",
-	"getbalance--result0":    "The balance of 'account' valued in decred",
-	"getbalance--result1":    "The balance of all accounts valued in decred",
+	"getbalance--synopsis": "Calculates and returns the balance of all accounts.",
+	"getbalance-minconf":   "Minimum number of block confirmations required before an unspent output's value is included in the balance",
+	"getbalance-account":   "DEPRECATED -- The account name to query the balance for, or \"*\" to consider all accounts (default=\"*\")",
+
+	"getbalanceresult-balances":                       "Balances for all accounts.",
+	"getaccountbalanceresult-accountname":             "Name of account.",
+	"getaccountbalanceresult-immaturecoinbaserewards": "Immature Coinbase reward coins.",
+	"getaccountbalanceresult-immaturestakegeneration": "Number of immature stake coins.",
+	"getaccountbalanceresult-lockedbytickets":         "Coins locked by tickets.",
+	"getaccountbalanceresult-spendable":               "Spendable number of coins.",
+	"getaccountbalanceresult-total":                   "Total amount of coins.",
+	"getaccountbalanceresult-unconfirmed":             "Unconfirmed number of coins.",
+	"getaccountbalanceresult-votingauthority":         "Coins for voting authority.",
+	"getbalanceresult-blockhash":                      "Block hash.",
 
 	// GetBestBlockHashCmd help.
 	"getbestblockhash--synopsis": "Returns the hash of the newest block in the best chain that wallet has finished syncing with.",

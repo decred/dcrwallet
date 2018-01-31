@@ -639,20 +639,34 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 		accountName = *cmd.Account
 	}
 
-	var result string
+	blockHash, _ := w.MainChainTip()
+	result := dcrjson.GetBalanceResult{
+		BlockHash: blockHash.String(),
+	}
+
 	if accountName == "*" {
 		balances, err := w.CalculateAccountBalances(int32(*cmd.MinConf))
 		if err != nil {
 			return nil, err
 		}
 
-		var totalBalance float64
 		for _, bal := range balances {
-			totalBalance += bal.Total.ToCoin()
+			accountName, err := w.AccountName(bal.Account)
+			if err != nil {
+				return nil, err
+			}
+			json := dcrjson.GetAccountBalanceResult{
+				AccountName:             accountName,
+				ImmatureCoinbaseRewards: bal.ImmatureCoinbaseRewards.ToCoin(),
+				ImmatureStakeGeneration: bal.ImmatureStakeGeneration.ToCoin(),
+				LockedByTickets:         bal.LockedByTickets.ToCoin(),
+				Spendable:               bal.Spendable.ToCoin(),
+				Total:                   bal.Total.ToCoin(),
+				Unconfirmed:             bal.Unconfirmed.ToCoin(),
+				VotingAuthority:         bal.VotingAuthority.ToCoin(),
+			}
+			result.Balances = append(result.Balances, json)
 		}
-
-		result = fmt.Sprintf("%v The balance of all accounts valued in decred",
-			totalBalance)
 	} else {
 		account, err := w.AccountNumber(accountName)
 		if err != nil {
@@ -663,9 +677,17 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-
-		result = fmt.Sprintf("%v The balance of \"%s\" valued in decred",
-			bal.Total.ToCoin(), accountName)
+		json := dcrjson.GetAccountBalanceResult{
+			AccountName:             accountName,
+			ImmatureCoinbaseRewards: bal.ImmatureCoinbaseRewards.ToCoin(),
+			ImmatureStakeGeneration: bal.ImmatureStakeGeneration.ToCoin(),
+			LockedByTickets:         bal.LockedByTickets.ToCoin(),
+			Spendable:               bal.Spendable.ToCoin(),
+			Total:                   bal.Total.ToCoin(),
+			Unconfirmed:             bal.Unconfirmed.ToCoin(),
+			VotingAuthority:         bal.VotingAuthority.ToCoin(),
+		}
+		result.Balances = append(result.Balances, json)
 	}
 
 	return result, nil
