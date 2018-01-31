@@ -1115,7 +1115,6 @@ func getMultisigOutInfo(s *Server, icmd interface{}) (interface{}, error) {
 // getNewAddress handles a getnewaddress request by returning a new
 // address for an account.  If the account does not exist an appropiate
 // error is returned.
-
 func getNewAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetNewAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
