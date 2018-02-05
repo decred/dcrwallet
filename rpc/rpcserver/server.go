@@ -1236,7 +1236,12 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 
 	expiry := int32(req.Expiry)
 	txFee := dcrutil.Amount(req.TxFee)
-	ticketFee := dcrutil.Amount(req.TicketFee)
+	ticketFee := s.wallet.TicketFeeIncrement()
+
+	// Set the ticket fee if specified
+	if req.TicketFee > 0 {
+		ticketFee = dcrutil.Amount(req.TicketFee)
+	}
 
 	if txFee < 0 || ticketFee < 0 {
 		return nil, status.Errorf(codes.InvalidArgument,
