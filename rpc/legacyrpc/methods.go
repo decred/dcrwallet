@@ -2108,9 +2108,19 @@ func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 		expiry = int32(*cmd.Expiry)
 	}
 
+	ticketFee := w.TicketFeeIncrement()
+
+	// Set the ticket fee if specified.
+	if cmd.TicketFee != nil {
+		ticketFee, err = dcrutil.NewAmount(*cmd.TicketFee)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	hashes, err := w.PurchaseTickets(0, spendLimit, minConf, ticketAddr,
 		account, numTickets, poolAddr, poolFee, expiry, w.RelayFee(),
-		w.TicketFeeIncrement())
+		ticketFee)
 	if err != nil {
 		return nil, err
 	}
