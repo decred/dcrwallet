@@ -866,7 +866,7 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint,
 	mtx.AddTxOut(txOut)
 
 	// Make sure we generated a valid SStx.
-	if _, err := stake.IsSStx(mtx); err != nil {
+	if err := stake.CheckSStx(mtx); err != nil {
 		return nil, err
 	}
 

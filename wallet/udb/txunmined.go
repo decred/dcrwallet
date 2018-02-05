@@ -64,11 +64,7 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 				if stake.DetermineTxType(&spenderTx) != stake.TxTypeSSGen {
 					break DoubleSpendVoteCheck
 				}
-				votedBlock, _, err := stake.SSGenBlockVotedOn(&spenderTx)
-				if err != nil {
-					const str = "failed to determine voted block"
-					return apperrors.Wrap(err, apperrors.ErrData, str)
-				}
+				votedBlock, _ := stake.SSGenBlockVotedOn(&spenderTx)
 				tipBlock, _ := s.MainChainTip(ns)
 				if votedBlock == tipBlock {
 					const str = "vote or revocation double spends unmined vote " +
@@ -314,19 +310,19 @@ func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) error {
 				"invalid transaction recorded in unmined bucket")
 		}
 
-		var expired bool
-		isTicketPurchase, _ := stake.IsSStx(&tx)
-		isVote, _ := stake.IsSSGen(&tx)
+		var expired, isTicketPurchase, isVote bool
 		switch {
 		case tx.Expiry != wire.NoExpiryValue && tx.Expiry <= uint32(tipHeight):
 			expired = true
-		case isTicketPurchase:
+		case stake.IsSStx(&tx):
+			isTicketPurchase = true
 			if tx.TxOut[0].Value == stakeDiff {
 				continue
 			}
-		case isVote:
+		case stake.IsSSGen(&tx):
+			isVote = true
 			// This will never actually error
-			votedBlockHash, _, _ := stake.SSGenBlockVotedOn(&tx)
+			votedBlockHash, _ := stake.SSGenBlockVotedOn(&tx)
 			if votedBlockHash == tipHash {
 				continue
 			}

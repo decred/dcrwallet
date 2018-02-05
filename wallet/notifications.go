@@ -503,11 +503,11 @@ const (
 func TxTransactionType(tx *wire.MsgTx) TransactionType {
 	if blockchain.IsCoinBaseTx(tx) {
 		return TransactionTypeCoinbase
-	} else if ok, _ := stake.IsSStx(tx); ok {
+	} else if stake.IsSStx(tx) {
 		return TransactionTypeTicketPurchase
-	} else if ok, _ = stake.IsSSGen(tx); ok {
+	} else if stake.IsSSGen(tx) {
 		return TransactionTypeVote
-	} else if ok, _ = stake.IsSSRtx(tx); ok {
+	} else if stake.IsSSRtx(tx) {
 		return TransactionTypeRevocation
 	} else {
 		return TransactionTypeRegular

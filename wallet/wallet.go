@@ -1292,7 +1292,7 @@ func (w *Wallet) SignMessage(msg string, addr dcrutil.Address) (sig []byte, err 
 		return nil, fmt.Errorf("Unable to create secp256k1.PrivateKey" +
 			"from chainec.PrivateKey")
 	}
-	return secp256k1.SignCompact(secp256k1.S256(), pkCast, messageHash, true)
+	return secp256k1.SignCompact(pkCast, messageHash, true)
 }
 
 // VerifyMessage verifies that sig is a valid signature of msg and was created
@@ -2634,18 +2634,15 @@ type StakeInfoData struct {
 }
 
 func isTicketPurchase(tx *wire.MsgTx) bool {
-	b, _ := stake.IsSStx(tx)
-	return b
+	return stake.IsSStx(tx)
 }
 
 func isVote(tx *wire.MsgTx) bool {
-	b, _ := stake.IsSSGen(tx)
-	return b
+	return stake.IsSSGen(tx)
 }
 
 func isRevocation(tx *wire.MsgTx) bool {
-	b, _ := stake.IsSSRtx(tx)
-	return b
+	return stake.IsSSRtx(tx)
 }
 
 // hasVotingAuthority returns whether the 0th output of a ticket purchase can be
@@ -3122,8 +3119,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType,
 			// For an SSGen tx, skip the first input as it is a stake base
 			// and doesn't need to be signed.
 			if i == 0 {
-				isSSGen, err := stake.IsSSGen(tx)
-				if err == nil && isSSGen {
+				if stake.IsSSGen(tx) {
 					// Put some garbage in the signature script.
 					txIn.SignatureScript = []byte{0xDE, 0xAD, 0xBE, 0xEF}
 					continue

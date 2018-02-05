@@ -2230,8 +2230,8 @@ func (s *Store) UnspentTickets(dbtx walletdb.ReadTx, syncHeight int32, includeIm
 				const str = "unmined tx decode failed"
 				return nil, apperrors.Wrap(err, apperrors.ErrData, str)
 			}
-			if isVote, _ := stake.IsSSGen(&spender); isVote {
-				voteBlock, _, _ := stake.SSGenBlockVotedOn(&spender)
+			if stake.IsSSGen(&spender) {
+				voteBlock, _ := stake.SSGenBlockVotedOn(&spender)
 				if voteBlock != tipBlock {
 					goto Include
 				}

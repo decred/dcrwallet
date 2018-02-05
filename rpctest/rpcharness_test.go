@@ -1633,7 +1633,7 @@ func testGetSetTicketFee(r *Harness, t *testing.T) {
 	}
 	noSplitTransactions := false
 	hashes, err := wcl.PurchaseTicket("default", priceLimit,
-		&minConf, nil, &numTickets, nil, nil, nil, &noSplitTransactions)
+		&minConf, nil, &numTickets, nil, nil, nil, &noSplitTransactions, nil)
 	if err != nil {
 		t.Fatal("Unable to purchase ticket:", err)
 	}
@@ -1708,7 +1708,7 @@ func testGetTickets(r *Harness, t *testing.T) {
 	}
 	noSplitTransactions := false
 	hashes, err := wcl.PurchaseTicket("default", priceLimit,
-		&minConf, nil, &numTicketsPurchased, nil, nil, nil, &noSplitTransactions)
+		&minConf, nil, &numTicketsPurchased, nil, nil, nil, &noSplitTransactions, nil)
 	if err != nil {
 		t.Fatal("Unable to purchase tickets:", err)
 	}
@@ -1755,12 +1755,7 @@ func testGetTickets(r *Harness, t *testing.T) {
 		}
 
 		// Ensure result is a SSTx
-		isSSTx, err := stake.IsSStx(tx.MsgTx())
-		if err != nil {
-			t.Fatal("IsSSTx failed:", err)
-		}
-
-		if !isSSTx {
+		if !stake.IsSStx(tx.MsgTx()) {
 			t.Fatal("Ticket hash is not for a SSTx.")
 		}
 	}
@@ -1790,7 +1785,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	oneTix := 1
 	noSplitTransactions := false
 	hashes, err := wcl.PurchaseTicket("default", priceLimit,
-		&minConf, nil, &oneTix, nil, nil, &expiry, &noSplitTransactions)
+		&minConf, nil, &oneTix, nil, nil, &expiry, &noSplitTransactions, nil)
 	if err != nil {
 		t.Fatal("Unable to purchase with nil ticketAddr:", err)
 	}
@@ -1804,7 +1799,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 
 	// test numTickets == nil
 	hashes, err = wcl.PurchaseTicket("default", priceLimit,
-		&minConf, nil, nil, nil, nil, &expiry, &noSplitTransactions)
+		&minConf, nil, nil, nil, nil, &expiry, &noSplitTransactions, nil)
 	if err != nil {
 		t.Fatal("Unable to purchase with nil numTickets:", err)
 	}
@@ -1823,14 +1818,14 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	// invalid
 	expiry = int(curBlockHeight)
 	_, err = wcl.PurchaseTicket("default", priceLimit,
-		&minConf, nil, nil, nil, nil, &expiry, &noSplitTransactions)
+		&minConf, nil, nil, nil, nil, &expiry, &noSplitTransactions, nil)
 	if err == nil {
 		t.Fatal("Invalid expiry used to purchase tickets")
 	}
 	// invalid
 	expiry = int(curBlockHeight) + 1
 	_, err = wcl.PurchaseTicket("default", priceLimit,
-		&minConf, nil, nil, nil, nil, &expiry, &noSplitTransactions)
+		&minConf, nil, nil, nil, nil, &expiry, &noSplitTransactions, nil)
 	if err == nil {
 		t.Fatal("Invalid expiry used to purchase tickets")
 	}
@@ -1838,7 +1833,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	// valid expiry
 	expiry = int(curBlockHeight) + 2
 	hashes, err = wcl.PurchaseTicket("default", priceLimit,
-		&minConf, nil, nil, nil, nil, &expiry, &noSplitTransactions)
+		&minConf, nil, nil, nil, nil, &expiry, &noSplitTransactions, nil)
 	if err != nil {
 		t.Fatal("Unable to purchase tickets:", err)
 	}
@@ -1875,7 +1870,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	expiry = 0
 	numTicket := 2 * int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
 	_, err = r.WalletRPC.PurchaseTicket("default", priceLimit,
-		&minConf, addr, &numTicket, nil, nil, &expiry, &noSplitTransactions)
+		&minConf, addr, &numTicket, nil, nil, &expiry, &noSplitTransactions, nil)
 	if err != nil {
 		t.Fatal("Unable to purchase tickets:", err)
 	}
@@ -1905,7 +1900,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 	// Test too low price
 	lowPrice := dcrutil.Amount(1)
 	hashes, err = wcl.PurchaseTicket("default", lowPrice,
-		&minConf, nil, nil, nil, nil, nil, &noSplitTransactions)
+		&minConf, nil, nil, nil, nil, nil, &noSplitTransactions, nil)
 	if err == nil {
 		t.Fatalf("PurchaseTicket succeeded with limit of %f, but diff was %f.",
 			lowPrice.ToCoin(), mustGetStakeDiff(r, t))
@@ -1926,7 +1921,7 @@ func testPurchaseTickets(r *Harness, t *testing.T) {
 			t.Fatal("Invalid Amount.", err)
 		}
 		_, err = r.WalletRPC.PurchaseTicket("default", priceLimit,
-			&minConf, addr, &numTicket, nil, nil, nil, &noSplitTransactions)
+			&minConf, addr, &numTicket, nil, nil, nil, &noSplitTransactions, nil)
 
 		// Do not allow even ErrSStxPriceExceedsSpendLimit since price is set
 		if err != nil {
@@ -2008,7 +2003,7 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 	numTickets := int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
 	noSplitTransactions := false
 	tickets, err := r.WalletRPC.PurchaseTicket("default", priceLimit,
-		&minConf, nil, &numTickets, nil, nil, nil, &noSplitTransactions)
+		&minConf, nil, &numTickets, nil, nil, nil, &noSplitTransactions, nil)
 	if err != nil {
 		t.Fatal("Failed to purchase tickets:", err)
 	}
@@ -2082,7 +2077,7 @@ func testGetStakeInfo(r *Harness, t *testing.T) {
 		}
 		numTickets := int(chaincfg.SimNetParams.MaxFreshStakePerBlock)
 		_, err = r.WalletRPC.PurchaseTicket("default", priceLimit,
-			&minConf, nil, &numTickets, nil, nil, nil, &noSplitTransactions)
+			&minConf, nil, &numTickets, nil, nil, nil, &noSplitTransactions, nil)
 		if err != nil {
 			t.Fatal("Failed to purchase tickets:", err)
 		}

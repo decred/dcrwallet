@@ -237,7 +237,7 @@ func (w *Wallet) updateStakePoolInvalidTicket(stakemgrNs walletdb.ReadWriteBucke
 // the transaction manager because it is unknown where the transaction belongs
 // on the blockchain.  It will be used to create votes.
 func (w *Wallet) AddTicket(ticket *wire.MsgTx) error {
-	_, err := stake.IsSStx(ticket)
+	err := stake.CheckSStx(ticket)
 	if err != nil {
 		return err
 	}

@@ -428,8 +428,7 @@ func ticketBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error
 		if err != nil {
 			return err
 		}
-		isTicket, err := stake.IsSStx(&rec.MsgTx)
-		if err == nil && isTicket {
+		if stake.IsSStx(&rec.MsgTx) {
 			ticketHashes[hash] = struct{}{}
 		}
 	}
@@ -445,8 +444,7 @@ func ticketBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error
 		if err != nil {
 			return err
 		}
-		isTicket, err := stake.IsSStx(&rec.MsgTx)
-		if err == nil && isTicket {
+		if stake.IsSStx(&rec.MsgTx) {
 			ticketHashes[hash] = struct{}{}
 		}
 	}

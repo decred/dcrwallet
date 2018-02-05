@@ -351,10 +351,7 @@ func (w *Wallet) AcceptMempoolTx(serializedTx []byte) error {
 		// Prevent orphan votes from entering the wallet's unmined transaction
 		// set.
 		if isVote(&rec.MsgTx) {
-			votedBlock, _, err := stake.SSGenBlockVotedOn(&rec.MsgTx)
-			if err != nil {
-				return err
-			}
+			votedBlock, _ := stake.SSGenBlockVotedOn(&rec.MsgTx)
 			tipBlock, _ := w.TxStore.MainChainTip(txmgrNs)
 			if votedBlock != tipBlock {
 				log.Debugf("Rejected unmined orphan vote %v which votes on block %v",
@@ -421,7 +418,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 	// the OP_SSTX tagged out, except if we're operating as a stake pool
 	// server. In that case, additionally consider the first commitment
 	// output as well.
-	if is, _ := stake.IsSStx(&rec.MsgTx); is {
+	if stake.IsSStx(&rec.MsgTx) {
 		// Errors don't matter here.  If addrs is nil, the range below
 		// does nothing.
 		txOut := rec.MsgTx.TxOut[0]
