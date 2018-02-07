@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.28.x
+Version: 4.29.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -377,6 +377,7 @@ The service provides the following methods:
 - [`ImportPrivateKey`](#importprivatekey)
 - [`ImportScript`](#importscript)
 - [`FundTransaction`](#fundtransaction)
+- [`UnspentOutputs`](#unspentoutputs)
 - [`ConstructTransaction`](#constructtransaction)
 - [`SignTransaction`](#signtransaction)
 - [`CreateSignature`](#createsignature)
@@ -468,7 +469,7 @@ the wallet.
   - `string account_name`: The name of the account.
 
   - `int64 total_balance`: The total (zero-conf and immature) balance, counted
-    in Satoshis.
+    in Atoms.
 
   - `uint32 external_key_count`: The number of derived keys in the external
      key chain.
@@ -509,18 +510,18 @@ and unspendable immature coinbase balances.
 **Response:** `BalanceResponse`
 
 - `int64 total`: The total (zero-conf and immature) balance, counted in
-  Satoshis.
+  Atoms.
 
 - `int64 spendable`: The spendable balance, given some number of required
-  confirmations, counted in Satoshis.  This equals the total balance when the
+  confirmations, counted in Atoms.  This equals the total balance when the
   required number of confirmations is zero and there are no immature coinbase
   outputs.
 
 - `int64 immature_reward`: The total value of all immature coinbase outputs,
-  counted in Satoshis.
+  counted in Atoms.
 
 - `int64 immature_stake_generation`: The total value of all immature stakebase outputs,
-  or any revocations, counted in Satoshis.
+  or any revocations, counted in Atoms.
 
 - `int64 locked_by_tickets`: The total value of all tickets that are currently locked,
   and awaiting vote.
@@ -1083,7 +1084,7 @@ transaction paying to already known addresses or scripts.
   set to query.
 
 - `int64 target_amount`: If positive, the service may limit output results to
-  those that sum to at least this amount (counted in Satoshis).  If zero, all
+  those that sum to at least this amount (counted in Atoms).  If zero, all
   outputs not excluded by other arguments are returned.  This may not be
   negative.
 
@@ -1110,7 +1111,7 @@ transaction paying to already known addresses or scripts.
   - `uint32 output_index`: The output index of the transaction this output
     originates from.
 
-  - `int64 amount`: The output value (counted in Satoshis) of the unspent
+  - `int64 amount`: The output value (counted in Atoms) of the unspent
     transaction output.
 
   - `bytes pk_script`: The output script of the unspent transaction output.
@@ -1131,6 +1132,72 @@ transaction paying to already known addresses or scripts.
   remaining amount to a newly-generated change address for the account.  This is
   null if `include_change_script` was false or the target amount was not
   exceeded.
+
+**Expected errors:**
+
+- `InvalidArgument`: The target amount is negative.
+
+- `InvalidArgument`: The required confirmations is negative.
+
+- `Aborted`: The wallet database is closed.
+
+- `NotFound`: The account does not exist.
+
+**Stability:** Unstable
+
+___
+
+#### `UnspentOutputs`
+
+The `UnspentOutputs` method queries the wallet for unspent transaction outputs
+controlled by some account.  Results may be refined by setting a target output
+amount and limiting the required confirmations.  The selection algorithm is
+unspecified.
+
+Output results are always created even if a minimum target output amount could
+not be reached.  This allows this method to behave similar to the `Balance`
+method while also including the outputs that make up that balance.
+
+**Request:** `UnspentOutputsRequest`
+
+- `uint32 account`: Account number containing the keys controlling the output
+  set to query.
+
+- `int64 target_amount`: If positive, the service may limit output results to
+  those that sum to at least this amount (counted in Atoms).  This may not be
+  negative.
+
+- `int32 required_confirmations`: The minimum number of block confirmations
+  needed to consider including an output in the return set.  This may not be
+  negative.
+
+- `bool include_immature_coinbases`: If true, immature coinbase outputs will
+  also be included.
+
+**Response:** `stream UnspentOutputResponse`
+
+- `bytes transaction_hash`: The hash of the transaction this output originates
+  from.
+
+- `uint32 output_index`: The output index of the transaction this output
+  originates from.
+
+- `int64 amount`: The output value (counted in atoms) of the unspent
+  transaction output.
+
+- `bytes pk_script`: The output script of the unspent transaction output.
+
+- `int64 receive_time`: The earliest Unix time the wallet became aware of the
+  transaction containing this output.
+
+- `bool from_coinbase`: Whether the output is a coinbase output.
+
+- `int32 tree`: The tree the output belongs to.  This can take on the values
+  `-1` (invalid), `0` (regular), and `1` (stake).
+
+- `int64 amount_sum`: The rolling sum of all streamed output amounts including
+  the current response. This may be less than a positive target amount if
+  there were not enough eligible outputs available.
 
 **Expected errors:**
 

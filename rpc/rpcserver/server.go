@@ -59,9 +59,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.27.0"
+	semverString = "4.29.0"
 	semverMajor  = 4
-	semverMinor  = 27
+	semverMinor  = 29
 	semverPatch  = 0
 )
 
@@ -710,6 +710,52 @@ func (s *walletServer) BlockInfo(ctx context.Context, req *pb.BlockInfoRequest) 
 		BlockHeader:      b.Header[:],
 		StakeInvalidated: b.StakeInvalidated,
 	}, nil
+}
+
+func (s *walletServer) UnspentOutputs(req *pb.UnspentOutputsRequest, svr pb.WalletService_UnspentOutputsServer) error {
+	policy := wallet.OutputSelectionPolicy{
+		Account:               req.Account,
+		RequiredConfirmations: req.RequiredConfirmations,
+	}
+	_, inputs, scripts, err := s.wallet.SelectInputs(dcrutil.Amount(req.TargetAmount), policy)
+	// Do not return errors to caller when there was insufficient spendable
+	// outputs available for the target amount.
+	switch err.(type) {
+	case nil, txauthor.InputSourceError:
+	default:
+		return translateError(err)
+	}
+
+	var sum int64
+	for i, input := range inputs {
+		select {
+		case <-svr.Context().Done():
+			return status.Errorf(codes.Canceled, "unspentoutputs cancelled")
+		default:
+			outputInfo, err := s.wallet.OutputInfo(&input.PreviousOutPoint)
+			if err != nil {
+				return translateError(err)
+			}
+			unspentOutput := &pb.UnspentOutputResponse{
+				TransactionHash: input.PreviousOutPoint.Hash[:],
+				OutputIndex:     input.PreviousOutPoint.Index,
+				Tree:            int32(input.PreviousOutPoint.Tree),
+				Amount:          int64(outputInfo.Amount),
+				PkScript:        scripts[i],
+				ReceiveTime:     outputInfo.Received.Unix(),
+				FromCoinbase:    outputInfo.FromCoinbase,
+			}
+
+			sum += unspentOutput.Amount
+			unspentOutput.AmountSum = sum
+
+			err = svr.Send(unspentOutput)
+			if err != nil {
+				return translateError(err)
+			}
+		}
+	}
+	return nil
 }
 
 func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransactionRequest) (

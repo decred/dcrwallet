@@ -44,6 +44,7 @@ service WalletService {
 	rpc ImportPrivateKey (ImportPrivateKeyRequest) returns (ImportPrivateKeyResponse);
 	rpc ImportScript(ImportScriptRequest) returns (ImportScriptResponse);
 	rpc FundTransaction (FundTransactionRequest) returns (FundTransactionResponse);
+	rpc UnspentOutputs (UnspentOutputsRequest) returns (stream UnspentOutputResponse);
 	rpc ConstructTransaction (ConstructTransactionRequest) returns (ConstructTransactionResponse);
 	rpc SignTransaction (SignTransactionRequest) returns (SignTransactionResponse);
 	rpc CreateSignature (CreateSignatureRequest) returns (CreateSignatureResponse);
@@ -379,6 +380,23 @@ message FundTransactionResponse {
 	repeated PreviousOutput selected_outputs = 1;
 	int64 total_amount = 2;
 	bytes change_pk_script = 3;
+}
+
+message UnspentOutputsRequest {
+	uint32 account = 1;
+	int64 target_amount = 2;
+	int32 required_confirmations = 3;
+	bool include_immature_coinbases = 4;
+}
+message UnspentOutputResponse {
+	bytes transaction_hash = 1;
+	uint32 output_index = 2;
+	int64 amount = 3;
+	bytes pk_script = 4;
+	int64 receive_time = 5;
+	bool from_coinbase = 6;
+	int32 tree = 7;
+	int64 amount_sum = 8;
 }
 
 message ConstructTransactionRequest {
