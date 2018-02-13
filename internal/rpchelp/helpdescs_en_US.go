@@ -471,6 +471,19 @@ var helpDescsEnUS = map[string]string{
 	"signedtransaction-sent":            "Tells if the transaction was sent.",
 	"signedtransaction-signingresult":   "Success or failure of signing.",
 
+	// SweepAccount help.
+	"sweepaccount--synopsis":             "Moves as much value as possible in a transaction from an account.\n",
+	"sweepaccount-sourceaccount":         "The account to be swept.",
+	"sweepaccount-destinationaddress":    "The destination address to pay to.",
+	"sweepaccount-requiredconfirmations": "The minimum utxo confirmation requirement (optional).",
+	"sweepaccount-feeperkb":              "The minimum relay fee policy (optional).",
+
+	// SignRawTransactionsResults help.
+	"sweepaccountresult-unsignedtransaction":       "The hex encoded string of the unsigned transaction",
+	"sweepaccountresult-totalpreviousoutputamount": "The total transaction input amount.",
+	"sweepaccountresult-totaloutputamount":         "The total transaction output amount.",
+	"sweepaccountresult-estimatedsignedsize":       "The estimated size of the transaction when signed",
+
 	// ValidateAddressCmd help.
 	"validateaddress--synopsis": "Verify that an address is valid.\n" +
 		"Extra details are returned if the address is controlled by this wallet.\n" +
