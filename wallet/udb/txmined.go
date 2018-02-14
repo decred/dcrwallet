@@ -3044,7 +3044,7 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 	)
 
 	f := func(target dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error) {
-		for currentTotal < target {
+		for currentTotal < target || target == 0 {
 			var k, v []byte
 			if bucketUnspentCursor == nil {
 				b := ns.NestedReadBucket(bucketUnspent)
@@ -3154,15 +3154,14 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			currentScripts = append(currentScripts, pkScript)
 		}
 
-		// Return the current results if the target amount was reached
-		// or there are no more mined transaction outputs to redeem and
-		// unspent outputs can be not be included.
-		if currentTotal >= target || minConf != 0 {
+		// Return the current results if the target was specified and met
+		// or unspent unmined credits can not be included.
+		if (target != 0 && currentTotal >= target) || minConf != 0 {
 			return currentTotal, currentInputs, currentScripts, nil
 		}
 
 		// Iterate through unspent unmined credits
-		for currentTotal < target {
+		for currentTotal < target || target == 0 {
 			var k, v []byte
 			if bucketUnminedCreditsCursor == nil {
 				b := ns.NestedReadBucket(bucketUnminedCredits)
