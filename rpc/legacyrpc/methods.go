@@ -29,7 +29,9 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrwallet/internal/helpers"
 	"github.com/decred/dcrwallet/wallet"
+	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 )
@@ -110,6 +112,7 @@ var handlers = map[string]handler{
 	"signmessage":             {fn: signMessage},
 	"signrawtransaction":      {fn: signRawTransaction},
 	"signrawtransactions":     {fn: signRawTransactions},
+	"sweepaccount":            {fn: sweepAccount},
 	"redeemmultisigout":       {fn: redeemMultiSigOut},
 	"redeemmultisigouts":      {fn: redeemMultiSigOuts},
 	"stakepooluserinfo":       {fn: stakePoolUserInfo},
@@ -3072,6 +3075,76 @@ func signRawTransactions(s *Server, icmd interface{}) (interface{}, error) {
 	}
 
 	return &dcrjson.SignRawTransactionsResult{Results: toReturn}, nil
+}
+
+// makeChangeSourceFromAddress creates a ChangeSource which is used to
+// receive all correlated previous input value.
+func makeChangeSourceFromAddress(address string) txauthor.ChangeSource {
+	return func() ([]byte, uint16, error) {
+		destinationAddress, err := dcrutil.DecodeAddress(address)
+		if err != nil {
+			return nil, 0, err
+		}
+		script, err := txscript.PayToAddrScript(destinationAddress)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		return script, txscript.DefaultScriptVersion, err
+	}
+}
+
+// sweepAccount handles the sweepaccount command.
+func sweepAccount(s *Server, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrjson.SweepAccountCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
+	// use provided fee per Kb if specified
+	feePerKb := w.RelayFee()
+	if cmd.FeePerKb != nil {
+		var err error
+		feePerKb, err = dcrutil.NewAmount(*cmd.FeePerKb)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// use provided required confirmations if specified
+	requiredConfs := int32(1)
+	if cmd.RequiredConfirmations != nil {
+		requiredConfs = int32(*cmd.RequiredConfirmations)
+	}
+
+	account, err := w.AccountNumber(cmd.SourceAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	changeSource := makeChangeSourceFromAddress(cmd.DestinationAddress)
+	tx, err := w.NewUnsignedTransaction(nil, feePerKb, account,
+		requiredConfs, wallet.OutputSelectionAlgorithmAll, changeSource)
+	if err != nil {
+		return nil, err
+	}
+
+	var txBuf bytes.Buffer
+	txBuf.Grow(tx.Tx.SerializeSize())
+	err = tx.Tx.Serialize(&txBuf)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &dcrjson.SweepAccountResult{
+		UnsignedTransaction:       hex.EncodeToString(txBuf.Bytes()),
+		TotalPreviousOutputAmount: tx.TotalInput.ToCoin(),
+		TotalOutputAmount:         helpers.SumOutputValues(tx.Tx.TxOut).ToCoin(),
+		EstimatedSignedSize:       uint32(tx.EstimatedSignedSerializeSize),
+	}
+
+	return res, nil
 }
 
 // validateAddress handles the validateaddress command.
