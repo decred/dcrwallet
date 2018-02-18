@@ -1,13 +1,14 @@
-sudo: required
-
 language: go
+go:
+  - 1.x
 
+sudo: required
 services:
   - docker
 
 env:
-  - GOVERSION=1.8
   - GOVERSION=1.9
+  - GOVERSION=1.10
 
 install: true
 
