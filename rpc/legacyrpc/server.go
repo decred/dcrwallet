@@ -459,7 +459,7 @@ out:
 				wsc.wg.Add(1)
 				go func() {
 					resp, jsonErr := f()
-					mresp, err := dcrjson.MarshalResponse(req.ID, resp, jsonErr)
+					mresp, err := dcrjson.MarshalResponse(req.Jsonrpc, req.ID, resp, jsonErr)
 					if err != nil {
 						log.Errorf("Unable to marshal response to client %s: %v",
 							remoteAddr(ctx), err)
@@ -562,7 +562,7 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 	var req dcrjson.Request
 	err = json.Unmarshal(rpcRequest, &req)
 	if err != nil {
-		resp, err := dcrjson.MarshalResponse(req.ID, nil, dcrjson.ErrRPCInvalidRequest)
+		resp, err := dcrjson.MarshalResponse(req.Jsonrpc, req.ID, nil, dcrjson.ErrRPCInvalidRequest)
 		if err != nil {
 			log.Errorf("Unable to marshal response to client %s: %v",
 				r.RemoteAddr, err)
@@ -598,7 +598,7 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Marshal and send.
-	mresp, err := dcrjson.MarshalResponse(req.ID, res, jsonErr)
+	mresp, err := dcrjson.MarshalResponse(req.Jsonrpc, req.ID, res, jsonErr)
 	if err != nil {
 		log.Errorf("Unable to marshal response to client %s: %v",
 			r.RemoteAddr, err)
