@@ -691,6 +691,16 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 			VotingAuthority:         bal.VotingAuthority.ToCoin(),
 		}
 		result.Balances = append(result.Balances, json)
+
+		for _, account := range result.Balances {
+			result.TotalImmatureCoinbaseRewards += account.ImmatureCoinbaseRewards
+			result.TotalImmatureStakeGeneration += account.ImmatureStakeGeneration
+			result.TotalLockedByTickets += account.LockedByTickets
+			result.TotalSpendable += account.Spendable
+			result.TotalUnconfirmed += account.Unconfirmed
+			result.TotalVotingAuthority += account.VotingAuthority
+			result.CumulativeTotal += account.Total
+		}
 	}
 
 	return result, nil
