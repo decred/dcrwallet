@@ -17,6 +17,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/walletdb"
 	_ "github.com/decred/dcrwallet/walletdb/bdb"
 )
@@ -31,6 +32,7 @@ var dbUpgradeTests = [...]struct {
 	{verifyV5Upgrade, "v4.db.gz"},
 	{verifyV6Upgrade, "v5.db.gz"},
 	// No upgrade test for V7, it is a backwards-compatible upgrade
+	{verifyV8Upgrade, "v7.db.gz"},
 }
 
 var pubPass = []byte("public")
@@ -336,6 +338,73 @@ func verifyV6Upgrade(t *testing.T, db walletdb.DB) {
 		}
 
 		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func verifyV8Upgrade(t *testing.T, db walletdb.DB) {
+	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
+		ns := tx.ReadBucket(wtxmgrBucketKey)
+		creditBucket := ns.NestedReadBucket(bucketCredits)
+		err := creditBucket.ForEach(func(k []byte, v []byte) error {
+			hasExpiry := fetchRawCreditHasExpiry(v)
+			if !hasExpiry {
+				t.Errorf("expected expiry to be set")
+			}
+			return nil
+		})
+		if err != nil {
+			t.Error(err)
+		}
+
+		unminedCreditBucket := ns.NestedReadBucket(bucketUnminedCredits)
+		err = unminedCreditBucket.ForEach(func(k []byte, v []byte) error {
+			hasExpiry := fetchRawCreditHasExpiry(v)
+
+			if !hasExpiry {
+				t.Errorf("expected expiry to be set")
+			}
+			return nil
+		})
+		if err != nil {
+			t.Error(err)
+		}
+
+		txBucket := ns.NestedReadBucket(bucketTxRecords)
+		minedTxWithExpiryCount := 0
+		minedTxWithoutExpiryCount := 0
+		err = txBucket.ForEach(func(k []byte, v []byte) error {
+			var txHash chainhash.Hash
+			var rec TxRecord
+			err := readRawTxRecordHash(k, &txHash)
+			if err != nil {
+				t.Error(err)
+			}
+			err = readRawTxRecord(&txHash, v, &rec)
+			if err != nil {
+				t.Error(err)
+			}
+
+			if rec.MsgTx.Expiry != wire.NoExpiryValue {
+				minedTxWithExpiryCount += 1
+			} else {
+				minedTxWithoutExpiryCount += 1
+			}
+			return nil
+		})
+		if err != nil {
+			t.Error(err)
+		}
+
+		if minedTxWithExpiryCount != 3 {
+			t.Errorf("expected 3 txs with expiries set, got %d", minedTxWithExpiryCount)
+		}
+		if minedTxWithoutExpiryCount != 3 {
+			t.Errorf("expected 3 txs without expiries set, got %d", minedTxWithoutExpiryCount)
+		}
+		return err
 	})
 	if err != nil {
 		t.Error(err)

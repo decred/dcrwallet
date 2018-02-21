@@ -11,6 +11,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/hdkeychain"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/snacl"
 	"github.com/decred/dcrwallet/walletdb"
@@ -65,10 +66,16 @@ const (
 	// coin type 20 exists (the upgrade is not forwards-compatible).
 	slip0044CoinTypeVersion = 7
 
+	// hasExpiryVersion is the eight version of the database. It adds the
+	// hasExpiry field to the credit struct, adds fetchRawCreditHasExpiry
+	// helper func and extends sstxchange type utxo checks to only make sstchange
+	// with expiries set available to spend after coinbase maturity (16 blocks).
+	hasExpiryVersion = 8
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = slip0044CoinTypeVersion
+	DBVersion = hasExpiryVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -81,6 +88,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte) error{
 	lastReturnedAddressVersion - 1:  lastReturnedAddressUpgrade,
 	ticketBucketVersion - 1:         ticketBucketUpgrade,
 	slip0044CoinTypeVersion - 1:     slip0044CoinTypeUpgrade,
+	hasExpiryVersion - 1:            hasExpiryUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
@@ -484,6 +492,94 @@ func slip0044CoinTypeUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) e
 	}
 
 	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+	const oldVersion = 7
+	const newVersion = 8
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	txmgrBucket := tx.ReadWriteBucket(wtxmgrBucketKey)
+
+	// Assert this function is only called on version 7 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		const str = "hasExpiryUpgrade inappropriately called"
+		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+	}
+
+	// Iterate through all mined credits
+	creditsBucket := txmgrBucket.NestedReadWriteBucket(bucketCredits)
+	cursor := creditsBucket.ReadWriteCursor()
+	creditsKV := map[string][]byte{}
+	for k, v := cursor.First(); v != nil; k, v = cursor.Next() {
+		hash := extractRawCreditTxHash(k)
+		block, err := fetchBlockRecord(txmgrBucket, extractRawCreditHeight(k))
+		if err != nil {
+			return err
+		}
+
+		_, recV := existsTxRecord(txmgrBucket, &hash, &block.Block)
+		record := &TxRecord{}
+		err = readRawTxRecord(&hash, recV, record)
+		if err != nil {
+			return err
+		}
+
+		// Only save credits that need their hasExpiry flag updated
+		if record.MsgTx.Expiry != wire.NoExpiryValue {
+			vCpy := make([]byte, len(v))
+			copy(vCpy, v)
+
+			vCpy[8] |= 1 << 4
+			creditsKV[string(k)] = vCpy
+		}
+	}
+
+	for k, v := range creditsKV {
+		err = creditsBucket.Put([]byte(k), v)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Iterate through all unmined credits
+	unminedCreditsBucket := txmgrBucket.NestedReadWriteBucket(bucketUnminedCredits)
+	unminedCursor := unminedCreditsBucket.ReadWriteCursor()
+	unminedCreditsKV := map[string][]byte{}
+	for k, v := unminedCursor.First(); v != nil; k, v = unminedCursor.Next() {
+		hash, err := chainhash.NewHash(extractRawUnminedCreditTxHash(k))
+		if err != nil {
+			return err
+		}
+
+		recV := existsRawUnmined(txmgrBucket, hash[:])
+		record := &TxRecord{}
+		err = readRawTxRecord(hash, recV, record)
+		if err != nil {
+			return err
+		}
+
+		// Only save credits that need their hasExpiry flag updated
+		if record.MsgTx.Expiry != wire.NoExpiryValue {
+			vCpy := make([]byte, len(v))
+			copy(vCpy, v)
+
+			vCpy[8] |= 1 << 4
+			unminedCreditsKV[string(k)] = vCpy
+		}
+	}
+
+	for k, v := range unminedCreditsKV {
+		err = unminedCreditsBucket.Put([]byte(k), v)
+		if err != nil {
+			return err
+		}
+	}
+
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 

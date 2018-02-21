@@ -26,6 +26,7 @@ type CreditRecord struct {
 	Change     bool
 	OpCode     uint8
 	IsCoinbase bool
+	HasExpiry  bool
 }
 
 // DebitRecord contains metadata regarding a transaction debit for a known
@@ -71,7 +72,7 @@ func (s *Store) minedTxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash, r
 		return nil, err
 	}
 
-	credIter := makeReadCreditIterator(ns, recKey)
+	credIter := makeReadCreditIterator(ns, recKey, DBVersion)
 	for credIter.next() {
 		if int(credIter.elem.Index) >= len(details.MsgTx.TxOut) {
 			str := "saved credit index exceeds number of outputs"
@@ -114,7 +115,7 @@ func (s *Store) unminedTxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash,
 		return nil, err
 	}
 
-	it := makeReadUnminedCreditIterator(ns, txHash)
+	it := makeReadUnminedCreditIterator(ns, txHash, DBVersion)
 	for it.next() {
 		if int(it.elem.Index) >= len(details.MsgTx.TxOut) {
 			str := "saved credit index exceeds number of outputs"
@@ -447,7 +448,7 @@ func (s *Store) rangeBlockTransactions(ns walletdb.ReadBucket, begin, end int32,
 				return false, err
 			}
 
-			credIter := makeReadCreditIterator(ns, k)
+			credIter := makeReadCreditIterator(ns, k, DBVersion)
 			for credIter.next() {
 				if int(credIter.elem.Index) >= len(detail.MsgTx.TxOut) {
 					str := "saved credit index exceeds number of outputs"

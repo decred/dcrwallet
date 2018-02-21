@@ -720,6 +720,7 @@ func latestTxRecord(ns walletdb.ReadBucket, txHash []byte) (k, v []byte) {
 //                 010: OP_SSGEN
 //                 011: OP_SSRTX
 //                 100: OP_SSTXCHANGE
+//             [5]: HasExpiry
 //             [6]: IsCoinbase
 //   [9:81]  OPTIONAL Debit bucket key (72 bytes)
 //             [9:41]  Spender transaction hash (32 bytes)
@@ -760,12 +761,15 @@ func condenseOpCode(opCode uint8) byte {
 // credits are created unspent, and are only marked spent later, so there is no
 // value function to create either spent or unspent credits.
 func valueUnspentCredit(cred *credit, scrType scriptType, scrLoc uint32,
-	scrLen uint32, account uint32) []byte {
+	scrLen uint32, account uint32, dbVersion uint32) []byte {
 	v := make([]byte, creditValueSize)
 	byteOrder.PutUint64(v, uint64(cred.amount))
 	v[8] = condenseOpCode(cred.opCode)
 	if cred.change {
 		v[8] |= 1 << 1
+	}
+	if dbVersion >= hasExpiryVersion && cred.hasExpiry {
+		v[8] |= 1 << 4
 	}
 	if cred.isCoinbase {
 		v[8] |= 1 << 5
@@ -793,9 +797,9 @@ func putRawCredit(ns walletdb.ReadWriteBucket, k, v []byte) error {
 // used when the credit is already know to be unspent, or spent by an
 // unconfirmed transaction.
 func putUnspentCredit(ns walletdb.ReadWriteBucket, cred *credit, scrType scriptType,
-	scrLoc uint32, scrLen uint32, account uint32) error {
+	scrLoc uint32, scrLen uint32, account uint32, dbVersion uint32) error {
 	k := keyCredit(&cred.outPoint.Hash, cred.outPoint.Index, &cred.block)
-	v := valueUnspentCredit(cred, scrType, scrLoc, scrLen, account)
+	v := valueUnspentCredit(cred, scrType, scrLoc, scrLen, account, dbVersion)
 	return putRawCredit(ns, k, v)
 }
 
@@ -880,6 +884,12 @@ func fetchRawCreditTagOpCode(v []byte) uint8 {
 // output or not.
 func fetchRawCreditIsCoinbase(v []byte) bool {
 	return v[8]&(1<<5) != 0
+}
+
+// fetchRawCreditHasExpiry returns whether or not the credit has an expiry
+// set or not.
+func fetchRawCreditHasExpiry(v []byte) bool {
+	return v[8]&(1<<4) != 0
 }
 
 // fetchRawCreditScriptOffset returns the ScriptOffset for the pkScript of this
@@ -1001,17 +1011,18 @@ func deleteRawCredit(ns walletdb.ReadWriteBucket, k []byte) error {
 //   k := canonicalOutPoint(&txHash, it.elem.Index)
 //   it.elem.Spent = existsRawUnminedInput(ns, k) != nil
 type creditIterator struct {
-	c      walletdb.ReadWriteCursor // Set to nil after final iteration
-	prefix []byte
-	ck     []byte
-	cv     []byte
-	elem   CreditRecord
-	err    error
+	c         walletdb.ReadWriteCursor // Set to nil after final iteration
+	dbVersion uint32
+	prefix    []byte
+	ck        []byte
+	cv        []byte
+	elem      CreditRecord
+	err       error
 }
 
-func makeReadCreditIterator(ns walletdb.ReadBucket, prefix []byte) creditIterator {
+func makeReadCreditIterator(ns walletdb.ReadBucket, prefix []byte, dbVersion uint32) creditIterator {
 	c := ns.NestedReadBucket(bucketCredits).ReadCursor()
-	return creditIterator{c: readCursor{c}, prefix: prefix}
+	return creditIterator{c: readCursor{c}, prefix: prefix, dbVersion: dbVersion}
 }
 
 func (it *creditIterator) readElem() error {
@@ -1031,6 +1042,7 @@ func (it *creditIterator) readElem() error {
 	it.elem.Change = it.cv[8]&(1<<1) != 0
 	it.elem.OpCode = fetchRawCreditTagOpCode(it.cv)
 	it.elem.IsCoinbase = fetchRawCreditIsCoinbase(it.cv)
+	it.elem.HasExpiry = fetchRawCreditHasExpiry(it.cv)
 
 	return nil
 }
@@ -1385,6 +1397,7 @@ func extractRawUnminedTx(v []byte) []byte {
 //                 010: OP_SSGEN
 //                 011: OP_SSRTX
 //                 100: OP_SSTXCHANGE
+//             [5]: HasExpiry
 //             [6]: Is coinbase
 //   [9] Script type (P2PKH, P2SH, etc) and bit flag for account stored
 //   [10:14] Byte index (4 bytes, uint32)
@@ -1406,13 +1419,16 @@ const (
 )
 
 func valueUnminedCredit(amount dcrutil.Amount, change bool, opCode uint8,
-	IsCoinbase bool, scrType scriptType, scrLoc uint32, scrLen uint32,
-	account uint32) []byte {
+	IsCoinbase bool, hasExpiry bool, scrType scriptType, scrLoc uint32, scrLen uint32,
+	account uint32, dbVersion uint32) []byte {
 	v := make([]byte, unconfValueSize)
 	byteOrder.PutUint64(v, uint64(amount))
 	v[8] = condenseOpCode(opCode)
 	if change {
 		v[8] |= 1 << 1
+	}
+	if dbVersion >= hasExpiryVersion && hasExpiry {
+		v[8] |= 1 << 4
 	}
 	if IsCoinbase {
 		v[8] |= 1 << 5
@@ -1539,12 +1555,13 @@ func deleteRawUnminedCredit(ns walletdb.ReadWriteBucket, k []byte) error {
 //
 //   spent := existsRawUnminedInput(ns, it.ck) != nil
 type unminedCreditIterator struct {
-	c      walletdb.ReadWriteCursor
-	prefix []byte
-	ck     []byte
-	cv     []byte
-	elem   CreditRecord
-	err    error
+	c         walletdb.ReadWriteCursor
+	dbVersion uint32
+	prefix    []byte
+	ck        []byte
+	cv        []byte
+	elem      CreditRecord
+	err       error
 }
 
 type readCursor struct {
@@ -1556,9 +1573,9 @@ func (r readCursor) Delete() error {
 	return storeError(apperrors.ErrDatabase, str, walletdb.ErrTxNotWritable)
 }
 
-func makeReadUnminedCreditIterator(ns walletdb.ReadBucket, txHash *chainhash.Hash) unminedCreditIterator {
+func makeReadUnminedCreditIterator(ns walletdb.ReadBucket, txHash *chainhash.Hash, dbVersion uint32) unminedCreditIterator {
 	c := ns.NestedReadBucket(bucketUnminedCredits).ReadCursor()
-	return unminedCreditIterator{c: readCursor{c}, prefix: txHash[:]}
+	return unminedCreditIterator{c: readCursor{c}, prefix: txHash[:], dbVersion: dbVersion}
 }
 
 func (it *unminedCreditIterator) readElem() error {
@@ -1574,6 +1591,7 @@ func (it *unminedCreditIterator) readElem() error {
 	it.elem.Index = index
 	it.elem.Amount = amount
 	it.elem.Change = change
+	it.elem.HasExpiry = fetchRawCreditHasExpiry(it.cv)
 	// Spent intentionally not set
 
 	return nil
