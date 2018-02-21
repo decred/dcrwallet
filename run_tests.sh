@@ -20,12 +20,11 @@ set -ex
 # for more details.
 
 #Default GOVERSION
-GOVERSION=${1:-1.9}
+GOVERSION=${1:-1.10}
 REPO=dcrwallet
 DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
 
 testrepo () {
-  TESTDIRS=$(go list ./... | grep -v '/vendor/')
   TMPFILE=$(mktemp)
 
   # Check lockfile
@@ -36,26 +35,30 @@ testrepo () {
   fi
 
   # Check linters
-  gometalinter --vendor --disable-all --deadline=10m \
+  gometalinter --vendor --disable-all --deadline=10m -s testdata \
     --enable=gofmt \
     --enable=gosimple \
     --enable=unconvert \
     --enable=ineffassign \
-    -s testdata ./...
+    ./...
   if [ $? != 0 ]; then
     echo 'gometalinter has some complaints'
     exit 1
   fi
 
   # Test application install
-  go install . ./cmd/...
+  if [ $GOVERSION == 1.10 ]; then
+    go install -i . ./cmd/...
+  else
+    go install . ./cmd/...
+  fi
   if [ $? != 0 ]; then
     echo 'go install failed'
     exit 1
   fi
 
   # Check tests
-  env GORACE='halt_on_error=1' go test -short -race $TESTDIRS
+  env GORACE='halt_on_error=1' go test -short -race ./...
   if [ $? != 0 ]; then
     echo 'go tests failed'
     exit 1
