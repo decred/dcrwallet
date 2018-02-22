@@ -842,3 +842,28 @@ message ValidateAddressResponse {
 	bytes pay_to_addr_script = 9;
 	uint32 sigs_required = 10;
 }
+
+service SummariesService {
+	rpc BalancesSummary (BalancesSummaryRequest) returns (stream BalancesSummaryResponse);
+}
+
+enum SummaryResolution {
+	Block = 0;
+	Hour = 1;
+	Day = 2;
+	Month = 3;
+	Year = 4;
+	All = 5;
+}
+
+message BalancesSummaryRequest {
+	SummaryResolution resolution = 2;
+	int32 begin_height = 3;
+	int32 end_height = 4;
+}
+
+message BalancesSummaryResponse {
+	int64 timestmap = 1;
+	int64 spendable = 2;
+	int64 total = 3;
+}

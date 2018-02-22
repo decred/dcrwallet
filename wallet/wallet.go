@@ -3685,5 +3685,40 @@ func Open(cfg *Config) (*Wallet, error) {
 		return nil, err
 	}
 
+	// FIXME just a test. Remove.
+	fn := func(refTime time.Time, dps SummaryResult) (bool, error) {
+		fmt.Printf("%s %15.8f %15.8f\n", refTime.Format(time.RFC3339),
+			float64(dps[BalanceSeriesSpendable].IntValue)/10e7,
+			float64(dps[BalanceSeriesTotal].IntValue)/10e7)
+		return false, nil
+	}
+
+	fmt.Println("\n\nBy block")
+	fmt.Println("time                            spendable           total")
+	sums := NewSummariesManager(w.db, w.TxStore, w.chainParams, wtxmgrNamespaceKey)
+	err = sums.Calculate(BalancesSummaryName, 0, 400000,
+		SummaryResolutionBlock, fn)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("\n\nBy day")
+	fmt.Println("time                            spendable           total")
+	err = sums.Calculate(BalancesSummaryName, 0, 400000,
+		SummaryResolutionDay, fn)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("\n\nAll")
+	fmt.Println("time                            spendable           total")
+	err = sums.Calculate(BalancesSummaryName, 0000, 140000,
+		SummaryResolutionAll, fn)
+	if err != nil {
+		panic(err)
+	}
+
+	panic("Done!")
+
 	return w, nil
 }
