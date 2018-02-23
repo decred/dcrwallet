@@ -2001,7 +2001,7 @@ type GetTicketsResult struct {
 // early without reading any additional transactions when true.
 //
 // The arguments to f may be reused and should not be kept by the caller.
-func (w *Wallet) GetTickets(f func([]*TicketSummary, *udb.BlockMeta) (bool, error), chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
+func (w *Wallet) GetTickets(f func([]*TicketSummary, *Block) (bool, error), chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
 	var start, end int32 = 0, -1
 
 	if startBlock != nil {
@@ -2074,10 +2074,16 @@ func (w *Wallet) GetTickets(f func([]*TicketSummary, *udb.BlockMeta) (bool, erro
 				return false, nil
 			}
 
-			// current contract for RangeTransactions() guarantees at least 1
-			// txdetail and all of the same block, so safe to send block meta
-			// from the first transaction
-			return f(tickets, &details[0].Block)
+			var block *Block
+			if details[0].Block.Height > -1 {
+				block = &Block{
+					Height:    details[0].Block.Height,
+					Hash:      &details[0].Block.Hash,
+					Timestamp: details[0].Block.Time.Unix(),
+				}
+			}
+
+			return f(tickets, block)
 		}
 
 		return w.TxStore.RangeTransactions(txmgrNs, start, end, rangeFn)
