@@ -88,6 +88,13 @@ var helpDescsEnUS = map[string]string{
 	"getaccountbalanceresult-unconfirmed":             "Unconfirmed number of coins.",
 	"getaccountbalanceresult-votingauthority":         "Coins for voting authority.",
 	"getbalanceresult-blockhash":                      "Block hash.",
+	"getbalanceresult-totalimmaturecoinbaserewards":   "Total number of immature coinbase reward coins.",
+	"getbalanceresult-totalimmaturestakegeneration":   "Total number of immature stake coins.",
+	"getbalanceresult-totallockedbytickets":           "Total number of coins locked by tickets.",
+	"getbalanceresult-totalspendable":                 "Total number of spendable number of coins.",
+	"getbalanceresult-cumulativetotal":                "Total number of coins.",
+	"getbalanceresult-totalunconfirmed":               "Total number of unconfirmed coins.",
+	"getbalanceresult-totalvotingauthority":           "Total number of coins for voting authority.",
 
 	// GetBestBlockHashCmd help.
 	"getbestblockhash--synopsis": "Returns the hash of the newest block in the best chain that wallet has finished syncing with.",
