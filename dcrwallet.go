@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/internal/zero"
@@ -177,6 +178,13 @@ func run(ctx context.Context) error {
 		w, err := loader.OpenExistingWallet(walletPass)
 		if err != nil {
 			log.Errorf("Failed to open wallet: %v", err)
+			if apperrors.IsError(err, apperrors.ErrWrongPassphrase) {
+				// walletpass not provided, advice using --walletpass or --promptpublicpass
+				if len(walletPass) == 0 {
+					log.Info("Retry with --walletpass or --promptpublicpass.")
+				}
+			}
+
 			return err
 		}
 
