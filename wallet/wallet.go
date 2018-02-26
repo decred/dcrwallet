@@ -1992,16 +1992,17 @@ type GetTicketsResult struct {
 // GetTickets calls function f for all tickets located in between the
 // given startBlock and endBlock.  TicketSummary includes TransactionSummmary
 // for the ticket and the spender (if already spent) and the ticket's current
-// status. The function f also receives block metadata of the ticket. All
+// status. The function f also receives block header of the ticket. All
 // tickets on a given call belong to the same block and at least one ticket
-// is present when f is called.
+// is present when f is called. If the ticket is unmined, the block header will
+// be nil.
 //
 // The function f may return an error which, if non-nil, is propagated to the
 // caller.  Additionally, a boolean return value allows exiting the function
 // early without reading any additional transactions when true.
 //
 // The arguments to f may be reused and should not be kept by the caller.
-func (w *Wallet) GetTickets(f func([]*TicketSummary, *Block) (bool, error), chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
+func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
 	var start, end int32 = 0, -1
 
 	if startBlock != nil {
@@ -2053,6 +2054,7 @@ func (w *Wallet) GetTickets(f func([]*TicketSummary, *Block) (bool, error), chai
 
 	return walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		header := &wire.BlockHeader{}
 
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
 			tickets := make([]*TicketSummary, 0, len(details))
@@ -2074,16 +2076,16 @@ func (w *Wallet) GetTickets(f func([]*TicketSummary, *Block) (bool, error), chai
 				return false, nil
 			}
 
-			var block *Block
-			if details[0].Block.Height > -1 {
-				block = &Block{
-					Height:    details[0].Block.Height,
-					Hash:      &details[0].Block.Hash,
-					Timestamp: details[0].Block.Time.Unix(),
-				}
+			if details[0].Block.Height == -1 {
+				return f(tickets, nil)
 			}
 
-			return f(tickets, block)
+			headerBytes, err := w.TxStore.GetSerializedBlockHeader(txmgrNs, &details[0].Block.Hash)
+			if err != nil {
+				return false, err
+			}
+			header.FromBytes(headerBytes)
+			return f(tickets, header)
 		}
 
 		return w.TxStore.RangeTransactions(txmgrNs, start, end, rangeFn)

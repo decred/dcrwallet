@@ -1062,7 +1062,7 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 	ticketCount := 0
 	ctx := server.Context()
 
-	rangeFn := func(tickets []*wallet.TicketSummary, block *wallet.Block) (bool, error) {
+	rangeFn := func(tickets []*wallet.TicketSummary, block *wire.BlockHeader) (bool, error) {
 		resp := &pb.GetTicketsResponse{
 			Block: marshalGetTicketBlockDetails(block),
 		}
@@ -1599,15 +1599,16 @@ func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.GetTicketsResponse_T
 	}
 }
 
-func marshalGetTicketBlockDetails(v *wallet.Block) *pb.GetTicketsResponse_BlockDetails {
+func marshalGetTicketBlockDetails(v *wire.BlockHeader) *pb.GetTicketsResponse_BlockDetails {
 	if v == nil || v.Height < 0 {
 		return nil
 	}
 
+	blockHash := v.BlockHash()
 	return &pb.GetTicketsResponse_BlockDetails{
-		Hash:      v.Hash[:],
-		Height:    v.Height,
-		Timestamp: v.Timestamp,
+		Hash:      blockHash[:],
+		Height:    int32(v.Height),
+		Timestamp: v.Timestamp.Unix(),
 	}
 }
 
