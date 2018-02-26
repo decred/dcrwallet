@@ -294,6 +294,7 @@ message GetTicketsRequest {
 	sint32 starting_block_height = 2;
 	bytes ending_block_hash = 3;
 	int32 ending_block_height = 4;
+	int32 target_ticket_count = 5;
 }
 message GetTicketsResponse {
 	message TicketDetails {
@@ -311,7 +312,13 @@ message GetTicketsResponse {
 		}
 		TicketStatus ticket_status = 3;
 	}
+	message BlockDetails {
+		bytes hash = 1;
+		int32 height = 2;
+		int64 timestamp = 3;
+	}
 	TicketDetails ticket = 1;
+	BlockDetails block = 2;
 }
 
 message TicketPriceRequest {

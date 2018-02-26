@@ -59,9 +59,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.29.0"
+	semverString = "4.30.0"
 	semverMajor  = 4
-	semverMinor  = 29
+	semverMinor  = 30
 	semverPatch  = 0
 )
 
@@ -1053,21 +1053,45 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 		endBlock = wallet.NewBlockIdentifierFromHeight(req.EndingBlockHeight)
 	}
 
-	gt, err := s.wallet.GetTickets(server.Context(), chainClient, startBlock, endBlock)
+	targetTicketCount := int(req.TargetTicketCount)
+	if targetTicketCount < 0 {
+		return status.Errorf(codes.InvalidArgument,
+			"target ticket count may not be negative")
+	}
+
+	ticketCount := 0
+	ctx := server.Context()
+
+	rangeFn := func(tickets []*wallet.TicketSummary, block *wire.BlockHeader) (bool, error) {
+		resp := &pb.GetTicketsResponse{
+			Block: marshalGetTicketBlockDetails(block),
+		}
+
+		// current contract for grpc GetTickets is for one ticket per response.
+		// To make sure we don't miss any while paginating, we only check for
+		// the targetTicketCount after sending all from this block.
+		for _, t := range tickets {
+			resp.Ticket = marshalTicketDetails(t)
+			err := server.Send(resp)
+			if err != nil {
+				return true, err
+			}
+		}
+		ticketCount += len(tickets)
+
+		select {
+		case <-ctx.Done():
+			return true, ctx.Err()
+		default:
+			return ((targetTicketCount > 0) && (ticketCount >= targetTicketCount)), nil
+		}
+	}
+
+	err = s.wallet.GetTickets(rangeFn, chainClient, startBlock, endBlock)
 	if err != nil {
 		return translateError(err)
 	}
-	for i := range gt.Tickets {
-		if gt.Tickets[i] != nil {
-			resp := &pb.GetTicketsResponse{
-				Ticket: marshalTicketDetails(gt.Tickets[i]),
-			}
-			err = server.Send(resp)
-			if err != nil {
-				return err
-			}
-		}
-	}
+
 	return nil
 }
 
@@ -1572,6 +1596,19 @@ func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.GetTicketsResponse_T
 		Ticket:       marshalTransactionDetails(ticket.Ticket),
 		Spender:      spender,
 		TicketStatus: ticketStatus,
+	}
+}
+
+func marshalGetTicketBlockDetails(v *wire.BlockHeader) *pb.GetTicketsResponse_BlockDetails {
+	if v == nil || v.Height < 0 {
+		return nil
+	}
+
+	blockHash := v.BlockHash()
+	return &pb.GetTicketsResponse_BlockDetails{
+		Hash:      blockHash[:],
+		Height:    int32(v.Height),
+		Timestamp: v.Timestamp.Unix(),
 	}
 }
 

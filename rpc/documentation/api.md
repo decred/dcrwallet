@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.29.x
+Version: 4.30.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -742,6 +742,11 @@ results of a single ticket.
   used and transactions through the best block and all unmined transactions are
   included.
 
+- `int32 target_ticket_count`: Try to return at most this amount of tickets.
+  Both mined and unmined tickets count towards this limit. Note that the number
+  of tickets returned may be higher or lower than this specified target and
+  callers are responsible for further clipping of the dataset if required.
+
 **Response:** `stream GetTicketsResponse`
 
 - `TicketDetails tickets`: A given ticket's details.
@@ -776,9 +781,23 @@ results of a single ticket.
 
     - `REVOKED`: A ticket that has been revoked.
 
+- `BlockDetails block`: The block the ticket was mined. It is null if the
+   ticket hasn't been mined yet.
+
+  **Nested Message** `BlockDetails`
+
+  - `bytes hash`: The binary hash of the block.
+
+  - `int32 height`: The block height.
+
+  - `int64 timestamp`: The timestamp the block was mined.
+
+
 **Expected errors:**
 
 - `InvalidArgument`: A non-default block hash field did not have the correct length.
+
+- `InvalidArgument`: A negative target value was provided.
 
 - `Aborted`: The wallet database is closed.
 
