@@ -11,6 +11,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/hdkeychain"
+	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/snacl"
@@ -72,10 +73,17 @@ const (
 	// with expiries set available to spend after coinbase maturity (16 blocks).
 	hasExpiryVersion = 8
 
+	// hasExpiryFixedVersion is the ninth version of the database.  It corrects
+	// the previous upgrade by writing the has expiry bit to an unused bit flag
+	// rather than in the stake flags and fixes various UTXO selection issues
+	// caused by misinterpreting ticket outputs as spendable by regular
+	// transactions.
+	hasExpiryFixedVersion = 9
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = hasExpiryVersion
+	DBVersion = hasExpiryFixedVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -89,6 +97,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte) error{
 	ticketBucketVersion - 1:         ticketBucketUpgrade,
 	slip0044CoinTypeVersion - 1:     slip0044CoinTypeUpgrade,
 	hasExpiryVersion - 1:            hasExpiryUpgrade,
+	hasExpiryFixedVersion - 1:       hasExpiryFixedUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
@@ -569,6 +578,112 @@ func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
 			copy(vCpy, v)
 
 			vCpy[8] |= 1 << 4
+			unminedCreditsKV[string(k)] = vCpy
+		}
+	}
+
+	for k, v := range unminedCreditsKV {
+		err = unminedCreditsBucket.Put([]byte(k), v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+	const oldVersion = 8
+	const newVersion = 9
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	txmgrBucket := tx.ReadWriteBucket(wtxmgrBucketKey)
+
+	// Assert this function is only called on version 8 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		const str = "hasExpiryFixedUpgrade inappropriately called"
+		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+	}
+
+	// Iterate through all mined credits
+	creditsBucket := txmgrBucket.NestedReadWriteBucket(bucketCredits)
+	cursor := creditsBucket.ReadWriteCursor()
+	creditsKV := map[string][]byte{}
+	for k, v := cursor.First(); v != nil; k, v = cursor.Next() {
+		hash := extractRawCreditTxHash(k)
+		block, err := fetchBlockRecord(txmgrBucket, extractRawCreditHeight(k))
+		if err != nil {
+			return err
+		}
+
+		_, recV := existsTxRecord(txmgrBucket, &hash, &block.Block)
+		record := &TxRecord{}
+		err = readRawTxRecord(&hash, recV, record)
+		if err != nil {
+			return err
+		}
+
+		// Only save credits that need their hasExpiry flag updated
+		if record.MsgTx.Expiry != wire.NoExpiryValue {
+			vCpy := make([]byte, len(v))
+			copy(vCpy, v)
+
+			vCpy[8] &^= 1 << 4 // Clear bad hasExpiry/OP_SSTXCHANGE flag
+			vCpy[8] |= 1 << 6  // Set correct hasExpiry flag
+			// Reset OP_SSTXCHANGE flag if this is a ticket purchase
+			// OP_SSTXCHANGE output.
+			out := record.MsgTx.TxOut[extractRawCreditIndex(k)]
+			if stake.IsSStx(&record.MsgTx) &&
+				txscript.GetScriptClass(out.Version, out.PkScript) == txscript.StakeSubChangeTy {
+				vCpy[8] |= 1 << 4
+			}
+
+			creditsKV[string(k)] = vCpy
+		}
+	}
+
+	for k, v := range creditsKV {
+		err = creditsBucket.Put([]byte(k), v)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Iterate through all unmined credits
+	unminedCreditsBucket := txmgrBucket.NestedReadWriteBucket(bucketUnminedCredits)
+	unminedCursor := unminedCreditsBucket.ReadWriteCursor()
+	unminedCreditsKV := map[string][]byte{}
+	for k, v := unminedCursor.First(); v != nil; k, v = unminedCursor.Next() {
+		hash, err := chainhash.NewHash(extractRawUnminedCreditTxHash(k))
+		if err != nil {
+			return err
+		}
+
+		recV := existsRawUnmined(txmgrBucket, hash[:])
+		record := &TxRecord{}
+		err = readRawTxRecord(hash, recV, record)
+		if err != nil {
+			return err
+		}
+
+		// Only save credits that need their hasExpiry flag updated
+		if record.MsgTx.Expiry != wire.NoExpiryValue {
+			vCpy := make([]byte, len(v))
+			copy(vCpy, v)
+
+			vCpy[8] &^= 1 << 4 // Clear bad hasExpiry/OP_SSTXCHANGE flag
+			vCpy[8] |= 1 << 6  // Set correct hasExpiry flag
+			// Reset OP_SSTXCHANGE flag if this is a ticket purchase
+			// OP_SSTXCHANGE output.
+			out := record.MsgTx.TxOut[extractRawCreditIndex(k)]
+			if stake.IsSStx(&record.MsgTx) &&
+				txscript.GetScriptClass(out.Version, out.PkScript) == txscript.StakeSubChangeTy {
+				vCpy[8] |= 1 << 4
+			}
+
 			unminedCreditsKV[string(k)] = vCpy
 		}
 	}

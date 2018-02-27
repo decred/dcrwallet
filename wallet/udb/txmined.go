@@ -1794,7 +1794,7 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 				}
 				opCode := fetchRawCreditTagOpCode(v)
 				isCoinbase := fetchRawCreditIsCoinbase(v)
-				hasExpiry := fetchRawCreditHasExpiry(v)
+				hasExpiry := fetchRawCreditHasExpiry(v, DBVersion)
 
 				scrType := pkScriptType(output.PkScript)
 				scrLoc := rec.MsgTx.PkScriptLocs()[i]
@@ -1960,7 +1960,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint,
 
 		opCode = fetchRawUnminedCreditTagOpcode(unminedCredV)
 		isCoinbase = fetchRawCreditIsCoinbase(unminedCredV)
-		hasExpiry = fetchRawCreditHasExpiry(unminedCredV)
+		hasExpiry = fetchRawCreditHasExpiry(unminedCredV, DBVersion)
 
 		// These errors are skipped because they may throw incorrectly
 		// on values recorded in older versions of the wallet. 0-offset
@@ -1978,7 +1978,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint,
 
 		opCode = fetchRawCreditTagOpCode(minedCredV)
 		isCoinbase = fetchRawCreditIsCoinbase(minedCredV)
-		hasExpiry = fetchRawCreditHasExpiry(minedCredV)
+		hasExpiry = fetchRawCreditHasExpiry(minedCredV, DBVersion)
 
 		// Same error caveat as above.
 		scrLoc = fetchRawCreditScriptOffset(minedCredV)
@@ -2857,7 +2857,7 @@ func (s *Store) unspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 		}
 		// Skip outputs that have an expiry but have not yet reached
 		// coinbase maturity .
-		if fetchRawCreditHasExpiry(cVal) {
+		if fetchRawCreditHasExpiry(cVal, DBVersion) {
 			if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
 				syncHeight) {
 				return nil

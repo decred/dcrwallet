@@ -712,16 +712,16 @@ func latestTxRecord(ns walletdb.ReadBucket, txHash []byte) (k, v []byte) {
 //
 //   [0:8]   Amount (8 bytes)
 //   [8]     Flags (1 byte)
-//             [0]: Spent
-//             [1]: Change
-//             [2:5]: P2PKH stake flag
-//                 000: None (translates to OP_NOP10)
-//                 001: OP_SSTX
-//                 010: OP_SSGEN
-//                 011: OP_SSRTX
-//                 100: OP_SSTXCHANGE
-//             [5]: HasExpiry
-//             [6]: IsCoinbase
+//             0x01: Spent
+//             0x02: Change
+//             0x1c: P2PKH stake flag
+//                 0x00: None (translates to OP_NOP10)
+//                 0x04: OP_SSTX
+//                 0x08: OP_SSGEN
+//                 0x0c: OP_SSRTX
+//                 0x10: OP_SSTXCHANGE
+//             0x20: IsCoinbase
+//             0x40: HasExpiry
 //   [9:81]  OPTIONAL Debit bucket key (72 bytes)
 //             [9:41]  Spender transaction hash (32 bytes)
 //             [41:45] Spender block height (4 bytes)
@@ -768,11 +768,16 @@ func valueUnspentCredit(cred *credit, scrType scriptType, scrLoc uint32,
 	if cred.change {
 		v[8] |= 1 << 1
 	}
-	if dbVersion >= hasExpiryVersion && cred.hasExpiry {
-		v[8] |= 1 << 4
-	}
 	if cred.isCoinbase {
 		v[8] |= 1 << 5
+	}
+	if cred.hasExpiry {
+		switch {
+		case dbVersion >= hasExpiryFixedVersion:
+			v[8] |= 1 << 6
+		case dbVersion >= hasExpiryVersion:
+			v[8] |= 1 << 4
+		}
 	}
 
 	v[81] = byte(scrType)
@@ -888,8 +893,15 @@ func fetchRawCreditIsCoinbase(v []byte) bool {
 
 // fetchRawCreditHasExpiry returns whether or not the credit has an expiry
 // set or not.
-func fetchRawCreditHasExpiry(v []byte) bool {
-	return v[8]&(1<<4) != 0
+func fetchRawCreditHasExpiry(v []byte, dbVersion uint32) bool {
+	switch {
+	case dbVersion >= hasExpiryFixedVersion:
+		return v[8]&(1<<6) != 0
+	case dbVersion >= hasExpiryVersion:
+		return v[8]&(1<<4) != 0
+	default:
+		return false
+	}
 }
 
 // fetchRawCreditScriptOffset returns the ScriptOffset for the pkScript of this
@@ -1042,7 +1054,7 @@ func (it *creditIterator) readElem() error {
 	it.elem.Change = it.cv[8]&(1<<1) != 0
 	it.elem.OpCode = fetchRawCreditTagOpCode(it.cv)
 	it.elem.IsCoinbase = fetchRawCreditIsCoinbase(it.cv)
-	it.elem.HasExpiry = fetchRawCreditHasExpiry(it.cv)
+	it.elem.HasExpiry = fetchRawCreditHasExpiry(it.cv, it.dbVersion)
 
 	return nil
 }
@@ -1390,15 +1402,16 @@ func extractRawUnminedTx(v []byte) []byte {
 //
 //   [0:8]   Amount (8 bytes)
 //   [8]     Flags (1 byte)
-//             [1]: Change
-//             [2:5]: P2PKH stake flag
-//                 000: None (translates to OP_NOP10)
-//                 001: OP_SSTX
-//                 010: OP_SSGEN
-//                 011: OP_SSRTX
-//                 100: OP_SSTXCHANGE
-//             [5]: HasExpiry
-//             [6]: Is coinbase
+//             0x01: Unused
+//             0x02: Change
+//             0x1c: P2PKH stake flag
+//                 0x00: None (translates to OP_NOP10)
+//                 0x04: OP_SSTX
+//                 0x08: OP_SSGEN
+//                 0x0c: OP_SSRTX
+//                 0x10: OP_SSTXCHANGE
+//             0x20: IsCoinbase
+//             0x40: HasExpiry
 //   [9] Script type (P2PKH, P2SH, etc) and bit flag for account stored
 //   [10:14] Byte index (4 bytes, uint32)
 //   [14:18] Length of script (4 bytes, uint32)
@@ -1427,8 +1440,13 @@ func valueUnminedCredit(amount dcrutil.Amount, change bool, opCode uint8,
 	if change {
 		v[8] |= 1 << 1
 	}
-	if dbVersion >= hasExpiryVersion && hasExpiry {
-		v[8] |= 1 << 4
+	if hasExpiry {
+		switch {
+		case dbVersion >= hasExpiryFixedVersion:
+			v[8] |= 1 << 6
+		case dbVersion >= hasExpiryVersion:
+			v[8] |= 1 << 4
+		}
 	}
 	if IsCoinbase {
 		v[8] |= 1 << 5
@@ -1591,7 +1609,7 @@ func (it *unminedCreditIterator) readElem() error {
 	it.elem.Index = index
 	it.elem.Amount = amount
 	it.elem.Change = change
-	it.elem.HasExpiry = fetchRawCreditHasExpiry(it.cv)
+	it.elem.HasExpiry = fetchRawCreditHasExpiry(it.cv, it.dbVersion)
 	// Spent intentionally not set
 
 	return nil

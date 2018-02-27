@@ -33,6 +33,7 @@ var dbUpgradeTests = [...]struct {
 	{verifyV6Upgrade, "v5.db.gz"},
 	// No upgrade test for V7, it is a backwards-compatible upgrade
 	{verifyV8Upgrade, "v7.db.gz"},
+	// No upgrade test for V9, it is a fix for V8 and the previous test still applies
 }
 
 var pubPass = []byte("public")
@@ -349,7 +350,7 @@ func verifyV8Upgrade(t *testing.T, db walletdb.DB) {
 		ns := tx.ReadBucket(wtxmgrBucketKey)
 		creditBucket := ns.NestedReadBucket(bucketCredits)
 		err := creditBucket.ForEach(func(k []byte, v []byte) error {
-			hasExpiry := fetchRawCreditHasExpiry(v)
+			hasExpiry := fetchRawCreditHasExpiry(v, DBVersion)
 			if !hasExpiry {
 				t.Errorf("expected expiry to be set")
 			}
@@ -361,7 +362,7 @@ func verifyV8Upgrade(t *testing.T, db walletdb.DB) {
 
 		unminedCreditBucket := ns.NestedReadBucket(bucketUnminedCredits)
 		err = unminedCreditBucket.ForEach(func(k []byte, v []byte) error {
-			hasExpiry := fetchRawCreditHasExpiry(v)
+			hasExpiry := fetchRawCreditHasExpiry(v, DBVersion)
 
 			if !hasExpiry {
 				t.Errorf("expected expiry to be set")
