@@ -17,10 +17,9 @@
 package pgpwordlist
 
 import (
+	"bytes"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 var tests = []struct {
@@ -44,8 +43,13 @@ var tests = []struct {
 func TestDecode(t *testing.T) {
 	for _, test := range tests {
 		data, err := DecodeMnemonics(strings.Split(test.mnemonics, " "))
-		assert.NoError(t, err)
-		assert.Equal(t, test.data, data)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		if !bytes.Equal(data, test.data) {
+			t.Errorf("decoded data %x differs from expected %x", data, test.data)
+		}
 	}
 }
 
@@ -54,7 +58,9 @@ func TestEncodeMnemonics(t *testing.T) {
 		mnemonicsSlice := strings.Split(test.mnemonics, " ")
 		for i, b := range test.data {
 			mnemonic := ByteToMnemonic(b, i)
-			assert.Equal(t, mnemonicsSlice[i], mnemonic)
+			if mnemonic != mnemonicsSlice[i] {
+				t.Errorf("returned mnemonic %s differs from expected %s", mnemonic, mnemonicsSlice[i])
+			}
 		}
 	}
 }
