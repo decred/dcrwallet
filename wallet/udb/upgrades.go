@@ -610,7 +610,7 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) err
 
 	// Iterate through all mined credits
 	creditsBucket := txmgrBucket.NestedReadWriteBucket(bucketCredits)
-	cursor := creditsBucket.ReadWriteCursor()
+	cursor := creditsBucket.ReadCursor()
 	creditsKV := map[string][]byte{}
 	for k, v := cursor.First(); v != nil; k, v = cursor.Next() {
 		hash := extractRawCreditTxHash(k)
@@ -654,7 +654,7 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) err
 
 	// Iterate through all unmined credits
 	unminedCreditsBucket := txmgrBucket.NestedReadWriteBucket(bucketUnminedCredits)
-	unminedCursor := unminedCreditsBucket.ReadWriteCursor()
+	unminedCursor := unminedCreditsBucket.ReadCursor()
 	unminedCreditsKV := map[string][]byte{}
 	for k, v := unminedCursor.First(); v != nil; k, v = unminedCursor.Next() {
 		hash, err := chainhash.NewHash(extractRawUnminedCreditTxHash(k))
@@ -678,7 +678,11 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) err
 			vCpy[8] |= 1 << 6  // Set correct hasExpiry flag
 			// Reset OP_SSTXCHANGE flag if this is a ticket purchase
 			// OP_SSTXCHANGE output.
-			out := record.MsgTx.TxOut[extractRawCreditIndex(k)]
+			idx, err := fetchRawUnminedCreditIndex(k)
+			if err != nil {
+				return err
+			}
+			out := record.MsgTx.TxOut[idx]
 			if stake.IsSStx(&record.MsgTx) &&
 				txscript.GetScriptClass(out.Version, out.PkScript) == txscript.StakeSubChangeTy {
 				vCpy[8] |= 1 << 4
