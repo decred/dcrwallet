@@ -653,11 +653,30 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 			return nil, err
 		}
 
+		var (
+			totImmatureCoinbase dcrutil.Amount
+			totImmatureStakegen dcrutil.Amount
+			totLocked           dcrutil.Amount
+			totSpendable        dcrutil.Amount
+			totUnconfirmed      dcrutil.Amount
+			totVotingAuthority  dcrutil.Amount
+			cumTot              dcrutil.Amount
+		)
+
 		for _, bal := range balances {
 			accountName, err := w.AccountName(bal.Account)
 			if err != nil {
 				return nil, err
 			}
+
+			totImmatureCoinbase += bal.ImmatureCoinbaseRewards
+			totImmatureStakegen += bal.ImmatureStakeGeneration
+			totLocked += bal.LockedByTickets
+			totSpendable += bal.Spendable
+			totUnconfirmed += bal.Unconfirmed
+			totVotingAuthority += bal.VotingAuthority
+			cumTot += bal.Total
+
 			json := dcrjson.GetAccountBalanceResult{
 				AccountName:             accountName,
 				ImmatureCoinbaseRewards: bal.ImmatureCoinbaseRewards.ToCoin(),
@@ -670,6 +689,14 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 			}
 			result.Balances = append(result.Balances, json)
 		}
+
+		result.TotalImmatureCoinbaseRewards = totImmatureCoinbase.ToCoin()
+		result.TotalImmatureStakeGeneration = totImmatureStakegen.ToCoin()
+		result.TotalLockedByTickets = totLocked.ToCoin()
+		result.TotalSpendable = totSpendable.ToCoin()
+		result.TotalUnconfirmed = totUnconfirmed.ToCoin()
+		result.TotalVotingAuthority = totVotingAuthority.ToCoin()
+		result.CumulativeTotal = cumTot.ToCoin()
 	} else {
 		account, err := w.AccountNumber(accountName)
 		if err != nil {
@@ -691,16 +718,6 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 			VotingAuthority:         bal.VotingAuthority.ToCoin(),
 		}
 		result.Balances = append(result.Balances, json)
-
-		for _, account := range result.Balances {
-			result.TotalImmatureCoinbaseRewards += account.ImmatureCoinbaseRewards
-			result.TotalImmatureStakeGeneration += account.ImmatureStakeGeneration
-			result.TotalLockedByTickets += account.LockedByTickets
-			result.TotalSpendable += account.Spendable
-			result.TotalUnconfirmed += account.Unconfirmed
-			result.TotalVotingAuthority += account.VotingAuthority
-			result.CumulativeTotal += account.Total
-		}
 	}
 
 	return result, nil
