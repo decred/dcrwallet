@@ -11,7 +11,9 @@ import (
 	"strings"
 )
 
-const semverAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
+// semverAlphabet is an alphabet of all characters allowed in semver prerelease
+// or build metadata identifiers, and the . separator.
+const semverAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-."
 
 // Constants defining the application version number.
 const (
