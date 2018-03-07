@@ -18,8 +18,8 @@ const semverAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrst
 // Constants defining the application version number.
 const (
 	Major = 1
-	Minor = 1
-	Patch = 2
+	Minor = 2
+	Patch = 0
 )
 
 // PreRelease contains the prerelease name of the application.  It is a variable
