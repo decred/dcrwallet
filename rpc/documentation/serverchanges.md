@@ -11,7 +11,7 @@ steps before changes to the server can be implemented.
   language
 
   The `protoc` tool is part of the Protocol Buffers project.  This can be
-  installed [from source](https://github.com/google/protobuf/blob/master/INSTALL.txt),
+  installed [from source](https://github.com/google/protobuf/blob/master/src/README.md),
   from an [official binary release](https://github.com/google/protobuf/releases),
   or through an operating system's package manager.
 
