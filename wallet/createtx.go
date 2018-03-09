@@ -628,7 +628,11 @@ func validateMsgTx(tx *wire.MsgTx, prevScripts [][]byte) error {
 		}
 		err = vm.Execute()
 		if err != nil {
-			return fmt.Errorf("cannot validate transaction: %s", err)
+			prevOut := &tx.TxIn[i].PreviousOutPoint
+			sigScript := tx.TxIn[i].SignatureScript
+			return fmt.Errorf("script execution errored: %s "+
+				"(spending outpoint %v pkscript %x with sigscript %x)",
+				err, prevOut, prevScript, sigScript)
 		}
 	}
 	return nil
