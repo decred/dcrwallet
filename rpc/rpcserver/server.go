@@ -59,9 +59,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.30.0"
+	semverString = "4.31.0"
 	semverMajor  = 4
-	semverMinor  = 30
+	semverMinor  = 31
 	semverPatch  = 0
 )
 
@@ -1382,25 +1382,47 @@ func (s *walletServer) LoadActiveDataFilters(ctx context.Context, req *pb.LoadAc
 	return &pb.LoadActiveDataFiltersResponse{}, nil
 }
 
-func (s *walletServer) SignMessage(cts context.Context, req *pb.SignMessageRequest) (*pb.SignMessageResponse, error) {
-	var sig []byte
+func (s *walletServer) CommittedTickets(ctx context.Context, req *pb.CommittedTicketsRequest) (
+	*pb.CommittedTicketsResponse, error) {
 
-	lock := make(chan time.Time, 1)
-	defer func() {
-		lock <- time.Time{} // send matters, not the value
-	}()
-	err := s.wallet.Unlock(req.Passphrase, lock)
+	// Translate [][]byte to []*chainhash.Hash
+	in := make([]*chainhash.Hash, 0, len(req.Tickets))
+	for _, v := range req.Tickets {
+		hash, err := chainhash.NewHash(v)
+		if err != nil {
+			return &pb.CommittedTicketsResponse{},
+				status.Error(codes.InvalidArgument,
+					"invalid hash "+hex.EncodeToString(v))
+		}
+		in = append(in, hash)
+	}
+
+	// Figure out which tickets we own
+	out, err := s.wallet.CommittedTickets(in)
 	if err != nil {
 		return nil, translateError(err)
 	}
 
-	addr, err := decodeAddress(req.Address, s.wallet.ChainParams())
+	// Translate []*chainhash.Hash to [][]byte
+	ctr := &pb.CommittedTicketsResponse{
+		Tickets: make([][]byte, 0, len(out)),
+	}
+	for _, v := range out {
+		ctr.Tickets = append(ctr.Tickets, v[:])
+	}
+
+	return ctr, nil
+}
+
+func (s *walletServer) signMessage(address, message string) ([]byte, error) {
+	addr, err := decodeAddress(address, s.wallet.ChainParams())
 	if err != nil {
 		return nil, err
 	}
 
 	// Addresses must have an associated secp256k1 private key and therefore
 	// must be P2PK or P2PKH (P2SH is not allowed).
+	var sig []byte
 	switch a := addr.(type) {
 	case *dcrutil.AddressSecpPubKey:
 	case *dcrutil.AddressPubKeyHash:
@@ -1411,14 +1433,63 @@ func (s *walletServer) SignMessage(cts context.Context, req *pb.SignMessageReque
 		goto WrongAddrKind
 	}
 
-	sig, err = s.wallet.SignMessage(req.Message, addr)
+	sig, err = s.wallet.SignMessage(message, addr)
 	if err != nil {
 		return nil, translateError(err)
 	}
-	return &pb.SignMessageResponse{Signature: sig}, nil
+	return sig, nil
 
 WrongAddrKind:
-	return nil, status.Error(codes.InvalidArgument, "address must be secp256k1 P2PK or P2PKH")
+	return nil, status.Error(codes.InvalidArgument,
+		"address must be secp256k1 P2PK or P2PKH")
+}
+
+func (s *walletServer) SignMessage(cts context.Context, req *pb.SignMessageRequest) (*pb.SignMessageResponse, error) {
+	lock := make(chan time.Time, 1)
+	defer func() {
+		lock <- time.Time{} // send matters, not the value
+	}()
+	err := s.wallet.Unlock(req.Passphrase, lock)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	sig, err := s.signMessage(req.Address, req.Message)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.SignMessageResponse{Signature: sig}, nil
+}
+
+func (s *walletServer) SignMessages(cts context.Context, req *pb.SignMessagesRequest) (*pb.SignMessagesResponse, error) {
+	lock := make(chan time.Time, 1)
+	defer func() {
+		lock <- time.Time{} // send matters, not the value
+	}()
+	err := s.wallet.Unlock(req.Passphrase, lock)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	smr := pb.SignMessagesResponse{
+		Replies: make([]*pb.SignMessagesResponse_SignReply, 0,
+			len(req.Messages)),
+	}
+	for _, v := range req.Messages {
+		e := ""
+		sig, err := s.signMessage(v.Address, v.Message)
+		if err != nil {
+			e = err.Error()
+		}
+		smr.Replies = append(smr.Replies,
+			&pb.SignMessagesResponse_SignReply{
+				Signature: sig,
+				Error:     e,
+			})
+	}
+
+	return &smr, nil
 }
 
 func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddressRequest) (*pb.ValidateAddressResponse, error) {

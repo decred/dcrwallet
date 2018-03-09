@@ -54,7 +54,9 @@ service WalletService {
 	rpc RevokeTickets(RevokeTicketsRequest) returns (RevokeTicketsResponse);
 	rpc LoadActiveDataFilters(LoadActiveDataFiltersRequest) returns (LoadActiveDataFiltersResponse);
 	rpc SignMessage (SignMessageRequest) returns (SignMessageResponse);
+	rpc SignMessages (SignMessagesRequest) returns (SignMessagesResponse);
 	rpc ValidateAddress (ValidateAddressRequest) returns (ValidateAddressResponse);
+	rpc CommittedTickets (CommittedTicketsRequest) returns (CommittedTicketsResponse);
 }
 
 service WalletLoaderService {
@@ -526,6 +528,22 @@ message SignMessageResponse{
 	bytes signature = 1;
 }
 
+message SignMessagesRequest{
+	message Message {
+		string address = 1;
+		string message = 2;
+	}
+	bytes passphrase = 1;
+	repeated Message messages = 2;
+}
+message SignMessagesResponse{
+	message SignReply {
+		bytes signature = 1;
+		string error = 2;
+	}
+	repeated SignReply replies = 1;
+}
+
 message TransactionNotificationsRequest {}
 message TransactionNotificationsResponse {
 	// Sorted by increasing height.  This is a repeated field so many new blocks
@@ -866,4 +884,12 @@ message ValidateAddressResponse {
 	ScriptType script_type = 8;
 	bytes pay_to_addr_script = 9;
 	uint32 sigs_required = 10;
+}
+
+message CommittedTicketsRequest {
+	repeated bytes tickets = 1;
+}
+
+message CommittedTicketsResponse {
+	repeated bytes tickets = 1;
 }

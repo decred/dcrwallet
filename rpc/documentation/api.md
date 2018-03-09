@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.30.x
+Version: 4.31.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -389,10 +389,12 @@ The service provides the following methods:
 - [`RevokeTickets`](#revoketickets)
 - [`LoadActiveDataFilters`](#loadactivedatafilters)
 - [`SignMessage`](#signmessage)
+- [`SignMessages`](#signmessages)
 - [`ValidateAddress`](#validateaddress)
 - [`TransactionNotifications`](#transactionnotifications)
 - [`AccountNotifications`](#accountnotifications)
 - [`ConfirmationNotifications`](#confirmationnotifications)
+- [`CommittedTickets`](#committedtickets)
 
 #### `Ping`
 
@@ -1671,6 +1673,47 @@ of an address.
 signature algorithms other than secp256k1.
 
 ___
+
+#### `SignMessages`
+
+The `SignMessages` method creates a signature of multiple messages using the
+provided private keys and addresses.
+
+**Request:** `SignMessagesRequest`
+
+- `bytes passphrase`: The wallet's private passphrase.
+
+- `repeated Message messages`: Message that needs to be signed.
+
+  **Nested message:** `Message`
+
+  - `string address`: The associated address of the private key to use to sign
+    the message.  Must be P2PKH or P2PK.
+
+  - `string message`: The message to sign.
+
+**Response:** `SignMessageResponse`
+
+- `repeated SignReply replies`: Replies of all signing operations. Caller
+   must check the error field. The index of reply is identical to the incoming
+   messages.
+
+  **Nested message:** `SignReply`
+
+  - `bytes signature`: The signature of the message.
+
+  - `string error`: Human readable error if the signature command failed.
+    "" indicates success.
+
+**Expected errors:**
+
+- `InvalidArgument`: The private passphrase is incorrect.
+
+**Stability:** Unstable: this method may require API changes to support
+signature algorithms other than secp256k1.
+
+___
+
 #### `ValidateAddress`
 
 The `ValidateAddress` method verifies if an address is valid.
@@ -1700,6 +1743,22 @@ The `ValidateAddress` method verifies if an address is valid.
 - `bytes pay_to_addr_script`: The redeem script.
 
 - `uint32 sigs_required`: The number of signatures required.
+___
+
+#### `CommittedTickets`
+
+The `CommittedTickets` method returns the matching ticket purchase hashes for
+which the largest commitment is controlled by this wallet.
+
+**Request:** `CommittedTicketsRequest`
+
+- `repeated bytes tickets`: The hashes of tickets that are being verified.
+
+**Response:** `CommittedTicketsResponse`
+
+- `repeated bytes tickets`: The hashes of tickets that are controlled by this
+  wallet.
+
 ___
 
 #### `TransactionNotifications`
