@@ -47,7 +47,7 @@
   branch = "master"
   name = "github.com/decred/dcrd"
   packages = ["blockchain","blockchain/indexers","blockchain/internal/dbnamespace","blockchain/internal/progresslog","blockchain/stake","blockchain/stake/internal/dbnamespace","blockchain/stake/internal/ticketdb","blockchain/stake/internal/tickettreap","certgen","chaincfg","chaincfg/chainec","chaincfg/chainhash","database","dcrec/edwards","dcrec/secp256k1","dcrec/secp256k1/schnorr","dcrjson","dcrutil","hdkeychain","mempool","mining","rpcclient","txscript","wire"]
-  revision = "0dbfca4f798261aeb5b779cf3adc31988c3fd19e"
+  revision = "4e01f768cb28a138b1b51dc17f0de284703b5f7a"
 
 [[projects]]
   branch = "master"
