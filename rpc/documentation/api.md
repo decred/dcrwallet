@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.33.x
+Version: 4.34.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -611,10 +611,19 @@ hash.
 
 **Response:** ` GetTransactionResponse`
 
-- `TransactionDetails Transaction`: Wallet details regarding the transaction.
+- `TransactionDetails transaction`: Wallet details regarding the transaction.
 
   The `TransactionDetails` message is used by other methods and is documented
   [here](#transactiondetails).
+
+- `int32 confirmations`: The number of block confirmations of the transaction in
+  the main chain.  If the transaction was mined in a stake-invalidated block and
+  pushed back to mempool to be mined again, or was mined again after being stake
+  invalidated, the latest number of confirmations is used (not the confirmations
+  of an invalidated block).
+
+- `bytes block_hash`: The block hash the transaction is most recently mined in,
+  or null if unmined.
 
 **Expected errors:**
 

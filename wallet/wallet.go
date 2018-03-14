@@ -2054,19 +2054,25 @@ func (w *Wallet) BlockInfo(blockID *BlockIdentifier) (*BlockInfo, error) {
 
 // TransactionSummary returns details about a recorded transaction that is
 // relevant to the wallet in some way.
-func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (*TransactionSummary, error) {
-	var txSummary *TransactionSummary
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (txSummary *TransactionSummary,
+	confs int32, blockHash *chainhash.Hash, err error) {
+
+	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		_, tipHeight := w.TxStore.MainChainTip(ns)
 		txDetails, err := w.TxStore.TxDetails(ns, txHash)
 		if err != nil {
 			return err
 		}
 		txSummary = new(TransactionSummary)
 		*txSummary = makeTxSummary(dbtx, w, txDetails)
+		confs = confirms(txDetails.Height(), tipHeight)
+		if confs > 0 {
+			blockHash = &txDetails.Hash
+		}
 		return nil
 	})
-	return txSummary, err
+	return txSummary, confs, blockHash, err
 }
 
 // GetTicketsResult response struct for gettickets rpc request

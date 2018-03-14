@@ -258,6 +258,8 @@ message GetTransactionRequest {
 }
 message GetTransactionResponse {
 	TransactionDetails transaction = 1;
+	int32 confirmations = 2;
+	bytes block_hash = 3;
 }
 
 message GetTransactionsRequest {

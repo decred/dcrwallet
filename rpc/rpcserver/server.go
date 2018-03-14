@@ -59,9 +59,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.33.0"
+	semverString = "4.34.0"
 	semverMajor  = 4
-	semverMinor  = 33
+	semverMinor  = 34
 	semverPatch  = 0
 )
 
@@ -925,12 +925,16 @@ func (s *walletServer) GetTransaction(ctx context.Context, req *pb.GetTransactio
 		return nil, status.Errorf(codes.InvalidArgument, "transaction_hash has invalid length")
 	}
 
-	txSummary, err := s.wallet.TransactionSummary(txHash)
+	txSummary, confs, blockHash, err := s.wallet.TransactionSummary(txHash)
 	if err != nil {
 		return nil, translateError(err)
 	}
 	resp := &pb.GetTransactionResponse{
-		Transaction: marshalTransactionDetails(txSummary),
+		Transaction:   marshalTransactionDetails(txSummary),
+		Confirmations: confs,
+	}
+	if blockHash != nil {
+		resp.BlockHash = blockHash[:]
 	}
 	return resp, nil
 }
