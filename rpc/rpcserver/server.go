@@ -59,9 +59,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.31.0"
+	semverString = "4.32.0"
 	semverMajor  = 4
-	semverMinor  = 31
+	semverMinor  = 32
 	semverPatch  = 0
 )
 
@@ -1398,17 +1398,27 @@ func (s *walletServer) CommittedTickets(ctx context.Context, req *pb.CommittedTi
 	}
 
 	// Figure out which tickets we own
-	out, err := s.wallet.CommittedTickets(in)
+	out, outAddr, err := s.wallet.CommittedTickets(in)
 	if err != nil {
 		return nil, translateError(err)
+	}
+	if len(out) != len(outAddr) {
+		// Sanity check
+		return nil, status.Error(codes.Internal,
+			"impossible condition: ticket and address count unequal")
 	}
 
 	// Translate []*chainhash.Hash to [][]byte
 	ctr := &pb.CommittedTicketsResponse{
-		Tickets: make([][]byte, 0, len(out)),
+		TicketAddresses: make([]*pb.CommittedTicketsResponse_TicketAddress,
+			0, len(out)),
 	}
-	for _, v := range out {
-		ctr.Tickets = append(ctr.Tickets, v[:])
+	for k, v := range out {
+		ctr.TicketAddresses = append(ctr.TicketAddresses,
+			&pb.CommittedTicketsResponse_TicketAddress{
+				Ticket:  v[:],
+				Address: outAddr[k].String(),
+			})
 	}
 
 	return ctr, nil

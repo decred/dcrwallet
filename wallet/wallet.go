@@ -615,8 +615,9 @@ func (w *Wallet) LoadActiveDataFilters(n NetworkBackend) error {
 
 // CommittedTickets takes a list of tickets and returns a filtered list of
 // tickets that are controlled by this wallet.
-func (w *Wallet) CommittedTickets(tickets []*chainhash.Hash) ([]*chainhash.Hash, error) {
+func (w *Wallet) CommittedTickets(tickets []*chainhash.Hash) ([]*chainhash.Hash, []dcrutil.Address, error) {
 	hashes := make([]*chainhash.Hash, 0, len(tickets))
+	addresses := make([]dcrutil.Address, 0, len(tickets))
 	// Verify we own this ticket
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -685,15 +686,16 @@ func (w *Wallet) CommittedTickets(tickets []*chainhash.Hash) ([]*chainhash.Hash,
 				bestAmount)
 
 			hashes = append(hashes, v)
+			addresses = append(addresses, bestAddr)
 		}
 		return nil
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return hashes, nil
+	return hashes, addresses, nil
 }
 
 // createHeaderData creates the header data to process from hex-encoded

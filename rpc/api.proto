@@ -891,5 +891,9 @@ message CommittedTicketsRequest {
 }
 
 message CommittedTicketsResponse {
-	repeated bytes tickets = 1;
+	message TicketAddress {
+		bytes ticket = 1;
+		string address = 2;
+	}
+	repeated TicketAddress ticketAddresses = 1;
 }

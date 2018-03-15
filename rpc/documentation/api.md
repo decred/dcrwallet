@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.31.x
+Version: 4.32.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -1747,8 +1747,8 @@ ___
 
 #### `CommittedTickets`
 
-The `CommittedTickets` method returns the matching ticket purchase hashes for
-which the largest commitment is controlled by this wallet.
+The `CommittedTickets` method returns the matching ticket purchase hashes and
+addresses for which the largest commitment is controlled by this wallet.
 
 **Request:** `CommittedTicketsRequest`
 
@@ -1756,9 +1756,14 @@ which the largest commitment is controlled by this wallet.
 
 **Response:** `CommittedTicketsResponse`
 
-- `repeated bytes tickets`: The hashes of tickets that are controlled by this
-  wallet.
+- `repeated TicketAddresses ticketAddresses`: The hashes and addresses that are
+  controled by this wallet.
 
+  **Nested message:** `TicketAddresses`
+
+  - `bytes Ticket`: Hash of the ticket.
+
+  - `string address`: Address of the largest commitment.
 ___
 
 #### `TransactionNotifications`
