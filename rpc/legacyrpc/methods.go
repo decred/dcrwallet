@@ -1258,7 +1258,7 @@ func getMasterPubkey(s *Server, icmd interface{}) (interface{}, error) {
 	}
 	
 	// Obtain MasterPubkey of index "account" from wallet
-	masterPubKey, err := w.MasterPubKey(account)
+	MasterPubKey, err := w.MasterPubKey(account)
 	if err != nil {
 		return nil, err 
 	}
