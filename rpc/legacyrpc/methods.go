@@ -1263,7 +1263,7 @@ func getMasterPubkey(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err 
 	}
 	
-	// Return master pubkey as encoded as a string 
+	// Return master pubkey as a string 
 	return MasterPubKey.String()
 }
 
