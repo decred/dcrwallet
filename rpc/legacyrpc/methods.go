@@ -1286,8 +1286,15 @@ func getMasterPubkey(s *Server, icmd interface{}) (interface{}, error) {
 			return nil, err
 		}
 	}
-
-	return w.MasterPubKey(account)
+	
+	// Obtain MasterPubkey of index "account" from wallet
+	MasterPubKey, err := w.MasterPubKey(account)
+	if err != nil {
+		return nil, err 
+	}
+	
+	// Return master pubkey as a string 
+	return MasterPubKey.String()
 }
 
 // getStakeInfo gets a large amounts of information about the stake environment
