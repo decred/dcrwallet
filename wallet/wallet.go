@@ -1538,7 +1538,6 @@ func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 		masterPubKey, err = w.Manager.GetMasterPubkey(addrmgrNs, account)
 		return err
 	})
-	return masterPubKey, err
 	
 	extendedKey, err := hdkeychain.NewKeyFromString(masterPubKey)
 	if err != nil {
