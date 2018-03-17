@@ -1619,16 +1619,16 @@ func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 	var masterPubKey string
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		var err error
-		masterPubKey, err = w.Manager.GetMasterPubkey(addrmgrNs, account)
-		return err
+		var pKerr error
+		masterPubKey, pKerr = w.Manager.GetMasterPubkey(addrmgrNs, account)
+		return pKerr
 	})
 
-	extKey, err := hdkeychain.NewKeyFromString(masterPubKey)
 	if err != nil {
 		return nil, err
 	}
 
+	extKey, err := hdkeychain.NewKeyFromString(masterPubKey)
 	return extKey, err
 }
 
