@@ -1619,17 +1619,16 @@ func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 	var masterPubKey string
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		var pKerr error
-		masterPubKey, pKerr = w.Manager.GetMasterPubkey(addrmgrNs, account)
-		return pKerr
+		var err error
+		masterPubKey, err = w.Manager.GetMasterPubkey(addrmgrNs, account)
+		return err
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	extKey, err := hdkeychain.NewKeyFromString(masterPubKey)
-	return extKey, err
+	return hdkeychain.NewKeyFromString(masterPubKey)
 }
 
 // CreditCategory describes the type of wallet transaction output.  The category
