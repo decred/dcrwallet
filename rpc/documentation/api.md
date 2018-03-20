@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.34.x
+Version: 4.35.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -395,6 +395,7 @@ The service provides the following methods:
 - [`AccountNotifications`](#accountnotifications)
 - [`ConfirmationNotifications`](#confirmationnotifications)
 - [`CommittedTickets`](#committedtickets)
+- [`BestBlock`](#bestblock)
 
 #### `Ping`
 
@@ -1768,13 +1769,27 @@ addresses for which the largest commitment is controlled by this wallet.
 **Response:** `CommittedTicketsResponse`
 
 - `repeated TicketAddresses ticketAddresses`: The hashes and addresses that are
-  controled by this wallet.
+  controlled by this wallet.
 
   **Nested message:** `TicketAddresses`
 
   - `bytes Ticket`: Hash of the ticket.
 
   - `string address`: Address of the largest commitment.
+___
+
+#### `BestBlock`
+
+The `BestBlock` method returns the block height and height of the best block on
+the main chain.
+
+**Request:** `BestBlockRequest`
+
+**Response:** `BestBlockResponse`
+
+- `bytes hash`: The hash of the best block.
+
+- `uint32 height`: The height of the best block.
 ___
 
 #### `TransactionNotifications`
