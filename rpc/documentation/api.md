@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.32.x
+Version: 4.33.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -583,6 +583,8 @@ but not all sidechain blocks may be known by the wallet.
 
 - `bool stake_invalidated`: Whether the queried block is in the main chain and
   the next main chain block has stake invalidated the queried block.
+
+- `bool approves_parent`: Whether this block stake validates its parent block.
 
 **Expected errors:**
 
@@ -1910,6 +1912,8 @@ wallet's relevant transactions contained therein.
 
   The `TransactionDetails` message is used by other methods and is documented
   [here](#transactiondetails).
+
+- `bool approves_parent`: Whether this block stake validates its parent block.
 
 **Stability**: Unstable: This should probably include the block version.
 

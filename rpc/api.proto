@@ -137,6 +137,7 @@ message BlockDetails {
 	bytes hash = 1;
 	int32 height = 2;
 	int64 timestamp = 3;
+	bool approves_parent = 5;
 	repeated TransactionDetails transactions = 4;
 }
 
@@ -346,16 +347,17 @@ message StakeInfoResponse {
 }
 
 message BlockInfoRequest {
-    bytes block_hash = 1;
-    int32 block_height = 2;
+	bytes block_hash = 1;
+	int32 block_height = 2;
 }
 message BlockInfoResponse {
-    bytes block_hash = 1;
-    int32 block_height = 2;
-    int32 confirmations = 3;
-    int64 timestamp = 4;
-    bytes block_header = 5;
-    bool stake_invalidated = 6;
+	bytes block_hash = 1;
+	int32 block_height = 2;
+	int32 confirmations = 3;
+	int64 timestamp = 4;
+	bytes block_header = 5;
+	bool stake_invalidated = 6;
+	bool approves_parent = 7;
 }
 
 message ChangePassphraseRequest {

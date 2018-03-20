@@ -2267,16 +2267,23 @@ func (w *Wallet) GetTransactions(f func(*Block) (bool, error), startBlock, endBl
 
 			var block *Block
 			if details[0].Block.Height != -1 {
-				blockHash := details[0].Block.Hash
+				serHeader, err := w.TxStore.GetSerializedBlockHeader(txmgrNs,
+					&details[0].Block.Hash)
+				if err != nil {
+					return false, err
+				}
+				header := new(wire.BlockHeader)
+				err = header.Deserialize(bytes.NewReader(serHeader))
+				if err != nil {
+					return false, err
+				}
 				block = &Block{
-					Hash:         &blockHash,
-					Height:       details[0].Block.Height,
-					Timestamp:    details[0].Block.Time.Unix(),
+					Header:       header,
 					Transactions: txs,
 				}
 			} else {
 				block = &Block{
-					Height:       -1,
+					Header:       nil,
 					Transactions: txs,
 				}
 			}
