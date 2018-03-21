@@ -30,6 +30,7 @@ import (
 	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/internal/helpers"
+	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
@@ -112,6 +113,8 @@ var handlers = map[string]handler{
 	"signmessage":             {fn: signMessage},
 	"signrawtransaction":      {fn: signRawTransaction},
 	"signrawtransactions":     {fn: signRawTransactions},
+	"startautobuyer":          {fn: startAutoBuyer},
+	"stopautobuyer":           {fn: stopAutoBuyer},
 	"sweepaccount":            {fn: sweepAccount},
 	"redeemmultisigout":       {fn: redeemMultiSigOut},
 	"redeemmultisigouts":      {fn: redeemMultiSigOuts},
@@ -3107,6 +3110,128 @@ func signRawTransactions(s *Server, icmd interface{}) (interface{}, error) {
 	}
 
 	return &dcrjson.SignRawTransactionsResult{Results: toReturn}, nil
+}
+
+// startAutoBuyer handles the startautobuyer command.
+func startAutoBuyer(s *Server, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrjson.StartAutoBuyerCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, &ErrUnloadedWallet
+	}
+
+	config := s.ticketbuyerConfig
+
+	if cmd.BalanceToMaintain != nil {
+		if *cmd.BalanceToMaintain < 0 {
+			e := fmt.Errorf("balancetomaintain (%v) must be non-negative", *cmd.BalanceToMaintain)
+			return nil, InvalidParameterError{e}
+
+		}
+
+		config.BalanceToMaintainAbsolute = *cmd.BalanceToMaintain
+	}
+
+	if cmd.MaxFeePerKb != nil {
+		if *cmd.MaxFeePerKb < 0 {
+			e := fmt.Errorf("maxfeeperkb (%v) must be non-negative", *cmd.MaxFeePerKb)
+			return nil, InvalidParameterError{e}
+		}
+
+		config.MaxFee = *cmd.MaxFeePerKb
+	}
+
+	if cmd.MaxPriceAbsolute != nil {
+		if *cmd.MaxPriceAbsolute < 0 {
+			e := fmt.Errorf("maxpriceabsolute (%v) must be non-negative", *cmd.MaxPriceAbsolute)
+			return nil, InvalidParameterError{e}
+		}
+
+		config.MaxPriceAbsolute = *cmd.MaxPriceAbsolute
+	}
+
+	if cmd.MaxPriceRelative != nil {
+		if *cmd.MaxPriceRelative < 0 {
+			e := fmt.Errorf("maxpricerelative (%v) must be non-negative", *cmd.MaxPriceRelative)
+			return nil, InvalidParameterError{e}
+		}
+
+		config.MaxPriceRelative = *cmd.MaxPriceRelative
+	}
+
+	if cmd.MaxPerBlock != nil {
+		if *cmd.MaxPerBlock < 0 {
+			e := fmt.Errorf("maxperblock (%v) must be non-negative", *cmd.MaxPerBlock)
+			return nil, InvalidParameterError{e}
+		}
+
+		config.MaxPerBlock = int(*cmd.MaxPerBlock)
+	}
+
+	params := w.ChainParams()
+
+	var err error
+	if cmd.VotingAddress != nil {
+		var votingAddress dcrutil.Address
+		if *cmd.VotingAddress != "" {
+			votingAddress, err = decodeAddress(*cmd.VotingAddress, params)
+			if err != nil {
+				return nil, err
+			}
+
+			config.VotingAddress = votingAddress
+		}
+	}
+
+	var poolAddress dcrutil.Address
+	if cmd.PoolAddress != nil {
+		if *cmd.PoolAddress != "" {
+			poolAddress, err = decodeAddress(*cmd.PoolAddress, params)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	var poolFees float64
+	if cmd.PoolFees != nil {
+		poolFees = *cmd.PoolFees
+	}
+
+	switch {
+	case poolFees == 0 && poolAddress != nil:
+		e := errors.New("pooladdress set but poolfees not given")
+		return nil, InvalidParameterError{e}
+	case poolFees != 0 && poolAddress == nil:
+		e := errors.New("poolfees set but pooladdress not given")
+		return nil, InvalidParameterError{e}
+	case poolFees != 0 && poolAddress != nil:
+		err = txrules.IsValidPoolFeeRate(poolFees)
+		if err != nil {
+			e := fmt.Errorf("poolfees (%v) invalid: %v", *cmd.PoolFees, err)
+			return nil, InvalidParameterError{e}
+		}
+	}
+
+	config.PoolFees = poolFees
+	config.PoolAddress = poolAddress
+
+	err = s.walletLoader.StartTicketPurchase([]byte(cmd.Passphrase), config)
+	if err == loader.ErrTicketBuyerStarted {
+		return nil, errors.New("Ticket buyer is already started")
+	}
+
+	return nil, err
+}
+
+// stopAutoBuyer handles the stopautobuyer command.
+func stopAutoBuyer(s *Server, icmd interface{}) (interface{}, error) {
+	err := s.walletLoader.StopTicketPurchase()
+	if err == loader.ErrTicketBuyerStopped {
+		return nil, errors.New("Ticket buyer is not running")
+	}
+
+	return nil, err
 }
 
 // makeChangeSourceFromAddress creates a ChangeSource which is used to
