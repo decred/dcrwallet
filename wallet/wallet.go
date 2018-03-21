@@ -1615,9 +1615,7 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 }
 
 // MasterPubKey returns the BIP0044 master public key for the passed account.
-//
-// TODO: This should not be returning the key as a string.
-func (w *Wallet) MasterPubKey(account uint32) (string, error) {
+func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 	var masterPubKey string
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
@@ -1625,7 +1623,12 @@ func (w *Wallet) MasterPubKey(account uint32) (string, error) {
 		masterPubKey, err = w.Manager.GetMasterPubkey(addrmgrNs, account)
 		return err
 	})
-	return masterPubKey, err
+
+	if err != nil {
+		return nil, err
+	}
+
+	return hdkeychain.NewKeyFromString(masterPubKey)
 }
 
 // CreditCategory describes the type of wallet transaction output.  The category
