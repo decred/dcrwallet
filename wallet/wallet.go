@@ -1631,6 +1631,43 @@ func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 	return hdkeychain.NewKeyFromString(masterPubKey)
 }
 
+// CoinTypeKey returns the BIP0044 coin type private key.  This is needed
+// to view the instance, w, of the wallets database. View takes in the
+// database of the wallet and also a function that acts upon the interface -
+// tx of type walletdb.ReadTx.  Within ReadTx contains the method to ReadBucket
+// which takes in a key and returns a namespace, ns. Note that ReadBucket
+// occurs within w.Manager.CoinTypePrivKey.
+func (w *Wallet) CoinTypeKey() (*hdkeychain.ExtendedKey, error) {
+	var coinTypePrivateKey *hdkeychain.ExtendedKey
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		var err error
+		coinTypePrivateKey, err = w.Manager.CoinTypePrivKey(tx)
+		return err
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return coinTypePrivateKey, nil
+}
+
+// CoinType returns the SLIP0044 or legacy coin type for the passed account.
+func (w *Wallet) CoinType() (uint32, error) {
+	var coinType uint32
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		var err error
+		coinType, err = w.Manager.CoinType(tx)
+		return err
+	})
+
+	if err != nil {
+		return 0, apperrors.New(apperrors.ErrValueNoExists, "coin type keys are not saved")
+	}
+
+	return coinType, err
+}
+
 // CreditCategory describes the type of wallet transaction output.  The category
 // of "sent transactions" (debits) is always "send", and is not expressed by
 // this type.
