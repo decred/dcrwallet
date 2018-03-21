@@ -29,6 +29,7 @@ service WalletService {
 	rpc TicketPrice (TicketPriceRequest) returns (TicketPriceResponse);
 	rpc StakeInfo (StakeInfoRequest) returns (StakeInfoResponse);
 	rpc BlockInfo (BlockInfoRequest) returns (BlockInfoResponse);
+	rpc BestBlock (BestBlockRequest) returns (BestBlockResponse);
 
 	// Notifications
 	rpc TransactionNotifications (TransactionNotificationsRequest) returns (stream TransactionNotificationsResponse);
@@ -900,4 +901,12 @@ message CommittedTicketsResponse {
 		string address = 2;
 	}
 	repeated TicketAddress ticketAddresses = 1;
+}
+
+message BestBlockRequest {
+}
+
+message BestBlockResponse {
+	uint32 height = 1;
+	bytes hash = 2;
 }

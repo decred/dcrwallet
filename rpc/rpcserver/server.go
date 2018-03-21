@@ -59,9 +59,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.34.0"
+	semverString = "4.35.0"
 	semverMajor  = 4
-	semverMinor  = 34
+	semverMinor  = 35
 	semverPatch  = 0
 )
 
@@ -2748,5 +2748,14 @@ func (s *decodeMessageServer) DecodeRawTransaction(ctx context.Context, req *pb.
 		},
 	}
 
+	return resp, nil
+}
+
+func (s *walletServer) BestBlock(ctx context.Context, req *pb.BestBlockRequest) (*pb.BestBlockResponse, error) {
+	hash, height := s.wallet.MainChainTip()
+	resp := &pb.BestBlockResponse{
+		Hash:   hash[:],
+		Height: uint32(height),
+	}
 	return resp, nil
 }
