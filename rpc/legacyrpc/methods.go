@@ -3326,7 +3326,7 @@ func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 	// Changed inputted seed, type string, to type byte[] so hdkeychain methods can be utilized
 	Seed := []byte(cmd.Seed)
 
-	// Obtain current coin type from wallet, w.  Needed to derive the coin type private key
+	// Obtain current coin type from wallet, w.  Needed to grab the coin type private key
 	coinType, err := w.CoinType()
 	if err != nil {
 		return nil, err
