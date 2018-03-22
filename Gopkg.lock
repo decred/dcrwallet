@@ -4,7 +4,10 @@
 [[projects]]
   branch = "master"
   name = "github.com/agl/ed25519"
-  packages = [".","edwards25519"]
+  packages = [
+    ".",
+    "edwards25519"
+  ]
   revision = "5312a61534124124185d41f09206b9fef1d88403"
 
 [[projects]]
@@ -41,19 +44,51 @@
   branch = "master"
   name = "github.com/decred/base58"
   packages = ["."]
-  revision = "b3520e187fa8ebe65eb74245408cf4b83e6a65d3"
+  revision = "56c501706f00d9e1cfacee19a27117e12da24734"
 
 [[projects]]
   branch = "master"
   name = "github.com/decred/dcrd"
-  packages = ["blockchain","blockchain/indexers","blockchain/internal/dbnamespace","blockchain/internal/progresslog","blockchain/stake","blockchain/stake/internal/dbnamespace","blockchain/stake/internal/ticketdb","blockchain/stake/internal/tickettreap","certgen","chaincfg","chaincfg/chainec","chaincfg/chainhash","database","dcrec/edwards","dcrec/secp256k1","dcrec/secp256k1/schnorr","dcrjson","dcrutil","hdkeychain","mempool","mining","rpcclient","txscript","wire"]
-  revision = "0dbfca4f798261aeb5b779cf3adc31988c3fd19e"
+  packages = [
+    "blockchain",
+    "blockchain/indexers",
+    "blockchain/internal/dbnamespace",
+    "blockchain/internal/progresslog",
+    "blockchain/stake",
+    "blockchain/stake/internal/dbnamespace",
+    "blockchain/stake/internal/ticketdb",
+    "blockchain/stake/internal/tickettreap",
+    "certgen",
+    "chaincfg",
+    "chaincfg/chainec",
+    "chaincfg/chainhash",
+    "database",
+    "dcrec/edwards",
+    "dcrec/secp256k1",
+    "dcrec/secp256k1/schnorr",
+    "dcrjson",
+    "dcrutil",
+    "hdkeychain",
+    "mempool",
+    "mining",
+    "rpcclient",
+    "txscript",
+    "wire"
+  ]
+  revision = "aa4490acdb244f58f42aba456d8b8105514743a7"
+  source = "github.com/githubsands/dcrd"
 
 [[projects]]
   branch = "master"
   name = "github.com/golang/protobuf"
-  packages = ["proto","ptypes","ptypes/any","ptypes/duration","ptypes/timestamp"]
-  revision = "130e6b02ab059e7b717a096f397c5b60111cae74"
+  packages = [
+    "proto",
+    "ptypes",
+    "ptypes/any",
+    "ptypes/duration",
+    "ptypes/timestamp"
+  ]
+  revision = "bbd03ef6da3a115852eaf24c8a1c46aeb39aa175"
 
 [[projects]]
   name = "github.com/jessevdk/go-flags"
@@ -76,48 +111,106 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["nacl/secretbox","pbkdf2","poly1305","ripemd160","salsa20/salsa","scrypt","ssh/terminal"]
-  revision = "847319b7fc94cab682988f93da778204da164588"
+  packages = [
+    "nacl/secretbox",
+    "pbkdf2",
+    "poly1305",
+    "ripemd160",
+    "salsa20/salsa",
+    "scrypt",
+    "ssh/terminal"
+  ]
+  revision = "80db560fac1fb3e6ac81dbc7f8ae4c061f5257bd"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace"]
-  revision = "278c6cf336eb9139d63479da09da0cfb40fdc4c8"
+  packages = [
+    "context",
+    "http2",
+    "http2/hpack",
+    "idna",
+    "internal/timeseries",
+    "lex/httplex",
+    "trace"
+  ]
+  revision = "6078986fec03a1dcc236c34816c71b0e05018fda"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sync"
   packages = ["errgroup"]
-  revision = "f52d1811a62927559de87708c8913c1650ce4f26"
+  revision = "1d60e4601c6fd243af51cc01ddf169918a5407ca"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
-  packages = ["unix","windows"]
-  revision = "429f518978ab01db8bb6f44b66785088e7fba58b"
+  packages = [
+    "unix",
+    "windows"
+  ]
+  revision = "7ceb54c8418b8f9cdf0177b511d5cbb06e9fae39"
 
 [[projects]]
-  branch = "master"
   name = "golang.org/x/text"
-  packages = ["collate","collate/build","internal/colltab","internal/gen","internal/tag","internal/triegen","internal/ucd","language","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable"]
-  revision = "1cbadb444a806fd9430d14ad08967ed91da4fa0a"
+  packages = [
+    "collate",
+    "collate/build",
+    "internal/colltab",
+    "internal/gen",
+    "internal/tag",
+    "internal/triegen",
+    "internal/ucd",
+    "language",
+    "secure/bidirule",
+    "transform",
+    "unicode/bidi",
+    "unicode/cldr",
+    "unicode/norm",
+    "unicode/rangetable"
+  ]
+  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
+  version = "v0.3.0"
 
 [[projects]]
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "1e559d0a00eef8a9a43151db4665280bd8dd5886"
+  revision = "f8c8703595236ae70fdf8789ecb656ea0bcdcf46"
 
 [[projects]]
   name = "google.golang.org/grpc"
-  packages = [".","codes","connectivity","credentials","grpclb/grpc_lb_v1/messages","grpclog","internal","keepalive","metadata","naming","peer","stats","status","tap","transport"]
-  revision = "f92cdcd7dcdc69e81b2d7b338479a19a8723cfa3"
-  version = "v1.6.0"
+  packages = [
+    ".",
+    "balancer",
+    "balancer/base",
+    "balancer/roundrobin",
+    "codes",
+    "connectivity",
+    "credentials",
+    "encoding",
+    "encoding/proto",
+    "grpclb/grpc_lb_v1/messages",
+    "grpclog",
+    "internal",
+    "keepalive",
+    "metadata",
+    "naming",
+    "peer",
+    "resolver",
+    "resolver/dns",
+    "resolver/passthrough",
+    "stats",
+    "status",
+    "tap",
+    "transport"
+  ]
+  revision = "8e4536a86ab602859c20df5ebfd0bd4228d08655"
+  version = "v1.10.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "890953b366de351f13c362e03a2d3d137bffc528185ceb18426561fe20d2e651"
+  inputs-digest = "8d48b827e7983c4f839524c8b68528cf18d5fa7dfe9c9484b79c1f24c1d10fb8"
   solver-name = "gps-cdcl"
   solver-version = 1

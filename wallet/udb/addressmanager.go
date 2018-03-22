@@ -642,12 +642,15 @@ func (m *Manager) CoinTypePrivKey(dbtx walletdb.ReadTx) (*hdkeychain.ExtendedKey
 		return nil, apperrors.E{ErrorCode: apperrors.ErrLocked, Description: errLocked, Err: nil}
 	}
 
+	print("ReadBucket and turn key into namespace: test6\n")
 	ns := dbtx.ReadBucket(waddrmgrBucketKey)
 
 	_, coinTypePrivEnc, err := fetchCoinTypeKeys(ns)
 	if err != nil {
 		return nil, err
 	}
+
+	print("fetched CoinTypKeys: test7\n")
 	serializedKeyPriv, err := m.cryptoKeyPriv.Decrypt(coinTypePrivEnc)
 	if err != nil {
 		str := fmt.Sprintf("failed to decrypt cointype serialized private key")

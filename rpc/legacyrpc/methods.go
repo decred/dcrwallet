@@ -3316,6 +3316,16 @@ WrongAddrKind:
 	return nil, InvalidParameterError{errors.New("address must be secp256k1 P2PK or P2PKH")}
 }
 
+/**
+func deriveCoinTypeKey(seed byte[], ) (byte[], error) {
+
+
+
+}
+
+func
+**/
+
 func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.VerifySeedCmd)
 	w, ok := s.walletLoader.LoadedWallet()
@@ -3323,10 +3333,9 @@ func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, &ErrUnloadedWallet
 	}
 
-	// Churn seedByte into type byte[] so hdkeychain functions
-	// can be utilized.
-	seed := make([]byte, len(cmd.Seed))
-	seed = copy(seed[:], cmd.Seed)
+	print("test1\n")
+	// Changed inputted seed, type string, to type byte[] so hdkeychain methods can be utilized
+	Seed := []byte(cmd.Seed)
 
 	// Obtain current coin type from wallet, w.  Needed for to derive the coin type private key
 	coinType, err := w.CoinType()
@@ -3334,18 +3343,20 @@ func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err
 	}
 
+	fmt.Printf("coinType: %v\n", coinType)
+
 	// Begin the process of deriving the inputtedCoinTypePrivKey from the inputted
 	// seed.  This is later compared to the WalletCoinTypePrivKey which is stored
 	// in the wallets db.
 
 	// BIP0032 hierarchy: m/*
-	masterNode, err := hdkeychain.NewMaster(seed, &chaincfg.MainNetParams)
+	masterNode, err := hdkeychain.NewMaster(Seed, &chaincfg.MainNetParams)
 	if err != nil {
 		return nil, err
 	}
 
 	// BIP0032 hierarchy: m/<purpose>'/
-	// Where purpose = 44 and the ` indicates the hardening with the hardened key start.
+	// Where purpose = 44 and the ` indicates hardening with the HardenedKeyStart 0x80000000
 	purpose, err := masterNode.Child(44 + hdkeychain.HardenedKeyStart)
 	if err != nil {
 		return nil, err
@@ -3364,40 +3375,92 @@ func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	switch *cmd.Account {
-	case *cmd.Account:
-		// Both inputtedDerivedAccountKey and walletDerivedAccountKey use the BIP044 hierachy: m/44'/<coin type>'/<account>'
-		// If the child is a private extended key it is neutered into a public
-		//
-		// Derive the extended public key depending on the input, account.
-		inputtedAccountKey, err := inputtedCoinTypePrivKey.Child(*cmd.Account + hdkeychain.HardenedKeyStart)
-		if err != nil {
-			return nil, err
-		}
-
-		inputtedxPubKey, err := inputtedAccountKey.Neuter()
-		if err != nil {
-			return nil, err
-		}
-
-		walletAccountKey, err := walletCoinTypePrivKey.Child(*cmd.Account + hdkeychain.HardenedKeyStart)
-		if err != nil {
-			return nil, err
-		}
-
-		walletxPubKey, err := walletAccountKey.Neuter()
-		if err != nil {
-			return nil, err
-		}
-
-		result := strings.EqualFold(inputtedxPubKey, walletxPubKey)
-
-	// Default to just comparing the coin type private keys if no account input is provided.
-	default:
-
-		stringInputtedCoinTypePrivKey := InputtedCoinTypePrivKey.String()
-		result := strings.EqualFold(stringInputtedCoinTypePrivKey, walletCoinTypePrivKey)
+	InNeuteredCoinTypeKey, err := inputtedCoinTypePrivKey.Neuter()
+	if err != nil {
+		return nil, err
 	}
+
+	StringInNeuteredCoinTypeKey, err := InNeuteredCoinTypeKey.String()
+	if err != nil {
+		return nil, err
+	}
+
+	//////////////////////
+	walletNeuteredCoinTypeKey, err := walletCoinTypePrivKey.Neuter()
+	if err != nil {
+		return nil, err
+	}
+
+	StringWalletNeuteredCoinTypeKey, err := walletNeuteredCoinTypeKey.String()
+	if err != nil {
+		return nil, err
+	}
+
+	print("switch statement: test 8\n\n")
+	var result bool //test
+	/**
+		// Test whether the field, Account, is greater then or equal to 0.  If its not the field value is nil meaning no input
+		// for account was included at VerifySeedCmd creation time.
+		switch test {
+		case int(*cmd.Account) >= 0:
+			// Both inputtedDerivedAccountKey and walletDerivedAccountKey use the BIP044 hierachy: m/44'/<coin type>'/<account>'
+			// If the child is a private extended key it is neutered into a public
+			//
+			// Two channels are made, one for the inputtedAccountKey and the other for the walletAccountKey
+
+			print("case 1: test 9\n")
+			inputtedAccountKey, err := inputtedCoinTypePrivKey.Child(*cmd.Account + hdkeychain.HardenedKeyStart)
+			if err != nil {
+				return nil, err
+			}
+
+			inputtedxPubKey, err := inputtedAccountKey.Neuter()
+			if err != nil {
+				return nil, err
+			}
+
+			walletAccountKey, err := walletCoinTypePrivKey.Child(*cmd.Account + hdkeychain.HardenedKeyStart)
+			if err != nil {
+				return nil, err
+			}
+
+			walletxPubKey, err := walletAccountKey.Neuter()
+			if err != nil {
+				return nil, err
+			}
+
+			// Since the field, key, within the struct ExtendedKey is private - keys must be converted
+			// to type string for comparison.
+			stringInputtedxPubKey, err := inputtedxPubKey.String()
+			if err != nil {
+				return nil, err
+			}
+
+			stringWalletxPubKey, err := walletxPubKey.String()
+			if err != nil {
+				return nil, err
+			}
+			fmt.Printf("switch: 1- printed PubKeys:\n %s, %s\n", stringWalletxPubKey, stringInputtedxPubKey)
+			result = strings.EqualFold(stringInputtedxPubKey, stringWalletxPubKey)
+
+		default:
+	**/
+	// This area generally just takes the strings of the derived coin type private key
+	// and the wallet private key for comparison.
+	stringInputtedCoinTypePrivKey, err := inputtedCoinTypePrivKey.String()
+	if err != nil {
+		return nil, err
+	}
+
+	stringWalletCoinTypePrivKey, err := walletCoinTypePrivKey.String()
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("InputtedSeed: %s\n", cmd.Seed)
+	fmt.Printf("CoinTypeKeys:\ninputted: %s\nwallet: %s\ninneutered: %s\nwalletneutered %s\n", stringInputtedCoinTypePrivKey, stringWalletCoinTypePrivKey, StringInNeuteredCoinTypeKey, StringWalletNeuteredCoinTypeKey)
+	result = strings.EqualFold(stringInputtedCoinTypePrivKey, stringWalletCoinTypePrivKey)
+	//}
 
 	return &dcrjson.VerifySeedResult{
 		Result:   result,
