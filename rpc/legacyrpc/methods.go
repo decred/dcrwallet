@@ -3316,16 +3316,6 @@ WrongAddrKind:
 	return nil, InvalidParameterError{errors.New("address must be secp256k1 P2PK or P2PKH")}
 }
 
-/**
-func deriveCoinTypeKey(seed byte[], ) (byte[], error) {
-
-
-
-}
-
-func
-**/
-
 func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.VerifySeedCmd)
 	w, ok := s.walletLoader.LoadedWallet()
@@ -3333,11 +3323,10 @@ func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, &ErrUnloadedWallet
 	}
 
-	print("test1\n")
 	// Changed inputted seed, type string, to type byte[] so hdkeychain methods can be utilized
 	Seed := []byte(cmd.Seed)
 
-	// Obtain current coin type from wallet, w.  Needed for to derive the coin type private key
+	// Obtain current coin type from wallet, w.  Needed to derive the coin type private key
 	coinType, err := w.CoinType()
 	if err != nil {
 		return nil, err
@@ -3348,7 +3337,7 @@ func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 	// Begin the process of deriving the inputtedCoinTypePrivKey from the inputted
 	// seed.  This is later compared to the WalletCoinTypePrivKey which is stored
 	// in the wallets db.
-
+	//
 	// BIP0032 hierarchy: m/*
 	masterNode, err := hdkeychain.NewMaster(Seed, &chaincfg.MainNetParams)
 	if err != nil {
@@ -3375,29 +3364,7 @@ func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	InNeuteredCoinTypeKey, err := inputtedCoinTypePrivKey.Neuter()
-	if err != nil {
-		return nil, err
-	}
-
-	StringInNeuteredCoinTypeKey, err := InNeuteredCoinTypeKey.String()
-	if err != nil {
-		return nil, err
-	}
-
-	//////////////////////
-	walletNeuteredCoinTypeKey, err := walletCoinTypePrivKey.Neuter()
-	if err != nil {
-		return nil, err
-	}
-
-	StringWalletNeuteredCoinTypeKey, err := walletNeuteredCoinTypeKey.String()
-	if err != nil {
-		return nil, err
-	}
-
-	print("switch statement: test 8\n\n")
-	var result bool //test
+	var result, test bool
 	/**
 		// Test whether the field, Account, is greater then or equal to 0.  If its not the field value is nil meaning no input
 		// for account was included at VerifySeedCmd creation time.
@@ -3445,7 +3412,7 @@ func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 
 		default:
 	**/
-	// This area generally just takes the strings of the derived coin type private key
+	// This area takes the strings of the derived coin type private key
 	// and the wallet private key for comparison.
 	stringInputtedCoinTypePrivKey, err := inputtedCoinTypePrivKey.String()
 	if err != nil {
@@ -3457,10 +3424,7 @@ func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	fmt.Printf("InputtedSeed: %s\n", cmd.Seed)
-	fmt.Printf("CoinTypeKeys:\ninputted: %s\nwallet: %s\ninneutered: %s\nwalletneutered %s\n", stringInputtedCoinTypePrivKey, stringWalletCoinTypePrivKey, StringInNeuteredCoinTypeKey, StringWalletNeuteredCoinTypeKey)
 	result = strings.EqualFold(stringInputtedCoinTypePrivKey, stringWalletCoinTypePrivKey)
-	//}
 
 	return &dcrjson.VerifySeedResult{
 		Result:   result,
