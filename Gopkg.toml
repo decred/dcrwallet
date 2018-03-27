@@ -46,4 +46,3 @@
 [[constraint]]
   name = "google.golang.org/grpc"
   version = "1.0.0"
-
