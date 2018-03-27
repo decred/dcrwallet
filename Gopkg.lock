@@ -75,7 +75,7 @@
     "txscript",
     "wire"
   ]
-  revision = "aa4490acdb244f58f42aba456d8b8105514743a7"
+  revision = "df50c57819fd33acb213f1a7baa549c258a9e8ce"
   source = "github.com/githubsands/dcrd"
 
 [[projects]]
@@ -120,7 +120,7 @@
     "scrypt",
     "ssh/terminal"
   ]
-  revision = "80db560fac1fb3e6ac81dbc7f8ae4c061f5257bd"
+  revision = "88942b9c40a4c9d203b82b3731787b672d6e809b"
 
 [[projects]]
   branch = "master"
@@ -149,7 +149,7 @@
     "unix",
     "windows"
   ]
-  revision = "7ceb54c8418b8f9cdf0177b511d5cbb06e9fae39"
+  revision = "13d03a9a82fba647c21a0ef8fba44a795d0f0835"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -176,7 +176,7 @@
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "f8c8703595236ae70fdf8789ecb656ea0bcdcf46"
+  revision = "ab0870e398d5dd054b868c0db1481ab029b9a9f2"
 
 [[projects]]
   name = "google.golang.org/grpc"
