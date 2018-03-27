@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.32.x
+Version: 4.35.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -395,6 +395,7 @@ The service provides the following methods:
 - [`AccountNotifications`](#accountnotifications)
 - [`ConfirmationNotifications`](#confirmationnotifications)
 - [`CommittedTickets`](#committedtickets)
+- [`BestBlock`](#bestblock)
 
 #### `Ping`
 
@@ -584,6 +585,8 @@ but not all sidechain blocks may be known by the wallet.
 - `bool stake_invalidated`: Whether the queried block is in the main chain and
   the next main chain block has stake invalidated the queried block.
 
+- `bool approves_parent`: Whether this block stake validates its parent block.
+
 **Expected errors:**
 
 - `InvalidArgument`: The block hash and height were each set to non-default
@@ -609,10 +612,19 @@ hash.
 
 **Response:** ` GetTransactionResponse`
 
-- `TransactionDetails Transaction`: Wallet details regarding the transaction.
+- `TransactionDetails transaction`: Wallet details regarding the transaction.
 
   The `TransactionDetails` message is used by other methods and is documented
   [here](#transactiondetails).
+
+- `int32 confirmations`: The number of block confirmations of the transaction in
+  the main chain.  If the transaction was mined in a stake-invalidated block and
+  pushed back to mempool to be mined again, or was mined again after being stake
+  invalidated, the latest number of confirmations is used (not the confirmations
+  of an invalidated block).
+
+- `bytes block_hash`: The block hash the transaction is most recently mined in,
+  or null if unmined.
 
 **Expected errors:**
 
@@ -1757,13 +1769,27 @@ addresses for which the largest commitment is controlled by this wallet.
 **Response:** `CommittedTicketsResponse`
 
 - `repeated TicketAddresses ticketAddresses`: The hashes and addresses that are
-  controled by this wallet.
+  controlled by this wallet.
 
   **Nested message:** `TicketAddresses`
 
   - `bytes Ticket`: Hash of the ticket.
 
   - `string address`: Address of the largest commitment.
+___
+
+#### `BestBlock`
+
+The `BestBlock` method returns the block height and height of the best block on
+the main chain.
+
+**Request:** `BestBlockRequest`
+
+**Response:** `BestBlockResponse`
+
+- `bytes hash`: The hash of the best block.
+
+- `uint32 height`: The height of the best block.
 ___
 
 #### `TransactionNotifications`
@@ -1910,6 +1936,8 @@ wallet's relevant transactions contained therein.
 
   The `TransactionDetails` message is used by other methods and is documented
   [here](#transactiondetails).
+
+- `bool approves_parent`: Whether this block stake validates its parent block.
 
 **Stability**: Unstable: This should probably include the block version.
 

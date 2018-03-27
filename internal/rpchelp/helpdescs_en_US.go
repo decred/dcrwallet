@@ -460,6 +460,22 @@ var helpDescsEnUS = map[string]string{
 	"signrawtransactionresult-complete": "Whether all input signatures have been created",
 	"signrawtransactionresult-errors":   "Script verification errors (if exists)",
 
+	// StartAutoBuyerCmd Help.
+	"startautobuyer--synopsis":         "Starts the wallet's ticket buyer.",
+	"startautobuyer-account":           "The account to use for purchasing tickets",
+	"startautobuyer-passphrase":        "The private passphrase of the wallet",
+	"startautobuyer-balancetomaintain": "The minimum amount of funds to never dip below when purchasing tickets",
+	"startautobuyer-maxfeeperkb":       "The maximum ticket fee amount per KB",
+	"startautobuyer-maxpricerelative":  "The scaling factor for setting the maximum ticket price, multiplied by the average price",
+	"startautobuyer-maxpriceabsolute":  "The maximum absolute ticket price",
+	"startautobuyer-votingaddress":     "The address to delegate voting rights to",
+	"startautobuyer-pooladdress":       "The stake pool address where ticket fees will go to",
+	"startautobuyer-poolfees":          "The absolute per ticket fee mandated by the stake pool as a percent",
+	"startautobuyer-maxperblock":       "The maximum tickets per block. Negative number indicates one ticket every n blocks",
+
+	// StopAutoBuyerCmd Help.
+	"stopautobuyer--synopsis": "Stops the wallet's ticket buyer.",
+
 	// SignRawTransactionError help.
 	"signrawtransactionerror-error":     "Verification or signing error related to the input",
 	"signrawtransactionerror-sequence":  "Script sequence number",

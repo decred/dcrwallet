@@ -32,7 +32,7 @@ type ReadWriteTx interface {
 	ReadWriteBucket(key []byte) ReadWriteBucket
 
 	// CreateTopLevelBucket creates the top level bucket for a key if it
-	// does not exist.  The newly-created bucket it returned.
+	// does not exist.  The newly-created bucket is returned.
 	CreateTopLevelBucket(key []byte) (ReadWriteBucket, error)
 
 	// DeleteTopLevelBucket deletes the top level bucket for a key.  This

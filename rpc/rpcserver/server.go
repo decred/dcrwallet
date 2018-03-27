@@ -59,9 +59,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.32.0"
+	semverString = "4.35.0"
 	semverMajor  = 4
-	semverMinor  = 32
+	semverMinor  = 35
 	semverPatch  = 0
 )
 
@@ -702,6 +702,12 @@ func (s *walletServer) BlockInfo(ctx context.Context, req *pb.BlockInfoRequest) 
 		return nil, translateError(err)
 	}
 
+	header := new(wire.BlockHeader)
+	err = header.Deserialize(bytes.NewReader(b.Header[:]))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to deserialize saved block header: %v", err)
+	}
+
 	return &pb.BlockInfoResponse{
 		BlockHash:        b.Hash[:],
 		BlockHeight:      b.Height,
@@ -709,6 +715,7 @@ func (s *walletServer) BlockInfo(ctx context.Context, req *pb.BlockInfoRequest) 
 		Timestamp:        b.Timestamp,
 		BlockHeader:      b.Header[:],
 		StakeInvalidated: b.StakeInvalidated,
+		ApprovesParent:   header.VoteBits&dcrutil.BlockValid != 0,
 	}, nil
 }
 
@@ -918,12 +925,16 @@ func (s *walletServer) GetTransaction(ctx context.Context, req *pb.GetTransactio
 		return nil, status.Errorf(codes.InvalidArgument, "transaction_hash has invalid length")
 	}
 
-	txSummary, err := s.wallet.TransactionSummary(txHash)
+	txSummary, confs, blockHash, err := s.wallet.TransactionSummary(txHash)
 	if err != nil {
 		return nil, translateError(err)
 	}
 	resp := &pb.GetTransactionResponse{
-		Transaction: marshalTransactionDetails(txSummary),
+		Transaction:   marshalTransactionDetails(txSummary),
+		Confirmations: confs,
+	}
+	if blockHash != nil {
+		resp.BlockHash = blockHash[:]
 	}
 	return resp, nil
 }
@@ -987,7 +998,7 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 
 	rangeFn := func(block *wallet.Block) (bool, error) {
 		var resp *pb.GetTransactionsResponse
-		if block.Height != -1 {
+		if block.Header == nil {
 			resp = &pb.GetTransactionsResponse{
 				MinedTransactions: marshalBlock(block),
 			}
@@ -1694,11 +1705,23 @@ func marshalGetTicketBlockDetails(v *wire.BlockHeader) *pb.GetTicketsResponse_Bl
 }
 
 func marshalBlock(v *wallet.Block) *pb.BlockDetails {
+	txs := marshalTransactionDetailsSlice(v.Transactions)
+
+	if v.Header == nil {
+		return &pb.BlockDetails{
+			Hash:         nil,
+			Height:       -1,
+			Transactions: txs,
+		}
+	}
+
+	hash := v.Header.BlockHash()
 	return &pb.BlockDetails{
-		Hash:         v.Hash[:],
-		Height:       v.Height,
-		Timestamp:    v.Timestamp,
-		Transactions: marshalTransactionDetailsSlice(v.Transactions),
+		Hash:           hash[:],
+		Height:         int32(v.Header.Height),
+		Timestamp:      v.Header.Timestamp.Unix(),
+		ApprovesParent: v.Header.VoteBits&dcrutil.BlockValid != 0,
+		Transactions:   txs,
 	}
 }
 
@@ -2725,5 +2748,14 @@ func (s *decodeMessageServer) DecodeRawTransaction(ctx context.Context, req *pb.
 		},
 	}
 
+	return resp, nil
+}
+
+func (s *walletServer) BestBlock(ctx context.Context, req *pb.BestBlockRequest) (*pb.BestBlockResponse, error) {
+	hash, height := s.wallet.MainChainTip()
+	resp := &pb.BestBlockResponse{
+		Hash:   hash[:],
+		Height: uint32(height),
+	}
 	return resp, nil
 }

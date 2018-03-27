@@ -29,6 +29,7 @@ service WalletService {
 	rpc TicketPrice (TicketPriceRequest) returns (TicketPriceResponse);
 	rpc StakeInfo (StakeInfoRequest) returns (StakeInfoResponse);
 	rpc BlockInfo (BlockInfoRequest) returns (BlockInfoResponse);
+	rpc BestBlock (BestBlockRequest) returns (BestBlockResponse);
 
 	// Notifications
 	rpc TransactionNotifications (TransactionNotificationsRequest) returns (stream TransactionNotificationsResponse);
@@ -137,6 +138,7 @@ message BlockDetails {
 	bytes hash = 1;
 	int32 height = 2;
 	int64 timestamp = 3;
+	bool approves_parent = 5;
 	repeated TransactionDetails transactions = 4;
 }
 
@@ -257,6 +259,8 @@ message GetTransactionRequest {
 }
 message GetTransactionResponse {
 	TransactionDetails transaction = 1;
+	int32 confirmations = 2;
+	bytes block_hash = 3;
 }
 
 message GetTransactionsRequest {
@@ -346,16 +350,17 @@ message StakeInfoResponse {
 }
 
 message BlockInfoRequest {
-    bytes block_hash = 1;
-    int32 block_height = 2;
+	bytes block_hash = 1;
+	int32 block_height = 2;
 }
 message BlockInfoResponse {
-    bytes block_hash = 1;
-    int32 block_height = 2;
-    int32 confirmations = 3;
-    int64 timestamp = 4;
-    bytes block_header = 5;
-    bool stake_invalidated = 6;
+	bytes block_hash = 1;
+	int32 block_height = 2;
+	int32 confirmations = 3;
+	int64 timestamp = 4;
+	bytes block_header = 5;
+	bool stake_invalidated = 6;
+	bool approves_parent = 7;
 }
 
 message ChangePassphraseRequest {
@@ -896,4 +901,12 @@ message CommittedTicketsResponse {
 		string address = 2;
 	}
 	repeated TicketAddress ticketAddresses = 1;
+}
+
+message BestBlockRequest {
+}
+
+message BestBlockResponse {
+	uint32 height = 1;
+	bytes hash = 2;
 }

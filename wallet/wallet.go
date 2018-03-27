@@ -1629,6 +1629,7 @@ func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 	}
 
 	return hdkeychain.NewKeyFromString(masterPubKey)
+<<<<<<< HEAD
 }
 
 // CoinTypeKey returns the BIP0044 coin type private key.  This is needed
@@ -1666,6 +1667,8 @@ func (w *Wallet) CoinType() (uint32, error) {
 	}
 
 	return coinType, err
+=======
+>>>>>>> 53457bef94772891934219da6510ac6bbef09cee
 }
 
 // CreditCategory describes the type of wallet transaction output.  The category
@@ -2094,19 +2097,25 @@ func (w *Wallet) BlockInfo(blockID *BlockIdentifier) (*BlockInfo, error) {
 
 // TransactionSummary returns details about a recorded transaction that is
 // relevant to the wallet in some way.
-func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (*TransactionSummary, error) {
-	var txSummary *TransactionSummary
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (txSummary *TransactionSummary,
+	confs int32, blockHash *chainhash.Hash, err error) {
+
+	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		_, tipHeight := w.TxStore.MainChainTip(ns)
 		txDetails, err := w.TxStore.TxDetails(ns, txHash)
 		if err != nil {
 			return err
 		}
 		txSummary = new(TransactionSummary)
 		*txSummary = makeTxSummary(dbtx, w, txDetails)
+		confs = confirms(txDetails.Height(), tipHeight)
+		if confs > 0 {
+			blockHash = &txDetails.Hash
+		}
 		return nil
 	})
-	return txSummary, err
+	return txSummary, confs, blockHash, err
 }
 
 // GetTicketsResult response struct for gettickets rpc request
@@ -2307,16 +2316,23 @@ func (w *Wallet) GetTransactions(f func(*Block) (bool, error), startBlock, endBl
 
 			var block *Block
 			if details[0].Block.Height != -1 {
-				blockHash := details[0].Block.Hash
+				serHeader, err := w.TxStore.GetSerializedBlockHeader(txmgrNs,
+					&details[0].Block.Hash)
+				if err != nil {
+					return false, err
+				}
+				header := new(wire.BlockHeader)
+				err = header.Deserialize(bytes.NewReader(serHeader))
+				if err != nil {
+					return false, err
+				}
 				block = &Block{
-					Hash:         &blockHash,
-					Height:       details[0].Block.Height,
-					Timestamp:    details[0].Block.Time.Unix(),
+					Header:       header,
 					Transactions: txs,
 				}
 			} else {
 				block = &Block{
-					Height:       -1,
+					Header:       nil,
 					Transactions: txs,
 				}
 			}

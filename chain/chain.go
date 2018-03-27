@@ -41,7 +41,7 @@ type RPCClient struct {
 // connect string.  If disableTLS is false, the remote RPC certificate must be
 // provided in the certs slice.  The connection is not established immediately,
 // but must be done using the Start method.  If the remote server does not
-// operate on the same bitcoin network as described by the passed chain
+// operate on the same decred network as described by the passed chain
 // parameters, the connection will be disconnected.
 func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, certs []byte,
 	disableTLS bool) (*RPCClient, error) {

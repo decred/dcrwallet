@@ -71,6 +71,8 @@ var Methods = []struct {
 	{"signmessage", returnsString},
 	{"signrawtransaction", []interface{}{(*dcrjson.SignRawTransactionResult)(nil)}},
 	{"signrawtransactions", []interface{}{(*dcrjson.SignRawTransactionsResult)(nil)}},
+	{"startautobuyer", nil},
+	{"stopautobuyer", nil},
 	{"sweepaccount", []interface{}{(*dcrjson.SweepAccountResult)(nil)}},
 	{"validateaddress", []interface{}{(*dcrjson.ValidateAddressWalletResult)(nil)}},
 	{"verifymessage", returnsBool},
