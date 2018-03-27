@@ -1632,7 +1632,7 @@ func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 }
 
 // CoinTypeKey returns the BIP0044 coin type private key.  This is needed
-// to view the instance, w, of the wallets database. View takes in the
+// to view the instance, w, of the wallets database, db. View takes in the
 // database of the wallet and also a function that acts upon the interface -
 // tx of type walletdb.ReadTx.  Within ReadTx contains the method to ReadBucket
 // which takes in a key and returns a namespace, ns. Note that ReadBucket
