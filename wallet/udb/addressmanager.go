@@ -648,7 +648,6 @@ func (m *Manager) CoinTypePrivKey(dbtx walletdb.ReadTx) (*hdkeychain.ExtendedKey
 	if err != nil {
 		return nil, err
 	}
-
 	serializedKeyPriv, err := m.cryptoKeyPriv.Decrypt(coinTypePrivEnc)
 	if err != nil {
 		str := fmt.Sprintf("failed to decrypt cointype serialized private key")

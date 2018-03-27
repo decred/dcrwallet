@@ -1629,7 +1629,6 @@ func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 	}
 
 	return hdkeychain.NewKeyFromString(masterPubKey)
-<<<<<<< HEAD
 }
 
 // CoinTypeKey returns the BIP0044 coin type private key.  This is needed
@@ -1667,8 +1666,6 @@ func (w *Wallet) CoinType() (uint32, error) {
 	}
 
 	return coinType, err
-=======
->>>>>>> 53457bef94772891934219da6510ac6bbef09cee
 }
 
 // CreditCategory describes the type of wallet transaction output.  The category
