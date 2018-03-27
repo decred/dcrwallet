@@ -14,7 +14,6 @@
 [[constraint]]
   branch = "master"
   name = "github.com/decred/dcrd"
-  source = "github.com/githubsands/dcrd"
 
 [[constraint]]
   branch = "master"

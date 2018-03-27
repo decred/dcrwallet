@@ -75,8 +75,7 @@
     "txscript",
     "wire"
   ]
-  revision = "df50c57819fd33acb213f1a7baa549c258a9e8ce"
-  source = "github.com/githubsands/dcrd"
+  revision = "0fc55252f912756c23e641839b1001c21442c38a"
 
 [[projects]]
   branch = "master"
@@ -211,6 +210,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8d48b827e7983c4f839524c8b68528cf18d5fa7dfe9c9484b79c1f24c1d10fb8"
+  inputs-digest = "890953b366de351f13c362e03a2d3d137bffc528185ceb18426561fe20d2e651"
   solver-name = "gps-cdcl"
   solver-version = 1
