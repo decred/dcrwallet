@@ -538,6 +538,14 @@ var helpDescsEnUS = map[string]string{
 	"verifymessage-message":   "The message to verify",
 	"verifymessage--result0":  "Whether the message was signed with the private key of 'address'",
 
+	// VerifySeedCmd help.
+	"verifyseed--synopsis": "Checks whether the inputted seed matches the wallets. \n" +
+		"If the optional account parameter is used the wallets public key is checked with the derived wallets public key",
+	"verifyseed-seed":            "A seed to check against the wallet to see if they are the same",
+	"verifyseed-account":         "The account of the public key that needs checking this is optional",
+	"verifyseedresult-keyresult": "Whether or not the inputted seed matches the wallets seed",
+	"verifyseedresult-cointype":  "The coin type of the running wallet",
+
 	// Version help
 	"version--synopsis":       "Returns application and API versions (semver) keyed by their names",
 	"version--result0--desc":  "Version objects keyed by the program or API name",
