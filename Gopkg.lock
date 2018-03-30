@@ -3,6 +3,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/aead/siphash"
+  packages = ["."]
+  revision = "e404fcfc888570cadd1610538e2dbc89f66af814"
+
+[[projects]]
+  branch = "master"
   name = "github.com/agl/ed25519"
   packages = [
     ".",
@@ -47,7 +53,6 @@
   revision = "56c501706f00d9e1cfacee19a27117e12da24734"
 
 [[projects]]
-  branch = "master"
   name = "github.com/decred/dcrd"
   packages = [
     "blockchain",
@@ -68,6 +73,8 @@
     "dcrec/secp256k1/schnorr",
     "dcrjson",
     "dcrutil",
+    "gcs",
+    "gcs/blockcf",
     "hdkeychain",
     "mempool",
     "mining",
@@ -75,8 +82,8 @@
     "txscript",
     "wire"
   ]
-  revision = "c9fe441b06b482a85bff0ec1e44e7994c5c06c82"
-  source = "github.com/githubsands/dcrd"
+  revision = "fd99f572cfd52ca722ad501ccb34acdcb22b4a67"
+  version = "v1.2.0-rc1"
 
 [[projects]]
   branch = "master"
@@ -88,7 +95,7 @@
     "ptypes/duration",
     "ptypes/timestamp"
   ]
-  revision = "bbd03ef6da3a115852eaf24c8a1c46aeb39aa175"
+  revision = "e09c5db296004fbe3f74490e84dcd62c3c5ddb1b"
 
 [[projects]]
   name = "github.com/jessevdk/go-flags"
@@ -120,7 +127,7 @@
     "scrypt",
     "ssh/terminal"
   ]
-  revision = "88942b9c40a4c9d203b82b3731787b672d6e809b"
+  revision = "12892e8c234f4fe6f6803f052061de9057903bb2"
 
 [[projects]]
   branch = "master"
@@ -149,7 +156,7 @@
     "unix",
     "windows"
   ]
-  revision = "13d03a9a82fba647c21a0ef8fba44a795d0f0835"
+  revision = "378d26f46672a356c46195c28f61bdb4c0a781dd"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -205,12 +212,12 @@
     "tap",
     "transport"
   ]
-  revision = "afc05b9e1d36f289ea16ba294894486a3e458246"
-  version = "v1.11.0"
+  revision = "1e2570b1b19ade82d8dbb31bba4e65e9f9ef5b34"
+  version = "v1.11.1"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8d48b827e7983c4f839524c8b68528cf18d5fa7dfe9c9484b79c1f24c1d10fb8"
+  inputs-digest = "890953b366de351f13c362e03a2d3d137bffc528185ceb18426561fe20d2e651"
   solver-name = "gps-cdcl"
   solver-version = 1
