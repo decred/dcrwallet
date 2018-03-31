@@ -996,7 +996,7 @@ out:
 
 // Consolidate consolidates as many UTXOs as are passed in the inputs argument.
 // If that many UTXOs can not be found, it will use the maximum it finds. This
-// will only compress UTXOs in the default account
+// will only compress UTXOs in the default account. Deprecated.
 func (w *Wallet) Consolidate(inputs int, account uint32,
 	address dcrutil.Address) (*chainhash.Hash, error) {
 	req := consolidateRequest{

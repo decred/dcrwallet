@@ -437,7 +437,7 @@ func addTicket(s *Server, icmd interface{}) (interface{}, error) {
 }
 
 // consolidate handles a consolidate request by returning attempting to compress
-// as many inputs as given and then returning the txHash and error.
+// as many inputs as given and then returning the txHash and error. Deprecated.
 func consolidate(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ConsolidateCmd)
 	w, ok := s.walletLoader.LoadedWallet()
