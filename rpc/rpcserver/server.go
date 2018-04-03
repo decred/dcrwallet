@@ -998,7 +998,7 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 
 	rangeFn := func(block *wallet.Block) (bool, error) {
 		var resp *pb.GetTransactionsResponse
-		if block.Header == nil {
+		if block.Header != nil {
 			resp = &pb.GetTransactionsResponse{
 				MinedTransactions: marshalBlock(block),
 			}
