@@ -40,7 +40,7 @@ func RPCClientFromBackend(n wallet.NetworkBackend) (*rpcclient.Client, error) {
 	return b.rpcClient, nil
 }
 
-func (b *rpcBackend) GetHeaders(ctx context.Context, blockLocators []chainhash.Hash, hashStop *chainhash.Hash) ([][]byte, error) {
+func (b *rpcBackend) GetHeaders(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([][]byte, error) {
 	r, err := b.rpcClient.GetHeaders(blockLocators, hashStop)
 	if err != nil {
 		return nil, err

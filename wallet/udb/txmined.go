@@ -267,12 +267,12 @@ func log2(x int) int {
 // many older hashes are skipped, with increasing gaps between included hashes.
 // This returns the block locators that should be included in a getheaders wire
 // message or RPC request.
-func (s *Store) BlockLocators(ns walletdb.ReadBucket) []chainhash.Hash {
+func (s *Store) BlockLocators(ns walletdb.ReadBucket) []*chainhash.Hash {
 	headerBucket := ns.NestedReadBucket(bucketHeaders)
 	hash := ns.Get(rootTipBlock)
 	height := extractBlockHeaderHeight(headerBucket.Get(hash))
 
-	locators := make([]chainhash.Hash, 1, 10+log2(int(height)))
+	locators := make([]*chainhash.Hash, 1, 10+log2(int(height)))
 	copy(locators[0][:], hash)
 	var skip, skips int32 = 0, 1
 	for height >= 0 {
@@ -287,7 +287,7 @@ func (s *Store) BlockLocators(ns walletdb.ReadBucket) []chainhash.Hash {
 
 		var locator chainhash.Hash
 		copy(locator[:], hash)
-		locators = append(locators, locator)
+		locators = append(locators, &locator)
 
 		if len(locators) >= 10 {
 			skips *= 2

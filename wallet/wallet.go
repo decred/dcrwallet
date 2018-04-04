@@ -719,7 +719,7 @@ func createHeaderData(headers [][]byte) ([]udb.BlockHeaderData, error) {
 func (w *Wallet) fetchHeaders(n NetworkBackend) (int, error) {
 	fetchedHeaders := 0
 
-	var blockLocators []chainhash.Hash
+	var blockLocators []*chainhash.Hash
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		blockLocators = w.TxStore.BlockLocators(txmgrNs)
