@@ -99,6 +99,93 @@ func (l *Loader) RunAfterLoad(fn func(*wallet.Wallet)) {
 	}
 }
 
+// CreateWatchingOnlyWallet creates a new watch-only wallet using the provided
+// extended public key and public passphrase.
+func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte) (w *wallet.Wallet, err error) {
+	defer l.mu.Unlock()
+	l.mu.Lock()
+
+	if l.wallet != nil {
+		return nil, ErrWalletLoaded
+	}
+
+	// Ensure that the network directory exists.
+	if fi, err := os.Stat(l.dbDirPath); err != nil {
+		if os.IsNotExist(err) {
+			// Attempt data directory creation
+			if err = os.MkdirAll(l.dbDirPath, 0700); err != nil {
+				return nil, fmt.Errorf("cannot create directory: %s", err)
+			}
+		} else {
+			return nil, fmt.Errorf("error checking directory: %s", err)
+		}
+	} else {
+		if !fi.IsDir() {
+			return nil, fmt.Errorf("path '%s' is not a directory", l.dbDirPath)
+		}
+	}
+
+	dbPath := filepath.Join(l.dbDirPath, walletDbName)
+	exists, err := fileExists(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrWalletExists
+	}
+
+	// At this point it is asserted that there is no existing database file, and
+	// deleting anything won't destroy a wallet in use.  Defer a function that
+	// attempts to remove any written database file if this function errors.
+	defer func() {
+		if err != nil {
+			_ = os.Remove(dbPath)
+		}
+	}()
+
+	// Create the wallet database backed by bolt db.
+	err = os.MkdirAll(l.dbDirPath, 0700)
+	if err != nil {
+		return nil, err
+	}
+	db, err := walletdb.Create("bdb", dbPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize the watch-only database for the wallet before opening.
+	err = wallet.CreateWatchOnly(db, extendedPubKey, pubPass, l.chainParams)
+	if err != nil {
+		return nil, err
+	}
+
+	// Open the watch-only wallet.
+	so := l.stakeOptions
+	cfg := &wallet.Config{
+		DB:                  db,
+		PubPassphrase:       pubPass,
+		VotingEnabled:       so.VotingEnabled,
+		AddressReuse:        so.AddressReuse,
+		VotingAddress:       so.VotingAddress,
+		PoolAddress:         so.PoolAddress,
+		PoolFees:            so.PoolFees,
+		TicketFee:           so.TicketFee,
+		GapLimit:            l.addrIdxScanLen,
+		StakePoolColdExtKey: so.StakePoolColdExtKey,
+		AllowHighFees:       l.allowHighFees,
+		RelayFee:            l.relayFee,
+		Params:              l.chainParams,
+	}
+	w, err = wallet.Open(cfg)
+	if err != nil {
+		return nil, err
+	}
+	w.Start()
+
+	l.onLoaded(w, db)
+	return w, nil
+}
+
 // CreateNewWallet creates a new wallet using the provided public and private
 // passphrases.  The seed is optional.  If non-nil, addresses are derived from
 // this seed.  If nil, a secure random seed is generated.

@@ -63,6 +63,7 @@ service WalletService {
 service WalletLoaderService {
 	rpc WalletExists (WalletExistsRequest) returns (WalletExistsResponse);
 	rpc CreateWallet (CreateWalletRequest) returns (CreateWalletResponse);
+	rpc CreateWatchingOnlyWallet (CreateWatchingOnlyWalletRequest) returns (CreateWatchingOnlyWalletResponse);
 	rpc OpenWallet (OpenWalletRequest) returns (OpenWalletResponse);
 	rpc CloseWallet (CloseWalletRequest) returns (CloseWalletResponse);
 	rpc StartConsensusRpc (StartConsensusRpcRequest) returns (StartConsensusRpcResponse);
@@ -602,10 +603,18 @@ message CreateWalletRequest {
 }
 message CreateWalletResponse {}
 
+message CreateWatchingOnlyWalletRequest {
+	string extended_pub_key = 1;
+	bytes public_passphrase = 2;
+}
+message CreateWatchingOnlyWalletResponse {}
+
 message OpenWalletRequest {
 	bytes public_passphrase = 1;
 }
-message OpenWalletResponse {}
+message OpenWalletResponse {
+	bool watching_only = 1;
+}
 
 message CloseWalletRequest {}
 message CloseWalletResponse {}
