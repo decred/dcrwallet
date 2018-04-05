@@ -2242,7 +2242,7 @@ func (s *loaderServer) CreateWallet(ctx context.Context, req *pb.CreateWalletReq
 		return nil, status.Errorf(codes.InvalidArgument, "seed is a required parameter")
 	}
 
-	_, err := s.loader.CreateNewWallet(pubPassphrase, req.PrivatePassphrase, req.Seed)
+	_, err := s.loader.CreateNewWallet(pubPassphrase, req.PrivatePassphrase, req.Seed, false)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -2826,7 +2826,7 @@ func (s *loaderServer) SubscribeToBlockNotifications(ctx context.Context, req *p
 	// a backwards-compatible way to improve error handling and provide more
 	// control over how long the synchronization task runs.
 	syncer := chain.NewRPCSyncer(wallet, chainClient)
-	go syncer.Run(context.Background(), false)
+	go syncer.Run(context.Background(), false, false)
 	wallet.SetNetworkBackend(chain.BackendFromRPCClient(chainClient.Client))
 
 	return &pb.SubscribeToBlockNotificationsResponse{}, nil

@@ -158,7 +158,7 @@ func (s *RPCSyncer) rescanFinished() {
 // needed to fully register the wallet for notifications and synchronize it with
 // the dcrd server are performed.  Otherwise, it will listen for notifications
 // but not register for any updates.
-func (s *RPCSyncer) Run(ctx context.Context, startupSync bool) error {
+func (s *RPCSyncer) Run(ctx context.Context, startupSync bool, isNewWallet bool) error {
 	const op errors.Op = "rpcsyncer.Run"
 
 	tipHash, tipHeight := s.wallet.MainChainTip()
@@ -186,7 +186,7 @@ func (s *RPCSyncer) Run(ctx context.Context, startupSync bool) error {
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		if startupSync {
-			err := s.startupSync(ctx)
+			err := s.startupSync(ctx, isNewWallet)
 			if err != nil {
 				return err
 			}
@@ -413,7 +413,7 @@ var hashStop chainhash.Hash
 // startupSync brings the wallet up to date with the current chain server
 // connection.  It creates a rescan request and blocks until the rescan has
 // finished.
-func (s *RPCSyncer) startupSync(ctx context.Context) error {
+func (s *RPCSyncer) startupSync(ctx context.Context, isNewWallet bool) error {
 	n := BackendFromRPCClient(s.rpcClient.Client)
 
 	// Fetch any missing main chain compact filters.
@@ -572,7 +572,7 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if rescanPoint != nil {
+	if rescanPoint != nil && !isNewWallet {
 		s.mu.Lock()
 		discoverAccts := s.discoverAccts
 		s.mu.Unlock()

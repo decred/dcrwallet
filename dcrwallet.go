@@ -461,7 +461,21 @@ func rpcClientConnectLoop(ctx context.Context, passphrase []byte, jsonRPCServer 
 		// context was cancelled, return immediately instead of trying to
 		// reconnect.
 		syncer := chain.NewRPCSyncer(w, chainClient)
-		err = syncer.Run(ctx, true)
+		isNewWallet, err := loader.IsNewWallet()
+		if err != nil {
+			syncLog.Errorf("Wallet synchronization stopped: %v", err)
+			return
+		}
+		if isNewWallet {
+			defer func() {
+				err := loader.DeleteNewWalletFile()
+				if err != nil {
+					syncLog.Errorf("Wallet synchronization stopped: %v", err)
+					return
+				}
+			}()
+		}
+		err = syncer.Run(ctx, true, isNewWallet)
 		if errors.Match(errors.E(context.Canceled), err) {
 			return
 		}
