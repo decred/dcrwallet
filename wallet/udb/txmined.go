@@ -273,6 +273,7 @@ func (s *Store) BlockLocators(ns walletdb.ReadBucket) []*chainhash.Hash {
 	height := extractBlockHeaderHeight(headerBucket.Get(hash))
 
 	locators := make([]*chainhash.Hash, 1, 10+log2(int(height)))
+	locators[0] = new(chainhash.Hash)
 	copy(locators[0][:], hash)
 	var skip, skips int32 = 0, 1
 	for height >= 0 {
