@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.35.x
+Version: 4.36.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -91,6 +91,7 @@ no dependencies and is always running.
 
 - [`WalletExists`](#walletexists)
 - [`CreateWallet`](#createwallet)
+- [`CreateWatchingOnlyWallet`](#createwatchingonlywallet)
 - [`OpenWallet`](#openwallet)
 - [`CloseWallet`](#closewallet)
 - [`StartConsensusRpc`](#startconsensusrpc)
@@ -166,6 +167,30 @@ synchronizes the wallet to the consensus server if it was previously loaded.
 **Stability:** Unstable: There needs to be a way to recover all keys and
   transactions of a wallet being recovered by its seed.  It is unclear whether
   it should be part of this method or a `WalletService` method.
+
+___
+
+#### `CreateWatchingOnlyWallet`
+
+The `CreateWatchingOnlyWallet` method is used to create a watching only wallet.
+After creating a wallet, the `WalletService` service begins running.
+
+**Request:** `CreateWatchingOnlyWalletRequest`
+
+- `string extended_public_key`: The extended public key of the wallet.
+
+- `bytes public_passphrase`: The passphrase used for the outer wallet
+  encryption.  This passphrase protects data that is made public on the
+  blockchain.  If this passphrase has zero length, an insecure default is used
+  instead.
+
+**Response:** `CreateWatchingOnlyWalletReponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: The wallet is currently open.
+
+- `AlreadyExists`: A file already exists at the wallet database file path.
 
 ___
 

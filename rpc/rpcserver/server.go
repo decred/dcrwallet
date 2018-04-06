@@ -59,9 +59,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.35.0"
+	semverString = "4.36.0"
 	semverMajor  = 4
-	semverMinor  = 35
+	semverMinor  = 36
 	semverPatch  = 0
 )
 
@@ -2025,6 +2025,23 @@ func (s *loaderServer) CreateWallet(ctx context.Context, req *pb.CreateWalletReq
 	return &pb.CreateWalletResponse{}, nil
 }
 
+func (s *loaderServer) CreateWatchingOnlyWallet(ctx context.Context, req *pb.CreateWatchingOnlyWalletRequest) (
+	*pb.CreateWatchingOnlyWalletResponse, error) {
+
+	// Use an insecure public passphrase when the request's is empty.
+	pubPassphrase := req.PublicPassphrase
+	if len(pubPassphrase) == 0 {
+		pubPassphrase = []byte(wallet.InsecurePubPassphrase)
+	}
+
+	_, err := s.loader.CreateWatchingOnlyWallet(req.ExtendedPubKey, pubPassphrase)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	return &pb.CreateWatchingOnlyWalletResponse{}, nil
+}
+
 func (s *loaderServer) OpenWallet(ctx context.Context, req *pb.OpenWalletRequest) (
 	*pb.OpenWalletResponse, error) {
 
@@ -2034,12 +2051,14 @@ func (s *loaderServer) OpenWallet(ctx context.Context, req *pb.OpenWalletRequest
 		pubPassphrase = []byte(wallet.InsecurePubPassphrase)
 	}
 
-	_, err := s.loader.OpenExistingWallet(pubPassphrase)
+	w, err := s.loader.OpenExistingWallet(pubPassphrase)
 	if err != nil {
 		return nil, translateError(err)
 	}
 
-	return &pb.OpenWalletResponse{}, nil
+	return &pb.OpenWalletResponse{
+		WatchingOnly: w.Manager.WatchingOnly(),
+	}, nil
 }
 
 func (s *loaderServer) WalletExists(ctx context.Context, req *pb.WalletExistsRequest) (
