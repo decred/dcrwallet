@@ -186,44 +186,53 @@ type DB interface {
 }
 
 // View opens a database read transaction and executes the function f with the
-// transaction passed as a parameter.  After f exits, the transaction is rolled
-// back.  If f errors, its error is returned, not a rollback error (if any
-// occur).
+// transaction passed as a parameter.  After f exits or panics, the transaction
+// is rolled back.  If f errors, its error is returned, not a rollback error (if
+// any occured).
 func View(db DB, f func(tx ReadTx) error) error {
 	tx, err := db.BeginReadTx()
 	if err != nil {
 		return err
 	}
-	err = f(tx)
-	rollbackErr := tx.Rollback()
-	if err != nil {
-		return err
-	}
-	if rollbackErr != nil {
-		return rollbackErr
-	}
-	return nil
+
+	// Rollback the transaction after f returns or panics.  Do not recover from
+	// any panic to keep the original stack trace intact.
+	defer func() {
+		rollbackErr := tx.Rollback()
+		if err != nil {
+			err = rollbackErr
+		}
+	}()
+
+	return f(tx)
 }
 
 // Update opens a database read/write transaction and executes the function f
 // with the transaction passed as a parameter.  After f exits, if f did not
-// error, the transaction is committed.  Otherwise, if f did error, the
-// transaction is rolled back.  If the rollback fails, the original error
-// returned by f is still returned.  If the commit fails, the commit error is
-// returned.
-func Update(db DB, f func(tx ReadWriteTx) error) error {
+// error, the transaction is committed.  Otherwise, if f did error or panic, the
+// transaction is rolled back.  If a rollback fails, the original error returned
+// by f is still returned.  If the commit fails, the commit error is returned.
+func Update(db DB, f func(tx ReadWriteTx) error) (err error) {
 	tx, err := db.BeginReadWriteTx()
 	if err != nil {
 		return err
 	}
+
+	// Commit or rollback the transaction after f returns or panics.  Do not
+	// recover from the panic to keep the original stack trace intact.
+	panicked := true
+	defer func() {
+		if panicked || err != nil {
+			tx.Rollback()
+			return
+		}
+
+		err = tx.Commit()
+	}()
+
 	err = f(tx)
-	if err != nil {
-		// Want to return the original error, not a rollback error if
-		// any occur.
-		_ = tx.Rollback()
-		return err
-	}
-	return tx.Commit()
+	panicked = false
+	return err
 }
 
 // Driver defines a structure for backend drivers to use when they registered
