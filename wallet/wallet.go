@@ -630,12 +630,10 @@ func (w *Wallet) CommittedTickets(tickets []*chainhash.Hash) ([]*chainhash.Hash,
 				continue
 			}
 			if tx == nil {
-				log.Debugf("not found: %v", v)
 				continue
 			}
 
 			if !stake.IsSStx(tx) {
-				log.Debugf("tx is not a ticket purchase %v", v)
 				continue
 			}
 
