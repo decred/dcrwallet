@@ -92,21 +92,9 @@ const (
 	// the same network the account manager is configured for.
 	ErrWrongNet
 
-	// ErrCallBackBreak is used to break from a callback function passed
-	// down to the manager.
-	ErrCallBackBreak
-
 	// ErrEmptyPassphrase indicates that the private passphrase was refused
 	// due to being empty.
 	ErrEmptyPassphrase
-
-	// ErrCreateAddress is used to indicate that an address could not be
-	// created from a public key.
-	ErrCreateAddress
-
-	// ErrMetaPoolIdxNoExist indicates that the address index for some
-	// account's address pool was unset or short.
-	ErrMetaPoolIdxNoExist
 
 	// ErrBranch indicates that the branch passed was not internal
 	// or external for some account.
@@ -144,9 +132,6 @@ const (
 	// software.  This likely indicates an outdated binary.
 	ErrUnknownVersion
 
-	// ErrIsClosed indicates that the transaction manager is closed.
-	ErrIsClosed
-
 	// ErrDuplicate describes an error inserting an item into the store due to
 	// the data already existing.
 	//
@@ -158,14 +143,6 @@ const (
 	// ErrSStxNotFound indicates that the requested tx hash is not known to
 	// the SStx store.
 	ErrSStxNotFound
-
-	// ErrSSGensNotFound indicates that the requested tx hash is not known to
-	// the SSGens store.
-	ErrSSGensNotFound
-
-	// ErrSSRtxsNotFound indicates that the requested tx hash is not known to
-	// the SSRtxs store.
-	ErrSSRtxsNotFound
 
 	// ErrPoolUserTicketsNotFound indicates that the requested script hash
 	// is not known to the meta bucket.

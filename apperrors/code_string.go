@@ -4,9 +4,9 @@ package apperrors
 
 import "fmt"
 
-const _Code_name = "ErrDatabaseErrUpgradeErrKeyChainErrCryptoErrInvalidKeyTypeErrNoExistErrAlreadyExistsErrCoinTypeTooHighErrAccountNumTooHighErrLockedErrWatchingOnlyErrInvalidAccountErrAddressNotFoundErrAccountNotFoundErrDuplicateAddressErrDuplicateAccountErrTooManyAddressesErrWrongPassphraseErrWrongNetErrCallBackBreakErrEmptyPassphraseErrCreateAddressErrMetaPoolIdxNoExistErrBranchErrDataErrInputErrValueNoExistsErrDoubleSpendErrNeedsUpgradeErrUnknownVersionErrIsClosedErrDuplicateErrSStxNotFoundErrSSGensNotFoundErrSSRtxsNotFoundErrPoolUserTicketsNotFoundErrPoolUserInvalTcktsNotFoundErrBadPoolUserAddrErrUnimplementedErrExceedsGapLimitErrExhaustedAccountErrDisconnectedErrUnsupportedErrHighFees"
+const _Code_name = "ErrDatabaseErrUpgradeErrKeyChainErrCryptoErrInvalidKeyTypeErrNoExistErrAlreadyExistsErrCoinTypeTooHighErrAccountNumTooHighErrLockedErrWatchingOnlyErrInvalidAccountErrAddressNotFoundErrAccountNotFoundErrDuplicateAddressErrDuplicateAccountErrTooManyAddressesErrWrongPassphraseErrWrongNetErrEmptyPassphraseErrBranchErrDataErrInputErrValueNoExistsErrDoubleSpendErrNeedsUpgradeErrUnknownVersionErrDuplicateErrSStxNotFoundErrPoolUserTicketsNotFoundErrPoolUserInvalTcktsNotFoundErrBadPoolUserAddrErrUnimplementedErrExceedsGapLimitErrExhaustedAccountErrDisconnectedErrUnsupportedErrHighFees"
 
-var _Code_index = [...]uint16{0, 11, 21, 32, 41, 58, 68, 84, 102, 122, 131, 146, 163, 181, 199, 218, 237, 256, 274, 285, 301, 319, 335, 356, 365, 372, 380, 396, 410, 425, 442, 453, 465, 480, 497, 514, 540, 569, 587, 603, 621, 640, 655, 669, 680}
+var _Code_index = [...]uint16{0, 11, 21, 32, 41, 58, 68, 84, 102, 122, 131, 146, 163, 181, 199, 218, 237, 256, 274, 285, 303, 312, 319, 327, 343, 357, 372, 389, 401, 416, 442, 471, 489, 505, 523, 542, 557, 571, 582}
 
 func (i Code) String() string {
 	if i < 0 || i >= Code(len(_Code_index)-1) {
