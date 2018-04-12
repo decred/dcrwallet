@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.37.x
+Version: 4.38.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -1366,10 +1366,6 @@ transaction using a wallet private keys.
 - `bytes passphrase`: The wallet's private passphrase.
 
 - `bytes serialized_transaction`: The transaction to add input signatures to.
-
-- `repeated uint32 input_indexes`: The input indexes that signature scripts must
-  be created for.  If there are no indexes, input scripts are created for every
-  input that is missing an input script.
 
 - `repeated AdditionalScript additional_scripts`: Additional output scripts of
   previous outputs spent by the transaction that the wallet may not be aware of.
