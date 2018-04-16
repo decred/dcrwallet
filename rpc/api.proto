@@ -48,6 +48,7 @@ service WalletService {
 	rpc UnspentOutputs (UnspentOutputsRequest) returns (stream UnspentOutputResponse);
 	rpc ConstructTransaction (ConstructTransactionRequest) returns (ConstructTransactionResponse);
 	rpc SignTransaction (SignTransactionRequest) returns (SignTransactionResponse);
+	rpc SignTransactions (SignTransactionsRequest) returns (SignTransactionsResponse);
 	rpc CreateSignature (CreateSignatureRequest) returns (CreateSignatureResponse);
 	rpc PublishTransaction (PublishTransactionRequest) returns (PublishTransactionResponse);
 	rpc PublishUnminedTransactions (PublishUnminedTransactionsRequest) returns (PublishUnminedTransactionsResponse);
@@ -467,6 +468,29 @@ message SignTransactionRequest {
 message SignTransactionResponse {
 	bytes transaction = 1;
 	repeated uint32 unsigned_input_indexes = 2;
+}
+
+message SignTransactionsRequest {
+	message AdditionalScript {
+		bytes transaction_hash = 1;
+		uint32 output_index = 2;
+		int32 tree = 3;
+		bytes pk_script = 4;
+	}
+	message UnsignedTransaction {
+		bytes serialized_transaction = 1;
+	}
+
+	bytes passphrase = 1;
+	repeated UnsignedTransaction transactions = 2;
+	repeated AdditionalScript additional_scripts = 3;
+}
+message SignTransactionsResponse {
+	message SignedTransaction {
+		bytes transaction = 1;
+		repeated uint32 unsigned_input_indexes = 2;
+	}
+	repeated SignedTransaction transactions = 1;
 }
 
 message CreateSignatureRequest {
