@@ -1166,10 +1166,16 @@ func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransact
 	var additionalPkScripts map[wire.OutPoint][]byte
 	if len(req.AdditionalScripts) > 0 {
 		additionalPkScripts = make(map[wire.OutPoint][]byte, len(req.AdditionalScripts))
-		for _, s := range req.AdditionalScripts {
-			op := wire.OutPoint{Index: s.OutputIndex, Tree: int8(s.Tree)}
-			copy(op.Hash[:], s.TransactionHash)
-			additionalPkScripts[op] = s.PkScript
+		for _, script := range req.AdditionalScripts {
+			op := wire.OutPoint{Index: script.OutputIndex, Tree: int8(script.Tree)}
+			if len(script.TransactionHash) != chainhash.HashSize {
+				return nil, status.Errorf(codes.InvalidArgument,
+					"Invalid transaction hash length for script %v, expected %v got %v",
+					script, chainhash.HashSize, len(script.TransactionHash))
+			}
+
+			copy(op.Hash[:], script.TransactionHash)
+			additionalPkScripts[op] = script.PkScript
 		}
 	}
 
