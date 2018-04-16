@@ -1300,7 +1300,9 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 		return managerError(apperrors.ErrDatabase, str, err)
 	}
 
-	// Delete the account extended private key for all accounts.
+	BIP0044Set := map[string]*dbAccountRow{}
+
+	// Fetch all BIP0044 accounts.
 	bucket = ns.NestedReadWriteBucket(acctBucketName)
 	err := bucket.ForEach(func(k, v []byte) error {
 		// Skip buckets.
@@ -1316,23 +1318,7 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 
 		switch row.acctType {
 		case actBIP0044:
-			arow, err := deserializeBIP0044AccountRow(k, row, dbVersion)
-			if err != nil {
-				return err
-			}
-
-			// Reserialize the account without the private key and
-			// store it.
-			row := bip0044AccountInfo(arow.pubKeyEncrypted, nil,
-				arow.nextExternalIndex, arow.nextInternalIndex,
-				arow.lastUsedExternalIndex, arow.lastUsedInternalIndex,
-				arow.lastReturnedExternalIndex, arow.lastReturnedInternalIndex,
-				arow.name, dbVersion)
-			err = bucket.Put(k, serializeAccountRow(&row.dbAccountRow))
-			if err != nil {
-				str := "failed to delete account private key"
-				return managerError(apperrors.ErrDatabase, str, err)
-			}
+			BIP0044Set[string(k)] = row
 		}
 
 		return nil
@@ -1341,7 +1327,31 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 		return maybeConvertDbError(err)
 	}
 
-	// Delete the private key for all imported addresses.
+	// Delete the account extended private key for all BIP0044 accounts.
+	for k, row := range BIP0044Set {
+		arow, err := deserializeBIP0044AccountRow([]byte(k), row, dbVersion)
+		if err != nil {
+			return err
+		}
+
+		// Reserialize the account without the private key and
+		// store it.
+		row := bip0044AccountInfo(arow.pubKeyEncrypted, nil,
+			arow.nextExternalIndex, arow.nextInternalIndex,
+			arow.lastUsedExternalIndex, arow.lastUsedInternalIndex,
+			arow.lastReturnedExternalIndex, arow.lastReturnedInternalIndex,
+			arow.name, dbVersion)
+		err = bucket.Put([]byte(k), serializeAccountRow(&row.dbAccountRow))
+		if err != nil {
+			str := "failed to delete account private key"
+			return managerError(apperrors.ErrDatabase, str, err)
+		}
+	}
+
+	importedAddrSet := map[string]*dbAddressRow{}
+	importedScriptAddrSet := map[string]*dbAddressRow{}
+
+	// Fetch all imported addresses.
 	bucket = ns.NestedReadWriteBucket(addrBucketName)
 	err = bucket.ForEach(func(k, v []byte) error {
 		// Skip buckets.
@@ -1358,42 +1368,51 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 
 		switch row.addrType {
 		case adtImport:
-			irow, err := deserializeImportedAddress(row)
-			if err != nil {
-				return err
-			}
-
-			// Reserialize the imported address without the private
-			// key and store it.
-			row.rawData = serializeImportedAddress(
-				irow.encryptedPubKey, nil)
-			err = bucket.Put(k, serializeAddressRow(row))
-			if err != nil {
-				str := "failed to delete imported private key"
-				return managerError(apperrors.ErrDatabase, str, err)
-			}
+			importedAddrSet[string(k)] = row
 
 		case adtScript:
-			srow, err := deserializeScriptAddress(row)
-			if err != nil {
-				return err
-			}
-
-			// Reserialize the script address without the script
-			// and store it.
-			row.rawData = serializeScriptAddress(srow.encryptedHash,
-				nil)
-			err = bucket.Put(k, serializeAddressRow(row))
-			if err != nil {
-				str := "failed to delete imported script"
-				return managerError(apperrors.ErrDatabase, str, err)
-			}
+			importedScriptAddrSet[string(k)] = row
 		}
 
 		return nil
 	})
 	if err != nil {
 		return maybeConvertDbError(err)
+	}
+
+	// Delete the private key for all imported addresses.
+	for k, row := range importedAddrSet {
+		irow, err := deserializeImportedAddress(row)
+		if err != nil {
+			return err
+		}
+
+		// Reserialize the imported address without the private
+		// key and store it.
+		row.rawData = serializeImportedAddress(
+			irow.encryptedPubKey, nil)
+		err = bucket.Put([]byte(k), serializeAddressRow(row))
+		if err != nil {
+			str := "failed to delete imported private key"
+			return managerError(apperrors.ErrDatabase, str, err)
+		}
+	}
+
+	for k, row := range importedScriptAddrSet {
+		srow, err := deserializeScriptAddress(row)
+		if err != nil {
+			return err
+		}
+
+		// Reserialize the script address without the script
+		// and store it.
+		row.rawData = serializeScriptAddress(srow.encryptedHash,
+			nil)
+		err = bucket.Put([]byte(k), serializeAddressRow(row))
+		if err != nil {
+			str := "failed to delete imported script"
+			return managerError(apperrors.ErrDatabase, str, err)
+		}
 	}
 
 	return nil
