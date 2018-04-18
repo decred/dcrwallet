@@ -64,6 +64,7 @@ service WalletService {
 	rpc ValidateAddress (ValidateAddressRequest) returns (ValidateAddressResponse);
 	rpc CommittedTickets (CommittedTicketsRequest) returns (CommittedTicketsResponse);
 	rpc SweepAccount (SweepAccountRequest) returns (SweepAccountResponse);
+	rpc SignHashes (SignHashesRequest) returns (SignHashesResponse);
 }
 
 service WalletLoaderService {
@@ -1096,4 +1097,16 @@ message SweepAccountResponse {
 	int64 total_previous_output_amount = 2;
 	int64 total_output_amount = 3;
 	uint32 estimated_signed_size = 4;
+}
+
+message SignHashesRequest {
+	bytes passphrase = 1;
+	string address = 2;
+	CreateSignatureRequest.SigHashType hash_type = 3;
+	repeated bytes hashes = 4;
+}
+
+message SignHashesResponse {
+	bytes public_key = 1;
+	repeated bytes signatures = 2;
 }

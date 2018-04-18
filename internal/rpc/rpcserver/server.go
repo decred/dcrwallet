@@ -3070,3 +3070,45 @@ func (s *walletServer) BestBlock(ctx context.Context, req *pb.BestBlockRequest) 
 	}
 	return resp, nil
 }
+
+func (s *walletServer) SignHashes(cts context.Context, req *pb.SignHashesRequest) (*pb.SignHashesResponse, error) {
+	lock := make(chan time.Time, 1)
+	defer func() {
+		lock <- time.Time{} // send matters, not the value
+	}()
+	err := s.wallet.Unlock(req.Passphrase, lock)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	addr, err := decodeAddress(req.Address, s.wallet.ChainParams())
+	if err != nil {
+		return nil, err
+	}
+
+	// Addresses must have an associated secp256k1 private key and therefore
+	// must be P2PK or P2PKH (P2SH is not allowed).
+	switch a := addr.(type) {
+	case *dcrutil.AddressSecpPubKey:
+	case *dcrutil.AddressPubKeyHash:
+		if a.DSA(a.Net()) != chainec.ECTypeSecp256k1 {
+			return nil, status.Error(codes.InvalidArgument,
+				"address must be secp256k1 P2PK or P2PKH")
+		}
+	default:
+		return nil, status.Error(codes.InvalidArgument,
+			"address must be secp256k1 P2PK or P2PKH")
+	}
+
+	hashType := txscript.SigHashType(req.HashType)
+	signatures, pubKey, err := s.wallet.SignHashes(req.Hashes, hashType,
+		addr)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	return &pb.SignHashesResponse{
+		PublicKey:  pubKey,
+		Signatures: signatures,
+	}, nil
+}

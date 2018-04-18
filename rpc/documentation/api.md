@@ -431,6 +431,7 @@ The service provides the following methods:
 - [`CommittedTickets`](#committedtickets)
 - [`BestBlock`](#bestblock)
 - [`SweepAccount`](#sweepaccount)
+- [`SignHashes`](#signhashes)
 
 #### `Ping`
 
@@ -1576,6 +1577,40 @@ syncing.
 - `int32 height`: The block height for this query.
 
 **Expected errors:** None
+
+___
+
+#### `SignHashes`
+
+The `SignHashes` method creates signatures of multiple hash values using the
+provided private keys and addresses.
+
+**Request:** `SignHashesRequest`
+
+- `bytes passphrase`: The wallet's private passphrase.
+
+- `string address`: The address of the private key to use to create the
+  signature.
+
+- `CreateSignatureRequest.SigHashType hash_type`: The signature hash flags
+  to use. Note the available hash types are defined in the
+[`SigHashType`](#sighashtype) enumeration.
+
+- `repeated bytes hashes`: Hash values to sign.
+
+**Response:** `SignHashesResponse`
+
+- `bytes public_key`: The serialized compressed pubkey of the address.
+
+- `repeated bytes signature`: Raw signatures. The index of each signature
+   corresponds to the index of an incoming hash.
+
+**Expected errors:**
+
+- `InvalidArgument`: The private passphrase is incorrect.
+
+**Stability:** Unstable: this method may require API changes to support
+signature algorithms other than secp256k1.
 
 ___
 
