@@ -45,7 +45,7 @@ const (
 	defaultPromptPass          = false
 	defaultPass                = ""
 	defaultPromptPublicPass    = false
-	defaultAddrIdxScanLen      = wallet.DefaultGapLimit
+	defaultGapLimit            = wallet.DefaultGapLimit
 	defaultStakePoolColdExtKey = ""
 	defaultAllowHighFees       = false
 
@@ -109,7 +109,7 @@ type config struct {
 	PurchaseAccount     string               `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
 	PoolAddress         *cfgutil.AddressFlag `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
 	PoolFees            float64              `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
-	AddrIdxScanLen      int                  `long:"addridxscanlen" description:"The width of the scan for last used addresses on wallet restore and start up"`
+	GapLimit            int                  `long:"gaplimit" description:"The size of gaps between used addresses.  Used for address scanning and when generating addresses with the wrap option."`
 	StakePoolColdExtKey string               `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
 	AllowHighFees       bool                 `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
 	RelayFee            *cfgutil.AmountFlag  `long:"txfee" description:"Sets the wallet's tx fee per kb"`
@@ -156,9 +156,10 @@ type config struct {
 	tbCfg  ticketbuyer.Config
 
 	// Deprecated options
-	DataDir       *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
-	PruneTickets  bool                    `long:"prunetickets" description:"DEPRECATED -- old tickets are always pruned"`
-	TicketAddress *cfgutil.AddressFlag    `long:"ticketaddress" description:"DEPRECATED -- use ticketbuyer.votingaddress instead"`
+	DataDir        *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
+	PruneTickets   bool                    `long:"prunetickets" description:"DEPRECATED -- old tickets are always pruned"`
+	TicketAddress  *cfgutil.AddressFlag    `long:"ticketaddress" description:"DEPRECATED -- use ticketbuyer.votingaddress instead"`
+	AddrIdxScanLen int                     `long:"addridxscanlen" description:"DEPRECATED -- use gaplimit instead"`
 }
 
 type ticketBuyerOptions struct {
@@ -349,7 +350,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		PruneTickets:           defaultPruneTickets,
 		PurchaseAccount:        defaultPurchaseAccount,
 		AutomaticRepair:        defaultAutomaticRepair,
-		AddrIdxScanLen:         defaultAddrIdxScanLen,
+		GapLimit:               defaultGapLimit,
 		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
 		AllowHighFees:          defaultAllowHighFees,
 		RelayFee:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
@@ -357,8 +358,9 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		PoolAddress:            cfgutil.NewAddressFlag(nil),
 
 		// TODO: DEPRECATED - remove.
-		DataDir:       cfgutil.NewExplicitString(defaultAppDataDir),
-		TicketAddress: cfgutil.NewAddressFlag(nil),
+		DataDir:        cfgutil.NewExplicitString(defaultAppDataDir),
+		TicketAddress:  cfgutil.NewAddressFlag(nil),
+		AddrIdxScanLen: defaultGapLimit,
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
@@ -906,6 +908,13 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		if votingAddress == nil {
 			votingAddress = cfg.TicketAddress.Address
 		}
+	}
+
+	// Warn if user still is still using --addridxscanlen
+	if cfg.AddrIdxScanLen != defaultGapLimit && cfg.GapLimit == defaultGapLimit {
+		log.Warnf("--addridxscanlen has been DEPRECATED.  Use " +
+			"--gaplimit instead")
+		cfg.GapLimit = cfg.AddrIdxScanLen
 	}
 
 	// Build ticketbuyer config

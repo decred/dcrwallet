@@ -57,7 +57,7 @@ func createWallet(ctx context.Context, cfg *config) error {
 		TicketFee:     cfg.TicketFee.ToCoin(),
 	}
 	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
-		cfg.AddrIdxScanLen, cfg.AllowHighFees, cfg.RelayFee.ToCoin())
+		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.ToCoin())
 
 	var privPass, pubPass, seed []byte
 	var imported bool

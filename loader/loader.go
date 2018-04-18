@@ -42,7 +42,7 @@ type Loader struct {
 	purchaseManager *ticketbuyer.PurchaseManager
 	ntfnClient      wallet.MainTipChangedNotificationsClient
 	stakeOptions    *StakeOptions
-	addrIdxScanLen  int
+	gapLimit        int
 	allowHighFees   bool
 	relayFee        float64
 }
@@ -59,16 +59,16 @@ type StakeOptions struct {
 }
 
 // NewLoader constructs a Loader.
-func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, addrIdxScanLen int,
+func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, gapLimit int,
 	allowHighFees bool, relayFee float64) *Loader {
 
 	return &Loader{
-		chainParams:    chainParams,
-		dbDirPath:      dbDirPath,
-		stakeOptions:   stakeOptions,
-		addrIdxScanLen: addrIdxScanLen,
-		allowHighFees:  allowHighFees,
-		relayFee:       relayFee,
+		chainParams:   chainParams,
+		dbDirPath:     dbDirPath,
+		stakeOptions:  stakeOptions,
+		gapLimit:      gapLimit,
+		allowHighFees: allowHighFees,
+		relayFee:      relayFee,
 	}
 }
 
@@ -170,7 +170,7 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 		PoolAddress:         so.PoolAddress,
 		PoolFees:            so.PoolFees,
 		TicketFee:           so.TicketFee,
-		GapLimit:            l.addrIdxScanLen,
+		GapLimit:            l.gapLimit,
 		StakePoolColdExtKey: so.StakePoolColdExtKey,
 		AllowHighFees:       l.allowHighFees,
 		RelayFee:            l.relayFee,
@@ -258,7 +258,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 		PoolAddress:         so.PoolAddress,
 		PoolFees:            so.PoolFees,
 		TicketFee:           so.TicketFee,
-		GapLimit:            l.addrIdxScanLen,
+		GapLimit:            l.gapLimit,
 		StakePoolColdExtKey: so.StakePoolColdExtKey,
 		AllowHighFees:       l.allowHighFees,
 		RelayFee:            l.relayFee,
@@ -313,7 +313,7 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 		PoolAddress:         so.PoolAddress,
 		PoolFees:            so.PoolFees,
 		TicketFee:           so.TicketFee,
-		GapLimit:            l.addrIdxScanLen,
+		GapLimit:            l.gapLimit,
 		StakePoolColdExtKey: so.StakePoolColdExtKey,
 		AllowHighFees:       l.allowHighFees,
 		RelayFee:            l.relayFee,
