@@ -109,7 +109,7 @@ type config struct {
 	PurchaseAccount     string               `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
 	PoolAddress         *cfgutil.AddressFlag `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
 	PoolFees            float64              `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
-	GapLimit            int                  `long:"gaplimit" description:"The size of gaps for used addresses.  Used for address scanning and when generating addresses with the wrap option."`
+	GapLimit            int                  `long:"gaplimit" description:"The size of gaps between used addresses.  Used for address scanning and when generating addresses with the wrap option."`
 	StakePoolColdExtKey string               `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
 	AllowHighFees       bool                 `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
 	RelayFee            *cfgutil.AmountFlag  `long:"txfee" description:"Sets the wallet's tx fee per kb"`
