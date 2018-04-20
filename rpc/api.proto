@@ -445,24 +445,22 @@ message ConstructTransactionResponse {
 }
 
 message SignTransactionRequest {
+	reserved 3;
+	reserved "input_indexes";
 	message AdditionalScript {
 		bytes transaction_hash = 1;
 		uint32 output_index = 2;
 		int32 tree = 3;
 		bytes pk_script = 4;
 	}
-
 	bytes passphrase = 1;
-
 	bytes serialized_transaction = 2;
-
 	// If no indexes are specified, signatures scripts will be added for
 	// every input. If any input indexes are specified, only those inputs
 	// will be signed.  Rather than returning an incompletely signed
 	// transaction if any of the inputs to be signed can not be, the RPC
 	// immediately errors.
-	repeated uint32 input_indexes = 3;
-
+	// repeated uint32 input_indexes = 3;
 	repeated AdditionalScript additional_scripts = 4;
 }
 message SignTransactionResponse {

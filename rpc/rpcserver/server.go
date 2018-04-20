@@ -1140,8 +1140,6 @@ func (s *walletServer) ChangePassphrase(ctx context.Context, req *pb.ChangePassp
 	return &pb.ChangePassphraseResponse{}, nil
 }
 
-// BUGS:
-// - InputIndexes request field is ignored.
 func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransactionRequest) (
 	*pb.SignTransactionResponse, error) {
 
