@@ -180,8 +180,8 @@ func run(ctx context.Context) error {
 			log.Errorf("Failed to open wallet: %v", err)
 			if apperrors.IsError(err, apperrors.ErrWrongPassphrase) {
 				// walletpass not provided, advice using --walletpass or --promptpublicpass
-				if len(walletPass) == 0 {
-					log.Info("Retry with --walletpass or --promptpublicpass.")
+				if cfg.WalletPass == wallet.InsecurePubPassphrase {
+					log.Info("Configure public passphrase with walletpass or promptpublicpass options.")
 				}
 			}
 
