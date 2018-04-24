@@ -5,7 +5,6 @@
 package loader
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/walletdb"
@@ -102,11 +102,13 @@ func (l *Loader) RunAfterLoad(fn func(*wallet.Wallet)) {
 // CreateWatchingOnlyWallet creates a new watch-only wallet using the provided
 // extended public key and public passphrase.
 func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte) (w *wallet.Wallet, err error) {
+	const op errors.Op = "loader.CreateWatchingOnlyWallet"
+
 	defer l.mu.Unlock()
 	l.mu.Lock()
 
 	if l.wallet != nil {
-		return nil, ErrWalletLoaded
+		return nil, errors.E(op, errors.Exist, "wallet already loaded")
 	}
 
 	// Ensure that the network directory exists.
@@ -114,24 +116,24 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 		if os.IsNotExist(err) {
 			// Attempt data directory creation
 			if err = os.MkdirAll(l.dbDirPath, 0700); err != nil {
-				return nil, fmt.Errorf("cannot create directory: %s", err)
+				return nil, errors.E(op, err)
 			}
 		} else {
-			return nil, fmt.Errorf("error checking directory: %s", err)
+			return nil, errors.E(op, err)
 		}
 	} else {
 		if !fi.IsDir() {
-			return nil, fmt.Errorf("path '%s' is not a directory", l.dbDirPath)
+			return nil, errors.E(op, errors.Invalid, errors.Errorf("%q is not a directory", l.dbDirPath))
 		}
 	}
 
 	dbPath := filepath.Join(l.dbDirPath, walletDbName)
 	exists, err := fileExists(dbPath)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 	if exists {
-		return nil, ErrWalletExists
+		return nil, errors.E(op, errors.Exist, "wallet already exists")
 	}
 
 	// At this point it is asserted that there is no existing database file, and
@@ -146,17 +148,17 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 	// Create the wallet database backed by bolt db.
 	err = os.MkdirAll(l.dbDirPath, 0700)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 	db, err := walletdb.Create("bdb", dbPath)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 
 	// Initialize the watch-only database for the wallet before opening.
 	err = wallet.CreateWatchOnly(db, extendedPubKey, pubPass, l.chainParams)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 
 	// Open the watch-only wallet.
@@ -178,7 +180,7 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 	}
 	w, err = wallet.Open(cfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 	w.Start()
 
@@ -190,11 +192,13 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 // passphrases.  The seed is optional.  If non-nil, addresses are derived from
 // this seed.  If nil, a secure random seed is generated.
 func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w *wallet.Wallet, err error) {
+	const op errors.Op = "loader.CreateNewWallet"
+
 	defer l.mu.Unlock()
 	l.mu.Lock()
 
 	if l.wallet != nil {
-		return nil, ErrWalletLoaded
+		return nil, errors.E(op, errors.Exist, "wallet already opened")
 	}
 
 	// Ensure that the network directory exists.
@@ -202,24 +206,24 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 		if os.IsNotExist(err) {
 			// Attempt data directory creation
 			if err = os.MkdirAll(l.dbDirPath, 0700); err != nil {
-				return nil, fmt.Errorf("cannot create directory: %s", err)
+				return nil, errors.E(op, err)
 			}
 		} else {
-			return nil, fmt.Errorf("error checking directory: %s", err)
+			return nil, errors.E(op, err)
 		}
 	} else {
 		if !fi.IsDir() {
-			return nil, fmt.Errorf("path '%s' is not a directory", l.dbDirPath)
+			return nil, errors.E(op, errors.Errorf("%q is not a directory", l.dbDirPath))
 		}
 	}
 
 	dbPath := filepath.Join(l.dbDirPath, walletDbName)
 	exists, err := fileExists(dbPath)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 	if exists {
-		return nil, ErrWalletExists
+		return nil, errors.E(op, errors.Exist, "wallet DB exists")
 	}
 
 	// At this point it is asserted that there is no existing database file, and
@@ -234,17 +238,17 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	// Create the wallet database backed by bolt db.
 	err = os.MkdirAll(l.dbDirPath, 0700)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 	db, err := walletdb.Create("bdb", dbPath)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 
 	// Initialize the newly created database for the wallet before opening.
 	err = wallet.Create(db, pubPassphrase, privPassphrase, seed, l.chainParams)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 
 	// Open the newly-created wallet.
@@ -266,7 +270,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	}
 	w, err = wallet.Open(cfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 	w.Start()
 
@@ -279,11 +283,13 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 // standard input prompts may be used during wallet upgrades, setting
 // canConsolePrompt will enable these prompts.
 func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rerr error) {
+	const op errors.Op = "loader.OpenExistingWallet"
+
 	defer l.mu.Unlock()
 	l.mu.Lock()
 
 	if l.wallet != nil {
-		return nil, ErrWalletLoaded
+		return nil, errors.E(op, errors.Exist, "wallet already opened")
 	}
 
 	// Open the database using the boltdb backend.
@@ -291,7 +297,7 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 	db, err := walletdb.Open("bdb", dbPath)
 	if err != nil {
 		log.Errorf("Failed to open database: %v", err)
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 	// If this function does not return to completion the database must be
 	// closed.  Otherwise, because the database is locked on opens, any
@@ -321,7 +327,7 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 	}
 	w, err = wallet.Open(cfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 
 	w.Start()
@@ -332,8 +338,13 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 // WalletExists returns whether a file exists at the loader's database path.
 // This may return an error for unexpected I/O failures.
 func (l *Loader) WalletExists() (bool, error) {
+	const op errors.Op = "loader.WalletExists"
 	dbPath := filepath.Join(l.dbDirPath, walletDbName)
-	return fileExists(dbPath)
+	exists, err := fileExists(dbPath)
+	if err != nil {
+		return false, errors.E(op, err)
+	}
+	return exists, nil
 }
 
 // LoadedWallet returns the loaded wallet, if any, and a bool for whether the
@@ -346,26 +357,27 @@ func (l *Loader) LoadedWallet() (*wallet.Wallet, bool) {
 	return w, w != nil
 }
 
-// UnloadWallet stops the loaded wallet, if any, and closes the wallet
-// database.  This returns ErrWalletNotLoaded if the wallet has not been loaded
-// with CreateNewWallet or LoadExistingWallet.  The Loader may be reused if
-// this function returns without error.
+// UnloadWallet stops the loaded wallet, if any, and closes the wallet database.
+// Returns with errors.Invalid if the wallet has not been loaded with
+// CreateNewWallet or LoadExistingWallet.  The Loader may be reused if this
+// function returns without error.
 func (l *Loader) UnloadWallet() error {
+	const op errors.Op = "errors.UnloadWallet"
+
 	defer l.mu.Unlock()
 	l.mu.Lock()
 
 	if l.wallet == nil {
-		return ErrWalletNotLoaded
+		return errors.E(op, errors.Invalid, "wallet is unopened")
 	}
 
-	// Ignore err already stopped.
 	l.stopTicketPurchase()
 
 	l.wallet.Stop()
 	l.wallet.WaitForShutdown()
 	err := l.db.Close()
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	l.wallet = nil
@@ -382,26 +394,28 @@ func (l *Loader) SetChainClient(chainClient *dcrrpcclient.Client) {
 
 // StartTicketPurchase launches the ticketbuyer to start purchasing tickets.
 func (l *Loader) StartTicketPurchase(passphrase []byte, ticketbuyerCfg *ticketbuyer.Config) error {
+	const op errors.Op = "loader.StartTicketPurchase"
+
 	defer l.mu.Unlock()
 	l.mu.Lock()
 
 	// Already running?
 	if l.purchaseManager != nil {
-		return ErrTicketBuyerStarted
+		return errors.E(op, errors.Invalid, "ticket purchaser already started")
 	}
 
 	if l.wallet == nil {
-		return ErrWalletNotLoaded
+		return errors.E(op, errors.Invalid, "wallet must be loaded")
 	}
 
 	if l.chainClient == nil {
-		return ErrNoChainClient
+		return errors.E(op, errors.Invalid, "dcrd RPC client must be loaded")
 	}
 
 	w := l.wallet
 	p, err := ticketbuyer.NewTicketPurchaser(ticketbuyerCfg, l.chainClient, w, l.chainParams)
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 	n := w.NtfnServer.MainTipChangedNotifications()
 	pm := ticketbuyer.NewPurchaseManager(w, p, n.C, passphrase)
@@ -412,26 +426,29 @@ func (l *Loader) StartTicketPurchase(passphrase []byte, ticketbuyerCfg *ticketbu
 }
 
 // stopTicketPurchase stops the ticket purchaser, waiting until it has finished.
-// It must be called with the mutex lock held.
-func (l *Loader) stopTicketPurchase() error {
+// Returns false if the ticket purchaser was not running. It must be called with
+// the mutex lock held.
+func (l *Loader) stopTicketPurchase() bool {
 	if l.purchaseManager == nil {
-		return ErrTicketBuyerStopped
+		return false
 	}
 
 	l.ntfnClient.Done()
 	l.purchaseManager.Stop()
 	l.purchaseManager.WaitForShutdown()
 	l.purchaseManager = nil
-	return nil
+	return true
 }
 
 // StopTicketPurchase stops the ticket purchaser, waiting until it has finished.
-// If no ticket purchaser is running, it returns ErrTicketBuyerStopped.
 func (l *Loader) StopTicketPurchase() error {
+	const op errors.Op = "loader.StopTicketPurchase"
 	defer l.mu.Unlock()
 	l.mu.Lock()
-
-	return l.stopTicketPurchase()
+	if !l.stopTicketPurchase() {
+		return errors.E(op, errors.Invalid, "ticket purchaser is not running")
+	}
+	return nil
 }
 
 // PurchaseManager returns the ticket purchaser instance. If ticket purchasing

@@ -5,10 +5,10 @@
 package ticketbuyer
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrwallet/errors"
 )
 
 const (
@@ -49,7 +49,7 @@ func (t *TicketPurchaser) findClosestFeeWindows(difficulty dcrutil.Amount,
 	}
 
 	if len(info.FeeInfoWindows) == 0 {
-		return 0.0, fmt.Errorf("not enough windows to find mean fee " +
+		return 0.0, errors.Errorf("not enough windows to find mean fee " +
 			"available")
 	}
 

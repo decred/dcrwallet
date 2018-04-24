@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Decred developers
+// Copyright (c) 2017-2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -6,17 +6,9 @@ package udb
 
 import (
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/walletdb"
 )
-
-func createBucketError(err error, bucketName string) error {
-	return apperrors.E{
-		ErrorCode:   apperrors.ErrDatabase,
-		Description: "failed to create " + bucketName + " bucket",
-		Err:         err,
-	}
-}
 
 // Initialize prepares an empty database for usage by initializing all buckets
 // and key/value pairs.  The database is initialized with the latest version and
@@ -25,15 +17,15 @@ func Initialize(db walletdb.DB, params *chaincfg.Params, seed, pubPass, privPass
 	err := walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs, err := tx.CreateTopLevelBucket(waddrmgrBucketKey)
 		if err != nil {
-			return createBucketError(err, "address manager")
+			return errors.E(errors.IO, err)
 		}
 		txmgrNs, err := tx.CreateTopLevelBucket(wtxmgrBucketKey)
 		if err != nil {
-			return createBucketError(err, "transaction store")
+			return errors.E(errors.IO, err)
 		}
 		stakemgrNs, err := tx.CreateTopLevelBucket(wstakemgrBucketKey)
 		if err != nil {
-			return createBucketError(err, "stake store")
+			return errors.E(errors.IO, err)
 		}
 
 		// Create the address manager, transaction store, and stake store.
@@ -54,17 +46,12 @@ func Initialize(db walletdb.DB, params *chaincfg.Params, seed, pubPass, privPass
 		// it.
 		metadataBucket, err := tx.CreateTopLevelBucket(unifiedDBMetadata{}.rootBucketKey())
 		if err != nil {
-			return createBucketError(err, "metadata")
+			return errors.E(errors.IO, err)
 		}
 		return unifiedDBMetadata{}.putVersion(metadataBucket, initialVersion)
 	})
-	switch err.(type) {
-	case nil:
-	case apperrors.E:
+	if err != nil {
 		return err
-	default:
-		const str = "db update failed"
-		return apperrors.E{ErrorCode: apperrors.ErrDatabase, Description: str, Err: err}
 	}
 	return Upgrade(db, pubPass)
 }
@@ -76,15 +63,15 @@ func InitializeWatchOnly(db walletdb.DB, params *chaincfg.Params, hdPubKey strin
 	err := walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs, err := tx.CreateTopLevelBucket(waddrmgrBucketKey)
 		if err != nil {
-			return createBucketError(err, "address manager")
+			return errors.E(errors.IO, err)
 		}
 		txmgrNs, err := tx.CreateTopLevelBucket(wtxmgrBucketKey)
 		if err != nil {
-			return createBucketError(err, "transaction store")
+			return errors.E(errors.IO, err)
 		}
 		stakemgrNs, err := tx.CreateTopLevelBucket(wstakemgrBucketKey)
 		if err != nil {
-			return createBucketError(err, "stake store")
+			return errors.E(errors.IO, err)
 		}
 
 		// Create the address manager, transaction store, and stake store.
@@ -105,17 +92,12 @@ func InitializeWatchOnly(db walletdb.DB, params *chaincfg.Params, hdPubKey strin
 		// it.
 		metadataBucket, err := tx.CreateTopLevelBucket(unifiedDBMetadata{}.rootBucketKey())
 		if err != nil {
-			return createBucketError(err, "metadata")
+			return errors.E(errors.IO, err)
 		}
 		return unifiedDBMetadata{}.putVersion(metadataBucket, initialVersion)
 	})
-	switch err.(type) {
-	case nil:
-	case apperrors.E:
+	if err != nil {
 		return err
-	default:
-		const str = "db update failed"
-		return apperrors.E{ErrorCode: apperrors.ErrDatabase, Description: str, Err: err}
 	}
 	return Upgrade(db, pubPass)
 }

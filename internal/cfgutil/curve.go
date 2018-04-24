@@ -6,7 +6,8 @@ package cfgutil
 
 import (
 	"crypto/elliptic"
-	"fmt"
+
+	"github.com/decred/dcrwallet/errors"
 )
 
 // CurveID specifies a recognized curve through a constant value.
@@ -43,7 +44,7 @@ func (f *CurveFlag) MarshalFlag() (name string, err error) {
 	case CurveP521:
 		name = "P-521"
 	default:
-		err = fmt.Errorf("unknown curve ID %v", int(f.curveID))
+		err = errors.Errorf("unknown curve ID %v", int(f.curveID))
 	}
 	return
 }
@@ -60,7 +61,7 @@ func (f *CurveFlag) UnmarshalFlag(value string) error {
 	case "P-521":
 		f.curveID = CurveP521
 	default:
-		return fmt.Errorf("unrecognized curve %v", value)
+		return errors.Errorf("unrecognized curve %v", value)
 	}
 	return nil
 }

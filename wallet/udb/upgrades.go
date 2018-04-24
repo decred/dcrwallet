@@ -13,7 +13,7 @@ import (
 	"github.com/decred/dcrd/hdkeychain"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/snacl"
 	"github.com/decred/dcrwallet/walletdb"
 )
@@ -120,8 +120,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 		return err
 	}
 	if dbVersion != oldVersion {
-		const str = "lastUsedAddressIndexUpgrade inappropriately called"
-		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+		return errors.E(errors.Invalid, "lastUsedAddressIndexUpgrade inappropriately called")
 	}
 
 	masterKeyPubParams, _, err := fetchMasterKeyParams(addrmgrBucket)
@@ -131,13 +130,11 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 	var masterKeyPub snacl.SecretKey
 	err = masterKeyPub.Unmarshal(masterKeyPubParams)
 	if err != nil {
-		const str = "failed to unmarshal master public key parameters"
-		return apperrors.E{ErrorCode: apperrors.ErrData, Description: str, Err: err}
+		return errors.E(errors.IO, errors.Errorf("unmarshal master pubkey params: %v", err))
 	}
 	err = masterKeyPub.DeriveKey(&publicPassphrase)
 	if err != nil {
-		str := "invalid passphrase for master public key"
-		return apperrors.E{ErrorCode: apperrors.ErrWrongPassphrase, Description: str, Err: nil}
+		return errors.E(errors.Passphrase, "incorrect public passphrase")
 	}
 
 	cryptoPubKeyEnc, _, _, err := fetchCryptoKeys(addrmgrBucket)
@@ -146,8 +143,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 	}
 	cryptoPubKeyCT, err := masterKeyPub.Decrypt(cryptoPubKeyEnc)
 	if err != nil {
-		const str = "failed to decrypt public data crypto key using master key"
-		return apperrors.E{ErrorCode: apperrors.ErrCrypto, Description: str, Err: err}
+		return errors.E(errors.Crypto, errors.Errorf("decrypt public crypto key: %v", err))
 	}
 	cryptoPubKey := &cryptoKey{snacl.CryptoKey{}}
 	copy(cryptoPubKey.CryptoKey[:], cryptoPubKeyCT)
@@ -171,23 +167,19 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 		// and each branch key.
 		serializedKeyPub, err := cryptoPubKey.Decrypt(row.pubKeyEncrypted)
 		if err != nil {
-			const str = "failed to decrypt extended public key"
-			return apperrors.E{ErrorCode: apperrors.ErrCrypto, Description: str, Err: err}
+			return errors.E(errors.Crypto, errors.Errorf("decrypt extended pubkey: %v", err))
 		}
 		xpub, err := hdkeychain.NewKeyFromString(string(serializedKeyPub))
 		if err != nil {
-			const str = "failed to create extended public key"
-			return apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
+			return errors.E(errors.IO, err)
 		}
 		xpubExtBranch, err := xpub.Child(ExternalBranch)
 		if err != nil {
-			const str = "failed to derive external branch extended public key"
-			return apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
+			return err
 		}
 		xpubIntBranch, err := xpub.Child(InternalBranch)
 		if err != nil {
-			const str = "failed to derive internal branch extended public key"
-			return apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
+			return err
 		}
 
 		// Determine the last used internal and external address indexes.  The
@@ -200,8 +192,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 				continue
 			}
 			if err != nil {
-				const str = "unexpected error deriving child key"
-				return apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
+				return err
 			}
 			// This can't error because the function always passes good input to
 			// dcrutil.NewAddressPubKeyHash.  Also, while it looks like a
@@ -224,8 +215,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 				continue
 			}
 			if err != nil {
-				const str = "unexpected error deriving child key"
-				return apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
+				return err
 			}
 			addr, _ := xpubChild.Address(&chaincfg.MainNetParams)
 			if addressBucket.Get(addressKey(addr.Hash160()[:])) == nil {
@@ -260,8 +250,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 	// Remove the used address tracking bucket.
 	err = addrmgrBucket.DeleteNestedBucket(usedAddrBucketName)
 	if err != nil {
-		const str = "failed to remove used address tracking bucket"
-		return apperrors.E{ErrorCode: apperrors.ErrDatabase, Description: str, Err: err}
+		return errors.E(errors.IO, err)
 	}
 
 	// Write the new database version.
@@ -282,8 +271,7 @@ func votingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) 
 		return err
 	}
 	if dbVersion != oldVersion {
-		const str = "votingPreferencesUpgrade inappropriately called"
-		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+		return errors.E(errors.Invalid, "votingPreferencesUpgrade inappropriately called")
 	}
 
 	// Update every ticket purchase with the new database version.  This removes
@@ -330,8 +318,7 @@ func noEncryptedSeedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) er
 		return err
 	}
 	if dbVersion != oldVersion {
-		const str = "noEncryptedSeedUpgrade inappropriately called"
-		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+		return errors.E(errors.Invalid, "noEncryptedSeedUpgrade inappropriately called")
 	}
 
 	// Remove encrypted seed (or encrypted zeros).
@@ -357,8 +344,7 @@ func lastReturnedAddressUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte
 		return err
 	}
 	if dbVersion != oldVersion {
-		const str = "accountAddressCursorsUpgrade inappropriately called"
-		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+		return errors.E(errors.Invalid, "accountAddressCursorsUpgrade inappropriately called")
 	}
 
 	upgradeAcct := func(account uint32) error {
@@ -419,8 +405,7 @@ func ticketBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error
 		return err
 	}
 	if dbVersion != oldVersion {
-		const str = "ticketBucketUpgrade inappropriately called"
-		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+		return errors.E(errors.Invalid, "ticketBucketUpgrade inappropriately called")
 	}
 
 	// Create the tickets bucket.
@@ -496,8 +481,7 @@ func slip0044CoinTypeUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) e
 		return err
 	}
 	if dbVersion != oldVersion {
-		const str = "slip0044CoinTypeUpgrade inappropriately called"
-		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+		return errors.E(errors.Invalid, "slip0044CoinTypeUpgrade inappropriately called")
 	}
 
 	// Write the new database version.
@@ -516,8 +500,7 @@ func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
 		return err
 	}
 	if dbVersion != oldVersion {
-		const str = "hasExpiryUpgrade inappropriately called"
-		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+		return errors.E(errors.Invalid, "hasExpiryUpgrade inappropriately called")
 	}
 
 	// Iterate through all mined credits
@@ -604,8 +587,7 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) err
 		return err
 	}
 	if dbVersion != oldVersion {
-		const str = "hasExpiryFixedUpgrade inappropriately called"
-		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
+		return errors.E(errors.Invalid, "hasExpiryFixedUpgrade inappropriately called")
 	}
 
 	// Iterate through all mined credits
@@ -712,19 +694,13 @@ func Upgrade(db walletdb.DB, publicPassphrase []byte) error {
 		if metadataBucket == nil {
 			// This could indicate either an unitialized db or one that hasn't
 			// yet been migrated.
-			const str = "metadata bucket missing"
-			return apperrors.E{ErrorCode: apperrors.ErrNoExist, Description: str, Err: nil}
+			return errors.E(errors.IO, "missing metadata bucket")
 		}
 		version, err = unifiedDBMetadata{}.getVersion(metadataBucket)
 		return err
 	})
-	switch err.(type) {
-	case nil:
-	case apperrors.E:
+	if err != nil {
 		return err
-	default:
-		const str = "db view failed"
-		return apperrors.E{ErrorCode: apperrors.ErrDatabase, Description: str, Err: err}
 	}
 
 	if version >= DBVersion {
@@ -734,7 +710,7 @@ func Upgrade(db walletdb.DB, publicPassphrase []byte) error {
 
 	log.Infof("Upgrading database from version %d to %d", version, DBVersion)
 
-	err = walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+	return walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
 		// Execute all necessary upgrades in order.
 		for _, upgrade := range upgrades[version:] {
 			err := upgrade(tx, publicPassphrase)
@@ -744,13 +720,4 @@ func Upgrade(db walletdb.DB, publicPassphrase []byte) error {
 		}
 		return nil
 	})
-	switch err.(type) {
-	case nil:
-		return nil
-	case apperrors.E:
-		return err
-	default:
-		const str = "db update failed"
-		return apperrors.E{ErrorCode: apperrors.ErrDatabase, Description: str, Err: err}
-	}
 }

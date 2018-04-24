@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -12,8 +12,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -27,10 +25,9 @@ import (
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/helpers"
-	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
@@ -188,11 +185,11 @@ func lazyApplyHandler(s *Server, request *dcrjson.Request) lazyHandler {
 		return func() (interface{}, *dcrjson.RPCError) {
 			chainClient, ok := s.requireChainClient()
 			if !ok {
-				return nil, &ErrClientNotConnected
+				return nil, errClientNotConnected
 			}
 			resp, err := chainClient.RawRequest(request.Method, request.Params)
 			if err != nil {
-				return nil, jsonError(err)
+				return nil, convertError(err)
 			}
 			return &resp, nil
 		}
@@ -206,7 +203,7 @@ func lazyApplyHandler(s *Server, request *dcrjson.Request) lazyHandler {
 
 		resp, err := handlerData.fn(s, cmd)
 		if err != nil {
-			return nil, jsonError(err)
+			return nil, convertError(err)
 		}
 		return resp, nil
 	}
@@ -220,7 +217,7 @@ func makeResponse(id, result interface{}, err error) dcrjson.Response {
 	if err != nil {
 		return dcrjson.Response{
 			ID:    idPtr,
-			Error: jsonError(err),
+			Error: convertError(err),
 		}
 	}
 	resultBytes, err := json.Marshal(result)
@@ -239,47 +236,20 @@ func makeResponse(id, result interface{}, err error) dcrjson.Response {
 	}
 }
 
-// jsonError creates a JSON-RPC error from the Go error.
-func jsonError(err error) *dcrjson.RPCError {
-	if err == nil {
-		return nil
-	}
-
-	code := dcrjson.ErrRPCWallet
-	switch e := err.(type) {
-	case dcrjson.RPCError:
-		return &e
-	case *dcrjson.RPCError:
-		return e
-	case DeserializationError:
-		code = dcrjson.ErrRPCDeserialization
-	case InvalidParameterError:
-		code = dcrjson.ErrRPCInvalidParameter
-	case ParseError:
-		code = dcrjson.ErrRPCParse.Code
-	case apperrors.E:
-		switch e.ErrorCode {
-		case apperrors.ErrWrongPassphrase:
-			code = dcrjson.ErrRPCWalletPassphraseIncorrect
-		}
-	}
-	return &dcrjson.RPCError{
-		Code:    code,
-		Message: err.Error(),
-	}
-}
-
 // accountAddressIndex returns the next address index for the passed
 // account and branch.
 func accountAddressIndex(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.AccountAddressIndexCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAccountNotFound
+		}
 		return nil, err
 	}
 
@@ -293,8 +263,7 @@ func accountAddressIndex(s *Server, icmd interface{}) (interface{}, error) {
 	case udb.InternalBranch:
 		return intChild, nil
 	default:
-		// The branch may only be internal or external.
-		return nil, fmt.Errorf("invalid branch %v", cmd.Branch)
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "invalid branch %v", cmd.Branch)
 	}
 }
 
@@ -307,11 +276,14 @@ func accountSyncAddressIndex(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.AccountSyncAddressIndexCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAccountNotFound
+		}
 		return nil, err
 	}
 
@@ -319,8 +291,8 @@ func accountSyncAddressIndex(s *Server, icmd interface{}) (interface{}, error) {
 	index := uint32(cmd.Index)
 
 	if index >= hdkeychain.HardenedKeyStart {
-		return nil, fmt.Errorf("child index %d exceeds the maximum child index "+
-			"for an account", index)
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+			"child index %d exceeds the maximum child index for an account", index)
 	}
 
 	// Additional addresses need to be watched.  Since addresses are derived
@@ -329,8 +301,7 @@ func accountSyncAddressIndex(s *Server, icmd interface{}) (interface{}, error) {
 	return nil, w.ExtendWatchedAddresses(account, branch, index)
 }
 
-func makeMultiSigScript(w *wallet.Wallet, keys []string,
-	nRequired int) ([]byte, error) {
+func makeMultiSigScript(w *wallet.Wallet, keys []string, nRequired int) ([]byte, error) {
 	keysesPrecious := make([]*dcrutil.AddressSecpPubKey, len(keys))
 
 	// The address list will made up either of addreseses (pubkey hash), for
@@ -349,16 +320,19 @@ func makeMultiSigScript(w *wallet.Wallet, keys []string,
 		default:
 			pubKey, err := w.PubKeyForAddress(addr)
 			if err != nil {
+				if errors.Is(errors.NotExist, err) {
+					return nil, errAddressNotInWallet
+				}
 				return nil, err
 			}
 			if pubKey.GetType() != chainec.ECTypeSecp256k1 {
-				return nil, errors.New("only secp256k1 " +
-					"pubkeys are currently supported")
+				return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+					"only secp256k1 pubkeys are currently supported")
 			}
 			pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(
 				pubKey.Serialize(), w.ChainParams())
 			if err != nil {
-				return nil, err
+				return nil, rpcError(dcrjson.ErrRPCInvalidAddressOrKey, err)
 			}
 			keysesPrecious[i] = pubKeyAddr
 		}
@@ -373,19 +347,19 @@ func addMultiSigAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.AddMultisigAddressCmd)
 	// If an account is specified, ensure that is the imported account.
 	if cmd.Account != nil && *cmd.Account != udb.ImportedAddrAccountName {
-		return nil, &ErrNotImportedAccount
+		return nil, errNotImportedAccount
 	}
 
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	secp256k1Addrs := make([]dcrutil.Address, len(cmd.Keys))
 	for i, k := range cmd.Keys {
 		addr, err := decodeAddress(k, w.ChainParams())
 		if err != nil {
-			return nil, ParseError{err}
+			return nil, err
 		}
 		secp256k1Addrs[i] = addr
 	}
@@ -402,7 +376,7 @@ func addMultiSigAddress(s *Server, icmd interface{}) (interface{}, error) {
 
 	chainClient, ok := s.requireChainClient()
 	if !ok {
-		return nil, &ErrClientNotConnected
+		return nil, errClientNotConnected
 	}
 
 	err = chainClient.LoadTxFilter(false, []dcrutil.Address{p2shAddr}, nil)
@@ -418,21 +392,20 @@ func addTicket(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.AddTicketCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	rawTx, err := hex.DecodeString(cmd.TicketHex)
 	if err != nil {
-		return nil, err
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 	}
 
 	mtx := new(wire.MsgTx)
-	err = mtx.FromBytes(rawTx)
+	err = mtx.Deserialize(bytes.NewReader(rawTx))
 	if err != nil {
-		return nil, err
+		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
 	}
 	err = w.AddTicket(mtx)
-
 	return nil, err
 }
 
@@ -442,7 +415,7 @@ func consolidate(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ConsolidateCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	account := uint32(udb.DefaultAccountNum)
@@ -450,6 +423,9 @@ func consolidate(s *Server, icmd interface{}) (interface{}, error) {
 	if cmd.Account != nil {
 		account, err = w.AccountNumber(*cmd.Account)
 		if err != nil {
+			if errors.Is(errors.NotExist, err) {
+				return nil, errAccountNotFound
+			}
 			return nil, err
 		}
 	}
@@ -482,17 +458,16 @@ func createMultiSig(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.CreateMultisigCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	script, err := makeMultiSigScript(w, cmd.Keys, cmd.NRequired)
 	if err != nil {
-		return nil, ParseError{err}
+		return nil, err
 	}
 
 	address, err := dcrutil.NewAddressScriptHash(script, w.ChainParams())
 	if err != nil {
-		// above is a valid script, shouldn't happen.
 		return nil, err
 	}
 
@@ -509,7 +484,7 @@ func dumpPrivKey(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.DumpPrivKeyCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	addr, err := decodeAddress(cmd.Address, w.ChainParams())
@@ -518,12 +493,13 @@ func dumpPrivKey(s *Server, icmd interface{}) (interface{}, error) {
 	}
 
 	key, err := w.DumpWIFPrivateKey(addr)
-	if apperrors.IsError(err, apperrors.ErrLocked) {
-		// Address was found, but the private key isn't
-		// accessible.
-		return nil, &ErrWalletUnlockNeeded
+	if err != nil {
+		if errors.Is(errors.Locked, err) {
+			return nil, errWalletUnlockNeeded
+		}
+		return nil, err
 	}
-	return key, err
+	return key, nil
 }
 
 // generateVote handles a generatevote request by constructing a signed
@@ -532,23 +508,23 @@ func generateVote(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GenerateVoteCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	blockHash, err := chainhash.NewHashFromStr(cmd.BlockHash)
 	if err != nil {
-		return nil, err
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 	}
 
 	ticketHash, err := chainhash.NewHashFromStr(cmd.TicketHash)
 	if err != nil {
-		return nil, err
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 	}
 
 	var voteBitsExt []byte
 	voteBitsExt, err = hex.DecodeString(cmd.VoteBitsExt)
 	if err != nil {
-		return nil, err
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 	}
 	voteBits := stake.VoteBits{
 		Bits:         cmd.VoteBits,
@@ -561,20 +537,16 @@ func generateVote(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	txHex := ""
-	if ssgentx != nil {
-		// Serialize the transaction and convert to hex string.
-		buf := bytes.NewBuffer(make([]byte, 0, ssgentx.SerializeSize()))
-		if err := ssgentx.Serialize(buf); err != nil {
-			return nil, err
-		}
-		txHex = hex.EncodeToString(buf.Bytes())
+	// TODO: Switch to strings.Builder and hex.NewEncoder (introduced in Go 1.10)
+	var buf bytes.Buffer
+	buf.Grow(ssgentx.SerializeSize())
+	err = ssgentx.Serialize(&buf)
+	if err != nil {
+		return nil, err
 	}
-
 	resp := &dcrjson.GenerateVoteResult{
-		Hex: txHex,
+		Hex: hex.EncodeToString(buf.Bytes()),
 	}
-
 	return resp, nil
 }
 
@@ -585,11 +557,14 @@ func getAddressesByAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetAddressesByAccountCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAccountNotFound
+		}
 		return nil, err
 	}
 
@@ -631,13 +606,12 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetBalanceCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	minConf := int32(*cmd.MinConf)
 	if minConf < 0 {
-		e := errors.New("minconf must be non-negative")
-		return nil, InvalidParameterError{e}
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "minconf must be non-negative")
 	}
 
 	accountName := "*"
@@ -672,6 +646,10 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 		for _, bal := range balances {
 			accountName, err := w.AccountName(bal.Account)
 			if err != nil {
+				// Expect account lookup to succeed
+				if errors.Is(errors.NotExist, err) {
+					return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
+				}
 				return nil, err
 			}
 
@@ -713,11 +691,18 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 	} else {
 		account, err := w.AccountNumber(accountName)
 		if err != nil {
+			if errors.Is(errors.NotExist, err) {
+				return nil, errAccountNotFound
+			}
 			return nil, err
 		}
 
 		bal, err := w.CalculateAccountBalance(account, int32(*cmd.MinConf))
 		if err != nil {
+			// Expect account lookup to succeed
+			if errors.Is(errors.NotExist, err) {
+				return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
+			}
 			return nil, err
 		}
 		json := dcrjson.GetAccountBalanceResult{
@@ -741,7 +726,7 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 func getBestBlock(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	hash, height := w.MainChainTip()
@@ -757,7 +742,7 @@ func getBestBlock(s *Server, icmd interface{}) (interface{}, error) {
 func getBestBlockHash(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	hash, _ := w.MainChainTip()
@@ -769,7 +754,7 @@ func getBestBlockHash(s *Server, icmd interface{}) (interface{}, error) {
 func getBlockCount(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	_, height := w.MainChainTip()
@@ -782,12 +767,12 @@ func getBlockCount(s *Server, icmd interface{}) (interface{}, error) {
 func getInfo(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	chainClient, ok := s.requireChainClient()
 	if !ok {
-		return nil, &ErrClientNotConnected
+		return nil, errClientNotConnected
 	}
 
 	// Call down to dcrd for all of the information in this command known
@@ -838,19 +823,12 @@ func decodeAddress(s string, params *chaincfg.Params) (dcrutil.Address, error) {
 
 	addr, err := dcrutil.DecodeAddress(s)
 	if err != nil {
-		msg := fmt.Sprintf("Invalid address %q: decode failed with %#q", s, err)
-		return nil, &dcrjson.RPCError{
-			Code:    dcrjson.ErrRPCInvalidAddressOrKey,
-			Message: msg,
-		}
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
+			"invalid address %q: decode failed: %#q", s, err)
 	}
 	if !addr.IsForNet(params) {
-		msg := fmt.Sprintf("Invalid address %q: not intended for use on %s",
-			addr, params.Name)
-		return nil, &dcrjson.RPCError{
-			Code:    dcrjson.ErrRPCInvalidAddressOrKey,
-			Message: msg,
-		}
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
+			"invalid address %q: not intended for use on %s", s, params.Name)
 	}
 	return addr, nil
 }
@@ -861,7 +839,7 @@ func getAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetAccountCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	addr, err := decodeAddress(cmd.Address, w.ChainParams())
@@ -872,12 +850,15 @@ func getAccount(s *Server, icmd interface{}) (interface{}, error) {
 	// Fetch the associated account
 	account, err := w.AccountOfAddress(addr)
 	if err != nil {
-		return nil, &ErrAddressNotInWallet
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAddressNotInWallet
+		}
+		return nil, err
 	}
 
 	acctName, err := w.AccountName(account)
 	if err != nil {
-		return nil, &ErrAccountNameNotFound
+		return nil, err
 	}
 	return acctName, nil
 }
@@ -892,19 +873,26 @@ func getAccountAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetAccountAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAccountNotFound
+		}
 		return nil, err
 	}
 	addr, err := w.CurrentAddress(account)
 	if err != nil {
+		// Expect account lookup to succeed
+		if errors.Is(errors.NotExist, err) {
+			return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
+		}
 		return nil, err
 	}
 
-	return addr.EncodeAddress(), err
+	return addr.EncodeAddress(), nil
 }
 
 // getUnconfirmedBalance handles a getunconfirmedbalance extension request
@@ -913,7 +901,7 @@ func getUnconfirmedBalance(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetUnconfirmedBalanceCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	acctName := "default"
@@ -922,10 +910,17 @@ func getUnconfirmedBalance(s *Server, icmd interface{}) (interface{}, error) {
 	}
 	account, err := w.AccountNumber(acctName)
 	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAccountNotFound
+		}
 		return nil, err
 	}
 	bals, err := w.CalculateAccountBalance(account, 1)
 	if err != nil {
+		// Expect account lookup to succeed
+		if errors.Is(errors.NotExist, err) {
+			return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
+		}
 		return nil, err
 	}
 
@@ -938,33 +933,27 @@ func importPrivKey(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ImportPrivKeyCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	chainClient, ok := s.requireChainClient()
 	if !ok {
-		return nil, &ErrClientNotConnected
+		return nil, errClientNotConnected
 	}
 
 	// Ensure that private keys are only imported to the correct account.
 	//
 	// Yes, Label is the account name.
 	if cmd.Label != nil && *cmd.Label != udb.ImportedAddrAccountName {
-		return nil, &ErrNotImportedAccount
+		return nil, errNotImportedAccount
 	}
 
 	wif, err := dcrutil.DecodeWIF(cmd.PrivKey)
 	if err != nil {
-		return nil, &dcrjson.RPCError{
-			Code:    dcrjson.ErrRPCInvalidAddressOrKey,
-			Message: "WIF decode failed: " + err.Error(),
-		}
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey, "WIF decode failed: %v", err)
 	}
 	if !wif.IsForNet(w.ChainParams()) {
-		return nil, &dcrjson.RPCError{
-			Code:    dcrjson.ErrRPCInvalidAddressOrKey,
-			Message: "Key is not intended for " + w.ChainParams().Name,
-		}
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey, "key is not intended for %s", w.ChainParams().Name)
 	}
 
 	rescan := true
@@ -979,12 +968,16 @@ func importPrivKey(s *Server, icmd interface{}) (interface{}, error) {
 
 	// Import the private key, handling any errors.
 	_, err = w.ImportPrivateKey(wif)
-	switch {
-	case apperrors.IsError(err, apperrors.ErrDuplicateAddress):
-		// Do not return duplicate key errors to the client.
-		return nil, nil
-	case apperrors.IsError(err, apperrors.ErrLocked):
-		return nil, &ErrWalletUnlockNeeded
+	if err != nil {
+		switch {
+		case errors.Is(errors.Exist, err):
+			// Do not return duplicate key errors to the client.
+			return nil, nil
+		case errors.Is(errors.Locked, err):
+			return nil, errWalletUnlockNeeded
+		default:
+			return nil, err
+		}
 	}
 
 	if rescan {
@@ -992,7 +985,7 @@ func importPrivKey(s *Server, icmd interface{}) (interface{}, error) {
 		go w.RescanFromHeight(context.Background(), n, scanFrom)
 	}
 
-	return nil, err
+	return nil, nil
 }
 
 // importScript imports a redeem script for a P2SH output.
@@ -1000,21 +993,20 @@ func importScript(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ImportScriptCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	chainClient, ok := s.requireChainClient()
 	if !ok {
-		return nil, &ErrClientNotConnected
+		return nil, errClientNotConnected
 	}
 
 	rs, err := hex.DecodeString(cmd.Hex)
 	if err != nil {
-		return nil, err
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 	}
-
 	if len(rs) == 0 {
-		return nil, fmt.Errorf("passed empty script")
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "empty script")
 	}
 
 	rescan := true
@@ -1029,7 +1021,15 @@ func importScript(s *Server, icmd interface{}) (interface{}, error) {
 
 	err = w.ImportScript(rs)
 	if err != nil {
-		return nil, err
+		switch {
+		case errors.Is(errors.Exist, err):
+			// Do not return duplicate script errors to the client.
+			return nil, nil
+		case errors.Is(errors.Locked, err):
+			return nil, errWalletUnlockNeeded
+		default:
+			return nil, err
+		}
 	}
 
 	if rescan {
@@ -1040,8 +1040,9 @@ func importScript(s *Server, icmd interface{}) (interface{}, error) {
 	return nil, nil
 }
 
-// keypoolRefill handles the keypoolrefill command. Since we handle the keypool
-// automatically this does nothing since refilling is never manually required.
+// keypoolRefill handles the keypoolrefill command.  dcrwallet generates
+// deterministic addresses rather than using a keypool, so this method does
+// nothing.
 func keypoolRefill(s *Server, icmd interface{}) (interface{}, error) {
 	return nil, nil
 }
@@ -1053,24 +1054,23 @@ func createNewAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.CreateNewAccountCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	// The wildcard * is reserved by the rpc server with the special meaning
 	// of "all accounts", so disallow naming accounts to this string.
 	if cmd.Account == "*" {
-		return nil, &ErrReservedAccountName
+		return nil, errReservedAccountName
 	}
 
 	_, err := w.NextAccount(cmd.Account)
-	if apperrors.IsError(err, apperrors.ErrLocked) {
-		return nil, &dcrjson.RPCError{
-			Code: dcrjson.ErrRPCWalletUnlockNeeded,
-			Message: "Creating an account requires the wallet to be unlocked. " +
-				"Enter the wallet passphrase with walletpassphrase to unlock",
+	if err != nil {
+		if errors.Is(errors.Locked, err) {
+			return nil, rpcErrorf(dcrjson.ErrRPCWalletUnlockNeeded, "creating new accounts requires an unlocked wallet")
 		}
+		return nil, err
 	}
-	return nil, err
+	return nil, nil
 }
 
 // renameAccount handles a renameaccount request by renaming an account.
@@ -1079,21 +1079,25 @@ func renameAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.RenameAccountCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	// The wildcard * is reserved by the rpc server with the special meaning
 	// of "all accounts", so disallow naming accounts to this string.
 	if cmd.NewAccount == "*" {
-		return nil, &ErrReservedAccountName
+		return nil, errReservedAccountName
 	}
 
 	// Check that given account exists
 	account, err := w.AccountNumber(cmd.OldAccount)
 	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAccountNotFound
+		}
 		return nil, err
 	}
-	return nil, w.RenameAccount(account, cmd.NewAccount)
+	err = w.RenameAccount(account, cmd.NewAccount)
+	return nil, err
 }
 
 // getMultisigOutInfo displays information about a given multisignature
@@ -1102,12 +1106,12 @@ func getMultisigOutInfo(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetMultisigOutInfoCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	hash, err := chainhash.NewHashFromStr(cmd.Hash)
 	if err != nil {
-		return nil, err
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 	}
 
 	// Multisig outs are always in TxTreeRegular.
@@ -1164,7 +1168,7 @@ func getNewAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetNewAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	var callOpts []wallet.NextAddressCallOption
@@ -1178,10 +1182,7 @@ func getNewAddress(s *Server, icmd interface{}) (interface{}, error) {
 		case "wrap":
 			callOpts = append(callOpts, wallet.WithGapPolicyWrap())
 		default:
-			return nil, &dcrjson.RPCError{
-				Code:    dcrjson.ErrRPCInvalidParameter,
-				Message: fmt.Sprintf("Unknown gap policy '%s'", *cmd.GapPolicy),
-			}
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "unknown gap policy %q", *cmd.GapPolicy)
 		}
 	}
 
@@ -1191,6 +1192,9 @@ func getNewAddress(s *Server, icmd interface{}) (interface{}, error) {
 	}
 	account, err := w.AccountNumber(acctName)
 	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAccountNotFound
+		}
 		return nil, err
 	}
 
@@ -1210,7 +1214,7 @@ func getRawChangeAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetRawChangeAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	acctName := "default"
@@ -1219,6 +1223,9 @@ func getRawChangeAddress(s *Server, icmd interface{}) (interface{}, error) {
 	}
 	account, err := w.AccountNumber(acctName)
 	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAccountNotFound
+		}
 		return nil, err
 	}
 
@@ -1237,11 +1244,14 @@ func getReceivedByAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetReceivedByAccountCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAccountNotFound
+		}
 		return nil, err
 	}
 
@@ -1265,7 +1275,7 @@ func getReceivedByAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetReceivedByAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	addr, err := decodeAddress(cmd.Address, w.ChainParams())
@@ -1274,6 +1284,9 @@ func getReceivedByAddress(s *Server, icmd interface{}) (interface{}, error) {
 	}
 	total, err := w.TotalReceivedForAddr(addr, int32(*cmd.MinConf))
 	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAddressNotInWallet
+		}
 		return nil, err
 	}
 
@@ -1286,7 +1299,7 @@ func getMasterPubkey(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetMasterPubkeyCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	// If no account is passed, we provide the extended public key
@@ -1296,6 +1309,9 @@ func getMasterPubkey(s *Server, icmd interface{}) (interface{}, error) {
 		var err error
 		account, err = w.AccountNumber(*cmd.Account)
 		if err != nil {
+			if errors.Is(errors.NotExist, err) {
+				return nil, errAccountNotFound
+			}
 			return nil, err
 		}
 	}
@@ -1304,7 +1320,6 @@ func getMasterPubkey(s *Server, icmd interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return masterPubKey.String(), nil
 }
 
@@ -1313,12 +1328,12 @@ func getMasterPubkey(s *Server, icmd interface{}) (interface{}, error) {
 func getStakeInfo(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	chainClient, ok := s.requireChainClient()
 	if !ok {
-		return nil, &ErrClientNotConnected
+		return nil, errClientNotConnected
 	}
 
 	// Asynchronously query for the stake difficulty.
@@ -1367,7 +1382,7 @@ func getStakeInfo(s *Server, icmd interface{}) (interface{}, error) {
 func getTicketFee(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	return w.TicketFeeIncrement().ToCoin(), nil
@@ -1379,12 +1394,12 @@ func getTickets(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetTicketsCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	chainClient, ok := s.requireChainClient()
 	if !ok {
-		return nil, &ErrClientNotConnected
+		return nil, errClientNotConnected
 	}
 
 	ticketHashes, err := w.LiveTicketHashes(chainClient.Client, cmd.IncludeImmature)
@@ -1407,32 +1422,29 @@ func getTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.GetTransactionCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
-	txSha, err := chainhash.NewHashFromStr(cmd.Txid)
+	txHash, err := chainhash.NewHashFromStr(cmd.Txid)
 	if err != nil {
-		return nil, &dcrjson.RPCError{
-			Code:    dcrjson.ErrRPCDecodeHexString,
-			Message: "Transaction hash string decode failed: " + err.Error(),
-		}
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 	}
 
-	details, err := wallet.UnstableAPI(w).TxDetails(txSha)
+	// returns nil details when not found
+	details, err := wallet.UnstableAPI(w).TxDetails(txHash)
 	if err != nil {
 		return nil, err
 	}
 	if details == nil {
-		return nil, &ErrNoTransactionInfo
+		return nil, rpcErrorf(dcrjson.ErrRPCNoTxInfo, "no information for transaction")
 	}
 
 	_, tipHeight := w.MainChainTip()
 
-	// TODO: The serialized transaction is already in the DB, so
-	// reserializing can be avoided here.
-	var txBuf bytes.Buffer
-	txBuf.Grow(details.MsgTx.SerializeSize())
-	err = details.MsgTx.Serialize(&txBuf)
+	// TODO: Switch to strings.Builder and hex.NewEncoder (introduced in Go 1.10)
+	var buf bytes.Buffer
+	buf.Grow(details.MsgTx.SerializeSize())
+	err = details.MsgTx.Serialize(&buf)
 	if err != nil {
 		return nil, err
 	}
@@ -1441,7 +1453,7 @@ func getTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	// is only added if the transaction is a coinbase.
 	ret := dcrjson.GetTransactionResult{
 		TxID:            cmd.Txid,
-		Hex:             hex.EncodeToString(txBuf.Bytes()),
+		Hex:             hex.EncodeToString(buf.Bytes()),
 		Time:            details.Received.Unix(),
 		TimeReceived:    details.Received.Unix(),
 		WalletConflicts: []string{}, // Not saved
@@ -1554,7 +1566,7 @@ func getTransaction(s *Server, icmd interface{}) (interface{}, error) {
 func getVoteChoices(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	version, agendas := wallet.CurrentAgendas(w.ChainParams())
@@ -1590,7 +1602,7 @@ func getVoteChoices(s *Server, icmd interface{}) (interface{}, error) {
 func getWalletFee(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	return w.RelayFee().ToCoin(), nil
@@ -1683,10 +1695,7 @@ func help(s *Server, icmd interface{}) (interface{}, error) {
 	if chainHelp != "" {
 		return chainHelp, nil
 	}
-	return nil, &dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCInvalidParameter,
-		Message: fmt.Sprintf("No help for method '%s'", *cmd.Command),
-	}
+	return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "no help for method %q", *cmd.Command)
 }
 
 // listAccounts handles a listaccounts request by returning a map of account
@@ -1695,7 +1704,7 @@ func listAccounts(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListAccountsCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	accountBalances := map[string]float64{}
@@ -1706,6 +1715,10 @@ func listAccounts(s *Server, icmd interface{}) (interface{}, error) {
 	for _, result := range results {
 		accountName, err := w.AccountName(result.Account)
 		if err != nil {
+			// Expect name lookup to succeed
+			if errors.Is(errors.NotExist, err) {
+				return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
+			}
 			return nil, err
 		}
 		accountBalances[accountName] = result.Spendable.ToCoin()
@@ -1719,7 +1732,7 @@ func listAccounts(s *Server, icmd interface{}) (interface{}, error) {
 func listLockUnspent(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	return w.LockedOutpoints(), nil
@@ -1739,7 +1752,7 @@ func listReceivedByAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListReceivedByAccountCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	results, err := w.TotalReceivedForAccounts(int32(*cmd.MinConf))
@@ -1773,7 +1786,7 @@ func listReceivedByAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListReceivedByAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	// Intermediate data for each address.
@@ -1866,12 +1879,12 @@ func listSinceBlock(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListSinceBlockCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	chainClient, ok := s.requireChainClient()
 	if !ok {
-		return nil, &ErrClientNotConnected
+		return nil, errClientNotConnected
 	}
 
 	_, tipHeight := w.MainChainTip()
@@ -1886,7 +1899,7 @@ func listSinceBlock(s *Server, icmd interface{}) (interface{}, error) {
 	if cmd.BlockHash != nil {
 		hash, err := chainhash.NewHashFromStr(*cmd.BlockHash)
 		if err != nil {
-			return nil, DeserializationError{err}
+			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 		}
 		block, err := chainClient.GetBlockVerbose(hash, false)
 		if err != nil {
@@ -1918,7 +1931,7 @@ func listSinceBlock(s *Server, icmd interface{}) (interface{}, error) {
 func listScripts(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	redeemScripts, err := w.FetchAllRedeemScripts()
@@ -1947,7 +1960,7 @@ func listTransactions(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListTransactionsCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	// TODO: ListTransactions does not currently understand the difference
@@ -1958,10 +1971,7 @@ func listTransactions(s *Server, icmd interface{}) (interface{}, error) {
 		// For now, don't bother trying to continue if the user
 		// specified an account, since this can't be (easily or
 		// efficiently) calculated.
-		return nil, &dcrjson.RPCError{
-			Code:    dcrjson.ErrRPCWallet,
-			Message: "Transactions are not yet grouped by account",
-		}
+		return nil, errors.E("transactions can not be searched by account")
 	}
 
 	return w.ListTransactions(*cmd.From, *cmd.Count)
@@ -1976,15 +1986,12 @@ func listAddressTransactions(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListAddressTransactionsCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	if cmd.Account != nil && *cmd.Account != "*" {
-		return nil, &dcrjson.RPCError{
-			Code: dcrjson.ErrRPCInvalidParameter,
-			Message: "Listing transactions for addresses may only " +
-				"be done for all accounts",
-		}
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+			"listing transactions for addresses may only be done for all accounts")
 	}
 
 	// Decode addresses.
@@ -2008,14 +2015,12 @@ func listAllTransactions(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListAllTransactionsCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	if cmd.Account != nil && *cmd.Account != "*" {
-		return nil, &dcrjson.RPCError{
-			Code:    dcrjson.ErrRPCInvalidParameter,
-			Message: "Listing all transactions may only be done for all accounts",
-		}
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+			"listing all transactions may only be done for all accounts")
 	}
 
 	return w.ListAllTransactions()
@@ -2026,7 +2031,7 @@ func listUnspent(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ListUnspentCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	var addresses map[string]struct{}
@@ -2042,7 +2047,14 @@ func listUnspent(s *Server, icmd interface{}) (interface{}, error) {
 		}
 	}
 
-	return w.ListUnspent(int32(*cmd.MinConf), int32(*cmd.MaxConf), addresses)
+	result, err := w.ListUnspent(int32(*cmd.MinConf), int32(*cmd.MaxConf), addresses)
+	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAddressNotInWallet
+		}
+		return nil, err
+	}
+	return result, nil
 }
 
 // lockUnspent handles the lockunspent command.
@@ -2050,7 +2062,7 @@ func lockUnspent(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.LockUnspentCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	switch {
@@ -2060,7 +2072,7 @@ func lockUnspent(s *Server, icmd interface{}) (interface{}, error) {
 		for _, input := range cmd.Transactions {
 			txSha, err := chainhash.NewHashFromStr(input.Txid)
 			if err != nil {
-				return nil, ParseError{err}
+				return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 			}
 			op := wire.OutPoint{Hash: *txSha, Index: input.Vout}
 			if cmd.Unlock {
@@ -2081,19 +2093,22 @@ func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.PurchaseTicketCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	spendLimit, err := dcrutil.NewAmount(cmd.SpendLimit)
 	if err != nil {
-		return nil, err
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 	}
 	if spendLimit < 0 {
-		return nil, ErrNeedPositiveSpendLimit
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative spend limit")
 	}
 
 	account, err := w.AccountNumber(cmd.FromAccount)
 	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAccountNotFound
+		}
 		return nil, err
 	}
 
@@ -2103,7 +2118,7 @@ func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 	if cmd.MinConf != nil {
 		minConf = int32(*cmd.MinConf)
 		if minConf < 0 {
-			return nil, ErrNeedPositiveMinconf
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative minconf")
 		}
 	}
 
@@ -2140,12 +2155,11 @@ func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 			// Attempt to get the amount to send to
 			// the pool after.
 			if cmd.PoolFees == nil {
-				return nil, fmt.Errorf("gave pool address but no pool fee")
+				return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "pool address set without pool fee")
 			}
 			poolFee = *cmd.PoolFees
-			err = txrules.IsValidPoolFeeRate(poolFee)
-			if err != nil {
-				return nil, err
+			if !txrules.ValidPoolFeeRate(poolFee) {
+				return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "pool fee percentage %v", poolFee)
 			}
 		}
 	}
@@ -2162,7 +2176,7 @@ func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 	if cmd.TicketFee != nil {
 		ticketFee, err = dcrutil.NewAmount(*cmd.TicketFee)
 		if err != nil {
-			return nil, err
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 		}
 	}
 
@@ -2188,6 +2202,9 @@ func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) ([]*wire.TxOut, error) {
 	outputs := make([]*wire.TxOut, 0, len(pairs))
 	for addrStr, amt := range pairs {
+		if amt < 0 {
+			return nil, errNeedPositiveAmount
+		}
 		addr, err := decodeAddress(addrStr, chainParams)
 		if err != nil {
 			return nil, err
@@ -2195,7 +2212,7 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 
 		pkScript, err := txscript.PayToAddrScript(addr)
 		if err != nil {
-			return nil, fmt.Errorf("cannot create txout script: %s", err)
+			return nil, err
 		}
 
 		outputs = append(outputs, wire.NewTxOut(int64(amt), pkScript))
@@ -2206,32 +2223,23 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 // sendPairs creates and sends payment transactions.
 // It returns the transaction hash in string format upon success
 // All errors are returned in dcrjson.RPCError format
-func sendPairs(w *wallet.Wallet, amounts map[string]dcrutil.Amount,
-	account uint32, minconf int32) (string, error) {
+func sendPairs(w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32) (string, error) {
 	outputs, err := makeOutputs(amounts, w.ChainParams())
 	if err != nil {
 		return "", err
 	}
 	txSha, err := w.SendOutputs(outputs, account, minconf)
 	if err != nil {
-		if err == txrules.ErrAmountNegative {
-			return "", ErrNeedPositiveAmount
+		if errors.Is(errors.Locked, err) {
+			return "", errWalletUnlockNeeded
 		}
-		if apperrors.IsError(err, apperrors.ErrLocked) {
-			return "", &ErrWalletUnlockNeeded
+		if errors.Is(errors.InsufficientBalance, err) {
+			return "", rpcError(dcrjson.ErrRPCWalletInsufficientFunds, err)
 		}
-		switch err.(type) {
-		case dcrjson.RPCError:
-			return "", err
-		}
-
-		return "", &dcrjson.RPCError{
-			Code:    dcrjson.ErrRPCInternal.Code,
-			Message: err.Error(),
-		}
+		return "", err
 	}
 
-	return txSha.String(), err
+	return txSha.String(), nil
 }
 
 // redeemMultiSigOut receives a transaction hash/idx and fetches the first output
@@ -2243,7 +2251,7 @@ func redeemMultiSigOut(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.RedeemMultiSigOutCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	// Convert the address to a useable format. If
@@ -2269,7 +2277,7 @@ func redeemMultiSigOut(s *Server, icmd interface{}) (interface{}, error) {
 	// begin crafting a MsgTx.
 	hash, err := chainhash.NewHashFromStr(cmd.Hash)
 	if err != nil {
-		return nil, err
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 	}
 	op := wire.OutPoint{
 		Hash:  *hash,
@@ -2283,14 +2291,14 @@ func redeemMultiSigOut(s *Server, icmd interface{}) (interface{}, error) {
 	sc := txscript.GetScriptClass(txscript.DefaultScriptVersion,
 		p2shOutput.RedeemScript)
 	if sc != txscript.MultiSigTy {
-		return nil, fmt.Errorf("invalid P2SH script: not multisig")
+		return nil, errors.E("P2SH redeem script is not multisig")
 	}
 	var msgTx wire.MsgTx
 	msgTx.AddTxIn(wire.NewTxIn(&op, nil))
 
 	pkScript, err := txscript.PayToAddrScript(addr)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create txout script: %s", err)
+		return nil, err
 	}
 
 	err = w.PrepareRedeemMultiSigOutTxOutput(&msgTx, p2shOutput, &pkScript)
@@ -2314,16 +2322,17 @@ func redeemMultiSigOut(s *Server, icmd interface{}) (interface{}, error) {
 	}
 	rtis := []dcrjson.RawTxInput{rti}
 
+	// TODO: Switch to strings.Builder and hex.NewEncoder (introduced in Go 1.10)
 	var buf bytes.Buffer
 	buf.Grow(msgTx.SerializeSize())
-	if err = msgTx.Serialize(&buf); err != nil {
+	err = msgTx.Serialize(&buf)
+	if err != nil {
 		return nil, err
 	}
-	txDataStr := hex.EncodeToString(buf.Bytes())
 	sigHashAll := "ALL"
 
 	srtc := &dcrjson.SignRawTransactionCmd{
-		RawTx:    txDataStr,
+		RawTx:    hex.EncodeToString(buf.Bytes()),
 		Inputs:   &rtis,
 		PrivKeys: &[]string{},
 		Flags:    &sigHashAll,
@@ -2347,7 +2356,7 @@ func redeemMultiSigOuts(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.RedeemMultiSigOutsCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	// Get all the multisignature outpoints that are unspent for this
@@ -2358,7 +2367,7 @@ func redeemMultiSigOuts(s *Server, icmd interface{}) (interface{}, error) {
 	}
 	p2shAddr, ok := addr.(*dcrutil.AddressScriptHash)
 	if !ok {
-		return nil, errors.New("address is not P2SH")
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "address is not P2SH")
 	}
 	msos, err := wallet.UnstableAPI(w).UnspentMultisigCreditsForAddress(p2shAddr)
 	if err != nil {
@@ -2401,12 +2410,12 @@ func rescanWallet(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.RescanWalletCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	chainClient, ok := s.requireChainClient()
 	if !ok {
-		return nil, &ErrClientNotConnected
+		return nil, errClientNotConnected
 	}
 
 	n := chain.BackendFromRPCClient(chainClient.Client)
@@ -2419,12 +2428,12 @@ func rescanWallet(s *Server, icmd interface{}) (interface{}, error) {
 func revokeTickets(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	chainClient, ok := s.requireChainClient()
 	if !ok {
-		return nil, &ErrClientNotConnected
+		return nil, errClientNotConnected
 	}
 
 	err := w.RevokeTickets(chainClient.Client)
@@ -2437,7 +2446,7 @@ func stakePoolUserInfo(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.StakePoolUserInfoCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	userAddr, err := dcrutil.DecodeAddress(cmd.User)
@@ -2490,7 +2499,7 @@ func ticketsForAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.TicketsForAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	addr, err := dcrutil.DecodeAddress(cmd.Address)
@@ -2524,16 +2533,13 @@ func sendFrom(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SendFromCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	// Transaction comments are not yet supported.  Error instead of
 	// pretending to save them.
 	if !isNilOrEmpty(cmd.Comment) || !isNilOrEmpty(cmd.CommentTo) {
-		return nil, &dcrjson.RPCError{
-			Code:    dcrjson.ErrRPCUnimplemented,
-			Message: "Transaction comments are not yet supported",
-		}
+		return nil, rpcErrorf(dcrjson.ErrRPCUnimplemented, "transaction comments are unsupported")
 	}
 
 	account, err := w.AccountNumber(cmd.FromAccount)
@@ -2543,16 +2549,16 @@ func sendFrom(s *Server, icmd interface{}) (interface{}, error) {
 
 	// Check that signed integer parameters are positive.
 	if cmd.Amount < 0 {
-		return nil, ErrNeedPositiveAmount
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative amount")
 	}
 	minConf := int32(*cmd.MinConf)
 	if minConf < 0 {
-		return nil, ErrNeedPositiveMinconf
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative minconf")
 	}
 	// Create map of address and amount pairs.
 	amt, err := dcrutil.NewAmount(cmd.Amount)
 	if err != nil {
-		return nil, err
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 	}
 	pairs := map[string]dcrutil.Amount{
 		cmd.ToAddress: amt,
@@ -2570,16 +2576,13 @@ func sendMany(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SendManyCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	// Transaction comments are not yet supported.  Error instead of
 	// pretending to save them.
 	if !isNilOrEmpty(cmd.Comment) {
-		return nil, &dcrjson.RPCError{
-			Code:    dcrjson.ErrRPCUnimplemented,
-			Message: "Transaction comments are not yet supported",
-		}
+		return nil, rpcErrorf(dcrjson.ErrRPCUnimplemented, "transaction comments are unsupported")
 	}
 
 	account, err := w.AccountNumber(cmd.FromAccount)
@@ -2590,7 +2593,7 @@ func sendMany(s *Server, icmd interface{}) (interface{}, error) {
 	// Check that minconf is positive.
 	minConf := int32(*cmd.MinConf)
 	if minConf < 0 {
-		return nil, ErrNeedPositiveMinconf
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative minconf")
 	}
 
 	// Recreate address/amount pairs, using dcrutil.Amount.
@@ -2598,7 +2601,7 @@ func sendMany(s *Server, icmd interface{}) (interface{}, error) {
 	for k, v := range cmd.Amounts {
 		amt, err := dcrutil.NewAmount(v)
 		if err != nil {
-			return nil, err
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 		}
 		pairs[k] = amt
 	}
@@ -2615,16 +2618,13 @@ func sendToAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SendToAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	// Transaction comments are not yet supported.  Error instead of
 	// pretending to save them.
 	if !isNilOrEmpty(cmd.Comment) || !isNilOrEmpty(cmd.CommentTo) {
-		return nil, &dcrjson.RPCError{
-			Code:    dcrjson.ErrRPCUnimplemented,
-			Message: "Transaction comments are not yet supported",
-		}
+		return nil, rpcErrorf(dcrjson.ErrRPCUnimplemented, "transaction comments are unsupported")
 	}
 
 	amt, err := dcrutil.NewAmount(cmd.Amount)
@@ -2634,7 +2634,7 @@ func sendToAddress(s *Server, icmd interface{}) (interface{}, error) {
 
 	// Check that signed integer parameters are positive.
 	if amt < 0 {
-		return nil, ErrNeedPositiveAmount
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative amount")
 	}
 
 	// Mock up map of address and amount pairs.
@@ -2661,13 +2661,13 @@ func sendToMultiSig(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SendToMultiSigCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	account := uint32(udb.DefaultAccountNum)
 	amount, err := dcrutil.NewAmount(cmd.Amount)
 	if err != nil {
-		return nil, err
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 	}
 	nrequired := int8(*cmd.NRequired)
 	minconf := int32(*cmd.MinConf)
@@ -2689,6 +2689,9 @@ func sendToMultiSig(s *Server, icmd interface{}) (interface{}, error) {
 		default:
 			pubKey, err := w.PubKeyForAddress(addr)
 			if err != nil {
+				if errors.Is(errors.NotExist, err) {
+					return nil, errAddressNotInWallet
+				}
 				return nil, err
 			}
 			if pubKey.GetType() != chainec.ECTypeSecp256k1 {
@@ -2707,7 +2710,7 @@ func sendToMultiSig(s *Server, icmd interface{}) (interface{}, error) {
 	ctx, addr, script, err :=
 		w.CreateMultisigTx(account, amount, pubkeys, nrequired, minconf)
 	if err != nil {
-		return nil, fmt.Errorf("CreateMultisigTx error: %v", err.Error())
+		return nil, errors.Errorf("CreateMultisigTx error: %v", err.Error())
 	}
 
 	result := &dcrjson.SendToMultiSigResult{
@@ -2718,7 +2721,7 @@ func sendToMultiSig(s *Server, icmd interface{}) (interface{}, error) {
 
 	chainClient, ok := s.requireChainClient()
 	if !ok {
-		return nil, &ErrClientNotConnected
+		return nil, errClientNotConnected
 	}
 
 	err = chainClient.LoadTxFilter(false, []dcrutil.Address{addr}, nil)
@@ -2737,17 +2740,17 @@ func setTicketFee(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SetTicketFeeCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	// Check that amount is not negative.
 	if cmd.Fee < 0 {
-		return nil, ErrNeedPositiveAmount
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative fee")
 	}
 
 	incr, err := dcrutil.NewAmount(cmd.Fee)
 	if err != nil {
-		return nil, err
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 	}
 	w.SetTicketFeeIncrement(incr)
 
@@ -2760,17 +2763,17 @@ func setTxFee(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SetTxFeeCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	// Check that amount is not negative.
 	if cmd.Amount < 0 {
-		return nil, ErrNeedPositiveAmount
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative amount")
 	}
 
 	relayFee, err := dcrutil.NewAmount(cmd.Amount)
 	if err != nil {
-		return nil, err
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 	}
 	w.SetRelayFee(relayFee)
 
@@ -2784,7 +2787,7 @@ func setVoteChoice(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SetVoteChoiceCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	_, err := w.SetAgendaChoices(wallet.AgendaChoice{
@@ -2800,7 +2803,7 @@ func signMessage(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SignMessageCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	addr, err := decodeAddress(cmd.Address, w.ChainParams())
@@ -2809,6 +2812,12 @@ func signMessage(s *Server, icmd interface{}) (interface{}, error) {
 	}
 	sig, err := w.SignMessage(cmd.Message, addr)
 	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAddressNotInWallet
+		}
+		if errors.Is(errors.Locked, err) {
+			return nil, errWalletUnlockNeeded
+		}
 		return nil, err
 	}
 	return base64.StdEncoding.EncodeToString(sig), nil
@@ -2822,18 +2831,18 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SignRawTransactionCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
-	serializedTx, err := decodeHexStr(cmd.RawTx)
-	if err != nil {
-		return nil, err
-	}
+	// TODO: Switch to hex.NewDecoder (introduced in Go 1.10)
 	tx := wire.NewMsgTx()
-	err = tx.Deserialize(bytes.NewBuffer(serializedTx))
+	rawTx, err := hex.DecodeString(cmd.RawTx)
 	if err != nil {
-		e := errors.New("TX decode failed")
-		return nil, DeserializationError{e}
+		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
+	}
+	err = tx.Deserialize(bytes.NewReader(rawTx))
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
 	}
 
 	var hashType txscript.SigHashType
@@ -2855,8 +2864,7 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	case "ssrtx": // Special case of SigHashAll
 		hashType = txscript.SigHashAll
 	default:
-		e := errors.New("Invalid sighash parameter")
-		return nil, InvalidParameterError{e}
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "invalid sighash flag")
 	}
 
 	// TODO: really we probably should look these up with dcrd anyway to
@@ -2870,7 +2878,7 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	for _, rti := range cmdInputs {
 		inputSha, err := chainhash.NewHashFromStr(rti.Txid)
 		if err != nil {
-			return nil, DeserializationError{err}
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 		}
 
 		script, err := decodeHexStr(rti.ScriptPubKey)
@@ -2898,7 +2906,7 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 			addr, err := dcrutil.NewAddressScriptHash(redeemScript,
 				w.ChainParams())
 			if err != nil {
-				return nil, DeserializationError{err}
+				return nil, err
 			}
 			scripts[addr.String()] = redeemScript
 		}
@@ -2928,7 +2936,7 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 
 		chainClient, ok := s.requireChainClient()
 		if !ok {
-			return nil, &ErrClientNotConnected
+			return nil, errClientNotConnected
 		}
 
 		// Asynchronously request the output script.
@@ -2947,12 +2955,11 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 		for _, key := range *cmd.PrivKeys {
 			wif, err := dcrutil.DecodeWIF(key)
 			if err != nil {
-				return nil, DeserializationError{err}
+				return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
 			}
 
 			if !wif.IsForNet(w.ChainParams()) {
-				s := "key network doesn't match wallet's"
-				return nil, DeserializationError{errors.New(s)}
+				return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "key intended for different network")
 			}
 
 			var addr dcrutil.Address
@@ -2961,21 +2968,21 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 				addr, err = dcrutil.NewAddressSecpPubKey(wif.SerializePubKey(),
 					w.ChainParams())
 				if err != nil {
-					return nil, DeserializationError{err}
+					return nil, err
 				}
 			case chainec.ECTypeEdwards:
 				addr, err = dcrutil.NewAddressEdwardsPubKey(
 					wif.SerializePubKey(),
 					w.ChainParams())
 				if err != nil {
-					return nil, DeserializationError{err}
+					return nil, err
 				}
 			case chainec.ECTypeSecSchnorr:
 				addr, err = dcrutil.NewAddressSecSchnorrPubKey(
 					wif.SerializePubKey(),
 					w.ChainParams())
 				if err != nil {
-					return nil, DeserializationError{err}
+					return nil, err
 				}
 			}
 			keys[addr.EncodeAddress()] = wif
@@ -2992,7 +2999,7 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 		}
 		script, err := hex.DecodeString(result.ScriptPubKey.Hex)
 		if err != nil {
-			return nil, err
+			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 		}
 		inputs[outPoint] = script
 	}
@@ -3006,13 +3013,12 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err
 	}
 
+	// TODO: Switch to strings.Builder and hex.NewEncoder (introduced in Go 1.10)
 	var buf bytes.Buffer
 	buf.Grow(tx.SerializeSize())
-
-	// All returned errors (not OOM, which panics) encounted during
-	// bytes.Buffer writes are unexpected.
-	if err = tx.Serialize(&buf); err != nil {
-		panic(err)
+	err = tx.Serialize(&buf)
+	if err != nil {
+		return nil, err
 	}
 
 	signErrors := make([]dcrjson.SignRawTransactionError, 0, len(signErrs))
@@ -3039,12 +3045,12 @@ func signRawTransactions(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SignRawTransactionsCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	chainClient, ok := s.requireChainClient()
 	if !ok {
-		return nil, &ErrClientNotConnected
+		return nil, errClientNotConnected
 	}
 
 	// Sign each transaction sequentially and record the results.
@@ -3073,15 +3079,15 @@ func signRawTransactions(s *Server, icmd interface{}) (interface{}, error) {
 		for i, result := range results {
 			if result.Complete {
 				// Slow/mem hungry because of the deserializing.
-				serializedTx, err := decodeHexStr(result.Hex)
-				if err != nil {
-					return nil, err
-				}
 				msgTx := wire.NewMsgTx()
-				err = msgTx.Deserialize(bytes.NewBuffer(serializedTx))
+				// TODO: Switch to hex.NewDecoder (introduced in Go 1.10)
+				rawTx, err := hex.DecodeString(result.Hex)
 				if err != nil {
-					e := errors.New("TX decode failed")
-					return nil, DeserializationError{e}
+					return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
+				}
+				err = msgTx.Deserialize(bytes.NewReader(rawTx))
+				if err != nil {
+					return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
 				}
 				sent := false
 				hashStr := ""
@@ -3127,16 +3133,15 @@ func startAutoBuyer(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.StartAutoBuyerCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	config := s.ticketbuyerConfig
 
 	if cmd.BalanceToMaintain != nil {
 		if *cmd.BalanceToMaintain < 0 {
-			e := fmt.Errorf("balancetomaintain (%v) must be non-negative", *cmd.BalanceToMaintain)
-			return nil, InvalidParameterError{e}
-
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"balancetomaintain (%v) must be non-negative", *cmd.BalanceToMaintain)
 		}
 
 		config.BalanceToMaintainAbsolute = *cmd.BalanceToMaintain
@@ -3144,8 +3149,8 @@ func startAutoBuyer(s *Server, icmd interface{}) (interface{}, error) {
 
 	if cmd.MaxFeePerKb != nil {
 		if *cmd.MaxFeePerKb < 0 {
-			e := fmt.Errorf("maxfeeperkb (%v) must be non-negative", *cmd.MaxFeePerKb)
-			return nil, InvalidParameterError{e}
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"maxfeeperkb (%v) must be non-negative", *cmd.MaxFeePerKb)
 		}
 
 		config.MaxFee = *cmd.MaxFeePerKb
@@ -3153,8 +3158,8 @@ func startAutoBuyer(s *Server, icmd interface{}) (interface{}, error) {
 
 	if cmd.MaxPriceAbsolute != nil {
 		if *cmd.MaxPriceAbsolute < 0 {
-			e := fmt.Errorf("maxpriceabsolute (%v) must be non-negative", *cmd.MaxPriceAbsolute)
-			return nil, InvalidParameterError{e}
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"maxpriceabsolute (%v) must be non-negative", *cmd.MaxPriceAbsolute)
 		}
 
 		config.MaxPriceAbsolute = *cmd.MaxPriceAbsolute
@@ -3162,8 +3167,8 @@ func startAutoBuyer(s *Server, icmd interface{}) (interface{}, error) {
 
 	if cmd.MaxPriceRelative != nil {
 		if *cmd.MaxPriceRelative < 0 {
-			e := fmt.Errorf("maxpricerelative (%v) must be non-negative", *cmd.MaxPriceRelative)
-			return nil, InvalidParameterError{e}
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"maxpricerelative (%v) must be non-negative", *cmd.MaxPriceRelative)
 		}
 
 		config.MaxPriceRelative = *cmd.MaxPriceRelative
@@ -3171,8 +3176,8 @@ func startAutoBuyer(s *Server, icmd interface{}) (interface{}, error) {
 
 	if cmd.MaxPerBlock != nil {
 		if *cmd.MaxPerBlock < 0 {
-			e := fmt.Errorf("maxperblock (%v) must be non-negative", *cmd.MaxPerBlock)
-			return nil, InvalidParameterError{e}
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"maxperblock (%v) must be non-negative", *cmd.MaxPerBlock)
 		}
 
 		config.MaxPerBlock = int(*cmd.MaxPerBlock)
@@ -3210,16 +3215,12 @@ func startAutoBuyer(s *Server, icmd interface{}) (interface{}, error) {
 
 	switch {
 	case poolFees == 0 && poolAddress != nil:
-		e := errors.New("pooladdress set but poolfees not given")
-		return nil, InvalidParameterError{e}
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "pooladdress set without poolfees")
 	case poolFees != 0 && poolAddress == nil:
-		e := errors.New("poolfees set but pooladdress not given")
-		return nil, InvalidParameterError{e}
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "poolfees set without pooladdress")
 	case poolFees != 0 && poolAddress != nil:
-		err = txrules.IsValidPoolFeeRate(poolFees)
-		if err != nil {
-			e := fmt.Errorf("poolfees (%v) invalid: %v", *cmd.PoolFees, err)
-			return nil, InvalidParameterError{e}
+		if !txrules.ValidPoolFeeRate(poolFees) {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "invalid poolfees %v", poolFees)
 		}
 	}
 
@@ -3227,20 +3228,12 @@ func startAutoBuyer(s *Server, icmd interface{}) (interface{}, error) {
 	config.PoolAddress = poolAddress
 
 	err = s.walletLoader.StartTicketPurchase([]byte(cmd.Passphrase), config)
-	if err == loader.ErrTicketBuyerStarted {
-		return nil, errors.New("Ticket buyer is already started")
-	}
-
 	return nil, err
 }
 
 // stopAutoBuyer handles the stopautobuyer command.
 func stopAutoBuyer(s *Server, icmd interface{}) (interface{}, error) {
 	err := s.walletLoader.StopTicketPurchase()
-	if err == loader.ErrTicketBuyerStopped {
-		return nil, errors.New("Ticket buyer is not running")
-	}
-
 	return nil, err
 }
 
@@ -3266,7 +3259,7 @@ func sweepAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.SweepAccountCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	// use provided fee per Kb if specified
@@ -3275,7 +3268,7 @@ func sweepAccount(s *Server, icmd interface{}) (interface{}, error) {
 		var err error
 		feePerKb, err = dcrutil.NewAmount(*cmd.FeePerKb)
 		if err != nil {
-			return nil, err
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 		}
 	}
 
@@ -3283,10 +3276,16 @@ func sweepAccount(s *Server, icmd interface{}) (interface{}, error) {
 	requiredConfs := int32(1)
 	if cmd.RequiredConfirmations != nil {
 		requiredConfs = int32(*cmd.RequiredConfirmations)
+		if requiredConfs < 0 {
+			return nil, errNeedPositiveAmount
+		}
 	}
 
 	account, err := w.AccountNumber(cmd.SourceAccount)
 	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAccountNotFound
+		}
 		return nil, err
 	}
 
@@ -3294,18 +3293,22 @@ func sweepAccount(s *Server, icmd interface{}) (interface{}, error) {
 	tx, err := w.NewUnsignedTransaction(nil, feePerKb, account,
 		requiredConfs, wallet.OutputSelectionAlgorithmAll, changeSource)
 	if err != nil {
+		if errors.Is(errors.InsufficientBalance, err) {
+			return nil, rpcError(dcrjson.ErrRPCWalletInsufficientFunds, err)
+		}
 		return nil, err
 	}
 
-	var txBuf bytes.Buffer
-	txBuf.Grow(tx.Tx.SerializeSize())
-	err = tx.Tx.Serialize(&txBuf)
+	// TODO: Switch to strings.Builder and hex.NewEncoder (introduced in Go 1.10)
+	var buf bytes.Buffer
+	buf.Grow(tx.Tx.SerializeSize())
+	err = tx.Tx.Serialize(&buf)
 	if err != nil {
 		return nil, err
 	}
 
 	res := &dcrjson.SweepAccountResult{
-		UnsignedTransaction:       hex.EncodeToString(txBuf.Bytes()),
+		UnsignedTransaction:       hex.EncodeToString(buf.Bytes()),
 		TotalPreviousOutputAmount: tx.TotalInput.ToCoin(),
 		TotalOutputAmount:         helpers.SumOutputValues(tx.Tx.TxOut).ToCoin(),
 		EstimatedSignedSize:       uint32(tx.EstimatedSignedSerializeSize),
@@ -3319,7 +3322,7 @@ func validateAddress(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.ValidateAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	result := dcrjson.ValidateAddressWalletResult{}
@@ -3338,7 +3341,7 @@ func validateAddress(s *Server, icmd interface{}) (interface{}, error) {
 
 	ainfo, err := w.AddressInfo(addr)
 	if err != nil {
-		if apperrors.IsError(err, apperrors.ErrAddressNotFound) {
+		if errors.Is(errors.NotExist, err) {
 			// No additional information available about the address.
 			return result, nil
 		}
@@ -3350,7 +3353,7 @@ func validateAddress(s *Server, icmd interface{}) (interface{}, error) {
 	result.IsMine = true
 	acctName, err := w.AccountName(ainfo.Account())
 	if err != nil {
-		return nil, &ErrAccountNameNotFound
+		return nil, err
 	}
 	result.Account = acctName
 
@@ -3376,7 +3379,10 @@ func validateAddress(s *Server, icmd interface{}) (interface{}, error) {
 		// just break out now if there is an error.
 		script, err := w.RedeemScriptCopy(addr)
 		if err != nil {
-			break
+			if errors.Is(errors.Locked, err) {
+				break
+			}
+			return nil, err
 		}
 		result.Hex = hex.EncodeToString(script)
 
@@ -3438,15 +3444,12 @@ func verifyMessage(s *Server, icmd interface{}) (interface{}, error) {
 	}
 
 	valid, err = wallet.VerifyMessage(cmd.Message, addr, sig)
-	if err != nil {
-		// Mirror Bitcoin Core behavior, which treats all erorrs as an invalid
-		// signature.
-		return false, nil
-	}
-	return valid, nil
+	// Mirror Bitcoin Core behavior, which treats all erorrs as an invalid
+	// signature.
+	return err == nil && valid, nil
 
 WrongAddrKind:
-	return nil, InvalidParameterError{errors.New("address must be secp256k1 P2PK or P2PKH")}
+	return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "address must be secp256k1 P2PK or P2PKH")
 }
 
 // version handles the version command by returning the RPC API versions of the
@@ -3481,7 +3484,7 @@ func version(s *Server, icmd interface{}) (interface{}, error) {
 func walletInfo(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	n, err := w.NetworkBackend()
@@ -3525,7 +3528,7 @@ func walletInfo(s *Server, icmd interface{}) (interface{}, error) {
 func walletIsLocked(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	return w.Locked(), nil
@@ -3537,7 +3540,7 @@ func walletIsLocked(s *Server, icmd interface{}) (interface{}, error) {
 func walletLock(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	w.Lock()
@@ -3551,7 +3554,7 @@ func walletPassphrase(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.WalletPassphraseCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	timeout := time.Second * time.Duration(cmd.Timeout)
@@ -3574,18 +3577,18 @@ func walletPassphraseChange(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.WalletPassphraseChangeCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, &ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
 	err := w.ChangePrivatePassphrase([]byte(cmd.OldPassphrase),
 		[]byte(cmd.NewPassphrase))
-	if apperrors.IsError(err, apperrors.ErrWrongPassphrase) {
-		return nil, &dcrjson.RPCError{
-			Code:    dcrjson.ErrRPCWalletPassphraseIncorrect,
-			Message: "Incorrect passphrase",
+	if err != nil {
+		if errors.Is(errors.Passphrase, err) {
+			return nil, rpcErrorf(dcrjson.ErrRPCWalletPassphraseIncorrect, "incorrect passphrase")
 		}
+		return nil, err
 	}
-	return nil, err
+	return nil, nil
 }
 
 // decodeHexStr decodes the hex encoding of a string, possibly prepending a
@@ -3598,10 +3601,7 @@ func decodeHexStr(hexStr string) ([]byte, error) {
 	}
 	decoded, err := hex.DecodeString(hexStr)
 	if err != nil {
-		return nil, &dcrjson.RPCError{
-			Code:    dcrjson.ErrRPCDecodeHexString,
-			Message: "Hex string decode failed: " + err.Error(),
-		}
+		return nil, rpcErrorf(dcrjson.ErrRPCDecodeHexString, "hex string decode failed: %v", err)
 	}
 	return decoded, nil
 }

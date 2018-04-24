@@ -7,7 +7,6 @@ package udb
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"time"
 
@@ -15,7 +14,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
@@ -188,15 +187,13 @@ func deserializeSStxTicketHash160(serializedSStxRecord []byte, dbVersion uint32)
 	case bytes.Equal(prefixBytes, sstxTicket2PKHPrefix):
 		scrHashLoc := pkscriptLoc + 4
 		if scrHashLoc+20 >= len(serializedSStxRecord) {
-			return nil, false, stakeStoreError(apperrors.ErrDatabase,
-				"bad serialized sstx record size for pubkey hash", nil)
+			return nil, false, errors.E(errors.IO, "bad sstx record size")
 		}
 		copy(scriptHash, serializedSStxRecord[scrHashLoc:scrHashLoc+20])
 	case bytes.Equal(prefixBytes, sstxTicket2SHPrefix):
 		scrHashLoc := pkscriptLoc + 3
 		if scrHashLoc+20 >= len(serializedSStxRecord) {
-			return nil, false, stakeStoreError(apperrors.ErrDatabase,
-				"bad serialized sstx record size for script hash", nil)
+			return nil, false, errors.E(errors.IO, "bad sstx record size")
 		}
 		copy(scriptHash, serializedSStxRecord[scrHashLoc:scrHashLoc+20])
 		p2sh = true
@@ -308,8 +305,7 @@ func fetchSStxRecord(ns walletdb.ReadBucket, hash *chainhash.Hash, dbVersion uin
 	key := hash[:]
 	val := bucket.Get(key)
 	if val == nil {
-		str := fmt.Sprintf("missing sstx record for hash '%s'", hash.String())
-		return nil, stakeStoreError(apperrors.ErrSStxNotFound, str, nil)
+		return nil, errors.E(errors.NotExist, errors.Errorf("no ticket purchase %v", hash))
 	}
 
 	return deserializeSStxRecord(val, dbVersion)
@@ -317,16 +313,13 @@ func fetchSStxRecord(ns walletdb.ReadBucket, hash *chainhash.Hash, dbVersion uin
 
 // fetchSStxRecordSStxTicketHash160 retrieves a ticket 0th output script or
 // pubkeyhash from the sstx records bucket with the given hash.
-func fetchSStxRecordSStxTicketHash160(ns walletdb.ReadBucket, hash *chainhash.Hash,
-	dbVersion uint32) (hash160 []byte, p2sh bool, err error) {
-
+func fetchSStxRecordSStxTicketHash160(ns walletdb.ReadBucket, hash *chainhash.Hash, dbVersion uint32) (hash160 []byte, p2sh bool, err error) {
 	bucket := ns.NestedReadBucket(sstxRecordsBucketName)
 
 	key := hash[:]
 	val := bucket.Get(key)
 	if val == nil {
-		str := fmt.Sprintf("missing sstx record for hash '%s'", hash.String())
-		return nil, false, stakeStoreError(apperrors.ErrSStxNotFound, str, nil)
+		return nil, false, errors.E(errors.NotExist, errors.Errorf("no ticket purchase %v", hash))
 	}
 
 	return deserializeSStxTicketHash160(val, dbVersion)
@@ -339,13 +332,11 @@ func putSStxRecord(ns walletdb.ReadWriteBucket, record *sstxRecord, dbVersion ui
 	// Write the serialized txrecord keyed by the tx hash.
 	serializedSStxRecord, err := serializeSStxRecord(record, dbVersion)
 	if err != nil {
-		str := fmt.Sprintf("failed to serialize sstxrecord '%s'", record.tx.Hash())
-		return stakeStoreError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	err = bucket.Put(record.tx.Hash()[:], serializedSStxRecord)
 	if err != nil {
-		str := fmt.Sprintf("failed to store sstxrecord '%s'", record.tx.Hash())
-		return stakeStoreError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -356,8 +347,7 @@ func deserializeUserTicket(serializedTicket []byte) (*PoolTicket, error) {
 	// Cursory check to make sure that the size of the
 	// ticket makes sense.
 	if len(serializedTicket)%stakePoolUserTicketSize != 0 {
-		str := "serialized pool ticket record was wrong size"
-		return nil, stakeStoreError(apperrors.ErrDatabase, str, nil)
+		return nil, errors.E(errors.IO, "invalid pool ticket record size")
 	}
 
 	record := new(PoolTicket)
@@ -408,10 +398,8 @@ func deserializeUserTickets(serializedTickets []byte) ([]*PoolTicket, error) {
 		record, err := deserializeUserTicket(
 			serializedTickets[i*stakePoolUserTicketSize : (i+
 				1)*stakePoolUserTicketSize])
-
 		if err != nil {
-			str := "problem deserializing stake pool user tickets"
-			return nil, stakeStoreError(apperrors.ErrDatabase, str, err)
+			return nil, err
 		}
 
 		records[i] = record
@@ -478,9 +466,7 @@ func fetchStakePoolUserTickets(ns walletdb.ReadBucket, scriptHash [20]byte) ([]*
 		scriptHash[:])
 	val := bucket.Get(key)
 	if val == nil {
-		str := fmt.Sprintf("missing pool user ticket records for hash '%x'",
-			scriptHash)
-		return nil, stakeStoreError(apperrors.ErrPoolUserTicketsNotFound, str, nil)
+		return nil, errors.E(errors.NotExist, errors.Errorf("no ticket purchase for hash160 %x", &scriptHash))
 	}
 
 	return deserializeUserTickets(val)
@@ -555,9 +541,7 @@ func updateStakePoolUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20]byte
 
 	err := bucket.Put(key, serializedRecords)
 	if err != nil {
-		str := fmt.Sprintf("failed to store pool user ticket records '%x'",
-			scriptHash)
-		return stakeStoreError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -583,8 +567,7 @@ func deserializeUserInvalTickets(serializedTickets []byte) ([]*chainhash.Hash, e
 		end := (i + 1) * chainhash.HashSize
 		h, err := chainhash.NewHash(serializedTickets[start:end])
 		if err != nil {
-			str := "problem deserializing stake pool invalid user tickets"
-			return nil, stakeStoreError(apperrors.ErrDatabase, str, err)
+			return nil, err
 		}
 
 		records[i] = h
@@ -621,9 +604,7 @@ func fetchStakePoolUserInvalTickets(ns walletdb.ReadBucket, scriptHash [20]byte)
 		scriptHash[:])
 	val := bucket.Get(key)
 	if val == nil {
-		str := fmt.Sprintf("missing pool user invalid ticket records "+
-			"for hash '%x'", scriptHash)
-		return nil, stakeStoreError(apperrors.ErrPoolUserInvalTcktsNotFound, str, nil)
+		return nil, errors.E(errors.NotExist, errors.Errorf("no pool ticket for hash160 %x", &scriptHash))
 	}
 
 	return deserializeUserInvalTickets(val)
@@ -676,9 +657,7 @@ func removeStakePoolInvalUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20
 
 	err := bucket.Put(key, serializedRecords)
 	if err != nil {
-		str := fmt.Sprintf("failed to store pool user invalid ticket "+
-			"records '%x'", scriptHash)
-		return stakeStoreError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	return nil
@@ -721,9 +700,7 @@ func updateStakePoolInvalUserTickets(ns walletdb.ReadWriteBucket, scriptHash [20
 
 	err := bucket.Put(key, serializedRecords)
 	if err != nil {
-		str := fmt.Sprintf("failed to store pool user invalid ticket "+
-			"records '%x'", scriptHash)
-		return stakeStoreError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -734,32 +711,27 @@ func initializeEmpty(ns walletdb.ReadWriteBucket) error {
 	// Initialize the buckets and main db fields as needed.
 	mainBucket, err := ns.CreateBucketIfNotExists(mainBucketName)
 	if err != nil {
-		str := "failed to create main bucket"
-		return stakeStoreError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucketIfNotExists(sstxRecordsBucketName)
 	if err != nil {
-		str := "failed to create sstx records bucket"
-		return stakeStoreError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucketIfNotExists(ssgenRecordsBucketName)
 	if err != nil {
-		str := "failed to create ssgen records bucket"
-		return stakeStoreError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucketIfNotExists(ssrtxRecordsBucketName)
 	if err != nil {
-		str := "failed to create ssrtx records bucket"
-		return stakeStoreError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucketIfNotExists(metaBucketName)
 	if err != nil {
-		str := "failed to create meta bucket"
-		return stakeStoreError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	createBytes := mainBucket.Get(stakeStoreCreateDateName)
@@ -769,8 +741,7 @@ func initializeEmpty(ns walletdb.ReadWriteBucket) error {
 		binary.LittleEndian.PutUint64(buf[:], createDate)
 		err := mainBucket.Put(stakeStoreCreateDateName, buf[:])
 		if err != nil {
-			str := "failed to store database creation time"
-			return stakeStoreError(apperrors.ErrDatabase, str, err)
+			return errors.E(errors.IO, err)
 		}
 	}
 

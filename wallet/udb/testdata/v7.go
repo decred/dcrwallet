@@ -130,7 +130,7 @@ func setup() error {
 			msgTx.Expiry = 1000
 			pkScript, err := txscript.PayToSStxChange(addr)
 			if err != nil {
-				return fmt.Errorf("failed to create pkscript: %s", err)
+				return errors.Errorf("failed to create pkscript: %s", err)
 			}
 			msgTx.AddTxOut(wire.NewTxOut(int64(dcrutil.Amount(1*count)), pkScript))
 			rec, err := udb.NewTxRecordFromMsgTx(msgTx, epoch)
@@ -151,13 +151,13 @@ func setup() error {
 		for count := 1; count < 4; count++ {
 			faucetAddr, err := dcrutil.DecodeAddress("TsWjioPrP8E1TuTMmTrVMM2BA4iPrjQXBpR")
 			if err != nil {
-				return fmt.Errorf("failed to decode address: %s", err)
+				return errors.Errorf("failed to decode address: %s", err)
 			}
 			msgTx := wire.NewMsgTx()
 			msgTx.Expiry = 1000
 			pkScript, err := txscript.PayToSStxChange(faucetAddr)
 			if err != nil {
-				return fmt.Errorf("failed to create pkscript: %s", err)
+				return errors.Errorf("failed to create pkscript: %s", err)
 			}
 			msgTx.AddTxOut(wire.NewTxOut(int64(dcrutil.Amount(1*count)), pkScript))
 			rec, err := udb.NewTxRecordFromMsgTx(msgTx, epoch)
@@ -175,7 +175,7 @@ func setup() error {
 			msgTx := wire.NewMsgTx()
 			pkScript, err := txscript.PayToAddrScript(addr)
 			if err != nil {
-				return fmt.Errorf("failed to create pkscript: %s", err)
+				return errors.Errorf("failed to create pkscript: %s", err)
 			}
 			msgTx.AddTxOut(wire.NewTxOut(int64(dcrutil.Amount(1*count)), pkScript))
 			msgTx.Expiry = wire.NoExpiryValue

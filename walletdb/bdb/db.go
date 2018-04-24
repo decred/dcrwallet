@@ -10,43 +10,29 @@ import (
 	"os"
 
 	"github.com/boltdb/bolt"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
-// convertErr converts some bolt errors to the equivalent walletdb error.
+// convertErr wraps a driver-specific error with an error code.
 func convertErr(err error) error {
-	switch err {
-	// Database open/create errors.
-	case bolt.ErrDatabaseNotOpen:
-		return walletdb.ErrDbNotOpen
-	case bolt.ErrInvalid:
-		return walletdb.ErrInvalid
-
-	// Transaction errors.
-	case bolt.ErrTxNotWritable:
-		return walletdb.ErrTxNotWritable
-	case bolt.ErrTxClosed:
-		return walletdb.ErrTxClosed
-
-	// Value/bucket errors.
-	case bolt.ErrBucketNotFound:
-		return walletdb.ErrBucketNotFound
-	case bolt.ErrBucketExists:
-		return walletdb.ErrBucketExists
-	case bolt.ErrBucketNameRequired:
-		return walletdb.ErrBucketNameRequired
-	case bolt.ErrKeyRequired:
-		return walletdb.ErrKeyRequired
-	case bolt.ErrKeyTooLarge:
-		return walletdb.ErrKeyTooLarge
-	case bolt.ErrValueTooLarge:
-		return walletdb.ErrValueTooLarge
-	case bolt.ErrIncompatibleValue:
-		return walletdb.ErrIncompatibleValue
+	if err == nil {
+		return nil
 	}
-
-	// Return the original error if none of the above applies.
-	return err
+	var kind errors.Kind
+	switch err {
+	case bolt.ErrInvalid: // Invalid database file, not invalid operation
+		kind = errors.IO
+	case bolt.ErrDatabaseNotOpen, bolt.ErrTxNotWritable, bolt.ErrTxClosed:
+		kind = errors.Invalid
+	case bolt.ErrBucketNameRequired, bolt.ErrKeyRequired, bolt.ErrKeyTooLarge, bolt.ErrValueTooLarge, bolt.ErrIncompatibleValue:
+		kind = errors.Invalid
+	case bolt.ErrBucketNotFound:
+		kind = errors.NotExist
+	case bolt.ErrBucketExists:
+		kind = errors.Exist
+	}
+	return errors.E(kind, err)
 }
 
 // transaction represents a database transaction.  It can either by read-only or
@@ -125,9 +111,8 @@ func (b *bucket) NestedReadBucket(key []byte) walletdb.ReadBucket {
 }
 
 // CreateBucket creates and returns a new nested bucket with the given key.
-// Returns ErrBucketExists if the bucket already exists, ErrBucketNameRequired
-// if the key is empty, or ErrIncompatibleValue if the key value is otherwise
-// invalid.
+// Errors with code Exist if the bucket already exists, and Invalid if the key
+// is empty or otherwise invalid for the driver.
 //
 // This function is part of the walletdb.Bucket interface implementation.
 func (b *bucket) CreateBucket(key []byte) (walletdb.ReadWriteBucket, error) {
@@ -139,8 +124,8 @@ func (b *bucket) CreateBucket(key []byte) (walletdb.ReadWriteBucket, error) {
 }
 
 // CreateBucketIfNotExists creates and returns a new nested bucket with the
-// given key if it does not already exist.  Returns ErrBucketNameRequired if the
-// key is empty or ErrIncompatibleValue if the key value is otherwise invalid.
+// given key if it does not already exist.  Errors with code Invalid if the key
+// is empty or otherwise invalid for the driver.
 //
 // This function is part of the walletdb.Bucket interface implementation.
 func (b *bucket) CreateBucketIfNotExists(key []byte) (walletdb.ReadWriteBucket, error) {
@@ -151,9 +136,7 @@ func (b *bucket) CreateBucketIfNotExists(key []byte) (walletdb.ReadWriteBucket, 
 	return (*bucket)(boltBucket), nil
 }
 
-// DeleteNestedBucket removes a nested bucket with the given key.  Returns
-// ErrTxNotWritable if attempted against a read-only transaction and
-// ErrBucketNotFound if the specified bucket does not exist.
+// DeleteNestedBucket removes a nested bucket with the given key.
 //
 // This function is part of the walletdb.Bucket interface implementation.
 func (b *bucket) DeleteNestedBucket(key []byte) error {
@@ -174,8 +157,7 @@ func (b *bucket) ForEach(fn func(k, v []byte) error) error {
 }
 
 // Put saves the specified key/value pair to the bucket.  Keys that do not
-// already exist are added and keys that already exist are overwritten.  Returns
-// ErrTxNotWritable if attempted against a read-only transaction.
+// already exist are added and keys that already exist are overwritten.
 //
 // This function is part of the walletdb.Bucket interface implementation.
 func (b *bucket) Put(key, value []byte) error {
@@ -195,8 +177,7 @@ func (b *bucket) Get(key []byte) []byte {
 }
 
 // Delete removes the specified key from the bucket.  Deleting a key that does
-// not exist does not return an error.  Returns ErrTxNotWritable if attempted
-// against a read-only transaction.
+// not exist does not return an error.
 //
 // This function is part of the walletdb.Bucket interface implementation.
 func (b *bucket) Delete(key []byte) error {
@@ -225,9 +206,7 @@ func (b *bucket) ReadWriteCursor() walletdb.ReadWriteCursor {
 type cursor bolt.Cursor
 
 // Delete removes the current key/value pair the cursor is at without
-// invalidating the cursor. Returns ErrTxNotWritable if attempted on a read-only
-// transaction, or ErrIncompatibleValue if attempted when the cursor points to a
-// nested bucket.
+// invalidating the cursor.
 //
 // This function is part of the walletdb.Cursor interface implementation.
 func (c *cursor) Delete() error {
@@ -321,11 +300,10 @@ func fileExists(name string) bool {
 	return true
 }
 
-// openDB opens the database at the provided path.  walletdb.ErrDbDoesNotExist
-// is returned if the database doesn't exist and the create flag is not set.
+// openDB opens the database at the provided path.
 func openDB(dbPath string, create bool) (walletdb.DB, error) {
 	if !create && !fileExists(dbPath) {
-		return nil, walletdb.ErrDbDoesNotExist
+		return nil, errors.E(errors.NotExist, "missing database file")
 	}
 
 	boltDB, err := bolt.Open(dbPath, 0600, nil)

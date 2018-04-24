@@ -18,6 +18,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrwallet/errors"
 
 	"github.com/decred/dcrd/dcrutil"
 	rpc "github.com/decred/dcrd/rpcclient"
@@ -214,7 +215,7 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 		break
 	}
 	if walletClient == nil {
-		return fmt.Errorf("walletClient connection timedout")
+		return errors.Errorf("walletClient connection timedout")
 	}
 	fmt.Println("Wallet RPC client connected.")
 	h.WalletRPC = walletClient
@@ -230,7 +231,7 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 		break
 	}
 	if miningAddr == nil {
-		return fmt.Errorf("RPC not up for mining addr %v %v", h.testNodeDir,
+		return errors.Errorf("RPC not up for mining addr %v %v", h.testNodeDir,
 			h.testWalletDir)
 	}
 	h.miningAddr = miningAddr
@@ -368,7 +369,7 @@ func (h *Harness) connectRPCClient() error {
 	}
 
 	if client == nil {
-		return fmt.Errorf("connection timed out: %v", err)
+		return errors.Errorf("connection timed out: %v", err)
 	}
 
 	err = client.NotifyBlocks()
@@ -446,21 +447,21 @@ func generateListeningAddresses() (string, string, string) {
 func (h *Harness) GenerateBlock(startHeight uint32) ([]*chainhash.Hash, error) {
 	blockHashes, err := h.Node.Generate(1)
 	if err != nil {
-		return nil, fmt.Errorf("unable to generate single block: %v", err)
+		return nil, errors.Errorf("unable to generate single block: %v", err)
 	}
 	blockHeader, err := h.Node.GetBlockHeader(blockHashes[0])
 	if err != nil {
-		return nil, fmt.Errorf("unable to get block header: %v", err)
+		return nil, errors.Errorf("unable to get block header: %v", err)
 	}
 	newHeight := blockHeader.Height
 	for newHeight == startHeight {
 		blockHashes, err = h.Node.Generate(1)
 		if err != nil {
-			return nil, fmt.Errorf("unable to generate single block: %v", err)
+			return nil, errors.Errorf("unable to generate single block: %v", err)
 		}
 		blockHeader, err = h.Node.GetBlockHeader(blockHashes[0])
 		if err != nil {
-			return nil, fmt.Errorf("unable to get block header: %v", err)
+			return nil, errors.Errorf("unable to get block header: %v", err)
 		}
 		newHeight = blockHeader.Height
 	}

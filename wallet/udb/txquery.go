@@ -6,13 +6,11 @@
 package udb
 
 import (
-	"fmt"
-
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
@@ -75,8 +73,7 @@ func (s *Store) minedTxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash, r
 	credIter := makeReadCreditIterator(ns, recKey, DBVersion)
 	for credIter.next() {
 		if int(credIter.elem.Index) >= len(details.MsgTx.TxOut) {
-			str := "saved credit index exceeds number of outputs"
-			return nil, storeError(apperrors.ErrData, str, nil)
+			return nil, errors.E(errors.IO, "saved credit index exceeds number of outputs")
 		}
 
 		// The credit iterator does not record whether this credit was
@@ -95,8 +92,7 @@ func (s *Store) minedTxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash, r
 	debIter := makeReadDebitIterator(ns, recKey)
 	for debIter.next() {
 		if int(debIter.elem.Index) >= len(details.MsgTx.TxIn) {
-			str := "saved debit index exceeds number of inputs"
-			return nil, storeError(apperrors.ErrData, str, nil)
+			return nil, errors.E(errors.IO, "saved debit index exceeds number of inputs")
 		}
 
 		details.Debits = append(details.Debits, debIter.elem)
@@ -118,8 +114,7 @@ func (s *Store) unminedTxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash,
 	it := makeReadUnminedCreditIterator(ns, txHash, DBVersion)
 	for it.next() {
 		if int(it.elem.Index) >= len(details.MsgTx.TxOut) {
-			str := "saved credit index exceeds number of outputs"
-			return nil, storeError(apperrors.ErrData, str, nil)
+			return nil, errors.E(errors.IO, errors.Errorf("credit output index %d does not exist for tx %v", it.elem.Index, txHash))
 		}
 
 		// Set the Spent field since this is not done by the iterator.
@@ -341,8 +336,7 @@ func (s *Store) TxBlockHeight(dbtx walletdb.ReadTx, txHash *chainhash.Hash) (int
 	}
 	k, _ := latestTxRecord(ns, txHash[:])
 	if k == nil {
-		const str = "transaction not found"
-		return 0, apperrors.E{ErrorCode: apperrors.ErrValueNoExists, Description: str, Err: nil}
+		return 0, errors.E(errors.NotExist, errors.Errorf("no transaction %v", txHash))
 	}
 	var height int32
 	err := readRawTxRecordBlockHeight(k, &height)
@@ -358,9 +352,7 @@ func (s *Store) rangeUnminedTransactions(ns walletdb.ReadBucket, f func([]TxDeta
 	var details []TxDetails
 	err := ns.NestedReadBucket(bucketUnmined).ForEach(func(k, v []byte) error {
 		if len(k) < 32 {
-			str := fmt.Sprintf("%s: short key (expected %d "+
-				"bytes, read %d)", bucketUnmined, 32, len(k))
-			return storeError(apperrors.ErrData, str, nil)
+			return errors.E(errors.IO, errors.Errorf("bad unmined tx key len %d", len(k)))
 		}
 
 		var txHash chainhash.Hash
@@ -433,9 +425,7 @@ func (s *Store) rangeBlockTransactions(ns walletdb.ReadBucket, begin, end int32,
 			k := keyTxRecord(&txHash, &block.Block)
 			v := existsRawTxRecord(ns, k)
 			if v == nil {
-				str := fmt.Sprintf("missing transaction %v for "+
-					"block %v", txHash, block.Height)
-				return false, storeError(apperrors.ErrData, str, nil)
+				return false, errors.E(errors.IO, errors.Errorf("missing transaction %v for block %v", txHash, block.Height))
 			}
 			detail := TxDetails{
 				Block: BlockMeta{
@@ -451,8 +441,7 @@ func (s *Store) rangeBlockTransactions(ns walletdb.ReadBucket, begin, end int32,
 			credIter := makeReadCreditIterator(ns, k, DBVersion)
 			for credIter.next() {
 				if int(credIter.elem.Index) >= len(detail.MsgTx.TxOut) {
-					str := "saved credit index exceeds number of outputs"
-					return false, storeError(apperrors.ErrData, str, nil)
+					return false, errors.E(errors.IO, "saved credit index exceeds number of outputs")
 				}
 
 				// The credit iterator does not record whether
@@ -472,8 +461,7 @@ func (s *Store) rangeBlockTransactions(ns walletdb.ReadBucket, begin, end int32,
 			debIter := makeReadDebitIterator(ns, k)
 			for debIter.next() {
 				if int(debIter.elem.Index) >= len(detail.MsgTx.TxIn) {
-					str := "saved debit index exceeds number of inputs"
-					return false, storeError(apperrors.ErrData, str, nil)
+					return false, errors.E(errors.IO, "saved debit index exceeds number of inputs")
 				}
 
 				detail.Debits = append(detail.Debits, debIter.elem)
@@ -578,9 +566,7 @@ func (s *Store) PreviousPkScripts(ns walletdb.ReadBucket, rec *TxRecord, block *
 			if credKey != nil {
 				credVal := existsRawCredit(ns, credKey)
 				if credVal == nil {
-					return nil, storeError(apperrors.ErrDatabase, fmt.Sprintf("credit "+
-						"val for %x missing", credVal),
-						fmt.Errorf("no exists"))
+					return nil, errors.E(errors.IO, errors.Errorf("missing credit value for key %x", credKey))
 				}
 
 				// Legacy outputs in the credit bucket may be of the
@@ -608,9 +594,7 @@ func (s *Store) PreviousPkScripts(ns walletdb.ReadBucket, rec *TxRecord, block *
 
 		credVal := existsRawCredit(ns, credKey)
 		if credVal == nil {
-			return nil, storeError(apperrors.ErrDatabase, fmt.Sprintf("credit "+
-				"val for %x missing in debit itr", credVal),
-				fmt.Errorf("no exists"))
+			return nil, errors.E(errors.IO, errors.Errorf("missing credit val for key %x", credKey))
 		}
 
 		// Legacy credit output values may be of the wrong

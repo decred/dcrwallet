@@ -18,6 +18,7 @@ import (
 
 	"github.com/btcsuite/btclog"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/cfgutil"
 	"github.com/decred/dcrwallet/netparams"
 	"github.com/decred/dcrwallet/ticketbuyer"
@@ -271,7 +272,7 @@ func parseAndSetDebugLevels(debugLevel string) error {
 		// Validate debug log level.
 		if !validLogLevel(debugLevel) {
 			str := "The specified debug level [%v] is invalid"
-			return fmt.Errorf(str, debugLevel)
+			return errors.Errorf(str, debugLevel)
 		}
 
 		// Change the logging level for all subsystems.
@@ -286,7 +287,7 @@ func parseAndSetDebugLevels(debugLevel string) error {
 		if !strings.Contains(logLevelPair, "=") {
 			str := "The specified debug level contains an invalid " +
 				"subsystem/level pair [%v]"
-			return fmt.Errorf(str, logLevelPair)
+			return errors.Errorf(str, logLevelPair)
 		}
 
 		// Extract the specified subsystem and log level.
@@ -297,13 +298,13 @@ func parseAndSetDebugLevels(debugLevel string) error {
 		if _, exists := subsystemLoggers[subsysID]; !exists {
 			str := "The specified subsystem [%v] is invalid -- " +
 				"supported subsytems %v"
-			return fmt.Errorf(str, subsysID, supportedSubsystems())
+			return errors.Errorf(str, subsysID, supportedSubsystems())
 		}
 
 		// Validate log level.
 		if !validLogLevel(logLevel) {
 			str := "The specified debug level [%v] is invalid"
-			return fmt.Errorf(str, logLevel)
+			return errors.Errorf(str, logLevel)
 		}
 
 		setLogLevel(subsysID, logLevel)
@@ -477,7 +478,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	if numNets > 1 {
 		str := "%s: The testnet and simnet params can't be used " +
 			"together -- choose one"
-		err := fmt.Errorf(str, "loadConfig")
+		err := errors.Errorf(str, "loadConfig")
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
@@ -499,7 +500,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 
 	// Parse, validate, and set debug log level(s).
 	if err := parseAndSetDebugLevels(cfg.DebugLevel); err != nil {
-		err := fmt.Errorf("%s: %v", "loadConfig", err.Error())
+		err := errors.Errorf("%s: %v", "loadConfig", err.Error())
 		fmt.Fprintln(os.Stderr, err)
 		parser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
@@ -547,7 +548,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	case ticketbuyer.TicketFeeMedian:
 	default:
 		str := "%s: Invalid fee source '%s'"
-		err := fmt.Errorf(str, funcName, cfg.TBOpts.FeeSource)
+		err := errors.Errorf(str, funcName, cfg.TBOpts.FeeSource)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
@@ -559,7 +560,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	case ticketbuyer.PriceTargetDual:
 	default:
 		str := "%s: Invalid average price mode '%s'"
-		err := fmt.Errorf(str, funcName, cfg.TBOpts.AvgPriceMode)
+		err := errors.Errorf(str, funcName, cfg.TBOpts.AvgPriceMode)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
@@ -567,7 +568,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Sanity check MaxPriceRelative
 	if cfg.TBOpts.MaxPriceRelative < 0 {
 		str := "%s: maxpricerelative cannot be negative: %v"
-		err := fmt.Errorf(str, funcName, cfg.TBOpts.MaxPriceRelative)
+		err := errors.Errorf(str, funcName, cfg.TBOpts.MaxPriceRelative)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
@@ -575,19 +576,19 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Sanity check MinFee and MaxFee
 	if cfg.TBOpts.MinFee.ToCoin() > cfg.TBOpts.MaxFee.ToCoin() {
 		str := "%s: minfee cannot be higher than maxfee: (min %v, max %v)"
-		err := fmt.Errorf(str, funcName, cfg.TBOpts.MinFee, cfg.TBOpts.MaxFee)
+		err := errors.Errorf(str, funcName, cfg.TBOpts.MinFee, cfg.TBOpts.MaxFee)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
 	if cfg.TBOpts.MaxFee.ToCoin() < 0 {
 		str := "%s: maxfee cannot be less than zero: %v"
-		err := fmt.Errorf(str, funcName, cfg.TBOpts.MaxFee)
+		err := errors.Errorf(str, funcName, cfg.TBOpts.MaxFee)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
 	if cfg.TBOpts.MinFee.ToCoin() < 0 {
 		str := "%s: minfee cannot be less than zero: %v"
-		err := fmt.Errorf(str, funcName, cfg.TBOpts.MinFee)
+		err := errors.Errorf(str, funcName, cfg.TBOpts.MinFee)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
@@ -595,7 +596,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Sanity check BalanceToMaintainAbsolute
 	if cfg.TBOpts.BalanceToMaintainAbsolute.ToCoin() < 0 {
 		str := "%s: balancetomaintainabsolute cannot be negative: %v"
-		err := fmt.Errorf(str, funcName, cfg.TBOpts.BalanceToMaintainAbsolute)
+		err := errors.Errorf(str, funcName, cfg.TBOpts.BalanceToMaintainAbsolute)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
@@ -603,13 +604,13 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Sanity check BalanceToMaintainRelative
 	if cfg.TBOpts.BalanceToMaintainRelative < 0 {
 		str := "%s: balancetomaintainabsolute cannot be negative: %v"
-		err := fmt.Errorf(str, funcName, cfg.TBOpts.BalanceToMaintainRelative)
+		err := errors.Errorf(str, funcName, cfg.TBOpts.BalanceToMaintainRelative)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
 	if cfg.TBOpts.BalanceToMaintainRelative > 1 {
 		str := "%s: balancetomaintainrelative cannot be greater then 1: %v"
-		err := fmt.Errorf(str, funcName, cfg.TBOpts.BalanceToMaintainRelative)
+		err := errors.Errorf(str, funcName, cfg.TBOpts.BalanceToMaintainRelative)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
@@ -617,7 +618,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Sanity check ExpiryDelta
 	if cfg.TBOpts.ExpiryDelta <= 0 {
 		str := "%s: expirydelta must be greater then zero: %v"
-		err := fmt.Errorf(str, funcName, cfg.TBOpts.ExpiryDelta)
+		err := errors.Errorf(str, funcName, cfg.TBOpts.ExpiryDelta)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
@@ -648,7 +649,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	dbPath := filepath.Join(netDir, walletDbName)
 
 	if cfg.CreateTemp && cfg.Create {
-		err := fmt.Errorf("The flags --create and --createtemp can not " +
+		err := errors.Errorf("The flags --create and --createtemp can not " +
 			"be specified together. Use --help for more information.")
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
@@ -687,7 +688,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		// Error if the create flag is set and the wallet already
 		// exists.
 		if dbFileExists {
-			err := fmt.Errorf("The wallet database file `%v` "+
+			err := errors.Errorf("The wallet database file `%v` "+
 				"already exists.", dbPath)
 			fmt.Fprintln(os.Stderr, err)
 			return loadConfigError(err)
@@ -714,17 +715,15 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		// Created successfully, so exit now with success.
 		os.Exit(0)
 	} else if !dbFileExists && !cfg.NoInitialLoad {
-		err := fmt.Errorf("The wallet does not exist.  Run with the " +
+		err := errors.Errorf("The wallet does not exist.  Run with the " +
 			"--create option to initialize and create it.")
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
 
 	if cfg.PoolFees != 0.0 {
-		err := txrules.IsValidPoolFeeRate(cfg.PoolFees)
-		if err != nil {
-			err := fmt.Errorf("poolfees '%v' failed to decode: %v",
-				cfg.PoolFees, err)
+		if !txrules.ValidPoolFeeRate(cfg.PoolFees) {
+			err := errors.E(errors.Invalid, errors.Errorf("pool fee rate %v", cfg.PoolFees))
 			fmt.Fprintln(os.Stderr, err.Error())
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return loadConfigError(err)
@@ -758,7 +757,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			str := "%s: the --noclienttls option may not be used " +
 				"when connecting RPC to non localhost " +
 				"addresses: %s"
-			err := fmt.Errorf(str, funcName, cfg.RPCConnect)
+			err := errors.Errorf(str, funcName, cfg.RPCConnect)
 			fmt.Fprintln(os.Stderr, err)
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return loadConfigError(err)
@@ -844,7 +843,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		for _, addr := range cfg.GRPCListeners {
 			_, seen := seenAddresses[addr]
 			if seen && !strings.HasSuffix(addr, ":0") {
-				err := fmt.Errorf("Address `%s` may not be "+
+				err := errors.Errorf("Address `%s` may not be "+
 					"used as a listener address for both "+
 					"RPC servers", addr)
 				fmt.Fprintln(os.Stderr, err)
@@ -862,7 +861,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			if err != nil {
 				str := "%s: RPC listen interface '%s' is " +
 					"invalid: %v"
-				err := fmt.Errorf(str, funcName, addr, err)
+				err := errors.Errorf(str, funcName, addr, err)
 				fmt.Fprintln(os.Stderr, err)
 				fmt.Fprintln(os.Stderr, usageMessage)
 				return loadConfigError(err)
@@ -871,7 +870,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 				str := "%s: the --noservertls option may not be used " +
 					"when binding RPC to non localhost " +
 					"addresses: %s"
-				err := fmt.Errorf(str, funcName, addr)
+				err := errors.Errorf(str, funcName, addr)
 				fmt.Fprintln(os.Stderr, err)
 				fmt.Fprintln(os.Stderr, usageMessage)
 				return loadConfigError(err)

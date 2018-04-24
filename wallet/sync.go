@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 	"golang.org/x/sync/errgroup"
@@ -166,13 +166,15 @@ Bsearch:
 //
 // A transaction filter (re)load and rescan should be performed after discovery.
 func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) error {
+	const op errors.Op = "wallet.DiscoverActiveAddresses"
+
 	_, slip0044CoinType := udb.CoinTypes(w.chainParams)
 	var activeCoinType uint32
 	var coinTypeKnown, isSLIP0044CoinType bool
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		activeCoinType, err = w.Manager.CoinType(dbtx)
-		if apperrors.IsError(err, apperrors.ErrValueNoExists) {
+		if errors.Is(errors.WatchingOnly, err) {
 			return nil
 		}
 		if err != nil {
@@ -184,7 +186,7 @@ func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) e
 		return nil
 	})
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	// Start by rescanning the accounts and determining what the
@@ -204,11 +206,11 @@ func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) e
 			return err
 		})
 		if err != nil {
-			return err
+			return errors.E(op, err)
 		}
 		lastUsed, err := w.findLastUsedAccount(n, coinTypePrivKey)
 		if err != nil {
-			return err
+			return errors.E(op, err)
 		}
 		if lastUsed != 0 {
 			var lastRecorded uint32
@@ -236,7 +238,7 @@ func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) e
 			})
 			if err != nil {
 				w.addressBuffersMu.Unlock()
-				return err
+				return errors.E(op, err)
 			}
 			for acct := lastRecorded + 1; acct <= lastUsed; acct++ {
 				_, ok := w.addressBuffers[acct]
@@ -244,7 +246,7 @@ func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) e
 					extKey, intKey, err := deriveBranches(acctXpubs[acct])
 					if err != nil {
 						w.addressBuffersMu.Unlock()
-						return err
+						return errors.E(op, err)
 					}
 					w.addressBuffers[acct] = &bip0044AccountData{
 						albExternal: addressBuffer{branchXpub: extKey},
@@ -264,7 +266,7 @@ func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) e
 		return err
 	})
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	log.Infof("Discovering used addresses for %d account(s)", lastAcct+1)
@@ -360,7 +362,7 @@ func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) e
 	}
 	err = g.Wait()
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	log.Infof("Finished address discovery")

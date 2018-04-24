@@ -18,7 +18,7 @@ import (
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
@@ -835,7 +835,7 @@ func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stop
 			height, err := w.TxStore.TxBlockHeight(dbtx, h)
 			var confs int32
 			switch {
-			case apperrors.IsError(err, apperrors.ErrValueNoExists):
+			case errors.Is(errors.NotExist, err):
 				confs = -1
 			default:
 				confs = confirms(height, tipHeight)
@@ -916,7 +916,7 @@ func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
 			height, err := w.TxStore.TxBlockHeight(dbtx, &txHash)
 			var confs int32
 			switch {
-			case apperrors.IsError(err, apperrors.ErrValueNoExists):
+			case errors.Is(errors.NotExist, err):
 				confs = -1
 			default:
 				confs = confirms(height, tipHeight)

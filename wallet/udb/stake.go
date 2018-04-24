@@ -6,7 +6,6 @@ package udb
 
 import (
 	"bytes"
-	"fmt"
 	"sync"
 	"time"
 
@@ -15,13 +14,9 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/walletdb"
 )
-
-func stakeStoreError(code apperrors.Code, str string, err error) error {
-	return apperrors.E{ErrorCode: code, Description: str, Err: err}
-}
 
 // sstxRecord is the structure for a stored SStx.
 type sstxRecord struct {
@@ -161,10 +156,6 @@ func (s *StakeStore) dumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrut
 	// Extract the HASH160 script hash; if it's not 20 bytes
 	// long, return an error.
 	hash160 := addr.ScriptAddress()
-	if len(hash160) != 20 {
-		str := "stake store is closed"
-		return nil, stakeStoreError(apperrors.ErrInput, str, nil)
-	}
 	_, addrIsP2SH := addr.(*dcrutil.AddressScriptHash)
 
 	allTickets := s.dumpSStxHashes()
@@ -174,8 +165,7 @@ func (s *StakeStore) dumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrut
 	for _, h := range allTickets {
 		thisHash160, p2sh, err := fetchSStxRecordSStxTicketHash160(ns, &h, DBVersion)
 		if err != nil {
-			str := "failure getting ticket 0th out script hashes from db"
-			return nil, stakeStoreError(apperrors.ErrDatabase, str, err)
+			return nil, errors.E(errors.IO, err)
 		}
 		if addrIsP2SH != p2sh {
 			continue
@@ -203,8 +193,7 @@ func (s *StakeStore) sstxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (
 	// Access the database and store the result locally.
 	thisHash160, p2sh, err := fetchSStxRecordSStxTicketHash160(ns, hash, DBVersion)
 	if err != nil {
-		str := "failure getting ticket 0th out script hashes from db"
-		return nil, stakeStoreError(apperrors.ErrDatabase, str, err)
+		return nil, err
 	}
 	var addr dcrutil.Address
 	if p2sh {
@@ -213,8 +202,7 @@ func (s *StakeStore) sstxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (
 		addr, err = dcrutil.NewAddressPubKeyHash(thisHash160, s.Params, chainec.ECTypeSecp256k1)
 	}
 	if err != nil {
-		str := "failure getting ticket 0th out script hashes from db"
-		return nil, stakeStoreError(apperrors.ErrDatabase, str, err)
+		return nil, err
 	}
 
 	return addr, nil
@@ -247,8 +235,7 @@ func (s *StakeStore) updateStakePoolUserTickets(ns walletdb.ReadWriteBucket, use
 	_, isScriptHash := user.(*dcrutil.AddressScriptHash)
 	_, isP2PKH := user.(*dcrutil.AddressPubKeyHash)
 	if !(isScriptHash || isP2PKH) {
-		str := fmt.Sprintf("user %v is invalid", user.EncodeAddress())
-		return stakeStoreError(apperrors.ErrBadPoolUserAddr, str, nil)
+		return errors.E(errors.Invalid, errors.Errorf("voting address type %T", user))
 	}
 	scriptHashB := user.ScriptAddress()
 	scriptHash := new([20]byte)
@@ -265,14 +252,11 @@ func (s *StakeStore) UpdateStakePoolUserTickets(ns walletdb.ReadWriteBucket, use
 
 // removeStakePoolUserInvalTickets prepares the user.Address and asks stakedb
 // to remove the formerly invalid tickets.
-func (s *StakeStore) removeStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address,
-	ticket *chainhash.Hash) error {
-
+func (s *StakeStore) removeStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address, ticket *chainhash.Hash) error {
 	_, isScriptHash := user.(*dcrutil.AddressScriptHash)
 	_, isP2PKH := user.(*dcrutil.AddressPubKeyHash)
 	if !(isScriptHash || isP2PKH) {
-		str := fmt.Sprintf("user %v is invalid", user.EncodeAddress())
-		return stakeStoreError(apperrors.ErrBadPoolUserAddr, str, nil)
+		return errors.E(errors.Invalid, errors.Errorf("voting address type %T", user))
 	}
 	scriptHashB := user.ScriptAddress()
 	scriptHash := new([20]byte)
@@ -283,8 +267,7 @@ func (s *StakeStore) removeStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket
 
 // RemoveStakePoolUserInvalTickets is the exported and concurrency safe form of
 // removetStakePoolUserInvalTickets.
-func (s *StakeStore) RemoveStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address,
-	ticket *chainhash.Hash) error {
+func (s *StakeStore) RemoveStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address, ticket *chainhash.Hash) error {
 	return s.removeStakePoolUserInvalTickets(ns, user, ticket)
 }
 
@@ -295,8 +278,7 @@ func (s *StakeStore) updateStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket
 	_, isScriptHash := user.(*dcrutil.AddressScriptHash)
 	_, isP2PKH := user.(*dcrutil.AddressPubKeyHash)
 	if !(isScriptHash || isP2PKH) {
-		str := fmt.Sprintf("user %v is invalid", user.EncodeAddress())
-		return stakeStoreError(apperrors.ErrBadPoolUserAddr, str, nil)
+		return errors.E(errors.Invalid, errors.Errorf("voting address type %T", user))
 	}
 	scriptHashB := user.ScriptAddress()
 	scriptHash := new([20]byte)
@@ -315,8 +297,7 @@ func stakePoolUserInfo(ns walletdb.ReadBucket, user dcrutil.Address) (*StakePool
 	_, isScriptHash := user.(*dcrutil.AddressScriptHash)
 	_, isP2PKH := user.(*dcrutil.AddressPubKeyHash)
 	if !(isScriptHash || isP2PKH) {
-		str := fmt.Sprintf("user %v is invalid", user.EncodeAddress())
-		return nil, stakeStoreError(apperrors.ErrBadPoolUserAddr, str, nil)
+		return nil, errors.E(errors.Invalid, errors.Errorf("voting address type %T", user))
 	}
 	scriptHashB := user.ScriptAddress()
 	scriptHash := new([20]byte)
@@ -329,29 +310,24 @@ func stakePoolUserInfo(ns walletdb.ReadBucket, user dcrutil.Address) (*StakePool
 	// no entries.
 	missingValidTickets, missingInvalidTickets := false, false
 
-	userTickets, fetchErrVal := fetchStakePoolUserTickets(ns, *scriptHash)
-	if fetchErrVal != nil {
-		stakeMgrErr, is := fetchErrVal.(apperrors.E)
-		if is {
-			missingValidTickets = stakeMgrErr.ErrorCode ==
-				apperrors.ErrPoolUserTicketsNotFound
-		} else {
-			return nil, fetchErrVal
+	userTickets, err := fetchStakePoolUserTickets(ns, *scriptHash)
+	if err != nil {
+		missingValidTickets = errors.Is(errors.NotExist, err)
+		if !missingValidTickets {
+			return nil, err
 		}
 	}
 	if missingValidTickets {
 		userTickets = make([]*PoolTicket, 0)
 	}
 
-	invalTickets, fetchErrInval := fetchStakePoolUserInvalTickets(ns,
-		*scriptHash)
-	if fetchErrInval != nil {
-		stakeMgrErr, is := fetchErrInval.(apperrors.E)
-		if is {
-			missingInvalidTickets = stakeMgrErr.ErrorCode ==
-				apperrors.ErrPoolUserInvalTcktsNotFound
-		} else {
-			return nil, fetchErrInval
+	invalTickets, err := fetchStakePoolUserInvalTickets(ns, *scriptHash)
+	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			missingInvalidTickets = true
+		}
+		if !missingInvalidTickets {
+			return nil, err
 		}
 	}
 	if missingInvalidTickets {
@@ -413,15 +389,13 @@ func newStakeStore(params *chaincfg.Params, manager *Manager) *StakeStore {
 // openStakeStore loads an existing stake manager from the given namespace,
 // waddrmgr, and network parameters.
 //
-// A ManagerError with an error code of ErrNoExist will be returned if the
-// passed manager does not exist in the specified namespace.
+// A NotExist error is returned returned when the stake store is not written to
+// the db.
 func openStakeStore(ns walletdb.ReadBucket, manager *Manager, params *chaincfg.Params) (*StakeStore, error) {
 	// Return an error if the manager has NOT already been created in the
 	// given database namespace.
-	exists := stakeStoreExists(ns)
-	if !exists {
-		str := "the specified stake store/manager does not exist in db"
-		return nil, stakeStoreError(apperrors.ErrNoExist, str, nil)
+	if !stakeStoreExists(ns) {
+		return nil, errors.E(errors.NotExist, "no stake store")
 	}
 
 	ss := newStakeStore(params, manager)

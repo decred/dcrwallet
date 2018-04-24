@@ -7,24 +7,22 @@ package udb
 
 import (
 	"bytes"
-	"fmt"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
 // InsertMemPoolTx inserts a memory pool transaction record.  It also marks
 // previous outputs referenced by its inputs as spent.  Errors with the
-// apperrors.ErrDoubleSpend code if another unmined transaction is a double
-// spend of this transaction.
+// DoubleSpend code if another unmined transaction is a double spend of this
+// transaction.
 func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) error {
 	_, recVal := latestTxRecord(ns, rec.Hash[:])
 	if recVal != nil {
-		const str = "transaction already exists mined"
-		return apperrors.New(apperrors.ErrDuplicate, str)
+		return errors.E(errors.Exist, "transaction already exists mined")
 	}
 
 	v := existsRawUnmined(ns, rec.Hash[:])
@@ -57,9 +55,7 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 				var spenderTx wire.MsgTx
 				err := spenderTx.Deserialize(bytes.NewReader(spenderTxBytes))
 				if err != nil {
-					str := fmt.Sprintf("failed to deserialize unmined "+
-						"transaction %v", &spenderHash)
-					return apperrors.Wrap(err, apperrors.ErrData, str)
+					return errors.E(errors.IO, err)
 				}
 				if stake.DetermineTxType(&spenderTx) != stake.TxTypeSSGen {
 					break DoubleSpendVoteCheck
@@ -67,9 +63,7 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 				votedBlock, _ := stake.SSGenBlockVotedOn(&spenderTx)
 				tipBlock, _ := s.MainChainTip(ns)
 				if votedBlock == tipBlock {
-					const str = "vote or revocation double spends unmined vote " +
-						"on the tip block"
-					return apperrors.New(apperrors.ErrDoubleSpend, str)
+					return errors.E(errors.DoubleSpend, "vote or revocation double spends unmined vote on the tip block")
 				}
 
 				err = s.removeUnconfirmed(ns, &spenderTx, &spenderHash)
@@ -79,13 +73,12 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 				continue
 			}
 
-			str := fmt.Sprintf("unmined transaction %v is a double spend of "+
-				"unmined transaction %v", &rec.Hash, &spenderHash)
-			return apperrors.New(apperrors.ErrDoubleSpend, str)
+			err := errors.Errorf("%v conflicts with %v by double spending %v", &rec.Hash, &spenderHash, prevOut)
+			return errors.E(errors.DoubleSpend, err)
 		}
 	}
 
-	log.Infof("Inserting unconfirmed transaction %v", rec.Hash)
+	log.Infof("Inserting unconfirmed transaction %v", &rec.Hash)
 	v, err := valueTxRecord(rec)
 	if err != nil {
 		return err
@@ -306,8 +299,7 @@ func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) error {
 		var tx wire.MsgTx
 		err := tx.Deserialize(bytes.NewReader(extractRawUnminedTx(v)))
 		if err != nil {
-			return apperrors.Wrap(err, apperrors.ErrData,
-				"invalid transaction recorded in unmined bucket")
+			return errors.E(errors.IO, err)
 		}
 
 		var expired, isTicketPurchase, isVote bool
@@ -332,8 +324,7 @@ func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) error {
 
 		txHash, err := chainhash.NewHash(k)
 		if err != nil {
-			return apperrors.Wrap(err, apperrors.ErrData,
-				"invalid transaction hash used as unmined bucket key")
+			return errors.E(errors.IO, err)
 		}
 
 		if expired {

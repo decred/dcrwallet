@@ -7,6 +7,7 @@ package wallet
 import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
@@ -24,6 +25,8 @@ func UnstableAPI(w *Wallet) unstableAPI { return unstableAPI{w} }
 
 // TxDetails calls udb.Store.TxDetails under a single database view transaction.
 func (u unstableAPI) TxDetails(txHash *chainhash.Hash) (*udb.TxDetails, error) {
+	const op errors.Op = "wallet.TxDetails"
+
 	var details *udb.TxDetails
 	err := walletdb.View(u.w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -31,22 +34,31 @@ func (u unstableAPI) TxDetails(txHash *chainhash.Hash) (*udb.TxDetails, error) {
 		details, err = u.w.TxStore.TxDetails(txmgrNs, txHash)
 		return err
 	})
-	return details, err
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return details, nil
 }
 
 // RangeTransactions calls udb.Store.RangeTransactions under a single
 // database view tranasction.
 func (u unstableAPI) RangeTransactions(begin, end int32, f func([]udb.TxDetails) (bool, error)) error {
-	return walletdb.View(u.w.db, func(dbtx walletdb.ReadTx) error {
+	const op errors.Op = "wallet.RangeTransactions"
+	err := walletdb.View(u.w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		return u.w.TxStore.RangeTransactions(txmgrNs, begin, end, f)
 	})
+	if err != nil {
+		return errors.E(op, err)
+	}
+	return nil
 }
 
 // UnspentMultisigCreditsForAddress calls
 // udb.Store.UnspentMultisigCreditsForAddress under a single database view
 // transaction.
 func (u unstableAPI) UnspentMultisigCreditsForAddress(p2shAddr *dcrutil.AddressScriptHash) ([]*udb.MultisigCredit, error) {
+	const op errors.Op = "wallet.UnspentMultisigCreditsForAddress"
 	var multisigCredits []*udb.MultisigCredit
 	err := walletdb.View(u.w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
@@ -55,5 +67,8 @@ func (u unstableAPI) UnspentMultisigCreditsForAddress(p2shAddr *dcrutil.AddressS
 			txmgrNs, p2shAddr)
 		return err
 	})
-	return multisigCredits, err
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return multisigCredits, nil
 }

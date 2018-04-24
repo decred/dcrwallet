@@ -39,21 +39,19 @@ import (
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/cfgutil"
 	h "github.com/decred/dcrwallet/internal/helpers"
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/netparams"
-	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
 	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
 	"github.com/decred/dcrwallet/walletseed"
 )
 
@@ -77,53 +75,54 @@ func translateError(err error) error {
 }
 
 func errorCode(err error) codes.Code {
-	// apperrors.IsError is convenient, but not granular enough when the
-	// underlying error has to be checked.  Unwrap the underlying error
-	// if it exists.
-	if e, ok := err.(apperrors.E); ok {
-		// For these error codes, the underlying error isn't needed to determine
-		// the grpc error code.
-		switch e.ErrorCode {
-		case apperrors.ErrWrongPassphrase: // public and private
+	var inner error
+	if err, ok := err.(*errors.Error); ok {
+		switch err.Kind {
+		case errors.Bug:
+		case errors.Invalid:
 			return codes.InvalidArgument
-		case apperrors.ErrAccountNotFound:
-			return codes.NotFound
-		case apperrors.ErrInvalidAccount: // reserved account
-			return codes.InvalidArgument
-		case apperrors.ErrDuplicateAccount:
+		case errors.Permission:
+			return codes.PermissionDenied
+		case errors.IO:
+		case errors.Exist:
 			return codes.AlreadyExists
-		case apperrors.ErrValueNoExists:
+		case errors.NotExist:
 			return codes.NotFound
-		case apperrors.ErrInput:
+		case errors.Encoding:
+		case errors.Crypto:
+			return codes.DataLoss
+		case errors.Locked:
+			return codes.FailedPrecondition
+		case errors.Passphrase:
 			return codes.InvalidArgument
-		case apperrors.ErrUnsupported:
+		case errors.Seed:
+			return codes.InvalidArgument
+		case errors.WatchingOnly:
 			return codes.Unimplemented
-		case apperrors.ErrDisconnected:
+		case errors.InsufficientBalance:
+			return codes.ResourceExhausted
+		case errors.ScriptFailure:
+		case errors.Policy:
+		case errors.DoubleSpend:
+		case errors.Protocol:
+		case errors.NoPeers:
 			return codes.Unavailable
+		default:
+			inner = err.Err
+			for {
+				err, ok := inner.(*errors.Error)
+				if !ok {
+					break
+				}
+				inner = err.Err
+			}
 		}
-
-		err = e.Err
 	}
-
-	switch err.(type) {
-	case txauthor.InputSourceError:
-		return codes.ResourceExhausted
-	}
-
-	switch err {
-	case loader.ErrWalletLoaded:
-		return codes.FailedPrecondition
-	case walletdb.ErrDbNotOpen:
-		return codes.Aborted
-	case walletdb.ErrDbExists:
-		return codes.AlreadyExists
-	case walletdb.ErrDbDoesNotExist:
-		return codes.NotFound
+	switch inner {
 	case hdkeychain.ErrInvalidSeedLen:
 		return codes.InvalidArgument
-	default:
-		return codes.Unknown
 	}
+	return codes.Unknown
 }
 
 // decodeAddress decodes an address and verifies it is intended for the active
@@ -727,9 +726,7 @@ func (s *walletServer) UnspentOutputs(req *pb.UnspentOutputsRequest, svr pb.Wall
 	_, inputs, scripts, err := s.wallet.SelectInputs(dcrutil.Amount(req.TargetAmount), policy)
 	// Do not return errors to caller when there was insufficient spendable
 	// outputs available for the target amount.
-	switch err.(type) {
-	case nil, txauthor.InputSourceError:
-	default:
+	if err != nil && !errors.Is(errors.InsufficientBalance, err) {
 		return translateError(err)
 	}
 
@@ -775,9 +772,7 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 	totalAmount, inputs, scripts, err := s.wallet.SelectInputs(dcrutil.Amount(req.TargetAmount), policy)
 	// Do not return errors to caller when there was insufficient spendable
 	// outputs available for the target amount.
-	switch err.(type) {
-	case nil, txauthor.InputSourceError:
-	default:
+	if err != nil && !errors.Is(errors.InsufficientBalance, err) {
 		return nil, translateError(err)
 	}
 
@@ -1360,10 +1355,8 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}
 
 	if req.PoolFees > 0 {
-		err = txrules.IsValidPoolFeeRate(req.PoolFees)
-		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument,
-				"Pool fees amount invalid: %v", err)
+		if !txrules.ValidPoolFeeRate(req.PoolFees) {
+			return nil, status.Errorf(codes.InvalidArgument, "Invalid pool fees percentage")
 		}
 	}
 
@@ -1591,7 +1584,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 	result.IsValid = true
 	addrInfo, err := s.wallet.AddressInfo(addr)
 	if err != nil {
-		if apperrors.IsError(err, apperrors.ErrAddressNotFound) {
+		if errors.Is(errors.NotExist, err) {
 			// No additional information available about the address.
 			return result, nil
 		}
@@ -1603,7 +1596,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 	result.IsMine = true
 	acctName, err := s.wallet.AccountName(addrInfo.Account())
 	if err != nil {
-		return nil, &legacyrpc.ErrAccountNameNotFound
+		return nil, translateError(err)
 	}
 
 	acctNumber, err := s.wallet.AccountNumber(acctName)
@@ -2014,9 +2007,8 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 	case poolFees != 0 && poolAddress == nil:
 		return nil, status.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
 	case poolFees != 0 && poolAddress != nil:
-		err = txrules.IsValidPoolFeeRate(poolFees)
-		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "Pool fees amount invalid: %v", err)
+		if !txrules.ValidPoolFeeRate(req.PoolFees) {
+			return nil, status.Errorf(codes.InvalidArgument, "Invalid pool fees percentage")
 		}
 	}
 
@@ -2043,8 +2035,8 @@ func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAut
 		TxFee:                     t.ticketbuyerCfg.TxFee,
 	}
 	err = t.loader.StartTicketPurchase(req.Passphrase, config)
-	if err == loader.ErrTicketBuyerStarted {
-		return nil, status.Errorf(codes.FailedPrecondition, "Ticket buyer is already started")
+	if errors.Is(errors.Invalid, err) {
+		return nil, status.Errorf(codes.FailedPrecondition, "%s", err)
 	}
 	if err != nil {
 		return nil, translateError(err)
@@ -2057,7 +2049,7 @@ func (t *ticketbuyerServer) StopAutoBuyer(ctx context.Context, req *pb.StopAutoB
 	*pb.StopAutoBuyerResponse, error) {
 
 	err := t.loader.StopTicketPurchase()
-	if err == loader.ErrTicketBuyerStopped {
+	if errors.Is(errors.Invalid, err) {
 		return nil, status.Errorf(codes.FailedPrecondition, "Ticket buyer is not running")
 	}
 	if err != nil {
@@ -2143,7 +2135,7 @@ func (s *loaderServer) CloseWallet(ctx context.Context, req *pb.CloseWalletReque
 	*pb.CloseWalletResponse, error) {
 
 	err := s.loader.UnloadWallet()
-	if err == loader.ErrWalletNotLoaded {
+	if errors.Is(errors.Invalid, err) {
 		return nil, status.Errorf(codes.FailedPrecondition, "Wallet is not loaded")
 	}
 	if err != nil {
@@ -2561,9 +2553,8 @@ func (t *ticketbuyerServer) SetPoolFees(ctx context.Context, req *pb.SetPoolFees
 	case poolFees != 0 && poolAddress == "":
 		return nil, status.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
 	case poolFees != 0 && poolAddress != "":
-		err = txrules.IsValidPoolFeeRate(poolFees)
-		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "Pool fees amount invalid: %v", err)
+		if !txrules.ValidPoolFeeRate(req.PoolFees) {
+			return nil, status.Errorf(codes.InvalidArgument, "Invalid pool fees percentage")
 		}
 	}
 

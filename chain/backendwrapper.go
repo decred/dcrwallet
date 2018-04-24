@@ -12,7 +12,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/jrick/bitset"
 )
@@ -32,24 +32,28 @@ func BackendFromRPCClient(rpcClient *rpcclient.Client) wallet.NetworkBackend {
 // backend.  This errors if the backend was not created using
 // BackendFromRPCClient.
 func RPCClientFromBackend(n wallet.NetworkBackend) (*rpcclient.Client, error) {
+	const op errors.Op = "chain.RPCClientFromBackend"
+
 	b, ok := n.(*rpcBackend)
 	if !ok {
-		return nil, apperrors.New(apperrors.ErrUnsupported,
-			"this operation requires the network backend to be the consensus RPC server")
+		return nil, errors.E(op, errors.Invalid, "this operation requires "+
+			"the network backend to be the consensus RPC server")
 	}
 	return b.rpcClient, nil
 }
 
 func (b *rpcBackend) GetHeaders(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([][]byte, error) {
+	const op errors.Op = "dcrd.jsonrpc.getheaders"
+
 	r, err := b.rpcClient.GetHeaders(blockLocators, hashStop)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 	headers := make([][]byte, 0, len(r.Headers))
 	for _, hexHeader := range r.Headers {
 		header, err := hex.DecodeString(hexHeader)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, errors.Encoding, err)
 		}
 		headers = append(headers, header)
 	}
@@ -57,42 +61,61 @@ func (b *rpcBackend) GetHeaders(ctx context.Context, blockLocators []*chainhash.
 }
 
 func (b *rpcBackend) LoadTxFilter(ctx context.Context, reload bool, addrs []dcrutil.Address, outpoints []wire.OutPoint) error {
-	return b.rpcClient.LoadTxFilter(reload, addrs, outpoints)
+	const op errors.Op = "dcrd.jsonrpc.loadtxfilter"
+
+	err := b.rpcClient.LoadTxFilter(reload, addrs, outpoints)
+	if err != nil {
+		return errors.E(op, err)
+	}
+	return nil
 }
 
 func (b *rpcBackend) PublishTransaction(ctx context.Context, tx *wire.MsgTx) error {
+	const op errors.Op = "dcrd.jsonrpc.sendrawtransaction"
+
 	// High fees are hardcoded and allowed here since transactions created by
 	// the wallet perform their own high fee check if high fees are disabled.
 	// This matches the lack of any high fee checking when publishing
 	// transactions over the wire protocol.
 	_, err := b.rpcClient.SendRawTransaction(tx, true)
-	return err
+	if err != nil {
+		return errors.E(op, err)
+	}
+	return nil
 }
 
 func (b *rpcBackend) AddressesUsed(ctx context.Context, addrs []dcrutil.Address) (bitset.Bytes, error) {
+	const op errors.Op = "dcrd.jsonrpc.existsaddresses"
+
 	hexBitSet, err := b.rpcClient.ExistsAddresses(addrs)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
-	return hex.DecodeString(hexBitSet)
+	bitset, err := hex.DecodeString(hexBitSet)
+	if err != nil {
+		return nil, errors.E(op, errors.Encoding, err)
+	}
+	return bitset, nil
 }
 
 func (b *rpcBackend) Rescan(ctx context.Context, blocks []chainhash.Hash) ([]*wallet.RescannedBlock, error) {
+	const op errors.Op = "dcrd.jsonrpc.rescan"
+
 	r, err := b.rpcClient.Rescan(blocks)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 	discoveredData := make([]*wallet.RescannedBlock, 0, len(r.DiscoveredData))
 	for _, d := range r.DiscoveredData {
 		blockHash, err := chainhash.NewHashFromStr(d.Hash)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, errors.Encoding, err)
 		}
 		txs := make([][]byte, 0, len(d.Transactions))
 		for _, txHex := range d.Transactions {
 			tx, err := hex.DecodeString(txHex)
 			if err != nil {
-				return nil, err
+				return nil, errors.E(op, errors.Encoding, err)
 			}
 			txs = append(txs, tx)
 		}
@@ -106,13 +129,25 @@ func (b *rpcBackend) Rescan(ctx context.Context, blocks []chainhash.Hash) ([]*wa
 }
 
 func (b *rpcBackend) StakeDifficulty(ctx context.Context) (dcrutil.Amount, error) {
+	const op errors.Op = "dcrd.jsonrpc.getstakedifficulty"
+
 	r, err := b.rpcClient.GetStakeDifficulty()
 	if err != nil {
-		return 0, err
+		return 0, errors.E(op, err)
 	}
-	return dcrutil.NewAmount(r.NextStakeDifficulty)
+	amount, err := dcrutil.NewAmount(r.NextStakeDifficulty)
+	if err != nil {
+		return 0, errors.E(op, err)
+	}
+	return amount, nil
 }
 
 func (b *rpcBackend) GetBlockHash(ctx context.Context, height int32) (*chainhash.Hash, error) {
-	return b.rpcClient.GetBlockHash(int64(height))
+	const op errors.Op = "dcrd.jsonrpc.getblockhash"
+
+	hash, err := b.rpcClient.GetBlockHash(int64(height))
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return hash, nil
 }

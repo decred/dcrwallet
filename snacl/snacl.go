@@ -9,25 +9,17 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/binary"
-	"errors"
 	"io"
 	"runtime/debug"
 
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/zero"
-
 	"golang.org/x/crypto/nacl/secretbox"
 	"golang.org/x/crypto/scrypt"
 )
 
 var (
 	prng = rand.Reader
-)
-
-// Error types and messages.
-var (
-	ErrInvalidPassword = errors.New("invalid password")
-	ErrMalformed       = errors.New("malformed data")
-	ErrDecryptFailed   = errors.New("unable to decrypt")
 )
 
 // Various constants needed for encryption scheme.
@@ -47,10 +39,11 @@ type CryptoKey [KeySize]byte
 
 // Encrypt encrypts the passed data.
 func (ck *CryptoKey) Encrypt(in []byte) ([]byte, error) {
+	const op errors.Op = "cryptokey.Encrypt"
 	var nonce [NonceSize]byte
 	_, err := io.ReadFull(prng, nonce[:])
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 	blob := secretbox.Seal(nil, in, &nonce, (*[KeySize]byte)(ck))
 	return append(nonce[:], blob...), nil
@@ -59,8 +52,9 @@ func (ck *CryptoKey) Encrypt(in []byte) ([]byte, error) {
 // Decrypt decrypts the passed data.  The must be the output of the Encrypt
 // function.
 func (ck *CryptoKey) Decrypt(in []byte) ([]byte, error) {
+	const op errors.Op = "cryptokey.Decrypt"
 	if len(in) < NonceSize {
-		return nil, ErrMalformed
+		return nil, errors.E(op, errors.Invalid, "missing nonce")
 	}
 
 	var nonce [NonceSize]byte
@@ -69,7 +63,7 @@ func (ck *CryptoKey) Decrypt(in []byte) ([]byte, error) {
 
 	opened, ok := secretbox.Open(nil, blob, &nonce, (*[KeySize]byte)(ck))
 	if !ok {
-		return nil, ErrDecryptFailed
+		return nil, errors.E(op, errors.Crypto)
 	}
 
 	return opened, nil
@@ -85,10 +79,11 @@ func (ck *CryptoKey) Zero() {
 
 // GenerateCryptoKey generates a new crypotgraphically random key.
 func GenerateCryptoKey() (*CryptoKey, error) {
+	const op errors.Op = "snacl.GenerateCryptoKey"
 	var key CryptoKey
 	_, err := io.ReadFull(prng, key[:])
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 
 	return &key, nil
@@ -111,14 +106,14 @@ type SecretKey struct {
 }
 
 // deriveKey fills out the Key field.
-func (sk *SecretKey) deriveKey(password *[]byte) error {
+func (sk *SecretKey) deriveKey(op errors.Op, password *[]byte) error {
 	key, err := scrypt.Key(*password, sk.Parameters.Salt[:],
 		sk.Parameters.N,
 		sk.Parameters.R,
 		sk.Parameters.P,
 		len(sk.Key))
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 	copy(sk.Key[:], key)
 	zero.Bytes(key)
@@ -170,6 +165,7 @@ func (sk *SecretKey) Marshal() []byte {
 // Unmarshal unmarshalls the parameters needed to derive the secret key from a
 // passphrase into sk.
 func (sk *SecretKey) Unmarshal(marshalled []byte) error {
+	const op errors.Op = "secretkey.Unmarshal"
 	if sk.Key == nil {
 		sk.Key = (*CryptoKey)(&[KeySize]byte{})
 	}
@@ -179,7 +175,7 @@ func (sk *SecretKey) Unmarshal(marshalled []byte) error {
 	//
 	// KeySize + sha256.Size + N (8 bytes) + R (8 bytes) + P (8 bytes)
 	if len(marshalled) != KeySize+sha256.Size+24 {
-		return ErrMalformed
+		return errors.E(op, errors.Encoding, errors.Errorf("bad marshalled data len %d", len(marshalled)))
 	}
 
 	params := &sk.Parameters
@@ -207,14 +203,15 @@ func (sk *SecretKey) Zero() {
 // expected digest.  This should only be called after previously calling the
 // Zero function or on an initial Unmarshal.
 func (sk *SecretKey) DeriveKey(password *[]byte) error {
-	if err := sk.deriveKey(password); err != nil {
+	const op errors.Op = "secretkey.DeriveKey"
+	if err := sk.deriveKey(op, password); err != nil {
 		return err
 	}
 
 	// verify password
 	digest := sha256.Sum256(sk.Key[:])
 	if subtle.ConstantTimeCompare(digest[:], sk.Parameters.Digest[:]) != 1 {
-		return ErrInvalidPassword
+		return errors.E(op, errors.Passphrase)
 	}
 
 	return nil
@@ -222,16 +219,27 @@ func (sk *SecretKey) DeriveKey(password *[]byte) error {
 
 // Encrypt encrypts in bytes and returns a JSON blob.
 func (sk *SecretKey) Encrypt(in []byte) ([]byte, error) {
-	return sk.Key.Encrypt(in)
+	const op errors.Op = "secretkey.Encrypt"
+	out, err := sk.Key.Encrypt(in)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return out, nil
 }
 
 // Decrypt takes in a JSON blob and returns it's decrypted form.
 func (sk *SecretKey) Decrypt(in []byte) ([]byte, error) {
-	return sk.Key.Decrypt(in)
+	const op errors.Op = "secretkey.Decrypt"
+	out, err := sk.Key.Decrypt(in)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return out, nil
 }
 
 // NewSecretKey returns a SecretKey structure based on the passed parameters.
 func NewSecretKey(password *[]byte, N, r, p int) (*SecretKey, error) {
+	const op errors.Op = "snacl.NewSecretKey"
 	sk := SecretKey{
 		Key: (*CryptoKey)(&[KeySize]byte{}),
 	}
@@ -241,11 +249,11 @@ func NewSecretKey(password *[]byte, N, r, p int) (*SecretKey, error) {
 	sk.Parameters.P = p
 	_, err := io.ReadFull(prng, sk.Parameters.Salt[:])
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 
 	// derive key
-	err = sk.deriveKey(password)
+	err = sk.deriveKey(op, password)
 	if err != nil {
 		return nil, err
 	}

@@ -19,7 +19,6 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/walletdb"
 )
 

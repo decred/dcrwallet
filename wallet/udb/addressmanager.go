@@ -1,5 +1,5 @@
 // Copyright (c) 2014-2016 The btcsuite developers
-// Copyright (c) 2015 The Decred developers
+// Copyright (c) 2015-2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -9,7 +9,6 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"fmt"
-	"strconv"
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg"
@@ -17,7 +16,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/snacl"
 	"github.com/decred/dcrwallet/walletdb"
@@ -85,34 +84,6 @@ const (
 	// private passphrases.
 	saltSize = 32
 )
-
-var (
-	// errAlreadyExists is the common error description used for the
-	// ErrAlreadyExists error code.
-	errAlreadyExists = "the specified address manager already exists"
-
-	// errCoinTypeTooHigh is the common error description used for the
-	// ErrCoinTypeTooHigh error code.
-	errCoinTypeTooHigh = "coin type may not exceed " +
-		strconv.FormatUint(hdkeychain.HardenedKeyStart-1, 10)
-
-	// errAcctTooHigh is the common error description used for the
-	// ErrAccountNumTooHigh error code.
-	errAcctTooHigh = "account number may not exceed " +
-		strconv.FormatUint(hdkeychain.HardenedKeyStart-1, 10)
-
-	// errLocked is the common error description used for the ErrLocked
-	// error code.
-	errLocked = "address manager is locked"
-
-	// errWatchingOnly is the common error description used for the
-	// ErrWatchingOnly error code.
-	errWatchingOnly = "address manager is watching-only"
-)
-
-func managerError(code apperrors.Code, str string, err error) error {
-	return apperrors.E{ErrorCode: code, Description: str, Err: err}
-}
 
 // isReservedAccountName returns true if the account name is reserved.  Reserved
 // accounts may never be renamed, and other accounts may not be renamed to a
@@ -407,8 +378,7 @@ func (m *Manager) Close() error {
 // The passed derivedKey is zeroed after the new address is created.
 //
 // This function MUST be called with the manager lock held for writes.
-func (m *Manager) keyToManaged(derivedKey *hdkeychain.ExtendedKey, account,
-	branch, index uint32) (ManagedAddress, error) {
+func (m *Manager) keyToManaged(derivedKey *hdkeychain.ExtendedKey, account, branch, index uint32) (ManagedAddress, error) {
 	// Create a new managed address based on the public or private key
 	// depending on whether the passed key is private.  Also, zero the
 	// key after creating the managed address from it.
@@ -438,19 +408,11 @@ func deriveKey(acctInfo *accountInfo, branch, index uint32, private bool) (*hdke
 	// Derive and return the key.
 	branchKey, err := acctKey.Child(branch)
 	if err != nil {
-		str := fmt.Sprintf("failed to derive extended key branch %d",
-			branch)
-		return nil, managerError(apperrors.ErrKeyChain, str, err)
+		return nil, err
 	}
 	addressKey, err := branchKey.Child(index)
 	branchKey.Zero() // Zero branch key after it's used.
-	if err != nil {
-		str := fmt.Sprintf("failed to derive child extended key -- "+
-			"branch %d, child %d",
-			branch, index)
-		return nil, managerError(apperrors.ErrKeyChain, str, err)
-	}
-	return addressKey, nil
+	return addressKey, err
 }
 
 // GetMasterPubkey gives the encoded string version of the HD master public key
@@ -463,15 +425,13 @@ func (m *Manager) GetMasterPubkey(ns walletdb.ReadBucket, account uint32) (strin
 	// load the information from the database.
 	row, err := fetchAccountInfo(ns, account, DBVersion)
 	if err != nil {
-		return "", maybeConvertDbError(err)
+		return "", err
 	}
 
 	// Use the crypto public key to decrypt the account public extended key.
 	serializedKeyPub, err := m.cryptoKeyPub.Decrypt(row.pubKeyEncrypted)
 	if err != nil {
-		str := fmt.Sprintf("failed to decrypt public key for account %d",
-			DefaultAccountNum)
-		return "", managerError(apperrors.ErrCrypto, str, err)
+		return "", errors.E(errors.IO, err)
 	}
 
 	return string(serializedKeyPub), nil
@@ -492,21 +452,20 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 	// load the information from the database.
 	row, err := fetchAccountInfo(ns, account, DBVersion)
 	if err != nil {
-		return nil, maybeConvertDbError(err)
+		if errors.Is(errors.NotExist, err) {
+			return nil, err
+		}
+		return nil, errors.E(errors.NotExist, errors.Errorf("no account %d", account))
 	}
 
 	// Use the crypto public key to decrypt the account public extended key.
 	serializedKeyPub, err := m.cryptoKeyPub.Decrypt(row.pubKeyEncrypted)
 	if err != nil {
-		str := fmt.Sprintf("failed to decrypt public key for account %d",
-			account)
-		return nil, managerError(apperrors.ErrCrypto, str, err)
+		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt account %d pubkey: %v", account, err))
 	}
 	acctKeyPub, err := hdkeychain.NewKeyFromString(string(serializedKeyPub))
 	if err != nil {
-		str := fmt.Sprintf("failed to create extended public key for "+
-			"account %d", account)
-		return nil, managerError(apperrors.ErrKeyChain, str, err)
+		return nil, errors.E(errors.IO, err)
 	}
 
 	// Create the new account info with the known information.  The rest
@@ -522,16 +481,12 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 		// extended keys.
 		decrypted, err := m.cryptoKeyPriv.Decrypt(acctInfo.acctKeyEncrypted)
 		if err != nil {
-			str := fmt.Sprintf("failed to decrypt private key for "+
-				"account %d", account)
-			return nil, managerError(apperrors.ErrCrypto, str, err)
+			return nil, errors.E(errors.Crypto, errors.Errorf("decrypt account %d privkey: %v", account, err))
 		}
 
 		acctKeyPriv, err := hdkeychain.NewKeyFromString(string(decrypted))
 		if err != nil {
-			str := fmt.Sprintf("failed to create extended private "+
-				"key for account %d", account)
-			return nil, managerError(apperrors.ErrKeyChain, str, err)
+			return nil, errors.E(errors.IO, err)
 		}
 		acctInfo.acctKeyPriv = acctKeyPriv
 	}
@@ -573,7 +528,7 @@ func (m *Manager) AccountProperties(ns walletdb.ReadBucket, account uint32) (*Ac
 		props.AccountName = acctInfo.acctName
 		row, err := fetchAccountInfo(ns, account, DBVersion)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(errors.IO, err)
 		}
 		props.LastUsedExternalIndex = row.lastUsedExternalIndex
 		props.LastUsedInternalIndex = row.lastUsedInternalIndex
@@ -603,8 +558,7 @@ func (m *Manager) AccountProperties(ns walletdb.ReadBucket, account uint32) (*Ac
 func (m *Manager) AccountExtendedPubKey(dbtx walletdb.ReadTx, account uint32) (*hdkeychain.ExtendedKey, error) {
 	ns := dbtx.ReadBucket(waddrmgrBucketKey)
 	if account == ImportedAddrAccount {
-		const str = "the imported account does not contain an extended key"
-		return nil, apperrors.E{ErrorCode: apperrors.ErrInvalidAccount, Description: str, Err: nil}
+		return nil, errors.E(errors.Invalid, "imported account has no extended pubkey")
 	}
 	m.mtx.Lock()
 	acctInfo, err := m.loadAccountInfo(ns, account)
@@ -622,12 +576,7 @@ func (m *Manager) AccountBranchExtendedPubKey(dbtx walletdb.ReadTx, account, bra
 	if err != nil {
 		return nil, err
 	}
-	branchXpub, err := acctXpub.Child(branch)
-	if err != nil {
-		const str = "failed to derive child xpub"
-		return nil, apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
-	}
-	return branchXpub, nil
+	return acctXpub.Child(branch)
 }
 
 // CoinTypePrivKey returns the coin type private key at the BIP0044 path
@@ -639,7 +588,10 @@ func (m *Manager) CoinTypePrivKey(dbtx walletdb.ReadTx) (*hdkeychain.ExtendedKey
 	m.mtx.RLock()
 
 	if m.locked {
-		return nil, apperrors.E{ErrorCode: apperrors.ErrLocked, Description: errLocked, Err: nil}
+		return nil, errors.E(errors.Locked)
+	}
+	if m.watchingOnly {
+		return nil, errors.E(errors.WatchingOnly)
 	}
 
 	ns := dbtx.ReadBucket(waddrmgrBucketKey)
@@ -650,14 +602,12 @@ func (m *Manager) CoinTypePrivKey(dbtx walletdb.ReadTx) (*hdkeychain.ExtendedKey
 	}
 	serializedKeyPriv, err := m.cryptoKeyPriv.Decrypt(coinTypePrivEnc)
 	if err != nil {
-		str := fmt.Sprintf("failed to decrypt cointype serialized private key")
-		return nil, managerError(apperrors.ErrLocked, str, err)
+		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt cointype privkey: %v", err))
 	}
 	coinTypeKeyPriv, err := hdkeychain.NewKeyFromString(string(serializedKeyPriv))
 	zero.Bytes(serializedKeyPriv)
 	if err != nil {
-		str := fmt.Sprintf("failed to create cointype extended private key")
-		return nil, managerError(apperrors.ErrKeyChain, str, err)
+		return nil, errors.E(errors.IO, err)
 	}
 	return coinTypeKeyPriv, nil
 }
@@ -679,7 +629,7 @@ func (m *Manager) CoinTypePrivKey(dbtx walletdb.ReadTx) (*hdkeychain.ExtendedKey
 //
 // Watching-only wallets that are created using an account xpub do not save the
 // coin type keys and this method will return an error with code
-// ErrValueNoExists on these wallets.
+// WatchingOnly on these wallets.
 func (m *Manager) CoinType(dbtx walletdb.ReadTx) (uint32, error) {
 	ns := dbtx.ReadBucket(waddrmgrBucketKey)
 	mainBucket := ns.NestedReadBucket(mainBucketName)
@@ -693,7 +643,7 @@ func (m *Manager) CoinType(dbtx walletdb.ReadTx) (uint32, error) {
 		return slip0044CoinType, nil
 	}
 
-	return 0, apperrors.New(apperrors.ErrValueNoExists, "coin type keys are not saved")
+	return 0, errors.E(errors.WatchingOnly, "watching wallets do not record coin type keys")
 }
 
 // UpgradeToSLIP0044CoinType upgrades a wallet from using the legacy coin type
@@ -709,8 +659,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 	}
 	legacyCoinType, _ := CoinTypes(m.chainParams)
 	if coinType != legacyCoinType {
-		const desc = "upgrade to SLIP0044 coin type must be performed on legacy coin type wallet"
-		return apperrors.New(apperrors.ErrUnsupported, desc)
+		return errors.E(errors.Invalid, "SLIP0044 coin type upgrade only possible on legacy coin type wallets")
 	}
 
 	ns := dbtx.ReadWriteBucket(waddrmgrBucketKey)
@@ -719,8 +668,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 	coinTypeSLIP0044PubKeyEnc := mainBucket.Get(coinTypeSLIP0044PubKeyName)
 	coinTypeSLIP0044PrivKeyEnc := mainBucket.Get(coinTypeSLIP0044PrivKeyName)
 	if coinTypeSLIP0044PubKeyEnc == nil || coinTypeSLIP0044PrivKeyEnc == nil {
-		const desc = "upgrade to SLIP0044 coin type requires SLIP0044 coin type keys saved"
-		return apperrors.New(apperrors.ErrUnsupported, desc)
+		return errors.E(errors.Invalid, "missing keys for SLIP0044 coin type upgrade")
 	}
 
 	// Refuse to upgrade the coin type if any accounts or addresses have been
@@ -735,9 +683,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 	}
 	if lastAcct != 0 || acctProps.LastReturnedExternalIndex != ^uint32(0) ||
 		acctProps.LastReturnedInternalIndex != ^uint32(0) {
-		const desc = "wallets with account or address usage may not be " +
-			"upgraded to SLIP0044 coin type"
-		return apperrors.New(apperrors.ErrUnsupported, desc)
+		return errors.E(errors.Invalid, "wallets with returned addresses may not be upgraded to SLIP0044 coin type")
 	}
 
 	// Delete the legacy coin type keys.  With these missing, the SLIP0044 coin
@@ -745,20 +691,17 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 	// instead.
 	err = mainBucket.Delete(coinTypeLegacyPubKeyName)
 	if err != nil {
-		const desc = "failed to delete legacy coin type pubkey"
-		return apperrors.Wrap(err, apperrors.ErrDatabase, desc)
+		return errors.E(errors.IO, err)
 	}
 	err = mainBucket.Delete(coinTypeLegacyPrivKeyName)
 	if err != nil {
-		const desc = "failed to delete legacy coin type privkey"
-		return apperrors.Wrap(err, apperrors.ErrDatabase, desc)
+		return errors.E(errors.IO, err)
 	}
 
 	// Rewrite the account 0 row using the SLIP0044 coin type key derivations.
 	serializedRow := mainBucket.Get(slip0044Account0RowName)
 	if serializedRow == nil {
-		const desc = "missing SLIP0044 coin type account row"
-		return apperrors.New(apperrors.ErrData, desc)
+		return errors.E(errors.IO, "missing SLIP0044 coin type account row")
 	}
 	accountID := uint32ToBytes(0)
 	row, err := deserializeAccountRow(accountID, serializedRow)
@@ -766,8 +709,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 		return err
 	}
 	if row.acctType != actBIP0044 {
-		desc := fmt.Sprintf("unsupported account row type %d", row.acctType)
-		return apperrors.New(apperrors.ErrData, desc)
+		return errors.E(errors.IO, errors.Errorf("invalid SLIP0044 account 0 row type %d", row.acctType))
 	}
 	bip0044Row, err := deserializeBIP0044AccountRow(accountID, row, initialVersion)
 	if err != nil {
@@ -782,8 +724,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 	}
 	err = mainBucket.Delete(slip0044Account0RowName)
 	if err != nil {
-		const desc = "failed to delete SLIP0044 coin type account row"
-		return apperrors.Wrap(err, apperrors.ErrDatabase, desc)
+		return errors.E(errors.IO, err)
 	}
 
 	// Acquire the manager mutex for the remainder of the call so that caches
@@ -802,13 +743,11 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 	// information can be updated.
 	acctExtPubKeyStr, err := m.cryptoKeyPub.Decrypt(bip0044Row.pubKeyEncrypted)
 	if err != nil {
-		const desc = "failed to decrypt SLIP0044 coin type account xpub"
-		return apperrors.Wrap(err, apperrors.ErrCrypto, desc)
+		return errors.E(errors.Crypto, errors.Errorf("decrypt SLIP0044 account 0 xpub: %v", err))
 	}
 	acctExtPubKey, err := hdkeychain.NewKeyFromString(string(acctExtPubKeyStr))
 	if err != nil {
-		const desc = "failed to deserialize SLIP0044 coin type account xpub"
-		return apperrors.Wrap(err, apperrors.ErrKeyChain, desc)
+		return errors.E(errors.IO, err)
 	}
 
 	// When unlocked, decrypt the SLIP0044 coin type account xpriv as well.
@@ -816,13 +755,11 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 	if !m.locked {
 		acctExtPrivKeyStr, err := m.cryptoKeyPriv.Decrypt(bip0044Row.privKeyEncrypted)
 		if err != nil {
-			const desc = "failed to decrypt SLIP0044 coin type account xpriv"
-			return apperrors.Wrap(err, apperrors.ErrCrypto, desc)
+			return errors.E(errors.Crypto, errors.Errorf("decrypt SLIP0044 account 0 xpriv: %v", err))
 		}
 		acctExtPrivKey, err = hdkeychain.NewKeyFromString(string(acctExtPrivKeyStr))
 		if err != nil {
-			const desc = "failed to deserialize SLIP0044 coin type account xpriv"
-			return apperrors.Wrap(err, apperrors.ErrKeyChain, desc)
+			return errors.E(errors.IO, err)
 		}
 	}
 
@@ -837,8 +774,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 // based on the private flag for the given an account, branch, and index.
 //
 // This function MUST be called with the manager lock held for writes.
-func (m *Manager) deriveKeyFromPath(ns walletdb.ReadBucket, account, branch, index uint32,
-	private bool) (*hdkeychain.ExtendedKey, error) {
+func (m *Manager) deriveKeyFromPath(ns walletdb.ReadBucket, account, branch, index uint32, private bool) (*hdkeychain.ExtendedKey, error) {
 	// Look up the account key information.
 	acctInfo, err := m.loadAccountInfo(ns, account)
 	if err != nil {
@@ -852,8 +788,7 @@ func (m *Manager) deriveKeyFromPath(ns walletdb.ReadBucket, account, branch, ind
 // address data loaded from the database.
 //
 // This function MUST be called with the manager lock held for writes.
-func (m *Manager) chainAddressRowToManaged(ns walletdb.ReadBucket,
-	row *dbChainAddressRow) (ManagedAddress, error) {
+func (m *Manager) chainAddressRowToManaged(ns walletdb.ReadBucket, row *dbChainAddressRow) (ManagedAddress, error) {
 	addressKey, err := m.deriveKeyFromPath(ns, row.account, row.branch,
 		row.index, !m.locked)
 	if err != nil {
@@ -869,14 +804,12 @@ func (m *Manager) importedAddressRowToManaged(row *dbImportedAddressRow) (Manage
 	// Use the crypto public key to decrypt the imported public key.
 	pubBytes, err := m.cryptoKeyPub.Decrypt(row.encryptedPubKey)
 	if err != nil {
-		str := "failed to decrypt public key for imported address"
-		return nil, managerError(apperrors.ErrCrypto, str, err)
+		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt imported pubkey: %v", err))
 	}
 
 	pubKey, err := chainec.Secp256k1.ParsePubKey(pubBytes)
 	if err != nil {
-		str := "invalid public key for imported address"
-		return nil, managerError(apperrors.ErrCrypto, str, err)
+		return nil, errors.E(errors.IO, err)
 	}
 
 	compressed := len(pubBytes) == chainec.Secp256k1.PubKeyBytesLenCompressed()
@@ -896,8 +829,7 @@ func (m *Manager) scriptAddressRowToManaged(row *dbScriptAddressRow) (ManagedAdd
 	// Use the crypto public key to decrypt the imported script hash.
 	scriptHash, err := m.cryptoKeyPub.Decrypt(row.encryptedHash)
 	if err != nil {
-		str := "failed to decrypt imported script hash"
-		return nil, managerError(apperrors.ErrCrypto, str, err)
+		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt imported P2SH address: %v", err))
 	}
 
 	return newScriptAddress(m, row.account, scriptHash)
@@ -920,8 +852,7 @@ func (m *Manager) rowInterfaceToManaged(ns walletdb.ReadBucket, rowInterface int
 		return m.scriptAddressRowToManaged(row)
 	}
 
-	str := fmt.Sprintf("unsupported address type %T", rowInterface)
-	return nil, managerError(apperrors.ErrDatabase, str, nil)
+	return nil, errors.E(errors.Invalid, errors.Errorf("address type %T", rowInterface))
 }
 
 // loadAddress attempts to load the passed address from the database.
@@ -931,13 +862,10 @@ func (m *Manager) loadAddress(ns walletdb.ReadBucket, address dcrutil.Address) (
 	// Attempt to load the raw address information from the database.
 	rowInterface, err := fetchAddress(ns, address.ScriptAddress())
 	if err != nil {
-		if merr, ok := err.(apperrors.E); ok {
-			desc := fmt.Sprintf("failed to fetch address '%s': %v",
-				address, merr.Description)
-			merr.Description = desc
-			return nil, merr
+		if errors.Is(errors.NotExist, err) {
+			return nil, errors.E(errors.NotExist, errors.Errorf("no address %s", address))
 		}
-		return nil, maybeConvertDbError(err)
+		return nil, err
 	}
 
 	// Create a new managed address for the specific type of address based
@@ -961,12 +889,15 @@ func (m *Manager) Address(ns walletdb.ReadBucket, address dcrutil.Address) (Mana
 
 // AddrAccount returns the account to which the given address belongs.
 func (m *Manager) AddrAccount(ns walletdb.ReadBucket, address dcrutil.Address) (uint32, error) {
-	address = normalizeAddress(address)
-	account, err := fetchAddrAccount(ns, address.ScriptAddress())
+	acct, err := fetchAddrAccount(ns, normalizeAddress(address).ScriptAddress())
 	if err != nil {
-		return 0, maybeConvertDbError(err)
+		if errors.Is(errors.NotExist, err) {
+			return 0, errors.E(errors.NotExist, errors.Errorf("no address %v", address))
+		}
+		return 0, err
 	}
-	return account, nil
+
+	return acct, nil
 }
 
 // ChangePassphrase changes either the public or private passphrase to the
@@ -975,38 +906,27 @@ func (m *Manager) AddrAccount(ns walletdb.ReadBucket, address dcrutil.Address) (
 // keys are derived using the scrypt parameters in the options, so changing the
 // passphrase may be used to bump the computational difficulty needed to brute
 // force the passphrase.
-func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, newPassphrase []byte,
-	private bool) error {
+func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, newPassphrase []byte, private bool) error {
+	defer m.mtx.Unlock()
+	m.mtx.Lock()
+
 	// No private passphrase to change for a watching-only address manager.
 	if private && m.watchingOnly {
-		return managerError(apperrors.ErrWatchingOnly, errWatchingOnly, nil)
+		return errors.E(errors.WatchingOnly)
 	}
-
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
 
 	// Ensure the provided old passphrase is correct.  This check is done
 	// using a copy of the appropriate master key depending on the private
 	// flag to ensure the current state is not altered.  The temp key is
 	// cleared when done to avoid leaving a copy in memory.
-	var keyName string
 	secretKey := snacl.SecretKey{Key: &snacl.CryptoKey{}}
 	if private {
-		keyName = "private"
 		secretKey.Parameters = m.masterKeyPriv.Parameters
 	} else {
-		keyName = "public"
 		secretKey.Parameters = m.masterKeyPub.Parameters
 	}
 	if err := secretKey.DeriveKey(&oldPassphrase); err != nil {
-		if err == snacl.ErrInvalidPassword {
-			str := fmt.Sprintf("invalid passphrase for %s master "+
-				"key", keyName)
-			return managerError(apperrors.ErrWrongPassphrase, str, nil)
-		}
-
-		str := fmt.Sprintf("failed to derive %s master key", keyName)
-		return managerError(apperrors.ErrCrypto, str, err)
+		return err
 	}
 	defer secretKey.Zero()
 
@@ -1014,8 +934,7 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 	// the actual secret keys.
 	newMasterKey, err := newSecretKey(&newPassphrase, &defaultScryptOptions)
 	if err != nil {
-		str := "failed to create new master private key"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return errors.Errorf("create new master privkey: %v", err)
 	}
 	newKeyParams := newMasterKey.Marshal()
 
@@ -1032,36 +951,31 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 		var passphraseSalt [saltSize]byte
 		_, err := rand.Read(passphraseSalt[:])
 		if err != nil {
-			str := "failed to read random source for passhprase salt"
-			return managerError(apperrors.ErrCrypto, str, err)
+			return errors.E(errors.IO, err)
 		}
 
 		// Re-encrypt the crypto private key using the new master
 		// private key.
 		decPriv, err := secretKey.Decrypt(m.cryptoKeyPrivEncrypted)
 		if err != nil {
-			str := "failed to decrypt crypto private key"
-			return managerError(apperrors.ErrCrypto, str, err)
+			return errors.E(errors.Crypto, errors.Errorf("decrypt crypto privkey: %v", err))
 		}
 		encPriv, err := newMasterKey.Encrypt(decPriv)
 		zero.Bytes(decPriv)
 		if err != nil {
-			str := "failed to encrypt crypto private key"
-			return managerError(apperrors.ErrCrypto, str, err)
+			return errors.E(errors.Crypto, errors.Errorf("encrypt crypto privkey: %v", err))
 		}
 
 		// Re-encrypt the crypto script key using the new master private
 		// key.
 		decScript, err := secretKey.Decrypt(m.cryptoKeyScriptEncrypted)
 		if err != nil {
-			str := "failed to decrypt crypto script key"
-			return managerError(apperrors.ErrCrypto, str, err)
+			return errors.E(errors.Crypto, errors.Errorf("decrypt crypto script key: %v", err))
 		}
 		encScript, err := newMasterKey.Encrypt(decScript)
 		zero.Bytes(decScript)
 		if err != nil {
-			str := "failed to encrypt crypto script key"
-			return managerError(apperrors.ErrCrypto, str, err)
+			return errors.E(errors.Crypto, errors.Errorf("encrypt crypto script key: %v", err))
 		}
 
 		// When the manager is locked, ensure the new clear text master
@@ -1082,12 +996,12 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 		// transaction.
 		err = putCryptoKeys(ns, nil, encPriv, encScript)
 		if err != nil {
-			return maybeConvertDbError(err)
+			return err
 		}
 
 		err = putMasterKeyParams(ns, nil, newKeyParams)
 		if err != nil {
-			return maybeConvertDbError(err)
+			return err
 		}
 
 		// Now that the db has been successfully updated, clear the old
@@ -1103,20 +1017,19 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 		// key.
 		encryptedPub, err := newMasterKey.Encrypt(m.cryptoKeyPub.Bytes())
 		if err != nil {
-			str := "failed to encrypt crypto public key"
-			return managerError(apperrors.ErrCrypto, str, err)
+			return errors.E(errors.Crypto, errors.Errorf("encrypt crypto pubkey: %v", err))
 		}
 
 		// Save the new keys and params to the the db in a single
 		// transaction.
 		err = putCryptoKeys(ns, encryptedPub, nil, nil)
 		if err != nil {
-			return maybeConvertDbError(err)
+			return err
 		}
 
 		err = putMasterKeyParams(ns, newKeyParams, nil)
 		if err != nil {
-			return maybeConvertDbError(err)
+			return err
 		}
 
 		// Now that the db has been successfully updated, clear the old
@@ -1151,12 +1064,12 @@ func (m *Manager) ConvertToWatchingOnly(ns walletdb.ReadWriteBucket) error {
 	// only.
 	err := deletePrivateKeys(ns, DBVersion)
 	if err != nil {
-		return maybeConvertDbError(err)
+		return err
 	}
 
 	err = putWatchingOnly(ns, true)
 	if err != nil {
-		return maybeConvertDbError(err)
+		return err
 	}
 
 	// Lock the manager to remove all clear text private key material from
@@ -1205,7 +1118,6 @@ func (m *Manager) ConvertToWatchingOnly(ns walletdb.ReadWriteBucket) error {
 	// Mark the manager watching-only.
 	m.watchingOnly = true
 	return nil
-
 }
 
 // ExistsHash160 returns whether or not the 20 byte P2PKH or P2SH HASH160 is
@@ -1232,39 +1144,31 @@ func (m *Manager) ExistsHash160(ns walletdb.ReadBucket, hash160 []byte) bool {
 // It will also return an error if the address already exists.  Any other errors
 // returned are generally unexpected.
 func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF) (ManagedPubKeyAddress, error) {
+	defer m.mtx.Unlock()
+	m.mtx.Lock()
+
 	// Ensure the address is intended for network the address manager is
 	// associated with.
 	if !wif.IsForNet(m.chainParams) {
-		str := fmt.Sprintf("private key is not for the same network the "+
-			"address manager is configured for (%s)",
-			m.chainParams.Name)
-		return nil, managerError(apperrors.ErrWrongNet, str, nil)
+		return nil, errors.E(errors.Invalid, "wrong network")
 	}
 
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-
 	// The manager must be unlocked to encrypt the imported private key.
-	if m.locked && !m.watchingOnly {
-		return nil, managerError(apperrors.ErrLocked, errLocked, nil)
+	if !m.watchingOnly && m.locked {
+		return nil, errors.E(errors.Locked)
 	}
 
 	// Prevent duplicates.
 	serializedPubKey := wif.SerializePubKey()
 	pubKeyHash := dcrutil.Hash160(serializedPubKey)
-	alreadyExists := existsAddress(ns, pubKeyHash)
-	if alreadyExists {
-		str := fmt.Sprintf("address for public key %x already exists",
-			serializedPubKey)
-		return nil, managerError(apperrors.ErrDuplicateAddress, str, nil)
+	if existsAddress(ns, pubKeyHash) {
+		return nil, errors.E(errors.Exist, "address for private key already exists")
 	}
 
 	// Encrypt public key.
 	encryptedPubKey, err := m.cryptoKeyPub.Encrypt(serializedPubKey)
 	if err != nil {
-		str := fmt.Sprintf("failed to encrypt public key for %x",
-			serializedPubKey)
-		return nil, managerError(apperrors.ErrCrypto, str, err)
+		return nil, errors.E(errors.Crypto, errors.Errorf("encrypt imported pubkey: %v", err))
 	}
 
 	// Encrypt the private key when not a watching-only address manager.
@@ -1274,9 +1178,7 @@ func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF
 		encryptedPrivKey, err = m.cryptoKeyPriv.Encrypt(privKeyBytes)
 		zero.Bytes(privKeyBytes)
 		if err != nil {
-			str := fmt.Sprintf("failed to encrypt private key for %x",
-				serializedPubKey)
-			return nil, managerError(apperrors.ErrCrypto, str, err)
+			return nil, errors.E(errors.Crypto, errors.Errorf("encrypt imported privkey: %v", err))
 		}
 	}
 
@@ -1316,25 +1218,20 @@ func (m *Manager) ImportScript(ns walletdb.ReadWriteBucket, script []byte) (Mana
 
 	// Prevent duplicates.
 	scriptHash := dcrutil.Hash160(script)
-	alreadyExists := existsAddress(ns, scriptHash)
-	if alreadyExists {
-		str := fmt.Sprintf("address for script hash %x already exists",
-			scriptHash)
-		return nil, managerError(apperrors.ErrDuplicateAddress, str, nil)
+	if existsAddress(ns, scriptHash) {
+		return nil, errors.E(errors.Exist, "script already exists")
 	}
 
 	// The manager must be unlocked to encrypt the imported script.
-	if m.locked && !m.watchingOnly {
-		return nil, managerError(apperrors.ErrLocked, errLocked, nil)
+	if !m.watchingOnly && m.locked {
+		return nil, errors.E(errors.Locked)
 	}
 
 	// Encrypt the script hash using the crypto public key so it is
 	// accessible when the address manager is locked or watching-only.
 	encryptedHash, err := m.cryptoKeyPub.Encrypt(scriptHash)
 	if err != nil {
-		str := fmt.Sprintf("failed to encrypt script hash %x",
-			scriptHash)
-		return nil, managerError(apperrors.ErrCrypto, str, err)
+		return nil, errors.E(errors.Crypto, errors.Errorf("encrypt script hash: %v", err))
 	}
 
 	// Encrypt the script for storage in database using the crypto script
@@ -1343,9 +1240,7 @@ func (m *Manager) ImportScript(ns walletdb.ReadWriteBucket, script []byte) (Mana
 	if !m.watchingOnly {
 		encryptedScript, err = m.cryptoKeyScript.Encrypt(script)
 		if err != nil {
-			str := fmt.Sprintf("failed to encrypt script for %x",
-				scriptHash)
-			return nil, managerError(apperrors.ErrCrypto, str, err)
+			return nil, errors.E(errors.Crypto, errors.Errorf("encrypt script: %v", err))
 		}
 	}
 
@@ -1354,7 +1249,7 @@ func (m *Manager) ImportScript(ns walletdb.ReadWriteBucket, script []byte) (Mana
 	err = putScriptAddress(ns, scriptHash, ImportedAddrAccount,
 		ssNone, encryptedHash, encryptedScript)
 	if err != nil {
-		return nil, maybeConvertDbError(err)
+		return nil, err
 	}
 
 	// Create a new managed address based on the imported script.
@@ -1379,7 +1274,7 @@ func (m *Manager) IsLocked() bool {
 func (m *Manager) Lock() error {
 	// A watching-only address manager can't be locked.
 	if m.watchingOnly {
-		return managerError(apperrors.ErrWatchingOnly, errWatchingOnly, nil)
+		return errors.E(errors.WatchingOnly)
 	}
 
 	m.mtx.Lock()
@@ -1387,7 +1282,7 @@ func (m *Manager) Lock() error {
 
 	// Error on attempt to lock an already locked manager.
 	if m.locked {
-		return managerError(apperrors.ErrLocked, errLocked, nil)
+		return errors.E(errors.Locked)
 	}
 
 	m.lock()
@@ -1411,13 +1306,13 @@ func (m *Manager) LookupAccount(ns walletdb.ReadBucket, name string) (uint32, er
 // This function will return an error if invoked on a watching-only address
 // manager.
 func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
+	defer m.mtx.Unlock()
+	m.mtx.Lock()
+
 	// A watching-only address manager can't be unlocked.
 	if m.watchingOnly {
-		return managerError(apperrors.ErrWatchingOnly, errWatchingOnly, nil)
+		return errors.E(errors.WatchingOnly, "cannot unlock watching wallet")
 	}
-
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
 
 	// Avoid actually unlocking if the manager is already unlocked
 	// and the passphrases match.
@@ -1428,8 +1323,7 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 		zero.Bytes(saltedPassphrase)
 		if hashedPassphrase != m.hashedPrivPassphrase {
 			m.lock()
-			str := "invalid passphrase for master private key"
-			return managerError(apperrors.ErrWrongPassphrase, str, nil)
+			return errors.E(errors.Passphrase)
 		}
 		return nil
 	}
@@ -1437,21 +1331,14 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 	// Derive the master private key using the provided passphrase.
 	if err := m.masterKeyPriv.DeriveKey(&passphrase); err != nil {
 		m.lock()
-		if err == snacl.ErrInvalidPassword {
-			str := "invalid passphrase for master private key"
-			return managerError(apperrors.ErrWrongPassphrase, str, nil)
-		}
-
-		str := "failed to derive master private key"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return err
 	}
 
 	// Use the master private key to decrypt the crypto private key.
 	decryptedKey, err := m.masterKeyPriv.Decrypt(m.cryptoKeyPrivEncrypted)
 	if err != nil {
 		m.lock()
-		str := "failed to decrypt crypto private key"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return errors.E(errors.Crypto, errors.Errorf("decrypt crypto privkey: %v", err))
 	}
 	m.cryptoKeyPriv.CopyBytes(decryptedKey)
 	zero.Bytes(decryptedKey)
@@ -1462,18 +1349,14 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 		decrypted, err := m.cryptoKeyPriv.Decrypt(acctInfo.acctKeyEncrypted)
 		if err != nil {
 			m.lock()
-			str := fmt.Sprintf("failed to decrypt account %d "+
-				"private key", account)
-			return managerError(apperrors.ErrCrypto, str, err)
+			return errors.E(errors.Crypto, errors.Errorf("decrypt account %d privkey: %v", account, err))
 		}
 
 		acctKeyPriv, err := hdkeychain.NewKeyFromString(string(decrypted))
 		zero.Bytes(decrypted)
 		if err != nil {
 			m.lock()
-			str := fmt.Sprintf("failed to regenerate account %d "+
-				"extended key", account)
-			return managerError(apperrors.ErrKeyChain, str, err)
+			return errors.E(errors.IO, err)
 		}
 		acctInfo.acctKeyPriv = acctKeyPriv
 	}
@@ -1513,7 +1396,7 @@ func (m *Manager) MarkUsed(ns walletdb.ReadWriteBucket, address dcrutil.Address)
 	}
 	row, err := fetchAccountInfo(ns, bip0044Addr.account, DBVersion)
 	if err != nil {
-		return err
+		return errors.E(errors.IO, errors.Errorf("missing account %d", bip0044Addr.account))
 	}
 	lastUsedExtIndex := row.lastUsedExternalIndex
 	lastUsedIntIndex := row.lastUsedInternalIndex
@@ -1523,8 +1406,7 @@ func (m *Manager) MarkUsed(ns walletdb.ReadWriteBucket, address dcrutil.Address)
 	case InternalBranch:
 		lastUsedIntIndex = bip0044Addr.index
 	default:
-		const str = "address row records unsupported account branch"
-		return apperrors.E{ErrorCode: apperrors.ErrData, Description: str, Err: nil}
+		return errors.E(errors.IO, errors.Errorf("invalid account branch %d", bip0044Addr.branch))
 	}
 
 	if lastUsedExtIndex+1 < row.lastUsedExternalIndex+1 ||
@@ -1562,8 +1444,7 @@ func (m *Manager) MarkUsedChildIndex(tx walletdb.ReadWriteTx, account, branch, c
 	case InternalBranch:
 		lastUsedIntIndex = child
 	default:
-		const str = "unsupported account branch"
-		return apperrors.E{ErrorCode: apperrors.ErrBranch, Description: str, Err: nil}
+		return errors.E(errors.Invalid, errors.Errorf("account branch %d", branch))
 	}
 
 	if lastUsedExtIndex+1 < row.lastUsedExternalIndex+1 ||
@@ -1604,8 +1485,7 @@ func (m *Manager) MarkReturnedChildIndex(tx walletdb.ReadWriteTx, account, branc
 	case InternalBranch:
 		lastRetIntIndex = child
 	default:
-		const str = "unsupported account branch"
-		return apperrors.E{ErrorCode: apperrors.ErrBranch, Description: str, Err: nil}
+		return errors.E(errors.Invalid, errors.Errorf("account branch %d", branch))
 	}
 
 	// The last returned indexes should never be less than the last used.  The
@@ -1637,8 +1517,7 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 	// the next db fetch will not error. Therefore we need an explicit check
 	// that it is not being modified.
 	if account == ImportedAddrAccount {
-		const str = "cannot sync account branch indexes for imported account"
-		return apperrors.E{ErrorCode: apperrors.ErrInvalidAccount, Description: str, Err: nil}
+		return errors.E(errors.Invalid, "cannot sync imported account branch index")
 	}
 
 	// The next address can only be generated for accounts that have already
@@ -1658,30 +1537,24 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 	case ExternalBranch, InternalBranch:
 		xpubBranch, err = acctInfo.acctKeyPub.Child(branch)
 		if err != nil {
-			const str = "failed to derive branch xpub"
-			return apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
+			return err
 		}
 		if m.locked {
 			break
 		}
 		xprivBranch, err = acctInfo.acctKeyPriv.Child(branch)
 		if err != nil {
-			const str = "failed to derive branch xpriv"
-			return apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
+			return err
 		}
 		defer xprivBranch.Zero()
 	default:
-		const str = "unsupported account branch"
-		return apperrors.E{ErrorCode: apperrors.ErrBranch, Description: str, Err: nil}
+		return errors.E(errors.Invalid, errors.Errorf("account branch %d", branch))
 	}
 
 	// Ensure the requested index to sync to doesn't exceed the maximum
 	// allowed for this account.
 	if syncToIndex > MaxAddressesPerAccount {
-		str := fmt.Sprintf("%d syncing to index would exceed the maximum "+
-			"allowed number of addresses per account of %d",
-			syncToIndex, MaxAddressesPerAccount)
-		return apperrors.E{ErrorCode: apperrors.ErrTooManyAddresses, Description: str, Err: nil}
+		return errors.E(errors.Invalid, errors.Errorf("child index %d exceeds max", syncToIndex))
 	}
 
 	// Because the database does not track the last generated address for each
@@ -1697,8 +1570,7 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 			continue
 		}
 		if err != nil {
-			const str = "failed to derive child xpub"
-			return apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
+			return err
 		}
 		// This can't error as only good input is passed to
 		// dcrutil.NewAddressPubKeyHash.
@@ -1727,8 +1599,7 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 func (m *Manager) SyncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account uint32, syncToIndex uint32, branch uint32) error {
 	// Enforce maximum account number.
 	if account > MaxAccountNum {
-		err := managerError(apperrors.ErrAccountNumTooHigh, errAcctTooHigh, nil)
-		return err
+		return errors.E(errors.Invalid, errors.Errorf("account %d", account))
 	}
 
 	m.mtx.Lock()
@@ -1741,12 +1612,10 @@ func (m *Manager) SyncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 // if any.
 func ValidateAccountName(name string) error {
 	if name == "" {
-		str := "accounts may not be named the empty string"
-		return managerError(apperrors.ErrInvalidAccount, str, nil)
+		return errors.E(errors.Invalid, "accounts may not be named the empty string")
 	}
 	if isReservedAccountName(name) {
-		str := "reserved account name"
-		return managerError(apperrors.ErrInvalidAccount, str, nil)
+		return errors.E(errors.Invalid, "reserved account name")
 	}
 	return nil
 }
@@ -1757,15 +1626,15 @@ func ValidateAccountName(name string) error {
 // access to the cointype keys (from which extended account keys are derived),
 // it requires the manager to be unlocked.
 func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, error) {
+	defer m.mtx.Unlock()
+	m.mtx.Lock()
+
 	if m.watchingOnly {
-		return 0, managerError(apperrors.ErrWatchingOnly, errWatchingOnly, nil)
+		return 0, errors.E(errors.WatchingOnly)
 	}
 
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-
 	if m.locked {
-		return 0, managerError(apperrors.ErrLocked, errLocked, nil)
+		return 0, errors.E(errors.Locked)
 	}
 
 	// Validate account name
@@ -1776,8 +1645,7 @@ func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, 
 	// Check that account with the same name does not exist
 	_, err := fetchAccountByName(ns, name)
 	if err == nil {
-		str := fmt.Sprintf("account with the same name already exists")
-		return 0, managerError(apperrors.ErrDuplicateAccount, str, err)
+		return 0, errors.E(errors.Exist, errors.Errorf("account named %q already exists", name))
 	}
 
 	// Fetch latest account, and create a new account in the same transaction
@@ -1797,41 +1665,35 @@ func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, 
 	// Decrypt the cointype key
 	serializedKeyPriv, err := m.cryptoKeyPriv.Decrypt(coinTypePrivEnc)
 	if err != nil {
-		str := fmt.Sprintf("failed to decrypt cointype serialized private key")
-		return 0, managerError(apperrors.ErrLocked, str, err)
+		return 0, errors.E(errors.Crypto, errors.Errorf("decrypt cointype privkey: %v", err))
 	}
 	coinTypeKeyPriv, err :=
 		hdkeychain.NewKeyFromString(string(serializedKeyPriv))
 	zero.Bytes(serializedKeyPriv)
 	if err != nil {
-		str := fmt.Sprintf("failed to create cointype extended private key")
-		return 0, managerError(apperrors.ErrKeyChain, str, err)
+		return 0, errors.E(errors.IO, err)
 	}
 
 	// Derive the account key using the cointype key
 	acctKeyPriv, err := deriveAccountKey(coinTypeKeyPriv, account)
 	coinTypeKeyPriv.Zero()
 	if err != nil {
-		str := "failed to convert private key for account"
-		return 0, managerError(apperrors.ErrKeyChain, str, err)
+		return 0, err
 	}
 	acctKeyPub, err := acctKeyPriv.Neuter()
 	if err != nil {
-		str := "failed to convert public key for account"
-		return 0, managerError(apperrors.ErrKeyChain, str, err)
+		return 0, err
 	}
 	// Encrypt the default account keys with the associated crypto keys.
 	apes := acctKeyPub.String()
 	acctPubEnc, err := m.cryptoKeyPub.Encrypt([]byte(apes))
 	if err != nil {
-		str := "failed to  encrypt public key for account"
-		return 0, managerError(apperrors.ErrCrypto, str, err)
+		return 0, errors.E(errors.Crypto, errors.Errorf("encrypt account pubkey: %v", err))
 	}
 	apes = acctKeyPriv.String()
 	acctPrivEnc, err := m.cryptoKeyPriv.Encrypt([]byte(apes))
 	if err != nil {
-		str := "failed to encrypt private key for account"
-		return 0, managerError(apperrors.ErrCrypto, str, err)
+		return 0, errors.E(errors.Crypto, errors.Errorf("encrypt account privkey: %v", err))
 	}
 	// We have the encrypted account extended keys, so save them to the
 	// database
@@ -1859,15 +1721,13 @@ func (m *Manager) RenameAccount(ns walletdb.ReadWriteBucket, account uint32, nam
 
 	// Ensure that a reserved account is not being renamed.
 	if isReservedAccountNum(account) {
-		str := "reserved account cannot be renamed"
-		return managerError(apperrors.ErrInvalidAccount, str, nil)
+		return errors.E(errors.Invalid, "reserved account")
 	}
 
 	// Check that account with the new name does not exist
 	_, err := fetchAccountByName(ns, name)
 	if err == nil {
-		str := fmt.Sprintf("account with the same name already exists")
-		return managerError(apperrors.ErrDuplicateAccount, str, err)
+		return errors.E(errors.Exist, errors.Errorf("account named %q already exists", name))
 	}
 	// Validate account name
 	if err := ValidateAccountName(name); err != nil {
@@ -1898,13 +1758,10 @@ func (m *Manager) RenameAccount(ns walletdb.ReadWriteBucket, account uint32, nam
 
 	// Update in-memory account info with new name if cached and the db
 	// write was successful.
-	if err == nil {
-		if acctInfo, ok := m.acctInfo[account]; ok {
-			acctInfo.acctName = name
-		}
+	if acctInfo, ok := m.acctInfo[account]; ok {
+		acctInfo.acctName = name
 	}
-
-	return err
+	return nil
 }
 
 // AccountName returns the account name for the given account number
@@ -1926,9 +1783,7 @@ func (m *Manager) LastAccount(ns walletdb.ReadBucket) (uint32, error) {
 
 // ForEachAccountAddress calls the given function with each address of
 // the given account stored in the manager, breaking early on error.
-func (m *Manager) ForEachAccountAddress(ns walletdb.ReadBucket, account uint32,
-	fn func(maddr ManagedAddress) error) error {
-
+func (m *Manager) ForEachAccountAddress(ns walletdb.ReadBucket, account uint32, fn func(maddr ManagedAddress) error) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -1939,20 +1794,14 @@ func (m *Manager) ForEachAccountAddress(ns walletdb.ReadBucket, account uint32,
 		}
 		return fn(managedAddr)
 	}
-	err := forEachAccountAddress(ns, account, addrFn)
-	if err != nil {
-		return maybeConvertDbError(err)
-	}
-	return nil
+	return forEachAccountAddress(ns, account, addrFn)
 }
 
 // ForEachActiveAccountAddress calls the given function with each active
 // address of the given account stored in the manager, breaking early on
 // error.
 // TODO(tuxcanfly): actually return only active addresses
-func (m *Manager) ForEachActiveAccountAddress(ns walletdb.ReadBucket, account uint32,
-	fn func(maddr ManagedAddress) error) error {
-
+func (m *Manager) ForEachActiveAccountAddress(ns walletdb.ReadBucket, account uint32, fn func(maddr ManagedAddress) error) error {
 	return m.ForEachAccountAddress(ns, account, fn)
 }
 
@@ -1970,11 +1819,7 @@ func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr dcru
 		return fn(managedAddr.Address())
 	}
 
-	err := forEachActiveAddress(ns, addrFn)
-	if err != nil {
-		return maybeConvertDbError(err)
-	}
-	return nil
+	return forEachActiveAddress(ns, addrFn)
 }
 
 // PrivateKey retreives the private key for a P2PK or P2PKH address.  If this
@@ -1982,20 +1827,18 @@ func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr dcru
 // when the private key is no longer being used.  Failure to do so will cause
 // deadlocks when the manager is locked.
 func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key chainec.PrivateKey, done func(), err error) {
-	// No private keys are available for a watching-only address manager.
-	if m.watchingOnly {
-		err := apperrors.E{ErrorCode: apperrors.ErrWatchingOnly, Description: errWatchingOnly, Err: nil}
-		return nil, nil, err
-	}
-
 	// Lock the manager mutex for writes.  This protects read access to m.locked
 	// and write access to m.returnedPrivKeys and the cached accounts.
 	defer m.mtx.Unlock()
 	m.mtx.Lock()
 
+	// No private keys are available for a watching-only address manager.
+	if m.watchingOnly {
+		return nil, nil, errors.E(errors.WatchingOnly)
+	}
+
 	if m.locked {
-		err := apperrors.E{ErrorCode: apperrors.ErrLocked, Description: errLocked, Err: nil}
-		return nil, nil, err
+		return nil, nil, errors.E(errors.Locked)
 	}
 
 	// If the private key for this address' hash160 has already been returned,
@@ -2029,17 +1872,13 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 		// and therefore the extended private key should be zeroed.
 		xpriv.Zero()
 		if err != nil {
-			const str = "failed to create private key from xpriv"
-			err := apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
 			return nil, nil, err
 		}
 
 	case *dbImportedAddressRow:
 		privKeyBytes, err := m.cryptoKeyPriv.Decrypt(a.encryptedPrivKey)
 		if err != nil {
-			const str = "failed to decrypt imported private key"
-			err := apperrors.E{ErrorCode: apperrors.ErrCrypto, Description: str, Err: err}
-			return nil, nil, err
+			return nil, nil, errors.E(errors.Crypto, errors.Errorf("decrypt imported privkey: %v", err))
 		}
 		key, _ = chainec.Secp256k1.PrivKeyFromBytes(privKeyBytes)
 		// PrivKeyFromBytes creates a copy of the private key, and therefore
@@ -2047,14 +1886,10 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 		zero.Bytes(privKeyBytes)
 
 	case *dbScriptAddressRow:
-		const str = "private keys can only be returned for P2PK and P2PKH addresses"
-		err := apperrors.E{ErrorCode: apperrors.ErrInput, Description: str, Err: nil}
-		return nil, nil, err
+		return nil, nil, errors.E(errors.Invalid, "no private key for P2SH address")
 
 	default:
-		str := fmt.Sprintf("unhandled database address type %T", addrInterface)
-		err := apperrors.E{ErrorCode: apperrors.ErrUnimplemented, Description: str, Err: nil}
-		return nil, nil, err
+		return nil, nil, errors.E(errors.Invalid, errors.Errorf("address row type %T", addrInterface))
 	}
 
 	// Lock the RWMutex for reads for the caller and prepare to return the
@@ -2079,20 +1914,18 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 // function must be called when the script is no longer being used. Failure to
 // do so will cause deadlocks when the manager is locked.
 func (m *Manager) RedeemScript(ns walletdb.ReadBucket, addr dcrutil.Address) (script []byte, done func(), err error) {
-	// No scripts are available for a watching-only address manager.
-	if m.watchingOnly {
-		err := apperrors.E{ErrorCode: apperrors.ErrWatchingOnly, Description: errWatchingOnly, Err: nil}
-		return nil, nil, err
-	}
-
 	// Lock the manager mutex for writes.  This protects read access to m.locked
 	// and write access to m.returnedScripts and the cached accounts.
 	defer m.mtx.Unlock()
 	m.mtx.Lock()
 
+	// No scripts are available for a watching-only address manager.
+	if m.watchingOnly {
+		return nil, nil, errors.E(errors.WatchingOnly)
+	}
+
 	if m.locked {
-		err := apperrors.E{ErrorCode: apperrors.ErrLocked, Description: errLocked, Err: nil}
-		return nil, nil, err
+		return nil, nil, errors.E(errors.Locked)
 	}
 
 	// If the script for this address' hash160 has already been returned, return
@@ -2113,20 +1946,14 @@ func (m *Manager) RedeemScript(ns walletdb.ReadBucket, addr dcrutil.Address) (sc
 	case *dbScriptAddressRow:
 		script, err = m.cryptoKeyScript.Decrypt(a.encryptedScript)
 		if err != nil {
-			const str = "failed to decrypt imported script"
-			err := apperrors.E{ErrorCode: apperrors.ErrCrypto, Description: str, Err: err}
-			return nil, nil, err
+			return nil, nil, errors.E(errors.Crypto, errors.Errorf("decrypt imported script: %v", err))
 		}
 
 	case *dbChainAddressRow, *dbImportedAddressRow:
-		const str = "redeem scripts can only be returned for P2SH addresses"
-		err := apperrors.E{ErrorCode: apperrors.ErrInput, Description: str, Err: nil}
-		return nil, nil, err
+		return nil, nil, errors.E(errors.Invalid, "redeem script lookup requires P2SH address")
 
 	default:
-		str := fmt.Sprintf("unhandled database address type %T", addrInterface)
-		err := apperrors.E{ErrorCode: apperrors.ErrUnimplemented, Description: str, Err: nil}
-		return nil, nil, err
+		return nil, nil, errors.E(errors.Invalid, errors.Errorf("address row type %T", addrInterface))
 	}
 
 	// Lock the RWMutex for reads for the caller and prepare to return the
@@ -2155,7 +1982,7 @@ func (m *Manager) selectCryptoKey(keyType CryptoKeyType) (EncryptorDecryptor, er
 	if keyType == CKTPrivate || keyType == CKTScript {
 		// The manager must be unlocked to work with the private keys.
 		if m.locked || m.watchingOnly {
-			return nil, managerError(apperrors.ErrLocked, errLocked, nil)
+			return nil, errors.E(errors.Locked)
 		}
 	}
 
@@ -2168,8 +1995,7 @@ func (m *Manager) selectCryptoKey(keyType CryptoKeyType) (EncryptorDecryptor, er
 	case CKTPublic:
 		cryptoKey = m.cryptoKeyPub
 	default:
-		return nil, managerError(apperrors.ErrInvalidKeyType, "invalid key type",
-			nil)
+		return nil, errors.E(errors.Invalid, errors.Errorf("crypto key kind %d", keyType))
 	}
 
 	return cryptoKey, nil
@@ -2189,7 +2015,7 @@ func (m *Manager) Encrypt(keyType CryptoKeyType, in []byte) ([]byte, error) {
 
 	encrypted, err := cryptoKey.Encrypt(in)
 	if err != nil {
-		return nil, managerError(apperrors.ErrCrypto, "failed to encrypt", err)
+		return nil, errors.E(errors.Crypto, err)
 	}
 	return encrypted, nil
 }
@@ -2208,7 +2034,7 @@ func (m *Manager) Decrypt(keyType CryptoKeyType, in []byte) ([]byte, error) {
 
 	decrypted, err := cryptoKey.Decrypt(in)
 	if err != nil {
-		return nil, managerError(apperrors.ErrCrypto, "failed to decrypt", err)
+		return nil, errors.E(errors.Crypto, err)
 	}
 	return decrypted, nil
 }
@@ -2240,12 +2066,10 @@ func newManager(chainParams *chaincfg.Params, masterKeyPub *snacl.SecretKey,
 //
 // In particular this is the hierarchical deterministic extended key path:
 // m/44'/<coin type>'
-func deriveCoinTypeKey(masterNode *hdkeychain.ExtendedKey,
-	coinType uint32) (*hdkeychain.ExtendedKey, error) {
+func deriveCoinTypeKey(masterNode *hdkeychain.ExtendedKey, coinType uint32) (*hdkeychain.ExtendedKey, error) {
 	// Enforce maximum coin type.
 	if coinType > maxCoinType {
-		err := managerError(apperrors.ErrCoinTypeTooHigh, errCoinTypeTooHigh, nil)
-		return nil, err
+		return nil, errors.E(errors.Invalid, errors.Errorf("coin type %d", coinType))
 	}
 
 	// The hierarchy described by BIP0043 is:
@@ -2275,12 +2099,10 @@ func deriveCoinTypeKey(masterNode *hdkeychain.ExtendedKey,
 //
 // In particular this is the hierarchical deterministic extended key path:
 //   m/44'/<coin type>'/<account>'
-func deriveAccountKey(coinTypeKey *hdkeychain.ExtendedKey,
-	account uint32) (*hdkeychain.ExtendedKey, error) {
+func deriveAccountKey(coinTypeKey *hdkeychain.ExtendedKey, account uint32) (*hdkeychain.ExtendedKey, error) {
 	// Enforce maximum account number.
 	if account > MaxAccountNum {
-		err := managerError(apperrors.ErrAccountNumTooHigh, errAcctTooHigh, nil)
-		return nil, err
+		return nil, errors.E(errors.Invalid, errors.Errorf("account %d", account))
 	}
 
 	// Derive the account key as a child of the coin type key.
@@ -2311,26 +2133,24 @@ func checkBranchKeys(acctKey *hdkeychain.ExtendedKey) error {
 // loadManager returns a new address manager that results from loading it from
 // the passed opened database.  The public passphrase is required to decrypt the
 // public keys.
-func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte,
-	chainParams *chaincfg.Params) (*Manager, error) {
-
+func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte, chainParams *chaincfg.Params) (*Manager, error) {
 	// Load whether or not the manager is watching-only from the db.
 	watchingOnly, err := fetchWatchingOnly(ns)
 	if err != nil {
-		return nil, maybeConvertDbError(err)
+		return nil, err
 	}
 
 	// Load the master key params from the db.
 	masterKeyPubParams, masterKeyPrivParams, err := fetchMasterKeyParams(ns)
 	if err != nil {
-		return nil, maybeConvertDbError(err)
+		return nil, err
 	}
 
 	// Load the crypto keys from the db.
 	cryptoKeyPubEnc, cryptoKeyPrivEnc, cryptoKeyScriptEnc, err :=
 		fetchCryptoKeys(ns)
 	if err != nil {
-		return nil, maybeConvertDbError(err)
+		return nil, err
 	}
 
 	// When not a watching-only manager, set the master private key params,
@@ -2339,8 +2159,7 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte,
 	if !watchingOnly {
 		err := masterKeyPriv.Unmarshal(masterKeyPrivParams)
 		if err != nil {
-			str := "failed to unmarshal master private key"
-			return nil, managerError(apperrors.ErrCrypto, str, err)
+			return nil, errors.E(errors.IO, errors.Errorf("unmarshal master privkey: %v", err))
 		}
 	}
 
@@ -2348,20 +2167,17 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte,
 	// passphrase.
 	var masterKeyPub snacl.SecretKey
 	if err := masterKeyPub.Unmarshal(masterKeyPubParams); err != nil {
-		str := "failed to unmarshal master public key"
-		return nil, managerError(apperrors.ErrCrypto, str, err)
+		return nil, errors.E(errors.IO, errors.Errorf("unmarshal master pubkey: %v", err))
 	}
 	if err := masterKeyPub.DeriveKey(&pubPassphrase); err != nil {
-		str := "invalid passphrase for master public key"
-		return nil, managerError(apperrors.ErrWrongPassphrase, str, nil)
+		return nil, errors.E(errors.Passphrase)
 	}
 
 	// Use the master public key to decrypt the crypto public key.
 	cryptoKeyPub := &cryptoKey{snacl.CryptoKey{}}
 	cryptoKeyPubCT, err := masterKeyPub.Decrypt(cryptoKeyPubEnc)
 	if err != nil {
-		str := "failed to decrypt crypto public key"
-		return nil, managerError(apperrors.ErrCrypto, str, err)
+		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt crypto pubkey: %v", err))
 	}
 	cryptoKeyPub.CopyBytes(cryptoKeyPubCT)
 	zero.Bytes(cryptoKeyPubCT)
@@ -2370,8 +2186,7 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte,
 	var privPassphraseSalt [saltSize]byte
 	_, err = rand.Read(privPassphraseSalt[:])
 	if err != nil {
-		str := "failed to read random source for passphrase salt"
-		return nil, managerError(apperrors.ErrCrypto, str, err)
+		return nil, errors.E(errors.IO, err)
 	}
 
 	// Create new address manager with the given parameters.  Also, override
@@ -2411,324 +2226,277 @@ func CoinTypes(params *chaincfg.Params) (legacyCoinType, slip0044CoinType uint32
 // passphrase is required on subsequent opens of the address manager, and the
 // private passphrase is required to unlock the address manager in order to gain
 // access to any private keys and information.
-//
-// A ManagerError with an error code of ErrAlreadyExists will be returned the
-// address manager already exists in the specified namespace.
-func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, privPassphrase []byte,
-	chainParams *chaincfg.Params, config *ScryptOptions) error {
+func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, privPassphrase []byte, chainParams *chaincfg.Params, config *ScryptOptions) error {
+	// Return an error if the manager has already been created in the given
+	// database namespace.
+	if managerExists(ns) {
+		return errors.E(errors.Exist, "address manager already exists")
+	}
 
-	err := func() error {
-		// Return an error if the manager has already been created in the given
-		// database namespace.
-		exists := managerExists(ns)
-		if exists {
-			return managerError(apperrors.ErrAlreadyExists, errAlreadyExists, nil)
-		}
+	// Ensure the private passphrase is not empty.
+	if len(privPassphrase) == 0 {
+		return errors.E(errors.Invalid, "private passphrase may not be empty")
+	}
 
-		// Ensure the private passphrase is not empty.
-		if len(privPassphrase) == 0 {
-			str := "private passphrase may not be empty"
-			return managerError(apperrors.ErrEmptyPassphrase, str, nil)
-		}
+	// Perform the initial bucket creation and database namespace setup.
+	if err := createManagerNS(ns); err != nil {
+		return err
+	}
 
-		// Perform the initial bucket creation and database namespace setup.
-		if err := createManagerNS(ns); err != nil {
-			return err
-		}
+	// Generate the BIP0044 HD key structure to ensure the provided seed
+	// can generate the required structure with no issues.
 
-		// Generate the BIP0044 HD key structure to ensure the provided seed
-		// can generate the required structure with no issues.
-
-		// Derive the master extended key from the seed.
-		root, err := hdkeychain.NewMaster(seed, chainParams)
-		if err != nil {
-			str := "failed to derive master extended key"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
-
-		// Derive the cointype keys according to BIP0044.
-		legacyCoinType, slip0044CoinType := CoinTypes(chainParams)
-		coinTypeLegacyKeyPriv, err := deriveCoinTypeKey(root, legacyCoinType)
-		if err != nil {
-			str := "failed to derive legacy cointype extended key"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
-		defer coinTypeLegacyKeyPriv.Zero()
-		coinTypeSLIP0044KeyPriv, err := deriveCoinTypeKey(root, slip0044CoinType)
-		if err != nil {
-			str := "failed to derive SLIP0044 cointype extended key"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
-		defer coinTypeSLIP0044KeyPriv.Zero()
-
-		// Derive the account key for the first account according to BIP0044.
-		acctKeyLegacyPriv, err := deriveAccountKey(coinTypeLegacyKeyPriv, 0)
-		if err != nil {
-			// The seed is unusable if the any of the children in the
-			// required hierarchy can't be derived due to invalid child.
-			if err == hdkeychain.ErrInvalidChild {
-				str := "the provided seed is unusable"
-				return managerError(apperrors.ErrKeyChain, str,
-					hdkeychain.ErrUnusableSeed)
-			}
-
-			return err
-		}
-		acctKeySLIP0044Priv, err := deriveAccountKey(coinTypeSLIP0044KeyPriv, 0)
-		if err != nil {
-			// The seed is unusable if the any of the children in the
-			// required hierarchy can't be derived due to invalid child.
-			if err == hdkeychain.ErrInvalidChild {
-				str := "the provided seed is unusable"
-				return managerError(apperrors.ErrKeyChain, str,
-					hdkeychain.ErrUnusableSeed)
-			}
-
-			return err
-		}
-
-		// Ensure the branch keys can be derived for the provided seed according
-		// to BIP0044.
-		if err := checkBranchKeys(acctKeyLegacyPriv); err != nil {
-			// The seed is unusable if the any of the children in the
-			// required hierarchy can't be derived due to invalid child.
-			if err == hdkeychain.ErrInvalidChild {
-				str := "the provided seed is unusable"
-				return managerError(apperrors.ErrKeyChain, str,
-					hdkeychain.ErrUnusableSeed)
-			}
-
-			return err
-		}
-		if err := checkBranchKeys(acctKeySLIP0044Priv); err != nil {
-			// The seed is unusable if the any of the children in the
-			// required hierarchy can't be derived due to invalid child.
-			if err == hdkeychain.ErrInvalidChild {
-				str := "the provided seed is unusable"
-				return managerError(apperrors.ErrKeyChain, str,
-					hdkeychain.ErrUnusableSeed)
-			}
-
-			return err
-		}
-
-		// The address manager needs the public extended key for the account.
-		acctKeyLegacyPub, err := acctKeyLegacyPriv.Neuter()
-		if err != nil {
-			str := "failed to convert private key for legacy account 0"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
-		acctKeySLIP0044Pub, err := acctKeySLIP0044Priv.Neuter()
-		if err != nil {
-			str := "failed to convert private key for SLIP0044 account 0"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
-
-		// Generate new master keys.  These master keys are used to protect the
-		// crypto keys that will be generated next.
-		masterKeyPub, err := newSecretKey(&pubPassphrase, config)
-		if err != nil {
-			str := "failed to master public key"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-		masterKeyPriv, err := newSecretKey(&privPassphrase, config)
-		if err != nil {
-			str := "failed to master private key"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-		defer masterKeyPriv.Zero()
-
-		// Generate the private passphrase salt.  This is used when hashing
-		// passwords to detect whether an unlock can be avoided when the manager
-		// is already unlocked.
-		var privPassphraseSalt [saltSize]byte
-		_, err = rand.Read(privPassphraseSalt[:])
-		if err != nil {
-			str := "failed to read random source for passphrase salt"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-
-		// Generate new crypto public, private, and script keys.  These keys are
-		// used to protect the actual public and private data such as addresses,
-		// extended keys, and scripts.
-		cryptoKeyPub, err := newCryptoKey()
-		if err != nil {
-			str := "failed to generate crypto public key"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-		cryptoKeyPriv, err := newCryptoKey()
-		if err != nil {
-			str := "failed to generate crypto private key"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-		defer cryptoKeyPriv.Zero()
-
-		cryptoKeyScript, err := newCryptoKey()
-		if err != nil {
-			str := "failed to generate crypto script key"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-		defer cryptoKeyScript.Zero()
-
-		// Encrypt the crypto keys with the associated master keys.
-		cryptoKeyPubEnc, err := masterKeyPub.Encrypt(cryptoKeyPub.Bytes())
-		if err != nil {
-			str := "failed to encrypt crypto public key"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-		cryptoKeyPrivEnc, err := masterKeyPriv.Encrypt(cryptoKeyPriv.Bytes())
-		if err != nil {
-			str := "failed to encrypt crypto private key"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-		cryptoKeyScriptEnc, err := masterKeyPriv.Encrypt(cryptoKeyScript.Bytes())
-		if err != nil {
-			str := "failed to encrypt crypto script key"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-
-		// Encrypt the legacy cointype keys with the associated crypto keys.
-		coinTypeLegacyKeyPub, err := coinTypeLegacyKeyPriv.Neuter()
-		if err != nil {
-			str := "failed to convert legacy cointype private key"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
-		ctpes := coinTypeLegacyKeyPub.String()
-		coinTypeLegacyPubEnc, err := cryptoKeyPub.Encrypt([]byte(ctpes))
-		if err != nil {
-			str := "failed to encrypt legacy cointype public key"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-		ctpes = coinTypeLegacyKeyPriv.String()
-		coinTypeLegacyPrivEnc, err := cryptoKeyPriv.Encrypt([]byte(ctpes))
-		if err != nil {
-			str := "failed to encrypt legacy cointype private key"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-
-		// Encrypt the SLIP0044 cointype keys with the associated crypto keys.
-		coinTypeSLIP0044KeyPub, err := coinTypeSLIP0044KeyPriv.Neuter()
-		if err != nil {
-			str := "failed to convert SLIP0044 cointype private key"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
-		ctpes = coinTypeSLIP0044KeyPub.String()
-		coinTypeSLIP0044PubEnc, err := cryptoKeyPub.Encrypt([]byte(ctpes))
-		if err != nil {
-			str := "failed to encrypt SLIP0044 cointype public key"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-		ctpes = coinTypeSLIP0044KeyPriv.String()
-		coinTypeSLIP0044PrivEnc, err := cryptoKeyPriv.Encrypt([]byte(ctpes))
-		if err != nil {
-			str := "failed to encrypt SLIP0044 cointype private key"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-
-		// Encrypt the default account keys with the associated crypto keys.
-		apes := acctKeyLegacyPub.String()
-		acctPubLegacyEnc, err := cryptoKeyPub.Encrypt([]byte(apes))
-		if err != nil {
-			str := "failed to encrypt public key for account 0"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-		apes = acctKeyLegacyPriv.String()
-		acctPrivLegacyEnc, err := cryptoKeyPriv.Encrypt([]byte(apes))
-		if err != nil {
-			str := "failed to encrypt private key for account 0"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-		apes = acctKeySLIP0044Pub.String()
-		acctPubSLIP0044Enc, err := cryptoKeyPub.Encrypt([]byte(apes))
-		if err != nil {
-			str := "failed to encrypt public key for account 0"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-		apes = acctKeySLIP0044Priv.String()
-		acctPrivSLIP0044Enc, err := cryptoKeyPriv.Encrypt([]byte(apes))
-		if err != nil {
-			str := "failed to encrypt private key for account 0"
-			return managerError(apperrors.ErrCrypto, str, err)
-		}
-
-		// Save the master key params to the database.
-		pubParams := masterKeyPub.Marshal()
-		privParams := masterKeyPriv.Marshal()
-		err = putMasterKeyParams(ns, pubParams, privParams)
-		if err != nil {
-			return err
-		}
-
-		// Save the encrypted crypto keys to the database.
-		err = putCryptoKeys(ns, cryptoKeyPubEnc, cryptoKeyPrivEnc,
-			cryptoKeyScriptEnc)
-		if err != nil {
-			return err
-		}
-
-		// Save the encrypted legacy cointype keys to the database.
-		err = putCoinTypeLegacyKeys(ns, coinTypeLegacyPubEnc, coinTypeLegacyPrivEnc)
-		if err != nil {
-			return err
-		}
-
-		// Save the encrypted SLIP0044 cointype keys.
-		err = putCoinTypeSLIP0044Keys(ns, coinTypeSLIP0044PubEnc, coinTypeSLIP0044PrivEnc)
-		if err != nil {
-			return err
-		}
-
-		// Save the fact this is not a watching-only address manager to the
-		// database.
-		err = putWatchingOnly(ns, false)
-		if err != nil {
-			return err
-		}
-
-		// Set the next to use addresses as empty for the address pool.
-		err = putNextToUseAddrPoolIdx(ns, false, DefaultAccountNum, 0)
-		if err != nil {
-			return err
-		}
-		err = putNextToUseAddrPoolIdx(ns, true, DefaultAccountNum, 0)
-		if err != nil {
-			return err
-		}
-
-		// Save the information for the imported account to the database.  Even
-		// though the imported account is a special and restricted account, the
-		// database used a BIP0044 row type for it.
-		importedRow := bip0044AccountInfo(nil, nil, 0, 0, 0, 0, 0, 0,
-			ImportedAddrAccountName, initialVersion)
-		err = putAccountInfo(ns, ImportedAddrAccount, importedRow)
-		if err != nil {
-			return err
-		}
-
-		// Save the information for the default account to the database.  This
-		// account is derived from the legacy coin type.
-		defaultRow := bip0044AccountInfo(acctPubLegacyEnc, acctPrivLegacyEnc,
-			0, 0, 0, 0, 0, 0, defaultAccountName, initialVersion)
-		err = putAccountInfo(ns, DefaultAccountNum, defaultRow)
-		if err != nil {
-			return err
-		}
-
-		// Save the account row for the 0th account derived from the coin type
-		// 42 key.
-		slip0044Account0Row := bip0044AccountInfo(acctPubSLIP0044Enc, acctPrivSLIP0044Enc,
-			0, 0, 0, 0, 0, 0, defaultAccountName, initialVersion)
-		mainBucket := ns.NestedReadWriteBucket(mainBucketName)
-		err = mainBucket.Put(slip0044Account0RowName, serializeAccountRow(&slip0044Account0Row.dbAccountRow))
-		if err != nil {
-			const desc = "failed to write SLIP0044 account row to main bucket"
-			return apperrors.Wrap(err, apperrors.ErrDatabase, desc)
-		}
-
-		return nil
-	}()
+	// Derive the master extended key from the seed.
+	root, err := hdkeychain.NewMaster(seed, chainParams)
 	if err != nil {
-		return maybeConvertDbError(err)
+		return err
+	}
+
+	// Derive the cointype keys according to BIP0044.
+	legacyCoinType, slip0044CoinType := CoinTypes(chainParams)
+	coinTypeLegacyKeyPriv, err := deriveCoinTypeKey(root, legacyCoinType)
+	if err != nil {
+		return err
+	}
+	defer coinTypeLegacyKeyPriv.Zero()
+	coinTypeSLIP0044KeyPriv, err := deriveCoinTypeKey(root, slip0044CoinType)
+	if err != nil {
+		return err
+	}
+	defer coinTypeSLIP0044KeyPriv.Zero()
+
+	// Derive the account key for the first account according to BIP0044.
+	acctKeyLegacyPriv, err := deriveAccountKey(coinTypeLegacyKeyPriv, 0)
+	if err != nil {
+		// The seed is unusable if the any of the children in the
+		// required hierarchy can't be derived due to invalid child.
+		if err == hdkeychain.ErrInvalidChild {
+			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
+		}
+
+		return err
+	}
+	acctKeySLIP0044Priv, err := deriveAccountKey(coinTypeSLIP0044KeyPriv, 0)
+	if err != nil {
+		// The seed is unusable if the any of the children in the
+		// required hierarchy can't be derived due to invalid child.
+		if err == hdkeychain.ErrInvalidChild {
+			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
+		}
+
+		return err
+	}
+
+	// Ensure the branch keys can be derived for the provided seed according
+	// to BIP0044.
+	if err := checkBranchKeys(acctKeyLegacyPriv); err != nil {
+		// The seed is unusable if the any of the children in the
+		// required hierarchy can't be derived due to invalid child.
+		if err == hdkeychain.ErrInvalidChild {
+			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
+		}
+
+		return err
+	}
+	if err := checkBranchKeys(acctKeySLIP0044Priv); err != nil {
+		// The seed is unusable if the any of the children in the
+		// required hierarchy can't be derived due to invalid child.
+		if err == hdkeychain.ErrInvalidChild {
+			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
+		}
+
+		return err
+	}
+
+	// The address manager needs the public extended key for the account.
+	acctKeyLegacyPub, err := acctKeyLegacyPriv.Neuter()
+	if err != nil {
+		return err
+	}
+	acctKeySLIP0044Pub, err := acctKeySLIP0044Priv.Neuter()
+	if err != nil {
+		return err
+	}
+
+	// Generate new master keys.  These master keys are used to protect the
+	// crypto keys that will be generated next.
+	masterKeyPub, err := newSecretKey(&pubPassphrase, config)
+	if err != nil {
+		return err
+	}
+	masterKeyPriv, err := newSecretKey(&privPassphrase, config)
+	if err != nil {
+		return err
+	}
+	defer masterKeyPriv.Zero()
+
+	// Generate the private passphrase salt.  This is used when hashing
+	// passwords to detect whether an unlock can be avoided when the manager
+	// is already unlocked.
+	var privPassphraseSalt [saltSize]byte
+	_, err = rand.Read(privPassphraseSalt[:])
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	// Generate new crypto public, private, and script keys.  These keys are
+	// used to protect the actual public and private data such as addresses,
+	// extended keys, and scripts.
+	cryptoKeyPub, err := newCryptoKey()
+	if err != nil {
+		return err
+	}
+	cryptoKeyPriv, err := newCryptoKey()
+	if err != nil {
+		return err
+	}
+	defer cryptoKeyPriv.Zero()
+
+	cryptoKeyScript, err := newCryptoKey()
+	if err != nil {
+		return err
+	}
+	defer cryptoKeyScript.Zero()
+
+	// Encrypt the crypto keys with the associated master keys.
+	cryptoKeyPubEnc, err := masterKeyPub.Encrypt(cryptoKeyPub.Bytes())
+	if err != nil {
+		return errors.E(errors.Crypto, errors.Errorf("encrypt crypto pubkey: %v", err))
+	}
+	cryptoKeyPrivEnc, err := masterKeyPriv.Encrypt(cryptoKeyPriv.Bytes())
+	if err != nil {
+		return errors.E(errors.Crypto, errors.Errorf("encrypt crypto privkey: %v", err))
+	}
+	cryptoKeyScriptEnc, err := masterKeyPriv.Encrypt(cryptoKeyScript.Bytes())
+	if err != nil {
+		return errors.E(errors.Crypto, errors.Errorf("encrypt crypto script key: %v", err))
+	}
+
+	// Encrypt the legacy cointype keys with the associated crypto keys.
+	coinTypeLegacyKeyPub, err := coinTypeLegacyKeyPriv.Neuter()
+	if err != nil {
+		return err
+	}
+	ctpes := coinTypeLegacyKeyPub.String()
+	coinTypeLegacyPubEnc, err := cryptoKeyPub.Encrypt([]byte(ctpes))
+	if err != nil {
+		return errors.E(errors.Crypto, fmt.Errorf("encrypt legacy cointype pubkey: %v", err))
+	}
+	ctpes = coinTypeLegacyKeyPriv.String()
+	coinTypeLegacyPrivEnc, err := cryptoKeyPriv.Encrypt([]byte(ctpes))
+	if err != nil {
+		return errors.E(errors.Crypto, fmt.Errorf("encrypt legacy cointype privkey: %v", err))
+	}
+
+	// Encrypt the SLIP0044 cointype keys with the associated crypto keys.
+	coinTypeSLIP0044KeyPub, err := coinTypeSLIP0044KeyPriv.Neuter()
+	if err != nil {
+		return err
+	}
+	ctpes = coinTypeSLIP0044KeyPub.String()
+	coinTypeSLIP0044PubEnc, err := cryptoKeyPub.Encrypt([]byte(ctpes))
+	if err != nil {
+		return errors.E(errors.Crypto, fmt.Errorf("encrypt SLIP0044 cointype pubkey: %v", err))
+	}
+	ctpes = coinTypeSLIP0044KeyPriv.String()
+	coinTypeSLIP0044PrivEnc, err := cryptoKeyPriv.Encrypt([]byte(ctpes))
+	if err != nil {
+		return errors.E(errors.Crypto, fmt.Errorf("encrypt SLIP0044 cointype privkey: %v", err))
+	}
+
+	// Encrypt the default account keys with the associated crypto keys.
+	apes := acctKeyLegacyPub.String()
+	acctPubLegacyEnc, err := cryptoKeyPub.Encrypt([]byte(apes))
+	if err != nil {
+		return errors.E(errors.Crypto, fmt.Errorf("encrypt account 0 pubkey: %v", err))
+	}
+	apes = acctKeyLegacyPriv.String()
+	acctPrivLegacyEnc, err := cryptoKeyPriv.Encrypt([]byte(apes))
+	if err != nil {
+		return errors.E(errors.Crypto, fmt.Errorf("encrypt account 0 privkey: %v", err))
+	}
+	apes = acctKeySLIP0044Pub.String()
+	acctPubSLIP0044Enc, err := cryptoKeyPub.Encrypt([]byte(apes))
+	if err != nil {
+		return errors.E(errors.Crypto, fmt.Errorf("encrypt account 0 pubkey: %v", err))
+	}
+	apes = acctKeySLIP0044Priv.String()
+	acctPrivSLIP0044Enc, err := cryptoKeyPriv.Encrypt([]byte(apes))
+	if err != nil {
+		return errors.E(errors.Crypto, fmt.Errorf("encrypt account 0 privkey: %v", err))
+	}
+
+	// Save the master key params to the database.
+	pubParams := masterKeyPub.Marshal()
+	privParams := masterKeyPriv.Marshal()
+	err = putMasterKeyParams(ns, pubParams, privParams)
+	if err != nil {
+		return err
+	}
+
+	// Save the encrypted crypto keys to the database.
+	err = putCryptoKeys(ns, cryptoKeyPubEnc, cryptoKeyPrivEnc,
+		cryptoKeyScriptEnc)
+	if err != nil {
+		return err
+	}
+
+	// Save the encrypted legacy cointype keys to the database.
+	err = putCoinTypeLegacyKeys(ns, coinTypeLegacyPubEnc, coinTypeLegacyPrivEnc)
+	if err != nil {
+		return err
+	}
+
+	// Save the encrypted SLIP0044 cointype keys.
+	err = putCoinTypeSLIP0044Keys(ns, coinTypeSLIP0044PubEnc, coinTypeSLIP0044PrivEnc)
+	if err != nil {
+		return err
+	}
+
+	// Save the fact this is not a watching-only address manager to the
+	// database.
+	err = putWatchingOnly(ns, false)
+	if err != nil {
+		return err
+	}
+
+	// Set the next to use addresses as empty for the address pool.
+	err = putNextToUseAddrPoolIdx(ns, false, DefaultAccountNum, 0)
+	if err != nil {
+		return err
+	}
+	err = putNextToUseAddrPoolIdx(ns, true, DefaultAccountNum, 0)
+	if err != nil {
+		return err
+	}
+
+	// Save the information for the imported account to the database.  Even
+	// though the imported account is a special and restricted account, the
+	// database used a BIP0044 row type for it.
+	importedRow := bip0044AccountInfo(nil, nil, 0, 0, 0, 0, 0, 0,
+		ImportedAddrAccountName, initialVersion)
+	err = putAccountInfo(ns, ImportedAddrAccount, importedRow)
+	if err != nil {
+		return err
+	}
+
+	// Save the information for the default account to the database.  This
+	// account is derived from the legacy coin type.
+	defaultRow := bip0044AccountInfo(acctPubLegacyEnc, acctPrivLegacyEnc,
+		0, 0, 0, 0, 0, 0, defaultAccountName, initialVersion)
+	err = putAccountInfo(ns, DefaultAccountNum, defaultRow)
+	if err != nil {
+		return err
+	}
+
+	// Save the account row for the 0th account derived from the coin type
+	// 42 key.
+	slip0044Account0Row := bip0044AccountInfo(acctPubSLIP0044Enc, acctPrivSLIP0044Enc,
+		0, 0, 0, 0, 0, 0, defaultAccountName, initialVersion)
+	mainBucket := ns.NestedReadWriteBucket(mainBucketName)
+	err = mainBucket.Put(slip0044Account0RowName, serializeAccountRow(&slip0044Account0Row.dbAccountRow))
+	if err != nil {
+		return errors.E(errors.IO, err)
 	}
 
 	return nil
@@ -2740,24 +2508,11 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 // All public keys and information are protected by secret keys derived from the
 // provided public passphrase.  The public passphrase is required on subsequent
 // opens of the address manager.
-//
-// A ManagerError with an error code of ErrAlreadyExists will be returned the
-// address manager already exists in the specified namespace.
-func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string,
-	pubPassphrase []byte, chainParams *chaincfg.Params,
-	config *ScryptOptions) (err error) {
-
-	defer func() {
-		if err != nil {
-			err = maybeConvertDbError(err)
-		}
-	}()
-
+func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase []byte, chainParams *chaincfg.Params, config *ScryptOptions) (err error) {
 	// Return an error if the manager has already been created in the given
 	// database namespace.
-	exists := managerExists(ns)
-	if exists {
-		return managerError(apperrors.ErrAlreadyExists, errAlreadyExists, nil)
+	if managerExists(ns) {
+		return errors.E(errors.Exist, "address manager already exists")
 	}
 
 	// Perform the initial bucket creation and database namespace setup.
@@ -2771,9 +2526,7 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string,
 		// The seed is unusable if the any of the children in the
 		// required hierarchy can't be derived due to invalid child.
 		if err == hdkeychain.ErrInvalidChild {
-			str := "the provided hd key address is unusable"
-			return managerError(apperrors.ErrKeyChain, str,
-				hdkeychain.ErrUnusableSeed)
+			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
 		}
 
 		return err
@@ -2781,9 +2534,7 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string,
 
 	// Ensure the extended public key is valid for the active network.
 	if !acctKeyPub.IsForNet(chainParams) {
-		str := fmt.Sprintf("the provided extended public key is not "+
-			"for %s", chainParams.Net)
-		return managerError(apperrors.ErrWrongNet, str, nil)
+		return errors.E(errors.Invalid, "wrong network")
 	}
 
 	// Ensure the branch keys can be derived for the provided seed according
@@ -2792,9 +2543,7 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string,
 		// The seed is unusable if the any of the children in the
 		// required hierarchy can't be derived due to invalid child.
 		if err == hdkeychain.ErrInvalidChild {
-			str := "the provided seed is unusable"
-			return managerError(apperrors.ErrKeyChain, str,
-				hdkeychain.ErrUnusableSeed)
+			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
 		}
 
 		return err
@@ -2804,13 +2553,11 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string,
 	// crypto keys that will be generated next.
 	masterKeyPub, err := newSecretKey(&pubPassphrase, config)
 	if err != nil {
-		str := "failed to master public key"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return err
 	}
 	masterKeyPriv, err := newSecretKey(&pubPassphrase, config)
 	if err != nil {
-		str := "failed to master pseudoprivate key"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return err
 	}
 	defer masterKeyPriv.Zero()
 
@@ -2820,8 +2567,7 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string,
 	var privPassphraseSalt [saltSize]byte
 	_, err = rand.Read(privPassphraseSalt[:])
 	if err != nil {
-		str := "failed to read random source for passphrase salt"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	// Generate new crypto public, private, and script keys.  These keys are
@@ -2829,51 +2575,43 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string,
 	// extended keys, and scripts.
 	cryptoKeyPub, err := newCryptoKey()
 	if err != nil {
-		str := "failed to generate crypto public key"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return err
 	}
 	cryptoKeyPriv, err := newCryptoKey()
 	if err != nil {
-		str := "failed to generate crypto private key"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return err
 	}
 	defer cryptoKeyPriv.Zero()
 	cryptoKeyScript, err := newCryptoKey()
 	if err != nil {
-		str := "failed to generate crypto script key"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return err
 	}
 	defer cryptoKeyScript.Zero()
 
 	// Encrypt the crypto keys with the associated master keys.
 	cryptoKeyPubEnc, err := masterKeyPub.Encrypt(cryptoKeyPub.Bytes())
 	if err != nil {
-		str := "failed to encrypt crypto public key"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return errors.E(errors.Crypto, errors.Errorf("encrypt crypto pubkey: %v", err))
 	}
 	cryptoKeyPrivEnc, err := masterKeyPriv.Encrypt(cryptoKeyPriv.Bytes())
 	if err != nil {
-		str := "failed to encrypt crypto private key"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return errors.E(errors.Crypto, errors.Errorf("encrypt crypto privkey: %v", err))
 	}
 	cryptoKeyScriptEnc, err := masterKeyPriv.Encrypt(cryptoKeyScript.Bytes())
 	if err != nil {
-		str := "failed to encrypt crypto script key"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return errors.E(errors.Crypto, errors.Errorf("encrypt crypto script key: %v", err))
 	}
 
 	// Encrypt the default account keys with the associated crypto keys.
 	apes := acctKeyPub.String()
 	acctPubEnc, err := cryptoKeyPub.Encrypt([]byte(apes))
 	if err != nil {
-		str := "failed to encrypt public key for account 0"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return errors.E(errors.Crypto, errors.Errorf("encrypt account 0 pubkey: %v", err))
 	}
 	apes = acctKeyPub.String()
 	acctPrivEnc, err := cryptoKeyPriv.Encrypt([]byte(apes))
 	if err != nil {
-		str := "failed to encrypt private key for account 0"
-		return managerError(apperrors.ErrCrypto, str, err)
+		return errors.E(errors.Crypto, errors.Errorf("encrypt account 0 privkey: %v", err))
 	}
 
 	// Save the master key params to the database.

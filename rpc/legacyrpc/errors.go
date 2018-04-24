@@ -1,103 +1,98 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2016 The Decred developers
+// Copyright (c) 2016-2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package legacyrpc
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrwallet/errors"
 )
 
-// TODO(jrick): There are several error paths which 'replace' various errors
-// with a more appropiate error from the dcrjson package.  Create a map of
-// these replacements so they can be handled once after an RPC handler has
-// returned and before the error is marshaled.
-
-// Error types to simplify the reporting of specific categories of
-// errors, and their *dcrjson.RPCError creation.
-type (
-	// DeserializationError describes a failed deserializaion due to bad
-	// user input.  It corresponds to dcrjson.ErrRPCDeserialization.
-	DeserializationError struct {
-		error
+func convertError(err error) *dcrjson.RPCError {
+	if err, ok := err.(*dcrjson.RPCError); ok {
+		return err
 	}
 
-	// InvalidParameterError describes an invalid parameter passed by
-	// the user.  It corresponds to dcrjson.ErrRPCInvalidParameter.
-	InvalidParameterError struct {
-		error
+	code := dcrjson.ErrRPCWallet
+	if err, ok := err.(*errors.Error); ok {
+		switch err.Kind {
+		case errors.Bug:
+			code = dcrjson.ErrRPCInternal.Code
+		case errors.Encoding:
+			code = dcrjson.ErrRPCInvalidParameter
+		case errors.Locked:
+			code = dcrjson.ErrRPCWalletUnlockNeeded
+		case errors.Passphrase:
+			code = dcrjson.ErrRPCWalletPassphraseIncorrect
+		case errors.NoPeers:
+			code = dcrjson.ErrRPCClientNotConnected
+		case errors.InsufficientBalance:
+			code = dcrjson.ErrRPCWalletInsufficientFunds
+		}
 	}
-
-	// ParseError describes a failed parse due to bad user input.  It
-	// corresponds to dcrjson.ErrRPCParse.
-	ParseError struct {
-		error
+	return &dcrjson.RPCError{
+		Code:    code,
+		Message: err.Error(),
 	}
-)
+}
 
-// Errors variables that are defined once here to avoid duplication below.
+func rpcError(code dcrjson.RPCErrorCode, err error) *dcrjson.RPCError {
+	return &dcrjson.RPCError{
+		Code:    code,
+		Message: err.Error(),
+	}
+}
+
+func rpcErrorf(code dcrjson.RPCErrorCode, format string, args ...interface{}) *dcrjson.RPCError {
+	return &dcrjson.RPCError{
+		Code:    code,
+		Message: fmt.Sprintf(format, args...),
+	}
+}
+
+// Errors variables that are defined once here to avoid duplication.
 var (
-	ErrNeedPositiveAmount = InvalidParameterError{
-		errors.New("amount must be positive"),
+	errUnloadedWallet = &dcrjson.RPCError{
+		Code:    dcrjson.ErrRPCWallet,
+		Message: "request requires a wallet but wallet has not loaded yet",
 	}
 
-	ErrNeedBelowMaxAmount = InvalidParameterError{
-		errors.New("amount must be below max amount"),
+	errClientNotConnected = &dcrjson.RPCError{
+		Code:    dcrjson.ErrRPCClientNotConnected,
+		Message: "disconnected from network",
 	}
 
-	ErrNeedPositiveSpendLimit = InvalidParameterError{
-		errors.New("spend limit must be positive"),
+	errAccountNotFound = &dcrjson.RPCError{
+		Code:    dcrjson.ErrRPCWalletInvalidAccountName,
+		Message: "account not found",
 	}
 
-	ErrNeedPositiveMinconf = InvalidParameterError{
-		errors.New("minconf must be positive"),
-	}
-
-	ErrAddressNotInWallet = dcrjson.RPCError{
+	errAddressNotInWallet = &dcrjson.RPCError{
 		Code:    dcrjson.ErrRPCWallet,
 		Message: "address not found in wallet",
 	}
 
-	ErrAccountNameNotFound = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCWalletInvalidAccountName,
-		Message: "account name not found",
-	}
-
-	ErrUnloadedWallet = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCWallet,
-		Message: "Request requires a wallet but wallet has not loaded yet",
-	}
-
-	ErrClientNotConnected = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCClientNotConnected,
-		Message: "RPC client has not connected yet",
-	}
-
-	ErrWalletUnlockNeeded = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCWalletUnlockNeeded,
-		Message: "Enter the wallet passphrase with walletpassphrase first",
-	}
-
-	ErrNotImportedAccount = dcrjson.RPCError{
+	errNotImportedAccount = &dcrjson.RPCError{
 		Code:    dcrjson.ErrRPCWallet,
 		Message: "imported addresses must belong to the imported account",
 	}
 
-	ErrNoTransactionInfo = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCNoTxInfo,
-		Message: "No information for transaction",
-	}
-
-	ErrReservedAccountName = dcrjson.RPCError{
+	errNeedPositiveAmount = &dcrjson.RPCError{
 		Code:    dcrjson.ErrRPCInvalidParameter,
-		Message: "Account name is reserved by RPC server",
+		Message: "amount must be positive",
 	}
 
-	ErrMainNetSafety = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCWallet,
-		Message: "RPC function disabled on MainNet wallets for security purposes",
+	errWalletUnlockNeeded = &dcrjson.RPCError{
+		Code:    dcrjson.ErrRPCWalletUnlockNeeded,
+		Message: "enter the wallet passphrase with walletpassphrase first",
+	}
+
+	errReservedAccountName = &dcrjson.RPCError{
+		Code:    dcrjson.ErrRPCInvalidParameter,
+		Message: "account name is reserved by RPC server",
 	}
 )

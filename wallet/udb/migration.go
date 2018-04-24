@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Decred developers
+// Copyright (c) 2017-2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -6,7 +6,7 @@ package udb
 
 import (
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
@@ -60,23 +60,19 @@ func Migrate(db walletdb.DB, params *chaincfg.Params) error {
 		// place.
 		err = addrmgrNs.NestedReadWriteBucket(mainBucketName).Delete(mgrVersionName)
 		if err != nil {
-			const str = "failed to delete old address manager version"
-			return apperrors.E{ErrorCode: apperrors.ErrDatabase, Description: str, Err: err}
+			return errors.E(errors.IO, err)
 		}
 		err = txmgrNs.Delete(rootVersion)
 		if err != nil {
-			const str = "failed to delete old transaction store version"
-			return apperrors.E{ErrorCode: apperrors.ErrDatabase, Description: str, Err: err}
+			return errors.E(errors.IO, err)
 		}
 		err = stakemgrNs.NestedReadWriteBucket(mainBucketName).Delete(stakeStoreVersionName)
 		if err != nil {
-			const str = "failed to delete old stake store version"
-			return apperrors.E{ErrorCode: apperrors.ErrDatabase, Description: str, Err: err}
+			return errors.E(errors.IO, err)
 		}
 		metadataBucket, err := tx.CreateTopLevelBucket(unifiedDBMetadata{}.rootBucketKey())
 		if err != nil {
-			const str = "failed to create unified database metadata bucket"
-			return apperrors.E{ErrorCode: apperrors.ErrDatabase, Description: str, Err: err}
+			return errors.E(errors.IO, err)
 		}
 		return unifiedDBMetadata{}.putVersion(metadataBucket, initialVersion)
 	})

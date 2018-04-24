@@ -10,7 +10,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
@@ -200,8 +200,8 @@ func TestCoinTypeUpgrade(t *testing.T) {
 
 		// Check that the upgrade can not be performed a second time.
 		err = m.UpgradeToSLIP0044CoinType(dbtx)
-		if !apperrors.IsError(err, apperrors.ErrUnsupported) {
-			t.Fatalf("upgrade database did not refuse second upgrade with ErrUnsupported")
+		if !errors.Is(errors.Invalid, err) {
+			t.Fatalf("upgrade database did not refuse second upgrade with errors.Invalid")
 		}
 
 		return nil

@@ -6,10 +6,10 @@
 package walletdb_test
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/walletdb"
 	_ "github.com/decred/dcrwallet/walletdb/bdb"
 )
@@ -29,7 +29,7 @@ func TestAddDuplicateDriver(t *testing.T) {
 	// detected if the interface allows a duplicate driver to overwrite an
 	// existing one.
 	bogusCreateDB := func(args ...interface{}) (walletdb.DB, error) {
-		return nil, fmt.Errorf("duplicate driver allowed for database "+
+		return nil, errors.Errorf("duplicate driver allowed for database "+
 			"type [%v]", dbType)
 	}
 
@@ -42,9 +42,8 @@ func TestAddDuplicateDriver(t *testing.T) {
 		Open:   bogusCreateDB,
 	}
 	err := walletdb.RegisterDriver(driver)
-	if err != walletdb.ErrDbTypeRegistered {
-		t.Errorf("unexpected duplicate driver registration error - "+
-			"got %v, want %v", err, walletdb.ErrDbTypeRegistered)
+	if !errors.Is(errors.Exist, err) {
+		t.Errorf("unexpected duplicate driver registration error: %v", err)
 	}
 
 	dbPath := "dupdrivertest.db"
@@ -65,7 +64,7 @@ func TestCreateOpenFail(t *testing.T) {
 	// driver function that intentionally returns a failure which can be
 	// detected.
 	dbType := "createopenfail"
-	openError := fmt.Errorf("failed to create or open database for "+
+	openError := errors.Errorf("failed to create or open database for "+
 		"database type [%v]", dbType)
 	bogusCreateDB := func(args ...interface{}) (walletdb.DB, error) {
 		return nil, openError
@@ -106,18 +105,14 @@ func TestCreateOpenUnsupported(t *testing.T) {
 	// expected error.
 	dbType := "unsupported"
 	_, err := walletdb.Create(dbType)
-	if err != walletdb.ErrDbUnknownType {
-		t.Errorf("expected error not received - got: %v, want %v", err,
-			walletdb.ErrDbUnknownType)
-		return
+	if !errors.Is(errors.Invalid, err) {
+		t.Errorf("walletdb.Create: %v", err)
 	}
 
 	// Ensure opening a database with the an unsupported type fails with the
 	// expected error.
 	_, err = walletdb.Open(dbType)
-	if err != walletdb.ErrDbUnknownType {
-		t.Errorf("expected error not received - got: %v, want %v", err,
-			walletdb.ErrDbUnknownType)
-		return
+	if !errors.Is(errors.Invalid, err) {
+		t.Errorf("walletdb.Create: %v", err)
 	}
 }

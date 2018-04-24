@@ -8,7 +8,7 @@ package udb
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/decred/dcrd/blockchain/stake"
@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
@@ -162,9 +162,7 @@ var (
 func fetchMinedBalance(ns walletdb.ReadBucket) (dcrutil.Amount, error) {
 	v := ns.Get(rootMinedBalance)
 	if len(v) != 8 {
-		str := fmt.Sprintf("mined balance: short read (expected 8 bytes, "+
-			"read %v)", len(v))
-		return 0, storeError(apperrors.ErrData, str, nil)
+		return 0, errors.E(errors.IO, errors.Errorf("mined balance len %d", len(v)))
 	}
 	return dcrutil.Amount(byteOrder.Uint64(v)), nil
 }
@@ -174,8 +172,7 @@ func putMinedBalance(ns walletdb.ReadWriteBucket, amt dcrutil.Amount) error {
 	byteOrder.PutUint64(v, uint64(amt))
 	err := ns.Put(rootMinedBalance, v)
 	if err != nil {
-		str := "failed to put balance"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -200,8 +197,7 @@ func canonicalOutPoint(txHash *chainhash.Hash, index uint32) []byte {
 
 func readCanonicalOutPoint(k []byte, op *wire.OutPoint) error {
 	if len(k) < 36 {
-		str := "short canonical outpoint"
-		return storeError(apperrors.ErrData, str, nil)
+		return errors.E(errors.IO, errors.Errorf("outpoint len %d", len(k)))
 	}
 	copy(op.Hash[:], k)
 	op.Index = byteOrder.Uint32(k[32:36])
@@ -260,9 +256,7 @@ func valueBlockRecordStakeInvalidated(v []byte) []byte {
 // hash appended to the end and an incremented number of transactions.
 func appendRawBlockRecord(v []byte, txHash *chainhash.Hash) ([]byte, error) {
 	if len(v) < 47 {
-		str := fmt.Sprintf("%s: appendRawBlockRecord short read "+
-			"(expected %d bytes, read %d)", bucketBlocks, 47, len(v))
-		return nil, storeError(apperrors.ErrData, str, nil)
+		return nil, errors.E(errors.IO, errors.Errorf("block record len %d", len(v)))
 	}
 	newv := append(v[:len(v):len(v)], txHash[:]...)
 	n := byteOrder.Uint32(newv[43:47])
@@ -273,8 +267,7 @@ func appendRawBlockRecord(v []byte, txHash *chainhash.Hash) ([]byte, error) {
 func putRawBlockRecord(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	err := ns.NestedReadWriteBucket(bucketBlocks).Put(k, v)
 	if err != nil {
-		str := "failed to store block"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -283,9 +276,7 @@ func fetchBlockTime(ns walletdb.ReadBucket, height int32) (time.Time, error) {
 	k := keyBlockRecord(height)
 	v := ns.NestedReadBucket(bucketBlocks).Get(k)
 	if len(v) < 47 {
-		str := fmt.Sprintf("%s: short read for fetchBlockTime (expected "+
-			"%d bytes, read %d)", bucketBlocks, 47, len(v))
-		return time.Time{}, storeError(apperrors.ErrData, str, nil)
+		return time.Time{}, errors.E(errors.IO, errors.Errorf("block record len %d", len(v)))
 	}
 	return time.Unix(int64(byteOrder.Uint64(v[32:40])), 0), nil
 }
@@ -307,22 +298,17 @@ func existsBlockRecord(ns walletdb.ReadBucket, height int32) (k, v []byte) {
 
 func readRawBlockRecord(k, v []byte, block *blockRecord) error {
 	if len(k) < 4 {
-		str := fmt.Sprintf("%s: short key for readRawBlockRecord (expected "+
-			"%d bytes, read %d)", bucketBlocks, 4, len(k))
-		return storeError(apperrors.ErrData, str, nil)
+		return errors.E(errors.IO, errors.Errorf("block key len %d", len(k)))
 	}
 	if len(v) < 47 {
-		str := fmt.Sprintf("%s: short value read for readRawBlockRecord "+
-			"(expected %d bytes, read %d)", bucketBlocks, 47, len(v))
-		return storeError(apperrors.ErrData, str, nil)
+		return errors.E(errors.IO, errors.Errorf("block record len %d", len(k)))
 	}
 
 	numTransactions := int(byteOrder.Uint32(v[43:47]))
 	expectedLen := 47 + chainhash.HashSize*numTransactions
 	if len(v) < expectedLen {
-		str := fmt.Sprintf("%s: short read readRawBlockRecord for hashes "+
-			"(expected %d bytes, read %d)", bucketBlocks, expectedLen, len(v))
-		return storeError(apperrors.ErrData, str, nil)
+		return errors.E(errors.IO, errors.Errorf("%d tx block record len %d",
+			numTransactions, len(v)))
 	}
 
 	block.Height = int32(byteOrder.Uint32(k))
@@ -438,8 +424,7 @@ func (it *blockIterator) prev() bool {
 // func (it *blockIterator) delete() error {
 // 	err := it.c.Delete()
 // 	if err != nil {
-// 		str := "failed to delete block record"
-// 		storeError(apperrors.ErrDatabase, str, err)
+// 		return errors.E(errors.IO, err)
 // 	}
 // 	return nil
 // }
@@ -461,8 +446,7 @@ func keyBlockHeader(blockHash *chainhash.Hash) []byte { return blockHash[:] }
 func putRawBlockHeader(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	err := ns.NestedReadWriteBucket(bucketHeaders).Put(k, v)
 	if err != nil {
-		str := "failed to store block header"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -470,8 +454,7 @@ func putRawBlockHeader(ns walletdb.ReadWriteBucket, k, v []byte) error {
 func fetchRawBlockHeader(ns walletdb.ReadBucket, k []byte) ([]byte, error) {
 	v := ns.NestedReadBucket(bucketHeaders).Get(k)
 	if v == nil {
-		str := "block header not found"
-		return nil, storeError(apperrors.ErrValueNoExists, str, nil)
+		return nil, errors.E(errors.NotExist, "block header")
 	}
 	vcopy := make([]byte, len(v))
 	copy(vcopy, v)
@@ -512,8 +495,7 @@ func valueTxRecord(rec *TxRecord) ([]byte, error) {
 		v = make([]byte, 8, 8+txSize)
 		err := rec.MsgTx.Serialize(bytes.NewBuffer(v[8:]))
 		if err != nil {
-			str := fmt.Sprintf("unable to serialize transaction %v", rec.Hash)
-			return nil, storeError(apperrors.ErrInput, str, err)
+			return nil, errors.E(errors.Invalid, err)
 		}
 		v = v[:cap(v)]
 	} else {
@@ -532,8 +514,7 @@ func putTxRecord(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Block) error
 	}
 	err = ns.NestedReadWriteBucket(bucketTxRecords).Put(k, v)
 	if err != nil {
-		str := fmt.Sprintf("%s: put failed for %v", bucketTxRecords, rec.Hash)
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -541,23 +522,18 @@ func putTxRecord(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Block) error
 func putRawTxRecord(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	err := ns.NestedReadWriteBucket(bucketTxRecords).Put(k, v)
 	if err != nil {
-		str := fmt.Sprintf("%s: put failed", bucketTxRecords)
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
 
 func readRawTxRecordMsgTx(txHash *chainhash.Hash, v []byte, msgTx *wire.MsgTx) error {
 	if len(v) < 8 {
-		str := fmt.Sprintf("%s: short read for raw tx record msg tx(expected %d "+
-			"bytes, read %d, txHash %v)", bucketTxRecords, 8, len(v), txHash)
-		return apperrors.New(apperrors.ErrData, str)
+		return errors.E(errors.IO, errors.Errorf("tx record len %d", len(v)))
 	}
 	err := msgTx.Deserialize(bytes.NewReader(v[8:]))
 	if err != nil {
-		str := fmt.Sprintf("%s: failed to deserialize transaction %v",
-			bucketTxRecords, txHash)
-		return storeError(apperrors.ErrData, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	return nil
@@ -565,17 +541,13 @@ func readRawTxRecordMsgTx(txHash *chainhash.Hash, v []byte, msgTx *wire.MsgTx) e
 
 func readRawTxRecord(txHash *chainhash.Hash, v []byte, rec *TxRecord) error {
 	if len(v) < 8 {
-		str := fmt.Sprintf("%s: short read for raw tx record (expected %d "+
-			"bytes, read %d, txHash %v)", bucketTxRecords, 8, len(v), txHash)
-		return storeError(apperrors.ErrData, str, nil)
+		return errors.E(errors.IO, errors.Errorf("tx record len %d", len(v)))
 	}
 	rec.Hash = *txHash
 	rec.Received = time.Unix(int64(byteOrder.Uint64(v)), 0)
 	err := rec.MsgTx.Deserialize(bytes.NewReader(v[8:]))
 	if err != nil {
-		str := fmt.Sprintf("%s: failed to deserialize transaction %v",
-			bucketTxRecords, txHash)
-		return storeError(apperrors.ErrData, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	// Calculate the stake TxType from the MsgTx.
@@ -586,9 +558,8 @@ func readRawTxRecord(txHash *chainhash.Hash, v []byte, rec *TxRecord) error {
 
 func readRawTxRecordHash(k []byte, hash *chainhash.Hash) error {
 	if len(k) < 68 {
-		str := fmt.Sprintf("%s: short key (expected %d bytes, read %d)",
-			bucketTxRecords, 68, len(k))
-		return storeError(apperrors.ErrData, str, nil)
+		debug.PrintStack()
+		return errors.E(errors.IO, errors.Errorf("tx record key len %d", len(k)))
 	}
 	copy(hash[:], k[:32])
 	return nil
@@ -596,9 +567,8 @@ func readRawTxRecordHash(k []byte, hash *chainhash.Hash) error {
 
 func readRawTxRecordBlockHeight(k []byte, height *int32) error {
 	if len(k) < 68 {
-		str := fmt.Sprintf("%s: short key (expected %d bytes, read %d)",
-			bucketTxRecords, 68, len(k))
-		return storeError(apperrors.ErrData, str, nil)
+		debug.PrintStack()
+		return errors.E(errors.IO, errors.Errorf("tx record key len %d", len(k)))
 	}
 	*height = int32(byteOrder.Uint32(k[32:36]))
 	return nil
@@ -606,39 +576,33 @@ func readRawTxRecordBlockHeight(k []byte, height *int32) error {
 
 func readRawTxRecordBlock(k []byte, block *Block) error {
 	if len(k) < 68 {
-		str := fmt.Sprintf("%s: short key (expected %d bytes, read %d)",
-			bucketTxRecords, 68, len(k))
-		return storeError(apperrors.ErrData, str, nil)
+		debug.PrintStack()
+		return errors.E(errors.IO, errors.Errorf("tx record key len %d", len(k)))
 	}
 	block.Height = int32(byteOrder.Uint32(k[32:36]))
 	copy(block.Hash[:], k[36:68])
 	return nil
 }
 
-func fetchRawTxRecordPkScript(k, v []byte, index uint32, scrLoc uint32,
-	scrLen uint32) ([]byte, error) {
-	if k == nil {
-		str := fmt.Sprintf("nil key in pkscript fetch call")
-		return nil, storeError(apperrors.ErrData, str, nil)
-	}
-	if v == nil {
-		str := fmt.Sprintf("nil val in pkscript fetch call")
-		return nil, storeError(apperrors.ErrData, str, nil)
-	}
+func fetchRawTxRecordPkScript(k, v []byte, index uint32, scrLoc uint32, scrLen uint32) ([]byte, error) {
 	var pkScript []byte
+
+	var txHash chainhash.Hash
+	err := readRawTxRecordHash(k, &txHash)
+	if err != nil {
+		return nil, err
+	}
 
 	// The script isn't stored (legacy credits). Deserialize the
 	// entire transaction.
 	if scrLoc == scriptLocNotStored {
 		var rec TxRecord
-		copy(rec.Hash[:], k) // Silly but need an array
-		err := readRawTxRecord(&rec.Hash, v, &rec)
+		err = readRawTxRecord(&txHash, v, &rec)
 		if err != nil {
 			return nil, err
 		}
 		if int(index) >= len(rec.MsgTx.TxOut) {
-			str := "missing transaction output for credit index"
-			return nil, storeError(apperrors.ErrData, str, nil)
+			return nil, errors.E(errors.IO, "missing transaction output for credit index")
 		}
 		pkScript = rec.MsgTx.TxOut[index].PkScript
 	} else {
@@ -652,10 +616,8 @@ func fetchRawTxRecordPkScript(k, v []byte, index uint32, scrLoc uint32,
 		// the end of the serialized transaction value, which
 		// would cause a panic.
 		if scrLocInt > len(v)-1 || scrLocInt+scrLenInt > len(v) {
-			str := fmt.Sprintf("bad pkscript location in serialized "+
-				"transaction; v[%v:%v] requested but v is only "+
-				"len %v", scrLocInt, scrLocInt+scrLenInt, len(v))
-			return nil, storeError(apperrors.ErrData, str, nil)
+			return nil, errors.E(errors.IO, errors.Errorf(
+				"invalid script offset %d for tx %v", scrLocInt, &txHash))
 		}
 
 		pkScript = make([]byte, scrLenInt)
@@ -681,7 +643,11 @@ func existsRawTxRecord(ns walletdb.ReadBucket, k []byte) (v []byte) {
 
 func deleteTxRecord(ns walletdb.ReadWriteBucket, txHash *chainhash.Hash, block *Block) error {
 	k := keyTxRecord(txHash, block)
-	return ns.NestedReadWriteBucket(bucketTxRecords).Delete(k)
+	err := ns.NestedReadWriteBucket(bucketTxRecords).Delete(k)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
 }
 
 // latestTxRecord searches for the newest recorded mined transaction record with
@@ -792,8 +758,7 @@ func valueUnspentCredit(cred *credit, scrType scriptType, scrLoc uint32,
 func putRawCredit(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	err := ns.NestedReadWriteBucket(bucketCredits).Put(k, v)
 	if err != nil {
-		str := "failed to put credit"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -840,9 +805,7 @@ func extractRawCreditSpenderDebitKey(v []byte) []byte {
 // fetchRawCreditAmount returns the amount of the credit.
 func fetchRawCreditAmount(v []byte) (dcrutil.Amount, error) {
 	if len(v) < 9 {
-		str := fmt.Sprintf("%s: short read for raw credit amount (expected %d "+
-			"bytes, read %d)", bucketCredits, 9, len(v))
-		return 0, storeError(apperrors.ErrData, str, nil)
+		return 0, errors.E(errors.IO, errors.Errorf("credit len %d", len(v)))
 	}
 	return dcrutil.Amount(byteOrder.Uint64(v)), nil
 }
@@ -851,9 +814,7 @@ func fetchRawCreditAmount(v []byte) (dcrutil.Amount, error) {
 // credit is spent.
 func fetchRawCreditAmountSpent(v []byte) (dcrutil.Amount, bool, error) {
 	if len(v) < 9 {
-		str := fmt.Sprintf("%s: short read for raw credit amount spent "+
-			"(expected %d bytes, read %d)", bucketCredits, 9, len(v))
-		return 0, false, storeError(apperrors.ErrData, str, nil)
+		return 0, false, errors.E(errors.IO, errors.Errorf("credit len %d", len(v)))
 	}
 	return dcrutil.Amount(byteOrder.Uint64(v)), v[8]&(1<<0) != 0, nil
 }
@@ -862,9 +823,7 @@ func fetchRawCreditAmountSpent(v []byte) (dcrutil.Amount, bool, error) {
 // credit is marked as change.
 func fetchRawCreditAmountChange(v []byte) (dcrutil.Amount, bool, error) {
 	if len(v) < 9 {
-		str := fmt.Sprintf("%s: short read for raw credit amount change "+
-			"(expected %d bytes, read %d)", bucketCredits, 9, len(v))
-		return 0, false, storeError(apperrors.ErrData, str, nil)
+		return 0, false, errors.E(errors.IO, errors.Errorf("credit len %d", len(v)))
 	}
 	return dcrutil.Amount(byteOrder.Uint64(v)), v[8]&(1<<1) != 0, nil
 }
@@ -873,9 +832,7 @@ func fetchRawCreditAmountChange(v []byte) (dcrutil.Amount, bool, error) {
 // This may be used to mark a credit as unspent.
 func fetchRawCreditUnspentValue(k []byte) ([]byte, error) {
 	if len(k) < 72 {
-		str := fmt.Sprintf("%s: short key (expected %d bytes, read %d)",
-			bucketCredits, 72, len(k))
-		return nil, storeError(apperrors.ErrData, str, nil)
+		return nil, errors.E(errors.IO, errors.Errorf("credit key len %d", len(k)))
 	}
 	return k[32:68], nil
 }
@@ -926,14 +883,12 @@ func fetchRawCreditScriptLength(v []byte) uint32 {
 // credit.
 func fetchRawCreditAccount(v []byte) (uint32, error) {
 	if len(v) < creditValueSize {
-		str := "short credit value"
-		return 0, storeError(apperrors.ErrData, str, nil)
+		return 0, errors.E(errors.IO, errors.Errorf("credit len %d", len(v)))
 	}
 
 	// Was the account ever set?
 	if v[81]&accountExistsMask != accountExistsMask {
-		str := "account value unset"
-		return 0, storeError(apperrors.ErrValueNoExists, str, nil)
+		return 0, errors.E(errors.IO, "credit account unset")
 	}
 
 	return byteOrder.Uint32(v[90:94]), nil
@@ -971,8 +926,7 @@ func unspendRawCredit(ns walletdb.ReadWriteBucket, k []byte) (dcrutil.Amount, er
 
 	err := b.Put(k, newv)
 	if err != nil {
-		str := "failed to put credit"
-		return 0, storeError(apperrors.ErrDatabase, str, err)
+		return 0, errors.E(errors.IO, err)
 	}
 	return dcrutil.Amount(byteOrder.Uint64(v[0:8])), nil
 }
@@ -996,8 +950,7 @@ func existsInvalidatedCredit(ns walletdb.ReadBucket, txHash *chainhash.Hash, ind
 func deleteRawCredit(ns walletdb.ReadWriteBucket, k []byte) error {
 	err := ns.NestedReadWriteBucket(bucketCredits).Delete(k)
 	if err != nil {
-		str := "failed to delete credit"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1039,14 +992,10 @@ func makeReadCreditIterator(ns walletdb.ReadBucket, prefix []byte, dbVersion uin
 
 func (it *creditIterator) readElem() error {
 	if len(it.ck) < 72 {
-		str := fmt.Sprintf("%s: short key for credit iterator key "+
-			"(expected %d bytes, read %d)", bucketCredits, 72, len(it.ck))
-		return storeError(apperrors.ErrData, str, nil)
+		return errors.E(errors.IO, errors.Errorf("credit key len %d", len(it.ck)))
 	}
 	if len(it.cv) < 9 {
-		str := fmt.Sprintf("%s: short read for credit iterator value "+
-			"(expected %d bytes, read %d)", bucketCredits, 9, len(it.cv))
-		return storeError(apperrors.ErrData, str, nil)
+		return errors.E(errors.IO, errors.Errorf("credit len %d", len(it.cv)))
 	}
 	it.elem.Index = byteOrder.Uint32(it.ck[68:72])
 	it.elem.Amount = dcrutil.Amount(byteOrder.Uint64(it.cv))
@@ -1108,8 +1057,7 @@ func putUnspent(ns walletdb.ReadWriteBucket, outPoint *wire.OutPoint, block *Blo
 	v := valueUnspent(block)
 	err := ns.NestedReadWriteBucket(bucketUnspent).Put(k, v)
 	if err != nil {
-		str := "cannot put unspent"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1117,16 +1065,14 @@ func putUnspent(ns walletdb.ReadWriteBucket, outPoint *wire.OutPoint, block *Blo
 func putRawUnspent(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	err := ns.NestedReadWriteBucket(bucketUnspent).Put(k, v)
 	if err != nil {
-		str := "cannot put unspent"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
 
 func readUnspentBlock(v []byte, block *Block) error {
 	if len(v) < 36 {
-		str := "short unspent value"
-		return storeError(apperrors.ErrData, str, nil)
+		return errors.E(errors.IO, errors.Errorf("unspent len %d", len(v)))
 	}
 	block.Height = int32(byteOrder.Uint32(v))
 	copy(block.Hash[:], v[4:36])
@@ -1162,8 +1108,7 @@ func existsRawUnspent(ns walletdb.ReadBucket, k []byte) (credKey []byte) {
 func deleteRawUnspent(ns walletdb.ReadWriteBucket, k []byte) error {
 	err := ns.NestedReadWriteBucket(bucketUnspent).Delete(k)
 	if err != nil {
-		str := "failed to delete unspent"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1209,9 +1154,7 @@ func putDebit(ns walletdb.ReadWriteBucket, txHash *chainhash.Hash, index uint32,
 
 	err := ns.NestedReadWriteBucket(bucketDebits).Put(k, v)
 	if err != nil {
-		str := fmt.Sprintf("failed to update debit %s input %d",
-			txHash, index)
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1219,8 +1162,7 @@ func putDebit(ns walletdb.ReadWriteBucket, txHash *chainhash.Hash, index uint32,
 func putRawDebit(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	err := ns.NestedReadWriteBucket(bucketDebits).Put(k, v)
 	if err != nil {
-		const str = "failed to put raw debit"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1244,17 +1186,14 @@ func extractRawDebitUnspentValue(v []byte) []byte {
 // existsDebit checks for the existance of a debit.  If found, the debit and
 // previous credit keys are returned.  If the debit does not exist, both keys
 // are nil.
-func existsDebit(ns walletdb.ReadBucket, txHash *chainhash.Hash, index uint32,
-	block *Block) (k, credKey []byte, err error) {
+func existsDebit(ns walletdb.ReadBucket, txHash *chainhash.Hash, index uint32, block *Block) (k, credKey []byte, err error) {
 	k = keyDebit(txHash, index, block)
 	v := ns.NestedReadBucket(bucketDebits).Get(k)
 	if v == nil {
 		return nil, nil, nil
 	}
 	if len(v) < 80 {
-		str := fmt.Sprintf("%s: short read for exists debit (expected 80 "+
-			"bytes, read %v)", bucketDebits, len(v))
-		return nil, nil, storeError(apperrors.ErrData, str, nil)
+		return nil, nil, errors.E(errors.IO, errors.Errorf("debit len %d", len(v)))
 	}
 	return k, v[8:80], nil
 }
@@ -1267,9 +1206,7 @@ func existsInvalidatedDebit(ns walletdb.ReadBucket, txHash *chainhash.Hash, inde
 		return nil, nil, nil
 	}
 	if len(v) < 80 {
-		str := fmt.Sprintf("%s: short read for exists debit (expected 80 "+
-			"bytes, read %v)", bucketStakeInvalidatedDebits, len(v))
-		return nil, nil, storeError(apperrors.ErrData, str, nil)
+		return nil, nil, errors.E(errors.IO, errors.Errorf("debit len %d", len(v)))
 	}
 	return k, v[8:80], nil
 }
@@ -1277,8 +1214,7 @@ func existsInvalidatedDebit(ns walletdb.ReadBucket, txHash *chainhash.Hash, inde
 func deleteRawDebit(ns walletdb.ReadWriteBucket, k []byte) error {
 	err := ns.NestedReadWriteBucket(bucketDebits).Delete(k)
 	if err != nil {
-		str := "failed to delete debit"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1313,14 +1249,10 @@ func makeReadDebitIterator(ns walletdb.ReadBucket, prefix []byte) debitIterator 
 
 func (it *debitIterator) readElem() error {
 	if len(it.ck) < 72 {
-		str := fmt.Sprintf("%s: short key for debit iterator key "+
-			"(expected %d bytes, read %d)", bucketDebits, 72, len(it.ck))
-		return storeError(apperrors.ErrData, str, nil)
+		return errors.E(errors.IO, errors.Errorf("debit key len %d", len(it.ck)))
 	}
 	if len(it.cv) < 80 {
-		str := fmt.Sprintf("%s: short read for debite iterator value "+
-			"(expected %d bytes, read %d)", bucketDebits, 80, len(it.cv))
-		return storeError(apperrors.ErrData, str, nil)
+		return errors.E(errors.IO, errors.Errorf("debit len %d", len(it.cv)))
 	}
 	it.elem.Index = byteOrder.Uint32(it.ck[68:72])
 	it.elem.Amount = dcrutil.Amount(byteOrder.Uint64(it.cv))
@@ -1359,16 +1291,14 @@ func (it *debitIterator) next() bool {
 func putRawUnmined(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	err := ns.NestedReadWriteBucket(bucketUnmined).Put(k, v)
 	if err != nil {
-		str := "failed to put unmined record"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
 
 func readRawUnminedHash(k []byte, txHash *chainhash.Hash) error {
 	if len(k) < 32 {
-		str := "short unmined key"
-		return storeError(apperrors.ErrData, str, nil)
+		return errors.E(errors.IO, errors.Errorf("unmined key len %d", len(k)))
 	}
 	copy(txHash[:], k)
 	return nil
@@ -1381,10 +1311,16 @@ func existsRawUnmined(ns walletdb.ReadBucket, k []byte) (v []byte) {
 func deleteRawUnmined(ns walletdb.ReadWriteBucket, k []byte) error {
 	err := ns.NestedReadWriteBucket(bucketUnmined).Delete(k)
 	if err != nil {
-		str := "failed to delete unmined record"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
+}
+
+func fetchRawUnminedReceiveTime(v []byte) (int64, error) {
+	if len(v) < 8 {
+		return 0, errors.E(errors.IO, errors.Errorf("unmined len %d", len(v)))
+	}
+	return int64(byteOrder.Uint64(v[:8])), nil
 }
 
 func extractRawUnminedTx(v []byte) []byte {
@@ -1464,32 +1400,28 @@ func valueUnminedCredit(amount dcrutil.Amount, change bool, opCode uint8,
 func putRawUnminedCredit(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	err := ns.NestedReadWriteBucket(bucketUnminedCredits).Put(k, v)
 	if err != nil {
-		str := "cannot put unmined credit"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
 
 func fetchRawUnminedCreditIndex(k []byte) (uint32, error) {
 	if len(k) < unconfCreditKeySize {
-		str := "short unmined credit key when look up credit idx"
-		return 0, storeError(apperrors.ErrData, str, nil)
+		return 0, errors.E(errors.IO, errors.Errorf("unmined credit key len %d", len(k)))
 	}
 	return byteOrder.Uint32(k[32:36]), nil
 }
 
 func fetchRawUnminedCreditAmount(v []byte) (dcrutil.Amount, error) {
 	if len(v) < unconfValueSizeLegacy {
-		str := "short unmined credit value when look up credit amt"
-		return 0, storeError(apperrors.ErrData, str, nil)
+		return 0, errors.E(errors.IO, errors.Errorf("unmined credit len %d", len(v)))
 	}
 	return dcrutil.Amount(byteOrder.Uint64(v)), nil
 }
 
 func fetchRawUnminedCreditAmountChange(v []byte) (dcrutil.Amount, bool, error) {
 	if len(v) < unconfValueSizeLegacy {
-		str := "short unmined credit value when look up credit amt change"
-		return 0, false, storeError(apperrors.ErrData, str, nil)
+		return 0, false, errors.E(errors.IO, errors.Errorf("unmined credit len %d", len(v)))
 	}
 	amt := dcrutil.Amount(byteOrder.Uint64(v))
 	change := v[8]&(1<<1) != 0
@@ -1527,14 +1459,12 @@ func fetchRawUnminedCreditScriptLength(v []byte) uint32 {
 
 func fetchRawUnminedCreditAccount(v []byte) (uint32, error) {
 	if len(v) < unconfValueSize {
-		str := "short unmined credit value when look up account"
-		return 0, storeError(apperrors.ErrData, str, nil)
+		return 0, errors.E(errors.IO, errors.Errorf("unmined credit len %d", len(v)))
 	}
 
 	// Was the account ever set?
 	if v[9]&accountExistsMask != accountExistsMask {
-		str := "account value unset"
-		return 0, storeError(apperrors.ErrValueNoExists, str, nil)
+		return 0, errors.E(errors.IO, "unmined credit account unset")
 	}
 
 	return byteOrder.Uint32(v[18:22]), nil
@@ -1547,8 +1477,7 @@ func existsRawUnminedCredit(ns walletdb.ReadBucket, k []byte) []byte {
 func deleteRawUnminedCredit(ns walletdb.ReadWriteBucket, k []byte) error {
 	err := ns.NestedReadWriteBucket(bucketUnminedCredits).Delete(k)
 	if err != nil {
-		str := "failed to delete unmined credit"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1587,8 +1516,7 @@ type readCursor struct {
 }
 
 func (r readCursor) Delete() error {
-	str := "failed to delete current cursor item from read-only cursor"
-	return storeError(apperrors.ErrDatabase, str, walletdb.ErrTxNotWritable)
+	return errors.E(errors.IO, "delete called from read-only cursor")
 }
 
 func makeReadUnminedCreditIterator(ns walletdb.ReadBucket, txHash *chainhash.Hash, dbVersion uint32) unminedCreditIterator {
@@ -1642,8 +1570,7 @@ func (it *unminedCreditIterator) next() bool {
 // func (it *unminedCreditIterator) delete() error {
 // 	err := it.c.Delete()
 // 	if err != nil {
-// 		str := "failed to delete unmined credit"
-// 		return storeError(apperrors.ErrDatabase, str, err)
+// 		return errors.E(errors.IO, err)
 // 	}
 // 	return nil
 // }
@@ -1668,8 +1595,7 @@ func (it *unminedCreditIterator) reposition(txHash *chainhash.Hash, index uint32
 func putRawUnminedInput(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	err := ns.NestedReadWriteBucket(bucketUnminedInputs).Put(k, v)
 	if err != nil {
-		str := "failed to put unmined input"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1681,8 +1607,7 @@ func existsRawUnminedInput(ns walletdb.ReadBucket, k []byte) (v []byte) {
 func deleteRawUnminedInput(ns walletdb.ReadWriteBucket, k []byte) error {
 	err := ns.NestedReadWriteBucket(bucketUnminedInputs).Delete(k)
 	if err != nil {
-		str := "failed to delete unmined input"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1709,8 +1634,7 @@ func valueTicketRecord(pickedHeight int32) []byte {
 func putRawTicketRecord(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	err := ns.NestedReadWriteBucket(bucketTickets).Put(k, v)
 	if err != nil {
-		const str = "failed to put ticket record"
-		return apperrors.Wrap(err, apperrors.ErrDatabase, str)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1739,8 +1663,7 @@ func putTxScript(ns walletdb.ReadWriteBucket, script []byte) error {
 	k := keyTxScript(script)
 	err := ns.NestedReadWriteBucket(bucketScripts).Put(k, script)
 	if err != nil {
-		str := "failed to put tx script"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1815,12 +1738,10 @@ func valueMultisigOut(sh [ripemd160.Size]byte, m uint8, n uint8,
 
 func fetchMultisigOut(k, v []byte) (*MultisigOut, error) {
 	if len(k) != 36 {
-		str := "multisig out k is wrong size"
-		return nil, storeError(apperrors.ErrDatabase, str, nil)
+		return nil, errors.E(errors.IO, "multisig output key len %d", len(k))
 	}
 	if len(v) != 135 {
-		str := "multisig out v is wrong size"
-		return nil, storeError(apperrors.ErrDatabase, str, nil)
+		return nil, errors.E(errors.IO, "multisig output len %d", len(v))
 	}
 
 	var mso MultisigOut
@@ -1934,8 +1855,7 @@ func setMultisigOutUnmined(v []byte) {
 func putMultisigOutRawValues(ns walletdb.ReadWriteBucket, k []byte, v []byte) error {
 	err := ns.NestedReadWriteBucket(bucketMultisig).Put(k, v)
 	if err != nil {
-		str := "failed to put multisig output"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1958,8 +1878,7 @@ func putMultisigOutUS(ns walletdb.ReadWriteBucket, k []byte) error {
 	blank := []byte{0x00}
 	err := ns.NestedReadWriteBucket(bucketMultisigUsp).Put(k, blank)
 	if err != nil {
-		str := "failed to put unspent multisig output"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1967,8 +1886,7 @@ func putMultisigOutUS(ns walletdb.ReadWriteBucket, k []byte) error {
 func deleteMultisigOutUS(ns walletdb.ReadWriteBucket, k []byte) error {
 	err := ns.NestedReadWriteBucket(bucketMultisigUsp).Delete(k)
 	if err != nil {
-		str := "failed to delete multisig output"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -1979,13 +1897,12 @@ func existsMultisigOutUS(ns walletdb.ReadBucket, k []byte) bool {
 }
 
 // createStore creates the tx store (with the latest db version) in the passed
-// namespace.  If a store already exists, ErrAlreadyExists is returned.
+// namespace.
 func createStore(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params) error {
 	// Ensure that nothing currently exists in the namespace bucket.
 	ck, cv := ns.ReadCursor().First()
 	if ck != nil || cv != nil {
-		const str = "namespace is not empty"
-		return storeError(apperrors.ErrAlreadyExists, str, nil)
+		return errors.E(errors.IO, "bucket is not empty")
 	}
 
 	// Save the creation date of the store.
@@ -1993,99 +1910,83 @@ func createStore(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params) erro
 	byteOrder.PutUint64(v, uint64(time.Now().Unix()))
 	err := ns.Put(rootCreateDate, v)
 	if err != nil {
-		str := "failed to store database creation time"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	// Write a zero balance.
 	v = make([]byte, 8)
 	err = ns.Put(rootMinedBalance, v)
 	if err != nil {
-		str := "failed to write zero balance"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketBlocks)
 	if err != nil {
-		str := "failed to create blocks bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketHeaders)
 	if err != nil {
-		str := "faled to create block headers bucket"
-		return storeError(apperrors.ErrData, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketTxRecords)
 	if err != nil {
-		str := "failed to create tx records bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketCredits)
 	if err != nil {
-		str := "failed to create credits bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketDebits)
 	if err != nil {
-		str := "failed to create debits bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketUnspent)
 	if err != nil {
-		str := "failed to create unspent bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketUnmined)
 	if err != nil {
-		str := "failed to create unmined bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketUnminedCredits)
 	if err != nil {
-		str := "failed to create unmined credits bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketUnminedInputs)
 	if err != nil {
-		str := "failed to create unmined inputs bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketScripts)
 	if err != nil {
-		str := "failed to create scripts bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketMultisig)
 	if err != nil {
-		str := "failed to create multisig tx bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketMultisigUsp)
 	if err != nil {
-		str := "failed to create multisig unspent tx bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketStakeInvalidatedCredits)
 	if err != nil {
-		str := "failed to create invalidated credits bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	_, err = ns.CreateBucket(bucketStakeInvalidatedDebits)
 	if err != nil {
-		str := "failed to create invalidated debits bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	// Insert the genesis block header.
@@ -2114,8 +2015,7 @@ func createStore(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params) erro
 	// Mark the genesis block as the tip block.
 	err = ns.Put(rootTipBlock, chainParams.GenesisHash[:])
 	if err != nil {
-		str := "failed to mark genesis block as tip"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	return nil
@@ -2127,16 +2027,13 @@ func createStore(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params) erro
 func upgradeTxDB(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params) error {
 	v := ns.Get(rootVersion)
 	if len(v) != 4 {
-		str := "no transaction store exists in namespace"
-		return storeError(apperrors.ErrNoExist, str, nil)
+		return errors.E(errors.IO, "no transaction store version")
 	}
 	version := byteOrder.Uint32(v)
 
 	// Versions start at 1, 0 is an error.
 	if version == 0 {
-		str := "current database version is 0 when " +
-			"earliest version was 1"
-		return storeError(apperrors.ErrData, str, nil)
+		return errors.E(errors.IO, "invalid transaction store version 0")
 	}
 
 	// Perform version upgrades as necessary.
@@ -2167,8 +2064,7 @@ func upgradeToVersion2(ns walletdb.ReadWriteBucket) error {
 	byteOrder.PutUint32(versionBytes, 2)
 	err := ns.Put(rootVersion, versionBytes)
 	if err != nil {
-		str := "failed to write database version"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
@@ -2193,24 +2089,20 @@ func upgradeToVersion3(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params
 	byteOrder.PutUint32(versionBytes, 3)
 	err := ns.Put(rootVersion, versionBytes)
 	if err != nil {
-		str := "failed to write database version"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(bucketHeaders)
 	if err != nil {
-		str := "failed to create headers bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	_, err = ns.CreateBucket(bucketStakeInvalidatedCredits)
 	if err != nil {
-		str := "failed to create invalidated credits bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	_, err = ns.CreateBucket(bucketStakeInvalidatedDebits)
 	if err != nil {
-		str := "failed to create invalidated debits bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	// For all block records, add the byte for marking stake invalidation.  The
@@ -2224,8 +2116,7 @@ func upgradeToVersion3(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params
 		return nil
 	})
 	if err != nil {
-		const str = "failed to iterate block records bucket"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 	for _, kvp := range blockRecsToUpgrade {
 		v := make([]byte, len(kvp.v)+1)
@@ -2233,8 +2124,7 @@ func upgradeToVersion3(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params
 		copy(v[43:], kvp.v[42:])
 		err = blockRecordsBucket.Put(kvp.k, v)
 		if err != nil {
-			const str = "failed to update block record value"
-			return storeError(apperrors.ErrDatabase, str, err)
+			return errors.E(errors.IO, err)
 		}
 	}
 
@@ -2270,8 +2160,7 @@ func upgradeToVersion3(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params
 	// information was saved in waddrmgr).
 	err = ns.Put(rootTipBlock, chainParams.GenesisHash[:])
 	if err != nil {
-		str := "failed to mark genesis block as tip"
-		return storeError(apperrors.ErrDatabase, str, err)
+		return errors.E(errors.IO, err)
 	}
 
 	return nil

@@ -7,8 +7,10 @@ package wallet
 
 import (
 	"context"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
@@ -83,8 +85,11 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 				}
 
 				for _, tx := range r.Transactions {
-					err = w.processSerializedTransaction(dbtx, tx,
-						&rawBlockHeader, &blockMeta)
+					rec, err := udb.NewTxRecord(tx, time.Now())
+					if err != nil {
+						return err
+					}
+					err = w.processTransaction(dbtx, rec, &rawBlockHeader, &blockMeta)
 					if err != nil {
 						return err
 					}
@@ -107,6 +112,8 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 // Rescan starts a rescan of the wallet for all blocks on the main chain
 // beginning at startHash.  This function blocks until the rescan completes.
 func (w *Wallet) Rescan(ctx context.Context, n NetworkBackend, startHash *chainhash.Hash) error {
+	const op errors.Op = "wallet.Rescan"
+
 	var startHeight int32
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
@@ -118,15 +125,21 @@ func (w *Wallet) Rescan(ctx context.Context, n NetworkBackend, startHash *chainh
 		return nil
 	})
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
-	return w.rescan(ctx, n, startHash, startHeight, nil)
+	err = w.rescan(ctx, n, startHash, startHeight, nil)
+	if err != nil {
+		return errors.E(op, err)
+	}
+	return nil
 }
 
 // RescanFromHeight is an alternative to Rescan that takes a block height
 // instead of a hash.  See Rescan for more details.
 func (w *Wallet) RescanFromHeight(ctx context.Context, n NetworkBackend, startHeight int32) error {
+	const op errors.Op = "wallet.RescanFromHeight"
+
 	var startHash chainhash.Hash
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
@@ -136,9 +149,14 @@ func (w *Wallet) RescanFromHeight(ctx context.Context, n NetworkBackend, startHe
 		return err
 	})
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
-	return w.rescan(ctx, n, &startHash, startHeight, nil)
+
+	err = w.rescan(ctx, n, &startHash, startHeight, nil)
+	if err != nil {
+		return errors.E(op, err)
+	}
+	return nil
 }
 
 // RescanProgress records the height the rescan has completed through and any
@@ -155,6 +173,8 @@ type RescanProgress struct {
 func (w *Wallet) RescanProgressFromHeight(ctx context.Context, n NetworkBackend,
 	startHeight int32, p chan<- RescanProgress) {
 
+	const op errors.Op = "wallet.RescanProgressFromHeight"
+
 	defer close(p)
 
 	var startHash chainhash.Hash
@@ -166,12 +186,12 @@ func (w *Wallet) RescanProgressFromHeight(ctx context.Context, n NetworkBackend,
 		return err
 	})
 	if err != nil {
-		p <- RescanProgress{Err: err}
+		p <- RescanProgress{Err: errors.E(op, err)}
 		return
 	}
 
 	err = w.rescan(ctx, n, &startHash, startHeight, p)
 	if err != nil {
-		p <- RescanProgress{Err: err}
+		p <- RescanProgress{Err: errors.E(op, err)}
 	}
 }

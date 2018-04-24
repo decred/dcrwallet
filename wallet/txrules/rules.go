@@ -6,11 +6,10 @@
 package txrules
 
 import (
-	"errors"
-
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrwallet/errors"
 	h "github.com/decred/dcrwallet/internal/helpers"
 )
 
@@ -53,24 +52,18 @@ func IsDustOutput(output *wire.TxOut, relayFeePerKb dcrutil.Amount) bool {
 		relayFeePerKb)
 }
 
-// Transaction rule violations
-var (
-	ErrAmountNegative   = errors.New("transaction output amount is negative")
-	ErrAmountExceedsMax = errors.New("transaction output amount exceeds maximum value")
-	ErrOutputIsDust     = errors.New("transaction output is dust")
-)
-
 // CheckOutput performs simple consensus and policy tests on a transaction
-// output.
+// output.  Returns with errors.Invalid if output violates consensus rules, and
+// errors.Policy if the output violates a non-consensus policy.
 func CheckOutput(output *wire.TxOut, relayFeePerKb dcrutil.Amount) error {
 	if output.Value < 0 {
-		return ErrAmountNegative
+		return errors.E(errors.Invalid, "transaction output amount is negative")
 	}
 	if output.Value > dcrutil.MaxAmount {
-		return ErrAmountExceedsMax
+		return errors.E(errors.Invalid, "transaction output amount exceeds maximum value")
 	}
 	if IsDustOutput(output, relayFeePerKb) {
-		return ErrOutputIsDust
+		return errors.E(errors.Policy, "transaction output is dust")
 	}
 	return nil
 }

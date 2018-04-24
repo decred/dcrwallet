@@ -8,8 +8,6 @@ package wallet
 import (
 	"bytes"
 	"context"
-	"errors"
-	"fmt"
 	"time"
 
 	"github.com/decred/dcrd/blockchain/stake"
@@ -18,45 +16,46 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
-func (w *Wallet) extendMainChain(dbtx walletdb.ReadWriteTx, block *udb.BlockHeaderData, transactions [][]byte) error {
+func (w *Wallet) extendMainChain(op errors.Op, dbtx walletdb.ReadWriteTx, block *udb.BlockHeaderData, transactions [][]byte) error {
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
 	log.Infof("Connecting block %v, height %v", block.BlockHash,
 		block.SerializedHeader.Height())
 
+	// Propagate the error unless this block is already included in the main
+	// chain.
 	err := w.TxStore.ExtendMainChain(txmgrNs, block)
-	if err != nil {
-		// Propagate the error unless this block is already included in the main
-		// chain.
-		if !apperrors.IsError(err, apperrors.ErrDuplicate) {
-			return err
-		}
+	if err != nil && !errors.Is(errors.Exist, err) {
+		return errors.E(op, err)
 	}
 
 	// Notify interested clients of the connected block.
 	var header wire.BlockHeader
 	err = header.Deserialize(bytes.NewReader(block.SerializedHeader[:]))
 	if err != nil {
-		return err
+		return errors.E(op, errors.E(errors.Op("blockheader.Deserialize"), errors.Encoding, err))
 	}
 	w.NtfnServer.notifyAttachedBlock(dbtx, &header, &block.BlockHash)
 
 	blockMeta, err := w.TxStore.GetBlockMetaForHash(txmgrNs, &block.BlockHash)
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	for _, serializedTx := range transactions {
-		err = w.processSerializedTransaction(dbtx, serializedTx,
-			&block.SerializedHeader, &blockMeta)
+		rec, err := udb.NewTxRecord(serializedTx, time.Now())
 		if err != nil {
-			return err
+			return errors.E(op, err)
+		}
+		err = w.processTransaction(dbtx, rec, &block.SerializedHeader, &blockMeta)
+		if err != nil {
+			return errors.E(op, err)
 		}
 	}
 
@@ -70,13 +69,13 @@ type sideChainBlock struct {
 
 // switchToSideChain performs a chain switch, switching the main chain to the
 // in-memory side chain.  The old side chain becomes the new main chain.
-func (w *Wallet) switchToSideChain(dbtx walletdb.ReadWriteTx) (*MainTipChangedNotification, error) {
+func (w *Wallet) switchToSideChain(op errors.Op, dbtx walletdb.ReadWriteTx) (*MainTipChangedNotification, error) {
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
 	sideChain := w.sideChain
 	if len(sideChain) == 0 {
-		return nil, errors.New("no side chain to switch to")
+		return nil, errors.E(op, "no side chain to switch to")
 	}
 
 	sideChainForkHeight := sideChain[0].headerData.SerializedHeader.Height()
@@ -93,7 +92,7 @@ func (w *Wallet) switchToSideChain(dbtx walletdb.ReadWriteTx) (*MainTipChangedNo
 	for i := tipHeight; i >= sideChainForkHeight; i-- {
 		hash, err := w.TxStore.GetMainChainBlockHashForHeight(txmgrNs, i)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 
 		// DetachedBlocks contains block hashes in order of increasing heights.
@@ -108,13 +107,13 @@ func (w *Wallet) switchToSideChain(dbtx walletdb.ReadWriteTx) (*MainTipChangedNo
 	// height of the block that begins the side chain.
 	err := w.TxStore.Rollback(txmgrNs, addrmgrNs, sideChainForkHeight)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 
 	// Extend the main chain with each sidechain block.
 	for i := range sideChain {
 		scBlock := &sideChain[i]
-		err = w.extendMainChain(dbtx, &scBlock.headerData, scBlock.transactions)
+		err = w.extendMainChain(op, dbtx, &scBlock.headerData, scBlock.transactions)
 		if err != nil {
 			return nil, err
 		}
@@ -138,26 +137,30 @@ func copyHeaderSliceToArray(array *udb.RawBlockHeader, slice []byte) error {
 // wallet's main chain or side chain depending on whether the wallet is
 // reorganizing.
 func (w *Wallet) ConnectBlock(serializedBlockHeader []byte, transactions [][]byte) (err error) {
+	const op errors.Op = "wallet.ConnectBlock"
+
 	defer func() {
-		if err == nil {
-			err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-				return w.watchFutureAddresses(tx)
-			})
-			if err != nil {
-				log.Errorf("Failed to watch for future address usage: %v", err)
-			}
+		if err != nil {
+			return
+		}
+
+		err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+			return w.watchFutureAddresses(tx)
+		})
+		if err != nil {
+			log.Errorf("Failed to watch for future address usage: %v", err)
 		}
 	}()
 
 	var blockHeader wire.BlockHeader
 	err = blockHeader.Deserialize(bytes.NewReader(serializedBlockHeader))
 	if err != nil {
-		return err
+		return errors.E(op, errors.Encoding, err)
 	}
 	block := udb.BlockHeaderData{BlockHash: blockHeader.BlockHash()}
 	err = copyHeaderSliceToArray(&block.SerializedHeader, serializedBlockHeader)
 	if err != nil {
-		return err
+		return errors.E(op, errors.Invalid, err)
 	}
 
 	var chainTipChanges *MainTipChangedNotification
@@ -183,11 +186,11 @@ func (w *Wallet) ConnectBlock(serializedBlockHeader []byte, transactions [][]byt
 
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 			var err error
-			chainTipChanges, err = w.switchToSideChain(dbtx)
+			chainTipChanges, err = w.switchToSideChain(op, dbtx)
 			return err
 		})
 		if err != nil {
-			return err
+			return errors.E(op, err)
 		}
 
 		w.sideChain = nil
@@ -197,8 +200,9 @@ func (w *Wallet) ConnectBlock(serializedBlockHeader []byte, transactions [][]byt
 		log.Infof("Wallet reorganization to block %v complete", reorgToHash)
 	} else {
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			return w.extendMainChain(dbtx, &block, transactions)
+			return w.extendMainChain(op, dbtx, &block, transactions)
 		})
+		// Continue even if the block previously existed.
 		if err != nil {
 			return err
 		}
@@ -238,6 +242,8 @@ func (w *Wallet) ConnectBlock(serializedBlockHeader []byte, transactions [][]byt
 // blocks will attach to a sidechain until the final block is reached, at which
 // point a chain switch occurs.
 func (w *Wallet) StartReorganize(oldHash, newHash *chainhash.Hash, oldHeight, newHeight int64) error {
+	const op errors.Op = "wallet.StartReorganize"
+
 	w.reorganizingLock.Lock()
 	if w.reorganizing {
 		reorganizeToHash := w.reorganizeToHash
@@ -247,7 +253,7 @@ func (w *Wallet) StartReorganize(oldHash, newHash *chainhash.Hash, oldHeight, ne
 			"processing a reorg to block %v", newHash, newHeight,
 			reorganizeToHash)
 
-		return errors.New("reorganization notified, but reorg already in progress")
+		return errors.E(op, errors.Invalid, "reorg in process")
 	}
 
 	w.reorganizing = true
@@ -265,8 +271,9 @@ func (w *Wallet) StartReorganize(oldHash, newHash *chainhash.Hash, oldHeight, ne
 // evaluateStakePoolTicket evaluates a stake pool ticket to see if it's
 // acceptable to the stake pool. The ticket must pay out to the stake
 // pool cold wallet, and must have a sufficient fee.
-func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord,
-	blockHeight int32, poolUser dcrutil.Address) (bool, error) {
+func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, poolUser dcrutil.Address) bool {
+	const op errors.Op = "wallet.evaluateStakePoolTicket"
+
 	tx := rec.MsgTx
 
 	// Check the first commitment output (txOuts[1])
@@ -278,8 +285,9 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord,
 	commitAddr, err := stake.AddrFromSStxPkScrCommitment(
 		commitmentOut.PkScript, w.chainParams)
 	if err != nil {
-		return false, fmt.Errorf("Failed to parse commit out addr: %s",
-			err.Error())
+		log.Warnf("Cannot parse commitment address from ticket %v: %v",
+			&rec.Hash, err)
+		return false
 	}
 
 	// Extract the fee from the ticket.
@@ -289,8 +297,9 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord,
 			commitAmt, err := stake.AmountFromSStxPkScrCommitment(
 				tx.TxOut[i].PkScript)
 			if err != nil {
-				return false, fmt.Errorf("Failed to parse commit "+
-					"out amt for commit in vout %v: %s", i, err.Error())
+				log.Warnf("Cannot parse commitment amount for output %i from ticket %v: %v",
+					i, &rec.Hash, err)
+				return false
 			}
 			in += commitAmt
 		}
@@ -306,8 +315,8 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord,
 		commitAmt, err := stake.AmountFromSStxPkScrCommitment(
 			commitmentOut.PkScript)
 		if err != nil {
-			return false, fmt.Errorf("failed to parse commit "+
-				"out amt: %s", err.Error())
+			log.Warnf("Cannot parse commitment amount from ticket %v: %v", &rec.Hash, err)
+			return false
 		}
 
 		// Calculate the fee required based on the current
@@ -324,18 +333,18 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord,
 
 			// Reject the entire transaction if it didn't
 			// pay the pool server fees.
-			return false, nil
+			return false
 		}
 	} else {
 		log.Warnf("Unknown pool commitment address %s for ticket %v",
 			commitAddr.EncodeAddress(), tx.TxHash())
-		return false, nil
+		return false
 	}
 
 	log.Debugf("Accepted valid stake pool ticket %v committing %v in fees",
 		tx.TxHash(), tx.TxOut[0].Value)
 
-	return true, nil
+	return true
 }
 
 // AcceptMempoolTx adds a relevant unmined transaction to the wallet.
@@ -360,7 +369,7 @@ func (w *Wallet) AcceptMempoolTx(serializedTx []byte) error {
 			}
 		}
 
-		return w.processTransactionRecord(dbtx, rec, nil, nil)
+		return w.processTransaction(dbtx, rec, nil, nil)
 	})
 	if err == nil {
 		err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
@@ -373,18 +382,10 @@ func (w *Wallet) AcceptMempoolTx(serializedTx []byte) error {
 	return err
 }
 
-func (w *Wallet) processSerializedTransaction(dbtx walletdb.ReadWriteTx, serializedTx []byte,
+func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord,
 	serializedHeader *udb.RawBlockHeader, blockMeta *udb.BlockMeta) error {
 
-	rec, err := udb.NewTxRecord(serializedTx, time.Now())
-	if err != nil {
-		return err
-	}
-	return w.processTransactionRecord(dbtx, rec, serializedHeader, blockMeta)
-}
-
-func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord,
-	serializedHeader *udb.RawBlockHeader, blockMeta *udb.BlockMeta) error {
+	const op errors.Op = "wallet.processTransaction"
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
@@ -402,7 +403,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 	var err error
 	if serializedHeader == nil {
 		err = w.TxStore.InsertMemPoolTx(txmgrNs, rec)
-		if apperrors.IsError(err, apperrors.ErrDuplicate) {
+		if errors.Is(errors.Exist, err) {
 			log.Warnf("Refusing to add unmined transaction %v since same "+
 				"transaction already exists mined", &rec.Hash)
 			return nil
@@ -411,7 +412,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 		err = w.TxStore.InsertMinedTx(txmgrNs, addrmgrNs, rec, &blockMeta.Hash)
 	}
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	// Handle incoming SStx; store them in the stake manager if we own
@@ -445,9 +446,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 				break
 			}
 
-			valid, errEval := w.evaluateStakePoolTicket(rec, height,
-				addr)
-			if valid {
+			if w.evaluateStakePoolTicket(rec, height, addr) {
 				// Be sure to insert this into the user's stake
 				// pool entry into the stake manager.
 				poolTicket := &udb.PoolTicket{
@@ -468,13 +467,8 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 				break
 			}
 
-			// Log errors if there were any. At this point the ticket
-			// must be invalid, so insert it into the list of invalid
-			// user tickets.
-			if errEval != nil {
-				log.Warnf("Ticket %v failed ticket evaluation for "+
-					"the stake pool: %s", &rec.Hash, errEval)
-			}
+			// At this point the ticket must be invalid, so insert it into the
+			// list of invalid user tickets.
 			err := w.StakeMgr.UpdateStakePoolUserInvalTickets(
 				stakemgrNs, addr, &rec.Hash)
 			if err != nil {
@@ -493,74 +487,64 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 		}
 	}
 
-	// Handle incoming votes.
-	if isVote(&rec.MsgTx) && serializedHeader != nil {
+	// Handle incoming mined votes (only in stakepool mode)
+	if w.stakePoolEnabled && isVote(&rec.MsgTx) && serializedHeader != nil {
 		ticketHash := &rec.MsgTx.TxIn[1].PreviousOutPoint.Hash
+		txInHeight := rec.MsgTx.TxIn[1].BlockHeight
+		poolTicket := &udb.PoolTicket{
+			Ticket:       *ticketHash,
+			HeightTicket: txInHeight,
+			Status:       udb.TSVoted,
+			SpentBy:      rec.Hash,
+			HeightSpent:  uint32(height),
+		}
 
-		// If we're running as a stake pool, insert
-		// the stake pool user ticket update too.
-		if w.stakePoolEnabled {
-			txInHeight := rec.MsgTx.TxIn[1].BlockHeight
-			poolTicket := &udb.PoolTicket{
-				Ticket:       *ticketHash,
-				HeightTicket: txInHeight,
-				Status:       udb.TSVoted,
-				SpentBy:      rec.Hash,
-				HeightSpent:  uint32(height),
-			}
-
-			poolUser, err := w.StakeMgr.SStxAddress(stakemgrNs, ticketHash)
+		poolUser, err := w.StakeMgr.SStxAddress(stakemgrNs, ticketHash)
+		if err != nil {
+			log.Warnf("Failed to fetch stake pool user for "+
+				"ticket %v (voted ticket): %v", ticketHash, err)
+		} else {
+			err = w.StakeMgr.UpdateStakePoolUserTickets(
+				stakemgrNs, poolUser, poolTicket)
 			if err != nil {
-				log.Warnf("Failed to fetch stake pool user for "+
-					"ticket %v (voted ticket): %v", ticketHash, err)
+				log.Warnf("Failed to update stake pool ticket for "+
+					"stake pool user %s after voting",
+					poolUser.EncodeAddress())
 			} else {
-				err = w.StakeMgr.UpdateStakePoolUserTickets(
-					stakemgrNs, poolUser, poolTicket)
-				if err != nil {
-					log.Warnf("Failed to update stake pool ticket for "+
-						"stake pool user %s after voting",
-						poolUser.EncodeAddress())
-				} else {
-					log.Debugf("Updated voted stake pool ticket %v "+
-						"for user %v into the stake store database ("+
-						"vote hash: %v)", ticketHash, poolUser, &rec.Hash)
-				}
+				log.Debugf("Updated voted stake pool ticket %v "+
+					"for user %v into the stake store database ("+
+					"vote hash: %v)", ticketHash, poolUser, &rec.Hash)
 			}
 		}
 	}
 
-	// Handle incoming revocations.
-	if isRevocation(&rec.MsgTx) && serializedHeader != nil {
+	// Handle incoming mined revocations (only in stakepool mode)
+	if w.stakePoolEnabled && isRevocation(&rec.MsgTx) && serializedHeader != nil {
 		txInHash := &rec.MsgTx.TxIn[0].PreviousOutPoint.Hash
+		txInHeight := rec.MsgTx.TxIn[0].BlockHeight
+		poolTicket := &udb.PoolTicket{
+			Ticket:       *txInHash,
+			HeightTicket: txInHeight,
+			Status:       udb.TSMissed,
+			SpentBy:      rec.Hash,
+			HeightSpent:  uint32(height),
+		}
 
-		// If we're running as a stake pool, insert
-		// the stake pool user ticket update too.
-		if w.stakePoolEnabled {
-			txInHeight := rec.MsgTx.TxIn[0].BlockHeight
-			poolTicket := &udb.PoolTicket{
-				Ticket:       *txInHash,
-				HeightTicket: txInHeight,
-				Status:       udb.TSMissed,
-				SpentBy:      rec.Hash,
-				HeightSpent:  uint32(height),
-			}
-
-			poolUser, err := w.StakeMgr.SStxAddress(stakemgrNs, txInHash)
+		poolUser, err := w.StakeMgr.SStxAddress(stakemgrNs, txInHash)
+		if err != nil {
+			log.Warnf("failed to fetch stake pool user for "+
+				"ticket %v (missed ticket)", txInHash)
+		} else {
+			err = w.StakeMgr.UpdateStakePoolUserTickets(
+				stakemgrNs, poolUser, poolTicket)
 			if err != nil {
-				log.Warnf("failed to fetch stake pool user for "+
-					"ticket %v (missed ticket)", txInHash)
+				log.Warnf("failed to update stake pool ticket for "+
+					"stake pool user %s after revoking",
+					poolUser.EncodeAddress())
 			} else {
-				err = w.StakeMgr.UpdateStakePoolUserTickets(
-					stakemgrNs, poolUser, poolTicket)
-				if err != nil {
-					log.Warnf("failed to update stake pool ticket for "+
-						"stake pool user %s after revoking",
-						poolUser.EncodeAddress())
-				} else {
-					log.Debugf("Updated missed stake pool ticket %v "+
-						"for user %v into the stake store database ("+
-						"revocation hash: %v)", txInHash, poolUser, &rec.Hash)
-				}
+				log.Debugf("Updated missed stake pool ticket %v "+
+					"for user %v into the stake store database ("+
+					"revocation hash: %v)", txInHash, poolUser, &rec.Hash)
 			}
 		}
 	}
@@ -568,9 +552,8 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 	// Handle input scripts that contain P2PKs that we care about.
 	for i, input := range rec.MsgTx.TxIn {
 		if txscript.IsMultisigSigScript(input.SignatureScript) {
-			rs, err :=
-				txscript.MultisigRedeemScriptFromScriptSig(
-					input.SignatureScript)
+			rs, err := txscript.MultisigRedeemScriptFromScriptSig(
+				input.SignatureScript)
 			if err != nil {
 				return err
 			}
@@ -589,20 +572,20 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			isRelevant := false
 			for _, addr := range addrs {
 				ma, err := w.Manager.Address(addrmgrNs, addr)
-				if err == nil {
-					isRelevant = true
-					err = w.markUsedAddress(dbtx, ma)
-					if err != nil {
-						return err
+				if err != nil {
+					// Missing addresses are skipped.  Other errors should be
+					// propagated.
+					if errors.Is(errors.NotExist, err) {
+						continue
 					}
-					log.Debugf("Marked address %v used", addr)
-				} else {
-					// Missing addresses are skipped.  Other errors should
-					// be propagated.
-					if !apperrors.IsError(err, apperrors.ErrAddressNotFound) {
-						return err
-					}
+					return errors.E(op, err)
 				}
+				isRelevant = true
+				err = w.markUsedAddress(op, dbtx, ma)
+				if err != nil {
+					return err
+				}
+				log.Debugf("Marked address %v used", addr)
 			}
 
 			// Add the script to the script databases.
@@ -610,29 +593,26 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			if isRelevant {
 				err = w.TxStore.InsertTxScript(txmgrNs, rs)
 				if err != nil {
-					return err
+					return errors.E(op, err)
 				}
 				mscriptaddr, err := w.Manager.ImportScript(addrmgrNs, rs)
-				if err != nil {
-					switch {
-					// Don't care if it's already there.
-					case apperrors.IsError(err, apperrors.ErrDuplicateAddress):
-					case apperrors.IsError(err, apperrors.ErrLocked):
-						log.Warnf("failed to attempt script importation "+
-							"of incoming tx script %x because addrmgr "+
-							"was locked", rs)
-					default:
-						return err
-					}
-				} else {
+				switch {
+				case errors.Is(errors.Exist, err): // Don't care if it's already there.
+				case errors.Is(errors.Locked, err):
+					log.Warnf("failed to attempt script importation "+
+						"of incoming tx script %x because addrmgr "+
+						"was locked", rs)
+				case err == nil:
 					if n, err := w.NetworkBackend(); err == nil {
 						addr := mscriptaddr.Address()
 						err := n.LoadTxFilter(context.TODO(),
 							false, []dcrutil.Address{addr}, nil)
 						if err != nil {
-							return err
+							return errors.E(op, err)
 						}
 					}
+				default:
+					return errors.E(op, err)
 				}
 			}
 
@@ -648,10 +628,9 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			mso, err := w.TxStore.GetMultisigOutput(txmgrNs, &input.PreviousOutPoint)
 			if mso != nil && err == nil {
 				err = w.TxStore.SpendMultisigOut(txmgrNs, &input.PreviousOutPoint,
-					rec.Hash,
-					uint32(i))
+					rec.Hash, uint32(i))
 				if err != nil {
-					return err
+					return errors.E(op, err)
 				}
 			}
 		}
@@ -678,8 +657,8 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 		if isStakeType {
 			class, err = txscript.GetStakeOutSubclass(output.PkScript)
 			if err != nil {
-				log.Errorf("Unknown stake output subclass parse error "+
-					"encountered: %v", err)
+				err = errors.E(op, errors.E(errors.Op("txscript.GetStakeOutSubclass"), err))
+				log.Error(err)
 				continue
 			}
 		}
@@ -690,9 +669,9 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 				err = w.TxStore.AddCredit(txmgrNs, rec, blockMeta,
 					uint32(i), ma.Internal(), ma.Account())
 				if err != nil {
-					return err
+					return errors.E(op, err)
 				}
-				err = w.markUsedAddress(dbtx, ma)
+				err = w.markUsedAddress(op, dbtx, ma)
 				if err != nil {
 					return err
 				}
@@ -702,7 +681,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 
 			// Missing addresses are skipped.  Other errors should
 			// be propagated.
-			if !apperrors.IsError(err, apperrors.ErrAddressNotFound) {
+			if !errors.Is(errors.NotExist, err) {
 				return err
 			}
 		}
@@ -718,7 +697,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 				expandedScript, err = w.TxStore.GetTxScript(txmgrNs,
 					addr.ScriptAddress())
 				if err != nil {
-					return err
+					return errors.E(op, err)
 				}
 
 				if expandedScript == nil {
@@ -741,7 +720,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 				expandedScript,
 				w.chainParams)
 			if err != nil {
-				return err
+				return errors.E(op, errors.E(errors.Op("txscript.ExtractPkScriptAddrs"), err))
 			}
 
 			// Skip non-multisig scripts.
@@ -753,14 +732,13 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 				_, err := w.Manager.Address(addrmgrNs, maddr)
 				// An address we own; handle accordingly.
 				if err == nil {
-					errStore := w.TxStore.AddMultisigOut(
+					err := w.TxStore.AddMultisigOut(
 						txmgrNs, rec, blockMeta, uint32(i))
-					if errStore != nil {
+					if err != nil {
 						// This will throw if there are multiple private keys
 						// for this multisignature output owned by the wallet,
 						// so it's routed to debug.
-						log.Debugf("unable to add multisignature output: %v",
-							errStore.Error())
+						log.Debugf("unable to add multisignature output: %v", err)
 					}
 				}
 			}
@@ -774,16 +752,14 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 	if serializedHeader == nil {
 		details, err := w.TxStore.UniqueTxDetails(txmgrNs, &rec.Hash, nil)
 		if err != nil {
-			log.Errorf("Cannot query transaction details for notifiation: %v",
-				err)
+			log.Errorf("Cannot query transaction details for notifiation: %v", err)
 		} else {
 			w.NtfnServer.notifyUnminedTransaction(dbtx, details)
 		}
 	} else {
 		details, err := w.TxStore.UniqueTxDetails(txmgrNs, &rec.Hash, &blockMeta.Block)
 		if err != nil {
-			log.Errorf("Cannot query transaction details for notifiation: %v",
-				err)
+			log.Errorf("Cannot query transaction details for notifiation: %v", err)
 		} else {
 			w.NtfnServer.notifyMinedTransaction(dbtx, details, blockMeta)
 		}
@@ -814,13 +790,15 @@ func selectOwnedTickets(w *Wallet, dbtx walletdb.ReadTx, tickets []*chainhash.Ha
 func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash,
 	blockHash *chainhash.Hash, blockHeight int32) error {
 
+	const op errors.Op = "wallet.VoteOnOwnedTickets"
+
 	if !w.votingEnabled || blockHeight < int32(w.chainParams.StakeValidationHeight)-1 {
 		return nil
 	}
 
 	n, err := w.NetworkBackend()
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	// TODO The behavior of this is not quite right if tons of blocks
@@ -883,7 +861,7 @@ func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash,
 		return nil
 	})
 	if err != nil {
-		log.Errorf("View failed: %v", err)
+		log.Errorf("View failed: %v", errors.E(op, err))
 	}
 
 	for i, vote := range votes {
@@ -898,7 +876,7 @@ func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash,
 		}
 		voteHash := &txRec.Hash
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			err := w.processTransactionRecord(dbtx, txRec, nil, nil)
+			err := w.processTransaction(dbtx, txRec, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -931,9 +909,11 @@ func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash,
 // RevokeOwnedTickets revokes any owned tickets specified in the
 // missedTicketHashes slice.
 func (w *Wallet) RevokeOwnedTickets(missedTicketHashes []*chainhash.Hash) error {
+	const op errors.Op = "wallet.RevokeOwnedTickets"
+
 	n, err := w.NetworkBackend()
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	var ticketHashes []*chainhash.Hash
@@ -995,7 +975,7 @@ func (w *Wallet) RevokeOwnedTickets(missedTicketHashes []*chainhash.Hash) error 
 		return nil
 	})
 	if err != nil {
-		log.Errorf("View failed: %v", err)
+		log.Errorf("View failed: %v", errors.E(op, err))
 	}
 
 	for i, revocation := range revocations {
@@ -1010,7 +990,7 @@ func (w *Wallet) RevokeOwnedTickets(missedTicketHashes []*chainhash.Hash) error 
 		}
 		revocationHash := &txRec.Hash
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			err := w.processTransactionRecord(dbtx, txRec, nil, nil)
+			err := w.processTransaction(dbtx, txRec, nil, nil)
 			if err != nil {
 				return err
 			}

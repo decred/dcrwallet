@@ -10,6 +10,7 @@ import (
 
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrwallet/errors"
 	. "github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 
@@ -181,16 +182,17 @@ func TestNewUnsignedTransaction(t *testing.T) {
 	for i, test := range tests {
 		inputSource := makeInputSource(test.UnspentOutputs)
 		tx, err := NewUnsignedTransaction(test.Outputs, test.RelayFee, inputSource, changeSource)
-		switch e := err.(type) {
-		case nil:
-		case InputSourceError:
-			if !test.InputSourceError {
-				t.Errorf("Test %d: Returned InputSourceError but expected "+
-					"change output with amount %v", i, test.ChangeAmount)
+		if err != nil {
+			insufficientBalance := errors.Is(errors.InsufficientBalance, err)
+			if insufficientBalance != test.InputSourceError {
+				if !test.InputSourceError {
+					t.Errorf("Test %d: InsufficientBalance=%v expected %v", i, insufficientBalance, test.InputSourceError)
+				}
+				continue
+			} else if !insufficientBalance {
+				t.Errorf("Test %d: Unexpected error: %v", i, err)
+				continue
 			}
-			continue
-		default:
-			t.Errorf("Test %d: Unexpected error: %v", i, e)
 			continue
 		}
 		if tx.ChangeIndex < 0 {

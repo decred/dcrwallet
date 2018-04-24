@@ -6,6 +6,7 @@ package wallet
 
 import (
 	"github.com/decred/dcrd/hdkeychain"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/walletdb"
 )
@@ -18,6 +19,8 @@ import (
 // wallet's network backend.  This is intentional as it allows offline
 // activities, such as wallet creation, to perform this upgrade.
 func (w *Wallet) UpgradeToSLIP0044CoinType() error {
+	const op errors.Op = "wallet.UpgradeToSLIP0044CoinType"
+
 	var extBranchXpub, intBranchXpub *hdkeychain.ExtendedKey
 
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
@@ -36,7 +39,7 @@ func (w *Wallet) UpgradeToSLIP0044CoinType() error {
 		return err
 	})
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	w.addressBuffersMu.Lock()

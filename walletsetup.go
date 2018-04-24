@@ -17,6 +17,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/hdkeychain"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/wallet"
@@ -207,14 +208,14 @@ func checkCreateDir(path string) error {
 		if os.IsNotExist(err) {
 			// Attempt data directory creation
 			if err = os.MkdirAll(path, 0700); err != nil {
-				return fmt.Errorf("cannot create directory: %s", err)
+				return errors.Errorf("cannot create directory: %s", err)
 			}
 		} else {
-			return fmt.Errorf("error checking directory: %s", err)
+			return errors.Errorf("error checking directory: %s", err)
 		}
 	} else {
 		if !fi.IsDir() {
-			return fmt.Errorf("path '%s' is not a directory", path)
+			return errors.Errorf("path '%s' is not a directory", path)
 		}
 	}
 

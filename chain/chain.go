@@ -7,14 +7,13 @@ package chain
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrwallet/errors"
 )
 
 var requiredChainServerAPI = semver{major: 3, minor: 1, patch: 0}
@@ -87,9 +86,11 @@ func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, cert
 // function gives up, and therefore will not block forever waiting for the
 // connection to be established to a server that may not exist.
 func (c *RPCClient) Start(ctx context.Context, retry bool) (err error) {
+	const op errors.Op = "rpcclient.Start"
+
 	err = c.Client.Connect(ctx, retry)
 	if err != nil {
-		return err
+		return errors.E(op, errors.IO, err)
 	}
 
 	defer func() {
@@ -101,10 +102,10 @@ func (c *RPCClient) Start(ctx context.Context, retry bool) (err error) {
 	// Verify that the server is running on the expected network.
 	net, err := c.Client.GetCurrentNet()
 	if err != nil {
-		return err
+		return errors.E(op, errors.E(errors.Op("dcrd.jsonrpc.getcurrentnet"), err))
 	}
 	if net != c.chainParams.Net {
-		return errors.New("mismatched networks")
+		return errors.E(op, "mismatched networks")
 	}
 
 	// Ensure the RPC server has a compatible API version.
@@ -119,9 +120,8 @@ func (c *RPCClient) Start(ctx context.Context, retry bool) (err error) {
 		}
 	}
 	if !semverCompatible(requiredChainServerAPI, serverAPI) {
-		return fmt.Errorf("consensus JSON-RPC server does not have a "+
-			"compatible API version: advertises %v but require %v",
-			serverAPI, requiredChainServerAPI)
+		return errors.E(op, errors.Errorf("advertised API version %v incompatible"+
+			"with required verison %v", serverAPI, requiredChainServerAPI))
 	}
 
 	c.quitMtx.Lock()
@@ -485,5 +485,9 @@ out:
 func (c *RPCClient) POSTClient() (*dcrrpcclient.Client, error) {
 	configCopy := *c.connConfig
 	configCopy.HTTPPostMode = true
-	return dcrrpcclient.New(&configCopy, nil)
+	client, err := dcrrpcclient.New(&configCopy, nil)
+	if err != nil {
+		return nil, errors.E(errors.Op("chain.POSTClient"), err)
+	}
+	return client, nil
 }

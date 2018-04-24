@@ -24,7 +24,6 @@ import (
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/rpc/legacyrpc"
 )
 
 type rpcTestCase func(r *Harness, t *testing.T)
@@ -399,9 +398,9 @@ func testWalletPassphrase(r *Harness, t *testing.T) {
 	}
 	// dcrjson.ErrRPCWalletUnlockNeeded
 	if !strings.HasPrefix(err.Error(),
-		strconv.Itoa(int(legacyrpc.ErrWalletUnlockNeeded.Code))) {
+		strconv.Itoa(int(dcrjson.ErrRPCWalletUnlockNeeded))) {
 		t.Fatalf("createnewaccount returned error (%v) instead of %v",
-			err, legacyrpc.ErrWalletUnlockNeeded.Code)
+			err, dcrjson.ErrRPCWalletUnlockNeeded)
 	}
 
 	// Unlock with correct passphrase

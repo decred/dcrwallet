@@ -5,7 +5,6 @@
 package ticketbuyer
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"sync"
@@ -15,6 +14,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet"
 )
 
@@ -482,7 +482,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 	avgPriceAmt, err := t.calcAverageTicketPrice(height)
 	if err != nil {
-		return ps, fmt.Errorf("Failed to calculate average ticket "+
+		return ps, errors.Errorf("Failed to calculate average ticket "+
 			" price amount at height %v: %v", height, err)
 	}
 	if avgPriceAmt < dcrutil.Amount(t.activeNet.MinimumStakeDiff) {
@@ -571,7 +571,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		return ps, err
 	}
 	if len(info.FeeInfoBlocks) < 1 {
-		return ps, fmt.Errorf("error FeeInfoBlocks bad length")
+		return ps, errors.Errorf("error FeeInfoBlocks bad length")
 	}
 	ticketPurchasesInLastBlock := int(info.FeeInfoBlocks[0].Number)
 	log.Tracef("Ticket purchase slots filled in last block: %v", ticketPurchasesInLastBlock)

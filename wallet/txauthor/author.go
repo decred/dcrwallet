@@ -7,13 +7,12 @@
 package txauthor
 
 import (
-	"errors"
-
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/txrules"
 
 	h "github.com/decred/dcrwallet/internal/helpers"
@@ -33,32 +32,9 @@ const (
 // InputSource provides transaction inputs referencing spendable outputs to
 // construct a transaction outputting some target amount.  If the target amount
 // can not be satisified, this can be signaled by returning a total amount less
-// than the target or by returning a more detailed error implementing
-// InputSourceError.
+// than the target or by returning a more detailed error.
 type InputSource func(target dcrutil.Amount) (total dcrutil.Amount,
 	inputs []*wire.TxIn, scripts [][]byte, err error)
-
-// InputSourceError describes the failure to provide enough input value from
-// unspent transaction outputs to meet a target amount.  A typed error is used
-// so input sources can provide their own implementations describing the reason
-// for the error, for example, due to spendable policies or locked coins rather
-// than the wallet not having enough available input value.
-type InputSourceError interface {
-	error
-	InputSourceError()
-}
-
-// InsufficientFundsError is the default implementation of InputSourceError.
-type InsufficientFundsError struct{}
-
-// InputSourceError generates the InputSourceError interface for an
-// InsufficientFundsError.
-func (InsufficientFundsError) InputSourceError() {}
-
-// Error satistifies the error interface.
-func (InsufficientFundsError) Error() string {
-	return "insufficient funds available to construct transaction"
-}
 
 // AuthoredTx holds the state of a newly-created transaction and the change
 // output (if one was added).
@@ -97,6 +73,8 @@ type ChangeSource func() ([]byte, uint16, error)
 func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	fetchInputs InputSource, fetchChange ChangeSource) (*AuthoredTx, error) {
 
+	const op errors.Op = "txauthor.NewUnsignedTransaction"
+
 	targetAmount := h.SumOutputValues(outputs)
 	scriptSizers := []txsizes.ScriptSizer{txsizes.P2PKHScriptSize}
 	estimatedSize := txsizes.EstimateSerializeSize(scriptSizers, outputs, true)
@@ -105,11 +83,11 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	for {
 		inputAmount, inputs, scripts, err := fetchInputs(targetAmount + targetFee)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 
 		if inputAmount < targetAmount+targetFee {
-			return nil, InsufficientFundsError{}
+			return nil, errors.E(op, errors.InsufficientBalance)
 		}
 
 		scriptSizers := []txsizes.ScriptSizer{}
@@ -139,10 +117,10 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 			txsizes.P2PKHPkScriptSize, relayFeePerKb) {
 			changeScript, changeScriptVersion, err := fetchChange()
 			if err != nil {
-				return nil, err
+				return nil, errors.E(op, err)
 			}
 			if len(changeScript) > txsizes.P2PKHPkScriptSize {
-				return nil, errors.New("fee estimation requires change " +
+				return nil, errors.E(op, "fee estimation requires change "+
 					"scripts no larger than P2PKH output scripts")
 			}
 			change := &wire.TxOut{

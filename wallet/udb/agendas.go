@@ -1,11 +1,11 @@
-// Copyright (c) 2017 The Decred developers
+// Copyright (c) 2017-2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package udb
 
 import (
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/walletdb"
 )
 
@@ -41,8 +41,7 @@ func (t agendaPreferencesTy) preference(tx walletdb.ReadTx, version uint32, agen
 func SetAgendaPreference(tx walletdb.ReadWriteTx, version uint32, agendaID, choiceID string) error {
 	err := agendaPreferences.setPreference(tx, version, agendaID, choiceID)
 	if err != nil {
-		const str = "failed to put agenda preference"
-		return apperrors.E{ErrorCode: apperrors.ErrDatabase, Description: str, Err: err}
+		return errors.E(errors.IO, err)
 	}
 	return nil
 }
