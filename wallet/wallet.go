@@ -1379,11 +1379,19 @@ func (w *Wallet) SignMessage(msg string, addr dcrutil.Address) (sig []byte, err 
 	pkCast, ok := privKey.(*secp256k1.PrivateKey)
 	if !ok {
 		return nil, errors.E(op, "unable to create secp256k1.PrivateKey from chainec.PrivateKey")
+<<<<<<< HEAD
 	}
 	sig, err = secp256k1.SignCompact(pkCast, messageHash, true)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
+=======
+	}
+	sig, err = secp256k1.SignCompact(pkCast, messageHash, true)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+>>>>>>> Introduce errors package and refactor all error handling.
 	return sig, nil
 }
 
@@ -1693,38 +1701,6 @@ func (w *Wallet) CoinType() (uint32, error) {
 	if err != nil {
 		return 0, errors.E(op, err)
 	}
-	return coinType, nil
-}
-
-// CoinTypeKey returns the BIP0044 coin type private key for the passed account.
-func (w *Wallet) CoinTypeKey() (*hdkeychain.ExtendedKey, error) {
-	var coinTypePrivateKey *hdkeychain.ExtendedKey
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		var err error
-		coinTypePrivateKey, err = w.Manager.CoinTypePrivKey(tx)
-		return err
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return coinTypePrivateKey, nil
-}
-
-// CoinType returns the SLIP0044 or legacy coin type for the passed account.
-func (w *Wallet) CoinType() (uint32, error) {
-	var coinType uint32
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		var err error
-		coinType, err = w.Manager.CoinType(tx)
-		return err
-	})
-
-	if err != nil {
-		return 0, apperrors.New(apperror.ErrValueNoExists, "coin type keys are not saved")
-	}
-
 	return coinType, nil
 }
 
@@ -2095,6 +2071,7 @@ func (w *Wallet) ListAllTransactions() ([]dcrjson.ListTransactionsResult, error)
 		j--
 	}
 	return txList, nil
+<<<<<<< HEAD
 }
 
 // ListTransactionDetails returns the listtransaction results for a single
@@ -2123,6 +2100,8 @@ func (w *Wallet) ListTransactionDetails(txHash *chainhash.Hash) ([]dcrjson.ListT
 		return nil, errors.E(op, err)
 	}
 	return txList, nil
+=======
+>>>>>>> Introduce errors package and refactor all error handling.
 }
 
 // BlockIdentifier identifies a block by either a height in the main chain or a

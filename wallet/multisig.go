@@ -140,7 +140,18 @@ func (w *Wallet) FetchP2SHMultiSigOutput(outPoint *wire.OutPoint) (*P2SHMultiSig
 		}
 
 		redeemScript, err = w.TxStore.GetTxScript(txmgrNs, mso.ScriptHash[:])
+<<<<<<< HEAD
 		return err
+=======
+		if err != nil {
+			return err
+		}
+		if redeemScript == nil {
+			return errors.E(errors.NotExist, "missing redeem script")
+		}
+
+		return nil
+>>>>>>> Introduce errors package and refactor all error handling.
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
