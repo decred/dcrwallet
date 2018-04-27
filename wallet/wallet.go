@@ -2792,6 +2792,20 @@ func (w *Wallet) GetTransactions(ctx context.Context, f func(*Block) (bool, erro
 	return nil
 }
 
+// Spender queries for the transaction and input index which spends a Credit.
+// If the output is not a Credit, an error with code ErrInput is returned.  If
+// the output is unspent, the ErrNoExist code is used.
+func (w *Wallet) Spender(out *wire.OutPoint) (*wire.MsgTx, uint32, error) {
+	var spender *wire.MsgTx
+	var spenderIndex uint32
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		var err error
+		spender, spenderIndex, err = w.TxStore.Spender(dbtx, out)
+		return err
+	})
+	return spender, spenderIndex, err
+}
+
 // AccountResult is a single account result for the AccountsResult type.
 type AccountResult struct {
 	udb.AccountProperties

@@ -810,8 +810,8 @@ func extractRawUnminedCreditTxHash(k []byte) []byte {
 	return k[:32]
 }
 
-func extractRawCreditIsSpent(k []byte) bool {
-	return k[8]&1<<0 != 0
+func extractRawCreditIsSpent(v []byte) bool {
+	return v[8]&1<<0 != 0
 }
 
 func extractRawCreditSpenderDebitKey(v []byte) []byte {
@@ -1193,6 +1193,14 @@ func putRawDebit(ns walletdb.ReadWriteBucket, k, v []byte) error {
 
 func extractRawDebitHash(k []byte) []byte {
 	return k[:32]
+}
+
+func extractRawDebitTxRecordKey(k []byte) []byte {
+	return k[:68]
+}
+
+func extractRawDebitInputIndex(k []byte) uint32 {
+	return byteOrder.Uint32(k[68:72])
 }
 
 func extractRawDebitAmount(v []byte) dcrutil.Amount {

@@ -6,9 +6,12 @@
 package udb
 
 import (
+	"bytes"
+	
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v3"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/wire"
@@ -618,4 +621,92 @@ func (s *Store) PreviousPkScripts(ns walletdb.ReadBucket, rec *TxRecord, block *
 	}
 
 	return pkScripts, nil
+}
+
+// Spender queries for the transaction and input index which spends a Credit.
+// If the output is not a Credit, an error with code ErrInput is returned.  If
+// the output is unspent, the ErrNoExist code is used.
+func (s *Store) Spender(dbtx walletdb.ReadTx, out *wire.OutPoint) (*wire.MsgTx, uint32, error) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+
+	var spender wire.MsgTx
+	var spenderHash chainhash.Hash
+	var spenderIndex uint32
+
+	// Check mined txs
+	k, v := latestTxRecord(ns, out.Hash[:])
+	if v != nil {
+		var block Block
+		err := readRawTxRecordBlock(k, &block)
+		if err != nil {
+			return nil, 0, err
+		}
+		k = keyCredit(&out.Hash, out.Index, &block)
+		v = existsRawCredit(ns, k)
+		if v == nil {
+			return nil, 0, errors.E(errors.Invalid, "output is not a credit")
+		}
+		if extractRawCreditIsSpent(v) {
+			// Credit exists and is spent by a mined transaction.
+			k = extractRawCreditSpenderDebitKey(v)
+			copy(spenderHash[:], extractRawDebitHash(k))
+			spenderIndex = extractRawDebitInputIndex(k)
+			k = extractRawDebitTxRecordKey(k)
+			v = existsRawTxRecord(ns, k)
+			err = readRawTxRecordMsgTx(&spenderHash, v, &spender)
+			if err != nil {
+				return nil, 0, err
+			}
+			return &spender, spenderIndex, nil
+		}
+		// Credit is not spent by a mined transaction, but may still be spent by
+		// an unmined one.  Check whether it is spent by an unmined tx, and
+		// record the spender hash if spent.
+		k = canonicalOutPoint(&out.Hash, out.Index)
+		v = existsRawUnminedInput(ns, k)
+		if v == nil {
+			return nil, 0, errors.E(errors.NotExist, "credit is unspent")
+		}
+		readRawUnminedInputSpenderHash(v, &spenderHash)
+	}
+
+	// If a spender exists at this point, it must be an unmined transaction.
+	// The spender hash will not yet be known if the credit is also unmined, or
+	// if there is no credit.
+	if spenderHash != (chainhash.Hash{}) {
+		k = canonicalOutPoint(&out.Hash, out.Index)
+		v = existsRawUnminedCredit(ns, k)
+		if v == nil {
+			return nil, 0, errors.E(errors.Invalid, "output is not a credit")
+		}
+		v = existsRawUnminedInput(ns, k)
+		if v == nil {
+			return nil, 0, errors.E(errors.NotExist, "credit is unspent")
+		}
+		readRawUnminedInputSpenderHash(v, &spenderHash)
+	}
+
+	// Credit is spent by an unmined transaction.  Index is unknown so the
+	// spending tx must be searched for a matching previous outpoint.
+	v = existsRawUnmined(ns, spenderHash[:])
+	if v == nil {
+		return nil, 0, errors.E(errors.NotExist, "missing unmined spending tx")
+	}
+	err := spender.Deserialize(bytes.NewReader(extractRawUnminedTx(v)))
+	if err != nil {
+		return nil, 0, errors.E(errors.Bug, err)
+	}
+	found := false
+	for i, in := range spender.TxIn {
+		// Compare outpoints without comparing tree.
+		if out.Hash == in.PreviousOutPoint.Hash && out.Index == in.PreviousOutPoint.Index {
+			spenderIndex = uint32(i)
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, 0, errors.E(errors.NotExist, "recorded spending tx does not spend credit")
+	}
+	return &spender, spenderIndex, nil
 }

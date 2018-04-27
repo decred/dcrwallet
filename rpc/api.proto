@@ -34,6 +34,7 @@ service WalletService {
 	rpc StakeInfo (StakeInfoRequest) returns (StakeInfoResponse);
 	rpc BlockInfo (BlockInfoRequest) returns (BlockInfoResponse);
 	rpc BestBlock (BestBlockRequest) returns (BestBlockResponse);
+	rpc Spender (SpenderRequest) returns (SpenderResponse);
 
 	// Notifications
 	rpc TransactionNotifications (TransactionNotificationsRequest) returns (stream TransactionNotificationsResponse);
@@ -1108,4 +1109,13 @@ message SignHashesRequest {
 message SignHashesResponse {
 	bytes public_key = 1;
 	repeated bytes signatures = 2;
+}
+
+message SpenderRequest {
+	bytes transaction_hash = 1;
+	uint32 index = 2;
+}
+message SpenderResponse {
+	bytes spender_transaction = 1;
+	uint32 input_index = 2;
 }
