@@ -673,7 +673,7 @@ func (s *Store) Spender(dbtx walletdb.ReadTx, out *wire.OutPoint) (*wire.MsgTx, 
 	// If a spender exists at this point, it must be an unmined transaction.
 	// The spender hash will not yet be known if the credit is also unmined, or
 	// if there is no credit.
-	if spenderHash != (chainhash.Hash{}) {
+	if spenderHash == (chainhash.Hash{}) {
 		k = canonicalOutPoint(&out.Hash, out.Index)
 		v = existsRawUnminedCredit(ns, k)
 		if v == nil {
