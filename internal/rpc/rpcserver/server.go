@@ -3100,9 +3100,7 @@ func (s *walletServer) SignHashes(cts context.Context, req *pb.SignHashesRequest
 			"address must be secp256k1 P2PK or P2PKH")
 	}
 
-	hashType := txscript.SigHashType(req.HashType)
-	signatures, pubKey, err := s.wallet.SignHashes(req.Hashes, hashType,
-		addr)
+	signatures, pubKey, err := s.wallet.SignHashes(req.Hashes, addr)
 	if err != nil {
 		return nil, translateError(err)
 	}

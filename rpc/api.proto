@@ -1102,8 +1102,7 @@ message SweepAccountResponse {
 message SignHashesRequest {
 	bytes passphrase = 1;
 	string address = 2;
-	CreateSignatureRequest.SigHashType hash_type = 3;
-	repeated bytes hashes = 4;
+	repeated bytes hashes = 3;
 }
 
 message SignHashesResponse {

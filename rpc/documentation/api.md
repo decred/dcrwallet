@@ -1592,10 +1592,6 @@ provided private keys and addresses.
 - `string address`: The address of the private key to use to create the
   signature.
 
-- `CreateSignatureRequest.SigHashType hash_type`: The signature hash flags
-  to use. Note the available hash types are defined in the
-[`SigHashType`](#sighashtype) enumeration.
-
 - `repeated bytes hashes`: Hash values to sign.
 
 **Response:** `SignHashesResponse`

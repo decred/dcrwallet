@@ -1542,8 +1542,8 @@ func (w *Wallet) PubKeyForAddress(ctx context.Context, a dcrutil.Address) (*secp
 
 // SignHashes returns signatures of signed transaction hashes using an
 // address' associated private key.
-func (w *Wallet) SignHashes(hashes [][]byte, hashType txscript.SigHashType,
-	addr dcrutil.Address) ([][]byte, []byte, error) {
+func (w *Wallet) SignHashes(hashes [][]byte, addr dcrutil.Address) ([][]byte,
+	[]byte, error) {
 
 	var privKey chainec.PrivateKey
 	var done func()
@@ -1568,17 +1568,16 @@ func (w *Wallet) SignHashes(hashes [][]byte, hashType txscript.SigHashType,
 			"secp256k1.PrivateKey from chainec.PrivateKey")
 	}
 
-	signatures := make([][]byte, 0, len(hashes))
+	signatures := make([][]byte, len(hashes))
 
-	for _, hash := range hashes {
+	for i, hash := range hashes {
 		r, s, err := chainec.Secp256k1.Sign(pkCast, hash)
 		if err != nil {
 			return nil, nil, fmt.Errorf("cannot sign tx hash: %s",
 				err)
 		}
 		sig := chainec.Secp256k1.NewSignature(r, s)
-		signatures = append(signatures,
-			append(sig.Serialize(), byte(hashType)))
+		signatures[i] = sig.Serialize()
 	}
 
 	return signatures, pubKey.SerializeCompressed(), nil
