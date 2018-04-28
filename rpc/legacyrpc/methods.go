@@ -35,6 +35,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
+	"sort"
 )
 
 // API version constants
@@ -692,6 +693,9 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 			}
 			result.Balances = append(result.Balances, json)
 		}
+		sort.Slice(result.Balances, func(i, j int) bool {
+			return result.Balances[i].AccountName < result.Balances[j].AccountName
+		})
 
 		result.TotalImmatureCoinbaseRewards = totImmatureCoinbase.ToCoin()
 		result.TotalImmatureStakeGeneration = totImmatureStakegen.ToCoin()
