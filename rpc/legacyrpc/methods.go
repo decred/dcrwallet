@@ -35,7 +35,6 @@ import (
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
-	"sort"
 )
 
 // API version constants
@@ -667,6 +666,9 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 			cumTot              dcrutil.Amount
 		)
 
+		balancesLen := uint32(len(balances))
+		result.Balances = make([]dcrjson.GetAccountBalanceResult, balancesLen)
+
 		for _, bal := range balances {
 			accountName, err := w.AccountName(bal.Account)
 			if err != nil {
@@ -691,11 +693,15 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 				Unconfirmed:             bal.Unconfirmed.ToCoin(),
 				VotingAuthority:         bal.VotingAuthority.ToCoin(),
 			}
-			result.Balances = append(result.Balances, json)
+
+			var balIdx uint32
+			if bal.Account == udb.ImportedAddrAccount {
+				balIdx = balancesLen - 1
+			} else {
+				balIdx = bal.Account
+			}
+			result.Balances[balIdx] = json
 		}
-		sort.Slice(result.Balances, func(i, j int) bool {
-			return result.Balances[i].AccountName < result.Balances[j].AccountName
-		})
 
 		result.TotalImmatureCoinbaseRewards = totImmatureCoinbase.ToCoin()
 		result.TotalImmatureStakeGeneration = totImmatureStakegen.ToCoin()
