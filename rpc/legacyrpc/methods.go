@@ -666,6 +666,9 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 			cumTot              dcrutil.Amount
 		)
 
+		balancesLen := uint32(len(balances))
+		result.Balances = make([]dcrjson.GetAccountBalanceResult, balancesLen)
+
 		for _, bal := range balances {
 			accountName, err := w.AccountName(bal.Account)
 			if err != nil {
@@ -690,7 +693,14 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 				Unconfirmed:             bal.Unconfirmed.ToCoin(),
 				VotingAuthority:         bal.VotingAuthority.ToCoin(),
 			}
-			result.Balances = append(result.Balances, json)
+
+			var balIdx uint32
+			if bal.Account == udb.ImportedAddrAccount {
+				balIdx = balancesLen - 1
+			} else {
+				balIdx = bal.Account
+			}
+			result.Balances[balIdx] = json
 		}
 
 		result.TotalImmatureCoinbaseRewards = totImmatureCoinbase.ToCoin()
