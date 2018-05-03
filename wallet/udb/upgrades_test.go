@@ -18,7 +18,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
-	_ "github.com/decred/dcrwallet/wallet/drivers/bdb"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 )
 
@@ -35,6 +35,7 @@ var dbUpgradeTests = [...]struct {
 	{verifyV8Upgrade, "v7.db.gz"},
 	// No upgrade test for V9, it is a fix for V8 and the previous test still applies
 	// TODO: V10 upgrade test
+	{verifyV12Upgrade, "v11.db.gz"},
 }
 
 var pubPass = []byte("public")
@@ -407,6 +408,49 @@ func verifyV8Upgrade(t *testing.T, db walletdb.DB) {
 			t.Errorf("expected 3 txs without expiries set, got %d", minedTxWithoutExpiryCount)
 		}
 		return err
+	})
+
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func verifyV12Upgrade(t *testing.T, db walletdb.DB) {
+	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
+		txmgrBucket := tx.ReadBucket(wtxmgrBucketKey)
+
+		var multisigOutsMarkedForDelete [][]byte
+		multisigOutBucket := txmgrBucket.NestedReadBucket([]byte("ms"))
+		c := multisigOutBucket.ReadCursor()
+		var msoWithTX int
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			mso, err := fetchMultisigOut(k, v)
+			if err != nil {
+				str := "failed to fetch multisig from bucket"
+				t.Errorf("Error during fetch mso: %s, %s", str, err)
+			}
+
+			_, txVal := existsTxRecord(txmgrBucket, &mso.TxHash, &Block{
+				Hash:   mso.BlockHash,
+				Height: int32(mso.BlockHeight),
+			})
+			if txVal == nil {
+				multisigOutsMarkedForDelete = append(multisigOutsMarkedForDelete, k)
+			} else {
+				msoWithTX++
+			}
+		}
+
+		// should exist 2 multisigOuts with valid TX
+		if msoWithTX != 2 {
+			return errors.New("expected to have 2 valid transactions for MSOs")
+		}
+
+		if len(multisigOutsMarkedForDelete) > 0 {
+			return errors.New("expected to have 0 MSOs marked for delete")
+		}
+
+		return nil
 	})
 	if err != nil {
 		t.Error(err)

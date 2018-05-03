@@ -99,26 +99,32 @@ const (
 	// from properly-synced wallets.
 	lastProcessedTxsBlockVersion = 11
 
+	// removeMultisigOutsWithoutTransactions is the twelfth version of the database.
+	// It fixes issue with MultisigOuts without related transactions. Simply find all
+	// detached MultisigOutputs and remove
+	removeMultisigOutsWithoutTransactionsVersion = 12
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = lastProcessedTxsBlockVersion
+	DBVersion = removeMultisigOutsWithoutTransactionsVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
 // upgrade the database to the next version.  Note that there was never a
 // version zero so upgrades[0] is nil.
 var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
-	lastUsedAddressIndexVersion - 1:  lastUsedAddressIndexUpgrade,
-	votingPreferencesVersion - 1:     votingPreferencesUpgrade,
-	noEncryptedSeedVersion - 1:       noEncryptedSeedUpgrade,
-	lastReturnedAddressVersion - 1:   lastReturnedAddressUpgrade,
-	ticketBucketVersion - 1:          ticketBucketUpgrade,
-	slip0044CoinTypeVersion - 1:      slip0044CoinTypeUpgrade,
-	hasExpiryVersion - 1:             hasExpiryUpgrade,
-	hasExpiryFixedVersion - 1:        hasExpiryFixedUpgrade,
-	cfVersion - 1:                    cfUpgrade,
-	lastProcessedTxsBlockVersion - 1: lastProcessedTxsBlockUpgrade,
+	lastUsedAddressIndexVersion - 1:                  lastUsedAddressIndexUpgrade,
+	votingPreferencesVersion - 1:                     votingPreferencesUpgrade,
+	noEncryptedSeedVersion - 1:                       noEncryptedSeedUpgrade,
+	lastReturnedAddressVersion - 1:                   lastReturnedAddressUpgrade,
+	ticketBucketVersion - 1:                          ticketBucketUpgrade,
+	slip0044CoinTypeVersion - 1:                      slip0044CoinTypeUpgrade,
+	hasExpiryVersion - 1:                             hasExpiryUpgrade,
+	hasExpiryFixedVersion - 1:                        hasExpiryFixedUpgrade,
+	cfVersion - 1:                                    cfUpgrade,
+	lastProcessedTxsBlockVersion - 1:                 lastProcessedTxsBlockUpgrade,
+	removeMultisigOutsWithoutTransactionsVersion - 1: removeMultisigOutsWithoutTransactions,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -776,6 +782,54 @@ func lastProcessedTxsBlockUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []by
 	err = txmgrBucket.Put(rootLastTxsBlock, txmgrBucket.Get(rootTipBlock))
 	if err != nil {
 		return errors.E(errors.IO, err)
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func removeMultisigOutsWithoutTransactions(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 11
+	const newVersion = 12
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	txmgrBucket := tx.ReadWriteBucket(wtxmgrBucketKey)
+
+	// Assert this function is only called on version 9 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		const str = "removeExtraMultisigOutsUpgrade inappropriately called"
+		return errors.E(errors.Invalid, str, nil)
+	}
+
+	var multisigOutsMarkedForDelete [][]byte
+	multisigOutBucket := txmgrBucket.NestedReadWriteBucket([]byte("ms"))
+
+	c := multisigOutBucket.ReadCursor()
+	for k, v := c.First(); k != nil; k, v = c.Next() {
+		kCpy := make([]byte, len(k))
+		copy(kCpy[:], k)
+
+		mso, err := fetchMultisigOut(kCpy, v)
+		if err != nil {
+			str := "failed to fetch multisig from bucket"
+			return errors.E(errors.IO, str, nil)
+		}
+
+		_, txVal := existsTxRecord(txmgrBucket, &mso.TxHash, &Block{
+			Hash:   mso.BlockHash,
+			Height: int32(mso.BlockHeight),
+		})
+		if txVal == nil {
+			multisigOutsMarkedForDelete = append(multisigOutsMarkedForDelete, kCpy)
+		}
+	}
+
+	for _, msoKey := range multisigOutsMarkedForDelete {
+		multisigOutBucket.Delete(msoKey)
 	}
 
 	// Write the new database version.

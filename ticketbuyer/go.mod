@@ -1,7 +1,7 @@
 module github.com/decred/dcrwallet/ticketbuyer
 
 require (
-	github.com/decred/dcrd/blockchain v1.0.1
+	github.com/decred/dcrd/blockchain v1.0.2
 	github.com/decred/dcrd/chaincfg v1.1.1
 	github.com/decred/dcrd/dcrjson v1.0.0
 	github.com/decred/dcrd/dcrutil v1.1.1

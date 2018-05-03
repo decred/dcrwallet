@@ -22,6 +22,7 @@ require (
 	github.com/decred/dcrwallet/internal/helpers v1.0.0
 	github.com/decred/dcrwallet/internal/zero v1.0.0
 	github.com/decred/dcrwallet/validate v1.0.0
+	github.com/decred/dcrwallet/walletseed v1.0.0 // indirect
 	github.com/decred/slog v1.0.0
 	github.com/jrick/bitset v1.0.0
 	golang.org/x/crypto v0.0.0-20180808211826-de0752318171
