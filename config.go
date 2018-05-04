@@ -190,6 +190,11 @@ type ticketBuyerOptions struct {
 // cleanAndExpandPath expands environement variables and leading ~ in the
 // passed path, cleans the result, and returns it.
 func cleanAndExpandPath(path string) string {
+	// Do not try to clean the empty string
+	if path == "" {
+		return ""
+	}
+
 	// NOTE: The os.ExpandEnv doesn't work with Windows cmd.exe-style
 	// %VARIABLE%, but they variables can still be expanded via POSIX-style
 	// $VARIABLE.
