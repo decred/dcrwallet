@@ -1666,6 +1666,36 @@ func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 	return extKey, nil
 }
 
+// CoinTypeKey returns the BIP0044 coin type private key for the passed account.
+func (w *Wallet) CoinTypeKey() (*hdkeychain.ExtendedKey, error) {
+	const op errors.Op = "wallet.CoinTypeKey"
+	var coinTypePrivateKey *hdkeychain.ExtendedKey
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		var err error
+		coinTypePrivateKey, err = w.Manager.CoinTypePrivKey(tx)
+		return err
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return coinTypePrivateKey, nil
+}
+
+// CoinType returns the SLIP0044 or legacy coin type for the passed account.
+func (w *Wallet) CoinType() (uint32, error) {
+	const op errors.Op = "wallet.CoinType"
+	var coinType uint32
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		var err error
+		coinType, err = w.Manager.CoinType(tx)
+		return err
+	})
+	if err != nil {
+		return 0, errors.E(op, err)
+	}
+	return coinType, nil
+}
+
 // CreditCategory describes the type of wallet transaction output.  The category
 // of "sent transactions" (debits) is always "send", and is not expressed by
 // this type.
