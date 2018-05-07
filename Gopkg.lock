@@ -53,6 +53,7 @@
   revision = "b3520e187fa8ebe65eb74245408cf4b83e6a65d3"
 
 [[projects]]
+  branch = "master"
   name = "github.com/decred/dcrd"
   packages = [
     "blockchain",
@@ -82,8 +83,7 @@
     "txscript",
     "wire"
   ]
-  revision = "fd99f572cfd52ca722ad501ccb34acdcb22b4a67"
-  version = "v1.2.0-rc1"
+  revision = "0921280e6e232b66f19ada00ba9adad1d82c90a5"
 
 [[projects]]
   branch = "master"

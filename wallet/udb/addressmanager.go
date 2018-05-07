@@ -1821,21 +1821,13 @@ func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, 
 		return 0, managerError(apperrors.ErrKeyChain, str, err)
 	}
 	// Encrypt the default account keys with the associated crypto keys.
-	apes, err := acctKeyPub.String()
-	if err != nil {
-		str := "failed to get public key string for account"
-		return 0, managerError(apperrors.ErrCrypto, str, err)
-	}
+	apes := acctKeyPub.String()
 	acctPubEnc, err := m.cryptoKeyPub.Encrypt([]byte(apes))
 	if err != nil {
 		str := "failed to  encrypt public key for account"
 		return 0, managerError(apperrors.ErrCrypto, str, err)
 	}
-	apes, err = acctKeyPriv.String()
-	if err != nil {
-		str := "failed to get private key string for account"
-		return 0, managerError(apperrors.ErrCrypto, str, err)
-	}
+	apes = acctKeyPriv.String()
 	acctPrivEnc, err := m.cryptoKeyPriv.Encrypt([]byte(apes))
 	if err != nil {
 		str := "failed to encrypt private key for account"
@@ -2601,21 +2593,13 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 			str := "failed to convert legacy cointype private key"
 			return managerError(apperrors.ErrKeyChain, str, err)
 		}
-		ctpes, err := coinTypeLegacyKeyPub.String()
-		if err != nil {
-			str := "failed to convert legacy cointype public key string"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
+		ctpes := coinTypeLegacyKeyPub.String()
 		coinTypeLegacyPubEnc, err := cryptoKeyPub.Encrypt([]byte(ctpes))
 		if err != nil {
 			str := "failed to encrypt legacy cointype public key"
 			return managerError(apperrors.ErrCrypto, str, err)
 		}
-		ctpes, err = coinTypeLegacyKeyPriv.String()
-		if err != nil {
-			str := "failed to convert legacy cointype private key string"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
+		ctpes = coinTypeLegacyKeyPriv.String()
 		coinTypeLegacyPrivEnc, err := cryptoKeyPriv.Encrypt([]byte(ctpes))
 		if err != nil {
 			str := "failed to encrypt legacy cointype private key"
@@ -2628,21 +2612,13 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 			str := "failed to convert SLIP0044 cointype private key"
 			return managerError(apperrors.ErrKeyChain, str, err)
 		}
-		ctpes, err = coinTypeSLIP0044KeyPub.String()
-		if err != nil {
-			str := "failed to convert SLIP0044 cointype public key string"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
+		ctpes = coinTypeSLIP0044KeyPub.String()
 		coinTypeSLIP0044PubEnc, err := cryptoKeyPub.Encrypt([]byte(ctpes))
 		if err != nil {
 			str := "failed to encrypt SLIP0044 cointype public key"
 			return managerError(apperrors.ErrCrypto, str, err)
 		}
-		ctpes, err = coinTypeSLIP0044KeyPriv.String()
-		if err != nil {
-			str := "failed to convert SLIP0044 cointype private key string"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
+		ctpes = coinTypeSLIP0044KeyPriv.String()
 		coinTypeSLIP0044PrivEnc, err := cryptoKeyPriv.Encrypt([]byte(ctpes))
 		if err != nil {
 			str := "failed to encrypt SLIP0044 cointype private key"
@@ -2650,41 +2626,25 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		}
 
 		// Encrypt the default account keys with the associated crypto keys.
-		apes, err := acctKeyLegacyPub.String()
-		if err != nil {
-			str := "failed to convert public key string for account 0"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
+		apes := acctKeyLegacyPub.String()
 		acctPubLegacyEnc, err := cryptoKeyPub.Encrypt([]byte(apes))
 		if err != nil {
 			str := "failed to encrypt public key for account 0"
 			return managerError(apperrors.ErrCrypto, str, err)
 		}
-		apes, err = acctKeyLegacyPriv.String()
-		if err != nil {
-			str := "failed to convert private key string for account 0"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
+		apes = acctKeyLegacyPriv.String()
 		acctPrivLegacyEnc, err := cryptoKeyPriv.Encrypt([]byte(apes))
 		if err != nil {
 			str := "failed to encrypt private key for account 0"
 			return managerError(apperrors.ErrCrypto, str, err)
 		}
-		apes, err = acctKeySLIP0044Pub.String()
-		if err != nil {
-			str := "failed to convert public key string for account 0"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
+		apes = acctKeySLIP0044Pub.String()
 		acctPubSLIP0044Enc, err := cryptoKeyPub.Encrypt([]byte(apes))
 		if err != nil {
 			str := "failed to encrypt public key for account 0"
 			return managerError(apperrors.ErrCrypto, str, err)
 		}
-		apes, err = acctKeySLIP0044Priv.String()
-		if err != nil {
-			str := "failed to convert private key string for account 0"
-			return managerError(apperrors.ErrKeyChain, str, err)
-		}
+		apes = acctKeySLIP0044Priv.String()
 		acctPrivSLIP0044Enc, err := cryptoKeyPriv.Encrypt([]byte(apes))
 		if err != nil {
 			str := "failed to encrypt private key for account 0"
@@ -2903,21 +2863,13 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string,
 	}
 
 	// Encrypt the default account keys with the associated crypto keys.
-	apes, err := acctKeyPub.String()
-	if err != nil {
-		str := "failed to convert public key string for account 0"
-		return managerError(apperrors.ErrKeyChain, str, err)
-	}
+	apes := acctKeyPub.String()
 	acctPubEnc, err := cryptoKeyPub.Encrypt([]byte(apes))
 	if err != nil {
 		str := "failed to encrypt public key for account 0"
 		return managerError(apperrors.ErrCrypto, str, err)
 	}
-	apes, err = acctKeyPub.String()
-	if err != nil {
-		str := "failed to convert private key string for account 0"
-		return managerError(apperrors.ErrKeyChain, str, err)
-	}
+	apes = acctKeyPub.String()
 	acctPrivEnc, err := cryptoKeyPriv.Encrypt([]byte(apes))
 	if err != nil {
 		str := "failed to encrypt private key for account 0"
