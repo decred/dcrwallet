@@ -51,9 +51,9 @@ func deriveChildAddress(accountExtKey *hdkeychain.ExtendedKey, branch, child uin
 }
 
 func equalExtKeys(k0, k1 *hdkeychain.ExtendedKey) bool {
-	s0, e0 := k0.String()
-	s1, e1 := k1.String()
-	return e0 == nil && e1 == nil && s0 == s1
+	s0 := k0.String()
+	s1 := k1.String()
+	return s0 == s1
 }
 
 func TestCoinTypeUpgrade(t *testing.T) {
