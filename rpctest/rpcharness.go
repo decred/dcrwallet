@@ -17,11 +17,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
 
-	"github.com/decred/dcrd/dcrutil"
-	rpc "github.com/decred/dcrd/rpcclient"
+	"github.com/EXCCoin/exccd/exccutil"
+	rpc "github.com/EXCCoin/exccd/rpcclient"
 )
 
 var (
@@ -56,12 +56,12 @@ var (
 	harnessStateMtx sync.RWMutex
 )
 
-// Harness fully encapsulates an active dcrd process, along with an embedded
-// dcrwallet to provide a unified platform for creating RPC-driven integration
-// tests involving dcrd. The active dcrd node will typically be run in simnet
+// Harness fully encapsulates an active exccd process, along with an embedded
+// exccwallet to provide a unified platform for creating RPC-driven integration
+// tests involving exccd. The active exccd node will typically be run in simnet
 // mode to allow for easy generation of test blockchains. Additionally, a
 // special method is provided which allows one to easily generate coinbase
-// spends. The active dcrd process is fully managed by Harness, which handles
+// spends. The active exccd process is fully managed by Harness, which handles
 // the necessary initialization, and teardown of the process along with any
 // temporary directories created as a result. Multiple Harness instances may be
 // run concurrently, to allow for testing complex scenarios involving multuple
@@ -80,7 +80,7 @@ type Harness struct {
 	testWalletDir  string
 	maxConnRetries int
 	nodeNum        int
-	miningAddr     dcrutil.Address
+	miningAddr     exccutil.Address
 }
 
 // NewHarness creates and initializes a new instance of the rpc test harness.
@@ -187,7 +187,7 @@ func NewHarness(activeNet *chaincfg.Params, handlers *rpc.NotificationHandlers,
 func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	var err error
 
-	// Start the dcrd node itself. This spawns a new process which will be
+	// Start the exccd node itself. This spawns a new process which will be
 	// managed
 	if err = h.node.Start(); err != nil {
 		return err
@@ -198,7 +198,7 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	}
 	fmt.Println("Node RPC client connected.")
 
-	// Start dcrwallet. This spawns a new process which will be managed
+	// Start exccwallet. This spawns a new process which will be managed
 	if err = h.wallet.Start(); err != nil {
 		return err
 	}
@@ -220,9 +220,9 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 	fmt.Println("Wallet RPC client connected.")
 	h.WalletRPC = walletClient
 
-	// Get a new address from the wallet to be set with dcrd's --miningaddr
+	// Get a new address from the wallet to be set with exccd's --miningaddr
 	time.Sleep(5 * time.Second)
-	var miningAddr dcrutil.Address
+	var miningAddr exccutil.Address
 	for i := 0; i < 100; i++ {
 		if miningAddr, err = walletClient.GetNewAddress("default"); err != nil {
 			time.Sleep(time.Duration(math.Log(float64(i+3))) * 50 * time.Millisecond)
@@ -351,7 +351,7 @@ func (h *Harness) IsUp() bool {
 }
 
 // connectRPCClient attempts to establish an RPC connection to the created
-// dcrd process belonging to this Harness instance. If the initial connection
+// exccd process belonging to this Harness instance. If the initial connection
 // attempt fails, this function will retry h.maxConnRetries times, backing off
 // the time between subsequent attempts. If after h.maxConnRetries attempts,
 // we're not able to establish a connection, this function returns with an error.

@@ -10,17 +10,17 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/EXCCoin/exccd/exccutil"
 )
 
-// AmountFlag embeds a dcrutil.Amount and implements the flags.Marshaler and
+// AmountFlag embeds a exccutil.Amount and implements the flags.Marshaler and
 // Unmarshaler interfaces so it can be used as a config struct field.
 type AmountFlag struct {
-	dcrutil.Amount
+	exccutil.Amount
 }
 
-// NewAmountFlag creates an AmountFlag with a default dcrutil.Amount.
-func NewAmountFlag(defaultValue dcrutil.Amount) *AmountFlag {
+// NewAmountFlag creates an AmountFlag with a default exccutil.Amount.
+func NewAmountFlag(defaultValue exccutil.Amount) *AmountFlag {
 	return &AmountFlag{defaultValue}
 }
 
@@ -36,7 +36,7 @@ func (a *AmountFlag) UnmarshalFlag(value string) error {
 	if err != nil {
 		return err
 	}
-	amount, err := dcrutil.NewAmount(valueF64)
+	amount, err := exccutil.NewAmount(valueF64)
 	if err != nil {
 		return err
 	}

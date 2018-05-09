@@ -8,17 +8,17 @@ package wallet
 import (
 	"errors"
 
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccwallet/wallet/udb"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 // StakePoolUserInfo returns the stake pool user information for a user
 // identified by their P2SH voting address.
-func (w *Wallet) StakePoolUserInfo(userAddress dcrutil.Address) (*udb.StakePoolUser, error) {
+func (w *Wallet) StakePoolUserInfo(userAddress exccutil.Address) (*udb.StakePoolUser, error) {
 	switch userAddress.(type) {
-	case *dcrutil.AddressPubKeyHash: // ok
-	case *dcrutil.AddressScriptHash: // ok
+	case *exccutil.AddressPubKeyHash: // ok
+	case *exccutil.AddressScriptHash: // ok
 	default:
 		return nil, errors.New("stake pool user address must be P2PKH or P2SH")
 	}

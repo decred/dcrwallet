@@ -6,13 +6,13 @@
 package wallet
 
 import (
-	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/hdkeychain"
+	"github.com/EXCCoin/exccwallet/wallet/udb"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 // UpgradeToSLIP0044CoinType upgrades the wallet from the legacy BIP0044 coin
-// type to one of the coin types assigned to Decred in SLIP0044.  This should be
+// type to one of the coin types assigned to ExchangeCoin in SLIP0044.  This should be
 // called after a new wallet is created with a random (not imported) seed.
 //
 // This function does not register addresses from the new account 0 with the

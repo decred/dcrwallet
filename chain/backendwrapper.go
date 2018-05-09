@@ -9,12 +9,12 @@ import (
 	"context"
 	"encoding/hex"
 
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/wallet"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/rpcclient"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/wallet"
 	"github.com/jrick/bitset"
 )
 
@@ -57,7 +57,7 @@ func (b *rpcBackend) GetHeaders(ctx context.Context, blockLocators []*chainhash.
 	return headers, nil
 }
 
-func (b *rpcBackend) LoadTxFilter(ctx context.Context, reload bool, addrs []dcrutil.Address, outpoints []wire.OutPoint) error {
+func (b *rpcBackend) LoadTxFilter(ctx context.Context, reload bool, addrs []exccutil.Address, outpoints []wire.OutPoint) error {
 	return b.rpcClient.LoadTxFilter(reload, addrs, outpoints)
 }
 
@@ -70,7 +70,7 @@ func (b *rpcBackend) PublishTransaction(ctx context.Context, tx *wire.MsgTx) err
 	return err
 }
 
-func (b *rpcBackend) AddressesUsed(ctx context.Context, addrs []dcrutil.Address) (bitset.Bytes, error) {
+func (b *rpcBackend) AddressesUsed(ctx context.Context, addrs []exccutil.Address) (bitset.Bytes, error) {
 	hexBitSet, err := b.rpcClient.ExistsAddresses(addrs)
 	if err != nil {
 		return nil, err
@@ -106,12 +106,12 @@ func (b *rpcBackend) Rescan(ctx context.Context, blocks []chainhash.Hash) ([]*wa
 	return discoveredData, nil
 }
 
-func (b *rpcBackend) StakeDifficulty(ctx context.Context) (dcrutil.Amount, error) {
+func (b *rpcBackend) StakeDifficulty(ctx context.Context) (exccutil.Amount, error) {
 	r, err := b.rpcClient.GetStakeDifficulty()
 	if err != nil {
 		return 0, err
 	}
-	return dcrutil.NewAmount(r.NextStakeDifficulty)
+	return exccutil.NewAmount(r.NextStakeDifficulty)
 }
 
 func (b *rpcBackend) GetBlockHash(ctx context.Context, height int32) (*chainhash.Hash, error) {

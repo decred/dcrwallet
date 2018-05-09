@@ -12,22 +12,22 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrd/dcrutil"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/internal/cfgutil"
-	"github.com/decred/dcrwallet/netparams"
-	"github.com/decred/dcrwallet/wallet/txauthor"
-	"github.com/decred/dcrwallet/wallet/txrules"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccjson"
+	"github.com/EXCCoin/exccd/exccutil"
+	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	"github.com/EXCCoin/exccd/txscript"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/internal/cfgutil"
+	"github.com/EXCCoin/exccwallet/netparams"
+	"github.com/EXCCoin/exccwallet/wallet/txauthor"
+	"github.com/EXCCoin/exccwallet/wallet/txrules"
 	"github.com/jessevdk/go-flags"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (
-	walletDataDirectory = dcrutil.AppDataDir("dcrwallet", false)
+	walletDataDirectory = exccutil.AppDataDir("exccwallet", false)
 	newlineBytes        = []byte{'\n'}
 )
 
@@ -43,8 +43,8 @@ func errContext(err error, context string) error {
 
 // Flags.
 var opts = struct {
-	TestNet               bool                `long:"testnet" description:"Use the test decred network"`
-	SimNet                bool                `long:"simnet" description:"Use the simulation decred network"`
+	TestNet               bool                `long:"testnet" description:"Use the test ExchangeCoin network"`
+	SimNet                bool                `long:"simnet" description:"Use the simulation ExchangeCoin network"`
 	RPCConnect            string              `short:"c" long:"connect" description:"Hostname[:port] of wallet RPC server"`
 	RPCUsername           string              `short:"u" long:"rpcuser" description:"Wallet RPC username"`
 	RPCPassword           string              `short:"P" long:"rpcpass" description:"Wallet RPC password"`
@@ -90,7 +90,7 @@ func init() {
 	}
 
 	if opts.TestNet && opts.SimNet {
-		fatalf("Multiple decred networks may not be used simultaneously")
+		fatalf("Multiple ExchangeCoin networks may not be used simultaneously")
 	}
 	var activeNet = &netparams.MainNetParams
 	if opts.TestNet {
@@ -156,14 +156,14 @@ func (noInputValue) Error() string { return "no input value" }
 // output is consumed.  The InputSource does not return any previous output
 // scripts as they are not needed for creating the unsinged transaction and are
 // looked up again by the wallet during the call to signrawtransaction.
-func makeInputSource(outputs []dcrjson.ListUnspentResult) txauthor.InputSource {
+func makeInputSource(outputs []exccjson.ListUnspentResult) txauthor.InputSource {
 	var (
-		totalInputValue dcrutil.Amount
+		totalInputValue exccutil.Amount
 		inputs          = make([]*wire.TxIn, 0, len(outputs))
 		sourceErr       error
 	)
 	for _, output := range outputs {
-		outputAmount, err := dcrutil.NewAmount(output.Amount)
+		outputAmount, err := exccutil.NewAmount(output.Amount)
 		if err != nil {
 			sourceErr = fmt.Errorf(
 				"invalid amount `%v` in listunspent result",
@@ -196,7 +196,7 @@ func makeInputSource(outputs []dcrjson.ListUnspentResult) txauthor.InputSource {
 		sourceErr = noInputValue{}
 	}
 
-	return func(dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error) {
+	return func(exccutil.Amount) (exccutil.Amount, []*wire.TxIn, [][]byte, error) {
 		return totalInputValue, inputs, nil, sourceErr
 	}
 }
@@ -219,7 +219,7 @@ func makeDestinationScriptSourceToAccount(rpcClient *dcrrpcclient.Client, accoun
 // receive all correlated previous input value.
 func makeDestinationScriptSourceToAddress(rpcClient *dcrrpcclient.Client, address string) txauthor.ChangeSource {
 	return func() ([]byte, uint16, error) {
-		destinationAddress, err := dcrutil.DecodeAddress(address)
+		destinationAddress, err := exccutil.DecodeAddress(address)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -272,7 +272,7 @@ func sweep() error {
 	if err != nil {
 		return errContext(err, "failed to fetch unspent outputs")
 	}
-	sourceOutputs := make(map[string][]dcrjson.ListUnspentResult)
+	sourceOutputs := make(map[string][]exccjson.ListUnspentResult)
 	for _, unspentOutput := range unspentOutputs {
 		if !unspentOutput.Spendable {
 			continue
@@ -304,7 +304,7 @@ func sweep() error {
 		}
 	}
 
-	var totalSwept dcrutil.Amount
+	var totalSwept exccutil.Amount
 	var numErrors int
 	var reportError = func(format string, args ...interface{}) {
 		fmt.Fprintf(os.Stderr, format, args...)
@@ -364,7 +364,7 @@ func sweep() error {
 			txHash = hash.String()
 		}
 
-		outputAmount := dcrutil.Amount(tx.Tx.TxOut[0].Value)
+		outputAmount := exccutil.Amount(tx.Tx.TxOut[0].Value)
 		fmt.Printf("Swept %v to destination with transaction %v\n",
 			outputAmount, txHash)
 		totalSwept += outputAmount
@@ -394,11 +394,11 @@ func promptSecret(what string) (string, error) {
 	return string(input), nil
 }
 
-func saneOutputValue(amount dcrutil.Amount) bool {
-	return amount >= 0 && amount <= dcrutil.MaxAmount
+func saneOutputValue(amount exccutil.Amount) bool {
+	return amount >= 0 && amount <= exccutil.MaxAmount
 }
 
-func parseOutPoint(input *dcrjson.ListUnspentResult) (wire.OutPoint, error) {
+func parseOutPoint(input *exccjson.ListUnspentResult) (wire.OutPoint, error) {
 	txHash, err := chainhash.NewHashFromStr(input.TxID)
 	if err != nil {
 		return wire.OutPoint{}, err

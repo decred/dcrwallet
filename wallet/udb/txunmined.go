@@ -10,11 +10,11 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/blockchain/stake"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 // InsertMemPoolTx inserts a memory pool transaction record.  It also marks

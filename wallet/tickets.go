@@ -9,15 +9,15 @@ import (
 	"encoding/hex"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/blockchain/stake"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccutil"
+	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	"github.com/EXCCoin/exccd/txscript"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/wallet/udb"
+	"github.com/EXCCoin/exccwallet/walletdb"
 	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
@@ -109,9 +109,9 @@ func (w *Wallet) LiveTicketHashes(chainClient *dcrrpcclient.Client, includeImmat
 	}
 
 	// Determine if the extra tickets are immature or possibly live.  Because
-	// these transactions are not part of the wallet's transaction history, dcrd
+	// these transactions are not part of the wallet's transaction history, exccd
 	// must be queried for their blockchain height.  This functionality requires
-	// the dcrd transaction index to be enabled.
+	// the exccd transaction index to be enabled.
 	var g errgroup.Group
 	type extraTicketResult struct {
 		valid  bool // unspent with known height
@@ -184,7 +184,7 @@ func (w *Wallet) LiveTicketHashes(chainClient *dcrrpcclient.Client, includeImmat
 // TicketHashesForVotingAddress returns the hashes of all tickets with voting
 // rights delegated to votingAddr.  This function does not return the hashes of
 // pruned tickets.
-func (w *Wallet) TicketHashesForVotingAddress(votingAddr dcrutil.Address) ([]chainhash.Hash, error) {
+func (w *Wallet) TicketHashesForVotingAddress(votingAddr exccutil.Address) ([]chainhash.Hash, error) {
 	var ticketHashes []chainhash.Hash
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		stakemgrNs := tx.ReadBucket(wstakemgrNamespaceKey)
@@ -220,7 +220,7 @@ func (w *Wallet) TicketHashesForVotingAddress(votingAddr dcrutil.Address) ([]cha
 // updateStakePoolInvalidTicket properly updates a previously marked Invalid pool ticket,
 // it then creates a new entry in the validly tracked pool ticket db.
 func (w *Wallet) updateStakePoolInvalidTicket(stakemgrNs walletdb.ReadWriteBucket,
-	addr dcrutil.Address, ticket *chainhash.Hash) error {
+	addr exccutil.Address, ticket *chainhash.Hash) error {
 
 	err := w.StakeMgr.RemoveStakePoolUserInvalTickets(stakemgrNs, addr, ticket)
 	if err != nil {
@@ -247,7 +247,7 @@ func (w *Wallet) AddTicket(ticket *wire.MsgTx) error {
 		stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
 
 		// Insert the ticket to be tracked and voted.
-		err := w.StakeMgr.InsertSStx(stakemgrNs, dcrutil.NewTx(ticket))
+		err := w.StakeMgr.InsertSStx(stakemgrNs, exccutil.NewTx(ticket))
 		if err != nil {
 			return err
 		}

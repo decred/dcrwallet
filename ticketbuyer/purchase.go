@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrwallet/wallet"
+	"github.com/EXCCoin/exccwallet/wallet"
 )
 
 // PurchaseManager is the main handler of websocket notifications to

@@ -14,12 +14,12 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/walletdb"
-	_ "github.com/decred/dcrwallet/walletdb/bdb"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/walletdb"
+	_ "github.com/EXCCoin/exccwallet/walletdb/bdb"
 )
 
 func setup() (db walletdb.DB, s *Store, teardown func(), err error) {
@@ -56,7 +56,7 @@ func setup() (db walletdb.DB, s *Store, teardown func(), err error) {
 	if err != nil {
 		return
 	}
-	acctLookup := func(walletdb.ReadBucket, dcrutil.Address) (uint32, error) { return 0, nil }
+	acctLookup := func(walletdb.ReadBucket, exccutil.Address) (uint32, error) { return 0, nil }
 	s = &Store{chainParams: &chaincfg.TestNet2Params, acctLookupFunc: acctLookup}
 	return
 }

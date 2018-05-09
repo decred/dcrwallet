@@ -11,7 +11,7 @@ import (
 	"os"
 
 	"github.com/boltdb/bolt"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 // convertErr converts some bolt errors to the equivalent walletdb error.

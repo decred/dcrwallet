@@ -18,13 +18,13 @@
 package main
 
 import (
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrd/wire"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/txscript"
+	"github.com/EXCCoin/exccd/wire"
 )
 
 // makeTx generates a transaction spending outputs to a single address.
-func makeTx(inputs []*extendedOutPoint, addr dcrutil.Address, txFee int64) (*wire.MsgTx, error) {
+func makeTx(inputs []*extendedOutPoint, addr exccutil.Address, txFee int64) (*wire.MsgTx, error) {
 	mtx := wire.NewMsgTx()
 
 	allInAmts := int64(0)

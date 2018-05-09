@@ -9,9 +9,9 @@ import (
 	"bytes"
 	"time"
 
-	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrwallet/wallet"
+	"github.com/EXCCoin/exccd/exccjson"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccwallet/wallet"
 )
 
 // ownTicketsInMempool finds all the tickets owned by the user in the
@@ -23,7 +23,7 @@ func (t *TicketPurchaser) ownTicketsInMempool() (int, error) {
 	// Voting address is specified and may not belong to our own
 	// wallet. Search the mempool directly for the number of tickets.
 	if t.votingAddress != nil {
-		tiHashes, err := t.dcrdChainSvr.GetRawMempool(dcrjson.GRMTickets)
+		tiHashes, err := t.dcrdChainSvr.GetRawMempool(exccjson.GRMTickets)
 		if err != nil {
 			return 0, err
 		}
@@ -38,7 +38,7 @@ func (t *TicketPurchaser) ownTicketsInMempool() (int, error) {
 			// Tickets can only pay to a single address. Assume that
 			// the address is on the right network.
 			addrStr := raw.Vout[0].ScriptPubKey.Addresses[0]
-			addr, err := dcrutil.DecodeAddress(addrStr)
+			addr, err := exccutil.DecodeAddress(addrStr)
 			if err != nil {
 				return 0, err
 			}

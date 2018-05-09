@@ -12,8 +12,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 var (

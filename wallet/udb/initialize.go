@@ -6,9 +6,9 @@
 package udb
 
 import (
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 func createBucketError(err error, bucketName string) error {

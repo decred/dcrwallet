@@ -8,9 +8,9 @@ package wallet
 import (
 	"time"
 
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/wire"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/wire"
 )
 
 // Note: The following common types should never reference the Wallet type.
@@ -27,7 +27,7 @@ type BlockIdentity struct {
 // None returns whether there is no block described by the instance.  When
 // associated with a transaction, this indicates the transaction is unmined.
 func (b *BlockIdentity) None() bool {
-	// BUG: Because dcrwallet uses both 0 and -1 in various places to refer
+	// BUG: Because exccwallet uses both 0 and -1 in various places to refer
 	// to an unmined transaction this must check against both and may not
 	// ever be usable to represent the genesis block.
 	return *b == BlockIdentity{Height: -1} || *b == BlockIdentity{}
@@ -79,10 +79,10 @@ type P2SHMultiSigOutput struct {
 	// fetching other Transactionoutput data together with the rest of the
 	// multisig info.
 	OutPoint        wire.OutPoint
-	OutputAmount    dcrutil.Amount
+	OutputAmount    exccutil.Amount
 	ContainingBlock BlockIdentity
 
-	P2SHAddress  *dcrutil.AddressScriptHash
+	P2SHAddress  *exccutil.AddressScriptHash
 	RedeemScript []byte
 	M, N         uint8           // M of N signatures required to redeem
 	Redeemer     *OutputRedeemer // nil unless spent

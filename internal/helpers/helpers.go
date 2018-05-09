@@ -9,14 +9,14 @@
 package helpers
 
 import (
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/wire"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/wire"
 )
 
 // SumOutputValues sums up the list of TxOuts and returns an Amount.
-func SumOutputValues(outputs []*wire.TxOut) (totalOutput dcrutil.Amount) {
+func SumOutputValues(outputs []*wire.TxOut) (totalOutput exccutil.Amount) {
 	for _, txOut := range outputs {
-		totalOutput += dcrutil.Amount(txOut.Value)
+		totalOutput += exccutil.Amount(txOut.Value)
 	}
 	return totalOutput
 }

@@ -9,7 +9,7 @@ package zero_test
 import (
 	"testing"
 
-	. "github.com/decred/dcrwallet/internal/zero"
+	. "github.com/EXCCoin/exccwallet/internal/zero"
 )
 
 var (

@@ -11,8 +11,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/decred/dcrwallet/walletdb"
-	_ "github.com/decred/dcrwallet/walletdb/bdb"
+	"github.com/EXCCoin/exccwallet/walletdb"
+	_ "github.com/EXCCoin/exccwallet/walletdb/bdb"
 )
 
 // TestAddDuplicateDriver ensures that adding a duplicate driver does not

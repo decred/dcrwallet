@@ -13,16 +13,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/wallet/txrules"
-	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/blockchain/stake"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccjson"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/txscript"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/wallet/txrules"
+	"github.com/EXCCoin/exccwallet/wallet/udb"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 func (w *Wallet) extendMainChain(dbtx walletdb.ReadWriteTx, block *udb.BlockHeaderData, transactions [][]byte) error {
@@ -267,7 +267,7 @@ func (w *Wallet) StartReorganize(oldHash, newHash *chainhash.Hash, oldHeight, ne
 // acceptable to the stake pool. The ticket must pay out to the stake
 // pool cold wallet, and must have a sufficient fee.
 func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord,
-	blockHeight int32, poolUser dcrutil.Address) (bool, error) {
+	blockHeight int32, poolUser exccutil.Address) (bool, error) {
 	tx := rec.MsgTx
 
 	// Check the first commitment output (txOuts[1])
@@ -284,7 +284,7 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord,
 	}
 
 	// Extract the fee from the ticket.
-	in := dcrutil.Amount(0)
+	in := exccutil.Amount(0)
 	for i := range tx.TxOut {
 		if i%2 != 0 {
 			commitAmt, err := stake.AmountFromSStxPkScrCommitment(
@@ -296,9 +296,9 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord,
 			in += commitAmt
 		}
 	}
-	out := dcrutil.Amount(0)
+	out := exccutil.Amount(0)
 	for i := range tx.TxOut {
-		out += dcrutil.Amount(tx.TxOut[i].Value)
+		out += exccutil.Amount(tx.TxOut[i].Value)
 	}
 	fees := in - out
 
@@ -313,7 +313,7 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord,
 
 		// Calculate the fee required based on the current
 		// height and the required amount from the pool.
-		feeNeeded := txrules.StakePoolTicketFee(dcrutil.Amount(
+		feeNeeded := txrules.StakePoolTicketFee(exccutil.Amount(
 			tx.TxOut[0].Value), fees, blockHeight, w.PoolFees(),
 			w.ChainParams())
 		if commitAmt < feeNeeded {
@@ -486,7 +486,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 		}
 
 		if insert {
-			err := w.StakeMgr.InsertSStx(stakemgrNs, dcrutil.NewTx(&rec.MsgTx))
+			err := w.StakeMgr.InsertSStx(stakemgrNs, exccutil.NewTx(&rec.MsgTx))
 			if err != nil {
 				log.Errorf("Failed to insert SStx %v"+
 					"into the stake store.", &rec.Hash)
@@ -629,7 +629,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 					if n, err := w.NetworkBackend(); err == nil {
 						addr := mscriptaddr.Address()
 						err := n.LoadTxFilter(context.TODO(),
-							false, []dcrutil.Address{addr}, nil)
+							false, []exccutil.Address{addr}, nil)
 						if err != nil {
 							return err
 						}
@@ -906,9 +906,9 @@ func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash,
 			return n.PublishTransaction(context.TODO(), vote)
 		})
 		if err != nil {
-			rpcErr, ok := err.(*dcrjson.RPCError)
+			rpcErr, ok := err.(*exccjson.RPCError)
 			if ok {
-				if rpcErr.Code != dcrjson.ErrRPCDuplicateTx {
+				if rpcErr.Code != exccjson.ErrRPCDuplicateTx {
 					log.Errorf("Failed to send vote for ticket hash %v: %v",
 						ticketHashes[i], err)
 					continue
@@ -986,7 +986,7 @@ func (w *Wallet) RevokeOwnedTickets(missedTicketHashes []*chainhash.Hash) error 
 					ticketHash, err)
 				continue
 			}
-			err = w.checkHighFees(dcrutil.Amount(ticketPurchase.TxOut[0].Value), revocation)
+			err = w.checkHighFees(exccutil.Amount(ticketPurchase.TxOut[0].Value), revocation)
 			if err != nil {
 				log.Errorf("Revocation pays exceedingly high fees")
 				continue

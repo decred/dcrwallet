@@ -6,10 +6,10 @@
 package wallet
 
 import (
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccwallet/wallet/udb"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 type unstableAPI struct {
@@ -47,7 +47,7 @@ func (u unstableAPI) RangeTransactions(begin, end int32, f func([]udb.TxDetails)
 // UnspentMultisigCreditsForAddress calls
 // udb.Store.UnspentMultisigCreditsForAddress under a single database view
 // transaction.
-func (u unstableAPI) UnspentMultisigCreditsForAddress(p2shAddr *dcrutil.AddressScriptHash) ([]*udb.MultisigCredit, error) {
+func (u unstableAPI) UnspentMultisigCreditsForAddress(p2shAddr *exccutil.AddressScriptHash) ([]*udb.MultisigCredit, error) {
 	var multisigCredits []*udb.MultisigCredit
 	err := walletdb.View(u.w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)

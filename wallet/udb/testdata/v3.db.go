@@ -15,12 +15,12 @@ import (
 	"io"
 	"os"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrutil/hdkeychain"
-	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
-	_ "github.com/decred/dcrwallet/walletdb/bdb"
-	"github.com/decred/dcrwallet/walletseed"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccutil/hdkeychain"
+	"github.com/EXCCoin/exccwallet/wallet/udb"
+	"github.com/EXCCoin/exccwallet/walletdb"
+	_ "github.com/EXCCoin/exccwallet/walletdb/bdb"
+	"github.com/EXCCoin/exccwallet/walletseed"
 )
 
 const dbname = "v3.db"

@@ -8,15 +8,15 @@ package udb
 import (
 	"crypto/sha256"
 
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/snacl"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/blockchain/stake"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/hdkeychain"
+	"github.com/EXCCoin/exccd/txscript"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/snacl"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 // Note: all manager functions always use the latest version of the database.
@@ -205,7 +205,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 				return apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
 			}
 			// This can't error because the function always passes good input to
-			// dcrutil.NewAddressPubKeyHash.  Also, while it looks like a
+			// exccutil.NewAddressPubKeyHash.  Also, while it looks like a
 			// mistake to hardcode the mainnet parameters here, it doesn't make
 			// any difference since only the pubkey hash is used.  (Why is there
 			// no exported method to just return the serialized public key?)

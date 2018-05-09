@@ -11,13 +11,13 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrutil"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrwallet/ticketbuyer"
-	"github.com/decred/dcrwallet/wallet"
-	"github.com/decred/dcrwallet/walletdb"
-	_ "github.com/decred/dcrwallet/walletdb/bdb" // driver loaded during init
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/exccutil"
+	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	"github.com/EXCCoin/exccwallet/ticketbuyer"
+	"github.com/EXCCoin/exccwallet/wallet"
+	"github.com/EXCCoin/exccwallet/walletdb"
+	_ "github.com/EXCCoin/exccwallet/walletdb/bdb" // driver loaded during init
 )
 
 const (
@@ -53,8 +53,8 @@ type StakeOptions struct {
 	VotingEnabled       bool
 	TicketFee           float64
 	AddressReuse        bool
-	VotingAddress       dcrutil.Address
-	PoolAddress         dcrutil.Address
+	VotingAddress       exccutil.Address
+	PoolAddress         exccutil.Address
 	PoolFees            float64
 	StakePoolColdExtKey string
 }

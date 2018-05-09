@@ -13,15 +13,15 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainec"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/internal/zero"
-	"github.com/decred/dcrwallet/snacl"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/chaincfg/chainec"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/hdkeychain"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/internal/zero"
+	"github.com/EXCCoin/exccwallet/snacl"
+	"github.com/EXCCoin/exccwallet/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -131,9 +131,9 @@ func isReservedAccountNum(acct uint32) bool {
 // normalizeAddress normalizes addresses for usage by the address manager.  In
 // particular, it converts all pubkeys to pubkey hash addresses so they are
 // interchangeable by callers.
-func normalizeAddress(addr dcrutil.Address) dcrutil.Address {
+func normalizeAddress(addr exccutil.Address) exccutil.Address {
 	switch addr := addr.(type) {
-	case *dcrutil.AddressSecpPubKey:
+	case *exccutil.AddressSecpPubKey:
 		return addr.AddressPubKeyHash()
 	default:
 		return addr
@@ -928,7 +928,7 @@ func (m *Manager) rowInterfaceToManaged(ns walletdb.ReadBucket, rowInterface int
 // loadAddress attempts to load the passed address from the database.
 //
 // This function MUST be called with the manager lock held for writes.
-func (m *Manager) loadAddress(ns walletdb.ReadBucket, address dcrutil.Address) (ManagedAddress, error) {
+func (m *Manager) loadAddress(ns walletdb.ReadBucket, address exccutil.Address) (ManagedAddress, error) {
 	// Attempt to load the raw address information from the database.
 	rowInterface, err := fetchAddress(ns, address.ScriptAddress())
 	if err != nil {
@@ -952,7 +952,7 @@ func (m *Manager) loadAddress(ns walletdb.ReadBucket, address dcrutil.Address) (
 // transactions such as the associated private key for pay-to-pubkey and
 // pay-to-pubkey-hash addresses and the script associated with
 // pay-to-script-hash addresses.
-func (m *Manager) Address(ns walletdb.ReadBucket, address dcrutil.Address) (ManagedAddress, error) {
+func (m *Manager) Address(ns walletdb.ReadBucket, address exccutil.Address) (ManagedAddress, error) {
 	address = normalizeAddress(address)
 	m.mtx.Lock()
 	ma, err := m.loadAddress(ns, address)
@@ -961,7 +961,7 @@ func (m *Manager) Address(ns walletdb.ReadBucket, address dcrutil.Address) (Mana
 }
 
 // AddrAccount returns the account to which the given address belongs.
-func (m *Manager) AddrAccount(ns walletdb.ReadBucket, address dcrutil.Address) (uint32, error) {
+func (m *Manager) AddrAccount(ns walletdb.ReadBucket, address exccutil.Address) (uint32, error) {
 	address = normalizeAddress(address)
 	account, err := fetchAddrAccount(ns, address.ScriptAddress())
 	if err != nil {
@@ -1232,7 +1232,7 @@ func (m *Manager) ExistsHash160(ns walletdb.ReadBucket, hash160 []byte) bool {
 // watching-only, or not for the same network as the key trying to be imported.
 // It will also return an error if the address already exists.  Any other errors
 // returned are generally unexpected.
-func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF) (ManagedPubKeyAddress, error) {
+func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *exccutil.WIF) (ManagedPubKeyAddress, error) {
 	// Ensure the address is intended for network the address manager is
 	// associated with.
 	if !wif.IsForNet(m.chainParams) {
@@ -1252,7 +1252,7 @@ func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF
 
 	// Prevent duplicates.
 	serializedPubKey := wif.SerializePubKey()
-	pubKeyHash := dcrutil.Hash160(serializedPubKey)
+	pubKeyHash := exccutil.Hash160(serializedPubKey)
 	alreadyExists := existsAddress(ns, pubKeyHash)
 	if alreadyExists {
 		str := fmt.Sprintf("address for public key %x already exists",
@@ -1316,7 +1316,7 @@ func (m *Manager) ImportScript(ns walletdb.ReadWriteBucket, script []byte) (Mana
 	defer m.mtx.Unlock()
 
 	// Prevent duplicates.
-	scriptHash := dcrutil.Hash160(script)
+	scriptHash := exccutil.Hash160(script)
 	alreadyExists := existsAddress(ns, scriptHash)
 	if alreadyExists {
 		str := fmt.Sprintf("address for script hash %x already exists",
@@ -1496,7 +1496,7 @@ func maxUint32(a, b uint32) uint32 {
 // MarkUsed updates usage statistics of a BIP0044 account address so that the
 // last used address index can be tracked.  There is no effect when called on
 // P2SH addresses or any imported addresses.
-func (m *Manager) MarkUsed(ns walletdb.ReadWriteBucket, address dcrutil.Address) error {
+func (m *Manager) MarkUsed(ns walletdb.ReadWriteBucket, address exccutil.Address) error {
 	// Version 1 of the database used a bucket that recorded the usage status of
 	// every used address in the wallet.  This was changed in version 2 to
 	// record the last used address of a BIP0044 account's external and internal
@@ -1702,7 +1702,7 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 			return apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
 		}
 		// This can't error as only good input is passed to
-		// dcrutil.NewAddressPubKeyHash.
+		// exccutil.NewAddressPubKeyHash.
 		addr, _ := xpubChild.Address(m.chainParams)
 		_, err = fetchAddress(ns, addr.Hash160()[:])
 		if err == nil {
@@ -1959,7 +1959,7 @@ func (m *Manager) ForEachActiveAccountAddress(ns walletdb.ReadBucket, account ui
 
 // ForEachActiveAddress calls the given function with each active address
 // stored in the manager, breaking early on error.
-func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr dcrutil.Address) error) error {
+func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr exccutil.Address) error) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -1982,7 +1982,7 @@ func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr dcru
 // function returns without error, the returned 'done' function must be called
 // when the private key is no longer being used.  Failure to do so will cause
 // deadlocks when the manager is locked.
-func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key chainec.PrivateKey, done func(), err error) {
+func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr exccutil.Address) (key chainec.PrivateKey, done func(), err error) {
 	// No private keys are available for a watching-only address manager.
 	if m.watchingOnly {
 		err := apperrors.E{ErrorCode: apperrors.ErrWatchingOnly, Description: errWatchingOnly, Err: nil}
@@ -2079,7 +2079,7 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 // address.  If this function returns without error, the returned 'done'
 // function must be called when the script is no longer being used. Failure to
 // do so will cause deadlocks when the manager is locked.
-func (m *Manager) RedeemScript(ns walletdb.ReadBucket, addr dcrutil.Address) (script []byte, done func(), err error) {
+func (m *Manager) RedeemScript(ns walletdb.ReadBucket, addr exccutil.Address) (script []byte, done func(), err error) {
 	// No scripts are available for a watching-only address manager.
 	if m.watchingOnly {
 		err := apperrors.E{ErrorCode: apperrors.ErrWatchingOnly, Description: errWatchingOnly, Err: nil}

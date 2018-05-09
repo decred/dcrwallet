@@ -14,8 +14,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrwallet/internal/rpchelp"
+	"github.com/EXCCoin/exccd/exccjson"
+	"github.com/EXCCoin/exccwallet/internal/rpchelp"
 )
 
 var outputFile = func() *os.File {
@@ -43,7 +43,7 @@ func writeLocaleHelp(locale, goLocale string, descs map[string]string) {
 	writefln("return map[string]string{")
 	for i := range rpchelp.Methods {
 		m := &rpchelp.Methods[i]
-		helpText, err := dcrjson.GenerateHelp(m.Method, descs, m.ResultTypes...)
+		helpText, err := exccjson.GenerateHelp(m.Method, descs, m.ResultTypes...)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -65,7 +65,7 @@ func writeUsage() {
 	usageStrs := make([]string, len(rpchelp.Methods))
 	var err error
 	for i := range rpchelp.Methods {
-		usageStrs[i], err = dcrjson.MethodUsageText(rpchelp.Methods[i].Method)
+		usageStrs[i], err = exccjson.MethodUsageText(rpchelp.Methods[i].Method)
 		if err != nil {
 			log.Fatal(err)
 		}

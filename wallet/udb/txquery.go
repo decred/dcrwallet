@@ -9,12 +9,12 @@ package udb
 import (
 	"fmt"
 
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/blockchain/stake"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 // CreditRecord contains metadata regarding a transaction credit for a known
@@ -22,7 +22,7 @@ import (
 // with the Index field.
 type CreditRecord struct {
 	Index      uint32
-	Amount     dcrutil.Amount
+	Amount     exccutil.Amount
 	Spent      bool
 	Change     bool
 	OpCode     uint8
@@ -34,7 +34,7 @@ type CreditRecord struct {
 // transaction.  Further details may be looked up by indexing a wire.MsgTx.TxIn
 // with the Index field.
 type DebitRecord struct {
-	Amount dcrutil.Amount
+	Amount exccutil.Amount
 	Index  uint32
 }
 

@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package walletdb provides a namespaced database interface for dcrwallet.
+Package walletdb provides a namespaced database interface for exccwallet.
 
 Overview
 

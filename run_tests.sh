@@ -21,8 +21,8 @@ set -ex
 
 #Default GOVERSION
 GOVERSION=${1:-1.10}
-REPO=dcrwallet
-DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
+REPO=exccwallet
+DOCKER_IMAGE_TAG=excc-golang-builder-$GOVERSION
 
 testrepo () {
   TMPFILE=$(mktemp)
@@ -73,16 +73,16 @@ if [ $GOVERSION == "local" ]; then
     exit
 fi
 
-docker pull decred/$DOCKER_IMAGE_TAG
+docker pull excc/$DOCKER_IMAGE_TAG
 if [ $? != 0 ]; then
         echo 'docker pull failed'
         exit 1
 fi
 
-docker run --rm -it -v $(pwd):/src decred/$DOCKER_IMAGE_TAG /bin/bash -c "\
+docker run --rm -it -v $(pwd):/src excc/$DOCKER_IMAGE_TAG /bin/bash -c "\
   rsync -ra --filter=':- .gitignore'  \
-  /src/ /go/src/github.com/decred/$REPO/ && \
-  cd github.com/decred/$REPO/ && \
+  /src/ /go/src/github.com/EXCCoin/$REPO/ && \
+  cd github.com/EXCCoin/$REPO/ && \
   bash run_tests.sh local"
 if [ $? != 0 ]; then
         echo 'docker run failed'

@@ -11,7 +11,7 @@ stake pool.
 
 Dust and Fee Per KB Calculation
 
-Please refer to mempool.go in dcrd for more information about the importance
+Please refer to mempool.go in exccd for more information about the importance
 of these function.
 
 Pool Fees

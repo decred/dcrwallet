@@ -25,7 +25,7 @@ const (
 
 // PreRelease contains the prerelease name of the application.  It is a variable
 // so it can be modified at link time (e.g.
-// `-ldflags "-X github.com/decred/dcrwallet/version.PreRelease=rc1"`).
+// `-ldflags "-X github.com/EXCCoin/exccwallet/version.PreRelease=rc1"`).
 // It must only contain characters from the semantic version alphabet.
 var PreRelease = ""
 
