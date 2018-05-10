@@ -1306,7 +1306,7 @@ func getMasterPubkey(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	return masterPubKey.String(), nil
+	return masterPubKey.String()
 }
 
 // getStakeInfo gets a large amounts of information about the stake environment
