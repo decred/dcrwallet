@@ -13,7 +13,7 @@ import (
 
 	"github.com/EXCCoin/exccd/chaincfg"
 	"github.com/EXCCoin/exccd/exccutil"
-	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
 	"github.com/EXCCoin/exccwallet/ticketbuyer"
 	"github.com/EXCCoin/exccwallet/wallet"
 	"github.com/EXCCoin/exccwallet/walletdb"
@@ -33,7 +33,7 @@ const (
 // Loader is safe for concurrent access.
 type Loader struct {
 	callbacks   []func(*wallet.Wallet)
-	chainClient *dcrrpcclient.Client
+	chainClient *exccrpcclient.Client
 	chainParams *chaincfg.Params
 	dbDirPath   string
 	wallet      *wallet.Wallet
@@ -375,7 +375,7 @@ func (l *Loader) UnloadWallet() error {
 }
 
 // SetChainClient sets the chain server client.
-func (l *Loader) SetChainClient(chainClient *dcrrpcclient.Client) {
+func (l *Loader) SetChainClient(chainClient *exccrpcclient.Client) {
 	l.mu.Lock()
 	l.chainClient = chainClient
 	l.mu.Unlock()

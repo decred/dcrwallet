@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 
 	"github.com/btcsuite/btclog"
-	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
 	"github.com/EXCCoin/exccwallet/chain"
 	"github.com/EXCCoin/exccwallet/loader"
 	"github.com/EXCCoin/exccwallet/rpc/legacyrpc"
@@ -51,7 +51,7 @@ var (
 	// application shutdown.
 	logRotator *rotator.Rotator
 
-	log          = backendLog.Logger("DCRW")
+	log          = backendLog.Logger("EXCCW")
 	loaderLog    = backendLog.Logger("LODR")
 	walletLog    = backendLog.Logger("WLLT")
 	tkbyLog      = backendLog.Logger("TKBY")
@@ -67,14 +67,14 @@ func init() {
 	udb.UseLogger(walletLog)
 	ticketbuyer.UseLogger(tkbyLog)
 	chain.UseLogger(syncLog)
-	dcrrpcclient.UseLogger(syncLog)
+	exccrpcclient.UseLogger(syncLog)
 	rpcserver.UseLogger(grpcLog)
 	legacyrpc.UseLogger(legacyRPCLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
 var subsystemLoggers = map[string]btclog.Logger{
-	"DCRW": log,
+	"EXCCW": log,
 	"LODR": loaderLog,
 	"WLLT": walletLog,
 	"TKBY": tkbyLog,

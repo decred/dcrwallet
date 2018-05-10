@@ -183,7 +183,7 @@ var helpDescsEnUS = map[string]string{
 	"infowalletresult-proxy":           "The proxy used by the server",
 	"infowalletresult-difficulty":      "The current target difficulty",
 	"infowalletresult-testnet":         "Whether or not server is using testnet",
-	"infowalletresult-relayfee":        "The minimum relay fee for non-free transactions in DCR/KB",
+	"infowalletresult-relayfee":        "The minimum relay fee for non-free transactions in EXCC/KB",
 	"infowalletresult-errors":          "Any current errors",
 	"infowalletresult-paytxfee":        "The fee per kB of the serialized tx size used each time more fee is required for an authored transaction",
 	"infowalletresult-balance":         "The balance of all accounts calculated with one block confirmation",
@@ -430,7 +430,7 @@ var helpDescsEnUS = map[string]string{
 
 	// SetTicketMaxPrice help.
 	"setticketmaxprice--synopsis": "Set the max price user is willing to pay for a ticket.",
-	"setticketmaxprice-max":       "The max price (in dcr).",
+	"setticketmaxprice-max":       "The max price (in EXCC).",
 
 	// SetTxFeeCmd help.
 	"settxfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored transaction.",
@@ -643,7 +643,7 @@ var helpDescsEnUS = map[string]string{
 
 	// GetWalletFeeCmd help.
 	"getwalletfee--synopsis": "Get currently set transaction fee for the wallet",
-	"getwalletfee--result0":  "Current tx fee (in DCR)",
+	"getwalletfee--result0":  "Current tx fee (in EXCC)",
 
 	// StakePoolUserInfoCmd help.
 	"stakepooluserinfo--synopsis": "Get user info for stakepool",
@@ -685,7 +685,7 @@ var helpDescsEnUS = map[string]string{
 	"purchaseticket-expiry":             "Height at which the purchase tickets expire",
 	"purchaseticket-nosplittransaction": "Use ticket purchase change outputs instead of a split transaction",
 	"purchaseticket-comment":            "Unused",
-	"purchaseticket-ticketfee":          "The transaction fee rate (DCR/kB) to use (overrides fees set by the wallet config or settxfee RPC)",
+	"purchaseticket-ticketfee":          "The transaction fee rate (EXCC/kB) to use (overrides fees set by the wallet config or settxfee RPC)",
 
 	// SetTicketFeeCmd help.
 	"setticketfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored stake transaction.",

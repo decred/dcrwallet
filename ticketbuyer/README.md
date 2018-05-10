@@ -1,7 +1,7 @@
 ticketbuyer
 ===========
 
-Package ticketbuyer provides automatic purchase of tickets from a Decred wallet.
+Package ticketbuyer provides automatic purchase of tickets from a ExchangeCoin wallet.
 
 ## Documentation
 

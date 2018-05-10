@@ -15,7 +15,7 @@ import (
 
 	"github.com/EXCCoin/exccd/chaincfg"
 	"github.com/EXCCoin/exccd/chaincfg/chainhash"
-	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
 )
 
 var requiredChainServerAPI = semver{major: 3, minor: 1, patch: 0}
@@ -23,8 +23,8 @@ var requiredChainServerAPI = semver{major: 3, minor: 1, patch: 0}
 // RPCClient represents a persistent client connection to a ExchangeCoin RPC server
 // for information regarding the current best block chain.
 type RPCClient struct {
-	*dcrrpcclient.Client
-	connConfig  *dcrrpcclient.ConnConfig // Work around unexported field
+	*exccrpcclient.Client
+	connConfig  *exccrpcclient.ConnConfig // Work around unexported field
 	chainParams *chaincfg.Params
 
 	enqueueNotification       chan interface{}
@@ -48,7 +48,7 @@ func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, cert
 	disableTLS bool) (*RPCClient, error) {
 
 	client := &RPCClient{
-		connConfig: &dcrrpcclient.ConnConfig{
+		connConfig: &exccrpcclient.ConnConfig{
 			Host:                 connect,
 			Endpoint:             "ws",
 			User:                 user,
@@ -65,7 +65,7 @@ func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, cert
 		dequeueVotingNotification: make(chan interface{}),
 		quit: make(chan struct{}),
 	}
-	ntfnCallbacks := &dcrrpcclient.NotificationHandlers{
+	ntfnCallbacks := &exccrpcclient.NotificationHandlers{
 		OnBlockConnected:        client.onBlockConnected,
 		OnBlockDisconnected:     client.onBlockDisconnected,
 		OnRelevantTxAccepted:    client.onRelevantTxAccepted,
@@ -74,7 +74,7 @@ func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, cert
 		OnSpentAndMissedTickets: client.onSpentAndMissedTickets,
 		OnStakeDifficulty:       client.onStakeDifficulty,
 	}
-	rpcClient, err := dcrrpcclient.New(client.connConfig, ntfnCallbacks)
+	rpcClient, err := exccrpcclient.New(client.connConfig, ntfnCallbacks)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (c *RPCClient) Start(ctx context.Context, retry bool) (err error) {
 	var serverAPI semver
 	versions, err := c.Client.Version()
 	if err == nil {
-		versionResult := versions["dcrdjsonrpcapi"]
+		versionResult := versions["exccdjsonrpcapi"]
 		serverAPI = semver{
 			major: versionResult.Major,
 			minor: versionResult.Minor,
@@ -162,7 +162,7 @@ func (c *RPCClient) WaitForShutdown() {
 
 // Notification types.  These are defined here and processed from from reading
 // a notificationChan to avoid handling these notifications directly in
-// dcrrpcclient callbacks, which isn't very Go-like and doesn't allow
+// exccrpcclient callbacks, which isn't very Go-like and doesn't allow
 // blocking client calls.
 type (
 	// blockConnected is a notification for a newly-attached block to the
@@ -482,9 +482,9 @@ out:
 	c.wg.Done()
 }
 
-// POSTClient creates the equivalent HTTP POST dcrrpcclient.Client.
-func (c *RPCClient) POSTClient() (*dcrrpcclient.Client, error) {
+// POSTClient creates the equivalent HTTP POST exccrpcclient.Client.
+func (c *RPCClient) POSTClient() (*exccrpcclient.Client, error) {
 	configCopy := *c.connConfig
 	configCopy.HTTPPostMode = true
-	return dcrrpcclient.New(&configCopy, nil)
+	return exccrpcclient.New(&configCopy, nil)
 }

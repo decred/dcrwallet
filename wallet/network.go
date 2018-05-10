@@ -15,7 +15,7 @@ import (
 	"github.com/jrick/bitset"
 )
 
-// NetworkBackend provides wallets with Decred network functionality.  Some
+// NetworkBackend provides wallets with ExchangeCoin network functionality.  Some
 // wallet operations require the wallet to be associated with a network backend
 // to complete.
 type NetworkBackend interface {

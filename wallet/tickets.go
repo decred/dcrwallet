@@ -12,7 +12,7 @@ import (
 	"github.com/EXCCoin/exccd/blockchain/stake"
 	"github.com/EXCCoin/exccd/chaincfg/chainhash"
 	"github.com/EXCCoin/exccd/exccutil"
-	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
 	"github.com/EXCCoin/exccd/txscript"
 	"github.com/EXCCoin/exccd/wire"
 	"github.com/EXCCoin/exccwallet/apperrors"
@@ -50,7 +50,7 @@ func (w *Wallet) GenerateVoteTx(blockHash *chainhash.Hash, height int32, ticketH
 
 // LiveTicketHashes returns the hashes of live tickets that the wallet has
 // purchased or has voting authority for.
-func (w *Wallet) LiveTicketHashes(chainClient *dcrrpcclient.Client, includeImmature bool) ([]chainhash.Hash, error) {
+func (w *Wallet) LiveTicketHashes(chainClient *exccrpcclient.Client, includeImmature bool) ([]chainhash.Hash, error) {
 	var ticketHashes []chainhash.Hash
 	var maybeLive []*chainhash.Hash
 
@@ -279,7 +279,7 @@ func (w *Wallet) AddTicket(ticket *wire.MsgTx) error {
 // RevokeTickets creates and sends revocation transactions for any unrevoked
 // missed and expired tickets.  The wallet must be unlocked to generate any
 // revocations.
-func (w *Wallet) RevokeTickets(chainClient *dcrrpcclient.Client) error {
+func (w *Wallet) RevokeTickets(chainClient *exccrpcclient.Client) error {
 	var ticketHashes []chainhash.Hash
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(wtxmgrNamespaceKey)

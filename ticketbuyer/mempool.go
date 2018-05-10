@@ -23,14 +23,14 @@ func (t *TicketPurchaser) ownTicketsInMempool() (int, error) {
 	// Voting address is specified and may not belong to our own
 	// wallet. Search the mempool directly for the number of tickets.
 	if t.votingAddress != nil {
-		tiHashes, err := t.dcrdChainSvr.GetRawMempool(exccjson.GRMTickets)
+		tiHashes, err := t.exccdChainSvr.GetRawMempool(exccjson.GRMTickets)
 		if err != nil {
 			return 0, err
 		}
 
 		// Fetch each ticket and check the address it pays out to.
 		for i := range tiHashes {
-			raw, err := t.dcrdChainSvr.GetRawTransactionVerbose(tiHashes[i])
+			raw, err := t.exccdChainSvr.GetRawTransactionVerbose(tiHashes[i])
 			if err != nil {
 				return 0, err
 			}
@@ -61,7 +61,7 @@ func (t *TicketPurchaser) ownTicketsInMempool() (int, error) {
 	var curStakeInfo *wallet.StakeInfoData
 	var err error
 	for i := 0; i < stakeInfoReqTries; i++ {
-		curStakeInfo, err = t.wallet.StakeInfo(t.dcrdChainSvr)
+		curStakeInfo, err = t.wallet.StakeInfo(t.exccdChainSvr)
 		if err != nil {
 			log.Tracef("Failed to fetch stake information "+
 				"on attempt %v: %v", i, err.Error())
@@ -82,7 +82,7 @@ func (t *TicketPurchaser) ownTicketsInMempool() (int, error) {
 // allTicketsInMempool fetches the number of tickets currently in the memory
 // pool.
 func (t *TicketPurchaser) allTicketsInMempool() (int, error) {
-	tfi, err := t.dcrdChainSvr.TicketFeeInfo(&zeroUint32, &zeroUint32)
+	tfi, err := t.exccdChainSvr.TicketFeeInfo(&zeroUint32, &zeroUint32)
 	if err != nil {
 		return 0, err
 	}

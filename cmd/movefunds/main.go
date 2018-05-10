@@ -43,7 +43,7 @@ type configJSON struct {
 	TxFee         int64  `json:"txfee"`
 	SendToAddress string `json:"sendtoaddress"`
 	Network       string `json:"network"`
-	DcrctlArgs    string `json:"dcrctlargs"`
+	ExccctlArgs    string `json:"exccctlargs"`
 }
 
 // extendedOutPoint is a UTXO with an amount.
@@ -186,8 +186,8 @@ func main() {
 
 	// The command to sign the transaction.
 	var buf bytes.Buffer
-	buf.WriteString("dcrctl ")
-	buf.WriteString(cfg.DcrctlArgs)
+	buf.WriteString("exccctl ")
+	buf.WriteString(cfg.ExccctlArgs)
 	buf.WriteString(" signrawtransaction ")
 	buf.WriteString(hex.EncodeToString(txB))
 	buf.WriteString(" '[")

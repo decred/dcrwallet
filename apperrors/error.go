@@ -194,7 +194,7 @@ const (
 	ErrExhaustedAccount
 
 	// ErrDisconnected indicates that the operation could not be completed due
-	// to being disconnected from the Decred network.
+	// to being disconnected from the ExchangeCoin network.
 	ErrDisconnected
 
 	// ErrUnsupported indicates the operation is unsupported.

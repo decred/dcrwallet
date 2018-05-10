@@ -698,7 +698,7 @@ func (m *Manager) CoinType(dbtx walletdb.ReadTx) (uint32, error) {
 }
 
 // UpgradeToSLIP0044CoinType upgrades a wallet from using the legacy coin type
-// to the coin type registered to Decred as per SLIP0044.  On mainnet, this
+// to the coin type registered to ExchangeCoin as per SLIP0044.  On mainnet, this
 // upgrades the coin type from 20 to 42.  On testnet and simnet, the coin type
 // is upgraded to 1.  This upgrade is only possible if the SLIP0044 coin type
 // private key is saved and there is no address use for keys derived by the

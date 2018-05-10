@@ -50,11 +50,11 @@ To move coins from the cold wallet without having to connect to the network,
 the following procedure can be done:
 
 1. On the machine with the watching only wallet, call 'listunspent' and pipe 
-    the output to unspent.json (dcrctl --wallet listunspent > unspent.json). 
+    the output to unspent.json (exccctl --wallet listunspent > unspent.json). 
 	Next, run:
 	```
-	dcrctl --wallet accountaddressindex myAccountName 0
-	dcrctl --wallet accountaddressindex myAccountName 1
+	exccctl --wallet accountaddressindex myAccountName 0
+	exccctl --wallet accountaddressindex myAccountName 1
 	```
 	Where myAccountName is the name of the account you're using in the 
 	cold wallet. Write the output of these commands down somewhere.
@@ -81,8 +81,8 @@ the following procedure can be done:
 6. Connect exccwallet on the cold machine. Synchronize the addresses on this 
     wallet using the command and the responses you got at step 1:
 	```
-	dcrctl --wallet accountsyncaddressindex myAccountName 0 <response1>
-	dcrctl --wallet accountsyncaddressindex myAccountName 1 <response2>
+	exccctl --wallet accountsyncaddressindex myAccountName 0 <response1>
+	exccctl --wallet accountsyncaddressindex myAccountName 1 <response2>
 	```
 	Your cold wallet address manager will now be in sync with your hot 
 	wallet.
@@ -95,5 +95,5 @@ the following procedure can be done:
 	
 8. Send the raw transaction on the hot wallet machine.
     ```
-	dcrctl sendrawtransaction $(cat rawtx.txt)
+	exccctl sendrawtransaction $(cat rawtx.txt)
     ```

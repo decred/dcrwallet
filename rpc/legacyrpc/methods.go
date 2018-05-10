@@ -25,7 +25,7 @@ import (
 	"github.com/EXCCoin/exccd/exccjson"
 	"github.com/EXCCoin/exccd/exccutil"
 	"github.com/EXCCoin/exccd/hdkeychain"
-	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
 	"github.com/EXCCoin/exccd/txscript"
 	"github.com/EXCCoin/exccd/wire"
 	"github.com/EXCCoin/exccwallet/apperrors"
@@ -778,7 +778,7 @@ func getBlockCount(s *Server, icmd interface{}) (interface{}, error) {
 }
 
 // getInfo handles a getinfo request by returning the a structure containing
-// information about the current state of dcrcwallet.
+// information about the current state of excccwallet.
 // exist.
 func getInfo(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
@@ -2914,7 +2914,7 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	// querying exccd with getrawtransaction. We queue up a bunch of async
 	// requests and will wait for replies after we have checked the rest of
 	// the arguments.
-	requested := make(map[wire.OutPoint]dcrrpcclient.FutureGetTxOutResult)
+	requested := make(map[wire.OutPoint]exccrpcclient.FutureGetTxOutResult)
 	for i, txIn := range tx.TxIn {
 		// We don't need the first input of a stakebase tx, as it's garbage
 		// anyway.

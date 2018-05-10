@@ -15,7 +15,7 @@ import (
 	"github.com/EXCCoin/exccd/blockchain"
 	"github.com/EXCCoin/exccd/chaincfg"
 	"github.com/EXCCoin/exccd/exccutil"
-	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
 	"github.com/EXCCoin/exccwallet/wallet"
 )
 
@@ -86,7 +86,7 @@ type Config struct {
 type TicketPurchaser struct {
 	cfg              *Config
 	activeNet        *chaincfg.Params
-	dcrdChainSvr     *dcrrpcclient.Client
+	exccdChainSvr     *exccrpcclient.Client
 	wallet           *wallet.Wallet
 	votingAddress    exccutil.Address
 	poolAddress      exccutil.Address
@@ -341,7 +341,7 @@ func (t *TicketPurchaser) SetExpiryDelta(expiryDelta int) {
 
 // NewTicketPurchaser creates a new TicketPurchaser.
 func NewTicketPurchaser(cfg *Config,
-	dcrdChainSvr *dcrrpcclient.Client,
+	exccdChainSvr *exccrpcclient.Client,
 	w *wallet.Wallet,
 	activeNet *chaincfg.Params) (*TicketPurchaser, error) {
 	priceMode := avgPriceMode(AvgPriceVWAPMode)
@@ -360,7 +360,7 @@ func NewTicketPurchaser(cfg *Config,
 	return &TicketPurchaser{
 		cfg:           cfg,
 		activeNet:     activeNet,
-		dcrdChainSvr:  dcrdChainSvr,
+		exccdChainSvr:  exccdChainSvr,
 		wallet:        w,
 		firstStart:    true,
 		votingAddress: cfg.VotingAddress,
@@ -443,7 +443,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		var curStakeInfo *wallet.StakeInfoData
 		var err error
 		for i := 1; i <= stakeInfoReqTries; i++ {
-			curStakeInfo, err = t.wallet.StakeInfo(t.dcrdChainSvr)
+			curStakeInfo, err = t.wallet.StakeInfo(t.exccdChainSvr)
 			if err != nil {
 				log.Debugf("Waiting for StakeInfo, attempt %v: (%v)", i, err.Error())
 				time.Sleep(stakeInfoReqTryDelay)
@@ -502,7 +502,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	t.ticketPrice = nextStakeDiff
 	ps.TicketPrice = nextStakeDiff
 
-	sDiffEsts, err := t.dcrdChainSvr.EstimateStakeDiff(nil)
+	sDiffEsts, err := t.exccdChainSvr.EstimateStakeDiff(nil)
 	if err == nil {
 		ps.PriceNext, err = exccutil.NewAmount(sDiffEsts.Expected)
 		if err != nil {
@@ -567,7 +567,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 
 	// Lookup how many tickets purchase slots were filled in the last block
 	oneBlock := uint32(1)
-	info, err := t.dcrdChainSvr.TicketFeeInfo(&oneBlock, &zeroUint32)
+	info, err := t.exccdChainSvr.TicketFeeInfo(&oneBlock, &zeroUint32)
 	if err != nil {
 		return ps, err
 	}
@@ -695,14 +695,14 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		// Amount of tickets that can be bought per block with current and redeemed funds
 		buyPerBlockAll := tixCanBuyAll / float64(blocksRemaining)
 
-		log.Debugf("Your average purchase price for tickets in the pool is %.2f DCR", yourAvgTixPrice)
-		log.Debugf("Available funds of %.2f DCR can buy %.2f tickets, %.2f tickets per block",
+		log.Debugf("Your average purchase price for tickets in the pool is %.2f EXCC", yourAvgTixPrice)
+		log.Debugf("Available funds of %.2f EXCC can buy %.2f tickets, %.2f tickets per block",
 			bal.Spendable.ToCoin()-balanceToMaintainAmt, tixCanBuy, buyPerBlock)
 		log.Debugf("With %.2f%% proportion live, you will redeem ~%.2f tickets in the remaining %d blocks",
 			proportionLive*100, tixWillRedeem, blocksRemaining)
-		log.Debugf("Redeemed ticket value expected is %.2f DCR, buys %.2f tickets, %.2f%% more",
+		log.Debugf("Redeemed ticket value expected is %.2f EXCC, buys %.2f tickets, %.2f%% more",
 			redeemedFunds, tixToBuyWithRedeemedFunds, tixToBuyWithRedeemedFunds/tixCanBuy*100)
-		log.Debugf("Stake reward expected is %.2f DCR, buys %.2f tickets, %.2f%% more",
+		log.Debugf("Stake reward expected is %.2f EXCC, buys %.2f tickets, %.2f%% more",
 			stakeRewardFunds, tixToBuyWithStakeRewardFunds, tixToBuyWithStakeRewardFunds/tixCanBuy*100)
 		log.Infof("Will buy ~%.2f tickets per block, %.2f ticket purchases remain this window", buyPerBlockAll, tixCanBuyAll)
 

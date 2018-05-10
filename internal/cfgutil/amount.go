@@ -31,7 +31,7 @@ func (a *AmountFlag) MarshalFlag() (string, error) {
 
 // UnmarshalFlag satisifes the flags.Unmarshaler interface.
 func (a *AmountFlag) UnmarshalFlag(value string) error {
-	value = strings.TrimSuffix(value, " DCR")
+	value = strings.TrimSuffix(value, " EXCC")
 	valueF64, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		return err

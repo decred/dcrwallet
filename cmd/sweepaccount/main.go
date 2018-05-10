@@ -15,7 +15,7 @@ import (
 	"github.com/EXCCoin/exccd/chaincfg/chainhash"
 	"github.com/EXCCoin/exccd/exccjson"
 	"github.com/EXCCoin/exccd/exccutil"
-	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
 	"github.com/EXCCoin/exccd/txscript"
 	"github.com/EXCCoin/exccd/wire"
 	"github.com/EXCCoin/exccwallet/internal/cfgutil"
@@ -204,7 +204,7 @@ func makeInputSource(outputs []exccjson.ListUnspentResult) txauthor.InputSource 
 // makeDestinationScriptSourceToAccount creates a ChangeSource which is used to
 // receive all correlated previous input value.  A non-change address is created
 // by this function.
-func makeDestinationScriptSourceToAccount(rpcClient *dcrrpcclient.Client, accountName string) txauthor.ChangeSource {
+func makeDestinationScriptSourceToAccount(rpcClient *exccrpcclient.Client, accountName string) txauthor.ChangeSource {
 	return func() ([]byte, uint16, error) {
 		destinationAddress, err := rpcClient.GetNewAddress(accountName)
 		if err != nil {
@@ -217,7 +217,7 @@ func makeDestinationScriptSourceToAccount(rpcClient *dcrrpcclient.Client, accoun
 
 // makeDestinationScriptSourceToAddress creates a ChangeSource which is used to
 // receive all correlated previous input value.
-func makeDestinationScriptSourceToAddress(rpcClient *dcrrpcclient.Client, address string) txauthor.ChangeSource {
+func makeDestinationScriptSourceToAddress(rpcClient *exccrpcclient.Client, address string) txauthor.ChangeSource {
 	return func() ([]byte, uint16, error) {
 		destinationAddress, err := exccutil.DecodeAddress(address)
 		if err != nil {
@@ -252,7 +252,7 @@ func sweep() error {
 	if err != nil {
 		return errContext(err, "failed to read RPC certificate")
 	}
-	rpcClient, err := dcrrpcclient.New(&dcrrpcclient.ConnConfig{
+	rpcClient, err := exccrpcclient.New(&exccrpcclient.ConnConfig{
 		Host:         opts.RPCConnect,
 		User:         opts.RPCUsername,
 		Pass:         rpcPassword,

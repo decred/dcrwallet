@@ -1,6 +1,6 @@
 // Package rpctest contains tests for exccwallet's RPC server and a harness used
 // to facilitate the tests by setting up a temporary Simnet node and wallet. The
-// RPC client implementation in dcrrpcclient is used exclusively to test the RPC
+// RPC client implementation in exccrpcclient is used exclusively to test the RPC
 // server. A single test function, TestMain, is executed by go test, and is
 // responsible for setting up test harnesses and running the individual RPC test
 // functions.
@@ -20,7 +20,7 @@
 // The default settings for a harness wallet are:
 //    1. Ticket buyer enabled (--enableticketbuyer).
 //    2. Zero max ticket price.
-//    3. High balance to maintain (2000000 DCR).
+//    3. High balance to maintain (2000000 EXCC).
 // Thus, a harness wallet will automatically vote on owned tickets, but not
 // automatically purchase tickets.
 package rpctest

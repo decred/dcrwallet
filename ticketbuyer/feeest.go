@@ -44,7 +44,7 @@ func (p diffPeriodFees) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 func (t *TicketPurchaser) findClosestFeeWindows(difficulty exccutil.Amount,
 	useMedian bool) (exccutil.Amount, error) {
 	wtcUint32 := uint32(windowsToConsider)
-	info, err := t.dcrdChainSvr.TicketFeeInfo(&zeroUint32, &wtcUint32)
+	info, err := t.exccdChainSvr.TicketFeeInfo(&zeroUint32, &wtcUint32)
 	if err != nil {
 		return 0.0, err
 	}
@@ -67,11 +67,11 @@ func (t *TicketPurchaser) findClosestFeeWindows(difficulty exccutil.Amount,
 		}
 
 		startHeight := int64(info.FeeInfoWindows[i].StartHeight)
-		blH, err := t.dcrdChainSvr.GetBlockHash(startHeight)
+		blH, err := t.exccdChainSvr.GetBlockHash(startHeight)
 		if err != nil {
 			return 0, err
 		}
-		blkHeader, err := t.dcrdChainSvr.GetBlockHeader(blH)
+		blkHeader, err := t.exccdChainSvr.GetBlockHeader(blH)
 		if err != nil {
 			return 0, err
 		}
@@ -122,7 +122,7 @@ func (t *TicketPurchaser) findClosestFeeWindows(difficulty exccutil.Amount,
 // many blocks using the ticketfeeinfo RPC API.
 func (t *TicketPurchaser) findTicketFeeBlocks(useMedian bool) (exccutil.Amount, error) {
 	btaUint32 := uint32(t.cfg.BlocksToAvg)
-	info, err := t.dcrdChainSvr.TicketFeeInfo(&btaUint32, nil)
+	info, err := t.exccdChainSvr.TicketFeeInfo(&btaUint32, nil)
 	if err != nil {
 		return 0.0, err
 	}

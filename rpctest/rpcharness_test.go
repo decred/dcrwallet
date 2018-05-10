@@ -22,7 +22,7 @@ import (
 	"github.com/EXCCoin/exccd/chaincfg/chainhash"
 	"github.com/EXCCoin/exccd/exccjson"
 	"github.com/EXCCoin/exccd/exccutil"
-	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
 	"github.com/EXCCoin/exccd/txscript"
 	"github.com/EXCCoin/exccd/wire"
 	"github.com/EXCCoin/exccwallet/rpc/legacyrpc"
@@ -92,7 +92,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// For timing of block generation, create an OnBlockConnected notification
-	ntfnHandlersNode := dcrrpcclient.NotificationHandlers{
+	ntfnHandlersNode := exccrpcclient.NotificationHandlers{
 		OnBlockConnected: func(blockHeader []byte, transactions [][]byte) {},
 	}
 
@@ -852,7 +852,7 @@ func testListUnspent(r *Harness, t *testing.T) {
 	// then not in the UTXO list after send.
 	for txinID, amt := range txInIDs {
 		if _, ok := utxosBeforeSend[txinID]; !ok {
-			t.Fatalf("Failed to find txid %v (%v DCR) in list of UTXOs",
+			t.Fatalf("Failed to find txid %v (%v EXCC) in list of UTXOs",
 				txinID, amt)
 		}
 	}
@@ -875,7 +875,7 @@ func testListUnspent(r *Harness, t *testing.T) {
 		}
 		if amt, ok := txInIDs[outpointStr]; ok {
 			t.Fatalf("Found PreviousOutPoint of send still in UTXO set: %v, "+
-				"%v DCR", outpointStr, amt)
+				"%v EXCC", outpointStr, amt)
 		}
 	}
 }
@@ -1486,7 +1486,7 @@ func testListTransactions(r *Harness, t *testing.T) {
 }
 
 func testGetSetRelayFee(r *Harness, t *testing.T) {
-	// dcrrpcclient does not have a getwalletfee or any direct method, so we
+	// exccrpcclient does not have a getwalletfee or any direct method, so we
 	// need to use walletinfo to get.  SetTxFee can be used to set.
 
 	// Wallet RPC client
@@ -1582,7 +1582,7 @@ func testGetSetRelayFee(r *Harness, t *testing.T) {
 }
 
 func testGetSetTicketFee(r *Harness, t *testing.T) {
-	// dcrrpcclient does not have a getticketee or any direct method, so we
+	// exccrpcclient does not have a getticketee or any direct method, so we
 	// need to use walletinfo to get.  SetTicketFee can be used to set.
 
 	// Wallet RPC client
@@ -2143,7 +2143,7 @@ func testWalletInfo(r *Harness, t *testing.T) {
 ///////////////////////////////////////////////////////////////////////////////
 // Helper functions
 
-func mustGetStakeInfo(wcl *dcrrpcclient.Client, t *testing.T) *exccjson.GetStakeInfoResult {
+func mustGetStakeInfo(wcl *exccrpcclient.Client, t *testing.T) *exccjson.GetStakeInfoResult {
 	stakeinfo, err := wcl.GetStakeInfo()
 	if err != nil {
 		t.Fatal("GetStakeInfo failed: ", err)

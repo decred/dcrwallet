@@ -37,7 +37,7 @@ import (
 	"github.com/EXCCoin/exccd/chaincfg/chainhash"
 	"github.com/EXCCoin/exccd/exccutil"
 	"github.com/EXCCoin/exccd/hdkeychain"
-	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
 	"github.com/EXCCoin/exccd/txscript"
 	"github.com/EXCCoin/exccd/wire"
 	"github.com/EXCCoin/exccwallet/apperrors"
@@ -2191,7 +2191,7 @@ func (s *loaderServer) StartConsensusRpc(ctx context.Context, req *pb.StartConse
 
 	err = rpcClient.Start(ctx, false)
 	if err != nil {
-		if err == dcrrpcclient.ErrInvalidAuth {
+		if err == exccrpcclient.ErrInvalidAuth {
 			return nil, status.Errorf(codes.InvalidArgument,
 				"Invalid RPC credentials: %v", err)
 		}

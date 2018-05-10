@@ -447,7 +447,7 @@ func readCAFile() []byte {
 func startChainRPC(ctx context.Context, certs []byte) (*chain.RPCClient, error) {
 	log.Infof("Attempting RPC client connection to %v", cfg.RPCConnect)
 	rpcc, err := chain.NewRPCClient(activeNet.Params, cfg.RPCConnect,
-		cfg.DcrdUsername, cfg.DcrdPassword, certs, cfg.DisableClientTLS)
+		cfg.ExccdUsername, cfg.ExccdPassword, certs, cfg.DisableClientTLS)
 	if err != nil {
 		return nil, err
 	}

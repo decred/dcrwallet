@@ -28,7 +28,7 @@ import (
 	"github.com/EXCCoin/exccd/exccjson"
 	"github.com/EXCCoin/exccd/exccutil"
 	"github.com/EXCCoin/exccd/hdkeychain"
-	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
 	"github.com/EXCCoin/exccd/txscript"
 	"github.com/EXCCoin/exccd/wire"
 	"github.com/EXCCoin/exccwallet/apperrors"
@@ -2095,7 +2095,7 @@ type GetTicketsResult struct {
 // early without reading any additional transactions when true.
 //
 // The arguments to f may be reused and should not be kept by the caller.
-func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
+func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), chainClient *exccrpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
 	var start, end int32 = 0, -1
 
 	if startBlock != nil {
@@ -2796,7 +2796,7 @@ func (w *Wallet) hasVotingAuthority(addrmgrNs walletdb.ReadBucket, ticketPurchas
 //
 // Getting this information is extremely costly as in involves a massive
 // number of chain server calls.
-func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, error) {
+func (w *Wallet) StakeInfo(chainClient *exccrpcclient.Client) (*StakeInfoData, error) {
 	// This is only needed for the total count and can be optimized.
 	mempoolTicketsFuture := chainClient.GetRawMempoolAsync(exccjson.GRMTickets)
 

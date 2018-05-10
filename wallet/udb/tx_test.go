@@ -107,7 +107,7 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		return
 	}
 
-	// Switch txout amount to 1 DCR.  Transaction store doesn't
+	// Switch txout amount to 1 EXCC.  Transaction store doesn't
 	// validate txs, so this is fine for testing a double spend
 	// removal.
 
@@ -699,7 +699,7 @@ func TestCoinbases(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Balance should be 0 if the coinbase is immature, 50 DCR at and beyond
+	// Balance should be 0 if the coinbase is immature, 50 EXCC at and beyond
 	// maturity.
 	//
 	// Outputs when depth is below maturity are never included, no matter

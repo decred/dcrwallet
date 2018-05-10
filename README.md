@@ -171,17 +171,17 @@ RPC username and password.
 
 PowerShell (Installed from MSI):
 ```
-PS> cp "$env:ProgramFiles\EXCCoin\Dcrd\sample-exccd.conf" $env:LOCALAPPDATA\Dcrd\exccd.conf
+PS> cp "$env:ProgramFiles\EXCCoin\Exccd\sample-exccd.conf" $env:LOCALAPPDATA\Exccd\exccd.conf
 PS> cp "$env:ProgramFiles\EXCCoin\Exccwallet\sample-exccwallet.conf" $env:LOCALAPPDATA\Exccwallet\exccwallet.conf
-PS> $editor $env:LOCALAPPDATA\Dcrd\exccd.conf
+PS> $editor $env:LOCALAPPDATA\Exccd\exccd.conf
 PS> $editor $env:LOCALAPPDATA\Exccwallet\exccwallet.conf
 ```
 
 PowerShell (Installed from source):
 ```
-PS> cp $env:GOPATH\src\github.com\EXCCoin\exccd\sample-exccd.conf $env:LOCALAPPDATA\Dcrd\exccd.conf
+PS> cp $env:GOPATH\src\github.com\EXCCoin\exccd\sample-exccd.conf $env:LOCALAPPDATA\Exccd\exccd.conf
 PS> cp $env:GOPATH\src\github.com\EXCCoin\exccwallet\sample-exccwallet.conf $env:LOCALAPPDATA\Exccwallet\exccwallet.conf
-PS> $editor $env:LOCALAPPDATA\Dcrd\exccd.conf
+PS> $editor $env:LOCALAPPDATA\Exccd\exccd.conf
 PS> $editor $env:LOCALAPPDATA\Exccwallet\exccwallet.conf
 ```
 

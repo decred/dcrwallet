@@ -62,7 +62,7 @@ const (
 	// slip0044CoinTypeVersion is the seventh version of the database.  It
 	// introduces the possibility of the BIP0044 coin type key being either the
 	// legacy coin type used by earlier versions of the wallet, or the coin type
-	// assigned to Decred in SLIP0044.  The upgrade does not add or remove any
+	// assigned to ExchangeCoin in SLIP0044.  The upgrade does not add or remove any
 	// required keys (the upgrade is done in a backwards-compatible way) but the
 	// database version is bumped to prevent older software from assuming that
 	// coin type 20 exists (the upgrade is not forwards-compatible).

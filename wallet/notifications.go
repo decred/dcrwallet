@@ -16,7 +16,7 @@ import (
 	"github.com/EXCCoin/exccd/chaincfg/chainhash"
 	"github.com/EXCCoin/exccd/exccutil"
 	"github.com/EXCCoin/exccd/hdkeychain"
-	dcrrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
 	"github.com/EXCCoin/exccd/txscript"
 	"github.com/EXCCoin/exccd/wire"
 	"github.com/EXCCoin/exccwallet/apperrors"
@@ -178,7 +178,7 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 	}
 }
 
-func makeTicketSummary(chainClient *dcrrpcclient.Client, dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
+func makeTicketSummary(chainClient *exccrpcclient.Client, dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
 	var ticketStatus = TicketStatusLive
 
 	ticketTransactionDetails := makeTxSummary(dbtx, w, details.Ticket)

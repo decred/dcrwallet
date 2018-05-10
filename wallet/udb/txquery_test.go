@@ -329,7 +329,7 @@ func TestStoreQueries(t *testing.T) {
 	})
 
 	// Insert another unmined transaction which spends txA:0, splitting the
-	// amount into outputs of 40 and 60 DCR.
+	// amount into outputs of 40 and 60 EXCC.
 	txB := spendOutput(&recA.Hash, 0, 0, 40e8, 60e8)
 	recB := newTxRecordFromMsgTx(txB, timeNow())
 	newState = lastState.deepCopy()
