@@ -21,12 +21,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/btcsuite/websocket"
 	"github.com/EXCCoin/exccd/chaincfg"
 	"github.com/EXCCoin/exccd/exccjson"
 	"github.com/EXCCoin/exccwallet/chain"
 	"github.com/EXCCoin/exccwallet/loader"
 	"github.com/EXCCoin/exccwallet/ticketbuyer"
+	"github.com/btcsuite/websocket"
 )
 
 type websocketClient struct {

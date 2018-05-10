@@ -13,13 +13,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/EXCCoin/exccd/chaincfg"
 	"github.com/EXCCoin/exccd/chaincfg/chainhash"
 	"github.com/EXCCoin/exccd/exccutil"
 	"github.com/EXCCoin/exccd/wire"
 	"github.com/EXCCoin/exccwallet/walletdb"
 	_ "github.com/EXCCoin/exccwallet/walletdb/bdb"
+	"github.com/boltdb/bolt"
 )
 
 func setup() (db walletdb.DB, s *Store, teardown func(), err error) {

@@ -10,8 +10,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/boltdb/bolt"
 	"github.com/EXCCoin/exccwallet/walletdb"
+	"github.com/boltdb/bolt"
 )
 
 // convertErr converts some bolt errors to the equivalent walletdb error.

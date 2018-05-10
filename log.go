@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/btcsuite/btclog"
 	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
 	"github.com/EXCCoin/exccwallet/chain"
 	"github.com/EXCCoin/exccwallet/loader"
@@ -20,6 +19,7 @@ import (
 	"github.com/EXCCoin/exccwallet/ticketbuyer"
 	"github.com/EXCCoin/exccwallet/wallet"
 	"github.com/EXCCoin/exccwallet/wallet/udb"
+	"github.com/btcsuite/btclog"
 	"github.com/jrick/logrotate/rotator"
 )
 
@@ -75,12 +75,12 @@ func init() {
 // subsystemLoggers maps each subsystem identifier to its associated logger.
 var subsystemLoggers = map[string]btclog.Logger{
 	"EXCCW": log,
-	"LODR": loaderLog,
-	"WLLT": walletLog,
-	"TKBY": tkbyLog,
-	"SYNC": syncLog,
-	"GRPC": grpcLog,
-	"RPCS": legacyRPCLog,
+	"LODR":  loaderLog,
+	"WLLT":  walletLog,
+	"TKBY":  tkbyLog,
+	"SYNC":  syncLog,
+	"GRPC":  grpcLog,
+	"RPCS":  legacyRPCLog,
 }
 
 // initLogRotator initializes the logging rotater to write logs to logFile and

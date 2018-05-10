@@ -1825,7 +1825,7 @@ func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, 
 	apes, err := acctKeyPub.String()
 	if err != nil {
 		str := "failed to stringify public key for account"
-		return 0, managerError(apperrors.ErrCrypto, str, err);
+		return 0, managerError(apperrors.ErrCrypto, str, err)
 	}
 	acctPubEnc, err := m.cryptoKeyPub.Encrypt([]byte(apes))
 	if err != nil {
@@ -1835,7 +1835,7 @@ func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, 
 	apes, err = acctKeyPriv.String()
 	if err != nil {
 		str := "failed to stringify private key for account"
-		return 0, managerError(apperrors.ErrCrypto, str, err);
+		return 0, managerError(apperrors.ErrCrypto, str, err)
 	}
 	acctPrivEnc, err := m.cryptoKeyPriv.Encrypt([]byte(apes))
 	if err != nil {
@@ -2605,7 +2605,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		ctpes, err := coinTypeLegacyKeyPub.String()
 		if err != nil {
 			str := "failed to stringify legacy cointype public key"
-			return managerError(apperrors.ErrCrypto, str, err);
+			return managerError(apperrors.ErrCrypto, str, err)
 		}
 		coinTypeLegacyPubEnc, err := cryptoKeyPub.Encrypt([]byte(ctpes))
 		if err != nil {
@@ -2615,7 +2615,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		ctpes, err = coinTypeLegacyKeyPriv.String()
 		if err != nil {
 			str := "failed to stringify legacy cointype private key"
-			return managerError(apperrors.ErrCrypto, str, err);
+			return managerError(apperrors.ErrCrypto, str, err)
 		}
 		coinTypeLegacyPrivEnc, err := cryptoKeyPriv.Encrypt([]byte(ctpes))
 		if err != nil {
@@ -2632,7 +2632,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		ctpes, err = coinTypeSLIP0044KeyPub.String()
 		if err != nil {
 			str := "failed to stringify SLIP044 cointype public key"
-			return managerError(apperrors.ErrCrypto, str, err);
+			return managerError(apperrors.ErrCrypto, str, err)
 		}
 		coinTypeSLIP0044PubEnc, err := cryptoKeyPub.Encrypt([]byte(ctpes))
 		if err != nil {
@@ -2642,7 +2642,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		ctpes, err = coinTypeSLIP0044KeyPriv.String()
 		if err != nil {
 			str := "failed to stringify SLIP044 cointype private key"
-			return managerError(apperrors.ErrCrypto, str, err);
+			return managerError(apperrors.ErrCrypto, str, err)
 		}
 		coinTypeSLIP0044PrivEnc, err := cryptoKeyPriv.Encrypt([]byte(ctpes))
 		if err != nil {
@@ -2654,7 +2654,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		apes, err := acctKeyLegacyPub.String()
 		if err != nil {
 			str := "failed to stringify public key for account 0"
-			return managerError(apperrors.ErrCrypto, str, err);
+			return managerError(apperrors.ErrCrypto, str, err)
 		}
 		acctPubLegacyEnc, err := cryptoKeyPub.Encrypt([]byte(apes))
 		if err != nil {
@@ -2664,7 +2664,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		apes, err = acctKeyLegacyPriv.String()
 		if err != nil {
 			str := "failed to stringify private key for account 0"
-			return managerError(apperrors.ErrCrypto, str, err);
+			return managerError(apperrors.ErrCrypto, str, err)
 		}
 		acctPrivLegacyEnc, err := cryptoKeyPriv.Encrypt([]byte(apes))
 		if err != nil {
@@ -2674,7 +2674,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		apes, err = acctKeySLIP0044Pub.String()
 		if err != nil {
 			str := "failed to stringify public key for account 0"
-			return managerError(apperrors.ErrCrypto, str, err);
+			return managerError(apperrors.ErrCrypto, str, err)
 		}
 		acctPubSLIP0044Enc, err := cryptoKeyPub.Encrypt([]byte(apes))
 		if err != nil {
@@ -2684,7 +2684,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		apes, err = acctKeySLIP0044Priv.String()
 		if err != nil {
 			str := "failed to stringify private key for account 0"
-			return managerError(apperrors.ErrCrypto, str, err);
+			return managerError(apperrors.ErrCrypto, str, err)
 		}
 		acctPrivSLIP0044Enc, err := cryptoKeyPriv.Encrypt([]byte(apes))
 		if err != nil {
@@ -2907,7 +2907,7 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string,
 	apes, err := acctKeyPub.String()
 	if err != nil {
 		str := "failed to stringify public key for account 0"
-		return managerError(apperrors.ErrCrypto, str, err);
+		return managerError(apperrors.ErrCrypto, str, err)
 	}
 	acctPubEnc, err := cryptoKeyPub.Encrypt([]byte(apes))
 	if err != nil {
@@ -2917,7 +2917,7 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string,
 	apes, err = acctKeyPub.String()
 	if err != nil {
 		str := "failed to stringify public key for account 0"
-		return managerError(apperrors.ErrCrypto, str, err);
+		return managerError(apperrors.ErrCrypto, str, err)
 	}
 	acctPrivEnc, err := cryptoKeyPriv.Encrypt([]byte(apes))
 	if err != nil {

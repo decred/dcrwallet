@@ -86,7 +86,7 @@ type Config struct {
 type TicketPurchaser struct {
 	cfg              *Config
 	activeNet        *chaincfg.Params
-	exccdChainSvr     *exccrpcclient.Client
+	exccdChainSvr    *exccrpcclient.Client
 	wallet           *wallet.Wallet
 	votingAddress    exccutil.Address
 	poolAddress      exccutil.Address
@@ -360,7 +360,7 @@ func NewTicketPurchaser(cfg *Config,
 	return &TicketPurchaser{
 		cfg:           cfg,
 		activeNet:     activeNet,
-		exccdChainSvr:  exccdChainSvr,
+		exccdChainSvr: exccdChainSvr,
 		wallet:        w,
 		firstStart:    true,
 		votingAddress: cfg.VotingAddress,

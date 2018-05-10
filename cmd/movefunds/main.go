@@ -43,7 +43,7 @@ type configJSON struct {
 	TxFee         int64  `json:"txfee"`
 	SendToAddress string `json:"sendtoaddress"`
 	Network       string `json:"network"`
-	ExccctlArgs    string `json:"exccctlargs"`
+	ExccctlArgs   string `json:"exccctlargs"`
 }
 
 // extendedOutPoint is a UTXO with an amount.

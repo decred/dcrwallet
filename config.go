@@ -17,7 +17,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/btcsuite/btclog"
 	"github.com/EXCCoin/exccd/exccutil"
 	"github.com/EXCCoin/exccwallet/internal/cfgutil"
 	"github.com/EXCCoin/exccwallet/netparams"
@@ -25,6 +24,7 @@ import (
 	"github.com/EXCCoin/exccwallet/version"
 	"github.com/EXCCoin/exccwallet/wallet"
 	"github.com/EXCCoin/exccwallet/wallet/txrules"
+	"github.com/btcsuite/btclog"
 	flags "github.com/jessevdk/go-flags"
 )
 
@@ -53,26 +53,26 @@ const (
 	// ticket buyer options
 	defaultMaxFee                    exccutil.Amount = 1e6
 	defaultMinFee                    exccutil.Amount = 1e5
-	defaultMaxPriceScale                            = 0.0
-	defaultAvgVWAPPriceDelta                        = 2880
-	defaultMaxPerBlock                              = 1
-	defaultBlocksToAvg                              = 11
-	defaultFeeTargetScaling                         = 1.0
-	defaultMaxInMempool                             = 40
-	defaultExpiryDelta                              = 16
-	defaultFeeSource                                = ticketbuyer.TicketFeeMedian
-	defaultAvgPriceMode                             = ticketbuyer.PriceTargetVWAP
-	defaultMaxPriceAbsolute                         = 0
-	defaultMaxPriceRelative                         = 1.25
-	defaultPriceTarget                              = 0
-	defaultBalanceToMaintainAbsolute                = 0
-	defaultBalanceToMaintainRelative                = 0.3
+	defaultMaxPriceScale                             = 0.0
+	defaultAvgVWAPPriceDelta                         = 2880
+	defaultMaxPerBlock                               = 1
+	defaultBlocksToAvg                               = 11
+	defaultFeeTargetScaling                          = 1.0
+	defaultMaxInMempool                              = 40
+	defaultExpiryDelta                               = 16
+	defaultFeeSource                                 = ticketbuyer.TicketFeeMedian
+	defaultAvgPriceMode                              = ticketbuyer.PriceTargetVWAP
+	defaultMaxPriceAbsolute                          = 0
+	defaultMaxPriceRelative                          = 1.25
+	defaultPriceTarget                               = 0
+	defaultBalanceToMaintainAbsolute                 = 0
+	defaultBalanceToMaintainRelative                 = 0.3
 
 	walletDbName = "wallet.db"
 )
 
 var (
-	exccdDefaultCAFile  = filepath.Join(exccutil.AppDataDir("exccd", false), "rpc.cert")
+	exccdDefaultCAFile = filepath.Join(exccutil.AppDataDir("exccd", false), "rpc.cert")
 	defaultAppDataDir  = exccutil.AppDataDir("exccwallet", false)
 	defaultConfigFile  = filepath.Join(defaultAppDataDir, defaultConfigFilename)
 	defaultRPCKeyFile  = filepath.Join(defaultAppDataDir, "rpc.key")
@@ -120,8 +120,8 @@ type config struct {
 	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Hostname/IP and port of exccd RPC server to connect to"`
 	CAFile           *cfgutil.ExplicitString `long:"cafile" description:"File containing root certificates to authenticate a TLS connections with exccd"`
 	DisableClientTLS bool                    `long:"noclienttls" description:"Disable TLS for the RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
-	ExccdUsername     string                  `long:"exccdusername" description:"Username for exccd authentication"`
-	ExccdPassword     string                  `long:"exccdpassword" default-mask:"-" description:"Password for exccd authentication"`
+	ExccdUsername    string                  `long:"exccdusername" description:"Username for exccd authentication"`
+	ExccdPassword    string                  `long:"exccdpassword" default-mask:"-" description:"Password for exccd authentication"`
 	Proxy            string                  `long:"proxy" description:"Connect via SOCKS5 proxy (eg. 127.0.0.1:9050)"`
 	ProxyUser        string                  `long:"proxyuser" description:"Username for proxy server"`
 	ProxyPass        string                  `long:"proxypass" default-mask:"-" description:"Password for proxy server"`
