@@ -41,6 +41,12 @@
   revision = "31079b6807923eb23992c421b114992b95131b55"
 
 [[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/dchest/blake256"
   packages = ["."]
@@ -53,6 +59,7 @@
   revision = "b3520e187fa8ebe65eb74245408cf4b83e6a65d3"
 
 [[projects]]
+  branch = "master"
   name = "github.com/decred/dcrd"
   packages = [
     "blockchain",
@@ -82,11 +89,10 @@
     "txscript",
     "wire"
   ]
-  revision = "fd99f572cfd52ca722ad501ccb34acdcb22b4a67"
-  version = "v1.2.0-rc1"
+  revision = "2e329c185a95718019b21b5fd4578149c0cd1a67"
+  source = "github.com/huyntsgs/dcrd"
 
 [[projects]]
-  branch = "master"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -95,7 +101,8 @@
     "ptypes/duration",
     "ptypes/timestamp"
   ]
-  revision = "130e6b02ab059e7b717a096f397c5b60111cae74"
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
 
 [[projects]]
   name = "github.com/jessevdk/go-flags"
@@ -114,6 +121,25 @@
   name = "github.com/jrick/logrotate"
   packages = ["rotator"]
   revision = "a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a"
+
+[[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/raedahgroup/dcrtxmatcher"
+  packages = ["pkg/api/matcherrpc"]
+  revision = "dd8ab3ff1306f6d1bc653bf99c8058e069b51403"
+  source = "github.com/huyntsgs/dcrtxmatcher"
+
+[[projects]]
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
+  version = "v1.1.4"
 
 [[projects]]
   branch = "master"
@@ -189,9 +215,14 @@
   name = "google.golang.org/grpc"
   packages = [
     ".",
+    "balancer",
+    "balancer/base",
+    "balancer/roundrobin",
     "codes",
     "connectivity",
     "credentials",
+    "encoding",
+    "encoding/proto",
     "grpclb/grpc_lb_v1/messages",
     "grpclog",
     "internal",
@@ -199,17 +230,20 @@
     "metadata",
     "naming",
     "peer",
+    "resolver",
+    "resolver/dns",
+    "resolver/passthrough",
     "stats",
     "status",
     "tap",
     "transport"
   ]
-  revision = "f92cdcd7dcdc69e81b2d7b338479a19a8723cfa3"
-  version = "v1.6.0"
+  revision = "d11072e7ca9811b1100b80ca0269ac831f06d024"
+  version = "v1.11.3"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "890953b366de351f13c362e03a2d3d137bffc528185ceb18426561fe20d2e651"
+  inputs-digest = "8da5ae77ef3f76753a7b33e89bdd184252c412aa3001581f70d30cf1d26381a5"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -25,6 +25,8 @@ import (
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	flags "github.com/jessevdk/go-flags"
+
+	"github.com/decred/dcrwallet/dcrtxclient"
 )
 
 const (
@@ -66,6 +68,9 @@ const (
 	defaultPriceTarget                              = 0
 	defaultBalanceToMaintainAbsolute                = 0
 	defaultBalanceToMaintainRelative                = 0.3
+	defaultSplitTx                                  = 1
+
+	defaultEnableDcrtxmatcher = false
 
 	walletDbName = "wallet.db"
 )
@@ -155,6 +160,9 @@ type config struct {
 	TBOpts ticketBuyerOptions `group:"Ticket Buyer Options" namespace:"ticketbuyer"`
 	tbCfg  ticketbuyer.Config
 
+	DcrtxClientOpts   dcrtxClientOptions `group:"Dcrtxmatcher Client" namespace:"dcrtxclient"`
+	DcrtxClientConfig *dcrtxclient.Config
+
 	// Deprecated options
 	DataDir        *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
 	PruneTickets   bool                    `long:"prunetickets" description:"DEPRECATED -- old tickets are always pruned"`
@@ -180,11 +188,18 @@ type ticketBuyerOptions struct {
 	NoSpreadTicketPurchases   bool                 `long:"nospreadticketpurchases" description:"Do not spread ticket purchases evenly throughout the window"`
 	DontWaitForTickets        bool                 `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
 	VotingAddress             *cfgutil.AddressFlag `long:"votingaddress" description:"Purchase tickets with voting rights assigned to this address"`
+	SplitTx                   uint32               `long:"splittx" description:"Use split transactions to limit the number of ticket purchase inputs"`
 
+	
 	// Deprecated options
 	MaxPriceScale         float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
 	PriceTarget           *cfgutil.AmountFlag `long:"pricetarget" description:"DEPRECATED -- A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
 	SpreadTicketPurchases bool                `long:"spreadticketpurchases" description:"DEPRECATED -- Spread ticket purchases evenly throughout the window"`
+}
+
+type dcrtxClientOptions struct {
+	Enable  bool   `long:"enable" description:"Enable wallet to join other participants in purchasing tickets in a single transaction"`
+	Address string `long:"address" description:"Dcrtxmatcher Server hostname"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -381,6 +396,12 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
 			BalanceToMaintainRelative: defaultBalanceToMaintainRelative,
 			VotingAddress:             cfgutil.NewAddressFlag(nil),
+			
+			SplitTx: defaultSplitTx,
+		},
+
+		DcrtxClientOpts: dcrtxClientOptions{
+			Enable: defaultEnableDcrtxmatcher,
 		},
 	}
 
@@ -610,8 +631,8 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	}
 
 	// Sanity check ExpiryDelta
-	if cfg.TBOpts.ExpiryDelta <= 0 {
-		str := "%s: expirydelta must be greater then zero: %v"
+	if cfg.TBOpts.ExpiryDelta < 0 {
+		str := "%s: expirydelta cannot be negative: %v"
 		err := fmt.Errorf(str, funcName, cfg.TBOpts.ExpiryDelta)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
@@ -917,6 +938,19 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		cfg.GapLimit = cfg.AddrIdxScanLen
 	}
 
+	// AllowedSplitTxMaxValue sanity check
+	// While sstx transactions with many inputs can be created,
+	// the transactions end up being inefficient in size and fee
+	// because of the current sstx output ratio requirements.
+	// For this reason, split transactions will always be enforced for
+	// 2 or greater input.
+	if cfg.TBOpts.SplitTx < 1 || cfg.TBOpts.SplitTx > 2 {
+		str := "%s: splittx value must be 1 or 2"
+		err := fmt.Errorf(str, funcName)
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+
 	// Build ticketbuyer config
 	cfg.tbCfg = ticketbuyer.Config{
 		AccountName:               cfg.PurchaseAccount,
@@ -940,8 +974,23 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		NoSpreadTicketPurchases:   cfg.TBOpts.NoSpreadTicketPurchases,
 		VotingAddress:             votingAddress,
 		TxFee:                     int64(cfg.RelayFee.Amount),
+		SplitTx:                   cfg.TBOpts.SplitTx,
 	}
 
+	// sanity check on dcrtxClientConfig
+	if cfg.DcrtxClientOpts.Enable && cfg.DcrtxClientOpts.Address == "" {
+		str := "Dcrtx server address cannot be empty"
+		err := fmt.Errorf(str, funcName)
+		return loadConfigError(err)
+	}
+
+	// dcrtxClientConfig
+	cfg.DcrtxClientConfig = &dcrtxclient.Config{
+		Address: cfg.DcrtxClientOpts.Address,
+		Enable:  cfg.DcrtxClientOpts.Enable,
+	}
+
+	
 	// Make list of old versions of testnet directories.
 	var oldTestNets []string
 	oldTestNets = append(oldTestNets, filepath.Join(cfg.AppDataDir.Value, "testnet"))

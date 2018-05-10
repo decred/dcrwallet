@@ -27,6 +27,8 @@ import (
 	"github.com/decred/dcrwallet/rpc/rpcserver"
 	"github.com/decred/dcrwallet/version"
 	"github.com/decred/dcrwallet/wallet"
+
+	"github.com/decred/dcrwallet/dcrtxclient"
 )
 
 var (
@@ -131,6 +133,21 @@ func run(ctx context.Context) error {
 	if done(ctx) {
 		return ctx.Err()
 	}
+	//always set dcrTxClient config
+	var dcrTxClient *dcrtxclient.Client
+	if cfg.DcrtxClientConfig != nil {
+		dcrTxClient, err = dcrtxclient.NewClient(cfg.DcrtxClientConfig)
+		if err != nil {
+			log.Errorf("Unable to connect to Dcrtxmatcher Server: %v ", err)
+			return err
+		}
+
+		// Close client connection on shutdown. Returns an error if not already connected
+		// Safe to ignore error
+		if cfg.DcrtxClientConfig.Enable {
+			defer dcrTxClient.Disconnect()
+		}
+	}
 
 	// Create the loader which is used to load and unload the wallet.  If
 	// --noinitialload is not set, this function is responsible for loading the
@@ -187,6 +204,8 @@ func run(ctx context.Context) error {
 
 			return err
 		}
+		//set dcrClient for wallet
+		w.SetDcrTxClient(dcrTxClient)
 
 		if done(ctx) {
 			return ctx.Err()

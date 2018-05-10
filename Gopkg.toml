@@ -12,8 +12,14 @@
   name = "github.com/btcsuite/websocket"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/decred/dcrd"
+  branch = "master"
+  source = "github.com/huyntsgs/dcrd"
+
+[[constraint]]
+ name = "github.com/raedahgroup/dcrtxmatcher"
+ branch = "master"
+ source = "github.com/huyntsgs/dcrtxmatcher"
 
 [[constraint]]
   branch = "master"

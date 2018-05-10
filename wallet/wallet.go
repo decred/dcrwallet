@@ -37,6 +37,8 @@ import (
 	"github.com/decred/dcrwallet/walletdb"
 	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/decred/dcrwallet/dcrtxclient"
 )
 
 const (
@@ -144,6 +146,8 @@ type Wallet struct {
 	started bool
 	quit    chan struct{}
 	quitMu  sync.Mutex
+
+	dcrTxClient *dcrtxclient.Client
 }
 
 // Config represents the configuration options needed to initialize a wallet.
@@ -164,6 +168,14 @@ type Config struct {
 	AllowHighFees       bool
 	RelayFee            float64
 	Params              *chaincfg.Params
+}
+
+func (w *Wallet) SetDcrTxClient(dcrTxClient *dcrtxclient.Client) {
+	w.dcrTxClient = dcrTxClient
+}
+
+func (w *Wallet) GetDcrTxClient() *dcrtxclient.Client {
+	return w.dcrTxClient
 }
 
 // StakeDifficulty is used to get the next block's stake difficulty.
@@ -906,6 +918,8 @@ type (
 		txFee       dcrutil.Amount
 		ticketFee   dcrutil.Amount
 		resp        chan purchaseTicketResponse
+		dcrTxClient *dcrtxclient.Client
+		splitTx     uint32
 	}
 
 	consolidateResponse struct {
@@ -1053,7 +1067,7 @@ func (w *Wallet) CreateMultisigTx(account uint32, amount dcrutil.Amount,
 func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount,
 	minConf int32, ticketAddr dcrutil.Address, account uint32,
 	numTickets int, poolAddress dcrutil.Address, poolFees float64,
-	expiry int32, txFee dcrutil.Amount, ticketFee dcrutil.Amount) ([]*chainhash.Hash,
+	expiry int32, txFee dcrutil.Amount, ticketFee dcrutil.Amount, splitTx uint32, dcrTxClient *dcrtxclient.Client) ([]*chainhash.Hash,
 	error) {
 
 	req := purchaseTicketRequest{
@@ -1069,6 +1083,8 @@ func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount,
 		txFee:       txFee,
 		ticketFee:   ticketFee,
 		resp:        make(chan purchaseTicketResponse),
+		dcrTxClient: dcrTxClient,
+		splitTx:     splitTx,
 	}
 	w.purchaseTicketRequests <- req
 	resp := <-req.resp

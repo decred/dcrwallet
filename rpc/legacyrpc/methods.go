@@ -2166,9 +2166,16 @@ func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 		}
 	}
 
+	//need to add SplitTx to struct PurchaseTicketCmd in decred/dcrd/dcrjson/dcrwalletextcmds.go
+	splitTxn := uint32(1)
+	if cmd.SplitTx != nil {
+		splitTxn = *cmd.SplitTx
+	}
+
 	hashes, err := w.PurchaseTickets(0, spendLimit, minConf, ticketAddr,
 		account, numTickets, poolAddr, poolFee, expiry, w.RelayFee(),
-		ticketFee)
+		ticketFee, splitTxn, w.GetDcrTxClient())
+
 	if err != nil {
 		return nil, err
 	}
@@ -2178,7 +2185,8 @@ func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 		hashStrs[i] = hashes[i].String()
 	}
 
-	return hashStrs, err
+	return &dcrjson.GetTicketsResult{Hashes: hashStrs}, nil
+	//return hashStrs, err
 }
 
 // makeOutputs creates a slice of transaction outputs from a pair of address

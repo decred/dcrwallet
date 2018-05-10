@@ -228,6 +228,36 @@ func AddAllInputScripts(tx *wire.MsgTx, prevPkScripts [][]byte, secrets SecretsS
 	return nil
 }
 
+// AddInputScripts modifies transaction a transaction by adding inputs
+// scripts for each input with index is specified in indes.  Previous output scripts being redeemed by each input
+// are passed in prevPkScripts and the slice length must match the number of
+// inputs.  Private keys and redeem scripts are looked up using a SecretsSource
+// based on the previous output script.
+func AddInputScripts(tx *wire.MsgTx, prevPkScripts [][]byte, secrets SecretsSource, indes []int32) error {
+	inputs := tx.TxIn
+	chainParams := secrets.ChainParams()
+
+	if len(indes) != len(prevPkScripts) {
+		return errors.New("indes and prevPkScripts slices must " +
+			"have equal length")
+	}
+	k := 0
+	for _, i := range indes {
+		pkScript := prevPkScripts[k]
+		sigScript := inputs[i].SignatureScript
+		script, err := txscript.SignTxOutput(chainParams, tx, int(i),
+			pkScript, txscript.SigHashAll, secrets, secrets,
+			sigScript, chainec.ECTypeSecp256k1)
+		if err != nil {
+			return err
+		}
+		inputs[i].SignatureScript = script
+		k++
+	}
+
+	return nil
+}
+
 // AddAllInputScripts modifies an authored transaction by adding inputs scripts
 // for each input of an authored transaction.  Private keys and redeem scripts
 // are looked up using a SecretsSource based on the previous output script.
