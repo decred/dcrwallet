@@ -14,13 +14,12 @@
 [[constraint]]
   name = "github.com/decred/dcrd"
   branch = "master"
-  source = "github.com/huyntsgs/dcrd"
+  source = "github.com/raedahgroup/dcrd"
 
 [[constraint]]
  name = "github.com/raedahgroup/dcrtxmatcher"
  branch = "master"
- source = "github.com/huyntsgs/dcrtxmatcher"
-
+ 
 [[constraint]]
   branch = "master"
   name = "github.com/golang/protobuf"
