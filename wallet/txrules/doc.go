@@ -1,5 +1,6 @@
 // Copyright (c) 2015 The btcsuite developers
 // Copyright (c) 2015 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -10,7 +11,7 @@ stake pool.
 
 Dust and Fee Per KB Calculation
 
-Please refer to mempool.go in dcrd for more information about the importance
+Please refer to mempool.go in exccd for more information about the importance
 of these function.
 
 Pool Fees

@@ -1,4 +1,5 @@
 // Copyright (c) 2016-2017 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -12,13 +13,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/walletdb"
+	_ "github.com/EXCCoin/exccwallet/walletdb/bdb"
 	"github.com/boltdb/bolt"
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/walletdb"
-	_ "github.com/decred/dcrwallet/walletdb/bdb"
 )
 
 func setup() (db walletdb.DB, s *Store, teardown func(), err error) {
@@ -55,7 +56,7 @@ func setup() (db walletdb.DB, s *Store, teardown func(), err error) {
 	if err != nil {
 		return
 	}
-	acctLookup := func(walletdb.ReadBucket, dcrutil.Address) (uint32, error) { return 0, nil }
+	acctLookup := func(walletdb.ReadBucket, exccutil.Address) (uint32, error) { return 0, nil }
 	s = &Store{chainParams: &chaincfg.TestNet2Params, acctLookupFunc: acctLookup}
 	return
 }

@@ -1,4 +1,5 @@
 // Copyright (c) 2017 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -7,11 +8,11 @@ package udb
 import (
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/hdkeychain"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 func TestCoinTypes(t *testing.T) {
@@ -21,7 +22,7 @@ func TestCoinTypes(t *testing.T) {
 		params                           *chaincfg.Params
 		legacyCoinType, slip0044CoinType uint32
 	}{
-		{&chaincfg.MainNetParams, 20, 42},
+		{&chaincfg.MainNetParams, 30, 42},
 		{&chaincfg.TestNet2Params, 11, 1},
 		{&chaincfg.SimNetParams, 115, 1},
 	}
@@ -38,7 +39,7 @@ func TestCoinTypes(t *testing.T) {
 	}
 }
 
-func deriveChildAddress(accountExtKey *hdkeychain.ExtendedKey, branch, child uint32, params *chaincfg.Params) (dcrutil.Address, error) {
+func deriveChildAddress(accountExtKey *hdkeychain.ExtendedKey, branch, child uint32, params *chaincfg.Params) (exccutil.Address, error) {
 	branchKey, err := accountExtKey.Child(branch)
 	if err != nil {
 		return nil, err

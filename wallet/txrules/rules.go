@@ -1,5 +1,6 @@
 // Copyright (c) 2016 The btcsuite developers
 // Copyright (c) 2016 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -8,19 +9,19 @@ package txrules
 import (
 	"errors"
 
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrd/wire"
-	h "github.com/decred/dcrwallet/internal/helpers"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/txscript"
+	"github.com/EXCCoin/exccd/wire"
+	h "github.com/EXCCoin/exccwallet/internal/helpers"
 )
 
 // DefaultRelayFeePerKb is the default minimum relay fee policy for a mempool.
-const DefaultRelayFeePerKb dcrutil.Amount = 1e5
+const DefaultRelayFeePerKb exccutil.Amount = 1e5
 
 // IsDustAmount determines whether a transaction output value and script length would
 // cause the output to be considered dust.  Transactions with dust outputs are
 // not standard and are rejected by mempools with default policies.
-func IsDustAmount(amount dcrutil.Amount, scriptSize int, relayFeePerKb dcrutil.Amount) bool {
+func IsDustAmount(amount exccutil.Amount, scriptSize int, relayFeePerKb exccutil.Amount) bool {
 	// Calculate the total (estimated) cost to the network.  This is
 	// calculated using the serialize size of the output plus the serial
 	// size of a transaction input which redeems it.  The output is assumed
@@ -38,7 +39,7 @@ func IsDustAmount(amount dcrutil.Amount, scriptSize int, relayFeePerKb dcrutil.A
 // IsDustOutput determines whether a transaction output is considered dust.
 // Transactions with dust outputs are not standard and are rejected by mempools
 // with default policies.
-func IsDustOutput(output *wire.TxOut, relayFeePerKb dcrutil.Amount) bool {
+func IsDustOutput(output *wire.TxOut, relayFeePerKb exccutil.Amount) bool {
 	// Unspendable outputs which solely carry data are not checked for dust.
 	if txscript.GetScriptClass(output.Version, output.PkScript) == txscript.NullDataTy {
 		return false
@@ -49,7 +50,7 @@ func IsDustOutput(output *wire.TxOut, relayFeePerKb dcrutil.Amount) bool {
 		return true
 	}
 
-	return IsDustAmount(dcrutil.Amount(output.Value), len(output.PkScript),
+	return IsDustAmount(exccutil.Amount(output.Value), len(output.PkScript),
 		relayFeePerKb)
 }
 
@@ -62,11 +63,11 @@ var (
 
 // CheckOutput performs simple consensus and policy tests on a transaction
 // output.
-func CheckOutput(output *wire.TxOut, relayFeePerKb dcrutil.Amount) error {
+func CheckOutput(output *wire.TxOut, relayFeePerKb exccutil.Amount) error {
 	if output.Value < 0 {
 		return ErrAmountNegative
 	}
-	if output.Value > dcrutil.MaxAmount {
+	if output.Value > exccutil.MaxAmount {
 		return ErrAmountExceedsMax
 	}
 	if IsDustOutput(output, relayFeePerKb) {
@@ -77,15 +78,15 @@ func CheckOutput(output *wire.TxOut, relayFeePerKb dcrutil.Amount) error {
 
 // FeeForSerializeSize calculates the required fee for a transaction of some
 // arbitrary size given a mempool's relay fee policy.
-func FeeForSerializeSize(relayFeePerKb dcrutil.Amount, txSerializeSize int) dcrutil.Amount {
-	fee := relayFeePerKb * dcrutil.Amount(txSerializeSize) / 1000
+func FeeForSerializeSize(relayFeePerKb exccutil.Amount, txSerializeSize int) exccutil.Amount {
+	fee := relayFeePerKb * exccutil.Amount(txSerializeSize) / 1000
 
 	if fee == 0 && relayFeePerKb > 0 {
 		fee = relayFeePerKb
 	}
 
-	if fee < 0 || fee > dcrutil.MaxAmount {
-		fee = dcrutil.MaxAmount
+	if fee < 0 || fee > exccutil.MaxAmount {
+		fee = exccutil.MaxAmount
 	}
 
 	return fee
@@ -94,7 +95,7 @@ func FeeForSerializeSize(relayFeePerKb dcrutil.Amount, txSerializeSize int) dcru
 // PaysHighFees checks whether the signed transaction pays insanely high fees.
 // Transactons are defined to have a high fee if they have pay a fee rate that
 // is 1000 time higher than the default fee.
-func PaysHighFees(totalInput dcrutil.Amount, tx *wire.MsgTx) bool {
+func PaysHighFees(totalInput exccutil.Amount, tx *wire.MsgTx) bool {
 	fee := totalInput - h.SumOutputValues(tx.TxOut)
 	if fee <= 0 {
 		// Impossible to determine

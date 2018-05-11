@@ -1,7 +1,7 @@
 walletdb
 ========
 
-Package walletdb provides a namespaced database interface for dcrwallet.
+Package walletdb provides a namespaced database interface for exccwallet.
 
 A wallet essentially consists of a multitude of stored data such as private
 and public keys, key derivation bits, pay-to-script-hash scripts, and various
@@ -40,25 +40,25 @@ boltdb project at https://github.com/boltdb/bolt by Ben B. Johnson.
 
 ## Documentation
 
-[![GoDoc](https://godoc.org/github.com/decred/dcrwallet/walletdb?status.png)](http://godoc.org/github.com/decred/dcrwallet/walletdb)
+[![GoDoc](https://godoc.org/github.com/EXCCoin/exccwallet/walletdb?status.png)](http://godoc.org/github.com/EXCCoin/exccwallet/walletdb)
 
 Full `go doc` style documentation for the project can be viewed online without
 installing this package by using the GoDoc site here:
-http://godoc.org/github.com/decred/dcrwallet/walletdb
+http://godoc.org/github.com/EXCCoin/exccwallet/walletdb
 
 You can also view the documentation locally once the package is installed with
 the `godoc` tool by running `godoc -http=":6060"` and pointing your browser to
-http://localhost:6060/pkg/github.com/decred/dcrwallet/walletdb
+http://localhost:6060/pkg/github.com/EXCCoin/exccwallet/walletdb
 
 ## Installation
 
 ```bash
-$ go get github.com/decred/dcrwallet/walletdb
+$ go get github.com/EXCCoin/exccwallet/walletdb
 ```
 
 ## Examples
 
-* [Basic Usage Example](http://godoc.org/github.com/decred/dcrwallet/walletdb#example-package--BasicUsage)  
+* [Basic Usage Example](http://godoc.org/github.com/EXCCoin/exccwallet/walletdb#example-package--BasicUsage)  
   Demonstrates creating a new database, getting a namespace from it, and using a
   managed read-write transaction against the namespace to store and retrieve
   data.

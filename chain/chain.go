@@ -1,5 +1,6 @@
 // Copyright (c) 2013-2015 The btcsuite developers
 // Copyright (c) 2015-2016 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -12,18 +13,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
 )
 
 var requiredChainServerAPI = semver{major: 3, minor: 1, patch: 0}
 
-// RPCClient represents a persistent client connection to a decred RPC server
+// RPCClient represents a persistent client connection to a ExchangeCoin RPC server
 // for information regarding the current best block chain.
 type RPCClient struct {
-	*dcrrpcclient.Client
-	connConfig  *dcrrpcclient.ConnConfig // Work around unexported field
+	*exccrpcclient.Client
+	connConfig  *exccrpcclient.ConnConfig // Work around unexported field
 	chainParams *chaincfg.Params
 
 	enqueueNotification       chan interface{}
@@ -41,13 +42,13 @@ type RPCClient struct {
 // connect string.  If disableTLS is false, the remote RPC certificate must be
 // provided in the certs slice.  The connection is not established immediately,
 // but must be done using the Start method.  If the remote server does not
-// operate on the same decred network as described by the passed chain
+// operate on the same ExchangeCoin network as described by the passed chain
 // parameters, the connection will be disconnected.
 func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, certs []byte,
 	disableTLS bool) (*RPCClient, error) {
 
 	client := &RPCClient{
-		connConfig: &dcrrpcclient.ConnConfig{
+		connConfig: &exccrpcclient.ConnConfig{
 			Host:                 connect,
 			Endpoint:             "ws",
 			User:                 user,
@@ -64,7 +65,7 @@ func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, cert
 		dequeueVotingNotification: make(chan interface{}),
 		quit: make(chan struct{}),
 	}
-	ntfnCallbacks := &dcrrpcclient.NotificationHandlers{
+	ntfnCallbacks := &exccrpcclient.NotificationHandlers{
 		OnBlockConnected:        client.onBlockConnected,
 		OnBlockDisconnected:     client.onBlockDisconnected,
 		OnRelevantTxAccepted:    client.onRelevantTxAccepted,
@@ -73,7 +74,7 @@ func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, cert
 		OnSpentAndMissedTickets: client.onSpentAndMissedTickets,
 		OnStakeDifficulty:       client.onStakeDifficulty,
 	}
-	rpcClient, err := dcrrpcclient.New(client.connConfig, ntfnCallbacks)
+	rpcClient, err := exccrpcclient.New(client.connConfig, ntfnCallbacks)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +112,7 @@ func (c *RPCClient) Start(ctx context.Context, retry bool) (err error) {
 	var serverAPI semver
 	versions, err := c.Client.Version()
 	if err == nil {
-		versionResult := versions["dcrdjsonrpcapi"]
+		versionResult := versions["exccdjsonrpcapi"]
 		serverAPI = semver{
 			major: versionResult.Major,
 			minor: versionResult.Minor,
@@ -161,7 +162,7 @@ func (c *RPCClient) WaitForShutdown() {
 
 // Notification types.  These are defined here and processed from from reading
 // a notificationChan to avoid handling these notifications directly in
-// dcrrpcclient callbacks, which isn't very Go-like and doesn't allow
+// exccrpcclient callbacks, which isn't very Go-like and doesn't allow
 // blocking client calls.
 type (
 	// blockConnected is a notification for a newly-attached block to the
@@ -216,7 +217,7 @@ type (
 )
 
 // notifications returns a channel of parsed notifications sent by the remote
-// decred RPC server.  This channel must be continually read or the process
+// ExchangeCoin RPC server.  This channel must be continually read or the process
 // may abort for running out memory, as unread notifications are queued for
 // later reads.
 func (c *RPCClient) notifications() <-chan interface{} {
@@ -392,7 +393,7 @@ out:
 			//
 			// TODO: A minute timeout is used to prevent the handler loop from
 			// blocking here forever, but this is much larger than it needs to
-			// be due to dcrd processing websocket requests synchronously (see
+			// be due to exccd processing websocket requests synchronously (see
 			// https://github.com/btcsuite/btcd/issues/504).  Decrease this to
 			// something saner like 3s when the above issue is fixed.
 			type sessionResult struct {
@@ -481,9 +482,9 @@ out:
 	c.wg.Done()
 }
 
-// POSTClient creates the equivalent HTTP POST dcrrpcclient.Client.
-func (c *RPCClient) POSTClient() (*dcrrpcclient.Client, error) {
+// POSTClient creates the equivalent HTTP POST exccrpcclient.Client.
+func (c *RPCClient) POSTClient() (*exccrpcclient.Client, error) {
 	configCopy := *c.connConfig
 	configCopy.HTTPPostMode = true
-	return dcrrpcclient.New(&configCopy, nil)
+	return exccrpcclient.New(&configCopy, nil)
 }

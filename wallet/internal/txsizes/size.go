@@ -1,13 +1,14 @@
 // Copyright (c) 2016 The btcsuite developers
 // Copyright (c) 2016 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package txsizes
 
 import (
-	"github.com/decred/dcrd/wire"
-	h "github.com/decred/dcrwallet/internal/helpers"
+	"github.com/EXCCoin/exccd/wire"
+	h "github.com/EXCCoin/exccwallet/internal/helpers"
 )
 
 // ScriptSizer signature script sizing interface

@@ -1,5 +1,6 @@
 // Copyright (c) 2015-2016 The btcsuite developers
 // Copyright (c) 2016 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -9,17 +10,17 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/EXCCoin/exccd/exccutil"
 )
 
-// AmountFlag embeds a dcrutil.Amount and implements the flags.Marshaler and
+// AmountFlag embeds a exccutil.Amount and implements the flags.Marshaler and
 // Unmarshaler interfaces so it can be used as a config struct field.
 type AmountFlag struct {
-	dcrutil.Amount
+	exccutil.Amount
 }
 
-// NewAmountFlag creates an AmountFlag with a default dcrutil.Amount.
-func NewAmountFlag(defaultValue dcrutil.Amount) *AmountFlag {
+// NewAmountFlag creates an AmountFlag with a default exccutil.Amount.
+func NewAmountFlag(defaultValue exccutil.Amount) *AmountFlag {
 	return &AmountFlag{defaultValue}
 }
 
@@ -30,12 +31,12 @@ func (a *AmountFlag) MarshalFlag() (string, error) {
 
 // UnmarshalFlag satisifes the flags.Unmarshaler interface.
 func (a *AmountFlag) UnmarshalFlag(value string) error {
-	value = strings.TrimSuffix(value, " DCR")
+	value = strings.TrimSuffix(value, " EXCC")
 	valueF64, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		return err
 	}
-	amount, err := dcrutil.NewAmount(valueF64)
+	amount, err := exccutil.NewAmount(valueF64)
 	if err != nil {
 		return err
 	}

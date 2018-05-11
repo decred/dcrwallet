@@ -1,5 +1,6 @@
 // Copyright (c) 2015 The btcsuite developers
 // Copyright (c) 2015-2016 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -14,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/wire"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/wire"
 )
 
 type queryState struct {
@@ -314,7 +315,7 @@ func TestStoreQueries(t *testing.T) {
 	newState.blocks[0][0].Credits = []CreditRecord{
 		{
 			Index:  0,
-			Amount: dcrutil.Amount(recA.MsgTx.TxOut[0].Value),
+			Amount: exccutil.Amount(recA.MsgTx.TxOut[0].Value),
 			Spent:  false,
 			Change: true,
 		},
@@ -328,7 +329,7 @@ func TestStoreQueries(t *testing.T) {
 	})
 
 	// Insert another unmined transaction which spends txA:0, splitting the
-	// amount into outputs of 40 and 60 DCR.
+	// amount into outputs of 40 and 60 EXCC.
 	txB := spendOutput(&recA.Hash, 0, 0, 40e8, 60e8)
 	recB := newTxRecordFromMsgTx(txB, timeNow())
 	newState = lastState.deepCopy()
@@ -338,7 +339,7 @@ func TestStoreQueries(t *testing.T) {
 		Block:    BlockMeta{Block: Block{Height: -1}},
 		Debits: []DebitRecord{
 			{
-				Amount: dcrutil.Amount(recA.MsgTx.TxOut[0].Value),
+				Amount: exccutil.Amount(recA.MsgTx.TxOut[0].Value),
 				Index:  0, // recB.MsgTx.TxIn index
 			},
 		},
@@ -355,7 +356,7 @@ func TestStoreQueries(t *testing.T) {
 	newState.blocks[0][1].Credits = []CreditRecord{
 		{
 			Index:  0,
-			Amount: dcrutil.Amount(recB.MsgTx.TxOut[0].Value),
+			Amount: exccutil.Amount(recB.MsgTx.TxOut[0].Value),
 			Spent:  false,
 			Change: false,
 		},
@@ -576,12 +577,12 @@ func TestPreviousPkScripts(t *testing.T) {
 				{PreviousOutPoint: wire.OutPoint{
 					Hash:  *prevHash,
 					Index: 0,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  exccutil.TxTreeRegular,
 				}},
 				{PreviousOutPoint: wire.OutPoint{
 					Hash:  *prevHash,
 					Index: 1,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  exccutil.TxTreeRegular,
 				}},
 			},
 			TxOut: []*wire.TxOut{

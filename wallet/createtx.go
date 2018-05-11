@@ -1,5 +1,6 @@
 // Copyright (c) 2013-2016 The btcsuite developers
 // Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -12,22 +13,22 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainec"
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/mempool"
-	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/wallet/internal/txsizes"
-	"github.com/decred/dcrwallet/wallet/txauthor"
-	"github.com/decred/dcrwallet/wallet/txrules"
-	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/blockchain"
+	"github.com/EXCCoin/exccd/blockchain/stake"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/chaincfg/chainec"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccjson"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/mempool"
+	"github.com/EXCCoin/exccd/txscript"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/wallet/internal/txsizes"
+	"github.com/EXCCoin/exccwallet/wallet/txauthor"
+	"github.com/EXCCoin/exccwallet/wallet/txrules"
+	"github.com/EXCCoin/exccwallet/wallet/udb"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 // --------------------------------------------------------------------------------
@@ -49,7 +50,7 @@ const (
 	// maxStandardTxSize is the maximum size allowed for transactions that
 	// are considered standard and will therefore be relayed and considered
 	// for mining.
-	// TODO: import from dcrd.
+	// TODO: import from exccd.
 	maxStandardTxSize = 100000
 
 	// sanityVerifyFlags are the flags used to enable and disable features of
@@ -131,7 +132,7 @@ const (
 // The changeSource parameter is optional and can be nil.  When nil, and if a
 // change output should be added, an internal change address is created for the
 // account.
-func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount, account uint32, minConf int32,
+func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb exccutil.Amount, account uint32, minConf int32,
 	algo OutputSelectionAlgorithm, changeSource txauthor.ChangeSource) (*txauthor.AuthoredTx, error) {
 
 	var authoredTx *txauthor.AuthoredTx
@@ -163,8 +164,8 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 		case OutputSelectionAlgorithmAll:
 			// Wrap the source with one that always fetches the max amount
 			// available and ignores any returned InputSourceErrors.
-			inputSource = func(dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error) {
-				total, inputs, prevScripts, err := sourceImpl.SelectInputs(dcrutil.MaxAmount)
+			inputSource = func(exccutil.Amount) (exccutil.Amount, []*wire.TxIn, [][]byte, error) {
+				total, inputs, prevScripts, err := sourceImpl.SelectInputs(exccutil.MaxAmount)
 				switch err.(type) {
 				case txauthor.InputSourceError:
 					err = nil
@@ -210,7 +211,7 @@ type secretSource struct {
 	doneFuncs []func()
 }
 
-func (s *secretSource) GetKey(addr dcrutil.Address) (chainec.PrivateKey, bool, error) {
+func (s *secretSource) GetKey(addr exccutil.Address) (chainec.PrivateKey, bool, error) {
 	privKey, done, err := s.Manager.PrivateKey(s.addrmgrNs, addr)
 	if err != nil {
 		return nil, false, err
@@ -219,7 +220,7 @@ func (s *secretSource) GetKey(addr dcrutil.Address) (chainec.PrivateKey, bool, e
 	return privKey, true, nil
 }
 
-func (s *secretSource) GetScript(addr dcrutil.Address) ([]byte, error) {
+func (s *secretSource) GetScript(addr exccutil.Address) ([]byte, error) {
 	script, done, err := s.Manager.RedeemScript(s.addrmgrNs, addr)
 	if err != nil {
 		return nil, err
@@ -232,9 +233,9 @@ func (s *secretSource) GetScript(addr dcrutil.Address) ([]byte, error) {
 // output (if one was added).
 type CreatedTx struct {
 	MsgTx       *wire.MsgTx
-	ChangeAddr  dcrutil.Address
+	ChangeAddr  exccutil.Address
 	ChangeIndex int // negative if no change
-	Fee         dcrutil.Amount
+	Fee         exccutil.Amount
 }
 
 // insertIntoTxMgr inserts a newly created transaction into the tx store
@@ -243,7 +244,7 @@ func (w *Wallet) insertIntoTxMgr(ns walletdb.ReadWriteBucket, msgTx *wire.MsgTx)
 	// Create transaction record and insert into the db.
 	rec, err := udb.NewTxRecordFromMsgTx(msgTx, time.Now())
 	if err != nil {
-		return nil, dcrjson.ErrInternal
+		return nil, exccjson.ErrInternal
 	}
 
 	return rec, w.TxStore.InsertMemPoolTx(ns, rec)
@@ -310,7 +311,7 @@ func (w *Wallet) insertMultisigOutIntoTxMgr(ns walletdb.ReadWriteBucket, msgTx *
 
 // checkHighFees performs a high fee check if enabled and possible, returning an
 // error if the transaction pays high fees.
-func (w *Wallet) checkHighFees(totalInput dcrutil.Amount, tx *wire.MsgTx) error {
+func (w *Wallet) checkHighFees(totalInput exccutil.Amount, tx *wire.MsgTx) error {
 	if w.AllowHighFees {
 		return nil
 	}
@@ -343,11 +344,11 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 // transaction.  The address pool passed must be locked and engaged in an
 // address pool batch call.
 //
-// Decred: This func also sends the transaction, and if successful, inserts it
+// ExchangeCoin: This func also sends the transaction, and if successful, inserts it
 // into the database, rather than delegating this work to the caller as
 // btcwallet does.
 func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minconf int32,
-	n NetworkBackend, randomizeChangeIdx bool, txFee dcrutil.Amount) (*txauthor.AuthoredTx, error) {
+	n NetworkBackend, randomizeChangeIdx bool, txFee exccutil.Amount) (*txauthor.AuthoredTx, error) {
 
 	var atx *txauthor.AuthoredTx
 	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
@@ -396,7 +397,7 @@ func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minc
 	// Warn when spending UTXOs controlled by imported keys created change for
 	// the default account.
 	if atx.ChangeIndex >= 0 && account == udb.ImportedAddrAccount {
-		changeAmount := dcrutil.Amount(atx.Tx.TxOut[atx.ChangeIndex].Value)
+		changeAmount := exccutil.Amount(atx.Tx.TxOut[atx.ChangeIndex].Value)
 		log.Warnf("Spend from imported account produced change: moving"+
 			" %v from imported account into default account.", changeAmount)
 	}
@@ -447,13 +448,13 @@ func (w *Wallet) txToOutputsInternal(outputs []*wire.TxOut, account uint32, minc
 
 // txToMultisig spends funds to a multisig output, partially signs the
 // transaction, then returns fund
-func (w *Wallet) txToMultisig(account uint32, amount dcrutil.Amount,
-	pubkeys []*dcrutil.AddressSecpPubKey, nRequired int8,
-	minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
+func (w *Wallet) txToMultisig(account uint32, amount exccutil.Amount,
+	pubkeys []*exccutil.AddressSecpPubKey, nRequired int8,
+	minconf int32) (*CreatedTx, exccutil.Address, []byte, error) {
 
 	var (
 		ctx      *CreatedTx
-		addr     dcrutil.Address
+		addr     exccutil.Address
 		msScript []byte
 	)
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
@@ -466,14 +467,14 @@ func (w *Wallet) txToMultisig(account uint32, amount dcrutil.Amount,
 }
 
 func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
-	amount dcrutil.Amount, pubkeys []*dcrutil.AddressSecpPubKey, nRequired int8,
-	minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
+	amount exccutil.Amount, pubkeys []*exccutil.AddressSecpPubKey, nRequired int8,
+	minconf int32) (*CreatedTx, exccutil.Address, []byte, error) {
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
 	txToMultisigError :=
-		func(err error) (*CreatedTx, dcrutil.Address, []byte, error) {
+		func(err error) (*CreatedTx, exccutil.Address, []byte, error) {
 			return nil, nil, nil, err
 		}
 
@@ -494,7 +495,7 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 
 	// Add in some extra for fees. TODO In the future, make a better
 	// fee estimator.
-	var feeEstForTx dcrutil.Amount
+	var feeEstForTx exccutil.Amount
 	switch {
 	case w.chainParams == &chaincfg.MainNetParams:
 		feeEstForTx = 5e7
@@ -521,7 +522,7 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	scriptSizers := []txsizes.ScriptSizer{}
 	// Fill out inputs.
 	var forSigning []udb.Credit
-	totalInput := dcrutil.Amount(0)
+	totalInput := exccutil.Amount(0)
 	for _, e := range eligible {
 		msgtx.AddTxIn(wire.NewTxIn(&e.OutPoint, nil))
 		totalInput += e.Amount
@@ -547,7 +548,7 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 	if err != nil {
 		return txToMultisigError(err)
 	}
-	scAddr, err := dcrutil.NewAddressScriptHash(msScript, w.chainParams)
+	scAddr, err := exccutil.NewAddressScriptHash(msScript, w.chainParams)
 	if err != nil {
 		return txToMultisigError(err)
 	}
@@ -593,11 +594,11 @@ func (w *Wallet) txToMultisigInternal(dbtx walletdb.ReadWriteTx, account uint32,
 		return txToMultisigError(err)
 	}
 
-	// Request updates from dcrd for new transactions sent to this
+	// Request updates from exccd for new transactions sent to this
 	// script hash address.
-	utilAddrs := make([]dcrutil.Address, 1)
+	utilAddrs := make([]exccutil.Address, 1)
 	utilAddrs[0] = scAddr
-	err = n.LoadTxFilter(context.TODO(), false, []dcrutil.Address{scAddr}, nil)
+	err = n.LoadTxFilter(context.TODO(), false, []exccutil.Address{scAddr}, nil)
 	if err != nil {
 		return txToMultisigError(err)
 	}
@@ -648,7 +649,7 @@ func validateMsgTxCredits(tx *wire.MsgTx, prevCredits []udb.Credit) error {
 
 // compressWallet compresses all the utxos in a wallet into a single change
 // address. For use when it becomes dusty.
-func (w *Wallet) compressWallet(maxNumIns int, account uint32, changeAddr dcrutil.Address) (*chainhash.Hash, error) {
+func (w *Wallet) compressWallet(maxNumIns int, account uint32, changeAddr exccutil.Address) (*chainhash.Hash, error) {
 	var hash *chainhash.Hash
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		var err error
@@ -659,7 +660,7 @@ func (w *Wallet) compressWallet(maxNumIns int, account uint32, changeAddr dcruti
 }
 
 func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int, account uint32,
-	changeAddr dcrutil.Address) (*chainhash.Hash, error) {
+	changeAddr exccutil.Address) (*chainhash.Hash, error) {
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
@@ -708,7 +709,7 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 	}
 
 	// Add the txins using all the eligible outputs.
-	totalAdded := dcrutil.Amount(0)
+	totalAdded := exccutil.Amount(0)
 	scriptSizers := []txsizes.ScriptSizer{}
 	count := 0
 	var forSigning []udb.Credit
@@ -772,8 +773,8 @@ func (w *Wallet) compressWalletInternal(dbtx walletdb.ReadWriteTx, maxNumIns int
 // create a ticket that pays a fee to a pool if a pool input and pool address are
 // passed.
 func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint,
-	input *extendedOutPoint, addrVote dcrutil.Address, addrSubsidy dcrutil.Address,
-	ticketCost int64, addrPool dcrutil.Address) (*wire.MsgTx, error) {
+	input *extendedOutPoint, addrVote exccutil.Address, addrSubsidy exccutil.Address,
+	ticketCost int64, addrPool exccutil.Address) (*wire.MsgTx, error) {
 	mtx := wire.NewMsgTx()
 
 	if addrPool != nil && inputPool != nil {
@@ -816,7 +817,7 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint,
 
 	// Zero value P2PKH addr.
 	zeroed := [20]byte{}
-	addrZeroed, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
+	addrZeroed, err := exccutil.NewAddressPubKeyHash(zeroed[:], params, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -826,7 +827,7 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint,
 	limits := uint16(defaultTicketFeeLimits)
 	if addrPool != nil {
 		pkScript, err = txscript.GenerateSStxAddrPush(addrPool,
-			dcrutil.Amount(amountsCommitted[0]), limits)
+			exccutil.Amount(amountsCommitted[0]), limits)
 		if err != nil {
 			return nil, fmt.Errorf("cannot create pool txout script: %s", err)
 		}
@@ -851,7 +852,7 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint,
 	// Apply limits to revocations for fees while not allowing
 	// fees for votes.
 	pkScript, err = txscript.GenerateSStxAddrPush(addrSubsidy,
-		dcrutil.Amount(amountsCommitted[userSubsidyNullIdx]), limits)
+		exccutil.Amount(amountsCommitted[userSubsidyNullIdx]), limits)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create user txout script: %s", err)
 	}
@@ -919,7 +920,7 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 	if w.addressReuse {
 		xpub := w.addressBuffers[udb.DefaultAccountNum].albExternal.branchXpub
 		addr, err := deriveChildAddress(xpub, 0, w.chainParams)
-		addrFunc = func(persistReturnedChildFunc, uint32) (dcrutil.Address, error) {
+		addrFunc = func(persistReturnedChildFunc, uint32) (exccutil.Address, error) {
 			return addr, err
 		}
 	}
@@ -966,7 +967,7 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 	// ticket required amounts depending on whether or not a
 	// pool output is needed. If the ticket fee increment is
 	// unset in the request, use the global ticket fee increment.
-	var neededPerTicket, ticketFee dcrutil.Amount
+	var neededPerTicket, ticketFee exccutil.Amount
 	ticketFeeIncrement := req.ticketFee
 	if ticketFeeIncrement == 0 {
 		ticketFeeIncrement = w.TicketFeeIncrement()
@@ -983,7 +984,7 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 
 	// If we need to calculate the amount for a pool fee percentage,
 	// do so now.
-	var poolFeeAmt dcrutil.Amount
+	var poolFeeAmt exccutil.Amount
 	if poolAddress != nil {
 		poolFeeAmt = txrules.StakePoolTicketFee(ticketPrice, ticketFee,
 			tipHeight, poolFees, w.ChainParams())
@@ -1003,7 +1004,7 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 			return nil, err
 		}
 
-		estimatedFundsUsed := neededPerTicket * dcrutil.Amount(req.numTickets)
+		estimatedFundsUsed := neededPerTicket * exccutil.Amount(req.numTickets)
 		if req.minBalance+estimatedFundsUsed > bal.Spendable {
 			notEnoughFundsStr := fmt.Sprintf("not enough funds; balance to "+
 				"maintain is %v and estimated cost is %v (resulting in %v "+
@@ -1139,7 +1140,7 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 		// request first, then check the ticket address
 		// stored from the configuation. Finally, generate
 		// an address.
-		var addrVote, addrSubsidy dcrutil.Address
+		var addrVote, addrSubsidy exccutil.Address
 		err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 			addrVote = req.ticketAddr
 			if addrVote == nil {
@@ -1170,7 +1171,7 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 			eopPoolCredit := udb.Credit{
 				OutPoint:     *eopPool.op,
 				BlockMeta:    udb.BlockMeta{},
-				Amount:       dcrutil.Amount(eopPool.amt),
+				Amount:       exccutil.Amount(eopPool.amt),
 				PkScript:     eopPool.pkScript,
 				Received:     time.Now(),
 				FromCoinBase: false,
@@ -1180,7 +1181,7 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 		eopCredit := udb.Credit{
 			OutPoint:     *eop.op,
 			BlockMeta:    udb.BlockMeta{},
-			Amount:       dcrutil.Amount(eop.amt),
+			Amount:       exccutil.Amount(eop.amt),
 			PkScript:     eop.pkScript,
 			Received:     time.Now(),
 			FromCoinBase: false,
@@ -1202,7 +1203,7 @@ func (w *Wallet) purchaseTickets(req purchaseTicketRequest) ([]*chainhash.Hash, 
 			return ticketHashes, err
 		}
 
-		err = w.checkHighFees(dcrutil.Amount(eop.amt), ticket)
+		err = w.checkHighFees(exccutil.Amount(eop.amt), ticket)
 		if err != nil {
 			return nil, err
 		}
@@ -1335,7 +1336,7 @@ func (w *Wallet) FindEligibleOutputs(account uint32, minconf int32, currentHeigh
 // findEligibleOutputsAmount uses wtxmgr to find a number of unspent
 // outputs while doing maturity checks there.
 func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32, minconf int32,
-	amount dcrutil.Amount, currentHeight int32) ([]udb.Credit, error) {
+	amount exccutil.Amount, currentHeight int32) ([]udb.Credit, error) {
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -1402,7 +1403,7 @@ func signMsgTx(msgtx *wire.MsgTx, prevOutputs []udb.Credit,
 		if len(addrs) != 1 {
 			continue
 		}
-		apkh, ok := addrs[0].(*dcrutil.AddressPubKeyHash)
+		apkh, ok := addrs[0].(*exccutil.AddressPubKeyHash)
 		if !ok {
 			return ErrUnsupportedTransactionType
 		}
@@ -1438,7 +1439,7 @@ func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurch
 
 	// Prepare functions to look up private key and script secrets so signing
 	// can be performed.
-	var getKey txscript.KeyClosure = func(addr dcrutil.Address) (chainec.PrivateKey, bool, error) {
+	var getKey txscript.KeyClosure = func(addr exccutil.Address) (chainec.PrivateKey, bool, error) {
 		address, err := w.Manager.Address(addrmgrNs, addr)
 		if err != nil {
 			return nil, false, err
@@ -1457,7 +1458,7 @@ func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurch
 
 		return key, pka.Compressed(), nil
 	}
-	var getScript txscript.ScriptClosure = func(addr dcrutil.Address) ([]byte, error) {
+	var getScript txscript.ScriptClosure = func(addr exccutil.Address) ([]byte, error) {
 		script, done, err := w.Manager.RedeemScript(addrmgrNs, addr)
 		if err != nil {
 			return nil, err
@@ -1578,7 +1579,7 @@ func createUnsignedVote(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx,
 // revokes a missed or expired ticket.  Revocations must carry a relay fee and
 // this function can error if the revocation contains no suitable output to
 // decrease the estimated relay fee from.
-func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx, feePerKB dcrutil.Amount) (*wire.MsgTx, error) {
+func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx, feePerKB exccutil.Amount) (*wire.MsgTx, error) {
 	// Parse the ticket purchase transaction to determine the required output
 	// destinations for vote rewards or revocations.
 	ticketPayKinds, ticketHash160s, ticketValues, _, _, _ :=
@@ -1622,8 +1623,8 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 	// code does not currently handle reducing the output values of multiple
 	// commitment outputs to accomodate for the fee.
 	for _, output := range revocation.TxOut {
-		if dcrutil.Amount(output.Value) > feeEstimate {
-			amount := dcrutil.Amount(output.Value) - feeEstimate
+		if exccutil.Amount(output.Value) > feeEstimate {
+			amount := exccutil.Amount(output.Value) - feeEstimate
 			if !txrules.IsDustAmount(amount, len(output.PkScript), feePerKB) {
 				output.Value = int64(amount)
 				return revocation, nil

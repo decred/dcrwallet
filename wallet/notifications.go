@@ -1,5 +1,6 @@
 // Copyright (c) 2015-2016 The btcsuite developers
 // Copyright (c) 2016 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -10,17 +11,17 @@ import (
 	"context"
 	"sync"
 
-	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/hdkeychain"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/blockchain"
+	"github.com/EXCCoin/exccd/blockchain/stake"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/hdkeychain"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	"github.com/EXCCoin/exccd/txscript"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/wallet/udb"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 // TODO: It would be good to send errors during notification creation to the rpc
@@ -85,7 +86,7 @@ func lookupInputAccount(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails,
 }
 
 func lookupOutputChain(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails,
-	cred udb.CreditRecord) (account uint32, internal bool, address dcrutil.Address,
+	cred udb.CreditRecord) (account uint32, internal bool, address exccutil.Address,
 	amount int64, outputScript []byte) {
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
@@ -119,13 +120,13 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 		}
 		serializedTx = buf.Bytes()
 	}
-	var fee dcrutil.Amount
+	var fee exccutil.Amount
 	if len(details.Debits) == len(details.MsgTx.TxIn) {
 		for _, deb := range details.Debits {
 			fee += deb.Amount
 		}
 		for _, txOut := range details.MsgTx.TxOut {
-			fee -= dcrutil.Amount(txOut.Value)
+			fee -= exccutil.Amount(txOut.Value)
 		}
 	}
 	var inputs []TransactionSummaryInput
@@ -151,7 +152,7 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 			Index:        uint32(i),
 			Account:      acct,
 			Internal:     internal,
-			Amount:       dcrutil.Amount(amount),
+			Amount:       exccutil.Amount(amount),
 			Address:      address,
 			OutputScript: outputScript,
 		}
@@ -177,7 +178,7 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 	}
 }
 
-func makeTicketSummary(chainClient *dcrrpcclient.Client, dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
+func makeTicketSummary(chainClient *exccrpcclient.Client, dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
 	var ticketStatus = TicketStatusLive
 
 	ticketTransactionDetails := makeTxSummary(dbtx, w, details.Ticket)
@@ -229,7 +230,7 @@ func makeTicketSummary(chainClient *dcrrpcclient.Client, dbtx walletdb.ReadTx, w
 	}
 }
 
-func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]dcrutil.Amount) error {
+func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]exccutil.Amount) error {
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	unspent, err := w.TxStore.UnspentOutputs(dbtx.ReadBucket(wtxmgrNamespaceKey))
 	if err != nil {
@@ -253,7 +254,7 @@ func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]dcrutil.Amount)
 	return nil
 }
 
-func flattenBalanceMap(m map[uint32]dcrutil.Amount) []AccountBalance {
+func flattenBalanceMap(m map[uint32]exccutil.Amount) []AccountBalance {
 	s := make([]AccountBalance, 0, len(m))
 	for k, v := range m {
 		s = append(s, AccountBalance{Account: k, TotalBalance: v})
@@ -261,7 +262,7 @@ func flattenBalanceMap(m map[uint32]dcrutil.Amount) []AccountBalance {
 	return s
 }
 
-func relevantAccounts(w *Wallet, m map[uint32]dcrutil.Amount, txs []TransactionSummary) {
+func relevantAccounts(w *Wallet, m map[uint32]exccutil.Amount, txs []TransactionSummary) {
 	for _, tx := range txs {
 		for _, d := range tx.MyInputs {
 			m[d.PreviousAccount] = 0
@@ -292,7 +293,7 @@ func (s *NotificationServer) notifyUnminedTransaction(dbtx walletdb.ReadTx, deta
 		log.Errorf("Cannot fetch unmined transaction hashes: %v", err)
 		return
 	}
-	bals := make(map[uint32]dcrutil.Amount)
+	bals := make(map[uint32]exccutil.Amount)
 	relevantAccounts(s.wallet, bals, unminedTxs)
 	err = totalBalances(dbtx, s.wallet, bals)
 	if err != nil {
@@ -362,7 +363,7 @@ func (s *NotificationServer) sendAttachedBlockNotification() {
 
 	var (
 		w             = s.wallet
-		bals          = make(map[uint32]dcrutil.Amount)
+		bals          = make(map[uint32]exccutil.Amount)
 		unminedHashes []*chainhash.Hash
 	)
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
@@ -464,7 +465,7 @@ type TransactionSummary struct {
 	Transaction []byte
 	MyInputs    []TransactionSummaryInput
 	MyOutputs   []TransactionSummaryOutput
-	Fee         dcrutil.Amount
+	Fee         exccutil.Amount
 	Timestamp   int64
 	Type        TransactionType
 }
@@ -517,7 +518,7 @@ func TxTransactionType(tx *wire.MsgTx) TransactionType {
 type TransactionSummaryInput struct {
 	Index           uint32
 	PreviousAccount uint32
-	PreviousAmount  dcrutil.Amount
+	PreviousAmount  exccutil.Amount
 }
 
 // TransactionSummaryOutput describes wallet properties of a transaction output
@@ -527,8 +528,8 @@ type TransactionSummaryOutput struct {
 	Index        uint32
 	Account      uint32
 	Internal     bool
-	Amount       dcrutil.Amount
-	Address      dcrutil.Address
+	Amount       exccutil.Amount
+	Address      exccutil.Address
 	OutputScript []byte
 }
 
@@ -538,7 +539,7 @@ type TransactionSummaryOutput struct {
 // so they are not included.
 type AccountBalance struct {
 	Account      uint32
-	TotalBalance dcrutil.Amount
+	TotalBalance exccutil.Amount
 }
 
 // TransactionNotificationsClient receives TransactionNotifications from the

@@ -3,8 +3,8 @@ package prompt
 import (
 	"bufio"
 
-	"github.com/decred/dcrwallet/internal/prompt"
-	"github.com/decred/dcrwallet/wallet"
+	"github.com/EXCCoin/exccwallet/internal/prompt"
+	"github.com/EXCCoin/exccwallet/wallet"
 )
 
 // Setup prompts for, from a buffered reader, the private and/or public

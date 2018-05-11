@@ -1,4 +1,5 @@
 // Copyright (c) 2016 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -8,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrwallet/wallet"
+	"github.com/EXCCoin/exccwallet/wallet"
 )
 
 // PurchaseManager is the main handler of websocket notifications to

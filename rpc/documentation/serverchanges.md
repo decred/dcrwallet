@@ -1,6 +1,6 @@
 # Making API Changes
 
-This document describes the process of how dcrwallet developers must make
+This document describes the process of how exccwallet developers must make
 changes to the RPC API and server.  Due to the use of gRPC and Protocol Buffers
 for the RPC implementation, changes to this API require extra dependencies and
 steps before changes to the server can be implemented.
@@ -18,7 +18,7 @@ steps before changes to the server can be implemented.
 - The gRPC `protoc` plugin for Go
 
   This plugin is written in Go.  It is important to install the plugin from the
-  dcrwallet `vendor` repo to avoid incompatibilities between generated code and
+  exccwallet `vendor` repo to avoid incompatibilities between generated code and
   the vendored copy of gRPC:
 
   ```

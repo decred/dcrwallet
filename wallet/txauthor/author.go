@@ -1,5 +1,6 @@
 // Copyright (c) 2016 The btcsuite developers
 // Copyright (c) 2016 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -9,15 +10,15 @@ package txauthor
 import (
 	"errors"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainec"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/wallet/txrules"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/chaincfg/chainec"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/txscript"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/wallet/txrules"
 
-	h "github.com/decred/dcrwallet/internal/helpers"
-	"github.com/decred/dcrwallet/wallet/internal/txsizes"
+	h "github.com/EXCCoin/exccwallet/internal/helpers"
+	"github.com/EXCCoin/exccwallet/wallet/internal/txsizes"
 )
 
 const (
@@ -35,7 +36,7 @@ const (
 // can not be satisified, this can be signaled by returning a total amount less
 // than the target or by returning a more detailed error implementing
 // InputSourceError.
-type InputSource func(target dcrutil.Amount) (total dcrutil.Amount,
+type InputSource func(target exccutil.Amount) (total exccutil.Amount,
 	inputs []*wire.TxIn, scripts [][]byte, err error)
 
 // InputSourceError describes the failure to provide enough input value from
@@ -65,7 +66,7 @@ func (InsufficientFundsError) Error() string {
 type AuthoredTx struct {
 	Tx                           *wire.MsgTx
 	PrevScripts                  [][]byte
-	TotalInput                   dcrutil.Amount
+	TotalInput                   exccutil.Amount
 	ChangeIndex                  int // negative if no change
 	EstimatedSignedSerializeSize int
 }
@@ -94,7 +95,7 @@ type ChangeSource func() ([]byte, uint16, error)
 // InputSourceError is returned.
 //
 // BUGS: Fee estimation may be off when redeeming non-compressed P2PKH outputs.
-func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
+func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb exccutil.Amount,
 	fetchInputs InputSource, fetchChange ChangeSource) (*AuthoredTx, error) {
 
 	targetAmount := h.SumOutputValues(outputs)

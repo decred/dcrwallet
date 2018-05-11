@@ -1,4 +1,5 @@
 // Copyright (c) 2015-2017 The btcsuite developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -10,13 +11,13 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrutil"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrwallet/ticketbuyer"
-	"github.com/decred/dcrwallet/wallet"
-	"github.com/decred/dcrwallet/walletdb"
-	_ "github.com/decred/dcrwallet/walletdb/bdb" // driver loaded during init
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/exccutil"
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	"github.com/EXCCoin/exccwallet/ticketbuyer"
+	"github.com/EXCCoin/exccwallet/wallet"
+	"github.com/EXCCoin/exccwallet/walletdb"
+	_ "github.com/EXCCoin/exccwallet/walletdb/bdb" // driver loaded during init
 )
 
 const (
@@ -32,7 +33,7 @@ const (
 // Loader is safe for concurrent access.
 type Loader struct {
 	callbacks   []func(*wallet.Wallet)
-	chainClient *dcrrpcclient.Client
+	chainClient *exccrpcclient.Client
 	chainParams *chaincfg.Params
 	dbDirPath   string
 	wallet      *wallet.Wallet
@@ -52,8 +53,8 @@ type StakeOptions struct {
 	VotingEnabled       bool
 	TicketFee           float64
 	AddressReuse        bool
-	VotingAddress       dcrutil.Address
-	PoolAddress         dcrutil.Address
+	VotingAddress       exccutil.Address
+	PoolAddress         exccutil.Address
 	PoolFees            float64
 	StakePoolColdExtKey string
 }
@@ -374,7 +375,7 @@ func (l *Loader) UnloadWallet() error {
 }
 
 // SetChainClient sets the chain server client.
-func (l *Loader) SetChainClient(chainClient *dcrrpcclient.Client) {
+func (l *Loader) SetChainClient(chainClient *exccrpcclient.Client) {
 	l.mu.Lock()
 	l.chainClient = chainClient
 	l.mu.Unlock()

@@ -1,4 +1,5 @@
 // Copyright (c) 2016 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -8,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/EXCCoin/exccd/exccutil"
 )
 
 var (
@@ -53,23 +54,23 @@ func containsVWAPHeightOffsetError(err error) bool {
 
 // calcAverageTicketPrice calculates the average price of a ticket based on
 // the parameters set by the user.
-func (t *TicketPurchaser) calcAverageTicketPrice(height int64) (dcrutil.Amount, error) {
+func (t *TicketPurchaser) calcAverageTicketPrice(height int64) (exccutil.Amount, error) {
 	// Pull and store relevant data about the blockchain. Calculate a
 	// "reasonable" ticket price by using the VWAP for the last delta many
 	// blocks or the average price of all tickets in the ticket pool.
 	// If the user has selected dual mode, it will use an average of
 	// these two prices.
-	var avgPricePoolAmt dcrutil.Amount
+	var avgPricePoolAmt exccutil.Amount
 	if t.priceMode == AvgPricePoolMode || t.priceMode == AvgPriceDualMode {
-		poolValue, err := t.dcrdChainSvr.GetTicketPoolValue()
+		poolValue, err := t.exccdChainSvr.GetTicketPoolValue()
 		if err != nil {
 			return 0, err
 		}
-		bestBlockH, err := t.dcrdChainSvr.GetBestBlockHash()
+		bestBlockH, err := t.exccdChainSvr.GetBestBlockHash()
 		if err != nil {
 			return 0, err
 		}
-		blkHeader, err := t.dcrdChainSvr.GetBlockHeader(bestBlockH)
+		blkHeader, err := t.exccdChainSvr.GetBlockHeader(bestBlockH)
 		if err != nil {
 			return 0, err
 		}
@@ -81,14 +82,14 @@ func (t *TicketPurchaser) calcAverageTicketPrice(height int64) (dcrutil.Amount, 
 			poolSize++
 		}
 
-		avgPricePoolAmt = poolValue / dcrutil.Amount(poolSize)
+		avgPricePoolAmt = poolValue / exccutil.Amount(poolSize)
 
 		if t.priceMode == AvgPricePoolMode {
 			return avgPricePoolAmt, err
 		}
 	}
 
-	var ticketVWAP dcrutil.Amount
+	var ticketVWAP exccutil.Amount
 	if t.priceMode == AvgPriceVWAPMode || t.priceMode == AvgPriceDualMode {
 		// Don't let the starting height be <0, which in the case of
 		// uint32 ends up a really big number.
@@ -102,7 +103,7 @@ func (t *TicketPurchaser) calcAverageTicketPrice(height int64) (dcrutil.Amount, 
 		// if the chain gives us an issue.
 		var err error
 		for i := 0; i < vwapReqTries; i++ {
-			ticketVWAP, err = t.dcrdChainSvr.TicketVWAP(&startVWAPHeight,
+			ticketVWAP, err = t.exccdChainSvr.TicketVWAP(&startVWAPHeight,
 				&endVWAPHeight)
 			if err != nil && containsVWAPHeightOffsetError(err) {
 				log.Tracef("Failed to fetch ticket VWAP "+

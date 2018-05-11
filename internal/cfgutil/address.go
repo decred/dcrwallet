@@ -1,20 +1,21 @@
 // Copyright (c) 2015-2016 The btcsuite developers
 // Copyright (c) 2016 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package cfgutil
 
-import "github.com/decred/dcrd/dcrutil"
+import "github.com/EXCCoin/exccd/exccutil"
 
-// AddressFlag embeds a dcrutil.Address and implements the flags.Marshaler and
+// AddressFlag embeds a exccutil.Address and implements the flags.Marshaler and
 // Unmarshaler interfaces so it can be used as a config struct field.
 type AddressFlag struct {
-	dcrutil.Address
+	exccutil.Address
 }
 
-// NewAddressFlag creates an AddressFlag with a default dcrutil.Address.
-func NewAddressFlag(defaultValue dcrutil.Address) *AddressFlag {
+// NewAddressFlag creates an AddressFlag with a default exccutil.Address.
+func NewAddressFlag(defaultValue exccutil.Address) *AddressFlag {
 	return &AddressFlag{defaultValue}
 }
 
@@ -33,7 +34,7 @@ func (a *AddressFlag) UnmarshalFlag(addr string) error {
 		a.Address = nil
 		return nil
 	}
-	address, err := dcrutil.DecodeAddress(addr)
+	address, err := exccutil.DecodeAddress(addr)
 	if err != nil {
 		return err
 	}

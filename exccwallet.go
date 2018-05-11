@@ -1,5 +1,6 @@
 // Copyright (c) 2013-2015 The btcsuite developers
 // Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -17,16 +18,16 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/chain"
-	"github.com/decred/dcrwallet/internal/prompt"
-	"github.com/decred/dcrwallet/internal/zero"
-	ldr "github.com/decred/dcrwallet/loader"
-	"github.com/decred/dcrwallet/rpc/legacyrpc"
-	"github.com/decred/dcrwallet/rpc/rpcserver"
-	"github.com/decred/dcrwallet/version"
-	"github.com/decred/dcrwallet/wallet"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/chain"
+	"github.com/EXCCoin/exccwallet/internal/prompt"
+	"github.com/EXCCoin/exccwallet/internal/zero"
+	ldr "github.com/EXCCoin/exccwallet/loader"
+	"github.com/EXCCoin/exccwallet/rpc/legacyrpc"
+	"github.com/EXCCoin/exccwallet/rpc/rpcserver"
+	"github.com/EXCCoin/exccwallet/version"
+	"github.com/EXCCoin/exccwallet/wallet"
 )
 
 var (
@@ -260,7 +261,7 @@ func run(ctx context.Context) error {
 	defer loader.StopTicketPurchase()
 
 	// When not running with --noinitialload, it is the main package's
-	// responsibility to connect the loaded wallet to the dcrd RPC server for
+	// responsibility to connect the loaded wallet to the exccd RPC server for
 	// wallet synchronization.  This function blocks until cancelled.
 	if !cfg.NoInitialLoad {
 		if done(ctx) {
@@ -439,14 +440,14 @@ func readCAFile() []byte {
 	return certs
 }
 
-// startChainRPC opens a RPC client connection to a dcrd server for blockchain
+// startChainRPC opens a RPC client connection to a exccd server for blockchain
 // services.  This function uses the RPC options from the global config and
 // there is no recovery in case the server is not available or if there is an
 // authentication error.  Instead, all requests to the client will simply error.
 func startChainRPC(ctx context.Context, certs []byte) (*chain.RPCClient, error) {
 	log.Infof("Attempting RPC client connection to %v", cfg.RPCConnect)
 	rpcc, err := chain.NewRPCClient(activeNet.Params, cfg.RPCConnect,
-		cfg.DcrdUsername, cfg.DcrdPassword, certs, cfg.DisableClientTLS)
+		cfg.ExccdUsername, cfg.ExccdPassword, certs, cfg.DisableClientTLS)
 	if err != nil {
 		return nil, err
 	}

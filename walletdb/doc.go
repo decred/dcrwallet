@@ -1,10 +1,11 @@
 // Copyright (c) 2014 The btcsuite developers
 // Copyright (c) 2015 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 /*
-Package walletdb provides a namespaced database interface for dcrwallet.
+Package walletdb provides a namespaced database interface for exccwallet.
 
 Overview
 

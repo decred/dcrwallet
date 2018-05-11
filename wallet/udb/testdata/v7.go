@@ -1,4 +1,5 @@
 // Copyright (c) 2017 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -16,18 +17,18 @@ import (
 	"os"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainec"
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrec/secp256k1"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
-	_ "github.com/decred/dcrwallet/walletdb/bdb"
-	"github.com/decred/dcrwallet/walletseed"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/chaincfg/chainec"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccec/secp256k1"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/hdkeychain"
+	"github.com/EXCCoin/exccd/txscript"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/wallet/udb"
+	"github.com/EXCCoin/exccwallet/walletdb"
+	_ "github.com/EXCCoin/exccwallet/walletdb/bdb"
+	"github.com/EXCCoin/exccwallet/walletseed"
 )
 
 const dbname = "v7.db"
@@ -83,7 +84,7 @@ func setup() error {
 		}
 
 		privKey, _ := secp256k1.PrivKeyFromBytes(privKey)
-		wif, err := dcrutil.NewWIF(privKey, chainParams, chainec.ECTypeSecp256k1)
+		wif, err := exccutil.NewWIF(privKey, chainParams, chainec.ECTypeSecp256k1)
 		if err != nil {
 			return err
 		}
@@ -132,7 +133,7 @@ func setup() error {
 			if err != nil {
 				return fmt.Errorf("failed to create pkscript: %s", err)
 			}
-			msgTx.AddTxOut(wire.NewTxOut(int64(dcrutil.Amount(1*count)), pkScript))
+			msgTx.AddTxOut(wire.NewTxOut(int64(exccutil.Amount(1*count)), pkScript))
 			rec, err := udb.NewTxRecordFromMsgTx(msgTx, epoch)
 			if err != nil {
 				return err
@@ -149,7 +150,7 @@ func setup() error {
 
 		// Add 3 unmined credits with expiries set
 		for count := 1; count < 4; count++ {
-			faucetAddr, err := dcrutil.DecodeAddress("TsWjioPrP8E1TuTMmTrVMM2BA4iPrjQXBpR")
+			faucetAddr, err := exccutil.DecodeAddress("TsWjioPrP8E1TuTMmTrVMM2BA4iPrjQXBpR")
 			if err != nil {
 				return fmt.Errorf("failed to decode address: %s", err)
 			}
@@ -159,7 +160,7 @@ func setup() error {
 			if err != nil {
 				return fmt.Errorf("failed to create pkscript: %s", err)
 			}
-			msgTx.AddTxOut(wire.NewTxOut(int64(dcrutil.Amount(1*count)), pkScript))
+			msgTx.AddTxOut(wire.NewTxOut(int64(exccutil.Amount(1*count)), pkScript))
 			rec, err := udb.NewTxRecordFromMsgTx(msgTx, epoch)
 			if err != nil {
 				return err
@@ -177,7 +178,7 @@ func setup() error {
 			if err != nil {
 				return fmt.Errorf("failed to create pkscript: %s", err)
 			}
-			msgTx.AddTxOut(wire.NewTxOut(int64(dcrutil.Amount(1*count)), pkScript))
+			msgTx.AddTxOut(wire.NewTxOut(int64(exccutil.Amount(1*count)), pkScript))
 			msgTx.Expiry = wire.NoExpiryValue
 			rec, err := udb.NewTxRecordFromMsgTx(msgTx, epoch)
 			if err != nil {

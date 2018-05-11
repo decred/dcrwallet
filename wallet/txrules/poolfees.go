@@ -1,4 +1,5 @@
 // Copyright (c) 2016 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -10,9 +11,9 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/EXCCoin/exccd/blockchain"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/exccutil"
 )
 
 // maxPoolFeeRate is the maximum value of the pool fee
@@ -41,8 +42,8 @@ var initSubsidyCacheOnce sync.Once
 //
 // See the included doc.go of this package for more information about the
 // calculation of this fee.
-func StakePoolTicketFee(stakeDiff dcrutil.Amount, relayFee dcrutil.Amount,
-	height int32, poolFee float64, params *chaincfg.Params) dcrutil.Amount {
+func StakePoolTicketFee(stakeDiff exccutil.Amount, relayFee exccutil.Amount,
+	height int32, poolFee float64, params *chaincfg.Params) exccutil.Amount {
 	// Shift the decimal two places, e.g. 1.00%
 	// to 100. This assumes that the proportion
 	// is already multiplied by 100 to give a
@@ -92,5 +93,5 @@ func StakePoolTicketFee(stakeDiff dcrutil.Amount, relayFee dcrutil.Amount,
 	num.Div(num, den)
 	num.Rsh(num, shift)
 
-	return dcrutil.Amount(num.Int64())
+	return exccutil.Amount(num.Int64())
 }

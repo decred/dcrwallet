@@ -1,4 +1,5 @@
 // Copyright (c) 2017 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -15,11 +16,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/walletdb"
-	_ "github.com/decred/dcrwallet/walletdb/bdb"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/wire"
+	"github.com/EXCCoin/exccwallet/walletdb"
+	_ "github.com/EXCCoin/exccwallet/walletdb/bdb"
 )
 
 var dbUpgradeTests = [...]struct {
@@ -41,7 +42,7 @@ var pubPass = []byte("public")
 func TestUpgrades(t *testing.T) {
 	t.Parallel()
 
-	d, err := ioutil.TempDir("", "dcrwallet_udb_TestUpgrades")
+	d, err := ioutil.TempDir("", "exccwallet_udb_TestUpgrades")
 	if err != nil {
 		t.Fatal(err)
 	}

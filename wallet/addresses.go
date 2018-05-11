@@ -1,4 +1,5 @@
 // Copyright (c) 2017 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -7,14 +8,14 @@ package wallet
 import (
 	"context"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/wallet/txauthor"
-	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/hdkeychain"
+	"github.com/EXCCoin/exccd/txscript"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/wallet/txauthor"
+	"github.com/EXCCoin/exccwallet/wallet/udb"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 // DefaultGapLimit is the default unused address gap limit defined by BIP0044.
@@ -154,7 +155,7 @@ func (w *Wallet) deferPersistReturnedChild(updates *[]func(walletdb.ReadWriteTx)
 
 // nextAddress returns the next address of an account branch.
 func (w *Wallet) nextAddress(persist persistReturnedChildFunc, account, branch uint32,
-	callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
+	callOpts ...NextAddressCallOption) (exccutil.Address, error) {
 
 	var opts nextAddressCallOptions // TODO: zero values for now, add to wallet config later.
 	for _, c := range callOpts {
@@ -358,7 +359,7 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 			errs <- nil
 			continue
 		}
-		addrs := make([]dcrutil.Address, 0, totalAddrs)
+		addrs := make([]exccutil.Address, 0, totalAddrs)
 		err := appendChildAddrsRange(&addrs, xpubBranchExt, startExt, endExt,
 			w.chainParams)
 		if err != nil {
@@ -396,16 +397,16 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 }
 
 // NewExternalAddress returns an external address.
-func (w *Wallet) NewExternalAddress(account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
+func (w *Wallet) NewExternalAddress(account uint32, callOpts ...NextAddressCallOption) (exccutil.Address, error) {
 	return w.nextAddress(w.persistReturnedChild(nil), account, udb.ExternalBranch, callOpts...)
 }
 
 // NewInternalAddress returns an internal address.
-func (w *Wallet) NewInternalAddress(account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
+func (w *Wallet) NewInternalAddress(account uint32, callOpts ...NextAddressCallOption) (exccutil.Address, error) {
 	return w.nextAddress(w.persistReturnedChild(nil), account, udb.InternalBranch, callOpts...)
 }
 
-func (w *Wallet) newChangeAddress(persist persistReturnedChildFunc, account uint32) (dcrutil.Address, error) {
+func (w *Wallet) newChangeAddress(persist persistReturnedChildFunc, account uint32) (exccutil.Address, error) {
 	// Addresses can not be generated for the imported account, so as a
 	// workaround, change is sent to the first account.
 	//
@@ -420,7 +421,7 @@ func (w *Wallet) newChangeAddress(persist persistReturnedChildFunc, account uint
 // NewInternalAddress but handles the imported account (which can't create
 // addresses) by using account 0 instead, and always uses the wrapping gap limit
 // policy.
-func (w *Wallet) NewChangeAddress(account uint32) (dcrutil.Address, error) {
+func (w *Wallet) NewChangeAddress(account uint32) (exccutil.Address, error) {
 	return w.newChangeAddress(w.persistReturnedChild(nil), account)
 }
 
@@ -505,7 +506,7 @@ func (w *Wallet) ExtendWatchedAddresses(account, branch, child uint32) error {
 
 // AccountBranchAddressRange returns all addresses in the range [start, end)
 // belonging to the BIP0044 account and address branch.
-func (w *Wallet) AccountBranchAddressRange(account, branch, start, end uint32) ([]dcrutil.Address, error) {
+func (w *Wallet) AccountBranchAddressRange(account, branch, start, end uint32) ([]exccutil.Address, error) {
 	if end < start {
 		const str = "end index must not be less than start index"
 		return nil, apperrors.E{ErrorCode: apperrors.ErrInput, Description: str, Err: nil}
@@ -544,8 +545,8 @@ func (w *Wallet) changeSource(persist persistReturnedChildFunc, account uint32) 
 	}
 }
 
-func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32, params *chaincfg.Params) ([]dcrutil.Address, error) {
-	addresses := make([]dcrutil.Address, 0, count)
+func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32, params *chaincfg.Params) ([]exccutil.Address, error) {
+	addresses := make([]exccutil.Address, 0, count)
 	for i := uint32(0); i < count; i++ {
 		child, err := key.Child(startIndex + i)
 		if err == hdkeychain.ErrInvalidChild {
@@ -563,7 +564,7 @@ func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32,
 	return addresses, nil
 }
 
-func deriveChildAddress(key *hdkeychain.ExtendedKey, child uint32, params *chaincfg.Params) (dcrutil.Address, error) {
+func deriveChildAddress(key *hdkeychain.ExtendedKey, child uint32, params *chaincfg.Params) (exccutil.Address, error) {
 	childKey, err := key.Child(child)
 	if err != nil {
 		return nil, err
@@ -583,7 +584,7 @@ func deriveBranches(acctXpub *hdkeychain.ExtendedKey) (extKey, intKey *hdkeychai
 // appendChildAddrsRange appends non-hardened child addresses from the range
 // [a,b) to the addrs slice.  If a child is unusable, it is skipped, so the
 // total number of addresses appended may not be exactly b-a.
-func appendChildAddrsRange(addrs *[]dcrutil.Address, key *hdkeychain.ExtendedKey,
+func appendChildAddrsRange(addrs *[]exccutil.Address, key *hdkeychain.ExtendedKey,
 	a, b uint32, params *chaincfg.Params) error {
 
 	for ; a < b && a < hdkeychain.HardenedKeyStart; a++ {

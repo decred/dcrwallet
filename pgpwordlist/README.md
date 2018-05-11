@@ -6,5 +6,5 @@ readable hash or seed as well as functions for working with it.
 
 ## Installation and updating
 ```bash
-$ go get -u github.com/decred/dcrwallet/pgpwordlist
+$ go get -u github.com/EXCCoin/exccwallet/pgpwordlist
 ```

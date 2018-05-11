@@ -1,5 +1,6 @@
 // Copyright (c) 2013-2015 The btcsuite developers
 // Copyright (c) 2017 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -20,12 +21,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/exccjson"
+	"github.com/EXCCoin/exccwallet/chain"
+	"github.com/EXCCoin/exccwallet/loader"
+	"github.com/EXCCoin/exccwallet/ticketbuyer"
 	"github.com/btcsuite/websocket"
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrwallet/chain"
-	"github.com/decred/dcrwallet/loader"
-	"github.com/decred/dcrwallet/ticketbuyer"
 )
 
 type websocketClient struct {
@@ -239,7 +240,7 @@ func (s *Server) Stop() {
 }
 
 // SetChainServer sets the chain server client component needed to run a fully
-// functional decred wallet RPC server.  This can be called to enable RPC
+// functional ExchangeCoin wallet RPC server.  This can be called to enable RPC
 // passthrough even before a loaded wallet is set, but the wallet's RPC client
 // is preferred.
 func (s *Server) SetChainServer(chainClient *chain.RPCClient) {
@@ -249,7 +250,7 @@ func (s *Server) SetChainServer(chainClient *chain.RPCClient) {
 }
 
 // requireChainClient gets the chain server client component needed to run a
-// fully functional decred wallet RPC server.
+// fully functional ExchangeCoin wallet RPC server.
 func (s *Server) requireChainClient() (*chain.RPCClient, bool) {
 	s.handlerMu.Lock()
 	chainClient := s.chainClient
@@ -258,13 +259,13 @@ func (s *Server) requireChainClient() (*chain.RPCClient, bool) {
 }
 
 // handlerClosure creates a closure function for handling requests of the given
-// method.  This may be a request that is handled directly by dcrwallet, or
-// a chain server request that is handled by passing the request down to dcrd.
+// method.  This may be a request that is handled directly by exccwallet, or
+// a chain server request that is handled by passing the request down to exccd.
 //
 // NOTE: These handlers do not handle special cases, such as the authenticate
 // method.  Each of these must be checked beforehand (the method is already
 // known) and handled accordingly.
-func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) lazyHandler {
+func (s *Server) handlerClosure(ctx context.Context, request *exccjson.Request) lazyHandler {
 	log.Infof("RPC method %v invoked by client %v", request.Method, remoteAddr(ctx))
 	return lazyApplyHandler(s, request)
 }
@@ -320,7 +321,7 @@ func throttled(threshold int64, h http.Handler) http.Handler {
 
 // idPointer returns a pointer to the passed ID, or nil if the interface is nil.
 // Interface pointers are usually a red flag of doing something incorrectly,
-// but this is only implemented here to work around an oddity with dcrjson,
+// but this is only implemented here to work around an oddity with exccjson,
 // which uses empty interface pointers for response IDs.
 func idPointer(id interface{}) (p *interface{}) {
 	if id != nil {
@@ -332,12 +333,12 @@ func idPointer(id interface{}) (p *interface{}) {
 // invalidAuth checks whether a websocket request is a valid (parsable)
 // authenticate request and checks the supplied username and passphrase
 // against the server auth.
-func (s *Server) invalidAuth(req *dcrjson.Request) bool {
-	cmd, err := dcrjson.UnmarshalCmd(req)
+func (s *Server) invalidAuth(req *exccjson.Request) bool {
+	cmd, err := exccjson.UnmarshalCmd(req)
 	if err != nil {
 		return false
 	}
-	authCmd, ok := cmd.(*dcrjson.AuthenticateCmd)
+	authCmd, ok := cmd.(*exccjson.AuthenticateCmd)
 	if !ok {
 		return false
 	}
@@ -378,7 +379,7 @@ out:
 				break out
 			}
 
-			var req dcrjson.Request
+			var req exccjson.Request
 			err := json.Unmarshal(reqBytes, &req)
 			if err != nil {
 				log.Warnf("Failed unmarshal of JSON-RPC request object "+
@@ -388,7 +389,7 @@ out:
 					break out
 				}
 				resp := makeResponse(req.ID, nil,
-					dcrjson.ErrRPCInvalidRequest)
+					exccjson.ErrRPCInvalidRequest)
 				mresp, err := json.Marshal(resp)
 				// We expect the marshal to succeed.  If it
 				// doesn't, it indicates some non-marshalable
@@ -440,7 +441,7 @@ out:
 				log.Infof("RPC method stop invoked by client %s",
 					remoteAddr(ctx))
 				resp := makeResponse(req.ID,
-					"dcrwallet stopping.", nil)
+					"exccwallet stopping.", nil)
 				mresp, err := json.Marshal(resp)
 				// Expected to never fail.
 				if err != nil {
@@ -459,7 +460,7 @@ out:
 				wsc.wg.Add(1)
 				go func() {
 					resp, jsonErr := f()
-					mresp, err := dcrjson.MarshalResponse(req.Jsonrpc, req.ID, resp, jsonErr)
+					mresp, err := exccjson.MarshalResponse(req.Jsonrpc, req.ID, resp, jsonErr)
 					if err != nil {
 						log.Errorf("Unable to marshal response to client %s: %v",
 							remoteAddr(ctx), err)
@@ -559,10 +560,10 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 	// If unfound, the request is sent to the chain server for further
 	// processing.  While checking the methods, disallow authenticate
 	// requests, as they are invalid for HTTP POST clients.
-	var req dcrjson.Request
+	var req exccjson.Request
 	err = json.Unmarshal(rpcRequest, &req)
 	if err != nil {
-		resp, err := dcrjson.MarshalResponse(req.Jsonrpc, req.ID, nil, dcrjson.ErrRPCInvalidRequest)
+		resp, err := exccjson.MarshalResponse(req.Jsonrpc, req.ID, nil, exccjson.ErrRPCInvalidRequest)
 		if err != nil {
 			log.Errorf("Unable to marshal response to client %s: %v",
 				r.RemoteAddr, err)
@@ -581,7 +582,7 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 	// Create the response and error from the request.  Two special cases
 	// are handled for the authenticate and stop request methods.
 	var res interface{}
-	var jsonErr *dcrjson.RPCError
+	var jsonErr *exccjson.RPCError
 	var stop bool
 	switch req.Method {
 	case "authenticate":
@@ -592,13 +593,13 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 	case "stop":
 		log.Infof("RPC method stop invoked by client %s", r.RemoteAddr)
 		stop = true
-		res = "dcrwallet stopping"
+		res = "exccwallet stopping"
 	default:
 		res, jsonErr = s.handlerClosure(ctx, &req)()
 	}
 
 	// Marshal and send.
-	mresp, err := dcrjson.MarshalResponse(req.Jsonrpc, req.ID, res, jsonErr)
+	mresp, err := exccjson.MarshalResponse(req.Jsonrpc, req.ID, res, jsonErr)
 	if err != nil {
 		log.Errorf("Unable to marshal response to client %s: %v",
 			r.RemoteAddr, err)

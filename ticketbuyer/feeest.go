@@ -1,4 +1,5 @@
 // Copyright (c) 2016 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -8,7 +9,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/EXCCoin/exccd/exccutil"
 )
 
 const (
@@ -21,9 +22,9 @@ const (
 // diffPeriodFee defines some statistics about a difficulty fee period
 // compared to the current difficulty period.
 type diffPeriodFee struct {
-	difficulty dcrutil.Amount
-	difference dcrutil.Amount // Difference from current difficulty
-	fee        dcrutil.Amount
+	difficulty exccutil.Amount
+	difference exccutil.Amount // Difference from current difficulty
+	fee        exccutil.Amount
 }
 
 // diffPeriodFees is slice type definition used to satisfy the sorting
@@ -40,10 +41,10 @@ func (p diffPeriodFees) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 // from recent blocks to figure out what to set the user's ticket fees to.
 // Instead, it uses data from the last windowsToConsider many windows and
 // takes an average fee from the closest one.
-func (t *TicketPurchaser) findClosestFeeWindows(difficulty dcrutil.Amount,
-	useMedian bool) (dcrutil.Amount, error) {
+func (t *TicketPurchaser) findClosestFeeWindows(difficulty exccutil.Amount,
+	useMedian bool) (exccutil.Amount, error) {
 	wtcUint32 := uint32(windowsToConsider)
-	info, err := t.dcrdChainSvr.TicketFeeInfo(&zeroUint32, &wtcUint32)
+	info, err := t.exccdChainSvr.TicketFeeInfo(&zeroUint32, &wtcUint32)
 	if err != nil {
 		return 0.0, err
 	}
@@ -66,22 +67,22 @@ func (t *TicketPurchaser) findClosestFeeWindows(difficulty dcrutil.Amount,
 		}
 
 		startHeight := int64(info.FeeInfoWindows[i].StartHeight)
-		blH, err := t.dcrdChainSvr.GetBlockHash(startHeight)
+		blH, err := t.exccdChainSvr.GetBlockHash(startHeight)
 		if err != nil {
 			return 0, err
 		}
-		blkHeader, err := t.dcrdChainSvr.GetBlockHeader(blH)
+		blkHeader, err := t.exccdChainSvr.GetBlockHeader(blH)
 		if err != nil {
 			return 0, err
 		}
 
-		windowDiffAmt := dcrutil.Amount(blkHeader.SBits)
+		windowDiffAmt := exccutil.Amount(blkHeader.SBits)
 
-		var fee dcrutil.Amount
+		var fee exccutil.Amount
 		if !useMedian {
-			fee, err = dcrutil.NewAmount(info.FeeInfoWindows[i].Mean)
+			fee, err = exccutil.NewAmount(info.FeeInfoWindows[i].Mean)
 		} else {
-			fee, err = dcrutil.NewAmount(info.FeeInfoWindows[i].Median)
+			fee, err = exccutil.NewAmount(info.FeeInfoWindows[i].Median)
 		}
 		if err != nil {
 			return 0, err
@@ -119,19 +120,19 @@ func (t *TicketPurchaser) findClosestFeeWindows(difficulty dcrutil.Amount,
 
 // findMeanTicketFeeBlocks finds the mean of the mean of fees from BlocksToAvg
 // many blocks using the ticketfeeinfo RPC API.
-func (t *TicketPurchaser) findTicketFeeBlocks(useMedian bool) (dcrutil.Amount, error) {
+func (t *TicketPurchaser) findTicketFeeBlocks(useMedian bool) (exccutil.Amount, error) {
 	btaUint32 := uint32(t.cfg.BlocksToAvg)
-	info, err := t.dcrdChainSvr.TicketFeeInfo(&btaUint32, nil)
+	info, err := t.exccdChainSvr.TicketFeeInfo(&btaUint32, nil)
 	if err != nil {
 		return 0.0, err
 	}
 
-	var sum, tmp dcrutil.Amount
+	var sum, tmp exccutil.Amount
 	for i := range info.FeeInfoBlocks {
 		if !useMedian {
-			tmp, err = dcrutil.NewAmount(info.FeeInfoBlocks[i].Mean)
+			tmp, err = exccutil.NewAmount(info.FeeInfoBlocks[i].Mean)
 		} else {
-			tmp, err = dcrutil.NewAmount(info.FeeInfoBlocks[i].Median)
+			tmp, err = exccutil.NewAmount(info.FeeInfoBlocks[i].Median)
 		}
 		if err != nil {
 			return 0, err
@@ -139,5 +140,5 @@ func (t *TicketPurchaser) findTicketFeeBlocks(useMedian bool) (dcrutil.Amount, e
 		sum += tmp
 	}
 
-	return sum / dcrutil.Amount(t.cfg.BlocksToAvg), nil
+	return sum / exccutil.Amount(t.cfg.BlocksToAvg), nil
 }

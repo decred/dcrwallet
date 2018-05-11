@@ -1,5 +1,6 @@
 // Copyright (c) 2013-2016 The btcsuite developers
 // Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -16,23 +17,23 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccwallet/internal/cfgutil"
+	"github.com/EXCCoin/exccwallet/netparams"
+	"github.com/EXCCoin/exccwallet/ticketbuyer"
+	"github.com/EXCCoin/exccwallet/version"
+	"github.com/EXCCoin/exccwallet/wallet"
+	"github.com/EXCCoin/exccwallet/wallet/txrules"
 	"github.com/btcsuite/btclog"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrwallet/internal/cfgutil"
-	"github.com/decred/dcrwallet/netparams"
-	"github.com/decred/dcrwallet/ticketbuyer"
-	"github.com/decred/dcrwallet/version"
-	"github.com/decred/dcrwallet/wallet"
-	"github.com/decred/dcrwallet/wallet/txrules"
 	flags "github.com/jessevdk/go-flags"
 )
 
 const (
-	defaultCAFilename          = "dcrd.cert"
-	defaultConfigFilename      = "dcrwallet.conf"
+	defaultCAFilename          = "exccd.cert"
+	defaultConfigFilename      = "exccwallet.conf"
 	defaultLogLevel            = "info"
 	defaultLogDirname          = "logs"
-	defaultLogFilename         = "dcrwallet.log"
+	defaultLogFilename         = "exccwallet.log"
 	defaultRPCMaxClients       = 10
 	defaultRPCMaxWebsockets    = 25
 	defaultEnableTicketBuyer   = false
@@ -50,29 +51,29 @@ const (
 	defaultAllowHighFees       = false
 
 	// ticket buyer options
-	defaultMaxFee                    dcrutil.Amount = 1e6
-	defaultMinFee                    dcrutil.Amount = 1e5
-	defaultMaxPriceScale                            = 0.0
-	defaultAvgVWAPPriceDelta                        = 2880
-	defaultMaxPerBlock                              = 1
-	defaultBlocksToAvg                              = 11
-	defaultFeeTargetScaling                         = 1.0
-	defaultMaxInMempool                             = 40
-	defaultExpiryDelta                              = 16
-	defaultFeeSource                                = ticketbuyer.TicketFeeMedian
-	defaultAvgPriceMode                             = ticketbuyer.PriceTargetVWAP
-	defaultMaxPriceAbsolute                         = 0
-	defaultMaxPriceRelative                         = 1.25
-	defaultPriceTarget                              = 0
-	defaultBalanceToMaintainAbsolute                = 0
-	defaultBalanceToMaintainRelative                = 0.3
+	defaultMaxFee                    exccutil.Amount = 1e6
+	defaultMinFee                    exccutil.Amount = 1e5
+	defaultMaxPriceScale                             = 0.0
+	defaultAvgVWAPPriceDelta                         = 2880
+	defaultMaxPerBlock                               = 1
+	defaultBlocksToAvg                               = 11
+	defaultFeeTargetScaling                          = 1.0
+	defaultMaxInMempool                              = 40
+	defaultExpiryDelta                               = 16
+	defaultFeeSource                                 = ticketbuyer.TicketFeeMedian
+	defaultAvgPriceMode                              = ticketbuyer.PriceTargetVWAP
+	defaultMaxPriceAbsolute                          = 0
+	defaultMaxPriceRelative                          = 1.25
+	defaultPriceTarget                               = 0
+	defaultBalanceToMaintainAbsolute                 = 0
+	defaultBalanceToMaintainRelative                 = 0.3
 
 	walletDbName = "wallet.db"
 )
 
 var (
-	dcrdDefaultCAFile  = filepath.Join(dcrutil.AppDataDir("dcrd", false), "rpc.cert")
-	defaultAppDataDir  = dcrutil.AppDataDir("dcrwallet", false)
+	exccdDefaultCAFile = filepath.Join(exccutil.AppDataDir("exccd", false), "rpc.cert")
+	defaultAppDataDir  = exccutil.AppDataDir("exccwallet", false)
 	defaultConfigFile  = filepath.Join(defaultAppDataDir, defaultConfigFilename)
 	defaultRPCKeyFile  = filepath.Join(defaultAppDataDir, "rpc.key")
 	defaultRPCCertFile = filepath.Join(defaultAppDataDir, "rpc.cert")
@@ -116,11 +117,11 @@ type config struct {
 	TicketFee           *cfgutil.AmountFlag  `long:"ticketfee" description:"Sets the wallet's ticket fee per kb"`
 
 	// RPC client options
-	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Hostname/IP and port of dcrd RPC server to connect to"`
-	CAFile           *cfgutil.ExplicitString `long:"cafile" description:"File containing root certificates to authenticate a TLS connections with dcrd"`
+	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Hostname/IP and port of exccd RPC server to connect to"`
+	CAFile           *cfgutil.ExplicitString `long:"cafile" description:"File containing root certificates to authenticate a TLS connections with exccd"`
 	DisableClientTLS bool                    `long:"noclienttls" description:"Disable TLS for the RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
-	DcrdUsername     string                  `long:"dcrdusername" description:"Username for dcrd authentication"`
-	DcrdPassword     string                  `long:"dcrdpassword" default-mask:"-" description:"Password for dcrd authentication"`
+	ExccdUsername    string                  `long:"exccdusername" description:"Username for exccd authentication"`
+	ExccdPassword    string                  `long:"exccdpassword" default-mask:"-" description:"Password for exccd authentication"`
 	Proxy            string                  `long:"proxy" description:"Connect via SOCKS5 proxy (eg. 127.0.0.1:9050)"`
 	ProxyUser        string                  `long:"proxyuser" description:"Username for proxy server"`
 	ProxyPass        string                  `long:"proxypass" default-mask:"-" description:"Password for proxy server"`
@@ -144,8 +145,8 @@ type config struct {
 	NoLegacyRPC            bool                    `long:"nolegacyrpc" description:"Disable the legacy JSON-RPC server"`
 	LegacyRPCMaxClients    int64                   `long:"rpcmaxclients" description:"Max number of legacy JSON-RPC clients for standard connections"`
 	LegacyRPCMaxWebsockets int64                   `long:"rpcmaxwebsockets" description:"Max number of legacy JSON-RPC websocket connections"`
-	Username               string                  `short:"u" long:"username" description:"Username for legacy JSON-RPC and dcrd authentication (if dcrdusername is unset)"`
-	Password               string                  `short:"P" long:"password" default-mask:"-" description:"Password for legacy JSON-RPC and dcrd authentication (if dcrdpassword is unset)"`
+	Username               string                  `short:"u" long:"username" description:"Username for legacy JSON-RPC and exccd authentication (if exccdusername is unset)"`
+	Password               string                  `short:"P" long:"password" default-mask:"-" description:"Password for legacy JSON-RPC and exccd authentication (if exccdpassword is unset)"`
 
 	// IPC options
 	PipeTx            *uint `long:"pipetx" description:"File descriptor or handle of write end pipe to enable child -> parent process communication"`
@@ -321,7 +322,7 @@ func parseAndSetDebugLevels(debugLevel string) error {
 //      3) Load configuration file overwriting defaults with any specified options
 //      4) Parse CLI options and overwrite/add any specified options
 //
-// The above results in dcrwallet functioning properly without any config
+// The above results in exccwallet functioning properly without any config
 // settings while still allowing the user to override settings with config files
 // and command line options.  Command line options always take precedence.
 // The bool returned indicates whether or not the wallet was recreated from a
@@ -764,12 +765,12 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			return loadConfigError(err)
 		}
 	} else {
-		// If CAFile is unset, choose either the copy or local dcrd cert.
+		// If CAFile is unset, choose either the copy or local exccd cert.
 		if !cfg.CAFile.ExplicitlySet() {
 			cfg.CAFile.Value = filepath.Join(cfg.AppDataDir.Value, defaultCAFilename)
 
 			// If the CA copy does not exist, check if we're connecting to
-			// a local dcrd and switch to its RPC cert if it exists.
+			// a local exccd and switch to its RPC cert if it exists.
 			certExists, err := cfgutil.FileExists(cfg.CAFile.Value)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
@@ -777,14 +778,14 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			}
 			if !certExists {
 				if _, ok := localhostListeners[RPCHost]; ok {
-					dcrdCertExists, err := cfgutil.FileExists(
-						dcrdDefaultCAFile)
+					exccdCertExists, err := cfgutil.FileExists(
+						exccdDefaultCAFile)
 					if err != nil {
 						fmt.Fprintln(os.Stderr, err)
 						return loadConfigError(err)
 					}
-					if dcrdCertExists {
-						cfg.CAFile.Value = dcrdDefaultCAFile
+					if exccdCertExists {
+						cfg.CAFile.Value = exccdDefaultCAFile
 					}
 				}
 			}
@@ -884,15 +885,15 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	cfg.RPCCert.Value = cleanAndExpandPath(cfg.RPCCert.Value)
 	cfg.RPCKey.Value = cleanAndExpandPath(cfg.RPCKey.Value)
 
-	// If the dcrd username or password are unset, use the same auth as for
-	// the client.  The two settings were previously shared for dcrd and
+	// If the exccd username or password are unset, use the same auth as for
+	// the client.  The two settings were previously shared for exccd and
 	// client auth, so this avoids breaking backwards compatibility while
-	// allowing users to use different auth settings for dcrd and wallet.
-	if cfg.DcrdUsername == "" {
-		cfg.DcrdUsername = cfg.Username
+	// allowing users to use different auth settings for exccd and wallet.
+	if cfg.ExccdUsername == "" {
+		cfg.ExccdUsername = cfg.Username
 	}
-	if cfg.DcrdPassword == "" {
-		cfg.DcrdPassword = cfg.Password
+	if cfg.ExccdPassword == "" {
+		cfg.ExccdPassword = cfg.Password
 	}
 
 	// Warn if user still has an old ticket buyer configuration file.

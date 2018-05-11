@@ -1,5 +1,6 @@
 // Copyright (c) 2013-2017 The btcsuite developers
 // Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -10,15 +11,15 @@ import (
 	"os"
 	"path/filepath"
 
+	exccrpcclient "github.com/EXCCoin/exccd/rpcclient"
+	"github.com/EXCCoin/exccwallet/chain"
+	"github.com/EXCCoin/exccwallet/loader"
+	"github.com/EXCCoin/exccwallet/rpc/legacyrpc"
+	"github.com/EXCCoin/exccwallet/rpc/rpcserver"
+	"github.com/EXCCoin/exccwallet/ticketbuyer"
+	"github.com/EXCCoin/exccwallet/wallet"
+	"github.com/EXCCoin/exccwallet/wallet/udb"
 	"github.com/btcsuite/btclog"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrwallet/chain"
-	"github.com/decred/dcrwallet/loader"
-	"github.com/decred/dcrwallet/rpc/legacyrpc"
-	"github.com/decred/dcrwallet/rpc/rpcserver"
-	"github.com/decred/dcrwallet/ticketbuyer"
-	"github.com/decred/dcrwallet/wallet"
-	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/jrick/logrotate/rotator"
 )
 
@@ -50,7 +51,7 @@ var (
 	// application shutdown.
 	logRotator *rotator.Rotator
 
-	log          = backendLog.Logger("DCRW")
+	log          = backendLog.Logger("EXCCW")
 	loaderLog    = backendLog.Logger("LODR")
 	walletLog    = backendLog.Logger("WLLT")
 	tkbyLog      = backendLog.Logger("TKBY")
@@ -66,20 +67,20 @@ func init() {
 	udb.UseLogger(walletLog)
 	ticketbuyer.UseLogger(tkbyLog)
 	chain.UseLogger(syncLog)
-	dcrrpcclient.UseLogger(syncLog)
+	exccrpcclient.UseLogger(syncLog)
 	rpcserver.UseLogger(grpcLog)
 	legacyrpc.UseLogger(legacyRPCLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
 var subsystemLoggers = map[string]btclog.Logger{
-	"DCRW": log,
-	"LODR": loaderLog,
-	"WLLT": walletLog,
-	"TKBY": tkbyLog,
-	"SYNC": syncLog,
-	"GRPC": grpcLog,
-	"RPCS": legacyRPCLog,
+	"EXCCW": log,
+	"LODR":  loaderLog,
+	"WLLT":  walletLog,
+	"TKBY":  tkbyLog,
+	"SYNC":  syncLog,
+	"GRPC":  grpcLog,
+	"RPCS":  legacyRPCLog,
 }
 
 // initLogRotator initializes the logging rotater to write logs to logFile and

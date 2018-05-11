@@ -1,5 +1,6 @@
 // Copyright (c) 2014 The btcsuite developers
 // Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -15,12 +16,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainec"
-	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/chaincfg/chainec"
+	"github.com/EXCCoin/exccd/chaincfg/chainhash"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccwallet/apperrors"
+	"github.com/EXCCoin/exccwallet/walletdb"
 )
 
 // newShaHash converts the passed big-endian hex string into a wire.ShaHash.
@@ -342,7 +343,7 @@ func testExternalAddresses(tc *testContext) bool {
 		chainParams := tc.manager.ChainParams()
 		for i := 0; i < len(expectedExternalAddrs); i++ {
 			pkHash := expectedExternalAddrs[i].addressHash
-			utilAddr, err := dcrutil.NewAddressPubKeyHash(pkHash,
+			utilAddr, err := exccutil.NewAddressPubKeyHash(pkHash,
 				chainParams, chainec.ECTypeSecp256k1)
 			if err != nil {
 				tc.t.Errorf("%s NewAddressPubKeyHash #%d: "+
@@ -469,7 +470,7 @@ func testInternalAddresses(tc *testContext) bool {
 		chainParams := tc.manager.ChainParams()
 		for i := 0; i < len(expectedInternalAddrs); i++ {
 			pkHash := expectedInternalAddrs[i].addressHash
-			utilAddr, err := dcrutil.NewAddressPubKeyHash(pkHash,
+			utilAddr, err := exccutil.NewAddressPubKeyHash(pkHash,
 				chainParams, chainec.ECTypeSecp256k1)
 			if err != nil {
 				tc.t.Errorf("%s NewAddressPubKeyHash #%d: "+
@@ -651,7 +652,7 @@ func testImportPrivateKey(tc *testContext) bool {
 	if tc.create {
 		for i, test := range tests {
 			test.expected.privKeyWIF = test.in
-			wif, err := dcrutil.DecodeWIF(test.in)
+			wif, err := exccutil.DecodeWIF(test.in)
 			if err != nil {
 				tc.t.Errorf("%s DecodeWIF #%d (%s) (%s): unexpected "+
 					"error: %v", prefix, i, test.in, test.name, err)
@@ -682,7 +683,7 @@ func testImportPrivateKey(tc *testContext) bool {
 
 			// Use the Address API to retrieve each of the expected
 			// new addresses and ensure they're accurate.
-			utilAddr, err := dcrutil.NewAddressPubKeyHash(
+			utilAddr, err := exccutil.NewAddressPubKeyHash(
 				test.expected.addressHash, chainParams, chainec.ECTypeSecp256k1)
 			if err != nil {
 				tc.t.Errorf("%s NewAddressPubKeyHash #%d (%s): "+
@@ -812,7 +813,7 @@ func testImportScript(tc *testContext) bool {
 
 			// Use the Address API to retrieve each of the expected
 			// new addresses and ensure they're accurate.
-			utilAddr, err := dcrutil.NewAddressScriptHash(test.in,
+			utilAddr, err := exccutil.NewAddressScriptHash(test.in,
 				chainParams)
 			if err != nil {
 				tc.t.Errorf("%s NewAddressScriptHash #%d (%s): "+
@@ -895,16 +896,16 @@ func testMarkUsed(tc *testContext) bool {
 	for i, test := range tests {
 		addrHash := test.in
 
-		var addr dcrutil.Address
+		var addr exccutil.Address
 		var err error
 		var testtype string
 		switch test.typ {
 		case addrPubKeyHash:
 			testtype = "addrPubKeyHash"
-			addr, err = dcrutil.NewAddressPubKeyHash(addrHash, chainParams, chainec.ECTypeSecp256k1)
+			addr, err = exccutil.NewAddressPubKeyHash(addrHash, chainParams, chainec.ECTypeSecp256k1)
 		case addrScriptHash:
 			testtype = "addrScriptHash"
-			addr, err = dcrutil.NewAddressScriptHashFromHash(addrHash, chainParams)
+			addr, err = exccutil.NewAddressScriptHashFromHash(addrHash, chainParams)
 		default:
 			panic("unreachable")
 		}
@@ -1173,7 +1174,7 @@ func testLookupAccount(tc *testContext) bool {
 	// Test account lookup for default account adddress
 	var expectedAccount uint32
 	for i, addr := range expectedAddrs {
-		addr, err := dcrutil.NewAddressPubKeyHash(addr.addressHash,
+		addr, err := exccutil.NewAddressPubKeyHash(addr.addressHash,
 			tc.manager.ChainParams(), chainec.ECTypeSecp256k1)
 		if err != nil {
 			tc.t.Errorf("AddrAccount #%d: unexpected error: %v", i, err)

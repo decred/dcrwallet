@@ -1,5 +1,6 @@
 // Copyright (c) 2013-2015 The btcsuite developers
 // Copyright (c) 2016 The Decred developers
+// Copyright (c) 2018 The ExchangeCoin team
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -8,31 +9,31 @@ package legacyrpc
 import (
 	"errors"
 
-	"github.com/decred/dcrd/dcrjson"
+	"github.com/EXCCoin/exccd/exccjson"
 )
 
 // TODO(jrick): There are several error paths which 'replace' various errors
-// with a more appropiate error from the dcrjson package.  Create a map of
+// with a more appropiate error from the exccjson package.  Create a map of
 // these replacements so they can be handled once after an RPC handler has
 // returned and before the error is marshaled.
 
 // Error types to simplify the reporting of specific categories of
-// errors, and their *dcrjson.RPCError creation.
+// errors, and their *exccjson.RPCError creation.
 type (
 	// DeserializationError describes a failed deserializaion due to bad
-	// user input.  It corresponds to dcrjson.ErrRPCDeserialization.
+	// user input.  It corresponds to exccjson.ErrRPCDeserialization.
 	DeserializationError struct {
 		error
 	}
 
 	// InvalidParameterError describes an invalid parameter passed by
-	// the user.  It corresponds to dcrjson.ErrRPCInvalidParameter.
+	// the user.  It corresponds to exccjson.ErrRPCInvalidParameter.
 	InvalidParameterError struct {
 		error
 	}
 
 	// ParseError describes a failed parse due to bad user input.  It
-	// corresponds to dcrjson.ErrRPCParse.
+	// corresponds to exccjson.ErrRPCParse.
 	ParseError struct {
 		error
 	}
@@ -56,48 +57,48 @@ var (
 		errors.New("minconf must be positive"),
 	}
 
-	ErrAddressNotInWallet = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCWallet,
+	ErrAddressNotInWallet = exccjson.RPCError{
+		Code:    exccjson.ErrRPCWallet,
 		Message: "address not found in wallet",
 	}
 
-	ErrAccountNameNotFound = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCWalletInvalidAccountName,
+	ErrAccountNameNotFound = exccjson.RPCError{
+		Code:    exccjson.ErrRPCWalletInvalidAccountName,
 		Message: "account name not found",
 	}
 
-	ErrUnloadedWallet = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCWallet,
+	ErrUnloadedWallet = exccjson.RPCError{
+		Code:    exccjson.ErrRPCWallet,
 		Message: "Request requires a wallet but wallet has not loaded yet",
 	}
 
-	ErrClientNotConnected = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCClientNotConnected,
+	ErrClientNotConnected = exccjson.RPCError{
+		Code:    exccjson.ErrRPCClientNotConnected,
 		Message: "RPC client has not connected yet",
 	}
 
-	ErrWalletUnlockNeeded = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCWalletUnlockNeeded,
+	ErrWalletUnlockNeeded = exccjson.RPCError{
+		Code:    exccjson.ErrRPCWalletUnlockNeeded,
 		Message: "Enter the wallet passphrase with walletpassphrase first",
 	}
 
-	ErrNotImportedAccount = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCWallet,
+	ErrNotImportedAccount = exccjson.RPCError{
+		Code:    exccjson.ErrRPCWallet,
 		Message: "imported addresses must belong to the imported account",
 	}
 
-	ErrNoTransactionInfo = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCNoTxInfo,
+	ErrNoTransactionInfo = exccjson.RPCError{
+		Code:    exccjson.ErrRPCNoTxInfo,
 		Message: "No information for transaction",
 	}
 
-	ErrReservedAccountName = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCInvalidParameter,
+	ErrReservedAccountName = exccjson.RPCError{
+		Code:    exccjson.ErrRPCInvalidParameter,
 		Message: "Account name is reserved by RPC server",
 	}
 
-	ErrMainNetSafety = dcrjson.RPCError{
-		Code:    dcrjson.ErrRPCWallet,
+	ErrMainNetSafety = exccjson.RPCError{
+		Code:    exccjson.ErrRPCWallet,
 		Message: "RPC function disabled on MainNet wallets for security purposes",
 	}
 )
