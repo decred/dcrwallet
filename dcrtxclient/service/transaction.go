@@ -23,7 +23,8 @@ func NewTransactionService(conn *grpc.ClientConn) *TransactionService {
 	}
 }
 
-func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx, voteAddress dcrutil.Address, ticketPrice dcrutil.Amount) (*wire.MsgTx, int32, []int32, error) {
+func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx,
+	voteAddress dcrutil.Address, ticketPrice dcrutil.Amount) (*wire.MsgTx, int32, []int32, []int32, error) {
 
 	joinReq := &pb.FindMatchesRequest{
 		Amount: uint64(ticketPrice),
@@ -31,8 +32,7 @@ func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx, voteAddress dcrutil.Add
 
 	findRes, err := t.client.FindMatches(context.Background(), joinReq)
 	if err != nil {
-		fmt.Println("FindMatches error", err)
-		return nil, 0, nil, err
+		return nil, 0, nil, nil, err
 	}
 	fmt.Println("FindMatches findRes \r\n", findRes.SessionId)
 
@@ -40,7 +40,7 @@ func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx, voteAddress dcrutil.Add
 	buffTx.Grow(tx.SerializeSize())
 	err = tx.BtcEncode(buffTx, 0)
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, 0, nil, nil, err
 	}
 
 	publishReq := &pb.SubmitInputTxReq{
@@ -48,20 +48,20 @@ func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx, voteAddress dcrutil.Add
 		SplitTx:   buffTx.Bytes(),
 	}
 
-	publishRes, err := t.client.PublishTicket(context.Background(), publishReq)
+	publishRes, err := t.client.SubmitSplitTx(context.Background(), publishReq)
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, 0, nil, nil, err
 	}
 
 	var ticket wire.MsgTx
 	rbuf := bytes.NewReader(publishRes.TicketTx)
 	err = ticket.BtcDecode(rbuf, 0)
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, 0, nil, nil, err
 	}
 
 	fmt.Println("JoinSplitTx end", publishRes.InputsIds, findRes.SessionId)
-	return &ticket, findRes.SessionId, publishRes.InputsIds, nil
+	return &ticket, findRes.SessionId, publishRes.InputsIds, publishRes.OutputIds, nil
 }
 func (t *TransactionService) PublishResult(tx *wire.MsgTx, sesID int32) (*wire.MsgTx, error) {
 	req := &pb.PublishResultRequest{}

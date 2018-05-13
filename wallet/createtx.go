@@ -1254,7 +1254,6 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 
 	//check dcrtxclient option to ensure current code also works with dcrtxclient enable option is disable in config file
 	if req.dcrTxClient.Config().Enable {
-		numTickets = 1
 		var splitOuts []*wire.TxOut
 		pkScript, err := txscript.PayToAddrScript(splitTxAddr)
 		if err != nil {
@@ -1291,99 +1290,100 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 
 		// Generate the tickets individually.
 		ticketHashes := make([]*chainhash.Hash, 0, numTickets)
+
+		tx, sesID, inputIds, outputIds, err := req.dcrTxClient.JoinSplitTx(splitTx.Tx, nil, ticketPrice)
+		if err != nil {
+			fmt.Println("req.dcrTxClient.JoinSplitTx error", err)
+			return ticketHashes, err
+		}
+
+		for _, txin := range tx.TxIn {
+			fmt.Printf("[JoinSplitTx-after] - input prev outpoint splitTx hash :%s - index :%d - signature : %x\r\n",
+				txin.PreviousOutPoint.Hash, txin.PreviousOutPoint.Index, txin.SignatureScript)
+
+		}
+		for _, txout := range tx.TxOut {
+			fmt.Printf("[JoinSplitTx-after] - output splitTx amount :%d - version :%d - pkscript : %x\r\n",
+				txout.Value, txout.Version, txout.PkScript)
+		}
+		fmt.Println("resign data-tx inputIds", inputIds, outputIds)
+
+		//re-signed the tx
+		fmt.Println("Re-sign the transaction")
+		err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+			addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+			secrets := &secretSource{Manager: w.Manager, addrmgrNs: addrmgrNs}
+			err = txauthor.AddInputScripts(tx, splitTx.PrevScripts, secrets, inputIds)
+			for _, done := range secrets.doneFuncs {
+				done()
+			}
+			return err
+		})
+		if err != nil {
+			fmt.Println("re-sign tx error", err)
+			return ticketHashes, err
+		}
+
+		//submit signed input to server
+		signedTx, publisher, err := req.dcrTxClient.SubmitSignedTx(tx, sesID)
+		if err != nil {
+			fmt.Println("re-sign tx error", err)
+			return ticketHashes, err
+		}
+		for _, txin := range signedTx.TxIn {
+			fmt.Printf("[SubmitSignedTx-after] - input prev outpoint splitTx hash :%s - index :%d - signature : %x\r\n",
+				txin.PreviousOutPoint.Hash, txin.PreviousOutPoint.Index, txin.SignatureScript)
+		}
+		for _, txout := range signedTx.TxOut {
+			fmt.Printf("[SubmitSignedTx-after] - output splitTx amount :%d - version :%d - pkscript : %x\r\n",
+				txout.Value, txout.Version, txout.PkScript)
+		}
+		var publishedTx *wire.MsgTx
+		if publisher {
+			fmt.Println("SignedHash - publisher enter")
+			err = w.publishTx(signedTx, changeSourceFuncs, w.networkBackend)
+			if err != nil {
+				fmt.Println("publishTx error", err)
+				return ticketHashes, err
+			}
+
+			_, err := req.dcrTxClient.PublishResult(signedTx, sesID)
+			if err != nil {
+				fmt.Println("PublishResult error", err)
+				return ticketHashes, err
+			}
+			publishedTx = signedTx
+		} else {
+			publishedTx, err = req.dcrTxClient.PublishResult(nil, sesID)
+			if err != nil {
+				fmt.Println("PublishResult error", err)
+				return ticketHashes, err
+			}
+		}
+
 		for i := 0; i < numTickets; i++ {
-			//pass
-			tx, sesID, inputIds, err := req.dcrTxClient.JoinSplitTx(splitTx.Tx, nil, ticketPrice)
-			if err != nil {
-				fmt.Println("req.dcrTxClient.JoinSplitTx error", err)
-				return ticketHashes, err
-			}
-
-			for _, txin := range tx.TxIn {
-				fmt.Printf("[JoinSplitTx-after] - input prev outpoint splitTx hash :%s - index :%d - signature : %x\r\n",
-					txin.PreviousOutPoint.Hash, txin.PreviousOutPoint.Index, txin.SignatureScript)
-
-			}
-			for _, txout := range tx.TxOut {
-				fmt.Printf("[JoinSplitTx-after] - output splitTx amount :%d - version :%d - pkscript : %x\r\n",
-					txout.Value, txout.Version, txout.PkScript)
-			}
-			fmt.Println("resign data-tx inputIds", inputIds)
-
-			//re-signed the tx
-			fmt.Println("Re-sign the transaction")
-			err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
-				addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-				secrets := &secretSource{Manager: w.Manager, addrmgrNs: addrmgrNs}
-				err = txauthor.AddInputScripts(tx, splitTx.PrevScripts, secrets, inputIds)
-				for _, done := range secrets.doneFuncs {
-					done()
-				}
-				return err
-			})
-			if err != nil {
-				fmt.Println("re-sign tx error", err)
-				return ticketHashes, err
-			}
-
-			//submit signed input to server
-			signedTx, publisher, err := req.dcrTxClient.SubmitSignedTx(tx, sesID)
-			if err != nil {
-				fmt.Println("re-sign tx error", err)
-				return ticketHashes, err
-			}
-			for _, txin := range signedTx.TxIn {
-				fmt.Printf("[SubmitSignedTx-after] - input prev outpoint splitTx hash :%s - index :%d - signature : %x\r\n",
-					txin.PreviousOutPoint.Hash, txin.PreviousOutPoint.Index, txin.SignatureScript)
-			}
-			for _, txout := range signedTx.TxOut {
-				fmt.Printf("[SubmitSignedTx-after] - output splitTx amount :%d - version :%d - pkscript : %x\r\n",
-					txout.Value, txout.Version, txout.PkScript)
-			}
-			var publishedTx *wire.MsgTx
-			if publisher {
-				fmt.Println("SignedHash - publisher enter")
-				err = w.publishTx(signedTx, changeSourceFuncs, w.networkBackend)
-				if err != nil {
-					fmt.Println("publishTx error", err)
-					return ticketHashes, err
-				}
-
-				_, err := req.dcrTxClient.PublishResult(signedTx, sesID)
-				if err != nil {
-					fmt.Println("PublishResult error", err)
-					return ticketHashes, err
-				}
-				publishedTx = signedTx
-			} else {
-				publishedTx, err = req.dcrTxClient.PublishResult(nil, sesID)
-				if err != nil {
-					fmt.Println("PublishResult error", err)
-					return ticketHashes, err
-				}
-			}
-
 			index := 0
 			for k, txout := range publishedTx.TxOut {
-				//fmt.Println("Index check txout %x, pk : %x ", txout.PkScript, splitOuts[i].PkScript)
+				fmt.Println("Index check txout %x, pk : %x ", txout.PkScript, splitOuts[i].PkScript)
 				if reflect.DeepEqual(txout.PkScript, pkScript) {
 					index = k
 					fmt.Println("Index get ", index)
 				}
 			}
+			outputIndex := outputIds[i]
+			fmt.Println("outputIndex ", outputIndex)
+
 			var eop *extendedOutPoint
-			txOut := splitTx.Tx.TxOut[i]
+			txOut := publishedTx.TxOut[outputIndex]
 			eop = &extendedOutPoint{
 				op: &wire.OutPoint{
-					Hash: publishedTx.TxHash(),
-					//Index: uint32(i),
-					Index: uint32(index),
+					Hash:  publishedTx.TxHash(),
+					Index: uint32(outputIndex),
 					Tree:  wire.TxTreeRegular,
 				},
 				amt:      txOut.Value,
 				pkScript: txOut.PkScript,
 			}
-
 			votingAddress, subsidyAddress, err := w.fetchAddresses(req.ticketAddr, req.account, addrFunc)
 
 			// Generate the ticket msgTx and sign it.
@@ -1420,7 +1420,6 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 
 			err = w.processTxRecordAndPublish(ticket, n)
 			if err != nil {
-				fmt.Println("[createtx.processTxRecordAndPublish] - error ", err)
 				return ticketHashes, err
 			}
 
@@ -1431,37 +1430,44 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 		return ticketHashes, nil
 	} else {
 		var splitOuts []*wire.TxOut
+		pkScript, err := txscript.PayToAddrScript(splitTxAddr)
+		if err != nil {
+			return nil, fmt.Errorf("cannot create txout script: %s", err)
+		}
 		for i := 0; i < numTickets; i++ {
+
+			splitOuts = append(splitOuts, wire.NewTxOut(int64(neededPerTicket), pkScript))
+
 			// No pool used.
-			if poolAddress == nil {
-				pkScript, err := txscript.PayToAddrScript(splitTxAddr)
-				if err != nil {
-					return nil, fmt.Errorf("cannot create txout script: %s", err)
-				}
+			//			if poolAddress == nil {
+			//				pkScript, err := txscript.PayToAddrScript(splitTxAddr)
+			//				if err != nil {
+			//					return nil, fmt.Errorf("cannot create txout script: %s", err)
+			//				}
 
-				splitOuts = append(splitOuts,
-					wire.NewTxOut(int64(neededPerTicket), pkScript))
-			} else {
-				// Stake pool used.
-				userAmt := neededPerTicket - poolFeeAmt
-				poolAmt := poolFeeAmt
+			//				splitOuts = append(splitOuts,
+			//					wire.NewTxOut(int64(neededPerTicket), pkScript))
+			//			} else {
+			//				// Stake pool used.
+			//				userAmt := neededPerTicket - poolFeeAmt
+			//				poolAmt := poolFeeAmt
 
-				// Pool amount.
-				pkScript, err := txscript.PayToAddrScript(splitTxAddr)
-				if err != nil {
-					return nil, fmt.Errorf("cannot create txout script: %s", err)
-				}
+			//				// Pool amount.
+			//				pkScript, err := txscript.PayToAddrScript(splitTxAddr)
+			//				if err != nil {
+			//					return nil, fmt.Errorf("cannot create txout script: %s", err)
+			//				}
 
-				splitOuts = append(splitOuts, wire.NewTxOut(int64(poolAmt), pkScript))
+			//				splitOuts = append(splitOuts, wire.NewTxOut(int64(poolAmt), pkScript))
 
-				// User amount.
-				pkScript, err = txscript.PayToAddrScript(splitTxAddr)
-				if err != nil {
-					return nil, fmt.Errorf("cannot create txout script: %s", err)
-				}
+			//				// User amount.
+			//				pkScript, err = txscript.PayToAddrScript(splitTxAddr)
+			//				if err != nil {
+			//					return nil, fmt.Errorf("cannot create txout script: %s", err)
+			//				}
 
-				splitOuts = append(splitOuts, wire.NewTxOut(int64(userAmt), pkScript))
-			}
+			//				splitOuts = append(splitOuts, wire.NewTxOut(int64(userAmt), pkScript))
+			//			}
 
 		}
 
@@ -1495,44 +1501,55 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 			// fees and the user subsidy, while user-handled tickets have only one
 			// input.
 			var eopPool, eop *extendedOutPoint
-			if poolAddress == nil {
-				txOut := splitTx.Tx.TxOut[i]
+			txOut := splitTx.Tx.TxOut[i]
 
-				eop = &extendedOutPoint{
-					op: &wire.OutPoint{
-						Hash:  splitTx.Tx.TxHash(),
-						Index: uint32(i),
-						Tree:  wire.TxTreeRegular,
-					},
-					amt:      txOut.Value,
-					pkScript: txOut.PkScript,
-				}
-			} else {
-				poolIdx := i * 2
-				poolTxOut := splitTx.Tx.TxOut[poolIdx]
-				userIdx := i*2 + 1
-				txOut := splitTx.Tx.TxOut[userIdx]
-
-				eopPool = &extendedOutPoint{
-					op: &wire.OutPoint{
-						Hash:  splitTx.Tx.TxHash(),
-						Index: uint32(poolIdx),
-						Tree:  wire.TxTreeRegular,
-					},
-					amt:      poolTxOut.Value,
-					pkScript: poolTxOut.PkScript,
-				}
-				eop = &extendedOutPoint{
-					op: &wire.OutPoint{
-						Hash:  splitTx.Tx.TxHash(),
-						Index: uint32(userIdx),
-						Tree:  wire.TxTreeRegular,
-					},
-					amt:      txOut.Value,
-					pkScript: txOut.PkScript,
-				}
-				fmt.Printf("[eopPool, eop]- poolTxOut.Value : %d, txOut.Value: %d\rn", poolTxOut.Value, txOut.Value)
+			eop = &extendedOutPoint{
+				op: &wire.OutPoint{
+					Hash:  splitTx.Tx.TxHash(),
+					Index: uint32(i),
+					Tree:  wire.TxTreeRegular,
+				},
+				amt:      txOut.Value,
+				pkScript: txOut.PkScript,
 			}
+
+			//			if poolAddress == nil {
+			//				txOut := splitTx.Tx.TxOut[i]
+
+			//				eop = &extendedOutPoint{
+			//					op: &wire.OutPoint{
+			//						Hash:  splitTx.Tx.TxHash(),
+			//						Index: uint32(i),
+			//						Tree:  wire.TxTreeRegular,
+			//					},
+			//					amt:      txOut.Value,
+			//					pkScript: txOut.PkScript,
+			//				}
+			//			} else {
+			//				poolIdx := i * 2
+			//				poolTxOut := splitTx.Tx.TxOut[poolIdx]
+			//				userIdx := i*2 + 1
+			//				txOut := splitTx.Tx.TxOut[userIdx]
+
+			//				eopPool = &extendedOutPoint{
+			//					op: &wire.OutPoint{
+			//						Hash:  splitTx.Tx.TxHash(),
+			//						Index: uint32(poolIdx),
+			//						Tree:  wire.TxTreeRegular,
+			//					},
+			//					amt:      poolTxOut.Value,
+			//					pkScript: poolTxOut.PkScript,
+			//				}
+			//				eop = &extendedOutPoint{
+			//					op: &wire.OutPoint{
+			//						Hash:  splitTx.Tx.TxHash(),
+			//						Index: uint32(userIdx),
+			//						Tree:  wire.TxTreeRegular,
+			//					},
+			//					amt:      txOut.Value,
+			//					pkScript: txOut.PkScript,
+			//				}
+			//			}
 
 			votingAddress, subsidyAddress, err := w.fetchAddresses(req.ticketAddr, req.account, addrFunc)
 
@@ -1544,17 +1561,17 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 			}
 
 			var forSigning []udb.Credit
-			if eopPool != nil {
-				eopPoolCredit := udb.Credit{
-					OutPoint:     *eopPool.op,
-					BlockMeta:    udb.BlockMeta{},
-					Amount:       dcrutil.Amount(eopPool.amt),
-					PkScript:     eopPool.pkScript,
-					Received:     time.Now(),
-					FromCoinBase: false,
-				}
-				forSigning = append(forSigning, eopPoolCredit)
-			}
+			//			if eopPool != nil {
+			//				eopPoolCredit := udb.Credit{
+			//					OutPoint:     *eopPool.op,
+			//					BlockMeta:    udb.BlockMeta{},
+			//					Amount:       dcrutil.Amount(eopPool.amt),
+			//					PkScript:     eopPool.pkScript,
+			//					Received:     time.Now(),
+			//					FromCoinBase: false,
+			//				}
+			//				forSigning = append(forSigning, eopPoolCredit)
+			//			}
 			eopCredit := udb.Credit{
 				OutPoint:     *eop.op,
 				BlockMeta:    udb.BlockMeta{},

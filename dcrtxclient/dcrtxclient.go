@@ -1,6 +1,7 @@
 package dcrtxclient
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/decred/dcrwallet/dcrtxclient/service"
@@ -77,11 +78,12 @@ func (c *Client) connect() (*grpc.ClientConn, error) {
 // Disconnect disconnects client from server
 // returns error if client is not connected
 func (c *Client) Disconnect() error {
+	fmt.Println("dcrwallet - dcrTxClient.Disconnect() 1")
 	if c.isConnected() {
+		fmt.Println("dcrwallet - dcrTxClient.Disconnect() 2")
 		c.conn.Close()
 		return nil
 	}
-
 	return ErrNotConnected
 }
 

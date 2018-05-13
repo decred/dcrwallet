@@ -1305,7 +1305,7 @@ func getMasterPubkey(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	return masterPubKey.String()
+	return masterPubKey.String(), nil
 }
 
 // getStakeInfo gets a large amounts of information about the stake environment
@@ -2185,8 +2185,7 @@ func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 		hashStrs[i] = hashes[i].String()
 	}
 
-	return &dcrjson.GetTicketsResult{Hashes: hashStrs}, nil
-	//return hashStrs, err
+	return hashStrs, err
 }
 
 // makeOutputs creates a slice of transaction outputs from a pair of address
