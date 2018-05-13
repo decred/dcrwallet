@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
