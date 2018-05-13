@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -1955,6 +1956,11 @@ func (t *ticketbuyerServer) SetSplitTx(ctx context.Context, req *pb.SetSplitTxRe
 	pm, err := t.requirePurchaseManager()
 	if err != nil {
 		return nil, err
+	}
+
+	// perform sanity check on splittx value
+	if req.SplitTx < 1 || req.SplitTx > 2 {
+		return nil, errors.New("invalid splittx value provided: must be either 1 or 2")
 	}
 
 	pm.Purchaser().SetSplitTx(req.SplitTx)

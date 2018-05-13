@@ -727,8 +727,8 @@ message TicketBuyerConfigResponse{
     int64 max_in_mempool = 17;
     string pool_address = 18;
     double pool_fees = 19;
-		bool spread_ticket_purchases = 20;
-		string voting_address = 21;
+	bool spread_ticket_purchases = 20;
+	string voting_address = 21;
     int64 tx_fee = 22;
     uint32 split_tx = 23;
 }
