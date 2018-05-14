@@ -182,7 +182,7 @@ type ticketBuyerOptions struct {
 	NoSpreadTicketPurchases   bool                 `long:"nospreadticketpurchases" description:"Do not spread ticket purchases evenly throughout the window"`
 	DontWaitForTickets        bool                 `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
 	VotingAddress             *cfgutil.AddressFlag `long:"votingaddress" description:"Purchase tickets with voting rights assigned to this address"`
-	SplitTx                   uint32               `long:"splittx" description:"Purchase tickets using a split transaction if this value is 1 or number of eligible credits is greater than or equal to this"`
+	SplitTx                   uint32               `long:"splittx" description:"The minimum number of ticket purchase inputs that should use a split transaction, options are 1 and 2"`
 
 	// Deprecated options
 	MaxPriceScale         float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
@@ -937,7 +937,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		return loadConfigError(err)
 	}
 
-	// Warn if user still is still using --addridxscanlen
+	// Warn if user is still using --addridxscanlen
 	if cfg.AddrIdxScanLen != defaultGapLimit && cfg.GapLimit == defaultGapLimit {
 		log.Warnf("--addridxscanlen has been DEPRECATED.  Use " +
 			"--gaplimit instead")

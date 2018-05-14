@@ -710,7 +710,7 @@ message TicketBuyerConfigRequest{
 }
 
 message TicketBuyerConfigResponse{
-    uint32 account = 1;
+	uint32 account = 1;
     string avg_price_mode = 2;
     int64 avg_priceVWAP_delta = 3;
     int64 balance_to_maintain = 4;
@@ -724,9 +724,9 @@ message TicketBuyerConfigResponse{
     int64 max_per_block = 13;
     int64 max_price_absolute = 14;
     double max_price_relative = 15;
-    int64 max_in_mempool = 17;
-    string pool_address = 18;
-    double pool_fees = 19;
+	int64 max_in_mempool = 17;
+	string pool_address = 18;
+	double pool_fees = 19;
 	bool spread_ticket_purchases = 20;
 	string voting_address = 21;
     int64 tx_fee = 22;
