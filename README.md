@@ -1,6 +1,10 @@
 exccwallet
 =========
 
+[![Build Status](https://travis-ci.org/EXCCoin/exccwallet.png?branch=master)](https://travis-ci.org/EXCCoin/exccwallet)
+[![ISC License](http://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](http://godoc.org/github.com/EXCCoin/exccwallet)
+
 exccwallet is a daemon handling ExchangeCoin wallet functionality for a
 single user.  It acts as both an RPC client to exccd and an RPC server
 for wallet clients and legacy RPC applications.
