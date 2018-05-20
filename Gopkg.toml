@@ -17,8 +17,8 @@
   source = "github.com/raedahgroup/dcrd"
 
 [[constraint]]
- name = "github.com/raedahgroup/dcrtxmatcher"
- branch = "master"
+branch = "master"
+name = "github.com/raedahgroup/dcrtxmatcher" 
  
 [[constraint]]
   branch = "master"

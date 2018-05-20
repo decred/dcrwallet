@@ -1,7 +1,6 @@
 package dcrtxclient
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/decred/dcrwallet/dcrtxclient/service"
@@ -18,7 +17,6 @@ type (
 		sync.Mutex
 		cfg  *Config
 		conn *grpc.ClientConn
-
 		*service.TransactionService
 	}
 )
@@ -62,15 +60,13 @@ func (c *Client) connect() (*grpc.ClientConn, error) {
 		return nil, ErrAlreadyConnected
 	}
 
-	// TODO logger.Info("Attempting to connect to dcrtxmatcher server")
-
 	conn, err := grpc.Dial(c.cfg.Address, grpc.WithInsecure())
 	if err != nil {
-		// TODO logger.Warning("Unable to connect")
+		log.Warn("Unable to connect to dcrtxmatcher server")
 		return nil, err
 	}
 
-	// TODO logger.Info("Successfull connection")
+	log.Info("Successfull connection with dcrtxmatcher server")
 	return conn, nil
 
 }
@@ -78,10 +74,9 @@ func (c *Client) connect() (*grpc.ClientConn, error) {
 // Disconnect disconnects client from server
 // returns error if client is not connected
 func (c *Client) Disconnect() error {
-	fmt.Println("dcrwallet - dcrTxClient.Disconnect() 1")
 	if c.isConnected() {
-		fmt.Println("dcrwallet - dcrTxClient.Disconnect() 2")
 		c.conn.Close()
+		log.Info("dcrTxClient disconnected")
 		return nil
 	}
 	return ErrNotConnected

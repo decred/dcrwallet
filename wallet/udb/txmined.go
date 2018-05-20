@@ -3129,6 +3129,25 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			// confirmations.  Coinbase transactions must have have reached
 			// maturity before their outputs may be spent.
 			txHeight := extractRawCreditHeight(cKey)
+
+			fmt.Printf("makeInputSource.minConf %v, txHeight %v, syncHeight %v \r\n", minConf, txHeight, syncHeight)
+
+			//Test purpose
+			if fetchRawCreditHasExpiry(cVal, DBVersion) {
+				fmt.Println("makeInputSources. have Expiry ")
+			} else {
+				fmt.Println("makeInputSources. not have Expiry ")
+			}
+
+			//Test purpose
+			if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight, syncHeight) {
+				fmt.Printf("makeInputSources. CoinbaseMaturity not reached %v, txHeight %v, syncHeight %v \r\n",
+					s.chainParams.CoinbaseMaturity, txHeight, syncHeight)
+			} else {
+				fmt.Printf("makeInputSources. CoinbaseMaturity reached %v, txHeight %v, syncHeight %v \r\n",
+					s.chainParams.CoinbaseMaturity, txHeight, syncHeight)
+			}
+
 			if !confirmed(minConf, txHeight, syncHeight) {
 				continue
 			}
@@ -3137,18 +3156,31 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			if opcode == opNonstake && fetchRawCreditIsCoinbase(cVal) {
 				if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
 					syncHeight) {
+					fmt.Printf("makeInputSources.1\r\n")
 					continue
 				}
 			}
 			if opcode == txscript.OP_SSGEN || opcode == txscript.OP_SSRTX {
 				if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
 					syncHeight) {
+					fmt.Printf("makeInputSources.2\r\n")
 					continue
 				}
 			}
 			if opcode == txscript.OP_SSTXCHANGE {
 				if !confirmed(int32(s.chainParams.SStxChangeMaturity), txHeight,
 					syncHeight) {
+					fmt.Printf("makeInputSources.3\r\n")
+					continue
+				}
+			}
+
+			// Skip outputs that have an expiry but have not yet reached
+			// coinbase maturity .
+			if fetchRawCreditHasExpiry(cVal, DBVersion) {
+				if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
+					syncHeight) {
+					fmt.Printf("makeInputSources.4 \r\n")
 					continue
 				}
 			}

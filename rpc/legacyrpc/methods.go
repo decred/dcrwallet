@@ -2171,7 +2171,17 @@ func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 	if cmd.SplitTx != nil {
 		splitTxn = *cmd.SplitTx
 	}
+	//do not waiting until PurchaseTicket returns
+	//	go func(w *wallet.Wallet) {
+	//		w.PurchaseTickets(0, spendLimit, minConf, ticketAddr,
+	//			account, numTickets, poolAddr, poolFee, expiry, w.RelayFee(),
+	//			ticketFee, splitTxn, w.GetDcrTxClient())
 
+	//	}(w)
+
+	//	hashStrs := make([]string, 1)
+
+	//waiting for PurchaseTicket returns
 	hashes, err := w.PurchaseTickets(0, spendLimit, minConf, ticketAddr,
 		account, numTickets, poolAddr, poolFee, expiry, w.RelayFee(),
 		ticketFee, splitTxn, w.GetDcrTxClient())

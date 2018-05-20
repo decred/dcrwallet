@@ -41,12 +41,6 @@
   revision = "31079b6807923eb23992c421b114992b95131b55"
 
 [[projects]]
-  name = "github.com/davecgh/go-spew"
-  packages = ["spew"]
-  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
-  version = "v1.1.0"
-
-[[projects]]
   branch = "master"
   name = "github.com/dchest/blake256"
   packages = ["."]
@@ -89,10 +83,11 @@
     "txscript",
     "wire"
   ]
-  revision = "2e329c185a95718019b21b5fd4578149c0cd1a67"
-  source = "github.com/huyntsgs/dcrd"
+  revision = "4b0a881dc336255f0bb88ebf8a02c340c0df3ef1"
+  source = "github.com/raedahgroup/dcrd"
 
 [[projects]]
+  branch = "master"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -101,8 +96,7 @@
     "ptypes/duration",
     "ptypes/timestamp"
   ]
-  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
-  version = "v1.1.0"
+  revision = "70c277a8a150a8e069492e6600926300405c2884"
 
 [[projects]]
   name = "github.com/jessevdk/go-flags"
@@ -123,23 +117,10 @@
   revision = "a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a"
 
 [[projects]]
-  name = "github.com/pmezard/go-difflib"
-  packages = ["difflib"]
-  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
-  version = "v1.0.0"
-
-[[projects]]
   branch = "master"
   name = "github.com/raedahgroup/dcrtxmatcher"
-  packages = ["pkg/api/matcherrpc"]
-  revision = "dd8ab3ff1306f6d1bc653bf99c8058e069b51403"
-  source = "github.com/huyntsgs/dcrtxmatcher"
-
-[[projects]]
-  name = "github.com/stretchr/testify"
-  packages = ["assert"]
-  revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
-  version = "v1.1.4"
+  packages = ["api/matcherrpc"]
+  revision = "69e09f8e1473ebd41c76bf4a4e61ea296a9fbd97"
 
 [[projects]]
   branch = "master"
@@ -244,6 +225,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8da5ae77ef3f76753a7b33e89bdd184252c412aa3001581f70d30cf1d26381a5"
+  inputs-digest = "23e1160803c2b31a53f6cfa35c5dcc24e212a18a5b37d30bd8c76edfcf2328eb"
   solver-name = "gps-cdcl"
   solver-version = 1

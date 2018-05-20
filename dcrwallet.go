@@ -142,11 +142,6 @@ func run(ctx context.Context) error {
 			return err
 		}
 
-		// Close client connection on shutdown. Returns an error if not already connected
-		// Safe to ignore error
-		if cfg.DcrtxClientConfig.Enable {
-			defer dcrTxClient.Disconnect()
-		}
 	}
 
 	// Create the loader which is used to load and unload the wallet.  If
@@ -273,6 +268,14 @@ func run(ctx context.Context) error {
 			log.Info("JSON-RPC server shutdown")
 		}()
 	}
+
+	defer func() {
+		// Close client connection on shutdown. Returns an error if not already connected
+		// Safe to ignore error
+		if cfg.DcrtxClientConfig.Enable && dcrTxClient != nil {
+			defer dcrTxClient.Disconnect()
+		}
+	}()
 
 	// Stop the ticket buyer (if running) on shutdown.  This returns an error
 	// that can be ignored when the ticket buyer was never started.

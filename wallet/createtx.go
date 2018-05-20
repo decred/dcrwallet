@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"time"
 
-	"reflect"
+	//"reflect"
 
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
@@ -397,12 +397,14 @@ func (w *Wallet) txToOutputsSplitTx(outputs []*wire.TxOut, account uint32, minco
 
 		// Create the unsigned transaction.
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+
+		fmt.Println("txToOutputsSplitTx.tipHeight %v, minconf %v", tipHeight, minconf)
+
 		inputSource := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 			minconf, tipHeight)
 		persist := w.deferPersistReturnedChild(&changeSourceUpdates)
 		changeSource = w.changeSource(persist, account)
 
-		fmt.Println("len changeSourceUpdates ", len(changeSourceUpdates))
 		var err error
 		atx, err = txauthor.NewUnsignedTransaction(outputs, txFee,
 			inputSource.SelectInputs, changeSource)
@@ -1274,39 +1276,39 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 			return nil, fmt.Errorf("failed to send split transaction: %v", err)
 		}
 
-		for _, txin := range splitTx.Tx.TxIn {
-			fmt.Printf("[Input] - input outpoint splitTx hash :%s - index :%d - signature : %x\r\n",
-				txin.PreviousOutPoint.Hash, txin.PreviousOutPoint.Index, txin.SignatureScript)
-		}
-		for _, txout := range splitTx.Tx.TxOut {
-			fmt.Printf("[Output] - output splitTx amount :%d - version :%d - pkscript : %x\r\n",
-				txout.Value, txout.Version, txout.PkScript)
+		//		for _, txin := range splitTx.Tx.TxIn {
+		//			fmt.Printf("[Input] - input outpoint splitTx hash :%s - index :%d - signature : %x\r\n",
+		//				txin.PreviousOutPoint.Hash, txin.PreviousOutPoint.Index, txin.SignatureScript)
+		//		}
+		//		for _, txout := range splitTx.Tx.TxOut {
+		//			fmt.Printf("[Output] - output splitTx amount :%d - version :%d - pkscript : %x\r\n",
+		//				txout.Value, txout.Version, txout.PkScript)
 
-			if reflect.DeepEqual(txout.PkScript, pkScript) {
-				fmt.Printf("[compare] - pkscript equals txoutpkscript : %x\r\n",
-					pkScript)
-			}
-		}
+		//			if reflect.DeepEqual(txout.PkScript, pkScript) {
+		//				fmt.Printf("[compare] - pkscript equals txoutpkscript : %x\r\n",
+		//					pkScript)
+		//			}
+		//		}
 
 		// Generate the tickets individually.
 		ticketHashes := make([]*chainhash.Hash, 0, numTickets)
-
+		log.Info("Waiting for enough participants...")
 		tx, sesID, inputIds, outputIds, err := req.dcrTxClient.JoinSplitTx(splitTx.Tx, nil, ticketPrice)
 		if err != nil {
 			fmt.Println("req.dcrTxClient.JoinSplitTx error", err)
 			return ticketHashes, err
 		}
 
-		for _, txin := range tx.TxIn {
-			fmt.Printf("[JoinSplitTx-after] - input prev outpoint splitTx hash :%s - index :%d - signature : %x\r\n",
-				txin.PreviousOutPoint.Hash, txin.PreviousOutPoint.Index, txin.SignatureScript)
+		//		for _, txin := range tx.TxIn {
+		//			fmt.Printf("[JoinSplitTx-after] - input prev outpoint splitTx hash :%s - index :%d - signature : %x\r\n",
+		//				txin.PreviousOutPoint.Hash, txin.PreviousOutPoint.Index, txin.SignatureScript)
 
-		}
-		for _, txout := range tx.TxOut {
-			fmt.Printf("[JoinSplitTx-after] - output splitTx amount :%d - version :%d - pkscript : %x\r\n",
-				txout.Value, txout.Version, txout.PkScript)
-		}
-		fmt.Println("resign data-tx inputIds", inputIds, outputIds)
+		//		}
+		//		for _, txout := range tx.TxOut {
+		//			fmt.Printf("[JoinSplitTx-after] - output splitTx amount :%d - version :%d - pkscript : %x\r\n",
+		//				txout.Value, txout.Version, txout.PkScript)
+		//		}
+		log.Debug("inputs, outputs index", inputIds, outputIds)
 
 		//re-signed the tx
 		fmt.Println("Re-sign the transaction")
@@ -1330,17 +1332,17 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 			fmt.Println("re-sign tx error", err)
 			return ticketHashes, err
 		}
-		for _, txin := range signedTx.TxIn {
-			fmt.Printf("[SubmitSignedTx-after] - input prev outpoint splitTx hash :%s - index :%d - signature : %x\r\n",
-				txin.PreviousOutPoint.Hash, txin.PreviousOutPoint.Index, txin.SignatureScript)
-		}
-		for _, txout := range signedTx.TxOut {
-			fmt.Printf("[SubmitSignedTx-after] - output splitTx amount :%d - version :%d - pkscript : %x\r\n",
-				txout.Value, txout.Version, txout.PkScript)
-		}
+		//		for _, txin := range signedTx.TxIn {
+		//			fmt.Printf("[SubmitSignedTx-after] - input prev outpoint splitTx hash :%s - index :%d - signature : %x\r\n",
+		//				txin.PreviousOutPoint.Hash, txin.PreviousOutPoint.Index, txin.SignatureScript)
+		//		}
+		//		for _, txout := range signedTx.TxOut {
+		//			fmt.Printf("[SubmitSignedTx-after] - output splitTx amount :%d - version :%d - pkscript : %x\r\n",
+		//				txout.Value, txout.Version, txout.PkScript)
+		//		}
 		var publishedTx *wire.MsgTx
 		if publisher {
-			fmt.Println("SignedHash - publisher enter")
+			log.Info("Will publish the transaction")
 			err = w.publishTx(signedTx, changeSourceFuncs, w.networkBackend)
 			if err != nil {
 				fmt.Println("publishTx error", err)
@@ -1353,6 +1355,7 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 				return ticketHashes, err
 			}
 			publishedTx = signedTx
+			log.Info("Published and sent the transaction to server")
 		} else {
 			publishedTx, err = req.dcrTxClient.PublishResult(nil, sesID)
 			if err != nil {
@@ -1362,14 +1365,14 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 		}
 
 		for i := 0; i < numTickets; i++ {
-			index := 0
-			for k, txout := range publishedTx.TxOut {
-				fmt.Println("Index check txout %x, pk : %x ", txout.PkScript, splitOuts[i].PkScript)
-				if reflect.DeepEqual(txout.PkScript, pkScript) {
-					index = k
-					fmt.Println("Index get ", index)
-				}
-			}
+			//index := 0
+			//			for k, txout := range publishedTx.TxOut {
+			//				fmt.Println("Index check txout %x, pk : %x ", txout.PkScript, splitOuts[i].PkScript)
+			//				if reflect.DeepEqual(txout.PkScript, pkScript) {
+			//					index = k
+			//					fmt.Println("Index get ", index)
+			//				}
+			//			}
 			outputIndex := outputIds[i]
 			fmt.Println("outputIndex ", outputIndex)
 
