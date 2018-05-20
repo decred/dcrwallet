@@ -1311,7 +1311,6 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 		log.Debug("inputs, outputs index", inputIds, outputIds)
 
 		//re-signed the tx
-		fmt.Println("Re-sign the transaction")
 		err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 			addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 			secrets := &secretSource{Manager: w.Manager, addrmgrNs: addrmgrNs}

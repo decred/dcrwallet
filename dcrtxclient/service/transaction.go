@@ -34,7 +34,7 @@ func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx,
 	if err != nil {
 		return nil, "", nil, nil, err
 	}
-	fmt.Println("FindMatches findRes \r\n", findRes.SessionId)
+	//log.Infof("SessionID %v", findRes.SessionId)
 
 	buffTx := bytes.NewBuffer(nil)
 	buffTx.Grow(tx.SerializeSize())
@@ -125,5 +125,3 @@ func (t *TransactionService) SubmitSignedTx(tx *wire.MsgTx, sesID string) (*wire
 
 	return &signedTx, res.Publisher, nil
 }
-
-
