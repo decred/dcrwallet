@@ -1431,11 +1431,11 @@ func getTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	}
 
 	// returns nil details when not found
-	details, err := wallet.UnstableAPI(w).TxDetails(txHash)
+	txd, err := wallet.UnstableAPI(w).TxDetails(txHash)
 	if err != nil {
 		return nil, err
 	}
-	if details == nil {
+	if txd == nil {
 		return nil, rpcErrorf(dcrjson.ErrRPCNoTxInfo, "no information for transaction")
 	}
 
@@ -1443,8 +1443,8 @@ func getTransaction(s *Server, icmd interface{}) (interface{}, error) {
 
 	// TODO: Switch to strings.Builder and hex.NewEncoder (introduced in Go 1.10)
 	var buf bytes.Buffer
-	buf.Grow(details.MsgTx.SerializeSize())
-	err = details.MsgTx.Serialize(&buf)
+	buf.Grow(txd.MsgTx.SerializeSize())
+	err = txd.MsgTx.Serialize(&buf)
 	if err != nil {
 		return nil, err
 	}
@@ -1454,110 +1454,60 @@ func getTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	ret := dcrjson.GetTransactionResult{
 		TxID:            cmd.Txid,
 		Hex:             hex.EncodeToString(buf.Bytes()),
-		Time:            details.Received.Unix(),
-		TimeReceived:    details.Received.Unix(),
+		Time:            txd.Received.Unix(),
+		TimeReceived:    txd.Received.Unix(),
 		WalletConflicts: []string{}, // Not saved
 		//Generated:     blockchain.IsCoinBaseTx(&details.MsgTx),
 	}
 
-	if details.Block.Height != -1 {
-		ret.BlockHash = details.Block.Hash.String()
-		ret.BlockTime = details.Block.Time.Unix()
-		ret.Confirmations = int64(confirms(details.Block.Height,
+	if txd.Block.Height != -1 {
+		ret.BlockHash = txd.Block.Hash.String()
+		ret.BlockTime = txd.Block.Time.Unix()
+		ret.Confirmations = int64(confirms(txd.Block.Height,
 			tipHeight))
 	}
 
 	var (
 		debitTotal  dcrutil.Amount
-		creditTotal dcrutil.Amount // Excludes change
+		creditTotal dcrutil.Amount
 		fee         dcrutil.Amount
 		negFeeF64   float64
 	)
-	for _, deb := range details.Debits {
+	for _, deb := range txd.Debits {
 		debitTotal += deb.Amount
 	}
-	for _, cred := range details.Credits {
-		if !cred.Change {
-			creditTotal += cred.Amount
-		}
+	for _, cred := range txd.Credits {
+		creditTotal += cred.Amount
 	}
 	// Fee can only be determined if every input is a debit.
-	if len(details.Debits) == len(details.MsgTx.TxIn) {
+	if len(txd.Debits) == len(txd.MsgTx.TxIn) {
 		var outputTotal dcrutil.Amount
-		for _, output := range details.MsgTx.TxOut {
+		for _, output := range txd.MsgTx.TxOut {
 			outputTotal += dcrutil.Amount(output.Value)
 		}
 		fee = debitTotal - outputTotal
 		negFeeF64 = (-fee).ToCoin()
 	}
+	ret.Amount = (creditTotal - debitTotal).ToCoin()
+	ret.Fee = negFeeF64
 
-	if len(details.Debits) == 0 {
-		// Credits must be set later, but since we know the full length
-		// of the details slice, allocate it with the correct cap.
-		ret.Details = make([]dcrjson.GetTransactionDetailsResult, 0,
-			len(details.Credits))
-	} else {
-		ret.Details = make([]dcrjson.GetTransactionDetailsResult, 1,
-			len(details.Credits)+1)
-
-		ret.Details[0] = dcrjson.GetTransactionDetailsResult{
-			// Fields left zeroed:
-			//   InvolvesWatchOnly
-			//   Account
-			//   Address
-			//   Vout
-			//
-			// TODO(jrick): Address and Vout should always be set,
-			// but we're doing the wrong thing here by not matching
-			// core.  Instead, gettransaction should only be adding
-			// details for transaction outputs, just like
-			// listtransactions (but using the short result format).
-			Category: "send",
-			Amount:   (-debitTotal).ToCoin(), // negative since it is a send
-			Fee:      &negFeeF64,
+	details, err := w.ListTransactionDetails(txHash)
+	if err != nil {
+		return nil, err
+	}
+	ret.Details = make([]dcrjson.GetTransactionDetailsResult, len(details))
+	for i, d := range details {
+		ret.Details[i] = dcrjson.GetTransactionDetailsResult{
+			Account:           d.Account,
+			Address:           d.Address,
+			Amount:            d.Amount,
+			Category:          d.Category,
+			InvolvesWatchOnly: d.InvolvesWatchOnly,
+			Fee:               d.Fee,
+			Vout:              d.Vout,
 		}
-		ret.Fee = negFeeF64
 	}
 
-	credCat := wallet.RecvCategory(details, tipHeight,
-		w.ChainParams()).String()
-	for _, cred := range details.Credits {
-		// Change is ignored.
-		if cred.Change {
-			continue
-		}
-
-		var address string
-		var accountName string
-		_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-			details.MsgTx.TxOut[cred.Index].Version,
-			details.MsgTx.TxOut[cred.Index].PkScript,
-			w.ChainParams())
-		if err == nil && len(addrs) == 1 {
-			addr := addrs[0]
-			address = addr.EncodeAddress()
-			account, err := w.AccountOfAddress(addr)
-			if err == nil {
-				name, err := w.AccountName(account)
-				if err == nil {
-					accountName = name
-				}
-			}
-		}
-
-		ret.Details = append(ret.Details, dcrjson.GetTransactionDetailsResult{
-			// Fields left zeroed:
-			//   InvolvesWatchOnly
-			//   Fee
-			Account:  accountName,
-			Address:  address,
-			Category: credCat,
-			Amount:   cred.Amount.ToCoin(),
-			Vout:     cred.Index,
-		})
-	}
-
-	ret.Amount = creditTotal.ToCoin()
 	return ret, nil
 }
 

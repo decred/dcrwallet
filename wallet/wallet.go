@@ -2035,6 +2035,34 @@ func (w *Wallet) ListAllTransactions() ([]dcrjson.ListTransactionsResult, error)
 	return txList, nil
 }
 
+// ListTransactionDetails returns the listtransaction results for a single
+// transaction.
+func (w *Wallet) ListTransactionDetails(txHash *chainhash.Hash) ([]dcrjson.ListTransactionsResult, error) {
+	const op errors.Op = "wallet.ListTransactionDetails"
+	txList := []dcrjson.ListTransactionsResult{}
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		// Get current block.  The block height used for calculating
+		// the number of tx confirmations.
+		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+
+		txd, err := w.TxStore.TxDetails(txmgrNs, txHash)
+		if err != nil {
+			return err
+		}
+		sends, receives := listTransactions(dbtx, txd, w.Manager, tipHeight, w.chainParams)
+		txList = make([]dcrjson.ListTransactionsResult, 0, len(sends)+len(receives))
+		txList = append(txList, receives...)
+		txList = append(txList, sends...)
+		return nil
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return txList, nil
+}
+
 // BlockIdentifier identifies a block by either a height in the main chain or a
 // hash.
 type BlockIdentifier struct {
