@@ -60,7 +60,7 @@ func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx,
 		return nil, "", nil, nil, err
 	}
 
-	fmt.Println("JoinSplitTx end", publishRes.InputsIds, findRes.SessionId)
+	//fmt.Println("JoinSplitTx end", publishRes.InputsIds, findRes.SessionId)
 	return &ticket, findRes.SessionId, publishRes.InputsIds, publishRes.OutputIds, nil
 }
 func (t *TransactionService) PublishResult(tx *wire.MsgTx, sesID string) (*wire.MsgTx, error) {
