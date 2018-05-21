@@ -3409,7 +3409,7 @@ WrongAddrKind:
 func version(s *Server, icmd interface{}) (interface{}, error) {
 	var resp map[string]dcrjson.VersionResult
 	chainClient, ok := s.requireChainClient()
-	if !ok {
+	if ok {
 		var err error
 		resp, err = chainClient.Version()
 		if err != nil {
