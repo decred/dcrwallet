@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	"fmt"
 
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
