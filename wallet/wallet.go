@@ -3421,21 +3421,19 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 				}
 
 				// First check tx manager script store.
-				scrTxStore, err := w.TxStore.GetTxScript(txmgrNs,
+				script, err := w.TxStore.GetTxScript(txmgrNs,
 					addr.ScriptAddress())
-				if err != nil {
+				if errors.Is(errors.NotExist, err) {
+					// Then check the address manager.
+					sc, done, err := w.Manager.RedeemScript(addrmgrNs, addr)
+					if err != nil {
+						return nil, err
+					}
+					script = sc
+					doneFuncs = append(doneFuncs, done)
+				} else if err != nil {
 					return nil, err
 				}
-				if scrTxStore != nil {
-					return scrTxStore, nil
-				}
-
-				// Then check the address manager.
-				script, done, err := w.Manager.RedeemScript(addrmgrNs, addr)
-				if err != nil {
-					return nil, err
-				}
-				doneFuncs = append(doneFuncs, done)
 				return script, nil
 			})
 
