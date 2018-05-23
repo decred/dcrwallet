@@ -8,6 +8,7 @@ package wallet
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"time"
 
 	"github.com/decred/dcrd/blockchain"
@@ -27,10 +28,22 @@ import (
 	"github.com/decred/dcrwallet/walletdb"
 )
 
-// --------------------------------------------------------------------------------
 // Constants and simple functions
 
 const (
+	// A worst case signature script to redeem a P2PKH output for a compressed
+	// pubkey has 73 bytes of the possible DER signature (with no leading 0
+	// bytes for R and S), 33 bytes of compressed serialized pubkey, and data
+	// push opcodes for both, plus one byte for the hash type flag appended
+	// to the end of the signature.
+	sigScriptEstimate = 1 + 73 + 1 + 33 + 1
+
+	// A best case tx input serialization cost is chainhash.HashSize, 4 bytes
+	// of output index, 1 byte for tree, 4 bytes of sequence, 16 bytes for
+	// fraud proof, 1 varint for the sigscript size, and the estimated
+	// signature script size.
+	txInEstimate = chainhash.HashSize + 4 + 1 + 4 + 16 + 1 + sigScriptEstimate
+
 	// singleInputTicketSize is the typical size of a normal P2PKH ticket
 	// in bytes when the ticket has one input, rounded up.
 	singleInputTicketSize = 300
@@ -69,6 +82,50 @@ type extendedOutPoint struct {
 }
 
 // --------------------------------------------------------------------------------
+// Error Handling
+
+// ErrUnsupportedTransactionType represents an error where a transaction
+// cannot be signed as the API only supports spending P2PKH outputs.
+var ErrUnsupportedTransactionType = errors.New("Only P2PKH transactions " +
+	"are supported")
+
+// ErrNonPositiveAmount represents an error where an amount is
+// not positive (either negative, or zero).
+var ErrNonPositiveAmount = errors.New("amount is not positive")
+
+// ErrNegativeFee represents an error where a fee is erroneously
+// negative.
+var ErrNegativeFee = errors.New("fee is negative")
+
+// ErrSStxNotEnoughFunds indicates that not enough funds were available in the
+// wallet to purchase a ticket.
+var ErrSStxNotEnoughFunds = errors.New("not enough to purchase sstx")
+
+// ErrSStxPriceExceedsSpendLimit indicates that the current ticket price exceeds
+// the specified spend maximum spend limit.
+var ErrSStxPriceExceedsSpendLimit = errors.New("ticket price exceeds spend limit")
+
+// ErrNoOutsToConsolidate indicates that there were no outputs available
+// to compress.
+var ErrNoOutsToConsolidate = errors.New("no outputs to consolidate")
+
+// ErrBlockchainReorganizing indicates that the blockchain is currently
+// reorganizing.
+var ErrBlockchainReorganizing = errors.New("blockchain is currently reorganizing")
+
+// ErrTicketPriceNotSet indicates that the wallet was recently connected
+// and that the ticket price has not yet been set.
+var ErrTicketPriceNotSet = errors.New("ticket price not yet established")
+
+// ErrSStxInputOverflow indicates that too many inputs were used to generate
+// a ticket.
+var ErrSStxInputOverflow = errors.New("too many ticket purchase inputs")
+
+// ErrClientPurchaseTicket is the error returned when the daemon has
+// disconnected from dcrd
+var ErrClientPurchaseTicket = errors.New("sendrawtransaction failed: the client has been shutdown")
+
+// --------------------------------------------------------------------------------
 // Transaction creation
 
 // OutputSelectionAlgorithm specifies the algorithm to use when selecting outputs
@@ -83,6 +140,10 @@ const (
 	// OutputSelectionAlgorithmAll describes the output selection algorithm of
 	// picking every possible availble output.  This is useful for sweeping.
 	OutputSelectionAlgorithmAll
+
+	// EstMaxTicketFeeAmount is the estimated max ticket fee to be used for size
+	// calculation for eligible utxos for ticket purchasing.
+	EstMaxTicketFeeAmount = 0.1 * 1e8
 )
 
 // NewUnsignedTransaction constructs an unsigned transaction using unspent
@@ -832,13 +893,15 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *ext
 	return mtx, nil
 }
 
-// purchaseTickets indicates to the wallet that a ticket should be purchased
+// purchaseTicketsSplit indicates to the wallet that a ticket should be purchased
 // using all currently available funds.  The ticket address parameter in the
 // request can be nil in which case the ticket address associated with the
 // wallet instance will be used.  Also, when the spend limit in the request is
 // greater than or equal to 0, tickets that cost more than that limit will
 // return an error that not enough funds are available.
-func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*chainhash.Hash, error) {
+
+func (w *Wallet) purchaseTicketsSplit(op errors.Op, req purchaseTicketRequest, numTickets int) ([]*chainhash.Hash, error) {
+
 	n, err := w.NetworkBackend()
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -848,19 +911,9 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 	if req.minConf < 0 {
 		return nil, errors.E(op, errors.Invalid, "negative minconf")
 	}
-	// Need a positive or zero expiry that is higher than the next block to
-	// generate.
-	if req.expiry < 0 {
-		return nil, errors.E(op, errors.Invalid, "negative expiry")
-	}
 
-	// Perform a sanity check on expiry.
-	var tipHeight int32
-	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		ns := tx.ReadBucket(wtxmgrNamespaceKey)
-		_, tipHeight = w.TxStore.MainChainTip(ns)
-		return nil
-	})
+	// Perform sanity check on expiry
+	tipHeight, err := w.sanityCheckExpiry(req.expiry)
 	if err != nil {
 		return nil, err
 	}
@@ -955,7 +1008,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 			return nil, err
 		}
 
-		estimatedFundsUsed := neededPerTicket * dcrutil.Amount(req.numTickets)
+		estimatedFundsUsed := neededPerTicket * dcrutil.Amount(numTickets)
 		if req.minBalance+estimatedFundsUsed > bal.Spendable {
 			return nil, errors.E(op, errors.InsufficientBalance, errors.Errorf(
 				"estimated ending balance %v is below minimum requested balance %v",
@@ -984,7 +1037,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 	// first ticket commitment of a smaller amount to the pool, while
 	// paying themselves with the larger ticket commitment.
 	var splitOuts []*wire.TxOut
-	for i := 0; i < req.numTickets; i++ {
+	for i := 0; i < numTickets; i++ {
 		// No pool used.
 		if poolAddress == nil {
 			splitOuts = append(splitOuts, wire.NewTxOut(int64(neededPerTicket), splitPkScript))
@@ -1024,8 +1077,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 	}()
 
 	// Generate the tickets individually.
-	ticketHashes := make([]*chainhash.Hash, 0, req.numTickets)
-	for i := 0; i < req.numTickets; i++ {
+	ticketHashes := make([]*chainhash.Hash, 0, numTickets)
+	for i := 0; i < numTickets; i++ {
 		// Generate the extended outpoints that we need to use for ticket
 		// inputs. There are two inputs for pool tickets corresponding to the
 		// fees and the user subsidy, while user-handled tickets have only one
@@ -1123,8 +1176,10 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		}
 		forSigning = append(forSigning, eopCredit)
 
-		// Set the expiry.
-		ticket.Expiry = uint32(req.expiry)
+		// Set ticket expiry if greater than zero in request
+		if req.expiry > 0 {
+			ticket.Expiry = uint32(req.expiry)
+		}
 
 		err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 			ns := tx.ReadBucket(waddrmgrNamespaceKey)
@@ -1166,6 +1221,365 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 	}
 
 	return ticketHashes, nil
+}
+
+// processTxRecordAndPublish creates a transaction record, inserts the record
+// in the walletdb and publishes the transaction over the decred network
+func (w *Wallet) processTxRecordAndPublish(tx *wire.MsgTx, n NetworkBackend) error {
+	// Create transaction record
+	rec, err := udb.NewTxRecordFromMsgTx(tx, time.Now())
+	if err != nil {
+		return err
+	}
+
+	// Open db to insert and publish the transaction
+	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		return w.processTransaction(dbtx, rec, nil, nil)
+	})
+	if err != nil {
+		return err
+	}
+
+	return n.PublishTransaction(context.TODO(), tx)
+}
+
+// fetchAddresses returns a voting address. It checks if an address
+// was passed along with the request. if none was passed, it checks
+// for an address stored in configuration. If it finds none, it generates
+// an address from user wallet
+func (w *Wallet) fetchAddresses(op errors.Op, ticketAddress dcrutil.Address, account uint32, addrFunc func(errors.Op, persistReturnedChildFunc, uint32) (dcrutil.Address, error)) (dcrutil.Address, dcrutil.Address, error) {
+	addr := ticketAddress
+	var saddr dcrutil.Address
+	if addr == nil {
+		if w.ticketAddress != nil {
+			addr = w.ticketAddress
+		} else {
+			err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+				var err error
+				addr, err = addrFunc(op, w.persistReturnedChild(dbtx), account)
+				return err
+			})
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+
+	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		var err error
+		saddr, err = addrFunc(op, w.persistReturnedChild(dbtx), account)
+		return err
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return addr, saddr, nil
+}
+
+// findEligibleOutputCredits abstracts the call to the findEligibleOutputsAmount func
+// it checks for possible errors and handles accordingly
+func (w *Wallet) findEligibleOutputCredits(account uint32, minConf int32, amountNeeded dcrutil.Amount, tipheight int32) ([]udb.Credit, error) {
+	var eligible []udb.Credit
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		var err error
+		eligible, err = w.findEligibleOutputsAmount(dbtx, account, minConf, amountNeeded, tipheight)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(eligible) == 0 {
+		return nil, ErrSStxNotEnoughFunds
+	}
+	if len(eligible) > stake.MaxInputsPerSStx {
+		return nil, ErrSStxInputOverflow
+	}
+
+	return eligible, nil
+}
+
+// signAndValidateTicket signs the passed msgtx and performs validation checks
+func (w *Wallet) signAndValidateTicket(op errors.Op, ticket *wire.MsgTx, forSigning []udb.Credit, eop *extendedOutPoint) error {
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		return w.signP2PKHMsgTx(ticket, forSigning, ns)
+	})
+	if err != nil {
+		return err
+	}
+
+	err = validateMsgTx(op, ticket, creditScripts(forSigning))
+	if err != nil {
+		return err
+	}
+
+	if eop != nil {
+		err = w.checkHighFees(dcrutil.Amount(eop.amt), ticket)
+	}
+
+	return err
+}
+
+func (w *Wallet) buildTicketTx(op errors.Op, msgtx *wire.MsgTx, ticketPrice dcrutil.Amount, votingAddress dcrutil.Address, subsidyAddress dcrutil.Address, eligible []udb.Credit, minConf int32, feeEst dcrutil.Amount) ([]udb.Credit, error) {
+
+	var forSigning []udb.Credit
+	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		var err error
+		forSigning, err = w.buildTicketTxInternal(op, dbtx, msgtx, ticketPrice, votingAddress, subsidyAddress,
+			eligible, minConf, feeEst)
+
+		return err
+	})
+	return forSigning, err
+}
+
+func (w *Wallet) buildTicketTxInternal(op errors.Op, dbtx walletdb.ReadWriteTx, msgtx *wire.MsgTx, ticketPrice dcrutil.Amount, votingAddress dcrutil.Address, subsidyAddress dcrutil.Address,
+	eligible []udb.Credit, minConf int32, feeEst dcrutil.Amount) ([]udb.Credit, error) {
+
+	pkScript, err := txscript.PayToSStx(votingAddress)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create txout script: %s", err)
+	}
+	txout := wire.NewTxOut(int64(ticketPrice), pkScript)
+	msgtx.AddTxOut(txout)
+
+	totalAdded := dcrutil.Amount(0)
+	var forSigning []udb.Credit
+	for _, credit := range eligible {
+		if msgtx.SerializeSize() > maxTxSize {
+			break
+		}
+
+		msgtx.AddTxIn(wire.NewTxIn(&credit.OutPoint, nil))
+		totalAdded += credit.Amount
+		forSigning = append(forSigning, credit)
+	}
+
+	if totalAdded < ticketPrice {
+		return nil, ErrSStxNotEnoughFunds
+	}
+
+	// This is the total change that should be paid
+	totalChange := totalAdded - ticketPrice - feeEst
+
+	// total commitment
+	totalCommitment := ticketPrice + feeEst
+
+	for _, credit := range eligible {
+		prop := float64(credit.Amount) / float64(totalAdded)
+
+		// for each eligible credit, change and commitment should be in proportion to credit size
+
+		changeWithThisCredit := totalChange.MulF64(prop)
+		commitmentWithThisCredit := totalCommitment.MulF64(prop)
+
+		pkScript, err := txscript.GenerateSStxAddrPush(subsidyAddress, commitmentWithThisCredit, uint16(defaultTicketFeeLimits))
+		if err != nil {
+			return nil, fmt.Errorf("cannot create txout script: %s", err)
+		}
+		txout := wire.NewTxOut(int64(0), pkScript)
+		msgtx.AddTxOut(txout)
+
+		// fetch change address
+		changeAddr, err := w.newChangeAddress(op, w.persistReturnedChild(dbtx), udb.DefaultAccountNum)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add the changeSStx Output. This randomizes the index of output
+		pkScript, err = txscript.PayToSStxChange(changeAddr)
+		if err != nil {
+			return nil, fmt.Errorf("cannot create txout script: %s", err)
+		}
+
+		msgtx.AddTxOut(wire.NewTxOut(int64(changeWithThisCredit), pkScript))
+	}
+	return forSigning, nil
+}
+
+func (w *Wallet) estimateFee(eligible []udb.Credit, votingAddress dcrutil.Address,
+	ticketPrice dcrutil.Amount) (dcrutil.Amount, error) {
+
+	msgtx := wire.NewMsgTx()
+
+	scriptSizers := []txsizes.ScriptSizer{}
+
+	for range eligible {
+		scriptSizers = append(scriptSizers, txsizes.P2SHScriptSize)
+	}
+
+	pkScript, err := txscript.PayToSStx(votingAddress)
+	if err != nil {
+		return dcrutil.Amount(0), fmt.Errorf("cannot create txout script: %s", err)
+	}
+	txout := wire.NewTxOut(int64(ticketPrice), pkScript)
+	msgtx.AddTxOut(txout)
+
+	for _, credit := range eligible {
+		pkScript, err := txscript.GenerateSStxAddrPush(votingAddress, credit.Amount, uint16(defaultTicketFeeLimits))
+		if err != nil {
+			return dcrutil.Amount(0), fmt.Errorf("cannot create txout script: %s", err)
+		}
+		txout := wire.NewTxOut(int64(0), pkScript)
+		msgtx.AddTxOut(txout)
+
+		// Add the changeSStx Output. This randomizes the index of output
+		pkScript, err = txscript.PayToSStxChange(votingAddress)
+		if err != nil {
+			return dcrutil.Amount(0), fmt.Errorf("cannot create txout script: %s", err)
+		}
+		msgtx.AddTxOut(wire.NewTxOut(int64(0), pkScript))
+	}
+
+	szEst := txsizes.EstimateSerializeSize(scriptSizers, msgtx.TxOut, true)
+	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), szEst)
+
+	return feeEst, nil
+
+}
+
+func (w *Wallet) forceSplit(op errors.Op, req purchaseTicketRequest, numTickets int) (*chainhash.Hash, error) {
+	ticketHashes, err := w.purchaseTicketsSplit(op, req, numTickets)
+	if err != nil {
+		return nil, err
+	}
+	return ticketHashes[0], nil
+}
+
+func (w *Wallet) purchaseTicketsSimple(op errors.Op, req purchaseTicketRequest) ([]*chainhash.Hash, error) {
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	// Ensure that the minimum number of confirmations is at least 0
+	if req.minConf < 0 {
+		return nil, fmt.Errorf("Required number of confirmations should be at least 0")
+	}
+
+	// Perform sanity check on expiry
+	tipHeight, err := w.sanityCheckExpiry(req.expiry)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get Change address func
+	addrFunc := w.fetchAddressFunc()
+
+	// Try to get the pool address from the request. If none exists
+	// in the request, try to get the global pool address. Then do
+	// the same for pool fees, but check sanity too.
+	poolAddress := req.poolAddress
+	if poolAddress == nil {
+		poolAddress = w.PoolAddress()
+	}
+
+	poolFees := req.poolFees
+	if poolFees == 0.0 {
+		poolFees = w.PoolFees()
+	}
+	if poolAddress != nil && poolFees == 0.0 {
+		return nil, fmt.Errorf("pool address given, but pool fees not set")
+	}
+
+	ticketPrice, err := n.StakeDifficulty(context.TODO())
+	if err != nil {
+		return nil, err
+	}
+
+	neededPerTicket := req.minBalance + ticketPrice + EstMaxTicketFeeAmount
+	//amountNeeded := neededPerTicket
+
+	// Fetch votingAddress and subsidyAddress
+	votingAddress, subsidyAddress, err := w.fetchAddresses(op, req.ticketAddr, req.account, addrFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	ticket := wire.NewMsgTx()
+	ticketHashes := make([]*chainhash.Hash, 0, req.numTickets)
+	for i := 0; i < req.numTickets; i++ {
+		eligible, err := w.findEligibleOutputCredits(req.account, req.minConf, neededPerTicket, tipHeight)
+		if err != nil {
+			return ticketHashes, err
+		}
+
+		// If eligible utxos is equal to or greater than req.SplitTx
+		// Force a split tx
+		numEligible := len(eligible)
+		if numEligible >= int(req.splitTx) {
+			log.Debugf("Found %v eligible inputs for sstx, too many, will use a split transaction instead", numEligible)
+			tHash, err := w.forceSplit(op, req, 1)
+			if err != nil {
+				return ticketHashes, err
+			}
+			ticketHashes = append(ticketHashes, tHash)
+			continue
+		}
+
+		log.Debugf("Found %v eligible inputs for sstx, no split transaction needed", numEligible)
+		feeEst, err := w.estimateFee(eligible, votingAddress, ticketPrice)
+		if err != nil {
+			return ticketHashes, err
+		}
+
+		// Build the transaction
+		forSigning, err := w.buildTicketTx(op, ticket, ticketPrice, votingAddress, subsidyAddress, eligible, req.minConf, feeEst)
+		if err != nil {
+			return ticketHashes, nil
+		}
+
+		if !stake.IsSStx(ticket) {
+			return ticketHashes, fmt.Errorf("Invalid sstx transaction")
+		}
+
+		// Set ticket expiry if expiry greater than zero
+		if req.expiry > 0 {
+			ticket.Expiry = uint32(req.expiry)
+		}
+
+		err = w.signAndValidateTicket(op, ticket, forSigning, nil)
+		if err != nil {
+			return ticketHashes, err
+		}
+
+		err = w.processTxRecordAndPublish(ticket, n)
+		if err != nil {
+			return ticketHashes, err
+		}
+
+		ticketHash := ticket.TxHash()
+		ticketHashes = append(ticketHashes, &ticketHash)
+		log.Infof("Successfully sent SStx purchase transaction %v", ticketHash)
+		// Re-initialize the wire message for the next tx inputs/outputs
+		ticket = wire.NewMsgTx()
+	}
+
+	return ticketHashes, nil
+}
+
+// purchaseTickets calls the purchaseTicketsSplit or purchaseTicketsSimple functions
+// depending on the SplitTx config variable
+func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*chainhash.Hash, error) {
+	if req.splitTx == 1 {
+		return w.purchaseTicketsSplit(op, req, req.numTickets)
+	}
+	return w.purchaseTicketsSimple(op, req)
+}
+
+// addSStxChange adds a new output with the given amount and address, and
+// randomizes the index (and returns it) of the newly added output.
+func addSStxChange(msgtx *wire.MsgTx, change dcrutil.Amount,
+	changeAddr dcrutil.Address) error {
+	pkScript, err := txscript.PayToSStxChange(changeAddr)
+	if err != nil {
+		return fmt.Errorf("cannot create txout script: %s", err)
+	}
+	msgtx.AddTxOut(wire.NewTxOut(int64(change), pkScript))
+
+	return nil
 }
 
 func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minconf int32,
@@ -1564,4 +1978,45 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 		}
 	}
 	return nil, errors.New("missing suitable revocation output to pay relay fee")
+}
+
+// sanityCheckExpiry performs a sanity check on expiry
+func (w *Wallet) sanityCheckExpiry(expiry int32) (int32, error) {
+	// Need a non-negative expiry that is higher than the next block to
+	// generate.
+	if expiry < 0 {
+		return 0, fmt.Errorf("need positive expiry")
+	}
+	// Perform a sanity check on expiry.
+	var tipHeight int32
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		ns := tx.ReadBucket(wtxmgrNamespaceKey)
+		_, tipHeight = w.TxStore.MainChainTip(ns)
+		return nil
+	})
+	if err != nil {
+		return tipHeight, err
+	}
+	if expiry <= tipHeight+1 && expiry > 0 {
+		return tipHeight, fmt.Errorf("need expiry that is beyond next height ("+
+			"given: %v, next height %v)", expiry, tipHeight+1)
+	}
+	return tipHeight, err
+}
+
+// fetchAddressFunc returns a change address
+func (w *Wallet) fetchAddressFunc() func(errors.Op, persistReturnedChildFunc, uint32) (dcrutil.Address, error) {
+	addrFunc := w.newChangeAddress
+	if w.addressReuse {
+		xpub := w.addressBuffers[udb.DefaultAccountNum].albExternal.branchXpub
+		addr, err := deriveChildAddress(xpub, 0, w.chainParams)
+		addrFunc = func(errors.Op, persistReturnedChildFunc, uint32) (dcrutil.Address, error) {
+			return addr, err
+		}
+	}
+	return addrFunc
+}
+
+func FeeForSize(incr dcrutil.Amount, sz int) dcrutil.Amount {
+	return dcrutil.Amount(1+sz/1000) * incr
 }

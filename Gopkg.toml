@@ -12,8 +12,10 @@
   name = "github.com/btcsuite/websocket"
 
 [[constraint]]
-  branch = "master"
+  branch = "SplitTx"
   name = "github.com/decred/dcrd"
+  source = "github.com/shweini/dcrd"
+  
 
 [[constraint]]
   branch = "master"

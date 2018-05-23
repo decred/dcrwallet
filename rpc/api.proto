@@ -86,6 +86,7 @@ service TicketBuyerService {
     rpc SetPoolAddress (SetPoolAddressRequest) returns (SetPoolAddressResponse);
     rpc SetPoolFees (SetPoolFeesRequest) returns (SetPoolFeesResponse);
     rpc SetMaxPerBlock (SetMaxPerBlockRequest) returns (SetMaxPerBlockResponse);
+    rpc SetSplitTx (SetSplitTxRequest) returns (SetSplitTxResponse);
 }
 
 service SeedService {
@@ -534,6 +535,7 @@ message PurchaseTicketsRequest {
 	uint32 expiry = 9;
 	int64 tx_fee = 10;
 	int64 ticket_fee = 11;
+	uint32  split_tx = 12;
 }
 message PurchaseTicketsResponse {
 	repeated bytes ticket_hashes = 1;
@@ -725,9 +727,10 @@ message TicketBuyerConfigResponse{
     int64 max_in_mempool = 17;
     string pool_address = 18;
     double pool_fees = 19;
-    bool spread_ticket_purchases = 20;
-    string voting_address = 21;
+		bool spread_ticket_purchases = 20;
+		string voting_address = 21;
     int64 tx_fee = 22;
+    uint32 split_tx = 23;
 }
 
 message SetAccountRequest{
@@ -774,6 +777,11 @@ message SetMaxPerBlockRequest{
     int64 max_per_block = 1;
 }
 message SetMaxPerBlockResponse{}
+
+message SetSplitTxRequest{
+	uint32 split_tx = 1;
+}
+message SetSplitTxResponse{}
 
 message AgendasRequest {}
 message AgendasResponse {
