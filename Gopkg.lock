@@ -24,6 +24,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/btcsuite/btclog"
+  packages = ["."]
+  revision = "84c8d2346e9fc8c7b947e243b9c24e6df9fd206a"
+
+[[projects]]
+  branch = "master"
   name = "github.com/btcsuite/go-socks"
   packages = ["socks"]
   revision = "4720035b7bfd2a9bb130b1c184f8bbe41b6f0d0f"
@@ -41,10 +47,10 @@
   revision = "dee3fe6eb0e98dc774a94fc231f85baf7c29d360"
 
 [[projects]]
-  branch = "master"
   name = "github.com/decred/base58"
   packages = ["."]
   revision = "56c501706f00d9e1cfacee19a27117e12da24734"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "SplitTx"
@@ -96,7 +102,7 @@
     "ptypes/duration",
     "ptypes/timestamp"
   ]
-  revision = "927b65914520a8b7d44f5c9057611cfec6b2e2d0"
+  revision = "3a3da3a4e26776cc22a79ef46d5d58477532dede"
 
 [[projects]]
   name = "github.com/jessevdk/go-flags"
@@ -105,16 +111,16 @@
   version = "v1.4.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/jrick/bitset"
   packages = ["."]
   revision = "06eae37cdf93c699c0503c23f998167ce841974c"
+  version = "v1.0.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/jrick/logrotate"
   packages = ["rotator"]
   revision = "a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -128,7 +134,7 @@
     "scrypt",
     "ssh/terminal"
   ]
-  revision = "94e3fad7f1b4eed4ec147751ad6b4c4d33f00611"
+  revision = "75e913eb8a8e3d31a97b216de09de106a7b07681"
 
 [[projects]]
   branch = "master"
@@ -142,7 +148,7 @@
     "internal/timeseries",
     "trace"
   ]
-  revision = "2491c5de3490fced2f6cff376127c667efeed857"
+  revision = "9ef9f5bb98a1fdc41f8cf6c250a4404b4085e389"
 
 [[projects]]
   branch = "master"
@@ -157,7 +163,7 @@
     "unix",
     "windows"
   ]
-  revision = "d0faeb539838e250bd0a9db4182d48d4a1915181"
+  revision = "f3b0f5faf591842dced5f027709e1706df17b749"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -184,7 +190,7 @@
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "86e600f69ee4704c6efbf6a2a40a5c10700e76c2"
+  revision = "5d77454313cc91719bfc499a74ea16d395533d08"
 
 [[projects]]
   name = "google.golang.org/grpc"
@@ -220,6 +226,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6e671bbb27136b40738b12e759db56e322c5973324afb2e871a8f6e6f0e22c51"
+  inputs-digest = "212aef0de9e23f60c64e5dc578b569045d1588d79c3fbfd59ee11a24a9b12ed6"
   solver-name = "gps-cdcl"
   solver-version = 1
