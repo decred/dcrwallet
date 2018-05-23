@@ -24,12 +24,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/btcsuite/btclog"
-  packages = ["."]
-  revision = "84c8d2346e9fc8c7b947e243b9c24e6df9fd206a"
-
-[[projects]]
-  branch = "master"
   name = "github.com/btcsuite/go-socks"
   packages = ["socks"]
   revision = "4720035b7bfd2a9bb130b1c184f8bbe41b6f0d0f"
@@ -41,10 +35,10 @@
   revision = "31079b6807923eb23992c421b114992b95131b55"
 
 [[projects]]
-  branch = "master"
   name = "github.com/dchest/blake256"
   packages = ["."]
   revision = "dee3fe6eb0e98dc774a94fc231f85baf7c29d360"
+  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/decred/base58"
@@ -83,14 +77,14 @@
     "txscript",
     "wire"
   ]
-  revision = "3e810cd52ef3936260958e247824f3e209cdd9b3"
+  revision = "e91e950174777339bbb287b467c6295a9ef57fa9"
   source = "github.com/shweini/dcrd"
 
 [[projects]]
+  branch = "master"
   name = "github.com/decred/slog"
   packages = ["."]
-  revision = "fbd821ef791ba2b8ae945f5d44f4e49396d230c5"
-  version = "v1.0.0"
+  revision = "3717d0bc33f3a897fd57a590179b9b9a46f6e5f9"
 
 [[projects]]
   branch = "master"
@@ -163,7 +157,7 @@
     "unix",
     "windows"
   ]
-  revision = "f3b0f5faf591842dced5f027709e1706df17b749"
+  revision = "77b0e4315053a57ed2962443614bdb28db152054"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -190,7 +184,7 @@
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "5d77454313cc91719bfc499a74ea16d395533d08"
+  revision = "694d95ba50e67b2e363f3483057db5d4910c18f9"
 
 [[projects]]
   name = "google.golang.org/grpc"
@@ -226,6 +220,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "212aef0de9e23f60c64e5dc578b569045d1588d79c3fbfd59ee11a24a9b12ed6"
+  inputs-digest = "a1ba0d0972fc8bbae5ab09a548b147486ad183ea4f166e28d46e9c14d5a7cc6d"
   solver-name = "gps-cdcl"
   solver-version = 1

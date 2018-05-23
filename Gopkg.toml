@@ -1,11 +1,10 @@
-
 [[constraint]]
   name = "github.com/boltdb/bolt"
   version = "1.3.0"
 
 [[constraint]]
   name = "github.com/decred/slog"
-  version = "1.0.0"
+  branch = "master"
 
 [[constraint]]
   branch = "master"
@@ -14,8 +13,7 @@
 [[constraint]]
   branch = "SplitTx"
   name = "github.com/decred/dcrd"
-  source = "github.com/shweini/dcrd"
-  
+  source = "github.com/shweini/dcrd"	
 
 [[constraint]]
   branch = "master"
