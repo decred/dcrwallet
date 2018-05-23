@@ -4,8 +4,8 @@
   version = "1.3.0"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/btcsuite/btclog"
+  name = "github.com/decred/slog"
+  version = "1.0.0"
 
 [[constraint]]
   branch = "master"

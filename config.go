@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -16,7 +16,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/btcsuite/btclog"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/cfgutil"
@@ -25,6 +24,7 @@ import (
 	"github.com/decred/dcrwallet/version"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txrules"
+	"github.com/decred/slog"
 	flags "github.com/jessevdk/go-flags"
 )
 
@@ -244,7 +244,7 @@ func cleanAndExpandPath(path string) string {
 
 // validLogLevel returns whether or not logLevel is a valid debug log level.
 func validLogLevel(logLevel string) bool {
-	_, ok := btclog.LevelFromString(logLevel)
+	_, ok := slog.LevelFromString(logLevel)
 	return ok
 }
 
