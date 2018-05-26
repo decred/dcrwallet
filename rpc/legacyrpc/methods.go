@@ -2945,7 +2945,12 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	for outPoint, resp := range requested {
 		result, err := resp.Receive()
 		if err != nil {
-			return nil, err
+			return nil, errors.E(errors.Op("dcrd.jsonrpc.gettxout"), err)
+		}
+		// gettxout returns JSON null if the output is found, but is spent by
+		// another transaction in the main chain.
+		if result == nil {
+			continue
 		}
 		script, err := hex.DecodeString(result.ScriptPubKey.Hex)
 		if err != nil {
