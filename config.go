@@ -49,6 +49,7 @@ const (
 	defaultGapLimit            = wallet.DefaultGapLimit
 	defaultStakePoolColdExtKey = ""
 	defaultAllowHighFees       = false
+	defaultAccountGapLimit     = wallet.DefaultAccountGapLimit
 
 	// ticket buyer options
 	defaultMaxFee                    dcrutil.Amount = 1e6
@@ -115,6 +116,7 @@ type config struct {
 	AllowHighFees       bool                 `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
 	RelayFee            *cfgutil.AmountFlag  `long:"txfee" description:"Sets the wallet's tx fee per kb"`
 	TicketFee           *cfgutil.AmountFlag  `long:"ticketfee" description:"Sets the wallet's ticket fee per kb"`
+	AccountGapLimit     int                  `long:"accountgaplimit" description:"Number of accounts that can be created in a row without using any of them"`
 
 	// RPC client options
 	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Hostname/IP and port of dcrd RPC server to connect to"`
@@ -362,6 +364,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		RelayFee:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
 		TicketFee:              cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
 		PoolAddress:            cfgutil.NewAddressFlag(nil),
+		AccountGapLimit:        defaultAccountGapLimit,
 
 		// TODO: DEPRECATED - remove.
 		DataDir:        cfgutil.NewExplicitString(defaultAppDataDir),

@@ -20,6 +20,10 @@ import (
 // DefaultGapLimit is the default unused address gap limit defined by BIP0044.
 const DefaultGapLimit = 20
 
+// DefaultAccountGapLimit is the default number of accounts that can be
+// created in a row without using any of them
+const DefaultAccountGapLimit = 10
+
 // gapPolicy defines the policy to use when the BIP0044 address gap limit is
 // exceeded.
 type gapPolicy int

@@ -43,6 +43,7 @@ type Loader struct {
 	ntfnClient      wallet.MainTipChangedNotificationsClient
 	stakeOptions    *StakeOptions
 	gapLimit        int
+	accountGapLimit int
 	allowHighFees   bool
 	relayFee        float64
 }
@@ -60,15 +61,16 @@ type StakeOptions struct {
 
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, gapLimit int,
-	allowHighFees bool, relayFee float64) *Loader {
+	allowHighFees bool, relayFee float64, accountGapLimit int) *Loader {
 
 	return &Loader{
-		chainParams:   chainParams,
-		dbDirPath:     dbDirPath,
-		stakeOptions:  stakeOptions,
-		gapLimit:      gapLimit,
-		allowHighFees: allowHighFees,
-		relayFee:      relayFee,
+		chainParams:     chainParams,
+		dbDirPath:       dbDirPath,
+		stakeOptions:    stakeOptions,
+		gapLimit:        gapLimit,
+		accountGapLimit: accountGapLimit,
+		allowHighFees:   allowHighFees,
+		relayFee:        relayFee,
 	}
 }
 
@@ -320,6 +322,7 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 		PoolFees:            so.PoolFees,
 		TicketFee:           so.TicketFee,
 		GapLimit:            l.gapLimit,
+		AccountGapLimit:     l.accountGapLimit,
 		StakePoolColdExtKey: so.StakePoolColdExtKey,
 		AllowHighFees:       l.allowHighFees,
 		RelayFee:            l.relayFee,
