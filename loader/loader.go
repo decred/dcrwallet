@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2017 The btcsuite developers
+// Copyright (c) 2015-2018 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -15,8 +15,7 @@ import (
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
-	"github.com/decred/dcrwallet/walletdb"
-	_ "github.com/decred/dcrwallet/walletdb/bdb" // driver loaded during init
+	_ "github.com/decred/dcrwallet/wallet/drivers/bdb" // driver loaded during init
 )
 
 const (
@@ -36,7 +35,7 @@ type Loader struct {
 	chainParams *chaincfg.Params
 	dbDirPath   string
 	wallet      *wallet.Wallet
-	db          walletdb.DB
+	db          wallet.DB
 	mu          sync.Mutex
 
 	purchaseManager *ticketbuyer.PurchaseManager
@@ -74,7 +73,7 @@ func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *Sta
 
 // onLoaded executes each added callback and prevents loader from loading any
 // additional wallets.  Requires mutex to be locked.
-func (l *Loader) onLoaded(w *wallet.Wallet, db walletdb.DB) {
+func (l *Loader) onLoaded(w *wallet.Wallet, db wallet.DB) {
 	for _, fn := range l.callbacks {
 		fn(w)
 	}
@@ -150,7 +149,7 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	db, err := walletdb.Create("bdb", dbPath)
+	db, err := wallet.CreateDB("bdb", dbPath)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -240,7 +239,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	db, err := walletdb.Create("bdb", dbPath)
+	db, err := wallet.CreateDB("bdb", dbPath)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -294,7 +293,7 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 
 	// Open the database using the boltdb backend.
 	dbPath := filepath.Join(l.dbDirPath, walletDbName)
-	db, err := walletdb.Open("bdb", dbPath)
+	db, err := wallet.OpenDB("bdb", dbPath)
 	if err != nil {
 		log.Errorf("Failed to open database: %v", err)
 		return nil, errors.E(op, err)

@@ -11,7 +11,7 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 )
 
 // convertErr wraps a driver-specific error with an error code.

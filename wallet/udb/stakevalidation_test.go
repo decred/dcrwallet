@@ -10,8 +10,8 @@ import (
 
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/walletdb"
-	_ "github.com/decred/dcrwallet/walletdb/bdb"
+	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	_ "github.com/decred/dcrwallet/wallet/internal/walletdb/bdb"
 )
 
 func TestStakeInvalidationOfTip(t *testing.T) {

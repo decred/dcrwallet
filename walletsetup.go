@@ -1,5 +1,5 @@
 // Copyright (c) 2014-2015 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -21,8 +21,7 @@ import (
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/wallet"
-	"github.com/decred/dcrwallet/walletdb"
-	_ "github.com/decred/dcrwallet/walletdb/bdb"
+	_ "github.com/decred/dcrwallet/wallet/drivers/bdb"
 	"github.com/decred/dcrwallet/walletseed"
 )
 
@@ -127,7 +126,7 @@ func createSimulationWallet(cfg *config) error {
 	fmt.Println("Creating the wallet...")
 
 	// Create the wallet database backed by bolt db.
-	db, err := walletdb.Create("bdb", dbPath)
+	db, err := wallet.CreateDB("bdb", dbPath)
 	if err != nil {
 		return err
 	}
@@ -182,7 +181,7 @@ func createWatchingOnlyWallet(cfg *config) error {
 	fmt.Println("Creating the wallet...")
 
 	// Create the wallet database backed by bolt db.
-	db, err := walletdb.Create("bdb", dbPath)
+	db, err := wallet.CreateDB("bdb", dbPath)
 	if err != nil {
 		return err
 	}

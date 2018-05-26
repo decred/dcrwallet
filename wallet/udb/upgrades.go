@@ -15,7 +15,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/snacl"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 )
 
 // Note: all manager functions always use the latest version of the database.

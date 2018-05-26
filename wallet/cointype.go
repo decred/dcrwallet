@@ -7,8 +7,8 @@ package wallet
 import (
 	"github.com/decred/dcrd/hdkeychain"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
 )
 
 // UpgradeToSLIP0044CoinType upgrades the wallet from the legacy BIP0044 coin

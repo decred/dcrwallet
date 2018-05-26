@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -29,10 +29,10 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
 	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
@@ -146,7 +146,7 @@ type Wallet struct {
 
 // Config represents the configuration options needed to initialize a wallet.
 type Config struct {
-	DB walletdb.DB
+	DB DB
 
 	PubPassphrase []byte
 
@@ -3716,7 +3716,7 @@ func (w *Wallet) NeedsAccountsSync() (bool, error) {
 // Create creates an new wallet, writing it to an empty database.  If the passed
 // seed is non-nil, it is used.  Otherwise, a secure random seed of the
 // recommended length is generated.
-func Create(db walletdb.DB, pubPass, privPass, seed []byte, params *chaincfg.Params) error {
+func Create(db DB, pubPass, privPass, seed []byte, params *chaincfg.Params) error {
 	const op errors.Op = "wallet.Create"
 	// If a seed was provided, ensure that it is of valid length. Otherwise,
 	// we generate a random seed for the wallet with the recommended seed
@@ -3732,7 +3732,7 @@ func Create(db walletdb.DB, pubPass, privPass, seed []byte, params *chaincfg.Par
 		return errors.E(op, hdkeychain.ErrInvalidSeedLen)
 	}
 
-	err := udb.Initialize(db, params, seed, pubPass, privPass)
+	err := udb.Initialize(db.internal(), params, seed, pubPass, privPass)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -3740,9 +3740,9 @@ func Create(db walletdb.DB, pubPass, privPass, seed []byte, params *chaincfg.Par
 }
 
 // CreateWatchOnly creates a watchonly wallet on the provided db.
-func CreateWatchOnly(db walletdb.DB, extendedPubKey string, pubPass []byte, params *chaincfg.Params) error {
+func CreateWatchOnly(db DB, extendedPubKey string, pubPass []byte, params *chaincfg.Params) error {
 	const op errors.Op = "wallet.CreateWatchOnly"
-	err := udb.InitializeWatchOnly(db, params, extendedPubKey, pubPass)
+	err := udb.InitializeWatchOnly(db.internal(), params, extendedPubKey, pubPass)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -3816,25 +3816,26 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 func Open(cfg *Config) (*Wallet, error) {
 	const op errors.Op = "wallet.Open"
 	// Migrate to the unified DB if necessary.
-	needsMigration, err := udb.NeedsMigration(cfg.DB)
+	db := cfg.DB.internal()
+	needsMigration, err := udb.NeedsMigration(db)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 	if needsMigration {
-		err := udb.Migrate(cfg.DB, cfg.Params)
+		err := udb.Migrate(db, cfg.Params)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
 	}
 
 	// Perform upgrades as necessary.
-	err = udb.Upgrade(cfg.DB, cfg.PubPassphrase)
+	err = udb.Upgrade(db, cfg.PubPassphrase)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
 	w := &Wallet{
-		db: cfg.DB,
+		db: db,
 
 		// StakeOptions
 		votingEnabled: cfg.VotingEnabled,
@@ -3869,7 +3870,7 @@ func Open(cfg *Config) (*Wallet, error) {
 	}
 
 	// Open database managers
-	w.Manager, w.TxStore, w.StakeMgr, err = udb.Open(cfg.DB, cfg.Params, cfg.PubPassphrase)
+	w.Manager, w.TxStore, w.StakeMgr, err = udb.Open(db, cfg.Params, cfg.PubPassphrase)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}

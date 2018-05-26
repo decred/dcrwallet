@@ -17,9 +17,9 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
 )
 
 func (w *Wallet) extendMainChain(op errors.Op, dbtx walletdb.ReadWriteTx, block *udb.BlockHeaderData, transactions [][]byte) error {

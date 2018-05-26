@@ -12,9 +12,9 @@ import (
 	"github.com/decred/dcrd/hdkeychain"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
 )
 
 // DefaultGapLimit is the default unused address gap limit defined by BIP0044.

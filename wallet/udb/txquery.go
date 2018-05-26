@@ -11,7 +11,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 )
 
 // CreditRecord contains metadata regarding a transaction credit for a known

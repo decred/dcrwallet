@@ -18,8 +18,8 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/walletdb"
-	_ "github.com/decred/dcrwallet/walletdb/bdb"
+	_ "github.com/decred/dcrwallet/wallet/drivers/bdb"
+	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 )
 
 var dbUpgradeTests = [...]struct {

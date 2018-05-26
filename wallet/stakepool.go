@@ -7,8 +7,8 @@ package wallet
 import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/walletdb"
 )
 
 // StakePoolUserInfo returns the stake pool user information for a user

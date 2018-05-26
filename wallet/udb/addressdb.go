@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 )
 
 var (
