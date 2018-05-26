@@ -762,7 +762,7 @@ func getBlockCount(s *Server, icmd interface{}) (interface{}, error) {
 }
 
 // getInfo handles a getinfo request by returning the a structure containing
-// information about the current state of dcrcwallet.
+// information about the current state of dcrwallet.
 // exist.
 func getInfo(s *Server, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
