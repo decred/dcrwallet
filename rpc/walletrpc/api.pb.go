@@ -127,6 +127,8 @@ It has these top-level messages:
 	SetPoolFeesResponse
 	SetMaxPerBlockRequest
 	SetMaxPerBlockResponse
+	SetSplitTxRequest
+	SetSplitTxResponse
 	AgendasRequest
 	AgendasResponse
 	VoteChoicesRequest
@@ -2689,6 +2691,7 @@ type PurchaseTicketsRequest struct {
 	Expiry                uint32  `protobuf:"varint,9,opt,name=expiry" json:"expiry,omitempty"`
 	TxFee                 int64   `protobuf:"varint,10,opt,name=tx_fee,json=txFee" json:"tx_fee,omitempty"`
 	TicketFee             int64   `protobuf:"varint,11,opt,name=ticket_fee,json=ticketFee" json:"ticket_fee,omitempty"`
+	SplitTx               uint32  `protobuf:"varint,12,opt,name=split_tx,json=splitTx" json:"split_tx,omitempty"`
 }
 
 func (m *PurchaseTicketsRequest) Reset()                    { *m = PurchaseTicketsRequest{} }
@@ -2769,6 +2772,13 @@ func (m *PurchaseTicketsRequest) GetTxFee() int64 {
 func (m *PurchaseTicketsRequest) GetTicketFee() int64 {
 	if m != nil {
 		return m.TicketFee
+	}
+	return 0
+}
+
+func (m *PurchaseTicketsRequest) GetSplitTx() uint32 {
+	if m != nil {
+		return m.SplitTx
 	}
 	return 0
 }
@@ -3702,6 +3712,7 @@ type TicketBuyerConfigResponse struct {
 	SpreadTicketPurchases bool    `protobuf:"varint,20,opt,name=spread_ticket_purchases,json=spreadTicketPurchases" json:"spread_ticket_purchases,omitempty"`
 	VotingAddress         string  `protobuf:"bytes,21,opt,name=voting_address,json=votingAddress" json:"voting_address,omitempty"`
 	TxFee                 int64   `protobuf:"varint,22,opt,name=tx_fee,json=txFee" json:"tx_fee,omitempty"`
+	SplitTx               uint32  `protobuf:"varint,23,opt,name=split_tx,json=splitTx" json:"split_tx,omitempty"`
 }
 
 func (m *TicketBuyerConfigResponse) Reset()                    { *m = TicketBuyerConfigResponse{} }
@@ -3845,6 +3856,13 @@ func (m *TicketBuyerConfigResponse) GetVotingAddress() string {
 func (m *TicketBuyerConfigResponse) GetTxFee() int64 {
 	if m != nil {
 		return m.TxFee
+	}
+	return 0
+}
+
+func (m *TicketBuyerConfigResponse) GetSplitTx() uint32 {
+	if m != nil {
+		return m.SplitTx
 	}
 	return 0
 }
@@ -4064,6 +4082,30 @@ func (m *SetMaxPerBlockResponse) Reset()                    { *m = SetMaxPerBloc
 func (m *SetMaxPerBlockResponse) String() string            { return proto.CompactTextString(m) }
 func (*SetMaxPerBlockResponse) ProtoMessage()               {}
 func (*SetMaxPerBlockResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{118} }
+
+type SetSplitTxRequest struct {
+	SplitTx uint32 `protobuf:"varint,1,opt,name=split_tx,json=splitTx" json:"split_tx,omitempty"`
+}
+
+func (m *SetSplitTxRequest) Reset()                    { *m = SetSplitTxRequest{} }
+func (m *SetSplitTxRequest) String() string            { return proto.CompactTextString(m) }
+func (*SetSplitTxRequest) ProtoMessage()               {}
+func (*SetSplitTxRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{113} }
+
+func (m *SetSplitTxRequest) GetSplitTx() uint32 {
+	if m != nil {
+		return m.SplitTx
+	}
+	return 0
+}
+
+type SetSplitTxResponse struct {
+}
+
+func (m *SetSplitTxResponse) Reset()                    { *m = SetSplitTxResponse{} }
+func (m *SetSplitTxResponse) String() string            { return proto.CompactTextString(m) }
+func (*SetSplitTxResponse) ProtoMessage()               {}
+func (*SetSplitTxResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{114} }
 
 type AgendasRequest struct {
 }
@@ -4974,6 +5016,8 @@ func init() {
 	proto.RegisterType((*SetPoolFeesResponse)(nil), "walletrpc.SetPoolFeesResponse")
 	proto.RegisterType((*SetMaxPerBlockRequest)(nil), "walletrpc.SetMaxPerBlockRequest")
 	proto.RegisterType((*SetMaxPerBlockResponse)(nil), "walletrpc.SetMaxPerBlockResponse")
+	proto.RegisterType((*SetSplitTxRequest)(nil), "walletrpc.SetSplitTxRequest")
+	proto.RegisterType((*SetSplitTxResponse)(nil), "walletrpc.SetSplitTxResponse")
 	proto.RegisterType((*AgendasRequest)(nil), "walletrpc.AgendasRequest")
 	proto.RegisterType((*AgendasResponse)(nil), "walletrpc.AgendasResponse")
 	proto.RegisterType((*AgendasResponse_Agenda)(nil), "walletrpc.AgendasResponse.Agenda")
@@ -6878,6 +6922,7 @@ type TicketBuyerServiceClient interface {
 	SetPoolAddress(ctx context.Context, in *SetPoolAddressRequest, opts ...grpc.CallOption) (*SetPoolAddressResponse, error)
 	SetPoolFees(ctx context.Context, in *SetPoolFeesRequest, opts ...grpc.CallOption) (*SetPoolFeesResponse, error)
 	SetMaxPerBlock(ctx context.Context, in *SetMaxPerBlockRequest, opts ...grpc.CallOption) (*SetMaxPerBlockResponse, error)
+	SetSplitTx(ctx context.Context, in *SetSplitTxRequest, opts ...grpc.CallOption) (*SetSplitTxResponse, error)
 }
 
 type ticketBuyerServiceClient struct {
@@ -6996,6 +7041,15 @@ func (c *ticketBuyerServiceClient) SetMaxPerBlock(ctx context.Context, in *SetMa
 	return out, nil
 }
 
+func (c *ticketBuyerServiceClient) SetSplitTx(ctx context.Context, in *SetSplitTxRequest, opts ...grpc.CallOption) (*SetSplitTxResponse, error) {
+	out := new(SetSplitTxResponse)
+	err := grpc.Invoke(ctx, "/walletrpc.TicketBuyerService/SetSplitTx", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for TicketBuyerService service
 
 type TicketBuyerServiceServer interface {
@@ -7011,6 +7065,7 @@ type TicketBuyerServiceServer interface {
 	SetPoolAddress(context.Context, *SetPoolAddressRequest) (*SetPoolAddressResponse, error)
 	SetPoolFees(context.Context, *SetPoolFeesRequest) (*SetPoolFeesResponse, error)
 	SetMaxPerBlock(context.Context, *SetMaxPerBlockRequest) (*SetMaxPerBlockResponse, error)
+	SetSplitTx(context.Context, *SetSplitTxRequest) (*SetSplitTxResponse, error)
 }
 
 func RegisterTicketBuyerServiceServer(s *grpc.Server, srv TicketBuyerServiceServer) {
@@ -7233,6 +7288,24 @@ func _TicketBuyerService_SetMaxPerBlock_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TicketBuyerService_SetSplitTx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetSplitTxRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TicketBuyerServiceServer).SetSplitTx(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/walletrpc.TicketBuyerService/SetSplitTx",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TicketBuyerServiceServer).SetSplitTx(ctx, req.(*SetSplitTxRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _TicketBuyerService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "walletrpc.TicketBuyerService",
 	HandlerType: (*TicketBuyerServiceServer)(nil),
@@ -7284,6 +7357,10 @@ var _TicketBuyerService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetMaxPerBlock",
 			Handler:    _TicketBuyerService_SetMaxPerBlock_Handler,
+		},
+		{
+			MethodName: "SetSplitTx",
+			Handler:    _TicketBuyerService_SetSplitTx_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
