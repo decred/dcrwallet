@@ -77,7 +77,7 @@
     "txscript",
     "wire"
   ]
-  revision = "e91e950174777339bbb287b467c6295a9ef57fa9"
+  revision = "cf7e4440430c9a765da99c3c9a5253f00e8dacde"
   source = "github.com/shweini/dcrd"
 
 [[projects]]
@@ -97,6 +97,12 @@
     "ptypes/timestamp"
   ]
   revision = "3a3da3a4e26776cc22a79ef46d5d58477532dede"
+
+[[projects]]
+  name = "github.com/gorilla/websocket"
+  packages = ["."]
+  revision = "ea4d1f681babbce9545c9c5f3d5194a789c89f5b"
+  version = "v1.2.0"
 
 [[projects]]
   name = "github.com/jessevdk/go-flags"
@@ -128,7 +134,7 @@
     "scrypt",
     "ssh/terminal"
   ]
-  revision = "75e913eb8a8e3d31a97b216de09de106a7b07681"
+  revision = "ab813273cd59e1333f7ae7bff5d027d4aadf528c"
 
 [[projects]]
   branch = "master"
@@ -142,7 +148,7 @@
     "internal/timeseries",
     "trace"
   ]
-  revision = "9ef9f5bb98a1fdc41f8cf6c250a4404b4085e389"
+  revision = "dfa909b99c79129e1100513e5cd36307665e5723"
 
 [[projects]]
   branch = "master"
@@ -157,7 +163,7 @@
     "unix",
     "windows"
   ]
-  revision = "77b0e4315053a57ed2962443614bdb28db152054"
+  revision = "c11f84a56e43e20a78cee75a7c034031ecf57d1f"
 
 [[projects]]
   name = "golang.org/x/text"
