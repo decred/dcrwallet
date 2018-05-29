@@ -32,6 +32,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
+	"github.com/decred/dcrwallet/walletseed"
 )
 
 // API version constants
@@ -119,6 +120,7 @@ var handlers = map[string]handler{
 	"ticketsforaddress":       {fn: ticketsForAddress},
 	"validateaddress":         {fn: validateAddress},
 	"verifymessage":           {fn: verifyMessage},
+	"verifyseed":              {fn: verifySeed},
 	"version":                 {fn: version},
 	"walletinfo":              {fn: walletInfo},
 	"walletlock":              {fn: walletLock},
@@ -1591,8 +1593,6 @@ func getWalletFee(s *Server, icmd interface{}) (interface{}, error) {
 // separated by newlines.  It is set during init.  These usages are used for all
 // locales.
 //
-//go:generate go run ../../internal/rpchelp/genrpcserverhelp.go legacyrpc
-//go:generate gofmt -w rpcserverhelp.go
 
 var helpDescs map[string]string
 var helpDescsMu sync.Mutex // Help may execute concurrently, so synchronize access.
@@ -3418,6 +3418,93 @@ func verifyMessage(s *Server, icmd interface{}) (interface{}, error) {
 
 WrongAddrKind:
 	return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "address must be secp256k1 P2PK or P2PKH")
+}
+
+func deriveCoinTypeKey(seed []byte, coinType uint32) (*hdkeychain.ExtendedKey, error) {
+	root, err := hdkeychain.NewMaster(seed[:], &chaincfg.MainNetParams) //TODO: Do NOT HARDCODE THE PARAMETERS
+	if err != nil {
+		return nil, err
+	}
+
+	// BIP0032 hierarchy: m/<purpose>'/
+	// Where purpose = 44 and the ' indicates hardening with the HardenedKeyStart 0x80000000
+	purpose, err := root.Child(44 + hdkeychain.HardenedKeyStart)
+	if err != nil {
+		return nil, err
+	}
+	defer purpose.Zero()
+
+	// BIP0044 hierarchy: m/44'/<coin type>'
+	// Where coin type is either the legacy coin type, 20, or the coin type described in SLIP0044, 44.
+	inputtedCoinTypePrivKey, err := purpose.Child(coinType + hdkeychain.HardenedKeyStart)
+	if err != nil {
+		return nil, err
+	}
+	defer inputtedCoinTypePrivKey.Zero()
+
+	return inputtedCoinTypePrivKey, err
+}
+
+func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrjson.VerifySeedCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	// Changed inputted seed, type string, to type byte[] so hdkeychain methods can be utilize using DecodeUserInput
+	// and run then derivedCoinTypeKey to receive the coin type private key.
+	coinTypePrivKey, err := deriveCoinTypeKey(walletseed.DecodeUserInput(cmd.Seed), w.CoinType())
+	if err != nil {
+		return nil, err
+	}
+	defer coinTypePrivKey.Zero()
+
+	// Grab coin type private key from wallet for future comparison to the derived inputted coin type private key
+	walletCoinTypePrivKey, err := w.CoinTypeKey()
+	if err != nil {
+		return nil, err
+	}
+	defer walletCoinTypePrivKey.Zero()
+
+	var matches bool
+	switch {
+	case cmd.Account != nil:
+		// Both derivedAccountKey and walletDerivedAccountKey use the BIP044 hierachy: m/44'/<coin type>'/<account>'
+		// If the child is a private extended key it is neutered
+		accountKey, err := coinTypePrivKey.Child(*cmd.Account + hdkeychain.HardenedKeyStart)
+		if err != nil {
+			return nil, err
+		}
+		defer inputtedAccountKey.Zero()
+
+		xPubKey, err := accountKey.Neuter()
+		if err != nil {
+			return nil, err
+		}
+
+		walletAccountKey, err := walletCoinTypePrivKey.Child(*cmd.Account + hdkeychain.HardenedKeyStart)
+		if err != nil {
+			return nil, err
+		}
+		defer walletAccountKey.Zero()
+
+		walletxPubKey, err := walletAccountKey.Neuter()
+		if err != nil {
+			return nil, err
+		}
+
+		// Since the field, key, within the type struct, ExtendedKey, is private - keys must be converted
+		// to type string for comparison.
+		matches = xPubKey.String() == walletxPubKey.String()
+	default:
+		matches = coinTypePrivKey.String() == walletCoinTypePrivKey.String()
+	}
+
+	return &dcrjson.VerifySeedResult{
+		Result:   matches,
+		CoinType: coinType,
+	}, nil
 }
 
 // version handles the version command by returning the RPC API versions of the

@@ -28,6 +28,7 @@ import (
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"

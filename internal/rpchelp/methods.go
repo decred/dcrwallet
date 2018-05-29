@@ -76,6 +76,7 @@ var Methods = []struct {
 	{"sweepaccount", []interface{}{(*dcrjson.SweepAccountResult)(nil)}},
 	{"validateaddress", []interface{}{(*dcrjson.ValidateAddressWalletResult)(nil)}},
 	{"verifymessage", returnsBool},
+	{"verifyseed", []interface{}{(*dcrjson.VerifySeedResult)(nil)}},
 	{"version", []interface{}{(*map[string]dcrjson.VersionResult)(nil)}},
 	{"walletlock", nil},
 	{"walletpassphrase", nil},
