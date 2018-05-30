@@ -2063,7 +2063,6 @@ func (w *Wallet) ListAllTransactions() ([]dcrjson.ListTransactionsResult, error)
 		j--
 	}
 	return txList, nil
-<<<<<<< HEAD
 }
 
 // ListTransactionDetails returns the listtransaction results for a single
