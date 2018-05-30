@@ -3530,7 +3530,8 @@ func (m *GenerateRandomSeedResponse) GetSeedMnemonic() string {
 }
 
 type DecodeSeedRequest struct {
-	UserInput string `protobuf:"bytes,1,opt,name=user_input,json=userInput" json:"user_input,omitempty"`
+	UserInput  string `protobuf:"bytes,1,opt,name=user_input,json=userInput" json:"user_input,omitempty"`
+	Passphrase string `protobuf:"bytes,1,opt,name=passphrase,proto3" json:"passphrase,omitempty"`
 }
 
 func (m *DecodeSeedRequest) Reset()                    { *m = DecodeSeedRequest{} }
@@ -3541,6 +3542,13 @@ func (*DecodeSeedRequest) Descriptor() ([]byte, []int) { return fileDescriptor0,
 func (m *DecodeSeedRequest) GetUserInput() string {
 	if m != nil {
 		return m.UserInput
+	}
+	return ""
+}
+
+func (m *DecodeSeedRequest) GetPassphrase() string {
+	if m != nil {
+		return m.Passphrase
 	}
 	return ""
 }

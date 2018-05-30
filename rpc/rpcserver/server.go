@@ -2342,8 +2342,7 @@ func (s *seedServer) GenerateRandomSeed(ctx context.Context, req *pb.GenerateRan
 }
 
 func (s *seedServer) DecodeSeed(ctx context.Context, req *pb.DecodeSeedRequest) (*pb.DecodeSeedResponse, error) {
-	password := "" // TODO: read password
-	seed, err := walletseed.DecodeUserInput(req.UserInput, password)
+	seed, err := walletseed.DecodeUserInput(req.UserInput, req.Passphrase)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
