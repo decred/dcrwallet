@@ -3,6 +3,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/EXCCoin/base58"
+  packages = ["."]
+  revision = "e1a805ee5d9f5e64352b9b509d18413991cceffb"
+
+[[projects]]
+  branch = "task/DEX-161_test_mainnet"
   name = "github.com/EXCCoin/exccd"
   packages = [
     "blockchain",
@@ -32,7 +38,7 @@
     "txscript",
     "wire"
   ]
-  revision = "374cc90fe1300bae97b158b50220bd958f5f8c61"
+  revision = "bbdaf9029c23ff724269d63d39763f9a7e1a4e02"
 
 [[projects]]
   branch = "master"
@@ -78,12 +84,6 @@
   name = "github.com/dchest/blake256"
   packages = ["."]
   revision = "dee3fe6eb0e98dc774a94fc231f85baf7c29d360"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/decred/base58"
-  packages = ["."]
-  revision = "56c501706f00d9e1cfacee19a27117e12da24734"
 
 [[projects]]
   branch = "master"
@@ -210,6 +210,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "306b3b3214e16f2028cd310c583e3067d52b7d68ed7e8966dc2a5bc74b131138"
+  inputs-digest = "9dc5f20f0eb5335f530a7e4c07612d0b54b4d3b76b108927a7dace6419c40982"
   solver-name = "gps-cdcl"
   solver-version = 1

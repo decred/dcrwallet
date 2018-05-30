@@ -12,7 +12,7 @@
   name = "github.com/btcsuite/websocket"
 
 [[constraint]]
-  branch = "master"
+  branch = "task/DEX-161_test_mainnet"
   name = "github.com/EXCCoin/exccd"
 
 [[constraint]]
