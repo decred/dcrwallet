@@ -109,9 +109,34 @@ var tests = []struct {
 	},
 }
 
+var invalidMnemonicsTests = []struct {
+	mnemonics string
+	error     string
+}{
+	{
+		mnemonics: "stamp spray never march summer scout course bring cave awful radar",
+		error:     "invalid number of words, expected 12, 15, 18, 21 or 24, instead got 11",
+	},
+	{
+		mnemonics: "idea female awake vehicle review bone potato hand alone main room blue text awake",
+		error:     "invalid number of words, expected 12, 15, 18, 21 or 24, instead got 14",
+	},
+	{
+		mnemonics: "idea female awake vehicle review bone potato hand alone main room blue idea female awake vehicle review bone potato hand alone main room blue main",
+		error:     "invalid number of words, expected 12, 15, 18, 21 or 24, instead got 25",
+	},
+	{
+		mnemonics: "idea female awake vehicle review bone potato notaword alone main room blue",
+		error:     "word \"notaword\" is outside of dictionary",
+	},
+}
+
 func TestDecode(t *testing.T) {
 	for _, test := range tests {
-		seed := DecodeMnemonics(test.mnemonics, test.password)
+		seed, err := DecodeMnemonics(test.mnemonics, test.password)
+		if err != nil {
+			t.Errorf("failed to decode mnemonics: %v", err)
+		}
 		if !bytes.Equal(seed, test.seed) {
 			t.Errorf("decoded seed %x differs from expected %x for mnemonic \"%s\"", seed, test.seed, test.mnemonics)
 		}
@@ -120,7 +145,10 @@ func TestDecode(t *testing.T) {
 
 func TestDecodeWithWrongPassword(t *testing.T) {
 	for _, test := range tests {
-		seed := DecodeMnemonics(test.mnemonics, test.password+"x")
+		seed, err := DecodeMnemonics(test.mnemonics, test.password+"x")
+		if err != nil {
+			t.Errorf("failed to decode mnemonics: %v", err)
+		}
 		if bytes.Equal(seed, test.seed) {
 			t.Errorf("decoded seed equals expected one when password is wrong for mnemonic \"%s\"", test.mnemonics)
 		}
@@ -130,10 +158,22 @@ func TestDecodeWithWrongPassword(t *testing.T) {
 func TestDecodeWithoutPassword(t *testing.T) {
 	for _, test := range tests {
 		if test.password != "" {
-			seed := DecodeMnemonics(test.mnemonics, "")
+			seed, err := DecodeMnemonics(test.mnemonics, "")
+			if err != nil {
+				t.Errorf("failed to decode mnemonics: %v", err)
+			}
 			if bytes.Equal(seed, test.seed) {
 				t.Errorf("decoded seed equals expected one when no password given for mnemonic \"%s\"", test.mnemonics)
 			}
+		}
+	}
+}
+
+func TestDecodeInvalidMnemonics(t *testing.T) {
+	for _, test := range invalidMnemonicsTests {
+		_, err := DecodeMnemonics(test.mnemonics, "")
+		if err.Error() != test.error {
+			t.Errorf("returned error \n\"%v\"\nis different than expected\n\"%s\"", err, test.error)
 		}
 	}
 }

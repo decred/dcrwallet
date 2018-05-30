@@ -187,44 +187,9 @@ var mnemonicTests = []struct {
 	},
 
 	{
-		mnemonics: "decline valid evil ripple battle typical city similar century comfort alter surround endorse shoe post sock tide endless fragile loud loan tomato rotate trip history uncover device dawn vault major decline spawn peasant frame snow middle kit reward roof cash electric twin merit prize satisfy inhale lyrics lucky",
-		seed:      []byte{217, 169, 182, 92, 84, 223, 65, 4, 52, 157, 92, 230, 249, 39, 95, 36, 145, 96, 221, 243, 120, 222, 255, 110, 84, 15, 84, 146, 228, 73, 224, 55, 142, 226, 11, 22, 34, 190, 249, 130, 246, 221, 219, 0, 53, 104, 228, 73, 254, 230, 99, 53, 203, 69, 203, 227, 248, 164, 16, 80, 178, 81, 35, 138},
-		ent:       []byte{56, 254, 25, 55, 221, 33, 53, 215, 202, 94, 71, 37, 101, 196, 29, 237, 68, 157, 140, 234, 46, 112, 225, 201, 53, 113, 194, 24, 49, 200, 47, 15, 70, 108, 61, 148, 242, 155, 255, 29, 12, 206, 62, 133, 162, 43, 147, 54, 70, 39, 175, 113, 110, 233, 26, 71, 125, 110, 46, 85, 171, 244, 231, 97},
-		password:  "TREZOR",
-	},
-
-	{
 		mnemonics: "exile ask congress lamp submit jacket era scheme attend cousin alcohol catch course end lucky hurt sentence oven short ball bird grab wing top",
 		seed:      []byte{138, 145, 168, 67, 173, 79, 237, 233, 95, 35, 147, 112, 153, 169, 79, 17, 113, 21, 163, 105, 144, 54, 3, 118, 30, 202, 186, 231, 52, 181, 213, 1, 221, 186, 4, 177, 163, 201, 242, 37, 100, 55, 239, 45, 35, 15, 41, 93, 143, 8, 103, 110, 93, 233, 58, 213, 25, 13, 166, 100, 93, 237, 129, 96},
 		ent:       []byte{79, 161, 168, 188, 62, 109, 128, 238, 19, 22, 5, 14, 134, 44, 24, 18, 3, 20, 147, 33, 43, 126, 195, 243, 187, 27, 8, 241, 104, 202, 190, 239},
-		password:  "",
-	},
-
-	{
-		mnemonics: "trumpet illegal hobby sand tower exchange scorpion barely harbor length exclude sweet curtain destroy gauge require gold dial unaware advance vague neglect bundle crystal confirm erupt winner victory bundle govern enemy athlete gas also dynamic alone acoustic twist hungry scale portion flush frequent neglect rain buyer fresh large",
-		seed:      []byte{159, 114, 129, 219, 90, 210, 178, 173, 248, 229, 16, 227, 13, 0, 106, 195, 1, 162, 171, 67, 131, 46, 230, 21, 140, 223, 198, 201, 205, 106, 108, 123, 164, 251, 147, 98, 63, 166, 9, 124, 36, 91, 236, 224, 193, 87, 155, 232, 210, 72, 31, 212, 227, 150, 174, 139, 48, 81, 119, 7, 183, 73, 234, 103},
-		ent:       []byte{233, 142, 33, 177, 95, 158, 98, 157, 112, 72, 148, 105, 16, 1, 59, 237, 211, 98, 120, 88, 37, 184, 100, 71, 163, 177, 129, 255, 11, 40, 7, 145, 170, 46, 233, 159, 239, 249, 209, 228, 202, 18, 120, 113, 96, 0, 233, 19, 3, 112, 33, 215, 27, 214, 0, 168, 75, 57, 114, 202, 11, 16, 62, 215},
-		password:  "a12879d5e7d4180f3ab8e273ce8fa4e800bc3e7bc34ebec95b4533fc6a10d34aab07faad369edcafff2353244e7eb3fe9dbe2d420561f8d71c2a88b4007b7cac",
-	},
-
-	{
-		mnemonics: "leaf ready hire modify cook shallow citizen cup else shrug room draw anxiety skill zone awful pottery stage negative weather sustain youth frozen tornado pudding during helmet aim upper when special disease scale forward about soul senior soul ripple undo universe leisure clever output rifle need thunder rural",
-		seed:      []byte{20, 72, 165, 226, 113, 109, 178, 225, 99, 115, 142, 180, 210, 167, 44, 100, 21, 242, 122, 203, 179, 54, 181, 103, 235, 154, 87, 50, 40, 66, 46, 212, 194, 1, 192, 34, 67, 140, 191, 149, 149, 166, 35, 179, 14, 113, 105, 75, 14, 163, 55, 21, 205, 203, 177, 17, 152, 40, 16, 58, 173, 235, 3, 92},
-		ent:       []byte{126, 182, 89, 176, 71, 82, 251, 138, 10, 81, 173, 72, 56, 234, 239, 161, 48, 161, 148, 255, 240, 133, 168, 250, 134, 79, 252, 93, 175, 254, 215, 111, 43, 173, 40, 133, 171, 130, 174, 241, 244, 116, 57, 248, 192, 11, 120, 1, 231, 220, 59, 159, 110, 151, 103, 237, 207, 244, 170, 78, 187, 155, 39, 184},
-		password:  "1436dfb1d0e81deca9fd399e4eb20cfcd5f5ca6adf30a90d7568d539744945f41734164b1e75a0c308f5d7dffd6933a35d61389b8c98dd50c491a822025e2177",
-	},
-
-	{
-		mnemonics: "affair vintage detect bronze material pioneer mercy muffin girl toward sugar bitter ghost excess pencil area build rule analyst hazard fiber twist lucky human pact charge middle ostrich verify second travel giraffe section favorite share struggle butter tackle typical lamp salmon ranch amused way crumble young bread sign",
-		seed:      []byte{66, 245, 28, 154, 161, 92, 16, 139, 73, 11, 75, 249, 188, 7, 66, 57, 25, 146, 52, 132, 2, 42, 195, 226, 172, 23, 158, 136, 218, 203, 48, 98, 232, 103, 70, 124, 153, 121, 66, 91, 35, 185, 181, 194, 54, 70, 255, 90, 72, 32, 59, 77, 172, 95, 233, 7, 248, 58, 153, 173, 237, 213, 247, 45},
-		ent:       []byte{4, 94, 132, 241, 142, 88, 143, 74, 98, 212, 137, 98, 92, 195, 99, 11, 102, 24, 157, 40, 168, 90, 29, 215, 164, 33, 52, 245, 91, 215, 33, 43, 118, 158, 164, 210, 49, 78, 127, 43, 132, 249, 227, 17, 194, 170, 131, 20, 235, 161, 245, 186, 58, 251, 230, 190, 118, 48, 32, 252, 3, 77, 254, 134},
-		password:  "",
-	},
-
-	{
-		mnemonics: "add caught spoil dentist obvious coral raise diagram reform fault wine woman paddle wonder forward girl shoot beach champion excite infant wrap asthma wisdom normal cash mask then picnic spider spy funny spice poem supply captain someone unfair dentist order high forward congress foster gap glide ethics cradle",
-		seed:      []byte{192, 247, 1, 13, 160, 165, 133, 127, 135, 82, 204, 209, 21, 144, 53, 5, 218, 50, 22, 71, 20, 130, 167, 210, 150, 49, 225, 3, 197, 154, 189, 11, 236, 40, 12, 7, 136, 214, 115, 217, 116, 122, 215, 144, 107, 70, 142, 232, 149, 98, 152, 68, 16, 89, 6, 194, 134, 102, 121, 34, 241, 206, 242, 239},
-		ent:       []byte{3, 36, 143, 73, 29, 73, 138, 96, 108, 73, 231, 180, 74, 127, 238, 126, 121, 237, 250, 22, 243, 18, 198, 130, 108, 152, 39, 103, 53, 252, 3, 135, 226, 150, 36, 106, 33, 240, 26, 67, 163, 116, 210, 241, 209, 148, 227, 103, 17, 28, 241, 218, 14, 164, 225, 107, 139, 120, 188, 46, 5, 244, 198, 19},
 		password:  "",
 	},
 

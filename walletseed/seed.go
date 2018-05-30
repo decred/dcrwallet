@@ -56,7 +56,7 @@ func CheckSummed(ent []byte) []byte {
 // CheckSum returns a slice of bits from the given entropy
 func CheckSum(ent []byte) []byte {
 	h := sha256.New()
-	h.Write(ent)
+	h.Write(ent) // nolint: errcheck
 	cs := h.Sum(nil)
 	hashBits := bytesToBits(cs)
 	num := len(ent) * 8 / 32
@@ -98,16 +98,16 @@ func DecodeUserInput(input, password string) ([]byte, error) {
 	input = strings.TrimSpace(input)
 
 	var seed []byte
+	var err error
 	if strings.Contains(input, " ") {
 		// Assume mnemonic
-		seed = pgpwordlist.DecodeMnemonics(input, password)
+		seed, err = pgpwordlist.DecodeMnemonics(input, password)
 	} else {
 		// Assume hex
-		var err error
 		seed, err = hex.DecodeString(input)
-		if err != nil {
-			return nil, err
-		}
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	if len(seed) < hdkeychain.MinSeedBytes || len(seed) > hdkeychain.MaxSeedBytes {
