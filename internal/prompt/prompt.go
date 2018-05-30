@@ -286,13 +286,7 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 				fmt.Printf("Input error: %v\n", err.Error())
 			}
 		}
-		if err != nil || len(seed) < hdkeychain.MinSeedBytes ||
-			len(seed) > hdkeychain.MaxSeedBytes {
-			fmt.Printf("Invalid seed specified.  Must be a "+
-				"word seed (usually 33 words) using the PGP wordlist or "+
-				"hexadecimal value that is at least %d bits and "+
-				"at most %d bits\n", hdkeychain.MinSeedBytes*8,
-				hdkeychain.MaxSeedBytes*8)
+		if err != nil {
 			continue
 		}
 

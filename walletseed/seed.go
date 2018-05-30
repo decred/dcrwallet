@@ -110,8 +110,5 @@ func DecodeUserInput(input, password string) ([]byte, error) {
 		return nil, err
 	}
 
-	if len(seed) < hdkeychain.MinSeedBytes || len(seed) > hdkeychain.MaxSeedBytes {
-		return nil, hdkeychain.ErrInvalidSeedLen
-	}
 	return seed, nil
 }
