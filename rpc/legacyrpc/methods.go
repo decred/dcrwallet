@@ -3418,13 +3418,13 @@ func deriveCoinTypeKey(seed []byte, coinType uint32) (*hdkeychain.ExtendedKey, e
 
 	// BIP0044 hierarchy: m/44'/<coin type>'
 	// Where coin type is either the legacy coin type, 20, or the coin type described in SLIP0044, 44.
-	inputtedCoinTypePrivKey, err := purpose.Child(coinType + hdkeychain.HardenedKeyStart)
+	coinTypePrivKey, err := purpose.Child(coinType + hdkeychain.HardenedKeyStart)
 	if err != nil {
 		return nil, err
 	}
-	defer inputtedCoinTypePrivKey.Zero()
+	defer coinTypePrivKey.Zero()
 
-	return inputtedCoinTypePrivKey, err
+	return coinTypePrivKey, nil
 }
 
 // verifySeed checks if a user inputted seed is that of the wallet by comparing their child key derivatied
