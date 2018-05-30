@@ -1921,7 +1921,9 @@ func listTransactions(s *Server, icmd interface{}) (interface{}, error) {
 		// For now, don't bother trying to continue if the user
 		// specified an account, since this can't be (easily or
 		// efficiently) calculated.
-		return nil, errors.E("transactions can not be searched by account")
+		return nil,
+			errors.E(`Transactions can not be searched by account. ` +
+				`Use "*" to reference all accounts.`)
 	}
 
 	return w.ListTransactions(*cmd.From, *cmd.Count)
