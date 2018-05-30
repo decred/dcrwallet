@@ -1433,11 +1433,11 @@ func getTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	}
 
 	// returns nil details when not found
-	details, err := wallet.UnstableAPI(w).TxDetails(txHash)
+	txd, err := wallet.UnstableAPI(w).TxDetails(txHash)
 	if err != nil {
 		return nil, err
 	}
-	if details == nil {
+	if txd == nil {
 		return nil, rpcErrorf(dcrjson.ErrRPCNoTxInfo, "no information for transaction")
 	}
 
@@ -1445,8 +1445,8 @@ func getTransaction(s *Server, icmd interface{}) (interface{}, error) {
 
 	// TODO: Switch to strings.Builder and hex.NewEncoder (introduced in Go 1.10)
 	var buf bytes.Buffer
-	buf.Grow(details.MsgTx.SerializeSize())
-	err = details.MsgTx.Serialize(&buf)
+	buf.Grow(txd.MsgTx.SerializeSize())
+	err = txd.MsgTx.Serialize(&buf)
 	if err != nil {
 		return nil, err
 	}
@@ -1456,8 +1456,8 @@ func getTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	ret := dcrjson.GetTransactionResult{
 		TxID:            cmd.Txid,
 		Hex:             hex.EncodeToString(buf.Bytes()),
-		Time:            details.Received.Unix(),
-		TimeReceived:    details.Received.Unix(),
+		Time:            txd.Received.Unix(),
+		TimeReceived:    txd.Received.Unix(),
 		WalletConflicts: []string{}, // Not saved
 		//Generated:     blockchain.IsCoinBaseTx(&details.MsgTx),
 	}
@@ -3427,6 +3427,9 @@ func deriveCoinTypeKey(seed []byte, coinType uint32) (*hdkeychain.ExtendedKey, e
 	return inputtedCoinTypePrivKey, err
 }
 
+// verifySeed checks if a user inputted seed is that of the wallet by comparing their child key derivatied
+// public keys. It returns a bool if this the case as well as the current coin type of the wallet.  An optional
+// parameter is also avalaible that checks beyond default accounts. It returns the result using the RPC api.
 func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.VerifySeedCmd)
 	w, ok := s.walletLoader.LoadedWallet()
@@ -3434,9 +3437,19 @@ func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, errUnloadedWallet
 	}
 
+	coinType, err := w.CoinType()
+	if err != nil {
+		return nil, err
+	}
+
+	decodedSeed, err := walletseed.DecodeUserInput(cmd.Seed)
+	if err != nil {
+		return nil, err
+	}
+
 	// Changed inputted seed, type string, to type byte[] so hdkeychain methods can be utilize using DecodeUserInput
 	// and run then derivedCoinTypeKey to receive the coin type private key.
-	coinTypePrivKey, err := deriveCoinTypeKey(walletseed.DecodeUserInput(cmd.Seed), w.CoinType())
+	coinTypePrivKey, err := deriveCoinTypeKey(decodedSeed, coinType)
 	if err != nil {
 		return nil, err
 	}
@@ -3458,7 +3471,7 @@ func verifySeed(s *Server, icmd interface{}) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer inputtedAccountKey.Zero()
+		defer accountKey.Zero()
 
 		xPubKey, err := accountKey.Neuter()
 		if err != nil {
