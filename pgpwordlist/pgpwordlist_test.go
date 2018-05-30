@@ -107,6 +107,11 @@ var tests = []struct {
 		seed:      []byte{161, 165, 113, 211, 234, 203, 193, 80, 43, 209, 8, 11, 75, 83, 243, 230, 244, 201, 174, 37, 79, 58, 121, 62, 215, 186, 71, 134, 170, 9, 47, 56, 107, 182, 157, 141, 213, 178, 203, 176, 246, 6, 219, 92, 213, 68, 175, 160, 55, 64, 79, 216, 130, 137, 146, 225, 181, 6, 217, 63, 43, 77, 82, 67},
 		password:  "password",
 	},
+	{
+		mnemonics: "make quote fame expand chimney witness ladder thought dash square ivory wonder stay bridge plunge culture royal luxury mix tomato dust vault innocent moon",
+		seed:      []byte{40, 29, 40, 163, 84, 122, 69, 117, 234, 119, 99, 35, 229, 114, 79, 10, 158, 31, 86, 205, 244, 93, 205, 93, 29, 82, 132, 197, 153, 252, 216, 22, 239, 178, 22, 44, 69, 211, 70, 172, 125, 19, 11, 250, 106, 170, 5, 17, 197, 184, 131, 72, 123, 104, 134, 68, 127, 209, 202, 73, 67, 145, 25, 2},
+		password:  "test",
+	},
 }
 
 var invalidMnemonicsTests = []struct {
