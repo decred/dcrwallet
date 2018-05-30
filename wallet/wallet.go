@@ -28,7 +28,6 @@ import (
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
@@ -1380,19 +1379,11 @@ func (w *Wallet) SignMessage(msg string, addr dcrutil.Address) (sig []byte, err 
 	pkCast, ok := privKey.(*secp256k1.PrivateKey)
 	if !ok {
 		return nil, errors.E(op, "unable to create secp256k1.PrivateKey from chainec.PrivateKey")
-<<<<<<< HEAD
 	}
 	sig, err = secp256k1.SignCompact(pkCast, messageHash, true)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-=======
-	}
-	sig, err = secp256k1.SignCompact(pkCast, messageHash, true)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
->>>>>>> Introduce errors package and refactor all error handling.
 	return sig, nil
 }
 
@@ -2101,8 +2092,6 @@ func (w *Wallet) ListTransactionDetails(txHash *chainhash.Hash) ([]dcrjson.ListT
 		return nil, errors.E(op, err)
 	}
 	return txList, nil
-=======
->>>>>>> Introduce errors package and refactor all error handling.
 }
 
 // BlockIdentifier identifies a block by either a height in the main chain or a
