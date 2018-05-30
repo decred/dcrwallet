@@ -106,11 +106,11 @@ func DecodeUserInput(input, password string) ([]byte, error) {
 			return nil, err
 		}
 	case len(words) > 1:
-		// Assume mnemonic with encoded checksum byte
+		// Assume mnemonic
 		seed = pgpwordlist.DecodeMnemonics(input, password)
 	}
 
-	if len(seed) < hdkeychain.MinSeedBytes || len(seed) > hdkeychain.MaxSeedBytes { // TODO ?
+	if len(seed) < hdkeychain.MinSeedBytes || len(seed) > hdkeychain.MaxSeedBytes {
 		return nil, hdkeychain.ErrInvalidSeedLen
 	}
 	return seed, nil
