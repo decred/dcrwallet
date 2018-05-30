@@ -252,7 +252,10 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 			return nil, false, err
 		}
 
-		seedStrSplit := walletseed.EncodeMnemonicSlice(seed)
+		seedStrSplit, err := walletseed.EncodeMnemonicSlice(seed)
+		if err != nil {
+			return nil, false, err
+		}
 
 		fmt.Println("Your wallet generation seed is:")
 		for i := 0; i < hdkeychain.RecommendedSeedLen+1; i++ {

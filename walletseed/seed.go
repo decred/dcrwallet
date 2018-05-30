@@ -6,14 +6,14 @@
 package walletseed
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"strings"
 
 	"github.com/EXCCoin/exccd/hdkeychain"
 	"github.com/EXCCoin/exccwallet/pgpwordlist"
+	"strconv"
+	"fmt"
 )
 
 // GenerateRandomSeed returns a new seed created from a cryptographically-secure
@@ -26,43 +26,76 @@ func GenerateRandomSeed(size uint) ([]byte, error) {
 	return hdkeychain.GenerateSeed(uint8(size))
 }
 
-// checksumByte returns the checksum byte used at the end of the seed mnemonic
-// encoding.  The "checksum" is the first byte of the double SHA256.
-func checksumByte(data []byte) byte {
-	intermediateHash := sha256.Sum256(data)
-	return sha256.Sum256(intermediateHash[:])[0]
+// ------------------------------------------------------------------------
+
+func bytesToBits(bytes []byte) []byte {
+	length := len(bytes)
+	bits := make([]byte, length*8)
+	for i := 0; i < length; i++ {
+		b := bytes[i]
+		for j := 0; j < 8; j++ {
+			mask := byte(1 << uint8(j))
+			bit := b & mask
+			if bit == 0 {
+				bits[(i*8)+8-(j+1)] = '0'
+			} else {
+				bits[(i*8)+8-(j+1)] = '1'
+			}
+		}
+	}
+	return bits
+}
+
+// CheckSummed returns a bit slice of entropy with an appended check sum
+func CheckSummed(ent []byte) []byte {
+	cs := CheckSum(ent)
+	bits := bytesToBits(ent)
+	return append(bits, cs...)
+}
+
+// CheckSum returns a slice of bits from the given entropy
+func CheckSum(ent []byte) []byte {
+	h := sha256.New()
+	h.Write(ent)
+	cs := h.Sum(nil)
+	hashBits := bytesToBits(cs)
+	num := len(ent) * 8 / 32
+	return hashBits[:num]
 }
 
 // EncodeMnemonicSlice encodes a seed as a mnemonic word list.
-func EncodeMnemonicSlice(seed []byte) []string {
-	words := make([]string, len(seed)+1) // Extra word for checksumByte
-	for i, b := range seed {
-		words[i] = pgpwordlist.ByteToMnemonic(b, i)
+func EncodeMnemonicSlice(seed []byte) ([]string, error) {
+	result, err := EncodeMnemonic(seed)
+	if err != nil {
+		return nil, err
 	}
-	checksum := checksumByte(seed)
-	words[len(words)-1] = pgpwordlist.ByteToMnemonic(checksum, len(seed))
-	return words
+
+	return strings.Split(result, " "), nil
 }
 
-// EncodeMnemonic encodes a seed as a mnemonic word list separated by spaces.
-func EncodeMnemonic(seed []byte) string {
-	var buf bytes.Buffer
-	for i, b := range seed {
-		if i != 0 {
-			buf.WriteRune(' ')
+// EncodeMnemonic encodes a entropy as a mnemonic word list separated by spaces.
+func EncodeMnemonic(ent []byte) (string, error) {
+	const chunkSize = 11
+	bits := CheckSummed(ent)
+	length := len(bits)
+	words := make([]string, length/11)
+	for i := 0; i < length; i += chunkSize {
+		stringVal := string(bits[i : chunkSize+i])
+		intVal, err := strconv.ParseInt(stringVal, 2, 64)
+		if err != nil {
+			return "", fmt.Errorf("could not convert %s to word index", stringVal)
 		}
-		buf.WriteString(pgpwordlist.ByteToMnemonic(b, i))
+		word := pgpwordlist.WordList[intVal]
+		words[(chunkSize+i)/11-1] = word
 	}
-	checksum := checksumByte(seed)
-	buf.WriteRune(' ')
-	buf.WriteString(pgpwordlist.ByteToMnemonic(checksum, len(seed)))
-	return buf.String()
+	return strings.Join(words, " "), nil
 }
 
 // DecodeUserInput decodes a seed in either hexadecimal or mnemonic word list
 // encoding back into its binary form.
-func DecodeUserInput(input string) ([]byte, error) {
-	words := strings.Split(strings.TrimSpace(input), " ")
+func DecodeUserInput(input, password string) ([]byte, error) {
+	input = strings.TrimSpace(input)
+	words := strings.Split(input, " ")
 	var seed []byte
 	switch {
 	case len(words) == 1:
@@ -74,20 +107,10 @@ func DecodeUserInput(input string) ([]byte, error) {
 		}
 	case len(words) > 1:
 		// Assume mnemonic with encoded checksum byte
-		decoded, err := pgpwordlist.DecodeMnemonics(words)
-		if err != nil {
-			return nil, err
-		}
-		if len(decoded) < 2 { // need data (0) and checksum (1) to check checksum
-			break
-		}
-		if checksumByte(decoded[:len(decoded)-1]) != decoded[len(decoded)-1] {
-			return nil, errors.New("checksum mismatch")
-		}
-		seed = decoded[:len(decoded)-1]
+		seed = pgpwordlist.DecodeMnemonics(input, password)
 	}
 
-	if len(seed) < hdkeychain.MinSeedBytes || len(seed) > hdkeychain.MaxSeedBytes {
+	if len(seed) < hdkeychain.MinSeedBytes || len(seed) > hdkeychain.MaxSeedBytes { // TODO ?
 		return nil, hdkeychain.ErrInvalidSeedLen
 	}
 	return seed, nil

@@ -14,39 +14,38 @@ import (
 
 var mnemonicTests = []struct {
 	mnemonics string
-	data      []byte
+	seed      []byte
+	ent       []byte
+	password  string
 }{
 	{
-		mnemonics: "topmost Istanbul Pluto vagabond treadmill Pacific brackish dictator goldfish Medusa afflict bravado chatter revolver Dupont midsummer stopwatch whimsical cowbell bottomless fracture",
-		data: []byte{0xE5, 0x82, 0x94, 0xF2, 0xE9, 0xA2, 0x27, 0x48,
-			0x6E, 0x8B, 0x06, 0x1B, 0x31, 0xCC, 0x52, 0x8F, 0xD7,
-			0xFA, 0x3F, 0x19},
+		mnemonics: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+		seed:      []byte{197, 82, 87, 195, 96, 192, 124, 114, 2, 154, 235, 193, 181, 60, 5, 237, 3, 98, 173, 163, 142, 173, 62, 62, 158, 250, 55, 8, 229, 52, 149, 83, 31, 9, 166, 152, 117, 153, 209, 130, 100, 193, 225, 201, 47, 44, 241, 65, 99, 12, 122, 60, 74, 183, 200, 27, 47, 0, 22, 152, 231, 70, 59, 4},
+		ent:       []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		password:  "TREZOR",
 	},
 	{
-		mnemonics: "stairway souvenir flytrap recipe adrift upcoming artist positive spearhead Pandora spaniel stupendous tonic concurrent transit Wichita lockup visitor flagpole escapade merit",
-		data: []byte{0xD1, 0xD4, 0x64, 0xC0, 0x04, 0xF0, 0x0F, 0xB5,
-			0xC9, 0xA4, 0xC8, 0xD8, 0xE4, 0x33, 0xE7, 0xFB, 0x7F,
-			0xF5, 0x62, 0x56},
+		mnemonics: "exile ask congress lamp submit jacket era scheme attend cousin alcohol catch course end lucky hurt sentence oven short ball bird grab wing top",
+		seed:      []byte{9, 94, 230, 248, 23, 180, 194, 203, 48, 165, 167, 151, 54, 10, 129, 164, 10, 176, 249, 164, 226, 94, 205, 103, 42, 63, 88, 160, 181, 186, 6, 135, 192, 150, 166, 177, 77, 44, 13, 235, 59, 222, 252, 228, 246, 29, 1, 174, 7, 65, 125, 80, 36, 41, 53, 46, 39, 105, 81, 99, 247, 68, 122, 140},
+		ent:       []byte{79, 161, 168, 188, 62, 109, 128, 238, 19, 22, 5, 14, 134, 44, 24, 18, 3, 20, 147, 33, 43, 126, 195, 243, 187, 27, 8, 241, 104, 202, 190, 239},
+		password:  "TREZOR",
 	},
 	{
-		mnemonics: "tissue disbelief stairway component atlas megaton bedlamp certify tumor monument necklace fascinate tunnel fascinate dreadful armistice upshot Apollo exceed aftermath billiard sardonic vapor microscope brackish suspicious woodlark torpedo hamlet sensation assume recipe",
-		data: []byte{0xE3, 0x4C, 0xD1, 0x32, 0x12, 0x8C, 0x19, 0x29,
-			0xEC, 0x96, 0x86, 0x5C, 0xED, 0x5C, 0x4D, 0x0B, 0xF4,
-			0x0A, 0x5D, 0x02, 0x1F, 0xCE, 0xF5, 0x8D, 0x27, 0xDB,
-			0xFE, 0xE3, 0x71, 0xD2, 0x10},
-	},
-	{
-		mnemonics: "aardvark adroitness aardvark adroitness aardvark adroitness aardvark adroitness aardvark adroitness aardvark adroitness aardvark adroitness aardvark adroitness aardvark adroitness aardvark adroitness aardvark adroitness aardvark adroitness aardvark adroitness aardvark adroitness aardvark adroitness aardvark insurgent",
-		data: []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00},
+		mnemonics: "renew stay biology evidence goat welcome casual join adapt armor shuffle fault little machine walk stumble urge swap",
+		seed:      []byte{146, 72, 216, 62, 6, 244, 205, 152, 222, 191, 91, 111, 1, 5, 66, 118, 13, 249, 37, 206, 70, 207, 56, 161, 189, 180, 228, 222, 125, 33, 245, 195, 147, 102, 148, 28, 105, 225, 189, 191, 41, 102, 224, 246, 230, 219, 236, 232, 152, 160, 226, 240, 164, 194, 179, 230, 64, 149, 61, 254, 139, 123, 189, 197},
+		ent:       []byte{182, 58, 156, 89, 166, 230, 65, 242, 136, 235, 193, 3, 1, 127, 29, 169, 248, 41, 11, 61, 166, 189, 239, 123},
+		password:  "TREZOR",
 	},
 }
 
 func TestEncodeMnemonicSlice(t *testing.T) {
 	for i, test := range mnemonicTests {
-		mnemonics := strings.Join(EncodeMnemonicSlice(test.data), " ")
+		result, err := EncodeMnemonicSlice(test.ent)
+		if err != nil {
+			t.Errorf("test %d: error: %v", i, err)
+			continue
+		}
+		mnemonics := strings.Join(result, " ")
 		if mnemonics != test.mnemonics {
 			t.Errorf("test %d: got `%v` want `%v`", i, mnemonics, test.mnemonics)
 		}
@@ -55,7 +54,11 @@ func TestEncodeMnemonicSlice(t *testing.T) {
 
 func TestEncodeMnemonic(t *testing.T) {
 	for i, test := range mnemonicTests {
-		mnemonics := EncodeMnemonic(test.data)
+		mnemonics, err := EncodeMnemonic(test.ent)
+		if err != nil {
+			t.Errorf("test %d: error: %v", i, err)
+			continue
+		}
 		if mnemonics != test.mnemonics {
 			t.Errorf("test %d: got `%v` want `%v`", i, mnemonics, test.mnemonics)
 		}
@@ -64,26 +67,26 @@ func TestEncodeMnemonic(t *testing.T) {
 
 func TestDecodeMnemonic(t *testing.T) {
 	for i, test := range mnemonicTests {
-		data, err := DecodeUserInput(test.mnemonics)
+		data, err := DecodeUserInput(test.mnemonics, test.password)
 		if err != nil {
 			t.Errorf("test %d: error: %v", i, err)
 			continue
 		}
-		if !bytes.Equal(data, test.data) {
-			t.Errorf("test %d: got %x want %x", i, data, test.data)
+		if !bytes.Equal(data, test.seed) {
+			t.Errorf("test %d: got %x want %x", i, data, test.seed)
 		}
 	}
 }
 
 func TestDecodeHex(t *testing.T) {
 	for i, test := range mnemonicTests {
-		data, err := DecodeUserInput(hex.EncodeToString(test.data))
+		data, err := DecodeUserInput(hex.EncodeToString(test.seed), test.password)
 		if err != nil {
 			t.Errorf("test %d: error: %v", i, err)
 			continue
 		}
-		if !bytes.Equal(data, test.data) {
-			t.Errorf("test %d: got %x want %x", i, data, test.data)
+		if !bytes.Equal(data, test.seed) {
+			t.Errorf("test %d: got %x want %x", i, data, test.seed)
 		}
 	}
 }
