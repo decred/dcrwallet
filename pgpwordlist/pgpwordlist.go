@@ -18,39 +18,13 @@
 package pgpwordlist
 
 import (
-	"fmt"
-	"strings"
+	"golang.org/x/crypto/pbkdf2"
+	"crypto/sha512"
+	"golang.org/x/text/unicode/norm"
 )
 
-// ByteToMnemonic returns the PGP word list encoding of b when found at index.
-func ByteToMnemonic(b byte, index int) string {
-	bb := uint16(b) * 2
-	if index%2 != 0 {
-		bb++
-	}
-	return wordList[bb]
-}
-
-// DecodeMnemonics returns the decoded value that is encoded by words.  Any
+// DecodeMnemonics returns the decoded seed that is encoded by words and password.  Any
 // words that are whitespace are empty are skipped.
-func DecodeMnemonics(words []string) ([]byte, error) {
-	decoded := make([]byte, len(words))
-	idx := 0
-	for _, w := range words {
-		w = strings.TrimSpace(w)
-		if w == "" {
-			continue
-		}
-		b, ok := wordIndexes[strings.ToLower(w)]
-		if !ok {
-			return nil, fmt.Errorf("word %v is not in the PGP word list", w)
-		}
-		if int(b%2) != idx%2 {
-			return nil, fmt.Errorf("word %v is not valid at position %v, "+
-				"check for missing words", w, idx)
-		}
-		decoded[idx] = byte(b / 2)
-		idx++
-	}
-	return decoded[:idx], nil
+func DecodeMnemonics(mnemonic, password string) []byte {
+	return pbkdf2.Key(norm.NFKD.Bytes([]byte(mnemonic)), norm.NFKD.Bytes([]byte("mnemonic"+password)), 2048, 64, sha512.New)
 }
