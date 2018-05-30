@@ -63,19 +63,8 @@ func CheckSum(ent []byte) []byte {
 	return hashBits[:num]
 }
 
-// EncodeMnemonicSlice encodes a seed as a mnemonic word list.
-func EncodeMnemonicSlice(seed []byte) ([]string, error) {
-	result, err := EncodeMnemonic(seed)
-	if err != nil {
-		return nil, err
-	}
-
-	return strings.Split(result, " "), nil
-}
-
-// EncodeMnemonic encodes a entropy as a mnemonic word list separated by spaces.
-func EncodeMnemonic(ent []byte) (string, error) {
-	const chunkSize = 11
+// EncodeMnemonicSlice encodes a entropy as a mnemonic word list.
+func EncodeMnemonicSlice(ent []byte) ([]string, error) {	const chunkSize = 11
 	bits := CheckSummed(ent)
 	length := len(bits)
 	words := make([]string, length/11)
@@ -83,11 +72,22 @@ func EncodeMnemonic(ent []byte) (string, error) {
 		stringVal := string(bits[i : chunkSize+i])
 		intVal, err := strconv.ParseInt(stringVal, 2, 64)
 		if err != nil {
-			return "", fmt.Errorf("could not convert %s to word index", stringVal)
+			return nil, fmt.Errorf("could not convert %s to word index", stringVal)
 		}
 		word := pgpwordlist.WordList[intVal]
 		words[(chunkSize+i)/11-1] = word
 	}
+
+	return words, nil
+}
+
+// EncodeMnemonic encodes a entropy as a mnemonic word list separated by spaces.
+func EncodeMnemonic(ent []byte) (string, error) {
+	words, err := EncodeMnemonicSlice(ent)
+	if err != nil {
+		return "", err
+	}
+
 	return strings.Join(words, " "), nil
 }
 
