@@ -96,19 +96,18 @@ func EncodeMnemonic(ent []byte) (string, error) {
 // encoding back into its binary form.
 func DecodeUserInput(input, password string) ([]byte, error) {
 	input = strings.TrimSpace(input)
-	words := strings.Split(input, " ")
+
 	var seed []byte
-	switch {
-	case len(words) == 1:
+	if strings.Contains(input, " ") {
+		// Assume mnemonic
+		seed = pgpwordlist.DecodeMnemonics(input, password)
+	} else {
 		// Assume hex
 		var err error
-		seed, err = hex.DecodeString(words[0])
+		seed, err = hex.DecodeString(input)
 		if err != nil {
 			return nil, err
 		}
-	case len(words) > 1:
-		// Assume mnemonic
-		seed = pgpwordlist.DecodeMnemonics(input, password)
 	}
 
 	if len(seed) < hdkeychain.MinSeedBytes || len(seed) > hdkeychain.MaxSeedBytes {

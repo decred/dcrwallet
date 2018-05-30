@@ -21,10 +21,15 @@ import (
 	"crypto/sha512"
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/text/unicode/norm"
+	"strings"
 )
 
 // DecodeMnemonics returns the decoded seed that is encoded by words and password.  Any
 // words that are whitespace are empty are skipped.
 func DecodeMnemonics(mnemonic, password string) []byte {
-	return pbkdf2.Key(norm.NFKD.Bytes([]byte(mnemonic)), norm.NFKD.Bytes([]byte("mnemonic"+password)), 2048, 64, sha512.New)
+	words := strings.Fields(strings.ToLower(norm.NFKD.String(mnemonic)))
+
+	mnemonic = strings.Join(words, " ")
+	salt := norm.NFKD.String("mnemonic" + password)
+	return pbkdf2.Key([]byte(mnemonic), []byte(salt), 2048, 64, sha512.New)
 }
