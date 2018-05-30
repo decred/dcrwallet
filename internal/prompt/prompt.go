@@ -321,8 +321,14 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 				fmt.Printf("Input error: %v\n", err.Error())
 			}
 		} else {
-			password := "" // TODO: read password from user
-			seed, err = walletseed.DecodeUserInput(seedStrTrimmed, password)
+
+			fmt.Print("Enter mnemonic passphrase: ")
+
+			scanner := bufio.NewScanner(os.Stdin)
+			scanner.Scan()
+			mnemonicPassphrase := scanner.Text()
+
+			seed, err = walletseed.DecodeUserInput(seedStrTrimmed, mnemonicPassphrase)
 			if err != nil {
 				fmt.Printf("Input error: %v\n", err.Error())
 			}
