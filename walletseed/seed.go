@@ -64,7 +64,8 @@ func CheckSum(ent []byte) []byte {
 }
 
 // EncodeMnemonicSlice encodes a entropy as a mnemonic word list.
-func EncodeMnemonicSlice(ent []byte) ([]string, error) {	const chunkSize = 11
+func EncodeMnemonicSlice(ent []byte) ([]string, error) {
+	const chunkSize = 11
 	bits := CheckSummed(ent)
 	length := len(bits)
 	words := make([]string, length/11)
