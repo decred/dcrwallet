@@ -20,53 +20,6 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-// ProvideSeed is used to prompt for the wallet seed which maybe required during
-// upgrades.
-func ProvideSeed() ([]byte, error) {
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Print("Enter existing wallet seed: ")
-		seedStr, err := reader.ReadString('\n')
-		if err != nil {
-			return nil, err
-		}
-		seedStr = strings.TrimSpace(strings.ToLower(seedStr))
-
-		seed, err := hex.DecodeString(seedStr)
-		if err != nil || len(seed) < hdkeychain.MinSeedBytes ||
-			len(seed) > hdkeychain.MaxSeedBytes {
-
-			fmt.Printf("Invalid seed specified.  Must be a "+
-				"hexadecimal value that is at least %d bits and "+
-				"at most %d bits\n", hdkeychain.MinSeedBytes*8,
-				hdkeychain.MaxSeedBytes*8)
-			continue
-		}
-
-		return seed, nil
-	}
-}
-
-// ProvidePrivPassphrase is used to prompt for the private passphrase which
-// maybe required during upgrades.
-func ProvidePrivPassphrase() ([]byte, error) {
-	prompt := "Enter the private passphrase of your wallet: "
-	for {
-		fmt.Print(prompt)
-		pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		if err != nil {
-			return nil, err
-		}
-		fmt.Print("\n")
-		pass = bytes.TrimSpace(pass)
-		if len(pass) == 0 {
-			continue
-		}
-
-		return pass, nil
-	}
-}
-
 // promptList prompts the user with the given prefix, list of valid responses,
 // and default list entry to use.  The function will repeat the prompt to the
 // user until they enter a valid response.
