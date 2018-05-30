@@ -211,7 +211,7 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 		}
 
 		fmt.Println("Your wallet generation seed is:")
-		for i := 0; i < hdkeychain.RecommendedSeedLen+1; i++ {
+		for i := 0; i < len(seedStrSplit); i++ {
 			fmt.Printf("%v ", seedStrSplit[i])
 
 			if (i+1)%6 == 0 {
@@ -275,11 +275,23 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 			}
 		} else {
 
-			fmt.Print("Enter mnemonic passphrase: ")
+			useMnemonicPassphrase, err := promptListBool(reader, "Do you use a "+
+				"BIP39 passphrase?", "no")
+			if err != nil {
+				return nil, true, err
+			}
 
-			scanner := bufio.NewScanner(os.Stdin)
-			scanner.Scan()
-			mnemonicPassphrase := scanner.Text()
+			var mnemonicPassphrase string
+			if useMnemonicPassphrase {
+				fmt.Print("Enter BIP39 passphrase: ")
+
+				bytePassword, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+				if err != nil {
+					return nil, true, err
+				}
+
+				mnemonicPassphrase = string(bytePassword)
+			}
 
 			seed, err = walletseed.DecodeUserInput(seedStrTrimmed, mnemonicPassphrase)
 			if err != nil {
