@@ -321,7 +321,8 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 				fmt.Printf("Input error: %v\n", err.Error())
 			}
 		} else {
-			seed, err = walletseed.DecodeUserInput(seedStrTrimmed)
+			password := "" // TODO: read password from user
+			seed, err = walletseed.DecodeUserInput(seedStrTrimmed, password)
 			if err != nil {
 				fmt.Printf("Input error: %v\n", err.Error())
 			}

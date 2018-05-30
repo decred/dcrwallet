@@ -18,8 +18,8 @@
 package pgpwordlist
 
 import (
-	"golang.org/x/crypto/pbkdf2"
 	"crypto/sha512"
+	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/text/unicode/norm"
 )
 

@@ -25,14 +25,12 @@ var mnemonicTests = []struct {
 		password:  "TREZOR",
 	},
 
-
 	{
 		mnemonics: "legal winner thank year wave sausage worth useful legal winner thank yellow",
 		seed:      []byte{46, 137, 5, 129, 155, 135, 35, 254, 44, 29, 22, 24, 96, 229, 238, 24, 48, 49, 141, 191, 73, 168, 59, 212, 81, 207, 184, 68, 12, 40, 189, 111, 164, 87, 254, 18, 150, 16, 101, 89, 163, 200, 9, 55, 161, 193, 6, 155, 227, 163, 165, 189, 56, 30, 230, 38, 14, 141, 151, 57, 252, 225, 246, 7},
 		ent:       []byte{127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127},
 		password:  "TREZOR",
 	},
-
 
 	{
 		mnemonics: "letter advice cage absurd amount doctor acoustic avoid letter advice cage above",
@@ -41,14 +39,12 @@ var mnemonicTests = []struct {
 		password:  "TREZOR",
 	},
 
-
 	{
 		mnemonics: "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong",
 		seed:      []byte{172, 39, 73, 84, 128, 34, 82, 34, 7, 157, 123, 225, 129, 88, 55, 81, 232, 111, 87, 16, 39, 176, 73, 123, 91, 93, 17, 33, 142, 10, 138, 19, 51, 37, 114, 145, 127, 15, 142, 90, 88, 150, 32, 198, 241, 91, 17, 198, 29, 238, 50, 118, 81, 161, 76, 52, 225, 130, 49, 5, 46, 72, 192, 105},
 		ent:       []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255},
 		password:  "TREZOR",
 	},
-
 
 	{
 		mnemonics: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon agent",
@@ -57,14 +53,12 @@ var mnemonicTests = []struct {
 		password:  "TREZOR",
 	},
 
-
 	{
 		mnemonics: "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal will",
 		seed:      []byte{242, 185, 69, 8, 115, 43, 203, 172, 188, 192, 32, 250, 239, 236, 252, 137, 254, 175, 166, 100, 154, 84, 145, 184, 201, 82, 206, 222, 73, 108, 33, 74, 12, 123, 60, 57, 45, 22, 135, 72, 242, 212, 166, 18, 186, 218, 7, 83, 181, 42, 28, 122, 197, 60, 30, 147, 171, 213, 198, 50, 11, 158, 149, 221},
 		ent:       []byte{127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127},
 		password:  "TREZOR",
 	},
-
 
 	{
 		mnemonics: "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter always",
@@ -73,14 +67,12 @@ var mnemonicTests = []struct {
 		password:  "TREZOR",
 	},
 
-
 	{
 		mnemonics: "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo when",
 		seed:      []byte{12, 214, 229, 216, 39, 187, 98, 235, 143, 193, 226, 98, 37, 66, 35, 129, 127, 208, 104, 167, 75, 91, 68, 156, 194, 246, 103, 195, 241, 249, 133, 167, 99, 121, 180, 51, 72, 217, 82, 226, 38, 91, 76, 209, 41, 9, 7, 88, 179, 227, 194, 196, 145, 3, 181, 5, 26, 172, 46, 174, 184, 144, 165, 40},
 		ent:       []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255},
 		password:  "TREZOR",
 	},
-
 
 	{
 		mnemonics: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art",
@@ -89,14 +81,12 @@ var mnemonicTests = []struct {
 		password:  "TREZOR",
 	},
 
-
 	{
 		mnemonics: "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title",
 		seed:      []byte{188, 9, 252, 161, 128, 79, 126, 105, 218, 147, 194, 242, 2, 142, 178, 56, 194, 39, 242, 233, 221, 163, 12, 214, 54, 153, 35, 37, 120, 72, 10, 64, 33, 177, 70, 173, 113, 127, 187, 126, 69, 28, 233, 235, 131, 95, 67, 98, 11, 245, 197, 20, 219, 15, 138, 221, 73, 245, 209, 33, 68, 157, 62, 135},
 		ent:       []byte{127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127},
 		password:  "TREZOR",
 	},
-
 
 	{
 		mnemonics: "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic bless",
@@ -105,14 +95,12 @@ var mnemonicTests = []struct {
 		password:  "TREZOR",
 	},
 
-
 	{
 		mnemonics: "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
 		seed:      []byte{221, 72, 193, 4, 105, 140, 48, 207, 226, 182, 20, 33, 3, 36, 134, 34, 251, 123, 176, 255, 105, 46, 235, 176, 0, 137, 179, 45, 34, 72, 78, 22, 19, 145, 47, 10, 91, 105, 68, 7, 190, 137, 159, 253, 49, 237, 57, 146, 196, 86, 205, 246, 15, 93, 69, 100, 184, 186, 63, 5, 166, 152, 144, 173},
 		ent:       []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255},
 		password:  "TREZOR",
 	},
-
 
 	{
 		mnemonics: "jelly better achieve collect unaware mountain thought cargo oxygen act hood bridge",
@@ -121,14 +109,12 @@ var mnemonicTests = []struct {
 		password:  "TREZOR",
 	},
 
-
 	{
 		mnemonics: "renew stay biology evidence goat welcome casual join adapt armor shuffle fault little machine walk stumble urge swap",
 		seed:      []byte{146, 72, 216, 62, 6, 244, 205, 152, 222, 191, 91, 111, 1, 5, 66, 118, 13, 249, 37, 206, 70, 207, 56, 161, 189, 180, 228, 222, 125, 33, 245, 195, 147, 102, 148, 28, 105, 225, 189, 191, 41, 102, 224, 246, 230, 219, 236, 232, 152, 160, 226, 240, 164, 194, 179, 230, 64, 149, 61, 254, 139, 123, 189, 197},
 		ent:       []byte{182, 58, 156, 89, 166, 230, 65, 242, 136, 235, 193, 3, 1, 127, 29, 169, 248, 41, 11, 61, 166, 189, 239, 123},
 		password:  "TREZOR",
 	},
-
 
 	{
 		mnemonics: "dignity pass list indicate nasty swamp pool script soccer toe leaf photo multiply desk host tomato cradle drill spread actor shine dismiss champion exotic",
@@ -137,14 +123,12 @@ var mnemonicTests = []struct {
 		password:  "TREZOR",
 	},
 
-
 	{
 		mnemonics: "afford alter spike radar gate glance object seek swamp infant panel yellow",
 		seed:      []byte{101, 249, 58, 159, 54, 182, 200, 92, 190, 99, 79, 252, 31, 153, 242, 184, 44, 187, 16, 179, 30, 220, 127, 8, 123, 79, 108, 185, 233, 118, 233, 250, 247, 111, 244, 31, 143, 39, 201, 154, 253, 243, 143, 122, 48, 59, 161, 19, 110, 228, 138, 76, 30, 127, 205, 61, 186, 122, 168, 118, 17, 58, 54, 228},
 		ent:       []byte{4, 96, 239, 71, 88, 86, 4, 197, 102, 6, 24, 219, 46, 106, 126, 127},
 		password:  "TREZOR",
 	},
-
 
 	{
 		mnemonics: "indicate race push merry suffer human cruise dwarf pole review arch keep canvas theme poem divorce alter left",
@@ -153,14 +137,12 @@ var mnemonicTests = []struct {
 		password:  "TREZOR",
 	},
 
-
 	{
 		mnemonics: "clutch control vehicle tonight unusual clog visa ice plunge glimpse recipe series open hour vintage deposit universe tip job dress radar refuse motion taste",
 		seed:      []byte{254, 144, 143, 150, 244, 102, 104, 178, 213, 179, 125, 130, 245, 88, 199, 126, 208, 214, 157, 208, 231, 224, 67, 165, 176, 81, 28, 72, 194, 241, 6, 70, 148, 169, 86, 248, 99, 96, 201, 61, 208, 64, 82, 168, 137, 148, 151, 206, 158, 152, 94, 190, 12, 140, 82, 185, 85, 230, 174, 134, 212, 255, 68, 73},
 		ent:       []byte{44, 133, 239, 199, 242, 78, 228, 87, 61, 43, 129, 166, 236, 102, 206, 226, 9, 178, 220, 189, 9, 216, 237, 220, 81, 224, 33, 91, 11, 104, 228, 22},
 		password:  "TREZOR",
 	},
-
 
 	{
 		mnemonics: "turtle front uncle idea crush write shrug there lottery flower risk shell",
@@ -169,14 +151,12 @@ var mnemonicTests = []struct {
 		password:  "TREZOR",
 	},
 
-
 	{
 		mnemonics: "kiss carry display unusual confirm curtain upgrade antique rotate hello void custom frequent obey nut hole price segment",
 		seed:      []byte{237, 86, 255, 108, 131, 60, 7, 152, 46, 183, 17, 154, 143, 72, 253, 54, 60, 74, 155, 22, 1, 205, 45, 231, 54, 176, 16, 69, 197, 235, 138, 180, 245, 123, 7, 148, 3, 72, 93, 28, 73, 36, 240, 121, 13, 193, 10, 151, 23, 99, 51, 124, 185, 249, 198, 34, 38, 246, 79, 255, 38, 57, 124, 121},
 		ent:       []byte{122, 196, 92, 254, 119, 34, 238, 108, 123, 168, 79, 188, 45, 91, 214, 27, 69, 203, 47, 229, 235, 101, 170, 120},
 		password:  "TREZOR",
 	},
-
 
 	{
 		mnemonics: "exile ask congress lamp submit jacket era scheme attend cousin alcohol catch course end lucky hurt sentence oven short ball bird grab wing top",
@@ -185,14 +165,12 @@ var mnemonicTests = []struct {
 		password:  "TREZOR",
 	},
 
-
 	{
 		mnemonics: "board flee heavy tunnel powder denial science ski answer betray cargo cat",
 		seed:      []byte{110, 255, 27, 178, 21, 98, 145, 133, 9, 199, 60, 185, 144, 38, 13, 176, 124, 12, 227, 79, 240, 227, 204, 74, 140, 179, 39, 97, 41, 251, 203, 48, 11, 221, 254, 0, 88, 49, 53, 14, 253, 99, 57, 9, 244, 118, 196, 92, 136, 37, 50, 118, 217, 253, 13, 246, 239, 72, 96, 158, 139, 183, 220, 168},
 		ent:       []byte{24, 171, 25, 169, 245, 74, 146, 116, 240, 62, 82, 9, 162, 172, 138, 145},
 		password:  "TREZOR",
 	},
-
 
 	{
 		mnemonics: "board blade invite damage undo sun mimic interest slam gaze truly inherit resist great inject rocket museum chief",
@@ -201,14 +179,12 @@ var mnemonicTests = []struct {
 		password:  "TREZOR",
 	},
 
-
 	{
 		mnemonics: "beyond stage sleep clip because twist token leaf atom beauty genius food business side grid unable middle armed observe pair crouch tonight away coconut",
 		seed:      []byte{177, 85, 9, 234, 162, 208, 157, 62, 253, 62, 0, 110, 244, 33, 81, 179, 3, 103, 220, 110, 58, 165, 228, 76, 171, 163, 254, 77, 62, 53, 46, 101, 16, 31, 189, 184, 106, 150, 119, 107, 145, 148, 111, 240, 111, 142, 172, 89, 77, 198, 238, 29, 62, 130, 164, 45, 254, 27, 64, 254, 246, 188, 195, 253},
 		ent:       []byte{21, 218, 135, 44, 149, 161, 61, 215, 56, 251, 245, 14, 66, 117, 131, 173, 97, 241, 143, 217, 159, 98, 140, 65, 122, 97, 207, 131, 67, 201, 4, 25},
 		password:  "TREZOR",
 	},
-
 
 	{
 		mnemonics: "decline valid evil ripple battle typical city similar century comfort alter surround endorse shoe post sock tide endless fragile loud loan tomato rotate trip history uncover device dawn vault major decline spawn peasant frame snow middle kit reward roof cash electric twin merit prize satisfy inhale lyrics lucky",

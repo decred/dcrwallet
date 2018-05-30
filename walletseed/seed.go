@@ -10,10 +10,10 @@ import (
 	"encoding/hex"
 	"strings"
 
+	"fmt"
 	"github.com/EXCCoin/exccd/hdkeychain"
 	"github.com/EXCCoin/exccwallet/pgpwordlist"
 	"strconv"
-	"fmt"
 )
 
 // GenerateRandomSeed returns a new seed created from a cryptographically-secure

@@ -116,7 +116,11 @@ func createSimulationWallet(cfg *config) error {
 
 	// Write the seed to disk, so that we can restore it later
 	// if need be, for testing purposes.
-	seedStr := walletseed.EncodeMnemonic(seed)
+	seedStr, err := walletseed.EncodeMnemonic(seed)
+	if err != nil {
+		return err
+	}
+
 	err = ioutil.WriteFile(filepath.Join(netDir, "seed"), []byte(seedStr), 0644)
 	if err != nil {
 		return err
