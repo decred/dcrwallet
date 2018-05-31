@@ -21,6 +21,35 @@ type (
 	}
 )
 
+func SetConfig(cfg *Config) *Client {
+	client := &Client{
+		cfg: cfg,
+	}
+	return client
+}
+
+func (c *Client) StartSession() (*Client, error) {
+	if c.cfg.Enable {
+		// connect to dcrtxmatcher server if enable
+		conn, err := c.Connect()
+		if err != nil {
+			return nil, err
+		}
+
+		// somehow conn object is still nil
+		if conn == nil {
+			return nil, ErrCannotConnect
+		}
+
+		c.conn = conn
+
+		// register services
+		c.registerServices()
+	}
+
+	return c, nil
+}
+
 func NewClient(cfg *Config) (*Client, error) {
 	client := &Client{
 		cfg: cfg,
@@ -28,7 +57,7 @@ func NewClient(cfg *Config) (*Client, error) {
 
 	if cfg.Enable {
 		// connect to dcrtxmatcher server if enable
-		conn, err := client.connect()
+		conn, err := client.Connect()
 		if err != nil {
 			return nil, err
 		}
@@ -52,13 +81,13 @@ func (c *Client) Config() *Config {
 }
 
 // connect attempts to connect to our dcrtxmatcher server
-func (c *Client) connect() (*grpc.ClientConn, error) {
+func (c *Client) Connect() (*grpc.ClientConn, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	if c.isConnected() {
-		return nil, ErrAlreadyConnected
-	}
+	//	if c.isConnected() {
+	//		return nil, ErrAlreadyConnected
+	//	}
 
 	conn, err := grpc.Dial(c.cfg.Address, grpc.WithInsecure())
 	if err != nil {

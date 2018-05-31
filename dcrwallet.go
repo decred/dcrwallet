@@ -136,12 +136,16 @@ func run(ctx context.Context) error {
 	//always set dcrTxClient config
 	var dcrTxClient *dcrtxclient.Client
 	if cfg.DcrtxClientConfig != nil {
-		dcrTxClient, err = dcrtxclient.NewClient(cfg.DcrtxClientConfig)
-		if err != nil {
-			log.Errorf("Unable to connect to Dcrtxmatcher Server: %v ", err)
-			return err
-		}
-
+		dcrTxClient = dcrtxclient.SetConfig(cfg.DcrtxClientConfig)
+		//		if err != nil {
+		//			log.Errorf("Unable to connect to Dcrtxmatcher Server: %v ", err)
+		//			return err
+		//		}
+		//		dcrTxClient, err = dcrtxclient.NewClient(cfg.DcrtxClientConfig)
+		//		if err != nil {
+		//			log.Errorf("Unable to connect to Dcrtxmatcher Server: %v ", err)
+		//			return err
+		//		}
 	}
 
 	// Create the loader which is used to load and unload the wallet.  If
@@ -201,6 +205,7 @@ func run(ctx context.Context) error {
 		}
 		//set dcrClient for wallet
 		w.SetDcrTxClient(dcrTxClient)
+		//loader.DcrTxClient = dcrTxClient
 
 		if done(ctx) {
 			return ctx.Err()
@@ -269,13 +274,13 @@ func run(ctx context.Context) error {
 		}()
 	}
 
-	defer func() {
-		// Close client connection on shutdown. Returns an error if not already connected
-		// Safe to ignore error
-		if cfg.DcrtxClientConfig.Enable && dcrTxClient != nil {
-			defer dcrTxClient.Disconnect()
-		}
-	}()
+	//	defer func() {
+	//		// Close client connection on shutdown. Returns an error if not already connected
+	//		// Safe to ignore error
+	//		if cfg.DcrtxClientConfig.Enable && dcrTxClient != nil {
+	//			defer dcrTxClient.Disconnect()
+	//		}
+	//	}()
 
 	// Stop the ticket buyer (if running) on shutdown.  This returns an error
 	// that can be ignored when the ticket buyer was never started.

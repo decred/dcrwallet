@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
 	//"reflect"
@@ -1293,10 +1294,56 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 		// Generate the tickets individually.
 		ticketHashes := make([]*chainhash.Hash, 0, numTickets)
 		log.Info("Waiting for enough participants...")
+
+		//connect to dcrtxmatcher server
+		_, err = req.dcrTxClient.StartSession()
+		if err != nil {
+			return ticketHashes, err
+		}
+
+		defer func() {
+			req.dcrTxClient.Disconnect()
+		}()
+
 		tx, sesID, inputIds, outputIds, err := req.dcrTxClient.JoinSplitTx(splitTx.Tx, nil, ticketPrice)
 		if err != nil {
 			fmt.Println("req.dcrTxClient.JoinSplitTx error", err)
 			return ticketHashes, err
+		}
+
+		//verify input/output from server before signing
+		for _, i := range inputIds {
+			valid := false
+			for _, txin := range splitTx.Tx.TxIn {
+				if tx.TxIn[i].BlockHeight == txin.BlockHeight &&
+					reflect.DeepEqual(tx.TxIn[i].PreviousOutPoint.Hash, txin.PreviousOutPoint.Hash) &&
+					tx.TxIn[i].PreviousOutPoint.Index == txin.PreviousOutPoint.Index {
+					valid = true
+					break
+				}
+			}
+
+			if !valid {
+				log.Warnf("Invalid splittx inputs")
+				return ticketHashes, errors.New("Invalid splittx inputs")
+			}
+		}
+
+		for _, i := range outputIds {
+			valid := false
+			for _, txout := range splitTx.Tx.TxOut {
+				if reflect.DeepEqual(tx.TxOut[i].PkScript, txout.PkScript) &&
+					tx.TxOut[i].Value == txout.Value {
+					valid = true
+					break
+				}
+			}
+			if !valid {
+				log.Warnf("Invalid splittx output")
+				//inform invalid data to dcrtxmatcher server
+
+				return ticketHashes, errors.New("Invalid splittx output")
+			}
 		}
 
 		//		for _, txin := range tx.TxIn {
@@ -1310,7 +1357,7 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 		//		}
 		log.Debug("inputs, outputs index", inputIds, outputIds)
 
-		//re-signed the tx
+		//sign the tx
 		err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 			addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 			secrets := &secretSource{Manager: w.Manager, addrmgrNs: addrmgrNs}
@@ -1429,6 +1476,7 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 			ticketHashes = append(ticketHashes, &ticketHash)
 			log.Infof("Successfully purchased and sent shared ticket transaction")
 		}
+
 		return ticketHashes, nil
 	} else {
 		var splitOuts []*wire.TxOut
