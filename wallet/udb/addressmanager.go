@@ -682,19 +682,10 @@ func (m *Manager) CoinTypePrivKey(dbtx walletdb.ReadTx) (*hdkeychain.ExtendedKey
 // coin type keys and this method will return an error with code
 // ErrValueNoExists on these wallets.
 func (m *Manager) CoinType(dbtx walletdb.ReadTx) (uint32, error) {
-	ns := dbtx.ReadBucket(waddrmgrBucketKey)
-	mainBucket := ns.NestedReadBucket(mainBucketName)
+	legacyCoinType, _ := CoinTypes(m.chainParams)
 
-	legacyCoinType, slip0044CoinType := CoinTypes(m.chainParams)
-
-	if mainBucket.Get(coinTypeLegacyPubKeyName) != nil {
-		return legacyCoinType, nil
-	}
-	if mainBucket.Get(coinTypeSLIP0044PubKeyName) != nil {
-		return slip0044CoinType, nil
-	}
-
-	return 0, apperrors.New(apperrors.ErrValueNoExists, "coin type keys are not saved")
+	// TODO: fix choice between SLIP0044 coin types and legacy
+	return legacyCoinType, nil
 }
 
 // UpgradeToSLIP0044CoinType upgrades a wallet from using the legacy coin type
