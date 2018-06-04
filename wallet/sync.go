@@ -383,17 +383,7 @@ func (w *Wallet) DiscoverActiveAddresses(n NetworkBackend, discoverAccts bool) e
 		return nil
 	}
 
-	// Upgrade the coin type.
-	log.Infof("Upgrading wallet from legacy coin type %d to SLIP0044 coin type %d",
-		activeCoinType, slip0044CoinType)
-	err = w.UpgradeToSLIP0044CoinType()
-	if err != nil {
-		log.Errorf("Coin type upgrade failed: %v", err)
-		log.Warnf("Continuing with legacy BIP0044 coin type -- seed restores " +
-			"may not work with some other wallet software")
-		return nil
-	}
-	log.Infof("Upgraded coin type.")
+	// TODO: perform SLIP0044 coin type upgrade
 
 	// Perform address discovery a second time using the upgraded coin type.
 	return w.DiscoverActiveAddresses(n, discoverAccts)
