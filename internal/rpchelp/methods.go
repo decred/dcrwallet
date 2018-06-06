@@ -67,6 +67,7 @@ var Methods = []struct {
 	{"listreceivedbyaddress", []interface{}{(*[]dcrjson.ListReceivedByAddressResult)(nil)}},
 	{"listscripts", []interface{}{(*dcrjson.ListScriptsResult)(nil)}},
 	{"listsinceblock", []interface{}{(*dcrjson.ListSinceBlockResult)(nil)}},
+	{"listtickets", []interface{}{(*dcrjson.ListTicketsResult)(nil)}},
 	{"listtransactions", returnsLTRArray},
 	{"listunspent", []interface{}{(*dcrjson.ListUnspentResult)(nil)}},
 	{"lockunspent", returnsBool},

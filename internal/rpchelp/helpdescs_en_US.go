@@ -324,6 +324,36 @@ var helpDescsEnUS = map[string]string{
 	"listsinceblockresult-transactions": "JSON array of objects containing verbose details of the each transaction",
 	"listsinceblockresult-lastblock":    "Hash of the latest-synced block to be used in later calls to listsinceblock",
 
+	// ListTicketCmd help.
+	"listtickets--synopsis": "List all ticket details with related spender and state info",
+
+	// ListTicketsResult help.
+	"listticketsresult-status":  "Status of ticket",
+	"listticketsresult-ticket":  "Ticket tx details",
+	"listticketsresult-spender": "Spender tx details",
+
+	// ListTicketsTransactionSummary
+	"listticketstransactionsummary-type":        "Lists all tickets, including unmined tickets",
+	"listticketstransactionsummary-hash":        "Hash of the transaction",
+	"listticketstransactionsummary-transaction": "Serialized string of the transaction",
+	"listticketstransactionsummary-myinputs":    "Inputs of tx details",
+	"listticketstransactionsummary-myoutputs":   "Outputs of tx details",
+	"listticketstransactionsummary-fee":         "Total input value minus the total output value for sent transactions",
+	"listticketstransactionsummary-timestamp":   "Timestamp of tx",
+
+	// ListTicketsTransactionSummaryInput
+	"listticketstransactionsummaryinput-index":           "Index of input in list of all tx inputs",
+	"listticketstransactionsummaryinput-previousaccount": "Input account",
+	"listticketstransactionsummaryinput-previousamount":  "Input amount",
+
+	// ListTicketsTransactionSummaryOutput
+	"listticketstransactionsummaryoutput-index":        "Index of input in list of all tx outputs",
+	"listticketstransactionsummaryoutput-account":      "Output account",
+	"listticketstransactionsummaryoutput-internal":     "Flag if address was create for internal use",
+	"listticketstransactionsummaryoutput-amount":       "Output amount",
+	"listticketstransactionsummaryoutput-address":      "Address receiving amount",
+	"listticketstransactionsummaryoutput-outputscript": "Pkscript to receive amount",
+
 	// ListTransactionsResult help.
 	"listtransactionsresult-account":           "DEPRECATED -- Unset",
 	"listtransactionsresult-address":           "Payment address for a transaction output",
@@ -688,6 +718,7 @@ var helpDescsEnUS = map[string]string{
 	"purchaseticket-nosplittransaction": "Use ticket purchase change outputs instead of a split transaction",
 	"purchaseticket-comment":            "Unused",
 	"purchaseticket-ticketfee":          "The transaction fee rate (DCR/kB) to use (overrides fees set by the wallet config or settxfee RPC)",
+	"purchaseticket-ticketchange":       "Currently unused",
 
 	// SetTicketFeeCmd help.
 	"setticketfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored stake transaction.",
