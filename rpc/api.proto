@@ -683,6 +683,7 @@ message GenerateRandomSeedResponse {
 
 message DecodeSeedRequest {
 	string user_input = 1;
+	string passphrase = 2;
 }
 message DecodeSeedResponse {
 	bytes decoded_seed = 1;
