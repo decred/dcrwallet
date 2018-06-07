@@ -8,10 +8,14 @@ package jsonrpc
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha512"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"hash"
+	"io/ioutil"
 	"math/big"
 	"sort"
 	"strconv"
@@ -830,6 +834,40 @@ func difficultyRatio(bits uint32, params *chaincfg.Params) float64 {
 	target := blockchain.CompactToBig(bits)
 	ratio, _ := new(big.Rat).SetFrac(max, target).Float64()
 	return ratio
+}
+
+func hashContracts(contractArray [][]byte, contractAmounts int) [][]byte {
+
+	var hashedContracts []hash.Hash
+	hashedContractsByte := make([][]byte, contractAmounts)
+	for i := range contractArray {
+		hashedContracts[i] = hmac.New(sha512.New, contractArray[i])
+		hashedContractsByte[i] = hashedContracts[i].Sum(nil)
+	}
+
+	return hashedContractsByte
+}
+
+func createContractArray(filePaths []string) [][]byte {
+	contractArray := make([][]byte, len(filePaths))
+
+	for i := range filePaths {
+		contractArray[i], _ = ioutil.ReadFile(filePaths[i])
+	}
+
+	return contractArray
+}
+
+func lexiSort(hashedContracts [][]byte) [][]byte {
+	for i := range hashedContracts {
+		for j := range hashedContracts {
+			if hashedContracts[i][j] > hashedContracts[i][j+1] {
+				hashedContracts[i], hashedContracts[i+1] = hashedContracts[i+1], hashedContracts[i]
+			}
+		}
+	}
+
+	return hashedContracts
 }
 
 // getInfo handles a getinfo request by returning a structure containing
