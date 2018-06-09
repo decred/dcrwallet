@@ -14,7 +14,7 @@ import (
 	. "github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 
-	"github.com/decred/dcrwallet/wallet/internal/txsizes"
+	"github.com/decred/dcrwallet/wallet/txsizes"
 )
 
 func p2pkhOutputs(amounts ...dcrutil.Amount) []*wire.TxOut {

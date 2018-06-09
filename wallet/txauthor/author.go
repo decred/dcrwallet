@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/txrules"
 
 	h "github.com/decred/dcrwallet/internal/helpers"
-	"github.com/decred/dcrwallet/wallet/internal/txsizes"
+	"github.com/decred/dcrwallet/wallet/txsizes"
 )
 
 const (
