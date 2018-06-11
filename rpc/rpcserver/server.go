@@ -840,6 +840,32 @@ func decodeDestination(dest *pb.ConstructTransactionRequest_OutputDestination,
 	}
 }
 
+type txChangeSource struct {
+	version uint16
+	script  []byte
+}
+
+func (src *txChangeSource) Script() ([]byte, uint16, error) {
+	return src.script, src.version, nil
+}
+
+func (src *txChangeSource) ScriptSize() int {
+	return len(src.script)
+}
+
+func makeTxChangeSource(destination *pb.ConstructTransactionRequest_OutputDestination,
+	chainParams *chaincfg.Params) (*txChangeSource, error) {
+	script, version, err := decodeDestination(destination, chainParams)
+	if err != nil {
+		return nil, err
+	}
+	changeSource := &txChangeSource{
+		script:  script,
+		version: version,
+	}
+	return changeSource, nil
+}
+
 func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.ConstructTransactionRequest) (
 	*pb.ConstructTransactionResponse, error) {
 
@@ -880,12 +906,12 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 	}
 
 	var changeSource txauthor.ChangeSource
+	var err error
 	if req.ChangeDestination != nil {
-		script, version, err := decodeDestination(req.ChangeDestination, chainParams)
+		changeSource, err = makeTxChangeSource(req.ChangeDestination, chainParams)
 		if err != nil {
-			return nil, err
+			return nil, translateError(err)
 		}
-		changeSource = func() ([]byte, uint16, error) { return script, version, nil }
 	}
 
 	tx, err := s.wallet.NewUnsignedTransaction(outputs, feePerKb, req.SourceAccount,

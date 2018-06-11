@@ -87,9 +87,10 @@ const (
 
 // EstimateSerializeSize returns a worst case serialize size estimate for a
 // signed transaction that spends a number of outputs and contains each
-// transaction output from txOuts.  The estimated size is incremented for an
-// additional P2PKH change output if addChangeOutput is true.
-func EstimateSerializeSize(scriptSizers []ScriptSizer, txOuts []*wire.TxOut, addChangeOutput bool) int {
+// transaction output from txOuts. The estimated size is incremented for an
+// additional change output if changeScriptSize is greater than 0. Passing 0
+// does not add a change output.
+func EstimateSerializeSize(scriptSizers []ScriptSizer, txOuts []*wire.TxOut, changeScriptSize int) int {
 	// generate the estimated sizes of the inputs
 	txInsSize := 0
 	for _, sizer := range scriptSizers {
@@ -99,8 +100,8 @@ func EstimateSerializeSize(scriptSizers []ScriptSizer, txOuts []*wire.TxOut, add
 	inputCount := len(scriptSizers)
 	outputCount := len(txOuts)
 	changeSize := 0
-	if addChangeOutput {
-		changeSize = P2PKHOutputSize
+	if changeScriptSize > 0 {
+		changeSize = EstimateOutputSize(changeScriptSize)
 		outputCount++
 	}
 
@@ -124,4 +125,13 @@ func EstimateSerializeSize(scriptSizers []ScriptSizer, txOuts []*wire.TxOut, add
 //   - 4 bytes sequence
 func EstimateInputSize(scriptSize int) int {
 	return 32 + 4 + 1 + 8 + 4 + 4 + wire.VarIntSerializeSize(uint64(scriptSize)) + scriptSize + 4
+}
+
+// EstimateOutputSize returns the worst case serialize size estimate for a tx output
+//   - 8 bytes amount
+//   - 2 bytes version
+//   - the compact int representation of the script size
+//   - the supplied script size
+func EstimateOutputSize(scriptSize int) int {
+	return 8 + 2 + wire.VarIntSerializeSize(uint64(scriptSize)) + scriptSize
 }

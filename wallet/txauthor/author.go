@@ -46,9 +46,12 @@ type AuthoredTx struct {
 	EstimatedSignedSerializeSize int
 }
 
-// ChangeSource provides P2PKH change output scripts and versions for
+// ChangeSource provides change output scripts and versions for
 // transaction creation.
-type ChangeSource func() ([]byte, uint16, error)
+type ChangeSource interface {
+	Script() (script []byte, version uint16, err error)
+	ScriptSize() int
+}
 
 // NewUnsignedTransaction creates an unsigned transaction paying to one or more
 // non-change outputs.  An appropriate transaction fee is included based on the
@@ -68,8 +71,6 @@ type ChangeSource func() ([]byte, uint16, error)
 // output scripts are returned.  If the input source was unable to provide
 // enough input value to pay for every output any any necessary fees, an
 // InputSourceError is returned.
-//
-// BUGS: Fee estimation may be off when redeeming non-compressed P2PKH outputs.
 func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	fetchInputs InputSource, fetchChange ChangeSource) (*AuthoredTx, error) {
 
@@ -77,8 +78,13 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 
 	targetAmount := h.SumOutputValues(outputs)
 	scriptSizers := []txsizes.ScriptSizer{txsizes.P2PKHScriptSize}
-	estimatedSize := txsizes.EstimateSerializeSize(scriptSizers, outputs, true)
-	targetFee := txrules.FeeForSerializeSize(relayFeePerKb, estimatedSize)
+	changeScript, changeScriptVersion, err := fetchChange.Script()
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	changeScriptSize := fetchChange.ScriptSize()
+	maxSignedSize := txsizes.EstimateSerializeSize(scriptSizers, outputs, changeScriptSize)
+	targetFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
 
 	for {
 		inputAmount, inputs, scripts, err := fetchInputs(targetAmount + targetFee)
@@ -95,7 +101,7 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 			scriptSizers = append(scriptSizers, txsizes.P2PKHScriptSize)
 		}
 
-		maxSignedSize := txsizes.EstimateSerializeSize(scriptSizers, outputs, true)
+		maxSignedSize = txsizes.EstimateSerializeSize(scriptSizers, outputs, changeScriptSize)
 		maxRequiredFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
 		remainingAmount := inputAmount - targetAmount
 		if remainingAmount < maxRequiredFee {
@@ -114,14 +120,10 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 		changeIndex := -1
 		changeAmount := inputAmount - targetAmount - maxRequiredFee
 		if changeAmount != 0 && !txrules.IsDustAmount(changeAmount,
-			txsizes.P2PKHPkScriptSize, relayFeePerKb) {
-			changeScript, changeScriptVersion, err := fetchChange()
-			if err != nil {
-				return nil, errors.E(op, err)
-			}
-			if len(changeScript) > txsizes.P2PKHPkScriptSize {
-				return nil, errors.E(op, "fee estimation requires change "+
-					"scripts no larger than P2PKH output scripts")
+			changeScriptSize, relayFeePerKb) {
+			if len(changeScript) > txscript.MaxScriptElementSize {
+				return nil, errors.E(errors.Invalid, "script size exceed maximum bytes "+
+					"pushable to the stack")
 			}
 			change := &wire.TxOut{
 				Value:    int64(changeAmount),
@@ -131,16 +133,16 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 			l := len(outputs)
 			unsignedTransaction.TxOut = append(outputs[:l:l], change)
 			changeIndex = l
+		} else {
+			maxSignedSize = txsizes.EstimateSerializeSize(scriptSizers,
+				unsignedTransaction.TxOut, 0)
 		}
-
-		estSignedSize := txsizes.EstimateSerializeSize(scriptSizers,
-			unsignedTransaction.TxOut, false)
 		return &AuthoredTx{
 			Tx:                           unsignedTransaction,
 			PrevScripts:                  scripts,
 			TotalInput:                   inputAmount,
 			ChangeIndex:                  changeIndex,
-			EstimatedSignedSerializeSize: estSignedSize,
+			EstimatedSignedSerializeSize: maxSignedSize,
 		}, nil
 	}
 }

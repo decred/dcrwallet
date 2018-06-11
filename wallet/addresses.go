@@ -12,8 +12,8 @@ import (
 	"github.com/decred/dcrd/hdkeychain"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/wallet/internal/txsizes"
 	"github.com/decred/dcrwallet/wallet/internal/walletdb"
-	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/udb"
 )
 
@@ -545,18 +545,26 @@ func (w *Wallet) AccountBranchAddressRange(account, branch, start, end uint32) (
 	return addrs, nil
 }
 
-func (w *Wallet) changeSource(op errors.Op, persist persistReturnedChildFunc, account uint32) txauthor.ChangeSource {
-	return func() ([]byte, uint16, error) {
-		changeAddress, err := w.newChangeAddress(op, persist, account)
-		if err != nil {
-			return nil, 0, err
-		}
-		script, err := txscript.PayToAddrScript(changeAddress)
-		if err != nil {
-			return nil, 0, errors.E(op, err)
-		}
-		return script, txscript.DefaultScriptVersion, nil
+type p2PKHChangeSource struct {
+	persist persistReturnedChildFunc
+	account uint32
+	wallet  *Wallet
+}
+
+func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
+	changeAddress, err := src.wallet.newChangeAddress("", src.persist, src.account)
+	if err != nil {
+		return nil, 0, err
 	}
+	script, err := txscript.PayToAddrScript(changeAddress)
+	if err != nil {
+		return nil, 0, err
+	}
+	return script, txscript.DefaultScriptVersion, nil
+}
+
+func (src *p2PKHChangeSource) ScriptSize() int {
+	return txsizes.P2PKHPkScriptSize
 }
 
 func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32, params *chaincfg.Params) ([]dcrutil.Address, error) {

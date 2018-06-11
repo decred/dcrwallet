@@ -29,7 +29,6 @@ import (
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/helpers"
 	"github.com/decred/dcrwallet/wallet"
-	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 )
@@ -3194,21 +3193,38 @@ func stopAutoBuyer(s *Server, icmd interface{}) (interface{}, error) {
 	return nil, err
 }
 
-// makeChangeSourceFromAddress creates a ChangeSource which is used to
+// scriptChangeSource is a ChangeSource which is used to
 // receive all correlated previous input value.
-func makeChangeSourceFromAddress(address string) txauthor.ChangeSource {
-	return func() ([]byte, uint16, error) {
-		destinationAddress, err := dcrutil.DecodeAddress(address)
-		if err != nil {
-			return nil, 0, err
-		}
-		script, err := txscript.PayToAddrScript(destinationAddress)
-		if err != nil {
-			return nil, 0, err
-		}
+type scriptChangeSource struct {
+	version uint16
+	script  []byte
+}
 
-		return script, txscript.DefaultScriptVersion, err
+func (src *scriptChangeSource) Script() ([]byte, uint16, error) {
+	return src.script, src.version, nil
+}
+
+func (src *scriptChangeSource) ScriptSize() int {
+	return len(src.script)
+}
+
+func makeScriptChangeSource(address string, version uint16) (*scriptChangeSource, error) {
+	destinationAddress, err := dcrutil.DecodeAddress(address)
+	if err != nil {
+		return nil, err
 	}
+
+	script, err := txscript.PayToAddrScript(destinationAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	source := &scriptChangeSource{
+		version: version,
+		script:  script,
+	}
+
+	return source, nil
 }
 
 // sweepAccount handles the sweepaccount command.
@@ -3246,7 +3262,11 @@ func sweepAccount(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	changeSource := makeChangeSourceFromAddress(cmd.DestinationAddress)
+	changeSource, err := makeScriptChangeSource(cmd.DestinationAddress,
+		txscript.DefaultScriptVersion)
+	if err != nil {
+		return nil, err
+	}
 	tx, err := w.NewUnsignedTransaction(nil, feePerKb, account,
 		requiredConfs, wallet.OutputSelectionAlgorithmAll, changeSource)
 	if err != nil {
