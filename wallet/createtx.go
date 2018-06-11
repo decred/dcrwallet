@@ -135,8 +135,11 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 		}
 
 		if changeSource == nil {
-			persist := w.deferPersistReturnedChild(&changeSourceUpdates)
-			changeSource = w.changeSource(op, persist, account)
+			changeSource = &p2PKHChangeSource{
+				persist: w.deferPersistReturnedChild(&changeSourceUpdates),
+				account: account,
+				wallet:  w,
+			}
 		}
 
 		var err error
@@ -320,8 +323,11 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 		inputSource := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 			minconf, tipHeight)
-		persist := w.deferPersistReturnedChild(&changeSourceUpdates)
-		changeSource := w.changeSource(op, persist, account)
+		changeSource := &p2PKHChangeSource{
+			persist: w.deferPersistReturnedChild(&changeSourceUpdates),
+			account: account,
+			wallet:  w,
+		}
 		var err error
 		atx, err = txauthor.NewUnsignedTransaction(outputs, txFee,
 			inputSource.SelectInputs, changeSource)
@@ -515,14 +521,20 @@ func (w *Wallet) txToMultisigInternal(op errors.Op, dbtx walletdb.ReadWriteTx, a
 	// totalInput == amount+feeEst is skipped because
 	// we don't need to add a change output in this
 	// case.
-	feeSize := txsizes.EstimateSerializeSize(scriptSizers, msgtx.TxOut, false)
+	feeSize := txsizes.EstimateSerializeSize(scriptSizers, msgtx.TxOut, 0)
 	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), feeSize)
 
 	if totalInput < amount+feeEst {
 		return txToMultisigError(errors.E(op, errors.InsufficientBalance))
 	}
 	if totalInput > amount+feeEst {
-		pkScript, _, err := w.changeSource(op, w.persistReturnedChild(dbtx), account)()
+		changeSource := p2PKHChangeSource{
+			persist: w.persistReturnedChild(dbtx),
+			account: account,
+			wallet:  w,
+		}
+
+		pkScript, _, err := changeSource.Script()
 		if err != nil {
 			return txToMultisigError(err)
 		}
@@ -678,7 +690,7 @@ func (w *Wallet) compressWalletInternal(op errors.Op, dbtx walletdb.ReadWriteTx,
 
 	// Get an initial fee estimate based on the number of selected inputs
 	// and added outputs, with no change.
-	szEst := txsizes.EstimateSerializeSize(scriptSizers, msgtx.TxOut, false)
+	szEst := txsizes.EstimateSerializeSize(scriptSizers, msgtx.TxOut, 0)
 	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), szEst)
 
 	msgtx.TxOut[0].Value = int64(totalAdded - feeEst)
@@ -1546,7 +1558,7 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 	// Revocations must pay a fee but do so by decreasing one of the output
 	// values instead of increasing the input value and using a change output.
 	// Calculate the estimated signed serialize size.
-	sizeEstimate := txsizes.EstimateSerializeSize(scriptSizers, revocation.TxOut, false)
+	sizeEstimate := txsizes.EstimateSerializeSize(scriptSizers, revocation.TxOut, 0)
 	feeEstimate := txrules.FeeForSerializeSize(feePerKB, sizeEstimate)
 
 	// Reduce the output value of one of the outputs to accomodate for the relay

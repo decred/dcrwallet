@@ -200,31 +200,50 @@ func makeInputSource(outputs []dcrjson.ListUnspentResult) txauthor.InputSource {
 	}
 }
 
-// makeDestinationScriptSourceToAccount creates a ChangeSource which is used to
-// receive all correlated previous input value.  A non-change address is created
-// by this function.
-func makeDestinationScriptSourceToAccount(rpcClient *dcrrpcclient.Client, accountName string) txauthor.ChangeSource {
-	return func() ([]byte, uint16, error) {
-		destinationAddress, err := rpcClient.GetNewAddress(accountName)
-		if err != nil {
-			return nil, 0, err
-		}
-		script, err := txscript.PayToAddrScript(destinationAddress)
-		return script, txscript.DefaultScriptVersion, err
-	}
+// destinationScriptSourceToAccount is a ChangeSource which is used to receive
+// all correlated previous input value.
+type destinationScriptSourceToAccount struct {
+	accountName string
+	rpcClient   *dcrrpcclient.Client
 }
 
-// makeDestinationScriptSourceToAddress creates a ChangeSource which is used to
-// receive all correlated previous input value.
-func makeDestinationScriptSourceToAddress(rpcClient *dcrrpcclient.Client, address string) txauthor.ChangeSource {
-	return func() ([]byte, uint16, error) {
-		destinationAddress, err := dcrutil.DecodeAddress(address)
-		if err != nil {
-			return nil, 0, err
-		}
-		script, err := txscript.PayToAddrScript(destinationAddress)
-		return script, txscript.DefaultScriptVersion, err
+// Source creates a non-change address.
+func (src *destinationScriptSourceToAccount) Script() ([]byte, uint16, error) {
+	destinationAddress, err := src.rpcClient.GetNewAddress(src.accountName)
+	if err != nil {
+		return nil, 0, err
 	}
+
+	script, err := txscript.PayToAddrScript(destinationAddress)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return script, txscript.DefaultScriptVersion, nil
+}
+
+func (src *destinationScriptSourceToAccount) ScriptSize() int {
+	return 25 // P2PKHPkScriptSize
+}
+
+// destinationScriptSourceToAddress s a ChangeSource which is used to
+// receive all correlated previous input value.
+type destinationScriptSourceToAddress struct {
+	address string
+}
+
+// Source creates a non-change address.
+func (src *destinationScriptSourceToAddress) Script() ([]byte, uint16, error) {
+	destinationAddress, err := dcrutil.DecodeAddress(src.address)
+	if err != nil {
+		return nil, 0, err
+	}
+	script, err := txscript.PayToAddrScript(destinationAddress)
+	return script, txscript.DefaultScriptVersion, err
+}
+
+func (src *destinationScriptSourceToAddress) ScriptSize() int {
+	return 25 // P2PKHPkScriptSize
 }
 
 func main() {
@@ -313,18 +332,28 @@ func sweep() error {
 	for _, previousOutputs := range sourceOutputs {
 		inputSource := makeInputSource(previousOutputs)
 
-		var destinationSource txauthor.ChangeSource
+		var destinationSourceToAccount *destinationScriptSourceToAccount
+		var destinationSourceToAddress *destinationScriptSourceToAddress
+		var atx *txauthor.AuthoredTx
+		var err error
 
 		if opts.DestinationAccount != "" {
-			destinationSource = makeDestinationScriptSourceToAccount(rpcClient, opts.DestinationAccount)
+			destinationSourceToAccount = &destinationScriptSourceToAccount{
+				accountName: opts.DestinationAccount,
+				rpcClient:   rpcClient,
+			}
+			atx, err = txauthor.NewUnsignedTransaction(nil, opts.FeeRate.Amount,
+				inputSource, destinationSourceToAccount)
 		}
 
 		if opts.DestinationAddress != "" {
-			destinationSource = makeDestinationScriptSourceToAddress(rpcClient, opts.DestinationAddress)
+			destinationSourceToAddress = &destinationScriptSourceToAddress{
+				address: opts.DestinationAddress,
+			}
+			atx, err = txauthor.NewUnsignedTransaction(nil, opts.FeeRate.Amount,
+				inputSource, destinationSourceToAddress)
 		}
 
-		tx, err := txauthor.NewUnsignedTransaction(nil, opts.FeeRate.Amount,
-			inputSource, destinationSource)
 		if err != nil {
 			if err != (noInputValue{}) {
 				reportError("Failed to create unsigned transaction: %v", err)
@@ -338,7 +367,7 @@ func sweep() error {
 			reportError("Failed to unlock wallet: %v", err)
 			continue
 		}
-		signedTransaction, complete, err := rpcClient.SignRawTransaction(tx.Tx)
+		signedTransaction, complete, err := rpcClient.SignRawTransaction(atx.Tx)
 		_ = rpcClient.WalletLock()
 		if err != nil {
 			reportError("Failed to sign transaction: %v", err)
@@ -363,7 +392,7 @@ func sweep() error {
 			txHash = hash.String()
 		}
 
-		outputAmount := dcrutil.Amount(tx.Tx.TxOut[0].Value)
+		outputAmount := dcrutil.Amount(atx.Tx.TxOut[0].Value)
 		fmt.Printf("Swept %v to destination with transaction %v\n",
 			outputAmount, txHash)
 		totalSwept += outputAmount
