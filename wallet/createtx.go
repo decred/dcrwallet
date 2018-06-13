@@ -399,8 +399,6 @@ func (w *Wallet) txToOutputsSplitTx(outputs []*wire.TxOut, account uint32, minco
 		// Create the unsigned transaction.
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 
-		fmt.Println("txToOutputsSplitTx.tipHeight %v, minconf %v", tipHeight, minconf)
-
 		inputSource := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 			minconf, tipHeight)
 		persist := w.deferPersistReturnedChild(&changeSourceUpdates)
@@ -468,7 +466,6 @@ func (w *Wallet) publishTx(tx *wire.MsgTx, changeSourceUpdates *[]func(walletdb.
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for _, up := range *changeSourceUpdates {
 			err := up(dbtx)
-			fmt.Printf("[changeSourceUpdates]- called \r\n")
 			if err != nil {
 				return err
 			}
@@ -479,15 +476,6 @@ func (w *Wallet) publishTx(tx *wire.MsgTx, changeSourceUpdates *[]func(walletdb.
 		err = w.processTransactionRecord(dbtx, rec, nil, nil)
 		if err != nil {
 			return err
-		}
-		for _, txin := range tx.TxIn {
-			fmt.Printf("[publishTx-after] - input prev outpoint splitTx hash :%s - index :%d - signature : %x\r\n",
-				txin.PreviousOutPoint.Hash, txin.PreviousOutPoint.Index, txin.SignatureScript)
-
-		}
-		for _, txout := range tx.TxOut {
-			fmt.Printf("[publishTx-after] - output splitTx amount :%d - version :%d - pkscript : %x\r\n",
-				txout.Value, txout.Version, txout.PkScript)
 		}
 
 		return n.PublishTransaction(context.TODO(), tx)
@@ -1270,7 +1258,7 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 		if txFeeIncrement == 0 {
 			txFeeIncrement = w.RelayFee()
 		}
-		//need to do joint split transaction from this with txmatcher server
+		//need to do joint split transaction from this with txdcrmatcher server
 		splitTx, changeSourceFuncs, err := w.txToOutputsSplitTx(splitOuts, req.account, req.minConf,
 			n, false, txFeeIncrement)
 		if err != nil {
@@ -1293,22 +1281,110 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 
 		// Generate the tickets individually.
 		ticketHashes := make([]*chainhash.Hash, 0, numTickets)
-		log.Info("Waiting for enough participants...")
+
+		purchaseFn := func(tx *wire.MsgTx, numberTickets int, outputIds []int32) ([]*chainhash.Hash, error) {
+
+			ticketHashes := make([]*chainhash.Hash, 0)
+			for i := 0; i < numTickets; i++ {
+
+				outputIndex := outputIds[i]
+				fmt.Println("outputIndex ", outputIndex)
+
+				var eop *extendedOutPoint
+				txOut := tx.TxOut[outputIndex]
+				eop = &extendedOutPoint{
+					op: &wire.OutPoint{
+						Hash:  tx.TxHash(),
+						Index: uint32(outputIndex),
+						Tree:  wire.TxTreeRegular,
+					},
+					amt:      txOut.Value,
+					pkScript: txOut.PkScript,
+				}
+				votingAddress, subsidyAddress, err := w.fetchAddresses(req.ticketAddr, req.account, addrFunc)
+
+				// Generate the ticket msgTx and sign it.
+				ticket, err := makeTicket(w.chainParams, nil, eop, votingAddress,
+					subsidyAddress, int64(ticketPrice), poolAddress)
+				if err != nil {
+					return ticketHashes, err
+				}
+
+				var forSigning []udb.Credit
+				eopCredit := udb.Credit{
+					OutPoint:     *eop.op,
+					BlockMeta:    udb.BlockMeta{},
+					Amount:       dcrutil.Amount(eop.amt),
+					PkScript:     eop.pkScript,
+					Received:     time.Now(),
+					FromCoinBase: false,
+				}
+				forSigning = append(forSigning, eopCredit)
+
+				// Set ticket expiry if greater than zero
+				if req.expiry > 0 {
+					ticket.Expiry = uint32(req.expiry)
+				}
+
+				err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+					ns := tx.ReadBucket(waddrmgrNamespaceKey)
+					//signMsgTx set signaturescript to txin
+					return signMsgTx(ticket, forSigning, w.Manager, ns, w.chainParams)
+				})
+				if err != nil {
+					return ticketHashes, err
+				}
+
+				err = w.processTxRecordAndPublish(ticket, n)
+				if err != nil {
+					return ticketHashes, err
+				}
+
+				ticketHash := ticket.TxHash()
+				ticketHashes = append(ticketHashes, &ticketHash)
+				log.Infof("Successfully purchased and sent shared ticket transaction")
+			}
+
+			return ticketHashes, nil
+		}
+
+		// build index slice in case connection with server fails
+		ids := make([]int32, 0)
+		for i := 0; i < numTickets; i++ {
+			ids = append(ids, int32(i))
+		}
 
 		//connect to dcrtxmatcher server
 		_, err = req.dcrTxClient.StartSession()
 		if err != nil {
-			return ticketHashes, err
+			log.Info("Error in communication with dcrtxmatcher server, will buy locally")
+			localSplitTx, err := w.txToOutputsInternal(splitOuts, req.account, req.minConf,
+				n, false, txFeeIncrement)
+			if err != nil {
+				return nil, fmt.Errorf("failed to send split transaction: %v", err)
+			}
+
+			return purchaseFn(localSplitTx.Tx, numTickets, ids)
 		}
 
+		// disconnect after purchase completed
 		defer func() {
 			req.dcrTxClient.Disconnect()
 		}()
 
-		tx, sesID, inputIds, outputIds, err := req.dcrTxClient.JoinSplitTx(splitTx.Tx, nil, ticketPrice)
+		// create and check timeout here
+		log.Infof("Timeout value %d", req.dcrTxClient.Config().Timeout)
+
+		tx, sesID, inputIds, outputIds, err := req.dcrTxClient.JoinSplitTx(splitTx.Tx, req.dcrTxClient.Config().Timeout)
 		if err != nil {
-			fmt.Println("req.dcrTxClient.JoinSplitTx error", err)
-			return ticketHashes, err
+			log.Info("Error in communication with dcrtxmatcher server, will buy locally")
+			localSplitTx, err := w.txToOutputsInternal(splitOuts, req.account, req.minConf,
+				n, false, txFeeIncrement)
+			if err != nil {
+				return nil, fmt.Errorf("failed to send split transaction: %v", err)
+			}
+
+			return purchaseFn(localSplitTx.Tx, numTickets, ids)
 		}
 
 		//verify input/output from server before signing
@@ -1375,8 +1451,14 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 		//submit signed input to server
 		signedTx, publisher, err := req.dcrTxClient.SubmitSignedTx(tx, sesID)
 		if err != nil {
-			fmt.Println("re-sign tx error", err)
-			return ticketHashes, err
+			log.Info("Error in communication with dcrtxmatcher server, will buy locally")
+			localSplitTx, err := w.txToOutputsInternal(splitOuts, req.account, req.minConf,
+				n, false, txFeeIncrement)
+			if err != nil {
+				return nil, fmt.Errorf("failed to send split transaction: %v", err)
+			}
+
+			return purchaseFn(localSplitTx.Tx, numTickets, ids)
 		}
 		//		for _, txin := range signedTx.TxIn {
 		//			fmt.Printf("[SubmitSignedTx-after] - input prev outpoint splitTx hash :%s - index :%d - signature : %x\r\n",
@@ -1410,74 +1492,8 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 			}
 		}
 
-		for i := 0; i < numTickets; i++ {
-			//index := 0
-			//			for k, txout := range publishedTx.TxOut {
-			//				fmt.Println("Index check txout %x, pk : %x ", txout.PkScript, splitOuts[i].PkScript)
-			//				if reflect.DeepEqual(txout.PkScript, pkScript) {
-			//					index = k
-			//					fmt.Println("Index get ", index)
-			//				}
-			//			}
-			outputIndex := outputIds[i]
-			fmt.Println("outputIndex ", outputIndex)
+		return purchaseFn(publishedTx, numTickets, outputIds)
 
-			var eop *extendedOutPoint
-			txOut := publishedTx.TxOut[outputIndex]
-			eop = &extendedOutPoint{
-				op: &wire.OutPoint{
-					Hash:  publishedTx.TxHash(),
-					Index: uint32(outputIndex),
-					Tree:  wire.TxTreeRegular,
-				},
-				amt:      txOut.Value,
-				pkScript: txOut.PkScript,
-			}
-			votingAddress, subsidyAddress, err := w.fetchAddresses(req.ticketAddr, req.account, addrFunc)
-
-			// Generate the ticket msgTx and sign it.
-			ticket, err := makeTicket(w.chainParams, nil, eop, votingAddress,
-				subsidyAddress, int64(ticketPrice), poolAddress)
-			if err != nil {
-				return ticketHashes, err
-			}
-
-			var forSigning []udb.Credit
-			eopCredit := udb.Credit{
-				OutPoint:     *eop.op,
-				BlockMeta:    udb.BlockMeta{},
-				Amount:       dcrutil.Amount(eop.amt),
-				PkScript:     eop.pkScript,
-				Received:     time.Now(),
-				FromCoinBase: false,
-			}
-			forSigning = append(forSigning, eopCredit)
-
-			// Set ticket expiry if greater than zero
-			if req.expiry > 0 {
-				ticket.Expiry = uint32(req.expiry)
-			}
-
-			err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-				ns := tx.ReadBucket(waddrmgrNamespaceKey)
-				//signMsgTx set signaturescript to txin
-				return signMsgTx(ticket, forSigning, w.Manager, ns, w.chainParams)
-			})
-			if err != nil {
-				return ticketHashes, err
-			}
-
-			err = w.processTxRecordAndPublish(ticket, n)
-			if err != nil {
-				return ticketHashes, err
-			}
-
-			ticketHash := ticket.TxHash()
-			ticketHashes = append(ticketHashes, &ticketHash)
-			log.Infof("Successfully purchased and sent shared ticket transaction")
-		}
-
-		return ticketHashes, nil
 	} else {
 		var splitOuts []*wire.TxOut
 		pkScript, err := txscript.PayToAddrScript(splitTxAddr)

@@ -71,6 +71,7 @@ const (
 	defaultSplitTx                                  = 1
 
 	defaultEnableDcrtxmatcher = false
+	defaultTimeout            = 5
 
 	walletDbName = "wallet.db"
 )
@@ -190,7 +191,6 @@ type ticketBuyerOptions struct {
 	VotingAddress             *cfgutil.AddressFlag `long:"votingaddress" description:"Purchase tickets with voting rights assigned to this address"`
 	SplitTx                   uint32               `long:"splittx" description:"Use split transactions to limit the number of ticket purchase inputs"`
 
-	
 	// Deprecated options
 	MaxPriceScale         float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
 	PriceTarget           *cfgutil.AmountFlag `long:"pricetarget" description:"DEPRECATED -- A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
@@ -200,6 +200,7 @@ type ticketBuyerOptions struct {
 type dcrtxClientOptions struct {
 	Enable  bool   `long:"enable" description:"Enable wallet to join other participants in purchasing tickets in a single transaction"`
 	Address string `long:"address" description:"Dcrtxmatcher Server hostname"`
+	Timeout uint32 `long:"timeout" description:"Dcrtxmatcher Server request join timeout"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -396,12 +397,13 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
 			BalanceToMaintainRelative: defaultBalanceToMaintainRelative,
 			VotingAddress:             cfgutil.NewAddressFlag(nil),
-			
+
 			SplitTx: defaultSplitTx,
 		},
 
 		DcrtxClientOpts: dcrtxClientOptions{
-			Enable: defaultEnableDcrtxmatcher,
+			Enable:  defaultEnableDcrtxmatcher,
+			Timeout: defaultTimeout,
 		},
 	}
 
@@ -984,13 +986,19 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		return loadConfigError(err)
 	}
 
+	if cfg.DcrtxClientOpts.Timeout <= 0 {
+		str := "Dcrtx server timeout can not less than zero"
+		err := fmt.Errorf(str, funcName)
+		return loadConfigError(err)
+	}
+
 	// dcrtxClientConfig
 	cfg.DcrtxClientConfig = &dcrtxclient.Config{
 		Address: cfg.DcrtxClientOpts.Address,
 		Enable:  cfg.DcrtxClientOpts.Enable,
+		Timeout: cfg.DcrtxClientOpts.Timeout,
 	}
 
-	
 	// Make list of old versions of testnet directories.
 	var oldTestNets []string
 	oldTestNets = append(oldTestNets, filepath.Join(cfg.AppDataDir.Value, "testnet"))

@@ -1,6 +1,7 @@
 package dcrtxclient
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/decred/dcrwallet/dcrtxclient/service"
@@ -11,6 +12,7 @@ type (
 	Config struct {
 		Enable  bool
 		Address string
+		Timeout uint32
 	}
 
 	Client struct {

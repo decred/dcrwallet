@@ -2,8 +2,8 @@ package service
 
 import (
 	"bytes"
+	"time"
 
-	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	pb "github.com/raedahgroup/dcrtxmatcher/api/matcherrpc"
 	"golang.org/x/net/context"
@@ -22,14 +22,15 @@ func NewTransactionService(conn *grpc.ClientConn) *TransactionService {
 	}
 }
 
-func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx,
-	voteAddress dcrutil.Address, ticketPrice dcrutil.Amount) (*wire.MsgTx, string, []int32, []int32, error) {
+func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx, timeout uint32) (*wire.MsgTx, string, []int32, []int32, error) {
 
 	joinReq := &pb.FindMatchesRequest{
-		Amount: uint64(ticketPrice),
+		Amount: uint64(0),
 	}
 
-	findRes, err := t.client.FindMatches(context.Background(), joinReq)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Minute)
+	defer cancel()
+	findRes, err := t.client.FindMatches(ctx, joinReq)
 	if err != nil {
 		return nil, "", nil, nil, err
 	}

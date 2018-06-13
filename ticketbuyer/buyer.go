@@ -848,7 +848,6 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		expiry = int32(int(height) + t.ExpiryDelta() + 2)
 	}
 
-	fmt.Printf("buyer.Purchase - minconf %v, expiry %v, expiryDelta %v \r\n", 0, expiry, expiryDelta)
 	hashes, purchaseErr := t.wallet.PurchaseTickets(0,
 		maxPriceAmt,
 		0, // 0 minconf is used so tickets can be bought from split outputs
