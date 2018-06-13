@@ -16,7 +16,7 @@ import (
 	"os"
 
 	"github.com/EXCCoin/exccd/chaincfg"
-	"github.com/EXCCoin/exccutil/hdkeychain"
+	"github.com/EXCCoin/exccd/hdkeychain"
 	"github.com/EXCCoin/exccwallet/wallet/udb"
 	"github.com/EXCCoin/exccwallet/walletdb"
 	_ "github.com/EXCCoin/exccwallet/walletdb/bdb"

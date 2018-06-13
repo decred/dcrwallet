@@ -17,11 +17,10 @@ import (
 	"io"
 	"os"
 
-	"github.com/EXCCoin/exccd/blockchain/stake"
 	"github.com/EXCCoin/exccd/chaincfg"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/hdkeychain"
 	"github.com/EXCCoin/exccd/wire"
-	"github.com/EXCCoin/exccutil"
-	"github.com/EXCCoin/exccutil/hdkeychain"
 	"github.com/EXCCoin/exccwallet/wallet/udb"
 	"github.com/EXCCoin/exccwallet/walletdb"
 	_ "github.com/EXCCoin/exccwallet/walletdb/bdb"
@@ -63,7 +62,7 @@ func setup() error {
 	if err != nil {
 		return err
 	}
-	err = udb.Initialize(db, chainParams, seed, pubPass, privPass, false)
+	err = udb.Initialize(db, chainParams, seed, pubPass, privPass)
 	if err != nil {
 		return err
 	}
@@ -86,11 +85,7 @@ func setup() error {
 	return walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket([]byte("wstakemgr"))
 
-		vb := stake.VoteBits{
-			Bits:         1,
-			ExtendedBits: []byte{0, 0, 0, 4},
-		}
-		return smgr.InsertSStx(ns, exccutil.NewTx(&ticketPurchase), vb)
+		return smgr.InsertSStx(ns, exccutil.NewTx(&ticketPurchase))
 	})
 }
 
