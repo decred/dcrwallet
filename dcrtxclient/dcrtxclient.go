@@ -1,7 +1,7 @@
 package dcrtxclient
 
 import (
-	"fmt"
+	//"fmt"
 	"sync"
 
 	"github.com/decred/dcrwallet/dcrtxclient/service"
@@ -97,7 +97,7 @@ func (c *Client) Connect() (*grpc.ClientConn, error) {
 		return nil, err
 	}
 
-	log.Info("Successfull connection with dcrtxmatcher server")
+	//log.Info("Successfull connection with dcrtxmatcher server")
 	return conn, nil
 
 }
