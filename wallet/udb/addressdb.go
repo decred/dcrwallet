@@ -520,7 +520,7 @@ func deserializeBIP0044AccountRow(accountID []byte, row *dbAccountRow, dbVersion
 	switch {
 	case dbVersion < 5 && len(row.rawData) < 20,
 		dbVersion >= 5 && len(row.rawData) < 28:
-		return nil, errors.E(errors.IO, errors.Errorf("bip0044 account %x bad len %d", len(row.rawData)))
+		return nil, errors.E(errors.IO, errors.Errorf("bip0044 account %x bad len %d", accountID, len(row.rawData)))
 	}
 
 	retRow := dbBIP0044AccountRow{

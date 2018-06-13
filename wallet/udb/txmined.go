@@ -709,7 +709,7 @@ func (s *Store) InsertMainChainHeaders(ns walletdb.ReadWriteBucket, addrmgrNs wa
 func (s *Store) GetMainChainBlockHashForHeight(ns walletdb.ReadBucket, height int32) (chainhash.Hash, error) {
 	_, v := existsBlockRecord(ns, height)
 	if v == nil {
-		err := errors.E(errors.NotExist, errors.Errorf("no block at height %v in main chain"), height)
+		err := errors.E(errors.NotExist, errors.Errorf("no block at height %v in main chain", height))
 		return chainhash.Hash{}, err
 	}
 	var hash chainhash.Hash
