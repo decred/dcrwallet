@@ -67,6 +67,27 @@ func promptListBool(reader *bufio.Reader, prefix string, defaultEntry string) (b
 	return response == "yes" || response == "y", nil
 }
 
+func promptMnemonicPassphrase(reader *bufio.Reader) (string, error) {
+	useMnemonicPassphrase, err := promptListBool(reader, "Do you use a "+
+		"BIP39 passphrase?", "no")
+	if err != nil {
+		return "", err
+	}
+
+	if useMnemonicPassphrase {
+		fmt.Print("Enter BIP39 passphrase: ")
+
+		bytePassword, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			return "", err
+		}
+
+		return string(bytePassword), nil
+	}
+
+	return "", nil
+}
+
 // PassPrompt prompts the user for a passphrase with the given prefix.  The
 // function will ask the user to confirm the passphrase and will repeat the
 // prompts until they enter a matching response.
@@ -274,23 +295,9 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 				fmt.Printf("Input error: %v\n", err.Error())
 			}
 		} else {
-
-			useMnemonicPassphrase, err := promptListBool(reader, "Do you use a "+
-				"BIP39 passphrase?", "no")
+			mnemonicPassphrase, err := promptMnemonicPassphrase(reader)
 			if err != nil {
 				return nil, true, err
-			}
-
-			var mnemonicPassphrase string
-			if useMnemonicPassphrase {
-				fmt.Print("Enter BIP39 passphrase: ")
-
-				bytePassword, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-				if err != nil {
-					return nil, true, err
-				}
-
-				mnemonicPassphrase = string(bytePassword)
 			}
 
 			seed, err = walletseed.DecodeUserInput(seedStrTrimmed, mnemonicPassphrase)
