@@ -19,6 +19,7 @@
     "blockchain/stake/internal/dbnamespace",
     "blockchain/stake/internal/ticketdb",
     "blockchain/stake/internal/tickettreap",
+    "cequihash",
     "certgen",
     "chaincfg",
     "chaincfg/chainec",
@@ -38,7 +39,7 @@
     "txscript",
     "wire"
   ]
-  revision = "f4f5d4e7900d352f905a44ff2c3a198d337da9cd"
+  revision = "b69c11c9397917dbaa52c9629e71965ade00624d"
 
 [[projects]]
   branch = "master"
@@ -114,6 +115,12 @@
   name = "github.com/jrick/logrotate"
   packages = ["rotator"]
   revision = "a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/mattn/go-pointer"
+  packages = ["."]
+  revision = "1d30dc4b6f28271a3bd126071d4d0363e618415b"
 
 [[projects]]
   branch = "master"

@@ -2,3 +2,4 @@ exccwallet
 vendor
 *~
 .vscode
+.idea/

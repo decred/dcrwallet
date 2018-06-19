@@ -12,10 +12,6 @@
   name = "github.com/btcsuite/websocket"
 
 [[constraint]]
-  branch = "task/DEX-161_test_mainnet"
-  name = "github.com/EXCCoin/exccd"
-
-[[constraint]]
   branch = "master"
   name = "github.com/golang/protobuf"
 
@@ -46,3 +42,7 @@
 [[constraint]]
   name = "google.golang.org/grpc"
   version = "1.0.0"
+
+[[constraint]]
+  branch = "task/DEX-161_test_mainnet"
+  name = "github.com/EXCCoin/exccd"
