@@ -133,19 +133,11 @@ func run(ctx context.Context) error {
 	if done(ctx) {
 		return ctx.Err()
 	}
-	//always set dcrTxClient config
+	//Init config for dcrTxClient
+	//dcrTxClient will be set for wallet later
 	var dcrTxClient *dcrtxclient.Client
 	if cfg.DcrtxClientConfig != nil {
 		dcrTxClient = dcrtxclient.SetConfig(cfg.DcrtxClientConfig)
-		//		if err != nil {
-		//			log.Errorf("Unable to connect to Dcrtxmatcher Server: %v ", err)
-		//			return err
-		//		}
-		//		dcrTxClient, err = dcrtxclient.NewClient(cfg.DcrtxClientConfig)
-		//		if err != nil {
-		//			log.Errorf("Unable to connect to Dcrtxmatcher Server: %v ", err)
-		//			return err
-		//		}
 	}
 
 	// Create the loader which is used to load and unload the wallet.  If
@@ -205,7 +197,6 @@ func run(ctx context.Context) error {
 		}
 		//set dcrClient for wallet
 		w.SetDcrTxClient(dcrTxClient)
-		//loader.DcrTxClient = dcrTxClient
 
 		if done(ctx) {
 			return ctx.Err()
@@ -273,14 +264,6 @@ func run(ctx context.Context) error {
 			log.Info("JSON-RPC server shutdown")
 		}()
 	}
-
-	//	defer func() {
-	//		// Close client connection on shutdown. Returns an error if not already connected
-	//		// Safe to ignore error
-	//		if cfg.DcrtxClientConfig.Enable && dcrTxClient != nil {
-	//			defer dcrTxClient.Disconnect()
-	//		}
-	//	}()
 
 	// Stop the ticket buyer (if running) on shutdown.  This returns an error
 	// that can be ignored when the ticket buyer was never started.

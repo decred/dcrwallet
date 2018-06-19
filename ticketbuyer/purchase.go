@@ -124,7 +124,7 @@ func (p *PurchaseManager) Stop() {
 
 	log.Infof("Stopping ticket buyer")
 
-	//disconnect to dcrtxmatcher server
+	//disconnect dcrtxmatcher server
 	p.w.GetDcrTxClient().Disconnect()
 
 	select {

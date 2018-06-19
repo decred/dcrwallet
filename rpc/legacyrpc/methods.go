@@ -2179,7 +2179,7 @@ func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 
 	//	}(w)
 
-	//hashStrs := make([]string, 1)
+	//	return nil, nil
 
 	//waiting for PurchaseTicket returns
 	hashes, err := w.PurchaseTickets(0, spendLimit, minConf, ticketAddr,

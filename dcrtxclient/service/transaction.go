@@ -22,6 +22,9 @@ func NewTransactionService(conn *grpc.ClientConn) *TransactionService {
 	}
 }
 
+//JoinSplitTx send join transaction request to server
+//When reach minimum required participant and ticker time on server will start join session
+//Each participant sends their inputs outputs transaction to server for merging
 func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx, timeout uint32) (*wire.MsgTx, string, []int32, []int32, error) {
 
 	joinReq := &pb.FindMatchesRequest{
@@ -63,6 +66,41 @@ func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx, timeout uint32) (*wire.
 	//fmt.Println("JoinSplitTx end", publishRes.InputsIds, findRes.SessionId)
 	return &ticket, findRes.SessionId, publishRes.InputsIds, publishRes.OutputIds, nil
 }
+
+//SubmitSignedTx submits signed participant's inputs to server
+//Server will join signed inputs, outputs of all participants and send back
+func (t *TransactionService) SubmitSignedTx(tx *wire.MsgTx, sesID string) (*wire.MsgTx, bool, error) {
+
+	buffTx := bytes.NewBuffer(nil)
+	buffTx.Grow(tx.SerializeSize())
+	err := tx.BtcEncode(buffTx, 0)
+	if err != nil {
+		return nil, false, err
+	}
+
+	req := &pb.SignTransactionRequest{
+		SplitTx:   buffTx.Bytes(),
+		SessionId: sesID,
+	}
+
+	res, err := t.client.SubmitSignedTransaction(context.Background(), req)
+	if err != nil {
+		return nil, false, err
+	}
+
+	var signedTx wire.MsgTx
+	buf := bytes.NewReader(res.TicketTx)
+	err = signedTx.BtcDecode(buf, 0)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return &signedTx, res.Publisher, nil
+}
+
+//PublishResult sends published transaction to server
+//If participant is selected for publish transantion, real transaction data is sent to server
+//If not, only sending nil data and waiting for real transaction data back from server
 func (t *TransactionService) PublishResult(tx *wire.MsgTx, sesID string) (*wire.MsgTx, error) {
 	req := &pb.PublishResultRequest{}
 	if tx != nil {
@@ -96,32 +134,4 @@ func (t *TransactionService) PublishResult(tx *wire.MsgTx, sesID string) (*wire.
 	}
 
 	return &signedTx, nil
-}
-func (t *TransactionService) SubmitSignedTx(tx *wire.MsgTx, sesID string) (*wire.MsgTx, bool, error) {
-
-	buffTx := bytes.NewBuffer(nil)
-	buffTx.Grow(tx.SerializeSize())
-	err := tx.BtcEncode(buffTx, 0)
-	if err != nil {
-		return nil, false, err
-	}
-
-	req := &pb.SignTransactionRequest{
-		SplitTx:   buffTx.Bytes(),
-		SessionId: sesID,
-	}
-
-	res, err := t.client.SubmitSignedTransaction(context.Background(), req)
-	if err != nil {
-		return nil, false, err
-	}
-
-	var signedTx wire.MsgTx
-	buf := bytes.NewReader(res.TicketTx)
-	err = signedTx.BtcDecode(buf, 0)
-	if err != nil {
-		return nil, false, err
-	}
-
-	return &signedTx, res.Publisher, nil
 }
