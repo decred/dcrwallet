@@ -1258,7 +1258,7 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 		if txFeeIncrement == 0 {
 			txFeeIncrement = w.RelayFee()
 		}
-		//need to do joint split transaction from this with txdcrmatcher server
+		//need to do join split transaction from this with txdcrmatcher server
 		splitTx, changeSourceFuncs, err := w.txToOutputsSplitTx(splitOuts, req.account, req.minConf,
 			n, false, txFeeIncrement)
 		if err != nil {
@@ -1279,7 +1279,7 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 		//			}
 		//		}
 
-		// Generate the tickets individually.
+		// Purchase tickets individually.
 		ticketHashes := make([]*chainhash.Hash, 0, numTickets)
 
 		purchaseFn := func(tx *wire.MsgTx, numberTickets int, outputIds []int32) ([]*chainhash.Hash, error) {
@@ -1356,14 +1356,18 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 		//connect to dcrtxmatcher server
 		_, err = req.dcrTxClient.StartSession()
 		if err != nil {
-			log.Info("Error in communication with dcrtxmatcher server, will buy locally")
-			localSplitTx, err := w.txToOutputsInternal(splitOuts, req.account, req.minConf,
-				n, false, txFeeIncrement)
-			if err != nil {
-				return nil, fmt.Errorf("failed to send split transaction: %v", err)
-			}
+			if !req.dcrTxClient.IsShutdown {
+				log.Infof("Error %v in communication with dcrtxmatcher server", err)
+				log.Infof("Will buy ticket locally")
+				localSplitTx, err := w.txToOutputsInternal(splitOuts, req.account, req.minConf,
+					n, false, txFeeIncrement)
+				if err != nil {
+					return nil, fmt.Errorf("failed to send split transaction: %v", err)
+				}
 
-			return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+				return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+			}
+			return nil, err
 		}
 
 		// disconnect after purchase completed
@@ -1374,15 +1378,18 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 		//call join split tx request with timeout
 		tx, sesID, inputIds, outputIds, err := req.dcrTxClient.JoinSplitTx(splitTx.Tx, req.dcrTxClient.Config().Timeout)
 		if err != nil {
-			log.Infof("Error %v in communication with dcrtxmatcher server", err)
-			log.Infof("Will buy ticket locally")
-			localSplitTx, err := w.txToOutputsInternal(splitOuts, req.account, req.minConf,
-				n, false, txFeeIncrement)
-			if err != nil {
-				return nil, fmt.Errorf("failed to send split transaction: %v", err)
-			}
+			if !req.dcrTxClient.IsShutdown {
+				log.Infof("Error %v in communication with dcrtxmatcher server", err)
+				log.Infof("Will buy ticket locally")
+				localSplitTx, err := w.txToOutputsInternal(splitOuts, req.account, req.minConf,
+					n, false, txFeeIncrement)
+				if err != nil {
+					return nil, fmt.Errorf("failed to send split transaction: %v", err)
+				}
 
-			return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+				return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+			}
+			return nil, err
 		}
 
 		//verify input, output from server before signing
@@ -1398,14 +1405,17 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 			}
 
 			if !valid {
-				log.Warn("Server returns invalid splittx output, will buy locally")
-				localSplitTx, err := w.txToOutputsInternal(splitOuts, req.account, req.minConf,
-					n, false, txFeeIncrement)
-				if err != nil {
-					return nil, fmt.Errorf("failed to send split transaction: %v", err)
-				}
+				if !req.dcrTxClient.IsShutdown {
+					log.Warn("Server returns invalid splittx output, will buy locally")
+					localSplitTx, err := w.txToOutputsInternal(splitOuts, req.account, req.minConf,
+						n, false, txFeeIncrement)
+					if err != nil {
+						return nil, fmt.Errorf("failed to send split transaction: %v", err)
+					}
 
-				return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+					return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+				}
+				return nil, nil
 			}
 		}
 
@@ -1419,14 +1429,17 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 				}
 			}
 			if !valid {
-				log.Warn("Server returns invalid splittx output, will buy locally")
-				localSplitTx, err := w.txToOutputsInternal(splitOuts, req.account, req.minConf,
-					n, false, txFeeIncrement)
-				if err != nil {
-					return nil, fmt.Errorf("failed to send split transaction: %v", err)
-				}
+				if !req.dcrTxClient.IsShutdown {
+					log.Warn("Server returns invalid splittx output, will buy locally")
+					localSplitTx, err := w.txToOutputsInternal(splitOuts, req.account, req.minConf,
+						n, false, txFeeIncrement)
+					if err != nil {
+						return nil, fmt.Errorf("failed to send split transaction: %v", err)
+					}
 
-				return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+					return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+				}
+				return nil, nil
 			}
 		}
 
@@ -1458,14 +1471,20 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 		//submit signed input to server
 		signedTx, publisher, err := req.dcrTxClient.SubmitSignedTx(tx, sesID)
 		if err != nil {
-			log.Info("Error in communication with dcrtxmatcher server, will buy locally")
-			localSplitTx, err := w.txToOutputsInternal(splitOuts, req.account, req.minConf,
-				n, false, txFeeIncrement)
-			if err != nil {
-				return nil, fmt.Errorf("failed to send split transaction: %v", err)
+
+			if !req.dcrTxClient.IsShutdown {
+
+				log.Info("Error in communication with dcrtxmatcher server, will buy locally")
+				localSplitTx, err := w.txToOutputsInternal(splitOuts, req.account, req.minConf,
+					n, false, txFeeIncrement)
+				if err != nil {
+					return nil, fmt.Errorf("failed to send split transaction: %v", err)
+				}
+
+				return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
 			}
 
-			return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+			return nil, err
 		}
 		//		for _, txin := range signedTx.TxIn {
 		//			fmt.Printf("[SubmitSignedTx-after] - input prev outpoint splitTx hash :%s - index :%d - signature : %x\r\n",

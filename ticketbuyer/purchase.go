@@ -125,6 +125,9 @@ func (p *PurchaseManager) Stop() {
 	log.Infof("Stopping ticket buyer")
 
 	//disconnect dcrtxmatcher server
+	//set field IsShutdown so in case disconnect with dcrtxmatcher server
+	//will check this field so not purchase locally
+	p.w.GetDcrTxClient().IsShutdown = true
 	p.w.GetDcrTxClient().Disconnect()
 
 	select {

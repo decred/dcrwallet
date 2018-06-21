@@ -259,6 +259,12 @@ func run(ctx context.Context) error {
 			}
 		}()
 		defer func() {
+			//set IsShutdown to signal dcrtxclient that there is a shutdown request
+			//then disconnect
+			if dcrTxClient != nil {
+				dcrTxClient.IsShutdown = true
+				dcrTxClient.Disconnect()
+			}
 			log.Warn("Stopping JSON-RPC server...")
 			jsonRPCServer.Stop()
 			log.Info("JSON-RPC server shutdown")

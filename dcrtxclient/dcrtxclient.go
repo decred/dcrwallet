@@ -20,6 +20,7 @@ type (
 		cfg  *Config
 		conn *grpc.ClientConn
 		*service.TransactionService
+		IsShutdown bool
 	}
 )
 
@@ -97,7 +98,6 @@ func (c *Client) Connect() (*grpc.ClientConn, error) {
 		return nil, err
 	}
 
-	//log.Info("Successfull connection with dcrtxmatcher server")
 	return conn, nil
 
 }
