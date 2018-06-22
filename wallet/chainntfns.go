@@ -822,7 +822,7 @@ func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash,
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		for i, ticketHash := range ticketHashes {
 			ticketPurchase, err := w.TxStore.Tx(txmgrNs, ticketHash)
-			if err != nil || ticketPurchase == nil {
+			if err != nil && errors.Is(errors.NotExist, err) {
 				ticketPurchase, err = w.StakeMgr.TicketPurchase(dbtx, ticketHash)
 			}
 			if err != nil {
@@ -931,7 +931,7 @@ func (w *Wallet) RevokeOwnedTickets(missedTicketHashes []*chainhash.Hash) error 
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		for i, ticketHash := range ticketHashes {
 			ticketPurchase, err := w.TxStore.Tx(txmgrNs, ticketHash)
-			if err != nil || ticketPurchase == nil {
+			if err != nil && errors.Is(errors.NotExist, err) {
 				ticketPurchase, err = w.StakeMgr.TicketPurchase(dbtx, ticketHash)
 			}
 			if err != nil {

@@ -167,6 +167,32 @@ type Config struct {
 	Params              *chaincfg.Params
 }
 
+// FetchOutput fetches the associated transaction output given an outpoint.
+// It cannot be used to fetch multi-signature outputs.
+func (w *Wallet) FetchOutput(outPoint *wire.OutPoint) (*wire.TxOut, error) {
+	const op errors.Op = "wallet.FetchOutput"
+
+	var out *wire.TxOut
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+		outTx, err := w.TxStore.Tx(txmgrNs, &outPoint.Hash)
+		if err != nil && errors.Is(errors.NotExist, err) {
+			return errors.E(op, errors.NotExist, errors.Errorf("missing tx %v", outPoint.Hash))
+		}
+		if err != nil {
+			return err
+		}
+
+		out = outTx.TxOut[outPoint.Index]
+		return err
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return out, nil
+}
+
 // StakeDifficulty is used to get the next block's stake difficulty.
 func (w *Wallet) StakeDifficulty() (dcrutil.Amount, error) {
 	const op errors.Op = "wallet.StakeDifficulty"
@@ -639,10 +665,6 @@ func (w *Wallet) CommittedTickets(tickets []*chainhash.Hash) ([]*chainhash.Hash,
 				log.Debugf("%v", err)
 				continue
 			}
-			if tx == nil {
-				continue
-			}
-
 			if !stake.IsSStx(tx) {
 				continue
 			}
@@ -2953,9 +2975,6 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 				spender, err := w.TxStore.Tx(txmgrNs, &it.SpenderHash)
 				if err != nil {
 					return err
-				}
-				if spender == nil {
-					return errors.E(errors.IO, errors.Errorf("missing ticket spender %v", &it.SpenderHash))
 				}
 				switch {
 				case isVote(spender):

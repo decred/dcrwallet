@@ -35,9 +35,6 @@ func (w *Wallet) GenerateVoteTx(blockHash *chainhash.Hash, height int32, ticketH
 		if err != nil {
 			return err
 		}
-		if ticketPurchase == nil {
-			return errors.E(op, errors.NotExist, errors.Errorf("missing ticket %v", ticketHash))
-		}
 		vote, err = createUnsignedVote(ticketHash, ticketPurchase,
 			height, blockHash, voteBits, w.subsidyCache, w.chainParams)
 		if err != nil {
