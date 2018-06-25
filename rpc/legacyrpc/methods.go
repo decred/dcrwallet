@@ -2245,7 +2245,7 @@ func redeemMultiSigOut(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, errors.E("P2SH redeem script is not multisig")
 	}
 	var msgTx wire.MsgTx
-	msgTx.AddTxIn(wire.NewTxIn(&op, nil))
+	msgTx.AddTxIn(wire.NewTxIn(&op, 0, nil))
 
 	pkScript, err := txscript.PayToAddrScript(addr)
 	if err != nil {

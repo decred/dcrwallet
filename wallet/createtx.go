@@ -482,7 +482,7 @@ func (w *Wallet) txToMultisigInternal(op errors.Op, dbtx walletdb.ReadWriteTx, a
 	var forSigning []udb.Credit
 	totalInput := dcrutil.Amount(0)
 	for _, e := range eligible {
-		msgtx.AddTxIn(wire.NewTxIn(&e.OutPoint, nil))
+		msgtx.AddTxIn(wire.NewTxIn(&e.OutPoint, 0, nil))
 		totalInput += e.Amount
 		forSigning = append(forSigning, e)
 		scriptSizers = append(scriptSizers, txsizes.P2SHScriptSize)
@@ -681,7 +681,7 @@ func (w *Wallet) compressWalletInternal(op errors.Op, dbtx walletdb.ReadWriteTx,
 		if msgtx.SerializeSize() > maximumTxSize {
 			break
 		}
-		msgtx.AddTxIn(wire.NewTxIn(&e.OutPoint, nil))
+		msgtx.AddTxIn(wire.NewTxIn(&e.OutPoint, 0, nil))
 		totalAdded += e.Amount
 		forSigning = append(forSigning, e)
 		scriptSizers = append(scriptSizers, txsizes.P2PKHScriptSize)
@@ -739,11 +739,11 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *ext
 	mtx := wire.NewMsgTx()
 
 	if addrPool != nil && inputPool != nil {
-		txIn := wire.NewTxIn(inputPool.op, []byte{})
+		txIn := wire.NewTxIn(inputPool.op, 0, []byte{})
 		mtx.AddTxIn(txIn)
 	}
 
-	txIn := wire.NewTxIn(input.op, []byte{})
+	txIn := wire.NewTxIn(input.op, 0, []byte{})
 	mtx.AddTxIn(txIn)
 
 	// Create a new script which pays to the provided address with an
@@ -1483,13 +1483,13 @@ func createUnsignedVote(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx,
 	// Add stakebase input to the vote.
 	stakebaseOutPoint := wire.NewOutPoint(&chainhash.Hash{}, ^uint32(0),
 		wire.TxTreeRegular)
-	stakebaseInput := wire.NewTxIn(stakebaseOutPoint, nil)
+	stakebaseInput := wire.NewTxIn(stakebaseOutPoint, 0, nil)
 	stakebaseInput.ValueIn = subsidy
 	vote.AddTxIn(stakebaseInput)
 
 	// Votes reference the ticket purchase with the second input.
 	ticketOutPoint := wire.NewOutPoint(ticketHash, 0, wire.TxTreeStake)
-	vote.AddTxIn(wire.NewTxIn(ticketOutPoint, nil))
+	vote.AddTxIn(wire.NewTxIn(ticketOutPoint, 0, nil))
 
 	// The first output references the previous block the vote is voting on.
 	// This function never errors.
@@ -1540,7 +1540,7 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 	// Revocations reference the ticket purchase with the first (and only)
 	// input.
 	ticketOutPoint := wire.NewOutPoint(ticketHash, 0, wire.TxTreeStake)
-	revocation.AddTxIn(wire.NewTxIn(ticketOutPoint, nil))
+	revocation.AddTxIn(wire.NewTxIn(ticketOutPoint, 0, nil))
 	scriptSizers := []txsizes.ScriptSizer{txsizes.P2SHScriptSize}
 
 	// All remaining outputs pay to the output destinations and amounts tagged
