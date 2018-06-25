@@ -442,6 +442,7 @@ message ConstructTransactionResponse {
 	int64 total_previous_output_amount = 2;
 	int64 total_output_amount = 3;
 	uint32 estimated_signed_size = 4;
+	int32 change_index = 5;
 }
 
 message SignTransactionRequest {
