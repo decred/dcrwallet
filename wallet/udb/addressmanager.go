@@ -390,6 +390,8 @@ func (m *Manager) keyToManaged(derivedKey *hdkeychain.ExtendedKey, account, bran
 		ma.internal = true
 	}
 
+	ma.index = index
+
 	return ma, nil
 }
 

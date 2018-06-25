@@ -2009,7 +2009,8 @@ The `ValidateAddress` method verifies if an address is valid.
 
 - `bool is_mine`: True if the address is an address of the querying wallet, false if not.
 
-- `uint32 account_number`:  The account number of the wallet.
+- `uint32 account_number`:  The account number of the wallet. For watch-only
+  wallets this will always be 0.
 
 - `string pub_key_addr`: The public key address.
 
@@ -2024,6 +2025,12 @@ The `ValidateAddress` method verifies if an address is valid.
 - `bytes pay_to_addr_script`: The redeem script.
 
 - `uint32 sigs_required`: The number of signatures required.
+
+- `bool is_internal`: True if the address is from the internal branch of the hd
+  wallet.
+
+- `index`: The child index for addresses derived from hd public keys. It will be
+  0 for other types of addresses.
 ___
 
 #### `CommittedTickets`

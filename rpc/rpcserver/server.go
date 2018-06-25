@@ -1699,6 +1699,8 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 			return nil, err
 		}
 		result.PubKeyAddr = pubKeyAddr.String()
+		result.IsInternal = ma.Internal()
+		result.Index = ma.Index()
 
 	case udb.ManagedScriptAddress:
 		result.IsScript = true
