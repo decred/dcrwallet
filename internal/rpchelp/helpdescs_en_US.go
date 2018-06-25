@@ -48,6 +48,19 @@ var helpDescsEnUS = map[string]string{
 	"dumpprivkey-address":   "The address to return a private key for",
 	"dumpprivkey--result0":  "The WIF-encoded private key",
 
+	// FundRawTransactionCmd help.
+	"fundrawtransaction--synopsis":             "Add inputs to a transaction until it has enough in value to meet its out value.",
+	"fundrawtransaction-hexstring":             "The raw transaction encoded as a hexadecimal string",
+	"fundrawtransaction-fundaccount":           "The account string which will fund the transaction",
+	"fundrawtransaction-changeaccount":         "Account name the change will be send to (default=\"default\")",
+	"fundrawtransaction-lockunspents":          "Lock selected unspent outputs",
+	"fundrawtransaction-feerate":               "Set a specific fee rate in DCR/kB",
+	"fundrawtransaction-requiredconfirmations": "Number of blocks to confirm the transaction",
+
+	// FundRawTransactionResult help.
+	"fundrawtransactionresult-hex": "The resulting raw transaction (hex-encoded string)",
+	"fundrawtransactionresult-fee": "Fee in DCR the resulting transaction pays",
+
 	// GenerateVote help.
 	"generatevote--synopsis":   "Returns the vote transaction encoded as a hexadecimal string",
 	"generatevote-blockhash":   "Block hash for the ticket",

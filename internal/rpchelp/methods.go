@@ -37,6 +37,7 @@ var Methods = []struct {
 	{"dumpprivkey", returnsString},
 	{"exportwatchingwallet", returnsString},
 	{"generatevote", []interface{}{(*types.GenerateVoteResult)(nil)}},
+	{"fundrawtransaction", []interface{}{(*dcrjson.FundRawTransactionResult)(nil)}},
 	{"getaccountaddress", returnsString},
 	{"getaccount", returnsString},
 	{"getaddressesbyaccount", returnsStringArray},

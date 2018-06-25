@@ -69,6 +69,7 @@ var handlers = map[string]handler{
 	"consolidate":             {fn: consolidate},
 	"createmultisig":          {fn: createMultiSig},
 	"dumpprivkey":             {fn: dumpPrivKey},
+	"fundrawtransaction":      {fn: fundRawTransaction},
 	"generatevote":            {fn: generateVote},
 	"getaccount":              {fn: getAccount},
 	"getaccountaddress":       {fn: getAccountAddress},
@@ -503,6 +504,109 @@ func dumpPrivKey(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err
 	}
 	return key, nil
+}
+
+func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrjson.FundRawTransactionCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	accNumber, err := w.AccountNumber(cmd.FundAccount)
+	if err != nil {
+		if errors.Is(errors.NotExist, err) {
+			return nil, errAccountNotFound
+		}
+		return nil, err
+	}
+
+	// use provided fee per Kb if specified
+	feePerKb := w.RelayFee()
+	if cmd.FeeRate != nil {
+		var err error
+		feePerKb, err = dcrutil.NewAmount(*cmd.FeeRate)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+		}
+	}
+	// use provided required confirmations if specified
+	requiredConfs := int32(1)
+	if cmd.RequiredConfirmations != nil {
+		requiredConfs = *cmd.RequiredConfirmations
+	}
+
+	var mtx wire.MsgTx
+	decodedTx, err := hex.DecodeString(cmd.HexString)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
+	}
+	err = mtx.Deserialize(bytes.NewReader(decodedTx))
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Could not decode Tx: %v",
+			err)
+	}
+
+	amount := dcrutil.Amount(int64(feePerKb))
+	for _, txOut := range mtx.TxOut {
+		amount += dcrutil.Amount(txOut.Value)
+	}
+
+	policy := wallet.OutputSelectionPolicy{
+		Account:               accNumber,
+		RequiredConfirmations: requiredConfs,
+	}
+	totalAmount, inputs, _, err := w.SelectInputs(dcrutil.Amount(amount), policy)
+	if err != nil {
+		return nil, err
+	}
+
+	mtx.TxIn = append(mtx.TxIn, inputs...)
+
+	// use provided change account if specified
+	// use default account otherwise
+	changeAccount := uint32(0)
+	if cmd.ChangeAccount != nil {
+		changeAccount, err = w.AccountNumber(*cmd.ChangeAccount)
+		if err != nil {
+			if errors.Is(errors.NotExist, err) {
+				return nil, errAccountNotFound
+			}
+			return nil, err
+		}
+	}
+	if totalAmount > amount {
+		addr, err := w.NewChangeAddress(changeAccount)
+		if err != nil {
+			return nil, err
+		}
+		changeSource, err := makeScriptChangeSource(addr.EncodeAddress(),
+			txscript.DefaultScriptVersion)
+		if err != nil {
+			return nil, err
+		}
+		changeOut := wire.NewTxOut(int64(totalAmount-amount), changeSource.script)
+		mtx.TxOut = append(mtx.TxOut, changeOut)
+	}
+
+	if *cmd.LockUnspents {
+		for _, txIn := range mtx.TxIn {
+			w.LockOutpoint(txIn.PreviousOutPoint)
+		}
+	}
+
+	var buf bytes.Buffer
+	buf.Grow(mtx.SerializeSize())
+	err = mtx.Serialize(&buf)
+	if err != nil {
+		return nil, err
+	}
+	resp := &dcrjson.FundRawTransactionResult{
+		Hex: hex.EncodeToString(buf.Bytes()),
+		Fee: float64(feePerKb),
+	}
+
+	return resp, nil
 }
 
 // generateVote handles a generatevote request by constructing a signed
