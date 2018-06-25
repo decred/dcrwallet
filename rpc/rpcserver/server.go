@@ -57,9 +57,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.38.0"
+	semverString = "4.39.0"
 	semverMajor  = 4
-	semverMinor  = 38
+	semverMinor  = 39
 	semverPatch  = 0
 )
 
@@ -936,6 +936,7 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 		TotalPreviousOutputAmount: int64(tx.TotalInput),
 		TotalOutputAmount:         int64(h.SumOutputValues(tx.Tx.TxOut)),
 		EstimatedSignedSize:       uint32(tx.EstimatedSignedSerializeSize),
+		ChangeIndex:               int32(tx.ChangeIndex),
 	}
 	return res, nil
 }

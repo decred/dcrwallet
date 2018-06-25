@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.38.x
+Version: 4.39.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -1340,6 +1340,9 @@ change output is added, it is inserted at a random output position.
 
 - `uint32 estimated_signed_size`: An estimated size of the transaction once the
   transaction is signed.
+
+- `int32 change_index`: The index of the change output or -1 if no change
+  output was created.
 
 **Expected errors:**
 
