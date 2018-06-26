@@ -85,7 +85,7 @@ type config struct {
 	ConfigFile         *cfgutil.ExplicitString `short:"C" long:"configfile" description:"Path to configuration file"`
 	ShowVersion        bool                    `short:"V" long:"version" description:"Display version information and exit"`
 	Create             bool                    `long:"create" description:"Create the wallet if it does not exist"`
-	CreateTemp         bool                    `long:"createtemp" description:"Create a temporary simulation wallet (pass=password) in the data directory indicated; must call with --datadir"`
+	CreateTemp         bool                    `long:"createtemp" description:"Create a temporary simulation wallet (pass=password) in the data directory indicated; must call with --appdata"`
 	CreateWatchingOnly bool                    `long:"createwatchingonly" description:"Create the wallet and instantiate it as watching only with an HD extended pubkey"`
 	AppDataDir         *cfgutil.ExplicitString `short:"A" long:"appdata" description:"Application data directory for wallet config, databases and logs"`
 	TestNet            bool                    `long:"testnet" description:"Use the test network"`
