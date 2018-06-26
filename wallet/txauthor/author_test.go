@@ -45,7 +45,7 @@ func makeInputSource(unspents []*wire.TxOut) InputSource {
 		for currentTotal < target && len(unspents) != 0 {
 			u := unspents[0]
 			unspents = unspents[1:]
-			nextInput := wire.NewTxIn(&wire.OutPoint{}, nil)
+			nextInput := wire.NewTxIn(&wire.OutPoint{}, u.Value, nil)
 			currentTotal += dcrutil.Amount(u.Value)
 			currentInputs = append(currentInputs, nextInput)
 		}

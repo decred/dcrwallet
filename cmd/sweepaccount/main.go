@@ -188,7 +188,8 @@ func makeInputSource(outputs []dcrjson.ListUnspentResult) txauthor.InputSource {
 			break
 		}
 
-		inputs = append(inputs, wire.NewTxIn(&previousOutPoint, nil))
+		txIn := wire.NewTxIn(&previousOutPoint, int64(outputAmount), nil)
+		inputs = append(inputs, txIn)
 	}
 
 	if sourceErr == nil && totalInputValue == 0 {
