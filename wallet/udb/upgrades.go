@@ -59,13 +59,13 @@ const (
 	// or revocation.
 	ticketBucketVersion = 6
 
-	// hasExpiryVersion is the eight version of the database. It adds the
+	// hasExpiryVersion is the seventh version of the database. It adds the
 	// hasExpiry field to the credit struct, adds fetchRawCreditHasExpiry
 	// helper func and extends sstxchange type utxo checks to only make sstchange
 	// with expiries set available to spend after coinbase maturity (16 blocks).
 	hasExpiryVersion = 7
 
-	// hasExpiryFixedVersion is the ninth version of the database.  It corrects
+	// hasExpiryFixedVersion is the eight version of the database.  It corrects
 	// the previous upgrade by writing the has expiry bit to an unused bit flag
 	// rather than in the stake flags and fixes various UTXO selection issues
 	// caused by misinterpreting ticket outputs as spendable by regular
