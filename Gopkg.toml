@@ -13,10 +13,6 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/EXCCoin/exccd"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/golang/protobuf"
 
 [[constraint]]
@@ -46,3 +42,7 @@
 [[constraint]]
   name = "google.golang.org/grpc"
   version = "1.0.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/EXCCoin/exccd"

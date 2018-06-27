@@ -2328,16 +2328,21 @@ func (s *seedServer) GenerateRandomSeed(ctx context.Context, req *pb.GenerateRan
 		return nil, status.Errorf(codes.Unavailable, "failed to read cryptographically-random data for seed: %v", err)
 	}
 
+	mnemonic, err := walletseed.EncodeMnemonic(seed)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "failed to encode mnemonic for seed: %v", err)
+	}
+
 	res := &pb.GenerateRandomSeedResponse{
 		SeedBytes:    seed,
 		SeedHex:      hex.EncodeToString(seed),
-		SeedMnemonic: walletseed.EncodeMnemonic(seed),
+		SeedMnemonic: mnemonic,
 	}
 	return res, nil
 }
 
 func (s *seedServer) DecodeSeed(ctx context.Context, req *pb.DecodeSeedRequest) (*pb.DecodeSeedResponse, error) {
-	seed, err := walletseed.DecodeUserInput(req.UserInput)
+	seed, err := walletseed.DecodeUserInput(req.UserInput, req.Passphrase)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}

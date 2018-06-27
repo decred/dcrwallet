@@ -20,53 +20,6 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-// ProvideSeed is used to prompt for the wallet seed which maybe required during
-// upgrades.
-func ProvideSeed() ([]byte, error) {
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Print("Enter existing wallet seed: ")
-		seedStr, err := reader.ReadString('\n')
-		if err != nil {
-			return nil, err
-		}
-		seedStr = strings.TrimSpace(strings.ToLower(seedStr))
-
-		seed, err := hex.DecodeString(seedStr)
-		if err != nil || len(seed) < hdkeychain.MinSeedBytes ||
-			len(seed) > hdkeychain.MaxSeedBytes {
-
-			fmt.Printf("Invalid seed specified.  Must be a "+
-				"hexadecimal value that is at least %d bits and "+
-				"at most %d bits\n", hdkeychain.MinSeedBytes*8,
-				hdkeychain.MaxSeedBytes*8)
-			continue
-		}
-
-		return seed, nil
-	}
-}
-
-// ProvidePrivPassphrase is used to prompt for the private passphrase which
-// maybe required during upgrades.
-func ProvidePrivPassphrase() ([]byte, error) {
-	prompt := "Enter the private passphrase of your wallet: "
-	for {
-		fmt.Print(prompt)
-		pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		if err != nil {
-			return nil, err
-		}
-		fmt.Print("\n")
-		pass = bytes.TrimSpace(pass)
-		if len(pass) == 0 {
-			continue
-		}
-
-		return pass, nil
-	}
-}
-
 // promptList prompts the user with the given prefix, list of valid responses,
 // and default list entry to use.  The function will repeat the prompt to the
 // user until they enter a valid response.
@@ -112,6 +65,27 @@ func promptListBool(reader *bufio.Reader, prefix string, defaultEntry string) (b
 		return false, err
 	}
 	return response == "yes" || response == "y", nil
+}
+
+func promptMnemonicPassphrase(reader *bufio.Reader) (string, error) {
+	useMnemonicPassphrase, err := promptListBool(reader, "Do you use a "+
+		"BIP39 passphrase?", "no")
+	if err != nil {
+		return "", err
+	}
+
+	if useMnemonicPassphrase {
+		fmt.Print("Enter BIP39 passphrase: ")
+
+		bytePassword, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			return "", err
+		}
+
+		return string(bytePassword), nil
+	}
+
+	return "", nil
 }
 
 // PassPrompt prompts the user for a passphrase with the given prefix.  The
@@ -252,10 +226,13 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 			return nil, false, err
 		}
 
-		seedStrSplit := walletseed.EncodeMnemonicSlice(seed)
+		seedStrSplit, err := walletseed.EncodeMnemonicSlice(seed)
+		if err != nil {
+			return nil, false, err
+		}
 
 		fmt.Println("Your wallet generation seed is:")
-		for i := 0; i < hdkeychain.RecommendedSeedLen+1; i++ {
+		for i := 0; i < len(seedStrSplit); i++ {
 			fmt.Printf("%v ", seedStrSplit[i])
 
 			if (i+1)%6 == 0 {
@@ -318,18 +295,17 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 				fmt.Printf("Input error: %v\n", err.Error())
 			}
 		} else {
-			seed, err = walletseed.DecodeUserInput(seedStrTrimmed)
+			mnemonicPassphrase, err := promptMnemonicPassphrase(reader)
+			if err != nil {
+				return nil, true, err
+			}
+
+			seed, err = walletseed.DecodeUserInput(seedStrTrimmed, mnemonicPassphrase)
 			if err != nil {
 				fmt.Printf("Input error: %v\n", err.Error())
 			}
 		}
-		if err != nil || len(seed) < hdkeychain.MinSeedBytes ||
-			len(seed) > hdkeychain.MaxSeedBytes {
-			fmt.Printf("Invalid seed specified.  Must be a "+
-				"word seed (usually 33 words) using the PGP wordlist or "+
-				"hexadecimal value that is at least %d bits and "+
-				"at most %d bits\n", hdkeychain.MinSeedBytes*8,
-				hdkeychain.MaxSeedBytes*8)
+		if err != nil {
 			continue
 		}
 

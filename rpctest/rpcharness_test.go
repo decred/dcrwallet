@@ -316,34 +316,6 @@ func testValidateAddress(r *Harness, t *testing.T) {
 		}
 
 	}
-
-	// Validate simnet dev subsidy address
-	devSubPkScript := chaincfg.SimNetParams.OrganizationPkScript // "ScuQxvveKGfpG1ypt6u27F99Anf7EW3cqhq"
-	devSubPkScrVer := chaincfg.SimNetParams.OrganizationPkScriptVersion
-	_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-		devSubPkScrVer, devSubPkScript, r.ActiveNet)
-	if err != nil {
-		t.Fatal("Failed to extract addresses from PkScript:", err)
-	}
-	devSubAddrStr := addrs[0].String()
-
-	DevAddr, err := exccutil.DecodeAddress(devSubAddrStr)
-	if err != nil {
-		t.Fatalf("Unable to decode address %s: %v", devSubAddrStr, err)
-	}
-
-	validRes, err := wcl.ValidateAddress(DevAddr)
-	if err != nil {
-		t.Fatalf("Unable to validate address %s: ", devSubAddrStr)
-	}
-	if !validRes.IsValid {
-		t.Fatalf("Address not valid: %s", devSubAddrStr)
-	}
-	if validRes.IsMine {
-		t.Fatalf("Address incorrectly identified as mine: %s", devSubAddrStr)
-	}
-	// for ismine==false, nothing else to test
-
 }
 
 func testWalletPassphrase(r *Harness, t *testing.T) {

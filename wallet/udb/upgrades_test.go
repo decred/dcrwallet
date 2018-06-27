@@ -32,9 +32,8 @@ var dbUpgradeTests = [...]struct {
 	{verifyV4Upgrade, "v3.db.gz"},
 	{verifyV5Upgrade, "v4.db.gz"},
 	{verifyV6Upgrade, "v5.db.gz"},
-	// No upgrade test for V7, it is a backwards-compatible upgrade
-	{verifyV8Upgrade, "v7.db.gz"},
-	// No upgrade test for V9, it is a fix for V8 and the previous test still applies
+	{verifyV7Upgrade, "v6.db.gz"},
+	// No upgrade test for V8, it is a fix for V7 and the previous test still applies
 }
 
 var pubPass = []byte("public")
@@ -168,14 +167,14 @@ func verifyV3Upgrade(t *testing.T, db walletdb.DB) {
 		ns := tx.ReadBucket(wstakemgrBucketKey)
 
 		const (
-			ticketHashStr     = "4516ef1d548f3284c1a27b3e706c4677392031df7071ad2022050af376837033"
-			votingAddrStr     = "Tcu5oEdEp1W93fRT9FGSwMin7LonfRjNYe4"
+			ticketHashStr     = "81ee42324b51f7034f271a4a0ca222306a5de0899f5360b2d5f2d1f06590748d"
+			votingAddrStr     = "Tcu5oEdEp1W93fRT9FGSwMin7LonfQZzEwc"
 			ticketPurchaseHex = "01000000024bf0a303a7e6d174833d9eb761815b61f8ba8c6fa8852a6bf51c703daefc0ef60400000000ffffffff4bf0a303a7e6d174833d9eb761815b61f8ba8c6fa8852a6bf51c703daefc0ef60500000000ffffffff056f78d37a00000000000018baa914ec97b165a5f028b50fb12ae717c5f6c1b9057b5f8700000000000000000000206a1e7f686bc0e548bbb92f487db6da070e43a34117288ed59100000000000058000000000000000000001abd76a914000000000000000000000000000000000000000088ac00000000000000000000206a1e9d8e8bdc618035be32a14ab752af2e331f9abf3651074a7a000000000058000000000000000000001abd76a914000000000000000000000000000000000000000088ac00000000ad480000028ed59100000000009c480000010000006b483045022100c240bdd6a656c20e9035b839fc91faae6c766772f76149adb91a1fdcf20faf9c02203d68038b83263293f864b173c8f3f00e4371b67bf36fb9ec9f5132bdf68d2858012102adc226dec4de09a18c5a522f8f00917fb6d4eb2361a105218ac3f87d802ae3d451074a7a000000009c480000010000006a47304402205af53185f2662a30a22014b0d19760c1bfde8ec8f065b19cacab6a7abcec76a202204a2614cfcb4db3fc1c86eb0b1ca577f9039ec6db29e9c44ddcca2fe6e3c8bd5d012102adc226dec4de09a18c5a522f8f00917fb6d4eb2361a105218ac3f87d802ae3d4"
 
 			// Stored timestamp uses time.Now().  The generated database test
 			// artifact uses this time (2017-04-10 11:50:04 -0400 EDT).  If the
 			// db is ever regenerated, this expected value be updated as well.
-			timeStamp = 1491839404
+			timeStamp = 1528895138
 		)
 
 		// Verify ticket purchase is still present with correct info, and no
@@ -299,12 +298,12 @@ func verifyV6Upgrade(t *testing.T, db walletdb.DB) {
 		ns := tx.ReadBucket(wtxmgrBucketKey)
 
 		data := []*chainhash.Hash{
-			decodeHash("7bc19eb0bf3a57be73d6879b6c411404b14b0156353dd47c5e0456768704bfd1"),
-			decodeHash("a6abeb0127c347b5f38ebc2401134b324612d5b1ad9a9b8bdf6a91521842b7b1"),
-			decodeHash("1107757fa4f238803192c617c7b60bf35bdc57bc0fc94b408c71239ff9eaeb98"),
-			decodeHash("3fd00cda28c4d148e0cd38e1d646ba1365116b3ddd9a49aca4483bef80513ff9"),
-			decodeHash("f4bdebefaa174470182960046fa53f554108b8ea09a86de5306a14c3a0124566"),
-			decodeHash("bca8c2649860585f10b27d774b354ea7b80007e9ad79c090ea05596d63995cf5"),
+			decodeHash("b2a7cc3ee6e9d322f74ce23b7d3fede8dc883a68c94f812d296d5776afd28dec"),
+			decodeHash("610dfa1c5adc5c112e06b384a007058e07f22731dff631e134dfee6a1d4a9815"),
+			decodeHash("a690b994385469b33759f5e39c05a3baeb752b28ffa1c0e4a5b640b355d3a0fa"),
+			decodeHash("3c6c9a131c35eba7fab8273dc98f1ee80ed430ac2d5676b12ab59000d2e2e7cb"),
+			decodeHash("e3f3bf94c1265860ba01b8bea415bb6e78a676940b37a3fca8a995676baf4b61"),
+			decodeHash("2f772bd32f4ebafb11ba28e7187c073d180430612f8be607429fd2343977a59b"),
 		}
 
 		const dbVersion = 6
@@ -346,7 +345,7 @@ func verifyV6Upgrade(t *testing.T, db walletdb.DB) {
 	}
 }
 
-func verifyV8Upgrade(t *testing.T, db walletdb.DB) {
+func verifyV7Upgrade(t *testing.T, db walletdb.DB) {
 	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(wtxmgrBucketKey)
 		creditBucket := ns.NestedReadBucket(bucketCredits)

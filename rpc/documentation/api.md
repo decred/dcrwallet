@@ -2241,6 +2241,8 @@ The user input can be either a hexadecimal string or a mnemonic word list.
 
 - `string user_input`: The user input to decode.
 
+- `string passphrase`: The optional BIP39 passphrase.
+
 **Response:** `DecodeSeedResponse`
 
 - `bytes decoded_seed`: The seed resulting from the decoded user input.

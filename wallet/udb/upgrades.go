@@ -59,27 +59,18 @@ const (
 	// or revocation.
 	ticketBucketVersion = 6
 
-	// slip0044CoinTypeVersion is the seventh version of the database.  It
-	// introduces the possibility of the BIP0044 coin type key being either the
-	// legacy coin type used by earlier versions of the wallet, or the coin type
-	// assigned to ExchangeCoin in SLIP0044.  The upgrade does not add or remove any
-	// required keys (the upgrade is done in a backwards-compatible way) but the
-	// database version is bumped to prevent older software from assuming that
-	// coin type 20 exists (the upgrade is not forwards-compatible).
-	slip0044CoinTypeVersion = 7
-
-	// hasExpiryVersion is the eight version of the database. It adds the
+	// hasExpiryVersion is the seventh version of the database. It adds the
 	// hasExpiry field to the credit struct, adds fetchRawCreditHasExpiry
 	// helper func and extends sstxchange type utxo checks to only make sstchange
 	// with expiries set available to spend after coinbase maturity (16 blocks).
-	hasExpiryVersion = 8
+	hasExpiryVersion = 7
 
-	// hasExpiryFixedVersion is the ninth version of the database.  It corrects
+	// hasExpiryFixedVersion is the eight version of the database.  It corrects
 	// the previous upgrade by writing the has expiry bit to an unused bit flag
 	// rather than in the stake flags and fixes various UTXO selection issues
 	// caused by misinterpreting ticket outputs as spendable by regular
 	// transactions.
-	hasExpiryFixedVersion = 9
+	hasExpiryFixedVersion = 8
 
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
@@ -96,7 +87,6 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte) error{
 	noEncryptedSeedVersion - 1:      noEncryptedSeedUpgrade,
 	lastReturnedAddressVersion - 1:  lastReturnedAddressUpgrade,
 	ticketBucketVersion - 1:         ticketBucketUpgrade,
-	slip0044CoinTypeVersion - 1:     slip0044CoinTypeUpgrade,
 	hasExpiryVersion - 1:            hasExpiryUpgrade,
 	hasExpiryFixedVersion - 1:       hasExpiryFixedUpgrade,
 }
@@ -485,29 +475,9 @@ func ticketBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
-func slip0044CoinTypeUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
 	const oldVersion = 6
 	const newVersion = 7
-
-	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
-
-	// Assert that this function is only called on version 6 databases.
-	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
-	if err != nil {
-		return err
-	}
-	if dbVersion != oldVersion {
-		const str = "slip0044CoinTypeUpgrade inappropriately called"
-		return apperrors.E{ErrorCode: apperrors.ErrUpgrade, Description: str, Err: nil}
-	}
-
-	// Write the new database version.
-	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
-}
-
-func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
-	const oldVersion = 7
-	const newVersion = 8
 	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
 	txmgrBucket := tx.ReadWriteBucket(wtxmgrBucketKey)
 
@@ -594,8 +564,8 @@ func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
 }
 
 func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
-	const oldVersion = 8
-	const newVersion = 9
+	const oldVersion = 7
+	const newVersion = 8
 	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
 	txmgrBucket := tx.ReadWriteBucket(wtxmgrBucketKey)
 

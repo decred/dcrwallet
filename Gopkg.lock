@@ -3,6 +3,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/EXCCoin/base58"
+  packages = ["."]
+  revision = "e1a805ee5d9f5e64352b9b509d18413991cceffb"
+
+[[projects]]
+  branch = "master"
   name = "github.com/EXCCoin/exccd"
   packages = [
     "blockchain",
@@ -13,6 +19,7 @@
     "blockchain/stake/internal/dbnamespace",
     "blockchain/stake/internal/ticketdb",
     "blockchain/stake/internal/tickettreap",
+    "cequihash",
     "certgen",
     "chaincfg",
     "chaincfg/chainec",
@@ -32,7 +39,7 @@
     "txscript",
     "wire"
   ]
-  revision = "374cc90fe1300bae97b158b50220bd958f5f8c61"
+  revision = "c579fd1a86a5546a063ca3c357d5a006d4711dad"
 
 [[projects]]
   branch = "master"
@@ -81,12 +88,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/decred/base58"
-  packages = ["."]
-  revision = "56c501706f00d9e1cfacee19a27117e12da24734"
-
-[[projects]]
-  branch = "master"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -114,6 +115,12 @@
   name = "github.com/jrick/logrotate"
   packages = ["rotator"]
   revision = "a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/mattn/go-pointer"
+  packages = ["."]
+  revision = "1d30dc4b6f28271a3bd126071d4d0363e618415b"
 
 [[projects]]
   branch = "master"
@@ -210,6 +217,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fc52740506f9ad010692bb9204d5f1d57ff231f94cd187fe00ae3e97e8f21f5a"
+  inputs-digest = "306b3b3214e16f2028cd310c583e3067d52b7d68ed7e8966dc2a5bc74b131138"
   solver-name = "gps-cdcl"
   solver-version = 1

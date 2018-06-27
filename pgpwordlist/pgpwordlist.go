@@ -18,39 +18,53 @@
 package pgpwordlist
 
 import (
+	"crypto/sha512"
 	"fmt"
+	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/text/unicode/norm"
 	"strings"
 )
 
-// ByteToMnemonic returns the PGP word list encoding of b when found at index.
-func ByteToMnemonic(b byte, index int) string {
-	bb := uint16(b) * 2
-	if index%2 != 0 {
-		bb++
+// DecodeMnemonics returns the decoded seed that is encoded by words and password.  Any
+// words that are whitespace are empty are skipped.
+func DecodeMnemonics(mnemonic, password string) ([]byte, error) {
+	words := strings.Fields(strings.ToLower(norm.NFKD.String(mnemonic)))
+	err := validateMnemonics(words)
+	if err != nil {
+		return nil, err
 	}
-	return wordList[bb]
+
+	mnemonic = strings.Join(words, " ")
+	salt := norm.NFKD.String("mnemonic" + password)
+	return pbkdf2.Key([]byte(mnemonic), []byte(salt), 2048, 64, sha512.New), nil
 }
 
-// DecodeMnemonics returns the decoded value that is encoded by words.  Any
-// words that are whitespace are empty are skipped.
-func DecodeMnemonics(words []string) ([]byte, error) {
-	decoded := make([]byte, len(words))
-	idx := 0
-	for _, w := range words {
-		w = strings.TrimSpace(w)
-		if w == "" {
-			continue
-		}
-		b, ok := wordIndexes[strings.ToLower(w)]
-		if !ok {
-			return nil, fmt.Errorf("word %v is not in the PGP word list", w)
-		}
-		if int(b%2) != idx%2 {
-			return nil, fmt.Errorf("word %v is not valid at position %v, "+
-				"check for missing words", w, idx)
-		}
-		decoded[idx] = byte(b / 2)
-		idx++
+// IsMnemonicValid attempts to verify that the provided mnemonic is valid.
+// Validity is determined by both the number of words being appropriate,
+// and that all the words in the mnemonic are present in the word list.
+func validateMnemonics(words []string) error {
+	numWords := len(words)
+
+	if numWords%3 != 0 || numWords < 12 || numWords > 24 {
+		return fmt.Errorf("invalid number of words, "+
+			"expected 12, 15, 18, 21 or 24, instead got %d", numWords)
 	}
-	return decoded[:idx], nil
+
+	// Check if all words belong in the wordlist
+	for i := 0; i < numWords; i++ {
+		if !contains(WordList, words[i]) {
+			return fmt.Errorf("word \"%s\" is outside of dictionary", words[i])
+		}
+	}
+
+	return nil
+}
+
+func contains(arr []string, elem string) bool {
+	for _, a := range arr {
+		if a == elem {
+			return true
+		}
+	}
+	return false
 }

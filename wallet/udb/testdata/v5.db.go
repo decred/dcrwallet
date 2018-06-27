@@ -26,10 +26,10 @@ import (
 	"github.com/EXCCoin/exccd/chaincfg/chainec"
 	"github.com/EXCCoin/exccd/chaincfg/chainhash"
 	"github.com/EXCCoin/exccd/exccec/secp256k1"
+	"github.com/EXCCoin/exccd/exccutil"
+	"github.com/EXCCoin/exccd/hdkeychain"
 	"github.com/EXCCoin/exccd/txscript"
 	"github.com/EXCCoin/exccd/wire"
-	"github.com/EXCCoin/exccutil"
-	"github.com/EXCCoin/exccutil/hdkeychain"
 	"github.com/EXCCoin/exccwallet/wallet/internal/txsizes"
 	"github.com/EXCCoin/exccwallet/wallet/txrules"
 	"github.com/EXCCoin/exccwallet/wallet/udb"
@@ -100,7 +100,7 @@ func setup() error {
 			return err
 		}
 
-		privKey, _ := secp256k1.PrivKeyFromBytes(secp256k1.S256(), privKey)
+		privKey, _ := secp256k1.PrivKeyFromBytes(privKey)
 		wif, err := exccutil.NewWIF(privKey, chainParams, chainec.ECTypeSecp256k1)
 		if err != nil {
 			return err
@@ -294,7 +294,6 @@ func createUnsignedTicketPurchase(prevOut *wire.OutPoint,
 	}
 	tx.AddTxOut(wire.NewTxOut(0, pkScript))
 
-	_, err = stake.IsSStx(tx)
 	return tx, err
 }
 
@@ -408,7 +407,8 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 	// Revocations must pay a fee but do so by decreasing one of the output
 	// values instead of increasing the input value and using a change output.
 	// Calculate the estimated signed serialize size.
-	sizeEstimate := txsizes.EstimateSerializeSize(1, revocation.TxOut, false)
+	scriptSizers := []txsizes.ScriptSizer{txsizes.P2SHScriptSize}
+	sizeEstimate := txsizes.EstimateSerializeSize(scriptSizers, revocation.TxOut, false)
 	feeEstimate := txrules.FeeForSerializeSize(feePerKB, sizeEstimate)
 
 	// Reduce the output value of one of the outputs to accomodate for the relay

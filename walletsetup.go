@@ -61,12 +61,11 @@ func createWallet(ctx context.Context, cfg *config) error {
 		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.ToCoin())
 
 	var privPass, pubPass, seed []byte
-	var imported bool
 	var err error
 	c := make(chan struct{}, 1)
 	go func() {
 		reader := bufio.NewReader(os.Stdin)
-		privPass, pubPass, seed, imported, err = prompt.Setup(reader,
+		privPass, pubPass, seed, _, err = prompt.Setup(reader,
 			[]byte(wallet.InsecurePubPassphrase), []byte(cfg.WalletPass))
 		c <- struct{}{}
 	}()
@@ -80,16 +79,9 @@ func createWallet(ctx context.Context, cfg *config) error {
 	}
 
 	fmt.Println("Creating the wallet...")
-	w, err := loader.CreateNewWallet(pubPass, privPass, seed)
+	_, err = loader.CreateNewWallet(pubPass, privPass, seed)
 	if err != nil {
 		return err
-	}
-
-	if !imported {
-		err := w.UpgradeToSLIP0044CoinType()
-		if err != nil {
-			return err
-		}
 	}
 
 	fmt.Println("The wallet has been created successfully.")
@@ -116,7 +108,11 @@ func createSimulationWallet(cfg *config) error {
 
 	// Write the seed to disk, so that we can restore it later
 	// if need be, for testing purposes.
-	seedStr := walletseed.EncodeMnemonic(seed)
+	seedStr, err := walletseed.EncodeMnemonic(seed)
+	if err != nil {
+		return err
+	}
+
 	err = ioutil.WriteFile(filepath.Join(netDir, "seed"), []byte(seedStr), 0644)
 	if err != nil {
 		return err

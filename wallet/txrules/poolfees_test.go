@@ -17,10 +17,10 @@ func TestStakePoolTicketFee(t *testing.T) {
 		PoolFee   float64
 		Expected  exccutil.Amount
 	}{
-		0: {10 * 1e8, 0.01 * 1e8, 25000, 1.00, 0.01500463 * 1e8},
-		1: {20 * 1e8, 0.01 * 1e8, 25000, 1.00, 0.01621221 * 1e8},
-		2: {5 * 1e8, 0.05 * 1e8, 50000, 2.59, 0.03310616 * 1e8},
-		3: {15 * 1e8, 0.05 * 1e8, 50000, 2.59, 0.03956376 * 1e8},
+		0: {10 * 1e8, 0.01 * 1e8, 25000, 1.00, 0.0179819 * 1e8},
+		1: {20 * 1e8, 0.01 * 1e8, 25000, 1.00, 0.01974655 * 1e8},
+		2: {5 * 1e8, 0.05 * 1e8, 50000, 2.59, 0.03816999 * 1e8},
+		3: {15 * 1e8, 0.05 * 1e8, 50000, 2.59, 0.04707706 * 1e8},
 	}
 	for i, test := range tests {
 		poolFeeAmt := StakePoolTicketFee(test.StakeDiff, test.Fee, test.Height,

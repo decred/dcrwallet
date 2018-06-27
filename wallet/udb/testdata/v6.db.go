@@ -31,7 +31,7 @@ import (
 	"github.com/EXCCoin/exccwallet/walletseed"
 )
 
-const dbname = "v7.db"
+const dbname = "v6.db"
 
 var (
 	epoch    time.Time
@@ -150,7 +150,7 @@ func setup() error {
 
 		// Add 3 unmined credits with expiries set
 		for count := 1; count < 4; count++ {
-			faucetAddr, err := exccutil.DecodeAddress("TsWjioPrP8E1TuTMmTrVMM2BA4iPrjQXBpR")
+			faucetAddr, err := exccutil.DecodeAddress("TsWZ1EzypJfMwBKAEDYKuyHRGctqGCNrAue")
 			if err != nil {
 				return fmt.Errorf("failed to decode address: %s", err)
 			}
