@@ -8,7 +8,7 @@
   revision = "e1a805ee5d9f5e64352b9b509d18413991cceffb"
 
 [[projects]]
-  branch = "task/DEX-161_test_mainnet"
+  branch = "master"
   name = "github.com/EXCCoin/exccd"
   packages = [
     "blockchain",
@@ -39,7 +39,7 @@
     "txscript",
     "wire"
   ]
-  revision = "bf0262f85abc455647381bbae2c584c77358a526"
+  revision = "c579fd1a86a5546a063ca3c357d5a006d4711dad"
 
 [[projects]]
   branch = "master"
@@ -217,6 +217,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9dc5f20f0eb5335f530a7e4c07612d0b54b4d3b76b108927a7dace6419c40982"
+  inputs-digest = "306b3b3214e16f2028cd310c583e3067d52b7d68ed7e8966dc2a5bc74b131138"
   solver-name = "gps-cdcl"
   solver-version = 1

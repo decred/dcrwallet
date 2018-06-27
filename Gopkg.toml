@@ -44,5 +44,5 @@
   version = "1.0.0"
 
 [[constraint]]
-  branch = "task/DEX-161_test_mainnet"
+  branch = "master"
   name = "github.com/EXCCoin/exccd"
