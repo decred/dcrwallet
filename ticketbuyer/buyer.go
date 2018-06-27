@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/decred/dcrd/blockchain"
@@ -77,6 +78,7 @@ type Config struct {
 	NoSpreadTicketPurchases   bool
 	VotingAddress             dcrutil.Address
 	TxFee                     int64
+	SplitTx                   uint32
 }
 
 // TicketPurchaser is the main handler for purchasing tickets. It decides
@@ -100,6 +102,7 @@ type TicketPurchaser struct {
 	stakeLive        uint32
 	stakeImmature    uint32
 	stakeVoteSubsidy dcrutil.Amount
+	splitTx          uint32
 
 	// purchaserMtx protects the following runtime configurable options.
 	purchaserMtx      sync.Mutex
@@ -145,6 +148,7 @@ func (t *TicketPurchaser) Config() (*Config, error) {
 		NoSpreadTicketPurchases:   t.cfg.NoSpreadTicketPurchases,
 		TxFee:         t.cfg.TxFee,
 		VotingAddress: t.cfg.VotingAddress,
+		SplitTx:       t.cfg.SplitTx,
 	}
 	return config, nil
 }
@@ -159,17 +163,12 @@ func (t *TicketPurchaser) AccountName() (string, error) {
 
 // Account returns the account to use for purchasing tickets.
 func (t *TicketPurchaser) Account() uint32 {
-	t.purchaserMtx.Lock()
-	account := t.account
-	t.purchaserMtx.Unlock()
-	return account
+	return atomic.LoadUint32(&t.account)
 }
 
 // SetAccount sets the account to use for purchasing tickets.
 func (t *TicketPurchaser) SetAccount(account uint32) {
-	t.purchaserMtx.Lock()
-	t.account = account
-	t.purchaserMtx.Unlock()
+	atomic.StoreUint32(&t.account, account)
 }
 
 // BalanceToMaintain returns the balance to be maintained in the wallet.
@@ -336,6 +335,16 @@ func (t *TicketPurchaser) SetExpiryDelta(expiryDelta int) {
 	t.purchaserMtx.Lock()
 	t.expiryDelta = expiryDelta
 	t.purchaserMtx.Unlock()
+}
+
+// SplitTx returns the splittx config value
+func (t *TicketPurchaser) SplitTx() uint32 {
+	return atomic.LoadUint32(&t.splitTx)
+}
+
+// SetSplitTx sets the splittx option
+func (t *TicketPurchaser) SetSplitTx(splitTx uint32) {
+	atomic.StoreUint32(&t.splitTx, splitTx)
 }
 
 // NewTicketPurchaser creates a new TicketPurchaser.
@@ -820,8 +829,14 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		return ps, err
 	}
 
-	// Ticket purchase requires 2 blocks to confirm
-	expiry := int32(int(height) + t.ExpiryDelta() + 2)
+	expiryDelta := t.ExpiryDelta()
+	expiry := int32(0)
+
+	if expiryDelta != 0 {
+		// Ticket purchase requires 2 blocks to confirm
+		expiry = int32(int(height) + t.ExpiryDelta() + 2)
+	}
+
 	hashes, purchaseErr := t.wallet.PurchaseTickets(0,
 		maxPriceAmt,
 		0, // 0 minconf is used so tickets can be bought from split outputs
@@ -833,6 +848,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		expiry,
 		t.wallet.RelayFee(),
 		t.wallet.TicketFeeIncrement(),
+		t.cfg.SplitTx,
 	)
 	for i := range hashes {
 		log.Infof("Purchased ticket %v at stake difficulty %v (%v "+

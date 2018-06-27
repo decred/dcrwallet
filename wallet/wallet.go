@@ -914,6 +914,7 @@ type (
 		txFee       dcrutil.Amount
 		ticketFee   dcrutil.Amount
 		resp        chan purchaseTicketResponse
+		splitTx     uint32
 	}
 
 	consolidateResponse struct {
@@ -1036,8 +1037,10 @@ func (w *Wallet) CreateMultisigTx(account uint32, amount dcrutil.Amount, pubkeys
 // PurchaseTickets receives a request from the RPC and ships it to txCreator
 // to purchase a new ticket. It returns a slice of the hashes of the purchased
 // tickets.
-func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount, minConf int32, ticketAddr dcrutil.Address, account uint32, numTickets int, poolAddress dcrutil.Address,
-	poolFees float64, expiry int32, txFee dcrutil.Amount, ticketFee dcrutil.Amount) ([]*chainhash.Hash, error) {
+func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount,
+	minConf int32, ticketAddr dcrutil.Address, account uint32,
+	numTickets int, poolAddress dcrutil.Address, poolFees float64,
+	expiry int32, txFee dcrutil.Amount, ticketFee dcrutil.Amount, splitTx uint32) ([]*chainhash.Hash, error) {
 
 	req := purchaseTicketRequest{
 		minBalance:  minBalance,
@@ -1052,6 +1055,7 @@ func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount, minConf 
 		txFee:       txFee,
 		ticketFee:   ticketFee,
 		resp:        make(chan purchaseTicketResponse),
+		splitTx:     splitTx,
 	}
 	w.purchaseTicketRequests <- req
 	resp := <-req.resp
@@ -3135,7 +3139,7 @@ func (w *Wallet) SortedActivePaymentAddresses() ([]string, error) {
 		return nil, errors.E(op, err)
 	}
 
-	sort.Sort(sort.StringSlice(addrStrs))
+	sort.Strings(addrStrs)
 	return addrStrs, nil
 }
 
