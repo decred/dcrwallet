@@ -23,6 +23,7 @@ service WalletService {
 	rpc AccountNumber (AccountNumberRequest) returns (AccountNumberResponse);
 	rpc Accounts (AccountsRequest) returns (AccountsResponse);
 	rpc Balance (BalanceRequest) returns (BalanceResponse);
+	rpc GetAccountExtendedKey (GetAccountExtendedKeyRequest) returns (GetAccountExtendedKeyResponse);	
 	rpc GetTransaction (GetTransactionRequest) returns (GetTransactionResponse);
 	rpc GetTransactions (GetTransactionsRequest) returns (stream GetTransactionsResponse);
 	rpc GetTickets (GetTicketsRequest) returns (stream GetTicketsResponse);
@@ -925,6 +926,14 @@ message ValidateAddressResponse {
 
 message CommittedTicketsRequest {
 	repeated bytes tickets = 1;
+}
+
+message GetAccountExtendedKeyRequest {
+	string Account = 1;
+}
+
+message GetAccountExtendedKeyResponse {
+	string AccountExtendedKey = 1;
 }
 
 message CommittedTicketsResponse {

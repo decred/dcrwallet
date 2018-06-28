@@ -941,6 +941,28 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 	return res, nil
 }
 
+func (s *walletServer) GetAccountExtendedKey(ctx context.Context, req *pb.GetAccountExtendedKeyRequest) (*pb.GetAccountExtendedKeyResponse, error) {
+	// If no account is passed, we provide the extended public key
+	// for the default account number.
+	account := uint32(udb.DefaultAccountNum)
+	if len(req.Account) != 0 {
+		var err error
+		account, err = s.wallet.AccountNumber(req.Account)
+		if err != nil {
+			return nil, translateError(err)
+		}
+	}
+
+	accExtendedKey, err := s.wallet.MasterPubKey(account)
+	if err != nil {
+		return nil, err
+	}
+	res := &pb.GetAccountExtendedKeyResponse{
+		AccountExtendedKey: accExtendedKey.String(),
+	}
+	return res, nil
+}
+
 func (s *walletServer) GetTransaction(ctx context.Context, req *pb.GetTransactionRequest) (*pb.GetTransactionResponse, error) {
 	txHash, err := chainhash.NewHash(req.TransactionHash)
 	if err != nil {

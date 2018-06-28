@@ -627,6 +627,23 @@ but not all sidechain blocks may be known by the wallet.
 
 ___
 
+#### `GetAccountExtendedKey`
+
+The `GetAccountExtendedKey` method queries the wallet for an account pubkey. If no account is provided, then it returns the master pubkey.
+
+**Request:** `GetAccountExtendedKeyRequest`
+
+- `string account`: The account name to retrieve the pubkey.
+
+**Response:** `GetAccountExtendedKeyResponse`
+
+- `string extendedkey`: The account's extended key.
+
+**Expected errors:**
+
+- `NotFound`: The given account does not exist.
+___
+
 #### `GetTransaction`
 
 The `GetTransaction` method queries the wallet for a relevant transaction by its
