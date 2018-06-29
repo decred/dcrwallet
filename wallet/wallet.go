@@ -993,6 +993,7 @@ out:
 			heldUnlock, err := w.holdUnlock()
 			if err != nil {
 				txr.resp <- purchaseTicketResponse{nil, err}
+				log.Errorf("Can not purchaseTicket, error %v", err)
 				continue
 			}
 			data, err := w.purchaseTickets(txr)

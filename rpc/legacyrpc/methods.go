@@ -2172,30 +2172,29 @@ func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 		splitTxn = *cmd.SplitTx
 	}
 	//do not waiting until PurchaseTicket returns
-	//	go func(w *wallet.Wallet) {
-	//		w.PurchaseTickets(0, spendLimit, minConf, ticketAddr,
-	//			account, numTickets, poolAddr, poolFee, expiry, w.RelayFee(),
-	//			ticketFee, splitTxn, w.GetDcrTxClient())
+	go func(w *wallet.Wallet) {
+		w.PurchaseTickets(0, spendLimit, minConf, ticketAddr,
+			account, numTickets, poolAddr, poolFee, expiry, w.RelayFee(),
+			ticketFee, splitTxn, w.GetDcrTxClient())
 
-	//	}(w)
-
-	//	return nil, nil
+	}(w)
+	return nil, nil
 
 	//waiting for PurchaseTicket returns
-	hashes, err := w.PurchaseTickets(0, spendLimit, minConf, ticketAddr,
-		account, numTickets, poolAddr, poolFee, expiry, w.RelayFee(),
-		ticketFee, splitTxn, w.GetDcrTxClient())
+	//	hashes, err := w.PurchaseTickets(0, spendLimit, minConf, ticketAddr,
+	//		account, numTickets, poolAddr, poolFee, expiry, w.RelayFee(),
+	//		ticketFee, splitTxn, w.GetDcrTxClient())
 
-	if err != nil {
-		return nil, err
-	}
+	//	if err != nil {
+	//		return nil, err
+	//	}
 
-	hashStrs := make([]string, len(hashes))
-	for i := range hashes {
-		hashStrs[i] = hashes[i].String()
-	}
+	//	hashStrs := make([]string, len(hashes))
+	//	for i := range hashes {
+	//		hashStrs[i] = hashes[i].String()
+	//	}
 
-	return hashStrs, err
+	//	return hashStrs, err
 }
 
 // makeOutputs creates a slice of transaction outputs from a pair of address

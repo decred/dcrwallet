@@ -1515,7 +1515,7 @@ func (w *Wallet) purchaseTicketsSplit(req purchaseTicketRequest, numTickets int)
 			if err != nil {
 				return ticketHashes, err
 			}
-			log.Info("joined transaction hash %v", publishedTx.TxHash().String())
+			log.Infof("Joined transaction hash %v", publishedTx.TxHash().String())
 		}
 
 		return purchaseFn(publishedTx, numTickets, outputIds)
