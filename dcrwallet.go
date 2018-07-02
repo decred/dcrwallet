@@ -80,7 +80,8 @@ func run(ctx context.Context) error {
 	}()
 
 	// Show version at startup.
-	log.Infof("Version %s (Go version %s)", version.String(), runtime.Version())
+	log.Infof("Version %s (Go version %s %s/%s)", version.String(), runtime.Version(),
+		runtime.GOOS, runtime.GOARCH)
 
 	// Read IPC messages from the read end of a pipe created and passed by the
 	// parent process, if any.  When this pipe is closed, shutdown is
