@@ -7,10 +7,10 @@ package cfgutil
 
 import "github.com/decred/dcrd/dcrutil"
 
-// AddressFlag embeds a dcrutil.Address and implements the flags.Marshaler and
+// AddressFlag contains a dcrutil.Address and implements the flags.Marshaler and
 // Unmarshaler interfaces so it can be used as a config struct field.
 type AddressFlag struct {
-	dcrutil.Address
+	Address dcrutil.Address
 }
 
 // NewAddressFlag creates an AddressFlag with a default dcrutil.Address.
