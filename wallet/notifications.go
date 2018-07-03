@@ -810,7 +810,7 @@ type confNtfnResult struct {
 // ConfirmationNotification describes the number of confirmations of a single
 // transaction, or -1 if the transaction is unknown or removed from the wallet.
 // If the transaction is mined (Confirmations >= 1), the block hash and height
-// is included.  Otherwise the block hash is nil and the block hegiht is set to
+// is included.  Otherwise the block hash is nil and the block height is set to
 // -1.
 type ConfirmationNotification struct {
 	TxHash        *chainhash.Hash
@@ -838,6 +838,19 @@ func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stop
 			case errors.Is(errors.NotExist, err):
 				confs = -1
 			default:
+				// Remove tx hash from watching list if tx block has been mined
+				// and then invalidated by next block
+				if tipHeight > height && height > 0 {
+					txDetails, err := w.TxStore.TxDetails(txmgrNs, h)
+					if err != nil {
+						return err
+					}
+					_, invalidated := w.TxStore.BlockInMainChain(dbtx, &txDetails.Block.Hash)
+					if invalidated {
+						confs = -1
+						break
+					}
+				}
 				confs = confirms(height, tipHeight)
 			case err != nil:
 				return err
@@ -919,6 +932,19 @@ func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
 			case errors.Is(errors.NotExist, err):
 				confs = -1
 			default:
+				// Remove tx hash from watching list if tx block has been mined
+				// and then invalidated by next block
+				if tipHeight > height && height > 0 {
+					txDetails, err := w.TxStore.TxDetails(txmgrNs, &txHash)
+					if err != nil {
+						return err
+					}
+					_, invalidated := w.TxStore.BlockInMainChain(dbtx, &txDetails.Block.Hash)
+					if invalidated {
+						confs = -1
+						break
+					}
+				}
 				confs = confirms(height, tipHeight)
 			case err != nil:
 				return err
