@@ -93,6 +93,7 @@ type Wallet struct {
 	// Start up flags/settings
 	initiallyUnlocked bool
 	gapLimit          int
+	accountGapLimit   int
 
 	networkBackend   NetworkBackend
 	networkBackendMu sync.Mutex
@@ -157,7 +158,9 @@ type Config struct {
 	PoolFees      float64
 	TicketFee     float64
 
-	GapLimit            int
+	GapLimit        int
+	AccountGapLimit int
+
 	StakePoolColdExtKey string
 	AllowHighFees       bool
 	RelayFee            float64
@@ -1538,8 +1541,6 @@ func (w *Wallet) RenameAccount(account uint32, newName string) error {
 	return nil
 }
 
-const maxEmptyAccounts = 100
-
 // NextAccount creates the next account and returns its account number.  The
 // name must be unique to the account.  In order to support automatic seed
 // restoring, new accounts may not be created when all of the previous 100
@@ -1547,6 +1548,7 @@ const maxEmptyAccounts = 100
 // spec, which allows no unused account gaps).
 func (w *Wallet) NextAccount(name string) (uint32, error) {
 	const op errors.Op = "wallet.NextAccount"
+	maxEmptyAccounts := uint32(w.accountGapLimit)
 	var account uint32
 	var props *udb.AccountProperties
 	var xpub *hdkeychain.ExtendedKey
@@ -3845,8 +3847,9 @@ func Open(cfg *Config) (*Wallet, error) {
 		poolFees:      cfg.PoolFees,
 
 		// LoaderOptions
-		gapLimit:      cfg.GapLimit,
-		AllowHighFees: cfg.AllowHighFees,
+		gapLimit:        cfg.GapLimit,
+		AllowHighFees:   cfg.AllowHighFees,
+		accountGapLimit: cfg.AccountGapLimit,
 
 		// Chain params
 		subsidyCache: blockchain.NewSubsidyCache(0, cfg.Params),

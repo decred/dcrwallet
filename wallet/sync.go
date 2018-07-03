@@ -17,7 +17,7 @@ import (
 )
 
 func (w *Wallet) findLastUsedAccount(n NetworkBackend, coinTypeXpriv *hdkeychain.ExtendedKey) (uint32, error) {
-	const scanLen = 100
+	scanLen := uint32(w.accountGapLimit)
 	var (
 		lastUsed uint32
 		lo, hi   uint32 = 0, hdkeychain.HardenedKeyStart / scanLen
@@ -30,11 +30,11 @@ Bsearch:
 			account uint32
 			err     error
 		}
-		var results [scanLen]result
+		var results = make([]result, scanLen)
 		var wg sync.WaitGroup
 		for i := scanLen - 1; i >= 0; i-- {
 			i := i
-			account := mid*scanLen + uint32(i)
+			account := mid*scanLen + i
 			if account >= hdkeychain.HardenedKeyStart {
 				continue
 			}
