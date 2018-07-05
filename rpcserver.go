@@ -6,8 +6,8 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
-	xcontext "golang.org/x/net/context"
 	"io/ioutil"
 	"net"
 	"os"
@@ -224,7 +224,7 @@ func interceptStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.Stream
 	return err
 }
 
-func interceptUnary(ctx xcontext.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+func interceptUnary(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 	p, ok := peer.FromContext(ctx)
 	if ok {
 		grpcLog.Infof("Unary method %s invoked by %s", info.FullMethod,
