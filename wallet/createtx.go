@@ -1290,14 +1290,11 @@ func (w *Wallet) FindEligibleOutputs(account uint32, minconf int32, currentHeigh
 
 // findEligibleOutputsAmount uses wtxmgr to find a number of unspent outputs
 // while doing maturity checks there.
-//
-// TODO: This is wrong as it clips the result set returned from the DB without
-// including more outputs to reach the target amount.  Remove.
 func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32, minconf int32,
 	amount dcrutil.Amount, currentHeight int32) ([]udb.Credit, error) {
-
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+	var outTotal dcrutil.Amount
 
 	unspent, err := w.TxStore.UnspentOutputsForAmount(txmgrNs, addrmgrNs,
 		amount, currentHeight, minconf, false, account)
@@ -1338,6 +1335,11 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 		}
 
 		eligible = append(eligible, *output)
+		outTotal += output.Amount
+	}
+
+	if outTotal < amount {
+		return nil, nil
 	}
 
 	return eligible, nil
