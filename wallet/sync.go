@@ -32,9 +32,9 @@ Bsearch:
 		}
 		var results = make([]result, scanLen)
 		var wg sync.WaitGroup
-		for i := scanLen - 1; i >= 0; i-- {
+		for i := int(scanLen) - 1; i >= 0; i-- {
 			i := i
-			account := mid*scanLen + i
+			account := mid*scanLen + uint32(i)
 			if account >= hdkeychain.HardenedKeyStart {
 				continue
 			}
@@ -56,7 +56,7 @@ Bsearch:
 			}()
 		}
 		wg.Wait()
-		for i := scanLen - 1; i >= 0; i-- {
+		for i := int(scanLen) - 1; i >= 0; i-- {
 			if results[i].err != nil {
 				return 0, results[i].err
 			}
