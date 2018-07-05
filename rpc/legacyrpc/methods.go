@@ -1358,19 +1358,23 @@ func getStakeInfo(s *Server, icmd interface{}) (interface{}, error) {
 	}
 
 	resp := &dcrjson.GetStakeInfoResult{
-		BlockHeight:      stakeInfo.BlockHeight,
+		BlockHeight:  stakeInfo.BlockHeight,
+		Difficulty:   sdiff.NextStakeDifficulty,
+		TotalSubsidy: stakeInfo.TotalSubsidy.ToCoin(),
+
+		OwnMempoolTix:  stakeInfo.OwnMempoolTix,
+		Immature:       stakeInfo.Immature,
+		Unspent:        stakeInfo.Unspent,
+		Voted:          stakeInfo.Voted,
+		Revoked:        stakeInfo.Revoked,
+		UnspentExpired: stakeInfo.UnspentExpired,
+
 		PoolSize:         stakeInfo.PoolSize,
-		Difficulty:       sdiff.NextStakeDifficulty,
 		AllMempoolTix:    stakeInfo.AllMempoolTix,
-		OwnMempoolTix:    stakeInfo.OwnMempoolTix,
-		Immature:         stakeInfo.Immature,
 		Live:             stakeInfo.Live,
 		ProportionLive:   proportionLive,
-		Voted:            stakeInfo.Voted,
-		TotalSubsidy:     stakeInfo.TotalSubsidy.ToCoin(),
 		Missed:           stakeInfo.Missed,
 		ProportionMissed: proportionMissed,
-		Revoked:          stakeInfo.Revoked,
 		Expired:          stakeInfo.Expired,
 	}
 

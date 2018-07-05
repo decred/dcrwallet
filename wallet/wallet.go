@@ -2863,17 +2863,19 @@ func (w *Wallet) RedeemScriptCopy(addr dcrutil.Address) ([]byte, error) {
 // StakeInfoData is a struct containing the data that would be returned from
 // a StakeInfo request to the wallet.
 type StakeInfoData struct {
-	BlockHeight   int64
-	PoolSize      uint32
-	AllMempoolTix uint32
-	OwnMempoolTix uint32
-	Immature      uint32
-	Live          uint32
-	Voted         uint32
-	Missed        uint32
-	Revoked       uint32
-	Expired       uint32
-	TotalSubsidy  dcrutil.Amount
+	BlockHeight    int64
+	PoolSize       uint32
+	AllMempoolTix  uint32
+	OwnMempoolTix  uint32
+	Immature       uint32
+	Live           uint32
+	Voted          uint32
+	Missed         uint32
+	Revoked        uint32
+	Expired        uint32
+	Unspent        uint32
+	UnspentExpired uint32
+	TotalSubsidy   dcrutil.Amount
 }
 
 func isTicketPurchase(tx *wire.MsgTx) bool {
@@ -2964,6 +2966,15 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 				it.Block.Height, tipHeight) {
 				res.Immature++
 				continue
+			}
+
+			if it.SpenderHash == (chainhash.Hash{}) {
+				res.Unspent++
+				expiryConfs := int32(w.chainParams.TicketExpiry) +
+					int32(w.chainParams.TicketMaturity) + 1
+				if confirmed(expiryConfs, it.Block.Height, tipHeight) {
+					res.UnspentExpired++
+				}
 			}
 
 			// If the ticket was spent, look up the spending tx and determine if
