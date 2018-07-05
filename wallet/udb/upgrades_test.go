@@ -389,9 +389,9 @@ func verifyV8Upgrade(t *testing.T, db walletdb.DB) {
 			}
 
 			if rec.MsgTx.Expiry != wire.NoExpiryValue {
-				minedTxWithExpiryCount += 1
+				minedTxWithExpiryCount++
 			} else {
-				minedTxWithoutExpiryCount += 1
+				minedTxWithoutExpiryCount++
 			}
 			return nil
 		})

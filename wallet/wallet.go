@@ -21,6 +21,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrec/secp256k1"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
@@ -2747,7 +2748,7 @@ func (w *Wallet) DumpWIFPrivateKey(addr dcrutil.Address) (string, error) {
 	if err != nil {
 		return "", errors.E(op, err)
 	}
-	wif, err := dcrutil.NewWIF(privKey, w.chainParams, privKey.GetType())
+	wif, err := dcrutil.NewWIF(privKey, w.chainParams, dcrec.SignatureType(privKey.GetType()))
 	if err != nil {
 		return "", errors.E(op, err)
 	}
@@ -3462,7 +3463,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 				txscript.SigHashSingle || i < len(tx.TxOut) {
 				// Check for alternative checksig scripts and
 				// set the signature suite accordingly.
-				ecType := chainec.ECTypeSecp256k1
+				ecType := dcrec.STEcdsaSecp256k1
 				class := txscript.GetScriptClass(txscript.DefaultScriptVersion, prevOutScript)
 				if class == txscript.PubkeyAltTy ||
 					class == txscript.PubkeyHashAltTy {
@@ -3503,7 +3504,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 					additionalPrevScripts[txIn.PreviousOutPoint],
 					w.ChainParams())
 
-				if err == txscript.ErrStackUnderflow &&
+				if txscript.IsErrorCode(err, txscript.ErrInvalidStackOperation) &&
 					class == txscript.ScriptHashTy {
 					redeemScript, _ := getScript(addr[0])
 					redeemClass := txscript.GetScriptClass(

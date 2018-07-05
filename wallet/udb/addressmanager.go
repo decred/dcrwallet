@@ -15,7 +15,6 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/wallet/internal/snacl"
@@ -2203,16 +2202,7 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte, chainParams *chai
 // parameters.  At the moment, the parameters have not been upgraded for the new
 // coin types.
 func CoinTypes(params *chaincfg.Params) (legacyCoinType, slip0044CoinType uint32) {
-	// This will need to be rewritten after the chaincfg parameters are updated
-	// for the SLIP0044 coin types.  A test function, TestCoinTypes, exists to
-	// check that the output of this function remains correct after the
-	// parameters are eventually changed.
-	switch params.Net {
-	case wire.MainNet:
-		return params.HDCoinType, 42
-	default:
-		return params.HDCoinType, 1
-	}
+	return params.LegacyCoinType, params.SLIP0044CoinType
 }
 
 // createAddressManager creates a new address manager in the given namespace.

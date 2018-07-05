@@ -15,6 +15,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/mempool"
 	"github.com/decred/dcrd/txscript"
@@ -1428,7 +1429,7 @@ func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurch
 	redeemTicketScript := ticketPurchase.TxOut[0].PkScript
 	signedScript, err := txscript.SignTxOutput(w.chainParams, tx, inputToSign,
 		redeemTicketScript, txscript.SigHashAll, getKey, getScript,
-		tx.TxIn[inputToSign].SignatureScript, chainec.ECTypeSecp256k1)
+		tx.TxIn[inputToSign].SignatureScript, dcrec.STEcdsaSecp256k1)
 	if err != nil {
 		return errors.E(errors.Op("txscript.SignTxOutput"), errors.ScriptFailure, err)
 	}

@@ -17,8 +17,8 @@ import (
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain"
@@ -324,7 +324,7 @@ func makeMultiSigScript(w *wallet.Wallet, keys []string, nRequired int) ([]byte,
 				}
 				return nil, err
 			}
-			if pubKey.GetType() != chainec.ECTypeSecp256k1 {
+			if dcrec.SignatureType(pubKey.GetType()) != dcrec.STEcdsaSecp256k1 {
 				return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 					"only secp256k1 pubkeys are currently supported")
 			}
@@ -2646,7 +2646,7 @@ func sendToMultiSig(s *Server, icmd interface{}) (interface{}, error) {
 				}
 				return nil, err
 			}
-			if pubKey.GetType() != chainec.ECTypeSecp256k1 {
+			if dcrec.SignatureType(pubKey.GetType()) != dcrec.STEcdsaSecp256k1 {
 				return nil, errors.New("only secp256k1 " +
 					"pubkeys are currently supported")
 			}
@@ -2916,20 +2916,20 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 
 			var addr dcrutil.Address
 			switch wif.DSA() {
-			case chainec.ECTypeSecp256k1:
+			case dcrec.STEcdsaSecp256k1:
 				addr, err = dcrutil.NewAddressSecpPubKey(wif.SerializePubKey(),
 					w.ChainParams())
 				if err != nil {
 					return nil, err
 				}
-			case chainec.ECTypeEdwards:
+			case dcrec.STEd25519:
 				addr, err = dcrutil.NewAddressEdwardsPubKey(
 					wif.SerializePubKey(),
 					w.ChainParams())
 				if err != nil {
 					return nil, err
 				}
-			case chainec.ECTypeSecSchnorr:
+			case dcrec.STSchnorrSecp256k1:
 				addr, err = dcrutil.NewAddressSecSchnorrPubKey(
 					wif.SerializePubKey(),
 					w.ChainParams())
@@ -3414,7 +3414,7 @@ func verifyMessage(s *Server, icmd interface{}) (interface{}, error) {
 	switch a := addr.(type) {
 	case *dcrutil.AddressSecpPubKey:
 	case *dcrutil.AddressPubKeyHash:
-		if a.DSA(a.Net()) != chainec.ECTypeSecp256k1 {
+		if a.DSA(a.Net()) != dcrec.STEcdsaSecp256k1 {
 			goto WrongAddrKind
 		}
 	default:

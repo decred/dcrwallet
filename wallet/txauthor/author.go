@@ -8,15 +8,14 @@ package txauthor
 
 import (
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainec"
+	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/txrules"
-
 	h "github.com/decred/dcrwallet/internal/helpers"
 	"github.com/decred/dcrwallet/wallet/internal/txsizes"
+	"github.com/decred/dcrwallet/wallet/txrules"
 )
 
 const (
@@ -198,7 +197,7 @@ func AddAllInputScripts(tx *wire.MsgTx, prevPkScripts [][]byte, secrets SecretsS
 		sigScript := inputs[i].SignatureScript
 		script, err := txscript.SignTxOutput(chainParams, tx, i,
 			pkScript, txscript.SigHashAll, secrets, secrets,
-			sigScript, chainec.ECTypeSecp256k1)
+			sigScript, dcrec.STEcdsaSecp256k1)
 		if err != nil {
 			return err
 		}

@@ -148,6 +148,8 @@ var helpDescsEnUS = map[string]string{
 	"getstakeinforesult-proportionmissed": "(Missed / (Missed + Voted))",
 	"getstakeinforesult-revoked":          "Number of missed tickets that were missed and then revoked",
 	"getstakeinforesult-expired":          "Number of tickets that have expired",
+	"getstakeinforesult-unspent":          "Number of unspent tickets",
+	"getstakeinforesult-unspentexpired":   "Number of unspent tickets which are past expiry",
 
 	// GetTickets help.
 	"gettickets--synopsis":       "Returning the hashes of the tickets currently owned by wallet.",

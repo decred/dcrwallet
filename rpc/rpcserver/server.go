@@ -32,8 +32,8 @@ import (
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain"
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
@@ -1535,7 +1535,7 @@ func (s *walletServer) signMessage(address, message string) ([]byte, error) {
 	switch a := addr.(type) {
 	case *dcrutil.AddressSecpPubKey:
 	case *dcrutil.AddressPubKeyHash:
-		if a.DSA(a.Net()) != chainec.ECTypeSecp256k1 {
+		if a.DSA(a.Net()) != dcrec.STEcdsaSecp256k1 {
 			goto WrongAddrKind
 		}
 	default:
@@ -2717,7 +2717,7 @@ func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.V
 	switch a := addr.(type) {
 	case *dcrutil.AddressSecpPubKey:
 	case *dcrutil.AddressPubKeyHash:
-		if a.DSA(a.Net()) != chainec.ECTypeSecp256k1 {
+		if a.DSA(a.Net()) != dcrec.STEcdsaSecp256k1 {
 			goto WrongAddrKind
 		}
 	default:

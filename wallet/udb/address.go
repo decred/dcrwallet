@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 
 	"github.com/decred/dcrd/chaincfg/chainec"
+	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain"
 )
@@ -171,7 +172,7 @@ func newManagedAddressWithoutPrivKey(m *Manager, account uint32, pubKey chainec.
 		pubKeyHash = dcrutil.Hash160(pubKey.SerializeUncompressed())
 	}
 	address, err := dcrutil.NewAddressPubKeyHash(pubKeyHash, m.chainParams,
-		chainec.ECTypeSecp256k1)
+		dcrec.STEcdsaSecp256k1)
 	if err != nil {
 		return nil, err
 	}
