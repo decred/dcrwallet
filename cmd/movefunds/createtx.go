@@ -28,7 +28,7 @@ func makeTx(inputs []*extendedOutPoint, addr dcrutil.Address, txFee int64) (*wir
 
 	allInAmts := int64(0)
 	for _, input := range inputs {
-		txIn := wire.NewTxIn(input.op, []byte{})
+		txIn := wire.NewTxIn(input.op, input.amt, []byte{})
 		mtx.AddTxIn(txIn)
 		allInAmts += input.amt
 	}

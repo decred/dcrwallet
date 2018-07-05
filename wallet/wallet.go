@@ -176,9 +176,6 @@ func (w *Wallet) FetchOutput(outPoint *wire.OutPoint) (*wire.TxOut, error) {
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		outTx, err := w.TxStore.Tx(txmgrNs, &outPoint.Hash)
-		if err != nil && errors.Is(errors.NotExist, err) {
-			return errors.E(op, errors.NotExist, errors.Errorf("missing tx %v", outPoint.Hash))
-		}
 		if err != nil {
 			return err
 		}

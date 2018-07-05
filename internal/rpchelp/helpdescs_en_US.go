@@ -278,9 +278,10 @@ var helpDescsEnUS = map[string]string{
 	"listlockunspent--synopsis": "Returns a JSON array of outpoints marked as locked (with lockunspent) for this wallet session.",
 
 	// TransactionInput help.
-	"transactioninput-txid": "The transaction hash of the referenced output",
-	"transactioninput-vout": "The output index of the referenced output",
-	"transactioninput-tree": "The tree to generate transaction for",
+	"transactioninput-amount": "The the previous output amount",
+	"transactioninput-txid":   "The transaction hash of the referenced output",
+	"transactioninput-vout":   "The output index of the referenced output",
+	"transactioninput-tree":   "The tree to generate transaction for",
 
 	// ListReceivedByAccountCmd help.
 	"listreceivedbyaccount--synopsis":        "DEPRECATED -- Returns a JSON array of objects listing all accounts and the total amount received by each account.",

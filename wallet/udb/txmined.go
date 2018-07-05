@@ -2820,7 +2820,7 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			}
 			op.Tree = tree
 
-			input := wire.NewTxIn(&op, nil)
+			input := wire.NewTxIn(&op, int64(amt), nil)
 
 			currentTotal += amt
 			currentInputs = append(currentInputs, input)
@@ -2899,7 +2899,7 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			}
 			op.Tree = tree
 
-			input := wire.NewTxIn(&op, nil)
+			input := wire.NewTxIn(&op, int64(amt), nil)
 
 			currentTotal += amt
 			currentInputs = append(currentInputs, input)
