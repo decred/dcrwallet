@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
@@ -199,7 +199,7 @@ func (s *StakeStore) sstxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (
 	if p2sh {
 		addr, err = dcrutil.NewAddressScriptHashFromHash(thisHash160, s.Params)
 	} else {
-		addr, err = dcrutil.NewAddressPubKeyHash(thisHash160, s.Params, chainec.ECTypeSecp256k1)
+		addr, err = dcrutil.NewAddressPubKeyHash(thisHash160, s.Params, dcrec.STEcdsaSecp256k1)
 	}
 	if err != nil {
 		return nil, err

@@ -2207,12 +2207,7 @@ func CoinTypes(params *chaincfg.Params) (legacyCoinType, slip0044CoinType uint32
 	// for the SLIP0044 coin types.  A test function, TestCoinTypes, exists to
 	// check that the output of this function remains correct after the
 	// parameters are eventually changed.
-	switch params.Net {
-	case wire.MainNet:
-		return params.HDCoinType, 42
-	default:
-		return params.HDCoinType, 1
-	}
+	return params.LegacyCoinType, params.SLIP0044CoinType
 }
 
 // createAddressManager creates a new address manager in the given namespace.
