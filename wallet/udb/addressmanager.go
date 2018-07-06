@@ -2209,9 +2209,9 @@ func CoinTypes(params *chaincfg.Params) (legacyCoinType, slip0044CoinType uint32
 	// parameters are eventually changed.
 	switch params.Net {
 	case wire.MainNet:
-		return params.HDCoinType, 42
+		return params.LegacyCoinType, 42
 	default:
-		return params.HDCoinType, 1
+		return params.LegacyCoinType, 1
 	}
 }
 

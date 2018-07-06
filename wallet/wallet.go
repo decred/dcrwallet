@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/decred/dcrd/dcrec"
+
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
@@ -2765,7 +2767,7 @@ func (w *Wallet) DumpWIFPrivateKey(addr dcrutil.Address) (string, error) {
 	if err != nil {
 		return "", errors.E(op, err)
 	}
-	wif, err := dcrutil.NewWIF(privKey, w.chainParams, privKey.GetType())
+	wif, err := dcrutil.NewWIF(privKey, w.chainParams, dcrec.SignatureType(privKey.GetType()))
 	if err != nil {
 		return "", errors.E(op, err)
 	}
@@ -3483,7 +3485,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 				txscript.SigHashSingle || i < len(tx.TxOut) {
 				// Check for alternative checksig scripts and
 				// set the signature suite accordingly.
-				ecType := chainec.ECTypeSecp256k1
+				ecType := dcrec.STEcdsaSecp256k1
 				class := txscript.GetScriptClass(txscript.DefaultScriptVersion, prevOutScript)
 				if class == txscript.PubkeyAltTy ||
 					class == txscript.PubkeyHashAltTy {

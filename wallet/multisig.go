@@ -5,7 +5,7 @@
 package wallet
 
 import (
-	"github.com/decred/dcrd/chaincfg/chainec"
+	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -48,7 +48,7 @@ func (w *Wallet) MakeSecp256k1MultiSigScript(secp256k1Addrs []dcrutil.Address, n
 			secp256k1PubKeys[i] = addr
 
 		case *dcrutil.AddressPubKeyHash:
-			if addr.DSA(w.chainParams) != chainec.ECTypeSecp256k1 {
+			if addr.DSA(w.chainParams) != dcrec.STEcdsaSecp256k1 {
 				return nil, errors.E(op, errors.Invalid, "address key is not secp256k1")
 			}
 

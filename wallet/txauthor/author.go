@@ -8,7 +8,8 @@ package txauthor
 
 import (
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainec"
+
+	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -198,7 +199,7 @@ func AddAllInputScripts(tx *wire.MsgTx, prevPkScripts [][]byte, secrets SecretsS
 		sigScript := inputs[i].SignatureScript
 		script, err := txscript.SignTxOutput(chainParams, tx, i,
 			pkScript, txscript.SigHashAll, secrets, secrets,
-			sigScript, chainec.ECTypeSecp256k1)
+			sigScript, dcrec.STEcdsaSecp256k1)
 		if err != nil {
 			return err
 		}
@@ -227,7 +228,7 @@ func AddInputScripts(tx *wire.MsgTx, prevPkScripts [][]byte, secrets SecretsSour
 		sigScript := inputs[i].SignatureScript
 		script, err := txscript.SignTxOutput(chainParams, tx, int(i),
 			pkScript, txscript.SigHashAll, secrets, secrets,
-			sigScript, chainec.ECTypeSecp256k1)
+			sigScript, dcrec.STEcdsaSecp256k1)
 		if err != nil {
 			return err
 		}

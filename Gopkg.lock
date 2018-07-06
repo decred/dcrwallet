@@ -24,12 +24,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/btcsuite/btclog"
-  packages = ["."]
-  revision = "84c8d2346e9fc8c7b947e243b9c24e6df9fd206a"
-
-[[projects]]
-  branch = "master"
   name = "github.com/btcsuite/go-socks"
   packages = ["socks"]
   revision = "4720035b7bfd2a9bb130b1c184f8bbe41b6f0d0f"
@@ -69,6 +63,7 @@
     "chaincfg/chainec",
     "chaincfg/chainhash",
     "database",
+    "dcrec",
     "dcrec/edwards",
     "dcrec/secp256k1",
     "dcrec/secp256k1/schnorr",
@@ -83,8 +78,7 @@
     "txscript",
     "wire"
   ]
-  revision = "4b0a881dc336255f0bb88ebf8a02c340c0df3ef1"
-  source = "github.com/raedahgroup/dcrd"
+  revision = "9b08b582d76869b7e16177fc0f45dd926c0eab31"
 
 [[projects]]
   name = "github.com/decred/slog"
@@ -103,6 +97,12 @@
     "ptypes/timestamp"
   ]
   revision = "9eb2c01ac278a5d89ce4b2be68fe4500955d8179"
+
+[[projects]]
+  name = "github.com/gorilla/websocket"
+  packages = ["."]
+  revision = "ea4d1f681babbce9545c9c5f3d5194a789c89f5b"
+  version = "v1.2.0"
 
 [[projects]]
   name = "github.com/jessevdk/go-flags"
@@ -234,6 +234,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "df14f3a8cf9726f9fd21fbd0b1b3c8cdda2821906722cdf35452bc4a5998119f"
+  inputs-digest = "af23acc3f4c79e2c5326032d64798e3d8ee3d3a89ef7374536039dab2b67d321"
   solver-name = "gps-cdcl"
   solver-version = 1

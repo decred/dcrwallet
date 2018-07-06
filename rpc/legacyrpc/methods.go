@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/decred/dcrd/dcrec"
+
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
@@ -2930,20 +2932,20 @@ func signRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 
 			var addr dcrutil.Address
 			switch wif.DSA() {
-			case chainec.ECTypeSecp256k1:
+			case dcrec.STEcdsaSecp256k1:
 				addr, err = dcrutil.NewAddressSecpPubKey(wif.SerializePubKey(),
 					w.ChainParams())
 				if err != nil {
 					return nil, err
 				}
-			case chainec.ECTypeEdwards:
+			case dcrec.STEd25519:
 				addr, err = dcrutil.NewAddressEdwardsPubKey(
 					wif.SerializePubKey(),
 					w.ChainParams())
 				if err != nil {
 					return nil, err
 				}
-			case chainec.ECTypeSecSchnorr:
+			case dcrec.STSchnorrSecp256k1:
 				addr, err = dcrutil.NewAddressSecSchnorrPubKey(
 					wif.SerializePubKey(),
 					w.ChainParams())
@@ -3428,7 +3430,7 @@ func verifyMessage(s *Server, icmd interface{}) (interface{}, error) {
 	switch a := addr.(type) {
 	case *dcrutil.AddressSecpPubKey:
 	case *dcrutil.AddressPubKeyHash:
-		if a.DSA(a.Net()) != chainec.ECTypeSecp256k1 {
+		if a.DSA(a.Net()) != dcrec.STEcdsaSecp256k1 {
 			goto WrongAddrKind
 		}
 	default:
