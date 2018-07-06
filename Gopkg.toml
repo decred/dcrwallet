@@ -13,8 +13,7 @@
 
 [[constraint]]
   name = "github.com/decred/dcrd"
-  branch = "master"
-  source = "github.com/raedahgroup/dcrd"
+  branch = "master"  
 
 [[constraint]]
 branch = "master"
