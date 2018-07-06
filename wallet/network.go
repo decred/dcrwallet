@@ -10,7 +10,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/jrick/bitset"
 )
 
@@ -37,11 +37,13 @@ type NetworkBackend interface {
 // NetworkBackend returns the currently associated network backend of the
 // wallet, or an error if the no backend is currently set.
 func (w *Wallet) NetworkBackend() (NetworkBackend, error) {
+	const op errors.Op = "wallet.NetworkBackend"
+
 	w.networkBackendMu.Lock()
 	n := w.networkBackend
 	w.networkBackendMu.Unlock()
 	if n == nil {
-		return nil, apperrors.New(apperrors.ErrDisconnected, "no network backend set")
+		return nil, errors.E(op, errors.NoPeers)
 	}
 	return n, nil
 }

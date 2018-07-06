@@ -6,11 +6,11 @@
 package zero_test
 
 import (
-	"fmt"
 	"math/big"
 	"strings"
 	"testing"
 
+	"github.com/decred/dcrwallet/errors"
 	. "github.com/decred/dcrwallet/internal/zero"
 )
 
@@ -25,7 +25,7 @@ func makeOneBytes(n int) []byte {
 func checkZeroBytes(b []byte) error {
 	for i, v := range b {
 		if v != 0 {
-			return fmt.Errorf("b[%d] = %d", i, v)
+			return errors.Errorf("b[%d] = %d", i, v)
 		}
 	}
 	return nil
@@ -66,7 +66,7 @@ func TestBytes(t *testing.T) {
 func checkZeroWords(b []big.Word) error {
 	for i, v := range b {
 		if v != 0 {
-			return fmt.Errorf("b[%d] = %d", i, v)
+			return errors.Errorf("b[%d] = %d", i, v)
 		}
 	}
 	return nil

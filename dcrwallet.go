@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrwallet/apperrors"
 	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/internal/zero"
 	ldr "github.com/decred/dcrwallet/loader"
@@ -30,6 +30,11 @@ import (
 
 	"github.com/decred/dcrwallet/dcrtxclient"
 )
+
+func init() {
+	// Format nested errors without newlines (better for logs).
+	errors.Separator = ":: "
+}
 
 var (
 	cfg *config
@@ -160,7 +165,7 @@ func run(ctx context.Context) error {
 	// initialized and this function returns.
 	defer func() {
 		err := loader.UnloadWallet()
-		if err != nil && err != ldr.ErrWalletNotLoaded {
+		if err != nil && !errors.Is(errors.Invalid, err) {
 			log.Errorf("Failed to close wallet: %v", err)
 		} else if err == nil {
 			log.Infof("Closed wallet")
@@ -186,7 +191,7 @@ func run(ctx context.Context) error {
 		w, err := loader.OpenExistingWallet(walletPass)
 		if err != nil {
 			log.Errorf("Failed to open wallet: %v", err)
-			if apperrors.IsError(err, apperrors.ErrWrongPassphrase) {
+			if errors.Is(errors.Passphrase, err) {
 				// walletpass not provided, advice using --walletpass or --promptpublicpass
 				if cfg.WalletPass == wallet.InsecurePubPassphrase {
 					log.Info("Configure public passphrase with walletpass or promptpublicpass options.")
@@ -418,7 +423,7 @@ func rpcClientConnectLoop(ctx context.Context, passphrase []byte, jsonRPCServer 
 		// reconnect.
 		syncer := chain.NewRPCSyncer(w, chainClient)
 		err = syncer.Run(ctx, true)
-		if err == context.Canceled {
+		if errors.Match(errors.E(context.Canceled), err) {
 			return
 		}
 		if err != nil {

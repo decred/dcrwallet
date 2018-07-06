@@ -17,8 +17,9 @@
 package pgpwordlist
 
 import (
-	"fmt"
 	"strings"
+
+	"github.com/decred/dcrwallet/errors"
 )
 
 // ByteToMnemonic returns the PGP word list encoding of b when found at index.
@@ -33,6 +34,8 @@ func ByteToMnemonic(b byte, index int) string {
 // DecodeMnemonics returns the decoded value that is encoded by words.  Any
 // words that are whitespace are empty are skipped.
 func DecodeMnemonics(words []string) ([]byte, error) {
+	const op errors.Op = "pgpwordlist.DecodeMnemonics"
+
 	decoded := make([]byte, len(words))
 	idx := 0
 	for _, w := range words {
@@ -42,11 +45,13 @@ func DecodeMnemonics(words []string) ([]byte, error) {
 		}
 		b, ok := wordIndexes[strings.ToLower(w)]
 		if !ok {
-			return nil, fmt.Errorf("word %v is not in the PGP word list", w)
+			err := errors.Errorf("word %v is not in the PGP word list", w)
+			return nil, errors.E(op, errors.Encoding, err)
 		}
 		if int(b%2) != idx%2 {
-			return nil, fmt.Errorf("word %v is not valid at position %v, "+
+			err := errors.Errorf("word %v is not valid at position %v, "+
 				"check for missing words", w, idx)
+			return nil, errors.E(op, errors.Encoding, err)
 		}
 		decoded[idx] = byte(b / 2)
 		idx++

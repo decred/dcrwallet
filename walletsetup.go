@@ -1,5 +1,5 @@
 // Copyright (c) 2014-2015 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -17,11 +17,11 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/hdkeychain"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/wallet"
-	"github.com/decred/dcrwallet/walletdb"
-	_ "github.com/decred/dcrwallet/walletdb/bdb"
+	_ "github.com/decred/dcrwallet/wallet/drivers/bdb"
 	"github.com/decred/dcrwallet/walletseed"
 )
 
@@ -126,7 +126,7 @@ func createSimulationWallet(cfg *config) error {
 	fmt.Println("Creating the wallet...")
 
 	// Create the wallet database backed by bolt db.
-	db, err := walletdb.Create("bdb", dbPath)
+	db, err := wallet.CreateDB("bdb", dbPath)
 	if err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func createWatchingOnlyWallet(cfg *config) error {
 	fmt.Println("Creating the wallet...")
 
 	// Create the wallet database backed by bolt db.
-	db, err := walletdb.Create("bdb", dbPath)
+	db, err := wallet.CreateDB("bdb", dbPath)
 	if err != nil {
 		return err
 	}
@@ -207,14 +207,14 @@ func checkCreateDir(path string) error {
 		if os.IsNotExist(err) {
 			// Attempt data directory creation
 			if err = os.MkdirAll(path, 0700); err != nil {
-				return fmt.Errorf("cannot create directory: %s", err)
+				return errors.Errorf("cannot create directory: %s", err)
 			}
 		} else {
-			return fmt.Errorf("error checking directory: %s", err)
+			return errors.Errorf("error checking directory: %s", err)
 		}
 	} else {
 		if !fi.IsDir() {
-			return fmt.Errorf("path '%s' is not a directory", path)
+			return errors.Errorf("path '%s' is not a directory", path)
 		}
 	}
 

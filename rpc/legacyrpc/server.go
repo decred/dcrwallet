@@ -11,7 +11,6 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"io"
 	"io/ioutil"
 	"net"
@@ -24,6 +23,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/ticketbuyer"
 )
@@ -150,7 +150,7 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 			switch server.checkAuthHeader(r) {
 			case nil:
 				authenticated = true
-			case ErrNoAuth:
+			case errNoAuth:
 				// nothing
 			default:
 				// If auth was supplied but incorrect, rather than simply
@@ -269,26 +269,24 @@ func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) l
 	return lazyApplyHandler(s, request)
 }
 
-// ErrNoAuth represents an error where authentication could not succeed
+// errNoAuth represents an error where authentication could not succeed
 // due to a missing Authorization HTTP header.
-var ErrNoAuth = errors.New("no auth")
+var errNoAuth = errors.E("missing Authorization header")
 
 // checkAuthHeader checks the HTTP Basic authentication supplied by a client
-// in the HTTP request r.  It errors with ErrNoAuth if the request does not
-// contain the Authorization header, or another non-nil error if the
-// authentication was provided but incorrect.
+// in the HTTP request r.
 //
-// This check is time-constant.
+// The authentication comparison is time constant.
 func (s *Server) checkAuthHeader(r *http.Request) error {
 	authhdr := r.Header["Authorization"]
 	if len(authhdr) == 0 {
-		return ErrNoAuth
+		return errNoAuth
 	}
 
 	authsha := sha256.Sum256([]byte(authhdr[0]))
 	cmp := subtle.ConstantTimeCompare(authsha[:], s.authsha[:])
 	if cmp != 1 {
-		return errors.New("bad auth")
+		return errors.New("invalid Authorization header")
 	}
 	return nil
 }

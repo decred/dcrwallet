@@ -6,9 +6,8 @@ package chain
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/decred/dcrwallet/apperrors"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet"
 	"golang.org/x/sync/errgroup"
 )
@@ -32,6 +31,8 @@ func NewRPCSyncer(w *wallet.Wallet, rpcClient *RPCClient) *RPCSyncer {
 // the dcrd server are performed.  Otherwise, it will listen for notifications
 // but not register for any updates.
 func (s *RPCSyncer) Run(ctx context.Context, startupSync bool) error {
+	const op errors.Op = "rpcsyncer.Run"
+
 	// TODO: handling of voting notifications should be done sequentially with
 	// every other notification (voters must know the blocks they are voting
 	// on).  Until then, a couple notification processing goroutines must be
@@ -52,16 +53,16 @@ func (s *RPCSyncer) Run(ctx context.Context, startupSync bool) error {
 	g.Go(func() error {
 		err := s.rpcClient.NotifySpentAndMissedTickets()
 		if err != nil {
-			return fmt.Errorf("failed to register for spentandmissedtickets "+
-				"notifications: %v", err)
+			const op errors.Op = "dcrd.jsonrpc.notifyspentandmissedtickets"
+			return errors.E(op, err)
 		}
 
 		if s.wallet.VotingEnabled() {
 			// Request notifications for winning tickets.
 			err := s.rpcClient.NotifyWinningTickets()
 			if err != nil {
-				return fmt.Errorf("failed to register for winningtickets "+
-					"notifications: %v", err)
+				const op errors.Op = "dcrd.jsonrpc.notifywinningtickets"
+				return errors.E(op, err)
 			}
 
 			vb := s.wallet.VoteBits()
@@ -72,7 +73,11 @@ func (s *RPCSyncer) Run(ctx context.Context, startupSync bool) error {
 
 		return nil
 	})
-	return g.Wait()
+	err := g.Wait()
+	if err != nil {
+		return errors.E(op, err)
+	}
+	return nil
 }
 
 func (s *RPCSyncer) handleNotifications(ctx context.Context) error {
@@ -89,15 +94,15 @@ func (s *RPCSyncer) handleNotifications(ctx context.Context) error {
 
 		case n, ok := <-c:
 			if !ok {
-				return apperrors.New(apperrors.ErrDisconnected, "RPC client disconnected")
+				return errors.E(errors.NoPeers, "RPC client disconnected")
 			}
 
-			var notificationName string
+			var op errors.Op
 			var err error
 			nonFatal := false
 			switch n := n.(type) {
 			case blockConnected:
-				notificationName = "blockconnected"
+				op = "dcrd.jsonrpc.blockconnected"
 				err = s.wallet.ConnectBlock(n.blockHeader, n.transactions)
 				if err == nil {
 					connectingBlocks = true
@@ -108,16 +113,16 @@ func (s *RPCSyncer) handleNotifications(ctx context.Context) error {
 				continue // These notifications are ignored
 
 			case reorganization:
-				notificationName = "reorganizing"
+				op = "dcrd.jsonrpc.reorganizing"
 				err = s.wallet.StartReorganize(n.oldHash, n.newHash, n.oldHeight, n.newHeight)
 
 			case relevantTxAccepted:
-				notificationName = "relevanttxaccepted"
+				op = "dcrd.jsonrpc.relevanttxaccepted"
 				err = s.wallet.AcceptMempoolTx(n.transaction)
 				nonFatal = true
 
 			case missedTickets:
-				notificationName = "spentandmissedtickets"
+				op = "dcrd.jsonrpc.spentandmissedtickets"
 				err = s.wallet.RevokeOwnedTickets(n.tickets)
 				nonFatal = true
 
@@ -126,15 +131,17 @@ func (s *RPCSyncer) handleNotifications(ctx context.Context) error {
 				continue
 			}
 
-			switch {
-			case err == nil:
-			case nonFatal:
-				log.Errorf("Failed to process consensus server notification "+
-					"(name: `%s`, detail: `%v`)", notificationName, err)
-			default:
-				return fmt.Errorf("failed to process consensus server notification "+
-					"(name: `%s`, detail: `%v`)", notificationName, err)
+			if err == nil {
+				continue
 			}
+
+			err = errors.E(op, err)
+			if nonFatal {
+				log.Errorf("Failed to process consensus server notification: %v", err)
+				continue
+			}
+
+			return err
 		}
 	}
 }
@@ -148,20 +155,21 @@ func (s *RPCSyncer) handleVoteNotifications(ctx context.Context) error {
 
 		case n, ok := <-c:
 			if !ok {
-				return apperrors.New(apperrors.ErrDisconnected, "RPC client disconnected")
+				return errors.E(errors.NoPeers, "RPC client disconnected")
 			}
 
-			var notificationName string
+			var op errors.Op
 			var err error
 			switch n := n.(type) {
 			case winningTickets:
-				notificationName = "winningtickets"
+				op = "dcrd.jsonrpc.winningtickets"
 				err = s.wallet.VoteOnOwnedTickets(n.tickets, n.blockHash, int32(n.blockHeight))
 			default:
 				log.Warnf("Voting handler received unknown notification type %T", n)
 			}
 			if err != nil {
-				log.Errorf("Failed to handle %s notification: %v", notificationName, err)
+				err = errors.E(op, err)
+				log.Errorf("Failed to process consensus server notification: %v", err)
 			}
 		}
 	}
@@ -174,7 +182,8 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 	// Request notifications for connected and disconnected blocks.
 	err := s.rpcClient.NotifyBlocks()
 	if err != nil {
-		return err
+		const op errors.Op = "dcrd.jsonrpc.notifyblocks"
+		return errors.E(op, err)
 	}
 
 	n := BackendFromRPCClient(s.rpcClient.Client)
@@ -214,11 +223,13 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 
 	_, err = s.rpcClient.RawRequest("rebroadcastwinners", nil)
 	if err != nil {
-		return err
+		const op errors.Op = "dcrd.jsonrpc.rebroadcastwinners"
+		return errors.E(op, err)
 	}
 	_, err = s.rpcClient.RawRequest("rebroadcastmissed", nil)
 	if err != nil {
-		return err
+		const op errors.Op = "dcrd.jsonrpc.rebroadcastmissed"
+		return errors.E(op, err)
 	}
 
 	log.Infof("Blockchain sync completed, wallet ready for general usage.")

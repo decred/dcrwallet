@@ -1,5 +1,5 @@
 // Copyright (c) 2014 The btcsuite developers
-// Copyright (c) 2015-2016 The Decred developers
+// Copyright (c) 2015-2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -11,7 +11,6 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrwallet/apperrors"
 )
 
 // ManagedAddress is an interface that provides acces to information regarding
@@ -196,8 +195,7 @@ func newManagedAddressWithoutPrivKey(m *Manager, account uint32, pubKey chainec.
 func newManagedAddressFromExtKey(m *Manager, account uint32, key *hdkeychain.ExtendedKey) (*managedAddress, error) {
 	pubKey, err := key.ECPubKey()
 	if err != nil {
-		const str = "failed to create public key"
-		return nil, apperrors.E{ErrorCode: apperrors.ErrKeyChain, Description: str, Err: err}
+		return nil, err
 	}
 
 	return newManagedAddressWithoutPrivKey(m, account, pubKey, true)

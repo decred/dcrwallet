@@ -7,8 +7,6 @@ package main
 
 import (
 	"crypto/tls"
-	"errors"
-	"fmt"
 	xcontext "golang.org/x/net/context"
 	"io/ioutil"
 	"net"
@@ -19,6 +17,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/certgen"
+	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
@@ -43,7 +42,7 @@ func openRPCKeyPair() (tls.Certificate, error) {
 	keyExists := !os.IsNotExist(e)
 	switch {
 	case cfg.OneTimeTLSKey && keyExists:
-		err := fmt.Errorf("one time TLS keys are enabled, but TLS key "+
+		err := errors.Errorf("one time TLS keys are enabled, but TLS key "+
 			"`%s` already exists", cfg.RPCKey)
 		return tls.Certificate{}, err
 	case cfg.OneTimeTLSKey:

@@ -13,9 +13,8 @@ interface. The functions are only exported while the tests are being run.
 package udb
 
 import (
-	"errors"
-
-	"github.com/decred/dcrwallet/snacl"
+	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/wallet/internal/snacl"
 )
 
 // TstLatestMgrVersion makes the unexported latestMgrVersion variable available
@@ -31,7 +30,7 @@ func TstRunWithReplacedNewSecretKey(callback func()) {
 		newSecretKey = orig
 	}()
 	newSecretKey = func(passphrase *[]byte, config *ScryptOptions) (*snacl.SecretKey, error) {
-		return nil, snacl.ErrDecryptFailed
+		return nil, errors.E(errors.Crypto)
 	}
 	callback()
 }

@@ -10,8 +10,8 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrwallet/apperrors"
-	"github.com/decred/dcrwallet/walletdb"
+	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 )
 
 func TestCoinTypes(t *testing.T) {
@@ -51,9 +51,7 @@ func deriveChildAddress(accountExtKey *hdkeychain.ExtendedKey, branch, child uin
 }
 
 func equalExtKeys(k0, k1 *hdkeychain.ExtendedKey) bool {
-	s0, e0 := k0.String()
-	s1, e1 := k1.String()
-	return e0 == nil && e1 == nil && s0 == s1
+	return k0.String() == k1.String()
 }
 
 func TestCoinTypeUpgrade(t *testing.T) {
@@ -202,8 +200,8 @@ func TestCoinTypeUpgrade(t *testing.T) {
 
 		// Check that the upgrade can not be performed a second time.
 		err = m.UpgradeToSLIP0044CoinType(dbtx)
-		if !apperrors.IsError(err, apperrors.ErrUnsupported) {
-			t.Fatalf("upgrade database did not refuse second upgrade with ErrUnsupported")
+		if !errors.Is(errors.Invalid, err) {
+			t.Fatalf("upgrade database did not refuse second upgrade with errors.Invalid")
 		}
 
 		return nil

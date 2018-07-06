@@ -5,7 +5,6 @@
 package txrules
 
 import (
-	"fmt"
 	"math"
 	"math/big"
 	"sync"
@@ -15,20 +14,12 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 )
 
-// maxPoolFeeRate is the maximum value of the pool fee
-const maxPoolFeeRate = 10000.0
-
-// IsValidPoolFeeRate tests to see if a pool fee is a valid percentage from
+// ValidPoolFeeRate tests to see if a pool fee is a valid percentage from
 // 0.01% to 100.00%.
-func IsValidPoolFeeRate(feeRate float64) error {
+func ValidPoolFeeRate(feeRate float64) bool {
 	poolFeeRateTest := feeRate * 100
 	poolFeeRateTest = math.Floor(poolFeeRateTest)
-	if poolFeeRateTest <= 0.0 || poolFeeRateTest > maxPoolFeeRate {
-		return fmt.Errorf("invalid pool fee %v, pool fee "+
-			"must be between 0.01 and 100.00", feeRate)
-	}
-
-	return nil
+	return poolFeeRateTest >= 1.0 && poolFeeRateTest <= 10000.0
 }
 
 var subsidyCache *blockchain.SubsidyCache
