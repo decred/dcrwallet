@@ -747,7 +747,7 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *ext
 		mtx.AddTxIn(txIn)
 	}
 
-	txIn := wire.NewTxIn(input.op, inputPool.amt, []byte{})
+	txIn := wire.NewTxIn(input.op, input.amt, []byte{})
 	mtx.AddTxIn(txIn)
 
 	// Create a new script which pays to the provided address with an
