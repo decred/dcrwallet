@@ -629,11 +629,11 @@ ___
 
 #### `GetAccountExtendedPubKey`
 
-The `GetAccountExtendedPubKey` method queries the wallet for an account pubkey. If no account is provided, then it returns the master pubkey.
+The `GetAccountExtendedPubKey` method queries the wallet for an account pubkey. If no account is provided or the provided account number is beyond the current account index, then it returns an error.
 
 **Request:** `GetAccountExtendedPubKeyRequest`
 
-- `string account`: The account name to retrieve the pubkey.
+- `uint32 account_number`: The number of the account to retrieve the pubkey.
 
 **Response:** `GetAccountExtendedPubKeyResponse`
 
@@ -641,7 +641,7 @@ The `GetAccountExtendedPubKey` method queries the wallet for an account pubkey. 
 
 **Expected errors:**
 
-- `NotFound`: The given account does not exist.
+- `NotFound`: The given account is empty or does not exist.
 ___
 
 #### `GetTransaction`
