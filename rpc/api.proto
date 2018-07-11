@@ -929,11 +929,11 @@ message CommittedTicketsRequest {
 }
 
 message GetAccountExtendedPubKeyRequest {
-	string Account = 1;
+	uint32 account_number = 1;
 }
 
 message GetAccountExtendedPubKeyResponse {
-	string AccountExtendedKey = 1;
+	string AccountExtendedPubKey = 1;
 }
 
 message CommittedTicketsResponse {
