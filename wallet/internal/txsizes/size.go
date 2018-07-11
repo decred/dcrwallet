@@ -10,19 +10,6 @@ import (
 	h "github.com/decred/dcrwallet/internal/helpers"
 )
 
-// ScriptSizer signature script sizing interface
-type ScriptSizer interface {
-	ScriptSize() int
-}
-
-// SigScriptSize represents an input sig script size.
-type SigScriptSize int
-
-// ScriptSize returns the input sig script size.
-func (s SigScriptSize) ScriptSize() int { return int(s) }
-
-// TODO: add multi sig sizer type
-
 // Worst case script and input/output size estimates.
 const (
 	// RedeemP2PKHSigScriptSize is the worst case (largest) serialize size
@@ -81,10 +68,6 @@ const (
 	//   - 1 byte compact int encoding value 25
 	//   - 25 bytes P2PKH output script
 	P2PKHOutputSize = 8 + 2 + 1 + 25
-
-	// signature script definitions
-	P2SHScriptSize  = SigScriptSize(RedeemP2SHSigScriptSize)
-	P2PKHScriptSize = SigScriptSize(RedeemP2PKHSigScriptSize)
 )
 
 // EstimateSerializeSize returns a worst case serialize size estimate for a
@@ -92,14 +75,14 @@ const (
 // transaction output from txOuts. The estimated size is incremented for an
 // additional change output if changeScriptSize is greater than 0. Passing 0
 // does not add a change output.
-func EstimateSerializeSize(scriptSizers []ScriptSizer, txOuts []*wire.TxOut, changeScriptSize int) int {
+func EstimateSerializeSize(scriptSizes []int, txOuts []*wire.TxOut, changeScriptSize int) int {
 	// generate the estimated sizes of the inputs
 	txInsSize := 0
-	for _, sizer := range scriptSizers {
-		txInsSize += EstimateInputSize(sizer.ScriptSize())
+	for _, size := range scriptSizes {
+		txInsSize += EstimateInputSize(size)
 	}
 
-	inputCount := len(scriptSizers)
+	inputCount := len(scriptSizes)
 	outputCount := len(txOuts)
 	changeSize := 0
 	if changeScriptSize > 0 {
