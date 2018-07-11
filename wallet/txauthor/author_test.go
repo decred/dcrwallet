@@ -11,6 +11,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/wallet/txauthor"
 	. "github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 
@@ -41,15 +42,24 @@ func makeInputSource(unspents []*wire.TxOut) InputSource {
 	// Return outputs in order.
 	currentTotal := dcrutil.Amount(0)
 	currentInputs := make([]*wire.TxIn, 0, len(unspents))
-	f := func(target dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error) {
+	var redeemScriptSizes []int
+	f := func(target dcrutil.Amount) (*InputDetail, error) {
 		for currentTotal < target && len(unspents) != 0 {
 			u := unspents[0]
 			unspents = unspents[1:]
 			nextInput := wire.NewTxIn(&wire.OutPoint{}, u.Value, nil)
 			currentTotal += dcrutil.Amount(u.Value)
 			currentInputs = append(currentInputs, nextInput)
+			redeemScriptSizes = append(redeemScriptSizes, txsizes.P2PKHScriptSize.ScriptSize())
 		}
-		return currentTotal, currentInputs, make([][]byte, len(currentInputs)), nil
+
+		inputDetail := txauthor.InputDetail{
+			Amount:            currentTotal,
+			Inputs:            currentInputs,
+			Scripts:           make([][]byte, len(currentInputs)),
+			RedeemScriptSizes: redeemScriptSizes,
+		}
+		return &inputDetail, nil
 	}
 	return InputSource(f)
 }

@@ -28,12 +28,22 @@ const (
 	generatedTxVersion = 1
 )
 
+// InputDetail provides a detailed summary of transaction inputs
+// referencing spendable outputs. This consists of the total spendable
+// amount, the generated inputs, the redeem scripts and the full redeem
+// script sizes.
+type InputDetail struct {
+	Amount            dcrutil.Amount
+	Inputs            []*wire.TxIn
+	Scripts           [][]byte
+	RedeemScriptSizes []int
+}
+
 // InputSource provides transaction inputs referencing spendable outputs to
 // construct a transaction outputting some target amount.  If the target amount
 // can not be satisified, this can be signaled by returning a total amount less
 // than the target or by returning a more detailed error.
-type InputSource func(target dcrutil.Amount) (total dcrutil.Amount,
-	inputs []*wire.TxIn, scripts [][]byte, err error)
+type InputSource func(target dcrutil.Amount) (detail *InputDetail, err error)
 
 // AuthoredTx holds the state of a newly-created transaction and the change
 // output (if one was added).
@@ -86,23 +96,23 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	targetFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
 
 	for {
-		inputAmount, inputs, scripts, err := fetchInputs(targetAmount + targetFee)
+		inputDetail, err := fetchInputs(targetAmount + targetFee)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
 
-		if inputAmount < targetAmount+targetFee {
+		if inputDetail.Amount < targetAmount+targetFee {
 			return nil, errors.E(op, errors.InsufficientBalance)
 		}
 
-		scriptSizers := []txsizes.ScriptSizer{}
-		for range inputs {
-			scriptSizers = append(scriptSizers, txsizes.P2PKHScriptSize)
+		scriptSizers = []txsizes.ScriptSizer{}
+		for _, size := range inputDetail.RedeemScriptSizes {
+			scriptSizers = append(scriptSizers, txsizes.SigScriptSize(size))
 		}
 
 		maxSignedSize = txsizes.EstimateSerializeSize(scriptSizers, outputs, changeScriptSize)
 		maxRequiredFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
-		remainingAmount := inputAmount - targetAmount
+		remainingAmount := inputDetail.Amount - targetAmount
 		if remainingAmount < maxRequiredFee {
 			targetFee = maxRequiredFee
 			continue
@@ -111,13 +121,13 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 		unsignedTransaction := &wire.MsgTx{
 			SerType:  wire.TxSerializeFull,
 			Version:  generatedTxVersion,
-			TxIn:     inputs,
+			TxIn:     inputDetail.Inputs,
 			TxOut:    outputs,
 			LockTime: 0,
 			Expiry:   0,
 		}
 		changeIndex := -1
-		changeAmount := inputAmount - targetAmount - maxRequiredFee
+		changeAmount := inputDetail.Amount - targetAmount - maxRequiredFee
 		if changeAmount != 0 && !txrules.IsDustAmount(changeAmount,
 			changeScriptSize, relayFeePerKb) {
 			if len(changeScript) > txscript.MaxScriptElementSize {
@@ -138,8 +148,8 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 		}
 		return &AuthoredTx{
 			Tx:                           unsignedTransaction,
-			PrevScripts:                  scripts,
-			TotalInput:                   inputAmount,
+			PrevScripts:                  inputDetail.Scripts,
+			TotalInput:                   inputDetail.Amount,
 			ChangeIndex:                  changeIndex,
 			EstimatedSignedSerializeSize: maxSignedSize,
 		}, nil

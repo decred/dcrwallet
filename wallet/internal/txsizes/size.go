@@ -15,9 +15,11 @@ type ScriptSizer interface {
 	ScriptSize() int
 }
 
-type sigScriptSize int
+// SigScriptSize represents an input sig script size.
+type SigScriptSize int
 
-func (s sigScriptSize) ScriptSize() int { return int(s) }
+// ScriptSize returns the input sig script size.
+func (s SigScriptSize) ScriptSize() int { return int(s) }
 
 // TODO: add multi sig sizer type
 
@@ -81,8 +83,8 @@ const (
 	P2PKHOutputSize = 8 + 2 + 1 + 25
 
 	// signature script definitions
-	P2SHScriptSize  = sigScriptSize(RedeemP2SHSigScriptSize)
-	P2PKHScriptSize = sigScriptSize(RedeemP2PKHSigScriptSize)
+	P2SHScriptSize  = SigScriptSize(RedeemP2SHSigScriptSize)
+	P2PKHScriptSize = SigScriptSize(RedeemP2PKHSigScriptSize)
 )
 
 // EstimateSerializeSize returns a worst case serialize size estimate for a

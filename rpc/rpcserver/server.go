@@ -723,7 +723,7 @@ func (s *walletServer) UnspentOutputs(req *pb.UnspentOutputsRequest, svr pb.Wall
 		Account:               req.Account,
 		RequiredConfirmations: req.RequiredConfirmations,
 	}
-	_, inputs, scripts, err := s.wallet.SelectInputs(dcrutil.Amount(req.TargetAmount), policy)
+	inputDetail, err := s.wallet.SelectInputs(dcrutil.Amount(req.TargetAmount), policy)
 	// Do not return errors to caller when there was insufficient spendable
 	// outputs available for the target amount.
 	if err != nil && !errors.Is(errors.InsufficientBalance, err) {
@@ -731,7 +731,7 @@ func (s *walletServer) UnspentOutputs(req *pb.UnspentOutputsRequest, svr pb.Wall
 	}
 
 	var sum int64
-	for i, input := range inputs {
+	for i, input := range inputDetail.Inputs {
 		select {
 		case <-svr.Context().Done():
 			return status.Errorf(codes.Canceled, "unspentoutputs cancelled")
@@ -745,7 +745,7 @@ func (s *walletServer) UnspentOutputs(req *pb.UnspentOutputsRequest, svr pb.Wall
 				OutputIndex:     input.PreviousOutPoint.Index,
 				Tree:            int32(input.PreviousOutPoint.Tree),
 				Amount:          int64(outputInfo.Amount),
-				PkScript:        scripts[i],
+				PkScript:        inputDetail.Scripts[i],
 				ReceiveTime:     outputInfo.Received.Unix(),
 				FromCoinbase:    outputInfo.FromCoinbase,
 			}
@@ -769,15 +769,15 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 		Account:               req.Account,
 		RequiredConfirmations: req.RequiredConfirmations,
 	}
-	totalAmount, inputs, scripts, err := s.wallet.SelectInputs(dcrutil.Amount(req.TargetAmount), policy)
+	inputDetail, err := s.wallet.SelectInputs(dcrutil.Amount(req.TargetAmount), policy)
 	// Do not return errors to caller when there was insufficient spendable
 	// outputs available for the target amount.
 	if err != nil && !errors.Is(errors.InsufficientBalance, err) {
 		return nil, translateError(err)
 	}
 
-	selectedOutputs := make([]*pb.FundTransactionResponse_PreviousOutput, len(inputs))
-	for i, input := range inputs {
+	selectedOutputs := make([]*pb.FundTransactionResponse_PreviousOutput, len(inputDetail.Inputs))
+	for i, input := range inputDetail.Inputs {
 		outputInfo, err := s.wallet.OutputInfo(&input.PreviousOutPoint)
 		if err != nil {
 			return nil, translateError(err)
@@ -787,14 +787,14 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 			OutputIndex:     input.PreviousOutPoint.Index,
 			Tree:            int32(input.PreviousOutPoint.Tree),
 			Amount:          int64(outputInfo.Amount),
-			PkScript:        scripts[i],
+			PkScript:        inputDetail.Scripts[i],
 			ReceiveTime:     outputInfo.Received.Unix(),
 			FromCoinbase:    outputInfo.FromCoinbase,
 		}
 	}
 
 	var changeScript []byte
-	if req.IncludeChangeScript && totalAmount > dcrutil.Amount(req.TargetAmount) {
+	if req.IncludeChangeScript && inputDetail.Amount > dcrutil.Amount(req.TargetAmount) {
 		changeAddr, err := s.wallet.NewChangeAddress(req.Account)
 		if err != nil {
 			return nil, translateError(err)
@@ -807,7 +807,7 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 
 	return &pb.FundTransactionResponse{
 		SelectedOutputs: selectedOutputs,
-		TotalAmount:     int64(totalAmount),
+		TotalAmount:     int64(inputDetail.Amount),
 		ChangePkScript:  changeScript,
 	}, nil
 }

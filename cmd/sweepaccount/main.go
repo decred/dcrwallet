@@ -157,9 +157,10 @@ func (noInputValue) Error() string { return "no input value" }
 // looked up again by the wallet during the call to signrawtransaction.
 func makeInputSource(outputs []dcrjson.ListUnspentResult) txauthor.InputSource {
 	var (
-		totalInputValue dcrutil.Amount
-		inputs          = make([]*wire.TxIn, 0, len(outputs))
-		sourceErr       error
+		totalInputValue   dcrutil.Amount
+		inputs            = make([]*wire.TxIn, 0, len(outputs))
+		redeemScriptSizes = make([]int, 0, len(outputs))
+		sourceErr         error
 	)
 	for _, output := range outputs {
 		outputAmount, err := dcrutil.NewAmount(output.Amount)
@@ -183,8 +184,7 @@ func makeInputSource(outputs []dcrjson.ListUnspentResult) txauthor.InputSource {
 		previousOutPoint, err := parseOutPoint(&output)
 		if err != nil {
 			sourceErr = fmt.Errorf(
-				"invalid data in listunspent result: %v",
-				err)
+				"invalid data in listunspent result: %v", err)
 			break
 		}
 
@@ -196,8 +196,14 @@ func makeInputSource(outputs []dcrjson.ListUnspentResult) txauthor.InputSource {
 		sourceErr = noInputValue{}
 	}
 
-	return func(dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error) {
-		return totalInputValue, inputs, nil, sourceErr
+	return func(dcrutil.Amount) (*txauthor.InputDetail, error) {
+		inputDetail := txauthor.InputDetail{
+			Amount:            totalInputValue,
+			Inputs:            inputs,
+			Scripts:           nil,
+			RedeemScriptSizes: redeemScriptSizes,
+		}
+		return &inputDetail, sourceErr
 	}
 }
 

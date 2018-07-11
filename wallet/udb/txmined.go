@@ -20,7 +20,9 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/wallet/internal/txsizes"
 	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/txauthor"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -2679,7 +2681,7 @@ func (s *Store) UnspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 // InputSource provides a method (SelectInputs) to incrementally select unspent
 // outputs to use as transaction inputs.
 type InputSource struct {
-	source func(dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error)
+	source func(dcrutil.Amount) (*txauthor.InputDetail, error)
 }
 
 // SelectInputs selects transaction inputs to redeem unspent outputs stored in
@@ -2688,7 +2690,7 @@ type InputSource struct {
 // input amount referenced by the previous transaction outputs, a slice of
 // transaction inputs referencing these outputs, and a slice of previous output
 // scripts from each previous output referenced by the corresponding input.
-func (s *InputSource) SelectInputs(target dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error) {
+func (s *InputSource) SelectInputs(target dcrutil.Amount) (*txauthor.InputDetail, error) {
 	return s.source(target)
 }
 
@@ -2711,12 +2713,13 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 	// Current inputs and their total value.  These are closed over by the
 	// returned input source and reused across multiple calls.
 	var (
-		currentTotal   dcrutil.Amount
-		currentInputs  []*wire.TxIn
-		currentScripts [][]byte
+		currentTotal      dcrutil.Amount
+		currentInputs     []*wire.TxIn
+		currentScripts    [][]byte
+		redeemScriptSizes []int
 	)
 
-	f := func(target dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error) {
+	f := func(target dcrutil.Amount) (*txauthor.InputDetail, error) {
 		for currentTotal < target || target == 0 {
 			var k, v []byte
 			if bucketUnspentCursor == nil {
@@ -2746,11 +2749,11 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			// Check the account first.
 			pkScript, err := s.fastCreditPkScriptLookup(ns, cKey, nil)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 			thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, cVal, nil, pkScript)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 			if account != thisAcct {
 				continue
@@ -2758,7 +2761,7 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 
 			amt, spent, err := fetchRawCreditAmountSpent(cVal)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 
 			// This should never happen since this is already in bucket
@@ -2816,24 +2819,42 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			var op wire.OutPoint
 			err = readCanonicalOutPoint(k, &op)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 			op.Tree = tree
 
 			input := wire.NewTxIn(&op, int64(amt), nil)
 
+			// Unspent credits are currently expected to be P2PKH only.
+			// Multisig outputs have a different criteria to be classified as
+			// credits and stake related P2SH outputs are only spendable at
+			// specific points in the staking process.
+			scriptClass := txscript.GetScriptClass(txscript.DefaultScriptVersion, pkScript)
+			if scriptClass != txscript.PubKeyHashTy {
+				return nil, fmt.Errorf("unexpected script class encountered for credit: %v",
+					scriptClass)
+			}
+
 			currentTotal += amt
 			currentInputs = append(currentInputs, input)
 			currentScripts = append(currentScripts, pkScript)
+			redeemScriptSizes = append(redeemScriptSizes, txsizes.RedeemP2PKHSigScriptSize)
 		}
 
 		// Return the current results if the target was specified and met
 		// or unspent unmined credits can not be included.
 		if (target != 0 && currentTotal >= target) || minConf != 0 {
-			return currentTotal, currentInputs, currentScripts, nil
+			inputDetail := &txauthor.InputDetail{
+				Amount:            currentTotal,
+				Inputs:            currentInputs,
+				Scripts:           currentScripts,
+				RedeemScriptSizes: redeemScriptSizes,
+			}
+
+			return inputDetail, nil
 		}
 
-		// Iterate through unspent unmined credits
+		// Iterate through unspent unmined credits.
 		for currentTotal < target || target == 0 {
 			var k, v []byte
 			if bucketUnminedCreditsCursor == nil {
@@ -2856,11 +2877,11 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			// Check the account first.
 			pkScript, err := s.fastCreditPkScriptLookup(ns, nil, k)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 			thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, nil, v, pkScript)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 			if account != thisAcct {
 				continue
@@ -2868,7 +2889,7 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 
 			amt, err := fetchRawUnminedCreditAmount(v)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 
 			// Skip ticket outputs, as only SSGen can spend these.
@@ -2895,17 +2916,36 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			var op wire.OutPoint
 			err = readCanonicalOutPoint(k, &op)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 			op.Tree = tree
 
 			input := wire.NewTxIn(&op, int64(amt), nil)
 
+			// Unspent credits are currently expected to be P2PKH only.
+			// Multisig outputs have a different criteria to be classified as
+			// credits and stake related P2SH outputs are only spendable at
+			// specific points in the staking process.
+			scriptClass := txscript.GetScriptClass(txscript.DefaultScriptVersion, pkScript)
+			if scriptClass != txscript.PubKeyHashTy {
+				return nil, fmt.Errorf("unexpected script class encountered for credit: %v",
+					scriptClass)
+			}
+
 			currentTotal += amt
 			currentInputs = append(currentInputs, input)
 			currentScripts = append(currentScripts, pkScript)
+			redeemScriptSizes = append(redeemScriptSizes, txsizes.RedeemP2PKHSigScriptSize)
 		}
-		return currentTotal, currentInputs, currentScripts, nil
+
+		inputDetail := &txauthor.InputDetail{
+			Amount:            currentTotal,
+			Inputs:            currentInputs,
+			Scripts:           currentScripts,
+			RedeemScriptSizes: redeemScriptSizes,
+		}
+
+		return inputDetail, nil
 	}
 
 	return InputSource{source: f}

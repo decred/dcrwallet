@@ -123,12 +123,12 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 		case OutputSelectionAlgorithmAll:
 			// Wrap the source with one that always fetches the max amount
 			// available and ignores insufficient balance issues.
-			inputSource = func(dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error) {
-				total, inputs, prevScripts, err := sourceImpl.SelectInputs(dcrutil.MaxAmount)
+			inputSource = func(dcrutil.Amount) (*txauthor.InputDetail, error) {
+				inputDetail, err := sourceImpl.SelectInputs(dcrutil.MaxAmount)
 				if errors.Is(errors.InsufficientBalance, err) {
 					err = nil
 				}
-				return total, inputs, prevScripts, err
+				return inputDetail, err
 			}
 		default:
 			return errors.E(errors.Invalid,
