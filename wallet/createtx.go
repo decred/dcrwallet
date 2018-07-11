@@ -1015,7 +1015,6 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *ext
 // return an error that not enough funds are available.
 func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*chainhash.Hash, error) {
 
-	//const op errors.Op = "wallet.purchaseTickets"
 	n, err := w.NetworkBackend()
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -1270,7 +1269,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		}()
 
 		// Call join split tx request with timeout
-		tx, sesID, inputIds, outputIds, err := req.dcrTxClient.JoinSplitTx(splitTx.Tx, req.dcrTxClient.Config().Timeout)
+		tx, sesID, inputIds, outputIds, joinId, err := req.dcrTxClient.JoinSplitTx(splitTx.Tx, req.dcrTxClient.Config().Timeout)
+		log.Debugf("JoinSessionId %v", joinId)
 		if err != nil {
 			if !req.dcrTxClient.IsShutdown {
 				log.Infof("Error %v in communication with dcrtxmatcher server", err)
@@ -1352,7 +1352,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		}
 
 		// Submit signed input to server
-		signedTx, publisher, err := req.dcrTxClient.SubmitSignedTx(tx, sesID)
+		signedTx, publisher, err := req.dcrTxClient.SubmitSignedTx(tx, sesID, joinId)
 		if err != nil {
 
 			if !req.dcrTxClient.IsShutdown {
@@ -1375,19 +1375,20 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 			log.Info("Will publish the transaction")
 			err = w.publishTx(signedTx, changeSourceFuncs, w.networkBackend)
 			if err != nil {
-				fmt.Println("publishTx error", err)
+				log.Errorf("Error when publish join splittx %v", err)
+				_, err := req.dcrTxClient.PublishResult(nil, sesID, joinId)
 				return ticketHashes, err
 			}
 
-			_, err := req.dcrTxClient.PublishResult(signedTx, sesID)
+			_, err := req.dcrTxClient.PublishResult(signedTx, sesID, joinId)
 			if err != nil {
-				fmt.Println("PublishResult error", err)
+				log.Errorf("Error when publish join splittx %v", err)
 				return ticketHashes, err
 			}
 			publishedTx = signedTx
 			log.Info("Published and sent the joined transaction %v to server", publishedTx.TxHash().String())
 		} else {
-			publishedTx, err = req.dcrTxClient.PublishResult(nil, sesID)
+			publishedTx, err = req.dcrTxClient.PublishResult(nil, sesID, joinId)
 			if err != nil {
 				return ticketHashes, err
 			}

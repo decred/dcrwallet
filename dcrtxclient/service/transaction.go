@@ -25,7 +25,7 @@ func NewTransactionService(conn *grpc.ClientConn) *TransactionService {
 //JoinSplitTx send join transaction request to server
 //When reach minimum required participant and ticker time on server will start join session
 //Each participant sends their inputs outputs transaction to server for merging
-func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx, timeout uint32) (*wire.MsgTx, string, []int32, []int32, error) {
+func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx, timeout uint32) (*wire.MsgTx, string, []int32, []int32, string, error) {
 
 	joinReq := &pb.FindMatchesRequest{
 		Amount: uint64(0),
@@ -35,41 +35,41 @@ func (t *TransactionService) JoinSplitTx(tx *wire.MsgTx, timeout uint32) (*wire.
 	defer cancel()
 	findRes, err := t.client.FindMatches(ctx, joinReq)
 	if err != nil {
-		return nil, "", nil, nil, err
+		return nil, "", nil, nil, "", err
 	}
-	//log.Infof("SessionID %v", findRes.SessionId)
 
 	buffTx := bytes.NewBuffer(nil)
 	buffTx.Grow(tx.SerializeSize())
 	err = tx.BtcEncode(buffTx, 0)
 	if err != nil {
-		return nil, "", nil, nil, err
+		return nil, "", nil, nil, "", err
 	}
 
 	publishReq := &pb.SubmitInputTxReq{
 		SessionId: findRes.SessionId,
+		JoinId:    findRes.JoinId,
 		SplitTx:   buffTx.Bytes(),
 	}
 
 	publishRes, err := t.client.SubmitSplitTx(context.Background(), publishReq)
 	if err != nil {
-		return nil, "", nil, nil, err
+		return nil, "", nil, nil, "", err
 	}
 
 	var ticket wire.MsgTx
 	rbuf := bytes.NewReader(publishRes.TicketTx)
 	err = ticket.BtcDecode(rbuf, 0)
 	if err != nil {
-		return nil, "", nil, nil, err
+		return nil, "", nil, nil, "", err
 	}
 
 	//fmt.Println("JoinSplitTx end", publishRes.InputsIds, findRes.SessionId)
-	return &ticket, findRes.SessionId, publishRes.InputsIds, publishRes.OutputIds, nil
+	return &ticket, findRes.SessionId, publishRes.InputsIds, publishRes.OutputIds, findRes.JoinId, nil
 }
 
 //SubmitSignedTx submits signed participant's inputs to server
 //Server will join signed inputs, outputs of all participants and send back
-func (t *TransactionService) SubmitSignedTx(tx *wire.MsgTx, sesID string) (*wire.MsgTx, bool, error) {
+func (t *TransactionService) SubmitSignedTx(tx *wire.MsgTx, sesID string, joinId string) (*wire.MsgTx, bool, error) {
 
 	buffTx := bytes.NewBuffer(nil)
 	buffTx.Grow(tx.SerializeSize())
@@ -80,6 +80,7 @@ func (t *TransactionService) SubmitSignedTx(tx *wire.MsgTx, sesID string) (*wire
 
 	req := &pb.SignTransactionRequest{
 		SplitTx:   buffTx.Bytes(),
+		JoinId:    joinId,
 		SessionId: sesID,
 	}
 
@@ -101,7 +102,7 @@ func (t *TransactionService) SubmitSignedTx(tx *wire.MsgTx, sesID string) (*wire
 //PublishResult sends published transaction to server
 //If participant is selected for publish transantion, real transaction data is sent to server
 //If not, only sending nil data and waiting for real transaction data back from server
-func (t *TransactionService) PublishResult(tx *wire.MsgTx, sesID string) (*wire.MsgTx, error) {
+func (t *TransactionService) PublishResult(tx *wire.MsgTx, sesID string, joinId string) (*wire.MsgTx, error) {
 	req := &pb.PublishResultRequest{}
 	if tx != nil {
 		buffTx := bytes.NewBuffer(nil)
@@ -113,11 +114,13 @@ func (t *TransactionService) PublishResult(tx *wire.MsgTx, sesID string) (*wire.
 		req = &pb.PublishResultRequest{
 			JoinedTx:  buffTx.Bytes(),
 			SessionId: sesID,
+			JoinId:    joinId,
 		}
 	} else {
 		req = &pb.PublishResultRequest{
 			JoinedTx:  nil,
 			SessionId: sesID,
+			JoinId:    joinId,
 		}
 	}
 
