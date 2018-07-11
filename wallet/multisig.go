@@ -197,15 +197,15 @@ func (w *Wallet) FetchAllRedeemScripts() ([][]byte, error) {
 func (w *Wallet) PrepareRedeemMultiSigOutTxOutput(msgTx *wire.MsgTx, p2shOutput *P2SHMultiSigOutput, pkScript *[]byte) error {
 	const op errors.Op = "wallet.PrepareRedeemMultiSigOutTxOutput"
 
-	scriptSizers := []txsizes.ScriptSizer{}
-	// generate the script sizers for the inputs
+	scriptSizes := []int{}
+	// generate the script sizes for the inputs
 	for range msgTx.TxIn {
-		scriptSizers = append(scriptSizers, txsizes.P2SHScriptSize)
+		scriptSizes = append(scriptSizes, txsizes.RedeemP2SHSigScriptSize)
 	}
 
 	// estimate the output fee
 	txOut := wire.NewTxOut(0, *pkScript)
-	feeSize := txsizes.EstimateSerializeSize(scriptSizers, []*wire.TxOut{txOut}, 0)
+	feeSize := txsizes.EstimateSerializeSize(scriptSizes, []*wire.TxOut{txOut}, 0)
 	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), feeSize)
 	if feeEst >= p2shOutput.OutputAmount {
 		return errors.E(op, errors.Errorf("estimated fee %v is above output value %v",
