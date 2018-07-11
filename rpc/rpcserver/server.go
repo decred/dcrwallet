@@ -941,7 +941,7 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 	return res, nil
 }
 
-func (s *walletServer) GetAccountExtendedKey(ctx context.Context, req *pb.GetAccountExtendedKeyRequest) (*pb.GetAccountExtendedKeyResponse, error) {
+func (s *walletServer) GetAccountExtendedPubKey(ctx context.Context, req *pb.GetAccountExtendedPubKeyRequest) (*pb.GetAccountExtendedPubKeyResponse, error) {
 	// If no account is passed, we provide the extended public key
 	// for the default account number.
 	account := uint32(udb.DefaultAccountNum)
@@ -957,7 +957,7 @@ func (s *walletServer) GetAccountExtendedKey(ctx context.Context, req *pb.GetAcc
 	if err != nil {
 		return nil, err
 	}
-	res := &pb.GetAccountExtendedKeyResponse{
+	res := &pb.GetAccountExtendedPubKeyResponse{
 		AccountExtendedKey: accExtendedKey.String(),
 	}
 	return res, nil

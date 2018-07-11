@@ -627,15 +627,15 @@ but not all sidechain blocks may be known by the wallet.
 
 ___
 
-#### `GetAccountExtendedKey`
+#### `GetAccountExtendedPubKey`
 
-The `GetAccountExtendedKey` method queries the wallet for an account pubkey. If no account is provided, then it returns the master pubkey.
+The `GetAccountExtendedPubKey` method queries the wallet for an account pubkey. If no account is provided, then it returns the master pubkey.
 
-**Request:** `GetAccountExtendedKeyRequest`
+**Request:** `GetAccountExtendedPubKeyRequest`
 
 - `string account`: The account name to retrieve the pubkey.
 
-**Response:** `GetAccountExtendedKeyResponse`
+**Response:** `GetAccountExtendedPubKeyResponse`
 
 - `string extendedkey`: The account's extended key.
 
