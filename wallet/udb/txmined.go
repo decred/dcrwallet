@@ -2825,20 +2825,37 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 
 			input := wire.NewTxIn(&op, int64(amt), nil)
 
-			// Unspent credits are currently expected to be P2PKH only.
-			// Multisig outputs have a different criteria to be classified as
-			// credits and stake related P2SH outputs are only spendable at
-			// specific points in the staking process.
-			scriptClass := txscript.GetScriptClass(txscript.DefaultScriptVersion, pkScript)
-			if scriptClass != txscript.PubKeyHashTy {
-				return nil, fmt.Errorf("unexpected script class encountered for credit: %v",
+			// Unspent credits are currently expected to be either P2PKH or
+			// P2PKH/P2SH nested in a revocation/stakechange/vote output.
+			scriptClass := txscript.GetScriptClass(
+				txscript.DefaultScriptVersion, pkScript)
+
+			switch scriptClass {
+			case txscript.PubKeyHashTy:
+			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy,
+				txscript.StakeGenTy:
+				scriptClass, err = txscript.GetStakeOutSubclass(pkScript)
+				if err != nil {
+					return nil, fmt.Errorf(
+						"failed to extract nested script in stake output: %v",
+						err)
+				}
+			default:
+				return nil, fmt.Errorf(
+					"unexpected script class for credit: %v",
 					scriptClass)
+			}
+
+			if scriptClass != txscript.PubKeyHashTy {
+				log.Errorf("unexpected script class: %v", scriptClass)
+				continue
 			}
 
 			currentTotal += amt
 			currentInputs = append(currentInputs, input)
 			currentScripts = append(currentScripts, pkScript)
-			redeemScriptSizes = append(redeemScriptSizes, txsizes.RedeemP2PKHSigScriptSize)
+			redeemScriptSizes = append(redeemScriptSizes,
+				txsizes.RedeemP2PKHSigScriptSize)
 		}
 
 		// Return the current results if the target was specified and met
@@ -2922,20 +2939,38 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 
 			input := wire.NewTxIn(&op, int64(amt), nil)
 
-			// Unspent credits are currently expected to be P2PKH only.
-			// Multisig outputs have a different criteria to be classified as
-			// credits and stake related P2SH outputs are only spendable at
-			// specific points in the staking process.
-			scriptClass := txscript.GetScriptClass(txscript.DefaultScriptVersion, pkScript)
-			if scriptClass != txscript.PubKeyHashTy {
-				return nil, fmt.Errorf("unexpected script class encountered for credit: %v",
+			// Unspent unmined credits are currently expected to be either
+			// P2PKH or P2PKH/P2SH nested in a revocation/stakechange/vote
+			// output.
+			scriptClass := txscript.GetScriptClass(
+				txscript.DefaultScriptVersion, pkScript)
+
+			switch scriptClass {
+			case txscript.PubKeyHashTy:
+			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy,
+				txscript.StakeGenTy:
+				scriptClass, err = txscript.GetStakeOutSubclass(pkScript)
+				if err != nil {
+					return nil, fmt.Errorf(
+						"failed to extract nested script in stake output: %v",
+						err)
+				}
+			default:
+				return nil, fmt.Errorf(
+					"unexpected script class for credit: %v",
 					scriptClass)
+			}
+
+			if scriptClass != txscript.PubKeyHashTy {
+				log.Errorf("unexpected script class: %v", scriptClass)
+				continue
 			}
 
 			currentTotal += amt
 			currentInputs = append(currentInputs, input)
 			currentScripts = append(currentScripts, pkScript)
-			redeemScriptSizes = append(redeemScriptSizes, txsizes.RedeemP2PKHSigScriptSize)
+			redeemScriptSizes = append(redeemScriptSizes,
+				txsizes.RedeemP2PKHSigScriptSize)
 		}
 
 		inputDetail := &txauthor.InputDetail{
