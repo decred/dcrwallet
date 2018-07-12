@@ -81,7 +81,12 @@
     "txscript",
     "wire"
   ]
+<<<<<<< HEAD
   revision = "60d7fe080fd26ce9a38242a755f4c27474102ccf"
+=======
+  revision = "1bdf1cce5ceb6664d48ab4e33cc6bc193b9331c5"
+  source = "github.com/vctt94/dcrd"
+>>>>>>> 84751bc... Fix method to use optional parameters json
 
 [[projects]]
   name = "github.com/decred/slog"
@@ -99,13 +104,7 @@
     "ptypes/duration",
     "ptypes/timestamp"
   ]
-  revision = "9eb2c01ac278a5d89ce4b2be68fe4500955d8179"
-
-[[projects]]
-  name = "github.com/gorilla/websocket"
-  packages = ["."]
-  revision = "ea4d1f681babbce9545c9c5f3d5194a789c89f5b"
-  version = "v1.2.0"
+  revision = "70b3af33377e7aa25ae42977bed93cc6b90f0373"
 
 [[projects]]
   name = "github.com/gorilla/websocket"
@@ -158,7 +157,7 @@
     "internal/timeseries",
     "trace"
   ]
-  revision = "afe8f62b1d6bbd81f31868121a50b06d8188e1f9"
+  revision = "cffdcf672aee934982473246bc7e9a8ba446aa9b"
 
 [[projects]]
   branch = "master"
@@ -173,7 +172,7 @@
     "unix",
     "windows"
   ]
-  revision = "c4afb3effaa53fd9a06ca61262dc7ce8df4c081b"
+  revision = "1b2967e3c290b7c545b3db0deeda16e9be4f98a2"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -200,7 +199,7 @@
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "80063a038e333bbe006c878e4c5ce4c74d055498"
+  revision = "e92b116572682a5b432ddd840aeaba2a559eeff1"
 
 [[projects]]
   name = "google.golang.org/grpc"
@@ -238,6 +237,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
 <<<<<<< HEAD
+<<<<<<< HEAD
   inputs-digest = "be61a242eddb93b17787f969d3b57626a5d9f969151e6eec2449110d5704ced7"
 =======
 <<<<<<< HEAD
@@ -246,5 +246,8 @@
   inputs-digest = "43289a8839d68da55dc1ba3a1a0818c636913140c98bc7ee43d1b91c557f2b32"
 >>>>>>> f4fa443... add fundrawtransaction command
 >>>>>>> 7401a62... add fundrawtransaction command
+=======
+  inputs-digest = "aee546653e47d3f7a3aebf1d02f963c2d9160dd3dda9637e7cd2758dcf46dfbb"
+>>>>>>> 84751bc... Fix method to use optional parameters json
   solver-name = "gps-cdcl"
   solver-version = 1

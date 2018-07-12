@@ -506,6 +506,8 @@ func dumpPrivKey(s *Server, icmd interface{}) (interface{}, error) {
 	return key, nil
 }
 
+// fundRawTransaction handles a fundrawtransaction request by funding a raw
+// transaction and returning its raw hex and its fee.
 func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.FundRawTransactionCmd)
 	w, ok := s.walletLoader.LoadedWallet()
@@ -520,21 +522,9 @@ func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 		}
 		return nil, err
 	}
-
-	// use provided fee per Kb if specified
 	feePerKb := w.RelayFee()
-	if cmd.FeeRate != nil {
-		var err error
-		feePerKb, err = dcrutil.NewAmount(*cmd.FeeRate)
-		if err != nil {
-			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
-		}
-	}
-	// use provided required confirmations if specified
 	requiredConfs := int32(1)
-	if cmd.RequiredConfirmations != nil {
-		requiredConfs = *cmd.RequiredConfirmations
-	}
+	changeAccount := uint32(0)
 
 	var mtx wire.MsgTx
 	decodedTx, err := hex.DecodeString(cmd.HexString)
@@ -556,25 +546,14 @@ func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 		Account:               accNumber,
 		RequiredConfirmations: requiredConfs,
 	}
-	totalAmount, inputs, _, err := w.SelectInputs(dcrutil.Amount(amount), policy)
+	inputDetails, err := w.SelectInputs(dcrutil.Amount(amount), policy)
 	if err != nil {
 		return nil, err
 	}
 
-	mtx.TxIn = append(mtx.TxIn, inputs...)
+	mtx.TxIn = append(mtx.TxIn, inputDetails.Inputs...)
 
-	// use provided change account if specified
-	// use default account otherwise
-	changeAccount := uint32(0)
-	if cmd.ChangeAccount != nil {
-		changeAccount, err = w.AccountNumber(*cmd.ChangeAccount)
-		if err != nil {
-			if errors.Is(errors.NotExist, err) {
-				return nil, errAccountNotFound
-			}
-			return nil, err
-		}
-	}
+	totalAmount := inputDetails.Amount
 	if totalAmount > amount {
 		addr, err := w.NewChangeAddress(changeAccount)
 		if err != nil {
@@ -589,9 +568,34 @@ func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 		mtx.TxOut = append(mtx.TxOut, changeOut)
 	}
 
-	if *cmd.LockUnspents {
-		for _, txIn := range mtx.TxIn {
-			w.LockOutpoint(txIn.PreviousOutPoint)
+	if cmd.Options != nil {
+		// use provided fee per Kb if specified
+		if cmd.Options.FeeRate != nil {
+			var err error
+			feePerKb, err = dcrutil.NewAmount(*cmd.Options.FeeRate)
+			if err != nil {
+				return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+			}
+		}
+		// use provided required confirmations if specified
+		if cmd.Options.RequiredConfirmations != nil {
+			requiredConfs = *cmd.Options.RequiredConfirmations
+		}
+		if cmd.Options.LockUnspents != nil && *cmd.Options.LockUnspents {
+			for _, txIn := range mtx.TxIn {
+				w.LockOutpoint(txIn.PreviousOutPoint)
+			}
+		}
+		// use provided change account if specified
+		// use default account otherwise
+		if cmd.Options.ChangeAccount != nil {
+			changeAccount, err = w.AccountNumber(*cmd.Options.ChangeAccount)
+			if err != nil {
+				if errors.Is(errors.NotExist, err) {
+					return nil, errAccountNotFound
+				}
+				return nil, err
+			}
 		}
 	}
 

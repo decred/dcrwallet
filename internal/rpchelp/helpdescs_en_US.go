@@ -49,13 +49,16 @@ var helpDescsEnUS = map[string]string{
 	"dumpprivkey--result0":  "The WIF-encoded private key",
 
 	// FundRawTransactionCmd help.
-	"fundrawtransaction--synopsis":             "Add inputs to a transaction until it has enough in value to meet its out value.",
-	"fundrawtransaction-hexstring":             "The raw transaction encoded as a hexadecimal string",
-	"fundrawtransaction-fundaccount":           "The account string which will fund the transaction",
-	"fundrawtransaction-changeaccount":         "Account name the change will be send to (default=\"default\")",
-	"fundrawtransaction-lockunspents":          "Lock selected unspent outputs",
-	"fundrawtransaction-feerate":               "Set a specific fee rate in DCR/kB",
-	"fundrawtransaction-requiredconfirmations": "Number of blocks to confirm the transaction",
+	"fundrawtransaction--synopsis":   "Add inputs to a transaction until it has enough in value to meet its out value.",
+	"fundrawtransaction-hexstring":   "The raw transaction encoded as a hexadecimal string",
+	"fundrawtransaction-fundaccount": "The account string which will fund the transaction",
+	"fundrawtransaction-options":     "The optional inputs to fund a raw transaction",
+
+	// FundRawTransactionOptions
+	"fundrawtransactionoptions-changeaccount":         "Account name the change will be send to (default=\"default\")",
+	"fundrawtransactionoptions-lockunspents":          "Lock selected unspent outputs",
+	"fundrawtransactionoptions-feerate":               "Set a specific fee rate in DCR/kB",
+	"fundrawtransactionoptions-requiredconfirmations": "Number of blocks to confirm the transaction",
 
 	// FundRawTransactionResult help.
 	"fundrawtransactionresult-hex": "The resulting raw transaction (hex-encoded string)",
