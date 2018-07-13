@@ -933,7 +933,7 @@ message GetAccountExtendedPubKeyRequest {
 }
 
 message GetAccountExtendedPubKeyResponse {
-	string AccountExtendedPubKey = 1;
+	string acc_extended_pub_key = 1;
 }
 
 message CommittedTicketsResponse {

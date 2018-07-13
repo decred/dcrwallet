@@ -947,7 +947,7 @@ func (s *walletServer) GetAccountExtendedPubKey(ctx context.Context, req *pb.Get
 		return nil, err
 	}
 	res := &pb.GetAccountExtendedPubKeyResponse{
-		AccountExtendedPubKey: accExtendedPubKey.String(),
+		AccExtendedPubKey: accExtendedPubKey.String(),
 	}
 	return res, nil
 }

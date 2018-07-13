@@ -637,7 +637,7 @@ The `GetAccountExtendedPubKey` method queries the wallet for an account pubkey. 
 
 **Response:** `GetAccountExtendedPubKeyResponse`
 
-- `string extendedkey`: The account's extended key.
+- `string acc_extended_pub_key`: The account's extended key.
 
 **Expected errors:**
 
