@@ -23,6 +23,8 @@ import (
 	"google.golang.org/grpc/grpclog"
 )
 
+var log = slog.Disabled
+
 // UseLogger sets the logger to use for the gRPC server.
 func UseLogger(l slog.Logger) {
 	grpclog.SetLogger(logger{l})

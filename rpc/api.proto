@@ -72,6 +72,8 @@ service WalletLoaderService {
 	rpc DiscoverAddresses (DiscoverAddressesRequest) returns (DiscoverAddressesResponse);
 	rpc SubscribeToBlockNotifications (SubscribeToBlockNotificationsRequest) returns (SubscribeToBlockNotificationsResponse);
 	rpc FetchHeaders(FetchHeadersRequest) returns (FetchHeadersResponse);
+	rpc FetchMissingCFilters(FetchMissingCFiltersRequest) returns (FetchMissingCFiltersResponse);
+	rpc RescanPoint(RescanPointRequest) returns (RescanPointResponse);
 }
 
 service TicketBuyerService {
@@ -188,6 +190,7 @@ message RenameAccountResponse {}
 
 message RescanRequest {
 	int32 begin_height = 1;
+	bytes begin_hash = 2;
 }
 message RescanResponse {
 	int32 rescanned_through = 1;
@@ -659,8 +662,12 @@ message StartConsensusRpcResponse {}
 message DiscoverAddressesRequest {
 	bool discover_accounts = 1;
 	bytes private_passphrase = 2;
+	bytes starting_block_hash = 3;
 }
 message DiscoverAddressesResponse {}
+
+message FetchMissingCFiltersRequest {}
+message FetchMissingCFiltersResponse {}
 
 message SubscribeToBlockNotificationsRequest {}
 message SubscribeToBlockNotificationsResponse {}
@@ -672,6 +679,11 @@ message FetchHeadersResponse {
 	int32 first_new_block_height = 3;
 	bytes main_chain_tip_block_hash = 4;
 	int32 main_chain_tip_block_height = 5;
+}
+
+message RescanPointRequest {}
+message RescanPointResponse {
+	bytes rescan_point_hash = 1;
 }
 
 message GenerateRandomSeedRequest {

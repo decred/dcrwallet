@@ -2382,7 +2382,7 @@ type GetTicketsResult struct {
 // early without reading any additional transactions when true.
 //
 // The arguments to f may be reused and should not be kept by the caller.
-func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
+func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), startBlock, endBlock *BlockIdentifier) error {
 	const op errors.Op = "wallet.GetTickets"
 	var start, end int32 = 0, -1
 
@@ -2450,7 +2450,7 @@ func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, e
 				if ticketInfo == nil {
 					continue
 				}
-				tickets = append(tickets, makeTicketSummary(chainClient, dbtx, w, ticketInfo))
+				tickets = append(tickets, makeTicketSummary(dbtx, w, ticketInfo))
 			}
 
 			if len(tickets) == 0 {
