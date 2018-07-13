@@ -57,9 +57,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "4.39.0"
+	semverString = "4.40.0"
 	semverMajor  = 4
-	semverMinor  = 39
+	semverMinor  = 40
 	semverPatch  = 0
 )
 
@@ -942,7 +942,6 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 }
 
 func (s *walletServer) GetAccountExtendedPubKey(ctx context.Context, req *pb.GetAccountExtendedPubKeyRequest) (*pb.GetAccountExtendedPubKeyResponse, error) {
-
 	accExtendedPubKey, err := s.wallet.MasterPubKey(req.AccountNumber)
 	if err != nil {
 		return nil, err
