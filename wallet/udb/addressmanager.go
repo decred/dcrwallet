@@ -437,39 +437,45 @@ func (m *Manager) GetMasterPubkey(ns walletdb.ReadBucket, account uint32) (strin
 }
 
 // loadAccountInfo attempts to load and cache information about the given
-// account from the database.   This includes what is necessary to derive new
+// account from the database. This includes what is necessary to derive new
 // keys for it and track the state of the internal and external branches.
 //
 // This function MUST be called with the manager lock held for writes.
-func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*accountInfo, error) {
-	// Return the account info from cache if it's available.
-	if acctInfo, ok := m.acctInfo[account]; ok {
-		return acctInfo, nil
+func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32, returnRow bool) (*accountInfo, *dbBIP0044AccountRow, error) {
+	// Return the account info from cache if it's available and the row isn't
+	// required.
+	acctInfo, acctOk := m.acctInfo[account]
+	if acctOk && !returnRow {
+		return acctInfo, nil, nil
 	}
 
-	// The account is either invalid or just wasn't cached, so attempt to
-	// load the information from the database.
 	row, err := fetchAccountInfo(ns, account, DBVersion)
 	if err != nil {
 		if errors.Is(errors.NotExist, err) {
-			return nil, err
+			return nil, nil, err
 		}
-		return nil, errors.E(errors.NotExist, errors.Errorf("no account %d", account))
+		return nil, nil, errors.E(errors.NotExist,
+			errors.Errorf("no account %d", account))
+	}
+
+	if acctOk && returnRow {
+		return acctInfo, row, nil
 	}
 
 	// Use the crypto public key to decrypt the account public extended key.
 	serializedKeyPub, err := m.cryptoKeyPub.Decrypt(row.pubKeyEncrypted)
 	if err != nil {
-		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt account %d pubkey: %v", account, err))
+		return nil, nil, errors.E(errors.Crypto,
+			errors.Errorf("decrypt account %d pubkey: %v", account, err))
 	}
 	acctKeyPub, err := hdkeychain.NewKeyFromString(string(serializedKeyPub))
 	if err != nil {
-		return nil, errors.E(errors.IO, err)
+		return nil, nil, errors.E(errors.IO, err)
 	}
 
-	// Create the new account info with the known information.  The rest
+	// Create the new account info with the known information. The rest
 	// of the fields are filled out below.
-	acctInfo := &accountInfo{
+	acctInfo = &accountInfo{
 		acctName:         row.name,
 		acctKeyEncrypted: row.privKeyEncrypted,
 		acctKeyPub:       acctKeyPub,
@@ -480,28 +486,29 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 		// extended keys.
 		decrypted, err := m.cryptoKeyPriv.Decrypt(acctInfo.acctKeyEncrypted)
 		if err != nil {
-			return nil, errors.E(errors.Crypto, errors.Errorf("decrypt account %d privkey: %v", account, err))
+			return nil, nil, errors.E(errors.Crypto,
+				errors.Errorf("decrypt account %d privkey: %v", account, err))
 		}
 
 		acctKeyPriv, err := hdkeychain.NewKeyFromString(string(decrypted))
 		if err != nil {
-			return nil, errors.E(errors.IO, err)
+			return nil, nil, errors.E(errors.IO, err)
 		}
 		acctInfo.acctKeyPriv = acctKeyPriv
 	}
 
 	// Add it to the cache and return it when everything is successful.
 	m.acctInfo[account] = acctInfo
-	return acctInfo, nil
+
+	if returnRow {
+		return acctInfo, row, nil
+	}
+
+	return acctInfo, nil, nil
 }
 
 // AccountProperties returns properties associated with the account, such as the
 // account number, name, and the number of derived and imported keys.
-//
-// TODO: Instead of opening a second read transaction after making a change, and
-// then fetching the account properties with a new read tx, this can be made
-// more performant by simply returning the new account properties during the
-// change.
 func (m *Manager) AccountProperties(ns walletdb.ReadBucket, account uint32) (*AccountProperties, error) {
 	defer m.mtx.RUnlock()
 	m.mtx.RLock()
@@ -520,15 +527,11 @@ func (m *Manager) AccountProperties(ns walletdb.ReadBucket, account uint32) (*Ac
 	// imported account cannot contain non-imported keys, the external and
 	// internal key counts for it are zero.
 	if account != ImportedAddrAccount {
-		acctInfo, err := m.loadAccountInfo(ns, account)
+		acctInfo, row, err := m.loadAccountInfo(ns, account, true)
 		if err != nil {
 			return nil, err
 		}
 		props.AccountName = acctInfo.acctName
-		row, err := fetchAccountInfo(ns, account, DBVersion)
-		if err != nil {
-			return nil, errors.E(errors.IO, err)
-		}
 		props.LastUsedExternalIndex = row.lastUsedExternalIndex
 		props.LastUsedInternalIndex = row.lastUsedInternalIndex
 		props.LastReturnedExternalIndex = row.lastReturnedExternalIndex
@@ -560,7 +563,7 @@ func (m *Manager) AccountExtendedPubKey(dbtx walletdb.ReadTx, account uint32) (*
 		return nil, errors.E(errors.Invalid, "imported account has no extended pubkey")
 	}
 	m.mtx.Lock()
-	acctInfo, err := m.loadAccountInfo(ns, account)
+	acctInfo, _, err := m.loadAccountInfo(ns, account, false)
 	m.mtx.Unlock()
 	if err != nil {
 		return nil, err
@@ -775,7 +778,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 // This function MUST be called with the manager lock held for writes.
 func (m *Manager) deriveKeyFromPath(ns walletdb.ReadBucket, account, branch, index uint32, private bool) (*hdkeychain.ExtendedKey, error) {
 	// Look up the account key information.
-	acctInfo, err := m.loadAccountInfo(ns, account)
+	acctInfo, _, err := m.loadAccountInfo(ns, account, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1524,7 +1527,7 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 	// While imported accounts are also saved as BIP0044 account types, the
 	// above check prevents this from this code ever continuing on imported
 	// accounts.
-	acctInfo, err := m.loadAccountInfo(ns, account)
+	acctInfo, _, err := m.loadAccountInfo(ns, account, false)
 	if err != nil {
 		return err
 	}
