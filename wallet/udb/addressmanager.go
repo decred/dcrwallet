@@ -1580,7 +1580,7 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 			break
 		}
 
-		err = putChainedAddress(ns, addr.Hash160()[:], account, ssFull, branch, child)
+		err = PutChainedAddress(ns, addr.Hash160()[:], account, ssFull, branch, child)
 		if err != nil {
 			return err
 		}

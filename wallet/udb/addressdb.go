@@ -8,8 +8,10 @@ package udb
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
 	"time"
 
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 )
@@ -139,6 +141,12 @@ var (
 	// The index needs to be updated whenever the account name
 	// and id changes e.g. RenameAccount
 	acctNameIdxBucketName = []byte("acctnameidx")
+
+	// addrTxIdxBucketName is used to create an index mapping an address
+	// to transactions involving the address.
+	// Entries in this index may map:
+	// addr bucket -> tx hash => null
+	addrTxIdxBucketName = []byte("addrtxidx")
 
 	// acctIDIdxBucketName is used to create an index
 	// mapping an account id to the corresponding
@@ -795,6 +803,34 @@ func putAddrAccountIndex(ns walletdb.ReadWriteBucket, account uint32, addrHash [
 	return nil
 }
 
+// PutAddrTransactionIndex stores the given key to the address transaction
+// index of the database.
+func PutAddrTransactionIndex(ns walletdb.ReadWriteBucket, addrHash []byte, txHash *chainhash.Hash) error {
+	var err error
+	bucket := ns.NestedReadWriteBucket(addrTxIdxBucketName)
+	if bucket == nil {
+		return fmt.Errorf("failed to fetch address tx index namespace %s", addrTxIdxBucketName)
+	}
+
+	addrBucket, err := bucket.CreateBucketIfNotExists(addrHash)
+	if err != nil {
+		return err
+	}
+
+	err = addrBucket.Put(txHash[:], nil)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
+// FetchAddrTransactionIndex fetches a bucket containing all transactions
+// related to the provided address from the index.
+func FetchAddrTransactionIndex(ns walletdb.ReadBucket, addrHash []byte) walletdb.ReadBucket {
+	indexNamespace := ns.NestedReadBucket(addrTxIdxBucketName)
+	return indexNamespace.NestedReadBucket(addrHash)
+}
+
 // putAccountRow stores the provided account information to the database.  This
 // is used a common base for storing the various account types.
 func putAccountRow(ns walletdb.ReadWriteBucket, account uint32, row *dbAccountRow) error {
@@ -1077,9 +1113,9 @@ func putAddress(ns walletdb.ReadWriteBucket, addressID []byte, row *dbAddressRow
 	return putAddrAccountIndex(ns, row.account, addrHash[:])
 }
 
-// putChainedAddress stores the provided chained address information to the
+// PutChainedAddress stores the provided chained address information to the
 // database.
-func putChainedAddress(ns walletdb.ReadWriteBucket, addressID []byte, account uint32,
+func PutChainedAddress(ns walletdb.ReadWriteBucket, addressID []byte, account uint32,
 	status syncStatus, branch, index uint32) error {
 
 	addrRow := dbAddressRow{
@@ -1407,6 +1443,11 @@ func createManagerNS(ns walletdb.ReadWriteBucket) error {
 	}
 
 	_, err = ns.CreateBucket(acctNameIdxBucketName)
+	if err != nil {
+		errors.E(errors.IO, err)
+	}
+
+	_, err = ns.CreateBucket(addrTxIdxBucketName)
 	if err != nil {
 		errors.E(errors.IO, err)
 	}

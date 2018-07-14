@@ -573,14 +573,14 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord
 			for _, addr := range addrs {
 				ma, err := w.Manager.Address(addrmgrNs, addr)
 				if err != nil {
-					// Missing addresses are skipped.  Other errors should be
-					// propagated.
-					if errors.Is(errors.NotExist, err) {
-						continue
+					// Missing addresses are skipped.  Other errors should
+					// be propagated.
+					if !errors.Is(errors.NotExist, err) {
+						return err
 					}
-					return errors.E(op, err)
 				}
 				isRelevant = true
+				udb.PutAddrTransactionIndex(addrmgrNs, addr.Hash160()[:], &rec.Hash)
 				err = w.markUsedAddress(op, dbtx, ma)
 				if err != nil {
 					return err
@@ -666,6 +666,8 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord
 		for _, addr := range addrs {
 			ma, err := w.Manager.Address(addrmgrNs, addr)
 			if err == nil {
+				udb.PutAddrTransactionIndex(addrmgrNs, addr.Hash160()[:], &rec.Hash)
+
 				err = w.TxStore.AddCredit(txmgrNs, rec, blockMeta,
 					uint32(i), ma.Internal(), ma.Account())
 				if err != nil {
@@ -730,7 +732,9 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord
 				_, err := w.Manager.Address(addrmgrNs, maddr)
 				// An address we own; handle accordingly.
 				if err == nil {
-					err := w.TxStore.AddMultisigOut(
+					udb.PutAddrTransactionIndex(addrmgrNs, maddr.Hash160()[:], &rec.Hash)
+
+					err = w.TxStore.AddMultisigOut(
 						txmgrNs, rec, blockMeta, uint32(i))
 					if err != nil {
 						// This will throw if there are multiple private keys
