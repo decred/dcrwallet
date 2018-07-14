@@ -533,8 +533,7 @@ func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	}
 	err = mtx.Deserialize(bytes.NewReader(decodedTx))
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "Could not decode Tx: %v",
-			err)
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 	}
 
 	amount := dcrutil.Amount(int64(feePerKb))
