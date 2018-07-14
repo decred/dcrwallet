@@ -6,10 +6,12 @@ package udb
 
 import (
 	"crypto/sha256"
+	"fmt"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -80,24 +82,30 @@ const (
 	// transactions.
 	hasExpiryFixedVersion = 9
 
+	// addressTransactionIndexVersion is the tenth version of the database.
+	// It adds an address transaction index for all wallet owned P2PKH and
+	// P2SH address types.
+	addressTransactionIndexVersion = 10
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = hasExpiryFixedVersion
+	DBVersion = addressTransactionIndexVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
 // upgrade the database to the next version.  Note that there was never a
 // version zero so upgrades[0] is nil.
 var upgrades = [...]func(walletdb.ReadWriteTx, []byte) error{
-	lastUsedAddressIndexVersion - 1: lastUsedAddressIndexUpgrade,
-	votingPreferencesVersion - 1:    votingPreferencesUpgrade,
-	noEncryptedSeedVersion - 1:      noEncryptedSeedUpgrade,
-	lastReturnedAddressVersion - 1:  lastReturnedAddressUpgrade,
-	ticketBucketVersion - 1:         ticketBucketUpgrade,
-	slip0044CoinTypeVersion - 1:     slip0044CoinTypeUpgrade,
-	hasExpiryVersion - 1:            hasExpiryUpgrade,
-	hasExpiryFixedVersion - 1:       hasExpiryFixedUpgrade,
+	lastUsedAddressIndexVersion - 1:    lastUsedAddressIndexUpgrade,
+	votingPreferencesVersion - 1:       votingPreferencesUpgrade,
+	noEncryptedSeedVersion - 1:         noEncryptedSeedUpgrade,
+	lastReturnedAddressVersion - 1:     lastReturnedAddressUpgrade,
+	ticketBucketVersion - 1:            ticketBucketUpgrade,
+	slip0044CoinTypeVersion - 1:        slip0044CoinTypeUpgrade,
+	hasExpiryVersion - 1:               hasExpiryUpgrade,
+	hasExpiryFixedVersion - 1:          hasExpiryFixedUpgrade,
+	addressTransactionIndexVersion - 1: addressTransactionIndexUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
@@ -676,6 +684,205 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) err
 
 	for k, v := range unminedCreditsKV {
 		err = unminedCreditsBucket.Put([]byte(k), v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func addressTransactionIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+	const oldVersion = 9
+	const newVersion = 10
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	txmgrBucket := tx.ReadWriteBucket(wtxmgrBucketKey)
+	addrmgrBucket := tx.ReadWriteBucket(waddrmgrBucketKey)
+
+	// Assert this function is only called on version 9 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "addrTxIdxUpgrade inappropriately called")
+	}
+
+	_, err = addrmgrBucket.CreateBucketIfNotExists(addrTxIdxBucketName)
+	if err != nil {
+		return err
+	}
+
+	process := func(rec *TxRecord, kv *map[chainhash.Hash]dcrutil.Address) error {
+		// Handle input scripts that contain P2PKs that we care about.
+		for _, input := range rec.MsgTx.TxIn {
+			if txscript.IsMultisigSigScript(input.SignatureScript) {
+				rs, err := txscript.MultisigRedeemScriptFromScriptSig(
+					input.SignatureScript)
+				if err != nil {
+					return err
+				}
+
+				class, addrs, _, err := txscript.ExtractPkScriptAddrs(
+					txscript.DefaultScriptVersion, rs, &chaincfg.MainNetParams)
+				if err != nil {
+					// Non-standard outputs are skipped.
+					continue
+				}
+				if class != txscript.MultiSigTy {
+					// This should never happen, but be paranoid.
+					continue
+				}
+
+				for _, addr := range addrs {
+					walletOwned := existsAddress(addrmgrBucket, addr.Hash160()[:])
+					if walletOwned {
+						(*kv)[rec.Hash] = addr
+					}
+				}
+			}
+		}
+
+		// Check every output to determine whether it is controlled
+		// by a wallet key.
+		for _, output := range rec.MsgTx.TxOut {
+			// Ignore unspendable outputs.
+			if output.Value == 0 {
+				continue
+			}
+
+			class, addrs, _, err := txscript.ExtractPkScriptAddrs(output.Version,
+				output.PkScript, &chaincfg.TestNet2Params)
+			if err != nil {
+				// Non-standard outputs are skipped.
+				continue
+			}
+
+			for _, addr := range addrs {
+				walletOwned := existsAddress(addrmgrBucket, addr.Hash160()[:])
+				if walletOwned {
+					(*kv)[rec.Hash] = addr
+				}
+			}
+
+			// Handle P2SH addresses that are multisignature scripts
+			// with keys that are wallet owned.
+			if class == txscript.ScriptHashTy {
+				var expandedScript []byte
+				cryptoKeyScript, err := newCryptoKey()
+				if err != nil {
+					return err
+				}
+
+				for _, addr := range addrs {
+					// Search both the script store in the tx store
+					// and the address manager for the redeem script.
+					expandedScript = existsTxScript(txmgrBucket,
+						addr.ScriptAddress())
+					if expandedScript == nil {
+						addrInterface, err := fetchAddress(addrmgrBucket, addr.Hash160()[:])
+						if err != nil {
+							return err
+						}
+
+						switch a := addrInterface.(type) {
+						case *dbScriptAddressRow:
+							expandedScript, err = cryptoKeyScript.Decrypt(a.encryptedScript)
+							if err != nil {
+								return errors.New("failed to decrypt imported script")
+							}
+
+						case *dbChainAddressRow, *dbImportedAddressRow:
+							return errors.New("redeem scripts can only be returned for P2SH addresses")
+
+						default:
+							return fmt.Errorf("unhandled database address type %T", addrInterface)
+						}
+					}
+				}
+
+				// Otherwise, extract the actual addresses and
+				// see if any belong to the wallet.
+				expClass, multisigAddrs, _, err := txscript.ExtractPkScriptAddrs(
+					txscript.DefaultScriptVersion,
+					expandedScript, &chaincfg.MainNetParams)
+				if err != nil {
+					return err
+				}
+
+				// Skip non-multisig scripts.
+				if expClass != txscript.MultiSigTy {
+					continue
+				}
+
+				for _, maddr := range multisigAddrs {
+					walletOwned := existsAddress(addrmgrBucket, maddr.Hash160()[:])
+					if walletOwned {
+						(*kv)[rec.Hash] = maddr
+					}
+				}
+			}
+		}
+
+		return nil
+	}
+
+	// Iterate through all mined transactions.
+	minedTxBucket := txmgrBucket.NestedReadWriteBucket(bucketTxRecords)
+	cursor := minedTxBucket.ReadCursor()
+	minedIndexKV := map[chainhash.Hash]dcrutil.Address{}
+	for k, v := cursor.First(); v != nil; k, v = cursor.Next() {
+		h := new(chainhash.Hash)
+		r := new(TxRecord)
+
+		err := readRawTxRecordHash(k, h)
+		if err != nil {
+			return err
+		}
+
+		err = readRawTxRecord(h, v, r)
+		if err != nil {
+			return err
+		}
+
+		err = process(r, &minedIndexKV)
+		if err != nil {
+			return err
+		}
+	}
+
+	for key, value := range minedIndexKV {
+		err := PutAddrTransactionIndex(addrmgrBucket, value.Hash160()[:], &key)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Iterate through all unmined transactions.
+	unminedTxBucket := txmgrBucket.NestedReadWriteBucket(bucketUnmined)
+	cursor = unminedTxBucket.ReadCursor()
+	unminedIndexKV := map[chainhash.Hash]dcrutil.Address{}
+	for k, v := cursor.First(); v != nil; k, v = cursor.Next() {
+		r := new(TxRecord)
+
+		h, err := chainhash.NewHash(k)
+		if err != nil {
+			return err
+		}
+
+		err = readRawTxRecord(h, v, r)
+		if err != nil {
+			return err
+		}
+
+		err = process(r, &minedIndexKV)
+		if err != nil {
+			return err
+		}
+	}
+
+	for key, value := range unminedIndexKV {
+		err := PutAddrTransactionIndex(addrmgrBucket, value.Hash160()[:], &key)
 		if err != nil {
 			return err
 		}

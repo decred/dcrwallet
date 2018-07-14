@@ -17,6 +17,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	_ "github.com/decred/dcrwallet/wallet/drivers/bdb"
 	"github.com/decred/dcrwallet/wallet/internal/walletdb"
@@ -34,6 +35,7 @@ var dbUpgradeTests = [...]struct {
 	// No upgrade test for V7, it is a backwards-compatible upgrade
 	{verifyV8Upgrade, "v7.db.gz"},
 	// No upgrade test for V9, it is a fix for V8 and the previous test still applies
+	{verifyV10Upgrade, "v9.db.gz"},
 }
 
 var pubPass = []byte("public")
@@ -405,6 +407,39 @@ func verifyV8Upgrade(t *testing.T, db walletdb.DB) {
 		if minedTxWithoutExpiryCount != 3 {
 			t.Errorf("expected 3 txs without expiries set, got %d", minedTxWithoutExpiryCount)
 		}
+		return err
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func verifyV10Upgrade(t *testing.T, db walletdb.DB) {
+	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
+		addr, err := dcrutil.DecodeAddress("TshrHX1vRRRNzMDydqNJ5tFf2VJVGoztYyM")
+		if err != nil {
+			t.Error(err)
+		}
+
+		ns := tx.ReadBucket(waddrmgrBucketKey)
+		bucket := FetchAddrTransactionIndex(ns, addr.Hash160()[:])
+		if bucket == nil {
+			t.Error("index bucket is nil")
+		}
+
+		var txCount uint32
+		err = bucket.ForEach(func(k []byte, v []byte) error {
+			txCount++
+			return nil
+		})
+		if err != nil {
+			t.Error(err)
+		}
+
+		if txCount != 6 {
+			t.Errorf("expected 6 txs indexed for address, got %d", txCount)
+		}
+
 		return err
 	})
 	if err != nil {
