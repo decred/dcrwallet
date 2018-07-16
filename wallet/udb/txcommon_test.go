@@ -16,6 +16,8 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/gcs"
+	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/wire"
 	_ "github.com/decred/dcrwallet/wallet/drivers/bdb"
 	"github.com/decred/dcrwallet/wallet/internal/walletdb"
@@ -38,20 +40,11 @@ func setup() (db walletdb.DB, s *Store, teardown func(), err error) {
 		db.Close()
 		os.RemoveAll(tmpDir)
 	}
-	tx, err := db.BeginReadWriteTx()
+	err = Initialize(db, &chaincfg.TestNet2Params, seed, pubPassphrase, privPassphrase)
 	if err != nil {
 		return
 	}
-	defer tx.Commit()
-	ns, err := tx.CreateTopLevelBucket(wtxmgrBucketKey)
-	if err != nil {
-		return
-	}
-	_, err = tx.CreateTopLevelBucket(waddrmgrBucketKey)
-	if err != nil {
-		return
-	}
-	err = createStore(ns, &chaincfg.TestNet2Params)
+	err = Upgrade(db, pubPassphrase, &chaincfg.TestNet2Params)
 	if err != nil {
 		return
 	}
@@ -129,6 +122,14 @@ func makeHeaderDataSlice(headers ...*wire.BlockHeader) []BlockHeaderData {
 		data = append(data, makeHeaderData(h))
 	}
 	return data
+}
+
+func emptyFilters(n int) []*gcs.Filter {
+	f := make([]*gcs.Filter, n)
+	for i := range f {
+		f[i], _ = gcs.FromBytes(0, blockcf.P, nil)
+	}
+	return f
 }
 
 func makeBlockMeta(h *wire.BlockHeader) *BlockMeta {

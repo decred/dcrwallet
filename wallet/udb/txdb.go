@@ -144,6 +144,7 @@ var (
 	bucketMultisigUsp             = []byte("mu")
 	bucketStakeInvalidatedCredits = []byte("ic")
 	bucketStakeInvalidatedDebits  = []byte("id")
+	bucketCFilters                = []byte("cf")
 )
 
 // Root (namespace) bucket keys
@@ -152,6 +153,8 @@ var (
 	rootVersion      = []byte("vers")
 	rootMinedBalance = []byte("bal")
 	rootTipBlock     = []byte("tip")
+	rootHaveCFilters = []byte("havecfilters")
+	rootLastTxsBlock = []byte("lasttxsblock")
 )
 
 // The root bucket's mined balance k/v pair records the total balance for all
@@ -224,7 +227,7 @@ func keyBlockRecord(height int32) []byte {
 	return k
 }
 
-func valueBlockRecordEmptyFromHeader(blockHash *chainhash.Hash, header *RawBlockHeader) []byte {
+func valueBlockRecordEmptyFromHeader(blockHash []byte, header []byte) []byte {
 	v := make([]byte, 47)
 	copy(v, blockHash[:])
 	byteOrder.PutUint64(v[32:40], uint64(extractBlockHeaderUnixTime(header[:])))
@@ -1896,6 +1899,29 @@ func existsMultisigOutUS(ns walletdb.ReadBucket, k []byte) bool {
 	return v != nil
 }
 
+// The compact filter bucket stores serialized regular compact filters for
+// blocks.  This bucket was added during a database upgrade, but the actual
+// filters are not saved during the upgrade and an additional step to save all
+// compact filters for main chain blocks is required before any additional
+// blocks can be processed.
+//
+// Compact filters are keyed by their block hash.  The value is the serialized
+// filter.
+
+func putRawCFilter(ns walletdb.ReadWriteBucket, k, v []byte) error {
+	return ns.NestedReadWriteBucket(bucketCFilters).Put(k, v)
+}
+
+func fetchRawCFilter(ns walletdb.ReadBucket, k []byte) ([]byte, error) {
+	v := ns.NestedReadBucket(bucketCFilters).Get(k)
+	if v == nil {
+		var hash chainhash.Hash
+		copy(hash[:], k)
+		return nil, errors.E(errors.NotExist, errors.Errorf("no cfilter saved for block %v", &hash))
+	}
+	return v, nil
+}
+
 // createStore creates the tx store (with the latest db version) in the passed
 // namespace.
 func createStore(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params) error {
@@ -2006,7 +2032,7 @@ func createStore(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params) erro
 	// Insert block record for the genesis block.
 	genesisBlockKey := keyBlockRecord(0)
 	genesisBlockVal := valueBlockRecordEmptyFromHeader(
-		chainParams.GenesisHash, &serializedGenesisBlock)
+		chainParams.GenesisHash[:], serializedGenesisBlock[:])
 	err = putRawBlockRecord(ns, genesisBlockKey, genesisBlockVal)
 	if err != nil {
 		return err
@@ -2146,7 +2172,7 @@ func upgradeToVersion3(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params
 	genesisBlockKey, genesisBlockVal := existsBlockRecord(ns, 0)
 	if genesisBlockVal == nil {
 		genesisBlockVal = valueBlockRecordEmptyFromHeader(
-			chainParams.GenesisHash, &serializedGenesisBlock)
+			chainParams.GenesisHash[:], serializedGenesisBlock[:])
 		err = putRawBlockRecord(ns, genesisBlockKey, genesisBlockVal)
 		if err != nil {
 			return err

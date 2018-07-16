@@ -50,7 +50,9 @@
   branch = "master"
   name = "github.com/decred/dcrd"
   packages = [
+    "addrmgr",
     "blockchain",
+    "blockchain/chaingen",
     "blockchain/indexers",
     "blockchain/internal/dbnamespace",
     "blockchain/internal/progresslog",
@@ -62,6 +64,7 @@
     "chaincfg",
     "chaincfg/chainec",
     "chaincfg/chainhash",
+    "connmgr",
     "database",
     "dcrec",
     "dcrec/edwards",
@@ -78,7 +81,7 @@
     "txscript",
     "wire"
   ]
-  revision = "d3199d2aa9d600d0f85edfa529f7e571929d9050"
+  revision = "60d7fe080fd26ce9a38242a755f4c27474102ccf"
 
 [[projects]]
   name = "github.com/decred/slog"
@@ -217,6 +220,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "22be937deeea5febec824a5b61c9c0f916aa6f72316902d6135ed088d9469a3a"
+  inputs-digest = "be61a242eddb93b17787f969d3b57626a5d9f969151e6eec2449110d5704ced7"
   solver-name = "gps-cdcl"
   solver-version = 1

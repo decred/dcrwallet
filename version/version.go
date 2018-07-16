@@ -22,6 +22,9 @@ const (
 	Patch = 0
 )
 
+// Integer is an integer encoding of the major.minor.patch version.
+const Integer = 1000000*Major + 10000*Minor + 100*Patch
+
 // PreRelease contains the prerelease name of the application.  It is a variable
 // so it can be modified at link time (e.g.
 // `-ldflags "-X github.com/decred/dcrwallet/version.PreRelease=rc1"`).

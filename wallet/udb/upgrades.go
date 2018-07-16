@@ -10,6 +10,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/hdkeychain"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -80,27 +81,47 @@ const (
 	// transactions.
 	hasExpiryFixedVersion = 9
 
+	// cfVersion is the tenth version of the database.  It adds a bucket to
+	// store compact filters, which are required for Decred's SPV
+	// implementation, and a txmgr namespace root key which tracks whether all
+	// main chain compact filters were saved.  This version does not begin to
+	// save compact filter headers, since the SPV implementation is expected to
+	// use header commitments in a later release for validation.
+	cfVersion = 10
+
+	// lastProcessedTxsBlockVersion is the eleventh version of the database.  It
+	// adds a txmgr namespace root key which records the final hash of all
+	// blocks since the genesis block which have been processed for relevant
+	// transactions.  This is required to distinguish between the main chain tip
+	// (which is advanced during headers fetch) and the point at which a startup
+	// rescan should occur.  During upgrade, the current tip block is recorded
+	// as this block to avoid an additional or extra long rescan from occuring
+	// from properly-synced wallets.
+	lastProcessedTxsBlockVersion = 11
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = hasExpiryFixedVersion
+	DBVersion = lastProcessedTxsBlockVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
 // upgrade the database to the next version.  Note that there was never a
 // version zero so upgrades[0] is nil.
-var upgrades = [...]func(walletdb.ReadWriteTx, []byte) error{
-	lastUsedAddressIndexVersion - 1: lastUsedAddressIndexUpgrade,
-	votingPreferencesVersion - 1:    votingPreferencesUpgrade,
-	noEncryptedSeedVersion - 1:      noEncryptedSeedUpgrade,
-	lastReturnedAddressVersion - 1:  lastReturnedAddressUpgrade,
-	ticketBucketVersion - 1:         ticketBucketUpgrade,
-	slip0044CoinTypeVersion - 1:     slip0044CoinTypeUpgrade,
-	hasExpiryVersion - 1:            hasExpiryUpgrade,
-	hasExpiryFixedVersion - 1:       hasExpiryFixedUpgrade,
+var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
+	lastUsedAddressIndexVersion - 1:  lastUsedAddressIndexUpgrade,
+	votingPreferencesVersion - 1:     votingPreferencesUpgrade,
+	noEncryptedSeedVersion - 1:       noEncryptedSeedUpgrade,
+	lastReturnedAddressVersion - 1:   lastReturnedAddressUpgrade,
+	ticketBucketVersion - 1:          ticketBucketUpgrade,
+	slip0044CoinTypeVersion - 1:      slip0044CoinTypeUpgrade,
+	hasExpiryVersion - 1:             hasExpiryUpgrade,
+	hasExpiryFixedVersion - 1:        hasExpiryFixedUpgrade,
+	cfVersion - 1:                    cfUpgrade,
+	lastProcessedTxsBlockVersion - 1: lastProcessedTxsBlockUpgrade,
 }
 
-func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
 	const oldVersion = 1
 	const newVersion = 2
 
@@ -257,7 +278,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
-func votingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+func votingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
 	const oldVersion = 2
 	const newVersion = 3
 
@@ -304,7 +325,7 @@ func votingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) 
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
-func noEncryptedSeedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+func noEncryptedSeedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
 	const oldVersion = 3
 	const newVersion = 4
 
@@ -331,7 +352,7 @@ func noEncryptedSeedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) er
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
-func lastReturnedAddressUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+func lastReturnedAddressUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
 	const oldVersion = 4
 	const newVersion = 5
 
@@ -392,7 +413,7 @@ func lastReturnedAddressUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
-func ticketBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+func ticketBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
 	const oldVersion = 5
 	const newVersion = 6
 
@@ -469,7 +490,7 @@ func ticketBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
-func slip0044CoinTypeUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+func slip0044CoinTypeUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
 	const oldVersion = 6
 	const newVersion = 7
 
@@ -488,13 +509,13 @@ func slip0044CoinTypeUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) e
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
-func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
 	const oldVersion = 7
 	const newVersion = 8
 	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
 	txmgrBucket := tx.ReadWriteBucket(wtxmgrBucketKey)
 
-	// Assert this function is only called on version 7 databases.
+	// Assert that this function is only called on version 7 databases.
 	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
 	if err != nil {
 		return err
@@ -572,10 +593,11 @@ func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
 		}
 	}
 
+	// Write the new database version.
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
-func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) error {
+func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
 	const oldVersion = 8
 	const newVersion = 9
 	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
@@ -684,9 +706,85 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte) err
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
+func cfUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 9
+	const newVersion = 10
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	txmgrBucket := tx.ReadWriteBucket(wtxmgrBucketKey)
+
+	// Assert that this function is only called on version 9 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "cfUpgrade inappropriately called")
+	}
+
+	err = txmgrBucket.Put(rootHaveCFilters, []byte{0})
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	_, err = txmgrBucket.CreateBucket(bucketCFilters)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	// Record cfilter for genesis block.
+	f, err := blockcf.Regular(params.GenesisBlock)
+	if err != nil {
+		return err
+	}
+	err = putRawCFilter(txmgrBucket, params.GenesisHash[:], f.NBytes())
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	// Record all cfilters as saved when only the genesis block is saved.
+	var tipHash chainhash.Hash
+	copy(tipHash[:], txmgrBucket.Get(rootTipBlock))
+	if tipHash == *params.GenesisHash {
+		err = txmgrBucket.Put(rootHaveCFilters, []byte{1})
+		if err != nil {
+			return errors.E(errors.IO, err)
+		}
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func lastProcessedTxsBlockUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 10
+	const newVersion = 11
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	txmgrBucket := tx.ReadWriteBucket(wtxmgrBucketKey)
+
+	// Assert that this function is only called on version 10 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "lastProcessedTxsBlockUpgrade inappropriately called")
+	}
+
+	// Record the current tip block as the last block since genesis with
+	// processed transaction.
+	err = txmgrBucket.Put(rootLastTxsBlock, txmgrBucket.Get(rootTipBlock))
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
 // Upgrade checks whether the any upgrades are necessary before the database is
 // ready for application usage.  If any are, they are performed.
-func Upgrade(db walletdb.DB, publicPassphrase []byte) error {
+func Upgrade(db walletdb.DB, publicPassphrase []byte, params *chaincfg.Params) error {
 	var version uint32
 	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
 		var err error
@@ -713,7 +811,7 @@ func Upgrade(db walletdb.DB, publicPassphrase []byte) error {
 	return walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
 		// Execute all necessary upgrades in order.
 		for _, upgrade := range upgrades[version:] {
-			err := upgrade(tx, publicPassphrase)
+			err := upgrade(tx, publicPassphrase, params)
 			if err != nil {
 				return err
 			}

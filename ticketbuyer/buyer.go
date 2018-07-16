@@ -143,8 +143,8 @@ func (t *TicketPurchaser) Config() (*Config, error) {
 		PoolAddress:               t.cfg.PoolAddress,
 		PoolFees:                  t.poolFees,
 		NoSpreadTicketPurchases:   t.cfg.NoSpreadTicketPurchases,
-		TxFee:         t.cfg.TxFee,
-		VotingAddress: t.cfg.VotingAddress,
+		TxFee:                     t.cfg.TxFee,
+		VotingAddress:             t.cfg.VotingAddress,
 	}
 	return config, nil
 }
@@ -442,7 +442,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		var curStakeInfo *wallet.StakeInfoData
 		var err error
 		for i := 1; i <= stakeInfoReqTries; i++ {
-			curStakeInfo, err = t.wallet.StakeInfo(t.dcrdChainSvr)
+			curStakeInfo, err = t.wallet.StakeInfoPrecise(t.dcrdChainSvr)
 			if err != nil {
 				log.Debugf("Waiting for StakeInfo, attempt %v: (%v)", i, err.Error())
 				time.Sleep(stakeInfoReqTryDelay)
@@ -492,7 +492,18 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	log.Debugf("Calculated average ticket price: %v", avgPriceAmt)
 	ps.PriceAverage = avgPriceAmt
 
-	nextStakeDiff, err := t.wallet.StakeDifficulty()
+	nextStakeDiff, err := t.wallet.NextStakeDifficulty()
+	if err != nil && t.dcrdChainSvr != nil {
+		// Wallet failed to calculate sdiff (DCP0001 may not be active), so
+		// query it over RPC.
+		sd, err := t.dcrdChainSvr.GetStakeDifficulty()
+		if err == nil {
+			nextStakeDiff, err = dcrutil.NewAmount(sd.NextStakeDifficulty)
+			if err != nil {
+				return ps, err
+			}
+		}
+	}
 	log.Tracef("Next stake difficulty: %v", nextStakeDiff)
 	if err != nil {
 		return ps, err

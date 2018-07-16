@@ -10,12 +10,16 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/decred/dcrd/connmgr"
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/loader"
+	"github.com/decred/dcrwallet/p2p"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
+	"github.com/decred/dcrwallet/spv"
 	"github.com/decred/dcrwallet/ticketbuyer"
+	ticketbuyerv2 "github.com/decred/dcrwallet/ticketbuyer/v2"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/slog"
@@ -57,6 +61,7 @@ var (
 	syncLog      = backendLog.Logger("SYNC")
 	grpcLog      = backendLog.Logger("GRPC")
 	legacyRPCLog = backendLog.Logger("RPCS")
+	cmgrLog      = backendLog.Logger("CMGR")
 )
 
 // Initialize package-global logger variables.
@@ -65,10 +70,14 @@ func init() {
 	wallet.UseLogger(walletLog)
 	udb.UseLogger(walletLog)
 	ticketbuyer.UseLogger(tkbyLog)
+	ticketbuyerv2.UseLogger(tkbyLog)
 	chain.UseLogger(syncLog)
 	dcrrpcclient.UseLogger(syncLog)
+	spv.UseLogger(syncLog)
+	p2p.UseLogger(syncLog)
 	rpcserver.UseLogger(grpcLog)
 	legacyrpc.UseLogger(legacyRPCLog)
+	connmgr.UseLogger(cmgrLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
@@ -80,6 +89,7 @@ var subsystemLoggers = map[string]slog.Logger{
 	"SYNC": syncLog,
 	"GRPC": grpcLog,
 	"RPCS": legacyRPCLog,
+	"CMGR": cmgrLog,
 }
 
 // initLogRotator initializes the logging rotater to write logs to logFile and

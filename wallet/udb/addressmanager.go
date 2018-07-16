@@ -1574,13 +1574,13 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 		// This can't error as only good input is passed to
 		// dcrutil.NewAddressPubKeyHash.
 		addr, _ := xpubChild.Address(m.chainParams)
-		_, err = fetchAddress(ns, addr.Hash160()[:])
-		if err == nil {
+		hash160 := addr.Hash160()[:]
+		if existsAddress(ns, hash160) {
 			// address was found and there are no more to generate
 			break
 		}
 
-		err = putChainedAddress(ns, addr.Hash160()[:], account, ssFull, branch, child)
+		err = putChainedAddress(ns, hash160, account, ssFull, branch, child)
 		if err != nil {
 			return err
 		}

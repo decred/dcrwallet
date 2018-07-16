@@ -6,14 +6,16 @@
 package wallet
 
 import (
-	"bytes"
 	"context"
+	"math/big"
 	"time"
 
+	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
@@ -22,38 +24,32 @@ import (
 	"github.com/decred/dcrwallet/wallet/udb"
 )
 
-func (w *Wallet) extendMainChain(op errors.Op, dbtx walletdb.ReadWriteTx, block *udb.BlockHeaderData, transactions [][]byte) error {
+func (w *Wallet) extendMainChain(op errors.Op, dbtx walletdb.ReadWriteTx, header *wire.BlockHeader, f *gcs.Filter, transactions []*wire.MsgTx) error {
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
-	log.Infof("Connecting block %v, height %v", block.BlockHash,
-		block.SerializedHeader.Height())
+	blockHash := header.BlockHash()
 
 	// Propagate the error unless this block is already included in the main
 	// chain.
-	err := w.TxStore.ExtendMainChain(txmgrNs, block)
+	err := w.TxStore.ExtendMainChain(txmgrNs, header, f)
 	if err != nil && !errors.Is(errors.Exist, err) {
 		return errors.E(op, err)
 	}
 
 	// Notify interested clients of the connected block.
-	var header wire.BlockHeader
-	err = header.Deserialize(bytes.NewReader(block.SerializedHeader[:]))
-	if err != nil {
-		return errors.E(op, errors.E(errors.Op("blockheader.Deserialize"), errors.Encoding, err))
-	}
-	w.NtfnServer.notifyAttachedBlock(dbtx, &header, &block.BlockHash)
+	w.NtfnServer.notifyAttachedBlock(dbtx, header, &blockHash)
 
-	blockMeta, err := w.TxStore.GetBlockMetaForHash(txmgrNs, &block.BlockHash)
+	blockMeta, err := w.TxStore.GetBlockMetaForHash(txmgrNs, &blockHash)
 	if err != nil {
 		return errors.E(op, err)
 	}
 
-	for _, serializedTx := range transactions {
-		rec, err := udb.NewTxRecord(serializedTx, time.Now())
+	for _, tx := range transactions {
+		rec, err := udb.NewTxRecordFromMsgTx(tx, time.Now())
 		if err != nil {
 			return errors.E(op, err)
 		}
-		err = w.processTransaction(dbtx, rec, &block.SerializedHeader, &blockMeta)
+		err = w.processTransactionRecord(dbtx, rec, header, &blockMeta)
 		if err != nil {
 			return errors.E(op, err)
 		}
@@ -62,210 +58,140 @@ func (w *Wallet) extendMainChain(op errors.Op, dbtx walletdb.ReadWriteTx, block 
 	return nil
 }
 
-type sideChainBlock struct {
-	transactions [][]byte
-	headerData   udb.BlockHeaderData
-}
+// ChainSwitch updates the wallet's main chain, either by extending the chain
+// with new blocks, or switching to a better sidechain.  A sidechain for removed
+// blocks (if any) is returned.  If relevantTxs is non-nil, the block marker for
+// the latest block with processed transactions is updated for the new tip
+// block.
+func (w *Wallet) ChainSwitch(forest *SidechainForest, chain []*BlockNode, relevantTxs map[chainhash.Hash][]*wire.MsgTx) ([]*BlockNode, error) {
+	const op errors.Op = "wallet.ChainSwitch"
 
-// switchToSideChain performs a chain switch, switching the main chain to the
-// in-memory side chain.  The old side chain becomes the new main chain.
-func (w *Wallet) switchToSideChain(op errors.Op, dbtx walletdb.ReadWriteTx) (*MainTipChangedNotification, error) {
-	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
-
-	sideChain := w.sideChain
-	if len(sideChain) == 0 {
-		return nil, errors.E(op, "no side chain to switch to")
+	if len(chain) == 0 {
+		return nil, errors.E(op, errors.Invalid, "zero-length chain")
 	}
-
-	sideChainForkHeight := sideChain[0].headerData.SerializedHeader.Height()
-
-	_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 
 	chainTipChanges := &MainTipChangedNotification{
-		AttachedBlocks: make([]*chainhash.Hash, len(sideChain)),
-		DetachedBlocks: make([]*chainhash.Hash, tipHeight-sideChainForkHeight+1),
-		NewHeight:      0, // Must be set by caller before sending
+		AttachedBlocks: make([]*chainhash.Hash, 0, len(chain)),
+		DetachedBlocks: nil,
+		NewHeight:      int32(chain[len(chain)-1].Header.Height),
 	}
 
-	// Find hashes of removed blocks for notifications.
-	for i := tipHeight; i >= sideChainForkHeight; i-- {
-		hash, err := w.TxStore.GetMainChainBlockHashForHeight(txmgrNs, i)
-		if err != nil {
-			return nil, errors.E(op, err)
+	sideChainForkHeight := int32(chain[0].Header.Height)
+	var prevChain []*BlockNode
+
+	newWork := chain[len(chain)-1].workSum
+	oldWork := new(big.Int)
+
+	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
+
+		tipHash, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+
+		if sideChainForkHeight <= tipHeight {
+			chainTipChanges.DetachedBlocks = make([]*chainhash.Hash, tipHeight-sideChainForkHeight+1)
+			prevChain = make([]*BlockNode, tipHeight-sideChainForkHeight+1)
+			for i := tipHeight; i >= sideChainForkHeight; i-- {
+				hash, err := w.TxStore.GetMainChainBlockHashForHeight(txmgrNs, i)
+				if err != nil {
+					return err
+				}
+				header, err := w.TxStore.GetBlockHeader(dbtx, &hash)
+				if err != nil {
+					return err
+				}
+				filter, err := w.TxStore.CFilter(dbtx, &hash)
+				if err != nil {
+					return err
+				}
+
+				// DetachedBlocks and prevChain are sorted in order of increasing heights.
+				chainTipChanges.DetachedBlocks[i-sideChainForkHeight] = &hash
+				prevChain[i-sideChainForkHeight] = NewBlockNode(header, &hash, filter)
+
+				// For transaction notifications, the blocks are notified in reverse
+				// height order.
+				w.NtfnServer.notifyDetachedBlock(&hash)
+
+				oldWork.Add(oldWork, blockchain.CalcWork(header.Bits))
+			}
+
+			if newWork.Cmp(oldWork) != 1 {
+				return errors.Errorf("failed reorganize: sidechain ending at block %v has less total work "+
+					"than the main chain tip block %v", chain[len(chain)-1].Hash, &tipHash)
+			}
+
+			// Remove blocks on the current main chain that are at or above the
+			// height of the block that begins the side chain.
+			err := w.TxStore.Rollback(txmgrNs, addrmgrNs, sideChainForkHeight)
+			if err != nil {
+				return err
+			}
 		}
 
-		// DetachedBlocks contains block hashes in order of increasing heights.
-		chainTipChanges.DetachedBlocks[i-sideChainForkHeight] = &hash
+		for _, n := range chain {
+			if voteVersion(w.chainParams) < n.Header.StakeVersion {
+				log.Warnf("Old vote version detected (v%v), please update your "+
+					"wallet to the latest version.", voteVersion(w.chainParams))
+			}
 
-		// For transaction notifications, the blocks are notified in reverse
-		// height order.
-		w.NtfnServer.notifyDetachedBlock(&hash)
-	}
+			err := w.extendMainChain(op, dbtx, n.Header, n.Filter, relevantTxs[*n.Hash])
+			if err != nil {
+				return err
+			}
 
-	// Remove blocks on the current main chain that are at or above the
-	// height of the block that begins the side chain.
-	err := w.TxStore.Rollback(txmgrNs, addrmgrNs, sideChainForkHeight)
+			// Add the block hash to the notification.
+			chainTipChanges.AttachedBlocks = append(chainTipChanges.AttachedBlocks, n.Hash)
+		}
+
+		if relevantTxs != nil {
+			// To avoid skipped blocks, the marker is not advanced if there is a
+			// gap between the existing rescan point (main chain fork point of
+			// the current marker) and the first block attached in this chain
+			// switch.
+			r, err := w.rescanPoint(dbtx)
+			if err != nil {
+				return err
+			}
+			rHeader, err := w.TxStore.GetBlockHeader(dbtx, r)
+			if err != nil {
+				return err
+			}
+			if !(rHeader.Height+1 < chain[0].Header.Height) {
+				marker := chain[len(chain)-1].Hash
+				log.Debugf("Updating processed txs block marker to %v", marker)
+				err := w.TxStore.UpdateProcessedTxsBlockMarker(dbtx, marker)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		// Prune unmined transactions that don't belong on the extended chain.
+		// An error here is not fatal and should just be logged.
+		//
+		// TODO: The stake difficulty passed here is not correct.  This must be
+		// the difficulty of the next block, not the tip block.
+		tip := chain[len(chain)-1]
+		err := w.TxStore.PruneUnmined(dbtx, tip.Header.SBits)
+		if err != nil {
+			log.Errorf("Failed to prune unmined transactions when "+
+				"connecting block height %v: %v", tip.Header.Height, err)
+		}
+
+		return nil
+	})
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
-	// Extend the main chain with each sidechain block.
-	for i := range sideChain {
-		scBlock := &sideChain[i]
-		err = w.extendMainChain(op, dbtx, &scBlock.headerData, scBlock.transactions)
-		if err != nil {
-			return nil, err
-		}
-
-		// Add the block hash to the notification.
-		chainTipChanges.AttachedBlocks[i] = &scBlock.headerData.BlockHash
-	}
-
-	return chainTipChanges, nil
-}
-
-func copyHeaderSliceToArray(array *udb.RawBlockHeader, slice []byte) error {
-	if len(array) != len(udb.RawBlockHeader{}) {
-		return errors.New("block header has unexpected size")
-	}
-	copy(array[:], slice)
-	return nil
-}
-
-// ConnectBlock attaches a block and relevant wallet transactions to the
-// wallet's main chain or side chain depending on whether the wallet is
-// reorganizing.
-func (w *Wallet) ConnectBlock(serializedBlockHeader []byte, transactions [][]byte) (err error) {
-	const op errors.Op = "wallet.ConnectBlock"
-
-	defer func() {
-		if err != nil {
-			return
-		}
-
-		err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-			return w.watchFutureAddresses(tx)
-		})
-		if err != nil {
-			log.Errorf("Failed to watch for future address usage: %v", err)
-		}
-	}()
-
-	var blockHeader wire.BlockHeader
-	err = blockHeader.Deserialize(bytes.NewReader(serializedBlockHeader))
-	if err != nil {
-		return errors.E(op, errors.Encoding, err)
-	}
-	block := udb.BlockHeaderData{BlockHash: blockHeader.BlockHash()}
-	err = copyHeaderSliceToArray(&block.SerializedHeader, serializedBlockHeader)
-	if err != nil {
-		return errors.E(op, errors.Invalid, err)
-	}
-
-	var chainTipChanges *MainTipChangedNotification
-
-	w.reorganizingLock.Lock()
-	reorg, reorgToHash := w.reorganizing, w.reorganizeToHash
-	w.reorganizingLock.Unlock()
-	if reorg {
-		// add to side chain
-		scBlock := sideChainBlock{
-			transactions: transactions,
-			headerData:   block,
-		}
-		w.sideChain = append(w.sideChain, scBlock)
-		log.Infof("Adding block %v (height %v) to sidechain",
-			block.BlockHash, block.SerializedHeader.Height())
-
-		if block.BlockHash != reorgToHash {
-			// Nothing left to do until the later blocks are
-			// received.
-			return nil
-		}
-
-		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			var err error
-			chainTipChanges, err = w.switchToSideChain(op, dbtx)
-			return err
-		})
-		if err != nil {
-			return errors.E(op, err)
-		}
-
-		w.sideChain = nil
-		w.reorganizingLock.Lock()
-		w.reorganizing = false
-		w.reorganizingLock.Unlock()
-		log.Infof("Wallet reorganization to block %v complete", reorgToHash)
-	} else {
-		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			return w.extendMainChain(op, dbtx, &block, transactions)
-		})
-		// Continue even if the block previously existed.
-		if err != nil {
-			return err
-		}
-		chainTipChanges = &MainTipChangedNotification{
-			AttachedBlocks: []*chainhash.Hash{&block.BlockHash},
-			DetachedBlocks: nil,
-			NewHeight:      0, // set below
-		}
-	}
-
-	height := int32(blockHeader.Height)
-	chainTipChanges.NewHeight = height
-
-	// Prune unnmined transactions that don't belong on the extended chain.
-	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-		// TODO: The stake difficulty passed here is not correct.  This must be
-		// the difficulty of the next block, not the tip block.
-		return w.TxStore.PruneUnmined(dbtx, blockHeader.SBits)
-	})
-	if err != nil {
-		log.Errorf("Failed to prune unmined transactions when "+
-			"connecting block height %v: %v", height, err)
-	}
+	forest.PruneTree(chain[0].Hash)
+	forest.Prune(int32(chain[len(chain)-1].Header.Height), w.chainParams)
 
 	w.NtfnServer.notifyMainChainTipChanged(chainTipChanges)
 	w.NtfnServer.sendAttachedBlockNotification()
 
-	if voteVersion(w.chainParams) < blockHeader.StakeVersion {
-		log.Warnf("Old vote version detected (v%v), please update your "+
-			"wallet to the latest version.", voteVersion(w.chainParams))
-	}
-
-	return nil
-}
-
-// StartReorganize sets the wallet to a reorganizing state where all attached
-// blocks will attach to a sidechain until the final block is reached, at which
-// point a chain switch occurs.
-func (w *Wallet) StartReorganize(oldHash, newHash *chainhash.Hash, oldHeight, newHeight int64) error {
-	const op errors.Op = "wallet.StartReorganize"
-
-	w.reorganizingLock.Lock()
-	if w.reorganizing {
-		reorganizeToHash := w.reorganizeToHash
-		w.reorganizingLock.Unlock()
-
-		log.Errorf("Reorg notified for chain tip %v (height %v), but already "+
-			"processing a reorg to block %v", newHash, newHeight,
-			reorganizeToHash)
-
-		return errors.E(op, errors.Invalid, "reorg in process")
-	}
-
-	w.reorganizing = true
-	w.reorganizeToHash = *newHash
-	w.reorganizingLock.Unlock()
-
-	log.Infof("Reorganization detected!")
-	log.Infof("Old top block hash: %v", oldHash)
-	log.Infof("Old top block height: %v", oldHeight)
-	log.Infof("New top block hash: %v", newHash)
-	log.Infof("New top block height: %v", newHeight)
-	return nil
+	return prevChain, nil
 }
 
 // evaluateStakePoolTicket evaluates a stake pool ticket to see if it's
@@ -348,11 +274,12 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 }
 
 // AcceptMempoolTx adds a relevant unmined transaction to the wallet.
-func (w *Wallet) AcceptMempoolTx(serializedTx []byte) error {
+func (w *Wallet) AcceptMempoolTx(tx *wire.MsgTx) error {
+	const op errors.Op = "wallet.AcceptMempoolTx"
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-		rec, err := udb.NewTxRecord(serializedTx, time.Now())
+		rec, err := udb.NewTxRecordFromMsgTx(tx, time.Now())
 		if err != nil {
 			return err
 		}
@@ -369,7 +296,7 @@ func (w *Wallet) AcceptMempoolTx(serializedTx []byte) error {
 			}
 		}
 
-		return w.processTransaction(dbtx, rec, nil, nil)
+		return w.processTransactionRecord(dbtx, rec, nil, nil)
 	})
 	if err == nil {
 		err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
@@ -378,22 +305,31 @@ func (w *Wallet) AcceptMempoolTx(serializedTx []byte) error {
 		if err != nil {
 			log.Errorf("Failed to watch for future address usage: %v", err)
 		}
+	} else {
+		return errors.E(op, err)
 	}
-	return err
+	return nil
 }
 
-func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord,
-	serializedHeader *udb.RawBlockHeader, blockMeta *udb.BlockMeta) error {
+func (w *Wallet) processSerializedTransaction(dbtx walletdb.ReadWriteTx, serializedTx []byte, header *wire.BlockHeader, blockMeta *udb.BlockMeta) error {
+	const op errors.Op = "wallet.processSerializedTransaction"
+	rec, err := udb.NewTxRecord(serializedTx, time.Now())
+	if err != nil {
+		return errors.E(op, err)
+	}
+	return w.processTransactionRecord(dbtx, rec, header, blockMeta)
+}
 
-	const op errors.Op = "wallet.processTransaction"
+func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord, header *wire.BlockHeader, blockMeta *udb.BlockMeta) error {
+	const op errors.Op = "wallet.processTransactionRecord"
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
 	height := int32(-1)
-	if serializedHeader != nil {
-		height = serializedHeader.Height()
+	if header != nil {
+		height = int32(header.Height)
 	}
 
 	// At the moment all notified transactions are assumed to actually be
@@ -401,7 +337,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord
 	// added, but until then, simply insert the transaction because there
 	// should either be one or more relevant inputs or outputs.
 	var err error
-	if serializedHeader == nil {
+	if header == nil {
 		err = w.TxStore.InsertMemPoolTx(txmgrNs, rec)
 		if errors.Is(errors.Exist, err) {
 			log.Warnf("Refusing to add unmined transaction %v since same "+
@@ -442,7 +378,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord
 			// function will ONLY add the ticket into the
 			// stake pool if it has been found within a
 			// block.
-			if serializedHeader == nil {
+			if header == nil {
 				break
 			}
 
@@ -488,7 +424,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord
 	}
 
 	// Handle incoming mined votes (only in stakepool mode)
-	if w.stakePoolEnabled && isVote(&rec.MsgTx) && serializedHeader != nil {
+	if w.stakePoolEnabled && isVote(&rec.MsgTx) && header != nil {
 		ticketHash := &rec.MsgTx.TxIn[1].PreviousOutPoint.Hash
 		txInHeight := rec.MsgTx.TxIn[1].BlockHeight
 		poolTicket := &udb.PoolTicket{
@@ -519,7 +455,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord
 	}
 
 	// Handle incoming mined revocations (only in stakepool mode)
-	if w.stakePoolEnabled && isRevocation(&rec.MsgTx) && serializedHeader != nil {
+	if w.stakePoolEnabled && isRevocation(&rec.MsgTx) && header != nil {
 		txInHash := &rec.MsgTx.TxIn[0].PreviousOutPoint.Hash
 		txInHeight := rec.MsgTx.TxIn[0].BlockHeight
 		poolTicket := &udb.PoolTicket{
@@ -747,7 +683,7 @@ func (w *Wallet) processTransaction(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord
 	// clients.
 	//
 	// TODO: Avoid the extra db hits.
-	if serializedHeader == nil {
+	if header == nil {
 		details, err := w.TxStore.UniqueTxDetails(txmgrNs, &rec.Hash, nil)
 		if err != nil {
 			log.Errorf("Cannot query transaction details for notifiation: %v", err)
@@ -785,9 +721,7 @@ func selectOwnedTickets(w *Wallet, dbtx walletdb.ReadTx, tickets []*chainhash.Ha
 // tickets in the winningTicketHashes slice if wallet voting is enabled.  The
 // vote is only valid when voting on the block described by the passed block
 // hash and height.
-func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash,
-	blockHash *chainhash.Hash, blockHeight int32) error {
-
+func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash, blockHash *chainhash.Hash, blockHeight int32) error {
 	const op errors.Op = "wallet.VoteOnOwnedTickets"
 
 	if !w.votingEnabled || blockHeight < int32(w.chainParams.StakeValidationHeight)-1 {
@@ -862,43 +796,60 @@ func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash,
 		log.Errorf("View failed: %v", errors.E(op, err))
 	}
 
-	for i, vote := range votes {
-		if vote == nil {
+	// Remove nil votes without preserving order.
+	for i := 0; i < len(votes); {
+		if votes[i] == nil {
+			votes[i], votes[len(votes)-1] = votes[len(votes)-1], votes[i]
+			votes = votes[:len(votes)-1]
 			continue
 		}
-		txRec, err := udb.NewTxRecordFromMsgTx(vote, time.Now())
+		i++
+	}
+
+	voteRecords := make([]*udb.TxRecord, 0, len(votes))
+	for i := range votes {
+		rec, err := udb.NewTxRecordFromMsgTx(votes[i], time.Now())
 		if err != nil {
 			log.Errorf("Failed to create transaction record for vote %v: %v",
 				ticketHashes[i], err)
 			continue
 		}
-		voteHash := &txRec.Hash
-		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			err := w.processTransaction(dbtx, txRec, nil, nil)
+		voteRecords = append(voteRecords, rec)
+	}
+	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		for i := range voteRecords {
+			err = w.processTransactionRecord(dbtx, voteRecords[i], nil, nil)
 			if err != nil {
 				return err
 			}
-			return n.PublishTransaction(context.TODO(), vote)
-		})
-		if err != nil {
-			rpcErr, ok := err.(*dcrjson.RPCError)
-			if ok {
-				if rpcErr.Code != dcrjson.ErrRPCDuplicateTx {
-					log.Errorf("Failed to send vote for ticket hash %v: %v",
-						ticketHashes[i], err)
-					continue
-				}
-				// log duplicate vote transactions as info, not errors
-				log.Infof("Vote tx for ticket %v already in mempool, "+
-					"rejected duplicate. Voted on block %v (height %v) "+
-					"using ticket %v (vote hash: %v bits: %v)", ticketHashes[i], blockHash,
-					blockHeight, ticketHashes[i], voteHash, voteBits.Bits)
-				continue
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Publish before logging and handling any publishing errors to slightly
+	// reduce latency.
+	err = n.PublishTransactions(context.TODO(), votes...)
+	for i := range voteRecords {
+		log.Infof("Voting on block %v (height %v) using ticket %v "+
+			"(vote hash: %v bits: %v)", blockHash, blockHeight,
+			ticketHashes[i], &voteRecords[i].Hash, voteBits.Bits)
+	}
+	if err != nil {
+		// Unwrap to access the underlying RPC error code.
+		for {
+			if e, ok := err.(*errors.Error); ok && e.Err != nil {
+				err = e.Err
+			} else {
+				break
 			}
 		}
-		log.Infof("Voted on block %v (height %v) using ticket %v "+
-			"(vote hash: %v bits: %v)", blockHash, blockHeight,
-			ticketHashes[i], voteHash, voteBits.Bits)
+		rpcErr, ok := err.(*dcrjson.RPCError)
+		if !ok || rpcErr.Code != dcrjson.ErrRPCDuplicateTx {
+			log.Errorf("Failed to send one or more votes: %v", err)
+		}
 	}
 
 	return nil
@@ -976,10 +927,17 @@ func (w *Wallet) RevokeOwnedTickets(missedTicketHashes []*chainhash.Hash) error 
 		log.Errorf("View failed: %v", errors.E(op, err))
 	}
 
-	for i, revocation := range revocations {
-		if revocation == nil {
+	// Remove nil revocations without preserving order.
+	for i := 0; i < len(revocations); {
+		if revocations[i] == nil {
+			revocations[i], revocations[len(revocations)-1] = revocations[len(revocations)-1], revocations[i]
+			revocations = revocations[:len(revocations)-1]
 			continue
 		}
+		i++
+	}
+
+	for i, revocation := range revocations {
 		txRec, err := udb.NewTxRecordFromMsgTx(revocation, time.Now())
 		if err != nil {
 			log.Errorf("Failed to create transaction record for revocation %v: %v",
@@ -988,12 +946,14 @@ func (w *Wallet) RevokeOwnedTickets(missedTicketHashes []*chainhash.Hash) error 
 		}
 		revocationHash := &txRec.Hash
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			err := w.processTransaction(dbtx, txRec, nil, nil)
-			if err != nil {
-				return err
-			}
-			return n.PublishTransaction(context.TODO(), revocation)
+			return w.processTransactionRecord(dbtx, txRec, nil, nil)
 		})
+		if err != nil {
+			log.Errorf("Failed to record revocation %v for ticket hash %v: %v",
+				revocationHash, ticketHashes[i], err)
+			continue
+		}
+		err = n.PublishTransactions(context.TODO(), revocation)
 		if err != nil {
 			log.Errorf("Failed to send revocation %v for ticket hash %v: %v",
 				revocationHash, ticketHashes[i], err)

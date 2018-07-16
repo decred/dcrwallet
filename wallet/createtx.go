@@ -379,8 +379,9 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 		return nil, errors.E(op, err)
 	}
 
-	// Use a single DB update to store and publish the transaction.  If the
-	// transaction is rejected, the update is rolled back.
+	// To avoid a race between publishing a transaction and potentially opening
+	// a database view during PublishTransaction, the update must be committed
+	// before publishing the transaction to the network.
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for _, up := range changeSourceUpdates {
 			err := up(dbtx)
@@ -391,13 +392,12 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 
 		// TODO: this can be improved by not using the same codepath as notified
 		// relevant transactions, since this does a lot of extra work.
-		err = w.processTransaction(dbtx, rec, nil, nil)
-		if err != nil {
-			return err
-		}
-
-		return n.PublishTransaction(context.TODO(), atx.Tx)
+		return w.processTransactionRecord(dbtx, rec, nil, nil)
 	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	err = n.PublishTransactions(context.TODO(), atx.Tx)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -554,15 +554,13 @@ func (w *Wallet) txToMultisigInternal(op errors.Op, dbtx walletdb.ReadWriteTx, a
 		return txToMultisigError(errors.E(op, err))
 	}
 
-	err = n.PublishTransaction(context.TODO(), msgtx)
+	err = n.PublishTransactions(context.TODO(), msgtx)
 	if err != nil {
 		return txToMultisigError(errors.E(op, err))
 	}
 
 	// Request updates from dcrd for new transactions sent to this
 	// script hash address.
-	utilAddrs := make([]dcrutil.Address, 1)
-	utilAddrs[0] = scAddr
 	err = n.LoadTxFilter(context.TODO(), false, []dcrutil.Address{scAddr}, nil)
 	if err != nil {
 		return txToMultisigError(errors.E(op, err))
@@ -713,7 +711,7 @@ func (w *Wallet) compressWalletInternal(op errors.Op, dbtx walletdb.ReadWriteTx,
 		return nil, errors.E(op, err)
 	}
 
-	err = n.PublishTransaction(context.TODO(), msgtx)
+	err = n.PublishTransactions(context.TODO(), msgtx)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -752,6 +750,9 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *ext
 
 	// Create a new script which pays to the provided address with an
 	// SStx tagged output.
+	if addrVote == nil {
+		return nil, errors.E(errors.Invalid, "nil vote address")
+	}
 	pkScript, err := txscript.PayToSStx(addrVote)
 	if err != nil {
 		return nil, errors.E(errors.Op("txscript.PayToSStx"), errors.Invalid,
@@ -909,8 +910,12 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 	// address this better and prevent address burning.
 	account := req.account
 
-	// Get the current ticket price.
-	ticketPrice, err := n.StakeDifficulty(context.TODO())
+	// Calculate the current ticket price.  If the DCP0001 deployment is not
+	// active, fallback to querying the ticket price over RPC.
+	ticketPrice, err := w.NextStakeDifficulty()
+	if errors.Is(errors.Deployment, err) {
+		ticketPrice, err = n.StakeDifficulty(context.TODO())
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1147,34 +1152,34 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 			return w.signP2PKHMsgTx(ticket, forSigning, ns)
 		})
 		if err != nil {
-			return ticketHashes, err
+			return ticketHashes, errors.E(op, err)
 		}
 		err = validateMsgTx(op, ticket, creditScripts(forSigning))
 		if err != nil {
-			return ticketHashes, err
+			return ticketHashes, errors.E(op, err)
 		}
 
 		err = w.checkHighFees(dcrutil.Amount(eop.amt), ticket)
 		if err != nil {
-			return nil, err
+			return ticketHashes, errors.E(op, err)
 		}
 
 		rec, err := udb.NewTxRecordFromMsgTx(ticket, time.Now())
 		if err != nil {
-			return ticketHashes, err
+			return ticketHashes, errors.E(op, err)
 		}
 
-		// Open a DB update to insert and publish the transaction.  If
-		// publishing fails, the update is rolled back.
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			err = w.processTransaction(dbtx, rec, nil, nil)
-			if err != nil {
-				return err
-			}
-			return n.PublishTransaction(context.TODO(), ticket)
+			return w.processTransactionRecord(dbtx, rec, nil, nil)
 		})
 		if err != nil {
-			return ticketHashes, err
+			return ticketHashes, errors.E(op, err)
+		}
+		// TODO: Send all tickets, and all split transactions, together.  Purge
+		// transactions from DB if tickets cannot be sent.
+		err = n.PublishTransactions(context.TODO(), ticket)
+		if err != nil {
+			return ticketHashes, errors.E(op, err)
 		}
 		ticketHash := ticket.TxHash()
 		ticketHashes = append(ticketHashes, &ticketHash)

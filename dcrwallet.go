@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -10,21 +10,27 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"time"
 
+	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/internal/zero"
 	ldr "github.com/decred/dcrwallet/loader"
+	"github.com/decred/dcrwallet/p2p"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
+	"github.com/decred/dcrwallet/spv"
+	"github.com/decred/dcrwallet/ticketbuyer/v2"
 	"github.com/decred/dcrwallet/version"
 	"github.com/decred/dcrwallet/wallet"
 )
@@ -214,9 +220,36 @@ func run(ctx context.Context) error {
 				log.Errorf("Incorrect passphrase in pass config setting.")
 				return err
 			}
-			w.SetInitiallyUnlocked(true)
 		} else {
 			passphrase = startPromptPass(ctx, w)
+		}
+
+		// Start a v2 ticket buyer.
+		if cfg.EnableTicketBuyer && !cfg.legacyTicketBuyer {
+			acct, err := w.AccountNumber(cfg.PurchaseAccount)
+			if err != nil {
+				log.Errorf("Purchase account %q does not exist", cfg.PurchaseAccount)
+				return err
+			}
+			tb := ticketbuyer.New(w)
+			tb.AccessConfig(func(c *ticketbuyer.Config) {
+				c.Account = acct
+				c.VotingAccount = acct // TODO: Make this a unique config option. Set to acct for compat with v1.
+				c.Maintain = cfg.TBOpts.BalanceToMaintainAbsolute.Amount
+				c.VotingAddr = cfg.TBOpts.VotingAddress.Address
+				c.PoolFeeAddr = cfg.PoolAddress.Address
+				c.PoolFees = cfg.PoolFees
+			})
+			log.Infof("Starting ticket buyer")
+			tbdone := make(chan struct{})
+			go func() {
+				err := tb.Run(ctx, passphrase)
+				if err != nil && err != context.Canceled {
+					log.Errorf("Ticket buying ended: %v", err)
+				}
+				tbdone <- struct{}{}
+			}()
+			defer func() { <-tbdone }()
 		}
 	}
 
@@ -261,19 +294,25 @@ func run(ctx context.Context) error {
 		}()
 	}
 
-	// Stop the ticket buyer (if running) on shutdown.  This returns an error
+	// Stop the v1 ticket buyer (if running) on shutdown.  This returns an error
 	// that can be ignored when the ticket buyer was never started.
 	defer loader.StopTicketPurchase()
 
 	// When not running with --noinitialload, it is the main package's
-	// responsibility to connect the loaded wallet to the dcrd RPC server for
-	// wallet synchronization.  This function blocks until cancelled.
+	// responsibility to synchronize the wallet with the network through SPV or
+	// the trusted dcrd server.  This blocks until cancelled.
 	if !cfg.NoInitialLoad {
 		if done(ctx) {
 			return ctx.Err()
 		}
 
-		rpcClientConnectLoop(ctx, passphrase, jsonRPCServer, loader)
+		if cfg.SPV {
+			loader.RunAfterLoad(func(w *wallet.Wallet) {
+				spvLoop(ctx, w, loader)
+			})
+		} else {
+			rpcClientConnectLoop(ctx, passphrase, jsonRPCServer, loader)
+		}
 	}
 
 	// Wait until shutdown is signaled before returning and running deferred
@@ -343,7 +382,6 @@ func startPromptPass(ctx context.Context, w *wallet.Wallet) []byte {
 			err := w.Unlock(wallet.SimulationPassphrase, nil)
 			if err == nil {
 				// Unlock success with the default password.
-				w.SetInitiallyUnlocked(true)
 				return wallet.SimulationPassphrase
 			}
 		}
@@ -359,8 +397,27 @@ func startPromptPass(ctx context.Context, w *wallet.Wallet) []byte {
 				"try again.")
 			continue
 		}
-		w.SetInitiallyUnlocked(true)
 		return passphrase
+	}
+}
+
+func spvLoop(ctx context.Context, w *wallet.Wallet, loader *ldr.Loader) {
+	addr := &net.TCPAddr{IP: net.ParseIP("::1"), Port: 0}
+	amgrDir := filepath.Join(cfg.AppDataDir.Value, w.ChainParams().Name)
+	amgr := addrmgr.New(amgrDir, net.LookupIP) // TODO: be mindful of tor
+	lp := p2p.NewLocalPeer(w.ChainParams(), addr, amgr)
+	syncer := spv.NewSyncer(w, lp)
+	if len(cfg.SPVConnect) > 0 {
+		syncer.SetPersistantPeers(cfg.SPVConnect)
+	}
+	w.SetNetworkBackend(syncer)
+	loader.SetNetworkBackend(syncer)
+	for {
+		err := syncer.Run(ctx)
+		if done(ctx) {
+			return
+		}
+		log.Errorf("SPV synchronization ended: %v", err)
 	}
 }
 
@@ -391,12 +448,9 @@ func rpcClientConnectLoop(ctx context.Context, passphrase []byte, jsonRPCServer 
 
 		n := chain.BackendFromRPCClient(chainClient.Client)
 		w.SetNetworkBackend(n)
-		if jsonRPCServer != nil {
-			jsonRPCServer.SetChainServer(chainClient)
-		}
-		loader.SetChainClient(chainClient.Client)
+		loader.SetNetworkBackend(n)
 
-		if cfg.EnableTicketBuyer {
+		if cfg.EnableTicketBuyer && cfg.legacyTicketBuyer {
 			err = loader.StartTicketPurchase(passphrase, &cfg.tbCfg)
 			if err != nil {
 				log.Errorf("Unable to start ticket buyer: %v", err)
@@ -418,10 +472,7 @@ func rpcClientConnectLoop(ctx context.Context, passphrase []byte, jsonRPCServer 
 		// Disassociate the RPC client from all subsystems until reconnection
 		// occurs.
 		w.SetNetworkBackend(nil)
-		if jsonRPCServer != nil {
-			jsonRPCServer.SetChainServer(nil)
-		}
-		loader.SetChainClient(nil)
+		loader.SetNetworkBackend(nil)
 		loader.StopTicketPurchase()
 	}
 }

@@ -34,6 +34,7 @@ var dbUpgradeTests = [...]struct {
 	// No upgrade test for V7, it is a backwards-compatible upgrade
 	{verifyV8Upgrade, "v7.db.gz"},
 	// No upgrade test for V9, it is a fix for V8 and the previous test still applies
+	// TODO: V10 upgrade test
 }
 
 var pubPass = []byte("public")
@@ -76,7 +77,7 @@ func TestUpgrades(t *testing.T) {
 					t.Fatal(err)
 				}
 				defer db.Close()
-				err = Upgrade(db, pubPass)
+				err = Upgrade(db, pubPass, &chaincfg.TestNet2Params)
 				if err != nil {
 					t.Fatalf("Upgrade failed: %v", err)
 				}

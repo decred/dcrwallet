@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2014 The btcsuite developers
-// Copyright (c) 2015-2016 The Decred developers
+// Copyright (c) 2015-2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -10,22 +10,190 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 	"github.com/decred/dcrwallet/wallet/udb"
+	"golang.org/x/crypto/ripemd160"
 )
 
 const maxBlocksPerRescan = 2000
 
-// RescannedBlock models the relevant data returned during a rescan from a
-// single block.
-type RescannedBlock struct {
-	BlockHash    chainhash.Hash
-	Transactions [][]byte
+// RescanFilter implements a precise filter intended to hold all watched wallet
+// data in memory such as addresses and unspent outputs.  The zero value is not
+// valid, and filters must be created using NewRescanFilter.  RescanFilter is
+// not safe for concurrent access.
+type RescanFilter struct {
+	// Implemented fast paths for address lookup.
+	pubKeyHashes        map[[ripemd160.Size]byte]struct{}
+	scriptHashes        map[[ripemd160.Size]byte]struct{}
+	compressedPubKeys   map[[33]byte]struct{}
+	uncompressedPubKeys map[[65]byte]struct{}
+
+	// A fallback address lookup map in case a fast path doesn't exist.
+	// Only exists for completeness.  If using this shows up in a profile,
+	// there's a good chance a fast path should be added.
+	otherAddresses map[string]struct{}
+
+	// Outpoints of unspent outputs.
+	unspent map[wire.OutPoint]struct{}
 }
 
-// TODO: track whether a rescan is already in progress, and cancel either it or
-// this new rescan, keeping the one that still has the most blocks to scan.
+// NewRescanFilter creates and initializes a RescanFilter containing each passed
+// address and outpoint.
+func NewRescanFilter(addresses []dcrutil.Address, unspentOutPoints []*wire.OutPoint) *RescanFilter {
+	filter := &RescanFilter{
+		pubKeyHashes:        map[[ripemd160.Size]byte]struct{}{},
+		scriptHashes:        map[[ripemd160.Size]byte]struct{}{},
+		compressedPubKeys:   map[[33]byte]struct{}{},
+		uncompressedPubKeys: map[[65]byte]struct{}{},
+		otherAddresses:      map[string]struct{}{},
+		unspent:             make(map[wire.OutPoint]struct{}, len(unspentOutPoints)),
+	}
+
+	for _, s := range addresses {
+		filter.AddAddress(s)
+	}
+	for _, op := range unspentOutPoints {
+		filter.AddUnspentOutPoint(op)
+	}
+
+	return filter
+}
+
+// AddAddress adds an address to the filter if it does not already exist.
+func (f *RescanFilter) AddAddress(a dcrutil.Address) {
+	switch a := a.(type) {
+	case *dcrutil.AddressPubKeyHash:
+		f.pubKeyHashes[*a.Hash160()] = struct{}{}
+	case *dcrutil.AddressScriptHash:
+		f.scriptHashes[*a.Hash160()] = struct{}{}
+	case *dcrutil.AddressSecpPubKey:
+		serializedPubKey := a.ScriptAddress()
+		switch len(serializedPubKey) {
+		case 33: // compressed
+			var compressedPubKey [33]byte
+			copy(compressedPubKey[:], serializedPubKey)
+			f.compressedPubKeys[compressedPubKey] = struct{}{}
+		case 65: // uncompressed
+			var uncompressedPubKey [65]byte
+			copy(uncompressedPubKey[:], serializedPubKey)
+			f.uncompressedPubKeys[uncompressedPubKey] = struct{}{}
+		}
+	default:
+		f.otherAddresses[a.EncodeAddress()] = struct{}{}
+	}
+}
+
+// ExistsAddress returns whether an address is contained in the filter.
+func (f *RescanFilter) ExistsAddress(a dcrutil.Address) (ok bool) {
+	switch a := a.(type) {
+	case *dcrutil.AddressPubKeyHash:
+		_, ok = f.pubKeyHashes[*a.Hash160()]
+	case *dcrutil.AddressScriptHash:
+		_, ok = f.scriptHashes[*a.Hash160()]
+	case *dcrutil.AddressSecpPubKey:
+		serializedPubKey := a.ScriptAddress()
+		switch len(serializedPubKey) {
+		case 33: // compressed
+			var compressedPubKey [33]byte
+			copy(compressedPubKey[:], serializedPubKey)
+			_, ok = f.compressedPubKeys[compressedPubKey]
+			if !ok {
+				_, ok = f.pubKeyHashes[*a.AddressPubKeyHash().Hash160()]
+			}
+		case 65: // uncompressed
+			var uncompressedPubKey [65]byte
+			copy(uncompressedPubKey[:], serializedPubKey)
+			_, ok = f.uncompressedPubKeys[uncompressedPubKey]
+			if !ok {
+				_, ok = f.pubKeyHashes[*a.AddressPubKeyHash().Hash160()]
+			}
+		}
+	default:
+		_, ok = f.otherAddresses[a.EncodeAddress()]
+	}
+	return
+}
+
+// RemoveAddress removes an address from the filter if it exists.
+func (f *RescanFilter) RemoveAddress(a dcrutil.Address) {
+	switch a := a.(type) {
+	case *dcrutil.AddressPubKeyHash:
+		delete(f.pubKeyHashes, *a.Hash160())
+	case *dcrutil.AddressScriptHash:
+		delete(f.scriptHashes, *a.Hash160())
+	case *dcrutil.AddressSecpPubKey:
+		serializedPubKey := a.ScriptAddress()
+		switch len(serializedPubKey) {
+		case 33: // compressed
+			var compressedPubKey [33]byte
+			copy(compressedPubKey[:], serializedPubKey)
+			delete(f.compressedPubKeys, compressedPubKey)
+		case 65: // uncompressed
+			var uncompressedPubKey [65]byte
+			copy(uncompressedPubKey[:], serializedPubKey)
+			delete(f.uncompressedPubKeys, uncompressedPubKey)
+		}
+	default:
+		delete(f.otherAddresses, a.EncodeAddress())
+	}
+}
+
+// AddUnspentOutPoint adds an outpoint to the filter if it does not already
+// exist.
+func (f *RescanFilter) AddUnspentOutPoint(op *wire.OutPoint) {
+	f.unspent[*op] = struct{}{}
+}
+
+// ExistsUnspentOutPoint returns whether an outpoint is contained in the filter.
+func (f *RescanFilter) ExistsUnspentOutPoint(op *wire.OutPoint) bool {
+	_, ok := f.unspent[*op]
+	return ok
+}
+
+// RemoveUnspentOutPoint removes an outpoint from the filter if it exists.
+func (f *RescanFilter) RemoveUnspentOutPoint(op *wire.OutPoint) {
+	delete(f.unspent, *op)
+}
+
+// RescanSaver records transactions from a rescaned block.
+type RescanSaver interface {
+	SaveRescanned(hash *chainhash.Hash, txs []*wire.MsgTx) error
+}
+
+// SaveRescanned records transactions from a rescanned block.
+func (w *Wallet) SaveRescanned(hash *chainhash.Hash, txs []*wire.MsgTx) error {
+	const op errors.Op = "wallet.SaveRescanned"
+	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
+		blockMeta, err := w.TxStore.GetBlockMetaForHash(txmgrNs, hash)
+		if err != nil {
+			return err
+		}
+		header, err := w.TxStore.GetBlockHeader(dbtx, hash)
+		if err != nil {
+			return err
+		}
+
+		for _, tx := range txs {
+			rec, err := udb.NewTxRecordFromMsgTx(tx, time.Now())
+			if err != nil {
+				return err
+			}
+			err = w.processTransactionRecord(dbtx, rec, header, &blockMeta)
+			if err != nil {
+				return err
+			}
+		}
+		return w.TxStore.UpdateProcessedTxsBlockMarker(dbtx, hash)
+	})
+	if err != nil {
+		return errors.E(op, err)
+	}
+	return nil
+}
 
 // rescan synchronously scans over all blocks on the main chain starting at
 // startHash and height up through the recorded main chain tip block.  The
@@ -56,57 +224,39 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 			return err
 		}
 		if len(rescanBlocks) == 0 {
-			return nil
+			break
 		}
 
-		scanningThrough := height + int32(len(rescanBlocks)) - 1
-		log.Infof("Rescanning blocks %v-%v...", height,
-			scanningThrough)
-		rescanResults, err := n.Rescan(ctx, rescanBlocks)
+		through := height + int32(len(rescanBlocks)) - 1
+		// Genesis block is not rescanned
+		if height == 0 {
+			rescanBlocks = rescanBlocks[1:]
+			height = 1
+			if len(rescanBlocks) == 0 {
+				break
+			}
+		}
+		log.Infof("Rescanning block range [%v, %v]...", height, through)
+		err = n.Rescan(ctx, rescanBlocks, w)
 		if err != nil {
 			return err
 		}
-		var rawBlockHeader udb.RawBlockHeader
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
-			for _, r := range rescanResults {
-				blockMeta, err := w.TxStore.GetBlockMetaForHash(txmgrNs, &r.BlockHash)
-				if err != nil {
-					return err
-				}
-				serHeader, err := w.TxStore.GetSerializedBlockHeader(txmgrNs,
-					&r.BlockHash)
-				if err != nil {
-					return err
-				}
-				err = copyHeaderSliceToArray(&rawBlockHeader, serHeader)
-				if err != nil {
-					return err
-				}
-
-				for _, tx := range r.Transactions {
-					rec, err := udb.NewTxRecord(tx, time.Now())
-					if err != nil {
-						return err
-					}
-					err = w.processTransaction(dbtx, rec, &rawBlockHeader, &blockMeta)
-					if err != nil {
-						return err
-					}
-				}
-			}
-			return nil
+			return w.TxStore.UpdateProcessedTxsBlockMarker(dbtx, &rescanBlocks[len(rescanBlocks)-1])
 		})
 		if err != nil {
 			return err
 		}
 		if p != nil {
-			p <- RescanProgress{ScannedThrough: scanningThrough}
+			p <- RescanProgress{ScannedThrough: through}
 		}
 		rescanFrom = rescanBlocks[len(rescanBlocks)-1]
 		height += int32(len(rescanBlocks))
 		inclusive = false
 	}
+
+	log.Infof("Rescan complete")
+	return nil
 }
 
 // Rescan starts a rescan of the wallet for all blocks on the main chain
@@ -194,4 +344,59 @@ func (w *Wallet) RescanProgressFromHeight(ctx context.Context, n NetworkBackend,
 	if err != nil {
 		p <- RescanProgress{Err: errors.E(op, err)}
 	}
+}
+
+func (w *Wallet) mainChainAncestor(dbtx walletdb.ReadTx, hash *chainhash.Hash) (*chainhash.Hash, error) {
+	for {
+		mainChain, _ := w.TxStore.BlockInMainChain(dbtx, hash)
+		if mainChain {
+			break
+		}
+		h, err := w.TxStore.GetBlockHeader(dbtx, hash)
+		if err != nil {
+			return nil, err
+		}
+		hash = &h.PrevBlock
+	}
+	return hash, nil
+}
+
+// RescanPoint returns the block hash at which a rescan should begin
+// (inclusive), or nil when no rescan is necessary.
+func (w *Wallet) RescanPoint() (*chainhash.Hash, error) {
+	const op errors.Op = "wallet.RescanPoint"
+	var rp *chainhash.Hash
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		var err error
+		rp, err = w.rescanPoint(dbtx)
+		return err
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return rp, nil
+}
+
+func (w *Wallet) rescanPoint(dbtx walletdb.ReadTx) (*chainhash.Hash, error) {
+	ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+	r := w.TxStore.ProcessedTxsBlockMarker(dbtx)
+	r, err := w.mainChainAncestor(dbtx, r) // Walk back to the main chain ancestor
+	if err != nil {
+		return nil, err
+	}
+	if tipHash, _ := w.TxStore.MainChainTip(ns); *r == tipHash {
+		return nil, nil
+	}
+	// r is not the tip, so a child block must exist in the main chain.
+	h, err := w.TxStore.GetBlockHeader(dbtx, r)
+	if err != nil {
+		log.Info(err)
+		return nil, err
+	}
+	rescanPoint, err := w.TxStore.GetMainChainBlockHashForHeight(ns, int32(h.Height)+1)
+	if err != nil {
+		log.Info(err)
+		return nil, err
+	}
+	return &rescanPoint, nil
 }

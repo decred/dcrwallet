@@ -1,9 +1,8 @@
 dcrwallet
 =========
 
-dcrwallet is a daemon handling decred wallet functionality for a
-single user.  It acts as both an RPC client to dcrd and an RPC server
-for wallet clients and legacy RPC applications.
+dcrwallet is a daemon handling Decred wallet functionality.  All interaction
+with the wallet is performed over RPC.
 
 Public and private keys are derived using the hierarchical
 deterministic format described by
@@ -24,13 +23,29 @@ does mean they could track all transactions involving your addresses
 and therefore know your exact balance.  In a future release, public data
 encryption will extend to transactions as well.
 
-dcrwallet is not an SPV client and requires connecting to a local or
-remote dcrd instance for asynchronous blockchain queries and
-notifications over websockets.  Full dcrd installation instructions
-can be found [here](https://github.com/decred/dcrd).  An alternative
-SPV mode that is compatible with dcrd is planned for a future release.
+dcrwallet provides two modes of operation to connect to the Decred
+network.  The first (and default) is to communicate with a single
+trusted `dcrd` instance using JSON-RPC.  The second is a
+privacy-preserving Simplified Payment Verification (SPV) mode (enabled
+with the `--spv` flag) where the wallet connects either to specified
+peers (with `--spvconnect`) or peers discovered from seeders and other
+peers. Both modes can be switched between with just a restart of the
+wallet.  It is advised to avoid SPV mode for heavily-used wallets
+which require downloading most blocks regardless.
 
-Wallet clients can use one of two RPC servers:
+Not all functionality is available when running in SPV mode.  Some of
+these features may become available in future versions, but only if a
+consensus vote passes to activate the required changes.  Currently,
+the following features are disabled or unavailable to SPV wallets:
+
+  * Voting
+
+  * Revoking tickets before expiry
+
+  * Determining exact number of live and missed tickets (as opposed to
+    simply unspent).
+
+Wallet clients interact with the wallet using one of two RPC servers:
 
   1. A legacy JSON-RPC server inspired by the Bitcoin Core rpc server
 

@@ -39,6 +39,11 @@ type Error struct {
 // raised.
 type Op string
 
+// Opf returns a formatted Op.
+func Opf(format string, a ...interface{}) Op {
+	return Op(fmt.Sprintf(format, a...))
+}
+
 // Kind describes the class of error.
 type Kind int
 
@@ -60,9 +65,11 @@ const (
 	InsufficientBalance             // Insufficient balance to create transaction (perhaps due to UTXO selection requirements)
 	ScriptFailure                   // Transaction scripts do not execute (usually due to missing sigs)
 	Policy                          // Transaction rejected by wallet policy
+	Consensus                       // Consensus violation
 	DoubleSpend                     // Transaction is a double spend
 	Protocol                        // Protocol violation
 	NoPeers                         // Decred network is unreachable due to lack of peers or dcrd RPC connections
+	Deployment                      // Inactive consensus deployment
 )
 
 func (k Kind) String() string {
@@ -99,12 +106,16 @@ func (k Kind) String() string {
 		return "transaction script fails to execute"
 	case Policy:
 		return "policy violation"
+	case Consensus:
+		return "consensus violation"
 	case DoubleSpend:
 		return "double spend"
 	case Protocol:
 		return "protocol violation"
 	case NoPeers:
 		return "Decred network is unreachable"
+	case Deployment:
+		return "inactive deployment"
 	default:
 		return "unknown error kind"
 	}
