@@ -524,8 +524,27 @@ func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	}
 	feePerKb := w.RelayFee()
 	requiredConfs := int32(1)
-	changeAccount := uint32(0)
+	addr := ""
 
+	if cmd.Options != nil {
+		// use provided fee per Kb if specified
+		if cmd.Options.FeeRate != nil {
+			var err error
+			feePerKb, err = dcrutil.NewAmount(*cmd.Options.FeeRate)
+			if err != nil {
+				return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+			}
+		}
+		// use provided required confirmations if specified
+		if cmd.Options.ConfTarget != nil {
+			requiredConfs = *cmd.Options.ConfTarget
+		}
+		// use provided change account if specified
+		// use default account otherwise
+		if cmd.Options.ChangeAddress != nil {
+			addr = *cmd.Options.ChangeAddress
+		}
+	}
 	var mtx wire.MsgTx
 	decodedTx, err := hex.DecodeString(cmd.HexString)
 	if err != nil {
@@ -554,48 +573,23 @@ func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 
 	totalAmount := inputDetails.Amount
 	if totalAmount > amount {
-		addr, err := w.NewChangeAddress(changeAccount)
-		if err != nil {
-			return nil, err
+		if addr == "" {
+			// if address is not defined we use the default account to
+			// derive the address from.
+			decodedAddr, err := w.NewChangeAddress(0)
+			if err != nil {
+				return nil, err
+			}
+			addr = decodedAddr.EncodeAddress()
 		}
-		changeSource, err := makeScriptChangeSource(addr.EncodeAddress(),
+
+		changeSource, err := makeScriptChangeSource(addr,
 			txscript.DefaultScriptVersion)
 		if err != nil {
 			return nil, err
 		}
 		changeOut := wire.NewTxOut(int64(totalAmount-amount), changeSource.script)
 		mtx.TxOut = append(mtx.TxOut, changeOut)
-	}
-
-	if cmd.Options != nil {
-		// use provided fee per Kb if specified
-		if cmd.Options.FeeRate != nil {
-			var err error
-			feePerKb, err = dcrutil.NewAmount(*cmd.Options.FeeRate)
-			if err != nil {
-				return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
-			}
-		}
-		// use provided required confirmations if specified
-		if cmd.Options.RequiredConfirmations != nil {
-			requiredConfs = *cmd.Options.RequiredConfirmations
-		}
-		if cmd.Options.LockUnspents != nil && *cmd.Options.LockUnspents {
-			for _, txIn := range mtx.TxIn {
-				w.LockOutpoint(txIn.PreviousOutPoint)
-			}
-		}
-		// use provided change account if specified
-		// use default account otherwise
-		if cmd.Options.ChangeAccount != nil {
-			changeAccount, err = w.AccountNumber(*cmd.Options.ChangeAccount)
-			if err != nil {
-				if errors.Is(errors.NotExist, err) {
-					return nil, errAccountNotFound
-				}
-				return nil, err
-			}
-		}
 	}
 
 	var buf bytes.Buffer
