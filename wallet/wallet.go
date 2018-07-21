@@ -163,6 +163,14 @@ type Config struct {
 	Params              *chaincfg.Params
 }
 
+func (w *Wallet) PrepareNotification(name string, state int, params ...string) *ProcessNotifications {
+	return &ProcessNotifications{
+		Name:   name,
+		State:  state,
+		Params: params,
+	}
+}
+
 // FetchOutput fetches the associated transaction output given an outpoint.
 // It cannot be used to fetch multi-signature outputs.
 func (w *Wallet) FetchOutput(outPoint *wire.OutPoint) (*wire.TxOut, error) {
@@ -747,6 +755,12 @@ func (w *Wallet) CommittedTickets(tickets []*chainhash.Hash) ([]*chainhash.Hash,
 func (w *Wallet) FetchMissingCFilters(ctx context.Context, p Peer) error {
 	const opf = "wallet.FetchMissingCFilters(%v)"
 
+	w.NtfnServer.NotifyProcess(w.PrepareNotification("Cfilter", 0))
+	//log.Info("Wallet is proceeding for fetch cfilters")
+	defer func() {
+		//log.Info("Wallet finished fetching cfilters")
+		w.NtfnServer.NotifyProcess(w.PrepareNotification("Cfilter", 2))
+	}()
 	var missing bool
 	var height int32
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
@@ -845,6 +859,7 @@ func (w *Wallet) FetchMissingCFilters(ctx context.Context, p Peer) error {
 		}
 
 		log.Infof("Fetched cfilters for blocks %v-%v", height, height+span-1)
+		w.NtfnServer.NotifyProcess(w.PrepareNotification("Cfilter", 1, strconv.Itoa(int(height)), strconv.Itoa(int(height+span-1))))
 	}
 }
 

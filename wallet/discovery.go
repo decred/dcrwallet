@@ -546,6 +546,16 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blo
 // usage is observed, the wallet will be upgraded to the SLIP0044 coin type and
 // the address discovery will occur again.
 func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock *chainhash.Hash, discoverAccts bool) error {
+
+	//AddressDiscovery started
+	w.NtfnServer.NotifyProcess(w.PrepareNotification("AddressDiscovery", 0))
+	log.Info("AddressDiscovery Started")
+	defer func() {
+		log.Info("AddressDiscovery Ended")
+		//AddressDiscovery stopped
+		w.NtfnServer.NotifyProcess(w.PrepareNotification("AddressDiscovery", 2))
+	}()
+
 	const op errors.Op = "wallet.DiscoverActiveAddresses"
 	_, slip0044CoinType := udb.CoinTypes(w.chainParams)
 	var activeCoinType uint32
@@ -579,6 +589,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 	// wallet from seed.
 	if discoverAccts {
 		log.Infof("Discovering used accounts")
+		w.NtfnServer.NotifyProcess(w.PrepareNotification("AddressDiscovery", 1, "0"))
 		var coinTypePrivKey *hd.ExtendedKey
 		defer func() {
 			if coinTypePrivKey != nil {
@@ -643,6 +654,8 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 		}
 	}
 
+	//Update: 0: Account Discovery Ended/Address Discovery Started
+	w.NtfnServer.NotifyProcess(w.PrepareNotification("AddressDiscovery", 1, "1"))
 	var lastAcct uint32
 	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrNamespaceKey)

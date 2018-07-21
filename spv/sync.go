@@ -885,6 +885,13 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 	}
 	s.locatorMu.Unlock()
 
+	log.Info("Sync Wallet is fetching headers")
+	s.wallet.NtfnServer.NotifyProcess(s.wallet.PrepareNotification("Headers", 0))
+	defer func() {
+	log.Info("Sync Wallet is done fetching headers")
+	s.wallet.NtfnServer.NotifyProcess(s.wallet.PrepareNotification("Headers", 2))
+	}()
+
 	var lastHeight int32
 
 	for {
@@ -997,6 +1004,8 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 			}
 		}
 		tip := bestChain[len(bestChain)-1]
+		log.Infof("sync Fetched %d header(s) from %s", added, rp)
+		s.wallet.NtfnServer.NotifyProcess(s.wallet.PrepareNotification("Headers", 1, strconv.Itoa(int(tip.Header.Height))))
 		if len(bestChain) == 1 {
 			log.Infof("Connected block %v, height %d", tip.Hash, tip.Header.Height)
 		} else {

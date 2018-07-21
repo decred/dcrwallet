@@ -30,6 +30,10 @@ var _ wallet.NetworkBackend = (*Syncer)(nil)
 
 func pickAny(*p2p.RemotePeer) bool { return true }
 
+func (s *Syncer) GetRemotes() map[string]*p2p.RemotePeer {
+	return s.remotes
+}
+
 // GetBlocks implements the GetBlocks method of the wallet.Peer interface.
 func (s *Syncer) GetBlocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error) {
 	for {

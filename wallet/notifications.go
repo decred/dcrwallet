@@ -47,6 +47,7 @@ type NotificationServer struct {
 	confClients       []*ConfirmationNotificationsClient
 	mu                sync.Mutex // Only protects registered clients
 	wallet            *Wallet    // smells like hacks
+	processNotifications []chan *ProcessNotifications
 }
 
 func newNotificationServer(wallet *Wallet) *NotificationServer {
@@ -592,6 +593,70 @@ func (c *TransactionNotificationsClient) Done() {
 		}
 		s.mu.Unlock()
 	}()
+}
+
+type ProcessNotifications struct {
+		Name string
+		/*
+			States
+			-------
+			0 - Start
+			1 - Update
+			2 - Stopped
+		*/
+		State  int
+		Params []string
+	}
+	
+	type ProcessNotificationsClient struct {
+		C      <-chan *ProcessNotifications
+		server *NotificationServer
+	}
+	
+	func (s *NotificationServer) ProcessNotifications() ProcessNotificationsClient {
+		c := make(chan *ProcessNotifications)
+		s.mu.Lock()
+		s.processNotifications = append(s.processNotifications, c)
+		s.mu.Unlock()
+		return ProcessNotificationsClient{
+			C:      c,
+		server: s,
+	}
+}
+
+func (c *ProcessNotificationsClient) Done() {
+	go func() {
+		// Drain notifications until the client channel is removed from
+		// the server and closed.
+		for range c.C {
+		}
+	}()
+	go func() {
+		s := c.server
+		s.mu.Lock()
+		clients := s.processNotifications
+		for i, ch := range clients {
+			if c.C == ch {
+			clients[i] = clients[len(clients)-1]
+				s.processNotifications = clients[:len(clients)-1]
+				close(ch)
+				break
+			}
+		}
+		s.mu.Unlock()
+	}()
+}
+
+func (s *NotificationServer) NotifyProcess(details *ProcessNotifications) {
+	defer s.mu.Unlock()
+	s.mu.Lock()
+	clients := s.processNotifications
+	if len(clients) == 0 {
+		return
+	}
+	for _, c := range clients {
+		c <- details
+	}
 }
 
 // AccountNotification contains properties regarding an account, such as its
