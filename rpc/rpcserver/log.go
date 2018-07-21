@@ -20,12 +20,12 @@ import (
 	"strings"
 
 	"github.com/decred/slog"
-	"google.golang.org/grpc/grpclog"
+	//"google.golang.org/grpc/grpclog"
 )
 
 // UseLogger sets the logger to use for the gRPC server.
 func UseLogger(l slog.Logger) {
-	grpclog.SetLogger(logger{l})
+	//grpclog.SetLogger(logger{l})
 }
 
 // logger uses a slog.Logger to implement the grpclog.Logger interface.

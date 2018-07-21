@@ -8,6 +8,10 @@ import (
 	"google.golang.org/grpc"
 )
 
+func init() {
+	grpc.EnableTracing = false
+}
+
 type (
 	Config struct {
 		Enable  bool
@@ -33,6 +37,7 @@ func SetConfig(cfg *Config) *Client {
 
 func (c *Client) StartSession() (*Client, error) {
 	if c.cfg.Enable {
+
 		// connect to dcrtxmatcher server if enable
 		conn, err := c.Connect()
 		if err != nil {
