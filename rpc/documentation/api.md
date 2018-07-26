@@ -629,7 +629,7 @@ ___
 
 #### `GetAccountExtendedPubKey`
 
-The `GetAccountExtendedPubKey` method queries the wallet for an account pubkey. If the provided account number is beyond the current account index, then it returns an error.
+The `GetAccountExtendedPubKey` method queries the wallet for an account pubkey.
 
 **Request:** `GetAccountExtendedPubKeyRequest`
 
