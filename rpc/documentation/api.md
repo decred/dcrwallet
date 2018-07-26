@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 4.39.x
+Version: 4.40.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -625,6 +625,23 @@ but not all sidechain blocks may be known by the wallet.
 
 **Stability:** Unstable
 
+___
+
+#### `GetAccountExtendedPubKey`
+
+The `GetAccountExtendedPubKey` method queries the wallet for an account pubkey.
+
+**Request:** `GetAccountExtendedPubKeyRequest`
+
+- `uint32 account_number`: The number of the account to retrieve the pubkey.
+
+**Response:** `GetAccountExtendedPubKeyResponse`
+
+- `string acc_extended_pub_key`: The account's extended key.
+
+**Expected errors:**
+
+- `NotFound`: The account does not exist.
 ___
 
 #### `GetTransaction`
