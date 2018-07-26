@@ -3,7 +3,7 @@ set -ex
 
 # The script does automatic checking on a Go package and its sub-packages,
 # including:
-# 1. gofmt         (http://golang.org/cmd/gofmt/)
+# 1. gofmt         (http://golang.org/cmd/gofmt/) (Temporarily disabled)
 # 2. golint        (https://github.com/golang/lint)
 # 3. go vet        (http://golang.org/cmd/vet)
 # 4. gosimple      (https://github.com/dominikh/go-simple)
@@ -36,7 +36,7 @@ testrepo () {
 
   # Check linters
   gometalinter --vendor --disable-all --deadline=10m -s testdata \
-    --enable=gofmt \
+    \ #--enable=gofmt \
     --enable=vet \
     --enable=gosimple \
     --enable=unconvert \
