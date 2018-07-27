@@ -306,8 +306,8 @@ for querying for known used addresses).  Account discovery requires the wallet
 to be unlocked in order to derive account hardened extended pubkeys, and thus
 the private passphrase must be passed as a parameter when performing this
 action.  Account discovery is typically only required when reseeding a wallet.
-The address discover will begin at the provided starting block hash.  If none
-is provided, then the current network's GenesisHash will be used.
+Address discovery begins at the provided starting block hash.  If none
+is provided, then the current network's genesis hash will be used.
 
 **Request:** `DiscoverAddressesRequest`
 
@@ -317,8 +317,8 @@ is provided, then the current network's GenesisHash will be used.
 - `bytes private_passphrase`: The private passphrase to unlock the wallet when
   account discovery is enabled.
 
-- `bytes starting_block_hash`: The hash at which Discover Addresses should 
-  begin.
+- `bytes starting_block_hash`: The hash of the first block checked for address
+  and account usage.  This must also be a valid hash of a main chain block.
 
 **Response:** `DiscoverAddressesResponse`
 
@@ -388,8 +388,8 @@ ___
 
 #### `FetchMissingCFilters`
 
-The `FetchMissingCFilters` method fetches any missing committed filters from
-the main chain.
+The `FetchMissingCFilters` method fetches any missing committed filters for
+blocks in the wallet's main chain.
 
 **Request:** `FetchMissingCFiltersRequest`
 
@@ -404,25 +404,22 @@ ___
 
 #### `RescanPoint`
 
-The `RescanPoint` method returns the current RescanPoint hash which allows other
-methods to know where the wallet has last been rescanned through.  This allows
-clients to easily discern where startup rescan should be started from or
-whether DiscoverAddresses is required to run again.
+The `RescanPoint` returns the block hash at which a rescan should begin
+(inclusive), or null when no rescan is necessary.  A non-null rescan point
+indicates that blocks currently in the main chain must be checked for address
+usage and relevant transactions.
 
 **Request:** `RescanPointRequest`
 
 **Response:** `RescanPointResponse`
 
-- `bytes rescan_point_hash`: The current hash of the RescanPoint.
+- `bytes rescan_point`: The current hash of the rescan point.
 
 **Expected Errors:**
 
 - `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
 
 **Stability:** Unstable
-___
-___
-___
 
 ## `WalletService`
 
