@@ -15,6 +15,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain"
+	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
@@ -176,7 +177,7 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 	}
 }
 
-func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
+func makeTicketSummary(chainClient *dcrrpcclient.Client, dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
 	var ticketStatus = TicketStatusLive
 
 	ticketTransactionDetails := makeTxSummary(dbtx, w, details.Ticket)
@@ -186,6 +187,18 @@ func makeTicketSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetai
 			ticketStatus = TicketStatusVoted
 		} else if details.Spender.TxType == stake.TxTypeSSRtx {
 			ticketStatus = TicketStatusRevoked
+		} else {
+			// chainClient can be nil if in spv mode
+			if chainClient != nil {
+				// Final check to see if ticket was missed otherwise it's live
+				live, err := chainClient.ExistsLiveTicket(&details.Ticket.Hash)
+				if err != nil {
+					log.Errorf("Unable to check if ticket was live for ticket status: %v", &details.Ticket.Hash)
+					ticketStatus = TicketStatusUnknown
+				} else if !live {
+					ticketStatus = TicketStatusMissed
+				}
+			}
 		}
 		return &TicketSummary{
 			Ticket:  &ticketTransactionDetails,

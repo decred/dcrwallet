@@ -1150,8 +1150,15 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 			return ((targetTicketCount > 0) && (ticketCount >= targetTicketCount)), nil
 		}
 	}
-
-	err := s.wallet.GetTickets(rangeFn, startBlock, endBlock)
+	n, err := s.requireNetworkBackend()
+	if err != nil {
+		return translateError(err)
+	}
+	chainClient, err := chain.RPCClientFromBackend(n)
+	if err != nil {
+		return translateError(err)
+	}
+	err = s.wallet.GetTickets(rangeFn, chainClient, startBlock, endBlock)
 	if err != nil {
 		return translateError(err)
 	}
