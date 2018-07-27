@@ -417,7 +417,10 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 	// Rebroadcast unmined transactions
 	err = s.wallet.PublishUnminedTransactions(ctx, n)
 	if err != nil {
-		return err
+		// Returning this error would end and (likely) restart sync in
+		// an endless loop.  It's possible a transaction should be
+		// removed, but this is difficult to reliably detect over RPC.
+		log.Warnf("Could not publish one or more unmined transactions: %v", err)
 	}
 
 	_, err = s.rpcClient.RawRequest("rebroadcastwinners", nil)

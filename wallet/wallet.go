@@ -3980,12 +3980,10 @@ func (w *Wallet) PublishUnminedTransactions(ctx context.Context, p Peer) error {
 	const op errors.Op = "wallet.PublishUnminedTransactions"
 	unminedTxs, err := w.UnminedTransactions()
 	if err != nil {
-		log.Errorf("Cannot load unmined transactions for resending: %v", err)
 		return errors.E(op, err)
 	}
 	err = p.PublishTransactions(ctx, unminedTxs...)
 	if err != nil {
-		log.Warnf("Could not resend one or more unmined transactions: %v", err)
 		return errors.E(op, err)
 	}
 	return nil
