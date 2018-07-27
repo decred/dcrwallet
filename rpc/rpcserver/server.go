@@ -57,10 +57,10 @@ import (
 
 // Public API version constants
 const (
-	semverString = "5.0.1"
+	semverString = "5.1.0"
 	semverMajor  = 5
-	semverMinor  = 0
-	semverPatch  = 1
+	semverMinor  = 1
+	semverPatch  = 0
 )
 
 // translateError creates a new gRPC error with an appropiate error code for
@@ -2310,6 +2310,7 @@ func (s *loaderServer) DiscoverAddresses(ctx context.Context, req *pb.DiscoverAd
 
 	return &pb.DiscoverAddressesResponse{}, nil
 }
+
 func (s *loaderServer) FetchMissingCFilters(ctx context.Context, req *pb.FetchMissingCFiltersRequest) (
 	*pb.FetchMissingCFiltersResponse, error) {
 
@@ -2327,6 +2328,7 @@ func (s *loaderServer) FetchMissingCFilters(ctx context.Context, req *pb.FetchMi
 
 	return &pb.FetchMissingCFiltersResponse{}, nil
 }
+
 func (s *loaderServer) RescanPoint(ctx context.Context, req *pb.RescanPointRequest) (*pb.RescanPointResponse, error) {
 	wallet, ok := s.loader.LoadedWallet()
 	if !ok {
@@ -2340,10 +2342,10 @@ func (s *loaderServer) RescanPoint(ctx context.Context, req *pb.RescanPointReque
 		return &pb.RescanPointResponse{
 			RescanPointHash: rescanPoint[:],
 		}, nil
-	} else {
-		return &pb.RescanPointResponse{RescanPointHash: nil}, nil
 	}
+	return &pb.RescanPointResponse{RescanPointHash: nil}, nil
 }
+
 func (s *loaderServer) SubscribeToBlockNotifications(ctx context.Context, req *pb.SubscribeToBlockNotificationsRequest) (
 	*pb.SubscribeToBlockNotificationsResponse, error) {
 
@@ -2371,9 +2373,7 @@ func (s *loaderServer) SubscribeToBlockNotifications(ctx context.Context, req *p
 	// control over how long the synchronization task runs.
 	syncer := chain.NewRPCSyncer(wallet, chainClient)
 	go syncer.Run(context.Background(), false)
-
-	n := chain.BackendFromRPCClient(chainClient.Client)
-	wallet.SetNetworkBackend(n)
+	wallet.SetNetworkBackend(chain.BackendFromRPCClient(chainClient.Client))
 
 	return &pb.SubscribeToBlockNotificationsResponse{}, nil
 }
