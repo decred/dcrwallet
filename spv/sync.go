@@ -35,6 +35,7 @@ const reqSvcs = wire.SFNodeNetwork | wire.SFNodeCF
 type Syncer struct {
 	// atomics
 	atomicCatchUpTryLock uint32 // CAS (entered=1) to perform discovery/rescan
+	atomicWalletSynced   uint32 // CAS (synced=1) when wallet syncing complete
 
 	wallet *wallet.Wallet
 	lp     *p2p.LocalPeer
@@ -70,6 +71,17 @@ type Syncer struct {
 	currentLocators   []*chainhash.Hash
 	locatorGeneration uint
 	locatorMu         sync.Mutex
+
+	// Holds all potential callbacks used to notify clients
+	notifications *Notifications
+}
+
+// Notifications struct to contain all of the upcoming callbacks that will
+// be used to update the rpc streams for syncing.
+type Notifications struct {
+	// Synced is defined for a callback to notify when the wallet is seen
+	// to be synced or unsynced from its connected peers.
+	Synced func(sync bool)
 }
 
 // NewSyncer creates a Syncer that will sync the wallet using SPV.
@@ -89,6 +101,32 @@ func NewSyncer(w *wallet.Wallet, lp *p2p.LocalPeer) *Syncer {
 // seeding and peer discovery.
 func (s *Syncer) SetPersistantPeers(peers []string) {
 	s.persistantPeers = peers
+}
+
+// SetNotifications sets the possible various callbacks that are used
+// to notify interested parties to the syncing progress.
+func (s *Syncer) SetNotifications(ntfns *Notifications) {
+	s.notifications = ntfns
+}
+
+// synced checks the atomic that controls wallet syncness and if previously
+// unsynced, updates to synced and notifies the callback, if set.
+func (s *Syncer) synced() {
+	if atomic.CompareAndSwapUint32(&s.atomicWalletSynced, 0, 1) &&
+		s.notifications != nil &&
+		s.notifications.Synced != nil {
+		s.notifications.Synced(true)
+	}
+}
+
+// unsynced checks the atomic that controls wallet syncness and if previously
+// synced, updates to unsynced and notifies the callback, if set.
+func (s *Syncer) unsynced() {
+	if atomic.CompareAndSwapUint32(&s.atomicWalletSynced, 1, 0) &&
+		s.notifications != nil &&
+		s.notifications.Synced != nil {
+		s.notifications.Synced(false)
+	}
 }
 
 // Run synchronizes the wallet, returning when synchronization fails or the
@@ -1016,8 +1054,15 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 					}
 					s.loadedFilters = true
 				}
+
+				s.synced()
+
 				return nil
 			}
+			// RescanPoint is != nil so we are not synced to the peer and
+			// check to see if it was previously synced
+			s.unsynced()
+
 			err = s.wallet.DiscoverActiveAddresses(ctx, rp, rescanPoint, s.discoverAccounts)
 			if err != nil {
 				return err
@@ -1028,7 +1073,14 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 				return err
 			}
 			s.loadedFilters = true
-			return s.wallet.Rescan(ctx, s, rescanPoint)
+			err = s.wallet.Rescan(ctx, s, rescanPoint)
+			if err != nil {
+				return err
+			}
+
+			s.synced()
+
+			return nil
 		}()
 		atomic.StoreUint32(&s.atomicCatchUpTryLock, 0)
 		if err != nil {

@@ -341,6 +341,11 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 	return w, nil
 }
 
+// DbDirPath returns the Loader's database directory path
+func (l *Loader) DbDirPath() string {
+	return l.dbDirPath
+}
+
 // WalletExists returns whether a file exists at the loader's database path.
 // This may return an error for unexpected I/O failures.
 func (l *Loader) WalletExists() (bool, error) {
