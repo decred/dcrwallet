@@ -32,7 +32,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/deployments"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
@@ -3376,6 +3376,7 @@ func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 			res.Sdiff = sdiff
 		}
 		it := w.TxStore.IterateTickets(dbtx)
+		defer it.Close()
 		for it.Next() {
 			// Skip tickets which are not owned by this wallet.
 			owned, err := w.hasVotingAuthority(addrmgrNs, &it.MsgTx)
@@ -3476,6 +3477,7 @@ func (w *Wallet) StakeInfoPrecise(chainClient *dcrrpcclient.Client) (*StakeInfoD
 			res.Sdiff = sdiff
 		}
 		it := w.TxStore.IterateTickets(dbtx)
+		defer it.Close()
 		for it.Next() {
 			// Skip tickets which are not owned by this wallet.
 			owned, err := w.hasVotingAuthority(addrmgrNs, &it.MsgTx)

@@ -12,7 +12,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 )
 
 // InsertMemPoolTx inserts a memory pool transaction record.  It also marks
@@ -294,6 +294,7 @@ func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) error {
 	var toRemove []*removeTx
 
 	c := ns.NestedReadBucket(bucketUnmined).ReadCursor()
+	defer c.Close()
 	for k, v := c.First(); k != nil; k, v = c.Next() {
 		var tx wire.MsgTx
 		err := tx.Deserialize(bytes.NewReader(extractRawUnminedTx(v)))

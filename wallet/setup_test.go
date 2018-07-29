@@ -12,7 +12,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	_ "github.com/decred/dcrwallet/wallet/drivers/bdb"
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 )
 
 var basicWalletConfig = Config{

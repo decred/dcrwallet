@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/internal/snacl"
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 )
 
 // Note: all manager functions always use the latest version of the database.
@@ -299,6 +299,7 @@ func votingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, 
 	// all per-ticket vote bits.
 	ticketPurchases := make(map[chainhash.Hash]*sstxRecord)
 	c := ticketPurchasesBucket.ReadCursor()
+	defer c.Close()
 	for k, _ := c.First(); k != nil; k, _ = c.Next() {
 		var hash chainhash.Hash
 		copy(hash[:], k)
@@ -444,33 +445,40 @@ func ticketBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, param
 		var hash chainhash.Hash
 		err := readRawTxRecordHash(k, &hash)
 		if err != nil {
+			c.Close()
 			return err
 		}
 		var rec TxRecord
 		err = readRawTxRecord(&hash, v, &rec)
 		if err != nil {
+			c.Close()
 			return err
 		}
 		if stake.IsSStx(&rec.MsgTx) {
 			ticketHashes[hash] = struct{}{}
 		}
 	}
+	c.Close()
+
 	c = txmgrBucket.NestedReadBucket(bucketUnmined).ReadCursor()
 	for k, v := c.First(); v != nil; k, v = c.Next() {
 		var hash chainhash.Hash
 		err := readRawUnminedHash(k, &hash)
 		if err != nil {
+			c.Close()
 			return err
 		}
 		var rec TxRecord
 		err = readRawTxRecord(&hash, v, &rec)
 		if err != nil {
+			c.Close()
 			return err
 		}
 		if stake.IsSStx(&rec.MsgTx) {
 			ticketHashes[hash] = struct{}{}
 		}
 	}
+	c.Close()
 	for ticketHash := range ticketHashes {
 		err := putTicketRecord(txmgrBucket, &ticketHash, -1)
 		if err != nil {
@@ -532,6 +540,7 @@ func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *
 		hash := extractRawCreditTxHash(k)
 		block, err := fetchBlockRecord(txmgrBucket, extractRawCreditHeight(k))
 		if err != nil {
+			cursor.Close()
 			return err
 		}
 
@@ -539,6 +548,7 @@ func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *
 		record := &TxRecord{}
 		err = readRawTxRecord(&hash, recV, record)
 		if err != nil {
+			cursor.Close()
 			return err
 		}
 
@@ -551,6 +561,7 @@ func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *
 			creditsKV[string(k)] = vCpy
 		}
 	}
+	cursor.Close()
 
 	for k, v := range creditsKV {
 		err = creditsBucket.Put([]byte(k), v)
@@ -566,6 +577,7 @@ func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *
 	for k, v := unminedCursor.First(); v != nil; k, v = unminedCursor.Next() {
 		hash, err := chainhash.NewHash(extractRawUnminedCreditTxHash(k))
 		if err != nil {
+			unminedCursor.Close()
 			return err
 		}
 
@@ -573,6 +585,7 @@ func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *
 		record := &TxRecord{}
 		err = readRawTxRecord(hash, recV, record)
 		if err != nil {
+			unminedCursor.Close()
 			return err
 		}
 
@@ -585,6 +598,7 @@ func hasExpiryUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *
 			unminedCreditsKV[string(k)] = vCpy
 		}
 	}
+	unminedCursor.Close()
 
 	for k, v := range unminedCreditsKV {
 		err = unminedCreditsBucket.Put([]byte(k), v)
@@ -620,6 +634,7 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, par
 		hash := extractRawCreditTxHash(k)
 		block, err := fetchBlockRecord(txmgrBucket, extractRawCreditHeight(k))
 		if err != nil {
+			cursor.Close()
 			return err
 		}
 
@@ -627,6 +642,7 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, par
 		record := &TxRecord{}
 		err = readRawTxRecord(&hash, recV, record)
 		if err != nil {
+			cursor.Close()
 			return err
 		}
 
@@ -648,6 +664,7 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, par
 			creditsKV[string(k)] = vCpy
 		}
 	}
+	cursor.Close()
 
 	for k, v := range creditsKV {
 		err = creditsBucket.Put([]byte(k), v)
@@ -663,6 +680,7 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, par
 	for k, v := unminedCursor.First(); v != nil; k, v = unminedCursor.Next() {
 		hash, err := chainhash.NewHash(extractRawUnminedCreditTxHash(k))
 		if err != nil {
+			unminedCursor.Close()
 			return err
 		}
 
@@ -670,6 +688,7 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, par
 		record := &TxRecord{}
 		err = readRawTxRecord(hash, recV, record)
 		if err != nil {
+			unminedCursor.Close()
 			return err
 		}
 
@@ -684,6 +703,7 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, par
 			// OP_SSTXCHANGE output.
 			idx, err := fetchRawUnminedCreditIndex(k)
 			if err != nil {
+				unminedCursor.Close()
 				return err
 			}
 			out := record.MsgTx.TxOut[idx]
@@ -695,6 +715,7 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, par
 			unminedCreditsKV[string(k)] = vCpy
 		}
 	}
+	unminedCursor.Close()
 
 	for k, v := range unminedCreditsKV {
 		err = unminedCreditsBucket.Put([]byte(k), v)

@@ -7,7 +7,7 @@ package udb
 import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 )
 
 // Open opens the database and returns various "manager" types that must be used

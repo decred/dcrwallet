@@ -18,7 +18,7 @@ import (
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/wallet/internal/snacl"
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
 

@@ -8,7 +8,7 @@ import (
 	"io"
 
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 )
 
 // DB represents an ACID database for a wallet.
