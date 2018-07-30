@@ -1157,7 +1157,12 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 			chainClient = client
 		}
 	}
-	err := s.wallet.GetTickets(rangeFn, chainClient, startBlock, endBlock)
+	var err error
+	if chainClient != nil {
+		err = s.wallet.GetTicketsPrecise(rangeFn, chainClient, startBlock, endBlock)
+	} else {
+		err = s.wallet.GetTickets(rangeFn, startBlock, endBlock)
+	}
 	if err != nil {
 		return translateError(err)
 	}
