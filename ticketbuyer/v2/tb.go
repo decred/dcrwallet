@@ -63,21 +63,39 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 
 	c := tb.wallet.NtfnServer.MainTipChangedNotifications()
 	defer c.Done()
+
+	var mu sync.Mutex
+	var done bool
+	var errc = make(chan error, 1)
 	for {
 		select {
 		case <-ctx.Done():
+			mu.Lock()
+			done = true
+			mu.Unlock()
 			return ctx.Err()
 		case n := <-c.C:
 			if len(n.AttachedBlocks) == 0 {
 				continue
 			}
-			err := tb.buy(ctx, passphrase, n.AttachedBlocks[len(n.AttachedBlocks)-1])
-			if err != nil {
-				log.Errorf("Ticket purchasing failed: %v", err)
-				if errors.Is(errors.Passphrase, err) {
-					return err
+			go func() {
+				defer mu.Unlock()
+				mu.Lock()
+				if done {
+					return
 				}
-			}
+				b := n.AttachedBlocks[len(n.AttachedBlocks)-1]
+				err := tb.buy(ctx, passphrase, b)
+				if err != nil {
+					log.Errorf("Ticket purchasing failed: %v", err)
+					if errors.Is(errors.Passphrase, err) {
+						errc <- err
+						done = true
+					}
+				}
+			}()
+		case err := <-errc:
+			return err
 		}
 	}
 }
