@@ -2369,7 +2369,7 @@ type GetTicketsResult struct {
 	Tickets []*TicketSummary
 }
 
-// GetTickets calls function f for all tickets located in between the
+// GetTicketsPrecise calls function f for all tickets located in between the
 // given startBlock and endBlock.  TicketSummary includes TransactionSummmary
 // for the ticket and the spender (if already spent) and the ticket's current
 // status. The function f also receives block header of the ticket. All
@@ -2382,8 +2382,14 @@ type GetTicketsResult struct {
 // early without reading any additional transactions when true.
 //
 // The arguments to f may be reused and should not be kept by the caller.
-func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
-	const op errors.Op = "wallet.GetTickets"
+//
+// The argument chainClient is always expected to be not nil in this case,
+// otherwise one should use the alternative GetTickets instead.  With
+// the ability to use the rpc chain client, this function is able to determine
+// whether tickets have been missed or not.  Otherwise, tickets are just known
+// to be unspent (possibly live or missed).
+func (w *Wallet) GetTicketsPrecise(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
+	const op errors.Op = "wallet.GetTicketsPrecise"
 	var start, end int32 = 0, -1
 
 	if startBlock != nil {
@@ -2451,6 +2457,117 @@ func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, e
 					continue
 				}
 				tickets = append(tickets, makeTicketSummary(chainClient, dbtx, w, ticketInfo))
+			}
+
+			if len(tickets) == 0 {
+				return false, nil
+			}
+
+			if details[0].Block.Height == -1 {
+				return f(tickets, nil)
+			}
+
+			headerBytes, err := w.TxStore.GetSerializedBlockHeader(txmgrNs, &details[0].Block.Hash)
+			if err != nil {
+				return false, err
+			}
+			header.FromBytes(headerBytes)
+			return f(tickets, header)
+		}
+
+		return w.TxStore.RangeTransactions(txmgrNs, start, end, rangeFn)
+	})
+	if err != nil {
+		errors.E(op, err)
+	}
+	return nil
+}
+
+// GetTickets calls function f for all tickets located in between the
+// given startBlock and endBlock.  TicketSummary includes TransactionSummmary
+// for the ticket and the spender (if already spent) and the ticket's current
+// status. The function f also receives block header of the ticket. All
+// tickets on a given call belong to the same block and at least one ticket
+// is present when f is called. If the ticket is unmined, the block header will
+// be nil.
+//
+// The function f may return an error which, if non-nil, is propagated to the
+// caller.  Additionally, a boolean return value allows exiting the function
+// early without reading any additional transactions when true.
+//
+// The arguments to f may be reused and should not be kept by the caller.
+//
+// Because this function does not have any chain client argument, tickets are
+// unable to be determined whether or not they have been missed, simply unspent.
+func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), startBlock, endBlock *BlockIdentifier) error {
+	const op errors.Op = "wallet.GetTickets"
+	var start, end int32 = 0, -1
+
+	if startBlock != nil {
+		if startBlock.hash == nil {
+			start = startBlock.height
+		} else {
+			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, startBlock.hash)
+				if err != nil {
+					return err
+				}
+				var startHeader wire.BlockHeader
+				err = startHeader.Deserialize(bytes.NewReader(serHeader))
+				if err != nil {
+					return err
+				}
+				start = int32(startHeader.Height)
+				return nil
+			})
+			if err != nil {
+				return errors.E(op, err)
+			}
+		}
+	}
+	if endBlock != nil {
+		if endBlock.hash == nil {
+			end = endBlock.height
+		} else {
+			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, endBlock.hash)
+				if err != nil {
+					return err
+				}
+				var endHeader wire.BlockHeader
+				err = endHeader.Deserialize(bytes.NewReader(serHeader))
+				if err != nil {
+					return err
+				}
+				end = int32(endHeader.Height)
+				return nil
+			})
+			if err != nil {
+				return errors.E(op, err)
+			}
+		}
+	}
+
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		header := &wire.BlockHeader{}
+
+		rangeFn := func(details []udb.TxDetails) (bool, error) {
+			tickets := make([]*TicketSummary, 0, len(details))
+
+			for i := range details {
+				// XXX Here is where I would look up the ticket information from the db so I can populate spenderhash and ticket status
+				ticketInfo, err := w.TxStore.TicketDetails(txmgrNs, &details[i])
+				if err != nil {
+					return false, errors.Errorf("%v while trying to get ticket details for txhash: %v", err, &details[i].Hash)
+				}
+				// Continue if not a ticket
+				if ticketInfo == nil {
+					continue
+				}
+				tickets = append(tickets, makeTicketSummary(nil, dbtx, w, ticketInfo))
 			}
 
 			if len(tickets) == 0 {

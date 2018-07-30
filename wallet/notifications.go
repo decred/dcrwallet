@@ -187,6 +187,18 @@ func makeTicketSummary(chainClient *dcrrpcclient.Client, dbtx walletdb.ReadTx, w
 			ticketStatus = TicketStatusVoted
 		} else if details.Spender.TxType == stake.TxTypeSSRtx {
 			ticketStatus = TicketStatusRevoked
+		} else {
+			// chainClient can be nil if in spv mode
+			if chainClient != nil {
+				// Final check to see if ticket was missed otherwise it's live
+				live, err := chainClient.ExistsLiveTicket(&details.Ticket.Hash)
+				if err != nil {
+					log.Errorf("Unable to check if ticket was live for ticket status: %v", &details.Ticket.Hash)
+					ticketStatus = TicketStatusUnknown
+				} else if !live {
+					ticketStatus = TicketStatusMissed
+				}
+			}
 		}
 		return &TicketSummary{
 			Ticket:  &ticketTransactionDetails,
@@ -211,15 +223,6 @@ func makeTicketSummary(chainClient *dcrrpcclient.Client, dbtx walletdb.ReadTx, w
 			// Check if ticket age is over TicketExpiry limit and therefore expired
 		} else if confirmed(expiryConfs, details.Ticket.Height(), tipHeight) {
 			ticketStatus = TicketStatusExpired
-		} else {
-			// Final check to see if ticket was missed otherwise it's live
-			live, err := chainClient.ExistsLiveTicket(&details.Ticket.Hash)
-			if err != nil {
-				log.Errorf("Unable to check if ticket was live for ticket status: %v", &details.Ticket.Hash)
-				ticketStatus = TicketStatusUnknown
-			} else if !live {
-				ticketStatus = TicketStatusMissed
-			}
 		}
 	}
 	return &TicketSummary{

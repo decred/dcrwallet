@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 5.0.x
+Version: 5.1.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -98,6 +98,8 @@ no dependencies and is always running.
 - [`DiscoverAddresses`](#discoveraddresses)
 - [`SubscribeToBlockNotifications`](#subscribetoblocknotifications)
 - [`FetchHeaders`](#fetchheaders)
+- [`FetchMissingCFilters`](#fetchmissingcfilters)
+- [`RescanPoint`](#rescanpoint)
 
 **Shared messages:**
 
@@ -304,6 +306,8 @@ for querying for known used addresses).  Account discovery requires the wallet
 to be unlocked in order to derive account hardened extended pubkeys, and thus
 the private passphrase must be passed as a parameter when performing this
 action.  Account discovery is typically only required when reseeding a wallet.
+Address discovery begins at the provided starting block hash.  If none
+is provided, then the current network's genesis hash will be used.
 
 **Request:** `DiscoverAddressesRequest`
 
@@ -313,6 +317,9 @@ action.  Account discovery is typically only required when reseeding a wallet.
 - `bytes private_passphrase`: The private passphrase to unlock the wallet when
   account discovery is enabled.
 
+- `bytes starting_block_hash`: The hash of the first block checked for address
+  and account usage.  This must also be a valid hash of a main chain block.
+
 **Response:** `DiscoverAddressesResponse`
 
 **Expected Errors:**
@@ -320,7 +327,8 @@ action.  Account discovery is typically only required when reseeding a wallet.
 - `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
 
 - `InvalidArgument`: A zero length passphrase passphrase was specified when
-  account discovery was enabled, or the passphrase was incorrect.
+  account discovery was enabled, or the passphrase was incorrect, or if an 
+  invalid starting block hash is provided.
 
 **Stability:** Unstable
 
@@ -372,6 +380,42 @@ should begin at.
   the fetched headers have been applied to the previous tip.
 
 **Expected errors:**
+
+- `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
+
+**Stability:** Unstable
+___
+
+#### `FetchMissingCFilters`
+
+The `FetchMissingCFilters` method fetches any missing committed filters for
+blocks in the wallet's main chain.
+
+**Request:** `FetchMissingCFiltersRequest`
+
+**Response:** `FetchMissingCFiltersResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
+
+**Stability:** Unstable
+___
+
+#### `RescanPoint`
+
+The `RescanPoint` returns the block hash at which a rescan should begin
+(inclusive), or null when no rescan is necessary.  A non-null rescan point
+indicates that blocks currently in the main chain must be checked for address
+usage and relevant transactions.
+
+**Request:** `RescanPointRequest`
+
+**Response:** `RescanPointResponse`
+
+- `bytes rescan_point`: The current hash of the rescan point.
+
+**Expected Errors:**
 
 - `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
 

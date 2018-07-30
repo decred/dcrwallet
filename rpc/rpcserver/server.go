@@ -57,9 +57,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "5.0.0"
+	semverString = "5.1.0"
 	semverMajor  = 5
-	semverMinor  = 0
+	semverMinor  = 1
 	semverPatch  = 0
 )
 
@@ -371,12 +371,29 @@ func (s *walletServer) Rescan(req *pb.RescanRequest, svr pb.WalletService_Rescan
 		return err
 	}
 
-	if req.BeginHeight < 0 {
+	var blockID *wallet.BlockIdentifier
+	switch {
+	case req.BeginHash != nil && req.BeginHeight != 0:
+		return status.Errorf(codes.InvalidArgument, "begin hash and height must not be set together")
+	case req.BeginHeight < 0:
 		return status.Errorf(codes.InvalidArgument, "begin height must be non-negative")
+	case req.BeginHash != nil:
+		blockHash, err := chainhash.NewHash(req.BeginHash)
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument, "block hash has invalid length")
+		}
+		blockID = wallet.NewBlockIdentifierFromHash(blockHash)
+	default:
+		blockID = wallet.NewBlockIdentifierFromHeight(req.BeginHeight)
+	}
+
+	b, err := s.wallet.BlockInfo(blockID)
+	if err != nil {
+		return translateError(err)
 	}
 
 	progress := make(chan wallet.RescanProgress, 1)
-	go s.wallet.RescanProgressFromHeight(svr.Context(), n, req.BeginHeight, progress)
+	go s.wallet.RescanProgressFromHeight(svr.Context(), n, b.Height, progress)
 
 	for p := range progress {
 		if p.Err != nil {
@@ -1072,14 +1089,6 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 
 func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 	server pb.WalletService_GetTicketsServer) error {
-	n, err := s.requireNetworkBackend()
-	if err != nil {
-		return err
-	}
-	chainClient, err := chain.RPCClientFromBackend(n)
-	if err != nil {
-		return translateError(err)
-	}
 
 	var startBlock, endBlock *wallet.BlockIdentifier
 	if req.StartingBlockHash != nil && req.StartingBlockHeight != 0 {
@@ -1141,8 +1150,19 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 			return ((targetTicketCount > 0) && (ticketCount >= targetTicketCount)), nil
 		}
 	}
-
-	err = s.wallet.GetTickets(rangeFn, chainClient, startBlock, endBlock)
+	var chainClient *rpcclient.Client
+	if n, err := s.wallet.NetworkBackend(); err == nil {
+		client, err := chain.RPCClientFromBackend(n)
+		if err == nil {
+			chainClient = client
+		}
+	}
+	var err error
+	if chainClient != nil {
+		err = s.wallet.GetTicketsPrecise(rangeFn, chainClient, startBlock, endBlock)
+	} else {
+		err = s.wallet.GetTickets(rangeFn, startBlock, endBlock)
+	}
 	if err != nil {
 		return translateError(err)
 	}
@@ -2285,14 +2305,56 @@ func (s *loaderServer) DiscoverAddresses(ctx context.Context, req *pb.DiscoverAd
 			return nil, translateError(err)
 		}
 	}
-
 	n := chain.BackendFromRPCClient(chainClient.Client)
-	err := wallet.DiscoverActiveAddresses(ctx, n, wallet.ChainParams().GenesisHash, req.DiscoverAccounts)
+	startHash := wallet.ChainParams().GenesisHash
+	var err error
+	if req.StartingBlockHash != nil {
+		startHash, err = chainhash.NewHash(req.StartingBlockHash)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "Invalid starting block hash provided: %v", err)
+		}
+	}
+	err = wallet.DiscoverActiveAddresses(ctx, n, startHash, req.DiscoverAccounts)
 	if err != nil {
 		return nil, translateError(err)
 	}
 
 	return &pb.DiscoverAddressesResponse{}, nil
+}
+
+func (s *loaderServer) FetchMissingCFilters(ctx context.Context, req *pb.FetchMissingCFiltersRequest) (
+	*pb.FetchMissingCFiltersResponse, error) {
+
+	wallet, ok := s.loader.LoadedWallet()
+	if !ok {
+		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+	}
+
+	n := chain.BackendFromRPCClient(s.rpcClient.Client)
+	// Fetch any missing main chain compact filters.
+	err := wallet.FetchMissingCFilters(ctx, n)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.FetchMissingCFiltersResponse{}, nil
+}
+
+func (s *loaderServer) RescanPoint(ctx context.Context, req *pb.RescanPointRequest) (*pb.RescanPointResponse, error) {
+	wallet, ok := s.loader.LoadedWallet()
+	if !ok {
+		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+	}
+	rescanPoint, err := wallet.RescanPoint()
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "Rescan point failed to be requested %v", err)
+	}
+	if rescanPoint != nil {
+		return &pb.RescanPointResponse{
+			RescanPointHash: rescanPoint[:],
+		}, nil
+	}
+	return &pb.RescanPointResponse{RescanPointHash: nil}, nil
 }
 
 func (s *loaderServer) SubscribeToBlockNotifications(ctx context.Context, req *pb.SubscribeToBlockNotificationsRequest) (
@@ -2783,13 +2845,13 @@ func marshalDecodedTxInputs(mtx *wire.MsgTx) []*pb.DecodedTransaction_Input {
 		inputs[i] = &pb.DecodedTransaction_Input{
 			PreviousTransactionHash:  txIn.PreviousOutPoint.Hash[:],
 			PreviousTransactionIndex: txIn.PreviousOutPoint.Index,
-			Tree:                     pb.DecodedTransaction_Input_TreeType(txIn.PreviousOutPoint.Tree),
-			Sequence:                 txIn.Sequence,
-			AmountIn:                 txIn.ValueIn,
-			BlockHeight:              txIn.BlockHeight,
-			BlockIndex:               txIn.BlockIndex,
-			SignatureScript:          txIn.SignatureScript,
-			SignatureScriptAsm:       disbuf,
+			Tree:               pb.DecodedTransaction_Input_TreeType(txIn.PreviousOutPoint.Tree),
+			Sequence:           txIn.Sequence,
+			AmountIn:           txIn.ValueIn,
+			BlockHeight:        txIn.BlockHeight,
+			BlockIndex:         txIn.BlockIndex,
+			SignatureScript:    txIn.SignatureScript,
+			SignatureScriptAsm: disbuf,
 		}
 	}
 
