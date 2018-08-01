@@ -12,9 +12,8 @@
   name = "github.com/btcsuite/websocket"
 
 [[constraint]]
-  branch = "addFundrawtransaction"
+  branch = "master"
   name = "github.com/decred/dcrd"
-  source = "github.com/vctt94/dcrd"
 
 [[constraint]]
   branch = "master"

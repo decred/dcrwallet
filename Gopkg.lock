@@ -35,19 +35,19 @@
   revision = "31079b6807923eb23992c421b114992b95131b55"
 
 [[projects]]
+  branch = "master"
   name = "github.com/dchest/blake256"
   packages = ["."]
   revision = "dee3fe6eb0e98dc774a94fc231f85baf7c29d360"
-  version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/decred/base58"
   packages = ["."]
-  revision = "56c501706f00d9e1cfacee19a27117e12da24734"
-  version = "v1.0.0"
+  revision = "b3520e187fa8ebe65eb74245408cf4b83e6a65d3"
 
 [[projects]]
-  branch = "addFundrawtransaction"
+  branch = "master"
   name = "github.com/decred/dcrd"
   packages = [
     "addrmgr",
@@ -81,12 +81,7 @@
     "txscript",
     "wire"
   ]
-<<<<<<< HEAD
-  revision = "60d7fe080fd26ce9a38242a755f4c27474102ccf"
-=======
-  revision = "1bdf1cce5ceb6664d48ab4e33cc6bc193b9331c5"
-  source = "github.com/vctt94/dcrd"
->>>>>>> 84751bc... Fix method to use optional parameters json
+  revision = "3978c40b50988166da76bcc6a31a9684c5e22c2e"
 
 [[projects]]
   name = "github.com/decred/slog"
@@ -104,7 +99,7 @@
     "ptypes/duration",
     "ptypes/timestamp"
   ]
-  revision = "70b3af33377e7aa25ae42977bed93cc6b90f0373"
+  revision = "130e6b02ab059e7b717a096f397c5b60111cae74"
 
 [[projects]]
   name = "github.com/gorilla/websocket"
@@ -115,26 +110,25 @@
 [[projects]]
   name = "github.com/jessevdk/go-flags"
   packages = ["."]
-  revision = "c6ca198ec95c841fdb89fc0de7496fed11ab854e"
-  version = "v1.4.0"
+  revision = "96dc06278ce32a0e9d957d590bb987c81ee66407"
+  version = "v1.3.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/jrick/bitset"
   packages = ["."]
   revision = "06eae37cdf93c699c0503c23f998167ce841974c"
-  version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/jrick/logrotate"
   packages = ["rotator"]
   revision = "a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a"
-  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = [
-    "internal/subtle",
     "nacl/secretbox",
     "pbkdf2",
     "poly1305",
@@ -143,27 +137,27 @@
     "scrypt",
     "ssh/terminal"
   ]
-  revision = "a49355c7e3f8fe157a85be2f77e6e269a0f89602"
+  revision = "847319b7fc94cab682988f93da778204da164588"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = [
     "context",
-    "http/httpguts",
     "http2",
     "http2/hpack",
     "idna",
     "internal/timeseries",
+    "lex/httplex",
     "trace"
   ]
-  revision = "cffdcf672aee934982473246bc7e9a8ba446aa9b"
+  revision = "278c6cf336eb9139d63479da09da0cfb40fdc4c8"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sync"
   packages = ["errgroup"]
-  revision = "1d60e4601c6fd243af51cc01ddf169918a5407ca"
+  revision = "f52d1811a62927559de87708c8913c1650ce4f26"
 
 [[projects]]
   branch = "master"
@@ -172,9 +166,10 @@
     "unix",
     "windows"
   ]
-  revision = "1b2967e3c290b7c545b3db0deeda16e9be4f98a2"
+  revision = "429f518978ab01db8bb6f44b66785088e7fba58b"
 
 [[projects]]
+  branch = "master"
   name = "golang.org/x/text"
   packages = [
     "collate",
@@ -192,62 +187,39 @@
     "unicode/norm",
     "unicode/rangetable"
   ]
-  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
-  version = "v0.3.0"
+  revision = "1cbadb444a806fd9430d14ad08967ed91da4fa0a"
 
 [[projects]]
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "e92b116572682a5b432ddd840aeaba2a559eeff1"
+  revision = "1e559d0a00eef8a9a43151db4665280bd8dd5886"
 
 [[projects]]
   name = "google.golang.org/grpc"
   packages = [
     ".",
-    "balancer",
-    "balancer/base",
-    "balancer/roundrobin",
     "codes",
     "connectivity",
     "credentials",
-    "encoding",
-    "encoding/proto",
+    "grpclb/grpc_lb_v1/messages",
     "grpclog",
     "internal",
-    "internal/backoff",
-    "internal/channelz",
-    "internal/grpcrand",
     "keepalive",
     "metadata",
     "naming",
     "peer",
-    "resolver",
-    "resolver/dns",
-    "resolver/passthrough",
     "stats",
     "status",
     "tap",
     "transport"
   ]
-  revision = "168a6198bcb0ef175f7dacec0b8691fc141dc9b8"
-  version = "v1.13.0"
+  revision = "f92cdcd7dcdc69e81b2d7b338479a19a8723cfa3"
+  version = "v1.6.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-<<<<<<< HEAD
-<<<<<<< HEAD
   inputs-digest = "be61a242eddb93b17787f969d3b57626a5d9f969151e6eec2449110d5704ced7"
-=======
-<<<<<<< HEAD
-  inputs-digest = "22be937deeea5febec824a5b61c9c0f916aa6f72316902d6135ed088d9469a3a"
-=======
-  inputs-digest = "43289a8839d68da55dc1ba3a1a0818c636913140c98bc7ee43d1b91c557f2b32"
->>>>>>> f4fa443... add fundrawtransaction command
->>>>>>> 7401a62... add fundrawtransaction command
-=======
-  inputs-digest = "aee546653e47d3f7a3aebf1d02f963c2d9160dd3dda9637e7cd2758dcf46dfbb"
->>>>>>> 84751bc... Fix method to use optional parameters json
   solver-name = "gps-cdcl"
   solver-version = 1
