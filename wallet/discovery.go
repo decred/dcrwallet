@@ -547,13 +547,10 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blo
 // the address discovery will occur again.
 func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock *chainhash.Hash, discoverAccts bool) error {
 
-	//AddressDiscovery started
-	w.NtfnServer.NotifyProcess(w.PrepareNotification("AddressDiscovery", 0))
-	log.Info("AddressDiscovery Started")
+	w.SendNotification(ProcessTypeAddressDiscovery, ProcessStateStart)
+
 	defer func() {
-		log.Info("AddressDiscovery Ended")
-		//AddressDiscovery stopped
-		w.NtfnServer.NotifyProcess(w.PrepareNotification("AddressDiscovery", 2))
+		w.SendNotification(ProcessTypeAddressDiscovery, ProcessStateEnd)
 	}()
 
 	const op errors.Op = "wallet.DiscoverActiveAddresses"
@@ -589,7 +586,10 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 	// wallet from seed.
 	if discoverAccts {
 		log.Infof("Discovering used accounts")
-		w.NtfnServer.NotifyProcess(w.PrepareNotification("AddressDiscovery", 1, "0"))
+		// Updates
+		// 1: Account Discovery Started
+		// 0: Address Discovery Started
+		w.SendNotification(ProcessTypeAddressDiscovery, ProcessStateUpdate, 1)
 		var coinTypePrivKey *hd.ExtendedKey
 		defer func() {
 			if coinTypePrivKey != nil {
@@ -655,7 +655,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 	}
 
 	//Update: 0: Account Discovery Ended/Address Discovery Started
-	w.NtfnServer.NotifyProcess(w.PrepareNotification("AddressDiscovery", 1, "1"))
+	w.SendNotification(ProcessTypeAddressDiscovery, ProcessStateUpdate, 0)
 	var lastAcct uint32
 	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrNamespaceKey)

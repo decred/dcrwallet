@@ -163,12 +163,13 @@ type Config struct {
 	Params              *chaincfg.Params
 }
 
-func (w *Wallet) PrepareNotification(name string, state int, params ...string) *ProcessNotifications {
-	return &ProcessNotifications{
-		Name:   name,
+func (w *Wallet) SendNotification(processType ProcessType, state ProcessState, params ...int32) {
+	pn := &ProcessNotification{
+		Type:   processType,
 		State:  state,
 		Params: params,
 	}
+	w.NtfnServer.NotifyProcess(pn)
 }
 
 // FetchOutput fetches the associated transaction output given an outpoint.
@@ -755,11 +756,9 @@ func (w *Wallet) CommittedTickets(tickets []*chainhash.Hash) ([]*chainhash.Hash,
 func (w *Wallet) FetchMissingCFilters(ctx context.Context, p Peer) error {
 	const opf = "wallet.FetchMissingCFilters(%v)"
 
-	w.NtfnServer.NotifyProcess(w.PrepareNotification("Cfilter", 0))
-	//log.Info("Wallet is proceeding for fetch cfilters")
+	w.SendNotification(ProcessTypeFetchCFilters, ProcessStateStart)
 	defer func() {
-		//log.Info("Wallet finished fetching cfilters")
-		w.NtfnServer.NotifyProcess(w.PrepareNotification("Cfilter", 2))
+		w.SendNotification(ProcessTypeFetchCFilters, ProcessStateEnd)
 	}()
 	var missing bool
 	var height int32
@@ -859,7 +858,7 @@ func (w *Wallet) FetchMissingCFilters(ctx context.Context, p Peer) error {
 		}
 
 		log.Infof("Fetched cfilters for blocks %v-%v", height, height+span-1)
-		w.NtfnServer.NotifyProcess(w.PrepareNotification("Cfilter", 1, strconv.Itoa(int(height)), strconv.Itoa(int(height+span-1))))
+		w.SendNotification(ProcessTypeFetchCFilters, ProcessStateUpdate, height, height+span-1)
 	}
 }
 
@@ -956,6 +955,10 @@ func (w *Wallet) blockLocators(dbtx walletdb.ReadTx, sidechain []*BlockNode) ([]
 }
 
 func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstNew chainhash.Hash, err error) {
+	w.SendNotification(ProcessTypeFetchHeaders, ProcessStateStart)
+	defer func() {
+		w.SendNotification(ProcessTypeFetchHeaders, ProcessStateEnd)
+	}()
 	var blockLocators []*chainhash.Hash
 	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
@@ -1038,6 +1041,8 @@ func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstN
 		if brk || err != nil {
 			return firstNew, err
 		}
+		//Returns the amount of headers fetched
+		w.SendNotification(ProcessTypeFetchHeaders, ProcessStateUpdate, int32(len(headers)))
 		log.Infof("Fetched %v header(s) from %s", len(headers), p)
 	}
 }

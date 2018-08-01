@@ -1885,6 +1885,57 @@ func marshalHashes(v []*chainhash.Hash) [][]byte {
 	return hashes
 }
 
+func (s *walletServer) ProcessNotifications(req *pb.ProcessNotificationsRequest,
+	svr pb.WalletService_ProcessNotificationsServer) error {
+	n := s.wallet.NtfnServer.ProcessNotifications()
+	defer n.Done()
+
+	ctxDone := svr.Context().Done()
+	for {
+		select {
+		case v := <-n.C:
+			err := svr.Send(&pb.ProcessNotificationsResponse{
+				Type:   marshalProcessType(v.Type),
+				State:  marshalProcessState(v.State),
+				Params: v.Params,
+			})
+			if err != nil {
+				return translateError(err)
+			}
+		case <-ctxDone:
+			return nil
+		}
+	}
+}
+
+func marshalProcessType(processType wallet.ProcessType) pb.ProcessNotificationsResponse_ProcessType {
+	switch processType {
+	case wallet.ProcessTypeAddressDiscovery:
+		return pb.ProcessNotificationsResponse_ADDRESS_DISCOVERY
+	case wallet.ProcessTypeFetchCFilters:
+		return pb.ProcessNotificationsResponse_FETCH_CFILTERS
+	case wallet.ProcessTypeFetchHeaders:
+		return pb.ProcessNotificationsResponse_FETCH_HEADERS
+	case wallet.ProcessTypeRescan:
+		return pb.ProcessNotificationsResponse_RESCAN
+	default:
+		return pb.ProcessNotificationsResponse_FETCH_HEADERS
+	}
+}
+
+func marshalProcessState(state wallet.ProcessState) pb.ProcessNotificationsResponse_ProcessState {
+	switch state {
+	case wallet.ProcessStateStart:
+		return pb.ProcessNotificationsResponse_START
+	case wallet.ProcessStateEnd:
+		return pb.ProcessNotificationsResponse_END
+	case wallet.ProcessStateUpdate:
+		return pb.ProcessNotificationsResponse_UPDATE
+	default:
+		return pb.ProcessNotificationsResponse_END
+	}
+}
+
 func (s *walletServer) TransactionNotifications(req *pb.TransactionNotificationsRequest,
 	svr pb.WalletService_TransactionNotificationsServer) error {
 
