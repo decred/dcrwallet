@@ -100,6 +100,7 @@ no dependencies and is always running.
 - [`FetchHeaders`](#fetchheaders)
 - [`FetchMissingCFilters`](#fetchmissingcfilters)
 - [`RescanPoint`](#rescanpoint)
+- [`SpvSync`](#spvsync)
 
 **Shared messages:**
 
@@ -418,6 +419,43 @@ usage and relevant transactions.
 **Expected Errors:**
 
 - `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
+
+**Stability:** Unstable
+___
+
+#### `SpvSync`
+
+The `SpvSync` method begins the spv syncing process.  It will
+stream back progress to provide feedback on the current state of the wallet
+loading/bringup.  This is a long lived RPC and only end when canceled
+or upon received an error.
+
+**Request:** `SpvSyncRequest`
+
+- `bool discover_accounts`:  Whether or not the wallet should attempt to
+  discover accounts during discovery.  This requires the private passphrase to
+  be set as well and will error otherwise.
+
+- `bytes private_passphrase`: The current private passphrase for the wallet.
+  This is only required if discover_accounts is set to true and will error
+  otherwise.
+
+- `repeated string spv_connect`: When given a list of addresses, the wallet in
+  spv mode will no longer attempt to use DNS address discovery to seek out other
+  persistent peers and instead use the ones specified here as persistent peers.
+
+**Response:** `stream SpvSyncResponse`
+
+- `bool synced`: This streamed update response denotes whether the wallet is
+  currently synced to its peers or not.
+
+**Expected Errors:**
+
+- `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
+  The private passphrase does not successfully unlock the wallet.  The string
+  provided to spv_connect is not a valid address or port.
+
+- `InvalidArgument`: The private passphrase is incorrect.
 
 **Stability:** Unstable
 

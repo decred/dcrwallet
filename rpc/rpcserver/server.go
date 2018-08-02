@@ -22,6 +22,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -30,6 +31,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -46,7 +48,9 @@ import (
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/netparams"
+	"github.com/decred/dcrwallet/p2p"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
+	"github.com/decred/dcrwallet/spv"
 	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txauthor"
@@ -2338,6 +2342,77 @@ func (s *loaderServer) FetchMissingCFilters(ctx context.Context, req *pb.FetchMi
 	}
 
 	return &pb.FetchMissingCFiltersResponse{}, nil
+}
+
+func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderService_SpvSyncServer) error {
+	wallet, ok := s.loader.LoadedWallet()
+	if !ok {
+		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+	}
+
+	if req.DiscoverAccounts && len(req.PrivatePassphrase) == 0 {
+		return status.Errorf(codes.InvalidArgument, "private passphrase is required for discovering accounts")
+	}
+	var lockWallet func()
+	if req.DiscoverAccounts {
+		lock := make(chan time.Time, 1)
+		lockWallet = func() {
+			lock <- time.Time{}
+			zero.Bytes(req.PrivatePassphrase)
+		}
+		err := wallet.Unlock(req.PrivatePassphrase, lock)
+		if err != nil {
+			return translateError(err)
+		}
+	}
+	addr := &net.TCPAddr{IP: net.ParseIP("::1"), Port: 0}
+	amgr := addrmgr.New(s.loader.DbDirPath(), net.LookupIP) // TODO: be mindful of tor
+	lp := p2p.NewLocalPeer(wallet.ChainParams(), addr, amgr)
+
+	ntfns := &spv.Notifications{
+		Synced: func(sync bool) {
+			resp := &pb.SpvSyncResponse{Synced: sync}
+
+			// Lock the wallet after the first time synced while also
+			// discovering accounts.
+			if sync && lockWallet != nil {
+				lockWallet()
+				lockWallet = nil
+			}
+
+			// TODO: Add some kind of logging here.  Do nothing with the error
+			// for now. Could be nice to see what happened, but not super
+			// important.
+			_ = svr.Send(resp)
+		},
+	}
+	syncer := spv.NewSyncer(wallet, lp)
+	syncer.SetNotifications(ntfns)
+	if len(req.SpvConnect) > 0 {
+		spvConnects := make([]string, len(req.SpvConnect))
+		for i := 0; i < len(req.SpvConnect); i++ {
+			spvConnect, err := cfgutil.NormalizeAddress(req.SpvConnect[i], s.activeNet.Params.DefaultPort)
+			if err != nil {
+				return status.Errorf(codes.FailedPrecondition, "SPV Connect address invalid: %v", err)
+			}
+			spvConnects[i] = spvConnect
+		}
+		syncer.SetPersistantPeers(spvConnects)
+	}
+
+	wallet.SetNetworkBackend(syncer)
+	s.loader.SetNetworkBackend(syncer)
+
+	err := syncer.Run(svr.Context())
+	if err != nil {
+		if err == context.Canceled {
+			return status.Errorf(codes.Canceled, "SPV synchronization canceled: %v", err)
+		} else if err == context.DeadlineExceeded {
+			return status.Errorf(codes.DeadlineExceeded, "SPV synchronization deadline exceeded: %v", err)
+		}
+		return translateError(err)
+	}
+	return nil
 }
 
 func (s *loaderServer) RescanPoint(ctx context.Context, req *pb.RescanPointRequest) (*pb.RescanPointResponse, error) {
