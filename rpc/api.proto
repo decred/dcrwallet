@@ -36,6 +36,7 @@ service WalletService {
 	rpc TransactionNotifications (TransactionNotificationsRequest) returns (stream TransactionNotificationsResponse);
 	rpc AccountNotifications (AccountNotificationsRequest) returns (stream AccountNotificationsResponse);
 	rpc ConfirmationNotifications (stream ConfirmationNotificationsRequest) returns (stream ConfirmationNotificationsResponse);
+	rpc ProcessNotifications (ProcessNotificationsRequest) returns (stream ProcessNotificationsResponse);
 
 	// Control
 	rpc ChangePassphrase (ChangePassphraseRequest) returns (ChangePassphraseResponse);
@@ -622,6 +623,24 @@ message ConfirmationNotificationsResponse {
         int32 block_height = 4;
     }
     repeated TransactionConfirmations confirmations = 1;
+}
+
+message ProcessNotificationsRequest {}
+message ProcessNotificationsResponse {
+	enum ProcessState {
+		START = 0;
+		END = 1;
+		UPDATE = 2;
+	}
+	enum ProcessType {
+		FETCH_HEADERS = 0;
+		FETCH_CFILTERS = 1;
+		ADDRESS_DISCOVERY = 2;
+		RESCAN = 3;
+	}
+	ProcessType type = 1;
+	ProcessState state = 2;
+	repeated int32 params = 3;
 }
 
 message CreateWalletRequest {

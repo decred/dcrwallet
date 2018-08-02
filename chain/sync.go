@@ -293,6 +293,7 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	s.wallet.SendNotification(wallet.ProcessTypeFetchHeaders, wallet.ProcessStateStart)
 	for {
 		headersMsg, err := s.rpcClient.GetHeaders(locators, &hashStop)
 		if err != nil {
@@ -345,6 +346,7 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 
 		log.Infof("Fetched %d new header(s) ending at height %d from %v",
 			added, nodes[len(nodes)-1].Header.Height, s.rpcClient)
+		s.wallet.SendNotification(wallet.ProcessTypeFetchHeaders, wallet.ProcessStateUpdate, int32(added))
 		bestChain, err := s.wallet.EvaluateBestChain(&sidechains)
 		if err != nil {
 			return err
@@ -383,6 +385,7 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 			return err
 		}
 	}
+	s.wallet.SendNotification(wallet.ProcessTypeFetchHeaders, wallet.ProcessStateEnd)
 
 	rescanPoint, err := s.wallet.RescanPoint()
 	if err != nil {

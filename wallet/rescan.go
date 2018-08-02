@@ -202,6 +202,11 @@ func (w *Wallet) SaveRescanned(hash *chainhash.Hash, txs []*wire.MsgTx) error {
 func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 	startHash *chainhash.Hash, height int32, p chan<- RescanProgress) error {
 
+	w.SendNotification(ProcessTypeRescan, ProcessStateStart)
+	defer func() {
+		w.SendNotification(ProcessTypeRescan, ProcessStateEnd)
+	}()
+
 	blockHashStorage := make([]chainhash.Hash, maxBlocksPerRescan)
 	rescanFrom := *startHash
 	inclusive := true
@@ -236,6 +241,7 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 				break
 			}
 		}
+		w.SendNotification(ProcessTypeRescan, ProcessStateUpdate, height, through)
 		log.Infof("Rescanning block range [%v, %v]...", height, through)
 		err = n.Rescan(ctx, rescanBlocks, w)
 		if err != nil {

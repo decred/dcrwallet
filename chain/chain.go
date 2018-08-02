@@ -63,7 +63,7 @@ func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, cert
 		dequeueNotification:       make(chan interface{}),
 		enqueueVotingNotification: make(chan interface{}),
 		dequeueVotingNotification: make(chan interface{}),
-		quit:                      make(chan struct{}),
+		quit: make(chan struct{}),
 	}
 	ntfnCallbacks := &dcrrpcclient.NotificationHandlers{
 		OnBlockConnected:        client.onBlockConnected,
