@@ -41,12 +41,12 @@ type NotificationServer struct {
 	transactions []chan *TransactionNotifications
 	// Coalesce transaction notifications since wallet previously did not add
 	// mined txs together.  Now it does and this can be rewritten.
-	currentTxNtfn     *TransactionNotifications
-	accountClients    []chan *AccountNotification
-	tipChangedClients []chan *MainTipChangedNotification
-	confClients       []*ConfirmationNotificationsClient
-	mu                sync.Mutex // Only protects registered clients
-	wallet            *Wallet    // smells like hacks
+	currentTxNtfn        *TransactionNotifications
+	accountClients       []chan *AccountNotification
+	tipChangedClients    []chan *MainTipChangedNotification
+	confClients          []*ConfirmationNotificationsClient
+	mu                   sync.Mutex // Only protects registered clients
+	wallet               *Wallet    // smells like hacks
 	processNotifications []chan *ProcessNotification
 }
 
@@ -597,7 +597,7 @@ func (c *TransactionNotificationsClient) Done() {
 
 type ProcessState int8
 
-const(
+const (
 	ProcessStateUnknown ProcessState = iota
 
 	ProcessStateStart
@@ -609,7 +609,7 @@ const(
 
 type ProcessType int8
 
-const(
+const (
 	ProcessTypeUnknown ProcessType = iota
 
 	ProcessTypeFetchHeaders
@@ -622,23 +622,23 @@ const(
 )
 
 type ProcessNotification struct {
-		Type   ProcessType
-		State  ProcessState
-		Params []int32
-	}
+	Type   ProcessType
+	State  ProcessState
+	Params []int32
+}
 
-	type ProcessNotificationsClient struct {
-		C      <-chan *ProcessNotification
-		server *NotificationServer
-	}
-	
-	func (s *NotificationServer) ProcessNotifications() ProcessNotificationsClient {
-		c := make(chan *ProcessNotification)
-		s.mu.Lock()
-		s.processNotifications = append(s.processNotifications, c)
-		s.mu.Unlock()
-		return ProcessNotificationsClient{
-			C:      c,
+type ProcessNotificationsClient struct {
+	C      <-chan *ProcessNotification
+	server *NotificationServer
+}
+
+func (s *NotificationServer) ProcessNotifications() ProcessNotificationsClient {
+	c := make(chan *ProcessNotification)
+	s.mu.Lock()
+	s.processNotifications = append(s.processNotifications, c)
+	s.mu.Unlock()
+	return ProcessNotificationsClient{
+		C:      c,
 		server: s,
 	}
 }
@@ -656,7 +656,7 @@ func (c *ProcessNotificationsClient) Done() {
 		clients := s.processNotifications
 		for i, ch := range clients {
 			if c.C == ch {
-			clients[i] = clients[len(clients)-1]
+				clients[i] = clients[len(clients)-1]
 				s.processNotifications = clients[:len(clients)-1]
 				close(ch)
 				break

@@ -143,8 +143,8 @@ func (t *TicketPurchaser) Config() (*Config, error) {
 		PoolAddress:               t.cfg.PoolAddress,
 		PoolFees:                  t.poolFees,
 		NoSpreadTicketPurchases:   t.cfg.NoSpreadTicketPurchases,
-		TxFee:                     t.cfg.TxFee,
-		VotingAddress:             t.cfg.VotingAddress,
+		TxFee:         t.cfg.TxFee,
+		VotingAddress: t.cfg.VotingAddress,
 	}
 	return config, nil
 }
