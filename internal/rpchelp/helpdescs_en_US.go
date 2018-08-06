@@ -55,10 +55,9 @@ var helpDescsEnUS = map[string]string{
 	"fundrawtransaction-options":     "The optional inputs to fund a raw transaction",
 
 	// FundRawTransactionOptions
-	"fundrawtransactionoptions-changeaccount":         "Account name the change will be send to (default=\"default\")",
-	"fundrawtransactionoptions-lockunspents":          "Lock selected unspent outputs",
-	"fundrawtransactionoptions-feerate":               "Set a specific fee rate in DCR/kB",
-	"fundrawtransactionoptions-requiredconfirmations": "Number of blocks to confirm the transaction",
+	"fundrawtransactionoptions-changeaddress": "Address the change will be send to (default=\"default\")",
+	"fundrawtransactionoptions-feerate":       "Set a specific fee rate in DCR/kB",
+	"fundrawtransactionoptions-conf_target":   "Number of blocks to confirm the transaction",
 
 	// FundRawTransactionResult help.
 	"fundrawtransactionresult-hex": "The resulting raw transaction (hex-encoded string)",
