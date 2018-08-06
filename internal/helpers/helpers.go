@@ -20,6 +20,14 @@ func SumOutputValues(outputs []*wire.TxOut) (totalOutput dcrutil.Amount) {
 	return totalOutput
 }
 
+// SumOutputValues sums up the list of TxOuts and returns an Amount.
+func SumInputValues(inputs []*wire.TxIn) (totalInput dcrutil.Amount) {
+	for _, txIn := range inputs {
+		totalInput += dcrutil.Amount(txIn.ValueIn)
+	}
+	return totalInput
+}
+
 // SumOutputSerializeSizes sums up the serialized size of the supplied outputs.
 func SumOutputSerializeSizes(outputs []*wire.TxOut) (serializeSize int) {
 	for _, txOut := range outputs {

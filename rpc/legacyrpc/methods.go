@@ -555,52 +555,20 @@ func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 	}
 
-	amount := dcrutil.Amount(int64(feePerKb))
-	for _, txOut := range mtx.TxOut {
-		amount += dcrutil.Amount(txOut.Value)
-	}
-
-	policy := wallet.OutputSelectionPolicy{
-		Account:               accNumber,
-		RequiredConfirmations: requiredConfs,
-	}
-	inputDetails, err := w.SelectInputs(dcrutil.Amount(amount), policy)
+	fundedTx, err := w.FundRawTransaction(mtx.TxIn, mtx.TxOut, feePerKb, accNumber, requiredConfs, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	mtx.TxIn = append(mtx.TxIn, inputDetails.Inputs...)
-
-	totalAmount := inputDetails.Amount
-	if totalAmount > amount {
-		if addr == "" {
-			// if address is not defined we use the default account to
-			// derive the address from.
-			decodedAddr, err := w.NewChangeAddress(0)
-			if err != nil {
-				return nil, err
-			}
-			addr = decodedAddr.EncodeAddress()
-		}
-
-		changeSource, err := makeScriptChangeSource(addr,
-			txscript.DefaultScriptVersion)
-		if err != nil {
-			return nil, err
-		}
-		changeOut := wire.NewTxOut(int64(totalAmount-amount), changeSource.script)
-		mtx.TxOut = append(mtx.TxOut, changeOut)
-	}
-
 	var buf bytes.Buffer
-	buf.Grow(mtx.SerializeSize())
-	err = mtx.Serialize(&buf)
+	buf.Grow(fundedTx.Tx.SerializeSize())
+	err = fundedTx.Tx.Serialize(&buf)
 	if err != nil {
 		return nil, err
 	}
 	resp := &dcrjson.FundRawTransactionResult{
 		Hex: hex.EncodeToString(buf.Bytes()),
-		Fee: float64(feePerKb),
+		Fee: float64(fundedTx.EstimatedSignedSerializeSize) / 1e8,
 	}
 
 	return resp, nil

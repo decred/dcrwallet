@@ -154,6 +154,82 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	}
 }
 
+func FundRawTransaction(inputs []*wire.TxIn, outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
+	fetchInputs InputSource, fetchChange ChangeSource) (*AuthoredTx, error) {
+
+	const op errors.Op = "txauthor.FundRawTransaction"
+
+	totalInTransaction := h.SumInputValues(inputs)
+	targetAmount := h.SumOutputValues(outputs) - totalInTransaction
+	scriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
+	changeScript, changeScriptVersion, err := fetchChange.Script()
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	changeScriptSize := fetchChange.ScriptSize()
+
+	maxSignedSize := txsizes.EstimateSerializeSize(scriptSizes, outputs, changeScriptSize)
+	targetFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
+
+	for {
+		inputDetail, err := fetchInputs(targetAmount + targetFee)
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+
+		if inputDetail.Amount < targetAmount+targetFee {
+			return nil, errors.E(op, errors.InsufficientBalance)
+		}
+
+		scriptSizes = []int{}
+		scriptSizes = append(scriptSizes, inputDetail.RedeemScriptSizes...)
+
+		maxSignedSize = txsizes.EstimateSerializeSize(scriptSizes, outputs, changeScriptSize)
+		maxRequiredFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
+		remainingAmount := inputDetail.Amount - targetAmount
+		if remainingAmount < maxRequiredFee {
+			targetFee = maxRequiredFee
+			continue
+		}
+		txInputs := append(inputs, inputDetail.Inputs...)
+		unsignedTransaction := &wire.MsgTx{
+			SerType:  wire.TxSerializeFull,
+			Version:  generatedTxVersion,
+			TxIn:     txInputs,
+			TxOut:    outputs,
+			LockTime: 0,
+			Expiry:   0,
+		}
+		changeIndex := -1
+		changeAmount := inputDetail.Amount - targetAmount - maxRequiredFee
+		if changeAmount != 0 && !txrules.IsDustAmount(changeAmount,
+			changeScriptSize, relayFeePerKb) {
+			if len(changeScript) > txscript.MaxScriptElementSize {
+				return nil, errors.E(errors.Invalid, "script size exceed maximum bytes "+
+					"pushable to the stack")
+			}
+			change := &wire.TxOut{
+				Value:    int64(changeAmount),
+				Version:  changeScriptVersion,
+				PkScript: changeScript,
+			}
+			l := len(outputs)
+			unsignedTransaction.TxOut = append(outputs[:l:l], change)
+			changeIndex = l
+		} else {
+			maxSignedSize = txsizes.EstimateSerializeSize(scriptSizes,
+				unsignedTransaction.TxOut, 0)
+		}
+		return &AuthoredTx{
+			Tx:                           unsignedTransaction,
+			PrevScripts:                  inputDetail.Scripts,
+			TotalInput:                   inputDetail.Amount,
+			ChangeIndex:                  changeIndex,
+			EstimatedSignedSerializeSize: maxSignedSize,
+		}, nil
+	}
+}
+
 // RandomizeOutputPosition randomizes the position of a transaction's output by
 // swapping it with a random output.  The new index is returned.  This should be
 // done before signing.

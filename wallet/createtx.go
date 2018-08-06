@@ -160,6 +160,70 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 	return authoredTx, nil
 }
 
+func (w *Wallet) FundRawTransaction(inputs []*wire.TxIn, outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount, account uint32, minConf int32,
+	changeAddress string) (*txauthor.AuthoredTx, error) {
+
+	const op errors.Op = "wallet.FundRawTransaction"
+
+	var authoredTx *txauthor.AuthoredTx
+	var changeSource p2PKHChangeSource
+	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+
+		if account != udb.ImportedAddrAccount {
+			lastAcct, err := w.Manager.LastAccount(addrmgrNs)
+			if err != nil {
+				return err
+			}
+			if account > lastAcct {
+				return errors.E(errors.NotExist, "missing account")
+			}
+		}
+
+		sourceImpl := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
+			minConf, tipHeight)
+
+		if changeAddress == "" {
+			changeSource = p2PKHChangeSource{
+				persist: w.deferPersistReturnedChild(&changeSourceUpdates),
+				account: account,
+				wallet:  w,
+			}
+		} else {
+			changeSource = p2PKHChangeSource{
+				changeAddress: changeAddress,
+				wallet:        w,
+			}
+		}
+
+		var err error
+		authoredTx, err = txauthor.FundRawTransaction(inputs, outputs, relayFeePerKb,
+			sourceImpl.SelectInputs, &changeSource)
+		return err
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	if len(changeSourceUpdates) != 0 {
+		err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+			for _, up := range changeSourceUpdates {
+				err := up(tx)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+	}
+	return authoredTx, nil
+}
+
 // secretSource is an implementation of txauthor.SecretSource for the wallet's
 // address manager.
 type secretSource struct {

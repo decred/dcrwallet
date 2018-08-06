@@ -560,19 +560,32 @@ func (w *Wallet) AccountBranchAddressRange(account, branch, start, end uint32) (
 }
 
 type p2PKHChangeSource struct {
-	persist persistReturnedChildFunc
-	account uint32
-	wallet  *Wallet
+	persist       persistReturnedChildFunc
+	account       uint32
+	changeAddress string
+	wallet        *Wallet
 }
 
 func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
-	changeAddress, err := src.wallet.newChangeAddress("", src.persist, src.account)
-	if err != nil {
-		return nil, 0, err
-	}
-	script, err := txscript.PayToAddrScript(changeAddress)
-	if err != nil {
-		return nil, 0, err
+	var script []byte
+	if src.changeAddress == "" {
+		changeAddress, err := src.wallet.newChangeAddress("", src.persist, src.account)
+		if err != nil {
+			return nil, 0, err
+		}
+		script, err = txscript.PayToAddrScript(changeAddress)
+		if err != nil {
+			return nil, 0, err
+		}
+	} else {
+		addr, err := dcrutil.DecodeAddress(src.changeAddress)
+		if err != nil {
+			return nil, 0, err
+		}
+		script, err = txscript.PayToAddrScript(addr)
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 	return script, txscript.DefaultScriptVersion, nil
 }
