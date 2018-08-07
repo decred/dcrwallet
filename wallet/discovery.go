@@ -6,20 +6,24 @@ package wallet
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"runtime"
 	"sync"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/gcs/blockcf"
 	hd "github.com/decred/dcrd/hdkeychain"
+	rpc "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/validate"
 	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 	"github.com/decred/dcrwallet/wallet/udb"
+	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -537,6 +541,201 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blo
 	return lastUsed, nil
 }
 
+// existsAddrIndexFinder implements address and account discovery using the
+// exists address index of a trusted dcrd RPC server.
+type existsAddrIndexFinder struct {
+	wallet *Wallet
+	client *rpc.Client
+}
+
+func (f *existsAddrIndexFinder) addressesUsed(addrs []dcrutil.Address) (bitset.Bytes, error) {
+	const op errors.Op = "dcrd.jsonrpc.existsaddresses"
+
+	hexBitSet, err := f.client.ExistsAddresses(addrs)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	bitset, err := hex.DecodeString(hexBitSet)
+	if err != nil {
+		return nil, errors.E(op, errors.Encoding, err)
+	}
+	return bitset, nil
+}
+
+func (f *existsAddrIndexFinder) findLastUsedAccount(coinTypeXpriv *hd.ExtendedKey) (uint32, error) {
+	scanLen := uint32(f.wallet.accountGapLimit)
+	var (
+		lastUsed uint32
+		lo, hi   uint32 = 0, hd.HardenedKeyStart / scanLen
+	)
+Bsearch:
+	for lo <= hi {
+		mid := (hi + lo) / 2
+		type result struct {
+			used    bool
+			account uint32
+			err     error
+		}
+		var results = make([]result, scanLen)
+		var wg sync.WaitGroup
+		for i := int(scanLen) - 1; i >= 0; i-- {
+			i := i
+			account := mid*scanLen + uint32(i)
+			if account >= hd.HardenedKeyStart {
+				continue
+			}
+			xpriv, err := coinTypeXpriv.Child(hd.HardenedKeyStart + account)
+			if err != nil {
+				return 0, err
+			}
+			xpub, err := xpriv.Neuter()
+			if err != nil {
+				xpriv.Zero()
+				return 0, err
+			}
+			wg.Add(1)
+			go func() {
+				used, err := f.accountUsed(xpub)
+				xpriv.Zero()
+				results[i] = result{used, account, err}
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+		for i := int(scanLen) - 1; i >= 0; i-- {
+			if results[i].err != nil {
+				return 0, results[i].err
+			}
+			if results[i].used {
+				lastUsed = results[i].account
+				lo = mid + 1
+				continue Bsearch
+			}
+		}
+		if mid == 0 {
+			break
+		}
+		hi = mid - 1
+	}
+	return lastUsed, nil
+}
+
+func (f *existsAddrIndexFinder) accountUsed(xpub *hd.ExtendedKey) (bool, error) {
+	extKey, intKey, err := deriveBranches(xpub)
+	if err != nil {
+		return false, err
+	}
+	type result struct {
+		used bool
+		err  error
+	}
+	results := make(chan result, 2)
+	merge := func(used bool, err error) {
+		results <- result{used, err}
+	}
+	go func() { merge(f.branchUsed(extKey)) }()
+	go func() { merge(f.branchUsed(intKey)) }()
+	for i := 0; i < 2; i++ {
+		r := <-results
+		if r.err != nil {
+			return false, err
+		}
+		if r.used {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (f *existsAddrIndexFinder) branchUsed(branchXpub *hd.ExtendedKey) (bool, error) {
+	addrs, err := deriveChildAddresses(branchXpub, 0, uint32(f.wallet.gapLimit), f.wallet.chainParams)
+	if err != nil {
+		return false, err
+	}
+	bits, err := f.addressesUsed(addrs)
+	if err != nil {
+		return false, err
+	}
+	for _, b := range bits {
+		if b != 0 {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// findLastUsedAddress returns the child index of the last used child address
+// derived from a branch key.  If no addresses are found, ^uint32(0) is
+// returned.
+func (f *existsAddrIndexFinder) findLastUsedAddress(xpub *hd.ExtendedKey) (uint32, error) {
+	var (
+		lastUsed        = ^uint32(0)
+		scanLen         = uint32(f.wallet.gapLimit)
+		segments        = hd.HardenedKeyStart / scanLen
+		lo, hi   uint32 = 0, segments - 1
+	)
+Bsearch:
+	for lo <= hi {
+		mid := (hi + lo) / 2
+		addrs, err := deriveChildAddresses(xpub, mid*scanLen, scanLen, f.wallet.chainParams)
+		if err != nil {
+			return 0, err
+		}
+		existsBits, err := f.addressesUsed(addrs)
+		if err != nil {
+			return 0, err
+		}
+		for i := len(addrs) - 1; i >= 0; i-- {
+			if existsBits.Get(i) {
+				lastUsed = mid*scanLen + uint32(i)
+				lo = mid + 1
+				continue Bsearch
+			}
+		}
+		if mid == 0 {
+			break
+		}
+		hi = mid - 1
+	}
+	return lastUsed, nil
+}
+
+func (f *existsAddrIndexFinder) find(finder *addrFinder) error {
+	var g errgroup.Group
+	lastUsed := func(acct, branch uint32, index *uint32) error {
+		var k *hd.ExtendedKey
+		err := walletdb.View(f.wallet.db, func(tx walletdb.ReadTx) error {
+			var err error
+			k, err = f.wallet.Manager.AccountBranchExtendedPubKey(tx, acct, branch)
+			return err
+		})
+		if err != nil {
+			return err
+		}
+		lastUsed, err := f.findLastUsedAddress(k)
+		if err != nil {
+			return err
+		}
+		*index = lastUsed
+		return nil
+	}
+	for i := range finder.usage {
+		acct := uint32(i)
+		u := &finder.usage[i]
+		g.Go(func() error { return lastUsed(acct, 0, &u.extLastUsed) })
+		g.Go(func() error { return lastUsed(acct, 1, &u.intLastUsed) })
+	}
+	return g.Wait()
+}
+
+func clientFromPeer(p Peer) (*rpc.Client, bool) {
+	c, ok := p.(interface{ RPCClient() *rpc.Client })
+	if !ok {
+		return nil, false
+	}
+	return c.RPCClient(), true
+}
+
 // DiscoverActiveAddresses searches for future wallet address usage in all
 // blocks starting from startBlock.  If discoverAccts is true, used accounts
 // will be discovered as well.  This feature requires the wallet to be unlocked
@@ -593,7 +792,14 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 		if err != nil {
 			return errors.E(op, err)
 		}
-		lastUsed, err := w.findLastUsedAccount(ctx, p, blockAddresses, coinTypePrivKey)
+		var lastUsed uint32
+		client, ok := clientFromPeer(p)
+		if ok {
+			f := existsAddrIndexFinder{w, client}
+			lastUsed, err = f.findLastUsedAccount(coinTypePrivKey)
+		} else {
+			lastUsed, err = w.findLastUsedAccount(ctx, p, blockAddresses, coinTypePrivKey)
+		}
 		if err != nil {
 			return errors.E(op, err)
 		}
@@ -662,7 +868,13 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 		return errors.E(op, err)
 	}
 	lastUsed := append([]accountUsage(nil), finder.usage...)
-	err = finder.find(ctx, startBlock, p)
+	client, ok := clientFromPeer(p)
+	if ok {
+		f := existsAddrIndexFinder{w, client}
+		err = f.find(finder)
+	} else {
+		err = finder.find(ctx, startBlock, p)
+	}
 	if err != nil {
 		return errors.E(op, err)
 	}

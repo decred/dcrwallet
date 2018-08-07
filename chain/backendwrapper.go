@@ -184,6 +184,10 @@ func (b *rpcBackend) StakeDifficulty(ctx context.Context) (dcrutil.Amount, error
 	return amount, nil
 }
 
+func (b *rpcBackend) RPCClient() *rpcclient.Client {
+	return b.rpcClient
+}
+
 // hexReader implements io.Reader to read bytes from a hexadecimal string.
 // TODO: Replace with hex.NewDecoder (available since Go 1.10)
 type hexReader struct {
