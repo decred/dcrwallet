@@ -840,6 +840,11 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		}
 	}
 
+	if cfg.SPV && cfg.EnableVoting {
+		err := errors.E("SPV voting is not possible: disable --spv or --enablevoting")
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
 	if !cfg.SPV && len(cfg.SPVConnect) > 0 {
 		err := errors.E("--spvconnect requires --spv")
 		fmt.Fprintln(os.Stderr, err)
