@@ -81,7 +81,7 @@
     "txscript",
     "wire"
   ]
-  revision = "60d7fe080fd26ce9a38242a755f4c27474102ccf"
+  revision = "553c8a6efb8bff2264d46d1a4781c7b1dbc15964"
 
 [[projects]]
   name = "github.com/decred/slog"

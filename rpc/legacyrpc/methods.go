@@ -810,7 +810,7 @@ func getInfo(s *Server, icmd interface{}) (interface{}, error) {
 		Connections:     0,
 		Proxy:           "",
 		Difficulty:      difficultyRatio(tipHeader.Bits, w.ChainParams()),
-		TestNet:         w.ChainParams().Net == wire.TestNet2,
+		TestNet:         w.ChainParams().Net == wire.TestNet3,
 		KeypoolOldest:   0,
 		KeypoolSize:     0,
 		UnlockedUntil:   0,

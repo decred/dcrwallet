@@ -19,6 +19,7 @@ import (
 type HardcodedDeployment struct {
 	MainNetActivationHeight  int32
 	TestNet2ActivationHeight int32
+	TestNet3ActivationHeight int32
 	SimNetActivationHeight   int32
 }
 
@@ -27,6 +28,7 @@ type HardcodedDeployment struct {
 var DCP0001 = HardcodedDeployment{
 	MainNetActivationHeight:  149248,
 	TestNet2ActivationHeight: 46128,
+	TestNet3ActivationHeight: 0,
 	SimNetActivationHeight:   -1,
 }
 
@@ -35,6 +37,7 @@ var DCP0001 = HardcodedDeployment{
 var DCP0002 = HardcodedDeployment{
 	MainNetActivationHeight:  189568,
 	TestNet2ActivationHeight: 151968,
+	TestNet3ActivationHeight: 0,
 	SimNetActivationHeight:   -1,
 }
 
@@ -43,6 +46,7 @@ var DCP0002 = HardcodedDeployment{
 var DCP0003 = HardcodedDeployment{
 	MainNetActivationHeight:  189568,
 	TestNet2ActivationHeight: 151968,
+	TestNet3ActivationHeight: 0,
 	SimNetActivationHeight:   -1,
 }
 
@@ -54,8 +58,10 @@ func (d *HardcodedDeployment) Active(height int32, params *chaincfg.Params) bool
 	switch params.Net {
 	case wire.MainNet:
 		activationHeight = d.MainNetActivationHeight
-	case wire.TestNet2:
+	case 0x48e7a065: // testnet2
 		activationHeight = d.TestNet2ActivationHeight
+	case wire.TestNet3:
+		activationHeight = d.TestNet3ActivationHeight
 	case wire.SimNet:
 		activationHeight = d.SimNetActivationHeight
 	}

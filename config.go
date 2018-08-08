@@ -477,7 +477,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Multiple networks can't be selected simultaneously.
 	numNets := 0
 	if cfg.TestNet {
-		activeNet = &netparams.TestNet2Params
+		activeNet = &netparams.TestNet3Params
 		numNets++
 	}
 	if cfg.SimNet {

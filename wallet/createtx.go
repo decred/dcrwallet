@@ -456,10 +456,12 @@ func (w *Wallet) txToMultisigInternal(op errors.Op, dbtx walletdb.ReadWriteTx, a
 	// Add in some extra for fees. TODO In the future, make a better
 	// fee estimator.
 	var feeEstForTx dcrutil.Amount
-	switch {
-	case w.chainParams == &chaincfg.MainNetParams:
+	switch w.chainParams.Net {
+	case wire.MainNet:
 		feeEstForTx = 5e7
-	case w.chainParams == &chaincfg.TestNet2Params:
+	case 0x48e7a065: // testnet2
+		feeEstForTx = 5e7
+	case wire.TestNet3:
 		feeEstForTx = 5e7
 	default:
 		feeEstForTx = 3e4

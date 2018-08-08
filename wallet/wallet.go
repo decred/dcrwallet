@@ -214,7 +214,9 @@ func voteVersion(params *chaincfg.Params) uint32 {
 	switch params.Net {
 	case wire.MainNet:
 		return 5
-	case wire.TestNet2:
+	case 0x48e7a065: // TestNet2
+		return 6
+	case wire.TestNet3:
 		return 6
 	case wire.SimNet:
 		return 6

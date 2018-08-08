@@ -29,17 +29,13 @@ import (
 // files.
 func networkDir(dataDir string, chainParams *chaincfg.Params) string {
 	netname := chainParams.Name
-
-	// For now, we must always name the testnet data directory as "testnet"
-	// and not "testnet" or any other version, as the chaincfg testnet
-	// paramaters will likely be switched to being named "testnet" in the
-	// future.  This is done to future proof that change, and an upgrade
-	// plan to move the testnet data directory can be worked out later.
+	// Be cautious of v2+ testnets being named only "testnet".
 	switch chainParams.Net {
-	case wire.TestNet2:
+	case 0x48e7a065: // testnet2
 		netname = "testnet2"
+	case wire.TestNet3:
+		netname = "testnet3"
 	}
-
 	return filepath.Join(dataDir, netname)
 }
 
