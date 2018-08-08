@@ -92,29 +92,8 @@ func (w *Wallet) nextRequiredPoWDifficulty(dbtx walletdb.ReadTx, header *wire.Bl
 				time.Second)
 			allowMinTime := header.Timestamp.Unix() + reductionTime
 
-			// For every extra target timespan that passes, we halve the
-			// difficulty.
 			if newBlockTime.Unix() > allowMinTime {
-				timePassed := newBlockTime.Unix() - header.Timestamp.Unix()
-				timePassed -= reductionTime
-				shifts := uint((timePassed / int64(w.chainParams.TargetTimePerBlock/
-					time.Second)) + 1)
-
-				// Scale the difficulty with time passed.
-				oldTarget := blockchain.CompactToBig(header.Bits)
-				newTarget := new(big.Int)
-				if shifts < maxShift {
-					newTarget.Lsh(oldTarget, shifts)
-				} else {
-					newTarget.Set(oneLsh256)
-				}
-
-				// Limit new value to the proof of work limit.
-				if newTarget.Cmp(w.chainParams.PowLimit) > 0 {
-					newTarget.Set(w.chainParams.PowLimit)
-				}
-
-				return blockchain.BigToCompact(newTarget), nil
+				return w.chainParams.PowLimitBits, nil
 			}
 
 			// The block was mined within the desired timeframe, so
