@@ -96,8 +96,6 @@ type config struct {
 	LogDir             *cfgutil.ExplicitString `long:"logdir" description:"Directory to log output."`
 	Profile            []string                `long:"profile" description:"Enable HTTP profiling this interface/port"`
 	MemProfile         string                  `long:"memprofile" description:"Write mem profile to the specified file"`
-	RollbackTest       bool                    `long:"rollbacktest" description:"Rollback testing is a simnet testing mode that eventually stops wallet and examines wtxmgr database integrity"`
-	AutomaticRepair    bool                    `long:"automaticrepair" description:"Attempt to repair the wallet automatically if a database inconsistency is found"`
 
 	// Wallet options
 	WalletPass          string               `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
@@ -164,10 +162,12 @@ type config struct {
 	tbCfg  ticketbuyer.Config
 
 	// Deprecated options
-	DataDir        *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
-	PruneTickets   bool                    `long:"prunetickets" description:"DEPRECATED -- old tickets are always pruned"`
-	TicketAddress  *cfgutil.AddressFlag    `long:"ticketaddress" description:"DEPRECATED -- use ticketbuyer.votingaddress instead"`
-	AddrIdxScanLen int                     `long:"addridxscanlen" description:"DEPRECATED -- use gaplimit instead"`
+	DataDir         *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
+	PruneTickets    bool                    `long:"prunetickets" description:"DEPRECATED -- old tickets are always pruned"`
+	TicketAddress   *cfgutil.AddressFlag    `long:"ticketaddress" description:"DEPRECATED -- use ticketbuyer.votingaddress instead"`
+	AddrIdxScanLen  int                     `long:"addridxscanlen" description:"DEPRECATED -- use gaplimit instead"`
+	RollbackTest    bool                    `hidden:"y" long:"rollbacktest" description:"Rollback testing is a simnet testing mode that eventually stops wallet and examines wtxmgr database integrity"`
+	AutomaticRepair bool                    `hidden:"y" long:"automaticrepair" description:"Attempt to repair the wallet automatically if a database inconsistency is found"`
 }
 
 type ticketBuyerOptions struct {
@@ -359,10 +359,8 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		EnableTicketBuyer:      defaultEnableTicketBuyer,
 		EnableVoting:           defaultEnableVoting,
 		ReuseAddresses:         defaultReuseAddresses,
-		RollbackTest:           defaultRollbackTest,
 		PruneTickets:           defaultPruneTickets,
 		PurchaseAccount:        defaultPurchaseAccount,
-		AutomaticRepair:        defaultAutomaticRepair,
 		GapLimit:               defaultGapLimit,
 		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
 		AllowHighFees:          defaultAllowHighFees,
@@ -372,9 +370,11 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		AccountGapLimit:        defaultAccountGapLimit,
 
 		// TODO: DEPRECATED - remove.
-		DataDir:        cfgutil.NewExplicitString(defaultAppDataDir),
-		TicketAddress:  cfgutil.NewAddressFlag(nil),
-		AddrIdxScanLen: defaultGapLimit,
+		DataDir:         cfgutil.NewExplicitString(defaultAppDataDir),
+		TicketAddress:   cfgutil.NewAddressFlag(nil),
+		AddrIdxScanLen:  defaultGapLimit,
+		RollbackTest:    defaultRollbackTest,
+		AutomaticRepair: defaultAutomaticRepair,
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
@@ -689,9 +689,12 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		os.Exit(0)
 	}
 
-	// Warn if rollback testing is enabled, as this feature was removed.
+	// Warn for removed features without erroring parsing the config.
 	if cfg.RollbackTest {
-		fmt.Fprintln(os.Stderr, "WARN: Rollback testing no longer exists")
+		fmt.Fprintf(os.Stderr, "%v: --rollbacktest should be removed from config\n", funcName)
+	}
+	if cfg.AutomaticRepair {
+		fmt.Fprintf(os.Stderr, "%v: --automaticrepair should be removed from config\n", funcName)
 	}
 
 	// Ensure the wallet exists or create it when the create flag is set.
