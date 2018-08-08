@@ -185,7 +185,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 		log.Debugf("Skipping purchase: low available balance")
 		return nil
 	}
-	if max := int(w.ChainParams().TicketsPerBlock); buy > max {
+	if max := int(w.ChainParams().MaxFreshStakePerBlock); buy > max {
 		buy = max
 	}
 
