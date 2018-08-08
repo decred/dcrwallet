@@ -369,7 +369,7 @@ func (w *Wallet) ancestorHeaderAtHeight(dbtx walletdb.ReadTx, h *wire.BlockHeade
 	switch {
 	case height == int32(h.Height):
 		return h, nil
-	case height > int32(h.Height):
+	case height > int32(h.Height), height < 0:
 		return nil, nil // dcrd's blockNode.Ancestor returns nil for child heights
 	}
 
