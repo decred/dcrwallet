@@ -47,7 +47,6 @@
   revision = "b3520e187fa8ebe65eb74245408cf4b83e6a65d3"
 
 [[projects]]
-  branch = "master"
   name = "github.com/decred/dcrd"
   packages = [
     "addrmgr",
@@ -82,6 +81,7 @@
     "wire"
   ]
   revision = "553c8a6efb8bff2264d46d1a4781c7b1dbc15964"
+  version = "release-v1.3.0-rc1"
 
 [[projects]]
   name = "github.com/decred/slog"
@@ -220,6 +220,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "be61a242eddb93b17787f969d3b57626a5d9f969151e6eec2449110d5704ced7"
+  inputs-digest = "e0c8fc19f5d95cdfa0600ca91508a8f102c9bffc89873f21ac88501f7514fc13"
   solver-name = "gps-cdcl"
   solver-version = 1
