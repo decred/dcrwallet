@@ -682,6 +682,43 @@ message FetchHeadersResponse {
 	int32 main_chain_tip_block_height = 5;
 }
 
+enum SyncNotificationType {
+	SYNCED = 0;
+	UNSYNCED = 1;
+	PEER_CONNECTED = 2;
+	PEER_DISCONNECTED = 3;
+	FETCHED_MISSING_CFILTERS_STARTED = 4;
+	FETCHED_MISSING_CFILTERS_PROGRESS = 5;
+	FETCHED_MISSING_CFILTERS_FINISHED = 6;
+	FETCHED_HEADERS_STARTED  = 7;
+	FETCHED_HEADERS_PROGRESS  = 8;
+	FETCHED_HEADERS_FINISHED  = 9;
+	DISCOVER_ADDRESSES_STARTED = 10;
+	DISCOVER_ADDRESSES_FINISHED = 11;
+	RESCAN_STARTED = 12;
+	RESCAN_PROGRESS = 13;
+	RESCAN_FINISHED = 14;
+}
+
+message FetchHeadersNotification {
+	int32 fetched_headers_count = 1;
+	int64 last_header_time = 2;
+}
+
+message FetchMissingCFiltersNotification {
+	int32 fetched_cfilters_start_height = 1;
+	int32 fetched_cfilters_end_height = 2;
+}
+
+message RescanProgressNotification {
+	int32 rescanned_through = 1;
+}
+
+message PeerNotification {
+	int32 peer_count = 1;
+	string address = 2;
+}
+
 message SpvSyncRequest {
 	bool discover_accounts = 1;
 	bytes private_passphrase = 2;
@@ -689,6 +726,11 @@ message SpvSyncRequest {
 }
 message SpvSyncResponse {
 	bool synced = 1;
+	SyncNotificationType notification_type = 2;
+	FetchHeadersNotification fetch_headers = 3;
+	FetchMissingCFiltersNotification fetch_missing_cfilters = 4;
+	RescanProgressNotification rescan_progress = 5;
+	PeerNotification peer_information = 6;
 }
 
 message RescanPointRequest {}

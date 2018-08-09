@@ -61,10 +61,10 @@ import (
 
 // Public API version constants
 const (
-	semverString = "5.1.1"
+	semverString = "5.2.0"
 	semverMajor  = 5
-	semverMinor  = 1
-	semverPatch  = 1
+	semverMinor  = 2
+	semverPatch  = 0
 )
 
 // translateError creates a new gRPC error with an appropiate error code for
@@ -2373,18 +2373,117 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 
 	ntfns := &spv.Notifications{
 		Synced: func(sync bool) {
-			resp := &pb.SpvSyncResponse{Synced: sync}
+			resp := &pb.SpvSyncResponse{}
+			resp.Synced = sync
+			if sync {
+				resp.NotificationType = pb.SyncNotificationType_SYNCED
+			} else {
+				resp.NotificationType = pb.SyncNotificationType_UNSYNCED
+			}
+			_ = svr.Send(resp)
+		},
+		PeerConnected: func(peerCount int32, addr string) {
+			resp := &pb.SpvSyncResponse{
+				NotificationType: pb.SyncNotificationType_PEER_CONNECTED,
+				PeerInformation: &pb.PeerNotification{
+					PeerCount: peerCount,
+					Address:   addr,
+				},
+			}
+			_ = svr.Send(resp)
+		},
+		PeerDisconnected: func(peerCount int32, addr string) {
+			resp := &pb.SpvSyncResponse{
+				NotificationType: pb.SyncNotificationType_PEER_DISCONNECTED,
+				PeerInformation: &pb.PeerNotification{
+					PeerCount: peerCount,
+					Address:   addr,
+				},
+			}
+			_ = svr.Send(resp)
+		},
+		FetchMissingCFiltersStarted: func() {
+			resp := &pb.SpvSyncResponse{
+				NotificationType: pb.SyncNotificationType_FETCHED_MISSING_CFILTERS_STARTED,
+			}
+			_ = svr.Send(resp)
+		},
+		FetchMissingCFiltersProgress: func(missingCFitlersStart, missingCFitlersEnd int32) {
+			resp := &pb.SpvSyncResponse{
+				NotificationType: pb.SyncNotificationType_FETCHED_MISSING_CFILTERS_PROGRESS,
+				FetchMissingCfilters: &pb.FetchMissingCFiltersNotification{
+					FetchedCfiltersStartHeight: missingCFitlersStart,
+					FetchedCfiltersEndHeight:   missingCFitlersEnd,
+				},
+			}
+			_ = svr.Send(resp)
+		},
+		FetchMissingCFiltersFinished: func() {
+			resp := &pb.SpvSyncResponse{
+				NotificationType: pb.SyncNotificationType_FETCHED_MISSING_CFILTERS_FINISHED,
+			}
+			_ = svr.Send(resp)
+		},
+		FetchHeadersStarted: func() {
+			resp := &pb.SpvSyncResponse{
+				NotificationType: pb.SyncNotificationType_FETCHED_HEADERS_STARTED,
+			}
+			_ = svr.Send(resp)
+		},
+		FetchHeadersProgress: func(fetchedHeadersCount int32, lastHeaderTime int64) {
+			resp := &pb.SpvSyncResponse{
+				NotificationType: pb.SyncNotificationType_FETCHED_HEADERS_PROGRESS,
+				FetchHeaders: &pb.FetchHeadersNotification{
+					FetchedHeadersCount: fetchedHeadersCount,
+					LastHeaderTime:      lastHeaderTime,
+				},
+			}
+			_ = svr.Send(resp)
+		},
+		FetchHeadersFinished: func() {
+			resp := &pb.SpvSyncResponse{
+				NotificationType: pb.SyncNotificationType_FETCHED_HEADERS_FINISHED,
+			}
+			_ = svr.Send(resp)
+		},
+		DiscoverAddressesStarted: func() {
+			resp := &pb.SpvSyncResponse{
+				NotificationType: pb.SyncNotificationType_DISCOVER_ADDRESSES_STARTED,
+			}
+			_ = svr.Send(resp)
+		},
+		DiscoverAddressesFinished: func() {
+			resp := &pb.SpvSyncResponse{
+				NotificationType: pb.SyncNotificationType_DISCOVER_ADDRESSES_FINISHED,
+			}
 
-			// Lock the wallet after the first time synced while also
+			// Lock the wallet after the first time discovered while also
 			// discovering accounts.
-			if sync && lockWallet != nil {
+			if lockWallet != nil {
 				lockWallet()
 				lockWallet = nil
 			}
-
-			// TODO: Add some kind of logging here.  Do nothing with the error
-			// for now. Could be nice to see what happened, but not super
-			// important.
+			_ = svr.Send(resp)
+		},
+		RescanStarted: func() {
+			resp := &pb.SpvSyncResponse{
+				NotificationType: pb.SyncNotificationType_RESCAN_STARTED,
+			}
+			_ = svr.Send(resp)
+		},
+		RescanProgress: func(rescannedThrough int32) {
+			resp := &pb.SpvSyncResponse{
+				NotificationType: pb.SyncNotificationType_RESCAN_PROGRESS,
+				RescanProgress: &pb.RescanProgressNotification{
+					RescannedThrough: rescannedThrough,
+				},
+			}
+			_ = svr.Send(resp)
+		},
+		RescanFinished: func() {
+			resp := &pb.SpvSyncResponse{
+				NotificationType: pb.SyncNotificationType_RESCAN_FINISHED,
+			}
 			_ = svr.Send(resp)
 		},
 	}

@@ -79,9 +79,20 @@ type Syncer struct {
 // Notifications struct to contain all of the upcoming callbacks that will
 // be used to update the rpc streams for syncing.
 type Notifications struct {
-	// Synced is defined for a callback to notify when the wallet is seen
-	// to be synced or unsynced from its connected peers.
-	Synced func(sync bool)
+	Synced                       func(sync bool)
+	PeerConnected                func(peerCount int32, addr string)
+	PeerDisconnected             func(peerCount int32, addr string)
+	FetchMissingCFiltersStarted  func()
+	FetchMissingCFiltersProgress func(startCFiltersHeight, endCFiltersHeight int32)
+	FetchMissingCFiltersFinished func()
+	FetchHeadersStarted          func()
+	FetchHeadersProgress         func(lastHeaderHeight int32, lastHeaderTime int64)
+	FetchHeadersFinished         func()
+	DiscoverAddressesStarted     func()
+	DiscoverAddressesFinished    func()
+	RescanStarted                func()
+	RescanProgress               func(rescannedThrough int32)
+	RescanFinished               func()
 }
 
 // NewSyncer creates a Syncer that will sync the wallet using SPV.
@@ -126,6 +137,85 @@ func (s *Syncer) unsynced() {
 		s.notifications != nil &&
 		s.notifications.Synced != nil {
 		s.notifications.Synced(false)
+	}
+}
+
+// peerConnected updates the notification for peer count, if set.
+func (s *Syncer) peerConnected(remotesCount int, addr string) {
+	if s.notifications != nil && s.notifications.PeerConnected != nil {
+		s.notifications.PeerConnected(int32(remotesCount), addr)
+	}
+}
+
+// peerDisconnected updates the notification for peer count, if set.
+func (s *Syncer) peerDisconnected(remotesCount int, addr string) {
+	if s.notifications != nil && s.notifications.PeerDisconnected != nil {
+		s.notifications.PeerDisconnected(int32(remotesCount), addr)
+	}
+}
+
+func (s *Syncer) fetchMissingCfiltersStart() {
+	if s.notifications != nil && s.notifications.FetchMissingCFiltersStarted != nil {
+		s.notifications.FetchMissingCFiltersStarted()
+	}
+}
+
+func (s *Syncer) fetchMissingCfiltersProgress(startMissingCFilterHeight, endMissinCFilterHeight int32) {
+	if s.notifications != nil && s.notifications.FetchMissingCFiltersProgress != nil {
+		s.notifications.FetchMissingCFiltersProgress(startMissingCFilterHeight, endMissinCFilterHeight)
+	}
+}
+
+func (s *Syncer) fetchMissingCfiltersFinished() {
+	if s.notifications != nil && s.notifications.FetchMissingCFiltersFinished != nil {
+		s.notifications.FetchMissingCFiltersFinished()
+	}
+}
+
+func (s *Syncer) fetchHeadersStart() {
+	if s.notifications != nil && s.notifications.FetchHeadersStarted != nil {
+		s.notifications.FetchHeadersStarted()
+	}
+}
+
+func (s *Syncer) fetchHeadersProgress(fetchedHeadersCount int32, lastHeaderTime int64) {
+	if s.notifications != nil && s.notifications.FetchHeadersProgress != nil {
+		s.notifications.FetchHeadersProgress(fetchedHeadersCount, lastHeaderTime)
+	}
+}
+
+func (s *Syncer) fetchHeadersFinished() {
+	if s.notifications != nil && s.notifications.FetchHeadersFinished != nil {
+		s.notifications.FetchHeadersFinished()
+	}
+}
+func (s *Syncer) discoverAddressesStart() {
+	if s.notifications != nil && s.notifications.DiscoverAddressesStarted != nil {
+		s.notifications.DiscoverAddressesStarted()
+	}
+}
+
+func (s *Syncer) discoverAddressesFinished() {
+	if s.notifications != nil && s.notifications.DiscoverAddressesFinished != nil {
+		s.notifications.DiscoverAddressesFinished()
+	}
+}
+
+func (s *Syncer) rescanStart() {
+	if s.notifications != nil && s.notifications.RescanStarted != nil {
+		s.notifications.RescanStarted()
+	}
+}
+
+func (s *Syncer) rescanProgress(rescannedThrough int32) {
+	if s.notifications != nil && s.notifications.RescanProgress != nil {
+		s.notifications.RescanProgress(rescannedThrough)
+	}
+}
+
+func (s *Syncer) rescanFinished() {
+	if s.notifications != nil && s.notifications.RescanFinished != nil {
+		s.notifications.RescanFinished()
 	}
 }
 
@@ -243,7 +333,9 @@ func (s *Syncer) connectToPersistent(ctx context.Context, raddr string) error {
 			k := addrmgr.NetAddressKey(rp.NA())
 			s.remotesMu.Lock()
 			s.remotes[k] = rp
+			n := len(s.remotes)
 			s.remotesMu.Unlock()
+			s.peerConnected(n, k)
 
 			wait := make(chan struct{})
 			go func() {
@@ -257,7 +349,9 @@ func (s *Syncer) connectToPersistent(ctx context.Context, raddr string) error {
 			err = rp.Err()
 			s.remotesMu.Lock()
 			delete(s.remotes, k)
+			n = len(s.remotes)
 			s.remotesMu.Unlock()
+			s.peerDisconnected(n, k)
 			<-wait
 			if ctx.Err() != nil {
 				return
@@ -328,7 +422,9 @@ func (s *Syncer) connectToCandidates(ctx context.Context) error {
 			s.remotesMu.Lock()
 			delete(s.connectingRemotes, k)
 			s.remotes[k] = rp
+			n := len(s.remotes)
 			s.remotesMu.Unlock()
+			s.peerConnected(n, k)
 
 			wait := make(chan struct{})
 			go func() {
@@ -347,7 +443,9 @@ func (s *Syncer) connectToCandidates(ctx context.Context) error {
 			<-wait
 			s.remotesMu.Lock()
 			delete(s.remotes, k)
+			n = len(s.remotes)
 			s.remotesMu.Unlock()
+			s.peerDisconnected(n, k)
 		}()
 	}
 }
@@ -963,7 +1061,7 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 			s.locatorMu.Unlock()
 			continue
 		}
-
+		s.fetchHeadersProgress(int32(added), headers[len(headers)-1].Timestamp.Unix())
 		log.Debugf("Fetched %d new header(s) ending at height %d from %v",
 			added, nodes[len(nodes)-1].Header.Height, rp)
 
@@ -1026,19 +1124,26 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 	if rp.InitialHeight() < tipHeight-6 {
 		return errors.E("peer is not synced")
 	}
+	s.fetchMissingCfiltersStart()
+	progress := make(chan wallet.MissingCFilterProgress, 1)
+	go s.wallet.FetchMissingCFiltersWithProgress(ctx, rp, progress)
 
-	// Fetch any missing main chain compact filters.
-	err := s.wallet.FetchMissingCFilters(ctx, rp)
-	if err != nil {
-		return err
+	for p := range progress {
+		if p.Err != nil {
+			return p.Err
+		}
+		s.fetchMissingCfiltersProgress(p.BlockHeightStart, p.BlockHeightEnd)
 	}
+	s.fetchMissingCfiltersFinished()
 
 	// Fetch any unseen headers from the peer.
+	s.fetchHeadersStart()
 	log.Debugf("Fetching headers from %v", rp.RemoteAddr())
-	err = s.getHeaders(ctx, rp)
+	err := s.getHeaders(ctx, rp)
 	if err != nil {
 		return err
 	}
+	s.fetchHeadersFinished()
 
 	if atomic.CompareAndSwapUint32(&s.atomicCatchUpTryLock, 0, 1) {
 		err = func() error {
@@ -1063,20 +1168,36 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 			// check to see if it was previously synced
 			s.unsynced()
 
+			s.discoverAddressesStart()
 			err = s.wallet.DiscoverActiveAddresses(ctx, rp, rescanPoint, s.discoverAccounts)
 			if err != nil {
 				return err
 			}
+			s.discoverAddressesFinished()
 			s.discoverAccounts = false
+
 			err = s.wallet.LoadActiveDataFilters(ctx, s, true)
 			if err != nil {
 				return err
 			}
 			s.loadedFilters = true
-			err = s.wallet.Rescan(ctx, s, rescanPoint)
+
+			s.rescanStart()
+
+			rescanBlock, err := s.wallet.BlockHeader(rescanPoint)
 			if err != nil {
 				return err
 			}
+			progress := make(chan wallet.RescanProgress, 1)
+			go s.wallet.RescanProgressFromHeight(ctx, s, int32(rescanBlock.Height), progress)
+
+			for p := range progress {
+				if p.Err != nil {
+					return p.Err
+				}
+				s.rescanProgress(p.ScannedThrough)
+			}
+			s.rescanFinished()
 
 			s.synced()
 
