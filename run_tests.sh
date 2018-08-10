@@ -27,12 +27,7 @@ DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
 testrepo () {
   TMPFILE=$(mktemp)
 
-  # Check lockfile
-  cp Gopkg.lock $TMPFILE && dep ensure && diff Gopkg.lock $TMPFILE >/dev/null
-  if [ $? != 0 ]; then
-    echo 'lockfile must be updated with dep ensure'
-    exit 1
-  fi
+  dep ensure
 
   # Check linters
   gometalinter --vendor --disable-all --deadline=10m -s testdata \
