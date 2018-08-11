@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet"
@@ -264,6 +265,25 @@ func (s *RPCSyncer) handleVoteNotifications(ctx context.Context) error {
 	}
 }
 
+// ctxdo executes f, returning the earliest of f's returned error or a context
+// error.  ctxdo adds early returns for operations which do not understand
+// context, but the operation is not canceled and will continue executing in
+// the background.  If f returns non-nil before the context errors, the error is
+// wrapped with op.
+func ctxdo(ctx context.Context, op errors.Op, f func() error) error {
+	e := make(chan error, 1)
+	go func() { e <- f() }()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-e:
+		if err != nil {
+			return errors.E(op, err)
+		}
+		return nil
+	}
+}
+
 // hashStop is a zero value stop hash for fetching all possible data using
 // locators.
 var hashStop chainhash.Hash
@@ -294,19 +314,29 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 		return err
 	}
 	for {
-		headersMsg, err := s.rpcClient.GetHeaders(locators, &hashStop)
-		if err != nil {
+		if err := ctx.Err(); err != nil {
 			return err
 		}
-		headers := make([]*wire.BlockHeader, 0, len(headersMsg.Headers))
-		for _, h := range headersMsg.Headers {
-			header := new(wire.BlockHeader)
-			err := header.Deserialize(newHexReader(h))
+
+		var headers []*wire.BlockHeader
+		err := ctxdo(ctx, "dcrd.jsonrpc.getheaders", func() error {
+			headersMsg, err := s.rpcClient.GetHeaders(locators, &hashStop)
 			if err != nil {
-				const op errors.Op = "dcrd.jsonrpc.getheaders"
-				return errors.E(op, err)
+				return err
 			}
-			headers = append(headers, header)
+			headers = make([]*wire.BlockHeader, 0, len(headersMsg.Headers))
+			for _, h := range headersMsg.Headers {
+				header := new(wire.BlockHeader)
+				err := header.Deserialize(newHexReader(h))
+				if err != nil {
+					return err
+				}
+				headers = append(headers, header)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
 		}
 		if len(headers) == 0 {
 			break
@@ -319,7 +349,12 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 			g.Go(func() error {
 				header := headers[i]
 				hash := header.BlockHash()
-				filter, err := s.rpcClient.GetCFilter(&hash, wire.GCSFilterRegular)
+				var filter *gcs.Filter
+				err := ctxdo(ctx, "dcrd.jsonrpc.getcfilter", func() error {
+					var err error
+					filter, err = s.rpcClient.GetCFilter(&hash, wire.GCSFilterRegular)
+					return err
+				})
 				if err != nil {
 					return err
 				}
