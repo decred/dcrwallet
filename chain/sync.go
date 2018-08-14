@@ -350,9 +350,14 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 				header := headers[i]
 				hash := header.BlockHash()
 				var filter *gcs.Filter
-				err := ctxdo(ctx, "dcrd.jsonrpc.getcfilter", func() error {
+				err := ctxdo(ctx, "", func() error {
+					const opf = "dcrd.jsonrpc.getcfilter(%v)"
 					var err error
 					filter, err = s.rpcClient.GetCFilter(&hash, wire.GCSFilterRegular)
+					if err != nil {
+						op := errors.Opf(opf, &hash)
+						err = errors.E(op, err)
+					}
 					return err
 				})
 				if err != nil {
