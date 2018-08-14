@@ -380,6 +380,17 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 
 		log.Infof("Fetched %d new header(s) ending at height %d from %v",
 			added, nodes[len(nodes)-1].Header.Height, s.rpcClient)
+
+		// Stop fetching headers when no new blocks are returned.
+		// Because getheaders did return located blocks, this indicates
+		// that the server is not as far synced as the wallet.  Blocks
+		// the server has not processed are not reorged out of the
+		// wallet at this time, but a reorg will switch to a better
+		// chain later if one is discovered.
+		if added == 0 {
+			break
+		}
+
 		bestChain, err := s.wallet.EvaluateBestChain(&sidechains)
 		if err != nil {
 			return err
