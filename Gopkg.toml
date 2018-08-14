@@ -12,8 +12,8 @@
   name = "github.com/btcsuite/websocket"
 
 [[constraint]]
+  branch = "release-v1.3"
   name = "github.com/decred/dcrd"
-  version = "release-v1.3.0-rc1"
 
 [[constraint]]
   branch = "master"

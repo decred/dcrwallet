@@ -3,12 +3,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/aead/siphash"
-  packages = ["."]
-  revision = "e404fcfc888570cadd1610538e2dbc89f66af814"
-
-[[projects]]
-  branch = "master"
   name = "github.com/agl/ed25519"
   packages = [
     ".",
@@ -41,12 +35,19 @@
   revision = "dee3fe6eb0e98dc774a94fc231f85baf7c29d360"
 
 [[projects]]
+  name = "github.com/dchest/siphash"
+  packages = ["."]
+  revision = "ca249f45189071f5d44dc6401334e3572037b9cb"
+  version = "v1.2.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/decred/base58"
   packages = ["."]
   revision = "b3520e187fa8ebe65eb74245408cf4b83e6a65d3"
 
 [[projects]]
+  branch = "master"
   name = "github.com/decred/dcrd"
   packages = [
     "addrmgr",
@@ -80,8 +81,7 @@
     "txscript",
     "wire"
   ]
-  revision = "553c8a6efb8bff2264d46d1a4781c7b1dbc15964"
-  version = "release-v1.3.0-rc1"
+  revision = "e4bdae9b0cc1c4e1cf2f03f0300a6ddafbf23e9d"
 
 [[projects]]
   name = "github.com/decred/slog"
@@ -220,6 +220,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "e0c8fc19f5d95cdfa0600ca91508a8f102c9bffc89873f21ac88501f7514fc13"
+  inputs-digest = "1906423a6f8cbfd8a4d7244e524060d641d9eb8552106d174d9aa53725e3aedc"
   solver-name = "gps-cdcl"
   solver-version = 1
