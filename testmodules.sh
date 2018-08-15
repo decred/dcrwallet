@@ -7,10 +7,16 @@ if [[ $GOVERSION == 1.10 ]]; then
     GO=vgo
 fi
 
-MODULES="chain deployments errors internal/helpers internal/zero lru p2p"
-MODULES="${MODULES} pgpwordlist spv ticketbuyer ticketbuyer/v2 validate"
-MODULES="${MODULES} version wallet walletseed ."
+ROOTPATH=$($GO list -m -f {{.Dir}} 2>/dev/null)
+ROOTPATHPATTERN=$(echo $ROOTPATH | sed 's/\\/\\\\/g' | sed 's/\//\\\//g')
+MODPATHS=$($GO list -m -f {{.Dir}} all 2>/dev/null | grep "^$ROOTPATHPATTERN" | sed -e "s/^$ROOTPATHPATTERN//" -e 's/^\\\|\///')
+MODPATHS=". $MODPATHS"
 
-for module in $MODULES; do
-    (cd $module && $GO test -short ./... && $GO mod verify >/dev/null)
+tests () {
+    $GO test $GOTESTFLAGS ./...
+    $GO mod verify >/dev/null
+}
+
+for m in $MODPATHS; do
+    (cd "$m" && tests)
 done
