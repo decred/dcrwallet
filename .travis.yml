@@ -7,8 +7,8 @@ services:
   - docker
 
 env:
-  - GOVERSION=1.9
   - GOVERSION=1.10
+  - GOVERSION=1.11
 
 install: true
 

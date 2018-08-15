@@ -20,7 +20,7 @@ set -ex
 # for more details.
 
 #Default GOVERSION
-GOVERSION=${1:-1.10}
+GOVERSION=${1:-1.11}
 REPO=dcrwallet
 DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
 
