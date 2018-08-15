@@ -4,7 +4,7 @@ require (
 	github.com/decred/dcrd/blockchain v1.0.1
 	github.com/decred/dcrd/dcrec v0.0.0-20180809193022-9536f0c88fa8 // indirect
 	github.com/decred/dcrd/dcrec/edwards v0.0.0-20180809193022-9536f0c88fa8 // indirect
-	github.com/decred/dcrd/gcs v1.0.1
+	github.com/decred/dcrd/gcs v1.0.2
 	github.com/decred/dcrd/wire v1.1.0
 	github.com/decred/dcrwallet/errors v1.0.0
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
