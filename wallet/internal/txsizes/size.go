@@ -22,6 +22,14 @@ const (
 	//   - 33 bytes serialized compressed pubkey
 	RedeemP2PKHSigScriptSize = 1 + 73 + 1 + 33
 
+	// RedeemP2PKSigScriptSize is the worst case (largest) serialize size
+	// of a transaction input script that redeems a compressed P2PK output.
+	// It is calculated as:
+	//
+	//   - OP_DATA_73
+	//   - 72 bytes DER signature + 1 byte sighash
+	RedeemP2PKSigScriptSize = 1 + 73
+
 	// RedeemP2SHSigScriptSize is the worst case (largest) serialize size
 	// of a transaction input script that redeems a P2SH output.
 	// It is calculated as:
