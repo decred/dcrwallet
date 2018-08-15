@@ -2932,17 +2932,21 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			if err != nil {
 				return nil, err
 			}
-			op.Tree = tree
 
+			op.Tree = tree
 			input := wire.NewTxIn(&op, int64(amt), nil)
+			var scriptSize int
 
 			// Unspent credits are currently expected to be either P2PKH or
-			// P2PKH/P2SH nested in a revocation/stakechange/vote output.
+			// P2PK, P2PKH/P2SH nested in a revocation/stakechange/vote output.
 			scriptClass := txscript.GetScriptClass(
 				txscript.DefaultScriptVersion, pkScript)
 
 			switch scriptClass {
 			case txscript.PubKeyHashTy:
+				scriptSize = txsizes.RedeemP2PKHSigScriptSize
+			case txscript.PubKeyTy:
+				scriptSize = txsizes.RedeemP2PKSigScriptSize
 			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy,
 				txscript.StakeGenTy:
 				scriptClass, err = txscript.GetStakeOutSubclass(pkScript)
@@ -2951,22 +2955,27 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 						"failed to extract nested script in stake output: %v",
 						err)
 				}
-			default:
-				return nil, fmt.Errorf(
-					"unexpected script class for credit: %v",
-					scriptClass)
-			}
 
-			if scriptClass != txscript.PubKeyHashTy {
-				log.Errorf("unexpected script class: %v", scriptClass)
+				// For stake transactions we expect P2PKH and P2SH script class
+				// types only but ignore P2SH script type since it can pay
+				// to any script which the wallet may not recognize.
+				if scriptClass != txscript.PubKeyHashTy {
+					log.Errorf("unexpected nested script class for credit: %v",
+						scriptClass)
+					continue
+				}
+
+				scriptSize = txsizes.RedeemP2PKHSigScriptSize
+			default:
+				log.Errorf("unexpected script class for credit: %v",
+					scriptClass)
 				continue
 			}
 
 			currentTotal += amt
 			currentInputs = append(currentInputs, input)
 			currentScripts = append(currentScripts, pkScript)
-			redeemScriptSizes = append(redeemScriptSizes,
-				txsizes.RedeemP2PKHSigScriptSize)
+			redeemScriptSizes = append(redeemScriptSizes, scriptSize)
 		}
 
 		// Return the current results if the target was specified and met
@@ -3046,18 +3055,21 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			if err != nil {
 				return nil, err
 			}
+
 			op.Tree = tree
-
 			input := wire.NewTxIn(&op, int64(amt), nil)
+			var scriptSize int
 
-			// Unspent unmined credits are currently expected to be either
-			// P2PKH or P2PKH/P2SH nested in a revocation/stakechange/vote
-			// output.
+			// Unspent credits are currently expected to be either P2PKH or
+			// P2PK, P2PKH/P2SH nested in a revocation/stakechange/vote output.
 			scriptClass := txscript.GetScriptClass(
 				txscript.DefaultScriptVersion, pkScript)
 
 			switch scriptClass {
 			case txscript.PubKeyHashTy:
+				scriptSize = txsizes.RedeemP2PKHSigScriptSize
+			case txscript.PubKeyTy:
+				scriptSize = txsizes.RedeemP2PKSigScriptSize
 			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy,
 				txscript.StakeGenTy:
 				scriptClass, err = txscript.GetStakeOutSubclass(pkScript)
@@ -3066,22 +3078,27 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 						"failed to extract nested script in stake output: %v",
 						err)
 				}
-			default:
-				return nil, fmt.Errorf(
-					"unexpected script class for credit: %v",
-					scriptClass)
-			}
 
-			if scriptClass != txscript.PubKeyHashTy {
-				log.Errorf("unexpected script class: %v", scriptClass)
+				// For stake transactions we expect P2PKH and P2SH script class
+				// types only but ignore P2SH script type since it can pay
+				// to any script which the wallet may not recognize.
+				if scriptClass != txscript.PubKeyHashTy {
+					log.Errorf("unexpected nested script class for credit: %v",
+						scriptClass)
+					continue
+				}
+
+				scriptSize = txsizes.RedeemP2PKHSigScriptSize
+			default:
+				log.Errorf("unexpected script class for credit: %v",
+					scriptClass)
 				continue
 			}
 
 			currentTotal += amt
 			currentInputs = append(currentInputs, input)
 			currentScripts = append(currentScripts, pkScript)
-			redeemScriptSizes = append(redeemScriptSizes,
-				txsizes.RedeemP2PKHSigScriptSize)
+			redeemScriptSizes = append(redeemScriptSizes, scriptSize)
 		}
 
 		inputDetail := &txauthor.InputDetail{
