@@ -3,13 +3,15 @@ module github.com/decred/dcrwallet
 require (
 	github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792
 	github.com/decred/dcrd/addrmgr v1.0.2
-	github.com/decred/dcrd/blockchain v1.0.1
-	github.com/decred/dcrd/blockchain/stake v1.0.1
+	github.com/decred/dcrd/blockchain v1.0.2
+	github.com/decred/dcrd/blockchain/stake v1.0.2
 	github.com/decred/dcrd/certgen v1.0.1
 	github.com/decred/dcrd/chaincfg v1.1.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/connmgr v1.0.1
-	github.com/decred/dcrd/dcrec v0.0.0-20180809193022-9536f0c88fa8
+	github.com/decred/dcrd/database v1.0.2 // indirect
+	github.com/decred/dcrd/dcrec v0.0.0-20180816212643-20eda7ec9229
+	github.com/decred/dcrd/dcrec/edwards v0.0.0-20180816212643-20eda7ec9229 // indirect
 	github.com/decred/dcrd/dcrjson v1.0.0
 	github.com/decred/dcrd/dcrutil v1.1.1
 	github.com/decred/dcrd/hdkeychain v1.1.0
