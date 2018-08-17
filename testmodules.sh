@@ -14,7 +14,6 @@ MODPATHS=". $MODPATHS"
 
 tests () {
     $GO test $GOTESTFLAGS ./...
-    $GO mod verify >/dev/null
 }
 
 for m in $MODPATHS; do

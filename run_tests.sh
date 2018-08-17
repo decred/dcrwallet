@@ -21,15 +21,17 @@ testrepo () {
     env GORACE='halt_on_error=1' CC=gcc GOTESTFLAGS='-race -short' bash ./testmodules.sh
 }
 
-if [[ "$1" != "docker" ]]; then
+DOCKER=
+[[ "$1" == "docker" ]] && DOCKER=docker
+[[ "$1" == "podman" ]] && DOCKER=podman
+if [[ ! "$DOCKER" ]]; then
     testrepo
     exit
 fi
 
 DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
-docker pull decred/$DOCKER_IMAGE_TAG
-docker run --rm -it -v $(pwd):/src decred/$DOCKER_IMAGE_TAG /bin/bash -c "\
-  rsync -ra --filter=':- .gitignore'  \
-  /src/ /go/src/github.com/decred/$REPO/ && \
-  cd github.com/decred/$REPO/ && \
-  env GOVERSION=$GOVERSION GO111MODULE=on bash run_tests.sh"
+$DOCKER pull decred/$DOCKER_IMAGE_TAG
+$DOCKER run --rm -it -v $(pwd):/src:Z decred/$DOCKER_IMAGE_TAG /bin/bash -c "\
+  cp -R /src ~/src && \
+  cd ~/src && \
+  env GOVERSION=$GOVERSION bash ./run_tests.sh"
