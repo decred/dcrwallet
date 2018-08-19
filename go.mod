@@ -1,7 +1,6 @@
 module github.com/decred/dcrwallet
 
 require (
-	github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792
 	github.com/decred/dcrd/addrmgr v1.0.2
 	github.com/decred/dcrd/blockchain v1.0.2
 	github.com/decred/dcrd/blockchain/stake v1.0.2
@@ -33,6 +32,7 @@ require (
 	github.com/decred/slog v1.0.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/golang/protobuf v1.1.0
+	github.com/gorilla/websocket v1.2.0
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/jrick/logrotate v1.0.0
 	golang.org/x/crypto v0.0.0-20180808211826-de0752318171

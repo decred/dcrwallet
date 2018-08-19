@@ -19,12 +19,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/btcsuite/websocket"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/ticketbuyer"
+	"github.com/gorilla/websocket"
 )
 
 type websocketClient struct {
