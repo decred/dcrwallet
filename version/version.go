@@ -18,7 +18,7 @@ const semverAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrst
 // Constants defining the application version number.
 const (
 	Major = 1
-	Minor = 3
+	Minor = 4
 	Patch = 0
 )
 
@@ -29,7 +29,7 @@ const Integer = 1000000*Major + 10000*Minor + 100*Patch
 // so it can be modified at link time (e.g.
 // `-ldflags "-X github.com/decred/dcrwallet/version.PreRelease=rc1"`).
 // It must only contain characters from the semantic version alphabet.
-var PreRelease = ""
+var PreRelease = "pre"
 
 // BuildMetadata defines additional build metadata.  It is modified at link time
 // for official releases.  It must only contain characters from the semantic
