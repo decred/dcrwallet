@@ -580,13 +580,15 @@ func (s *walletServer) ImportScript(ctx context.Context,
 			"The script is not redeemable by the wallet")
 	}
 
-	lock := make(chan time.Time, 1)
-	defer func() {
-		lock <- time.Time{} // send matters, not the value
-	}()
-	err = s.wallet.Unlock(req.Passphrase, lock)
-	if err != nil {
-		return nil, translateError(err)
+	if !s.wallet.Manager.WatchingOnly() {
+		lock := make(chan time.Time, 1)
+		defer func() {
+			lock <- time.Time{} // send matters, not the value
+		}()
+		err = s.wallet.Unlock(req.Passphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
 	}
 
 	if req.ScanFrom < 0 {
