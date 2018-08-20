@@ -22,6 +22,7 @@ require (
 	github.com/decred/dcrwallet/internal/helpers v1.0.0
 	github.com/decred/dcrwallet/internal/zero v1.0.0
 	github.com/decred/dcrwallet/p2p v1.0.0
+	github.com/decred/dcrwallet/rpc/walletrpc v0.1.0
 	github.com/decred/dcrwallet/spv v1.0.0
 	github.com/decred/dcrwallet/ticketbuyer v1.0.0
 	github.com/decred/dcrwallet/ticketbuyer/v2 v2.0.0
@@ -30,14 +31,10 @@ require (
 	github.com/decred/dcrwallet/wallet v1.0.0
 	github.com/decred/dcrwallet/walletseed v1.0.0
 	github.com/decred/slog v1.0.0
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
-	github.com/golang/protobuf v1.1.0
 	github.com/gorilla/websocket v1.2.0
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/jrick/logrotate v1.0.0
 	golang.org/x/crypto v0.0.0-20180808211826-de0752318171
-	golang.org/x/net v0.0.0-20180808004115-f9ce57c11b24
-	google.golang.org/genproto v0.0.0-20180808183934-383e8b2c3b9e // indirect
 	google.golang.org/grpc v1.14.0
 )
 
@@ -50,6 +47,7 @@ replace (
 	github.com/decred/dcrwallet/lru => ./lru
 	github.com/decred/dcrwallet/p2p => ./p2p
 	github.com/decred/dcrwallet/pgpwordlist => ./pgpwordlist
+	github.com/decred/dcrwallet/rpc/walletrpc => ./rpc/walletrpc
 	github.com/decred/dcrwallet/spv => ./spv
 	github.com/decred/dcrwallet/ticketbuyer => ./ticketbuyer
 	github.com/decred/dcrwallet/ticketbuyer/v2 => ./ticketbuyer/v2
