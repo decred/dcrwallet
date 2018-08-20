@@ -7,6 +7,8 @@ package chain
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
+	"strings"
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -301,7 +303,7 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 		headers := make([]*wire.BlockHeader, 0, len(headersMsg.Headers))
 		for _, h := range headersMsg.Headers {
 			header := new(wire.BlockHeader)
-			err := header.Deserialize(newHexReader(h))
+			err := header.Deserialize(hex.NewDecoder(strings.NewReader(h)))
 			if err != nil {
 				const op errors.Op = "dcrd.jsonrpc.getheaders"
 				return errors.E(op, err)

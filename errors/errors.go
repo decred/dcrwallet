@@ -12,10 +12,10 @@ package.
 package errors
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"runtime/debug"
+	"strings"
 )
 
 // Separator is inserted between nested errors when formatting as strings.  The
@@ -217,8 +217,7 @@ func WithStack(args ...interface{}) error {
 }
 
 func (e *Error) Error() string {
-	// TODO: Switch to strings.Builder (introduced in Go 1.10)
-	var b bytes.Buffer
+	var b strings.Builder
 
 	// Record the last added fields to the string to avoid duplication.
 	var last Error
