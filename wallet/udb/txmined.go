@@ -2237,7 +2237,7 @@ func (s *Store) UnspentTickets(dbtx walletdb.ReadTx, syncHeight int32, includeIm
 			if err != nil {
 				return nil, err
 			}
-			if !confirmed(int32(s.chainParams.TicketMaturity)+1, height, syncHeight) {
+			if !ticketMatured(s.chainParams, height, syncHeight) {
 				continue
 			}
 		}
@@ -2478,6 +2478,35 @@ func confirms(txHeight, curHeight int32) int32 {
 	}
 }
 
+// coinbaseMatured returns whether a transaction mined at txHeight has
+// reached coinbase maturity in a chain with tip height curHeight.
+func coinbaseMatured(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	return txHeight >= 0 && curHeight-txHeight+1 > int32(params.CoinbaseMaturity)
+}
+
+// ticketChangeMatured returns whether a ticket change mined at
+// txHeight has reached ticket maturity in a chain with a tip height
+// curHeight.
+func ticketChangeMatured(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	return txHeight >= 0 && curHeight-txHeight+1 > int32(params.SStxChangeMaturity)
+}
+
+// ticketMatured returns whether a ticket mined at txHeight has
+// reached ticket maturity in a chain with a tip height curHeight.
+func ticketMatured(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	// dcrd has an off-by-one in the calculation of the ticket
+	// maturity, which results in maturity being one block higher
+	// than the params would indicate.
+	return txHeight >= 0 && curHeight-txHeight > int32(params.TicketMaturity)
+}
+
+// ticketExpired returns whether a ticket mined at txHeight has
+// reached ticket expiry in a chain with a tip height curHeight.
+func ticketExpired(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	// Ticket maturity off-by-one extends to the expiry depth as well.
+	return txHeight >= 0 && curHeight-txHeight > int32(params.TicketMaturity)+int32(params.TicketExpiry)
+}
+
 func (s *Store) fastCreditPkScriptLookup(ns walletdb.ReadBucket, credKey []byte, unminedCredKey []byte) ([]byte, error) {
 	// It has to exists as a credit or an unmined credit.
 	// Look both of these up. If it doesn't, throw an
@@ -2638,28 +2667,24 @@ func (s *Store) UnspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 
 		// Skip outputs that are not mature.
 		if fetchRawCreditIsCoinbase(cVal) {
-			if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
-				syncHeight) {
+			if !coinbaseMatured(s.chainParams, txHeight, syncHeight) {
 				continue
 			}
 		}
 		// Skip outputs that have an expiry but have not yet reached
 		// coinbase maturity .
 		if fetchRawCreditHasExpiry(cVal, DBVersion) {
-			if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
-				syncHeight) {
+			if !coinbaseMatured(s.chainParams, txHeight, syncHeight) {
 				continue
 			}
 		}
 		if opcode == txscript.OP_SSGEN || opcode == txscript.OP_SSRTX {
-			if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
-				syncHeight) {
+			if !coinbaseMatured(s.chainParams, txHeight, syncHeight) {
 				continue
 			}
 		}
 		if opcode == txscript.OP_SSTXCHANGE {
-			if !confirmed(int32(s.chainParams.SStxChangeMaturity), txHeight,
-				syncHeight) {
+			if !ticketChangeMatured(s.chainParams, txHeight, syncHeight) {
 				continue
 			}
 		}
@@ -2724,10 +2749,8 @@ func (s *Store) UnspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 			}
 
 			// Skip outputs that are not mature.
-			if opcode == txscript.OP_SSGEN || opcode == txscript.OP_SSRTX {
-				continue
-			}
-			if opcode == txscript.OP_SSTXCHANGE {
+			switch opcode {
+			case txscript.OP_SSGEN, txscript.OP_SSRTX, txscript.OP_SSTXCHANGE:
 				continue
 			}
 
@@ -2902,20 +2925,17 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 
 			// Skip outputs that are not mature.
 			if opcode == opNonstake && fetchRawCreditIsCoinbase(cVal) {
-				if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
-					syncHeight) {
+				if !coinbaseMatured(s.chainParams, txHeight, syncHeight) {
 					continue
 				}
 			}
 			if opcode == txscript.OP_SSGEN || opcode == txscript.OP_SSRTX {
-				if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
-					syncHeight) {
+				if !coinbaseMatured(s.chainParams, txHeight, syncHeight) {
 					continue
 				}
 			}
 			if opcode == txscript.OP_SSTXCHANGE {
-				if !confirmed(int32(s.chainParams.SStxChangeMaturity), txHeight,
-					syncHeight) {
+				if !ticketChangeMatured(s.chainParams, txHeight, syncHeight) {
 					continue
 				}
 			}
@@ -3172,9 +3192,7 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			isConfirmed := confirmed(minConf, height, syncHeight)
 			creditFromCoinbase := fetchRawCreditIsCoinbase(cVal)
 			matureCoinbase := (creditFromCoinbase &&
-				confirmed(int32(s.chainParams.CoinbaseMaturity),
-					height,
-					syncHeight))
+				coinbaseMatured(s.chainParams, height, syncHeight))
 
 			if (isConfirmed && !creditFromCoinbase) ||
 				matureCoinbase {
@@ -3263,16 +3281,14 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 		case txscript.OP_SSGEN:
 			fallthrough
 		case txscript.OP_SSRTX:
-			if confirmed(int32(s.chainParams.CoinbaseMaturity),
-				height, syncHeight) {
+			if coinbaseMatured(s.chainParams, height, syncHeight) {
 				ab.Spendable += utxoAmt
 			} else {
 				ab.ImmatureStakeGeneration += utxoAmt
 			}
 
 		case txscript.OP_SSTXCHANGE:
-			if confirmed(int32(s.chainParams.SStxChangeMaturity),
-				height, syncHeight) {
+			if ticketChangeMatured(s.chainParams, height, syncHeight) {
 				ab.Spendable += utxoAmt
 			}
 

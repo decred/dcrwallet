@@ -1239,24 +1239,20 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 		case class == txscript.StakeSubmissionTy:
 			continue
 		case class == txscript.StakeGenTy:
-			target := int32(w.chainParams.CoinbaseMaturity)
-			if !confirmed(target, output.Height, currentHeight) {
+			if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
 				continue
 			}
 		case class == txscript.StakeRevocationTy:
-			target := int32(w.chainParams.CoinbaseMaturity)
-			if !confirmed(target, output.Height, currentHeight) {
+			if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
 				continue
 			}
 		case class == txscript.StakeSubChangeTy:
-			target := int32(w.chainParams.SStxChangeMaturity)
-			if !confirmed(target, output.Height, currentHeight) {
+			if !ticketChangeMatured(w.chainParams, output.Height, currentHeight) {
 				continue
 			}
 		case class == txscript.PubKeyHashTy:
 			if output.FromCoinBase {
-				target := int32(w.chainParams.CoinbaseMaturity)
-				if !confirmed(target, output.Height, currentHeight) {
+				if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
 					continue
 				}
 			}
