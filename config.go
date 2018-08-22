@@ -128,8 +128,8 @@ type config struct {
 	ProxyPass        string                  `long:"proxypass" default-mask:"-" description:"Password for proxy server"`
 
 	// SPV options
-	SPV        bool     `long:"spv"`
-	SPVConnect []string `long:"spvconnect"`
+	SPV        bool     `long:"spv" description:"Sync using simplified payment verification"`
+	SPVConnect []string `long:"spvconnect" description:"Full node addresses to SPV sync from"`
 
 	// RPC server options
 	//

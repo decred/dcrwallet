@@ -63,9 +63,6 @@ func (w *Wallet) LiveTicketHashes(chainClient *dcrrpcclient.Client, includeImmat
 
 	extraTickets := w.StakeMgr.DumpSStxHashes()
 
-	expiryConfs := int32(w.chainParams.TicketExpiry) +
-		int32(w.chainParams.TicketMaturity) + 1
-
 	var tipHeight int32 // Assigned in view below.
 
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
@@ -88,15 +85,14 @@ func (w *Wallet) LiveTicketHashes(chainClient *dcrrpcclient.Client, includeImmat
 		for it.Next() {
 			// Tickets that are mined at a height beyond the expiry height can
 			// not be live.
-			if confirmed(expiryConfs, it.Block.Height, tipHeight) {
+			if ticketExpired(w.chainParams, it.Block.Height, tipHeight) {
 				continue
 			}
 
 			// Tickets that have not reached ticket maturity are immature.
 			// Exclude them unless the caller requested to include immature
 			// tickets.
-			if !confirmed(int32(w.chainParams.TicketMaturity)+1, it.Block.Height,
-				tipHeight) {
+			if !ticketMatured(w.chainParams, it.Block.Height, tipHeight) {
 				if includeImmature {
 					ticketHashes = append(ticketHashes, it.Hash)
 				}
@@ -152,10 +148,10 @@ func (w *Wallet) LiveTicketHashes(chainClient *dcrrpcclient.Client, includeImmat
 			continue
 		}
 		// Same checks as above in the db view.
-		if confirmed(expiryConfs, r.height, tipHeight) {
+		if ticketExpired(w.chainParams, r.height, tipHeight) {
 			continue
 		}
-		if !confirmed(int32(w.chainParams.TicketMaturity)+1, r.height, tipHeight) {
+		if !ticketMatured(w.chainParams, r.height, tipHeight) {
 			if includeImmature {
 				ticketHashes = append(ticketHashes, extraTickets[i])
 			}
@@ -401,9 +397,6 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 		}
 	}()
 
-	expiryConfs := int32(w.chainParams.TicketExpiry) +
-		int32(w.chainParams.TicketMaturity) + 1
-
 	var expired []chainhash.Hash
 	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -417,7 +410,7 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 			}
 
 			// Include ticket hash when it has reached expiry confirmations.
-			if confirmed(expiryConfs, it.Block.Height, tipHeight) {
+			if ticketExpired(w.chainParams, it.Block.Height, tipHeight) {
 				expired = append(expired, it.TxRecord.Hash)
 			}
 		}

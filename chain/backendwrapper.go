@@ -65,7 +65,7 @@ func (b *rpcBackend) GetBlocks(ctx context.Context, blockHashes []*chainhash.Has
 }
 
 func (b *rpcBackend) GetCFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error) {
-	const op errors.Op = "dcrd.jsonrpc.getcfilter"
+	const opf = "dcrd.jsonrpc.getcfilter(%v)"
 
 	// TODO: this is spammy and would be better implemented with a single RPC.
 	filters := make([]*gcs.Filter, len(blockHashes))
@@ -75,12 +75,16 @@ func (b *rpcBackend) GetCFilters(ctx context.Context, blockHashes []*chainhash.H
 		g.Go(func() error {
 			f, err := b.rpcClient.GetCFilter(blockHashes[i], wire.GCSFilterRegular)
 			filters[i] = f
+			if err != nil {
+				op := errors.Opf(opf, blockHashes[i])
+				err = errors.E(op, err)
+			}
 			return err
 		})
 	}
 	err := g.Wait()
 	if err != nil {
-		return nil, errors.E(op, err)
+		return nil, err
 	}
 	return filters, nil
 }

@@ -1916,8 +1916,7 @@ func (c CreditCategory) String() string {
 // this package at a later time.
 func RecvCategory(details *udb.TxDetails, syncHeight int32, chainParams *chaincfg.Params) CreditCategory {
 	if blockchain.IsCoinBaseTx(&details.MsgTx) {
-		if confirmed(int32(chainParams.CoinbaseMaturity), details.Block.Height,
-			syncHeight) {
+		if coinbaseMatured(chainParams, details.Block.Height, syncHeight) {
 			return CreditGenerate
 		}
 		return CreditImmature
@@ -2881,8 +2880,7 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 
 			// Only mature coinbase outputs are included.
 			if output.FromCoinBase {
-				target := int32(w.ChainParams().CoinbaseMaturity)
-				if !confirmed(target, output.Height, tipHeight) {
+				if !coinbaseMatured(w.chainParams, output.Height, tipHeight) {
 					continue
 				}
 			}
@@ -2890,36 +2888,29 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 			switch details.TxRecord.TxType {
 			case stake.TxTypeSStx:
 				// Ticket commitment, only spendable after ticket maturity.
-				// You can only spent it after TM many blocks has gone past, so
-				// ticket maturity + 1??? Check this DECRED TODO
 				if output.Index == 0 {
-					if !confirmed(int32(w.chainParams.TicketMaturity+1),
-						details.Height(), tipHeight) {
+					if !ticketMatured(w.chainParams, details.Height(), tipHeight) {
 						continue
 					}
 				}
 				// Change outputs.
 				if (output.Index > 0) && (output.Index%2 == 0) {
-					if !confirmed(int32(w.chainParams.SStxChangeMaturity),
-						details.Height(), tipHeight) {
+					if !ticketChangeMatured(w.chainParams, details.Height(), tipHeight) {
 						continue
 					}
 				}
 			case stake.TxTypeSSGen:
 				// All non-OP_RETURN outputs for SSGen tx are only spendable
 				// after coinbase maturity many blocks.
-				if !confirmed(int32(w.chainParams.CoinbaseMaturity),
-					details.Height(), tipHeight) {
+				if !coinbaseMatured(w.chainParams, details.Height(), tipHeight) {
 					continue
 				}
 			case stake.TxTypeSSRtx:
 				// All outputs for SSRtx tx are only spendable
 				// after coinbase maturity many blocks.
-				if !confirmed(int32(w.chainParams.CoinbaseMaturity),
-					details.Height(), tipHeight) {
+				if !coinbaseMatured(w.chainParams, details.Height(), tipHeight) {
 					continue
 				}
-
 			}
 
 			// Exclude locked outputs from the result set.
@@ -3234,7 +3225,6 @@ func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 			}
 			res.Sdiff = sdiff
 		}
-		expiryConfs := int32(w.chainParams.TicketExpiry) + int32(w.chainParams.TicketMaturity) + 1
 		it := w.TxStore.IterateTickets(dbtx)
 		for it.Next() {
 			// Skip tickets which are not owned by this wallet.
@@ -3253,8 +3243,7 @@ func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 			}
 
 			// Check for immature tickets
-			if !confirmed(int32(w.chainParams.TicketMaturity)+1,
-				it.Block.Height, tipHeight) {
+			if !ticketMatured(w.chainParams, it.Block.Height, tipHeight) {
 				res.Immature++
 				continue
 			}
@@ -3294,7 +3283,7 @@ func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 			// Ticket is matured but unspent.  Possible states are that the
 			// ticket is live, expired, or missed.
 			res.Unspent++
-			if confirmed(expiryConfs, it.Block.Height, tipHeight) {
+			if ticketExpired(w.chainParams, it.Block.Height, tipHeight) {
 				res.UnspentExpired++
 			}
 		}
@@ -3336,7 +3325,6 @@ func (w *Wallet) StakeInfoPrecise(chainClient *dcrrpcclient.Client) (*StakeInfoD
 			}
 			res.Sdiff = sdiff
 		}
-		expiryConfs := int32(w.chainParams.TicketExpiry) + int32(w.chainParams.TicketMaturity) + 1
 		it := w.TxStore.IterateTickets(dbtx)
 		for it.Next() {
 			// Skip tickets which are not owned by this wallet.
@@ -3355,8 +3343,7 @@ func (w *Wallet) StakeInfoPrecise(chainClient *dcrrpcclient.Client) (*StakeInfoD
 			}
 
 			// Check for immature tickets
-			if !confirmed(int32(w.chainParams.TicketMaturity)+1,
-				it.Block.Height, tipHeight) {
+			if !ticketMatured(w.chainParams, it.Block.Height, tipHeight) {
 				res.Immature++
 				continue
 			}
@@ -3402,7 +3389,7 @@ func (w *Wallet) StakeInfoPrecise(chainClient *dcrrpcclient.Client) (*StakeInfoD
 			// Ticket is matured but unspent.  Possible states are that the
 			// ticket is live, expired, or missed.
 			res.Unspent++
-			if confirmed(expiryConfs, it.Block.Height, tipHeight) {
+			if ticketExpired(w.chainParams, it.Block.Height, tipHeight) {
 				res.UnspentExpired++
 			}
 			ticketHash := it.Hash
@@ -3573,6 +3560,35 @@ func confirms(txHeight, curHeight int32) int32 {
 	default:
 		return curHeight - txHeight + 1
 	}
+}
+
+// coinbaseMatured returns whether a transaction mined at txHeight has
+// reached coinbase maturity in a chain with tip height curHeight.
+func coinbaseMatured(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	return txHeight >= 0 && curHeight-txHeight+1 > int32(params.CoinbaseMaturity)
+}
+
+// ticketChangeMatured returns whether a ticket change mined at
+// txHeight has reached ticket maturity in a chain with a tip height
+// curHeight.
+func ticketChangeMatured(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	return txHeight >= 0 && curHeight-txHeight+1 > int32(params.SStxChangeMaturity)
+}
+
+// ticketMatured returns whether a ticket mined at txHeight has
+// reached ticket maturity in a chain with a tip height curHeight.
+func ticketMatured(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	// dcrd has an off-by-one in the calculation of the ticket
+	// maturity, which results in maturity being one block higher
+	// than the params would indicate.
+	return txHeight >= 0 && curHeight-txHeight > int32(params.TicketMaturity)
+}
+
+// ticketExpired returns whether a ticket mined at txHeight has
+// reached ticket expiry in a chain with a tip height curHeight.
+func ticketExpired(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	// Ticket maturity off-by-one extends to the expiry depth as well.
+	return txHeight >= 0 && curHeight-txHeight > int32(params.TicketMaturity)+int32(params.TicketExpiry)
 }
 
 // AccountTotalReceivedResult is a single result for the

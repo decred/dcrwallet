@@ -214,14 +214,11 @@ func makeTicketSummary(chainClient *dcrrpcclient.Client, dbtx walletdb.ReadTx, w
 
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 
-		expiryConfs := int32(w.chainParams.TicketExpiry) +
-			int32(w.chainParams.TicketMaturity) + 1
-
 		// Check if ticket age is not yet mature
-		if !confirmed(int32(w.chainParams.TicketMaturity)+1, details.Ticket.Height(), tipHeight) {
+		if !ticketMatured(w.chainParams, details.Ticket.Height(), tipHeight) {
 			ticketStatus = TicketStatusImmature
 			// Check if ticket age is over TicketExpiry limit and therefore expired
-		} else if confirmed(expiryConfs, details.Ticket.Height(), tipHeight) {
+		} else if ticketExpired(w.chainParams, details.Ticket.Height(), tipHeight) {
 			ticketStatus = TicketStatusExpired
 		}
 	}

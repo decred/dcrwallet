@@ -12,6 +12,14 @@ import (
 
 // Worst case script and input/output size estimates.
 const (
+	// RedeemP2PKSigScriptSize is the worst case (largest) serialize size
+	// of a transaction input script that redeems a compressed P2PK output.
+	// It is calculated as:
+	//
+	//   - OP_DATA_73
+	//   - 72 bytes DER signature + 1 byte sighash
+	RedeemP2PKSigScriptSize = 1 + 73
+
 	// RedeemP2PKHSigScriptSize is the worst case (largest) serialize size
 	// of a transaction input script that redeems a compressed P2PKH output.
 	// It is calculated as:
