@@ -12,6 +12,7 @@ import (
 
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrwallet/errors"
@@ -496,7 +497,8 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	if err != nil && t.dcrdChainSvr != nil {
 		// Wallet failed to calculate sdiff (DCP0001 may not be active), so
 		// query it over RPC.
-		sd, err := t.dcrdChainSvr.GetStakeDifficulty()
+		var sd *dcrjson.GetStakeDifficultyResult
+		sd, err = t.dcrdChainSvr.GetStakeDifficulty()
 		if err == nil {
 			nextStakeDiff, err = dcrutil.NewAmount(sd.NextStakeDifficulty)
 			if err != nil {
