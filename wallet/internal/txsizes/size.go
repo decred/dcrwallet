@@ -84,7 +84,7 @@ const (
 // additional change output if changeScriptSize is greater than 0. Passing 0
 // does not add a change output.
 func EstimateSerializeSize(scriptSizes []int, txOuts []*wire.TxOut, changeScriptSize int) int {
-	// generate the estimated sizes of the inputs
+	// Generate and sum up the estimated sizes of the inputs.
 	txInsSize := 0
 	for _, size := range scriptSizes {
 		txInsSize += EstimateInputSize(size)
@@ -104,6 +104,39 @@ func EstimateSerializeSize(scriptSizes []int, txOuts []*wire.TxOut, changeScript
 		txInsSize +
 		h.SumOutputSerializeSizes(txOuts) +
 		changeSize
+}
+
+// EstimateSerializeSizeFromScriptSizes returns a worst case serialize size
+// estimate for a signed transaction that spends len(inputSizes) previous
+// outputs and pays to len(outputSizes) outputs with scripts of the provided
+// worst-case sizes. The estimated size is incremented for an additional
+// change output if changeScriptSize is greater than 0. Passing 0 does not
+// add a change output.
+func EstimateSerializeSizeFromScriptSizes(inputSizes []int, outputSizes []int, changeScriptSize int) int {
+	// Generate and sum up the estimated sizes of the inputs.
+	txInsSize := 0
+	for _, inputSize := range inputSizes {
+		txInsSize += EstimateInputSize(inputSize)
+	}
+
+	// Generate and sum up the estimated sizes of the outputs.
+	txOutsSize := 0
+	for _, outputSize := range outputSizes {
+		txOutsSize += EstimateOutputSize(outputSize)
+	}
+
+	inputCount := len(inputSizes)
+	outputCount := len(outputSizes)
+	changeSize := 0
+	if changeScriptSize > 0 {
+		changeSize = EstimateOutputSize(changeScriptSize)
+		outputCount++
+	}
+
+	// 12 additional bytes are for version, locktime and expiry.
+	return 12 + (2 * wire.VarIntSerializeSize(uint64(inputCount))) +
+		wire.VarIntSerializeSize(uint64(outputCount)) +
+		txInsSize + txOutsSize + changeSize
 }
 
 // EstimateInputSize returns the worst case serialize size estimate for a tx input
