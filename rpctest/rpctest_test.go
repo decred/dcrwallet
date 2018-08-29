@@ -1,0 +1,138 @@
+// Copyright (c) 2016 The decred developers
+// Use of this source code is governed by an ISC
+// license that can be found in the LICENSE file.
+package rpctest
+
+import (
+	"flag"
+	"io/ioutil"
+	"os"
+	"reflect"
+	"regexp"
+	"runtime"
+	"testing"
+)
+
+type RpcTestCase func(t *testing.T)
+
+/*
+skipTest function will trigger when test name is present in the skipTestsList
+
+To use this function add the following code in your test:
+
+    if skipTest(t) {
+		t.Skip("Skipping test")
+	}
+
+*/
+func skipTest(t *testing.T) bool {
+	return ListContainsString(skipTestsList, t.Name())
+}
+
+// skipTestsList contains names of the tests mentioned in the testCasesToSkip
+var skipTestsList []string
+
+// testCasesToSkip, use it to mark tests for being skipped
+var testCasesToSkip = []RpcTestCase{
+	//TestGetNewAddress,    // fails
+	//TestSendFrom,         // fails
+	//TestListTransactions, // fails
+	//TestPurchaseTickets,  // fails
+	//TestGetStakeInfo,     // fails
+}
+
+// Get function name from module name
+var funcInModulePath = regexp.MustCompile(`^.*\.(.*)$`)
+
+// Get the name of a function type
+func functionName(tc RpcTestCase) string {
+	fncName := runtime.FuncForPC(reflect.ValueOf(tc).Pointer()).Name()
+	return funcInModulePath.ReplaceAllString(fncName, "$1")
+}
+
+// testsRequiringOwnHarness defines a list of tests that require
+// dedicated harness instance
+var testsRequiringOwnHarness = []RpcTestCase{
+	TestListTransactions,
+	TestGetStakeInfo,
+}
+
+// Pool stores and manages harnesses
+var Pool *HarnessesPool
+
+// ObtainHarness manages access to the Pool for test cases
+func ObtainHarness(tag string) *Harness {
+	return Pool.ObtainHarnessConcurrentSafe(tag)
+}
+
+// TestMain, is executed by go-test, and is
+// responsible for setting up and disposing test harnesses.
+func TestMain(testingM *testing.M) {
+	flag.Parse()
+
+	{ // Build list of all ignored tests
+		for _, testCase := range testCasesToSkip {
+			caseName := functionName(testCase)
+			skipTestsList = append(skipTestsList, caseName)
+		}
+	}
+
+	if testing.Short() {
+		// Run tests in short mode.
+		os.Exit(testingM.Run())
+		return
+	}
+
+	// Deploy test setup
+	var harnessWith25MOSpawner *ChainWithMatureOutputsSpawner
+	{
+		// Deploy harness spawner with generated
+		// test chain of 25 mature outputs
+		harnessWith25MOSpawner = &ChainWithMatureOutputsSpawner{
+			WorkingDir:        setupWorkingDir(),
+			DebugDCRDOutput:   false,
+			DebugWalletOutput: false,
+			NumMatureOutputs:  25,
+			BasePort:          20000, // 20001, 20002, ...
+		}
+
+		// Build list of allowed unique harness names
+		{
+			needOwnHarnessList := make([]string, 0, 0)
+			for _, testCase := range testsRequiringOwnHarness {
+				caseName := functionName(testCase)
+				if !ListContainsString(skipTestsList, caseName) {
+					needOwnHarnessList = append(needOwnHarnessList, caseName)
+				}
+			}
+			harnessWith25MOSpawner.NeedOwnHarnessList = needOwnHarnessList
+		}
+
+		// Initialize harnesses
+		{
+			tagsList := append(
+				harnessWith25MOSpawner.NeedOwnHarnessList,
+				MainHarnessName,
+			)
+			Pool = NewHarnessesPool(harnessWith25MOSpawner)
+			Pool.InitTags(tagsList)
+		}
+	}
+
+	// Run tests
+	exitCode := testingM.Run()
+
+	// TearDown all harnesses in test Pool.
+	// This includes removing all temporary directories,
+	// and shutting down any created processes.
+	Pool.TearDownAll()
+	harnessWith25MOSpawner.ClearWorkingDir()
+
+	os.Exit(exitCode)
+}
+
+func setupWorkingDir() string {
+	testWorkingDir, err := ioutil.TempDir("", "rpctest")
+	CheckTestSetupMalfunction(err)
+	return testWorkingDir
+}

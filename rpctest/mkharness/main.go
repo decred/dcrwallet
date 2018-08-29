@@ -6,46 +6,42 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
-	//"strings"
-	//"time"
 
-	"github.com/decred/dcrd/chaincfg"
-	//dcrrpcclient "github.com/decred/dcrd/rpcclient"
-	//"github.com/decred/dcrd/dcrutil"
-	//"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpctest"
 )
 
 func main() {
-	var err error
-	var primaryHarness *rpctest.Harness
-	primaryHarness, err = rpctest.NewHarness(&chaincfg.SimNetParams, nil, nil)
+
+	testWorkingDir, err := ioutil.TempDir("", "rpctest")
+
 	if err != nil {
-		fmt.Println("Unable to create primary harness: ", err)
-		os.Exit(1)
+		fmt.Println("Unable to create working dir: ", err)
+		os.Exit(-1)
 	}
 
-	// Initialize the primary mining node with a chain of length 41,
-	// providing 25 mature coinbases to allow spending from for testing
-	// purposes (CoinbaseMaturity=16 for simnet).
-	if err = primaryHarness.SetUp(true, 25); err != nil {
-		fmt.Println("Unable to setup test chain: ", err)
-		_ = primaryHarness.TearDown()
-		os.Exit(1)
+	harnessMOSpawner := &rpctest.ChainWithMatureOutputsSpawner{
+		WorkingDir:        testWorkingDir,
+		DebugDCRDOutput:   true,
+		DebugWalletOutput: true,
+		NumMatureOutputs:  25,
+		BasePort:          20000,
 	}
 
-	fmt.Printf("Node command:\n\t%s\n", primaryHarness.FullNodeCommand())
-	fmt.Printf("Wallet command:\n\t%s\n", primaryHarness.FullWalletCommand())
+	harness := harnessMOSpawner.NewInstance(rpctest.MainHarnessName)
 
-	cn := primaryHarness.RPCConfig()
-	nodeCertFile := primaryHarness.RPCCertFile()
-	fmt.Println("Command for node's dcrctl:")
+	fmt.Printf("Dcrd command:\n\t%s\n", harness.DcrdServer.FullConsoleCommand())
+	fmt.Printf("Wallet command:\n\t%s\n", harness.WalletServer.FullConsoleCommand())
+
+	cn := harness.DcrdConnectionConfig()
+	nodeCertFile := harness.DcrdServer.CertFile()
+	fmt.Println("Command for dcrd's dcrctl:")
 	fmt.Printf("\tdcrctl -u %s -P %s -s %s -c %s\n", cn.User, cn.Pass,
 		cn.Host, nodeCertFile)
 
-	cw := primaryHarness.RPCWalletConfig()
-	walletCertFile := primaryHarness.RPCWalletCertFile()
+	cw := harness.WalletConnectionConfig()
+	walletCertFile := harness.WalletServer.CertFile()
 	fmt.Println("Command for wallet's dcrctl:")
 	fmt.Printf("\tdcrctl -u %s -P %s -s %s -c %s --wallet\n", cw.User, cw.Pass,
 		cw.Host, walletCertFile)
@@ -53,13 +49,14 @@ func main() {
 	fmt.Print("Press Enter to terminate harness.")
 	bufio.NewReader(os.Stdin).ReadBytes('\n')
 
-	// Clean up the primary harness created above. This includes removing
-	// all temporary directories, and shutting down any created processes.
-	if err := primaryHarness.TearDown(); err != nil {
+	if err := harnessMOSpawner.Dispose(harness); err != nil {
 		fmt.Println("Unable to teardown test chain: ", err)
-		os.Exit(1)
+		os.Exit(-1)
 	}
 
+	if err := harnessMOSpawner.ClearWorkingDir(); err != nil {
+		fmt.Println("Unable to teardown test chain: ", err)
+		os.Exit(-1)
+	}
 	os.Exit(0)
-
 }
