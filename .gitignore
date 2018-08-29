@@ -2,3 +2,6 @@ dcrwallet
 vendor
 *~
 .vscode
+\.idea/
+dcrwallet\.exe
+rpctest/\.pid
