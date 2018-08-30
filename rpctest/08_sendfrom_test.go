@@ -18,7 +18,7 @@ func TestSendFrom(t *testing.T) {
 	if skipTest(t) {
 		t.Skip("Skipping test")
 	}
-	r := ObtainHarness(t.Name())
+	r := ObtainHarness(MainHarnessName)
 	accountName := "sendFromTest"
 	err := r.WalletRPCClient().CreateNewAccount(accountName)
 	if err != nil {

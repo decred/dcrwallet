@@ -16,7 +16,7 @@ func TestSendToAddress(t *testing.T) {
 	if skipTest(t) {
 		t.Skip("Skipping test")
 	}
-	r := ObtainHarness(t.Name())
+	r := ObtainHarness(MainHarnessName)
 	// Wallet RPC client
 	wcl := r.WalletRPCClient()
 

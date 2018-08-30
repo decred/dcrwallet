@@ -23,10 +23,6 @@ type ChainWithMatureOutputsSpawner struct {
 	// DebugWalletOutput, set true to print out wallet output to console
 	DebugWalletOutput bool
 
-	// NeedOwnHarnessList used to redirect certain tags to the MainHarnessName
-	// see NameForTag for details
-	NeedOwnHarnessList []string
-
 	// newHarnessIndex for net port offset
 	newHarnessIndex int
 
@@ -149,13 +145,8 @@ func (testSetup *ChainWithMatureOutputsSpawner) Dispose(h *Harness) error {
 }
 
 // NameForTag defines policy for mapping input tags to harness names
-// All harnesses that are not present in the NeedOwnHarnessList list
-// will be redirected to MainHarnessName
 func (testSetup *ChainWithMatureOutputsSpawner) NameForTag(tag string) string {
 	harnessName := tag
-	if !ListContainsString(testSetup.NeedOwnHarnessList, tag) {
-		harnessName = MainHarnessName
-	}
 	return harnessName
 }
 
