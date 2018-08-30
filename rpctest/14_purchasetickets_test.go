@@ -19,7 +19,7 @@ func TestPurchaseTickets(t *testing.T) {
 	if skipTest(t) {
 		t.Skip("Skipping test")
 	}
-	r := ObtainHarness(t.Name())
+	r := ObtainHarness(MainHarnessName)
 	// Wallet.purchaseTicket() in WalletServer/createtx.go
 
 	// Wallet RPC client

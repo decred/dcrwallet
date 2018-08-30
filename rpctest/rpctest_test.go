@@ -50,12 +50,8 @@ func functionName(tc RpcTestCase) string {
 	return funcInModulePath.ReplaceAllString(fncName, "$1")
 }
 
-// testsRequiringOwnHarness defines a list of tests that require
-// dedicated harness instance
-var testsRequiringOwnHarness = []RpcTestCase{
-	TestListTransactions,
-	TestGetStakeInfo,
-}
+const TestListTransactionsHarnessTag = "TestListTransactions"
+const TestGetStakeInfoHarnessTag = "TestGetStakeInfo"
 
 // Pool stores and manages harnesses
 var Pool *HarnessesPool
@@ -96,24 +92,14 @@ func TestMain(testingM *testing.M) {
 			BasePort:          20000, // 20001, 20002, ...
 		}
 
-		// Build list of allowed unique harness names
-		{
-			needOwnHarnessList := make([]string, 0, 0)
-			for _, testCase := range testsRequiringOwnHarness {
-				caseName := functionName(testCase)
-				if !ListContainsString(skipTestsList, caseName) {
-					needOwnHarnessList = append(needOwnHarnessList, caseName)
-				}
-			}
-			harnessWith25MOSpawner.NeedOwnHarnessList = needOwnHarnessList
-		}
-
 		// Initialize harnesses
 		{
-			tagsList := append(
-				harnessWith25MOSpawner.NeedOwnHarnessList,
+			// 18 seconds to init each
+			tagsList := []string{
 				MainHarnessName,
-			)
+				//TestGetStakeInfoHarnessTag,
+				//TestListTransactionsHarnessTag,
+			}
 			Pool = NewHarnessesPool(harnessWith25MOSpawner)
 			Pool.InitTags(tagsList)
 		}

@@ -17,7 +17,7 @@ func TestGetSetTicketFee(t *testing.T) {
 	if skipTest(t) {
 		t.Skip("Skipping test")
 	}
-	r := ObtainHarness(t.Name())
+	r := ObtainHarness(MainHarnessName)
 	// dcrrpcclient does not have a getticketee or any direct method, so we
 	// need to use walletinfo to get.  SetTicketFee can be used to set.
 

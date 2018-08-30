@@ -23,7 +23,7 @@ func TestGetStakeInfo(t *testing.T) {
 	if skipTest(t) {
 		t.Skip("Skipping test")
 	}
-	r := ObtainHarness(t.Name())
+	r := ObtainHarness(TestGetStakeInfoHarnessTag)
 	// Wallet RPC client
 	wcl := r.WalletRPCClient()
 

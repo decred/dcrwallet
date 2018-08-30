@@ -20,7 +20,7 @@ func TestListTransactions(t *testing.T) {
 	if skipTest(t) {
 		t.Skip("Skipping test")
 	}
-	r := ObtainHarness(t.Name())
+	r := ObtainHarness(TestListTransactionsHarnessTag)
 	// Wallet RPC client
 	wcl := r.WalletRPCClient()
 
