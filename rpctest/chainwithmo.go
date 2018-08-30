@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrwallet/errors"
 )
@@ -74,8 +73,8 @@ func (testSetup *ChainWithMatureOutputsSpawner) NewInstance(harnessName string) 
 	harness := NewHarness(cfg)
 
 	fmt.Println("Deploying Harness[" + cfg.Name + "]")
-	fmt.Println("dcrdConfig: " + spew.Sdump(harness.DcrdServer))
-	fmt.Println("walletConfig: " + spew.Sdump(harness.WalletServer))
+	//fmt.Println("dcrdConfig: " + spew.Sdump(harness.DcrdServer))
+	//fmt.Println("walletConfig: " + spew.Sdump(harness.WalletServer))
 
 	// launch a fresh harness (assumes harness working dir is empty)
 	{
