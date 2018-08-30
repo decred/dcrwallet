@@ -5,7 +5,6 @@ package rpctest
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"regexp"
@@ -90,7 +89,7 @@ func TestMain(testingM *testing.M) {
 		// Deploy harness spawner with generated
 		// test chain of 25 mature outputs
 		harnessWith25MOSpawner = &ChainWithMatureOutputsSpawner{
-			WorkingDir:        setupWorkingDir(),
+			WorkingDir:        WorkingDir,
 			DebugDCRDOutput:   false,
 			DebugWalletOutput: false,
 			NumMatureOutputs:  25,
@@ -127,13 +126,7 @@ func TestMain(testingM *testing.M) {
 	// This includes removing all temporary directories,
 	// and shutting down any created processes.
 	Pool.TearDownAll()
-	harnessWith25MOSpawner.ClearWorkingDir()
+	DeleteWorkingDir()
 
 	os.Exit(exitCode)
-}
-
-func setupWorkingDir() string {
-	testWorkingDir, err := ioutil.TempDir("", "rpctest")
-	CheckTestSetupMalfunction(err)
-	return testWorkingDir
 }

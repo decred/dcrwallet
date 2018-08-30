@@ -135,9 +135,9 @@ func (h *Harness) DcrdRPCClient() *rpcclient.Client {
 	return h.DcrdClient.rpcClient
 }
 
-func (harness *Harness) ClearTestDataFolder() error {
+func (harness *Harness) DeleteWorkingDir() error {
 	dir := harness.Config.WorkingDir
-	fmt.Println("delete :" + dir)
+	fmt.Println("delete: " + dir)
 	err := os.RemoveAll(dir)
 	return err
 }

@@ -6,7 +6,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/decred/dcrwallet/rpctest"
@@ -14,15 +13,10 @@ import (
 
 func main() {
 
-	testWorkingDir, err := ioutil.TempDir("", "rpctest")
 
-	if err != nil {
-		fmt.Println("Unable to create working dir: ", err)
-		os.Exit(-1)
-	}
 
 	harnessMOSpawner := &rpctest.ChainWithMatureOutputsSpawner{
-		WorkingDir:        testWorkingDir,
+		WorkingDir:        rpctest.WorkingDir,
 		DebugDCRDOutput:   true,
 		DebugWalletOutput: true,
 		NumMatureOutputs:  25,
@@ -54,7 +48,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	if err := harnessMOSpawner.ClearWorkingDir(); err != nil {
+	if err := rpctest.DeleteWorkingDir(); err != nil {
 		fmt.Println("Unable to teardown test chain: ", err)
 		os.Exit(-1)
 	}

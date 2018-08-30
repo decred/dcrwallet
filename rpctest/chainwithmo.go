@@ -2,7 +2,6 @@ package rpctest
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 
@@ -147,7 +146,7 @@ func (testSetup *ChainWithMatureOutputsSpawner) Dispose(h *Harness) error {
 	if h.DcrdServer.IsRunning() {
 		h.DcrdServer.Stop()
 	}
-	return h.ClearTestDataFolder()
+	return h.DeleteWorkingDir()
 }
 
 // NameForTag defines policy for mapping input tags to harness names
@@ -159,13 +158,6 @@ func (testSetup *ChainWithMatureOutputsSpawner) NameForTag(tag string) string {
 		harnessName = MainHarnessName
 	}
 	return harnessName
-}
-
-func (spawner *ChainWithMatureOutputsSpawner) ClearWorkingDir() error {
-	dir := spawner.WorkingDir
-	fmt.Println("delete: " + dir)
-	err := os.RemoveAll(dir)
-	return err
 }
 
 // launchHarnessSequence
