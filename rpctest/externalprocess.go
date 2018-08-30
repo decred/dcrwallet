@@ -20,6 +20,37 @@ type ExternalProcess struct {
 	runningCommand *exec.Cmd
 }
 
+// externalProcessesList keeps track of all running processes
+// to execute emergency killProcess in case of the test setup malfunction
+var externalProcessesList = &ExternalProcessesList{
+	set: make(map[*ExternalProcess]bool),
+}
+
+type ExternalProcessesList struct {
+	set map[*ExternalProcess]bool
+}
+
+// emergencyKillAll is used to terminate all the external processes
+// created within this test setup in case of panic.
+// Otherwise, they all will persist unless explicitly killed.
+// Should be used only in case of test setup malfunction.
+func (list *ExternalProcessesList) emergencyKillAll() {
+	for k := range list.set {
+		err := killProcess(k)
+		if err != nil {
+			fmt.Println(fmt.Sprintf("Failed to kill process %v", err))
+		}
+	}
+}
+
+func (list *ExternalProcessesList) add(process *ExternalProcess) {
+	list.set[process] = true
+}
+
+func (list *ExternalProcessesList) remove(process *ExternalProcess) {
+	delete(list.set, process)
+}
+
 func (p *ExternalProcess) FullConsoleCommand() string {
 	cmd := p.runningCommand
 	args := strings.Join(cmd.Args[1:], " ")
@@ -49,6 +80,8 @@ func (process *ExternalProcess) Launch(debugOutput bool) {
 	}
 	err := cmd.Start()
 	CheckTestSetupMalfunction(err)
+
+	externalProcessesList.add(process)
 }
 
 func (process *ExternalProcess) Stop() error {
@@ -57,6 +90,12 @@ func (process *ExternalProcess) Stop() error {
 	}
 	process.isRunning = false
 
+	externalProcessesList.remove(process)
+
+	return killProcess(process)
+}
+
+func killProcess(process *ExternalProcess) error {
 	cmd := process.runningCommand
 	defer cmd.Wait()
 

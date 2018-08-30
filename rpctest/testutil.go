@@ -34,6 +34,15 @@ func assertNotEmpty(tag string, value string) {
 // The fact that it is called indicates a serious
 // bug in the test setup and requires investigation.
 func ReportTestSetupMalfunction(err error) error {
+	//This includes removing all temporary directories,
+	// and shutting down any created processes.
+
+	externalProcessesList.emergencyKillAll()
+	e := DeleteWorkingDir()
+	if err != nil {
+		fmt.Println("Failed to delete working dir: " + e.Error())
+	}
+
 	panic(fmt.Sprintf("Test setup malfuction: %v", err))
 	return err
 }
