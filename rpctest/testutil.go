@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+	"path/filepath"
+	"strings"
 
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/cfgutil"
@@ -36,6 +38,7 @@ func assertNotEmpty(tag string, value string) {
 func ReportTestSetupMalfunction(err error) error {
 	//This includes removing all temporary directories,
 	// and shutting down any created processes.
+	fmt.Println(err.Error())
 
 	externalProcessesList.emergencyKillAll()
 	e := DeleteWorkingDir()
@@ -83,8 +86,18 @@ func WaitForFile(file string, maxSecondsToWait int) {
 }
 
 func MakeDirs(dir string) {
-	err := os.MkdirAll(dir, os.ModeTemporary)
-	CheckTestSetupMalfunction(err)
+	sep := string(os.PathSeparator)
+	steps := strings.Split(dir, sep)
+	for i := 1; i < len(steps); i++ {
+		pathI := filepath.Join(steps[:i]...)
+		if pathI == "" {
+			continue
+		}
+		if !FileExists(pathI) {
+			err := os.Mkdir(pathI, 0700)
+			CheckTestSetupMalfunction(err)
+		}
+	}
 }
 
 func DeleteFile(file string) {

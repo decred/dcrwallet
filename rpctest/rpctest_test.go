@@ -73,12 +73,6 @@ func TestMain(testingM *testing.M) {
 		}
 	}
 
-	if testing.Short() {
-		// Run tests in short mode.
-		os.Exit(testingM.Run())
-		return
-	}
-
 	// Deploy test setup
 	var harnessWith25MOSpawner *ChainWithMatureOutputsSpawner
 	{
@@ -92,15 +86,16 @@ func TestMain(testingM *testing.M) {
 			BasePort:          20000, // 20001, 20002, ...
 		}
 
-		// Initialize harnesses
-		{
+		Pool = NewHarnessesPool(harnessWith25MOSpawner)
+
+		if !testing.Short() {
+			// Initialize harnesses
 			// 18 seconds to init each
 			tagsList := []string{
 				MainHarnessName,
 				//TestGetStakeInfoHarnessTag,
 				//TestListTransactionsHarnessTag,
 			}
-			Pool = NewHarnessesPool(harnessWith25MOSpawner)
 			Pool.InitTags(tagsList)
 		}
 	}
