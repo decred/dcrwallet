@@ -33,12 +33,22 @@ var skipTestsList []string
 
 // testCasesToSkip, use it to mark tests for being skipped
 var testCasesToSkip = []RpcTestCase{
-	TestGetNewAddress,    // fails
-	TestValidateAddress,  // fails
-	TestSendFrom,         // fails
+	TestGetNewAddress,   // fails
+	TestValidateAddress, // fails
+	//TestWalletPassphrase,
+	//TestGetBalance,
+	//TestListAccounts,
+	//TestListUnspent,
+	//TestSendToAddress,
+	TestSendFrom, // fails
+	//TestSendMany,
 	TestListTransactions, // fails
-	TestPurchaseTickets,  // fails
-	TestGetStakeInfo,     // fails
+	//TestGetSetRelayFee,
+	//TestGetSetTicketFee,
+	//TestGetTickets,
+	TestPurchaseTickets, // fails
+	TestGetStakeInfo,    // fails
+	//TestWalletInfo,
 }
 
 // Get function name from module name
