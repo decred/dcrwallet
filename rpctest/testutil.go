@@ -35,19 +35,19 @@ func assertNotEmpty(tag string, value string) {
 // This function is expected to be called never.
 // The fact that it is called indicates a serious
 // bug in the test setup and requires investigation.
-func ReportTestSetupMalfunction(err error) error {
+func ReportTestSetupMalfunction(malfunction error) error {
 	//This includes removing all temporary directories,
 	// and shutting down any created processes.
-	fmt.Println(err.Error())
+	fmt.Fprintln(os.Stderr, malfunction.Error())
 
 	externalProcessesList.emergencyKillAll()
 	e := DeleteWorkingDir()
-	if err != nil {
-		fmt.Println("Failed to delete working dir: " + e.Error())
+	if e != nil {
+		fmt.Fprintln(os.Stderr, "Failed to delete working dir: "+e.Error())
 	}
 
-	panic(fmt.Sprintf("Test setup malfuction: %v", err))
-	return err
+	panic(fmt.Sprintf("Test setup malfunction: %v", malfunction))
+	return malfunction
 }
 
 // CheckTestSetupMalfunction reports error when one is present
@@ -63,6 +63,7 @@ func Sleep(milliseconds int64) {
 }
 
 func FileExists(path string) bool {
+	assertNotNil("path", path)
 	e, err := cfgutil.FileExists(path)
 	if err != nil {
 		return false
