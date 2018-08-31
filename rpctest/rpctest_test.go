@@ -44,7 +44,7 @@ var testCasesToSkip = []RpcTestCase{
 	//TestSendToAddress,
 	TestSendFrom, // fails
 	//TestSendMany,
-	TestListTransactions, // fails
+	//TestListTransactions,
 	//TestGetSetRelayFee,
 	//TestGetSetTicketFee,
 	//TestGetTickets,
@@ -106,7 +106,7 @@ func TestMain(testingM *testing.M) {
 			tagsList := []string{
 				MainHarnessName,
 				//TestGetStakeInfoHarnessTag,
-				//TestListTransactionsHarnessTag,
+				TestListTransactionsHarnessTag,
 			}
 			Pool.InitTags(tagsList)
 		}

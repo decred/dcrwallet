@@ -4,12 +4,12 @@
 package rpctest
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestListTransactions(t *testing.T) {
@@ -128,14 +128,19 @@ func TestListTransactions(t *testing.T) {
 		t.Fatal("Failed to get new address.")
 	}
 
-	sendAmount := dcrutil.Amount(240000000)
+	atomsInCoin := dcrutil.AtomsPerCoin
+	sendAmount := dcrutil.Amount(2400 * atomsInCoin)
 	txHash, err := wcl.SendFromMinConf("default", addr, sendAmount, 6)
 	if err != nil {
 		t.Fatal("Failed to send:", err)
 	}
 
+	// Mine next block
+	mineBlock(t, r)
+
 	// Number of results should be +3 now
 	txListAll, err := wcl.ListTransactionsCount("*", 9999999)
+	txListAll = reverse(txListAll)
 	if err != nil {
 		t.Fatal("ListTransactionsCount failed:", err)
 	}
@@ -178,16 +183,35 @@ func TestListTransactions(t *testing.T) {
 		t.Fatal("Fee in send tx result is nil.")
 	}
 
-	// Now that there's a new Tx on top, skip back to previoius transaction
-	// using from=1
-	txList1New, err := wcl.ListTransactionsCountFrom("*", 1, 1)
+	// last transactions:
+	// ...
+	//  [4] coinbase of block 40
+	//  [3] coinbase of block 41
+	//  [2] new coinbase
+	//  [1] send
+	//  [0] receive
+	//
+	txList1New, err := wcl.ListTransactionsCount("*", 3)
 	if err != nil {
 		t.Fatal("Failed to listtransactions:", err)
 	}
+	txList1New = reverse(txList1New)
+	// txList1New is:
+	//  [3] coinbase of block 41
+	//  [2] new coinbase
+	//  [1] send
+	//  [0] receive
+	//
 
-	// Should be equal to earlier result with implicit from=0
-	if !reflect.DeepEqual(txList1, txList1New) {
-		t.Fatal("Listtransaction results not equal.")
+	//coinbase of block 41
+	cb1 := txList1[0]
+	//one block passed, so update to match
+	cb1.Confirmations = cb1.Confirmations + 1
+	cb1n := txList1New[3]
+
+	// Should be equal to earlier result
+	if !cmp.Equal(cb1, cb1n) {
+		t.Fatal("Listtransaction results not equal. " + cmp.Diff(cb1, cb1n))
 	}
 
 	// Get rawTx of sent txid so we can calculate the fee that was used
@@ -241,7 +265,10 @@ func TestListTransactions(t *testing.T) {
 
 	// Create 2 accounts to receive funds
 	accountNames := []string{"listTxA", "listTxB"}
-	amountsToSend := []dcrutil.Amount{700000000, 1400000000}
+	amountsToSend := []dcrutil.Amount{
+		dcrutil.Amount(7 * atomsInCoin),
+		dcrutil.Amount(14 * atomsInCoin),
+	}
 
 	for _, acct := range accountNames {
 		err := wcl.CreateNewAccount(acct)
@@ -270,6 +297,9 @@ func TestListTransactions(t *testing.T) {
 		t.Fatalf("sendmany failed: %v", err)
 	}
 
+	// Mine next block
+	mineBlock(t, r)
+
 	// This should add 5 results: coinbase send, 2 receives, 2 sends
 	listSentMany, err := wcl.ListTransactionsCount("*", 99999999)
 	if err != nil {
@@ -279,4 +309,46 @@ func TestListTransactions(t *testing.T) {
 		t.Fatalf("Expected %v tx results, got %v", len(txListAll)+5,
 			len(listSentMany))
 	}
+}
+
+func mineBlock(t *testing.T, r *Harness) {
+	_, heightBefore, err := r.DcrdRPCClient().GetBestBlock()
+	if err != nil {
+		t.Fatal("Failed to get chain height:", err)
+	}
+
+	err = generateTestChain(1, r.DcrdRPCClient())
+	if err != nil {
+		t.Fatal("Failed to mine block:", err)
+	}
+
+	_, heightAfter, err := r.DcrdRPCClient().GetBestBlock()
+
+	if heightAfter != heightBefore+1 {
+		t.Fatal("Failed to mine block:", heightAfter, heightBefore)
+	}
+
+	if err != nil {
+		t.Fatal("Failed to GetBestBlock:", err)
+	}
+
+	count, err := syncWalletTo(r.WalletRPCClient(), heightAfter)
+	if err != nil {
+		t.Fatal("Failed to sync wallet to target:", err)
+	}
+
+	if heightAfter != count {
+		t.Fatal("Failed to sync wallet to target:", count)
+	}
+}
+
+func reverse(results []dcrjson.ListTransactionsResult) []dcrjson.ListTransactionsResult {
+	i := 0
+	j := len(results) - 1
+	for i < j {
+		results[i], results[j] = results[j], results[i]
+		i++
+		j--
+	}
+	return results
 }

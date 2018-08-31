@@ -110,7 +110,7 @@ func (testSetup *ChainWithMatureOutputsSpawner) NewInstance(harnessName string) 
 		desiredHeight := int64(
 			testSetup.NumMatureOutputs +
 				uint32(cfg.ActiveNet.CoinbaseMaturity))
-		syncWalletTo(harness, desiredHeight)
+		syncWalletHarnessTo(harness, desiredHeight)
 	}
 
 	// sometimes wallet hangs on RPC calls made immediately after the launch,
@@ -173,7 +173,8 @@ func launchHarnessSequence(harness *Harness, args *launchArguments) {
 
 	if args.CreateTestChain {
 		numToGenerate := uint32(cfg.ActiveNet.CoinbaseMaturity) + args.NumMatureOutputs
-		generateTestChain(numToGenerate, harness.DcrdRPCClient())
+		err := generateTestChain(numToGenerate, harness.DcrdRPCClient())
+		CheckTestSetupMalfunction(err)
 	}
 
 	WalletServer.Start(DcrdServer.CertFile(), args.WalletExtraArguments, args.DebugWalletOutput)
@@ -239,17 +240,13 @@ func networkFor(net *chaincfg.Params) string {
 	return ""
 }
 
-func syncWalletTo(harness *Harness, desiredHeight int64) {
+func syncWalletHarnessTo(harness *Harness, desiredHeight int64) {
 	fmt.Println("Waiting for WalletServer to sync to target height: " +
 		strconv.FormatInt(desiredHeight, 10))
-	var count int64 = 0
-	var err error = nil
-	for count != desiredHeight {
-		Sleep(1000)
-		count, err = harness.WalletRPCClient().GetBlockCount()
-		fmt.Println("   sync to: " + strconv.FormatInt(count, 10))
-		CheckTestSetupMalfunction(err)
-	}
+
+	rpcClient := harness.WalletRPCClient()
+	count, err := syncWalletTo(rpcClient, desiredHeight)
+	CheckTestSetupMalfunction(err)
 	fmt.Println("Wallet sync complete, height: " + strconv.FormatInt(count, 10))
 }
 
