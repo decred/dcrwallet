@@ -83,3 +83,7 @@ func (pool *HarnessesPool) InitTags(tags []string) {
 		pool.ObtainHarness(tag)
 	}
 }
+
+func (pool *HarnessesPool) Size() int {
+	return len(pool.cache)
+}

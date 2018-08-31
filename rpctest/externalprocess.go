@@ -30,15 +30,39 @@ type ExternalProcessesList struct {
 	set map[*ExternalProcess]bool
 }
 
+func VerifyNoExternalProcessesLeft() {
+	N := len(externalProcessesList.set)
+	if N > 0 {
+		for k := range externalProcessesList.set {
+			fmt.Fprintln(
+				os.Stderr,
+				fmt.Sprintf(
+					"External process leak, running command: %s",
+					k.FullConsoleCommand(),
+				))
+		}
+		ReportTestSetupMalfunction(
+			errors.Errorf(
+				"Incorrect state: %v external processes left running.",
+				N,
+			))
+	}
+}
+
 // emergencyKillAll is used to terminate all the external processes
 // created within this test setup in case of panic.
 // Otherwise, they all will persist unless explicitly killed.
 // Should be used only in case of test setup malfunction.
 func (list *ExternalProcessesList) emergencyKillAll() {
 	for k := range list.set {
-		err := killProcess(k)
+		err := killProcess(k, os.Stderr)
 		if err != nil {
-			fmt.Println(fmt.Sprintf("Failed to kill process %v", err))
+			fmt.Fprintln(
+				os.Stderr,
+				fmt.Sprintf(
+					"Failed to kill process %v",
+					err,
+				))
 		}
 	}
 }
@@ -92,12 +116,19 @@ func (process *ExternalProcess) Stop() error {
 
 	externalProcessesList.remove(process)
 
-	return killProcess(process)
+	return killProcess(process, os.Stdout)
 }
 
-func killProcess(process *ExternalProcess) error {
+func killProcess(process *ExternalProcess, logStream *os.File) error {
 	cmd := process.runningCommand
 	defer cmd.Wait()
+
+	fmt.Fprintln(
+		logStream,
+		fmt.Sprintf(
+			"Killing process: %v",
+			process.FullConsoleCommand(),
+		))
 
 	osProcess := cmd.Process
 	if runtime.GOOS == "windows" {

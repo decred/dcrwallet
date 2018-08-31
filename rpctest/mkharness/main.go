@@ -9,11 +9,10 @@ import (
 	"os"
 
 	"github.com/decred/dcrwallet/rpctest"
+	"github.com/decred/dcrwallet/errors"
 )
 
 func main() {
-
-
 
 	harnessMOSpawner := &rpctest.ChainWithMatureOutputsSpawner{
 		WorkingDir:        rpctest.WorkingDir,
@@ -52,5 +51,23 @@ func main() {
 		fmt.Println("Unable to teardown test chain: ", err)
 		os.Exit(-1)
 	}
+
+	verifyCorrectExit()
 	os.Exit(0)
+}
+
+// verifyCorrectExit is an additional safety check to ensure required
+// teardown routines were properly performed.
+func verifyCorrectExit() {
+	rpctest.VerifyNoExternalProcessesLeft()
+
+	file := rpctest.WorkingDir
+	if rpctest.FileExists(file) {
+		rpctest.ReportTestSetupMalfunction(
+			errors.Errorf(
+				"Incorrect state: "+
+					"Working dir should be deleted before exit. %v",
+				file,
+			))
+	}
 }

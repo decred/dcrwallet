@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 	"fmt"
 	"os"
+
+	"github.com/decred/dcrwallet/internal/cfgutil"
 )
 
 // Test setup working directory
@@ -20,6 +22,13 @@ func SetupWorkingDir() string {
 
 func DeleteWorkingDir() error {
 	file := WorkingDir
-	fmt.Println("delete: " + file)
-	return os.Remove(file)
+	y, err := cfgutil.FileExists(file)
+	if err != nil {
+		return err
+	}
+	if y {
+		fmt.Println("delete: " + file)
+		return os.Remove(file)
+	}
+	return nil
 }

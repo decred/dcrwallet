@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"runtime"
 	"testing"
+
+	"github.com/decred/dcrwallet/errors"
 )
 
 type RpcTestCase func(t *testing.T)
@@ -119,5 +121,31 @@ func TestMain(testingM *testing.M) {
 	Pool.TearDownAll()
 	DeleteWorkingDir()
 
+	verifyCorrectExit()
 	os.Exit(exitCode)
+}
+
+// verifyCorrectExit is an additional safety check to ensure required
+// teardown routines were properly performed.
+func verifyCorrectExit() {
+	if Pool.Size() != 0 {
+		ReportTestSetupMalfunction(
+			errors.Errorf(
+				"Incorrect state: " +
+					"Pool should be disposed before exit. " +
+					"Call Pool.TearDownAll()",
+			))
+	}
+
+	VerifyNoExternalProcessesLeft()
+
+	file := WorkingDir
+	if FileExists(file) {
+		ReportTestSetupMalfunction(
+			errors.Errorf(
+				"Incorrect state: "+
+					"Working dir should be deleted before exit. %v",
+				file,
+			))
+	}
 }
