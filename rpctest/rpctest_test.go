@@ -36,7 +36,7 @@ var skipTestsList []string
 // testCasesToSkip, use it to mark tests for being skipped
 var testCasesToSkip = []RpcTestCase{
 	//TestGetNewAddress,
-	TestValidateAddress, // fails
+	TestValidateAddress, // fails because of a bug in dcrwallet
 	//TestWalletPassphrase,
 	//TestGetBalance,
 	//TestListAccounts,
