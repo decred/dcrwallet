@@ -10,6 +10,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/rpcclient"
 )
 
 func TestValidateAddress(t *testing.T) {
@@ -37,7 +38,8 @@ func TestValidateAddress(t *testing.T) {
 		}
 
 		// Get a new address from current account
-		addr, err := wcl.GetNewAddress(acct)
+		addr, err := wcl.GetNewAddressGapPolicy(
+			acct, rpcclient.GapPolicyIgnore)
 		if err != nil {
 			t.Fatal(err)
 		}

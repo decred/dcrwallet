@@ -35,7 +35,7 @@ var skipTestsList []string
 
 // testCasesToSkip, use it to mark tests for being skipped
 var testCasesToSkip = []RpcTestCase{
-	TestGetNewAddress,   // fails
+	//TestGetNewAddress,
 	TestValidateAddress, // fails
 	//TestWalletPassphrase,
 	//TestGetBalance,
@@ -103,6 +103,8 @@ func TestMain(testingM *testing.M) {
 		if !testing.Short() {
 			// Initialize harnesses
 			// 18 seconds to init each
+			// uncomment to init harness before running test
+			// otherwise it will be inited on request
 			tagsList := []string{
 				MainHarnessName,
 				//TestGetStakeInfoHarnessTag,

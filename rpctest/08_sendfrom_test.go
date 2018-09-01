@@ -134,8 +134,11 @@ func TestSendFrom(t *testing.T) {
 	diff.Add(currentBalanceCoinsNegative, expectedBalanceCoins)
 
 	if diff.Cmp(new(big.Float)) == 0 {
-		t.Fatalf("balance for %s account incorrect: want %v got %v", "default",
-			expectedBalanceCoins, defaultBalanceAfterSendNoBlock.Balances[0].Spendable)
+		t.Fatalf("balance for %s account incorrect: want %v got %v",
+			"default",
+			expectedBalanceCoins,
+			defaultBalanceAfterSendNoBlock.Balances[0].Spendable,
+		)
 	}
 
 	// Check balance of sendfrom account

@@ -6,6 +6,8 @@ package rpctest
 import (
 	"testing"
 	"time"
+
+	"github.com/decred/dcrd/rpcclient"
 )
 
 func TestSendToAddress(t *testing.T) {
@@ -21,7 +23,8 @@ func TestSendToAddress(t *testing.T) {
 	wcl := r.WalletRPCClient()
 
 	// Grab a fresh address from the WalletServer.
-	addr, err := wcl.GetNewAddress("default")
+	addr, err := wcl.GetNewAddressGapPolicy(
+		"default", rpcclient.GapPolicyIgnore)
 	if err != nil {
 		t.Fatal(err)
 	}
