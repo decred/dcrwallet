@@ -6,6 +6,7 @@ package rpctest
 import (
 	"testing"
 	"time"
+	"math/big"
 
 	"github.com/decred/dcrd/dcrutil"
 )
@@ -111,14 +112,30 @@ func TestSendFrom(t *testing.T) {
 		totalSent += txOut.Value
 	}
 
-	fee := dcrutil.Amount(totalSpent - totalSent)
+	feeAtoms := dcrutil.Amount(totalSpent - totalSent)
 
 	// Calculate the expected balance for the default account after the tx was sent
-	expectedBalance := defaultBalanceBeforeSend.Balances[0].Spendable - (amountToSend + fee).ToCoin()
+	sentAtoms := amountToSend + feeAtoms
+	sentCoinsFloat := sentAtoms.ToCoin()
 
-	if expectedBalance != defaultBalanceAfterSendNoBlock.Balances[0].Spendable {
+	sentCoinsNegative := new(big.Float)
+	sentCoinsNegative.SetFloat64(-sentCoinsFloat)
+
+	oldBalanceCoins := new(big.Float)
+	oldBalanceCoins.SetFloat64(defaultBalanceBeforeSend.Balances[0].Spendable)
+
+	expectedBalanceCoins := new(big.Float)
+	expectedBalanceCoins.Add(oldBalanceCoins, sentCoinsNegative)
+
+	currentBalanceCoinsNegative := new(big.Float)
+	currentBalanceCoinsNegative.SetFloat64(-defaultBalanceAfterSendNoBlock.Balances[0].Spendable)
+
+	diff := new(big.Float)
+	diff.Add(currentBalanceCoinsNegative, expectedBalanceCoins)
+
+	if diff.Cmp(new(big.Float)) == 0 {
 		t.Fatalf("balance for %s account incorrect: want %v got %v", "default",
-			expectedBalance, defaultBalanceAfterSendNoBlock.Balances[0].Spendable)
+			expectedBalanceCoins, defaultBalanceAfterSendNoBlock.Balances[0].Spendable)
 	}
 
 	// Check balance of sendfrom account

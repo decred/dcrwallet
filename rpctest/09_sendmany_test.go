@@ -6,6 +6,7 @@ package rpctest
 import (
 	"testing"
 	"time"
+	"math/big"
 
 	"github.com/decred/dcrd/dcrutil"
 )
@@ -106,11 +107,28 @@ func TestSendMany(t *testing.T) {
 	t.Log("Raw TX after mining block: ", rawTx, " Fee: ", fee)
 
 	// Calculate the expected balance for the default account after the tx was sent
-	expectedBalance := defaultBalanceBeforeSend.Balances[0].Spendable - (totalAmountToSend + fee).ToCoin()
 
-	if expectedBalance != defaultBalanceAfterSendUnmined.Balances[0].Spendable {
+	sentAtoms := totalAmountToSend + fee
+	sentCoinsFloat := sentAtoms.ToCoin()
+
+	sentCoinsNegative := new(big.Float)
+	sentCoinsNegative.SetFloat64(-sentCoinsFloat)
+
+	oldBalanceCoins := new(big.Float)
+	oldBalanceCoins.SetFloat64(defaultBalanceBeforeSend.Balances[0].Spendable)
+
+	expectedBalanceCoins := new(big.Float)
+	expectedBalanceCoins.Add(oldBalanceCoins, sentCoinsNegative)
+
+	currentBalanceCoinsNegative := new(big.Float)
+	currentBalanceCoinsNegative.SetFloat64(-defaultBalanceAfterSendUnmined.Balances[0].Spendable)
+
+	diff := new(big.Float)
+	diff.Add(currentBalanceCoinsNegative, expectedBalanceCoins)
+
+	if diff.Cmp(new(big.Float)) == 0 {
 		t.Fatalf("Balance for %s account (sender) incorrect: want %v got %v",
-			"default", expectedBalance, defaultBalanceAfterSendUnmined.Balances[0].Spendable)
+			"default", expectedBalanceCoins, defaultBalanceAfterSendUnmined.Balances[0].Spendable)
 	}
 
 	// Check to make sure the transaction that was sent was included in the block
