@@ -42,7 +42,7 @@ var testCasesToSkip = []RpcTestCase{
 	//TestListAccounts,
 	//TestListUnspent,
 	//TestSendToAddress,
-	TestSendFrom, // fails
+	//TestSendFrom,
 	//TestSendMany,
 	//TestListTransactions,
 	//TestGetSetRelayFee,
