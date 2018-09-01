@@ -129,14 +129,14 @@ func (testSetup *ChainWithMatureOutputsSpawner) Dispose(h *Harness) error {
 	if h == nil {
 		return nil
 	}
-	if h.WalletClient.isConnected {
-		h.WalletClient.Disconnect()
+	if h.WalletServer.RPCClient.isConnected {
+		h.WalletServer.RPCClient.Disconnect()
 	}
 	if h.WalletServer.IsRunning() {
 		h.WalletServer.Stop()
 	}
-	if h.DcrdClient.isConnected {
-		h.DcrdClient.Disconnect()
+	if h.DcrdServer.RPCClient.isConnected {
+		h.DcrdServer.RPCClient.Disconnect()
 	}
 	if h.DcrdServer.IsRunning() {
 		h.DcrdServer.Stop()
@@ -167,7 +167,7 @@ func launchHarnessSequence(harness *Harness, args *launchArguments) {
 	fmt.Println("Connect to DCRD RPC...")
 	{
 		cfg := harness.DcrdConnectionConfig()
-		harness.DcrdClient.Connect(cfg)
+		harness.DcrdServer.RPCClient.Connect(cfg)
 	}
 	fmt.Println("DCRD RPC client connected.")
 
@@ -184,7 +184,7 @@ func launchHarnessSequence(harness *Harness, args *launchArguments) {
 	fmt.Println("Connect to Wallet RPC...")
 	{
 		cfg := harness.WalletConnectionConfig()
-		harness.WalletClient.Connect(cfg)
+		harness.WalletServer.RPCClient.Connect(cfg)
 	}
 	fmt.Println("Wallet RPC client connected.")
 }
@@ -199,12 +199,12 @@ func shutdownHarnessSequence(harness *Harness) {
 	WalletServer := harness.WalletServer
 
 	fmt.Println("Disconnect from Wallet RPC...")
-	harness.WalletClient.Disconnect()
+	harness.WalletServer.RPCClient.Disconnect()
 
 	WalletServer.Stop()
 
 	fmt.Println("Disconnect from DCRD RPC...")
-	harness.DcrdClient.Disconnect()
+	harness.DcrdServer.RPCClient.Disconnect()
 
 	DcrdServer.Stop()
 

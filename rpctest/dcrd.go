@@ -22,6 +22,8 @@ type DcrdTestServer struct {
 	endpoint   string
 
 	externalProcess *ExternalProcess
+
+	RPCClient   *RPCConnection
 }
 
 func (server *DcrdTestServer) CertFile() string {
