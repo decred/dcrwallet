@@ -92,7 +92,7 @@ func TestGetSetRelayFee(t *testing.T) {
 	feeRate := fee.ToCoin() / float64(rawTx.MsgTx().SerializeSize()) * 1000
 
 	// Ensure actual fee is at least nominal
-	t.Logf("Set relay fee: %v, actual: %v", walletInfo.TxFee, feeRate)
+	//t.Logf("Set relay fee: %v, actual: %v", walletInfo.TxFee, feeRate)
 	if feeRate < walletInfo.TxFee {
 		t.Errorf("Regular tx fee rate difference (actual-set) too high: %v",
 			walletInfo.TxFee-feeRate)
