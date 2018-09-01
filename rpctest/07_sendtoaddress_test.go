@@ -78,7 +78,7 @@ func TestSendToAddress(t *testing.T) {
 	// Check all inputs
 	for i, txIn := range rawTx.MsgTx().TxIn {
 		prevOut := &txIn.PreviousOutPoint
-		t.Logf("Checking previous outpoint %v, %v", i, prevOut.String())
+		//t.Logf("Checking previous outpoint %v, %v", i, prevOut.String())
 
 		// If a txout is spent (not in the UTXO set) GetTxOutResult will be nil
 		res, err := wcl.GetTxOut(&prevOut.Hash, prevOut.Index, false)

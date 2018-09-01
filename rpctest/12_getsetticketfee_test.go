@@ -94,7 +94,7 @@ func TestGetSetTicketFee(t *testing.T) {
 	feeRate := fee.ToCoin() / float64(rawTx.MsgTx().SerializeSize()) * 1000
 
 	// Ensure actual fee is at least nominal
-	t.Logf("Set ticket fee: %v, actual: %v", nominalTicketFee, feeRate)
+	//t.Logf("Set ticket fee: %v, actual: %v", nominalTicketFee, feeRate)
 	if feeRate < nominalTicketFee {
 		t.Errorf("Ticket fee rate difference (actual-set) too high: %v",
 			nominalTicketFee-feeRate)

@@ -93,7 +93,7 @@ func TestSendMany(t *testing.T) {
 		t.Fatalf("getrawtransaction failed: %v", err)
 	}
 	fee := getWireMsgTxFee(rawTx)
-	t.Log("Raw TX before mining block: ", rawTx, " Fee: ", fee)
+	//t.Log("Raw TX before mining block: ", rawTx, " Fee: ", fee)
 
 	// Generate a single block, the transaction the WalletServer created should be
 	// found in this block.
@@ -104,7 +104,7 @@ func TestSendMany(t *testing.T) {
 		t.Fatalf("getrawtransaction failed: %v", err)
 	}
 	fee = getWireMsgTxFee(rawTx)
-	t.Log("Raw TX after mining block: ", rawTx, " Fee: ", fee)
+	//t.Log("Raw TX after mining block: ", rawTx, " Fee: ", fee)
 
 	// Calculate the expected balance for the default account after the tx was sent
 
