@@ -3,7 +3,12 @@
 // license that can be found in the LICENSE file.
 package rpctest
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/decred/dcrwallet/wallet"
+	"github.com/decred/dcrd/rpcclient"
+)
 
 func TestGetNewAddress(t *testing.T) {
 	// Skip tests when running with -short
@@ -63,7 +68,8 @@ func TestGetNewAddress(t *testing.T) {
 		t.Fatalf("Address not valid: %s", addr)
 	}
 
-	for i := 0; i < 100; i++ {
+	// respect DefaultGapLimit
+	for i := 0; i < wallet.DefaultGapLimit-1; i++ {
 		addr, err = wcl.GetNewAddress("default")
 		if err != nil {
 			t.Fatal(err)
@@ -71,10 +77,88 @@ func TestGetNewAddress(t *testing.T) {
 
 		validRes, err = wcl.ValidateAddress(addr)
 		if err != nil {
-			t.Fatalf("Unable to validate address %s: %v", addr, err)
+			t.Fatalf(
+				"Unable to validate address %s: %v",
+				addr,
+				err,
+			)
 		}
 		if !validRes.IsValid {
 			t.Fatalf("Address not valid: %s", addr)
 		}
 	}
+
+	// Expecting error:
+	// "policy violation: generating next address violates
+	// the unused address gap limit policy"
+	addr, err = wcl.GetNewAddress("default")
+	if err == nil {
+		t.Fatalf(
+			"Should report gap policy violation (%d)",
+			wallet.DefaultGapLimit,
+		)
+	}
+
+	// gap policy with wrapping
+	// reuse each address numOfReusages times
+	numOfReusages := 3
+	addrCounter := make(map[string]int)
+	for i := 0; i < wallet.DefaultGapLimit*numOfReusages; i++ {
+		addr, err = wcl.GetNewAddressGapPolicy(
+			"default", rpcclient.GapPolicyWrap)
+
+		// count address
+		num := addrCounter[addr.String()]
+		num++
+		addrCounter[addr.String()] = num
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		validRes, err = wcl.ValidateAddress(addr)
+		if err != nil {
+			t.Fatalf(
+				"Unable to validate address %s: %v",
+				addr,
+				err,
+			)
+		}
+		if !validRes.IsValid {
+			t.Fatalf("Address not valid: %s", addr)
+		}
+	}
+
+	// check reusages
+	for _, reused := range addrCounter {
+		if reused != numOfReusages {
+			t.Fatalf(
+				"Each address is expected to be reused: %d times, actual %d",
+				numOfReusages,
+				reused,
+			)
+		}
+	}
+
+	// ignore gap policy
+	for i := 0; i < wallet.DefaultGapLimit*2; i++ {
+		addr, err = wcl.GetNewAddressGapPolicy(
+			"default", rpcclient.GapPolicyIgnore)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		validRes, err = wcl.ValidateAddress(addr)
+		if err != nil {
+			t.Fatalf(
+				"Unable to validate address %s: %v",
+				addr,
+				err,
+			)
+		}
+		if !validRes.IsValid {
+			t.Fatalf("Address not valid: %s", addr)
+		}
+	}
+
 }

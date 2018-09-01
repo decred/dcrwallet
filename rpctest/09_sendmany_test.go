@@ -128,7 +128,10 @@ func TestSendMany(t *testing.T) {
 
 	if diff.Cmp(new(big.Float)) == 0 {
 		t.Fatalf("Balance for %s account (sender) incorrect: want %v got %v",
-			"default", expectedBalanceCoins, defaultBalanceAfterSendUnmined.Balances[0].Spendable)
+			"default",
+			expectedBalanceCoins,
+			defaultBalanceAfterSendUnmined.Balances[0].Spendable,
+		)
 	}
 
 	// Check to make sure the transaction that was sent was included in the block
