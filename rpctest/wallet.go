@@ -20,6 +20,8 @@ type WalletTestServer struct {
 	endpoint   string
 
 	externalProcess *ExternalProcess
+
+	RPCClient *RPCConnection
 }
 
 func (server *WalletTestServer) CertFile() string {

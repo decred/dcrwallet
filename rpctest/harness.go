@@ -26,9 +26,6 @@ type Harness struct {
 	DcrdServer   *DcrdTestServer
 	WalletServer *WalletTestServer
 
-	DcrdClient   *RPCConnection
-	WalletClient *RPCConnection
-
 	MiningAddress dcrutil.Address
 }
 
@@ -94,6 +91,7 @@ func NewHarness(config *HarnessConfig) *Harness {
 		appDir:          filepath.Join(config.WorkingDir, "dcrd"),
 		endpoint:        "ws",
 		externalProcess: &ExternalProcess{CommandName: "dcrd"},
+		RPCClient:       &RPCConnection{MaxConnRetries: 20},
 	}
 
 	wallet := &WalletTestServer{
@@ -104,12 +102,11 @@ func NewHarness(config *HarnessConfig) *Harness {
 		appDir:          filepath.Join(config.WorkingDir, "dcrwallet"),
 		endpoint:        "ws",
 		externalProcess: &ExternalProcess{CommandName: "dcrwallet"},
+		RPCClient:       &RPCConnection{MaxConnRetries: 20},
 	}
 
 	h := &Harness{
 		Config:       config,
-		DcrdClient:   &RPCConnection{MaxConnRetries: 20},
-		WalletClient: &RPCConnection{MaxConnRetries: 20},
 		DcrdServer:   dcrd,
 		WalletServer: wallet,
 	}
@@ -126,13 +123,13 @@ func (harness *Harness) ActiveNet() *chaincfg.Params {
 // WalletRPCClient manages access to the RPCClient,
 // test cases suppose to use it when the need access to the Wallet RPC
 func (h *Harness) WalletRPCClient() *rpcclient.Client {
-	return h.WalletClient.rpcClient
+	return h.WalletServer.RPCClient.rpcClient
 }
 
 // DcrdRPCClient manages access to the RPCClient,
 // test cases suppose to use it when the need access to the Dcrd RPC
 func (h *Harness) DcrdRPCClient() *rpcclient.Client {
-	return h.DcrdClient.rpcClient
+	return h.DcrdServer.RPCClient.rpcClient
 }
 
 func (harness *Harness) DeleteWorkingDir() error {
