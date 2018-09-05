@@ -6,17 +6,58 @@ package rpctest
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"testing"
 	"time"
-	"strconv"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 )
+
+func mineBlock(t *testing.T, r *Harness) {
+	_, heightBefore, err := r.DcrdRPCClient().GetBestBlock()
+	if err != nil {
+		t.Fatal("Failed to get chain height:", err)
+	}
+
+	err = generateTestChain(1, r.DcrdRPCClient())
+	if err != nil {
+		t.Fatal("Failed to mine block:", err)
+	}
+
+	_, heightAfter, err := r.DcrdRPCClient().GetBestBlock()
+
+	if heightAfter != heightBefore+1 {
+		t.Fatal("Failed to mine block:", heightAfter, heightBefore)
+	}
+
+	if err != nil {
+		t.Fatal("Failed to GetBestBlock:", err)
+	}
+
+	count, err := syncWalletTo(r.WalletRPCClient(), heightAfter)
+	if err != nil {
+		t.Fatal("Failed to sync wallet to target:", err)
+	}
+
+	if heightAfter != count {
+		t.Fatal("Failed to sync wallet to target:", count)
+	}
+}
+
+func reverse(results []dcrjson.ListTransactionsResult) []dcrjson.ListTransactionsResult {
+	i := 0
+	j := len(results) - 1
+	for i < j {
+		results[i], results[j] = results[j], results[i]
+		i++
+		j--
+	}
+	return results
+}
 
 // Create a test chain with the desired number of mature coinbase outputs
 func generateTestChain(numToGenerate uint32, node *rpcclient.Client) error {
@@ -61,100 +102,6 @@ func getMiningAddr(walletClient *rpcclient.Client) dcrutil.Address {
 			"RPC not up for mining addr"))
 	}
 	return miningAddr
-}
-
-func mustGetStakeDiffNext(r *Harness, t *testing.T) float64 {
-	stakeDiffResult, err := r.WalletRPCClient().GetStakeDifficulty()
-	if err != nil {
-		t.Fatal("GetStakeDifficulty failed:", err)
-	}
-
-	return stakeDiffResult.NextStakeDifficulty
-}
-
-func newBlockAt(currentHeight uint32, r *Harness,
-	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash) {
-	height, block, blockHashes := newBlockAtQuick(currentHeight, r, t)
-
-	time.Sleep(700 * time.Millisecond)
-
-	return height, block, blockHashes
-}
-
-func newBlockAtQuick(currentHeight uint32, r *Harness,
-	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash) {
-
-	blockHashes, err := r.GenerateBlock(currentHeight)
-	if err != nil {
-		t.Fatalf("Unable to generate single block: %v", err)
-	}
-
-	block, err := r.DcrdRPCClient().GetBlock(blockHashes[0])
-	if err != nil {
-		t.Fatalf("Unable to get block: %v", err)
-	}
-
-	return block.Header.Height, dcrutil.NewBlock(block), blockHashes
-}
-
-func getBestBlockHeight(r *Harness, t *testing.T) uint32 {
-	_, height, err := r.DcrdRPCClient().GetBestBlock()
-	if err != nil {
-		t.Fatalf("Failed to GetBestBlock: %v", err)
-	}
-
-	return uint32(height)
-}
-
-func newBestBlock(r *Harness,
-	t *testing.T) (uint32, *dcrutil.Block, []*chainhash.Hash) {
-	height := getBestBlockHeight(r, t)
-	height, block, blockHash := newBlockAt(height, r, t)
-	return height, block, blockHash
-}
-
-// includesTx checks if a block contains a transaction hash
-func includesTx(txHash *chainhash.Hash, block *dcrutil.Block) bool {
-	if len(block.Transactions()) <= 1 {
-		return false
-	}
-
-	blockTxs := block.Transactions()
-
-	for _, minedTx := range blockTxs {
-		minedTxHash := minedTx.Hash()
-		if *txHash == *minedTxHash {
-			return true
-		}
-	}
-
-	return false
-}
-
-// getWireMsgTxFee computes the effective absolute fee from a Tx as the amount
-// spent minus sent.
-func getWireMsgTxFee(tx *dcrutil.Tx) dcrutil.Amount {
-	var totalSpent int64
-	for _, txIn := range tx.MsgTx().TxIn {
-		totalSpent += txIn.ValueIn
-	}
-
-	var totalSent int64
-	for _, txOut := range tx.MsgTx().TxOut {
-		totalSent += txOut.Value
-	}
-
-	return dcrutil.Amount(totalSpent - totalSent)
-}
-
-// getOutPointString uses OutPoint.String() to combine the tx hash with vout
-// index from a ListUnspentResult.
-func getOutPointString(utxo *dcrjson.ListUnspentResult) (string, error) {
-	txhash, err := chainhash.NewHashFromStr(utxo.TxID)
-	if err != nil {
-		return "", err
-	}
-	return wire.NewOutPoint(txhash, utxo.Vout, utxo.Tree).String(), nil
 }
 
 // GenerateBlock is a helper function to ensure that the chain has actually

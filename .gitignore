@@ -5,3 +5,4 @@ vendor
 \.idea/
 dcrwallet\.exe
 rpctest/\.pid
+\.project
