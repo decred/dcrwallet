@@ -6,9 +6,9 @@ package rpctest
 import (
 	"fmt"
 	"os"
-	"time"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/cfgutil"

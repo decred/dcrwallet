@@ -5,7 +5,7 @@
 // Package structure:
 //
 // - `TestMain()` is executed by go-test, and is responsible for setting up
-// and disposing test harnesses. See `rpctest_test.go` for details.
+// and disposing test harnesses. See `rpcharness_test.go` for details.
 //
 // - Test cases are located in `enumerated _test.go` files. Each test runs
 // independently. The enumeration specifies test execution order.

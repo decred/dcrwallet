@@ -1,8 +1,8 @@
 package rpctest
 
 import (
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/decred/dcrwallet/internal/cfgutil"

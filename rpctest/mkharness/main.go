@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/decred/dcrwallet/rpctest"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/rpctest"
 )
 
 func main() {

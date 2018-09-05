@@ -4,9 +4,9 @@
 package rpctest
 
 import (
+	"fmt"
 	"math"
 	"time"
-	"fmt"
 
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrwallet/errors"
