@@ -6,8 +6,10 @@ package rpctest
 import (
 	"fmt"
 	"path/filepath"
+	"io/ioutil"
 
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrd/rpcclient"
 )
 
 type WalletTestServer struct {
@@ -22,6 +24,23 @@ type WalletTestServer struct {
 	externalProcess *ExternalProcess
 
 	RPCClient *RPCConnection
+}
+
+// RPCConnectionConfig creates new connection config for RPC client
+func (n *WalletTestServer) RPCConnectionConfig() rpcclient.ConnConfig {
+	file := n.CertFile()
+	fmt.Println("reading: " + file)
+	cert, err := ioutil.ReadFile(file)
+	CheckTestSetupMalfunction(err)
+
+	return rpcclient.ConnConfig{
+		Host:                 n.rpcListen,
+		Endpoint:             n.endpoint,
+		User:                 n.rpcUser,
+		Pass:                 n.rpcPass,
+		Certificates:         cert,
+		DisableAutoReconnect: true,
+	}
 }
 
 func (server *WalletTestServer) CertFile() string {
@@ -50,6 +69,7 @@ func (n *WalletTestServer) Start(dcrdCertificateFile string, extraArguments map[
 	n.externalProcess.Launch(debugOutput)
 }
 
+// Stop interrupts the running dcrwallet process.
 func (n *WalletTestServer) Stop() {
 	if !n.IsRunning() {
 		ReportTestSetupMalfunction(errors.Errorf("WalletTestServer is not running"))

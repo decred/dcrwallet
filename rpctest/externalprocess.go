@@ -108,6 +108,10 @@ func (process *ExternalProcess) Launch(debugOutput bool) {
 	externalProcessesList.add(process)
 }
 
+
+// Stop interrupts the running process, and waits until it exits properly.
+// It is important that the process be stopped via Stop(), otherwise,
+// it will persist unless explicitly killed.
 func (process *ExternalProcess) Stop() error {
 	if !process.isRunning {
 		ReportTestSetupMalfunction(errors.Errorf("Process is not running: %v", process.runningCommand))
@@ -119,6 +123,7 @@ func (process *ExternalProcess) Stop() error {
 	return killProcess(process, os.Stdout)
 }
 
+// On windows, interrupt is not supported, so a kill signal is used instead.
 func killProcess(process *ExternalProcess, logStream *os.File) error {
 	cmd := process.runningCommand
 	defer cmd.Wait()

@@ -6,8 +6,10 @@ package rpctest
 import (
 	"fmt"
 	"path/filepath"
+	"io/ioutil"
 
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrd/rpcclient"
 )
 
 type DcrdTestServer struct {
@@ -24,6 +26,24 @@ type DcrdTestServer struct {
 	externalProcess *ExternalProcess
 
 	RPCClient *RPCConnection
+}
+
+// RPCConnectionConfig creates new connection config for RPC client
+func (n *DcrdTestServer) RPCConnectionConfig() rpcclient.ConnConfig {
+	file := n.CertFile()
+	fmt.Println("reading: " + file)
+	cert, err := ioutil.ReadFile(file)
+	CheckTestSetupMalfunction(err)
+
+	return rpcclient.ConnConfig{
+		Host:                 n.rpcListen,
+		Endpoint:             n.endpoint,
+		User:                 n.rpcUser,
+		Pass:                 n.rpcPass,
+		Certificates:         cert,
+		DisableAutoReconnect: true,
+		HTTPPostMode:         false,
+	}
 }
 
 func (server *DcrdTestServer) CertFile() string {
@@ -52,6 +72,7 @@ func (n *DcrdTestServer) Start(extraArguments map[string]interface{}, debugOutpu
 	n.externalProcess.Launch(debugOutput)
 }
 
+// Stop interrupts the running dcrd process.
 func (n *DcrdTestServer) Stop() {
 	if !n.IsRunning() {
 		ReportTestSetupMalfunction(errors.Errorf("DcrdTestServer is not running"))
