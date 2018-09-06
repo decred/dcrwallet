@@ -27,13 +27,13 @@ func main() {
 	fmt.Printf("Dcrd command:\n\t%s\n", harness.DcrdServer.FullConsoleCommand())
 	fmt.Printf("Wallet command:\n\t%s\n", harness.WalletServer.FullConsoleCommand())
 
-	cn := harness.DcrdConnectionConfig()
+	cn := harness.DcrdServer.RPCConnectionConfig()
 	nodeCertFile := harness.DcrdServer.CertFile()
 	fmt.Println("Command for dcrd's dcrctl:")
 	fmt.Printf("\tdcrctl -u %s -P %s -s %s -c %s\n", cn.User, cn.Pass,
 		cn.Host, nodeCertFile)
 
-	cw := harness.WalletConnectionConfig()
+	cw := harness.WalletServer.RPCConnectionConfig()
 	walletCertFile := harness.WalletServer.CertFile()
 	fmt.Println("Command for wallet's dcrctl:")
 	fmt.Printf("\tdcrctl -u %s -P %s -s %s -c %s --wallet\n", cw.User, cw.Pass,

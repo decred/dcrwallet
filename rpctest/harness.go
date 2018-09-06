@@ -5,7 +5,6 @@ package rpctest
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -44,41 +43,6 @@ type HarnessConfig struct {
 
 	WalletRPCHost string
 	WalletRPCPort int
-}
-
-// WalletConnectionConfig creates new connection config for RPC client
-func (n *Harness) WalletConnectionConfig() rpcclient.ConnConfig {
-	file := n.WalletServer.CertFile()
-	fmt.Println("reading: " + file)
-	cert, err := ioutil.ReadFile(file)
-	CheckTestSetupMalfunction(err)
-
-	return rpcclient.ConnConfig{
-		Host:                 n.WalletServer.rpcListen,
-		Endpoint:             n.WalletServer.endpoint,
-		User:                 n.WalletServer.rpcUser,
-		Pass:                 n.WalletServer.rpcPass,
-		Certificates:         cert,
-		DisableAutoReconnect: true,
-	}
-}
-
-// DcrdConnectionConfig creates new connection config for RPC client
-func (n *Harness) DcrdConnectionConfig() rpcclient.ConnConfig {
-	file := n.DcrdServer.CertFile()
-	fmt.Println("reading: " + file)
-	cert, err := ioutil.ReadFile(file)
-	CheckTestSetupMalfunction(err)
-
-	return rpcclient.ConnConfig{
-		Host:                 n.DcrdServer.rpcListen,
-		Endpoint:             n.DcrdServer.endpoint,
-		User:                 n.DcrdServer.rpcUser,
-		Pass:                 n.DcrdServer.rpcPass,
-		Certificates:         cert,
-		DisableAutoReconnect: true,
-		HTTPPostMode:         false,
-	}
 }
 
 // NewHarness creates a new instance of the rpc test harness.

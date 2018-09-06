@@ -166,7 +166,7 @@ func launchHarnessSequence(harness *Harness, args *launchArguments) {
 
 	fmt.Println("Connect to DCRD RPC...")
 	{
-		cfg := harness.DcrdConnectionConfig()
+		cfg := harness.DcrdServer.RPCConnectionConfig()
 		harness.DcrdServer.RPCClient.Connect(cfg)
 	}
 	fmt.Println("DCRD RPC client connected.")
@@ -183,7 +183,7 @@ func launchHarnessSequence(harness *Harness, args *launchArguments) {
 
 	fmt.Println("Connect to Wallet RPC...")
 	{
-		cfg := harness.WalletConnectionConfig()
+		cfg := harness.WalletServer.RPCConnectionConfig()
 		harness.WalletServer.RPCClient.Connect(cfg)
 	}
 	fmt.Println("Wallet RPC client connected.")
