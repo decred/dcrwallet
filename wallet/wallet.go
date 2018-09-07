@@ -2343,7 +2343,7 @@ func (w *Wallet) BlockInfo(blockID *BlockIdentifier) (*BlockInfo, error) {
 // TransactionSummary returns details about a recorded transaction that is
 // relevant to the wallet in some way.
 func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (txSummary *TransactionSummary, confs int32, blockHash *chainhash.Hash, err error) {
-	const op errors.Op = "wallet.TransactionSummary"
+	const opf = "wallet.TransactionSummary(%v)"
 	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(ns)
@@ -2360,6 +2360,7 @@ func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (txSummary *Transact
 		return nil
 	})
 	if err != nil {
+		op := errors.Opf(opf, txHash)
 		return nil, 0, nil, errors.E(op, err)
 	}
 	return txSummary, confs, blockHash, nil
@@ -2868,7 +2869,7 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 
 			details, err := w.TxStore.TxDetails(txmgrNs, &output.Hash)
 			if err != nil {
-				return errors.Errorf("Couldn't get credit details")
+				return err
 			}
 
 			// Outputs with fewer confirmations than the minimum or more
@@ -3798,13 +3799,10 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 				prevHash := &txIn.PreviousOutPoint.Hash
 				prevIndex := txIn.PreviousOutPoint.Index
 				txDetails, err := w.TxStore.TxDetails(txmgrNs, prevHash)
-				if err != nil {
-					return errors.Errorf("Cannot query previous transaction "+
-						"details for %v: %v", txIn.PreviousOutPoint, err)
-				}
-				if txDetails == nil {
-					return errors.Errorf("%v not found",
-						txIn.PreviousOutPoint)
+				if errors.Is(errors.NotExist, err) {
+					return errors.Errorf("%v not found", &txIn.PreviousOutPoint)
+				} else if err != nil {
+					return err
 				}
 				prevOutScript = txDetails.MsgTx.TxOut[prevIndex].PkScript
 			}
