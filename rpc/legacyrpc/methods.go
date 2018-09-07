@@ -1462,11 +1462,10 @@ func getTransaction(s *Server, icmd interface{}) (interface{}, error) {
 
 	// returns nil details when not found
 	txd, err := wallet.UnstableAPI(w).TxDetails(txHash)
-	if err != nil {
-		return nil, err
-	}
-	if txd == nil {
+	if errors.Is(errors.NotExist, err) {
 		return nil, rpcErrorf(dcrjson.ErrRPCNoTxInfo, "no information for transaction")
+	} else if err != nil {
+		return nil, err
 	}
 
 	_, tipHeight := w.MainChainTip()

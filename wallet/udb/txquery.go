@@ -170,9 +170,6 @@ func (s *Store) unminedTxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash,
 // TxDetails looks up all recorded details regarding a transaction with some
 // hash.  In case of a hash collision, the most recent transaction with a
 // matching hash is returned.
-//
-// Not finding a transaction with this hash is not an error.  In this case,
-// a nil TxDetails is returned.
 func (s *Store) TxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash) (*TxDetails, error) {
 	// First, check whether there exists an unmined transaction with this
 	// hash.  Use it if found.
@@ -185,8 +182,7 @@ func (s *Store) TxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash) (*TxDe
 	// hash, skip over to the newest and begin fetching all details.
 	k, v := latestTxRecord(ns, txHash[:])
 	if v == nil {
-		// not found
-		return nil, nil
+		return nil, errors.E(errors.NotFound)
 	}
 	return s.minedTxDetails(ns, txHash, k, v)
 }
