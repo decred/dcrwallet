@@ -68,7 +68,6 @@ func (n *DcrdTestServer) Start(extraArguments map[string]interface{}, debugOutpu
 	dcrdExe := "dcrd"
 	n.externalProcess.CommandName = dcrdExe
 	n.externalProcess.Arguments = n.cookArguments(extraArguments)
-	n.externalProcess.WorkingDir = n.appDir
 	n.externalProcess.Launch(debugOutput)
 }
 

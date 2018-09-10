@@ -65,7 +65,6 @@ func (n *WalletTestServer) Start(dcrdCertificateFile string, extraArguments map[
 	dcrwalletExe := "dcrwallet"
 	n.externalProcess.CommandName = dcrwalletExe
 	n.externalProcess.Arguments = n.cookArguments(dcrdCertificateFile, extraArguments)
-	n.externalProcess.WorkingDir = n.appDir
 	n.externalProcess.Launch(debugOutput)
 }
 
