@@ -13,7 +13,6 @@ import (
 type ExternalProcess struct {
 	CommandName string
 	Arguments   map[string]interface{}
-	WorkingDir  string
 
 	isRunning bool
 
