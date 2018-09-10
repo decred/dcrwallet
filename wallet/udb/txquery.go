@@ -182,7 +182,7 @@ func (s *Store) TxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash) (*TxDe
 	// hash, skip over to the newest and begin fetching all details.
 	k, v := latestTxRecord(ns, txHash[:])
 	if v == nil {
-		return nil, errors.E(errors.NotFound)
+		return nil, errors.E(errors.NotExist)
 	}
 	return s.minedTxDetails(ns, txHash, k, v)
 }
