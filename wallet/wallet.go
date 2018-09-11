@@ -741,16 +741,14 @@ func (w *Wallet) CommittedTickets(tickets []*chainhash.Hash) ([]*chainhash.Hash,
 	return hashes, addresses, nil
 }
 
-// FetchMissingCFilters records any missing compact filters for main chain
-// blocks.  A database upgrade requires all compact filters to be recorded for
-// the main chain before any more blocks may be attached, but this information
-// must be fetched at runtime after the upgrade as it is not already known at
-// the time of upgrade.
-func (w *Wallet) FetchMissingCFilters(ctx context.Context, p Peer) error {
-	const opf = "wallet.FetchMissingCFilters(%v)"
-
+// fetchMissingCFilters checks to see if there are any missing committed filters
+// then, if so requests them from the given peer.  The progress channel, if
+// non-nil, is sent the first height and last height of the range of filters
+// that were retrieved in that peer request.
+func (w *Wallet) fetchMissingCFilters(ctx context.Context, p Peer, progress chan<- MissingCFilterProgress) error {
 	var missing bool
 	var height int32
+
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		missing = w.TxStore.IsMissingMainChainCFilters(dbtx)
@@ -760,8 +758,7 @@ func (w *Wallet) FetchMissingCFilters(ctx context.Context, p Peer) error {
 		return err
 	})
 	if err != nil {
-		op := errors.Opf(opf, p)
-		return errors.E(op, err)
+		return err
 	}
 	if !missing {
 		return nil
@@ -814,8 +811,7 @@ func (w *Wallet) FetchMissingCFilters(ctx context.Context, p Peer) error {
 			return nil
 		})
 		if err != nil {
-			op := errors.Opf(opf, p)
-			return errors.E(op, err)
+			return err
 		}
 		if !missing {
 			return nil
@@ -826,8 +822,7 @@ func (w *Wallet) FetchMissingCFilters(ctx context.Context, p Peer) error {
 
 		filters, err := p.GetCFilters(ctx, get)
 		if err != nil {
-			op := errors.Opf(opf, p)
-			return errors.E(op, err)
+			return err
 		}
 
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
@@ -839,14 +834,58 @@ func (w *Wallet) FetchMissingCFilters(ctx context.Context, p Peer) error {
 			return w.TxStore.InsertMissingCFilters(dbtx, get, filters)
 		})
 		if err != nil {
-			op := errors.Opf(opf, p)
-			return errors.E(op, err)
+			return err
 		}
 		if cont {
 			continue
 		}
 
+		if progress != nil {
+			progress <- MissingCFilterProgress{BlockHeightStart: height, BlockHeightEnd: height + span - 1}
+		}
 		log.Infof("Fetched cfilters for blocks %v-%v", height, height+span-1)
+	}
+}
+
+// FetchMissingCFilters records any missing compact filters for main chain
+// blocks.  A database upgrade requires all compact filters to be recorded for
+// the main chain before any more blocks may be attached, but this information
+// must be fetched at runtime after the upgrade as it is not already known at
+// the time of upgrade.
+func (w *Wallet) FetchMissingCFilters(ctx context.Context, p Peer) error {
+	const opf = "wallet.FetchMissingCFilters(%v)"
+
+	err := w.fetchMissingCFilters(ctx, p, nil)
+	if err != nil {
+		op := errors.Opf(opf, p)
+		return errors.E(op, err)
+	}
+	return nil
+}
+
+// MissingCFilterProgress records the first and last height of the progress
+// that was received and any errors that were received during the fetching.
+type MissingCFilterProgress struct {
+	Err              error
+	BlockHeightStart int32
+	BlockHeightEnd   int32
+}
+
+// FetchMissingCFiltersWithProgress records any missing compact filters for main chain
+// blocks.  A database upgrade requires all compact filters to be recorded for
+// the main chain before any more blocks may be attached, but this information
+// must be fetched at runtime after the upgrade as it is not already known at
+// the time of upgrade.  This function reports to a channel with any progress
+// that may have seen.
+func (w *Wallet) FetchMissingCFiltersWithProgress(ctx context.Context, p Peer, progress chan<- MissingCFilterProgress) {
+	const opf = "wallet.FetchMissingCFilters(%v)"
+
+	defer close(progress)
+
+	err := w.fetchMissingCFilters(ctx, p, progress)
+	if err != nil {
+		op := errors.Opf(opf, p)
+		progress <- MissingCFilterProgress{Err: errors.E(op, err)}
 	}
 }
 
