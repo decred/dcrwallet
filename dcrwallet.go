@@ -443,6 +443,7 @@ func rpcClientConnectLoop(ctx context.Context, passphrase []byte, jsonRPCServer 
 	for {
 		chainClient, err := startChainRPC(ctx, certs)
 		if err != nil {
+			log.Errorf("Error connecting to RPC server: %v", err)
 			return
 		}
 
