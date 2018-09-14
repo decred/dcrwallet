@@ -2509,7 +2509,7 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 	// Run wallet synchronization until it is cancelled or errors.  If the
 	// context was cancelled, return immediately instead of trying to
 	// reconnect.
-	err = syncer.Run(svr.Context(), true)
+	err := syncer.Run(svr.Context(), true)
 	if errors.Match(errors.E(context.Canceled), err) {
 		return status.Errorf(codes.Canceled, "Wallet synchronization canceled: %v", err)
 	}
