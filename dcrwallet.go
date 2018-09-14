@@ -101,6 +101,10 @@ func run(ctx context.Context) error {
 		go drainOutgoingPipeMessages()
 	}
 
+	if cfg.NamedPipeRx != "" {
+		go serviceControlNamedPipeRx(ctx, cfg.NamedPipeRx)
+	}
+
 	// Run the pprof profiler if enabled.
 	if len(cfg.Profile) > 0 {
 		if done(ctx) {

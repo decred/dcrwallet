@@ -7,9 +7,11 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
+	"net"
 	"os"
 )
 
@@ -54,7 +56,72 @@ func serviceControlPipeRx(fd uintptr) {
 			break
 		}
 	}
+	shutdownRequestChannel <- struct{}{}
+}
 
+// serviceControlNamedPipeRx listens for events in the given named pipe or unix
+// socket. This intended to serve as a control mechanism for parent processes to
+// control the lifetime execution of the wallet process. Only a single client
+// may connect to the socket opened by this function.
+//
+// Currently the only event recognized by this function is the pipe or socket
+// being closed, which automatically triggers a wallet shutdown.
+//
+// In Windows platforms, fname must be a named pipe with a prefix of "\\.\pipe\".
+func serviceControlNamedPipeRx(ctx context.Context, fname string) {
+	pipe, err := serviceControlOpenNamedPipeRx(fname)
+	if err != nil {
+		log.Errorf("Failed opening named pipe rx: %v", err)
+		return
+	}
+	log.Tracef("Opened named piperx at %s", fname)
+
+	acceptChan := make(chan net.Conn)
+	go func() {
+		c, err := pipe.Accept()
+		// err will be != nil if a pipe.Close() has been requested, in which
+		// case we're already not waiting for a connection anyway, so we can
+		// safely not return anything in the chan.
+		if err == nil {
+			acceptChan <- c
+		}
+	}()
+
+	var conn net.Conn
+	select {
+	case conn = <-acceptChan:
+		log.Tracef("Accepted named piperx connection")
+	case <-ctx.Done():
+		// this particular context is done if a shutdown has already been
+		// requested, so we just close the pipe and quit.
+		log.Tracef("Requested early close of named piperx")
+		pipe.Close()
+		return
+	}
+
+	// we need to perform the read in a separate goroutine so that we catch
+	// shutdown requests from both the passed context and the pipe, in order to
+	// correctly cleanup the pipe file.
+	connClosedChan := make(chan struct{})
+	go func() {
+		b := make([]byte, 32)
+		for {
+			_, err := conn.Read(b)
+			if err != nil {
+				break
+			}
+		}
+		connClosedChan <- struct{}{}
+	}()
+
+	select {
+	case <-connClosedChan:
+		log.Tracef("Connection to client via named piperx returned EOF")
+	case <-ctx.Done():
+		log.Tracef("Wallet shutdown requesting named piperx close")
+	}
+
+	pipe.Close()
 	shutdownRequestChannel <- struct{}{}
 }
 

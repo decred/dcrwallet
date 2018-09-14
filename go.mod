@@ -1,6 +1,7 @@
 module github.com/decred/dcrwallet
 
 require (
+	github.com/Microsoft/go-winio v0.4.11
 	github.com/decred/dcrd/addrmgr v1.0.2
 	github.com/decred/dcrd/blockchain v1.0.2
 	github.com/decred/dcrd/blockchain/stake v1.0.2
