@@ -540,7 +540,8 @@ or upon received an error.
 - `InvalidArgument`: The network address is ill-formatted or does not contain a
   valid IP address.
   
-- `InvalidArgument`: The private passphrase is incorrect. 
+- `InvalidArgument`: The private passphrase is not supplied, but discoveraccounts
+  is requested. 
 
 - `InvalidArgument`: The username, password, or certificate are invalid.  This
   condition may not be return `Unauthenticated` as that refers to the client not
