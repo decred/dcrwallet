@@ -2382,13 +2382,11 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 			lock <- time.Time{}
 			zero.Bytes(req.PrivatePassphrase)
 		}
+		defer lockWallet()
 		err := wallet.Unlock(req.PrivatePassphrase, lock)
 		if err != nil {
 			return translateError(err)
 		}
-	}
-	if lockWallet != nil {
-		defer lockWallet()
 	}
 
 	rpcClient, err := chain.NewRPCClient(s.activeNet.Params, networkAddress, req.Username,
@@ -2545,6 +2543,7 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 			lock <- time.Time{}
 			zero.Bytes(req.PrivatePassphrase)
 		}
+		defer lockWallet()
 		err := wallet.Unlock(req.PrivatePassphrase, lock)
 		if err != nil {
 			return translateError(err)
