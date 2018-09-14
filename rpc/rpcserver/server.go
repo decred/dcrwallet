@@ -2349,20 +2349,6 @@ func (s *loaderServer) FetchMissingCFilters(ctx context.Context, req *pb.FetchMi
 func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderService_RpcSyncServer) error {
 	defer zero.Bytes(req.Password)
 
-	// XXX: Do it need to lock here like StartConsensusRpc
-	defer s.mu.Unlock()
-	s.mu.Lock()
-
-	if s.rpcClient != nil {
-		return status.Errorf(codes.FailedPrecondition, "RPC client already created")
-	}
-
-	networkAddress, err := cfgutil.NormalizeAddress(req.NetworkAddress,
-		s.activeNet.JSONRPCClientPort)
-	if err != nil {
-		return status.Errorf(codes.InvalidArgument, "Network address is ill-formed: %v", err)
-	}
-
 	// Error if the wallet is already syncing with the network.
 	wallet, walletLoaded := s.loader.LoadedWallet()
 	if walletLoaded {
@@ -2389,26 +2375,38 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 		}
 	}
 
-	rpcClient, err := chain.NewRPCClient(s.activeNet.Params, networkAddress, req.Username,
-		string(req.Password), req.Certificate, len(req.Certificate) == 0)
-	if err != nil {
-		return translateError(err)
-	}
+	s.mu.Lock()
+	chainClient := s.rpcClient
+	s.mu.Unlock()
 
-	err = rpcClient.Start(svr.Context(), false)
-	if err != nil {
-		if err == rpcclient.ErrInvalidAuth {
-			return status.Errorf(codes.InvalidArgument, "Invalid RPC credentials: %v", err)
+	// If the rpcClient is already set, you can just use that instead of attempting a new connection.
+	if chainClient == nil {
+		networkAddress, err := cfgutil.NormalizeAddress(req.NetworkAddress,
+			s.activeNet.JSONRPCClientPort)
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument, "Network address is ill-formed: %v", err)
 		}
-		return status.Errorf(codes.NotFound, "Connection to RPC server failed: %v", err)
+		chainClient, err := chain.NewRPCClient(s.activeNet.Params, networkAddress, req.Username,
+			string(req.Password), req.Certificate, len(req.Certificate) == 0)
+		if err != nil {
+			return translateError(err)
+		}
+
+		err = chainClient.Start(svr.Context(), false)
+		if err != nil {
+			if err == rpcclient.ErrInvalidAuth {
+				return status.Errorf(codes.InvalidArgument, "Invalid RPC credentials: %v", err)
+			}
+			return status.Errorf(codes.NotFound, "Connection to RPC server failed: %v", err)
+		}
+		s.mu.Lock()
+		s.rpcClient = chainClient
+		s.mu.Unlock()
 	}
 
-	s.rpcClient = rpcClient
-	s.loader.SetNetworkBackend(chain.BackendFromRPCClient(rpcClient.Client))
-
-	n := chain.BackendFromRPCClient(s.rpcClient.Client)
-	wallet.SetNetworkBackend(n)
+	n := chain.BackendFromRPCClient(chainClient.Client)
 	s.loader.SetNetworkBackend(n)
+	wallet.SetNetworkBackend(n)
 	ntfns := &chain.Notifications{
 		Synced: func(sync bool) {
 			resp := &pb.RpcSyncResponse{}
@@ -2505,7 +2503,7 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 			_ = svr.Send(resp)
 		},
 	}
-	syncer := chain.NewRPCSyncer(wallet, s.rpcClient)
+	syncer := chain.NewRPCSyncer(wallet, chainClient)
 	syncer.SetNotifications(ntfns)
 
 	// Run wallet synchronization until it is cancelled or errors.  If the
