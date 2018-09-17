@@ -2199,8 +2199,7 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte, chainParams *chai
 }
 
 // CoinTypes returns the legacy and SLIP0044 coin types for the chain
-// parameters.  At the moment, the parameters have not been upgraded for the new
-// coin types.
+// parameters.
 func CoinTypes(params *chaincfg.Params) (legacyCoinType, slip0044CoinType uint32) {
 	return params.LegacyCoinType, params.SLIP0044CoinType
 }
