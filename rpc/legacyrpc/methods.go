@@ -61,73 +61,74 @@ func confirms(txHeight, curHeight int32) int32 {
 // the registered rpc handlers
 var handlers = map[string]handler{
 	// Reference implementation wallet methods (implemented)
-	"accountaddressindex":     {fn: accountAddressIndex},
-	"accountsyncaddressindex": {fn: accountSyncAddressIndex},
-	"addmultisigaddress":      {fn: addMultiSigAddress},
-	"addticket":               {fn: addTicket},
-	"consolidate":             {fn: consolidate},
-	"createmultisig":          {fn: createMultiSig},
-	"dumpprivkey":             {fn: dumpPrivKey},
-	"generatevote":            {fn: generateVote},
-	"getaccount":              {fn: getAccount},
-	"getaccountaddress":       {fn: getAccountAddress},
-	"getaddressesbyaccount":   {fn: getAddressesByAccount},
-	"getbalance":              {fn: getBalance},
-	"getbestblockhash":        {fn: getBestBlockHash},
-	"getblockcount":           {fn: getBlockCount},
-	"getinfo":                 {fn: getInfo},
-	"getmasterpubkey":         {fn: getMasterPubkey},
-	"getmultisigoutinfo":      {fn: getMultisigOutInfo},
-	"getnewaddress":           {fn: getNewAddress},
-	"getrawchangeaddress":     {fn: getRawChangeAddress},
-	"getreceivedbyaccount":    {fn: getReceivedByAccount},
-	"getreceivedbyaddress":    {fn: getReceivedByAddress},
-	"getstakeinfo":            {fn: getStakeInfo},
-	"getticketfee":            {fn: getTicketFee},
-	"gettickets":              {fn: getTickets},
-	"gettransaction":          {fn: getTransaction},
-	"getvotechoices":          {fn: getVoteChoices},
-	"getwalletfee":            {fn: getWalletFee},
-	"help":                    {fn: help},
-	"importprivkey":           {fn: importPrivKey},
-	"importscript":            {fn: importScript},
-	"keypoolrefill":           {fn: keypoolRefill},
-	"listaccounts":            {fn: listAccounts},
-	"listlockunspent":         {fn: listLockUnspent},
-	"listreceivedbyaccount":   {fn: listReceivedByAccount},
-	"listreceivedbyaddress":   {fn: listReceivedByAddress},
-	"listsinceblock":          {fn: listSinceBlock},
-	"listscripts":             {fn: listScripts},
-	"listtransactions":        {fn: listTransactions},
-	"listunspent":             {fn: listUnspent},
-	"lockunspent":             {fn: lockUnspent},
-	"purchaseticket":          {fn: purchaseTicket},
-	"rescanwallet":            {fn: rescanWallet},
-	"revoketickets":           {fn: revokeTickets},
-	"sendfrom":                {fn: sendFrom},
-	"sendmany":                {fn: sendMany},
-	"sendtoaddress":           {fn: sendToAddress},
-	"sendtomultisig":          {fn: sendToMultiSig},
-	"setticketfee":            {fn: setTicketFee},
-	"settxfee":                {fn: setTxFee},
-	"setvotechoice":           {fn: setVoteChoice},
-	"signmessage":             {fn: signMessage},
-	"signrawtransaction":      {fn: signRawTransaction},
-	"signrawtransactions":     {fn: signRawTransactions},
-	"startautobuyer":          {fn: startAutoBuyer},
-	"stopautobuyer":           {fn: stopAutoBuyer},
-	"sweepaccount":            {fn: sweepAccount},
-	"redeemmultisigout":       {fn: redeemMultiSigOut},
-	"redeemmultisigouts":      {fn: redeemMultiSigOuts},
-	"stakepooluserinfo":       {fn: stakePoolUserInfo},
-	"ticketsforaddress":       {fn: ticketsForAddress},
-	"validateaddress":         {fn: validateAddress},
-	"verifymessage":           {fn: verifyMessage},
-	"version":                 {fn: version},
-	"walletinfo":              {fn: walletInfo},
-	"walletlock":              {fn: walletLock},
-	"walletpassphrase":        {fn: walletPassphrase},
-	"walletpassphrasechange":  {fn: walletPassphraseChange},
+	"accountaddressindex":       {fn: accountAddressIndex},
+	"accountsyncaddressindex":   {fn: accountSyncAddressIndex},
+	"addmultisigaddress":        {fn: addMultiSigAddress},
+	"addticket":                 {fn: addTicket},
+	"consolidate":               {fn: consolidate},
+	"createmultisig":            {fn: createMultiSig},
+	"createunsignedtransaction": {fn: createUnsignedTransaction},
+	"dumpprivkey":               {fn: dumpPrivKey},
+	"generatevote":              {fn: generateVote},
+	"getaccount":                {fn: getAccount},
+	"getaccountaddress":         {fn: getAccountAddress},
+	"getaddressesbyaccount":     {fn: getAddressesByAccount},
+	"getbalance":                {fn: getBalance},
+	"getbestblockhash":          {fn: getBestBlockHash},
+	"getblockcount":             {fn: getBlockCount},
+	"getinfo":                   {fn: getInfo},
+	"getmasterpubkey":           {fn: getMasterPubkey},
+	"getmultisigoutinfo":        {fn: getMultisigOutInfo},
+	"getnewaddress":             {fn: getNewAddress},
+	"getrawchangeaddress":       {fn: getRawChangeAddress},
+	"getreceivedbyaccount":      {fn: getReceivedByAccount},
+	"getreceivedbyaddress":      {fn: getReceivedByAddress},
+	"getstakeinfo":              {fn: getStakeInfo},
+	"getticketfee":              {fn: getTicketFee},
+	"gettickets":                {fn: getTickets},
+	"gettransaction":            {fn: getTransaction},
+	"getvotechoices":            {fn: getVoteChoices},
+	"getwalletfee":              {fn: getWalletFee},
+	"help":                      {fn: help},
+	"importprivkey":             {fn: importPrivKey},
+	"importscript":              {fn: importScript},
+	"keypoolrefill":             {fn: keypoolRefill},
+	"listaccounts":              {fn: listAccounts},
+	"listlockunspent":           {fn: listLockUnspent},
+	"listreceivedbyaccount":     {fn: listReceivedByAccount},
+	"listreceivedbyaddress":     {fn: listReceivedByAddress},
+	"listsinceblock":            {fn: listSinceBlock},
+	"listscripts":               {fn: listScripts},
+	"listtransactions":          {fn: listTransactions},
+	"listunspent":               {fn: listUnspent},
+	"lockunspent":               {fn: lockUnspent},
+	"purchaseticket":            {fn: purchaseTicket},
+	"rescanwallet":              {fn: rescanWallet},
+	"revoketickets":             {fn: revokeTickets},
+	"sendfrom":                  {fn: sendFrom},
+	"sendmany":                  {fn: sendMany},
+	"sendtoaddress":             {fn: sendToAddress},
+	"sendtomultisig":            {fn: sendToMultiSig},
+	"setticketfee":              {fn: setTicketFee},
+	"settxfee":                  {fn: setTxFee},
+	"setvotechoice":             {fn: setVoteChoice},
+	"signmessage":               {fn: signMessage},
+	"signrawtransaction":        {fn: signRawTransaction},
+	"signrawtransactions":       {fn: signRawTransactions},
+	"startautobuyer":            {fn: startAutoBuyer},
+	"stopautobuyer":             {fn: stopAutoBuyer},
+	"sweepaccount":              {fn: sweepAccount},
+	"redeemmultisigout":         {fn: redeemMultiSigOut},
+	"redeemmultisigouts":        {fn: redeemMultiSigOuts},
+	"stakepooluserinfo":         {fn: stakePoolUserInfo},
+	"ticketsforaddress":         {fn: ticketsForAddress},
+	"validateaddress":           {fn: validateAddress},
+	"verifymessage":             {fn: verifyMessage},
+	"version":                   {fn: version},
+	"walletinfo":                {fn: walletInfo},
+	"walletlock":                {fn: walletLock},
+	"walletpassphrase":          {fn: walletPassphrase},
+	"walletpassphrasechange":    {fn: walletPassphraseChange},
 
 	// Extensions to the reference client JSON-RPC API
 	"getbestblock":     {fn: getBestBlock},
@@ -2578,6 +2579,56 @@ func sendMany(s *Server, icmd interface{}) (interface{}, error) {
 	}
 
 	return sendPairs(w, pairs, account, minConf)
+}
+
+// createUnsignedTransaction handles a createunsignedtransaction RPC request
+// by creating a new unsigned transaction for a wallet to another
+// payment address.
+func createUnsignedTransaction(s *Server, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrjson.CreateUnsignedTransactionCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	feePerKb := w.RelayFee()
+	requiredConfs := int32(1)
+
+	amt, err := dcrutil.NewAmount(cmd.Amount)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check that signed integer parameters are positive.
+	if amt < 0 {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative amount")
+	}
+
+	// Mock up map of address and amount pairs.
+	pairs := map[string]dcrutil.Amount{
+		cmd.Address: amt,
+	}
+	outputs, err := makeOutputs(pairs, w.ChainParams())
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err :=
+		w.NewUnsignedTransaction(outputs, feePerKb, udb.DefaultAccountNum, requiredConfs, wallet.OutputSelectionAlgorithmAll, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	buf.Grow(tx.Tx.SerializeSize())
+	err = tx.Tx.Serialize(&buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dcrjson.CreateUnsignedTransactionResult{
+		UnsignedTransaction: hex.EncodeToString(buf.Bytes()),
+	}, nil
 }
 
 // sendToAddress handles a sendtoaddress RPC request by creating a new
