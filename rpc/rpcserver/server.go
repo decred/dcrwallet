@@ -2386,7 +2386,7 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 		if err != nil {
 			return status.Errorf(codes.InvalidArgument, "Network address is ill-formed: %v", err)
 		}
-		chainClient, err := chain.NewRPCClient(s.activeNet.Params, networkAddress, req.Username,
+		chainClient, err = chain.NewRPCClient(s.activeNet.Params, networkAddress, req.Username,
 			string(req.Password), req.Certificate, len(req.Certificate) == 0)
 		if err != nil {
 			return translateError(err)
