@@ -316,7 +316,7 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 		return nil, errors.E(op, err)
 	}
 
-	isNewWallet, err := l.IsNewWallet()
+	isNewWallet, err := l.isNewWallet()
 	if err != nil {
 		return nil, err
 	}
@@ -459,9 +459,9 @@ func (l *Loader) CreateIsNewWallet() error {
 	return nil
 }
 
-// IsNewWallet returns wheter the wallet was just created or not
+// isNewWallet returns wheter the wallet was just created or not
 // checking if newWallet file exists.
-func (l *Loader) IsNewWallet() (bool, error) {
+func (l *Loader) isNewWallet() (bool, error) {
 	newWallet := filepath.Join(l.dbDirPath, newWallet)
 	return fileExists(newWallet)
 }

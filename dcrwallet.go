@@ -443,6 +443,17 @@ func rpcClientConnectLoop(ctx context.Context, passphrase []byte, jsonRPCServer 
 	if !ok {
 		panic("rpcClientConnectLoop: called without loaded wallet")
 	}
+	// Check if it is a new wallet and delete the newFile which indicates
+	// that it is a new wallet if that is the case.
+	defer func() {
+		if w.GetIsNewWallet() {
+			err := loader.DeleteNewWalletFile()
+			if err != nil {
+				log.Errorf("Error Deleting new wallet file: %v", err)
+				return
+			}
+		}
+	}()
 
 	certs := readCAFile()
 
