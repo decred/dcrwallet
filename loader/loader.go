@@ -265,7 +265,6 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	// Open the newly-created wallet.
 	so := l.stakeOptions
 	cfg := &wallet.Config{
-<<<<<<< d1a1fabfae47347cc7d67daa822cb63657b61791
 		DB:                      db,
 		PubPassphrase:           pubPassphrase,
 		VotingEnabled:           so.VotingEnabled,
@@ -281,22 +280,6 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 		AllowHighFees:           l.allowHighFees,
 		RelayFee:                l.relayFee,
 		Params:                  l.chainParams,
-=======
-		DB:                  db,
-		PubPassphrase:       pubPassphrase,
-		VotingEnabled:       so.VotingEnabled,
-		AddressReuse:        so.AddressReuse,
-		VotingAddress:       so.VotingAddress,
-		PoolAddress:         so.PoolAddress,
-		PoolFees:            so.PoolFees,
-		TicketFee:           so.TicketFee,
-		GapLimit:            l.gapLimit,
-		AccountGapLimit:     l.accountGapLimit,
-		StakePoolColdExtKey: so.StakePoolColdExtKey,
-		AllowHighFees:       l.allowHighFees,
-		RelayFee:            l.relayFee,
-		Params:              l.chainParams,
->>>>>>> Create .newWallet file, to indicate it is a new wallet
 	}
 	w, err = wallet.Open(cfg)
 	if err != nil {
@@ -332,6 +315,11 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 		log.Errorf("Failed to open database: %v", err)
 		return nil, errors.E(op, err)
 	}
+
+	isNewWallet, err := l.IsNewWallet()
+	if err != nil {
+		return nil, err
+	}
 	// If this function does not return to completion the database must be
 	// closed.  Otherwise, because the database is locked on opens, any
 	// other attempts to open the wallet will hang, and there is no way to
@@ -359,6 +347,7 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 		AllowHighFees:           l.allowHighFees,
 		RelayFee:                l.relayFee,
 		Params:                  l.chainParams,
+		IsNewWallet:             isNewWallet,
 	}
 	w, err = wallet.Open(cfg)
 	if err != nil {

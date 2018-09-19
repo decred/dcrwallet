@@ -4475,6 +4475,11 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 	return addrMap, nil
 }
 
+// GetIsNewWallet Checks if the wallet is new and not imported yet
+func (w *Wallet) GetIsNewWallet() bool {
+	return w.isNewWallet
+}
+
 // Open loads an already-created wallet from the passed database and namespaces
 // configuration options and sets it up it according to the rest of options.
 func Open(cfg *Config) (*Wallet, error) {
@@ -4513,6 +4518,7 @@ func Open(cfg *Config) (*Wallet, error) {
 		AllowHighFees:           cfg.AllowHighFees,
 		accountGapLimit:         cfg.AccountGapLimit,
 		disableCoinTypeUpgrades: cfg.DisableCoinTypeUpgrades,
+		isNewWallet:             cfg.IsNewWallet,
 
 		// Chain params
 		subsidyCache: blockchain.NewSubsidyCache(0, cfg.Params),
