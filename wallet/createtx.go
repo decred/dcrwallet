@@ -32,14 +32,6 @@ import (
 // Constants and simple functions
 
 const (
-	// singleInputTicketSize is the typical size of a normal P2PKH ticket
-	// in bytes when the ticket has one input, rounded up.
-	singleInputTicketSize = 300
-
-	// doubleInputTicketSize is the typical size of a normal P2PKH ticket
-	// in bytes when the ticket has two inputs, rounded up.
-	doubleInputTicketSize = 550
-
 	// defaultTicketFeeLimits is the default byte string for the default
 	// fee limits imposed on a ticket.
 	defaultTicketFeeLimits = 0x5800
@@ -943,22 +935,66 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		return nil, errors.E(op, errors.Invalid, "stakepool fee percent unset")
 	}
 
+	var stakeSubmissionPkScriptSize int
+
+	// The stake submission pkScript is tagged by an OP_SSTX.
+	switch req.ticketAddr.(type) {
+	case *dcrutil.AddressScriptHash:
+		stakeSubmissionPkScriptSize = txsizes.P2SHPkScriptSize + 1
+	case *dcrutil.AddressPubKeyHash:
+		stakeSubmissionPkScriptSize = txsizes.P2PKHPkScriptSize + 1
+	default:
+		return nil, errors.E(op, errors.Invalid,
+			"ticket address must either be P2SH or P2PKH")
+	}
+
 	// Make sure that we have enough funds. Calculate different
 	// ticket required amounts depending on whether or not a
 	// pool output is needed. If the ticket fee increment is
 	// unset in the request, use the global ticket fee increment.
 	var neededPerTicket, ticketFee dcrutil.Amount
+	var estSize int
 	ticketFeeIncrement := req.ticketFee
 	if ticketFeeIncrement == 0 {
 		ticketFeeIncrement = w.TicketFeeIncrement()
 	}
+
+	inSizes := make([]int, 0)
+	outSizes := make([]int, 0)
 	if poolAddress == nil {
-		ticketFee = (ticketFeeIncrement * singleInputTicketSize) / 1000
-		neededPerTicket = ticketFee + ticketPrice
+		// A solo ticket has:
+		//   - a single input redeeming a P2PKH for the worst case size
+		//   - a P2PKH or P2SH stake submission output
+		//   - a ticket commitment output
+		//   - an OP_SSTXCHANGE tagged P2PKH or P2SH change output
+		//
+		//   NB: The wallet currently only supports P2PKH change addresses.
+		//   The network supports both P2PKH and P2SH change addresses however.
+		inSizes = append(inSizes, txsizes.RedeemP2PKHSigScriptSize)
+		outSizes = append(outSizes, stakeSubmissionPkScriptSize,
+			txsizes.TicketCommitmentScriptSize, txsizes.P2PKHPkScriptSize+1)
+		estSize = txsizes.EstimateSerializeSizeFromScriptSizes(inSizes,
+			outSizes, 0)
 	} else {
-		ticketFee = (ticketFeeIncrement * doubleInputTicketSize) / 1000
-		neededPerTicket = ticketFee + ticketPrice
+		// A pool ticket has:
+		//   - two inputs redeeming a P2PKH for the worst case size
+		//   - a P2PKH or P2SH stake submission output
+		//   - two ticket commitment outputs
+		//   - two OP_SSTXCHANGE tagged P2PKH or P2SH change outputs
+		//
+		//   NB: The wallet currently only supports P2PKH change addresses.
+		//   The network supports both P2PKH and P2SH change addresses however.
+		inSizes = append(inSizes, txsizes.RedeemP2PKHSigScriptSize,
+			txsizes.RedeemP2PKHSigScriptSize)
+		outSizes = append(outSizes, stakeSubmissionPkScriptSize,
+			txsizes.TicketCommitmentScriptSize, txsizes.TicketCommitmentScriptSize,
+			txsizes.P2PKHPkScriptSize+1, txsizes.P2PKHPkScriptSize+1)
+		estSize = txsizes.EstimateSerializeSizeFromScriptSizes(inSizes,
+			outSizes, 0)
 	}
+
+	ticketFee = txrules.FeeForSerializeSize(ticketFeeIncrement, estSize)
+	neededPerTicket = ticketFee + ticketPrice
 
 	// If we need to calculate the amount for a pool fee percentage,
 	// do so now.
