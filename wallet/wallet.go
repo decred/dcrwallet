@@ -110,6 +110,7 @@ type Wallet struct {
 	DisallowFree            bool
 	AllowHighFees           bool
 	disableCoinTypeUpgrades bool
+	isNewWallet             bool
 
 	// Channel for transaction creation requests.
 	consolidateRequests      chan consolidateRequest
@@ -159,6 +160,7 @@ type Config struct {
 	GapLimit                int
 	AccountGapLimit         int
 	DisableCoinTypeUpgrades bool
+	IsNewWallet             bool
 
 	StakePoolColdExtKey string
 	AllowHighFees       bool
@@ -646,7 +648,7 @@ func (w *Wallet) CoinType() (uint32, error) {
 	}
 	return coinType, nil
 }
-  
+
 // CoinTypePrivKey returns the BIP0044 coin type private key.
 func (w *Wallet) CoinTypePrivKey() (*hdkeychain.ExtendedKey, error) {
 	const op errors.Op = "wallet.CoinTypePrivKey"
@@ -661,7 +663,7 @@ func (w *Wallet) CoinTypePrivKey() (*hdkeychain.ExtendedKey, error) {
 	}
 	return coinTypePrivKey, nil
 }
-  
+
 // LoadActiveDataFilters loads filters for all active addresses and unspent
 // outpoints for this wallet.
 func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, reload bool) error {

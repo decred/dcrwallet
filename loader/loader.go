@@ -5,6 +5,7 @@
 package loader
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -201,9 +202,8 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 
 // CreateNewWallet creates a new wallet using the provided public and private
 // passphrases.  The seed is optional.  If non-nil, addresses are derived from
-// this seed.  If nil, a secure random seed is generated. If the wallet is just
-// created, it creates a new file at the dbdirpath.
-func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte, imported bool) (w *wallet.Wallet, err error) {
+// this seed.  If nil, a secure random seed is generated.
+func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w *wallet.Wallet, err error) {
 	const op errors.Op = "loader.CreateNewWallet"
 
 	defer l.mu.Unlock()
@@ -255,26 +255,6 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte, imp
 	db, err := wallet.CreateDB(l.dbDriver, dbPath)
 	if err != nil {
 		return nil, errors.E(op, err)
-	}
-
-	// Check if it is creating a new wallet so we can
-	// create a file at dbDirPath indicating it.
-	if !imported {
-		newWalletPath := filepath.Join(l.dbDirPath, newWallet)
-		_, err := os.Create(newWalletPath)
-		if err != nil {
-			// Check if err is newWallet file exists. If this is the case,
-			// It probably means that the wallet was imported by another wallet
-			exists, err := fileExists(newWalletPath)
-			if exists {
-				err = os.Remove(newWalletPath)
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				return nil, err
-			}
-		}
 	}
 
 	// Initialize the newly created database for the wallet before opening.

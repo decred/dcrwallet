@@ -76,7 +76,7 @@ func createWallet(ctx context.Context, cfg *config) error {
 	}
 
 	fmt.Println("Creating the wallet...")
-	w, err := loader.CreateNewWallet(pubPass, privPass, seed, imported)
+	w, err := loader.CreateNewWallet(pubPass, privPass, seed)
 	if err != nil {
 		return err
 	}
