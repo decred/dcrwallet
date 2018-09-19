@@ -86,6 +86,10 @@ func createWallet(ctx context.Context, cfg *config) error {
 		if err != nil {
 			return err
 		}
+		err = loader.CreateIsNewWallet()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Display a mining address when creating a simnet wallet.

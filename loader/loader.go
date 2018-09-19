@@ -5,7 +5,6 @@
 package loader
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -266,6 +265,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	// Open the newly-created wallet.
 	so := l.stakeOptions
 	cfg := &wallet.Config{
+<<<<<<< d1a1fabfae47347cc7d67daa822cb63657b61791
 		DB:                      db,
 		PubPassphrase:           pubPassphrase,
 		VotingEnabled:           so.VotingEnabled,
@@ -281,6 +281,22 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 		AllowHighFees:           l.allowHighFees,
 		RelayFee:                l.relayFee,
 		Params:                  l.chainParams,
+=======
+		DB:                  db,
+		PubPassphrase:       pubPassphrase,
+		VotingEnabled:       so.VotingEnabled,
+		AddressReuse:        so.AddressReuse,
+		VotingAddress:       so.VotingAddress,
+		PoolAddress:         so.PoolAddress,
+		PoolFees:            so.PoolFees,
+		TicketFee:           so.TicketFee,
+		GapLimit:            l.gapLimit,
+		AccountGapLimit:     l.accountGapLimit,
+		StakePoolColdExtKey: so.StakePoolColdExtKey,
+		AllowHighFees:       l.allowHighFees,
+		RelayFee:            l.relayFee,
+		Params:              l.chainParams,
+>>>>>>> Create .newWallet file, to indicate it is a new wallet
 	}
 	w, err = wallet.Open(cfg)
 	if err != nil {
@@ -432,6 +448,26 @@ func fileExists(filePath string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// CreateIsNewWallet creates a newWallet file at the dbDirPath
+// to indicate the wallet created is a new wallet. If the file
+// already exists, it returns true.
+func (l *Loader) CreateIsNewWallet() error {
+	newWalletPath := filepath.Join(l.dbDirPath, newWallet)
+	_, err := os.Create(newWalletPath)
+	if err != nil {
+		// Check if err is newWallet file exists. If this is the case,
+		// the wallet was already imported.
+		exists, err := fileExists(newWalletPath)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return nil
+		}
+	}
+	return nil
 }
 
 // IsNewWallet returns wheter the wallet was just created or not
