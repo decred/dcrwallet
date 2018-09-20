@@ -8,6 +8,7 @@ package wallet
 import (
 	"context"
 	"encoding/binary"
+
 	//"errors"
 	"fmt"
 	"reflect"
@@ -20,6 +21,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+
 	//	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
@@ -32,6 +34,21 @@ import (
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
+
+	"crypto/elliptic"
+	"crypto/rand"
+
+	"net/http"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/gorilla/websocket"
+	pb "github.com/raedahgroup/dcrtxmatcher/api/messages"
+
+	"github.com/raedahgroup/dcrtxmatcher/chacharng"
+	"github.com/raedahgroup/dcrtxmatcher/coinjoin"
+	"github.com/raedahgroup/dcrtxmatcher/finitefield"
+	"github.com/raedahgroup/dcrtxmatcher/ripemd128"
+	"github.com/wsddn/go-ecdh"
 )
 
 // --------------------------------------------------------------------------------
@@ -1007,6 +1024,24 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *ext
 	return mtx, nil
 }
 
+type (
+	PeerData struct {
+		Id            uint32
+		NumMsg        uint32
+		Pk            []byte
+		Vk            []byte
+		Dcexp_seed    []byte
+		Dcexp         []byte
+		Dcsimple_seed []byte
+		Dcsimple      []byte
+	}
+)
+
+func (peer PeerData) GetDcexpField() field.Field {
+	n := field.FromBytes(peer.Dcexp)
+	return field.NewFF(n)
+}
+
 // purchaseTickets indicates to the wallet that a ticket should be purchased
 // using all currently available funds.  The ticket address parameter in the
 // request can be nil in which case the ticket address associated with the
@@ -1152,6 +1187,325 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 
 	//check dcrtxclient option to ensure current code also works with dcrtxclient enable option is disable in config file
 	if req.dcrTxClient.Config().Enable {
+		var splitOuts []*wire.TxOut
+
+		//create slice of pkscripts
+		pkScripts := make([][]byte, numTickets)
+		for i := 0; i < numTickets; i++ {
+			splitTxAddr, err := w.NewInternalAddress(req.account, WithGapPolicyWrap())
+			if err != nil {
+				return nil, err
+			}
+			pkScripts[i], err = txscript.PayToAddrScript(splitTxAddr)
+			if err != nil {
+				return nil, fmt.Errorf("cannot create txout script: %s", err)
+			}
+
+			splitOuts = append(splitOuts, wire.NewTxOut(int64(neededPerTicket), pkScripts[i]))
+		}
+
+		txFeeIncrement := req.txFee
+		if txFeeIncrement == 0 {
+			txFeeIncrement = w.RelayFee()
+		}
+		//select txins for splitout
+		splitTx, changeSourceFuncs, err := w.txToOutputsSplitTx(splitOuts, req.account, req.minConf,
+			n, false, txFeeIncrement)
+		if err != nil {
+			return nil, errors.E(op, errors.Bug, errors.Errorf("split address %v", splitTxAddr))
+		}
+
+		// Purchase tickets individually.
+		ticketHashes := make([]*chainhash.Hash, 0, numTickets)
+
+		purchaseFn := func(tx *wire.MsgTx, numberTickets int, outputIds []int32) ([]*chainhash.Hash, error) {
+
+			ticketHashes := make([]*chainhash.Hash, 0)
+			for i := 0; i < numTickets; i++ {
+
+				outputIndex := outputIds[i]
+
+				var eop *extendedOutPoint
+				txOut := tx.TxOut[outputIndex]
+				eop = &extendedOutPoint{
+					op: &wire.OutPoint{
+						Hash:  tx.TxHash(),
+						Index: uint32(outputIndex),
+						Tree:  wire.TxTreeRegular,
+					},
+					amt:      txOut.Value,
+					pkScript: txOut.PkScript,
+				}
+				votingAddress, subsidyAddress, err := w.fetchAddresses(req.ticketAddr, req.account, addrFunc)
+
+				// Generate the ticket msgTx and sign it.
+				ticket, err := makeTicket(w.chainParams, nil, eop, votingAddress,
+					subsidyAddress, int64(ticketPrice), poolAddress)
+				if err != nil {
+					return ticketHashes, err
+				}
+
+				var forSigning []udb.Credit
+				eopCredit := udb.Credit{
+					OutPoint:     *eop.op,
+					BlockMeta:    udb.BlockMeta{},
+					Amount:       dcrutil.Amount(eop.amt),
+					PkScript:     eop.pkScript,
+					Received:     time.Now(),
+					FromCoinBase: false,
+				}
+				forSigning = append(forSigning, eopCredit)
+
+				// Set ticket expiry if greater than zero
+				if req.expiry > 0 {
+					ticket.Expiry = uint32(req.expiry)
+				}
+
+				err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+					ns := tx.ReadBucket(waddrmgrNamespaceKey)
+					//signMsgTx set signaturescript to txin
+					return w.signP2PKHMsgTx(ticket, forSigning, ns)
+				})
+				if err != nil {
+					return ticketHashes, err
+				}
+
+				err = w.processTxRecordAndPublish(ticket, n)
+				if err != nil {
+					return ticketHashes, err
+				}
+
+				ticketHash := ticket.TxHash()
+				ticketHashes = append(ticketHashes, &ticketHash)
+				log.Infof("Successfully sent SStx purchase transaction %v", ticketHash)
+			}
+
+			return ticketHashes, nil
+		}
+
+		// build outputs index in case communicate with server fails
+		localOutputIndex := make([]int32, 0)
+		for i := 0; i < numTickets; i++ {
+			localOutputIndex = append(localOutputIndex, int32(i))
+		}
+
+		peers := make([]PeerData, 0)
+
+		var PeerId, SessionId uint32
+
+		dialer := websocket.Dialer{}
+		ws, _, err := dialer.Dial(req.dcrTxClient.Config().Address+"/ws", http.Header{})
+		if err != nil {
+			fmt.Println("Error connecting:", err)
+			//return
+		}
+		fmt.Println("Connected!")
+		defer ws.Close()
+
+		//generate ecdh keypair
+		ecp256 := ecdh.NewEllipticECDH(elliptic.P256())
+		vk, pk, err := ecp256.GenerateKey(rand.Reader)
+		if err != nil {
+			fmt.Printf("error ecdh GenerateKey: %v", err)
+		}
+
+		pkbytes := ecp256.Marshal(pk)
+
+		//vkbytes := ecp256.Marshal(vk)
+
+		var mymsgnum uint32 = uint32(len(pkScripts))
+
+		for {
+
+			_, msg, err := ws.ReadMessage()
+			if err != nil {
+				fmt.Println("ReadMessage error", err)
+				break
+			}
+
+			message, err := coinjoin.ParseMessage(msg)
+
+			if err != nil {
+				fmt.Printf("error ParseMessage: %v", err)
+				break
+			}
+
+			switch message.MsgType {
+			case coinjoin.S_JOIN_RESPONSE:
+				fmt.Println("S_JOIN_RESPONSE")
+				joinRes := &pb.CoinJoinRes{}
+				err := proto.Unmarshal(message.Data, joinRes)
+				if err != nil {
+					fmt.Printf("error Unmarshal joinRes: %v", err)
+					break
+				}
+
+				fmt.Println("CoinJoinRes", joinRes)
+
+				PeerId = joinRes.PeerId
+				SessionId = joinRes.SessionId
+
+				//send key exchange cmd
+				keyex := &pb.KeyExchangeReq{
+					SessionId: SessionId,
+					PeerId:    PeerId,
+					NumMsg:    mymsgnum,
+					Pk:        pkbytes,
+				}
+
+				data, err := proto.Marshal(keyex)
+				if err != nil {
+					fmt.Printf("error Unmarshal joinRes: %v", err)
+					break
+				}
+
+				message := coinjoin.NewMessage(coinjoin.C_KEY_EXCHANGE, data)
+
+				//time.Sleep(time.Second * time.Duration(5))
+				if err := ws.WriteMessage(websocket.BinaryMessage, message.ToBytes()); err != nil {
+					fmt.Printf("error WriteMessage: %v", err)
+					break
+				}
+
+			case coinjoin.S_KEY_EXCHANGE:
+				// server received all peers 's pk then broadcast to all peers back peers'pk slice
+
+				fmt.Println("S_KEY_EXCHANGE")
+				keyex := &pb.KeyExchangeRes{}
+
+				err := proto.Unmarshal(message.Data, keyex)
+				if err != nil {
+					fmt.Printf("error Unmarshal joinRes: %v", err)
+				}
+
+				//create vector net
+				var msgsnum uint32 = 0
+
+				for _, peer := range keyex.Peers {
+					//				if peer.PeerId == PeerId {
+					//					continue
+					//				}
+
+					peerpk, _ := ecp256.Unmarshal(peer.Pk)
+					sharedkey, err := ecp256.GenerateSharedSecret(vk, peerpk)
+					if err != nil {
+						fmt.Printf("error GenerateSharedSecret: %v", err)
+					}
+
+					dcexp_rng := chacharng.RandBytes(sharedkey, 16)
+					//size of pkscript in txout is 25 bytes
+					dcsimple_rng := chacharng.RandBytes(sharedkey, 25)
+					peers = append(peers, PeerData{Id: peer.PeerId, Pk: peer.Pk, NumMsg: keyex.NumMsg, Dcexp: dcexp_rng,
+						Dcsimple: dcsimple_rng})
+
+					// calculate total number of messsages from all peers
+					msgsnum += keyex.NumMsg
+				}
+				//short peers slice by peer id
+				//			sort.Slice(peers, func(i, j int) bool {
+				//				return peers[i].Id < peers[j].Id
+				//			})
+
+				for _, p := range peers {
+					fmt.Printf("peerid: %d, dcexp: %x, dcsimple:%x\n", p.Id, p.Dcexp, p.Dcsimple)
+				}
+
+				//my_msgs := make([][]byte, 0)
+
+				//create dc-exceptional
+				//gen fake new address
+				//				for i := 0; i < int(mymsgnum); i++ {
+				//					pkscript := make([]byte, 25)
+				//					_, err = rand.Read(pkscript)
+				//					if err != nil {
+				//						fmt.Errorf("error rand.Read %x", err)
+				//					}
+
+				//					my_msgs = append(my_msgs, pkscript)
+				//				}
+
+				my_msgs := pkScripts
+
+				fmt.Println("msgsnum ", msgsnum)
+				my_dcexp := make([]field.Field, msgsnum)
+
+				//hash pkscript with 128bits hash
+				for _, msg := range my_msgs {
+					md := ripemd128.New()
+					_, err = md.Write(msg)
+					if err != nil {
+						fmt.Errorf("error rand.Read %x", err)
+						break
+					}
+
+					//pkscripthash := md.Sum127(nil)
+					pkscripthash := md.Sum127(nil)
+					fmt.Printf("pkscripthash %x. len %d\n", pkscripthash, len(pkscripthash))
+
+					ff := field.NewFF(field.FromBytes(pkscripthash))
+
+					fmt.Printf("ff.H %x\n", ff.N.H)
+					fmt.Printf("ff.L %x\n", ff.N.L)
+
+					//get exceptional for each message first
+					for i := 0; i < int(msgsnum); i++ {
+						my_dcexp[i] = ff.Exp(uint64(i + 1))
+					}
+				}
+
+				//padding with random number generated with secret key seed
+				for j := 0; j < int(msgsnum); j++ {
+					//padding with each peer
+					for _, p := range peers {
+						if PeerId > p.Id {
+							my_dcexp[j] = my_dcexp[j].Add(p.GetDcexpField())
+						} else if PeerId < p.Id {
+							my_dcexp[j] = my_dcexp[j].Sub(p.GetDcexpField())
+						}
+					}
+				}
+
+				//submit my_dcexp
+				dcexpvector := &pb.DcExpVector{PeerId: PeerId, Len: uint32(msgsnum)}
+				vector := make([]byte, 0)
+				for i := 0; i < int(msgsnum); i++ {
+					vector = append(vector, my_dcexp[i].N.GetBytes()...)
+				}
+
+				md := ripemd128.New()
+
+				_, err = md.Write(vector)
+				if err != nil {
+
+				}
+
+				commit := md.Sum(nil)
+				dcexpvector.Vector = vector
+				dcexpvector.Commit = commit
+
+				data, err := proto.Marshal(dcexpvector)
+				if err != nil {
+					fmt.Printf("error marshal dcexpvector: %v", err)
+					break
+				}
+
+				message := coinjoin.NewMessage(coinjoin.C_DC_EXP_VECTOR, data)
+
+				if err := ws.WriteMessage(websocket.BinaryMessage, message.ToBytes()); err != nil {
+					fmt.Println("write error ", err)
+					break
+				}
+
+			case coinjoin.S_HASHES_VECTOR:
+			case coinjoin.S_MIXED_TX:
+			case coinjoin.S_JOINED_TX:
+
+			}
+		}
+		return nil, nil
+
+	} else if req.dcrTxClient.Config().Enable {
+
 		var splitOuts []*wire.TxOut
 		pkScript, err := txscript.PayToAddrScript(splitTxAddr)
 		if err != nil {
