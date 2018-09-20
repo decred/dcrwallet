@@ -225,7 +225,7 @@ func (s *Store) TicketDetails(ns walletdb.ReadBucket, txDetails *TxDetails) (*Ti
 		}
 	}
 	spenderDetails, err := s.TxDetails(ns, &spenderHash)
-	if err != nil {
+	if (err != nil) && (!errors.Is(errors.NotExist, err)) {
 		return nil, err
 	}
 	ticketDetails.Spender = spenderDetails

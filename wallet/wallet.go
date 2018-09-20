@@ -2519,7 +2519,7 @@ func (w *Wallet) GetTicketsPrecise(f func([]*TicketSummary, *wire.BlockHeader) (
 		return w.TxStore.RangeTransactions(txmgrNs, start, end, rangeFn)
 	})
 	if err != nil {
-		errors.E(op, err)
+		return errors.E(op, err)
 	}
 	return nil
 }
@@ -2630,7 +2630,7 @@ func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, e
 		return w.TxStore.RangeTransactions(txmgrNs, start, end, rangeFn)
 	})
 	if err != nil {
-		errors.E(op, err)
+		return errors.E(op, err)
 	}
 	return nil
 }
