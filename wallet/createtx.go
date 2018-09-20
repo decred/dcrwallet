@@ -941,7 +941,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 	switch req.ticketAddr.(type) {
 	case *dcrutil.AddressScriptHash:
 		stakeSubmissionPkScriptSize = txsizes.P2SHPkScriptSize + 1
-	case *dcrutil.AddressPubKeyHash:
+	case *dcrutil.AddressPubKeyHash, nil:
 		stakeSubmissionPkScriptSize = txsizes.P2PKHPkScriptSize + 1
 	default:
 		return nil, errors.E(op, errors.Invalid,
