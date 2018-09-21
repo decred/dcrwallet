@@ -87,6 +87,27 @@ func createWallet(ctx context.Context, cfg *config) error {
 		}
 	}
 
+	// Display a mining address when creating a simnet wallet.
+	if cfg.SimNet {
+		xpub, err := w.MasterPubKey(0)
+		if err != nil {
+			return err
+		}
+		branch, err := xpub.Child(0)
+		if err != nil {
+			return err
+		}
+		child, err := branch.Child(0)
+		if err != nil {
+			return err
+		}
+		addr, err := child.Address(&chaincfg.SimNetParams)
+		if err != nil {
+			return err
+		}
+		fmt.Println("Mining address:", addr)
+	}
+
 	err = loader.UnloadWallet()
 	if err != nil {
 		return err
