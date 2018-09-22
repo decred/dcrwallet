@@ -1392,7 +1392,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 						fmt.Printf("error GenerateSharedSecret: %v", err)
 					}
 
-					dcexp_rng := chacharng.RandBytes(sharedkey, 16)
+					dcexp_rng := chacharng.RandBytes(sharedkey, 12)
+					dcexp_rng = append([]byte{0, 0, 0, 0}, dcexp_rng...)
 					//size of pkscript in txout is 25 bytes
 					dcsimple_rng := chacharng.RandBytes(sharedkey, 25)
 					peers = append(peers, PeerData{Id: peer.PeerId, Pk: peer.Pk, NumMsg: keyex.NumMsg, Dcexp: dcexp_rng,
@@ -1502,7 +1503,6 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 
 			}
 		}
-		return nil, nil
 
 	} else if req.dcrTxClient.Config().Enable {
 
