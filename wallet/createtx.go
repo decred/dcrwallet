@@ -1450,7 +1450,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 
 					//get exceptional for each message first
 					for i := 0; i < int(msgsnum); i++ {
-						my_dcexp[i] = ff.Exp(uint64(i + 1))
+						my_dcexp[i] = my_dcexp[i].Add(ff.Exp(uint64(i + 1)))
 					}
 				}
 
