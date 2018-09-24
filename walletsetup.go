@@ -87,8 +87,12 @@ func createWallet(ctx context.Context, cfg *config) error {
 		}
 	}
 
-	fmt.Println("The wallet has been created successfully.")
+	err = loader.UnloadWallet()
+	if err != nil {
+		return err
+	}
 
+	fmt.Println("The wallet has been created successfully.")
 	return nil
 }
 
