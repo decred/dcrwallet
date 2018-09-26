@@ -74,6 +74,7 @@ service WalletLoaderService {
 	rpc FetchHeaders(FetchHeadersRequest) returns (FetchHeadersResponse);
 	rpc FetchMissingCFilters(FetchMissingCFiltersRequest) returns (FetchMissingCFiltersResponse);
 	rpc SpvSync(SpvSyncRequest) returns (stream SpvSyncResponse);
+	rpc RpcSync(RpcSyncRequest) returns (stream RpcSyncResponse);
 	rpc RescanPoint(RescanPointRequest) returns (RescanPointResponse);
 }
 
@@ -717,6 +718,23 @@ message RescanProgressNotification {
 message PeerNotification {
 	int32 peer_count = 1;
 	string address = 2;
+}
+
+message RpcSyncRequest {
+	string network_address = 1;
+	string username = 2;
+	bytes password = 3;
+	bytes certificate = 4;
+	bool discover_accounts = 5;
+	bytes private_passphrase = 6;
+}
+message RpcSyncResponse {
+	bool synced = 1;
+	SyncNotificationType notification_type = 2;
+	FetchHeadersNotification fetch_headers = 3;
+	FetchMissingCFiltersNotification fetch_missing_cfilters = 4;
+	RescanProgressNotification rescan_progress = 5;
+	PeerNotification peer_information = 6;
 }
 
 message SpvSyncRequest {

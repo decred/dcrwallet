@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/gcs"
@@ -22,11 +23,16 @@ import (
 // RPCSyncer implements wallet synchronization services by processing
 // notifications from a dcrd JSON-RPC server.
 type RPCSyncer struct {
+	atomicWalletSynced uint32 // CAS (synced=1) when wallet syncing complete
+
 	wallet    *wallet.Wallet
 	rpcClient *RPCClient
 
 	discoverAccts bool
 	mu            sync.Mutex
+
+	// Holds all potential callbacks used to notify clients
+	notifications *Notifications
 }
 
 // NewRPCSyncer creates an RPCSyncer that will sync the wallet using the RPC
@@ -36,6 +42,114 @@ func NewRPCSyncer(w *wallet.Wallet, rpcClient *RPCClient) *RPCSyncer {
 		wallet:        w,
 		rpcClient:     rpcClient,
 		discoverAccts: !w.Locked(),
+	}
+}
+
+// Notifications struct to contain all of the upcoming callbacks that will
+// be used to update the rpc streams for syncing.
+type Notifications struct {
+	Synced                       func(sync bool)
+	FetchMissingCFiltersStarted  func()
+	FetchMissingCFiltersProgress func(startCFiltersHeight, endCFiltersHeight int32)
+	FetchMissingCFiltersFinished func()
+	FetchHeadersStarted          func()
+	FetchHeadersProgress         func(lastHeaderHeight int32, lastHeaderTime int64)
+	FetchHeadersFinished         func()
+	DiscoverAddressesStarted     func()
+	DiscoverAddressesFinished    func()
+	RescanStarted                func()
+	RescanProgress               func(rescannedThrough int32)
+	RescanFinished               func()
+}
+
+// SetNotifications sets the possible various callbacks that are used
+// to notify interested parties to the syncing progress.
+func (s *RPCSyncer) SetNotifications(ntfns *Notifications) {
+	s.notifications = ntfns
+}
+
+// synced checks the atomic that controls wallet syncness and if previously
+// unsynced, updates to synced and notifies the callback, if set.
+func (s *RPCSyncer) synced() {
+	if atomic.CompareAndSwapUint32(&s.atomicWalletSynced, 0, 1) &&
+		s.notifications != nil &&
+		s.notifications.Synced != nil {
+		s.notifications.Synced(true)
+	}
+}
+
+// unsynced checks the atomic that controls wallet syncness and if previously
+// synced, updates to unsynced and notifies the callback, if set.
+func (s *RPCSyncer) unsynced() {
+	if atomic.CompareAndSwapUint32(&s.atomicWalletSynced, 1, 0) &&
+		s.notifications != nil &&
+		s.notifications.Synced != nil {
+		s.notifications.Synced(false)
+	}
+}
+
+func (s *RPCSyncer) fetchMissingCfiltersStart() {
+	if s.notifications != nil && s.notifications.FetchMissingCFiltersStarted != nil {
+		s.notifications.FetchMissingCFiltersStarted()
+	}
+}
+
+func (s *RPCSyncer) fetchMissingCfiltersProgress(startMissingCFilterHeight, endMissinCFilterHeight int32) {
+	if s.notifications != nil && s.notifications.FetchMissingCFiltersProgress != nil {
+		s.notifications.FetchMissingCFiltersProgress(startMissingCFilterHeight, endMissinCFilterHeight)
+	}
+}
+
+func (s *RPCSyncer) fetchMissingCfiltersFinished() {
+	if s.notifications != nil && s.notifications.FetchMissingCFiltersFinished != nil {
+		s.notifications.FetchMissingCFiltersFinished()
+	}
+}
+
+func (s *RPCSyncer) fetchHeadersStart() {
+	if s.notifications != nil && s.notifications.FetchHeadersStarted != nil {
+		s.notifications.FetchHeadersStarted()
+	}
+}
+
+func (s *RPCSyncer) fetchHeadersProgress(fetchedHeadersCount int32, lastHeaderTime int64) {
+	if s.notifications != nil && s.notifications.FetchHeadersProgress != nil {
+		s.notifications.FetchHeadersProgress(fetchedHeadersCount, lastHeaderTime)
+	}
+}
+
+func (s *RPCSyncer) fetchHeadersFinished() {
+	if s.notifications != nil && s.notifications.FetchHeadersFinished != nil {
+		s.notifications.FetchHeadersFinished()
+	}
+}
+func (s *RPCSyncer) discoverAddressesStart() {
+	if s.notifications != nil && s.notifications.DiscoverAddressesStarted != nil {
+		s.notifications.DiscoverAddressesStarted()
+	}
+}
+
+func (s *RPCSyncer) discoverAddressesFinished() {
+	if s.notifications != nil && s.notifications.DiscoverAddressesFinished != nil {
+		s.notifications.DiscoverAddressesFinished()
+	}
+}
+
+func (s *RPCSyncer) rescanStart() {
+	if s.notifications != nil && s.notifications.RescanStarted != nil {
+		s.notifications.RescanStarted()
+	}
+}
+
+func (s *RPCSyncer) rescanProgress(rescannedThrough int32) {
+	if s.notifications != nil && s.notifications.RescanProgress != nil {
+		s.notifications.RescanProgress(rescannedThrough)
+	}
+}
+
+func (s *RPCSyncer) rescanFinished() {
+	if s.notifications != nil && s.notifications.RescanFinished != nil {
+		s.notifications.RescanFinished()
 	}
 }
 
@@ -298,13 +412,20 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 	n := BackendFromRPCClient(s.rpcClient.Client)
 
 	// Fetch any missing main chain compact filters.
-	err := s.wallet.FetchMissingCFilters(ctx, n)
-	if err != nil {
-		return err
+	s.fetchMissingCfiltersStart()
+	progress := make(chan wallet.MissingCFilterProgress, 1)
+	go s.wallet.FetchMissingCFiltersWithProgress(ctx, n, progress)
+
+	for p := range progress {
+		if p.Err != nil {
+			return p.Err
+		}
+		s.fetchMissingCfiltersProgress(p.BlockHeightStart, p.BlockHeightEnd)
 	}
+	s.fetchMissingCfiltersFinished()
 
 	// Request notifications for connected and disconnected blocks.
-	err = s.rpcClient.NotifyBlocks()
+	err := s.rpcClient.NotifyBlocks()
 	if err != nil {
 		const op errors.Op = "dcrd.jsonrpc.notifyblocks"
 		return errors.E(op, err)
@@ -316,6 +437,8 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	s.fetchHeadersStart()
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -385,6 +508,8 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 			}
 		}
 
+		s.fetchHeadersProgress(int32(added), headers[len(headers)-1].Timestamp.Unix())
+
 		log.Infof("Fetched %d new header(s) ending at height %d from %v",
 			added, nodes[len(nodes)-1].Header.Height, s.rpcClient)
 
@@ -436,6 +561,7 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 			return err
 		}
 	}
+	s.fetchHeadersFinished()
 
 	rescanPoint, err := s.wallet.RescanPoint()
 	if err != nil {
@@ -445,10 +571,12 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 		s.mu.Lock()
 		discoverAccts := s.discoverAccts
 		s.mu.Unlock()
+		s.discoverAddressesStart()
 		err = s.wallet.DiscoverActiveAddresses(ctx, n, rescanPoint, discoverAccts)
 		if err != nil {
 			return err
 		}
+		s.discoverAddressesFinished()
 		s.mu.Lock()
 		s.discoverAccts = false
 		s.mu.Unlock()
@@ -456,16 +584,30 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		err = s.wallet.Rescan(ctx, n, rescanPoint)
+
+		s.rescanStart()
+		rescanBlock, err := s.wallet.BlockHeader(rescanPoint)
 		if err != nil {
 			return err
 		}
+		progress := make(chan wallet.RescanProgress, 1)
+		go s.wallet.RescanProgressFromHeight(ctx, n, int32(rescanBlock.Height), progress)
+
+		for p := range progress {
+			if p.Err != nil {
+				return p.Err
+			}
+			s.rescanProgress(p.ScannedThrough)
+		}
+		s.rescanFinished()
+
 	} else {
 		err = s.wallet.LoadActiveDataFilters(ctx, n, true)
 		if err != nil {
 			return err
 		}
 	}
+	s.synced()
 
 	// Rebroadcast unmined transactions
 	err = s.wallet.PublishUnminedTransactions(ctx, n)

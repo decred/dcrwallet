@@ -61,9 +61,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "5.2.0"
+	semverString = "5.3.0"
 	semverMajor  = 5
-	semverMinor  = 2
+	semverMinor  = 3
 	semverPatch  = 0
 )
 
@@ -2346,6 +2346,190 @@ func (s *loaderServer) FetchMissingCFilters(ctx context.Context, req *pb.FetchMi
 	return &pb.FetchMissingCFiltersResponse{}, nil
 }
 
+func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderService_RpcSyncServer) error {
+	defer zero.Bytes(req.Password)
+
+	// Error if the wallet is already syncing with the network.
+	wallet, walletLoaded := s.loader.LoadedWallet()
+	if walletLoaded {
+		_, err := wallet.NetworkBackend()
+		if err == nil {
+			return status.Errorf(codes.FailedPrecondition, "wallet is loaded and already synchronizing")
+		}
+	}
+
+	if req.DiscoverAccounts && len(req.PrivatePassphrase) == 0 {
+		return status.Errorf(codes.InvalidArgument, "private passphrase is required for discovering accounts")
+	}
+	var lockWallet func()
+	if req.DiscoverAccounts {
+		lock := make(chan time.Time, 1)
+		lockWallet = func() {
+			lock <- time.Time{}
+			zero.Bytes(req.PrivatePassphrase)
+		}
+		defer lockWallet()
+		err := wallet.Unlock(req.PrivatePassphrase, lock)
+		if err != nil {
+			return translateError(err)
+		}
+	}
+
+	s.mu.Lock()
+	chainClient := s.rpcClient
+	s.mu.Unlock()
+
+	// If the rpcClient is already set, you can just use that instead of attempting a new connection.
+	if chainClient == nil {
+		networkAddress, err := cfgutil.NormalizeAddress(req.NetworkAddress,
+			s.activeNet.JSONRPCClientPort)
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument, "Network address is ill-formed: %v", err)
+		}
+		chainClient, err = chain.NewRPCClient(s.activeNet.Params, networkAddress, req.Username,
+			string(req.Password), req.Certificate, len(req.Certificate) == 0)
+		if err != nil {
+			return translateError(err)
+		}
+
+		err = chainClient.Start(svr.Context(), false)
+		if err != nil {
+			if err == rpcclient.ErrInvalidAuth {
+				return status.Errorf(codes.InvalidArgument, "Invalid RPC credentials: %v", err)
+			}
+			if errors.Match(errors.E(context.Canceled), err) {
+				return status.Errorf(codes.Canceled, "Wallet synchronization canceled: %v", err)
+			}
+			return status.Errorf(codes.Unavailable, "Connection to RPC server failed: %v", err)
+		}
+		s.mu.Lock()
+		s.rpcClient = chainClient
+		s.mu.Unlock()
+	}
+
+	n := chain.BackendFromRPCClient(chainClient.Client)
+	s.loader.SetNetworkBackend(n)
+	wallet.SetNetworkBackend(n)
+
+	// Disassociate the RPC client from all subsystems until reconnection
+	// occurs.
+	defer wallet.SetNetworkBackend(nil)
+	defer s.loader.SetNetworkBackend(nil)
+	defer s.loader.StopTicketPurchase()
+
+	ntfns := &chain.Notifications{
+		Synced: func(sync bool) {
+			resp := &pb.RpcSyncResponse{}
+			resp.Synced = sync
+			if sync {
+				resp.NotificationType = pb.SyncNotificationType_SYNCED
+			} else {
+				resp.NotificationType = pb.SyncNotificationType_UNSYNCED
+			}
+			_ = svr.Send(resp)
+		},
+		FetchMissingCFiltersStarted: func() {
+			resp := &pb.RpcSyncResponse{
+				NotificationType: pb.SyncNotificationType_FETCHED_MISSING_CFILTERS_STARTED,
+			}
+			_ = svr.Send(resp)
+		},
+		FetchMissingCFiltersProgress: func(missingCFitlersStart, missingCFitlersEnd int32) {
+			resp := &pb.RpcSyncResponse{
+				NotificationType: pb.SyncNotificationType_FETCHED_MISSING_CFILTERS_PROGRESS,
+				FetchMissingCfilters: &pb.FetchMissingCFiltersNotification{
+					FetchedCfiltersStartHeight: missingCFitlersStart,
+					FetchedCfiltersEndHeight:   missingCFitlersEnd,
+				},
+			}
+			_ = svr.Send(resp)
+		},
+		FetchMissingCFiltersFinished: func() {
+			resp := &pb.RpcSyncResponse{
+				NotificationType: pb.SyncNotificationType_FETCHED_MISSING_CFILTERS_FINISHED,
+			}
+			_ = svr.Send(resp)
+		},
+		FetchHeadersStarted: func() {
+			resp := &pb.RpcSyncResponse{
+				NotificationType: pb.SyncNotificationType_FETCHED_HEADERS_STARTED,
+			}
+			_ = svr.Send(resp)
+		},
+		FetchHeadersProgress: func(fetchedHeadersCount int32, lastHeaderTime int64) {
+			resp := &pb.RpcSyncResponse{
+				NotificationType: pb.SyncNotificationType_FETCHED_HEADERS_PROGRESS,
+				FetchHeaders: &pb.FetchHeadersNotification{
+					FetchedHeadersCount: fetchedHeadersCount,
+					LastHeaderTime:      lastHeaderTime,
+				},
+			}
+			_ = svr.Send(resp)
+		},
+		FetchHeadersFinished: func() {
+			resp := &pb.RpcSyncResponse{
+				NotificationType: pb.SyncNotificationType_FETCHED_HEADERS_FINISHED,
+			}
+			_ = svr.Send(resp)
+		},
+		DiscoverAddressesStarted: func() {
+			resp := &pb.RpcSyncResponse{
+				NotificationType: pb.SyncNotificationType_DISCOVER_ADDRESSES_STARTED,
+			}
+			_ = svr.Send(resp)
+		},
+		DiscoverAddressesFinished: func() {
+			resp := &pb.RpcSyncResponse{
+				NotificationType: pb.SyncNotificationType_DISCOVER_ADDRESSES_FINISHED,
+			}
+
+			// Lock the wallet after the first time discovered while also
+			// discovering accounts.
+			if lockWallet != nil {
+				lockWallet()
+				lockWallet = nil
+			}
+			_ = svr.Send(resp)
+		},
+		RescanStarted: func() {
+			resp := &pb.RpcSyncResponse{
+				NotificationType: pb.SyncNotificationType_RESCAN_STARTED,
+			}
+			_ = svr.Send(resp)
+		},
+		RescanProgress: func(rescannedThrough int32) {
+			resp := &pb.RpcSyncResponse{
+				NotificationType: pb.SyncNotificationType_RESCAN_PROGRESS,
+				RescanProgress: &pb.RescanProgressNotification{
+					RescannedThrough: rescannedThrough,
+				},
+			}
+			_ = svr.Send(resp)
+		},
+		RescanFinished: func() {
+			resp := &pb.RpcSyncResponse{
+				NotificationType: pb.SyncNotificationType_RESCAN_FINISHED,
+			}
+			_ = svr.Send(resp)
+		},
+	}
+	syncer := chain.NewRPCSyncer(wallet, chainClient)
+	syncer.SetNotifications(ntfns)
+
+	// Run wallet synchronization until it is cancelled or errors.  If the
+	// context was cancelled, return immediately instead of trying to
+	// reconnect.
+	err := syncer.Run(svr.Context(), true)
+	if err != nil {
+		if svr.Context().Err() != nil {
+			return status.Errorf(codes.Canceled, "Wallet synchronization canceled: %v", err)
+		}
+		return status.Errorf(codes.Unknown, "Wallet synchronization stopped: %v", err)
+	}
+
+	return nil
+}
+
 func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderService_SpvSyncServer) error {
 	wallet, ok := s.loader.LoadedWallet()
 	if !ok {
@@ -2362,6 +2546,7 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 			lock <- time.Time{}
 			zero.Bytes(req.PrivatePassphrase)
 		}
+		defer lockWallet()
 		err := wallet.Unlock(req.PrivatePassphrase, lock)
 		if err != nil {
 			return translateError(err)
@@ -2503,6 +2688,9 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 
 	wallet.SetNetworkBackend(syncer)
 	s.loader.SetNetworkBackend(syncer)
+
+	defer wallet.SetNetworkBackend(nil)
+	defer s.loader.SetNetworkBackend(nil)
 
 	err := syncer.Run(svr.Context())
 	if err != nil {

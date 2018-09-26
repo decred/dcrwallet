@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 5.2.x
+Version: 5.3.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -101,6 +101,7 @@ no dependencies and is always running.
 - [`FetchMissingCFilters`](#fetchmissingcfilters)
 - [`RescanPoint`](#rescanpoint)
 - [`SpvSync`](#spvsync)
+- [`RpcSync`](#rpcsync)
 
 **Shared messages:**
 
@@ -466,40 +467,6 @@ or upon received an error.
 - `PeerNotification peer_information`: This contains information about the
   current state of the wallet's peers.
 
-- `SyncingStatus syncing_status`: Various properties to describe the current
-  state of syncing the wallet is currently performing.  Once synced, this will
-  be set to nil.
-
-  **Nested message:** `SyncingStatus`
-
-  - `FetchHeaders fetch_headers`:  This returns a set of properties of fetching
-    headers.  This includes the fetched headers and committed filters counts
-    that were recently received, as well as a timestamp for the last block in
-    in the group fetched.
-    **Nested message:** `FetchHeaders`
-
-    - `int32 peer_initial_height`:  The height at which the syncing peer was
-      observed initially.  This provides a rough context to the user for how
-      many blocks they should expect to receive.
-
-    - `int32 last_header_height`:  The height of the last header fetched.
-
-    - `int32 fetched_cfilters_count`:  The number of committed filters that were
-      recently received from a peer and processed by the wallet.
-
-    - `int64 last_header_time`:  The unix timestamp (in nanoseconds) of the last
-      connected header that was fetched. 
-
-  - `bool discovered_addresses`:  This is set to true once the wallet has
-    successfully completed the address discovery (and account discovery, if
-    requested.)
-
-  - `int32 rescanned_through`:  The block height of the last block the rescan
-    has progressed through.
-
-- `int32 peer_count`:  The current number of peers that the wallet is connected
-  to.
-
 **Expected Errors:**
 
 - `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
@@ -507,6 +474,87 @@ or upon received an error.
   provided to spv_connect is not a valid address or port.
 
 - `InvalidArgument`: The private passphrase is incorrect.
+
+**Stability:** Unstable
+
+#### `RpcSync`
+
+The `RpcSync` method begins the syncing process via rpc connection to a daemon. 
+It will stream back progress to provide feedback on the current state of the
+wallet loading/bringup.  This is a long lived RPC and only end when canceled
+or upon received an error.
+
+**Request:** `RpcSyncRequest`
+
+- `string network_address`: The host/IP and optional port of the RPC server to
+  connect to.  IP addresses may be IPv4 or IPv6.  If the port is missing, a
+  default port is chosen corresponding to the default dcrd RPC port of the
+  active Decred network.
+
+- `string username`: The RPC username required to authenticate to the RPC
+  server.
+
+- `bytes password`: The RPC password required to authenticate to the RPC server.
+
+- `bytes certificate`: The consensus RPC server's TLS certificate.  If this
+  field has zero length and the network address describes a loopback connection
+  (`localhost`, `127.0.0.1`, or `::1`) TLS will be disabled.
+
+- `bool discover_accounts`:  Whether or not the wallet should attempt to
+  discover accounts during discovery.  This requires the private passphrase to
+  be set as well and will error otherwise.
+
+- `bytes private_passphrase`: The current private passphrase for the wallet.
+  This is only required if discover_accounts is set to true and will error
+  otherwise.
+
+- `repeated string spv_connect`: When given a list of addresses, the wallet in
+  spv mode will no longer attempt to use DNS address discovery to seek out other
+  persistent peers and instead use the ones specified here as persistent peers.
+
+**Response:** `stream RpcSyncResponse`
+
+- `bool synced`: This streamed update response denotes whether the wallet is
+  synced or not.
+
+- `SyncNotificationType notification_type`: This denotes what type of
+  notification has been sent by the wallet.
+
+- `FetchHeadersNotification fetch_headers`: This contains all the information
+  for a fetch headers notification response.  In any other case it will be 
+  set to nil.
+
+- `FetchMissingCFiltersNotification fetch_missing_cfilters`: This contains all
+  the information for a fetch missing cfilters notification response.  In any
+  other case it will be set to nil.
+
+- `RescanProgressNotifiction rescan_progress`: This contains all the information
+  for a rescan progress notification.  In any other case it will be set to nil.
+
+- `SyncingStatus syncing_status`: Various properties to describe the current
+  state of syncing the wallet is currently performing.  Once synced, this will
+  be set to nil.
+
+**Expected Errors:**
+
+- `InvalidArgument`: The network address is ill-formatted or does not contain a
+  valid IP address.
+  
+- `InvalidArgument`: The private passphrase is not supplied, but discoveraccounts
+  is requested. 
+
+- `InvalidArgument`: The username, password, or certificate are invalid.  This
+  condition may not be return `Unauthenticated` as that refers to the client not
+  having the credentials to call this method.
+
+- `Unavailable`: The consensus RPC server is unreachable.
+
+- `FailedPrecondition`: A consensus RPC client is already active.
+
+- `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
+
+- `FailedPrecondition`: The private passphrase does not successfully unlock the
+  wallet.
 
 **Stability:** Unstable
 
