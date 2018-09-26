@@ -2689,6 +2689,9 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 	wallet.SetNetworkBackend(syncer)
 	s.loader.SetNetworkBackend(syncer)
 
+	defer wallet.SetNetworkBackend(nil)
+	defer s.loader.SetNetworkBackend(nil)
+
 	err := syncer.Run(svr.Context())
 	if err != nil {
 		if err == context.Canceled {
