@@ -23,10 +23,10 @@ import (
 // RPCSyncer implements wallet synchronization services by processing
 // notifications from a dcrd JSON-RPC server.
 type RPCSyncer struct {
+	atomicWalletSynced uint32 // CAS (synced=1) when wallet syncing complete
+
 	wallet    *wallet.Wallet
 	rpcClient *RPCClient
-
-	atomicWalletSynced uint32 // CAS (synced=1) when wallet syncing complete
 
 	discoverAccts bool
 	mu            sync.Mutex
