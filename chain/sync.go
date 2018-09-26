@@ -185,7 +185,6 @@ func (s *RPCSyncer) handleNotifications(ctx context.Context) error {
 						connectingBlocks = true
 					}
 					nonFatal = !connectingBlocks
-					relevantTxs = nil
 
 					if len(prevChain) != 0 {
 						log.Infof("Reorganize from %v to %v (total %d block(s) reorged)",
@@ -198,6 +197,8 @@ func (s *RPCSyncer) handleNotifications(ctx context.Context) error {
 						log.Infof("Connected block %v, height %d, %d wallet transaction(s)",
 							n.Hash, n.Header.Height, len(relevantTxs[*n.Hash]))
 					}
+
+					relevantTxs = nil
 				}
 
 			case blockDisconnected, reorganization:
