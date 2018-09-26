@@ -547,9 +547,7 @@ or upon received an error.
   condition may not be return `Unauthenticated` as that refers to the client not
   having the credentials to call this method.
 
-- `NotFound`: The consensus RPC server is unreachable.  This condition may not
-  return `Unavailable` as that refers to `WalletLoaderService` itself being
-  unavailable.
+- `Unavailable`: The consensus RPC server is unreachable.
 
 - `FailedPrecondition`: A consensus RPC client is already active.
 

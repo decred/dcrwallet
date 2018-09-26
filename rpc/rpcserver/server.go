@@ -2397,7 +2397,10 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 			if err == rpcclient.ErrInvalidAuth {
 				return status.Errorf(codes.InvalidArgument, "Invalid RPC credentials: %v", err)
 			}
-			return status.Errorf(codes.NotFound, "Connection to RPC server failed: %v", err)
+			if errors.Match(errors.E(context.Canceled), err) {
+				return status.Errorf(codes.Canceled, "Wallet synchronization canceled: %v", err)
+			}
+			return status.Errorf(codes.Unavailable, "Connection to RPC server failed: %v", err)
 		}
 		s.mu.Lock()
 		s.rpcClient = chainClient
