@@ -2410,6 +2410,13 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 	n := chain.BackendFromRPCClient(chainClient.Client)
 	s.loader.SetNetworkBackend(n)
 	wallet.SetNetworkBackend(n)
+
+	// Disassociate the RPC client from all subsystems until reconnection
+	// occurs.
+	defer wallet.SetNetworkBackend(nil)
+	defer s.loader.SetNetworkBackend(nil)
+	defer s.loader.StopTicketPurchase()
+
 	ntfns := &chain.Notifications{
 		Synced: func(sync bool) {
 			resp := &pb.RpcSyncResponse{}
@@ -2513,18 +2520,13 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 	// context was cancelled, return immediately instead of trying to
 	// reconnect.
 	err := syncer.Run(svr.Context(), true)
-	if errors.Match(errors.E(context.Canceled), err) {
-		return status.Errorf(codes.Canceled, "Wallet synchronization canceled: %v", err)
-	}
 	if err != nil {
+		if svr.Context().Err() != nil {
+			return status.Errorf(codes.Canceled, "Wallet synchronization canceled: %v", err)
+		}
 		return status.Errorf(codes.Unknown, "Wallet synchronization stopped: %v", err)
 	}
 
-	// Disassociate the RPC client from all subsystems until reconnection
-	// occurs.
-	wallet.SetNetworkBackend(nil)
-	s.loader.SetNetworkBackend(nil)
-	s.loader.StopTicketPurchase()
 	return nil
 }
 
