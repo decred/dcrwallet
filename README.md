@@ -165,6 +165,23 @@ $ $EDITOR ~/.dcrd/dcrd.conf
 $ $EDITOR ~/.dcrwallet/dcrwallet.conf
 ```
 
+### Docker
+
+You can also run the wallet with docker:
+
+Volumes:
+
+- `/etc/dcrwallet` **mandatory** hold `config`, `rpc.cert ` and `rpc.key`
+- `/var/log/dcrwallet` is where the log files are stored
+- `/var/lib/dcrwallet` **important** hold the private keys, don't keep that volume ogn a temporary file system.
+
+Ports:
+
+- `9110` Legacy RPC
+- `9111` gRPC
+
+Any command passed to the container are `dcrwallet` arguments, like `--help`.
+
 ## Issue Tracker
 
 The [integrated github issue tracker](https://github.com/decred/dcrwallet/issues)
