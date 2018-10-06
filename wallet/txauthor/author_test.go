@@ -11,6 +11,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/wallet/txauthor"
 	. "github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 
@@ -41,15 +42,24 @@ func makeInputSource(unspents []*wire.TxOut) InputSource {
 	// Return outputs in order.
 	currentTotal := dcrutil.Amount(0)
 	currentInputs := make([]*wire.TxIn, 0, len(unspents))
-	f := func(target dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error) {
+	var redeemScriptSizes []int
+	f := func(target dcrutil.Amount) (*InputDetail, error) {
 		for currentTotal < target && len(unspents) != 0 {
 			u := unspents[0]
 			unspents = unspents[1:]
-			nextInput := wire.NewTxIn(&wire.OutPoint{}, nil)
+			nextInput := wire.NewTxIn(&wire.OutPoint{}, u.Value, nil)
 			currentTotal += dcrutil.Amount(u.Value)
 			currentInputs = append(currentInputs, nextInput)
+			redeemScriptSizes = append(redeemScriptSizes, txsizes.RedeemP2PKHSigScriptSize)
 		}
-		return currentTotal, currentInputs, make([][]byte, len(currentInputs)), nil
+
+		inputDetail := txauthor.InputDetail{
+			Amount:            currentTotal,
+			Inputs:            currentInputs,
+			Scripts:           make([][]byte, len(currentInputs)),
+			RedeemScriptSizes: redeemScriptSizes,
+		}
+		return &inputDetail, nil
 	}
 	return InputSource(f)
 }
@@ -74,7 +84,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 			Outputs:        p2pkhOutputs(1e6),
 			RelayFee:       1e3,
 			ChangeAmount: 1e8 - 1e6 - txrules.FeeForSerializeSize(1e3,
-				txsizes.EstimateSerializeSize([]txsizes.ScriptSizer{txsizes.P2PKHScriptSize}, p2pkhOutputs(1e6), txsizes.P2PKHPkScriptSize)),
+				txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize}, p2pkhOutputs(1e6), txsizes.P2PKHPkScriptSize)),
 			InputCount: 1,
 		},
 		2: {
@@ -82,7 +92,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 			Outputs:        p2pkhOutputs(1e6),
 			RelayFee:       1e4,
 			ChangeAmount: 1e8 - 1e6 - txrules.FeeForSerializeSize(1e4,
-				txsizes.EstimateSerializeSize([]txsizes.ScriptSizer{txsizes.P2PKHScriptSize}, p2pkhOutputs(1e6), txsizes.P2PKHPkScriptSize)),
+				txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize}, p2pkhOutputs(1e6), txsizes.P2PKHPkScriptSize)),
 			InputCount: 1,
 		},
 		3: {
@@ -90,7 +100,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 			Outputs:        p2pkhOutputs(1e6, 1e6, 1e6),
 			RelayFee:       1e4,
 			ChangeAmount: 1e8 - 3e6 - txrules.FeeForSerializeSize(1e4,
-				txsizes.EstimateSerializeSize([]txsizes.ScriptSizer{txsizes.P2PKHScriptSize}, p2pkhOutputs(1e6, 1e6, 1e6), txsizes.P2PKHPkScriptSize)),
+				txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize}, p2pkhOutputs(1e6, 1e6, 1e6), txsizes.P2PKHPkScriptSize)),
 			InputCount: 1,
 		},
 		4: {
@@ -98,7 +108,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 			Outputs:        p2pkhOutputs(1e6, 1e6, 1e6),
 			RelayFee:       2.55e3,
 			ChangeAmount: 1e8 - 3e6 - txrules.FeeForSerializeSize(2.55e3,
-				txsizes.EstimateSerializeSize([]txsizes.ScriptSizer{txsizes.P2PKHScriptSize}, p2pkhOutputs(1e6, 1e6, 1e6), txsizes.P2PKHPkScriptSize)),
+				txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize}, p2pkhOutputs(1e6, 1e6, 1e6), txsizes.P2PKHPkScriptSize)),
 			InputCount: 1,
 		},
 
@@ -106,7 +116,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 		5: {
 			UnspentOutputs: p2pkhOutputs(1e8),
 			Outputs: p2pkhOutputs(1e8 - 602 - txrules.FeeForSerializeSize(1e3,
-				txsizes.EstimateSerializeSize([]txsizes.ScriptSizer{txsizes.P2PKHScriptSize}, p2pkhOutputs(0), txsizes.P2PKHPkScriptSize))),
+				txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize}, p2pkhOutputs(0), txsizes.P2PKHPkScriptSize))),
 			RelayFee:     1e3,
 			ChangeAmount: 0,
 			InputCount:   1,
@@ -114,7 +124,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 		6: {
 			UnspentOutputs: p2pkhOutputs(1e8),
 			Outputs: p2pkhOutputs(1e8 - 603 - txrules.FeeForSerializeSize(1e3,
-				txsizes.EstimateSerializeSize([]txsizes.ScriptSizer{txsizes.P2PKHScriptSize}, p2pkhOutputs(0), txsizes.P2PKHPkScriptSize))),
+				txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize}, p2pkhOutputs(0), txsizes.P2PKHPkScriptSize))),
 			RelayFee:     1e3,
 			ChangeAmount: 603,
 			InputCount:   1,
@@ -124,7 +134,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 		7: {
 			UnspentOutputs: p2pkhOutputs(1e8),
 			Outputs: p2pkhOutputs(1e8 - 1537 - txrules.FeeForSerializeSize(2.55e3,
-				txsizes.EstimateSerializeSize([]txsizes.ScriptSizer{txsizes.P2PKHScriptSize}, p2pkhOutputs(0), txsizes.P2PKHPkScriptSize))),
+				txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize}, p2pkhOutputs(0), txsizes.P2PKHPkScriptSize))),
 			RelayFee:     2.55e3,
 			ChangeAmount: 0,
 			InputCount:   1,
@@ -132,7 +142,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 		8: {
 			UnspentOutputs: p2pkhOutputs(1e8),
 			Outputs: p2pkhOutputs(1e8 - 1538 - txrules.FeeForSerializeSize(2.55e3,
-				txsizes.EstimateSerializeSize([]txsizes.ScriptSizer{txsizes.P2PKHScriptSize}, p2pkhOutputs(0), txsizes.P2PKHPkScriptSize))),
+				txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize}, p2pkhOutputs(0), txsizes.P2PKHPkScriptSize))),
 			RelayFee:     2.55e3,
 			ChangeAmount: 1538,
 			InputCount:   1,
@@ -144,7 +154,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 		9: {
 			UnspentOutputs: p2pkhOutputs(1e8, 1e8),
 			Outputs: p2pkhOutputs(1e8 - 603 - txrules.FeeForSerializeSize(1e3,
-				txsizes.EstimateSerializeSize([]txsizes.ScriptSizer{txsizes.P2PKHScriptSize}, p2pkhOutputs(0), txsizes.P2PKHPkScriptSize))),
+				txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize}, p2pkhOutputs(0), txsizes.P2PKHPkScriptSize))),
 			RelayFee:     1e3,
 			ChangeAmount: 603,
 			InputCount:   1,
@@ -158,7 +168,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 		10: {
 			UnspentOutputs: p2pkhOutputs(1e8, 1e8),
 			Outputs: p2pkhOutputs(1e8 - 545 - txrules.FeeForSerializeSize(1e3,
-				txsizes.EstimateSerializeSize([]txsizes.ScriptSizer{txsizes.P2PKHScriptSize}, p2pkhOutputs(0), txsizes.P2PKHPkScriptSize))),
+				txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize}, p2pkhOutputs(0), txsizes.P2PKHPkScriptSize))),
 			RelayFee:     1e3,
 			ChangeAmount: 0,
 			InputCount:   1,
@@ -170,7 +180,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 			Outputs:        p2pkhOutputs(1e8),
 			RelayFee:       1e3,
 			ChangeAmount: 1e8 - txrules.FeeForSerializeSize(1e3,
-				txsizes.EstimateSerializeSize([]txsizes.ScriptSizer{txsizes.P2PKHScriptSize, txsizes.P2PKHScriptSize}, p2pkhOutputs(1e8), txsizes.P2PKHPkScriptSize)),
+				txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize, txsizes.RedeemP2PKHSigScriptSize}, p2pkhOutputs(1e8), txsizes.P2PKHPkScriptSize)),
 			InputCount: 2,
 		},
 

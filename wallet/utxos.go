@@ -9,6 +9,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/udb"
 )
 
@@ -99,11 +100,8 @@ func (w *Wallet) UnspentOutputs(policy OutputSelectionPolicy) ([]*TransactionOut
 }
 
 // SelectInputs selects transaction inputs to redeem unspent outputs stored in
-// the wallet.  It returns the total input amount referenced by the previous
-// transaction outputs, a slice of transaction inputs referencing these outputs,
-// and a slice of previous output scripts from each previous output referenced
-// by the corresponding input.
-func (w *Wallet) SelectInputs(targetAmount dcrutil.Amount, policy OutputSelectionPolicy) (total dcrutil.Amount, inputs []*wire.TxIn, prevScripts [][]byte, err error) {
+// the wallet.  It returns an input detail summary.
+func (w *Wallet) SelectInputs(targetAmount dcrutil.Amount, policy OutputSelectionPolicy) (inputDetail *txauthor.InputDetail, err error) {
 	const op errors.Op = "wallet.SelectInputs"
 	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
@@ -123,13 +121,13 @@ func (w *Wallet) SelectInputs(targetAmount dcrutil.Amount, policy OutputSelectio
 		sourceImpl := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, policy.Account,
 			policy.RequiredConfirmations, tipHeight)
 		var err error
-		total, inputs, prevScripts, err = sourceImpl.SelectInputs(targetAmount)
+		inputDetail, err = sourceImpl.SelectInputs(targetAmount)
 		return err
 	})
 	if err != nil {
 		err = errors.E(op, err)
 	}
-	return
+	return inputDetail, err
 }
 
 // OutputInfo describes additional info about an output which can be queried

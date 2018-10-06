@@ -148,6 +148,8 @@ var helpDescsEnUS = map[string]string{
 	"getstakeinforesult-proportionmissed": "(Missed / (Missed + Voted))",
 	"getstakeinforesult-revoked":          "Number of missed tickets that were missed and then revoked",
 	"getstakeinforesult-expired":          "Number of tickets that have expired",
+	"getstakeinforesult-unspent":          "Number of unspent tickets",
+	"getstakeinforesult-unspentexpired":   "Number of unspent tickets which are past expiry",
 
 	// GetTickets help.
 	"gettickets--synopsis":       "Returning the hashes of the tickets currently owned by wallet.",
@@ -278,9 +280,10 @@ var helpDescsEnUS = map[string]string{
 	"listlockunspent--synopsis": "Returns a JSON array of outpoints marked as locked (with lockunspent) for this wallet session.",
 
 	// TransactionInput help.
-	"transactioninput-txid": "The transaction hash of the referenced output",
-	"transactioninput-vout": "The output index of the referenced output",
-	"transactioninput-tree": "The tree to generate transaction for",
+	"transactioninput-amount": "The the previous output amount",
+	"transactioninput-txid":   "The transaction hash of the referenced output",
+	"transactioninput-vout":   "The output index of the referenced output",
+	"transactioninput-tree":   "The tree to generate transaction for",
 
 	// ListReceivedByAccountCmd help.
 	"listreceivedbyaccount--synopsis":        "DEPRECATED -- Returns a JSON array of objects listing all accounts and the total amount received by each account.",
@@ -672,20 +675,19 @@ var helpDescsEnUS = map[string]string{
 	"ticketsforaddress--result0":  "Tickets owned by the specified address.",
 
 	// PurchaseTicketCmd help.
-	"purchaseticket--synopsis":     "Purchase ticket using available funds.",
-	"purchaseticket--result0":      "Hash of the resulting ticket",
-	"purchaseticket-spendlimit":    "Limit on the amount to spend on ticket",
-	"purchaseticket-fromaccount":   "The account to use for purchase (default=\"default\")",
-	"purchaseticket-minconf":       "Minimum number of block confirmations required",
-	"purchaseticket-ticketaddress": "Override the ticket address to which voting rights are given",
-	"purchaseticket-numtickets":    "The number of tickets to purchase",
-	"purchaseticket-pooladdress":   "The address to pay stake pool fees to",
-	"purchaseticket-poolfees":      "The amount of fees to pay to the stake pool",
-	"purchaseticket-expiry":        "Height at which the purchase tickets expire",
+	"purchaseticket--synopsis":          "Purchase ticket using available funds.",
+	"purchaseticket--result0":           "Hash of the resulting ticket",
+	"purchaseticket-spendlimit":         "Limit on the amount to spend on ticket",
+	"purchaseticket-fromaccount":        "The account to use for purchase (default=\"default\")",
+	"purchaseticket-minconf":            "Minimum number of block confirmations required",
+	"purchaseticket-ticketaddress":      "Override the ticket address to which voting rights are given",
+	"purchaseticket-numtickets":         "The number of tickets to purchase",
+	"purchaseticket-pooladdress":        "The address to pay stake pool fees to",
+	"purchaseticket-poolfees":           "The amount of fees to pay to the stake pool",
+	"purchaseticket-expiry":             "Height at which the purchase tickets expire",
 	"purchaseticket-nosplittransaction": "Use ticket purchase change outputs instead of a split transaction",
-	"purchaseticket-splittx":       "Use split transactions to limit the number of ticket purchase inputs",
-	"purchaseticket-comment":       "Unused",
-	"purchaseticket-ticketfee":     "The transaction fee rate (DCR/kB) to use (overrides fees set by the wallet config or settxfee RPC)",
+	"purchaseticket-comment":            "Unused",
+	"purchaseticket-ticketfee":          "The transaction fee rate (DCR/kB) to use (overrides fees set by the wallet config or settxfee RPC)",
 
 	// SetTicketFeeCmd help.
 	"setticketfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored stake transaction.",

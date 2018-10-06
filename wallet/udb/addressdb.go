@@ -627,7 +627,7 @@ func bip0044AccountInfo(pubKeyEnc, privKeyEnc []byte, nextExtIndex, nextIntIndex
 		lastUsedInternalIndex:     0,
 		lastReturnedExternalIndex: 0,
 		lastReturnedInternalIndex: 0,
-		name: name,
+		name:                      name,
 	}
 	switch {
 	case dbVersion == 1:

@@ -12,6 +12,7 @@ import (
 
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrwallet/dcrtxclient"
@@ -79,7 +80,6 @@ type Config struct {
 	VotingAddress             dcrutil.Address
 	TxFee                     int64
 	DcrtxClient               *dcrtxclient.Config
-	SplitTx                   uint32
 }
 
 // TicketPurchaser is the main handler for purchasing tickets. It decides
@@ -103,7 +103,6 @@ type TicketPurchaser struct {
 	stakeLive        uint32
 	stakeImmature    uint32
 	stakeVoteSubsidy dcrutil.Amount
-	splitTx          uint32
 
 	// purchaserMtx protects the following runtime configurable options.
 	purchaserMtx      sync.Mutex
@@ -147,9 +146,8 @@ func (t *TicketPurchaser) Config() (*Config, error) {
 		PoolAddress:               t.cfg.PoolAddress,
 		PoolFees:                  t.poolFees,
 		NoSpreadTicketPurchases:   t.cfg.NoSpreadTicketPurchases,
-		TxFee:         t.cfg.TxFee,
-		VotingAddress: t.cfg.VotingAddress,
-		SplitTx:       t.cfg.SplitTx,
+		TxFee:                     t.cfg.TxFee,
+		VotingAddress:             t.cfg.VotingAddress,
 	}
 	return config, nil
 }
@@ -343,21 +341,6 @@ func (t *TicketPurchaser) SetExpiryDelta(expiryDelta int) {
 	t.purchaserMtx.Unlock()
 }
 
-// SplitTx returns the splittx config value
-func (t *TicketPurchaser) SplitTx() uint32 {
-	t.purchaserMtx.Lock()
-	splitTx := t.splitTx
-	t.purchaserMtx.Unlock()
-	return splitTx
-}
-
-// SetSplitTx sets the splittx option
-func (t *TicketPurchaser) SetSplitTx(splitTx uint32) {
-	t.purchaserMtx.Lock()
-	t.splitTx = splitTx
-	t.purchaserMtx.Unlock()
-}
-
 // NewTicketPurchaser creates a new TicketPurchaser.
 func NewTicketPurchaser(cfg *Config,
 	dcrdChainSvr *dcrrpcclient.Client,
@@ -462,7 +445,7 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		var curStakeInfo *wallet.StakeInfoData
 		var err error
 		for i := 1; i <= stakeInfoReqTries; i++ {
-			curStakeInfo, err = t.wallet.StakeInfo(t.dcrdChainSvr)
+			curStakeInfo, err = t.wallet.StakeInfoPrecise(t.dcrdChainSvr)
 			if err != nil {
 				log.Debugf("Waiting for StakeInfo, attempt %v: (%v)", i, err.Error())
 				time.Sleep(stakeInfoReqTryDelay)
@@ -512,7 +495,19 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 	log.Debugf("Calculated average ticket price: %v", avgPriceAmt)
 	ps.PriceAverage = avgPriceAmt
 
-	nextStakeDiff, err := t.wallet.StakeDifficulty()
+	nextStakeDiff, err := t.wallet.NextStakeDifficulty()
+	if err != nil && t.dcrdChainSvr != nil {
+		// Wallet failed to calculate sdiff (DCP0001 may not be active), so
+		// query it over RPC.
+		var sd *dcrjson.GetStakeDifficultyResult
+		sd, err = t.dcrdChainSvr.GetStakeDifficulty()
+		if err == nil {
+			nextStakeDiff, err = dcrutil.NewAmount(sd.NextStakeDifficulty)
+			if err != nil {
+				return ps, err
+			}
+		}
+	}
 	log.Tracef("Next stake difficulty: %v", nextStakeDiff)
 	if err != nil {
 		return ps, err
@@ -840,13 +835,16 @@ func (t *TicketPurchaser) Purchase(height int64) (*PurchaseStats, error) {
 		return ps, err
 	}
 
-	expiryDelta := t.ExpiryDelta()
-	expiry := int32(0)
+	//expiryDelta := t.ExpiryDelta()
+	//expiry := int32(0)
 
-	if expiryDelta != 0 {
-		// Ticket purchase requires 2 blocks to confirm
-		expiry = int32(int(height) + t.ExpiryDelta() + 2)
-	}
+	//if expiryDelta != 0 {
+	// Ticket purchase requires 2 blocks to confirm
+	//	expiry = int32(int(height) + t.ExpiryDelta() + 2)
+	//}
+
+	// Ticket purchase requires 2 blocks to confirm
+	expiry := int32(int(height) + t.ExpiryDelta() + 2)
 
 	hashes, purchaseErr := t.wallet.PurchaseTickets(0,
 		maxPriceAmt,

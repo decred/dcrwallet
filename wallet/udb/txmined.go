@@ -17,17 +17,18 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/gcs"
+	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/wallet/internal/txsizes"
 	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/txauthor"
 	"golang.org/x/crypto/ripemd160"
 )
 
-const (
-	opNonstake        = txscript.OP_NOP10
-	NullValueIn int64 = -1
-)
+const opNonstake = txscript.OP_NOP10
 
 // Block contains the minimum amount of data to uniquely identify any block on
 // either the best or side chain.
@@ -179,27 +180,35 @@ func (s *Store) MainChainTip(ns walletdb.ReadBucket) (chainhash.Hash, int32) {
 	return hash, height
 }
 
-// ExtendMainChain inserts a block header into the database.  It must connect to
-// the existing tip block.
+// ExtendMainChain inserts a block header and compact filter into the database.
+// It must connect to the existing tip block.
 //
 // If the block is already inserted and part of the main chain, an errors.Exist
 // error is returned.
-func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *BlockHeaderData) error {
-	height := header.SerializedHeader.Height()
+//
+// The main chain tip may not be extended unless compact filters have been saved
+// for all existing main chain blocks.
+func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *wire.BlockHeader, f *gcs.Filter) error {
+	height := int32(header.Height)
 	if height < 1 {
 		return errors.E(errors.Invalid, "block 0 cannot be added")
+	}
+	v := ns.Get(rootHaveCFilters)
+	if len(v) != 1 || v[0] != 1 {
+		return errors.E(errors.Invalid, "main chain may not be extended without first saving all previous cfilters")
 	}
 
 	headerBucket := ns.NestedReadWriteBucket(bucketHeaders)
 
-	headerParent := extractBlockHeaderParentHash(header.SerializedHeader[:])
+	blockHash := header.BlockHash()
+
 	currentTipHash := ns.Get(rootTipBlock)
-	if !bytes.Equal(headerParent, currentTipHash) {
+	if !bytes.Equal(header.PrevBlock[:], currentTipHash) {
 		// Return a special error if it is a duplicate of an existing block in
 		// the main chain (NOT the headers bucket, since headers are never
 		// pruned).
 		_, v := existsBlockRecord(ns, height)
-		if v != nil && bytes.Equal(extractRawBlockRecordHash(v), header.BlockHash[:]) {
+		if v != nil && bytes.Equal(extractRawBlockRecordHash(v), blockHash[:]) {
 			return errors.E(errors.Exist, "block already recorded in main chain")
 		}
 		return errors.E(errors.Invalid, "not direct child of current tip")
@@ -212,9 +221,8 @@ func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *BlockHeader
 		return errors.E(errors.Invalid, "invalid height for next block")
 	}
 
-	vb := extractBlockHeaderVoteBits(header.SerializedHeader[:])
 	var err error
-	if approvesParent(vb) {
+	if approvesParent(header.VoteBits) {
 		err = stakeValidate(ns, currentTipHeight)
 	} else {
 		err = stakeInvalidate(ns, currentTipHeight)
@@ -224,68 +232,221 @@ func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *BlockHeader
 	}
 
 	// Add the header
-	err = headerBucket.Put(header.BlockHash[:], header.SerializedHeader[:])
+	var headerBuffer bytes.Buffer
+	err = header.Serialize(&headerBuffer)
+	if err != nil {
+		return err
+	}
+	err = headerBucket.Put(blockHash[:], headerBuffer.Bytes())
 	if err != nil {
 		return errors.E(errors.IO, err)
 	}
 
 	// Update the tip block
-	err = ns.Put(rootTipBlock, header.BlockHash[:])
+	err = ns.Put(rootTipBlock, blockHash[:])
 	if err != nil {
 		return errors.E(errors.IO, err)
 	}
 
 	// Add an empty block record
 	blockKey := keyBlockRecord(height)
-	blockVal := valueBlockRecordEmptyFromHeader(&header.BlockHash, &header.SerializedHeader)
-	return putRawBlockRecord(ns, blockKey, blockVal)
+	blockVal := valueBlockRecordEmptyFromHeader(blockHash[:], headerBuffer.Bytes())
+	err = putRawBlockRecord(ns, blockKey, blockVal)
+	if err != nil {
+		return err
+	}
+
+	// Save the compact filter
+	return putRawCFilter(ns, blockHash[:], f.NBytes())
 }
 
-// log2 calculates an integer approximation of log2(x).  This is used to
-// approximate the cap to use when allocating memory for the block locators.
-func log2(x int) int {
-	res := 0
-	for x != 0 {
-		x /= 2
-		res++
-	}
-	return res
+// ProcessedTxsBlockMarker returns the hash of the block which records the last
+// block after the genesis block which has been recorded as being processed for
+// relevant transactions.
+func (s *Store) ProcessedTxsBlockMarker(dbtx walletdb.ReadTx) *chainhash.Hash {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	var h chainhash.Hash
+	copy(h[:], ns.Get(rootLastTxsBlock))
+	return &h
 }
 
-// BlockLocators returns, in reversed order (newest blocks first), hashes of
-// blocks believed to be on the main chain.  For memory and lookup efficiency,
-// many older hashes are skipped, with increasing gaps between included hashes.
-// This returns the block locators that should be included in a getheaders wire
-// message or RPC request.
-func (s *Store) BlockLocators(ns walletdb.ReadBucket) []*chainhash.Hash {
-	headerBucket := ns.NestedReadBucket(bucketHeaders)
-	hash := ns.Get(rootTipBlock)
-	height := extractBlockHeaderHeight(headerBucket.Get(hash))
-
-	locators := make([]*chainhash.Hash, 1, 10+log2(int(height)))
-	locators[0] = new(chainhash.Hash)
-	copy(locators[0][:], hash)
-	var skip, skips int32 = 0, 1
-	for height >= 0 {
-		if skip != 0 {
-			height -= skip
-			skip = 0
-			continue
+// UpdateProcessedTxsBlockMarker updates the hash of the block recording the
+// final block since the genesis block for which all transactions have been
+// processed.  Hash must describe a main chain block.  This does not modify the
+// database if hash has a lower block height than the main chain fork point of
+// the existing marker.
+func (s *Store) UpdateProcessedTxsBlockMarker(dbtx walletdb.ReadWriteTx, hash *chainhash.Hash) error {
+	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
+	prev := s.ProcessedTxsBlockMarker(dbtx)
+	for {
+		mainChain, _ := s.BlockInMainChain(dbtx, prev)
+		if mainChain {
+			break
 		}
-
-		_, blockVal := existsBlockRecord(ns, height)
-		hash = extractRawBlockRecordHash(blockVal)
-
-		var locator chainhash.Hash
-		copy(locator[:], hash)
-		locators = append(locators, &locator)
-
-		if len(locators) >= 10 {
-			skips *= 2
-			skip = skips
+		h, err := s.GetBlockHeader(dbtx, prev)
+		if err != nil {
+			return err
+		}
+		prev = &h.PrevBlock
+	}
+	prevHeader, err := s.GetBlockHeader(dbtx, prev)
+	if err != nil {
+		return err
+	}
+	if mainChain, _ := s.BlockInMainChain(dbtx, hash); !mainChain {
+		return errors.E(errors.Invalid, errors.Errorf("%v is not a main chain block", hash))
+	}
+	header, err := s.GetBlockHeader(dbtx, hash)
+	if err != nil {
+		return err
+	}
+	if header.Height > prevHeader.Height {
+		err := ns.Put(rootLastTxsBlock, hash[:])
+		if err != nil {
+			return errors.E(errors.IO, err)
 		}
 	}
-	return locators
+	return nil
+}
+
+// IsMissingMainChainCFilters returns whether all compact filters for main chain
+// blocks have been recorded to the database after the upgrade which began to
+// require them to extend the main chain.  If compact filters are missing, they
+// must be added using InsertMissingCFilters.
+func (s *Store) IsMissingMainChainCFilters(dbtx walletdb.ReadTx) bool {
+	v := dbtx.ReadBucket(wtxmgrBucketKey).Get(rootHaveCFilters)
+	return len(v) != 1 || v[0] == 0
+}
+
+// MissingCFiltersHeight returns the first main chain block height
+// with a missing cfilter.  Errors with NotExist when all main chain
+// blocks record cfilters.
+func (s *Store) MissingCFiltersHeight(dbtx walletdb.ReadTx) (int32, error) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	c := ns.NestedReadBucket(bucketBlocks).ReadCursor()
+	for k, v := c.First(); k != nil; k, v = c.Next() {
+		hash := extractRawBlockRecordHash(v)
+		_, err := fetchRawCFilter(ns, hash)
+		if errors.Is(errors.NotExist, err) {
+			height := int32(byteOrder.Uint32(k))
+			return height, nil
+		}
+	}
+	return 0, errors.E(errors.NotExist)
+}
+
+// InsertMissingCFilters records compact filters for each main chain block
+// specified by blockHashes.  This is used to add the additional required
+// cfilters after upgrading a database to version TODO as recording cfilters
+// becomes a required part of extending the main chain.  This method may be
+// called incrementally to record all main chain block cfilters.  When all
+// cfilters of the main chain are recorded, extending the main chain becomes
+// possible again.
+func (s *Store) InsertMissingCFilters(dbtx walletdb.ReadWriteTx, blockHashes []*chainhash.Hash, filters []*gcs.Filter) error {
+	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
+	v := ns.Get(rootHaveCFilters)
+	if len(v) == 1 && v[0] != 0 {
+		return errors.E(errors.Invalid, "all cfilters for main chain blocks are already recorded")
+	}
+
+	if len(blockHashes) != len(filters) {
+		return errors.E(errors.Invalid, "slices must have equal len")
+	}
+	if len(blockHashes) == 0 {
+		return nil
+	}
+
+	for i, blockHash := range blockHashes {
+		// Ensure that blockHashes are ordered and that all previous cfilters in the
+		// main chain are known.
+		ok := i == 0 && *blockHash == *s.chainParams.GenesisHash
+		if !ok {
+			header := existsBlockHeader(ns, blockHash[:])
+			if header == nil {
+				return errors.E(errors.NotExist, errors.Errorf("missing header for block %v", blockHash))
+			}
+			parentHash := extractBlockHeaderParentHash(header)
+			if i == 0 {
+				_, err := fetchRawCFilter(ns, parentHash)
+				ok = err == nil
+			} else {
+				ok = bytes.Equal(parentHash, blockHashes[i-1][:])
+			}
+		}
+		if !ok {
+			return errors.E(errors.Invalid, "block hashes are not ordered or previous cfilters are missing")
+		}
+
+		// Record cfilter for this block
+		err := putRawCFilter(ns, blockHash[:], filters[i].NBytes())
+		if err != nil {
+			return err
+		}
+	}
+
+	// Mark all main chain cfilters as saved if the last block hash is the main
+	// chain tip.
+	tip, _ := s.MainChainTip(ns)
+	if bytes.Equal(tip[:], blockHashes[len(blockHashes)-1][:]) {
+		err := ns.Put(rootHaveCFilters, []byte{1})
+		if err != nil {
+			return errors.E(errors.IO, err)
+		}
+	}
+
+	return nil
+}
+
+// BlockCFilter is a compact filter for a Decred block.
+type BlockCFilter struct {
+	BlockHash chainhash.Hash
+	Filter    *gcs.Filter
+}
+
+// GetMainChainCFilters returns compact filters from the main chain, starting at
+// startHash, copying as many as possible into the storage slice and returning a
+// subslice for the total number of results.  If the start hash is not in the
+// main chain, this function errors.  If inclusive is true, the startHash is
+// included in the results, otherwise only blocks after the startHash are
+// included.
+func (s *Store) GetMainChainCFilters(dbtx walletdb.ReadTx, startHash *chainhash.Hash, inclusive bool, storage []*BlockCFilter) ([]*BlockCFilter, error) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	header := ns.NestedReadBucket(bucketHeaders).Get(startHash[:])
+	if header == nil {
+		return nil, errors.E(errors.NotExist, errors.Errorf("starting block %v not found", startHash))
+	}
+	height := extractBlockHeaderHeight(header)
+	if !inclusive {
+		height++
+	}
+
+	blockRecords := ns.NestedReadBucket(bucketBlocks)
+
+	storageUsed := 0
+	for storageUsed < len(storage) {
+		v := blockRecords.Get(keyBlockRecord(height))
+		if v == nil {
+			break
+		}
+		blockHash := extractRawBlockRecordHash(v)
+		rawFilter, err := fetchRawCFilter(ns, blockHash)
+		if err != nil {
+			return nil, err
+		}
+		fCopy := make([]byte, len(rawFilter))
+		copy(fCopy, rawFilter)
+		f, err := gcs.FromNBytes(blockcf.P, fCopy)
+		if err != nil {
+			return nil, err
+		}
+		bf := &BlockCFilter{Filter: f}
+		copy(bf.BlockHash[:], blockHash)
+		storage[storageUsed] = bf
+
+		height++
+		storageUsed++
+	}
+	return storage[:storageUsed], nil
 }
 
 func extractBlockHeaderParentHash(header []byte) []byte {
@@ -625,88 +786,6 @@ func stakeInvalidate(ns walletdb.ReadWriteBucket, height int32) error {
 	return putMinedBalance(ns, minedBalance)
 }
 
-// InsertMainChainHeaders permanently saves block headers.  Headers should be in
-// order of increasing heights and there should not be any gaps between blocks.
-// After inserting headers, if the existing recorded tip block is behind the
-// last main chain block header that was inserted, a chain switch occurs and the
-// new tip block is recorded.
-func (s *Store) InsertMainChainHeaders(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket, headers []BlockHeaderData) error {
-	if len(headers) == 0 {
-		return nil
-	}
-
-	// If the first header is not yet saved, make sure the parent is.
-	if existsBlockHeader(ns, keyBlockHeader(&headers[0].BlockHash)) == nil {
-		parentHash := extractBlockHeaderParentHash(headers[0].SerializedHeader[:])
-		if existsBlockHeader(ns, parentHash) == nil {
-			return errors.E(errors.Invalid, "missing parent of first header")
-		}
-	}
-
-	candidateTip := &headers[len(headers)-1]
-	candidateTipHeight := extractBlockHeaderHeight(candidateTip.SerializedHeader[:])
-	currentTipHash := ns.Get(rootTipBlock)
-	currentTipHeader := ns.NestedReadBucket(bucketHeaders).Get(currentTipHash)
-	currentTipHeight := extractBlockHeaderHeight(currentTipHeader)
-	if candidateTipHeight >= currentTipHeight {
-		err := ns.Put(rootTipBlock, candidateTip.BlockHash[:])
-		if err != nil {
-			return errors.E(errors.IO, err)
-		}
-	}
-
-	for i := range headers {
-		hash := &headers[i].BlockHash
-		header := &headers[i].SerializedHeader
-
-		// Any blocks known to not exist on this main chain are to be removed.
-		height := extractBlockHeaderHeight(header[:])
-		rk, rv := existsBlockRecord(ns, height)
-		if rv != nil {
-			recHash := extractRawBlockRecordHash(rv)
-			if !bytes.Equal(hash[:], recHash) {
-				err := s.rollback(ns, addrmgrNs, height)
-				if err != nil {
-					return err
-				}
-				blockVal := valueBlockRecordEmptyFromHeader(hash, header)
-				err = putRawBlockRecord(ns, rk, blockVal)
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			blockVal := valueBlockRecordEmptyFromHeader(hash, header)
-			err := putRawBlockRecord(ns, rk, blockVal)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Insert the header.
-		k := keyBlockHeader(hash)
-		v := header[:]
-		err := putRawBlockHeader(ns, k, v)
-		if err != nil {
-			return err
-		}
-
-		// Handle stake validation of the parent block.
-		parentHeight := header.Height() - 1
-		vb := extractBlockHeaderVoteBits(header[:])
-		if approvesParent(vb) {
-			err = stakeValidate(ns, parentHeight)
-		} else {
-			err = stakeInvalidate(ns, parentHeight)
-		}
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // GetMainChainBlockHashForHeight returns the block hash of the block on the
 // main chain at a given height.
 func (s *Store) GetMainChainBlockHashForHeight(ns walletdb.ReadBucket, height int32) (chainhash.Hash, error) {
@@ -725,6 +804,21 @@ func (s *Store) GetMainChainBlockHashForHeight(ns walletdb.ReadBucket, height in
 // from the DB and are usable outside of the transaction.
 func (s *Store) GetSerializedBlockHeader(ns walletdb.ReadBucket, blockHash *chainhash.Hash) ([]byte, error) {
 	return fetchRawBlockHeader(ns, keyBlockHeader(blockHash))
+}
+
+// GetBlockHeader returns the block header for the block specified by its hash.
+func (s *Store) GetBlockHeader(dbtx walletdb.ReadTx, blockHash *chainhash.Hash) (*wire.BlockHeader, error) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	serialized, err := fetchRawBlockHeader(ns, keyBlockHeader(blockHash))
+	if err != nil {
+		return nil, err
+	}
+	header := new(wire.BlockHeader)
+	err = header.Deserialize(bytes.NewReader(serialized))
+	if err != nil {
+		return nil, errors.E(errors.IO, err)
+	}
+	return header, nil
 }
 
 // BlockInMainChain returns whether a block identified by its hash is in the
@@ -777,8 +871,7 @@ func (s *Store) GetMainChainBlockHashes(ns walletdb.ReadBucket, startHash *chain
 
 	header := ns.NestedReadBucket(bucketHeaders).Get(startHash[:])
 	if header == nil {
-		err := errors.E(errors.NotExist, errors.Errorf("block %v header not found", startHash))
-		return nil, err
+		return nil, errors.E(errors.NotExist, errors.Errorf("starting block %v not found", startHash))
 	}
 	height := extractBlockHeaderHeight(header)
 
@@ -1817,7 +1910,7 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 
 			log.Debugf("Transaction %v spends a removed coinbase "+
 				"output -- removing as well", unminedRec.Hash)
-			err = s.removeUnconfirmed(ns, &unminedRec.MsgTx, &unminedRec.Hash)
+			err = s.RemoveUnconfirmed(ns, &unminedRec.MsgTx, &unminedRec.Hash)
 			if err != nil {
 				return err
 			}
@@ -2068,6 +2161,23 @@ func (s *Store) UnspentOutpoints(ns walletdb.ReadBucket) ([]wire.OutPoint, error
 	return unspent, nil
 }
 
+// IsUnspentOutpoint returns whether the outpoint is recorded as a wallet UTXO.
+func (s *Store) IsUnspentOutpoint(dbtx walletdb.ReadTx, op *wire.OutPoint) bool {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	k := canonicalOutPoint(&op.Hash, op.Index)
+	if v := ns.NestedReadBucket(bucketUnspent); v != nil {
+		// Output is mined and not spent by any other mined tx, but may be spent
+		// by an unmined transaction.
+		return existsRawUnminedInput(ns, k) == nil
+	}
+	if v := existsRawUnminedCredit(ns, k); v != nil {
+		// Output is in an unmined transation, but may be spent by another
+		// unmined transaction.
+		return existsRawUnminedInput(ns, k) == nil
+	}
+	return false
+}
+
 // UnspentTickets returns all unspent tickets that are known for this wallet.
 // Tickets that have been spent by an unmined vote that is not a vote on the tip
 // block are also considered unspent and are returned.  The order of the hashes
@@ -2127,7 +2237,7 @@ func (s *Store) UnspentTickets(dbtx walletdb.ReadTx, syncHeight int32, includeIm
 			if err != nil {
 				return nil, err
 			}
-			if !confirmed(int32(s.chainParams.TicketMaturity)+1, height, syncHeight) {
+			if !ticketMatured(s.chainParams, height, syncHeight) {
 				continue
 			}
 		}
@@ -2368,6 +2478,35 @@ func confirms(txHeight, curHeight int32) int32 {
 	}
 }
 
+// coinbaseMatured returns whether a transaction mined at txHeight has
+// reached coinbase maturity in a chain with tip height curHeight.
+func coinbaseMatured(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	return txHeight >= 0 && curHeight-txHeight+1 > int32(params.CoinbaseMaturity)
+}
+
+// ticketChangeMatured returns whether a ticket change mined at
+// txHeight has reached ticket maturity in a chain with a tip height
+// curHeight.
+func ticketChangeMatured(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	return txHeight >= 0 && curHeight-txHeight+1 > int32(params.SStxChangeMaturity)
+}
+
+// ticketMatured returns whether a ticket mined at txHeight has
+// reached ticket maturity in a chain with a tip height curHeight.
+func ticketMatured(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	// dcrd has an off-by-one in the calculation of the ticket
+	// maturity, which results in maturity being one block higher
+	// than the params would indicate.
+	return txHeight >= 0 && curHeight-txHeight > int32(params.TicketMaturity)
+}
+
+// ticketExpired returns whether a ticket mined at txHeight has
+// reached ticket expiry in a chain with a tip height curHeight.
+func ticketExpired(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	// Ticket maturity off-by-one extends to the expiry depth as well.
+	return txHeight >= 0 && curHeight-txHeight > int32(params.TicketMaturity)+int32(params.TicketExpiry)
+}
+
 func (s *Store) fastCreditPkScriptLookup(ns walletdb.ReadBucket, credKey []byte, unminedCredKey []byte) ([]byte, error) {
 	// It has to exists as a credit or an unmined credit.
 	// Look both of these up. If it doesn't, throw an
@@ -2528,28 +2667,24 @@ func (s *Store) UnspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 
 		// Skip outputs that are not mature.
 		if fetchRawCreditIsCoinbase(cVal) {
-			if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
-				syncHeight) {
+			if !coinbaseMatured(s.chainParams, txHeight, syncHeight) {
 				continue
 			}
 		}
 		// Skip outputs that have an expiry but have not yet reached
 		// coinbase maturity .
 		if fetchRawCreditHasExpiry(cVal, DBVersion) {
-			if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
-				syncHeight) {
+			if !coinbaseMatured(s.chainParams, txHeight, syncHeight) {
 				continue
 			}
 		}
 		if opcode == txscript.OP_SSGEN || opcode == txscript.OP_SSRTX {
-			if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
-				syncHeight) {
+			if !coinbaseMatured(s.chainParams, txHeight, syncHeight) {
 				continue
 			}
 		}
 		if opcode == txscript.OP_SSTXCHANGE {
-			if !confirmed(int32(s.chainParams.SStxChangeMaturity), txHeight,
-				syncHeight) {
+			if !ticketChangeMatured(s.chainParams, txHeight, syncHeight) {
 				continue
 			}
 		}
@@ -2614,10 +2749,8 @@ func (s *Store) UnspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 			}
 
 			// Skip outputs that are not mature.
-			if opcode == txscript.OP_SSGEN || opcode == txscript.OP_SSRTX {
-				continue
-			}
-			if opcode == txscript.OP_SSTXCHANGE {
+			switch opcode {
+			case txscript.OP_SSGEN, txscript.OP_SSRTX, txscript.OP_SSTXCHANGE:
 				continue
 			}
 
@@ -2682,7 +2815,7 @@ func (s *Store) UnspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 // InputSource provides a method (SelectInputs) to incrementally select unspent
 // outputs to use as transaction inputs.
 type InputSource struct {
-	source func(dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error)
+	source func(dcrutil.Amount) (*txauthor.InputDetail, error)
 }
 
 // SelectInputs selects transaction inputs to redeem unspent outputs stored in
@@ -2691,7 +2824,7 @@ type InputSource struct {
 // input amount referenced by the previous transaction outputs, a slice of
 // transaction inputs referencing these outputs, and a slice of previous output
 // scripts from each previous output referenced by the corresponding input.
-func (s *InputSource) SelectInputs(target dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error) {
+func (s *InputSource) SelectInputs(target dcrutil.Amount) (*txauthor.InputDetail, error) {
 	return s.source(target)
 }
 
@@ -2714,12 +2847,13 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 	// Current inputs and their total value.  These are closed over by the
 	// returned input source and reused across multiple calls.
 	var (
-		currentTotal   dcrutil.Amount
-		currentInputs  []*wire.TxIn
-		currentScripts [][]byte
+		currentTotal      dcrutil.Amount
+		currentInputs     []*wire.TxIn
+		currentScripts    [][]byte
+		redeemScriptSizes []int
 	)
 
-	f := func(target dcrutil.Amount) (dcrutil.Amount, []*wire.TxIn, [][]byte, error) {
+	f := func(target dcrutil.Amount) (*txauthor.InputDetail, error) {
 		for currentTotal < target || target == 0 {
 			var k, v []byte
 			if bucketUnspentCursor == nil {
@@ -2749,11 +2883,11 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			// Check the account first.
 			pkScript, err := s.fastCreditPkScriptLookup(ns, cKey, nil)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 			thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, cVal, nil, pkScript)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 			if account != thisAcct {
 				continue
@@ -2761,7 +2895,7 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 
 			amt, spent, err := fetchRawCreditAmountSpent(cVal)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 
 			// This should never happen since this is already in bucket
@@ -2785,37 +2919,23 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			// confirmations.  Coinbase transactions must have have reached
 			// maturity before their outputs may be spent.
 			txHeight := extractRawCreditHeight(cKey)
-
 			if !confirmed(minConf, txHeight, syncHeight) {
 				continue
 			}
 
 			// Skip outputs that are not mature.
 			if opcode == opNonstake && fetchRawCreditIsCoinbase(cVal) {
-				if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
-					syncHeight) {
+				if !coinbaseMatured(s.chainParams, txHeight, syncHeight) {
 					continue
 				}
 			}
 			if opcode == txscript.OP_SSGEN || opcode == txscript.OP_SSRTX {
-				if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
-					syncHeight) {
+				if !coinbaseMatured(s.chainParams, txHeight, syncHeight) {
 					continue
 				}
 			}
 			if opcode == txscript.OP_SSTXCHANGE {
-				if !confirmed(int32(s.chainParams.SStxChangeMaturity), txHeight,
-					syncHeight) {
-					continue
-				}
-			}
-
-			// Skip outputs that have an expiry but have not yet reached
-			// coinbase maturity .
-			if fetchRawCreditHasExpiry(cVal, DBVersion) {
-				if !confirmed(int32(s.chainParams.CoinbaseMaturity), txHeight,
-					syncHeight) {
-					fmt.Printf("makeInputSources.4 \r\n")
+				if !ticketChangeMatured(s.chainParams, txHeight, syncHeight) {
 					continue
 				}
 			}
@@ -2830,24 +2950,68 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			var op wire.OutPoint
 			err = readCanonicalOutPoint(k, &op)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
-			op.Tree = tree
 
-			input := wire.NewTxIn(&op, NullValueIn, nil)
+			op.Tree = tree
+			input := wire.NewTxIn(&op, int64(amt), nil)
+			var scriptSize int
+
+			// Unspent credits are currently expected to be either P2PKH or
+			// P2PK, P2PKH/P2SH nested in a revocation/stakechange/vote output.
+			scriptClass := txscript.GetScriptClass(
+				txscript.DefaultScriptVersion, pkScript)
+
+			switch scriptClass {
+			case txscript.PubKeyHashTy:
+				scriptSize = txsizes.RedeemP2PKHSigScriptSize
+			case txscript.PubKeyTy:
+				scriptSize = txsizes.RedeemP2PKSigScriptSize
+			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy,
+				txscript.StakeGenTy:
+				scriptClass, err = txscript.GetStakeOutSubclass(pkScript)
+				if err != nil {
+					return nil, fmt.Errorf(
+						"failed to extract nested script in stake output: %v",
+						err)
+				}
+
+				// For stake transactions we expect P2PKH and P2SH script class
+				// types only but ignore P2SH script type since it can pay
+				// to any script which the wallet may not recognize.
+				if scriptClass != txscript.PubKeyHashTy {
+					log.Errorf("unexpected nested script class for credit: %v",
+						scriptClass)
+					continue
+				}
+
+				scriptSize = txsizes.RedeemP2PKHSigScriptSize
+			default:
+				log.Errorf("unexpected script class for credit: %v",
+					scriptClass)
+				continue
+			}
 
 			currentTotal += amt
 			currentInputs = append(currentInputs, input)
 			currentScripts = append(currentScripts, pkScript)
+			redeemScriptSizes = append(redeemScriptSizes, scriptSize)
 		}
 
 		// Return the current results if the target was specified and met
 		// or unspent unmined credits can not be included.
 		if (target != 0 && currentTotal >= target) || minConf != 0 {
-			return currentTotal, currentInputs, currentScripts, nil
+			inputDetail := &txauthor.InputDetail{
+				Amount:            currentTotal,
+				Inputs:            currentInputs,
+				Scripts:           currentScripts,
+				RedeemScriptSizes: redeemScriptSizes,
+			}
+
+			return inputDetail, nil
 		}
 
-		// Iterate through unspent unmined credits
+		// Iterate through unspent unmined credits.
 		for currentTotal < target || target == 0 {
 			var k, v []byte
 			if bucketUnminedCreditsCursor == nil {
@@ -2870,11 +3034,11 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			// Check the account first.
 			pkScript, err := s.fastCreditPkScriptLookup(ns, nil, k)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 			thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, nil, v, pkScript)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 			if account != thisAcct {
 				continue
@@ -2882,7 +3046,7 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 
 			amt, err := fetchRawUnminedCreditAmount(v)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
 
 			// Skip ticket outputs, as only SSGen can spend these.
@@ -2909,17 +3073,62 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			var op wire.OutPoint
 			err = readCanonicalOutPoint(k, &op)
 			if err != nil {
-				return 0, nil, nil, err
+				return nil, err
 			}
-			op.Tree = tree
 
-			input := wire.NewTxIn(&op, NullValueIn, nil)
+			op.Tree = tree
+			input := wire.NewTxIn(&op, int64(amt), nil)
+			var scriptSize int
+
+			// Unspent credits are currently expected to be either P2PKH or
+			// P2PK, P2PKH/P2SH nested in a revocation/stakechange/vote output.
+			scriptClass := txscript.GetScriptClass(
+				txscript.DefaultScriptVersion, pkScript)
+
+			switch scriptClass {
+			case txscript.PubKeyHashTy:
+				scriptSize = txsizes.RedeemP2PKHSigScriptSize
+			case txscript.PubKeyTy:
+				scriptSize = txsizes.RedeemP2PKSigScriptSize
+			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy,
+				txscript.StakeGenTy:
+				scriptClass, err = txscript.GetStakeOutSubclass(pkScript)
+				if err != nil {
+					return nil, fmt.Errorf(
+						"failed to extract nested script in stake output: %v",
+						err)
+				}
+
+				// For stake transactions we expect P2PKH and P2SH script class
+				// types only but ignore P2SH script type since it can pay
+				// to any script which the wallet may not recognize.
+				if scriptClass != txscript.PubKeyHashTy {
+					log.Errorf("unexpected nested script class for credit: %v",
+						scriptClass)
+					continue
+				}
+
+				scriptSize = txsizes.RedeemP2PKHSigScriptSize
+			default:
+				log.Errorf("unexpected script class for credit: %v",
+					scriptClass)
+				continue
+			}
 
 			currentTotal += amt
 			currentInputs = append(currentInputs, input)
 			currentScripts = append(currentScripts, pkScript)
+			redeemScriptSizes = append(redeemScriptSizes, scriptSize)
 		}
-		return currentTotal, currentInputs, currentScripts, nil
+
+		inputDetail := &txauthor.InputDetail{
+			Amount:            currentTotal,
+			Inputs:            currentInputs,
+			Scripts:           currentScripts,
+			RedeemScriptSizes: redeemScriptSizes,
+		}
+
+		return inputDetail, nil
 	}
 
 	return InputSource{source: f}
@@ -2983,9 +3192,7 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			isConfirmed := confirmed(minConf, height, syncHeight)
 			creditFromCoinbase := fetchRawCreditIsCoinbase(cVal)
 			matureCoinbase := (creditFromCoinbase &&
-				confirmed(int32(s.chainParams.CoinbaseMaturity),
-					height,
-					syncHeight))
+				coinbaseMatured(s.chainParams, height, syncHeight))
 
 			if (isConfirmed && !creditFromCoinbase) ||
 				matureCoinbase {
@@ -3074,16 +3281,14 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 		case txscript.OP_SSGEN:
 			fallthrough
 		case txscript.OP_SSRTX:
-			if confirmed(int32(s.chainParams.CoinbaseMaturity),
-				height, syncHeight) {
+			if coinbaseMatured(s.chainParams, height, syncHeight) {
 				ab.Spendable += utxoAmt
 			} else {
 				ab.ImmatureStakeGeneration += utxoAmt
 			}
 
 		case txscript.OP_SSTXCHANGE:
-			if confirmed(int32(s.chainParams.SStxChangeMaturity),
-				height, syncHeight) {
+			if ticketChangeMatured(s.chainParams, height, syncHeight) {
 				ab.Spendable += utxoAmt
 			}
 

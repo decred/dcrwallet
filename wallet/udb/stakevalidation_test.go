@@ -5,14 +5,35 @@
 package udb
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 	_ "github.com/decred/dcrwallet/wallet/internal/walletdb/bdb"
 )
+
+func insertMainChainHeaders(s *Store, ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket,
+	headerData []BlockHeaderData, filters []*gcs.Filter) error {
+
+	for i := range headerData {
+		h := &headerData[i]
+		f := filters[i]
+		header := new(wire.BlockHeader)
+		err := header.Deserialize(bytes.NewReader(h.SerializedHeader[:]))
+		if err != nil {
+			return err
+		}
+		err = s.ExtendMainChain(ns, header, f)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func TestStakeInvalidationOfTip(t *testing.T) {
 	db, s, teardown, err := setup()
@@ -74,7 +95,8 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 		}
 
 		headerData := makeHeaderDataSlice(block1Header, block2Header)
-		err = s.InsertMainChainHeaders(ns, addrmgrNs, headerData)
+		filters := emptyFilters(2)
+		err = insertMainChainHeaders(s, ns, addrmgrNs, headerData, filters)
 		if err != nil {
 			return err
 		}
@@ -117,7 +139,8 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 		// block 2.
 		t.Log("Invalidating block 2")
 		headerData = makeHeaderDataSlice(block3Header)
-		err = s.InsertMainChainHeaders(ns, addrmgrNs, headerData)
+		filters = emptyFilters(1)
+		err = insertMainChainHeaders(s, ns, addrmgrNs, headerData, filters)
 		if err != nil {
 			return err
 		}
@@ -197,7 +220,8 @@ func TestStakeInvalidationTxInsert(t *testing.T) {
 		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
 
 		headerData := makeHeaderDataSlice(block1Header, block2Header, block3Header)
-		err = s.InsertMainChainHeaders(ns, addrmgrNs, headerData)
+		filters := emptyFilters(3)
+		err = insertMainChainHeaders(s, ns, addrmgrNs, headerData, filters)
 		if err != nil {
 			return err
 		}

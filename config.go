@@ -36,8 +36,8 @@ const (
 	defaultLogLevel            = "info"
 	defaultLogDirname          = "logs"
 	defaultLogFilename         = "dcrwallet.log"
-	defaultRPCMaxClients       = 10
-	defaultRPCMaxWebsockets    = 25
+	defaultRPCMaxClients       = 100
+	defaultRPCMaxWebsockets    = 250
 	defaultEnableTicketBuyer   = false
 	defaultEnableVoting        = false
 	defaultReuseAddresses      = false
@@ -51,6 +51,7 @@ const (
 	defaultGapLimit            = wallet.DefaultGapLimit
 	defaultStakePoolColdExtKey = ""
 	defaultAllowHighFees       = false
+	defaultAccountGapLimit     = wallet.DefaultAccountGapLimit
 
 	// ticket buyer options
 	defaultMaxFee                    dcrutil.Amount = 1e6
@@ -69,7 +70,6 @@ const (
 	defaultPriceTarget                              = 0
 	defaultBalanceToMaintainAbsolute                = 0
 	defaultBalanceToMaintainRelative                = 0.3
-	defaultSplitTx                                  = 1
 
 	defaultEnableDcrtxmatcher = false
 	defaultTimeout            = 5
@@ -91,7 +91,7 @@ type config struct {
 	ConfigFile         *cfgutil.ExplicitString `short:"C" long:"configfile" description:"Path to configuration file"`
 	ShowVersion        bool                    `short:"V" long:"version" description:"Display version information and exit"`
 	Create             bool                    `long:"create" description:"Create the wallet if it does not exist"`
-	CreateTemp         bool                    `long:"createtemp" description:"Create a temporary simulation wallet (pass=password) in the data directory indicated; must call with --datadir"`
+	CreateTemp         bool                    `long:"createtemp" description:"Create a temporary simulation wallet (pass=password) in the data directory indicated; must call with --appdata"`
 	CreateWatchingOnly bool                    `long:"createwatchingonly" description:"Create the wallet and instantiate it as watching only with an HD extended pubkey"`
 	AppDataDir         *cfgutil.ExplicitString `short:"A" long:"appdata" description:"Application data directory for wallet config, databases and logs"`
 	TestNet            bool                    `long:"testnet" description:"Use the test network"`
@@ -101,8 +101,6 @@ type config struct {
 	LogDir             *cfgutil.ExplicitString `long:"logdir" description:"Directory to log output."`
 	Profile            []string                `long:"profile" description:"Enable HTTP profiling this interface/port"`
 	MemProfile         string                  `long:"memprofile" description:"Write mem profile to the specified file"`
-	RollbackTest       bool                    `long:"rollbacktest" description:"Rollback testing is a simnet testing mode that eventually stops wallet and examines wtxmgr database integrity"`
-	AutomaticRepair    bool                    `long:"automaticrepair" description:"Attempt to repair the wallet automatically if a database inconsistency is found"`
 
 	// Wallet options
 	WalletPass          string               `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
@@ -121,6 +119,8 @@ type config struct {
 	AllowHighFees       bool                 `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
 	RelayFee            *cfgutil.AmountFlag  `long:"txfee" description:"Sets the wallet's tx fee per kb"`
 	TicketFee           *cfgutil.AmountFlag  `long:"ticketfee" description:"Sets the wallet's ticket fee per kb"`
+	AccountGapLimit     int                  `long:"accountgaplimit" description:"Number of accounts that can be created in a row without using any of them"`
+	legacyTicketBuyer   bool
 
 	// RPC client options
 	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Hostname/IP and port of dcrd RPC server to connect to"`
@@ -131,6 +131,10 @@ type config struct {
 	Proxy            string                  `long:"proxy" description:"Connect via SOCKS5 proxy (eg. 127.0.0.1:9050)"`
 	ProxyUser        string                  `long:"proxyuser" description:"Username for proxy server"`
 	ProxyPass        string                  `long:"proxypass" default-mask:"-" description:"Password for proxy server"`
+
+	// SPV options
+	SPV        bool     `long:"spv" description:"Sync using simplified payment verification"`
+	SPVConnect []string `long:"spvconnect" description:"Full node addresses to SPV sync from"`
 
 	// RPC server options
 	//
@@ -166,35 +170,37 @@ type config struct {
 	DcrtxClientConfig *dcrtxclient.Config
 
 	// Deprecated options
-	DataDir        *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
-	PruneTickets   bool                    `long:"prunetickets" description:"DEPRECATED -- old tickets are always pruned"`
-	TicketAddress  *cfgutil.AddressFlag    `long:"ticketaddress" description:"DEPRECATED -- use ticketbuyer.votingaddress instead"`
-	AddrIdxScanLen int                     `long:"addridxscanlen" description:"DEPRECATED -- use gaplimit instead"`
+	DataDir         *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
+	PruneTickets    bool                    `long:"prunetickets" description:"DEPRECATED -- old tickets are always pruned"`
+	TicketAddress   *cfgutil.AddressFlag    `long:"ticketaddress" description:"DEPRECATED -- use ticketbuyer.votingaddress instead"`
+	AddrIdxScanLen  int                     `long:"addridxscanlen" description:"DEPRECATED -- use gaplimit instead"`
+	RollbackTest    bool                    `hidden:"y" long:"rollbacktest" description:"Rollback testing is a simnet testing mode that eventually stops wallet and examines wtxmgr database integrity"`
+	AutomaticRepair bool                    `hidden:"y" long:"automaticrepair" description:"Attempt to repair the wallet automatically if a database inconsistency is found"`
 }
 
 type ticketBuyerOptions struct {
-	AvgPriceMode              string               `long:"avgpricemode" description:"The mode to use for calculating the average price if pricetarget is disabled (vwap, pool, dual)"`
-	AvgPriceVWAPDelta         int                  `long:"avgpricevwapdelta" description:"The number of blocks to use from the current block to calculate the VWAP"`
-	MaxFee                    *cfgutil.AmountFlag  `long:"maxfee" description:"Maximum ticket fee per KB"`
-	MinFee                    *cfgutil.AmountFlag  `long:"minfee" description:"Minimum ticket fee per KB"`
-	FeeSource                 string               `long:"feesource" description:"The fee source to use for ticket fee per KB (median or mean)"`
-	MaxPerBlock               int                  `long:"maxperblock" description:"Maximum tickets per block, with negative numbers indicating buy one ticket every 1-in-n blocks"`
-	BlocksToAvg               int                  `long:"blockstoavg" description:"Number of blocks to average for fees calculation"`
-	FeeTargetScaling          float64              `long:"feetargetscaling" description:"Scaling factor for setting the ticket fee, multiplies by the average fee"`
-	MaxInMempool              int                  `long:"maxinmempool" description:"The maximum number of your tickets allowed in mempool before purchasing more tickets"`
-	ExpiryDelta               int                  `long:"expirydelta" description:"Number of blocks in the future before the ticket expires"`
-	MaxPriceAbsolute          *cfgutil.AmountFlag  `long:"maxpriceabsolute" description:"Maximum absolute price to purchase a ticket"`
-	MaxPriceRelative          float64              `long:"maxpricerelative" description:"Scaling factor for setting the maximum price, multiplies by the average price"`
 	BalanceToMaintainAbsolute *cfgutil.AmountFlag  `long:"balancetomaintainabsolute" description:"Amount of funds to keep in wallet when stake mining"`
-	BalanceToMaintainRelative float64              `long:"balancetomaintainrelative" description:"Proportion of funds to leave in wallet when stake mining"`
-	NoSpreadTicketPurchases   bool                 `long:"nospreadticketpurchases" description:"Do not spread ticket purchases evenly throughout the window"`
-	DontWaitForTickets        bool                 `long:"dontwaitfortickets" description:"Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
 	VotingAddress             *cfgutil.AddressFlag `long:"votingaddress" description:"Purchase tickets with voting rights assigned to this address"`
 
 	// Deprecated options
-	MaxPriceScale         float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
-	PriceTarget           *cfgutil.AmountFlag `long:"pricetarget" description:"DEPRECATED -- A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
-	SpreadTicketPurchases bool                `long:"spreadticketpurchases" description:"DEPRECATED -- Spread ticket purchases evenly throughout the window"`
+	AvgPriceMode              string              `long:"avgpricemode" description:"DEPRECATED -- The mode to use for calculating the average price if pricetarget is disabled (vwap, pool, dual)"`
+	AvgPriceVWAPDelta         int                 `long:"avgpricevwapdelta" description:"DEPRECATED -- The number of blocks to use from the current block to calculate the VWAP"`
+	MaxFee                    *cfgutil.AmountFlag `long:"maxfee" description:"DEPRECATED -- Maximum ticket fee per KB"`
+	MinFee                    *cfgutil.AmountFlag `long:"minfee" description:"DEPRECATED -- Minimum ticket fee per KB"`
+	FeeSource                 string              `long:"feesource" description:"DEPRECATED -- The fee source to use for ticket fee per KB (median or mean)"`
+	MaxPerBlock               int                 `long:"maxperblock" description:"DEPRECATED -- Maximum tickets per block, with negative numbers indicating buy one ticket every 1-in-n blocks"`
+	BlocksToAvg               int                 `long:"blockstoavg" description:"DEPRECATED -- Number of blocks to average for fees calculation"`
+	FeeTargetScaling          float64             `long:"feetargetscaling" description:"DEPRECATED -- Scaling factor for setting the ticket fee, multiplies by the average fee"`
+	MaxInMempool              int                 `long:"maxinmempool" description:"DEPRECATED -- The maximum number of your tickets allowed in mempool before purchasing more tickets"`
+	ExpiryDelta               int                 `long:"expirydelta" description:"DEPRECATED -- Number of blocks in the future before the ticket expires"`
+	MaxPriceAbsolute          *cfgutil.AmountFlag `long:"maxpriceabsolute" description:"DEPRECATED -- Maximum absolute price to purchase a ticket"`
+	MaxPriceScale             float64             `long:"maxpricescale" description:"DEPRECATED -- Attempt to prevent the stake difficulty from going above this multiplier (>1.0) by manipulation, 0 to disable"`
+	MaxPriceRelative          float64             `long:"maxpricerelative" description:"DEPRECATED -- Scaling factor for setting the maximum price, multiplies by the average price"`
+	BalanceToMaintainRelative float64             `long:"balancetomaintainrelative" description:"DEPRECATED -- Proportion of funds to leave in wallet when stake mining"`
+	PriceTarget               *cfgutil.AmountFlag `long:"pricetarget" description:"DEPRECATED -- A target to try to seek setting the stake price to rather than meeting the average price, 0 to disable"`
+	NoSpreadTicketPurchases   bool                `long:"nospreadticketpurchases" description:"DEPRECATED -- Do not spread ticket purchases evenly throughout the window"`
+	SpreadTicketPurchases     bool                `long:"spreadticketpurchases" description:"DEPRECATED -- Spread ticket purchases evenly throughout the window"`
+	DontWaitForTickets        bool                `long:"dontwaitfortickets" description:"DEPRECATED -- Don't wait until your last round of tickets have entered the blockchain to attempt to purchase more"`
 }
 
 type dcrtxClientOptions struct {
@@ -367,24 +373,28 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		EnableTicketBuyer:      defaultEnableTicketBuyer,
 		EnableVoting:           defaultEnableVoting,
 		ReuseAddresses:         defaultReuseAddresses,
-		RollbackTest:           defaultRollbackTest,
 		PruneTickets:           defaultPruneTickets,
 		PurchaseAccount:        defaultPurchaseAccount,
-		AutomaticRepair:        defaultAutomaticRepair,
 		GapLimit:               defaultGapLimit,
 		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
 		AllowHighFees:          defaultAllowHighFees,
 		RelayFee:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
 		TicketFee:              cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
 		PoolAddress:            cfgutil.NewAddressFlag(nil),
+		AccountGapLimit:        defaultAccountGapLimit,
 
 		// TODO: DEPRECATED - remove.
-		DataDir:        cfgutil.NewExplicitString(defaultAppDataDir),
-		TicketAddress:  cfgutil.NewAddressFlag(nil),
-		AddrIdxScanLen: defaultGapLimit,
+		DataDir:         cfgutil.NewExplicitString(defaultAppDataDir),
+		TicketAddress:   cfgutil.NewAddressFlag(nil),
+		AddrIdxScanLen:  defaultGapLimit,
+		RollbackTest:    defaultRollbackTest,
+		AutomaticRepair: defaultAutomaticRepair,
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
+			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
+			VotingAddress:             cfgutil.NewAddressFlag(nil),
+
 			MaxPriceScale:             defaultMaxPriceScale,
 			AvgPriceMode:              defaultAvgPriceMode,
 			AvgPriceVWAPDelta:         defaultAvgVWAPPriceDelta,
@@ -399,9 +409,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			MaxPriceAbsolute:          cfgutil.NewAmountFlag(defaultMaxPriceAbsolute),
 			MaxPriceRelative:          defaultMaxPriceRelative,
 			PriceTarget:               cfgutil.NewAmountFlag(defaultPriceTarget),
-			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
 			BalanceToMaintainRelative: defaultBalanceToMaintainRelative,
-			VotingAddress:             cfgutil.NewAddressFlag(nil),
 		},
 
 		DcrtxClientOpts: dcrtxClientOptions{
@@ -488,7 +496,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Multiple networks can't be selected simultaneously.
 	numNets := 0
 	if cfg.TestNet {
-		activeNet = &netparams.TestNet2Params
+		activeNet = &netparams.TestNet3Params
 		numNets++
 	}
 	if cfg.SimNet {
@@ -554,6 +562,47 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	if cfg.PruneTickets {
 		fmt.Fprintln(os.Stderr, "prunetickets option is no longer necessary "+
 			"or used -- please update your config")
+	}
+
+	// Check for ticket buyer options which do not appear in the v2 API.  Any
+	// non-default deprecated option will cause the old ticket buyer to be used.
+	// Otherwise, the new buyer is opportunistically used.  The old buyer is not
+	// compatible with SPV.
+	var deprecatedTBOpt bool
+	checkDeprecatedTBOpt := func(name string, deprecated bool) {
+		if deprecatedTBOpt { // only warn once
+			return
+		}
+		if deprecated {
+			fmt.Fprintf(os.Stderr, "%s: --ticketbuyer.%s is deprecated -- using "+
+				"legacy ticket buyer\n", funcName, name)
+			deprecatedTBOpt = true
+		}
+	}
+	checkDeprecatedTBOpt("avgpricemode", cfg.TBOpts.AvgPriceMode != defaultAvgPriceMode)
+	checkDeprecatedTBOpt("avgpricevwapdelta", cfg.TBOpts.AvgPriceVWAPDelta != defaultAvgVWAPPriceDelta)
+	checkDeprecatedTBOpt("maxfee", cfg.TBOpts.MaxFee.Amount != defaultMaxFee)
+	checkDeprecatedTBOpt("minfee", cfg.TBOpts.MinFee.Amount != defaultMinFee)
+	checkDeprecatedTBOpt("feesource", cfg.TBOpts.FeeSource != defaultFeeSource)
+	checkDeprecatedTBOpt("maxperblock", cfg.TBOpts.MaxPerBlock != defaultMaxPerBlock)
+	checkDeprecatedTBOpt("blockstoavg", cfg.TBOpts.BlocksToAvg != defaultBlocksToAvg)
+	checkDeprecatedTBOpt("feetargetscaling", cfg.TBOpts.FeeTargetScaling != defaultFeeTargetScaling)
+	checkDeprecatedTBOpt("maxinmempool", cfg.TBOpts.MaxInMempool != defaultMaxInMempool)
+	checkDeprecatedTBOpt("expirydelta", cfg.TBOpts.ExpiryDelta != defaultExpiryDelta)
+	checkDeprecatedTBOpt("maxpriceabsolute", cfg.TBOpts.MaxPriceAbsolute.Amount != defaultMaxPriceAbsolute)
+	checkDeprecatedTBOpt("maxpricescale", cfg.TBOpts.MaxPriceScale != defaultMaxPriceScale)
+	checkDeprecatedTBOpt("maxpricerelative", cfg.TBOpts.MaxPriceRelative != defaultMaxPriceRelative)
+	checkDeprecatedTBOpt("balancetomaintainrelative", cfg.TBOpts.BalanceToMaintainRelative != defaultBalanceToMaintainRelative)
+	checkDeprecatedTBOpt("pricetarget", cfg.TBOpts.PriceTarget.Amount != defaultPriceTarget)
+	checkDeprecatedTBOpt("nospreadticketpurchases", cfg.TBOpts.NoSpreadTicketPurchases)
+	checkDeprecatedTBOpt("spreadticketpurchases", cfg.TBOpts.SpreadTicketPurchases)
+	checkDeprecatedTBOpt("dontwaitfortickets", cfg.TBOpts.DontWaitForTickets)
+	cfg.legacyTicketBuyer = deprecatedTBOpt
+	if cfg.EnableTicketBuyer && cfg.legacyTicketBuyer && cfg.SPV {
+		err := errors.Errorf("%v: legacy ticket buyer cannot be used with SPV -- "+
+			"disable SPV or deprecated options to continue", funcName)
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
 	}
 
 	if cfg.TBOpts.SpreadTicketPurchases {
@@ -659,9 +708,12 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		os.Exit(0)
 	}
 
-	// Warn if rollback testing is enabled, as this feature was removed.
+	// Warn for removed features without erroring parsing the config.
 	if cfg.RollbackTest {
-		fmt.Fprintln(os.Stderr, "WARN: Rollback testing no longer exists")
+		fmt.Fprintf(os.Stderr, "%v: --rollbacktest should be removed from config\n", funcName)
+	}
+	if cfg.AutomaticRepair {
+		fmt.Fprintf(os.Stderr, "%v: --automaticrepair should be removed from config\n", funcName)
 	}
 
 	// Ensure the wallet exists or create it when the create flag is set.
@@ -807,6 +859,23 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 					}
 				}
 			}
+		}
+	}
+
+	if cfg.SPV && cfg.EnableVoting {
+		err := errors.E("SPV voting is not possible: disable --spv or --enablevoting")
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+	if !cfg.SPV && len(cfg.SPVConnect) > 0 {
+		err := errors.E("--spvconnect requires --spv")
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+	for i, p := range cfg.SPVConnect {
+		cfg.SPVConnect[i], err = cfgutil.NormalizeAddress(p, activeNet.Params.DefaultPort)
+		if err != nil {
+			return loadConfigError(err)
 		}
 	}
 

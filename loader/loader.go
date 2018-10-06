@@ -11,7 +11,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
@@ -31,20 +31,22 @@ const (
 // Loader is safe for concurrent access.
 type Loader struct {
 	callbacks   []func(*wallet.Wallet)
-	chainClient *dcrrpcclient.Client
+	backend     wallet.NetworkBackend
 	chainParams *chaincfg.Params
 	dbDirPath   string
 	wallet      *wallet.Wallet
 	db          wallet.DB
-	mu          sync.Mutex
 
 	purchaseManager *ticketbuyer.PurchaseManager
 	ntfnClient      wallet.MainTipChangedNotificationsClient
+
 	stakeOptions    *StakeOptions
 	gapLimit        int
+	accountGapLimit int
 	allowHighFees   bool
 	relayFee        float64
-	//DcrTxClient     *dcrtxclient.Client
+
+	mu sync.Mutex
 }
 
 // StakeOptions contains the various options necessary for stake mining.
@@ -60,15 +62,16 @@ type StakeOptions struct {
 
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, gapLimit int,
-	allowHighFees bool, relayFee float64) *Loader {
+	allowHighFees bool, relayFee float64, accountGapLimit int) *Loader {
 
 	return &Loader{
-		chainParams:   chainParams,
-		dbDirPath:     dbDirPath,
-		stakeOptions:  stakeOptions,
-		gapLimit:      gapLimit,
-		allowHighFees: allowHighFees,
-		relayFee:      relayFee,
+		chainParams:     chainParams,
+		dbDirPath:       dbDirPath,
+		stakeOptions:    stakeOptions,
+		gapLimit:        gapLimit,
+		accountGapLimit: accountGapLimit,
+		allowHighFees:   allowHighFees,
+		relayFee:        relayFee,
 	}
 }
 
@@ -173,6 +176,7 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 		PoolFees:            so.PoolFees,
 		TicketFee:           so.TicketFee,
 		GapLimit:            l.gapLimit,
+		AccountGapLimit:     l.accountGapLimit,
 		StakePoolColdExtKey: so.StakePoolColdExtKey,
 		AllowHighFees:       l.allowHighFees,
 		RelayFee:            l.relayFee,
@@ -263,6 +267,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 		PoolFees:            so.PoolFees,
 		TicketFee:           so.TicketFee,
 		GapLimit:            l.gapLimit,
+		AccountGapLimit:     l.accountGapLimit,
 		StakePoolColdExtKey: so.StakePoolColdExtKey,
 		AllowHighFees:       l.allowHighFees,
 		RelayFee:            l.relayFee,
@@ -272,10 +277,6 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-
-	// set wallet's dcrtxclient
-	//w.SetDcrTxClient(l.DcrTxClient)
-
 	w.Start()
 
 	l.onLoaded(w, db)
@@ -324,6 +325,7 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 		PoolFees:            so.PoolFees,
 		TicketFee:           so.TicketFee,
 		GapLimit:            l.gapLimit,
+		AccountGapLimit:     l.accountGapLimit,
 		StakePoolColdExtKey: so.StakePoolColdExtKey,
 		AllowHighFees:       l.allowHighFees,
 		RelayFee:            l.relayFee,
@@ -334,12 +336,14 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 		return nil, errors.E(op, err)
 	}
 
-	// set wallet's dcrtxclient
-	//w.SetDcrTxClient(l.DcrTxClient)
-
 	w.Start()
 	l.onLoaded(w, db)
 	return w, nil
+}
+
+// DbDirPath returns the Loader's database directory path
+func (l *Loader) DbDirPath() string {
+	return l.dbDirPath
 }
 
 // WalletExists returns whether a file exists at the loader's database path.
@@ -369,7 +373,7 @@ func (l *Loader) LoadedWallet() (*wallet.Wallet, bool) {
 // CreateNewWallet or LoadExistingWallet.  The Loader may be reused if this
 // function returns without error.
 func (l *Loader) UnloadWallet() error {
-	const op errors.Op = "errors.UnloadWallet"
+	const op errors.Op = "loader.UnloadWallet"
 
 	defer l.mu.Unlock()
 	l.mu.Lock()
@@ -392,11 +396,20 @@ func (l *Loader) UnloadWallet() error {
 	return nil
 }
 
-// SetChainClient sets the chain server client.
-func (l *Loader) SetChainClient(chainClient *dcrrpcclient.Client) {
+// SetNetworkBackend associates the loader with a wallet network backend.
+func (l *Loader) SetNetworkBackend(n wallet.NetworkBackend) {
 	l.mu.Lock()
-	l.chainClient = chainClient
+	l.backend = n
 	l.mu.Unlock()
+}
+
+// NetworkBackend returns the associated wallet network backend, if any, and a
+// bool describing whether a non-nil network backend was set.
+func (l *Loader) NetworkBackend() (n wallet.NetworkBackend, ok bool) {
+	l.mu.Lock()
+	n = l.backend
+	l.mu.Unlock()
+	return n, n != nil
 }
 
 // StartTicketPurchase launches the ticketbuyer to start purchasing tickets.
@@ -415,12 +428,13 @@ func (l *Loader) StartTicketPurchase(passphrase []byte, ticketbuyerCfg *ticketbu
 		return errors.E(op, errors.Invalid, "wallet must be loaded")
 	}
 
-	if l.chainClient == nil {
+	c, err := chain.RPCClientFromBackend(l.backend)
+	if err != nil {
 		return errors.E(op, errors.Invalid, "dcrd RPC client must be loaded")
 	}
 
 	w := l.wallet
-	p, err := ticketbuyer.NewTicketPurchaser(ticketbuyerCfg, l.chainClient, w, l.chainParams)
+	p, err := ticketbuyer.NewTicketPurchaser(ticketbuyerCfg, c, w, l.chainParams)
 	if err != nil {
 		return errors.E(op, err)
 	}

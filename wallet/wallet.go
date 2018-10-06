@@ -16,20 +16,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/dcrec"
-
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrec/secp256k1"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/hdkeychain"
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrwallet/deployments"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/internal/walletdb"
 	"github.com/decred/dcrwallet/wallet/txauthor"
@@ -95,9 +96,8 @@ type Wallet struct {
 	subsidyCache       *blockchain.SubsidyCache
 
 	// Start up flags/settings
-	initiallyUnlocked bool
-	gapLimit          int
-	accountGapLimit   int
+	gapLimit        int
+	accountGapLimit int
 
 	networkBackend   NetworkBackend
 	networkBackendMu sync.Mutex
@@ -131,12 +131,6 @@ type Wallet struct {
 	holdUnlockRequests chan chan heldUnlock
 	lockState          chan bool
 	changePassphrase   chan changePassphraseRequest
-
-	// Information for reorganization handling.
-	reorganizingLock sync.Mutex
-	reorganizeToHash chainhash.Hash
-	sideChain        []sideChainBlock
-	reorganizing     bool
 
 	NtfnServer *NotificationServer
 
@@ -182,9 +176,6 @@ func (w *Wallet) FetchOutput(outPoint *wire.OutPoint) (*wire.TxOut, error) {
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		outTx, err := w.TxStore.Tx(txmgrNs, &outPoint.Hash)
-		if err != nil && errors.Is(errors.NotExist, err) {
-			return errors.E(op, errors.NotExist, errors.Errorf("missing tx %v", outPoint.Hash))
-		}
 		if err != nil {
 			return err
 		}
@@ -205,20 +196,6 @@ func (w *Wallet) SetDcrTxClient(dcrTxClient *dcrtxclient.Client) {
 
 func (w *Wallet) GetDcrTxClient() *dcrtxclient.Client {
 	return w.dcrTxClient
-}
-
-// StakeDifficulty is used to get the next block's stake difficulty.
-func (w *Wallet) StakeDifficulty() (dcrutil.Amount, error) {
-	const op errors.Op = "wallet.StakeDifficulty"
-	n, err := w.NetworkBackend()
-	if err != nil {
-		return 0, errors.E(op, err)
-	}
-	ticketPrice, err := n.StakeDifficulty(context.TODO())
-	if err != nil {
-		return 0, errors.E(op, err)
-	}
-	return ticketPrice, nil
 }
 
 // BalanceToMaintain is used to get the current balancetomaintain for the wallet.
@@ -249,7 +226,9 @@ func voteVersion(params *chaincfg.Params) uint32 {
 	switch params.Net {
 	case wire.MainNet:
 		return 5
-	case wire.TestNet2:
+	case 0x48e7a065: // TestNet2
+		return 6
+	case wire.TestNet3:
 		return 6
 	case wire.SimNet:
 		return 6
@@ -437,14 +416,6 @@ func (w *Wallet) PoolFees() float64 {
 	return w.poolFees
 }
 
-// SetInitiallyUnlocked sets whether or not the wallet is initially unlocked.
-// This allows the user to resync accounts, dictating some of the start up
-// syncing behaviour. It should only be called before the wallet RPC servers
-// are accessible. It is not safe for concurrent access.
-func (w *Wallet) SetInitiallyUnlocked(set bool) {
-	w.initiallyUnlocked = set
-}
-
 // Start starts the goroutines necessary to manage a wallet.
 func (w *Wallet) Start() {
 	w.quitMu.Lock()
@@ -542,10 +513,48 @@ func (w *Wallet) MainChainTip() (hash chainhash.Hash, height int32) {
 	return
 }
 
+// BlockInMainChain returns whether hash is a block hash of any block in the
+// wallet's main chain.  If the block is in the main chain, invalidated reports
+// whether a child block in the main chain stake invalidates the queried block.
+func (w *Wallet) BlockInMainChain(hash *chainhash.Hash) (haveBlock, invalidated bool, err error) {
+	const op errors.Op = "wallet.BlockInMainChain"
+	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		haveBlock, invalidated = w.TxStore.BlockInMainChain(dbtx, hash)
+		return nil
+	})
+	if err != nil {
+		return false, false, errors.E(op, err)
+	}
+	return haveBlock, invalidated, nil
+}
+
+// BlockHeader returns the block header for a block by it's identifying hash, if
+// it is recorded by the wallet.
+func (w *Wallet) BlockHeader(blockHash *chainhash.Hash) (*wire.BlockHeader, error) {
+	var header *wire.BlockHeader
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		var err error
+		header, err = w.TxStore.GetBlockHeader(dbtx, blockHash)
+		return err
+	})
+	return header, err
+}
+
+// CFilter returns the regular compact filter for a block.
+func (w *Wallet) CFilter(blockHash *chainhash.Hash) (*gcs.Filter, error) {
+	var f *gcs.Filter
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		var err error
+		f, err = w.TxStore.CFilter(dbtx, blockHash)
+		return err
+	})
+	return f, err
+}
+
 // loadActiveAddrs loads the consensus RPC server with active addresses for
 // transaction notifications.  For logging purposes, it returns the total number
 // of addresses loaded.
-func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, nb NetworkBackend) (uint64, error) {
+func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb NetworkBackend) (uint64, error) {
 	// loadBranchAddrs loads addresses for the branch with the child range [0,n].
 	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, n uint32, errs chan<- error) {
 		const step = 256
@@ -565,7 +574,7 @@ func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, nb NetworkBackend) (uint6
 					}
 					addrs = append(addrs, addr)
 				}
-				return nb.LoadTxFilter(context.TODO(), false, addrs, nil)
+				return nb.LoadTxFilter(ctx, false, addrs, nil)
 			})
 		}
 		errs <- g.Wait()
@@ -618,7 +627,7 @@ func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, nb NetworkBackend) (uint6
 			return
 		}
 		importedAddrCount = uint64(len(addrs))
-		errs <- nb.LoadTxFilter(context.TODO(), false, addrs, nil)
+		errs <- nb.LoadTxFilter(ctx, false, addrs, nil)
 	}()
 	for i := 0; i < cap(errs); i++ {
 		err := <-errs
@@ -632,14 +641,18 @@ func (w *Wallet) loadActiveAddrs(dbtx walletdb.ReadTx, nb NetworkBackend) (uint6
 
 // LoadActiveDataFilters loads filters for all active addresses and unspent
 // outpoints for this wallet.
-func (w *Wallet) LoadActiveDataFilters(n NetworkBackend) error {
+func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, reload bool) error {
 	const op errors.Op = "wallet.LoadActiveDataFilters"
 	log.Infof("Loading active addresses and unspent outputs...")
+
+	if reload {
+		n.LoadTxFilter(ctx, true, nil, nil)
+	}
 
 	var addrCount, utxoCount uint64
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
-		addrCount, err = w.loadActiveAddrs(dbtx, n)
+		addrCount, err = w.loadActiveAddrs(ctx, dbtx, n)
 		if err != nil {
 			return err
 		}
@@ -650,8 +663,7 @@ func (w *Wallet) LoadActiveDataFilters(n NetworkBackend) error {
 			return err
 		}
 		utxoCount = uint64(len(unspent))
-		err = n.LoadTxFilter(context.TODO(), false, nil, unspent)
-		return err
+		return n.LoadTxFilter(ctx, false, nil, unspent)
 	})
 	if err != nil {
 		return errors.E(op, err)
@@ -741,182 +753,365 @@ func (w *Wallet) CommittedTickets(tickets []*chainhash.Hash) ([]*chainhash.Hash,
 	return hashes, addresses, nil
 }
 
+// fetchMissingCFilters checks to see if there are any missing committed filters
+// then, if so requests them from the given peer.  The progress channel, if
+// non-nil, is sent the first height and last height of the range of filters
+// that were retrieved in that peer request.
+func (w *Wallet) fetchMissingCFilters(ctx context.Context, p Peer, progress chan<- MissingCFilterProgress) error {
+	var missing bool
+	var height int32
+
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		var err error
+		missing = w.TxStore.IsMissingMainChainCFilters(dbtx)
+		if missing {
+			height, err = w.TxStore.MissingCFiltersHeight(dbtx)
+		}
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if !missing {
+		return nil
+	}
+
+	const span = 2000
+	storage := make([]chainhash.Hash, span)
+	storagePtrs := make([]*chainhash.Hash, span)
+	for i := range storage {
+		storagePtrs[i] = &storage[i]
+	}
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		var hashes []chainhash.Hash
+		var get []*chainhash.Hash
+		var cont bool
+		err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+			ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+			var err error
+			missing = w.TxStore.IsMissingMainChainCFilters(dbtx)
+			if !missing {
+				return nil
+			}
+			hash, err := w.TxStore.GetMainChainBlockHashForHeight(ns, height)
+			if err != nil {
+				return err
+			}
+			_, err = w.TxStore.CFilter(dbtx, &hash)
+			if err == nil {
+				height += span
+				cont = true
+				return nil
+			}
+			storage = storage[:cap(storage)]
+			hashes, err = w.TxStore.GetMainChainBlockHashes(ns, &hash, true, storage)
+			if err != nil {
+				return err
+			}
+			if len(hashes) == 0 {
+				const op errors.Op = "udb.GetMainChainBlockHashes"
+				return errors.E(op, errors.Bug, "expected over 0 results")
+			}
+			get = storagePtrs[:len(hashes)]
+			if get[0] != &hashes[0] {
+				const op errors.Op = "udb.GetMainChainBlockHashes"
+				return errors.E(op, errors.Bug, "unexpected slice reallocation")
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		if !missing {
+			return nil
+		}
+		if cont {
+			continue
+		}
+
+		filters, err := p.GetCFilters(ctx, get)
+		if err != nil {
+			return err
+		}
+
+		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+			_, err := w.TxStore.CFilter(dbtx, get[len(get)-1])
+			if err == nil {
+				cont = true
+				return nil
+			}
+			return w.TxStore.InsertMissingCFilters(dbtx, get, filters)
+		})
+		if err != nil {
+			return err
+		}
+		if cont {
+			continue
+		}
+
+		if progress != nil {
+			progress <- MissingCFilterProgress{BlockHeightStart: height, BlockHeightEnd: height + span - 1}
+		}
+		log.Infof("Fetched cfilters for blocks %v-%v", height, height+span-1)
+	}
+}
+
+// FetchMissingCFilters records any missing compact filters for main chain
+// blocks.  A database upgrade requires all compact filters to be recorded for
+// the main chain before any more blocks may be attached, but this information
+// must be fetched at runtime after the upgrade as it is not already known at
+// the time of upgrade.
+func (w *Wallet) FetchMissingCFilters(ctx context.Context, p Peer) error {
+	const opf = "wallet.FetchMissingCFilters(%v)"
+
+	err := w.fetchMissingCFilters(ctx, p, nil)
+	if err != nil {
+		op := errors.Opf(opf, p)
+		return errors.E(op, err)
+	}
+	return nil
+}
+
+// MissingCFilterProgress records the first and last height of the progress
+// that was received and any errors that were received during the fetching.
+type MissingCFilterProgress struct {
+	Err              error
+	BlockHeightStart int32
+	BlockHeightEnd   int32
+}
+
+// FetchMissingCFiltersWithProgress records any missing compact filters for main chain
+// blocks.  A database upgrade requires all compact filters to be recorded for
+// the main chain before any more blocks may be attached, but this information
+// must be fetched at runtime after the upgrade as it is not already known at
+// the time of upgrade.  This function reports to a channel with any progress
+// that may have seen.
+func (w *Wallet) FetchMissingCFiltersWithProgress(ctx context.Context, p Peer, progress chan<- MissingCFilterProgress) {
+	const opf = "wallet.FetchMissingCFilters(%v)"
+
+	defer close(progress)
+
+	err := w.fetchMissingCFilters(ctx, p, progress)
+	if err != nil {
+		op := errors.Opf(opf, p)
+		progress <- MissingCFilterProgress{Err: errors.E(op, err)}
+	}
+}
+
 // createHeaderData creates the header data to process from hex-encoded
 // serialized block headers.
-func createHeaderData(headers [][]byte) ([]udb.BlockHeaderData, error) {
+func createHeaderData(headers []*wire.BlockHeader) ([]udb.BlockHeaderData, error) {
 	data := make([]udb.BlockHeaderData, len(headers))
-	var decodedHeader wire.BlockHeader
+	var buf bytes.Buffer
 	for i, header := range headers {
 		var headerData udb.BlockHeaderData
-		copy(headerData.SerializedHeader[:], header)
-		err := decodedHeader.Deserialize(bytes.NewReader(header))
+		headerData.BlockHash = header.BlockHash()
+		buf.Reset()
+		err := header.Serialize(&buf)
 		if err != nil {
 			return nil, err
 		}
-		headerData.BlockHash = decodedHeader.BlockHash()
+		copy(headerData.SerializedHeader[:], buf.Bytes())
 		data[i] = headerData
 	}
 	return data, nil
 }
 
-func (w *Wallet) fetchHeaders(n NetworkBackend) (int, error) {
-	fetchedHeaders := 0
+// log2 calculates an integer approximation of log2(x).  This is used to
+// approximate the cap to use when allocating memory for the block locators.
+func log2(x int) int {
+	res := 0
+	for x != 0 {
+		x /= 2
+		res++
+	}
+	return res
+}
 
-	var blockLocators []*chainhash.Hash
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
-		blockLocators = w.TxStore.BlockLocators(txmgrNs)
-		return nil
+// BlockLocators returns block locators, suitable for use in a getheaders wire
+// message or dcrd JSON-RPC request, for the blocks in sidechain and saved in
+// the wallet's main chain.  For memory and lookup efficiency, many older hashes
+// are skipped, with increasing gaps between included hashes.
+//
+// When sidechain has zero length, locators for only main chain blocks starting
+// from the tip are returned.  Otherwise, locators are created starting with the
+// best (last) block of sidechain and sidechain[0] must be a child of a main
+// chain block (sidechain may not contain orphan blocks).
+func (w *Wallet) BlockLocators(sidechain []*BlockNode) ([]*chainhash.Hash, error) {
+	const op errors.Op = "wallet.BlockLocators"
+	var locators []*chainhash.Hash
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		var err error
+		locators, err = w.blockLocators(dbtx, sidechain)
+		return err
 	})
 	if err != nil {
-		return 0, err
+		return nil, errors.E(op, err)
+	}
+	return locators, nil
+}
+
+func (w *Wallet) blockLocators(dbtx walletdb.ReadTx, sidechain []*BlockNode) ([]*chainhash.Hash, error) {
+	ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+	var hash chainhash.Hash
+	var height int32
+	if len(sidechain) == 0 {
+		hash, height = w.TxStore.MainChainTip(ns)
+	} else {
+		n := sidechain[len(sidechain)-1]
+		hash = *n.Hash
+		height = int32(n.Header.Height)
+	}
+
+	locators := make([]*chainhash.Hash, 1, 10+log2(int(height)))
+	locators[0] = &hash
+
+	var step int32 = 1
+	for height >= 0 {
+		if len(sidechain) > 0 && height-int32(sidechain[0].Header.Height) >= 0 {
+			n := sidechain[height-int32(sidechain[0].Header.Height)]
+			hash := n.Hash
+			locators = append(locators, hash)
+		} else {
+			hash, err := w.TxStore.GetMainChainBlockHashForHeight(ns, height)
+			if err != nil {
+				return nil, err
+			}
+			locators = append(locators, &hash)
+		}
+
+		height -= step
+
+		if len(locators) > 10 {
+			step *= 2
+		}
+	}
+
+	return locators, nil
+}
+
+func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstNew chainhash.Hash, err error) {
+	var blockLocators []*chainhash.Hash
+	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		var err error
+		blockLocators, err = w.blockLocators(dbtx, nil)
+		return err
+	})
+	if err != nil {
+		return firstNew, err
 	}
 
 	// Fetch and process headers until no more are returned.
 	hashStop := chainhash.Hash{}
 	for {
-		headers, err := n.GetHeaders(context.TODO(), blockLocators, &hashStop)
+		var chainBuilder SidechainForest
+
+		headers, err := p.GetHeaders(ctx, blockLocators, &hashStop)
 		if err != nil {
-			return 0, err
+			return firstNew, err
+		}
+		headerHashes := make([]*chainhash.Hash, 0, len(headers))
+		for _, h := range headers {
+			hash := h.BlockHash()
+			headerHashes = append(headerHashes, &hash)
+		}
+		filters, err := p.GetCFilters(ctx, headerHashes)
+		if err != nil {
+			return firstNew, err
 		}
 
 		if len(headers) == 0 {
-			return fetchedHeaders, nil
+			return firstNew, err
+		}
+
+		for i := range headers {
+			chainBuilder.AddBlockNode(NewBlockNode(headers[i], headerHashes[i], filters[i]))
 		}
 
 		headerData, err := createHeaderData(headers)
 		if err != nil {
-			return 0, err
+			return firstNew, err
 		}
+		log.Debugf("First header: block %v", &headerData[0].BlockHash)
 
-		err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-			addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-			txmgrNs := tx.ReadWriteBucket(wtxmgrNamespaceKey)
-			err := w.TxStore.InsertMainChainHeaders(txmgrNs, addrmgrNs,
-				headerData)
+		var brk bool
+		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+			ns := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
+			addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
+			chain, err := w.EvaluateBestChain(&chainBuilder)
 			if err != nil {
 				return err
 			}
-			blockLocators = w.TxStore.BlockLocators(txmgrNs)
-			return nil
-		})
-		if err != nil {
-			return 0, err
-		}
+			if len(chain) == 0 {
+				brk = true
+				return nil
+			}
+			_, err = w.validateHeaderChainDifficulties(dbtx, chain, 0)
+			if err != nil {
+				return err
+			}
 
-		fetchedHeaders += len(headers)
+			if firstNew == (chainhash.Hash{}) {
+				firstNew = *chain[0].Hash
+				tip, _ := w.TxStore.MainChainTip(ns)
+				if chain[0].Header.PrevBlock != tip {
+					err := w.TxStore.Rollback(ns, addrmgrNs, int32(chain[0].Header.Height))
+					if err != nil {
+						return err
+					}
+				}
+			}
+			for _, n := range chain {
+				err = w.extendMainChain("", dbtx, n.Header, n.Filter, nil)
+				if err != nil {
+					return err
+				}
+			}
+			blockLocators, err = w.blockLocators(dbtx, nil)
+			return err
+		})
+		if brk || err != nil {
+			return firstNew, err
+		}
+		log.Infof("Fetched %v header(s) from %s", len(headers), p)
 	}
 }
 
-// FetchHeaders fetches headers from the consensus RPC server and updates the
-// main chain tip with the latest block.  The number of new headers fetched is
-// returned, along with the hash of the first previously-unseen block hash now
-// in the main chain.  This is the block a rescan should begin at (inclusive),
-// and is only relevant when the number of fetched headers is not zero.
-func (w *Wallet) FetchHeaders(n NetworkBackend) (count int, rescanFrom chainhash.Hash, rescanFromHeight int32, mainChainTipBlockHash chainhash.Hash, mainChainTipBlockHeight int32, err error) {
+// FetchHeaders fetches headers from a Peer and updates the main chain tip with
+// the latest block.  The number of new headers fetched is returned, along with
+// the hash of the first previously-unseen block hash now in the main chain.
+// This is the block a rescan should begin at (inclusive), and is only relevant
+// when the number of fetched headers is not zero.
+func (w *Wallet) FetchHeaders(ctx context.Context, p Peer) (count int, rescanFrom chainhash.Hash, rescanFromHeight int32, mainChainTipBlockHash chainhash.Hash, mainChainTipBlockHeight int32, err error) {
 	const op errors.Op = "wallet.FetchHeaders"
-	// Unfortunately, getheaders is broken and needs a workaround when wallet's
-	// previous main chain is now a side chain.  Until this is fixed, do what
-	// wallet had previously been doing by querying blocks on its main chain, in
-	// reverse order, stopping at the first block that is found and that exists
-	// on the actual main chain.
-	//
-	// See https://github.com/decred/dcrd/issues/427 for details.  This hack
-	// should be dumped once fixed.
-	var (
-		commonAncestor       chainhash.Hash
-		commonAncestorHeight int32
-	)
-	err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadWriteBucket(wtxmgrNamespaceKey)
 
-		commonAncestor, commonAncestorHeight = w.TxStore.MainChainTip(txmgrNs)
-		hash, height := commonAncestor, commonAncestorHeight
+	rescanFrom, err = w.fetchHeaders(ctx, op, p)
+	if err != nil {
+		err = errors.E(op, err)
+		return
+	}
 
-		for height != 0 {
-			mainChainHash, err := n.GetBlockHash(context.TODO(), height)
-			if err == nil && hash == *mainChainHash {
-				// found it
-				break
-			}
+	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-			height--
-			hash, err = w.TxStore.GetMainChainBlockHashForHeight(txmgrNs, height)
+		mainChainTipBlockHash, mainChainTipBlockHeight = w.TxStore.MainChainTip(ns)
+		if rescanFrom != (chainhash.Hash{}) {
+			firstHeader, err := w.TxStore.GetBlockHeader(dbtx, &rescanFrom)
 			if err != nil {
 				return err
 			}
+			rescanFromHeight = int32(firstHeader.Height)
+			count = int(mainChainTipBlockHeight - rescanFromHeight + 1)
 		}
-
-		// No rollback necessary when already on the main chain.
-		if height == commonAncestorHeight {
-			return nil
-		}
-
-		// Remove blocks after the side chain fork point.  Block locators should
-		// now begin here, avoiding any issues with calling getheaders with
-		// side chain hashes.
-		return w.TxStore.Rollback(txmgrNs, addrmgrNs, height+1)
+		return nil
 	})
 	if err != nil {
 		err = errors.E(op, err)
-		return
 	}
-
-	log.Infof("Fetching headers")
-	fetchedHeaderCount, err := w.fetchHeaders(n)
-	if err != nil {
-		err = errors.E(op, err)
-		return
-	}
-	log.Infof("Fetched %v new header(s)", fetchedHeaderCount)
-
-	var rescanStart chainhash.Hash
-	var rescanStartHeight int32
-
-	if fetchedHeaderCount != 0 {
-		// Find the common ancestor of the previous tip before fetching headers,
-		// and the new main chain.  Headers are never pruned so the parents can
-		// be iterated in reverse until the common ancestor is found.  This is
-		// the starting point for the rescan.
-		err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
-			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-			for {
-				hash, err := w.TxStore.GetMainChainBlockHashForHeight(
-					txmgrNs, commonAncestorHeight)
-				if err != nil {
-					return err
-				}
-				if commonAncestor == hash {
-					break
-				}
-				header, err := w.TxStore.GetSerializedBlockHeader(
-					txmgrNs, &commonAncestor)
-				if err != nil {
-					return err
-				}
-				copy(commonAncestor[:], udb.ExtractBlockHeaderParentHash(header))
-				commonAncestorHeight--
-			}
-			mainChainTipBlockHash, mainChainTipBlockHeight = w.TxStore.MainChainTip(txmgrNs)
-
-			rescanStartHeight = commonAncestorHeight + 1
-			rescanStart, err = w.TxStore.GetMainChainBlockHashForHeight(
-				txmgrNs, rescanStartHeight)
-			return err
-		})
-		if err != nil {
-			err = errors.E(op, err)
-			return
-		}
-	} else {
-		// fetchedHeaderCount is 0 so the current mainChainTip is the commonAncestor
-		mainChainTipBlockHash = commonAncestor
-		mainChainTipBlockHeight = commonAncestorHeight
-	}
-
-	return fetchedHeaderCount, rescanStart, rescanStartHeight, mainChainTipBlockHash,
-		mainChainTipBlockHeight, nil
+	return
 }
 
 type (
@@ -1579,8 +1774,6 @@ func (w *Wallet) RenameAccount(account uint32, newName string) error {
 	return nil
 }
 
-const maxEmptyAccounts = 100
-
 // NextAccount creates the next account and returns its account number.  The
 // name must be unique to the account.  In order to support automatic seed
 // restoring, new accounts may not be created when all of the previous 100
@@ -1588,6 +1781,7 @@ const maxEmptyAccounts = 100
 // spec, which allows no unused account gaps).
 func (w *Wallet) NextAccount(name string) (uint32, error) {
 	const op errors.Op = "wallet.NextAccount"
+	maxEmptyAccounts := uint32(w.accountGapLimit)
 	var account uint32
 	var props *udb.AccountProperties
 	var xpub *hdkeychain.ExtendedKey
@@ -1707,6 +1901,36 @@ func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 	return extKey, nil
 }
 
+// GetTransactionsByHashes returns all known transactions identified by a slice
+// of transaction hashes.  It is possible that not all transactions are found,
+// and in this case the known results will be returned along with an inventory
+// vector of all missing transactions and an error with code
+// NotExist.
+func (w *Wallet) GetTransactionsByHashes(txHashes []*chainhash.Hash) (txs []*wire.MsgTx, notFound []*wire.InvVect, err error) {
+	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		for _, hash := range txHashes {
+			tx, err := w.TxStore.Tx(ns, hash)
+			if err != nil {
+				return err
+			}
+			if tx == nil {
+				notFound = append(notFound, wire.NewInvVect(wire.InvTypeTx, hash))
+			} else {
+				txs = append(txs, tx)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return
+	}
+	if len(notFound) != 0 {
+		err = errors.E(errors.NotExist, "transaction(s) not found")
+	}
+	return
+}
+
 // CreditCategory describes the type of wallet transaction output.  The category
 // of "sent transactions" (debits) is always "send", and is not expressed by
 // this type.
@@ -1745,8 +1969,7 @@ func (c CreditCategory) String() string {
 // this package at a later time.
 func RecvCategory(details *udb.TxDetails, syncHeight int32, chainParams *chaincfg.Params) CreditCategory {
 	if blockchain.IsCoinBaseTx(&details.MsgTx) {
-		if confirmed(int32(chainParams.CoinbaseMaturity), details.Block.Height,
-			syncHeight) {
+		if coinbaseMatured(chainParams, details.Block.Height, syncHeight) {
 			return CreditGenerate
 		}
 		return CreditImmature
@@ -1969,10 +2192,8 @@ func (w *Wallet) ListTransactions(from, count int) ([]dcrjson.ListTransactionsRe
 	}
 
 	// reverse the list so that it is sorted from old to new.
-	for i, j := 0, len(txList)-1; i < j; {
+	for i, j := 0, len(txList)-1; i < j; i, j = i+1, j-1 {
 		txList[i], txList[j] = txList[j], txList[i]
-		i++
-		j--
 	}
 	return txList, nil
 }
@@ -2068,10 +2289,8 @@ func (w *Wallet) ListAllTransactions() ([]dcrjson.ListTransactionsResult, error)
 	}
 
 	// reverse the list so that it is sorted from old to new.
-	for i, j := 0, len(txList)-1; i < j; {
+	for i, j := 0, len(txList)-1; i < j; i, j = i+1, j-1 {
 		txList[i], txList[j] = txList[j], txList[i]
-		i++
-		j--
 	}
 	return txList, nil
 }
@@ -2177,7 +2396,7 @@ func (w *Wallet) BlockInfo(blockID *BlockIdentifier) (*BlockInfo, error) {
 // TransactionSummary returns details about a recorded transaction that is
 // relevant to the wallet in some way.
 func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (txSummary *TransactionSummary, confs int32, blockHash *chainhash.Hash, err error) {
-	const op errors.Op = "wallet.TransactionSummary"
+	const opf = "wallet.TransactionSummary(%v)"
 	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(ns)
@@ -2194,6 +2413,7 @@ func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (txSummary *Transact
 		return nil
 	})
 	if err != nil {
+		op := errors.Opf(opf, txHash)
 		return nil, 0, nil, errors.E(op, err)
 	}
 	return txSummary, confs, blockHash, nil
@@ -2204,7 +2424,7 @@ type GetTicketsResult struct {
 	Tickets []*TicketSummary
 }
 
-// GetTickets calls function f for all tickets located in between the
+// GetTicketsPrecise calls function f for all tickets located in between the
 // given startBlock and endBlock.  TicketSummary includes TransactionSummmary
 // for the ticket and the spender (if already spent) and the ticket's current
 // status. The function f also receives block header of the ticket. All
@@ -2217,8 +2437,14 @@ type GetTicketsResult struct {
 // early without reading any additional transactions when true.
 //
 // The arguments to f may be reused and should not be kept by the caller.
-func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
-	const op errors.Op = "wallet.GetTickets"
+//
+// The argument chainClient is always expected to be not nil in this case,
+// otherwise one should use the alternative GetTickets instead.  With
+// the ability to use the rpc chain client, this function is able to determine
+// whether tickets have been missed or not.  Otherwise, tickets are just known
+// to be unspent (possibly live or missed).
+func (w *Wallet) GetTicketsPrecise(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
+	const op errors.Op = "wallet.GetTicketsPrecise"
 	var start, end int32 = 0, -1
 
 	if startBlock != nil {
@@ -2307,7 +2533,118 @@ func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, e
 		return w.TxStore.RangeTransactions(txmgrNs, start, end, rangeFn)
 	})
 	if err != nil {
-		errors.E(op, err)
+		return errors.E(op, err)
+	}
+	return nil
+}
+
+// GetTickets calls function f for all tickets located in between the
+// given startBlock and endBlock.  TicketSummary includes TransactionSummmary
+// for the ticket and the spender (if already spent) and the ticket's current
+// status. The function f also receives block header of the ticket. All
+// tickets on a given call belong to the same block and at least one ticket
+// is present when f is called. If the ticket is unmined, the block header will
+// be nil.
+//
+// The function f may return an error which, if non-nil, is propagated to the
+// caller.  Additionally, a boolean return value allows exiting the function
+// early without reading any additional transactions when true.
+//
+// The arguments to f may be reused and should not be kept by the caller.
+//
+// Because this function does not have any chain client argument, tickets are
+// unable to be determined whether or not they have been missed, simply unspent.
+func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), startBlock, endBlock *BlockIdentifier) error {
+	const op errors.Op = "wallet.GetTickets"
+	var start, end int32 = 0, -1
+
+	if startBlock != nil {
+		if startBlock.hash == nil {
+			start = startBlock.height
+		} else {
+			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, startBlock.hash)
+				if err != nil {
+					return err
+				}
+				var startHeader wire.BlockHeader
+				err = startHeader.Deserialize(bytes.NewReader(serHeader))
+				if err != nil {
+					return err
+				}
+				start = int32(startHeader.Height)
+				return nil
+			})
+			if err != nil {
+				return errors.E(op, err)
+			}
+		}
+	}
+	if endBlock != nil {
+		if endBlock.hash == nil {
+			end = endBlock.height
+		} else {
+			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, endBlock.hash)
+				if err != nil {
+					return err
+				}
+				var endHeader wire.BlockHeader
+				err = endHeader.Deserialize(bytes.NewReader(serHeader))
+				if err != nil {
+					return err
+				}
+				end = int32(endHeader.Height)
+				return nil
+			})
+			if err != nil {
+				return errors.E(op, err)
+			}
+		}
+	}
+
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		header := &wire.BlockHeader{}
+
+		rangeFn := func(details []udb.TxDetails) (bool, error) {
+			tickets := make([]*TicketSummary, 0, len(details))
+
+			for i := range details {
+				// XXX Here is where I would look up the ticket information from the db so I can populate spenderhash and ticket status
+				ticketInfo, err := w.TxStore.TicketDetails(txmgrNs, &details[i])
+				if err != nil {
+					return false, errors.Errorf("%v while trying to get ticket details for txhash: %v", err, &details[i].Hash)
+				}
+				// Continue if not a ticket
+				if ticketInfo == nil {
+					continue
+				}
+				tickets = append(tickets, makeTicketSummary(nil, dbtx, w, ticketInfo))
+			}
+
+			if len(tickets) == 0 {
+				return false, nil
+			}
+
+			if details[0].Block.Height == -1 {
+				return f(tickets, nil)
+			}
+
+			headerBytes, err := w.TxStore.GetSerializedBlockHeader(txmgrNs, &details[0].Block.Hash)
+			if err != nil {
+				return false, err
+			}
+			header.FromBytes(headerBytes)
+			return f(tickets, header)
+		}
+
+		return w.TxStore.RangeTransactions(txmgrNs, start, end, rangeFn)
+	})
+	if err != nil {
+		return errors.E(op, err)
 	}
 	return nil
 }
@@ -2585,7 +2922,7 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 
 			details, err := w.TxStore.TxDetails(txmgrNs, &output.Hash)
 			if err != nil {
-				return errors.Errorf("Couldn't get credit details")
+				return err
 			}
 
 			// Outputs with fewer confirmations than the minimum or more
@@ -2597,8 +2934,7 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 
 			// Only mature coinbase outputs are included.
 			if output.FromCoinBase {
-				target := int32(w.ChainParams().CoinbaseMaturity)
-				if !confirmed(target, output.Height, tipHeight) {
+				if !coinbaseMatured(w.chainParams, output.Height, tipHeight) {
 					continue
 				}
 			}
@@ -2606,36 +2942,29 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 			switch details.TxRecord.TxType {
 			case stake.TxTypeSStx:
 				// Ticket commitment, only spendable after ticket maturity.
-				// You can only spent it after TM many blocks has gone past, so
-				// ticket maturity + 1??? Check this DECRED TODO
 				if output.Index == 0 {
-					if !confirmed(int32(w.chainParams.TicketMaturity+1),
-						details.Height(), tipHeight) {
+					if !ticketMatured(w.chainParams, details.Height(), tipHeight) {
 						continue
 					}
 				}
 				// Change outputs.
 				if (output.Index > 0) && (output.Index%2 == 0) {
-					if !confirmed(int32(w.chainParams.SStxChangeMaturity),
-						details.Height(), tipHeight) {
+					if !ticketChangeMatured(w.chainParams, details.Height(), tipHeight) {
 						continue
 					}
 				}
 			case stake.TxTypeSSGen:
 				// All non-OP_RETURN outputs for SSGen tx are only spendable
 				// after coinbase maturity many blocks.
-				if !confirmed(int32(w.chainParams.CoinbaseMaturity),
-					details.Height(), tipHeight) {
+				if !coinbaseMatured(w.chainParams, details.Height(), tipHeight) {
 					continue
 				}
 			case stake.TxTypeSSRtx:
 				// All outputs for SSRtx tx are only spendable
 				// after coinbase maturity many blocks.
-				if !confirmed(int32(w.chainParams.CoinbaseMaturity),
-					details.Height(), tipHeight) {
+				if !coinbaseMatured(w.chainParams, details.Height(), tipHeight) {
 					continue
 				}
-
 			}
 
 			// Exclude locked outputs from the result set.
@@ -2879,20 +3208,24 @@ func (w *Wallet) RedeemScriptCopy(addr dcrutil.Address) ([]byte, error) {
 	return scriptCopy, nil
 }
 
-// StakeInfoData is a struct containing the data that would be returned from
-// a StakeInfo request to the wallet.
+// StakeInfoData carries counts of ticket states and other various stake data.
 type StakeInfoData struct {
-	BlockHeight   int64
+	BlockHeight  int64
+	TotalSubsidy dcrutil.Amount
+	Sdiff        dcrutil.Amount
+
+	OwnMempoolTix  uint32
+	Unspent        uint32
+	Voted          uint32
+	Revoked        uint32
+	UnspentExpired uint32
+
 	PoolSize      uint32
 	AllMempoolTix uint32
-	OwnMempoolTix uint32
 	Immature      uint32
 	Live          uint32
-	Voted         uint32
 	Missed        uint32
-	Revoked       uint32
 	Expired       uint32
-	TotalSubsidy  dcrutil.Amount
 }
 
 func isTicketPurchase(tx *wire.MsgTx) bool {
@@ -2924,43 +3257,28 @@ func (w *Wallet) hasVotingAuthority(addrmgrNs walletdb.ReadBucket, ticketPurchas
 	return false, nil
 }
 
-// StakeInfo collects and returns staking statistics for this wallet to the end
-// user. This includes:
-//
-//     PoolSize         uint32   Number of live tickets in the ticket pool
-//     AllMempoolTix    uint32   Number of tickets currently in the mempool
-//     OwnMempoolTix    uint32   Number of tickets in mempool that are from
-//                                 this wallet
-//     Immature         uint32   Number of tickets from this wallet that are in
-//                                 the blockchain but which are not yet mature
-//     Live             uint32   Number of mature, active tickets owned by this
-//                                 wallet
-//     Voted            uint32   Number of votes cast by this wallet
-//     Missed           uint32   Number of missed tickets (failing to vote)
-//     Expired          uint32   Number of expired tickets
-//     Revoked          uint32   Number of missed tickets that were missed and
-//                                 then revoked
-//     TotalSubsidy     int64    Total amount of coins earned by stake mining
-//
-// Getting this information is extremely costly as in involves a massive
-// number of chain server calls.
-func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, error) {
+// StakeInfo collects and returns staking statistics for this wallet.
+func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 	const op errors.Op = "wallet.StakeInfo"
-	// This is only needed for the total count and can be optimized.
-	mempoolTicketsFuture := chainClient.GetRawMempoolAsync(dcrjson.GRMTickets)
 
-	res := &StakeInfoData{}
-
-	// Wallet does not yet know if/when a ticket was selected.  Keep track of
-	// all tickets that are either live, expired, or missed and determine their
-	// states later by querying the consensus RPC server.
-	var liveOrExpiredOrMissed []*chainhash.Hash
+	var res StakeInfoData
 
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		tipHash, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 		res.BlockHeight = int64(tipHeight)
+		if deployments.DCP0001.Active(tipHeight, w.chainParams) {
+			tipHeader, err := w.TxStore.GetBlockHeader(dbtx, &tipHash)
+			if err != nil {
+				return err
+			}
+			sdiff, err := w.nextRequiredDCP0001PoSDifficulty(dbtx, tipHeader, nil)
+			if err != nil {
+				return err
+			}
+			res.Sdiff = sdiff
+		}
 		it := w.TxStore.IterateTickets(dbtx)
 		for it.Next() {
 			// Skip tickets which are not owned by this wallet.
@@ -2979,8 +3297,7 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 			}
 
 			// Check for immature tickets
-			if !confirmed(int32(w.chainParams.TicketMaturity)+1,
-				it.Block.Height, tipHeight) {
+			if !ticketMatured(w.chainParams, it.Block.Height, tipHeight) {
 				res.Immature++
 				continue
 			}
@@ -2993,8 +3310,105 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 				if err != nil {
 					return err
 				}
-				if spender == nil {
-					return errors.E(errors.IO, errors.Errorf("missing ticket spender %v", &it.SpenderHash))
+				switch {
+				case isVote(spender):
+					res.Voted++
+
+					// Add the subsidy.
+					//
+					// This is not the actual subsidy that was earned by this
+					// wallet, but rather the stakebase sum.  If a user uses a
+					// stakepool for voting, this value will include the total
+					// subsidy earned by both the user and the pool together.
+					// Similarily, for stakepool wallets, this includes the
+					// customer's subsidy rather than being just the subsidy
+					// earned by fees.
+					res.TotalSubsidy += dcrutil.Amount(spender.TxIn[0].ValueIn)
+
+				case isRevocation(spender):
+					res.Revoked++
+
+				default:
+					return errors.E(errors.IO, errors.Errorf("ticket spender %v is neither vote nor revocation", &it.SpenderHash))
+				}
+				continue
+			}
+
+			// Ticket is matured but unspent.  Possible states are that the
+			// ticket is live, expired, or missed.
+			res.Unspent++
+			if ticketExpired(w.chainParams, it.Block.Height, tipHeight) {
+				res.UnspentExpired++
+			}
+		}
+		return it.Err()
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return &res, nil
+}
+
+// StakeInfoPrecise collects and returns staking statistics for this wallet.  It
+// uses RPC to query futher information than StakeInfo.
+func (w *Wallet) StakeInfoPrecise(chainClient *dcrrpcclient.Client) (*StakeInfoData, error) {
+	const op errors.Op = "wallet.StakeInfoPrecise"
+	// This is only needed for the total count and can be optimized.
+	mempoolTicketsFuture := chainClient.GetRawMempoolAsync(dcrjson.GRMTickets)
+
+	res := &StakeInfoData{}
+
+	// Wallet does not yet know if/when a ticket was selected.  Keep track of
+	// all tickets that are either live, expired, or missed and determine their
+	// states later by querying the consensus RPC server.
+	var liveOrExpiredOrMissed []*chainhash.Hash
+
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		tipHash, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+		res.BlockHeight = int64(tipHeight)
+		if deployments.DCP0001.Active(tipHeight, w.chainParams) {
+			tipHeader, err := w.TxStore.GetBlockHeader(dbtx, &tipHash)
+			if err != nil {
+				return err
+			}
+			sdiff, err := w.nextRequiredDCP0001PoSDifficulty(dbtx, tipHeader, nil)
+			if err != nil {
+				return err
+			}
+			res.Sdiff = sdiff
+		}
+		it := w.TxStore.IterateTickets(dbtx)
+		for it.Next() {
+			// Skip tickets which are not owned by this wallet.
+			owned, err := w.hasVotingAuthority(addrmgrNs, &it.MsgTx)
+			if err != nil {
+				return err
+			}
+			if !owned {
+				continue
+			}
+
+			// Check for tickets in mempool
+			if it.Block.Height == -1 {
+				res.OwnMempoolTix++
+				continue
+			}
+
+			// Check for immature tickets
+			if !ticketMatured(w.chainParams, it.Block.Height, tipHeight) {
+				res.Immature++
+				continue
+			}
+
+			// If the ticket was spent, look up the spending tx and determine if
+			// it is a vote or revocation.  If it is a vote, add the earned
+			// subsidy.
+			if it.SpenderHash != (chainhash.Hash{}) {
+				spender, err := w.TxStore.Tx(txmgrNs, &it.SpenderHash)
+				if err != nil {
+					return err
 				}
 				switch {
 				case isVote(spender):
@@ -3028,6 +3442,10 @@ func (w *Wallet) StakeInfo(chainClient *dcrrpcclient.Client) (*StakeInfoData, er
 
 			// Ticket is matured but unspent.  Possible states are that the
 			// ticket is live, expired, or missed.
+			res.Unspent++
+			if ticketExpired(w.chainParams, it.Block.Height, tipHeight) {
+				res.UnspentExpired++
+			}
 			ticketHash := it.Hash
 			liveOrExpiredOrMissed = append(liveOrExpiredOrMissed, &ticketHash)
 		}
@@ -3196,6 +3614,35 @@ func confirms(txHeight, curHeight int32) int32 {
 	default:
 		return curHeight - txHeight + 1
 	}
+}
+
+// coinbaseMatured returns whether a transaction mined at txHeight has
+// reached coinbase maturity in a chain with tip height curHeight.
+func coinbaseMatured(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	return txHeight >= 0 && curHeight-txHeight+1 > int32(params.CoinbaseMaturity)
+}
+
+// ticketChangeMatured returns whether a ticket change mined at
+// txHeight has reached ticket maturity in a chain with a tip height
+// curHeight.
+func ticketChangeMatured(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	return txHeight >= 0 && curHeight-txHeight+1 > int32(params.SStxChangeMaturity)
+}
+
+// ticketMatured returns whether a ticket mined at txHeight has
+// reached ticket maturity in a chain with a tip height curHeight.
+func ticketMatured(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	// dcrd has an off-by-one in the calculation of the ticket
+	// maturity, which results in maturity being one block higher
+	// than the params would indicate.
+	return txHeight >= 0 && curHeight-txHeight > int32(params.TicketMaturity)
+}
+
+// ticketExpired returns whether a ticket mined at txHeight has
+// reached ticket expiry in a chain with a tip height curHeight.
+func ticketExpired(params *chaincfg.Params, txHeight, curHeight int32) bool {
+	// Ticket maturity off-by-one extends to the expiry depth as well.
+	return txHeight >= 0 && curHeight-txHeight > int32(params.TicketMaturity)+int32(params.TicketExpiry)
 }
 
 // AccountTotalReceivedResult is a single result for the
@@ -3405,13 +3852,10 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 				prevHash := &txIn.PreviousOutPoint.Hash
 				prevIndex := txIn.PreviousOutPoint.Index
 				txDetails, err := w.TxStore.TxDetails(txmgrNs, prevHash)
-				if err != nil {
-					return errors.Errorf("Cannot query previous transaction "+
-						"details for %v: %v", txIn.PreviousOutPoint, err)
-				}
-				if txDetails == nil {
-					return errors.Errorf("%v not found",
-						txIn.PreviousOutPoint)
+				if errors.Is(errors.NotExist, err) {
+					return errors.Errorf("%v not found", &txIn.PreviousOutPoint)
+				} else if err != nil {
+					return err
 				}
 				prevOutScript = txDetails.MsgTx.TxOut[prevIndex].PkScript
 			}
@@ -3625,11 +4069,45 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 	return false
 }
 
+// PurgeUnminedTransaction removes a transaction, identified by its hash, from
+// the wallet if present.  All transaction spend chains deriving from the
+// transaction's outputs are also removed.  Does not error if the transaction
+// doesn't already exist unmined, but will if the transaction is marked mined in
+// a block on the main chain.
+//
+// Purged transactions may have already been published to the network and may
+// still appear in future blocks, and new transactions spending the same inputs
+// as purged transations may be rejected by full nodes due to being double
+// spends.  In turn, this can cause the purged transaction to be mined later and
+// replace other transactions authored by the wallet.
+func (w *Wallet) PurgeUnminedTransaction(hash *chainhash.Hash) error {
+	const opf = "wallet.PurgeUnminedTransaction(%v)"
+	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		ns := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
+		details, err := w.TxStore.TxDetails(ns, hash)
+		if err != nil {
+			return err
+		}
+		if details.Block.Height != -1 {
+			return errors.E(errors.Invalid, errors.Errorf("transaction %v is mined in main chain", hash))
+		}
+		return w.TxStore.RemoveUnconfirmed(ns, &details.MsgTx, hash)
+	})
+	if err != nil {
+		op := errors.Opf(opf, hash)
+		return errors.E(op, err)
+	}
+	return nil
+}
+
 // PublishTransaction saves (if relevant) and sends the transaction to the
 // consensus RPC server so it can be propagated to other nodes and eventually
 // mined.  If the send fails, the transaction is not added to the wallet.
 func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, n NetworkBackend) (*chainhash.Hash, error) {
-	const op errors.Op = "wallet.PublishTransaction"
+	const opf = "wallet.PublishTransaction(%v)"
+
+	txHash := tx.TxHash()
+
 	var relevant bool
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		relevant = w.isRelevantTx(dbtx, tx)
@@ -3650,61 +4128,49 @@ func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, n Netwo
 		return nil
 	})
 	if err != nil {
+		op := errors.Opf(opf, &txHash)
 		return nil, errors.E(op, err)
 	}
 
-	if !relevant {
-		err := n.PublishTransaction(context.TODO(), tx)
+	if relevant {
+		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+			rec, err := udb.NewTxRecord(serializedTx, time.Now())
+			if err != nil {
+				return err
+			}
+			return w.processTransactionRecord(dbtx, rec, nil, nil)
+		})
 		if err != nil {
-			return nil, err
+			op := errors.Opf(opf, &txHash)
+			return nil, errors.E(op, err)
 		}
-		txHash := tx.TxHash()
-		return &txHash, nil
 	}
 
-	var txHash *chainhash.Hash
-	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-		rec, err := udb.NewTxRecord(serializedTx, time.Now())
-		if err != nil {
-			return err
-		}
-		err = w.processTransaction(dbtx, rec, nil, nil)
-		if err != nil {
-			return err
-		}
-		err = n.PublishTransaction(context.TODO(), tx)
-		if err != nil {
-			return err
-		}
-		h := tx.TxHash()
-		txHash = &h
-		return nil
-	})
+	err = n.PublishTransactions(context.TODO(), tx)
 	if err != nil {
+		if relevant {
+			if err := w.PurgeUnminedTransaction(&txHash); err != nil {
+				log.Warnf("Failed to purge added unmined transaction: %v", err)
+			}
+		}
+		op := errors.Opf(opf, &txHash)
 		return nil, errors.E(op, err)
 	}
-	return txHash, nil
+	return &txHash, nil
 }
 
 // PublishUnminedTransactions rebroadcasts all unmined transactions
 // to the consensus RPC server so it can be propagated to other nodes
 // and eventually mined.
-func (w *Wallet) PublishUnminedTransactions(ctx context.Context, backend NetworkBackend) error {
+func (w *Wallet) PublishUnminedTransactions(ctx context.Context, p Peer) error {
 	const op errors.Op = "wallet.PublishUnminedTransactions"
 	unminedTxs, err := w.UnminedTransactions()
 	if err != nil {
-		log.Errorf("Cannot load unmined transactions for resending: %v", err)
 		return errors.E(op, err)
 	}
-	for _, tx := range unminedTxs {
-		txHash := tx.TxHash()
-		err := backend.PublishTransaction(ctx, tx)
-		if err != nil {
-			// TODO: Transactions should be removed if this is a double spend.
-			log.Tracef("Could not resend transaction %v: %v", &txHash, err)
-			continue
-		}
-		log.Tracef("Resent unmined transaction %v", &txHash)
+	err = p.PublishTransactions(ctx, unminedTxs...)
+	if err != nil {
+		return errors.E(op, err)
 	}
 	return nil
 }
@@ -3870,7 +4336,7 @@ func Open(cfg *Config) (*Wallet, error) {
 	}
 
 	// Perform upgrades as necessary.
-	err = udb.Upgrade(db, cfg.PubPassphrase)
+	err = udb.Upgrade(db, cfg.PubPassphrase, cfg.Params)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -3886,16 +4352,15 @@ func Open(cfg *Config) (*Wallet, error) {
 		poolFees:      cfg.PoolFees,
 
 		// LoaderOptions
-		gapLimit:      cfg.GapLimit,
-		AllowHighFees: cfg.AllowHighFees,
+		gapLimit:        cfg.GapLimit,
+		AllowHighFees:   cfg.AllowHighFees,
+		accountGapLimit: cfg.AccountGapLimit,
 
 		// Chain params
 		subsidyCache: blockchain.NewSubsidyCache(0, cfg.Params),
 		chainParams:  cfg.Params,
 
 		lockedOutpoints: map[wire.OutPoint]struct{}{},
-
-		initiallyUnlocked: false,
 
 		consolidateRequests:      make(chan consolidateRequest),
 		createTxRequests:         make(chan createTxRequest),

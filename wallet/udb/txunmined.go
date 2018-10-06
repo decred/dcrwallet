@@ -27,7 +27,6 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 
 	v := existsRawUnmined(ns, rec.Hash[:])
 	if v != nil {
-		// TODO: compare serialized txs to ensure this isn't a hash collision?
 		return nil
 	}
 
@@ -66,7 +65,7 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 					return errors.E(errors.DoubleSpend, "vote or revocation double spends unmined vote on the tip block")
 				}
 
-				err = s.removeUnconfirmed(ns, &spenderTx, &spenderHash)
+				err = s.RemoveUnconfirmed(ns, &spenderTx, &spenderHash)
 				if err != nil {
 					return err
 				}
@@ -144,7 +143,7 @@ func (s *Store) removeDoubleSpends(ns walletdb.ReadWriteBucket, rec *TxRecord) e
 
 			log.Debugf("Removing double spending transaction %v",
 				doubleSpend.Hash)
-			err = s.removeUnconfirmed(ns, &doubleSpend.MsgTx, &doubleSpend.Hash)
+			err = s.RemoveUnconfirmed(ns, &doubleSpend.MsgTx, &doubleSpend.Hash)
 			if err != nil {
 				return err
 			}
@@ -153,13 +152,13 @@ func (s *Store) removeDoubleSpends(ns walletdb.ReadWriteBucket, rec *TxRecord) e
 	return nil
 }
 
-// removeUnconfirmed removes an unmined transaction record and all spend chains
+// RemoveUnconfirmed removes an unmined transaction record and all spend chains
 // deriving from it from the store.  This is designed to remove transactions
 // that would otherwise result in double spend conflicts if left in the store,
 // and to remove transactions that spend coinbase transactions on reorgs. It
 // can also be used to remove old tickets that do not meet the network difficulty
 // and expired transactions.
-func (s *Store) removeUnconfirmed(ns walletdb.ReadWriteBucket, tx *wire.MsgTx, txHash *chainhash.Hash) error {
+func (s *Store) RemoveUnconfirmed(ns walletdb.ReadWriteBucket, tx *wire.MsgTx, txHash *chainhash.Hash) error {
 	// For each potential credit for this record, each spender (if any) must
 	// be recursively removed as well.  Once the spenders are removed, the
 	// credit is deleted.
@@ -178,7 +177,7 @@ func (s *Store) removeUnconfirmed(ns walletdb.ReadWriteBucket, tx *wire.MsgTx, t
 
 			log.Debugf("Transaction %v is part of a removed conflict "+
 				"chain -- removing as well", spender.Hash)
-			err = s.removeUnconfirmed(ns, &spender.MsgTx, &spender.Hash)
+			err = s.RemoveUnconfirmed(ns, &spender.MsgTx, &spender.Hash)
 			if err != nil {
 				return err
 			}
@@ -339,7 +338,7 @@ func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) error {
 	}
 
 	for _, r := range toRemove {
-		err := s.removeUnconfirmed(ns, &r.tx, r.hash)
+		err := s.RemoveUnconfirmed(ns, &r.tx, r.hash)
 		if err != nil {
 			return err
 		}

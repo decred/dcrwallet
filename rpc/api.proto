@@ -23,6 +23,7 @@ service WalletService {
 	rpc AccountNumber (AccountNumberRequest) returns (AccountNumberResponse);
 	rpc Accounts (AccountsRequest) returns (AccountsResponse);
 	rpc Balance (BalanceRequest) returns (BalanceResponse);
+	rpc GetAccountExtendedPubKey (GetAccountExtendedPubKeyRequest) returns (GetAccountExtendedPubKeyResponse);	
 	rpc GetTransaction (GetTransactionRequest) returns (GetTransactionResponse);
 	rpc GetTransactions (GetTransactionsRequest) returns (stream GetTransactionsResponse);
 	rpc GetTickets (GetTicketsRequest) returns (stream GetTicketsResponse);
@@ -71,6 +72,10 @@ service WalletLoaderService {
 	rpc DiscoverAddresses (DiscoverAddressesRequest) returns (DiscoverAddressesResponse);
 	rpc SubscribeToBlockNotifications (SubscribeToBlockNotificationsRequest) returns (SubscribeToBlockNotificationsResponse);
 	rpc FetchHeaders(FetchHeadersRequest) returns (FetchHeadersResponse);
+	rpc FetchMissingCFilters(FetchMissingCFiltersRequest) returns (FetchMissingCFiltersResponse);
+	rpc SpvSync(SpvSyncRequest) returns (stream SpvSyncResponse);
+	rpc RpcSync(RpcSyncRequest) returns (stream RpcSyncResponse);
+	rpc RescanPoint(RescanPointRequest) returns (RescanPointResponse);
 }
 
 service TicketBuyerService {
@@ -86,7 +91,6 @@ service TicketBuyerService {
     rpc SetPoolAddress (SetPoolAddressRequest) returns (SetPoolAddressResponse);
     rpc SetPoolFees (SetPoolFeesRequest) returns (SetPoolFeesResponse);
     rpc SetMaxPerBlock (SetMaxPerBlockRequest) returns (SetMaxPerBlockResponse);
-	rpc SetSplitTx (SetSplitTxRequest) returns (SetSplitTxResponse);
 }
 
 service SeedService {
@@ -188,6 +192,7 @@ message RenameAccountResponse {}
 
 message RescanRequest {
 	int32 begin_height = 1;
+	bytes begin_hash = 2;
 }
 message RescanResponse {
 	int32 rescanned_through = 1;
@@ -536,7 +541,6 @@ message PurchaseTicketsRequest {
 	uint32 expiry = 9;
 	int64 tx_fee = 10;
 	int64 ticket_fee = 11;
-	uint32  split_tx = 12;
 }
 message PurchaseTicketsResponse {
 	repeated bytes ticket_hashes = 1;
@@ -660,8 +664,12 @@ message StartConsensusRpcResponse {}
 message DiscoverAddressesRequest {
 	bool discover_accounts = 1;
 	bytes private_passphrase = 2;
+	bytes starting_block_hash = 3;
 }
 message DiscoverAddressesResponse {}
+
+message FetchMissingCFiltersRequest {}
+message FetchMissingCFiltersResponse {}
 
 message SubscribeToBlockNotificationsRequest {}
 message SubscribeToBlockNotificationsResponse {}
@@ -673,6 +681,79 @@ message FetchHeadersResponse {
 	int32 first_new_block_height = 3;
 	bytes main_chain_tip_block_hash = 4;
 	int32 main_chain_tip_block_height = 5;
+}
+
+enum SyncNotificationType {
+	SYNCED = 0;
+	UNSYNCED = 1;
+	PEER_CONNECTED = 2;
+	PEER_DISCONNECTED = 3;
+	FETCHED_MISSING_CFILTERS_STARTED = 4;
+	FETCHED_MISSING_CFILTERS_PROGRESS = 5;
+	FETCHED_MISSING_CFILTERS_FINISHED = 6;
+	FETCHED_HEADERS_STARTED  = 7;
+	FETCHED_HEADERS_PROGRESS  = 8;
+	FETCHED_HEADERS_FINISHED  = 9;
+	DISCOVER_ADDRESSES_STARTED = 10;
+	DISCOVER_ADDRESSES_FINISHED = 11;
+	RESCAN_STARTED = 12;
+	RESCAN_PROGRESS = 13;
+	RESCAN_FINISHED = 14;
+}
+
+message FetchHeadersNotification {
+	int32 fetched_headers_count = 1;
+	int64 last_header_time = 2;
+}
+
+message FetchMissingCFiltersNotification {
+	int32 fetched_cfilters_start_height = 1;
+	int32 fetched_cfilters_end_height = 2;
+}
+
+message RescanProgressNotification {
+	int32 rescanned_through = 1;
+}
+
+message PeerNotification {
+	int32 peer_count = 1;
+	string address = 2;
+}
+
+message RpcSyncRequest {
+	string network_address = 1;
+	string username = 2;
+	bytes password = 3;
+	bytes certificate = 4;
+	bool discover_accounts = 5;
+	bytes private_passphrase = 6;
+}
+message RpcSyncResponse {
+	bool synced = 1;
+	SyncNotificationType notification_type = 2;
+	FetchHeadersNotification fetch_headers = 3;
+	FetchMissingCFiltersNotification fetch_missing_cfilters = 4;
+	RescanProgressNotification rescan_progress = 5;
+	PeerNotification peer_information = 6;
+}
+
+message SpvSyncRequest {
+	bool discover_accounts = 1;
+	bytes private_passphrase = 2;
+	repeated string spv_connect = 3;
+}
+message SpvSyncResponse {
+	bool synced = 1;
+	SyncNotificationType notification_type = 2;
+	FetchHeadersNotification fetch_headers = 3;
+	FetchMissingCFiltersNotification fetch_missing_cfilters = 4;
+	RescanProgressNotification rescan_progress = 5;
+	PeerNotification peer_information = 6;
+}
+
+message RescanPointRequest {}
+message RescanPointResponse {
+	bytes rescan_point_hash = 1;
 }
 
 message GenerateRandomSeedRequest {
@@ -731,7 +812,6 @@ message TicketBuyerConfigResponse{
     bool spread_ticket_purchases = 20;
     string voting_address = 21;
     int64 tx_fee = 22;
-	uint32 split_tx = 23;
 }
 
 message SetAccountRequest{
@@ -778,11 +858,6 @@ message SetMaxPerBlockRequest{
     int64 max_per_block = 1;
 }
 message SetMaxPerBlockResponse{}
-
-message SetSplitTxRequest{
-	uint32 split_tx = 1;
-}
-message SetSplitTxResponse{}
 
 message AgendasRequest {}
 message AgendasResponse {
@@ -933,6 +1008,14 @@ message ValidateAddressResponse {
 
 message CommittedTicketsRequest {
 	repeated bytes tickets = 1;
+}
+
+message GetAccountExtendedPubKeyRequest {
+	uint32 account_number = 1;
+}
+
+message GetAccountExtendedPubKeyResponse {
+	string acc_extended_pub_key = 1;
 }
 
 message CommittedTicketsResponse {

@@ -29,17 +29,13 @@ import (
 // files.
 func networkDir(dataDir string, chainParams *chaincfg.Params) string {
 	netname := chainParams.Name
-
-	// For now, we must always name the testnet data directory as "testnet"
-	// and not "testnet" or any other version, as the chaincfg testnet
-	// paramaters will likely be switched to being named "testnet" in the
-	// future.  This is done to future proof that change, and an upgrade
-	// plan to move the testnet data directory can be worked out later.
+	// Be cautious of v2+ testnets being named only "testnet".
 	switch chainParams.Net {
-	case wire.TestNet2:
+	case 0x48e7a065: // testnet2
 		netname = "testnet2"
+	case wire.TestNet3:
+		netname = "testnet3"
 	}
-
 	return filepath.Join(dataDir, netname)
 }
 
@@ -53,11 +49,11 @@ func createWallet(ctx context.Context, cfg *config) error {
 	stakeOptions := &loader.StakeOptions{
 		VotingEnabled: cfg.EnableVoting,
 		AddressReuse:  cfg.ReuseAddresses,
-		VotingAddress: cfg.TBOpts.VotingAddress,
+		VotingAddress: cfg.TBOpts.VotingAddress.Address,
 		TicketFee:     cfg.TicketFee.ToCoin(),
 	}
 	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
-		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.ToCoin())
+		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.ToCoin(), cfg.AccountGapLimit)
 
 	var privPass, pubPass, seed []byte
 	var imported bool
@@ -91,8 +87,33 @@ func createWallet(ctx context.Context, cfg *config) error {
 		}
 	}
 
-	fmt.Println("The wallet has been created successfully.")
+	// Display a mining address when creating a simnet wallet.
+	if cfg.SimNet {
+		xpub, err := w.MasterPubKey(0)
+		if err != nil {
+			return err
+		}
+		branch, err := xpub.Child(0)
+		if err != nil {
+			return err
+		}
+		child, err := branch.Child(0)
+		if err != nil {
+			return err
+		}
+		addr, err := child.Address(&chaincfg.SimNetParams)
+		if err != nil {
+			return err
+		}
+		fmt.Println("Mining address:", addr)
+	}
 
+	err = loader.UnloadWallet()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("The wallet has been created successfully.")
 	return nil
 }
 
