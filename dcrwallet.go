@@ -21,6 +21,7 @@ import (
 
 	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/chaincfg"
+	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/prompt"
@@ -511,8 +512,18 @@ func readCAFile() []byte {
 // authentication error.  Instead, all requests to the client will simply error.
 func startChainRPC(ctx context.Context, certs []byte) (*chain.RPCClient, error) {
 	log.Infof("Attempting RPC client connection to %v", cfg.RPCConnect)
-	rpcc, err := chain.NewRPCClient(activeNet.Params, cfg.RPCConnect,
-		cfg.DcrdUsername, cfg.DcrdPassword, certs, cfg.DisableClientTLS)
+	rpcc, err := chain.NewRPCClientConfig(activeNet.Params, &dcrrpcclient.ConnConfig{
+		Host:                 cfg.RPCConnect,
+		Endpoint:             "ws",
+		User:                 cfg.DcrdUsername,
+		Pass:                 cfg.DcrdPassword,
+		Certificates:         certs,
+		DisableAutoReconnect: true,
+		DisableConnectOnNew:  true,
+		DisableTLS:           cfg.DisableClientTLS,
+		Proxy:                cfg.Proxy,
+		ProxyUser:            cfg.ProxyUser,
+		ProxyPass:            cfg.ProxyPass})
 	if err != nil {
 		return nil, err
 	}
