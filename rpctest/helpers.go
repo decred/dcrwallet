@@ -85,6 +85,14 @@ func syncWalletTo(rpcClient *rpcclient.Client, desiredHeight int64) (int64, erro
 	return count, nil
 }
 
+// generateListeningPorts returns 3 subsequent network ports starting from base
+func generateListeningPorts(index, base int) (int, int, int) {
+	x := base + index*3 + 0
+	y := base + index*3 + 1
+	z := base + index*3 + 2
+	return x, y, z
+}
+
 func getMiningAddr(walletClient *rpcclient.Client) dcrutil.Address {
 	var miningAddr dcrutil.Address
 	var err error = nil

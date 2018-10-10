@@ -69,8 +69,6 @@ func (testSetup *ChainWithMatureOutputsSpawner) NewInstance(harnessName string) 
 	harness := NewHarness(cfg)
 
 	fmt.Println("Deploying Harness[" + cfg.Name + "]")
-	//fmt.Println("dcrdConfig: " + spew.Sdump(harness.DcrdServer))
-	//fmt.Println("walletConfig: " + spew.Sdump(harness.WalletServer))
 
 	// launch a fresh harness (assumes harness working dir is empty)
 	{
@@ -213,13 +211,6 @@ func shutdownHarnessSequence(harness *Harness) {
 	DeleteFile(DcrdServer.KeyFile())
 	DeleteFile(WalletServer.CertFile())
 	DeleteFile(WalletServer.KeyFile())
-}
-
-func generateListeningPorts(index, base int) (int, int, int) {
-	x := base + index*3 + 0
-	y := base + index*3 + 1
-	z := base + index*3 + 2
-	return x, y, z
 }
 
 // networkFor resolves network argument for dcrd and wallet console commands

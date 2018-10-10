@@ -389,7 +389,7 @@ func TestValidateAddress(t *testing.T) {
 	if validRes.IsMine {
 		t.Fatalf("Address incorrectly identified as mine: %s", devSubAddrStr)
 	}
-	//-----------------------------------------
+	// final address overflow check for each account
 	for _, acct := range accounts {
 		// let's overflow DefaultGapLimit
 		for i := 0; i < wallet.DefaultGapLimit+5; i++ {
@@ -1112,7 +1112,6 @@ func TestSendToAddress(t *testing.T) {
 	// Check all inputs
 	for i, txIn := range rawTx.MsgTx().TxIn {
 		prevOut := &txIn.PreviousOutPoint
-		//t.Logf("Checking previous outpoint %v, %v", i, prevOut.String())
 
 		// If a txout is spent (not in the UTXO set) GetTxOutResult will be nil
 		res, err := wcl.GetTxOut(&prevOut.Hash, prevOut.Index, false)
@@ -1379,7 +1378,6 @@ func TestSendMany(t *testing.T) {
 		t.Fatalf("getrawtransaction failed: %v", err)
 	}
 	fee := getWireMsgTxFee(rawTx)
-	//t.Log("Raw TX before mining block: ", rawTx, " Fee: ", fee)
 
 	// Generate a single block, the transaction the wallet created should be
 	// found in this block.
@@ -1390,7 +1388,6 @@ func TestSendMany(t *testing.T) {
 		t.Fatalf("getrawtransaction failed: %v", err)
 	}
 	fee = getWireMsgTxFee(rawTx)
-	//t.Log("Raw TX after mining block: ", rawTx, " Fee: ", fee)
 
 	// Calculate the expected balance for the default account after the tx was sent
 
@@ -1848,7 +1845,6 @@ func TestGetSetRelayFee(t *testing.T) {
 	feeRate := fee.ToCoin() / float64(rawTx.MsgTx().SerializeSize()) * 1000
 
 	// Ensure actual fee is at least nominal
-	//t.Logf("Set relay fee: %v, actual: %v", walletInfo.TxFee, feeRate)
 	if feeRate < walletInfo.TxFee {
 		t.Errorf("Regular tx fee rate difference (actual-set) too high: %v",
 			walletInfo.TxFee-feeRate)
@@ -1955,7 +1951,6 @@ func TestGetSetTicketFee(t *testing.T) {
 	feeRate := fee.ToCoin() / float64(rawTx.MsgTx().SerializeSize()) * 1000
 
 	// Ensure actual fee is at least nominal
-	//t.Logf("Set ticket fee: %v, actual: %v", nominalTicketFee, feeRate)
 	if feeRate < nominalTicketFee {
 		t.Errorf("Ticket fee rate difference (actual-set) too high: %v",
 			nominalTicketFee-feeRate)
