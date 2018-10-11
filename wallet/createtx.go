@@ -160,48 +160,40 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 	return authoredTx, nil
 }
 
-func (w *Wallet) FundRawTransaction(inputs []*wire.TxIn, outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount, account uint32, minConf int32,
-	changeAddress string) (*txauthor.AuthoredTx, error) {
+func (w *Wallet) FundRawTransaction(tx wire.MsgTx, relayFeePerKb dcrutil.Amount, account uint32, minConf int32,
+	changeAddress dcrutil.Address) (*wire.MsgTx, error) {
 
 	const op errors.Op = "wallet.FundRawTransaction"
 
-	var authoredTx *txauthor.AuthoredTx
-	var changeSource p2PKHChangeSource
+	var fundedTx *wire.MsgTx
 	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		var err error
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 
-		if account != udb.ImportedAddrAccount {
-			lastAcct, err := w.Manager.LastAccount(addrmgrNs)
-			if err != nil {
-				return err
-			}
-			if account > lastAcct {
-				return errors.E(errors.NotExist, "missing account")
-			}
-		}
-
 		sourceImpl := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 			minConf, tipHeight)
 
-		if changeAddress == "" {
-			changeSource = p2PKHChangeSource{
+		if changeAddress == nil {
+			changeSource := p2PKHChangeSource{
 				persist: w.deferPersistReturnedChild(&changeSourceUpdates),
 				account: account,
 				wallet:  w,
 			}
+			fundedTx, err = txauthor.FundRawTransaction(tx, relayFeePerKb,
+				sourceImpl.SelectInputs, &changeSource)
 		} else {
-			changeSource = p2PKHChangeSource{
+			changeSource := p2PKHAddrChangeSource{
+				persist:       w.deferPersistReturnedChild(&changeSourceUpdates),
 				changeAddress: changeAddress,
 				wallet:        w,
 			}
+			fundedTx, err = txauthor.FundRawTransaction(tx, relayFeePerKb,
+				sourceImpl.SelectInputs, &changeSource)
 		}
 
-		var err error
-		authoredTx, err = txauthor.FundRawTransaction(inputs, outputs, relayFeePerKb,
-			sourceImpl.SelectInputs, &changeSource)
 		return err
 	})
 	if err != nil {
@@ -221,7 +213,7 @@ func (w *Wallet) FundRawTransaction(inputs []*wire.TxIn, outputs []*wire.TxOut, 
 			return nil, errors.E(op, err)
 		}
 	}
-	return authoredTx, nil
+	return fundedTx, nil
 }
 
 // secretSource is an implementation of txauthor.SecretSource for the wallet's

@@ -154,14 +154,22 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	}
 }
 
-func FundRawTransaction(inputs []*wire.TxIn, outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
-	fetchInputs InputSource, fetchChange ChangeSource) (*AuthoredTx, error) {
+func FundRawTransaction(mtx wire.MsgTx, relayFeePerKb dcrutil.Amount,
+	fetchInputs InputSource, fetchChange ChangeSource) (*wire.MsgTx, error) {
 
 	const op errors.Op = "txauthor.FundRawTransaction"
 
+	inputs := mtx.TxIn
+	outputs := mtx.TxOut
 	totalInTransaction := h.SumInputValues(inputs)
 	targetAmount := h.SumOutputValues(outputs) - totalInTransaction
+	if targetAmount <= 0 {
+		return &mtx, nil
+	}
 	scriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
+	for range mtx.TxIn {
+		scriptSizes = append(scriptSizes, txsizes.RedeemP2PKHInputSize)
+	}
 	changeScript, changeScriptVersion, err := fetchChange.Script()
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -181,7 +189,6 @@ func FundRawTransaction(inputs []*wire.TxIn, outputs []*wire.TxOut, relayFeePerK
 			return nil, errors.E(op, errors.InsufficientBalance)
 		}
 
-		scriptSizes = []int{}
 		scriptSizes = append(scriptSizes, inputDetail.RedeemScriptSizes...)
 
 		maxSignedSize = txsizes.EstimateSerializeSize(scriptSizes, outputs, changeScriptSize)
@@ -191,16 +198,9 @@ func FundRawTransaction(inputs []*wire.TxIn, outputs []*wire.TxOut, relayFeePerK
 			targetFee = maxRequiredFee
 			continue
 		}
-		txInputs := append(inputs, inputDetail.Inputs...)
-		unsignedTransaction := &wire.MsgTx{
-			SerType:  wire.TxSerializeFull,
-			Version:  generatedTxVersion,
-			TxIn:     txInputs,
-			TxOut:    outputs,
-			LockTime: 0,
-			Expiry:   0,
-		}
-		changeIndex := -1
+		txInputs := append(mtx.TxIn, inputDetail.Inputs...)
+		mtx.TxIn = txInputs
+
 		changeAmount := inputDetail.Amount - targetAmount - maxRequiredFee
 		if changeAmount != 0 && !txrules.IsDustAmount(changeAmount,
 			changeScriptSize, relayFeePerKb) {
@@ -214,19 +214,12 @@ func FundRawTransaction(inputs []*wire.TxIn, outputs []*wire.TxOut, relayFeePerK
 				PkScript: changeScript,
 			}
 			l := len(outputs)
-			unsignedTransaction.TxOut = append(outputs[:l:l], change)
-			changeIndex = l
+			mtx.TxOut = append(outputs[:l:l], change)
 		} else {
 			maxSignedSize = txsizes.EstimateSerializeSize(scriptSizes,
-				unsignedTransaction.TxOut, 0)
+				mtx.TxOut, 0)
 		}
-		return &AuthoredTx{
-			Tx:                           unsignedTransaction,
-			PrevScripts:                  inputDetail.Scripts,
-			TotalInput:                   inputDetail.Amount,
-			ChangeIndex:                  changeIndex,
-			EstimatedSignedSerializeSize: maxSignedSize,
-		}, nil
+		return &mtx, nil
 	}
 }
 

@@ -524,7 +524,7 @@ func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	}
 	feePerKb := w.RelayFee()
 	requiredConfs := int32(1)
-	addr := ""
+	var changeAddr dcrutil.Address
 
 	if cmd.Options != nil {
 		// use provided fee per Kb if specified
@@ -542,33 +542,35 @@ func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 		// use provided change account if specified
 		// use default account otherwise
 		if cmd.Options.ChangeAddress != nil {
-			addr = *cmd.Options.ChangeAddress
+			addr, err := decodeAddress(*cmd.Options.ChangeAddress, w.ChainParams())
+			if err != nil {
+				return nil, err
+			}
+			changeAddr = addr
 		}
 	}
 	var mtx wire.MsgTx
-	decodedTx, err := hex.DecodeString(cmd.HexString)
-	if err != nil {
-		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
-	}
-	err = mtx.Deserialize(bytes.NewReader(decodedTx))
+	err = mtx.Deserialize(hex.NewDecoder(strings.NewReader(cmd.HexString)))
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 	}
 
-	fundedTx, err := w.FundRawTransaction(mtx.TxIn, mtx.TxOut, feePerKb, accNumber, requiredConfs, addr)
+	fundedTx, err := w.FundRawTransaction(mtx, feePerKb, accNumber, requiredConfs, changeAddr)
 	if err != nil {
 		return nil, err
 	}
+	totalInputValue := helpers.SumInputValues(fundedTx.TxIn)
+	totalOutputValue := helpers.SumOutputValues(fundedTx.TxOut)
 
 	var buf bytes.Buffer
-	buf.Grow(fundedTx.Tx.SerializeSize())
-	err = fundedTx.Tx.Serialize(&buf)
+	buf.Grow(fundedTx.SerializeSize())
+	err = fundedTx.Serialize(&buf)
 	if err != nil {
 		return nil, err
 	}
 	resp := &dcrjson.FundRawTransactionResult{
 		Hex: hex.EncodeToString(buf.Bytes()),
-		Fee: float64(fundedTx.EstimatedSignedSerializeSize) / 1e8,
+		Fee: float64(totalInputValue-totalOutputValue) / 1e8,
 	}
 
 	return resp, nil
