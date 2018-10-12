@@ -29,7 +29,7 @@ var DCP0001 = HardcodedDeployment{
 	MainNetActivationHeight:  149248,
 	TestNet2ActivationHeight: 46128,
 	TestNet3ActivationHeight: 0,
-	SimNetActivationHeight:   -1,
+	SimNetActivationHeight:   0,
 }
 
 // DCP0002 specifies the activation of the OP_SHA256 hard fork as defined by
@@ -38,7 +38,7 @@ var DCP0002 = HardcodedDeployment{
 	MainNetActivationHeight:  189568,
 	TestNet2ActivationHeight: 151968,
 	TestNet3ActivationHeight: 0,
-	SimNetActivationHeight:   -1,
+	SimNetActivationHeight:   0,
 }
 
 // DCP0003 specifies the activation of a CSV soft fork as defined by
@@ -47,7 +47,7 @@ var DCP0003 = HardcodedDeployment{
 	MainNetActivationHeight:  189568,
 	TestNet2ActivationHeight: 151968,
 	TestNet3ActivationHeight: 0,
-	SimNetActivationHeight:   -1,
+	SimNetActivationHeight:   0,
 }
 
 // Active returns whether the hardcoded deployment is active at height on the
