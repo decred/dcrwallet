@@ -87,12 +87,6 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	if cfg.SPV {
-		fmt.Println("SPV MODE")
-	} else {
-		fmt.Println("NONE SPV MODE")
-	}
-
 	// Show version at startup.
 	log.Infof("Version %s (Go version %s %s/%s)", version.String(), runtime.Version(),
 		runtime.GOOS, runtime.GOARCH)

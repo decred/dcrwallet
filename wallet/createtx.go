@@ -980,19 +980,19 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *ext
 
 type (
 	PeerData struct {
-		Id            uint32
-		NumMsg        uint32
-		Pk            []byte
-		Vk            []byte
-		Dcexp_seed    []byte
-		Dcexp         []byte
-		Dcsimple_seed []byte
-		Dcsimple      []byte
+		Id        uint32
+		NumMsg    uint32
+		Pk        []byte
+		Vk        []byte
+		DcExpSeed []byte
+		DcExp     []byte
+		DcXorSeed []byte
+		DcXor     []byte
 	}
 )
 
 func (peer PeerData) GetDcexpField() field.Field {
-	n := field.FromBytes(peer.Dcexp)
+	n := field.FromBytes(peer.DcExp)
 	return field.NewFF(n)
 }
 
@@ -1003,7 +1003,6 @@ func (peer PeerData) GetDcexpField() field.Field {
 // greater than or equal to 0, tickets that cost more than that limit will
 // return an error that not enough funds are available.
 func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*chainhash.Hash, error) {
-	fmt.Println("purchaseTickets")
 	n, err := w.NetworkBackend()
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -1018,8 +1017,6 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 	if req.expiry < 0 {
 		return nil, errors.E(op, errors.Invalid, "negative expiry")
 	}
-
-	numTickets := req.numTickets
 
 	// Perform a sanity check on expiry.
 	var tipHeight int32
@@ -1189,17 +1186,21 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 
 	purchaseFn := func(tx *wire.MsgTx, numberTickets int, outputIds []int32) ([]*chainhash.Hash, error) {
 
+		//fmt.Println("outputIds", outputIds)
+		//fmt.Println("len txin", len(tx.TxIn))
+		//fmt.Println("len txin", len(tx.TxOut))
+		fmt.Println("outputIndex will be used for purchase", outputIds)
 		ticketHashes := make([]*chainhash.Hash, 0)
-		for i := 0; i < numTickets; i++ {
+		for i := 0; i < req.numTickets; i++ {
 
-			outputIndex := outputIds[i]
+			outputId := outputIds[i]
 
 			var eop *extendedOutPoint
-			txOut := tx.TxOut[outputIndex]
+			txOut := tx.TxOut[outputId]
 			eop = &extendedOutPoint{
 				op: &wire.OutPoint{
 					Hash:  tx.TxHash(),
-					Index: uint32(outputIndex),
+					Index: uint32(outputId),
 					Tree:  wire.TxTreeRegular,
 				},
 				amt:      txOut.Value,
@@ -1252,16 +1253,14 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		return ticketHashes, nil
 	}
 
-	fmt.Println("purchaseTickets0")
-
 	//check dcrtxclient option to ensure current code also works with dcrtxclient enable option is disable in config file
 	if req.dcrTxClient.Config().Enable {
 		var splitOuts []*wire.TxOut
 
 		//create slice of pkscripts
-		pkScripts := make([][]byte, numTickets)
+		pkScripts := make([][]byte, req.numTickets)
 
-		for i := 0; i < numTickets; i++ {
+		for i := 0; i < req.numTickets; i++ {
 			splitTxAddr, err := w.NewInternalAddress(req.account, WithGapPolicyWrap())
 			if err != nil {
 				return nil, err
@@ -1279,12 +1278,6 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		if txFeeIncrement == 0 {
 			txFeeIncrement = w.RelayFee()
 		}
-		//select txins for splitout
-		//		splitTx, changeSourceFuncs, err := w.txToOutputsSplitTx(splitOuts, req.account, req.minConf,
-		//			n, false, txFeeIncrement)
-		//		if err != nil {
-		//			return nil, errors.E(op, errors.Bug, errors.Errorf("split address %v", splitTxAddr))
-		//		}
 
 		splitTx, changeSourceFuncs, err := w.txToOutputsSplitTx(splitOuts, req.account, req.minConf,
 			n, false, txFeeIncrement)
@@ -1299,17 +1292,13 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 			splitTx.Tx.TxOut = []*wire.TxOut{}
 		}
 
-		// Purchase tickets individually.
-		//ticketHashes := make([]*chainhash.Hash, 0, numTickets)
-
 		// build outputs index in case communicate with server fails
 		localOutputIndex := make([]int32, 0)
-		for i := 0; i < numTickets; i++ {
+		for i := 0; i < req.numTickets; i++ {
 			localOutputIndex = append(localOutputIndex, int32(i))
 		}
 
 		peers := make([]PeerData, 0)
-
 		var PeerId, SessionId uint32
 
 		dialer := websocket.Dialer{}
@@ -1318,52 +1307,52 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 			fmt.Println("Error connecting:", err)
 			//return
 		}
-		fmt.Println("Connected!")
+		log.Info("Connected to dcrtxmatcher server for joining transaction!")
 		defer ws.Close()
 
 		//generate ecdh keypair
 		ecp256 := ecdh.NewEllipticECDH(elliptic.P256())
 		vk, pk, err := ecp256.GenerateKey(rand.Reader)
 		if err != nil {
-			fmt.Printf("error ecdh GenerateKey: %v", err)
+			log.Errorf("error ecdh GenerateKey: %v", err)
+			return nil, err
 		}
 
 		pkbytes := ecp256.Marshal(pk)
 
 		//vkbytes := ecp256.Marshal(vk)
-		var msgsnum uint32 = 0
-		var mymsgnum uint32 = uint32(len(pkScripts))
+		var numMsg uint32 = 0
 		var allMsgBytes [][]byte
 		var allMsgHashes []field.Uint128
 
-		my_msgs_hash := make([][]byte, 0)
+		myMsgsHash := make([][]byte, 0)
+		//retrieve output index from joined tx
+		var outputIndex, inputIndex []int32
+		var joinTx wire.MsgTx
 
 		for {
 
 			_, msg, err := ws.ReadMessage()
 			if err != nil {
-				fmt.Println("ReadMessage error", err)
-				break
+				log.Errorf("ReadMessage error %v\n", err)
+				return nil, err
 			}
 
 			message, err := coinjoin.ParseMessage(msg)
-
 			if err != nil {
-				fmt.Printf("error ParseMessage: %v", err)
-				break
+				log.Errorf("error ParseMessage: %v\n", err)
+				return nil, err
 			}
 
 			switch message.MsgType {
 			case coinjoin.S_JOIN_RESPONSE:
-				fmt.Println("S_JOIN_RESPONSE")
+				//fmt.Println("S_JOIN_RESPONSE")
 				joinRes := &pb.CoinJoinRes{}
 				err := proto.Unmarshal(message.Data, joinRes)
 				if err != nil {
-					fmt.Printf("error Unmarshal joinRes: %v", err)
-					break
+					log.Errorf("error Unmarshal joinRes: %v\n", err)
+					return nil, err
 				}
-
-				fmt.Println("CoinJoinRes", joinRes)
 
 				PeerId = joinRes.PeerId
 				SessionId = joinRes.SessionId
@@ -1372,145 +1361,142 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				keyex := &pb.KeyExchangeReq{
 					SessionId: SessionId,
 					PeerId:    PeerId,
-					NumMsg:    mymsgnum,
+					NumMsg:    uint32(req.numTickets),
 					Pk:        pkbytes,
 				}
 
 				data, err := proto.Marshal(keyex)
 				if err != nil {
-					fmt.Printf("error Unmarshal joinRes: %v", err)
-					break
+					log.Errorf("error Unmarshal joinRes: %v\n", err)
+					return nil, err
 				}
 
 				message := coinjoin.NewMessage(coinjoin.C_KEY_EXCHANGE, data)
 
 				//time.Sleep(time.Second * time.Duration(5))
 				if err := ws.WriteMessage(websocket.BinaryMessage, message.ToBytes()); err != nil {
-					fmt.Printf("error WriteMessage: %v", err)
-					break
+					log.Errorf("error WriteMessage: %v", err)
+					return nil, err
 				}
 
 			case coinjoin.S_KEY_EXCHANGE:
-				// server received all peers 's pk then broadcast to all peers back peers'pk slice
+				// server received all peers's pk then broadcast to all peers back peers'pk slice
 
-				fmt.Println("S_KEY_EXCHANGE")
+				//log.Debug("KEY_EXCHANGE")
 				keyex := &pb.KeyExchangeRes{}
 
 				err := proto.Unmarshal(message.Data, keyex)
 				if err != nil {
-					fmt.Printf("error Unmarshal joinRes: %v", err)
+					log.Errorf("error Unmarshal joinRes: %v\n", err)
+					return nil, err
 				}
-
+				log.Debug("Will generate sharedkey with each peer")
+				log.Debug("Use sharekey as seed to generate padding bytes for dc-net exponential and dc-net xor")
 				//create vector net
-
 				for _, peer := range keyex.Peers {
-					//				if peer.PeerId == PeerId {
-					//					continue
-					//				}
-
-					peerpk, _ := ecp256.Unmarshal(peer.Pk)
-					sharedkey, err := ecp256.GenerateSharedSecret(vk, peerpk)
+					peerPk, _ := ecp256.Unmarshal(peer.Pk)
+					sharedKey, err := ecp256.GenerateSharedSecret(vk, peerPk)
 					if err != nil {
-						fmt.Printf("error GenerateSharedSecret: %v", err)
+						log.Errorf("error GenerateSharedSecret: %v", err)
+						return nil, err
 					}
 
-					dcexp_rng := chacharng.RandBytes(sharedkey, 12)
-					dcexp_rng = append([]byte{0, 0, 0, 0}, dcexp_rng...)
+					dcexpRng := chacharng.RandBytes(sharedKey, 12)
+					dcexpRng = append([]byte{0, 0, 0, 0}, dcexpRng...)
 					//size of pkscript in txout is 25 bytes
-					dcsimple_rng := chacharng.RandBytes(sharedkey, 25)
-					peers = append(peers, PeerData{Id: peer.PeerId, Pk: peer.Pk, NumMsg: keyex.NumMsg, Dcexp: dcexp_rng,
-						Dcsimple: dcsimple_rng})
+					dcXorRng := chacharng.RandBytes(sharedKey, 25)
+					peers = append(peers, PeerData{Id: peer.PeerId, Pk: peer.Pk, NumMsg: peer.NumMsg, DcExp: dcexpRng,
+						DcXor: dcXorRng})
 
 					// calculate total number of messsages from all peers
-					msgsnum += keyex.NumMsg
+					numMsg += peer.NumMsg
 				}
 
 				for _, p := range peers {
-					fmt.Printf("peerid: %d, dcexp: %x, dcsimple:%x\n", p.Id, p.Dcexp, p.Dcsimple)
+					if p.Id != PeerId {
+						log.Debugf("Peerid: %d, expopential padding: %x, xor padding:%x", p.Id, p.DcExp, p.DcXor)
+					}
 				}
 
-				fmt.Println("msgsnum ", msgsnum)
-				my_dcexp := make([]field.Field, msgsnum)
-
+				myDcexp := make([]field.Field, numMsg)
 				//hash pkscript with 128bits hash
 				for _, msg := range pkScripts {
 					md := ripemd128.New()
 					_, err = md.Write(msg)
 					if err != nil {
-						fmt.Errorf("error rand.Read %x", err)
-						break
+						log.Errorf("error rand.Read %x", err)
+						return nil, err
 					}
 
-					//pkscripthash := md.Sum127(nil)
 					pkscripthash := md.Sum127(nil)
-					my_msgs_hash = append(my_msgs_hash, pkscripthash)
-					fmt.Printf("pkscripthash %x. len %d\n", pkscripthash, len(pkscripthash))
+					myMsgsHash = append(myMsgsHash, pkscripthash)
+					//fmt.Printf("pkscripthash %x. len %d\n", pkscripthash, len(pkscripthash))
 
 					ff := field.NewFF(field.FromBytes(pkscripthash))
-
 					//get exceptional for each message first
-					for i := 0; i < int(msgsnum); i++ {
-						my_dcexp[i] = my_dcexp[i].Add(ff.Exp(uint64(i + 1)))
+					for i := 0; i < int(numMsg); i++ {
+						myDcexp[i] = myDcexp[i].Add(ff.Exp(uint64(i + 1)))
 					}
 				}
 
 				//padding with random number generated with secret key seed
-				for j := 0; j < int(msgsnum); j++ {
-					//padding with each peer
+				for j := 0; j < int(numMsg); j++ {
+					//padding with other peers
 					for _, p := range peers {
 						if PeerId > p.Id {
-							my_dcexp[j] = my_dcexp[j].Add(p.GetDcexpField())
+							myDcexp[j] = myDcexp[j].Add(p.GetDcexpField())
 						} else if PeerId < p.Id {
-							my_dcexp[j] = my_dcexp[j].Sub(p.GetDcexpField())
+							myDcexp[j] = myDcexp[j].Sub(p.GetDcexpField())
 						}
 					}
 				}
 
 				//submit my_dcexp
-				dcexpvector := &pb.DcExpVector{PeerId: PeerId, Len: uint32(msgsnum)}
+				dcExpVector := &pb.DcExpVector{PeerId: PeerId, Len: uint32(numMsg)}
 				vector := make([]byte, 0)
-				for i := 0; i < int(msgsnum); i++ {
-					vector = append(vector, my_dcexp[i].N.GetBytes()...)
+				for i := 0; i < int(numMsg); i++ {
+					vector = append(vector, myDcexp[i].N.GetBytes()...)
+					fmt.Printf("Exponential vector %x\n", myDcexp[i].N.GetBytes())
 				}
+				log.Debug("Sent exponential vector to server")
 
 				md := ripemd128.New()
-
 				_, err = md.Write(vector)
 				if err != nil {
-
+					return nil, err
 				}
 
 				commit := md.Sum(nil)
-				dcexpvector.Vector = vector
-				dcexpvector.Commit = commit
+				dcExpVector.Vector = vector
+				dcExpVector.Commit = commit
 
-				data, err := proto.Marshal(dcexpvector)
+				data, err := proto.Marshal(dcExpVector)
 				if err != nil {
-					fmt.Printf("error marshal dcexpvector: %v", err)
-					break
+					log.Errorf("error marshal dcexpvector: %v", err)
+					return nil, err
 				}
 
 				message := coinjoin.NewMessage(coinjoin.C_DC_EXP_VECTOR, data)
-
 				if err := ws.WriteMessage(websocket.BinaryMessage, message.ToBytes()); err != nil {
-					fmt.Println("write error ", err)
-					break
+					log.Errorf("write error ", err)
+					return nil, err
 				}
 			case coinjoin.S_DC_EXP_VECTOR:
 				//get all hash massages and sort
-				fmt.Println("S_DC_EXP_VECTOR")
-				allmsgs := &pb.AllMessages{}
+				log.Debug("Received all hash of pkscript from peers")
+				allMsgs := &pb.AllMessages{}
 
-				err := proto.Unmarshal(message.Data, allmsgs)
+				err := proto.Unmarshal(message.Data, allMsgs)
 				if err != nil {
 					fmt.Errorf("err Unmarshal S_DC_EXP_VECTOR %v", err)
+					return nil, err
 				}
 
-				allMsgBytes = make([][]byte, allmsgs.Len)
-				allMsgHashes = make([]field.Uint128, allmsgs.Len)
-				for i := 0; i < int(allmsgs.Len); i++ {
-					allMsgBytes[i] = allmsgs.Msgs[i*16 : (i+1)*16]
-					fmt.Printf("root %x \n", allMsgBytes[i])
+				allMsgBytes = make([][]byte, allMsgs.Len)
+				allMsgHashes = make([]field.Uint128, allMsgs.Len)
+				for i := 0; i < int(allMsgs.Len); i++ {
+					allMsgBytes[i] = allMsgs.Msgs[i*16 : (i+1)*16]
+					fmt.Printf("All pkscripts hash received from server %x \n", allMsgBytes[i])
 					allMsgHashes[i] = field.FromBytes(allMsgBytes[i])
 				}
 
@@ -1520,73 +1506,68 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				})
 
 				//find my messages index in messages hash
-				slot_reserveds := make([]int, len(my_msgs_hash))
+				slotReserveds := make([]int, len(myMsgsHash))
 
-				fmt.Println("len(my_msgs_hash) ", len(my_msgs_hash))
-
-				for j := 0; j < len(my_msgs_hash); j++ {
-					for i := 0; i < int(allmsgs.Len); i++ {
-						if bytes.Equal(my_msgs_hash[j], allMsgHashes[i].GetBytes()) {
-							slot_reserveds[j] = i
-							fmt.Printf("i %d j %d\n", i, j)
+				for j := 0; j < len(myMsgsHash); j++ {
+					for i := 0; i < int(allMsgs.Len); i++ {
+						if bytes.Equal(myMsgsHash[j], allMsgHashes[i].GetBytes()) {
+							slotReserveds[j] = i
 						}
 					}
 				}
 
-				fmt.Printf("slot_reserveds %v\n", slot_reserveds)
-				my_dc_xor := make([][]byte, msgsnum)
+				fmt.Printf("Find my pkscripts from all hashed messages returned from server. My slot reserved %v\n", slotReserveds)
+				myDcXor := make([][]byte, numMsg)
 
-				for i := 0; i < int(mymsgnum); i++ {
-					my_dc_xor[slot_reserveds[i]] = pkScripts[i]
+				for i := 0; i < int(req.numTickets); i++ {
+					myDcXor[slotReserveds[i]] = pkScripts[i]
 				}
 
 				for _, peer := range peers {
 					if peer.Id == PeerId {
 						continue
 					}
-					for i := 0; i < int(msgsnum); i++ {
-						my_dc_xor[i], err = util.XorBytes(my_dc_xor[i], peer.Dcsimple)
+					for i := 0; i < int(numMsg); i++ {
+						myDcXor[i], err = util.XorBytes(myDcXor[i], peer.DcXor)
 						if err != nil {
 							fmt.Println("error XorBytes", err)
+							return nil, err
 						}
 					}
 				}
 
-				for _, item := range my_dc_xor {
-					fmt.Printf("dcxor %x\n", item)
+				for _, item := range myDcXor {
+					fmt.Printf("Xor vector %x\n", item)
 				}
 
-				xordata := make([]byte, 0)
-
-				for _, dc := range my_dc_xor {
-					xordata = append(xordata, dc...)
+				xorData := make([]byte, 0)
+				for _, dc := range myDcXor {
+					xorData = append(xorData, dc...)
 				}
 
-				fmt.Println("dcxordata len", len(xordata))
-
-				dcxor := &pb.DcXorVector{PeerId: PeerId, Vector: xordata, Len: msgsnum}
-
-				data, err := proto.Marshal(dcxor)
+				dcXor := &pb.DcXorVector{PeerId: PeerId, Vector: xorData, Len: numMsg}
+				data, err := proto.Marshal(dcXor)
 				if err != nil {
-					fmt.Printf("error marshal dcexpvector: %v", err)
-					break
+					log.Errorf("error marshal dcexpvector: %v", err)
+					return nil, err
 				}
 				//submit dc-xor to server
 				message := coinjoin.NewMessage(coinjoin.C_DC_XOR_VECTOR, data)
-
 				if err := ws.WriteMessage(websocket.BinaryMessage, message.ToBytes()); err != nil {
-					fmt.Println("write error ", err)
-					break
+					log.Errorf("write error ", err)
+					return nil, err
 				}
+				log.Debug("Sent dc-net xor vector to server")
 
 			case coinjoin.S_DC_XOR_VECTOR:
 				//whether there is malicious peers and submit transaction to server
-				fmt.Println("S_DC_XOR_VECTOR")
+				//fmt.Println("S_DC_XOR_VECTOR")
+				//fmt.Println("Transaction inputs")
 				dcxorRet := &pb.DcXorVectorResult{}
-
 				err := proto.Unmarshal(message.Data, dcxorRet)
 				if err != nil {
-
+					log.Errorf("error proto.Unmarshal DCXor: %v", err)
+					return nil, err
 				}
 
 				if len(dcxorRet.PeerIds) > 0 {
@@ -1596,40 +1577,35 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				buffTx.Grow(splitTx.Tx.SerializeSize())
 				err = splitTx.Tx.BtcEncode(buffTx, 0)
 				if err != nil {
-					fmt.Errorf("error BtcEncode %v\n", err)
+					log.Errorf("error BtcEncode %v\n", err)
+					return nil, err
 				}
-
+				log.Info("Will submit tx inputs and change amount to server")
 				txInputs := &pb.TxInputs{PeerId: PeerId, TicketPrice: int64(neededPerTicket), Txins: buffTx.Bytes()}
-
 				txInsData, err := proto.Marshal(txInputs)
 				if err != nil {
-					fmt.Printf("error proto.Marshal txInputs: %v", err)
-					break
+					log.Errorf("error proto.Marshal txInputs: %v", err)
+					return nil, err
 				}
 
 				message := coinjoin.NewMessage(coinjoin.C_TX_INPUTS, txInsData)
-
 				if err := ws.WriteMessage(websocket.BinaryMessage, message.ToBytes()); err != nil {
-					fmt.Printf("error WriteMessage: %v", err)
-					break
+					log.Errorf("error WriteMessage: %v", err)
+					return nil, err
 				}
-
+				log.Info("Sent tx inputs and change amount")
 			case coinjoin.S_JOINED_TX:
 				//get joined tx and sign with peer's txout index
 				joinTxData := &pb.JoinTx{}
-
 				err := proto.Unmarshal(message.Data, joinTxData)
 				if err != nil {
 					fmt.Errorf("err Unmarshal S_JOINED_TX %v", err)
+					return nil, err
 				}
-
+				log.Info("Received joined tx. Will find my txin, txout index from joined tx and sign")
 				var joinTx wire.MsgTx
 				buffTx := bytes.NewReader(joinTxData.Tx)
 				err = joinTx.BtcDecode(buffTx, 0)
-
-				//retrieve output index from joined tx
-				var outputIndex, inputIndex []int32
-
 				for _, msg := range pkScripts {
 					for i, txout := range joinTx.TxOut {
 						if bytes.Equal(txout.PkScript, msg) {
@@ -1640,18 +1616,18 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				}
 
 				for _, txin := range splitTx.Tx.TxIn {
-					fmt.Println("splitTx.Tx.TxIn outpoint ", txin.PreviousOutPoint.Hash.String())
 					for i, joinTxin := range joinTx.TxIn {
-						fmt.Println("joinTxin.PreviousOutPoint.Hash outpoint", joinTxin.PreviousOutPoint.Hash.String())
-						if (&joinTxin.PreviousOutPoint.Hash).IsEqual(&txin.PreviousOutPoint.Hash) {
+						if (&joinTxin.PreviousOutPoint.Hash).IsEqual(&txin.PreviousOutPoint.Hash) &&
+							joinTxin.PreviousOutPoint.Index == txin.PreviousOutPoint.Index {
 							inputIndex = append(inputIndex, int32(i))
 							break
 						}
 					}
 				}
-				fmt.Println("len txin, txout ", len(joinTx.TxIn), len(joinTx.TxOut))
-				fmt.Println("inputIndex ", inputIndex)
-				fmt.Println("outputIndex ", outputIndex)
+
+				//fmt.Println("len txin, txout ", len(joinTx.TxIn), len(joinTx.TxOut))
+				//fmt.Println("inputIndex ", inputIndex)
+				//fmt.Println("outputIndex ", outputIndex)
 
 				// Sign the tx
 				err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
@@ -1668,68 +1644,86 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				}
 
 				//submit signed tx
-				fmt.Println("signed tx")
-
 				signedTx := &pb.JoinTx{PeerId: PeerId}
 				buff := bytes.NewBuffer(nil)
 				buff.Grow(joinTx.SerializeSize())
 				err = joinTx.BtcEncode(buff, 0)
 				if err != nil {
-					fmt.Errorf("error BtcEncode %v", err)
+					log.Errorf("error BtcEncode %v", err)
+					return nil, err
 				}
 
 				signedTx.Tx = buff.Bytes()
-
 				signedTxData, err := proto.Marshal(signedTx)
 				if err != nil {
-					fmt.Errorf("error BtcEncode %v", err)
-					break
+					log.Errorf("error BtcEncode %v", err)
+					return nil, err
 				}
 
 				message := coinjoin.NewMessage(coinjoin.C_TX_SIGN, signedTxData)
 				if err := ws.WriteMessage(websocket.BinaryMessage, message.ToBytes()); err != nil {
-					fmt.Printf("error WriteMessage: %v", err)
-					break
+					log.Errorf("error WriteMessage: %v", err)
+					return nil, err
 				}
-				fmt.Println("signed tx 1")
+
+				log.Debug("Sent signed joined tx")
 
 			case coinjoin.S_TX_SIGN:
-				fmt.Println("S_TX_SIGN Will publish the transaction")
 				//get joined tx and sign with peer's txout index
 				joinTxData := &pb.JoinTx{}
 
 				err := proto.Unmarshal(message.Data, joinTxData)
 				if err != nil {
 					fmt.Errorf("err Unmarshal S_JOINED_TX %v", err)
-					break
-				}
-
-				var joinTx wire.MsgTx
-				buffTx := bytes.NewReader(joinTxData.Tx)
-				err = joinTx.BtcDecode(buffTx, 0)
-				if err != nil {
-					fmt.Errorf("err BtcDecode %v", err)
-					break
-				}
-
-				log.Info("Will publish the transaction")
-				for _, joinTxin := range joinTx.TxIn {
-					fmt.Println("bf publish joinTxin.PreviousOutPoint.Hash outpoint ", joinTxin.PreviousOutPoint.Hash.String())
-				}
-				err = w.publishTx(&joinTx, changeSourceFuncs, w.networkBackend)
-				if err != nil {
-					log.Errorf("Error when publish join splittx %v", err)
-					//					_, err := req.dcrTxClient.PublishResult(nil, sesID, joinId)
 					return nil, err
 				}
 
-				//				_, err := req.dcrTxClient.PublishResult(signedTx, sesID, joinId)
-				//				if err != nil {
-				//					log.Errorf("Error when publish join splittx %v", err)
-				//					return ticketHashes, err
-				//				}
-				//				publishedTx = signedTx
-				log.Info("Published and sent the joined transaction %v to server", joinTx.TxHash().String())
+				buffTx := bytes.NewReader(joinTxData.Tx)
+				err = joinTx.BtcDecode(buffTx, 0)
+				if err != nil {
+					log.Errorf("err BtcDecode %v", err)
+					return nil, err
+				}
+
+				log.Info("Will publish the transaction")
+				err = w.publishTx(&joinTx, changeSourceFuncs, w.networkBackend)
+				var msg *coinjoin.Message
+				if err != nil {
+					log.Errorf("Error when publish join splittx %v", err)
+					msg = coinjoin.NewMessage(coinjoin.C_TX_PUBLISH_RESULT, []byte{0x0})
+					return nil, err
+				}
+				log.Info("Published and sent the transaction to server", joinTx.TxHash().String())
+				//send publish result
+
+				var buffTx1 = bytes.NewBuffer(nil)
+				buffTx1.Grow(joinTx.SerializeSize())
+				err = joinTx.BtcEncode(buffTx1, 0)
+				if err != nil {
+					log.Errorf("Error when BtcEncode %v", err)
+					msg = coinjoin.NewMessage(coinjoin.C_TX_PUBLISH_RESULT, []byte{0x0})
+					return nil, err
+				}
+
+				msg = coinjoin.NewMessage(coinjoin.C_TX_PUBLISH_RESULT, buffTx1.Bytes())
+				if err := ws.WriteMessage(websocket.BinaryMessage, msg.ToBytes()); err != nil {
+					log.Errorf("error WriteMessage: %v", err)
+					return nil, err
+				}
+			case coinjoin.S_TX_PUBLISH_RESULT:
+				if len(message.Data) == 1 {
+					return nil, errors.New("error when publish joined transaction")
+				}
+
+				var tx wire.MsgTx
+				buffTx := bytes.NewBuffer(message.Data)
+				err := tx.BtcDecode(buffTx, 0)
+				if err != nil {
+					log.Errorf("Error when BtcDecode %v", err)
+					return nil, err
+				}
+				log.Info("Received published transaction, will use to purchase tickets")
+				return purchaseFn(&tx, req.numTickets, outputIndex)
 
 			}
 		}
@@ -1747,7 +1741,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		if err != nil {
 			return nil, fmt.Errorf("cannot create txout script: %s", err)
 		}
-		for i := 0; i < numTickets; i++ {
+		for i := 0; i < req.numTickets; i++ {
 			splitOuts = append(splitOuts, wire.NewTxOut(int64(neededPerTicket), pkScript))
 		}
 
@@ -1763,12 +1757,12 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		}
 
 		// Purchase tickets individually.
-		ticketHashes := make([]*chainhash.Hash, 0, numTickets)
+		ticketHashes := make([]*chainhash.Hash, 0, req.numTickets)
 
 		//		purchaseFn := func(tx *wire.MsgTx, numberTickets int, outputIds []int32) ([]*chainhash.Hash, error) {
 
 		//			ticketHashes := make([]*chainhash.Hash, 0)
-		//			for i := 0; i < numTickets; i++ {
+		//			for i := 0; i < req.numTickets; i++ {
 
 		//				outputIndex := outputIds[i]
 
@@ -1832,7 +1826,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 
 		// build outputs index in case communicate with server fails
 		localOutputIndex := make([]int32, 0)
-		for i := 0; i < numTickets; i++ {
+		for i := 0; i < req.numTickets; i++ {
 			localOutputIndex = append(localOutputIndex, int32(i))
 		}
 
@@ -1848,7 +1842,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					return nil, fmt.Errorf("failed to send split transaction: %v", err)
 				}
 
-				return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+				return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
 			}
 			return nil, err
 		}
@@ -1871,7 +1865,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					return nil, fmt.Errorf("failed to send split transaction: %v", err)
 				}
 
-				return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+				return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
 			}
 			return nil, err
 		}
@@ -1897,7 +1891,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 						return nil, fmt.Errorf("failed to send split transaction: %v", err)
 					}
 
-					return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+					return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
 				}
 				return nil, nil
 			}
@@ -1921,7 +1915,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 						return nil, fmt.Errorf("failed to send split transaction: %v", err)
 					}
 
-					return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+					return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
 				}
 				return nil, nil
 			}
@@ -1954,7 +1948,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					return nil, fmt.Errorf("failed to send split transaction: %v", err)
 				}
 
-				return purchaseFn(localSplitTx.Tx, numTickets, localOutputIndex)
+				return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
 			}
 
 			return nil, err
@@ -1985,7 +1979,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 			log.Infof("Joined transaction hash %v", publishedTx.TxHash().String())
 		}
 
-		return purchaseFn(publishedTx, numTickets, outputIds)
+		return purchaseFn(publishedTx, req.numTickets, outputIds)
 
 	} else {
 		// This opens a write transaction.
@@ -1998,7 +1992,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		if err != nil {
 			return nil, fmt.Errorf("cannot create txout script: %s", err)
 		}
-		for i := 0; i < numTickets; i++ {
+		for i := 0; i < req.numTickets; i++ {
 			splitOuts = append(splitOuts, wire.NewTxOut(int64(neededPerTicket), pkScript))
 		}
 
@@ -2025,8 +2019,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		}()
 
 		// Generate the tickets individually.
-		ticketHashes := make([]*chainhash.Hash, 0, numTickets)
-		for i := 0; i < numTickets; i++ {
+		ticketHashes := make([]*chainhash.Hash, 0, req.numTickets)
+		for i := 0; i < req.numTickets; i++ {
 			// Generate the extended outpoints that we need to use for ticket
 			// inputs. There are two inputs for pool tickets corresponding to the
 			// fees and the user subsidy, while user-handled tickets have only one
