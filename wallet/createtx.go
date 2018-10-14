@@ -224,7 +224,7 @@ func (w *Wallet) insertCreditsIntoTxMgr(op errors.Op, tx walletdb.ReadWriteTx, m
 			continue
 		}
 		for _, addr := range addrs {
-			ma, err := w.Manager.Address(addrmgrNs, addr)
+			ma, err := w.address(addrmgrNs, addr)
 			if err == nil {
 				// TODO: Credits should be added with the
 				// account they belong to, so wtxmgr is able to

@@ -60,7 +60,7 @@ func (w *Wallet) MakeSecp256k1MultiSigScript(secp256k1Addrs []dcrutil.Address, n
 				}
 				addrmgrNs = dbtx.ReadBucket(waddrmgrNamespaceKey)
 			}
-			addrInfo, err := w.Manager.Address(addrmgrNs, addr)
+			addrInfo, err := w.address(addrmgrNs, addr)
 			if err != nil {
 				return nil, err
 			}

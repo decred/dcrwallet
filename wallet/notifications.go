@@ -94,7 +94,7 @@ func lookupOutputChain(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails,
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(output.Version, output.PkScript, w.chainParams)
 	var ma udb.ManagedAddress
 	if err == nil && len(addrs) > 0 {
-		ma, err = w.Manager.Address(addrmgrNs, addrs[0])
+		ma, err = w.address(addrmgrNs, addrs[0])
 	}
 	if err != nil {
 		log.Errorf("Cannot fetch account for wallet output: %v", err)

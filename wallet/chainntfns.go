@@ -507,7 +507,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 
 			isRelevant := false
 			for _, addr := range addrs {
-				ma, err := w.Manager.Address(addrmgrNs, addr)
+				ma, err := w.address(addrmgrNs, addr)
 				if err != nil {
 					// Missing addresses are skipped.  Other errors should be
 					// propagated.
@@ -600,7 +600,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 		}
 
 		for _, addr := range addrs {
-			ma, err := w.Manager.Address(addrmgrNs, addr)
+			ma, err := w.address(addrmgrNs, addr)
 			if err == nil {
 				err = w.TxStore.AddCredit(txmgrNs, rec, blockMeta,
 					uint32(i), ma.Internal(), ma.Account())
@@ -663,7 +663,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			}
 
 			for _, maddr := range multisigAddrs {
-				_, err := w.Manager.Address(addrmgrNs, maddr)
+				_, err := w.address(addrmgrNs, maddr)
 				// An address we own; handle accordingly.
 				if err == nil {
 					err := w.TxStore.AddMultisigOut(

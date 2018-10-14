@@ -118,10 +118,11 @@ type Wallet struct {
 	purchaseTicketRequests chan purchaseTicketRequest
 
 	// Internal address handling.
-	addressReuse     bool
-	ticketAddress    dcrutil.Address
-	addressBuffers   map[uint32]*bip0044AccountData
-	addressBuffersMu sync.Mutex
+	addressReuse      bool
+	ticketAddress     dcrutil.Address
+	addressBuffers    map[uint32]*bip0044AccountData
+	addressBuffersMu  sync.Mutex
+	gapLimitAddresses map[string]*gapLimitAddressInfo
 
 	// Channels for the manager locker.
 	unlockRequests     chan unlockRequest
@@ -657,9 +658,123 @@ func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, re
 		return errors.E(op, err)
 	}
 
+	err = w.loadGapLimitAddresses()
+	if err != nil {
+		log.Warnf("Could not load managed addresses cache: %v", err)
+	}
+
 	log.Infof("Registered for transaction notifications for %v address(es) "+
 		"and %v output(s)", addrCount, utxoCount)
 	return nil
+}
+
+// gapLimitAddressInfo is structure storing account, index and
+// branch about in-memory address from gap limit.
+type gapLimitAddressInfo struct {
+	Account, Index, Branch uint32
+}
+
+// loadGapLimitAddresses loads addresses from gap limit into address indexed map.
+func (w *Wallet) loadGapLimitAddresses() error {
+	const op errors.Op = "wallet.loadGapLimitAddresses"
+	log.Info("Loading gap limit addresses info...")
+
+	addrs := map[string]*gapLimitAddressInfo{}
+	var addrsMu sync.Mutex
+	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, from, to, acct, branch uint32, errs chan<- error) {
+		var g errgroup.Group
+		for child := from; child <= to; child += 1 {
+			child := child
+			g.Go(func() error {
+				addr, err := deriveChildAddress(branchKey, child, w.chainParams)
+				if err == hdkeychain.ErrInvalidChild {
+					return err
+				}
+				if err != nil {
+					return err
+				}
+				addrsMu.Lock()
+				defer addrsMu.Unlock()
+				addrs[addr.String()] = &gapLimitAddressInfo{
+					Account: acct,
+					Index:   child,
+					Branch:  branch,
+				}
+
+				return nil
+			})
+		}
+		errs <- g.Wait()
+	}
+
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		lastAcct, err := w.Manager.LastAccount(addrmgrNs)
+		if err != nil {
+			return err
+		}
+
+		errs := make(chan error, int(lastAcct+1)*2)
+		for acct := uint32(0); acct <= lastAcct; acct++ {
+			props, err := w.Manager.AccountProperties(addrmgrNs, acct)
+			if err != nil {
+				return err
+			}
+			acctXpub, err := w.Manager.AccountExtendedPubKey(dbtx, acct)
+			if err != nil {
+				return err
+			}
+			extKey, intKey, err := deriveBranches(acctXpub)
+			if err != nil {
+				return err
+			}
+			gapLimit := uint32(w.gapLimit)
+			extn := minUint32(props.LastReturnedExternalIndex+gapLimit, hdkeychain.HardenedKeyStart-1)
+			intn := minUint32(props.LastReturnedInternalIndex+gapLimit, hdkeychain.HardenedKeyStart-1)
+			// pre-cache the pubkey results so concurrent access does not race.
+			extKey.ECPubKey()
+			intKey.ECPubKey()
+			go loadBranchAddrs(extKey, props.LastReturnedExternalIndex, extn, acct, udb.ExternalBranch, errs)
+			go loadBranchAddrs(intKey, props.LastReturnedInternalIndex, intn, acct, udb.InternalBranch, errs)
+			// loadBranchAddrs loads addresses through extn/intn, and the actual
+			// number of watched addresses is one more for each branch due to zero
+			// indexing.
+		}
+
+		for i := 0; i < cap(errs); i++ {
+			err := <-errs
+			if err != nil {
+				return err
+			}
+		}
+
+		return err
+	})
+
+	if err == nil {
+		w.gapLimitAddresses = addrs
+	}
+
+	return err
+}
+
+// address is wrapper for w.Manager.Address func performing additional check
+// if requested address misses db index and belongs to gap limit addresses
+func (w *Wallet) address(ns walletdb.ReadBucket, address dcrutil.Address) (udb.ManagedAddress, error) {
+	ma, err := w.Manager.Address(ns, address)
+	if errors.Is(errors.NotExist, err) {
+		if gapLimitAddr, ok := w.gapLimitAddresses[address.String()]; ok {
+			if ns, ok := ns.(walletdb.ReadWriteBucket); ok {
+				err = w.Manager.SyncAccountToAddrIndex(ns, gapLimitAddr.Account,
+					minUint32(hdkeychain.HardenedKeyStart-1, gapLimitAddr.Index+uint32(w.gapLimit)),
+					gapLimitAddr.Branch)
+			}
+
+			return w.Manager.Address(ns, address)
+		}
+	}
+
+	return ma, err
 }
 
 // CommittedTickets takes a list of tickets and returns a filtered list of
@@ -1557,7 +1672,7 @@ func (w *Wallet) PubKeyForAddress(a dcrutil.Address) (chainec.PublicKey, error) 
 	var pubKey chainec.PublicKey
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		managedAddr, err := w.Manager.Address(addrmgrNs, a)
+		managedAddr, err := w.address(addrmgrNs, a)
 		if err != nil {
 			return err
 		}
@@ -1646,7 +1761,7 @@ func (w *Wallet) HaveAddress(a dcrutil.Address) (bool, error) {
 	const op errors.Op = "wallet.HaveAddress"
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		_, err := w.Manager.Address(addrmgrNs, a)
+		_, err := w.address(addrmgrNs, a)
 		return err
 	})
 	if err != nil {
@@ -1681,7 +1796,7 @@ func (w *Wallet) AddressInfo(a dcrutil.Address) (udb.ManagedAddress, error) {
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
-		managedAddress, err = w.Manager.Address(addrmgrNs, a)
+		managedAddress, err = w.address(addrmgrNs, a)
 		return err
 	})
 	if err != nil {
@@ -3021,7 +3136,7 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 				spendable = true
 			case txscript.MultiSigTy:
 				for _, a := range addrs {
-					_, err := w.Manager.Address(addrmgrNs, a)
+					_, err := w.address(addrmgrNs, a)
 					if err == nil {
 						continue
 					}
@@ -3860,7 +3975,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 					}
 					return wif.PrivKey, true, nil
 				}
-				address, err := w.Manager.Address(addrmgrNs, addr)
+				address, err := w.address(addrmgrNs, addr)
 				if err != nil {
 					return nil, false, err
 				}
