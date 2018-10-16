@@ -1,6 +1,8 @@
 module github.com/decred/dcrwallet
 
 require (
+	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
+	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f // indirect
 	github.com/decred/dcrd/addrmgr v1.0.2
 	github.com/decred/dcrd/blockchain v1.0.2
 	github.com/decred/dcrd/blockchain/stake v1.0.2
@@ -31,10 +33,16 @@ require (
 	github.com/decred/dcrwallet/wallet v1.0.0
 	github.com/decred/dcrwallet/walletseed v1.0.0
 	github.com/decred/slog v1.0.0
+	github.com/gogo/protobuf v1.1.1 // indirect
 	github.com/gorilla/websocket v1.2.0
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/jrick/logrotate v1.0.0
+	github.com/pkg/errors v0.8.0 // indirect
+	github.com/raedahgroup/dcrtxmatcher v0.0.0-20181016030501-7e7f5ca15de0
+	github.com/tmthrgd/go-rand v0.0.0-20180829004326-9716d99b29d1 // indirect
+	github.com/wsddn/go-ecdh v0.0.0-20161211032359-48726bab9208 // indirect
 	golang.org/x/crypto v0.0.0-20180808211826-de0752318171
+	golang.org/x/net v0.0.0-20180808004115-f9ce57c11b24
 	google.golang.org/grpc v1.14.0
 )
 
