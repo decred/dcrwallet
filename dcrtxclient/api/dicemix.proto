@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package messages;
+
+message PeerInfo {
+	uint32 peer_id = 1;
+	bytes pk = 2;
+	bytes sharedkey = 3;
+	uint32 num_msg = 4;
+}
+
+message CoinJoinReq {
+    
+}
+
+message CoinJoinRes {	
+    uint32 session_id = 2;
+	uint32 peer_id = 3;
+	repeated uint64 peer_ids = 4;
+}
+
+message KeyExchangeReq {	
+    uint32 session_id = 1;
+	uint32 peer_id = 2;
+	uint32 num_msg = 3;	
+	bytes pk = 4;
+}
+
+message KeyExchangeRes {	
+    uint32 session_id = 1;
+	uint32 peer_id = 2;	
+	repeated PeerInfo peers = 3;
+}
+
+message DcExpVector {
+	uint32 peer_id = 1;
+	uint32 len = 2;
+	bytes vector = 3;
+	bytes commit = 4;
+}
+
+message DcXorVector {
+	uint32 peer_id = 1;
+	uint32 len = 2;
+	bytes vector = 3;
+}
+
+message DcXorVectorResult {
+	repeated uint32 peer_ids = 1;
+}
+
+message AllMessages {	
+	uint32 len = 1;
+	bytes msgs = 2;
+}
+
+message TxInputs {
+	uint32 peer_id = 1;
+	int64 ticket_price = 2;
+	bytes txins = 3;
+}
+
+message JoinTx {
+	uint32 peer_id = 1;	
+	bytes tx = 3;
+}
+
+
+

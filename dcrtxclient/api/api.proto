@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package dcrticketmatcher;
+
+service SplitTxMatcherService {
+    rpc FindMatches (FindMatchesRequest) returns (FindMatchesResponse);
+    rpc SubmitSplitTx (SubmitInputTxReq) returns (SubmitInputTxRes);
+    rpc SubmitSignedTransaction (SignTransactionRequest) returns (SignTransactionResponse);
+    rpc PublishResult (PublishResultRequest) returns (PublishResultResponse);
+    rpc Status (StatusRequest) returns (StatusResponse);
+}
+
+
+message FindMatchesRequest {
+    uint64 amount = 1;
+}
+
+message FindMatchesResponse {
+    string session_id = 1;
+	string join_id = 2;
+}
+
+
+message SubmitInputTxReq {
+    string session_id = 1;
+	string join_id = 2;
+    bytes split_tx = 3;
+}
+
+message SubmitInputTxRes {
+    bytes ticket_tx = 1;	
+    repeated int32 inputs_ids = 2;
+    repeated int32 output_ids = 3;
+}
+
+message SignTransactionRequest {
+    string session_id = 1;
+	string join_id = 2;
+    bytes split_tx = 3;
+    int32 req_type = 4;
+}
+
+message SignTransactionResponse {
+    bytes ticket_tx = 1;
+    bool publisher = 2;
+}
+message PublishResultRequest {
+    string session_id = 1;
+	string join_id = 2;
+    bytes joined_tx = 3;
+    int32 req_type = 4;
+}
+
+message PublishResultResponse {
+    bytes ticket_tx = 1;
+}
+message StatusRequest { }
+message StatusResponse {
+    uint64 ticket_price = 1;
+}

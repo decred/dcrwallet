@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/wire"
-	pb "github.com/raedahgroup/dcrtxmatcher/api/matcherrpc"
+	pb "github.com/decred/dcrwallet/dcrtxclient/api/matcherrpc"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
