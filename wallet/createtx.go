@@ -1189,7 +1189,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		//fmt.Println("outputIds", outputIds)
 		//fmt.Println("len txin", len(tx.TxIn))
 		//fmt.Println("len txin", len(tx.TxOut))
-		fmt.Println("outputIndex will be used for purchase", outputIds)
+		log.Info("outputIndex will be used for purchase", outputIds)
 		ticketHashes := make([]*chainhash.Hash, 0)
 		for i := 0; i < req.numTickets; i++ {
 
@@ -1267,11 +1267,12 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 			}
 			pkScripts[i], err = txscript.PayToAddrScript(splitTxAddr)
 			if err != nil {
-				return nil, fmt.Errorf("cannot create txout script: %s", err)
+			    log.Errorf("cannot create txout script: %s", err)
+				return nil, err
 			}
 
 			splitOuts = append(splitOuts, wire.NewTxOut(int64(neededPerTicket), pkScripts[i]))
-			fmt.Printf("pkscript %x\n", pkScripts[i])
+			log.Debug("pkscript %x\n", pkScripts[i])
 		}
 
 		txFeeIncrement := req.txFee
@@ -1304,8 +1305,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		dialer := websocket.Dialer{}
 		ws, _, err := dialer.Dial("ws://"+req.dcrTxClient.Config().Address+"/ws", http.Header{})
 		if err != nil {
-			fmt.Println("Error connecting:", err)
-			//return
+			log.Errorf("Error connecting %v", err)
+			//return ni, err
 		}
 		log.Info("Connected to dcrtxmatcher server for joining transaction!")
 		defer ws.Close()
@@ -1456,7 +1457,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				vector := make([]byte, 0)
 				for i := 0; i < int(numMsg); i++ {
 					vector = append(vector, myDcexp[i].N.GetBytes()...)
-					fmt.Printf("Exponential vector %x\n", myDcexp[i].N.GetBytes())
+					log.Debug("Exponential vector %x\n", myDcexp[i].N.GetBytes())
 				}
 				log.Debug("Sent exponential vector to server")
 
@@ -1496,7 +1497,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				allMsgHashes = make([]field.Uint128, allMsgs.Len)
 				for i := 0; i < int(allMsgs.Len); i++ {
 					allMsgBytes[i] = allMsgs.Msgs[i*16 : (i+1)*16]
-					fmt.Printf("All pkscripts hash received from server %x \n", allMsgBytes[i])
+					log.Debug("All pkscripts hash received from server %x \n", allMsgBytes[i])
 					allMsgHashes[i] = field.FromBytes(allMsgBytes[i])
 				}
 
@@ -1516,7 +1517,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					}
 				}
 
-				fmt.Printf("Find my pkscripts from all hashed messages returned from server. My slot reserved %v\n", slotReserveds)
+				log.Debug("Find my pkscripts from all hashed messages returned from server. My slot reserved %v\n", slotReserveds)
 				myDcXor := make([][]byte, numMsg)
 
 				for i := 0; i < int(req.numTickets); i++ {
@@ -1530,14 +1531,14 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					for i := 0; i < int(numMsg); i++ {
 						myDcXor[i], err = util.XorBytes(myDcXor[i], peer.DcXor)
 						if err != nil {
-							fmt.Println("error XorBytes", err)
+							log.Error("error XorBytes", err)
 							return nil, err
 						}
 					}
 				}
 
 				for _, item := range myDcXor {
-					fmt.Printf("Xor vector %x\n", item)
+					log.Debug("Xor vector %x\n", item)
 				}
 
 				xorData := make([]byte, 0)
@@ -1599,7 +1600,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				joinTxData := &pb.JoinTx{}
 				err := proto.Unmarshal(message.Data, joinTxData)
 				if err != nil {
-					fmt.Errorf("err Unmarshal S_JOINED_TX %v", err)
+					log.Errorf("err Unmarshal S_JOINED_TX %v", err)
 					return nil, err
 				}
 				log.Info("Received joined tx. Will find my txin, txout index from joined tx and sign")
@@ -1674,7 +1675,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 
 				err := proto.Unmarshal(message.Data, joinTxData)
 				if err != nil {
-					fmt.Errorf("err Unmarshal S_JOINED_TX %v", err)
+					log.Errorf("err Unmarshal S_JOINED_TX %v", err)
 					return nil, err
 				}
 
@@ -1739,7 +1740,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		var splitOuts []*wire.TxOut
 		pkScript, err := txscript.PayToAddrScript(splitTxAddr)
 		if err != nil {
-			return nil, fmt.Errorf("cannot create txout script: %s", err)
+			log.Errorf("cannot create txout script: %s", err)
+			return nil, err
 		}
 		for i := 0; i < req.numTickets; i++ {
 			splitOuts = append(splitOuts, wire.NewTxOut(int64(neededPerTicket), pkScript))
@@ -1839,7 +1841,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				localSplitTx, err := w.txToOutputsInternal(op, splitOuts, req.account, req.minConf,
 					n, false, txFeeIncrement)
 				if err != nil {
-					return nil, fmt.Errorf("failed to send split transaction: %v", err)
+					log.Errorf("failed to send split transaction: %v", err)
+					return nil, err
 				}
 
 				return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
@@ -1862,7 +1865,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				localSplitTx, err := w.txToOutputsInternal(op, splitOuts, req.account, req.minConf,
 					n, false, txFeeIncrement)
 				if err != nil {
-					return nil, fmt.Errorf("failed to send split transaction: %v", err)
+					log.Errorf("failed to send split transaction: %v", err)
+					return nil, err
 				}
 
 				return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
@@ -1888,7 +1892,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					localSplitTx, err := w.txToOutputsInternal(op, splitOuts, req.account, req.minConf,
 						n, false, txFeeIncrement)
 					if err != nil {
-						return nil, fmt.Errorf("failed to send split transaction: %v", err)
+						log.Errorf("failed to send split transaction: %v", err)
+						return nil, err
 					}
 
 					return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
@@ -1912,7 +1917,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					localSplitTx, err := w.txToOutputsInternal(op, splitOuts, req.account, req.minConf,
 						n, false, txFeeIncrement)
 					if err != nil {
-						return nil, fmt.Errorf("failed to send split transaction: %v", err)
+						log.Errorf("failed to send split transaction: %v", err)
+						return nil, err
 					}
 
 					return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
@@ -1945,7 +1951,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				localSplitTx, err := w.txToOutputsInternal(op, splitOuts, req.account, req.minConf,
 					n, false, txFeeIncrement)
 				if err != nil {
-					return nil, fmt.Errorf("failed to send split transaction: %v", err)
+					log.Errorf("failed to send split transaction: %v", err)
+					return nil, err
 				}
 
 				return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
@@ -1990,7 +1997,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		var splitOuts []*wire.TxOut
 		pkScript, err := txscript.PayToAddrScript(splitTxAddr)
 		if err != nil {
-			return nil, fmt.Errorf("cannot create txout script: %s", err)
+			log.Errorf("cannot create txout script: %s", err)
+			return nil, err
 		}
 		for i := 0; i < req.numTickets; i++ {
 			splitOuts = append(splitOuts, wire.NewTxOut(int64(neededPerTicket), pkScript))
@@ -2003,7 +2011,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		splitTx, err := w.txToOutputsInternal(op, splitOuts, req.account, req.minConf,
 			n, false, txFeeIncrement)
 		if err != nil {
-			return nil, fmt.Errorf("failed to send split transaction: %v", err)
+			log.Errorf("failed to send split transaction: %v", err)
+			return nil, err
 		}
 
 		// After tickets are created and published, watch for future addresses used
@@ -2088,7 +2097,7 @@ func (w *Wallet) processTxRecordAndPublish(tx *wire.MsgTx, n NetworkBackend) err
 	// Create transaction record
 	rec, err := udb.NewTxRecordFromMsgTx(tx, time.Now())
 	if err != nil {
-		fmt.Println("[processTxRecordAndPublish.NewTxRecordFromMsgTx] - error ", err)
+		log.Error("processTxRecordAndPublish.NewTxRecordFromMsgTx error ", err)
 		return err
 	}
 
@@ -2097,7 +2106,7 @@ func (w *Wallet) processTxRecordAndPublish(tx *wire.MsgTx, n NetworkBackend) err
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		err := w.processTransactionRecord(dbtx, rec, nil, nil)
 		if err != nil {
-			fmt.Println("[processTxRecordAndPublish.processTxRecordAndPublish] - error ", err)
+			log.Error("[processTxRecordAndPublish.processTxRecordAndPublish] - error ", err)
 			return err
 		}
 		return n.PublishTransactions(context.TODO(), tx)
