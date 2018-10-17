@@ -128,6 +128,7 @@ var handlers = map[string]handler{
 	"walletlock":              {fn: walletLock},
 	"walletpassphrase":        {fn: walletPassphrase},
 	"walletpassphrasechange":  {fn: walletPassphraseChange},
+	"debuglevel":              {fn: debugLevelChange},
 
 	// Extensions to the reference client JSON-RPC API
 	"getbestblock":     {fn: getBestBlock},
@@ -3576,4 +3577,18 @@ func decodeHexStr(hexStr string) ([]byte, error) {
 		return nil, rpcErrorf(dcrjson.ErrRPCDecodeHexString, "hex string decode failed: %v", err)
 	}
 	return decoded, nil
+}
+
+// debugLevelChange tries to set debug level per wallet subsystem instead of
+// the passthrough approach. To change debug level in consensus server
+// send the commmand directly to dcrd.
+func debugLevelChange(s *Server, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrjson.DebugLevelCmd)
+
+	// DebugLevel verification is done on later stage
+	if len(cmd.LevelSpec) > 0 {
+		s.setRequestProcessDebugLevel(cmd.LevelSpec)
+	}
+
+	return "Done", nil
 }

@@ -73,7 +73,8 @@ type Server struct {
 	quit    chan struct{}
 	quitMtx sync.Mutex
 
-	requestShutdownChan chan struct{}
+	requestShutdownChan   chan struct{}
+	requestDebugLevelChan chan string
 
 	activeNet *chaincfg.Params
 
@@ -116,9 +117,10 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 			// Allow all origins.
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
-		quit:                make(chan struct{}),
-		requestShutdownChan: make(chan struct{}, 1),
-		activeNet:           activeNet,
+		quit:                  make(chan struct{}),
+		requestShutdownChan:   make(chan struct{}, 1),
+		requestDebugLevelChan: make(chan string, 1),
+		activeNet:             activeNet,
 	}
 
 	serveMux.Handle("/", throttledFn(opts.MaxPOSTClients,
@@ -587,6 +589,7 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 	if stop {
 		s.requestProcessShutdown()
 	}
+
 }
 
 func (s *Server) requestProcessShutdown() {
@@ -597,4 +600,14 @@ func (s *Server) requestProcessShutdown() {
 // client requests remote shutdown.
 func (s *Server) RequestProcessShutdown() <-chan struct{} {
 	return s.requestShutdownChan
+}
+
+// RequestProcessDebugLevel returns a channel that is sent to when change debug
+// level request arrives
+func (s *Server) RequestProcessDebugLevel() <-chan string {
+	return s.requestDebugLevelChan
+}
+
+func (s *Server) setRequestProcessDebugLevel(debugLevel string) {
+	s.requestDebugLevelChan <- debugLevel
 }

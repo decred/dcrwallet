@@ -287,6 +287,18 @@ func run(ctx context.Context) error {
 				requestShutdown()
 			}
 		}()
+		// As the server is another package an chan is used to access
+		// functions from main
+		go func() {
+			for debugLevel := range jsonRPCServer.RequestProcessDebugLevel() {
+				if err := parseAndSetDebugLevels(debugLevel); err != nil {
+					err := errors.Errorf("%v", err.Error())
+					fmt.Fprintln(os.Stderr, err)
+				} else {
+					log.Infof("Debug level '%s' has been set successfully", debugLevel)
+				}
+			}
+		}()
 		defer func() {
 			log.Warn("Stopping JSON-RPC server...")
 			jsonRPCServer.Stop()
