@@ -706,4 +706,14 @@ var helpDescsEnUS = map[string]string{
 	// GetBalanceToMaintainCmd help.
 	"getbalancetomaintain--synopsis": "Get the current balance to maintain",
 	"getbalancetomaintain--result0":  "The current balancetomaintain",
+
+	// DebugLevelCmd help.
+	"debuglevel--synopsis": "Dynamically changes the debug logging level.\n" +
+		"The levelspec can either a debug level or of the form:\n" +
+		"<subsystem>=<level>,<subsystem2>=<level2>,...\n" +
+		"The valid debug levels are trace, debug, info, warn, error, and critical.\n" +
+		"The valid subsystems are CMGR, DCRW, GRPC, LODR, RPCS, SYNC, TKBY and WLLT.\n" +
+		"Finally the keyword 'show' will return a list of the available subsystems.",
+	"debuglevel-levelspec":   "The debug level(s) to use",
+	"debuglevel--result0":    "The string 'Done.'",
 }
