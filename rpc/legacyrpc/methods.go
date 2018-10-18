@@ -3585,9 +3585,9 @@ func decodeHexStr(hexStr string) ([]byte, error) {
 func debugLevelChange(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.DebugLevelCmd)
 
-	// DebugLevel verification is done on later stage
-	if len(cmd.LevelSpec) > 0 {
-		s.setRequestProcessDebugLevel(cmd.LevelSpec)
+	errMsg := s.setRequestProcessDebugLevel(cmd.LevelSpec)
+	if len(errMsg) > 0 {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "Invalid parameter: %v", errMsg)
 	}
 
 	return "Done", nil

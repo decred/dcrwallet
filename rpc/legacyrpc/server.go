@@ -73,8 +73,10 @@ type Server struct {
 	quit    chan struct{}
 	quitMtx sync.Mutex
 
-	requestShutdownChan   chan struct{}
-	requestDebugLevelChan chan string
+	requestShutdownChan chan struct{}
+
+	requestDebugLevelChan  chan string
+	responseDebugLevelChan chan string
 
 	activeNet *chaincfg.Params
 
@@ -117,10 +119,11 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 			// Allow all origins.
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
-		quit:                  make(chan struct{}),
-		requestShutdownChan:   make(chan struct{}, 1),
-		requestDebugLevelChan: make(chan string, 1),
-		activeNet:             activeNet,
+		quit:                   make(chan struct{}),
+		requestShutdownChan:    make(chan struct{}, 1),
+		requestDebugLevelChan:  make(chan string, 1),
+		responseDebugLevelChan: make(chan string, 1),
+		activeNet:              activeNet,
 	}
 
 	serveMux.Handle("/", throttledFn(opts.MaxPOSTClients,
@@ -608,6 +611,15 @@ func (s *Server) RequestProcessDebugLevel() <-chan string {
 	return s.requestDebugLevelChan
 }
 
-func (s *Server) setRequestProcessDebugLevel(debugLevel string) {
+// ResponseProcessDebugLevel returns response chan that can store an empty string
+// if no error is found or error description string
+func (s *Server) ResponseProcessDebugLevel() chan<- string {
+	return s.responseDebugLevelChan
+}
+
+// setRequestProcessDebugLevel sends debug level to request chan and waits for
+// response message
+func (s *Server) setRequestProcessDebugLevel(debugLevel string) string {
 	s.requestDebugLevelChan <- debugLevel
+	return <-s.responseDebugLevelChan
 }

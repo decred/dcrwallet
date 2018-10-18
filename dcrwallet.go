@@ -291,12 +291,12 @@ func run(ctx context.Context) error {
 		// functions from main
 		go func() {
 			for debugLevel := range jsonRPCServer.RequestProcessDebugLevel() {
+				errMsg := ""
 				if err := parseAndSetDebugLevels(debugLevel); err != nil {
-					err := errors.Errorf("%v", err.Error())
-					fmt.Fprintln(os.Stderr, err)
-				} else {
-					log.Infof("Debug level '%s' has been set successfully", debugLevel)
+					errMsg = fmt.Sprintf("%v", err.Error())
 				}
+
+				jsonRPCServer.ResponseProcessDebugLevel() <- errMsg
 			}
 		}()
 		defer func() {
