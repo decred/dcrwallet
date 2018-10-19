@@ -74,9 +74,7 @@ type Server struct {
 	quitMtx sync.Mutex
 
 	requestShutdownChan chan struct{}
-
-	requestDebugLevelChan  chan string
-	responseDebugLevelChan chan string
+	requestDebugLevel   chan debugLevelRequest
 
 	activeNet *chaincfg.Params
 
@@ -86,6 +84,11 @@ type Server struct {
 type handler struct {
 	fn     func(*Server, interface{}) (interface{}, error)
 	noHelp bool
+}
+
+type debugLevelRequest struct {
+	Level string
+	Err   chan error
 }
 
 // jsonAuthFail sends a message back to the client if the http auth is rejected.
@@ -119,11 +122,10 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 			// Allow all origins.
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
-		quit:                   make(chan struct{}),
-		requestShutdownChan:    make(chan struct{}, 1),
-		requestDebugLevelChan:  make(chan string, 1),
-		responseDebugLevelChan: make(chan string, 1),
-		activeNet:              activeNet,
+		quit:                make(chan struct{}),
+		requestShutdownChan: make(chan struct{}, 1),
+		requestDebugLevel:   make(chan debugLevelRequest),
+		activeNet:           activeNet,
 	}
 
 	serveMux.Handle("/", throttledFn(opts.MaxPOSTClients,
@@ -607,19 +609,21 @@ func (s *Server) RequestProcessShutdown() <-chan struct{} {
 
 // RequestProcessDebugLevel returns a channel that is sent to when change debug
 // level request arrives
-func (s *Server) RequestProcessDebugLevel() <-chan string {
-	return s.requestDebugLevelChan
+func (s *Server) RequestProcessDebugLevel() <-chan debugLevelRequest {
+	return s.requestDebugLevel
 }
 
-// ResponseProcessDebugLevel returns response chan that can store an empty string
-// if no error is found or error description string
-func (s *Server) ResponseProcessDebugLevel() chan<- string {
-	return s.responseDebugLevelChan
-}
+func (s *Server) RequestDebugLevel(level string) error {
 
-// setRequestProcessDebugLevel sends debug level to request chan and waits for
-// response message
-func (s *Server) setRequestProcessDebugLevel(debugLevel string) string {
-	s.requestDebugLevelChan <- debugLevel
-	return <-s.responseDebugLevelChan
+	err := make(chan error, 1)
+	s.requestDebugLevel <- debugLevelRequest{
+		Level: level,
+		Err:   err,
+	}
+	e := <-err
+	if e != nil {
+		return rpcErrorf(dcrjson.ErrRPCInvalidParameter, "Invalid parameter: %v", e.Error())
+	}
+
+	return nil
 }

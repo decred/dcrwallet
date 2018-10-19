@@ -290,13 +290,17 @@ func run(ctx context.Context) error {
 		// As the server is another package an chan is used to access
 		// functions from main
 		go func() {
-			for debugLevel := range jsonRPCServer.RequestProcessDebugLevel() {
-				errMsg := ""
-				if err := parseAndSetDebugLevels(debugLevel); err != nil {
-					errMsg = fmt.Sprintf("%v", err.Error())
-				}
+			for req := range jsonRPCServer.RequestProcessDebugLevel() {
 
-				jsonRPCServer.ResponseProcessDebugLevel() <- errMsg
+				err := parseAndSetDebugLevels(req.Level)
+
+				if err != nil {
+					log.Infof("Debug level: %v", err.Error())
+					req.Err <- err
+				} else {
+					log.Infof("Debug level '%s' processed", req.Level)
+					req.Err <- nil
+				}
 			}
 		}()
 		defer func() {

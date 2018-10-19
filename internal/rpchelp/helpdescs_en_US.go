@@ -714,6 +714,6 @@ var helpDescsEnUS = map[string]string{
 		"The valid debug levels are trace, debug, info, warn, error, and critical.\n" +
 		"The valid subsystems are CMGR, DCRW, GRPC, LODR, RPCS, SYNC, TKBY and WLLT.\n" +
 		"Finally the keyword 'show' will return a list of the available subsystems.",
-	"debuglevel-levelspec":   "The debug level(s) to use",
-	"debuglevel--result0":    "The string 'Done.'",
+	"debuglevel-levelspec": "The debug level(s) to use",
+	"debuglevel--result0":  "The string 'Done.'",
 }
