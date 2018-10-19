@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 5.5.x
+Version: 5.6.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -40,6 +40,7 @@ existing wallet.
 - [`WalletService`](#walletservice)
 - [`SeedService`](#seedservice)
 - [`TicketBuyerService`](#ticketbuyerservice)
+- [`TicketBuyerV2Service`](#ticketbuyerv2service)
 - [`AgendaService`](#agendaservice)
 - [`VotingService`](#votingservice)
 - [`MessageVerificationService`](#messageverificationservice)
@@ -2910,6 +2911,54 @@ ticket buyer.
 **Expected errors:**
 
 - `FailedPrecondition`: Ticket buyer is not running.
+
+**Stability:** Unstable
+
+## `TicketBuyerV2Service`
+
+The `TicketBuyerV2Service` service provides RPC clients with the ability to
+launch the V2 ticket buyer.  
+
+**Methods:**
+
+- [`StartTicketBuyer`](#startautobuyer)
+
+### Methods
+
+#### `StartTicketBuyer`
+
+The `StartTicketBuyer` starts a new V2 ticket buyer for the specified account.
+The users may specify a balance to maintain as well as various settings for purchasing tickets for stakepools.
+
+**Request:** `StartTicketBuyerRequest`
+
+- `bytes passphrase`: The private passphrase to unlock the wallet.
+
+-	`uint32 account`: The account number from which to purchase the tickets.
+
+-	`uint32 voting_account`: The account that will be used for the voting address (if no voting address is specified.) 
+
+-	`int64 balance_to_maintain`: When set, the account will purchase as many tickets as possible without going under this amount.
+
+-	`string voting_address`: The address to give the tickets purchased voting rights.
+
+-	`string pool_address`: The address that will be used in any stakepool fee commitment utxos.
+
+-	`double pool_fees`: The percentage used to calculate the proper fee in the stakepool fee commitment utxos.
+
+**Response:** `stream StartTicketBuyerResponse`
+
+- `uint32 ticket_buyer_account_started`: When a new ticket buyer is started the client is notified of the account number of the started ticket buyer.
+
+**Expected errors:**
+
+- `FailedPrecondition`: Wallet has not been loaded.
+
+- `FailedPrecondition`: An invalid voting address was used.
+
+- `FailedPrecondition`: An invalid pool address was used.
+
+- `InvalidArgument`: A negative balance to maintain given.
 
 **Stability:** Unstable
 
