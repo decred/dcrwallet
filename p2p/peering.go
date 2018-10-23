@@ -783,6 +783,7 @@ func (rp *RemotePeer) receivedCFilter(ctx context.Context, msg *wire.MsgCFilter)
 func (rp *RemotePeer) addRequestedHeaders(c chan<- *wire.MsgHeaders) (sendheaders, newRequest bool) {
 	rp.requestedHeadersMu.Lock()
 	if rp.sendheaders {
+		rp.requestedHeadersMu.Unlock()
 		return true, false
 	}
 	if rp.requestedHeaders != nil {
@@ -819,6 +820,7 @@ func (rp *RemotePeer) receivedHeaders(ctx context.Context, msg *wire.MsgHeaders)
 		op := errors.Opf(opf, rp.raddr)
 		err := errors.E(op, errors.Protocol, "received unrequested headers")
 		rp.Disconnect(err)
+        rp.requestedHeadersMu.Unlock()
 		return
 	}
 	c := rp.requestedHeaders
