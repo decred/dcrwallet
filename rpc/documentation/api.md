@@ -2934,17 +2934,17 @@ The users may specify a balance to maintain as well as various settings for purc
 
 - `bytes passphrase`: The private passphrase to unlock the wallet.
 
--	`uint32 account`: The account number from which to purchase the tickets.
+- `uint32 account`: The account number from which to purchase the tickets.
 
--	`uint32 voting_account`: The account that will be used for the voting address (if no voting address is specified.) 
+- `uint32 voting_account`: The account that will be used for the voting address (if no voting address is specified.) 
 
--	`int64 balance_to_maintain`: When set, the account will purchase as many tickets as possible without going under this amount.
+- `int64 balance_to_maintain`: When set, the account will purchase as many tickets as possible without going under this amount.
 
--	`string voting_address`: The address to give the tickets purchased voting rights.
+- `string voting_address`: The address to give the tickets purchased voting rights.
 
--	`string pool_address`: The address that will be used in any stakepool fee commitment utxos.
+- `string pool_address`: The address that will be used in any stakepool fee commitment utxos.
 
--	`double pool_fees`: The percentage used to calculate the proper fee in the stakepool fee commitment utxos.
+- `double pool_fees`: The percentage used to calculate the proper fee in the stakepool fee commitment utxos.
 
 **Response:** `stream StartTicketBuyerResponse`
 
