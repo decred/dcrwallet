@@ -195,7 +195,7 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 				<-waitForAddrs
 			}
 			reject := wire.NewMsgReject(wire.CmdVersion, wire.RejectNonstandard, reason.Error())
-			rp.sengMessageAck(ctx, reject)
+			rp.sendMessageAck(ctx, reject)
 			rp.Disconnect(err)
 		}()
 		return nil, err
@@ -783,6 +783,7 @@ func (rp *RemotePeer) receivedCFilter(ctx context.Context, msg *wire.MsgCFilter)
 func (rp *RemotePeer) addRequestedHeaders(c chan<- *wire.MsgHeaders) (sendheaders, newRequest bool) {
 	rp.requestedHeadersMu.Lock()
 	if rp.sendheaders {
+		rp.requestedHeadersMu.Unlock()
 		return true, false
 	}
 	if rp.requestedHeaders != nil {
@@ -819,6 +820,7 @@ func (rp *RemotePeer) receivedHeaders(ctx context.Context, msg *wire.MsgHeaders)
 		op := errors.Opf(opf, rp.raddr)
 		err := errors.E(op, errors.Protocol, "received unrequested headers")
 		rp.Disconnect(err)
+		rp.requestedHeadersMu.Unlock()
 		return
 	}
 	c := rp.requestedHeaders
@@ -1334,7 +1336,7 @@ func (rp *RemotePeer) SendMessage(ctx context.Context, msg wire.Message) error {
 
 // sendMessageAck sends a message to a remote peer, waiting until the write
 // finishes before returning.
-func (rp *RemotePeer) sengMessageAck(ctx context.Context, msg wire.Message) error {
+func (rp *RemotePeer) sendMessageAck(ctx context.Context, msg wire.Message) error {
 	ctx, cancel := context.WithTimeout(ctx, stallTimeout)
 	defer cancel()
 	ack := make(chan struct{}, 1)
