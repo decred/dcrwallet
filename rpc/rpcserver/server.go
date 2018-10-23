@@ -2068,14 +2068,14 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	if req.VotingAddress != "" {
 		votingAddress, err = decodeAddress(req.VotingAddress, params)
 		if err != nil {
-			return status.Errorf(codes.FailedPrecondition, "Invalid Voting Address")
+			return err
 		}
 	}
 	var poolAddress dcrutil.Address
 	if req.PoolAddress != "" {
 		poolAddress, err = decodeAddress(req.PoolAddress, params)
 		if err != nil {
-			return status.Errorf(codes.FailedPrecondition, "Invalid Pool Address")
+			return err
 		}
 	}
 
@@ -2088,26 +2088,16 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	// Set ticketbuyerV2 config
 	tb.AccessConfig(func(c *tbv2.Config) {
 		c.Account = req.Account
-		c.VotingAccount = req.VotingAccount // TODO: Make this a unique config option. Set to acct for compat with v1.
+		c.VotingAccount = req.VotingAccount
 		c.Maintain = dcrutil.Amount(req.BalanceToMaintain)
 		c.VotingAddr = votingAddress
 		c.PoolFeeAddr = poolAddress
 		c.PoolFees = req.PoolFees
 	})
 
-	// Make sure to lock the wallet on context cancellation.
-	var lockWallet func()
-	lock := make(chan time.Time, 1)
-	lockWallet = func() {
-		lock <- time.Time{}
-		zero.Bytes(req.Passphrase)
-	}
-	tb.SetLock(lock)
-
 	err = tb.Run(svr.Context(), req.Passphrase)
 	if err != nil {
 		if svr.Context().Err() != nil {
-			lockWallet()
 			return status.Errorf(codes.Canceled, "TicketBuyerV2 instance canceled, account number: %v", req.Account)
 		}
 		return status.Errorf(codes.Unknown, "TicketBuyerV2 instance errored: %v", err)

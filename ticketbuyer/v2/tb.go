@@ -12,6 +12,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/wallet"
 )
 
@@ -46,13 +47,6 @@ type TB struct {
 
 	cfg Config
 	mu  sync.Mutex
-
-	lock chan time.Time
-}
-
-// SetLock sets the lock channel used for wallet.Unlock calls in Run() and buy()
-func (tb *TB) SetLock(lock chan time.Time) {
-	tb.lock = lock
 }
 
 // New returns a new TB to buy tickets from a wallet using the default config.
@@ -64,10 +58,18 @@ func New(w *wallet.Wallet) *TB {
 // ever becomes incorrect due to a wallet passphrase change, Run exits with an
 // errors.Passphrase error.
 func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
-	err := tb.wallet.Unlock(passphrase, tb.lock)
+	lock := make(chan time.Time, 1)
+
+	lockWallet := func() {
+		lock <- time.Time{}
+		zero.Bytes(passphrase)
+	}
+
+	err := tb.wallet.Unlock(passphrase, lock)
 	if err != nil {
 		return err
 	}
+	defer lockWallet()
 
 	c := tb.wallet.NtfnServer.MainTipChangedNotifications()
 	defer c.Done()
@@ -131,7 +133,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 	// Ensure wallet is unlocked with the current passphrase.  If the passphase
 	// is changed, the Run exits and TB must be restarted with the new
 	// passphrase.
-	err = w.Unlock(passphrase, tb.lock)
+	err = w.Unlock(passphrase, nil)
 	if err != nil {
 		return err
 	}
