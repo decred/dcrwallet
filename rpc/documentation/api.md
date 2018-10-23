@@ -2952,9 +2952,9 @@ The users may specify a balance to maintain as well as various settings for purc
 
 - `FailedPrecondition`: Wallet has not been loaded.
 
-- `FailedPrecondition`: An invalid voting address was used.
+- `InvalidArgument`: An invalid voting address was used.
 
-- `FailedPrecondition`: An invalid pool address was used.
+- `InvalidArgument`: An invalid pool address was used.
 
 - `InvalidArgument`: A negative balance to maintain given.
 
