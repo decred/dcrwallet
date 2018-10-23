@@ -48,32 +48,11 @@ type TB struct {
 	mu  sync.Mutex
 
 	lock chan time.Time
-
-	notifications *Notifications
-}
-
-// Notifications struct to contain all of the upcoming callbacks that will
-// be used to update the rpc streams for syncing.
-type Notifications struct {
-	Started func(accountNumber uint32)
-}
-
-// SetNotifications sets the ticket buyers' notifications that may be used for rpc clients.
-func (tb *TB) SetNotifications(notifications *Notifications) {
-	tb.notifications = notifications
 }
 
 // SetLock sets the lock channel used for wallet.Unlock calls in Run() and buy()
 func (tb *TB) SetLock(lock chan time.Time) {
 	tb.lock = lock
-}
-
-// started notifies the Started notification of the account number for the ticket
-// buyer that was started.
-func (tb *TB) started(accountNum uint32) {
-	if tb.notifications != nil && tb.notifications.Started != nil {
-		tb.notifications.Started(accountNum)
-	}
 }
 
 // New returns a new TB to buy tickets from a wallet using the default config.
@@ -92,9 +71,6 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 
 	c := tb.wallet.NtfnServer.MainTipChangedNotifications()
 	defer c.Done()
-
-	// Notify any clients if applicable.
-	tb.started(tb.cfg.Account)
 
 	var mu sync.Mutex
 	var done bool

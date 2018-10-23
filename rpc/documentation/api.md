@@ -2921,16 +2921,16 @@ launch the V2 ticket buyer.
 
 **Methods:**
 
-- [`StartTicketBuyer`](#startautobuyer)
+- [`RunTicketBuyer`](#runautobuyer)
 
 ### Methods
 
-#### `StartTicketBuyer`
+#### `RunTicketBuyer`
 
-The `StartTicketBuyer` starts a new V2 ticket buyer for the specified account.
+The `RunTicketBuyer` starts a new V2 ticket buyer for the specified account.
 The users may specify a balance to maintain as well as various settings for purchasing tickets for stakepools.
 
-**Request:** `StartTicketBuyerRequest`
+**Request:** `RunTicketBuyerRequest`
 
 - `bytes passphrase`: The private passphrase to unlock the wallet.
 
@@ -2946,9 +2946,7 @@ The users may specify a balance to maintain as well as various settings for purc
 
 - `double pool_fees`: The percentage used to calculate the proper fee in the stakepool fee commitment utxos.
 
-**Response:** `stream StartTicketBuyerResponse`
-
-- `uint32 ticket_buyer_account_started`: When a new ticket buyer is started the client is notified of the account number of the started ticket buyer.
+**Response:** `stream RunTicketBuyerResponse`
 
 **Expected errors:**
 

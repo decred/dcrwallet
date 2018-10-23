@@ -79,7 +79,7 @@ service WalletLoaderService {
 }
 
 service TicketBuyerV2Service {
-	rpc StartTicketBuyer (StartTicketBuyerRequest) returns (stream StartTicketBuyerResponse);
+	rpc RunTicketBuyer (RunTicketBuyerRequest) returns (stream RunTicketBuyerResponse);
 }
 
 service TicketBuyerService {
@@ -777,7 +777,7 @@ message DecodeSeedResponse {
 	bytes decoded_seed = 1;
 }
 
-message StartTicketBuyerRequest {
+message RunTicketBuyerRequest {
 	bytes passphrase = 1;
 	uint32 account = 2;
 	uint32 voting_account = 3;
@@ -787,9 +787,7 @@ message StartTicketBuyerRequest {
 	double pool_fees = 7;
 }
 
-message StartTicketBuyerResponse {
-	uint32 ticket_buyer_account_started = 1;
-}
+message RunTicketBuyerResponse {}
 
 message StartAutoBuyerRequest {
 	bytes passphrase = 1;

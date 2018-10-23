@@ -2054,7 +2054,7 @@ func StartTicketBuyerService(server *grpc.Server, loader *loader.Loader, tbCfg *
 }
 
 // StartTicketBuyer starts the automatic ticket buyer for the v2 service.
-func (t *ticketbuyerV2Server) StartTicketBuyer(req *pb.StartTicketBuyerRequest, svr pb.TicketBuyerV2Service_StartTicketBuyerServer) error {
+func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb.TicketBuyerV2Service_RunTicketBuyerServer) error {
 
 	wallet, ok := t.loader.LoadedWallet()
 	if !ok {
@@ -2094,18 +2094,6 @@ func (t *ticketbuyerV2Server) StartTicketBuyer(req *pb.StartTicketBuyerRequest, 
 		c.PoolFeeAddr = poolAddress
 		c.PoolFees = req.PoolFees
 	})
-
-	// Set Notifcations for the v2 ticketbuyer.
-	// Currently we just have the Started notification, but we may add more for
-	// tickets purchases/decisions etc.
-	ntfns := &tbv2.Notifications{
-		Started: func(accountNum uint32) {
-			resp := &pb.StartTicketBuyerResponse{}
-			resp.TicketBuyerAccountStarted = accountNum
-			_ = svr.Send(resp)
-		},
-	}
-	tb.SetNotifications(ntfns)
 
 	// Make sure to lock the wallet on context cancellation.
 	var lockWallet func()
