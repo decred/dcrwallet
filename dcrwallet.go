@@ -187,7 +187,7 @@ func run(ctx context.Context) error {
 
 		// Load the wallet.  It must have been created already or this will
 		// return an appropriate error.
-		w, err := loader.OpenExistingWallet(walletPass)
+		w, err := loader.OpenExistingWallet(ctx, walletPass)
 		if err != nil {
 			log.Errorf("Failed to open wallet: %v", err)
 			if errors.Is(errors.Passphrase, err) {

@@ -5,9 +5,11 @@
 package loader
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
@@ -20,6 +22,7 @@ import (
 
 const (
 	walletDbName = "wallet.db"
+	walletDbLock = "walletdb.lock"
 )
 
 // Loader implements the creating of new and opening of existing wallets, while
@@ -287,7 +290,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 // and the public passphrase.  If the loader is being called by a context where
 // standard input prompts may be used during wallet upgrades, setting
 // canConsolePrompt will enable these prompts.
-func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rerr error) {
+func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (w *wallet.Wallet, rerr error) {
 	const op errors.Op = "loader.OpenExistingWallet"
 
 	defer l.mu.Unlock()
@@ -297,6 +300,30 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 		return nil, errors.E(op, errors.Exist, "wallet already opened")
 	}
 
+	dbLockPath := filepath.Join(l.dbDirPath, walletDbLock)
+	loop:
+	for {
+		select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			default:
+				exists, err := fileExists(dbLockPath)
+				if err != nil {
+					return nil, errors.E(op, err)
+				}
+				if exists {
+					time.Sleep(time.Second * 1)
+					continue
+				}
+				break loop
+		}
+	}
+
+	_, err := os.Create(dbLockPath)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
 	// Open the database using the boltdb backend.
 	dbPath := filepath.Join(l.dbDirPath, walletDbName)
 	db, err := wallet.OpenDB("bdb", dbPath)
@@ -304,12 +331,18 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 		log.Errorf("Failed to open database: %v", err)
 		return nil, errors.E(op, err)
 	}
+
 	// If this function does not return to completion the database must be
 	// closed.  Otherwise, because the database is locked on opens, any
 	// other attempts to open the wallet will hang, and there is no way to
 	// recover since this db handle would be leaked.
 	defer func() {
 		if rerr != nil {
+			err := os.Remove(dbLockPath)
+			if err != nil {
+				log.Errorf("Failed to remove db lock file: %v", err)
+			}
+
 			db.Close()
 		}
 	}()
@@ -387,6 +420,13 @@ func (l *Loader) UnloadWallet() error {
 	l.wallet.Stop()
 	l.wallet.WaitForShutdown()
 	err := l.db.Close()
+
+	dbLockPath := filepath.Join(l.dbDirPath, walletDbLock)
+	err = os.Remove(dbLockPath)
+	if err != nil {
+		log.Errorf("Failed to remove db lock file: %v", err)
+	}
+
 	if err != nil {
 		return errors.E(op, err)
 	}
