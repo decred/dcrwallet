@@ -2055,7 +2055,6 @@ func StartTicketBuyerService(server *grpc.Server, loader *loader.Loader, tbCfg *
 
 // StartTicketBuyer starts the automatic ticket buyer for the v2 service.
 func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb.TicketBuyerV2Service_RunTicketBuyerServer) error {
-
 	wallet, ok := t.loader.LoadedWallet()
 	if !ok {
 		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
