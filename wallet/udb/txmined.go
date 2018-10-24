@@ -3180,11 +3180,8 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 		if !ok {
 			ab = &Balances{
 				Account: thisAcct,
-				Total:   utxoAmt,
 			}
 			accountBalances[thisAcct] = ab
-		} else {
-			ab.Total += utxoAmt
 		}
 
 		switch opcode {
@@ -3200,6 +3197,8 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			} else if creditFromCoinbase && !matureCoinbase {
 				ab.ImmatureCoinbaseRewards += utxoAmt
 			}
+
+			ab.Total += utxoAmt
 
 		case txscript.OP_SSTX:
 			// Locked as stake ticket.
@@ -3223,17 +3222,48 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			votingAuthorityAmt := dcrutil.Amount(0)
 			lockedByTicketsAmt := dcrutil.Amount(0)
 
+			sourceRecs := make(map[chainhash.Hash]TxRecord)
+
 			// Calculate total input amount which will allow a proper fee calculation.
 			// Fee is needed to be removed from the stake.AmountFromSStxPkScrCommitment
 			// due to the way tickets are constructed and rewards are calculated.
 			totalInputAmount := dcrutil.Amount(0)
-			for i := range rec.MsgTx.TxIn {
+			myTotalInputAmount := dcrutil.Amount(0)
+			for i, txi := range rec.MsgTx.TxIn {
 				_, credKey, err := existsDebit(ns,
 					&txHash, uint32(i), &blockRec.Block)
 				if err != nil {
 					return nil, err
 				}
 				if credKey == nil {
+					// We don't have a credit for this input, therefore it's not
+					// from this wallet. If we have the source transaction
+					// (likely to be a split transaction we have also
+					// participated in) use that information to correctly
+					// account for the ticket.
+					var srcRec TxRecord
+					var has bool
+					srcRec, has = sourceRecs[txi.PreviousOutPoint.Hash]
+					if !has {
+						_, srcTxv := latestTxRecord(ns, txi.PreviousOutPoint.Hash[:])
+						if srcTxv == nil {
+							continue
+						}
+
+						err = readRawTxRecord(&txi.PreviousOutPoint.Hash, srcTxv, &srcRec)
+						if err != nil {
+							return nil, err
+						}
+
+						sourceRecs[txi.PreviousOutPoint.Hash] = srcRec
+						has = true
+					}
+
+					if has && txi.PreviousOutPoint.Index < uint32(len(srcRec.MsgTx.TxOut)) {
+						inputAmount := dcrutil.Amount(srcRec.MsgTx.TxOut[txi.PreviousOutPoint.Index].Value)
+						totalInputAmount += inputAmount
+					}
+
 					continue
 				}
 				credVal := existsRawCredit(ns, credKey)
@@ -3245,6 +3275,7 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 					return nil, err
 				}
 				totalInputAmount += inputAmount
+				myTotalInputAmount += inputAmount
 			}
 			for i, txout := range rec.MsgTx.TxOut {
 				if i%2 != 0 {
@@ -3269,15 +3300,18 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			}
 			// Calculate the fee here due to the commitamt in the OP_SSTX output script being the total
 			// value in.
-			fee := dcrutil.Amount(0)
+			txFee := dcrutil.Amount(0)
 			if totalInputAmount > 0 {
-				fee = totalInputAmount - utxoAmt
+				txFee = totalInputAmount - utxoAmt
 			}
-			if lockedByTicketsAmt > 0 {
-				// Only calculate proper lockedbyticketstamt if > 0
-				ab.LockedByTickets += lockedByTicketsAmt - fee
+			if totalInputAmount == myTotalInputAmount {
+				ab.LockedByTickets += lockedByTicketsAmt - txFee
+				ab.Total += lockedByTicketsAmt - txFee
+			} else {
+				ab.LockedByTickets += lockedByTicketsAmt
+				ab.Total += lockedByTicketsAmt
 			}
-			ab.VotingAuthority += votingAuthorityAmt - fee
+			ab.VotingAuthority += votingAuthorityAmt - txFee
 		case txscript.OP_SSGEN:
 			fallthrough
 		case txscript.OP_SSRTX:
@@ -3287,10 +3321,14 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 				ab.ImmatureStakeGeneration += utxoAmt
 			}
 
+			ab.Total += utxoAmt
+
 		case txscript.OP_SSTXCHANGE:
 			if ticketChangeMatured(s.chainParams, height, syncHeight) {
 				ab.Spendable += utxoAmt
 			}
+
+			ab.Total += utxoAmt
 
 		default:
 			log.Warnf("Unhandled opcode: %v", opcode)
