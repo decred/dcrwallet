@@ -63,7 +63,7 @@ type ChangeSource interface {
 }
 
 // NewUnsignedTransaction creates an unsigned transaction paying to one or more
-// non-change outputs.  An appropriate transaction fee is included based on the
+// non-change outputs. An appropriate transaction fee is included based on the
 // transaction size.
 //
 // Transaction inputs are chosen from repeated calls to fetchInputs with
@@ -77,7 +77,7 @@ type ChangeSource interface {
 // will be incorrect.
 //
 // If successful, the transaction, total input value spent, and all previous
-// output scripts are returned.  If the input source was unable to provide
+// output scripts are returned. If the input source was unable to provide
 // enough input value to pay for every output any any necessary fees, an
 // InputSourceError is returned.
 func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
@@ -154,17 +154,34 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	}
 }
 
-func FundRawTransaction(mtx wire.MsgTx, relayFeePerKb dcrutil.Amount,
+// FundRawTransaction funds an unsigned raw transaction paying to one or more
+// non-change outputs. An appropriate transaction fee is included based on the
+// transaction size.
+//
+// If any remaining output value can be returned to the wallet via a change
+// output without violating mempool dust rules, a P2PKH change output is
+// appended to the transaction outputs.  Since the change output may not be
+// necessary, fetchChange is called zero or one times to generate this script.
+// This function must return a P2PKH script or smaller, otherwise fee estimation
+// will be incorrect.
+//
+// If successful, the transaction, total input value spent, and all previous
+// output scripts are returned. If the input source was unable to provide
+// enough input value to pay for every output any necessary fees, an
+// error is returned.
+func FundRawTransaction(mtx *wire.MsgTx, relayFeePerKb dcrutil.Amount,
 	fetchInputs InputSource, fetchChange ChangeSource) (*wire.MsgTx, error) {
 
 	const op errors.Op = "txauthor.FundRawTransaction"
 
+	var targetAmount dcrutil.Amount
 	inputs := mtx.TxIn
 	outputs := mtx.TxOut
-	totalInTransaction := h.SumInputValues(inputs)
-	targetAmount := h.SumOutputValues(outputs) - totalInTransaction
-	if targetAmount <= 0 {
-		return &mtx, nil
+	if len(inputs) > 0 {
+		targetAmount = h.SumOutputValues(outputs) - h.SumInputValues(inputs)
+		if targetAmount <= 0 {
+			return mtx, nil
+		}
 	}
 	scriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
 	for range mtx.TxIn {
@@ -189,17 +206,18 @@ func FundRawTransaction(mtx wire.MsgTx, relayFeePerKb dcrutil.Amount,
 			return nil, errors.E(op, errors.InsufficientBalance)
 		}
 
-		scriptSizes = append(scriptSizes, inputDetail.RedeemScriptSizes...)
+		txInputs := append(mtx.TxIn, inputDetail.Inputs...)
+		mtx.TxIn = txInputs
 
+		scriptSizes = append(scriptSizes, inputDetail.RedeemScriptSizes...)
 		maxSignedSize = txsizes.EstimateSerializeSize(scriptSizes, outputs, changeScriptSize)
 		maxRequiredFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
+
 		remainingAmount := inputDetail.Amount - targetAmount
 		if remainingAmount < maxRequiredFee {
 			targetFee = maxRequiredFee
 			continue
 		}
-		txInputs := append(mtx.TxIn, inputDetail.Inputs...)
-		mtx.TxIn = txInputs
 
 		changeAmount := inputDetail.Amount - targetAmount - maxRequiredFee
 		if changeAmount != 0 && !txrules.IsDustAmount(changeAmount,
@@ -215,11 +233,9 @@ func FundRawTransaction(mtx wire.MsgTx, relayFeePerKb dcrutil.Amount,
 			}
 			l := len(outputs)
 			mtx.TxOut = append(outputs[:l:l], change)
-		} else {
-			maxSignedSize = txsizes.EstimateSerializeSize(scriptSizes,
-				mtx.TxOut, 0)
 		}
-		return &mtx, nil
+
+		return mtx, nil
 	}
 }
 

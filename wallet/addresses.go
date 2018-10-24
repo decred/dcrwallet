@@ -582,15 +582,11 @@ func (src *p2PKHChangeSource) ScriptSize() int {
 }
 
 type p2PKHAddrChangeSource struct {
-	persist       persistReturnedChildFunc
 	changeAddress dcrutil.Address
-	wallet        *Wallet
 }
 
 func (src *p2PKHAddrChangeSource) Script() ([]byte, uint16, error) {
-	var script []byte
-	var err error
-	script, err = txscript.PayToAddrScript(src.changeAddress)
+	script, err := txscript.PayToAddrScript(src.changeAddress)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -55,7 +55,7 @@ var helpDescsEnUS = map[string]string{
 	"fundrawtransaction-options":     "The optional inputs to fund a raw transaction",
 
 	// FundRawTransactionOptions
-	"fundrawtransactionoptions-changeaddress": "Address the change will be send to (default=\"default\")",
+	"fundrawtransactionoptions-changeaddress": "The decred address to receive the change",
 	"fundrawtransactionoptions-feerate":       "Set a specific fee rate in DCR/kB",
 	"fundrawtransactionoptions-conf_target":   "Number of blocks to confirm the transaction",
 

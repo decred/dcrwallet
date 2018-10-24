@@ -527,7 +527,7 @@ func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	var changeAddr dcrutil.Address
 
 	if cmd.Options != nil {
-		// use provided fee per Kb if specified
+		// use provided fee per kb if specified
 		if cmd.Options.FeeRate != nil {
 			var err error
 			feePerKb, err = dcrutil.NewAmount(*cmd.Options.FeeRate)
@@ -539,8 +539,7 @@ func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 		if cmd.Options.ConfTarget != nil {
 			requiredConfs = *cmd.Options.ConfTarget
 		}
-		// use provided change account if specified
-		// use default account otherwise
+		// use provided change address if specified
 		if cmd.Options.ChangeAddress != nil {
 			addr, err := decodeAddress(*cmd.Options.ChangeAddress, w.ChainParams())
 			if err != nil {

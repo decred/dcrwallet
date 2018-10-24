@@ -160,6 +160,12 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 	return authoredTx, nil
 }
 
+// FundRawTransaction funds an unsigned raw transaction using unspent
+// account outputs.
+//
+// The changeAddress parameter is optional and can be nil.  When nil, and if a
+// change output should be added, an internal change address is created for the
+// account.
 func (w *Wallet) FundRawTransaction(tx wire.MsgTx, relayFeePerKb dcrutil.Amount, account uint32, minConf int32,
 	changeAddress dcrutil.Address) (*wire.MsgTx, error) {
 
@@ -176,23 +182,22 @@ func (w *Wallet) FundRawTransaction(tx wire.MsgTx, relayFeePerKb dcrutil.Amount,
 		sourceImpl := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 			minConf, tipHeight)
 
+		var changeSource interface {
+			txauthor.ChangeSource
+		}
 		if changeAddress == nil {
-			changeSource := p2PKHChangeSource{
+			changeSource = &p2PKHChangeSource{
 				persist: w.deferPersistReturnedChild(&changeSourceUpdates),
 				account: account,
 				wallet:  w,
 			}
-			fundedTx, err = txauthor.FundRawTransaction(tx, relayFeePerKb,
-				sourceImpl.SelectInputs, &changeSource)
 		} else {
-			changeSource := p2PKHAddrChangeSource{
-				persist:       w.deferPersistReturnedChild(&changeSourceUpdates),
+			changeSource = &p2PKHAddrChangeSource{
 				changeAddress: changeAddress,
-				wallet:        w,
 			}
-			fundedTx, err = txauthor.FundRawTransaction(tx, relayFeePerKb,
-				sourceImpl.SelectInputs, &changeSource)
 		}
+		fundedTx, err = txauthor.FundRawTransaction(&tx, relayFeePerKb,
+			sourceImpl.SelectInputs, changeSource)
 
 		return err
 	})
