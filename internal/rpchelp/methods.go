@@ -31,6 +31,8 @@ var Methods = []struct {
 	{"consolidate", returnsString},
 	{"createmultisig", []interface{}{(*dcrjson.CreateMultiSigResult)(nil)}},
 	{"createnewaccount", nil},
+	{"createvotingaccount", nil},
+	{"dropvotingaccount", nil},
 	{"dumpprivkey", returnsString},
 	{"exportwatchingwallet", returnsString},
 	{"generatevote", []interface{}{(*dcrjson.GenerateVoteResult)(nil)}},

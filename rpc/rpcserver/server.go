@@ -1431,6 +1431,10 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
+	} else if !s.wallet.VotingEnabled() && s.wallet.TicketAddress() == nil && !s.wallet.VotingAccountEnabled() {
+		// Throw error if non-voting wallet has no voting address or voting account configured
+		return nil, status.Errorf(codes.InvalidArgument, "non-voting wallet must have "+
+			"configured voting address or voting account")
 	}
 
 	var poolAddr dcrutil.Address
@@ -3296,13 +3300,13 @@ func marshalDecodedTxInputs(mtx *wire.MsgTx) []*pb.DecodedTransaction_Input {
 		inputs[i] = &pb.DecodedTransaction_Input{
 			PreviousTransactionHash:  txIn.PreviousOutPoint.Hash[:],
 			PreviousTransactionIndex: txIn.PreviousOutPoint.Index,
-			Tree:               pb.DecodedTransaction_Input_TreeType(txIn.PreviousOutPoint.Tree),
-			Sequence:           txIn.Sequence,
-			AmountIn:           txIn.ValueIn,
-			BlockHeight:        txIn.BlockHeight,
-			BlockIndex:         txIn.BlockIndex,
-			SignatureScript:    txIn.SignatureScript,
-			SignatureScriptAsm: disbuf,
+			Tree:                     pb.DecodedTransaction_Input_TreeType(txIn.PreviousOutPoint.Tree),
+			Sequence:                 txIn.Sequence,
+			AmountIn:                 txIn.ValueIn,
+			BlockHeight:              txIn.BlockHeight,
+			BlockIndex:               txIn.BlockIndex,
+			SignatureScript:          txIn.SignatureScript,
+			SignatureScriptAsm:       disbuf,
 		}
 	}
 

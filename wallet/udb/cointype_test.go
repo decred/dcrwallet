@@ -179,7 +179,7 @@ func TestCoinTypeUpgrade(t *testing.T) {
 
 		// Create the next account, and perform all of the same checks on it as
 		// the first account.
-		_, err = m.NewAccount(ns, "account-1")
+		_, err = m.NewBIP0044Account(ns, "account-1")
 		if err != nil {
 			t.Fatal(err)
 		}

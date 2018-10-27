@@ -89,7 +89,7 @@ func setup() error {
 		for i, a := range accounts {
 			var account uint32
 			if i != 0 {
-				account, err = amgr.NewAccount(ns, fmt.Sprintf("account-%d", i))
+				account, err = amgr.NewBIP0044Account(ns, fmt.Sprintf("account-%d", i))
 				if err != nil {
 					return err
 				}

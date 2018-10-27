@@ -43,6 +43,15 @@ var helpDescsEnUS = map[string]string{
 	"createmultisigresult-address":      "The generated pay-to-script-hash address",
 	"createmultisigresult-redeemScript": "The script required to redeem outputs paid to the multisig address",
 
+	// CreateVotingAccountCmd help.
+	"createvotingaccount--synopsis":  "Create a voting account with account name and xpub.",
+	"createvotingaccount-name":       "Voting account name",
+	"createvotingaccount-pubkey":     "Account extended pubkey",
+	"createvotingaccount-childindex": "Optional: starting child index in internal branch of xpub key",
+
+	// DropVotingAccountCmd help.
+	"dropvotingaccount--synopsis": "Drop a voting account",
+
 	// DumpPrivKeyCmd help.
 	"dumpprivkey--synopsis": "Returns the private key in WIF encoding that controls some wallet address.",
 	"dumpprivkey-address":   "The address to return a private key for",

@@ -167,14 +167,23 @@ func (w *Wallet) nextAddress(op errors.Op, persist persistReturnedChildFunc, acc
 
 	gapLimit := uint32(w.gapLimit)
 
-	defer w.addressBuffersMu.Unlock()
-	w.addressBuffersMu.Lock()
-	ad, ok := w.addressBuffers[account]
-	if !ok {
-		return nil, errors.E(op, errors.NotExist, errors.Errorf("account %d", account))
+	var ad *bip0044AccountData
+	var alb *addressBuffer
+	var ok bool
+
+	if account == udb.VotingAddrAccount {
+		defer w.votingAddressBufferMu.Unlock()
+		w.votingAddressBufferMu.Lock()
+		ad = w.votingAddressBuffer
+	} else {
+		defer w.addressBuffersMu.Unlock()
+		w.addressBuffersMu.Lock()
+		ad, ok = w.addressBuffers[account]
+		if !ok {
+			return nil, errors.E(op, errors.NotExist, errors.Errorf("account %d", account))
+		}
 	}
 
-	var alb *addressBuffer
 	switch branch {
 	case udb.ExternalBranch:
 		alb = &ad.albExternal
@@ -313,12 +322,12 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 	dbLastRetChildren := make(map[uint32]children, lastAccount+1)
 	var lastUsedExt, lastUsedInt uint32
 	var lastRetExt, lastRetInt uint32
-	for account := uint32(0); account <= lastAccount; account++ {
+	fetchLastUsedChildren := func(account uint32) error {
+		props, err := w.Manager.AccountProperties(ns, account)
+		if err != nil {
+			return errors.E(op, err)
+		}
 		for branch := udb.ExternalBranch; branch <= udb.InternalBranch; branch++ {
-			props, err := w.Manager.AccountProperties(ns, account)
-			if err != nil {
-				return errors.E(op, err)
-			}
 			switch branch {
 			case udb.ExternalBranch:
 				lastUsedExt = props.LastUsedExternalIndex
@@ -330,16 +339,34 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 		}
 		dbLastUsedChildren[account] = children{lastUsedExt, lastUsedInt}
 		dbLastRetChildren[account] = children{lastRetExt, lastRetInt}
+		return nil
+	}
+
+	for account := uint32(0); account <= lastAccount; account++ {
+		err = fetchLastUsedChildren(account)
+		if err != nil {
+			return err
+		}
+	}
+
+	errCap := lastAccount+1
+	if w.VotingAccountEnabled() {
+		err = fetchLastUsedChildren(udb.VotingAddrAccount)
+		if err != nil {
+			return err
+		}
+		errCap++
 	}
 
 	// Update the buffer's last used child if it was updated, and then update
 	// the cursor to point to the same child index relative to the new last used
 	// index.  Request transaction notifications for future addresses that will
 	// be returned by the buffer.
-	errs := make(chan error, lastAccount+1)
+	errs := make(chan error, errCap)
 	defer w.addressBuffersMu.Unlock()
 	w.addressBuffersMu.Lock()
-	for account, a := range w.addressBuffers {
+
+	updateLastUsedChildren := func(account uint32, a *bip0044AccountData) error {
 		// startExt/Int are the indexes of the next child after the last
 		// currently watched address.
 		startExt := a.albExternal.lastUsed + 1 + gapLimit
@@ -367,7 +394,7 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 		}
 		if totalAddrs == 0 {
 			errs <- nil
-			continue
+			return nil
 		}
 		addrs := make([]dcrutil.Address, 0, totalAddrs)
 		err := appendChildAddrsRange(&addrs, xpubBranchExt, startExt, endExt,
@@ -382,7 +409,7 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 		}
 
 		// Update the in-memory address buffers with the latest last
-		// used and last returned indexes retreived from the db.
+		// used and last returned indexes retrieved from the db.
 		if endExt > startExt {
 			a.albExternal.lastUsed = dbLastUsed.external
 			a.albExternal.cursor -= minUint32(a.albExternal.cursor, endExt-startExt)
@@ -395,6 +422,22 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 		go func() {
 			errs <- n.LoadTxFilter(context.TODO(), false, addrs, nil)
 		}()
+
+		return nil
+	}
+
+	for account, a := range w.addressBuffers {
+		err = updateLastUsedChildren(account, a)
+		if err != nil {
+			return err
+		}
+	}
+
+	if w.VotingAccountEnabled() {
+		err = updateLastUsedChildren(udb.VotingAddrAccount, w.votingAddressBuffer)
+		if err != nil {
+			return err
+		}
 	}
 
 	for i := 0; i < cap(errs); i++ {

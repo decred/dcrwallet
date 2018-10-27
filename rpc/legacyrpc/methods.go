@@ -67,6 +67,8 @@ var handlers = map[string]handler{
 	"addticket":               {fn: addTicket},
 	"consolidate":             {fn: consolidate},
 	"createmultisig":          {fn: createMultiSig},
+	"createvotingaccount":     {fn: createVotingAccount},
+	"dropvotingaccount":       {fn: dropVotingAccount},
 	"dumpprivkey":             {fn: dumpPrivKey},
 	"generatevote":            {fn: generateVote},
 	"getaccount":              {fn: getAccount},
@@ -481,6 +483,39 @@ func createMultiSig(s *Server, icmd interface{}) (interface{}, error) {
 	}, nil
 }
 
+// createVotingAccount handles creation of voting account with extended pubkey
+func createVotingAccount(s *Server, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrjson.CreateVotingAccountCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	name := cmd.Name
+	if err := udb.ValidateAccountName(name); err != nil {
+		return nil, err
+	}
+
+	xpub, err := hdkeychain.NewKeyFromString(cmd.PubKey);
+	if  err != nil {
+		return nil, err
+	}
+
+	err = w.CreateVotingAccount(name, xpub, cmd.ChildIndex)
+	return nil, err
+}
+
+// dropVotingAccount handles drop request of voting account
+func dropVotingAccount(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	err := w.DropVotingAccount()
+	return nil, err
+}
+
 // dumpPrivKey handles a dumpprivkey request with the private key
 // for a single address, or an appropiate error if the wallet
 // is locked.
@@ -676,9 +711,12 @@ func getBalance(s *Server, icmd interface{}) (interface{}, error) {
 			}
 
 			var balIdx uint32
-			if bal.Account == udb.ImportedAddrAccount {
+			switch bal.Account {
+			case udb.ImportedAddrAccount:
 				balIdx = balancesLen - 1
-			} else {
+			case udb.VotingAddrAccount:
+				balIdx = balancesLen - 2
+			default:
 				balIdx = bal.Account
 			}
 			result.Balances[balIdx] = json
@@ -1287,8 +1325,11 @@ func getReceivedByAccount(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err
 	}
 	acctIndex := int(account)
-	if account == udb.ImportedAddrAccount {
+	switch account {
+	case udb.ImportedAddrAccount:
 		acctIndex = len(results) - 1
+	case udb.VotingAddrAccount:
+		acctIndex = len(results) - 2
 	}
 	return results[acctIndex].TotalReceived.ToCoin(), nil
 }
@@ -2095,6 +2136,10 @@ func purchaseTicket(s *Server, icmd interface{}) (interface{}, error) {
 			}
 			ticketAddr = addr
 		}
+	} else if !w.VotingEnabled() && w.TicketAddress() == nil && !w.VotingAccountEnabled() {
+		// Throw error if non-voting wallet has no voting address or voting account configured
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "non-voting wallet must have " +
+			"configured voting address or voting account")
 	}
 
 	numTickets := 1

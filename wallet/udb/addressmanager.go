@@ -44,6 +44,11 @@ const (
 	// ImportedAddrAccountName is the name of the imported account.
 	ImportedAddrAccountName = "imported"
 
+	// VotingAddrAccount is the account number to use for voting wallet
+	// addresses. It keeps XPub key from another wallet and
+	// helps to generate addresses on ticket purchase
+	VotingAddrAccount = hdkeychain.HardenedKeyStart + 1 // 2^31 + 1
+
 	// DefaultAccountNum is the number of the default account.
 	DefaultAccountNum = 0
 
@@ -297,7 +302,12 @@ type Manager struct {
 // This function MUST be called with the manager lock held for writes.
 func (m *Manager) lock() {
 	// Clear all of the account private keys.
-	for _, acctInfo := range m.acctInfo {
+	// Voting account is being skipped as it doesn't require
+	// lock/unlock wallet operations
+	for account, acctInfo := range m.acctInfo {
+		if account == uint32(VotingAddrAccount) {
+			continue
+		}
 		if acctInfo.acctKeyPriv != nil {
 			acctInfo.acctKeyPriv.Zero()
 		}
@@ -337,7 +347,12 @@ func (m *Manager) lock() {
 // hierarchical deterministic extended public keys and the crypto public keys.
 func (m *Manager) zeroSensitivePublicData() {
 	// Clear all of the account private keys.
-	for _, acctInfo := range m.acctInfo {
+	// Voting account is being skipped as it has only extended public key
+	// and will be corrupted
+	for account, acctInfo := range m.acctInfo {
+		if account == uint32(VotingAddrAccount) {
+			continue
+		}
 		acctInfo.acctKeyPub.Zero()
 		acctInfo.acctKeyPub = nil
 	}
@@ -477,7 +492,7 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 		acctKeyPub:       acctKeyPub,
 	}
 
-	if !m.locked {
+	if !m.locked && account != VotingAddrAccount {
 		// Use the crypto private key to decrypt the account private
 		// extended keys.
 		decrypted, err := m.cryptoKeyPriv.Decrypt(acctInfo.acctKeyEncrypted)
@@ -1084,8 +1099,13 @@ func (m *Manager) ConvertToWatchingOnly(ns walletdb.ReadWriteBucket) error {
 	// is being converted to watching-only, the encrypted private key
 	// material is no longer needed.
 
-	// Clear and remove all of the encrypted acount private keys.
-	for _, acctInfo := range m.acctInfo {
+	// Clear and remove all of the encrypted acсount private keys.
+	// Voting account is being skipped as it doesn't require any operations performed
+	// on private keys
+	for account, acctInfo := range m.acctInfo {
+		if account == uint32(VotingAddrAccount) {
+			continue
+		}
 		zero.Bytes(acctInfo.acctKeyEncrypted)
 		acctInfo.acctKeyEncrypted = nil
 	}
@@ -1345,8 +1365,12 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 	zero.Bytes(decryptedKey)
 
 	// Use the crypto private key to decrypt all of the account private
-	// extended keys.
+	// extended keys. Voting account is being skipped as it doesn't require
+	// private key decryption and will cause error
 	for account, acctInfo := range m.acctInfo {
+		if account == uint32(VotingAddrAccount) {
+			continue
+		}
 		decrypted, err := m.cryptoKeyPriv.Decrypt(acctInfo.acctKeyEncrypted)
 		if err != nil {
 			m.lock()
@@ -1621,12 +1645,22 @@ func ValidateAccountName(name string) error {
 	return nil
 }
 
+// NewVotingAccount helps to create voting account
+func (m *Manager) NewVotingAccount(ns walletdb.ReadWriteBucket, name string, xpub *hdkeychain.ExtendedKey, childIndex *uint32) (uint32, error) {
+	return m.NewAccount(ns, name, actVoting, xpub, childIndex)
+}
+
+// NewBIP0044Account helps to create bip0044 account
+func (m *Manager) NewBIP0044Account(ns walletdb.ReadWriteBucket, name string) (uint32, error) {
+	return m.NewAccount(ns, name, actBIP0044, nil, nil)
+}
+
 // NewAccount creates and returns a new account stored in the manager based
 // on the given account name.  If an account with the same name already exists,
 // ErrDuplicateAccount will be returned.  Since creating a new account requires
 // access to the cointype keys (from which extended account keys are derived),
 // it requires the manager to be unlocked.
-func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, error) {
+func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string, acctType accountType, xpub *hdkeychain.ExtendedKey, childIndex *uint32) (uint32, error) {
 	defer m.mtx.Unlock()
 	m.mtx.Lock()
 
@@ -1634,8 +1668,10 @@ func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, 
 		return 0, errors.E(errors.WatchingOnly)
 	}
 
-	if m.locked {
-		return 0, errors.E(errors.Locked)
+	if acctType == actBIP0044 {
+		if m.locked {
+			return 0, errors.E(errors.Locked)
+		}
 	}
 
 	// Validate account name
@@ -1649,65 +1685,82 @@ func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, 
 		return 0, errors.E(errors.Exist, errors.Errorf("account named %q already exists", name))
 	}
 
-	// Fetch latest account, and create a new account in the same transaction
-	// Fetch the latest account number to generate the next account number
-	account, err := fetchLastAccount(ns)
-	if err != nil {
-		return 0, err
-	}
-	account++
-	// Fetch the cointype key which will be used to derive the next account
-	// extended keys
-	_, coinTypePrivEnc, err := fetchCoinTypeKeys(ns)
-	if err != nil {
-		return 0, err
-	}
+	var account uint32
+	switch acctType {
+	case actBIP0044:
+		// Fetch latest account, and create a new account in the same transaction
+		// Fetch the latest account number to generate the next account number
+		account, err = fetchLastAccount(ns)
+		if err != nil {
+			return 0, err
+		}
+		account++
+		// Fetch the cointype key which will be used to derive the next account
+		// extended keys
+		_, coinTypePrivEnc, err := fetchCoinTypeKeys(ns)
+		if err != nil {
+			return 0, err
+		}
+		// Decrypt the cointype key
+		serializedKeyPriv, err := m.cryptoKeyPriv.Decrypt(coinTypePrivEnc)
+		if err != nil {
+			return 0, errors.E(errors.Crypto, errors.Errorf(" decrypt cointype privkey: %v", err))
+		}
+		coinTypeKeyPriv, err :=
+			hdkeychain.NewKeyFromString(string(serializedKeyPriv))
+		zero.Bytes(serializedKeyPriv)
+		if err != nil {
+			return 0, errors.E(errors.IO, err)
+		}
 
-	// Decrypt the cointype key
-	serializedKeyPriv, err := m.cryptoKeyPriv.Decrypt(coinTypePrivEnc)
-	if err != nil {
-		return 0, errors.E(errors.Crypto, errors.Errorf("decrypt cointype privkey: %v", err))
-	}
-	coinTypeKeyPriv, err :=
-		hdkeychain.NewKeyFromString(string(serializedKeyPriv))
-	zero.Bytes(serializedKeyPriv)
-	if err != nil {
-		return 0, errors.E(errors.IO, err)
-	}
+		// Derive the account key using the cointype key
+		acctKeyPriv, err := deriveAccountKey(coinTypeKeyPriv, account)
+		coinTypeKeyPriv.Zero()
+		if err != nil {
+			return 0, err
+		}
+		acctKeyPub, err := acctKeyPriv.Neuter()
+		if err != nil {
+			return 0, err
+		}
+		// Encrypt the default account keys with the associated crypto keys.
+		apes := acctKeyPub.String()
+		acctPubEnc, err := m.cryptoKeyPub.Encrypt([]byte(apes))
+		if err != nil {
+			return 0, errors.E(errors.Crypto, errors.Errorf("encrypt account pubkey: %v", err))
+		}
+		apes = acctKeyPriv.String()
+		acctPrivEnc, err := m.cryptoKeyPriv.Encrypt([]byte(apes))
+		if err != nil {
+			return 0, errors.E(errors.Crypto, errors.Errorf("encrypt account privkey: %v", err))
+		}
+		// We have the encrypted account extended keys, so save them to the
+		// database
+		row := bip0044AccountInfo(acctPubEnc, acctPrivEnc, 0, 0,
+			^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0), name, DBVersion)
 
-	// Derive the account key using the cointype key
-	acctKeyPriv, err := deriveAccountKey(coinTypeKeyPriv, account)
-	coinTypeKeyPriv.Zero()
-	if err != nil {
-		return 0, err
-	}
-	acctKeyPub, err := acctKeyPriv.Neuter()
-	if err != nil {
-		return 0, err
-	}
-	// Encrypt the default account keys with the associated crypto keys.
-	apes := acctKeyPub.String()
-	acctPubEnc, err := m.cryptoKeyPub.Encrypt([]byte(apes))
-	if err != nil {
-		return 0, errors.E(errors.Crypto, errors.Errorf("encrypt account pubkey: %v", err))
-	}
-	apes = acctKeyPriv.String()
-	acctPrivEnc, err := m.cryptoKeyPriv.Encrypt([]byte(apes))
-	if err != nil {
-		return 0, errors.E(errors.Crypto, errors.Errorf("encrypt account privkey: %v", err))
-	}
-	// We have the encrypted account extended keys, so save them to the
-	// database
-	row := bip0044AccountInfo(acctPubEnc, acctPrivEnc, 0, 0,
-		^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0), name, DBVersion)
-	err = putAccountInfo(ns, account, row)
-	if err != nil {
-		return 0, err
-	}
+		// Save last account metadata
+		if err := putLastAccount(ns, account); err != nil {
+			return 0, err
+		}
+		err = putAccountInfo(ns, account, row)
+		if err != nil {
+			return 0, err
+		}
+	case actVoting:
+		apes := xpub.String()
+		acctKeyPub, err := m.cryptoKeyPub.Encrypt([]byte(apes))
+		if err != nil {
+			return 0, errors.E(errors.Crypto, errors.Errorf("encrypt account pubkey: %v", err))
+		}
+		row := bip0044AccountInfo(acctKeyPub, nil, 0, *childIndex,
+			^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0), name, DBVersion)
 
-	// Save last account metadata
-	if err := putLastAccount(ns, account); err != nil {
-		return 0, err
+		err = putAccountInfo(ns, VotingAddrAccount, row)
+		if err != nil {
+			return 0, err
+		}
+		account = VotingAddrAccount
 	}
 
 	return account, nil
@@ -1821,6 +1874,25 @@ func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr dcru
 	}
 
 	return forEachActiveAddress(ns, addrFn)
+}
+
+// DropVotingAccount deletes voting wallet pub key from database
+func (m *Manager) DropVotingAccount(ns walletdb.ReadWriteBucket) error {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	row, err := fetchAccountInfo(ns, VotingAddrAccount, DBVersion)
+	if err != nil {
+		return err
+	}
+	// Remove the old name key from the account id index
+	if err = deleteAccountIDIndex(ns, VotingAddrAccount); err != nil {
+		return err
+	}
+	// Remove the old name key from the account name index
+	if err = deleteAccountNameIndex(ns, row.name); err != nil {
+		return err
+	}
+	return dropVotingAccount(ns)
 }
 
 // PrivateKey retreives the private key for a P2PK or P2PKH address.  If this

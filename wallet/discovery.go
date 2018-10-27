@@ -815,7 +815,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 					return err
 				}
 				for acct := lastRecorded + 1; acct <= lastUsed; acct++ {
-					acct, err := w.Manager.NewAccount(ns, fmt.Sprintf("account-%d", acct))
+					acct, err := w.Manager.NewBIP0044Account(ns, fmt.Sprintf("account-%d", acct))
 					if err != nil {
 						return err
 					}

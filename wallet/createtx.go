@@ -1148,22 +1148,26 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		// to delegate voting to, just use an address from
 		// this wallet. Check the passed address from the
 		// request first, then check the ticket address
-		// stored from the configuation. Finally, generate
+		// stored from the configuration. Finally, generate
 		// an address.
 		var addrVote, addrSubsidy dcrutil.Address
+		account := req.account
 		err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 			addrVote = req.ticketAddr
 			if addrVote == nil {
-				addrVote = w.ticketAddress
+				addrVote = w.TicketAddress()
 				if addrVote == nil {
-					addrVote, err = addrFunc(op, w.persistReturnedChild(dbtx), req.account)
+					if w.VotingAccountEnabled() {
+						account = udb.VotingAddrAccount
+					}
+					addrVote, err = addrFunc(op, w.persistReturnedChild(dbtx), account)
 					if err != nil {
 						return err
 					}
 				}
 			}
 
-			addrSubsidy, err = addrFunc(op, w.persistReturnedChild(dbtx), req.account)
+			addrSubsidy, err = addrFunc(op, w.persistReturnedChild(dbtx), account)
 			return err
 		})
 		if err != nil {

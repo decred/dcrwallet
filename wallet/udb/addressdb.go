@@ -55,6 +55,7 @@ type accountType uint8
 // These constants define the various supported account types.
 const (
 	actBIP0044 accountType = 0 // not iota as they need to be stable for db
+	actVoting  accountType = 1
 )
 
 // dbAccountRow houses information stored about an account in the database.
@@ -660,7 +661,7 @@ func forEachAccount(ns walletdb.ReadBucket, fn func(account uint32) error) error
 	})
 }
 
-// fetchLastAccount retreives the last account from the database.
+// fetchLastAccount retrieves the last account from the database.
 func fetchLastAccount(ns walletdb.ReadBucket) (uint32, error) {
 	bucket := ns.NestedReadBucket(metaBucketName)
 
@@ -699,6 +700,17 @@ func fetchAccountByName(ns walletdb.ReadBucket, name string) (uint32, error) {
 	}
 
 	return binary.LittleEndian.Uint32(val), nil
+}
+
+// dropVotingAccount deletes the votingAccount from the database
+func dropVotingAccount(ns walletdb.ReadWriteBucket) error {
+	bucket := ns.NestedReadWriteBucket(acctBucketName)
+	// Delete the master private key params and the crypto private and
+	// script keys.
+	if err := bucket.Delete(uint32ToBytes(VotingAddrAccount)); err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
 }
 
 // fetchAccountInfo loads information about the passed account from the

@@ -93,6 +93,9 @@ type Wallet struct {
 	stakePoolColdAddrs map[string]struct{}
 	subsidyCache       *blockchain.SubsidyCache
 
+	votingAddressBuffer   *bip0044AccountData
+	votingAddressBufferMu sync.Mutex
+
 	// Start up flags/settings
 	gapLimit        int
 	accountGapLimit int
@@ -206,6 +209,15 @@ func (w *Wallet) SetBalanceToMaintain(balance dcrutil.Amount) {
 func (w *Wallet) VotingEnabled() bool {
 	w.stakeSettingsLock.Lock()
 	enabled := w.votingEnabled
+	w.stakeSettingsLock.Unlock()
+	return enabled
+}
+
+// VotingAccountEnabled returns whether the wallet is configured to use
+// voting wallet xpub key to generate addresses
+func (w *Wallet) VotingAccountEnabled() bool {
+	w.stakeSettingsLock.Lock()
+	enabled := w.votingAddressBuffer != nil
 	w.stakeSettingsLock.Unlock()
 	return enabled
 }
@@ -1801,7 +1813,7 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 			return errors.New("last 100 accounts have no transaction history")
 		}
 
-		account, err = w.Manager.NewAccount(addrmgrNs, name)
+		account, err = w.Manager.NewBIP0044Account(addrmgrNs, name)
 		if err != nil {
 			return err
 		}
@@ -3172,6 +3184,86 @@ func (w *Wallet) ImportScript(rs []byte) error {
 	return nil
 }
 
+// CreateVotingAccount creates a voting account with extended pubkey
+func (w *Wallet) CreateVotingAccount(name string, xpub *hdkeychain.ExtendedKey, childIndex *uint32) error {
+	const op errors.Op = "wallet.CreateVotingAccount"
+	return walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
+		if w.VotingAccountEnabled() {
+			return errors.New("Voting account already created")
+		}
+		_, err := w.Manager.NewVotingAccount(addrmgrNs, name, xpub, childIndex)
+		if err != nil {
+			return errors.E(op, err)
+		}
+
+		err = w.fetchVotingAddressBuffer(tx)
+		if err != nil {
+			return errors.E(op, err)
+		}
+
+		log.Info("Voting account created")
+		return nil
+	})
+}
+
+// DropVotingAccount drops a voting account from database
+func (w *Wallet) DropVotingAccount() error {
+	const op errors.Op = "wallet.DropVotingAccount"
+	return walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
+		defer w.votingAddressBufferMu.Unlock()
+		w.votingAddressBufferMu.Lock()
+		if !w.VotingAccountEnabled() {
+			return errors.E(op, errors.NotExist, "Voting account doesn't exist")
+		}
+		err := w.Manager.DropVotingAccount(addrmgrNs)
+		if err != nil {
+			return errors.E(op, err)
+		}
+		w.votingAddressBuffer = nil
+
+		log.Info("Voting account deleted")
+		return nil
+	})
+}
+
+// fetchVotingAddressBuffer fetches voting account if exists and enable
+// imported voting wallet address generation functionality
+func (w *Wallet) fetchVotingAddressBuffer(tx walletdb.ReadTx) error {
+	ns := tx.ReadBucket(waddrmgrNamespaceKey)
+
+	xpub, err := w.Manager.AccountExtendedPubKey(tx, udb.VotingAddrAccount)
+	if err != nil && !errors.Is(errors.NotExist, err) {
+		return err
+	}
+	if xpub != nil {
+		extKey, intKey, err := deriveBranches(xpub)
+		if err != nil {
+			return err
+		}
+		props, err := w.Manager.AccountProperties(ns, udb.VotingAddrAccount)
+		if err != nil {
+			return err
+		}
+		w.votingAddressBuffer = &bip0044AccountData{
+			albExternal: addressBuffer{
+				branchXpub: extKey,
+				lastUsed:   props.LastUsedExternalIndex,
+				cursor:     props.LastReturnedExternalIndex - props.LastUsedExternalIndex,
+			},
+			albInternal: addressBuffer{
+				branchXpub: intKey,
+				lastUsed:   props.LastUsedInternalIndex,
+				cursor:     props.LastReturnedInternalIndex - props.LastUsedInternalIndex,
+			},
+		}
+
+		log.Infof("Voting account loaded")
+	}
+	return nil
+}
+
 // RedeemScriptCopy returns a copy of a redeem script to redeem outputs payed to
 // a P2SH address.
 func (w *Wallet) RedeemScriptCopy(addr dcrutil.Address) ([]byte, error) {
@@ -4381,10 +4473,17 @@ func Open(cfg *Config) (*Wallet, error) {
 	var vb stake.VoteBits
 	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrNamespaceKey)
+
+		err = w.fetchVotingAddressBuffer(tx)
+		if err != nil {
+			return err
+		}
+
 		lastAcct, err := w.Manager.LastAccount(ns)
 		if err != nil {
 			return err
 		}
+
 		for acct := uint32(0); acct <= lastAcct; acct++ {
 			xpub, err := w.Manager.AccountExtendedPubKey(tx, acct)
 			if err != nil {
