@@ -2635,6 +2635,32 @@ func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, e
 	return nil
 }
 
+// GetTicketSummary
+func (w *Wallet) GetTicketSummary(chainClient *dcrrpcclient.Client, txDetails *udb.TxDetails) (*TicketSummary, error) {
+	const op errors.Op = "wallet.GetTicketSummary"
+
+	var ticketSummary *TicketSummary
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		ticketInfo, err := w.TxStore.TicketDetails(txmgrNs, txDetails)
+		if err != nil {
+			return errors.Errorf("%v while trying to get ticket details for txhash: %v", err, txDetails.Hash)
+		}
+		// Continue if not a ticket
+		if ticketInfo == nil {
+			return errors.New("tx is not a ticket")
+		}
+		ticketSummary = makeTicketSummary(chainClient, dbtx, w, ticketInfo)
+		return nil
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return ticketSummary, nil
+}
+
 // GetTransactionsResult is the result of the wallet's GetTransactions method.
 // See GetTransactions for more details.
 type GetTransactionsResult struct {

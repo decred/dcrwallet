@@ -242,6 +242,8 @@ var helpDescsEnUS = map[string]string{
 	"gettransactionresult-timereceived":    "The earliest Unix time this transaction was known to exist",
 	"gettransactionresult-details":         "Additional details for each recorded wallet credit and debit",
 	"gettransactionresult-hex":             "The transaction encoded as a hexadecimal string",
+	"gettransactionresult-type":            "The transaction type",
+	"gettransactionresult-ticketstatus":    "If transaction type is 'ticketpurchase' this field will return ticket status",
 
 	// GetTransactionDetailsResult help.
 	"gettransactiondetailsresult-account":           "DEPRECATED -- Unset",

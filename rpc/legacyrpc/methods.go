@@ -1477,6 +1477,7 @@ func getTransaction(s *Server, icmd interface{}) (interface{}, error) {
 		return nil, err
 	}
 
+	txType := wallet.TxTransactionType(&txd.MsgTx)
 	// TODO: Add a "generated" field to this result type.  "generated":true
 	// is only added if the transaction is a coinbase.
 	ret := dcrjson.GetTransactionResult{
@@ -1484,8 +1485,25 @@ func getTransaction(s *Server, icmd interface{}) (interface{}, error) {
 		Hex:             b.String(),
 		Time:            txd.Received.Unix(),
 		TimeReceived:    txd.Received.Unix(),
+		Type:            txType.String(),
 		WalletConflicts: []string{}, // Not saved
 		//Generated:     blockchain.IsCoinBaseTx(&details.MsgTx),
+	}
+
+	var ticketInfo *wallet.TicketSummary
+	if txType == wallet.TransactionTypeTicketPurchase {
+		var chainClient *rpcclient.Client
+		if n, ok := w.NetworkBackend(); ok {
+			client, err := chain.RPCClientFromBackend(n)
+			if err == nil {
+				chainClient = client
+			}
+		}
+		ticketInfo, err = w.GetTicketSummary(chainClient, txd)
+		if err != nil {
+			return nil, err
+		}
+		ret.TicketStatus = ticketInfo.Status.String()
 	}
 
 	if txd.Block.Height != -1 {
