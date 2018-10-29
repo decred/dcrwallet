@@ -187,21 +187,29 @@ func run(ctx context.Context) error {
 
 		// Load the wallet.  It must have been created already or this will
 		// return an appropriate error.
-		w, err := loader.OpenExistingWallet(walletPass)
-		if err != nil {
-			log.Errorf("Failed to open wallet: %v", err)
-			if errors.Is(errors.Passphrase, err) {
-				// walletpass not provided, advice using --walletpass or --promptpublicpass
-				if cfg.WalletPass == wallet.InsecurePubPassphrase {
-					log.Info("Configure public passphrase with walletpass or promptpublicpass options.")
+		var w *wallet.Wallet
+		errc := make(chan error, 1)
+		go func() {
+			var err error
+			w, err = loader.OpenExistingWallet(walletPass)
+			if err != nil {
+				log.Errorf("Failed to open wallet: %v", err)
+				if errors.Is(errors.Passphrase, err) {
+					// walletpass not provided, advice using --walletpass or --promptpublicpass
+					if cfg.WalletPass == wallet.InsecurePubPassphrase {
+						log.Info("Configure public passphrase with walletpass or promptpublicpass options.")
+					}
 				}
 			}
-
-			return err
-		}
-
-		if done(ctx) {
+			errc <- err
+		}()
+		select {
+		case <-ctx.Done():
 			return ctx.Err()
+		case err := <-errc:
+			if err != nil {
+				return err
+			}
 		}
 
 		// TODO(jrick): I think that this prompt should be removed
