@@ -196,8 +196,9 @@ func (w *Wallet) FundRawTransaction(tx wire.MsgTx, relayFeePerKb dcrutil.Amount,
 				changeAddress: changeAddress,
 			}
 		}
+		isAllMine, err := w.IsAllMine(tx.TxIn)
 		fundedTx, err = txauthor.FundRawTransaction(&tx, relayFeePerKb,
-			sourceImpl.SelectInputs, changeSource)
+			sourceImpl.SelectInputs, changeSource, isAllMine)
 
 		return err
 	})

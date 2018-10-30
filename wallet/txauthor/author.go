@@ -7,6 +7,7 @@
 package txauthor
 
 import (
+	"fmt"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
@@ -170,8 +171,9 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 // enough input value to pay for every output any necessary fees, an
 // error is returned.
 func FundRawTransaction(mtx *wire.MsgTx, relayFeePerKb dcrutil.Amount,
-	fetchInputs InputSource, fetchChange ChangeSource) (*wire.MsgTx, error) {
+	fetchInputs InputSource, fetchChange ChangeSource, isAllMine bool) (*wire.MsgTx, error) {
 
+	fmt.Printf("isAllMine: %+v\n\n", isAllMine)
 	const op errors.Op = "txauthor.FundRawTransaction"
 
 	var targetAmount dcrutil.Amount
@@ -183,9 +185,22 @@ func FundRawTransaction(mtx *wire.MsgTx, relayFeePerKb dcrutil.Amount,
 			return mtx, nil
 		}
 	}
+
 	scriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
-	for range mtx.TxIn {
-		scriptSizes = append(scriptSizes, txsizes.RedeemP2PKHInputSize)
+	for _, txIn := range inputs {
+		if txIn.SignatureScript == nil && !isAllMine {
+			return nil, errors.E(errors.Invalid, "There are inputs that do not belong to this wallet,"+
+				" therefore we can not calculate the fee")
+		}
+		if len(txIn.SignatureScript) == 0 && !isAllMine {
+			return nil, errors.E(errors.Invalid, "There are inputs that do not belong to this wallet,"+
+				" therefore we can not calculate the fee")
+		}
+		if len(txIn.SignatureScript) > 0 {
+			scriptSizes = append(scriptSizes, len(txIn.SignatureScript))
+		} else { // It is our input so we can redeem it
+			scriptSizes = append(scriptSizes, txsizes.RedeemP2PKHInputSize)
+		}
 	}
 	changeScript, changeScriptVersion, err := fetchChange.Script()
 	if err != nil {

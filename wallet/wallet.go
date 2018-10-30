@@ -4602,3 +4602,26 @@ func Open(cfg *Config) (*Wallet, error) {
 
 	return w, nil
 }
+
+// IsAllMine returns if all inputs passed as parameters belongs to the wallet
+func (w *Wallet) IsAllMine(inputs []*wire.TxIn) (bool, error) {
+	for _, txIn := range inputs {
+		err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+			_, err := w.TxStore.TxDetails(txmgrNs, &txIn.PreviousOutPoint.Hash)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			if errors.Is(errors.NotExist, err) {
+				return false, nil
+			} else if err != nil {
+				return false, err
+			}
+		}
+	}
+	return true, nil
+}
