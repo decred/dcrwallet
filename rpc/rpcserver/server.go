@@ -61,9 +61,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "5.3.0"
+	semverString = "5.4.0"
 	semverMajor  = 5
-	semverMinor  = 3
+	semverMinor  = 4
 	semverPatch  = 0
 )
 
