@@ -7,7 +7,6 @@
 package txauthor
 
 import (
-	"fmt"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
@@ -173,17 +172,18 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 func FundRawTransaction(mtx *wire.MsgTx, relayFeePerKb dcrutil.Amount,
 	fetchInputs InputSource, fetchChange ChangeSource, isAllMine bool) (*wire.MsgTx, error) {
 
-	fmt.Printf("isAllMine: %+v\n\n", isAllMine)
 	const op errors.Op = "txauthor.FundRawTransaction"
 
 	var targetAmount dcrutil.Amount
+	var inputsSum dcrutil.Amount
 	inputs := mtx.TxIn
 	outputs := mtx.TxOut
 	if len(inputs) > 0 {
-		targetAmount = h.SumOutputValues(outputs) - h.SumInputValues(inputs)
-		if targetAmount <= 0 {
-			return mtx, nil
-		}
+		inputsSum = h.SumInputValues(inputs)
+	}
+	targetAmount = h.SumOutputValues(outputs) - inputsSum
+	if targetAmount <= 0 {
+		return mtx, nil
 	}
 
 	scriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
