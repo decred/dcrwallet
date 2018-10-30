@@ -55,6 +55,9 @@ type ManagedPubKeyAddress interface {
 	// ExportPubKey returns the public key associated with the address
 	// serialized as a hex encoded string.
 	ExportPubKey() string
+
+	// Index returns the child number used to derive this public key address
+	Index() uint32
 }
 
 // ManagedScriptAddress extends ManagedAddress and represents a pay-to-script-hash
@@ -79,6 +82,7 @@ type managedAddress struct {
 	multisig   bool
 	compressed bool
 	pubKey     chainec.PublicKey
+	index      uint32
 }
 
 // Enforce managedAddress satisfies the ManagedPubKeyAddress interface.
@@ -141,6 +145,13 @@ func (a *managedAddress) Compressed() bool {
 // This is part of the ManagedPubKeyAddress interface implementation.
 func (a *managedAddress) PubKey() chainec.PublicKey {
 	return a.pubKey
+}
+
+// Index returns the child number used to derive this key.
+//
+// This is part of the ManagedPubKeyAddress interface implementation.
+func (a *managedAddress) Index() uint32 {
+	return a.index
 }
 
 // pubKeyBytes returns the serialized public key bytes for the managed address

@@ -61,9 +61,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "5.3.0"
+	semverString = "5.4.0"
 	semverMajor  = 5
-	semverMinor  = 3
+	semverMinor  = 4
 	semverPatch  = 0
 )
 
@@ -1699,6 +1699,8 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 			return nil, err
 		}
 		result.PubKeyAddr = pubKeyAddr.String()
+		result.IsInternal = ma.Internal()
+		result.Index = ma.Index()
 
 	case udb.ManagedScriptAddress:
 		result.IsScript = true
