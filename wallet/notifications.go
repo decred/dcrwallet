@@ -470,7 +470,7 @@ type TransactionSummary struct {
 }
 
 // TransactionType describes the which type of transaction is has been observed to be.
-// For instance, if it has a ticket as an input and a stake base reward as an ouput,
+// For instance, if it has a ticket as an input and a stake base reward as an output,
 // it is known to be a vote.
 type TransactionType int8
 

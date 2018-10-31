@@ -157,7 +157,7 @@ var handlers = map[string]handler{
 }
 
 // unimplemented handles an unimplemented RPC request with the
-// appropiate error.
+// appropriate error.
 func unimplemented(*Server, interface{}) (interface{}, error) {
 	return nil, &dcrjson.RPCError{
 		Code:    dcrjson.ErrRPCUnimplemented,
@@ -482,7 +482,7 @@ func createMultiSig(s *Server, icmd interface{}) (interface{}, error) {
 }
 
 // dumpPrivKey handles a dumpprivkey request with the private key
-// for a single address, or an appropiate error if the wallet
+// for a single address, or an appropriate error if the wallet
 // is locked.
 func dumpPrivKey(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.DumpPrivKeyCmd)
@@ -1100,7 +1100,7 @@ func createNewAccount(s *Server, icmd interface{}) (interface{}, error) {
 }
 
 // renameAccount handles a renameaccount request by renaming an account.
-// If the account does not exist an appropiate error will be returned.
+// If the account does not exist an appropriate error will be returned.
 func renameAccount(s *Server, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*dcrjson.RenameAccountCmd)
 	w, ok := s.walletLoader.LoadedWallet()
@@ -1186,7 +1186,7 @@ func getMultisigOutInfo(s *Server, icmd interface{}) (interface{}, error) {
 }
 
 // getNewAddress handles a getnewaddress request by returning a new
-// address for an account.  If the account does not exist an appropiate
+// address for an account.  If the account does not exist an appropriate
 // error is returned.
 // TODO: Follow BIP 0044 and warn if number of unused addresses exceeds
 // the gap limit.
@@ -1594,8 +1594,8 @@ func getWalletFee(s *Server, icmd interface{}) (interface{}, error) {
 // localeHelpDescs maps from locale strings (e.g. "en_US") to a function that
 // builds a map of help texts for each RPC server method.  This prevents help
 // text maps for every locale map from being rooted and created during init.
-// Instead, the appropiate function is looked up when help text is first needed
-// using the current locale and saved to the global below for futher reuse.
+// Instead, the appropriate function is looked up when help text is first needed
+// using the current locale and saved to the global below for further reuse.
 //
 // requestUsages contains single line usages for every supported request,
 // separated by newlines.  It is set during init.  These usages are used for all

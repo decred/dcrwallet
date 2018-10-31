@@ -102,7 +102,7 @@ func promptList(reader *bufio.Reader, prefix string, validResponses []string, de
 
 // promptListBool prompts the user for a boolean (yes/no) with the given prefix.
 // The function will repeat the prompt to the user until they enter a valid
-// reponse.
+// response.
 func promptListBool(reader *bufio.Reader, prefix string, defaultEntry string) (bool, error) {
 	// Setup the valid responses.
 	valid := []string{"n", "no", "y", "yes"}

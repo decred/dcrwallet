@@ -74,7 +74,7 @@ const (
 	OutputSelectionAlgorithmDefault = iota
 
 	// OutputSelectionAlgorithmAll describes the output selection algorithm of
-	// picking every possible availble output.  This is useful for sweeping.
+	// picking every possible available output.  This is useful for sweeping.
 	OutputSelectionAlgorithmAll
 )
 
@@ -644,7 +644,7 @@ func (w *Wallet) compressWalletInternal(op errors.Op, dbtx walletdb.ReadWriteTx,
 		return nil, errors.E(op, "too few outputs to consolidate")
 	}
 
-	// Check if output address is default, and generate a new adress if needed
+	// Check if output address is default, and generate a new address if needed
 	if changeAddr == nil {
 		changeAddr, err = w.newChangeAddress(op, w.persistReturnedChild(dbtx), account)
 		if err != nil {
@@ -1242,7 +1242,7 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 	// should be handled by the call to UnspentOutputs (or similar).
 	// Because one of these filters requires matching the output script to
 	// the desired account, this change depends on making wtxmgr a waddrmgr
-	// dependancy and requesting unspent outputs for a single account.
+	// dependency and requesting unspent outputs for a single account.
 	eligible := make([]udb.Credit, 0, len(unspent))
 	for i := range unspent {
 		output := unspent[i]
@@ -1609,11 +1609,11 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 	sizeEstimate := txsizes.EstimateSerializeSize(scriptSizes, revocation.TxOut, 0)
 	feeEstimate := txrules.FeeForSerializeSize(feePerKB, sizeEstimate)
 
-	// Reduce the output value of one of the outputs to accomodate for the relay
+	// Reduce the output value of one of the outputs to accommodate for the relay
 	// fee.  To avoid creating dust outputs, a suitable output value is reduced
 	// by the fee estimate only if it is large enough to not create dust.  This
 	// code does not currently handle reducing the output values of multiple
-	// commitment outputs to accomodate for the fee.
+	// commitment outputs to accommodate for the fee.
 	for _, output := range revocation.TxOut {
 		if dcrutil.Amount(output.Value) > feeEstimate {
 			amount := dcrutil.Amount(output.Value) - feeEstimate

@@ -67,7 +67,7 @@ const (
 	semverPatch  = 0
 )
 
-// translateError creates a new gRPC error with an appropiate error code for
+// translateError creates a new gRPC error with an appropriate error code for
 // recognized errors.
 //
 // This function is by no means complete and should be expanded based on other
@@ -3211,13 +3211,13 @@ func marshalDecodedTxInputs(mtx *wire.MsgTx) []*pb.DecodedTransaction_Input {
 		inputs[i] = &pb.DecodedTransaction_Input{
 			PreviousTransactionHash:  txIn.PreviousOutPoint.Hash[:],
 			PreviousTransactionIndex: txIn.PreviousOutPoint.Index,
-			Tree:               pb.DecodedTransaction_Input_TreeType(txIn.PreviousOutPoint.Tree),
-			Sequence:           txIn.Sequence,
-			AmountIn:           txIn.ValueIn,
-			BlockHeight:        txIn.BlockHeight,
-			BlockIndex:         txIn.BlockIndex,
-			SignatureScript:    txIn.SignatureScript,
-			SignatureScriptAsm: disbuf,
+			Tree:                     pb.DecodedTransaction_Input_TreeType(txIn.PreviousOutPoint.Tree),
+			Sequence:                 txIn.Sequence,
+			AmountIn:                 txIn.ValueIn,
+			BlockHeight:              txIn.BlockHeight,
+			BlockIndex:               txIn.BlockIndex,
+			SignatureScript:          txIn.SignatureScript,
+			SignatureScriptAsm:       disbuf,
 		}
 	}
 

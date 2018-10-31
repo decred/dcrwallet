@@ -44,7 +44,7 @@ type Syncer struct {
 	discoverAccounts bool
 	loadedFilters    bool
 
-	persistantPeers []string
+	persistentPeers []string
 
 	connectingRemotes map[string]struct{}
 	remotes           map[string]*p2p.RemotePeer
@@ -108,10 +108,10 @@ func NewSyncer(w *wallet.Wallet, lp *p2p.LocalPeer) *Syncer {
 	}
 }
 
-// SetPersistantPeers sets each peer as a persistant peer and disables DNS
+// SetPersistentPeers sets each peer as a persistent peer and disables DNS
 // seeding and peer discovery.
-func (s *Syncer) SetPersistantPeers(peers []string) {
-	s.persistantPeers = peers
+func (s *Syncer) SetPersistentPeers(peers []string) {
+	s.persistentPeers = peers
 }
 
 // SetNotifications sets the possible various callbacks that are used
@@ -254,8 +254,8 @@ func (s *Syncer) Run(ctx context.Context) error {
 		}
 	}()
 
-	// Seed peers over DNS when not disabled by persistant peers.
-	if len(s.persistantPeers) == 0 {
+	// Seed peers over DNS when not disabled by persistent peers.
+	if len(s.persistentPeers) == 0 {
 		s.lp.DNSSeed(wire.SFNodeNetwork | wire.SFNodeCF)
 	}
 
@@ -266,9 +266,9 @@ func (s *Syncer) Run(ctx context.Context) error {
 	g.Go(func() error { return s.receiveHeadersAnnouncements(ctx) })
 	s.lp.AddHandledMessages(p2p.MaskGetData | p2p.MaskInv)
 
-	if len(s.persistantPeers) != 0 {
-		for i := range s.persistantPeers {
-			raddr := s.persistantPeers[i]
+	if len(s.persistentPeers) != 0 {
+		for i := range s.persistentPeers {
+			raddr := s.persistentPeers[i]
 			g.Go(func() error { return s.connectToPersistent(ctx, raddr) })
 		}
 	} else {

@@ -95,7 +95,7 @@ const (
 	// transactions.  This is required to distinguish between the main chain tip
 	// (which is advanced during headers fetch) and the point at which a startup
 	// rescan should occur.  During upgrade, the current tip block is recorded
-	// as this block to avoid an additional or extra long rescan from occuring
+	// as this block to avoid an additional or extra long rescan from occurring
 	// from properly-synced wallets.
 	lastProcessedTxsBlockVersion = 11
 

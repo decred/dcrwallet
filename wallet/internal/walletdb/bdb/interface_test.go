@@ -304,7 +304,7 @@ func testManualTxInterface(tc *testContext, namespace walletdb.Namespace) bool {
 	//
 	// Otherwise, a read-write transaction is created, the values are
 	// written, standard bucket tests for read-write transactions are
-	// performed, and then the transaction is either commited or rolled
+	// performed, and then the transaction is either committed or rolled
 	// back depending on the flag.
 	populateValues := func(writable, rollback bool, putValues map[string]string) bool {
 		tx, err := namespace.Begin(writable)

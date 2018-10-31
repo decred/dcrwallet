@@ -213,7 +213,7 @@ FilterLoop:
 
 				for j, b := range blocks {
 					// Validate fetched blocks before rescanning transactions.  PoW
-					// and PoS difficulties have already been valdiated since the
+					// and PoS difficulties have already been validated since the
 					// header is saved by the wallet, and modifications to these in
 					// the downloaded block would result in a different block hash
 					// and failure to fetch the block.

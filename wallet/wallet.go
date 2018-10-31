@@ -1294,7 +1294,7 @@ type (
 
 	// heldUnlock is a tool to prevent the wallet from automatically
 	// locking after some timeout before an operation which needed
-	// the unlocked wallet has finished.  Any aquired heldUnlock
+	// the unlocked wallet has finished.  Any acquired heldUnlock
 	// *must* be released (preferably with a defer) or the wallet
 	// will forever remain unlocked.
 	heldUnlock chan struct{}
@@ -3172,7 +3172,7 @@ func (w *Wallet) ImportScript(rs []byte) error {
 	return nil
 }
 
-// RedeemScriptCopy returns a copy of a redeem script to redeem outputs payed to
+// RedeemScriptCopy returns a copy of a redeem script to redeem outputs paid to
 // a P2SH address.
 func (w *Wallet) RedeemScriptCopy(addr dcrutil.Address) ([]byte, error) {
 	const op errors.Op = "wallet.RedeemScriptCopy"
@@ -3306,7 +3306,7 @@ func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 					// wallet, but rather the stakebase sum.  If a user uses a
 					// stakepool for voting, this value will include the total
 					// subsidy earned by both the user and the pool together.
-					// Similarily, for stakepool wallets, this includes the
+					// Similarly, for stakepool wallets, this includes the
 					// customer's subsidy rather than being just the subsidy
 					// earned by fees.
 					res.TotalSubsidy += dcrutil.Amount(spender.TxIn[0].ValueIn)
@@ -3336,7 +3336,7 @@ func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 }
 
 // StakeInfoPrecise collects and returns staking statistics for this wallet.  It
-// uses RPC to query futher information than StakeInfo.
+// uses RPC to query further information than StakeInfo.
 func (w *Wallet) StakeInfoPrecise(chainClient *dcrrpcclient.Client) (*StakeInfoData, error) {
 	const op errors.Op = "wallet.StakeInfoPrecise"
 	// This is only needed for the total count and can be optimized.
@@ -3406,7 +3406,7 @@ func (w *Wallet) StakeInfoPrecise(chainClient *dcrrpcclient.Client) (*StakeInfoD
 					// wallet, but rather the stakebase sum.  If a user uses a
 					// stakepool for voting, this value will include the total
 					// subsidy earned by both the user and the pool together.
-					// Similarily, for stakepool wallets, this includes the
+					// Similarly, for stakepool wallets, this includes the
 					// customer's subsidy rather than being just the subsidy
 					// earned by fees.
 					res.TotalSubsidy += dcrutil.Amount(spender.TxIn[0].ValueIn)
@@ -4063,7 +4063,7 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 //
 // Purged transactions may have already been published to the network and may
 // still appear in future blocks, and new transactions spending the same inputs
-// as purged transations may be rejected by full nodes due to being double
+// as purged transactions may be rejected by full nodes due to being double
 // spends.  In turn, this can cause the purged transaction to be mined later and
 // replace other transactions authored by the wallet.
 func (w *Wallet) PurgeUnminedTransaction(hash *chainhash.Hash) error {

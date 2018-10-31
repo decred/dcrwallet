@@ -203,7 +203,7 @@ func (t *TicketPurchaser) SetMaxPriceAbsolute(maxPriceAbsolute int64) {
 	t.purchaserMtx.Unlock()
 }
 
-// MaxPriceRelative returns the scaling factor which is multipled by average
+// MaxPriceRelative returns the scaling factor which is multiplied by average
 // price to calculate a relative max for the ticket price.
 func (t *TicketPurchaser) MaxPriceRelative() float64 {
 	t.purchaserMtx.Lock()

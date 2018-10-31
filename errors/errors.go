@@ -20,7 +20,7 @@ import (
 
 // Separator is inserted between nested errors when formatting as strings.  The
 // default separator produces easily readable multiline errors.  Separator may
-// be modified at init time to create error strings appropiate for logging
+// be modified at init time to create error strings appropriate for logging
 // errors on a single line.
 var Separator = ":\n\t"
 

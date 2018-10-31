@@ -948,7 +948,7 @@ func testMarkUsed(tc *testContext) bool {
 	return true
 }
 
-// testChangePassphrase ensures changes both the public and privte passphrases
+// testChangePassphrase ensures changes both the public and private passphrases
 // works as intended.
 func testChangePassphrase(tc *testContext) bool {
 	// Force an error when changing the passphrase due to failure to
@@ -5589,7 +5589,7 @@ func TestManager(t *testing.T) {
 	// returned.
 	_, err = Open(mgrNamespace, pubPassphrase,
 		&chaincfg.TestNetParams, nil)
-	if !checkManagerError(t, "Open non-existant", err, apperrors.ErrNoExist) {
+	if !checkManagerError(t, "Open non-existent", err, apperrors.ErrNoExist) {
 		return
 	}
 

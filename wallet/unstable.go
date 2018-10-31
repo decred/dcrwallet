@@ -18,7 +18,7 @@ type unstableAPI struct {
 
 // UnstableAPI exposes additional unstable public APIs for a Wallet.  These APIs
 // may be changed or removed at any time.  Currently this type exists to ease
-// the transation (particularly for the legacy JSON-RPC server) from using
+// the transition (particularly for the legacy JSON-RPC server) from using
 // exported manager packages to a unified wallet package that exposes all
 // functionality by itself.  New code should not be written using this API.
 func UnstableAPI(w *Wallet) unstableAPI { return unstableAPI{w} }

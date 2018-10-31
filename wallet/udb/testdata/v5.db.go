@@ -415,11 +415,11 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 	sizeEstimate := txsizes.EstimateSerializeSize(1, revocation.TxOut, false)
 	feeEstimate := txrules.FeeForSerializeSize(feePerKB, sizeEstimate)
 
-	// Reduce the output value of one of the outputs to accomodate for the relay
+	// Reduce the output value of one of the outputs to accommodate for the relay
 	// fee.  To avoid creating dust outputs, a suitable output value is reduced
 	// by the fee estimate only if it is large enough to not create dust.  This
 	// code does not currently handle reducing the output values of multiple
-	// commitment outputs to accomodate for the fee.
+	// commitment outputs to accommodate for the fee.
 	for _, output := range revocation.TxOut {
 		if dcrutil.Amount(output.Value) > feeEstimate {
 			amount := dcrutil.Amount(output.Value) - feeEstimate
