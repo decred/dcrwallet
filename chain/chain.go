@@ -123,7 +123,7 @@ func (c *RPCClient) Start(ctx context.Context, retry bool) (err error) {
 	}
 	if !semverCompatible(requiredChainServerAPI, serverAPI) {
 		return errors.E(op, errors.Errorf("advertised API version %v incompatible "+
-			"with required verison %v", serverAPI, requiredChainServerAPI))
+			"with required version %v", serverAPI, requiredChainServerAPI))
 	}
 
 	c.quitMtx.Lock()
