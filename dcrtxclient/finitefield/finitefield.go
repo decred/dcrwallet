@@ -10,9 +10,11 @@ type (
 	}
 )
 
-//Prime of finite field with field size 128 bit (1<<127 - 1)
+// Prime of finite field with field size 128 bit (1<<127 - 1).
 var Prime = Uint128{0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}
 
+// NewFF returns finite field from uint128 type.
+// Terminates when value of uint128 is greater than Prime.
 func NewFF(n Uint128) Field {
 	if Prime.Compare(n) == 0 {
 		return Field{Uint128{0, 0}}
@@ -23,18 +25,26 @@ func NewFF(n Uint128) Field {
 	return Field{n}
 }
 
+// Add performs finite field addition
+// add return new finite field.
 func (ff Field) Add(ff2 Field) Field {
 	return Field{(ff.N.Add(ff2.N)).Reduce()}
 }
 
+// Neg performs finite field subtraction with Prime number
+// and return new finite field.
 func (ff Field) Neg() Field {
 	return Field{Sub(Prime, ff.N)}
 }
 
+// Sub performs finite field subtraction
+// and return new finite field.
 func (ff Field) Sub(ff2 Field) Field {
 	return ff.Add(ff2.Neg())
 }
 
+// MulAssign performs finite field multiplication
+// and assign result for first receiver.
 func (ff *Field) MulAssign(ff2 Field) {
 
 	sh := ff.N.H
@@ -54,8 +64,8 @@ func (ff *Field) MulAssign(ff2 Field) {
 	ml := m.L
 
 	// (64 bits * 64 bits) + 128 bits = 129 bits
-	//overflowing_add Returns (a + b) mod 2^N, where N is the width of T in bits.
-	//(rl, carry) = (sl as u128 * ol as u128).overflowing_add((ml as u128) << 64);
+	// overflowing_add Returns (a + b) mod 2^N, where N is the width of T in bits.
+	// (rl, carry) = (sl as u128 * ol as u128).overflowing_add((ml as u128) << 64);
 	r1 := Uint128{0, sl}
 	r2 := Uint128{0, ol}
 
@@ -64,7 +74,7 @@ func (ff *Field) MulAssign(ff2 Field) {
 
 	rl := Uint128{}
 	rl.L = r3.L + r31.L
-	//check if overflow Lo
+	// Check if overflow Lo
 	var carry uint64 = 0
 	if rl.L < r3.L {
 		carry = 1
@@ -83,6 +93,8 @@ func (ff *Field) MulAssign(ff2 Field) {
 	ff.N = ret
 }
 
+// Mul performs finite field multiplation
+// and returns result to new finite field.
 func (ff Field) Mul(ff2 Field) Field {
 
 	sh := ff.N.H
@@ -102,9 +114,8 @@ func (ff Field) Mul(ff2 Field) Field {
 	ml := m.L
 
 	// (64 bits * 64 bits) + 128 bits = 129 bits
-	//overflowing_add Returns (a + b) mod 2^N, where N is the width of T in bits.
-	//let (rl, carry) = (sl as u128 * ol as u128).overflowing_add((ml as u128) << 64);
-
+	// overflowing_add Returns (a + b) mod 2^N, where N is the width of T in bits.
+	// let (rl, carry) = (sl as u128 * ol as u128).overflowing_add((ml as u128) << 64);
 	r1 := Uint128{0, sl}
 	r2 := Uint128{0, ol}
 
@@ -113,7 +124,7 @@ func (ff Field) Mul(ff2 Field) Field {
 
 	rl := Uint128{}
 	rl.L = r3.L + r31.L
-	//check if overflow Lo
+	// Check if overflow Lo
 	var carry uint64 = 0
 	if rl.L < r3.L {
 		carry = 1
@@ -131,6 +142,8 @@ func (ff Field) Mul(ff2 Field) Field {
 	return NewFF(ret)
 }
 
+// Exp calculates exponential of finite field
+// and return new finte field.
 func (ff Field) Exp(e uint64) Field {
 	ret := &Field{ff.N}
 	if e == uint64(1) {
@@ -144,11 +157,13 @@ func (ff Field) Exp(e uint64) Field {
 	return *ret
 }
 
+// HexStr gets hexa string representation of finite field value.
 func (ff Field) HexStr() string {
 	n := &ff.N
 	return n.HexStr()
 }
 
+// String gets string representation of finite field value.
 func (ff Field) String() string {
 	n := &ff.N
 	return n.String()

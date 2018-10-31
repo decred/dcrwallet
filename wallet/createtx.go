@@ -313,7 +313,7 @@ func (w *Wallet) txToOutputs(op errors.Op, outputs []*wire.TxOut, account uint32
 }
 
 // txToOutputsSplitTx creates a input,output on each participants
-// then each participant send to dcrtxmatcher server for create transaction
+// then each participant send to dcrtxmatcher server for create transaction.
 // dcrtxmatcher will send back the transaction for sign
 func (w *Wallet) txToOutputsSplitTx(outputs []*wire.TxOut, account uint32, minconf int32,
 	n NetworkBackend, randomizeChangeIdx bool, txFee dcrutil.Amount) (*txauthor.AuthoredTx, *[]func(walletdb.ReadWriteTx) error, error) {
@@ -349,24 +349,11 @@ func (w *Wallet) txToOutputsSplitTx(outputs []*wire.TxOut, account uint32, minco
 			atx.RandomizeChangePosition()
 		}
 
-		// Sign the transaction
-		//		secrets := &secretSource{Manager: w.Manager, addrmgrNs: addrmgrNs}
-		//		err = atx.AddAllInputScripts(secrets)
-		//		for _, done := range secrets.doneFuncs {
-		//			done()
-		//		}
 		return err
 	})
 	if err != nil {
 		return nil, nil, errors.E(op, err)
 	}
-
-	// Ensure valid signatures were created.
-	//err = validateMsgTx(atx.Tx, atx.PrevScripts)
-	//if err != nil {
-	//	fmt.Println("ERROR validateMsgTx ", err)
-	//	//return nil, nil, err
-	//}
 
 	// Warn when spending UTXOs controlled by imported keys created change for
 	// the default account.
@@ -386,6 +373,7 @@ func (w *Wallet) txToOutputsSplitTx(outputs []*wire.TxOut, account uint32, minco
 
 type ChangeSourceFunc func(walletdb.ReadWriteTx) error
 
+// publishTx publishes the transaction to network.
 func (w *Wallet) publishTx(tx *wire.MsgTx, changeSourceUpdates *[]func(walletdb.ReadWriteTx) error, n NetworkBackend) error {
 	rec, err := udb.NewTxRecordFromMsgTx(tx, time.Now())
 	if err != nil {
@@ -1149,14 +1137,6 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 	ticketFee = txrules.FeeForSerializeSize(ticketFeeIncrement, estSize)
 	neededPerTicket = ticketFee + ticketPrice
 
-	// If we need to calculate the amount for a pool fee percentage,
-	// do so now.
-	//var poolFeeAmt dcrutil.Amount
-	//	if poolAddress != nil {
-	//		poolFeeAmt := txrules.StakePoolTicketFee(ticketPrice, ticketFee,
-	//			tipHeight, poolFees, w.ChainParams())
-	//	}
-
 	// Make sure this doesn't over spend based on the balance to
 	// maintain. This component of the API is inaccessible to the
 	// end user through the legacy RPC, so it should only ever be
@@ -1175,20 +1155,11 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		}
 	}
 
-	// Fetch the single use split address to break tickets into, to
-	// immediately be consumed as tickets.
-	//
-	// This opens a write transaction.
-	//	splitTxAddr, err := w.NewInternalAddress(req.account, WithGapPolicyWrap())
-	//	if err != nil {
-	//		return nil, err
-	//	}
-
+	// Separate purchase ticket code to a func for using in many part of code.
+	// The first one is used to purchase when got joined tx from dcrtxmatcher server.
+	// The secode is used when dcrtxmatcher is not available and purchase will work as usually.
 	purchaseFn := func(tx *wire.MsgTx, numberTickets int, outputIds []int32) ([]*chainhash.Hash, error) {
 
-		//fmt.Println("outputIds", outputIds)
-		//fmt.Println("len txin", len(tx.TxIn))
-		//fmt.Println("len txin", len(tx.TxOut))
 		log.Info("OutputIndex will be used for purchase", outputIds)
 		ticketHashes := make([]*chainhash.Hash, 0)
 		for i := 0; i < req.numTickets; i++ {
@@ -1233,17 +1204,17 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 
 			err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 				ns := tx.ReadBucket(waddrmgrNamespaceKey)
-				//signMsgTx set signaturescript to txin
+				// signMsgTx set signaturescript to txin
 				return w.signP2PKHMsgTx(ticket, forSigning, ns)
 			})
 			if err != nil {
 				return ticketHashes, err
 			}
 
-			err = w.processTxRecordAndPublish(ticket, n)
-			if err != nil {
-				return ticketHashes, err
-			}
+			//			err = w.processTxRecordAndPublish(ticket, n)
+			//			if err != nil {
+			//				return ticketHashes, err
+			//			}
 
 			ticketHash := ticket.TxHash()
 			ticketHashes = append(ticketHashes, &ticketHash)
@@ -1253,8 +1224,10 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		return ticketHashes, nil
 	}
 
-	//check dcrtxclient option to ensure current code also works with dcrtxclient enable option is disable in config file
-	if req.dcrTxClient.Config().Enable {
+	// We purchase ticket by coinshuffle++ method.
+	// If dcrTxClient is not enable, we purchase by coinjoin method.
+	// If server is not available, purchase ticket locally.
+	if req.dcrTxClient.Cfg.Enable {
 		var splitOuts []*wire.TxOut
 
 		//create slice of pkscripts
@@ -1267,8 +1240,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 			}
 			pkScripts[i], err = txscript.PayToAddrScript(splitTxAddr)
 			if err != nil {
-				log.Errorf("cannot create txout script: %s", err)
-				return nil, err
+				return nil, errors.E(op, err)
 			}
 
 			splitOuts = append(splitOuts, wire.NewTxOut(int64(neededPerTicket), pkScripts[i]))
@@ -1286,14 +1258,14 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 			return nil, errors.E(op, errors.Bug, errors.Errorf("split address %v", ""))
 		}
 
-		//remove all txout to perform dicemix output address, keep only change output
+		// Remove all txout to perform dicemix output address, keep only change output
 		if len(splitTx.Tx.TxOut) > 1 {
 			splitTx.Tx.TxOut = []*wire.TxOut{splitTx.Tx.TxOut[len(splitTx.Tx.TxOut)-1]}
 		} else {
 			splitTx.Tx.TxOut = []*wire.TxOut{}
 		}
 
-		// build outputs index in case communicate with server fails
+		// Build outputs index in case communicate with server fails
 		localOutputIndex := make([]int32, 0)
 		for i := 0; i < req.numTickets; i++ {
 			localOutputIndex = append(localOutputIndex, int32(i))
@@ -1302,21 +1274,23 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		peers := make([]PeerData, 0)
 		var PeerId, SessionId uint32
 
+		// Connect to dcrtxmatcher server via websocket.
+		// In case dcrtxmacher is not available, we will purchase locally as usual
 		dialer := websocket.Dialer{}
-		ws, _, err := dialer.Dial("ws://"+req.dcrTxClient.Config().Address+"/ws", http.Header{})
+		ws, _, err := dialer.Dial("ws://"+req.dcrTxClient.Cfg.Address+"/ws", http.Header{})
 		if err != nil {
-			log.Errorf("Error connecting %v", err)
-			//return ni, err
+			log.Errorf("Connecting Error: %v", err)
+			// Will purchase locally
+
 		}
 		log.Info("Connected to dcrtxmatcher server for joining transaction!")
 		defer ws.Close()
 
-		//generate ecdh keypair
+		// Generate public/private keypair using Elliptic Curve Diffe Huffman
 		ecp256 := ecdh.NewEllipticECDH(elliptic.P256())
 		vk, pk, err := ecp256.GenerateKey(rand.Reader)
 		if err != nil {
-			log.Errorf("error ecdh GenerateKey: %v", err)
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 
 		pkbytes := ecp256.Marshal(pk)
@@ -1325,40 +1299,42 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		var numMsg uint32 = 0
 		var allMsgBytes [][]byte
 		var allMsgHashes []field.Uint128
-
 		myMsgsHash := make([][]byte, 0)
-		//retrieve output index from joined tx
+
+		// Will need to record the input and output index of peer in joined transaction.
+		// Know input index to sign peer's transaction input.
+		// Know output index to purchase ticket.
 		var outputIndex, inputIndex []int32
 		var joinTx wire.MsgTx
 
+		// Read websocket continuously for incoming message
 		for {
 
 			_, msg, err := ws.ReadMessage()
 			if err != nil {
-				log.Errorf("ReadMessage error %v\n", err)
-				return nil, err
+				return nil, errors.E(op, err)
 			}
 
 			message, err := messages.ParseMessage(msg)
 			if err != nil {
-				log.Errorf("error ParseMessage: %v\n", err)
-				return nil, err
+				return nil, errors.E(op, err)
 			}
 
+			// We need to check the type of the message and having proper process
 			switch message.MsgType {
 			case messages.S_JOIN_RESPONSE:
-				//fmt.Println("S_JOIN_RESPONSE")
+				// Peer receives this message when server has received all join transaction request from all peers.
+				// Server will generate session id and peer id and send back data to every peers
 				joinRes := &pb.CoinJoinRes{}
 				err := proto.Unmarshal(message.Data, joinRes)
 				if err != nil {
-					log.Errorf("error Unmarshal joinRes: %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
 				PeerId = joinRes.PeerId
 				SessionId = joinRes.SessionId
 
-				//send key exchange cmd
+				// Send key exchange cmd
 				keyex := &pb.KeyExchangeReq{
 					SessionId: SessionId,
 					PeerId:    PeerId,
@@ -1368,48 +1344,51 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 
 				data, err := proto.Marshal(keyex)
 				if err != nil {
-					log.Errorf("error Unmarshal joinRes: %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
 				message := messages.NewMessage(messages.C_KEY_EXCHANGE, data)
-
-				//time.Sleep(time.Second * time.Duration(5))
 				if err := ws.WriteMessage(websocket.BinaryMessage, message.ToBytes()); err != nil {
-					log.Errorf("error WriteMessage: %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
 			case messages.S_KEY_EXCHANGE:
-				// server received all peers's pk then broadcast to all peers back peers'pk slice
-
-				//log.Debug("KEY_EXCHANGE")
+				// After server has received the public key of all peers, each peer received  public keys of all peers
 				keyex := &pb.KeyExchangeRes{}
-
 				err := proto.Unmarshal(message.Data, keyex)
 				if err != nil {
-					log.Errorf("error Unmarshal joinRes: %v\n", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
-				log.Debug("Will generate sharedkey with each peer")
-				log.Debug("Use sharekey as seed to generate padding bytes for dc-net exponential and dc-net xor")
-				//create vector net
+				log.Debug("Generate sharedkey with each peer")
+				log.Debug("Uses shared key as seed to generate padding bytes for dc-net exponential and dc-net xor")
+
+				// We will create peer random bytes for dc-net exponential and dc-net xor
 				for _, peer := range keyex.Peers {
 					peerPk, _ := ecp256.Unmarshal(peer.Pk)
+					// Will generate shared key with other peer from private key and other peer public key
 					sharedKey, err := ecp256.GenerateSharedSecret(vk, peerPk)
 					if err != nil {
 						log.Errorf("error GenerateSharedSecret: %v", err)
 						return nil, err
 					}
-
-					dcexpRng := chacharng.RandBytes(sharedKey, 12)
+					// Generate random byte with shared key and random size is 12.
+					// Choose 12 because with bigger random size will cause the power sum
+					// with padding random bytes overflow max value of prime finite field (1<<127)
+					dcexpRng, err := chacharng.RandBytes(sharedKey, messages.ExpRandSize)
+					if err != nil {
+						return nil, errors.E(op, err)
+					}
 					dcexpRng = append([]byte{0, 0, 0, 0}, dcexpRng...)
-					//size of pkscript in txout is 25 bytes
-					dcXorRng := chacharng.RandBytes(sharedKey, 25)
+
+					// For random byte of Xor vector, we get the same size of pkscript is 25 bytes
+					dcXorRng, err := chacharng.RandBytes(sharedKey, messages.PkScriptSize)
+					if err != nil {
+						return nil, err
+					}
 					peers = append(peers, PeerData{Id: peer.PeerId, Pk: peer.Pk, NumMsg: peer.NumMsg, DcExp: dcexpRng,
 						DcXor: dcXorRng})
 
-					// calculate total number of messsages from all peers
+					// Calculate total number of messsages from all peers
 					numMsg += peer.NumMsg
 				}
 
@@ -1419,30 +1398,31 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					}
 				}
 
+				// Create dc-net exponential vector with size is total number message of all peers in join session.
+				// We choose 127 instead of 128 because as the same reason choosing 12 byte of random byte size in dc-net exponential
 				myDcexp := make([]field.Field, numMsg)
-				//hash pkscript with 128bits hash
 				for _, msg := range pkScripts {
 					md := ripemd128.New()
 					_, err = md.Write(msg)
 					if err != nil {
-						log.Errorf("error rand.Read %x", err)
-						return nil, err
+						return nil, errors.E(op, err)
 					}
 
 					pkscripthash := md.Sum127(nil)
 					myMsgsHash = append(myMsgsHash, pkscripthash)
-					//fmt.Printf("pkscripthash %x. len %d\n", pkscripthash, len(pkscripthash))
 
 					ff := field.NewFF(field.FromBytes(pkscripthash))
-					//get exceptional for each message first
+
+					// With N message we will create vector with size N,
+					// create power of each message hash and sum all messages with the same power i
 					for i := 0; i < int(numMsg); i++ {
 						myDcexp[i] = myDcexp[i].Add(ff.Exp(uint64(i + 1)))
 					}
 				}
 
-				//padding with random number generated with secret key seed
+				// Padding with random number generated with secret key seed
 				for j := 0; j < int(numMsg); j++ {
-					//padding with other peers
+					// Padding with other peers
 					for _, p := range peers {
 						if PeerId > p.Id {
 							myDcexp[j] = myDcexp[j].Add(p.GetDcexpField())
@@ -1452,7 +1432,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					}
 				}
 
-				//submit my_dcexp
+				// Submit dc-net exponential vector of peer to server
+				// the server will combine the vectors of all peers to resolve polynomial
 				dcExpVector := &pb.DcExpVector{PeerId: PeerId, Len: uint32(numMsg)}
 				vector := make([]byte, 0)
 				for i := 0; i < int(numMsg); i++ {
@@ -1464,7 +1445,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				md := ripemd128.New()
 				_, err = md.Write(vector)
 				if err != nil {
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
 				commit := md.Sum(nil)
@@ -1473,42 +1454,40 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 
 				data, err := proto.Marshal(dcExpVector)
 				if err != nil {
-					log.Errorf("error marshal dcexpvector: %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
 				message := messages.NewMessage(messages.C_DC_EXP_VECTOR, data)
 				if err := ws.WriteMessage(websocket.BinaryMessage, message.ToBytes()); err != nil {
-					log.Errorf("write error ", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 			case messages.S_DC_EXP_VECTOR:
-				//get all hash massages and sort
+				// After server received all peers exponential vector and resolved polynomial,
+				// server will sent back all resolved pkscripst hash.
+				// Each peer has to sort all pkscripts hash and sort to find their index of pkscripts hash in sorted list.
 				log.Debug("Received all hash of pkscript from peers")
 				allMsgs := &pb.AllMessages{}
 
 				err := proto.Unmarshal(message.Data, allMsgs)
 				if err != nil {
-					fmt.Errorf("err Unmarshal S_DC_EXP_VECTOR %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
 				allMsgBytes = make([][]byte, allMsgs.Len)
 				allMsgHashes = make([]field.Uint128, allMsgs.Len)
 				for i := 0; i < int(allMsgs.Len); i++ {
-					allMsgBytes[i] = allMsgs.Msgs[i*16 : (i+1)*16]
+					allMsgBytes[i] = allMsgs.Msgs[i*messages.PkScriptHashSize : (i+1)*messages.PkScriptHashSize]
 					log.Debugf("Pkscripts hash received from server %x", allMsgBytes[i])
 					allMsgHashes[i] = field.FromBytes(allMsgBytes[i])
 				}
 
-				//sort all messages and find my_msg slot index
+				// Sort all messages and find pkscripts hash slot index.
 				sort.Slice(allMsgHashes, func(i, j int) bool {
 					return allMsgHashes[i].Compare(allMsgHashes[j]) < 0
 				})
 
-				//find my messages index in messages hash
+				// Find my messages index in messages hash.
 				slotReserveds := make([]int, len(myMsgsHash))
-
 				for j := 0; j < len(myMsgsHash); j++ {
 					for i := 0; i < int(allMsgs.Len); i++ {
 						if bytes.Equal(myMsgsHash[j], allMsgHashes[i].GetBytes()) {
@@ -1516,14 +1495,19 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 						}
 					}
 				}
-
 				log.Debugf("Find my pkscripts from all hashed messages returned from server. My slot reserved index %v", slotReserveds)
-				myDcXor := make([][]byte, numMsg)
 
+				// After found slot index of pkscripts hash.
+				// Peer will create dc-net xor vector.
+				// Base on equation: (Pkscript ^ P ^ P1 ^ P2...) ^ (P ^ P1 ^ P2...) = Pkscript
+				// Each peer will send Pkscript ^ P ^ P1 ^ P2... bytes to server.
+				// Server combine all dc-net xor vector and will have Pkscript ^ P ^ P1 ^ P2... ^ (P ^ P1 ^ P2...) = Pkscript
+				// But server could not know which Pkscript belongs to any peer because only peer know it's slot index.
+				// And each peer only knows it's Pkscript itself.
+				myDcXor := make([][]byte, numMsg)
 				for i := 0; i < int(req.numTickets); i++ {
 					myDcXor[slotReserveds[i]] = pkScripts[i]
 				}
-
 				for _, peer := range peers {
 					if peer.Id == PeerId {
 						continue
@@ -1531,8 +1515,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					for i := 0; i < int(numMsg); i++ {
 						myDcXor[i], err = util.XorBytes(myDcXor[i], peer.DcXor)
 						if err != nil {
-							log.Error("error XorBytes", err)
-							return nil, err
+							return nil, errors.E(op, err)
 						}
 					}
 				}
@@ -1549,59 +1532,52 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				dcXor := &pb.DcXorVector{PeerId: PeerId, Vector: xorData, Len: numMsg}
 				data, err := proto.Marshal(dcXor)
 				if err != nil {
-					log.Errorf("error marshal dcexpvector: %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
-				//submit dc-xor to server
+				// Submit dc-net xor vector to server
 				message := messages.NewMessage(messages.C_DC_XOR_VECTOR, data)
 				if err := ws.WriteMessage(websocket.BinaryMessage, message.ToBytes()); err != nil {
-					log.Errorf("write error ", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
-				log.Debug("Sent dc-net Xor vector to server")
+				log.Debug("Sent dc-net xor vector to server")
 
 			case messages.S_DC_XOR_VECTOR:
-				//whether there is malicious peers and submit transaction to server
-				//fmt.Println("S_DC_XOR_VECTOR")
-				//fmt.Println("Transaction inputs")
+				// Will check whether there is malicious peers.
+				// If all pkscripts sent from server not contain at least one peer's pkscript.
+				// We need to find the malicious peer to remove.
+				// And we trust on server terminating malicious peers.
 				dcxorRet := &pb.DcXorVectorResult{}
 				err := proto.Unmarshal(message.Data, dcxorRet)
 				if err != nil {
-					log.Errorf("error proto.Unmarshal DCXor: %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
-				if len(dcxorRet.PeerIds) > 0 {
-					//there is malicious peers
-				}
 				buffTx := bytes.NewBuffer(nil)
 				buffTx.Grow(splitTx.Tx.SerializeSize())
 				err = splitTx.Tx.BtcEncode(buffTx, 0)
 				if err != nil {
-					log.Errorf("error BtcEncode %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 				log.Info("Will submit tx inputs and change amount to server")
 				txInputs := &pb.TxInputs{PeerId: PeerId, TicketPrice: int64(neededPerTicket), Txins: buffTx.Bytes()}
 				txInsData, err := proto.Marshal(txInputs)
 				if err != nil {
-					log.Errorf("error proto.Marshal txInputs: %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
 				message := messages.NewMessage(messages.C_TX_INPUTS, txInsData)
 				if err := ws.WriteMessage(websocket.BinaryMessage, message.ToBytes()); err != nil {
-					log.Errorf("error WriteMessage: %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
-				log.Info("Sent tx inputs and change amount")
+				log.Info("Sent transaction inputs and change amount")
 			case messages.S_JOINED_TX:
-				//get joined tx and sign with peer's txout index
+				// With joined transaction returns from server.
+				// The key is finding correct peer's transaction input and output index
+				// and record for later use.
 				joinTxData := &pb.JoinTx{}
 				err := proto.Unmarshal(message.Data, joinTxData)
 				if err != nil {
-					log.Errorf("err Unmarshal S_JOINED_TX %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 				log.Info("Received joined tx. Will find my txin, txout index from joined tx and sign")
 				var joinTx wire.MsgTx
@@ -1626,11 +1602,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					}
 				}
 
-				//fmt.Println("len txin, txout ", len(joinTx.TxIn), len(joinTx.TxOut))
-				//fmt.Println("inputIndex ", inputIndex)
-				//fmt.Println("outputIndex ", outputIndex)
-
-				// Sign the tx
+				// Sign the transaction with peer's transaction inputs only, not others
 				err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 					addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 					secrets := &secretSource{Manager: w.Manager, addrmgrNs: addrmgrNs}
@@ -1644,74 +1616,75 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					return nil, err
 				}
 
-				//submit signed tx
+				// Encode signed transaction and submit to server.
 				signedTx := &pb.JoinTx{PeerId: PeerId}
 				buff := bytes.NewBuffer(nil)
 				buff.Grow(joinTx.SerializeSize())
 				err = joinTx.BtcEncode(buff, 0)
 				if err != nil {
-					log.Errorf("error BtcEncode %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
 				signedTx.Tx = buff.Bytes()
 				signedTxData, err := proto.Marshal(signedTx)
 				if err != nil {
-					log.Errorf("error BtcEncode %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
 				message := messages.NewMessage(messages.C_TX_SIGN, signedTxData)
 				if err := ws.WriteMessage(websocket.BinaryMessage, message.ToBytes()); err != nil {
-					log.Errorf("error WriteMessage: %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
-
 				log.Debug("Sent signed joined tx")
 
 			case messages.S_TX_SIGN:
-				//get joined tx and sign with peer's txout index
+				// With peer is selected to publish transaction
+				// then will be received this message data.
 				joinTxData := &pb.JoinTx{}
 
 				err := proto.Unmarshal(message.Data, joinTxData)
 				if err != nil {
-					log.Errorf("err Unmarshal S_JOINED_TX %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
 				buffTx := bytes.NewReader(joinTxData.Tx)
 				err = joinTx.BtcDecode(buffTx, 0)
 				if err != nil {
-					log.Errorf("err BtcDecode %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
 				log.Info("Will publish the transaction")
 				err = w.publishTx(&joinTx, changeSourceFuncs, w.networkBackend)
 				var msg *messages.Message
 				if err != nil {
-					log.Errorf("Error when publish join splittx %v", err)
-					msg = messages.NewMessage(messages.C_TX_PUBLISH_RESULT, []byte{0x0})
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 				log.Info("Published and sent the transaction to server", joinTx.TxHash().String())
-				//send publish result
 
+				// Encode the published transaction and send to server.
 				var buffTx1 = bytes.NewBuffer(nil)
 				buffTx1.Grow(joinTx.SerializeSize())
 				err = joinTx.BtcEncode(buffTx1, 0)
 				if err != nil {
-					log.Errorf("Error when BtcEncode %v", err)
+					return nil, errors.E(op, err)
+				}
+
+				publishRet := &pb.PublishResult{}
+				publishRet.Tx = buffTx1.Bytes()
+
+				data, err := proto.Marshal(publishRet)
+				if err != nil {
+					log.Errorf("Error Marshal PublishResult %v", err)
 					msg = messages.NewMessage(messages.C_TX_PUBLISH_RESULT, []byte{0x0})
 					return nil, err
 				}
 
-				msg = messages.NewMessage(messages.C_TX_PUBLISH_RESULT, buffTx1.Bytes())
+				msg = messages.NewMessage(messages.C_TX_PUBLISH_RESULT, data)
 				if err := ws.WriteMessage(websocket.BinaryMessage, msg.ToBytes()); err != nil {
-					log.Errorf("error WriteMessage: %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 			case messages.S_TX_PUBLISH_RESULT:
+				// Will use transaction to pruchase ticket with peer's output index.
 				if len(message.Data) == 1 {
 					return nil, errors.New("error when publish joined transaction")
 				}
@@ -1720,18 +1693,113 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				buffTx := bytes.NewBuffer(message.Data)
 				err := tx.BtcDecode(buffTx, 0)
 				if err != nil {
-					log.Errorf("Error when BtcDecode %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 				log.Info("Received published transaction, will use to purchase tickets")
 				return purchaseFn(&tx, req.numTickets, outputIndex)
+			case messages.S_MALICIOUS_PEERS:
+				mailiciousPeers := &pb.MaliciousPeers{}
+				err := proto.Unmarshal(message.Data, mailiciousPeers)
+				if err != nil {
+					return nil, err
+				}
+
+				log.Debug("mailicious peer ids ", mailiciousPeers.PeerIds)
+				log.Debug("new PeerId ", mailiciousPeers.PeerId)
+				log.Debug("new SessionId ", mailiciousPeers.SessionId)
+
+				vk, pk, err = ecp256.GenerateKey(rand.Reader)
+				if err != nil {
+					log.Errorf("error ecdh GenerateKey: %v", err)
+					return nil, err
+				}
+
+				pkbytes = ecp256.Marshal(pk)
+
+				// Start join session from beginning.
+				PeerId = mailiciousPeers.PeerId
+				SessionId = mailiciousPeers.SessionId
+
+				// Send key exchange command.
+				keyex := &pb.KeyExchangeReq{
+					SessionId: SessionId,
+					PeerId:    PeerId,
+					NumMsg:    uint32(req.numTickets),
+					Pk:        pkbytes,
+				}
+
+				data, err := proto.Marshal(keyex)
+				if err != nil {
+					log.Errorf("error Unmarshal joinRes: %v", err)
+					return nil, err
+				}
+				// Reset peer's data from previous session
+				splitOuts = []*wire.TxOut{}
+				//create slice of pkscripts
+				pkScripts = make([][]byte, req.numTickets)
+
+				for i := 0; i < req.numTickets; i++ {
+					splitTxAddr, err := w.NewInternalAddress(req.account, WithGapPolicyWrap())
+					if err != nil {
+						return nil, err
+					}
+					pkScripts[i], err = txscript.PayToAddrScript(splitTxAddr)
+					if err != nil {
+						log.Errorf("cannot create txout script: %s", err)
+						return nil, err
+					}
+
+					splitOuts = append(splitOuts, wire.NewTxOut(int64(neededPerTicket), pkScripts[i]))
+					log.Debugf("Pkscript %x", pkScripts[i])
+				}
+
+				txFeeIncrement = req.txFee
+				if txFeeIncrement == 0 {
+					txFeeIncrement = w.RelayFee()
+				}
+
+				splitTx, changeSourceFuncs, err = w.txToOutputsSplitTx(splitOuts, req.account, req.minConf,
+					n, false, txFeeIncrement)
+				if err != nil {
+					return nil, errors.E(op, errors.Bug, errors.Errorf("split address %v", ""))
+				}
+
+				//remove all txout to perform dicemix output address, keep only change output
+				if len(splitTx.Tx.TxOut) > 1 {
+					splitTx.Tx.TxOut = []*wire.TxOut{splitTx.Tx.TxOut[len(splitTx.Tx.TxOut)-1]}
+				} else {
+					splitTx.Tx.TxOut = []*wire.TxOut{}
+				}
+
+				// build outputs index in case communicate with server fails
+				localOutputIndex = make([]int32, 0)
+				for i := 0; i < req.numTickets; i++ {
+					localOutputIndex = append(localOutputIndex, int32(i))
+				}
+
+				peers = []PeerData{}
+				numMsg = 0
+				allMsgBytes = [][]byte{}
+				allMsgHashes = []field.Uint128{}
+				myMsgsHash = make([][]byte, 0)
+				outputIndex = []int32{}
+				inputIndex = []int32{}
+				joinTx = wire.MsgTx{}
+
+				message := messages.NewMessage(messages.C_KEY_EXCHANGE, data)
+				if err := ws.WriteMessage(websocket.BinaryMessage, message.ToBytes()); err != nil {
+					log.Errorf("error WriteMessage: %v", err)
+					return nil, err
+				}
+
+				log.Debug("Sent C_KEY_EXCHANGE to server")
 
 			}
 		}
 
 		return nil, nil
 
-	} else if req.dcrTxClient.Config().Enable {
+	} else {
 		// This opens a write transaction.
 		splitTxAddr, err := w.NewInternalAddress(req.account, WithGapPolicyWrap())
 		if err != nil {
@@ -1740,8 +1808,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		var splitOuts []*wire.TxOut
 		pkScript, err := txscript.PayToAddrScript(splitTxAddr)
 		if err != nil {
-			log.Errorf("cannot create txout script: %s", err)
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 		for i := 0; i < req.numTickets; i++ {
 			splitOuts = append(splitOuts, wire.NewTxOut(int64(neededPerTicket), pkScript))
@@ -1751,7 +1818,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		if txFeeIncrement == 0 {
 			txFeeIncrement = w.RelayFee()
 		}
-		//need to do join split transaction from this with txdcrmatcher server
+		// Need to do join split transaction from this with dcrtxmatcher server.
 		splitTx, changeSourceFuncs, err := w.txToOutputsSplitTx(splitOuts, req.account, req.minConf,
 			n, false, txFeeIncrement)
 		if err != nil {
@@ -1761,79 +1828,14 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		// Purchase tickets individually.
 		ticketHashes := make([]*chainhash.Hash, 0, req.numTickets)
 
-		//		purchaseFn := func(tx *wire.MsgTx, numberTickets int, outputIds []int32) ([]*chainhash.Hash, error) {
-
-		//			ticketHashes := make([]*chainhash.Hash, 0)
-		//			for i := 0; i < req.numTickets; i++ {
-
-		//				outputIndex := outputIds[i]
-
-		//				var eop *extendedOutPoint
-		//				txOut := tx.TxOut[outputIndex]
-		//				eop = &extendedOutPoint{
-		//					op: &wire.OutPoint{
-		//						Hash:  tx.TxHash(),
-		//						Index: uint32(outputIndex),
-		//						Tree:  wire.TxTreeRegular,
-		//					},
-		//					amt:      txOut.Value,
-		//					pkScript: txOut.PkScript,
-		//				}
-		//				votingAddress, subsidyAddress, err := w.fetchAddresses(req.ticketAddr, req.account, addrFunc)
-
-		//				// Generate the ticket msgTx and sign it.
-		//				ticket, err := makeTicket(w.chainParams, nil, eop, votingAddress,
-		//					subsidyAddress, int64(ticketPrice), poolAddress)
-		//				if err != nil {
-		//					return ticketHashes, err
-		//				}
-
-		//				var forSigning []udb.Credit
-		//				eopCredit := udb.Credit{
-		//					OutPoint:     *eop.op,
-		//					BlockMeta:    udb.BlockMeta{},
-		//					Amount:       dcrutil.Amount(eop.amt),
-		//					PkScript:     eop.pkScript,
-		//					Received:     time.Now(),
-		//					FromCoinBase: false,
-		//				}
-		//				forSigning = append(forSigning, eopCredit)
-
-		//				// Set ticket expiry if greater than zero
-		//				if req.expiry > 0 {
-		//					ticket.Expiry = uint32(req.expiry)
-		//				}
-
-		//				err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-		//					ns := tx.ReadBucket(waddrmgrNamespaceKey)
-		//					//signMsgTx set signaturescript to txin
-		//					return w.signP2PKHMsgTx(ticket, forSigning, ns)
-		//				})
-		//				if err != nil {
-		//					return ticketHashes, err
-		//				}
-
-		//				err = w.processTxRecordAndPublish(ticket, n)
-		//				if err != nil {
-		//					return ticketHashes, err
-		//				}
-
-		//				ticketHash := ticket.TxHash()
-		//				ticketHashes = append(ticketHashes, &ticketHash)
-		//				log.Infof("Successfully sent SStx purchase transaction %v", ticketHash)
-		//			}
-
-		//			return ticketHashes, nil
-		//		}
-
-		// build outputs index in case communicate with server fails
+		// Build outputs index in case communicate with server fails
 		localOutputIndex := make([]int32, 0)
 		for i := 0; i < req.numTickets; i++ {
 			localOutputIndex = append(localOutputIndex, int32(i))
 		}
 
-		//connect to dcrtxmatcher server
-		_, err = req.dcrTxClient.StartSession()
+		// Connect to dcrtxmatcher server.
+		err = req.dcrTxClient.StartSession()
 		if err != nil {
 			if !req.dcrTxClient.IsShutdown {
 				log.Infof("Error %v in communication with dcrtxmatcher server", err)
@@ -1841,8 +1843,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				localSplitTx, err := w.txToOutputsInternal(op, splitOuts, req.account, req.minConf,
 					n, false, txFeeIncrement)
 				if err != nil {
-					log.Errorf("failed to send split transaction: %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
 				return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
@@ -1850,13 +1851,13 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 			return nil, err
 		}
 
-		// Disconnect after purchase completed
+		// Disconnect after purchase completed.
 		defer func() {
 			req.dcrTxClient.Disconnect()
 		}()
 
-		// Call join split tx request with timeout
-		tx, sesID, inputIds, outputIds, joinId, err := req.dcrTxClient.JoinSplitTx(splitTx.Tx, req.dcrTxClient.Config().Timeout)
+		// Call join split tx request with timeout.
+		tx, sesID, inputIds, outputIds, joinId, err := req.dcrTxClient.TxService.JoinSplitTx(splitTx.Tx, req.dcrTxClient.Cfg.Timeout)
 		log.Debugf("JoinSessionId %v", joinId)
 		if err != nil {
 			if !req.dcrTxClient.IsShutdown {
@@ -1865,8 +1866,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 				localSplitTx, err := w.txToOutputsInternal(op, splitOuts, req.account, req.minConf,
 					n, false, txFeeIncrement)
 				if err != nil {
-					log.Errorf("failed to send split transaction: %v", err)
-					return nil, err
+					return nil, errors.E(op, err)
 				}
 
 				return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
@@ -1874,7 +1874,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 			return nil, err
 		}
 
-		// Verify input, output from server before signing
+		// Verify input, output from server before signing.
 		for _, i := range inputIds {
 			valid := false
 			for _, txin := range splitTx.Tx.TxIn {
@@ -1892,8 +1892,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					localSplitTx, err := w.txToOutputsInternal(op, splitOuts, req.account, req.minConf,
 						n, false, txFeeIncrement)
 					if err != nil {
-						log.Errorf("failed to send split transaction: %v", err)
-						return nil, err
+						return nil, errors.E(op, err)
 					}
 
 					return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
@@ -1917,8 +1916,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 					localSplitTx, err := w.txToOutputsInternal(op, splitOuts, req.account, req.minConf,
 						n, false, txFeeIncrement)
 					if err != nil {
-						log.Errorf("failed to send split transaction: %v", err)
-						return nil, err
+						return nil, errors.E(op, err)
 					}
 
 					return purchaseFn(localSplitTx.Tx, req.numTickets, localOutputIndex)
@@ -1941,8 +1939,8 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 			return ticketHashes, err
 		}
 
-		// Submit signed input to server
-		signedTx, publisher, err := req.dcrTxClient.SubmitSignedTx(tx, sesID, joinId)
+		// Submit signed input to server.
+		signedTx, publisher, err := req.dcrTxClient.TxService.SubmitSignedTx(tx, sesID, joinId)
 		if err != nil {
 
 			if !req.dcrTxClient.IsShutdown {
@@ -1966,20 +1964,18 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 			log.Info("Will publish the transaction")
 			err = w.publishTx(signedTx, changeSourceFuncs, w.networkBackend)
 			if err != nil {
-				log.Errorf("Error when publish join splittx %v", err)
-				_, err := req.dcrTxClient.PublishResult(nil, sesID, joinId)
+				_, err := req.dcrTxClient.TxService.PublishResult(nil, sesID, joinId)
 				return ticketHashes, err
 			}
 
-			_, err := req.dcrTxClient.PublishResult(signedTx, sesID, joinId)
+			_, err := req.dcrTxClient.TxService.PublishResult(signedTx, sesID, joinId)
 			if err != nil {
-				log.Errorf("Error when publish join splittx %v", err)
 				return ticketHashes, err
 			}
 			publishedTx = signedTx
 			log.Info("Published and sent the joined transaction %v to server", publishedTx.TxHash().String())
 		} else {
-			publishedTx, err = req.dcrTxClient.PublishResult(nil, sesID, joinId)
+			publishedTx, err = req.dcrTxClient.TxService.PublishResult(nil, sesID, joinId)
 			if err != nil {
 				return ticketHashes, err
 			}
@@ -1987,117 +1983,15 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		}
 
 		return purchaseFn(publishedTx, req.numTickets, outputIds)
-
-	} else {
-		// This opens a write transaction.
-		splitTxAddr, err := w.NewInternalAddress(req.account, WithGapPolicyWrap())
-		if err != nil {
-			return nil, err
-		}
-		var splitOuts []*wire.TxOut
-		pkScript, err := txscript.PayToAddrScript(splitTxAddr)
-		if err != nil {
-			log.Errorf("cannot create txout script: %s", err)
-			return nil, err
-		}
-		for i := 0; i < req.numTickets; i++ {
-			splitOuts = append(splitOuts, wire.NewTxOut(int64(neededPerTicket), pkScript))
-		}
-
-		txFeeIncrement := req.txFee
-		if txFeeIncrement == 0 {
-			txFeeIncrement = w.RelayFee()
-		}
-		splitTx, err := w.txToOutputsInternal(op, splitOuts, req.account, req.minConf,
-			n, false, txFeeIncrement)
-		if err != nil {
-			log.Errorf("failed to send split transaction: %v", err)
-			return nil, err
-		}
-
-		// After tickets are created and published, watch for future addresses used
-		// by the split tx and any published tickets.
-		defer func() {
-			err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-				return w.watchFutureAddresses(tx)
-			})
-			if err != nil {
-				log.Errorf("Failed to watch for future addresses after ticket "+
-					"purchases: %v", err)
-			}
-		}()
-
-		// Generate the tickets individually.
-		ticketHashes := make([]*chainhash.Hash, 0, req.numTickets)
-		for i := 0; i < req.numTickets; i++ {
-			// Generate the extended outpoints that we need to use for ticket
-			// inputs. There are two inputs for pool tickets corresponding to the
-			// fees and the user subsidy, while user-handled tickets have only one
-			// input.
-			var eopPool, eop *extendedOutPoint
-			txOut := splitTx.Tx.TxOut[i]
-
-			eop = &extendedOutPoint{
-				op: &wire.OutPoint{
-					Hash:  splitTx.Tx.TxHash(),
-					Index: uint32(i),
-					Tree:  wire.TxTreeRegular,
-				},
-				amt:      txOut.Value,
-				pkScript: txOut.PkScript,
-			}
-
-			addrVote, addrSubsidy, err := w.fetchAddresses(req.ticketAddr, req.account, addrFunc)
-
-			// Generate the ticket msgTx and sign it.
-			ticket, err := makeTicket(w.chainParams, eopPool, eop, addrVote,
-				addrSubsidy, int64(ticketPrice), poolAddress)
-			if err != nil {
-				return ticketHashes, err
-			}
-
-			var forSigning []udb.Credit
-
-			eopCredit := udb.Credit{
-				OutPoint:     *eop.op,
-				BlockMeta:    udb.BlockMeta{},
-				Amount:       dcrutil.Amount(eop.amt),
-				PkScript:     eop.pkScript,
-				Received:     time.Now(),
-				FromCoinBase: false,
-			}
-			forSigning = append(forSigning, eopCredit)
-
-			// Set the expiry.
-			ticket.Expiry = uint32(req.expiry)
-
-			err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-				ns := tx.ReadBucket(waddrmgrNamespaceKey)
-				return w.signP2PKHMsgTx(ticket, forSigning, ns)
-			})
-			if err != nil {
-				return ticketHashes, err
-			}
-			err = validateMsgTx(op, ticket, creditScripts(forSigning))
-			if err != nil {
-				return ticketHashes, err
-			}
-
-			ticketHash := ticket.TxHash()
-			ticketHashes = append(ticketHashes, &ticketHash)
-			log.Infof("Successfully sent SStx purchase transaction %v", ticketHash)
-		}
-		return ticketHashes, nil
 	}
 }
 
 // processTxRecordAndPublish creates a transaction record, inserts the record
-// in the walletdb and publishes the transaction over the decred network
+// in the walletdb and publishes the transaction over the decred network.
 func (w *Wallet) processTxRecordAndPublish(tx *wire.MsgTx, n NetworkBackend) error {
 	// Create transaction record
 	rec, err := udb.NewTxRecordFromMsgTx(tx, time.Now())
 	if err != nil {
-		log.Error("processTxRecordAndPublish.NewTxRecordFromMsgTx error ", err)
 		return err
 	}
 
@@ -2137,315 +2031,6 @@ func (w *Wallet) signAndValidateTicket(ticket *wire.MsgTx, forSigning []udb.Cred
 
 	return err
 }
-
-//func (w *Wallet) makeTicketDirect(msgtx *wire.MsgTx, ticketPrice dcrutil.Amount, votingAddress dcrutil.Address, subsidyAddress dcrutil.Address,
-//	eligible []udb.Credit, minConf int32, feeEst dcrutil.Amount) ([]udb.Credit, error) {
-//	const op errors.Op = "wallet.makeTicketDirect"
-//	var forSigning []udb.Credit
-//	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-//		var err error
-
-//		w.reorganizingLock.Lock()
-//		reorg := w.reorganizing
-//		w.reorganizingLock.Unlock()
-//		if reorg {
-//			return ErrBlockchainReorganizing
-//		}
-
-//		maximumTxSize := maxTxSize
-//		if w.chainParams.Net == wire.MainNet {
-//			maximumTxSize = maxStandardTxSize
-//		}
-
-//		// Add the ticket output
-//		pkScript, err := txscript.PayToSStx(votingAddress)
-//		if err != nil {
-//			return fmt.Errorf("cannot create output script: %s", err)
-//		}
-//		msgtx.AddTxOut(wire.NewTxOut(int64(ticketPrice), pkScript))
-
-//		// Add ticket purchase transaction inputs.
-//		totalAdded := dcrutil.Amount(0)
-//		var forSigning []udb.Credit
-//		for _, credit := range eligible {
-//			if msgtx.SerializeSize() > maximumTxSize {
-//				break
-//			}
-
-//			msgtx.AddTxIn(wire.NewTxIn(&credit.OutPoint, NullValueIn, nil))
-//			totalAdded += credit.Amount
-//			forSigning = append(forSigning, credit)
-//		}
-
-//		if totalAdded < ticketPrice {
-//			return ErrSStxNotEnoughFunds
-//		}
-
-//		totalChange := totalAdded - ticketPrice - feeEst
-//		totalCommitment := ticketPrice + feeEst
-
-//		commitmentScript, err := txscript.GenerateSStxAddrPush(subsidyAddress,
-//			totalCommitment, uint16(defaultTicketFeeLimits))
-//		if err != nil {
-//			return fmt.Errorf("cannot create ticket commitment script: %s", err)
-//		}
-//		msgtx.AddTxOut(wire.NewTxOut(int64(0), commitmentScript))
-
-//		// Generate a change address.
-//		changeAddr, err := w.newChangeAddress(op, w.persistReturnedChild(dbtx), udb.DefaultAccountNum)
-//		if err != nil {
-//			return err
-//		}
-
-//		// Add a change output.
-//		pkScript, err = txscript.PayToSStxChange(changeAddr)
-//		if err != nil {
-//			return fmt.Errorf("cannot create txout script: %s", err)
-//		}
-//		msgtx.AddTxOut(wire.NewTxOut(int64(totalChange), pkScript))
-
-//		return nil
-//	})
-
-//	return forSigning, err
-//}
-
-//func (w *Wallet) estimateFee(eligible []udb.Credit, votingAddress dcrutil.Address,
-//	ticketPrice dcrutil.Amount) (dcrutil.Amount, error) {
-
-//	msgtx := wire.NewMsgTx()
-
-//	scriptSizers := []txsizes.ScriptSizer{}
-
-//	for range eligible {
-//		scriptSizers = append(scriptSizers, txsizes.P2SHScriptSize)
-//	}
-
-//	pkScript, err := txscript.PayToSStx(votingAddress)
-//	if err != nil {
-//		return dcrutil.Amount(0), fmt.Errorf("cannot create txout script: %s", err)
-//	}
-//	txout := wire.NewTxOut(int64(ticketPrice), pkScript)
-//	msgtx.AddTxOut(txout)
-
-//	limits := uint16(defaultTicketFeeLimits)
-//	for _, credit := range eligible {
-//		pkScript, err := txscript.GenerateSStxAddrPush(votingAddress, credit.Amount, limits)
-//		if err != nil {
-//			return dcrutil.Amount(0), fmt.Errorf("cannot create txout script: %s", err)
-//		}
-//		txout := wire.NewTxOut(int64(0), pkScript)
-//		msgtx.AddTxOut(txout)
-
-//		// Add ne changeSStx Output. This randomizes the index of output
-//		pkScript, err = txscript.PayToSStxChange(votingAddress)
-//		if err != nil {
-//			return dcrutil.Amount(0), fmt.Errorf("cannot create txout script: %s", err)
-//		}
-//		msgtx.AddTxOut(wire.NewTxOut(int64(0), pkScript))
-//	}
-
-//	szEst := txsizes.EstimateSerializeSize(scriptSizers, msgtx.TxOut, 0)
-//	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), szEst)
-
-//	return feeEst, nil
-
-//}
-
-// txToSStx creates a raw SStx transaction sending the amounts for each
-// address/amount pair and fee to each address and the miner.  minconf
-// specifies the minimum number of confirmations required before an
-// unspent output is eligible for spending. Leftover input funds not sent
-// to addr or as a fee for the miner are sent to a newly generated
-// address. If change is needed to return funds back to an owned
-// address, changeUtxo will point to a unconfirmed (height = -1, zeroed
-// enough eligible unspent outputs to create the transaction.
-// block hash) Utxo.  ErrInsufficientFunds is returned if there are not
-//func (w *Wallet) txToSStx(pair map[string]dcrutil.Amount,
-//	inputCredits []udb.Credit, inputs []dcrjson.SStxInput,
-//	payouts []dcrjson.SStxCommitOut, account uint32, minconf int32) (*CreatedTx, error) {
-
-//	var tx *CreatedTx
-//	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-//		var err error
-//		tx, err = w.txToSStxInternal(dbtx, pair, inputCredits, inputs,
-//			payouts)
-//		return err
-//	})
-//	return tx, err
-//}
-
-//func (w *Wallet) txToSStxInternal(dbtx walletdb.ReadWriteTx, pair map[string]dcrutil.Amount,
-//	inputCredits []udb.Credit, inputs []dcrjson.SStxInput,
-//	payouts []dcrjson.SStxCommitOut) (tx *CreatedTx, err error) {
-//	const op errors.Op = "wallet.txToSStxInternal"
-//	// Quit if the blockchain is reorganizing.
-//	w.reorganizingLock.Lock()
-//	reorg := w.reorganizing
-//	w.reorganizingLock.Unlock()
-//	if reorg {
-//		return nil, ErrBlockchainReorganizing
-//	}
-
-//	if len(inputs) != len(payouts) {
-//		return nil, fmt.Errorf("input and payout must have the same length")
-//	}
-
-//	// create new empty msgTx
-//	msgtx := wire.NewMsgTx()
-//	var minAmount dcrutil.Amount
-//	// create tx output from pair addr given
-//	for addrStr, amt := range pair {
-//		if amt <= 0 {
-//			return nil, ErrNonPositiveAmount
-//		}
-//		minAmount += amt
-//		addr, err := dcrutil.DecodeAddress(addrStr)
-//		if err != nil {
-//			return nil, fmt.Errorf("cannot decode address: %s", err)
-//		}
-
-//		// Add output to spend amt to addr.
-//		pkScript, err := txscript.PayToSStx(addr)
-//		if err != nil {
-//			return nil, fmt.Errorf("cannot create txout script: %s", err)
-//		}
-//		txout := wire.NewTxOut(int64(amt), pkScript)
-
-//		msgtx.AddTxOut(txout)
-//	}
-//	// totalAdded is the total amount from utxos
-//	totalAdded := dcrutil.Amount(0)
-
-//	// Range over all eligible utxos to add all to sstx inputs
-//	for _, input := range inputs {
-//		txHash, err := chainhash.NewHashFromStr(input.Txid)
-//		if err != nil {
-//			return nil, dcrjson.ErrDecodeHexString
-//		}
-
-//		if !(input.Tree == wire.TxTreeRegular ||
-//			input.Tree == wire.TxTreeStake) {
-//			return nil, dcrjson.Error{
-//				Code:    dcrjson.ErrInvalidParameter.Code,
-//				Message: "Invalid parameter, tx tree must be regular or stake",
-//			}
-//		}
-
-//		prevOut := wire.NewOutPoint(txHash, input.Vout, input.Tree)
-//		msgtx.AddTxIn(wire.NewTxIn(prevOut, NullValueIn, nil))
-//		totalAdded += dcrutil.Amount(input.Amt)
-//	}
-
-//	if totalAdded < minAmount {
-//		return nil, ErrSStxNotEnoughFunds
-//	}
-
-//	var changeAddr dcrutil.Address
-
-//	for i := range inputs {
-//		// Add the OP_RETURN commitment amounts and payout to
-//		// addresses.
-//		var addr dcrutil.Address
-
-//		if payouts[i].Addr == "" {
-//			var err error
-//			addr, err = w.newChangeAddress(op, w.persistReturnedChild(dbtx),
-//				udb.DefaultAccountNum)
-//			if err != nil {
-//				return nil, err
-//			}
-//		} else {
-//			addr, err = dcrutil.DecodeAddress(payouts[i].Addr)
-//			if err != nil {
-//				return nil, fmt.Errorf("cannot decode address: %s", err)
-//			}
-
-//			// Ensure the address is one of the supported types and that
-//			// the network encoded with the address matches the network the
-//			// server is currently on.
-//			switch addr.(type) {
-//			case *dcrutil.AddressPubKeyHash:
-//			default:
-//				return nil, dcrjson.ErrInvalidAddressOrKey
-//			}
-//		}
-
-//		// Create an OP_RETURN push containing the pubkeyhash to send rewards to.
-//		// Apply limits to revocations for fees while not allowing
-//		// fees for votes.
-//		// Revocations (foremost byte)
-//		// 0x58 = 01 (Enabled)  010100 = 0x18 or 24
-//		//                              (2^24 or 16777216 atoms fee allowance)
-//		//                                 --> 0.16777216 coins
-//		// Votes (last byte)
-//		// 0x00 = 00 (Disabled) 000000
-//		limits := uint16(0x5800)
-//		pkScript, err := txscript.GenerateSStxAddrPush(addr,
-//			dcrutil.Amount(payouts[i].CommitAmt), limits)
-//		if err != nil {
-//			return nil, fmt.Errorf("cannot create txout script: %s", err)
-//		}
-//		txout := wire.NewTxOut(int64(0), pkScript)
-//		msgtx.AddTxOut(txout)
-
-//		// Add change to txouts.
-//		if payouts[i].ChangeAddr == "" {
-//			var err error
-//			changeAddr, err = w.newChangeAddress(op, w.persistReturnedChild(dbtx),
-//				udb.DefaultAccountNum)
-//			if err != nil {
-//				return nil, err
-//			}
-//		} else {
-//			a, err := dcrutil.DecodeAddress(payouts[i].ChangeAddr)
-//			if err != nil {
-//				return nil, err
-//			}
-//			// Ensure the address is one of the supported types and that
-//			// the network encoded with the address matches the network the
-//			// server is currently on.
-//			switch a.(type) {
-//			case *dcrutil.AddressPubKeyHash:
-//			case *dcrutil.AddressScriptHash:
-//			default:
-//				return nil, dcrjson.ErrInvalidAddressOrKey
-//			}
-//			changeAddr = a
-//		}
-
-//		err = addSStxChange(msgtx,
-//			dcrutil.Amount(payouts[i].ChangeAmt),
-//			changeAddr)
-//		if err != nil {
-//			return nil, err
-//		}
-
-//	}
-
-//	if stake.IsSStx(msgtx) {
-//		return nil, err
-//	}
-//	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
-//		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-//		return signMsgTx(msgtx, inputCredits, w.Manager, addrmgrNs, w.chainParams)
-//	})
-//	if err != nil {
-//		return nil, err
-//	}
-//	if err := validateMsgTx(op, msgtx, creditScripts(inputCredits)); err != nil {
-//		return nil, err
-//	}
-//	info := &CreatedTx{
-//		MsgTx:       msgtx,
-//		ChangeAddr:  nil,
-//		ChangeIndex: -1,
-//	}
-
-//	// TODO: Add to the stake manager
-
-//	return info, nil
-//}
 
 // addSStxChange adds a new output with the given amount and address, and
 // randomizes the index (and returns it) of the newly added output.
@@ -2656,46 +2241,6 @@ func (w *Wallet) signP2PKHMsgTx(msgtx *wire.MsgTx, prevOutputs []udb.Credit, add
 
 	return nil
 }
-
-// signMsgTx sets the SignatureScript for every item in msgtx.TxIn.
-// It must be called every time a msgtx is changed.
-// Only P2PKH outputs are supported at this point.
-//func signMsgTx(msgtx *wire.MsgTx, prevOutputs []udb.Credit,
-//	mgr *udb.Manager, addrmgrNs walletdb.ReadBucket, chainParams *chaincfg.Params) error {
-//	if len(prevOutputs) != len(msgtx.TxIn) {
-//		return fmt.Errorf(
-//			"Number of prevOutputs (%d) does not match number of tx inputs (%d)",
-//			len(prevOutputs), len(msgtx.TxIn))
-//	}
-//	for i, output := range prevOutputs {
-//		// Errors don't matter here, as we only consider the
-//		// case where len(addrs) == 1.
-//		_, addrs, _, _ := txscript.ExtractPkScriptAddrs(
-//			txscript.DefaultScriptVersion, output.PkScript, chainParams)
-//		if len(addrs) != 1 {
-//			continue
-//		}
-//		apkh, ok := addrs[0].(*dcrutil.AddressPubKeyHash)
-//		if !ok {
-//			return ErrUnsupportedTransactionType
-//		}
-
-//		privKey, done, err := mgr.PrivateKey(addrmgrNs, apkh)
-//		if err != nil {
-//			return err
-//		}
-//		defer done()
-
-//		sigscript, err := txscript.SignatureScript(msgtx, i, output.PkScript,
-//			txscript.SigHashAll, privKey, true)
-//		if err != nil {
-//			return fmt.Errorf("cannot create sigscript: %s", err)
-//		}
-//		msgtx.TxIn[i].SignatureScript = sigscript
-//	}
-
-//	return nil
-//}
 
 // signVoteOrRevocation signs a vote or revocation, specified by the isVote
 // argument.  This signs the transaction by modifying tx's input scripts.
@@ -2924,19 +2469,6 @@ func (w *Wallet) sanityCheckExpiry(expiry int32) (int32, error) {
 	return tipHeight, err
 }
 
-// fetchAddressFunc returns a change address
-//func (w *Wallet) fetchAddressFunc() func(persistReturnedChildFunc, uint32) (dcrutil.Address, error) {
-//	addrFunc := w.newChangeAddress
-//	if w.addressReuse {
-//		xpub := w.addressBuffers[udb.DefaultAccountNum].albExternal.branchXpub
-//		addr, err := deriveChildAddress(xpub, 0, w.chainParams)
-//		addrFunc = func(errors.Op, persistReturnedChildFunc, uint32) (dcrutil.Address, error) {
-//			return addr, err
-//		}
-//	}
-//	return addrFunc
-//}
-
 // fetchAddresses returns a voting address. It checks if an address
 // was passed along with the request. if none was passed, it checks
 // for an address stored in configuration. If it finds none, it generates
@@ -2974,32 +2506,4 @@ func (w *Wallet) fetchAddresses(ticketAddress dcrutil.Address, account uint32,
 		return nil, nil, err
 	}
 	return addrVote, addrSubsidy, nil
-
-	//	addr := ticketAddress
-	//	var saddr dcrutil.Address
-	//	if addr == nil {
-	//		if w.ticketAddress != nil {
-	//			addr = w.ticketAddress
-	//		} else {
-	//			err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-	//				var err error
-	//				addr, err = addrFunc(w.persistReturnedChild(dbtx), account)
-	//				return err
-	//			})
-	//			if err != nil {
-	//				return nil, nil, err
-	//			}
-	//		}
-	//	}
-
-	//	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-	//		var err error
-	//		saddr, err = addrFunc(w.persistReturnedChild(dbtx), account)
-	//		return err
-	//	})
-	//	if err != nil {
-	//		return nil, nil, err
-	//	}
-
-	//return addr, saddr, nil
 }

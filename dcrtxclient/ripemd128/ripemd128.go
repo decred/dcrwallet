@@ -1,11 +1,10 @@
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-// use to create 128 bits hash
 
+// Golang only has 160 bits hash of ripemd.
+// We have modified to create 128 bits hash
 package ripemd128
-
-//"hash"
 
 // The size of the checksum in bytes.
 const Size = 16
@@ -20,7 +19,7 @@ const (
 	_s3 = 0x10325476
 )
 
-// digest represents the partial evaluation of a checksum.
+// Digest represents the partial evaluation of a checksum.
 type Digest struct {
 	s  [4]uint32       // running context
 	x  [BlockSize]byte // temporary buffer
@@ -28,23 +27,27 @@ type Digest struct {
 	tc uint64          // total count of bytes processed
 }
 
+// Reset resets all sample data of rimpe128.
 func (d *Digest) Reset() {
 	d.s[0], d.s[1], d.s[2], d.s[3] = _s0, _s1, _s2, _s3
 	d.nx = 0
 	d.tc = 0
 }
 
-// New returns a new hash.Hash computing the checksum.
+// New returns a new Digest for computing the checksum.
 func New() *Digest {
 	result := new(Digest)
 	result.Reset()
 	return result
 }
 
+// Size returns hash size in bytes.
 func (d *Digest) Size() int { return Size }
 
+// BlockSize returns size of block.
 func (d *Digest) BlockSize() int { return BlockSize }
 
+// Write writes data to fields of rimpemd128.
 func (d *Digest) Write(p []byte) (nn int, err error) {
 	nn = len(p)
 	d.tc += uint64(nn)
@@ -71,6 +74,7 @@ func (d *Digest) Write(p []byte) (nn int, err error) {
 	return
 }
 
+// Sum calculates checksum of rimpe128.
 func (d0 *Digest) Sum(in []byte) []byte {
 	// Make a copy of d0 so that caller can keep writing and summing.
 	d := *d0
@@ -107,6 +111,7 @@ func (d0 *Digest) Sum(in []byte) []byte {
 	return append(in, digest[:]...)
 }
 
+// Sum127 calculates 128 bits hash and reset first 4 bits.
 func (d0 *Digest) Sum127(in []byte) []byte {
 	// Make a copy of d0 so that caller can keep writing and summing.
 	d := *d0

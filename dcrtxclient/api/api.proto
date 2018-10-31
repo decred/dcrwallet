@@ -7,7 +7,7 @@ service SplitTxMatcherService {
     rpc SubmitSplitTx (SubmitInputTxReq) returns (SubmitInputTxRes);
     rpc SubmitSignedTransaction (SignTransactionRequest) returns (SignTransactionResponse);
     rpc PublishResult (PublishResultRequest) returns (PublishResultResponse);
-    rpc Status (StatusRequest) returns (StatusResponse);
+    
 }
 
 
@@ -53,8 +53,4 @@ message PublishResultRequest {
 
 message PublishResultResponse {
     bytes ticket_tx = 1;
-}
-message StatusRequest { }
-message StatusResponse {
-    uint64 ticket_price = 1;
 }

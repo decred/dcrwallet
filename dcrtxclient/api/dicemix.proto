@@ -65,5 +65,16 @@ message JoinTx {
 	bytes tx = 3;
 }
 
+message PublishResult {
+	uint32 peer_id = 1;	
+	bytes tx = 2;
+}
+
+message MaliciousPeers {
+	repeated uint32 peer_ids = 1;
+	uint32 peer_id = 2;
+	uint32 session_id = 3;
+}
+
 
 

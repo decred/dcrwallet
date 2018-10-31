@@ -36,6 +36,7 @@ func MustRandUint64() uint64 {
 	return r
 }
 
+// NewRandInt32 returns a new int32 or an error
 func NewRandInt32() (int32, error) {
 	var b [4]byte
 	_, err := rand.Read(b[:])
@@ -46,6 +47,7 @@ func NewRandInt32() (int32, error) {
 	return int32(uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24), nil
 }
 
+// NewRandInt32 returns a new int32 or panice
 func MustRandInt32() int32 {
 	r, err := NewRandInt32()
 	if err != nil {
@@ -54,6 +56,7 @@ func MustRandInt32() int32 {
 	return r
 }
 
+// GetTimeString returns string representation of time in predefined format.
 func GetTimeString(t time.Time) string {
 	ts := t.Format("2006-01-02 15:04:05")
 	return ts[11:]

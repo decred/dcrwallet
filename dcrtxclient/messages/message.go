@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 )
 
 const (
@@ -31,6 +30,15 @@ const (
 	S_DC_EXP_VECTOR     = 106
 	S_DC_XOR_VECTOR     = 107
 	S_TX_PUBLISH_RESULT = 108
+	S_MALICIOUS_PEERS   = 109
+)
+
+const (
+	// Size of dc-net exponential vector element.
+	ExpRandSize = 12
+	// Size of dc-net xor vector element, the same with lengh of pkscript.
+	PkScriptSize     = 25
+	PkScriptHashSize = 16
 )
 
 type (
@@ -40,6 +48,7 @@ type (
 	}
 )
 
+// NewMessage constructs the message from message type and bytes data.
 func NewMessage(msgtype uint32, data []byte) *Message {
 	return &Message{
 		MsgType: msgtype,
@@ -47,16 +56,17 @@ func NewMessage(msgtype uint32, data []byte) *Message {
 	}
 }
 
+// BytesToUint converts slice of bytes to uint32.
 func BytesToUint(data []byte) (ret uint32) {
 	buf := bytes.NewBuffer(data)
 	binary.Read(buf, binary.BigEndian, &ret)
 	return
 }
 
-//Parse data received (from client or server) to Message
+// ParseMessage unmarshals data received (from client or server) to Message.
 func ParseMessage(msgData []byte) (*Message, error) {
 	if len(msgData) < 4 {
-		return nil, errors.New("message data is less than 4 bytes")
+		return nil, errors.New("Message data is less than 4 bytes")
 	}
 
 	cmd := msgData[:4]
@@ -74,17 +84,20 @@ func ParseMessage(msgData []byte) (*Message, error) {
 
 }
 
+// ToBytes marshals message data to bytes.
 func (msg *Message) ToBytes() []byte {
-	msgData := IntToBytes(msg.MsgType)
+	msgData, _ := IntToBytes(msg.MsgType)
 	msgData = append(msgData, msg.Data...)
 
 	return msgData
 }
-func IntToBytes(val uint32) []byte {
+
+// IntToBytes converts uint32 to bytes.
+func IntToBytes(val uint32) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.BigEndian, uint32(val))
 	if err != nil {
-		fmt.Println("binary.write error", err)
+		return nil, err
 	}
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }

@@ -1,7 +1,6 @@
 package dcrtxclient
 
 import (
-	//"fmt"
 	"sync"
 
 	"github.com/decred/dcrwallet/dcrtxclient/service"
@@ -21,85 +20,48 @@ type (
 
 	Client struct {
 		sync.Mutex
-		cfg  *Config
-		conn *grpc.ClientConn
-		*service.TransactionService
+		Cfg        *Config
+		conn       *grpc.ClientConn
+		TxService  *service.TxService
 		IsShutdown bool
 	}
 )
 
-func SetConfig(cfg *Config) *Client {
-	client := &Client{
-		cfg: cfg,
-	}
-	return client
-}
-
-func (c *Client) StartSession() (*Client, error) {
-	if c.cfg.Enable {
-
-		// connect to dcrtxmatcher server if enable
+// startSession establishes a connection to the transaction matching server if
+// the client's configuration allows it.
+func (c *Client) StartSession() error {
+	if c.Cfg.Enable {
 		conn, err := c.Connect()
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		// somehow conn object is still nil
 		if conn == nil {
-			return nil, ErrCannotConnect
+			return ErrCannotConnect
 		}
 
 		c.conn = conn
-
-		// register services
-		c.registerServices()
-	}
-
-	return c, nil
-}
-
-func NewClient(cfg *Config) (*Client, error) {
-	client := &Client{
-		cfg: cfg,
-	}
-
-	if cfg.Enable {
-		// connect to dcrtxmatcher server if enable
-		conn, err := client.Connect()
+		err = c.registerServices()
 		if err != nil {
-			return nil, err
+			return err
 		}
-
-		// somehow conn object is still nil
-		if conn == nil {
-			return nil, ErrCannotConnect
-		}
-
-		client.conn = conn
-
-		// register services
-		client.registerServices()
 	}
 
-	return client, nil
+	if !c.Cfg.Enable {
+		log.Info("Session aborted, the client is currently disabled.")
+	}
+
+	return nil
 }
 
-func (c *Client) Config() *Config {
-	return c.cfg
-}
-
-// connect attempts to connect to our dcrtxmatcher server
+// Connect attempts to connect to dcrtxmatcher server
 func (c *Client) Connect() (*grpc.ClientConn, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	//	if c.isConnected() {
-	//		return nil, ErrAlreadyConnected
-	//	}
-
-	conn, err := grpc.Dial(c.cfg.Address, grpc.WithInsecure())
+	conn, err := grpc.Dial(c.Cfg.Address, grpc.WithInsecure())
 	if err != nil {
-		log.Warn("Unable to connect to dcrtxmatcher server")
+		log.Warn("Unable to connect to dcrtxmatcher server.")
 		return nil, err
 	}
 
@@ -128,12 +90,13 @@ func (c *Client) isConnected() bool {
 	return false
 }
 
+// registerServices registers service api function with dcrtxmatcher server.
 func (c *Client) registerServices() error {
 	if !c.isConnected() {
 		return ErrNotConnected
 	}
 
-	c.TransactionService = service.NewTransactionService(c.conn)
+	c.TxService = service.NewTxService(c.conn)
 
 	return nil
 }

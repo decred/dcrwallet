@@ -149,7 +149,7 @@ func run(ctx context.Context) error {
 	//dcrTxClient will be set for wallet later
 	var dcrTxClient *dcrtxclient.Client
 	if cfg.DcrtxClientConfig != nil {
-		dcrTxClient = dcrtxclient.SetConfig(cfg.DcrtxClientConfig)
+		dcrTxClient.Cfg = cfg.DcrtxClientConfig
 	}
 
 	// Create the loader which is used to load and unload the wallet.  If
