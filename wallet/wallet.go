@@ -123,6 +123,9 @@ type Wallet struct {
 	addressBuffers   map[uint32]*bip0044AccountData
 	addressBuffersMu sync.Mutex
 
+	// In-memory cache for irrelevant transactions send by sendrawtransaction method
+	irrelevantTxCache map[chainhash.Hash]*wire.MsgTx
+
 	// Channels for the manager locker.
 	unlockRequests     chan unlockRequest
 	lockRequests       chan struct{}
@@ -1893,9 +1896,18 @@ func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 // vector of all missing transactions and an error with code
 // NotExist.
 func (w *Wallet) GetTransactionsByHashes(txHashes []*chainhash.Hash) (txs []*wire.MsgTx, notFound []*wire.InvVect, err error) {
+	// check in-memory cache for irrelevant transaction
+	relevantTxHashes := []*chainhash.Hash{}
+	for _, txHash := range txHashes {
+		if msgTx, ok := w.irrelevantTxCache[*txHash]; ok {
+			txs = append(txs, msgTx)
+		} else {
+			relevantTxHashes = append(relevantTxHashes, txHash)
+		}
+	}
 	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		for _, hash := range txHashes {
+		for _, hash := range relevantTxHashes {
 			tx, err := w.TxStore.Tx(ns, hash)
 			if err != nil {
 				return err
@@ -4086,6 +4098,42 @@ func (w *Wallet) PurgeUnminedTransaction(hash *chainhash.Hash) error {
 	return nil
 }
 
+// SendRawTransaction process and rebroadcast any raw transaction. Relevant txs are saved to db,
+// irrelevant txs saved to in-memory cache. Sends the transaction to the consensus RPC server so it can be propagated
+// to other nodes and eventually mined. If the send fails, the transaction is not added to the wallet.
+func (w *Wallet) SendRawTransaction(tx *wire.MsgTx, serializedTx []byte, n NetworkBackend) (*chainhash.Hash, error) {
+	const opf = "wallet.SendRawTransaction(%v)"
+
+	txHash := tx.TxHash()
+	var relevant bool
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		relevant = w.isRelevantTx(dbtx, tx)
+		return nil
+	})
+	if err != nil {
+		op := errors.Opf(opf, &txHash)
+		return nil, errors.E(op, err)
+	}
+
+	if relevant {
+		relevantTxHash, err := w.PublishTransaction(tx, serializedTx, n)
+		if err != nil {
+			op := errors.Opf(opf, &relevantTxHash)
+			return nil, errors.E(op, err)
+		}
+
+		return relevantTxHash, nil
+	}
+	// insert irrelevant transaction into in-memory cache
+	w.irrelevantTxCache[txHash] = tx
+	err = n.PublishTransactions(context.TODO(), tx)
+	if err != nil {
+		op := errors.Opf(opf, &txHash)
+		return nil, errors.E(op, err)
+	}
+	return &txHash, nil
+}
+
 // PublishTransaction saves (if relevant) and sends the transaction to the
 // consensus RPC server so it can be propagated to other nodes and eventually
 // mined.  If the send fails, the transaction is not added to the wallet.
@@ -4353,6 +4401,7 @@ func Open(cfg *Config) (*Wallet, error) {
 		createMultisigTxRequests: make(chan createMultisigTxRequest),
 		purchaseTicketRequests:   make(chan purchaseTicketRequest),
 		addressBuffers:           make(map[uint32]*bip0044AccountData),
+		irrelevantTxCache:        make(map[chainhash.Hash]*wire.MsgTx),
 		unlockRequests:           make(chan unlockRequest),
 		lockRequests:             make(chan struct{}),
 		holdUnlockRequests:       make(chan chan heldUnlock),

@@ -78,6 +78,7 @@ var Methods = []struct {
 	{"revoketickets", nil},
 	{"sendfrom", returnsString},
 	{"sendmany", returnsString},
+	{"sendrawtransaction", returnsString},
 	{"sendtoaddress", returnsString},
 	{"sendtomultisig", returnsString},
 	{"setticketfee", returnsBool},

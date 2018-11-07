@@ -106,6 +106,7 @@ var handlers = map[string]handler{
 	"revoketickets":           {fn: revokeTickets},
 	"sendfrom":                {fn: sendFrom},
 	"sendmany":                {fn: sendMany},
+	"sendrawtransaction":      {fn: sendRawTransaction},
 	"sendtoaddress":           {fn: sendToAddress},
 	"sendtomultisig":          {fn: sendToMultiSig},
 	"setticketfee":            {fn: setTicketFee},
@@ -2578,6 +2579,41 @@ func sendMany(s *Server, icmd interface{}) (interface{}, error) {
 	}
 
 	return sendPairs(w, pairs, account, minConf)
+}
+
+// sendRawTransaction handles sendrawtransaction RPC request by decoding hex
+// transaction and publishing it to peers.
+func sendRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrjson.SendRawTransactionCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	msgTx := wire.NewMsgTx()
+	err := msgTx.Deserialize(hex.NewDecoder(strings.NewReader(cmd.HexTx)))
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
+	}
+
+	var buf bytes.Buffer
+	buf.Grow(msgTx.SerializeSize())
+	err = msgTx.Serialize(&buf)
+	if err != nil {
+		return nil, err
+	}
+
+	n, ok := s.walletLoader.NetworkBackend()
+	if !ok {
+		return nil, errNoNetwork
+	}
+
+	txHash, err := w.SendRawTransaction(msgTx, buf.Bytes(), n)
+	if err != nil {
+		return nil, err
+	}
+
+	return txHash.String(), nil
 }
 
 // sendToAddress handles a sendtoaddress RPC request by creating a new

@@ -403,6 +403,12 @@ var helpDescsEnUS = map[string]string{
 	"sendmany-comment":        "Unused",
 	"sendmany--result0":       "The transaction hash of the sent transaction",
 
+	// SendRawTransactionCmd help.
+	"sendrawtransaction--synopsis":     "Submits the serialized, hex-encoded transaction to the local peer and relays it to the network.",
+	"sendrawtransaction-hextx":         "Serialized, hex-encoded signed transaction",
+	"sendrawtransaction-allowhighfees": "Whether or not to allow insanely high fees (dcrd does not yet implement this parameter, so it has no effect)",
+	"sendrawtransaction--result0":      "The hash of the transaction",
+
 	// SendToAddressCmd help.
 	"sendtoaddress--synopsis": "Authors, signs, and sends a transaction that outputs some amount to a payment address.\n" +
 		"Unlike sendfrom, outputs are always chosen from the default account.\n" +
