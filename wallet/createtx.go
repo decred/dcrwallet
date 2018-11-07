@@ -374,6 +374,7 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 	// To avoid a race between publishing a transaction and potentially opening
 	// a database view during PublishTransaction, the update must be committed
 	// before publishing the transaction to the network.
+	var watch []wire.OutPoint
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for _, up := range changeSourceUpdates {
 			err := up(dbtx)
@@ -384,7 +385,9 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 
 		// TODO: this can be improved by not using the same codepath as notified
 		// relevant transactions, since this does a lot of extra work.
-		return w.processTransactionRecord(dbtx, rec, nil, nil)
+		var err error
+		watch, err = w.processTransactionRecord(dbtx, rec, nil, nil)
+		return err
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -394,13 +397,19 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 		return nil, errors.E(op, err)
 	}
 
-	// Watch for future address usage.
+	// Watch for future relevant transactions.
 	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		return w.watchFutureAddresses(dbtx)
 	})
 	if err != nil {
 		log.Errorf("Failed to watch for future address usage after publishing "+
 			"transaction: %v", err)
+	}
+	if len(watch) > 0 {
+		err := n.LoadTxFilter(context.TODO(), false, nil, watch)
+		if err != nil {
+			log.Errorf("Failed to watch outpoints: %v", err)
+		}
 	}
 	return atx, nil
 }
@@ -1070,8 +1079,9 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		return nil, err
 	}
 
-	// After tickets are created and published, watch for future addresses used
-	// by the split tx and any published tickets.
+	// After tickets are created and published, watch for future
+	// relevant transactions
+	var watchOutPoints []wire.OutPoint
 	defer func() {
 		err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 			return w.watchFutureAddresses(tx)
@@ -1079,6 +1089,12 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		if err != nil {
 			log.Errorf("Failed to watch for future addresses after ticket "+
 				"purchases: %v", err)
+		}
+		if len(watchOutPoints) > 0 {
+			err := n.LoadTxFilter(context.TODO(), false, nil, watchOutPoints)
+			if err != nil {
+				log.Errorf("Failed to watch outpoints: %v", err)
+			}
 		}
 	}()
 
@@ -1208,7 +1224,9 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		}
 
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			return w.processTransactionRecord(dbtx, rec, nil, nil)
+			watch, err := w.processTransactionRecord(dbtx, rec, nil, nil)
+			watchOutPoints = append(watchOutPoints, watch...)
+			return err
 		})
 		if err != nil {
 			return ticketHashes, errors.E(op, err)

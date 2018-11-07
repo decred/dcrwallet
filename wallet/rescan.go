@@ -163,7 +163,10 @@ type RescanSaver interface {
 	SaveRescanned(hash *chainhash.Hash, txs []*wire.MsgTx) error
 }
 
-// SaveRescanned records transactions from a rescanned block.
+// SaveRescanned records transactions from a rescanned block.  This
+// does not update the network backend with data to watch for future
+// relevant transactions as the rescanner is assumed to handle this
+// task.
 func (w *Wallet) SaveRescanned(hash *chainhash.Hash, txs []*wire.MsgTx) error {
 	const op errors.Op = "wallet.SaveRescanned"
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
@@ -182,7 +185,7 @@ func (w *Wallet) SaveRescanned(hash *chainhash.Hash, txs []*wire.MsgTx) error {
 			if err != nil {
 				return err
 			}
-			err = w.processTransactionRecord(dbtx, rec, header, &blockMeta)
+			_, err = w.processTransactionRecord(dbtx, rec, header, &blockMeta)
 			if err != nil {
 				return err
 			}

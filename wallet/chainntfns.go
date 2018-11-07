@@ -24,7 +24,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/udb"
 )
 
-func (w *Wallet) extendMainChain(op errors.Op, dbtx walletdb.ReadWriteTx, header *wire.BlockHeader, f *gcs.Filter, transactions []*wire.MsgTx) error {
+func (w *Wallet) extendMainChain(op errors.Op, dbtx walletdb.ReadWriteTx, header *wire.BlockHeader, f *gcs.Filter, transactions []*wire.MsgTx) ([]wire.OutPoint, error) {
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
 	blockHash := header.BlockHash()
@@ -33,7 +33,7 @@ func (w *Wallet) extendMainChain(op errors.Op, dbtx walletdb.ReadWriteTx, header
 	// chain.
 	err := w.TxStore.ExtendMainChain(txmgrNs, header, f)
 	if err != nil && !errors.Is(errors.Exist, err) {
-		return errors.E(op, err)
+		return nil, errors.E(op, err)
 	}
 
 	// Notify interested clients of the connected block.
@@ -41,21 +41,23 @@ func (w *Wallet) extendMainChain(op errors.Op, dbtx walletdb.ReadWriteTx, header
 
 	blockMeta, err := w.TxStore.GetBlockMetaForHash(txmgrNs, &blockHash)
 	if err != nil {
-		return errors.E(op, err)
+		return nil, errors.E(op, err)
 	}
 
+	var watch []wire.OutPoint
 	for _, tx := range transactions {
 		rec, err := udb.NewTxRecordFromMsgTx(tx, time.Now())
 		if err != nil {
-			return errors.E(op, err)
+			return nil, errors.E(op, err)
 		}
-		err = w.processTransactionRecord(dbtx, rec, header, &blockMeta)
+		ops, err := w.processTransactionRecord(dbtx, rec, header, &blockMeta)
 		if err != nil {
-			return errors.E(op, err)
+			return nil, errors.E(op, err)
 		}
+		watch = append(watch, ops...)
 	}
 
-	return nil
+	return watch, nil
 }
 
 // ChainSwitch updates the wallet's main chain, either by extending the chain
@@ -81,6 +83,8 @@ func (w *Wallet) ChainSwitch(forest *SidechainForest, chain []*BlockNode, releva
 
 	newWork := chain[len(chain)-1].workSum
 	oldWork := new(big.Int)
+
+	var watchOutPoints []wire.OutPoint
 
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
@@ -135,10 +139,11 @@ func (w *Wallet) ChainSwitch(forest *SidechainForest, chain []*BlockNode, releva
 					"wallet to the latest version.", voteVersion(w.chainParams))
 			}
 
-			err := w.extendMainChain(op, dbtx, n.Header, n.Filter, relevantTxs[*n.Hash])
+			watch, err := w.extendMainChain(op, dbtx, n.Header, n.Filter, relevantTxs[*n.Hash])
 			if err != nil {
 				return err
 			}
+			watchOutPoints = append(watchOutPoints, watch...)
 
 			// Add the block hash to the notification.
 			chainTipChanges.AttachedBlocks = append(chainTipChanges.AttachedBlocks, n.Hash)
@@ -183,6 +188,16 @@ func (w *Wallet) ChainSwitch(forest *SidechainForest, chain []*BlockNode, releva
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
+	}
+
+	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		return w.watchFutureAddresses(tx)
+	})
+	if n, err := w.NetworkBackend(); err == nil && len(watchOutPoints) > 0 {
+		err := n.LoadTxFilter(context.TODO(), false, nil, watchOutPoints)
+		if err != nil {
+			log.Errorf("Failed to watch outpoints: %v", err)
+		}
 	}
 
 	forest.PruneTree(chain[0].Hash)
@@ -274,8 +289,11 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 }
 
 // AcceptMempoolTx adds a relevant unmined transaction to the wallet.
+// If a network backend is associated with the wallet, it is updated
+// with new addresses and unspent outpoints to watch.
 func (w *Wallet) AcceptMempoolTx(tx *wire.MsgTx) error {
 	const op errors.Op = "wallet.AcceptMempoolTx"
+	var watchOutPoints []wire.OutPoint
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -296,31 +314,41 @@ func (w *Wallet) AcceptMempoolTx(tx *wire.MsgTx) error {
 			}
 		}
 
-		return w.processTransactionRecord(dbtx, rec, nil, nil)
+		watchOutPoints, err = w.processTransactionRecord(dbtx, rec, nil, nil)
+		return err
 	})
-	if err == nil {
-		err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-			return w.watchFutureAddresses(tx)
-		})
-		if err != nil {
-			log.Errorf("Failed to watch for future address usage: %v", err)
-		}
-	} else {
+	if err != nil {
 		return errors.E(op, err)
+	}
+	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		return w.watchFutureAddresses(tx)
+	})
+	if err != nil {
+		log.Errorf("Failed to watch for future address usage: %v", err)
+	}
+	if n, err := w.NetworkBackend(); err == nil && len(watchOutPoints) > 0 {
+		err := n.LoadTxFilter(context.TODO(), false, nil, watchOutPoints)
+		if err != nil {
+			log.Errorf("Failed to watch outpoints: %v", err)
+		}
 	}
 	return nil
 }
 
-func (w *Wallet) processSerializedTransaction(dbtx walletdb.ReadWriteTx, serializedTx []byte, header *wire.BlockHeader, blockMeta *udb.BlockMeta) error {
+func (w *Wallet) processSerializedTransaction(dbtx walletdb.ReadWriteTx, serializedTx []byte,
+	header *wire.BlockHeader, blockMeta *udb.BlockMeta) (watchOutPoints []wire.OutPoint, err error) {
+
 	const op errors.Op = "wallet.processSerializedTransaction"
 	rec, err := udb.NewTxRecord(serializedTx, time.Now())
 	if err != nil {
-		return errors.E(op, err)
+		return nil, errors.E(op, err)
 	}
 	return w.processTransactionRecord(dbtx, rec, header, blockMeta)
 }
 
-func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord, header *wire.BlockHeader, blockMeta *udb.BlockMeta) error {
+func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.TxRecord,
+	header *wire.BlockHeader, blockMeta *udb.BlockMeta) (watchOutPoints []wire.OutPoint, err error) {
+
 	const op errors.Op = "wallet.processTransactionRecord"
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
@@ -336,19 +364,18 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 	// relevant.  This assumption will not hold true when SPV support is
 	// added, but until then, simply insert the transaction because there
 	// should either be one or more relevant inputs or outputs.
-	var err error
 	if header == nil {
 		err = w.TxStore.InsertMemPoolTx(txmgrNs, rec)
 		if errors.Is(errors.Exist, err) {
 			log.Warnf("Refusing to add unmined transaction %v since same "+
 				"transaction already exists mined", &rec.Hash)
-			return nil
+			return nil, nil
 		}
 	} else {
 		err = w.TxStore.InsertMinedTx(txmgrNs, addrmgrNs, rec, &blockMeta.Hash)
 	}
 	if err != nil {
-		return errors.E(op, err)
+		return nil, errors.E(op, err)
 	}
 
 	// Handle incoming SStx; store them in the stake manager if we own
@@ -491,7 +518,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			rs, err := txscript.MultisigRedeemScriptFromScriptSig(
 				input.SignatureScript)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			class, addrs, _, err := txscript.ExtractPkScriptAddrs(
@@ -514,12 +541,12 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 					if errors.Is(errors.NotExist, err) {
 						continue
 					}
-					return errors.E(op, err)
+					return nil, errors.E(op, err)
 				}
 				isRelevant = true
 				err = w.markUsedAddress(op, dbtx, ma)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				log.Debugf("Marked address %v used", addr)
 			}
@@ -529,7 +556,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			if isRelevant {
 				err = w.TxStore.InsertTxScript(txmgrNs, rs)
 				if err != nil {
-					return errors.E(op, err)
+					return nil, errors.E(op, err)
 				}
 				mscriptaddr, err := w.Manager.ImportScript(addrmgrNs, rs)
 				switch {
@@ -544,11 +571,11 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 						err := n.LoadTxFilter(context.TODO(),
 							false, []dcrutil.Address{addr}, nil)
 						if err != nil {
-							return errors.E(op, err)
+							return nil, errors.E(op, err)
 						}
 					}
 				default:
-					return errors.E(op, err)
+					return nil, errors.E(op, err)
 				}
 			}
 
@@ -566,14 +593,15 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 				err = w.TxStore.SpendMultisigOut(txmgrNs, &input.PreviousOutPoint,
 					rec.Hash, uint32(i))
 				if err != nil {
-					return errors.E(op, err)
+					return nil, errors.E(op, err)
 				}
 			}
 		}
 	}
 
-	// Check every output to determine whether it is controlled by a wallet
-	// key.  If so, mark the output as a credit.
+	// Check every output to determine whether it is controlled by a
+	// wallet key.  If so, mark the output as a credit and mark
+	// outpoints to watch.
 	for i, output := range rec.MsgTx.TxOut {
 		// Ignore unspendable outputs.
 		if output.Value == 0 {
@@ -599,27 +627,33 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			}
 		}
 
+		var tree int8
+		if isStakeType {
+			tree = 1
+		}
+		outpoint := wire.OutPoint{Hash: rec.Hash, Tree: tree}
 		for _, addr := range addrs {
 			ma, err := w.Manager.Address(addrmgrNs, addr)
-			if err == nil {
-				err = w.TxStore.AddCredit(txmgrNs, rec, blockMeta,
-					uint32(i), ma.Internal(), ma.Account())
-				if err != nil {
-					return errors.E(op, err)
-				}
-				err = w.markUsedAddress(op, dbtx, ma)
-				if err != nil {
-					return err
-				}
-				log.Debugf("Marked address %v used", addr)
-				continue
-			}
-
 			// Missing addresses are skipped.  Other errors should
 			// be propagated.
-			if !errors.Is(errors.NotExist, err) {
-				return err
+			if errors.Is(errors.NotExist, err) {
+				continue
 			}
+			if err != nil {
+				return nil, errors.E(op, err)
+			}
+			err = w.TxStore.AddCredit(txmgrNs, rec, blockMeta,
+				uint32(i), ma.Internal(), ma.Account())
+			if err != nil {
+				return nil, errors.E(op, err)
+			}
+			err = w.markUsedAddress(op, dbtx, ma)
+			if err != nil {
+				return nil, err
+			}
+			outpoint.Index = uint32(i)
+			watchOutPoints = append(watchOutPoints, outpoint)
+			log.Debugf("Marked address %v used", addr)
 		}
 
 		// Handle P2SH addresses that are multisignature scripts
@@ -643,7 +677,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 					defer done()
 					expandedScript = script
 				} else if err != nil {
-					return errors.E(op, err)
+					return nil, errors.E(op, err)
 				}
 			}
 
@@ -654,7 +688,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 				expandedScript,
 				w.chainParams)
 			if err != nil {
-				return errors.E(op, errors.E(errors.Op("txscript.ExtractPkScriptAddrs"), err))
+				return nil, errors.E(op, errors.E(errors.Op("txscript.ExtractPkScriptAddrs"), err))
 			}
 
 			// Skip non-multisig scripts.
@@ -699,7 +733,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 		}
 	}
 
-	return nil
+	return watchOutPoints, nil
 }
 
 // selectOwnedTickets returns a slice of tickets hashes from the tickets
@@ -720,7 +754,8 @@ func selectOwnedTickets(w *Wallet, dbtx walletdb.ReadTx, tickets []*chainhash.Ha
 // VoteOnOwnedTickets creates and publishes vote transactions for all owned
 // tickets in the winningTicketHashes slice if wallet voting is enabled.  The
 // vote is only valid when voting on the block described by the passed block
-// hash and height.
+// hash and height.  When a network backend is associated with the wallet,
+// relevant commitment outputs are loaded as watched data.
 func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash, blockHash *chainhash.Hash, blockHeight int32) error {
 	const op errors.Op = "wallet.VoteOnOwnedTickets"
 
@@ -816,12 +851,14 @@ func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash, block
 		}
 		voteRecords = append(voteRecords, rec)
 	}
+	var watchOutPoints []wire.OutPoint
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for i := range voteRecords {
-			err = w.processTransactionRecord(dbtx, voteRecords[i], nil, nil)
+			watch, err := w.processTransactionRecord(dbtx, voteRecords[i], nil, nil)
 			if err != nil {
 				return err
 			}
+			watchOutPoints = append(watchOutPoints, watch...)
 		}
 		return nil
 	})
@@ -852,11 +889,20 @@ func (w *Wallet) VoteOnOwnedTickets(winningTicketHashes []*chainhash.Hash, block
 		}
 	}
 
+	if len(watchOutPoints) > 0 {
+		err := n.LoadTxFilter(context.TODO(), false, nil, watchOutPoints)
+		if err != nil {
+			log.Errorf("Failed to watch outpoints: %v", err)
+		}
+	}
+
 	return nil
 }
 
 // RevokeOwnedTickets revokes any owned tickets specified in the
-// missedTicketHashes slice.
+// missedTicketHashes slice.  When a network backend is associated
+// with the wallet, relevant commitment outputs are loaded as watched
+// data.
 func (w *Wallet) RevokeOwnedTickets(missedTicketHashes []*chainhash.Hash) error {
 	const op errors.Op = "wallet.RevokeOwnedTickets"
 
@@ -945,8 +991,11 @@ func (w *Wallet) RevokeOwnedTickets(missedTicketHashes []*chainhash.Hash) error 
 			continue
 		}
 		revocationHash := &txRec.Hash
+		var watchOutPoints []wire.OutPoint
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			return w.processTransactionRecord(dbtx, txRec, nil, nil)
+			var err error
+			watchOutPoints, err = w.processTransactionRecord(dbtx, txRec, nil, nil)
+			return err
 		})
 		if err != nil {
 			log.Errorf("Failed to record revocation %v for ticket hash %v: %v",
@@ -961,6 +1010,12 @@ func (w *Wallet) RevokeOwnedTickets(missedTicketHashes []*chainhash.Hash) error 
 		}
 		log.Infof("Revoked ticket %v with revocation %v", ticketHashes[i],
 			revocationHash)
+		if len(watchOutPoints) > 0 {
+			err := n.LoadTxFilter(context.TODO(), false, nil, watchOutPoints)
+			if err != nil {
+				log.Errorf("Failed to watch outpoints: %v", err)
+			}
+		}
 	}
 
 	return nil

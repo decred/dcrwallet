@@ -1053,7 +1053,7 @@ func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstN
 				}
 			}
 			for _, n := range chain {
-				err = w.extendMainChain("", dbtx, n.Header, n.Filter, nil)
+				_, err = w.extendMainChain("", dbtx, n.Header, n.Filter, nil)
 				if err != nil {
 					return err
 				}
@@ -4118,13 +4118,15 @@ func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, n Netwo
 		return nil, errors.E(op, err)
 	}
 
+	var watchOutPoints []wire.OutPoint
 	if relevant {
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 			rec, err := udb.NewTxRecord(serializedTx, time.Now())
 			if err != nil {
 				return err
 			}
-			return w.processTransactionRecord(dbtx, rec, nil, nil)
+			watchOutPoints, err = w.processTransactionRecord(dbtx, rec, nil, nil)
+			return err
 		})
 		if err != nil {
 			op := errors.Opf(opf, &txHash)
@@ -4142,6 +4144,14 @@ func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, n Netwo
 		op := errors.Opf(opf, &txHash)
 		return nil, errors.E(op, err)
 	}
+
+	if len(watchOutPoints) > 0 {
+		err := n.LoadTxFilter(context.TODO(), false, nil, watchOutPoints)
+		if err != nil {
+			log.Errorf("Failed to watch outpoints: %v", err)
+		}
+	}
+
 	return &txHash, nil
 }
 

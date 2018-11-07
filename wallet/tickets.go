@@ -364,10 +364,11 @@ func (w *Wallet) RevokeTickets(chainClient *dcrrpcclient.Client) error {
 		if err != nil {
 			return errors.E(op, err)
 		}
+		var watch []wire.OutPoint
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 			// Could be more efficient by avoiding processTransaction, as we
 			// know it is a revocation.
-			err = w.processTransactionRecord(dbtx, rec, nil, nil)
+			watch, err = w.processTransactionRecord(dbtx, rec, nil, nil)
 			if err != nil {
 				return errors.E(op, err)
 			}
@@ -379,6 +380,10 @@ func (w *Wallet) RevokeTickets(chainClient *dcrrpcclient.Client) error {
 		}
 		log.Infof("Revoked ticket %v with revocation %v", revokableTickets[i],
 			&rec.Hash)
+		err = chainClient.LoadTxFilter(false, nil, watch)
+		if err != nil {
+			log.Errorf("Failed to watch outpoints: %v", err)
+		}
 	}
 
 	return nil
@@ -463,6 +468,7 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 		return err
 	}
 
+	var watchOutPoints []wire.OutPoint
 	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for i, revocation := range revocations {
 			rec, err := udb.NewTxRecordFromMsgTx(revocation, time.Now())
@@ -473,15 +479,28 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 			log.Infof("Revoking ticket %v with revocation %v", &expired[i],
 				&rec.Hash)
 
-			err = w.processTransactionRecord(dbtx, rec, nil, nil)
+			watch, err := w.processTransactionRecord(dbtx, rec, nil, nil)
 			if err != nil {
 				return err
 			}
+			watchOutPoints = append(watchOutPoints, watch...)
 		}
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-	return p.PublishTransactions(ctx, revocations...)
+	err = p.PublishTransactions(ctx, revocations...)
+	if err != nil {
+		return err
+	}
+
+	if n, err := w.NetworkBackend(); err == nil && len(watchOutPoints) > 0 {
+		err := n.LoadTxFilter(context.TODO(), false, nil, watchOutPoints)
+		if err != nil {
+			log.Errorf("Failed to watch outpoints: %v", err)
+		}
+	}
+
+	return nil
 }
