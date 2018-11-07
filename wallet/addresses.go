@@ -310,7 +310,9 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 		return errors.E(op, err)
 	}
 	dbLastUsedChildren := make(map[uint32]children, lastAccount+1)
+	dbLastRetChildren := make(map[uint32]children, lastAccount+1)
 	var lastUsedExt, lastUsedInt uint32
+	var lastRetExt, lastRetInt uint32
 	for account := uint32(0); account <= lastAccount; account++ {
 		for branch := udb.ExternalBranch; branch <= udb.InternalBranch; branch++ {
 			props, err := w.Manager.AccountProperties(ns, account)
@@ -320,11 +322,14 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 			switch branch {
 			case udb.ExternalBranch:
 				lastUsedExt = props.LastUsedExternalIndex
+				lastRetExt = props.LastReturnedExternalIndex
 			case udb.InternalBranch:
 				lastUsedInt = props.LastUsedInternalIndex
+				lastRetInt = props.LastReturnedInternalIndex
 			}
 		}
 		dbLastUsedChildren[account] = children{lastUsedExt, lastUsedInt}
+		dbLastRetChildren[account] = children{lastRetExt, lastRetInt}
 	}
 
 	// Update the buffer's last used child if it was updated, and then update
@@ -340,12 +345,14 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 		startExt := a.albExternal.lastUsed + 1 + gapLimit
 		startInt := a.albInternal.lastUsed + 1 + gapLimit
 
+		dbLastUsed := dbLastUsedChildren[account]
+		dbLastRet := dbLastRetChildren[account]
+
 		// endExt/Int are the end indexes for newly watched addresses.  Because
 		// addresses ranges are described using a half open range, these indexes
 		// are one beyond the last address that will be watched.
-		dbLastUsed := dbLastUsedChildren[account]
-		endExt := dbLastUsed.external + 1 + gapLimit
-		endInt := dbLastUsed.internal + 1 + gapLimit
+		endExt := dbLastRet.external + 1 + gapLimit
+		endInt := dbLastRet.internal + 1 + gapLimit
 
 		xpubBranchExt := a.albExternal.branchXpub
 		xpubBranchInt := a.albInternal.branchXpub
@@ -374,8 +381,8 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 			return errors.E(op, err)
 		}
 
-		// Update the in-memory address buffers with the latest last used
-		// indexes retreived from the db.
+		// Update the in-memory address buffers with the latest last
+		// used and last returned indexes retreived from the db.
 		if endExt > startExt {
 			a.albExternal.lastUsed = dbLastUsed.external
 			a.albExternal.cursor -= minUint32(a.albExternal.cursor, endExt-startExt)
