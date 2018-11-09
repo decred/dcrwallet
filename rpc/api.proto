@@ -355,6 +355,7 @@ message StakeInfoResponse {
 	uint32 revoked = 8;
 	uint32 expired = 9;
 	int64 total_subsidy = 10;
+	uint32 unspent = 11;
 }
 
 message BlockInfoRequest {

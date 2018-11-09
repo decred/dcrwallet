@@ -61,9 +61,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "5.4.0"
+	semverString = "5.5.0"
 	semverMajor  = 5
-	semverMinor  = 4
+	semverMinor  = 5
 	semverPatch  = 0
 )
 
@@ -712,6 +712,7 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 		Revoked:       si.Revoked,
 		Expired:       si.Expired,
 		TotalSubsidy:  int64(si.TotalSubsidy),
+		Unspent:       si.Unspent,
 	}, nil
 }
 

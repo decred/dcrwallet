@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 5.4.x
+Version: 5.5.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -1799,6 +1799,8 @@ owned and votes cast.
 - `uint32 expired`: The number of expired tickets owned by the user.
 
 - `int64 total_subsidy`: The total subsidy received by the user for stake mining.
+
+- `uint32 unspent`: The number of unspent tickets. This could include live, missed or expired tickets.
 
 **Expected errors:** None
 
