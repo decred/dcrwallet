@@ -1800,6 +1800,8 @@ owned and votes cast.
 
 - `int64 total_subsidy`: The total subsidy received by the user for stake mining.
 
+- `uint32 unspent`: The number of unspent tickets. This could include live, missed or expired tickets.
+
 **Expected errors:** None
 
 **Stability:** Unstable

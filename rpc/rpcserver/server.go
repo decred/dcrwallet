@@ -712,6 +712,7 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 		Revoked:       si.Revoked,
 		Expired:       si.Expired,
 		TotalSubsidy:  int64(si.TotalSubsidy),
+		Unspent:       si.Unspent,
 	}, nil
 }
 
