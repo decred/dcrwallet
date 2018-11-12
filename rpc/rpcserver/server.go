@@ -2101,7 +2101,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		zero.Bytes(req.Passphrase)
 	}
 
-	err = wallet.Unlock(req.Passphrase, nil)
+	err = wallet.Unlock(req.Passphrase, lock)
 	if err != nil {
 		return err
 	}
