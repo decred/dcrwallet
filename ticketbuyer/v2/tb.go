@@ -7,12 +7,10 @@ package ticketbuyer
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/wallet"
 )
 
@@ -58,18 +56,10 @@ func New(w *wallet.Wallet) *TB {
 // ever becomes incorrect due to a wallet passphrase change, Run exits with an
 // errors.Passphrase error.
 func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
-	lock := make(chan time.Time, 1)
-
-	lockWallet := func() {
-		lock <- time.Time{}
-		zero.Bytes(passphrase)
-	}
-
-	err := tb.wallet.Unlock(passphrase, lock)
+	err := tb.wallet.Unlock(passphrase, nil)
 	if err != nil {
 		return err
 	}
-	defer lockWallet()
 
 	c := tb.wallet.NtfnServer.MainTipChangedNotifications()
 	defer c.Done()

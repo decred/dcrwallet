@@ -2094,6 +2094,19 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		c.PoolFees = req.PoolFees
 	})
 
+	lock := make(chan time.Time, 1)
+
+	lockWallet := func() {
+		lock <- time.Time{}
+		zero.Bytes(req.Passphrase)
+	}
+
+	err = wallet.Unlock(req.Passphrase, nil)
+	if err != nil {
+		return err
+	}
+	defer lockWallet()
+
 	err = tb.Run(svr.Context(), req.Passphrase)
 	if err != nil {
 		if svr.Context().Err() != nil {
