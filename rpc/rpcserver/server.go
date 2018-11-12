@@ -52,6 +52,7 @@ import (
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
 	"github.com/decred/dcrwallet/spv"
 	"github.com/decred/dcrwallet/ticketbuyer"
+	tbv2 "github.com/decred/dcrwallet/ticketbuyer/v2"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
@@ -61,9 +62,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "5.5.0"
+	semverString = "5.6.0"
 	semverMajor  = 5
-	semverMinor  = 5
+	semverMinor  = 6
 	semverPatch  = 0
 )
 
@@ -189,6 +190,13 @@ type ticketbuyerServer struct {
 	ticketbuyerCfg *ticketbuyer.Config
 }
 
+// ticketbuyerServer provides RPC clients with the ability to start/stop the
+// automatic ticket buyer service.
+type ticketbuyerV2Server struct {
+	ready  uint32 // atomic
+	loader *loader.Loader
+}
+
 type agendaServer struct {
 	ready     uint32 // atomic
 	activeNet *chaincfg.Params
@@ -215,6 +223,7 @@ var (
 	loaderService              loaderServer
 	seedService                seedServer
 	ticketBuyerService         ticketbuyerServer
+	ticketBuyerV2Service       ticketbuyerV2Server
 	agendaService              agendaServer
 	votingService              votingServer
 	messageVerificationService messageVerificationServer
@@ -229,6 +238,7 @@ func RegisterServices(server *grpc.Server) {
 	pb.RegisterWalletLoaderServiceServer(server, &loaderService)
 	pb.RegisterSeedServiceServer(server, &seedService)
 	pb.RegisterTicketBuyerServiceServer(server, &ticketBuyerService)
+	pb.RegisterTicketBuyerV2ServiceServer(server, &ticketBuyerV2Service)
 	pb.RegisterAgendaServiceServer(server, &agendaService)
 	pb.RegisterVotingServiceServer(server, &votingService)
 	pb.RegisterMessageVerificationServiceServer(server, &messageVerificationService)
@@ -241,6 +251,7 @@ var serviceMap = map[string]interface{}{
 	"walletrpc.WalletLoaderService":        &loaderService,
 	"walletrpc.SeedService":                &seedService,
 	"walletrpc.TicketBuyerService":         &ticketBuyerService,
+	"walletrpc.TicketBuyerV2Service":       &ticketBuyerV2Service,
 	"walletrpc.AgendaService":              &agendaService,
 	"walletrpc.VotingService":              &votingService,
 	"walletrpc.MessageVerificationService": &messageVerificationService,
@@ -2025,6 +2036,14 @@ func (s *loaderServer) checkReady() bool {
 	return atomic.LoadUint32(&s.ready) != 0
 }
 
+// StartTicketBuyerV2Service starts the TicketBuyerV2Service.
+func StartTicketBuyerV2Service(server *grpc.Server, loader *loader.Loader) {
+	ticketBuyerV2Service.loader = loader
+	if atomic.SwapUint32(&ticketBuyerV2Service.ready, 1) != 0 {
+		panic("service already started")
+	}
+}
+
 // StartTicketBuyerService starts the TicketBuyerService.
 func StartTicketBuyerService(server *grpc.Server, loader *loader.Loader, tbCfg *ticketbuyer.Config) {
 	ticketBuyerService.loader = loader
@@ -2034,7 +2053,72 @@ func StartTicketBuyerService(server *grpc.Server, loader *loader.Loader, tbCfg *
 	}
 }
 
-func (t *ticketbuyerServer) checkReady() bool {
+// StartTicketBuyer starts the automatic ticket buyer for the v2 service.
+func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb.TicketBuyerV2Service_RunTicketBuyerServer) error {
+	wallet, ok := t.loader.LoadedWallet()
+	if !ok {
+		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+	}
+	params := wallet.ChainParams()
+
+	// Confirm validity of provided voting addresses and pool addresses.
+	var votingAddress dcrutil.Address
+	var err error
+	if req.VotingAddress != "" {
+		votingAddress, err = decodeAddress(req.VotingAddress, params)
+		if err != nil {
+			return err
+		}
+	}
+	var poolAddress dcrutil.Address
+	if req.PoolAddress != "" {
+		poolAddress, err = decodeAddress(req.PoolAddress, params)
+		if err != nil {
+			return err
+		}
+	}
+
+	if req.BalanceToMaintain < 0 {
+		return status.Errorf(codes.InvalidArgument, "Negative balance to maintain given")
+	}
+
+	tb := tbv2.New(wallet)
+
+	// Set ticketbuyerV2 config
+	tb.AccessConfig(func(c *tbv2.Config) {
+		c.Account = req.Account
+		c.VotingAccount = req.VotingAccount
+		c.Maintain = dcrutil.Amount(req.BalanceToMaintain)
+		c.VotingAddr = votingAddress
+		c.PoolFeeAddr = poolAddress
+		c.PoolFees = req.PoolFees
+	})
+
+	lock := make(chan time.Time, 1)
+
+	lockWallet := func() {
+		lock <- time.Time{}
+		zero.Bytes(req.Passphrase)
+	}
+
+	err = wallet.Unlock(req.Passphrase, lock)
+	if err != nil {
+		return translateError(err)
+	}
+	defer lockWallet()
+
+	err = tb.Run(svr.Context(), req.Passphrase)
+	if err != nil {
+		if svr.Context().Err() != nil {
+			return status.Errorf(codes.Canceled, "TicketBuyerV2 instance canceled, account number: %v", req.Account)
+		}
+		return status.Errorf(codes.Unknown, "TicketBuyerV2 instance errored: %v", err)
+	}
+
+	return nil
+}
+
+func (t *ticketbuyerV2Server) checkReady() bool {
 	return atomic.LoadUint32(&t.ready) != 0
 }
 

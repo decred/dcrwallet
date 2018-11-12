@@ -78,6 +78,10 @@ service WalletLoaderService {
 	rpc RescanPoint(RescanPointRequest) returns (RescanPointResponse);
 }
 
+service TicketBuyerV2Service {
+	rpc RunTicketBuyer (RunTicketBuyerRequest) returns (stream RunTicketBuyerResponse);
+}
+
 service TicketBuyerService {
     rpc StartAutoBuyer (StartAutoBuyerRequest) returns (StartAutoBuyerResponse);
     rpc StopAutoBuyer (StopAutoBuyerRequest) returns (StopAutoBuyerResponse);
@@ -772,6 +776,18 @@ message DecodeSeedRequest {
 message DecodeSeedResponse {
 	bytes decoded_seed = 1;
 }
+
+message RunTicketBuyerRequest {
+	bytes passphrase = 1;
+	uint32 account = 2;
+	uint32 voting_account = 3;
+	int64 balance_to_maintain = 4;
+	string voting_address = 5;
+	string pool_address = 6;
+	double pool_fees = 7;
+}
+
+message RunTicketBuyerResponse {}
 
 message StartAutoBuyerRequest {
 	bytes passphrase = 1;
