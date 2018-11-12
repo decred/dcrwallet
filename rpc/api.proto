@@ -26,6 +26,7 @@ service WalletService {
 	rpc GetAccountExtendedPubKey (GetAccountExtendedPubKeyRequest) returns (GetAccountExtendedPubKeyResponse);	
 	rpc GetTransaction (GetTransactionRequest) returns (GetTransactionResponse);
 	rpc GetTransactions (GetTransactionsRequest) returns (stream GetTransactionsResponse);
+	rpc GetTicket (GetTicketRequest) returns (GetTicketsResponse);
 	rpc GetTickets (GetTicketsRequest) returns (stream GetTicketsResponse);
 	rpc TicketPrice (TicketPriceRequest) returns (TicketPriceResponse);
 	rpc StakeInfo (StakeInfoRequest) returns (StakeInfoResponse);
@@ -307,6 +308,9 @@ message GetTransactionsResponse {
 	repeated TransactionDetails unmined_transactions = 2;
 }
 
+message GetTicketRequest {
+	bytes ticket_hash = 1;
+}
 message GetTicketsRequest {
 	bytes starting_block_hash = 1;
 	sint32 starting_block_height = 2;

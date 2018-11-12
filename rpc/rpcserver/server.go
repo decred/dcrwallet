@@ -1105,6 +1105,41 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 	return nil
 }
 
+func (s *walletServer) GetTicket(ctx context.Context, req *pb.GetTicketRequest) (*pb.GetTicketsResponse, error) {
+	ticketHash, err := chainhash.NewHash(req.TicketHash)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	var chainClient *rpcclient.Client
+	if n, err := s.wallet.NetworkBackend(); err == nil {
+		// The chain client could be nil here if the network backend is not
+		// the consensus rpc client.  This is fine since the chain client is
+		// optional.
+		chainClient, _ = chain.RPCClientFromBackend(n)
+	}
+
+	var ticketSummary *wallet.TicketSummary
+	var blockHeader *wire.BlockHeader
+	if chainClient == nil {
+		ticketSummary, blockHeader, err = s.wallet.GetTicketInfo(ticketHash)
+	} else {
+		ticketSummary, blockHeader, err =
+			s.wallet.GetTicketInfoPrecise(chainClient, ticketHash)
+	}
+
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	resp := &pb.GetTicketsResponse{
+		Ticket: marshalTicketDetails(ticketSummary),
+		Block:  marshalGetTicketBlockDetails(blockHeader),
+	}
+
+	return resp, nil
+}
+
 func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 	server pb.WalletService_GetTicketsServer) error {
 
@@ -3296,13 +3331,13 @@ func marshalDecodedTxInputs(mtx *wire.MsgTx) []*pb.DecodedTransaction_Input {
 		inputs[i] = &pb.DecodedTransaction_Input{
 			PreviousTransactionHash:  txIn.PreviousOutPoint.Hash[:],
 			PreviousTransactionIndex: txIn.PreviousOutPoint.Index,
-			Tree:               pb.DecodedTransaction_Input_TreeType(txIn.PreviousOutPoint.Tree),
-			Sequence:           txIn.Sequence,
-			AmountIn:           txIn.ValueIn,
-			BlockHeight:        txIn.BlockHeight,
-			BlockIndex:         txIn.BlockIndex,
-			SignatureScript:    txIn.SignatureScript,
-			SignatureScriptAsm: disbuf,
+			Tree:                     pb.DecodedTransaction_Input_TreeType(txIn.PreviousOutPoint.Tree),
+			Sequence:                 txIn.Sequence,
+			AmountIn:                 txIn.ValueIn,
+			BlockHeight:              txIn.BlockHeight,
+			BlockIndex:               txIn.BlockIndex,
+			SignatureScript:          txIn.SignatureScript,
+			SignatureScriptAsm:       disbuf,
 		}
 	}
 

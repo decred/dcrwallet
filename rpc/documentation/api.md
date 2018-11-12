@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 5.6.x
+Version: 5.7.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -575,6 +575,7 @@ The service provides the following methods:
 - [`BlockInfo`](#blockinfo)
 - [`GetTransaction`](#gettransaction)
 - [`GetTransactions`](#gettransactions)
+- [`GetTicket`](#getticket)
 - [`GetTickets`](#gettickets)
 - [`ChangePassphrase`](#changepassphrase)
 - [`RenameAccount`](#renameaccount)
@@ -944,6 +945,25 @@ transactions (and no mined transactions).
 - A specified ordering (such as dependency order) for all returned unmined
   transactions would be useful.
 
+___
+
+#### `GetTicket`
+
+The `GetTicket` method queries the wallet for the provided ticket.
+
+**Request:** `GetTicketRequest`
+
+- `bytes ticket_hash`: The hash of the ticket being queried.
+
+**Response:** `GetTicketsResponse`
+
+Refer to [GetTickets](#gettickets) response documentation.
+
+**Expected errors:**
+
+- `InvalidArgument`: The ticket hash field did not have the correct length.
+
+- `NotFound`: The specified transaction is not known by the wallet. 
 ___
 
 #### `GetTickets`

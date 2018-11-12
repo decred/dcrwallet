@@ -2410,6 +2410,116 @@ type GetTicketsResult struct {
 	Tickets []*TicketSummary
 }
 
+// fetchTicketDetails returns the ticket details of the provided ticket hash.
+func (w *Wallet) fetchTicketDetails(ns walletdb.ReadBucket, hash *chainhash.Hash) (*udb.TicketDetails, error) {
+	txDetail, err := w.TxStore.TxDetails(ns, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	if txDetail.TxType != stake.TxTypeSStx {
+		return nil, errors.Errorf("%v is not a ticket", hash)
+	}
+
+	ticketDetails, err := w.TxStore.TicketDetails(ns, txDetail)
+	if err != nil {
+		return nil, errors.Errorf("%v while trying to get ticket"+
+			" details for txhash: %v", err, hash)
+	}
+
+	return ticketDetails, nil
+}
+
+// GetTicketInfoPrecise returns the ticket summary and the corresponding block header
+// for the provided ticket.  The ticket summary is comprised of the transaction
+// summmary for the ticket, the spender (if already spent) and the ticket's
+// current status.
+//
+// The argument chainClient is always expected to be not nil in this case,
+// otherwise one should use the alternative GetTicketInfo instead.  With
+// the ability to use the rpc chain client, this function is able to determine
+// whether a ticket has been missed or not.  Otherwise, it is just known to be
+// unspent (possibly live or missed).
+func (w *Wallet) GetTicketInfoPrecise(chainClient *dcrrpcclient.Client, hash *chainhash.Hash) (*TicketSummary, *wire.BlockHeader, error) {
+	const op errors.Op = "wallet.GetTicketInfoPrecise"
+
+	var ticketSummary *TicketSummary
+	var blockHeader *wire.BlockHeader
+
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		ticketDetails, err := w.fetchTicketDetails(txmgrNs, hash)
+		if err != nil {
+			return err
+		}
+
+		ticketSummary = makeTicketSummary(chainClient, dbtx, w, ticketDetails)
+
+		// Fetch the associated block header of the ticket.
+		hBytes, err := w.TxStore.GetSerializedBlockHeader(txmgrNs,
+			&ticketDetails.Ticket.Block.Hash)
+		if err != nil {
+			return err
+		}
+
+		blockHeader = new(wire.BlockHeader)
+		err = blockHeader.FromBytes(hBytes)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, nil, errors.E(op, err)
+	}
+
+	return ticketSummary, blockHeader, nil
+}
+
+// GetTicketInfo returns the ticket summary and the corresponding block header
+// for the provided ticket. The ticket summary is comprised of the transaction
+// summmary for the ticket, the spender (if already spent) and the ticket's
+// current status.
+func (w *Wallet) GetTicketInfo(hash *chainhash.Hash) (*TicketSummary, *wire.BlockHeader, error) {
+	const op errors.Op = "wallet.GetTicketInfo"
+
+	var ticketSummary *TicketSummary
+	var blockHeader *wire.BlockHeader
+
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		ticketDetails, err := w.fetchTicketDetails(txmgrNs, hash)
+		if err != nil {
+			return err
+		}
+
+		ticketSummary = makeTicketSummary(nil, dbtx, w, ticketDetails)
+
+		// Fetch the associated block header of the ticket.
+		hBytes, err := w.TxStore.GetSerializedBlockHeader(txmgrNs,
+			&ticketDetails.Ticket.Block.Hash)
+		if err != nil {
+			return err
+		}
+
+		blockHeader = new(wire.BlockHeader)
+		err = blockHeader.FromBytes(hBytes)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, nil, errors.E(op, err)
+	}
+
+	return ticketSummary, blockHeader, nil
+}
+
 // GetTicketsPrecise calls function f for all tickets located in between the
 // given startBlock and endBlock.  TicketSummary includes TransactionSummmary
 // for the ticket and the spender (if already spent) and the ticket's current
