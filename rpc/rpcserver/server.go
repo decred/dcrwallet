@@ -2103,7 +2103,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 
 	err = wallet.Unlock(req.Passphrase, lock)
 	if err != nil {
-		return err
+		return translateError(err)
 	}
 	defer lockWallet()
 
