@@ -17,6 +17,7 @@ github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dchest/blake256 v1.0.0 h1:6gUgI5MHdz9g0TdrgKqXsoDX+Zjxmm1Sc6OsoGru50I=
 github.com/dchest/blake256 v1.0.0/go.mod h1:xXNWCE1jsAP8DAjP+rKw2MbeqLczjI3TRx2VK+9OEYY=
+github.com/dchest/siphash v1.2.0/go.mod h1:q+IRvb2gOSrUnYoPqHiyHXS0FOBBOdl6tONBlVnOnt4=
 github.com/decred/base58 v1.0.0 h1:BVi1FQCThIjZ0ehG+I99NJ51o0xcc9A/fDKhmJxY6+w=
 github.com/decred/base58 v1.0.0/go.mod h1:LLY1p5e3g91byL/UO1eiZaYd+uRoVRarybgcoymu9Ks=
 github.com/decred/dcrd v1.2.1-0.20180801202239-0761de129164 h1:wYjHNfbzWlLpFuqlVVNtXRmqrEETEDv7KWEf7psUWnc=
@@ -28,6 +29,7 @@ github.com/decred/dcrd/addrmgr v1.0.2/go.mod h1:gNnmTuf/Xkg8ZX3j5GXbajzPrSdf5bA7
 github.com/decred/dcrd/blockchain v1.0.0/go.mod h1:nNMgOz12wlasmEJDCuSuMWYSnjDdmB4l38GKuQ/Yd+8=
 github.com/decred/dcrd/blockchain v1.0.1 h1:7cviDS26sZ9ZyTFka3aC9C/EChXBslmAvse+4nF5d60=
 github.com/decred/dcrd/blockchain v1.0.1/go.mod h1:R/4XnwNOTj5IP8jQIUzrJ8zhr/7EOk09IMODwBamZoI=
+github.com/decred/dcrd/blockchain v1.0.2/go.mod h1:R/4XnwNOTj5IP8jQIUzrJ8zhr/7EOk09IMODwBamZoI=
 github.com/decred/dcrd/blockchain/stake v1.0.0/go.mod h1:opuzF8UouYyQyRJVF00Rdd7OgWb1WKyy1pyU0QYaxz0=
 github.com/decred/dcrd/blockchain/stake v1.0.1 h1:IYGsNZRyMUsoFtVAUjd7XIccrIQ4YIqDeNzQJCjyS8A=
 github.com/decred/dcrd/blockchain/stake v1.0.1/go.mod h1:hgoGmWMIu2LLApBbcguVpzCEEfX7M2YhuMrQdpohJzc=
@@ -70,6 +72,7 @@ github.com/decred/dcrd/dcrutil v1.1.1/go.mod h1:Jsttr0pEvzPAw+qay1kS1/PsbZYPyhlu
 github.com/decred/dcrd/gcs v1.0.0/go.mod h1:5uHIPAzn4SdGP2/FhVBK2YdAoKmufds3ZI8yNzojUCM=
 github.com/decred/dcrd/gcs v1.0.1 h1:MpJXLskT41+JDaD3RLdlSlF2vlu1sxPpZgiRI7FVTWw=
 github.com/decred/dcrd/gcs v1.0.1/go.mod h1:YwutGzusSdJM79CJtxCo9t7WRCvnkLtWSD19TPo1i9g=
+github.com/decred/dcrd/gcs v1.0.2/go.mod h1:eLCvrzUsWro48TlTyrmFcZAZqnllYFz0vEv5VZtufF4=
 github.com/decred/dcrd/hdkeychain v1.0.0 h1:YZPNvvFYME29nnjLl1c4v+Wusrx4BzUCYdRYmUdRnPI=
 github.com/decred/dcrd/hdkeychain v1.0.0/go.mod h1:ZLzIMYN4rLNQPdy2I5FYtdYevIKwmUVo1Sz9x909kYc=
 github.com/decred/dcrd/hdkeychain v1.1.0 h1:6bFdL672dCmtg/JEzb3Jw0dTRO2jLxcA7BK2J+JaoUM=
