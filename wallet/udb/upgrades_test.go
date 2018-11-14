@@ -17,6 +17,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	_ "github.com/decred/dcrwallet/wallet/v2/drivers/bdb"
 	"github.com/decred/dcrwallet/wallet/v2/walletdb"
@@ -35,6 +36,7 @@ var dbUpgradeTests = [...]struct {
 	{verifyV8Upgrade, "v7.db.gz"},
 	// No upgrade test for V9, it is a fix for V8 and the previous test still applies
 	// TODO: V10 upgrade test
+	{verifyV12Upgrade, "v11.db.gz"},
 }
 
 var pubPass = []byte("public")
@@ -407,6 +409,123 @@ func verifyV8Upgrade(t *testing.T, db walletdb.DB) {
 			t.Errorf("expected 3 txs without expiries set, got %d", minedTxWithoutExpiryCount)
 		}
 		return err
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// verifyV12Upgrade tests whether the upgrade to the v12 database was
+// successful, using the v11 test database.
+//
+// See the v11.db.go file for an explanation of the database layout and test
+// plan.
+func verifyV12Upgrade(t *testing.T, db walletdb.DB) {
+	_, txmgr, _, err := Open(db, &chaincfg.TestNet3Params, pubPass)
+	if err != nil {
+		t.Fatalf("Open after Upgrade failed: %v", err)
+	}
+
+	err = walletdb.View(db, func(tx walletdb.ReadTx) error {
+		txmgrns := tx.ReadBucket(wtxmgrBucketKey)
+		amgrns := tx.ReadBucket(waddrmgrBucketKey)
+
+		if b := txmgrns.NestedReadBucket(bucketTicketCommitments); b == nil {
+			t.Fatalf("upgrade should have created bucketTicketCommitments")
+		}
+
+		if b := txmgrns.NestedReadBucket(bucketTicketCommitmentsUsp); b == nil {
+			t.Fatalf("upgrade should have created bucketTicketCommitmentsUsp")
+		}
+
+		balances, err := txmgr.AccountBalances(txmgrns, amgrns, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectedBalances := []struct {
+			acct             uint32
+			spendable        dcrutil.Amount
+			votingAuth       dcrutil.Amount
+			total            dcrutil.Amount
+			unconfirmed      dcrutil.Amount
+			locked           dcrutil.Amount
+			immatureStakeGen dcrutil.Amount
+			empty            bool
+		}{
+			// unmined ticket
+			{acct: 1, votingAuth: 1100},
+			{acct: 2, locked: 1000, total: 1000},
+
+			// mined ticket
+			{acct: 3, votingAuth: 1100},
+			{acct: 4, locked: 1000, total: 1000},
+
+			// mined ticket + unmined vote
+			{acct: 5, empty: true},
+			{acct: 6, total: 1300, immatureStakeGen: 1300},
+
+			// mined ticket + mined vote
+			{acct: 7, empty: true},
+			{acct: 8, total: 1300, immatureStakeGen: 1300},
+
+			// mined ticket + unmined revocation
+			{acct: 9, empty: true},
+			{acct: 10, total: 700, immatureStakeGen: 700},
+
+			// mined ticket + mined revocation
+			{acct: 11, empty: true},
+			{acct: 12, total: 700, immatureStakeGen: 700},
+		}
+
+		testFunc := func(testIdx int) func(t *testing.T) {
+			return func(t *testing.T) {
+				expected := expectedBalances[testIdx]
+				actual, has := balances[expected.acct]
+
+				if expected.empty {
+					if !has {
+						// this account was actually supposed to be empty
+						return
+					}
+					t.Fatalf("Balance should have been empty")
+				}
+				if !has {
+					t.Fatalf("Database does not have balance for expected account")
+				}
+
+				if actual.Spendable != expected.spendable {
+					t.Errorf("Actual spendable (%d) different than expected (%d)",
+						actual.Spendable, expected.spendable)
+				}
+				if actual.Unconfirmed != expected.unconfirmed {
+					t.Errorf("Actual unconfirmed (%d) different than expected (%d)",
+						actual.Unconfirmed, expected.unconfirmed)
+				}
+				if actual.LockedByTickets != expected.locked {
+					t.Errorf("Actual locked by tickets (%d) different than expected (%d)",
+						actual.LockedByTickets, expected.locked)
+				}
+				if actual.ImmatureStakeGeneration != expected.immatureStakeGen {
+					t.Errorf("Actual immature stake gen (%d) different than expected (%d)",
+						actual.ImmatureStakeGeneration, expected.immatureStakeGen)
+				}
+				if actual.VotingAuthority != expected.votingAuth {
+					t.Errorf("Actual voting authority (%d) different than expected (%d)",
+						actual.VotingAuthority, expected.votingAuth)
+				}
+				if actual.Total != expected.total {
+					t.Errorf("Actual total (%d) different than expected (%d)",
+						actual.Total, expected.total)
+				}
+			}
+		}
+
+		for i, e := range expectedBalances {
+			t.Run(fmt.Sprintf("acct=%d", e.acct), testFunc(i))
+		}
+
+		return nil
 	})
 	if err != nil {
 		t.Error(err)

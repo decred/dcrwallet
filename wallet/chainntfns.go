@@ -605,11 +605,6 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 	// wallet key.  If so, mark the output as a credit and mark
 	// outpoints to watch.
 	for i, output := range rec.MsgTx.TxOut {
-		// Ignore unspendable outputs.
-		if output.Value == 0 {
-			continue
-		}
-
 		class, addrs, _, err := txscript.ExtractPkScriptAddrs(output.Version,
 			output.PkScript, w.chainParams)
 		if err != nil {
@@ -629,6 +624,27 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			}
 		}
 
+		isTicketCommit := rec.TxType == stake.TxTypeSStx && i%2 == 1
+		watchOutPoint := true
+		if isTicketCommit {
+			// For ticket commitments, decode the address stored in the pkscript
+			// and evaluate ownership of that.
+			addr, err := stake.AddrFromSStxPkScrCommitment(output.PkScript,
+				w.chainParams)
+			if err != nil {
+				log.Warnf("failed to decode ticket commitment script of %s:%d",
+					rec.Hash, i)
+				continue
+			}
+			addrs = []dcrutil.Address{addr}
+			watchOutPoint = false
+		} else if (output.Value == 0) {
+			// The only case of outputs with 0 value that we need to handle are
+			// ticket commitments. All other outputs can be ignored.
+			continue
+		}
+
+
 		var tree int8
 		if isStakeType {
 			tree = 1
@@ -644,8 +660,13 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			if err != nil {
 				return nil, errors.E(op, err)
 			}
-			err = w.TxStore.AddCredit(txmgrNs, rec, blockMeta,
-				uint32(i), ma.Internal(), ma.Account())
+			if isTicketCommit {
+				err = w.TxStore.AddTicketCommitment(txmgrNs, rec, uint32(i),
+					ma.Account())
+			} else {
+				err = w.TxStore.AddCredit(txmgrNs, rec, blockMeta,
+					uint32(i), ma.Internal(), ma.Account())
+			}
 			if err != nil {
 				return nil, errors.E(op, err)
 			}
@@ -653,8 +674,10 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			if err != nil {
 				return nil, err
 			}
-			outpoint.Index = uint32(i)
-			watchOutPoints = append(watchOutPoints, outpoint)
+			if watchOutPoint {
+				outpoint.Index = uint32(i)
+				watchOutPoints = append(watchOutPoints, outpoint)
+			}
 			log.Debugf("Marked address %v used", addr)
 		}
 
@@ -712,6 +735,13 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 					}
 				}
 			}
+		}
+	}
+
+	if (rec.TxType == stake.TxTypeSSGen) || (rec.TxType == stake.TxTypeSSRtx) {
+		err = w.TxStore.RedeemTicketCommitments(txmgrNs, rec, blockMeta)
+		if err != nil {
+			log.Errorf("Error redeeming ticket commitments: %v", err)
 		}
 	}
 

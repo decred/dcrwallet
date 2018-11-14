@@ -236,6 +236,10 @@ func (w *Wallet) insertIntoTxMgr(ns walletdb.ReadWriteBucket, msgTx *wire.MsgTx)
 	return rec, nil
 }
 
+// insertCreditsIntoTxMgr inserts the wallet credits from msgTx to the wallet's
+// transaction store. It assumes msgTx is a regular transaction, which will
+// cause balance issues if this is called from a code path where msgtx is not
+// guaranteed to be a regular tx.
 func (w *Wallet) insertCreditsIntoTxMgr(op errors.Op, tx walletdb.ReadWriteTx, msgTx *wire.MsgTx, rec *udb.TxRecord) error {
 	addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 	txmgrNs := tx.ReadWriteBucket(wtxmgrNamespaceKey)

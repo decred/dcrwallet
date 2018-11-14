@@ -145,6 +145,8 @@ var (
 	bucketStakeInvalidatedCredits = []byte("ic")
 	bucketStakeInvalidatedDebits  = []byte("id")
 	bucketCFilters                = []byte("cf")
+	bucketTicketCommitments       = []byte("cmt")
+	bucketTicketCommitmentsUsp    = []byte("cmu")
 )
 
 // Root (namespace) bucket keys
@@ -1951,6 +1953,170 @@ func fetchRawCFilter(ns walletdb.ReadBucket, k []byte) ([]byte, error) {
 		return nil, errors.E(errors.NotExist, errors.Errorf("no cfilter saved for block %v", &hash))
 	}
 	return v, nil
+}
+
+// The ticket commitments bucket stores serialized information about ticket
+// commitment outputs which belong to the wallet.
+//
+// The keys in this bucket use the canonicalOutPoint format (that is,
+// transaction hash and output index) of the corresponding ticket commitment.
+//
+//   [0:32]  Transaction hash (32 bytes)
+//   [32:36] Output index (4 bytes)
+//
+// Values in this bucket are serialized using the following format:
+//
+//   [0:8]   Amount (8 bytes)
+//   [8:12]  Account Index (4 bytes)
+
+func keyTicketCommitment(ticketHash chainhash.Hash, index uint32) []byte {
+	return canonicalOutPoint(&ticketHash, index)
+}
+
+func valueTicketCommitment(amount dcrutil.Amount, account uint32) []byte {
+	v := make([]byte, 12)
+	byteOrder.PutUint64(v, uint64(amount))
+	byteOrder.PutUint32(v[8:], account)
+	return v
+}
+
+func existsRawTicketCommitment(ns walletdb.ReadBucket, k []byte) []byte {
+	return ns.NestedReadBucket(bucketTicketCommitments).Get(k)
+}
+
+func putRawTicketCommitment(ns walletdb.ReadWriteBucket, k, v []byte) error {
+	err := ns.NestedReadWriteBucket(bucketTicketCommitments).Put(k, v)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
+func fetchRawTicketCommitmentAmount(v []byte) (dcrutil.Amount, error) {
+	if len(v) < 8 {
+		return 0, errors.E(errors.IO, errors.Errorf("ticket commitment amount %d", len(v)))
+	}
+	return dcrutil.Amount(byteOrder.Uint64(v)), nil
+}
+
+func fetchRawTicketCommitmentAccount(v []byte) (uint32, error) {
+	if len(v) < 12 {
+		return 0, errors.E(errors.IO, errors.Errorf("ticket commitment acount %d", len(v)))
+	}
+	return byteOrder.Uint32(v[8:]), nil
+}
+
+func deleteRawTicketCommitment(ns walletdb.ReadWriteBucket, k []byte) error {
+	err := ns.NestedReadWriteBucket(bucketTicketCommitments).Delete(k)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
+// The Unspent Ticket Commitment bucket stores serialized information about
+// ticket commitments owned by the wallet that are still outstanding in live
+// tickets. This is meant to work as an index for fast balance calculations and
+// to be used in concert with the ticket commitment bucket.
+//
+// The keys in this bucket use the same keys as the corresponding element in the
+// bucketTicketCommitment.
+//
+// Values in this bucket are serialized using the following format:
+//
+//   [0]  Flags (1 byte)
+//             0x01: UnminedSpent (whether there is an unmined tx redeeming this commitment)
+
+func valueUnspentTicketCommitment(unminedSpent bool) []byte {
+	flags := uint8(0)
+	if unminedSpent {
+		flags |= 0x01
+	}
+
+	v := make([]byte, 1)
+	v[0] = flags
+
+	return v
+}
+
+func putRawUnspentTicketCommitment(ns walletdb.ReadWriteBucket, k, v []byte) error {
+	err := ns.NestedReadWriteBucket(bucketTicketCommitmentsUsp).Put(k, v)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
+func deleteRawUnspentTicketCommitment(ns walletdb.ReadWriteBucket, k []byte) error {
+	err := ns.NestedReadWriteBucket(bucketTicketCommitmentsUsp).Delete(k)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
+type unspentTicketCommitsIterator struct {
+	c  walletdb.ReadCursor
+	ns walletdb.ReadBucket
+	ck []byte
+
+	unminedSpent bool
+	amount       dcrutil.Amount
+	account      uint32
+
+	err error
+}
+
+func makeUnspentTicketCommitsIterator(ns walletdb.ReadBucket) *unspentTicketCommitsIterator {
+	c := ns.NestedReadBucket(bucketTicketCommitmentsUsp).ReadCursor()
+	return &unspentTicketCommitsIterator{c: c, ns: ns}
+}
+
+func (it *unspentTicketCommitsIterator) next() bool {
+	if it.c == nil {
+		return false
+	}
+
+	var v []byte
+
+	if it.ck == nil {
+		it.ck, v = it.c.Seek(nil)
+	} else {
+		it.ck, v = it.c.Next()
+	}
+
+	if it.ck == nil {
+		it.c.Close()
+		it.c = nil
+		return false
+	}
+
+	if len(v) < 1 {
+		it.err = errors.E(errors.IO, errors.Errorf("wrong unspent ticket commitment len %d", len(v)))
+		return false
+	}
+
+	it.unminedSpent = v[0]&0x01 == 0x01
+
+	// Fetch the original commitment amount and account.
+	v = existsRawTicketCommitment(it.ns, it.ck)
+	it.account, it.err = fetchRawTicketCommitmentAccount(v)
+	if it.err != nil {
+		return false
+	}
+	it.amount, it.err = fetchRawTicketCommitmentAmount(v)
+	if it.err != nil {
+		return false
+	}
+
+	return true
+}
+
+func (it *unspentTicketCommitsIterator) close() {
+	if it.c == nil {
+		return
+	}
+	it.c.Close()
 }
 
 // createStore creates the tx store (with the latest db version) in the passed

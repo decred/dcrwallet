@@ -99,10 +99,20 @@ const (
 	// from properly-synced wallets.
 	lastProcessedTxsBlockVersion = 11
 
+	// ticketCommitmentsVersion the twelfth version of the database. It adds
+	// the ticketCommitment bucket to the txmgr namespace. This bucket is meant
+	// to track outstanding ticket commitment outputs for the purposes of
+	// correct balance calculation: it allows non-voting wallets (eg: funding
+	// wallets in solo-voting setups or non-voter participants of split tickets)
+	// to track their proportional locked funds. In standard (single-voter) VSP
+	// setups, it also allows the wallet to discount the pool fee for correct
+	// accounting of total locked funds.
+	ticketCommitmentsVersion = 12
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = lastProcessedTxsBlockVersion
+	DBVersion = ticketCommitmentsVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -119,6 +129,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	hasExpiryFixedVersion - 1:        hasExpiryFixedUpgrade,
 	cfVersion - 1:                    cfUpgrade,
 	lastProcessedTxsBlockVersion - 1: lastProcessedTxsBlockUpgrade,
+	ticketCommitmentsVersion - 1:     ticketCommitmentsUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -798,6 +809,186 @@ func lastProcessedTxsBlockUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []by
 	if err != nil {
 		return errors.E(errors.IO, err)
 	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func ticketCommitmentsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 11
+	const newVersion = 12
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	txmgrBucket := tx.ReadWriteBucket(wtxmgrBucketKey)
+	addrmgrBucket := tx.ReadWriteBucket(waddrmgrBucketKey)
+
+	// Assert that this function is only called on version 11 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "ticketCommitmentsUpgrade inappropriately called")
+	}
+
+	_, err = txmgrBucket.CreateBucket(bucketTicketCommitments)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	_, err = txmgrBucket.CreateBucket(bucketTicketCommitmentsUsp)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	// Helper function to handle the details of a single (mined or unmined)
+	// transaction.
+	handleTxRecCommitments := func(txrec *TxRecord, unmined bool) error {
+		for i, txo := range txrec.MsgTx.TxOut {
+			if txrec.TxType == stake.TxTypeSStx {
+				if i%2 != 1 {
+					// Ignore non ticket commitment outputs.
+					continue
+				}
+
+				// Decode the address stored in the commitment.
+				addr, err := stake.AddrFromSStxPkScrCommitment(txo.PkScript,
+					params)
+				if err != nil {
+					return errors.E(errors.IO, err)
+				}
+
+				acct, err := fetchAddrAccount(addrmgrBucket,
+					normalizeAddress(addr).ScriptAddress())
+				if err != nil && errors.Is(errors.NotExist, err) {
+					// If this address does not have an account associated
+					// with it, it means it's not owned by the wallet.
+					continue
+				} else if err != nil {
+					return errors.E(errors.IO, err)
+				}
+
+				// Decode the amount stored in the commitment.
+				amount, err := stake.AmountFromSStxPkScrCommitment(txo.PkScript)
+				if err != nil {
+					return errors.E(errors.IO, err)
+				}
+
+				log.Debugf("Adding ticket commitment %s:%d (%s) for account %d",
+					txrec.Hash, i, amount, acct)
+
+				// Store both the ticket commitment info and an entry in the
+				// unspent index.
+				k := keyTicketCommitment(txrec.Hash, uint32(i))
+				v := valueTicketCommitment(amount, acct)
+				err = putRawTicketCommitment(txmgrBucket, k, v)
+				if err != nil {
+					return errors.E(errors.IO, err)
+				}
+
+				v = valueUnspentTicketCommitment(false)
+				err = putRawUnspentTicketCommitment(txmgrBucket, k, v)
+				if err != nil {
+					return errors.E(errors.IO, err)
+				}
+			} else if (txrec.TxType == stake.TxTypeSSGen) || (txrec.TxType == stake.TxTypeSSRtx) {
+				// txoIdx is the original output index of the commitment, given
+				// that "i" is an output index on the spender transaction.
+				txoIdx := uint32(i*2 + 1)
+
+				// ticketHashIdx is the index of the input on the spender
+				// transaction (txrec) where the original ticket hash can be
+				// found.
+				ticketHashIdx := uint32(0)
+				if txrec.TxType == stake.TxTypeSSGen {
+					if i < 2 {
+						// Ignore previous block hash and vote bits outputs.
+						continue
+					}
+
+					// To find the original output index on votes, we skip the
+					// first two outputs (previous block and vote bits) and to
+					// find the original input index we skip the first input
+					// (stakebase).
+					txoIdx = uint32((i-2)*2 + 1)
+					ticketHashIdx = 1
+				}
+
+				ticketHash := txrec.MsgTx.TxIn[ticketHashIdx].PreviousOutPoint.Hash
+
+				k := keyTicketCommitment(ticketHash, txoIdx)
+				v := existsRawTicketCommitment(txmgrBucket, k)
+				if v == nil {
+					// Ignore commitments we were not originally tracking.
+					continue
+				}
+
+				if unmined {
+					// An unmined vote/revocation only marks the ticket
+					// commitment as unminedSpent.
+					log.Debugf("Marking ticket commitment %s:%d unmined spent",
+						ticketHash, txoIdx)
+
+					v = valueUnspentTicketCommitment(true)
+					err = putRawUnspentTicketCommitment(txmgrBucket, k, v)
+				} else {
+					// A mined vote/revocation removes the entry from the
+					// unspent ticket commitment index.
+					log.Debugf("Removing unspent ticket commitment %s:%d",
+						ticketHash, txoIdx)
+
+					err = deleteRawUnspentTicketCommitment(txmgrBucket, k)
+				}
+				if err != nil {
+					return errors.E(errors.IO, err)
+				}
+			}
+		}
+
+		return nil
+	}
+
+	// Rescan the database for stake transactions, creating the commitments when
+	// a ticket is found and deleting it when a vote/revocation is found.
+	it := makeReadBlockIterator(txmgrBucket, 0)
+	var txrec TxRecord
+	for it.next() {
+		for _, txh := range it.elem.transactions {
+			_, v := latestTxRecord(txmgrBucket, txh[:])
+			err = readRawTxRecord(&txh, v, &txrec)
+			if err != nil {
+				return errors.E(errors.IO, err)
+			}
+
+			err = handleTxRecCommitments(&txrec, false)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Rescan unmined transactions for tickets and votes.
+	err = txmgrBucket.NestedReadBucket(bucketUnmined).ForEach(func(uk, uv []byte) error {
+		var txHash chainhash.Hash
+		var rec TxRecord
+
+		err := readRawUnminedHash(uk, &txHash)
+		if err != nil {
+			return err
+		}
+
+		err = readRawTxRecord(&txHash, uv, &rec)
+		if err != nil {
+			return err
+		}
+
+		return handleTxRecCommitments(&rec, true)
+	})
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	log.Debug("Ticket commitments db upgrade done")
 
 	// Write the new database version.
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)

@@ -161,6 +161,9 @@ func (s *Store) removeDoubleSpends(ns walletdb.ReadWriteBucket, rec *TxRecord) e
 // can also be used to remove old tickets that do not meet the network difficulty
 // and expired transactions.
 func (s *Store) RemoveUnconfirmed(ns walletdb.ReadWriteBucket, tx *wire.MsgTx, txHash *chainhash.Hash) error {
+
+	stxType := stake.DetermineTxType(tx)
+
 	// For each potential credit for this record, each spender (if any) must
 	// be recursively removed as well.  Once the spenders are removed, the
 	// credit is deleted.
@@ -188,6 +191,36 @@ func (s *Store) RemoveUnconfirmed(ns walletdb.ReadWriteBucket, tx *wire.MsgTx, t
 		if err != nil {
 			return err
 		}
+
+		if (stxType == stake.TxTypeSStx) && (i%2 == 1) {
+			// An unconfirmed ticket leaving the store means we need to delete
+			// the respective commitment and its entry from the unspent
+			// commitments index.
+
+			// This assumes that the key to ticket commitment values in the db are
+			// canonicalOutPoints. If this ever changes, this needs to be changed to
+			// use keyTicketCommitment(...).
+			ktc := k
+			vtc := existsRawTicketCommitment(ns, ktc)
+			if vtc != nil {
+				log.Debugf("Removing unconfirmed ticket commitment %s:%d",
+					txHash, i)
+				err = deleteRawTicketCommitment(ns, ktc)
+				if err != nil {
+					return err
+				}
+				err = deleteRawUnspentTicketCommitment(ns, ktc)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	if (stxType == stake.TxTypeSSGen) || (stxType == stake.TxTypeSSRtx) {
+		// An unconfirmed vote/revocation leaving the store means we need to
+		// unmark the commitments of the respective ticket as unminedSpent.
+		s.replaceTicketCommitmentUnminedSpent(ns, stxType, tx, false)
 	}
 
 	// If this tx spends any previous credits (either mined or unmined), set

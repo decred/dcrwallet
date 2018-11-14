@@ -1445,6 +1445,158 @@ func (s *Store) addCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 	return true, putUnspent(ns, &cred.outPoint, &block.Block)
 }
 
+// AddTicketCommitment adds the given output of a transaction as a ticket
+// commitment originating from a wallet account.
+//
+// The transaction record MUST correspond to a ticket (sstx) transaction, the
+// index MUST be from a commitment output and the account MUST be from a
+// wallet-controlled account, otherwise the database will be put in an undefined
+// state.
+func (s *Store) AddTicketCommitment(ns walletdb.ReadWriteBucket, rec *TxRecord,
+	index, account uint32) error {
+
+	k := keyTicketCommitment(rec.Hash, index)
+	v := existsRawTicketCommitment(ns, k)
+	if v != nil {
+		// If we have already recorded this ticket commitment, there's nothing
+		// else to do. Note that this means unspent ticket commitment entries
+		// are added to the index only once, at the very first time the ticket
+		// commitment is seen.
+		return nil
+	}
+
+	if index >= uint32(len(rec.MsgTx.TxOut)) {
+		return errors.E(errors.Invalid, "index should be of an existing output")
+	}
+
+	if index%2 != 1 {
+		return errors.E(errors.Invalid, "index should be of a ticket commitment")
+	}
+
+	if rec.TxType != stake.TxTypeSStx {
+		return errors.E(errors.Invalid, "transaction record should be of a ticket")
+	}
+
+	txOut := rec.MsgTx.TxOut[index]
+	txOutAmt, err := stake.AmountFromSStxPkScrCommitment(txOut.PkScript)
+	if err != nil {
+		return err
+	}
+
+	log.Debugf("Accounting for ticket commitment %v:%d (%v) from the wallet",
+		rec.Hash, index, txOutAmt)
+
+	v = valueTicketCommitment(txOutAmt, account)
+	err = putRawTicketCommitment(ns, k, v)
+	if err != nil {
+		return err
+	}
+
+	v = valueUnspentTicketCommitment(false)
+	return putRawUnspentTicketCommitment(ns, k, v)
+}
+
+// originalTicketInfo returns the transaction hash and output count for the
+// ticket spent by the given transaction.
+//
+// spenderType MUST be either TxTypeSSGen or TxTypeSSRtx and MUST by the type of
+// the provided spenderTx, otherwise the result is undefined.
+func originalTicketInfo(spenderType stake.TxType, spenderTx *wire.MsgTx) (chainhash.Hash, uint32) {
+	if spenderType == stake.TxTypeSSGen {
+		// Votes have an additional input (stakebase) and two additional outputs
+		// (previous block hash and vote bits) so account for those.
+		return spenderTx.TxIn[1].PreviousOutPoint.Hash,
+			uint32((len(spenderTx.TxOut)-2)*2 + 1)
+	}
+
+	return spenderTx.TxIn[0].PreviousOutPoint.Hash,
+		uint32(len(spenderTx.TxOut)*2 + 1)
+}
+
+// removeUnspentTicketCommitments deletes any outstanding commitments that are
+// controlled by this wallet and have been redeemed by the given transaction.
+//
+// rec MUST be either a vote or revocation transaction, otherwise the results
+// are undefined.
+func (s *Store) removeUnspentTicketCommitments(ns walletdb.ReadWriteBucket,
+	txType stake.TxType, tx *wire.MsgTx) error {
+
+	ticketHash, ticketOutCount := originalTicketInfo(txType, tx)
+	for i := uint32(1); i < ticketOutCount; i += 2 {
+		k := keyTicketCommitment(ticketHash, i)
+		if existsRawTicketCommitment(ns, k) == nil {
+			// This commitment was not tracked by the wallet, so ignore it.
+			continue
+		}
+
+		log.Debugf("Removing unspent ticket commitment %v:%d from the wallet",
+			ticketHash, i)
+
+		err := deleteRawUnspentTicketCommitment(ns, k)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// replaceTicketCommitmentUnminedSpent replaces the unminedSpent flag of all
+// unspent commitments spent by the given transaction to the given value.
+//
+// txType MUST be either a TxTypeSSGen or TxTypeSSRtx and MUST be the type for
+// the corresponding tx parameter, otherwise the result is undefined.
+func (s *Store) replaceTicketCommitmentUnminedSpent(ns walletdb.ReadWriteBucket,
+	txType stake.TxType, tx *wire.MsgTx, value bool) error {
+
+	ticketHash, ticketOutCount := originalTicketInfo(txType, tx)
+
+	// Loop over the indices of possible ticket commitments, checking if they
+	// are controlled by the wallet. If they are, replace the corresponding
+	// unminedSpent flag.
+	for i := uint32(1); i < ticketOutCount; i += 2 {
+		k := keyTicketCommitment(ticketHash, i)
+		if existsRawTicketCommitment(ns, k) == nil {
+			// This commitment was not tracked by the wallet, so ignore it.
+			continue
+		}
+
+		log.Debugf("Marking ticket commitment %v:%d unmined spent as %v",
+			ticketHash, i, value)
+		v := valueUnspentTicketCommitment(value)
+		err := putRawUnspentTicketCommitment(ns, k, v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// RedeemTicketCommitments redeems the commitments of the given vote or
+// revocation transaction by marking the commitments unminedSpent or removing
+// them altogether.
+//
+// rec MUST be either a vote (ssgen) or revocation (ssrtx) or this method fails.
+func (s *Store) RedeemTicketCommitments(ns walletdb.ReadWriteBucket, rec *TxRecord,
+	block *BlockMeta) error {
+
+	if (rec.TxType != stake.TxTypeSSGen) && (rec.TxType != stake.TxTypeSSRtx) {
+		return errors.E(errors.Invalid, "rec must be a vote or revocation tx")
+	}
+
+	if block == nil {
+		// When the tx is unmined, we only mark the commitment as spent by an
+		// unmined tx.
+		return s.replaceTicketCommitmentUnminedSpent(ns, rec.TxType,
+			&rec.MsgTx, true)
+	}
+
+	// When the tx is mined we completely remove the commitment from the unspent
+	// commitments index.
+	return s.removeUnspentTicketCommitments(ns, rec.TxType, &rec.MsgTx)
+}
+
 // AddMultisigOut adds a P2SH multisignature spendable output into the
 // transaction manager. In the event that the output already existed but
 // was not mined, the output is updated so its value reflects the block
@@ -1701,7 +1853,7 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 				return err
 			}
 
-			txType := stake.DetermineTxType(&rec.MsgTx)
+			txType := rec.TxType
 
 			// For each debit recorded for this transaction, mark
 			// the credit it spends as unspent (as long as it still
@@ -1877,6 +2029,12 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 						return err
 					}
 				}
+			}
+
+			// When rolling back votes and revocations, return unspent status
+			// for tracked commitments.
+			if (rec.TxType == stake.TxTypeSSGen) || (rec.TxType == stake.TxTypeSSRtx) {
+				s.replaceTicketCommitmentUnminedSpent(ns, rec.TxType, &rec.MsgTx, true)
 			}
 		}
 
@@ -3245,11 +3403,8 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 		if !ok {
 			ab = &Balances{
 				Account: thisAcct,
-				Total:   utxoAmt,
 			}
 			accountBalances[thisAcct] = ab
-		} else {
-			ab.Total += utxoAmt
 		}
 
 		switch opcode {
@@ -3266,92 +3421,9 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 				ab.ImmatureCoinbaseRewards += utxoAmt
 			}
 
+			ab.Total += utxoAmt
 		case txscript.OP_SSTX:
-			// Locked as stake ticket.
-			txHash := extractRawCreditTxHash(k)
-
-			blockRec, err := fetchBlockRecord(ns, height)
-			if err != nil {
-				c.Close()
-				return nil, err
-			}
-
-			_, txv := existsTxRecord(ns, &txHash, &blockRec.Block)
-			if txv == nil {
-				c.Close()
-				return nil, errors.E(errors.IO, errors.Errorf("missing transaction record for tx %v block %v", txHash, &blockRec.Block.Hash))
-			}
-
-			var rec TxRecord
-			err = readRawTxRecord(&txHash, txv, &rec)
-			if err != nil {
-				c.Close()
-				return nil, err
-			}
-			votingAuthorityAmt := dcrutil.Amount(0)
-			lockedByTicketsAmt := dcrutil.Amount(0)
-
-			// Calculate total input amount which will allow a proper fee calculation.
-			// Fee is needed to be removed from the stake.AmountFromSStxPkScrCommitment
-			// due to the way tickets are constructed and rewards are calculated.
-			totalInputAmount := dcrutil.Amount(0)
-			for i := range rec.MsgTx.TxIn {
-				_, credKey, err := existsDebit(ns,
-					&txHash, uint32(i), &blockRec.Block)
-				if err != nil {
-					c.Close()
-					return nil, err
-				}
-				if credKey == nil {
-					continue
-				}
-				credVal := existsRawCredit(ns, credKey)
-				if credVal == nil {
-					c.Close()
-					return nil, errors.E(errors.IO, "missing credit for unspent output")
-				}
-				inputAmount, err := fetchRawCreditAmount(credVal)
-				if err != nil {
-					c.Close()
-					return nil, err
-				}
-				totalInputAmount += inputAmount
-			}
-			for i, txout := range rec.MsgTx.TxOut {
-				if i%2 != 0 {
-					addr, err := stake.AddrFromSStxPkScrCommitment(txout.PkScript,
-						s.chainParams)
-					if err != nil {
-						c.Close()
-						return nil, err
-					}
-					amt, err := stake.AmountFromSStxPkScrCommitment(txout.PkScript)
-					if err != nil {
-						c.Close()
-						return nil, err
-					}
-					votingAuthorityAmt += amt
-					if _, err := s.acctLookupFunc(addrmgrNs, addr); err != nil {
-						if errors.Is(errors.NotExist, err) {
-							continue
-						}
-						c.Close()
-						return nil, err
-					}
-					lockedByTicketsAmt += amt
-				}
-			}
-			// Calculate the fee here due to the commitamt in the OP_SSTX output script being the total
-			// value in.
-			fee := dcrutil.Amount(0)
-			if totalInputAmount > 0 {
-				fee = totalInputAmount - utxoAmt
-			}
-			if lockedByTicketsAmt > 0 {
-				// Only calculate proper lockedbyticketstamt if > 0
-				ab.LockedByTickets += lockedByTicketsAmt - fee
-			}
-			ab.VotingAuthority += votingAuthorityAmt - fee
+			ab.VotingAuthority += utxoAmt
 		case txscript.OP_SSGEN:
 			fallthrough
 		case txscript.OP_SSRTX:
@@ -3361,11 +3433,13 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 				ab.ImmatureStakeGeneration += utxoAmt
 			}
 
+			ab.Total += utxoAmt
 		case txscript.OP_SSTXCHANGE:
 			if ticketChangeMatured(s.chainParams, height, syncHeight) {
 				ab.Spendable += utxoAmt
 			}
 
+			ab.Total += utxoAmt
 		default:
 			log.Warnf("Unhandled opcode: %v", opcode)
 		}
@@ -3402,13 +3476,9 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 		if !ok {
 			ab = &Balances{
 				Account: thisAcct,
-				Total:   utxoAmt,
 			}
 			accountBalances[thisAcct] = ab
-		} else {
-			ab.Total += utxoAmt
 		}
-
 		// Skip ticket outputs, as only SSGen can spend these.
 		opcode := fetchRawUnminedCreditTagOpcode(v)
 
@@ -3419,95 +3489,48 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 			} else if !fetchRawCreditIsCoinbase(v) {
 				ab.Unconfirmed += utxoAmt
 			}
+			ab.Total += utxoAmt
 		case txscript.OP_SSTX:
-			txHash := extractRawUnminedCreditTxHash(k)
-
-			rawUnmined := existsRawUnmined(ns, txHash)
-			if rawUnmined == nil {
-				continue
-			}
-			serializedTx := extractRawUnminedTx(rawUnmined)
-			var rec TxRecord
-			err = rec.MsgTx.Deserialize(bytes.NewReader(serializedTx))
-			if err != nil {
-				return nil, err
-			}
-			votingAuthorityAmt := dcrutil.Amount(0)
-			lockedByTicketsAmt := dcrutil.Amount(0)
-
-			// Calculate total input amount which will allow a proper fee calculation.
-			// Fee is needed to be removed from the stake.AmountFromSStxPkScrCommitment
-			// due to the way tickets are constructed and rewards are calculated.
-			totalInputAmount := dcrutil.Amount(0)
-			for _, txin := range rec.MsgTx.TxIn {
-				rawUnmined := existsRawUnmined(ns, txin.PreviousOutPoint.Hash[:])
-				if rawUnmined != nil {
-					serializedTx := extractRawUnminedTx(rawUnmined)
-					var tx wire.MsgTx
-					err = tx.Deserialize(bytes.NewReader(serializedTx))
-					if err != nil {
-						return nil, err
-					}
-					if int(txin.PreviousOutPoint.Index) < len(tx.TxOut) {
-						totalInputAmount += dcrutil.Amount(tx.TxOut[txin.PreviousOutPoint.Index].Value)
-					}
-				} else {
-					_, txVal := latestTxRecord(ns, txin.PreviousOutPoint.Hash[:])
-					if txVal == nil {
-						continue
-					}
-					var tx wire.MsgTx
-					err = readRawTxRecordMsgTx(&txin.PreviousOutPoint.Hash, txVal, &tx)
-					if err != nil {
-						return nil, err
-					}
-					if int(txin.PreviousOutPoint.Index) < len(tx.TxOut) {
-						totalInputAmount += dcrutil.Amount(tx.TxOut[txin.PreviousOutPoint.Index].Value)
-					}
-				}
-			}
-			for i, txout := range rec.MsgTx.TxOut {
-				if i%2 != 0 {
-					addr, err := stake.AddrFromSStxPkScrCommitment(txout.PkScript,
-						s.chainParams)
-					if err != nil {
-						return nil, err
-					}
-					amt, err := stake.AmountFromSStxPkScrCommitment(txout.PkScript)
-					if err != nil {
-						return nil, err
-					}
-					votingAuthorityAmt += amt
-					if _, err := s.acctLookupFunc(addrmgrNs, addr); err != nil {
-						if errors.Is(errors.NotExist, err) {
-							continue
-						}
-						return nil, err
-					}
-					lockedByTicketsAmt += amt
-				}
-			}
-			// Calculate the fee here due to the commitamt in the OP_SSTX output script being the total
-			// value in.
-			fee := dcrutil.Amount(0)
-			if totalInputAmount > 0 {
-				fee = totalInputAmount - utxoAmt
-			}
-			if lockedByTicketsAmt > 0 {
-				// Only calculate proper lockedbyticketstamt if > 0
-				ab.LockedByTickets += lockedByTicketsAmt - fee
-			}
-			ab.VotingAuthority += votingAuthorityAmt - fee
+			ab.VotingAuthority += utxoAmt
 		case txscript.OP_SSGEN:
 			fallthrough
 		case txscript.OP_SSRTX:
 			ab.ImmatureStakeGeneration += utxoAmt
+			ab.Total += utxoAmt
 		case txscript.OP_SSTXCHANGE:
+			ab.Total += utxoAmt
 			continue
 		default:
 			log.Warnf("Unhandled unconfirmed opcode %v: %v", opcode, v)
 		}
 	}
+
+	// Account for ticket commitments by iterating over the unspent commitments
+	// index.
+	it := makeUnspentTicketCommitsIterator(ns)
+	for it.next() {
+		if it.err != nil {
+			return nil, it.err
+		}
+
+		if it.unminedSpent {
+			// Some unmined tx is redeeming this commitment, so ignore it for
+			// balance purposes.
+			continue
+		}
+
+		ab, ok := accountBalances[it.account]
+		if !ok {
+			ab = &Balances{
+				Account: it.account,
+			}
+			accountBalances[it.account] = ab
+		}
+
+		ab.LockedByTickets += it.amount
+		ab.Total += it.amount
+	}
+	it.close()
 
 	return accountBalances, nil
 }
