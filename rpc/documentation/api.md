@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 5.7.x
+Version: 5.8.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -605,6 +605,7 @@ The service provides the following methods:
 - [`ConfirmationNotifications`](#confirmationnotifications)
 - [`CommittedTickets`](#committedtickets)
 - [`BestBlock`](#bestblock)
+- [`SweepAccount`](#sweepaccount)
 
 #### `Ping`
 
@@ -2089,6 +2090,30 @@ the main chain.
 - `bytes hash`: The hash of the best block.
 
 - `uint32 height`: The height of the best block.
+___
+
+#### `SweepAccount`
+
+The `SweepAccount` method Moves as much value as possible in a transaction from
+an account per the request parameters.
+
+**Request:** `SweepAccountRequest`
+- `string source_account`:  The account to be swept.
+
+- `string destination_address`: The destination address to pay to.
+
+- `uint32 required_confirmations`: The minimum utxo confirmation requirement.
+
+- `double fee_per_kb`: The minimum relay fee policy (optional).
+
+**Response:** `SweepAccountResponse`
+- `bytes unsigned_transaction`: The unsigned transaction bytes.
+
+- `int64 total_previous_output_amount`: The total transaction input amount.
+
+- `int64 total_output_amount`: The total transaction output amount.
+
+- `uint32 estimated_signed_size`: The estimated size of the transaction when signed.
 ___
 
 #### `TransactionNotifications`

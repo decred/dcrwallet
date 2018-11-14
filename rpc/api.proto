@@ -61,6 +61,7 @@ service WalletService {
 	rpc SignMessages (SignMessagesRequest) returns (SignMessagesResponse);
 	rpc ValidateAddress (ValidateAddressRequest) returns (ValidateAddressResponse);
 	rpc CommittedTickets (CommittedTicketsRequest) returns (CommittedTicketsResponse);
+	rpc SweepAccount (SweepAccountRequest) returns (SweepAccountResponse);
 }
 
 service WalletLoaderService {
@@ -1055,4 +1056,18 @@ message BestBlockRequest {
 message BestBlockResponse {
 	uint32 height = 1;
 	bytes hash = 2;
+}
+
+message SweepAccountRequest {
+	string source_account = 1;
+	string destination_address = 2;
+	uint32 required_confirmations = 3;
+	double fee_per_kb = 4;
+}
+
+message SweepAccountResponse {
+	bytes unsigned_transaction = 1;
+	int64 total_previous_output_amount = 2;
+	int64 total_output_amount = 3;
+	uint32 estimated_signed_size = 4;
 }

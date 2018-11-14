@@ -727,6 +727,92 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 	}, nil
 }
 
+// scriptChangeSource is a ChangeSource which is used to
+// receive all correlated previous input value.
+type scriptChangeSource struct {
+	version uint16
+	script  []byte
+}
+
+func (src *scriptChangeSource) Script() ([]byte, uint16, error) {
+	return src.script, src.version, nil
+}
+
+func (src *scriptChangeSource) ScriptSize() int {
+	return len(src.script)
+}
+
+func makeScriptChangeSource(address string, version uint16) (*scriptChangeSource, error) {
+	destinationAddress, err := dcrutil.DecodeAddress(address)
+	if err != nil {
+		return nil, err
+	}
+
+	script, err := txscript.PayToAddrScript(destinationAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	source := &scriptChangeSource{
+		version: version,
+		script:  script,
+	}
+
+	return source, nil
+}
+
+func (s *walletServer) SweepAccount(ctx context.Context, req *pb.SweepAccountRequest) (*pb.SweepAccountResponse, error) {
+	feePerKb := s.wallet.RelayFee()
+
+	// Use provided fee per Kb if specified.
+	if req.FeePerKb < 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "%s",
+			"fee per kb argument cannot be negative")
+	}
+
+	if req.FeePerKb > 0 {
+		var err error
+		feePerKb, err = dcrutil.NewAmount(req.FeePerKb)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
+	}
+
+	account, err := s.wallet.AccountNumber(req.SourceAccount)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	changeSource, err := makeScriptChangeSource(req.DestinationAddress,
+		txscript.DefaultScriptVersion)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	tx, err := s.wallet.NewUnsignedTransaction(nil, feePerKb, account,
+		int32(req.RequiredConfirmations), wallet.OutputSelectionAlgorithmAll,
+		changeSource)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	var txBuf bytes.Buffer
+	txBuf.Grow(tx.Tx.SerializeSize())
+	err = tx.Tx.Serialize(&txBuf)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	res := &pb.SweepAccountResponse{
+		UnsignedTransaction:       txBuf.Bytes(),
+		TotalPreviousOutputAmount: int64(tx.TotalInput),
+		TotalOutputAmount:         int64(h.SumOutputValues(tx.Tx.TxOut)),
+		EstimatedSignedSize:       uint32(tx.EstimatedSignedSerializeSize),
+	}
+
+	return res, nil
+}
+
 func (s *walletServer) BlockInfo(ctx context.Context, req *pb.BlockInfoRequest) (*pb.BlockInfoResponse, error) {
 	var blockID *wallet.BlockIdentifier
 	switch {

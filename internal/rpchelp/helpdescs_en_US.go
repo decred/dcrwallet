@@ -504,11 +504,11 @@ var helpDescsEnUS = map[string]string{
 	"sweepaccount-requiredconfirmations": "The minimum utxo confirmation requirement (optional).",
 	"sweepaccount-feeperkb":              "The minimum relay fee policy (optional).",
 
-	// SignRawTransactionsResults help.
-	"sweepaccountresult-unsignedtransaction":       "The hex encoded string of the unsigned transaction",
+	// SweepAccountResult help.
+	"sweepaccountresult-unsignedtransaction":       "The hex encoded string of the unsigned transaction.",
 	"sweepaccountresult-totalpreviousoutputamount": "The total transaction input amount.",
 	"sweepaccountresult-totaloutputamount":         "The total transaction output amount.",
-	"sweepaccountresult-estimatedsignedsize":       "The estimated size of the transaction when signed",
+	"sweepaccountresult-estimatedsignedsize":       "The estimated size of the transaction when signed.",
 
 	// ValidateAddressCmd help.
 	"validateaddress--synopsis": "Verify that an address is valid.\n" +
