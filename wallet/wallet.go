@@ -1113,6 +1113,7 @@ type (
 		account uint32
 		outputs []*wire.TxOut
 		minconf int32
+		recipientPaysFee bool
 		resp    chan createTxResponse
 	}
 	createMultisigTxRequest struct {
@@ -1190,10 +1191,12 @@ out:
 				txr.resp <- createTxResponse{nil, err}
 				continue
 			}
-			tx, err := w.txToOutputs("wallet.SendOutputs", txr.outputs,
-				txr.account, txr.minconf, true)
+
+			tx, errOut := w.txToOutputs("wallet.SendOutputs", txr.outputs,
+				txr.account, txr.minconf, true, txr.recipientPaysFee)
+
 			heldUnlock.release()
-			txr.resp <- createTxResponse{tx, err}
+			txr.resp <- createTxResponse{tx, errOut}
 
 		case txr := <-w.createMultisigTxRequests:
 			heldUnlock, err := w.holdUnlock()
@@ -3873,7 +3876,7 @@ func (w *Wallet) TotalReceivedForAddr(addr dcrutil.Address, minConf int32) (dcru
 
 // SendOutputs creates and sends payment transactions. It returns the
 // transaction hash upon success
-func (w *Wallet) SendOutputs(outputs []*wire.TxOut, account uint32, minconf int32) (*chainhash.Hash, error) {
+func (w *Wallet) SendOutputs(outputs []*wire.TxOut, account uint32, minconf int32, recipientPaysFee bool) (*chainhash.Hash, error) {
 	const op errors.Op = "wallet.SendOutputs"
 	relayFee := w.RelayFee()
 	for _, output := range outputs {
@@ -3888,6 +3891,7 @@ func (w *Wallet) SendOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 		outputs: outputs,
 		minconf: minconf,
 		resp:    make(chan createTxResponse),
+		recipientPaysFee: recipientPaysFee,
 	}
 	w.createTxRequests <- req
 	resp := <-req.resp

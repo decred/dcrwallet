@@ -2186,12 +2186,13 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 // sendPairs creates and sends payment transactions.
 // It returns the transaction hash in string format upon success
 // All errors are returned in dcrjson.RPCError format
-func sendPairs(w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32) (string, error) {
+func sendPairs(w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32,
+	recipientPaysFee bool) (string, error) {
 	outputs, err := makeOutputs(amounts, w.ChainParams())
 	if err != nil {
 		return "", err
 	}
-	txSha, err := w.SendOutputs(outputs, account, minconf)
+	txSha, err := w.SendOutputs(outputs, account, minconf, recipientPaysFee)
 	if err != nil {
 		if errors.Is(errors.Locked, err) {
 			return "", errWalletUnlockNeeded
@@ -2533,7 +2534,7 @@ func sendFrom(s *Server, icmd interface{}) (interface{}, error) {
 		cmd.ToAddress: amt,
 	}
 
-	return sendPairs(w, pairs, account, minConf)
+	return sendPairs(w, pairs, account, minConf, false)
 }
 
 // sendMany handles a sendmany RPC request by creating a new transaction
@@ -2575,7 +2576,7 @@ func sendMany(s *Server, icmd interface{}) (interface{}, error) {
 		pairs[k] = amt
 	}
 
-	return sendPairs(w, pairs, account, minConf)
+	return sendPairs(w, pairs, account, minConf, false)
 }
 
 // sendToAddress handles a sendtoaddress RPC request by creating a new
@@ -2611,8 +2612,11 @@ func sendToAddress(s *Server, icmd interface{}) (interface{}, error) {
 		cmd.Address: amt,
 	}
 
+	// replace hardcoded default value with dynamic subtractfeefromamount flag
+	recipientPaysFee := false
+
 	// sendtoaddress always spends from the default account, this matches bitcoind
-	return sendPairs(w, pairs, udb.DefaultAccountNum, 1)
+	return sendPairs(w, pairs, udb.DefaultAccountNum, 1, recipientPaysFee)
 }
 
 // sendToMultiSig handles a sendtomultisig RPC request by creating a new
