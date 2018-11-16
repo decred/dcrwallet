@@ -1192,11 +1192,11 @@ out:
 				continue
 			}
 
-			tx, errOut := w.txToOutputs("wallet.SendOutputs", txr.outputs,
+			tx, err := w.txToOutputs("wallet.SendOutputs", txr.outputs,
 				txr.account, txr.minconf, true, txr.recipientPaysFee)
 
 			heldUnlock.release()
-			txr.resp <- createTxResponse{tx, errOut}
+			txr.resp <- createTxResponse{tx, err}
 
 		case txr := <-w.createMultisigTxRequests:
 			heldUnlock, err := w.holdUnlock()
