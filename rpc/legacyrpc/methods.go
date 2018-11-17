@@ -2612,11 +2612,8 @@ func sendToAddress(s *Server, icmd interface{}) (interface{}, error) {
 		cmd.Address: amt,
 	}
 
-	// replace hardcoded default value with dynamic subtractfeefromamount flag
-	recipientPaysFee := false
-
 	// sendtoaddress always spends from the default account, this matches bitcoind
-	return sendPairs(w, pairs, udb.DefaultAccountNum, 1, recipientPaysFee)
+	return sendPairs(w, pairs, udb.DefaultAccountNum, 1, cmd.SubtractFeeFromAmount)
 }
 
 // sendToMultiSig handles a sendtomultisig RPC request by creating a new
