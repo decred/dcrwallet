@@ -289,7 +289,7 @@ func (w *Wallet) txToOutputs(op errors.Op, outputs []*wire.TxOut, account uint32
 	}
 
 	return w.txToOutputsInternal(op, outputs, account, minconf, n,
-		randomizeChangeIdx, w.RelayFee(), false)
+		randomizeChangeIdx, w.RelayFee(), recipientPaysFee)
 }
 
 // txToOutputsInternal creates a signed transaction which includes each output
@@ -322,12 +322,11 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 			wallet:  w,
 		}
 
-
 		var err error
 
 		if recipientPaysFee {
 			if len(outputs) != 1 {
-				return errors.E(op, "Expected only one provided output for " +
+				return errors.E(op, "Expected exactly one output for "+
 					"transaction where recipient pays the fee")
 			}
 
