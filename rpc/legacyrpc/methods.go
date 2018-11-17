@@ -2614,8 +2614,13 @@ func sendToAddress(s *Server, icmd interface{}) (interface{}, error) {
 		cmd.Address: amt,
 	}
 
+	recipientPaysFee := false
+	if cmd.SubtractFeeFromAmount != nil {
+		recipientPaysFee = *cmd.SubtractFeeFromAmount
+	}
+
 	// sendtoaddress always spends from the default account, this matches bitcoind
-	return sendPairs(w, pairs, udb.DefaultAccountNum, 1, cmd.SubtractFeeFromAmount)
+	return sendPairs(w, pairs, udb.DefaultAccountNum, 1, recipientPaysFee)
 }
 
 // sendToMultiSig handles a sendtomultisig RPC request by creating a new
