@@ -158,9 +158,10 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 // non-change output.  An appropriate transaction fee is included based on the
 // transaction size, and is subtracted from the provided `output` parameter.
 //
-// Behavior mirrors a call to `NewUnsignedTransaction` with the only differences
-// being that this method takes a single `output`, and all fees are subtracted from
-// the output rather than from change.
+// The behavior of this method mirrors a call to `NewUnsignedTransaction` with the
+// only differences being that:
+// * this method takes a single `output` and
+// * all fees are subtracted from the provided output rather than from change.
 func NewUnsignedTransactionMinusFee(output *wire.TxOut, relayFeePerKb dcrutil.Amount,
 	fetchInputs InputSource, fetchChange ChangeSource) (*AuthoredTx, error) {
 
