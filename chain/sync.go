@@ -314,7 +314,17 @@ func (s *RPCSyncer) handleNotifications(ctx context.Context) error {
 
 					relevantTxs = nil
 				}
-
+				// Revoke expired tickets after new block connected
+				if s.wallet.VotingEnabled() {
+					nb, err := s.wallet.NetworkBackend()
+					if err != nil {
+						break
+					}
+					err = s.wallet.RevokeExpiredTickets(ctx, nb)
+					if err != nil {
+						break
+					}
+				}
 			case blockDisconnected, reorganization:
 				continue // These notifications are ignored
 

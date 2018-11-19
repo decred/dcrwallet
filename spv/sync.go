@@ -954,6 +954,17 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 		}
 		log.Infof("Received sidechain or orphan block %v, height %v", n.Hash, n.Header.Height)
 	}
+	// Revoke expired tickets after new block connected
+	if s.wallet.VotingEnabled() {
+		nb, err := s.wallet.NetworkBackend()
+		if err != nil {
+			return err
+		}
+		err = s.wallet.RevokeExpiredTickets(ctx, nb)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
