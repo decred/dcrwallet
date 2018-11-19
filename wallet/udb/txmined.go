@@ -996,7 +996,8 @@ func (s *Store) moveMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Read
 
 		credVal := existsRawCredit(ns, credKey)
 		if credVal == nil {
-			return errors.E(errors.IO, "missing credit value")
+			return errors.E(errors.IO, errors.Errorf("missing credit "+
+				"%v, key %x, spent by %v", &input.PreviousOutPoint, credKey, &rec.Hash))
 		}
 		creditOpCode := fetchRawCreditTagOpCode(credVal)
 
@@ -1739,7 +1740,8 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 					credVal = removedCredits[string(credKey)]
 				}
 				if credVal == nil {
-					return errors.E(errors.IO, "missing credit value")
+					return errors.E(errors.IO, errors.Errorf("missing credit "+
+						"%v, key %x, spent by %v", prevOut, credKey, &rec.Hash))
 				}
 				creditOpCode := fetchRawCreditTagOpCode(credVal)
 
