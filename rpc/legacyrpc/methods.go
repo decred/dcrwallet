@@ -1153,13 +1153,13 @@ func getMultisigOutInfo(s *Server, icmd interface{}) (interface{}, error) {
 	}
 
 	// Get the list of pubkeys required to sign.
-	var pubkeys []string
 	_, pubkeyAddrs, _, err := txscript.ExtractPkScriptAddrs(
 		txscript.DefaultScriptVersion, p2shOutput.RedeemScript,
 		w.ChainParams())
 	if err != nil {
 		return nil, err
 	}
+	pubkeys := make([]string, 0, len(pubkeyAddrs))
 	for _, pka := range pubkeyAddrs {
 		pubkeys = append(pubkeys, hex.EncodeToString(pka.ScriptAddress()))
 	}
@@ -2428,6 +2428,8 @@ func stakePoolUserInfo(s *Server, icmd interface{}) (interface{}, error) {
 	}
 
 	resp := new(dcrjson.StakePoolUserInfoResult)
+	resp.Tickets = make([]dcrjson.PoolUserTicket, 0, len(spui.Tickets))
+	resp.InvalidTickets = make([]string, 0, len(spui.InvalidTickets))
 	for _, ticket := range spui.Tickets {
 		var ticketRes dcrjson.PoolUserTicket
 

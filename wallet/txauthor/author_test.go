@@ -42,7 +42,7 @@ func makeInputSource(unspents []*wire.TxOut) InputSource {
 	// Return outputs in order.
 	currentTotal := dcrutil.Amount(0)
 	currentInputs := make([]*wire.TxIn, 0, len(unspents))
-	var redeemScriptSizes []int
+	redeemScriptSizes := make([]int, 0, len(unspents))
 	f := func(target dcrutil.Amount) (*InputDetail, error) {
 		for currentTotal < target && len(unspents) != 0 {
 			u := unspents[0]

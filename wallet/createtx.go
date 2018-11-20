@@ -481,9 +481,9 @@ func (w *Wallet) txToMultisigInternal(op errors.Op, dbtx walletdb.ReadWriteTx, a
 	}
 
 	msgtx := wire.NewMsgTx()
-	scriptSizes := []int{}
+	scriptSizes := make([]int, 0, len(eligible))
 	// Fill out inputs.
-	var forSigning []udb.Credit
+	forSigning := make([]udb.Credit, 0, len(eligible))
 	totalInput := dcrutil.Amount(0)
 	for _, e := range eligible {
 		txIn := wire.NewTxIn(&e.OutPoint, int64(e.Amount), nil)
@@ -673,9 +673,9 @@ func (w *Wallet) compressWalletInternal(op errors.Op, dbtx walletdb.ReadWriteTx,
 
 	// Add the txins using all the eligible outputs.
 	totalAdded := dcrutil.Amount(0)
-	scriptSizes := []int{}
+	scriptSizes := make([]int, 0, maxNumIns)
+	forSigning := make([]udb.Credit, 0, maxNumIns)
 	count := 0
-	var forSigning []udb.Credit
 	for _, e := range eligible {
 		if count >= maxNumIns {
 			break
@@ -968,8 +968,6 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		ticketFeeIncrement = w.TicketFeeIncrement()
 	}
 
-	inSizes := make([]int, 0)
-	outSizes := make([]int, 0)
 	if poolAddress == nil {
 		// A solo ticket has:
 		//   - a single input redeeming a P2PKH for the worst case size
@@ -979,9 +977,9 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		//
 		//   NB: The wallet currently only supports P2PKH change addresses.
 		//   The network supports both P2PKH and P2SH change addresses however.
-		inSizes = append(inSizes, txsizes.RedeemP2PKHSigScriptSize)
-		outSizes = append(outSizes, stakeSubmissionPkScriptSize,
-			txsizes.TicketCommitmentScriptSize, txsizes.P2PKHPkScriptSize+1)
+		inSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
+		outSizes := []int{stakeSubmissionPkScriptSize,
+			txsizes.TicketCommitmentScriptSize, txsizes.P2PKHPkScriptSize + 1}
 		estSize = txsizes.EstimateSerializeSizeFromScriptSizes(inSizes,
 			outSizes, 0)
 	} else {
@@ -993,11 +991,11 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		//
 		//   NB: The wallet currently only supports P2PKH change addresses.
 		//   The network supports both P2PKH and P2SH change addresses however.
-		inSizes = append(inSizes, txsizes.RedeemP2PKHSigScriptSize,
-			txsizes.RedeemP2PKHSigScriptSize)
-		outSizes = append(outSizes, stakeSubmissionPkScriptSize,
+		inSizes := []int{txsizes.RedeemP2PKHSigScriptSize,
+			txsizes.RedeemP2PKHSigScriptSize}
+		outSizes := []int{stakeSubmissionPkScriptSize,
 			txsizes.TicketCommitmentScriptSize, txsizes.TicketCommitmentScriptSize,
-			txsizes.P2PKHPkScriptSize+1, txsizes.P2PKHPkScriptSize+1)
+			txsizes.P2PKHPkScriptSize + 1, txsizes.P2PKHPkScriptSize + 1}
 		estSize = txsizes.EstimateSerializeSizeFromScriptSizes(inSizes,
 			outSizes, 0)
 	}
