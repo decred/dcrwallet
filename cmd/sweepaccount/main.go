@@ -8,17 +8,17 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	dcrrpcclient "github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/internal/cfgutil"
-	"github.com/decred/dcrwallet/netparams"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/jessevdk/go-flags"
@@ -42,19 +42,19 @@ func errContext(err error, context string) error {
 
 // Flags.
 var opts = struct {
-	TestNet               bool                `long:"testnet" description:"Use the test decred network"`
-	SimNet                bool                `long:"simnet" description:"Use the simulation decred network"`
-	RPCConnect            string              `short:"c" long:"connect" description:"Hostname[:port] of wallet RPC server"`
-	RPCUsername           string              `short:"u" long:"rpcuser" description:"Wallet RPC username"`
-	RPCPassword           string              `short:"P" long:"rpcpass" description:"Wallet RPC password"`
-	RPCCertificateFile    string              `long:"cafile" description:"Wallet RPC TLS certificate"`
-	FeeRate               *cfgutil.AmountFlag `long:"feerate" description:"Transaction fee per kilobyte"`
-	SourceAccount         string              `long:"sourceacct" description:"Account to sweep outputs from"`
-	SourceAddress         string              `long:"sourceaddr" description:"Address to sweep outputs from"`
-	DestinationAccount    string              `long:"destacct" description:"Account to send sweeped outputs to"`
-	DestinationAddress    string              `long:"destaddr" description:"Address to send sweeped outputs to"`
-	RequiredConfirmations int64               `long:"minconf" description:"Required confirmations to include an output"`
-	DryRun                bool                `long:"dryrun" description:"Do not actually send any transactions but output what would have happened"`
+	TestNet               bool    `long:"testnet" description:"Use the test decred network"`
+	SimNet                bool    `long:"simnet" description:"Use the simulation decred network"`
+	RPCConnect            string  `short:"c" long:"connect" description:"Hostname[:port] of wallet RPC server"`
+	RPCUsername           string  `short:"u" long:"rpcuser" description:"Wallet RPC username"`
+	RPCPassword           string  `short:"P" long:"rpcpass" description:"Wallet RPC password"`
+	RPCCertificateFile    string  `long:"cafile" description:"Wallet RPC TLS certificate"`
+	FeeRate               float64 `long:"feerate" description:"Transaction fee per kilobyte"`
+	SourceAccount         string  `long:"sourceacct" description:"Account to sweep outputs from"`
+	SourceAddress         string  `long:"sourceaddr" description:"Address to sweep outputs from"`
+	DestinationAccount    string  `long:"destacct" description:"Account to send sweeped outputs to"`
+	DestinationAddress    string  `long:"destaddr" description:"Address to send sweeped outputs to"`
+	RequiredConfirmations int64   `long:"minconf" description:"Required confirmations to include an output"`
+	DryRun                bool    `long:"dryrun" description:"Do not actually send any transactions but output what would have happened"`
 }{
 	TestNet:               false,
 	SimNet:                false,
@@ -62,7 +62,7 @@ var opts = struct {
 	RPCUsername:           "",
 	RPCPassword:           "",
 	RPCCertificateFile:    filepath.Join(walletDataDirectory, "rpc.cert"),
-	FeeRate:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
+	FeeRate:               txrules.DefaultRelayFeePerKb.ToCoin(),
 	SourceAccount:         "",
 	SourceAddress:         "",
 	DestinationAccount:    "",
@@ -71,14 +71,44 @@ var opts = struct {
 	DryRun:                false,
 }
 
+// normalizeAddress returns the normalized form of the address, adding a default
+// port if necessary.  An error is returned if the address, even without a port,
+// is not valid.
+func normalizeAddress(addr string, defaultPort string) (hostport string, err error) {
+	// If the first SplitHostPort errors because of a missing port and not
+	// for an invalid host, add the port.  If the second SplitHostPort
+	// fails, then a port is not missing and the original error should be
+	// returned.
+	host, port, origErr := net.SplitHostPort(addr)
+	if origErr == nil {
+		return net.JoinHostPort(host, port), nil
+	}
+	addr = net.JoinHostPort(addr, defaultPort)
+	_, _, err = net.SplitHostPort(addr)
+	if err != nil {
+		return "", origErr
+	}
+	return addr, nil
+}
+
+func walletPort(net *chaincfg.Params) string {
+	switch net.Net {
+	case wire.MainNet:
+		return "9110"
+	case wire.TestNet3:
+		return "19110"
+	case wire.SimNet:
+		return "19557"
+	default:
+		return ""
+	}
+}
+
 // Parse and validate flags.
 func init() {
 	// Unset localhost defaults if certificate file can not be found.
-	certFileExists, err := cfgutil.FileExists(opts.RPCCertificateFile)
+	_, err := os.Stat(opts.RPCCertificateFile)
 	if err != nil {
-		fatalf("%v", err)
-	}
-	if !certFileExists {
 		opts.RPCConnect = ""
 		opts.RPCCertificateFile = ""
 	}
@@ -91,17 +121,17 @@ func init() {
 	if opts.TestNet && opts.SimNet {
 		fatalf("Multiple decred networks may not be used simultaneously")
 	}
-	var activeNet = &netparams.MainNetParams
+	var activeNet = &chaincfg.MainNetParams
 	if opts.TestNet {
-		activeNet = &netparams.TestNet3Params
+		activeNet = &chaincfg.TestNet3Params
 	} else if opts.SimNet {
-		activeNet = &netparams.SimNetParams
+		activeNet = &chaincfg.SimNetParams
 	}
 
 	if opts.RPCConnect == "" {
 		fatalf("RPC hostname[:port] is required")
 	}
-	rpcConnect, err := cfgutil.NormalizeAddress(opts.RPCConnect, activeNet.JSONRPCServerPort)
+	rpcConnect, err := normalizeAddress(opts.RPCConnect, walletPort(activeNet))
 	if err != nil {
 		fatalf("Invalid RPC network address `%v`: %v", opts.RPCConnect, err)
 	}
@@ -111,19 +141,16 @@ func init() {
 		fatalf("RPC username is required")
 	}
 
-	certFileExists, err = cfgutil.FileExists(opts.RPCCertificateFile)
+	_, err = os.Stat(opts.RPCCertificateFile)
 	if err != nil {
-		fatalf("%v", err)
-	}
-	if !certFileExists {
 		fatalf("RPC certificate file `%s` not found", opts.RPCCertificateFile)
 	}
 
-	if opts.FeeRate.Amount > 1e8 {
-		fatalf("Fee rate `%v/kB` is exceptionally high", opts.FeeRate.Amount)
+	if opts.FeeRate > 1 {
+		fatalf("Fee rate `%v/kB` is exceptionally high", opts.FeeRate)
 	}
-	if opts.FeeRate.Amount < 1e2 {
-		fatalf("Fee rate `%v/kB` is exceptionally low", opts.FeeRate.Amount)
+	if opts.FeeRate < 1e-6 {
+		fatalf("Fee rate `%v/kB` is exceptionally low", opts.FeeRate)
 	}
 	if opts.SourceAccount == "" && opts.SourceAddress == "" {
 		fatalf("A source is required")
@@ -336,6 +363,10 @@ func sweep() error {
 		os.Stderr.Write(newlineBytes)
 		numErrors++
 	}
+	feeRate, err := dcrutil.NewAmount(opts.FeeRate)
+	if err != nil {
+		return errContext(err, "invalid fee rate")
+	}
 	for _, previousOutputs := range sourceOutputs {
 		inputSource := makeInputSource(previousOutputs)
 
@@ -349,7 +380,7 @@ func sweep() error {
 				accountName: opts.DestinationAccount,
 				rpcClient:   rpcClient,
 			}
-			atx, err = txauthor.NewUnsignedTransaction(nil, opts.FeeRate.Amount,
+			atx, err = txauthor.NewUnsignedTransaction(nil, feeRate,
 				inputSource, destinationSourceToAccount)
 		}
 
@@ -357,7 +388,7 @@ func sweep() error {
 			destinationSourceToAddress = &destinationScriptSourceToAddress{
 				address: opts.DestinationAddress,
 			}
-			atx, err = txauthor.NewUnsignedTransaction(nil, opts.FeeRate.Amount,
+			atx, err = txauthor.NewUnsignedTransaction(nil, feeRate,
 				inputSource, destinationSourceToAddress)
 		}
 
