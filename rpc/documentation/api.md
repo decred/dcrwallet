@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 5.8.x
+Version: 5.9.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -13,7 +13,7 @@ project's `.proto` files.  That is, CamelCase is used for services, methods, and
 messages, lower_snake_case for message fields, and SCREAMING_SNAKE_CASE for
 enums.
 
-**Note:** The entierty of the RPC API is currently considered unstable and may
+**Note:** The entirety of the RPC API is currently considered unstable and may
 change anytime.  Stability will be gradually added based on correctness,
 perceived usefulness and ease-of-use over alternatives, and user feedback.
 
@@ -2107,13 +2107,17 @@ an account per the request parameters.
 - `double fee_per_kb`: The minimum relay fee policy (optional).
 
 **Response:** `SweepAccountResponse`
-- `bytes unsigned_transaction`: The unsigned transaction bytes.
+- `repeated SweepTransaction transactions`: A collection of transactions sweeping the provided account.
 
-- `int64 total_previous_output_amount`: The total transaction input amount.
+  **Nested message:** `SweepTransaction`
 
-- `int64 total_output_amount`: The total transaction output amount.
+  - `bytes unsigned_transaction`: The unsigned transaction bytes.
 
-- `uint32 estimated_signed_size`: The estimated size of the transaction when signed.
+  - `int64 total_previous_output_amount`: The total transaction input amount.
+
+  - `int64 total_output_amount`: The total transaction output amount.
+
+  - `uint32 estimated_signed_size`: The estimated size of the transaction when signed.
 ___
 
 #### `TransactionNotifications`

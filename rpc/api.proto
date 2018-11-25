@@ -1066,8 +1066,11 @@ message SweepAccountRequest {
 }
 
 message SweepAccountResponse {
-	bytes unsigned_transaction = 1;
-	int64 total_previous_output_amount = 2;
-	int64 total_output_amount = 3;
-	uint32 estimated_signed_size = 4;
+	message SweepTransaction {
+		bytes unsigned_transaction = 1;
+		int64 total_previous_output_amount = 2;
+		int64 total_output_amount = 3;
+		uint32 estimated_signed_size = 4;
+	}
+	repeated SweepTransaction transactions = 1;
 }

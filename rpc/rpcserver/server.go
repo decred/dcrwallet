@@ -796,18 +796,64 @@ func (s *walletServer) SweepAccount(ctx context.Context, req *pb.SweepAccountReq
 		return nil, translateError(err)
 	}
 
-	var txBuf bytes.Buffer
-	txBuf.Grow(tx.Tx.SerializeSize())
-	err = tx.Tx.Serialize(&txBuf)
-	if err != nil {
-		return nil, translateError(err)
+	sweepTxs := make([]*txauthor.AuthoredTx, 0)
+	maxTxSize := s.wallet.ChainParams().MaxTxSize
+	if tx.EstimatedSignedSerializeSize > maxTxSize {
+		var prevTx *txauthor.AuthoredTx
+		outs := make([]*wire.TxOut, 0)
+		sweepOuts := tx.Tx.TxOut
+
+		for idx := 0; idx < len(sweepOuts); idx++ {
+			outs = append(outs, sweepOuts[idx])
+			currTx, err := s.wallet.NewUnsignedTransaction(outs, feePerKb,
+				account, int32(req.RequiredConfirmations),
+				wallet.OutputSelectionAlgorithmDefault, changeSource)
+			if err != nil {
+				return nil, translateError(err)
+			}
+
+			if currTx.EstimatedSignedSerializeSize < maxTxSize {
+				if idx == len(sweepOuts)-1 {
+					sweepTxs = append(sweepTxs, currTx)
+					continue
+				}
+
+				prevTx = currTx
+				continue
+			}
+
+			if currTx.EstimatedSignedSerializeSize > maxTxSize {
+				if prevTx != nil {
+					sweepTxs = append(sweepTxs, prevTx)
+					prevTx = nil
+					outs = make([]*wire.TxOut, 0)
+					idx--
+					continue
+				}
+			}
+		}
 	}
 
-	res := &pb.SweepAccountResponse{
-		UnsignedTransaction:       txBuf.Bytes(),
-		TotalPreviousOutputAmount: int64(tx.TotalInput),
-		TotalOutputAmount:         int64(h.SumOutputValues(tx.Tx.TxOut)),
-		EstimatedSignedSize:       uint32(tx.EstimatedSignedSerializeSize),
+	res := &pb.SweepAccountResponse{}
+	res.Transactions = make([]*pb.SweepAccountResponse_SweepTransaction,
+		len(sweepTxs))
+	var txBuf bytes.Buffer
+	for idx, tx := range sweepTxs {
+		txBuf.Grow(tx.Tx.SerializeSize())
+		err = tx.Tx.Serialize(&txBuf)
+		if err != nil {
+			return nil, translateError(err)
+		}
+
+		entry := &pb.SweepAccountResponse_SweepTransaction{
+			UnsignedTransaction:       txBuf.Bytes(),
+			TotalPreviousOutputAmount: int64(tx.TotalInput),
+			TotalOutputAmount:         int64(h.SumOutputValues(tx.Tx.TxOut)),
+			EstimatedSignedSize:       uint32(tx.EstimatedSignedSerializeSize),
+		}
+
+		res.Transactions[idx] = entry
+		txBuf.Reset()
 	}
 
 	return res, nil
