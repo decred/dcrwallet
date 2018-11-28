@@ -220,6 +220,14 @@ func makeTicketSummary(chainClient *dcrrpcclient.Client, dbtx walletdb.ReadTx, w
 			// Check if ticket age is over TicketExpiry limit and therefore expired
 		} else if ticketExpired(w.chainParams, details.Ticket.Height(), tipHeight) {
 			ticketStatus = TicketStatusExpired
+			if chainClient != nil {
+				ticketStatus = TicketStatusExpired
+			} else {
+				ticketStatus = TicketStatusUnspentExpired
+			}
+		} else if chainClient == nil {
+			// Mark ticket as unspent. Possible states are missed, live or expired
+			ticketStatus = TicketStatusUnspent
 		}
 	}
 	return &TicketSummary{
@@ -455,7 +463,38 @@ const (
 	TicketStatusMissed
 	// TicketStatusExpired any ticket that has yet to be revoked, and was expired.
 	TicketStatusExpired
+	// TicketStatusUnspent any ticket that missed, live or expired
+	TicketStatusUnspent
+	// TicketStatusUnspentExpired any ticket that missed or expired
+	TicketStatusUnspentExpired
 )
+
+func (t TicketStatus) String() string {
+	switch t {
+	case TicketStatusUnknown:
+		return "UNKNOWN"
+	case TicketStatusUnmined:
+		return "UNMINED"
+	case TicketStatusImmature:
+		return "IMMATURE"
+	case TicketStatusLive:
+		return "LIVE"
+	case TicketStatusVoted:
+		return "VOTED"
+	case TicketStatusRevoked:
+		return "REVOKED"
+	case TicketStatusMissed:
+		return "MISSED"
+	case TicketStatusExpired:
+		return "EXPIRED"
+	case TicketStatusUnspent:
+		return "UNSPENT"
+	case TicketStatusUnspentExpired:
+		return "UNSPENTEXPIRED"
+	default:
+		return ""
+	}
+}
 
 // TransactionSummary contains a transaction relevant to the wallet and marks
 // which inputs and outputs were relevant.
@@ -507,6 +546,23 @@ func TxTransactionType(tx *wire.MsgTx) TransactionType {
 		return TransactionTypeRevocation
 	} else {
 		return TransactionTypeRegular
+	}
+}
+
+func (t TransactionType) String() string {
+	switch t {
+	case TransactionTypeRegular:
+		return "REGULAR"
+	case TransactionTypeCoinbase:
+		return "COINBASE"
+	case TransactionTypeTicketPurchase:
+		return "TICKETPURCHASE"
+	case TransactionTypeVote:
+		return "VOTE"
+	case TransactionTypeRevocation:
+		return "REVOCATION"
+	default:
+		return ""
 	}
 }
 
