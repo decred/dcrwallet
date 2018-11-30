@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	walletDbName = "wallet.db"
+	walletDbName    = "wallet.db"
+	defaultDbDriver = "bdb"
 )
 
 // Loader implements the creating of new and opening of existing wallets, while
@@ -36,6 +37,7 @@ type Loader struct {
 	dbDirPath   string
 	wallet      *wallet.Wallet
 	db          wallet.DB
+	dbDriver    string
 
 	purchaseManager *ticketbuyer.PurchaseManager
 	ntfnClient      wallet.MainTipChangedNotificationsClient
@@ -67,12 +69,18 @@ func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *Sta
 	return &Loader{
 		chainParams:     chainParams,
 		dbDirPath:       dbDirPath,
+		dbDriver:        defaultDbDriver,
 		stakeOptions:    stakeOptions,
 		gapLimit:        gapLimit,
 		accountGapLimit: accountGapLimit,
 		allowHighFees:   allowHighFees,
 		relayFee:        relayFee,
 	}
+}
+
+// SetDatabaseDriver specifies the database to be used by walletdb
+func (l *Loader) SetDatabaseDriver(driver string) {
+	l.dbDriver = driver
 }
 
 // onLoaded executes each added callback and prevents loader from loading any
@@ -153,7 +161,7 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	db, err := wallet.CreateDB("bdb", dbPath)
+	db, err := wallet.CreateDB(l.dbDriver, dbPath)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -244,7 +252,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	db, err := wallet.CreateDB("bdb", dbPath)
+	db, err := wallet.CreateDB(l.dbDriver, dbPath)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -300,8 +308,9 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 	// Open the database using the boltdb backend.
 	dbPath := filepath.Join(l.dbDirPath, walletDbName)
 	l.mu.Unlock()
-	db, err := wallet.OpenDB("bdb", dbPath)
+	db, err := wallet.OpenDB(l.dbDriver, dbPath)
 	l.mu.Lock()
+
 	if err != nil {
 		log.Errorf("Failed to open database: %v", err)
 		return nil, errors.E(op, err)

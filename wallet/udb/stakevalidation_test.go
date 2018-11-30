@@ -12,8 +12,8 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
-	_ "github.com/decred/dcrwallet/wallet/internal/walletdb/bdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
+	_ "github.com/decred/dcrwallet/wallet/internal/bdb"
 )
 
 func insertMainChainHeaders(s *Store, ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket,

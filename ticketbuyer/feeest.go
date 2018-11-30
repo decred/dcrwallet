@@ -56,7 +56,7 @@ func (t *TicketPurchaser) findClosestFeeWindows(difficulty dcrutil.Amount,
 	// Fetch all the mean fees and window difficulties. Calculate
 	// the difference from the current window and sort, then use
 	// the mean fee from the period that has the closest difficulty.
-	var sortable diffPeriodFees
+	sortable := make(diffPeriodFees, 0, len(info.FeeInfoWindows))
 	for i := range info.FeeInfoWindows {
 		// Skip the first window if it's not full.
 		span := info.FeeInfoWindows[i].EndHeight -

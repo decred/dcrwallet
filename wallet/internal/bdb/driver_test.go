@@ -14,8 +14,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
-	_ "github.com/decred/dcrwallet/wallet/internal/walletdb/bdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
+	_ "github.com/decred/dcrwallet/wallet/internal/bdb"
 )
 
 // dbType is the database type name for this driver.

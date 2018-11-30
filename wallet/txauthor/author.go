@@ -105,7 +105,7 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 			return nil, errors.E(op, errors.InsufficientBalance)
 		}
 
-		scriptSizes = []int{}
+		scriptSizes := make([]int, 0, len(inputDetail.RedeemScriptSizes))
 		scriptSizes = append(scriptSizes, inputDetail.RedeemScriptSizes...)
 
 		maxSignedSize = txsizes.EstimateSerializeSize(scriptSizes, outputs, changeScriptSize)

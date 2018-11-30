@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
@@ -82,6 +82,7 @@ func (w *Wallet) LiveTicketHashes(chainClient *dcrrpcclient.Client, includeImmat
 		_, tipHeight = w.TxStore.MainChainTip(txmgrNs)
 
 		it := w.TxStore.IterateTickets(dbtx)
+		defer it.Close()
 		for it.Next() {
 			// Tickets that are mined at a height beyond the expiry height can
 			// not be live.
@@ -408,6 +409,7 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 		_, tipHeight := w.TxStore.MainChainTip(ns)
 
 		it := w.TxStore.IterateTickets(dbtx)
+		defer it.Close()
 		for it.Next() {
 			// Spent tickets are excluded
 			if it.SpenderHash != (chainhash.Hash{}) {

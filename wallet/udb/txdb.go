@@ -17,7 +17,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -372,6 +372,7 @@ func (it *blockIterator) next() bool {
 		it.ck, it.cv = it.c.Next()
 	}
 	if it.ck == nil {
+		it.c.Close()
 		it.c = nil
 		return false
 	}
@@ -409,18 +410,27 @@ func (it *blockIterator) prev() bool {
 		it.ck, it.cv = it.c.Prev()
 	}
 	if it.ck == nil {
+		it.c.Close()
 		it.c = nil
 		return false
 	}
 
 	err := readRawBlockRecord(it.ck, it.cv, &it.elem)
 	if err != nil {
+		it.c.Close()
 		it.c = nil
 		it.err = err
 		return false
 	}
 
 	return true
+}
+
+func (it *blockIterator) close() {
+	if it.c == nil {
+		return
+	}
+	it.c.Close()
 }
 
 // unavailable until https://github.com/boltdb/bolt/issues/620 is fixed.
@@ -664,6 +674,7 @@ func latestTxRecord(ns walletdb.ReadBucket, txHash []byte) (k, v []byte) {
 		lastKey, lastVal = ck, cv
 		ck, cv = c.Next()
 	}
+	c.Close()
 	return lastKey, lastVal
 }
 
@@ -1022,6 +1033,7 @@ func (it *creditIterator) next() bool {
 		it.ck, it.cv = it.c.Next()
 	}
 	if !bytes.HasPrefix(it.ck, it.prefix) {
+		it.c.Close()
 		it.c = nil
 		return false
 	}
@@ -1032,6 +1044,13 @@ func (it *creditIterator) next() bool {
 		return false
 	}
 	return true
+}
+
+func (it *creditIterator) close() {
+	if it.c == nil {
+		return
+	}
+	it.c.Close()
 }
 
 // The unspent index records all outpoints for mined credits which are not spent
@@ -1273,6 +1292,7 @@ func (it *debitIterator) next() bool {
 		it.ck, it.cv = it.c.Next()
 	}
 	if !bytes.HasPrefix(it.ck, it.prefix) {
+		it.c.Close()
 		it.c = nil
 		return false
 	}
@@ -1283,6 +1303,13 @@ func (it *debitIterator) next() bool {
 		return false
 	}
 	return true
+}
+
+func (it *debitIterator) close() {
+	if it.c == nil {
+		return
+	}
+	it.c.Close()
 }
 
 // All unmined transactions are saved in the unmined bucket keyed by the
@@ -1557,6 +1584,7 @@ func (it *unminedCreditIterator) next() bool {
 		it.ck, it.cv = it.c.Next()
 	}
 	if !bytes.HasPrefix(it.ck, it.prefix) {
+		it.c.Close()
 		it.c = nil
 		return false
 	}
@@ -1580,6 +1608,13 @@ func (it *unminedCreditIterator) next() bool {
 
 func (it *unminedCreditIterator) reposition(txHash *chainhash.Hash, index uint32) {
 	it.c.Seek(canonicalOutPoint(txHash, index))
+}
+
+func (it *unminedCreditIterator) close() {
+	if it.c == nil {
+		return
+	}
+	it.c.Close()
 }
 
 // OutPoints spent by unmined transactions are saved in the unmined inputs
@@ -1926,7 +1961,9 @@ func fetchRawCFilter(ns walletdb.ReadBucket, k []byte) ([]byte, error) {
 // namespace.
 func createStore(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params) error {
 	// Ensure that nothing currently exists in the namespace bucket.
-	ck, cv := ns.ReadCursor().First()
+	c := ns.ReadCursor()
+	defer c.Close()
+	ck, cv := c.First()
 	if ck != nil || cv != nil {
 		return errors.E(errors.IO, "bucket is not empty")
 	}

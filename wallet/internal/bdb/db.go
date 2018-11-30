@@ -11,7 +11,7 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 )
 
 // convertErr wraps a driver-specific error with an error code.
@@ -248,6 +248,11 @@ func (c *cursor) Prev() (key, value []byte) {
 func (c *cursor) Seek(seek []byte) (key, value []byte) {
 	return (*bolt.Cursor)(c).Seek(seek)
 }
+
+// Closes the cursor
+//
+// This function is part of the walletdb.Cursor interface implementation.
+func (c *cursor) Close() {}
 
 // db represents a collection of namespaces which are persisted and implements
 // the walletdb.Db interface.  All database access is performed through

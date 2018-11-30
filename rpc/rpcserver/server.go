@@ -1434,6 +1434,7 @@ func (s *walletServer) SignTransactions(ctx context.Context, req *pb.SignTransac
 	}
 
 	resp := pb.SignTransactionsResponse{}
+	resp.Transactions = make([]*pb.SignTransactionsResponse_SignedTransaction, 0, len(req.Transactions))
 	for _, unsignedTx := range req.Transactions {
 		var tx wire.MsgTx
 		err := tx.Deserialize(bytes.NewReader(unsignedTx.SerializedTransaction))

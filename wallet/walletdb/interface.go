@@ -117,6 +117,8 @@ type ReadWriteBucket interface {
 
 	// Cursor returns a new cursor, allowing for iteration over the bucket's
 	// key/value pairs and nested buckets in forward or backward order.
+	// Only one cursor can be opened at a time and should be closed before
+	// commiting or rolling back the transaction.
 	ReadWriteCursor() ReadWriteCursor
 }
 
@@ -144,6 +146,10 @@ type ReadCursor interface {
 	// not exist, the cursor is moved to the next key after seek.  Returns
 	// the new pair.
 	Seek(seek []byte) (key, value []byte)
+
+	// Close closes the cursor. Cursors must be closed before opening a new
+	// cursor and before finishing a transaction.
+	Close()
 }
 
 // ReadWriteCursor represents a bucket cursor that can be positioned at the
@@ -162,7 +168,9 @@ type ReadWriteCursor interface {
 // BucketIsEmpty returns whether the bucket is empty, that is, whether there are
 // no key/value pairs or nested buckets.
 func BucketIsEmpty(bucket ReadBucket) bool {
-	k, v := bucket.ReadCursor().First()
+	cursor := bucket.ReadCursor()
+	k, v := cursor.First()
+	cursor.Close()
 	return k == nil && v == nil
 }
 

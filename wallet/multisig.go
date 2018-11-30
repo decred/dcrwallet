@@ -11,7 +11,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/internal/txsizes"
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
 )
@@ -197,7 +197,7 @@ func (w *Wallet) FetchAllRedeemScripts() ([][]byte, error) {
 func (w *Wallet) PrepareRedeemMultiSigOutTxOutput(msgTx *wire.MsgTx, p2shOutput *P2SHMultiSigOutput, pkScript *[]byte) error {
 	const op errors.Op = "wallet.PrepareRedeemMultiSigOutTxOutput"
 
-	scriptSizes := []int{}
+	scriptSizes := make([]int, 0, len(msgTx.TxIn))
 	// generate the script sizes for the inputs
 	for range msgTx.TxIn {
 		scriptSizes = append(scriptSizes, txsizes.RedeemP2SHSigScriptSize)

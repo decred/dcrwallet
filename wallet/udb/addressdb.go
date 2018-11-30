@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/internal/walletdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 )
 
 var (
@@ -1158,6 +1158,7 @@ func forEachAccountAddress(ns walletdb.ReadBucket, account uint32, fn func(rowIn
 	}
 
 	c := bucket.ReadCursor()
+	defer c.Close()
 	for k, v := c.First(); k != nil; k, v = c.Next() {
 		// Skip buckets.
 		if v == nil {
@@ -1181,6 +1182,7 @@ func forEachAccountAddress(ns walletdb.ReadBucket, account uint32, fn func(rowIn
 func forEachActiveAddress(ns walletdb.ReadBucket, fn func(rowInterface interface{}) error) error {
 	bucket := ns.NestedReadBucket(addrBucketName)
 	c := bucket.ReadCursor()
+	defer c.Close()
 	for k, v := c.First(); k != nil; k, v = c.Next() {
 		// Skip buckets.
 		if v == nil {
@@ -1244,6 +1246,7 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 		// Deserialize the account row first to determine the type.
 		row, err := deserializeAccountRow(k, v)
 		if err != nil {
+			c.Close()
 			return err
 		}
 
@@ -1252,6 +1255,7 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 			BIP0044Set[string(k)] = row
 		}
 	}
+	c.Close()
 
 	// Delete the account extended private key for all BIP0044 accounts.
 	for k, row := range BIP0044Set {
@@ -1289,6 +1293,7 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 		// values.
 		row, err := deserializeAddressRow(v)
 		if err != nil {
+			c.Close()
 			return err
 		}
 
@@ -1300,6 +1305,7 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 			importedScriptAddrSet[string(k)] = row
 		}
 	}
+	c.Close()
 
 	// Delete the private key for all imported addresses.
 	for k, row := range importedAddrSet {
