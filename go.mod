@@ -11,7 +11,7 @@ require (
 	github.com/decred/dcrd/database v1.0.2 // indirect
 	github.com/decred/dcrd/dcrec v0.0.0-20180816212643-20eda7ec9229
 	github.com/decred/dcrd/dcrec/edwards v0.0.0-20180816212643-20eda7ec9229 // indirect
-	github.com/decred/dcrd/dcrjson v1.0.0
+	github.com/decred/dcrd/dcrjson v1.0.1-0.20181126011428-6b9e747ca880
 	github.com/decred/dcrd/dcrutil v1.1.1
 	github.com/decred/dcrd/hdkeychain v1.1.0
 	github.com/decred/dcrd/rpcclient v1.0.1
