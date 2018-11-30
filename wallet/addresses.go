@@ -13,8 +13,8 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/internal/txsizes"
-	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrwallet/wallet/udb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 )
 
 // DefaultGapLimit is the default unused address gap limit defined by BIP0044.
@@ -126,6 +126,11 @@ func (w *Wallet) persistReturnedChild(maybeDBTX walletdb.ReadWriteTx) persistRet
 					maybeDBTX.Rollback()
 				}
 			}()
+		}
+		ns := maybeDBTX.ReadWriteBucket([]byte(waddrmgrNamespaceKey))
+		err := w.Manager.SyncAccountToAddrIndex(ns, account, child, branch)
+		if err != nil {
+			return err
 		}
 		return w.Manager.MarkReturnedChildIndex(maybeDBTX, account, branch, child)
 	}
@@ -491,14 +496,12 @@ func (w *Wallet) ExtendWatchedAddresses(account, branch, child uint32) error {
 		return err
 	}
 
-	if child >= lastUsed+uint32(w.gapLimit) {
-		err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-			ns := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-			return w.Manager.SyncAccountToAddrIndex(ns, account, child, branch)
-		})
-		if err != nil {
-			return err
-		}
+	err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+		ns := tx.ReadWriteBucket(waddrmgrNamespaceKey)
+		return w.Manager.SyncAccountToAddrIndex(ns, account, child, branch)
+	})
+	if err != nil {
+		return err
 	}
 
 	if n, err := w.NetworkBackend(); err == nil {
