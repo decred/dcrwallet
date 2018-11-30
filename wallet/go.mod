@@ -8,13 +8,13 @@ require (
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/dcrec v0.0.0-20180809193022-9536f0c88fa8
 	github.com/decred/dcrd/dcrec/secp256k1 v1.0.0
-	github.com/decred/dcrd/dcrjson v1.0.0
+	github.com/decred/dcrd/dcrjson v1.0.1-0.20181130020314-7d418b705526
 	github.com/decred/dcrd/dcrutil v1.1.1
 	github.com/decred/dcrd/gcs v1.0.2
 	github.com/decred/dcrd/hdkeychain v1.1.0
 	github.com/decred/dcrd/mempool v1.0.1
 	github.com/decred/dcrd/mining v1.0.1 // indirect
-	github.com/decred/dcrd/rpcclient v1.0.1
+	github.com/decred/dcrd/rpcclient v1.0.3-0.20181130020314-7d418b705526
 	github.com/decred/dcrd/txscript v1.0.1
 	github.com/decred/dcrd/wire v1.1.0
 	github.com/decred/dcrwallet/deployments v1.0.0
