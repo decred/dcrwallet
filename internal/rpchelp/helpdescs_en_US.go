@@ -411,6 +411,7 @@ var helpDescsEnUS = map[string]string{
 	"sendtoaddress-amount":    "Amount to send to the payment address valued in decred",
 	"sendtoaddress-comment":   "Unused",
 	"sendtoaddress-commentto": "Unused",
+	"sendtoaddress-subtractfeefromamount": "Toggles whether the tx fee is subtracted from the payment rather than the change",
 	"sendtoaddress--result0":  "The transaction hash of the sent transaction",
 
 	// SendToMultisigCmd help.

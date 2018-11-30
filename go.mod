@@ -14,7 +14,7 @@ require (
 	github.com/decred/dcrd/dcrjson v1.0.1-0.20181126011428-6b9e747ca880
 	github.com/decred/dcrd/dcrutil v1.1.1
 	github.com/decred/dcrd/hdkeychain v1.1.0
-	github.com/decred/dcrd/rpcclient v1.0.1
+	github.com/decred/dcrd/rpcclient v1.0.3-0.20181126011428-6b9e747ca880
 	github.com/decred/dcrd/txscript v1.0.1
 	github.com/decred/dcrd/wire v1.1.0
 	github.com/decred/dcrwallet/chain v1.0.0
