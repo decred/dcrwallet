@@ -2309,6 +2309,128 @@ func (w *Wallet) ListTransactionDetails(txHash *chainhash.Hash) ([]dcrjson.ListT
 	return txList, nil
 }
 
+// ListTickets returns the listtickets results
+func (w *Wallet) ListTickets(chainClient *dcrrpcclient.Client) ([]*dcrjson.ListTicketsResult, error) {
+	const op errors.Op = "wallet.ListTickets"
+
+	var tickets []*dcrjson.ListTicketsResult
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		tickets = make([]*dcrjson.ListTicketsResult, 0)
+		rangeFn := func(details []udb.TxDetails) (bool, error) {
+			for i := range details {
+				ticketDetails, err := w.TxStore.TicketDetails(txmgrNs, &details[i])
+				if err != nil {
+					return false, errors.E(op, errors.Errorf("%v while trying to get ticket details for txHash: %v", err, &details[i].Hash))
+				}
+				// Continue if not a ticket
+				if ticketDetails == nil {
+					continue
+				}
+				ticketSummary := makeTicketSummary(chainClient, dbtx, w, ticketDetails)
+				ticketInputs := []dcrjson.ListTicketsTransactionSummaryInput{}
+				ticketOutputs := []dcrjson.ListTicketsTransactionSummaryOutput{}
+				for _, in := range ticketSummary.Ticket.MyInputs {
+					accName, err := w.AccountName(in.PreviousAccount)
+					if err != nil {
+						return false, errors.E(op, err)
+					}
+
+					ticketInputs = append(ticketInputs, dcrjson.ListTicketsTransactionSummaryInput{
+						Index:           in.Index,
+						PreviousAccount: accName,
+						PreviousAmount:  in.PreviousAmount.ToCoin(),
+					})
+				}
+				for _, out := range ticketSummary.Ticket.MyOutputs {
+					accName, err := w.AccountName(out.Account)
+					if err != nil {
+						return false, errors.E(op, err)
+					}
+
+					ticketOutputs = append(ticketOutputs, dcrjson.ListTicketsTransactionSummaryOutput{
+						Index:        out.Index,
+						Account:      accName,
+						Internal:     out.Internal,
+						Amount:       out.Amount.ToCoin(),
+						Address:      out.Address.EncodeAddress(),
+						OutputScript: hex.EncodeToString(out.OutputScript),
+					})
+				}
+
+				ticketInfo := &dcrjson.ListTicketsResult{
+					Ticket: &dcrjson.ListTicketsTransactionSummary{
+						Hash:        ticketSummary.Ticket.Hash.String(),
+						Transaction: hex.EncodeToString(ticketSummary.Ticket.Transaction),
+						MyInputs:    ticketInputs,
+						MyOutputs:   ticketOutputs,
+						Fee:         ticketSummary.Ticket.Fee.ToCoin(),
+						Timestamp:   ticketSummary.Ticket.Timestamp,
+						Type:        ticketSummary.Ticket.Type.String(),
+					},
+					Status: ticketSummary.Status.String(),
+				}
+
+				if ticketSummary.Spender != nil {
+					spenderOutputs := []dcrjson.ListTicketsTransactionSummaryOutput{}
+					spenderInputs := []dcrjson.ListTicketsTransactionSummaryInput{}
+					for _, in := range ticketSummary.Spender.MyInputs {
+						accName, err := w.AccountName(in.PreviousAccount)
+						if err != nil {
+							return false, errors.E(op, err)
+						}
+
+						spenderInputs = append(spenderInputs, dcrjson.ListTicketsTransactionSummaryInput{
+							Index:           in.Index,
+							PreviousAccount: accName,
+							PreviousAmount:  in.PreviousAmount.ToCoin(),
+						})
+					}
+					for _, out := range ticketSummary.Spender.MyOutputs {
+						accName, err := w.AccountName(out.Account)
+						if err != nil {
+							return false, errors.E(op, err)
+						}
+
+						spenderOutputs = append(spenderOutputs, dcrjson.ListTicketsTransactionSummaryOutput{
+							Index:        out.Index,
+							Account:      accName,
+							Internal:     out.Internal,
+							Amount:       out.Amount.ToCoin(),
+							Address:      out.Address.EncodeAddress(),
+							OutputScript: hex.EncodeToString(out.OutputScript),
+						})
+					}
+					ticketInfo.Spender = &dcrjson.ListTicketsTransactionSummary{
+						Hash:        ticketSummary.Spender.Hash.String(),
+						Transaction: hex.EncodeToString(ticketSummary.Spender.Transaction),
+						MyInputs:    spenderInputs,
+						MyOutputs:   spenderOutputs,
+						Fee:         ticketSummary.Spender.Fee.ToCoin(),
+						Timestamp:   ticketSummary.Spender.Timestamp,
+						Type:        ticketSummary.Spender.Type.String(),
+					}
+				}
+				tickets = append(tickets, ticketInfo)
+			}
+
+			if len(tickets) == 0 {
+				return false, nil
+			}
+
+			return false, nil
+		}
+
+		return w.TxStore.RangeTransactions(txmgrNs, 0, -1, rangeFn)
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return tickets, nil
+}
+
 // BlockIdentifier identifies a block by either a height in the main chain or a
 // hash.
 type BlockIdentifier struct {

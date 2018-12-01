@@ -98,6 +98,7 @@ var handlers = map[string]handler{
 	"listreceivedbyaddress":   {fn: listReceivedByAddress},
 	"listsinceblock":          {fn: listSinceBlock},
 	"listscripts":             {fn: listScripts},
+	"listtickets":             {fn: listTickets},
 	"listtransactions":        {fn: listTransactions},
 	"listunspent":             {fn: listUnspent},
 	"lockunspent":             {fn: lockUnspent},
@@ -1697,6 +1698,30 @@ func listAccounts(s *Server, icmd interface{}) (interface{}, error) {
 	}
 	// Return the map.  This will be marshaled into a JSON object.
 	return accountBalances, nil
+}
+
+// listTickets handles a listtickets request by returning a list
+// of tickets containing ticket, spender details and state
+func listTickets(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	var chainClient *rpcclient.Client
+	if n, ok := s.walletLoader.NetworkBackend(); ok {
+		client, err := chain.RPCClientFromBackend(n)
+		if err == nil {
+			chainClient = client
+		}
+	}
+
+	tickets, err := w.ListTickets(chainClient)
+	if err != nil {
+		return nil, err
+	}
+
+	return tickets, nil
 }
 
 // listLockUnspent handles a listlockunspent request by returning an slice of
