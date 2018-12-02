@@ -52,6 +52,8 @@ github.com/decred/dcrd/dcrec/secp256k1 v1.0.0 h1:Le54WTGdTQv7XYXpS31uhFE8LZE7ypw
 github.com/decred/dcrd/dcrec/secp256k1 v1.0.0/go.mod h1:JPMFscGlgXTV684jxQNDijae2qrh0fLG7pJBimaYotE=
 github.com/decred/dcrd/dcrjson v1.0.0 h1:50DnA0XeV2JrQXoHh43TCKmH+kz2gHjZ1Mj/Pdk7Oz0=
 github.com/decred/dcrd/dcrjson v1.0.0/go.mod h1:ozddIaeF+EAvZZvFuB3zpfxhyxBGfvbt22crQh+PYuI=
+github.com/decred/dcrd/dcrjson v1.0.1-0.20181126011428-6b9e747ca880 h1:bYxeemdokNVVSJrNOKg6RTWnaGsmO/k5X0Ph+yMRxT8=
+github.com/decred/dcrd/dcrjson v1.0.1-0.20181126011428-6b9e747ca880/go.mod h1:ozddIaeF+EAvZZvFuB3zpfxhyxBGfvbt22crQh+PYuI=
 github.com/decred/dcrd/dcrutil v1.0.0 h1:7/idzgxS0P25Pt0ezn5cPI6FYaq7xFaXRiR6glK5zoM=
 github.com/decred/dcrd/dcrutil v1.0.0/go.mod h1:CBpbItyMKkL/4i1qPJDsE/cdSYklsWFcTYgprRZh4yk=
 github.com/decred/dcrd/dcrutil v1.1.1 h1:zOkGiumN/JkobhAgpG/zfFgUoolGKVGYT5na1hbYUoE=
@@ -70,6 +72,8 @@ github.com/decred/dcrd/mining v1.0.1 h1:BSeywfR4kZyIziS1jc6VlCpdRIr7GB3SZXo3l2tL
 github.com/decred/dcrd/mining v1.0.1/go.mod h1:+CSOLPi7TM8OlQg7mJ7XzWLXCDb4nHK8R6cvXOzhEoU=
 github.com/decred/dcrd/rpcclient v1.0.1 h1:mSkVtOQKXnMJ2P08xPFnD2J9w54+YFQuMeBd5tC9iBI=
 github.com/decred/dcrd/rpcclient v1.0.1/go.mod h1:tApXK3wwrAQtz7lcXeeqBwuktUZesvrFfvhAdedYqdM=
+github.com/decred/dcrd/rpcclient v1.0.3-0.20181126011428-6b9e747ca880 h1:/NcinN9N8aAjkJHDYGwaEk0+jvx6XMxbmyMYn7/1zWw=
+github.com/decred/dcrd/rpcclient v1.0.3-0.20181126011428-6b9e747ca880/go.mod h1:pg9jawMwMmNnJwI+swUGTR9XrNUDm6bl6lJJ/vEgzXo=
 github.com/decred/dcrd/txscript v1.0.0 h1:0/7Yo0ApwTHrQRUdSF9lD9drJyl4Ek3DNBKtbWnUyAY=
 github.com/decred/dcrd/txscript v1.0.0/go.mod h1:9byvrOaBSBVVnDG7Cm0JgN8bZytl1oi9Ba245VBeI18=
 github.com/decred/dcrd/txscript v1.0.1 h1:IMgxZFCw3AyG4EbKwywE3SDNshOSHsoUK1Wk/5GqWJ0=
