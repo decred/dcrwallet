@@ -281,7 +281,7 @@ func (w *Wallet) checkHighFees(totalInput dcrutil.Amount, tx *wire.MsgTx) error 
 // with no less than minconf confirmations, and creates a signed transaction
 // that pays to each of the outputs.
 func (w *Wallet) txToOutputs(op errors.Op, outputs []*wire.TxOut, account uint32,
-	minconf int32, randomizeChangeIdx bool) (*txauthor.AuthoredTx, error) {
+	minconf int32, randomizeChangeIdx bool, recipientPaysFee bool) (*txauthor.AuthoredTx, error) {
 
 	n, err := w.NetworkBackend()
 	if err != nil {
@@ -289,7 +289,7 @@ func (w *Wallet) txToOutputs(op errors.Op, outputs []*wire.TxOut, account uint32
 	}
 
 	return w.txToOutputsInternal(op, outputs, account, minconf, n,
-		randomizeChangeIdx, w.RelayFee())
+		randomizeChangeIdx, w.RelayFee(), recipientPaysFee)
 }
 
 // txToOutputsInternal creates a signed transaction which includes each output
@@ -304,7 +304,7 @@ func (w *Wallet) txToOutputs(op errors.Op, outputs []*wire.TxOut, account uint32
 // into the database, rather than delegating this work to the caller as
 // btcwallet does.
 func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, account uint32, minconf int32,
-	n NetworkBackend, randomizeChangeIdx bool, txFee dcrutil.Amount) (*txauthor.AuthoredTx, error) {
+	n NetworkBackend, randomizeChangeIdx bool, txFee dcrutil.Amount, recipientPaysFee bool) (*txauthor.AuthoredTx, error) {
 
 	var atx *txauthor.AuthoredTx
 	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
@@ -321,9 +321,22 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 			account: account,
 			wallet:  w,
 		}
+
 		var err error
-		atx, err = txauthor.NewUnsignedTransaction(outputs, txFee,
-			inputSource.SelectInputs, changeSource)
+
+		if recipientPaysFee {
+			if len(outputs) != 1 {
+				return errors.E(op, "Expected exactly one output for "+
+					"transaction where recipient pays the fee")
+			}
+
+			output := outputs[0]
+			atx, err = txauthor.NewUnsignedTransactionMinusFee(output, txFee,
+				inputSource.SelectInputs, changeSource)
+		} else {
+			atx, err = txauthor.NewUnsignedTransaction(outputs, txFee,
+				inputSource.SelectInputs, changeSource)
+		}
 		if err != nil {
 			return err
 		}
@@ -1072,7 +1085,7 @@ func (w *Wallet) purchaseTickets(op errors.Op, req purchaseTicketRequest) ([]*ch
 		txFeeIncrement = w.RelayFee()
 	}
 	splitTx, err := w.txToOutputsInternal(op, splitOuts, account, req.minConf,
-		n, false, txFeeIncrement)
+		n, false, txFeeIncrement, false)
 	if err != nil {
 		return nil, err
 	}

@@ -154,6 +154,31 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	}
 }
 
+// NewUnsignedTransactionMinusFee creates an unsigned transaction paying to one
+// non-change output.  An appropriate transaction fee is included based on the
+// transaction size, and is subtracted from the provided `output` parameter.
+//
+// The behavior of this method mirrors a call to `NewUnsignedTransaction` with the
+// only differences being that:
+// * this method takes a single `output` and
+// * all fees are subtracted from the provided output rather than from change.
+func NewUnsignedTransactionMinusFee(output *wire.TxOut, relayFeePerKb dcrutil.Amount,
+	fetchInputs InputSource, fetchChange ChangeSource) (*AuthoredTx, error) {
+
+	// Since the fee will come directly from the full output amount,
+	// defer fee calculation until enough inputs have been consumed.
+	authoredTx, err := NewUnsignedTransaction([]*wire.TxOut{output}, 0, fetchInputs, fetchChange)
+	if err != nil {
+		return nil, err
+	}
+
+	// At this point, all inputs have been determined and the size of the transaction is fixed.
+	// Calculate the fee and subtract it from the single provided output.
+	feeAmount := txrules.FeeForSerializeSize(relayFeePerKb, authoredTx.EstimatedSignedSerializeSize)
+	output.Value -= int64(feeAmount)
+	return authoredTx, nil
+}
+
 // RandomizeOutputPosition randomizes the position of a transaction's output by
 // swapping it with a random output.  The new index is returned.  This should be
 // done before signing.
