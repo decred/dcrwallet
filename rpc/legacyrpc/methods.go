@@ -2192,7 +2192,9 @@ func sendPairs(w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint
 	if err != nil {
 		return "", err
 	}
-	txSha, err := w.SendOutputs(outputs, account, minconf, recipientPaysFee)
+
+	options := wallet.SendOutputsOptions{RecipientPaysFee: recipientPaysFee}
+	txSha, err := w.SendOutputsWithOptions(outputs, account, minconf, options)
 	if err != nil {
 		if errors.Is(errors.Locked, err) {
 			return "", errWalletUnlockNeeded

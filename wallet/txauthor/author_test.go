@@ -238,3 +238,127 @@ func TestNewUnsignedTransaction(t *testing.T) {
 		}
 	}
 }
+
+func TestNewUnsignedTransactionMinusFee(t *testing.T) {
+	tests := []struct {
+		UnspentOutputs []*wire.TxOut
+		Output         *wire.TxOut
+		RelayFee       dcrutil.Amount
+		ExpectedChange dcrutil.Amount
+		ShouldError    bool
+		ExpectedError  errors.Kind
+	}{
+		0: {
+			// Spend exactly what we have available, but would be negative since fee is
+			// +1 more than available
+			UnspentOutputs: p2pkhOutputs(227),
+			Output:         p2pkhOutputs(227)[0],
+			RelayFee:       1e3,
+			ShouldError:    true,
+			ExpectedError:  errors.Invalid,
+		},
+		1: {
+			// Spend all inputs, but would be dust since available is exactly the fee
+			UnspentOutputs: p2pkhOutputs(228),
+			Output:         p2pkhOutputs(228)[0],
+			RelayFee:       1e3,
+			ShouldError:    true,
+			ExpectedError:  errors.Policy,
+		},
+		2: {
+			// Spend exactly what we have available but enough for fee
+			UnspentOutputs: p2pkhOutputs(1e8),
+			Output:         p2pkhOutputs(1e8)[0],
+			RelayFee:       1e3,
+			ShouldError:    false,
+		},
+		3: {
+			// Spend more than we have available
+			UnspentOutputs: p2pkhOutputs(1e6),
+			Output:         p2pkhOutputs(1e6 + 1)[0],
+			RelayFee:       1e3,
+			ShouldError:    true,
+			ExpectedError:  errors.InsufficientBalance,
+		},
+		4: {
+			// Expect change exactly to equal input - (output without fee)
+			// Output should have fee subtracted.
+			UnspentOutputs: p2pkhOutputs(2e6),
+			Output:         p2pkhOutputs(1e6)[0],
+			RelayFee:       1e3,
+			ExpectedChange: 1e6,
+			ShouldError:    false,
+		},
+		5: {
+			// Make sure we get expected change
+			UnspentOutputs: p2pkhOutputs(2),
+			Output:         p2pkhOutputs(1)[0],
+			RelayFee:       0,
+			ExpectedChange: 1,
+			ShouldError:    false,
+		},
+	}
+
+	var changeSource AuthorTestChangeSource
+
+	for i, test := range tests {
+		inputSource := makeInputSource(test.UnspentOutputs)
+		tx, err := NewUnsignedTransactionMinusFee(test.Output, test.RelayFee, inputSource, changeSource)
+
+		if test.ShouldError {
+			if err == nil {
+				t.Errorf("Test %d: Expected error but one was not returned", i)
+				continue
+			} else if !errors.Is(test.ExpectedError, err) {
+				t.Errorf("Test %d: Error=%v expected %v", i, err, test.ExpectedError)
+				continue
+			} else {
+				// pass, got expected error
+				continue
+			}
+		} else {
+			if err != nil {
+				t.Errorf("Test %d: Unexpected error: %v", i, err)
+				continue
+			} else {
+				// no unexpected errors, carry on...
+			}
+		}
+
+		if test.ExpectedChange > 0 && tx.ChangeIndex < 0 {
+			t.Errorf("Test %d: Expected change value (%v) but no change returned", i, test.ExpectedChange)
+			continue
+		}
+
+		outputIndex := 0
+		if tx.ChangeIndex >= 0 {
+			outputIndex = tx.ChangeIndex ^ 1
+		}
+
+		outputValue := tx.Tx.TxOut[outputIndex].Value
+		expectedFee := int64(txrules.FeeForSerializeSize(test.RelayFee, tx.EstimatedSignedSerializeSize))
+
+		// Make sure the resulting TxOut is not the same reference as the `output` argument
+		if test.Output == tx.Tx.TxOut[outputIndex] {
+			t.Errorf("Test %d: Expected returned TxOut reference to not equal test output reference", i)
+			continue
+		}
+
+		// Adding the fee back to the output should give original value
+		if outputValue+expectedFee != test.Output.Value {
+			t.Errorf("Test %d: Expected output value (%v) plus fee (%v) to equal original output value (%v)",
+				i, outputValue, expectedFee, test.Output.Value)
+			continue
+		}
+
+		// If there is change, make sure it's the expected value.
+		if tx.ChangeIndex >= 0 {
+			changeValue := tx.Tx.TxOut[tx.ChangeIndex].Value
+			if changeValue != int64(test.ExpectedChange) {
+				t.Errorf("Test %d: Got change amount %v, Expected %v",
+					i, changeValue, test.ExpectedChange)
+				continue
+			}
+		}
+	}
+}
