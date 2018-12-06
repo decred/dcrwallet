@@ -32,10 +32,10 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/deployments"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
@@ -1110,11 +1110,11 @@ type (
 		resp    chan consolidateResponse
 	}
 	createTxRequest struct {
-		account uint32
-		outputs []*wire.TxOut
-		minconf int32
+		account          uint32
+		outputs          []*wire.TxOut
+		minconf          int32
 		recipientPaysFee bool
-		resp    chan createTxResponse
+		resp             chan createTxResponse
 	}
 	createMultisigTxRequest struct {
 		account   uint32
@@ -3888,9 +3888,24 @@ func (w *Wallet) TotalReceivedForAddr(addr dcrutil.Address, minConf int32) (dcru
 	return amount, nil
 }
 
-// SendOutputs creates and sends payment transactions. It returns the
-// transaction hash upon success
-func (w *Wallet) SendOutputs(outputs []*wire.TxOut, account uint32, minconf int32, recipientPaysFee bool) (*chainhash.Hash, error) {
+type SendOutputsOptions struct {
+	// Determines whether the fee comes from the change output or from the payment recipient
+	RecipientPaysFee bool
+}
+
+// SendOutputs creates and sends payment transactions.
+// It returns the transaction hash upon success.
+//
+// When building the transaction, miner fees are subtracted from the change output.
+func (w *Wallet) SendOutputs(outputs []*wire.TxOut, account uint32, minconf int32) (*chainhash.Hash, error) {
+	defaultOpts := SendOutputsOptions{RecipientPaysFee: false}
+	return w.SendOutputsWithOptions(outputs, account, minconf, defaultOpts)
+}
+
+// SendOutputsWithOptions creates and sends payment transactions with options.
+// It returns the transaction hash upon success.
+func (w *Wallet) SendOutputsWithOptions(outputs []*wire.TxOut, account uint32, minconf int32,
+	options SendOutputsOptions) (*chainhash.Hash, error) {
 	const op errors.Op = "wallet.SendOutputs"
 	relayFee := w.RelayFee()
 	for _, output := range outputs {
@@ -3901,12 +3916,13 @@ func (w *Wallet) SendOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 	}
 
 	req := createTxRequest{
-		account: account,
-		outputs: outputs,
-		minconf: minconf,
-		resp:    make(chan createTxResponse),
-		recipientPaysFee: recipientPaysFee,
+		account:          account,
+		outputs:          outputs,
+		minconf:          minconf,
+		resp:             make(chan createTxResponse),
+		recipientPaysFee: options.RecipientPaysFee,
 	}
+
 	w.createTxRequests <- req
 	resp := <-req.resp
 	if resp.err != nil {

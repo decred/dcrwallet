@@ -158,24 +158,39 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 // non-change output.  An appropriate transaction fee is included based on the
 // transaction size, and is subtracted from the provided `output` parameter.
 //
-// The behavior of this method mirrors a call to `NewUnsignedTransaction` with the
-// only differences being that:
-// * this method takes a single `output` and
+// The behavior of this method mirrors a call to `NewUnsignedTransaction` with the differences being that:
+// * this method takes a single `output` argument
 // * all fees are subtracted from the provided output rather than from change.
+// * the output in the return value is a shallow copy of the output argument and references the original output script.
+// * returns an error if the final output fails consensus or policy rules
 func NewUnsignedTransactionMinusFee(output *wire.TxOut, relayFeePerKb dcrutil.Amount,
 	fetchInputs InputSource, fetchChange ChangeSource) (*AuthoredTx, error) {
 
+	// Create shallow copy of `output` to include in return value since the `Value` property will be mutated
+	// Still retains a reference to the output script array.
+	outputCopy := &wire.TxOut{
+		PkScript: output.PkScript,
+		Version:  output.Version,
+		Value:    output.Value,
+	}
+
 	// Since the fee will come directly from the full output amount,
 	// defer fee calculation until enough inputs have been consumed.
-	authoredTx, err := NewUnsignedTransaction([]*wire.TxOut{output}, 0, fetchInputs, fetchChange)
+	authoredTx, err := NewUnsignedTransaction([]*wire.TxOut{outputCopy}, 0, fetchInputs, fetchChange)
 	if err != nil {
 		return nil, err
 	}
 
-	// At this point, all inputs have been determined and the size of the transaction is fixed.
-	// Calculate the fee and subtract it from the single provided output.
+	// At this point, all inputs have been determined and the estimated size of the transaction is fixed.
+	// Calculate the fee and subtract it from the copied instance of the provided output.
 	feeAmount := txrules.FeeForSerializeSize(relayFeePerKb, authoredTx.EstimatedSignedSerializeSize)
-	output.Value -= int64(feeAmount)
+	outputCopy.Value -= int64(feeAmount)
+
+	// If the resulting transaction is dust or otherwise invalid, return the appropriate error.
+	if err := txrules.CheckOutput(outputCopy, relayFeePerKb); err != nil {
+		return nil, err
+	}
+
 	return authoredTx, nil
 }
 

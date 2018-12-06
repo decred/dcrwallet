@@ -22,10 +22,10 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/internal/txsizes"
-	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 )
 
 // --------------------------------------------------------------------------------
@@ -326,7 +326,7 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 
 		if recipientPaysFee {
 			if len(outputs) != 1 {
-				return errors.E(op, "Expected exactly one output for "+
+				return errors.E(errors.Invalid, "expected exactly one output for "+
 					"transaction where recipient pays the fee")
 			}
 
