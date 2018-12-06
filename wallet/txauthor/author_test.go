@@ -258,9 +258,9 @@ func TestNewUnsignedTransactionMinusFee(t *testing.T) {
 			ExpectedError:  errors.Invalid,
 		},
 		1: {
-			// Spend all inputs, but would be dust since available is exactly the fee
-			UnspentOutputs: p2pkhOutputs(228),
-			Output:         p2pkhOutputs(228)[0],
+			// Spend all inputs, but would be dust
+			UnspentOutputs: p2pkhOutputs(1e3),
+			Output:         p2pkhOutputs(1e3)[0],
 			RelayFee:       1e3,
 			ShouldError:    true,
 			ExpectedError:  errors.Policy,
