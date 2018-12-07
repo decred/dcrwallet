@@ -2435,6 +2435,8 @@ func (w *Wallet) fetchTicketDetails(ns walletdb.ReadBucket, hash *chainhash.Hash
 // summmary for the ticket, the spender (if already spent) and the ticket's
 // current status.
 //
+// If the ticket is unmined, then the returned block header will be nil.
+//
 // The argument chainClient is always expected to be not nil in this case,
 // otherwise one should use the alternative GetTicketInfo instead.  With
 // the ability to use the rpc chain client, this function is able to determine
@@ -2455,6 +2457,10 @@ func (w *Wallet) GetTicketInfoPrecise(chainClient *dcrrpcclient.Client, hash *ch
 		}
 
 		ticketSummary = makeTicketSummary(chainClient, dbtx, w, ticketDetails)
+		if ticketDetails.Ticket.Block.Height == -1 {
+			// unmined tickets do not have an associated block header
+			return nil
+		}
 
 		// Fetch the associated block header of the ticket.
 		hBytes, err := w.TxStore.GetSerializedBlockHeader(txmgrNs,
@@ -2482,6 +2488,8 @@ func (w *Wallet) GetTicketInfoPrecise(chainClient *dcrrpcclient.Client, hash *ch
 // for the provided ticket. The ticket summary is comprised of the transaction
 // summmary for the ticket, the spender (if already spent) and the ticket's
 // current status.
+//
+// If the ticket is unmined, then the returned block header will be nil.
 func (w *Wallet) GetTicketInfo(hash *chainhash.Hash) (*TicketSummary, *wire.BlockHeader, error) {
 	const op errors.Op = "wallet.GetTicketInfo"
 
@@ -2497,6 +2505,10 @@ func (w *Wallet) GetTicketInfo(hash *chainhash.Hash) (*TicketSummary, *wire.Bloc
 		}
 
 		ticketSummary = makeTicketSummary(nil, dbtx, w, ticketDetails)
+		if ticketDetails.Ticket.Block.Height == -1 {
+			// unmined tickets do not have an associated block header
+			return nil
+		}
 
 		// Fetch the associated block header of the ticket.
 		hBytes, err := w.TxStore.GetSerializedBlockHeader(txmgrNs,
