@@ -3888,6 +3888,8 @@ func (w *Wallet) TotalReceivedForAddr(addr dcrutil.Address, minConf int32) (dcru
 	return amount, nil
 }
 
+// SendOutputsOptions allows changing the default behavior of how outputs are handled
+// when sent via SendOutputsWithOptions
 type SendOutputsOptions struct {
 	// Determines whether the fee comes from the change output or from the payment recipient
 	RecipientPaysFee bool
