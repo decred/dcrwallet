@@ -13,8 +13,8 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrwallet/wallet/udb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
 
