@@ -259,13 +259,13 @@ func (s *RPCSyncer) handleNotifications(ctx context.Context) error {
 				}
 				blockHash := header.BlockHash()
 				getCfilter := s.rpcClient.GetCFilterAsync(&blockHash, wire.GCSFilterRegular)
-				var txs []*wire.MsgTx
-				rpt, err := s.wallet.RescanPoint()
+				var rpt *chainhash.Hash
+				rpt, err = s.wallet.RescanPoint()
 				if err != nil {
 					break
 				}
 				if rpt == nil {
-					txs = make([]*wire.MsgTx, 0, len(n.transactions))
+					txs := make([]*wire.MsgTx, 0, len(n.transactions))
 					for _, tx := range n.transactions {
 						msgTx := new(wire.MsgTx)
 						err = msgTx.Deserialize(bytes.NewReader(tx))
@@ -280,7 +280,8 @@ func (s *RPCSyncer) handleNotifications(ctx context.Context) error {
 					relevantTxs[blockHash] = txs
 				}
 
-				f, err := getCfilter.Receive()
+				var f *gcs.Filter
+				f, err = getCfilter.Receive()
 				if err != nil {
 					break
 				}
@@ -288,7 +289,8 @@ func (s *RPCSyncer) handleNotifications(ctx context.Context) error {
 				blockNode := wallet.NewBlockNode(header, &blockHash, f)
 				sidechains.AddBlockNode(blockNode)
 
-				bestChain, err := s.wallet.EvaluateBestChain(sidechains)
+				var bestChain []*wallet.BlockNode
+				bestChain, err = s.wallet.EvaluateBestChain(sidechains)
 				if err != nil {
 					break
 				}
@@ -299,6 +301,9 @@ func (s *RPCSyncer) handleNotifications(ctx context.Context) error {
 						connectingBlocks = true
 					}
 					nonFatal = !connectingBlocks
+					if err != nil {
+						break
+					}
 
 					if len(prevChain) != 0 {
 						log.Infof("Reorganize from %v to %v (total %d block(s) reorged)",
