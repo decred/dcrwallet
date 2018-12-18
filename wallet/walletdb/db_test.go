@@ -10,9 +10,12 @@ import (
 	"testing"
 
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/walletdb"
 	_ "github.com/decred/dcrwallet/wallet/internal/bdb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 )
+
+// dbType is the database type name for this driver.
+const dbType = "bdb"
 
 // TestAddDuplicateDriver ensures that adding a duplicate driver does not
 // overwrite an existing one.
@@ -115,4 +118,20 @@ func TestCreateOpenUnsupported(t *testing.T) {
 	if !errors.Is(errors.Invalid, err) {
 		t.Errorf("walletdb.Create: %v", err)
 	}
+}
+
+// TestInterface performs all interfaces tests for this database driver.
+func TestInterface(t *testing.T) {
+	// Create a new database to run tests against.
+	dbPath := "interfacetest.db"
+	db, err := walletdb.Create(dbType, dbPath)
+	if err != nil {
+		t.Errorf("Failed to create test database (%s) %v", dbType, err)
+		return
+	}
+	defer os.Remove(dbPath)
+	defer db.Close()
+
+	// Run all of the interface tests against the database.
+	testInterface(t, db)
 }
