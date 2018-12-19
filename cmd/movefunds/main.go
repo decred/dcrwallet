@@ -22,15 +22,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math"
 	"os"
-	"sort"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrwallet/wallet/txauthor"
 )
 
 // params is the global representing the chain parameters. It is assigned
@@ -45,92 +45,116 @@ type configJSON struct {
 	DcrctlArgs    string `json:"dcrctlargs"`
 }
 
-// extendedOutPoint is a UTXO with an amount.
-type extendedOutPoint struct {
-	op       *wire.OutPoint
-	amt      int64
-	pkScript []byte
+func saneOutputValue(amount dcrutil.Amount) bool {
+	return amount >= 0 && amount <= dcrutil.MaxAmount
 }
 
-// extendedOutPoints is an extendedOutPoint used for sorting by UTXO amount.
-type extendedOutPoints struct {
-	eops []*extendedOutPoint
+func parseOutPoint(input *dcrjson.ListUnspentResult) (wire.OutPoint, error) {
+	txHash, err := chainhash.NewHashFromStr(input.TxID)
+	if err != nil {
+		return wire.OutPoint{}, err
+	}
+	return wire.OutPoint{Hash: *txHash, Index: input.Vout, Tree: input.Tree}, nil
 }
 
-func (e extendedOutPoints) Len() int { return len(e.eops) }
-func (e extendedOutPoints) Less(i, j int) bool {
-	return e.eops[i].amt < e.eops[j].amt
-}
-func (e extendedOutPoints) Swap(i, j int) {
-	e.eops[i], e.eops[j] = e.eops[j], e.eops[i]
+// noInputValue describes an error returned by the input source when no inputs
+// were selected because each previous output value was zero.  Callers of
+// txauthor.NewUnsignedTransaction need not report these errors to the user.
+type noInputValue struct {
 }
 
-// convertJSONUnspentToOutPoints converts a JSON raw dump from listunspent to
-// a set of UTXOs.
-func convertJSONUnspentToOutPoints(
-	utxos []dcrjson.ListUnspentResult) []*extendedOutPoint {
-	var eops []*extendedOutPoint
-	for _, utxo := range utxos {
-		if utxo.TxType == 1 && utxo.Vout == 0 {
+func (noInputValue) Error() string { return "no input value" }
+
+// makeInputSource creates an InputSource that creates inputs for every unspent
+// output with non-zero output values.  The target amount is ignored since every
+// output is consumed.  The InputSource does not return any previous output
+// scripts as they are not needed for creating the unsinged transaction and are
+// looked up again by the wallet during the call to signrawtransaction.
+func makeInputSource(outputs []dcrjson.ListUnspentResult) (dcrutil.Amount, txauthor.InputSource) {
+	var (
+		totalInputValue   dcrutil.Amount
+		inputs            = make([]*wire.TxIn, 0, len(outputs))
+		redeemScriptSizes = make([]int, 0, len(outputs))
+		sourceErr         error
+	)
+	for _, output := range outputs {
+
+		outputAmount, err := dcrutil.NewAmount(output.Amount)
+		if err != nil {
+			sourceErr = fmt.Errorf("invalid amount `%v` in listunspent result",
+				output.Amount)
+			break
+		}
+		if outputAmount == 0 {
 			continue
 		}
+		if !saneOutputValue(outputAmount) {
+			sourceErr = fmt.Errorf(
+				"impossible output amount `%v` in listunspent result",
+				outputAmount)
+			break
+		}
+		totalInputValue += outputAmount
 
-		op := new(wire.OutPoint)
-		hash, _ := chainhash.NewHashFromStr(utxo.TxID)
-		op.Hash = *hash
-		op.Index = utxo.Vout
-		op.Tree = utxo.Tree
-
-		pks, err := hex.DecodeString(utxo.ScriptPubKey)
+		previousOutPoint, err := parseOutPoint(&output)
 		if err != nil {
-			fmt.Println("failure decoding pkscript from unspent list")
-			os.Exit(1)
+			sourceErr = fmt.Errorf(
+				"invalid data in listunspent result: %v", err)
+			break
 		}
 
-		eop := new(extendedOutPoint)
-		eop.op = op
-		amtCast, _ := dcrutil.NewAmount(utxo.Amount)
-		eop.amt = int64(amtCast)
-		eop.pkScript = pks
-
-		eops = append(eops, eop)
+		txIn := wire.NewTxIn(&previousOutPoint, int64(outputAmount), nil)
+		inputs = append(inputs, txIn)
 	}
 
-	return eops
+	if sourceErr == nil && totalInputValue == 0 {
+		sourceErr = noInputValue{}
+	}
+
+	return totalInputValue, func(dcrutil.Amount) (*txauthor.InputDetail, error) {
+		inputDetail := txauthor.InputDetail{
+			Amount:            totalInputValue,
+			Inputs:            inputs,
+			Scripts:           nil,
+			RedeemScriptSizes: redeemScriptSizes,
+		}
+		return &inputDetail, sourceErr
+	}
 }
 
 func main() {
-	// 1. Load the UTXOs ----------------------------------------------------------
+	// Create an inputSource from the loaded utxos.
 	unspentFile, err := os.Open("unspent.json")
 	if err != nil {
-		fmt.Println("error opening unspent file unspent.json", err.Error())
+		fmt.Printf("error opening unspent file unspent.json: %v", err)
+		return
 	}
 
 	var utxos []dcrjson.ListUnspentResult
 
 	jsonParser := json.NewDecoder(unspentFile)
 	if err = jsonParser.Decode(&utxos); err != nil {
-		fmt.Println("error parsing unspent file", err.Error())
+		fmt.Printf("error parsing unspent file: %v", err)
+		return
 	}
 
-	// Sort the inputs so that the largest one is first.
-	inputs := extendedOutPoints{convertJSONUnspentToOutPoints(utxos)}
-	sort.Sort(sort.Reverse(inputs))
+	targetAmount, inputSource := makeInputSource(utxos)
 
-	// 2. Load the config ---------------------------------------------------------
+	// Load and parse the movefunds config.
 	configFile, err := os.Open("config.json")
 	if err != nil {
-		fmt.Println("error opening config file config.json", err.Error())
+		fmt.Printf("error opening config file config.json: %v", err)
+		return
 	}
 
 	cfg := new(configJSON)
 
 	jsonParser = json.NewDecoder(configFile)
 	if err = jsonParser.Decode(cfg); err != nil {
-		fmt.Println("error parsing config file", err.Error())
+		fmt.Printf("error parsing config file: %v", err)
+		return
 	}
 
-	// 3. Check the config and parse ----------------------------------------------
 	switch cfg.Network {
 	case "testnet":
 		params = &chaincfg.TestNet3Params
@@ -139,45 +163,44 @@ func main() {
 	case "simnet":
 		params = &chaincfg.SimNetParams
 	default:
-		fmt.Println("Failed to parse a correct network")
+		fmt.Printf("unknown network specified: %s", cfg.Network)
 		return
 	}
 
-	maxTxSize = params.MaxTxSize
-
-	sendToAddress, err := dcrutil.DecodeAddress(cfg.SendToAddress)
+	addr, err := dcrutil.DecodeAddress(cfg.SendToAddress)
 	if err != nil {
-		fmt.Println("Failed to parse tx address: ", err.Error())
+		fmt.Printf("failed to parse address %s: %v", cfg.SendToAddress, err)
+		return
 	}
 
-	// 4. Create the transaction --------------------------------------------------
-	// First get how much we're sending.
-	allInAmts := int64(0)
-	var utxosToUse []*extendedOutPoint
-	for _, utxo := range inputs.eops {
-		utxosToUse = append(utxosToUse, utxo)
-		allInAmts += utxo.amt
-	}
-
-	// Convert to KB.
-	sz := float64(estimateTxSize(len(utxosToUse), 1)) / 1000
-	feeEst := int64(math.Ceil(sz * float64(cfg.TxFee)))
-
-	tx, err := makeTx(utxosToUse, sendToAddress, feeEst)
+	fee, err := dcrutil.NewAmount(float64(cfg.TxFee))
 	if err != nil {
-		fmt.Println("Couldn't produce tx: ", err.Error())
+		fmt.Printf("invalid fee rate: %v", err)
 		return
 	}
 
-	if tx.SerializeSize() > maxTxSize {
-		fmt.Printf("tx too big: got %v, max %v", tx.SerializeSize(),
-			maxTxSize)
+	// Create the unsigned transaction.
+	pkScript, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		fmt.Printf("failed to generate pkScript: %s", err)
 		return
 	}
 
-	// 5. Write the transactions to files in raw form with the proper command
-	// required to sign them.
-	txB, err := tx.Bytes()
+	txOuts := []*wire.TxOut{wire.NewTxOut(int64(targetAmount-fee), pkScript)}
+	atx, err := txauthor.NewUnsignedTransaction(txOuts, fee, inputSource, nil)
+	if err != nil {
+		fmt.Printf("failed to create unsigned transaction: %s", err)
+		return
+	}
+
+	if atx.Tx.SerializeSize() > params.MaxTxSize {
+		fmt.Printf("tx too big: got %v, max %v", atx.Tx.SerializeSize(),
+			params.MaxTxSize)
+		return
+	}
+
+	// Generate the signrawtransaction command.
+	txB, err := atx.Tx.Bytes()
 	if err != nil {
 		fmt.Println("Failed to serialize tx: ", err.Error())
 		return
@@ -190,16 +213,16 @@ func main() {
 	buf.WriteString(" signrawtransaction ")
 	buf.WriteString(hex.EncodeToString(txB))
 	buf.WriteString(" '[")
-	last := len(utxosToUse) - 1
-	for i, utxo := range utxosToUse {
+	last := len(atx.Tx.TxIn) - 1
+	for i, in := range atx.Tx.TxIn {
 		buf.WriteString("{\"txid\":\"")
-		buf.WriteString(utxo.op.Hash.String())
+		buf.WriteString(in.PreviousOutPoint.Hash.String())
 		buf.WriteString("\",\"vout\":")
-		buf.WriteString(fmt.Sprintf("%v", utxo.op.Index))
+		buf.WriteString(fmt.Sprintf("%v", in.PreviousOutPoint.Index))
 		buf.WriteString(",\"tree\":")
-		buf.WriteString(fmt.Sprintf("%v", utxo.op.Tree))
+		buf.WriteString(fmt.Sprintf("%v", in.PreviousOutPoint.Tree))
 		buf.WriteString(",\"scriptpubkey\":\"")
-		buf.WriteString(hex.EncodeToString(utxo.pkScript))
+		buf.WriteString(hex.EncodeToString(in.SignatureScript))
 		buf.WriteString("\",\"redeemscript\":\"\"}")
 		if i != last {
 			buf.WriteString(",")
