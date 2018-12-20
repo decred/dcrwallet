@@ -23,8 +23,8 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/internal/txsizes"
-	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrwallet/wallet/txauthor"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -1816,6 +1816,9 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 				if v == nil {
 					continue
 				}
+				vcopy := make([]byte, len(v))
+				copy(vcopy, v)
+				removedCredits[string(k)] = vcopy
 
 				amt, change, err := fetchRawCreditAmountChange(v)
 				if err != nil {
