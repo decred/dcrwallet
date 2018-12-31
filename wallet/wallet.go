@@ -32,10 +32,10 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/deployments"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrwallet/wallet/udb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
@@ -2394,7 +2394,7 @@ func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (txSummary *Transact
 		*txSummary = makeTxSummary(dbtx, w, txDetails)
 		confs = confirms(txDetails.Height(), tipHeight)
 		if confs > 0 {
-			blockHash = &txDetails.Hash
+			blockHash = &txDetails.Block.Hash
 		}
 		return nil
 	})
