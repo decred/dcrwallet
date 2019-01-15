@@ -1922,6 +1922,25 @@ func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 	return extKey, nil
 }
 
+// MasterPrivKey returns the extended private key for the given account. The
+// account must exist and the wallet must be unlocked, otherwise this function
+// fails.
+func (w *Wallet) MasterPrivKey(account uint32) (*hdkeychain.ExtendedKey, error) {
+	const op errors.Op = "wallet.MasterPrivKey"
+
+	var privKey *hdkeychain.ExtendedKey
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		var err error
+		privKey, err = w.Manager.AccountExtendedPrivKey(tx, account)
+		return err
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return privKey, nil
+}
+
 // GetTransactionsByHashes returns all known transactions identified by a slice
 // of transaction hashes.  It is possible that not all transactions are found,
 // and in this case the known results will be returned along with an inventory
