@@ -143,7 +143,7 @@ var helpDescsEnUS = map[string]string{
 	"getstakeinforesult-live":             "Number of mature, active tickets owned by this wallet",
 	"getstakeinforesult-proportionlive":   "(Live / PoolSize)",
 	"getstakeinforesult-voted":            "Number of votes cast by this wallet",
-	"getstakeinforesult-totalsubsidy":     "Total amount of coins earned by stake mining",
+	"getstakeinforesult-totalsubsidy":     "Total amount of coins earned by proof-of-stake voting",
 	"getstakeinforesult-missed":           "Number of missed tickets (failure to vote, not including expired)",
 	"getstakeinforesult-proportionmissed": "(Missed / (Missed + Voted))",
 	"getstakeinforesult-revoked":          "Number of missed tickets that were missed and then revoked",

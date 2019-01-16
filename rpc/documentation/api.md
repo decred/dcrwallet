@@ -1716,7 +1716,7 @@ owned and votes cast.
 
 - `uint32 expired`: The number of expired tickets owned by the user.
 
-- `int64 total_subsidy`: The total subsidy received by the user for stake mining.
+- `int64 total_subsidy`: The total subsidy received by the user for proof-of-stake voting.
 
 - `uint32 unspent`: The number of unspent tickets. This could include live, missed or expired tickets.
 
