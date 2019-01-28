@@ -38,8 +38,8 @@ github.com/decred/dcrd/chaincfg v1.1.1 h1:qRZkiA7ucsfsQPE/G/U1OnEUFozDl1MvM4ysJC
 github.com/decred/dcrd/chaincfg v1.1.1/go.mod h1:UlGtnp8Xx9YK+etBTybGjoFGoGXSw2bxZQuAnwfKv6I=
 github.com/decred/dcrd/chaincfg v1.2.0 h1:Vj0xr85wmqOdQDxKLkpP9TqwK1RykqY2eC0fWcCsl0k=
 github.com/decred/dcrd/chaincfg v1.2.0/go.mod h1:kpoGTMIriKn5hHRSu5b65+Q9LlGUdbQcMzGujac1BVs=
-github.com/decred/dcrd/chaincfg v1.2.1 h1:I+IyCBppeGuDb17mxPcDVJ+kb/x7DFoImymQ1P4XAwg=
-github.com/decred/dcrd/chaincfg v1.2.1/go.mod h1:kpoGTMIriKn5hHRSu5b65+Q9LlGUdbQcMzGujac1BVs=
+github.com/decred/dcrd/chaincfg v1.3.0 h1:DEysyX1/kxlWbY97PTIPpGbMOp3+n2iixi3m9d27A6c=
+github.com/decred/dcrd/chaincfg v1.3.0/go.mod h1:kpoGTMIriKn5hHRSu5b65+Q9LlGUdbQcMzGujac1BVs=
 github.com/decred/dcrd/chaincfg/chainhash v1.0.1 h1:0vG7U9+dSjSCaHQKdoSKURK2pOb47+b+8FK5q4+Je7M=
 github.com/decred/dcrd/chaincfg/chainhash v1.0.1/go.mod h1:OVfvaOsNLS/A1y4Eod0Ip/Lf8qga7VXCQjUQLbkY0Go=
 github.com/decred/dcrd/connmgr v1.0.2 h1:ipHJBV9fmhLi8ZZCtsNpG+kLY2c+yu59/8oOkA8BNJY=
@@ -125,8 +125,8 @@ github.com/decred/dcrwallet/version v1.0.1 h1:gAz1lDkcJ+oAbg0tOn/J0KwZBVWIlhWmHh
 github.com/decred/dcrwallet/version v1.0.1/go.mod h1:rXeMsUaI03WtlQrSol7Q7sJ8HBOB+tZvT7YQRXD5Y7M=
 github.com/decred/dcrwallet/wallet v1.1.0 h1:bIqKgr/fWK7Sm4n7mh72RsK/vYaZ+Lxect4tc0e8I20=
 github.com/decred/dcrwallet/wallet v1.1.0/go.mod h1:g4OzDG7jpsRqTDP3bHiA0LIEZFx81accYPCkO1DBNT8=
-github.com/decred/dcrwallet/wallet v1.1.2 h1:nxMALiRrC+og7IqhEkFUJP/55qJjE0oks+wd0IKoCLU=
-github.com/decred/dcrwallet/wallet v1.1.2/go.mod h1:g4OzDG7jpsRqTDP3bHiA0LIEZFx81accYPCkO1DBNT8=
+github.com/decred/dcrwallet/wallet v1.2.0 h1:iIABNcJbN/ViYB6jf/aLawv2W/gA8XTFCALuycdOJZQ=
+github.com/decred/dcrwallet/wallet v1.2.0/go.mod h1:ItOhnw3C4znuLQVWACSq8jCLy221v9X0Xo0b/j5WqgU=
 github.com/decred/dcrwallet/walletseed v1.0.1 h1:gxvlj0GRw+H0VumCxTlEysu+/nltcp9+lgzVgzsnI/Y=
 github.com/decred/dcrwallet/walletseed v1.0.1/go.mod h1:ENlwTabC2JVmT4S1eCP44fnwX4+9y2RLsnfSU21CJ+4=
 github.com/decred/slog v1.0.0 h1:Dl+W8O6/JH6n2xIFN2p3DNjCmjYwvrXsjlSJTQQ4MhE=
