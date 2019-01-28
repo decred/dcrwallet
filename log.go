@@ -18,8 +18,7 @@ import (
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
 	"github.com/decred/dcrwallet/spv"
-	"github.com/decred/dcrwallet/ticketbuyer"
-	ticketbuyerv2 "github.com/decred/dcrwallet/ticketbuyer/v2"
+	"github.com/decred/dcrwallet/ticketbuyer/v2"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/slog"
@@ -70,7 +69,6 @@ func init() {
 	wallet.UseLogger(walletLog)
 	udb.UseLogger(walletLog)
 	ticketbuyer.UseLogger(tkbyLog)
-	ticketbuyerv2.UseLogger(tkbyLog)
 	chain.UseLogger(syncLog)
 	dcrrpcclient.UseLogger(syncLog)
 	spv.UseLogger(syncLog)

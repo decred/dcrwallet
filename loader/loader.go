@@ -11,9 +11,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrwallet/chain"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/decred/dcrwallet/wallet"
 	_ "github.com/decred/dcrwallet/wallet/drivers/bdb" // driver loaded during init
 )
@@ -38,9 +36,6 @@ type Loader struct {
 	wallet      *wallet.Wallet
 	db          wallet.DB
 	dbDriver    string
-
-	purchaseManager *ticketbuyer.PurchaseManager
-	ntfnClient      wallet.MainTipChangedNotificationsClient
 
 	stakeOptions            *StakeOptions
 	gapLimit                int
@@ -398,8 +393,6 @@ func (l *Loader) UnloadWallet() error {
 		return errors.E(op, errors.Invalid, "wallet is unopened")
 	}
 
-	l.stopTicketPurchase()
-
 	l.wallet.Stop()
 	l.wallet.WaitForShutdown()
 	err := l.db.Close()
@@ -426,75 +419,6 @@ func (l *Loader) NetworkBackend() (n wallet.NetworkBackend, ok bool) {
 	n = l.backend
 	l.mu.Unlock()
 	return n, n != nil
-}
-
-// StartTicketPurchase launches the ticketbuyer to start purchasing tickets.
-func (l *Loader) StartTicketPurchase(passphrase []byte, ticketbuyerCfg *ticketbuyer.Config) error {
-	const op errors.Op = "loader.StartTicketPurchase"
-
-	defer l.mu.Unlock()
-	l.mu.Lock()
-
-	// Already running?
-	if l.purchaseManager != nil {
-		return errors.E(op, errors.Invalid, "ticket purchaser already started")
-	}
-
-	if l.wallet == nil {
-		return errors.E(op, errors.Invalid, "wallet must be loaded")
-	}
-
-	c, err := chain.RPCClientFromBackend(l.backend)
-	if err != nil {
-		return errors.E(op, errors.Invalid, "dcrd RPC client must be loaded")
-	}
-
-	w := l.wallet
-	p, err := ticketbuyer.NewTicketPurchaser(ticketbuyerCfg, c, w, l.chainParams)
-	if err != nil {
-		return errors.E(op, err)
-	}
-	n := w.NtfnServer.MainTipChangedNotifications()
-	pm := ticketbuyer.NewPurchaseManager(w, p, n.C, passphrase)
-	l.ntfnClient = n
-	l.purchaseManager = pm
-	pm.Start()
-	return nil
-}
-
-// stopTicketPurchase stops the ticket purchaser, waiting until it has finished.
-// Returns false if the ticket purchaser was not running. It must be called with
-// the mutex lock held.
-func (l *Loader) stopTicketPurchase() bool {
-	if l.purchaseManager == nil {
-		return false
-	}
-
-	l.ntfnClient.Done()
-	l.purchaseManager.Stop()
-	l.purchaseManager.WaitForShutdown()
-	l.purchaseManager = nil
-	return true
-}
-
-// StopTicketPurchase stops the ticket purchaser, waiting until it has finished.
-func (l *Loader) StopTicketPurchase() error {
-	const op errors.Op = "loader.StopTicketPurchase"
-	defer l.mu.Unlock()
-	l.mu.Lock()
-	if !l.stopTicketPurchase() {
-		return errors.E(op, errors.Invalid, "ticket purchaser is not running")
-	}
-	return nil
-}
-
-// PurchaseManager returns the ticket purchaser instance. If ticket purchasing
-// has been disabled, it returns nil.
-func (l *Loader) PurchaseManager() *ticketbuyer.PurchaseManager {
-	l.mu.Lock()
-	pm := l.purchaseManager
-	l.mu.Unlock()
-	return pm
 }
 
 func fileExists(filePath string) (bool, error) {

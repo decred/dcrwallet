@@ -40,9 +40,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "5.1.0"
-	jsonrpcSemverMajor  = 5
-	jsonrpcSemverMinor  = 1
+	jsonrpcSemverString = "6.0.0"
+	jsonrpcSemverMajor  = 6
+	jsonrpcSemverMinor  = 0
 	jsonrpcSemverPatch  = 0
 )
 
@@ -114,8 +114,6 @@ var handlers = map[string]handler{
 	"signmessage":             {fn: signMessage},
 	"signrawtransaction":      {fn: signRawTransaction},
 	"signrawtransactions":     {fn: signRawTransactions},
-	"startautobuyer":          {fn: startAutoBuyer},
-	"stopautobuyer":           {fn: stopAutoBuyer},
 	"sweepaccount":            {fn: sweepAccount},
 	"redeemmultisigout":       {fn: redeemMultiSigOut},
 	"redeemmultisigouts":      {fn: redeemMultiSigOuts},
@@ -3079,115 +3077,6 @@ func signRawTransactions(s *Server, icmd interface{}) (interface{}, error) {
 	return &dcrjson.SignRawTransactionsResult{Results: toReturn}, nil
 }
 
-// startAutoBuyer handles the startautobuyer command.
-func startAutoBuyer(s *Server, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrjson.StartAutoBuyerCmd)
-	w, ok := s.walletLoader.LoadedWallet()
-	if !ok {
-		return nil, errUnloadedWallet
-	}
-
-	config := s.ticketbuyerConfig
-
-	if cmd.BalanceToMaintain != nil {
-		if *cmd.BalanceToMaintain < 0 {
-			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-				"balancetomaintain (%v) must be non-negative", *cmd.BalanceToMaintain)
-		}
-
-		config.BalanceToMaintainAbsolute = *cmd.BalanceToMaintain
-	}
-
-	if cmd.MaxFeePerKb != nil {
-		if *cmd.MaxFeePerKb < 0 {
-			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-				"maxfeeperkb (%v) must be non-negative", *cmd.MaxFeePerKb)
-		}
-
-		config.MaxFee = *cmd.MaxFeePerKb
-	}
-
-	if cmd.MaxPriceAbsolute != nil {
-		if *cmd.MaxPriceAbsolute < 0 {
-			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-				"maxpriceabsolute (%v) must be non-negative", *cmd.MaxPriceAbsolute)
-		}
-
-		config.MaxPriceAbsolute = *cmd.MaxPriceAbsolute
-	}
-
-	if cmd.MaxPriceRelative != nil {
-		if *cmd.MaxPriceRelative < 0 {
-			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-				"maxpricerelative (%v) must be non-negative", *cmd.MaxPriceRelative)
-		}
-
-		config.MaxPriceRelative = *cmd.MaxPriceRelative
-	}
-
-	if cmd.MaxPerBlock != nil {
-		if *cmd.MaxPerBlock < 0 {
-			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-				"maxperblock (%v) must be non-negative", *cmd.MaxPerBlock)
-		}
-
-		config.MaxPerBlock = int(*cmd.MaxPerBlock)
-	}
-
-	params := w.ChainParams()
-
-	var err error
-	if cmd.VotingAddress != nil {
-		var votingAddress dcrutil.Address
-		if *cmd.VotingAddress != "" {
-			votingAddress, err = decodeAddress(*cmd.VotingAddress, params)
-			if err != nil {
-				return nil, err
-			}
-
-			config.VotingAddress = votingAddress
-		}
-	}
-
-	var poolAddress dcrutil.Address
-	if cmd.PoolAddress != nil {
-		if *cmd.PoolAddress != "" {
-			poolAddress, err = decodeAddress(*cmd.PoolAddress, params)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	var poolFees float64
-	if cmd.PoolFees != nil {
-		poolFees = *cmd.PoolFees
-	}
-
-	switch {
-	case poolFees == 0 && poolAddress != nil:
-		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "pooladdress set without poolfees")
-	case poolFees != 0 && poolAddress == nil:
-		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "poolfees set without pooladdress")
-	case poolFees != 0 && poolAddress != nil:
-		if !txrules.ValidPoolFeeRate(poolFees) {
-			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "invalid poolfees %v", poolFees)
-		}
-	}
-
-	config.PoolFees = poolFees
-	config.PoolAddress = poolAddress
-
-	err = s.walletLoader.StartTicketPurchase([]byte(cmd.Passphrase), config)
-	return nil, err
-}
-
-// stopAutoBuyer handles the stopautobuyer command.
-func stopAutoBuyer(s *Server, icmd interface{}) (interface{}, error) {
-	err := s.walletLoader.StopTicketPurchase()
-	return nil, err
-}
-
 // scriptChangeSource is a ChangeSource which is used to
 // receive all correlated previous input value.
 type scriptChangeSource struct {
@@ -3486,7 +3375,6 @@ func walletInfo(s *Server, icmd interface{}) (interface{}, error) {
 	unlocked := !(w.Locked())
 	fi := w.RelayFee()
 	tfi := w.TicketFeeIncrement()
-	tp := s.walletLoader.PurchaseManager() != nil
 	voteBits := w.VoteBits()
 	var voteVersion uint32
 	_ = binary.Read(bytes.NewBuffer(voteBits.ExtendedBits[0:4]), binary.LittleEndian, &voteVersion)
@@ -3498,7 +3386,6 @@ func walletInfo(s *Server, icmd interface{}) (interface{}, error) {
 		CoinType:         coinType,
 		TxFee:            fi.ToCoin(),
 		TicketFee:        tfi.ToCoin(),
-		TicketPurchasing: tp,
 		VoteBits:         voteBits.Bits,
 		VoteBitsExtended: hex.EncodeToString(voteBits.ExtendedBits),
 		VoteVersion:      voteVersion,

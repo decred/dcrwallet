@@ -23,7 +23,6 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/loader"
-	"github.com/decred/dcrwallet/ticketbuyer"
 	"github.com/gorilla/websocket"
 )
 
@@ -58,12 +57,11 @@ func (c *websocketClient) send(b []byte) error {
 // Server holds the items the RPC server may need to access (auth,
 // config, shutdown, etc.)
 type Server struct {
-	httpServer        http.Server
-	walletLoader      *loader.Loader
-	ticketbuyerConfig *ticketbuyer.Config
-	listeners         []net.Listener
-	authsha           [sha256.Size]byte
-	upgrader          websocket.Upgrader
+	httpServer   http.Server
+	walletLoader *loader.Loader
+	listeners    []net.Listener
+	authsha      [sha256.Size]byte
+	upgrader     websocket.Upgrader
 
 	maxPostClients      int64 // Max concurrent HTTP POST clients.
 	maxWebsocketClients int64 // Max concurrent websocket clients.
@@ -90,7 +88,7 @@ func jsonAuthFail(w http.ResponseWriter) {
 
 // NewServer creates a new server for serving legacy RPC client connections,
 // both HTTP POST and websocket.
-func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.Loader, ticketBuyerConfig *ticketbuyer.Config, listeners []net.Listener) *Server {
+func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.Loader, listeners []net.Listener) *Server {
 	serveMux := http.NewServeMux()
 	const rpcAuthTimeoutSeconds = 10
 	server := &Server{
@@ -105,7 +103,6 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 		maxPostClients:      opts.MaxPOSTClients,
 		maxWebsocketClients: opts.MaxWebsocketClients,
 		listeners:           listeners,
-		ticketbuyerConfig:   ticketBuyerConfig,
 		// A hash of the HTTP basic auth string is used for a constant
 		// time comparison.
 		authsha: sha256.Sum256(httpBasicAuth(opts.Username, opts.Password)),

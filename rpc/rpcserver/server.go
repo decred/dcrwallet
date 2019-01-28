@@ -51,8 +51,7 @@ import (
 	"github.com/decred/dcrwallet/p2p"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
 	"github.com/decred/dcrwallet/spv"
-	"github.com/decred/dcrwallet/ticketbuyer"
-	tbv2 "github.com/decred/dcrwallet/ticketbuyer/v2"
+	"github.com/decred/dcrwallet/ticketbuyer/v2"
 	"github.com/decred/dcrwallet/wallet"
 	"github.com/decred/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrwallet/wallet/txrules"
@@ -62,9 +61,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "5.6.0"
-	semverMajor  = 5
-	semverMinor  = 6
+	semverString = "6.0.0"
+	semverMajor  = 6
+	semverMinor  = 0
 	semverPatch  = 0
 )
 
@@ -184,14 +183,6 @@ type seedServer struct{}
 
 // ticketbuyerServer provides RPC clients with the ability to start/stop the
 // automatic ticket buyer service.
-type ticketbuyerServer struct {
-	ready          uint32 // atomic
-	loader         *loader.Loader
-	ticketbuyerCfg *ticketbuyer.Config
-}
-
-// ticketbuyerServer provides RPC clients with the ability to start/stop the
-// automatic ticket buyer service.
 type ticketbuyerV2Server struct {
 	ready  uint32 // atomic
 	loader *loader.Loader
@@ -222,7 +213,6 @@ var (
 	walletService              walletServer
 	loaderService              loaderServer
 	seedService                seedServer
-	ticketBuyerService         ticketbuyerServer
 	ticketBuyerV2Service       ticketbuyerV2Server
 	agendaService              agendaServer
 	votingService              votingServer
@@ -237,7 +227,6 @@ func RegisterServices(server *grpc.Server) {
 	pb.RegisterWalletServiceServer(server, &walletService)
 	pb.RegisterWalletLoaderServiceServer(server, &loaderService)
 	pb.RegisterSeedServiceServer(server, &seedService)
-	pb.RegisterTicketBuyerServiceServer(server, &ticketBuyerService)
 	pb.RegisterTicketBuyerV2ServiceServer(server, &ticketBuyerV2Service)
 	pb.RegisterAgendaServiceServer(server, &agendaService)
 	pb.RegisterVotingServiceServer(server, &votingService)
@@ -250,7 +239,6 @@ var serviceMap = map[string]interface{}{
 	"walletrpc.WalletService":              &walletService,
 	"walletrpc.WalletLoaderService":        &loaderService,
 	"walletrpc.SeedService":                &seedService,
-	"walletrpc.TicketBuyerService":         &ticketBuyerService,
 	"walletrpc.TicketBuyerV2Service":       &ticketBuyerV2Service,
 	"walletrpc.AgendaService":              &agendaService,
 	"walletrpc.VotingService":              &votingService,
@@ -2166,15 +2154,6 @@ func StartTicketBuyerV2Service(server *grpc.Server, loader *loader.Loader) {
 	}
 }
 
-// StartTicketBuyerService starts the TicketBuyerService.
-func StartTicketBuyerService(server *grpc.Server, loader *loader.Loader, tbCfg *ticketbuyer.Config) {
-	ticketBuyerService.loader = loader
-	ticketBuyerService.ticketbuyerCfg = tbCfg
-	if atomic.SwapUint32(&ticketBuyerService.ready, 1) != 0 {
-		panic("service already started")
-	}
-}
-
 // StartTicketBuyer starts the automatic ticket buyer for the v2 service.
 func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb.TicketBuyerV2Service_RunTicketBuyerServer) error {
 	wallet, ok := t.loader.LoadedWallet()
@@ -2204,10 +2183,10 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		return status.Errorf(codes.InvalidArgument, "Negative balance to maintain given")
 	}
 
-	tb := tbv2.New(wallet)
+	tb := ticketbuyer.New(wallet)
 
 	// Set ticketbuyerV2 config
-	tb.AccessConfig(func(c *tbv2.Config) {
+	tb.AccessConfig(func(c *ticketbuyer.Config) {
 		c.Account = req.Account
 		c.VotingAccount = req.VotingAccount
 		c.Maintain = dcrutil.Amount(req.BalanceToMaintain)
@@ -2242,114 +2221,6 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 
 func (t *ticketbuyerV2Server) checkReady() bool {
 	return atomic.LoadUint32(&t.ready) != 0
-}
-
-// StartAutoBuyer starts the automatic ticket buyer.
-func (t *ticketbuyerServer) StartAutoBuyer(ctx context.Context, req *pb.StartAutoBuyerRequest) (
-	*pb.StartAutoBuyerResponse, error) {
-
-	wallet, ok := t.loader.LoadedWallet()
-	if !ok {
-		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
-	}
-	err := wallet.Unlock(req.Passphrase, nil)
-	if err != nil {
-		return nil, translateError(err)
-	}
-
-	accountName, err := wallet.AccountName(req.Account)
-	if err != nil {
-		return nil, translateError(err)
-	}
-
-	if req.BalanceToMaintain < 0 {
-		return nil, status.Errorf(codes.InvalidArgument,
-			"Negative balance to maintain given")
-	}
-
-	if req.MaxFeePerKb < 0 {
-		return nil, status.Errorf(codes.InvalidArgument,
-			"Negative max fee per KB given")
-	}
-
-	if req.MaxPriceAbsolute < 0 && req.MaxPriceRelative < 0 {
-		return nil, status.Errorf(codes.InvalidArgument,
-			"Negative max ticket price given")
-	}
-	params := wallet.ChainParams()
-
-	var votingAddress dcrutil.Address
-	if req.VotingAddress != "" {
-		votingAddress, err = decodeAddress(req.VotingAddress, params)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var poolAddress dcrutil.Address
-	if req.PoolAddress != "" {
-		poolAddress, err = decodeAddress(req.PoolAddress, params)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	poolFees := req.PoolFees
-	switch {
-	case poolFees == 0 && poolAddress != nil:
-		return nil, status.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
-	case poolFees != 0 && poolAddress == nil:
-		return nil, status.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
-	case poolFees != 0 && poolAddress != nil:
-		if !txrules.ValidPoolFeeRate(req.PoolFees) {
-			return nil, status.Errorf(codes.InvalidArgument, "Invalid pool fees percentage")
-		}
-	}
-
-	config := &ticketbuyer.Config{
-		AccountName:               accountName,
-		AvgPriceMode:              t.ticketbuyerCfg.AvgPriceMode,
-		AvgPriceVWAPDelta:         t.ticketbuyerCfg.AvgPriceVWAPDelta,
-		BalanceToMaintainAbsolute: req.BalanceToMaintain,
-		BlocksToAvg:               t.ticketbuyerCfg.BlocksToAvg,
-		DontWaitForTickets:        t.ticketbuyerCfg.DontWaitForTickets,
-		ExpiryDelta:               t.ticketbuyerCfg.ExpiryDelta,
-		FeeSource:                 t.ticketbuyerCfg.FeeSource,
-		FeeTargetScaling:          t.ticketbuyerCfg.FeeTargetScaling,
-		MinFee:                    t.ticketbuyerCfg.MinFee,
-		MaxFee:                    req.MaxFeePerKb,
-		MaxPerBlock:               int(req.MaxPerBlock),
-		MaxPriceAbsolute:          req.MaxPriceAbsolute,
-		MaxPriceRelative:          req.MaxPriceRelative,
-		MaxInMempool:              t.ticketbuyerCfg.MaxInMempool,
-		PoolAddress:               poolAddress,
-		PoolFees:                  poolFees,
-		NoSpreadTicketPurchases:   t.ticketbuyerCfg.NoSpreadTicketPurchases,
-		VotingAddress:             votingAddress,
-		TxFee:                     t.ticketbuyerCfg.TxFee,
-	}
-	err = t.loader.StartTicketPurchase(req.Passphrase, config)
-	if errors.Is(errors.Invalid, err) {
-		return nil, status.Errorf(codes.FailedPrecondition, "%s", err)
-	}
-	if err != nil {
-		return nil, translateError(err)
-	}
-	return &pb.StartAutoBuyerResponse{}, err
-}
-
-// StopAutoBuyer stop the automatic ticket buyer.
-func (t *ticketbuyerServer) StopAutoBuyer(ctx context.Context, req *pb.StopAutoBuyerRequest) (
-	*pb.StopAutoBuyerResponse, error) {
-
-	err := t.loader.StopTicketPurchase()
-	if errors.Is(errors.Invalid, err) {
-		return nil, status.Errorf(codes.FailedPrecondition, "Ticket buyer is not running")
-	}
-	if err != nil {
-		return nil, translateError(err)
-	}
-	return &pb.StopAutoBuyerResponse{}, nil
 }
 
 func (s *loaderServer) CreateWallet(ctx context.Context, req *pb.CreateWalletRequest) (
@@ -2624,7 +2495,6 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 	// occurs.
 	defer wallet.SetNetworkBackend(nil)
 	defer s.loader.SetNetworkBackend(nil)
-	defer s.loader.StopTicketPurchase()
 
 	ntfns := &chain.Notifications{
 		Synced: func(sync bool) {
@@ -3029,246 +2899,6 @@ func (s *seedServer) DecodeSeed(ctx context.Context, req *pb.DecodeSeedRequest) 
 	return &pb.DecodeSeedResponse{DecodedSeed: seed}, nil
 }
 
-// requirePurchaseManager checks whether the ticket buyer is running, returning
-// a gRPC error when it is not.
-func (t *ticketbuyerServer) requirePurchaseManager() (*ticketbuyer.PurchaseManager, error) {
-	pm := t.loader.PurchaseManager()
-	if pm == nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "ticket buyer is not running")
-	}
-	return pm, nil
-}
-
-// TicketBuyerConfig returns the configuration of the ticket buyer.
-func (t *ticketbuyerServer) TicketBuyerConfig(ctx context.Context, req *pb.TicketBuyerConfigRequest) (
-	*pb.TicketBuyerConfigResponse, error) {
-	pm, err := t.requirePurchaseManager()
-	if err != nil {
-		return nil, err
-	}
-	config, err := pm.Purchaser().Config()
-	if err != nil {
-		return nil, err
-	}
-	w, ok := t.loader.LoadedWallet()
-	if !ok {
-		return nil, status.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
-	}
-	account, err := w.AccountNumber(config.AccountName)
-	if err != nil {
-		return nil, translateError(err)
-	}
-	votingAddress := ""
-	if config.VotingAddress != nil {
-		votingAddress = config.VotingAddress.String()
-	}
-	poolAddress := ""
-	if config.PoolAddress != nil {
-		poolAddress = config.PoolAddress.String()
-	}
-	return &pb.TicketBuyerConfigResponse{
-		Account:               account,
-		AvgPriceMode:          config.AvgPriceMode,
-		AvgPriceVWAPDelta:     int64(config.AvgPriceVWAPDelta),
-		BalanceToMaintain:     config.BalanceToMaintainAbsolute,
-		BlocksToAvg:           int64(config.BlocksToAvg),
-		DontWaitForTickets:    config.DontWaitForTickets,
-		ExpiryDelta:           int64(config.ExpiryDelta),
-		FeeSource:             config.FeeSource,
-		FeeTargetScaling:      config.FeeTargetScaling,
-		MinFee:                config.MinFee,
-		MaxFee:                config.MaxFee,
-		MaxPerBlock:           int64(config.MaxPerBlock),
-		MaxPriceAbsolute:      config.MaxPriceAbsolute,
-		MaxPriceRelative:      config.MaxPriceRelative,
-		MaxInMempool:          int64(config.MaxInMempool),
-		PoolAddress:           poolAddress,
-		PoolFees:              config.PoolFees,
-		SpreadTicketPurchases: !config.NoSpreadTicketPurchases,
-		VotingAddress:         votingAddress,
-		TxFee:                 config.TxFee,
-	}, nil
-}
-
-// SetAccount sets the account to use for purchasing tickets.
-func (t *ticketbuyerServer) SetAccount(ctx context.Context, req *pb.SetAccountRequest) (
-	*pb.SetAccountResponse, error) {
-
-	pm, err := t.requirePurchaseManager()
-	if err != nil {
-		return nil, err
-	}
-
-	wallet, ok := t.loader.LoadedWallet()
-	if !ok {
-		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
-	}
-
-	_, err = wallet.AccountName(req.Account)
-	if err != nil {
-		return nil, translateError(err)
-	}
-
-	pm.Purchaser().SetAccount(req.Account)
-	return &pb.SetAccountResponse{}, nil
-}
-
-// SetBalanceToMaintain sets the balance to be maintained in the wallet.
-func (t *ticketbuyerServer) SetBalanceToMaintain(ctx context.Context, req *pb.SetBalanceToMaintainRequest) (
-	*pb.SetBalanceToMaintainResponse, error) {
-
-	pm, err := t.requirePurchaseManager()
-	if err != nil {
-		return nil, err
-	}
-	if req.BalanceToMaintain < 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "Negative balance to maintain given")
-	}
-	pm.Purchaser().SetBalanceToMaintain(req.BalanceToMaintain)
-	return &pb.SetBalanceToMaintainResponse{}, nil
-}
-
-// SetMaxFee sets the max ticket fee per KB to use when purchasing tickets.
-func (t *ticketbuyerServer) SetMaxFee(ctx context.Context, req *pb.SetMaxFeeRequest) (
-	*pb.SetMaxFeeResponse, error) {
-
-	pm, err := t.requirePurchaseManager()
-	if err != nil {
-		return nil, err
-	}
-	if req.MaxFeePerKb < 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "Negative max fee per KB given")
-	}
-	pm.Purchaser().SetMaxFee(req.MaxFeePerKb)
-	return &pb.SetMaxFeeResponse{}, nil
-}
-
-// SetMaxPriceRelative sets max price scaling factor.
-func (t *ticketbuyerServer) SetMaxPriceRelative(ctx context.Context, req *pb.SetMaxPriceRelativeRequest) (
-	*pb.SetMaxPriceRelativeResponse, error) {
-
-	if req.MaxPriceRelative < 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "Negative max ticket price given")
-	}
-
-	pm, err := t.requirePurchaseManager()
-	if err != nil {
-		return nil, err
-	}
-	pm.Purchaser().SetMaxPriceRelative(req.MaxPriceRelative)
-	return &pb.SetMaxPriceRelativeResponse{}, nil
-}
-
-// SetMaxPriceAbsolute sets the max absolute price to purchase a ticket.
-func (t *ticketbuyerServer) SetMaxPriceAbsolute(ctx context.Context, req *pb.SetMaxPriceAbsoluteRequest) (
-	*pb.SetMaxPriceAbsoluteResponse, error) {
-
-	pm, err := t.requirePurchaseManager()
-	if err != nil {
-		return nil, err
-	}
-	if req.MaxPriceAbsolute < 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "Negative max ticket price given")
-	}
-	pm.Purchaser().SetMaxPriceAbsolute(req.MaxPriceAbsolute)
-	return &pb.SetMaxPriceAbsoluteResponse{}, nil
-}
-
-// SetVotingAddress sets the address to send ticket outputs to.
-func (t *ticketbuyerServer) SetVotingAddress(ctx context.Context, req *pb.SetVotingAddressRequest) (
-	*pb.SetVotingAddressResponse, error) {
-
-	pm, err := t.requirePurchaseManager()
-	if err != nil {
-		return nil, err
-	}
-	w, ok := t.loader.LoadedWallet()
-	if !ok {
-		return nil, status.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
-	}
-	votingAddress, err := decodeAddress(req.VotingAddress, w.ChainParams())
-	if err != nil {
-		return nil, err
-	}
-	pm.Purchaser().SetVotingAddress(votingAddress)
-	return &pb.SetVotingAddressResponse{}, nil
-}
-
-// SetPoolAddress sets the pool address where ticket fees are sent.
-func (t *ticketbuyerServer) SetPoolAddress(ctx context.Context, req *pb.SetPoolAddressRequest) (
-	*pb.SetPoolAddressResponse, error) {
-
-	pm, err := t.requirePurchaseManager()
-	if err != nil {
-		return nil, err
-	}
-	w, ok := t.loader.LoadedWallet()
-	if !ok {
-		return nil, status.Errorf(codes.FailedPrecondition, "wallet has not been loaded")
-	}
-
-	poolAddress := req.PoolAddress
-	poolFees := pm.Purchaser().PoolFees()
-
-	switch {
-	case poolFees == 0 && poolAddress != "":
-		return nil, status.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
-	case poolFees != 0 && poolAddress == "":
-		return nil, status.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
-	}
-
-	poolAddr, err := decodeAddress(poolAddress, w.ChainParams())
-	if err != nil {
-		return nil, err
-	}
-	pm.Purchaser().SetPoolAddress(poolAddr)
-	return &pb.SetPoolAddressResponse{}, nil
-}
-
-// SetPoolFees sets the percent of ticket per ticket fee mandated by the pool.
-func (t *ticketbuyerServer) SetPoolFees(ctx context.Context, req *pb.SetPoolFeesRequest) (
-	*pb.SetPoolFeesResponse, error) {
-
-	pm, err := t.requirePurchaseManager()
-	if err != nil {
-		return nil, err
-	}
-
-	var poolAddress string
-	poolAddr := pm.Purchaser().PoolAddress()
-	if poolAddr != nil {
-		poolAddress = poolAddr.String()
-	}
-
-	poolFees := req.PoolFees
-	switch {
-	case poolFees == 0 && poolAddress != "":
-		return nil, status.Errorf(codes.InvalidArgument, "Pool address set but no pool fees given")
-	case poolFees != 0 && poolAddress == "":
-		return nil, status.Errorf(codes.InvalidArgument, "Pool fees set but no pool address given")
-	case poolFees != 0 && poolAddress != "":
-		if !txrules.ValidPoolFeeRate(req.PoolFees) {
-			return nil, status.Errorf(codes.InvalidArgument, "Invalid pool fees percentage")
-		}
-	}
-
-	pm.Purchaser().SetPoolFees(req.PoolFees)
-	return &pb.SetPoolFeesResponse{}, nil
-}
-
-// SetMaxPerBlock sets the max tickets to purchase for a block.
-func (t *ticketbuyerServer) SetMaxPerBlock(ctx context.Context, req *pb.SetMaxPerBlockRequest) (
-	*pb.SetMaxPerBlockResponse, error) {
-
-	pm, err := t.requirePurchaseManager()
-	if err != nil {
-		return nil, err
-	}
-	pm.Purchaser().SetMaxPerBlock(int(req.MaxPerBlock))
-	return &pb.SetMaxPerBlockResponse{}, nil
-}
-
-// StartAgendaService starts the AgendaService.
 func StartAgendaService(server *grpc.Server, activeNet *chaincfg.Params) {
 	agendaService.activeNet = activeNet
 	if atomic.SwapUint32(&agendaService.ready, 1) != 0 {

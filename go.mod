@@ -23,7 +23,6 @@ require (
 	github.com/decred/dcrwallet/p2p v1.0.1
 	github.com/decred/dcrwallet/rpc/walletrpc v0.2.0
 	github.com/decred/dcrwallet/spv v1.1.1
-	github.com/decred/dcrwallet/ticketbuyer v1.0.2
 	github.com/decred/dcrwallet/ticketbuyer/v2 v2.0.1
 	github.com/decred/dcrwallet/version v1.0.1
 	github.com/decred/dcrwallet/wallet v1.3.0
@@ -47,8 +46,7 @@ replace (
 	github.com/decred/dcrwallet/pgpwordlist => ./pgpwordlist
 	github.com/decred/dcrwallet/rpc/walletrpc => ./rpc/walletrpc
 	github.com/decred/dcrwallet/spv => ./spv
-	github.com/decred/dcrwallet/ticketbuyer => ./ticketbuyer
-	github.com/decred/dcrwallet/ticketbuyer/v2 => ./ticketbuyer/v2
+	github.com/decred/dcrwallet/ticketbuyer/v2 => ./ticketbuyer
 	github.com/decred/dcrwallet/validate => ./validate
 	github.com/decred/dcrwallet/version => ./version
 	github.com/decred/dcrwallet/walletseed => ./walletseed

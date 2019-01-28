@@ -234,8 +234,8 @@ func run(ctx context.Context) error {
 			passphrase = startPromptPass(ctx, w)
 		}
 
-		// Start a v2 ticket buyer.
-		if cfg.EnableTicketBuyer && !cfg.legacyTicketBuyer {
+		// Start a ticket buyer.
+		if cfg.EnableTicketBuyer {
 			acct, err := w.AccountNumber(cfg.PurchaseAccount)
 			if err != nil {
 				log.Errorf("Purchase account %q does not exist", cfg.PurchaseAccount)
@@ -303,10 +303,6 @@ func run(ctx context.Context) error {
 			log.Info("JSON-RPC server shutdown")
 		}()
 	}
-
-	// Stop the v1 ticket buyer (if running) on shutdown.  This returns an error
-	// that can be ignored when the ticket buyer was never started.
-	defer loader.StopTicketPurchase()
 
 	// When not running with --noinitialload, it is the main package's
 	// responsibility to synchronize the wallet with the network through SPV or
@@ -461,13 +457,6 @@ func rpcClientConnectLoop(ctx context.Context, passphrase []byte, jsonRPCServer 
 		w.SetNetworkBackend(n)
 		loader.SetNetworkBackend(n)
 
-		if cfg.EnableTicketBuyer && cfg.legacyTicketBuyer {
-			err = loader.StartTicketPurchase(passphrase, &cfg.tbCfg)
-			if err != nil {
-				log.Errorf("Unable to start ticket buyer: %v", err)
-			}
-		}
-
 		// Run wallet synchronization until it is cancelled or errors.  If the
 		// context was cancelled, return immediately instead of trying to
 		// reconnect.
@@ -484,7 +473,6 @@ func rpcClientConnectLoop(ctx context.Context, passphrase []byte, jsonRPCServer 
 		// occurs.
 		w.SetNetworkBackend(nil)
 		loader.SetNetworkBackend(nil)
-		loader.StopTicketPurchase()
 	}
 }
 

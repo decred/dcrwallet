@@ -153,7 +153,6 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			)
 			rpcserver.RegisterServices(server)
 			rpcserver.StartWalletLoaderService(server, walletLoader, activeNet)
-			rpcserver.StartTicketBuyerService(server, walletLoader, &cfg.tbCfg)
 			rpcserver.StartTicketBuyerV2Service(server, walletLoader)
 			rpcserver.StartAgendaService(server, activeNet.Params)
 			rpcserver.StartDecodeMessageService(server, activeNet.Params)
@@ -184,7 +183,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			MaxPOSTClients:      cfg.LegacyRPCMaxClients,
 			MaxWebsocketClients: cfg.LegacyRPCMaxWebsockets,
 		}
-		legacyServer = legacyrpc.NewServer(&opts, activeNet.Params, walletLoader, &cfg.tbCfg, listeners)
+		legacyServer = legacyrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
 		for _, lis := range listeners {
 			jsonrpcAddrNotifier.notify(lis.Addr().String())
 		}
