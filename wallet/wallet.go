@@ -627,6 +627,21 @@ func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb N
 	return bip0044AddrCount + importedAddrCount, nil
 }
 
+// CoinTypePrivKey returns the BIP0044 coin type private key.
+func (w *Wallet) CoinTypePrivKey() (*hdkeychain.ExtendedKey, error) {
+	const op errors.Op = "wallet.CoinTypePrivKey"
+	var coinTypePrivKey *hdkeychain.ExtendedKey
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		var err error
+		coinTypePrivKey, err = w.Manager.CoinTypePrivKey(tx)
+		return err
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return coinTypePrivKey, nil
+}
+
 // LoadActiveDataFilters loads filters for all active addresses and unspent
 // outpoints for this wallet.
 func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, reload bool) error {
