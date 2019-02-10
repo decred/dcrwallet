@@ -1517,15 +1517,15 @@ func (s *Store) AddMultisigOut(ns walletdb.ReadWriteBucket, rec *TxRecord, block
 	if multisigScript == nil {
 		return errors.E(errors.Invalid, "no recorded redeem script for multisig output")
 	}
-	m, n, err := txscript.GetMultisigMandN(multisigScript)
+	numPubKeys, requiredSigs, err := txscript.CalcMultiSigStats(multisigScript)
 	if err != nil {
 		return errors.E(errors.IO, "invalid m-of-n multisig script")
 	}
 	var p2shScriptHash [ripemd160.Size]byte
 	copy(p2shScriptHash[:], scriptHash)
 	val = valueMultisigOut(p2shScriptHash,
-		m,
-		n,
+		uint8(requiredSigs),
+		uint8(numPubKeys),
 		false,
 		tree,
 		block.Block.Hash,
