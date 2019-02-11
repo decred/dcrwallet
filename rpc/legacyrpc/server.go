@@ -61,7 +61,6 @@ type Server struct {
 	httpServer        http.Server
 	walletLoader      *loader.Loader
 	ticketbuyerConfig *ticketbuyer.Config
-	handlerMu         sync.Mutex
 	listeners         []net.Listener
 	authsha           [sha256.Size]byte
 	upgrader          websocket.Upgrader
@@ -76,8 +75,6 @@ type Server struct {
 	requestShutdownChan chan struct{}
 
 	activeNet *chaincfg.Params
-
-	handlers map[string]handler
 }
 
 type handler struct {
@@ -284,7 +281,7 @@ func throttled(threshold int64, h http.Handler) http.Handler {
 
 		if current-1 >= threshold {
 			log.Warnf("Reached threshold of %d concurrent active clients", threshold)
-			http.Error(w, "429 Too Many Requests", 429)
+			http.Error(w, "429 Too Many Requests", http.StatusTooManyRequests)
 			return
 		}
 
