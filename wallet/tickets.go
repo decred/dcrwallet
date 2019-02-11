@@ -16,8 +16,8 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrwallet/wallet/udb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
@@ -74,7 +74,7 @@ func (w *Wallet) LiveTicketHashes(chainClient *dcrrpcclient.Client, includeImmat
 		extraTickets = hashes[:0]
 		for i := range hashes {
 			h := &hashes[i]
-			if w.TxStore.ExistsTx(txmgrNs, h) {
+			if !w.TxStore.ExistsTx(txmgrNs, h) {
 				extraTickets = append(extraTickets, *h)
 			}
 		}
