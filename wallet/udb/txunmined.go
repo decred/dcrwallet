@@ -62,7 +62,9 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 				votedBlock, _ := stake.SSGenBlockVotedOn(&spenderTx)
 				tipBlock, _ := s.MainChainTip(ns)
 				if votedBlock == tipBlock {
-					return errors.E(errors.DoubleSpend, "vote or revocation double spends unmined vote on the tip block")
+					err := errors.Errorf("vote or revocation %v double spends unmined "+
+						"vote %v on the tip block", &rec.Hash, &spenderHash)
+					return errors.E(errors.DoubleSpend, err)
 				}
 
 				err = s.RemoveUnconfirmed(ns, &spenderTx, &spenderHash)
