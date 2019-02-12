@@ -331,20 +331,21 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 
 	so := l.stakeOptions
 	cfg := &wallet.Config{
-		DB:                  db,
-		PubPassphrase:       pubPassphrase,
-		VotingEnabled:       so.VotingEnabled,
-		AddressReuse:        so.AddressReuse,
-		VotingAddress:       so.VotingAddress,
-		PoolAddress:         so.PoolAddress,
-		PoolFees:            so.PoolFees,
-		TicketFee:           so.TicketFee,
-		GapLimit:            l.gapLimit,
-		AccountGapLimit:     l.accountGapLimit,
-		StakePoolColdExtKey: so.StakePoolColdExtKey,
-		AllowHighFees:       l.allowHighFees,
-		RelayFee:            l.relayFee,
-		Params:              l.chainParams,
+		DB:                      db,
+		PubPassphrase:           pubPassphrase,
+		VotingEnabled:           so.VotingEnabled,
+		AddressReuse:            so.AddressReuse,
+		VotingAddress:           so.VotingAddress,
+		PoolAddress:             so.PoolAddress,
+		PoolFees:                so.PoolFees,
+		TicketFee:               so.TicketFee,
+		GapLimit:                l.gapLimit,
+		AccountGapLimit:         l.accountGapLimit,
+		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
+		StakePoolColdExtKey:     so.StakePoolColdExtKey,
+		AllowHighFees:           l.allowHighFees,
+		RelayFee:                l.relayFee,
+		Params:                  l.chainParams,
 	}
 	w, err = wallet.Open(cfg)
 	if err != nil {
