@@ -21,8 +21,8 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/validate"
-	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrwallet/wallet/udb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
@@ -742,8 +742,9 @@ func clientFromPeer(p Peer) (*rpc.Client, bool) {
 // in order to derive hardened account extended pubkeys.
 //
 // If the wallet is currently on the legacy coin type and no address or account
-// usage is observed, the wallet will be upgraded to the SLIP0044 coin type and
-// the address discovery will occur again.
+// usage is observed and coin type upgrades are not disabled, the wallet will be
+// upgraded to the SLIP0044 coin type and the address discovery will occur
+// again.
 func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock *chainhash.Hash, discoverAccts bool) error {
 	const op errors.Op = "wallet.DiscoverActiveAddresses"
 	_, slip0044CoinType := udb.CoinTypes(w.chainParams)
@@ -983,8 +984,9 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 	}
 
 	// Do not upgrade legacy coin type wallets if there are returned or used
-	// addresses.
-	if !isSLIP0044CoinType && (len(finder.usage) != 1 ||
+	// addresses or coin type upgrades are disabled.
+	if !isSLIP0044CoinType && (w.disableCoinTypeUpgrades ||
+		len(finder.usage) != 1 ||
 		finder.usage[0].extLastUsed != ^uint32(0) ||
 		finder.usage[0].intLastUsed != ^uint32(0)) {
 		log.Infof("Finished address discovery")

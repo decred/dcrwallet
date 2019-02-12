@@ -42,11 +42,12 @@ type Loader struct {
 	purchaseManager *ticketbuyer.PurchaseManager
 	ntfnClient      wallet.MainTipChangedNotificationsClient
 
-	stakeOptions    *StakeOptions
-	gapLimit        int
-	accountGapLimit int
-	allowHighFees   bool
-	relayFee        float64
+	stakeOptions            *StakeOptions
+	gapLimit                int
+	accountGapLimit         int
+	disableCoinTypeUpgrades bool
+	allowHighFees           bool
+	relayFee                float64
 
 	mu sync.Mutex
 }
@@ -64,17 +65,18 @@ type StakeOptions struct {
 
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, gapLimit int,
-	allowHighFees bool, relayFee float64, accountGapLimit int) *Loader {
+	allowHighFees bool, relayFee float64, accountGapLimit int, disableCoinTypeUpgrades bool) *Loader {
 
 	return &Loader{
-		chainParams:     chainParams,
-		dbDirPath:       dbDirPath,
-		dbDriver:        defaultDbDriver,
-		stakeOptions:    stakeOptions,
-		gapLimit:        gapLimit,
-		accountGapLimit: accountGapLimit,
-		allowHighFees:   allowHighFees,
-		relayFee:        relayFee,
+		chainParams:             chainParams,
+		dbDirPath:               dbDirPath,
+		dbDriver:                defaultDbDriver,
+		stakeOptions:            stakeOptions,
+		gapLimit:                gapLimit,
+		accountGapLimit:         accountGapLimit,
+		disableCoinTypeUpgrades: disableCoinTypeUpgrades,
+		allowHighFees:           allowHighFees,
+		relayFee:                relayFee,
 	}
 }
 
@@ -175,20 +177,21 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 	// Open the watch-only wallet.
 	so := l.stakeOptions
 	cfg := &wallet.Config{
-		DB:                  db,
-		PubPassphrase:       pubPass,
-		VotingEnabled:       so.VotingEnabled,
-		AddressReuse:        so.AddressReuse,
-		VotingAddress:       so.VotingAddress,
-		PoolAddress:         so.PoolAddress,
-		PoolFees:            so.PoolFees,
-		TicketFee:           so.TicketFee,
-		GapLimit:            l.gapLimit,
-		AccountGapLimit:     l.accountGapLimit,
-		StakePoolColdExtKey: so.StakePoolColdExtKey,
-		AllowHighFees:       l.allowHighFees,
-		RelayFee:            l.relayFee,
-		Params:              l.chainParams,
+		DB:                      db,
+		PubPassphrase:           pubPass,
+		VotingEnabled:           so.VotingEnabled,
+		AddressReuse:            so.AddressReuse,
+		VotingAddress:           so.VotingAddress,
+		PoolAddress:             so.PoolAddress,
+		PoolFees:                so.PoolFees,
+		TicketFee:               so.TicketFee,
+		GapLimit:                l.gapLimit,
+		AccountGapLimit:         l.accountGapLimit,
+		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
+		StakePoolColdExtKey:     so.StakePoolColdExtKey,
+		AllowHighFees:           l.allowHighFees,
+		RelayFee:                l.relayFee,
+		Params:                  l.chainParams,
 	}
 	w, err = wallet.Open(cfg)
 	if err != nil {

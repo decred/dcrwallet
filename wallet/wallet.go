@@ -102,12 +102,13 @@ type Wallet struct {
 
 	lockedOutpoints map[wire.OutPoint]struct{}
 
-	relayFee               dcrutil.Amount
-	relayFeeMu             sync.Mutex
-	ticketFeeIncrementLock sync.Mutex
-	ticketFeeIncrement     dcrutil.Amount
-	DisallowFree           bool
-	AllowHighFees          bool
+	relayFee                dcrutil.Amount
+	relayFeeMu              sync.Mutex
+	ticketFeeIncrementLock  sync.Mutex
+	ticketFeeIncrement      dcrutil.Amount
+	DisallowFree            bool
+	AllowHighFees           bool
+	disableCoinTypeUpgrades bool
 
 	// Channel for transaction creation requests.
 	consolidateRequests      chan consolidateRequest
@@ -154,8 +155,9 @@ type Config struct {
 	PoolFees      float64
 	TicketFee     float64
 
-	GapLimit        int
-	AccountGapLimit int
+	GapLimit                int
+	AccountGapLimit         int
+	DisableCoinTypeUpgrades bool
 
 	StakePoolColdExtKey string
 	AllowHighFees       bool
@@ -4472,9 +4474,10 @@ func Open(cfg *Config) (*Wallet, error) {
 		poolFees:      cfg.PoolFees,
 
 		// LoaderOptions
-		gapLimit:        cfg.GapLimit,
-		AllowHighFees:   cfg.AllowHighFees,
-		accountGapLimit: cfg.AccountGapLimit,
+		gapLimit:                cfg.GapLimit,
+		AllowHighFees:           cfg.AllowHighFees,
+		accountGapLimit:         cfg.AccountGapLimit,
+		disableCoinTypeUpgrades: cfg.DisableCoinTypeUpgrades,
 
 		// Chain params
 		subsidyCache: blockchain.NewSubsidyCache(0, cfg.Params),
