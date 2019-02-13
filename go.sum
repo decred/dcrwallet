@@ -72,6 +72,8 @@ github.com/decred/dcrd/dcrjson v1.0.0 h1:50DnA0XeV2JrQXoHh43TCKmH+kz2gHjZ1Mj/Pdk
 github.com/decred/dcrd/dcrjson v1.0.0/go.mod h1:ozddIaeF+EAvZZvFuB3zpfxhyxBGfvbt22crQh+PYuI=
 github.com/decred/dcrd/dcrjson v1.1.0 h1:pFpbay3cWACkgloFxWjHBwlXWG2+S2QCJJzNxL40hwg=
 github.com/decred/dcrd/dcrjson v1.1.0/go.mod h1:ozddIaeF+EAvZZvFuB3zpfxhyxBGfvbt22crQh+PYuI=
+github.com/decred/dcrd/dcrjson v1.2.0 h1:3BFFQHq3/YO/zae9WLxQkXsX6AXKx3+M8H3yk4oXZi0=
+github.com/decred/dcrd/dcrjson v1.2.0/go.mod h1:ozddIaeF+EAvZZvFuB3zpfxhyxBGfvbt22crQh+PYuI=
 github.com/decred/dcrd/dcrutil v1.1.1 h1:zOkGiumN/JkobhAgpG/zfFgUoolGKVGYT5na1hbYUoE=
 github.com/decred/dcrd/dcrutil v1.1.1/go.mod h1:Jsttr0pEvzPAw+qay1kS1/PsbZYPyhluiNwwY6yBJS4=
 github.com/decred/dcrd/dcrutil v1.2.0 h1:Pd5Wf650g6Xu6luYDfGkh1yiUoPUAgqzRu6K+BGyJGg=

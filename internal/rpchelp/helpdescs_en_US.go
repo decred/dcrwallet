@@ -631,6 +631,7 @@ var helpDescsEnUS = map[string]string{
 	"walletinfo--synopsis":              "Returns global information about the wallet",
 	"walletinforesult-daemonconnected":  "Whether or not the wallet is currently connected to the daemon RPC",
 	"walletinforesult-unlocked":         "Whether or not the wallet is unlocked",
+	"walletinforesult-cointype":         "Active coin type. Not available for watching-only wallets.",
 	"walletinforesult-txfee":            "Transaction fee per kB of the serialized tx size in coins",
 	"walletinforesult-ticketfee":        "Ticket fee per kB of the serialized tx size in coins",
 	"walletinforesult-ticketpurchasing": "Whether or not the wallet is currently purchasing tickets",

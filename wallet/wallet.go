@@ -629,6 +629,23 @@ func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb N
 	return bip0044AddrCount + importedAddrCount, nil
 }
 
+// CoinType returns the active BIP0044 coin type. For watching-only wallets,
+// which do not save the coin type keys, this method will return an error with
+// code errors.WatchingOnly.
+func (w *Wallet) CoinType() (uint32, error) {
+	const op errors.Op = "wallet.CoinType"
+	var coinType uint32
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		var err error
+		coinType, err = w.Manager.CoinType(tx)
+		return err
+	})
+	if err != nil {
+		return coinType, errors.E(op, err)
+	}
+	return coinType, nil
+}
+
 // LoadActiveDataFilters loads filters for all active addresses and unspent
 // outpoints for this wallet.
 func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, reload bool) error {
