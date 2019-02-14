@@ -19,7 +19,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/deployments"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/walletdb"
+	"github.com/decred/dcrwallet/wallet/v2/walletdb"
 )
 
 // maxShift is the maximum shift for a difficulty that resets (e.g.

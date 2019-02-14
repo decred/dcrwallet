@@ -22,9 +22,9 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/internal/txsizes"
-	"github.com/decred/dcrwallet/wallet/txauthor"
-	"github.com/decred/dcrwallet/wallet/walletdb"
+	"github.com/decred/dcrwallet/wallet/v2/internal/txsizes"
+	"github.com/decred/dcrwallet/wallet/v2/txauthor"
+	"github.com/decred/dcrwallet/wallet/v2/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
 

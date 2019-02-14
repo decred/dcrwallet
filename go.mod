@@ -26,7 +26,7 @@ require (
 	github.com/decred/dcrwallet/ticketbuyer v1.0.2
 	github.com/decred/dcrwallet/ticketbuyer/v2 v2.0.1
 	github.com/decred/dcrwallet/version v1.0.1
-	github.com/decred/dcrwallet/wallet v1.2.1
+	github.com/decred/dcrwallet/wallet v1.3.0
 	github.com/decred/dcrwallet/walletseed v1.0.1
 	github.com/decred/slog v1.0.0
 	github.com/gorilla/websocket v1.4.0
@@ -51,6 +51,5 @@ replace (
 	github.com/decred/dcrwallet/ticketbuyer/v2 => ./ticketbuyer/v2
 	github.com/decred/dcrwallet/validate => ./validate
 	github.com/decred/dcrwallet/version => ./version
-	github.com/decred/dcrwallet/wallet => ./wallet
 	github.com/decred/dcrwallet/walletseed => ./walletseed
 )

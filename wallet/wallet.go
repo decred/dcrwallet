@@ -23,19 +23,20 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrec/secp256k1"
-	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/hdkeychain"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/deployments"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/txauthor"
-	"github.com/decred/dcrwallet/wallet/txrules"
-	"github.com/decred/dcrwallet/wallet/udb"
-	"github.com/decred/dcrwallet/wallet/walletdb"
+	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
+	"github.com/decred/dcrwallet/wallet/v2/txauthor"
+	"github.com/decred/dcrwallet/wallet/v2/txrules"
+	"github.com/decred/dcrwallet/wallet/v2/udb"
+	"github.com/decred/dcrwallet/wallet/v2/walletdb"
 	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
@@ -1986,7 +1987,7 @@ func RecvCategory(details *udb.TxDetails, syncHeight int32, chainParams *chaincf
 // for a listtransactions RPC.
 //
 // TODO: This should be moved to the legacyrpc package.
-func listTransactions(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb.Manager, syncHeight int32, net *chaincfg.Params) (sends, receives []dcrjson.ListTransactionsResult) {
+func listTransactions(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb.Manager, syncHeight int32, net *chaincfg.Params) (sends, receives []types.ListTransactionsResult) {
 	addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 
 	var (
@@ -2007,14 +2008,14 @@ func listTransactions(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb.M
 
 	send := len(details.Debits) != 0
 
-	txTypeStr := dcrjson.LTTTRegular
+	txTypeStr := types.LTTTRegular
 	switch details.TxType {
 	case stake.TxTypeSStx:
-		txTypeStr = dcrjson.LTTTTicket
+		txTypeStr = types.LTTTTicket
 	case stake.TxTypeSSGen:
-		txTypeStr = dcrjson.LTTTVote
+		txTypeStr = types.LTTTVote
 	case stake.TxTypeSSRtx:
-		txTypeStr = dcrjson.LTTTRevocation
+		txTypeStr = types.LTTTRevocation
 	}
 
 	// Fee can only be determined if every input is a debit.
@@ -2065,7 +2066,7 @@ outputs:
 		}
 
 		amountF64 := dcrutil.Amount(output.Value).ToCoin()
-		result := dcrjson.ListTransactionsResult{
+		result := types.ListTransactionsResult{
 			// Fields left zeroed:
 			//   InvolvesWatchOnly
 			//   BlockIndex
@@ -2118,9 +2119,9 @@ outputs:
 // ListSinceBlock returns a slice of objects with details about transactions
 // since the given block. If the block is -1 then all transactions are included.
 // This is intended to be used for listsinceblock RPC replies.
-func (w *Wallet) ListSinceBlock(start, end, syncHeight int32) ([]dcrjson.ListTransactionsResult, error) {
+func (w *Wallet) ListSinceBlock(start, end, syncHeight int32) ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListSinceBlock"
-	txList := []dcrjson.ListTransactionsResult{}
+	txList := []types.ListTransactionsResult{}
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -2145,9 +2146,9 @@ func (w *Wallet) ListSinceBlock(start, end, syncHeight int32) ([]dcrjson.ListTra
 // ListTransactions returns a slice of objects with details about a recorded
 // transaction.  This is intended to be used for listtransactions RPC
 // replies.
-func (w *Wallet) ListTransactions(from, count int) ([]dcrjson.ListTransactionsResult, error) {
+func (w *Wallet) ListTransactions(from, count int) ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListTransactions"
-	txList := []dcrjson.ListTransactionsResult{}
+	txList := []types.ListTransactionsResult{}
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -2206,9 +2207,9 @@ func (w *Wallet) ListTransactions(from, count int) ([]dcrjson.ListTransactionsRe
 // ListAddressTransactions returns a slice of objects with details about
 // recorded transactions to or from any address belonging to a set.  This is
 // intended to be used for listaddresstransactions RPC replies.
-func (w *Wallet) ListAddressTransactions(pkHashes map[string]struct{}) ([]dcrjson.ListTransactionsResult, error) {
+func (w *Wallet) ListAddressTransactions(pkHashes map[string]struct{}) ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListAddressTransactions"
-	txList := []dcrjson.ListTransactionsResult{}
+	txList := []types.ListTransactionsResult{}
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -2260,9 +2261,9 @@ func (w *Wallet) ListAddressTransactions(pkHashes map[string]struct{}) ([]dcrjso
 // ListAllTransactions returns a slice of objects with details about a recorded
 // transaction.  This is intended to be used for listalltransactions RPC
 // replies.
-func (w *Wallet) ListAllTransactions() ([]dcrjson.ListTransactionsResult, error) {
+func (w *Wallet) ListAllTransactions() ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListAllTransactions"
-	txList := []dcrjson.ListTransactionsResult{}
+	txList := []types.ListTransactionsResult{}
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -2302,9 +2303,9 @@ func (w *Wallet) ListAllTransactions() ([]dcrjson.ListTransactionsResult, error)
 
 // ListTransactionDetails returns the listtransaction results for a single
 // transaction.
-func (w *Wallet) ListTransactionDetails(txHash *chainhash.Hash) ([]dcrjson.ListTransactionsResult, error) {
+func (w *Wallet) ListTransactionDetails(txHash *chainhash.Hash) ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListTransactionDetails"
-	txList := []dcrjson.ListTransactionsResult{}
+	txList := []types.ListTransactionsResult{}
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -2317,7 +2318,7 @@ func (w *Wallet) ListTransactionDetails(txHash *chainhash.Hash) ([]dcrjson.ListT
 			return err
 		}
 		sends, receives := listTransactions(dbtx, txd, w.Manager, tipHeight, w.chainParams)
-		txList = make([]dcrjson.ListTransactionsResult, 0, len(sends)+len(receives))
+		txList = make([]types.ListTransactionsResult, 0, len(sends)+len(receives))
 		txList = append(txList, receives...)
 		txList = append(txList, sends...)
 		return nil
@@ -2461,7 +2462,7 @@ func (w *Wallet) fetchTicketDetails(ns walletdb.ReadBucket, hash *chainhash.Hash
 // the ability to use the rpc chain client, this function is able to determine
 // whether a ticket has been missed or not.  Otherwise, it is just known to be
 // unspent (possibly live or missed).
-func (w *Wallet) GetTicketInfoPrecise(chainClient *dcrrpcclient.Client, hash *chainhash.Hash) (*TicketSummary, *wire.BlockHeader, error) {
+func (w *Wallet) GetTicketInfoPrecise(chainClient *rpcclient.Client, hash *chainhash.Hash) (*TicketSummary, *wire.BlockHeader, error) {
 	const op errors.Op = "wallet.GetTicketInfoPrecise"
 
 	var ticketSummary *TicketSummary
@@ -2570,7 +2571,7 @@ func (w *Wallet) GetTicketInfo(hash *chainhash.Hash) (*TicketSummary, *wire.Bloc
 // the ability to use the rpc chain client, this function is able to determine
 // whether tickets have been missed or not.  Otherwise, tickets are just known
 // to be unspent (possibly live or missed).
-func (w *Wallet) GetTicketsPrecise(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), chainClient *dcrrpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
+func (w *Wallet) GetTicketsPrecise(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), chainClient *rpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
 	const op errors.Op = "wallet.GetTicketsPrecise"
 	var start, end int32 = 0, -1
 
@@ -3022,9 +3023,9 @@ func (s creditSlice) Swap(i, j int) {
 // minconf, less than maxconf and if addresses is populated only the addresses
 // contained within it will be considered.  If we know nothing about a
 // transaction an empty array will be returned.
-func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct{}) ([]*dcrjson.ListUnspentResult, error) {
+func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct{}) ([]*types.ListUnspentResult, error) {
 	const op errors.Op = "wallet.ListUnspent"
-	var results []*dcrjson.ListUnspentResult
+	var results []*types.ListUnspentResult
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
@@ -3174,7 +3175,7 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 				spendable = true
 			}
 
-			result := &dcrjson.ListUnspentResult{
+			result := &types.ListUnspentResult{
 				TxID:          output.OutPoint.Hash.String(),
 				Vout:          output.OutPoint.Index,
 				Tree:          output.OutPoint.Tree,
@@ -3479,7 +3480,7 @@ func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 
 // StakeInfoPrecise collects and returns staking statistics for this wallet.  It
 // uses RPC to query futher information than StakeInfo.
-func (w *Wallet) StakeInfoPrecise(chainClient *dcrrpcclient.Client) (*StakeInfoData, error) {
+func (w *Wallet) StakeInfoPrecise(chainClient *rpcclient.Client) (*StakeInfoData, error) {
 	const op errors.Op = "wallet.StakeInfoPrecise"
 	// This is only needed for the total count and can be optimized.
 	mempoolTicketsFuture := chainClient.GetRawMempoolAsync(dcrjson.GRMTickets)

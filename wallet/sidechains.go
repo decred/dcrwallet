@@ -14,7 +14,7 @@ import (
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/walletdb"
+	"github.com/decred/dcrwallet/wallet/v2/walletdb"
 )
 
 // SidechainForest provides in-memory management of sidechain and orphan blocks.

@@ -19,8 +19,8 @@ import (
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/wire"
-	_ "github.com/decred/dcrwallet/wallet/drivers/bdb"
-	"github.com/decred/dcrwallet/wallet/walletdb"
+	_ "github.com/decred/dcrwallet/wallet/v2/drivers/bdb"
+	"github.com/decred/dcrwallet/wallet/v2/walletdb"
 )
 
 func setup() (db walletdb.DB, s *Store, teardown func(), err error) {
