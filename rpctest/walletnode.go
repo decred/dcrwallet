@@ -15,7 +15,7 @@ import (
 
 	"github.com/decred/dcrd/wire"
 
-	rpc "github.com/decred/dcrd/rpcclient"
+	rpc "github.com/decred/dcrd/rpcclient/v2"
 )
 
 // walletTestConfig contains all the args, and data required to launch a dcrwallet process

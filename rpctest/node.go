@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/certgen"
-	rpc "github.com/decred/dcrd/rpcclient"
+	rpc "github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
 )
 

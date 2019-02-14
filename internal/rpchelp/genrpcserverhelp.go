@@ -13,8 +13,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrwallet/internal/rpchelp"
+	_ "github.com/decred/dcrwallet/rpc/jsonrpc/types"
 )
 
 var outputFile = func() *os.File {

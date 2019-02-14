@@ -20,8 +20,8 @@ import (
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/loader"
-	"github.com/decred/dcrwallet/wallet"
-	_ "github.com/decred/dcrwallet/wallet/drivers/bdb"
+	"github.com/decred/dcrwallet/wallet/v2"
+	_ "github.com/decred/dcrwallet/wallet/v2/drivers/bdb"
 	"github.com/decred/dcrwallet/walletseed"
 )
 

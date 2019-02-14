@@ -21,8 +21,8 @@ import (
 
 	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/chaincfg"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrd/rpcclient/v2"
+	"github.com/decred/dcrwallet/chain/v2"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/internal/zero"
@@ -30,10 +30,10 @@ import (
 	"github.com/decred/dcrwallet/p2p"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
-	"github.com/decred/dcrwallet/spv"
-	"github.com/decred/dcrwallet/ticketbuyer/v2"
+	"github.com/decred/dcrwallet/spv/v2"
+	"github.com/decred/dcrwallet/ticketbuyer/v3"
 	"github.com/decred/dcrwallet/version"
-	"github.com/decred/dcrwallet/wallet"
+	"github.com/decred/dcrwallet/wallet/v2"
 )
 
 func init() {
@@ -501,7 +501,7 @@ func readCAFile() []byte {
 // authentication error.  Instead, all requests to the client will simply error.
 func startChainRPC(ctx context.Context, certs []byte) (*chain.RPCClient, error) {
 	log.Infof("Attempting RPC client connection to %v", cfg.RPCConnect)
-	rpcc, err := chain.NewRPCClientConfig(activeNet.Params, &dcrrpcclient.ConnConfig{
+	rpcc, err := chain.NewRPCClientConfig(activeNet.Params, &rpcclient.ConnConfig{
 		Host:                 cfg.RPCConnect,
 		Endpoint:             "ws",
 		User:                 cfg.DcrdUsername,

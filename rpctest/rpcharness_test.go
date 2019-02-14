@@ -19,11 +19,12 @@ import (
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
+	dcrrpcclient "github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
 )
 
 type rpcTestCase func(r *Harness, t *testing.T)
@@ -497,7 +498,7 @@ func testGetBalance(r *Harness, t *testing.T) {
 	}
 
 	preAccountBalanceSpendable := 0.0
-	preAccountBalances := make(map[string]dcrjson.GetAccountBalanceResult)
+	preAccountBalances := make(map[string]types.GetAccountBalanceResult)
 	for _, bal := range preBalances.Balances {
 		preAccountBalanceSpendable += bal.Spendable
 		preAccountBalances[bal.AccountName] = bal
@@ -516,7 +517,7 @@ func testGetBalance(r *Harness, t *testing.T) {
 	}
 
 	postAccountBalanceSpendable := 0.0
-	postAccountBalances := make(map[string]dcrjson.GetAccountBalanceResult)
+	postAccountBalances := make(map[string]types.GetAccountBalanceResult)
 	for _, bal := range postBalances.Balances {
 		postAccountBalanceSpendable += bal.Spendable
 		postAccountBalances[bal.AccountName] = bal
@@ -1266,7 +1267,7 @@ func testListTransactions(r *Harness, t *testing.T) {
 	}
 
 	// "regular" not "stake" txtype
-	if *txList1[0].TxType != dcrjson.LTTTRegular {
+	if *txList1[0].TxType != types.LTTTRegular {
 		t.Fatal(`txtype not "regular".`)
 	}
 
@@ -1352,12 +1353,12 @@ func testListTransactions(r *Harness, t *testing.T) {
 
 	// The top of the list should be one send and one receive.  The coinbase
 	// spend should be lower in the list.
-	var sendResult, recvResult dcrjson.ListTransactionsResult
+	var sendResult, recvResult types.ListTransactionsResult
 	if txListAll[0].Category == txListAll[1].Category {
 		t.Fatal("Expected one send and one receive, got two", txListAll[0].Category)
 	}
 	// Use a map since order doesn't matter, and keys are not duplicate
-	rxtxResults := map[string]dcrjson.ListTransactionsResult{
+	rxtxResults := map[string]types.ListTransactionsResult{
 		txListAll[0].Category: txListAll[0],
 		txListAll[1].Category: txListAll[1],
 	}
@@ -2141,7 +2142,7 @@ func testWalletInfo(r *Harness, t *testing.T) {
 ///////////////////////////////////////////////////////////////////////////////
 // Helper functions
 
-func mustGetStakeInfo(wcl *dcrrpcclient.Client, t *testing.T) *dcrjson.GetStakeInfoResult {
+func mustGetStakeInfo(wcl *dcrrpcclient.Client, t *testing.T) *types.GetStakeInfoResult {
 	stakeinfo, err := wcl.GetStakeInfo()
 	if err != nil {
 		t.Fatal("GetStakeInfo failed: ", err)
@@ -2292,7 +2293,7 @@ func getWireMsgTxFee(tx *dcrutil.Tx) dcrutil.Amount {
 
 // getOutPointString uses OutPoint.String() to combine the tx hash with vout
 // index from a ListUnspentResult.
-func getOutPointString(utxo *dcrjson.ListUnspentResult) (string, error) {
+func getOutPointString(utxo *types.ListUnspentResult) (string, error) {
 	txhash, err := chainhash.NewHashFromStr(utxo.TxID)
 	if err != nil {
 		return "", err

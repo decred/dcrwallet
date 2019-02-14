@@ -12,8 +12,8 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet"
-	_ "github.com/decred/dcrwallet/wallet/drivers/bdb" // driver loaded during init
+	"github.com/decred/dcrwallet/wallet/v2"
+	_ "github.com/decred/dcrwallet/wallet/v2/drivers/bdb" // driver loaded during init
 )
 
 const (

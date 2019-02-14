@@ -11,16 +11,16 @@ import (
 	"path/filepath"
 
 	"github.com/decred/dcrd/connmgr"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrd/rpcclient/v2"
+	"github.com/decred/dcrwallet/chain/v2"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/p2p"
 	"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
-	"github.com/decred/dcrwallet/spv"
-	"github.com/decred/dcrwallet/ticketbuyer/v2"
-	"github.com/decred/dcrwallet/wallet"
-	"github.com/decred/dcrwallet/wallet/udb"
+	"github.com/decred/dcrwallet/spv/v2"
+	"github.com/decred/dcrwallet/ticketbuyer/v3"
+	"github.com/decred/dcrwallet/wallet/v2"
+	"github.com/decred/dcrwallet/wallet/v2/udb"
 	"github.com/decred/slog"
 	"github.com/jrick/logrotate/rotator"
 )
@@ -70,7 +70,7 @@ func init() {
 	udb.UseLogger(walletLog)
 	ticketbuyer.UseLogger(tkbyLog)
 	chain.UseLogger(syncLog)
-	dcrrpcclient.UseLogger(syncLog)
+	rpcclient.UseLogger(syncLog)
 	spv.UseLogger(syncLog)
 	p2p.UseLogger(syncLog)
 	rpcserver.UseLogger(grpcLog)

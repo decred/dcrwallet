@@ -8,7 +8,7 @@ package legacyrpc
 import (
 	"fmt"
 
-	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrwallet/errors"
 )
 

@@ -21,7 +21,7 @@ import (
 	"github.com/decred/dcrwallet/errors"
 
 	"github.com/decred/dcrd/dcrutil"
-	rpc "github.com/decred/dcrd/rpcclient"
+	rpc "github.com/decred/dcrd/rpcclient/v2"
 )
 
 var (

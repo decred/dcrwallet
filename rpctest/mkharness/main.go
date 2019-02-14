@@ -7,13 +7,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	//"strings"
-	//"time"
 
 	"github.com/decred/dcrd/chaincfg"
-	//dcrrpcclient "github.com/decred/dcrd/rpcclient"
-	//"github.com/decred/dcrd/dcrutil"
-	//"github.com/decred/dcrwallet/rpc/legacyrpc"
 	"github.com/decred/dcrwallet/rpctest"
 )
 

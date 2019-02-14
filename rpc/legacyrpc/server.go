@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/gorilla/websocket"
