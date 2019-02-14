@@ -102,12 +102,13 @@ type Wallet struct {
 
 	lockedOutpoints map[wire.OutPoint]struct{}
 
-	relayFee               dcrutil.Amount
-	relayFeeMu             sync.Mutex
-	ticketFeeIncrementLock sync.Mutex
-	ticketFeeIncrement     dcrutil.Amount
-	DisallowFree           bool
-	AllowHighFees          bool
+	relayFee                dcrutil.Amount
+	relayFeeMu              sync.Mutex
+	ticketFeeIncrementLock  sync.Mutex
+	ticketFeeIncrement      dcrutil.Amount
+	DisallowFree            bool
+	AllowHighFees           bool
+	disableCoinTypeUpgrades bool
 
 	// Channel for transaction creation requests.
 	consolidateRequests      chan consolidateRequest
@@ -154,8 +155,9 @@ type Config struct {
 	PoolFees      float64
 	TicketFee     float64
 
-	GapLimit        int
-	AccountGapLimit int
+	GapLimit                int
+	AccountGapLimit         int
+	DisableCoinTypeUpgrades bool
 
 	StakePoolColdExtKey string
 	AllowHighFees       bool
@@ -627,6 +629,23 @@ func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb N
 	return bip0044AddrCount + importedAddrCount, nil
 }
 
+// CoinType returns the active BIP0044 coin type. For watching-only wallets,
+// which do not save the coin type keys, this method will return an error with
+// code errors.WatchingOnly.
+func (w *Wallet) CoinType() (uint32, error) {
+	const op errors.Op = "wallet.CoinType"
+	var coinType uint32
+	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		var err error
+		coinType, err = w.Manager.CoinType(tx)
+		return err
+	})
+	if err != nil {
+		return coinType, errors.E(op, err)
+	}
+	return coinType, nil
+}
+  
 // CoinTypePrivKey returns the BIP0044 coin type private key.
 func (w *Wallet) CoinTypePrivKey() (*hdkeychain.ExtendedKey, error) {
 	const op errors.Op = "wallet.CoinTypePrivKey"
@@ -641,7 +660,7 @@ func (w *Wallet) CoinTypePrivKey() (*hdkeychain.ExtendedKey, error) {
 	}
 	return coinTypePrivKey, nil
 }
-
+  
 // LoadActiveDataFilters loads filters for all active addresses and unspent
 // outpoints for this wallet.
 func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, reload bool) error {
@@ -4487,9 +4506,10 @@ func Open(cfg *Config) (*Wallet, error) {
 		poolFees:      cfg.PoolFees,
 
 		// LoaderOptions
-		gapLimit:        cfg.GapLimit,
-		AllowHighFees:   cfg.AllowHighFees,
-		accountGapLimit: cfg.AccountGapLimit,
+		gapLimit:                cfg.GapLimit,
+		AllowHighFees:           cfg.AllowHighFees,
+		accountGapLimit:         cfg.AccountGapLimit,
+		disableCoinTypeUpgrades: cfg.DisableCoinTypeUpgrades,
 
 		// Chain params
 		subsidyCache: blockchain.NewSubsidyCache(0, cfg.Params),

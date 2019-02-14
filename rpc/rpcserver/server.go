@@ -1974,7 +1974,7 @@ func marshalTicketDetails(ticket *wallet.TicketSummary) *pb.GetTicketsResponse_T
 }
 
 func marshalGetTicketBlockDetails(v *wire.BlockHeader) *pb.GetTicketsResponse_BlockDetails {
-	if v == nil || v.Height < 0 {
+	if v == nil {
 		return nil
 	}
 

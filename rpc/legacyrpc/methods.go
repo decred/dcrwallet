@@ -40,9 +40,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "5.0.0"
+	jsonrpcSemverString = "5.1.0"
 	jsonrpcSemverMajor  = 5
-	jsonrpcSemverMinor  = 0
+	jsonrpcSemverMinor  = 1
 	jsonrpcSemverPatch  = 0
 )
 
@@ -3472,6 +3472,17 @@ func walletInfo(s *Server, icmd interface{}) (interface{}, error) {
 		}
 	}
 
+	coinType, err := w.CoinType()
+	if errors.Is(errors.WatchingOnly, err) {
+		// This is a watching-only wallet, which does not store the active coin
+		// type. Return CoinTypes default value (0), which will be omitted from
+		// the JSON response, and log a debug message.
+		log.Debug("Watching only wallets do not store the coin type keys.")
+	} else if err != nil {
+		log.Errorf("Failed to retrieve the active coin type: %v", err)
+		coinType = 0
+	}
+
 	unlocked := !(w.Locked())
 	fi := w.RelayFee()
 	tfi := w.TicketFeeIncrement()
@@ -3484,6 +3495,7 @@ func walletInfo(s *Server, icmd interface{}) (interface{}, error) {
 	return &dcrjson.WalletInfoResult{
 		DaemonConnected:  connected,
 		Unlocked:         unlocked,
+		CoinType:         coinType,
 		TxFee:            fi.ToCoin(),
 		TicketFee:        tfi.ToCoin(),
 		TicketPurchasing: tp,

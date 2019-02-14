@@ -29,27 +29,28 @@ import (
 )
 
 const (
-	defaultCAFilename          = "dcrd.cert"
-	defaultConfigFilename      = "dcrwallet.conf"
-	defaultLogLevel            = "info"
-	defaultLogDirname          = "logs"
-	defaultLogFilename         = "dcrwallet.log"
-	defaultRPCMaxClients       = 10
-	defaultRPCMaxWebsockets    = 25
-	defaultEnableTicketBuyer   = false
-	defaultEnableVoting        = false
-	defaultReuseAddresses      = false
-	defaultRollbackTest        = false
-	defaultPruneTickets        = false
-	defaultPurchaseAccount     = "default"
-	defaultAutomaticRepair     = false
-	defaultPromptPass          = false
-	defaultPass                = ""
-	defaultPromptPublicPass    = false
-	defaultGapLimit            = wallet.DefaultGapLimit
-	defaultStakePoolColdExtKey = ""
-	defaultAllowHighFees       = false
-	defaultAccountGapLimit     = wallet.DefaultAccountGapLimit
+	defaultCAFilename              = "dcrd.cert"
+	defaultConfigFilename          = "dcrwallet.conf"
+	defaultLogLevel                = "info"
+	defaultLogDirname              = "logs"
+	defaultLogFilename             = "dcrwallet.log"
+	defaultRPCMaxClients           = 10
+	defaultRPCMaxWebsockets        = 25
+	defaultEnableTicketBuyer       = false
+	defaultEnableVoting            = false
+	defaultReuseAddresses          = false
+	defaultRollbackTest            = false
+	defaultPruneTickets            = false
+	defaultPurchaseAccount         = "default"
+	defaultAutomaticRepair         = false
+	defaultPromptPass              = false
+	defaultPass                    = ""
+	defaultPromptPublicPass        = false
+	defaultGapLimit                = wallet.DefaultGapLimit
+	defaultStakePoolColdExtKey     = ""
+	defaultAllowHighFees           = false
+	defaultAccountGapLimit         = wallet.DefaultAccountGapLimit
+	defaultDisableCoinTypeUpgrades = false
 
 	// ticket buyer options
 	defaultMaxFee                    dcrutil.Amount = 1e6
@@ -98,24 +99,25 @@ type config struct {
 	MemProfile         string                  `long:"memprofile" description:"Write mem profile to the specified file"`
 
 	// Wallet options
-	WalletPass          string               `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
-	PromptPass          bool                 `long:"promptpass" description:"The private wallet password is prompted for at start up, so the wallet starts unlocked without a time limit"`
-	Pass                string               `long:"pass" description:"The private wallet passphrase"`
-	PromptPublicPass    bool                 `long:"promptpublicpass" description:"The public wallet password is prompted for at start up"`
-	DisallowFree        bool                 `long:"disallowfree" description:"Force transactions to always include a fee"`
-	EnableTicketBuyer   bool                 `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
-	EnableVoting        bool                 `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
-	ReuseAddresses      bool                 `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
-	PurchaseAccount     string               `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
-	PoolAddress         *cfgutil.AddressFlag `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
-	PoolFees            float64              `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
-	GapLimit            int                  `long:"gaplimit" description:"The size of gaps between used addresses.  Used for address scanning and when generating addresses with the wrap option."`
-	StakePoolColdExtKey string               `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
-	AllowHighFees       bool                 `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
-	RelayFee            *cfgutil.AmountFlag  `long:"txfee" description:"Sets the wallet's tx fee per kb"`
-	TicketFee           *cfgutil.AmountFlag  `long:"ticketfee" description:"Sets the wallet's ticket fee per kb"`
-	AccountGapLimit     int                  `long:"accountgaplimit" description:"Number of accounts that can be created in a row without using any of them"`
-	legacyTicketBuyer   bool
+	WalletPass              string               `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
+	PromptPass              bool                 `long:"promptpass" description:"The private wallet password is prompted for at start up, so the wallet starts unlocked without a time limit"`
+	Pass                    string               `long:"pass" description:"The private wallet passphrase"`
+	PromptPublicPass        bool                 `long:"promptpublicpass" description:"The public wallet password is prompted for at start up"`
+	DisallowFree            bool                 `long:"disallowfree" description:"Force transactions to always include a fee"`
+	EnableTicketBuyer       bool                 `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
+	EnableVoting            bool                 `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
+	ReuseAddresses          bool                 `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
+	PurchaseAccount         string               `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
+	PoolAddress             *cfgutil.AddressFlag `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
+	PoolFees                float64              `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
+	GapLimit                int                  `long:"gaplimit" description:"The size of gaps between used addresses.  Used for address scanning and when generating addresses with the wrap option."`
+	StakePoolColdExtKey     string               `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
+	AllowHighFees           bool                 `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
+	RelayFee                *cfgutil.AmountFlag  `long:"txfee" description:"Sets the wallet's tx fee per kb"`
+	TicketFee               *cfgutil.AmountFlag  `long:"ticketfee" description:"Sets the wallet's ticket fee per kb"`
+	AccountGapLimit         int                  `long:"accountgaplimit" description:"Number of accounts that can be created in a row without using any of them"`
+	DisableCoinTypeUpgrades bool                 `long:"disablecointypeupgrades" description:"Never upgrade from legacy to SLIP0044 coin type keys"`
+	legacyTicketBuyer       bool
 
 	// RPC client options
 	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Hostname/IP and port of dcrd RPC server to connect to"`
@@ -342,32 +344,33 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 
 	// Default config.
 	cfg := config{
-		DebugLevel:             defaultLogLevel,
-		ConfigFile:             cfgutil.NewExplicitString(defaultConfigFile),
-		AppDataDir:             cfgutil.NewExplicitString(defaultAppDataDir),
-		LogDir:                 cfgutil.NewExplicitString(defaultLogDir),
-		WalletPass:             wallet.InsecurePubPassphrase,
-		CAFile:                 cfgutil.NewExplicitString(""),
-		PromptPass:             defaultPromptPass,
-		Pass:                   defaultPass,
-		PromptPublicPass:       defaultPromptPublicPass,
-		RPCKey:                 cfgutil.NewExplicitString(defaultRPCKeyFile),
-		RPCCert:                cfgutil.NewExplicitString(defaultRPCCertFile),
-		TLSCurve:               cfgutil.NewCurveFlag(cfgutil.CurveP521),
-		LegacyRPCMaxClients:    defaultRPCMaxClients,
-		LegacyRPCMaxWebsockets: defaultRPCMaxWebsockets,
-		EnableTicketBuyer:      defaultEnableTicketBuyer,
-		EnableVoting:           defaultEnableVoting,
-		ReuseAddresses:         defaultReuseAddresses,
-		PruneTickets:           defaultPruneTickets,
-		PurchaseAccount:        defaultPurchaseAccount,
-		GapLimit:               defaultGapLimit,
-		StakePoolColdExtKey:    defaultStakePoolColdExtKey,
-		AllowHighFees:          defaultAllowHighFees,
-		RelayFee:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
-		TicketFee:              cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
-		PoolAddress:            cfgutil.NewAddressFlag(nil),
-		AccountGapLimit:        defaultAccountGapLimit,
+		DebugLevel:              defaultLogLevel,
+		ConfigFile:              cfgutil.NewExplicitString(defaultConfigFile),
+		AppDataDir:              cfgutil.NewExplicitString(defaultAppDataDir),
+		LogDir:                  cfgutil.NewExplicitString(defaultLogDir),
+		WalletPass:              wallet.InsecurePubPassphrase,
+		CAFile:                  cfgutil.NewExplicitString(""),
+		PromptPass:              defaultPromptPass,
+		Pass:                    defaultPass,
+		PromptPublicPass:        defaultPromptPublicPass,
+		RPCKey:                  cfgutil.NewExplicitString(defaultRPCKeyFile),
+		RPCCert:                 cfgutil.NewExplicitString(defaultRPCCertFile),
+		TLSCurve:                cfgutil.NewCurveFlag(cfgutil.CurveP521),
+		LegacyRPCMaxClients:     defaultRPCMaxClients,
+		LegacyRPCMaxWebsockets:  defaultRPCMaxWebsockets,
+		EnableTicketBuyer:       defaultEnableTicketBuyer,
+		EnableVoting:            defaultEnableVoting,
+		ReuseAddresses:          defaultReuseAddresses,
+		PruneTickets:            defaultPruneTickets,
+		PurchaseAccount:         defaultPurchaseAccount,
+		GapLimit:                defaultGapLimit,
+		StakePoolColdExtKey:     defaultStakePoolColdExtKey,
+		AllowHighFees:           defaultAllowHighFees,
+		RelayFee:                cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
+		TicketFee:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
+		PoolAddress:             cfgutil.NewAddressFlag(nil),
+		AccountGapLimit:         defaultAccountGapLimit,
+		DisableCoinTypeUpgrades: defaultDisableCoinTypeUpgrades,
 
 		// TODO: DEPRECATED - remove.
 		DataDir:         cfgutil.NewExplicitString(defaultAppDataDir),

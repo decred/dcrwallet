@@ -412,6 +412,9 @@ func (s *Syncer) connectToCandidates(ctx context.Context) error {
 
 			rp, err := s.lp.ConnectOutbound(ctx, raddr, reqSvcs)
 			if err != nil {
+				s.remotesMu.Lock()
+				delete(s.connectingRemotes, k)
+				s.remotesMu.Unlock()
 				if ctx.Err() == nil {
 					log.Warnf("Peering attempt failed: %v", err)
 				}
