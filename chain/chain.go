@@ -13,7 +13,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 )
@@ -23,8 +23,8 @@ var requiredChainServerAPI = semver{major: 5, minor: 0, patch: 0}
 // RPCClient represents a persistent client connection to a decred RPC server
 // for information regarding the current best block chain.
 type RPCClient struct {
-	*dcrrpcclient.Client
-	connConfig  *dcrrpcclient.ConnConfig // Work around unexported field
+	*rpcclient.Client
+	connConfig  *rpcclient.ConnConfig // Work around unexported field
 	chainParams *chaincfg.Params
 
 	enqueueNotification       chan interface{}
@@ -47,7 +47,7 @@ type RPCClient struct {
 // Deprecated: use NewRPCClientConfig
 func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, certs []byte,
 	disableTLS bool) (*RPCClient, error) {
-	return NewRPCClientConfig(chainParams, &dcrrpcclient.ConnConfig{
+	return NewRPCClientConfig(chainParams, &rpcclient.ConnConfig{
 		Host:                 connect,
 		Endpoint:             "ws",
 		User:                 user,
@@ -61,7 +61,7 @@ func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, cert
 
 // NewRPCClientConfig creates a client connection to the server described by the
 // passed chainParams and connConfig
-func NewRPCClientConfig(chainParams *chaincfg.Params, connConfig *dcrrpcclient.ConnConfig) (*RPCClient, error) {
+func NewRPCClientConfig(chainParams *chaincfg.Params, connConfig *rpcclient.ConnConfig) (*RPCClient, error) {
 	client := &RPCClient{
 		connConfig:                connConfig,
 		chainParams:               chainParams,
@@ -71,7 +71,7 @@ func NewRPCClientConfig(chainParams *chaincfg.Params, connConfig *dcrrpcclient.C
 		dequeueVotingNotification: make(chan interface{}),
 		quit:                      make(chan struct{}),
 	}
-	ntfnCallbacks := &dcrrpcclient.NotificationHandlers{
+	ntfnCallbacks := &rpcclient.NotificationHandlers{
 		OnBlockConnected:        client.onBlockConnected,
 		OnBlockDisconnected:     client.onBlockDisconnected,
 		OnRelevantTxAccepted:    client.onRelevantTxAccepted,
@@ -80,7 +80,7 @@ func NewRPCClientConfig(chainParams *chaincfg.Params, connConfig *dcrrpcclient.C
 		OnSpentAndMissedTickets: client.onSpentAndMissedTickets,
 		OnStakeDifficulty:       client.onStakeDifficulty,
 	}
-	rpcClient, err := dcrrpcclient.New(client.connConfig, ntfnCallbacks)
+	rpcClient, err := rpcclient.New(client.connConfig, ntfnCallbacks)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (c *RPCClient) WaitForShutdown() {
 
 // Notification types.  These are defined here and processed from from reading
 // a notificationChan to avoid handling these notifications directly in
-// dcrrpcclient callbacks, which isn't very Go-like and doesn't allow
+// rpcclient callbacks, which isn't very Go-like and doesn't allow
 // blocking client calls.
 type (
 	// blockConnected is a notification for a newly-attached block to the
@@ -495,11 +495,11 @@ out:
 	c.wg.Done()
 }
 
-// POSTClient creates the equivalent HTTP POST dcrrpcclient.Client.
-func (c *RPCClient) POSTClient() (*dcrrpcclient.Client, error) {
+// POSTClient creates the equivalent HTTP POST rpcclient.Client.
+func (c *RPCClient) POSTClient() (*rpcclient.Client, error) {
 	configCopy := *c.connConfig
 	configCopy.HTTPPostMode = true
-	client, err := dcrrpcclient.New(&configCopy, nil)
+	client, err := rpcclient.New(&configCopy, nil)
 	if err != nil {
 		return nil, errors.E(errors.Op("chain.POSTClient"), err)
 	}

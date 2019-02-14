@@ -21,7 +21,7 @@ import (
 	"github.com/decred/dcrwallet/lru"
 	"github.com/decred/dcrwallet/p2p"
 	"github.com/decred/dcrwallet/validate"
-	"github.com/decred/dcrwallet/wallet"
+	"github.com/decred/dcrwallet/wallet/v2"
 	"golang.org/x/sync/errgroup"
 )
 

@@ -1,7 +1,6 @@
 module github.com/decred/dcrwallet
 
 require (
-	github.com/dchest/siphash v1.2.1 // indirect
 	github.com/decred/dcrd/addrmgr v1.0.2
 	github.com/decred/dcrd/blockchain v1.1.1
 	github.com/decred/dcrd/blockchain/stake v1.1.0
@@ -9,7 +8,7 @@ require (
 	github.com/decred/dcrd/chaincfg v1.3.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/connmgr v1.0.2
-	github.com/decred/dcrd/dcrec v0.0.0-20190209000143-e052b9cbf267
+	github.com/decred/dcrd/dcrec v0.0.0-20190214012338-9265b4051009
 	github.com/decred/dcrd/dcrjson v1.2.0
 	github.com/decred/dcrd/dcrutil v1.2.0
 	github.com/decred/dcrd/hdkeychain v1.1.1
@@ -31,12 +30,11 @@ require (
 	github.com/gorilla/websocket v1.4.0
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/jrick/logrotate v1.0.0
-	golang.org/x/crypto v0.0.0-20190208162236-193df9c0f06f
+	golang.org/x/crypto v0.0.0-20190211182817-74369b46fc67
 	google.golang.org/grpc v1.18.0
 )
 
 replace (
-	github.com/decred/dcrwallet/chain => ./chain
 	github.com/decred/dcrwallet/deployments => ./deployments
 	github.com/decred/dcrwallet/errors => ./errors
 	github.com/decred/dcrwallet/internal/helpers => ./internal/helpers
@@ -45,8 +43,6 @@ replace (
 	github.com/decred/dcrwallet/p2p => ./p2p
 	github.com/decred/dcrwallet/pgpwordlist => ./pgpwordlist
 	github.com/decred/dcrwallet/rpc/walletrpc => ./rpc/walletrpc
-	github.com/decred/dcrwallet/spv => ./spv
-	github.com/decred/dcrwallet/ticketbuyer/v2 => ./ticketbuyer
 	github.com/decred/dcrwallet/validate => ./validate
 	github.com/decred/dcrwallet/version => ./version
 	github.com/decred/dcrwallet/walletseed => ./walletseed

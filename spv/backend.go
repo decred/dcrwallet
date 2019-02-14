@@ -18,7 +18,7 @@ import (
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/p2p"
 	"github.com/decred/dcrwallet/validate"
-	"github.com/decred/dcrwallet/wallet"
+	"github.com/decred/dcrwallet/wallet/v2"
 )
 
 var _ wallet.NetworkBackend = (*Syncer)(nil)
