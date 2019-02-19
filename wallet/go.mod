@@ -23,6 +23,8 @@ require (
 	github.com/decred/dcrwallet/validate v1.0.2
 	github.com/decred/slog v1.0.0
 	github.com/jrick/bitset v1.0.0
+	github.com/petermattis/goid v0.0.0-20180202154549-b0b1615b78e5 // indirect
+	github.com/sasha-s/go-deadlock v0.2.0
 	golang.org/x/crypto v0.0.0-20181203042331-505ab145d0a9
 	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f
 )

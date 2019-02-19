@@ -41,7 +41,7 @@ func init() {
 	exampleTxRecordB = rec
 }
 
-var exampleBlock100 = makeBlockMeta(100)
+var exampleBlock100 = makeFakeBlockMeta(100)
 
 func ExampleStore_Rollback() {
 	s, teardown, err := testStore()

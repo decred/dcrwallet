@@ -3,20 +3,14 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-//+build ignore
-
-package udb_test
+package udb
 
 import (
 	"bytes"
 	"encoding/hex"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
@@ -49,42 +43,12 @@ var (
 	}
 )
 
-func testDB() (walletdb.DB, func(), error) {
-	tmpDir, err := ioutil.TempDir("", "wtxmgr_test")
-	if err != nil {
-		return nil, func() {}, err
-	}
-	db, err := walletdb.Create("bdb", filepath.Join(tmpDir, "db"))
-	return db, func() { os.RemoveAll(tmpDir) }, err
-}
-
-func testStore() (*Store, func(), error) {
-	tmpDir, err := ioutil.TempDir("", "wtxmgr_test")
-	if err != nil {
-		return nil, func() {}, err
-	}
-	db, err := walletdb.Create("bdb", filepath.Join(tmpDir, "db"))
-	if err != nil {
-		teardown := func() {
-			os.RemoveAll(tmpDir)
-		}
-		return nil, teardown, err
-	}
-	teardown := func() {
-		db.Close()
-		os.RemoveAll(tmpDir)
-	}
-	ns, err := db.Namespace([]byte("txstore"))
-	if err != nil {
-		return nil, teardown, err
-	}
-	err = Create(ns)
-	if err != nil {
-		return nil, teardown, err
-	}
-	s, err := Open(ns, &chaincfg.TestNetParams)
-	return s, teardown, err
-}
+// Namespace bucket keys.
+var (
+	waddrmgrNamespaceKey = []byte("waddrmgr")
+	wtxmgrNamespaceKey   = []byte("wtxmgr")
+	// wstakemgrNamespaceKey = []byte("wstakemgr")
+)
 
 func serializeTx(tx *dcrutil.Tx) []byte {
 	var buf bytes.Buffer
@@ -96,11 +60,12 @@ func serializeTx(tx *dcrutil.Tx) []byte {
 	return buf.Bytes()
 }
 
+// TODO: need to build a fake chain here for the txs used.
 func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 	t.Parallel()
 
 	// Create a double spend of the received blockchain transaction.
-	dupRecvTx, err := dcrutil.NewTxFromBytesLegacy(TstRecvSerializedTx)
+	dupRecvTx, err := dcrutil.NewTxFromBytes(TstRecvSerializedTx)
 	if err != nil {
 		t.Errorf("failed to deserialize test transaction: %v", err.Error())
 		return
@@ -119,11 +84,10 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 	// Create a "signed" (with invalid sigs) tx that spends output 0 of
 	// the double spend.
 	spendingTx := wire.NewMsgTx()
-	spendingTxIn := wire.NewTxIn(wire.NewOutPoint(TstDoubleSpendTx.Sha(), 0,
-		dcrutil.TxTreeRegular), TstDoubleSpendTx.MsgTx().TxOut[0].Value,
+	spendingTxIn := wire.NewTxIn(wire.NewOutPoint(TstDoubleSpendTx.Hash(), 0,
+		wire.TxTreeRegular), TstDoubleSpendTx.MsgTx().TxOut[0].Value,
 		[]byte{0, 1, 2, 3, 4})
-	spendingTxIn.ValueIn =
-		spendingTx.AddTxIn(spendingTxIn)
+	spendingTx.AddTxIn(spendingTxIn)
 	spendingTxOut1 := wire.NewTxOut(1e7, []byte{5, 6, 7, 8, 9})
 	spendingTxOut2 := wire.NewTxOut(9e7, []byte{10, 11, 12, 13, 14})
 	spendingTx.AddTxOut(spendingTxOut1)
@@ -135,14 +99,14 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		f        func(*Store) (*Store, error)
+		f        func(*Store, walletdb.ReadWriteBucket, walletdb.ReadBucket) (*Store, error)
 		bal, unc dcrutil.Amount
 		unspents map[wire.OutPoint]struct{}
 		unmined  map[chainhash.Hash]struct{}
 	}{
 		{
 			name: "new store",
-			f: func(s *Store) (*Store, error) {
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
 				return s, nil
 			},
 			bal:      0,
@@ -152,73 +116,74 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		},
 		{
 			name: "txout insert",
-			f: func(s *Store) (*Store, error) {
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
 				rec, err := NewTxRecord(TstRecvSerializedTx, time.Now())
 				if err != nil {
 					return nil, err
 				}
-				err = s.InsertTx(rec, nil)
+				err = s.InsertMinedTx(txmgrNs, addrmgrNs, rec, nil)
 				if err != nil {
 					return nil, err
 				}
 
-				err = s.AddCredit(rec, nil, 1, false, defaultAccount)
+				err = s.AddCredit(txmgrNs, rec, nil, 1, false, defaultAccount)
 				return s, err
 			},
 			bal: 0,
 			unc: dcrutil.Amount(TstRecvTx.MsgTx().TxOut[1].Value),
 			unspents: map[wire.OutPoint]struct{}{
 				{
-					Hash:  *TstRecvTx.Sha(),
+					Hash:  *TstRecvTx.Hash(),
 					Index: 1,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 			},
 			unmined: map[chainhash.Hash]struct{}{
-				*TstRecvTx.Sha(): {},
+				*TstRecvTx.Hash(): {},
 			},
 		},
 		{
 			name: "insert duplicate unconfirmed",
-			f: func(s *Store) (*Store, error) {
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
 				rec, err := NewTxRecord(TstRecvSerializedTx, time.Now())
 				if err != nil {
 					return nil, err
 				}
-				err = s.InsertTx(rec, nil)
+				err = s.InsertMinedTx(txmgrNs, addrmgrNs, rec, nil)
 				if err != nil {
 					return nil, err
 				}
 
-				err = s.AddCredit(rec, nil, 1, false, defaultAccount)
+				err = s.AddCredit(txmgrNs, rec, nil, 1, false, defaultAccount)
 				return s, err
 			},
 			bal: 0,
 			unc: dcrutil.Amount(TstRecvTx.MsgTx().TxOut[1].Value),
 			unspents: map[wire.OutPoint]struct{}{
 				{
-					Hash:  *TstRecvTx.Sha(),
+					Hash:  *TstRecvTx.Hash(),
 					Index: 1,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 			},
 			unmined: map[chainhash.Hash]struct{}{
-				*TstRecvTx.Sha(): {},
+				*TstRecvTx.Hash(): {},
 			},
 		},
 		{
 			name: "confirmed txout insert",
-			f: func(s *Store) (*Store, error) {
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
 				rec, err := NewTxRecord(TstRecvSerializedTx, time.Now())
 				if err != nil {
 					return nil, err
 				}
-				err = s.InsertTx(rec, TstRecvTxBlockDetails)
+				err = s.InsertMinedTx(txmgrNs, addrmgrNs, rec,
+					&TstRecvTxBlockDetails.Hash)
 				if err != nil {
 					return nil, err
 				}
 
-				err = s.AddCredit(rec, TstRecvTxBlockDetails, 1, false,
+				err = s.AddCredit(txmgrNs, rec, TstRecvTxBlockDetails, 1, false,
 					defaultAccount)
 				return s, err
 			},
@@ -226,417 +191,431 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 			unc: 0,
 			unspents: map[wire.OutPoint]struct{}{
 				{
-					Hash:  *TstRecvTx.Sha(),
+					Hash:  *TstRecvTx.Hash(),
 					Index: 1,
-					Tree:  dcrutil.TxTreeREgular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 			},
 			unmined: map[chainhash.Hash]struct{}{},
 		},
 		{
 			name: "insert duplicate confirmed",
-			f: func(s *Store) (*Store, error) {
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
 				rec, err := NewTxRecord(TstRecvSerializedTx, time.Now())
 				if err != nil {
 					return nil, err
 				}
-				err = s.InsertTx(rec, TstRecvTxBlockDetails)
+				err = s.InsertMinedTx(txmgrNs, addrmgrNs, rec, &TstRecvTxBlockDetails.Hash)
 				if err != nil {
 					return nil, err
 				}
 
-				err = s.AddCredit(rec, TstRecvTxBlockDetails, 1, false,
-					defaultAccount)
+				err = s.AddCredit(txmgrNs, rec, TstRecvTxBlockDetails, 1,
+					false, defaultAccount)
 				return s, err
 			},
 			bal: dcrutil.Amount(TstRecvTx.MsgTx().TxOut[1].Value),
 			unc: 0,
 			unspents: map[wire.OutPoint]struct{}{
 				{
-					Hash:  *TstRecvTx.Sha(),
+					Hash:  *TstRecvTx.Hash(),
 					Index: 1,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 			},
 			unmined: map[chainhash.Hash]struct{}{},
 		},
 		{
 			name: "rollback confirmed credit",
-			f: func(s *Store) (*Store, error) {
-				err := s.Rollback(TstRecvTxBlockDetails.Height)
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
+				err := s.Rollback(txmgrNs, addrmgrNs, TstRecvTxBlockDetails.Height)
 				return s, err
 			},
 			bal: 0,
 			unc: dcrutil.Amount(TstRecvTx.MsgTx().TxOut[1].Value),
 			unspents: map[wire.OutPoint]struct{}{
 				{
-					Hash:  *TstRecvTx.Sha(),
+					Hash:  *TstRecvTx.Hash(),
 					Index: 1,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 			},
 			unmined: map[chainhash.Hash]struct{}{
-				*TstRecvTx.Sha(): {},
+				*TstRecvTx.Hash(): {},
 			},
 		},
 		{
 			name: "insert confirmed double spend",
-			f: func(s *Store) (*Store, error) {
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
 				rec, err := NewTxRecord(TstDoubleSpendSerializedTx, time.Now())
 				if err != nil {
 					return nil, err
 				}
-				err = s.InsertTx(rec, TstRecvTxBlockDetails)
+				err = s.InsertMinedTx(txmgrNs, addrmgrNs, rec,
+					&TstRecvTxBlockDetails.Hash)
 				if err != nil {
 					return nil, err
 				}
 
-				err = s.AddCredit(rec, TstRecvTxBlockDetails, 1, false,
-					defaultAccount)
+				err = s.AddCredit(txmgrNs, rec, TstRecvTxBlockDetails, 1,
+					false, defaultAccount)
 				return s, err
 			},
 			bal: dcrutil.Amount(TstDoubleSpendTx.MsgTx().TxOut[1].Value),
 			unc: 0,
 			unspents: map[wire.OutPoint]struct{}{
 				{
-					Hash:  *TstDoubleSpendTx.Sha(),
+					Hash:  *TstDoubleSpendTx.Hash(),
 					Index: 0,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 			},
 			unmined: map[chainhash.Hash]struct{}{},
 		},
 		{
 			name: "insert unconfirmed debit",
-			f: func(s *Store) (*Store, error) {
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
 				rec, err := NewTxRecord(TstSpendingSerializedTx, time.Now())
 				if err != nil {
 					return nil, err
 				}
-				err = s.InsertTx(rec, nil)
+				err = s.InsertMinedTx(txmgrNs, addrmgrNs, rec, nil)
 				return s, err
 			},
 			bal:      0,
 			unc:      0,
 			unspents: map[wire.OutPoint]struct{}{},
 			unmined: map[chainhash.Hash]struct{}{
-				*TstSpendingTx.Sha(): {},
+				*TstSpendingTx.Hash(): {},
 			},
 		},
 		{
 			name: "insert unconfirmed debit again",
-			f: func(s *Store) (*Store, error) {
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
 				rec, err := NewTxRecord(TstDoubleSpendSerializedTx, time.Now())
 				if err != nil {
 					return nil, err
 				}
-				err = s.InsertTx(rec, TstRecvTxBlockDetails)
+				err = s.InsertMinedTx(txmgrNs, addrmgrNs, rec,
+					&TstRecvTxBlockDetails.Hash)
 				return s, err
 			},
 			bal:      0,
 			unc:      0,
 			unspents: map[wire.OutPoint]struct{}{},
 			unmined: map[chainhash.Hash]struct{}{
-				*TstSpendingTx.Sha(): {},
+				*TstSpendingTx.Hash(): {},
 			},
 		},
 		{
 			name: "insert change (index 0)",
-			f: func(s *Store) (*Store, error) {
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
 				rec, err := NewTxRecord(TstSpendingSerializedTx, time.Now())
 				if err != nil {
 					return nil, err
 				}
-				err = s.InsertTx(rec, nil)
+				err = s.InsertMinedTx(txmgrNs, addrmgrNs, rec, nil)
 				if err != nil {
 					return nil, err
 				}
 
-				err = s.AddCredit(rec, nil, 0, true, defaultAccount)
+				err = s.AddCredit(txmgrNs, rec, nil, 0, true, defaultAccount)
 				return s, err
 			},
 			bal: 0,
 			unc: dcrutil.Amount(TstSpendingTx.MsgTx().TxOut[0].Value),
 			unspents: map[wire.OutPoint]struct{}{
 				{
-					Hash:  *TstSpendingTx.Sha(),
+					Hash:  *TstSpendingTx.Hash(),
 					Index: 0,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 			},
 			unmined: map[chainhash.Hash]struct{}{
-				*TstSpendingTx.Sha(): {},
+				*TstSpendingTx.Hash(): {},
 			},
 		},
 		{
 			name: "insert output back to this own wallet (index 1)",
-			f: func(s *Store) (*Store, error) {
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
 				rec, err := NewTxRecord(TstSpendingSerializedTx, time.Now())
 				if err != nil {
 					return nil, err
 				}
-				err = s.InsertTx(rec, nil)
+				err = s.InsertMinedTx(txmgrNs, addrmgrNs, rec, nil)
 				if err != nil {
 					return nil, err
 				}
-				err = s.AddCredit(rec, nil, 1, true, defaultAccount)
+				err = s.AddCredit(txmgrNs, rec, nil, 1, true, defaultAccount)
 				return s, err
 			},
 			bal: 0,
 			unc: dcrutil.Amount(TstSpendingTx.MsgTx().TxOut[0].Value + TstSpendingTx.MsgTx().TxOut[1].Value),
 			unspents: map[wire.OutPoint]struct{}{
 				{
-					Hash:  *TstSpendingTx.Sha(),
+					Hash:  *TstSpendingTx.Hash(),
 					Index: 0,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 				{
-					Hash:  *TstSpendingTx.Sha(),
+					Hash:  *TstSpendingTx.Hash(),
 					Index: 1,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 			},
 			unmined: map[chainhash.Hash]struct{}{
-				*TstSpendingTx.Sha(): {},
+				*TstSpendingTx.Hash(): {},
 			},
 		},
 		{
 			name: "confirm signed tx",
-			f: func(s *Store) (*Store, error) {
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
 				rec, err := NewTxRecord(TstSpendingSerializedTx, time.Now())
 				if err != nil {
 					return nil, err
 				}
-				err = s.InsertTx(rec, TstSignedTxBlockDetails)
+
+				err = s.InsertMinedTx(txmgrNs, addrmgrNs, rec,
+					&TstSignedTxBlockDetails.Hash)
 				return s, err
 			},
 			bal: dcrutil.Amount(TstSpendingTx.MsgTx().TxOut[0].Value + TstSpendingTx.MsgTx().TxOut[1].Value),
 			unc: 0,
 			unspents: map[wire.OutPoint]struct{}{
 				{
-					Hash:  *TstSpendingTx.Sha(),
+					Hash:  *TstSpendingTx.Hash(),
 					Index: 0,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 				{
-					Hash:  *TstSpendingTx.Sha(),
+					Hash:  *TstSpendingTx.Hash(),
 					Index: 1,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 			},
 			unmined: map[chainhash.Hash]struct{}{},
 		},
 		{
 			name: "rollback after spending tx",
-			f: func(s *Store) (*Store, error) {
-				err := s.Rollback(TstSignedTxBlockDetails.Height + 1)
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
+				err := s.Rollback(txmgrNs, addrmgrNs, TstSignedTxBlockDetails.Height+1)
 				return s, err
 			},
 			bal: dcrutil.Amount(TstSpendingTx.MsgTx().TxOut[0].Value + TstSpendingTx.MsgTx().TxOut[1].Value),
 			unc: 0,
 			unspents: map[wire.OutPoint]struct{}{
 				{
-					Hash:  *TstSpendingTx.Sha(),
+					Hash:  *TstSpendingTx.Hash(),
 					Index: 0,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 				{
-					Hash:  *TstSpendingTx.Sha(),
+					Hash:  *TstSpendingTx.Hash(),
 					Index: 1,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 			},
 			unmined: map[chainhash.Hash]struct{}{},
 		},
 		{
 			name: "rollback spending tx block",
-			f: func(s *Store) (*Store, error) {
-				err := s.Rollback(TstSignedTxBlockDetails.Height)
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
+				err := s.Rollback(txmgrNs, addrmgrNs, TstSignedTxBlockDetails.Height)
 				return s, err
 			},
 			bal: 0,
 			unc: dcrutil.Amount(TstSpendingTx.MsgTx().TxOut[0].Value + TstSpendingTx.MsgTx().TxOut[1].Value),
 			unspents: map[wire.OutPoint]struct{}{
 				{
-					Hash:  *TstSpendingTx.Sha(),
+					Hash:  *TstSpendingTx.Hash(),
 					Index: 0,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 				{
-					Hash:  *TstSpendingTx.Sha(),
+					Hash:  *TstSpendingTx.Hash(),
 					Index: 1,
-					Tree:  dcrutil.TxTreeRegular,
+					Tree:  wire.TxTreeRegular,
 				}: {},
 			},
 			unmined: map[chainhash.Hash]struct{}{
-				*TstSpendingTx.Sha(): {},
+				*TstSpendingTx.Hash(): {},
 			},
 		},
 		{
 			name: "rollback double spend tx block",
-			f: func(s *Store) (*Store, error) {
-				err := s.Rollback(TstRecvTxBlockDetails.Height)
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
+				err := s.Rollback(txmgrNs, addrmgrNs, TstRecvTxBlockDetails.Height)
 				return s, err
 			},
 			bal: 0,
 			unc: dcrutil.Amount(TstSpendingTx.MsgTx().TxOut[0].Value + TstSpendingTx.MsgTx().TxOut[1].Value),
 			unspents: map[wire.OutPoint]struct{}{
-				*wire.NewOutPoint(TstSpendingTx.Sha(), 0, dcrutil.TxTreeRegular): {},
-				*wire.NewOutPoint(TstSpendingTx.Sha(), 1, dcrutil.TxTreeRegular): {},
+				*wire.NewOutPoint(TstSpendingTx.Hash(), 0, wire.TxTreeRegular): {},
+				*wire.NewOutPoint(TstSpendingTx.Hash(), 1, wire.TxTreeRegular): {},
 			},
 			unmined: map[chainhash.Hash]struct{}{
-				*TstDoubleSpendTx.Sha(): {},
-				*TstSpendingTx.Sha():    {},
+				*TstDoubleSpendTx.Hash(): {},
+				*TstSpendingTx.Hash():    {},
 			},
 		},
 		{
 			name: "insert original recv txout",
-			f: func(s *Store) (*Store, error) {
+			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
 				rec, err := NewTxRecord(TstRecvSerializedTx, time.Now())
 				if err != nil {
 					return nil, err
 				}
-				err = s.InsertTx(rec, TstRecvTxBlockDetails)
+				err = s.InsertMinedTx(txmgrNs, addrmgrNs, rec,
+					&TstSignedTxBlockDetails.Hash)
 				if err != nil {
 					return nil, err
 				}
-				err = s.AddCredit(rec, TstRecvTxBlockDetails, 1, false,
-					defaultAccount)
+				err = s.AddCredit(txmgrNs, rec, TstRecvTxBlockDetails, 1,
+					false, defaultAccount)
 				return s, err
 			},
 			bal: dcrutil.Amount(TstRecvTx.MsgTx().TxOut[1].Value),
 			unc: 0,
 			unspents: map[wire.OutPoint]struct{}{
-				*wire.NewOutPoint(TstRecvTx.Sha(), 1, dcrutil.TxTreeRegular): {},
+				*wire.NewOutPoint(TstRecvTx.Hash(), 1, wire.TxTreeRegular): {},
 			},
 			unmined: map[chainhash.Hash]struct{}{},
 		},
 	}
 
-	s, teardown, err := testStore()
+	dbName := "wtxstore.bin"
+	db, _, txStore, _, teardown, err := testDB(dbName)
 	defer teardown()
+
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for _, test := range tests {
-		tmpStore, err := test.f(s)
-		if err != nil {
-			t.Fatalf("%s: got error: %v", test.name, err)
-		}
-		s = tmpStore
-		bal, err := s.Balance(1, TstRecvCurrentHeight, BFBalanceSpendable,
-			true, defaultAccount)
-		if err != nil {
-			t.Fatalf("%s: Confirmed Balance failed: %v", test.name, err)
-		}
-		if bal != test.bal {
-			t.Fatalf("%s: balance mismatch: expected: %d, got: %d", test.name, test.bal, bal)
-		}
-		unc, err := s.Balance(0, TstRecvCurrentHeight, BFBalanceSpendable,
-			true, defaultAccount)
-		if err != nil {
-			t.Fatalf("%s: Unconfirmed Balance failed: %v", test.name, err)
-		}
-		unc -= bal
-		if unc != test.unc {
-			t.Fatalf("%s: unconfirmed balance mismatch: expected %d, got %d", test.name, test.unc, unc)
-		}
+		err := walletdb.Update(db, func(dbtx walletdb.ReadWriteTx) error {
+			addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+			txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
-		// Check that unspent outputs match expected.
-		unspent, err := s.UnspentOutputs()
-		if err != nil {
-			t.Fatalf("%s: failed to fetch unspent outputs: %v", test.name, err)
-		}
-		for _, cred := range unspent {
-			if _, ok := test.unspents[cred.OutPoint]; !ok {
-				t.Errorf("%s: unexpected unspent output: %v", test.name, cred.OutPoint)
+			tmpStore, err := test.f(txStore, txmgrNs, addrmgrNs)
+			if err != nil {
+				t.Fatalf("%s: got error: %v", test.name, err)
 			}
-			delete(test.unspents, cred.OutPoint)
-		}
-		if len(test.unspents) != 0 {
-			t.Fatalf("%s: missing expected unspent output(s)", test.name)
-		}
-
-		// Check that unmined txs match expected.
-		unmined, err := s.UnminedTxs()
-		if err != nil {
-			t.Fatalf("%s: cannot load unmined transactions: %v", test.name, err)
-		}
-		for _, tx := range unmined {
-			txHash := tx.TxSha()
-			if _, ok := test.unmined[txHash]; !ok {
-				t.Fatalf("%s: unexpected unmined tx: %v", test.name, txHash)
+			s := tmpStore
+			bal, err := s.AccountBalance(addrmgrNs, txmgrNs, TstRecvCurrentHeight, defaultAccount)
+			if err != nil {
+				t.Fatalf("%s: Confirmed Balance failed: %v", test.name, err)
 			}
-			delete(test.unmined, txHash)
-		}
-		if len(test.unmined) != 0 {
-			t.Fatalf("%s: missing expected unmined tx(s)", test.name)
-		}
+			if bal.Spendable != test.bal {
+				t.Fatalf("%s: balance mismatch: expected: %d, got: %d", test.name, test.bal, bal)
+			}
+			unc, err := s.AccountBalance(addrmgrNs, txmgrNs, TstRecvCurrentHeight, defaultAccount)
+			if err != nil {
+				t.Fatalf("%s: Unconfirmed Balance failed: %v", test.name, err)
+			}
+			//unc -= bal
+			if unc.Unconfirmed != test.unc {
+				t.Fatalf("%s: unconfirmed balance mismatch: expected %d, got %d", test.name, test.unc, unc)
+			}
 
+			// Check that unspent outputs match expected.
+			unspent, err := s.UnspentOutputs(txmgrNs)
+			if err != nil {
+				t.Fatalf("%s: failed to fetch unspent outputs: %v", test.name, err)
+			}
+			for _, cred := range unspent {
+				if _, ok := test.unspents[cred.OutPoint]; !ok {
+					t.Errorf("%s: unexpected unspent output: %v", test.name, cred.OutPoint)
+				}
+				delete(test.unspents, cred.OutPoint)
+			}
+			if len(test.unspents) != 0 {
+				t.Fatalf("%s: missing expected unspent output(s)", test.name)
+			}
+
+			// Check that unmined txs match expected.
+			unmined, err := s.UnminedTxs(txmgrNs)
+			if err != nil {
+				t.Fatalf("%s: cannot load unmined transactions: %v", test.name, err)
+			}
+			for _, tx := range unmined {
+				txHash := tx.TxHash()
+				if _, ok := test.unmined[txHash]; !ok {
+					t.Fatalf("%s: unexpected unmined tx: %v", test.name, txHash)
+				}
+				delete(test.unmined, txHash)
+			}
+			if len(test.unmined) != 0 {
+				t.Fatalf("%s: missing expected unmined tx(s)", test.name)
+			}
+
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
-func TestFindingSpentCredits(t *testing.T) {
-	t.Parallel()
+// func TestFindingSpentCredits(t *testing.T) {
+// 	t.Parallel()
 
-	s, teardown, err := testStore()
-	defer teardown()
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	s, teardown, err := testStore()
+// 	defer teardown()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	// Insert transaction and credit which will be spent.
-	recvRec, err := NewTxRecord(TstRecvSerializedTx, time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	// Insert transaction and credit which will be spent.
+// 	recvRec, err := NewTxRecord(TstRecvSerializedTx, time.Now())
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	err = s.InsertTx(recvRec, TstRecvTxBlockDetails)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defaultAccount := uint32(0)
-	err = s.AddCredit(recvRec, TstRecvTxBlockDetails, 1, false, defaultAccount)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	err = s.InsertTx(recvRec, TstRecvTxBlockDetails)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	defaultAccount := uint32(0)
+// 	err = s.AddCredit(recvRec, TstRecvTxBlockDetails, 1, false, defaultAccount)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	// Insert confirmed transaction which spends the above credit.
-	spendingRec, err := NewTxRecord(TstSpendingSerializedTx, time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	// Insert confirmed transaction which spends the above credit.
+// 	spendingRec, err := NewTxRecord(TstSpendingSerializedTx, time.Now())
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	err = s.InsertTx(spendingRec, TstSignedTxBlockDetails)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.AddCredit(spendingRec, TstSignedTxBlockDetails, 0, false, defaultAccount)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	err = s.InsertTx(spendingRec, TstSignedTxBlockDetails)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.AddCredit(spendingRec, TstSignedTxBlockDetails, 0, false, defaultAccount)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	bal, err := s.Balance(1, TstSignedTxBlockDetails.Height, BFBalanceLockedStake, true, defaultAccount)
-	if err != nil {
-		t.Fatal(err)
-	}
-	expectedBal := dcrutil.Amount(TstSpendingTx.MsgTx().TxOut[0].Value)
-	if bal != expectedBal {
-		t.Fatalf("bad balance: %v != %v", bal, expectedBal)
-	}
-	unspents, err := s.UnspentOutputs()
-	if err != nil {
-		t.Fatal(err)
-	}
-	op := wire.NewOutPoint(TstSpendingTx.Sha(), 0, dcrutil.TxTreeStake)
-	if unspents[0].OutPoint != *op {
-		t.Fatal("unspent outpoint doesn't match expected")
-	}
-	if len(unspents) > 1 {
-		t.Fatal("has more than one unspent credit")
-	}
-}
+// 	bal, err := s.Balance(1, TstSignedTxBlockDetails.Height, BFBalanceLockedStake, true, defaultAccount)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	expectedBal := dcrutil.Amount(TstSpendingTx.MsgTx().TxOut[0].Value)
+// 	if bal != expectedBal {
+// 		t.Fatalf("bad balance: %v != %v", bal, expectedBal)
+// 	}
+// 	unspents, err := s.UnspentOutputs()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	op := wire.NewOutPoint(TstSpendingTx.Sha(), 0, dcrutil.TxTreeStake)
+// 	if unspents[0].OutPoint != *op {
+// 		t.Fatal("unspent outpoint doesn't match expected")
+// 	}
+// 	if len(unspents) > 1 {
+// 		t.Fatal("has more than one unspent credit")
+// 	}
+// }
 
 func newCoinBase(outputValues ...int64) *wire.MsgTx {
 	tx := wire.MsgTx{
@@ -666,632 +645,632 @@ func spendOutput(txHash *chainhash.Hash, index uint32, tree int8, outputValues .
 	return &tx
 }
 
-func TestCoinbases(t *testing.T) {
-	t.Parallel()
+// func TestCoinbases(t *testing.T) {
+// 	t.Parallel()
 
-	s, teardown, err := testStore()
-	defer teardown()
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	s, teardown, err := testStore()
+// 	defer teardown()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	b100 := BlockMeta{
-		Block: Block{Height: 100},
-		Time:  time.Now(),
-	}
+// 	b100 := BlockMeta{
+// 		Block: Block{Height: 100},
+// 		Time:  time.Now(),
+// 	}
 
-	cb := newCoinBase(20e8, 10e8, 30e8)
-	cbRec, err := NewTxRecordFromMsgTx(cb, b100.Time)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	cb := newCoinBase(20e8, 10e8, 30e8)
+// 	cbRec, err := NewTxRecordFromMsgTx(cb, b100.Time)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	// Insert coinbase and mark outputs 0 and 2 as credits.
-	err = s.InsertTx(cbRec, &b100)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defaultAccount := uint32(0)
-	err = s.AddCredit(cbRec, &b100, 0, false, defaultAccount)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.AddCredit(cbRec, &b100, 2, false, defaultAccount)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	// Insert coinbase and mark outputs 0 and 2 as credits.
+// 	err = s.InsertTx(cbRec, &b100)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	defaultAccount := uint32(0)
+// 	err = s.AddCredit(cbRec, &b100, 0, false, defaultAccount)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.AddCredit(cbRec, &b100, 2, false, defaultAccount)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	// Balance should be 0 if the coinbase is immature, 50 DCR at and beyond
-	// maturity.
-	//
-	// Outputs when depth is below maturity are never included, no matter
-	// the required number of confirmations.  Matured outputs which have
-	// greater depth than minConf are still excluded.
-	type balTest struct {
-		height  int32
-		minConf int32
-		bal     dcrutil.Amount
-	}
-	balTests := []balTest{
-		// Next block it is still immature
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 2,
-			minConf: 0,
-			bal:     0,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 2,
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			bal:     0,
-		},
+// 	// Balance should be 0 if the coinbase is immature, 50 DCR at and beyond
+// 	// maturity.
+// 	//
+// 	// Outputs when depth is below maturity are never included, no matter
+// 	// the required number of confirmations.  Matured outputs which have
+// 	// greater depth than minConf are still excluded.
+// 	type balTest struct {
+// 		height  int32
+// 		minConf int32
+// 		bal     dcrutil.Amount
+// 	}
+// 	balTests := []balTest{
+// 		// Next block it is still immature
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 2,
+// 			minConf: 0,
+// 			bal:     0,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 2,
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			bal:     0,
+// 		},
 
-		// Next block it matures
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
-			minConf: 0,
-			bal:     50e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
-			minConf: 1,
-			bal:     50e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
-			bal:     50e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			bal:     50e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 1,
-			bal:     0,
-		},
+// 		// Next block it matures
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
+// 			minConf: 0,
+// 			bal:     50e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
+// 			minConf: 1,
+// 			bal:     50e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
+// 			bal:     50e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			bal:     50e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 1,
+// 			bal:     0,
+// 		},
 
-		// Matures at this block
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			minConf: 0,
-			bal:     50e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			minConf: 1,
-			bal:     50e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			bal:     50e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 1,
-			bal:     50e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 2,
-			bal:     0,
-		},
-	}
-	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
-			false, defaultAccount)
-		if err != nil {
-			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
-		}
-		if bal != tst.bal {
-			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
-		}
-	}
-	if t.Failed() {
-		t.Fatal("Failed balance checks after inserting coinbase")
-	}
+// 		// Matures at this block
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			minConf: 0,
+// 			bal:     50e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			minConf: 1,
+// 			bal:     50e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			bal:     50e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 1,
+// 			bal:     50e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 2,
+// 			bal:     0,
+// 		},
+// 	}
+// 	for i, tst := range balTests {
+// 		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
+// 			false, defaultAccount)
+// 		if err != nil {
+// 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
+// 		}
+// 		if bal != tst.bal {
+// 			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
+// 		}
+// 	}
+// 	if t.Failed() {
+// 		t.Fatal("Failed balance checks after inserting coinbase")
+// 	}
 
-	// Spend an output from the coinbase tx in an unmined transaction when
-	// the next block will mature the coinbase.
-	spenderATime := time.Now()
-	spenderA := spendOutput(&cbRec.Hash, 0, 0, 5e8, 15e8)
-	spenderARec, err := NewTxRecordFromMsgTx(spenderA, spenderATime)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.InsertTx(spenderARec, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.AddCredit(spenderARec, nil, 0, false, defaultAccount)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	// Spend an output from the coinbase tx in an unmined transaction when
+// 	// the next block will mature the coinbase.
+// 	spenderATime := time.Now()
+// 	spenderA := spendOutput(&cbRec.Hash, 0, 0, 5e8, 15e8)
+// 	spenderARec, err := NewTxRecordFromMsgTx(spenderA, spenderATime)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.InsertTx(spenderARec, nil)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.AddCredit(spenderARec, nil, 0, false, defaultAccount)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	balTests = []balTest{
-		// Next block it matures
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
-			minConf: 0,
-			bal:     35e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
-			minConf: 1,
-			bal:     30e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			bal:     30e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 1,
-			bal:     0,
-		},
+// 	balTests = []balTest{
+// 		// Next block it matures
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
+// 			minConf: 0,
+// 			bal:     35e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
+// 			minConf: 1,
+// 			bal:     30e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			bal:     30e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity) - 1,
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 1,
+// 			bal:     0,
+// 		},
 
-		// Matures at this block
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			minConf: 0,
-			bal:     35e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			minConf: 1,
-			bal:     30e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			bal:     30e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 1,
-			bal:     30e8,
-		},
-		{
-			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 2,
-			bal:     0,
-		},
-	}
-	balTestsBeforeMaturity := balTests
-	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
-			true, defaultAccount)
-		if err != nil {
-			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
-		}
-		if bal != tst.bal {
-			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
-		}
-	}
-	if t.Failed() {
-		t.Fatal("Failed balance checks after spending coinbase with unmined transaction")
-	}
+// 		// Matures at this block
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			minConf: 0,
+// 			bal:     35e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			minConf: 1,
+// 			bal:     30e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			bal:     30e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 1,
+// 			bal:     30e8,
+// 		},
+// 		{
+// 			height:  b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 2,
+// 			bal:     0,
+// 		},
+// 	}
+// 	balTestsBeforeMaturity := balTests
+// 	for i, tst := range balTests {
+// 		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
+// 			true, defaultAccount)
+// 		if err != nil {
+// 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
+// 		}
+// 		if bal != tst.bal {
+// 			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
+// 		}
+// 	}
+// 	if t.Failed() {
+// 		t.Fatal("Failed balance checks after spending coinbase with unmined transaction")
+// 	}
 
-	// Mine the spending transaction in the block the coinbase matures.
-	bMaturity := BlockMeta{
-		Block: Block{Height: b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity)},
-		Time:  time.Now(),
-	}
-	err = s.InsertTx(spenderARec, &bMaturity)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	// Mine the spending transaction in the block the coinbase matures.
+// 	bMaturity := BlockMeta{
+// 		Block: Block{Height: b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity)},
+// 		Time:  time.Now(),
+// 	}
+// 	err = s.InsertTx(spenderARec, &bMaturity)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	balTests = []balTest{
-		// Maturity height
-		{
-			height:  bMaturity.Height,
-			minConf: 0,
-			bal:     35e8,
-		},
-		{
-			height:  bMaturity.Height,
-			minConf: 1,
-			bal:     35e8,
-		},
-		{
-			height:  bMaturity.Height,
-			minConf: 2,
-			bal:     30e8,
-		},
-		{
-			height:  bMaturity.Height,
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity),
-			bal:     30e8,
-		},
-		{
-			height:  bMaturity.Height,
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 1,
-			bal:     30e8,
-		},
-		{
-			height:  bMaturity.Height,
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 2,
-			bal:     0,
-		},
+// 	balTests = []balTest{
+// 		// Maturity height
+// 		{
+// 			height:  bMaturity.Height,
+// 			minConf: 0,
+// 			bal:     35e8,
+// 		},
+// 		{
+// 			height:  bMaturity.Height,
+// 			minConf: 1,
+// 			bal:     35e8,
+// 		},
+// 		{
+// 			height:  bMaturity.Height,
+// 			minConf: 2,
+// 			bal:     30e8,
+// 		},
+// 		{
+// 			height:  bMaturity.Height,
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity),
+// 			bal:     30e8,
+// 		},
+// 		{
+// 			height:  bMaturity.Height,
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 1,
+// 			bal:     30e8,
+// 		},
+// 		{
+// 			height:  bMaturity.Height,
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 2,
+// 			bal:     0,
+// 		},
 
-		// Next block after maturity height
-		{
-			height:  bMaturity.Height + 1,
-			minConf: 0,
-			bal:     35e8,
-		},
-		{
-			height:  bMaturity.Height + 1,
-			minConf: 2,
-			bal:     35e8,
-		},
-		{
-			height:  bMaturity.Height + 1,
-			minConf: 3,
-			bal:     30e8,
-		},
-		{
-			height:  bMaturity.Height + 1,
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 2,
-			bal:     30e8,
-		},
-		{
-			height:  bMaturity.Height + 1,
-			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 3,
-			bal:     0,
-		},
-	}
-	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
-			true, defaultAccount)
-		if err != nil {
-			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
-		}
-		if bal != tst.bal {
-			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
-		}
-	}
-	if t.Failed() {
-		t.Fatal("Failed balance checks mining coinbase spending transaction")
-	}
+// 		// Next block after maturity height
+// 		{
+// 			height:  bMaturity.Height + 1,
+// 			minConf: 0,
+// 			bal:     35e8,
+// 		},
+// 		{
+// 			height:  bMaturity.Height + 1,
+// 			minConf: 2,
+// 			bal:     35e8,
+// 		},
+// 		{
+// 			height:  bMaturity.Height + 1,
+// 			minConf: 3,
+// 			bal:     30e8,
+// 		},
+// 		{
+// 			height:  bMaturity.Height + 1,
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 2,
+// 			bal:     30e8,
+// 		},
+// 		{
+// 			height:  bMaturity.Height + 1,
+// 			minConf: int32(chaincfg.TestNetParams.CoinbaseMaturity) + 3,
+// 			bal:     0,
+// 		},
+// 	}
+// 	for i, tst := range balTests {
+// 		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
+// 			true, defaultAccount)
+// 		if err != nil {
+// 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
+// 		}
+// 		if bal != tst.bal {
+// 			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
+// 		}
+// 	}
+// 	if t.Failed() {
+// 		t.Fatal("Failed balance checks mining coinbase spending transaction")
+// 	}
 
-	// Create another spending transaction which spends the credit from the
-	// first spender.  This will be used to test removing the entire
-	// conflict chain when the coinbase is later reorged out.
-	//
-	// Use the same output amount as spender A and mark it as a credit.
-	// This will mean the balance tests should report identical results.
-	spenderBTime := time.Now()
-	spenderB := spendOutput(&spenderARec.Hash, 0, 0, 5e8)
-	spenderBRec, err := NewTxRecordFromMsgTx(spenderB, spenderBTime)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.InsertTx(spenderBRec, &bMaturity)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.AddCredit(spenderBRec, &bMaturity, 0, false, defaultAccount)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
-			true, defaultAccount)
-		if err != nil {
-			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
-		}
-		if bal != tst.bal {
-			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
-		}
-	}
-	if t.Failed() {
-		t.Fatal("Failed balance checks mining second spending transaction")
-	}
+// 	// Create another spending transaction which spends the credit from the
+// 	// first spender.  This will be used to test removing the entire
+// 	// conflict chain when the coinbase is later reorged out.
+// 	//
+// 	// Use the same output amount as spender A and mark it as a credit.
+// 	// This will mean the balance tests should report identical results.
+// 	spenderBTime := time.Now()
+// 	spenderB := spendOutput(&spenderARec.Hash, 0, 0, 5e8)
+// 	spenderBRec, err := NewTxRecordFromMsgTx(spenderB, spenderBTime)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.InsertTx(spenderBRec, &bMaturity)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.AddCredit(spenderBRec, &bMaturity, 0, false, defaultAccount)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	for i, tst := range balTests {
+// 		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
+// 			true, defaultAccount)
+// 		if err != nil {
+// 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
+// 		}
+// 		if bal != tst.bal {
+// 			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
+// 		}
+// 	}
+// 	if t.Failed() {
+// 		t.Fatal("Failed balance checks mining second spending transaction")
+// 	}
 
-	// Reorg out the block that matured the coinbase and check balances
-	// again.
-	err = s.Rollback(bMaturity.Height)
-	if err != nil {
-		t.Fatal(err)
-	}
-	balTests = balTestsBeforeMaturity
-	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
-			true, defaultAccount)
-		if err != nil {
-			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
-		}
-		if bal != tst.bal {
-			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
-		}
-	}
-	if t.Failed() {
-		t.Fatal("Failed balance checks after reorging maturity block")
-	}
+// 	// Reorg out the block that matured the coinbase and check balances
+// 	// again.
+// 	err = s.Rollback(bMaturity.Height)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	balTests = balTestsBeforeMaturity
+// 	for i, tst := range balTests {
+// 		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
+// 			true, defaultAccount)
+// 		if err != nil {
+// 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
+// 		}
+// 		if bal != tst.bal {
+// 			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
+// 		}
+// 	}
+// 	if t.Failed() {
+// 		t.Fatal("Failed balance checks after reorging maturity block")
+// 	}
 
-	// Reorg out the block which contained the coinbase.  There should be no
-	// more transactions in the store (since the previous outputs referenced
-	// by the spending tx no longer exist), and the balance will always be
-	// zero.
-	err = s.Rollback(b100.Height)
-	if err != nil {
-		t.Fatal(err)
-	}
-	balTests = []balTest{
-		// Current height
-		{
-			height:  b100.Height - 1,
-			minConf: 0,
-			bal:     0,
-		},
-		{
-			height:  b100.Height - 1,
-			minConf: 1,
-			bal:     0,
-		},
+// 	// Reorg out the block which contained the coinbase.  There should be no
+// 	// more transactions in the store (since the previous outputs referenced
+// 	// by the spending tx no longer exist), and the balance will always be
+// 	// zero.
+// 	err = s.Rollback(b100.Height)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	balTests = []balTest{
+// 		// Current height
+// 		{
+// 			height:  b100.Height - 1,
+// 			minConf: 0,
+// 			bal:     0,
+// 		},
+// 		{
+// 			height:  b100.Height - 1,
+// 			minConf: 1,
+// 			bal:     0,
+// 		},
 
-		// Next height
-		{
-			height:  b100.Height,
-			minConf: 0,
-			bal:     0,
-		},
-		{
-			height:  b100.Height,
-			minConf: 1,
-			bal:     0,
-		},
-	}
-	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
-			true, defaultAccount)
-		if err != nil {
-			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
-		}
-		if bal != tst.bal {
-			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
-		}
-	}
-	if t.Failed() {
-		t.Fatal("Failed balance checks after reorging coinbase block")
-	}
-	unminedTxs, err := s.UnminedTxs()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(unminedTxs) != 0 {
-		t.Fatalf("Should have no unmined transactions after coinbase reorg, found %d", len(unminedTxs))
-	}
-}
+// 		// Next height
+// 		{
+// 			height:  b100.Height,
+// 			minConf: 0,
+// 			bal:     0,
+// 		},
+// 		{
+// 			height:  b100.Height,
+// 			minConf: 1,
+// 			bal:     0,
+// 		},
+// 	}
+// 	for i, tst := range balTests {
+// 		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
+// 			true, defaultAccount)
+// 		if err != nil {
+// 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
+// 		}
+// 		if bal != tst.bal {
+// 			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
+// 		}
+// 	}
+// 	if t.Failed() {
+// 		t.Fatal("Failed balance checks after reorging coinbase block")
+// 	}
+// 	unminedTxs, err := s.UnminedTxs()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	if len(unminedTxs) != 0 {
+// 		t.Fatalf("Should have no unmined transactions after coinbase reorg, found %d", len(unminedTxs))
+// 	}
+// }
 
 // Test moving multiple transactions from unmined buckets to the same block.
-func TestMoveMultipleToSameBlock(t *testing.T) {
-	t.Parallel()
+// func TestMoveMultipleToSameBlock(t *testing.T) {
+// 	t.Parallel()
 
-	s, teardown, err := testStore()
-	defer teardown()
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	s, teardown, err := testStore()
+// 	defer teardown()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	b100 := BlockMeta{
-		Block: Block{Height: 100},
-		Time:  time.Now(),
-	}
+// 	b100 := BlockMeta{
+// 		Block: Block{Height: 100},
+// 		Time:  time.Now(),
+// 	}
 
-	cb := newCoinBase(20e8, 30e8)
-	cbRec, err := NewTxRecordFromMsgTx(cb, b100.Time)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	cb := newCoinBase(20e8, 30e8)
+// 	cbRec, err := NewTxRecordFromMsgTx(cb, b100.Time)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	// Insert coinbase and mark both outputs as credits.
-	err = s.InsertTx(cbRec, &b100)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defaultAccount := uint32(0)
-	err = s.AddCredit(cbRec, &b100, 0, false, defaultAccount)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.AddCredit(cbRec, &b100, 1, false, defaultAccount)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	// Insert coinbase and mark both outputs as credits.
+// 	err = s.InsertTx(cbRec, &b100)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	defaultAccount := uint32(0)
+// 	err = s.AddCredit(cbRec, &b100, 0, false, defaultAccount)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.AddCredit(cbRec, &b100, 1, false, defaultAccount)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	// Create and insert two unmined transactions which spend both coinbase
-	// outputs.
-	spenderATime := time.Now()
-	spenderA := spendOutput(&cbRec.Hash, 0, 0, 1e8, 2e8, 18e8)
-	spenderARec, err := NewTxRecordFromMsgTx(spenderA, spenderATime)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.InsertTx(spenderARec, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.AddCredit(spenderARec, nil, 0, false, defaultAccount)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.AddCredit(spenderARec, nil, 1, false, defaultAccount)
-	if err != nil {
-		t.Fatal(err)
-	}
-	spenderBTime := time.Now()
-	spenderB := spendOutput(&cbRec.Hash, 1, 0, 4e8, 8e8, 18e8)
-	spenderBRec, err := NewTxRecordFromMsgTx(spenderB, spenderBTime)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.InsertTx(spenderBRec, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.AddCredit(spenderBRec, nil, 0, false, defaultAccount)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.AddCredit(spenderBRec, nil, 1, false, defaultAccount)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	// Create and insert two unmined transactions which spend both coinbase
+// 	// outputs.
+// 	spenderATime := time.Now()
+// 	spenderA := spendOutput(&cbRec.Hash, 0, 0, 1e8, 2e8, 18e8)
+// 	spenderARec, err := NewTxRecordFromMsgTx(spenderA, spenderATime)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.InsertTx(spenderARec, nil)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.AddCredit(spenderARec, nil, 0, false, defaultAccount)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.AddCredit(spenderARec, nil, 1, false, defaultAccount)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	spenderBTime := time.Now()
+// 	spenderB := spendOutput(&cbRec.Hash, 1, 0, 4e8, 8e8, 18e8)
+// 	spenderBRec, err := NewTxRecordFromMsgTx(spenderB, spenderBTime)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.InsertTx(spenderBRec, nil)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.AddCredit(spenderBRec, nil, 0, false, defaultAccount)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.AddCredit(spenderBRec, nil, 1, false, defaultAccount)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	// Mine both transactions in the block that matures the coinbase.
-	bMaturity := BlockMeta{
-		Block: Block{Height: b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity)},
-		Time:  time.Now(),
-	}
-	err = s.InsertTx(spenderARec, &bMaturity)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.InsertTx(spenderBRec, &bMaturity)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	// Mine both transactions in the block that matures the coinbase.
+// 	bMaturity := BlockMeta{
+// 		Block: Block{Height: b100.Height + int32(chaincfg.TestNetParams.CoinbaseMaturity)},
+// 		Time:  time.Now(),
+// 	}
+// 	err = s.InsertTx(spenderARec, &bMaturity)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.InsertTx(spenderBRec, &bMaturity)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	// Check that both transactions can be queried at the maturity block.
-	detailsA, err := s.UniqueTxDetails(&spenderARec.Hash, &bMaturity.Block)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if detailsA == nil {
-		t.Fatal("No details found for first spender")
-	}
-	detailsB, err := s.UniqueTxDetails(&spenderBRec.Hash, &bMaturity.Block)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if detailsB == nil {
-		t.Fatal("No details found for second spender")
-	}
+// 	// Check that both transactions can be queried at the maturity block.
+// 	detailsA, err := s.UniqueTxDetails(&spenderARec.Hash, &bMaturity.Block)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	if detailsA == nil {
+// 		t.Fatal("No details found for first spender")
+// 	}
+// 	detailsB, err := s.UniqueTxDetails(&spenderBRec.Hash, &bMaturity.Block)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	if detailsB == nil {
+// 		t.Fatal("No details found for second spender")
+// 	}
 
-	// Verify that the balance was correctly updated on the block record
-	// append and that no unmined transactions remain.
-	balTests := []struct {
-		height  int32
-		minConf int32
-		bal     dcrutil.Amount
-	}{
-		// Maturity height
-		{
-			height:  bMaturity.Height,
-			minConf: 0,
-			bal:     15e8,
-		},
-		{
-			height:  bMaturity.Height,
-			minConf: 1,
-			bal:     15e8,
-		},
-		{
-			height:  bMaturity.Height,
-			minConf: 2,
-			bal:     0,
-		},
+// 	// Verify that the balance was correctly updated on the block record
+// 	// append and that no unmined transactions remain.
+// 	balTests := []struct {
+// 		height  int32
+// 		minConf int32
+// 		bal     dcrutil.Amount
+// 	}{
+// 		// Maturity height
+// 		{
+// 			height:  bMaturity.Height,
+// 			minConf: 0,
+// 			bal:     15e8,
+// 		},
+// 		{
+// 			height:  bMaturity.Height,
+// 			minConf: 1,
+// 			bal:     15e8,
+// 		},
+// 		{
+// 			height:  bMaturity.Height,
+// 			minConf: 2,
+// 			bal:     0,
+// 		},
 
-		// Next block after maturity height
-		{
-			height:  bMaturity.Height + 1,
-			minConf: 0,
-			bal:     15e8,
-		},
-		{
-			height:  bMaturity.Height + 1,
-			minConf: 2,
-			bal:     15e8,
-		},
-		{
-			height:  bMaturity.Height + 1,
-			minConf: 3,
-			bal:     0,
-		},
-	}
-	for i, tst := range balTests {
-		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
-			true, defaultAccount)
-		if err != nil {
-			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
-		}
-		if bal != tst.bal {
-			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
-		}
-	}
-	if t.Failed() {
-		t.Fatal("Failed balance checks after moving both coinbase spenders")
-	}
-	unminedTxs, err := s.UnminedTxs()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(unminedTxs) != 0 {
-		t.Fatalf("Should have no unmined transactions mining both, found %d", len(unminedTxs))
-	}
-}
+// 		// Next block after maturity height
+// 		{
+// 			height:  bMaturity.Height + 1,
+// 			minConf: 0,
+// 			bal:     15e8,
+// 		},
+// 		{
+// 			height:  bMaturity.Height + 1,
+// 			minConf: 2,
+// 			bal:     15e8,
+// 		},
+// 		{
+// 			height:  bMaturity.Height + 1,
+// 			minConf: 3,
+// 			bal:     0,
+// 		},
+// 	}
+// 	for i, tst := range balTests {
+// 		bal, err := s.Balance(tst.minConf, tst.height, BFBalanceSpendable,
+// 			true, defaultAccount)
+// 		if err != nil {
+// 			t.Fatalf("Balance test %d: Store.Balance failed: %v", i, err)
+// 		}
+// 		if bal != tst.bal {
+// 			t.Errorf("Balance test %d: Got %v Expected %v", i, bal, tst.bal)
+// 		}
+// 	}
+// 	if t.Failed() {
+// 		t.Fatal("Failed balance checks after moving both coinbase spenders")
+// 	}
+// 	unminedTxs, err := s.UnminedTxs()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	if len(unminedTxs) != 0 {
+// 		t.Fatalf("Should have no unmined transactions mining both, found %d", len(unminedTxs))
+// 	}
+// }
 
 // Test the optional-ness of the serialized transaction in a TxRecord.
 // NewTxRecord and NewTxRecordFromMsgTx both save the serialized transaction, so
 // manually strip it out to test this code path.
-func TestInsertUnserializedTx(t *testing.T) {
-	t.Parallel()
+// func TestInsertUnserializedTx(t *testing.T) {
+// 	t.Parallel()
 
-	s, teardown, err := testStore()
-	defer teardown()
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	s, teardown, err := testStore()
+// 	defer teardown()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	tx := newCoinBase(50e8)
-	rec, err := NewTxRecordFromMsgTx(tx, timeNow())
-	if err != nil {
-		t.Fatal(err)
-	}
-	b100 := makeBlockMeta(100)
-	err = s.InsertTx(stripSerializedTx(rec), &b100)
-	if err != nil {
-		t.Fatalf("Insert for stripped TxRecord failed: %v", err)
-	}
+// 	tx := newCoinBase(50e8)
+// 	rec, err := NewTxRecordFromMsgTx(tx, timeNow())
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	b100 := makeFakeBlockMeta(100)
+// 	err = s.InsertTx(stripSerializedTx(rec), &b100)
+// 	if err != nil {
+// 		t.Fatalf("Insert for stripped TxRecord failed: %v", err)
+// 	}
 
-	// Ensure it can be retreived successfully.
-	details, err := s.UniqueTxDetails(&rec.Hash, &b100.Block)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rec2, err := NewTxRecordFromMsgTx(&details.MsgTx, rec.Received)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(rec.SerializedTx, rec2.SerializedTx) {
-		t.Fatal("Serialized txs for coinbase do not match")
-	}
+// 	// Ensure it can be retreived successfully.
+// 	details, err := s.UniqueTxDetails(&rec.Hash, &b100.Block)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	rec2, err := NewTxRecordFromMsgTx(&details.MsgTx, rec.Received)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	if !bytes.Equal(rec.SerializedTx, rec2.SerializedTx) {
+// 		t.Fatal("Serialized txs for coinbase do not match")
+// 	}
 
-	// Now test that path with an unmined transaction.
-	tx = spendOutput(&rec.Hash, 0, 0, 50e8)
-	rec, err = NewTxRecordFromMsgTx(tx, timeNow())
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.InsertTx(rec, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	details, err = s.UniqueTxDetails(&rec.Hash, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rec2, err = NewTxRecordFromMsgTx(&details.MsgTx, rec.Received)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(rec.SerializedTx, rec2.SerializedTx) {
-		t.Fatal("Serialized txs for coinbase spender do not match")
-	}
-}
+// 	// Now test that path with an unmined transaction.
+// 	tx = spendOutput(&rec.Hash, 0, 0, 50e8)
+// 	rec, err = NewTxRecordFromMsgTx(tx, timeNow())
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = s.InsertTx(rec, nil)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	details, err = s.UniqueTxDetails(&rec.Hash, nil)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	rec2, err = NewTxRecordFromMsgTx(&details.MsgTx, rec.Received)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	if !bytes.Equal(rec.SerializedTx, rec2.SerializedTx) {
+// 		t.Fatal("Serialized txs for coinbase spender do not match")
+// 	}
+// }
