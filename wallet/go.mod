@@ -1,7 +1,6 @@
 module github.com/decred/dcrwallet/wallet/v2
 
 require (
-	github.com/boltdb/bolt v1.3.1
 	github.com/decred/dcrd/blockchain v1.1.1
 	github.com/decred/dcrd/blockchain/stake v1.1.0
 	github.com/decred/dcrd/chaincfg v1.3.0
@@ -24,6 +23,7 @@ require (
 	github.com/decred/dcrwallet/validate v1.0.2
 	github.com/decred/slog v1.0.0
 	github.com/jrick/bitset v1.0.0
+	go.etcd.io/bbolt v1.3.2
 	golang.org/x/crypto v0.0.0-20190211182817-74369b46fc67
 	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4
 )

@@ -9,9 +9,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/boltdb/bolt"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	bolt "go.etcd.io/bbolt"
 )
 
 // convertErr wraps a driver-specific error with an error code.
