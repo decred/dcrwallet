@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
@@ -21,6 +20,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	_ "github.com/decred/dcrwallet/wallet/v2/drivers/bdb"
 	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	bolt "go.etcd.io/bbolt"
 )
 
 func setup() (db walletdb.DB, s *Store, teardown func(), err error) {
