@@ -573,18 +573,21 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 		return err
 	}
 	if rescanPoint != nil {
-		s.mu.Lock()
-		discoverAccts := s.discoverAccts
-		s.mu.Unlock()
-		s.discoverAddressesStart()
-		err = s.wallet.DiscoverActiveAddresses(ctx, n, rescanPoint, discoverAccts)
-		if err != nil {
-			return err
+		if !s.wallet.GetIsNewWallet() {
+			s.mu.Lock()
+			discoverAccts := s.discoverAccts
+			s.mu.Unlock()
+			s.discoverAddressesStart()
+			err = s.wallet.DiscoverActiveAddresses(ctx, n, rescanPoint, discoverAccts)
+			if err != nil {
+				return err
+			}
+			s.discoverAddressesFinished()
+			s.mu.Lock()
+			s.discoverAccts = false
+			s.mu.Unlock()
 		}
-		s.discoverAddressesFinished()
-		s.mu.Lock()
-		s.discoverAccts = false
-		s.mu.Unlock()
+
 		err = s.wallet.LoadActiveDataFilters(ctx, n, true)
 		if err != nil {
 			return err
