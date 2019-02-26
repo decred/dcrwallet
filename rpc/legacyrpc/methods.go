@@ -509,7 +509,7 @@ func dumpPrivKey(s *Server, icmd interface{}) (interface{}, error) {
 // fundRawTransaction handles a fundrawtransaction request by funding a raw
 // transaction and returning its raw hex and its fee.
 func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrjson.FundRawTransactionCmd)
+	cmd := icmd.(*types.FundRawTransactionCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
@@ -567,7 +567,7 @@ func fundRawTransaction(s *Server, icmd interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp := &dcrjson.FundRawTransactionResult{
+	resp := &types.FundRawTransactionResult{
 		Hex: hex.EncodeToString(buf.Bytes()),
 		Fee: float64(totalInputValue-totalOutputValue) / 1e8,
 	}
