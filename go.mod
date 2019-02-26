@@ -17,7 +17,7 @@ require (
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrwallet/chain/v2 v2.0.0
 	github.com/decred/dcrwallet/errors v1.0.1
-	github.com/decred/dcrwallet/internal/helpers v1.0.1
+	github.com/decred/dcrwallet/internal/helpers v1.0.2
 	github.com/decred/dcrwallet/internal/zero v1.0.1
 	github.com/decred/dcrwallet/p2p v1.0.1
 	github.com/decred/dcrwallet/rpc/jsonrpc/types v1.0.0

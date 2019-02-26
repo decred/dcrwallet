@@ -27,3 +27,5 @@ require (
 	golang.org/x/crypto v0.0.0-20190211182817-74369b46fc67
 	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4
 )
+
+replace github.com/decred/dcrwallet/internal/helpers => ../internal/helpers
