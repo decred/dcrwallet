@@ -1,5 +1,7 @@
 module github.com/decred/dcrwallet
 
+go 1.11
+
 require (
 	github.com/decred/dcrd/addrmgr v1.0.2
 	github.com/decred/dcrd/blockchain v1.1.1
