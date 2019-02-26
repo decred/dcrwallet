@@ -3,9 +3,6 @@
 set -e
 
 GO=go
-if [[ $GOVERSION == 1.10 ]]; then
-    GO=vgo
-fi
 
 ROOTPATH=$($GO list -m -f {{.Dir}} 2>/dev/null)
 ROOTPATHPATTERN=$(echo $ROOTPATH | sed 's/\\/\\\\/g' | sed 's/\//\\\//g')
