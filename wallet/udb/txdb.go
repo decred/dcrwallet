@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1658,10 +1658,6 @@ func readRawUnminedInputSpenderHash(v []byte, hash *chainhash.Hash) {
 // is the ticket purchase transaction hash.  The value is serialized as such:
 //
 //   [0:4]		Block height ticket was picked (-1 if not picked)
-
-type ticketRecord struct {
-	pickedHeight int32
-}
 
 func valueTicketRecord(pickedHeight int32) []byte {
 	v := make([]byte, 4)

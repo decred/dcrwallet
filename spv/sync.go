@@ -1,4 +1,4 @@
-// Copyright (c) 2018 The Decred developers
+// Copyright (c) 2018-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -108,7 +108,7 @@ func NewSyncer(w *wallet.Wallet, lp *p2p.LocalPeer) *Syncer {
 	}
 }
 
-// SetPersistantPeers sets each peer as a persistant peer and disables DNS
+// SetPersistantPeers sets each peer as a persistent peer and disables DNS
 // seeding and peer discovery.
 func (s *Syncer) SetPersistantPeers(peers []string) {
 	s.persistantPeers = peers
@@ -254,7 +254,7 @@ func (s *Syncer) Run(ctx context.Context) error {
 		}
 	}()
 
-	// Seed peers over DNS when not disabled by persistant peers.
+	// Seed peers over DNS when not disabled by persistent peers.
 	if len(s.persistantPeers) == 0 {
 		s.lp.DNSSeed(wire.SFNodeNetwork | wire.SFNodeCF)
 	}
@@ -1008,8 +1008,7 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 				}
 			}
 
-			rp.SendHeaders(ctx)
-			return nil
+			return rp.SendHeaders(ctx)
 		}
 
 		lastHeight = int32(headers[len(headers)-1].Height)

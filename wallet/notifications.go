@@ -1,5 +1,5 @@
 // Copyright (c) 2015-2016 The btcsuite developers
-// Copyright (c) 2016 The Decred developers
+// Copyright (c) 2016-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -187,17 +187,15 @@ func makeTicketSummary(chainClient *rpcclient.Client, dbtx walletdb.ReadTx, w *W
 			ticketStatus = TicketStatusVoted
 		} else if details.Spender.TxType == stake.TxTypeSSRtx {
 			ticketStatus = TicketStatusRevoked
-		} else {
+		} else if chainClient != nil {
 			// chainClient can be nil if in spv mode
-			if chainClient != nil {
-				// Final check to see if ticket was missed otherwise it's live
-				live, err := chainClient.ExistsLiveTicket(&details.Ticket.Hash)
-				if err != nil {
-					log.Errorf("Unable to check if ticket was live for ticket status: %v", &details.Ticket.Hash)
-					ticketStatus = TicketStatusUnknown
-				} else if !live {
-					ticketStatus = TicketStatusMissed
-				}
+			// Final check to see if ticket was missed otherwise it's live
+			live, err := chainClient.ExistsLiveTicket(&details.Ticket.Hash)
+			if err != nil {
+				log.Errorf("Unable to check if ticket was live for ticket status: %v", &details.Ticket.Hash)
+				ticketStatus = TicketStatusUnknown
+			} else if !live {
+				ticketStatus = TicketStatusMissed
 			}
 		}
 		return &TicketSummary{
@@ -480,7 +478,7 @@ type TransactionSummary struct {
 }
 
 // TransactionType describes the which type of transaction is has been observed to be.
-// For instance, if it has a ticket as an input and a stake base reward as an ouput,
+// For instance, if it has a ticket as an input and a stake base reward as an output,
 // it is known to be a vote.
 type TransactionType int8
 

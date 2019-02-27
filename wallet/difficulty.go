@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2018 The Decred developers
+// Copyright (c) 2015-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -441,7 +441,7 @@ func (w *Wallet) nextRequiredDCP0001PoSDifficulty(dbtx walletdb.ReadTx, curHeade
 }
 
 // NextStakeDifficulty returns the ticket price for the next block after the
-// current main chain tip block.  This function only suceeds when DCP0001 is
+// current main chain tip block.  This function only succeeds when DCP0001 is
 // known to be active.  As a fallback, the StakeDifficulty method of
 // wallet.NetworkBackend may be used to query the next ticket price from a
 // trusted full node.
@@ -469,7 +469,7 @@ func (w *Wallet) NextStakeDifficulty() (dcrutil.Amount, error) {
 
 // NextStakeDifficultyAfterHeader returns the ticket price for the child of h.
 // All headers of ancestor blocks of h must be recorded by the wallet.  This
-// function only suceeds when DCP0001 is known to be active.
+// function only succeeds when DCP0001 is known to be active.
 func (w *Wallet) NextStakeDifficultyAfterHeader(h *wire.BlockHeader) (dcrutil.Amount, error) {
 	const op errors.Op = "wallet.NextStakeDifficultyAfterHeader"
 	if !deployments.DCP0001.Active(int32(h.Height), w.chainParams) {

@@ -16,9 +16,9 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrutil/hdkeychain"
-	"github.com/decred/dcrwallet/wallet/walletdb"
 	_ "github.com/decred/dcrwallet/wallet/internal/bdb"
 	"github.com/decred/dcrwallet/wallet/udb"
+	"github.com/decred/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrwallet/walletseed"
 )
 
