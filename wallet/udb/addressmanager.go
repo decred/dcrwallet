@@ -570,6 +570,33 @@ func (m *Manager) AccountExtendedPubKey(dbtx walletdb.ReadTx, account uint32) (*
 	return acctInfo.acctKeyPub, nil
 }
 
+// AccountExtendedPrivKey returns the extended private key for the given
+// account. The account must already exist and the address manager must be
+// unlocked for this operation to complete.
+func (m *Manager) AccountExtendedPrivKey(dbtx walletdb.ReadTx, account uint32) (*hdkeychain.ExtendedKey, error) {
+	if account == ImportedAddrAccount {
+		return nil, errors.E(errors.Invalid, "imported account has no extended pubkey")
+	}
+
+	ns := dbtx.ReadBucket(waddrmgrBucketKey)
+	var (
+		acctInfo *accountInfo
+		err error
+	)
+
+	m.mtx.Lock()
+	if m.locked {
+		err = errors.E(errors.Locked, "locked address manager cannot fetch extended privkey")
+	} else {
+		acctInfo, err = m.loadAccountInfo(ns, account)
+	}
+	m.mtx.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	return acctInfo.acctKeyPriv, nil
+}
+
 // AccountBranchExtendedPubKey returns the extended public key of an account's
 // branch, which then can be used to derive addresses belonging to the account.
 func (m *Manager) AccountBranchExtendedPubKey(dbtx walletdb.ReadTx, account, branch uint32) (*hdkeychain.ExtendedKey, error) {
