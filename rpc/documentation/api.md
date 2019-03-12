@@ -13,10 +13,6 @@ project's `.proto` files.  That is, CamelCase is used for services, methods, and
 messages, lower_snake_case for message fields, and SCREAMING_SNAKE_CASE for
 enums.
 
-**Note:** The entierty of the RPC API is currently considered unstable and may
-change anytime.  Stability will be gradually added based on correctness,
-perceived usefulness and ease-of-use over alternatives, and user feedback.
-
 This document is the authoritative source on the RPC API's definitions and
 semantics.  Any divergence from this document is an implementation error.  API
 fixes and additions require a version increase according to the rules of
@@ -80,7 +76,9 @@ rules of Semantic Versioning (SemVer) 2.0.0.
 
 **Expected errors:** None
 
-**Stability:** Stable
+**Stability:** Stable: This service will never introduce a breaking change even
+  in future major versions of the API.  It is suitable and recommended to use as
+  a runtime compatibility check.
 
 ## `WalletLoaderService`
 
@@ -127,8 +125,6 @@ wallet, or `CreateWallet` to create a new wallet.
 
 **Expected errors:** None
 
-**Stability:** Unstable
-
 ___
 
 #### `CreateWallet`
@@ -168,10 +164,6 @@ synchronizes the wallet to the consensus server if it was previously loaded.
 
 - `InvalidArgument`: A private passphrase was not included in the request, or
   the seed is of incorrect length.
-
-**Stability:** Unstable: There needs to be a way to recover all keys and
-  transactions of a wallet being recovered by its seed.  It is unclear whether
-  it should be part of this method or a `WalletService` method.
 
 ___
 
@@ -227,8 +219,6 @@ synchronizes the wallet to the consensus server if it was previously loaded.
 
 - `InvalidArgument`: The public encryption passphrase was missing or incorrect.
 
-**Stability:** Unstable
-
 ___
 
 #### `CloseWallet`
@@ -245,12 +235,6 @@ unusable.
 **Expected errors:**
 
 - `FailedPrecondition`: The wallet is not currently open.
-
-**Stability:** Unstable: It would be preferable to stop the `WalletService`
-  after closing, but there does not appear to be any way to do so currently.  It
-  may also be a good idea to limit under what conditions a wallet can be closed,
-  such as only closing wallets loaded by `WalletLoaderService` and/or using a
-  secret to authenticate the operation.
 
 ___
 
@@ -296,9 +280,6 @@ synchronizes the wallet to the consensus server if it was previously loaded.
   condition may not be return `Unauthenticated` as that refers to the client not
   having the credentials to call this method.
 
-**Stability:** Unstable: It is unknown if the consensus RPC client will remain
-  used after the project gains SPV support.
-
 ___
 
 #### `DiscoverAddresses`
@@ -333,8 +314,6 @@ is provided, then the current network's genesis hash will be used.
   account discovery was enabled, or the passphrase was incorrect, or if an 
   invalid starting block hash is provided.
 
-**Stability:** Unstable
-
 ___
 
 #### `SubscribeToBlockNotifications`
@@ -351,8 +330,6 @@ background.
 **Expected Errors:**
 
 - `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
-
-**Stability:** Unstable
 
 ___
 
@@ -386,7 +363,6 @@ should begin at.
 
 - `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
 
-**Stability:** Unstable
 ___
 
 #### `FetchMissingCFilters`
@@ -402,7 +378,6 @@ blocks in the wallet's main chain.
 
 - `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
 
-**Stability:** Unstable
 ___
 
 #### `RescanPoint`
@@ -422,7 +397,6 @@ usage and relevant transactions.
 
 - `FailedPrecondition`: The wallet or consensus RPC server has not been opened.
 
-**Stability:** Unstable
 ___
 
 #### `SpvSync`
@@ -476,7 +450,7 @@ or upon received an error.
 
 - `InvalidArgument`: The private passphrase is incorrect.
 
-**Stability:** Unstable
+___
 
 #### `RpcSync`
 
@@ -557,8 +531,6 @@ or upon received an error.
 - `FailedPrecondition`: The private passphrase does not successfully unlock the
   wallet.
 
-**Stability:** Unstable
-
 ## `WalletService`
 
 The WalletService service provides RPCs for the wallet itself.  The service
@@ -617,9 +589,6 @@ The `Ping` method checks whether the service is active.
 
 **Expected errors:** None
 
-**Stability:** Unstable: This may be moved to another service as it does not
-  depend on the wallet.
-
 ___
 
 #### `Network`
@@ -634,9 +603,6 @@ server's active network.
 - `uint32 active_network`: The network identifier.
 
 **Expected errors:** None
-
-**Stability:** Unstable: This may be moved to another service as it does not
-  depend on the wallet.
 
 ___
 
@@ -658,8 +624,6 @@ unique name.
 - `Aborted`: The wallet database is closed.
 
 - `NotFound`: No accounts exist by the name in the request.
-
-**Stability:** Unstable
 
 ___
 
@@ -701,8 +665,6 @@ the wallet.
 **Expected errors:**
 
 - `Aborted`: The wallet database is closed.
-
-**Stability:** Unstable
 
 ___
 
@@ -756,9 +718,6 @@ and unspendable immature coinbase balances.
 
 - `NotFound`: The account does not exist.
 
-**Stability:** Unstable: It may prove useful to modify this RPC to query
-  multiple accounts together.
-
 ___
 
 #### `BlockInfo`
@@ -806,8 +765,6 @@ but not all sidechain blocks may be known by the wallet.
 
 - `NotFound`: The block is not recorded by the wallet in the current main chain
   or any old sidechain.
-
-**Stability:** Unstable
 
 ___
 
@@ -860,8 +817,6 @@ hash.
 - `Aborted`: The wallet database is closed.
 
 - `NotFound`: The transaction is not recorded by the wallet.
-
-**Stability:** Unstable
 
 ___
 
@@ -933,18 +888,6 @@ transactions (and no mined transactions).
 
 - `NotFound`: A block, specified by its height or hash, is unknown to the
   wallet.
-
-**Stability:** Unstable
-
-- There is currently no way to get only unmined transactions due to the way
-  the block range is specified.
-
-- It would be useful to ignore the block range and return some minimum number of
-  the most recent transaction, but it is unclear if that should be added to this
-  method's request object, or to make a new method.
-
-- A specified ordering (such as dependency order) for all returned unmined
-  transactions would be useful.
 
 ___
 
@@ -1064,18 +1007,6 @@ results of a single ticket.
 - `NotFound`: A block, specified by its height or hash, is unknown to the
   wallet.
 
-**Stability:** Unstable
-
-- There is currently no way to get only unmined transactions due to the way
-  the block range is specified.
-
-- It would be useful to ignore the block range and return some minimum number of
-  the most recent transaction, but it is unclear if that should be added to this
-  method's request object, or to make a new method.
-
-- A specified ordering (such as dependency order) for all returned unmined
-  transactions would be useful.
-
 ___
 
 #### `ChangePassphrase`
@@ -1112,8 +1043,6 @@ private (inner) encryption passphrases.
 
 - `Aborted`: The wallet database is closed.
 
-**Stability:** Unstable
-
 ___
 
 #### `RenameAccount`
@@ -1137,8 +1066,6 @@ The `RenameAccount` method requests a change to an account's name property.
 - `NotFound`: The account does not exist.
 
 - `AlreadyExists`: An account by the same name already exists.
-
-**Stability:** Unstable
 
 ___
 
@@ -1168,8 +1095,6 @@ a stream of block heights the rescan has completed through.
 
 - `NotFound`: There is no known block in the main chain at the begin height.
 
-**Stability:** Unstable
-
 ___
 
 #### `NextAccount`
@@ -1196,8 +1121,6 @@ The `NextAccount` method generates the next BIP0044 account for the wallet.
 - `InvalidArgument`: The new account name is a reserved name.
 
 - `AlreadyExists`: An account by the same name already exists.
-
-**Stability:** Unstable
 
 ___
 
@@ -1253,8 +1176,6 @@ wallet.
 
 - `NotFound`: The account does not exist.
 
-**Stability:** Unstable
-
 ___
 
 #### `ImportPrivateKey`
@@ -1290,8 +1211,6 @@ search for transactions involving the private key's associated payment address.
 - `Aborted`: The wallet database is closed.
 
 - `NotFound`: The account does not exist.
-
-**Stability:** Unstable
 
 ___
 
@@ -1337,8 +1256,6 @@ as an output or in a P2SH input.
 
 - `FailedPrecondition`: A multisig script was required to be redeemable by the
   wallet but is not without additional secrets.
-
-**Stability:** Unstable
 
 ___
 
@@ -1422,8 +1339,6 @@ transaction paying to already known addresses or scripts.
 
 - `NotFound`: The account does not exist.
 
-**Stability:** Unstable
-
 ___
 
 #### `UnspentOutputs`
@@ -1487,8 +1402,6 @@ method while also including the outputs that make up that balance.
 - `Aborted`: The wallet database is closed.
 
 - `NotFound`: The account does not exist.
-
-**Stability:** Unstable
 
 ___
 
@@ -1575,8 +1488,6 @@ change output is added, it is inserted at a random output position.
 - `ResourceExhausted`: There was not enough available input value to construct
   the transaction.
 
-**Stability:** Unstable
-
 ___
 
 #### `SignTransaction`
@@ -1619,57 +1530,53 @@ transaction using a wallet private keys.
 
 - `InvalidArgument`: The serialized transaction can not be decoded.
 
-**Stability:** Unstable: It is unclear if the request should include an account,
-  and only secrets of that account are used when creating input scripts.  It's
-  also missing options similar to Core's signrawtransaction, such as the sighash
-  flags and additional keys.
+___
 
-  ___
+#### `SignTransactions`
 
-  #### `SignTransactions`
+The `SignTransactions` method adds transaction input signatures to a set of
+serialized transactions using a wallet private keys.
 
-  The `SignTransactions` method adds transaction input signatures to a set of
-  serialized transactions using a wallet private keys.
+**Request:** `SignTransactionsRequest`
 
-  **Request:** `SignTransactionsRequest`
+- `bytes passphrase`: The wallet's private passphrase.
 
-  - `bytes passphrase`: The wallet's private passphrase.
+- `repeated UnsignedTransaction unsigned_transaction`: - The unsigned transactions set.
 
-  - `repeated UnsignedTransaction unsigned_transaction`: - The unsigned transactions set.
+  **Nested message:** `UnsignedTransaction`
 
-    **Nested message:** `UnsignedTransaction`
+  - `bytes serialized_transaction`: The transaction to add input signatures to.
 
-    - `bytes serialized_transaction`: The transaction to add input signatures to.
-
-  - `repeated AdditionalScript additional_scripts`: Additional output scripts of
+- `repeated AdditionalScript additional_scripts`: Additional output scripts of
   previous outputs spent by the transaction that the wallet may not be aware of.
   Offline signing may require previous outputs to be provided to the wallet.
 
-    **Nested message:** `AdditionalScript`
+  **Nested message:** `AdditionalScript`
 
-    - `bytes transaction_hash`: The transaction hash of the previous output.
+  - `bytes transaction_hash`: The transaction hash of the previous output.
 
-    - `uint32 output_index`: The output index of the previous output.
+  - `uint32 output_index`: The output index of the previous output.
 
-    - `int32 tree`: The transaction tree the previous transaction belongs to.
+  - `int32 tree`: The transaction tree the previous transaction belongs to.
 
-    - `bytes pk_script`: The output script of the previous output.
+  - `bytes pk_script`: The output script of the previous output.
 
-  **Response:** `SignTransactionsResponse`
+**Response:** `SignTransactionsResponse`
 
-  - `repeated SignedTransaction transactions`: The signed transaction set.
+- `repeated SignedTransaction transactions`: The signed transaction set.
 
-    **Nested message:** `SignedTransaction`
+  **Nested message:** `SignedTransaction`
 
-    - `bytes transaction`: The serialized transaction with added input scripts.
+  - `bytes transaction`: The serialized transaction with added input scripts.
 
-  **Expected errors:**
+**Expected errors:**
 
-  - `Aborted`: The wallet database is closed.
+- `Aborted`: The wallet database is closed.
 
-  - `InvalidArgument`: A serialized transaction can not be decoded.
+- `InvalidArgument`: A serialized transaction can not be decoded.
 
-  - `InvalidArgument`: The private passphrase is incorrect.
+- `InvalidArgument`: The private passphrase is incorrect.
+
 ___
 
 #### `CreateSignature`
@@ -1745,8 +1652,6 @@ wallet and republished later if it or a double spend are not mined.
 
 - `Aborted`: The wallet database is closed.
 
-**Stability:** Unstable
-
 ___
 
 #### `PublishUnminedTransactions`
@@ -1761,7 +1666,6 @@ and eventually mined.
 
 **Expected errors:**: None
 
-**Stability:** Unstable
 ___
 
 #### `TicketPrice`
@@ -1779,14 +1683,6 @@ syncing.
 - `int32 height`: The block height for this query.
 
 **Expected errors:** None
-
-**Stability:** Unstable: The ticket price and height are pulled from separate
-daemon passthroughs and may race. Ideally these would be returned from stored
-values in the wallet when it updates from incoming stake ticket price
-notifications passed from the JSON RPC of dcrd. Right now, wallet block processing
-is very slow and it's difficult for these notifications to stay in sync. In the
-future, this API may be completely removed in favour of a passthrough for that
-set of notifications.
 
 ___
 
@@ -1825,8 +1721,6 @@ owned and votes cast.
 - `uint32 unspent`: The number of unspent tickets. This could include live, missed or expired tickets.
 
 **Expected errors:** None
-
-**Stability:** Unstable
 
 ___
 
@@ -1902,14 +1796,6 @@ ticker_address, pool_address, expiry, tx_fee, ticket_fee.
 
 - `FailedPrecondition`: The wallet balance was not enough to buy tickets.
 
-**Stability:** Unstable: there are a number of current bugs with ticket purchase
-and querying for stake difficulty. When the wallet has a more suitable means to
-track stake difficulty, and daemon is patched to better handle ticket purchases,
-these issues should disappear. They include the stake difficulty changing from the
-time it is queried, to the time the ticket is attempted to be purchased, to the
-time the ticket hits the daemon mempool and out of date stake difficulties queried
-from the daemon.
-
 ___
 
 #### `RevokeTickets`
@@ -1927,8 +1813,6 @@ that have not yet been revoked.
 
 - `InvalidArgument`: The private passphrase is incorrect.
 
-**Stability:** Unstable
-
 ___
 
 #### `LoadActiveDataFilters`
@@ -1943,9 +1827,6 @@ associated consensus RPC server for all active addresses and watched outpoints.
 **Expected errors:**
 
 - `FailedPrecondition`: There is no consensus server associated with the wallet.
-
-**Stability:** Unstable: this method requires an associated consensus server RPC
-client and functionality might move for any future SPV support.
 
 ___
 
@@ -1973,9 +1854,6 @@ of an address.
   is not P2PKH or P2PK.
 
 - `InvalidArgument`: The private passphrase is incorrect.
-
-**Stability:** Unstable: this method may require API changes to support
-signature algorithms other than secp256k1.
 
 ___
 
@@ -2013,9 +1891,6 @@ provided private keys and addresses.
 **Expected errors:**
 
 - `InvalidArgument`: The private passphrase is incorrect.
-
-**Stability:** Unstable: this method may require API changes to support
-signature algorithms other than secp256k1.
 
 ___
 
@@ -2154,8 +2029,6 @@ regarding changes to the blockchain and transactions relevant to the wallet.
 
 - `Aborted`: The wallet database is closed.
 
-**Stability:** Unstable: This method could use a better name.
-
 ___
 
 #### `AccountNotifications`
@@ -2183,9 +2056,6 @@ property changes, such as name and key counts.
 **Expected errors:**
 
 - `Aborted`: The wallet database is closed.
-
-**Stability:** Unstable: This should probably share a message with the
-  `Accounts` method.
 
 ___
 
@@ -2234,8 +2104,6 @@ removed from the wallet (e.g. due to a double spend).
 
 - `Aborted`: The wallet database is closed.
 
-**Stability:** Unstable
-
 ___
 
 ### Shared messages
@@ -2262,8 +2130,6 @@ wallet's relevant transactions contained therein.
   [here](#transactiondetails).
 
 - `bool approves_parent`: Whether this block stake validates its parent block.
-
-**Stability**: Unstable: This should probably include the block version.
 
 ___
 
@@ -2337,11 +2203,8 @@ transaction was seen.
 
   - `COINBASE`: A coinbase transaction in the regular tx tree.
 
-**Stability**: Unstable: Since the caller is expected to decode the serialized
-  transaction, and would have access to every output script, the output
-  properties could be changed to only include outputs controlled by the wallet.
-
 ___
+
 #### `DecodedTransaction`
 
 The `DecodedTransaction` message is included in responses that provide full
@@ -2446,9 +2309,8 @@ transaction.
   - `int64 commitment_amount`: Amount commited to a ticket on an SStx
   transaction.
 
-**Stability**: Unstable.
-
 ___
+
 #### `SyncNotificationType`
 
 The `SyncNotificationType` enum contains all the various different types of
@@ -2496,6 +2358,7 @@ is sent there will be a type included.
 - `RESCAN_FINISHED`: When the rescan procress has finished.
 
 ___
+
 #### `FetchHeadersNotification`
 
 The `FetchHeadersNotification` message is used during the syncing process for
@@ -2508,6 +2371,7 @@ headers and the time of the last header fetched.
   was fetched.
 
 ___
+
 #### `FetchMissingCFiltersNotification`
 
 The `FetchMissingCFiltersNotification` message is used during the syncing
@@ -2520,6 +2384,7 @@ It may contain the starting and ending height of the filters that were found.
   filter that was found.
 
 ___
+
 #### `RescanProgressNotification`
 
 The `RescanProgressNotification` message is used during the syncing process
@@ -2530,6 +2395,7 @@ of the block that the rescan process has gotten through.
   through.
 
 ___
+
 #### `PeerNotification`
 
 The `PeerNotification` message is used during the syncing process for any peer
@@ -2540,7 +2406,6 @@ the peer that caused a notification to be sent.
 
 - `string address`:  The address of the peer that caused the notification.
 
-___
 ## `SeedService`
 
 The `SeedService` service provides RPC clients with the ability to generate
@@ -2577,8 +2442,6 @@ hexadecimal, and in a mnemonic word list format.
 
 - `InvalidArgument`: The non-zero seed length is invalid.
 
-**Stability:** Unstable
-
 ___
 
 #### `DecodeSeed`
@@ -2597,8 +2460,6 @@ The user input can be either a hexadecimal string or a mnemonic word list.
 **Expected errors:**
 
 - `InvalidArgument`: The input is invalid.
-
-**Stability:** Unstable
 
 ## `TicketBuyerService`
 
@@ -2681,8 +2542,6 @@ private passphrase must be passed as a parameter when performing this action.
 
 - `FailedPrecondition`: Ticket buyer is already started.
 
-**Stability:** Unstable
-
 ___
 
 #### `StopAutoBuyer`
@@ -2696,8 +2555,6 @@ The `StopAutoBuyer` method stops the automatic ticket buyer.
 **Expected errors:**
 
 - `FailedPrecondition`: Ticket buyer is not running.
-
-**Stability:** Unstable
 
 ___
 
@@ -2757,8 +2614,6 @@ automatic ticket buyer.
 
 - `FailedPrecondition`: Wallet has not been loaded.
 
-**Stability:** Unstable
-
 ___
 
 #### `SetAccount`
@@ -2779,8 +2634,6 @@ The `SetAccount` configures the account to use for the automatic ticket buyer.
 
 - `NotFound`: The account does not exist.
 
-**Stability:** Unstable
-
 ___
 
 #### `SetBalanceToMaintain`
@@ -2799,8 +2652,6 @@ ticket buyer.
 - `FailedPrecondition`: Ticket buyer is not running.
 
 - `InvalidArgument`: An invalid balance to maintain was specified.
-
-**Stability:** Unstable
 
 ___
 
@@ -2821,8 +2672,6 @@ ticket buyer.
 
 - `InvalidArgument`: An invalid maximum ticket fee amount per KB was specified.
 
-**Stability:** Unstable
-
 ___
 
 #### `SetMaxPriceRelative`
@@ -2842,8 +2691,6 @@ automatic ticket buyer.
 
 - `InvalidArgument`: An invalid maximum ticket price was specified.
 
-**Stability:** Unstable
-
 ___
 
 #### `SetMaxPriceAbsolute`
@@ -2862,8 +2709,6 @@ automatic ticket buyer.
 - `FailedPrecondition`: Ticket buyer is not running.
 
 - `InvalidArgument`: An invalid maximum ticket price was specified.
-
-**Stability:** Unstable
 
 ___
 
@@ -2885,9 +2730,6 @@ buyer.
 - `FailedPrecondition`: Wallet has not been loaded.
 
 - `InvalidArgument`: An invalid voting address was specified.
-
-
-**Stability:** Unstable
 
 ___
 
@@ -2913,9 +2755,6 @@ The `SetPoolAddress` configures the pool address for the automatic ticket buyer.
 
 - `InvalidArgument`: An invalid pool address was specified.
 
-
-**Stability:** Unstable
-
 ___
 
 #### `SetPoolFees`
@@ -2938,8 +2777,6 @@ The `SetPoolFees` configures the pool fees for the automatic ticket buyer.
 
 - `InvalidArgument`: And invalid pool fees amount was given, either too large or too small.
 
-**Stability:** Unstable
-
 ___
 
 #### `SetMaxPerBlock`
@@ -2956,8 +2793,6 @@ ticket buyer.
 **Expected errors:**
 
 - `FailedPrecondition`: Ticket buyer is not running.
-
-**Stability:** Unstable
 
 ## `TicketBuyerV2Service`
 
@@ -3002,8 +2837,6 @@ The users may specify a balance to maintain as well as various settings for purc
 - `InvalidArgument`: An invalid pool address was used.
 
 - `InvalidArgument`: A negative balance to maintain given.
-
-**Stability:** Unstable
 
 ## `AgendaService`
 
@@ -3064,8 +2897,6 @@ supported by this software.
 
 **ExpectedErrors:** None
 
-**Stability:** Unstable
-
 ## `VotingService`
 
 The `VotingService` service provides RPC clients with the ability to query and
@@ -3109,8 +2940,6 @@ vote bits of the latest supported stake version agendas.
 
 **ExpectedErrors:** None
 
-**Stability:** Unstable
-
 ___
 
 #### `SetVoteChoices`
@@ -3137,8 +2966,6 @@ supported by this software.
 
 - `InvalidArgument`: An agenda ID or choice ID is not valid for the latest
   supported stake version.
-
-**Stability:** Unstable
 
 ## `MessageVerificationService`
 
@@ -3175,8 +3002,6 @@ message and was created using the secp256k1 private key for an address.
 - `InvalidArgument`: The address cannot be decoded or is not secp256k1 P2PK or
   P2PKH.
 
-**Stability:** Unstable
-
 ## `DecodeMessageService`
 
 The `DecodeMessageService` service provides the caller with the ability to
@@ -3211,6 +3036,3 @@ The `DecodedTransaction` message is documented [here](#decodedtransaction).
 **Expected errors:**
 
 - `InvalidArgument`: The serialized transaction could not be decoded.
-
-
-**Stability:** Unstable
