@@ -273,14 +273,15 @@ func relevantAccounts(w *Wallet, m map[uint32]dcrutil.Amount, txs []TransactionS
 }
 
 func (s *NotificationServer) notifyUnminedTransaction(dbtx walletdb.ReadTx, details *udb.TxDetails) {
+	defer s.mu.Unlock()
+	s.mu.Lock()
+
 	// Sanity check: should not be currently coalescing a notification for
 	// mined transactions at the same time that an unmined tx is notified.
 	if s.currentTxNtfn != nil {
 		log.Tracef("Notifying unmined tx notification while creating notification for blocks")
 	}
 
-	defer s.mu.Unlock()
-	s.mu.Lock()
 	clients := s.transactions
 	if len(clients) == 0 {
 		return
@@ -310,6 +311,9 @@ func (s *NotificationServer) notifyUnminedTransaction(dbtx walletdb.ReadTx, deta
 }
 
 func (s *NotificationServer) notifyDetachedBlock(hash *chainhash.Hash) {
+	defer s.mu.Unlock()
+	s.mu.Lock()
+
 	if s.currentTxNtfn == nil {
 		s.currentTxNtfn = &TransactionNotifications{}
 	}
@@ -317,6 +321,9 @@ func (s *NotificationServer) notifyDetachedBlock(hash *chainhash.Hash) {
 }
 
 func (s *NotificationServer) notifyMinedTransaction(dbtx walletdb.ReadTx, details *udb.TxDetails, block *udb.BlockMeta) {
+	defer s.mu.Unlock()
+	s.mu.Lock()
+
 	if s.currentTxNtfn == nil {
 		s.currentTxNtfn = &TransactionNotifications{}
 	}
@@ -329,6 +336,9 @@ func (s *NotificationServer) notifyMinedTransaction(dbtx walletdb.ReadTx, detail
 }
 
 func (s *NotificationServer) notifyAttachedBlock(dbtx walletdb.ReadTx, block *wire.BlockHeader, blockHash *chainhash.Hash) {
+	defer s.mu.Unlock()
+	s.mu.Lock()
+
 	if s.currentTxNtfn == nil {
 		s.currentTxNtfn = &TransactionNotifications{}
 	}
@@ -347,10 +357,12 @@ func (s *NotificationServer) sendAttachedBlockNotification() {
 	// Avoid work if possible
 	s.mu.Lock()
 	if len(s.transactions) == 0 {
-		s.mu.Unlock()
 		s.currentTxNtfn = nil
+		s.mu.Unlock()
 		return
 	}
+	currentTxNtfn := s.currentTxNtfn
+	s.currentTxNtfn = nil
 	s.mu.Unlock()
 
 	// The UnminedTransactions field is intentionally not set.  Since the
@@ -372,7 +384,7 @@ func (s *NotificationServer) sendAttachedBlockNotification() {
 		if err != nil {
 			return err
 		}
-		for _, b := range s.currentTxNtfn.AttachedBlocks {
+		for _, b := range currentTxNtfn.AttachedBlocks {
 			relevantAccounts(w, bals, b.Transactions)
 		}
 		return totalBalances(dbtx, w, bals)
@@ -380,19 +392,17 @@ func (s *NotificationServer) sendAttachedBlockNotification() {
 	})
 	if err != nil {
 		log.Errorf("Failed to construct attached blocks notification: %v", err)
-		s.currentTxNtfn = nil
 		return
 	}
 
-	s.currentTxNtfn.UnminedTransactionHashes = unminedHashes
-	s.currentTxNtfn.NewBalances = flattenBalanceMap(bals)
+	currentTxNtfn.UnminedTransactionHashes = unminedHashes
+	currentTxNtfn.NewBalances = flattenBalanceMap(bals)
 
 	s.mu.Lock()
 	for _, c := range s.transactions {
-		c <- s.currentTxNtfn
+		c <- currentTxNtfn
 	}
 	s.mu.Unlock()
-	s.currentTxNtfn = nil
 }
 
 // TransactionNotifications is a notification of changes to the wallet's
