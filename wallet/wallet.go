@@ -4314,13 +4314,27 @@ func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, n Netwo
 
 	err = n.PublishTransactions(context.TODO(), tx)
 	if err != nil {
-		if relevant {
-			if err := w.PurgeUnminedTransaction(&txHash); err != nil {
-				log.Warnf("Failed to purge added unmined transaction: %v", err)
+		// Return the error and purge relevant txs from the store only if the
+		// backend returns an error different than "already have transaction".
+
+		// Unwrap to access the underlying RPC error code.
+		for {
+			if e, ok := err.(*errors.Error); ok && e.Err != nil {
+				err = e.Err
+			} else {
+				break
 			}
 		}
-		op := errors.Opf(opf, &txHash)
-		return nil, errors.E(op, err)
+		rpcErr, ok := err.(*dcrjson.RPCError)
+		if !ok || rpcErr.Code != dcrjson.ErrRPCDuplicateTx {
+			if relevant {
+				if err := w.PurgeUnminedTransaction(&txHash); err != nil {
+					log.Warnf("Failed to purge added unmined transaction: %v", err)
+				}
+			}
+			op := errors.Opf(opf, &txHash)
+			return nil, errors.E(op, err)
+		}
 	}
 
 	if len(watchOutPoints) > 0 {
