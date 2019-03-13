@@ -100,7 +100,6 @@ type config struct {
 	StakePoolColdExtKey     string               `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
 	AllowHighFees           bool                 `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
 	RelayFee                *cfgutil.AmountFlag  `long:"txfee" description:"Sets the wallet's tx fee per kb"`
-	TicketFee               *cfgutil.AmountFlag  `long:"ticketfee" description:"Sets the wallet's ticket fee per kb"`
 	AccountGapLimit         int                  `long:"accountgaplimit" description:"Number of accounts that can be created in a row without using any of them"`
 	DisableCoinTypeUpgrades bool                 `long:"disablecointypeupgrades" description:"Never upgrade from legacy to SLIP0044 coin type keys"`
 
@@ -153,6 +152,7 @@ type config struct {
 	AddrIdxScanLen  int                     `long:"addridxscanlen" description:"DEPRECATED -- use gaplimit instead"`
 	RollbackTest    bool                    `hidden:"y" long:"rollbacktest" description:"Rollback testing is a simnet testing mode that eventually stops wallet and examines wtxmgr database integrity"`
 	AutomaticRepair bool                    `hidden:"y" long:"automaticrepair" description:"Attempt to repair the wallet automatically if a database inconsistency is found"`
+	TicketFee       *cfgutil.AmountFlag     `long:"ticketfee" description:"DEPRECATED -- Sets the wallet's ticket fee per kb"`
 }
 
 type ticketBuyerOptions struct {
@@ -808,6 +808,14 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		log.Warnf("--addridxscanlen has been DEPRECATED.  Use " +
 			"--gaplimit instead")
 		cfg.GapLimit = cfg.AddrIdxScanLen
+	}
+
+	// Warn if user modifies --ticketfee
+	if cfg.TicketFee.Amount != txrules.DefaultRelayFeePerKb {
+		log.Warnf("--ticketfee has been DEPRECATED.  Use " +
+			"--txfee instead")
+	} else {
+		cfg.TicketFee.Amount = cfg.RelayFee.Amount
 	}
 
 	// Make list of old versions of testnet directories.
