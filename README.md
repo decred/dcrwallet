@@ -1,6 +1,11 @@
 dcrwallet
 =========
 
+[![Build Status](https://travis-ci.org/decred/dcrwallet.png?branch=master)](https://travis-ci.org/decred/dcrwallet)
+[![ISC License](http://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](http://godoc.org/github.com/decred/dcrwallet)
+[![Go Report Card](https://goreportcard.com/badge/github.com/decred/dcrwallet)](https://goreportcard.com/report/github.com/decred/dcrwallet)
+
 dcrwallet is a daemon handling Decred wallet functionality.  All interaction
 with the wallet is performed over RPC.
 
