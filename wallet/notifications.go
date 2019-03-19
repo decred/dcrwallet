@@ -847,6 +847,8 @@ func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stop
 			switch {
 			case errors.Is(errors.NotExist, err):
 				confs = -1
+			case err != nil:
+				return err
 			default:
 				// Remove tx hash from watching list if tx block has been mined
 				// and then invalidated by next block
@@ -862,8 +864,6 @@ func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stop
 					}
 				}
 				confs = confirms(height, tipHeight)
-			case err != nil:
-				return err
 			}
 			r = append(r, ConfirmationNotification{
 				TxHash:        h,
@@ -941,6 +941,8 @@ func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
 			switch {
 			case errors.Is(errors.NotExist, err):
 				confs = -1
+			case err != nil:
+				return err
 			default:
 				// Remove tx hash from watching list if tx block has been mined
 				// and then invalidated by next block
@@ -956,8 +958,6 @@ func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
 					}
 				}
 				confs = confirms(height, tipHeight)
-			case err != nil:
-				return err
 			}
 			r.result = append(r.result, ConfirmationNotification{
 				TxHash:        &txHash,

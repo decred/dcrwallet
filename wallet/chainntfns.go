@@ -193,6 +193,10 @@ func (w *Wallet) ChainSwitch(forest *SidechainForest, chain []*BlockNode, releva
 	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		return w.watchFutureAddresses(tx)
 	})
+	if err != nil {
+		return nil, err
+	}
+
 	if n, err := w.NetworkBackend(); err == nil && len(watchOutPoints) > 0 {
 		err := n.LoadTxFilter(context.TODO(), false, nil, watchOutPoints)
 		if err != nil {
@@ -213,8 +217,6 @@ func (w *Wallet) ChainSwitch(forest *SidechainForest, chain []*BlockNode, releva
 // acceptable to the stake pool. The ticket must pay out to the stake
 // pool cold wallet, and must have a sufficient fee.
 func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, poolUser dcrutil.Address) bool {
-	const op errors.Op = "wallet.evaluateStakePoolTicket"
-
 	tx := rec.MsgTx
 
 	// Check the first commitment output (txOuts[1])
