@@ -4,11 +4,22 @@
 
 package jsonrpc
 
-// Options contains the required options for running the JSON-RPC server.
+import (
+	"context"
+	"net"
+)
+
+// Options contains the required options for running the legacy RPC server.
 type Options struct {
 	Username string
 	Password string
 
 	MaxPOSTClients      int64
 	MaxWebsocketClients int64
+
+	CSPPServer       string
+	DialCSPPServer   func(ctx context.Context, network, addr string) (net.Conn, error)
+	MixAccount       string
+	MixBranch        uint32
+	MixChangeAccount string
 }

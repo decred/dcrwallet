@@ -181,6 +181,11 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 			Password:            cfg.Password,
 			MaxPOSTClients:      cfg.LegacyRPCMaxClients,
 			MaxWebsocketClients: cfg.LegacyRPCMaxWebsockets,
+			CSPPServer:          cfg.CSPPServer,
+			DialCSPPServer:      cfg.dialCSPPServer,
+			MixAccount:          cfg.mixedAccount,
+			MixBranch:           cfg.mixedBranch,
+			MixChangeAccount:    cfg.ChangeAccount,
 		}
 		jsonrpcServer = jsonrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
 		for _, lis := range listeners {

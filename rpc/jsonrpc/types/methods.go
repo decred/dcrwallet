@@ -1273,6 +1273,16 @@ func NewWalletPassphraseChangeCmd(oldPassphrase, newPassphrase string) *WalletPa
 	}
 }
 
+type MixOutputCmd struct {
+	Outpoint string `json:"outpoint"`
+	//MixAccount string `json:"mixaccount"`
+}
+
+type MixAccountCmd struct {
+	Account string `json:"account"`
+	//MixAccount string `json:"mixaccount"`
+}
+
 type registeredMethod struct {
 	method string
 	cmd    interface{}
@@ -1330,6 +1340,8 @@ func init() {
 		{"listtransactions", (*ListTransactionsCmd)(nil)},
 		{"listunspent", (*ListUnspentCmd)(nil)},
 		{"lockunspent", (*LockUnspentCmd)(nil)},
+		{"mixoutput", (*MixOutputCmd)(nil)},
+		{"mixaccount", (*MixAccountCmd)(nil)},
 		{"purchaseticket", (*PurchaseTicketCmd)(nil)},
 		{"redeemmultisigout", (*RedeemMultiSigOutCmd)(nil)},
 		{"redeemmultisigouts", (*RedeemMultiSigOutsCmd)(nil)},

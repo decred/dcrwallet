@@ -190,9 +190,11 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 		return nil, errors.E(op, err)
 	}
 
+	w.addressBuffersMu.Lock()
 	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		return w.watchFutureAddresses(ctx, tx)
 	})
+	w.addressBuffersMu.Unlock()
 	if err != nil && !errors.Is(err, errors.NoPeers) {
 		return nil, err
 	}
@@ -322,9 +324,11 @@ func (w *Wallet) AcceptMempoolTx(ctx context.Context, tx *wire.MsgTx) error {
 	if err != nil {
 		return errors.E(op, err)
 	}
+	w.addressBuffersMu.Lock()
 	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		return w.watchFutureAddresses(ctx, tx)
 	})
+	w.addressBuffersMu.Unlock()
 	if err != nil {
 		log.Errorf("Failed to watch for future address usage: %v", err)
 	}

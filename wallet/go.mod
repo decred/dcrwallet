@@ -3,6 +3,7 @@ module github.com/decred/dcrwallet/wallet/v3
 go 1.12
 
 require (
+	decred.org/cspp v0.1.3
 	github.com/decred/dcrd/blockchain/stake/v2 v2.0.1
 	github.com/decred/dcrd/blockchain/standalone v1.0.0
 	github.com/decred/dcrd/blockchain/v2 v2.0.2
@@ -26,7 +27,7 @@ require (
 	github.com/onsi/ginkgo v1.7.0 // indirect
 	github.com/onsi/gomega v1.4.3 // indirect
 	go.etcd.io/bbolt v1.3.3
-	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
+	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )

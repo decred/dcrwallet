@@ -3209,8 +3209,7 @@ func (s *Store) MakeIgnoredInputSource(ns, addrmgrNs walletdb.ReadBucket, accoun
 				scriptSize = txsizes.RedeemP2PKHSigScriptSize
 			case txscript.PubKeyTy:
 				scriptSize = txsizes.RedeemP2PKSigScriptSize
-			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy,
-				txscript.StakeGenTy:
+			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy, txscript.StakeGenTy:
 				scriptClass, err = txscript.GetStakeOutSubclass(pkScript)
 				if err != nil {
 					return nil, fmt.Errorf(

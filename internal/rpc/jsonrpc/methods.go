@@ -13,6 +13,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"math/big"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -155,6 +157,8 @@ var handlers = map[string]handler{
 	"encryptwallet": {fn: unsupported, noHelp: true},
 	"move":          {fn: unsupported, noHelp: true},
 	"setaccount":    {fn: unsupported, noHelp: true},
+
+	"mixoutput": {fn: (*Server).mixOutput},
 }
 
 // unimplemented handles an unimplemented RPC request with the
@@ -343,7 +347,7 @@ func (s *Server) accountSyncAddressIndex(ctx context.Context, icmd interface{}) 
 	// Additional addresses need to be watched.  Since addresses are derived
 	// based on the last used address, this RPC no longer changes the child
 	// indexes that new addresses are derived from.
-	return nil, w.ExtendWatchedAddresses(ctx, account, branch, index)
+	return nil, w.SyncLastReturnedAddress(ctx, account, branch, index)
 }
 
 func makeMultiSigScript(w *wallet.Wallet, keys []string, nRequired int) ([]byte, error) {
@@ -664,10 +668,17 @@ func (s *Server) getBalance(ctx context.Context, icmd interface{}) (interface{},
 	}
 
 	if accountName == "*" {
-		balances, err := w.CalculateAccountBalances(int32(*cmd.MinConf))
+		balanceMap, err := w.CalculateAccountBalances(int32(*cmd.MinConf))
 		if err != nil {
 			return nil, err
 		}
+		balances := make([]*udb.Balances, 0, len(balanceMap))
+		for _, bal := range balanceMap {
+			balances = append(balances, bal)
+		}
+		sort.Slice(balances, func(i, j int) bool {
+			return balances[i].Account < balances[j].Account
+		})
 
 		var (
 			totImmatureCoinbase dcrutil.Amount
@@ -680,14 +691,9 @@ func (s *Server) getBalance(ctx context.Context, icmd interface{}) (interface{},
 		)
 
 		balancesLen := uint32(len(balances))
-		result.Balances = make([]types.GetAccountBalanceResult, balancesLen)
+		result.Balances = make([]types.GetAccountBalanceResult, 0, balancesLen)
 
 		for _, bal := range balances {
-			// Transactions are not tracked for imported xpub accounts.
-			if bal.Account > udb.ImportedAddrAccount {
-				continue
-			}
-
 			accountName, err := w.AccountName(bal.Account)
 			if err != nil {
 				// Expect account lookup to succeed
@@ -716,13 +722,7 @@ func (s *Server) getBalance(ctx context.Context, icmd interface{}) (interface{},
 				VotingAuthority:         bal.VotingAuthority.ToCoin(),
 			}
 
-			var balIdx uint32
-			if bal.Account == udb.ImportedAddrAccount {
-				balIdx = balancesLen - 1
-			} else {
-				balIdx = bal.Account
-			}
-			result.Balances[balIdx] = json
+			result.Balances = append(result.Balances, json)
 		}
 
 		result.TotalImmatureCoinbaseRewards = totImmatureCoinbase.ToCoin()
@@ -1126,12 +1126,9 @@ func (s *Server) importXpub(ctx context.Context, icmd interface{}) (interface{},
 		return nil, errUnloadedWallet
 	}
 
-	xpub, err := hdkeychain1.NewKeyFromString(cmd.Xpub)
+	xpub, err := hdkeychain.NewKeyFromString(cmd.Xpub, w.ChainParams())
 	if err != nil {
 		return nil, err
-	}
-	if !xpub.IsForNet(w.ChainParams()) {
-		return nil, errors.New("xpub is not for this decred network")
 	}
 
 	return nil, w.ImportXpubAccount(cmd.Name, xpub)
@@ -2274,12 +2271,26 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 // sendPairs creates and sends payment transactions.
 // It returns the transaction hash in string format upon success
 // All errors are returned in dcrjson.RPCError format
-func sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32) (string, error) {
+func (s *Server) sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32) (string, error) {
+	changeAccount := account
+	if s.cfg.CSPPServer != "" {
+		mixAccount, err := w.AccountNumber(s.cfg.MixAccount)
+		if err != nil {
+			return "", err
+		}
+		if account == mixAccount {
+			changeAccount, err = w.AccountNumber(s.cfg.MixChangeAccount)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+
 	outputs, err := makeOutputs(amounts, w.ChainParams())
 	if err != nil {
 		return "", err
 	}
-	txSha, err := w.SendOutputs(ctx, outputs, account, minconf)
+	txSha, err := w.SendOutputs(ctx, outputs, account, changeAccount, minconf)
 	if err != nil {
 		if errors.Is(err, errors.Locked) {
 			return "", errWalletUnlockNeeded
@@ -2631,7 +2642,7 @@ func (s *Server) sendFrom(ctx context.Context, icmd interface{}) (interface{}, e
 		cmd.ToAddress: amt,
 	}
 
-	return sendPairs(ctx, w, pairs, account, minConf)
+	return s.sendPairs(ctx, w, pairs, account, minConf)
 }
 
 // sendMany handles a sendmany RPC request by creating a new transaction
@@ -2673,7 +2684,7 @@ func (s *Server) sendMany(ctx context.Context, icmd interface{}) (interface{}, e
 		pairs[k] = amt
 	}
 
-	return sendPairs(ctx, w, pairs, account, minConf)
+	return s.sendPairs(ctx, w, pairs, account, minConf)
 }
 
 // sendToAddress handles a sendtoaddress RPC request by creating a new
@@ -2710,7 +2721,7 @@ func (s *Server) sendToAddress(ctx context.Context, icmd interface{}) (interface
 	}
 
 	// sendtoaddress always spends from the default account, this matches bitcoind
-	return sendPairs(ctx, w, pairs, udb.DefaultAccountNum, 1)
+	return s.sendPairs(ctx, w, pairs, udb.DefaultAccountNum, 1)
 }
 
 // sendToMultiSig handles a sendtomultisig RPC request by creating a new
@@ -3574,6 +3585,65 @@ func (s *Server) walletPassphraseChange(ctx context.Context, icmd interface{}) (
 		return nil, err
 	}
 	return nil, nil
+}
+
+func (s *Server) mixOutput(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.MixOutputCmd)
+	if s.cfg.CSPPServer == "" {
+		return nil, errors.E("CoinShuffle++ server is not configured")
+	}
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	outpoint, err := parseOutpoint(cmd.Outpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO
+	//err = w.MixOutput(ctx, s.cfg.DialCSPPServer, s.cfg.CSPPServer, outpoint, 3, 2)
+	_ = w
+	_ = outpoint
+	return nil, nil
+}
+
+func (s *Server) mixAccount(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.MixAccountCmd)
+	if s.cfg.CSPPServer == "" {
+		return nil, errors.E("CoinShuffle++ server is not configured")
+	}
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	// TODO
+	//err := w.MixAccount(ctx, s.cfg.DialCSPPServer, s.cfg.CSPPServer, cmd.Account, 3, 2)
+	//return nil, err
+	_ = cmd
+	_ = w
+	return nil, nil
+}
+
+func parseOutpoint(s string) (*wire.OutPoint, error) {
+	const op errors.Op = "parseOutpoint"
+	if len(s) < 66 {
+		return nil, errors.E(op, "bad len")
+	}
+	if s[64] != ':' { // sep follows 32 bytes of hex
+		return nil, errors.E(op, "bad separator")
+	}
+	hash, err := chainhash.NewHashFromStr(s[:64])
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	index, err := strconv.ParseUint(s[65:], 10, 32)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return &wire.OutPoint{Hash: *hash, Index: uint32(index)}, nil
 }
 
 // decodeHexStr decodes the hex encoding of a string, possibly prepending a
