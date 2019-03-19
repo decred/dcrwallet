@@ -8,7 +8,6 @@ require (
 	github.com/decred/dcrwallet/errors/v2 v2.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/rpc/client/dcrd v0.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/wallet/v3 v3.0.0-00010101000000-000000000000
-	github.com/decred/go-socks v1.0.0
 	github.com/decred/slog v1.0.0
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/jrick/wsrpc/v2 v2.1.5

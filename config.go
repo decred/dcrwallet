@@ -7,7 +7,10 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/user"
@@ -18,11 +21,13 @@ import (
 
 	"decred.org/dcrwallet/internal/cfgutil"
 	"decred.org/dcrwallet/internal/netparams"
+	"github.com/decred/dcrd/connmgr"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/version"
 	"github.com/decred/dcrwallet/wallet/v3"
 	"github.com/decred/dcrwallet/wallet/v3/txrules"
+	"github.com/decred/go-socks/socks"
 	"github.com/decred/slog"
 	flags "github.com/jessevdk/go-flags"
 )
@@ -47,6 +52,7 @@ const (
 	defaultAllowHighFees           = false
 	defaultAccountGapLimit         = wallet.DefaultAccountGapLimit
 	defaultDisableCoinTypeUpgrades = false
+	defaultCircuitLimit            = 32
 
 	// ticket buyer options
 	defaultBalanceToMaintainAbsolute = 0
@@ -103,9 +109,15 @@ type config struct {
 	DisableClientTLS bool                    `long:"noclienttls" description:"Disable TLS for dcrd RPC; only allowed when connecting to localhost"`
 	DcrdUsername     string                  `long:"dcrdusername" description:"dcrd RPC username; overrides --username"`
 	DcrdPassword     string                  `long:"dcrdpassword" default-mask:"-" description:"dcrd RPC password; overrides --password"`
-	Proxy            string                  `long:"proxy" description:"Perform dcrd RPC via SOCKS5 proxy (e.g. 127.0.0.1:9050)"`
-	ProxyUser        string                  `long:"proxyuser" description:"Proxy server username"`
-	ProxyPass        string                  `long:"proxypass" default-mask:"-" description:"Proxy server password"`
+
+	// Proxy and Tor settings
+	Proxy        string `long:"proxy" description:"Establish network connections and DNS lookups through a SOCKS5 proxy (e.g. 127.0.0.1:9050)"`
+	ProxyUser    string `long:"proxyuser" description:"Proxy server username"`
+	ProxyPass    string `long:"proxypass" default-mask:"-" description:"Proxy server password"`
+	CircuitLimit int    `long:"circuitlimit" description:"Set maximum number of open Tor circuits; used only when --torisolation is enabled"`
+	TorIsolation bool   `long:"torisolation" description:"Enable Tor stream isolation by randomizing user credentials for each connection"`
+	dial         func(ctx context.Context, network, address string) (net.Conn, error)
+	lookup       func(name string) ([]net.IP, error)
 
 	// SPV options
 	SPV        bool     `long:"spv" description:"Sync using simplified payment verification"`
@@ -131,6 +143,17 @@ type config struct {
 	PipeRx            *uint `long:"piperx" description:"File descriptor or handle of read end pipe to enable parent -> child process communication"`
 	RPCListenerEvents bool  `long:"rpclistenerevents" description:"Notify JSON-RPC and gRPC listener addresses over the TX pipe"`
 
+	// CSPP
+	CSPPServer         string `long:"csppserver" description:"Network address of CoinShuffle++ server"`
+	CSPPServerCA       string `long:"csppserver.ca" description:"CoinShuffle++ Certificate Authority"`
+	dialCSPPServer     func(ctx context.Context, network, addr string) (net.Conn, error)
+	MixedAccount       string `long:"mixedaccount" description:"Account/branch used to derive CoinShuffle++ mixed outputs and voting rewards"`
+	mixedAccount       string
+	mixedBranch        uint32
+	TicketSplitAccount string `long:"ticketsplitaccount" description:"Account to derive fresh addresses from for mixed ticket splits; uses mixedaccount if unset"`
+	ChangeAccount      string `long:"changeaccount" description:"Account used to derive unmixed CoinJoin outputs in CoinShuffle++ protocol"`
+	MixChange          bool   `long:"mixchange" description:"Use CoinShuffle++ to mix change account outputs into mix account"`
+
 	TBOpts ticketBuyerOptions `group:"Ticket Buyer Options" namespace:"ticketbuyer"`
 
 	// Deprecated options
@@ -142,7 +165,8 @@ type ticketBuyerOptions struct {
 	BalanceToMaintainAbsolute *cfgutil.AmountFlag  `long:"balancetomaintainabsolute" description:"Amount of funds to keep in wallet when purchasing tickets"`
 	VotingAddress             *cfgutil.AddressFlag `long:"votingaddress" description:"Purchase tickets with voting rights assigned to this address"`
 	votingAddress             dcrutil.Address
-	Limit                     uint `long:"limit" description:"Buy no more than specified number of tickets per block (0 disables limit)"`
+	Limit                     uint   `long:"limit" description:"Buy no more than specified number of tickets per block (0 disables limit)"`
+	VotingAccount             string `long:"votingaccount" description:"Account used to derive addresses specifying voting rights"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -298,6 +322,8 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		LogDir:                  cfgutil.NewExplicitString(defaultLogDir),
 		WalletPass:              wallet.InsecurePubPassphrase,
 		CAFile:                  cfgutil.NewExplicitString(""),
+		dial:                    new(net.Dialer).DialContext,
+		lookup:                  net.LookupIP,
 		PromptPass:              defaultPromptPass,
 		Pass:                    defaultPass,
 		PromptPublicPass:        defaultPromptPublicPass,
@@ -317,6 +343,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		PoolAddress:             cfgutil.NewAddressFlag(),
 		AccountGapLimit:         defaultAccountGapLimit,
 		DisableCoinTypeUpgrades: defaultDisableCoinTypeUpgrades,
+		CircuitLimit:            defaultCircuitLimit,
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
@@ -592,6 +619,132 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return loadConfigError(err)
 		}
+	}
+
+	ipNet := func(cidr string) net.IPNet {
+		_, ipNet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			panic(err)
+		}
+		return *ipNet
+	}
+	privNets := []net.IPNet{
+		// IPv4 loopback
+		ipNet("127.0.0.0/8"),
+
+		// IPv6 loopback
+		ipNet("::1/128"),
+
+		// RFC 1918
+		ipNet("10.0.0.0/8"),
+		ipNet("172.16.0.0/12"),
+		ipNet("192.168.0.0/16"),
+
+		// RFC 4193
+		ipNet("fc00::/7"),
+	}
+
+	// Set dialer and DNS lookup functions if proxy settings are provided.
+	if cfg.Proxy != "" {
+		proxy := socks.Proxy{
+			Addr:         cfg.Proxy,
+			Username:     cfg.ProxyUser,
+			Password:     cfg.ProxyPass,
+			TorIsolation: cfg.TorIsolation,
+		}
+
+		var proxyDialer func(context.Context, string, string) (net.Conn, error)
+		var noproxyDialer net.Dialer
+		if cfg.TorIsolation {
+			proxyDialer = socks.NewPool(proxy, uint32(cfg.CircuitLimit)).DialContext
+		} else {
+			proxyDialer = proxy.DialContext
+		}
+
+		cfg.dial = func(ctx context.Context, network, address string) (net.Conn, error) {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				host = address
+			}
+			ip := net.ParseIP(host)
+			if len(ip) == 4 || len(ip) == 16 {
+				for i := range privNets {
+					if privNets[i].Contains(ip) {
+						return noproxyDialer.DialContext(ctx, network, address)
+					}
+				}
+			}
+			conn, err := proxyDialer(ctx, network, address)
+			if err != nil {
+				return nil, errors.Errorf("proxy dial %v %v: %w", network, address, err)
+			}
+			return conn, nil
+		}
+		cfg.lookup = func(host string) ([]net.IP, error) {
+			ip, err := connmgr.TorLookupIP(host, cfg.Proxy)
+			if err != nil {
+				return nil, errors.Errorf("proxy lookup for %v: %w", host, err)
+			}
+			return ip, nil
+		}
+	}
+
+	// Create CoinShuffle++ TLS dialer based on server name and certificate
+	// authority settings.
+	csppTLSConfig := new(tls.Config)
+	if cfg.CSPPServer != "" {
+		csppTLSConfig.ServerName, _, err = net.SplitHostPort(cfg.CSPPServer)
+		if err != nil {
+			err := errors.Errorf("Cannot parse CoinShuffle++ "+
+				"server name %q: %v", cfg.CSPPServer, err)
+			fmt.Fprintln(os.Stderr, err.Error())
+			return loadConfigError(err)
+		}
+	}
+	if cfg.CSPPServerCA != "" {
+		ca, err := ioutil.ReadFile(cfg.CSPPServerCA)
+		if err != nil {
+			err := errors.Errorf("Cannot read CoinShuffle++ "+
+				"Certificate Authority file: %v", err)
+			fmt.Fprintln(os.Stderr, err.Error())
+			return loadConfigError(err)
+		}
+		pool := x509.NewCertPool()
+		pool.AppendCertsFromPEM(ca)
+		csppTLSConfig.RootCAs = pool
+	}
+	cfg.dialCSPPServer = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		conn, err := cfg.dial(ctx, network, addr)
+		if err != nil {
+			return nil, err
+		}
+		conn = tls.Client(conn, csppTLSConfig)
+		return conn, nil
+	}
+
+	// Parse mixedaccount account/branch
+	if cfg.MixedAccount != "" {
+		indexSlash := strings.LastIndex(cfg.MixedAccount, "/")
+		if indexSlash == -1 {
+			err := errors.Errorf("--mixedaccount must have form 'accountname/branch'")
+			fmt.Fprintln(os.Stderr, err)
+			return loadConfigError(err)
+		}
+		cfg.mixedAccount = cfg.MixedAccount[:indexSlash]
+		switch cfg.MixedAccount[indexSlash+1:] {
+		case "0":
+			cfg.mixedBranch = 0
+		case "1":
+			cfg.mixedBranch = 1
+		default:
+			err := errors.Errorf("--mixedaccount branch must be 0 or 1")
+			fmt.Fprintln(os.Stderr, err)
+			return loadConfigError(err)
+		}
+	}
+	// Use mixedaccount as default ticketsplitaccount if unset.
+	if cfg.TicketSplitAccount == "" {
+		cfg.TicketSplitAccount = cfg.mixedAccount
 	}
 
 	if cfg.RPCConnect == "" {

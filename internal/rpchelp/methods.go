@@ -63,6 +63,8 @@ var Methods = []struct {
 	{"importprivkey", nil},
 	{"importscript", nil},
 	{"importxpub", nil},
+	{"mixaccount", nil},
+	{"mixoutput", nil},
 	{"listaccounts", []interface{}{(*map[string]float64)(nil)}},
 	{"listaddresstransactions", returnsLTRArray},
 	{"listalltransactions", returnsLTRArray},

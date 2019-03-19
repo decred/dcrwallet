@@ -281,6 +281,14 @@ var helpDescsEnUS = map[string]string{
 	"importxpub-name":      "Name of new account",
 	"importxpub-xpub":      "Extended public key",
 
+	// MixAccount help.
+	"mixaccount--synopsis": "Mix all outputs of an account.",
+	"mixaccount-account":   "Account to mix",
+
+	// MixOutput help.
+	"mixoutput--synopsis": "Mix a specific output.",
+	"mixoutput-outpoint":  `Outpoint (in form "txhash:index") to mix`,
+
 	// ListAccountsCmd help.
 	"listaccounts--synopsis":       "DEPRECATED -- Returns a JSON object of all accounts and their balances.",
 	"listaccounts-minconf":         "Minimum number of block confirmations required before an unspent output's value is included in the balance",

@@ -306,9 +306,10 @@ func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 	}
 	revokableTickets := make([]*chainhash.Hash, 0, len(ticketHashes))
 	for i, p := range ticketHashPtrs {
-		if expired.Get(i) || missed.Get(i) {
-			revokableTickets = append(revokableTickets, p)
+		if !(expired.Get(i) || missed.Get(i)) {
+			continue
 		}
+		revokableTickets = append(revokableTickets, p)
 	}
 	feePerKb := w.RelayFee()
 	revocations := make([]*wire.MsgTx, 0, len(revokableTickets))

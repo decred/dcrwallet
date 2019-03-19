@@ -7,7 +7,7 @@ package wallet
 import (
 	"context"
 	"runtime/trace"
-	
+
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/txscript/v2"

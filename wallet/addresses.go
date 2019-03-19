@@ -497,6 +497,7 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 			branch:            branch,
 			child:             childIndex,
 		}
+		log.Infof("Returning address (account=%v branch=%v child=%v)", account, branch, childIndex)
 		return addr, nil
 	}
 }
@@ -612,6 +613,11 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 	return nil
 }
 
+// watchFutureAddresses loads the transaction filter with future addresses, one
+// gap limit beyond the last used address.
+//
+// This method requires that the wallet's addressBuffersMu held be held, prior
+// to opening the database transaction.
 func (w *Wallet) watchFutureAddresses(ctx context.Context, dbtx walletdb.ReadTx) error {
 	const op errors.Op = "wallet.watchFutureAddresses"
 
@@ -636,15 +642,20 @@ func (w *Wallet) watchFutureAddresses(ctx context.Context, dbtx walletdb.ReadTx)
 	if err != nil {
 		return errors.E(op, err)
 	}
-	dbLastUsedChildren := make(map[uint32]children, lastAccount+1)
-	dbLastRetChildren := make(map[uint32]children, lastAccount+1)
+	lastImportedAccount, err := w.Manager.LastImportedAccount(dbtx)
+	if err != nil {
+		return errors.E(op, err)
+	}
+	numAccounts := lastAccount + 1 + (lastImportedAccount - udb.ImportedAddrAccount)
+	dbLastUsedChildren := make(map[uint32]children, numAccounts)
+	dbLastRetChildren := make(map[uint32]children, numAccounts)
 	var lastUsedExt, lastUsedInt uint32
 	var lastRetExt, lastRetInt uint32
-	for account := uint32(0); account <= lastAccount; account++ {
+	readIndexes := func(account uint32) error {
 		for branch := udb.ExternalBranch; branch <= udb.InternalBranch; branch++ {
 			props, err := w.Manager.AccountProperties(ns, account)
 			if err != nil {
-				return errors.E(op, err)
+				return err
 			}
 			switch branch {
 			case udb.ExternalBranch:
@@ -657,15 +668,26 @@ func (w *Wallet) watchFutureAddresses(ctx context.Context, dbtx walletdb.ReadTx)
 		}
 		dbLastUsedChildren[account] = children{lastUsedExt, lastUsedInt}
 		dbLastRetChildren[account] = children{lastRetExt, lastRetInt}
+		return nil
+	}
+	for account := uint32(0); account <= lastAccount; account++ {
+		err := readIndexes(account)
+		if err != nil {
+			return errors.E(op, err)
+		}
+	}
+	for account := uint32(udb.ImportedAddrAccount + 1); account <= lastImportedAccount; account++ {
+		err := readIndexes(account)
+		if err != nil {
+			return errors.E(op, err)
+		}
 	}
 
 	// Update the buffer's last used child if it was updated, and then update
 	// the cursor to point to the same child index relative to the new last used
 	// index.  Request transaction notifications for future addresses that will
 	// be returned by the buffer.
-	errs := make(chan error, lastAccount+1)
-	defer w.addressBuffersMu.Unlock()
-	w.addressBuffersMu.Lock()
+	errs := make(chan error, len(w.addressBuffers))
 	for account, a := range w.addressBuffers {
 		// startExt/Int are the indexes of the next child after the last
 		// currently watched address.
@@ -745,7 +767,7 @@ func (w *Wallet) NewInternalAddress(ctx context.Context, account uint32, callOpt
 	return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil), account, udb.InternalBranch, callOpts...)
 }
 
-func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc, account uint32) (dcrutil.Address, error) {
+func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc, account uint32, gap gapPolicy) (dcrutil.Address, error) {
 	// Addresses can not be generated for the imported account, so as a
 	// workaround, change is sent to the first account.
 	//
@@ -753,7 +775,7 @@ func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist per
 	if account == udb.ImportedAddrAccount {
 		account = udb.DefaultAccountNum
 	}
-	return w.nextAddress(ctx, op, persist, account, udb.InternalBranch, WithGapPolicyWrap())
+	return w.nextAddress(ctx, op, persist, account, udb.InternalBranch, withGapPolicy(gap))
 }
 
 // NewChangeAddress returns an internal address.  This is identical to
@@ -762,34 +784,13 @@ func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist per
 // policy.
 func (w *Wallet) NewChangeAddress(ctx context.Context, account uint32) (dcrutil.Address, error) {
 	const op errors.Op = "wallet.NewChangeAddress"
-	return w.newChangeAddress(ctx, op, w.persistReturnedChild(ctx, nil), account)
+	return w.newChangeAddress(ctx, op, w.persistReturnedChild(ctx, nil), account, gapPolicyWrap)
 }
 
 // BIP0044BranchNextIndexes returns the next external and internal branch child
 // indexes of an account.
 func (w *Wallet) BIP0044BranchNextIndexes(ctx context.Context, account uint32) (extChild, intChild uint32, err error) {
 	const op errors.Op = "wallet.BIP0044BranchNextIndexes"
-
-	// Imported xpub accounts are not tracked in memory, query DB instead.
-	// The last returned indexes are used instead of last used + offset due
-	// to xpub accounts not watching transactions and being unable to
-	// determine the last used address.
-	if account > udb.ImportedAddrAccount {
-		err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-			ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
-			props, err := w.Manager.AccountProperties(ns, account)
-			if err != nil {
-				return err
-			}
-			extChild = props.LastReturnedExternalIndex + 1
-			intChild = props.LastReturnedInternalIndex + 1
-			return nil
-		})
-		if err != nil {
-			return 0, 0, errors.E(op, err)
-		}
-		return extChild, intChild, nil
-	}
 
 	defer w.addressBuffersMu.Unlock()
 	w.addressBuffersMu.Lock()
@@ -803,10 +804,10 @@ func (w *Wallet) BIP0044BranchNextIndexes(ctx context.Context, account uint32) (
 	return extChild, intChild, nil
 }
 
-// ExtendWatchedAddresses derives and watches additional addresses for an
-// account branch they have not yet been derived.  This does not modify the next
-// generated address for the branch.
-func (w *Wallet) ExtendWatchedAddresses(ctx context.Context, account, branch, child uint32) error {
+// SyncLastReturnedAddress advances the last returned child address for a
+// BIP00044 account branch.  The next returned address for the branch will be
+// child+1.
+func (w *Wallet) SyncLastReturnedAddress(ctx context.Context, account, branch, child uint32) error {
 	const op errors.Op = "wallet.ExtendWatchedAddresses"
 
 	var (
@@ -833,6 +834,9 @@ func (w *Wallet) ExtendWatchedAddresses(ctx context.Context, account, branch, ch
 
 		branchXpub = alb.branchXpub
 		lastUsed = alb.lastUsed
+		if lastUsed != ^uint32(0) && child > lastUsed {
+			alb.cursor = child - lastUsed
+		}
 		return nil
 	}()
 	if err != nil {
@@ -841,7 +845,11 @@ func (w *Wallet) ExtendWatchedAddresses(ctx context.Context, account, branch, ch
 
 	err = walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-		return w.Manager.SyncAccountToAddrIndex(ns, account, child, branch)
+		err = w.Manager.SyncAccountToAddrIndex(ns, account, child, branch)
+		if err != nil {
+			return err
+		}
+		return w.Manager.MarkReturnedChildIndex(tx, account, branch, child)
 	})
 	if err != nil {
 		return err
@@ -906,14 +914,15 @@ func (w *Wallet) AccountBranchAddressRange(account, branch, start, end uint32) (
 }
 
 type p2PKHChangeSource struct {
-	persist persistReturnedChildFunc
-	account uint32
-	wallet  *Wallet
-	ctx     context.Context
+	persist   persistReturnedChildFunc
+	account   uint32
+	wallet    *Wallet
+	ctx       context.Context
+	gapPolicy gapPolicy
 }
 
 func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
-	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.persist, src.account)
+	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.persist, src.account, src.gapPolicy)
 	if err != nil {
 		return nil, 0, err
 	}

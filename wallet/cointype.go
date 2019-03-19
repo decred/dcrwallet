@@ -6,7 +6,7 @@ package wallet
 
 import (
 	"context"
-	
+
 	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/udb"

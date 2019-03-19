@@ -68,8 +68,7 @@ type Server struct {
 	authsha      [sha256.Size]byte
 	upgrader     websocket.Upgrader
 
-	maxPostClients      int64 // Max concurrent HTTP POST clients.
-	maxWebsocketClients int64 // Max concurrent websocket clients.
+	cfg Options
 
 	wg      sync.WaitGroup
 	quit    chan struct{}
@@ -104,10 +103,9 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 			// handshake within the allowed timeframe.
 			ReadTimeout: time.Second * rpcAuthTimeoutSeconds,
 		},
-		walletLoader:        walletLoader,
-		maxPostClients:      opts.MaxPOSTClients,
-		maxWebsocketClients: opts.MaxWebsocketClients,
-		listeners:           listeners,
+		walletLoader: walletLoader,
+		cfg:          *opts,
+		listeners:    listeners,
 		// A hash of the HTTP basic auth string is used for a constant
 		// time comparison.
 		authsha: sha256.Sum256(httpBasicAuth(opts.Username, opts.Password)),

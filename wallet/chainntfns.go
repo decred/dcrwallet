@@ -72,6 +72,12 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 		return nil, errors.E(op, errors.Invalid, "zero-length chain")
 	}
 
+	w.recentlyPublishedMu.Lock()
+	for txHash := range relevantTxs {
+		delete(w.recentlyPublished, txHash)
+	}
+	w.recentlyPublishedMu.Unlock()
+
 	chainTipChanges := &MainTipChangedNotification{
 		AttachedBlocks: make([]*chainhash.Hash, 0, len(chain)),
 		DetachedBlocks: nil,
@@ -190,9 +196,11 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 		return nil, errors.E(op, err)
 	}
 
+	w.addressBuffersMu.Lock()
 	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		return w.watchFutureAddresses(ctx, tx)
 	})
+	w.addressBuffersMu.Unlock()
 	if err != nil && !errors.Is(err, errors.NoPeers) {
 		return nil, err
 	}
@@ -295,6 +303,14 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 // with new addresses and unspent outpoints to watch.
 func (w *Wallet) AcceptMempoolTx(ctx context.Context, tx *wire.MsgTx) error {
 	const op errors.Op = "wallet.AcceptMempoolTx"
+
+	w.recentlyPublishedMu.Lock()
+	_, recent := w.recentlyPublished[tx.TxHash()]
+	w.recentlyPublishedMu.Unlock()
+	if recent {
+		return nil
+	}
+
 	var watchOutPoints []wire.OutPoint
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -322,9 +338,11 @@ func (w *Wallet) AcceptMempoolTx(ctx context.Context, tx *wire.MsgTx) error {
 	if err != nil {
 		return errors.E(op, err)
 	}
+	w.addressBuffersMu.Lock()
 	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		return w.watchFutureAddresses(ctx, tx)
 	})
+	w.addressBuffersMu.Unlock()
 	if err != nil {
 		log.Errorf("Failed to watch for future address usage: %v", err)
 	}
@@ -804,6 +822,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 	var ticketHashes []*chainhash.Hash
 	var votes []*wire.MsgTx
 	voteBits := w.VoteBits()
+	var watchOutPoints []wire.OutPoint
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -851,6 +870,8 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 				continue
 			}
 			votes[i] = vote
+
+			watchOutPoints = w.appendRelevantOutpoints(watchOutPoints, dbtx, vote)
 		}
 		return nil
 	})
@@ -872,35 +893,23 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 	for i := range votes {
 		rec, err := udb.NewTxRecordFromMsgTx(votes[i], time.Now())
 		if err != nil {
-			log.Errorf("Failed to create transaction record for vote %v: %v",
-				ticketHashes[i], err)
+			log.Errorf("Failed to create transaction record: %v", err)
 			continue
 		}
 		voteRecords = append(voteRecords, rec)
 	}
-	var watchOutPoints []wire.OutPoint
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		for i := range voteRecords {
-			watch, err := w.processTransactionRecord(ctx, dbtx, voteRecords[i], nil, nil)
-			if err != nil {
-				return err
-			}
-			watchOutPoints = append(watchOutPoints, watch...)
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	// Publish before logging and handling any publishing errors to slightly
-	// reduce latency.
-	err = n.PublishTransactions(ctx, votes...)
+	w.recentlyPublishedMu.Lock()
 	for i := range voteRecords {
+		w.recentlyPublished[voteRecords[i].Hash] = struct{}{}
+
 		log.Infof("Voting on block %v (height %v) using ticket %v "+
 			"(vote hash: %v bits: %v)", blockHash, blockHeight,
 			ticketHashes[i], &voteRecords[i].Hash, voteBits.Bits)
 	}
+	w.recentlyPublishedMu.Unlock()
+
+	// Publish before recording votes in database to slightly reduce latency.
+	err = n.PublishTransactions(ctx, votes...)
 	if err != nil {
 		log.Errorf("Failed to send one or more votes: %v", err)
 	}
@@ -912,7 +921,25 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 		}
 	}
 
-	return nil
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		for i := range voteRecords {
+			_, err := w.processTransactionRecord(ctx, dbtx, voteRecords[i], nil, nil)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	w.addressBuffersMu.Lock()
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		return w.watchFutureAddresses(ctx, dbtx)
+	})
+	w.addressBuffersMu.Unlock()
+	return err
 }
 
 // RevokeOwnedTickets revokes any owned tickets specified in the
@@ -930,6 +957,7 @@ func (w *Wallet) RevokeOwnedTickets(ctx context.Context, missedTicketHashes []*c
 	var ticketHashes []*chainhash.Hash
 	var revocations []*wire.MsgTx
 	relayFee := w.RelayFee()
+	var watchOutPoints []wire.OutPoint
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -982,6 +1010,8 @@ func (w *Wallet) RevokeOwnedTickets(ctx context.Context, missedTicketHashes []*c
 				continue
 			}
 			revocations[i] = revocation
+
+			watchOutPoints = w.appendRelevantOutpoints(watchOutPoints, dbtx, revocation)
 		}
 		return nil
 	})
@@ -999,40 +1029,54 @@ func (w *Wallet) RevokeOwnedTickets(ctx context.Context, missedTicketHashes []*c
 		i++
 	}
 
-	for i, revocation := range revocations {
-		txRec, err := udb.NewTxRecordFromMsgTx(revocation, time.Now())
+	revocationRecords := make([]*udb.TxRecord, 0, len(revocations))
+	for i := range revocations {
+		rec, err := udb.NewTxRecordFromMsgTx(revocations[i], time.Now())
 		if err != nil {
-			log.Errorf("Failed to create transaction record for revocation %v: %v",
-				ticketHashes[i], err)
+			log.Errorf("Failed to create transaction record: %v", err)
 			continue
 		}
-		revocationHash := &txRec.Hash
-		var watchOutPoints []wire.OutPoint
-		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-			var err error
-			watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, txRec, nil, nil)
-			return err
-		})
-		if err != nil {
-			log.Errorf("Failed to record revocation %v for ticket hash %v: %v",
-				revocationHash, ticketHashes[i], err)
-			continue
-		}
-		err = n.PublishTransactions(ctx, revocation)
-		if err != nil {
-			log.Errorf("Failed to send revocation %v for ticket hash %v: %v",
-				revocationHash, ticketHashes[i], err)
-			continue
-		}
+		revocationRecords = append(revocationRecords, rec)
+	}
+	w.recentlyPublishedMu.Lock()
+	for i := range revocationRecords {
+		w.recentlyPublished[revocationRecords[i].Hash] = struct{}{}
+
 		log.Infof("Revoked ticket %v with revocation %v", ticketHashes[i],
-			revocationHash)
-		if len(watchOutPoints) > 0 {
-			err := n.LoadTxFilter(ctx, false, nil, watchOutPoints)
-			if err != nil {
-				log.Errorf("Failed to watch outpoints: %v", err)
-			}
+			&revocationRecords[i].Hash)
+	}
+	w.recentlyPublishedMu.Unlock()
+
+	// Publish before recording revocations in database.
+	err = n.PublishTransactions(ctx, revocations...)
+	if err != nil {
+		log.Errorf("Failed to send one or more revocations: %v", err)
+	}
+
+	if len(watchOutPoints) > 0 {
+		err := n.LoadTxFilter(ctx, false, nil, watchOutPoints)
+		if err != nil {
+			log.Errorf("Failed to watch outpoints: %v", err)
 		}
 	}
 
-	return nil
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		for i := range revocationRecords {
+			_, err := w.processTransactionRecord(ctx, dbtx, revocationRecords[i], nil, nil)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	w.addressBuffersMu.Lock()
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		return w.watchFutureAddresses(ctx, dbtx)
+	})
+	w.addressBuffersMu.Unlock()
+	return err
 }

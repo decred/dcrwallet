@@ -818,6 +818,10 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 //
 // This function MUST be called with the manager lock held for writes.
 func (m *Manager) deriveKeyFromPath(ns walletdb.ReadBucket, account, branch, index uint32, private bool) (*hdkeychain.ExtendedKey, error) {
+	if private && account > ImportedAddrAccount {
+		return nil, errors.E(errors.Invalid, "account does not record private keys")
+	}
+
 	// Look up the account key information.
 	acctInfo, err := m.loadAccountInfo(ns, account)
 	if err != nil {
@@ -832,8 +836,12 @@ func (m *Manager) deriveKeyFromPath(ns walletdb.ReadBucket, account, branch, ind
 //
 // This function MUST be called with the manager lock held for writes.
 func (m *Manager) chainAddressRowToManaged(ns walletdb.ReadBucket, row *dbChainAddressRow) (ManagedAddress, error) {
+	private := !m.locked
+	if row.account > ImportedAddrAccount {
+		private = false
+	}
 	addressKey, err := m.deriveKeyFromPath(ns, row.account, row.branch,
-		row.index, !m.locked)
+		row.index, private)
 	if err != nil {
 		return nil, err
 	}
@@ -924,9 +932,9 @@ func (m *Manager) loadAddress(ns walletdb.ReadBucket, address dcrutil.Address) (
 // pay-to-script-hash addresses.
 func (m *Manager) Address(ns walletdb.ReadBucket, address dcrutil.Address) (ManagedAddress, error) {
 	address = normalizeAddress(address)
+	defer m.mtx.Unlock()
 	m.mtx.Lock()
 	ma, err := m.loadAddress(ns, address)
-	m.mtx.Unlock()
 	return ma, err
 }
 
@@ -1708,13 +1716,13 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 	return nil
 }
 
-// SyncAccountToAddrIndex returns the specified number of next chained addresses
-// that are intended for internal use such as change from the address manager.
+// SyncAccountToAddrIndex records address records for an account branch up to
+// syncToIndex.  It does not modify the last used or last returned properties of
+// the account branch.
 func (m *Manager) SyncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account uint32, syncToIndex uint32, branch uint32) error {
+	defer m.mtx.Unlock()
 	m.mtx.Lock()
-	err := m.syncAccountToAddrIndex(ns, account, syncToIndex, branch)
-	m.mtx.Unlock()
-	return err
+	return m.syncAccountToAddrIndex(ns, account, syncToIndex, branch)
 }
 
 // ValidateAccountName validates the given account name and returns an error,

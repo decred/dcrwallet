@@ -2294,18 +2294,19 @@ func (s *Store) UnspentOutputs(ns walletdb.ReadBucket) ([]*Credit, error) {
 	return unspent, nil
 }
 
-// UnspentOutpoints returns all unspent received transaction outpoints.
+// ForEachUnspentOutpoint calls f on each UTXO outpoint.
 // The order is undefined.
-func (s *Store) UnspentOutpoints(ns walletdb.ReadBucket) ([]wire.OutPoint, error) {
-	var unspent []wire.OutPoint
-
+func (s *Store) ForEachUnspentOutpoint(dbtx walletdb.ReadTx, f func(*wire.OutPoint) error) error {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
 	c := ns.NestedReadBucket(bucketUnspent).ReadCursor()
+	defer func() {
+		c.Close()
+	}()
 	for k, v := c.First(); k != nil; k, v = c.Next() {
 		var op wire.OutPoint
 		err := readCanonicalOutPoint(k, &op)
 		if err != nil {
-			c.Close()
-			return nil, err
+			return err
 		}
 		if existsRawUnminedInput(ns, k) != nil {
 			// Output is spent by an unmined transaction.
@@ -2316,8 +2317,7 @@ func (s *Store) UnspentOutpoints(ns walletdb.ReadBucket) ([]wire.OutPoint, error
 		block := new(Block)
 		err = readUnspentBlock(v, block)
 		if err != nil {
-			c.Close()
-			return nil, err
+			return err
 		}
 
 		kC := keyCredit(&op.Hash, op.Index, block)
@@ -2328,12 +2328,13 @@ func (s *Store) UnspentOutpoints(ns walletdb.ReadBucket) ([]wire.OutPoint, error
 			op.Tree = wire.TxTreeStake
 		}
 
-		unspent = append(unspent, op)
+		if err := f(&op); err != nil {
+			return err
+		}
 	}
-	c.Close()
 
+	c.Close()
 	c = ns.NestedReadBucket(bucketUnminedCredits).ReadCursor()
-	defer c.Close()
 	for k, v := c.First(); k != nil; k, v = c.Next() {
 		if existsRawUnminedInput(ns, k) != nil {
 			// Output is spent by an unmined transaction.
@@ -2344,7 +2345,7 @@ func (s *Store) UnspentOutpoints(ns walletdb.ReadBucket) ([]wire.OutPoint, error
 		var op wire.OutPoint
 		err := readCanonicalOutPoint(k, &op)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		opCode := fetchRawUnminedCreditTagOpcode(v)
@@ -2353,12 +2354,12 @@ func (s *Store) UnspentOutpoints(ns walletdb.ReadBucket) ([]wire.OutPoint, error
 			op.Tree = wire.TxTreeStake
 		}
 
-		unspent = append(unspent, op)
+		if err := f(&op); err != nil {
+			return err
+		}
 	}
 
-	log.Tracef("%v many utxo outpoints found", len(unspent))
-
-	return unspent, nil
+	return nil
 }
 
 // IsUnspentOutpoint returns whether the outpoint is recorded as a wallet UTXO.
@@ -3209,8 +3210,7 @@ func (s *Store) MakeIgnoredInputSource(ns, addrmgrNs walletdb.ReadBucket, accoun
 				scriptSize = txsizes.RedeemP2PKHSigScriptSize
 			case txscript.PubKeyTy:
 				scriptSize = txsizes.RedeemP2PKSigScriptSize
-			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy,
-				txscript.StakeGenTy:
+			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy, txscript.StakeGenTy:
 				scriptClass, err = txscript.GetStakeOutSubclass(pkScript)
 				if err != nil {
 					return nil, fmt.Errorf(

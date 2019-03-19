@@ -237,29 +237,81 @@ func run(ctx context.Context) error {
 			passphrase = startPromptPass(ctx, w)
 		}
 
-		// Start a ticket buyer.
+		var tb *ticketbuyer.TB
+		if cfg.MixChange || cfg.EnableTicketBuyer {
+			tb = ticketbuyer.New(w)
+		}
+		var err error
+		var lastFlag, lastLookup string
+		lookup := func(flag, name string) (account uint32) {
+			if tb != nil && err == nil {
+				lastFlag = flag
+				lastLookup = name
+				account, err = w.AccountNumber(ctx, name)
+			}
+			return
+		}
+		var (
+			purchaseAccount    uint32 // enableticketbuyer
+			votingAccount      uint32 // enableticketbuyer
+			mixedAccount       uint32 // (enableticketbuyer && csppserver) || mixchange
+			changeAccount      uint32 // (enableticketbuyer && csppserver) || mixchange
+			ticketSplitAccount uint32 // enableticketbuyer && csppserver
+
+			votingAddr  = cfg.TBOpts.votingAddress
+			poolFeeAddr = cfg.poolAddress
+		)
 		if cfg.EnableTicketBuyer {
-			acct, err := w.AccountNumber(ctx, cfg.PurchaseAccount)
-			if err != nil {
-				log.Errorf("Purchase account %q does not exist", cfg.PurchaseAccount)
+			purchaseAccount = lookup("purchaseaccount", cfg.PurchaseAccount)
+			if cfg.CSPPServer != "" {
+				poolFeeAddr = nil
+			}
+			if cfg.CSPPServer != "" && cfg.TBOpts.VotingAccount == "" {
+				err := errors.New("cannot run mixed ticketbuyer without --votingaccount")
+				log.Error(err)
 				return err
 			}
-			tb := ticketbuyer.New(w)
+			if cfg.TBOpts.VotingAccount != "" {
+				votingAccount = lookup("ticketbuyer.votingaccount", cfg.TBOpts.VotingAccount)
+				votingAddr = nil
+			}
+		}
+		if (cfg.EnableTicketBuyer && cfg.CSPPServer != "") || cfg.MixChange {
+			mixedAccount = lookup("mixedaccount", cfg.mixedAccount)
+			changeAccount = lookup("changeaccount", cfg.ChangeAccount)
+		}
+		if cfg.EnableTicketBuyer && cfg.CSPPServer != "" {
+			ticketSplitAccount = lookup("ticketsplitaccount", cfg.TicketSplitAccount)
+		}
+		if err != nil {
+			log.Errorf("%s: account %q does not exist", lastFlag, lastLookup)
+			return err
+		}
+
+		if tb != nil {
+			// Start a ticket buyer.
 			tb.AccessConfig(func(c *ticketbuyer.Config) {
-				c.Account = acct
-				c.VotingAccount = acct // TODO: Make this a unique config option. Set to acct for compat with v1.
+				c.BuyTickets = cfg.EnableTicketBuyer
+				c.Account = purchaseAccount
 				c.Maintain = cfg.TBOpts.BalanceToMaintainAbsolute.Amount
-				c.VotingAddr = cfg.TBOpts.votingAddress
-				c.PoolFeeAddr = cfg.poolAddress
-				c.PoolFees = cfg.PoolFees
+				c.VotingAddr = votingAddr
+				c.PoolFeeAddr = poolFeeAddr
 				c.Limit = int(cfg.TBOpts.Limit)
+				c.VotingAccount = votingAccount
+				c.CSPPServer = cfg.CSPPServer
+				c.DialCSPPServer = cfg.dialCSPPServer
+				c.MixChange = cfg.MixChange
+				c.MixedAccount = mixedAccount
+				c.MixedAccountBranch = cfg.mixedBranch
+				c.TicketSplitAccount = ticketSplitAccount
+				c.ChangeAccount = changeAccount
 			})
-			log.Infof("Starting ticket buyer")
+			log.Infof("Starting auto transaction creator")
 			tbdone := make(chan struct{})
 			go func() {
 				err := tb.Run(ctx, passphrase)
 				if err != nil && !errors.Is(err, context.Canceled) {
-					log.Errorf("Ticket buying ended: %v", err)
+					log.Errorf("Transaction creator ended: %v", err)
 				}
 				tbdone <- struct{}{}
 			}()
@@ -414,7 +466,7 @@ func startPromptPass(ctx context.Context, w *wallet.Wallet) []byte {
 func spvLoop(ctx context.Context, w *wallet.Wallet) {
 	addr := &net.TCPAddr{IP: net.ParseIP("::1"), Port: 0}
 	amgrDir := filepath.Join(cfg.AppDataDir.Value, w.ChainParams().Name)
-	amgr := addrmgr.New(amgrDir, net.LookupIP) // TODO: be mindful of tor
+	amgr := addrmgr.New(amgrDir, cfg.lookup)
 	lp := p2p.NewLocalPeer(w.ChainParams(), addr, amgr)
 	syncer := spv.NewSyncer(w, lp)
 	if len(cfg.SPVConnect) > 0 {
@@ -443,9 +495,7 @@ func rpcSyncLoop(ctx context.Context, w *wallet.Wallet) {
 			DefaultPort: activeNet.JSONRPCClientPort,
 			User:        cfg.DcrdUsername,
 			Pass:        cfg.DcrdPassword,
-			Proxy:       cfg.Proxy,
-			ProxyUser:   cfg.ProxyUser,
-			ProxyPass:   cfg.ProxyPass,
+			Dial:        cfg.dial,
 			CA:          certs,
 			Insecure:    cfg.DisableClientTLS,
 		})

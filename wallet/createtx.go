@@ -7,10 +7,15 @@ package wallet
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/tls"
 	"encoding/binary"
+	"net"
 	"sync"
 	"time"
 
+	"decred.org/cspp"
+	"decred.org/cspp/coinjoin"
 	"github.com/decred/dcrd/blockchain/stake/v2"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -145,6 +150,7 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 				persist: w.deferPersistReturnedChild(ctx, &changeSourceUpdates),
 				account: account,
 				wallet:  w,
+				ctx:     context.Background(),
 			}
 		}
 
@@ -304,34 +310,26 @@ func (w *Wallet) checkHighFees(totalInput dcrutil.Amount, tx *wire.MsgTx) error 
 	return nil
 }
 
-// txToOutputs creates a transaction, selecting previous outputs from an account
-// with no less than minconf confirmations, and creates a signed transaction
-// that pays to each of the outputs.
-func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.TxOut, account uint32,
-	minconf int32, randomizeChangeIdx bool) (*txauthor.AuthoredTx, error) {
-
-	n, err := w.NetworkBackend()
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	return w.txToOutputsInternal(ctx, op, outputs, account, minconf, n,
-		randomizeChangeIdx, w.RelayFee())
-}
-
-// txToOutputsInternal creates a signed transaction which includes each output
+// txToOutputs creates a signed transaction which includes each output
 // from outputs.  Previous outputs to reedeem are chosen from the passed
 // account's UTXO set and minconf policy. An additional output may be added to
 // return change to the wallet.  An appropriate fee is included based on the
 // wallet's current relay fee.  The wallet must be unlocked to create the
-// transaction.  The address pool passed must be locked and engaged in an
-// address pool batch call.
+// transaction.
 //
 // Decred: This func also sends the transaction, and if successful, inserts it
 // into the database, rather than delegating this work to the caller as
 // btcwallet does.
-func (w *Wallet) txToOutputsInternal(ctx context.Context, op errors.Op, outputs []*wire.TxOut, account uint32, minconf int32,
+func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.TxOut, account, changeAccount uint32, minconf int32,
 	n NetworkBackend, randomizeChangeIdx bool, txFee dcrutil.Amount) (*txauthor.AuthoredTx, error) {
+
+	if n == nil {
+		var err error
+		n, err = w.NetworkBackend()
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+	}
 
 	var unlockOutpoints []*wire.OutPoint
 	defer func() {
@@ -364,7 +362,7 @@ func (w *Wallet) txToOutputsInternal(ctx context.Context, op errors.Op, outputs 
 			minconf, tipHeight, ignoreInput)
 		changeSource := &p2PKHChangeSource{
 			persist: w.deferPersistReturnedChild(ctx, &changeSourceUpdates),
-			account: account,
+			account: changeAccount,
 			wallet:  w,
 			ctx:     ctx,
 		}
@@ -455,9 +453,11 @@ func (w *Wallet) txToOutputsInternal(ctx context.Context, op errors.Op, outputs 
 	}
 
 	// Watch for future relevant transactions.
+	w.addressBuffersMu.Lock()
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		return w.watchFutureAddresses(ctx, dbtx)
 	})
+	w.addressBuffersMu.Unlock()
 	if err != nil {
 		log.Errorf("Failed to watch for future address usage after publishing "+
 			"transaction: %v", err)
@@ -717,7 +717,7 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 
 	// Check if output address is default, and generate a new address if needed
 	if changeAddr == nil {
-		changeAddr, err = w.newChangeAddress(ctx, op, w.persistReturnedChild(ctx, dbtx), account)
+		changeAddr, err = w.newChangeAddress(ctx, op, w.persistReturnedChild(ctx, dbtx), account, gapPolicyIgnore)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
@@ -933,6 +933,218 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *ext
 	return mtx, nil
 }
 
+var p2pkhSizedScript = make([]byte, 25)
+
+func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, neededPerTicket dcrutil.Amount) (tx *wire.MsgTx, outIndexes []int, err error) {
+	// Use txauthor to perform input selection and change amount
+	// calculations for the unmixed portions of the coinjoin.
+	mixOut := make([]*wire.TxOut, req.Count)
+	for i := 0; i < req.Count; i++ {
+		mixOut[i] = &wire.TxOut{Value: int64(neededPerTicket), Version: 0, PkScript: p2pkhSizedScript}
+	}
+	relayFee := req.txFee
+	if relayFee == 0 {
+		relayFee = w.RelayFee()
+	}
+	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
+	defer func() {
+		if err != nil {
+			return
+		}
+		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+			for _, f := range changeSourceUpdates {
+				if err := f(dbtx); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}()
+	var unlockOutpoints []*wire.OutPoint
+	defer func() {
+		if len(unlockOutpoints) != 0 {
+			w.lockedOutpointMu.Lock()
+			for _, op := range unlockOutpoints {
+				delete(w.lockedOutpoints, *op)
+			}
+			w.lockedOutpointMu.Unlock()
+		}
+	}()
+	ignoreInput := func(op *wire.OutPoint) bool {
+		_, ok := w.lockedOutpoints[*op]
+		return ok
+	}
+	var atx *txauthor.AuthoredTx
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		defer w.lockedOutpointMu.Unlock()
+		w.lockedOutpointMu.Lock()
+
+		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+		inputSource := w.TxStore.MakeIgnoredInputSource(txmgrNs, addrmgrNs, req.SourceAccount,
+			req.MinConf, tipHeight, ignoreInput)
+		changeSource := &p2PKHChangeSource{
+			persist:   w.deferPersistReturnedChild(ctx, &changeSourceUpdates),
+			account:   req.ChangeAccount,
+			wallet:    w,
+			ctx:       ctx,
+			gapPolicy: gapPolicyIgnore,
+		}
+		var err error
+		atx, err = txauthor.NewUnsignedTransaction(mixOut, relayFee,
+			randomInputSource(inputSource.SelectInputs), changeSource)
+		if err != nil {
+			return err
+		}
+		for _, in := range atx.Tx.TxIn {
+			w.lockedOutpoints[in.PreviousOutPoint] = struct{}{}
+			unlockOutpoints = append(unlockOutpoints, &in.PreviousOutPoint)
+		}
+		return nil
+	})
+	if err != nil {
+		return
+	}
+	for _, in := range atx.Tx.TxIn {
+		log.Infof("selected input %v (%v) for ticket purchase split transaction",
+			in.PreviousOutPoint, dcrutil.Amount(in.ValueIn))
+	}
+
+	var change *wire.TxOut
+	if atx.ChangeIndex >= 0 {
+		change = atx.Tx.TxOut[atx.ChangeIndex]
+	}
+	const (
+		txVersion = 1
+		locktime  = 0
+		expiry    = 0
+	)
+	pairing := coinjoin.EncodeDesc(coinjoin.P2PKHv0, int64(neededPerTicket), txVersion, locktime, expiry)
+	cj := w.newCsppJoin(ctx, change, neededPerTicket, req.MixedSplitAccount, req.MixedAccountBranch, req.Count)
+	for i, in := range atx.Tx.TxIn {
+		cj.addTxIn(atx.PrevScripts[i], in)
+	}
+
+	csppSession, err := cspp.NewSession(rand.Reader, infoLog, pairing, req.Count)
+	if err != nil {
+		return
+	}
+	var conn net.Conn
+	if req.DialCSPPServer != nil {
+		conn, err = req.DialCSPPServer(ctx, "tcp", req.CSPPServer)
+	} else {
+		conn, err = tls.Dial("tcp", req.CSPPServer, nil)
+	}
+	if err != nil {
+		return
+	}
+	log.Infof("Dialed CSPPServer %v -> %v", conn.LocalAddr(), conn.RemoteAddr())
+	err = csppSession.DiceMix(ctx, conn, cj)
+	if err != nil {
+		return
+	}
+	splitTx := cj.tx
+	splitTxHash := splitTx.TxHash()
+	log.Infof("Completed CoinShuffle++ mix of ticket split transaction %v", &splitTxHash)
+	return splitTx, cj.mixOutputIndexes(), nil
+}
+
+func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsRequest, neededPerTicket dcrutil.Amount) (tx *wire.MsgTx, outIndexes []int, err error) {
+	// Fetch the single use split address to break tickets into, to
+	// immediately be consumed as tickets.
+	//
+	// This opens a write transaction.
+	splitTxAddr, err := w.NewInternalAddress(ctx, req.SourceAccount, WithGapPolicyWrap())
+	if err != nil {
+		return
+	}
+
+	splitPkScript, vers, err := addressScript(splitTxAddr)
+	if err != nil {
+		err = errors.E(errors.Bug, errors.Errorf("split address %v", splitTxAddr))
+		return
+	}
+
+	// Create the split transaction by using txToOutputs. This varies
+	// based upon whether or not the user is using a stake pool or not.
+	// For the default stake pool implementation, the user pays out the
+	// first ticket commitment of a smaller amount to the pool, while
+	// paying themselves with the larger ticket commitment.
+	var splitOuts []*wire.TxOut
+	for i := 0; i < req.Count; i++ {
+		splitOuts = append(splitOuts, &wire.TxOut{
+			Value:    int64(neededPerTicket),
+			PkScript: splitPkScript,
+			Version:  vers,
+		})
+		outIndexes = append(outIndexes, i)
+	}
+
+	txFeeIncrement := req.txFee
+	if txFeeIncrement == 0 {
+		txFeeIncrement = w.RelayFee()
+	}
+	splitTx, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
+		nil, false, txFeeIncrement)
+	if err != nil {
+		return
+	}
+	tx = splitTx.Tx
+	return
+}
+
+func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, neededPerTicket, vspFee dcrutil.Amount) (tx *wire.MsgTx, outIndexes []int, err error) {
+	// Fetch the single use split address to break tickets into, to
+	// immediately be consumed as tickets.
+	//
+	// This opens a write transaction.
+	splitTxAddr, err := w.NewInternalAddress(ctx, req.SourceAccount, WithGapPolicyWrap())
+	if err != nil {
+		return
+	}
+
+	splitPkScript, vers, err := addressScript(splitTxAddr)
+	if err != nil {
+		err = errors.E(errors.Bug, errors.Errorf("split address %v", splitTxAddr))
+		return
+	}
+
+	// Create the split transaction by using txToOutputs. This varies
+	// based upon whether or not the user is using a stake pool or not.
+	// For the default stake pool implementation, the user pays out the
+	// first ticket commitment of a smaller amount to the pool, while
+	// paying themselves with the larger ticket commitment.
+	var splitOuts []*wire.TxOut
+	for i := 0; i < req.Count; i++ {
+		userAmt := neededPerTicket - vspFee
+		splitOuts = append(splitOuts, &wire.TxOut{
+			Value:    int64(vspFee),
+			PkScript: splitPkScript,
+			Version:  vers,
+		})
+		splitOuts = append(splitOuts, &wire.TxOut{
+			Value:    int64(userAmt),
+			PkScript: splitPkScript,
+			Version:  vers,
+		})
+		outIndexes = append(outIndexes, i*2)
+	}
+
+	txFeeIncrement := req.txFee
+	if txFeeIncrement == 0 {
+		txFeeIncrement = w.RelayFee()
+	}
+	splitTx, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
+		nil, false, txFeeIncrement)
+	if err != nil {
+		return
+	}
+	tx = splitTx.Tx
+	return
+}
+
 // purchaseTickets indicates to the wallet that a ticket should be purchased
 // using all currently available funds.  The ticket address parameter in the
 // request can be nil in which case the ticket address associated with the
@@ -964,15 +1176,17 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 		return nil, errors.E(op, errors.Invalid, "expiry height must be above next block height")
 	}
 
-	// addrFunc returns a change address.
-	addrFunc := w.newChangeAddress
-	if w.addressReuse {
+	addrFunc := func(op errors.Op, maybeDBTX walletdb.ReadWriteTx, account, branch uint32) (dcrutil.Address, error) {
+		return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, maybeDBTX), account, branch, WithGapPolicyIgnore())
+	}
+
+	if w.addressReuse && req.CSPPServer == "" {
 		xpub := w.addressBuffers[udb.DefaultAccountNum].albExternal.branchXpub
 		addr, err := deriveChildAddress(xpub, 0, w.chainParams)
 		if err != nil {
 			err = errors.E(op, err)
 		}
-		addrFunc = func(context.Context, errors.Op, persistReturnedChildFunc, uint32) (dcrutil.Address, error) {
+		addrFunc = func(errors.Op, walletdb.ReadWriteTx, uint32, uint32) (dcrutil.Address, error) {
 			return addr, err
 		}
 	}
@@ -1086,9 +1300,9 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 
 	// If we need to calculate the amount for a pool fee percentage,
 	// do so now.
-	var poolFeeAmt dcrutil.Amount
+	var vspFee dcrutil.Amount
 	if poolAddress != nil {
-		poolFeeAmt = txrules.StakePoolTicketFee(ticketPrice, ticketFee,
+		vspFee = txrules.StakePoolTicketFee(ticketPrice, ticketFee,
 			tipHeight, poolFees, w.ChainParams())
 	}
 
@@ -1110,73 +1324,15 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 		}
 	}
 
-	// Fetch the single use split address to break tickets into, to
-	// immediately be consumed as tickets.
-	//
-	// This opens a write transaction.
-	splitTxAddr, err := w.NewInternalAddress(ctx, req.SourceAccount, WithGapPolicyWrap())
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: Don't reuse addresses
-	splitPkScript, vers, err := addressScript(splitTxAddr)
-	if err != nil {
-		return nil, errors.E(op, errors.Bug, errors.Errorf("split address %v", splitTxAddr))
-	}
-
-	// Create the split transaction by using txToOutputs. This varies
-	// based upon whether or not the user is using a stake pool or not.
-	// For the default stake pool implementation, the user pays out the
-	// first ticket commitment of a smaller amount to the pool, while
-	// paying themselves with the larger ticket commitment.
-	var splitOuts []*wire.TxOut
-	for i := 0; i < req.Count; i++ {
-		// No pool used.
-		if poolAddress == nil {
-			splitOuts = append(splitOuts, &wire.TxOut{
-				Value:    int64(neededPerTicket),
-				PkScript: splitPkScript,
-				Version:  vers,
-			})
-		} else {
-			// Stake pool used.
-			userAmt := neededPerTicket - poolFeeAmt
-			poolAmt := poolFeeAmt
-
-			// Pool amount.
-			splitOuts = append(splitOuts, &wire.TxOut{
-				Value:    int64(poolAmt),
-				PkScript: splitPkScript,
-				Version:  vers,
-			})
-
-			// User amount.
-			splitOuts = append(splitOuts, &wire.TxOut{
-				Value:    int64(userAmt),
-				PkScript: splitPkScript,
-				Version:  vers,
-			})
-		}
-	}
-
-	txFeeIncrement := req.txFee
-	if txFeeIncrement == 0 {
-		txFeeIncrement = w.RelayFee()
-	}
-	splitTx, err := w.txToOutputsInternal(ctx, op, splitOuts, account, req.MinConf,
-		n, false, txFeeIncrement)
-	if err != nil {
-		return nil, err
-	}
-
 	// After tickets are created and published, watch for future
 	// relevant transactions
 	var watchOutPoints []wire.OutPoint
 	defer func() {
+		w.addressBuffersMu.Lock()
 		err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 			return w.watchFutureAddresses(ctx, tx)
 		})
+		w.addressBuffersMu.Unlock()
 		if err != nil {
 			log.Errorf("Failed to watch for future addresses after ticket "+
 				"purchases: %v", err)
@@ -1189,49 +1345,76 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 		}
 	}()
 
-	// Generate the tickets individually.
+	var splitTx *wire.MsgTx
+	var splitOutputIndexes []int
+	switch {
+	case req.CSPPServer != "":
+		splitTx, splitOutputIndexes, err = w.mixedSplit(ctx, req, neededPerTicket)
+	case req.poolAddress != nil:
+		splitTx, splitOutputIndexes, err = w.vspSplit(ctx, req, neededPerTicket, vspFee)
+	default:
+		splitTx, splitOutputIndexes, err = w.individualSplit(ctx, req, neededPerTicket)
+	}
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	// Process and publish split tx.
+	rec, err := udb.NewTxRecordFromMsgTx(splitTx, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		watch, err := w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
+		watchOutPoints = append(watchOutPoints, watch...)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	w.recentlyPublishedMu.Lock()
+	w.recentlyPublished[rec.Hash] = struct{}{}
+	w.recentlyPublishedMu.Unlock()
+	err = n.PublishTransactions(ctx, splitTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create each ticket
 	ticketHashes := make([]*chainhash.Hash, 0, req.Count)
-	for i := 0; i < req.Count; i++ {
+	outpoint := wire.OutPoint{Hash: splitTx.TxHash()}
+	for _, index := range splitOutputIndexes {
 		// Generate the extended outpoints that we need to use for ticket
 		// inputs. There are two inputs for pool tickets corresponding to the
 		// fees and the user subsidy, while user-handled tickets have only one
 		// input.
 		var eopPool, eop *extendedOutPoint
 		if poolAddress == nil {
-			txOut := splitTx.Tx.TxOut[i]
-
+			op := outpoint
+			op.Index = uint32(index)
+			log.Infof("Split output is %v", &op)
+			txOut := splitTx.TxOut[index]
 			eop = &extendedOutPoint{
-				op: &wire.OutPoint{
-					Hash:  splitTx.Tx.TxHash(),
-					Index: uint32(i),
-					Tree:  wire.TxTreeRegular,
-				},
+				op:       &op,
 				amt:      txOut.Value,
 				pkScript: txOut.PkScript,
 			}
 		} else {
-			poolIdx := i * 2
-			poolTxOut := splitTx.Tx.TxOut[poolIdx]
-			userIdx := i*2 + 1
-			txOut := splitTx.Tx.TxOut[userIdx]
-
+			vspOutPoint := outpoint
+			vspOutPoint.Index = uint32(index)
+			vspOutput := splitTx.TxOut[vspOutPoint.Index]
 			eopPool = &extendedOutPoint{
-				op: &wire.OutPoint{
-					Hash:  splitTx.Tx.TxHash(),
-					Index: uint32(poolIdx),
-					Tree:  wire.TxTreeRegular,
-				},
-				amt:      poolTxOut.Value,
-				pkScript: poolTxOut.PkScript,
+				op:       &vspOutPoint,
+				amt:      vspOutput.Value,
+				pkScript: vspOutput.PkScript,
 			}
+			myOutPoint := outpoint
+			myOutPoint.Index = uint32(index + 1)
+			myOutput := splitTx.TxOut[myOutPoint.Index]
 			eop = &extendedOutPoint{
-				op: &wire.OutPoint{
-					Hash:  splitTx.Tx.TxHash(),
-					Index: uint32(userIdx),
-					Tree:  wire.TxTreeRegular,
-				},
-				amt:      txOut.Value,
-				pkScript: txOut.PkScript,
+				op:       &myOutPoint,
+				amt:      myOutput.Value,
+				pkScript: myOutput.PkScript,
 			}
 		}
 
@@ -1244,17 +1427,23 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 		var addrVote, addrSubsidy dcrutil.Address
 		err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			addrVote = req.VotingAddress
-			if addrVote == nil {
+			if addrVote == nil && req.CSPPServer == "" {
 				addrVote = w.ticketAddress
-				if addrVote == nil {
-					addrVote, err = addrFunc(ctx, op, w.persistReturnedChild(ctx, dbtx), req.SourceAccount)
-					if err != nil {
-						return err
-					}
+			}
+			if addrVote == nil {
+				addrVote, err = addrFunc(op, dbtx, req.VotingAccount, 1)
+				if err != nil {
+					return err
 				}
 			}
 
-			addrSubsidy, err = addrFunc(ctx, op, w.persistReturnedChild(ctx, dbtx), req.SourceAccount)
+			var subsidyAccount = req.SourceAccount
+			var branch uint32 = 1
+			if req.CSPPServer != "" {
+				subsidyAccount = req.MixedAccount
+				branch = req.MixedAccountBranch
+			}
+			addrSubsidy, err = addrFunc(op, dbtx, subsidyAccount, branch)
 			return err
 		})
 		if err != nil {
@@ -1322,6 +1511,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 		if err != nil {
 			return ticketHashes, errors.E(op, err)
 		}
+
+		w.recentlyPublishedMu.Lock()
+		w.recentlyPublished[rec.Hash] = struct{}{}
+		w.recentlyPublishedMu.Unlock()
+
 		// TODO: Send all tickets, and all split transactions, together.  Purge
 		// transactions from DB if tickets cannot be sent.
 		err = n.PublishTransactions(ctx, ticket)

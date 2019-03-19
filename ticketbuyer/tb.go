@@ -1,4 +1,4 @@
-// Copyright (c) 2018 The Decred developers
+// Copyright (c) 2018-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -6,10 +6,12 @@ package ticketbuyer
 
 import (
 	"context"
+	"net"
+	"runtime/trace"
 	"sync"
 
-	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3"
 )
@@ -18,6 +20,8 @@ const minconf = 1
 
 // Config modifies the behavior of TB.
 type Config struct {
+	BuyTickets bool
+
 	// Account to buy tickets from
 	Account uint32
 
@@ -38,6 +42,15 @@ type Config struct {
 
 	// Limit maximum number of purchased tickets per block
 	Limit int
+
+	// CSPP-related options
+	CSPPServer         string
+	DialCSPPServer     func(ctx context.Context, network, addr string) (net.Conn, error)
+	MixedAccount       uint32
+	MixedAccountBranch uint32
+	TicketSplitAccount uint32
+	ChangeAccount      uint32
+	MixChange          bool
 }
 
 // TB is an automated ticket buyer, buying as many tickets as possible given an
@@ -67,48 +80,111 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 	c := tb.wallet.NtfnServer.MainTipChangedNotifications()
 	defer c.Done()
 
-	var mu sync.Mutex
-	var done bool
-	var errc = make(chan error, 1)
+	ctx, outerCancel := context.WithCancel(ctx)
+	var fatal error
+	var fatalMu sync.Mutex
+
+	var nextIntervalStart, expiry int32
+	var cancels []func()
 	for {
 		select {
 		case <-ctx.Done():
-			mu.Lock()
-			done = true
-			mu.Unlock()
+			fatalMu.Lock()
+			err := fatal
+			fatalMu.Unlock()
+			if err != nil {
+				return err
+			}
 			return ctx.Err()
 		case n := <-c.C:
 			if len(n.AttachedBlocks) == 0 {
 				continue
 			}
-			go func() {
-				defer mu.Unlock()
-				mu.Lock()
-				if done {
-					return
+
+			tip := n.AttachedBlocks[len(n.AttachedBlocks)-1]
+			w := tb.wallet
+			tipHeader, err := w.BlockHeader(ctx, tip)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			height := int32(tipHeader.Height)
+
+			// Cancel any ongoing ticket purchases which are buying
+			// at an old ticket price or are no longer able to
+			// create mined tickets the window.
+			if height+2 >= nextIntervalStart {
+				for i, cancel := range cancels {
+					cancel()
+					cancels[i] = nil
 				}
-				b := n.AttachedBlocks[len(n.AttachedBlocks)-1]
-				err := tb.buy(ctx, passphrase, b)
+				cancels = cancels[:0]
+
+				intervalSize := int32(w.ChainParams().StakeDiffWindowSize)
+				currentInterval := height / intervalSize
+				nextIntervalStart = (currentInterval + 1) * intervalSize
+
+				// Skip this purchase when no more tickets may be purchased in the interval and
+				// the next sdiff is unknown.  The earliest any ticket may be mined is two
+				// blocks from now, with the next block containing the split transaction
+				// that the ticket purchase spends.
+				if height+2 == nextIntervalStart {
+					log.Debugf("Skipping purchase: next sdiff interval starts soon")
+					continue
+				}
+				// Set expiry to prevent tickets from being mined in the next
+				// sdiff interval.  When the next block begins the new interval,
+				// the ticket is being purchased for the next interval; therefore
+				// increment expiry by a full sdiff window size to prevent it
+				// being mined in the interval after the next.
+				expiry = nextIntervalStart
+				if height+1 == nextIntervalStart {
+					expiry += intervalSize
+				}
+			}
+
+			cancelCtx, cancel := context.WithCancel(ctx)
+			cancels = append(cancels, cancel)
+			go func() {
+				err := tb.buy(cancelCtx, passphrase, tipHeader, expiry)
 				if err != nil {
 					switch {
 					// silence these errors
 					case errors.Is(err, errors.InsufficientBalance):
+					case errors.Is(err, context.Canceled):
+					case errors.Is(err, context.DeadlineExceeded):
 					default:
 						log.Errorf("Ticket purchasing failed: %v", err)
 					}
 					if errors.Is(err, errors.Passphrase) {
-						errc <- err
-						done = true
+						fatalMu.Lock()
+						fatal = err
+						fatalMu.Unlock()
+						outerCancel()
 					}
 				}
 			}()
-		case err := <-errc:
-			return err
+			go func() {
+				err := tb.mixChange(ctx)
+				if err != nil {
+					log.Error(err)
+				}
+			}()
 		}
 	}
 }
 
-func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) error {
+func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader, expiry int32) error {
+	ctx, task := trace.NewTask(ctx, "ticketbuyer.buy")
+	defer task.End()
+
+	tb.mu.Lock()
+	buyTickets := tb.cfg.BuyTickets
+	tb.mu.Unlock()
+	if !buyTickets {
+		return nil
+	}
+
 	w := tb.wallet
 
 	// Don't buy tickets for this attached block when transactions are not
@@ -123,7 +199,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 	}
 
 	// Unable to publish any transactions if the network backend is unset.
-	_, err = w.NetworkBackend()
+	n, err := w.NetworkBackend()
 	if err != nil {
 		return err
 	}
@@ -136,42 +212,21 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 		return err
 	}
 
-	header, err := w.BlockHeader(ctx, tip)
-	if err != nil {
-		return err
-	}
-	height := int32(header.Height)
-
-	intervalSize := int32(w.ChainParams().StakeDiffWindowSize)
-	currentInterval := height / intervalSize
-	nextIntervalStart := (currentInterval + 1) * intervalSize
-	// Skip purchase when no more tickets may be purchased in this interval and
-	// the next sdiff is unknown.  The earliest any ticket may be mined is two
-	// blocks from now, with the next block containing the split transaction
-	// that the ticket purchase spends.
-	if height+2 == nextIntervalStart {
-		log.Debugf("Skipping purchase: next sdiff interval starts soon")
-		return nil
-	}
-	// Set expiry to prevent tickets from being mined in the next
-	// sdiff interval.  When the next block begins the new interval,
-	// the ticket is being purchased for the next interval; therefore
-	// increment expiry by a full sdiff window size to prevent it
-	// being mined in the interval after the next.
-	expiry := nextIntervalStart
-	if height+1 == nextIntervalStart {
-		expiry += intervalSize
-	}
-
 	// Read config
 	tb.mu.Lock()
 	account := tb.cfg.Account
-	votingAccount := tb.cfg.VotingAccount
 	maintain := tb.cfg.Maintain
 	votingAddr := tb.cfg.VotingAddr
 	poolFeeAddr := tb.cfg.PoolFeeAddr
 	poolFees := tb.cfg.PoolFees
 	limit := tb.cfg.Limit
+	csppServer := tb.cfg.CSPPServer
+	dialCSPPServer := tb.cfg.DialCSPPServer
+	votingAccount := tb.cfg.VotingAccount
+	mixedAccount := tb.cfg.MixedAccount
+	mixedBranch := tb.cfg.MixedAccountBranch
+	splitAccount := tb.cfg.TicketSplitAccount
+	changeAccount := tb.cfg.ChangeAccount
 	tb.mu.Unlock()
 
 	// Determine how many tickets to buy
@@ -185,7 +240,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 		return nil
 	}
 	spendable -= maintain
-	sdiff, err := w.NextStakeDifficultyAfterHeader(ctx, header)
+	sdiff, err := w.NextStakeDifficultyAfterHeader(ctx, tip)
 	if err != nil {
 		return err
 	}
@@ -201,21 +256,31 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 		buy = limit
 	}
 
-	// Derive a voting address from voting account when address is unset.
-	if votingAddr == nil {
-		votingAddr, err = w.NewInternalAddress(ctx, votingAccount, wallet.WithGapPolicyWrap())
-		if err != nil {
-			return err
-		}
+	if poolFeeAddr != nil {
+		_ = poolFees
+		log.Errorf("Stakepool ticket buying is not yet implemented on this branch")
+		return nil
 	}
+	tix, err := w.PurchaseTicketsContext(ctx, n, &wallet.PurchaseTicketsRequest{
+		Count:         buy,
+		SourceAccount: account,
+		VotingAddress: votingAddr,
+		MinConf:       minconf,
+		Expiry:        expiry,
 
-	feeRate := w.RelayFee()
-	tix, err := w.PurchaseTickets(ctx, maintain, -1, minconf, votingAddr, account,
-		buy, poolFeeAddr, poolFees, expiry, feeRate, feeRate)
+		// CSPP
+		CSPPServer:         csppServer,
+		DialCSPPServer:     dialCSPPServer,
+		VotingAccount:      votingAccount,
+		MixedAccount:       mixedAccount,
+		MixedAccountBranch: mixedBranch,
+		MixedSplitAccount:  splitAccount,
+		ChangeAccount:      changeAccount,
+	})
 	for _, hash := range tix {
 		log.Infof("Purchased ticket %v at stake difficulty %v", hash, sdiff)
 	}
-	if err != nil {
+	if err != nil && !errors.Is(errors.InsufficientBalance, err) {
 		// Invalid passphrase errors must be returned so Run exits.
 		if errors.Is(err, errors.Passphrase) {
 			return err
@@ -233,4 +298,25 @@ func (tb *TB) AccessConfig(f func(cfg *Config)) {
 	tb.mu.Lock()
 	f(&tb.cfg)
 	tb.mu.Unlock()
+}
+
+func (tb *TB) mixChange(ctx context.Context) error {
+	// Read config
+	tb.mu.Lock()
+	dial := tb.cfg.DialCSPPServer
+	csppServer := tb.cfg.CSPPServer
+	mixedAccount := tb.cfg.MixedAccount
+	mixedBranch := tb.cfg.MixedAccountBranch
+	changeAccount := tb.cfg.ChangeAccount
+	mixChange := tb.cfg.MixChange
+	tb.mu.Unlock()
+
+	if !mixChange {
+		return nil
+	}
+
+	ctx, task := trace.NewTask(ctx, "ticketbuyer.mixChange")
+	defer task.End()
+
+	return tb.wallet.MixAccount(ctx, dial, csppServer, changeAccount, mixedAccount, mixedBranch)
 }

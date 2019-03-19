@@ -19,7 +19,6 @@ import (
 	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/wallet/v3"
-	"github.com/decred/go-socks/socks"
 	"github.com/jrick/wsrpc/v2"
 	"golang.org/x/sync/errgroup"
 )
@@ -54,9 +53,7 @@ type RPCOptions struct {
 	DefaultPort string
 	User        string
 	Pass        string
-	Proxy       string
-	ProxyUser   string
-	ProxyPass   string
+	Dial        func(ctx context.Context, network, address string) (net.Conn, error)
 	CA          []byte
 	Insecure    bool
 }
@@ -227,13 +224,8 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	opts := make([]wsrpc.Option, 0, 4)
 	opts = append(opts, wsrpc.WithBasicAuth(s.opts.User, s.opts.Pass))
 	opts = append(opts, wsrpc.WithNotifier(s.notifier))
-	if s.opts.Proxy != "" {
-		proxy := &socks.Proxy{
-			Addr:     s.opts.Proxy,
-			Username: s.opts.ProxyUser,
-			Password: s.opts.ProxyPass,
-		}
-		opts = append(opts, wsrpc.WithDial(proxy.DialContext))
+	if s.opts.Dial != nil {
+		opts = append(opts, wsrpc.WithDial(s.opts.Dial))
 	}
 	if len(s.opts.CA) != 0 && !s.opts.Insecure {
 		pool := x509.NewCertPool()
