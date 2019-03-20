@@ -2855,10 +2855,11 @@ type InputSource struct {
 
 // SelectInputs selects transaction inputs to redeem unspent outputs stored in
 // the database.  It may be called multiple times with increasing target amounts
-// to return additional inputs for a higher target amount.  It returns the total
-// input amount referenced by the previous transaction outputs, a slice of
-// transaction inputs referencing these outputs, and a slice of previous output
-// scripts from each previous output referenced by the corresponding input.
+// to return additional inputs for a higher target amount.  It returns an
+// inputDetail instance consisting of the total input amount referenced by the
+// previous transaction outputs, a slice of transaction inputs referencing
+// these outputs, and a slice of previous output scripts from each previous
+// output referenced by the corresponding input.
 func (s *InputSource) SelectInputs(target dcrutil.Amount) (*txauthor.InputDetail, error) {
 	return s.source(target)
 }

@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 5.8.x
+Version: 5.9.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](http://www.grpc.io/docs/guides/concepts.html)
@@ -578,6 +578,7 @@ The service provides the following methods:
 - [`CommittedTickets`](#committedtickets)
 - [`BestBlock`](#bestblock)
 - [`SweepAccount`](#sweepaccount)
+- [`CleanOutAccount`](#cleanoutaccount)
 
 #### `Ping`
 
@@ -1982,13 +1983,43 @@ an account per the request parameters.
 - `double fee_per_kb`: The minimum relay fee policy (optional).
 
 **Response:** `SweepAccountResponse`
-- `bytes unsigned_transaction`: The unsigned transaction bytes.
+  - `bytes unsigned_transaction`: The unsigned transaction bytes.
 
-- `int64 total_previous_output_amount`: The total transaction input amount.
+  - `int64 total_previous_output_amount`: The total transaction input amount.
 
-- `int64 total_output_amount`: The total transaction output amount.
+  - `int64 total_output_amount`: The total transaction output amount.
 
-- `uint32 estimated_signed_size`: The estimated size of the transaction when signed.
+  - `uint32 estimated_signed_size`: The estimated size of the transaction when signed.
+___
+
+___
+
+#### `CleanOutAccount`
+
+The `CleanOutAccount` method moves as much value as possible using a batch of 
+transactions for the provided account.
+
+**Request:** `CleanOutAccountRequest`
+- `string source_account`:  The account to be cleaned out.
+
+- `string destination_address`: The destination address to pay to.
+
+- `uint32 required_confirmations`: The minimum utxo confirmation requirement.
+
+- `double fee_per_kb`: The minimum relay fee policy (optional).
+
+**Response:** `CleanOutAccountResponse`
+- `repeated CleanOutAccountTransaction transactions`: A collection of transactions cleaning out the provided account.
+
+  **Nested message:** `CleanOutAccountTransaction`
+
+  - `bytes unsigned_transaction`: The unsigned transaction bytes.
+
+  - `int64 total_previous_output_amount`: The total transaction input amount.
+
+  - `int64 total_output_amount`: The total transaction output amount.
+
+  - `uint32 estimated_signed_size`: The estimated size of the transaction when signed.
 ___
 
 #### `TransactionNotifications`
