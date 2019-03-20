@@ -193,7 +193,7 @@ func (w *Wallet) ChainSwitch(forest *SidechainForest, chain []*BlockNode, releva
 	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		return w.watchFutureAddresses(tx)
 	})
-	if err != nil {
+	if err != nil && !errors.Is(errors.NoPeers, err) {
 		return nil, err
 	}
 
