@@ -33,7 +33,7 @@ require (
 	github.com/gorilla/websocket v1.4.0
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/jrick/logrotate v1.0.0
-	golang.org/x/crypto v0.0.0-20190211182817-74369b46fc67
+	golang.org/x/crypto v0.0.0-20190320223903-b7391e95e576
 	google.golang.org/grpc v1.18.0
 )
 
