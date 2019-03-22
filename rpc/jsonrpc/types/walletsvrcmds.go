@@ -8,7 +8,7 @@
 
 package types
 
-import "github.com/decred/dcrd/dcrjson/v2"
+import dcrjson "github.com/decred/dcrd/dcrjson/v2"
 
 // AccountAddressIndexCmd is a type handling custom marshaling and
 // unmarshaling of accountaddressindex JSON wallet extension
@@ -277,6 +277,15 @@ func NewGetBalanceCmd(account *string, minConf *int) *GetBalanceCmd {
 		Account: account,
 		MinConf: minConf,
 	}
+}
+
+// GetCoinTypeCmd defines the getcointype JSON-RPC command.
+type GetCoinTypeCmd struct{}
+
+// NewGetCoinTypeCmd returns a new instance which can be used to issue
+// a getunconfirmedbalance JSON-RPC command.
+func NewGetCoinTypeCmd() *GetCoinTypeCmd {
+	return &GetCoinTypeCmd{}
 }
 
 // GetContractHashCmd defines the getcontracthash JSON-RPC command.
@@ -1141,6 +1150,7 @@ func init() {
 	dcrjson.MustRegisterCmd("getaccountaddress", (*GetAccountAddressCmd)(nil), flags)
 	dcrjson.MustRegisterCmd("getaddressesbyaccount", (*GetAddressesByAccountCmd)(nil), flags)
 	dcrjson.MustRegisterCmd("getbalance", (*GetBalanceCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getcointype", (*GetCoinTypeCmd)(nil), flags)
 	dcrjson.MustRegisterCmd("getcontracthash", (*GetContractHashCmd)(nil), flags)
 	dcrjson.MustRegisterCmd("getmasterpubkey", (*GetMasterPubkeyCmd)(nil), flags)
 	dcrjson.MustRegisterCmd("getmultisigoutinfo", (*GetMultisigOutInfoCmd)(nil), flags)

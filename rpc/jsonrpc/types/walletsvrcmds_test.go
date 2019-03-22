@@ -5,14 +5,14 @@
 
 package types
 
-import "github.com/decred/dcrd/dcrjson/v2"
-
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
+
+	dcrjson "github.com/decred/dcrd/dcrjson/v2"
 )
 
 // TestWalletSvrCmds tests all of the wallet server commands marshal and
@@ -196,6 +196,17 @@ func TestWalletSvrCmds(t *testing.T) {
 				Account: dcrjson.String("acct"),
 				MinConf: dcrjson.Int(6),
 			},
+		},
+		{
+			name: "getcointype",
+			newCmd: func() (interface{}, error) {
+				return dcrjson.NewCmd("getcointype")
+			},
+			staticCmd: func() interface{} {
+				return NewGetCoinTypeCmd()
+			},
+			marshalled:   `{"jsonrpc":"1.0","method":"getcointype","params":[],"id":1}`,
+			unmarshalled: &GetCoinTypeCmd{},
 		},
 		{
 			name: "getnewaddress",

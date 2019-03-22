@@ -5,7 +5,7 @@
 
 package types
 
-import "github.com/decred/dcrd/dcrjson/v2"
+import dcrjson "github.com/decred/dcrd/dcrjson/v2"
 
 // NOTE: This file is intended to house the RPC commands that are supported by
 // a wallet server, but are only available via websockets.

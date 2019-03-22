@@ -41,6 +41,11 @@ type GetBalanceResult struct {
 	TotalVotingAuthority         float64                   `json:"totalvotingauthority,omitempty"`
 }
 
+// GetCoinTypeResult models the data from the getcointype command.
+type GetCoinTypeResult struct {
+	CoinType int32 `json:"cointype"`
+}
+
 // GetContractHashResult models the data from the getcontracthash command.
 type GetContractHashResult struct {
 	ContractHash string `json:"contracthash"`
