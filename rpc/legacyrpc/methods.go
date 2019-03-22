@@ -76,6 +76,7 @@ var handlers = map[string]handler{
 	"getbalance":              {fn: getBalance},
 	"getbestblockhash":        {fn: getBestBlockHash},
 	"getblockcount":           {fn: getBlockCount},
+	"getcointype":             {fn: getCoinType},
 	"getinfo":                 {fn: getInfo},
 	"getmasterpubkey":         {fn: getMasterPubkey},
 	"getmultisigoutinfo":      {fn: getMultisigOutInfo},
@@ -761,6 +762,16 @@ func getBlockCount(s *Server, icmd interface{}) (interface{}, error) {
 
 	_, height := w.MainChainTip()
 	return height, nil
+}
+
+func getCoinType(s *Server, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	return w.CoinType()
+
 }
 
 // difficultyRatio returns the proof-of-work difficulty as a multiple of the
