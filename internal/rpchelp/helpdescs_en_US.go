@@ -100,6 +100,9 @@ var helpDescsEnUS = map[string]string{
 	"getbestblockhash--synopsis": "Returns the hash of the newest block in the best chain that wallet has finished syncing with.",
 	"getbestblockhash--result0":  "The hash of the most recent synced-to block",
 
+	"getcointype--synopsis": "Returns the coin type of the wallet.",
+	"getcointype--result0":  "The coin type of the wallet",
+
 	// GetBlockCountCmd help.
 	"getblockcount--synopsis": "Returns the blockchain height of the newest block in the best chain that wallet has finished syncing with.",
 	"getblockcount--result0":  "The blockchain height of the most recent synced-to block",

@@ -8,7 +8,7 @@
 package rpchelp
 
 import (
-	"github.com/decred/dcrd/dcrjson/v2"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
 )
 
@@ -44,6 +44,7 @@ var Methods = []struct {
 	{"getbestblockhash", returnsString},
 	{"getbestblock", []interface{}{(*dcrjson.GetBestBlockResult)(nil)}},
 	{"getblockcount", returnsNumber},
+	{"getcointype", []interface{}{(*types.GetCoinTypeResult)(nil)}},
 	{"getinfo", []interface{}{(*types.InfoWalletResult)(nil)}},
 	{"getmasterpubkey", []interface{}{(*string)(nil)}},
 	{"getmultisigoutinfo", []interface{}{(*types.GetMultisigOutInfoResult)(nil)}},
