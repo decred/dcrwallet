@@ -69,8 +69,12 @@ A `sh` shell script is included to compile the Protocol Buffers descriptor.  It
 must be run from the `rpc` directory.
 
 ```bash
-$ sh regen.sh
+$ sh regen-docker.sh
 ```
+
+This runs `protoc` inside a `docker` container, which is optimal when the dependencies of 
+the `protoc3` toolchain are not installed locally. (`./regen.sh` runs 
+`protoc` directly, for when they are.)
 
 If a `sh` shell is unavailable, the command can be run manually instead (again
 from the `rpc` directory).
