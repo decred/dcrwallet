@@ -8,166 +8,222 @@
 package udb
 
 import (
-	"fmt"
+	"testing"
+	"time"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrwallet/wallet/v2/walletdb"
 )
 
-var (
-	// Spends: bogus
-	// Outputs: 10 Coin
-	exampleTxRecordA *TxRecord
-
-	// Spends: A:0
-	// Outputs: 5 Coin, 5 Coin
-	exampleTxRecordB *TxRecord
-)
-
-func init() {
-	tx := spendOutput(&chainhash.Hash{}, 0, 0, 10e8)
-	rec, err := NewTxRecordFromMsgTx(tx, timeNow())
-	if err != nil {
-		panic(err)
-	}
-	exampleTxRecordA = rec
-
-	tx = spendOutput(&exampleTxRecordA.Hash, 0, 0, 5e8, 5e8)
-	rec, err = NewTxRecordFromMsgTx(tx, timeNow())
-	if err != nil {
-		panic(err)
-	}
-	exampleTxRecordB = rec
-}
-
-var exampleBlock100 = makeBlockMeta(100)
-
-func ExampleStore_Rollback() {
-	s, teardown, err := testStore()
+func ExampleStore_Rollback(t *testing.T) {
+	t.Parallel()
+	db, s, teardown, err := setup("store_rollback")
 	defer teardown()
 	if err != nil {
-		fmt.Println(err)
-		return
+		t.Fatal(err)
 	}
 
-	// Insert a transaction which outputs 10 Coin in a block at height 100.
-	err = s.InsertTx(exampleTxRecordA, &exampleBlock100)
+	cb := newCoinBase(30e8)
+	cbRec, err := NewTxRecordFromMsgTx(cb, time.Time{})
 	if err != nil {
-		fmt.Println(err)
-		return
+		t.Fatal(err)
 	}
 
-	// Rollback everything from block 100 onwards.
-	err = s.Rollback(100)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// Assert that the transaction is now unmined.
-	details, err := s.TxDetails(&exampleTxRecordA.Hash)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	if details == nil {
-		fmt.Println("No details found")
-		return
-	}
-	fmt.Println(details.Block.Height)
-
-	// Output:
-	// -1
-}
-
-func Example_basicUsage() {
-	// Open the database.
-	db, dbTeardown, err := testDB()
-	defer dbTeardown()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// Create or open a db namespace for the transaction store.
-	ns, err := db.Namespace([]byte("txstore"))
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// Create (or open) the transaction store in the provided namespace.
-	err = Create(ns)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	s, err := Open(ns, &chaincfg.TestNetParams)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// Insert an unmined transaction that outputs 10 Coin to a wallet address
-	// at output 0.
-	err = s.InsertTx(exampleTxRecordA, nil)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
 	defaultAccount := uint32(0)
-	err = s.AddCredit(exampleTxRecordA, nil, 0, false, defaultAccount)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	g := makeBlockGenerator()
+	b1H := g.generate(dcrutil.BlockValid)
+	b1Hash := b1H.BlockHash()
+	b1Meta := makeBlockMeta(b1H)
+	headers := []*wire.BlockHeader{b1H}
+	headerData := makeHeaderDataSlice(headers...)
+	filters := emptyFilters(1)
 
-	// Insert a second transaction which spends the output, and creates two
-	// outputs.  Mark the second one (5 Coin) as wallet change.
-	err = s.InsertTx(exampleTxRecordB, nil)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	err = s.AddCredit(exampleTxRecordB, nil, 1, true, defaultAccount)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	err = walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+		ns := tx.ReadWriteBucket(wtxmgrBucketKey)
+		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
 
-	// Mine each transaction in a block at height 100.
-	err = s.InsertTx(exampleTxRecordA, &exampleBlock100)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	err = s.InsertTx(exampleTxRecordB, &exampleBlock100)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+		err = insertMainChainHeaders(s, ns, addrmgrNs, headerData[0:1], filters[0:1])
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	// Print the one confirmation balance.
-	bal, err := s.Balance(1, 100, BFBalanceSpendable, true,
-		defaultAccount)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println(bal)
+		// Insert coinbase and mark outputs 0 as credits.
+		err = s.InsertMemPoolTx(ns, cbRec)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	// Fetch unspent outputs.
-	utxos, err := s.UnspentOutputs()
-	if err != nil {
-		fmt.Println(err)
-	}
-	expectedOutPoint := wire.OutPoint{Hash: exampleTxRecordB.Hash, Index: 1}
-	for _, utxo := range utxos {
-		fmt.Println(utxo.OutPoint == expectedOutPoint)
-	}
+		err = s.InsertMinedTx(ns, addrmgrNs, cbRec, &b1Hash)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	// Output:
-	// 5 Coin
-	// true
+		s.AddCredit(ns, cbRec, b1Meta, 0, false, defaultAccount)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Spends: b1H coinbase
+		// Outputs: 10 Coin
+		aTx := spendOutput(&b1Hash, 0, 0, 10e8)
+		txRecordA, err := NewTxRecordFromMsgTx(aTx, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = s.InsertMemPoolTx(ns, txRecordA)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = s.InsertMinedTx(ns, addrmgrNs, txRecordA, &b1Hash)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Rollback everything.
+		err = s.Rollback(ns, addrmgrNs, int32(b1H.Height))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Assert that the transaction is now unmined.
+		details, err := s.TxDetails(ns, &txRecordA.Hash)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if details == nil {
+			t.Fatal("no tx details found")
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
+
+func Example_basicUsage(t *testing.T) {
+	t.Parallel()
+	db, s, teardown, err := setup("basic_usage")
+	defer teardown()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cb := newCoinBase(10e8, 5e8)
+	cbRec, err := NewTxRecordFromMsgTx(cb, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defaultAccount := uint32(0)
+	g := makeBlockGenerator()
+	b1H := g.generate(dcrutil.BlockValid)
+	b1Hash := b1H.BlockHash()
+	b1Meta := makeBlockMeta(b1H)
+	headers := []*wire.BlockHeader{b1H}
+	b2H := g.generate(dcrutil.BlockValid)
+	b2Hash := b2H.BlockHash()
+	// b2Meta := makeBlockMeta(b2H)
+	headers = append(headers, b2H)
+	headerData := makeHeaderDataSlice(headers...)
+	filters := emptyFilters(2)
+
+	err = walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+		ns := tx.ReadWriteBucket(wtxmgrBucketKey)
+		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
+
+		err = insertMainChainHeaders(s, ns, addrmgrNs, headerData[0:1], filters[0:1])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Insert coinbase and mark outputs 0 as credits.
+		err = s.InsertMemPoolTx(ns, cbRec)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = s.InsertMinedTx(ns, addrmgrNs, cbRec, &b1Hash)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		s.AddCredit(ns, cbRec, b1Meta, 0, false, defaultAccount)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = insertMainChainHeaders(s, ns, addrmgrNs, headerData[1:2], filters[1:2])
+		if err != nil {
+			t.Fatalf("t:%v", err)
+		}
+
+		// Mine spending transactions in the next block.
+
+		// Spends: b1H coinbase
+		// Outputs: 10 Coin
+		aTx := spendOutput(&b1Hash, 0, 0, 10e8)
+		txRecordA, err := NewTxRecordFromMsgTx(aTx, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = s.InsertMemPoolTx(ns, txRecordA)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = s.InsertMinedTx(ns, addrmgrNs, txRecordA, &b2Hash)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Spends: A:0
+		// Outputs: 5 Coin, 5 Coin
+		bTx := spendOutput(&txRecordA.Hash, 0, 0, 5e8, 5e8)
+		txRecordB, err := NewTxRecordFromMsgTx(bTx, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = s.InsertMemPoolTx(ns, txRecordB)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = s.InsertMinedTx(ns, addrmgrNs, txRecordB, &b2Hash)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Fetch unspent outputs.
+		utxos, err := s.UnspentOutputs(ns)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectedOutPoint := wire.OutPoint{Hash: cbRec.Hash, Index: 0}
+		match := false
+		for _, utxo := range utxos {
+			if utxo.OutPoint == expectedOutPoint {
+				match = true
+			}
+		}
+
+		if !match {
+			t.Fatal("expected an unspect coinbase output")
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// // Output:
+// // 5 Coin
+// true

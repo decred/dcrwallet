@@ -3,12 +3,17 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-// Test must be updated for API changes.
-
 package udb
 
 import (
 	"encoding/hex"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+
+	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrwallet/wallet/v2/walletdb"
 )
 
 var (
@@ -20,18 +25,12 @@ var (
 		0xef, 0x8d, 0x64, 0x15, 0x67,
 	}
 
+	emptyDb = "empty.kv"
+
 	pubPassphrase   = []byte("_DJr{fL4H0O}*-0\n:V1izc)(6BomK")
 	privPassphrase  = []byte("81lUHXnOMZ@?XXd7O9xyDIWIbXX-lj")
 	pubPassphrase2  = []byte("-0NV4P~VSJBWbunw}%<Z]fuGpbN[ZI")
 	privPassphrase2 = []byte("~{<]08%6!-?2s<$(8$8:f(5[4/!/{Y")
-
-	// fastScrypt are parameters used throughout the tests to speed up the
-	// scrypt operations.
-	fastScrypt = &ScryptOptions{
-		N: 16,
-		R: 8,
-		P: 1,
-	}
 )
 
 // hexToBytes is a wrapper around hex.DecodeString that panics if there is an
@@ -42,4 +41,58 @@ func hexToBytes(origHex string) []byte {
 		panic(err)
 	}
 	return buf
+}
+
+// createEmptyDB is a helper function for creating an empty wallet db.
+func createEmptyDB() error {
+	_ = os.Remove(emptyDb)
+
+	db, err := walletdb.Create("bdb", emptyDb)
+	if err != nil {
+		return fmt.Errorf("unexpected error: %v", err)
+	}
+
+	err = Initialize(db, &chaincfg.TestNet3Params, seed,
+		pubPassphrase, privPassphrase)
+	if err != nil {
+		return fmt.Errorf("unexpected error: %v", err)
+	}
+
+	err = Upgrade(db, pubPassphrase, &chaincfg.TestNet3Params)
+	if err != nil {
+		return fmt.Errorf("unexpected error: %v", err)
+	}
+
+	return db.Close()
+}
+
+// cloneDB makes a copy of an empty wallet db. It returns a wallet db, store, a
+// stake store and a teardown function.
+func cloneDB(cloneName string) (walletdb.DB, *Manager, *Store, *StakeStore, func(), error) {
+	file, err := ioutil.ReadFile(filepath.Join("testdata", emptyDb))
+	if err != nil {
+		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+	}
+
+	err = ioutil.WriteFile(cloneName, file, 0644)
+	if err != nil {
+		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+	}
+
+	db, err := walletdb.Open("bdb", cloneName)
+	if err != nil {
+		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+	}
+
+	mgr, txStore, stkStore, err := Open(db, &chaincfg.TestNet3Params, pubPassphrase)
+	if err != nil {
+		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+	}
+
+	teardown := func() {
+		os.Remove(cloneName)
+		db.Close()
+	}
+
+	return db, mgr, txStore, stkStore, teardown, err
 }

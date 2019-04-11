@@ -581,7 +581,7 @@ func (m *Manager) AccountExtendedPrivKey(dbtx walletdb.ReadTx, account uint32) (
 	ns := dbtx.ReadBucket(waddrmgrBucketKey)
 	var (
 		acctInfo *accountInfo
-		err error
+		err      error
 	)
 
 	m.mtx.Lock()
@@ -962,7 +962,7 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 	// the actual secret keys.
 	newMasterKey, err := newSecretKey(&newPassphrase, &defaultScryptOptions)
 	if err != nil {
-		return errors.Errorf("create new master privkey: %v", err)
+		return err
 	}
 	newKeyParams := newMasterKey.Marshal()
 
