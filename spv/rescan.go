@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2014 The btcsuite developers
-// Copyright (c) 2018 The Decred developers
+// Copyright (c) 2018-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -13,7 +13,7 @@ import (
 )
 
 // rescanCheckTransaction is a helper function to rescan both stake and regular
-// transactions in a block.  It appends transations that match the filters to
+// transactions in a block.  It appends transactions that match the filters to
 // *matches, while updating the filters to add outpoints for new UTXOs
 // controlled by this wallet.  New data added to the Syncer's filters is also
 // added to fadded.

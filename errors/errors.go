@@ -1,4 +1,4 @@
-// Copyright (c) 2018 The Decred developers
+// Copyright (c) 2018-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -20,7 +20,7 @@ import (
 
 // Separator is inserted between nested errors when formatting as strings.  The
 // default separator produces easily readable multiline errors.  Separator may
-// be modified at init time to create error strings appropiate for logging
+// be modified at init time to create error strings appropriate for logging
 // errors on a single line.
 var Separator = ":\n\t"
 

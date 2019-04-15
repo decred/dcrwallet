@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Decred developers
+// Copyright (c) 2017-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -127,7 +127,7 @@ func (w *Wallet) persistReturnedChild(maybeDBTX walletdb.ReadWriteTx) persistRet
 				}
 			}()
 		}
-		ns := maybeDBTX.ReadWriteBucket([]byte(waddrmgrNamespaceKey))
+		ns := maybeDBTX.ReadWriteBucket(waddrmgrNamespaceKey)
 		err := w.Manager.SyncAccountToAddrIndex(ns, account, child, branch)
 		if err != nil {
 			return err
