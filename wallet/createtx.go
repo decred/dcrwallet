@@ -906,7 +906,7 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *ext
 // wallet instance will be used.  Also, when the spend limit in the request is
 // greater than or equal to 0, tickets that cost more than that limit will
 // return an error that not enough funds are available.
-func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBackend, req *purchaseTicketsRequest) ([]*chainhash.Hash, error) {
+func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBackend, req *PurchaseTicketsRequest) ([]*chainhash.Hash, error) {
 	// Ensure the minimum number of required confirmations is positive.
 	if req.MinConf < 0 {
 		return nil, errors.E(op, errors.Invalid, "negative minconf")

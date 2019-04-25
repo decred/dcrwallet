@@ -1156,6 +1156,8 @@ func (w *Wallet) CreateMultisigTx(account uint32, amount dcrutil.Amount, pubkeys
 
 // PurchaseTickets purchases tickets, returning the hashes of all ticket
 // purchase transactions.
+//
+// Deprecated: Use PurchaseTicketsContext for solo buying.
 func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount, minConf int32, votingAddr dcrutil.Address, account uint32, count int, poolAddress dcrutil.Address,
 	poolFees float64, expiry int32, txFee dcrutil.Amount, ticketFee dcrutil.Amount) ([]*chainhash.Hash, error) {
 
@@ -1166,7 +1168,7 @@ func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount, minConf 
 		return nil, errors.E(op, err)
 	}
 
-	req := &purchaseTicketsRequest{
+	req := &PurchaseTicketsRequest{
 		Count:         count,
 		SourceAccount: account,
 		VotingAddress: votingAddr,
@@ -1190,8 +1192,8 @@ func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount, minConf 
 	return w.purchaseTickets(context.Background(), op, n, req)
 }
 
-// purchaseTicketsRequest describes the parameters for purchasing tickets.
-type purchaseTicketsRequest struct {
+// PurchaseTicketsRequest describes the parameters for purchasing tickets.
+type PurchaseTicketsRequest struct {
 	Count         int
 	SourceAccount uint32
 	VotingAddress dcrutil.Address
@@ -1205,6 +1207,20 @@ type purchaseTicketsRequest struct {
 	poolFees    float64
 	txFee       dcrutil.Amount
 	ticketFee   dcrutil.Amount
+}
+
+// PurchaseTicketsContext purchases tickets, returning the hashes of all ticket
+// purchase transactions.
+func (w *Wallet) PurchaseTicketsContext(ctx context.Context, n NetworkBackend, req *PurchaseTicketsRequest) ([]*chainhash.Hash, error) {
+	const op errors.Op = "wallet.PurchaseTicketsContext"
+
+	heldUnlock, err := w.holdUnlock()
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	defer heldUnlock.release()
+
+	return w.purchaseTickets(ctx, op, n, req)
 }
 
 type (
