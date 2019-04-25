@@ -34,7 +34,6 @@ import (
 	"github.com/decred/dcrwallet/deployments"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
-	"github.com/decred/dcrwallet/wallet/v2/txauthor"
 	"github.com/decred/dcrwallet/wallet/v2/txrules"
 	"github.com/decred/dcrwallet/wallet/v2/udb"
 	"github.com/decred/dcrwallet/wallet/v2/walletdb"
@@ -112,14 +111,6 @@ type Wallet struct {
 	DisallowFree            bool
 	AllowHighFees           bool
 	disableCoinTypeUpgrades bool
-
-	// Channel for transaction creation requests.
-	consolidateRequests      chan consolidateRequest
-	createTxRequests         chan createTxRequest
-	createMultisigTxRequests chan createMultisigTxRequest
-
-	// Channels for stake tx creation requests.
-	purchaseTicketRequests chan purchaseTicketRequest
 
 	// Internal address handling.
 	addressReuse     bool
@@ -427,8 +418,7 @@ func (w *Wallet) Start() {
 	}
 	w.quitMu.Unlock()
 
-	w.wg.Add(2)
-	go w.txCreator()
+	w.wg.Add(1)
 	go w.walletLocker()
 }
 
@@ -1142,182 +1132,79 @@ func (w *Wallet) FetchHeaders(ctx context.Context, p Peer) (count int, rescanFro
 	return
 }
 
-type (
-	consolidateRequest struct {
-		inputs  int
-		account uint32
-		address dcrutil.Address
-		resp    chan consolidateResponse
-	}
-	createTxRequest struct {
-		account uint32
-		outputs []*wire.TxOut
-		minconf int32
-		resp    chan createTxResponse
-	}
-	createMultisigTxRequest struct {
-		account   uint32
-		amount    dcrutil.Amount
-		pubkeys   []*dcrutil.AddressSecpPubKey
-		nrequired int8
-		minconf   int32
-		resp      chan createMultisigTxResponse
-	}
-	purchaseTicketRequest struct {
-		minBalance  dcrutil.Amount
-		spendLimit  dcrutil.Amount
-		minConf     int32
-		ticketAddr  dcrutil.Address
-		account     uint32
-		numTickets  int
-		poolAddress dcrutil.Address
-		poolFees    float64
-		expiry      int32
-		txFee       dcrutil.Amount
-		ticketFee   dcrutil.Amount
-		resp        chan purchaseTicketResponse
-	}
-
-	consolidateResponse struct {
-		txHash *chainhash.Hash
-		err    error
-	}
-	createTxResponse struct {
-		tx  *txauthor.AuthoredTx
-		err error
-	}
-	createMultisigTxResponse struct {
-		tx           *CreatedTx
-		address      dcrutil.Address
-		redeemScript []byte
-		err          error
-	}
-	purchaseTicketResponse struct {
-		data []*chainhash.Hash
-		err  error
-	}
-)
-
-// txCreator is responsible for the input selection and creation of
-// transactions.  These functions are the responsibility of this method
-// (designed to be run as its own goroutine) since input selection must be
-// serialized, or else it is possible to create double spends by choosing the
-// same inputs for multiple transactions.  Along with input selection, this
-// method is also responsible for the signing of transactions, since we don't
-// want to end up in a situation where we run out of inputs as multiple
-// transactions are being created.  In this situation, it would then be possible
-// for both requests, rather than just one, to fail due to not enough available
-// inputs.
-func (w *Wallet) txCreator() {
-	quit := w.quitChan()
-out:
-	for {
-		select {
-		case txr := <-w.consolidateRequests:
-			heldUnlock, err := w.holdUnlock()
-			if err != nil {
-				txr.resp <- consolidateResponse{nil, err}
-				continue
-			}
-			txh, err := w.compressWallet("wallet.Consolidate", txr.inputs,
-				txr.account, txr.address)
-			heldUnlock.release()
-			txr.resp <- consolidateResponse{txh, err}
-
-		case txr := <-w.createTxRequests:
-			heldUnlock, err := w.holdUnlock()
-			if err != nil {
-				txr.resp <- createTxResponse{nil, err}
-				continue
-			}
-			tx, err := w.txToOutputs("wallet.SendOutputs", txr.outputs,
-				txr.account, txr.minconf, true)
-			heldUnlock.release()
-			txr.resp <- createTxResponse{tx, err}
-
-		case txr := <-w.createMultisigTxRequests:
-			heldUnlock, err := w.holdUnlock()
-			if err != nil {
-				txr.resp <- createMultisigTxResponse{nil, nil, nil, err}
-				continue
-			}
-			tx, address, redeemScript, err := w.txToMultisig("wallet.CreateMultisigTx",
-				txr.account, txr.amount, txr.pubkeys, txr.nrequired, txr.minconf)
-			heldUnlock.release()
-			txr.resp <- createMultisigTxResponse{tx, address, redeemScript, err}
-
-		case txr := <-w.purchaseTicketRequests:
-			heldUnlock, err := w.holdUnlock()
-			if err != nil {
-				txr.resp <- purchaseTicketResponse{nil, err}
-				continue
-			}
-			data, err := w.purchaseTickets("wallet.PurchaseTickets", txr)
-			heldUnlock.release()
-			txr.resp <- purchaseTicketResponse{data, err}
-
-		case <-quit:
-			break out
-		}
-	}
-	w.wg.Done()
-}
-
 // Consolidate consolidates as many UTXOs as are passed in the inputs argument.
 // If that many UTXOs can not be found, it will use the maximum it finds. This
 // will only compress UTXOs in the default account
-func (w *Wallet) Consolidate(inputs int, account uint32,
-	address dcrutil.Address) (*chainhash.Hash, error) {
-	req := consolidateRequest{
-		inputs:  inputs,
-		account: account,
-		address: address,
-		resp:    make(chan consolidateResponse),
+func (w *Wallet) Consolidate(inputs int, account uint32, address dcrutil.Address) (*chainhash.Hash, error) {
+	heldUnlock, err := w.holdUnlock()
+	if err != nil {
+		return nil, err
 	}
-	w.consolidateRequests <- req
-	resp := <-req.resp
-	return resp.txHash, resp.err
+	defer heldUnlock.release()
+	return w.compressWallet("wallet.Consolidate", inputs, account, address)
 }
 
-// CreateMultisigTx receives a request from the RPC and ships it to txCreator to
-// generate a new multisigtx.
+// CreateMultisigTx creates and signs a multisig transaction.
 func (w *Wallet) CreateMultisigTx(account uint32, amount dcrutil.Amount, pubkeys []*dcrutil.AddressSecpPubKey, nrequired int8, minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
-	req := createMultisigTxRequest{
-		account:   account,
-		amount:    amount,
-		pubkeys:   pubkeys,
-		nrequired: nrequired,
-		minconf:   minconf,
-		resp:      make(chan createMultisigTxResponse),
+	heldUnlock, err := w.holdUnlock()
+	if err != nil {
+		return nil, nil, nil, err
 	}
-	w.createMultisigTxRequests <- req
-	resp := <-req.resp
-	return resp.tx, resp.address, resp.redeemScript, resp.err
+	defer heldUnlock.release()
+	return w.txToMultisig("wallet.CreateMultisigTx", account, amount, pubkeys, nrequired, minconf)
 }
 
-// PurchaseTickets receives a request from the RPC and ships it to txCreator
-// to purchase a new ticket. It returns a slice of the hashes of the purchased
-// tickets.
-func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount, minConf int32, ticketAddr dcrutil.Address, account uint32, numTickets int, poolAddress dcrutil.Address,
+// PurchaseTickets purchases tickets, returning the hashes of all ticket
+// purchase transactions.
+func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount, minConf int32, votingAddr dcrutil.Address, account uint32, count int, poolAddress dcrutil.Address,
 	poolFees float64, expiry int32, txFee dcrutil.Amount, ticketFee dcrutil.Amount) ([]*chainhash.Hash, error) {
 
-	req := purchaseTicketRequest{
+	const op errors.Op = "wallet.PurchaseTickets"
+
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	req := &purchaseTicketsRequest{
+		Count:         count,
+		SourceAccount: account,
+		VotingAddress: votingAddr,
+		MinConf:       minConf,
+		Expiry:        expiry,
+
 		minBalance:  minBalance,
 		spendLimit:  spendLimit,
-		minConf:     minConf,
-		ticketAddr:  ticketAddr,
-		account:     account,
-		numTickets:  numTickets,
 		poolAddress: poolAddress,
 		poolFees:    poolFees,
-		expiry:      expiry,
 		txFee:       txFee,
 		ticketFee:   ticketFee,
-		resp:        make(chan purchaseTicketResponse),
 	}
-	w.purchaseTicketRequests <- req
-	resp := <-req.resp
-	return resp.data, resp.err
+
+	heldUnlock, err := w.holdUnlock()
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	defer heldUnlock.release()
+
+	return w.purchaseTickets(context.Background(), op, n, req)
+}
+
+// purchaseTicketsRequest describes the parameters for purchasing tickets.
+type purchaseTicketsRequest struct {
+	Count         int
+	SourceAccount uint32
+	VotingAddress dcrutil.Address
+	MinConf       int32
+	Expiry        int32
+
+	// may be set by deprecated methods, subject to change
+	minBalance  dcrutil.Amount
+	spendLimit  dcrutil.Amount
+	poolAddress dcrutil.Address
+	poolFees    float64
+	txFee       dcrutil.Amount
+	ticketFee   dcrutil.Amount
 }
 
 type (
@@ -1331,14 +1218,13 @@ type (
 		old, new []byte
 		err      chan error
 	}
-
-	// heldUnlock is a tool to prevent the wallet from automatically
-	// locking after some timeout before an operation which needed
-	// the unlocked wallet has finished.  Any acquired heldUnlock
-	// *must* be released (preferably with a defer) or the wallet
-	// will forever remain unlocked.
-	heldUnlock chan struct{}
 )
+
+// heldUnlock is a tool to prevent the wallet from automatically locking after
+// some timeout before an operation which needed the unlocked wallet has
+// finished.  Any acquired heldUnlock *must* be released (preferably with a
+// defer) or the wallet will forever remain unlocked.
+type heldUnlock chan struct{}
 
 // walletLocker manages the locked/unlocked state of a wallet.
 func (w *Wallet) walletLocker() {
@@ -3959,19 +3845,16 @@ func (w *Wallet) SendOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 		}
 	}
 
-	req := createTxRequest{
-		account: account,
-		outputs: outputs,
-		minconf: minconf,
-		resp:    make(chan createTxResponse),
+	heldUnlock, err := w.holdUnlock()
+	if err != nil {
+		return nil, err
 	}
-	w.createTxRequests <- req
-	resp := <-req.resp
-	if resp.err != nil {
-		return nil, resp.err
+	defer heldUnlock.release()
+	tx, err := w.txToOutputs("wallet.SendOutputs", outputs, account, minconf, true)
+	if err != nil {
+		return nil, err
 	}
-
-	hash := resp.tx.Tx.TxHash()
+	hash := tx.Tx.TxHash()
 	return &hash, nil
 }
 
@@ -4575,17 +4458,13 @@ func Open(cfg *Config) (*Wallet, error) {
 
 		lockedOutpoints: map[wire.OutPoint]struct{}{},
 
-		consolidateRequests:      make(chan consolidateRequest),
-		createTxRequests:         make(chan createTxRequest),
-		createMultisigTxRequests: make(chan createMultisigTxRequest),
-		purchaseTicketRequests:   make(chan purchaseTicketRequest),
-		addressBuffers:           make(map[uint32]*bip0044AccountData),
-		unlockRequests:           make(chan unlockRequest),
-		lockRequests:             make(chan struct{}),
-		holdUnlockRequests:       make(chan chan heldUnlock),
-		lockState:                make(chan bool),
-		changePassphrase:         make(chan changePassphraseRequest),
-		quit:                     make(chan struct{}),
+		addressBuffers:     make(map[uint32]*bip0044AccountData),
+		unlockRequests:     make(chan unlockRequest),
+		lockRequests:       make(chan struct{}),
+		holdUnlockRequests: make(chan chan heldUnlock),
+		lockState:          make(chan bool),
+		changePassphrase:   make(chan changePassphraseRequest),
+		quit:               make(chan struct{}),
 	}
 
 	// Open database managers
