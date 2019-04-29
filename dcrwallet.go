@@ -156,7 +156,7 @@ func run(ctx context.Context) error {
 		PoolAddress:         cfg.PoolAddress.Address,
 		PoolFees:            cfg.PoolFees,
 		StakePoolColdExtKey: cfg.StakePoolColdExtKey,
-		TicketFee:           cfg.TicketFee.ToCoin(),
+		TicketFee:           cfg.RelayFee.ToCoin(),
 	}
 	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.ToCoin(),

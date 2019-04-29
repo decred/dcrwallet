@@ -38,10 +38,7 @@ const (
 	defaultEnableTicketBuyer       = false
 	defaultEnableVoting            = false
 	defaultReuseAddresses          = false
-	defaultRollbackTest            = false
-	defaultPruneTickets            = false
 	defaultPurchaseAccount         = "default"
-	defaultAutomaticRepair         = false
 	defaultPromptPass              = false
 	defaultPass                    = ""
 	defaultPromptPublicPass        = false
@@ -145,14 +142,6 @@ type config struct {
 	RPCListenerEvents bool  `long:"rpclistenerevents" description:"Notify JSON-RPC and gRPC listener addresses over the TX pipe"`
 
 	TBOpts ticketBuyerOptions `group:"Ticket Buyer Options" namespace:"ticketbuyer"`
-
-	// Deprecated options
-	DataDir         *cfgutil.ExplicitString `short:"b" long:"datadir" default-mask:"-" description:"DEPRECATED -- use appdata instead"`
-	PruneTickets    bool                    `long:"prunetickets" description:"DEPRECATED -- old tickets are always pruned"`
-	AddrIdxScanLen  int                     `long:"addridxscanlen" description:"DEPRECATED -- use gaplimit instead"`
-	RollbackTest    bool                    `hidden:"y" long:"rollbacktest" description:"Rollback testing is a simnet testing mode that eventually stops wallet and examines wtxmgr database integrity"`
-	AutomaticRepair bool                    `hidden:"y" long:"automaticrepair" description:"Attempt to repair the wallet automatically if a database inconsistency is found"`
-	TicketFee       *cfgutil.AmountFlag     `long:"ticketfee" description:"DEPRECATED -- Sets the wallet's ticket fee per kb"`
 }
 
 type ticketBuyerOptions struct {
@@ -324,22 +313,14 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		EnableTicketBuyer:       defaultEnableTicketBuyer,
 		EnableVoting:            defaultEnableVoting,
 		ReuseAddresses:          defaultReuseAddresses,
-		PruneTickets:            defaultPruneTickets,
 		PurchaseAccount:         defaultPurchaseAccount,
 		GapLimit:                defaultGapLimit,
 		StakePoolColdExtKey:     defaultStakePoolColdExtKey,
 		AllowHighFees:           defaultAllowHighFees,
 		RelayFee:                cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
-		TicketFee:               cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
 		PoolAddress:             cfgutil.NewAddressFlag(nil),
 		AccountGapLimit:         defaultAccountGapLimit,
 		DisableCoinTypeUpgrades: defaultDisableCoinTypeUpgrades,
-
-		// TODO: DEPRECATED - remove.
-		DataDir:         cfgutil.NewExplicitString(defaultAppDataDir),
-		AddrIdxScanLen:  defaultGapLimit,
-		RollbackTest:    defaultRollbackTest,
-		AutomaticRepair: defaultAutomaticRepair,
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
@@ -380,9 +361,6 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		configFilePath = cleanAndExpandPath(configFilePath)
 	} else {
 		appDataDir := preCfg.AppDataDir.Value
-		if !preCfg.AppDataDir.ExplicitlySet() && preCfg.DataDir.ExplicitlySet() {
-			appDataDir = cleanAndExpandPath(preCfg.DataDir.Value)
-		}
 		if appDataDir != defaultAppDataDir {
 			configFilePath = filepath.Join(appDataDir, defaultConfigFilename)
 		}
@@ -480,20 +458,6 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		log.Warnf("%v", configFileError)
 	}
 
-	// Check deprecated options.  The new options receive priority when both
-	// are changed from the default.
-	if cfg.DataDir.ExplicitlySet() {
-		fmt.Fprintln(os.Stderr, "datadir option has been replaced by "+
-			"appdata -- please update your config")
-		if !cfg.AppDataDir.ExplicitlySet() {
-			cfg.AppDataDir.Value = cfg.DataDir.Value
-		}
-	}
-	if cfg.PruneTickets {
-		fmt.Fprintln(os.Stderr, "prunetickets option is no longer necessary "+
-			"or used -- please update your config")
-	}
-
 	// Sanity check BalanceToMaintainAbsolute
 	if cfg.TBOpts.BalanceToMaintainAbsolute.ToCoin() < 0 {
 		str := "%s: balancetomaintainabsolute cannot be negative: %v"
@@ -504,7 +468,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 
 	// Exit if you try to use a simulation wallet with a standard
 	// data directory.
-	if !(cfg.AppDataDir.ExplicitlySet() || cfg.DataDir.ExplicitlySet()) && cfg.CreateTemp {
+	if !cfg.AppDataDir.ExplicitlySet() && cfg.CreateTemp {
 		fmt.Fprintln(os.Stderr, "Tried to create a temporary simulation "+
 			"wallet, but failed to specify data directory!")
 		os.Exit(0)
@@ -516,14 +480,6 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		fmt.Fprintln(os.Stderr, "Tried to create a temporary simulation "+
 			"wallet for network other than simnet!")
 		os.Exit(0)
-	}
-
-	// Warn for removed features without erroring parsing the config.
-	if cfg.RollbackTest {
-		fmt.Fprintf(os.Stderr, "%v: --rollbacktest should be removed from config\n", funcName)
-	}
-	if cfg.AutomaticRepair {
-		fmt.Fprintf(os.Stderr, "%v: --automaticrepair should be removed from config\n", funcName)
 	}
 
 	// Ensure the wallet exists or create it when the create flag is set.
@@ -801,21 +757,6 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			"move it under the [Ticket Buyer Options] section "+
 			"of %s\n",
 			oldTBConfigFile, configFilePath)
-	}
-
-	// Warn if user still is still using --addridxscanlen
-	if cfg.AddrIdxScanLen != defaultGapLimit && cfg.GapLimit == defaultGapLimit {
-		log.Warnf("--addridxscanlen has been DEPRECATED.  Use " +
-			"--gaplimit instead")
-		cfg.GapLimit = cfg.AddrIdxScanLen
-	}
-
-	// Warn if user modifies --ticketfee
-	if cfg.TicketFee.Amount != txrules.DefaultRelayFeePerKb {
-		log.Warnf("--ticketfee has been DEPRECATED.  Use " +
-			"--txfee instead")
-	} else {
-		cfg.TicketFee.Amount = cfg.RelayFee.Amount
 	}
 
 	// Make list of old versions of testnet directories.
