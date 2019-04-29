@@ -50,7 +50,7 @@ func createWallet(ctx context.Context, cfg *config) error {
 		VotingEnabled: cfg.EnableVoting,
 		AddressReuse:  cfg.ReuseAddresses,
 		VotingAddress: cfg.TBOpts.VotingAddress.Address,
-		TicketFee:     cfg.TicketFee.ToCoin(),
+		TicketFee:     cfg.RelayFee.ToCoin(),
 	}
 	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.ToCoin(),
