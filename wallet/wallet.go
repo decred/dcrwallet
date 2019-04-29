@@ -2278,9 +2278,6 @@ func (w *Wallet) ListAddressTransactions(pkHashes map[string]struct{}) ([]types.
 
 					sends, receives := listTransactions(tx, detail,
 						w.Manager, tipHeight, w.chainParams)
-					if err != nil {
-						return false, err
-					}
 					txList = append(txList, receives...)
 					txList = append(txList, sends...)
 					continue loopDetails
