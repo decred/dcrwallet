@@ -102,7 +102,8 @@ type Wallet struct {
 	networkBackend   NetworkBackend
 	networkBackendMu sync.Mutex
 
-	lockedOutpoints map[wire.OutPoint]struct{}
+	lockedOutpoints  map[wire.OutPoint]struct{}
+	lockedOutpointMu sync.Mutex
 
 	relayFee                dcrutil.Amount
 	relayFeeMu              sync.Mutex
@@ -3686,32 +3687,41 @@ func (w *Wallet) StakeInfoPrecise(chainClient *rpcclient.Client) (*StakeInfoData
 // LockedOutpoint returns whether an outpoint has been marked as locked and
 // should not be used as an input for created transactions.
 func (w *Wallet) LockedOutpoint(op wire.OutPoint) bool {
+	w.lockedOutpointMu.Lock()
 	_, locked := w.lockedOutpoints[op]
+	w.lockedOutpointMu.Unlock()
 	return locked
 }
 
 // LockOutpoint marks an outpoint as locked, that is, it should not be used as
 // an input for newly created transactions.
 func (w *Wallet) LockOutpoint(op wire.OutPoint) {
+	w.lockedOutpointMu.Lock()
 	w.lockedOutpoints[op] = struct{}{}
+	w.lockedOutpointMu.Unlock()
 }
 
 // UnlockOutpoint marks an outpoint as unlocked, that is, it may be used as an
 // input for newly created transactions.
 func (w *Wallet) UnlockOutpoint(op wire.OutPoint) {
+	w.lockedOutpointMu.Lock()
 	delete(w.lockedOutpoints, op)
+	w.lockedOutpointMu.Unlock()
 }
 
 // ResetLockedOutpoints resets the set of locked outpoints so all may be used
 // as inputs for new transactions.
 func (w *Wallet) ResetLockedOutpoints() {
+	w.lockedOutpointMu.Lock()
 	w.lockedOutpoints = map[wire.OutPoint]struct{}{}
+	w.lockedOutpointMu.Unlock()
 }
 
 // LockedOutpoints returns a slice of currently locked outpoints.  This is
 // intended to be used by marshaling the result as a JSON array for
 // listlockunspent RPC results.
 func (w *Wallet) LockedOutpoints() []dcrjson.TransactionInput {
+	w.lockedOutpointMu.Lock()
 	locked := make([]dcrjson.TransactionInput, len(w.lockedOutpoints))
 	i := 0
 	for op := range w.lockedOutpoints {
@@ -3721,6 +3731,7 @@ func (w *Wallet) LockedOutpoints() []dcrjson.TransactionInput {
 		}
 		i++
 	}
+	w.lockedOutpointMu.Unlock()
 	return locked
 }
 
