@@ -69,9 +69,9 @@ type config struct {
 	// General application behavior
 	ConfigFile         *cfgutil.ExplicitString `short:"C" long:"configfile" description:"Path to configuration file"`
 	ShowVersion        bool                    `short:"V" long:"version" description:"Display version information and exit"`
-	Create             bool                    `long:"create" description:"Create the wallet if it does not exist"`
-	CreateTemp         bool                    `long:"createtemp" description:"Create a temporary simulation wallet (pass=password) in the data directory indicated; must call with --appdata"`
-	CreateWatchingOnly bool                    `long:"createwatchingonly" description:"Create the wallet and instantiate it as watching only with an HD extended pubkey"`
+	Create             bool                    `long:"create" description:"Create new wallet"`
+	CreateTemp         bool                    `long:"createtemp" description:"Create simulation wallet in nonstandard --appdata; private passphrase is 'password'"`
+	CreateWatchingOnly bool                    `long:"createwatchingonly" description:"Create watching wallet from account extended pubkey"`
 	AppDataDir         *cfgutil.ExplicitString `short:"A" long:"appdata" description:"Application data directory for wallet config, databases and logs"`
 	TestNet            bool                    `long:"testnet" description:"Use the test network"`
 	SimNet             bool                    `long:"simnet" description:"Use the simulation test network"`
@@ -82,59 +82,50 @@ type config struct {
 	MemProfile         string                  `long:"memprofile" description:"Write mem profile to the specified file"`
 
 	// Wallet options
-	WalletPass              string               `long:"walletpass" default-mask:"-" description:"The public wallet password -- Only required if the wallet was created with one"`
-	PromptPass              bool                 `long:"promptpass" description:"The private wallet password is prompted for at start up, so the wallet starts unlocked without a time limit"`
-	Pass                    string               `long:"pass" description:"The private wallet passphrase"`
-	PromptPublicPass        bool                 `long:"promptpublicpass" description:"The public wallet password is prompted for at start up"`
-	DisallowFree            bool                 `long:"disallowfree" description:"Force transactions to always include a fee"`
+	WalletPass              string               `long:"walletpass" default-mask:"-" description:"Public wallet password; required when created with one"`
+	PromptPass              bool                 `long:"promptpass" description:"Prompt for private passphase from terminal and unlock without timeout"`
+	Pass                    string               `long:"pass" description:"Unlock with private passphrase"`
+	PromptPublicPass        bool                 `long:"promptpublicpass" description:"Prompt for public passphrase from terminal"`
 	EnableTicketBuyer       bool                 `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
-	EnableVoting            bool                 `long:"enablevoting" description:"Enable creation of votes and revocations for owned tickets"`
-	ReuseAddresses          bool                 `long:"reuseaddresses" description:"Reuse addresses for ticket purchase to cut down on address overuse"`
-	PurchaseAccount         string               `long:"purchaseaccount" description:"Name of the account to buy tickets from"`
-	PoolAddress             *cfgutil.AddressFlag `long:"pooladdress" description:"The ticket pool address where ticket fees will go to"`
-	PoolFees                float64              `long:"poolfees" description:"The per-ticket fee mandated by the ticket pool as a percent (e.g. 1.00 for 1.00% fee)"`
-	GapLimit                int                  `long:"gaplimit" description:"The size of gaps between used addresses.  Used for address scanning and when generating addresses with the wrap option."`
-	StakePoolColdExtKey     string               `long:"stakepoolcoldextkey" description:"Enables the wallet as a stake pool with an extended key in the format of \"xpub...:index\" to derive cold wallet addresses to send fees to"`
-	AllowHighFees           bool                 `long:"allowhighfees" description:"Force the RPC client to use the 'allowHighFees' flag when sending transactions"`
-	RelayFee                *cfgutil.AmountFlag  `long:"txfee" description:"Sets the wallet's tx fee per kb"`
-	AccountGapLimit         int                  `long:"accountgaplimit" description:"Number of accounts that can be created in a row without using any of them"`
+	EnableVoting            bool                 `long:"enablevoting" description:"Automatically create votes and revocations"`
+	PurchaseAccount         string               `long:"purchaseaccount" description:"Account to autobuy tickets from"`
+	PoolAddress             *cfgutil.AddressFlag `long:"pooladdress" description:"VSP fee address"`
+	PoolFees                float64              `long:"poolfees" description:"VSP fee percentage (1.00 equals 1.00% fee)"`
+	GapLimit                int                  `long:"gaplimit" description:"Allowed unused address gap between used addresses of accounts"`
+	StakePoolColdExtKey     string               `long:"stakepoolcoldextkey" description:"xpub:maxindex for fee addresses (VSP-only option)"`
+	AllowHighFees           bool                 `long:"allowhighfees" description:"Do not perform high fee checks"`
+	RelayFee                *cfgutil.AmountFlag  `long:"txfee" description:"Transaction fee per kilobyte"`
+	AccountGapLimit         int                  `long:"accountgaplimit" description:"Allowed gap of unused accounts"`
 	DisableCoinTypeUpgrades bool                 `long:"disablecointypeupgrades" description:"Never upgrade from legacy to SLIP0044 coin type keys"`
 
 	// RPC client options
-	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Hostname/IP and port of dcrd RPC server to connect to"`
-	CAFile           *cfgutil.ExplicitString `long:"cafile" description:"File containing root certificates to authenticate a TLS connections with dcrd"`
-	DisableClientTLS bool                    `long:"noclienttls" description:"Disable TLS for the RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
-	DcrdUsername     string                  `long:"dcrdusername" description:"Username for dcrd authentication"`
-	DcrdPassword     string                  `long:"dcrdpassword" default-mask:"-" description:"Password for dcrd authentication"`
-	Proxy            string                  `long:"proxy" description:"Connect via SOCKS5 proxy (eg. 127.0.0.1:9050)"`
-	ProxyUser        string                  `long:"proxyuser" description:"Username for proxy server"`
-	ProxyPass        string                  `long:"proxypass" default-mask:"-" description:"Password for proxy server"`
+	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Network address of dcrd RPC server"`
+	CAFile           *cfgutil.ExplicitString `long:"cafile" description:"dcrd RPC Certificate Authority"`
+	DisableClientTLS bool                    `long:"noclienttls" description:"Disable TLS for dcrd RPC; only allowed when connecting to localhost"`
+	DcrdUsername     string                  `long:"dcrdusername" description:"dcrd RPC username; overrides --username"`
+	DcrdPassword     string                  `long:"dcrdpassword" default-mask:"-" description:"dcrd RPC password; overrides --password"`
+	Proxy            string                  `long:"proxy" description:"Perform dcrd RPC via SOCKS5 proxy (e.g. 127.0.0.1:9050)"`
+	ProxyUser        string                  `long:"proxyuser" description:"Proxy server username"`
+	ProxyPass        string                  `long:"proxypass" default-mask:"-" description:"Proxy server password"`
 
 	// SPV options
 	SPV        bool     `long:"spv" description:"Sync using simplified payment verification"`
-	SPVConnect []string `long:"spvconnect" description:"Full node addresses to SPV sync from"`
+	SPVConnect []string `long:"spvconnect" description:"SPV sync only with specified peers; disables DNS seeding"`
 
 	// RPC server options
-	//
-	// The legacy server is still enabled by default (and eventually will be
-	// replaced with the experimental server) so prepare for that change by
-	// renaming the struct fields (but not the configuration options).
-	//
-	// Usernames can also be used for the consensus RPC client, so they
-	// aren't considered legacy.
-	RPCCert                *cfgutil.ExplicitString `long:"rpccert" description:"File containing the certificate file"`
-	RPCKey                 *cfgutil.ExplicitString `long:"rpckey" description:"File containing the certificate key"`
+	RPCCert                *cfgutil.ExplicitString `long:"rpccert" description:"RPC server TLS certificate"`
+	RPCKey                 *cfgutil.ExplicitString `long:"rpckey" description:"RPC server TLS key"`
 	TLSCurve               *cfgutil.CurveFlag      `long:"tlscurve" description:"Curve to use when generating TLS keypairs"`
-	OneTimeTLSKey          bool                    `long:"onetimetlskey" description:"Generate a new TLS certpair at startup, but only write the certificate to disk"`
-	DisableServerTLS       bool                    `long:"noservertls" description:"Disable TLS for the RPC servers -- NOTE: This is only allowed if the RPC server is bound to localhost"`
-	GRPCListeners          []string                `long:"grpclisten" description:"Listen for gRPC connections on this interface/port"`
-	LegacyRPCListeners     []string                `long:"rpclisten" description:"Listen for legacy JSON-RPC connections on this interface/port"`
-	NoGRPC                 bool                    `long:"nogrpc" description:"Disable the gRPC server"`
-	NoLegacyRPC            bool                    `long:"nolegacyrpc" description:"Disable the legacy JSON-RPC server"`
-	LegacyRPCMaxClients    int64                   `long:"rpcmaxclients" description:"Max number of legacy JSON-RPC clients for standard connections"`
-	LegacyRPCMaxWebsockets int64                   `long:"rpcmaxwebsockets" description:"Max number of legacy JSON-RPC websocket connections"`
-	Username               string                  `short:"u" long:"username" description:"Username for legacy JSON-RPC and dcrd authentication (if dcrdusername is unset)"`
-	Password               string                  `short:"P" long:"password" default-mask:"-" description:"Password for legacy JSON-RPC and dcrd authentication (if dcrdpassword is unset)"`
+	OneTimeTLSKey          bool                    `long:"onetimetlskey" description:"Generate self-signed TLS keypairs each startup; only write certificate file"`
+	DisableServerTLS       bool                    `long:"noservertls" description:"Disable TLS for the RPC servers; only allowed when binding to localhost"`
+	GRPCListeners          []string                `long:"grpclisten" description:"Listen for gRPC connections on this interface"`
+	LegacyRPCListeners     []string                `long:"rpclisten" description:"Listen for JSON-RPC connections on this interface"`
+	NoGRPC                 bool                    `long:"nogrpc" description:"Disable gRPC server"`
+	NoLegacyRPC            bool                    `long:"nolegacyrpc" description:"Disable JSON-RPC server"`
+	LegacyRPCMaxClients    int64                   `long:"rpcmaxclients" description:"Max JSON-RPC HTTP POST clients"`
+	LegacyRPCMaxWebsockets int64                   `long:"rpcmaxwebsockets" description:"Max JSON-RPC websocket clients"`
+	Username               string                  `short:"u" long:"username" description:"JSON-RPC username and default dcrd RPC username"`
+	Password               string                  `short:"P" long:"password" default-mask:"-" description:"JSON-RPC password and default dcrd RPC password"`
 
 	// IPC options
 	PipeTx            *uint `long:"pipetx" description:"File descriptor or handle of write end pipe to enable child -> parent process communication"`
@@ -142,6 +133,10 @@ type config struct {
 	RPCListenerEvents bool  `long:"rpclistenerevents" description:"Notify JSON-RPC and gRPC listener addresses over the TX pipe"`
 
 	TBOpts ticketBuyerOptions `group:"Ticket Buyer Options" namespace:"ticketbuyer"`
+
+	// Deprecated options
+	ReuseAddresses bool `long:"reuseaddresses" description:"DEPRECATED -- Reuse addresses for ticket purchase to cut down on address overuse"`
+	DisallowFree   bool `long:"disallowfree" description:"DEPRECATED -- Force transactions to always include a fee"`
 }
 
 type ticketBuyerOptions struct {
@@ -456,6 +451,17 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// options.
 	if configFileError != nil {
 		log.Warnf("%v", configFileError)
+	}
+
+	// Check deprecated options.  The new options receive priority when both
+	// are changed from the default.
+	if cfg.ReuseAddresses {
+		fmt.Fprintln(os.Stderr, "reuseaddresses option is deprecated; please "+
+			"remove from your config")
+	}
+	if cfg.DisallowFree {
+		fmt.Fprintln(os.Stderr, "disallowfree option is deprecated; please "+
+			"remove from your config")
 	}
 
 	// Sanity check BalanceToMaintainAbsolute
