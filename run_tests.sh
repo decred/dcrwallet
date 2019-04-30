@@ -18,7 +18,7 @@ REPO=dcrwallet
 
 testrepo () {
     go version
-    env GORACE='halt_on_error=1' CC=gcc GOTESTFLAGS='-race -short' bash ./testmodules.sh
+    env CC=gcc GOTESTFLAGS='-short' bash ./testmodules.sh
 }
 
 DOCKER=
