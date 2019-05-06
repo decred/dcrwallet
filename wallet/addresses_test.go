@@ -1,4 +1,4 @@
-// Copyright (c) 2018 The Decred developers
+// Copyright (c) 2018-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -325,4 +325,92 @@ func TestAddresses(t *testing.T) {
 		account:      defaultAccount,
 		watchingOnly: true,
 	})
+}
+
+func TestAccountIndexes(t *testing.T) {
+	cfg := basicWalletConfig
+	w, teardown := testWallet(t, &cfg)
+	defer teardown()
+
+	w.SetNetworkBackend(mockNetwork{})
+
+	tests := []struct {
+		f       func(t *testing.T, w *Wallet)
+		indexes accountIndexes
+	}{
+		{nil, accountIndexes{{^uint32(0), 0}, {^uint32(0), 0}}},
+		{nextAddresses(1), accountIndexes{{^uint32(0), 1}, {^uint32(0), 0}}},
+		{nextAddresses(19), accountIndexes{{^uint32(0), 20}, {^uint32(0), 0}}},
+		{watchFutureAddresses, accountIndexes{{^uint32(0), 20}, {^uint32(0), 0}}},
+		{useAddress(10), accountIndexes{{10, 9}, {^uint32(0), 0}}},
+		{nextAddresses(1), accountIndexes{{10, 10}, {^uint32(0), 0}}},
+		{nextAddresses(10), accountIndexes{{10, 20}, {^uint32(0), 0}}},
+		{useAddress(30), accountIndexes{{30, 0}, {^uint32(0), 0}}},
+		{useAddress(31), accountIndexes{{31, 0}, {^uint32(0), 0}}},
+	}
+	for i, test := range tests {
+		if test.f != nil {
+			test.f(t, w)
+		}
+		w.addressBuffersMu.Lock()
+		b := w.addressBuffers[0]
+		check := func(what string, a, b uint32) {
+			if a != b {
+				t.Fatalf("%d: %s do not match: %d != %d", i, what, a, b)
+			}
+		}
+		check("external last indexes", b.albExternal.lastUsed, test.indexes[0].last)
+		check("external cursors", b.albExternal.cursor, test.indexes[0].cursor)
+		check("internal last indexes", b.albInternal.lastUsed, test.indexes[1].last)
+		check("internal cursors", b.albInternal.cursor, test.indexes[1].cursor)
+		w.addressBuffersMu.Unlock()
+	}
+}
+
+type accountIndexes [2]struct {
+	last, cursor uint32
+}
+
+func nextAddresses(n int) func(t *testing.T, w *Wallet) {
+	return func(t *testing.T, w *Wallet) {
+		for i := 0; i < n; i++ {
+			_, err := w.NewExternalAddress(0)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+}
+
+func watchFutureAddresses(t *testing.T, w *Wallet) {
+	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		return w.watchFutureAddresses(dbtx)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func useAddress(child uint32) func(t *testing.T, w *Wallet) {
+	return func(t *testing.T, w *Wallet) {
+		w.addressBuffersMu.Lock()
+		xbranch := w.addressBuffers[0].albExternal.branchXpub
+		w.addressBuffersMu.Unlock()
+		addr, err := deriveChildAddress(xbranch, child, basicWalletConfig.Params)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+			ns := dbtx.ReadWriteBucket(waddrmgrBucketKey)
+			ma, err := w.Manager.Address(ns, addr)
+			if err != nil {
+				return err
+			}
+			return w.markUsedAddress("", dbtx, ma)
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		watchFutureAddresses(t, w)
+	}
 }

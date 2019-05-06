@@ -390,11 +390,11 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 		// used and last returned indexes retreived from the db.
 		if endExt > startExt {
 			a.albExternal.lastUsed = dbLastUsed.external
-			a.albExternal.cursor -= minUint32(a.albExternal.cursor, endExt-startExt)
+			a.albExternal.cursor = dbLastRet.external - dbLastUsed.external
 		}
 		if endInt > startInt {
 			a.albInternal.lastUsed = dbLastUsed.internal
-			a.albInternal.cursor -= minUint32(a.albInternal.cursor, endInt-startInt)
+			a.albInternal.cursor = dbLastRet.internal - dbLastUsed.internal
 		}
 
 		go func() {
