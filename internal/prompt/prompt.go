@@ -14,7 +14,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/decred/dcrd/hdkeychain"
+	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrwallet/walletseed"
 	"golang.org/x/crypto/ssh/terminal"
 )

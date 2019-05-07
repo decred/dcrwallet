@@ -24,7 +24,7 @@ import (
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/hdkeychain"
+	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
