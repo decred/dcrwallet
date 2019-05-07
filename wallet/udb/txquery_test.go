@@ -81,17 +81,17 @@ func (q *queryState) compare(t *testing.T, s *Store, changeDesc string) {
 	checkBlock := func(blocks [][]TxDetails) func([]TxDetails) (bool, error) {
 		return func(got []TxDetails) (bool, error) {
 			if len(fwdBlocks) == 0 {
-				return false, errors.Errorf("entered range when no more details expected")
+				return false, fmt.Errorf("entered range when no more details expected")
 			}
 			exp := blocks[0]
 			if len(got) != len(exp) {
-				return false, errors.Errorf("got len(details)=%d in transaction range, expected %d", len(got), len(exp))
+				return false, fmt.Errorf("got len(details)=%d in transaction range, expected %d", len(got), len(exp))
 			}
 			for i := range got {
 				equalTxDetails(t, &got[i], &exp[i])
 			}
 			if t.Failed() {
-				return false, errors.Errorf("Failed comparing range of transaction details")
+				return false, fmt.Errorf("Failed comparing range of transaction details")
 			}
 			blocks = blocks[1:]
 			return false, nil

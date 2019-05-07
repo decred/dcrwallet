@@ -8,64 +8,17 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/wire"
 	_ "github.com/decred/dcrwallet/wallet/v2/drivers/bdb"
 	"github.com/decred/dcrwallet/wallet/v2/walletdb"
-	bolt "go.etcd.io/bbolt"
 )
-
-func setup() (db walletdb.DB, s *Store, teardown func(), err error) {
-	tmpDir, err := ioutil.TempDir("", "wtxmgr_test")
-	if err != nil {
-		teardown = func() {}
-		return
-	}
-	db, err = walletdb.Create("bdb", filepath.Join(tmpDir, "db"))
-	if err != nil {
-		teardown = func() {
-			os.RemoveAll(tmpDir)
-		}
-		return
-	}
-	teardown = func() {
-		db.Close()
-		os.RemoveAll(tmpDir)
-	}
-	err = Initialize(db, &chaincfg.TestNet3Params, seed, pubPassphrase, privPassphrase)
-	if err != nil {
-		return
-	}
-	err = Upgrade(db, pubPassphrase, &chaincfg.TestNet3Params)
-	if err != nil {
-		return
-	}
-	acctLookup := func(walletdb.ReadBucket, dcrutil.Address) (uint32, error) { return 0, nil }
-	s = &Store{chainParams: &chaincfg.TestNet3Params, acctLookupFunc: acctLookup}
-	return
-}
-
-func setupBoltDB() (db *bolt.DB, teardown func(), err error) {
-	f, err := ioutil.TempFile("", "wtxmgr_boltdb")
-	if err != nil {
-		teardown = func() {}
-		return
-	}
-	f.Close()
-	teardown = func() {
-		os.Remove(f.Name())
-	}
-	db, err = bolt.Open(f.Name(), 0600, nil)
-	return
-}
 
 func tempDB(t *testing.T) (db walletdb.DB, teardown func()) {
 	f, err := ioutil.TempFile("", "udb")
