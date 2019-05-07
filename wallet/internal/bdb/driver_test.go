@@ -4,16 +4,14 @@
 // license that can be found in the LICENSE file.
 
 // Test must be updated for API changes.
-//+build disabled
-
 package bdb_test
 
 import (
-	"fmt"
+	"bytes"
 	"os"
-	"reflect"
 	"testing"
 
+	"github.com/decred/dcrwallet/errors"
 	_ "github.com/decred/dcrwallet/wallet/v2/internal/bdb"
 	"github.com/decred/dcrwallet/wallet/v2/walletdb"
 )
@@ -33,7 +31,7 @@ func TestCreateOpenFail(t *testing.T) {
 
 	// Ensure that attempting to open a database with the wrong number of
 	// parameters returns the expected error.
-	wantErr = errors.Errorf("invalid arguments to %s.Open -- expected "+
+	wantErr := errors.Errorf("invalid arguments to %s.Open -- expected "+
 		"database path", dbType)
 	if _, err := walletdb.Open(dbType, 1, 2, 3); err.Error() != wantErr.Error() {
 		t.Errorf("Open: did not receive expected error - got %v, "+
@@ -82,8 +80,8 @@ func TestCreateOpenFail(t *testing.T) {
 	defer os.Remove(dbPath)
 	db.Close()
 
-	if _, err := db.Namespace([]byte("ns1")); !errors.Is(errors.IO, err) {
-		t.Errorf("Namespace: unexpected error: %v", err)
+	if _, err := db.BeginReadTx(); !errors.Is(errors.Invalid, err) {
+		t.Errorf("BeginReadTx: unexpected error: %v", err)
 		return
 	}
 }
@@ -101,7 +99,7 @@ func TestPersistence(t *testing.T) {
 	defer os.Remove(dbPath)
 	defer db.Close()
 
-	// Create a namespace and put some values into it so they can be tested
+	// Create a bucket and put some values into it so they can be tested
 	// for existence on re-open.
 	storeValues := map[string]string{
 		"ns1key1": "foo1",
@@ -109,19 +107,15 @@ func TestPersistence(t *testing.T) {
 		"ns1key3": "foo3",
 	}
 	ns1Key := []byte("ns1")
-	ns1, err := db.Namespace(ns1Key)
-	if err != nil {
-		t.Errorf("Namespace: unexpected error: %v", err)
-		return
-	}
-	err = ns1.Update(func(tx walletdb.Tx) error {
-		rootBucket := tx.RootBucket()
-		if rootBucket == nil {
-			return errors.Errorf("RootBucket: unexpected nil root bucket")
+
+	walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+		ns1Bkt, err := tx.CreateTopLevelBucket(ns1Key)
+		if err != nil {
+			return errors.E(errors.IO, err)
 		}
 
 		for k, v := range storeValues {
-			if err := rootBucket.Put([]byte(k), []byte(v)); err != nil {
+			if err := ns1Bkt.Put([]byte(k), []byte(v)); err != nil {
 				return errors.Errorf("Put: unexpected error: %v", err)
 			}
 		}
@@ -142,48 +136,19 @@ func TestPersistence(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Ensure the values previously stored in the 3rd namespace still exist
+	// Ensure the values previously stored in the bucket still exist
 	// and are correct.
-	ns1, err = db.Namespace(ns1Key)
-	if err != nil {
-		t.Errorf("Namespace: unexpected error: %v", err)
-		return
-	}
-	err = ns1.View(func(tx walletdb.Tx) error {
-		rootBucket := tx.RootBucket()
-		if rootBucket == nil {
-			return errors.Errorf("RootBucket: unexpected nil root bucket")
-		}
-
+	walletdb.View(db, func(tx walletdb.ReadTx) error {
+		ns1Bkt := tx.ReadBucket(ns1Key)
 		for k, v := range storeValues {
-			gotVal := rootBucket.Get([]byte(k))
-			if !reflect.DeepEqual(gotVal, []byte(v)) {
+			val := ns1Bkt.Get([]byte(k))
+			if !bytes.Equal([]byte(v), val) {
 				return errors.Errorf("Get: key '%s' does not "+
 					"match expected value - got %s, want %s",
-					k, gotVal, v)
+					k, string(val), v)
 			}
 		}
 
 		return nil
 	})
-	if err != nil {
-		t.Errorf("ns1 View: unexpected error: %v", err)
-		return
-	}
-}
-
-// TestInterface performs all interfaces tests for this database driver.
-func TestInterface(t *testing.T) {
-	// Create a new database to run tests against.
-	dbPath := "interfacetest.db"
-	db, err := walletdb.Create(dbType, dbPath)
-	if err != nil {
-		t.Errorf("Failed to create test database (%s) %v", dbType, err)
-		return
-	}
-	defer os.Remove(dbPath)
-	defer db.Close()
-
-	// Run all of the interface tests against the database.
-	testInterface(t, db)
 }
