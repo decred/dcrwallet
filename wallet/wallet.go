@@ -118,22 +118,14 @@ type Wallet struct {
 	addressBuffers   map[uint32]*bip0044AccountData
 	addressBuffersMu sync.Mutex
 
-	// Channels for the manager locker.
-	unlockRequests     chan unlockRequest
-	lockRequests       chan struct{}
-	holdUnlockRequests chan chan heldUnlock
-	lockState          chan bool
-	changePassphrase   chan changePassphraseRequest
+	// Passphrase unlock
+	passphraseUsedMu        sync.RWMutex
+	passphraseTimeoutMu     sync.Mutex
+	passphraseTimeoutCancel chan struct{}
 
 	NtfnServer *NotificationServer
 
 	chainParams *chaincfg.Params
-
-	wg sync.WaitGroup
-
-	started bool
-	quit    chan struct{}
-	quitMu  sync.Mutex
 }
 
 // Config represents the configuration options needed to initialize a wallet.
@@ -400,26 +392,10 @@ func (w *Wallet) PoolFees() float64 {
 	return w.poolFees
 }
 
-// Start starts the goroutines necessary to manage a wallet.
+// Start was previously required to start necessary managment goroutines of the wallet.
+//
+// Deprecated: This method is no longer necessary.
 func (w *Wallet) Start() {
-	w.quitMu.Lock()
-	select {
-	case <-w.quit:
-		// Restart the wallet goroutines after shutdown finishes.
-		w.WaitForShutdown()
-		w.quit = make(chan struct{})
-	default:
-		// Ignore when the wallet is still running.
-		if w.started {
-			w.quitMu.Unlock()
-			return
-		}
-		w.started = true
-	}
-	w.quitMu.Unlock()
-
-	w.wg.Add(1)
-	go w.walletLocker()
 }
 
 // RelayFee returns the current minimum relay fee (per kB of serialized
@@ -455,30 +431,16 @@ func (w *Wallet) SetTicketFeeIncrement(fee dcrutil.Amount) {
 	w.ticketFeeIncrementLock.Unlock()
 }
 
-// quitChan atomically reads the quit channel.
-func (w *Wallet) quitChan() <-chan struct{} {
-	w.quitMu.Lock()
-	c := w.quit
-	w.quitMu.Unlock()
-	return c
-}
-
-// Stop signals all wallet goroutines to shutdown.
+// Stop used to signal all wallet goroutines to shutdown.
+//
+// Deprecated: This method is no longer necessary.
 func (w *Wallet) Stop() {
-	w.quitMu.Lock()
-	quit := w.quit
-	w.quitMu.Unlock()
-
-	select {
-	case <-quit:
-	default:
-		close(quit)
-	}
 }
 
-// WaitForShutdown blocks until all wallet goroutines have finished executing.
+// WaitForShutdown used to block until all wallet goroutines have finished executing.
+//
+// Deprecated: This method is no longer necessary.
 func (w *Wallet) WaitForShutdown() {
-	w.wg.Wait()
 }
 
 // MainChainTip returns the hash and height of the tip-most block in the main
@@ -1223,147 +1185,105 @@ func (w *Wallet) PurchaseTicketsContext(ctx context.Context, n NetworkBackend, r
 	return w.purchaseTickets(ctx, op, n, req)
 }
 
-type (
-	unlockRequest struct {
-		passphrase []byte
-		lockAfter  <-chan time.Time // nil prevents the timeout.
-		err        chan error
-	}
-
-	changePassphraseRequest struct {
-		old, new []byte
-		err      chan error
-	}
-)
-
 // heldUnlock is a tool to prevent the wallet from automatically locking after
 // some timeout before an operation which needed the unlocked wallet has
 // finished.  Any acquired heldUnlock *must* be released (preferably with a
 // defer) or the wallet will forever remain unlocked.
 type heldUnlock chan struct{}
 
-// walletLocker manages the locked/unlocked state of a wallet.
-func (w *Wallet) walletLocker() {
-	var timeout <-chan time.Time
-	holdChan := make(heldUnlock)
-	quit := w.quitChan()
-out:
-	for {
-		select {
-		case req := <-w.unlockRequests:
-			hadTimeout := timeout != nil
-			var wasLocked bool
-			err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-				wasLocked = w.Manager.IsLocked()
-				addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-				return w.Manager.Unlock(addrmgrNs, req.passphrase)
-			})
-			if err != nil {
-				if !wasLocked {
-					log.Info("The wallet has been locked due to an incorrect passphrase.")
-				}
-				req.err <- err
-				continue
-			}
-			// When the wallet was already unlocked without any timeout, do not
-			// set the timeout and instead wait until an explicit lock is
-			// performed.  Read the timeout in a new goroutine so that callers
-			// won't deadlock on the send.
-			if !wasLocked && !hadTimeout && req.lockAfter != nil {
-				go func() { <-req.lockAfter }()
-			} else {
-				timeout = req.lockAfter
-			}
-			switch {
-			case (wasLocked || hadTimeout) && timeout == nil:
-				log.Info("The wallet has been unlocked without a time limit")
-			case (wasLocked || !hadTimeout) && timeout != nil:
-				log.Info("The wallet has been temporarily unlocked")
-			}
-			req.err <- nil
-			continue
+// Unlock unlocks the wallet, allowing access to private keys and secret scripts.
+// An unlocked wallet will be locked before returning with a Passphrase error if
+// the passphrase is incorrect.
+// If the wallet is currently unlocked without any timeout, timeout is ignored
+// and read in a background goroutine to avoid blocking sends.
+// If the wallet is locked and a non-nil timeout is provided, the wallet will be
+// locked in the background after reading from the channel.
+// If the wallet is already unlocked with a previous timeout, the new timeout
+// replaces the prior.
+func (w *Wallet) Unlock(passphrase []byte, timeout <-chan time.Time) error {
+	const op errors.Op = "wallet.Unlock"
 
-		case req := <-w.changePassphrase:
-			err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
-				addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-				return w.Manager.ChangePassphrase(addrmgrNs, req.old,
-					req.new, true)
-			})
-			req.err <- err
-			continue
-
-		case req := <-w.holdUnlockRequests:
-			if w.Manager.IsLocked() {
-				close(req)
-				continue
-			}
-
-			req <- holdChan
-			<-holdChan // Block until the lock is released.
-
-			// If, after holding onto the unlocked wallet for some
-			// time, the timeout has expired, lock it now instead
-			// of hoping it gets unlocked next time the top level
-			// select runs.
-			select {
-			case <-timeout:
-				// Let the top level select fallthrough so the
-				// wallet is locked.
-			default:
-				continue
-			}
-
-		case w.lockState <- w.Manager.IsLocked():
-			continue
-
-		case <-quit:
-			break out
-
-		case <-w.lockRequests:
-		case <-timeout:
+	w.passphraseUsedMu.RLock()
+	wasLocked := w.Manager.IsLocked()
+	err := w.Manager.UnlockedWithPassphrase(passphrase)
+	w.passphraseUsedMu.RUnlock()
+	switch {
+	case errors.Is(errors.WatchingOnly, err):
+		return errors.E(op, err)
+	case errors.Is(errors.Passphrase, err):
+		w.Lock()
+		if !wasLocked {
+			log.Info("The wallet has been locked due to an incorrect passphrase.")
 		}
-
-		// Select statement fell through by an explicit lock or the
-		// timer expiring.  Lock the manager here.
-		timeout = nil
-		err := w.Manager.Lock()
-		if err != nil && !errors.Is(errors.Locked, err) {
-			log.Errorf("Could not lock wallet: %v", err)
-		} else {
-			log.Info("The wallet has been locked.")
+		return errors.E(op, err)
+	default:
+		return errors.E(op, err)
+	case errors.Is(errors.Locked, err):
+		defer w.passphraseUsedMu.Unlock()
+		w.passphraseUsedMu.Lock()
+		err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+			addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
+			return w.Manager.Unlock(addrmgrNs, passphrase)
+		})
+		if err != nil {
+			return errors.E(op, errors.Passphrase, err)
 		}
+	case err == nil:
 	}
-	w.wg.Done()
+	w.replacePassphraseTimeout(wasLocked, timeout)
+	return nil
 }
 
-// Unlock unlocks the wallet's address manager and relocks it after timeout has
-// expired.  If the wallet is already unlocked and the new passphrase is
-// correct, the current timeout is replaced with the new one.  The wallet will
-// be locked if the passphrase is incorrect or any other error occurs during the
-// unlock.
-func (w *Wallet) Unlock(passphrase []byte, lock <-chan time.Time) error {
-	const op errors.Op = "wallet.Unlock"
-	err := make(chan error, 1)
-	w.unlockRequests <- unlockRequest{
-		passphrase: passphrase,
-		lockAfter:  lock,
-		err:        err,
+func (w *Wallet) replacePassphraseTimeout(wasLocked bool, newTimeout <-chan time.Time) {
+	defer w.passphraseTimeoutMu.Unlock()
+	w.passphraseTimeoutMu.Lock()
+	hadTimeout := w.passphraseTimeoutCancel != nil
+	if !wasLocked && !hadTimeout && newTimeout != nil {
+		go func() { <-newTimeout }()
+	} else {
+		oldCancel := w.passphraseTimeoutCancel
+		var newCancel chan struct{}
+		if newTimeout != nil {
+			newCancel = make(chan struct{}, 1)
+		}
+		w.passphraseTimeoutCancel = newCancel
+
+		if oldCancel != nil {
+			oldCancel <- struct{}{}
+		}
+		if newTimeout != nil {
+			go func() {
+				select {
+				case <-newTimeout:
+					w.Lock()
+					log.Info("The wallet has been locked due to timeout.")
+				case <-newCancel:
+					<-newTimeout
+				}
+			}()
+		}
 	}
-	e := <-err
-	if e != nil {
-		return errors.E(op, e)
+	switch {
+	case (wasLocked || hadTimeout) && newTimeout == nil:
+		log.Info("The wallet has been unlocked without a time limit")
+	case (wasLocked || !hadTimeout) && newTimeout != nil:
+		log.Info("The wallet has been temporarily unlocked")
 	}
-	return nil
 }
 
 // Lock locks the wallet's address manager.
 func (w *Wallet) Lock() {
-	w.lockRequests <- struct{}{}
+	w.passphraseUsedMu.Lock()
+	w.passphraseTimeoutMu.Lock()
+	_ = w.Manager.Lock()
+	w.passphraseTimeoutCancel = nil
+	w.passphraseTimeoutMu.Unlock()
+	w.passphraseUsedMu.Unlock()
 }
 
 // Locked returns whether the account manager for a wallet is locked.
 func (w *Wallet) Locked() bool {
-	return <-w.lockState
+	return w.Manager.IsLocked()
 }
 
 // holdUnlock prevents the wallet from being locked.  The heldUnlock object
@@ -1373,13 +1293,18 @@ func (w *Wallet) Locked() bool {
 // to the walletLocker goroutine and disallow callers from explicitly
 // handling the locking mechanism.
 func (w *Wallet) holdUnlock() (heldUnlock, error) {
-	req := make(chan heldUnlock)
-	w.holdUnlockRequests <- req
-	hl, ok := <-req
-	if !ok {
+	w.passphraseUsedMu.RLock()
+	locked := w.Manager.IsLocked()
+	if locked {
+		w.passphraseUsedMu.RUnlock()
 		return nil, errors.E(errors.Locked)
 	}
-	return hl, nil
+	hold := make(heldUnlock)
+	go func() {
+		<-hold
+		w.passphraseUsedMu.RUnlock()
+	}()
+	return hold, nil
 }
 
 // release releases the hold on the unlocked-state of the wallet and allows the
@@ -1395,15 +1320,14 @@ func (c heldUnlock) release() {
 // before the password change.
 func (w *Wallet) ChangePrivatePassphrase(old, new []byte) error {
 	const op errors.Op = "wallet.ChangePrivatePassphrase"
-	err := make(chan error, 1)
-	w.changePassphrase <- changePassphraseRequest{
-		old: old,
-		new: new,
-		err: err,
-	}
-	e := <-err
-	if e != nil {
-		return errors.E(op, e)
+	defer w.passphraseUsedMu.Unlock()
+	w.passphraseUsedMu.Lock()
+	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
+		return w.Manager.ChangePassphrase(addrmgrNs, old, new, true)
+	})
+	if err != nil {
+		return errors.E(op, err)
 	}
 	return nil
 }
@@ -4474,13 +4398,7 @@ func Open(cfg *Config) (*Wallet, error) {
 
 		lockedOutpoints: map[wire.OutPoint]struct{}{},
 
-		addressBuffers:     make(map[uint32]*bip0044AccountData),
-		unlockRequests:     make(chan unlockRequest),
-		lockRequests:       make(chan struct{}),
-		holdUnlockRequests: make(chan chan heldUnlock),
-		lockState:          make(chan bool),
-		changePassphrase:   make(chan changePassphraseRequest),
-		quit:               make(chan struct{}),
+		addressBuffers: make(map[uint32]*bip0044AccountData),
 	}
 
 	// Open database managers

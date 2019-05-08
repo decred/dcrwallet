@@ -1,5 +1,5 @@
 // Copyright (c) 2014-2016 The btcsuite developers
-// Copyright (c) 2015-2018 The Decred developers
+// Copyright (c) 2015-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1323,6 +1323,33 @@ func (m *Manager) LookupAccount(ns walletdb.ReadBucket, name string) (uint32, er
 	// Mutex does not need to be held here as this does not read or write to any
 	// of the manager's members.
 	return fetchAccountByName(ns, name)
+}
+
+// UnlockedWithPassphrase returns nil when the wallet is currently unlocked with a
+// matching passphrase and errors with the following codes otherwise:
+//   WatchingOnly: The wallet is watching-only and can never be unlocked
+//   Locked: The wallet is currently locked
+//   Passphrase: The wallet is unlocked but the provided passphrase is incorrect
+func (m *Manager) UnlockedWithPassphrase(passphrase []byte) error {
+	defer m.mtx.RUnlock()
+	m.mtx.RLock()
+
+	if m.watchingOnly {
+		return errors.E(errors.WatchingOnly, "watching wallets can not be unlocked")
+	}
+
+	if m.locked {
+		return errors.E(errors.Locked)
+	}
+
+	saltedPassphrase := append(m.privPassphraseSalt[:], passphrase...)
+	hashedPassphrase := sha512.Sum512(saltedPassphrase)
+	zero.Bytes(saltedPassphrase)
+	if hashedPassphrase != m.hashedPrivPassphrase {
+		return errors.E(errors.Passphrase)
+	}
+
+	return nil
 }
 
 // Unlock derives the master private key from the specified passphrase.  An
