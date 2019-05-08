@@ -22,6 +22,7 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/internal/helpers"
 	"github.com/decred/dcrwallet/wallet/v2/internal/txsizes"
 	"github.com/decred/dcrwallet/wallet/v2/txauthor"
 	"github.com/decred/dcrwallet/wallet/v2/txrules"
@@ -79,6 +80,34 @@ const (
 	OutputSelectionAlgorithmAll
 )
 
+// trackingSource reprsents an input source that tracks of inputs in calls prior.
+type trackingSource struct {
+	target dcrutil.Amount
+	source udb.InputSource
+}
+
+// TrackTransaction updates the target of the input source per the outputs and
+// fees used by the provided transaction.
+func (t *trackingSource) TrackTransaction(tx *txauthor.AuthoredTx, feePerKb dcrutil.Amount) {
+	fees := txrules.FeeForSerializeSize(feePerKb, tx.EstimatedSignedSerializeSize)
+	vOut := helpers.SumOutputValues(tx.Tx.TxOut)
+	diff := fees + vOut
+	t.target -= diff
+}
+
+// InputSource returns the underlying input source capped by the updated target.
+func (t *trackingSource) InputSource() func(dcrutil.Amount) (*txauthor.InputDetail, error) {
+	return func(dcrutil.Amount) (*txauthor.InputDetail, error) {
+		inputDetail, err := t.source.SelectInputs(t.target)
+		// Ignore insufficient balance issues.
+		if errors.Is(errors.InsufficientBalance, err) {
+			err = nil
+		}
+
+		return inputDetail, err
+	}
+}
+
 // NewUnsignedTransaction constructs an unsigned transaction using unspent
 // account outputs.
 //
@@ -129,15 +158,8 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 		case OutputSelectionAlgorithmDefault:
 			inputSource = sourceImpl.SelectInputs
 		case OutputSelectionAlgorithmAll:
-			// Wrap the source with one that always fetches the max amount
-			// available and ignores insufficient balance issues.
-			inputSource = func(dcrutil.Amount) (*txauthor.InputDetail, error) {
-				inputDetail, err := sourceImpl.SelectInputs(dcrutil.MaxAmount)
-				if errors.Is(errors.InsufficientBalance, err) {
-					err = nil
-				}
-				return inputDetail, err
-			}
+			w.trackingSource.source = sourceImpl
+			inputSource = w.trackingSource.InputSource()
 		default:
 			return errors.E(errors.Invalid,
 				errors.Errorf("unknown output selection algorithm %v", algo))

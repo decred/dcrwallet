@@ -62,6 +62,7 @@ service WalletService {
 	rpc ValidateAddress (ValidateAddressRequest) returns (ValidateAddressResponse);
 	rpc CommittedTickets (CommittedTicketsRequest) returns (CommittedTicketsResponse);
 	rpc SweepAccount (SweepAccountRequest) returns (SweepAccountResponse);
+	rpc CleanOutAccount (CleanOutAccountRequest) returns (CleanOutAccountResponse);
 }
 
 service WalletLoaderService {
@@ -1070,4 +1071,21 @@ message SweepAccountResponse {
 	int64 total_previous_output_amount = 2;
 	int64 total_output_amount = 3;
 	uint32 estimated_signed_size = 4;
+}
+
+message CleanOutAccountRequest {
+	string source_account = 1;
+	string destination_address = 2;
+	uint32 required_confirmations = 3;
+	double fee_per_kb = 4;
+}
+
+message CleanOutAccountResponse {
+	message CleanOutAccountTransaction {
+		bytes unsigned_transaction = 1;
+		int64 total_previous_output_amount = 2;
+		int64 total_output_amount = 3;
+		uint32 estimated_signed_size = 4;
+	}
+	repeated CleanOutAccountTransaction transactions = 1;
 }

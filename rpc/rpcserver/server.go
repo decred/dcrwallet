@@ -801,6 +801,59 @@ func (s *walletServer) SweepAccount(ctx context.Context, req *pb.SweepAccountReq
 	return res, nil
 }
 
+func (s *walletServer) CleanOutAccount(ctx context.Context, req *pb.CleanOutAccountRequest) (*pb.CleanOutAccountResponse, error) {
+	feePerKb := s.wallet.RelayFee()
+
+	// Use provided fee per Kb if specified.
+	if req.FeePerKb < 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "%s",
+			"fee per kb argument cannot be negative")
+	}
+
+	if req.FeePerKb > 0 {
+		var err error
+		feePerKb, err = dcrutil.NewAmount(req.FeePerKb)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
+	}
+
+	account, err := s.wallet.AccountNumber(req.SourceAccount)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	txs, err := s.wallet.CleanOutAccount(account, req.DestinationAddress,
+		feePerKb, req.RequiredConfirmations)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	res := &pb.CleanOutAccountResponse{}
+	res.Transactions =
+		make([]*pb.CleanOutAccountResponse_CleanOutAccountTransaction, len(txs))
+	var txBuf bytes.Buffer
+	for idx, tx := range txs {
+		txBuf.Grow(tx.Tx.SerializeSize())
+		err = tx.Tx.Serialize(&txBuf)
+		if err != nil {
+			return nil, translateError(err)
+		}
+
+		entry := &pb.CleanOutAccountResponse_CleanOutAccountTransaction{
+			UnsignedTransaction:       txBuf.Bytes(),
+			TotalPreviousOutputAmount: int64(tx.TotalInput),
+			TotalOutputAmount:         int64(h.SumOutputValues(tx.Tx.TxOut)),
+			EstimatedSignedSize:       uint32(tx.EstimatedSignedSerializeSize),
+		}
+
+		res.Transactions[idx] = entry
+		txBuf.Reset()
+	}
+
+	return res, nil
+}
+
 func (s *walletServer) BlockInfo(ctx context.Context, req *pb.BlockInfoRequest) (*pb.BlockInfoResponse, error) {
 	var blockID *wallet.BlockIdentifier
 	switch {

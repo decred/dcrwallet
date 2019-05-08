@@ -129,6 +129,8 @@ type Wallet struct {
 
 	chainParams *chaincfg.Params
 
+	trackingSource *trackingSource
+
 	wg sync.WaitGroup
 
 	started bool
@@ -620,6 +622,83 @@ func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb N
 	}
 
 	return bip0044AddrCount + importedAddrCount, nil
+}
+
+// scriptChangeSource is a ChangeSource which is used to
+// receive all correlated previous input value.
+type scriptChangeSource struct {
+	version uint16
+	script  []byte
+}
+
+func (src *scriptChangeSource) Script() ([]byte, uint16, error) {
+	return src.script, src.version, nil
+}
+
+func (src *scriptChangeSource) ScriptSize() int {
+	return len(src.script)
+}
+
+func makeScriptChangeSource(address string, version uint16) (*scriptChangeSource, error) {
+	destinationAddress, err := dcrutil.DecodeAddress(address)
+	if err != nil {
+		return nil, err
+	}
+
+	script, err := txscript.PayToAddrScript(destinationAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	source := &scriptChangeSource{
+		version: version,
+		script:  script,
+	}
+
+	return source, nil
+}
+
+func (w *Wallet) CleanOutAccount(account uint32, address string, feePerKb dcrutil.Amount, minConf uint32) ([]*txauthor.AuthoredTx, error) {
+	changeSource, err := makeScriptChangeSource(address, txscript.DefaultScriptVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	w.trackingSource = &trackingSource{}
+
+	// Update the tracking source target to the spendable balance of the account
+	// per the minimum confirmations provided.
+	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		bal, err := w.TxStore.AccountBalance(txmgrNs, addrmgrNs, int32(minConf), account)
+		if err != nil {
+			return err
+		}
+
+		w.trackingSource.target = bal.Spendable
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var txs []*txauthor.AuthoredTx
+
+	// Create as many transactions as needed to clean out the account
+	if w.trackingSource.target > 0 {
+		tx, err := w.NewUnsignedTransaction(nil, feePerKb, account,
+			int32(minConf), OutputSelectionAlgorithmAll, changeSource)
+		if err != nil {
+			return nil, err
+		}
+
+		w.trackingSource.TrackTransaction(tx, feePerKb)
+		txs = append(txs, tx)
+	}
+
+	return txs, nil
 }
 
 // CoinType returns the active BIP0044 coin type. For watching-only wallets,
