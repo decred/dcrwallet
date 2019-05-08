@@ -64,3 +64,24 @@ func TestMatch(t *testing.T) {
 		t.Fatal("match on different kind")
 	}
 }
+
+func TestCause(t *testing.T) {
+	inner := New("inner")
+	outer := E(inner)
+	if Cause(outer) != inner {
+		t.Fatal("Cause is not equal to inner error")
+	}
+	if Cause(nil) != nil {
+		t.Fatal("Cause(nil) must be nil")
+	}
+	// Cause(E("string")) must return the bottom *Error type, not stdlib errors.errorString
+	for _, e := range []error{
+		E("bottom"),
+		E(Passphrase, E(Invalid, "bottom")),
+	} {
+		c := Cause(e)
+		if _, ok := c.(*Error); !ok {
+			t.Fatalf("wrong bottom error type %T", c)
+		}
+	}
+}
