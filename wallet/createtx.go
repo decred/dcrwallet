@@ -161,6 +161,7 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 			return err
 		}
 		for _, in := range authoredTx.Tx.TxIn {
+			w.lockedOutpoints[in.PreviousOutPoint] = struct{}{}
 			unlockOutpoints = append(unlockOutpoints, &in.PreviousOutPoint)
 		}
 		return nil
@@ -372,6 +373,7 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 			return err
 		}
 		for _, in := range atx.Tx.TxIn {
+			w.lockedOutpoints[in.PreviousOutPoint] = struct{}{}
 			unlockOutpoints = append(unlockOutpoints, &in.PreviousOutPoint)
 		}
 		once.Do(w.lockedOutpointMu.Unlock)
