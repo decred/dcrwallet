@@ -969,7 +969,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	}
 
 	// Ensure the ticket price does not exceed the spend limit if set.
-	if req.spendLimit >= 0 && ticketPrice > req.spendLimit {
+	if req.spendLimit > 0 && ticketPrice > req.spendLimit {
 		return nil, errors.E(op, errors.Invalid,
 			errors.Errorf("ticket price %v above spend limit %v", ticketPrice, req.spendLimit))
 	}
