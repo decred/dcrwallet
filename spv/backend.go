@@ -197,6 +197,9 @@ FilterLoop:
 			var rp *p2p.RemotePeer
 		PickPeer:
 			for {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
 				if rp == nil {
 					var err error
 					rp, err = s.pickRemote(pickAny)
