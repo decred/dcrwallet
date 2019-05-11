@@ -31,16 +31,18 @@ type websocketClient struct {
 	authenticated bool
 	allRequests   chan []byte
 	responses     chan []byte
+	cancel        func()
 	quit          chan struct{} // closed on disconnect
 	wg            sync.WaitGroup
 }
 
-func newWebsocketClient(c *websocket.Conn, authenticated bool) *websocketClient {
+func newWebsocketClient(c *websocket.Conn, cancel func(), authenticated bool) *websocketClient {
 	return &websocketClient{
 		conn:          c,
 		authenticated: authenticated,
 		allRequests:   make(chan []byte),
 		responses:     make(chan []byte),
+		cancel:        cancel,
 		quit:          make(chan struct{}),
 	}
 }
@@ -76,7 +78,7 @@ type Server struct {
 }
 
 type handler struct {
-	fn     func(*Server, interface{}) (interface{}, error)
+	fn     func(*Server, context.Context, interface{}) (interface{}, error)
 	noHelp bool
 }
 
@@ -135,6 +137,7 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 	serveMux.Handle("/ws", throttledFn(opts.MaxWebsocketClients,
 		func(w http.ResponseWriter, r *http.Request) {
 			ctx := withRemoteAddr(r.Context(), r.RemoteAddr)
+			ctx, cancel := context.WithCancel(ctx)
 			authenticated := false
 			switch server.checkAuthHeader(r) {
 			case nil:
@@ -156,7 +159,7 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 					r.RemoteAddr, err)
 				return
 			}
-			wsc := newWebsocketClient(conn, authenticated)
+			wsc := newWebsocketClient(conn, cancel, authenticated)
 			server.websocketClientRPC(ctx, wsc)
 		}))
 
@@ -236,7 +239,7 @@ func (s *Server) Stop() {
 // known) and handled accordingly.
 func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) lazyHandler {
 	log.Infof("RPC method %v invoked by %v", request.Method, remoteAddr(ctx))
-	return lazyApplyHandler(s, request)
+	return lazyApplyHandler(s, ctx, request)
 }
 
 // errNoAuth represents an error where authentication could not succeed
@@ -325,6 +328,7 @@ func (s *Server) websocketClientRead(ctx context.Context, wsc *websocketClient) 
 					remoteAddr(ctx), err)
 			}
 			close(wsc.allRequests)
+			wsc.cancel()
 			break
 		}
 		wsc.allRequests <- request
