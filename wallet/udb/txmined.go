@@ -458,7 +458,7 @@ func extractBlockHeaderParentHash(header []byte) []byte {
 // ExtractBlockHeaderParentHash subslices the header to return the bytes of the
 // parent block's hash.  Must only be called on known good input.
 //
-// TODO: This really should not be exported by this package.
+// DEPRECATED: to be removed in the next major release.
 func ExtractBlockHeaderParentHash(header []byte) []byte {
 	return extractBlockHeaderParentHash(header)
 }
@@ -476,7 +476,7 @@ func extractBlockHeaderHeight(header []byte) int32 {
 // ExtractBlockHeaderHeight returns the height field that is encoded in the
 // header.  Must only be called on known good input.
 //
-// TODO: This really should not be exported by this package.
+// DEPRECATED: to be removed in the next major release.
 func ExtractBlockHeaderHeight(header []byte) int32 {
 	return extractBlockHeaderHeight(header)
 }
@@ -490,7 +490,7 @@ func extractBlockHeaderUnixTime(header []byte) uint32 {
 // header.  Must only be called on known good input.  Header timestamps are only
 // 4 bytes and this value is actually limited to a maximum unix time of 2^32-1.
 //
-// TODO: This really should not be exported by this package.
+// DEPRECATED: to be removed in the next major release.
 func ExtractBlockHeaderTime(header []byte) int64 {
 	return int64(extractBlockHeaderUnixTime(header))
 }
