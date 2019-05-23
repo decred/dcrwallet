@@ -93,6 +93,19 @@ type Notifications struct {
 	RescanStarted                func()
 	RescanProgress               func(rescannedThrough int32)
 	RescanFinished               func()
+
+	// MempoolTxs is called whenever new relevant unmined transactions are
+	// observed and saved.
+	MempoolTxs func(txs []*wire.MsgTx)
+
+	// TipChanged is called when the main chain tip block changes.
+	// When reorgDepth is zero, the new block is a direct child of the previous tip.
+	// If non-zero, one or more blocks described by the parameter were removed from
+	// the previous main chain.
+	// txs contains all relevant transactions mined in each attached block in
+	// unspecified order.
+	// reorgDepth is guaranteed to be non-negative.
+	TipChanged func(tip *wire.BlockHeader, reorgDepth int32, txs []*wire.MsgTx)
 }
 
 // NewSyncer creates a Syncer that will sync the wallet using SPV.
@@ -224,6 +237,22 @@ func (s *Syncer) rescanProgress(rescannedThrough int32) {
 func (s *Syncer) rescanFinished() {
 	if s.notifications != nil && s.notifications.RescanFinished != nil {
 		s.notifications.RescanFinished()
+	}
+}
+
+func (s *Syncer) mempoolTxs(txs []*wire.MsgTx) {
+	if s.notifications != nil && s.notifications.MempoolTxs != nil {
+		s.notifications.MempoolTxs(txs)
+	}
+}
+
+func (s *Syncer) tipChanged(tip *wire.BlockHeader, reorgDepth int32, matchingTxs map[chainhash.Hash][]*wire.MsgTx) {
+	if s.notifications != nil && s.notifications.TipChanged != nil {
+		var txs []*wire.MsgTx
+		for _, matching := range matchingTxs {
+			txs = append(txs, matching...)
+		}
+		s.notifications.TipChanged(tip, reorgDepth, txs)
 	}
 }
 
@@ -696,13 +725,15 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 	}
 
 	// Save any relevant transaction.
-	for _, tx := range s.filterRelevant(txs) {
+	relevant := s.filterRelevant(txs)
+	for _, tx := range relevant {
 		err := s.wallet.AcceptMempoolTx(tx)
 		if err != nil {
 			op := errors.Opf(opf, rp.RemoteAddr())
 			log.Warn(errors.E(op, err))
 		}
 	}
+	s.mempoolTxs(relevant)
 }
 
 // receiveHeaderAnnouncements receives all block announcements through pushed
@@ -934,6 +965,7 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 				s.sidechains.AddBlockNode(n)
 			}
 		}
+		s.tipChanged(bestChain[len(bestChain)-1].Header, int32(len(prevChain)), matchingTxs)
 
 		return nil
 	}()
