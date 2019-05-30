@@ -170,7 +170,7 @@ func (n *walletTestConfig) cleanup() error {
 	return err
 }
 
-// walletTest houses the neccessary state required to configure, launch, and
+// walletTest houses the necessary state required to configure, launch, and
 // manaage a dcrwallet process.
 type walletTest struct {
 	config *walletTestConfig

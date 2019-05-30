@@ -392,7 +392,7 @@ func (w *Wallet) PoolFees() float64 {
 	return w.poolFees
 }
 
-// Start was previously required to start necessary managment goroutines of the wallet.
+// Start was previously required to start necessary management goroutines of the wallet.
 //
 // Deprecated: This method is no longer necessary.
 func (w *Wallet) Start() {

@@ -32,7 +32,7 @@ func NewCurveFlag(defaultValue CurveID) *CurveFlag {
 	return &CurveFlag{defaultValue}
 }
 
-// MarshalFlag satisifes the flags.Marshaler interface.
+// MarshalFlag satisfies the flags.Marshaler interface.
 func (f *CurveFlag) MarshalFlag() (name string, err error) {
 	switch f.curveID {
 	case CurveP224:
@@ -49,7 +49,7 @@ func (f *CurveFlag) MarshalFlag() (name string, err error) {
 	return
 }
 
-// UnmarshalFlag satisifes the flags.Unmarshaler interface.
+// UnmarshalFlag satisfies the flags.Unmarshaler interface.
 func (f *CurveFlag) UnmarshalFlag(value string) error {
 	switch value {
 	case "P-224":

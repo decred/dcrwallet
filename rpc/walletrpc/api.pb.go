@@ -4748,7 +4748,7 @@ type TransactionNotificationsResponse struct {
 	// Any new unmined transactions are included here.  These unmined transactions
 	// refer to the current best chain, so transactions from detached blocks may
 	// be moved to mempool and included here if they are not mined or double spent
-	// in the new chain.  Additonally, if no new blocks were attached but a relevant
+	// in the new chain.  Additionally, if no new blocks were attached but a relevant
 	// unmined transaction is seen by the wallet, it will be reported here.
 	UnminedTransactions []*TransactionDetails `protobuf:"bytes,3,rep,name=unmined_transactions,json=unminedTransactions,proto3" json:"unmined_transactions,omitempty"`
 	// Instead of notifying all of the removed unmined transactions,

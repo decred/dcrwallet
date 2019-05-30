@@ -1751,7 +1751,7 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 				// for this key, but this behavior is correct.  Since
 				// transactions are removed in an unspecified order
 				// (transactions in the blo	ck record are not sorted by
-				// appearence in the block), this credit may have already been
+				// appearance in the block), this credit may have already been
 				// removed.
 				var amt dcrutil.Amount
 				amt, err = unspendRawCredit(ns, credKey)
@@ -2189,7 +2189,7 @@ func (s *Store) IsUnspentOutpoint(dbtx walletdb.ReadTx, op *wire.OutPoint) bool 
 		return existsRawUnminedInput(ns, k) == nil
 	}
 	if v := existsRawUnminedCredit(ns, k); v != nil {
-		// Output is in an unmined transation, but may be spent by another
+		// Output is in an unmined transaction, but may be spent by another
 		// unmined transaction.
 		return existsRawUnminedInput(ns, k) == nil
 	}
