@@ -49,8 +49,6 @@ const (
 	defaultDisableCoinTypeUpgrades = false
 
 	// ticket buyer options
-	defaultMaxFee                    dcrutil.Amount = 1e6
-	defaultMinFee                    dcrutil.Amount = 1e5
 	defaultBalanceToMaintainAbsolute                = 0
 
 	walletDbName = "wallet.db"
