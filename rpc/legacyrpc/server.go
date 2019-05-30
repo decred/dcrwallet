@@ -136,8 +136,6 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 
 	serveMux.Handle("/ws", throttledFn(opts.MaxWebsocketClients,
 		func(w http.ResponseWriter, r *http.Request) {
-			ctx := withRemoteAddr(r.Context(), r.RemoteAddr)
-			ctx, cancel := context.WithCancel(ctx)
 			authenticated := false
 			switch server.checkAuthHeader(r) {
 			case nil:
@@ -159,6 +157,8 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 					r.RemoteAddr, err)
 				return
 			}
+			ctx := withRemoteAddr(r.Context(), r.RemoteAddr)
+			ctx, cancel := context.WithCancel(ctx)
 			wsc := newWebsocketClient(conn, cancel, authenticated)
 			server.websocketClientRPC(ctx, wsc)
 		}))
