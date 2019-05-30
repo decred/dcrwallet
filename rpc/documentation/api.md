@@ -959,7 +959,7 @@ results of a single ticket.
   - `TransactionDetails ticket`: The transaction details of a given ticket.
 
   - `TransactionDetails spender`: The transaction details of the ticket's
-    spender if applicable (otherwise emtpy).
+    spender if applicable (otherwise empty).
 
     The `TransactionDetails` message is used by other methods and is documented
     [here](#transactiondetails).
@@ -2306,7 +2306,7 @@ transaction.
   - `repeated string addresses`: Addresses found when decoding the output
   script.
 
-  - `int64 commitment_amount`: Amount commited to a ticket on an SStx
+  - `int64 commitment_amount`: Amount committed to a ticket on an SStx
   transaction.
 
 ___
@@ -2893,7 +2893,7 @@ supported by this software.
   - `bool is_abstain`: Whether the choice describes to abstain from the vote.
 
   - `bool is_no`: Whether the choice describes to vote against all changes and
-    keep the current consensus rules (if the vote is for a concensus change).
+    keep the current consensus rules (if the vote is for a consensus change).
 
 **ExpectedErrors:** None
 

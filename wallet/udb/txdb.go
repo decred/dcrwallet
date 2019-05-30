@@ -1205,7 +1205,7 @@ func extractRawDebitUnspentValue(v []byte) []byte {
 	return v[40:76]
 }
 
-// existsDebit checks for the existance of a debit.  If found, the debit and
+// existsDebit checks for the existence of a debit.  If found, the debit and
 // previous credit keys are returned.  If the debit does not exist, both keys
 // are nil.
 func existsDebit(ns walletdb.ReadBucket, txHash *chainhash.Hash, index uint32, block *Block) (k, credKey []byte, err error) {
@@ -2140,7 +2140,7 @@ func upgradeToVersion2(ns walletdb.ReadWriteBucket) error {
 // to be saved, so if this step is skipped the store will not operate correctly.
 //
 // In addition to the headers, an additional byte is added to the block record
-// values at position 42, inbetween the vote bits and the number of
+// values at position 42, between the vote bits and the number of
 // transactions.  This byte is used as a boolean and records whether or not the
 // block has been stake invalidated by the next block in the main chain.
 func upgradeToVersion3(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params) error {

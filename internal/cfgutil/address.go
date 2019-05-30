@@ -18,7 +18,7 @@ func NewAddressFlag(defaultValue dcrutil.Address) *AddressFlag {
 	return &AddressFlag{defaultValue}
 }
 
-// MarshalFlag satisifes the flags.Marshaler interface.
+// MarshalFlag satisfies the flags.Marshaler interface.
 func (a *AddressFlag) MarshalFlag() (string, error) {
 	if a.Address != nil {
 		return a.Address.String(), nil
@@ -27,7 +27,7 @@ func (a *AddressFlag) MarshalFlag() (string, error) {
 	return "", nil
 }
 
-// UnmarshalFlag satisifes the flags.Unmarshaler interface.
+// UnmarshalFlag satisfies the flags.Unmarshaler interface.
 func (a *AddressFlag) UnmarshalFlag(addr string) error {
 	if addr == "" {
 		a.Address = nil

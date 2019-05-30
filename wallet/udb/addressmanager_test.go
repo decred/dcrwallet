@@ -490,7 +490,7 @@ func TestManagerImports(t *testing.T) {
 	testImports(tc)
 }
 
-// testChangePassphrase ensures changes both the public and privte passphrases
+// testChangePassphrase ensures changes both the public and private passphrases
 // works as intended.
 func testChangePassphrase(tc *testContext, wb walletdb.ReadWriteBucket) {
 	// Force an error when changing the passphrase due to failure to

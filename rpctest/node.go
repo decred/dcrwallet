@@ -148,7 +148,7 @@ func (n *nodeConfig) cleanup() error {
 	return os.RemoveAll(n.appDataDir)
 }
 
-// node houses the neccessary state required to configure, launch, and manaage
+// node houses the necessary state required to configure, launch, and manaage
 // a dcrd process.
 type node struct {
 	config *nodeConfig

@@ -23,12 +23,12 @@ func NewAmountFlag(defaultValue dcrutil.Amount) *AmountFlag {
 	return &AmountFlag{defaultValue}
 }
 
-// MarshalFlag satisifes the flags.Marshaler interface.
+// MarshalFlag satisfies the flags.Marshaler interface.
 func (a *AmountFlag) MarshalFlag() (string, error) {
 	return a.Amount.String(), nil
 }
 
-// UnmarshalFlag satisifes the flags.Unmarshaler interface.
+// UnmarshalFlag satisfies the flags.Unmarshaler interface.
 func (a *AmountFlag) UnmarshalFlag(value string) error {
 	value = strings.TrimSuffix(value, " DCR")
 	valueF64, err := strconv.ParseFloat(value, 64)

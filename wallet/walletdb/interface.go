@@ -118,7 +118,7 @@ type ReadWriteBucket interface {
 	// Cursor returns a new cursor, allowing for iteration over the bucket's
 	// key/value pairs and nested buckets in forward or backward order.
 	// Only one cursor can be opened at a time and should be closed before
-	// commiting or rolling back the transaction.
+	// committing or rolling back the transaction.
 	ReadWriteCursor() ReadWriteCursor
 }
 
@@ -194,7 +194,7 @@ type DB interface {
 // View opens a database read transaction and executes the function f with the
 // transaction passed as a parameter.  After f exits or panics, the transaction
 // is rolled back.  If f errors, its error is returned, not a rollback error (if
-// any occured).
+// any occurred).
 func View(db DB, f func(tx ReadTx) error) error {
 	tx, err := db.BeginReadTx()
 	if err != nil {
