@@ -186,9 +186,9 @@ func (s *Syncer) fetchHeadersStart() {
 	}
 }
 
-func (s *Syncer) fetchHeadersProgress(fetchedHeadersCount int32, lastHeaderTime int64) {
+func (s *Syncer) fetchHeadersProgress(lastHeader *wire.BlockHeader) {
 	if s.notifications != nil && s.notifications.FetchHeadersProgress != nil {
-		s.notifications.FetchHeadersProgress(fetchedHeadersCount, lastHeaderTime)
+		s.notifications.FetchHeadersProgress(int32(lastHeader.Height), lastHeader.Timestamp.Unix())
 	}
 }
 
@@ -1071,7 +1071,7 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 			s.locatorMu.Unlock()
 			continue
 		}
-		s.fetchHeadersProgress(int32(added), headers[len(headers)-1].Timestamp.Unix())
+		s.fetchHeadersProgress(headers[len(headers)-1])
 		log.Debugf("Fetched %d new header(s) ending at height %d from %v",
 			added, nodes[len(nodes)-1].Header.Height, rp)
 
