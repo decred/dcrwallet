@@ -87,6 +87,7 @@ func cacheMissingCommitments(ctx context.Context, p Peer, cache blockCommitmentC
 }
 
 type accountUsage struct {
+	account        uint32
 	extkey, intkey *hd.ExtendedKey
 	extLastUsed    uint32
 	intLastUsed    uint32
@@ -120,8 +121,12 @@ func newAddrFinder(ctx context.Context, w *Wallet) (*addrFinder, error) {
 		if err != nil {
 			return err
 		}
-		a.usage = make([]accountUsage, lastAcct+1)
-		for acct := uint32(0); acct <= lastAcct; acct++ {
+		lastImported, err := w.Manager.LastImportedAccount(dbtx)
+		if err != nil {
+			return err
+		}
+		a.usage = make([]accountUsage, 0, lastAcct+1+lastImported-udb.ImportedAddrAccount)
+		addUsage := func(acct uint32) error {
 			extkey, err := w.Manager.AccountBranchExtendedPubKey(dbtx, acct, 0)
 			if err != nil {
 				return err
@@ -141,7 +146,8 @@ func newAddrFinder(ctx context.Context, w *Wallet) (*addrFinder, error) {
 			if props.LastUsedInternalIndex != ^uint32(0) {
 				intlo = props.LastUsedInternalIndex / a.gaplimit
 			}
-			a.usage[acct] = accountUsage{
+			a.usage = append(a.usage, accountUsage{
+				account:     acct,
 				extkey:      extkey,
 				intkey:      intkey,
 				extLastUsed: props.LastUsedExternalIndex,
@@ -150,6 +156,17 @@ func newAddrFinder(ctx context.Context, w *Wallet) (*addrFinder, error) {
 				exthi:       a.segments - 1,
 				intlo:       intlo,
 				inthi:       a.segments - 1,
+			})
+			return nil
+		}
+		for acct := uint32(0); acct <= lastAcct; acct++ {
+			if err := addUsage(acct); err != nil {
+				return err
+			}
+		}
+		for acct := uint32(udb.ImportedAddrAccount + 1); acct <= lastImported; acct++ {
+			if err := addUsage(acct); err != nil {
+				return err
 			}
 		}
 		return nil
@@ -210,13 +227,12 @@ func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, p Peer) er
 			return nil
 		}
 		for i := range a.usage {
-			acct := uint32(i)
 			u := &a.usage[i]
-			err = addBranch(u.extkey, acct, 0, u.extlo, u.exthi)
+			err = addBranch(u.extkey, u.account, 0, u.extlo, u.exthi)
 			if err != nil {
 				return err
 			}
-			err = addBranch(u.intkey, acct, 1, u.intlo, u.inthi)
+			err = addBranch(u.intkey, u.account, 1, u.intlo, u.inthi)
 			if err != nil {
 				return err
 			}
@@ -702,8 +718,8 @@ func (f *existsAddrIndexFinder) find(ctx context.Context, finder *addrFinder) er
 		return nil
 	}
 	for i := range finder.usage {
-		acct := uint32(i)
 		u := &finder.usage[i]
+		acct := u.account
 		g.Go(func() error { return lastUsed(acct, 0, &u.extLastUsed) })
 		g.Go(func() error { return lastUsed(acct, 1, &u.intLastUsed) })
 	}
@@ -835,24 +851,13 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 		}
 	}
 
-	var lastAcct uint32
-	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		ns := tx.ReadBucket(waddrmgrNamespaceKey)
-		var err error
-		lastAcct, err = w.Manager.LastAccount(ns)
-		return err
-	})
-	if err != nil {
-		return errors.E(op, err)
-	}
-
 	// Discover address usage within known accounts
 	// Usage recorded in finder.usage
-	log.Infof("Discovering used addresses for %d account(s)", lastAcct+1)
 	finder, err := newAddrFinder(ctx, w)
 	if err != nil {
 		return errors.E(op, err)
 	}
+	log.Infof("Discovering used addresses for %d account(s)", len(finder.usage))
 	lastUsed := append([]accountUsage(nil), finder.usage...)
 	rpc, ok := rpcFromPeer(p)
 	if ok {
@@ -867,7 +872,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 	for i := range finder.usage {
 		u := &finder.usage[i]
 		log.Infof("Account %d next child indexes: external:%d internal:%d",
-			i, u.extLastUsed+1, u.intLastUsed+1)
+			u.account, u.extLastUsed+1, u.intLastUsed+1)
 	}
 
 	// Save discovered addresses for each account plus additional future
@@ -877,7 +882,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 	gapLimit := uint32(w.gapLimit)
 	for i := range finder.usage {
 		u := &finder.usage[i]
-		acct := uint32(i)
+		acct := u.account
 
 		const N = 256
 		max := u.extLastUsed + gapLimit

@@ -62,6 +62,7 @@ var Methods = []struct {
 	{"help", append(returnsString, returnsString[0])},
 	{"importprivkey", nil},
 	{"importscript", nil},
+	{"importxpub", nil},
 	{"listaccounts", []interface{}{(*map[string]float64)(nil)}},
 	{"listaddresstransactions", returnsLTRArray},
 	{"listalltransactions", returnsLTRArray},

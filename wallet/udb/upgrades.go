@@ -111,10 +111,21 @@ const (
 	// accounting of total locked funds.
 	ticketCommitmentsVersion = 12
 
+	// importedXpubAccountVersion is the thirteenth version of the
+	// database.  It introduces the ability to import and track child
+	// indexes of arbitrary HD extended public keys.  Imported xpub accounts
+	// are associated with a uint32 value in the upper range (above
+	// ImportedAddrAccount).  The upgrade does not add or remove any
+	// required keys (the upgrade is done in a backwards-compatible way) but
+	// the database version is bumped to prevent older software from using
+	// an upgraded database with account identifiers that would induce
+	// panics.
+	importedXpubAccountVersion = 13
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = ticketCommitmentsVersion
+	DBVersion = importedXpubAccountVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -132,6 +143,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	cfVersion - 1:                    cfUpgrade,
 	lastProcessedTxsBlockVersion - 1: lastProcessedTxsBlockUpgrade,
 	ticketCommitmentsVersion - 1:     ticketCommitmentsUpgrade,
+	importedXpubAccountVersion - 1:   importedXpubAccountUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -990,6 +1002,25 @@ func ticketCommitmentsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, 
 	}
 
 	log.Debug("Ticket commitments db upgrade done")
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func importedXpubAccountUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 12
+	const newVersion = 13
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 12 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "importedXpubAccountUpgrade inappropriately called")
+	}
 
 	// Write the new database version.
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)

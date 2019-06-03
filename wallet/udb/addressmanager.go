@@ -590,7 +590,7 @@ func (m *Manager) AccountExtendedPubKey(dbtx walletdb.ReadTx, account uint32) (*
 // unlocked for this operation to complete.
 func (m *Manager) AccountExtendedPrivKey(dbtx walletdb.ReadTx, account uint32) (*hdkeychain.ExtendedKey, error) {
 	if account == ImportedAddrAccount {
-		return nil, errors.E(errors.Invalid, "imported account has no extended pubkey")
+		return nil, errors.E(errors.Invalid, "imported address account has no extended pubkey")
 	}
 
 	ns := dbtx.ReadBucket(waddrmgrBucketKey)
@@ -1293,6 +1293,53 @@ func (m *Manager) ImportScript(ns walletdb.ReadWriteBucket, script []byte) (Mana
 	return newScriptAddress(m, ImportedAddrAccount, scriptHash)
 }
 
+func (m *Manager) ImportXpubAccount(ns walletdb.ReadWriteBucket, name string, xpub *hdkeychain.ExtendedKey) error {
+	defer m.mtx.Unlock()
+	m.mtx.Lock()
+
+	// Validate account name
+	if err := ValidateAccountName(name); err != nil {
+		return err
+	}
+
+	// There may not be an account by the same name
+	if _, err := fetchAccountByName(ns, name); err == nil {
+		return errors.E(errors.Exist, "account name in use")
+	}
+
+	// Reserve next imported account number
+	account, err := fetchLastImportedAccount(ns)
+	if err != nil {
+		return err
+	}
+	account++
+	if account < MaxAccountNum {
+		return errors.E(errors.Invalid, "exhausted possible imported accounts")
+	}
+
+	// Encrypt the default account keys with the associated crypto keys.
+	apes := xpub.String()
+	acctPubEnc, err := m.cryptoKeyPub.Encrypt([]byte(apes))
+	if err != nil {
+		return errors.E(errors.Crypto, errors.Errorf("encrypt account pubkey: %v", err))
+	}
+	// We have the encrypted account extended keys, so save them to the
+	// database
+	row := bip0044AccountInfo(acctPubEnc, nil, 0, 0,
+		^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0), name, DBVersion)
+	err = putAccountInfo(ns, account, row)
+	if err != nil {
+		return err
+	}
+
+	// Save last imported account metadata
+	if err := putLastImportedAccount(ns, account); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // IsLocked returns whether or not the address managed is locked.  When it is
 // unlocked, the decryption key needed to decrypt private keys used for signing
 // is in memory.
@@ -1410,6 +1457,9 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 	// Use the crypto private key to decrypt all of the account private
 	// extended keys.
 	for account, acctInfo := range m.acctInfo {
+		if account > ImportedAddrAccount {
+			continue
+		}
 		decrypted, err := m.cryptoKeyPriv.Decrypt(acctInfo.acctKeyEncrypted)
 		if err != nil {
 			m.lock()
@@ -1603,7 +1653,7 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 		if err != nil {
 			return err
 		}
-		if m.locked {
+		if m.locked || account > ImportedAddrAccount {
 			break
 		}
 		xprivBranch, err = acctInfo.acctKeyPriv.Child(branch)
@@ -1661,11 +1711,6 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 // SyncAccountToAddrIndex returns the specified number of next chained addresses
 // that are intended for internal use such as change from the address manager.
 func (m *Manager) SyncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account uint32, syncToIndex uint32, branch uint32) error {
-	// Enforce maximum account number.
-	if account > MaxAccountNum {
-		return errors.E(errors.Invalid, errors.Errorf("account %d", account))
-	}
-
 	m.mtx.Lock()
 	err := m.syncAccountToAddrIndex(ns, account, syncToIndex, branch)
 	m.mtx.Unlock()
@@ -1843,6 +1888,14 @@ func (m *Manager) ForEachAccount(ns walletdb.ReadBucket, fn func(account uint32)
 // LastAccount returns the last account stored in the manager.
 func (m *Manager) LastAccount(ns walletdb.ReadBucket) (uint32, error) {
 	return fetchLastAccount(ns)
+}
+
+// LastImportedAccount returns the acocunt number of the last imported account.
+// This is the reserved imported account unless an account has been created by
+// an imported xpub.
+func (m *Manager) LastImportedAccount(dbtx walletdb.ReadTx) (uint32, error) {
+	ns := dbtx.ReadBucket(waddrmgrBucketKey)
+	return fetchLastImportedAccount(ns)
 }
 
 // ForEachAccountAddress calls the given function with each address of

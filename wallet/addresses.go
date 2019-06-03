@@ -10,6 +10,7 @@ import (
 	"runtime/trace"
 
 	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrd/txscript/v2"
@@ -500,6 +501,78 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 	}
 }
 
+func (w *Wallet) nextImportedXpubAddress(ctx context.Context, op errors.Op, maybeDBTX walletdb.ReadWriteTx,
+	account uint32, branch uint32, callOpts ...NextAddressCallOption) (addr dcrutil.Address, err error) {
+
+	dbtx := maybeDBTX
+	if dbtx == nil {
+		dbtx, err = w.db.BeginReadWriteTx()
+		if err != nil {
+			return nil, err
+		}
+		defer func() {
+			if err == nil {
+				err = dbtx.Commit()
+			} else {
+				dbtx.Rollback()
+			}
+		}()
+	}
+
+	ns := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
+	xpub, err := w.Manager.AccountExtendedPubKey(dbtx, account)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	props, err := w.Manager.AccountProperties(ns, account)
+	branchKey, err := xpub.Child(branch)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	var childKey *hdkeychain.ExtendedKey
+	var child uint32
+	switch branch {
+	case 0:
+		child = props.LastReturnedExternalIndex + 1
+	case 1:
+		child = props.LastReturnedInternalIndex + 1
+	default:
+		return nil, errors.E(op, "branch is required to be 0 or 1")
+	}
+	for {
+		childKey, err = branchKey.Child(child)
+		if err == hdkeychain.ErrInvalidChild {
+			child++
+			continue
+		}
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+		break
+	}
+	pk, err := childKey.ECPubKey()
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	pkh := dcrutil.Hash160(pk.Serialize())
+	apkh, err := dcrutil.NewAddressPubKeyHash(pkh, w.chainParams,
+		dcrec.STEcdsaSecp256k1)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	addr = &xpubAddress{
+		AddressPubKeyHash: apkh,
+		xpub:              xpub,
+		branch:            branch,
+		child:             child,
+	}
+	err = w.Manager.MarkReturnedChildIndex(dbtx, account, branch, child)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return addr, nil
+}
+
 func minUint32(a, b uint32) uint32 {
 	if a < b {
 		return a
@@ -694,8 +767,29 @@ func (w *Wallet) NewChangeAddress(ctx context.Context, account uint32) (dcrutil.
 
 // BIP0044BranchNextIndexes returns the next external and internal branch child
 // indexes of an account.
-func (w *Wallet) BIP0044BranchNextIndexes(account uint32) (extChild, intChild uint32, err error) {
+func (w *Wallet) BIP0044BranchNextIndexes(ctx context.Context, account uint32) (extChild, intChild uint32, err error) {
 	const op errors.Op = "wallet.BIP0044BranchNextIndexes"
+
+	// Imported xpub accounts are not tracked in memory, query DB instead.
+	// The last returned indexes are used instead of last used + offset due
+	// to xpub accounts not watching transactions and being unable to
+	// determine the last used address.
+	if account > udb.ImportedAddrAccount {
+		err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+			ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
+			props, err := w.Manager.AccountProperties(ns, account)
+			if err != nil {
+				return err
+			}
+			extChild = props.LastReturnedExternalIndex + 1
+			intChild = props.LastReturnedInternalIndex + 1
+			return nil
+		})
+		if err != nil {
+			return 0, 0, errors.E(op, err)
+		}
+		return extChild, intChild, nil
+	}
 
 	defer w.addressBuffersMu.Unlock()
 	w.addressBuffersMu.Lock()
