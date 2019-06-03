@@ -276,6 +276,11 @@ var helpDescsEnUS = map[string]string{
 	"importscript-rescan":    "Rescans the blockchain (since the genesis block, or scanfrom block) for outputs controlled by the imported key",
 	"importscript-scanfrom":  "Block number for where to start rescan from",
 
+	// ImportXpub help.
+	"importxpub--synopsis": "Import a HD extended public key as a new account.",
+	"importxpub-name":      "Name of new account",
+	"importxpub-xpub":      "Extended public key",
+
 	// ListAccountsCmd help.
 	"listaccounts--synopsis":       "DEPRECATED -- Returns a JSON object of all accounts and their balances.",
 	"listaccounts-minconf":         "Minimum number of block confirmations required before an unspent output's value is included in the balance",

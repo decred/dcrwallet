@@ -94,6 +94,7 @@ var handlers = map[string]handler{
 	"help":                    {fn: (*Server).help},
 	"importprivkey":           {fn: (*Server).importPrivKey},
 	"importscript":            {fn: (*Server).importScript},
+	"importxpub":              {fn: (*Server).importXpub},
 	"listaccounts":            {fn: (*Server).listAccounts},
 	"listlockunspent":         {fn: (*Server).listLockUnspent},
 	"listreceivedbyaccount":   {fn: (*Server).listReceivedByAccount},
@@ -682,6 +683,11 @@ func (s *Server) getBalance(ctx context.Context, icmd interface{}) (interface{},
 		result.Balances = make([]types.GetAccountBalanceResult, balancesLen)
 
 		for _, bal := range balances {
+			// Transactions are not tracked for imported xpub accounts.
+			if bal.Account > udb.ImportedAddrAccount {
+				continue
+			}
+
 			accountName, err := w.AccountName(bal.Account)
 			if err != nil {
 				// Expect account lookup to succeed
@@ -1113,6 +1119,24 @@ func (s *Server) importScript(ctx context.Context, icmd interface{}) (interface{
 	return nil, nil
 }
 
+func (s *Server) importXpub(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.ImportXpubCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	xpub, err := hdkeychain1.NewKeyFromString(cmd.Xpub)
+	if err != nil {
+		return nil, err
+	}
+	if !xpub.IsForNet(w.ChainParams()) {
+		return nil, errors.New("xpub is not for this decred network")
+	}
+
+	return nil, w.ImportXpubAccount(cmd.Name, xpub)
+}
+
 // createNewAccount handles a createnewaccount request by creating and
 // returning a new account. If the last account has no transaction history
 // as per BIP 0044 a new account cannot be created so an error will be returned.
@@ -1317,6 +1341,11 @@ func (s *Server) getReceivedByAccount(ctx context.Context, icmd interface{}) (in
 			return nil, errAccountNotFound
 		}
 		return nil, err
+	}
+
+	// Transactions are not tracked for imported xpub accounts.
+	if account > udb.ImportedAddrAccount {
+		return 0.0, nil
 	}
 
 	// TODO: This is more inefficient that it could be, but the entire

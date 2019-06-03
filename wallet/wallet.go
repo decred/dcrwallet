@@ -3161,6 +3161,24 @@ func (w *Wallet) ImportScript(ctx context.Context, rs []byte) error {
 	return nil
 }
 
+func (w *Wallet) ImportXpubAccount(name string, xpub *hdkeychain.ExtendedKey) error {
+	const op errors.Op = "wallet.ImportXpubAccount"
+	if xpub.IsPrivate() {
+		return errors.E(op, "extended key must be an xpub")
+	}
+
+	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		ns := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
+		err := w.Manager.ImportXpubAccount(ns, name, xpub)
+		return err
+	})
+	if err != nil {
+		return errors.E(op, err)
+	}
+
+	return nil
+}
+
 // RedeemScriptCopy returns a copy of a redeem script to redeem outputs paid to
 // a P2SH address.
 func (w *Wallet) RedeemScriptCopy(addr dcrutil.Address) ([]byte, error) {
@@ -4359,7 +4377,11 @@ func Open(cfg *Config) (*Wallet, error) {
 		if err != nil {
 			return err
 		}
-		for acct := uint32(0); acct <= lastAcct; acct++ {
+		lastImported, err := w.Manager.LastImportedAccount(tx)
+		if err != nil {
+			return err
+		}
+		addAccountBuffers := func(acct uint32) error {
 			xpub, err := w.Manager.AccountExtendedPubKey(tx, acct)
 			if err != nil {
 				return err
@@ -4384,6 +4406,17 @@ func Open(cfg *Config) (*Wallet, error) {
 					lastUsed:   props.LastUsedInternalIndex,
 					cursor:     props.LastReturnedInternalIndex - props.LastUsedInternalIndex,
 				},
+			}
+			return nil
+		}
+		for acct := uint32(0); acct <= lastAcct; acct++ {
+			if err := addAccountBuffers(acct); err != nil {
+				return err
+			}
+		}
+		for acct := uint32(udb.ImportedAddrAccount + 1); acct <= lastImported; acct++ {
+			if err := addAccountBuffers(acct); err != nil {
+				return err
 			}
 		}
 

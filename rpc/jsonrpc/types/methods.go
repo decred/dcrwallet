@@ -576,6 +576,13 @@ func NewImportScriptCmd(hex string, rescan *bool, scanFrom *int) *ImportScriptCm
 	return &ImportScriptCmd{hex, rescan, scanFrom}
 }
 
+// ImportXpubCmd is a type for handling custom marshaling and unmarshaling of
+// importxpub JSON-RPC commands.
+type ImportXpubCmd struct {
+	Name string
+	Xpub string
+}
+
 // KeyPoolRefillCmd defines the keypoolrefill JSON-RPC command.
 //
 // Deprecated: This method is not implemented by the RPC server.
@@ -1310,6 +1317,7 @@ func init() {
 		{"getwalletfee", (*GetWalletFeeCmd)(nil)},
 		{"importprivkey", (*ImportPrivKeyCmd)(nil)},
 		{"importscript", (*ImportScriptCmd)(nil)},
+		{"importxpub", (*ImportXpubCmd)(nil)},
 		{"listaccounts", (*ListAccountsCmd)(nil)},
 		{"listaddresstransactions", (*ListAddressTransactionsCmd)(nil)},
 		{"listalltransactions", (*ListAllTransactionsCmd)(nil)},
