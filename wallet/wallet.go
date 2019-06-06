@@ -1701,6 +1701,7 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 	}
 	w.addressBuffersMu.Lock()
 	w.addressBuffers[account] = &bip0044AccountData{
+		xpub:        hd1to2(xpub, w.chainParams),
 		albExternal: addressBuffer{branchXpub: extKey, lastUsed: ^uint32(0)},
 		albInternal: addressBuffer{branchXpub: intKey, lastUsed: ^uint32(0)},
 	}
@@ -4429,6 +4430,7 @@ func Open(cfg *Config) (*Wallet, error) {
 				return err
 			}
 			w.addressBuffers[acct] = &bip0044AccountData{
+				xpub: hd1to2(xpub, w.chainParams),
 				albExternal: addressBuffer{
 					branchXpub: extKey,
 					lastUsed:   props.LastUsedExternalIndex,

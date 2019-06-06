@@ -835,12 +835,14 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 			for acct := lastRecorded + 1; acct <= lastUsed; acct++ {
 				_, ok := w.addressBuffers[acct]
 				if !ok {
-					extKey, intKey, err := deriveBranches(acctXpubs[acct])
+					xpub := acctXpubs[acct]
+					extKey, intKey, err := deriveBranches(xpub)
 					if err != nil {
 						w.addressBuffersMu.Unlock()
 						return errors.E(op, err)
 					}
 					w.addressBuffers[acct] = &bip0044AccountData{
+						xpub:        hd1to2(xpub, w.chainParams),
 						albExternal: addressBuffer{branchXpub: extKey},
 						albInternal: addressBuffer{branchXpub: intKey},
 					}

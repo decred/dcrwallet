@@ -481,18 +481,19 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 		return nil, translateError(err)
 	}
 
-	pubKey, err := s.wallet.PubKeyForAddress(addr)
-	if err != nil {
-		return nil, translateError(err)
-	}
-	pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(pubKey.Serialize(), s.wallet.ChainParams())
-	if err != nil {
-		return nil, translateError(err)
+	var pubKeyAddrString string
+	if secp, ok := addr.(wallet.SecpPubKeyer); ok {
+		pubKey := secp.SecpPubKey().Serialize()
+		pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(pubKey, s.wallet.ChainParams())
+		if err != nil {
+			return nil, translateError(err)
+		}
+		pubKeyAddrString = pubKeyAddr.String()
 	}
 
 	return &pb.NextAddressResponse{
 		Address:   addr.EncodeAddress(),
-		PublicKey: pubKeyAddr.String(),
+		PublicKey: pubKeyAddrString,
 	}, nil
 }
 
