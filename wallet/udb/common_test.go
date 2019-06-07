@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrwallet/wallet/v2/walletdb"
@@ -25,7 +24,7 @@ var (
 		0xef, 0x8d, 0x64, 0x15, 0x67,
 	}
 
-	emptyDb = "empty.kv"
+	emptyDbPath = ""
 
 	pubPassphrase   = []byte("_DJr{fL4H0O}*-0\n:V1izc)(6BomK")
 	privPassphrase  = []byte("81lUHXnOMZ@?XXd7O9xyDIWIbXX-lj")
@@ -45,31 +44,31 @@ func hexToBytes(origHex string) []byte {
 
 // createEmptyDB is a helper function for creating an empty wallet db.
 func createEmptyDB() error {
-	_ = os.Remove(emptyDb)
+	db, err := walletdb.Create("bdb", emptyDbPath)
+	defer db.Close()
 
-	db, err := walletdb.Create("bdb", emptyDb)
 	if err != nil {
-		return fmt.Errorf("unexpected error: %v", err)
+		return err
 	}
 
-	err = Initialize(db, &chaincfg.TestNet3Params, seed,
-		pubPassphrase, privPassphrase)
+	err = Initialize(db, &chaincfg.TestNet3Params, seed, pubPassphrase,
+		privPassphrase)
 	if err != nil {
-		return fmt.Errorf("unexpected error: %v", err)
+		return err
 	}
 
 	err = Upgrade(db, pubPassphrase, &chaincfg.TestNet3Params)
 	if err != nil {
-		return fmt.Errorf("unexpected error: %v", err)
+		return err
 	}
 
-	return db.Close()
+	return nil
 }
 
 // cloneDB makes a copy of an empty wallet db. It returns a wallet db, store, a
 // stake store and a teardown function.
 func cloneDB(cloneName string) (walletdb.DB, *Manager, *Store, *StakeStore, func(), error) {
-	file, err := ioutil.ReadFile(filepath.Join("testdata", emptyDb))
+	file, err := ioutil.ReadFile(emptyDbPath)
 	if err != nil {
 		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
 	}
