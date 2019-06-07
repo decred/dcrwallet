@@ -301,7 +301,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		PromptPublicPass:        defaultPromptPublicPass,
 		RPCKey:                  cfgutil.NewExplicitString(defaultRPCKeyFile),
 		RPCCert:                 cfgutil.NewExplicitString(defaultRPCCertFile),
-		TLSCurve:                cfgutil.NewCurveFlag(cfgutil.CurveP256),
+		TLSCurve:                cfgutil.NewCurveFlag(cfgutil.PreferredCurve),
 		LegacyRPCMaxClients:     defaultRPCMaxClients,
 		LegacyRPCMaxWebsockets:  defaultRPCMaxWebsockets,
 		EnableTicketBuyer:       defaultEnableTicketBuyer,
