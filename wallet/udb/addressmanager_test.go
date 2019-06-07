@@ -9,6 +9,9 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -450,10 +453,6 @@ func testImportScript(tc *testContext, wb walletdb.ReadWriteBucket) {
 }
 
 func TestManagerImports(t *testing.T) {
-	if testing.Short() {
-		t.Skip("short: skipping TestManagerImports")
-	}
-
 	db, mgr, _, _, teardown, err := cloneDB("imports.kv")
 	defer teardown()
 	if err != nil {
@@ -843,10 +842,6 @@ func testEncryptDecrypt(tc *testContext) {
 }
 
 func TestManagerEncryptDecrypt(t *testing.T) {
-	if testing.Short() {
-		t.Skip("short: skipping TestManagerEncryptDecrypt")
-	}
-
 	db, mgr, _, _, teardown, err := cloneDB("encrypt_decrypt.kv")
 	defer teardown()
 	if err != nil {
@@ -868,10 +863,6 @@ func TestManagerEncryptDecrypt(t *testing.T) {
 }
 
 func TestChangePassphrase(t *testing.T) {
-	if testing.Short() {
-		t.Skip("short: skipping TestChangePassphrase")
-	}
-
 	db, mgr, _, _, teardown, err := cloneDB("change_passphrase.kv")
 	defer teardown()
 	if err != nil {
@@ -926,10 +917,6 @@ func testManagerAPI(tc *testContext) {
 // manager such as running the full set of API tests against a newly converted
 // copy as well as when it is opened from an existing namespace.
 func TestManagerWatchingOnly(t *testing.T) {
-	if testing.Short() {
-		t.Skip("short: skipping TestManagerWatchingOnly")
-	}
-
 	db, mgr, _, _, teardown, err := cloneDB("mgr_watching_only.kv")
 	defer teardown()
 	if err != nil {
@@ -1032,4 +1019,28 @@ func TestManager(t *testing.T) {
 		watchingOnly: false,
 	}
 	testManagerAPI(tc)
+}
+
+func TestMain(m *testing.M) {
+	testDir, err := ioutil.TempDir("", "udb-")
+	if err != nil {
+		fmt.Printf("Unable to create temp directory: %v", err)
+		os.Exit(1)
+	}
+
+	emptyDbPath = filepath.Join(testDir, "empty.kv")
+	teardown := func() {
+		os.RemoveAll(testDir)
+	}
+
+	err = createEmptyDB()
+	if err != nil {
+		fmt.Printf("Unable to create empty test db: %v", err)
+		teardown()
+		os.Exit(1)
+	}
+
+	exitCode := m.Run()
+	teardown()
+	os.Exit(exitCode)
 }

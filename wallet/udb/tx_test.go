@@ -354,6 +354,7 @@ func spendOutput(txHash *chainhash.Hash, index uint32, tree int8, outputValues .
 	}
 	return &tx
 }
+
 func TestCoinbases(t *testing.T) {
 	db, _, s, _, teardown, err := cloneDB("coinbases.kv")
 	defer teardown()
