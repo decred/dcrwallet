@@ -249,6 +249,7 @@ func run(ctx context.Context) error {
 				c.VotingAddr = cfg.TBOpts.VotingAddress.Address
 				c.PoolFeeAddr = cfg.PoolAddress.Address
 				c.PoolFees = cfg.PoolFees
+				c.Limit = int(cfg.TBOpts.Limit)
 			})
 			log.Infof("Starting ticket buyer")
 			tbdone := make(chan struct{})

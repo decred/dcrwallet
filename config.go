@@ -49,7 +49,7 @@ const (
 	defaultDisableCoinTypeUpgrades = false
 
 	// ticket buyer options
-	defaultBalanceToMaintainAbsolute                = 0
+	defaultBalanceToMaintainAbsolute = 0
 
 	walletDbName = "wallet.db"
 )
@@ -140,6 +140,7 @@ type config struct {
 type ticketBuyerOptions struct {
 	BalanceToMaintainAbsolute *cfgutil.AmountFlag  `long:"balancetomaintainabsolute" description:"Amount of funds to keep in wallet when purchasing tickets"`
 	VotingAddress             *cfgutil.AddressFlag `long:"votingaddress" description:"Purchase tickets with voting rights assigned to this address"`
+	Limit                     uint                 `long:"limit" description:"Buy no more than specified number of tickets per block (0 disables limit)"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the

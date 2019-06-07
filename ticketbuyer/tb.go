@@ -35,6 +35,9 @@ type Config struct {
 
 	// Stakepool fee percentage (between 0-100)
 	PoolFees float64
+
+	// Limit maximum number of purchased tickets per block
+	Limit int
 }
 
 // TB is an automated ticket buyer, buying as many tickets as possible given an
@@ -163,6 +166,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 	votingAddr := tb.cfg.VotingAddr
 	poolFeeAddr := tb.cfg.PoolFeeAddr
 	poolFees := tb.cfg.PoolFees
+	limit := tb.cfg.Limit
 	tb.mu.Unlock()
 
 	// Determine how many tickets to buy
@@ -187,6 +191,9 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 	}
 	if max := int(w.ChainParams().MaxFreshStakePerBlock); buy > max {
 		buy = max
+	}
+	if limit > 0 && buy > limit {
+		buy = limit
 	}
 
 	// Derive a voting address from voting account when address is unset.
