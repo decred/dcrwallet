@@ -2448,13 +2448,20 @@ func (s *Server) stakePoolUserInfo(ctx context.Context, icmd interface{}) (inter
 	resp := new(types.StakePoolUserInfoResult)
 	resp.Tickets = make([]types.PoolUserTicket, 0, len(spui.Tickets))
 	resp.InvalidTickets = make([]string, 0, len(spui.InvalidTickets))
+	_, height := w.MainChainTip()
 	for _, ticket := range spui.Tickets {
 		var ticketRes types.PoolUserTicket
 
 		status := ""
 		switch ticket.Status {
 		case udb.TSImmatureOrLive:
-			status = "live"
+			maturedHeight := int32(ticket.HeightTicket + uint32(w.ChainParams().TicketMaturity) + 1)
+
+			if height >= maturedHeight {
+				status = "live"
+			} else {
+				status = "immature"
+			}
 		case udb.TSVoted:
 			status = "voted"
 		case udb.TSMissed:
