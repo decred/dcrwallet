@@ -34,6 +34,8 @@ github.com/decred/dcrd/chaincfg v1.2.0 h1:Vj0xr85wmqOdQDxKLkpP9TqwK1RykqY2eC0fWc
 github.com/decred/dcrd/chaincfg v1.2.0/go.mod h1:kpoGTMIriKn5hHRSu5b65+Q9LlGUdbQcMzGujac1BVs=
 github.com/decred/dcrd/chaincfg v1.3.0 h1:DEysyX1/kxlWbY97PTIPpGbMOp3+n2iixi3m9d27A6c=
 github.com/decred/dcrd/chaincfg v1.3.0/go.mod h1:kpoGTMIriKn5hHRSu5b65+Q9LlGUdbQcMzGujac1BVs=
+github.com/decred/dcrd/chaincfg v1.4.0 h1:dIJhXQooiVW5AVZ0c4brylsiwkc8KSawpZ3NPq+LxWY=
+github.com/decred/dcrd/chaincfg v1.4.0/go.mod h1:ypuM30F+XgZmZTFfAkWHWd0lwwkWWAOAQYNRkRDlYLc=
 github.com/decred/dcrd/chaincfg/chainhash v1.0.1 h1:0vG7U9+dSjSCaHQKdoSKURK2pOb47+b+8FK5q4+Je7M=
 github.com/decred/dcrd/chaincfg/chainhash v1.0.1/go.mod h1:OVfvaOsNLS/A1y4Eod0Ip/Lf8qga7VXCQjUQLbkY0Go=
 github.com/decred/dcrd/database v1.0.1 h1:BSIerNf4RhSA0iDhiE/320RYqD2y9T+SCj99Pv7svgo=
@@ -73,6 +75,8 @@ github.com/decred/dcrd/gcs v1.0.2 h1:wZjxeC9WPBoRApaAQpBrzvN9NA0iS2KWrTJa9IiDgc8
 github.com/decred/dcrd/gcs v1.0.2/go.mod h1:eLCvrzUsWro48TlTyrmFcZAZqnllYFz0vEv5VZtufF4=
 github.com/decred/dcrd/hdkeychain v1.1.1 h1:6+BwOmPfEyw/Krm+91RXysc76F1jqCta3m45DyD5+s4=
 github.com/decred/dcrd/hdkeychain v1.1.1/go.mod h1:CLBVXLoO63fIiqkv38KR23zXGSgrfiAWOybOKTneLhA=
+github.com/decred/dcrd/hdkeychain/v2 v2.0.0 h1:b6GklXT+LeDumc0bDqMHkss+p2Bu+mgiUDhjAX01LOc=
+github.com/decred/dcrd/hdkeychain/v2 v2.0.0/go.mod h1:tG+VpXfloIkNGHGd6NeoTElHWA68Wf1aP87zegXDGEw=
 github.com/decred/dcrd/mempool/v2 v2.0.0 h1:QoQC5Lri311unqCr/PejBEwNERWMSWtnSa7bpBFZjbQ=
 github.com/decred/dcrd/mempool/v2 v2.0.0/go.mod h1:/AH0mFOKCglSdEDubF3oRDbWUmDj26gwnrIlFsr+lbM=
 github.com/decred/dcrd/mining v1.1.0 h1:9Wtla+i+pEjfYsNCfixsipmyyoB26DgL4LSXWAin/zw=
@@ -91,6 +95,8 @@ github.com/decred/dcrwallet/deployments v1.1.0 h1:83arg+7ct7PS1H2IYhuePnrBK2rkVp
 github.com/decred/dcrwallet/deployments v1.1.0/go.mod h1:8Sasryu8SX23Jvqr6maZ7MoS7wFIGXupWzbsVtcZsUg=
 github.com/decred/dcrwallet/errors v1.0.1 h1:8EF7IY6twRlo9sqWaSfm8abfi2/rHZ1wacOiGvBy+bM=
 github.com/decred/dcrwallet/errors v1.0.1/go.mod h1:XUm95dWmm9XmQGvneBXJkkIaFeRsQVBB6ni/KTy1hrY=
+github.com/decred/dcrwallet/errors v1.1.0 h1:xDzE4l8AGLcL1CGigPR9vYHP/rBmMm34ZatolleOS9A=
+github.com/decred/dcrwallet/errors v1.1.0/go.mod h1:XUm95dWmm9XmQGvneBXJkkIaFeRsQVBB6ni/KTy1hrY=
 github.com/decred/dcrwallet/internal/helpers v1.0.1 h1:oEqfJPs1uI7QI0Aejx2MUWq/yD609cc9Z8P7vQ6cDz8=
 github.com/decred/dcrwallet/internal/helpers v1.0.1/go.mod h1:qIXcze8VZ+A3sEgZou7PTOe4Vsnmks54SGTSGZ6084g=
 github.com/decred/dcrwallet/internal/zero v1.0.1 h1:hO7orPk13AFp7pFTL739CbVLKImSNorI2J9/tiucNQY=
