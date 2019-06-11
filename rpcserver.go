@@ -18,7 +18,7 @@ import (
 
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/loader"
-	"github.com/decred/dcrwallet/rpc/legacyrpc"
+	"github.com/decred/dcrwallet/rpc/jsonrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
 
 	"google.golang.org/grpc"
@@ -104,7 +104,7 @@ func generateRPCKeyPair(writeKey bool) (tls.Certificate, error) {
 	return keyPair, nil
 }
 
-func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Server, error) {
+func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server, error) {
 	var jsonrpcAddrNotifier jsonrpcListenerEventServer
 	var grpcAddrNotifier grpcListenerEventServer
 	if cfg.RPCListenerEvents {
@@ -113,14 +113,14 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 	}
 
 	var (
-		server       *grpc.Server
-		legacyServer *legacyrpc.Server
-		legacyListen = net.Listen
-		keyPair      tls.Certificate
-		err          error
+		server        *grpc.Server
+		jsonrpcServer *jsonrpc.Server
+		jsonrpcListen = net.Listen
+		keyPair       tls.Certificate
+		err           error
 	)
 	if cfg.DisableServerTLS {
-		log.Info("Server TLS is disabled.  Only legacy RPC may be used")
+		log.Info("Server TLS is disabled.  Only JSON-RPC may be used")
 	} else {
 		keyPair, err = openRPCKeyPair()
 		if err != nil {
@@ -133,7 +133,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 			MinVersion:   tls.VersionTLS12,
 			NextProtos:   []string{"h2"}, // HTTP/2 over TLS
 		}
-		legacyListen = func(net string, laddr string) (net.Listener, error) {
+		jsonrpcListen = func(net string, laddr string) (net.Listener, error) {
 			return tls.Listen(net, laddr, tlsConfig)
 		}
 
@@ -168,31 +168,31 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *legacyrpc.Serv
 	}
 
 	if cfg.Username == "" || cfg.Password == "" {
-		log.Info("Legacy RPC server disabled (requires username and password)")
+		log.Info("JSON-RPC server disabled (requires username and password)")
 	} else if len(cfg.LegacyRPCListeners) != 0 {
-		listeners := makeListeners(cfg.LegacyRPCListeners, legacyListen)
+		listeners := makeListeners(cfg.LegacyRPCListeners, jsonrpcListen)
 		if len(listeners) == 0 {
-			err := errors.New("failed to create listeners for legacy RPC server")
+			err := errors.New("failed to create listeners for JSON-RPC server")
 			return nil, nil, err
 		}
-		opts := legacyrpc.Options{
+		opts := jsonrpc.Options{
 			Username:            cfg.Username,
 			Password:            cfg.Password,
 			MaxPOSTClients:      cfg.LegacyRPCMaxClients,
 			MaxWebsocketClients: cfg.LegacyRPCMaxWebsockets,
 		}
-		legacyServer = legacyrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
+		jsonrpcServer = jsonrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
 		for _, lis := range listeners {
 			jsonrpcAddrNotifier.notify(lis.Addr().String())
 		}
 	}
 
-	// Error when neither the GRPC nor legacy RPC servers can be started.
-	if server == nil && legacyServer == nil {
+	// Error when neither the GRPC nor JSON-RPC servers can be started.
+	if server == nil && jsonrpcServer == nil {
 		return nil, nil, errors.New("no suitable RPC services can be started")
 	}
 
-	return server, legacyServer, nil
+	return server, jsonrpcServer, nil
 }
 
 // serviceName returns the package.service segment from the full gRPC method

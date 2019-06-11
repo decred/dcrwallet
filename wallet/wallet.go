@@ -1852,7 +1852,7 @@ func RecvCategory(details *udb.TxDetails, syncHeight int32, chainParams *chaincf
 // listTransactions creates a object that may be marshalled to a response result
 // for a listtransactions RPC.
 //
-// TODO: This should be moved to the legacyrpc package.
+// TODO: This should be moved to the jsonrpc package.
 func listTransactions(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb.Manager, syncHeight int32, net *chaincfg.Params) (sends, receives []types.ListTransactionsResult) {
 	addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 

@@ -15,7 +15,7 @@ import (
 	"github.com/decred/dcrwallet/chain/v2"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/p2p"
-	"github.com/decred/dcrwallet/rpc/legacyrpc"
+	"github.com/decred/dcrwallet/rpc/jsonrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
 	"github.com/decred/dcrwallet/spv/v2"
 	"github.com/decred/dcrwallet/ticketbuyer/v3"
@@ -53,14 +53,14 @@ var (
 	// application shutdown.
 	logRotator *rotator.Rotator
 
-	log          = backendLog.Logger("DCRW")
-	loaderLog    = backendLog.Logger("LODR")
-	walletLog    = backendLog.Logger("WLLT")
-	tkbyLog      = backendLog.Logger("TKBY")
-	syncLog      = backendLog.Logger("SYNC")
-	grpcLog      = backendLog.Logger("GRPC")
-	legacyRPCLog = backendLog.Logger("RPCS")
-	cmgrLog      = backendLog.Logger("CMGR")
+	log        = backendLog.Logger("DCRW")
+	loaderLog  = backendLog.Logger("LODR")
+	walletLog  = backendLog.Logger("WLLT")
+	tkbyLog    = backendLog.Logger("TKBY")
+	syncLog    = backendLog.Logger("SYNC")
+	grpcLog    = backendLog.Logger("GRPC")
+	jsonrpcLog = backendLog.Logger("RPCS")
+	cmgrLog    = backendLog.Logger("CMGR")
 )
 
 // Initialize package-global logger variables.
@@ -74,7 +74,7 @@ func init() {
 	spv.UseLogger(syncLog)
 	p2p.UseLogger(syncLog)
 	rpcserver.UseLogger(grpcLog)
-	legacyrpc.UseLogger(legacyRPCLog)
+	jsonrpc.UseLogger(jsonrpcLog)
 	connmgr.UseLogger(cmgrLog)
 }
 
@@ -86,7 +86,7 @@ var subsystemLoggers = map[string]slog.Logger{
 	"TKBY": tkbyLog,
 	"SYNC": syncLog,
 	"GRPC": grpcLog,
-	"RPCS": legacyRPCLog,
+	"RPCS": jsonrpcLog,
 	"CMGR": cmgrLog,
 }
 

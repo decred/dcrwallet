@@ -3,7 +3,7 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package legacyrpc
+package jsonrpc
 
 import (
 	"bytes"
@@ -1617,7 +1617,7 @@ func (s *Server) getWalletFee(ctx context.Context, icmd interface{}) (interface{
 // separated by newlines.  It is set during init.  These usages are used for all
 // locales.
 //
-//go:generate go run ../../internal/rpchelp/genrpcserverhelp.go legacyrpc
+//go:generate go run ../../internal/rpchelp/genrpcserverhelp.go jsonrpc
 //go:generate gofmt -w rpcserverhelp.go
 
 var helpDescs map[string]string

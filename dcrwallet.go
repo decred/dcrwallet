@@ -28,7 +28,7 @@ import (
 	"github.com/decred/dcrwallet/internal/zero"
 	ldr "github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/p2p"
-	"github.com/decred/dcrwallet/rpc/legacyrpc"
+	"github.com/decred/dcrwallet/rpc/jsonrpc"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
 	"github.com/decred/dcrwallet/spv/v2"
 	"github.com/decred/dcrwallet/ticketbuyer/v3"
@@ -439,7 +439,7 @@ func spvLoop(ctx context.Context, w *wallet.Wallet, loader *ldr.Loader) {
 // methods.
 //
 // This function panics if the wallet has not already been loaded.
-func rpcClientConnectLoop(ctx context.Context, passphrase []byte, jsonRPCServer *legacyrpc.Server, loader *ldr.Loader) {
+func rpcClientConnectLoop(ctx context.Context, passphrase []byte, jsonRPCServer *jsonrpc.Server, loader *ldr.Loader) {
 	w, ok := loader.LoadedWallet()
 	if !ok {
 		panic("rpcClientConnectLoop: called without loaded wallet")
