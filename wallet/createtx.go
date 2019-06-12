@@ -565,12 +565,16 @@ func (w *Wallet) txToMultisigInternal(op errors.Op, dbtx walletdb.ReadWriteTx, a
 	if err != nil {
 		return txToMultisigError(errors.E(op, err))
 	}
-	p2shScript, err := txscript.PayToAddrScript(scAddr)
+	p2shScript, vers, err := addressScript(scAddr)
 	if err != nil {
 		return txToMultisigError(errors.E(op, err))
 	}
-	txout := wire.NewTxOut(int64(amount), p2shScript)
-	msgtx.AddTxOut(txout)
+	txOut := &wire.TxOut{
+		Value:    int64(amount),
+		PkScript: p2shScript,
+		Version:  vers,
+	}
+	msgtx.AddTxOut(txOut)
 
 	// Add change if we need it. The case in which
 	// totalInput == amount+feeEst is skipped because
@@ -710,12 +714,16 @@ func (w *Wallet) compressWalletInternal(op errors.Op, dbtx walletdb.ReadWriteTx,
 			return nil, errors.E(op, err)
 		}
 	}
-	pkScript, err := txscript.PayToAddrScript(changeAddr)
+	pkScript, vers, err := addressScript(changeAddr)
 	if err != nil {
 		return nil, errors.E(op, errors.Bug, err)
 	}
 	msgtx := wire.NewMsgTx()
-	msgtx.AddTxOut(wire.NewTxOut(0, pkScript))
+	msgtx.AddTxOut(&wire.TxOut{
+		Value:    0,
+		PkScript: pkScript,
+		Version:  vers,
+	})
 	maximumTxSize := maxTxSize
 	if w.chainParams.Net == wire.MainNet {
 		maximumTxSize = maxStandardTxSize
@@ -806,14 +814,16 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *ext
 	if addrVote == nil {
 		return nil, errors.E(errors.Invalid, "nil vote address")
 	}
-	pkScript, err := txscript.PayToSStx(addrVote)
+	pkScript, vers, err := voteRightsScript(addrVote)
 	if err != nil {
-		return nil, errors.E(errors.Op("txscript.PayToSStx"), errors.Invalid,
-			errors.Errorf("vote address %v", addrVote))
+		return nil, errors.E(errors.Invalid, errors.Errorf("vote address %v", addrVote))
 	}
 
-	txOut := wire.NewTxOut(ticketCost, pkScript)
-	txOut.Version = txscript.DefaultScriptVersion
+	txOut := &wire.TxOut{
+		Value:    ticketCost,
+		PkScript: pkScript,
+		Version:  vers,
+	}
 	mtx.AddTxOut(txOut)
 
 	// Obtain the commitment amounts.
@@ -846,25 +856,32 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *ext
 	// commitment to the pool.
 	limits := uint16(defaultTicketFeeLimits)
 	if addrPool != nil {
-		pkScript, err = txscript.GenerateSStxAddrPush(addrPool,
+		pkScript, vers, err := rewardCommitment(addrPool,
 			dcrutil.Amount(amountsCommitted[0]), limits)
 		if err != nil {
-			return nil, errors.E(errors.Op("txscript.GenerateSStxAddrPush"), errors.Invalid,
+			return nil, errors.E(errors.Invalid,
 				errors.Errorf("pool commitment address %v", addrPool))
 		}
-		txout := wire.NewTxOut(int64(0), pkScript)
+		txout := &wire.TxOut{
+			Value:    0,
+			PkScript: pkScript,
+			Version:  vers,
+		}
 		mtx.AddTxOut(txout)
 
 		// Create a new script which pays to the provided address with an
 		// SStx change tagged output.
-		pkScript, err = txscript.PayToSStxChange(addrZeroed)
+		pkScript, vers, err = ticketChangeScript(addrZeroed)
 		if err != nil {
-			return nil, errors.E(errors.Op("txscript.PayToSStxChange"), errors.Bug,
+			return nil, errors.E(errors.Bug,
 				errors.Errorf("ticket change address %v", addrZeroed))
 		}
 
-		txOut = wire.NewTxOut(0, pkScript)
-		txOut.Version = txscript.DefaultScriptVersion
+		txOut = &wire.TxOut{
+			Value:    0,
+			PkScript: pkScript,
+			Version:  vers,
+		}
 		mtx.AddTxOut(txOut)
 	}
 
@@ -873,25 +890,31 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *ext
 	// Create an OP_RETURN push containing the pubkeyhash to send rewards to.
 	// Apply limits to revocations for fees while not allowing
 	// fees for votes.
-	pkScript, err = txscript.GenerateSStxAddrPush(addrSubsidy,
+	pkScript, vers, err = rewardCommitment(addrSubsidy,
 		dcrutil.Amount(amountsCommitted[userSubsidyNullIdx]), limits)
 	if err != nil {
-		return nil, errors.E(errors.Op("txscript.GenerateSStxAddrPush"), errors.Invalid,
+		return nil, errors.E(errors.Invalid,
 			errors.Errorf("commitment address %v", addrSubsidy))
 	}
-	txout := wire.NewTxOut(int64(0), pkScript)
+	txout := &wire.TxOut{
+		Value:    0,
+		PkScript: pkScript,
+		Version:  vers,
+	}
 	mtx.AddTxOut(txout)
 
 	// Create a new script which pays to the provided address with an
 	// SStx change tagged output.
-	pkScript, err = txscript.PayToSStxChange(addrZeroed)
+	pkScript, vers, err = ticketChangeScript(addrZeroed)
 	if err != nil {
-		return nil, errors.E(errors.Op("txscript.PayToSStxChange"), errors.Bug,
+		return nil, errors.E(errors.Bug,
 			errors.Errorf("ticket change address %v", addrZeroed))
 	}
-
-	txOut = wire.NewTxOut(0, pkScript)
-	txOut.Version = txscript.DefaultScriptVersion
+	txOut = &wire.TxOut{
+		Value:    0,
+		PkScript: pkScript,
+		Version:  vers,
+	}
 	mtx.AddTxOut(txOut)
 
 	// Make sure we generated a valid SStx.
@@ -995,6 +1018,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	switch req.VotingAddress.(type) {
 	case *dcrutil.AddressScriptHash:
 		stakeSubmissionPkScriptSize = txsizes.P2SHPkScriptSize + 1
+	case interface {
+		V0Scripter
+		SecpPubKeyHash160er
+	}:
+		stakeSubmissionPkScriptSize = txsizes.P2PKHPkScriptSize + 1
 	case *dcrutil.AddressPubKeyHash, nil:
 		stakeSubmissionPkScriptSize = txsizes.P2PKHPkScriptSize + 1
 	default:
@@ -1084,7 +1112,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	}
 
 	// TODO: Don't reuse addresses
-	splitPkScript, err := txscript.PayToAddrScript(splitTxAddr)
+	splitPkScript, vers, err := addressScript(splitTxAddr)
 	if err != nil {
 		return nil, errors.E(op, errors.Bug, errors.Errorf("split address %v", splitTxAddr))
 	}
@@ -1098,17 +1126,29 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	for i := 0; i < req.Count; i++ {
 		// No pool used.
 		if poolAddress == nil {
-			splitOuts = append(splitOuts, wire.NewTxOut(int64(neededPerTicket), splitPkScript))
+			splitOuts = append(splitOuts, &wire.TxOut{
+				Value:    int64(neededPerTicket),
+				PkScript: splitPkScript,
+				Version:  vers,
+			})
 		} else {
 			// Stake pool used.
 			userAmt := neededPerTicket - poolFeeAmt
 			poolAmt := poolFeeAmt
 
 			// Pool amount.
-			splitOuts = append(splitOuts, wire.NewTxOut(int64(poolAmt), splitPkScript))
+			splitOuts = append(splitOuts, &wire.TxOut{
+				Value:    int64(poolAmt),
+				PkScript: splitPkScript,
+				Version:  vers,
+			})
 
 			// User amount.
-			splitOuts = append(splitOuts, wire.NewTxOut(int64(userAmt), splitPkScript))
+			splitOuts = append(splitOuts, &wire.TxOut{
+				Value:    int64(userAmt),
+				PkScript: splitPkScript,
+				Version:  vers,
+			})
 		}
 	}
 

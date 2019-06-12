@@ -716,6 +716,16 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 	}, nil
 }
 
+func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err error) {
+	switch addr := addr.(type) {
+	case wallet.V0Scripter:
+		return addr.ScriptV0(), 0, nil
+	default:
+		pkScript, err = txscript.PayToAddrScript(addr)
+		return pkScript, txscript.DefaultScriptVersion, err
+	}
+}
+
 // scriptChangeSource is a ChangeSource which is used to
 // receive all correlated previous input value.
 type scriptChangeSource struct {
@@ -737,9 +747,14 @@ func makeScriptChangeSource(address string, version uint16) (*scriptChangeSource
 		return nil, err
 	}
 
-	script, err := txscript.PayToAddrScript(destinationAddress)
-	if err != nil {
-		return nil, err
+	var script []byte
+	if addr, ok := destinationAddress.(wallet.V0Scripter); ok && version == 0 {
+		script = addr.ScriptV0()
+	} else {
+		script, err = txscript.PayToAddrScript(destinationAddress)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	source := &scriptChangeSource{
@@ -920,7 +935,7 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 		if err != nil {
 			return nil, translateError(err)
 		}
-		changeScript, err = txscript.PayToAddrScript(changeAddr)
+		changeScript, _, err = addressScript(changeAddr)
 		if err != nil {
 			return nil, translateError(err)
 		}
@@ -947,11 +962,10 @@ func decodeDestination(dest *pb.ConstructTransactionRequest_OutputDestination,
 		if err != nil {
 			return nil, 0, err
 		}
-		pkScript, err = txscript.PayToAddrScript(addr)
+		pkScript, version, err = addressScript(addr)
 		if err != nil {
 			return nil, 0, translateError(err)
 		}
-		version = txscript.DefaultScriptVersion
 		return pkScript, version, nil
 	case dest.Script != nil:
 		if dest.ScriptVersion > uint32(^uint16(0)) {

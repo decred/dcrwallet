@@ -17,7 +17,6 @@ import (
 	"github.com/decred/dcrd/gcs/blockcf"
 	hd "github.com/decred/dcrd/hdkeychain"
 	rpc "github.com/decred/dcrd/rpcclient/v2"
-	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/validate"
@@ -199,9 +198,9 @@ func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, p Peer) er
 				return err
 			}
 			for i, addr := range addrs {
-				scr, err := txscript.PayToAddrScript(addr)
+				scr, _, err := addressScript(addr)
 				if err != nil {
-					log.Errorf("PayToAddrScript(%v): %v", addr, err)
+					log.Errorf("addressScript(%v): %v", addr, err)
 					continue
 				}
 				data = append(data, scr)
@@ -448,7 +447,7 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blo
 				return 0, err
 			}
 			for _, a := range addrs {
-				script, err := txscript.PayToAddrScript(a)
+				script, _, err := addressScript(a)
 				if err != nil {
 					log.Warnf("Failed to create output script for address %v: %v", a, err)
 					continue
@@ -461,7 +460,7 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blo
 				return 0, err
 			}
 			for _, a := range addrs {
-				script, err := txscript.PayToAddrScript(a)
+				script, _, err := addressScript(a)
 				if err != nil {
 					log.Warnf("Failed to create output script for address %v: %v", a, err)
 					continue

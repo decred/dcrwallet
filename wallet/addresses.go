@@ -6,6 +6,7 @@ package wallet
 
 import (
 	"context"
+	"encoding/binary"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrec/secp256k1"
@@ -65,6 +66,14 @@ type BIP44XpubP2PKHv0 interface {
 	BIP44AccountXpubPather
 }
 
+type stakeAddress interface {
+	voteRights() (script []byte, version uint16)
+	ticketChange() (script []byte, version uint16)
+	rewardCommitment(amount dcrutil.Amount, limits uint16) (script []byte, version uint16)
+	payVoteCommitment() (script []byte, version uint16)
+	payRevokeCommitment() (script []byte, version uint16)
+}
+
 type xpubAddress struct {
 	*dcrutil.AddressPubKeyHash
 	xpub   *hdkeychain2.ExtendedKey
@@ -73,6 +82,7 @@ type xpubAddress struct {
 }
 
 var _ BIP44XpubP2PKHv0 = (*xpubAddress)(nil)
+var _ stakeAddress = (*xpubAddress)(nil)
 
 func (x *xpubAddress) ScriptV0() []byte {
 	s := []byte{
@@ -84,6 +94,68 @@ func (x *xpubAddress) ScriptV0() []byte {
 	}
 	copy(s[3:23], x.Hash160()[:])
 	return s
+}
+
+func (x *xpubAddress) voteRights() (script []byte, version uint16) {
+	s := []byte{
+		0:  txscript.OP_SSTX,
+		1:  txscript.OP_DUP,
+		2:  txscript.OP_HASH160,
+		3:  txscript.OP_DATA_20,
+		24: txscript.OP_EQUALVERIFY,
+		25: txscript.OP_CHECKSIG,
+	}
+	copy(s[4:24], x.SecpPubKeyHash160()[:])
+	return s, 0
+}
+
+func (x *xpubAddress) ticketChange() (script []byte, version uint16) {
+	s := []byte{
+		0:  txscript.OP_SSTXCHANGE,
+		1:  txscript.OP_DUP,
+		2:  txscript.OP_HASH160,
+		3:  txscript.OP_DATA_20,
+		24: txscript.OP_EQUALVERIFY,
+		25: txscript.OP_CHECKSIG,
+	}
+	copy(s[4:24], x.SecpPubKeyHash160()[:])
+	return s, 0
+}
+
+func (x *xpubAddress) rewardCommitment(amount dcrutil.Amount, limits uint16) ([]byte, uint16) {
+	s := make([]byte, 32)
+	s[0] = txscript.OP_RETURN
+	s[1] = txscript.OP_DATA_30
+	copy(s[2:22], x.SecpPubKeyHash160()[:])
+	binary.LittleEndian.PutUint64(s[22:30], uint64(amount))
+	binary.LittleEndian.PutUint16(s[30:32], limits)
+	return s, 0
+}
+
+func (x *xpubAddress) payVoteCommitment() (script []byte, version uint16) {
+	s := []byte{
+		0:  txscript.OP_SSGEN,
+		1:  txscript.OP_DUP,
+		2:  txscript.OP_HASH160,
+		3:  txscript.OP_DATA_20,
+		24: txscript.OP_EQUALVERIFY,
+		25: txscript.OP_CHECKSIG,
+	}
+	copy(s[4:24], x.SecpPubKeyHash160()[:])
+	return s, 0
+}
+
+func (x *xpubAddress) payRevokeCommitment() (script []byte, version uint16) {
+	s := []byte{
+		0:  txscript.OP_SSRTX,
+		1:  txscript.OP_DUP,
+		2:  txscript.OP_HASH160,
+		3:  txscript.OP_DATA_20,
+		24: txscript.OP_EQUALVERIFY,
+		25: txscript.OP_CHECKSIG,
+	}
+	copy(s[4:24], x.SecpPubKeyHash160()[:])
+	return s, 0
 }
 
 func (x *xpubAddress) SecpPubKey() *secp256k1.PublicKey {
@@ -119,6 +191,69 @@ func (x *xpubAddress) SecpPubKeyHash(version uint16) ([]byte, error) {
 
 func (x *xpubAddress) BIP44AccountXpubPath() (xpub *hdkeychain2.ExtendedKey, branch, child uint32) {
 	return x.xpub, x.branch, x.child
+}
+
+// addressScript returns an output script paying to address.  This func is
+// always prefered over direct usage of txscript.PayToAddrScript due to the
+// latter failing on unexpected concrete types.
+func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err error) {
+	switch addr := addr.(type) {
+	case V0Scripter:
+		return addr.ScriptV0(), 0, nil
+	default:
+		pkScript, err = txscript.PayToAddrScript(addr)
+		return pkScript, txscript.DefaultScriptVersion, err
+	}
+}
+
+func voteRightsScript(addr dcrutil.Address) (script []byte, version uint16, err error) {
+	switch addr := addr.(type) {
+	case stakeAddress:
+		script, version = addr.voteRights()
+	default:
+		script, err = txscript.PayToSStx(addr)
+	}
+	return
+}
+
+func ticketChangeScript(addr dcrutil.Address) (script []byte, version uint16, err error) {
+	switch addr := addr.(type) {
+	case stakeAddress:
+		script, version = addr.ticketChange()
+	default:
+		script, err = txscript.PayToSStxChange(addr)
+	}
+	return
+}
+
+func rewardCommitment(addr dcrutil.Address, amount dcrutil.Amount, limits uint16) (script []byte, version uint16, err error) {
+	switch addr := addr.(type) {
+	case stakeAddress:
+		script, version = addr.rewardCommitment(amount, limits)
+	default:
+		script, err = txscript.GenerateSStxAddrPush(addr, amount, limits)
+	}
+	return
+}
+
+func payVoteCommitment(addr dcrutil.Address) (script []byte, version uint16, err error) {
+	switch addr := addr.(type) {
+	case stakeAddress:
+		script, version = addr.payVoteCommitment()
+	default:
+		script, err = txscript.PayToSSGen(addr)
+	}
+	return
+}
+
+func payRevokeCommitment(addr dcrutil.Address) (script []byte, version uint16, err error) {
+	switch addr := addr.(type) {
+	case stakeAddress:
+		script, version = addr.payRevokeCommitment()
+	default:
+		script, err = txscript.PayToSSRtx(addr)
+	}
+	return
 }
 
 // DefaultGapLimit is the default unused address gap limit defined by BIP0044.
@@ -684,11 +819,7 @@ func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	script, err := txscript.PayToAddrScript(changeAddress)
-	if err != nil {
-		return nil, 0, err
-	}
-	return script, txscript.DefaultScriptVersion, nil
+	return addressScript(changeAddress)
 }
 
 func (src *p2PKHChangeSource) ScriptSize() int {

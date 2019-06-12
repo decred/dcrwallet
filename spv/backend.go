@@ -100,8 +100,14 @@ func (s *Syncer) LoadTxFilter(ctx context.Context, reload bool, addrs []dcrutil.
 		s.filterData = nil
 	}
 	for _, addr := range addrs {
-		pkScript, err := txscript.PayToAddrScript(addr)
-		if err == nil {
+		var pkScript []byte
+		switch addr := addr.(type) {
+		case wallet.V0Scripter:
+			pkScript = addr.ScriptV0()
+		default:
+			pkScript, _ = txscript.PayToAddrScript(addr)
+		}
+		if pkScript != nil {
 			s.rescanFilter.AddAddress(addr)
 			s.filterData.AddRegularPkScript(pkScript)
 		}

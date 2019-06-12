@@ -2176,6 +2176,16 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 	return hashStrs, err
 }
 
+func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err error) {
+	switch addr := addr.(type) {
+	case wallet.V0Scripter:
+		return addr.ScriptV0(), 0, nil
+	default:
+		pkScript, err = txscript.PayToAddrScript(addr)
+		return pkScript, txscript.DefaultScriptVersion, err
+	}
+}
+
 // makeOutputs creates a slice of transaction outputs from a pair of address
 // strings to amounts.  This is used to create the outputs to include in newly
 // created transactions from a JSON object describing the output destinations
@@ -2191,12 +2201,16 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 			return nil, err
 		}
 
-		pkScript, err := txscript.PayToAddrScript(addr)
+		pkScript, vers, err := addressScript(addr)
 		if err != nil {
 			return nil, err
 		}
 
-		outputs = append(outputs, wire.NewTxOut(int64(amt), pkScript))
+		outputs = append(outputs, &wire.TxOut{
+			Value:    int64(amt),
+			PkScript: pkScript,
+			Version:  vers,
+		})
 	}
 	return outputs, nil
 }
@@ -2278,7 +2292,7 @@ func (s *Server) redeemMultiSigOut(ctx context.Context, icmd interface{}) (inter
 	txIn := wire.NewTxIn(&op, int64(p2shOutput.OutputAmount), nil)
 	msgTx.AddTxIn(txIn)
 
-	pkScript, err := txscript.PayToAddrScript(addr)
+	pkScript, _, err := addressScript(addr)
 	if err != nil {
 		return nil, err
 	}
@@ -3125,9 +3139,14 @@ func makeScriptChangeSource(address string, version uint16) (*scriptChangeSource
 		return nil, err
 	}
 
-	script, err := txscript.PayToAddrScript(destinationAddress)
-	if err != nil {
-		return nil, err
+	var script []byte
+	if addr, ok := destinationAddress.(wallet.V0Scripter); ok && version == 0 {
+		script = addr.ScriptV0()
+	} else {
+		script, err = txscript.PayToAddrScript(destinationAddress)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	source := &scriptChangeSource{
