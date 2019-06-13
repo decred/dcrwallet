@@ -1,7 +1,7 @@
 module github.com/decred/dcrwallet/chain/v2
 
 require (
-	github.com/decred/dcrd/chaincfg v1.3.0
+	github.com/decred/dcrd/chaincfg v1.5.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/dcrutil v1.2.0
 	github.com/decred/dcrd/gcs v1.0.2
