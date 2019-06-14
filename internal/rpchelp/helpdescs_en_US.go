@@ -104,6 +104,11 @@ var helpDescsEnUS = map[string]string{
 	"getblockcount--synopsis": "Returns the blockchain height of the newest block in the best chain that wallet has finished syncing with.",
 	"getblockcount--result0":  "The blockchain height of the most recent synced-to block",
 
+	// GetBlockHashCmd help.
+	"getblockhash--synopsis": "Returns the hash of a main chain block at some height",
+	"getblockhash-index":     "The block height",
+	"getblockhash--result0":  "The main chain block hash",
+
 	// GetInfoCmd help.
 	"getinfo--synopsis": "Returns a JSON object containing various state info.",
 

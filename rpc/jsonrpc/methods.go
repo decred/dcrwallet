@@ -41,10 +41,10 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "6.0.1"
+	jsonrpcSemverString = "6.1.0"
 	jsonrpcSemverMajor  = 6
-	jsonrpcSemverMinor  = 0
-	jsonrpcSemverPatch  = 1
+	jsonrpcSemverMinor  = 1
+	jsonrpcSemverPatch  = 0
 )
 
 // confirms returns the number of confirmations for a transaction in a block at
@@ -76,6 +76,7 @@ var handlers = map[string]handler{
 	"getbalance":              {fn: (*Server).getBalance},
 	"getbestblockhash":        {fn: (*Server).getBestBlockHash},
 	"getblockcount":           {fn: (*Server).getBlockCount},
+	"getblockhash":            {fn: (*Server).getBlockHash},
 	"getinfo":                 {fn: (*Server).getInfo},
 	"getmasterpubkey":         {fn: (*Server).getMasterPubkey},
 	"getmultisigoutinfo":      {fn: (*Server).getMultisigOutInfo},
@@ -780,6 +781,24 @@ func (s *Server) getBlockCount(ctx context.Context, icmd interface{}) (interface
 
 	_, height := w.MainChainTip()
 	return height, nil
+}
+
+// getBlockHash handles a getblockhash request by returning the main chain hash
+// for a block at some height.
+func (s *Server) getBlockHash(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrjson.GetBlockHashCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	height := int32(cmd.Index)
+	id := wallet.NewBlockIdentifierFromHeight(height)
+	info, err := w.BlockInfo(id)
+	if err != nil {
+		return nil, err
+	}
+	return info.Hash.String(), nil
 }
 
 // difficultyRatio returns the proof-of-work difficulty as a multiple of the
