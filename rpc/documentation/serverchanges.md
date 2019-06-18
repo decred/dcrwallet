@@ -39,7 +39,7 @@ Once the developer dependencies have been met, changes can be made to the API by
 modifying the Protocol Buffers descriptor file [`api.proto`](../api.proto).
 
 The API is versioned according to the rules of [Semantic Versioning
-2.0](http://semver.org/).  After any changes, bump the API version in the [API
+2.0](https://semver.org/).  After any changes, bump the API version in the [API
 specification](./api.md) and add the changes to the spec.
 
 Unless backwards compatibility is broken (and the version is bumped to represent
@@ -98,4 +98,4 @@ implemented in the [`rpcserver`](../rpcserver/) package.
 
 - [Protocol Buffers Language Guide (proto3)](https://developers.google.com/protocol-buffers/docs/proto3)
 - [Protocol Buffers Basics: Go](https://developers.google.com/protocol-buffers/docs/gotutorial)
-- [gRPC Basics: Go](http://www.grpc.io/docs/tutorials/basic/go.html)
+- [gRPC Basics: Go](https://www.grpc.io/docs/tutorials/basic/go.html)

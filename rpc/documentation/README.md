@@ -1,6 +1,6 @@
 # RPC Documentation
 
-This project provides a [gRPC](http://www.grpc.io/) server for Remote Procedure
+This project provides a [gRPC](https://www.grpc.io/) server for Remote Procedure
 Call (RPC) access from other processes.  This is intended to be the primary
 means by which users, through other client programs, interact with the wallet.
 

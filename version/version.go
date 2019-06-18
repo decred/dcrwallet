@@ -37,7 +37,7 @@ var PreRelease = "pre"
 var BuildMetadata = "dev"
 
 // String returns the application version as a properly formed string per the
-// semantic versioning 2.0.0 spec (http://semver.org/).
+// semantic versioning 2.0.0 spec (https://semver.org/).
 func String() string {
 	// Start with the major, minor, and path versions.
 	version := fmt.Sprintf("%d.%d.%d", Major, Minor, Patch)

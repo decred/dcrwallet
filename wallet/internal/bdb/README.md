@@ -26,11 +26,11 @@ if err != nil {
 
 ## Documentation
 
-[![GoDoc](https://godoc.org/github.com/decred/dcrwallet/wallet/v2/internal/bdb?status.png)](http://godoc.org/github.com/decred/dcrwallet/wallet/v2/internal/bdb)
+[![GoDoc](https://godoc.org/github.com/decred/dcrwallet/wallet/v2/internal/bdb?status.png)](https://godoc.org/github.com/decred/dcrwallet/wallet/v2/internal/bdb)
 
 Full `go doc` style documentation for the project can be viewed online without
 installing this package by using the GoDoc site here:
-http://godoc.org/github.com/decred/dcrwallet/wallet/v2/internal/bdb
+https://godoc.org/github.com/decred/dcrwallet/wallet/v2/internal/bdb
 
 You can also view the documentation locally once the package is installed with
 the `godoc` tool by running `godoc -http=":6060"` and pointing your browser to
