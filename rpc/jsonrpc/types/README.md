@@ -2,8 +2,8 @@ jsonrpc/types
 =============
 
 [![Build Status](https://travis-ci.org/decred/dcrwallet.png?branch=master)](https://travis-ci.org/decred/dcrwallet)
-[![ISC License](http://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
-[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](http://godoc.org/github.com/decred/dcrwallet/rpc/jsonrpc/types)
+[![ISC License](https://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/decred/dcrwallet/rpc/jsonrpc/types)
 
 Package types implements concrete types for marshalling to and from the
 dcrwallet JSON-RPC API.  A comprehensive suite of tests is provided to ensure

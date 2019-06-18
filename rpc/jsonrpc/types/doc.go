@@ -12,7 +12,7 @@ marshalled to and from the the wire in the appropriate format.  This package
 provides data structures and primitives that are registered with dcrjson to ease
 this process.  An overview specific to this package is provided here, however it
 is also instructive to read the documentation for the dcrjson package
-(http://godoc.org/github.com/decred/dcrd/dcrjson).
+(https://godoc.org/github.com/decred/dcrd/dcrjson).
 
 Marshalling and Unmarshalling
 

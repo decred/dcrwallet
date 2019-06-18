@@ -1,7 +1,7 @@
 # Client usage
 
 Clients use RPC to interact with the wallet.  A client may be implemented in any
-language directly supported by [gRPC](http://www.grpc.io/), languages capable of
+language directly supported by [gRPC](https://www.grpc.io/), languages capable of
 performing [FFI](https://en.wikipedia.org/wiki/Foreign_function_interface) with
 these, and languages that share a common runtime (e.g. Scala, Kotlin, and Ceylon
 for the JVM, F# for the CLR, etc.).  Exact instructions differ slightly
