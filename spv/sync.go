@@ -1015,7 +1015,7 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 	s.locatorMu.Lock()
 	locators = s.currentLocators
 	generation = s.locatorGeneration
-	if locators == nil {
+	if len(locators) == 0 {
 		locators, err = s.wallet.BlockLocators(nil)
 		if err != nil {
 			s.locatorMu.Unlock()
@@ -1090,7 +1090,8 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 			s.locatorMu.Lock()
 			if s.locatorGeneration > generation {
 				locators = s.currentLocators
-			} else {
+			}
+			if len(locators) == 0 {
 				locators, err = s.wallet.BlockLocators(nil)
 				if err != nil {
 					s.locatorMu.Unlock()
