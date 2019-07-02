@@ -2,3 +2,4 @@ dcrwallet
 vendor
 *~
 .vscode
+rpc/tools/bin/
