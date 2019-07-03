@@ -70,11 +70,6 @@ service WalletLoaderService {
 	rpc CreateWatchingOnlyWallet (CreateWatchingOnlyWalletRequest) returns (CreateWatchingOnlyWalletResponse);
 	rpc OpenWallet (OpenWalletRequest) returns (OpenWalletResponse);
 	rpc CloseWallet (CloseWalletRequest) returns (CloseWalletResponse);
-	rpc StartConsensusRpc (StartConsensusRpcRequest) returns (StartConsensusRpcResponse);
-	rpc DiscoverAddresses (DiscoverAddressesRequest) returns (DiscoverAddressesResponse);
-	rpc SubscribeToBlockNotifications (SubscribeToBlockNotificationsRequest) returns (SubscribeToBlockNotificationsResponse);
-	rpc FetchHeaders(FetchHeadersRequest) returns (FetchHeadersResponse);
-	rpc FetchMissingCFilters(FetchMissingCFiltersRequest) returns (FetchMissingCFiltersResponse);
 	rpc SpvSync(SpvSyncRequest) returns (stream SpvSyncResponse);
 	rpc RpcSync(RpcSyncRequest) returns (stream RpcSyncResponse);
 	rpc RescanPoint(RescanPointRequest) returns (RescanPointResponse);

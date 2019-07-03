@@ -61,8 +61,8 @@ import (
 
 // Public API version constants
 const (
-	semverString = "6.0.0"
-	semverMajor  = 6
+	semverString = "7.0.0"
+	semverMajor  = 7
 	semverMinor  = 0
 	semverPatch  = 0
 )
@@ -2325,122 +2325,6 @@ func (s *loaderServer) CloseWallet(ctx context.Context, req *pb.CloseWalletReque
 	return &pb.CloseWalletResponse{}, nil
 }
 
-func (s *loaderServer) StartConsensusRpc(ctx context.Context, req *pb.StartConsensusRpcRequest) (
-	*pb.StartConsensusRpcResponse, error) {
-
-	defer zero.Bytes(req.Password)
-
-	defer s.mu.Unlock()
-	s.mu.Lock()
-
-	if s.rpcClient != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "RPC client already created")
-	}
-
-	networkAddress, err := cfgutil.NormalizeAddress(req.NetworkAddress,
-		s.activeNet.JSONRPCClientPort)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument,
-			"Network address is ill-formed: %v", err)
-	}
-
-	// Error if the wallet is already syncing with the network.
-	wallet, walletLoaded := s.loader.LoadedWallet()
-	if walletLoaded {
-		_, err := wallet.NetworkBackend()
-		if err == nil {
-			return nil, status.Errorf(codes.FailedPrecondition,
-				"wallet is loaded and already synchronizing")
-		}
-	}
-
-	rpcClient, err := chain.NewRPCClient(s.activeNet.Params, networkAddress, req.Username,
-		string(req.Password), req.Certificate, len(req.Certificate) == 0)
-	if err != nil {
-		return nil, translateError(err)
-	}
-
-	err = rpcClient.Start(ctx, false)
-	if err != nil {
-		if err == rpcclient.ErrInvalidAuth {
-			return nil, status.Errorf(codes.InvalidArgument,
-				"Invalid RPC credentials: %v", err)
-		}
-		return nil, status.Errorf(codes.NotFound,
-			"Connection to RPC server failed: %v", err)
-	}
-
-	s.rpcClient = rpcClient
-	s.loader.SetNetworkBackend(chain.BackendFromRPCClient(rpcClient.Client))
-
-	return &pb.StartConsensusRpcResponse{}, nil
-}
-
-func (s *loaderServer) DiscoverAddresses(ctx context.Context, req *pb.DiscoverAddressesRequest) (
-	*pb.DiscoverAddressesResponse, error) {
-
-	wallet, ok := s.loader.LoadedWallet()
-	if !ok {
-		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
-	}
-
-	s.mu.Lock()
-	chainClient := s.rpcClient
-	s.mu.Unlock()
-	if chainClient == nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "Consensus server RPC client has not been loaded")
-	}
-
-	if req.DiscoverAccounts && len(req.PrivatePassphrase) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "private passphrase is required for discovering accounts")
-	}
-
-	if req.DiscoverAccounts {
-		lock := make(chan time.Time, 1)
-		defer func() {
-			lock <- time.Time{}
-			zero.Bytes(req.PrivatePassphrase)
-		}()
-		err := wallet.Unlock(req.PrivatePassphrase, lock)
-		if err != nil {
-			return nil, translateError(err)
-		}
-	}
-	n := chain.BackendFromRPCClient(chainClient.Client)
-	startHash := wallet.ChainParams().GenesisHash
-	var err error
-	if req.StartingBlockHash != nil {
-		startHash, err = chainhash.NewHash(req.StartingBlockHash)
-		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "Invalid starting block hash provided: %v", err)
-		}
-	}
-	err = wallet.DiscoverActiveAddresses(ctx, n, startHash, req.DiscoverAccounts)
-	if err != nil {
-		return nil, translateError(err)
-	}
-
-	return &pb.DiscoverAddressesResponse{}, nil
-}
-
-func (s *loaderServer) FetchMissingCFilters(ctx context.Context, req *pb.FetchMissingCFiltersRequest) (
-	*pb.FetchMissingCFiltersResponse, error) {
-
-	wallet, ok := s.loader.LoadedWallet()
-	if !ok {
-		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
-	}
-
-	n := chain.BackendFromRPCClient(s.rpcClient.Client)
-	// Fetch any missing main chain compact filters.
-	err := wallet.FetchMissingCFilters(ctx, n)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pb.FetchMissingCFiltersResponse{}, nil
-}
-
 func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderService_RpcSyncServer) error {
 	defer zero.Bytes(req.Password)
 
@@ -2813,72 +2697,6 @@ func (s *loaderServer) RescanPoint(ctx context.Context, req *pb.RescanPointReque
 		}, nil
 	}
 	return &pb.RescanPointResponse{RescanPointHash: nil}, nil
-}
-
-func (s *loaderServer) SubscribeToBlockNotifications(ctx context.Context, req *pb.SubscribeToBlockNotificationsRequest) (
-	*pb.SubscribeToBlockNotificationsResponse, error) {
-
-	wallet, ok := s.loader.LoadedWallet()
-	if !ok {
-		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
-	}
-
-	s.mu.Lock()
-	chainClient := s.rpcClient
-	s.mu.Unlock()
-	if chainClient == nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "Consensus server RPC client has not been loaded")
-	}
-
-	err := chainClient.NotifyBlocks()
-	if err != nil {
-		return nil, translateError(err)
-	}
-
-	// TODO: instead of running the syncer in the background indefinitely,
-	// deprecate this RPC and introduce two new RPCs, one to subscribe to the
-	// notifications and one to perform the synchronization task.  This would be
-	// a backwards-compatible way to improve error handling and provide more
-	// control over how long the synchronization task runs.
-	syncer := chain.NewRPCSyncer(wallet, chainClient)
-	go syncer.Run(context.Background(), false)
-	wallet.SetNetworkBackend(chain.BackendFromRPCClient(chainClient.Client))
-
-	return &pb.SubscribeToBlockNotificationsResponse{}, nil
-}
-
-func (s *loaderServer) FetchHeaders(ctx context.Context, req *pb.FetchHeadersRequest) (
-	*pb.FetchHeadersResponse, error) {
-
-	wallet, ok := s.loader.LoadedWallet()
-	if !ok {
-		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
-	}
-
-	s.mu.Lock()
-	chainClient := s.rpcClient
-	s.mu.Unlock()
-	if chainClient == nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "Consensus server RPC client has not been loaded")
-	}
-	n := chain.BackendFromRPCClient(chainClient.Client)
-
-	fetchedHeaderCount, rescanFrom, rescanFromHeight,
-		mainChainTipBlockHash, mainChainTipBlockHeight, err := wallet.FetchHeaders(ctx, n)
-	if err != nil {
-		return nil, translateError(err)
-	}
-
-	res := &pb.FetchHeadersResponse{
-		FetchedHeadersCount:     uint32(fetchedHeaderCount),
-		MainChainTipBlockHash:   mainChainTipBlockHash[:],
-		MainChainTipBlockHeight: mainChainTipBlockHeight,
-	}
-	if fetchedHeaderCount > 0 {
-		res.FirstNewBlockHash = rescanFrom[:]
-		res.FirstNewBlockHeight = rescanFromHeight
-	}
-	return res, nil
 }
 
 func (s *seedServer) GenerateRandomSeed(ctx context.Context, req *pb.GenerateRandomSeedRequest) (
