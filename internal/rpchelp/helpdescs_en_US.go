@@ -414,11 +414,12 @@ var helpDescsEnUS = map[string]string{
 	"sendtoaddress--synopsis": "Authors, signs, and sends a transaction that outputs some amount to a payment address.\n" +
 		"Unlike sendfrom, outputs are always chosen from the default account.\n" +
 		"A change output is automatically included to send extra output value back to the original account.",
-	"sendtoaddress-address":   "Address to pay",
-	"sendtoaddress-amount":    "Amount to send to the payment address valued in decred",
-	"sendtoaddress-comment":   "Unused",
-	"sendtoaddress-commentto": "Unused",
-	"sendtoaddress--result0":  "The transaction hash of the sent transaction",
+	"sendtoaddress-address":               "Address to pay",
+	"sendtoaddress-amount":                "Amount to send to the payment address valued in decred",
+	"sendtoaddress-comment":               "Unused",
+	"sendtoaddress-commentto":             "Unused",
+	"sendtoaddress-subtractfeefromamount": "Toggles whether the tx fee is subtracted from the payment rather than the change",
+	"sendtoaddress--result0":              "The transaction hash of the sent transaction",
 
 	// SendToMultisigCmd help.
 	"sendtomultisig--synopsis": "Authors, signs, and sends a transaction that outputs some amount to a multisig address.\n" +

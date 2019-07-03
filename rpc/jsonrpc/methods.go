@@ -2237,12 +2237,13 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 // sendPairs creates and sends payment transactions.
 // It returns the transaction hash in string format upon success
 // All errors are returned in dcrjson.RPCError format
-func sendPairs(w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32) (string, error) {
+func sendPairs(w *wallet.Wallet, amounts map[string]dcrutil.Amount,
+	options *wallet.CreateTxOptions) (string, error) {
 	outputs, err := makeOutputs(amounts, w.ChainParams())
 	if err != nil {
 		return "", err
 	}
-	txSha, err := w.SendOutputs(outputs, account, minconf)
+	txSha, err := w.SendOutputsWithOptions(outputs, options)
 	if err != nil {
 		if errors.Is(errors.Locked, err) {
 			return "", errWalletUnlockNeeded
@@ -2593,7 +2594,12 @@ func (s *Server) sendFrom(ctx context.Context, icmd interface{}) (interface{}, e
 		cmd.ToAddress: amt,
 	}
 
-	return sendPairs(w, pairs, account, minConf)
+	opt := &wallet.CreateTxOptions{
+		MinimumConfirmations: dcrjson.Int32(minConf),
+		Account:              dcrjson.Uint32(account),
+	}
+
+	return sendPairs(w, pairs, opt)
 }
 
 // sendMany handles a sendmany RPC request by creating a new transaction
@@ -2635,7 +2641,12 @@ func (s *Server) sendMany(ctx context.Context, icmd interface{}) (interface{}, e
 		pairs[k] = amt
 	}
 
-	return sendPairs(w, pairs, account, minConf)
+	opt := &wallet.CreateTxOptions{
+		MinimumConfirmations: dcrjson.Int32(minConf),
+		Account:              dcrjson.Uint32(account),
+	}
+
+	return sendPairs(w, pairs, opt)
 }
 
 // sendToAddress handles a sendtoaddress RPC request by creating a new
@@ -2671,8 +2682,12 @@ func (s *Server) sendToAddress(ctx context.Context, icmd interface{}) (interface
 		cmd.Address: amt,
 	}
 
+	opt := &wallet.CreateTxOptions{
+		RecipientPaysFee: cmd.SubtractFeeFromAmount,
+	}
+
 	// sendtoaddress always spends from the default account, this matches bitcoind
-	return sendPairs(w, pairs, udb.DefaultAccountNum, 1)
+	return sendPairs(w, pairs, opt)
 }
 
 // sendToMultiSig handles a sendtomultisig RPC request by creating a new

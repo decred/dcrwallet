@@ -93,14 +93,14 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "dumpprivkey",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("dumpprivkey", "1Address")
+				return dcrjson.NewCmd("dumpprivkey", "TsAddress")
 			},
 			staticCmd: func() interface{} {
-				return NewDumpPrivKeyCmd("1Address")
+				return NewDumpPrivKeyCmd("TsAddress")
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"dumpprivkey","params":["1Address"],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"dumpprivkey","params":["TsAddress"],"id":1}`,
 			unmarshalled: &DumpPrivKeyCmd{
-				Address: "1Address",
+				Address: "TsAddress",
 			},
 		},
 		{
@@ -119,14 +119,14 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getaccount",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getaccount", "1Address")
+				return dcrjson.NewCmd("getaccount", "TsAddress")
 			},
 			staticCmd: func() interface{} {
-				return NewGetAccountCmd("1Address")
+				return NewGetAccountCmd("TsAddress")
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"getaccount","params":["1Address"],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"getaccount","params":["TsAddress"],"id":1}`,
 			unmarshalled: &GetAccountCmd{
-				Address: "1Address",
+				Address: "TsAddress",
 			},
 		},
 		{
@@ -282,28 +282,28 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getreceivedbyaddress",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getreceivedbyaddress", "1Address")
+				return dcrjson.NewCmd("getreceivedbyaddress", "TsAddress")
 			},
 			staticCmd: func() interface{} {
-				return NewGetReceivedByAddressCmd("1Address", nil)
+				return NewGetReceivedByAddressCmd("TsAddress", nil)
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"getreceivedbyaddress","params":["1Address"],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"getreceivedbyaddress","params":["TsAddress"],"id":1}`,
 			unmarshalled: &GetReceivedByAddressCmd{
-				Address: "1Address",
+				Address: "TsAddress",
 				MinConf: dcrjson.Int(1),
 			},
 		},
 		{
 			name: "getreceivedbyaddress optional",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getreceivedbyaddress", "1Address", 6)
+				return dcrjson.NewCmd("getreceivedbyaddress", "TsAddress", 6)
 			},
 			staticCmd: func() interface{} {
-				return NewGetReceivedByAddressCmd("1Address", dcrjson.Int(6))
+				return NewGetReceivedByAddressCmd("TsAddress", dcrjson.Int(6))
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"getreceivedbyaddress","params":["1Address",6],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"getreceivedbyaddress","params":["TsAddress",6],"id":1}`,
 			unmarshalled: &GetReceivedByAddressCmd{
-				Address: "1Address",
+				Address: "TsAddress",
 				MinConf: dcrjson.Int(6),
 			},
 		},
@@ -769,17 +769,17 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listunspent optional3",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listunspent", 6, 100, []string{"1Address", "1Address2"})
+				return dcrjson.NewCmd("listunspent", 6, 100, []string{"TsAddress", "TsAddress2"})
 			},
 			staticCmd: func() interface{} {
 				return NewListUnspentCmd(dcrjson.Int(6), dcrjson.Int(100),
-					&[]string{"1Address", "1Address2"})
+					&[]string{"TsAddress", "TsAddress2"})
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"listunspent","params":[6,100,["1Address","1Address2"]],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"listunspent","params":[6,100,["TsAddress","TsAddress2"]],"id":1}`,
 			unmarshalled: &ListUnspentCmd{
 				MinConf:   dcrjson.Int(6),
 				MaxConf:   dcrjson.Int(100),
-				Addresses: &[]string{"1Address", "1Address2"},
+				Addresses: &[]string{"TsAddress", "TsAddress2"},
 			},
 		},
 		{
@@ -818,15 +818,15 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendfrom",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendfrom", "from", "1Address", 0.5)
+				return dcrjson.NewCmd("sendfrom", "from", "TsAddress", 0.5)
 			},
 			staticCmd: func() interface{} {
-				return NewSendFromCmd("from", "1Address", 0.5, nil, nil, nil)
+				return NewSendFromCmd("from", "TsAddress", 0.5, nil, nil, nil)
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"sendfrom","params":["from","1Address",0.5],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"sendfrom","params":["from","TsAddress",0.5],"id":1}`,
 			unmarshalled: &SendFromCmd{
 				FromAccount: "from",
-				ToAddress:   "1Address",
+				ToAddress:   "TsAddress",
 				Amount:      0.5,
 				MinConf:     dcrjson.Int(1),
 				Comment:     nil,
@@ -836,15 +836,15 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendfrom optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendfrom", "from", "1Address", 0.5, 6)
+				return dcrjson.NewCmd("sendfrom", "from", "TsAddress", 0.5, 6)
 			},
 			staticCmd: func() interface{} {
-				return NewSendFromCmd("from", "1Address", 0.5, dcrjson.Int(6), nil, nil)
+				return NewSendFromCmd("from", "TsAddress", 0.5, dcrjson.Int(6), nil, nil)
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"sendfrom","params":["from","1Address",0.5,6],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"sendfrom","params":["from","TsAddress",0.5,6],"id":1}`,
 			unmarshalled: &SendFromCmd{
 				FromAccount: "from",
-				ToAddress:   "1Address",
+				ToAddress:   "TsAddress",
 				Amount:      0.5,
 				MinConf:     dcrjson.Int(6),
 				Comment:     nil,
@@ -854,16 +854,16 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendfrom optional2",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendfrom", "from", "1Address", 0.5, 6, "comment")
+				return dcrjson.NewCmd("sendfrom", "from", "TsAddress", 0.5, 6, "comment")
 			},
 			staticCmd: func() interface{} {
-				return NewSendFromCmd("from", "1Address", 0.5, dcrjson.Int(6),
+				return NewSendFromCmd("from", "TsAddress", 0.5, dcrjson.Int(6),
 					dcrjson.String("comment"), nil)
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"sendfrom","params":["from","1Address",0.5,6,"comment"],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"sendfrom","params":["from","TsAddress",0.5,6,"comment"],"id":1}`,
 			unmarshalled: &SendFromCmd{
 				FromAccount: "from",
-				ToAddress:   "1Address",
+				ToAddress:   "TsAddress",
 				Amount:      0.5,
 				MinConf:     dcrjson.Int(6),
 				Comment:     dcrjson.String("comment"),
@@ -873,16 +873,16 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendfrom optional3",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendfrom", "from", "1Address", 0.5, 6, "comment", "commentto")
+				return dcrjson.NewCmd("sendfrom", "from", "TsAddress", 0.5, 6, "comment", "commentto")
 			},
 			staticCmd: func() interface{} {
-				return NewSendFromCmd("from", "1Address", 0.5, dcrjson.Int(6),
+				return NewSendFromCmd("from", "TsAddress", 0.5, dcrjson.Int(6),
 					dcrjson.String("comment"), dcrjson.String("commentto"))
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"sendfrom","params":["from","1Address",0.5,6,"comment","commentto"],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"sendfrom","params":["from","TsAddress",0.5,6,"comment","commentto"],"id":1}`,
 			unmarshalled: &SendFromCmd{
 				FromAccount: "from",
-				ToAddress:   "1Address",
+				ToAddress:   "TsAddress",
 				Amount:      0.5,
 				MinConf:     dcrjson.Int(6),
 				Comment:     dcrjson.String("comment"),
@@ -892,16 +892,16 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendmany",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendmany", "from", `{"1Address":0.5}`)
+				return dcrjson.NewCmd("sendmany", "from", `{"TsAddress":0.5}`)
 			},
 			staticCmd: func() interface{} {
-				amounts := map[string]float64{"1Address": 0.5}
+				amounts := map[string]float64{"TsAddress": 0.5}
 				return NewSendManyCmd("from", amounts, nil, nil)
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"sendmany","params":["from",{"1Address":0.5}],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"sendmany","params":["from",{"TsAddress":0.5}],"id":1}`,
 			unmarshalled: &SendManyCmd{
 				FromAccount: "from",
-				Amounts:     map[string]float64{"1Address": 0.5},
+				Amounts:     map[string]float64{"TsAddress": 0.5},
 				MinConf:     dcrjson.Int(1),
 				Comment:     nil,
 			},
@@ -909,16 +909,16 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendmany optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendmany", "from", `{"1Address":0.5}`, 6)
+				return dcrjson.NewCmd("sendmany", "from", `{"TsAddress":0.5}`, 6)
 			},
 			staticCmd: func() interface{} {
-				amounts := map[string]float64{"1Address": 0.5}
+				amounts := map[string]float64{"TsAddress": 0.5}
 				return NewSendManyCmd("from", amounts, dcrjson.Int(6), nil)
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"sendmany","params":["from",{"1Address":0.5},6],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"sendmany","params":["from",{"TsAddress":0.5},6],"id":1}`,
 			unmarshalled: &SendManyCmd{
 				FromAccount: "from",
-				Amounts:     map[string]float64{"1Address": 0.5},
+				Amounts:     map[string]float64{"TsAddress": 0.5},
 				MinConf:     dcrjson.Int(6),
 				Comment:     nil,
 			},
@@ -926,16 +926,16 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendmany optional2",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendmany", "from", `{"1Address":0.5}`, 6, "comment")
+				return dcrjson.NewCmd("sendmany", "from", `{"TsAddress":0.5}`, 6, "comment")
 			},
 			staticCmd: func() interface{} {
-				amounts := map[string]float64{"1Address": 0.5}
+				amounts := map[string]float64{"TsAddress": 0.5}
 				return NewSendManyCmd("from", amounts, dcrjson.Int(6), dcrjson.String("comment"))
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"sendmany","params":["from",{"1Address":0.5},6,"comment"],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"sendmany","params":["from",{"TsAddress":0.5},6,"comment"],"id":1}`,
 			unmarshalled: &SendManyCmd{
 				FromAccount: "from",
-				Amounts:     map[string]float64{"1Address": 0.5},
+				Amounts:     map[string]float64{"TsAddress": 0.5},
 				MinConf:     dcrjson.Int(6),
 				Comment:     dcrjson.String("comment"),
 			},
@@ -943,14 +943,14 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendtoaddress",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendtoaddress", "1Address", 0.5)
+				return dcrjson.NewCmd("sendtoaddress", "TsAddress", 0.5)
 			},
 			staticCmd: func() interface{} {
-				return NewSendToAddressCmd("1Address", 0.5, nil, nil)
+				return NewSendToAddressCmd("TsAddress", 0.5, nil, nil)
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"sendtoaddress","params":["1Address",0.5],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"sendtoaddress","params":["TsAddress",0.5],"id":1}`,
 			unmarshalled: &SendToAddressCmd{
-				Address:   "1Address",
+				Address:   "TsAddress",
 				Amount:    0.5,
 				Comment:   nil,
 				CommentTo: nil,
@@ -959,18 +959,38 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendtoaddress optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendtoaddress", "1Address", 0.5, "comment", "commentto")
+				return dcrjson.NewCmd("sendtoaddress", "TsAddress", 0.5, "comment", "commentto")
 			},
 			staticCmd: func() interface{} {
-				return NewSendToAddressCmd("1Address", 0.5, dcrjson.String("comment"),
+				return NewSendToAddressCmd("TsAddress", 0.5, dcrjson.String("comment"),
 					dcrjson.String("commentto"))
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"sendtoaddress","params":["1Address",0.5,"comment","commentto"],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"sendtoaddress","params":["TsAddress",0.5,"comment","commentto"],"id":1}`,
 			unmarshalled: &SendToAddressCmd{
-				Address:   "1Address",
+				Address:   "TsAddress",
 				Amount:    0.5,
 				Comment:   dcrjson.String("comment"),
 				CommentTo: dcrjson.String("commentto"),
+			},
+		},
+		{
+			name: "sendtoaddress optional2",
+			newCmd: func() (interface{}, error) {
+				return dcrjson.NewCmd("sendtoaddress", "TsAddress", 0.5, "comment", "commentto", dcrjson.Bool(true))
+			},
+			staticCmd: func() interface{} {
+				val := NewSendToAddressCmd("TsAddress", 0.5, dcrjson.String("comment"),
+					dcrjson.String("commentto"))
+				val.SubtractFeeFromAmount = dcrjson.Bool(true)
+				return val
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"sendtoaddress","params":["TsAddress",0.5,"comment","commentto",true],"id":1}`,
+			unmarshalled: &SendToAddressCmd{
+				Address:               "TsAddress",
+				Amount:                0.5,
+				Comment:               dcrjson.String("comment"),
+				CommentTo:             dcrjson.String("commentto"),
+				SubtractFeeFromAmount: dcrjson.Bool(true),
 			},
 		},
 		{
@@ -989,14 +1009,14 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "signmessage",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("signmessage", "1Address", "message")
+				return dcrjson.NewCmd("signmessage", "TsAddress", "message")
 			},
 			staticCmd: func() interface{} {
-				return NewSignMessageCmd("1Address", "message")
+				return NewSignMessageCmd("TsAddress", "message")
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"signmessage","params":["1Address","message"],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"signmessage","params":["TsAddress","message"],"id":1}`,
 			unmarshalled: &SignMessageCmd{
-				Address: "1Address",
+				Address: "TsAddress",
 				Message: "message",
 			},
 		},

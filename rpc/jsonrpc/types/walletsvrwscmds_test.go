@@ -113,29 +113,29 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		{
 			name: "listaddresstransactions",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listaddresstransactions", `["1Address"]`)
+				return dcrjson.NewCmd("listaddresstransactions", `["TsAddress"]`)
 			},
 			staticCmd: func() interface{} {
-				return NewListAddressTransactionsCmd([]string{"1Address"}, nil)
+				return NewListAddressTransactionsCmd([]string{"TsAddress"}, nil)
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"listaddresstransactions","params":[["1Address"]],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"listaddresstransactions","params":[["TsAddress"]],"id":1}`,
 			unmarshalled: &ListAddressTransactionsCmd{
-				Addresses: []string{"1Address"},
+				Addresses: []string{"TsAddress"},
 				Account:   nil,
 			},
 		},
 		{
 			name: "listaddresstransactions optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listaddresstransactions", `["1Address"]`, "acct")
+				return dcrjson.NewCmd("listaddresstransactions", `["TsAddress"]`, "acct")
 			},
 			staticCmd: func() interface{} {
-				return NewListAddressTransactionsCmd([]string{"1Address"},
+				return NewListAddressTransactionsCmd([]string{"TsAddress"},
 					dcrjson.String("acct"))
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"listaddresstransactions","params":[["1Address"],"acct"],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"listaddresstransactions","params":[["TsAddress"],"acct"],"id":1}`,
 			unmarshalled: &ListAddressTransactionsCmd{
-				Addresses: []string{"1Address"},
+				Addresses: []string{"TsAddress"},
 				Account:   dcrjson.String("acct"),
 			},
 		},

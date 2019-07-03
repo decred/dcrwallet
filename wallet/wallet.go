@@ -3774,13 +3774,93 @@ func (w *Wallet) TotalReceivedForAddr(addr dcrutil.Address, minConf int32) (dcru
 	return amount, nil
 }
 
-// SendOutputs creates and sends payment transactions. It returns the
-// transaction hash upon success
-func (w *Wallet) SendOutputs(outputs []*wire.TxOut, account uint32, minconf int32) (*chainhash.Hash, error) {
-	const op errors.Op = "wallet.SendOutputs"
-	relayFee := w.RelayFee()
+// CreateTxOptions allows changing the default behavior of how outputs are
+// constructed.  Nil values are set to default values.
+type CreateTxOptions struct {
+	// Determines if the fee comes from the change output or from the recipient.
+	// Defaults to false.
+	RecipientPaysFee *bool
+
+	// Indicates whether the change output should be randomized.
+	// Defaults to true.
+	RandomizeChangeIndex *bool
+
+	// Defines the relay fee for the entire paid, per kb.
+	// Defaults to the wallet's relay fee
+	RelayFeePerKb *int64
+
+	// Minimum utxo age to consider as valid inputs
+	// Defaults to 1 block
+	MinimumConfirmations *int32
+
+	// Account number to use
+	// Defaults to the wallet's default account number
+	Account *uint32
+}
+
+func (o *CreateTxOptions) recipientPaysFee() bool {
+	if o == nil || o.RecipientPaysFee == nil {
+		return false
+	}
+
+	return *o.RecipientPaysFee
+}
+
+func (o *CreateTxOptions) randomizeChangeIndex() bool {
+	if o == nil || o.RandomizeChangeIndex == nil {
+		return true
+	}
+
+	return *o.RandomizeChangeIndex
+}
+
+func (o *CreateTxOptions) relayFee(w *Wallet) dcrutil.Amount {
+	if o == nil || o.RelayFeePerKb == nil {
+		return w.RelayFee()
+	}
+
+	return dcrutil.Amount(*o.RelayFeePerKb)
+}
+
+func (o *CreateTxOptions) minConf() int32 {
+	if o == nil || o.MinimumConfirmations == nil {
+		return 1
+	}
+
+	return *o.MinimumConfirmations
+}
+
+func (o *CreateTxOptions) account() uint32 {
+	if o == nil || o.Account == nil {
+		return udb.DefaultAccountNum
+	}
+
+	return *o.Account
+}
+
+// SendOutputs creates and sends payment transactions.
+// It returns the transaction hash upon success.
+//
+// When building the transaction, fees are subtracted from the change output.
+// Deprecated: Use SendOutputsWithOptions
+func (w *Wallet) SendOutputs(outputs []*wire.TxOut, account uint32,
+	minconf int32) (*chainhash.Hash, error) {
+	options := &CreateTxOptions{
+		MinimumConfirmations: dcrjson.Int32(minconf),
+		Account:              dcrjson.Uint32(account),
+	}
+
+	return w.SendOutputsWithOptions(outputs, options)
+}
+
+// SendOutputsWithOptions creates and sends payment transactions with options.
+// It returns the transaction hash upon success.
+func (w *Wallet) SendOutputsWithOptions(outputs []*wire.TxOut,
+	options *CreateTxOptions) (*chainhash.Hash, error) {
+	const op errors.Op = "wallet.SendOutputsWithOptions"
+
 	for _, output := range outputs {
-		err := txrules.CheckOutput(output, relayFee)
+		err := txrules.CheckOutput(output, options.relayFee(w))
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
@@ -3791,7 +3871,13 @@ func (w *Wallet) SendOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 		return nil, err
 	}
 	defer heldUnlock.release()
-	tx, err := w.txToOutputs("wallet.SendOutputs", outputs, account, minconf, true)
+
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	tx, err := w.txToOutputs(op, outputs, n, options)
 	if err != nil {
 		return nil, err
 	}

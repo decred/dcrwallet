@@ -17,6 +17,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainec"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrec"
+	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/mempool/v2"
 	"github.com/decred/dcrd/txscript"
@@ -307,22 +308,7 @@ func (w *Wallet) checkHighFees(totalInput dcrutil.Amount, tx *wire.MsgTx) error 
 	return nil
 }
 
-// txToOutputs creates a transaction, selecting previous outputs from an account
-// with no less than minconf confirmations, and creates a signed transaction
-// that pays to each of the outputs.
-func (w *Wallet) txToOutputs(op errors.Op, outputs []*wire.TxOut, account uint32,
-	minconf int32, randomizeChangeIdx bool) (*txauthor.AuthoredTx, error) {
-
-	n, err := w.NetworkBackend()
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	return w.txToOutputsInternal(op, outputs, account, minconf, n,
-		randomizeChangeIdx, w.RelayFee())
-}
-
-// txToOutputsInternal creates a signed transaction which includes each output
+// txToOutputs creates a signed transaction which includes each output
 // from outputs.  Previous outputs to reedeem are chosen from the passed
 // account's UTXO set and minconf policy. An additional output may be added to
 // return change to the wallet.  An appropriate fee is included based on the
@@ -333,8 +319,8 @@ func (w *Wallet) txToOutputs(op errors.Op, outputs []*wire.TxOut, account uint32
 // Decred: This func also sends the transaction, and if successful, inserts it
 // into the database, rather than delegating this work to the caller as
 // btcwallet does.
-func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, account uint32, minconf int32,
-	n NetworkBackend, randomizeChangeIdx bool, txFee dcrutil.Amount) (*txauthor.AuthoredTx, error) {
+func (w *Wallet) txToOutputs(op errors.Op, outputs []*wire.TxOut,
+	n NetworkBackend, options *CreateTxOptions) (*txauthor.AuthoredTx, error) {
 
 	var unlockOutpoints []*wire.OutPoint
 	defer func() {
@@ -353,6 +339,7 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 
 	var atx *txauthor.AuthoredTx
 	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
+
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -363,16 +350,30 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 
 		// Create the unsigned transaction.
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
-		inputSource := w.TxStore.MakeIgnoredInputSource(txmgrNs, addrmgrNs, account,
-			minconf, tipHeight, ignoreInput)
+		inputSource := w.TxStore.MakeIgnoredInputSource(txmgrNs, addrmgrNs,
+			options.account(), options.minConf(),
+			tipHeight, ignoreInput)
 		changeSource := &p2PKHChangeSource{
 			persist: w.deferPersistReturnedChild(&changeSourceUpdates),
-			account: account,
+			account: options.account(),
 			wallet:  w,
 		}
 		var err error
-		atx, err = txauthor.NewUnsignedTransaction(outputs, txFee,
-			inputSource.SelectInputs, changeSource)
+
+		if options.recipientPaysFee() {
+			if len(outputs) != 1 {
+				return errors.E(errors.Invalid, "expected exactly one output "+
+					"for transaction where recipient pays the fee")
+			}
+
+			output := outputs[0]
+			atx, err = newUnsignedTransactionMinusFee(op, output,
+				options.relayFee(w), inputSource.SelectInputs, changeSource)
+		} else {
+			atx, err = txauthor.NewUnsignedTransaction(outputs,
+				options.relayFee(w), inputSource.SelectInputs, changeSource)
+		}
+
 		if err != nil {
 			return err
 		}
@@ -385,7 +386,7 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 		// Randomize change position, if change exists, before signing.  This
 		// doesn't affect the serialize size, so the change amount will still be
 		// valid.
-		if atx.ChangeIndex >= 0 && randomizeChangeIdx {
+		if atx.ChangeIndex >= 0 && options.randomizeChangeIndex() {
 			atx.RandomizeChangePosition()
 		}
 
@@ -409,7 +410,7 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 
 	// Warn when spending UTXOs controlled by imported keys created change for
 	// the default account.
-	if atx.ChangeIndex >= 0 && account == udb.ImportedAddrAccount {
+	if atx.ChangeIndex >= 0 && options.account() == udb.ImportedAddrAccount {
 		changeAmount := dcrutil.Amount(atx.Tx.TxOut[atx.ChangeIndex].Value)
 		log.Warnf("Spend from imported account produced change: moving"+
 			" %v from imported account into default account.", changeAmount)
@@ -466,6 +467,53 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 		}
 	}
 	return atx, nil
+}
+
+// newUnsignedTransactionMinusFee creates an unsigned transaction paying to one
+// non-change output.  An appropriate transaction fee is included based on the
+// transaction size, and is subtracted from the provided `output` parameter.
+//
+// The behavior of this method mirrors `authortx.NewUnsignedTransaction`with the
+// differences being that:
+// * this method takes a single `output` argument
+// * all fees are subtracted from the provided output rather than from change.
+// * the output in the return value is a shallow copy of the output argument and
+//   references the original output script.
+func newUnsignedTransactionMinusFee(op errors.Op, output *wire.TxOut, relayFeePerKb dcrutil.Amount,
+	fetchInputs txauthor.InputSource, fetchChange txauthor.ChangeSource) (*txauthor.AuthoredTx, error) {
+
+	// Create shallow copy of `output` to include in return value since the
+	// `Value` property will be mutated.
+	// Still retains a reference to the output script array.
+	outputCopy := &wire.TxOut{
+		PkScript: output.PkScript,
+		Version:  output.Version,
+		Value:    output.Value,
+	}
+
+	// Since the fee will come directly from the full output amount,
+	// defer fee calculation until enough inputs have been consumed.
+	authoredTx, err := txauthor.NewUnsignedTransaction(
+		[]*wire.TxOut{outputCopy}, 0, fetchInputs, fetchChange)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// At this point, all inputs have been determined and the estimated size of
+	// the transaction is fixed. Calculate the fee and subtract it from the
+	// copied instance of the provided output.
+	feeAmount := txrules.FeeForSerializeSize(relayFeePerKb,
+		authoredTx.EstimatedSignedSerializeSize)
+	outputCopy.Value -= int64(feeAmount)
+
+	// Mirror the behavior of txauthor.NewUnsignedTransaction when the fee
+	// exceeds the amount to send.
+	if outputCopy.Value < 0 {
+		return nil, errors.E(op, errors.InsufficientBalance)
+	}
+
+	return authoredTx, nil
 }
 
 // txToMultisig spends funds to a multisig output, partially signs the
@@ -1160,8 +1208,16 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	if txFeeIncrement == 0 {
 		txFeeIncrement = w.RelayFee()
 	}
-	splitTx, err := w.txToOutputsInternal(op, splitOuts, account, req.MinConf,
-		n, false, txFeeIncrement)
+
+	options := &CreateTxOptions{
+		RandomizeChangeIndex: dcrjson.Bool(false),
+		RelayFeePerKb:        dcrjson.Int64(int64(txFeeIncrement)),
+		MinimumConfirmations: dcrjson.Int32(req.MinConf),
+		Account:              dcrjson.Uint32(account),
+	}
+
+	splitTx, err := w.txToOutputs(op, splitOuts, n, options)
+
 	if err != nil {
 		return nil, err
 	}

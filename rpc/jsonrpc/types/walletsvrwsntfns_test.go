@@ -60,12 +60,12 @@ func TestWalletSvrWsNtfns(t *testing.T) {
 		{
 			name: "newtx",
 			newNtfn: func() (interface{}, error) {
-				return dcrjson.NewCmd("newtx", "acct", `{"account":"acct","address":"1Address","category":"send","amount":1.5,"fee":0.0001,"confirmations":1,"txid":"456","walletconflicts":[],"time":12345678,"timereceived":12345876,"vout":789,"otheraccount":"otheracct"}`)
+				return dcrjson.NewCmd("newtx", "acct", `{"account":"acct","address":"TsAddress","category":"send","amount":1.5,"fee":0.0001,"confirmations":1,"txid":"456","walletconflicts":[],"time":12345678,"timereceived":12345876,"vout":789,"otheraccount":"otheracct"}`)
 			},
 			staticNtfn: func() interface{} {
 				result := ListTransactionsResult{
 					Account:         "acct",
-					Address:         "1Address",
+					Address:         "TsAddress",
 					Category:        "send",
 					Amount:          1.5,
 					Fee:             dcrjson.Float64(0.0001),
@@ -79,12 +79,12 @@ func TestWalletSvrWsNtfns(t *testing.T) {
 				}
 				return NewNewTxNtfn("acct", result)
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"newtx","params":["acct",{"account":"acct","address":"1Address","amount":1.5,"category":"send","confirmations":1,"fee":0.0001,"time":12345678,"timereceived":12345876,"txid":"456","vout":789,"walletconflicts":[],"otheraccount":"otheracct"}],"id":null}`,
+			marshalled: `{"jsonrpc":"1.0","method":"newtx","params":["acct",{"account":"acct","address":"TsAddress","amount":1.5,"category":"send","confirmations":1,"fee":0.0001,"time":12345678,"timereceived":12345876,"txid":"456","vout":789,"walletconflicts":[],"otheraccount":"otheracct"}],"id":null}`,
 			unmarshalled: &NewTxNtfn{
 				Account: "acct",
 				Details: ListTransactionsResult{
 					Account:         "acct",
-					Address:         "1Address",
+					Address:         "TsAddress",
 					Category:        "send",
 					Amount:          1.5,
 					Fee:             dcrjson.Float64(0.0001),

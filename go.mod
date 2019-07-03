@@ -27,6 +27,7 @@ require (
 	github.com/decred/dcrwallet/spv/v2 v2.0.0
 	github.com/decred/dcrwallet/ticketbuyer/v3 v3.0.0
 	github.com/decred/dcrwallet/version v1.0.1
+	github.com/decred/dcrwallet/wallet v1.3.0 // indirect
 	github.com/decred/dcrwallet/wallet/v2 v2.1.0
 	github.com/decred/dcrwallet/walletseed v1.0.1
 	github.com/decred/slog v1.0.0
