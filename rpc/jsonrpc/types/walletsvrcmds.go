@@ -1120,6 +1120,21 @@ func NewWalletPassphraseChangeCmd(oldPassphrase, newPassphrase string) *WalletPa
 	}
 }
 
+// WalletPubPassphraseChangeCmd defines the walletpubpassphrasechange JSON-RPC command.
+type WalletPubPassphraseChangeCmd struct {
+	OldPassphrase string
+	NewPassphrase string
+}
+
+// NewWalletPubPassphraseChangeCmd returns a new instance which can be used to
+// issue a walletpubpassphrasechange JSON-RPC command.
+func NewWalletPubPassphraseChangeCmd(oldPassphrase, newPassphrase string) *WalletPubPassphraseChangeCmd {
+	return &WalletPubPassphraseChangeCmd{
+		OldPassphrase: oldPassphrase,
+		NewPassphrase: newPassphrase,
+	}
+}
+
 func init() {
 	// The commands in this file are only usable with a wallet server.
 	flags := dcrjson.UFWalletOnly
@@ -1193,4 +1208,5 @@ func init() {
 	dcrjson.MustRegisterCmd("walletlock", (*WalletLockCmd)(nil), flags)
 	dcrjson.MustRegisterCmd("walletpassphrase", (*WalletPassphraseCmd)(nil), flags)
 	dcrjson.MustRegisterCmd("walletpassphrasechange", (*WalletPassphraseChangeCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("walletpubpassphrasechange", (*WalletPubPassphraseChangeCmd)(nil), flags)
 }
