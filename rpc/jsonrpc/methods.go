@@ -63,6 +63,7 @@ func confirms(txHeight, curHeight int32) int32 {
 // the registered rpc handlers
 var handlers = map[string]handler{
 	// Reference implementation wallet methods (implemented)
+<<<<<<< HEAD
 	"accountaddressindex":     {fn: (*Server).accountAddressIndex},
 	"accountsyncaddressindex": {fn: (*Server).accountSyncAddressIndex},
 	"addmultisigaddress":      {fn: (*Server).addMultiSigAddress},
@@ -128,6 +129,75 @@ var handlers = map[string]handler{
 	"walletlock":              {fn: (*Server).walletLock},
 	"walletpassphrase":        {fn: (*Server).walletPassphrase},
 	"walletpassphrasechange":  {fn: (*Server).walletPassphraseChange},
+=======
+	"accountaddressindex":       {fn: (*Server).accountAddressIndex},
+	"accountsyncaddressindex":   {fn: (*Server).accountSyncAddressIndex},
+	"addmultisigaddress":        {fn: (*Server).addMultiSigAddress},
+	"addticket":                 {fn: (*Server).addTicket},
+	"consolidate":               {fn: (*Server).consolidate},
+	"createmultisig":            {fn: (*Server).createMultiSig},
+	"dumpprivkey":               {fn: (*Server).dumpPrivKey},
+	"generatevote":              {fn: (*Server).generateVote},
+	"getaccount":                {fn: (*Server).getAccount},
+	"getaccountaddress":         {fn: (*Server).getAccountAddress},
+	"getaddressesbyaccount":     {fn: (*Server).getAddressesByAccount},
+	"getbalance":                {fn: (*Server).getBalance},
+	"getbestblockhash":          {fn: (*Server).getBestBlockHash},
+	"getblockcount":             {fn: (*Server).getBlockCount},
+	"getblockhash":              {fn: (*Server).getBlockHash},
+	"getinfo":                   {fn: (*Server).getInfo},
+	"getmasterpubkey":           {fn: (*Server).getMasterPubkey},
+	"getmultisigoutinfo":        {fn: (*Server).getMultisigOutInfo},
+	"getnewaddress":             {fn: (*Server).getNewAddress},
+	"getrawchangeaddress":       {fn: (*Server).getRawChangeAddress},
+	"getreceivedbyaccount":      {fn: (*Server).getReceivedByAccount},
+	"getreceivedbyaddress":      {fn: (*Server).getReceivedByAddress},
+	"getstakeinfo":              {fn: (*Server).getStakeInfo},
+	"getticketfee":              {fn: (*Server).getTicketFee},
+	"gettickets":                {fn: (*Server).getTickets},
+	"gettransaction":            {fn: (*Server).getTransaction},
+	"getvotechoices":            {fn: (*Server).getVoteChoices},
+	"getwalletfee":              {fn: (*Server).getWalletFee},
+	"help":                      {fn: (*Server).help},
+	"importprivkey":             {fn: (*Server).importPrivKey},
+	"importscript":              {fn: (*Server).importScript},
+	"keypoolrefill":             {fn: (*Server).keypoolRefill},
+	"listaccounts":              {fn: (*Server).listAccounts},
+	"listlockunspent":           {fn: (*Server).listLockUnspent},
+	"listreceivedbyaccount":     {fn: (*Server).listReceivedByAccount},
+	"listreceivedbyaddress":     {fn: (*Server).listReceivedByAddress},
+	"listsinceblock":            {fn: (*Server).listSinceBlock},
+	"listscripts":               {fn: (*Server).listScripts},
+	"listtransactions":          {fn: (*Server).listTransactions},
+	"listunspent":               {fn: (*Server).listUnspent},
+	"lockunspent":               {fn: (*Server).lockUnspent},
+	"purchaseticket":            {fn: (*Server).purchaseTicket},
+	"rescanwallet":              {fn: (*Server).rescanWallet},
+	"revoketickets":             {fn: (*Server).revokeTickets},
+	"sendfrom":                  {fn: (*Server).sendFrom},
+	"sendmany":                  {fn: (*Server).sendMany},
+	"sendtoaddress":             {fn: (*Server).sendToAddress},
+	"sendtomultisig":            {fn: (*Server).sendToMultiSig},
+	"setticketfee":              {fn: (*Server).setTicketFee},
+	"settxfee":                  {fn: (*Server).setTxFee},
+	"setvotechoice":             {fn: (*Server).setVoteChoice},
+	"signmessage":               {fn: (*Server).signMessage},
+	"signrawtransaction":        {fn: (*Server).signRawTransaction},
+	"signrawtransactions":       {fn: (*Server).signRawTransactions},
+	"sweepaccount":              {fn: (*Server).sweepAccount},
+	"redeemmultisigout":         {fn: (*Server).redeemMultiSigOut},
+	"redeemmultisigouts":        {fn: (*Server).redeemMultiSigOuts},
+	"stakepooluserinfo":         {fn: (*Server).stakePoolUserInfo},
+	"ticketsforaddress":         {fn: (*Server).ticketsForAddress},
+	"validateaddress":           {fn: (*Server).validateAddress},
+	"verifymessage":             {fn: (*Server).verifyMessage},
+	"version":                   {fn: (*Server).version},
+	"walletinfo":                {fn: (*Server).walletInfo},
+	"walletlock":                {fn: (*Server).walletLock},
+	"walletpassphrase":          {fn: (*Server).walletPassphrase},
+	"walletpassphrasechange":    {fn: (*Server).walletPassphraseChange},
+	"walletpubpassphrasechange": {fn: (*Server).walletPubPassphraseChange},
+>>>>>>> new feature changePublicPassPhrase
 
 	// Extensions to the reference client JSON-RPC API
 	"getbestblock":     {fn: (*Server).getBestBlock},
@@ -3525,6 +3595,23 @@ func (s *Server) walletPassphraseChange(ctx context.Context, icmd interface{}) (
 		return nil, err
 	}
 	return nil, nil
+}
+
+// walletPubPassphraseChange responds to the walletpubpassphrasechange request
+// by modifying the public passphrase of the wallet.
+func (s *Server) walletPubPassphraseChange(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.WalletPubPassphraseChangeCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	err := w.ChangePublicPassphrase([]byte(cmd.OldPassphrase),
+		[]byte(cmd.NewPassphrase))
+	if errors.Is(errors.Passphrase, err) {
+		return nil, rpcErrorf(dcrjson.ErrRPCWalletPassphraseIncorrect, "incorrect passphrase")
+	}
+	return nil, err
 }
 
 // decodeHexStr decodes the hex encoding of a string, possibly prepending a

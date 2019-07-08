@@ -1260,6 +1260,7 @@ func NewWalletPassphraseChangeCmd(oldPassphrase, newPassphrase string) *WalletPa
 	}
 }
 
+<<<<<<< HEAD:rpc/jsonrpc/types/methods.go
 type registeredMethod struct {
 	method string
 	cmd    interface{}
@@ -1376,4 +1377,95 @@ func init() {
 	for i := range register {
 		dcrjson.MustRegister(register[i].method, register[i].cmd, dcrjsonv2WalletOnly)
 	}
+=======
+// WalletPubPassphraseChangeCmd defines the walletpubpassphrasechange JSON-RPC command.
+type WalletPubPassphraseChangeCmd struct {
+	OldPassphrase string
+	NewPassphrase string
+}
+
+// NewWalletPubPassphraseChangeCmd returns a new instance which can be used to
+// issue a walletpubpassphrasechange JSON-RPC command.
+func NewWalletPubPassphraseChangeCmd(oldPassphrase, newPassphrase string) *WalletPubPassphraseChangeCmd {
+	return &WalletPubPassphraseChangeCmd{
+		OldPassphrase: oldPassphrase,
+		NewPassphrase: newPassphrase,
+	}
+}
+
+func init() {
+	// The commands in this file are only usable with a wallet server.
+	flags := dcrjson.UFWalletOnly
+
+	dcrjson.MustRegisterCmd("accountaddressindex", (*AccountAddressIndexCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("accountsyncaddressindex", (*AccountSyncAddressIndexCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("addmultisigaddress", (*AddMultisigAddressCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("addticket", (*AddTicketCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("consolidate", (*ConsolidateCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("createmultisig", (*CreateMultisigCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("createnewaccount", (*CreateNewAccountCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("createvotingaccount", (*CreateVotingAccountCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("dropvotingaccount", (*DropVotingAccountCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("dumpprivkey", (*DumpPrivKeyCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("estimatepriority", (*EstimatePriorityCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("fundrawtransaction", (*FundRawTransactionCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("generatevote", (*GenerateVoteCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getaccount", (*GetAccountCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getaccountaddress", (*GetAccountAddressCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getaddressesbyaccount", (*GetAddressesByAccountCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getbalance", (*GetBalanceCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getcontracthash", (*GetContractHashCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getmasterpubkey", (*GetMasterPubkeyCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getmultisigoutinfo", (*GetMultisigOutInfoCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getnewaddress", (*GetNewAddressCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getpaytocontractaddress", (*GetPayToContractAddressCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getrawchangeaddress", (*GetRawChangeAddressCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getreceivedbyaccount", (*GetReceivedByAccountCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getreceivedbyaddress", (*GetReceivedByAddressCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getstakeinfo", (*GetStakeInfoCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getticketfee", (*GetTicketFeeCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("gettickets", (*GetTicketsCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("gettransaction", (*GetTransactionCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getvotechoices", (*GetVoteChoicesCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("getwalletfee", (*GetWalletFeeCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("importprivkey", (*ImportPrivKeyCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("importscript", (*ImportScriptCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("keypoolrefill", (*KeyPoolRefillCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("listaccounts", (*ListAccountsCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("listlockunspent", (*ListLockUnspentCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("listreceivedbyaccount", (*ListReceivedByAccountCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("listreceivedbyaddress", (*ListReceivedByAddressCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("listscripts", (*ListScriptsCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("listsinceblock", (*ListSinceBlockCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("listtickets", (*ListTicketsCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("listtransactions", (*ListTransactionsCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("listunspent", (*ListUnspentCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("lockunspent", (*LockUnspentCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("purchaseticket", (*PurchaseTicketCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("redeemmultisigout", (*RedeemMultiSigOutCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("redeemmultisigouts", (*RedeemMultiSigOutsCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("renameaccount", (*RenameAccountCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("rescanwallet", (*RescanWalletCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("revoketickets", (*RevokeTicketsCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("sendfrom", (*SendFromCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("sendmany", (*SendManyCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("sendtoaddress", (*SendToAddressCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("sendtomultisig", (*SendToMultiSigCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("settxfee", (*SetTxFeeCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("setticketfee", (*SetTicketFeeCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("setvotechoice", (*SetVoteChoiceCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("signmessage", (*SignMessageCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("signrawtransaction", (*SignRawTransactionCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("signrawtransactions", (*SignRawTransactionsCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("stakepooluserinfo", (*StakePoolUserInfoCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("startautobuyer", (*StartAutoBuyerCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("stopautobuyer", (*StopAutoBuyerCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("sweepaccount", (*SweepAccountCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("verifyseed", (*VerifySeedCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("walletinfo", (*WalletInfoCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("walletlock", (*WalletLockCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("walletpassphrase", (*WalletPassphraseCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("walletpassphrasechange", (*WalletPassphraseChangeCmd)(nil), flags)
+	dcrjson.MustRegisterCmd("walletpubpassphrasechange", (*WalletPubPassphraseChangeCmd)(nil), flags)
+>>>>>>> new feature changePublicPassPhrase:rpc/jsonrpc/types/walletsvrcmds.go
 }

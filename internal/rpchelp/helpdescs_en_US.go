@@ -547,6 +547,11 @@ var helpDescsEnUS = map[string]string{
 	"walletpassphrasechange-oldpassphrase": "The old wallet passphrase",
 	"walletpassphrasechange-newpassphrase": "The new wallet passphrase",
 
+	// WalletPubPassphraseChangeCmd help.
+	"walletpubpassphrasechange--synopsis":     "Change the public wallet passphrase.",
+	"walletpubpassphrasechange-oldpassphrase": "The old public wallet passphrase",
+	"walletpubpassphrasechange-newpassphrase": "The new public wallet passphrase",
+
 	// CreateNewAccountCmd help.
 	"createnewaccount--synopsis": "Creates a new account.\n" +
 		"The wallet must be unlocked for this request to succeed.",
