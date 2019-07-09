@@ -269,7 +269,7 @@ var helpDescsEnUS = map[string]string{
 	// ImportScript help.
 	"importscript--synopsis": "Import a redeem script.",
 	"importscript-hex":       "Hex encoded script to import",
-	"importscript-rescan":    "Rescansfdsfd the blockchain (since the genesis block, or scanfrom block) for outputs controlled by the imported key",
+	"importscript-rescan":    "Rescans the blockchain (since the genesis block, or scanfrom block) for outputs controlled by the imported key",
 	"importscript-scanfrom":  "Block number for where to start rescan from",
 
 	// KeypoolRefillCmd help.
