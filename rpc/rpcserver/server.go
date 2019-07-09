@@ -308,6 +308,14 @@ func (s *walletServer) Network(ctx context.Context, req *pb.NetworkRequest) (
 	return &pb.NetworkResponse{ActiveNetwork: uint32(s.wallet.ChainParams().Net)}, nil
 }
 
+func (s *walletServer) CoinType(ctx context.Context, req *pb.CoinTypeRequest) (*pb.CoinTypeResponse, error) {
+	coinType, err := s.wallet.CoinType()
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.CoinTypeResponse{CoinType: coinType}, nil
+}
+
 func (s *walletServer) AccountNumber(ctx context.Context, req *pb.AccountNumberRequest) (
 	*pb.AccountNumberResponse, error) {
 

@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 7.0.x
+Version: 7.1.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](https://www.grpc.io/docs/guides/concepts.html)
@@ -456,6 +456,23 @@ server's active network.
 - `uint32 active_network`: The network identifier.
 
 **Expected errors:** None
+
+___
+
+#### `CoinType`
+
+The `CoinType` method returns the coin type identifier constant describing the
+wallet's coin type.
+
+**Request:** `CoinTypeRequest`
+
+**Response:** `CoinTypeResponse`
+
+- `uint32 coin_type`: The wallet's coin type identifier.
+
+**Expected errors:**
+
+- `WatchingOnly`: Watching-only wallet, coin type keys are not saved.
 
 ___
 

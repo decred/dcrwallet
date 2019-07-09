@@ -20,6 +20,7 @@ service WalletService {
 	// Queries
 	rpc Ping (PingRequest) returns (PingResponse);
 	rpc Network (NetworkRequest) returns (NetworkResponse);
+	rpc CoinType (CoinTypeRequest) returns (CoinTypeResponse);
 	rpc AccountNumber (AccountNumberRequest) returns (AccountNumberResponse);
 	rpc Accounts (AccountsRequest) returns (AccountsResponse);
 	rpc Balance (BalanceRequest) returns (BalanceResponse);
@@ -161,6 +162,11 @@ message PingResponse {}
 message NetworkRequest {}
 message NetworkResponse {
 	uint32 active_network = 1;
+}
+
+message CoinTypeRequest {}
+message CoinTypeResponse {
+	uint32 coin_type = 1;
 }
 
 message AccountNumberRequest {
