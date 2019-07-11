@@ -8,6 +8,8 @@ import (
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -10209,6 +10211,14 @@ type VersionServiceServer interface {
 	Version(context.Context, *VersionRequest) (*VersionResponse, error)
 }
 
+// UnimplementedVersionServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedVersionServiceServer struct {
+}
+
+func (*UnimplementedVersionServiceServer) Version(ctx context.Context, req *VersionRequest) (*VersionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Version not implemented")
+}
+
 func RegisterVersionServiceServer(s *grpc.Server, srv VersionServiceServer) {
 	s.RegisterService(&_VersionService_serviceDesc, srv)
 }
@@ -10877,6 +10887,134 @@ type WalletServiceServer interface {
 	ValidateAddress(context.Context, *ValidateAddressRequest) (*ValidateAddressResponse, error)
 	CommittedTickets(context.Context, *CommittedTicketsRequest) (*CommittedTicketsResponse, error)
 	SweepAccount(context.Context, *SweepAccountRequest) (*SweepAccountResponse, error)
+}
+
+// UnimplementedWalletServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedWalletServiceServer struct {
+}
+
+func (*UnimplementedWalletServiceServer) Ping(ctx context.Context, req *PingRequest) (*PingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
+}
+func (*UnimplementedWalletServiceServer) Network(ctx context.Context, req *NetworkRequest) (*NetworkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Network not implemented")
+}
+func (*UnimplementedWalletServiceServer) CoinType(ctx context.Context, req *CoinTypeRequest) (*CoinTypeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CoinType not implemented")
+}
+func (*UnimplementedWalletServiceServer) AccountNumber(ctx context.Context, req *AccountNumberRequest) (*AccountNumberResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AccountNumber not implemented")
+}
+func (*UnimplementedWalletServiceServer) Accounts(ctx context.Context, req *AccountsRequest) (*AccountsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Accounts not implemented")
+}
+func (*UnimplementedWalletServiceServer) Balance(ctx context.Context, req *BalanceRequest) (*BalanceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Balance not implemented")
+}
+func (*UnimplementedWalletServiceServer) GetAccountExtendedPubKey(ctx context.Context, req *GetAccountExtendedPubKeyRequest) (*GetAccountExtendedPubKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAccountExtendedPubKey not implemented")
+}
+func (*UnimplementedWalletServiceServer) GetTransaction(ctx context.Context, req *GetTransactionRequest) (*GetTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTransaction not implemented")
+}
+func (*UnimplementedWalletServiceServer) GetTransactions(req *GetTransactionsRequest, srv WalletService_GetTransactionsServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetTransactions not implemented")
+}
+func (*UnimplementedWalletServiceServer) GetTicket(ctx context.Context, req *GetTicketRequest) (*GetTicketsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTicket not implemented")
+}
+func (*UnimplementedWalletServiceServer) GetTickets(req *GetTicketsRequest, srv WalletService_GetTicketsServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetTickets not implemented")
+}
+func (*UnimplementedWalletServiceServer) TicketPrice(ctx context.Context, req *TicketPriceRequest) (*TicketPriceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TicketPrice not implemented")
+}
+func (*UnimplementedWalletServiceServer) StakeInfo(ctx context.Context, req *StakeInfoRequest) (*StakeInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StakeInfo not implemented")
+}
+func (*UnimplementedWalletServiceServer) BlockInfo(ctx context.Context, req *BlockInfoRequest) (*BlockInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BlockInfo not implemented")
+}
+func (*UnimplementedWalletServiceServer) BestBlock(ctx context.Context, req *BestBlockRequest) (*BestBlockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BestBlock not implemented")
+}
+func (*UnimplementedWalletServiceServer) TransactionNotifications(req *TransactionNotificationsRequest, srv WalletService_TransactionNotificationsServer) error {
+	return status.Errorf(codes.Unimplemented, "method TransactionNotifications not implemented")
+}
+func (*UnimplementedWalletServiceServer) AccountNotifications(req *AccountNotificationsRequest, srv WalletService_AccountNotificationsServer) error {
+	return status.Errorf(codes.Unimplemented, "method AccountNotifications not implemented")
+}
+func (*UnimplementedWalletServiceServer) ConfirmationNotifications(srv WalletService_ConfirmationNotificationsServer) error {
+	return status.Errorf(codes.Unimplemented, "method ConfirmationNotifications not implemented")
+}
+func (*UnimplementedWalletServiceServer) ChangePassphrase(ctx context.Context, req *ChangePassphraseRequest) (*ChangePassphraseResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChangePassphrase not implemented")
+}
+func (*UnimplementedWalletServiceServer) RenameAccount(ctx context.Context, req *RenameAccountRequest) (*RenameAccountResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RenameAccount not implemented")
+}
+func (*UnimplementedWalletServiceServer) Rescan(req *RescanRequest, srv WalletService_RescanServer) error {
+	return status.Errorf(codes.Unimplemented, "method Rescan not implemented")
+}
+func (*UnimplementedWalletServiceServer) NextAccount(ctx context.Context, req *NextAccountRequest) (*NextAccountResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NextAccount not implemented")
+}
+func (*UnimplementedWalletServiceServer) NextAddress(ctx context.Context, req *NextAddressRequest) (*NextAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NextAddress not implemented")
+}
+func (*UnimplementedWalletServiceServer) ImportPrivateKey(ctx context.Context, req *ImportPrivateKeyRequest) (*ImportPrivateKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ImportPrivateKey not implemented")
+}
+func (*UnimplementedWalletServiceServer) ImportScript(ctx context.Context, req *ImportScriptRequest) (*ImportScriptResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ImportScript not implemented")
+}
+func (*UnimplementedWalletServiceServer) FundTransaction(ctx context.Context, req *FundTransactionRequest) (*FundTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FundTransaction not implemented")
+}
+func (*UnimplementedWalletServiceServer) UnspentOutputs(req *UnspentOutputsRequest, srv WalletService_UnspentOutputsServer) error {
+	return status.Errorf(codes.Unimplemented, "method UnspentOutputs not implemented")
+}
+func (*UnimplementedWalletServiceServer) ConstructTransaction(ctx context.Context, req *ConstructTransactionRequest) (*ConstructTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ConstructTransaction not implemented")
+}
+func (*UnimplementedWalletServiceServer) SignTransaction(ctx context.Context, req *SignTransactionRequest) (*SignTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SignTransaction not implemented")
+}
+func (*UnimplementedWalletServiceServer) SignTransactions(ctx context.Context, req *SignTransactionsRequest) (*SignTransactionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SignTransactions not implemented")
+}
+func (*UnimplementedWalletServiceServer) CreateSignature(ctx context.Context, req *CreateSignatureRequest) (*CreateSignatureResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateSignature not implemented")
+}
+func (*UnimplementedWalletServiceServer) PublishTransaction(ctx context.Context, req *PublishTransactionRequest) (*PublishTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PublishTransaction not implemented")
+}
+func (*UnimplementedWalletServiceServer) PublishUnminedTransactions(ctx context.Context, req *PublishUnminedTransactionsRequest) (*PublishUnminedTransactionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PublishUnminedTransactions not implemented")
+}
+func (*UnimplementedWalletServiceServer) PurchaseTickets(ctx context.Context, req *PurchaseTicketsRequest) (*PurchaseTicketsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PurchaseTickets not implemented")
+}
+func (*UnimplementedWalletServiceServer) RevokeTickets(ctx context.Context, req *RevokeTicketsRequest) (*RevokeTicketsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RevokeTickets not implemented")
+}
+func (*UnimplementedWalletServiceServer) LoadActiveDataFilters(ctx context.Context, req *LoadActiveDataFiltersRequest) (*LoadActiveDataFiltersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LoadActiveDataFilters not implemented")
+}
+func (*UnimplementedWalletServiceServer) SignMessage(ctx context.Context, req *SignMessageRequest) (*SignMessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SignMessage not implemented")
+}
+func (*UnimplementedWalletServiceServer) SignMessages(ctx context.Context, req *SignMessagesRequest) (*SignMessagesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SignMessages not implemented")
+}
+func (*UnimplementedWalletServiceServer) ValidateAddress(ctx context.Context, req *ValidateAddressRequest) (*ValidateAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateAddress not implemented")
+}
+func (*UnimplementedWalletServiceServer) CommittedTickets(ctx context.Context, req *CommittedTicketsRequest) (*CommittedTicketsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CommittedTickets not implemented")
+}
+func (*UnimplementedWalletServiceServer) SweepAccount(ctx context.Context, req *SweepAccountRequest) (*SweepAccountResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SweepAccount not implemented")
 }
 
 func RegisterWalletServiceServer(s *grpc.Server, srv WalletServiceServer) {
@@ -11981,6 +12119,35 @@ type WalletLoaderServiceServer interface {
 	RescanPoint(context.Context, *RescanPointRequest) (*RescanPointResponse, error)
 }
 
+// UnimplementedWalletLoaderServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedWalletLoaderServiceServer struct {
+}
+
+func (*UnimplementedWalletLoaderServiceServer) WalletExists(ctx context.Context, req *WalletExistsRequest) (*WalletExistsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WalletExists not implemented")
+}
+func (*UnimplementedWalletLoaderServiceServer) CreateWallet(ctx context.Context, req *CreateWalletRequest) (*CreateWalletResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateWallet not implemented")
+}
+func (*UnimplementedWalletLoaderServiceServer) CreateWatchingOnlyWallet(ctx context.Context, req *CreateWatchingOnlyWalletRequest) (*CreateWatchingOnlyWalletResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateWatchingOnlyWallet not implemented")
+}
+func (*UnimplementedWalletLoaderServiceServer) OpenWallet(ctx context.Context, req *OpenWalletRequest) (*OpenWalletResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method OpenWallet not implemented")
+}
+func (*UnimplementedWalletLoaderServiceServer) CloseWallet(ctx context.Context, req *CloseWalletRequest) (*CloseWalletResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CloseWallet not implemented")
+}
+func (*UnimplementedWalletLoaderServiceServer) SpvSync(req *SpvSyncRequest, srv WalletLoaderService_SpvSyncServer) error {
+	return status.Errorf(codes.Unimplemented, "method SpvSync not implemented")
+}
+func (*UnimplementedWalletLoaderServiceServer) RpcSync(req *RpcSyncRequest, srv WalletLoaderService_RpcSyncServer) error {
+	return status.Errorf(codes.Unimplemented, "method RpcSync not implemented")
+}
+func (*UnimplementedWalletLoaderServiceServer) RescanPoint(ctx context.Context, req *RescanPointRequest) (*RescanPointResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RescanPoint not implemented")
+}
+
 func RegisterWalletLoaderServiceServer(s *grpc.Server, srv WalletLoaderServiceServer) {
 	s.RegisterService(&_WalletLoaderService_serviceDesc, srv)
 }
@@ -12231,6 +12398,14 @@ type TicketBuyerV2ServiceServer interface {
 	RunTicketBuyer(*RunTicketBuyerRequest, TicketBuyerV2Service_RunTicketBuyerServer) error
 }
 
+// UnimplementedTicketBuyerV2ServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedTicketBuyerV2ServiceServer struct {
+}
+
+func (*UnimplementedTicketBuyerV2ServiceServer) RunTicketBuyer(req *RunTicketBuyerRequest, srv TicketBuyerV2Service_RunTicketBuyerServer) error {
+	return status.Errorf(codes.Unimplemented, "method RunTicketBuyer not implemented")
+}
+
 func RegisterTicketBuyerV2ServiceServer(s *grpc.Server, srv TicketBuyerV2ServiceServer) {
 	s.RegisterService(&_TicketBuyerV2Service_serviceDesc, srv)
 }
@@ -12418,6 +12593,47 @@ type TicketBuyerServiceServer interface {
 	SetPoolAddress(context.Context, *SetPoolAddressRequest) (*SetPoolAddressResponse, error)
 	SetPoolFees(context.Context, *SetPoolFeesRequest) (*SetPoolFeesResponse, error)
 	SetMaxPerBlock(context.Context, *SetMaxPerBlockRequest) (*SetMaxPerBlockResponse, error)
+}
+
+// UnimplementedTicketBuyerServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedTicketBuyerServiceServer struct {
+}
+
+func (*UnimplementedTicketBuyerServiceServer) StartAutoBuyer(ctx context.Context, req *StartAutoBuyerRequest) (*StartAutoBuyerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartAutoBuyer not implemented")
+}
+func (*UnimplementedTicketBuyerServiceServer) StopAutoBuyer(ctx context.Context, req *StopAutoBuyerRequest) (*StopAutoBuyerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StopAutoBuyer not implemented")
+}
+func (*UnimplementedTicketBuyerServiceServer) TicketBuyerConfig(ctx context.Context, req *TicketBuyerConfigRequest) (*TicketBuyerConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TicketBuyerConfig not implemented")
+}
+func (*UnimplementedTicketBuyerServiceServer) SetAccount(ctx context.Context, req *SetAccountRequest) (*SetAccountResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetAccount not implemented")
+}
+func (*UnimplementedTicketBuyerServiceServer) SetBalanceToMaintain(ctx context.Context, req *SetBalanceToMaintainRequest) (*SetBalanceToMaintainResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetBalanceToMaintain not implemented")
+}
+func (*UnimplementedTicketBuyerServiceServer) SetMaxFee(ctx context.Context, req *SetMaxFeeRequest) (*SetMaxFeeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetMaxFee not implemented")
+}
+func (*UnimplementedTicketBuyerServiceServer) SetMaxPriceRelative(ctx context.Context, req *SetMaxPriceRelativeRequest) (*SetMaxPriceRelativeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetMaxPriceRelative not implemented")
+}
+func (*UnimplementedTicketBuyerServiceServer) SetMaxPriceAbsolute(ctx context.Context, req *SetMaxPriceAbsoluteRequest) (*SetMaxPriceAbsoluteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetMaxPriceAbsolute not implemented")
+}
+func (*UnimplementedTicketBuyerServiceServer) SetVotingAddress(ctx context.Context, req *SetVotingAddressRequest) (*SetVotingAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetVotingAddress not implemented")
+}
+func (*UnimplementedTicketBuyerServiceServer) SetPoolAddress(ctx context.Context, req *SetPoolAddressRequest) (*SetPoolAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetPoolAddress not implemented")
+}
+func (*UnimplementedTicketBuyerServiceServer) SetPoolFees(ctx context.Context, req *SetPoolFeesRequest) (*SetPoolFeesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetPoolFees not implemented")
+}
+func (*UnimplementedTicketBuyerServiceServer) SetMaxPerBlock(ctx context.Context, req *SetMaxPerBlockRequest) (*SetMaxPerBlockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetMaxPerBlock not implemented")
 }
 
 func RegisterTicketBuyerServiceServer(s *grpc.Server, srv TicketBuyerServiceServer) {
@@ -12737,6 +12953,17 @@ type SeedServiceServer interface {
 	DecodeSeed(context.Context, *DecodeSeedRequest) (*DecodeSeedResponse, error)
 }
 
+// UnimplementedSeedServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedSeedServiceServer struct {
+}
+
+func (*UnimplementedSeedServiceServer) GenerateRandomSeed(ctx context.Context, req *GenerateRandomSeedRequest) (*GenerateRandomSeedResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateRandomSeed not implemented")
+}
+func (*UnimplementedSeedServiceServer) DecodeSeed(ctx context.Context, req *DecodeSeedRequest) (*DecodeSeedResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DecodeSeed not implemented")
+}
+
 func RegisterSeedServiceServer(s *grpc.Server, srv SeedServiceServer) {
 	s.RegisterService(&_SeedService_serviceDesc, srv)
 }
@@ -12823,6 +13050,14 @@ type AgendaServiceServer interface {
 	Agendas(context.Context, *AgendasRequest) (*AgendasResponse, error)
 }
 
+// UnimplementedAgendaServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedAgendaServiceServer struct {
+}
+
+func (*UnimplementedAgendaServiceServer) Agendas(ctx context.Context, req *AgendasRequest) (*AgendasResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Agendas not implemented")
+}
+
 func RegisterAgendaServiceServer(s *grpc.Server, srv AgendaServiceServer) {
 	s.RegisterService(&_AgendaService_serviceDesc, srv)
 }
@@ -12896,6 +13131,17 @@ func (c *votingServiceClient) SetVoteChoices(ctx context.Context, in *SetVoteCho
 type VotingServiceServer interface {
 	VoteChoices(context.Context, *VoteChoicesRequest) (*VoteChoicesResponse, error)
 	SetVoteChoices(context.Context, *SetVoteChoicesRequest) (*SetVoteChoicesResponse, error)
+}
+
+// UnimplementedVotingServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedVotingServiceServer struct {
+}
+
+func (*UnimplementedVotingServiceServer) VoteChoices(ctx context.Context, req *VoteChoicesRequest) (*VoteChoicesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VoteChoices not implemented")
+}
+func (*UnimplementedVotingServiceServer) SetVoteChoices(ctx context.Context, req *SetVoteChoicesRequest) (*SetVoteChoicesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetVoteChoices not implemented")
 }
 
 func RegisterVotingServiceServer(s *grpc.Server, srv VotingServiceServer) {
@@ -12984,6 +13230,14 @@ type MessageVerificationServiceServer interface {
 	VerifyMessage(context.Context, *VerifyMessageRequest) (*VerifyMessageResponse, error)
 }
 
+// UnimplementedMessageVerificationServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedMessageVerificationServiceServer struct {
+}
+
+func (*UnimplementedMessageVerificationServiceServer) VerifyMessage(ctx context.Context, req *VerifyMessageRequest) (*VerifyMessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VerifyMessage not implemented")
+}
+
 func RegisterMessageVerificationServiceServer(s *grpc.Server, srv MessageVerificationServiceServer) {
 	s.RegisterService(&_MessageVerificationService_serviceDesc, srv)
 }
@@ -13046,6 +13300,14 @@ func (c *decodeMessageServiceClient) DecodeRawTransaction(ctx context.Context, i
 // DecodeMessageServiceServer is the server API for DecodeMessageService service.
 type DecodeMessageServiceServer interface {
 	DecodeRawTransaction(context.Context, *DecodeRawTransactionRequest) (*DecodeRawTransactionResponse, error)
+}
+
+// UnimplementedDecodeMessageServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedDecodeMessageServiceServer struct {
+}
+
+func (*UnimplementedDecodeMessageServiceServer) DecodeRawTransaction(ctx context.Context, req *DecodeRawTransactionRequest) (*DecodeRawTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DecodeRawTransaction not implemented")
 }
 
 func RegisterDecodeMessageServiceServer(s *grpc.Server, srv DecodeMessageServiceServer) {
