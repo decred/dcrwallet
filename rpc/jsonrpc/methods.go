@@ -22,9 +22,10 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrjson/v2"
+	"github.com/decred/dcrd/dcrjson/v3"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain/v2"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -93,7 +94,6 @@ var handlers = map[string]handler{
 	"help":                    {fn: (*Server).help},
 	"importprivkey":           {fn: (*Server).importPrivKey},
 	"importscript":            {fn: (*Server).importScript},
-	"keypoolrefill":           {fn: (*Server).keypoolRefill},
 	"listaccounts":            {fn: (*Server).listAccounts},
 	"listlockunspent":         {fn: (*Server).listLockUnspent},
 	"listreceivedbyaccount":   {fn: (*Server).listReceivedByAccount},
@@ -219,7 +219,7 @@ func lazyApplyHandler(s *Server, ctx context.Context, request *dcrjson.Request) 
 	}
 
 	return func() (interface{}, *dcrjson.RPCError) {
-		cmd, err := dcrjson.UnmarshalCmd(request)
+		params, err := dcrjson.ParseParams(types.Method(request.Method), request.Params)
 		if err != nil {
 			return nil, dcrjson.ErrRPCInvalidRequest
 		}
@@ -229,7 +229,7 @@ func lazyApplyHandler(s *Server, ctx context.Context, request *dcrjson.Request) 
 				log.Warnf("Canceled RPC method %v invoked by %v: %v", request.Method, remoteAddr(ctx), err)
 			}
 		}()
-		resp, err := handlerData.fn(s, ctx, cmd)
+		resp, err := handlerData.fn(s, ctx, params)
 		if err != nil {
 			return nil, convertError(err)
 		}
@@ -752,7 +752,7 @@ func (s *Server) getBestBlock(ctx context.Context, icmd interface{}) (interface{
 	}
 
 	hash, height := w.MainChainTip()
-	result := &dcrjson.GetBestBlockResult{
+	result := &dcrdtypes.GetBestBlockResult{
 		Hash:   hash.String(),
 		Height: int64(height),
 	}
@@ -786,7 +786,7 @@ func (s *Server) getBlockCount(ctx context.Context, icmd interface{}) (interface
 // getBlockHash handles a getblockhash request by returning the main chain hash
 // for a block at some height.
 func (s *Server) getBlockHash(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrjson.GetBlockHashCmd)
+	cmd := icmd.(*dcrdtypes.GetBlockHashCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
@@ -833,7 +833,7 @@ func (s *Server) getInfo(ctx context.Context, icmd interface{}) (interface{}, er
 		spendableBalance += balance.Spendable
 	}
 
-	info := &types.InfoWalletResult{
+	info := &types.InfoResult{
 		Version:         ver.Integer,
 		ProtocolVersion: int32(p2p.Pver),
 		WalletVersion:   ver.Integer,
@@ -1647,7 +1647,7 @@ var helpDescsMu sync.Mutex // Help may execute concurrently, so synchronize acce
 // and this is simply a helper function for the HelpNoChainRPC and
 // HelpWithChainRPC handlers.
 func (s *Server) help(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrjson.HelpCmd)
+	cmd := icmd.(*dcrdtypes.HelpCmd)
 	// TODO: The "help" RPC should use a HTTP POST client when calling down to
 	// dcrd for additional help methods.  This avoids including websocket-only
 	// requests in the help, which are not callable by wallet JSON-RPC clients.
@@ -2525,7 +2525,7 @@ func (s *Server) stakePoolUserInfo(ctx context.Context, icmd interface{}) (inter
 // address. It will only return tickets that are in the mempool or blockchain,
 // and should not return pruned tickets.
 func (s *Server) ticketsForAddress(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrjson.TicketsForAddressCmd)
+	cmd := icmd.(*dcrdtypes.TicketsForAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
@@ -2546,7 +2546,7 @@ func (s *Server) ticketsForAddress(ctx context.Context, icmd interface{}) (inter
 		ticketHashStrs = append(ticketHashStrs, hash.String())
 	}
 
-	return dcrjson.TicketsForAddressResult{Tickets: ticketHashStrs}, nil
+	return dcrdtypes.TicketsForAddressResult{Tickets: ticketHashStrs}, nil
 }
 
 func isNilOrEmpty(s *string) bool {
@@ -3244,13 +3244,13 @@ func (s *Server) sweepAccount(ctx context.Context, icmd interface{}) (interface{
 
 // validateAddress handles the validateaddress command.
 func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrjson.ValidateAddressCmd)
+	cmd := icmd.(*dcrdtypes.ValidateAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
 	}
 
-	result := types.ValidateAddressWalletResult{}
+	result := types.ValidateAddressResult{}
 	addr, err := decodeAddress(cmd.Address, w.ChainParams())
 	if err != nil {
 		// Use result zero value (IsValid=false).
@@ -3342,7 +3342,7 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 // verifyMessage handles the verifymessage command by verifying the provided
 // compact signature for the given address and message.
 func (s *Server) verifyMessage(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrjson.VerifyMessageCmd)
+	cmd := icmd.(*dcrdtypes.VerifyMessageCmd)
 
 	var valid bool
 
@@ -3382,7 +3382,7 @@ WrongAddrKind:
 // with the server.  The chainClient is optional, and this is simply a helper
 // function for the versionWithChainRPC and versionNoChainRPC handlers.
 func (s *Server) version(ctx context.Context, icmd interface{}) (interface{}, error) {
-	var resp map[string]dcrjson.VersionResult
+	var resp map[string]dcrdtypes.VersionResult
 	n, _ := s.walletLoader.NetworkBackend()
 	chainClient, err := chain.RPCClientFromBackend(n)
 	if err == nil {
@@ -3392,10 +3392,10 @@ func (s *Server) version(ctx context.Context, icmd interface{}) (interface{}, er
 			return nil, err
 		}
 	} else {
-		resp = make(map[string]dcrjson.VersionResult)
+		resp = make(map[string]dcrdtypes.VersionResult)
 	}
 
-	resp["dcrwalletjsonrpcapi"] = dcrjson.VersionResult{
+	resp["dcrwalletjsonrpcapi"] = dcrdtypes.VersionResult{
 		VersionString: jsonrpcSemverString,
 		Major:         jsonrpcSemverMajor,
 		Minor:         jsonrpcSemverMinor,

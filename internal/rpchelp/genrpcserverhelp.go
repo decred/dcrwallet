@@ -13,10 +13,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/decred/dcrd/dcrjson/v2"
+	"github.com/decred/dcrd/dcrjson/v3"
 	"github.com/decred/dcrwallet/internal/rpchelp"
-	_ "github.com/decred/dcrwallet/rpc/jsonrpc/types"
+	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
 )
+
+func init() {
+	log.SetFlags(log.Lshortfile | log.LstdFlags)
+}
 
 var outputFile = func() *os.File {
 	fi, err := os.Create("rpcserverhelp.go")
@@ -43,7 +47,7 @@ func writeLocaleHelp(locale, goLocale string, descs map[string]string) {
 	writefln("return map[string]string{")
 	for i := range rpchelp.Methods {
 		m := &rpchelp.Methods[i]
-		helpText, err := dcrjson.GenerateHelp(m.Method, descs, m.ResultTypes...)
+		helpText, err := dcrjson.GenerateHelp(types.Method(m.Method), descs, m.ResultTypes...)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -65,7 +69,7 @@ func writeUsage() {
 	usageStrs := make([]string, len(rpchelp.Methods))
 	var err error
 	for i := range rpchelp.Methods {
-		usageStrs[i], err = dcrjson.MethodUsageText(rpchelp.Methods[i].Method)
+		usageStrs[i], err = dcrjson.MethodUsageText(types.Method(rpchelp.Methods[i].Method))
 		if err != nil {
 			log.Fatal(err)
 		}

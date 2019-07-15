@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -450,10 +451,30 @@ func (s *RPCSyncer) startupSync(ctx context.Context) error {
 		}
 		var headers []*wire.BlockHeader
 		err := ctxdo(ctx, "dcrd.jsonrpc.getheaders", func() error {
-			headersMsg, err := s.rpcClient.GetHeaders(locators, &hashStop)
+			locatorStrings := make([]string, len(locators))
+			for i := range locators {
+				locatorStrings[i] = locators[i].String()
+			}
+			param0, err := json.Marshal(locatorStrings)
 			if err != nil {
 				return err
 			}
+			param1, err := json.Marshal(hashStop.String())
+			if err != nil {
+				return err
+			}
+			result, err := s.rpcClient.RawRequest("getheaders", []json.RawMessage{param0, param1})
+			if err != nil {
+				return err
+			}
+			var headersMsg struct {
+				Headers []string `json:"headers"`
+			}
+			err = json.Unmarshal(result, &headersMsg)
+			if err != nil {
+				return err
+			}
+
 			headers = make([]*wire.BlockHeader, 0, len(headersMsg.Headers))
 			for _, h := range headersMsg.Headers {
 				header := new(wire.BlockHeader)

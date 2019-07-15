@@ -8,7 +8,13 @@
 
 package types
 
-import "github.com/decred/dcrd/dcrjson/v2"
+import (
+	"github.com/decred/dcrd/dcrjson/v3"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
+)
+
+// Method describes the exact type used when registering methods with dcrjson.
+type Method string
 
 // AccountAddressIndexCmd is a type handling custom marshaling and
 // unmarshaling of accountaddressindex JSON wallet extension
@@ -84,6 +90,23 @@ type ConsolidateCmd struct {
 	Inputs  int `json:"inputs"`
 	Account *string
 	Address *string
+}
+
+// CreateEncryptedWalletCmd defines the createencryptedwallet JSON-RPC command.
+//
+// Deprecated: This method is not implemented by the RPC server.
+type CreateEncryptedWalletCmd struct {
+	Passphrase string
+}
+
+// NewCreateEncryptedWalletCmd returns a new instance which can be used to issue
+// a createencryptedwallet JSON-RPC command.
+//
+// Deprecated: This method is not implemented by the RPC server.
+func NewCreateEncryptedWalletCmd(passphrase string) *CreateEncryptedWalletCmd {
+	return &CreateEncryptedWalletCmd{
+		Passphrase: passphrase,
+	}
 }
 
 // CreateMultiSigResult models the data returned from the createmultisig
@@ -163,15 +186,41 @@ func NewDumpPrivKeyCmd(address string) *DumpPrivKeyCmd {
 }
 
 // EstimatePriorityCmd defines the estimatepriority JSON-RPC command.
+//
+// Deprecated: This method is not implemented by the RPC server.
 type EstimatePriorityCmd struct {
 	NumBlocks int64
 }
 
 // NewEstimatePriorityCmd returns a new instance which can be used to issue a
 // estimatepriority JSON-RPC command.
+//
+// Deprecated: This method is not implemented by the RPC server.
 func NewEstimatePriorityCmd(numBlocks int64) *EstimatePriorityCmd {
 	return &EstimatePriorityCmd{
 		NumBlocks: numBlocks,
+	}
+}
+
+// ExportWatchingWalletCmd defines the exportwatchingwallet JSON-RPC command.
+//
+// Deprecated: This method is not implemented by the RPC server.
+type ExportWatchingWalletCmd struct {
+	Account  *string
+	Download *bool `jsonrpcdefault:"false"`
+}
+
+// NewExportWatchingWalletCmd returns a new instance which can be used to issue
+// a exportwatchingwallet JSON-RPC command.
+//
+// The parameters which are pointers indicate they are optional.  Passing nil
+// for optional parameters will use the default value.
+//
+// Deprecated: This method is not implemented by the RPC server.
+func NewExportWatchingWalletCmd(account *string, download *bool) *ExportWatchingWalletCmd {
+	return &ExportWatchingWalletCmd{
+		Account:  account,
+		Download: download,
 	}
 }
 
@@ -449,6 +498,22 @@ func NewGetTransactionCmd(txHash string, includeWatchOnly *bool) *GetTransaction
 	}
 }
 
+// GetUnconfirmedBalanceCmd defines the getunconfirmedbalance JSON-RPC command.
+type GetUnconfirmedBalanceCmd struct {
+	Account *string
+}
+
+// NewGetUnconfirmedBalanceCmd returns a new instance which can be used to issue
+// a getunconfirmedbalance JSON-RPC command.
+//
+// The parameters which are pointers indicate they are optional.  Passing nil
+// for optional parameters will use the default value.
+func NewGetUnconfirmedBalanceCmd(account *string) *GetUnconfirmedBalanceCmd {
+	return &GetUnconfirmedBalanceCmd{
+		Account: account,
+	}
+}
+
 // GetVoteChoicesCmd returns a new instance which can be used to issue a
 // getvotechoices JSON-RPC command.
 type GetVoteChoicesCmd struct {
@@ -506,6 +571,8 @@ func NewImportScriptCmd(hex string, rescan *bool, scanFrom *int) *ImportScriptCm
 }
 
 // KeyPoolRefillCmd defines the keypoolrefill JSON-RPC command.
+//
+// Deprecated: This method is not implemented by the RPC server.
 type KeyPoolRefillCmd struct {
 	NewSize *uint `jsonrpcdefault:"100"`
 }
@@ -515,6 +582,8 @@ type KeyPoolRefillCmd struct {
 //
 // The parameters which are pointers indicate they are optional.  Passing nil
 // for optional parameters will use the default value.
+//
+// Deprecated: This method is not implemented by the RPC server.
 func NewKeyPoolRefillCmd(newSize *uint) *KeyPoolRefillCmd {
 	return &KeyPoolRefillCmd{
 		NewSize: newSize,
@@ -596,6 +665,41 @@ func NewListReceivedByAddressCmd(minConf *int, includeEmpty, includeWatchOnly *b
 	}
 }
 
+// ListAddressTransactionsCmd defines the listaddresstransactions JSON-RPC
+// command.
+type ListAddressTransactionsCmd struct {
+	Addresses []string
+	Account   *string
+}
+
+// NewListAddressTransactionsCmd returns a new instance which can be used to
+// issue a listaddresstransactions JSON-RPC command.
+//
+// The parameters which are pointers indicate they are optional.  Passing nil
+// for optional parameters will use the default value.
+func NewListAddressTransactionsCmd(addresses []string, account *string) *ListAddressTransactionsCmd {
+	return &ListAddressTransactionsCmd{
+		Addresses: addresses,
+		Account:   account,
+	}
+}
+
+// ListAllTransactionsCmd defines the listalltransactions JSON-RPC command.
+type ListAllTransactionsCmd struct {
+	Account *string
+}
+
+// NewListAllTransactionsCmd returns a new instance which can be used to issue a
+// listalltransactions JSON-RPC command.
+//
+// The parameters which are pointers indicate they are optional.  Passing nil
+// for optional parameters will use the default value.
+func NewListAllTransactionsCmd(account *string) *ListAllTransactionsCmd {
+	return &ListAllTransactionsCmd{
+		Account: account,
+	}
+}
+
 // ListScriptsCmd is a type for handling custom marshaling and
 // unmarshaling of listscripts JSON wallet extension commands.
 type ListScriptsCmd struct {
@@ -672,12 +776,12 @@ func NewListUnspentCmd(minConf, maxConf *int, addresses *[]string) *ListUnspentC
 // LockUnspentCmd defines the lockunspent JSON-RPC command.
 type LockUnspentCmd struct {
 	Unlock       bool
-	Transactions []dcrjson.TransactionInput
+	Transactions []dcrdtypes.TransactionInput
 }
 
 // NewLockUnspentCmd returns a new instance which can be used to issue a
 // lockunspent JSON-RPC command.
-func NewLockUnspentCmd(unlock bool, transactions []dcrjson.TransactionInput) *LockUnspentCmd {
+func NewLockUnspentCmd(unlock bool, transactions []dcrdtypes.TransactionInput) *LockUnspentCmd {
 	return &LockUnspentCmd{
 		Unlock:       unlock,
 		Transactions: transactions,
@@ -714,6 +818,25 @@ func NewPurchaseTicketCmd(fromAccount string, spendLimit float64, minConf *int,
 		Expiry:        expiry,
 		Comment:       comment,
 		TicketFee:     ticketFee,
+	}
+}
+
+// RecoverAddressesCmd defines the recoveraddresses JSON-RPC command.
+//
+// Deprecated: This method is not implemented by the RPC server.
+type RecoverAddressesCmd struct {
+	Account string
+	N       int
+}
+
+// NewRecoverAddressesCmd returns a new instance which can be used to issue a
+// recoveraddresses JSON-RPC command.
+//
+// Deprecated: This method is not implemented by the RPC server.
+func NewRecoverAddressesCmd(account string, n int) *RecoverAddressesCmd {
+	return &RecoverAddressesCmd{
+		Account: account,
+		N:       n,
 	}
 }
 
@@ -995,6 +1118,8 @@ func NewStakePoolUserInfoCmd(user string) *StakePoolUserInfoCmd {
 
 // StartAutoBuyerCmd is a type handling custom marshaling and
 // unmarshaling of startautobuyer JSON RPC commands.
+//
+// Deprecated: This method is not implemented by the RPC server.
 type StartAutoBuyerCmd struct {
 	Account           string
 	Passphrase        string
@@ -1009,6 +1134,8 @@ type StartAutoBuyerCmd struct {
 }
 
 // NewStartAutoBuyerCmd creates a new StartAutoBuyerCmd.
+//
+// Deprecated: This method is not implemented by the RPC server.
 func NewStartAutoBuyerCmd(account string, passphrase string, balanceToMaintain *int64, maxFeePerKb *int64, maxPriceRelative *float64, maxPriceAbsolute *int64, votingAddress *string, poolAddress *string, poolFees *float64,
 	maxPerBlock *int64) *StartAutoBuyerCmd {
 	return &StartAutoBuyerCmd{
@@ -1027,10 +1154,14 @@ func NewStartAutoBuyerCmd(account string, passphrase string, balanceToMaintain *
 
 // StopAutoBuyerCmd is a type handling custom marshaling and
 // unmarshaling of stopautobuyer JSON RPC commands.
+//
+// Deprecated: This method is not implemented by the RPC server.
 type StopAutoBuyerCmd struct {
 }
 
 // NewStopAutoBuyerCmd creates a new StopAutoBuyerCmd.
+//
+// Deprecated: This method is not implemented by the RPC server.
 func NewStopAutoBuyerCmd() *StopAutoBuyerCmd {
 	return &StopAutoBuyerCmd{}
 }
@@ -1081,6 +1212,15 @@ func NewWalletInfoCmd() *WalletInfoCmd {
 	return &WalletInfoCmd{}
 }
 
+// WalletIsLockedCmd defines the walletislocked JSON-RPC command.
+type WalletIsLockedCmd struct{}
+
+// NewWalletIsLockedCmd returns a new instance which can be used to issue a
+// walletislocked JSON-RPC command.
+func NewWalletIsLockedCmd() *WalletIsLockedCmd {
+	return &WalletIsLockedCmd{}
+}
+
 // WalletLockCmd defines the walletlock JSON-RPC command.
 type WalletLockCmd struct{}
 
@@ -1120,77 +1260,120 @@ func NewWalletPassphraseChangeCmd(oldPassphrase, newPassphrase string) *WalletPa
 	}
 }
 
-func init() {
-	// The commands in this file are only usable with a wallet server.
-	flags := dcrjson.UFWalletOnly
+type registeredMethod struct {
+	method string
+	cmd    interface{}
+}
 
-	dcrjson.MustRegisterCmd("accountaddressindex", (*AccountAddressIndexCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("accountsyncaddressindex", (*AccountSyncAddressIndexCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("addmultisigaddress", (*AddMultisigAddressCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("addticket", (*AddTicketCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("consolidate", (*ConsolidateCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("createmultisig", (*CreateMultisigCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("createnewaccount", (*CreateNewAccountCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("createvotingaccount", (*CreateVotingAccountCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("dropvotingaccount", (*DropVotingAccountCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("dumpprivkey", (*DumpPrivKeyCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("estimatepriority", (*EstimatePriorityCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("fundrawtransaction", (*FundRawTransactionCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("generatevote", (*GenerateVoteCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getaccount", (*GetAccountCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getaccountaddress", (*GetAccountAddressCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getaddressesbyaccount", (*GetAddressesByAccountCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getbalance", (*GetBalanceCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getcontracthash", (*GetContractHashCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getmasterpubkey", (*GetMasterPubkeyCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getmultisigoutinfo", (*GetMultisigOutInfoCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getnewaddress", (*GetNewAddressCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getpaytocontractaddress", (*GetPayToContractAddressCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getrawchangeaddress", (*GetRawChangeAddressCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getreceivedbyaccount", (*GetReceivedByAccountCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getreceivedbyaddress", (*GetReceivedByAddressCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getstakeinfo", (*GetStakeInfoCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getticketfee", (*GetTicketFeeCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("gettickets", (*GetTicketsCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("gettransaction", (*GetTransactionCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getvotechoices", (*GetVoteChoicesCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("getwalletfee", (*GetWalletFeeCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("importprivkey", (*ImportPrivKeyCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("importscript", (*ImportScriptCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("keypoolrefill", (*KeyPoolRefillCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("listaccounts", (*ListAccountsCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("listlockunspent", (*ListLockUnspentCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("listreceivedbyaccount", (*ListReceivedByAccountCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("listreceivedbyaddress", (*ListReceivedByAddressCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("listscripts", (*ListScriptsCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("listsinceblock", (*ListSinceBlockCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("listtickets", (*ListTicketsCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("listtransactions", (*ListTransactionsCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("listunspent", (*ListUnspentCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("lockunspent", (*LockUnspentCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("purchaseticket", (*PurchaseTicketCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("redeemmultisigout", (*RedeemMultiSigOutCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("redeemmultisigouts", (*RedeemMultiSigOutsCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("renameaccount", (*RenameAccountCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("rescanwallet", (*RescanWalletCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("revoketickets", (*RevokeTicketsCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("sendfrom", (*SendFromCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("sendmany", (*SendManyCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("sendtoaddress", (*SendToAddressCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("sendtomultisig", (*SendToMultiSigCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("settxfee", (*SetTxFeeCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("setticketfee", (*SetTicketFeeCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("setvotechoice", (*SetVoteChoiceCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("signmessage", (*SignMessageCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("signrawtransaction", (*SignRawTransactionCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("signrawtransactions", (*SignRawTransactionsCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("stakepooluserinfo", (*StakePoolUserInfoCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("startautobuyer", (*StartAutoBuyerCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("stopautobuyer", (*StopAutoBuyerCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("sweepaccount", (*SweepAccountCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("verifyseed", (*VerifySeedCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("walletinfo", (*WalletInfoCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("walletlock", (*WalletLockCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("walletpassphrase", (*WalletPassphraseCmd)(nil), flags)
-	dcrjson.MustRegisterCmd("walletpassphrasechange", (*WalletPassphraseChangeCmd)(nil), flags)
+func init() {
+	const dcrjsonv2WalletOnly = 1
+
+	// Wallet-specific methods
+	register := []registeredMethod{
+		{"accountaddressindex", (*AccountAddressIndexCmd)(nil)},
+		{"accountsyncaddressindex", (*AccountSyncAddressIndexCmd)(nil)},
+		{"addmultisigaddress", (*AddMultisigAddressCmd)(nil)},
+		{"addticket", (*AddTicketCmd)(nil)},
+		{"consolidate", (*ConsolidateCmd)(nil)},
+		{"createmultisig", (*CreateMultisigCmd)(nil)},
+		{"createnewaccount", (*CreateNewAccountCmd)(nil)},
+		{"createvotingaccount", (*CreateVotingAccountCmd)(nil)},
+		{"dropvotingaccount", (*DropVotingAccountCmd)(nil)},
+		{"dumpprivkey", (*DumpPrivKeyCmd)(nil)},
+		{"fundrawtransaction", (*FundRawTransactionCmd)(nil)},
+		{"generatevote", (*GenerateVoteCmd)(nil)},
+		{"getaccount", (*GetAccountCmd)(nil)},
+		{"getaccountaddress", (*GetAccountAddressCmd)(nil)},
+		{"getaddressesbyaccount", (*GetAddressesByAccountCmd)(nil)},
+		{"getbalance", (*GetBalanceCmd)(nil)},
+		{"getcontracthash", (*GetContractHashCmd)(nil)},
+		{"getmasterpubkey", (*GetMasterPubkeyCmd)(nil)},
+		{"getmultisigoutinfo", (*GetMultisigOutInfoCmd)(nil)},
+		{"getnewaddress", (*GetNewAddressCmd)(nil)},
+		{"getpaytocontractaddress", (*GetPayToContractAddressCmd)(nil)},
+		{"getrawchangeaddress", (*GetRawChangeAddressCmd)(nil)},
+		{"getreceivedbyaccount", (*GetReceivedByAccountCmd)(nil)},
+		{"getreceivedbyaddress", (*GetReceivedByAddressCmd)(nil)},
+		{"getstakeinfo", (*GetStakeInfoCmd)(nil)},
+		{"getticketfee", (*GetTicketFeeCmd)(nil)},
+		{"gettickets", (*GetTicketsCmd)(nil)},
+		{"gettransaction", (*GetTransactionCmd)(nil)},
+		{"getunconfirmedbalance", (*GetUnconfirmedBalanceCmd)(nil)},
+		{"getvotechoices", (*GetVoteChoicesCmd)(nil)},
+		{"getwalletfee", (*GetWalletFeeCmd)(nil)},
+		{"importprivkey", (*ImportPrivKeyCmd)(nil)},
+		{"importscript", (*ImportScriptCmd)(nil)},
+		{"listaccounts", (*ListAccountsCmd)(nil)},
+		{"listaddresstransactions", (*ListAddressTransactionsCmd)(nil)},
+		{"listalltransactions", (*ListAllTransactionsCmd)(nil)},
+		{"listlockunspent", (*ListLockUnspentCmd)(nil)},
+		{"listreceivedbyaccount", (*ListReceivedByAccountCmd)(nil)},
+		{"listreceivedbyaddress", (*ListReceivedByAddressCmd)(nil)},
+		{"listscripts", (*ListScriptsCmd)(nil)},
+		{"listsinceblock", (*ListSinceBlockCmd)(nil)},
+		{"listtickets", (*ListTicketsCmd)(nil)},
+		{"listtransactions", (*ListTransactionsCmd)(nil)},
+		{"listunspent", (*ListUnspentCmd)(nil)},
+		{"lockunspent", (*LockUnspentCmd)(nil)},
+		{"purchaseticket", (*PurchaseTicketCmd)(nil)},
+		{"redeemmultisigout", (*RedeemMultiSigOutCmd)(nil)},
+		{"redeemmultisigouts", (*RedeemMultiSigOutsCmd)(nil)},
+		{"renameaccount", (*RenameAccountCmd)(nil)},
+		{"rescanwallet", (*RescanWalletCmd)(nil)},
+		{"revoketickets", (*RevokeTicketsCmd)(nil)},
+		{"sendfrom", (*SendFromCmd)(nil)},
+		{"sendmany", (*SendManyCmd)(nil)},
+		{"sendtoaddress", (*SendToAddressCmd)(nil)},
+		{"sendtomultisig", (*SendToMultiSigCmd)(nil)},
+		{"settxfee", (*SetTxFeeCmd)(nil)},
+		{"setticketfee", (*SetTicketFeeCmd)(nil)},
+		{"setvotechoice", (*SetVoteChoiceCmd)(nil)},
+		{"signmessage", (*SignMessageCmd)(nil)},
+		{"signrawtransaction", (*SignRawTransactionCmd)(nil)},
+		{"signrawtransactions", (*SignRawTransactionsCmd)(nil)},
+		{"stakepooluserinfo", (*StakePoolUserInfoCmd)(nil)},
+		{"sweepaccount", (*SweepAccountCmd)(nil)},
+		{"verifyseed", (*VerifySeedCmd)(nil)},
+		{"walletinfo", (*WalletInfoCmd)(nil)},
+		{"walletislocked", (*WalletIsLockedCmd)(nil)},
+		{"walletlock", (*WalletLockCmd)(nil)},
+		{"walletpassphrase", (*WalletPassphraseCmd)(nil)},
+		{"walletpassphrasechange", (*WalletPassphraseChangeCmd)(nil)},
+	}
+	for i := range register {
+		dcrjson.MustRegister(register[i].method, register[i].cmd, dcrjsonv2WalletOnly)
+		dcrjson.MustRegister(Method(register[i].method), register[i].cmd, 0)
+	}
+
+	// dcrd methods also implemented by dcrwallet
+	register = []registeredMethod{
+		{"authenticate", (*dcrdtypes.AuthenticateCmd)(nil)},
+		{"getbestblock", (*dcrdtypes.GetBestBlockCmd)(nil)},
+		{"getbestblockhash", (*dcrdtypes.GetBestBlockHashCmd)(nil)},
+		{"getblockcount", (*dcrdtypes.GetBlockCountCmd)(nil)},
+		{"getblockhash", (*dcrdtypes.GetBlockHashCmd)(nil)},
+		{"getinfo", (*dcrdtypes.GetInfoCmd)(nil)},
+		{"help", (*dcrdtypes.HelpCmd)(nil)},
+		{"ticketsforaddress", (*dcrdtypes.TicketsForAddressCmd)(nil)},
+		{"validateaddress", (*dcrdtypes.ValidateAddressCmd)(nil)},
+		{"verifymessage", (*dcrdtypes.VerifyMessageCmd)(nil)},
+		{"version", (*dcrdtypes.VersionCmd)(nil)},
+	}
+	for i := range register {
+		dcrjson.MustRegister(Method(register[i].method), register[i].cmd, 0)
+	}
+
+	// Deprecated methods (only registered with plain string method)
+	register = []registeredMethod{
+		{"createencryptedwallet", (*CreateEncryptedWalletCmd)(nil)},
+		{"estimatepriority", (*EstimatePriorityCmd)(nil)},
+		{"exportwatchingwallet", (*ExportWatchingWalletCmd)(nil)},
+		{"keypoolrefill", (*KeyPoolRefillCmd)(nil)},
+		{"recoveraddresses", (*RecoverAddressesCmd)(nil)},
+		{"startautobuyer", (*StartAutoBuyerCmd)(nil)},
+		{"stopautobuyer", (*StopAutoBuyerCmd)(nil)},
+	}
+	for i := range register {
+		dcrjson.MustRegister(register[i].method, register[i].cmd, dcrjsonv2WalletOnly)
+	}
 }

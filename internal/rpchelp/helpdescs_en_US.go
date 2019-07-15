@@ -109,9 +109,6 @@ var helpDescsEnUS = map[string]string{
 	"getblockhash-index":     "The block height",
 	"getblockhash--result0":  "The main chain block hash",
 
-	// GetInfoCmd help.
-	"getinfo--synopsis": "Returns a JSON object containing various state info.",
-
 	// GetMasterPubkey help.
 	"getmasterpubkey--synopsis": "Requests the master pubkey from the wallet.",
 	"getmasterpubkey-account":   "The account to get the master pubkey for",
@@ -180,23 +177,26 @@ var helpDescsEnUS = map[string]string{
 	// GetTicketsResult help.
 	"getticketsresult-hashes": "Hashes of the tickets owned by the wallet encoded as strings",
 
-	// InfoWalletResult help.
-	"infowalletresult-version":         "The version of the server",
-	"infowalletresult-protocolversion": "The latest supported protocol version",
-	"infowalletresult-blocks":          "The number of blocks processed",
-	"infowalletresult-timeoffset":      "The time offset",
-	"infowalletresult-connections":     "The number of connected peers",
-	"infowalletresult-proxy":           "The proxy used by the server",
-	"infowalletresult-difficulty":      "The current target difficulty",
-	"infowalletresult-testnet":         "Whether or not server is using testnet",
-	"infowalletresult-relayfee":        "The minimum relay fee for non-free transactions in DCR/KB",
-	"infowalletresult-errors":          "Any current errors",
-	"infowalletresult-paytxfee":        "The fee per kB of the serialized tx size used each time more fee is required for an authored transaction",
-	"infowalletresult-balance":         "The balance of all accounts calculated with one block confirmation",
-	"infowalletresult-walletversion":   "The version of the address manager database",
-	"infowalletresult-unlocked_until":  "Unset",
-	"infowalletresult-keypoolsize":     "Unset",
-	"infowalletresult-keypoololdest":   "Unset",
+	// GetInfoCmd help.
+	"getinfo--synopsis": "Returns a JSON object containing various state info.",
+
+	// InfoResult help.
+	"inforesult-version":         "The version of the server",
+	"inforesult-protocolversion": "The latest supported protocol version",
+	"inforesult-blocks":          "The number of blocks processed",
+	"inforesult-timeoffset":      "The time offset",
+	"inforesult-connections":     "The number of connected peers",
+	"inforesult-proxy":           "The proxy used by the server",
+	"inforesult-difficulty":      "The current target difficulty",
+	"inforesult-testnet":         "Whether or not server is using testnet",
+	"inforesult-relayfee":        "The minimum relay fee for non-free transactions in DCR/KB",
+	"inforesult-errors":          "Any current errors",
+	"inforesult-paytxfee":        "The fee per kB of the serialized tx size used each time more fee is required for an authored transaction",
+	"inforesult-balance":         "The balance of all accounts calculated with one block confirmation",
+	"inforesult-walletversion":   "The version of the address manager database",
+	"inforesult-unlocked_until":  "Unset",
+	"inforesult-keypoolsize":     "Unset",
+	"inforesult-keypoololdest":   "Unset",
 
 	// GetNewAddressCmd help.
 	"getnewaddress--synopsis": "Generates and returns a new payment address.",
@@ -271,10 +271,6 @@ var helpDescsEnUS = map[string]string{
 	"importscript-hex":       "Hex encoded script to import",
 	"importscript-rescan":    "Rescans the blockchain (since the genesis block, or scanfrom block) for outputs controlled by the imported key",
 	"importscript-scanfrom":  "Block number for where to start rescan from",
-
-	// KeypoolRefillCmd help.
-	"keypoolrefill--synopsis": "DEPRECATED -- This request does nothing since no keypool is maintained.",
-	"keypoolrefill-newsize":   "Unused",
 
 	// ListAccountsCmd help.
 	"listaccounts--synopsis":       "DEPRECATED -- Returns a JSON object of all accounts and their balances.",
@@ -470,22 +466,6 @@ var helpDescsEnUS = map[string]string{
 	"signrawtransactionresult-complete": "Whether all input signatures have been created",
 	"signrawtransactionresult-errors":   "Script verification errors (if exists)",
 
-	// StartAutoBuyerCmd Help.
-	"startautobuyer--synopsis":         "Starts the wallet's ticket buyer.",
-	"startautobuyer-account":           "The account to use for purchasing tickets",
-	"startautobuyer-passphrase":        "The private passphrase of the wallet",
-	"startautobuyer-balancetomaintain": "The minimum amount of funds to never dip below when purchasing tickets",
-	"startautobuyer-maxfeeperkb":       "The maximum ticket fee amount per KB",
-	"startautobuyer-maxpricerelative":  "The scaling factor for setting the maximum ticket price, multiplied by the average price",
-	"startautobuyer-maxpriceabsolute":  "The maximum absolute ticket price",
-	"startautobuyer-votingaddress":     "The address to delegate voting rights to",
-	"startautobuyer-pooladdress":       "The stake pool address where ticket fees will go to",
-	"startautobuyer-poolfees":          "The absolute per ticket fee mandated by the stake pool as a percent",
-	"startautobuyer-maxperblock":       "The maximum tickets per block. Negative number indicates one ticket every n blocks",
-
-	// StopAutoBuyerCmd Help.
-	"stopautobuyer--synopsis": "Stops the wallet's ticket buyer.",
-
 	// SignRawTransactionError help.
 	"signrawtransactionerror-error":     "Verification or signing error related to the input",
 	"signrawtransactionerror-sequence":  "Script sequence number",
@@ -526,20 +506,20 @@ var helpDescsEnUS = map[string]string{
 		"If the address is a multisig address controlled by this wallet, the multisig fields will be left unset if the wallet is locked since the redeem script cannot be decrypted.",
 	"validateaddress-address": "Address to validate",
 
-	// ValidateAddressWalletResult help.
-	"validateaddresswalletresult-isvalid":      "Whether or not the address is valid",
-	"validateaddresswalletresult-address":      "The payment address (only when isvalid is true)",
-	"validateaddresswalletresult-ismine":       "Whether this address is controlled by the wallet (only when isvalid is true)",
-	"validateaddresswalletresult-iswatchonly":  "Unset",
-	"validateaddresswalletresult-isscript":     "Whether the payment address is a pay-to-script-hash address (only when isvalid is true)",
-	"validateaddresswalletresult-pubkey":       "The associated public key of the payment address, if any (only when isvalid is true)",
-	"validateaddresswalletresult-iscompressed": "Whether the address was created by hashing a compressed public key, if any (only when isvalid is true)",
-	"validateaddresswalletresult-account":      "The account this payment address belongs to (only when isvalid is true)",
-	"validateaddresswalletresult-addresses":    "All associated payment addresses of the script if address is a multisig address (only when isvalid is true)",
-	"validateaddresswalletresult-pubkeyaddr":   "The pubkey for this payment address (only when isvalid is true)",
-	"validateaddresswalletresult-hex":          "The redeem script ",
-	"validateaddresswalletresult-script":       "The class of redeem script for a multisig address",
-	"validateaddresswalletresult-sigsrequired": "The number of required signatures to redeem outputs to the multisig address",
+	// ValidateAddressResult help.
+	"validateaddressresult-isvalid":      "Whether or not the address is valid",
+	"validateaddressresult-address":      "The payment address (only when isvalid is true)",
+	"validateaddressresult-ismine":       "Whether this address is controlled by the wallet (only when isvalid is true)",
+	"validateaddressresult-iswatchonly":  "Unset",
+	"validateaddressresult-isscript":     "Whether the payment address is a pay-to-script-hash address (only when isvalid is true)",
+	"validateaddressresult-pubkey":       "The associated public key of the payment address, if any (only when isvalid is true)",
+	"validateaddressresult-iscompressed": "Whether the address was created by hashing a compressed public key, if any (only when isvalid is true)",
+	"validateaddressresult-account":      "The account this payment address belongs to (only when isvalid is true)",
+	"validateaddressresult-addresses":    "All associated payment addresses of the script if address is a multisig address (only when isvalid is true)",
+	"validateaddressresult-pubkeyaddr":   "The pubkey for this payment address (only when isvalid is true)",
+	"validateaddressresult-hex":          "The redeem script ",
+	"validateaddressresult-script":       "The class of redeem script for a multisig address",
+	"validateaddressresult-sigsrequired": "The number of required signatures to redeem outputs to the multisig address",
 
 	// VerifyMessageCmd help.
 	"verifymessage--synopsis": "Verify a message was signed with the associated private key of some address.",
@@ -571,12 +551,6 @@ var helpDescsEnUS = map[string]string{
 	"createnewaccount--synopsis": "Creates a new account.\n" +
 		"The wallet must be unlocked for this request to succeed.",
 	"createnewaccount-account": "Name of the new account",
-
-	// ExportWatchingWalletCmd help.
-	"exportwatchingwallet--synopsis": "Creates and returns a duplicate of the wallet database without any private keys to be used as a watching-only wallet.",
-	"exportwatchingwallet-account":   "Unused (must be unset or \"*\")",
-	"exportwatchingwallet-download":  "Unused",
-	"exportwatchingwallet--result0":  "The watching-only database encoded as a base64 string",
 
 	// GetBestBlockCmd help.
 	"getbestblock--synopsis": "Returns the hash and height of the newest block in the best chain that wallet has finished syncing with.",

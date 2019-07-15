@@ -18,7 +18,7 @@ import (
 	"github.com/decred/dcrwallet/errors"
 )
 
-var requiredChainServerAPI = semver{major: 5, minor: 0, patch: 0}
+var requiredChainServerAPI = semver{major: 6, minor: 0, patch: 0}
 
 // RPCClient represents a persistent client connection to a decred RPC server
 // for information regarding the current best block chain.

@@ -20,9 +20,11 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrjson/v2"
+	"github.com/decred/dcrd/dcrjson/v3"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/loader"
+	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
 	"github.com/gorilla/websocket"
 )
 
@@ -304,11 +306,11 @@ func idPointer(id interface{}) (p *interface{}) {
 // authenticate request and checks the supplied username and passphrase
 // against the server auth.
 func (s *Server) invalidAuth(req *dcrjson.Request) bool {
-	cmd, err := dcrjson.UnmarshalCmd(req)
+	cmd, err := dcrjson.ParseParams(types.Method(req.Method), req.Params)
 	if err != nil {
 		return false
 	}
-	authCmd, ok := cmd.(*dcrjson.AuthenticateCmd)
+	authCmd, ok := cmd.(*dcrdtypes.AuthenticateCmd)
 	if !ok {
 		return false
 	}

@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -24,10 +25,11 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrec/secp256k1"
-	"github.com/decred/dcrd/dcrjson/v2"
+	"github.com/decred/dcrd/dcrjson/v3"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/hdkeychain"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -3342,7 +3344,7 @@ func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 func (w *Wallet) StakeInfoPrecise(chainClient *rpcclient.Client) (*StakeInfoData, error) {
 	const op errors.Op = "wallet.StakeInfoPrecise"
 	// This is only needed for the total count and can be optimized.
-	mempoolTicketsFuture := chainClient.GetRawMempoolAsync(dcrjson.GRMTickets)
+	mempoolTicketsFuture := chainClient.GetRawMempoolAsync(dcrdtypes.GRMTickets)
 
 	res := &StakeInfoData{}
 
@@ -3468,15 +3470,32 @@ func (w *Wallet) StakeInfoPrecise(chainClient *rpcclient.Client) (*StakeInfoData
 	// As the wallet is unaware of when a ticket was selected or missed, this
 	// info must be queried from the consensus server.  If the ticket is neither
 	// live nor expired, it is assumed missed.
-	expiredFuture := chainClient.ExistsExpiredTicketsAsync(liveOrExpiredOrMissed)
-	liveFuture := chainClient.ExistsLiveTicketsAsync(liveOrExpiredOrMissed)
-	expiredBitsetHex, err := expiredFuture.Receive()
+	liveOrExpiredOrMissedStrings := make([]string, len(liveOrExpiredOrMissed))
+	for i := range liveOrExpiredOrMissed {
+		liveOrExpiredOrMissedStrings[i] = liveOrExpiredOrMissed[i].String()
+	}
+	param0, err := json.Marshal(liveOrExpiredOrMissedStrings)
+	if err != nil {
+		return nil, errors.E(op, errors.Encoding, err)
+	}
+	expiredFuture := chainClient.RawRequestAsync("existsexpiredtickets", []json.RawMessage{param0})
+	liveFuture := chainClient.RawRequestAsync("existslivetickets", []json.RawMessage{param0})
+	expiredBitsetJSON, err := expiredFuture.Receive()
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	liveBitsetHex, err := liveFuture.Receive()
+	liveBitsetJSON, err := liveFuture.Receive()
 	if err != nil {
 		return nil, errors.E(op, err)
+	}
+	var expiredBitsetHex, liveBitsetHex string
+	err = json.Unmarshal(expiredBitsetJSON, &expiredBitsetHex)
+	if err != nil {
+		return nil, errors.E(op, errors.Encoding, err)
+	}
+	err = json.Unmarshal(liveBitsetJSON, &liveBitsetHex)
+	if err != nil {
+		return nil, errors.E(op, errors.Encoding, err)
 	}
 	expiredBitset, err := hex.DecodeString(expiredBitsetHex)
 	if err != nil {
@@ -3544,12 +3563,12 @@ func (w *Wallet) ResetLockedOutpoints() {
 // LockedOutpoints returns a slice of currently locked outpoints.  This is
 // intended to be used by marshaling the result as a JSON array for
 // listlockunspent RPC results.
-func (w *Wallet) LockedOutpoints() []dcrjson.TransactionInput {
+func (w *Wallet) LockedOutpoints() []dcrdtypes.TransactionInput {
 	w.lockedOutpointMu.Lock()
-	locked := make([]dcrjson.TransactionInput, len(w.lockedOutpoints))
+	locked := make([]dcrdtypes.TransactionInput, len(w.lockedOutpoints))
 	i := 0
 	for op := range w.lockedOutpoints {
-		locked[i] = dcrjson.TransactionInput{
+		locked[i] = dcrdtypes.TransactionInput{
 			Txid: op.Hash.String(),
 			Vout: op.Index,
 		}

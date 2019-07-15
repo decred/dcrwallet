@@ -7,6 +7,7 @@ package chain
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"strings"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -92,12 +93,31 @@ func (b *rpcBackend) GetCFilters(ctx context.Context, blockHashes []*chainhash.H
 func (b *rpcBackend) GetHeaders(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([]*wire.BlockHeader, error) {
 	const op errors.Op = "dcrd.jsonrpc.getheaders"
 
-	r, err := b.rpcClient.GetHeaders(blockLocators, hashStop)
+	locatorStrings := make([]string, len(blockLocators))
+	for i := range blockLocators {
+		locatorStrings[i] = blockLocators[i].String()
+	}
+	param0, err := json.Marshal(locatorStrings)
+	if err != nil {
+		return nil, errors.E(op, errors.Encoding, err)
+	}
+	param1, err := json.Marshal(hashStop.String())
+	if err != nil {
+		return nil, errors.E(op, errors.Encoding, err)
+	}
+	result, err := b.rpcClient.RawRequest("getheaders", []json.RawMessage{param0, param1})
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	headers := make([]*wire.BlockHeader, 0, len(r.Headers))
-	for _, hexHeader := range r.Headers {
+	var headersMsg struct {
+		Headers []string `json:"headers"`
+	}
+	err = json.Unmarshal(result, &headersMsg)
+	if err != nil {
+		return nil, errors.E(op, errors.Encoding, err)
+	}
+	headers := make([]*wire.BlockHeader, 0, len(headersMsg.Headers))
+	for _, hexHeader := range headersMsg.Headers {
 		header := new(wire.BlockHeader)
 		err := header.Deserialize(hex.NewDecoder(strings.NewReader(hexHeader)))
 		if err != nil {
@@ -148,9 +168,27 @@ func (b *rpcBackend) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx
 func (b *rpcBackend) Rescan(ctx context.Context, blocks []chainhash.Hash, r wallet.RescanSaver) error {
 	const op errors.Op = "dcrd.jsonrpc.rescan"
 
-	res, err := b.rpcClient.Rescan(blocks)
+	blockStrings := make([]string, len(blocks))
+	for i := range blocks {
+		blockStrings[i] = blocks[i].String()
+	}
+	param0, err := json.Marshal(blockStrings)
+	if err != nil {
+		return errors.E(op, errors.Encoding, err)
+	}
+	result, err := b.rpcClient.RawRequest("rescan", []json.RawMessage{param0})
 	if err != nil {
 		return errors.E(op, err)
+	}
+	var res struct {
+		DiscoveredData []struct {
+			Hash         string   `json:"hash"`
+			Transactions []string `json:"transactions"`
+		} `json:"discovereddata"`
+	}
+	err = json.Unmarshal(result, &res)
+	if err != nil {
+		return errors.E(op, errors.Encoding, err)
 	}
 	for _, d := range res.DiscoveredData {
 		blockHash, err := chainhash.NewHashFromStr(d.Hash)

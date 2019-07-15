@@ -12,7 +12,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/decred/dcrd/dcrjson/v2"
+	"github.com/decred/dcrd/dcrjson/v3"
 )
 
 // TestWalletSvrWsCmds tests all of the wallet server websocket-specific
@@ -242,7 +242,7 @@ func TestWalletSvrWsCmds(t *testing.T) {
 			continue
 		}
 
-		cmd, err = dcrjson.UnmarshalCmd(&request)
+		cmd, err = dcrjson.ParseParams(request.Method, request.Params)
 		if err != nil {
 			t.Errorf("UnmarshalCmd #%d (%s) unexpected error: %v", i,
 				test.name, err)

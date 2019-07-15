@@ -5,14 +5,15 @@
 
 package types
 
-import "github.com/decred/dcrd/dcrjson/v2"
-
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/decred/dcrd/dcrjson/v3"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
 )
 
 // TestWalletSvrCmds tests all of the wallet server commands marshal and
@@ -788,7 +789,7 @@ func TestWalletSvrCmds(t *testing.T) {
 				return dcrjson.NewCmd("lockunspent", true, `[{"txid":"123","vout":1}]`)
 			},
 			staticCmd: func() interface{} {
-				txInputs := []dcrjson.TransactionInput{
+				txInputs := []dcrdtypes.TransactionInput{
 					{Txid: "123", Vout: 1},
 				}
 				return NewLockUnspentCmd(true, txInputs)
@@ -796,7 +797,7 @@ func TestWalletSvrCmds(t *testing.T) {
 			marshalled: `{"jsonrpc":"1.0","method":"lockunspent","params":[true,[{"txid":"123","vout":1,"tree":0}]],"id":1}`,
 			unmarshalled: &LockUnspentCmd{
 				Unlock: true,
-				Transactions: []dcrjson.TransactionInput{
+				Transactions: []dcrdtypes.TransactionInput{
 					{Txid: "123", Vout: 1},
 				},
 			},
@@ -1237,7 +1238,7 @@ func TestWalletSvrCmds(t *testing.T) {
 			continue
 		}
 
-		cmd, err = dcrjson.UnmarshalCmd(&request)
+		cmd, err = dcrjson.ParseParams(request.Method, request.Params)
 		if err != nil {
 			t.Errorf("UnmarshalCmd #%d (%s) unexpected error: %v", i,
 				test.name, err)

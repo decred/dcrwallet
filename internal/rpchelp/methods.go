@@ -8,7 +8,7 @@
 package rpchelp
 
 import (
-	"github.com/decred/dcrd/dcrjson/v2"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
 )
 
@@ -35,14 +35,13 @@ var Methods = []struct {
 	{"createmultisig", []interface{}{(*types.CreateMultiSigResult)(nil)}},
 	{"createnewaccount", nil},
 	{"dumpprivkey", returnsString},
-	{"exportwatchingwallet", returnsString},
 	{"generatevote", []interface{}{(*types.GenerateVoteResult)(nil)}},
 	{"getaccountaddress", returnsString},
 	{"getaccount", returnsString},
 	{"getaddressesbyaccount", returnsStringArray},
 	{"getbalance", []interface{}{(*types.GetBalanceResult)(nil)}},
 	{"getbestblockhash", returnsString},
-	{"getbestblock", []interface{}{(*dcrjson.GetBestBlockResult)(nil)}},
+	{"getbestblock", []interface{}{(*dcrdtypes.GetBestBlockResult)(nil)}},
 	{"getblockcount", returnsNumber},
 	{"getblockhash", returnsString},
 	{"getinfo", []interface{}{(*types.InfoWalletResult)(nil)}},
@@ -62,11 +61,10 @@ var Methods = []struct {
 	{"help", append(returnsString, returnsString[0])},
 	{"importprivkey", nil},
 	{"importscript", nil},
-	{"keypoolrefill", nil},
 	{"listaccounts", []interface{}{(*map[string]float64)(nil)}},
 	{"listaddresstransactions", returnsLTRArray},
 	{"listalltransactions", returnsLTRArray},
-	{"listlockunspent", []interface{}{(*[]dcrjson.TransactionInput)(nil)}},
+	{"listlockunspent", []interface{}{(*[]dcrdtypes.TransactionInput)(nil)}},
 	{"listreceivedbyaccount", []interface{}{(*[]types.ListReceivedByAccountResult)(nil)}},
 	{"listreceivedbyaddress", []interface{}{(*[]types.ListReceivedByAddressResult)(nil)}},
 	{"listscripts", []interface{}{(*types.ListScriptsResult)(nil)}},
@@ -91,13 +89,11 @@ var Methods = []struct {
 	{"signrawtransaction", []interface{}{(*types.SignRawTransactionResult)(nil)}},
 	{"signrawtransactions", []interface{}{(*types.SignRawTransactionsResult)(nil)}},
 	{"stakepooluserinfo", []interface{}{(*types.StakePoolUserInfoResult)(nil)}},
-	{"startautobuyer", nil},
-	{"stopautobuyer", nil},
 	{"sweepaccount", []interface{}{(*types.SweepAccountResult)(nil)}},
 	{"ticketsforaddress", returnsBool},
 	{"validateaddress", []interface{}{(*types.ValidateAddressWalletResult)(nil)}},
 	{"verifymessage", returnsBool},
-	{"version", []interface{}{(*map[string]dcrjson.VersionResult)(nil)}},
+	{"version", []interface{}{(*map[string]dcrdtypes.VersionResult)(nil)}},
 	{"walletinfo", []interface{}{(*types.WalletInfoResult)(nil)}},
 	{"walletislocked", returnsBool},
 	{"walletlock", nil},

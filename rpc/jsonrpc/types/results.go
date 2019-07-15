@@ -146,9 +146,9 @@ type GetVoteChoicesResult struct {
 	Choices []VoteChoice `json:"choices"`
 }
 
-// InfoWalletResult models the data returned by the wallet server getinfo
+// InfoResult models the data returned by the wallet server getinfo
 // command.
-type InfoWalletResult struct {
+type InfoResult struct {
 	Version         int32   `json:"version"`
 	ProtocolVersion int32   `json:"protocolversion"`
 	WalletVersion   int32   `json:"walletversion"`
@@ -166,6 +166,9 @@ type InfoWalletResult struct {
 	RelayFee        float64 `json:"relayfee"`
 	Errors          string  `json:"errors"`
 }
+
+// InfoWalletResult aliases InfoResult.
+type InfoWalletResult = InfoResult
 
 // ScriptInfo is the structure representing a redeem script, its hash,
 // and its address.
@@ -381,9 +384,9 @@ type SweepAccountResult struct {
 	EstimatedSignedSize       uint32  `json:"estimatedsignedsize"`
 }
 
-// ValidateAddressWalletResult models the data returned by the wallet server
+// ValidateAddressResult models the data returned by the wallet server
 // validateaddress command.
-type ValidateAddressWalletResult struct {
+type ValidateAddressResult struct {
 	IsValid      bool     `json:"isvalid"`
 	Address      string   `json:"address,omitempty"`
 	IsMine       bool     `json:"ismine,omitempty"`
@@ -398,6 +401,9 @@ type ValidateAddressWalletResult struct {
 	Script       string   `json:"script,omitempty"`
 	SigsRequired int32    `json:"sigsrequired,omitempty"`
 }
+
+// ValidateAddressWalletResult aliases ValidateAddressResult.
+type ValidateAddressWalletResult = ValidateAddressResult
 
 // VerifySeedResult models the data returned by the wallet server verify
 // seed command.
