@@ -36,7 +36,7 @@ require (
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/jrick/logrotate v1.0.0
 	golang.org/x/crypto v0.0.0-20190320223903-b7391e95e576
-	google.golang.org/grpc v1.21.1
+	google.golang.org/grpc v1.22.0
 )
 
 replace (
