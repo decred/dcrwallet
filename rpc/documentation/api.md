@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 7.1.x
+Version: 7.2.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](https://www.grpc.io/docs/guides/concepts.html)
@@ -653,6 +653,29 @@ The `GetAccountExtendedPubKey` method queries the wallet for an account pubkey.
 **Expected errors:**
 
 - `NotFound`: The account does not exist.
+
+___
+
+#### `GetAccountExtendedPrivKey`
+
+The `GetAccountExtendedPrivKey` method queries the wallet for an account privkey.
+
+**Request:** `GetAccountExtendedPrivKeyRequest`
+
+- `uint32 account_number`: The number of the account to retrieve the privkey.
+
+- `bytes passphrase`: The passphrase to unlock the wallet and retrieve the
+account private key.
+
+**Response:** `GetAccountExtendedPrivKeyResponse`
+
+- `string acc_extended_priv_key`: The account's extended private key.
+
+**Expected errors:**
+
+- `NotFound`: The account does not exist.
+
+- `InvalidArgument`: The private passphrase is incorrect.
 ___
 
 #### `GetTransaction`

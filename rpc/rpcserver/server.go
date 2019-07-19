@@ -59,9 +59,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.0.0"
+	semverString = "7.2.0"
 	semverMajor  = 7
-	semverMinor  = 0
+	semverMinor  = 2
 	semverPatch  = 0
 )
 
@@ -1067,6 +1067,29 @@ func (s *walletServer) GetAccountExtendedPubKey(ctx context.Context, req *pb.Get
 	}
 	res := &pb.GetAccountExtendedPubKeyResponse{
 		AccExtendedPubKey: accExtendedPubKey.String(),
+	}
+	return res, nil
+}
+
+func (s *walletServer) GetAccountExtendedPrivKey(ctx context.Context, req *pb.GetAccountExtendedPrivKeyRequest) (*pb.GetAccountExtendedPrivKeyResponse, error) {
+	lock := make(chan time.Time, 1)
+	lockWallet := func() {
+		lock <- time.Time{}
+		zero.Bytes(req.Passphrase)
+	}
+
+	err := s.wallet.Unlock(req.Passphrase, lock)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	defer lockWallet()
+
+	accExtendedPrivKey, err := s.wallet.MasterPrivKey(req.AccountNumber)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	res := &pb.GetAccountExtendedPrivKeyResponse{
+		AccExtendedPrivKey: accExtendedPrivKey.String(),
 	}
 	return res, nil
 }

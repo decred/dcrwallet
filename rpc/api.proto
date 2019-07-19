@@ -25,6 +25,7 @@ service WalletService {
 	rpc Accounts (AccountsRequest) returns (AccountsResponse);
 	rpc Balance (BalanceRequest) returns (BalanceResponse);
 	rpc GetAccountExtendedPubKey (GetAccountExtendedPubKeyRequest) returns (GetAccountExtendedPubKeyResponse);	
+	rpc GetAccountExtendedPrivKey (GetAccountExtendedPrivKeyRequest) returns (GetAccountExtendedPrivKeyResponse);
 	rpc GetTransaction (GetTransactionRequest) returns (GetTransactionResponse);
 	rpc GetTransactions (GetTransactionsRequest) returns (stream GetTransactionsResponse);
 	rpc GetTicket (GetTicketRequest) returns (GetTicketsResponse);
@@ -1041,6 +1042,15 @@ message GetAccountExtendedPubKeyRequest {
 
 message GetAccountExtendedPubKeyResponse {
 	string acc_extended_pub_key = 1;
+}
+
+message GetAccountExtendedPrivKeyRequest {
+	uint32 account_number = 1;
+	bytes passphrase = 2;
+}
+
+message GetAccountExtendedPrivKeyResponse {
+	string acc_extended_priv_key = 1;
 }
 
 message CommittedTicketsResponse {
