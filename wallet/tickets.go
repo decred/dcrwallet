@@ -7,6 +7,7 @@ package wallet
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"time"
 
 	"github.com/decred/dcrd/blockchain/stake"
@@ -168,9 +169,22 @@ func (w *Wallet) LiveTicketHashes(chainClient *rpcclient.Client, includeImmature
 	}
 
 	// Use RPC to query which of the possibly-live tickets are really live.
-	liveBitsetHex, err := chainClient.ExistsLiveTickets(maybeLive)
+	maybeLiveStrings := make([]string, len(maybeLive))
+	for i := range maybeLive {
+		maybeLiveStrings[i] = maybeLive[i].String()
+	}
+	param0, err := json.Marshal(maybeLiveStrings)
+	if err != nil {
+		return nil, errors.E(op, errors.Encoding, err)
+	}
+	result, err := chainClient.RawRequest("existslivetickets", []json.RawMessage{param0})
 	if err != nil {
 		return nil, errors.E(op, err)
+	}
+	var liveBitsetHex string
+	err = json.Unmarshal(result, &liveBitsetHex)
+	if err != nil {
+		return nil, errors.E(op, errors.Encoding, err)
 	}
 	liveBitset, err := hex.DecodeString(liveBitsetHex)
 	if err != nil {
@@ -294,19 +308,32 @@ func (w *Wallet) RevokeTickets(chainClient *rpcclient.Client) error {
 		return errors.E(op, err)
 	}
 
-	ticketHashPtrs := make([]*chainhash.Hash, len(ticketHashes))
+	ticketHashStrings := make([]string, len(ticketHashes))
 	for i := range ticketHashes {
-		ticketHashPtrs[i] = &ticketHashes[i]
+		ticketHashStrings[i] = ticketHashes[i].String()
 	}
-	expiredFuture := chainClient.ExistsExpiredTicketsAsync(ticketHashPtrs)
-	missedFuture := chainClient.ExistsMissedTicketsAsync(ticketHashPtrs)
-	expiredBitsHex, err := expiredFuture.Receive()
+	param0, err := json.Marshal(ticketHashStrings)
+	if err != nil {
+		return errors.E(op, errors.Encoding, err)
+	}
+	expiredFuture := chainClient.RawRequestAsync("existsexpiredtickets", []json.RawMessage{param0})
+	missedFuture := chainClient.RawRequestAsync("existsmissedtickets", []json.RawMessage{param0})
+	expiredBitsetJSON, err := expiredFuture.Receive()
 	if err != nil {
 		return errors.E(op, err)
 	}
-	missedBitsHex, err := missedFuture.Receive()
+	missedBitsetJSON, err := missedFuture.Receive()
 	if err != nil {
 		return errors.E(op, err)
+	}
+	var expiredBitsHex, missedBitsHex string
+	err = json.Unmarshal(expiredBitsetJSON, &expiredBitsHex)
+	if err != nil {
+		return errors.E(op, errors.Encoding, err)
+	}
+	err = json.Unmarshal(missedBitsetJSON, &missedBitsHex)
+	if err != nil {
+		return errors.E(op, errors.Encoding, err)
 	}
 	expiredBits, err := hex.DecodeString(expiredBitsHex)
 	if err != nil {
@@ -317,9 +344,9 @@ func (w *Wallet) RevokeTickets(chainClient *rpcclient.Client) error {
 		return errors.E(op, err)
 	}
 	revokableTickets := make([]*chainhash.Hash, 0, len(ticketHashes))
-	for i, p := range ticketHashPtrs {
+	for i := range ticketHashes {
 		if bitset.Bytes(expiredBits).Get(i) || bitset.Bytes(missedBits).Get(i) {
-			revokableTickets = append(revokableTickets, p)
+			revokableTickets = append(revokableTickets, &ticketHashes[i])
 		}
 	}
 	feePerKb := w.RelayFee()
