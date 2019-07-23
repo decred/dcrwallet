@@ -1261,6 +1261,7 @@ func NewWalletPassphraseChangeCmd(oldPassphrase, newPassphrase string) *WalletPa
 }
 
 <<<<<<< HEAD:rpc/jsonrpc/types/methods.go
+<<<<<<< HEAD:rpc/jsonrpc/types/methods.go
 type registeredMethod struct {
 	method string
 	cmd    interface{}
@@ -1378,6 +1379,8 @@ func init() {
 		dcrjson.MustRegister(register[i].method, register[i].cmd, dcrjsonv2WalletOnly)
 	}
 =======
+=======
+>>>>>>> 0eb65721e00adb8993d4d27485f4e6dd18b1ebfc:rpc/jsonrpc/types/walletsvrcmds.go
 // WalletPubPassphraseChangeCmd defines the walletpubpassphrasechange JSON-RPC command.
 type WalletPubPassphraseChangeCmd struct {
 	OldPassphrase string
@@ -1467,5 +1470,8 @@ func init() {
 	dcrjson.MustRegisterCmd("walletpassphrase", (*WalletPassphraseCmd)(nil), flags)
 	dcrjson.MustRegisterCmd("walletpassphrasechange", (*WalletPassphraseChangeCmd)(nil), flags)
 	dcrjson.MustRegisterCmd("walletpubpassphrasechange", (*WalletPubPassphraseChangeCmd)(nil), flags)
+<<<<<<< HEAD:rpc/jsonrpc/types/methods.go
 >>>>>>> new feature changePublicPassPhrase:rpc/jsonrpc/types/walletsvrcmds.go
+=======
+>>>>>>> 0eb65721e00adb8993d4d27485f4e6dd18b1ebfc:rpc/jsonrpc/types/walletsvrcmds.go
 }

@@ -64,6 +64,7 @@ func confirms(txHeight, curHeight int32) int32 {
 var handlers = map[string]handler{
 	// Reference implementation wallet methods (implemented)
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"accountaddressindex":     {fn: (*Server).accountAddressIndex},
 	"accountsyncaddressindex": {fn: (*Server).accountSyncAddressIndex},
 	"addmultisigaddress":      {fn: (*Server).addMultiSigAddress},
@@ -130,6 +131,8 @@ var handlers = map[string]handler{
 	"walletpassphrase":        {fn: (*Server).walletPassphrase},
 	"walletpassphrasechange":  {fn: (*Server).walletPassphraseChange},
 =======
+=======
+>>>>>>> 0eb65721e00adb8993d4d27485f4e6dd18b1ebfc
 	"accountaddressindex":       {fn: (*Server).accountAddressIndex},
 	"accountsyncaddressindex":   {fn: (*Server).accountSyncAddressIndex},
 	"addmultisigaddress":        {fn: (*Server).addMultiSigAddress},
@@ -197,7 +200,10 @@ var handlers = map[string]handler{
 	"walletpassphrase":          {fn: (*Server).walletPassphrase},
 	"walletpassphrasechange":    {fn: (*Server).walletPassphraseChange},
 	"walletpubpassphrasechange": {fn: (*Server).walletPubPassphraseChange},
+<<<<<<< HEAD
 >>>>>>> new feature changePublicPassPhrase
+=======
+>>>>>>> 0eb65721e00adb8993d4d27485f4e6dd18b1ebfc
 
 	// Extensions to the reference client JSON-RPC API
 	"getbestblock":     {fn: (*Server).getBestBlock},
