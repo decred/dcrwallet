@@ -94,7 +94,6 @@ var handlers = map[string]handler{
 	"help":                      {fn: (*Server).help},
 	"importprivkey":             {fn: (*Server).importPrivKey},
 	"importscript":              {fn: (*Server).importScript},
-	"keypoolrefill":             {fn: (*Server).keypoolRefill},
 	"listaccounts":              {fn: (*Server).listAccounts},
 	"listlockunspent":           {fn: (*Server).listLockUnspent},
 	"listreceivedbyaccount":     {fn: (*Server).listReceivedByAccount},
