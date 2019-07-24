@@ -16,8 +16,8 @@ import (
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/wire"
-	_ "github.com/decred/dcrwallet/wallet/v2/drivers/bdb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	_ "github.com/decred/dcrwallet/wallet/v3/drivers/bdb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 func tempDB(t *testing.T) (db walletdb.DB, teardown func()) {

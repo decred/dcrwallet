@@ -15,9 +15,9 @@ import (
 	hdkeychain2 "github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/internal/txsizes"
-	"github.com/decred/dcrwallet/wallet/v2/udb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
+	"github.com/decred/dcrwallet/wallet/v3/udb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // V0Scripter is a type (usually addresses) which create or encode to version 0

@@ -14,7 +14,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // expectedAddr is used to house the expected return values from a managed
@@ -159,11 +159,8 @@ func setupWallet(t *testing.T, cfg *Config) (*Wallet, walletdb.DB, func()) {
 		os.Remove(f.Name())
 		t.Fatal(err)
 	}
-	w.Start()
 
 	teardown := func() {
-		w.Stop()
-		w.WaitForShutdown()
 		db.Close()
 		os.Remove(f.Name())
 	}

@@ -11,8 +11,8 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
-	_ "github.com/decred/dcrwallet/wallet/v2/drivers/bdb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	_ "github.com/decred/dcrwallet/wallet/v3/drivers/bdb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 var basicWalletConfig = Config{
@@ -47,10 +47,7 @@ func testWallet(t *testing.T, cfg *Config) (w *Wallet, teardown func()) {
 		rm()
 		t.Fatal(err)
 	}
-	w.Start()
 	teardown = func() {
-		w.Stop()
-		w.WaitForShutdown()
 		rm()
 	}
 	return

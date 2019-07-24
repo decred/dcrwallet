@@ -1,4 +1,5 @@
 // Copyright (c) 2015-2018 The btcsuite developers
+// Copyright (c) 2017-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -12,8 +13,8 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2"
-	_ "github.com/decred/dcrwallet/wallet/v2/drivers/bdb" // driver loaded during init
+	"github.com/decred/dcrwallet/wallet/v3"
+	_ "github.com/decred/dcrwallet/wallet/v3/drivers/bdb" // driver loaded during init
 )
 
 const (
@@ -30,7 +31,6 @@ const (
 // Loader is safe for concurrent access.
 type Loader struct {
 	callbacks   []func(*wallet.Wallet)
-	backend     wallet.NetworkBackend
 	chainParams *chaincfg.Params
 	dbDirPath   string
 	wallet      *wallet.Wallet
@@ -192,7 +192,6 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	w.Start()
 
 	l.onLoaded(w, db)
 	return w, nil
@@ -284,7 +283,6 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	w.Start()
 
 	l.onLoaded(w, db)
 	return w, nil
@@ -347,7 +345,6 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 		return nil, errors.E(op, err)
 	}
 
-	w.Start()
 	l.onLoaded(w, db)
 	return w, nil
 }
@@ -393,8 +390,6 @@ func (l *Loader) UnloadWallet() error {
 		return errors.E(op, errors.Invalid, "wallet is unopened")
 	}
 
-	l.wallet.Stop()
-	l.wallet.WaitForShutdown()
 	err := l.db.Close()
 	if err != nil {
 		return errors.E(op, err)
@@ -405,18 +400,13 @@ func (l *Loader) UnloadWallet() error {
 	return nil
 }
 
-// SetNetworkBackend associates the loader with a wallet network backend.
-func (l *Loader) SetNetworkBackend(n wallet.NetworkBackend) {
-	l.mu.Lock()
-	l.backend = n
-	l.mu.Unlock()
-}
-
 // NetworkBackend returns the associated wallet network backend, if any, and a
 // bool describing whether a non-nil network backend was set.
 func (l *Loader) NetworkBackend() (n wallet.NetworkBackend, ok bool) {
 	l.mu.Lock()
-	n = l.backend
+	if l.wallet != nil {
+		n, _ = l.wallet.NetworkBackend()
+	}
 	l.mu.Unlock()
 	return n, n != nil
 }

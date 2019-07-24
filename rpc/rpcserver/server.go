@@ -38,24 +38,24 @@ import (
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain/v2"
-	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/chain/v2"
+	"github.com/decred/dcrwallet/chain/v3"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/cfgutil"
 	h "github.com/decred/dcrwallet/internal/helpers"
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/netparams"
-	"github.com/decred/dcrwallet/p2p"
+	"github.com/decred/dcrwallet/p2p/v2"
+	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
-	"github.com/decred/dcrwallet/spv/v2"
-	"github.com/decred/dcrwallet/ticketbuyer/v3"
-	"github.com/decred/dcrwallet/wallet/v2"
-	"github.com/decred/dcrwallet/wallet/v2/txauthor"
-	"github.com/decred/dcrwallet/wallet/v2/txrules"
-	"github.com/decred/dcrwallet/wallet/v2/udb"
+	"github.com/decred/dcrwallet/spv/v3"
+	"github.com/decred/dcrwallet/ticketbuyer/v4"
+	"github.com/decred/dcrwallet/wallet/v3"
+	"github.com/decred/dcrwallet/wallet/v3/txauthor"
+	"github.com/decred/dcrwallet/wallet/v3/txrules"
+	"github.com/decred/dcrwallet/wallet/v3/udb"
 	"github.com/decred/dcrwallet/walletseed"
 )
 
@@ -172,7 +172,6 @@ type loaderServer struct {
 	ready     uint32 // atomic
 	loader    *loader.Loader
 	activeNet *netparams.Params
-	rpcClient *chain.RPCClient
 	mu        sync.Mutex
 }
 
@@ -657,51 +656,27 @@ func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
 
 func (s *walletServer) TicketPrice(ctx context.Context, req *pb.TicketPriceRequest) (*pb.TicketPriceResponse, error) {
 	sdiff, err := s.wallet.NextStakeDifficulty()
-	if err == nil {
-		_, tipHeight := s.wallet.MainChainTip()
-		resp := &pb.TicketPriceResponse{
-			TicketPrice: int64(sdiff),
-			Height:      tipHeight,
-		}
-		return resp, nil
-	}
-
-	n, err := s.requireNetworkBackend()
-	if err != nil {
-		return nil, err
-	}
-	chainClient, err := chain.RPCClientFromBackend(n)
 	if err != nil {
 		return nil, translateError(err)
 	}
-
-	ticketPrice, err := n.StakeDifficulty(ctx)
-	if err != nil {
-		return nil, translateError(err)
+	_, tipHeight := s.wallet.MainChainTip()
+	resp := &pb.TicketPriceResponse{
+		TicketPrice: int64(sdiff),
+		Height:      tipHeight,
 	}
-	_, blockHeight, err := chainClient.GetBestBlock()
-	if err != nil {
-		return nil, translateError(err)
-	}
-
-	return &pb.TicketPriceResponse{
-		TicketPrice: int64(ticketPrice),
-		Height:      int32(blockHeight),
-	}, nil
+	return resp, nil
 }
 
 func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) (*pb.StakeInfoResponse, error) {
-	var chainClient *rpcclient.Client
-	if n, err := s.wallet.NetworkBackend(); err == nil {
-		client, err := chain.RPCClientFromBackend(n)
-		if err == nil {
-			chainClient = client
-		}
+	var rpc *dcrd.RPC
+	n, _ := s.wallet.NetworkBackend()
+	if client, ok := n.(*dcrd.RPC); ok {
+		rpc = client
 	}
 	var si *wallet.StakeInfoData
 	var err error
-	if chainClient != nil {
-		si, err = s.wallet.StakeInfoPrecise(chainClient)
+	if rpc != nil {
+		si, err = s.wallet.StakeInfoPrecise(ctx, rpc)
 	} else {
 		si, err = s.wallet.StakeInfo()
 	}
@@ -1208,23 +1183,20 @@ func (s *walletServer) GetTicket(ctx context.Context, req *pb.GetTicketRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	var chainClient *rpcclient.Client
-	if n, err := s.wallet.NetworkBackend(); err == nil {
-		// The chain client could be nil here if the network backend is not
-		// the consensus rpc client.  This is fine since the chain client is
-		// optional.
-		chainClient, _ = chain.RPCClientFromBackend(n)
-	}
+	// The dcrd client could be nil here if the network backend is not
+	// the consensus rpc client.  This is fine since the chain client is
+	// optional.
+	n, _ := s.wallet.NetworkBackend()
+	rpc, _ := n.(*dcrd.RPC)
 
 	var ticketSummary *wallet.TicketSummary
 	var blockHeader *wire.BlockHeader
-	if chainClient == nil {
+	if rpc == nil {
 		ticketSummary, blockHeader, err = s.wallet.GetTicketInfo(ticketHash)
 	} else {
 		ticketSummary, blockHeader, err =
-			s.wallet.GetTicketInfoPrecise(chainClient, ticketHash)
+			s.wallet.GetTicketInfoPrecise(ctx, rpc, ticketHash)
 	}
-
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1233,7 +1205,6 @@ func (s *walletServer) GetTicket(ctx context.Context, req *pb.GetTicketRequest) 
 		Ticket: marshalTicketDetails(ticketSummary),
 		Block:  marshalGetTicketBlockDetails(blockHeader),
 	}
-
 	return resp, nil
 }
 
@@ -1300,16 +1271,10 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 			return ((targetTicketCount > 0) && (ticketCount >= targetTicketCount)), nil
 		}
 	}
-	var chainClient *rpcclient.Client
-	if n, err := s.wallet.NetworkBackend(); err == nil {
-		client, err := chain.RPCClientFromBackend(n)
-		if err == nil {
-			chainClient = client
-		}
-	}
+	n, _ := s.wallet.NetworkBackend()
 	var err error
-	if chainClient != nil {
-		err = s.wallet.GetTicketsPrecise(rangeFn, chainClient, startBlock, endBlock)
+	if rpc, ok := n.(*dcrd.RPC); ok {
+		err = s.wallet.GetTicketsPrecise(ctx, rpc, rangeFn, startBlock, endBlock)
 	} else {
 		err = s.wallet.GetTickets(rangeFn, startBlock, endBlock)
 	}
@@ -1652,19 +1617,18 @@ func (s *walletServer) RevokeTickets(ctx context.Context, req *pb.RevokeTicketsR
 	// tickets were missed.  RevokeExpiredTickets is only able to create
 	// revocations for tickets which have reached their expiry time even if they
 	// were missed prior to expiry, but is able to be used with other backends.
-	chainClient, err := chain.RPCClientFromBackend(n)
-	if err != nil {
+	if rpc, ok := n.(*dcrd.RPC); ok {
+		err := s.wallet.RevokeTickets(ctx, rpc)
+		if err != nil {
+			return nil, translateError(err)
+		}
+	} else {
 		err := s.wallet.RevokeExpiredTickets(ctx, n)
 		if err != nil {
 			return nil, translateError(err)
 		}
-		return &pb.RevokeTicketsResponse{}, nil
 	}
 
-	err = s.wallet.RevokeTickets(chainClient)
-	if err != nil {
-		return nil, translateError(err)
-	}
 	return &pb.RevokeTicketsResponse{}, nil
 }
 
@@ -2333,6 +2297,21 @@ func (s *loaderServer) CloseWallet(ctx context.Context, req *pb.CloseWalletReque
 	return &pb.CloseWalletResponse{}, nil
 }
 
+func isLoopback(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err == nil {
+		addr = host
+	}
+	if addr == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		return false
+	}
+	return ip.IsLoopback()
+}
+
 func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderService_RpcSyncServer) error {
 	defer zero.Bytes(req.Password)
 
@@ -2362,48 +2341,16 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 		}
 	}
 
-	s.mu.Lock()
-	chainClient := s.rpcClient
-	s.mu.Unlock()
+	syncer := chain.NewSyncer(wallet, &chain.RPCOptions{
+		Address:     req.NetworkAddress,
+		DefaultPort: s.activeNet.JSONRPCClientPort,
+		User:        req.Username,
+		Pass:        string(req.Password),
+		CA:          req.Certificate,
+		Insecure:    isLoopback(req.NetworkAddress) && len(req.Certificate) == 0,
+	})
 
-	// If the rpcClient is already set, you can just use that instead of attempting a new connection.
-	if chainClient == nil {
-		networkAddress, err := cfgutil.NormalizeAddress(req.NetworkAddress,
-			s.activeNet.JSONRPCClientPort)
-		if err != nil {
-			return status.Errorf(codes.InvalidArgument, "Network address is ill-formed: %v", err)
-		}
-		chainClient, err = chain.NewRPCClient(s.activeNet.Params, networkAddress, req.Username,
-			string(req.Password), req.Certificate, len(req.Certificate) == 0)
-		if err != nil {
-			return translateError(err)
-		}
-
-		err = chainClient.Start(svr.Context(), false)
-		if err != nil {
-			if err == rpcclient.ErrInvalidAuth {
-				return status.Errorf(codes.InvalidArgument, "Invalid RPC credentials: %v", err)
-			}
-			if errors.Match(errors.E(context.Canceled), err) {
-				return status.Errorf(codes.Canceled, "Wallet synchronization canceled: %v", err)
-			}
-			return status.Errorf(codes.Unavailable, "Connection to RPC server failed: %v", err)
-		}
-		s.mu.Lock()
-		s.rpcClient = chainClient
-		s.mu.Unlock()
-	}
-
-	n := chain.BackendFromRPCClient(chainClient.Client)
-	s.loader.SetNetworkBackend(n)
-	wallet.SetNetworkBackend(n)
-
-	// Disassociate the RPC client from all subsystems until reconnection
-	// occurs.
-	defer wallet.SetNetworkBackend(nil)
-	defer s.loader.SetNetworkBackend(nil)
-
-	ntfns := &chain.Notifications{
+	cbs := &chain.Callbacks{
 		Synced: func(sync bool) {
 			resp := &pb.RpcSyncResponse{}
 			resp.Synced = sync
@@ -2499,13 +2446,10 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 			_ = svr.Send(resp)
 		},
 	}
-	syncer := chain.NewRPCSyncer(wallet, chainClient)
-	syncer.SetNotifications(ntfns)
+	syncer.SetCallbacks(cbs)
 
-	// Run wallet synchronization until it is cancelled or errors.  If the
-	// context was cancelled, return immediately instead of trying to
-	// reconnect.
-	err := syncer.Run(svr.Context(), true)
+	// Synchronize until error or RPC cancelation.
+	err := syncer.Run(svr.Context())
 	if err != nil {
 		if svr.Context().Err() != nil {
 			return status.Errorf(codes.Canceled, "Wallet synchronization canceled: %v", err)
@@ -2671,12 +2615,6 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 		}
 		syncer.SetPersistantPeers(spvConnects)
 	}
-
-	wallet.SetNetworkBackend(syncer)
-	s.loader.SetNetworkBackend(syncer)
-
-	defer wallet.SetNetworkBackend(nil)
-	defer s.loader.SetNetworkBackend(nil)
 
 	err := syncer.Run(svr.Context())
 	if err != nil {

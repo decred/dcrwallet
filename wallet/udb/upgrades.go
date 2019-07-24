@@ -15,8 +15,8 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/internal/snacl"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/internal/snacl"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // Note: all manager functions always use the latest version of the database.

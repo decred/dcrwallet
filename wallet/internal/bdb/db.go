@@ -10,7 +10,7 @@ import (
 	"os"
 
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 	bolt "go.etcd.io/bbolt"
 )
 

@@ -12,8 +12,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
-	_ "github.com/decred/dcrwallet/wallet/v2/drivers/bdb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	_ "github.com/decred/dcrwallet/wallet/v3/drivers/bdb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 func TestInsertsCreditsDebitsRollbacks(t *testing.T) {

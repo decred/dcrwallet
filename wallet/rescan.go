@@ -13,8 +13,8 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/udb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/udb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -158,11 +158,6 @@ func (f *RescanFilter) RemoveUnspentOutPoint(op *wire.OutPoint) {
 	delete(f.unspent, *op)
 }
 
-// RescanSaver records transactions from a rescaned block.
-type RescanSaver interface {
-	SaveRescanned(hash *chainhash.Hash, txs []*wire.MsgTx) error
-}
-
 // SaveRescanned records transactions from a rescanned block.  This
 // does not update the network backend with data to watch for future
 // relevant transactions as the rescanner is assumed to handle this
@@ -240,7 +235,7 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 			}
 		}
 		log.Infof("Rescanning block range [%v, %v]...", height, through)
-		err = n.Rescan(ctx, rescanBlocks, w)
+		err = n.Rescan(ctx, rescanBlocks, w.SaveRescanned)
 		if err != nil {
 			return err
 		}

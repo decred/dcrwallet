@@ -7,16 +7,18 @@ package chain
 import "fmt"
 
 type semver struct {
-	major, minor, patch uint32
+	Major uint32 `json:"major"`
+	Minor uint32 `json:"minor"`
+	Patch uint32 `json:"patch"`
 }
 
 func semverCompatible(required, actual semver) bool {
 	switch {
-	case required.major != actual.major:
+	case required.Major != actual.Major:
 		return false
-	case required.minor > actual.minor:
+	case required.Minor > actual.Minor:
 		return false
-	case required.minor == actual.minor && required.patch > actual.patch:
+	case required.Minor == actual.Minor && required.Patch > actual.Patch:
 		return false
 	default:
 		return true
@@ -24,5 +26,5 @@ func semverCompatible(required, actual semver) bool {
 }
 
 func (s semver) String() string {
-	return fmt.Sprintf("%d.%d.%d", s.major, s.minor, s.patch)
+	return fmt.Sprintf("%d.%d.%d", s.Major, s.Minor, s.Patch)
 }

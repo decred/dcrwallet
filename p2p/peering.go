@@ -1,4 +1,4 @@
-// Copyright (c) 2018 The Decred developers
+// Copyright (c) 2018-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -178,7 +178,7 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 	var waitForAddrs <-chan time.Time
 	if lp.amgr.NeedMoreAddresses() {
 		waitForAddrs = time.After(stallTimeout)
-		err = rp.GetAddrs(ctx)
+		err = rp.Addrs(ctx)
 		if err != nil {
 			op := errors.Opf(opf, rp.raddr)
 			return nil, errors.E(op, err)
@@ -902,13 +902,13 @@ func (rp *RemotePeer) receivedGetData(ctx context.Context, msg *wire.MsgGetData)
 	}
 }
 
-// GetAddrs requests a list of known active peers from a RemotePeer.  As many
-// addr responses may be received for a single getaddr request, received address
-// messages are handled asynchronously by the local peer and at least the stall
-// timeout should be waited before disconnecting a remote peer while waiting for
-// addr messages.
-func (rp *RemotePeer) GetAddrs(ctx context.Context) error {
-	const opf = "remotepeer(%v).GetAddrs"
+// Addrs requests a list of known active peers from a RemotePeer using getaddr.
+// As many addr responses may be received for a single getaddr request, received
+// address messages are handled asynchronously by the local peer and at least
+// the stall timeout should be waited before disconnecting a remote peer while
+// waiting for addr messages.
+func (rp *RemotePeer) Addrs(ctx context.Context) error {
+	const opf = "remotepeer(%v).Addrs"
 	ctx, cancel := context.WithTimeout(ctx, stallTimeout)
 	defer cancel()
 
@@ -929,10 +929,10 @@ func (rp *RemotePeer) GetAddrs(ctx context.Context) error {
 	}
 }
 
-// GetBlock requests a block from a RemotePeer.  The same block can not be
-// requested multiple times concurrently from the same peer.
-func (rp *RemotePeer) GetBlock(ctx context.Context, blockHash *chainhash.Hash) (*wire.MsgBlock, error) {
-	const opf = "remotepeer(%v).GetBlock(%v)"
+// Block requests a block from a RemotePeer using getdata.  The same block can
+// not be requested multiple times concurrently from the same peer.
+func (rp *RemotePeer) Block(ctx context.Context, blockHash *chainhash.Hash) (*wire.MsgBlock, error) {
+	const opf = "remotepeer(%v).Block(%v)"
 
 	m := wire.NewMsgGetDataSizeHint(1)
 	err := m.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, blockHash))
@@ -974,12 +974,12 @@ func (rp *RemotePeer) GetBlock(ctx context.Context, blockHash *chainhash.Hash) (
 	}
 }
 
-// GetBlocks requests multiple blocks at a time from a RemotePeer using a single
+// Blocks requests multiple blocks at a time from a RemotePeer using a single
 // getdata message.  It returns when all of the blocks have been received.  The
 // same block may not be requested multiple times concurrently from the same
 // peer.
-func (rp *RemotePeer) GetBlocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error) {
-	const opf = "remotepeer(%v).GetBlocks"
+func (rp *RemotePeer) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error) {
+	const opf = "remotepeer(%v).Blocks"
 
 	m := wire.NewMsgGetDataSizeHint(uint(len(blockHashes)))
 	cs := make([]chan *wire.MsgBlock, len(blockHashes))
@@ -1058,14 +1058,14 @@ func (rp *RemotePeer) GetBlocks(ctx context.Context, blockHashes []*chainhash.Ha
 // peer, indicated with notfound.
 var ErrNotFound = errors.E(errors.NotExist, "transaction not found")
 
-// GetTransactions requests multiple transactions at a time from a RemotePeer
+// Transactions requests multiple transactions at a time from a RemotePeer
 // using a single getdata message.  It returns when all of the transactions
 // and/or notfound messages have been received.  The same transaction may not be
 // requested multiple times concurrently from the same peer.  Returns
 // ErrNotFound with a slice of one or more nil transactions if any notfound
 // messages are received for requested transactions.
-func (rp *RemotePeer) GetTransactions(ctx context.Context, hashes []*chainhash.Hash) ([]*wire.MsgTx, error) {
-	const opf = "remotepeer(%v).GetTransactions"
+func (rp *RemotePeer) Transactions(ctx context.Context, hashes []*chainhash.Hash) ([]*wire.MsgTx, error) {
+	const opf = "remotepeer(%v).Transactions"
 
 	m := wire.NewMsgGetDataSizeHint(uint(len(hashes)))
 	cs := make([]chan *wire.MsgTx, len(hashes))
@@ -1128,10 +1128,10 @@ func (rp *RemotePeer) GetTransactions(ctx context.Context, hashes []*chainhash.H
 	return txs, nil
 }
 
-// GetCFilter requests a regular compact filter from a RemotePeer.  The same
-// block can not be requested concurrently from the same peer.
-func (rp *RemotePeer) GetCFilter(ctx context.Context, blockHash *chainhash.Hash) (*gcs.Filter, error) {
-	const opf = "remotepeer(%v).GetCFilter(%v)"
+// CFilter requests a regular compact filter from a RemotePeer using getcfilter.
+// The same block can not be requested concurrently from the same peer.
+func (rp *RemotePeer) CFilter(ctx context.Context, blockHash *chainhash.Hash) (*gcs.Filter, error) {
+	const opf = "remotepeer(%v).CFilter(%v)"
 
 	m := wire.NewMsgGetCFilter(blockHash, wire.GCSFilterRegular)
 	c := make(chan *wire.MsgCFilter, 1)
@@ -1178,11 +1178,11 @@ func (rp *RemotePeer) GetCFilter(ctx context.Context, blockHash *chainhash.Hash)
 	}
 }
 
-// GetCFilters requests cfilters for all blocks described by blockHashes.  This
+// CFilters requests cfilters for all blocks described by blockHashes.  This
 // is currently implemented by making many separate getcfilter requests
 // concurrently and waiting on every result.
-func (rp *RemotePeer) GetCFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error) {
-	const opf = "remotepeer(%v).GetCFilters"
+func (rp *RemotePeer) CFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error) {
+	const opf = "remotepeer(%v).CFilters"
 
 	// TODO: this is spammy and would be better implemented with a single
 	// request/response.
@@ -1191,7 +1191,7 @@ func (rp *RemotePeer) GetCFilters(ctx context.Context, blockHashes []*chainhash.
 	for i := range blockHashes {
 		i := i
 		g.Go(func() error {
-			f, err := rp.GetCFilter(ctx, blockHashes[i])
+			f, err := rp.CFilter(ctx, blockHashes[i])
 			filters[i] = f
 			return err
 		})
@@ -1249,12 +1249,12 @@ func (rp *RemotePeer) SendHeaders(ctx context.Context) error {
 	}
 }
 
-// GetHeaders requests block headers from the RemotePeer.  Block headers can not
-// be requested concurrently from the same peer.  Sending a getheaders message
-// and synchronously waiting for the result is not possible if a sendheaders
-// message has been sent to the remote peer.
-func (rp *RemotePeer) GetHeaders(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([]*wire.BlockHeader, error) {
-	const opf = "remotepeer(%v).GetHeaders"
+// Headers requests block headers from the RemotePeer with getheaders.  Block
+// headers can not be requested concurrently from the same peer.  Sending a
+// getheaders message and synchronously waiting for the result is not possible
+// if a sendheaders message has been sent to the remote peer.
+func (rp *RemotePeer) Headers(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([]*wire.BlockHeader, error) {
+	const opf = "remotepeer(%v).Headers"
 
 	m := &wire.MsgGetHeaders{
 		ProtocolVersion:    rp.pver,

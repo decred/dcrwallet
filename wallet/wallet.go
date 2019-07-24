@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -30,16 +29,15 @@ import (
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/hdkeychain"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/deployments"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
-	"github.com/decred/dcrwallet/wallet/v2/txrules"
-	"github.com/decred/dcrwallet/wallet/v2/udb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
-	"github.com/jrick/bitset"
+	"github.com/decred/dcrwallet/wallet/v3/txrules"
+	"github.com/decred/dcrwallet/wallet/v3/udb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -394,12 +392,6 @@ func (w *Wallet) PoolFees() float64 {
 	return w.poolFees
 }
 
-// Start was previously required to start necessary management goroutines of the wallet.
-//
-// Deprecated: This method is no longer necessary.
-func (w *Wallet) Start() {
-}
-
 // RelayFee returns the current minimum relay fee (per kB of serialized
 // transaction) used when constructing transactions.
 func (w *Wallet) RelayFee() dcrutil.Amount {
@@ -431,18 +423,6 @@ func (w *Wallet) SetTicketFeeIncrement(fee dcrutil.Amount) {
 	w.ticketFeeIncrementLock.Lock()
 	w.ticketFeeIncrement = fee
 	w.ticketFeeIncrementLock.Unlock()
-}
-
-// Stop used to signal all wallet goroutines to shutdown.
-//
-// Deprecated: This method is no longer necessary.
-func (w *Wallet) Stop() {
-}
-
-// WaitForShutdown used to block until all wallet goroutines have finished executing.
-//
-// Deprecated: This method is no longer necessary.
-func (w *Wallet) WaitForShutdown() {
 }
 
 // MainChainTip returns the hash and height of the tip-most block in the main
@@ -814,7 +794,7 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, p Peer, progress chan
 			continue
 		}
 
-		filters, err := p.GetCFilters(ctx, get)
+		filters, err := p.CFilters(ctx, get)
 		if err != nil {
 			return err
 		}
@@ -991,7 +971,7 @@ func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstN
 	for {
 		var chainBuilder SidechainForest
 
-		headers, err := p.GetHeaders(ctx, blockLocators, &hashStop)
+		headers, err := p.Headers(ctx, blockLocators, &hashStop)
 		if err != nil {
 			return firstNew, err
 		}
@@ -1000,7 +980,7 @@ func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstN
 			hash := h.BlockHash()
 			headerHashes = append(headerHashes, &hash)
 		}
-		filters, err := p.GetCFilters(ctx, headerHashes)
+		filters, err := p.CFilters(ctx, headerHashes)
 		if err != nil {
 			return firstNew, err
 		}
@@ -2327,12 +2307,13 @@ func (w *Wallet) fetchTicketDetails(ns walletdb.ReadBucket, hash *chainhash.Hash
 // the ability to use the rpc chain client, this function is able to determine
 // whether a ticket has been missed or not.  Otherwise, it is just known to be
 // unspent (possibly live or missed).
-func (w *Wallet) GetTicketInfoPrecise(chainClient *rpcclient.Client, hash *chainhash.Hash) (*TicketSummary, *wire.BlockHeader, error) {
+func (w *Wallet) GetTicketInfoPrecise(ctx context.Context, rpcCaller Caller, hash *chainhash.Hash) (*TicketSummary, *wire.BlockHeader, error) {
 	const op errors.Op = "wallet.GetTicketInfoPrecise"
 
 	var ticketSummary *TicketSummary
 	var blockHeader *wire.BlockHeader
 
+	rpc := dcrd.New(rpcCaller)
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -2341,7 +2322,7 @@ func (w *Wallet) GetTicketInfoPrecise(chainClient *rpcclient.Client, hash *chain
 			return err
 		}
 
-		ticketSummary = makeTicketSummary(chainClient, dbtx, w, ticketDetails)
+		ticketSummary = makeTicketSummary(ctx, rpc, dbtx, w, ticketDetails)
 		if ticketDetails.Ticket.Block.Height == -1 {
 			// unmined tickets do not have an associated block header
 			return nil
@@ -2389,7 +2370,7 @@ func (w *Wallet) GetTicketInfo(hash *chainhash.Hash) (*TicketSummary, *wire.Bloc
 			return err
 		}
 
-		ticketSummary = makeTicketSummary(nil, dbtx, w, ticketDetails)
+		ticketSummary = makeTicketSummary(context.Background(), nil, dbtx, w, ticketDetails)
 		if ticketDetails.Ticket.Block.Height == -1 {
 			// unmined tickets do not have an associated block header
 			return nil
@@ -2436,7 +2417,9 @@ func (w *Wallet) GetTicketInfo(hash *chainhash.Hash) (*TicketSummary, *wire.Bloc
 // the ability to use the rpc chain client, this function is able to determine
 // whether tickets have been missed or not.  Otherwise, tickets are just known
 // to be unspent (possibly live or missed).
-func (w *Wallet) GetTicketsPrecise(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), chainClient *rpcclient.Client, startBlock, endBlock *BlockIdentifier) error {
+func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpcCaller Caller,
+	f func([]*TicketSummary, *wire.BlockHeader) (bool, error), startBlock, endBlock *BlockIdentifier) error {
+
 	const op errors.Op = "wallet.GetTicketsPrecise"
 	var start, end int32 = 0, -1
 
@@ -2487,6 +2470,7 @@ func (w *Wallet) GetTicketsPrecise(f func([]*TicketSummary, *wire.BlockHeader) (
 		}
 	}
 
+	rpc := dcrd.New(rpcCaller)
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		header := &wire.BlockHeader{}
@@ -2504,7 +2488,7 @@ func (w *Wallet) GetTicketsPrecise(f func([]*TicketSummary, *wire.BlockHeader) (
 				if ticketInfo == nil {
 					continue
 				}
-				tickets = append(tickets, makeTicketSummary(chainClient, dbtx, w, ticketInfo))
+				tickets = append(tickets, makeTicketSummary(ctx, rpc, dbtx, w, ticketInfo))
 			}
 
 			if len(tickets) == 0 {
@@ -2615,7 +2599,7 @@ func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, e
 				if ticketInfo == nil {
 					continue
 				}
-				tickets = append(tickets, makeTicketSummary(nil, dbtx, w, ticketInfo))
+				tickets = append(tickets, makeTicketSummary(context.Background(), nil, dbtx, w, ticketInfo))
 			}
 
 			if len(tickets) == 0 {
@@ -3341,12 +3325,20 @@ func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 
 // StakeInfoPrecise collects and returns staking statistics for this wallet.  It
 // uses RPC to query further information than StakeInfo.
-func (w *Wallet) StakeInfoPrecise(chainClient *rpcclient.Client) (*StakeInfoData, error) {
+func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpcCaller Caller) (*StakeInfoData, error) {
 	const op errors.Op = "wallet.StakeInfoPrecise"
-	// This is only needed for the total count and can be optimized.
-	mempoolTicketsFuture := chainClient.GetRawMempoolAsync(dcrdtypes.GRMTickets)
 
 	res := &StakeInfoData{}
+	rpc := dcrd.New(rpcCaller)
+	var g errgroup.Group
+	g.Go(func() error {
+		unminedTicketCount, err := rpc.MempoolCount(ctx, "tickets")
+		if err != nil {
+			return err
+		}
+		res.AllMempoolTix = uint32(unminedTicketCount)
+		return nil
+	})
 
 	// Wallet does not yet know if/when a ticket was selected.  Keep track of
 	// all tickets that are either live, expired, or missed and determine their
@@ -3470,59 +3462,26 @@ func (w *Wallet) StakeInfoPrecise(chainClient *rpcclient.Client) (*StakeInfoData
 	// As the wallet is unaware of when a ticket was selected or missed, this
 	// info must be queried from the consensus server.  If the ticket is neither
 	// live nor expired, it is assumed missed.
-	liveOrExpiredOrMissedStrings := make([]string, len(liveOrExpiredOrMissed))
-	for i := range liveOrExpiredOrMissed {
-		liveOrExpiredOrMissedStrings[i] = liveOrExpiredOrMissed[i].String()
-	}
-	param0, err := json.Marshal(liveOrExpiredOrMissedStrings)
-	if err != nil {
-		return nil, errors.E(op, errors.Encoding, err)
-	}
-	expiredFuture := chainClient.RawRequestAsync("existsexpiredtickets", []json.RawMessage{param0})
-	liveFuture := chainClient.RawRequestAsync("existslivetickets", []json.RawMessage{param0})
-	expiredBitsetJSON, err := expiredFuture.Receive()
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	liveBitsetJSON, err := liveFuture.Receive()
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	var expiredBitsetHex, liveBitsetHex string
-	err = json.Unmarshal(expiredBitsetJSON, &expiredBitsetHex)
-	if err != nil {
-		return nil, errors.E(op, errors.Encoding, err)
-	}
-	err = json.Unmarshal(liveBitsetJSON, &liveBitsetHex)
-	if err != nil {
-		return nil, errors.E(op, errors.Encoding, err)
-	}
-	expiredBitset, err := hex.DecodeString(expiredBitsetHex)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	liveBitset, err := hex.DecodeString(liveBitsetHex)
+	live, expired, err := rpc.ExistsLiveExpiredTickets(ctx, liveOrExpiredOrMissed)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 	for i := range liveOrExpiredOrMissed {
 		switch {
-		case bitset.Bytes(liveBitset).Get(i):
+		case live.Get(i):
 			res.Live++
-		case bitset.Bytes(expiredBitset).Get(i):
+		case expired.Get(i):
 			res.Expired++
 		default:
 			res.Missed++
 		}
 	}
 
-	// Receive the mempool tickets future called at the beginning of the
-	// function and determine the total count of tickets in the mempool.
-	mempoolTickets, err := mempoolTicketsFuture.Receive()
+	// Wait for MempoolCount call from beginning of function to complete.
+	err = g.Wait()
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	res.AllMempoolTix = uint32(len(mempoolTickets))
 
 	return res, nil
 }

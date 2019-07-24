@@ -1,4 +1,4 @@
-module github.com/decred/dcrwallet/p2p
+module github.com/decred/dcrwallet/p2p/v2
 
 require (
 	github.com/decred/dcrd/addrmgr v1.0.2

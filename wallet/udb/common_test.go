@@ -12,7 +12,7 @@ import (
 	"os"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 var (

@@ -26,18 +26,18 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/hdkeychain/v2"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/chain/v2"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/helpers"
-	"github.com/decred/dcrwallet/p2p"
+	"github.com/decred/dcrwallet/p2p/v2"
+	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
-	ver "github.com/decred/dcrwallet/version"
-	"github.com/decred/dcrwallet/wallet/v2"
-	"github.com/decred/dcrwallet/wallet/v2/txrules"
-	"github.com/decred/dcrwallet/wallet/v2/udb"
+	"github.com/decred/dcrwallet/version"
+	"github.com/decred/dcrwallet/wallet/v3"
+	"github.com/decred/dcrwallet/wallet/v3/txrules"
+	"github.com/decred/dcrwallet/wallet/v3/udb"
+	"golang.org/x/sync/errgroup"
 )
 
 // API version constants
@@ -192,29 +192,23 @@ func lazyApplyHandler(s *Server, ctx context.Context, request *dcrjson.Request) 
 			if !ok {
 				return nil, errRPCClientNotConnected
 			}
-			chainClient, err := chain.RPCClientFromBackend(n)
-			if err != nil {
+			rpc, ok := n.(*dcrd.RPC)
+			if !ok {
 				return nil, rpcErrorf(dcrjson.ErrRPCClientNotConnected, "RPC passthrough requires dcrd RPC synchronization")
 			}
-			var resp interface{}
-			finished := make(chan struct{})
-			go func() {
-				resp, err = chainClient.RawRequest(request.Method, request.Params)
-				close(finished)
-			}()
-			select {
-			case <-ctx.Done():
+			var resp json.RawMessage
+			err := rpc.Call(ctx, request.Method, &resp, request.Params)
+			if ctx.Err() != nil {
 				log.Warnf("Canceled RPC method %v invoked by %v: %v", request.Method, remoteAddr(ctx), err)
 				return nil, &dcrjson.RPCError{
 					Code:    dcrjson.ErrRPCMisc,
 					Message: ctx.Err().Error(),
 				}
-			case <-finished:
 			}
 			if err != nil {
 				return nil, convertError(err)
 			}
-			return &resp, nil
+			return resp, nil
 		}
 	}
 
@@ -834,9 +828,9 @@ func (s *Server) getInfo(ctx context.Context, icmd interface{}) (interface{}, er
 	}
 
 	info := &types.InfoResult{
-		Version:         ver.Integer,
+		Version:         version.Integer,
 		ProtocolVersion: int32(p2p.Pver),
-		WalletVersion:   ver.Integer,
+		WalletVersion:   version.Integer,
 		Balance:         spendableBalance.ToCoin(),
 		Blocks:          tipHeight,
 		TimeOffset:      0,
@@ -853,8 +847,9 @@ func (s *Server) getInfo(ctx context.Context, icmd interface{}) (interface{}, er
 	}
 
 	n, _ := s.walletLoader.NetworkBackend()
-	if chainClient, err := chain.RPCClientFromBackend(n); err == nil {
-		consensusInfo, err := chainClient.GetInfo()
+	if rpc, ok := n.(*dcrd.RPC); ok {
+		var consensusInfo dcrdtypes.InfoChainResult
+		err := rpc.Call(ctx, "getinfo", &consensusInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -1392,17 +1387,15 @@ func (s *Server) getStakeInfo(ctx context.Context, icmd interface{}) (interface{
 		return nil, errUnloadedWallet
 	}
 
-	var chainClient *rpcclient.Client
-	if n, ok := s.walletLoader.NetworkBackend(); ok {
-		client, err := chain.RPCClientFromBackend(n)
-		if err == nil {
-			chainClient = client
-		}
+	var rpc *dcrd.RPC
+	n, _ := s.walletLoader.NetworkBackend()
+	if client, ok := n.(*dcrd.RPC); ok {
+		rpc = client
 	}
 	var sinfo *wallet.StakeInfoData
 	var err error
-	if chainClient != nil {
-		sinfo, err = w.StakeInfoPrecise(chainClient)
+	if rpc != nil {
+		sinfo, err = w.StakeInfoPrecise(ctx, rpc)
 	} else {
 		sinfo, err = w.StakeInfo()
 	}
@@ -1462,12 +1455,12 @@ func (s *Server) getTickets(ctx context.Context, icmd interface{}) (interface{},
 	}
 
 	n, _ := s.walletLoader.NetworkBackend()
-	chainClient, err := chain.RPCClientFromBackend(n)
-	if err != nil {
+	rpc, ok := n.(*dcrd.RPC)
+	if !ok {
 		return nil, errRPCClientNotConnected
 	}
 
-	ticketHashes, err := w.LiveTicketHashes(chainClient, cmd.IncludeImmature)
+	ticketHashes, err := w.LiveTicketHashes(ctx, rpc, cmd.IncludeImmature)
 	if err != nil {
 		return nil, err
 	}
@@ -1651,22 +1644,22 @@ func (s *Server) help(ctx context.Context, icmd interface{}) (interface{}, error
 	// TODO: The "help" RPC should use a HTTP POST client when calling down to
 	// dcrd for additional help methods.  This avoids including websocket-only
 	// requests in the help, which are not callable by wallet JSON-RPC clients.
-	var chainClient *rpcclient.Client
+	var rpc *dcrd.RPC
 	n, _ := s.walletLoader.NetworkBackend()
-	if c, err := chain.RPCClientFromBackend(n); err == nil {
-		chainClient = c
+	if client, ok := n.(*dcrd.RPC); ok {
+		rpc = client
 	}
 	if cmd.Command == nil || *cmd.Command == "" {
 		// Prepend chain server usage if it is available.
 		usages := requestUsages
-		if chainClient != nil {
-			rawChainUsage, err := chainClient.RawRequest("help", nil)
-			var chainUsage string
-			if err == nil {
-				_ = json.Unmarshal([]byte(rawChainUsage), &chainUsage)
+		if rpc != nil {
+			var usage string
+			err := rpc.Call(ctx, "help", &usage)
+			if err != nil {
+				return nil, err
 			}
-			if chainUsage != "" {
-				usages = "Chain server usage:\n\n" + chainUsage + "\n\n" +
+			if usage != "" {
+				usages = "Chain server usage:\n\n" + usage + "\n\n" +
 					"Wallet server usage (overrides chain requests):\n\n" +
 					requestUsages
 			}
@@ -1691,14 +1684,10 @@ func (s *Server) help(ctx context.Context, icmd interface{}) (interface{}, error
 
 	// Return the chain server's detailed help if possible.
 	var chainHelp string
-	if chainClient != nil {
-		param := make([]byte, len(*cmd.Command)+2)
-		param[0] = '"'
-		copy(param[1:], *cmd.Command)
-		param[len(param)-1] = '"'
-		rawChainHelp, err := chainClient.RawRequest("help", []json.RawMessage{param})
-		if err == nil {
-			_ = json.Unmarshal([]byte(rawChainHelp), &chainHelp)
+	if rpc != nil {
+		err := rpc.Call(ctx, "help", &chainHelp, *cmd.Command)
+		if err != nil {
+			return nil, err
 		}
 	}
 	if chainHelp != "" {
@@ -2449,14 +2438,15 @@ func (s *Server) revokeTickets(ctx context.Context, icmd interface{}) (interface
 	// tickets were missed.  RevokeExpiredTickets is only able to create
 	// revocations for tickets which have reached their expiry time even if they
 	// were missed prior to expiry, but is able to be used with other backends.
-	n, _ := s.walletLoader.NetworkBackend()
-	chainClient, err := chain.RPCClientFromBackend(n)
-	if err != nil {
-		err := w.RevokeExpiredTickets(ctx, n)
+	n, ok := s.walletLoader.NetworkBackend()
+	if !ok {
+		return nil, errNoNetwork
+	}
+	if rpc, ok := n.(*dcrd.RPC); ok {
+		err := w.RevokeTickets(ctx, rpc)
 		return nil, err
 	}
-
-	err = w.RevokeTickets(chainClient)
+	err := w.RevokeExpiredTickets(ctx, n)
 	return nil, err
 }
 
@@ -2935,11 +2925,11 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 	// querying dcrd with getrawtransaction. We queue up a bunch of async
 	// requests and will wait for replies after we have checked the rest of
 	// the arguments.
-	var requested map[wire.OutPoint]rpcclient.FutureGetTxOutResult
+	requested := make(map[wire.OutPoint]*dcrdtypes.GetTxOutResult)
+	var requestedMu sync.Mutex
+	requestedGroup, gctx := errgroup.WithContext(ctx)
 	n, _ := s.walletLoader.NetworkBackend()
-	chainClient, err := chain.RPCClientFromBackend(n)
-	if err == nil {
-		requested = make(map[wire.OutPoint]rpcclient.FutureGetTxOutResult)
+	if rpc, ok := n.(*dcrd.RPC); ok {
 		for i, txIn := range tx.TxIn {
 			// We don't need the first input of a stakebase tx, as it's garbage
 			// anyway.
@@ -2953,9 +2943,21 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 			}
 
 			// Asynchronously request the output script.
-			requested[txIn.PreviousOutPoint] = chainClient.GetTxOutAsync(
-				&txIn.PreviousOutPoint.Hash, txIn.PreviousOutPoint.Index,
-				true)
+			requestedGroup.Go(func() error {
+				hash := txIn.PreviousOutPoint.Hash.String()
+				index := txIn.PreviousOutPoint.Index
+				// gettxout returns null without error if the output exists
+				// but is spent.  A double pointer is used to handle this case.
+				var res *dcrdtypes.GetTxOutResult
+				err := rpc.Call(gctx, "gettxout", &res, hash, index, true)
+				if err != nil {
+					return errors.E(errors.Op("dcrd.jsonrpc.gettxout"), err)
+				}
+				requestedMu.Lock()
+				requested[txIn.PreviousOutPoint] = res
+				requestedMu.Unlock()
+				return nil
+			})
 		}
 	}
 
@@ -3004,13 +3006,12 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 	}
 
 	// We have checked the rest of the args. now we can collect the async
-	// txs. TODO: If we don't mind the possibility of wasting work we could
-	// move waiting to the following loop and be slightly more asynchronous.
-	for outPoint, resp := range requested {
-		result, err := resp.Receive()
-		if err != nil {
-			return nil, errors.E(errors.Op("dcrd.jsonrpc.gettxout"), err)
-		}
+	// txs.
+	err = requestedGroup.Wait()
+	if err != nil {
+		return nil, err
+	}
+	for outPoint, result := range requested {
 		// gettxout returns JSON null if the output is found, but is spent by
 		// another transaction in the main chain.
 		if result == nil {
@@ -3382,17 +3383,13 @@ WrongAddrKind:
 // with the server.  The chainClient is optional, and this is simply a helper
 // function for the versionWithChainRPC and versionNoChainRPC handlers.
 func (s *Server) version(ctx context.Context, icmd interface{}) (interface{}, error) {
-	var resp map[string]dcrdtypes.VersionResult
+	resp := make(map[string]dcrdtypes.VersionResult)
 	n, _ := s.walletLoader.NetworkBackend()
-	chainClient, err := chain.RPCClientFromBackend(n)
-	if err == nil {
-		var err error
-		resp, err = chainClient.Version()
+	if rpc, ok := n.(*dcrd.RPC); ok {
+		err := rpc.Call(ctx, "version", &resp)
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		resp = make(map[string]dcrdtypes.VersionResult)
 	}
 
 	resp["dcrwalletjsonrpcapi"] = dcrdtypes.VersionResult{
@@ -3416,9 +3413,11 @@ func (s *Server) walletInfo(ctx context.Context, icmd interface{}) (interface{},
 	n, err := w.NetworkBackend()
 	connected := err == nil
 	if connected {
-		chainClient, err := chain.RPCClientFromBackend(n)
-		if err == nil {
-			err := chainClient.Ping()
+		if rpc, ok := n.(*dcrd.RPC); ok {
+			err := rpc.Call(ctx, "ping", nil)
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			if err != nil {
 				log.Warnf("Ping failed on connected daemon client: %v", err)
 				connected = false

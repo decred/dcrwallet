@@ -21,19 +21,17 @@ import (
 
 	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/rpcclient/v2"
-	"github.com/decred/dcrwallet/chain/v2"
+	"github.com/decred/dcrwallet/chain/v3"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/internal/zero"
 	ldr "github.com/decred/dcrwallet/loader"
-	"github.com/decred/dcrwallet/p2p"
-	"github.com/decred/dcrwallet/rpc/jsonrpc"
+	"github.com/decred/dcrwallet/p2p/v2"
 	"github.com/decred/dcrwallet/rpc/rpcserver"
-	"github.com/decred/dcrwallet/spv/v2"
-	"github.com/decred/dcrwallet/ticketbuyer/v3"
+	"github.com/decred/dcrwallet/spv/v3"
+	"github.com/decred/dcrwallet/ticketbuyer/v4"
 	"github.com/decred/dcrwallet/version"
-	"github.com/decred/dcrwallet/wallet/v2"
+	"github.com/decred/dcrwallet/wallet/v3"
 )
 
 func init() {
@@ -313,13 +311,13 @@ func run(ctx context.Context) error {
 			return ctx.Err()
 		}
 
-		if cfg.SPV {
-			loader.RunAfterLoad(func(w *wallet.Wallet) {
-				spvLoop(ctx, w, loader)
-			})
-		} else {
-			rpcClientConnectLoop(ctx, passphrase, jsonRPCServer, loader)
-		}
+		loader.RunAfterLoad(func(w *wallet.Wallet) {
+			if cfg.SPV {
+				spvLoop(ctx, w)
+			} else {
+				rpcSyncLoop(ctx, w)
+			}
+		})
 	}
 
 	// Wait until shutdown is signaled before returning and running deferred
@@ -408,7 +406,7 @@ func startPromptPass(ctx context.Context, w *wallet.Wallet) []byte {
 	}
 }
 
-func spvLoop(ctx context.Context, w *wallet.Wallet, loader *ldr.Loader) {
+func spvLoop(ctx context.Context, w *wallet.Wallet) {
 	addr := &net.TCPAddr{IP: net.ParseIP("::1"), Port: 0}
 	amgrDir := filepath.Join(cfg.AppDataDir.Value, w.ChainParams().Name)
 	amgr := addrmgr.New(amgrDir, net.LookupIP) // TODO: be mindful of tor
@@ -418,7 +416,6 @@ func spvLoop(ctx context.Context, w *wallet.Wallet, loader *ldr.Loader) {
 		syncer.SetPersistantPeers(cfg.SPVConnect)
 	}
 	w.SetNetworkBackend(syncer)
-	loader.SetNetworkBackend(syncer)
 	for {
 		err := syncer.Run(ctx)
 		if done(ctx) {
@@ -428,52 +425,34 @@ func spvLoop(ctx context.Context, w *wallet.Wallet, loader *ldr.Loader) {
 	}
 }
 
-// rpcClientConnectLoop loops forever, attempting to create a connection to the
+// rpcSyncLoop loops forever, attempting to create a connection to the
 // consensus RPC server.  If this connection succeeds, the RPC client is used as
 // the loaded wallet's network backend and used to keep the wallet synchronized
 // to the network.  If/when the RPC connection is lost, the wallet is
 // disassociated from the client and a new connection is attempmted.
-//
-// The JSON-RPC server is optional.  If set, the connected RPC client will be
-// associated with the server for RPC passthrough and to enable additional
-// methods.
-//
-// This function panics if the wallet has not already been loaded.
-func rpcClientConnectLoop(ctx context.Context, passphrase []byte, jsonRPCServer *jsonrpc.Server, loader *ldr.Loader) {
-	w, ok := loader.LoadedWallet()
-	if !ok {
-		panic("rpcClientConnectLoop: called without loaded wallet")
-	}
-
+func rpcSyncLoop(ctx context.Context, w *wallet.Wallet) {
 	certs := readCAFile()
-
 	for {
-		chainClient, err := startChainRPC(ctx, certs)
-		if err != nil {
-			log.Errorf("Error connecting to RPC server: %v", err)
-			return
-		}
-
-		n := chain.BackendFromRPCClient(chainClient.Client)
-		w.SetNetworkBackend(n)
-		loader.SetNetworkBackend(n)
-
-		// Run wallet synchronization until it is cancelled or errors.  If the
-		// context was cancelled, return immediately instead of trying to
-		// reconnect.
-		syncer := chain.NewRPCSyncer(w, chainClient)
-		err = syncer.Run(ctx, true)
-		if errors.Match(errors.E(context.Canceled), err) {
-			return
-		}
+		syncer := chain.NewSyncer(w, &chain.RPCOptions{
+			Address:     cfg.RPCConnect,
+			DefaultPort: activeNet.JSONRPCClientPort,
+			User:        cfg.DcrdUsername,
+			Pass:        cfg.DcrdPassword,
+			Proxy:       cfg.Proxy,
+			ProxyUser:   cfg.ProxyUser,
+			ProxyPass:   cfg.ProxyPass,
+			CA:          certs,
+			Insecure:    cfg.DisableClientTLS,
+		})
+		err := syncer.Run(ctx)
 		if err != nil {
 			syncLog.Errorf("Wallet synchronization stopped: %v", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(5 * time.Second):
+			}
 		}
-
-		// Disassociate the RPC client from all subsystems until reconnection
-		// occurs.
-		w.SetNetworkBackend(nil)
-		loader.SetNetworkBackend(nil)
 	}
 }
 
@@ -494,29 +473,4 @@ func readCAFile() []byte {
 	}
 
 	return certs
-}
-
-// startChainRPC opens a RPC client connection to a dcrd server for blockchain
-// services.  This function uses the RPC options from the global config and
-// there is no recovery in case the server is not available or if there is an
-// authentication error.  Instead, all requests to the client will simply error.
-func startChainRPC(ctx context.Context, certs []byte) (*chain.RPCClient, error) {
-	log.Infof("Attempting RPC client connection to %v", cfg.RPCConnect)
-	rpcc, err := chain.NewRPCClientConfig(activeNet.Params, &rpcclient.ConnConfig{
-		Host:                 cfg.RPCConnect,
-		Endpoint:             "ws",
-		User:                 cfg.DcrdUsername,
-		Pass:                 cfg.DcrdPassword,
-		Certificates:         certs,
-		DisableAutoReconnect: true,
-		DisableConnectOnNew:  true,
-		DisableTLS:           cfg.DisableClientTLS,
-		Proxy:                cfg.Proxy,
-		ProxyUser:            cfg.ProxyUser,
-		ProxyPass:            cfg.ProxyPass})
-	if err != nil {
-		return nil, err
-	}
-	err = rpcc.Start(ctx, true)
-	return rpcc, err
 }
