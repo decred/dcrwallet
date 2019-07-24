@@ -21,10 +21,15 @@ import (
 func (w *Wallet) UpgradeToSLIP0044CoinType() error {
 	const op errors.Op = "wallet.UpgradeToSLIP0044CoinType"
 
-	var extBranchXpub, intBranchXpub *hdkeychain.ExtendedKey
+	var acctXpub, extBranchXpub, intBranchXpub *hdkeychain.ExtendedKey
 
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		err := w.Manager.UpgradeToSLIP0044CoinType(dbtx)
+		if err != nil {
+			return err
+		}
+
+		acctXpub, err = w.Manager.AccountExtendedPubKey(dbtx, 0)
 		if err != nil {
 			return err
 		}
@@ -44,6 +49,7 @@ func (w *Wallet) UpgradeToSLIP0044CoinType() error {
 
 	w.addressBuffersMu.Lock()
 	w.addressBuffers[0] = &bip0044AccountData{
+		xpub:        hd1to2(acctXpub, w.chainParams),
 		albExternal: addressBuffer{branchXpub: extBranchXpub, lastUsed: ^uint32(0)},
 		albInternal: addressBuffer{branchXpub: intBranchXpub, lastUsed: ^uint32(0)},
 	}
