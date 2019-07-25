@@ -9,8 +9,8 @@ import (
 	"sort"
 
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"

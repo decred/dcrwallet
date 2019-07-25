@@ -8,13 +8,13 @@ import (
 	"context"
 	"encoding/binary"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrec/secp256k1"
-	"github.com/decred/dcrd/dcrutil"
-	hdkeychain1 "github.com/decred/dcrd/hdkeychain"
-	hdkeychain2 "github.com/decred/dcrd/hdkeychain/v2"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/hdkeychain/v2"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
 	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
@@ -55,7 +55,7 @@ type AddressP2PKHv0 interface {
 // BIP44AccountXpubPather is any address which is derived from a BIP0044
 // extended pubkey.
 type BIP44AccountXpubPather interface {
-	BIP44AccountXpubPath() (xpub *hdkeychain2.ExtendedKey, branch, child uint32)
+	BIP44AccountXpubPath() (xpub *hdkeychain.ExtendedKey, branch, child uint32)
 }
 
 // BIP44XpubP2PKHv0 is a union of interfaces implemented by version 0 P2PKH
@@ -76,7 +76,7 @@ type stakeAddress interface {
 
 type xpubAddress struct {
 	*dcrutil.AddressPubKeyHash
-	xpub   *hdkeychain2.ExtendedKey
+	xpub   *hdkeychain.ExtendedKey
 	branch uint32
 	child  uint32
 }
@@ -189,7 +189,7 @@ func (x *xpubAddress) SecpPubKeyHash(version uint16) ([]byte, error) {
 	}
 }
 
-func (x *xpubAddress) BIP44AccountXpubPath() (xpub *hdkeychain2.ExtendedKey, branch, child uint32) {
+func (x *xpubAddress) BIP44AccountXpubPath() (xpub *hdkeychain.ExtendedKey, branch, child uint32) {
 	return x.xpub, x.branch, x.child
 }
 
@@ -202,7 +202,7 @@ func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err e
 		return addr.ScriptV0(), 0, nil
 	default:
 		pkScript, err = txscript.PayToAddrScript(addr)
-		return pkScript, txscript.DefaultScriptVersion, err
+		return pkScript, 0, err
 	}
 }
 
@@ -319,7 +319,7 @@ func WithGapPolicyWrap() NextAddressCallOption {
 }
 
 type addressBuffer struct {
-	branchXpub *hdkeychain1.ExtendedKey
+	branchXpub *hdkeychain.ExtendedKey
 	lastUsed   uint32
 	// cursor is added to lastUsed to derive child index
 	// warning: this is not decremented after errors, and therefore may refer
@@ -328,7 +328,7 @@ type addressBuffer struct {
 }
 
 type bip0044AccountData struct {
-	xpub        *hdkeychain2.ExtendedKey
+	xpub        *hdkeychain.ExtendedKey
 	albExternal addressBuffer
 	albInternal addressBuffer
 }
@@ -465,19 +465,19 @@ func (w *Wallet) nextAddress(op errors.Op, persist persistReturnedChildFunc, acc
 		}
 
 		childIndex := alb.lastUsed + 1 + alb.cursor
-		if childIndex >= hdkeychain1.HardenedKeyStart {
+		if childIndex >= hdkeychain.HardenedKeyStart {
 			return nil, errors.E(op, errors.Errorf("account %d branch %d exhausted",
 				account, branch))
 		}
 		child, err := alb.branchXpub.Child(childIndex)
-		if err == hdkeychain1.ErrInvalidChild {
+		if err == hdkeychain.ErrInvalidChild {
 			alb.cursor++
 			continue
 		}
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
-		apkh, err := child.Address(w.chainParams)
+		apkh, err := compat.HD2Address(child, w.chainParams)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
@@ -528,7 +528,7 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 		branch = udb.InternalBranch
 	}
 	err = w.Manager.SyncAccountToAddrIndex(ns, account,
-		minUint32(hdkeychain1.HardenedKeyStart-1, lastUsed+uint32(w.gapLimit)),
+		minUint32(hdkeychain.HardenedKeyStart-1, lastUsed+uint32(w.gapLimit)),
 		branch)
 	if err != nil {
 		return errors.E(op, err)
@@ -713,7 +713,7 @@ func (w *Wallet) ExtendWatchedAddresses(account, branch, child uint32) error {
 	const op errors.Op = "wallet.ExtendWatchedAddresses"
 
 	var (
-		branchXpub *hdkeychain1.ExtendedKey
+		branchXpub *hdkeychain.ExtendedKey
 		lastUsed   uint32
 	)
 	err := func() error {
@@ -826,17 +826,17 @@ func (src *p2PKHChangeSource) ScriptSize() int {
 	return txsizes.P2PKHPkScriptSize
 }
 
-func deriveChildAddresses(key *hdkeychain1.ExtendedKey, startIndex, count uint32, params *chaincfg.Params) ([]dcrutil.Address, error) {
+func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32, params *chaincfg.Params) ([]dcrutil.Address, error) {
 	addresses := make([]dcrutil.Address, 0, count)
 	for i := uint32(0); i < count; i++ {
 		child, err := key.Child(startIndex + i)
-		if err == hdkeychain1.ErrInvalidChild {
+		if err == hdkeychain.ErrInvalidChild {
 			continue
 		}
 		if err != nil {
 			return nil, err
 		}
-		addr, err := child.Address(params)
+		addr, err := compat.HD2Address(child, params)
 		if err != nil {
 			return nil, err
 		}
@@ -845,15 +845,15 @@ func deriveChildAddresses(key *hdkeychain1.ExtendedKey, startIndex, count uint32
 	return addresses, nil
 }
 
-func deriveChildAddress(key *hdkeychain1.ExtendedKey, child uint32, params *chaincfg.Params) (dcrutil.Address, error) {
+func deriveChildAddress(key *hdkeychain.ExtendedKey, child uint32, params *chaincfg.Params) (dcrutil.Address, error) {
 	childKey, err := key.Child(child)
 	if err != nil {
 		return nil, err
 	}
-	return childKey.Address(params)
+	return compat.HD2Address(childKey, params)
 }
 
-func deriveBranches(acctXpub *hdkeychain1.ExtendedKey) (extKey, intKey *hdkeychain1.ExtendedKey, err error) {
+func deriveBranches(acctXpub *hdkeychain.ExtendedKey) (extKey, intKey *hdkeychain.ExtendedKey, err error) {
 	extKey, err = acctXpub.Child(udb.ExternalBranch)
 	if err != nil {
 		return
@@ -865,12 +865,12 @@ func deriveBranches(acctXpub *hdkeychain1.ExtendedKey) (extKey, intKey *hdkeycha
 // appendChildAddrsRange appends non-hardened child addresses from the range
 // [a,b) to the addrs slice.  If a child is unusable, it is skipped, so the
 // total number of addresses appended may not be exactly b-a.
-func appendChildAddrsRange(addrs *[]dcrutil.Address, key *hdkeychain1.ExtendedKey,
+func appendChildAddrsRange(addrs *[]dcrutil.Address, key *hdkeychain.ExtendedKey,
 	a, b uint32, params *chaincfg.Params) error {
 
-	for ; a < b && a < hdkeychain1.HardenedKeyStart; a++ {
+	for ; a < b && a < hdkeychain.HardenedKeyStart; a++ {
 		addr, err := deriveChildAddress(key, a, params)
-		if err == hdkeychain1.ErrInvalidChild {
+		if err == hdkeychain.ErrInvalidChild {
 			continue
 		}
 		if err != nil {

@@ -13,8 +13,9 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/addrmgr"
-	"github.com/decred/dcrd/chaincfg"
+	chaincfg1 "github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/connmgr"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"
@@ -233,7 +234,14 @@ func (rp *RemotePeer) KnownHeaders() *lru.Cache { return &rp.knownHeaders }
 // DNSSeed uses DNS to seed the local peer with remote addresses matching the
 // services.
 func (lp *LocalPeer) DNSSeed(services wire.ServiceFlag) {
-	connmgr.SeedFromDNS(lp.chainParams, services, net.LookupIP, func(addrs []*wire.NetAddress) {
+	params := &chaincfg1.MainNetParams
+	switch lp.chainParams.Net {
+	case wire.TestNet3:
+		params = &chaincfg1.TestNet3Params
+	case wire.SimNet:
+		params = &chaincfg1.SimNetParams
+	}
+	connmgr.SeedFromDNS(params, services, net.LookupIP, func(addrs []*wire.NetAddress) {
 		for _, a := range addrs {
 			as := &net.TCPAddr{IP: a.IP, Port: int(a.Port)}
 			log.Debugf("Discovered peer %v from seeder", as)

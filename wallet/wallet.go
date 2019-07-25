@@ -18,23 +18,24 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainec"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/chaincfg/v2/chainec"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrec/secp256k1"
 	"github.com/decred/dcrd/dcrjson/v3"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/gcs"
-	"github.com/decred/dcrd/hdkeychain"
+	"github.com/decred/dcrd/hdkeychain/v2"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/deployments"
+	"github.com/decred/dcrwallet/deployments/v2"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
+	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
 	"github.com/decred/dcrwallet/wallet/v3/txrules"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
@@ -1392,7 +1393,7 @@ func (w *Wallet) CurrentAddress(account uint32) (dcrutil.Address, error) {
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	addr, err := child.Address(w.chainParams)
+	addr, err := compat.HD2Address(child, w.chainParams)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -1459,7 +1460,7 @@ func (w *Wallet) SignMessage(msg string, addr dcrutil.Address) (sig []byte, err 
 
 // VerifyMessage verifies that sig is a valid signature of msg and was created
 // using the secp256k1 private key for addr.
-func VerifyMessage(msg string, addr dcrutil.Address, sig []byte) (bool, error) {
+func VerifyMessage(msg string, addr dcrutil.Address, sig []byte, params dcrutil.AddressParams) (bool, error) {
 	const op errors.Op = "wallet.VerifyMessage"
 	// Validate the signature - this just shows that it was valid for any pubkey
 	// at all. Whether the pubkey matches is checked below.
@@ -1480,13 +1481,13 @@ func VerifyMessage(msg string, addr dcrutil.Address, sig []byte) (bool, error) {
 	} else {
 		serializedPK = pk.SerializeUncompressed()
 	}
-	recoveredAddr, err := dcrutil.NewAddressSecpPubKey(serializedPK, addr.Net())
+	recoveredAddr, err := dcrutil.NewAddressSecpPubKey(serializedPK, params)
 	if err != nil {
 		return false, errors.E(op, err)
 	}
 
 	// Return whether addresses match.
-	return recoveredAddr.EncodeAddress() == addr.EncodeAddress(), nil
+	return recoveredAddr.Address() == addr.Address(), nil
 }
 
 // HaveAddress returns whether the wallet is the owner of the address a.
@@ -1683,7 +1684,7 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 	}
 	w.addressBuffersMu.Lock()
 	w.addressBuffers[account] = &bip0044AccountData{
-		xpub:        hd1to2(xpub, w.chainParams),
+		xpub:        xpub,
 		albExternal: addressBuffer{branchXpub: extKey, lastUsed: ^uint32(0)},
 		albInternal: addressBuffer{branchXpub: intKey, lastUsed: ^uint32(0)},
 	}
@@ -1729,7 +1730,7 @@ func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	extKey, err := hdkeychain.NewKeyFromString(masterPubKey)
+	extKey, err := hdkeychain.NewKeyFromString(masterPubKey, w.chainParams)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -1903,7 +1904,7 @@ outputs:
 			output.PkScript, net)
 		if len(addrs) == 1 {
 			addr := addrs[0]
-			address = addr.EncodeAddress()
+			address = addr.Address()
 			account, err := addrMgr.AddrAccount(addrmgrNs, addrs[0])
 			if err == nil {
 				accountName, err = addrMgr.AccountName(addrmgrNs, account)
@@ -2072,7 +2073,7 @@ func (w *Wallet) ListAddressTransactions(pkHashes map[string]struct{}) ([]types.
 				for _, cred := range detail.Credits {
 					pkScript := detail.MsgTx.TxOut[cred.Index].PkScript
 					_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-						txscript.DefaultScriptVersion, pkScript, w.chainParams)
+						0, pkScript, w.chainParams)
 					if err != nil || len(addrs) != 1 {
 						continue
 					}
@@ -2807,7 +2808,7 @@ func (w *Wallet) Accounts() (*AccountsResult, error) {
 			output := unspent[i]
 			var outputAcct uint32
 			_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				txscript.DefaultScriptVersion, output.PkScript, w.chainParams)
+				0, output.PkScript, w.chainParams)
 			if err == nil && len(addrs) > 0 {
 				outputAcct, err = w.Manager.AddrAccount(addrmgrNs, addrs[0])
 			}
@@ -2957,7 +2958,7 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 			// grouped under the associated account in the db.
 			acctName := defaultAccountName
 			sc, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				txscript.DefaultScriptVersion, output.PkScript, w.chainParams)
+				0, output.PkScript, w.chainParams)
 			if err != nil {
 				continue
 			}
@@ -2975,7 +2976,7 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 
 			if filter {
 				for _, addr := range addrs {
-					_, ok := addresses[addr.EncodeAddress()]
+					_, ok := addresses[addr.Address()]
 					if ok {
 						goto include
 					}
@@ -3040,7 +3041,7 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 			// addresses can be included, or removed (and the
 			// caller extracts addresses from the pkScript).
 			if len(addrs) > 0 {
-				result.Address = addrs[0].EncodeAddress()
+				result.Address = addrs[0].Address()
 			}
 
 			results = append(results, result)
@@ -3073,10 +3074,7 @@ func (w *Wallet) DumpWIFPrivateKey(addr dcrutil.Address) (string, error) {
 	if err != nil {
 		return "", errors.E(op, err)
 	}
-	wif, err := dcrutil.NewWIF(privKey, w.chainParams, dcrec.SignatureType(privKey.GetType()))
-	if err != nil {
-		return "", errors.E(op, err)
-	}
+	wif := dcrutil.NewWIF(privKey, w.chainParams.PrivateKeyID, dcrec.SignatureType(privKey.GetType()))
 	return wif.String(), nil
 }
 
@@ -3108,7 +3106,7 @@ func (w *Wallet) ImportPrivateKey(wif *dcrutil.WIF) (string, error) {
 		}
 	}
 
-	addrStr := addr.EncodeAddress()
+	addrStr := addr.Address()
 	log.Infof("Imported payment address %s", addrStr)
 
 	w.NtfnServer.notifyAccountProperties(props)
@@ -3241,7 +3239,7 @@ func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		tipHash, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 		res.BlockHeight = int64(tipHeight)
-		if deployments.DCP0001.Active(tipHeight, w.chainParams) {
+		if deployments.DCP0001.Active(tipHeight, w.chainParams.Net) {
 			tipHeader, err := w.TxStore.GetBlockHeader(dbtx, &tipHash)
 			if err != nil {
 				return err
@@ -3350,7 +3348,7 @@ func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpcCaller Caller) (*Stake
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		tipHash, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 		res.BlockHeight = int64(tipHeight)
-		if deployments.DCP0001.Active(tipHeight, w.chainParams) {
+		if deployments.DCP0001.Active(tipHeight, w.chainParams.Net) {
 			tipHeader, err := w.TxStore.GetBlockHeader(dbtx, &tipHash)
 			if err != nil {
 				return err
@@ -3563,7 +3561,7 @@ func (w *Wallet) SortedActivePaymentAddresses() ([]string, error) {
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		return w.Manager.ForEachActiveAddress(addrmgrNs, func(addr dcrutil.Address) error {
-			addrStrs = append(addrStrs, addr.EncodeAddress())
+			addrStrs = append(addrStrs, addr.Address())
 			return nil
 		})
 	})
@@ -3712,7 +3710,7 @@ func (w *Wallet) TotalReceivedForAddr(addr dcrutil.Address, minConf int32) (dcru
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 
 		var (
-			addrStr    = addr.EncodeAddress()
+			addrStr    = addr.Address()
 			stopHeight int32
 		)
 
@@ -3735,7 +3733,7 @@ func (w *Wallet) TotalReceivedForAddr(addr dcrutil.Address, minConf int32) (dcru
 						continue
 					}
 					for _, a := range addrs {
-						if addrStr == a.EncodeAddress() {
+						if addrStr == a.Address() {
 							amount += cred.Amount
 							break
 						}
@@ -3839,12 +3837,12 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 			getKey := txscript.KeyClosure(func(addr dcrutil.Address) (
 				chainec.PrivateKey, bool, error) {
 				if len(additionalKeysByAddress) != 0 {
-					addrStr := addr.EncodeAddress()
+					addrStr := addr.Address()
 					wif, ok := additionalKeysByAddress[addrStr]
 					if !ok {
 						return nil, false,
 							errors.Errorf("no key for address (needed: %v, have %v)",
-								addr.EncodeAddress(), additionalKeysByAddress)
+								addr.Address(), additionalKeysByAddress)
 					}
 					return wif.PrivKey, true, nil
 				}
@@ -3856,7 +3854,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 				pka, ok := address.(udb.ManagedPubKeyAddress)
 				if !ok {
 					return nil, false, errors.Errorf("address %v is not "+
-						"a pubkey address", address.Address().EncodeAddress())
+						"a pubkey address", address.Address().Address())
 				}
 				key, done, err := w.Manager.PrivateKey(addrmgrNs, addr)
 				if err != nil {
@@ -3870,7 +3868,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 				// If keys were provided then we can only use the
 				// redeem scripts provided with our inputs, too.
 				if len(additionalKeysByAddress) != 0 {
-					addrStr := addr.EncodeAddress()
+					addrStr := addr.Address()
 					script, ok := p2shRedeemScriptsByAddress[addrStr]
 					if !ok {
 						return nil, errors.New("no script for " +
@@ -3904,7 +3902,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 				// Check for alternative checksig scripts and
 				// set the signature suite accordingly.
 				ecType := dcrec.STEcdsaSecp256k1
-				class := txscript.GetScriptClass(txscript.DefaultScriptVersion, prevOutScript)
+				class := txscript.GetScriptClass(0, prevOutScript)
 				if class == txscript.PubkeyAltTy ||
 					class == txscript.PubkeyHashAltTy {
 					var err error
@@ -3933,14 +3931,14 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 			// Either it was already signed or we just signed it.
 			// Find out if it is completely satisfied or still needs more.
 			vm, err := txscript.NewEngine(prevOutScript, tx, i,
-				sanityVerifyFlags, txscript.DefaultScriptVersion, nil)
+				sanityVerifyFlags, 0, nil)
 			if err == nil {
 				err = vm.Execute()
 			}
 			if err != nil {
 				multisigNotEnoughSigs := false
 				class, addr, _, _ := txscript.ExtractPkScriptAddrs(
-					txscript.DefaultScriptVersion,
+					0,
 					additionalPrevScripts[txIn.PreviousOutPoint],
 					w.ChainParams())
 
@@ -3948,7 +3946,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 					class == txscript.ScriptHashTy {
 					redeemScript, _ := getScript(addr[0])
 					redeemClass := txscript.GetScriptClass(
-						txscript.DefaultScriptVersion, redeemScript)
+						0, redeemScript)
 					if redeemClass == txscript.MultiSigTy {
 						multisigNotEnoughSigs = true
 					}
@@ -4018,8 +4016,8 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 	for _, in := range tx.TxIn {
 		// Input is relevant if it contains a saved redeem script or spends a
 		// wallet output.
-		rs, err := txscript.MultisigRedeemScriptFromScriptSig(in.SignatureScript)
-		if err == nil && rs != nil && w.Manager.ExistsHash160(addrmgrNs,
+		rs := txscript.MultisigRedeemScriptFromScriptSig(in.SignatureScript)
+		if rs != nil && w.Manager.ExistsHash160(addrmgrNs,
 			dcrutil.Hash160(rs)) {
 			return true
 		}
@@ -4291,12 +4289,9 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 	}
 
 	// Parse the extended public key and ensure it's the right network.
-	key, err := hdkeychain.NewKeyFromString(splStrs[0])
+	key, err := hdkeychain.NewKeyFromString(splStrs[0], params)
 	if err != nil {
 		return nil, err
-	}
-	if !key.IsForNet(params) {
-		return nil, errors.Errorf("extended public key is for wrong network")
 	}
 
 	// Parse the ending index and ensure it's valid.
@@ -4326,7 +4321,7 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 
 	addrMap := make(map[string]struct{})
 	for i := range addrs {
-		addrMap[addrs[i].EncodeAddress()] = struct{}{}
+		addrMap[addrs[i].Address()] = struct{}{}
 	}
 
 	return addrMap, nil
@@ -4372,7 +4367,7 @@ func Open(cfg *Config) (*Wallet, error) {
 		disableCoinTypeUpgrades: cfg.DisableCoinTypeUpgrades,
 
 		// Chain params
-		subsidyCache: blockchain.NewSubsidyCache(0, cfg.Params),
+		subsidyCache: blockchain.NewSubsidyCache(0, compat.Params2to1(cfg.Params)),
 		chainParams:  cfg.Params,
 
 		lockedOutpoints: map[wire.OutPoint]struct{}{},
@@ -4408,7 +4403,7 @@ func Open(cfg *Config) (*Wallet, error) {
 				return err
 			}
 			w.addressBuffers[acct] = &bip0044AccountData{
-				xpub: hd1to2(xpub, w.chainParams),
+				xpub: xpub,
 				albExternal: addressBuffer{
 					branchXpub: extKey,
 					lastUsed:   props.LastUsedExternalIndex,

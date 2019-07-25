@@ -11,11 +11,11 @@ import (
 	"sync"
 
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/hdkeychain/v2"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
@@ -237,7 +237,7 @@ func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]dcrutil.Amount)
 		output := unspent[i]
 		var outputAcct uint32
 		_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-			txscript.DefaultScriptVersion, output.PkScript, w.chainParams)
+			0, output.PkScript, w.chainParams)
 		if err == nil && len(addrs) > 0 {
 			outputAcct, err = w.Manager.AddrAccount(addrmgrNs, addrs[0])
 		}

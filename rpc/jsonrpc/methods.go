@@ -18,15 +18,15 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrjson/v3"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/hdkeychain/v2"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/helpers"
@@ -405,7 +405,7 @@ func (s *Server) addMultiSigAddress(ctx context.Context, icmd interface{}) (inte
 		return nil, err
 	}
 
-	return p2shAddr.EncodeAddress(), nil
+	return p2shAddr.Address(), nil
 }
 
 // addTicket adds a ticket to the stake manager manually.
@@ -489,7 +489,7 @@ func (s *Server) createMultiSig(ctx context.Context, icmd interface{}) (interfac
 	}
 
 	return types.CreateMultiSigResult{
-		Address:      address.EncodeAddress(),
+		Address:      address.Address(),
 		RedeemScript: hex.EncodeToString(script),
 	}, nil
 }
@@ -602,14 +602,14 @@ func (s *Server) getAddressesByAccount(ctx context.Context, icmd interface{}) (i
 		return nil, err
 	}
 	for i := range addrsExt {
-		addrsStr[i] = addrsExt[i].EncodeAddress()
+		addrsStr[i] = addrsExt[i].Address()
 	}
 	addrsInt, err := w.AccountBranchAddressRange(account, udb.InternalBranch, 0, endInt)
 	if err != nil {
 		return nil, err
 	}
 	for i := range addrsInt {
-		addrsStr[i+int(endExt)] = addrsInt[i].EncodeAddress()
+		addrsStr[i+int(endExt)] = addrsInt[i].Address()
 	}
 
 	return addrsStr, nil
@@ -881,14 +881,10 @@ func decodeAddress(s string, params *chaincfg.Params) (dcrutil.Address, error) {
 		return pubKeyAddr, nil
 	}
 
-	addr, err := dcrutil.DecodeAddress(s)
+	addr, err := dcrutil.DecodeAddress(s, params)
 	if err != nil {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
 			"invalid address %q: decode failed: %#q", s, err)
-	}
-	if !addr.IsForNet(params) {
-		return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
-			"invalid address %q: not intended for use on %s", s, params.Name)
 	}
 	return addr, nil
 }
@@ -952,7 +948,7 @@ func (s *Server) getAccountAddress(ctx context.Context, icmd interface{}) (inter
 		return nil, err
 	}
 
-	return addr.EncodeAddress(), nil
+	return addr.Address(), nil
 }
 
 // getUnconfirmedBalance handles a getunconfirmedbalance extension request
@@ -1016,12 +1012,9 @@ func (s *Server) importPrivKey(ctx context.Context, icmd interface{}) (interface
 		return nil, errNotImportedAccount
 	}
 
-	wif, err := dcrutil.DecodeWIF(cmd.PrivKey)
+	wif, err := dcrutil.DecodeWIF(cmd.PrivKey, w.ChainParams().PrivateKeyID)
 	if err != nil {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey, "WIF decode failed: %v", err)
-	}
-	if !wif.IsForNet(w.ChainParams()) {
-		return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey, "key is not intended for %s", w.ChainParams().Name)
 	}
 
 	// Import the private key, handling any errors.
@@ -1186,7 +1179,7 @@ func (s *Server) getMultisigOutInfo(ctx context.Context, icmd interface{}) (inte
 
 	// Get the list of pubkeys required to sign.
 	_, pubkeyAddrs, _, err := txscript.ExtractPkScriptAddrs(
-		txscript.DefaultScriptVersion, p2shOutput.RedeemScript,
+		0, p2shOutput.RedeemScript,
 		w.ChainParams())
 	if err != nil {
 		return nil, err
@@ -1197,7 +1190,7 @@ func (s *Server) getMultisigOutInfo(ctx context.Context, icmd interface{}) (inte
 	}
 
 	result := &types.GetMultisigOutInfoResult{
-		Address:      p2shOutput.P2SHAddress.EncodeAddress(),
+		Address:      p2shOutput.P2SHAddress.Address(),
 		RedeemScript: hex.EncodeToString(p2shOutput.RedeemScript),
 		M:            p2shOutput.M,
 		N:            p2shOutput.N,
@@ -1258,7 +1251,7 @@ func (s *Server) getNewAddress(ctx context.Context, icmd interface{}) (interface
 	if err != nil {
 		return nil, err
 	}
-	return addr.EncodeAddress(), nil
+	return addr.Address(), nil
 }
 
 // getRawChangeAddress handles a getrawchangeaddress request by creating
@@ -1291,7 +1284,7 @@ func (s *Server) getRawChangeAddress(ctx context.Context, icmd interface{}) (int
 	}
 
 	// Return the new payment address string.
-	return addr.EncodeAddress(), nil
+	return addr.Address(), nil
 }
 
 // getReceivedByAccount handles a getreceivedbyaccount request by returning
@@ -1832,7 +1825,7 @@ func (s *Server) listReceivedByAddress(ctx context.Context, icmd interface{}) (i
 					continue
 				}
 				for _, addr := range addrs {
-					addrStr := addr.EncodeAddress()
+					addrStr := addr.Address()
 					addrData, ok := allAddrData[addrStr]
 					if ok {
 						addrData.amount += cred.Amount
@@ -1934,7 +1927,7 @@ func (s *Server) listScripts(ctx context.Context, icmd interface{}) (interface{}
 		}
 		listScriptsResultSIs[i] = types.ScriptInfo{
 			Hash160:      hex.EncodeToString(p2shAddr.Hash160()[:]),
-			Address:      p2shAddr.EncodeAddress(),
+			Address:      p2shAddr.Address(),
 			RedeemScript: hex.EncodeToString(redeemScript),
 		}
 	}
@@ -2032,7 +2025,7 @@ func (s *Server) listUnspent(ctx context.Context, icmd interface{}) (interface{}
 			if err != nil {
 				return nil, err
 			}
-			addresses[a.EncodeAddress()] = struct{}{}
+			addresses[a.Address()] = struct{}{}
 		}
 	}
 
@@ -2190,7 +2183,7 @@ func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err e
 		return addr.ScriptV0(), 0, nil
 	default:
 		pkScript, err = txscript.PayToAddrScript(addr)
-		return pkScript, txscript.DefaultScriptVersion, err
+		return pkScript, 0, err
 	}
 }
 
@@ -2291,7 +2284,7 @@ func (s *Server) redeemMultiSigOut(ctx context.Context, icmd interface{}) (inter
 	if err != nil {
 		return nil, err
 	}
-	sc := txscript.GetScriptClass(txscript.DefaultScriptVersion,
+	sc := txscript.GetScriptClass(0,
 		p2shOutput.RedeemScript)
 	if sc != txscript.MultiSigTy {
 		return nil, errors.E("P2SH redeem script is not multisig")
@@ -2459,7 +2452,7 @@ func (s *Server) stakePoolUserInfo(ctx context.Context, icmd interface{}) (inter
 		return nil, errUnloadedWallet
 	}
 
-	userAddr, err := dcrutil.DecodeAddress(cmd.User)
+	userAddr, err := dcrutil.DecodeAddress(cmd.User, w.ChainParams())
 	if err != nil {
 		return nil, err
 	}
@@ -2521,7 +2514,7 @@ func (s *Server) ticketsForAddress(ctx context.Context, icmd interface{}) (inter
 		return nil, errUnloadedWallet
 	}
 
-	addr, err := dcrutil.DecodeAddress(cmd.Address)
+	addr, err := dcrutil.DecodeAddress(cmd.Address, w.ChainParams())
 	if err != nil {
 		return nil, err
 	}
@@ -2734,7 +2727,7 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 
 	result := &types.SendToMultiSigResult{
 		TxHash:       tx.MsgTx.TxHash().String(),
-		Address:      addr.EncodeAddress(),
+		Address:      addr.Address(),
 		RedeemScript: hex.EncodeToString(script),
 	}
 
@@ -2969,13 +2962,9 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 		keys = make(map[string]*dcrutil.WIF)
 
 		for _, key := range *cmd.PrivKeys {
-			wif, err := dcrutil.DecodeWIF(key)
+			wif, err := dcrutil.DecodeWIF(key, w.ChainParams().PrivateKeyID)
 			if err != nil {
 				return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
-			}
-
-			if !wif.IsForNet(w.ChainParams()) {
-				return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "key intended for different network")
 			}
 
 			var addr dcrutil.Address
@@ -3001,7 +2990,7 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 					return nil, err
 				}
 			}
-			keys[addr.EncodeAddress()] = wif
+			keys[addr.Address()] = wif
 		}
 	}
 
@@ -3153,8 +3142,8 @@ func (src *scriptChangeSource) ScriptSize() int {
 	return len(src.script)
 }
 
-func makeScriptChangeSource(address string, version uint16) (*scriptChangeSource, error) {
-	destinationAddress, err := dcrutil.DecodeAddress(address)
+func makeScriptChangeSource(address string, version uint16, params *chaincfg.Params) (*scriptChangeSource, error) {
+	destinationAddress, err := dcrutil.DecodeAddress(address, params)
 	if err != nil {
 		return nil, err
 	}
@@ -3212,8 +3201,7 @@ func (s *Server) sweepAccount(ctx context.Context, icmd interface{}) (interface{
 		return nil, err
 	}
 
-	changeSource, err := makeScriptChangeSource(cmd.DestinationAddress,
-		txscript.DefaultScriptVersion)
+	changeSource, err := makeScriptChangeSource(cmd.DestinationAddress, 0, w.ChainParams())
 	if err != nil {
 		return nil, err
 	}
@@ -3262,7 +3250,7 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 	// by checking the type of "addr", however, the reference
 	// implementation only puts that information if the script is
 	// "ismine", and we follow that behaviour.
-	result.Address = addr.EncodeAddress()
+	result.Address = addr.Address()
 	result.IsValid = true
 
 	ainfo, err := w.AddressInfo(addr)
@@ -3317,7 +3305,7 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 		// further information available, so just set the script type
 		// a non-standard and break out now.
 		class, addrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
-			txscript.DefaultScriptVersion, script, w.ChainParams())
+			0, script, w.ChainParams())
 		if err != nil {
 			result.Script = txscript.NonStandardTy.String()
 			break
@@ -3325,7 +3313,7 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 
 		addrStrings := make([]string, len(addrs))
 		for i, a := range addrs {
-			addrStrings[i] = a.EncodeAddress()
+			addrStrings[i] = a.Address()
 		}
 		result.Addresses = addrStrings
 
@@ -3348,7 +3336,7 @@ func (s *Server) verifyMessage(ctx context.Context, icmd interface{}) (interface
 	var valid bool
 
 	// Decode address and base64 signature from the request.
-	addr, err := dcrutil.DecodeAddress(cmd.Address)
+	addr, err := dcrutil.DecodeAddress(cmd.Address, s.activeNet)
 	if err != nil {
 		return nil, err
 	}
@@ -3362,14 +3350,14 @@ func (s *Server) verifyMessage(ctx context.Context, icmd interface{}) (interface
 	switch a := addr.(type) {
 	case *dcrutil.AddressSecpPubKey:
 	case *dcrutil.AddressPubKeyHash:
-		if a.DSA(a.Net()) != dcrec.STEcdsaSecp256k1 {
+		if a.DSA() != dcrec.STEcdsaSecp256k1 {
 			goto WrongAddrKind
 		}
 	default:
 		goto WrongAddrKind
 	}
 
-	valid, err = wallet.VerifyMessage(cmd.Message, addr, sig)
+	valid, err = wallet.VerifyMessage(cmd.Message, addr, sig, s.activeNet)
 	// Mirror Bitcoin Core behavior, which treats all erorrs as an invalid
 	// signature.
 	return err == nil && valid, nil

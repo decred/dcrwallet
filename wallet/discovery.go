@@ -10,10 +10,10 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/gcs/blockcf"
-	hd "github.com/decred/dcrd/hdkeychain"
+	hd "github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
@@ -467,7 +467,7 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blo
 			}
 		}
 
-		searchBlocks, err := w.filterBlocks(ctx, w.chainParams.GenesisHash, addrScripts)
+		searchBlocks, err := w.filterBlocks(ctx, &w.chainParams.GenesisHash, addrScripts)
 		if err != nil {
 			return 0, err
 		}
@@ -825,7 +825,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 						return errors.E(op, err)
 					}
 					w.addressBuffers[acct] = &bip0044AccountData{
-						xpub:        hd1to2(xpub, w.chainParams),
+						xpub:        xpub,
 						albExternal: addressBuffer{branchXpub: extKey},
 						albInternal: addressBuffer{branchXpub: intKey},
 					}

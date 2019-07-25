@@ -5,7 +5,7 @@
 package wallet
 
 import (
-	"github.com/decred/dcrd/hdkeychain"
+	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
@@ -49,7 +49,7 @@ func (w *Wallet) UpgradeToSLIP0044CoinType() error {
 
 	w.addressBuffersMu.Lock()
 	w.addressBuffers[0] = &bip0044AccountData{
-		xpub:        hd1to2(acctXpub, w.chainParams),
+		xpub:        acctXpub,
 		albExternal: addressBuffer{branchXpub: extBranchXpub, lastUsed: ^uint32(0)},
 		albInternal: addressBuffer{branchXpub: intBranchXpub, lastUsed: ^uint32(0)},
 	}

@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	_ "github.com/decred/dcrwallet/wallet/v3/drivers/bdb"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
@@ -19,7 +19,7 @@ var basicWalletConfig = Config{
 	PubPassphrase: []byte(InsecurePubPassphrase),
 	GapLimit:      20,
 	RelayFee:      dcrutil.Amount(1e5).ToCoin(),
-	Params:        &chaincfg.SimNetParams,
+	Params:        chaincfg.SimNetParams(),
 }
 
 func testWallet(t *testing.T, cfg *Config) (w *Wallet, teardown func()) {

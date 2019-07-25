@@ -1,6 +1,3 @@
-module github.com/decred/dcrwallet/deployments
+module github.com/decred/dcrwallet/deployments/v2
 
-require (
-	github.com/decred/dcrd/chaincfg v1.5.1
-	github.com/decred/dcrd/wire v1.2.0
-)
+require github.com/decred/dcrd/wire v1.2.0

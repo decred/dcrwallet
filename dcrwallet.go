@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/addrmgr"
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/chain/v3"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/prompt"
@@ -150,8 +150,8 @@ func run(ctx context.Context) error {
 	stakeOptions := &ldr.StakeOptions{
 		VotingEnabled:       cfg.EnableVoting,
 		AddressReuse:        cfg.ReuseAddresses,
-		VotingAddress:       cfg.TBOpts.VotingAddress.Address,
-		PoolAddress:         cfg.PoolAddress.Address,
+		VotingAddress:       cfg.TBOpts.votingAddress,
+		PoolAddress:         cfg.poolAddress,
 		PoolFees:            cfg.PoolFees,
 		StakePoolColdExtKey: cfg.StakePoolColdExtKey,
 		TicketFee:           cfg.RelayFee.ToCoin(),
@@ -244,8 +244,8 @@ func run(ctx context.Context) error {
 				c.Account = acct
 				c.VotingAccount = acct // TODO: Make this a unique config option. Set to acct for compat with v1.
 				c.Maintain = cfg.TBOpts.BalanceToMaintainAbsolute.Amount
-				c.VotingAddr = cfg.TBOpts.VotingAddress.Address
-				c.PoolFeeAddr = cfg.PoolAddress.Address
+				c.VotingAddr = cfg.TBOpts.votingAddress
+				c.PoolFeeAddr = cfg.poolAddress
 				c.PoolFees = cfg.PoolFees
 				c.Limit = int(cfg.TBOpts.Limit)
 			})
@@ -383,7 +383,7 @@ func startPromptPass(ctx context.Context, w *wallet.Wallet) []byte {
 	// if stake mining is currently on, so users with this flag
 	// are prompted here as well.
 	for {
-		if w.ChainParams() == &chaincfg.SimNetParams {
+		if w.ChainParams().Net == wire.SimNet {
 			err := w.Unlock(wallet.SimulationPassphrase, nil)
 			if err == nil {
 				// Unlock success with the default password.

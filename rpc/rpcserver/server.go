@@ -32,13 +32,13 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/decred/dcrd/addrmgr"
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/hdkeychain/v2"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/chain/v3"
 	"github.com/decred/dcrwallet/errors"
@@ -133,13 +133,9 @@ func errorCode(err error) codes.Code {
 // network.  This should be used preferred to direct usage of
 // dcrutil.DecodeAddress, which does not perform the network check.
 func decodeAddress(a string, params *chaincfg.Params) (dcrutil.Address, error) {
-	addr, err := dcrutil.DecodeAddress(a)
+	addr, err := dcrutil.DecodeAddress(a, params)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid address %v: %v", a, err)
-	}
-	if !addr.IsForNet(params) {
-		return nil, status.Errorf(codes.InvalidArgument,
-			"address %v is not intended for use on %v", a, params.Name)
 	}
 	return addr, nil
 }
@@ -199,7 +195,9 @@ type votingServer struct {
 
 // messageVerificationServer provides RPC clients with the ability to verify
 // that a message was signed using the private key of a particular address.
-type messageVerificationServer struct{}
+type messageVerificationServer struct {
+	chainParams *chaincfg.Params
+}
 
 type decodeMessageServer struct {
 	chainParams *chaincfg.Params
@@ -499,7 +497,7 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	}
 
 	return &pb.NextAddressResponse{
-		Address:   addr.EncodeAddress(),
+		Address:   addr.Address(),
 		PublicKey: pubKeyAddrString,
 	}, nil
 }
@@ -509,7 +507,7 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 
 	defer zero.Bytes(req.Passphrase)
 
-	wif, err := dcrutil.DecodeWIF(req.PrivateKeyWif)
+	wif, err := dcrutil.DecodeWIF(req.PrivateKeyWif, s.wallet.ChainParams().PrivateKeyID)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"Invalid WIF-encoded private key: %v", err)
@@ -566,7 +564,7 @@ func (s *walletServer) ImportScript(ctx context.Context,
 	// TODO: Rather than assuming the "default" version, it must be a parameter
 	// to the request.
 	sc, addrs, requiredSigs, err := txscript.ExtractPkScriptAddrs(
-		txscript.DefaultScriptVersion, req.Script, s.wallet.ChainParams())
+		0, req.Script, s.wallet.ChainParams())
 	if err != nil && req.RequireRedeemable {
 		return nil, status.Errorf(codes.FailedPrecondition,
 			"The script is not redeemable by the wallet")
@@ -705,7 +703,7 @@ func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err e
 		return addr.ScriptV0(), 0, nil
 	default:
 		pkScript, err = txscript.PayToAddrScript(addr)
-		return pkScript, txscript.DefaultScriptVersion, err
+		return pkScript, 0, err
 	}
 }
 
@@ -724,8 +722,8 @@ func (src *scriptChangeSource) ScriptSize() int {
 	return len(src.script)
 }
 
-func makeScriptChangeSource(address string, version uint16) (*scriptChangeSource, error) {
-	destinationAddress, err := dcrutil.DecodeAddress(address)
+func makeScriptChangeSource(address string, version uint16, params *chaincfg.Params) (*scriptChangeSource, error) {
+	destinationAddress, err := dcrutil.DecodeAddress(address, params)
 	if err != nil {
 		return nil, err
 	}
@@ -770,8 +768,7 @@ func (s *walletServer) SweepAccount(ctx context.Context, req *pb.SweepAccountReq
 		return nil, translateError(err)
 	}
 
-	changeSource, err := makeScriptChangeSource(req.DestinationAddress,
-		txscript.DefaultScriptVersion)
+	changeSource, err := makeScriptChangeSource(req.DestinationAddress, 0, s.wallet.ChainParams())
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1702,7 +1699,7 @@ func (s *walletServer) signMessage(address, message string) ([]byte, error) {
 	switch a := addr.(type) {
 	case *dcrutil.AddressSecpPubKey:
 	case *dcrutil.AddressPubKeyHash:
-		if a.DSA(a.Net()) != dcrec.STEcdsaSecp256k1 {
+		if a.DSA() != dcrec.STEcdsaSecp256k1 {
 			goto WrongAddrKind
 		}
 	default:
@@ -1827,7 +1824,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 		// further information available, so just set the script type
 		// a non-standard and break out now.
 		class, addrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
-			txscript.DefaultScriptVersion, script, s.wallet.ChainParams())
+			0, script, s.wallet.ChainParams())
 		if err != nil {
 			result.ScriptType = pb.ValidateAddressResponse_NonStandardTy
 			break
@@ -1835,7 +1832,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 
 		addrStrings := make([]string, len(addrs))
 		for i, a := range addrs {
-			addrStrings[i] = a.EncodeAddress()
+			addrStrings[i] = a.Address()
 		}
 		result.PkScriptAddrs = addrStrings
 
@@ -2778,12 +2775,17 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 	return resp, nil
 }
 
+// StartMessageVerificationService starts the MessageVerification service
+func StartMessageVerificationService(server *grpc.Server, chainParams *chaincfg.Params) {
+	messageVerificationService.chainParams = chainParams
+}
+
 func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.VerifyMessageRequest) (
 	*pb.VerifyMessageResponse, error) {
 
 	var valid bool
 
-	addr, err := dcrutil.DecodeAddress(req.Address)
+	addr, err := dcrutil.DecodeAddress(req.Address, s.chainParams)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -2793,14 +2795,14 @@ func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.V
 	switch a := addr.(type) {
 	case *dcrutil.AddressSecpPubKey:
 	case *dcrutil.AddressPubKeyHash:
-		if a.DSA(a.Net()) != dcrec.STEcdsaSecp256k1 {
+		if a.DSA() != dcrec.STEcdsaSecp256k1 {
 			goto WrongAddrKind
 		}
 	default:
 		goto WrongAddrKind
 	}
 
-	valid, err = wallet.VerifyMessage(req.Message, addr, req.Signature)
+	valid, err = wallet.VerifyMessage(req.Message, addr, req.Signature, s.chainParams)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -2868,7 +2870,7 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 						"commitment addr output for tx hash "+
 						"%v, output idx %v", mtx.TxHash(), i)}
 			} else {
-				encodedAddrs = []string{addr.EncodeAddress()}
+				encodedAddrs = []string{addr.Address()}
 			}
 			amt, err := stake.AmountFromSStxPkScrCommitment(v.PkScript)
 			if err != nil {
@@ -2882,7 +2884,7 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 				v.Version, v.PkScript, chainParams)
 			encodedAddrs = make([]string, len(addrs))
 			for j, addr := range addrs {
-				encodedAddrs[j] = addr.EncodeAddress()
+				encodedAddrs[j] = addr.Address()
 			}
 		}
 

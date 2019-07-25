@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/wire"
@@ -43,7 +43,7 @@ type blockGenerator struct {
 }
 
 func makeBlockGenerator() blockGenerator {
-	return blockGenerator{lastHash: *chaincfg.TestNet3Params.GenesisHash}
+	return blockGenerator{lastHash: chaincfg.TestNet3Params().GenesisHash}
 }
 
 func (g *blockGenerator) generate(voteBits uint16) *wire.BlockHeader {
