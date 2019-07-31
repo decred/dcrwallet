@@ -39,8 +39,9 @@ type Syncer struct {
 	mu            sync.Mutex
 
 	// Sidechain management
-	sidechains  wallet.SidechainForest
-	relevantTxs map[chainhash.Hash][]*wire.MsgTx
+	sidechains   wallet.SidechainForest
+	sidechainsMu sync.Mutex
+	relevantTxs  map[chainhash.Hash][]*wire.MsgTx
 
 	cb *Callbacks
 }
@@ -371,9 +372,11 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 			if haveBlock {
 				continue
 			}
+			s.sidechainsMu.Lock()
 			if s.sidechains.AddBlockNode(n) {
 				added++
 			}
+			s.sidechainsMu.Unlock()
 		}
 
 		s.fetchHeadersProgress(int32(added), headers[len(headers)-1].Timestamp.Unix())
@@ -391,7 +394,9 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 			break
 		}
 
+		s.sidechainsMu.Lock()
 		bestChain, err := s.wallet.EvaluateBestChain(&s.sidechains)
+		s.sidechainsMu.Unlock()
 		if err != nil {
 			return err
 		}
@@ -404,7 +409,9 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 			return err
 		}
 
+		s.sidechainsMu.Lock()
 		prevChain, err := s.wallet.ChainSwitch(&s.sidechains, bestChain, nil)
+		s.sidechainsMu.Unlock()
 		if err != nil {
 			return err
 		}
@@ -412,9 +419,11 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		if len(prevChain) != 0 {
 			log.Infof("Reorganize from %v to %v (total %d block(s) reorged)",
 				prevChain[len(prevChain)-1].Hash, bestChain[len(bestChain)-1].Hash, len(prevChain))
+			s.sidechainsMu.Lock()
 			for _, n := range prevChain {
 				s.sidechains.AddBlockNode(n)
 			}
+			s.sidechainsMu.Unlock()
 		}
 		tip := bestChain[len(bestChain)-1]
 		if len(bestChain) == 1 {
@@ -573,6 +582,9 @@ func (s *Syncer) blockConnected(ctx context.Context, params json.RawMessage) err
 	if err != nil {
 		return err
 	}
+
+	s.sidechainsMu.Lock()
+	defer s.sidechainsMu.Unlock()
 
 	blockNode := wallet.NewBlockNode(header, &blockHash, filter)
 	s.sidechains.AddBlockNode(blockNode)
