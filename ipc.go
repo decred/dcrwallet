@@ -112,10 +112,10 @@ func drainOutgoingPipeMessages() {
 }
 
 // The jsonrpcListenerEvent is used to notify the listener addresses used for
-// the legacy JSON-RPC server.  The message type is "jsonrpclistener".  This
-// event is most notably useful when parent processes start the wallet with
-// listener addresses bound on port 0 to cause the operating system to select an
-// unused port.
+// the JSON-RPC server.  The message type is "jsonrpclistener".  This event is
+// most notably useful when parent processes start the wallet with listener
+// addresses bound on port 0 to cause the operating system to select an unused
+// port.
 //
 // The payload is the UTF8 bytes of the listener address, and the payload size
 // is the byte length of the string.

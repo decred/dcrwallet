@@ -90,7 +90,7 @@ func jsonAuthFail(w http.ResponseWriter) {
 	http.Error(w, "401 Unauthorized.", http.StatusUnauthorized)
 }
 
-// NewServer creates a new server for serving legacy RPC client connections,
+// NewServer creates a new server for serving JSON-RPC client connections,
 // both HTTP POST and websocket.
 func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.Loader, listeners []net.Listener) *Server {
 	serveMux := http.NewServeMux()
@@ -192,7 +192,7 @@ func httpBasicAuth(username, password string) []byte {
 	return output
 }
 
-// serve serves HTTP POST and websocket RPC for the legacy JSON-RPC RPC server.
+// serve serves HTTP POST and websocket RPC for the JSON-RPC RPC server.
 // This function does not block on lis.Accept.
 func (s *Server) serve(lis net.Listener) {
 	s.wg.Add(1)

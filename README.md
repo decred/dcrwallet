@@ -47,7 +47,7 @@ the following features are disabled or unavailable to SPV wallets:
 
 Wallet clients interact with the wallet using one of two RPC servers:
 
-  1. A legacy JSON-RPC server inspired by the Bitcoin Core rpc server
+  1. A JSON-RPC server inspired by the Bitcoin Core rpc server
 
      The JSON-RPC server exists to ease the migration of wallet applications
      from Core, but complete compatibility is not guaranteed.  Some portions of
@@ -62,7 +62,7 @@ Wallet clients interact with the wallet using one of two RPC servers:
      The gRPC server uses a new API built for dcrwallet, but the API is not
      stabilized.  This server is enabled by default and may be disabled with
      the config option `--nogrpc`.  If you don't mind applications breaking
-     due to API changes, don't want to deal with issues of the legacy API, or
+     due to API changes, don't want to deal with issues of the JSON-RPC API, or
      need notifications for changes to the wallet, this is the RPC server to
      use. The gRPC server is documented [here](./rpc/documentation/README.md).
 
