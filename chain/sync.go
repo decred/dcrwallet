@@ -530,12 +530,12 @@ type notifier struct {
 
 func (n *notifier) Notify(method string, params json.RawMessage) error {
 	s := n.syncer
+	op := errors.Op(method)
 	switch method {
 	case "winningtickets":
 		err := s.winningTickets(n.ctx, params)
 		if err != nil {
-			err := errors.E(errors.Op("winningtickets"), err)
-			log.Error(err)
+			log.Error(errors.E(op, err))
 		}
 	case "blockconnected":
 		err := s.blockConnected(n.ctx, params)
@@ -543,15 +543,22 @@ func (n *notifier) Notify(method string, params json.RawMessage) error {
 			n.connectingBlocks = true
 			return nil
 		}
+		err = errors.E(op, err)
 		if !n.connectingBlocks {
 			log.Errorf("Failed to connect block: %v", err)
 			return nil
 		}
 		return err
 	case "relevanttxaccepted":
-		s.relevantTxAccepted(n.ctx, params)
+		err := s.relevantTxAccepted(n.ctx, params)
+		if err != nil {
+			log.Error(errors.E(op, err))
+		}
 	case "spentandmissedtickets":
-		s.spentAndMissedTickets(n.ctx, params)
+		err := s.spentAndMissedTickets(n.ctx, params)
+		if err != nil {
+			log.Error(errors.E(op, err))
+		}
 	}
 	return nil
 }
