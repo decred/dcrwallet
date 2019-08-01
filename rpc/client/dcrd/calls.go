@@ -132,7 +132,9 @@ func (r *RPC) UsedAddresses(ctx context.Context, addrs []dcrutil.Address) (bitse
 	addrArray, _ := json.Marshal(addrSliceToStrings(addrs))
 	var bits bitset.Bytes
 	err := exists(ctx, r, "existsaddresses", &bits, addrArray)
-	if err != nil { return nil, errors.E(op, err) }
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
 	return bits, nil
 }
 
@@ -143,7 +145,9 @@ func (r *RPC) ExistsLiveTickets(ctx context.Context, tickets []*chainhash.Hash) 
 	ticketArray, _ := json.Marshal(hashSliceToStrings(tickets))
 	var bits bitset.Bytes
 	err := exists(ctx, r, "existslivetickets", &bits, ticketArray)
-	if err != nil { return nil, errors.E(op, err) }
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
 	return bits, nil
 }
 
@@ -280,7 +284,7 @@ func (r *RPC) CFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*g
 func (r *RPC) Headers(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([]*wire.BlockHeader, error) {
 	const op errors.Op = "dcrd.Headers"
 
-	res := &struct{
+	res := &struct {
 		Headers *headers `json:"headers"`
 	}{
 		Headers: new(headers),

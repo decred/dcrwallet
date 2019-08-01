@@ -413,7 +413,7 @@ func spvLoop(ctx context.Context, w *wallet.Wallet) {
 	lp := p2p.NewLocalPeer(w.ChainParams(), addr, amgr)
 	syncer := spv.NewSyncer(w, lp)
 	if len(cfg.SPVConnect) > 0 {
-		syncer.SetPersistantPeers(cfg.SPVConnect)
+		syncer.SetPersistentPeers(cfg.SPVConnect)
 	}
 	w.SetNetworkBackend(syncer)
 	for {
