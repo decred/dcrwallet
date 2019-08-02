@@ -1873,15 +1873,26 @@ func (s *Server) listSinceBlock(ctx context.Context, icmd interface{}) (interfac
 		return nil, errUnloadedWallet
 	}
 
-	tipHash, tipHeight := w.MainChainTip()
 	targetConf := int32(*cmd.TargetConfirmations)
 	if targetConf < 1 {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "target_confirmations must be positive")
 	}
 
+	tipHash, tipHeight := w.MainChainTip()
+	lastBlock := &tipHash
+	if targetConf > 0 {
+		id := wallet.NewBlockIdentifierFromHeight((tipHeight + 1) - targetConf)
+		info, err := w.BlockInfo(id)
+		if err != nil {
+			return nil, err
+		}
+
+		lastBlock = &info.Hash
+	}
+
 	// TODO: This must begin at the fork point in the main chain, not the height
 	// of this block.
-	var start int32
+	var end int32
 	if cmd.BlockHash != nil {
 		hash, err := chainhash.NewHashFromStr(*cmd.BlockHash)
 		if err != nil {
@@ -1891,17 +1902,17 @@ func (s *Server) listSinceBlock(ctx context.Context, icmd interface{}) (interfac
 		if err != nil {
 			return nil, err
 		}
-		start = int32(header.Height)
+		end = int32(header.Height)
 	}
 
-	txInfoList, err := w.ListSinceBlock(start, tipHeight+1-targetConf, tipHeight)
+	txInfoList, err := w.ListSinceBlock(-1, end, tipHeight)
 	if err != nil {
 		return nil, err
 	}
 
 	res := &types.ListSinceBlockResult{
 		Transactions: txInfoList,
-		LastBlock:    tipHash.String(),
+		LastBlock:    lastBlock.String(),
 	}
 	return res, nil
 }
