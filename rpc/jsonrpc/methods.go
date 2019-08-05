@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/decred/dcrwallet/spv/v2"
 	"math/big"
 	"strings"
 	"sync"
@@ -85,6 +86,7 @@ var handlers = map[string]handler{
 	"getrawchangeaddress":     {fn: (*Server).getRawChangeAddress},
 	"getreceivedbyaccount":    {fn: (*Server).getReceivedByAccount},
 	"getreceivedbyaddress":    {fn: (*Server).getReceivedByAddress},
+	"getspvpeerinfo":          {fn: (*Server).getSpvPeerInfo},
 	"getstakeinfo":            {fn: (*Server).getStakeInfo},
 	"getticketfee":            {fn: (*Server).getTicketFee},
 	"gettickets":              {fn: (*Server).getTickets},
@@ -1384,6 +1386,36 @@ func (s *Server) getMasterPubkey(ctx context.Context, icmd interface{}) (interfa
 	return masterPubKey.String(), nil
 }
 
+func (s *Server) getSpvPeerInfo(ctx context.Context, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+	n, err := w.NetworkBackend()
+
+	if err != nil {
+		return nil, err
+	}
+
+	syncer := n.(*spv.Syncer)
+	infos := make([]*types.GetSpvInfoResult, 0, len(syncer.GetRemotePeers()))
+	for _, rp := range syncer.GetRemotePeers(){
+		snapshot := rp.StatsSnapshot()
+		info := &types.GetSpvInfoResult{
+			Id:				snapshot.Id,
+			UA:				snapshot.Ua,
+			Services:		snapshot.Services,
+			Pver:			snapshot.Pver,
+			InitHeight:		snapshot.InitHeight,
+			C:				snapshot.C,
+			Sendheaders:	snapshot.SendHeaders,
+			Raddr:			snapshot.Raddr,
+			NA:				snapshot.Na,
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
+}
 // getStakeInfo gets a large amounts of information about the stake environment
 // and a number of statistics about local staking in the wallet.
 func (s *Server) getStakeInfo(ctx context.Context, icmd interface{}) (interface{}, error) {

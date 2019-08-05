@@ -151,6 +151,11 @@ func (s *Syncer) synced() {
 	}
 }
 
+// GetRemotePeers returns a map of connected remote peers
+func (s *Syncer) GetRemotePeers() map[string]*p2p.RemotePeer{
+	return s.remotes
+}
+
 // unsynced checks the atomic that controls wallet syncness and if previously
 // synced, updates to unsynced and notifies the callback, if set.
 func (s *Syncer) unsynced() {

@@ -69,6 +69,8 @@ type RemotePeer struct {
 	raddr      net.Addr
 	na         *wire.NetAddress
 
+	statsMu  sync.Mutex
+
 	// io
 	c       net.Conn
 	mr      msgReader
@@ -202,6 +204,38 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 	}
 
 	return rp, nil
+}
+
+type SnapShot struct {
+	Id			uint64
+	Ua			string
+	Services	wire.ServiceFlag
+	Raddr		net.Addr
+	Pver		uint32
+	InitHeight	int32
+	Na			*wire.NetAddress
+	C 			net.Conn
+	SendHeaders  bool
+}
+
+func (rp *RemotePeer) StatsSnapshot() *SnapShot {
+	rp.statsMu.Lock()
+	id := rp.id
+
+	snapshot := &SnapShot{
+		Id:				id,
+		C:				rp.c,
+		Ua:				rp.UA(),
+		Services:		rp.Services(),
+		Pver:			rp.pver,
+		InitHeight:		rp.InitialHeight(),
+		SendHeaders: 	rp.sendheaders,
+		Raddr:			rp.RemoteAddr(),
+		Na:				rp.NA(),
+	}
+	rp.statsMu.Unlock()
+
+	return snapshot
 }
 
 // AddrManager returns the local peer's address manager.
