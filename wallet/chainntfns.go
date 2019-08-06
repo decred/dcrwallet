@@ -11,17 +11,17 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v3"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/gcs"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/txrules"
-	"github.com/decred/dcrwallet/wallet/v2/udb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/txrules"
+	"github.com/decred/dcrwallet/wallet/v3/udb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 func (w *Wallet) extendMainChain(op errors.Op, dbtx walletdb.ReadWriteTx, header *wire.BlockHeader, f *gcs.Filter, transactions []*wire.MsgTx) ([]wire.OutPoint, error) {
@@ -253,7 +253,7 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 	}
 	fees := in - out
 
-	_, exists := w.stakePoolColdAddrs[commitAddr.EncodeAddress()]
+	_, exists := w.stakePoolColdAddrs[commitAddr.Address()]
 	if exists {
 		commitAmt, err := stake.AmountFromSStxPkScrCommitment(
 			commitmentOut.PkScript)
@@ -266,12 +266,12 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 		// height and the required amount from the pool.
 		feeNeeded := txrules.StakePoolTicketFee(dcrutil.Amount(
 			tx.TxOut[0].Value), fees, blockHeight, w.PoolFees(),
-			w.ChainParams())
+			w.chainParams)
 		if commitAmt < feeNeeded {
 			log.Warnf("User %s submitted ticket %v which "+
 				"has less fees than are required to use this "+
 				"stake pool and is being skipped (required: %v"+
-				", found %v)", commitAddr.EncodeAddress(),
+				", found %v)", commitAddr.Address(),
 				tx.TxHash(), feeNeeded, commitAmt)
 
 			// Reject the entire transaction if it didn't
@@ -280,7 +280,7 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 		}
 	} else {
 		log.Warnf("Unknown pool commitment address %s for ticket %v",
-			commitAddr.EncodeAddress(), tx.TxHash())
+			commitAddr.Address(), tx.TxHash())
 		return false
 	}
 
@@ -438,7 +438,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 				stakemgrNs, addr, &rec.Hash)
 			if err != nil {
 				log.Warnf("Failed to update pool user %v with "+
-					"invalid ticket %v", addr.EncodeAddress(),
+					"invalid ticket %v", addr.Address(),
 					rec.Hash)
 			}
 		}
@@ -474,7 +474,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			if err != nil {
 				log.Warnf("Failed to update stake pool ticket for "+
 					"stake pool user %s after voting",
-					poolUser.EncodeAddress())
+					poolUser.Address())
 			} else {
 				log.Debugf("Updated voted stake pool ticket %v "+
 					"for user %v into the stake store database ("+
@@ -505,7 +505,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			if err != nil {
 				log.Warnf("failed to update stake pool ticket for "+
 					"stake pool user %s after revoking",
-					poolUser.EncodeAddress())
+					poolUser.Address())
 			} else {
 				log.Debugf("Updated missed stake pool ticket %v "+
 					"for user %v into the stake store database ("+
@@ -517,14 +517,10 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 	// Handle input scripts that contain P2PKs that we care about.
 	for i, input := range rec.MsgTx.TxIn {
 		if txscript.IsMultisigSigScript(input.SignatureScript) {
-			rs, err := txscript.MultisigRedeemScriptFromScriptSig(
-				input.SignatureScript)
-			if err != nil {
-				return nil, err
-			}
+			rs := txscript.MultisigRedeemScriptFromScriptSig(input.SignatureScript)
 
 			class, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				txscript.DefaultScriptVersion, rs, w.chainParams)
+				0, rs, w.chainParams)
 			if err != nil {
 				// Non-standard outputs are skipped.
 				continue
@@ -638,12 +634,11 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			}
 			addrs = []dcrutil.Address{addr}
 			watchOutPoint = false
-		} else if (output.Value == 0) {
+		} else if output.Value == 0 {
 			// The only case of outputs with 0 value that we need to handle are
 			// ticket commitments. All other outputs can be ignored.
 			continue
 		}
-
 
 		var tree int8
 		if isStakeType {
@@ -696,7 +691,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 					if err != nil {
 						log.Debugf("failed to find redeemscript for "+
 							"address %v in address manager: %v",
-							addr.EncodeAddress(), err)
+							addr.Address(), err)
 						continue
 					}
 					defer done()
@@ -709,7 +704,7 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 			// Otherwise, extract the actual addresses and
 			// see if any belong to us.
 			expClass, multisigAddrs, _, err := txscript.ExtractPkScriptAddrs(
-				txscript.DefaultScriptVersion,
+				0,
 				expandedScript,
 				w.chainParams)
 			if err != nil {

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018 The Decred developers
+// Copyright (c) 2017-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
@@ -17,9 +17,9 @@ import (
 // Peer provides wallets with a subset of Decred network functionality available
 // to a single peer.
 type Peer interface {
-	GetBlocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error)
-	GetCFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error)
-	GetHeaders(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([]*wire.BlockHeader, error)
+	Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error)
+	CFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error)
+	Headers(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([]*wire.BlockHeader, error)
 	PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error
 }
 
@@ -32,7 +32,7 @@ type Peer interface {
 type NetworkBackend interface {
 	Peer
 	LoadTxFilter(ctx context.Context, reload bool, addrs []dcrutil.Address, outpoints []wire.OutPoint) error
-	Rescan(ctx context.Context, blocks []chainhash.Hash, r RescanSaver) error
+	Rescan(ctx context.Context, blocks []chainhash.Hash, save func(block *chainhash.Hash, txs []*wire.MsgTx) error) error
 
 	// This is impossible to determine over the wire protocol, and will always
 	// error.  Use Wallet.NextStakeDifficulty to calculate the next ticket price
@@ -60,4 +60,15 @@ func (w *Wallet) SetNetworkBackend(n NetworkBackend) {
 	w.networkBackendMu.Lock()
 	w.networkBackend = n
 	w.networkBackendMu.Unlock()
+}
+
+// Caller provides a client interface to perform remote procedure calls.
+// Serialization and calling conventions are implementation-specific.
+type Caller interface {
+	// Call performs the remote procedure call defined by method and
+	// waits for a response or a broken client connection.
+	// Args provides positional parameters for the call.
+	// Res must be a pointer to a struct, slice, or map type to unmarshal
+	// a result (if any), or nil if no result is needed.
+	Call(ctx context.Context, method string, res interface{}, args ...interface{}) error
 }

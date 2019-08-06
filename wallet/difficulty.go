@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/deployments"
+	"github.com/decred/dcrwallet/deployments/v2"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 var (
@@ -451,7 +451,7 @@ func (w *Wallet) NextStakeDifficulty() (dcrutil.Amount, error) {
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		tipHash, tipHeight := w.TxStore.MainChainTip(ns)
-		if !deployments.DCP0001.Active(tipHeight, w.chainParams) {
+		if !deployments.DCP0001.Active(tipHeight, w.chainParams.Net) {
 			return errors.E(errors.Deployment, "DCP0001 is not known to be active")
 		}
 		tipHeader, err := w.TxStore.GetBlockHeader(dbtx, &tipHash)
@@ -472,7 +472,7 @@ func (w *Wallet) NextStakeDifficulty() (dcrutil.Amount, error) {
 // function only succeeds when DCP0001 is known to be active.
 func (w *Wallet) NextStakeDifficultyAfterHeader(h *wire.BlockHeader) (dcrutil.Amount, error) {
 	const op errors.Op = "wallet.NextStakeDifficultyAfterHeader"
-	if !deployments.DCP0001.Active(int32(h.Height), w.chainParams) {
+	if !deployments.DCP0001.Active(int32(h.Height), w.chainParams.Net) {
 		return 0, errors.E(op, errors.Deployment, "DCP0001 is not known to be active")
 	}
 	var sdiff dcrutil.Amount
@@ -543,7 +543,7 @@ func (w *Wallet) validateHeaderChainDifficulties(dbtx walletdb.ReadTx, chain []*
 		}
 
 		// Validate ticket price
-		if deployments.DCP0001.Active(int32(h.Height), w.chainParams) {
+		if deployments.DCP0001.Active(int32(h.Height), w.chainParams.Net) {
 			sdiff, err := w.nextRequiredDCP0001PoSDifficulty(dbtx, parent, chain)
 			if err != nil {
 				return nil, errors.E(op, err)

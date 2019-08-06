@@ -5,7 +5,7 @@
 
 package netparams
 
-import "github.com/decred/dcrd/chaincfg"
+import "github.com/decred/dcrd/chaincfg/v2"
 
 // Params is used to group parameters for various networks such as the main
 // network and test networks.
@@ -19,7 +19,7 @@ type Params struct {
 // MainNetParams contains parameters specific running dcrwallet and
 // dcrd on the main network (wire.MainNet).
 var MainNetParams = Params{
-	Params:            &chaincfg.MainNetParams,
+	Params:            chaincfg.MainNetParams(),
 	JSONRPCClientPort: "9109",
 	JSONRPCServerPort: "9110",
 	GRPCServerPort:    "9111",
@@ -28,7 +28,7 @@ var MainNetParams = Params{
 // TestNet3Params contains parameters specific running dcrwallet and
 // dcrd on the test network (version 3) (wire.TestNet3).
 var TestNet3Params = Params{
-	Params:            &chaincfg.TestNet3Params,
+	Params:            chaincfg.TestNet3Params(),
 	JSONRPCClientPort: "19109",
 	JSONRPCServerPort: "19110",
 	GRPCServerPort:    "19111",
@@ -37,7 +37,7 @@ var TestNet3Params = Params{
 // SimNetParams contains parameters specific to the simulation test network
 // (wire.SimNet).
 var SimNetParams = Params{
-	Params:            &chaincfg.SimNetParams,
+	Params:            chaincfg.SimNetParams(),
 	JSONRPCClientPort: "19556",
 	JSONRPCServerPort: "19557",
 	GRPCServerPort:    "19558",

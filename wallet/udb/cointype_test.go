@@ -7,11 +7,12 @@ package udb
 import (
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/hdkeychain"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 func TestCoinTypes(t *testing.T) {
@@ -21,9 +22,9 @@ func TestCoinTypes(t *testing.T) {
 		params                           *chaincfg.Params
 		legacyCoinType, slip0044CoinType uint32
 	}{
-		{&chaincfg.MainNetParams, 20, 42},
-		{&chaincfg.TestNet3Params, 11, 1},
-		{&chaincfg.SimNetParams, 115, 1},
+		{chaincfg.MainNetParams(), 20, 42},
+		{chaincfg.TestNet3Params(), 11, 1},
+		{chaincfg.SimNetParams(), 115, 1},
 	}
 	for _, test := range tests {
 		legacyCoinType, slip0044CoinType := CoinTypes(test.params)
@@ -47,7 +48,7 @@ func deriveChildAddress(accountExtKey *hdkeychain.ExtendedKey, branch, child uin
 	if err != nil {
 		return nil, err
 	}
-	return addressKey.Address(params)
+	return compat.HD2Address(addressKey, params)
 }
 
 func equalExtKeys(k0, k1 *hdkeychain.ExtendedKey) bool {
@@ -60,7 +61,7 @@ func TestCoinTypeUpgrade(t *testing.T) {
 	db, teardown := tempDB(t)
 	defer teardown()
 
-	params := &chaincfg.TestNet3Params
+	params := chaincfg.TestNet3Params()
 
 	err := Initialize(db, params, seed, pubPass, privPassphrase)
 	if err != nil {

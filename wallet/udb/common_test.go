@@ -11,8 +11,8 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 var (
@@ -51,13 +51,13 @@ func createEmptyDB() error {
 		return err
 	}
 
-	err = Initialize(db, &chaincfg.TestNet3Params, seed, pubPassphrase,
+	err = Initialize(db, chaincfg.TestNet3Params(), seed, pubPassphrase,
 		privPassphrase)
 	if err != nil {
 		return err
 	}
 
-	err = Upgrade(db, pubPassphrase, &chaincfg.TestNet3Params)
+	err = Upgrade(db, pubPassphrase, chaincfg.TestNet3Params())
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func cloneDB(cloneName string) (walletdb.DB, *Manager, *Store, *StakeStore, func
 		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
 	}
 
-	mgr, txStore, stkStore, err := Open(db, &chaincfg.TestNet3Params, pubPassphrase)
+	mgr, txStore, stkStore, err := Open(db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
 		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
 	}

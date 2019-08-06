@@ -19,9 +19,9 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/lru"
-	"github.com/decred/dcrwallet/p2p"
+	"github.com/decred/dcrwallet/p2p/v2"
 	"github.com/decred/dcrwallet/validate"
-	"github.com/decred/dcrwallet/wallet/v2"
+	"github.com/decred/dcrwallet/wallet/v3"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -656,7 +656,7 @@ func (s *Syncer) receiveInv(ctx context.Context) error {
 func (s *Syncer) handleBlockInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []*chainhash.Hash) error {
 	const opf = "spv.handleBlockInvs(%v)"
 
-	blocks, err := rp.GetBlocks(ctx, hashes)
+	blocks, err := rp.Blocks(ctx, hashes)
 	if err != nil {
 		op := errors.Opf(opf, rp)
 		return errors.E(op, err)
@@ -701,7 +701,7 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 		return
 	}
 
-	txs, err := rp.GetTransactions(ctx, unseen)
+	txs, err := rp.Transactions(ctx, unseen)
 	if errors.Is(errors.NotExist, err) {
 		err = nil
 		// Remove notfound txs.
@@ -835,7 +835,7 @@ FilterLoop:
 		wg.Wait()
 
 		if len(fmatches) != 0 {
-			blocks, err := rp.GetBlocks(ctx, fmatches)
+			blocks, err := rp.Blocks(ctx, fmatches)
 			if err != nil {
 				return nil, err
 			}
@@ -905,7 +905,7 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 		hash := h.BlockHash()
 		blockHashes = append(blockHashes, &hash)
 	}
-	filters, err := rp.GetCFilters(ctx, blockHashes)
+	filters, err := rp.CFilters(ctx, blockHashes)
 	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -1034,7 +1034,7 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 	var lastHeight int32
 
 	for {
-		headers, err := rp.GetHeaders(ctx, locators, &hashStop)
+		headers, err := rp.Headers(ctx, locators, &hashStop)
 		if err != nil {
 			return err
 		}
@@ -1065,7 +1065,7 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 			g.Go(func() error {
 				header := headers[i]
 				hash := header.BlockHash()
-				filter, err := rp.GetCFilter(ctx, &hash)
+				filter, err := rp.CFilter(ctx, &hash)
 				if err != nil {
 					return err
 				}

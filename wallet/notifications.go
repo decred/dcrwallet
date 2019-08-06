@@ -11,16 +11,16 @@ import (
 	"sync"
 
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrd/rpcclient/v2"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/hdkeychain/v2"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/udb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/rpc/client/dcrd"
+	"github.com/decred/dcrwallet/wallet/v3/udb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // TODO: It would be good to send errors during notification creation to the rpc
@@ -177,7 +177,7 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 	}
 }
 
-func makeTicketSummary(chainClient *rpcclient.Client, dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
+func makeTicketSummary(ctx context.Context, rpc *dcrd.RPC, dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
 	var ticketStatus = TicketStatusLive
 
 	ticketTransactionDetails := makeTxSummary(dbtx, w, details.Ticket)
@@ -187,10 +187,10 @@ func makeTicketSummary(chainClient *rpcclient.Client, dbtx walletdb.ReadTx, w *W
 			ticketStatus = TicketStatusVoted
 		} else if details.Spender.TxType == stake.TxTypeSSRtx {
 			ticketStatus = TicketStatusRevoked
-		} else if chainClient != nil {
-			// chainClient can be nil if in spv mode
+		} else if rpc != nil {
+			// rpc can be nil if in spv mode
 			// Final check to see if ticket was missed otherwise it's live
-			live, err := chainClient.ExistsLiveTicket(&details.Ticket.Hash)
+			live, err := rpc.ExistsLiveTicket(ctx, &details.Ticket.Hash)
 			if err != nil {
 				log.Errorf("Unable to check if ticket was live for ticket status: %v", &details.Ticket.Hash)
 				ticketStatus = TicketStatusUnknown
@@ -237,7 +237,7 @@ func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]dcrutil.Amount)
 		output := unspent[i]
 		var outputAcct uint32
 		_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-			txscript.DefaultScriptVersion, output.PkScript, w.chainParams)
+			0, output.PkScript, w.chainParams)
 		if err == nil && len(addrs) > 0 {
 			outputAcct, err = w.Manager.AddrAccount(addrmgrNs, addrs[0])
 		}

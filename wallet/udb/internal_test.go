@@ -14,7 +14,7 @@ package udb
 
 import (
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/internal/snacl"
+	"github.com/decred/dcrwallet/wallet/v3/internal/snacl"
 )
 
 // TstLatestMgrVersion makes the unexported latestMgrVersion variable available

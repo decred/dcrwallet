@@ -13,18 +13,18 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/internal/txsizes"
-	"github.com/decred/dcrwallet/wallet/v2/txauthor"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
+	"github.com/decred/dcrwallet/wallet/v3/txauthor"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -360,7 +360,7 @@ func (s *Store) InsertMissingCFilters(dbtx walletdb.ReadWriteTx, blockHashes []*
 	for i, blockHash := range blockHashes {
 		// Ensure that blockHashes are ordered and that all previous cfilters in the
 		// main chain are known.
-		ok := i == 0 && *blockHash == *s.chainParams.GenesisHash
+		ok := i == 0 && *blockHash == s.chainParams.GenesisHash
 		if !ok {
 			header := existsBlockHeader(ns, blockHash[:])
 			if header == nil {
@@ -931,8 +931,7 @@ func (s *Store) fetchAccountForPkScript(addrmgrNs walletdb.ReadBucket,
 	// Neither credVal or unminedCredVal were passed, or if they were, they
 	// didn't have the account set. Figure out the account from the pkScript the
 	// expensive way.
-	_, addrs, _, err := txscript.ExtractPkScriptAddrs(txscript.DefaultScriptVersion,
-		pkScript, s.chainParams)
+	_, addrs, _, err := txscript.ExtractPkScriptAddrs(0, pkScript, s.chainParams)
 	if err != nil {
 		return 0, err
 	}
@@ -1316,7 +1315,7 @@ func (s *Store) AddCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 // getP2PKHOpCode returns opNonstake for non-stake transactions, or
 // the stake op code tag for stake transactions.
 func getP2PKHOpCode(pkScript []byte) uint8 {
-	class := txscript.GetScriptClass(txscript.DefaultScriptVersion, pkScript)
+	class := txscript.GetScriptClass(0, pkScript)
 	switch {
 	case class == txscript.StakeSubmissionTy:
 		return txscript.OP_SSTX
@@ -1334,7 +1333,7 @@ func getP2PKHOpCode(pkScript []byte) uint8 {
 // pkScriptType determines the general type of pkScript for the purposes of
 // fast extraction of pkScript data from a raw transaction record.
 func pkScriptType(pkScript []byte) scriptType {
-	class := txscript.GetScriptClass(txscript.DefaultScriptVersion, pkScript)
+	class := txscript.GetScriptClass(0, pkScript)
 	switch class {
 	case txscript.PubKeyHashTy:
 		return scriptTypeP2PKH
@@ -1597,6 +1596,32 @@ func (s *Store) RedeemTicketCommitments(ns walletdb.ReadWriteBucket, rec *TxReco
 	return s.removeUnspentTicketCommitments(ns, rec.TxType, &rec.MsgTx)
 }
 
+// copied from txscript/v1
+func getScriptHashFromP2SHScript(pkScript []byte) ([]byte, error) {
+	// Scan through the opcodes until the first HASH160 opcode is found.
+	const scriptVersion = 0
+	tokenizer := txscript.MakeScriptTokenizer(scriptVersion, pkScript)
+	for tokenizer.Next() {
+		if tokenizer.Opcode() == txscript.OP_HASH160 {
+			break
+		}
+	}
+
+	// Attempt to extract the script hash if the script is not already fully
+	// parsed and didn't already fail during parsing above.
+	//
+	// Note that this means a script without a data push for the script hash or
+	// where OP_HASH160 wasn't found will result in nil data being returned.
+	// This was done to preserve existing behavior, although it is questionable
+	// since a p2sh script has a specific form and if there is no push here,
+	// it's not really a p2sh script and thus should probably have returned an
+	// appropriate error for calling the function incorrectly.
+	if tokenizer.Next() {
+		return tokenizer.Data(), nil
+	}
+	return nil, tokenizer.Err()
+}
+
 // AddMultisigOut adds a P2SH multisignature spendable output into the
 // transaction manager. In the event that the output already existed but
 // was not mined, the output is updated so its value reflects the block
@@ -1660,8 +1685,7 @@ func (s *Store) AddMultisigOut(ns walletdb.ReadWriteBucket, rec *TxRecord, block
 	if class != txscript.ScriptHashTy {
 		return errors.E(errors.Invalid, "multisig output must be P2SH")
 	}
-	scriptHash, err :=
-		txscript.GetScriptHashFromP2SHScript(p2shScript)
+	scriptHash, err := getScriptHashFromP2SHScript(p2shScript)
 	if err != nil {
 		return err
 	}
@@ -3178,8 +3202,7 @@ func (s *Store) MakeIgnoredInputSource(ns, addrmgrNs walletdb.ReadBucket, accoun
 
 			// Unspent credits are currently expected to be either P2PKH or
 			// P2PK, P2PKH/P2SH nested in a revocation/stakechange/vote output.
-			scriptClass := txscript.GetScriptClass(
-				txscript.DefaultScriptVersion, pkScript)
+			scriptClass := txscript.GetScriptClass(0, pkScript)
 
 			switch scriptClass {
 			case txscript.PubKeyHashTy:
@@ -3301,8 +3324,7 @@ func (s *Store) MakeIgnoredInputSource(ns, addrmgrNs walletdb.ReadBucket, accoun
 
 			// Unspent credits are currently expected to be either P2PKH or
 			// P2PK, P2PKH/P2SH nested in a revocation/stakechange/vote output.
-			scriptClass := txscript.GetScriptClass(
-				txscript.DefaultScriptVersion, pkScript)
+			scriptClass := txscript.GetScriptClass(0, pkScript)
 
 			switch scriptClass {
 			case txscript.PubKeyHashTy:

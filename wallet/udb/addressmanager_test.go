@@ -15,11 +15,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // testContext is used to store context information about a running test which
@@ -116,9 +116,9 @@ func testAddress(tc *testContext, prefix string, gotAddr ManagedAddress, wantAdd
 		return false
 	}
 
-	if gotAddr.Address().EncodeAddress() != wantAddr.address {
+	if gotAddr.Address().Address() != wantAddr.address {
 		tc.t.Errorf("%s EncodeAddress: unexpected address - got %s, "+
-			"want %s", prefix, gotAddr.Address().EncodeAddress(),
+			"want %s", prefix, gotAddr.Address().Address(),
 			wantAddr.address)
 		return false
 	}
@@ -279,9 +279,10 @@ func testImportPrivateKey(tc *testContext, ns walletdb.ReadWriteBucket) {
 	// Only import the private keys when in the create phase of testing.
 	tc.account = ImportedAddrAccount
 	prefix := testNamePrefix(tc) + " testImportPrivateKey"
+	chainParams := tc.manager.ChainParams()
 	for i, test := range tests {
 		test.expected.privKeyWIF = test.in
-		wif, err := dcrutil.DecodeWIF(test.in)
+		wif, err := dcrutil.DecodeWIF(test.in, chainParams.PrivateKeyID)
 		if err != nil {
 			tc.t.Errorf("%s DecodeWIF #%d (%s) (%s): unexpected "+
 				"error: %v", prefix, i, test.in, test.name, err)
@@ -300,7 +301,6 @@ func testImportPrivateKey(tc *testContext, ns walletdb.ReadWriteBucket) {
 
 	// Setup a closure to test the results since the same tests need to be
 	// repeated with the manager unlocked and locked.
-	chainParams := tc.manager.ChainParams()
 	testResults := func() {
 		for i, test := range tests {
 			test.expected.privKeyWIF = test.in
@@ -934,7 +934,7 @@ func TestManagerWatchingOnly(t *testing.T) {
 	})
 	mgr.Close()
 
-	mgr, _, _, err = Open(db, &chaincfg.TestNet3Params, pubPassphrase)
+	mgr, _, _, err = Open(db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -962,7 +962,7 @@ func TestManagerWatchingOnly(t *testing.T) {
 	})
 
 	// Open the watching-only manager and run all the tests again.
-	mgr, _, _, err = Open(db, &chaincfg.TestNet3Params, pubPassphrase)
+	mgr, _, _, err = Open(db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1004,7 +1004,7 @@ func TestManager(t *testing.T) {
 
 	// Open the manager and run all the tests again in open mode which
 	// avoids reinserting new addresses like the create mode tests do.
-	mgr, _, _, err = Open(db, &chaincfg.TestNet3Params, pubPassphrase)
+	mgr, _, _, err = Open(db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
 		t.Fatalf("Open: unexpected error: %v", err)
 	}

@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/wire"
-	_ "github.com/decred/dcrwallet/wallet/v2/drivers/bdb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	_ "github.com/decred/dcrwallet/wallet/v3/drivers/bdb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 func tempDB(t *testing.T) (db walletdb.DB, teardown func()) {
@@ -43,7 +43,7 @@ type blockGenerator struct {
 }
 
 func makeBlockGenerator() blockGenerator {
-	return blockGenerator{lastHash: *chaincfg.TestNet3Params.GenesisHash}
+	return blockGenerator{lastHash: chaincfg.TestNet3Params().GenesisHash}
 }
 
 func (g *blockGenerator) generate(voteBits uint16) *wire.BlockHeader {

@@ -10,15 +10,15 @@ import (
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/p2p"
+	"github.com/decred/dcrwallet/p2p/v2"
 	"github.com/decred/dcrwallet/validate"
-	"github.com/decred/dcrwallet/wallet/v2"
+	"github.com/decred/dcrwallet/wallet/v3"
 )
 
 var _ wallet.NetworkBackend = (*Syncer)(nil)
@@ -30,8 +30,8 @@ var _ wallet.NetworkBackend = (*Syncer)(nil)
 
 func pickAny(*p2p.RemotePeer) bool { return true }
 
-// GetBlocks implements the GetBlocks method of the wallet.Peer interface.
-func (s *Syncer) GetBlocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error) {
+// Blocks implements the Blocks method of the wallet.Peer interface.
+func (s *Syncer) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error) {
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -40,7 +40,7 @@ func (s *Syncer) GetBlocks(ctx context.Context, blockHashes []*chainhash.Hash) (
 		if err != nil {
 			return nil, err
 		}
-		blocks, err := rp.GetBlocks(ctx, blockHashes)
+		blocks, err := rp.Blocks(ctx, blockHashes)
 		if err != nil {
 			continue
 		}
@@ -48,8 +48,8 @@ func (s *Syncer) GetBlocks(ctx context.Context, blockHashes []*chainhash.Hash) (
 	}
 }
 
-// GetCFilters implements the GetCFilters method of the wallet.Peer interface.
-func (s *Syncer) GetCFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error) {
+// CFilters implements the CFilters method of the wallet.Peer interface.
+func (s *Syncer) CFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error) {
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -58,7 +58,7 @@ func (s *Syncer) GetCFilters(ctx context.Context, blockHashes []*chainhash.Hash)
 		if err != nil {
 			return nil, err
 		}
-		fs, err := rp.GetCFilters(ctx, blockHashes)
+		fs, err := rp.CFilters(ctx, blockHashes)
 		if err != nil {
 			continue
 		}
@@ -66,8 +66,8 @@ func (s *Syncer) GetCFilters(ctx context.Context, blockHashes []*chainhash.Hash)
 	}
 }
 
-// GetHeaders implements the GetHeaders method of the wallet.Peer interface.
-func (s *Syncer) GetHeaders(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([]*wire.BlockHeader, error) {
+// Headers implements the Headers method of the wallet.Peer interface.
+func (s *Syncer) Headers(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([]*wire.BlockHeader, error) {
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -76,7 +76,7 @@ func (s *Syncer) GetHeaders(ctx context.Context, blockLocators []*chainhash.Hash
 		if err != nil {
 			return nil, err
 		}
-		hs, err := rp.GetHeaders(ctx, blockLocators, hashStop)
+		hs, err := rp.Headers(ctx, blockLocators, hashStop)
 		if err != nil {
 			continue
 		}
@@ -140,7 +140,7 @@ func (s *Syncer) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) er
 }
 
 // Rescan implements the Rescan method of the wallet.NetworkBackend interface.
-func (s *Syncer) Rescan(ctx context.Context, blockHashes []chainhash.Hash, r wallet.RescanSaver) error {
+func (s *Syncer) Rescan(ctx context.Context, blockHashes []chainhash.Hash, save func(*chainhash.Hash, []*wire.MsgTx) error) error {
 	const op errors.Op = "spv.Rescan"
 
 	cfilters := make([]*gcs.Filter, 0, len(blockHashes))
@@ -214,7 +214,7 @@ FilterLoop:
 					}
 				}
 
-				blocks, err := rp.GetBlocks(ctx, fmatches)
+				blocks, err := rp.Blocks(ctx, fmatches)
 				if err != nil {
 					rp = nil
 					continue PickPeer
@@ -261,7 +261,7 @@ FilterLoop:
 
 			matchedTxs, fadded := s.rescanBlock(b)
 			if len(matchedTxs) != 0 {
-				err := r.SaveRescanned(&blockHashes[i], matchedTxs)
+				err := save(&blockHashes[i], matchedTxs)
 				if err != nil {
 					return err
 				}

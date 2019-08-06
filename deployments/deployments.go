@@ -4,10 +4,7 @@
 
 package deployments
 
-import (
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/wire"
-)
+import "github.com/decred/dcrd/wire"
 
 // HardcodedDeployment specifies hardcoded block heights that a deployment
 // activates at.  If the value is negative, the deployment is either inactive or
@@ -53,9 +50,9 @@ var DCP0003 = HardcodedDeployment{
 // Active returns whether the hardcoded deployment is active at height on the
 // network specified by params.  Active always returns false for unrecognized
 // networks.
-func (d *HardcodedDeployment) Active(height int32, params *chaincfg.Params) bool {
+func (d *HardcodedDeployment) Active(height int32, net wire.CurrencyNet) bool {
 	var activationHeight int32 = -1
-	switch params.Net {
+	switch net {
 	case wire.MainNet:
 		activationHeight = d.MainNetActivationHeight
 	case 0x48e7a065: // testnet2

@@ -18,27 +18,27 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrjson/v3"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/hdkeychain/v2"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/rpcclient/v2"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/chain/v2"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/helpers"
-	"github.com/decred/dcrwallet/p2p"
+	"github.com/decred/dcrwallet/p2p/v2"
+	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
-	"github.com/decred/dcrwallet/spv/v2"
-	ver "github.com/decred/dcrwallet/version"
-	"github.com/decred/dcrwallet/wallet/v2"
-	"github.com/decred/dcrwallet/wallet/v2/txrules"
-	"github.com/decred/dcrwallet/wallet/v2/udb"
+  "github.com/decred/dcrwallet/spv/v2"
+	"github.com/decred/dcrwallet/version"
+	"github.com/decred/dcrwallet/wallet/v3"
+	"github.com/decred/dcrwallet/wallet/v3/txrules"
+	"github.com/decred/dcrwallet/wallet/v3/udb"
+	"golang.org/x/sync/errgroup"
 )
 
 // API version constants
@@ -194,29 +194,23 @@ func lazyApplyHandler(s *Server, ctx context.Context, request *dcrjson.Request) 
 			if !ok {
 				return nil, errRPCClientNotConnected
 			}
-			chainClient, err := chain.RPCClientFromBackend(n)
-			if err != nil {
+			rpc, ok := n.(*dcrd.RPC)
+			if !ok {
 				return nil, rpcErrorf(dcrjson.ErrRPCClientNotConnected, "RPC passthrough requires dcrd RPC synchronization")
 			}
-			var resp interface{}
-			finished := make(chan struct{})
-			go func() {
-				resp, err = chainClient.RawRequest(request.Method, request.Params)
-				close(finished)
-			}()
-			select {
-			case <-ctx.Done():
+			var resp json.RawMessage
+			err := rpc.Call(ctx, request.Method, &resp, request.Params)
+			if ctx.Err() != nil {
 				log.Warnf("Canceled RPC method %v invoked by %v: %v", request.Method, remoteAddr(ctx), err)
 				return nil, &dcrjson.RPCError{
 					Code:    dcrjson.ErrRPCMisc,
 					Message: ctx.Err().Error(),
 				}
-			case <-finished:
 			}
 			if err != nil {
 				return nil, convertError(err)
 			}
-			return &resp, nil
+			return resp, nil
 		}
 	}
 
@@ -413,7 +407,7 @@ func (s *Server) addMultiSigAddress(ctx context.Context, icmd interface{}) (inte
 		return nil, err
 	}
 
-	return p2shAddr.EncodeAddress(), nil
+	return p2shAddr.Address(), nil
 }
 
 // addTicket adds a ticket to the stake manager manually.
@@ -497,7 +491,7 @@ func (s *Server) createMultiSig(ctx context.Context, icmd interface{}) (interfac
 	}
 
 	return types.CreateMultiSigResult{
-		Address:      address.EncodeAddress(),
+		Address:      address.Address(),
 		RedeemScript: hex.EncodeToString(script),
 	}, nil
 }
@@ -610,14 +604,14 @@ func (s *Server) getAddressesByAccount(ctx context.Context, icmd interface{}) (i
 		return nil, err
 	}
 	for i := range addrsExt {
-		addrsStr[i] = addrsExt[i].EncodeAddress()
+		addrsStr[i] = addrsExt[i].Address()
 	}
 	addrsInt, err := w.AccountBranchAddressRange(account, udb.InternalBranch, 0, endInt)
 	if err != nil {
 		return nil, err
 	}
 	for i := range addrsInt {
-		addrsStr[i+int(endExt)] = addrsInt[i].EncodeAddress()
+		addrsStr[i+int(endExt)] = addrsInt[i].Address()
 	}
 
 	return addrsStr, nil
@@ -836,9 +830,9 @@ func (s *Server) getInfo(ctx context.Context, icmd interface{}) (interface{}, er
 	}
 
 	info := &types.InfoResult{
-		Version:         ver.Integer,
+		Version:         version.Integer,
 		ProtocolVersion: int32(p2p.Pver),
-		WalletVersion:   ver.Integer,
+		WalletVersion:   version.Integer,
 		Balance:         spendableBalance.ToCoin(),
 		Blocks:          tipHeight,
 		TimeOffset:      0,
@@ -855,8 +849,9 @@ func (s *Server) getInfo(ctx context.Context, icmd interface{}) (interface{}, er
 	}
 
 	n, _ := s.walletLoader.NetworkBackend()
-	if chainClient, err := chain.RPCClientFromBackend(n); err == nil {
-		consensusInfo, err := chainClient.GetInfo()
+	if rpc, ok := n.(*dcrd.RPC); ok {
+		var consensusInfo dcrdtypes.InfoChainResult
+		err := rpc.Call(ctx, "getinfo", &consensusInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -888,14 +883,10 @@ func decodeAddress(s string, params *chaincfg.Params) (dcrutil.Address, error) {
 		return pubKeyAddr, nil
 	}
 
-	addr, err := dcrutil.DecodeAddress(s)
+	addr, err := dcrutil.DecodeAddress(s, params)
 	if err != nil {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
 			"invalid address %q: decode failed: %#q", s, err)
-	}
-	if !addr.IsForNet(params) {
-		return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
-			"invalid address %q: not intended for use on %s", s, params.Name)
 	}
 	return addr, nil
 }
@@ -959,7 +950,7 @@ func (s *Server) getAccountAddress(ctx context.Context, icmd interface{}) (inter
 		return nil, err
 	}
 
-	return addr.EncodeAddress(), nil
+	return addr.Address(), nil
 }
 
 // getUnconfirmedBalance handles a getunconfirmedbalance extension request
@@ -1023,12 +1014,9 @@ func (s *Server) importPrivKey(ctx context.Context, icmd interface{}) (interface
 		return nil, errNotImportedAccount
 	}
 
-	wif, err := dcrutil.DecodeWIF(cmd.PrivKey)
+	wif, err := dcrutil.DecodeWIF(cmd.PrivKey, w.ChainParams().PrivateKeyID)
 	if err != nil {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey, "WIF decode failed: %v", err)
-	}
-	if !wif.IsForNet(w.ChainParams()) {
-		return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey, "key is not intended for %s", w.ChainParams().Name)
 	}
 
 	// Import the private key, handling any errors.
@@ -1193,7 +1181,7 @@ func (s *Server) getMultisigOutInfo(ctx context.Context, icmd interface{}) (inte
 
 	// Get the list of pubkeys required to sign.
 	_, pubkeyAddrs, _, err := txscript.ExtractPkScriptAddrs(
-		txscript.DefaultScriptVersion, p2shOutput.RedeemScript,
+		0, p2shOutput.RedeemScript,
 		w.ChainParams())
 	if err != nil {
 		return nil, err
@@ -1204,7 +1192,7 @@ func (s *Server) getMultisigOutInfo(ctx context.Context, icmd interface{}) (inte
 	}
 
 	result := &types.GetMultisigOutInfoResult{
-		Address:      p2shOutput.P2SHAddress.EncodeAddress(),
+		Address:      p2shOutput.P2SHAddress.Address(),
 		RedeemScript: hex.EncodeToString(p2shOutput.RedeemScript),
 		M:            p2shOutput.M,
 		N:            p2shOutput.N,
@@ -1265,7 +1253,7 @@ func (s *Server) getNewAddress(ctx context.Context, icmd interface{}) (interface
 	if err != nil {
 		return nil, err
 	}
-	return addr.EncodeAddress(), nil
+	return addr.Address(), nil
 }
 
 // getRawChangeAddress handles a getrawchangeaddress request by creating
@@ -1298,7 +1286,7 @@ func (s *Server) getRawChangeAddress(ctx context.Context, icmd interface{}) (int
 	}
 
 	// Return the new payment address string.
-	return addr.EncodeAddress(), nil
+	return addr.Address(), nil
 }
 
 // getReceivedByAccount handles a getreceivedbyaccount request by returning
@@ -1432,17 +1420,15 @@ func (s *Server) getStakeInfo(ctx context.Context, icmd interface{}) (interface{
 		return nil, errUnloadedWallet
 	}
 
-	var chainClient *rpcclient.Client
-	if n, ok := s.walletLoader.NetworkBackend(); ok {
-		client, err := chain.RPCClientFromBackend(n)
-		if err == nil {
-			chainClient = client
-		}
+	var rpc *dcrd.RPC
+	n, _ := s.walletLoader.NetworkBackend()
+	if client, ok := n.(*dcrd.RPC); ok {
+		rpc = client
 	}
 	var sinfo *wallet.StakeInfoData
 	var err error
-	if chainClient != nil {
-		sinfo, err = w.StakeInfoPrecise(chainClient)
+	if rpc != nil {
+		sinfo, err = w.StakeInfoPrecise(ctx, rpc)
 	} else {
 		sinfo, err = w.StakeInfo()
 	}
@@ -1502,12 +1488,12 @@ func (s *Server) getTickets(ctx context.Context, icmd interface{}) (interface{},
 	}
 
 	n, _ := s.walletLoader.NetworkBackend()
-	chainClient, err := chain.RPCClientFromBackend(n)
-	if err != nil {
+	rpc, ok := n.(*dcrd.RPC)
+	if !ok {
 		return nil, errRPCClientNotConnected
 	}
 
-	ticketHashes, err := w.LiveTicketHashes(chainClient, cmd.IncludeImmature)
+	ticketHashes, err := w.LiveTicketHashes(ctx, rpc, cmd.IncludeImmature)
 	if err != nil {
 		return nil, err
 	}
@@ -1691,22 +1677,22 @@ func (s *Server) help(ctx context.Context, icmd interface{}) (interface{}, error
 	// TODO: The "help" RPC should use a HTTP POST client when calling down to
 	// dcrd for additional help methods.  This avoids including websocket-only
 	// requests in the help, which are not callable by wallet JSON-RPC clients.
-	var chainClient *rpcclient.Client
+	var rpc *dcrd.RPC
 	n, _ := s.walletLoader.NetworkBackend()
-	if c, err := chain.RPCClientFromBackend(n); err == nil {
-		chainClient = c
+	if client, ok := n.(*dcrd.RPC); ok {
+		rpc = client
 	}
 	if cmd.Command == nil || *cmd.Command == "" {
 		// Prepend chain server usage if it is available.
 		usages := requestUsages
-		if chainClient != nil {
-			rawChainUsage, err := chainClient.RawRequest("help", nil)
-			var chainUsage string
-			if err == nil {
-				_ = json.Unmarshal([]byte(rawChainUsage), &chainUsage)
+		if rpc != nil {
+			var usage string
+			err := rpc.Call(ctx, "help", &usage)
+			if err != nil {
+				return nil, err
 			}
-			if chainUsage != "" {
-				usages = "Chain server usage:\n\n" + chainUsage + "\n\n" +
+			if usage != "" {
+				usages = "Chain server usage:\n\n" + usage + "\n\n" +
 					"Wallet server usage (overrides chain requests):\n\n" +
 					requestUsages
 			}
@@ -1731,14 +1717,10 @@ func (s *Server) help(ctx context.Context, icmd interface{}) (interface{}, error
 
 	// Return the chain server's detailed help if possible.
 	var chainHelp string
-	if chainClient != nil {
-		param := make([]byte, len(*cmd.Command)+2)
-		param[0] = '"'
-		copy(param[1:], *cmd.Command)
-		param[len(param)-1] = '"'
-		rawChainHelp, err := chainClient.RawRequest("help", []json.RawMessage{param})
-		if err == nil {
-			_ = json.Unmarshal([]byte(rawChainHelp), &chainHelp)
+	if rpc != nil {
+		err := rpc.Call(ctx, "help", &chainHelp, *cmd.Command)
+		if err != nil {
+			return nil, err
 		}
 	}
 	if chainHelp != "" {
@@ -1883,7 +1865,7 @@ func (s *Server) listReceivedByAddress(ctx context.Context, icmd interface{}) (i
 					continue
 				}
 				for _, addr := range addrs {
-					addrStr := addr.EncodeAddress()
+					addrStr := addr.Address()
 					addrData, ok := allAddrData[addrStr]
 					if ok {
 						addrData.amount += cred.Amount
@@ -1931,15 +1913,26 @@ func (s *Server) listSinceBlock(ctx context.Context, icmd interface{}) (interfac
 		return nil, errUnloadedWallet
 	}
 
-	tipHash, tipHeight := w.MainChainTip()
 	targetConf := int32(*cmd.TargetConfirmations)
 	if targetConf < 1 {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "target_confirmations must be positive")
 	}
 
+	tipHash, tipHeight := w.MainChainTip()
+	lastBlock := &tipHash
+	if targetConf > 0 {
+		id := wallet.NewBlockIdentifierFromHeight((tipHeight + 1) - targetConf)
+		info, err := w.BlockInfo(id)
+		if err != nil {
+			return nil, err
+		}
+
+		lastBlock = &info.Hash
+	}
+
 	// TODO: This must begin at the fork point in the main chain, not the height
 	// of this block.
-	var start int32
+	var end int32
 	if cmd.BlockHash != nil {
 		hash, err := chainhash.NewHashFromStr(*cmd.BlockHash)
 		if err != nil {
@@ -1949,17 +1942,17 @@ func (s *Server) listSinceBlock(ctx context.Context, icmd interface{}) (interfac
 		if err != nil {
 			return nil, err
 		}
-		start = int32(header.Height)
+		end = int32(header.Height)
 	}
 
-	txInfoList, err := w.ListSinceBlock(start, tipHeight+1-targetConf, tipHeight)
+	txInfoList, err := w.ListSinceBlock(-1, end, tipHeight)
 	if err != nil {
 		return nil, err
 	}
 
 	res := &types.ListSinceBlockResult{
 		Transactions: txInfoList,
-		LastBlock:    tipHash.String(),
+		LastBlock:    lastBlock.String(),
 	}
 	return res, nil
 }
@@ -1985,7 +1978,7 @@ func (s *Server) listScripts(ctx context.Context, icmd interface{}) (interface{}
 		}
 		listScriptsResultSIs[i] = types.ScriptInfo{
 			Hash160:      hex.EncodeToString(p2shAddr.Hash160()[:]),
-			Address:      p2shAddr.EncodeAddress(),
+			Address:      p2shAddr.Address(),
 			RedeemScript: hex.EncodeToString(redeemScript),
 		}
 	}
@@ -2083,7 +2076,7 @@ func (s *Server) listUnspent(ctx context.Context, icmd interface{}) (interface{}
 			if err != nil {
 				return nil, err
 			}
-			addresses[a.EncodeAddress()] = struct{}{}
+			addresses[a.Address()] = struct{}{}
 		}
 	}
 
@@ -2241,7 +2234,7 @@ func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err e
 		return addr.ScriptV0(), 0, nil
 	default:
 		pkScript, err = txscript.PayToAddrScript(addr)
-		return pkScript, txscript.DefaultScriptVersion, err
+		return pkScript, 0, err
 	}
 }
 
@@ -2342,7 +2335,7 @@ func (s *Server) redeemMultiSigOut(ctx context.Context, icmd interface{}) (inter
 	if err != nil {
 		return nil, err
 	}
-	sc := txscript.GetScriptClass(txscript.DefaultScriptVersion,
+	sc := txscript.GetScriptClass(0,
 		p2shOutput.RedeemScript)
 	if sc != txscript.MultiSigTy {
 		return nil, errors.E("P2SH redeem script is not multisig")
@@ -2489,14 +2482,15 @@ func (s *Server) revokeTickets(ctx context.Context, icmd interface{}) (interface
 	// tickets were missed.  RevokeExpiredTickets is only able to create
 	// revocations for tickets which have reached their expiry time even if they
 	// were missed prior to expiry, but is able to be used with other backends.
-	n, _ := s.walletLoader.NetworkBackend()
-	chainClient, err := chain.RPCClientFromBackend(n)
-	if err != nil {
-		err := w.RevokeExpiredTickets(ctx, n)
+	n, ok := s.walletLoader.NetworkBackend()
+	if !ok {
+		return nil, errNoNetwork
+	}
+	if rpc, ok := n.(*dcrd.RPC); ok {
+		err := w.RevokeTickets(ctx, rpc)
 		return nil, err
 	}
-
-	err = w.RevokeTickets(chainClient)
+	err := w.RevokeExpiredTickets(ctx, n)
 	return nil, err
 }
 
@@ -2509,7 +2503,7 @@ func (s *Server) stakePoolUserInfo(ctx context.Context, icmd interface{}) (inter
 		return nil, errUnloadedWallet
 	}
 
-	userAddr, err := dcrutil.DecodeAddress(cmd.User)
+	userAddr, err := dcrutil.DecodeAddress(cmd.User, w.ChainParams())
 	if err != nil {
 		return nil, err
 	}
@@ -2571,7 +2565,7 @@ func (s *Server) ticketsForAddress(ctx context.Context, icmd interface{}) (inter
 		return nil, errUnloadedWallet
 	}
 
-	addr, err := dcrutil.DecodeAddress(cmd.Address)
+	addr, err := dcrutil.DecodeAddress(cmd.Address, w.ChainParams())
 	if err != nil {
 		return nil, err
 	}
@@ -2784,7 +2778,7 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 
 	result := &types.SendToMultiSigResult{
 		TxHash:       tx.MsgTx.TxHash().String(),
-		Address:      addr.EncodeAddress(),
+		Address:      addr.Address(),
 		RedeemScript: hex.EncodeToString(script),
 	}
 
@@ -2975,11 +2969,11 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 	// querying dcrd with getrawtransaction. We queue up a bunch of async
 	// requests and will wait for replies after we have checked the rest of
 	// the arguments.
-	var requested map[wire.OutPoint]rpcclient.FutureGetTxOutResult
+	requested := make(map[wire.OutPoint]*dcrdtypes.GetTxOutResult)
+	var requestedMu sync.Mutex
+	requestedGroup, gctx := errgroup.WithContext(ctx)
 	n, _ := s.walletLoader.NetworkBackend()
-	chainClient, err := chain.RPCClientFromBackend(n)
-	if err == nil {
-		requested = make(map[wire.OutPoint]rpcclient.FutureGetTxOutResult)
+	if rpc, ok := n.(*dcrd.RPC); ok {
 		for i, txIn := range tx.TxIn {
 			// We don't need the first input of a stakebase tx, as it's garbage
 			// anyway.
@@ -2993,9 +2987,21 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 			}
 
 			// Asynchronously request the output script.
-			requested[txIn.PreviousOutPoint] = chainClient.GetTxOutAsync(
-				&txIn.PreviousOutPoint.Hash, txIn.PreviousOutPoint.Index,
-				true)
+			requestedGroup.Go(func() error {
+				hash := txIn.PreviousOutPoint.Hash.String()
+				index := txIn.PreviousOutPoint.Index
+				// gettxout returns null without error if the output exists
+				// but is spent.  A double pointer is used to handle this case.
+				var res *dcrdtypes.GetTxOutResult
+				err := rpc.Call(gctx, "gettxout", &res, hash, index, true)
+				if err != nil {
+					return errors.E(errors.Op("dcrd.jsonrpc.gettxout"), err)
+				}
+				requestedMu.Lock()
+				requested[txIn.PreviousOutPoint] = res
+				requestedMu.Unlock()
+				return nil
+			})
 		}
 	}
 
@@ -3007,13 +3013,9 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 		keys = make(map[string]*dcrutil.WIF)
 
 		for _, key := range *cmd.PrivKeys {
-			wif, err := dcrutil.DecodeWIF(key)
+			wif, err := dcrutil.DecodeWIF(key, w.ChainParams().PrivateKeyID)
 			if err != nil {
 				return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
-			}
-
-			if !wif.IsForNet(w.ChainParams()) {
-				return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "key intended for different network")
 			}
 
 			var addr dcrutil.Address
@@ -3039,18 +3041,17 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 					return nil, err
 				}
 			}
-			keys[addr.EncodeAddress()] = wif
+			keys[addr.Address()] = wif
 		}
 	}
 
 	// We have checked the rest of the args. now we can collect the async
-	// txs. TODO: If we don't mind the possibility of wasting work we could
-	// move waiting to the following loop and be slightly more asynchronous.
-	for outPoint, resp := range requested {
-		result, err := resp.Receive()
-		if err != nil {
-			return nil, errors.E(errors.Op("dcrd.jsonrpc.gettxout"), err)
-		}
+	// txs.
+	err = requestedGroup.Wait()
+	if err != nil {
+		return nil, err
+	}
+	for outPoint, result := range requested {
 		// gettxout returns JSON null if the output is found, but is spent by
 		// another transaction in the main chain.
 		if result == nil {
@@ -3192,8 +3193,8 @@ func (src *scriptChangeSource) ScriptSize() int {
 	return len(src.script)
 }
 
-func makeScriptChangeSource(address string, version uint16) (*scriptChangeSource, error) {
-	destinationAddress, err := dcrutil.DecodeAddress(address)
+func makeScriptChangeSource(address string, version uint16, params *chaincfg.Params) (*scriptChangeSource, error) {
+	destinationAddress, err := dcrutil.DecodeAddress(address, params)
 	if err != nil {
 		return nil, err
 	}
@@ -3251,8 +3252,7 @@ func (s *Server) sweepAccount(ctx context.Context, icmd interface{}) (interface{
 		return nil, err
 	}
 
-	changeSource, err := makeScriptChangeSource(cmd.DestinationAddress,
-		txscript.DefaultScriptVersion)
+	changeSource, err := makeScriptChangeSource(cmd.DestinationAddress, 0, w.ChainParams())
 	if err != nil {
 		return nil, err
 	}
@@ -3301,7 +3301,7 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 	// by checking the type of "addr", however, the reference
 	// implementation only puts that information if the script is
 	// "ismine", and we follow that behaviour.
-	result.Address = addr.EncodeAddress()
+	result.Address = addr.Address()
 	result.IsValid = true
 
 	ainfo, err := w.AddressInfo(addr)
@@ -3356,7 +3356,7 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 		// further information available, so just set the script type
 		// a non-standard and break out now.
 		class, addrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
-			txscript.DefaultScriptVersion, script, w.ChainParams())
+			0, script, w.ChainParams())
 		if err != nil {
 			result.Script = txscript.NonStandardTy.String()
 			break
@@ -3364,7 +3364,7 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 
 		addrStrings := make([]string, len(addrs))
 		for i, a := range addrs {
-			addrStrings[i] = a.EncodeAddress()
+			addrStrings[i] = a.Address()
 		}
 		result.Addresses = addrStrings
 
@@ -3387,7 +3387,7 @@ func (s *Server) verifyMessage(ctx context.Context, icmd interface{}) (interface
 	var valid bool
 
 	// Decode address and base64 signature from the request.
-	addr, err := dcrutil.DecodeAddress(cmd.Address)
+	addr, err := dcrutil.DecodeAddress(cmd.Address, s.activeNet)
 	if err != nil {
 		return nil, err
 	}
@@ -3401,14 +3401,14 @@ func (s *Server) verifyMessage(ctx context.Context, icmd interface{}) (interface
 	switch a := addr.(type) {
 	case *dcrutil.AddressSecpPubKey:
 	case *dcrutil.AddressPubKeyHash:
-		if a.DSA(a.Net()) != dcrec.STEcdsaSecp256k1 {
+		if a.DSA() != dcrec.STEcdsaSecp256k1 {
 			goto WrongAddrKind
 		}
 	default:
 		goto WrongAddrKind
 	}
 
-	valid, err = wallet.VerifyMessage(cmd.Message, addr, sig)
+	valid, err = wallet.VerifyMessage(cmd.Message, addr, sig, s.activeNet)
 	// Mirror Bitcoin Core behavior, which treats all erorrs as an invalid
 	// signature.
 	return err == nil && valid, nil
@@ -3422,17 +3422,13 @@ WrongAddrKind:
 // with the server.  The chainClient is optional, and this is simply a helper
 // function for the versionWithChainRPC and versionNoChainRPC handlers.
 func (s *Server) version(ctx context.Context, icmd interface{}) (interface{}, error) {
-	var resp map[string]dcrdtypes.VersionResult
+	resp := make(map[string]dcrdtypes.VersionResult)
 	n, _ := s.walletLoader.NetworkBackend()
-	chainClient, err := chain.RPCClientFromBackend(n)
-	if err == nil {
-		var err error
-		resp, err = chainClient.Version()
+	if rpc, ok := n.(*dcrd.RPC); ok {
+		err := rpc.Call(ctx, "version", &resp)
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		resp = make(map[string]dcrdtypes.VersionResult)
 	}
 
 	resp["dcrwalletjsonrpcapi"] = dcrdtypes.VersionResult{
@@ -3456,9 +3452,11 @@ func (s *Server) walletInfo(ctx context.Context, icmd interface{}) (interface{},
 	n, err := w.NetworkBackend()
 	connected := err == nil
 	if connected {
-		chainClient, err := chain.RPCClientFromBackend(n)
-		if err == nil {
-			err := chainClient.Ping()
+		if rpc, ok := n.(*dcrd.RPC); ok {
+			err := rpc.Call(ctx, "ping", nil)
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			if err != nil {
 				log.Warnf("Ping failed on connected daemon client: %v", err)
 				connected = false

@@ -6,20 +6,18 @@ package wallet
 
 import (
 	"context"
-	"encoding/hex"
-	"encoding/json"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/rpcclient/v2"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/dcrutil/v2"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/udb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
-	"github.com/jrick/bitset"
+	"github.com/decred/dcrwallet/rpc/client/dcrd"
+	"github.com/decred/dcrwallet/wallet/v3/udb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -56,7 +54,7 @@ func (w *Wallet) GenerateVoteTx(blockHash *chainhash.Hash, height int32, ticketH
 
 // LiveTicketHashes returns the hashes of live tickets that the wallet has
 // purchased or has voting authority for.
-func (w *Wallet) LiveTicketHashes(chainClient *rpcclient.Client, includeImmature bool) ([]chainhash.Hash, error) {
+func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, includeImmature bool) ([]chainhash.Hash, error) {
 	const op errors.Op = "wallet.LiveTicketHashes"
 
 	var ticketHashes []chainhash.Hash
@@ -128,15 +126,19 @@ func (w *Wallet) LiveTicketHashes(chainClient *rpcclient.Client, includeImmature
 		g.Go(func() error {
 			// gettxout is used first as an optimization to check that output 0
 			// of the ticket is unspent.
-			getTxOutResult, err := chainClient.GetTxOut(&extraTickets[i], 0, true)
-			if err != nil || getTxOutResult == nil {
+			var txOut *dcrdtypes.GetTxOutResult
+			err := rpcCaller.Call(ctx, "gettxout", &txOut, extraTickets[i].String(), 0)
+			if err != nil || txOut == nil {
 				return nil
 			}
-			r, err := chainClient.GetRawTransactionVerbose(&extraTickets[i])
+			var grt struct {
+				BlockHeight int32 `json:"blockheight"`
+			}
+			err = rpcCaller.Call(ctx, "getrawtransaction", &grt, extraTickets[i].String(), 1)
 			if err != nil {
 				return nil
 			}
-			extraTicketResults[i] = extraTicketResult{true, int32(r.BlockHeight)}
+			extraTicketResults[i] = extraTicketResult{true, grt.BlockHeight}
 			return nil
 		})
 	}
@@ -169,29 +171,13 @@ func (w *Wallet) LiveTicketHashes(chainClient *rpcclient.Client, includeImmature
 	}
 
 	// Use RPC to query which of the possibly-live tickets are really live.
-	maybeLiveStrings := make([]string, len(maybeLive))
-	for i := range maybeLive {
-		maybeLiveStrings[i] = maybeLive[i].String()
-	}
-	param0, err := json.Marshal(maybeLiveStrings)
-	if err != nil {
-		return nil, errors.E(op, errors.Encoding, err)
-	}
-	result, err := chainClient.RawRequest("existslivetickets", []json.RawMessage{param0})
+	rpc := dcrd.New(rpcCaller)
+	live, err := rpc.ExistsLiveTickets(ctx, maybeLive)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	var liveBitsetHex string
-	err = json.Unmarshal(result, &liveBitsetHex)
-	if err != nil {
-		return nil, errors.E(op, errors.Encoding, err)
-	}
-	liveBitset, err := hex.DecodeString(liveBitsetHex)
-	if err != nil {
-		return nil, errors.E(op, errors.Encoding, err)
-	}
 	for i, h := range maybeLive {
-		if bitset.Bytes(liveBitset).Get(i) {
+		if live.Get(i) {
 			ticketHashes = append(ticketHashes, *h)
 		}
 	}
@@ -293,7 +279,7 @@ func (w *Wallet) AddTicket(ticket *wire.MsgTx) error {
 // RevokeTickets creates and sends revocation transactions for any unrevoked
 // missed and expired tickets.  The wallet must be unlocked to generate any
 // revocations.
-func (w *Wallet) RevokeTickets(chainClient *rpcclient.Client) error {
+func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 	const op errors.Op = "wallet.RevokeTickets"
 
 	var ticketHashes []chainhash.Hash
@@ -308,45 +294,19 @@ func (w *Wallet) RevokeTickets(chainClient *rpcclient.Client) error {
 		return errors.E(op, err)
 	}
 
-	ticketHashStrings := make([]string, len(ticketHashes))
+	ticketHashPtrs := make([]*chainhash.Hash, len(ticketHashes))
 	for i := range ticketHashes {
-		ticketHashStrings[i] = ticketHashes[i].String()
+		ticketHashPtrs[i] = &ticketHashes[i]
 	}
-	param0, err := json.Marshal(ticketHashStrings)
-	if err != nil {
-		return errors.E(op, errors.Encoding, err)
-	}
-	expiredFuture := chainClient.RawRequestAsync("existsexpiredtickets", []json.RawMessage{param0})
-	missedFuture := chainClient.RawRequestAsync("existsmissedtickets", []json.RawMessage{param0})
-	expiredBitsetJSON, err := expiredFuture.Receive()
-	if err != nil {
-		return errors.E(op, err)
-	}
-	missedBitsetJSON, err := missedFuture.Receive()
-	if err != nil {
-		return errors.E(op, err)
-	}
-	var expiredBitsHex, missedBitsHex string
-	err = json.Unmarshal(expiredBitsetJSON, &expiredBitsHex)
-	if err != nil {
-		return errors.E(op, errors.Encoding, err)
-	}
-	err = json.Unmarshal(missedBitsetJSON, &missedBitsHex)
-	if err != nil {
-		return errors.E(op, errors.Encoding, err)
-	}
-	expiredBits, err := hex.DecodeString(expiredBitsHex)
-	if err != nil {
-		return errors.E(op, err)
-	}
-	missedBits, err := hex.DecodeString(missedBitsHex)
+	rpc := dcrd.New(rpcCaller)
+	expired, missed, err := rpc.ExistsExpiredMissedTickets(ctx, ticketHashPtrs)
 	if err != nil {
 		return errors.E(op, err)
 	}
 	revokableTickets := make([]*chainhash.Hash, 0, len(ticketHashes))
-	for i := range ticketHashes {
-		if bitset.Bytes(expiredBits).Get(i) || bitset.Bytes(missedBits).Get(i) {
-			revokableTickets = append(revokableTickets, &ticketHashes[i])
+	for i, p := range ticketHashPtrs {
+		if expired.Get(i) || missed.Get(i) {
+			revokableTickets = append(revokableTickets, p)
 		}
 	}
 	feePerKb := w.RelayFee()
@@ -400,15 +360,14 @@ func (w *Wallet) RevokeTickets(chainClient *rpcclient.Client) error {
 			if err != nil {
 				return errors.E(op, err)
 			}
-			_, err = chainClient.SendRawTransaction(revocation, true)
-			return err
+			return rpc.PublishTransaction(ctx, revocation)
 		})
 		if err != nil {
 			return errors.E(op, err)
 		}
 		log.Infof("Revoked ticket %v with revocation %v", revokableTickets[i],
 			&rec.Hash)
-		err = chainClient.LoadTxFilter(false, nil, watch)
+		err = rpc.LoadTxFilter(ctx, false, nil, watch)
 		if err != nil {
 			log.Errorf("Failed to watch outpoints: %v", err)
 		}
@@ -525,7 +484,7 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 	}
 
 	if n, err := w.NetworkBackend(); err == nil && len(watchOutPoints) > 0 {
-		err := n.LoadTxFilter(context.TODO(), false, nil, watchOutPoints)
+		err := n.LoadTxFilter(ctx, false, nil, watchOutPoints)
 		if err != nil {
 			log.Errorf("Failed to watch outpoints: %v", err)
 		}

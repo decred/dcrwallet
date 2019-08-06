@@ -14,14 +14,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrec"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/prompt"
 	"github.com/decred/dcrwallet/loader"
-	"github.com/decred/dcrwallet/wallet/v2"
-	_ "github.com/decred/dcrwallet/wallet/v2/drivers/bdb"
+	"github.com/decred/dcrwallet/wallet/v3"
+	_ "github.com/decred/dcrwallet/wallet/v3/drivers/bdb"
 	"github.com/decred/dcrwallet/walletseed"
 )
 
@@ -49,7 +51,7 @@ func createWallet(ctx context.Context, cfg *config) error {
 	stakeOptions := &loader.StakeOptions{
 		VotingEnabled: cfg.EnableVoting,
 		AddressReuse:  cfg.ReuseAddresses,
-		VotingAddress: cfg.TBOpts.VotingAddress.Address,
+		VotingAddress: cfg.TBOpts.votingAddress,
 		TicketFee:     cfg.RelayFee.ToCoin(),
 	}
 	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
@@ -102,7 +104,12 @@ func createWallet(ctx context.Context, cfg *config) error {
 		if err != nil {
 			return err
 		}
-		addr, err := child.Address(&chaincfg.SimNetParams)
+		pk, err := child.ECPubKey()
+		if err != nil {
+			return err
+		}
+		pkh := dcrutil.Hash160(pk.SerializeCompressed())
+		addr, err := dcrutil.NewAddressPubKeyHash(pkh, chaincfg.SimNetParams(), dcrec.STEcdsaSecp256k1)
 		if err != nil {
 			return err
 		}

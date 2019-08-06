@@ -11,13 +11,13 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -2222,7 +2222,7 @@ func createStore(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params) erro
 		// we have bigger problems.
 		panic(err)
 	}
-	err = putRawBlockHeader(ns, keyBlockHeader(chainParams.GenesisHash),
+	err = putRawBlockHeader(ns, keyBlockHeader(&chainParams.GenesisHash),
 		serializedGenesisBlock[:])
 	if err != nil {
 		return err
@@ -2361,7 +2361,7 @@ func upgradeToVersion3(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params
 		// we have bigger problems.
 		panic(err)
 	}
-	err = putRawBlockHeader(ns, keyBlockHeader(chainParams.GenesisHash),
+	err = putRawBlockHeader(ns, keyBlockHeader(&chainParams.GenesisHash),
 		serializedGenesisBlock[:])
 	if err != nil {
 		return err

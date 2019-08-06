@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/udb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/udb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -82,7 +82,7 @@ func (f *RescanFilter) AddAddress(a dcrutil.Address) {
 			f.uncompressedPubKeys[uncompressedPubKey] = struct{}{}
 		}
 	default:
-		f.otherAddresses[a.EncodeAddress()] = struct{}{}
+		f.otherAddresses[a.Address()] = struct{}{}
 	}
 }
 
@@ -112,7 +112,7 @@ func (f *RescanFilter) ExistsAddress(a dcrutil.Address) (ok bool) {
 			}
 		}
 	default:
-		_, ok = f.otherAddresses[a.EncodeAddress()]
+		_, ok = f.otherAddresses[a.Address()]
 	}
 	return
 }
@@ -137,7 +137,7 @@ func (f *RescanFilter) RemoveAddress(a dcrutil.Address) {
 			delete(f.uncompressedPubKeys, uncompressedPubKey)
 		}
 	default:
-		delete(f.otherAddresses, a.EncodeAddress())
+		delete(f.otherAddresses, a.Address())
 	}
 }
 
@@ -156,11 +156,6 @@ func (f *RescanFilter) ExistsUnspentOutPoint(op *wire.OutPoint) bool {
 // RemoveUnspentOutPoint removes an outpoint from the filter if it exists.
 func (f *RescanFilter) RemoveUnspentOutPoint(op *wire.OutPoint) {
 	delete(f.unspent, *op)
-}
-
-// RescanSaver records transactions from a rescaned block.
-type RescanSaver interface {
-	SaveRescanned(hash *chainhash.Hash, txs []*wire.MsgTx) error
 }
 
 // SaveRescanned records transactions from a rescanned block.  This
@@ -240,7 +235,7 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 			}
 		}
 		log.Infof("Rescanning block range [%v, %v]...", height, through)
-		err = n.Rescan(ctx, rescanBlocks, w)
+		err = n.Rescan(ctx, rescanBlocks, w.SaveRescanned)
 		if err != nil {
 			return err
 		}

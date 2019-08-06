@@ -11,14 +11,15 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainec"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/hdkeychain"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/chaincfg/v2/chainec"
+	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/zero"
-	"github.com/decred/dcrwallet/wallet/v2/internal/snacl"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
+	"github.com/decred/dcrwallet/wallet/v3/internal/snacl"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -464,7 +465,7 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 	if err != nil {
 		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt account %d pubkey: %v", account, err))
 	}
-	acctKeyPub, err := hdkeychain.NewKeyFromString(string(serializedKeyPub))
+	acctKeyPub, err := hdkeychain.NewKeyFromString(string(serializedKeyPub), m.chainParams)
 	if err != nil {
 		return nil, errors.E(errors.IO, err)
 	}
@@ -485,7 +486,7 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 			return nil, errors.E(errors.Crypto, errors.Errorf("decrypt account %d privkey: %v", account, err))
 		}
 
-		acctKeyPriv, err := hdkeychain.NewKeyFromString(string(decrypted))
+		acctKeyPriv, err := hdkeychain.NewKeyFromString(string(decrypted), m.chainParams)
 		if err != nil {
 			return nil, errors.E(errors.IO, err)
 		}
@@ -632,7 +633,7 @@ func (m *Manager) CoinTypePrivKey(dbtx walletdb.ReadTx) (*hdkeychain.ExtendedKey
 	if err != nil {
 		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt cointype privkey: %v", err))
 	}
-	coinTypeKeyPriv, err := hdkeychain.NewKeyFromString(string(serializedKeyPriv))
+	coinTypeKeyPriv, err := hdkeychain.NewKeyFromString(string(serializedKeyPriv), m.chainParams)
 	zero.Bytes(serializedKeyPriv)
 	if err != nil {
 		return nil, errors.E(errors.IO, err)
@@ -773,7 +774,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 	if err != nil {
 		return errors.E(errors.Crypto, errors.Errorf("decrypt SLIP0044 account 0 xpub: %v", err))
 	}
-	acctExtPubKey, err := hdkeychain.NewKeyFromString(string(acctExtPubKeyStr))
+	acctExtPubKey, err := hdkeychain.NewKeyFromString(string(acctExtPubKeyStr), m.chainParams)
 	if err != nil {
 		return errors.E(errors.IO, err)
 	}
@@ -785,7 +786,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 		if err != nil {
 			return errors.E(errors.Crypto, errors.Errorf("decrypt SLIP0044 account 0 xpriv: %v", err))
 		}
-		acctExtPrivKey, err = hdkeychain.NewKeyFromString(string(acctExtPrivKeyStr))
+		acctExtPrivKey, err = hdkeychain.NewKeyFromString(string(acctExtPrivKeyStr), m.chainParams)
 		if err != nil {
 			return errors.E(errors.IO, err)
 		}
@@ -1175,12 +1176,6 @@ func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF
 	defer m.mtx.Unlock()
 	m.mtx.Lock()
 
-	// Ensure the address is intended for network the address manager is
-	// associated with.
-	if !wif.IsForNet(m.chainParams) {
-		return nil, errors.E(errors.Invalid, "wrong network")
-	}
-
 	// The manager must be unlocked to encrypt the imported private key.
 	if !m.watchingOnly && m.locked {
 		return nil, errors.E(errors.Locked)
@@ -1407,7 +1402,7 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 			return errors.E(errors.Crypto, errors.Errorf("decrypt account %d privkey: %v", account, err))
 		}
 
-		acctKeyPriv, err := hdkeychain.NewKeyFromString(string(decrypted))
+		acctKeyPriv, err := hdkeychain.NewKeyFromString(string(decrypted), m.chainParams)
 		zero.Bytes(decrypted)
 		if err != nil {
 			m.lock()
@@ -1629,7 +1624,7 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 		}
 		// This can't error as only good input is passed to
 		// dcrutil.NewAddressPubKeyHash.
-		addr, _ := xpubChild.Address(m.chainParams)
+		addr, _ := compat.HD2Address(xpubChild, m.chainParams)
 		hash160 := addr.Hash160()[:]
 		if existsAddress(ns, hash160) {
 			// address was found and there are no more to generate
@@ -1723,7 +1718,7 @@ func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, 
 		return 0, errors.E(errors.Crypto, errors.Errorf("decrypt cointype privkey: %v", err))
 	}
 	coinTypeKeyPriv, err :=
-		hdkeychain.NewKeyFromString(string(serializedKeyPriv))
+		hdkeychain.NewKeyFromString(string(serializedKeyPriv), m.chainParams)
 	zero.Bytes(serializedKeyPriv)
 	if err != nil {
 		return 0, errors.E(errors.IO, err)
@@ -2567,7 +2562,7 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase
 	}
 
 	// Load the passed public key.
-	acctKeyPub, err := hdkeychain.NewKeyFromString(hdPubKey)
+	acctKeyPub, err := hdkeychain.NewKeyFromString(hdPubKey, chainParams)
 	if err != nil {
 		// The seed is unusable if the any of the children in the
 		// required hierarchy can't be derived due to invalid child.
@@ -2576,11 +2571,6 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase
 		}
 
 		return err
-	}
-
-	// Ensure the extended public key is valid for the active network.
-	if !acctKeyPub.IsForNet(chainParams) {
-		return errors.E(errors.Invalid, "wrong network")
 	}
 
 	// Ensure the branch keys can be derived for the provided seed according

@@ -6,14 +6,14 @@ package wallet
 
 import (
 	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/internal/txsizes"
-	"github.com/decred/dcrwallet/wallet/v2/txrules"
-	"github.com/decred/dcrwallet/wallet/v2/udb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
+	"github.com/decred/dcrwallet/wallet/v3/txrules"
+	"github.com/decred/dcrwallet/wallet/v3/udb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // MakeSecp256k1MultiSigScript creates a multi-signature script that can be
@@ -48,7 +48,7 @@ func (w *Wallet) MakeSecp256k1MultiSigScript(secp256k1Addrs []dcrutil.Address, n
 			secp256k1PubKeys[i] = addr
 
 		case *dcrutil.AddressPubKeyHash:
-			if addr.DSA(w.chainParams) != dcrec.STEcdsaSecp256k1 {
+			if addr.DSA() != dcrec.STEcdsaSecp256k1 {
 				return nil, errors.E(op, errors.Invalid, "address key is not secp256k1")
 			}
 

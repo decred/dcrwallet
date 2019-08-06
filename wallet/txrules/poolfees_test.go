@@ -3,13 +3,13 @@ package txrules_test
 import (
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrutil"
-	. "github.com/decred/dcrwallet/wallet/v2/txrules"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
+	. "github.com/decred/dcrwallet/wallet/v3/txrules"
 )
 
 func TestStakePoolTicketFee(t *testing.T) {
-	params := &chaincfg.MainNetParams
+	params := chaincfg.MainNetParams()
 	tests := []struct {
 		StakeDiff dcrutil.Amount
 		Fee       dcrutil.Amount

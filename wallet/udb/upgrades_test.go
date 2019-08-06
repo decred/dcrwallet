@@ -15,12 +15,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/wire"
-	_ "github.com/decred/dcrwallet/wallet/v2/drivers/bdb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	_ "github.com/decred/dcrwallet/wallet/v3/drivers/bdb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 var dbUpgradeTests = [...]struct {
@@ -79,7 +79,7 @@ func TestUpgrades(t *testing.T) {
 					t.Fatal(err)
 				}
 				defer db.Close()
-				err = Upgrade(db, pubPass, &chaincfg.TestNet3Params)
+				err = Upgrade(db, pubPass, chaincfg.TestNet3Params())
 				if err != nil {
 					t.Fatalf("Upgrade failed: %v", err)
 				}
@@ -92,7 +92,7 @@ func TestUpgrades(t *testing.T) {
 }
 
 func verifyV2Upgrade(t *testing.T, db walletdb.DB) {
-	amgr, _, _, err := Open(db, &chaincfg.TestNet3Params, pubPass)
+	amgr, _, _, err := Open(db, chaincfg.TestNet3Params(), pubPass)
 	if err != nil {
 		t.Fatalf("Open after Upgrade failed: %v", err)
 	}
@@ -161,7 +161,7 @@ func verifyV2Upgrade(t *testing.T, db walletdb.DB) {
 }
 
 func verifyV3Upgrade(t *testing.T, db walletdb.DB) {
-	_, _, smgr, err := Open(db, &chaincfg.TestNet3Params, pubPass)
+	_, _, smgr, err := Open(db, chaincfg.TestNet3Params(), pubPass)
 	if err != nil {
 		t.Fatalf("Open after Upgrade failed: %v", err)
 	}
@@ -421,7 +421,7 @@ func verifyV8Upgrade(t *testing.T, db walletdb.DB) {
 // See the v11.db.go file for an explanation of the database layout and test
 // plan.
 func verifyV12Upgrade(t *testing.T, db walletdb.DB) {
-	_, txmgr, _, err := Open(db, &chaincfg.TestNet3Params, pubPass)
+	_, txmgr, _, err := Open(db, chaincfg.TestNet3Params(), pubPass)
 	if err != nil {
 		t.Fatalf("Open after Upgrade failed: %v", err)
 	}

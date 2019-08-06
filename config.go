@@ -16,13 +16,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/cfgutil"
 	"github.com/decred/dcrwallet/netparams"
 	"github.com/decred/dcrwallet/version"
-	"github.com/decred/dcrwallet/wallet/v2"
-	"github.com/decred/dcrwallet/wallet/v2/txrules"
+	"github.com/decred/dcrwallet/wallet/v3"
+	"github.com/decred/dcrwallet/wallet/v3/txrules"
 	"github.com/decred/slog"
 	flags "github.com/jessevdk/go-flags"
 )
@@ -88,13 +88,14 @@ type config struct {
 	EnableVoting            bool                 `long:"enablevoting" description:"Automatically create votes and revocations"`
 	PurchaseAccount         string               `long:"purchaseaccount" description:"Account to autobuy tickets from"`
 	PoolAddress             *cfgutil.AddressFlag `long:"pooladdress" description:"VSP fee address"`
-	PoolFees                float64              `long:"poolfees" description:"VSP fee percentage (1.00 equals 1.00% fee)"`
-	GapLimit                int                  `long:"gaplimit" description:"Allowed unused address gap between used addresses of accounts"`
-	StakePoolColdExtKey     string               `long:"stakepoolcoldextkey" description:"xpub:maxindex for fee addresses (VSP-only option)"`
-	AllowHighFees           bool                 `long:"allowhighfees" description:"Do not perform high fee checks"`
-	RelayFee                *cfgutil.AmountFlag  `long:"txfee" description:"Transaction fee per kilobyte"`
-	AccountGapLimit         int                  `long:"accountgaplimit" description:"Allowed gap of unused accounts"`
-	DisableCoinTypeUpgrades bool                 `long:"disablecointypeupgrades" description:"Never upgrade from legacy to SLIP0044 coin type keys"`
+	poolAddress             dcrutil.Address
+	PoolFees                float64             `long:"poolfees" description:"VSP fee percentage (1.00 equals 1.00% fee)"`
+	GapLimit                int                 `long:"gaplimit" description:"Allowed unused address gap between used addresses of accounts"`
+	StakePoolColdExtKey     string              `long:"stakepoolcoldextkey" description:"xpub:maxindex for fee addresses (VSP-only option)"`
+	AllowHighFees           bool                `long:"allowhighfees" description:"Do not perform high fee checks"`
+	RelayFee                *cfgutil.AmountFlag `long:"txfee" description:"Transaction fee per kilobyte"`
+	AccountGapLimit         int                 `long:"accountgaplimit" description:"Allowed gap of unused accounts"`
+	DisableCoinTypeUpgrades bool                `long:"disablecointypeupgrades" description:"Never upgrade from legacy to SLIP0044 coin type keys"`
 
 	// RPC client options
 	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Network address of dcrd RPC server"`
@@ -140,7 +141,8 @@ type config struct {
 type ticketBuyerOptions struct {
 	BalanceToMaintainAbsolute *cfgutil.AmountFlag  `long:"balancetomaintainabsolute" description:"Amount of funds to keep in wallet when purchasing tickets"`
 	VotingAddress             *cfgutil.AddressFlag `long:"votingaddress" description:"Purchase tickets with voting rights assigned to this address"`
-	Limit                     uint                 `long:"limit" description:"Buy no more than specified number of tickets per block (0 disables limit)"`
+	votingAddress             dcrutil.Address
+	Limit                     uint `long:"limit" description:"Buy no more than specified number of tickets per block (0 disables limit)"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -312,14 +314,14 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		StakePoolColdExtKey:     defaultStakePoolColdExtKey,
 		AllowHighFees:           defaultAllowHighFees,
 		RelayFee:                cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
-		PoolAddress:             cfgutil.NewAddressFlag(nil),
+		PoolAddress:             cfgutil.NewAddressFlag(),
 		AccountGapLimit:         defaultAccountGapLimit,
 		DisableCoinTypeUpgrades: defaultDisableCoinTypeUpgrades,
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
 			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
-			VotingAddress:             cfgutil.NewAddressFlag(nil),
+			VotingAddress:             cfgutil.NewAddressFlag(),
 		},
 	}
 
@@ -428,6 +430,22 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Initialize log rotation.  After log rotation has been initialized, the
 	// logger variables may be used.
 	initLogRotator(filepath.Join(cfg.LogDir.Value, defaultLogFilename))
+
+	// Check that no addresses were created for the wrong network
+	for _, a := range []struct {
+		flag *cfgutil.AddressFlag
+		addr *dcrutil.Address
+	}{
+		{cfg.PoolAddress, &cfg.poolAddress},
+		{cfg.TBOpts.VotingAddress, &cfg.TBOpts.votingAddress},
+	} {
+		addr, err := a.flag.Address(activeNet.Params)
+		if err != nil {
+			log.Error(err)
+			return loadConfigError(err)
+		}
+		*a.addr = addr
+	}
 
 	// Parse, validate, and set debug log level(s).
 	if err := parseAndSetDebugLevels(cfg.DebugLevel); err != nil {

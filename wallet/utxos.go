@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/txauthor"
-	"github.com/decred/dcrwallet/wallet/v2/udb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/txauthor"
+	"github.com/decred/dcrwallet/wallet/v3/udb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // OutputSelectionPolicy describes the rules for selecting an output from the
@@ -55,7 +55,7 @@ func (w *Wallet) UnspentOutputs(policy OutputSelectionPolicy) ([]*TransactionOut
 
 			// Ignore outputs that are not controlled by the account.
 			_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				txscript.DefaultScriptVersion, output.PkScript,
+				0, output.PkScript,
 				w.chainParams)
 			if err != nil || len(addrs) == 0 {
 				// Cannot determine which account this belongs
@@ -85,7 +85,7 @@ func (w *Wallet) UnspentOutputs(policy OutputSelectionPolicy) ([]*TransactionOut
 					Value: int64(output.Amount),
 					// TODO: version is bogus but there is
 					// only version 0 at time of writing.
-					Version:  txscript.DefaultScriptVersion,
+					Version:  0,
 					PkScript: output.PkScript,
 				},
 				OutputKind:      outputSource,

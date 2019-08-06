@@ -12,21 +12,21 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/blockchain"
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainec"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/chaincfg/v2/chainec"
 	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/mempool/v2"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/internal/txsizes"
-	"github.com/decred/dcrwallet/wallet/v2/txauthor"
-	"github.com/decred/dcrwallet/wallet/v2/txrules"
-	"github.com/decred/dcrwallet/wallet/v2/udb"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
+	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
+	"github.com/decred/dcrwallet/wallet/v3/txauthor"
+	"github.com/decred/dcrwallet/wallet/v3/txrules"
+	"github.com/decred/dcrwallet/wallet/v3/udb"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // --------------------------------------------------------------------------------
@@ -46,13 +46,10 @@ const (
 	// sanityVerifyFlags are the flags used to enable and disable features of
 	// the txscript engine used for sanity checking of transactions signed by
 	// the wallet.
-	sanityVerifyFlags = mempool.BaseStandardVerifyFlags
-)
-
-var (
-	// maxTxSize is the maximum size of a transaction we can
-	// build with the wallet.
-	maxTxSize = chaincfg.MainNetParams.MaxTxSize
+	sanityVerifyFlags = txscript.ScriptDiscourageUpgradableNops |
+		txscript.ScriptVerifyCleanStack |
+		txscript.ScriptVerifyCheckLockTimeVerify |
+		txscript.ScriptVerifyCheckSequenceVerify
 )
 
 // extendedOutPoint is a UTXO with an amount.
@@ -647,7 +644,7 @@ func (w *Wallet) txToMultisigInternal(op errors.Op, dbtx walletdb.ReadWriteTx, a
 func validateMsgTx(op errors.Op, tx *wire.MsgTx, prevScripts [][]byte) error {
 	for i, prevScript := range prevScripts {
 		vm, err := txscript.NewEngine(prevScript, tx, i,
-			sanityVerifyFlags, txscript.DefaultScriptVersion, nil)
+			sanityVerifyFlags, 0, nil)
 		if err != nil {
 			return errors.E(op, err)
 		}
@@ -728,7 +725,7 @@ func (w *Wallet) compressWalletInternal(op errors.Op, dbtx walletdb.ReadWriteTx,
 		PkScript: pkScript,
 		Version:  vers,
 	})
-	maximumTxSize := maxTxSize
+	maximumTxSize := w.chainParams.MaxTxSize
 	if w.chainParams.Net == wire.MainNet {
 		maximumTxSize = maxStandardTxSize
 	}
@@ -1370,7 +1367,7 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 		// using createrawtransaction, signrawtransaction, and
 		// sendrawtransaction).
 		class, addrs, _, err := txscript.ExtractPkScriptAddrs(
-			txscript.DefaultScriptVersion, output.PkScript, w.chainParams)
+			0, output.PkScript, w.chainParams)
 		if err != nil || len(addrs) != 1 {
 			continue
 		}
@@ -1462,7 +1459,7 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 		// using createrawtransaction, signrawtransaction, and
 		// sendrawtransaction).
 		class, addrs, _, err := txscript.ExtractPkScriptAddrs(
-			txscript.DefaultScriptVersion, output.PkScript, w.chainParams)
+			0, output.PkScript, w.chainParams)
 		if err != nil ||
 			!(class == txscript.PubKeyHashTy ||
 				class == txscript.StakeGenTy ||
@@ -1503,7 +1500,7 @@ func (w *Wallet) signP2PKHMsgTx(msgtx *wire.MsgTx, prevOutputs []udb.Credit, add
 		// Errors don't matter here, as we only consider the
 		// case where len(addrs) == 1.
 		_, addrs, _, _ := txscript.ExtractPkScriptAddrs(
-			txscript.DefaultScriptVersion, output.PkScript, w.chainParams)
+			0, output.PkScript, w.chainParams)
 		if len(addrs) != 1 {
 			continue
 		}
@@ -1621,7 +1618,7 @@ func createUnsignedVote(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx,
 
 	// Calculate the subsidy for votes at this height.
 	subsidy := blockchain.CalcStakeVoteSubsidy(subsidyCache, int64(blockHeight),
-		params)
+		compat.Params2to1(params))
 
 	// Calculate the output values from this vote using the subsidy.
 	voteRewardValues := stake.CalculateRewards(ticketValues,

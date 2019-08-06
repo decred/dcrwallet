@@ -4,7 +4,7 @@ import (
 	"bufio"
 
 	"github.com/decred/dcrwallet/internal/prompt"
-	"github.com/decred/dcrwallet/wallet/v2"
+	"github.com/decred/dcrwallet/wallet/v3"
 )
 
 // Setup prompts for, from a buffered reader, the private and/or public

@@ -7,16 +7,17 @@ package udb
 import (
 	"crypto/sha256"
 
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/gcs/blockcf"
-	"github.com/decred/dcrd/hdkeychain"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/hdkeychain/v2"
+	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/wallet/v2/internal/snacl"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
+	"github.com/decred/dcrwallet/wallet/v3/internal/snacl"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // Note: all manager functions always use the latest version of the database.
@@ -201,7 +202,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 		if err != nil {
 			return errors.E(errors.Crypto, errors.Errorf("decrypt extended pubkey: %v", err))
 		}
-		xpub, err := hdkeychain.NewKeyFromString(string(serializedKeyPub))
+		xpub, err := hdkeychain.NewKeyFromString(string(serializedKeyPub), params)
 		if err != nil {
 			return errors.E(errors.IO, err)
 		}
@@ -231,7 +232,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 			// mistake to hardcode the mainnet parameters here, it doesn't make
 			// any difference since only the pubkey hash is used.  (Why is there
 			// no exported method to just return the serialized public key?)
-			addr, _ := xpubChild.Address(&chaincfg.MainNetParams)
+			addr, _ := compat.HD2Address(xpubChild, params)
 			if addressBucket.Get(addressKey(addr.Hash160()[:])) == nil {
 				// No more recorded addresses for this account.
 				break
@@ -249,7 +250,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 			if err != nil {
 				return err
 			}
-			addr, _ := xpubChild.Address(&chaincfg.MainNetParams)
+			addr, _ := compat.HD2Address(xpubChild, params)
 			if addressBucket.Get(addressKey(addr.Hash160()[:])) == nil {
 				break
 			}
@@ -776,7 +777,7 @@ func cfUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincf
 	// Record all cfilters as saved when only the genesis block is saved.
 	var tipHash chainhash.Hash
 	copy(tipHash[:], txmgrBucket.Get(rootTipBlock))
-	if tipHash == *params.GenesisHash {
+	if tipHash == params.GenesisHash {
 		err = txmgrBucket.Put(rootHaveCFilters, []byte{1})
 		if err != nil {
 			return errors.E(errors.IO, err)
@@ -852,8 +853,7 @@ func ticketCommitmentsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, 
 				}
 
 				// Decode the address stored in the commitment.
-				addr, err := stake.AddrFromSStxPkScrCommitment(txo.PkScript,
-					params)
+				addr, err := stake.AddrFromSStxPkScrCommitment(txo.PkScript, params)
 				if err != nil {
 					return errors.E(errors.IO, err)
 				}

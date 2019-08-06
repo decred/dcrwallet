@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrwallet/wallet/v2/walletdb"
+	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // expectedAddr is used to house the expected return values from a managed
@@ -60,7 +60,7 @@ var (
 		PubPassphrase: pubPassphrase,
 		GapLimit:      20,
 		RelayFee:      dcrutil.Amount(1e5).ToCoin(),
-		Params:        &chaincfg.SimNetParams,
+		Params:        chaincfg.SimNetParams(),
 	}
 
 	defaultAccount = uint32(0)
@@ -159,11 +159,8 @@ func setupWallet(t *testing.T, cfg *Config) (*Wallet, walletdb.DB, func()) {
 		os.Remove(f.Name())
 		t.Fatal(err)
 	}
-	w.Start()
 
 	teardown := func() {
-		w.Stop()
-		w.WaitForShutdown()
 		db.Close()
 		os.Remove(f.Name())
 	}
