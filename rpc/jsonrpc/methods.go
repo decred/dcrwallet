@@ -1399,25 +1399,31 @@ func (s *Server) getSpvPeerInfo(ctx context.Context, icmd interface{}) (interfac
 		return nil, err
 	}
 
-	syncer := n.(*spv.Syncer)
-	infos := make([]*types.GetSpvInfoResult, 0, len(syncer.GetRemotePeers()))
-	for _, rp := range syncer.GetRemotePeers(){
-		snapshot := rp.StatsSnapshot()
-		info := &types.GetSpvInfoResult{
-			Id:				snapshot.Id,
-			UA:				snapshot.Ua,
-			Services:		snapshot.Services,
-			Pver:			snapshot.Pver,
-			InitHeight:		snapshot.InitHeight,
-			C:				snapshot.C,
-			Sendheaders:	snapshot.SendHeaders,
-			Raddr:			snapshot.Raddr,
-			NA:				snapshot.Na,
+	syncer, ok := n.(*spv.Syncer)
+
+	if ok {
+		infos := make([]*types.GetSpvInfoResult, 0, len(syncer.GetRemotePeers()))
+		for _, rp := range syncer.GetRemotePeers(){
+			snapshot := rp.StatsSnapshot()
+			info := &types.GetSpvInfoResult{
+				Id:				snapshot.Id,
+				UA:				snapshot.Ua,
+				Services:		snapshot.Services,
+				Pver:			snapshot.Pver,
+				InitHeight:		snapshot.InitHeight,
+				C:				snapshot.C,
+				Sendheaders:	snapshot.SendHeaders,
+				Raddr:			snapshot.Raddr,
+				NA:				snapshot.Na,
+			}
+			infos = append(infos, info)
 		}
-		infos = append(infos, info)
+		return infos, nil
+	} else {
+		return "Wallet not in spv mode.\nUse command getpeerinfo when not in spv.\nUse command getspvpeerinfo when in spv.", nil
 	}
-	return infos, nil
 }
+
 // getStakeInfo gets a large amounts of information about the stake environment
 // and a number of statistics about local staking in the wallet.
 func (s *Server) getStakeInfo(ctx context.Context, icmd interface{}) (interface{}, error) {
