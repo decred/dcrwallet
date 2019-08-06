@@ -1386,6 +1386,8 @@ func (s *Server) getMasterPubkey(ctx context.Context, icmd interface{}) (interfa
 	return masterPubKey.String(), nil
 }
 
+// getSpvPeerInfo gets the network backend and views
+// the data on remote peers when in spv mode
 func (s *Server) getSpvPeerInfo(ctx context.Context, icmd interface{}) (interface{}, error) {
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
