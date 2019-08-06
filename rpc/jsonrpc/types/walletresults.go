@@ -1,8 +1,9 @@
 package types
 
 import (
-	"github.com/decred/dcrd/wire"
 	"net"
+
+	"github.com/decred/dcrd/wire"
 )
 
 type GetSpvInfoResult struct {
