@@ -27,6 +27,7 @@ var Methods = []struct {
 	Method      string
 	ResultTypes []interface{}
 }{
+	{"abandontransaction", nil},
 	{"accountaddressindex", []interface{}{(*int)(nil)}},
 	{"accountsyncaddressindex", nil},
 	{"addmultisigaddress", returnsString},

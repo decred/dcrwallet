@@ -63,6 +63,7 @@ func confirms(txHeight, curHeight int32) int32 {
 // the registered rpc handlers
 var handlers = map[string]handler{
 	// Reference implementation wallet methods (implemented)
+	"abandontransaction":      {fn: (*Server).abandonTransaction},
 	"accountaddressindex":     {fn: (*Server).accountAddressIndex},
 	"accountsyncaddressindex": {fn: (*Server).accountSyncAddressIndex},
 	"addmultisigaddress":      {fn: (*Server).addMultiSigAddress},
@@ -256,6 +257,24 @@ func makeResponse(id, result interface{}, err error) dcrjson.Response {
 		ID:     idPtr,
 		Result: json.RawMessage(resultBytes),
 	}
+}
+
+// abandonTransaction removes an unconfirmed transaction and all dependent
+// transactions from the wallet.
+func (s *Server) abandonTransaction(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.AbandonTransactionCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	hash, err := chainhash.NewHashFromStr(cmd.Hash)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+
+	err = w.AbandonTransaction(hash)
+	return nil, err
 }
 
 // accountAddressIndex returns the next address index for the passed

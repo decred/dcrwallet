@@ -16,6 +16,12 @@ import (
 // Method describes the exact type used when registering methods with dcrjson.
 type Method string
 
+// AbandonTransactionCmd describes the command and parameters for performing the
+// abandontransaction method.
+type AbandonTransactionCmd struct {
+	Hash string `json:"hash"`
+}
+
 // AccountAddressIndexCmd is a type handling custom marshaling and
 // unmarshaling of accountaddressindex JSON wallet extension
 // commands.
@@ -1270,6 +1276,7 @@ func init() {
 
 	// Wallet-specific methods
 	register := []registeredMethod{
+		{"abandontransaction", (*AbandonTransactionCmd)(nil)},
 		{"accountaddressindex", (*AccountAddressIndexCmd)(nil)},
 		{"accountsyncaddressindex", (*AccountSyncAddressIndexCmd)(nil)},
 		{"addmultisigaddress", (*AddMultisigAddressCmd)(nil)},

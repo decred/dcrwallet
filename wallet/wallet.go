@@ -4041,7 +4041,7 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 	return false
 }
 
-// PurgeUnminedTransaction removes a transaction, identified by its hash, from
+// AbandonTransaction removes a transaction, identified by its hash, from
 // the wallet if present.  All transaction spend chains deriving from the
 // transaction's outputs are also removed.  Does not error if the transaction
 // doesn't already exist unmined, but will if the transaction is marked mined in
@@ -4052,8 +4052,8 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 // as purged transactions may be rejected by full nodes due to being double
 // spends.  In turn, this can cause the purged transaction to be mined later and
 // replace other transactions authored by the wallet.
-func (w *Wallet) PurgeUnminedTransaction(hash *chainhash.Hash) error {
-	const opf = "wallet.PurgeUnminedTransaction(%v)"
+func (w *Wallet) AbandonTransaction(hash *chainhash.Hash) error {
+	const opf = "wallet.AbandonTransaction(%v)"
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		ns := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 		details, err := w.TxStore.TxDetails(ns, hash)
@@ -4152,8 +4152,8 @@ func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, n Netwo
 		}
 		if !isDuplicateTx {
 			if relevant {
-				if err := w.PurgeUnminedTransaction(&txHash); err != nil {
-					log.Warnf("Failed to purge added unmined transaction: %v", err)
+				if err := w.AbandonTransaction(&txHash); err != nil {
+					log.Warnf("Failed to abandon unmined transaction: %v", err)
 				}
 			}
 			op := errors.Opf(opf, &txHash)

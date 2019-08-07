@@ -8,6 +8,10 @@
 package rpchelp
 
 var helpDescsEnUS = map[string]string{
+	// AbandonTransactionCmd help.
+	"abandontransaction--synopsis": "Remove an unconfirmed transaction and all dependent transactions",
+	"abandontransaction-hash":      "Hash of transaction to remove",
+
 	// AccountAddressIndexCmd help.
 	"accountaddressindex--synopsis": "Get the current address index for some account branch",
 	"accountaddressindex-account":   "String for the account",
