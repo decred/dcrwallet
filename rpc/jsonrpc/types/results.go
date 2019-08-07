@@ -5,6 +5,10 @@
 
 package types
 
+import (
+	"net"
+)
+
 // FundRawTransactionResult models the data from the fundrawtransaction command.
 type FundRawTransactionResult struct {
 	Hex string  `json:"hex"`
@@ -67,6 +71,22 @@ type GetMultisigOutInfoResult struct {
 // command.
 type GetPayToContractHashResult struct {
 	Address string `json:"address"`
+}
+
+// GetSpvPeerInfoResult models the data returned from the getspvpeerinfo
+// command
+type GetSpvPeerInfoResult struct {
+	Id				uint64				`json:"id"`
+	Addr			string				`json:"addr"`
+	AddrLocal		string				`json:"addrlocal"`
+	Services		string				`json:"services"`
+	UA				string				`json:"user agent"`
+	Pver			uint32				`json:"pver"`
+	InitHeight		int32				`json:"initial height"`
+	C				net.Conn			`json:"connection"`
+	Sendheaders		bool				`json:"send headers"`
+	Banscore		int32				`json:"banscore"`
+
 }
 
 // GetStakeInfoResult models the data returned from the getstakeinfo

@@ -119,6 +119,42 @@ type LocalPeer struct {
 	rpMu   sync.Mutex
 }
 
+type SnapShot struct {
+	Id			uint64
+	Ua			string
+	Services	wire.ServiceFlag
+	Pver		uint32
+	InitHeight	int32
+	C 			net.Conn
+	SendHeaders  bool
+	Addr         string
+	AddrLocal	string
+	Banscore	int32
+}
+
+func (rp *RemotePeer) StatsSnapshot() *SnapShot {
+	rp.statsMu.Lock()
+	id := rp.id
+	addr := rp.RemoteAddr().String()
+	addrLocal := rp.c.LocalAddr().String()
+
+	snapshot := &SnapShot{
+		Id:				id,
+		C:				rp.c,
+		Ua:				rp.UA(),
+		Services:		rp.Services(),
+		Pver:			rp.pver,
+		InitHeight:		rp.InitialHeight(),
+		SendHeaders: 	rp.sendheaders,
+		Addr:			addr,
+		AddrLocal:      addrLocal,
+		Banscore:		int32(rp.banScore.Int()),
+	}
+	rp.statsMu.Unlock()
+
+	return snapshot
+}
+
 // NewLocalPeer creates a LocalPeer that is externally reachable to remote peers
 // through extaddr.
 func NewLocalPeer(params *chaincfg.Params, extaddr *net.TCPAddr, amgr *addrmgr.AddrManager) *LocalPeer {

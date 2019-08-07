@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"sort"
 	"strconv"
@@ -34,6 +35,7 @@ import (
 	"github.com/decred/dcrwallet/p2p/v2"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
+	"github.com/decred/dcrwallet/spv/v3"
 	"github.com/decred/dcrwallet/version"
 	"github.com/decred/dcrwallet/wallet/v3"
 	"github.com/decred/dcrwallet/wallet/v3/txrules"
@@ -1607,6 +1609,45 @@ func (s *Server) getMasterPubkey(ctx context.Context, icmd interface{}) (interfa
 		return nil, err
 	}
 	return masterPubKey.String(), nil
+}
+
+// getSpvPeerInfo gets the network backend and views
+// the data on remote peers when in spv mode
+func (s *Server) getSpvPeerInfo(ctx context.Context, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+	n, err := w.NetworkBackend()
+
+	if err != nil {
+		return nil, err
+	}
+
+	syncer, ok := n.(*spv.Syncer)
+
+	if ok {
+		infos := make([]*types.GetSpvPeerInfoResult, 0, len(syncer.GetRemotePeers()))
+		for _, rp := range syncer.GetRemotePeers(){
+			snapshot := rp.StatsSnapshot()
+			info := &types.GetSpvPeerInfoResult{
+				Id:				snapshot.Id,
+				Addr:			snapshot.Addr,
+				AddrLocal: 		snapshot.AddrLocal,
+				Services:		fmt.Sprintf("%08d", uint64(snapshot.Services)),
+				UA:				snapshot.Ua,
+				Pver:			snapshot.Pver,
+				InitHeight:		snapshot.InitHeight,
+				C:				snapshot.C,
+				Sendheaders:	snapshot.SendHeaders,
+				Banscore:		snapshot.Banscore,
+			}
+			infos = append(infos, info)
+		}
+		return infos, nil
+	} else {
+		return "Wallet not in spv mode.\nUse command 'getspvpeerinfo' when in spv mode.", nil
+	}
 }
 
 // getStakeInfo gets a large amounts of information about the stake environment
