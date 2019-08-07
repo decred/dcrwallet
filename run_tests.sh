@@ -1,37 +1,15 @@
 #!/usr/bin/env bash
 
-# usage:
-# ./run_tests.sh                         # local, go 1.12
-# GOVERSION=1.11 ./run_tests.sh          # local, go 1.11
-# ./run_tests.sh docker                  # docker, go 1.12
-# GOVERSION=1.11 ./run_tests.sh docker   # docker, go 1.11
-
 set -ex
 
-[[ ! "$GOVERSION" ]] && GOVERSION=1.12
-REPO=dcrwallet
+go version
 
-# To run on docker on windows, symlink /mnt/c to /c and then execute the script
-# from the repo path under /c.  See:
-# https://github.com/Microsoft/BashOnWindows/issues/1854
-# for more details.
+GOTESTFLAGS='-short'
+ROOTPATH=$(go list -m -f {{.Dir}} 2>/dev/null)
+ROOTPATHPATTERN=$(echo $ROOTPATH | sed 's/\\/\\\\/g' | sed 's/\//\\\//g')
+MODPATHS=$(go list -m -f {{.Dir}} all 2>/dev/null | grep "^$ROOTPATHPATTERN" | sed -E -e "s/^$ROOTPATHPATTERN//" -e 's,^/,,' -e 's,/v[0-9]+$,,')
+MODPATHS=". $MODPATHS"
 
-testrepo () {
-    go version
-    env CC=gcc GOTESTFLAGS='-short' bash ./testmodules.sh
-}
-
-DOCKER=
-[[ "$1" == "docker" ]] && DOCKER=docker
-[[ "$1" == "podman" ]] && DOCKER=podman
-if [[ ! "$DOCKER" ]]; then
-    testrepo
-    exit
-fi
-
-DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
-$DOCKER pull decred/$DOCKER_IMAGE_TAG
-$DOCKER run --rm -it -v $(pwd):/src:Z decred/$DOCKER_IMAGE_TAG /bin/bash -c "\
-  cp -R /src ~/src && \
-  cd ~/src && \
-  env GOVERSION=$GOVERSION bash ./run_tests.sh"
+for m in $MODPATHS; do
+    (cd "$m" && go test $GOTESTFLAGS ./...)
+done

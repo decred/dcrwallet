@@ -7,10 +7,10 @@ package dcrd
 import (
 	"bytes"
 	"encoding/hex"
-	"strings"
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"strings"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/gcs"
@@ -234,7 +234,7 @@ func (t *transactions) UnmarshalJSON(j []byte) error {
 			return errors.E(errors.Encoding, "not a string")
 		}
 		t.Transactions[i] = new(wire.MsgTx)
-		err = t.Transactions[i].Deserialize(hex.NewDecoder(bytes.NewReader(j[1:len(j)-1])))
+		err = t.Transactions[i].Deserialize(hex.NewDecoder(bytes.NewReader(j[1 : len(j)-1])))
 		if err != nil {
 			return errors.E(errors.Encoding, err)
 		}

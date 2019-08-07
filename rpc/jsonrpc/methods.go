@@ -1110,13 +1110,6 @@ func (s *Server) importScript(ctx context.Context, icmd interface{}) (interface{
 	return nil, nil
 }
 
-// keypoolRefill handles the keypoolrefill command.  dcrwallet generates
-// deterministic addresses rather than using a keypool, so this method does
-// nothing.
-func (s *Server) keypoolRefill(ctx context.Context, icmd interface{}) (interface{}, error) {
-	return nil, nil
-}
-
 // createNewAccount handles a createnewaccount request by creating and
 // returning a new account. If the last account has no transaction history
 // as per BIP 0044 a new account cannot be created so an error will be returned.

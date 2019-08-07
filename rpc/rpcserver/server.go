@@ -23,7 +23,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -168,7 +167,6 @@ type loaderServer struct {
 	ready     uint32 // atomic
 	loader    *loader.Loader
 	activeNet *netparams.Params
-	mu        sync.Mutex
 }
 
 // seedServer provides RPC clients with the ability to generate secure random
@@ -818,7 +816,7 @@ func (s *walletServer) BlockInfo(ctx context.Context, req *pb.BlockInfoRequest) 
 	}
 
 	header := new(wire.BlockHeader)
-	err = header.Deserialize(bytes.NewReader(b.Header[:]))
+	err = header.Deserialize(bytes.NewReader(b.Header))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to deserialize saved block header: %v", err)
 	}
@@ -828,7 +826,7 @@ func (s *walletServer) BlockInfo(ctx context.Context, req *pb.BlockInfoRequest) 
 		BlockHeight:      b.Height,
 		Confirmations:    b.Confirmations,
 		Timestamp:        b.Timestamp,
-		BlockHeader:      b.Header[:],
+		BlockHeader:      b.Header,
 		StakeInvalidated: b.StakeInvalidated,
 		ApprovesParent:   header.VoteBits&dcrutil.BlockValid != 0,
 	}, nil
@@ -2610,7 +2608,7 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 			}
 			spvConnects[i] = spvConnect
 		}
-		syncer.SetPersistantPeers(spvConnects)
+		syncer.SetPersistentPeers(spvConnects)
 	}
 
 	err := syncer.Run(svr.Context())
