@@ -6,6 +6,7 @@ package udb
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 
 	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -110,10 +111,15 @@ const (
 	// accounting of total locked funds.
 	ticketCommitmentsVersion = 12
 
+	// scriptStorageVersion is the thirteenth version of the database. It
+	// updates the serialization semantics of the address row data and
+	// allows storing raw scripts in the address manager.
+	scriptStorageVersion = 13
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = ticketCommitmentsVersion
+	DBVersion = scriptStorageVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -131,6 +137,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	cfVersion - 1:                    cfUpgrade,
 	lastProcessedTxsBlockVersion - 1: lastProcessedTxsBlockUpgrade,
 	ticketCommitmentsVersion - 1:     ticketCommitmentsUpgrade,
+	scriptStorageVersion - 1:         scriptStorageUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -989,6 +996,77 @@ func ticketCommitmentsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, 
 	}
 
 	log.Debug("Ticket commitments db upgrade done")
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func scriptStorageUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 12
+	const newVersion = 13
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	addrmgrBucket := tx.ReadWriteBucket(waddrmgrBucketKey)
+
+	// Assert that this function is only called on version 12 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "scriptStorageUpgrade inappropriately called")
+	}
+
+	addrbkt := addrmgrBucket.NestedReadBucket(addrBucketName)
+	toUpdate := make(map[string]*dbScriptAddressRow, 0)
+	cursor := addrbkt.ReadCursor()
+	for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+		row, err := deserializeAddressRow(v)
+		if err != nil {
+			return err
+		}
+
+		switch row.addrType {
+		case adtScript:
+			// deserialize the address row.
+			hashLen := binary.LittleEndian.Uint32(row.rawData[0:4])
+			encryptedHash := make([]byte, hashLen)
+			copy(encryptedHash, row.rawData[4:4+hashLen])
+			offset := 4 + hashLen
+			scriptLen := binary.LittleEndian.Uint32(row.rawData[offset : offset+4])
+			offset += 4
+			encryptedScript := make([]byte, scriptLen)
+			copy(encryptedScript, row.rawData[offset:offset+scriptLen])
+
+			// reconstruct the address row.
+			row := &dbScriptAddressRow{
+				dbAddressRow: *row,
+				hash:         encryptedHash,
+				script:       encryptedScript,
+				encrypted:    true,
+			}
+
+			toUpdate[string(k)] = row
+		}
+	}
+
+	// persist reserialized address rows.
+	abkt := addrmgrBucket.NestedReadWriteBucket(addrBucketName)
+	for k, row := range toUpdate {
+		rawData := serializeScriptAddress(row.hash, row.script, row.encrypted)
+		addrRow := &dbAddressRow{
+			addrType:   adtScript,
+			account:    row.account,
+			addTime:    row.addTime,
+			syncStatus: row.syncStatus,
+			rawData:    rawData,
+		}
+
+		err := abkt.Put([]byte(k), serializeAddressRow(addrRow))
+		if err != nil {
+			return errors.E(errors.IO, err)
+		}
+	}
 
 	// Write the new database version.
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
