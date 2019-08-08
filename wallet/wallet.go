@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/blockchain"
+	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
@@ -4367,7 +4367,7 @@ func Open(cfg *Config) (*Wallet, error) {
 		disableCoinTypeUpgrades: cfg.DisableCoinTypeUpgrades,
 
 		// Chain params
-		subsidyCache: blockchain.NewSubsidyCache(0, compat.Params2to1(cfg.Params)),
+		subsidyCache: blockchain.NewSubsidyCache(cfg.Params),
 		chainParams:  cfg.Params,
 
 		lockedOutpoints: map[wire.OutPoint]struct{}{},

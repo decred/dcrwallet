@@ -10,7 +10,7 @@ package validate
 import (
 	"bytes"
 
-	"github.com/decred/dcrd/blockchain"
+	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/wire"
@@ -23,14 +23,14 @@ import (
 func MerkleRoots(block *wire.MsgBlock) error {
 	const opf = "validate.MerkleRoots(%v)"
 
-	merkles := blockchain.BuildMsgTxMerkleTreeStore(block.Transactions)
-	if block.Header.MerkleRoot != *merkles[len(merkles)-1] {
+	mroot := blockchain.CalcTxTreeMerkleRoot(block.Transactions)
+	if block.Header.MerkleRoot != mroot {
 		blockHash := block.BlockHash()
 		op := errors.Opf(opf, &blockHash)
 		return errors.E(op, errors.Consensus, "invalid regular merkle root")
 	}
-	merkles = blockchain.BuildMsgTxMerkleTreeStore(block.STransactions)
-	if block.Header.StakeRoot != *merkles[len(merkles)-1] {
+	mroot = blockchain.CalcTxTreeMerkleRoot(block.STransactions)
+	if block.Header.StakeRoot != mroot {
 		blockHash := block.BlockHash()
 		op := errors.Opf(opf, &blockHash)
 		return errors.E(op, errors.Consensus, "invalid stake merkle root")

@@ -3,9 +3,10 @@ module github.com/decred/dcrwallet/wallet/v3
 require (
 	github.com/decred/dcrd/blockchain v1.1.1
 	github.com/decred/dcrd/blockchain/stake/v2 v2.0.0
+	github.com/decred/dcrd/blockchain/standalone v1.0.0
 	github.com/decred/dcrd/chaincfg v1.5.2
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
-	github.com/decred/dcrd/chaincfg/v2 v2.1.0
+	github.com/decred/dcrd/chaincfg/v2 v2.2.0
 	github.com/decred/dcrd/dcrec v1.0.0
 	github.com/decred/dcrd/dcrec/secp256k1 v1.0.2
 	github.com/decred/dcrd/dcrjson/v2 v2.2.0 // indirect
@@ -33,3 +34,5 @@ require (
 replace github.com/decred/dcrwallet/rpc/client/dcrd => ../rpc/client/dcrd
 
 replace github.com/decred/dcrwallet/deployments/v2 => ../deployments
+
+replace github.com/decred/dcrwallet/validate => ../validate

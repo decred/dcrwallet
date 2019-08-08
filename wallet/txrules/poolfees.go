@@ -9,10 +9,9 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/decred/dcrd/blockchain"
+	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
 )
 
 // ValidPoolFeeRate tests to see if a pool fee is a valid percentage from
@@ -54,10 +53,9 @@ func StakePoolTicketFee(stakeDiff dcrutil.Amount, relayFee dcrutil.Amount,
 	adjs := int(math.Ceil(float64(params.TicketPoolSize) /
 		float64(params.SubsidyReductionInterval)))
 	initSubsidyCacheOnce.Do(func() {
-		subsidyCache = blockchain.NewSubsidyCache(int64(height), compat.Params2to1(params))
+		subsidyCache = blockchain.NewSubsidyCache(params)
 	})
-	subsidy := blockchain.CalcStakeVoteSubsidy(subsidyCache, int64(height),
-		compat.Params2to1(params))
+	subsidy := subsidyCache.CalcStakeVoteSubsidy(int64(height))
 	for i := 0; i < adjs; i++ {
 		subsidy *= 100
 		subsidy /= 101

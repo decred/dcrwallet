@@ -12,7 +12,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/decred/dcrd/blockchain"
+	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
@@ -537,7 +537,7 @@ func (w *Wallet) validateHeaderChainDifficulties(dbtx walletdb.ReadTx, chain []*
 				&hash, h.Bits, bits)
 			return chain[idx:], errors.E(op, errors.Consensus, err)
 		}
-		err = blockchain.CheckProofOfWork(h, w.chainParams.PowLimit)
+		err = blockchain.CheckProofOfWork(&hash, h.Bits, w.chainParams.PowLimit)
 		if err != nil {
 			return chain[idx:], errors.E(op, errors.Consensus, err)
 		}
