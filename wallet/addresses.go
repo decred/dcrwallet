@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 
 	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/dcrec/secp256k1"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrd/txscript/v2"
@@ -35,7 +34,7 @@ type SecpPubKeyHasher interface {
 // SecpPubKeyer is any type (usually addresses) where a secp256k1 public key is
 // known.
 type SecpPubKeyer interface {
-	SecpPubKey() *secp256k1.PublicKey
+	SecpPubKey() []byte
 }
 
 // SecpPubKeyHash160er is any address created from the HASH160 of a pubkey.
@@ -158,7 +157,7 @@ func (x *xpubAddress) payRevokeCommitment() (script []byte, version uint16) {
 	return s, 0
 }
 
-func (x *xpubAddress) SecpPubKey() *secp256k1.PublicKey {
+func (x *xpubAddress) SecpPubKey() []byte {
 	// All errors are unexpected, since the P2PKH address must have already
 	// been created from the same path.
 	branchKey, err := x.xpub.Child(x.branch)
@@ -173,7 +172,7 @@ func (x *xpubAddress) SecpPubKey() *secp256k1.PublicKey {
 	if err != nil {
 		panic(err)
 	}
-	return pubkey
+	return pubkey.SerializeCompressed()
 }
 
 func (x *xpubAddress) SecpPubKeyHash160() *[20]byte {

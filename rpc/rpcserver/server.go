@@ -486,7 +486,7 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 
 	var pubKeyAddrString string
 	if secp, ok := addr.(wallet.SecpPubKeyer); ok {
-		pubKey := secp.SecpPubKey().Serialize()
+		pubKey := secp.SecpPubKey()
 		pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(pubKey, s.wallet.ChainParams())
 		if err != nil {
 			return nil, translateError(err)
