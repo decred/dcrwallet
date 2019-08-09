@@ -156,20 +156,31 @@ var helpDescsEnUS = map[string]string{
 	"getmultisigoutinforesult-redeemscript": "Hex of the redeeming script.",
 	"getmultisigoutinforesult-address":      "Script address.",
 
-	//GetSpvPeerInfo help.
-	"getspvpeerinfo--synopsis": "Returns data on remote peers when in spv mode.",
+	//GetPeerInfoCmd help.
+	"getpeerinfo--synopsis": "Returns data on remote peers when in spv mode.",
 
-	// GetSpvPeerInfoResult help.
-	"getspvpeerinforesult-id":      		      "Id of remote peer.",
-	"getspvpeerinforesult-addr":        	  	  ".",
-	"getspvpeerinforesult-addrlocal":        	  "Local address of the connection.",
-	"getspvpeerinforesult-services":       	      ".",
-	"getspvpeerinforesult-user agent":         	  "User agent.",
-	"getspvpeerinforesult-pver":    			  "",
-	"getspvpeerinforesult-initial height":        "Initial block height.",
-	"getspvpeerinforesult-connection":   		  "",
-	"getspvpeerinforesult-send headers":   	  	  "",
-	"getspvpeerinforesult-banscore":   		  	  "",
+	// GetPeerInfoResult help.
+	"getpeerinforesult-id":      		       "Id of remote peer.",
+	"getpeerinforesult-addr":        	  	   ".",
+	"getpeerinforesult-addrlocal":        	   "Local address of the connection.",
+	"getpeerinforesult-services":       	   ".",
+	"getpeerinforesult-relaytxes":             "",
+	"getpeerinforesult-lastsend":    		   "",
+	"getpeerinforesult-lastrecv":              "Initial block height.",
+	"getpeerinforesult-bytessent":   		   "",
+	"getpeerinforesult-bytesrecv":   	       "",
+	"getpeerinforesult-conntime":   		   "",
+	"getpeerinforesult-timeoffset":            "Initial block height.",
+	"getpeerinforesult-pingtime":   		   "",
+	"getpeerinforesult-pingwait":   	       "",
+	"getpeerinforesult-version":   		       "",
+	"getpeerinforesult-subver":   	   		   "",
+	"getpeerinforesult-inbound":   		       "",
+	"getpeerinforesult-startingheight":        "Initial block height.",
+	"getpeerinforesult-currentheight":   	   "",
+	"getpeerinforesult-banscore":   	       "",
+	"getpeerinforesult-syncnode":   		   "",
+
 
 	// GetStakeInfo help.
 	"getstakeinfo--synopsis": "Returns statistics about staking from the wallet.",

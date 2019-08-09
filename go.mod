@@ -45,6 +45,7 @@ require (
 	github.com/jrick/wsrpc/v2 v2.2.1 // indirect
 	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
+	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
 	google.golang.org/grpc v1.25.1
 )
 
