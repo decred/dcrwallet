@@ -69,7 +69,9 @@ type RemotePeer struct {
 	initHeight int32
 	raddr      net.Addr
 	na         *wire.NetAddress
-
+	disableRelayTx  bool
+	relayMtx        sync.Mutex
+	statsMu sync.Mutex
 	// io
 	c       net.Conn
 	mr      msgReader
@@ -120,16 +122,13 @@ type LocalPeer struct {
 }
 
 type SnapShot struct {
-	Id			uint64
-	Ua			string
-	Services	wire.ServiceFlag
-	Pver		uint32
-	InitHeight	int32
-	C 			net.Conn
-	SendHeaders  bool
-	Addr         string
-	AddrLocal	string
-	Banscore	int32
+	Id				uint64
+	Services		wire.ServiceFlag
+	InitHeight		int32
+	RelayTxes  		bool
+	Addr			string
+	AddrLocal		string
+	Banscore		int32
 }
 
 func (rp *RemotePeer) StatsSnapshot() *SnapShot {
@@ -140,14 +139,11 @@ func (rp *RemotePeer) StatsSnapshot() *SnapShot {
 
 	snapshot := &SnapShot{
 		Id:				id,
-		C:				rp.c,
-		Ua:				rp.UA(),
 		Services:		rp.Services(),
-		Pver:			rp.pver,
 		InitHeight:		rp.InitialHeight(),
-		SendHeaders: 	rp.sendheaders,
 		Addr:			addr,
 		AddrLocal:      addrLocal,
+		RelayTxes: 		rp.disableRelayTx,
 		Banscore:		int32(rp.banScore.Int()),
 	}
 	rp.statsMu.Unlock()
@@ -239,6 +235,25 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 	}
 
 	return rp, nil
+}
+
+// setDisableRelayTx toggles relaying of transactions for the given remote peer.
+// It is safe for concurrent access.
+func (rp *RemotePeer) setDisableRelayTx(disable bool) {
+	rp.relayMtx.Lock()
+	rp.disableRelayTx = disable
+	rp.relayMtx.Unlock()
+}
+
+// relayTxDisabled returns whether or not relaying of transactions for the given
+// peer is disabled.
+// It is safe for concurrent access.
+func (rp *RemotePeer) relayTxDisabled() bool {
+	rp.relayMtx.Lock()
+	isDisabled := rp.disableRelayTx
+	rp.relayMtx.Unlock()
+
+	return isDisabled
 }
 
 // AddrManager returns the local peer's address manager.
@@ -383,6 +398,7 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *wire.NetAddres
 
 	// The first message sent must be the version message.
 	lversion, err := lp.newMsgVersion(rp.pver, lp.extaddr, c)
+	rp.disableRelayTx = lversion.DisableRelayTx
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
