@@ -61,28 +61,28 @@ type RemotePeer struct {
 	// atomics
 	atomicClosed uint64
 
-	flagsMtx             sync.Mutex // protects the peer flags below
-	id         uint64
-	ua         string
-	services   wire.ServiceFlag
-	pver       uint32
-	na         	*wire.NetAddress
+	flagsMtx sync.Mutex // protects the peer flags below
+	id       uint64
+	ua       string
+	services wire.ServiceFlag
+	pver     uint32
+	na       *wire.NetAddress
 
-	inbound bool
-	disableRelayTx  bool
-	initHeight int32
-	raddr      net.Addr
-	lp         *LocalPeer
+	inbound        bool
+	disableRelayTx bool
+	initHeight     int32
+	raddr          net.Addr
+	lp             *LocalPeer
 
 	// These fields keep track of statistics for the peer and are protected
 	// by the statsMtx mutex.
-	statsMu sync.RWMutex
-	timeConnected      time.Time
-	lastBlock          int64
-	timeOffset         int64
-	lastPingMicros     int64     // Time for last ping to return.
-	lastPingTime       time.Time // Time we sent last ping.
-	lastPingNonce      uint64    // Set to nonce if we have a pending ping.
+	statsMu        sync.RWMutex
+	timeConnected  time.Time
+	lastBlock      int64
+	timeOffset     int64
+	lastPingMicros int64     // Time for last ping to return.
+	lastPingTime   time.Time // Time we sent last ping.
+	lastPingNonce  uint64    // Set to nonce if we have a pending ping.
 
 	// The following variables must only be used atomically.
 	bytesReceived uint64
@@ -90,7 +90,7 @@ type RemotePeer struct {
 	lastRecv      int64
 	lastSend      int64
 
-	relayMtx        sync.Mutex
+	relayMtx sync.Mutex
 	// io
 	c       net.Conn
 	mr      msgReader
@@ -192,7 +192,7 @@ func (rp *RemotePeer) StatsSnapshot() *SnapShot {
 		LastPingTime:   rp.lastPingTime,
 		Version:        protocolVersion,
 		UserAgent:      rp.UA(),
-		Inbound: 		rp.inbound,
+		Inbound:        rp.inbound,
 		LastBlock:      rp.lastBlock,
 		Banscore:       int32(rp.banScore.Int()),
 	}
@@ -305,7 +305,7 @@ func (rp *RemotePeer) UpdateLastBlockHeight(newHeight int64) {
 // SetTimeConnected returns the time at which the peer connected.
 //
 // This function is safe for concurrent access.
-func (rp *RemotePeer) SetTimeConnected(time time.Time){
+func (rp *RemotePeer) SetTimeConnected(time time.Time) {
 	rp.statsMu.Lock()
 	rp.timeConnected = time
 	rp.statsMu.Unlock()
@@ -417,7 +417,7 @@ type msgReader struct {
 	msg    wire.Message
 	rawMsg []byte
 	err    error
-	n 		int	 // number of bytes read
+	n      int // number of bytes read
 }
 
 func (mr *msgReader) next(rp *RemotePeer) bool {
@@ -511,7 +511,7 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *wire.NetAddres
 	// The first message sent must be the version message.
 	lversion,
 
-	err := lp.newMsgVersion(rp.pver, lp.extaddr, c)
+		err := lp.newMsgVersion(rp.pver, lp.extaddr, c)
 	rp.setDisableRelayTx(lversion.DisableRelayTx)
 	rp.isIbound(true)
 
@@ -746,7 +746,7 @@ func recycleInMsg(m *inMsg) {
 }
 
 // readMessage reads the next wire message from the remote peer
-func (rp *RemotePeer) readMessage() (n int, message wire.Message, buff []byte, err error){
+func (rp *RemotePeer) readMessage() (n int, message wire.Message, buff []byte, err error) {
 	n, message, buff, err = wire.ReadMessageN(rp.c, Pver, rp.lp.chainParams.Net)
 	atomic.AddUint64(&rp.bytesReceived, uint64(n))
 
@@ -792,9 +792,9 @@ func (rp *RemotePeer) readMessages(ctx context.Context) error {
 			case *wire.MsgPong:
 				rp.receivedPong(ctx, m)
 			}
+			atomic.StoreInt64(&rp.lastRecv, time.Now().Unix())
 		}()
 	}
-	atomic.StoreInt64(&rp.lastRecv, time.Now().Unix())
 	return rp.mr.err
 }
 
