@@ -610,7 +610,13 @@ func (s *walletServer) ImportScript(ctx context.Context,
 
 	err = s.wallet.ImportScript(req.Script)
 	if err != nil {
-		return nil, translateError(err)
+		switch {
+		case errors.Is(errors.Exist, err):
+			// Do not return duplicate script errors to the client.
+			return nil, nil
+		default:
+			return nil, translateError(err)
+		}
 	}
 
 	if req.Rescan {

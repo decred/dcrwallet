@@ -558,7 +558,6 @@ func (w *Wallet) processTransactionRecord(dbtx walletdb.ReadWriteTx, rec *udb.Tx
 				}
 				mscriptaddr, err := w.Manager.ImportScript(addrmgrNs, rs)
 				switch {
-				case errors.Is(errors.Exist, err): // Don't care if it's already there.
 				case errors.Is(errors.Locked, err):
 					log.Warnf("failed to attempt script importation "+
 						"of incoming tx script %x because addrmgr "+

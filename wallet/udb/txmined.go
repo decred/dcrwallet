@@ -3595,8 +3595,15 @@ func (s *Store) AccountBalances(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 	return s.balanceFullScan(ns, addrmgrNs, minConf, syncHeight)
 }
 
-// InsertTxScript inserts a transaction script into the database.
+// InsertTxScript inserts a transaction script into the database if it does not 
+// already exist.
 func (s *Store) InsertTxScript(ns walletdb.ReadWriteBucket, script []byte) error {
+	hash := keyTxScript(script)
+	v := existsTxScript(ns, hash)
+	if v != nil {
+		return errors.E(errors.Exist, errors.Errorf("script for hash %x already exists", hash))
+	}
+
 	return putTxScript(ns, script)
 }
 

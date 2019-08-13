@@ -3132,9 +3132,6 @@ func (w *Wallet) ImportScript(rs []byte) error {
 		mscriptaddr, err := w.Manager.ImportScript(addrmgrNs, rs)
 		if err != nil {
 			switch {
-			// Don't care if it's already there.
-			case errors.Is(errors.Exist, err):
-				return nil
 			case errors.Is(errors.Locked, err):
 				log.Debugf("failed to attempt script importation " +
 					"of incoming tx because addrmgr was locked")
