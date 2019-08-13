@@ -26,7 +26,7 @@ require (
 	github.com/decred/dcrwallet/rpc/jsonrpc/types v1.0.0
 	github.com/decred/dcrwallet/validate v1.0.2
 	github.com/decred/slog v1.0.0
-	go.etcd.io/bbolt v1.3.2
+	go.etcd.io/bbolt v1.3.3
 	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 )
