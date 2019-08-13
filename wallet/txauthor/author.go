@@ -13,7 +13,6 @@ import (
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	h "github.com/decred/dcrwallet/internal/helpers"
 	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
 	"github.com/decred/dcrwallet/wallet/v3/txrules"
 )
@@ -62,6 +61,13 @@ type ChangeSource interface {
 	ScriptSize() int
 }
 
+func sumOutputValues(outputs []*wire.TxOut) (totalOutput dcrutil.Amount) {
+	for _, txOut := range outputs {
+		totalOutput += dcrutil.Amount(txOut.Value)
+	}
+	return totalOutput
+}
+
 // NewUnsignedTransaction creates an unsigned transaction paying to one or more
 // non-change outputs.  An appropriate transaction fee is included based on the
 // transaction size.
@@ -85,7 +91,7 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 
 	const op errors.Op = "txauthor.NewUnsignedTransaction"
 
-	targetAmount := h.SumOutputValues(outputs)
+	targetAmount := sumOutputValues(outputs)
 	scriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
 	changeScript, changeScriptVersion, err := fetchChange.Script()
 	if err != nil {

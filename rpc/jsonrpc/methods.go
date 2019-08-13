@@ -17,8 +17,8 @@ import (
 	"sync"
 	"time"
 
-	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/blockchain/stake/v2"
+	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrec"
@@ -29,7 +29,6 @@ import (
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/internal/helpers"
 	"github.com/decred/dcrwallet/p2p/v2"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
@@ -3189,6 +3188,13 @@ func makeScriptChangeSource(address string, version uint16, params *chaincfg.Par
 	return source, nil
 }
 
+func sumOutputValues(outputs []*wire.TxOut) (totalOutput dcrutil.Amount) {
+	for _, txOut := range outputs {
+		totalOutput += dcrutil.Amount(txOut.Value)
+	}
+	return totalOutput
+}
+
 // sweepAccount handles the sweepaccount command.
 func (s *Server) sweepAccount(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.SweepAccountCmd)
@@ -3247,7 +3253,7 @@ func (s *Server) sweepAccount(ctx context.Context, icmd interface{}) (interface{
 	res := &types.SweepAccountResult{
 		UnsignedTransaction:       b.String(),
 		TotalPreviousOutputAmount: tx.TotalInput.ToCoin(),
-		TotalOutputAmount:         helpers.SumOutputValues(tx.Tx.TxOut).ToCoin(),
+		TotalOutputAmount:         sumOutputValues(tx.Tx.TxOut).ToCoin(),
 		EstimatedSignedSize:       uint32(tx.EstimatedSignedSerializeSize),
 	}
 

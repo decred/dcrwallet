@@ -8,12 +8,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/decred/dcrd/blockchain/chaingen"
+	"github.com/decred/dcrd/blockchain/v2/chaingen"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
 )
 
 type tg struct {
@@ -32,22 +31,22 @@ type gblock struct {
 }
 
 func maketg(t *testing.T, params *chaincfg.Params) *tg {
-	g, err := chaingen.MakeGenerator(compat.Params2to1(params))
+	g, err := chaingen.MakeGenerator(params)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return &tg{t, &g}
 }
 
-func (tg *tg) createPremineBlock(name string) *gblock {
-	premine := tg.CreatePremineBlock(name, 0)
-	f, err := blockcf.Regular(premine)
+func (tg *tg) createBlockOne(name string) *gblock {
+	blockOne := tg.CreateBlockOne(name, 0)
+	f, err := blockcf.Regular(blockOne)
 	if err != nil {
 		tg.Fatal(err)
 	}
-	h := premine.BlockHash()
-	n := &BlockNode{Header: &premine.Header, Hash: &h, Filter: f}
-	return &gblock{premine, n}
+	h := blockOne.BlockHash()
+	n := &BlockNode{Header: &blockOne.Header, Hash: &h, Filter: f}
+	return &gblock{blockOne, n}
 }
 
 func (tg *tg) nextBlock(blockName string, spend *chaingen.SpendableOut, ticketSpends []chaingen.SpendableOut) *gblock {
@@ -143,15 +142,15 @@ func TestReorg(t *testing.T) {
 	tw := &tw{t, w}
 	forest := new(SidechainForest)
 
-	premine := tg.createPremineBlock("premine")
-	mustAddBlockNode(t, forest, premine.BlockNode)
-	t.Logf("Generated premine block %v", premine.Hash)
+	blockOne := tg.createBlockOne("block-one")
+	mustAddBlockNode(t, forest, blockOne.BlockNode)
+	t.Logf("Generated block one %v", blockOne.Hash)
 
-	bestChain := tw.evaluateBestChain(forest, 1, premine.Hash)
+	bestChain := tw.evaluateBestChain(forest, 1, blockOne.Hash)
 	tw.chainSwitch(forest, bestChain)
-	t.Logf("Attached premine block %v", premine.Hash)
+	t.Logf("Attached block one %v", blockOne.Hash)
 	if len(forest.trees) != 0 {
-		t.Fatalf("Did not prune premine block from forest")
+		t.Fatalf("Did not prune block one from forest")
 	}
 	tw.assertNoBetterChain(forest)
 
@@ -177,7 +176,7 @@ func TestReorg(t *testing.T) {
 
 	// Generate sidechain blocks 2b-3b and assert it does not create a better
 	// chain.
-	tg.SetTip("premine")
+	tg.SetTip("block-one")
 	for i := 2; i <= 3; i++ {
 		name := fmt.Sprintf("%vb", i)
 		b := tg.nextBlock(name, nil, nil)

@@ -42,7 +42,6 @@ import (
 	"github.com/decred/dcrwallet/chain/v3"
 	"github.com/decred/dcrwallet/errors"
 	"github.com/decred/dcrwallet/internal/cfgutil"
-	h "github.com/decred/dcrwallet/internal/helpers"
 	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/netparams"
@@ -744,6 +743,13 @@ func makeScriptChangeSource(address string, version uint16, params *chaincfg.Par
 	return source, nil
 }
 
+func sumOutputValues(outputs []*wire.TxOut) (totalOutput dcrutil.Amount) {
+	for _, txOut := range outputs {
+		totalOutput += dcrutil.Amount(txOut.Value)
+	}
+	return totalOutput
+}
+
 func (s *walletServer) SweepAccount(ctx context.Context, req *pb.SweepAccountRequest) (*pb.SweepAccountResponse, error) {
 	feePerKb := s.wallet.RelayFee()
 
@@ -788,7 +794,7 @@ func (s *walletServer) SweepAccount(ctx context.Context, req *pb.SweepAccountReq
 	res := &pb.SweepAccountResponse{
 		UnsignedTransaction:       txBuf.Bytes(),
 		TotalPreviousOutputAmount: int64(tx.TotalInput),
-		TotalOutputAmount:         int64(h.SumOutputValues(tx.Tx.TxOut)),
+		TotalOutputAmount:         int64(sumOutputValues(tx.Tx.TxOut)),
 		EstimatedSignedSize:       uint32(tx.EstimatedSignedSerializeSize),
 	}
 
@@ -1047,7 +1053,7 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 	res := &pb.ConstructTransactionResponse{
 		UnsignedTransaction:       txBuf.Bytes(),
 		TotalPreviousOutputAmount: int64(tx.TotalInput),
-		TotalOutputAmount:         int64(h.SumOutputValues(tx.Tx.TxOut)),
+		TotalOutputAmount:         int64(sumOutputValues(tx.Tx.TxOut)),
 		EstimatedSignedSize:       uint32(tx.EstimatedSignedSerializeSize),
 		ChangeIndex:               int32(tx.ChangeIndex),
 	}

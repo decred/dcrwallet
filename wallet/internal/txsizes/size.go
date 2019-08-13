@@ -5,10 +5,7 @@
 
 package txsizes
 
-import (
-	"github.com/decred/dcrd/wire"
-	h "github.com/decred/dcrwallet/internal/helpers"
-)
+import "github.com/decred/dcrd/wire"
 
 // Worst case script and input/output size estimates.
 const (
@@ -97,6 +94,13 @@ const (
 	P2PKHOutputSize = 8 + 2 + 1 + 25
 )
 
+func sumOutputSerializeSizes(outputs []*wire.TxOut) (serializeSize int) {
+	for _, txOut := range outputs {
+		serializeSize += txOut.SerializeSize()
+	}
+	return serializeSize
+}
+
 // EstimateSerializeSize returns a worst case serialize size estimate for a
 // signed transaction that spends a number of outputs and contains each
 // transaction output from txOuts. The estimated size is incremented for an
@@ -121,7 +125,7 @@ func EstimateSerializeSize(scriptSizes []int, txOuts []*wire.TxOut, changeScript
 	return 12 + (2 * wire.VarIntSerializeSize(uint64(inputCount))) +
 		wire.VarIntSerializeSize(uint64(outputCount)) +
 		txInsSize +
-		h.SumOutputSerializeSizes(txOuts) +
+		sumOutputSerializeSizes(txOuts) +
 		changeSize
 }
 

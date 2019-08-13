@@ -4,12 +4,12 @@ go 1.11
 
 require (
 	github.com/decred/dcrd/addrmgr v1.0.2
-	github.com/decred/dcrd/blockchain/stake v1.1.0
-	github.com/decred/dcrd/blockchain/stake/v2 v2.0.0
+	github.com/decred/dcrd/blockchain/stake v1.2.1
+	github.com/decred/dcrd/blockchain/stake/v2 v2.0.1
 	github.com/decred/dcrd/blockchain/standalone v1.0.0
 	github.com/decred/dcrd/certgen v1.1.0
 	github.com/decred/dcrd/chaincfg v1.5.2
-	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
+	github.com/decred/dcrd/chaincfg/chainhash v1.0.2
 	github.com/decred/dcrd/chaincfg/v2 v2.2.0
 	github.com/decred/dcrd/connmgr/v2 v2.0.0
 	github.com/decred/dcrd/dcrec v1.0.0
@@ -19,17 +19,16 @@ require (
 	github.com/decred/dcrd/dcrutil/v2 v2.0.0
 	github.com/decred/dcrd/hdkeychain/v2 v2.0.1
 	github.com/decred/dcrd/rpc/jsonrpc/types v1.0.0
-	github.com/decred/dcrd/rpcclient/v2 v2.0.0
-	github.com/decred/dcrd/txscript v1.0.2
+	github.com/decred/dcrd/rpcclient/v2 v2.1.0
+	github.com/decred/dcrd/txscript v1.1.0
 	github.com/decred/dcrd/txscript/v2 v2.0.0
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrwallet/chain/v3 v3.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/errors v1.1.0
-	github.com/decred/dcrwallet/internal/helpers v1.0.1
 	github.com/decred/dcrwallet/internal/zero v1.0.1
 	github.com/decred/dcrwallet/p2p/v2 v2.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/rpc/client/dcrd v0.0.0-00010101000000-000000000000
-	github.com/decred/dcrwallet/rpc/jsonrpc/types v1.0.0
+	github.com/decred/dcrwallet/rpc/jsonrpc/types v1.1.0
 	github.com/decred/dcrwallet/rpc/walletrpc v0.2.0
 	github.com/decred/dcrwallet/spv/v3 v3.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/ticketbuyer/v4 v4.0.0-00010101000000-000000000000
@@ -48,7 +47,6 @@ require (
 replace (
 	github.com/decred/dcrwallet/deployments => ./deployments
 	github.com/decred/dcrwallet/errors => ./errors
-	github.com/decred/dcrwallet/internal/helpers => ./internal/helpers
 	github.com/decred/dcrwallet/internal/zero => ./internal/zero
 	github.com/decred/dcrwallet/lru => ./lru
 	github.com/decred/dcrwallet/p2p/v2 => ./p2p
