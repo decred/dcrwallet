@@ -127,14 +127,6 @@ func (s *Syncer) SetPersistentPeers(peers []string) {
 	s.persistentPeers = peers
 }
 
-// SetPersistantPeers sets each peer as a persistent peer and disables DNS
-// seeding and peer discovery.
-//
-// Deprecated: use SetPersistentPeers instead.
-func (s *Syncer) SetPersistantPeers(peers []string) {
-	s.persistentPeers = peers
-}
-
 // SetNotifications sets the possible various callbacks that are used
 // to notify interested parties to the syncing progress.
 func (s *Syncer) SetNotifications(ntfns *Notifications) {
