@@ -60,6 +60,20 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 )
 
+type Auth struct {
+	privPass string
+}
+
+func (auth Auth) GetRequestMetadata(ctx context.Context, in ...string) (map[string]string, error) {
+	return map[string]string{
+		"privpass": auth.privPass,
+	}, nil
+}
+
+func (Auth) RequireTransportSecurity() bool {
+	return true
+}
+
 var certificateFile = filepath.Join(dcrutil.AppDataDir("dcrwallet", false), "rpc.cert")
 
 func main() {
@@ -68,7 +82,9 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	conn, err := grpc.Dial("localhost:19111", grpc.WithTransportCredentials(creds))
+	conn, err := grpc.Dial("localhost:19111",
+		grpc.WithTransportCredentials(creds),
+		grpc.WithPerRPCCredentials(Auth{privPass: "privpass"}))
 	if err != nil {
 		fmt.Println(err)
 		return

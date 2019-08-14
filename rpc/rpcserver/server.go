@@ -28,6 +28,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"github.com/decred/dcrd/addrmgr"
@@ -260,6 +261,45 @@ func ServiceReady(service string) error {
 	return nil
 }
 
+// Authenticate checks if the provided private passphrase unlocks the wallet
+// given the service provided has access to the wallet.
+func Authenticate(service string, privPass string) (bool, error) {
+	s, ok := serviceMap[service]
+	if !ok {
+		return false, status.Errorf(codes.Unimplemented,
+			"service %s not found", service)
+	}
+
+	type Auth interface {
+		authenticate(privPass string) (bool, error)
+	}
+
+	svc, ok := s.(Auth)
+	if !ok {
+		return false, status.Errorf(codes.FailedPrecondition,
+			"service %v does not support authentication", service)
+	}
+
+	return svc.authenticate(privPass)
+}
+
+// FetchContextPrivPass fetches the private passphrase to use for a request.
+// The passphrase set in context metadata takes precidence over the optional
+// request passphrase if provided.
+func FetchPrivatePassphrase(ctx context.Context, reqPrivPass []byte) []byte {
+	meta, ok := metadata.FromIncomingContext(ctx)
+	if ok {
+		passMeta, ok := meta["privpass"]
+		if ok {
+			if len(passMeta) > 0 {
+				return []byte(passMeta[0])
+			}
+		}
+	}
+
+	return reqPrivPass
+}
+
 func (*versionServer) Version(ctx context.Context, req *pb.VersionRequest) (*pb.VersionResponse, error) {
 	return &pb.VersionResponse{
 		VersionString: semverString,
@@ -279,6 +319,18 @@ func StartWalletService(server *grpc.Server, wallet *wallet.Wallet) {
 
 func (s *walletServer) checkReady() bool {
 	return atomic.LoadUint32(&s.ready) != 0
+}
+
+func (s *walletServer) authenticate(privPass string) (bool, error) {
+	lock := make(chan time.Time, 1)
+	defer func() {
+		lock <- time.Time{}
+	}()
+	err := s.wallet.Unlock([]byte(privPass), lock)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // requireNetworkBackend checks whether the wallet has been associated with the
@@ -421,18 +473,19 @@ func (s *walletServer) Rescan(req *pb.RescanRequest, svr pb.WalletService_Rescan
 
 func (s *walletServer) NextAccount(ctx context.Context, req *pb.NextAccountRequest) (
 	*pb.NextAccountResponse, error) {
-
 	defer zero.Bytes(req.Passphrase)
 
 	if req.AccountName == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "account name may not be empty")
+		return nil, status.Errorf(codes.InvalidArgument,
+			"account name may not be empty")
 	}
 
+	pass := FetchPrivatePassphrase(ctx, req.Passphrase)
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err := s.wallet.Unlock(req.Passphrase, lock)
+	err := s.wallet.Unlock([]byte(pass), lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -447,7 +500,6 @@ func (s *walletServer) NextAccount(ctx context.Context, req *pb.NextAccountReque
 
 func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressRequest) (
 	*pb.NextAddressResponse, error) {
-
 	var callOpts []wallet.NextAddressCallOption
 	switch req.GapPolicy {
 	case pb.NextAddressRequest_GAP_POLICY_UNSPECIFIED:
@@ -510,11 +562,12 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 			"Invalid WIF-encoded private key: %v", err)
 	}
 
+	pass := FetchPrivatePassphrase(ctx, req.Passphrase)
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err = s.wallet.Unlock(req.Passphrase, lock)
+	err = s.wallet.Unlock(pass, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -583,11 +636,12 @@ func (s *walletServer) ImportScript(ctx context.Context,
 	}
 
 	if !s.wallet.Manager.WatchingOnly() {
+		pass := FetchPrivatePassphrase(ctx, req.Passphrase)
 		lock := make(chan time.Time, 1)
 		defer func() {
 			lock <- time.Time{} // send matters, not the value
 		}()
-		err = s.wallet.Unlock(req.Passphrase, lock)
+		err = s.wallet.Unlock(pass, lock)
 		if err != nil {
 			return nil, translateError(err)
 		}
@@ -1288,7 +1342,6 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 
 func (s *walletServer) ChangePassphrase(ctx context.Context, req *pb.ChangePassphraseRequest) (
 	*pb.ChangePassphraseResponse, error) {
-
 	defer func() {
 		zero.Bytes(req.OldPassphrase)
 		zero.Bytes(req.NewPassphrase)
@@ -1322,7 +1375,6 @@ func (s *walletServer) ChangePassphrase(ctx context.Context, req *pb.ChangePassp
 
 func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransactionRequest) (
 	*pb.SignTransactionResponse, error) {
-
 	defer zero.Bytes(req.Passphrase)
 
 	var tx wire.MsgTx
@@ -1332,11 +1384,12 @@ func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransact
 			"Bytes do not represent a valid raw transaction: %v", err)
 	}
 
+	pass := FetchPrivatePassphrase(ctx, req.Passphrase)
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err = s.wallet.Unlock(req.Passphrase, lock)
+	err = s.wallet.Unlock(pass, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1385,11 +1438,12 @@ func (s *walletServer) SignTransactions(ctx context.Context, req *pb.SignTransac
 	*pb.SignTransactionsResponse, error) {
 	defer zero.Bytes(req.Passphrase)
 
+	pass := FetchPrivatePassphrase(ctx, req.Passphrase)
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err := s.wallet.Unlock(req.Passphrase, lock)
+	err := s.wallet.Unlock(pass, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1448,7 +1502,6 @@ func (s *walletServer) SignTransactions(ctx context.Context, req *pb.SignTransac
 
 func (s *walletServer) CreateSignature(ctx context.Context, req *pb.CreateSignatureRequest) (
 	*pb.CreateSignatureResponse, error) {
-
 	defer zero.Bytes(req.Passphrase)
 
 	var tx wire.MsgTx
@@ -1463,11 +1516,12 @@ func (s *walletServer) CreateSignature(ctx context.Context, req *pb.CreateSignat
 			"transaction input %d does not exist", req.InputIndex)
 	}
 
+	pass := FetchPrivatePassphrase(ctx, req.Passphrase)
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err = s.wallet.Unlock(req.Passphrase, lock)
+	err = s.wallet.Unlock(pass, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1512,6 +1566,8 @@ func (s *walletServer) PublishTransaction(ctx context.Context, req *pb.PublishTr
 // PurchaseTickets purchases tickets from the wallet.
 func (s *walletServer) PurchaseTickets(ctx context.Context,
 	req *pb.PurchaseTicketsRequest) (*pb.PurchaseTicketsResponse, error) {
+	defer zero.Bytes(req.Passphrase)
+
 	// Unmarshall the received data and prepare it as input for the ticket
 	// purchase request.
 	spendLimit := dcrutil.Amount(req.SpendLimit)
@@ -1576,11 +1632,12 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 			"Negative fees per KB given")
 	}
 
+	pass := FetchPrivatePassphrase(ctx, req.Passphrase)
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err = s.wallet.Unlock(req.Passphrase, lock)
+	err = s.wallet.Unlock(pass, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1599,16 +1656,19 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 }
 
 func (s *walletServer) RevokeTickets(ctx context.Context, req *pb.RevokeTicketsRequest) (*pb.RevokeTicketsResponse, error) {
+	defer zero.Bytes(req.Passphrase)
+
 	n, err := s.requireNetworkBackend()
 	if err != nil {
 		return nil, err
 	}
 
+	pass := FetchPrivatePassphrase(ctx, req.Passphrase)
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err = s.wallet.Unlock(req.Passphrase, lock)
+	err = s.wallet.Unlock(pass, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1721,12 +1781,15 @@ WrongAddrKind:
 		"address must be secp256k1 P2PK or P2PKH")
 }
 
-func (s *walletServer) SignMessage(cts context.Context, req *pb.SignMessageRequest) (*pb.SignMessageResponse, error) {
+func (s *walletServer) SignMessage(ctx context.Context, req *pb.SignMessageRequest) (*pb.SignMessageResponse, error) {
+	defer zero.Bytes(req.Passphrase)
+
+	pass := FetchPrivatePassphrase(ctx, req.Passphrase)
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err := s.wallet.Unlock(req.Passphrase, lock)
+	err := s.wallet.Unlock(pass, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1739,12 +1802,15 @@ func (s *walletServer) SignMessage(cts context.Context, req *pb.SignMessageReque
 	return &pb.SignMessageResponse{Signature: sig}, nil
 }
 
-func (s *walletServer) SignMessages(cts context.Context, req *pb.SignMessagesRequest) (*pb.SignMessagesResponse, error) {
+func (s *walletServer) SignMessages(ctx context.Context, req *pb.SignMessagesRequest) (*pb.SignMessagesResponse, error) {
+	defer zero.Bytes(req.Passphrase)
+
+	pass := FetchPrivatePassphrase(ctx, req.Passphrase)
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err := s.wallet.Unlock(req.Passphrase, lock)
+	err := s.wallet.Unlock(pass, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -2144,6 +2210,8 @@ func StartTicketBuyerV2Service(server *grpc.Server, loader *loader.Loader) {
 
 // StartTicketBuyer starts the automatic ticket buyer for the v2 service.
 func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb.TicketBuyerV2Service_RunTicketBuyerServer) error {
+	defer zero.Bytes(req.Passphrase)
+
 	wallet, ok := t.loader.LoadedWallet()
 	if !ok {
 		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
@@ -2183,20 +2251,17 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		c.PoolFees = req.PoolFees
 	})
 
+	pass := FetchPrivatePassphrase(svr.Context(), req.Passphrase)
 	lock := make(chan time.Time, 1)
-
-	lockWallet := func() {
-		lock <- time.Time{}
-		zero.Bytes(req.Passphrase)
-	}
-
-	err = wallet.Unlock(req.Passphrase, lock)
+	defer func() {
+		lock <- time.Time{} // send matters, not the value
+	}()
+	err = wallet.Unlock(pass, lock)
 	if err != nil {
 		return translateError(err)
 	}
-	defer lockWallet()
 
-	err = tb.Run(svr.Context(), req.Passphrase)
+	err = tb.Run(svr.Context(), pass)
 	if err != nil {
 		if svr.Context().Err() != nil {
 			return status.Errorf(codes.Canceled, "TicketBuyerV2 instance canceled, account number: %v", req.Account)
@@ -2209,6 +2274,39 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 
 func (t *ticketbuyerV2Server) checkReady() bool {
 	return atomic.LoadUint32(&t.ready) != 0
+}
+
+func (s *ticketbuyerV2Server) authenticate(privPass string) (bool, error) {
+	wallet, ok := s.loader.LoadedWallet()
+	if !ok {
+		return false, status.Errorf(codes.Unavailable, "Wallet not loaded")
+	}
+
+	lock := make(chan time.Time, 1)
+	defer func() {
+		lock <- time.Time{}
+	}()
+	err := wallet.Unlock([]byte(privPass), lock)
+	unlocked := err != nil
+
+	return unlocked, err
+}
+
+func (s *loaderServer) authenticate(privPass string) (bool, error) {
+	wallet, ok := s.loader.LoadedWallet()
+	if !ok {
+		return false, status.Errorf(codes.Unavailable, "Wallet not loaded")
+	}
+
+	lock := make(chan time.Time, 1)
+	defer func() {
+		lock <- time.Time{}
+	}()
+	err := wallet.Unlock([]byte(privPass), lock)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (s *loaderServer) CreateWallet(ctx context.Context, req *pb.CreateWalletRequest) (
@@ -2314,7 +2412,10 @@ func isLoopback(addr string) bool {
 }
 
 func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderService_RpcSyncServer) error {
-	defer zero.Bytes(req.Password)
+	defer func() {
+		zero.Bytes(req.Password)
+		zero.Bytes(req.PrivatePassphrase)
+	}()
 
 	// Error if the wallet is already syncing with the network.
 	wallet, walletLoaded := s.loader.LoadedWallet()
@@ -2330,13 +2431,13 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 	}
 	var lockWallet func()
 	if req.DiscoverAccounts {
+		pass := FetchPrivatePassphrase(svr.Context(), req.PrivatePassphrase)
 		lock := make(chan time.Time, 1)
 		lockWallet = func() {
 			lock <- time.Time{}
-			zero.Bytes(req.PrivatePassphrase)
 		}
 		defer lockWallet()
-		err := wallet.Unlock(req.PrivatePassphrase, lock)
+		err := wallet.Unlock(pass, lock)
 		if err != nil {
 			return translateError(err)
 		}
@@ -2462,6 +2563,8 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 }
 
 func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderService_SpvSyncServer) error {
+	defer zero.Bytes(req.PrivatePassphrase)
+
 	wallet, ok := s.loader.LoadedWallet()
 	if !ok {
 		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
@@ -2472,13 +2575,13 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 	}
 	var lockWallet func()
 	if req.DiscoverAccounts {
+		pass := FetchPrivatePassphrase(svr.Context(), req.PrivatePassphrase)
 		lock := make(chan time.Time, 1)
 		lockWallet = func() {
 			lock <- time.Time{}
-			zero.Bytes(req.PrivatePassphrase)
 		}
 		defer lockWallet()
-		err := wallet.Unlock(req.PrivatePassphrase, lock)
+		err := wallet.Unlock(pass, lock)
 		if err != nil {
 			return translateError(err)
 		}
@@ -2690,6 +2793,11 @@ func (s *agendaServer) checkReady() bool {
 	return atomic.LoadUint32(&s.ready) != 0
 }
 
+func (s *agendaServer) authenticate(privPass string) (bool, error) {
+	return false, status.Errorf(codes.FailedPrecondition,
+		"authenticate not available for service")
+}
+
 func (s *agendaServer) Agendas(ctx context.Context, req *pb.AgendasRequest) (*pb.AgendasResponse, error) {
 	version, deployments := wallet.CurrentAgendas(s.activeNet)
 	resp := &pb.AgendasResponse{
@@ -2730,6 +2838,18 @@ func StartVotingService(server *grpc.Server, wallet *wallet.Wallet) {
 
 func (s *votingServer) checkReady() bool {
 	return atomic.LoadUint32(&s.ready) != 0
+}
+
+func (s *votingServer) authenticate(privPass string) (bool, error) {
+	lock := make(chan time.Time, 1)
+	defer func() {
+		lock <- time.Time{}
+	}()
+	err := s.wallet.Unlock([]byte(privPass), lock)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (s *votingServer) VoteChoices(ctx context.Context, req *pb.VoteChoicesRequest) (*pb.VoteChoicesResponse, error) {
@@ -2782,6 +2902,11 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 // StartMessageVerificationService starts the MessageVerification service
 func StartMessageVerificationService(server *grpc.Server, chainParams *chaincfg.Params) {
 	messageVerificationService.chainParams = chainParams
+}
+
+func (s *messageVerificationServer) authenticate(privPass string) (bool, error) {
+	return false, status.Errorf(codes.FailedPrecondition,
+		"authenticate not available for service")
 }
 
 func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.VerifyMessageRequest) (
@@ -2908,6 +3033,11 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 	}
 
 	return outputs
+}
+
+func (s *decodeMessageServer) authenticate(privPass string) (bool, error) {
+	return false, status.Errorf(codes.FailedPrecondition,
+		"authenticate not available for service")
 }
 
 func (s *decodeMessageServer) DecodeRawTransaction(ctx context.Context, req *pb.DecodeRawTransactionRequest) (

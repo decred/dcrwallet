@@ -23,6 +23,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 )
 
@@ -233,6 +234,34 @@ func interceptUnary(ctx context.Context, req interface{}, info *grpc.UnaryServer
 	if err != nil {
 		return nil, err
 	}
+
+	meta, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, errors.New("unable to get context metadata")
+	}
+
+	var privPass string
+	passMeta, ok := meta["privpass"]
+	if ok {
+		if len(passMeta) > 0 {
+			privPass = passMeta[0]
+		}
+	}
+
+	if privPass != "" {
+		unlocked, err := rpcserver.Authenticate(
+			serviceName(info.FullMethod), privPass)
+		if err != nil {
+			return nil, err
+		}
+
+		if !unlocked {
+			mCpy := meta.Copy()
+			delete(mCpy, "privpass")
+			ctx = metadata.NewIncomingContext(ctx, mCpy)
+		}
+	}
+
 	resp, err = handler(ctx, req)
 	if err != nil && ok {
 		grpcLog.Errorf("Unary method %s invoked by %s errored: %v",
