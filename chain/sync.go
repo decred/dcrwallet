@@ -410,7 +410,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		}
 
 		s.sidechainsMu.Lock()
-		prevChain, err := s.wallet.ChainSwitch(&s.sidechains, bestChain, nil)
+		prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, nil)
 		s.sidechainsMu.Unlock()
 		if err != nil {
 			return err
@@ -575,7 +575,7 @@ func (s *Syncer) winningTickets(ctx context.Context, params json.RawMessage) err
 	if err != nil {
 		return err
 	}
-	return s.wallet.VoteOnOwnedTickets(winners, block, height)
+	return s.wallet.VoteOnOwnedTickets(ctx, winners, block, height)
 }
 
 func (s *Syncer) blockConnected(ctx context.Context, params json.RawMessage) error {
@@ -603,7 +603,7 @@ func (s *Syncer) blockConnected(ctx context.Context, params json.RawMessage) err
 	}
 	if len(bestChain) != 0 {
 		var prevChain []*wallet.BlockNode
-		prevChain, err = s.wallet.ChainSwitch(&s.sidechains, bestChain, s.relevantTxs)
+		prevChain, err = s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, s.relevantTxs)
 		if err != nil {
 			return err
 		}
@@ -637,7 +637,7 @@ func (s *Syncer) relevantTxAccepted(ctx context.Context, params json.RawMessage)
 	if err != nil {
 		return err
 	}
-	return s.wallet.AcceptMempoolTx(tx)
+	return s.wallet.AcceptMempoolTx(ctx, tx)
 }
 
 func (s *Syncer) spentAndMissedTickets(ctx context.Context, params json.RawMessage) error {
@@ -645,5 +645,5 @@ func (s *Syncer) spentAndMissedTickets(ctx context.Context, params json.RawMessa
 	if err != nil {
 		return err
 	}
-	return s.wallet.RevokeOwnedTickets(missed)
+	return s.wallet.RevokeOwnedTickets(ctx, missed)
 }

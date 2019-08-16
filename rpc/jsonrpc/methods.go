@@ -342,7 +342,7 @@ func (s *Server) accountSyncAddressIndex(ctx context.Context, icmd interface{}) 
 	// Additional addresses need to be watched.  Since addresses are derived
 	// based on the last used address, this RPC no longer changes the child
 	// indexes that new addresses are derived from.
-	return nil, w.ExtendWatchedAddresses(account, branch, index)
+	return nil, w.ExtendWatchedAddresses(ctx, account, branch, index)
 }
 
 func makeMultiSigScript(w *wallet.Wallet, keys []string, nRequired int) ([]byte, error) {
@@ -483,7 +483,7 @@ func (s *Server) consolidate(ctx context.Context, icmd interface{}) (interface{}
 
 	// TODO In the future this should take the optional account and
 	// only consolidate UTXOs found within that account.
-	txHash, err := w.Consolidate(cmd.Inputs, account, changeAddr)
+	txHash, err := w.Consolidate(ctx, cmd.Inputs, account, changeAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -1040,7 +1040,7 @@ func (s *Server) importPrivKey(ctx context.Context, icmd interface{}) (interface
 	}
 
 	// Import the private key, handling any errors.
-	_, err = w.ImportPrivateKey(wif)
+	_, err = w.ImportPrivateKey(ctx, wif)
 	if err != nil {
 		switch {
 		case errors.Is(errors.Exist, err):
@@ -1091,7 +1091,7 @@ func (s *Server) importScript(ctx context.Context, icmd interface{}) (interface{
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "empty script")
 	}
 
-	err = w.ImportScript(rs)
+	err = w.ImportScript(ctx, rs)
 	if err != nil {
 		switch {
 		case errors.Is(errors.Exist, err):
@@ -1129,7 +1129,7 @@ func (s *Server) createNewAccount(ctx context.Context, icmd interface{}) (interf
 		return nil, errReservedAccountName
 	}
 
-	_, err := w.NextAccount(cmd.Account)
+	_, err := w.NextAccount(ctx, cmd.Account)
 	if err != nil {
 		if errors.Is(errors.Locked, err) {
 			return nil, rpcErrorf(dcrjson.ErrRPCWalletUnlockNeeded, "creating new accounts requires an unlocked wallet")
@@ -1262,7 +1262,7 @@ func (s *Server) getNewAddress(ctx context.Context, icmd interface{}) (interface
 		return nil, err
 	}
 
-	addr, err := w.NewExternalAddress(account, callOpts...)
+	addr, err := w.NewExternalAddress(ctx, account, callOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1293,7 +1293,7 @@ func (s *Server) getRawChangeAddress(ctx context.Context, icmd interface{}) (int
 		return nil, err
 	}
 
-	addr, err := w.NewChangeAddress(account)
+	addr, err := w.NewChangeAddress(ctx, account)
 	if err != nil {
 		return nil, err
 	}
@@ -2188,7 +2188,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		}
 	}
 
-	hashes, err := w.PurchaseTickets(0, spendLimit, minConf, ticketAddr,
+	hashes, err := w.PurchaseTickets(ctx, 0, spendLimit, minConf, ticketAddr,
 		account, numTickets, poolAddr, poolFee, expiry, w.RelayFee(),
 		ticketFee)
 	if err != nil {
@@ -2245,12 +2245,12 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 // sendPairs creates and sends payment transactions.
 // It returns the transaction hash in string format upon success
 // All errors are returned in dcrjson.RPCError format
-func sendPairs(w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32) (string, error) {
+func sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32) (string, error) {
 	outputs, err := makeOutputs(amounts, w.ChainParams())
 	if err != nil {
 		return "", err
 	}
-	txSha, err := w.SendOutputs(outputs, account, minconf)
+	txSha, err := w.SendOutputs(ctx, outputs, account, minconf)
 	if err != nil {
 		if errors.Is(errors.Locked, err) {
 			return "", errWalletUnlockNeeded
@@ -2288,7 +2288,7 @@ func (s *Server) redeemMultiSigOut(ctx context.Context, icmd interface{}) (inter
 		}
 	} else {
 		account := uint32(udb.DefaultAccountNum)
-		addr, err = w.NewInternalAddress(account, wallet.WithGapPolicyWrap())
+		addr, err = w.NewInternalAddress(ctx, account, wallet.WithGapPolicyWrap())
 		if err != nil {
 			return nil, err
 		}
@@ -2602,7 +2602,7 @@ func (s *Server) sendFrom(ctx context.Context, icmd interface{}) (interface{}, e
 		cmd.ToAddress: amt,
 	}
 
-	return sendPairs(w, pairs, account, minConf)
+	return sendPairs(ctx, w, pairs, account, minConf)
 }
 
 // sendMany handles a sendmany RPC request by creating a new transaction
@@ -2644,7 +2644,7 @@ func (s *Server) sendMany(ctx context.Context, icmd interface{}) (interface{}, e
 		pairs[k] = amt
 	}
 
-	return sendPairs(w, pairs, account, minConf)
+	return sendPairs(ctx, w, pairs, account, minConf)
 }
 
 // sendToAddress handles a sendtoaddress RPC request by creating a new
@@ -2681,7 +2681,7 @@ func (s *Server) sendToAddress(ctx context.Context, icmd interface{}) (interface
 	}
 
 	// sendtoaddress always spends from the default account, this matches bitcoind
-	return sendPairs(w, pairs, udb.DefaultAccountNum, 1)
+	return sendPairs(ctx, w, pairs, udb.DefaultAccountNum, 1)
 }
 
 // sendToMultiSig handles a sendtomultisig RPC request by creating a new
@@ -2746,7 +2746,7 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 	}
 
 	tx, addr, script, err :=
-		w.CreateMultisigTx(account, amount, pubkeys, nrequired, minconf)
+		w.CreateMultisigTx(ctx, account, amount, pubkeys, nrequired, minconf)
 	if err != nil {
 		return nil, err
 	}

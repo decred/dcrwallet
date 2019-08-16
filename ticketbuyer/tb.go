@@ -198,14 +198,14 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 
 	// Derive a voting address from voting account when address is unset.
 	if votingAddr == nil {
-		votingAddr, err = w.NewInternalAddress(votingAccount, wallet.WithGapPolicyWrap())
+		votingAddr, err = w.NewInternalAddress(ctx, votingAccount, wallet.WithGapPolicyWrap())
 		if err != nil {
 			return err
 		}
 	}
 
 	feeRate := w.RelayFee()
-	tix, err := w.PurchaseTickets(maintain, -1, minconf, votingAddr, account,
+	tix, err := w.PurchaseTickets(ctx, maintain, -1, minconf, votingAddr, account,
 		buy, poolFeeAddr, poolFees, expiry, feeRate, feeRate)
 	for _, hash := range tix {
 		log.Infof("Purchased ticket %v at stake difficulty %v", hash, sdiff)

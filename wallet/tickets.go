@@ -356,7 +356,7 @@ func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 			// Could be more efficient by avoiding processTransaction, as we
 			// know it is a revocation.
-			watch, err = w.processTransactionRecord(dbtx, rec, nil, nil)
+			watch, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
 			if err != nil {
 				return errors.E(op, err)
 			}
@@ -467,7 +467,7 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 			log.Infof("Revoking ticket %v with revocation %v", &expired[i],
 				&rec.Hash)
 
-			watch, err := w.processTransactionRecord(dbtx, rec, nil, nil)
+			watch, err := w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
 			if err != nil {
 				return err
 			}

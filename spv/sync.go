@@ -719,7 +719,7 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 	// Save any relevant transaction.
 	relevant := s.filterRelevant(txs)
 	for _, tx := range relevant {
-		err := s.wallet.AcceptMempoolTx(tx)
+		err := s.wallet.AcceptMempoolTx(ctx, tx)
 		if err != nil {
 			op := errors.Opf(opf, rp.RemoteAddr())
 			log.Warn(errors.E(op, err))
@@ -946,7 +946,7 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 			}
 		}
 
-		prevChain, err := s.wallet.ChainSwitch(&s.sidechains, bestChain, matchingTxs)
+		prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, matchingTxs)
 		if err != nil {
 			return err
 		}
@@ -1116,7 +1116,7 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 			return err
 		}
 
-		prevChain, err := s.wallet.ChainSwitch(&s.sidechains, bestChain, nil)
+		prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, nil)
 		if err != nil {
 			s.sidechainMu.Unlock()
 			return err

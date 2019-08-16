@@ -306,7 +306,7 @@ func (w *Wallet) checkHighFees(totalInput dcrutil.Amount, tx *wire.MsgTx) error 
 // txToOutputs creates a transaction, selecting previous outputs from an account
 // with no less than minconf confirmations, and creates a signed transaction
 // that pays to each of the outputs.
-func (w *Wallet) txToOutputs(op errors.Op, outputs []*wire.TxOut, account uint32,
+func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.TxOut, account uint32,
 	minconf int32, randomizeChangeIdx bool) (*txauthor.AuthoredTx, error) {
 
 	n, err := w.NetworkBackend()
@@ -314,7 +314,7 @@ func (w *Wallet) txToOutputs(op errors.Op, outputs []*wire.TxOut, account uint32
 		return nil, errors.E(op, err)
 	}
 
-	return w.txToOutputsInternal(op, outputs, account, minconf, n,
+	return w.txToOutputsInternal(ctx, op, outputs, account, minconf, n,
 		randomizeChangeIdx, w.RelayFee())
 }
 
@@ -329,7 +329,7 @@ func (w *Wallet) txToOutputs(op errors.Op, outputs []*wire.TxOut, account uint32
 // Decred: This func also sends the transaction, and if successful, inserts it
 // into the database, rather than delegating this work to the caller as
 // btcwallet does.
-func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, account uint32, minconf int32,
+func (w *Wallet) txToOutputsInternal(ctx context.Context, op errors.Op, outputs []*wire.TxOut, account uint32, minconf int32,
 	n NetworkBackend, randomizeChangeIdx bool, txFee dcrutil.Amount) (*txauthor.AuthoredTx, error) {
 
 	var unlockOutpoints []*wire.OutPoint
@@ -365,6 +365,7 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 			persist: w.deferPersistReturnedChild(&changeSourceUpdates),
 			account: account,
 			wallet:  w,
+			ctx:     ctx,
 		}
 		var err error
 		atx, err = txauthor.NewUnsignedTransaction(outputs, txFee,
@@ -436,27 +437,27 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 		// TODO: this can be improved by not using the same codepath as notified
 		// relevant transactions, since this does a lot of extra work.
 		var err error
-		watch, err = w.processTransactionRecord(dbtx, rec, nil, nil)
+		watch, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
 		return err
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	err = n.PublishTransactions(context.TODO(), atx.Tx)
+	err = n.PublishTransactions(ctx, atx.Tx)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
 	// Watch for future relevant transactions.
 	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
-		return w.watchFutureAddresses(dbtx)
+		return w.watchFutureAddresses(ctx, dbtx)
 	})
 	if err != nil {
 		log.Errorf("Failed to watch for future address usage after publishing "+
 			"transaction: %v", err)
 	}
 	if len(watch) > 0 {
-		err := n.LoadTxFilter(context.TODO(), false, nil, watch)
+		err := n.LoadTxFilter(ctx, false, nil, watch)
 		if err != nil {
 			log.Errorf("Failed to watch outpoints: %v", err)
 		}
@@ -466,27 +467,27 @@ func (w *Wallet) txToOutputsInternal(op errors.Op, outputs []*wire.TxOut, accoun
 
 // txToMultisig spends funds to a multisig output, partially signs the
 // transaction, then returns fund
-func (w *Wallet) txToMultisig(op errors.Op, account uint32, amount dcrutil.Amount, pubkeys []*dcrutil.AddressSecpPubKey,
+func (w *Wallet) txToMultisig(ctx context.Context, op errors.Op, account uint32, amount dcrutil.Amount, pubkeys []*dcrutil.AddressSecpPubKey,
 	nRequired int8, minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
 
 	var (
-		ctx      *CreatedTx
+		created  *CreatedTx
 		addr     dcrutil.Address
 		msScript []byte
 	)
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		var err error
-		ctx, addr, msScript, err = w.txToMultisigInternal(op, dbtx,
+		created, addr, msScript, err = w.txToMultisigInternal(ctx, op, dbtx,
 			account, amount, pubkeys, nRequired, minconf)
 		return err
 	})
 	if err != nil {
 		return nil, nil, nil, errors.E(op, err)
 	}
-	return ctx, addr, msScript, nil
+	return created, addr, msScript, nil
 }
 
-func (w *Wallet) txToMultisigInternal(op errors.Op, dbtx walletdb.ReadWriteTx, account uint32, amount dcrutil.Amount,
+func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx walletdb.ReadWriteTx, account uint32, amount dcrutil.Amount,
 	pubkeys []*dcrutil.AddressSecpPubKey, nRequired int8, minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
@@ -591,6 +592,7 @@ func (w *Wallet) txToMultisigInternal(op errors.Op, dbtx walletdb.ReadWriteTx, a
 			persist: w.persistReturnedChild(dbtx),
 			account: account,
 			wallet:  w,
+			ctx:     ctx,
 		}
 
 		pkScript, _, err := changeSource.Script()
@@ -611,14 +613,14 @@ func (w *Wallet) txToMultisigInternal(op errors.Op, dbtx walletdb.ReadWriteTx, a
 		return txToMultisigError(errors.E(op, err))
 	}
 
-	err = n.PublishTransactions(context.TODO(), msgtx)
+	err = n.PublishTransactions(ctx, msgtx)
 	if err != nil {
 		return txToMultisigError(errors.E(op, err))
 	}
 
 	// Request updates from dcrd for new transactions sent to this
 	// script hash address.
-	err = n.LoadTxFilter(context.TODO(), false, []dcrutil.Address{scAddr}, nil)
+	err = n.LoadTxFilter(ctx, false, []dcrutil.Address{scAddr}, nil)
 	if err != nil {
 		return txToMultisigError(errors.E(op, err))
 	}
@@ -628,13 +630,13 @@ func (w *Wallet) txToMultisigInternal(op errors.Op, dbtx walletdb.ReadWriteTx, a
 		return txToMultisigError(errors.E(op, err))
 	}
 
-	ctx := &CreatedTx{
+	created := &CreatedTx{
 		MsgTx:       msgtx,
 		ChangeAddr:  nil,
 		ChangeIndex: -1,
 	}
 
-	return ctx, scAddr, msScript, nil
+	return created, scAddr, msScript, nil
 }
 
 // validateMsgTx verifies transaction input scripts for tx.  All previous output
@@ -670,11 +672,11 @@ func creditScripts(credits []udb.Credit) [][]byte {
 
 // compressWallet compresses all the utxos in a wallet into a single change
 // address. For use when it becomes dusty.
-func (w *Wallet) compressWallet(op errors.Op, maxNumIns int, account uint32, changeAddr dcrutil.Address) (*chainhash.Hash, error) {
+func (w *Wallet) compressWallet(ctx context.Context, op errors.Op, maxNumIns int, account uint32, changeAddr dcrutil.Address) (*chainhash.Hash, error) {
 	var hash *chainhash.Hash
 	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
 		var err error
-		hash, err = w.compressWalletInternal(op, dbtx, maxNumIns, account, changeAddr)
+		hash, err = w.compressWalletInternal(ctx, op, dbtx, maxNumIns, account, changeAddr)
 		return err
 	})
 	if err != nil {
@@ -683,7 +685,7 @@ func (w *Wallet) compressWallet(op errors.Op, maxNumIns int, account uint32, cha
 	return hash, nil
 }
 
-func (w *Wallet) compressWalletInternal(op errors.Op, dbtx walletdb.ReadWriteTx, maxNumIns int, account uint32,
+func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx walletdb.ReadWriteTx, maxNumIns int, account uint32,
 	changeAddr dcrutil.Address) (*chainhash.Hash, error) {
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
@@ -709,7 +711,7 @@ func (w *Wallet) compressWalletInternal(op errors.Op, dbtx walletdb.ReadWriteTx,
 
 	// Check if output address is default, and generate a new address if needed
 	if changeAddr == nil {
-		changeAddr, err = w.newChangeAddress(op, w.persistReturnedChild(dbtx), account)
+		changeAddr, err = w.newChangeAddress(ctx, op, w.persistReturnedChild(dbtx), account)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
@@ -772,7 +774,7 @@ func (w *Wallet) compressWalletInternal(op errors.Op, dbtx walletdb.ReadWriteTx,
 		return nil, errors.E(op, err)
 	}
 
-	err = n.PublishTransactions(context.TODO(), msgtx)
+	err = n.PublishTransactions(ctx, msgtx)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -964,7 +966,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 		if err != nil {
 			err = errors.E(op, err)
 		}
-		addrFunc = func(errors.Op, persistReturnedChildFunc, uint32) (dcrutil.Address, error) {
+		addrFunc = func(context.Context, errors.Op, persistReturnedChildFunc, uint32) (dcrutil.Address, error) {
 			return addr, err
 		}
 	}
@@ -1106,7 +1108,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	// immediately be consumed as tickets.
 	//
 	// This opens a write transaction.
-	splitTxAddr, err := w.NewInternalAddress(req.SourceAccount, WithGapPolicyWrap())
+	splitTxAddr, err := w.NewInternalAddress(ctx, req.SourceAccount, WithGapPolicyWrap())
 	if err != nil {
 		return nil, err
 	}
@@ -1156,7 +1158,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	if txFeeIncrement == 0 {
 		txFeeIncrement = w.RelayFee()
 	}
-	splitTx, err := w.txToOutputsInternal(op, splitOuts, account, req.MinConf,
+	splitTx, err := w.txToOutputsInternal(ctx, op, splitOuts, account, req.MinConf,
 		n, false, txFeeIncrement)
 	if err != nil {
 		return nil, err
@@ -1167,7 +1169,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	var watchOutPoints []wire.OutPoint
 	defer func() {
 		err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
-			return w.watchFutureAddresses(tx)
+			return w.watchFutureAddresses(ctx, tx)
 		})
 		if err != nil {
 			log.Errorf("Failed to watch for future addresses after ticket "+
@@ -1239,14 +1241,14 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 			if addrVote == nil {
 				addrVote = w.ticketAddress
 				if addrVote == nil {
-					addrVote, err = addrFunc(op, w.persistReturnedChild(dbtx), req.SourceAccount)
+					addrVote, err = addrFunc(ctx, op, w.persistReturnedChild(dbtx), req.SourceAccount)
 					if err != nil {
 						return err
 					}
 				}
 			}
 
-			addrSubsidy, err = addrFunc(op, w.persistReturnedChild(dbtx), req.SourceAccount)
+			addrSubsidy, err = addrFunc(ctx, op, w.persistReturnedChild(dbtx), req.SourceAccount)
 			return err
 		})
 		if err != nil {
@@ -1307,7 +1309,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 		}
 
 		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
-			watch, err := w.processTransactionRecord(dbtx, rec, nil, nil)
+			watch, err := w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
 			watchOutPoints = append(watchOutPoints, watch...)
 			return err
 		})

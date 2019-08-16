@@ -1028,7 +1028,7 @@ func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstN
 				}
 			}
 			for _, n := range chain {
-				_, err = w.extendMainChain("", dbtx, n.Header, n.Filter, nil)
+				_, err = w.extendMainChain(ctx, "", dbtx, n.Header, n.Filter, nil)
 				if err != nil {
 					return err
 				}
@@ -1080,30 +1080,32 @@ func (w *Wallet) FetchHeaders(ctx context.Context, p Peer) (count int, rescanFro
 // Consolidate consolidates as many UTXOs as are passed in the inputs argument.
 // If that many UTXOs can not be found, it will use the maximum it finds. This
 // will only compress UTXOs in the default account
-func (w *Wallet) Consolidate(inputs int, account uint32, address dcrutil.Address) (*chainhash.Hash, error) {
+func (w *Wallet) Consolidate(ctx context.Context, inputs int, account uint32, address dcrutil.Address) (*chainhash.Hash, error) {
 	heldUnlock, err := w.holdUnlock()
 	if err != nil {
 		return nil, err
 	}
 	defer heldUnlock.release()
-	return w.compressWallet("wallet.Consolidate", inputs, account, address)
+	return w.compressWallet(ctx, "wallet.Consolidate", inputs, account, address)
 }
 
 // CreateMultisigTx creates and signs a multisig transaction.
-func (w *Wallet) CreateMultisigTx(account uint32, amount dcrutil.Amount, pubkeys []*dcrutil.AddressSecpPubKey, nrequired int8, minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
+func (w *Wallet) CreateMultisigTx(ctx context.Context, account uint32, amount dcrutil.Amount,
+	pubkeys []*dcrutil.AddressSecpPubKey, nrequired int8, minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
 	heldUnlock, err := w.holdUnlock()
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	defer heldUnlock.release()
-	return w.txToMultisig("wallet.CreateMultisigTx", account, amount, pubkeys, nrequired, minconf)
+	return w.txToMultisig(ctx, "wallet.CreateMultisigTx", account, amount, pubkeys, nrequired, minconf)
 }
 
 // PurchaseTickets purchases tickets, returning the hashes of all ticket
 // purchase transactions.
 //
 // Deprecated: Use PurchaseTicketsContext for solo buying.
-func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount, minConf int32, votingAddr dcrutil.Address, account uint32, count int, poolAddress dcrutil.Address,
+func (w *Wallet) PurchaseTickets(ctx context.Context, minBalance, spendLimit dcrutil.Amount, minConf int32,
+	votingAddr dcrutil.Address, account uint32, count int, poolAddress dcrutil.Address,
 	poolFees float64, expiry int32, txFee dcrutil.Amount, ticketFee dcrutil.Amount) ([]*chainhash.Hash, error) {
 
 	const op errors.Op = "wallet.PurchaseTickets"
@@ -1134,7 +1136,7 @@ func (w *Wallet) PurchaseTickets(minBalance, spendLimit dcrutil.Amount, minConf 
 	}
 	defer heldUnlock.release()
 
-	return w.purchaseTickets(context.Background(), op, n, req)
+	return w.purchaseTickets(ctx, op, n, req)
 }
 
 // PurchaseTicketsRequest describes the parameters for purchasing tickets.
@@ -1614,7 +1616,7 @@ func (w *Wallet) RenameAccount(account uint32, newName string) error {
 // restoring, new accounts may not be created when all of the previous 100
 // accounts have no transaction history (this is a deviation from the BIP0044
 // spec, which allows no unused account gaps).
-func (w *Wallet) NextAccount(name string) (uint32, error) {
+func (w *Wallet) NextAccount(ctx context.Context, name string) (uint32, error) {
 	const op errors.Op = "wallet.NextAccount"
 	maxEmptyAccounts := uint32(w.accountGapLimit)
 	var account uint32
@@ -1701,7 +1703,7 @@ func (w *Wallet) NextAccount(name string) (uint32, error) {
 					errs <- err
 					return
 				}
-				errs <- n.LoadTxFilter(context.TODO(), false, addrs, nil)
+				errs <- n.LoadTxFilter(ctx, false, addrs, nil)
 			}()
 		}
 		for i := 0; i < cap(errs); i++ {
@@ -3080,7 +3082,7 @@ func (w *Wallet) DumpWIFPrivateKey(addr dcrutil.Address) (string, error) {
 
 // ImportPrivateKey imports a private key to the wallet and writes the new
 // wallet to disk.
-func (w *Wallet) ImportPrivateKey(wif *dcrutil.WIF) (string, error) {
+func (w *Wallet) ImportPrivateKey(ctx context.Context, wif *dcrutil.WIF) (string, error) {
 	const op errors.Op = "wallet.ImportPrivateKey"
 	// Attempt to import private key into wallet.
 	var addr dcrutil.Address
@@ -3100,7 +3102,7 @@ func (w *Wallet) ImportPrivateKey(wif *dcrutil.WIF) (string, error) {
 	}
 
 	if n, err := w.NetworkBackend(); err == nil {
-		err := n.LoadTxFilter(context.TODO(), false, []dcrutil.Address{addr}, nil)
+		err := n.LoadTxFilter(ctx, false, []dcrutil.Address{addr}, nil)
 		if err != nil {
 			return "", errors.E(op, err)
 		}
@@ -3118,7 +3120,7 @@ func (w *Wallet) ImportPrivateKey(wif *dcrutil.WIF) (string, error) {
 // ImportScript imports a redeemscript to the wallet. If it also allows the
 // user to specify whether or not they want the redeemscript to be rescanned,
 // and how far back they wish to rescan.
-func (w *Wallet) ImportScript(rs []byte) error {
+func (w *Wallet) ImportScript(ctx context.Context, rs []byte) error {
 	const op errors.Op = "wallet.ImportScript"
 	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
@@ -3146,7 +3148,7 @@ func (w *Wallet) ImportScript(rs []byte) error {
 		addr := mscriptaddr.Address()
 
 		if n, err := w.NetworkBackend(); err == nil {
-			err := n.LoadTxFilter(context.TODO(), false, []dcrutil.Address{addr}, nil)
+			err := n.LoadTxFilter(ctx, false, []dcrutil.Address{addr}, nil)
 			if err != nil {
 				return err
 			}
@@ -3752,7 +3754,7 @@ func (w *Wallet) TotalReceivedForAddr(addr dcrutil.Address, minConf int32) (dcru
 
 // SendOutputs creates and sends payment transactions. It returns the
 // transaction hash upon success
-func (w *Wallet) SendOutputs(outputs []*wire.TxOut, account uint32, minconf int32) (*chainhash.Hash, error) {
+func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account uint32, minconf int32) (*chainhash.Hash, error) {
 	const op errors.Op = "wallet.SendOutputs"
 	relayFee := w.RelayFee()
 	for _, output := range outputs {
@@ -3767,7 +3769,7 @@ func (w *Wallet) SendOutputs(outputs []*wire.TxOut, account uint32, minconf int3
 		return nil, err
 	}
 	defer heldUnlock.release()
-	tx, err := w.txToOutputs("wallet.SendOutputs", outputs, account, minconf, true)
+	tx, err := w.txToOutputs(ctx, "wallet.SendOutputs", outputs, account, minconf, true)
 	if err != nil {
 		return nil, err
 	}
@@ -4075,7 +4077,7 @@ func (w *Wallet) AbandonTransaction(hash *chainhash.Hash) error {
 // PublishTransaction saves (if relevant) and sends the transaction to the
 // consensus RPC server so it can be propagated to other nodes and eventually
 // mined.  If the send fails, the transaction is not added to the wallet.
-func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, n NetworkBackend) (*chainhash.Hash, error) {
+func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, serializedTx []byte, n NetworkBackend) (*chainhash.Hash, error) {
 	const opf = "wallet.PublishTransaction(%v)"
 
 	txHash := tx.TxHash()
@@ -4111,7 +4113,7 @@ func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, n Netwo
 			if err != nil {
 				return err
 			}
-			watchOutPoints, err = w.processTransactionRecord(dbtx, rec, nil, nil)
+			watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
 			return err
 		})
 		if err != nil {
@@ -4120,7 +4122,7 @@ func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, n Netwo
 		}
 	}
 
-	err = n.PublishTransactions(context.TODO(), tx)
+	err = n.PublishTransactions(ctx, tx)
 	if err != nil {
 		// Return the error and purge relevant txs from the store only if the
 		// backend returns an error different than "already have transaction".
@@ -4162,7 +4164,7 @@ func (w *Wallet) PublishTransaction(tx *wire.MsgTx, serializedTx []byte, n Netwo
 	}
 
 	if len(watchOutPoints) > 0 {
-		err := n.LoadTxFilter(context.TODO(), false, nil, watchOutPoints)
+		err := n.LoadTxFilter(ctx, false, nil, watchOutPoints)
 		if err != nil {
 			log.Errorf("Failed to watch outpoints: %v", err)
 		}

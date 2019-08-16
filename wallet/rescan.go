@@ -180,7 +180,7 @@ func (w *Wallet) SaveRescanned(hash *chainhash.Hash, txs []*wire.MsgTx) error {
 			if err != nil {
 				return err
 			}
-			_, err = w.processTransactionRecord(dbtx, rec, header, &blockMeta)
+			_, err = w.processTransactionRecord(context.Background(), dbtx, rec, header, &blockMeta)
 			if err != nil {
 				return err
 			}

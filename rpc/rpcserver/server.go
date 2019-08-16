@@ -437,7 +437,7 @@ func (s *walletServer) NextAccount(ctx context.Context, req *pb.NextAccountReque
 		return nil, translateError(err)
 	}
 
-	account, err := s.wallet.NextAccount(req.AccountName)
+	account, err := s.wallet.NextAccount(ctx, req.AccountName)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -467,12 +467,12 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	)
 	switch req.Kind {
 	case pb.NextAddressRequest_BIP0044_EXTERNAL:
-		addr, err = s.wallet.NewExternalAddress(req.Account, callOpts...)
+		addr, err = s.wallet.NewExternalAddress(ctx, req.Account, callOpts...)
 		if err != nil {
 			return nil, translateError(err)
 		}
 	case pb.NextAddressRequest_BIP0044_INTERNAL:
-		addr, err = s.wallet.NewInternalAddress(req.Account, callOpts...)
+		addr, err = s.wallet.NewInternalAddress(ctx, req.Account, callOpts...)
 		if err != nil {
 			return nil, translateError(err)
 		}
@@ -541,7 +541,7 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 		return nil, err
 	}
 
-	_, err = s.wallet.ImportPrivateKey(wif)
+	_, err = s.wallet.ImportPrivateKey(ctx, wif)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -608,7 +608,7 @@ func (s *walletServer) ImportScript(ctx context.Context,
 		return nil, err
 	}
 
-	err = s.wallet.ImportScript(req.Script)
+	err = s.wallet.ImportScript(ctx, req.Script)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -915,7 +915,7 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 
 	var changeScript []byte
 	if req.IncludeChangeScript && inputDetail.Amount > dcrutil.Amount(req.TargetAmount) {
-		changeAddr, err := s.wallet.NewChangeAddress(req.Account)
+		changeAddr, err := s.wallet.NewChangeAddress(ctx, req.Account)
 		if err != nil {
 			return nil, translateError(err)
 		}
@@ -1524,7 +1524,7 @@ func (s *walletServer) PublishTransaction(ctx context.Context, req *pb.PublishTr
 			"Bytes do not represent a valid raw transaction: %v", err)
 	}
 
-	txHash, err := s.wallet.PublishTransaction(&msgTx, req.SignedTransaction, n)
+	txHash, err := s.wallet.PublishTransaction(ctx, &msgTx, req.SignedTransaction, n)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1608,7 +1608,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		return nil, translateError(err)
 	}
 
-	resp, err := s.wallet.PurchaseTickets(0, spendLimit, minConf,
+	resp, err := s.wallet.PurchaseTickets(ctx, 0, spendLimit, minConf,
 		ticketAddr, req.Account, numTickets, poolAddr, req.PoolFees,
 		expiry, txFee, ticketFee)
 	if err != nil {

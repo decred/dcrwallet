@@ -5,6 +5,7 @@
 package wallet
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -91,7 +92,7 @@ func (tw *tw) assertNoBetterChain(forest *SidechainForest) {
 }
 
 func (tw *tw) chainSwitch(forest *SidechainForest, chain []*BlockNode) {
-	prevChain, err := tw.ChainSwitch(forest, chain, nil)
+	prevChain, err := tw.ChainSwitch(context.Background(), forest, chain, nil)
 	if err != nil {
 		tw.Fatal(err)
 	}

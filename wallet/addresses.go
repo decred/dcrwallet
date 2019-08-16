@@ -401,7 +401,7 @@ func (w *Wallet) deferPersistReturnedChild(updates *[]func(walletdb.ReadWriteTx)
 }
 
 // nextAddress returns the next address of an account branch.
-func (w *Wallet) nextAddress(op errors.Op, persist persistReturnedChildFunc, account, branch uint32,
+func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc, account, branch uint32,
 	callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
 
 	var opts nextAddressCallOptions // TODO: zero values for now, add to wallet config later.
@@ -453,7 +453,7 @@ func (w *Wallet) nextAddress(op errors.Op, persist persistReturnedChildFunc, acc
 				if err != nil {
 					return nil, errors.E(op, err)
 				}
-				err = n.LoadTxFilter(context.TODO(), false, addrs, nil)
+				err = n.LoadTxFilter(ctx, false, addrs, nil)
 				if err != nil {
 					return nil, err
 				}
@@ -535,7 +535,7 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 	return nil
 }
 
-func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
+func (w *Wallet) watchFutureAddresses(ctx context.Context, dbtx walletdb.ReadTx) error {
 	const op errors.Op = "wallet.watchFutureAddresses"
 
 	// TODO: There is room here for optimization.  Improvements could be made by
@@ -643,7 +643,7 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 		}
 
 		go func() {
-			errs <- n.LoadTxFilter(context.TODO(), false, addrs, nil)
+			errs <- n.LoadTxFilter(ctx, false, addrs, nil)
 		}()
 	}
 
@@ -657,18 +657,18 @@ func (w *Wallet) watchFutureAddresses(dbtx walletdb.ReadTx) error {
 }
 
 // NewExternalAddress returns an external address.
-func (w *Wallet) NewExternalAddress(account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
+func (w *Wallet) NewExternalAddress(ctx context.Context, account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
 	const op errors.Op = "wallet.NewExternalAddress"
-	return w.nextAddress(op, w.persistReturnedChild(nil), account, udb.ExternalBranch, callOpts...)
+	return w.nextAddress(ctx, op, w.persistReturnedChild(nil), account, udb.ExternalBranch, callOpts...)
 }
 
 // NewInternalAddress returns an internal address.
-func (w *Wallet) NewInternalAddress(account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
+func (w *Wallet) NewInternalAddress(ctx context.Context, account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
 	const op errors.Op = "wallet.NewExternalAddress"
-	return w.nextAddress(op, w.persistReturnedChild(nil), account, udb.InternalBranch, callOpts...)
+	return w.nextAddress(ctx, op, w.persistReturnedChild(nil), account, udb.InternalBranch, callOpts...)
 }
 
-func (w *Wallet) newChangeAddress(op errors.Op, persist persistReturnedChildFunc, account uint32) (dcrutil.Address, error) {
+func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc, account uint32) (dcrutil.Address, error) {
 	// Addresses can not be generated for the imported account, so as a
 	// workaround, change is sent to the first account.
 	//
@@ -676,16 +676,16 @@ func (w *Wallet) newChangeAddress(op errors.Op, persist persistReturnedChildFunc
 	if account == udb.ImportedAddrAccount {
 		account = udb.DefaultAccountNum
 	}
-	return w.nextAddress(op, persist, account, udb.InternalBranch, WithGapPolicyWrap())
+	return w.nextAddress(ctx, op, persist, account, udb.InternalBranch, WithGapPolicyWrap())
 }
 
 // NewChangeAddress returns an internal address.  This is identical to
 // NewInternalAddress but handles the imported account (which can't create
 // addresses) by using account 0 instead, and always uses the wrapping gap limit
 // policy.
-func (w *Wallet) NewChangeAddress(account uint32) (dcrutil.Address, error) {
+func (w *Wallet) NewChangeAddress(ctx context.Context, account uint32) (dcrutil.Address, error) {
 	const op errors.Op = "wallet.NewChangeAddress"
-	return w.newChangeAddress(op, w.persistReturnedChild(nil), account)
+	return w.newChangeAddress(ctx, op, w.persistReturnedChild(nil), account)
 }
 
 // BIP0044BranchNextIndexes returns the next external and internal branch child
@@ -708,7 +708,7 @@ func (w *Wallet) BIP0044BranchNextIndexes(account uint32) (extChild, intChild ui
 // ExtendWatchedAddresses derives and watches additional addresses for an
 // account branch they have not yet been derived.  This does not modify the next
 // generated address for the branch.
-func (w *Wallet) ExtendWatchedAddresses(account, branch, child uint32) error {
+func (w *Wallet) ExtendWatchedAddresses(ctx context.Context, account, branch, child uint32) error {
 	const op errors.Op = "wallet.ExtendWatchedAddresses"
 
 	var (
@@ -762,7 +762,7 @@ func (w *Wallet) ExtendWatchedAddresses(account, branch, child uint32) error {
 		if err != nil {
 			return errors.E(op, err)
 		}
-		err = n.LoadTxFilter(context.TODO(), false, addrs, nil)
+		err = n.LoadTxFilter(ctx, false, addrs, nil)
 		if err != nil {
 			return errors.E(op, err)
 		}
@@ -811,10 +811,11 @@ type p2PKHChangeSource struct {
 	persist persistReturnedChildFunc
 	account uint32
 	wallet  *Wallet
+	ctx     context.Context
 }
 
 func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
-	changeAddress, err := src.wallet.newChangeAddress("", src.persist, src.account)
+	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.persist, src.account)
 	if err != nil {
 		return nil, 0, err
 	}
