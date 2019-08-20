@@ -197,7 +197,11 @@ func lazyApplyHandler(s *Server, ctx context.Context, request *dcrjson.Request) 
 				return nil, rpcErrorf(dcrjson.ErrRPCClientNotConnected, "RPC passthrough requires dcrd RPC synchronization")
 			}
 			var resp json.RawMessage
-			err := rpc.Call(ctx, request.Method, &resp, request.Params)
+			var params = make([]interface{}, len(request.Params))
+			for i := range request.Params {
+				params[i] = request.Params[i]
+			}
+			err := rpc.Call(ctx, request.Method, &resp, params...)
 			if ctx.Err() != nil {
 				log.Warnf("Canceled RPC method %v invoked by %v: %v", request.Method, remoteAddr(ctx), err)
 				return nil, &dcrjson.RPCError{
