@@ -10,8 +10,8 @@ import (
 	"math/big"
 	"time"
 
-	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/blockchain/stake/v2"
+	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson/v3"
 	"github.com/decred/dcrd/dcrutil/v2"

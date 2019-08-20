@@ -10,8 +10,8 @@ import (
 	"context"
 	"sync"
 
-	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/blockchain/stake/v2"
+	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/hdkeychain/v2"
