@@ -123,8 +123,8 @@ github.com/decred/dcrd/wire v1.1.0 h1:G+3CugtxNbToUN8RKWqm74yLfzJJ2BKMOr2RgWc4Ty
 github.com/decred/dcrd/wire v1.1.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
 github.com/decred/dcrd/wire v1.2.0 h1:HqJVB7vcklIguzFWgRXw/WYCQ9cD3bUC5TKj53i1Hng=
 github.com/decred/dcrd/wire v1.2.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
-github.com/decred/dcrwallet/internal/helpers v1.0.1 h1:oEqfJPs1uI7QI0Aejx2MUWq/yD609cc9Z8P7vQ6cDz8=
-github.com/decred/dcrwallet/internal/helpers v1.0.1/go.mod h1:qIXcze8VZ+A3sEgZou7PTOe4Vsnmks54SGTSGZ6084g=
+github.com/decred/dcrwallet/internal/zero v1.0.1 h1:hO7orPk13AFp7pFTL739CbVLKImSNorI2J9/tiucNQY=
+github.com/decred/dcrwallet/internal/zero v1.0.1/go.mod h1:mXUIsKATE1pIaNAJQ4lhSTX6c9N5sYoSrlScgRCaMJs=
 github.com/decred/go-socks v1.0.0 h1:gd5+vE9LmL+FYiN5cxAMtaAVb791mG8E/+Jo411M/BE=
 github.com/decred/go-socks v1.0.0/go.mod h1:sDhHqkZH0X4JjSa02oYOGhcGHYp12FsY1jQ/meV8md0=
 github.com/decred/slog v1.0.0 h1:Dl+W8O6/JH6n2xIFN2p3DNjCmjYwvrXsjlSJTQQ4MhE=

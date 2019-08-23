@@ -19,15 +19,14 @@ import (
 	"runtime/pprof"
 	"time"
 
+	ldr "decred.org/dcrwallet/internal/loader"
+	"decred.org/dcrwallet/internal/prompt"
+	"decred.org/dcrwallet/internal/rpc/rpcserver"
 	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/chain/v3"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/internal/prompt"
-	"github.com/decred/dcrwallet/internal/zero"
-	ldr "github.com/decred/dcrwallet/loader"
 	"github.com/decred/dcrwallet/p2p/v2"
-	"github.com/decred/dcrwallet/rpc/rpcserver"
 	"github.com/decred/dcrwallet/spv/v3"
 	"github.com/decred/dcrwallet/ticketbuyer/v4"
 	"github.com/decred/dcrwallet/version"
@@ -63,6 +62,12 @@ func done(ctx context.Context) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func zero(b []byte) {
+	for i := range b {
+		b[i] = 0
 	}
 }
 
@@ -175,7 +180,7 @@ func run(ctx context.Context) error {
 	passphrase := []byte{}
 	if !cfg.NoInitialLoad {
 		walletPass := []byte(cfg.WalletPass)
-		defer zero.Bytes(walletPass)
+		defer zero(walletPass)
 
 		if cfg.PromptPublicPass {
 			walletPass, _ = passPrompt(ctx, "Enter public wallet passphrase", false)

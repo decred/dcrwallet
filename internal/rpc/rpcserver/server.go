@@ -30,6 +30,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"decred.org/dcrwallet/internal/cfgutil"
+	"decred.org/dcrwallet/internal/loader"
+	"decred.org/dcrwallet/internal/netparams"
 	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -41,10 +44,6 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/chain/v3"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/internal/cfgutil"
-	"github.com/decred/dcrwallet/internal/zero"
-	"github.com/decred/dcrwallet/loader"
-	"github.com/decred/dcrwallet/netparams"
 	"github.com/decred/dcrwallet/p2p/v2"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
@@ -419,10 +418,16 @@ func (s *walletServer) Rescan(req *pb.RescanRequest, svr pb.WalletService_Rescan
 	}
 }
 
+func zero(b []byte) {
+	for i := range b {
+		b[i] = 0
+	}
+}
+
 func (s *walletServer) NextAccount(ctx context.Context, req *pb.NextAccountRequest) (
 	*pb.NextAccountResponse, error) {
 
-	defer zero.Bytes(req.Passphrase)
+	defer zero(req.Passphrase)
 
 	if req.AccountName == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "account name may not be empty")
@@ -502,7 +507,7 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPrivateKeyRequest) (
 	*pb.ImportPrivateKeyResponse, error) {
 
-	defer zero.Bytes(req.Passphrase)
+	defer zero(req.Passphrase)
 
 	wif, err := dcrutil.DecodeWIF(req.PrivateKeyWif, s.wallet.ChainParams().PrivateKeyID)
 	if err != nil {
@@ -556,7 +561,7 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 func (s *walletServer) ImportScript(ctx context.Context,
 	req *pb.ImportScriptRequest) (*pb.ImportScriptResponse, error) {
 
-	defer zero.Bytes(req.Passphrase)
+	defer zero(req.Passphrase)
 
 	// TODO: Rather than assuming the "default" version, it must be a parameter
 	// to the request.
@@ -1075,7 +1080,7 @@ func (s *walletServer) GetAccountExtendedPrivKey(ctx context.Context, req *pb.Ge
 	lock := make(chan time.Time, 1)
 	lockWallet := func() {
 		lock <- time.Time{}
-		zero.Bytes(req.Passphrase)
+		zero(req.Passphrase)
 	}
 
 	err := s.wallet.Unlock(req.Passphrase, lock)
@@ -1313,8 +1318,8 @@ func (s *walletServer) ChangePassphrase(ctx context.Context, req *pb.ChangePassp
 	*pb.ChangePassphraseResponse, error) {
 
 	defer func() {
-		zero.Bytes(req.OldPassphrase)
-		zero.Bytes(req.NewPassphrase)
+		zero(req.OldPassphrase)
+		zero(req.NewPassphrase)
 	}()
 
 	var (
@@ -1346,7 +1351,7 @@ func (s *walletServer) ChangePassphrase(ctx context.Context, req *pb.ChangePassp
 func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransactionRequest) (
 	*pb.SignTransactionResponse, error) {
 
-	defer zero.Bytes(req.Passphrase)
+	defer zero(req.Passphrase)
 
 	var tx wire.MsgTx
 	err := tx.Deserialize(bytes.NewReader(req.SerializedTransaction))
@@ -1406,7 +1411,7 @@ func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransact
 
 func (s *walletServer) SignTransactions(ctx context.Context, req *pb.SignTransactionsRequest) (
 	*pb.SignTransactionsResponse, error) {
-	defer zero.Bytes(req.Passphrase)
+	defer zero(req.Passphrase)
 
 	lock := make(chan time.Time, 1)
 	defer func() {
@@ -1472,7 +1477,7 @@ func (s *walletServer) SignTransactions(ctx context.Context, req *pb.SignTransac
 func (s *walletServer) CreateSignature(ctx context.Context, req *pb.CreateSignatureRequest) (
 	*pb.CreateSignatureResponse, error) {
 
-	defer zero.Bytes(req.Passphrase)
+	defer zero(req.Passphrase)
 
 	var tx wire.MsgTx
 	err := tx.Deserialize(bytes.NewReader(req.SerializedTransaction))
@@ -2210,7 +2215,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 
 	lockWallet := func() {
 		lock <- time.Time{}
-		zero.Bytes(req.Passphrase)
+		zero(req.Passphrase)
 	}
 
 	err = wallet.Unlock(req.Passphrase, lock)
@@ -2238,8 +2243,8 @@ func (s *loaderServer) CreateWallet(ctx context.Context, req *pb.CreateWalletReq
 	*pb.CreateWalletResponse, error) {
 
 	defer func() {
-		zero.Bytes(req.PrivatePassphrase)
-		zero.Bytes(req.Seed)
+		zero(req.PrivatePassphrase)
+		zero(req.Seed)
 	}()
 
 	// Use an insecure public passphrase when the request's is empty.
@@ -2337,7 +2342,7 @@ func isLoopback(addr string) bool {
 }
 
 func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderService_RpcSyncServer) error {
-	defer zero.Bytes(req.Password)
+	defer zero(req.Password)
 
 	// Error if the wallet is already syncing with the network.
 	wallet, walletLoaded := s.loader.LoadedWallet()
@@ -2356,7 +2361,7 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 		lock := make(chan time.Time, 1)
 		lockWallet = func() {
 			lock <- time.Time{}
-			zero.Bytes(req.PrivatePassphrase)
+			zero(req.PrivatePassphrase)
 		}
 		defer lockWallet()
 		err := wallet.Unlock(req.PrivatePassphrase, lock)
@@ -2498,7 +2503,7 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 		lock := make(chan time.Time, 1)
 		lockWallet = func() {
 			lock <- time.Time{}
-			zero.Bytes(req.PrivatePassphrase)
+			zero(req.PrivatePassphrase)
 		}
 		defer lockWallet()
 		err := wallet.Unlock(req.PrivatePassphrase, lock)

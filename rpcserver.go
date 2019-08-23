@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
+	"decred.org/dcrwallet/internal/loader"
+	"decred.org/dcrwallet/internal/rpc/jsonrpc"
+	"decred.org/dcrwallet/internal/rpc/rpcserver"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/loader"
-	"github.com/decred/dcrwallet/rpc/jsonrpc"
-	"github.com/decred/dcrwallet/rpc/rpcserver"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

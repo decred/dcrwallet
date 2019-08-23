@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"fmt"
+	"math/big"
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg/v2"
@@ -16,7 +17,6 @@ import (
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/internal/zero"
 	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
 	"github.com/decred/dcrwallet/wallet/v3/internal/snacl"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
@@ -292,6 +292,20 @@ type Manager struct {
 	hashedPrivPassphrase [sha512.Size]byte
 }
 
+func zero(b []byte) {
+	for i := range b {
+		b[i] = 0
+	}
+}
+
+func zeroBigInt(x *big.Int) {
+	b := x.Bits()
+	for i := range b {
+		b[i] = 0
+	}
+	x.SetInt64(0)
+}
+
 // lock performs a best try effort to remove and zero all secret keys associated
 // with the address manager.
 //
@@ -308,10 +322,10 @@ func (m *Manager) lock() {
 	// Remove clear text private keys and scripts from all address entries.
 	m.returnedSecretsMu.Lock()
 	for _, privKey := range m.returnedPrivKeys {
-		zero.BigInt(privKey.GetD())
+		zeroBigInt(privKey.GetD())
 	}
 	for _, script := range m.returnedScripts {
-		zero.Bytes(script)
+		zero(script)
 	}
 	m.returnedPrivKeys = nil
 	m.returnedScripts = nil
@@ -323,7 +337,7 @@ func (m *Manager) lock() {
 	m.masterKeyPriv.Zero()
 
 	// Zero the hashed passphrase.
-	zero.Bytea64(&m.hashedPrivPassphrase)
+	m.hashedPrivPassphrase = [64]byte{}
 
 	// NOTE: m.cryptoKeyPub is intentionally not cleared here as the address
 	// manager needs to be able to continue to read and decrypt public data
@@ -634,7 +648,7 @@ func (m *Manager) CoinTypePrivKey(dbtx walletdb.ReadTx) (*hdkeychain.ExtendedKey
 		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt cointype privkey: %v", err))
 	}
 	coinTypeKeyPriv, err := hdkeychain.NewKeyFromString(string(serializedKeyPriv), m.chainParams)
-	zero.Bytes(serializedKeyPriv)
+	zero(serializedKeyPriv)
 	if err != nil {
 		return nil, errors.E(errors.IO, err)
 	}
@@ -990,7 +1004,7 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 			return errors.E(errors.Crypto, errors.Errorf("decrypt crypto privkey: %v", err))
 		}
 		encPriv, err := newMasterKey.Encrypt(decPriv)
-		zero.Bytes(decPriv)
+		zero(decPriv)
 		if err != nil {
 			return errors.E(errors.Crypto, errors.Errorf("encrypt crypto privkey: %v", err))
 		}
@@ -1002,7 +1016,7 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 			return errors.E(errors.Crypto, errors.Errorf("decrypt crypto script key: %v", err))
 		}
 		encScript, err := newMasterKey.Encrypt(decScript)
-		zero.Bytes(decScript)
+		zero(decScript)
 		if err != nil {
 			return errors.E(errors.Crypto, errors.Errorf("encrypt crypto script key: %v", err))
 		}
@@ -1018,7 +1032,7 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 			saltedPassphrase := append(passphraseSalt[:],
 				newPassphrase...)
 			hashedPassphrase = sha512.Sum512(saltedPassphrase)
-			zero.Bytes(saltedPassphrase)
+			zero(saltedPassphrase)
 		}
 
 		// Save the new keys and params to the the db in a single
@@ -1114,7 +1128,7 @@ func (m *Manager) ConvertToWatchingOnly(ns walletdb.ReadWriteBucket) error {
 
 	// Clear and remove all of the encrypted acount private keys.
 	for _, acctInfo := range m.acctInfo {
-		zero.Bytes(acctInfo.acctKeyEncrypted)
+		zero(acctInfo.acctKeyEncrypted)
 		acctInfo.acctKeyEncrypted = nil
 	}
 
@@ -1122,20 +1136,20 @@ func (m *Manager) ConvertToWatchingOnly(ns walletdb.ReadWriteBucket) error {
 	// all address entries.
 	m.returnedSecretsMu.Lock()
 	for _, privKey := range m.returnedPrivKeys {
-		zero.BigInt(privKey.GetD())
+		zeroBigInt(privKey.GetD())
 	}
 	for _, script := range m.returnedScripts {
-		zero.Bytes(script)
+		zero(script)
 	}
 	m.returnedPrivKeys = nil
 	m.returnedScripts = nil
 	m.returnedSecretsMu.Unlock()
 
 	// Clear and remove encrypted private and script crypto keys.
-	zero.Bytes(m.cryptoKeyScriptEncrypted)
+	zero(m.cryptoKeyScriptEncrypted)
 	m.cryptoKeyScriptEncrypted = nil
 	m.cryptoKeyScript = nil
-	zero.Bytes(m.cryptoKeyPrivEncrypted)
+	zero(m.cryptoKeyPrivEncrypted)
 	m.cryptoKeyPrivEncrypted = nil
 	m.cryptoKeyPriv = nil
 
@@ -1199,7 +1213,7 @@ func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF
 	if !m.watchingOnly {
 		privKeyBytes := wif.PrivKey.Serialize()
 		encryptedPrivKey, err = m.cryptoKeyPriv.Encrypt(privKeyBytes)
-		zero.Bytes(privKeyBytes)
+		zero(privKeyBytes)
 		if err != nil {
 			return nil, errors.E(errors.Crypto, errors.Errorf("encrypt imported privkey: %v", err))
 		}
@@ -1339,7 +1353,7 @@ func (m *Manager) UnlockedWithPassphrase(passphrase []byte) error {
 
 	saltedPassphrase := append(m.privPassphraseSalt[:], passphrase...)
 	hashedPassphrase := sha512.Sum512(saltedPassphrase)
-	zero.Bytes(saltedPassphrase)
+	zero(saltedPassphrase)
 	if hashedPassphrase != m.hashedPrivPassphrase {
 		return errors.E(errors.Passphrase)
 	}
@@ -1370,7 +1384,7 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 		saltedPassphrase := append(m.privPassphraseSalt[:],
 			passphrase...)
 		hashedPassphrase := sha512.Sum512(saltedPassphrase)
-		zero.Bytes(saltedPassphrase)
+		zero(saltedPassphrase)
 		if hashedPassphrase != m.hashedPrivPassphrase {
 			m.lock()
 			return errors.E(errors.Passphrase)
@@ -1391,7 +1405,7 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 		return errors.E(errors.Crypto, errors.Errorf("decrypt crypto privkey: %v", err))
 	}
 	m.cryptoKeyPriv.CopyBytes(decryptedKey)
-	zero.Bytes(decryptedKey)
+	zero(decryptedKey)
 
 	// Use the crypto private key to decrypt all of the account private
 	// extended keys.
@@ -1403,7 +1417,7 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 		}
 
 		acctKeyPriv, err := hdkeychain.NewKeyFromString(string(decrypted), m.chainParams)
-		zero.Bytes(decrypted)
+		zero(decrypted)
 		if err != nil {
 			m.lock()
 			return errors.E(errors.IO, err)
@@ -1414,7 +1428,7 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 	m.locked = false
 	saltedPassphrase := append(m.privPassphraseSalt[:], passphrase...)
 	m.hashedPrivPassphrase = sha512.Sum512(saltedPassphrase)
-	zero.Bytes(saltedPassphrase)
+	zero(saltedPassphrase)
 	return nil
 }
 
@@ -1719,7 +1733,7 @@ func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, 
 	}
 	coinTypeKeyPriv, err :=
 		hdkeychain.NewKeyFromString(string(serializedKeyPriv), m.chainParams)
-	zero.Bytes(serializedKeyPriv)
+	zero(serializedKeyPriv)
 	if err != nil {
 		return 0, errors.E(errors.IO, err)
 	}
@@ -1933,7 +1947,7 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 		key, _ = chainec.Secp256k1.PrivKeyFromBytes(privKeyBytes)
 		// PrivKeyFromBytes creates a copy of the private key, and therefore
 		// the decrypted private key bytes must be zeroed now.
-		zero.Bytes(privKeyBytes)
+		zero(privKeyBytes)
 
 	case *dbScriptAddressRow:
 		return nil, nil, errors.E(errors.Invalid, "no private key for P2SH address")
@@ -2230,7 +2244,7 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte, chainParams *chai
 		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt crypto pubkey: %v", err))
 	}
 	cryptoKeyPub.CopyBytes(cryptoKeyPubCT)
-	zero.Bytes(cryptoKeyPubCT)
+	zero(cryptoKeyPubCT)
 
 	// Generate private passphrase salt.
 	var privPassphraseSalt [saltSize]byte

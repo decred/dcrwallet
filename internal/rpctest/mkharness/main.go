@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"os"
 
+	"decred.org/dcrwallet/internal/rpctest"
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrwallet/rpctest"
 )
 
 func main() {

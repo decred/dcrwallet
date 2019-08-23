@@ -13,7 +13,6 @@ import (
 	"runtime/debug"
 
 	"github.com/decred/dcrwallet/errors"
-	"github.com/decred/dcrwallet/internal/zero"
 	"golang.org/x/crypto/nacl/secretbox"
 	"golang.org/x/crypto/scrypt"
 )
@@ -74,7 +73,7 @@ func (ck *CryptoKey) Decrypt(in []byte) ([]byte, error) {
 // rather than waiting until it's reclaimed by the garbage collector.  The
 // key is no longer usable after this call.
 func (ck *CryptoKey) Zero() {
-	zero.Bytea32((*[KeySize]byte)(ck))
+	*ck = [KeySize]byte{}
 }
 
 // GenerateCryptoKey generates a new crypotgraphically random key.
@@ -105,6 +104,12 @@ type SecretKey struct {
 	Parameters Parameters
 }
 
+func zero(b []byte) {
+	for i := range b {
+		b[i] = 0
+	}
+}
+
 // deriveKey fills out the Key field.
 func (sk *SecretKey) deriveKey(op errors.Op, password *[]byte) error {
 	key, err := scrypt.Key(*password, sk.Parameters.Salt[:],
@@ -116,7 +121,7 @@ func (sk *SecretKey) deriveKey(op errors.Op, password *[]byte) error {
 		return errors.E(op, err)
 	}
 	copy(sk.Key[:], key)
-	zero.Bytes(key)
+	zero(key)
 
 	// I'm not a fan of forced garbage collections, but scrypt allocates a
 	// ton of memory and calling it back to back without a GC cycle in
