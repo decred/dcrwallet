@@ -122,6 +122,31 @@ func (k Kind) String() string {
 	}
 }
 
+func (k Kind) Error() string {
+	return k.String()
+}
+
+// As implements the interface to work with the standard library's errors.As.
+// If k is Other, this always returns false and target is not assigned.
+// If target points to an *Error (i.e. target has type **Error), target is
+// assigned an *Error using k as its Kind.
+// If target points to a Kind, target is assigned the kind and As returns true.
+// Else, target is not assinged and As returns false.
+func (k Kind) As(target interface{}) bool {
+	if k == Other {
+		return false
+	}
+	switch target := target.(type) {
+	case **Error:
+		*target = &Error{Kind: k}
+		return true
+	case *Kind:
+		*target = k
+		return true
+	}
+	return false
+}
+
 // New creates a simple error from a string.  New is identical to "errors".New
 // from the standard library.
 func New(text string) error {
@@ -263,6 +288,53 @@ func (e *Error) Error() string {
 		return Other.String()
 	}
 	return s
+}
+
+// Unwrap returns the underlying wrapped error if it is not nil.
+// Otherwise, if the Kind is not Other, Unwrap returns the Kind.
+// Else, it returns nil.
+func (e *Error) Unwrap() error {
+	if e.Err != nil {
+		return e.Err
+	}
+	if e.Kind != Other {
+		return e.Kind
+	}
+	return nil
+}
+
+// As implements the interface to work with the standard library's errors.As.
+// If target points to an *Error (i.e. target has type **Error), target is
+// assigned e and As returns true.
+// If target points to a Kind and e's Kind is not Other, target is assigned
+// the kind and As returns true.
+// Else, target is not assinged and As returns false.
+func (e *Error) As(target interface{}) bool {
+	switch target := target.(type) {
+	case **Error:
+		*target = e
+		return true
+	case *Kind:
+		if e.Kind != Other {
+			*target = e.Kind
+			return true
+		}
+	}
+	return false
+}
+
+// Is implements the interface to work with the standard library's errors.Is.
+// If target is an *Error, Is returns the result of Match(target, e).
+// If target is a Kind, Is returns true if the Kinds match and are nonzero.
+// Else, Is returns false.
+func (e *Error) Is(target error) bool {
+	switch target := target.(type) {
+	case *Error:
+		return Match(target, e)
+	case Kind:
+		return e.Kind != Other && e.Kind == target
+	}
+	return false
 }
 
 // Is returns whether err is of type *Error and has a matching kind in err or
