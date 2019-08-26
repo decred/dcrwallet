@@ -57,16 +57,29 @@ const (
 	actBIP0044 accountType = 0 // not iota as they need to be stable for db
 )
 
+type accountRow interface {
+	actType() accountType
+	actData() []byte
+}
+
 // dbAccountRow houses information stored about an account in the database.
 type dbAccountRow struct {
 	acctType accountType
 	rawData  []byte // Varies based on account type field.
 }
 
+func (row *dbAccountRow) actType() accountType {
+	return row.acctType
+}
+
+func (row *dbAccountRow) actData() []byte {
+	return row.rawData
+}
+
 // dbBIP0044AccountRow houses additional information stored about a BIP0044
 // account in the database.
 type dbBIP0044AccountRow struct {
-	dbAccountRow
+	accountRow
 	pubKeyEncrypted           []byte
 	privKeyEncrypted          []byte
 	nextExternalIndex         uint32 // Removed by version 2
@@ -76,6 +89,21 @@ type dbBIP0044AccountRow struct {
 	lastReturnedExternalIndex uint32 // Added in version 5
 	lastReturnedInternalIndex uint32 // Added in version 5
 	name                      string
+}
+
+// parseAccountRow returns an account row from the provided serialized bytes.
+func parseAccountRow(accountID []byte, serializedRow []byte, dbVersion uint32) (accountRow, error) {
+	row := dbAccountRow{
+		acctType: accountType(serializedRow[0]),
+		rawData:  serializedRow,
+	}
+
+	switch row.actType() {
+	case actBIP0044:
+		return deserializeBIP0044AccountRow(accountID, serializedRow, dbVersion)
+	default:
+		return nil, errors.E(errors.IO, errors.Errorf("invalid account type %d", row.actType()))
+	}
 }
 
 // dbAddressRow houses common information stored about an address in the
@@ -465,66 +493,37 @@ func putWatchingOnly(ns walletdb.ReadWriteBucket, watchingOnly bool) error {
 	return nil
 }
 
-// deserializeAccountRow deserializes the passed serialized account information.
-// This is used as a common base for the various account types to deserialize
-// the common parts.
-func deserializeAccountRow(accountID []byte, serializedAccount []byte) (*dbAccountRow, error) {
-	// The serialized account format is:
-	//   <acctType><rdlen><rawdata>
-	//
-	// 1 byte acctType + 4 bytes raw data length + raw data
-
-	// Given the above, the length of the entry must be at a minimum
-	// the constant value sizes.
-	if len(serializedAccount) < 5 {
-		return nil, errors.E(errors.IO, errors.Errorf("bad account len %d", len(serializedAccount)))
-	}
-
-	row := dbAccountRow{}
-	row.acctType = accountType(serializedAccount[0])
-	rdlen := binary.LittleEndian.Uint32(serializedAccount[1:5])
-	row.rawData = make([]byte, rdlen)
-	copy(row.rawData, serializedAccount[5:5+rdlen])
-
-	return &row, nil
-}
-
-// serializeAccountRow returns the serialization of the passed account row.
-func serializeAccountRow(row *dbAccountRow) []byte {
-	// The serialized account format is:
-	//   <acctType><rdlen><rawdata>
-	//
-	// 1 byte acctType + 4 bytes raw data length + raw data
-	rdlen := len(row.rawData)
-	buf := make([]byte, 5+rdlen)
-	buf[0] = byte(row.acctType)
-	binary.LittleEndian.PutUint32(buf[1:5], uint32(rdlen))
-	copy(buf[5:5+rdlen], row.rawData)
-	return buf
-}
-
 // deserializeBIP0044AccountRow deserializes the raw data from the passed
 // account row as a BIP0044 account.
-func deserializeBIP0044AccountRow(accountID []byte, row *dbAccountRow, dbVersion uint32) (*dbBIP0044AccountRow, error) {
+func deserializeBIP0044AccountRow(accountID []byte, account []byte, dbVersion uint32) (*dbBIP0044AccountRow, error) {
 	// The serialized BIP0044 account raw data format is:
-	//   <encpubkeylen><encpubkey><encprivkeylen><encprivkey><lastusedext>
-	//   <lastusedint><lastretext><lastretint><namelen><name>
+	//   <acctType><rdlen><encpubkeylen><encpubkey><encprivkeylen>
+	//   <encprivkey><lastusedext><lastusedint><lastretext><lastretint>
+	//   <namelen><name>
 	//
-	// 4 bytes encrypted pubkey len + encrypted pubkey + 4 bytes encrypted
-	// privkey len + encrypted privkey + 4 bytes last used external index +
-	// 4 bytes last used internal index + 4 bytes last returned external +
+	// 1 byte acctType + 4 bytes raw data length + 4 bytes encrypted
+	// pubkey len + encrypted pubkey + 4 bytes encrypted privkey len +
+	// encrypted privkey + 4 bytes last used external index + 4 bytes
+	// last used internal index + 4 bytes last returned external +
 	// 4 bytes last returned internal + 4 bytes name len + name
 
 	// Given the above, the length of the entry must be at a minimum
 	// the constant value sizes.
+	dataLen := len(account)
 	switch {
-	case dbVersion < 5 && len(row.rawData) < 20,
-		dbVersion >= 5 && len(row.rawData) < 28:
-		return nil, errors.E(errors.IO, errors.Errorf("bip0044 account %x bad len %d", accountID, len(row.rawData)))
+	case dbVersion < 5 && dataLen < 25,
+		dbVersion >= 5 && dataLen < 33:
+		return nil, errors.E(errors.IO, errors.Errorf("bip0044 account %x bad len %d", accountID, dataLen))
 	}
 
+	row := &dbAccountRow{}
+	row.acctType = accountType(account[0])
+	rdlen := binary.LittleEndian.Uint32(account[1:5])
+	row.rawData = make([]byte, rdlen)
+	copy(row.rawData, account[5:5+rdlen])
+
 	retRow := dbBIP0044AccountRow{
-		dbAccountRow: *row,
+		accountRow: row,
 	}
 
 	pubLen := binary.LittleEndian.Uint32(row.rawData[0:4])
@@ -564,25 +563,33 @@ func deserializeBIP0044AccountRow(accountID []byte, row *dbAccountRow, dbVersion
 // for a BIP0044 account.
 func serializeBIP0044AccountRow(row *dbBIP0044AccountRow, dbVersion uint32) []byte {
 	// The serialized BIP0044 account raw data format is:
-	//   <encpubkeylen><encpubkey><encprivkeylen><encprivkey><lastusedext>
-	//   <lastusedint><lastretext><lastretint><namelen><name>
+	//   <acctType><rdlen><encpubkeylen><encpubkey><encprivkeylen>
+	//   <encprivkey><lastusedext><lastusedint><lastretext>
+	//   <lastretint><namelen><name>
 	//
-	// 4 bytes encrypted pubkey len + encrypted pubkey + 4 bytes encrypted
-	// privkey len + encrypted privkey + 4 bytes last used external index +
-	// 4 bytes last used internal index + 4 bytes last returned external +
+	// 1 byte acctType + 4 bytes raw data length + 4 bytes encrypted
+	// pubkey len + encrypted pubkey + 4 bytes encrypted privkey len +
+	// encrypted privkey + 4 bytes last used external index + 4 bytes
+	// last used internal index + 4 bytes last returned external +
 	// 4 bytes last returned internal + 4 bytes name len + name
 	pubLen := uint32(len(row.pubKeyEncrypted))
 	privLen := uint32(len(row.privKeyEncrypted))
 	nameLen := uint32(len(row.name))
-	rowSize := 28 + pubLen + privLen + nameLen
+	rdLen := 28 + pubLen + privLen + nameLen
 	switch {
 	case dbVersion < 5:
-		rowSize -= 8
+		rdLen -= 8
 	}
+	rowSize := 1 + 4 + rdLen
 	rawData := make([]byte, rowSize)
-	binary.LittleEndian.PutUint32(rawData[0:4], pubLen)
-	copy(rawData[4:4+pubLen], row.pubKeyEncrypted)
-	offset := 4 + pubLen
+	rawData[0] = byte(actBIP0044)
+	offset := uint32(1)
+	binary.LittleEndian.PutUint32(rawData[offset:offset+4], rdLen)
+	offset += 4
+	binary.LittleEndian.PutUint32(rawData[offset:offset+4], pubLen)
+	offset += 4
+	copy(rawData[offset:offset+pubLen], row.pubKeyEncrypted)
+	offset += pubLen
 	binary.LittleEndian.PutUint32(rawData[offset:offset+4], privLen)
 	offset += 4
 	copy(rawData[offset:offset+privLen], row.privKeyEncrypted)
@@ -615,10 +622,6 @@ func bip0044AccountInfo(pubKeyEnc, privKeyEnc []byte, nextExtIndex, nextIntIndex
 	name string, dbVersion uint32) *dbBIP0044AccountRow {
 
 	row := &dbBIP0044AccountRow{
-		dbAccountRow: dbAccountRow{
-			acctType: actBIP0044,
-			rawData:  nil,
-		},
 		pubKeyEncrypted:           pubKeyEnc,
 		privKeyEncrypted:          privKeyEnc,
 		nextExternalIndex:         0,
@@ -642,7 +645,10 @@ func bip0044AccountInfo(pubKeyEnc, privKeyEnc []byte, nextExtIndex, nextIntIndex
 		row.lastReturnedExternalIndex = lastRetExtIndex
 		row.lastReturnedInternalIndex = lastRetIntIndex
 	}
-	row.rawData = serializeBIP0044AccountRow(row, dbVersion)
+	row.accountRow = &dbAccountRow{
+		acctType: actBIP0044,
+		rawData:  serializeBIP0044AccountRow(row, dbVersion),
+	}
 	return row
 }
 
@@ -703,7 +709,7 @@ func fetchAccountByName(ns walletdb.ReadBucket, name string) (uint32, error) {
 
 // fetchAccountInfo loads information about the passed account from the
 // database.
-func fetchAccountInfo(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (*dbBIP0044AccountRow, error) {
+func fetchAccountInfo(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (accountRow, error) {
 	bucket := ns.NestedReadBucket(acctBucketName)
 
 	accountID := uint32ToBytes(account)
@@ -712,17 +718,7 @@ func fetchAccountInfo(ns walletdb.ReadBucket, account uint32, dbVersion uint32) 
 		return nil, errors.E(errors.NotExist, errors.Errorf("no account %d", account))
 	}
 
-	row, err := deserializeAccountRow(accountID, serializedRow)
-	if err != nil {
-		return nil, err
-	}
-
-	switch row.acctType {
-	case actBIP0044:
-		return deserializeBIP0044AccountRow(accountID, row, dbVersion)
-	}
-
-	return nil, errors.E(errors.IO, errors.Errorf("unknown account type %d", row.acctType))
+	return parseAccountRow(accountID, serializedRow, dbVersion)
 }
 
 // deleteAccountNameIndex deletes the given key from the account name index of the database.
@@ -797,28 +793,39 @@ func putAddrAccountIndex(ns walletdb.ReadWriteBucket, account uint32, addrHash [
 
 // putAccountRow stores the provided account information to the database.  This
 // is used a common base for storing the various account types.
-func putAccountRow(ns walletdb.ReadWriteBucket, account uint32, row *dbAccountRow) error {
+func putAccountRow(ns walletdb.ReadWriteBucket, account uint32, row accountRow) error {
 	bucket := ns.NestedReadWriteBucket(acctBucketName)
 
-	// Write the serialized value keyed by the account number.
-	err := bucket.Put(uint32ToBytes(account), serializeAccountRow(row))
-	if err != nil {
-		return errors.E(errors.IO, err)
+	switch acctRow := row.(type) {
+	case *dbBIP0044AccountRow:
+		// Write the serialized value keyed by the account number.
+		err := bucket.Put(uint32ToBytes(account), serializeBIP0044AccountRow(acctRow, DBVersion))
+		if err != nil {
+			return errors.E(errors.IO, err)
+		}
+	default:
+		return errors.E(errors.Invalid, errors.Errorf("invalid account type %d", row.actType()))
 	}
 	return nil
 }
 
 // putAccountInfo stores the provided account information to the database.
-func putAccountInfo(ns walletdb.ReadWriteBucket, account uint32, row *dbBIP0044AccountRow) error {
-	if err := putAccountRow(ns, account, &row.dbAccountRow); err != nil {
+func putAccountInfo(ns walletdb.ReadWriteBucket, account uint32, row accountRow) error {
+	if err := putAccountRow(ns, account, row); err != nil {
 		return err
 	}
-	// Update account id index
-	if err := putAccountIDIndex(ns, account, row.name); err != nil {
-		return err
+
+	switch acctRow := row.(type) {
+	case *dbBIP0044AccountRow:
+		// Update account id index
+		if err := putAccountIDIndex(ns, account, acctRow.name); err != nil {
+			return err
+		}
+		// Update account name index
+		return putAccountNameIndex(ns, account, acctRow.name)
+	default:
+		return errors.E(errors.Invalid, errors.Errorf("invalid account type %d", acctRow.actType()))
 	}
-	// Update account name index
-	return putAccountNameIndex(ns, account, row.name)
 }
 
 // putLastAccount stores the provided metadata - last account - to the database.
@@ -1232,7 +1239,7 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 		return errors.E(errors.IO, err)
 	}
 
-	BIP0044Set := map[string]*dbAccountRow{}
+	BIP0044Set := map[string]*dbBIP0044AccountRow{}
 
 	// Fetch all BIP0044 accounts.
 	bucket = ns.NestedReadWriteBucket(acctBucketName)
@@ -1243,35 +1250,29 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 			continue
 		}
 
-		// Deserialize the account row first to determine the type.
-		row, err := deserializeAccountRow(k, v)
+		row, err := parseAccountRow(k, v, dbVersion)
 		if err != nil {
 			c.Close()
 			return err
 		}
 
-		switch row.acctType {
-		case actBIP0044:
-			BIP0044Set[string(k)] = row
+		switch acctRow := row.(type) {
+		case *dbBIP0044AccountRow:
+			BIP0044Set[string(k)] = acctRow
 		}
 	}
 	c.Close()
 
 	// Delete the account extended private key for all BIP0044 accounts.
 	for k, row := range BIP0044Set {
-		arow, err := deserializeBIP0044AccountRow([]byte(k), row, dbVersion)
-		if err != nil {
-			return err
-		}
-
 		// Reserialize the account without the private key and
 		// store it.
-		row := bip0044AccountInfo(arow.pubKeyEncrypted, nil,
-			arow.nextExternalIndex, arow.nextInternalIndex,
-			arow.lastUsedExternalIndex, arow.lastUsedInternalIndex,
-			arow.lastReturnedExternalIndex, arow.lastReturnedInternalIndex,
-			arow.name, dbVersion)
-		err = bucket.Put([]byte(k), serializeAccountRow(&row.dbAccountRow))
+		row := bip0044AccountInfo(row.pubKeyEncrypted, nil,
+			row.nextExternalIndex, row.nextInternalIndex,
+			row.lastUsedExternalIndex, row.lastUsedInternalIndex,
+			row.lastReturnedExternalIndex, row.lastReturnedInternalIndex,
+			row.name, dbVersion)
+		err := bucket.Put([]byte(k), serializeBIP0044AccountRow(row, dbVersion))
 		if err != nil {
 			return errors.E(errors.IO, err)
 		}

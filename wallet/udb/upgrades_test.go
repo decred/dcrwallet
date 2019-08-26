@@ -267,10 +267,16 @@ func verifyV5Upgrade(t *testing.T, db walletdb.DB) {
 		const dbVersion = 5
 
 		for _, d := range data {
-			row, err := fetchAccountInfo(ns, d.acct, dbVersion)
+			acctRow, err := fetchAccountInfo(ns, d.acct, dbVersion)
 			if err != nil {
 				return err
 			}
+
+			row, ok := acctRow.(*dbBIP0044AccountRow)
+			if !ok {
+				t.Errorf("unexpected account type %d", row.actType())
+			}
+
 			if row.lastUsedExternalIndex != d.lastUsedExtChild {
 				t.Errorf("Account %d last used ext child mismatch %d != %d",
 					d.acct, row.lastUsedExternalIndex, d.lastUsedExtChild)
