@@ -1261,6 +1261,11 @@ func (m *Manager) ImportScript(ns walletdb.ReadWriteBucket, script []byte) (Mana
 	return newScriptAddress(m, ImportedAddrAccount, scriptHash)
 }
 
+// RemoveAddress removes the provided address from the manager.
+func (m *Manager) RemoveAddress(ns walletdb.ReadWriteBucket, addressID []byte) error {
+	return removeAddress(ns, addressID)
+}
+
 // IsLocked returns whether or not the address managed is locked.  When it is
 // unlocked, the decryption key needed to decrypt private keys used for signing
 // is in memory.

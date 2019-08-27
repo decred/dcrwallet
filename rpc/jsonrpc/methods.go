@@ -41,9 +41,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "6.2.0"
+	jsonrpcSemverString = "6.3.0"
 	jsonrpcSemverMajor  = 6
-	jsonrpcSemverMinor  = 2
+	jsonrpcSemverMinor  = 3
 	jsonrpcSemverPatch  = 0
 )
 
@@ -119,6 +119,7 @@ var handlers = map[string]handler{
 	"sweepaccount":            {fn: (*Server).sweepAccount},
 	"redeemmultisigout":       {fn: (*Server).redeemMultiSigOut},
 	"redeemmultisigouts":      {fn: (*Server).redeemMultiSigOuts},
+	"removeimported":          {fn: (*Server).removeImported},
 	"stakepooluserinfo":       {fn: (*Server).stakePoolUserInfo},
 	"ticketsforaddress":       {fn: (*Server).ticketsForAddress},
 	"validateaddress":         {fn: (*Server).validateAddress},
@@ -2424,6 +2425,42 @@ func (s *Server) redeemMultiSigOuts(ctx context.Context, icmd interface{}) (inte
 	}
 
 	return types.RedeemMultiSigOutsResult{Results: rmsoResults}, nil
+}
+
+// removeImported purges the provided imported script or private key from the wallet.
+func (s *Server) removeImported(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.RemoveImportedCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	// Parse the imported entity as a private key and remove the associated address.
+	wif, wErr := dcrutil.DecodeWIF(cmd.Data, w.ChainParams().PrivateKeyID)
+	if wErr == nil {
+		serializedPubKey := wif.SerializePubKey()
+		pubKeyHash := dcrutil.Hash160(serializedPubKey)
+		addr, err := dcrutil.NewAddressPubKeyHash(pubKeyHash, w.ChainParams(),
+			dcrec.STEcdsaSecp256k1)
+		if err != nil {
+			return nil,
+				rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
+					"unable to generate address from pubkey hash: %v", err)
+		}
+
+		err = w.RemoveAddress(addr)
+		return nil, err
+	}
+
+	// Parse the imported entity as a script and remove the associated address.
+	addr, err := dcrutil.NewAddressScriptHash([]byte(cmd.Data), w.ChainParams())
+	if err != nil {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+			"invalid private key or script provided")
+	}
+
+	err = w.RemoveAddress(addr)
+	return nil, err
 }
 
 // rescanWallet initiates a rescan of the block chain for wallet data, blocking

@@ -77,6 +77,7 @@ var Methods = []struct {
 	{"redeemmultisigout", []interface{}{(*types.RedeemMultiSigOutResult)(nil)}},
 	{"redeemmultisigouts", []interface{}{(*types.RedeemMultiSigOutResult)(nil)}},
 	{"renameaccount", nil},
+	{"removeimported", nil},
 	{"rescanwallet", nil},
 	{"revoketickets", nil},
 	{"sendfrom", returnsString},

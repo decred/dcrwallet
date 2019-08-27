@@ -8,6 +8,7 @@ package udb
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
 	"time"
 
 	"github.com/decred/dcrwallet/errors"
@@ -796,6 +797,34 @@ func putAddrAccountIndex(ns walletdb.ReadWriteBucket, account uint32, addrHash [
 	return nil
 }
 
+// removeAddrAccountIndex removes the provided key to the address account index of the database.
+func removeAddrAccountIndex(ns walletdb.ReadWriteBucket, addrHash []byte) error {
+	bucket := ns.NestedReadWriteBucket(addrAcctIdxBucketName)
+	accountB := bucket.Get(addrHash)
+
+	if accountB != nil {
+		msg := fmt.Sprintf("no account value found for address hash %x", addrHash)
+		return errors.E(errors.IO, msg)
+	}
+
+	err := bucket.Delete(addrHash)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	abkt := bucket.NestedReadWriteBucket(accountB)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	err = abkt.Delete(addrHash)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	return nil
+}
+
 // putAccountRow stores the provided account information to the database.  This
 // is used a common base for storing the various account types.
 func putAccountRow(ns walletdb.ReadWriteBucket, account uint32, row *dbAccountRow) error {
@@ -1091,6 +1120,18 @@ func putAddress(ns walletdb.ReadWriteBucket, addressID []byte, row *dbAddressRow
 	}
 	// Update address account index
 	return putAddrAccountIndex(ns, row.account, addrHash[:])
+}
+
+// removeAddress removes the provided address id.
+func removeAddress(ns walletdb.ReadWriteBucket, addressID []byte) error {
+	bucket := ns.NestedReadWriteBucket(addrBucketName)
+	addrHash := sha256.Sum256(addressID)
+	err := bucket.Delete(addrHash[:])
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	return removeAddrAccountIndex(ns, addrHash[:])
 }
 
 // putChainedAddress stores the provided chained address information to the
