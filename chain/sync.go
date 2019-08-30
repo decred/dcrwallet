@@ -246,6 +246,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	if err != nil {
 		return err
 	}
+	defer client.Close()
 	s.rpc = dcrd.New(client)
 
 	// Verify that the server is running on the expected network.
