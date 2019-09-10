@@ -65,7 +65,7 @@ func exists(ctx context.Context, r *RPC, method string, res *bitset.Bytes, param
 	var bitsetHex string
 	err := r.Call(ctx, method, &bitsetHex, param)
 	if err != nil {
-		errors.E(errors.Op(method), err)
+		return errors.E(errors.Op(method), err)
 	}
 	decoded, err := hex.DecodeString(bitsetHex)
 	if err != nil {
