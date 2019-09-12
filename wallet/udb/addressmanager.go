@@ -855,13 +855,17 @@ func (m *Manager) importedAddressRowToManaged(row *dbImportedAddressRow) (Manage
 // scriptAddressRowToManaged returns a new managed address based on script
 // address data loaded from the database.
 func (m *Manager) scriptAddressRowToManaged(row *dbScriptAddressRow) (ManagedAddress, error) {
-	// Use the crypto public key to decrypt the imported script hash.
-	scriptHash, err := m.cryptoKeyPub.Decrypt(row.encryptedHash)
-	if err != nil {
-		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt imported P2SH address: %v", err))
+	if row.encrypted {
+		// Use the crypto public key to decrypt the imported script hash.
+		scriptHash, err := m.cryptoKeyPub.Decrypt(row.hash)
+		if err != nil {
+			return nil, errors.E(errors.Crypto, errors.Errorf("decrypt imported P2SH address: %v", err))
+		}
+
+		return newScriptAddress(m, row.account, scriptHash)
 	}
 
-	return newScriptAddress(m, row.account, scriptHash)
+	return newScriptAddress(m, row.account, row.hash)
 }
 
 // rowInterfaceToManaged returns a new managed address based on the given
@@ -1245,38 +1249,21 @@ func (m *Manager) ImportScript(ns walletdb.ReadWriteBucket, script []byte) (Mana
 		return nil, errors.E(errors.Exist, "script already exists")
 	}
 
-	// The manager must be unlocked to encrypt the imported script.
-	if !m.watchingOnly && m.locked {
-		return nil, errors.E(errors.Locked)
-	}
-
-	// Encrypt the script hash using the crypto public key so it is
-	// accessible when the address manager is locked or watching-only.
-	encryptedHash, err := m.cryptoKeyPub.Encrypt(scriptHash)
-	if err != nil {
-		return nil, errors.E(errors.Crypto, errors.Errorf("encrypt script hash: %v", err))
-	}
-
-	// Encrypt the script for storage in database using the crypto script
-	// key when not a watching-only address manager.
-	var encryptedScript []byte
-	if !m.watchingOnly {
-		encryptedScript, err = m.cryptoKeyScript.Encrypt(script)
-		if err != nil {
-			return nil, errors.E(errors.Crypto, errors.Errorf("encrypt script: %v", err))
-		}
-	}
-
 	// Save the new imported address to the db and update start block (if
 	// needed) in a single transaction.
-	err = putScriptAddress(ns, scriptHash, ImportedAddrAccount,
-		ssNone, encryptedHash, encryptedScript)
+	err := putScriptAddress(ns, scriptHash, ImportedAddrAccount, ssNone,
+		scriptHash, script, false)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create a new managed address based on the imported script.
 	return newScriptAddress(m, ImportedAddrAccount, scriptHash)
+}
+
+// RemoveAddress removes the provided address from the manager.
+func (m *Manager) RemoveAddress(ns walletdb.ReadWriteBucket, addressID []byte) error {
+	return removeAddress(ns, addressID)
 }
 
 // IsLocked returns whether or not the address managed is locked.  When it is
@@ -1994,16 +1981,22 @@ func (m *Manager) RedeemScript(ns walletdb.ReadBucket, addr dcrutil.Address) (sc
 	}
 	switch a := addrInterface.(type) {
 	case *dbScriptAddressRow:
-		script, err = m.cryptoKeyScript.Decrypt(a.encryptedScript)
-		if err != nil {
-			return nil, nil, errors.E(errors.Crypto, errors.Errorf("decrypt imported script: %v", err))
+		script = a.script
+		if a.encrypted {
+			script, err = m.cryptoKeyScript.Decrypt(a.script)
+			if err != nil {
+				return nil, nil, errors.E(errors.Crypto,
+					errors.Errorf("decrypt imported script: %v", err))
+			}
 		}
 
 	case *dbChainAddressRow, *dbImportedAddressRow:
-		return nil, nil, errors.E(errors.Invalid, "redeem script lookup requires P2SH address")
+		return nil, nil, errors.E(errors.Invalid,
+			"redeem script lookup requires P2SH address")
 
 	default:
-		return nil, nil, errors.E(errors.Invalid, errors.Errorf("address row type %T", addrInterface))
+		return nil, nil, errors.E(errors.Invalid,
+			errors.Errorf("address row type %T", addrInterface))
 	}
 
 	// Lock the RWMutex for reads for the caller and prepare to return the

@@ -594,6 +594,10 @@ var helpDescsEnUS = map[string]string{
 	"redeemmultisigouts-toaddress":      "Address to look for (if not internal addresses).",
 	"redeemmultisigouts-fromscraddress": "Input script hash address.",
 
+	// RemoveImported help.
+	"removeimported--synopsis": "Removes the provided imported script or private key from the wallet.",
+	"removeimported-data":      "The imported script or private key to remove.",
+
 	// RescanWallet help.
 	"rescanwallet--synopsis":   "Rescan the block chain for wallet data, blocking until the rescan completes or exits with an error",
 	"rescanwallet-beginheight": "The height of the first block to begin the rescan from",

@@ -8,6 +8,7 @@ package udb
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
 	"time"
 
 	"github.com/decred/dcrwallet/errors"
@@ -108,8 +109,9 @@ type dbImportedAddressRow struct {
 // address in the database.
 type dbScriptAddressRow struct {
 	dbAddressRow
-	encryptedHash   []byte
-	encryptedScript []byte
+	hash      []byte
+	script    []byte
+	encrypted bool
 }
 
 // Key names for various database fields.
@@ -795,6 +797,34 @@ func putAddrAccountIndex(ns walletdb.ReadWriteBucket, account uint32, addrHash [
 	return nil
 }
 
+// removeAddrAccountIndex removes the provided key to the address account index of the database.
+func removeAddrAccountIndex(ns walletdb.ReadWriteBucket, addrHash []byte) error {
+	bucket := ns.NestedReadWriteBucket(addrAcctIdxBucketName)
+	accountB := bucket.Get(addrHash)
+
+	if accountB != nil {
+		msg := fmt.Sprintf("no account value found for address hash %x", addrHash)
+		return errors.E(errors.IO, msg)
+	}
+
+	err := bucket.Delete(addrHash)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	abkt := bucket.NestedReadWriteBucket(accountB)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	err = abkt.Delete(addrHash)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	return nil
+}
+
 // putAccountRow stores the provided account information to the database.  This
 // is used a common base for storing the various account types.
 func putAccountRow(ns walletdb.ReadWriteBucket, account uint32, row *dbAccountRow) error {
@@ -968,15 +998,16 @@ func serializeImportedAddress(encryptedPubKey, encryptedPrivKey []byte) []byte {
 // row as a script address.
 func deserializeScriptAddress(row *dbAddressRow) (*dbScriptAddressRow, error) {
 	// The serialized script address raw data format is:
-	//   <encscripthashlen><encscripthash><encscriptlen><encscript>
+	//   <scripthashlen><scripthash><scriptlen><script><encryptedbool>
 	//
-	// 4 bytes encrypted script hash len + encrypted script hash + 4 bytes
-	// encrypted script len + encrypted script
+	// 4 bytes script hash len + script hash + 4 bytes script len + script +
+	// 2 bytes encrypted boolean
 
 	// Given the above, the length of the entry must be at a minimum
 	// the constant value sizes.
-	if len(row.rawData) < 8 {
-		return nil, errors.E(errors.IO, errors.Errorf("bad script address len %d", len(row.rawData)))
+	if len(row.rawData) < 10 {
+		return nil, errors.E(errors.IO,
+			errors.Errorf("bad script address len %d", len(row.rawData)))
 	}
 
 	retRow := dbScriptAddressRow{
@@ -984,35 +1015,49 @@ func deserializeScriptAddress(row *dbAddressRow) (*dbScriptAddressRow, error) {
 	}
 
 	hashLen := binary.LittleEndian.Uint32(row.rawData[0:4])
-	retRow.encryptedHash = make([]byte, hashLen)
-	copy(retRow.encryptedHash, row.rawData[4:4+hashLen])
+	retRow.hash = make([]byte, hashLen)
+	copy(retRow.hash, row.rawData[4:4+hashLen])
 	offset := 4 + hashLen
 	scriptLen := binary.LittleEndian.Uint32(row.rawData[offset : offset+4])
 	offset += 4
-	retRow.encryptedScript = make([]byte, scriptLen)
-	copy(retRow.encryptedScript, row.rawData[offset:offset+scriptLen])
+	retRow.script = make([]byte, scriptLen)
+	copy(retRow.script, row.rawData[offset:offset+scriptLen])
+	offset += scriptLen
+
+	encrypted := binary.LittleEndian.Uint16(row.rawData[offset : offset+2])
+	if encrypted == 1 {
+		retRow.encrypted = true
+	}
 
 	return &retRow, nil
 }
 
 // serializeScriptAddress returns the serialization of the raw data field for
 // a script address.
-func serializeScriptAddress(encryptedHash, encryptedScript []byte) []byte {
+func serializeScriptAddress(hash, script []byte, encrypted bool) []byte {
 	// The serialized script address raw data format is:
-	//   <encscripthashlen><encscripthash><encscriptlen><encscript>
+	//   <scripthashlen><scripthash><scriptlen><script><encryptedbool>
 	//
-	// 4 bytes encrypted script hash len + encrypted script hash + 4 bytes
-	// encrypted script len + encrypted script
+	// 4 bytes script hash len + script hash + 4 bytes script len + script +
+	// 2 bytes encrypted boolean
 
-	hashLen := uint32(len(encryptedHash))
-	scriptLen := uint32(len(encryptedScript))
-	rawData := make([]byte, 8+hashLen+scriptLen)
+	hashLen := uint32(len(hash))
+	scriptLen := uint32(len(script))
+	rawData := make([]byte, 8+hashLen+scriptLen+2)
 	binary.LittleEndian.PutUint32(rawData[0:4], hashLen)
-	copy(rawData[4:4+hashLen], encryptedHash)
+	copy(rawData[4:4+hashLen], hash)
 	offset := 4 + hashLen
 	binary.LittleEndian.PutUint32(rawData[offset:offset+4], scriptLen)
 	offset += 4
-	copy(rawData[offset:offset+scriptLen], encryptedScript)
+	copy(rawData[offset:offset+scriptLen], script)
+	offset += scriptLen
+
+	if encrypted {
+		binary.LittleEndian.PutUint16(rawData[offset:2+offset], uint16(1))
+	} else {
+		binary.LittleEndian.PutUint16(rawData[offset:2+offset], uint16(0))
+	}
+
 	return rawData
 }
 
@@ -1077,6 +1122,18 @@ func putAddress(ns walletdb.ReadWriteBucket, addressID []byte, row *dbAddressRow
 	return putAddrAccountIndex(ns, row.account, addrHash[:])
 }
 
+// removeAddress removes the provided address id.
+func removeAddress(ns walletdb.ReadWriteBucket, addressID []byte) error {
+	bucket := ns.NestedReadWriteBucket(addrBucketName)
+	addrHash := sha256.Sum256(addressID)
+	err := bucket.Delete(addrHash[:])
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	return removeAddrAccountIndex(ns, addrHash[:])
+}
+
 // putChainedAddress stores the provided chained address information to the
 // database.
 func putChainedAddress(ns walletdb.ReadWriteBucket, addressID []byte, account uint32,
@@ -1111,9 +1168,9 @@ func putImportedAddress(ns walletdb.ReadWriteBucket, addressID []byte, account u
 // putScriptAddress stores the provided script address information to the
 // database.
 func putScriptAddress(ns walletdb.ReadWriteBucket, addressID []byte, account uint32,
-	status syncStatus, encryptedHash, encryptedScript []byte) error {
+	status syncStatus, hash, script []byte, encrypted bool) error {
 
-	rawData := serializeScriptAddress(encryptedHash, encryptedScript)
+	rawData := serializeScriptAddress(hash, script, encrypted)
 	addrRow := dbAddressRow{
 		addrType:   adtScript,
 		account:    account,
@@ -1316,8 +1373,7 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 
 		// Reserialize the imported address without the private
 		// key and store it.
-		row.rawData = serializeImportedAddress(
-			irow.encryptedPubKey, nil)
+		row.rawData = serializeImportedAddress(irow.encryptedPubKey, nil)
 		err = bucket.Put([]byte(k), serializeAddressRow(row))
 		if err != nil {
 			return errors.E(errors.IO, err)
@@ -1332,8 +1388,7 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 
 		// Reserialize the script address without the script
 		// and store it.
-		row.rawData = serializeScriptAddress(srow.encryptedHash,
-			nil)
+		row.rawData = serializeScriptAddress(srow.hash, nil, srow.encrypted)
 		err = bucket.Put([]byte(k), serializeAddressRow(row))
 		if err != nil {
 			return errors.E(errors.IO, err)

@@ -899,6 +899,11 @@ func NewRenameAccountCmd(oldAccount, newAccount string) *RenameAccountCmd {
 	}
 }
 
+// RemoveImportedCmd defines the removeimported JSON-RPC command.
+type RemoveImportedCmd struct {
+	Data string
+}
+
 // RescanWalletCmd describes the rescanwallet JSON-RPC request and parameters.
 type RescanWalletCmd struct {
 	BeginHeight *int `jsonrpcdefault:"0"`
@@ -1326,6 +1331,7 @@ func init() {
 		{"redeemmultisigout", (*RedeemMultiSigOutCmd)(nil)},
 		{"redeemmultisigouts", (*RedeemMultiSigOutsCmd)(nil)},
 		{"renameaccount", (*RenameAccountCmd)(nil)},
+		{"removeimported", (*RemoveImportedCmd)(nil)},
 		{"rescanwallet", (*RescanWalletCmd)(nil)},
 		{"revoketickets", (*RevokeTicketsCmd)(nil)},
 		{"sendfrom", (*SendFromCmd)(nil)},

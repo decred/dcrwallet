@@ -3163,7 +3163,58 @@ func (w *Wallet) ImportScript(ctx context.Context, rs []byte) error {
 	return nil
 }
 
-// RedeemScriptCopy returns a copy of a redeem script to redeem outputs paid to
+// RemoveAddress removes the provided address from the wallet.
+func (w *Wallet) RemoveAddress(addr dcrutil.Address) error {
+	const op errors.Op = "wallet.RemoveAddress"
+	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
+		txmgrNs := tx.ReadWriteBucket(wtxmgrNamespaceKey)
+
+		maddr, err := w.Manager.Address(addrmgrNs, addr)
+		if err != nil {
+			return errors.E(op, err)
+		}
+
+		if !maddr.Imported() {
+			return errors.E(op, fmt.Sprintf("cannot remove unimported "+
+				"address %s from wallet", maddr.Address().String()))
+		}
+
+		// Remove associated credits and debits of the address.
+		pkScript, err := txscript.PayToAddrScript(addr)
+		if err != nil {
+			return errors.E(op, err)
+		}
+
+		err = udb.RemovePkScriptCreditsAndDebits(txmgrNs, pkScript)
+		if err != nil {
+			return errors.E(op, err)
+		}
+
+		err = udb.RemovePkScriptUnminedCredits(tx, pkScript)
+		if err != nil {
+			return errors.E(op, err)
+		}
+
+		addrID := addr.ScriptAddress()
+
+		switch addr.(type) {
+		case *dcrutil.AddressScriptHash:
+			err = w.TxStore.DeleteTxScript(txmgrNs, addrID)
+			if err != nil {
+				return err
+			}
+		}
+
+		return w.Manager.RemoveAddress(addrmgrNs, addrID)
+	})
+	if err != nil {
+		return errors.E(op, err)
+	}
+	return nil
+}
+
+// RedeemScriptCopy returns a copy of a redeem script0 to redeem outputs paid to
 // a P2SH address.
 func (w *Wallet) RedeemScriptCopy(addr dcrutil.Address) ([]byte, error) {
 	const op errors.Op = "wallet.RedeemScriptCopy"

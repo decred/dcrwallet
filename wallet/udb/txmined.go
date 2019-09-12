@@ -3600,6 +3600,11 @@ func (s *Store) InsertTxScript(ns walletdb.ReadWriteBucket, script []byte) error
 	return putTxScript(ns, script)
 }
 
+// DeleteTxScript purges a transaction script from the database.
+func (s *Store) DeleteTxScript(ns walletdb.ReadWriteBucket, script []byte) error {
+	return deleteTxScript(ns, script)
+}
+
 // GetTxScript fetches a transaction script from the database using
 // the RIPEMD160 hash as a key.
 func (s *Store) GetTxScript(ns walletdb.ReadBucket, hash []byte) ([]byte, error) {

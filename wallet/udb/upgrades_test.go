@@ -37,6 +37,7 @@ var dbUpgradeTests = [...]struct {
 	// No upgrade test for V9, it is a fix for V8 and the previous test still applies
 	// TODO: V10 upgrade test
 	{verifyV12Upgrade, "v11.db.gz"},
+	{verifyV13Upgrade, "v12.db.gz"},
 }
 
 var pubPass = []byte("public")
@@ -526,6 +527,38 @@ func verifyV12Upgrade(t *testing.T, db walletdb.DB) {
 		}
 
 		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func verifyV13Upgrade(t *testing.T, db walletdb.DB) {
+	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
+		amgrns := tx.ReadBucket(waddrmgrBucketKey)
+		addrbkt := amgrns.NestedReadBucket(addrBucketName)
+		err := addrbkt.ForEach(func(k []byte, v []byte) error {
+			row, err := deserializeAddressRow(v)
+			if err != nil {
+				return fmt.Errorf("unable to deserialize address row: %v", err)
+			}
+
+			switch row.addrType {
+			case adtScript:
+				scrAddr, err := deserializeScriptAddress(row)
+				if err != nil {
+					return fmt.Errorf("unable to deserialize script address: %v", err)
+				}
+
+				if !scrAddr.encrypted {
+					return fmt.Errorf("expected an encrypted script address for %v", scrAddr.hash)
+				}
+			}
+
+			return nil
+		})
+
+		return err
 	})
 	if err != nil {
 		t.Error(err)

@@ -1359,6 +1359,19 @@ func extractRawUnminedTx(v []byte) []byte {
 	return v[8:]
 }
 
+func fetchRawUnminedTxRecordPkScript(v []byte, index uint32, scrLoc uint32, scrLen uint32) ([]byte, error) {
+	scrLocInt := int(scrLoc)
+	scrLenInt := int(scrLen)
+	if scrLocInt > len(v)-1 || scrLocInt+scrLenInt > len(v) {
+		return nil, errors.E(errors.IO, errors.Errorf(
+			"invalid script offset %d for unmined tx", scrLocInt))
+	}
+
+	pkScript := make([]byte, scrLenInt)
+	copy(pkScript, v[scrLocInt:scrLocInt+scrLenInt])
+	return pkScript, nil
+}
+
 // Unmined transaction credits use the canonical serialization format:
 //
 //  [0:32]   Transaction hash (32 bytes)
@@ -1698,6 +1711,15 @@ func keyTxScript(script []byte) []byte {
 func putTxScript(ns walletdb.ReadWriteBucket, script []byte) error {
 	k := keyTxScript(script)
 	err := ns.NestedReadWriteBucket(bucketScripts).Put(k, script)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
+func deleteTxScript(ns walletdb.ReadWriteBucket, script []byte) error {
+	k := keyTxScript(script)
+	err := ns.NestedReadWriteBucket(bucketScripts).Delete(k)
 	if err != nil {
 		return errors.E(errors.IO, err)
 	}
@@ -2386,6 +2408,116 @@ func upgradeToVersion3(ns walletdb.ReadWriteBucket, chainParams *chaincfg.Params
 	err = ns.Put(rootTipBlock, chainParams.GenesisHash[:])
 	if err != nil {
 		return errors.E(errors.IO, err)
+	}
+
+	return nil
+}
+
+// RemovePkScriptCreditsAndDebits removes all credits associated with the
+// provided pkScript as well as debits that spend those credits.
+func RemovePkScriptCreditsAndDebits(ns walletdb.ReadWriteBucket, pkScript []byte) error {
+	// Fetch all mined credits associated with the provided script.
+	credits := make(map[string]dcrutil.Amount, 0)
+	cc := ns.NestedReadBucket(bucketCredits).ReadCursor()
+	for k, v := cc.First(); k != nil; k, v = cc.Next() {
+		recK := extractRawCreditTxRecordKey(k)
+		recV := existsRawTxRecord(ns, recK)
+		index := extractRawCreditIndex(k)
+		scrLoc := fetchRawCreditScriptOffset(v)
+		scrLen := fetchRawCreditScriptLength(v)
+		scr, err := fetchRawTxRecordPkScript(recK, recV, index, scrLoc, scrLen)
+		if err != nil {
+			return err
+		}
+
+		if !bytes.Equal(scr, pkScript) {
+			continue
+		}
+
+		amount, err := fetchRawCreditAmount(v)
+		if err != nil {
+			return err
+		}
+
+		credits[string(k)] = amount
+	}
+
+	// Fetch and delete debits that spend credits associated with the
+	// provided script.
+	debits := make([][]byte, 0)
+	dc := ns.NestedReadBucket(bucketDebits).ReadCursor()
+	for k, v := dc.First(); k != nil; k, v = dc.Next() {
+		ck := extractRawDebitCreditKey(v)
+		for key, _ := range credits {
+			if !bytes.Equal(ck, []byte(key)) {
+				continue
+			}
+
+			debits = append(debits, k)
+		}
+	}
+
+	for _, k := range debits {
+		err := ns.NestedReadWriteBucket(bucketDebits).Delete(k)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete all credits associated with the provided script and update the
+	// mined wallet balance.
+	bal, err := fetchMinedBalance(ns)
+	if err != nil {
+		return err
+	}
+
+	for k, amt := range credits {
+		bal -= amt
+		err := ns.NestedReadWriteBucket(bucketCredits).Delete([]byte(k))
+		if err != nil {
+			return err
+		}
+	}
+
+	return putMinedBalance(ns, bal)
+}
+
+// RemovePkScriptUnminedCredits removes all unmined credits associated with
+// the provided pkScript.
+func RemovePkScriptUnminedCredits(tx walletdb.ReadWriteTx, pkScript []byte) error {
+	// Fetch all unmined credits associated with the provided script.
+	unminedCredits := make([][]byte, 0)
+	ns := tx.ReadWriteBucket(wtxmgrBucketKey)
+	uc := ns.NestedReadBucket(bucketUnminedCredits).ReadCursor()
+	for k, v := uc.First(); k != nil; k, v = uc.Next() {
+		hash := extractRawUnminedCreditTxHash(k)
+		unmined := existsRawUnmined(ns, hash)
+		unminedV := extractRawUnminedTx(unmined)
+		index, err := fetchRawUnminedCreditIndex(k)
+		if err != nil {
+			return err
+		}
+
+		scrLoc := fetchRawUnminedCreditScriptOffset(v)
+		scrLen := fetchRawUnminedCreditScriptLength(v)
+		scr, err := fetchRawUnminedTxRecordPkScript(unminedV, index, scrLoc, scrLen)
+		if err != nil {
+			return err
+		}
+
+		if !bytes.Equal(scr, pkScript) {
+			continue
+		}
+
+		unminedCredits = append(unminedCredits, k)
+	}
+
+	// Delete all unmined credits associated with the provided script.
+	for _, k := range unminedCredits {
+		err := ns.NestedReadWriteBucket(bucketUnminedCredits).Delete(k)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
