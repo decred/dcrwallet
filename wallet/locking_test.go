@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 )
 
 var testPrivPass = []byte("private")
@@ -101,7 +101,7 @@ func testLockOnBadPassphrase(t *testing.T, w *Wallet) {
 		t.Fatal("failed to unlock wallet")
 	}
 	err = w.Unlock([]byte("incorrect"), nil)
-	if !errors.Is(errors.Passphrase, err) {
+	if !errors.Is(err, errors.Passphrase) {
 		t.Fatal("expected Passphrase error on bad Unlock")
 	}
 	if !w.Locked() {
@@ -131,7 +131,7 @@ func testLockOnBadPassphrase(t *testing.T, w *Wallet) {
 	}
 	hold.release()
 	err = <-c
-	if !errors.Is(errors.Passphrase, err) {
+	if !errors.Is(err, errors.Passphrase) {
 		t.Fatal("expected Passphrase error on bad Unlock")
 	}
 	if !w.Locked() {
@@ -252,7 +252,7 @@ func testHoldBlocksBadUnlock(t *testing.T, w *Wallet) {
 	}
 	hold.release()
 	err = <-c
-	if !errors.Is(errors.Passphrase, err) {
+	if !errors.Is(err, errors.Passphrase) {
 		t.Fatal("expected Unlock to return with Passphase error")
 	}
 	if !w.Locked() {

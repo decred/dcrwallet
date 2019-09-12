@@ -9,7 +9,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
 	"github.com/decred/dcrwallet/wallet/v3/txrules"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
@@ -102,7 +102,7 @@ func (w *Wallet) ImportP2SHRedeemScript(script []byte) (*dcrutil.AddressScriptHa
 			// Don't care if it's already there, but still have to
 			// set the p2shAddr since the address manager didn't
 			// return anything useful.
-			if errors.Is(errors.Exist, err) {
+			if errors.Is(err, errors.Exist) {
 				// This function will never error as it always
 				// hashes the script to the correct length.
 				p2shAddr, _ = dcrutil.NewAddressScriptHash(script,

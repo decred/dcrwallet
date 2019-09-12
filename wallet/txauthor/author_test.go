@@ -10,7 +10,7 @@ import (
 
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/txauthor"
 	. "github.com/decred/dcrwallet/wallet/v3/txauthor"
 	"github.com/decred/dcrwallet/wallet/v3/txrules"
@@ -201,7 +201,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 		inputSource := makeInputSource(test.UnspentOutputs)
 		tx, err := NewUnsignedTransaction(test.Outputs, test.RelayFee, inputSource, changeSource)
 		if err != nil {
-			insufficientBalance := errors.Is(errors.InsufficientBalance, err)
+			insufficientBalance := errors.Is(err, errors.InsufficientBalance)
 			if insufficientBalance != test.InputSourceError {
 				if !test.InputSourceError {
 					t.Errorf("Test %d: InsufficientBalance=%v expected %v", i, insufficientBalance, test.InputSourceError)

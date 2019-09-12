@@ -26,9 +26,11 @@ github.com/decred/dcrd/hdkeychain/v2 v2.0.1 h1:LnMLuPDx6j1/7ywGdfX5onPOsa98yObzB
 github.com/decred/dcrd/hdkeychain/v2 v2.0.1/go.mod h1:qPv+vTla19liVHFuXVnQ70dMI4ERPCniDXbV5RzwQiM=
 github.com/decred/dcrd/wire v1.2.0 h1:HqJVB7vcklIguzFWgRXw/WYCQ9cD3bUC5TKj53i1Hng=
 github.com/decred/dcrd/wire v1.2.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
+github.com/decred/dcrwallet v1.2.2 h1:NdI13wxP+OsWKXPqjWQQ9VSGAl4VoSLBfAunzFreeJg=
 github.com/decred/dcrwallet/errors v1.0.0/go.mod h1:XUm95dWmm9XmQGvneBXJkkIaFeRsQVBB6ni/KTy1hrY=
 github.com/decred/dcrwallet/errors v1.0.1 h1:8EF7IY6twRlo9sqWaSfm8abfi2/rHZ1wacOiGvBy+bM=
 github.com/decred/dcrwallet/errors v1.0.1/go.mod h1:XUm95dWmm9XmQGvneBXJkkIaFeRsQVBB6ni/KTy1hrY=
+github.com/decred/dcrwallet/errors v1.1.0 h1:xDzE4l8AGLcL1CGigPR9vYHP/rBmMm34ZatolleOS9A=
 github.com/decred/dcrwallet/pgpwordlist v1.0.0 h1:H7Y3+yRZq7PXMPfpKLMnY5TKTjTWhc0oJmyN7v8tC/M=
 github.com/decred/dcrwallet/pgpwordlist v1.0.0/go.mod h1:Fek3uYn+9DnEFIreA/8PnTIXUl2lBO64JpEBkL9BXtk=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=

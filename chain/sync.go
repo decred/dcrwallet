@@ -15,7 +15,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/wallet/v3"
 	"github.com/decred/go-socks/socks"

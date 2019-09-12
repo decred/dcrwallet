@@ -11,7 +11,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 )
 
 // Peer provides wallets with a subset of Decred network functionality available

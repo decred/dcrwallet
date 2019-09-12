@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/certgen"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 )
 
 const (

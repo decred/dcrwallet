@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 )
 
 var (
@@ -57,7 +57,7 @@ func TestUnmarshalSecretKeyInvalid(t *testing.T) {
 	}
 
 	p := []byte("wrong password")
-	if err := sk.DeriveKey(&p); !errors.Is(errors.Passphrase, err) {
+	if err := sk.DeriveKey(&p); !errors.Is(err, errors.Passphrase) {
 		t.Errorf("wrong password didn't fail")
 		return
 	}
@@ -112,7 +112,7 @@ func TestDeriveKey(t *testing.T) {
 
 func TestDeriveKeyInvalid(t *testing.T) {
 	bogusPass := []byte("bogus")
-	if err := key.DeriveKey(&bogusPass); !errors.Is(errors.Passphrase, err) {
+	if err := key.DeriveKey(&bogusPass); !errors.Is(err, errors.Passphrase) {
 		t.Errorf("unexpected DeriveKey key failure: %v", err)
 	}
 }

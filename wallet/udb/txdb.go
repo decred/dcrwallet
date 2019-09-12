@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )

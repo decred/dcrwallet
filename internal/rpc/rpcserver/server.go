@@ -43,7 +43,7 @@ import (
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/chain/v3"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/p2p/v2"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	pb "github.com/decred/dcrwallet/rpc/walletrpc"
@@ -851,7 +851,7 @@ func (s *walletServer) UnspentOutputs(req *pb.UnspentOutputsRequest, svr pb.Wall
 	inputDetail, err := s.wallet.SelectInputs(dcrutil.Amount(req.TargetAmount), policy)
 	// Do not return errors to caller when there was insufficient spendable
 	// outputs available for the target amount.
-	if err != nil && !errors.Is(errors.InsufficientBalance, err) {
+	if err != nil && !errors.Is(err, errors.InsufficientBalance) {
 		return translateError(err)
 	}
 
@@ -897,7 +897,7 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 	inputDetail, err := s.wallet.SelectInputs(dcrutil.Amount(req.TargetAmount), policy)
 	// Do not return errors to caller when there was insufficient spendable
 	// outputs available for the target amount.
-	if err != nil && !errors.Is(errors.InsufficientBalance, err) {
+	if err != nil && !errors.Is(err, errors.InsufficientBalance) {
 		return nil, translateError(err)
 	}
 
@@ -1807,7 +1807,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 	result.IsValid = true
 	addrInfo, err := s.wallet.AddressInfo(addr)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			// No additional information available about the address.
 			return result, nil
 		}
@@ -2316,7 +2316,7 @@ func (s *loaderServer) CloseWallet(ctx context.Context, req *pb.CloseWalletReque
 	*pb.CloseWalletResponse, error) {
 
 	err := s.loader.UnloadWallet()
-	if errors.Is(errors.Invalid, err) {
+	if errors.Is(err, errors.Invalid) {
 		return nil, status.Errorf(codes.FailedPrecondition, "Wallet is not loaded")
 	}
 	if err != nil {

@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	"github.com/decred/dcrd/dcrjson/v3"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 )
 
 func convertError(err error) *dcrjson.RPCError {

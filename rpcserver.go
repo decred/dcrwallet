@@ -19,7 +19,7 @@ import (
 	"decred.org/dcrwallet/internal/loader"
 	"decred.org/dcrwallet/internal/rpc/jsonrpc"
 	"decred.org/dcrwallet/internal/rpc/rpcserver"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

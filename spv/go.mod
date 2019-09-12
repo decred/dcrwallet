@@ -1,5 +1,7 @@
 module github.com/decred/dcrwallet/spv/v3
 
+go 1.12
+
 require (
 	github.com/decred/dcrd/addrmgr v1.0.2
 	github.com/decred/dcrd/blockchain/stake/v2 v2.0.1
@@ -8,7 +10,7 @@ require (
 	github.com/decred/dcrd/gcs v1.1.0
 	github.com/decred/dcrd/txscript/v2 v2.0.0
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrwallet/errors v1.1.0
+	github.com/decred/dcrwallet/errors/v2 v2.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/lru v1.0.0
 	github.com/decred/dcrwallet/p2p/v2 v2.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/validate v1.0.2
@@ -28,3 +30,5 @@ replace github.com/decred/dcrwallet/rpc/client/dcrd => ../rpc/client/dcrd
 replace github.com/decred/dcrwallet/deployments/v2 => ../deployments
 
 replace github.com/decred/dcrwallet/validate => ../validate
+
+replace github.com/decred/dcrwallet/errors/v2 => ../errors

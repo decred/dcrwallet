@@ -10,7 +10,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3"
 )
 
@@ -91,7 +91,7 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 				err := tb.buy(ctx, passphrase, b)
 				if err != nil {
 					log.Errorf("Ticket purchasing failed: %v", err)
-					if errors.Is(errors.Passphrase, err) {
+					if errors.Is(err, errors.Passphrase) {
 						errc <- err
 						done = true
 					}
@@ -212,7 +212,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 	}
 	if err != nil {
 		// Invalid passphrase errors must be returned so Run exits.
-		if errors.Is(errors.Passphrase, err) {
+		if errors.Is(err, errors.Passphrase) {
 			return err
 		}
 		log.Errorf("One or more tickets could not be purchased: %v", err)

@@ -11,7 +11,7 @@ package walletdb
 import (
 	"io"
 
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 )
 
 // ReadTx represents a database transaction that can only be used for reads.  If

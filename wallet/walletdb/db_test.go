@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	_ "github.com/decred/dcrwallet/wallet/v3/internal/bdb"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
@@ -45,7 +45,7 @@ func TestAddDuplicateDriver(t *testing.T) {
 		Open:   bogusCreateDB,
 	}
 	err := walletdb.RegisterDriver(driver)
-	if !errors.Is(errors.Exist, err) {
+	if !errors.Is(err, errors.Exist) {
 		t.Errorf("unexpected duplicate driver registration error: %v", err)
 	}
 
@@ -108,14 +108,14 @@ func TestCreateOpenUnsupported(t *testing.T) {
 	// expected error.
 	dbType := "unsupported"
 	_, err := walletdb.Create(dbType)
-	if !errors.Is(errors.Invalid, err) {
+	if !errors.Is(err, errors.Invalid) {
 		t.Errorf("walletdb.Create: %v", err)
 	}
 
 	// Ensure opening a database with the an unsupported type fails with the
 	// expected error.
 	_, err = walletdb.Open(dbType)
-	if !errors.Is(errors.Invalid, err) {
+	if !errors.Is(err, errors.Invalid) {
 		t.Errorf("walletdb.Create: %v", err)
 	}
 }

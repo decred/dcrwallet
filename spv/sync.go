@@ -17,7 +17,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/lru"
 	"github.com/decred/dcrwallet/p2p/v2"
 	"github.com/decred/dcrwallet/validate"
@@ -546,7 +546,7 @@ func (s *Syncer) receiveGetData(ctx context.Context) error {
 				var missing []*wire.InvVect
 				var err error
 				foundTxs, missing, err = s.wallet.GetTransactionsByHashes(txHashes)
-				if err != nil && !errors.Is(errors.NotExist, err) {
+				if err != nil && !errors.Is(err, errors.NotExist) {
 					log.Warnf("Failed to look up transactions for getdata reply to peer %v: %v",
 						rp.RemoteAddr(), err)
 					return
@@ -619,7 +619,7 @@ func (s *Syncer) receiveInv(ctx context.Context) error {
 					if ctx.Err() != nil {
 						return
 					}
-					if errors.Is(errors.Protocol, err) || errors.Is(errors.Consensus, err) {
+					if errors.Is(err, errors.Protocol) || errors.Is(err, errors.Consensus) {
 						log.Warnf("Disconnecting peer %v: %v", rp, err)
 						rp.Disconnect(err)
 						return
@@ -689,7 +689,7 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 	}
 
 	txs, err := rp.Transactions(ctx, unseen)
-	if errors.Is(errors.NotExist, err) {
+	if errors.Is(err, errors.NotExist) {
 		err = nil
 		// Remove notfound txs.
 		prevTxs, prevUnseen := txs, unseen
@@ -745,7 +745,7 @@ func (s *Syncer) receiveHeadersAnnouncements(ctx context.Context) error {
 					return
 				}
 
-				if errors.Is(errors.Protocol, err) || errors.Is(errors.Consensus, err) {
+				if errors.Is(err, errors.Protocol) || errors.Is(err, errors.Consensus) {
 					log.Warnf("Disconnecting peer %v: %v", rp, err)
 					rp.Disconnect(err)
 					return

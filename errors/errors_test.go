@@ -1,10 +1,13 @@
-// Copyright (c) 2018 The Decred developers
+// Copyright (c) 2018-2019 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package errors
 
-import "testing"
+import (
+	std "errors"
+	"testing"
+)
 
 func depth(err error) int {
 	if err == nil {
@@ -43,24 +46,25 @@ func TestCollapse(t *testing.T) {
 	}
 }
 
-func TestMatch(t *testing.T) {
-	e := E(Errorf("%s", "some error"), Op("operation"), Permission)
-	if !Match(E("some error"), e) {
-		t.Fatal("no match on error strings")
+func TestIs(t *testing.T) {
+	base := std.New("base error")
+	e := E(base, Op("operation"), Permission)
+	if !Is(e, base) {
+		t.Fatal("no match on base errors")
 	}
-	if Match(E("different error"), e) {
+	if Is(e, E("different error")) {
 		t.Fatal("match on different error strings")
 	}
-	if !Match(E(Op("operation")), e) {
+	if !Is(e, E(Op("operation"))) {
 		t.Fatal("no match on operation")
 	}
-	if Match(E(Op("different operation")), e) {
+	if Is(e, E(Op("different operation"))) {
 		t.Fatal("match on different operation")
 	}
-	if !Match(E(Permission), e) {
+	if !Is(e, E(Permission)) {
 		t.Fatal("no match on kind")
 	}
-	if Match(E(Invalid), e) {
+	if Is(e, E(Invalid)) {
 		t.Fatal("match on different kind")
 	}
 }
@@ -74,14 +78,14 @@ func TestCause(t *testing.T) {
 	if Cause(nil) != nil {
 		t.Fatal("Cause(nil) must be nil")
 	}
-	// Cause(E("string")) must return the bottom *Error type, not stdlib errors.errorString
+	bottom := std.New("bottom")
 	for _, e := range []error{
-		E("bottom"),
-		E(Passphrase, E(Invalid, "bottom")),
+		E(bottom),
+		E(Passphrase, E(Invalid, bottom)),
 	} {
 		c := Cause(e)
-		if _, ok := c.(*Error); !ok {
-			t.Fatalf("wrong bottom error type %T", c)
+		if c != bottom {
+			t.Fatalf("wrong bottom error %v", c)
 		}
 	}
 }

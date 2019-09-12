@@ -15,7 +15,7 @@ import (
 	"github.com/decred/dcrd/gcs/blockcf"
 	hd "github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/validate"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
@@ -736,7 +736,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		activeCoinType, err = w.Manager.CoinType(dbtx)
-		if errors.Is(errors.WatchingOnly, err) {
+		if errors.Is(err, errors.WatchingOnly) {
 			return nil
 		}
 		if err != nil {

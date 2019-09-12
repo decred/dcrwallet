@@ -17,7 +17,7 @@ import (
 	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
@@ -843,7 +843,7 @@ func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stop
 			height, err := w.TxStore.TxBlockHeight(dbtx, h)
 			var confs int32
 			switch {
-			case errors.Is(errors.NotExist, err):
+			case errors.Is(err, errors.NotExist):
 				confs = -1
 			case err != nil:
 				return err
@@ -937,7 +937,7 @@ func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
 			height, err := w.TxStore.TxBlockHeight(dbtx, &txHash)
 			var confs int32
 			switch {
-			case errors.Is(errors.NotExist, err):
+			case errors.Is(err, errors.NotExist):
 				confs = -1
 			case err != nil:
 				return err

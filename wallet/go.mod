@@ -1,5 +1,7 @@
 module github.com/decred/dcrwallet/wallet/v3
 
+go 1.12
+
 require (
 	github.com/decred/dcrd/blockchain v1.2.0 // indirect
 	github.com/decred/dcrd/blockchain/stake/v2 v2.0.1
@@ -18,7 +20,7 @@ require (
 	github.com/decred/dcrd/txscript/v2 v2.0.0
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrwallet/deployments/v2 v2.0.0-00010101000000-000000000000
-	github.com/decred/dcrwallet/errors v1.1.0
+	github.com/decred/dcrwallet/errors/v2 v2.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/internal/zero v1.0.1
 	github.com/decred/dcrwallet/rpc/client/dcrd v0.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/rpc/jsonrpc/types v1.0.0
@@ -34,3 +36,5 @@ replace github.com/decred/dcrwallet/rpc/client/dcrd => ../rpc/client/dcrd
 replace github.com/decred/dcrwallet/deployments/v2 => ../deployments
 
 replace github.com/decred/dcrwallet/validate => ../validate
+
+replace github.com/decred/dcrwallet/errors/v2 => ../errors

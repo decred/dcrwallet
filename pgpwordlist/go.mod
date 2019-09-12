@@ -1,5 +1,7 @@
 module github.com/decred/dcrwallet/pgpwordlist
 
-require github.com/decred/dcrwallet/errors v1.0.0
+go 1.12
 
-replace github.com/decred/dcrwallet/errors v1.0.0 => ../errors
+require github.com/decred/dcrwallet/errors/v2 v2.0.0-00010101000000-000000000000
+
+replace github.com/decred/dcrwallet/errors/v2 => ../errors

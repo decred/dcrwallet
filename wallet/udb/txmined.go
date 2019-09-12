@@ -12,8 +12,8 @@ import (
 	"sort"
 	"time"
 
-	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/blockchain/stake/v2"
+	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
@@ -21,7 +21,7 @@ import (
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
 	"github.com/decred/dcrwallet/wallet/v3/txauthor"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
@@ -328,7 +328,7 @@ func (s *Store) MissingCFiltersHeight(dbtx walletdb.ReadTx) (int32, error) {
 	for k, v := c.First(); k != nil; k, v = c.Next() {
 		hash := extractRawBlockRecordHash(v)
 		_, err := fetchRawCFilter(ns, hash)
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			height := int32(byteOrder.Uint32(k))
 			return height, nil
 		}

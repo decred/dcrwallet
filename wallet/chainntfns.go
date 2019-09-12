@@ -18,7 +18,7 @@ import (
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/txrules"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
@@ -33,7 +33,7 @@ func (w *Wallet) extendMainChain(ctx context.Context, op errors.Op, dbtx walletd
 	// Propagate the error unless this block is already included in the main
 	// chain.
 	err := w.TxStore.ExtendMainChain(txmgrNs, header, f)
-	if err != nil && !errors.Is(errors.Exist, err) {
+	if err != nil && !errors.Is(err, errors.Exist) {
 		return nil, errors.E(op, err)
 	}
 
@@ -194,7 +194,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		return w.watchFutureAddresses(ctx, tx)
 	})
-	if err != nil && !errors.Is(errors.NoPeers, err) {
+	if err != nil && !errors.Is(err, errors.NoPeers) {
 		return nil, err
 	}
 
@@ -369,7 +369,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 	// should either be one or more relevant inputs or outputs.
 	if header == nil {
 		err = w.TxStore.InsertMemPoolTx(txmgrNs, rec)
-		if errors.Is(errors.Exist, err) {
+		if errors.Is(err, errors.Exist) {
 			log.Warnf("Refusing to add unmined transaction %v since same "+
 				"transaction already exists mined", &rec.Hash)
 			return nil, nil
@@ -537,7 +537,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				if err != nil {
 					// Missing addresses are skipped.  Other errors should be
 					// propagated.
-					if errors.Is(errors.NotExist, err) {
+					if errors.Is(err, errors.NotExist) {
 						continue
 					}
 					return nil, errors.E(op, err)
@@ -559,8 +559,8 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				}
 				mscriptaddr, err := w.Manager.ImportScript(addrmgrNs, rs)
 				switch {
-				case errors.Is(errors.Exist, err): // Don't care if it's already there.
-				case errors.Is(errors.Locked, err):
+				case errors.Is(err, errors.Exist): // Don't care if it's already there.
+				case errors.Is(err, errors.Locked):
 					log.Warnf("failed to attempt script importation "+
 						"of incoming tx script %x because addrmgr "+
 						"was locked", rs)
@@ -650,7 +650,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 			ma, err := w.Manager.Address(addrmgrNs, addr)
 			// Missing addresses are skipped.  Other errors should
 			// be propagated.
-			if errors.Is(errors.NotExist, err) {
+			if errors.Is(err, errors.NotExist) {
 				continue
 			}
 			if err != nil {
@@ -687,7 +687,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				var err error
 				expandedScript, err = w.TxStore.GetTxScript(txmgrNs,
 					addr.ScriptAddress())
-				if errors.Is(errors.NotExist, err) {
+				if errors.Is(err, errors.NotExist) {
 					script, done, err := w.Manager.RedeemScript(addrmgrNs, addr)
 					if err != nil {
 						log.Debugf("failed to find redeemscript for "+
@@ -819,7 +819,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		for i, ticketHash := range ticketHashes {
 			ticketPurchase, err := w.TxStore.Tx(txmgrNs, ticketHash)
-			if err != nil && errors.Is(errors.NotExist, err) {
+			if err != nil && errors.Is(err, errors.NotExist) {
 				ticketPurchase, err = w.StakeMgr.TicketPurchase(dbtx, ticketHash)
 			}
 			if err != nil {
@@ -956,7 +956,7 @@ func (w *Wallet) RevokeOwnedTickets(ctx context.Context, missedTicketHashes []*c
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		for i, ticketHash := range ticketHashes {
 			ticketPurchase, err := w.TxStore.Tx(txmgrNs, ticketHash)
-			if err != nil && errors.Is(errors.NotExist, err) {
+			if err != nil && errors.Is(err, errors.NotExist) {
 				ticketPurchase, err = w.StakeMgr.TicketPurchase(dbtx, ticketHash)
 			}
 			if err != nil {

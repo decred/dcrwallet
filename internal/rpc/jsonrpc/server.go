@@ -23,7 +23,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrjson/v3"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
 	"github.com/gorilla/websocket"
 )

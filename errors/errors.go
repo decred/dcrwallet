@@ -2,7 +2,9 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-// API inspired by https://commandcenter.blogspot.com/2017/12/error-handling-in-upspin.html
+// API originally inspired by https://commandcenter.blogspot.com/2017/12/error-handling-in-upspin.html.
+// Currently, dcrwallet is in the process of converting to the new Go 1.13 error
+// wrapping features, and this package wraps xerrors for compatibility with Go 1.12.
 
 /*
 Package errors provides error creation and matching for all wallet systems.  It
@@ -14,6 +16,7 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/xerrors"
 	"runtime/debug"
 	"strings"
 )
@@ -153,9 +156,23 @@ func New(text string) error {
 	return errors.New(text)
 }
 
-// Errorf creates a simple error from a format string and arguments.  Errorf is
-// identical to "fmt".Errorf from the standard library.
+// Errorf creates a simple error from a format string and arguments.  If format
+// has suffix ": %w" and the last argument implements error, the returned error
+// implements the Unwrap method and wraps the error.
 func Errorf(format string, args ...interface{}) error {
+	// xerrors.Errorf does not perfectly implement the behavior of Go 1.13
+	// fmt.Errorf because it will also wrap errors using the %v and %s
+	// format verbs.  To avoid issues switching to the standard library's
+	// behavior in a future change, this behavior is prevented by only using
+	// xerrors.Errorf when the format string ends exactly in ": %w".
+	if strings.HasSuffix(format, ": %w") {
+		return xerrors.Errorf(format, args...)
+	}
+	// fmt.Errorf will also wrap for any occurrance of %w, not only with the
+	// suffix ": %w".  This is also undesirable until Go 1.13 is the minimum
+	// supported version as as it would cause different wrapping behavior
+	// with Go 1.12.  Replaces these occurances with %v.
+	format = strings.ReplaceAll(format, "%w", "%v")
 	return fmt.Errorf(format, args...)
 }
 
@@ -324,36 +341,33 @@ func (e *Error) As(target interface{}) bool {
 }
 
 // Is implements the interface to work with the standard library's errors.Is.
-// If target is an *Error, Is returns the result of Match(target, e).
+// If target is an *Error, Is returns true if every top-level and wrapped
+// non-zero fields of target are equal to the same fields of e.
 // If target is a Kind, Is returns true if the Kinds match and are nonzero.
 // Else, Is returns false.
 func (e *Error) Is(target error) bool {
 	switch target := target.(type) {
 	case *Error:
-		return Match(target, e)
+		return match(target, e)
 	case Kind:
 		return e.Kind != Other && e.Kind == target
 	}
 	return false
 }
 
-// Is returns whether err is of type *Error and has a matching kind in err or
-// any nested errors.  Does not match against the Other kind.
-func Is(kind Kind, err error) bool {
-	e, ok := err.(*Error)
-	if !ok {
-		return false
-	}
-	if e.Kind != Other {
-		return e.Kind == kind
-	}
-	return Is(kind, e.Err)
+// Is returns whether err equals or wraps target.
+func Is(err, target error) bool {
+	return xerrors.Is(err, target)
 }
 
-// Match compares two Errors, returning true if every non-zero field of err1 is
-// equal to the same field in err2.  Nested errors in err1 are similarly
-// compared to any nested error of err2.
-func Match(err1, err2 error) bool {
+// As attempts to assign the error pointed to by target with the first error in
+// err's error chain with a compatible type.  Returns true if target is
+// assigned.
+func As(err error, target interface{}) bool {
+	return xerrors.As(err, target)
+}
+
+func match(err1, err2 error) bool {
 	e1, ok := err1.(*Error)
 	if !ok {
 		return false
@@ -372,12 +386,11 @@ func Match(err1, err2 error) bool {
 	if e1.Err == nil {
 		return true
 	}
-
 	if e1.Err == e2.Err {
 		return true
 	}
 	if _, ok := e1.Err.(*Error); ok {
-		return Match(e1.Err, e2.Err)
+		return match(e1.Err, e2.Err)
 	}
 	// Although errors do not cross the process boundary, comparing error
 	// strings is performed to compare formatted errors which would have
@@ -385,42 +398,19 @@ func Match(err1, err2 error) bool {
 	return e1.Err.Error() == e2.Err.Error()
 }
 
-// MatchAll performs Match on needle using haystack and every nested error of
-// haystack.
-func MatchAll(needle, haystack error) bool {
-	n, ok := needle.(*Error)
-	if !ok {
-		return false
-	}
-	h, ok := haystack.(*Error)
-	if !ok {
-		return false
-	}
-	for h != nil {
-		if Match(n, h) {
-			return true
-		}
-		h, _ = h.Err.(*Error)
-	}
-	return false
-}
-
 // Cause returns the most deeply-nested error from an error chain.
 // Cause never returns nil unless the argument is nil.
 func Cause(err error) error {
 	for {
-		e, ok := err.(*Error)
+		wrapper, ok := err.(interface{ Unwrap() error })
 		if !ok {
 			return err
 		}
-		if e.bottom {
+		e := wrapper.Unwrap()
+		if e == nil {
 			return err
 		}
-		if e.Err != nil {
-			err = e.Err
-			continue
-		}
-		return err
+		err = e
 	}
 }
 

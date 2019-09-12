@@ -52,7 +52,7 @@ import (
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	_ "github.com/decred/dcrwallet/wallet/internal/bdb"
 	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/decred/dcrwallet/wallet/walletdb"
@@ -316,7 +316,7 @@ func setup() error {
 					return errors.New("should have an address")
 				}
 				ma, err := amgr.Address(amgrns, addrs[0])
-				if errors.Is(errors.NotExist, err) {
+				if errors.Is(err, errors.NotExist) {
 					continue
 				}
 				if err != nil {

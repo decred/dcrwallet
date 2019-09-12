@@ -15,7 +15,7 @@ import (
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/p2p/v2"
 	"github.com/decred/dcrwallet/validate"
 	"github.com/decred/dcrwallet/wallet/v3"

@@ -14,7 +14,7 @@ import (
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"

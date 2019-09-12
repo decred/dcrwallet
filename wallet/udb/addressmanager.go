@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/v2/chainec"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/hdkeychain/v2"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
 	"github.com/decred/dcrwallet/wallet/v3/internal/snacl"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
@@ -468,7 +468,7 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 	// load the information from the database.
 	row, err := fetchAccountInfo(ns, account, DBVersion)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, err
 		}
 		return nil, errors.E(errors.NotExist, errors.Errorf("no account %d", account))
@@ -905,7 +905,7 @@ func (m *Manager) loadAddress(ns walletdb.ReadBucket, address dcrutil.Address) (
 	// Attempt to load the raw address information from the database.
 	rowInterface, err := fetchAddress(ns, address.ScriptAddress())
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errors.E(errors.NotExist, errors.Errorf("no address %s", address))
 		}
 		return nil, err
@@ -934,7 +934,7 @@ func (m *Manager) Address(ns walletdb.ReadBucket, address dcrutil.Address) (Mana
 func (m *Manager) AddrAccount(ns walletdb.ReadBucket, address dcrutil.Address) (uint32, error) {
 	acct, err := fetchAddrAccount(ns, normalizeAddress(address).ScriptAddress())
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return 0, errors.E(errors.NotExist, errors.Errorf("no address %v", address))
 		}
 		return 0, err

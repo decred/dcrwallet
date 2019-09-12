@@ -13,7 +13,7 @@ interface. The functions are only exported while the tests are being run.
 package udb
 
 import (
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/internal/snacl"
 )
 

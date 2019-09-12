@@ -14,7 +14,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	_ "github.com/decred/dcrwallet/wallet/v3/internal/bdb"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )

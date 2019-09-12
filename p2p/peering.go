@@ -20,7 +20,7 @@ import (
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/lru"
 	"github.com/decred/dcrwallet/version"
 	"golang.org/x/sync/errgroup"

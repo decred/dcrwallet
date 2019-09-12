@@ -24,7 +24,7 @@ require (
 	github.com/decred/dcrd/txscript/v2 v2.0.0
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrwallet/chain/v3 v3.0.0-00010101000000-000000000000
-	github.com/decred/dcrwallet/errors v1.1.0
+	github.com/decred/dcrwallet/errors/v2 v2.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/p2p/v2 v2.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/rpc/client/dcrd v0.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/rpc/jsonrpc/types v1.1.0
@@ -44,7 +44,7 @@ require (
 )
 
 replace (
-	github.com/decred/dcrwallet/errors => ./errors
+	github.com/decred/dcrwallet/errors/v2 => ./errors
 	github.com/decred/dcrwallet/lru => ./lru
 	github.com/decred/dcrwallet/p2p/v2 => ./p2p
 	github.com/decred/dcrwallet/pgpwordlist => ./pgpwordlist

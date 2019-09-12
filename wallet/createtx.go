@@ -20,7 +20,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
 	"github.com/decred/dcrwallet/wallet/v3/txauthor"
 	"github.com/decred/dcrwallet/wallet/v3/txrules"
@@ -129,7 +129,7 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 			// available and ignores insufficient balance issues.
 			inputSource = func(dcrutil.Amount) (*txauthor.InputDetail, error) {
 				inputDetail, err := sourceImpl.SelectInputs(dcrutil.MaxAmount)
-				if errors.Is(errors.InsufficientBalance, err) {
+				if errors.Is(err, errors.InsufficientBalance) {
 					err = nil
 				}
 				return inputDetail, err
@@ -270,7 +270,7 @@ func (w *Wallet) insertCreditsIntoTxMgr(op errors.Op, tx walletdb.ReadWriteTx, m
 
 			// Missing addresses are skipped.  Other errors should
 			// be propagated.
-			if !errors.Is(errors.NotExist, err) {
+			if !errors.Is(err, errors.NotExist) {
 				return errors.E(op, err)
 			}
 		}
@@ -554,7 +554,7 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 	_, err = w.Manager.ImportScript(addrmgrNs, msScript)
 	if err != nil {
 		// We don't care if we've already used this address.
-		if !errors.Is(errors.Exist, err) {
+		if !errors.Is(err, errors.Exist) {
 			return txToMultisigError(errors.E(op, err))
 		}
 	}
@@ -986,7 +986,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	// Calculate the current ticket price.  If the DCP0001 deployment is not
 	// active, fallback to querying the ticket price over RPC.
 	ticketPrice, err := w.NextStakeDifficulty()
-	if errors.Is(errors.Deployment, err) {
+	if errors.Is(err, errors.Deployment) {
 		ticketPrice, err = n.StakeDifficulty(ctx)
 	}
 	if err != nil {

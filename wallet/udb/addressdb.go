@@ -10,7 +10,7 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
@@ -1054,7 +1054,7 @@ func fetchAddressByHash(ns walletdb.ReadBucket, addrHash []byte) (interface{}, e
 func fetchAddress(ns walletdb.ReadBucket, addressID []byte) (interface{}, error) {
 	addrHash := sha256.Sum256(addressID)
 	addr, err := fetchAddressByHash(ns, addrHash[:])
-	if errors.Is(errors.NotExist, err) {
+	if errors.Is(err, errors.NotExist) {
 		return nil, errors.E(errors.NotExist, errors.Errorf("no address with id %x", addressID))
 	}
 	return addr, err

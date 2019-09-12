@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/jrick/bitset"
 	"github.com/jrick/wsrpc/v2"
 	"golang.org/x/sync/errgroup"

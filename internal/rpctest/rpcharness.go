@@ -18,10 +18,9 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrwallet/errors"
-
 	"github.com/decred/dcrd/dcrutil"
 	rpc "github.com/decred/dcrd/rpcclient/v2"
+	"github.com/decred/dcrwallet/errors/v2"
 )
 
 var (

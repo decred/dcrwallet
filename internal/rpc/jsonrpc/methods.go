@@ -28,7 +28,7 @@ import (
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/p2p/v2"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
@@ -291,7 +291,7 @@ func (s *Server) accountAddressIndex(ctx context.Context, icmd interface{}) (int
 
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAccountNotFound
 		}
 		return nil, err
@@ -325,7 +325,7 @@ func (s *Server) accountSyncAddressIndex(ctx context.Context, icmd interface{}) 
 
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAccountNotFound
 		}
 		return nil, err
@@ -364,7 +364,7 @@ func makeMultiSigScript(w *wallet.Wallet, keys []string, nRequired int) ([]byte,
 		default:
 			pubKey, err := w.PubKeyForAddress(addr)
 			if err != nil {
-				if errors.Is(errors.NotExist, err) {
+				if errors.Is(err, errors.NotExist) {
 					return nil, errAddressNotInWallet
 				}
 				return nil, err
@@ -462,7 +462,7 @@ func (s *Server) consolidate(ctx context.Context, icmd interface{}) (interface{}
 	if cmd.Account != nil {
 		account, err = w.AccountNumber(*cmd.Account)
 		if err != nil {
-			if errors.Is(errors.NotExist, err) {
+			if errors.Is(err, errors.NotExist) {
 				return nil, errAccountNotFound
 			}
 			return nil, err
@@ -533,7 +533,7 @@ func (s *Server) dumpPrivKey(ctx context.Context, icmd interface{}) (interface{}
 
 	key, err := w.DumpWIFPrivateKey(addr)
 	if err != nil {
-		if errors.Is(errors.Locked, err) {
+		if errors.Is(err, errors.Locked) {
 			return nil, errWalletUnlockNeeded
 		}
 		return nil, err
@@ -600,7 +600,7 @@ func (s *Server) getAddressesByAccount(ctx context.Context, icmd interface{}) (i
 
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAccountNotFound
 		}
 		return nil, err
@@ -685,7 +685,7 @@ func (s *Server) getBalance(ctx context.Context, icmd interface{}) (interface{},
 			accountName, err := w.AccountName(bal.Account)
 			if err != nil {
 				// Expect account lookup to succeed
-				if errors.Is(errors.NotExist, err) {
+				if errors.Is(err, errors.NotExist) {
 					return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
 				}
 				return nil, err
@@ -729,7 +729,7 @@ func (s *Server) getBalance(ctx context.Context, icmd interface{}) (interface{},
 	} else {
 		account, err := w.AccountNumber(accountName)
 		if err != nil {
-			if errors.Is(errors.NotExist, err) {
+			if errors.Is(err, errors.NotExist) {
 				return nil, errAccountNotFound
 			}
 			return nil, err
@@ -738,7 +738,7 @@ func (s *Server) getBalance(ctx context.Context, icmd interface{}) (interface{},
 		bal, err := w.CalculateAccountBalance(account, int32(*cmd.MinConf))
 		if err != nil {
 			// Expect account lookup to succeed
-			if errors.Is(errors.NotExist, err) {
+			if errors.Is(err, errors.NotExist) {
 				return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
 			}
 			return nil, err
@@ -928,7 +928,7 @@ func (s *Server) getAccount(ctx context.Context, icmd interface{}) (interface{},
 	// Fetch the associated account
 	account, err := w.AccountOfAddress(addr)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAddressNotInWallet
 		}
 		return nil, err
@@ -956,7 +956,7 @@ func (s *Server) getAccountAddress(ctx context.Context, icmd interface{}) (inter
 
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAccountNotFound
 		}
 		return nil, err
@@ -964,7 +964,7 @@ func (s *Server) getAccountAddress(ctx context.Context, icmd interface{}) (inter
 	addr, err := w.CurrentAddress(account)
 	if err != nil {
 		// Expect account lookup to succeed
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
 		}
 		return nil, err
@@ -988,7 +988,7 @@ func (s *Server) getUnconfirmedBalance(ctx context.Context, icmd interface{}) (i
 	}
 	account, err := w.AccountNumber(acctName)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAccountNotFound
 		}
 		return nil, err
@@ -996,7 +996,7 @@ func (s *Server) getUnconfirmedBalance(ctx context.Context, icmd interface{}) (i
 	bals, err := w.CalculateAccountBalance(account, 1)
 	if err != nil {
 		// Expect account lookup to succeed
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
 		}
 		return nil, err
@@ -1043,10 +1043,10 @@ func (s *Server) importPrivKey(ctx context.Context, icmd interface{}) (interface
 	_, err = w.ImportPrivateKey(ctx, wif)
 	if err != nil {
 		switch {
-		case errors.Is(errors.Exist, err):
+		case errors.Is(err, errors.Exist):
 			// Do not return duplicate key errors to the client.
 			return nil, nil
-		case errors.Is(errors.Locked, err):
+		case errors.Is(err, errors.Locked):
 			return nil, errWalletUnlockNeeded
 		default:
 			return nil, err
@@ -1094,10 +1094,10 @@ func (s *Server) importScript(ctx context.Context, icmd interface{}) (interface{
 	err = w.ImportScript(ctx, rs)
 	if err != nil {
 		switch {
-		case errors.Is(errors.Exist, err):
+		case errors.Is(err, errors.Exist):
 			// Do not return duplicate script errors to the client.
 			return nil, nil
-		case errors.Is(errors.Locked, err):
+		case errors.Is(err, errors.Locked):
 			return nil, errWalletUnlockNeeded
 		default:
 			return nil, err
@@ -1131,7 +1131,7 @@ func (s *Server) createNewAccount(ctx context.Context, icmd interface{}) (interf
 
 	_, err := w.NextAccount(ctx, cmd.Account)
 	if err != nil {
-		if errors.Is(errors.Locked, err) {
+		if errors.Is(err, errors.Locked) {
 			return nil, rpcErrorf(dcrjson.ErrRPCWalletUnlockNeeded, "creating new accounts requires an unlocked wallet")
 		}
 		return nil, err
@@ -1157,7 +1157,7 @@ func (s *Server) renameAccount(ctx context.Context, icmd interface{}) (interface
 	// Check that given account exists
 	account, err := w.AccountNumber(cmd.OldAccount)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAccountNotFound
 		}
 		return nil, err
@@ -1256,7 +1256,7 @@ func (s *Server) getNewAddress(ctx context.Context, icmd interface{}) (interface
 	}
 	account, err := w.AccountNumber(acctName)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAccountNotFound
 		}
 		return nil, err
@@ -1287,7 +1287,7 @@ func (s *Server) getRawChangeAddress(ctx context.Context, icmd interface{}) (int
 	}
 	account, err := w.AccountNumber(acctName)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAccountNotFound
 		}
 		return nil, err
@@ -1313,7 +1313,7 @@ func (s *Server) getReceivedByAccount(ctx context.Context, icmd interface{}) (in
 
 	account, err := w.AccountNumber(cmd.Account)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAccountNotFound
 		}
 		return nil, err
@@ -1348,7 +1348,7 @@ func (s *Server) getReceivedByAddress(ctx context.Context, icmd interface{}) (in
 	}
 	total, err := w.TotalReceivedForAddr(addr, int32(*cmd.MinConf))
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAddressNotInWallet
 		}
 		return nil, err
@@ -1373,7 +1373,7 @@ func (s *Server) getMasterPubkey(ctx context.Context, icmd interface{}) (interfa
 		var err error
 		account, err = w.AccountNumber(*cmd.Account)
 		if err != nil {
-			if errors.Is(errors.NotExist, err) {
+			if errors.Is(err, errors.NotExist) {
 				return nil, errAccountNotFound
 			}
 			return nil, err
@@ -1498,7 +1498,7 @@ func (s *Server) getTransaction(ctx context.Context, icmd interface{}) (interfac
 
 	// returns nil details when not found
 	txd, err := wallet.UnstableAPI(w).TxDetails(txHash)
-	if errors.Is(errors.NotExist, err) {
+	if errors.Is(err, errors.NotExist) {
 		return nil, rpcErrorf(dcrjson.ErrRPCNoTxInfo, "no information for transaction")
 	} else if err != nil {
 		return nil, err
@@ -1722,7 +1722,7 @@ func (s *Server) listAccounts(ctx context.Context, icmd interface{}) (interface{
 		accountName, err := w.AccountName(result.Account)
 		if err != nil {
 			// Expect name lookup to succeed
-			if errors.Is(errors.NotExist, err) {
+			if errors.Is(err, errors.NotExist) {
 				return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
 			}
 			return nil, err
@@ -2057,7 +2057,7 @@ func (s *Server) listUnspent(ctx context.Context, icmd interface{}) (interface{}
 
 	result, err := w.ListUnspent(int32(*cmd.MinConf), int32(*cmd.MaxConf), addresses)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAddressNotInWallet
 		}
 		return nil, err
@@ -2114,7 +2114,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 
 	account, err := w.AccountNumber(cmd.FromAccount)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAccountNotFound
 		}
 		return nil, err
@@ -2252,10 +2252,10 @@ func sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[string]dcrutil
 	}
 	txSha, err := w.SendOutputs(ctx, outputs, account, minconf)
 	if err != nil {
-		if errors.Is(errors.Locked, err) {
+		if errors.Is(err, errors.Locked) {
 			return "", errWalletUnlockNeeded
 		}
-		if errors.Is(errors.InsufficientBalance, err) {
+		if errors.Is(err, errors.InsufficientBalance) {
 			return "", rpcError(dcrjson.ErrRPCWalletInsufficientFunds, err)
 		}
 		return "", err
@@ -2727,7 +2727,7 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 		default:
 			pubKey, err := w.PubKeyForAddress(addr)
 			if err != nil {
-				if errors.Is(errors.NotExist, err) {
+				if errors.Is(err, errors.NotExist) {
 					return nil, errAddressNotInWallet
 				}
 				return nil, err
@@ -2840,10 +2840,10 @@ func (s *Server) signMessage(ctx context.Context, icmd interface{}) (interface{}
 	}
 	sig, err := w.SignMessage(cmd.Message, addr)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAddressNotInWallet
 		}
-		if errors.Is(errors.Locked, err) {
+		if errors.Is(err, errors.Locked) {
 			return nil, errWalletUnlockNeeded
 		}
 		return nil, err
@@ -3228,7 +3228,7 @@ func (s *Server) sweepAccount(ctx context.Context, icmd interface{}) (interface{
 
 	account, err := w.AccountNumber(cmd.SourceAccount)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return nil, errAccountNotFound
 		}
 		return nil, err
@@ -3241,7 +3241,7 @@ func (s *Server) sweepAccount(ctx context.Context, icmd interface{}) (interface{
 	tx, err := w.NewUnsignedTransaction(nil, feePerKb, account,
 		requiredConfs, wallet.OutputSelectionAlgorithmAll, changeSource)
 	if err != nil {
-		if errors.Is(errors.InsufficientBalance, err) {
+		if errors.Is(err, errors.InsufficientBalance) {
 			return nil, rpcError(dcrjson.ErrRPCWalletInsufficientFunds, err)
 		}
 		return nil, err
@@ -3288,7 +3288,7 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 
 	ainfo, err := w.AddressInfo(addr)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			// No additional information available about the address.
 			return result, nil
 		}
@@ -3326,7 +3326,7 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 		// just break out now if there is an error.
 		script, err := w.RedeemScriptCopy(addr)
 		if err != nil {
-			if errors.Is(errors.Locked, err) {
+			if errors.Is(err, errors.Locked) {
 				break
 			}
 			return nil, err
@@ -3447,7 +3447,7 @@ func (s *Server) walletInfo(ctx context.Context, icmd interface{}) (interface{},
 	}
 
 	coinType, err := w.CoinType()
-	if errors.Is(errors.WatchingOnly, err) {
+	if errors.Is(err, errors.WatchingOnly) {
 		// This is a watching-only wallet, which does not store the active coin
 		// type. Return CoinTypes default value (0), which will be omitted from
 		// the JSON response, and log a debug message.
@@ -3539,7 +3539,7 @@ func (s *Server) walletPassphraseChange(ctx context.Context, icmd interface{}) (
 	err := w.ChangePrivatePassphrase([]byte(cmd.OldPassphrase),
 		[]byte(cmd.NewPassphrase))
 	if err != nil {
-		if errors.Is(errors.Passphrase, err) {
+		if errors.Is(err, errors.Passphrase) {
 			return nil, rpcErrorf(dcrjson.ErrRPCWalletPassphraseIncorrect, "incorrect passphrase")
 		}
 		return nil, err

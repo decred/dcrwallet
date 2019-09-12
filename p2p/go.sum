@@ -26,8 +26,6 @@ github.com/decred/dcrd/chaincfg/chainhash v1.0.1 h1:0vG7U9+dSjSCaHQKdoSKURK2pOb4
 github.com/decred/dcrd/chaincfg/chainhash v1.0.1/go.mod h1:OVfvaOsNLS/A1y4Eod0Ip/Lf8qga7VXCQjUQLbkY0Go=
 github.com/decred/dcrd/chaincfg/v2 v2.0.2 h1:VeGY52lHuYT01tIGbvYj+OO0GaGxGaJmnh+4vGca1+U=
 github.com/decred/dcrd/chaincfg/v2 v2.0.2/go.mod h1:hpKvhLCDAD/xDZ3V1Pqpv9fIKVYYi11DyxETguazyvg=
-github.com/decred/dcrd/connmgr v1.0.2 h1:ipHJBV9fmhLi8ZZCtsNpG+kLY2c+yu59/8oOkA8BNJY=
-github.com/decred/dcrd/connmgr v1.0.2/go.mod h1:jBNfQLh+454n3crgNCPrhMgZ9mVvYcMbWSCEAHsJQus=
 github.com/decred/dcrd/connmgr/v2 v2.0.0 h1:GjDy9KD5m8uBs34yDXriwj4dvf5VLo/JeiPkUHwFg0k=
 github.com/decred/dcrd/connmgr/v2 v2.0.0/go.mod h1:HJ2q+m7DaMlNmQlY3WtbV3zETZfo4dfAi78z0ILLdqA=
 github.com/decred/dcrd/database v1.0.1 h1:BSIerNf4RhSA0iDhiE/320RYqD2y9T+SCj99Pv7svgo=
@@ -55,8 +53,6 @@ github.com/decred/dcrd/wire v1.1.0 h1:G+3CugtxNbToUN8RKWqm74yLfzJJ2BKMOr2RgWc4Ty
 github.com/decred/dcrd/wire v1.1.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
 github.com/decred/dcrd/wire v1.2.0 h1:HqJVB7vcklIguzFWgRXw/WYCQ9cD3bUC5TKj53i1Hng=
 github.com/decred/dcrd/wire v1.2.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
-github.com/decred/dcrwallet/errors v1.0.1 h1:8EF7IY6twRlo9sqWaSfm8abfi2/rHZ1wacOiGvBy+bM=
-github.com/decred/dcrwallet/errors v1.0.1/go.mod h1:XUm95dWmm9XmQGvneBXJkkIaFeRsQVBB6ni/KTy1hrY=
 github.com/decred/dcrwallet/lru v1.0.0 h1:vz71/Wa2890CUQeWsOTI6u6iGGfXGAhIQ/hnqMUh6Xc=
 github.com/decred/dcrwallet/lru v1.0.0/go.mod h1:jEty7mdT5VaaV06DEV2Avv0R3HpGvUwvDW4lw8ECtiY=
 github.com/decred/dcrwallet/version v1.0.1 h1:gAz1lDkcJ+oAbg0tOn/J0KwZBVWIlhWmHhSUi9GbB2E=
@@ -92,6 +88,8 @@ golang.org/x/sys v0.0.0-20181212120007-b05ddf57801d h1:G59MrP9Qg6bymPjN3yGmqnmuC
 golang.org/x/sys v0.0.0-20181212120007-b05ddf57801d/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7 h1:9zdDQZ7Thm29KFXgAX/+yaf3eVbP7djjWp/dXAppNCc=
+golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 h1:qIbj1fsPNlZgppZ+VLlY7N33q108Sa+fhmuc+sWQYwY=

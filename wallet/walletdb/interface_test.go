@@ -18,7 +18,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
@@ -219,7 +219,7 @@ func testReadWriteBucketInterface(tc *testContext, bucket walletdb.ReadWriteBuck
 
 	// Ensure creating a bucket that already exists fails with the
 	// expected error.
-	if _, err := bucket.CreateBucket(testBucketName); !errors.Is(errors.Exist, err) {
+	if _, err := bucket.CreateBucket(testBucketName); !errors.Is(err, errors.Exist) {
 		tc.t.Errorf("CreateBucket: unexpected error: %v", err)
 		return false
 	}
@@ -254,7 +254,7 @@ func testReadWriteBucketInterface(tc *testContext, bucket walletdb.ReadWriteBuck
 
 	// Ensure deleting a bucket that doesn't exist returns the
 	// expected error.
-	if err := bucket.DeleteNestedBucket(testBucketName); !errors.Is(errors.NotExist, err) {
+	if err := bucket.DeleteNestedBucket(testBucketName); !errors.Is(err, errors.NotExist) {
 		tc.t.Errorf("DeleteNestedBucket: unexpected error: %v", err)
 		return false
 	}
@@ -640,19 +640,19 @@ func testAdditionalErrors(tc *testContext) bool {
 
 		// Ensure CreateBucket returns the expected error when no bucket
 		// key is specified.
-		if _, err := rootBucket.CreateBucket(nil); !errors.Is(errors.Invalid, err) {
+		if _, err := rootBucket.CreateBucket(nil); !errors.Is(err, errors.Invalid) {
 			return fmt.Errorf("CreateBucket: unexpected error %v", err)
 		}
 
 		// Ensure DeleteNestedBucket returns the expected error when no bucket
 		// key is specified.
-		if err := rootBucket.DeleteNestedBucket(nil); !errors.Is(errors.Invalid, err) {
+		if err := rootBucket.DeleteNestedBucket(nil); !errors.Is(err, errors.Invalid) {
 			return fmt.Errorf("DeleteNestedBucket: unexpected error %v", err)
 		}
 
 		// Ensure Put returns the expected error when no key is
 		// specified.
-		if err := rootBucket.Put(nil, nil); !errors.Is(errors.Invalid, err) {
+		if err := rootBucket.Put(nil, nil); !errors.Is(err, errors.Invalid) {
 			return fmt.Errorf("Put: unexpected error %v", err)
 		}
 
@@ -676,11 +676,11 @@ func testAdditionalErrors(tc *testContext) bool {
 		tc.t.Errorf("Rollback: unexpected error: %v", err)
 		return false
 	}
-	if err := tx.Rollback(); !errors.Is(errors.Invalid, err) {
+	if err := tx.Rollback(); !errors.Is(err, errors.Invalid) {
 		tc.t.Errorf("Rollback: unexpected error %v", err)
 		return false
 	}
-	if err := tx.Commit(); !errors.Is(errors.Invalid, err) {
+	if err := tx.Commit(); !errors.Is(err, errors.Invalid) {
 		tc.t.Errorf("Commit: unexpected error %v", err)
 		return false
 	}

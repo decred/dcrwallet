@@ -32,7 +32,7 @@ import (
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/deployments/v2"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
 	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
@@ -1193,9 +1193,9 @@ func (w *Wallet) Unlock(passphrase []byte, timeout <-chan time.Time) error {
 	err := w.Manager.UnlockedWithPassphrase(passphrase)
 	w.passphraseUsedMu.RUnlock()
 	switch {
-	case errors.Is(errors.WatchingOnly, err):
+	case errors.Is(err, errors.WatchingOnly):
 		return errors.E(op, err)
-	case errors.Is(errors.Passphrase, err):
+	case errors.Is(err, errors.Passphrase):
 		w.Lock()
 		if !wasLocked {
 			log.Info("The wallet has been locked due to an incorrect passphrase.")
@@ -1203,7 +1203,7 @@ func (w *Wallet) Unlock(passphrase []byte, timeout <-chan time.Time) error {
 		return errors.E(op, err)
 	default:
 		return errors.E(op, err)
-	case errors.Is(errors.Locked, err):
+	case errors.Is(err, errors.Locked):
 		defer w.passphraseUsedMu.Unlock()
 		w.passphraseUsedMu.Lock()
 		err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
@@ -1501,7 +1501,7 @@ func (w *Wallet) HaveAddress(a dcrutil.Address) (bool, error) {
 		return err
 	})
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			return false, nil
 		}
 		return false, errors.E(op, err)
@@ -3019,7 +3019,7 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 					if err == nil {
 						continue
 					}
-					if errors.Is(errors.NotExist, err) {
+					if errors.Is(err, errors.NotExist) {
 						break scSwitch
 					}
 					return err
@@ -3135,9 +3135,9 @@ func (w *Wallet) ImportScript(ctx context.Context, rs []byte) error {
 		if err != nil {
 			switch {
 			// Don't care if it's already there.
-			case errors.Is(errors.Exist, err):
+			case errors.Is(err, errors.Exist):
 				return nil
-			case errors.Is(errors.Locked, err):
+			case errors.Is(err, errors.Locked):
 				log.Debugf("failed to attempt script importation " +
 					"of incoming tx because addrmgr was locked")
 				return err
@@ -3826,7 +3826,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 				prevHash := &txIn.PreviousOutPoint.Hash
 				prevIndex := txIn.PreviousOutPoint.Index
 				txDetails, err := w.TxStore.TxDetails(txmgrNs, prevHash)
-				if errors.Is(errors.NotExist, err) {
+				if errors.Is(err, errors.NotExist) {
 					return errors.Errorf("%v not found", &txIn.PreviousOutPoint)
 				} else if err != nil {
 					return err
@@ -3882,7 +3882,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 				// First check tx manager script store.
 				script, err := w.TxStore.GetTxScript(txmgrNs,
 					addr.ScriptAddress())
-				if errors.Is(errors.NotExist, err) {
+				if errors.Is(err, errors.NotExist) {
 					// Then check the address manager.
 					sc, done, err := w.Manager.RedeemScript(addrmgrNs, addr)
 					if err != nil {

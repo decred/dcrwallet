@@ -14,7 +14,7 @@ import (
 	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
 	"github.com/decred/dcrwallet/wallet/v3/internal/snacl"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
@@ -860,7 +860,7 @@ func ticketCommitmentsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, 
 
 				acct, err := fetchAddrAccount(addrmgrBucket,
 					normalizeAddress(addr).ScriptAddress())
-				if err != nil && errors.Is(errors.NotExist, err) {
+				if err != nil && errors.Is(err, errors.NotExist) {
 					// If this address does not have an account associated
 					// with it, it means it's not owned by the wallet.
 					continue

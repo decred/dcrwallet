@@ -25,7 +25,7 @@ import (
 	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/chain/v3"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/p2p/v2"
 	"github.com/decred/dcrwallet/spv/v3"
 	"github.com/decred/dcrwallet/ticketbuyer/v4"
@@ -169,7 +169,7 @@ func run(ctx context.Context) error {
 	// initialized and this function returns.
 	defer func() {
 		err := loader.UnloadWallet()
-		if err != nil && !errors.Is(errors.Invalid, err) {
+		if err != nil && !errors.Is(err, errors.Invalid) {
 			log.Errorf("Failed to close wallet: %v", err)
 		} else if err == nil {
 			log.Infof("Closed wallet")
@@ -199,7 +199,7 @@ func run(ctx context.Context) error {
 			w, err = loader.OpenExistingWallet(walletPass)
 			if err != nil {
 				log.Errorf("Failed to open wallet: %v", err)
-				if errors.Is(errors.Passphrase, err) {
+				if errors.Is(err, errors.Passphrase) {
 					// walletpass not provided, advice using --walletpass or --promptpublicpass
 					if cfg.WalletPass == wallet.InsecurePubPassphrase {
 						log.Info("Configure public passphrase with walletpass or promptpublicpass options.")

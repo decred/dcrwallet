@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/decred/dcrd/hdkeychain/v2"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/pgpwordlist"
 )
 

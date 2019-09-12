@@ -14,7 +14,7 @@ import (
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
@@ -312,7 +312,7 @@ func stakePoolUserInfo(ns walletdb.ReadBucket, user dcrutil.Address) (*StakePool
 
 	userTickets, err := fetchStakePoolUserTickets(ns, *scriptHash)
 	if err != nil {
-		missingValidTickets = errors.Is(errors.NotExist, err)
+		missingValidTickets = errors.Is(err, errors.NotExist)
 		if !missingValidTickets {
 			return nil, err
 		}
@@ -323,7 +323,7 @@ func stakePoolUserInfo(ns walletdb.ReadBucket, user dcrutil.Address) (*StakePool
 
 	invalTickets, err := fetchStakePoolUserInvalTickets(ns, *scriptHash)
 	if err != nil {
-		if errors.Is(errors.NotExist, err) {
+		if errors.Is(err, errors.NotExist) {
 			missingInvalidTickets = true
 		}
 		if !missingInvalidTickets {

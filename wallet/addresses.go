@@ -12,7 +12,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrd/txscript/v2"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
 	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
 	"github.com/decred/dcrwallet/wallet/v3/udb"

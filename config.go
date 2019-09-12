@@ -19,7 +19,7 @@ import (
 	"decred.org/dcrwallet/internal/cfgutil"
 	"decred.org/dcrwallet/internal/netparams"
 	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrwallet/errors"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/version"
 	"github.com/decred/dcrwallet/wallet/v3"
 	"github.com/decred/dcrwallet/wallet/v3/txrules"
