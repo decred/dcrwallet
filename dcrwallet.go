@@ -49,7 +49,7 @@ func main() {
 	go shutdownListener()
 
 	// Run the wallet until permanent failure or shutdown is requested.
-	if err := run(ctx); err != nil && err != context.Canceled {
+	if err := run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		os.Exit(1)
 	}
 }
@@ -258,7 +258,7 @@ func run(ctx context.Context) error {
 			tbdone := make(chan struct{})
 			go func() {
 				err := tb.Run(ctx, passphrase)
-				if err != nil && err != context.Canceled {
+				if err != nil && !errors.Is(err, context.Canceled) {
 					log.Errorf("Ticket buying ended: %v", err)
 				}
 				tbdone <- struct{}{}

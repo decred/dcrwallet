@@ -221,7 +221,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 		lastUsedIntIndex := ^uint32(0)
 		for child := uint32(0); child < hdkeychain.HardenedKeyStart; child++ {
 			xpubChild, err := xpubExtBranch.Child(child)
-			if err == hdkeychain.ErrInvalidChild {
+			if errors.Is(err, hdkeychain.ErrInvalidChild) {
 				continue
 			}
 			if err != nil {
@@ -244,7 +244,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 		for child := uint32(0); child < hdkeychain.HardenedKeyStart; child++ {
 			// Same as above but search the internal branch.
 			xpubChild, err := xpubIntBranch.Child(child)
-			if err == hdkeychain.ErrInvalidChild {
+			if errors.Is(err, hdkeychain.ErrInvalidChild) {
 				continue
 			}
 			if err != nil {

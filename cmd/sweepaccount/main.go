@@ -393,7 +393,7 @@ func sweep() error {
 		}
 
 		if err != nil {
-			if err != (noInputValue{}) {
+			if !errors.Is(err, (noInputValue{})) {
 				reportError("Failed to create unsigned transaction: %v", err)
 			}
 			continue

@@ -2139,7 +2139,7 @@ func (s *walletServer) ConfirmationNotifications(svr pb.WalletService_Confirmati
 	case <-svr.Context().Done():
 		return nil
 	case err := <-errOut:
-		if err == context.Canceled {
+		if errors.Is(err, context.Canceled) {
 			return nil
 		}
 		if _, ok := status.FromError(err); ok {
@@ -2647,9 +2647,9 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 
 	err := syncer.Run(svr.Context())
 	if err != nil {
-		if err == context.Canceled {
+		if errors.Is(err, context.Canceled) {
 			return status.Errorf(codes.Canceled, "SPV synchronization canceled: %v", err)
-		} else if err == context.DeadlineExceeded {
+		} else if errors.Is(err, context.DeadlineExceeded) {
 			return status.Errorf(codes.DeadlineExceeded, "SPV synchronization deadline exceeded: %v", err)
 		}
 		return translateError(err)

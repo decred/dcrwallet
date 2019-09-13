@@ -469,7 +469,7 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 				account, branch))
 		}
 		child, err := alb.branchXpub.Child(childIndex)
-		if err == hdkeychain.ErrInvalidChild {
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
 			alb.cursor++
 			continue
 		}
@@ -830,7 +830,7 @@ func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32,
 	addresses := make([]dcrutil.Address, 0, count)
 	for i := uint32(0); i < count; i++ {
 		child, err := key.Child(startIndex + i)
-		if err == hdkeychain.ErrInvalidChild {
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
 			continue
 		}
 		if err != nil {
@@ -870,7 +870,7 @@ func appendChildAddrsRange(addrs *[]dcrutil.Address, key *hdkeychain.ExtendedKey
 
 	for ; a < b && a < hdkeychain.HardenedKeyStart; a++ {
 		addr, err := deriveChildAddress(key, a, params)
-		if err == hdkeychain.ErrInvalidChild {
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
 			continue
 		}
 		if err != nil {

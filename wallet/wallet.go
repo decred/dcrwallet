@@ -494,7 +494,7 @@ func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb N
 				stop := minUint32(n+1, child+step)
 				for ; child < stop; child++ {
 					addr, err := deriveChildAddress(branchKey, child, w.chainParams)
-					if err == hdkeychain.ErrInvalidChild {
+					if errors.Is(err, hdkeychain.ErrInvalidChild) {
 						continue
 					}
 					if err != nil {
@@ -4226,7 +4226,7 @@ func (w *Wallet) NeedsAccountsSync() (bool, error) {
 			needsSync = false
 			return errBreak
 		})
-		if err == errBreak {
+		if errors.Is(err, errBreak) {
 			return nil
 		}
 		return err

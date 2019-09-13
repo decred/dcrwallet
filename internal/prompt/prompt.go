@@ -15,6 +15,7 @@ import (
 	"unicode"
 
 	"github.com/decred/dcrd/hdkeychain/v2"
+	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/walletseed"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -128,7 +129,7 @@ func PassPrompt(reader *bufio.Reader, prefix string, confirm bool) ([]byte, erro
 			pass, err = terminal.ReadPassword(fd)
 		} else {
 			pass, err = reader.ReadBytes('\n')
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = nil
 			}
 		}

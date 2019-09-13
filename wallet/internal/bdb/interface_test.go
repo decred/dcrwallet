@@ -492,7 +492,7 @@ func testNamespaceAndTxInterfaces(tc *testContext, namespaceKey string) bool {
 		return nil
 	})
 	if err != nil {
-		if err != errSubTestFail {
+		if !errors.Is(err, errSubTestFail) {
 			tc.t.Errorf("%v", err)
 		}
 		return false
@@ -520,8 +520,8 @@ func testNamespaceAndTxInterfaces(tc *testContext, namespaceKey string) bool {
 		// Return an error to force a rollback.
 		return forceRollbackError
 	})
-	if err != forceRollbackError {
-		if err == errSubTestFail {
+	if !errors.Is(err, forceRollbackError) {
+		if errors.Is(err, errSubTestFail) {
 			return false
 		}
 
@@ -545,7 +545,7 @@ func testNamespaceAndTxInterfaces(tc *testContext, namespaceKey string) bool {
 		return nil
 	})
 	if err != nil {
-		if err != errSubTestFail {
+		if !errors.Is(err, errSubTestFail) {
 			tc.t.Errorf("%v", err)
 		}
 		return false
@@ -565,7 +565,7 @@ func testNamespaceAndTxInterfaces(tc *testContext, namespaceKey string) bool {
 		return nil
 	})
 	if err != nil {
-		if err != errSubTestFail {
+		if !errors.Is(err, errSubTestFail) {
 			tc.t.Errorf("%v", err)
 		}
 		return false
@@ -585,7 +585,7 @@ func testNamespaceAndTxInterfaces(tc *testContext, namespaceKey string) bool {
 		return nil
 	})
 	if err != nil {
-		if err != errSubTestFail {
+		if !errors.Is(err, errSubTestFail) {
 			tc.t.Errorf("%v", err)
 		}
 		return false
@@ -605,7 +605,7 @@ func testNamespaceAndTxInterfaces(tc *testContext, namespaceKey string) bool {
 		return nil
 	})
 	if err != nil {
-		if err != errSubTestFail {
+		if !errors.Is(err, errSubTestFail) {
 			tc.t.Errorf("%v", err)
 		}
 		return false
@@ -650,7 +650,7 @@ func testAdditionalErrors(tc *testContext) bool {
 		return nil
 	})
 	if err != nil {
-		if err != errSubTestFail {
+		if !errors.Is(err, errSubTestFail) {
 			tc.t.Errorf("%v", err)
 		}
 		return false

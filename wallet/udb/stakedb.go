@@ -125,7 +125,7 @@ func deserializeSStxRecord(serializedSStxRecord []byte, dbVersion uint32) (*sstx
 		msgTx := new(wire.MsgTx)
 		err := msgTx.Deserialize(buf)
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = io.ErrUnexpectedEOF
 			}
 			return nil, err

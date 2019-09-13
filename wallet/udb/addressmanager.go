@@ -1630,7 +1630,7 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 	// been created.
 	for child := syncToIndex; ; child-- {
 		xpubChild, err := xpubBranch.Child(child)
-		if err == hdkeychain.ErrInvalidChild {
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
 			continue
 		}
 		if err != nil {
@@ -2325,7 +2325,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 	if err != nil {
 		// The seed is unusable if the any of the children in the
 		// required hierarchy can't be derived due to invalid child.
-		if err == hdkeychain.ErrInvalidChild {
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
 			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
 		}
 
@@ -2335,7 +2335,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 	if err != nil {
 		// The seed is unusable if the any of the children in the
 		// required hierarchy can't be derived due to invalid child.
-		if err == hdkeychain.ErrInvalidChild {
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
 			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
 		}
 
@@ -2347,7 +2347,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 	if err := checkBranchKeys(acctKeyLegacyPriv); err != nil {
 		// The seed is unusable if the any of the children in the
 		// required hierarchy can't be derived due to invalid child.
-		if err == hdkeychain.ErrInvalidChild {
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
 			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
 		}
 
@@ -2356,7 +2356,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 	if err := checkBranchKeys(acctKeySLIP0044Priv); err != nil {
 		// The seed is unusable if the any of the children in the
 		// required hierarchy can't be derived due to invalid child.
-		if err == hdkeychain.ErrInvalidChild {
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
 			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
 		}
 
@@ -2580,7 +2580,7 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase
 	if err != nil {
 		// The seed is unusable if the any of the children in the
 		// required hierarchy can't be derived due to invalid child.
-		if err == hdkeychain.ErrInvalidChild {
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
 			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
 		}
 
@@ -2592,7 +2592,7 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase
 	if err := checkBranchKeys(acctKeyPub); err != nil {
 		// The seed is unusable if the any of the children in the
 		// required hierarchy can't be derived due to invalid child.
-		if err == hdkeychain.ErrInvalidChild {
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
 			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
 		}
 

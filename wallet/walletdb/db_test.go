@@ -85,7 +85,7 @@ func TestCreateOpenFail(t *testing.T) {
 	// Ensure creating a database with the new type fails with the expected
 	// error.
 	_, err := walletdb.Create(dbType)
-	if err != openError {
+	if !errors.Is(err, openError) {
 		t.Errorf("expected error not received - got: %v, want %v", err,
 			openError)
 		return
@@ -94,7 +94,7 @@ func TestCreateOpenFail(t *testing.T) {
 	// Ensure opening a database with the new type fails with the expected
 	// error.
 	_, err = walletdb.Open(dbType)
-	if err != openError {
+	if !errors.Is(err, openError) {
 		t.Errorf("expected error not received - got: %v, want %v", err,
 			openError)
 		return

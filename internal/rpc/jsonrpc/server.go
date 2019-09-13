@@ -325,7 +325,7 @@ func (s *Server) websocketClientRead(ctx context.Context, wsc *websocketClient) 
 	for {
 		_, request, err := wsc.conn.ReadMessage()
 		if err != nil {
-			if err != io.EOF && err != io.ErrUnexpectedEOF {
+			if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
 				log.Warnf("Websocket receive failed from client %s: %v",
 					remoteAddr(ctx), err)
 			}

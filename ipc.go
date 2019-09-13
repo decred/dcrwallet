@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/decred/dcrwallet/errors/v2"
 )
 
 // Messages sent over a pipe are encoded using a simple binary message format:
@@ -46,7 +48,7 @@ func serviceControlPipeRx(fd uintptr) {
 	r := bufio.NewReader(pipe)
 	for {
 		_, err := r.Discard(1024)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
