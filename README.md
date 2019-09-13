@@ -78,7 +78,7 @@ https://github.com/decred/decred-binaries/releases
 
 Building or updating from source requires the following build dependencies:
 
-- **Go 1.11 or 1.12**
+- **Go 1.12 or 1.13**
 
   Installation instructions can be found here: https://golang.org/doc/install.
   It is recommended to add `$GOPATH/bin` to your `PATH` at this point.
@@ -101,7 +101,7 @@ only argument to test a previous on a previous version of go (generally decred
 supports the current version of go and the previous one).
 
 ```
-./run_tests.sh 1.11
+./run_tests.sh 1.12
 ```
 
 To run the tests locally without docker:
