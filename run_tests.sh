@@ -3,6 +3,7 @@
 set -ex
 
 go version
+go clean -testcache
 
 GOTESTFLAGS='-short'
 ROOTPATH=$(go list -m -f {{.Dir}} 2>/dev/null)

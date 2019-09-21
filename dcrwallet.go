@@ -382,13 +382,13 @@ func startPromptPass(ctx context.Context, w *wallet.Wallet) []byte {
 
 	// We need to rescan accounts for the initial sync. Unlock the
 	// wallet after prompting for the passphrase. The special case
-	// of a --createtemp simnet wallet is handled by first
+	// of a --createtemp wallet is handled by first
 	// attempting to automatically open it with the default
 	// passphrase. The wallet should also request to be unlocked
 	// if stake mining is currently on, so users with this flag
 	// are prompted here as well.
 	for {
-		if w.ChainParams().Net == wire.SimNet {
+		if w.ChainParams().Net != wire.MainNet {
 			err := w.Unlock(wallet.SimulationPassphrase, nil)
 			if err == nil {
 				// Unlock success with the default password.

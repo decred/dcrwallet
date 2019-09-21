@@ -42,3 +42,12 @@ var SimNetParams = Params{
 	JSONRPCServerPort: "19557",
 	GRPCServerPort:    "19558",
 }
+
+// RegNetParams contains parameters specific to the regression test network
+// (wire.RegNet).
+var RegNetParams = Params{
+	Params:            chaincfg.RegNetParams(),
+	JSONRPCClientPort: "19556",
+	JSONRPCServerPort: "19557",
+	GRPCServerPort:    "19558",
+}

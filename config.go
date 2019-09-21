@@ -73,6 +73,7 @@ type config struct {
 	AppDataDir         *cfgutil.ExplicitString `short:"A" long:"appdata" description:"Application data directory for wallet config, databases and logs"`
 	TestNet            bool                    `long:"testnet" description:"Use the test network"`
 	SimNet             bool                    `long:"simnet" description:"Use the simulation test network"`
+	RegNet             bool                    `long:"regnet" description:"Use the regression test network"`
 	NoInitialLoad      bool                    `long:"noinitialload" description:"Defer wallet creation/opening on startup and enable loading wallets over RPC"`
 	DebugLevel         string                  `short:"d" long:"debuglevel" description:"Logging level {trace, debug, info, warn, error, critical}"`
 	LogDir             *cfgutil.ExplicitString `long:"logdir" description:"Directory to log output."`
@@ -408,6 +409,10 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		activeNet = &netparams.SimNetParams
 		numNets++
 	}
+	if cfg.RegNet {
+		activeNet = &netparams.RegNetParams
+		numNets++
+	}
 	if numNets > 1 {
 		str := "%s: The testnet and simnet params can't be used " +
 			"together -- choose one"
@@ -498,11 +503,10 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		os.Exit(0)
 	}
 
-	// Exit if you try to use a simulation wallet on anything other than
-	// simnet or testnet.
-	if !cfg.SimNet && cfg.CreateTemp {
+	// Exit if you try to use a simulation wallet on mainnet
+	if !(cfg.SimNet || cfg.TestNet || cfg.RegNet) && cfg.CreateTemp {
 		fmt.Fprintln(os.Stderr, "Tried to create a temporary simulation "+
-			"wallet for network other than simnet!")
+			"wallet for mainnet!")
 		os.Exit(0)
 	}
 
