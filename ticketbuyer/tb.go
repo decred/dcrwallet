@@ -90,7 +90,12 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 				b := n.AttachedBlocks[len(n.AttachedBlocks)-1]
 				err := tb.buy(ctx, passphrase, b)
 				if err != nil {
-					log.Errorf("Ticket purchasing failed: %v", err)
+					switch {
+					// silence these errors
+					case errors.Is(err, errors.InsufficientBalance):
+					default:
+						log.Errorf("Ticket purchasing failed: %v", err)
+					}
 					if errors.Is(err, errors.Passphrase) {
 						errc <- err
 						done = true
