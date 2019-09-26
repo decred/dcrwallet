@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,7 +23,6 @@ import (
 	"github.com/decred/dcrd/chaincfg/v2/chainec"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrec/secp256k1"
-	"github.com/decred/dcrd/dcrjson/v3"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/hdkeychain/v2"
@@ -4124,43 +4122,13 @@ func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, seriali
 
 	err = n.PublishTransactions(ctx, tx)
 	if err != nil {
-		// Return the error and purge relevant txs from the store only if the
-		// backend returns an error different than "already have transaction".
-		var isDuplicateTx bool
-
-		// Unwrap to access the underlying RPC error code.
-		innerErr := err
-		for {
-			if e, ok := innerErr.(*dcrjson.RPCError); ok && e.Code == dcrjson.ErrRPCDuplicateTx {
-				// Found an RPCError in the error stack. Verify if the error is
-				// due to this exact same transaction already existing in the
-				// mempool, in which case we ignore it and don't purge the tx
-				// from the database.
-				//
-				// This is brittle, since it relies on checking the error
-				// message, but ErrRPCDuplicateTx can be returned in situations
-				// other than an exact copy of the tx already existing (such as
-				// the new tx being a double spend) and in such cases we _do_
-				// need to purge it.
-				dupeMsg := fmt.Sprintf("already have transaction %v",
-					tx.TxHash())
-				isDuplicateTx = strings.HasSuffix(e.Message, dupeMsg)
-				break
-			} else if e, ok := innerErr.(*errors.Error); ok && e.Err != nil {
-				innerErr = e.Err
-			} else {
-				break
+		if relevant {
+			if err := w.AbandonTransaction(&txHash); err != nil {
+				log.Warnf("Failed to abandon unmined transaction: %v", err)
 			}
 		}
-		if !isDuplicateTx {
-			if relevant {
-				if err := w.AbandonTransaction(&txHash); err != nil {
-					log.Warnf("Failed to abandon unmined transaction: %v", err)
-				}
-			}
-			op := errors.Opf(opf, &txHash)
-			return nil, errors.E(op, err)
-		}
+		op := errors.Opf(opf, &txHash)
+		return nil, errors.E(op, err)
 	}
 
 	if len(watchOutPoints) > 0 {

@@ -331,8 +331,8 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	preParser := flags.NewParser(&preCfg, flags.Default)
 	_, err := preParser.Parse()
 	if err != nil {
-		e, ok := err.(*flags.Error)
-		if ok && e.Type == flags.ErrHelp {
+		var e *flags.Error
+		if errors.As(err, &e) && e.Type == flags.ErrHelp {
 			os.Exit(0)
 		}
 		preParser.WriteHelp(os.Stderr)
@@ -364,7 +364,8 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	}
 	err = flags.NewIniParser(parser).ParseFile(configFilePath)
 	if err != nil {
-		if _, ok := err.(*os.PathError); !ok {
+		var e *os.PathError
+		if !errors.As(err, &e) {
 			fmt.Fprintln(os.Stderr, err)
 			parser.WriteHelp(os.Stderr)
 			return loadConfigError(err)
@@ -375,7 +376,8 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Parse command line options again to ensure they take precedence.
 	remainingArgs, err := parser.Parse()
 	if err != nil {
-		if e, ok := err.(*flags.Error); !ok || e.Type != flags.ErrHelp {
+		var e *flags.Error
+		if !errors.As(err, &e) || e.Type != flags.ErrHelp {
 			parser.WriteHelp(os.Stderr)
 		}
 		return loadConfigError(err)

@@ -183,12 +183,10 @@ func (r *RPC) PublishTransaction(ctx context.Context, tx *wire.MsgTx) error {
 	}
 	err = r.Call(ctx, "sendrawtransaction", nil, b.String())
 	if err != nil {
-		switch e := err.(type) {
-		case *wsrpc.Error:
-			// Duplicate txs are not considered an error
-			if e.Code == codeDuplicateTx {
-				return nil
-			}
+		// Duplicate txs are not considered an error
+		var e *wsrpc.Error
+		if errors.As(err, &e) && e.Code == codeDuplicateTx {
+			return nil
 		}
 		return errors.E(op, err)
 	}

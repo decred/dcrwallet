@@ -76,9 +76,9 @@ func translateError(err error) error {
 }
 
 func errorCode(err error) codes.Code {
-	var inner error
-	if err, ok := err.(*errors.Error); ok {
-		switch err.Kind {
+	var kind errors.Kind
+	if errors.As(err, &kind) {
+		switch kind {
 		case errors.Bug:
 		case errors.Invalid:
 			return codes.InvalidArgument
@@ -108,19 +108,9 @@ func errorCode(err error) codes.Code {
 		case errors.Protocol:
 		case errors.NoPeers:
 			return codes.Unavailable
-		default:
-			inner = err.Err
-			for {
-				err, ok := inner.(*errors.Error)
-				if !ok {
-					break
-				}
-				inner = err.Err
-			}
 		}
 	}
-	switch inner {
-	case hdkeychain.ErrInvalidSeedLen:
+	if errors.Is(err, hdkeychain.ErrInvalidSeedLen) {
 		return codes.InvalidArgument
 	}
 	return codes.Unknown

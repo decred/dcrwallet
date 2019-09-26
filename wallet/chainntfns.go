@@ -13,7 +13,6 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v2"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson/v3"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/txscript/v2"
@@ -903,18 +902,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 			ticketHashes[i], &voteRecords[i].Hash, voteBits.Bits)
 	}
 	if err != nil {
-		// Unwrap to access the underlying RPC error code.
-		for {
-			if e, ok := err.(*errors.Error); ok && e.Err != nil {
-				err = e.Err
-			} else {
-				break
-			}
-		}
-		rpcErr, ok := err.(*dcrjson.RPCError)
-		if !ok || rpcErr.Code != dcrjson.ErrRPCDuplicateTx {
-			log.Errorf("Failed to send one or more votes: %v", err)
-		}
+		log.Errorf("Failed to send one or more votes: %v", err)
 	}
 
 	if len(watchOutPoints) > 0 {

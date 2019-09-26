@@ -121,11 +121,8 @@ github.com/decred/dcrd/wire v1.1.0 h1:G+3CugtxNbToUN8RKWqm74yLfzJJ2BKMOr2RgWc4Ty
 github.com/decred/dcrd/wire v1.1.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
 github.com/decred/dcrd/wire v1.2.0 h1:HqJVB7vcklIguzFWgRXw/WYCQ9cD3bUC5TKj53i1Hng=
 github.com/decred/dcrd/wire v1.2.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
-github.com/decred/dcrwallet/errors v1.0.0/go.mod h1:XUm95dWmm9XmQGvneBXJkkIaFeRsQVBB6ni/KTy1hrY=
 github.com/decred/dcrwallet/errors v1.0.1 h1:8EF7IY6twRlo9sqWaSfm8abfi2/rHZ1wacOiGvBy+bM=
 github.com/decred/dcrwallet/errors v1.0.1/go.mod h1:XUm95dWmm9XmQGvneBXJkkIaFeRsQVBB6ni/KTy1hrY=
-github.com/decred/dcrwallet/errors v1.1.0 h1:xDzE4l8AGLcL1CGigPR9vYHP/rBmMm34ZatolleOS9A=
-github.com/decred/dcrwallet/errors v1.1.0/go.mod h1:XUm95dWmm9XmQGvneBXJkkIaFeRsQVBB6ni/KTy1hrY=
 github.com/decred/dcrwallet/internal/zero v1.0.1 h1:hO7orPk13AFp7pFTL739CbVLKImSNorI2J9/tiucNQY=
 github.com/decred/dcrwallet/internal/zero v1.0.1/go.mod h1:mXUIsKATE1pIaNAJQ4lhSTX6c9N5sYoSrlScgRCaMJs=
 github.com/decred/go-socks v1.0.0 h1:gd5+vE9LmL+FYiN5cxAMtaAVb791mG8E/+Jo411M/BE=
