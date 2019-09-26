@@ -445,6 +445,11 @@ func (w *Wallet) txToOutputsInternal(ctx context.Context, op errors.Op, outputs 
 	}
 	err = n.PublishTransactions(ctx, atx.Tx)
 	if err != nil {
+		hash := atx.Tx.TxHash()
+		log.Errorf("Abandoning transaction %v which failed to publish", &hash)
+		if err := w.AbandonTransaction(&hash); err != nil {
+			log.Errorf("Cannot abandon %v: %v", &hash, err)
+		}
 		return nil, errors.E(op, err)
 	}
 
