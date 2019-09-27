@@ -481,6 +481,8 @@ func (w *Wallet) CFilter(blockHash *chainhash.Hash) (*gcs.Filter, error) {
 // transaction notifications.  For logging purposes, it returns the total number
 // of addresses loaded.
 func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb NetworkBackend) (uint64, error) {
+	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+
 	// loadBranchAddrs loads addresses for the branch with the child range [0,n].
 	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, n uint32, errs chan<- error) {
 		const step = 256
@@ -506,25 +508,28 @@ func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb N
 		errs <- g.Wait()
 	}
 
-	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+	var bip0044AddrCount, importedAddrCount uint64
 	lastAcct, err := w.Manager.LastAccount(addrmgrNs)
 	if err != nil {
 		return 0, err
 	}
-	errs := make(chan error, int(lastAcct+1)*2+1)
-	var bip0044AddrCount, importedAddrCount uint64
-	for acct := uint32(0); acct <= lastAcct; acct++ {
+	lastImportedAcct, err := w.Manager.LastImportedAccount(dbtx)
+	if err != nil {
+		return 0, err
+	}
+	errs := make(chan error, int(lastAcct+1+(lastImportedAcct-udb.ImportedAddrAccount))*2+1)
+	loadAccountAddrs := func(acct uint32) error {
 		props, err := w.Manager.AccountProperties(addrmgrNs, acct)
 		if err != nil {
-			return 0, err
+			return err
 		}
 		acctXpub, err := w.Manager.AccountExtendedPubKey(dbtx, acct)
 		if err != nil {
-			return 0, err
+			return err
 		}
 		extKey, intKey, err := deriveBranches(acctXpub)
 		if err != nil {
-			return 0, err
+			return err
 		}
 		gapLimit := uint32(w.gapLimit)
 		extn := minUint32(props.LastReturnedExternalIndex+gapLimit, hdkeychain.HardenedKeyStart-1)
@@ -538,6 +543,18 @@ func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb N
 		// number of watched addresses is one more for each branch due to zero
 		// indexing.
 		bip0044AddrCount += uint64(extn) + uint64(intn) + 2
+		return nil
+	}
+
+	for acct := uint32(0); acct <= lastAcct; acct++ {
+		if err := loadAccountAddrs(acct); err != nil {
+			return 0, err
+		}
+	}
+	for acct := uint32(udb.ImportedAddrAccount+1); acct <= lastImportedAcct; acct++ {
+		if err := loadAccountAddrs(acct); err != nil {
+			return 0, err
+		}
 	}
 	go func() {
 		// Imported addresses are still sent as a single slice for now.  Could
