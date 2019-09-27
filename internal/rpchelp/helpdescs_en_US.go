@@ -62,7 +62,7 @@ var helpDescsEnUS = map[string]string{
 	"generatevoteresult-hex":   "The hex encoded transaction",
 
 	// GetAccountCmd help.
-	"getaccount--synopsis": "DEPRECATED -- Lookup the account name that some wallet address belongs to.",
+	"getaccount--synopsis": "Lookup the account name that some wallet address belongs to.",
 	"getaccount-address":   "The address to query the account for",
 	"getaccount--result0":  "The name of the account that 'address' belongs to",
 
@@ -80,7 +80,7 @@ var helpDescsEnUS = map[string]string{
 	// GetBalanceCmd help.
 	"getbalance--synopsis": "Calculates and returns the balance of all accounts.",
 	"getbalance-minconf":   "Minimum number of block confirmations required before an unspent output's value is included in the balance",
-	"getbalance-account":   "DEPRECATED -- The account name to query the balance for, or \"*\" to consider all accounts (default=\"*\")",
+	"getbalance-account":   "The account name to query the balance for, or \"*\" to consider all accounts (default=\"*\")",
 
 	"getbalanceresult-balances":                       "Balances for all accounts.",
 	"getaccountbalanceresult-accountname":             "Name of account.",
@@ -214,7 +214,7 @@ var helpDescsEnUS = map[string]string{
 	"getrawchangeaddress--result0":  "The internal payment address",
 
 	// GetReceivedByAccountCmd help.
-	"getreceivedbyaccount--synopsis": "DEPRECATED -- Returns the total amount received by addresses of some account, including spent outputs.",
+	"getreceivedbyaccount--synopsis": "Returns the total amount received by addresses of some account, including spent outputs.",
 	"getreceivedbyaccount-account":   "Account name to query total received amount for",
 	"getreceivedbyaccount-minconf":   "Minimum number of block confirmations required before an output's value is included in the total",
 	"getreceivedbyaccount--result0":  "The total received amount valued in decred",
@@ -293,7 +293,7 @@ var helpDescsEnUS = map[string]string{
 	"transactioninput-tree":   "The tree to generate transaction for",
 
 	// ListReceivedByAccountCmd help.
-	"listreceivedbyaccount--synopsis":        "DEPRECATED -- Returns a JSON array of objects listing all accounts and the total amount received by each account.",
+	"listreceivedbyaccount--synopsis":        "Returns a JSON array of objects listing all accounts and the total amount received by each account.",
 	"listreceivedbyaccount-minconf":          "Minimum number of block confirmations required before a transaction is considered",
 	"listreceivedbyaccount-includeempty":     "Unused",
 	"listreceivedbyaccount-includewatchonly": "Unused",
@@ -388,7 +388,7 @@ var helpDescsEnUS = map[string]string{
 	"lockunspent--result0":     "The boolean 'true'",
 
 	// SendFromCmd help.
-	"sendfrom--synopsis": "DEPRECATED -- Authors, signs, and sends a transaction that outputs some amount to a payment address.\n" +
+	"sendfrom--synopsis": "Authors, signs, and sends a transaction that outputs some amount to a payment address.\n" +
 		"A change output is automatically included to send extra output value back to the original account.",
 	"sendfrom-fromaccount": "Account to pick unspent outputs from",
 	"sendfrom-toaddress":   "Address to pay",
@@ -401,7 +401,7 @@ var helpDescsEnUS = map[string]string{
 	// SendManyCmd help.
 	"sendmany--synopsis": "Authors, signs, and sends a transaction that outputs to many payment addresses.\n" +
 		"A change output is automatically included to send extra output value back to the original account.",
-	"sendmany-fromaccount":    "DEPRECATED -- Account to pick unspent outputs from",
+	"sendmany-fromaccount":    "Account to pick unspent outputs from",
 	"sendmany-amounts":        "Pairs of payment addresses and the output amount to pay each",
 	"sendmany-amounts--desc":  "JSON object using payment addresses as keys and output amounts valued in decred to send to each address",
 	"sendmany-amounts--key":   "Address to pay",
