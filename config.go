@@ -52,6 +52,7 @@ const (
 	defaultAllowHighFees           = false
 	defaultAccountGapLimit         = wallet.DefaultAccountGapLimit
 	defaultDisableCoinTypeUpgrades = false
+	defaultCircuitLimit            = 32
 
 	// ticket buyer options
 	defaultBalanceToMaintainAbsolute = 0
@@ -113,6 +114,7 @@ type config struct {
 	Proxy        string `long:"proxy" description:"Establish network connections and DNS lookups through a SOCKS5 proxy (e.g. 127.0.0.1:9050)"`
 	ProxyUser    string `long:"proxyuser" description:"Proxy server username"`
 	ProxyPass    string `long:"proxypass" default-mask:"-" description:"Proxy server password"`
+	CircuitLimit int    `long:"circuitlimit" description:"Set maximum number of open Tor circuits; used only when --torisolation is enabled"`
 	TorIsolation bool   `long:"torisolation" description:"Enable Tor stream isolation by randomizing user credentials for each connection"`
 	dial         func(ctx context.Context, network, address string) (net.Conn, error)
 	lookup       func(name string) ([]net.IP, error)
@@ -341,6 +343,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		PoolAddress:             cfgutil.NewAddressFlag(),
 		AccountGapLimit:         defaultAccountGapLimit,
 		DisableCoinTypeUpgrades: defaultDisableCoinTypeUpgrades,
+		CircuitLimit:            defaultCircuitLimit,
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
@@ -643,13 +646,21 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 
 	// Set dialer and DNS lookup functions if proxy settings are provided.
 	if cfg.Proxy != "" {
-		proxy := &socks.Proxy{
+		proxy := socks.Proxy{
 			Addr:         cfg.Proxy,
 			Username:     cfg.ProxyUser,
 			Password:     cfg.ProxyPass,
 			TorIsolation: cfg.TorIsolation,
 		}
+
+		var proxyDialer func(context.Context, string, string) (net.Conn, error)
 		var noproxyDialer net.Dialer
+		if cfg.TorIsolation {
+			proxyDialer = socks.NewPool(proxy, uint32(cfg.CircuitLimit)).DialContext
+		} else {
+			proxyDialer = proxy.DialContext
+		}
+
 		cfg.dial = func(ctx context.Context, network, address string) (net.Conn, error) {
 			host, _, err := net.SplitHostPort(address)
 			if err != nil {
@@ -663,7 +674,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 					}
 				}
 			}
-			return proxy.DialContext(ctx, network, address)
+			return proxyDialer(ctx, network, address)
 		}
 		cfg.lookup = func(host string) ([]net.IP, error) {
 			return connmgr.TorLookupIP(host, cfg.Proxy)

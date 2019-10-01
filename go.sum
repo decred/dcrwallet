@@ -141,6 +141,8 @@ github.com/decred/dcrwallet/internal/zero v1.0.1 h1:hO7orPk13AFp7pFTL739CbVLKImS
 github.com/decred/dcrwallet/internal/zero v1.0.1/go.mod h1:mXUIsKATE1pIaNAJQ4lhSTX6c9N5sYoSrlScgRCaMJs=
 github.com/decred/go-socks v1.0.0 h1:gd5+vE9LmL+FYiN5cxAMtaAVb791mG8E/+Jo411M/BE=
 github.com/decred/go-socks v1.0.0/go.mod h1:sDhHqkZH0X4JjSa02oYOGhcGHYp12FsY1jQ/meV8md0=
+github.com/decred/go-socks v1.0.1-0.20191001171050-775b73941e73 h1:Q0DQx1l1JKXp5cQDYeU3kaEa/4AvvsO+wM+Z+Cv+flc=
+github.com/decred/go-socks v1.0.1-0.20191001171050-775b73941e73/go.mod h1:sDhHqkZH0X4JjSa02oYOGhcGHYp12FsY1jQ/meV8md0=
 github.com/decred/slog v1.0.0 h1:Dl+W8O6/JH6n2xIFN2p3DNjCmjYwvrXsjlSJTQQ4MhE=
 github.com/decred/slog v1.0.0/go.mod h1:zR98rEZHSnbZ4WHZtO0iqmSZjDLKhkXfrPTZQKtAonQ=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
