@@ -195,6 +195,8 @@ var (
 	coinTypeLegacyPubKeyName    = []byte("ctpub")
 	coinTypeSLIP0044PrivKeyName = []byte("ctpriv-slip0044")
 	coinTypeSLIP0044PubKeyName  = []byte("ctpub-slip0044")
+	vspPurposeBranchPrivKeyName = []byte("vsp-priv")
+	vspPurposeBranchPubKeyName  = []byte("vsp-pub")
 	watchingOnlyName            = []byte("watchonly")
 	slip0044Account0RowName     = []byte("slip0044acct0")
 
@@ -366,6 +368,29 @@ func putCoinTypeSLIP0044Keys(ns walletdb.ReadWriteBucket, coinTypePubKeyEnc []by
 
 	if coinTypePrivKeyEnc != nil {
 		err := bucket.Put(coinTypeSLIP0044PrivKeyName, coinTypePrivKeyEnc)
+		if err != nil {
+			return errors.E(errors.IO, err)
+		}
+	}
+
+	return nil
+}
+
+// putVSPPurposeBranchKeys stores the encrypted vsp purpose keys which are in
+// turn used to derive the address private keys to be shared with vsps. Either
+// parameter can be nil in which case no value is written for the parameter.
+func putVSPPurposeBranchKeys(ns walletdb.ReadWriteBucket, vspXPubEnc []byte, vspXPrivEnc []byte) error {
+	bucket := ns.NestedReadWriteBucket(mainBucketName)
+
+	if vspXPubEnc != nil {
+		err := bucket.Put(vspPurposeBranchPubKeyName, vspXPubEnc)
+		if err != nil {
+			return errors.E(errors.IO, err)
+		}
+	}
+
+	if vspXPrivEnc != nil {
+		err := bucket.Put(vspPurposeBranchPrivKeyName, vspXPrivEnc)
 		if err != nil {
 			return errors.E(errors.IO, err)
 		}
@@ -1229,6 +1254,9 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 		return errors.E(errors.IO, err)
 	}
 	if err := bucket.Delete(coinTypeSLIP0044PrivKeyName); err != nil {
+		return errors.E(errors.IO, err)
+	}
+	if err := bucket.Delete(vspPurposeBranchPrivKeyName); err != nil {
 		return errors.E(errors.IO, err)
 	}
 
