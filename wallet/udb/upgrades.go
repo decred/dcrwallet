@@ -100,7 +100,7 @@ const (
 	// from properly-synced wallets.
 	lastProcessedTxsBlockVersion = 11
 
-	// ticketCommitmentsVersion the twelfth version of the database. It adds
+	// ticketCommitmentsVersion is the twelfth version of the database. It adds
 	// the ticketCommitment bucket to the txmgr namespace. This bucket is meant
 	// to track outstanding ticket commitment outputs for the purposes of
 	// correct balance calculation: it allows non-voting wallets (eg: funding
@@ -110,10 +110,14 @@ const (
 	// accounting of total locked funds.
 	ticketCommitmentsVersion = 12
 
+	// vspPurposeBranchVersion is the thirteenth version of the database. It ...
+	// todo complete description.
+	vspPurposeBranchVersion = 13
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = ticketCommitmentsVersion
+	DBVersion = vspPurposeBranchVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -131,6 +135,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	cfVersion - 1:                    cfUpgrade,
 	lastProcessedTxsBlockVersion - 1: lastProcessedTxsBlockUpgrade,
 	ticketCommitmentsVersion - 1:     ticketCommitmentsUpgrade,
+	vspPurposeBranchVersion - 1:      vspPurposeBranchUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -989,6 +994,29 @@ func ticketCommitmentsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, 
 	}
 
 	log.Debug("Ticket commitments db upgrade done")
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func vspPurposeBranchUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 12
+	const newVersion = 13
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 11 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "ticketCommitmentsUpgrade inappropriately called")
+	}
+
+	// todo upgrade db
+
+	log.Debug("VSP purpose branch db upgrade done")
 
 	// Write the new database version.
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)

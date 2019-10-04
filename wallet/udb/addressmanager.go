@@ -2126,7 +2126,7 @@ func newManager(chainParams *chaincfg.Params, masterKeyPub *snacl.SecretKey,
 
 // deriveCoinTypeKey derives the cointype key which can be used to derive the
 // extended key for an account according to the hierarchy described by BIP0044
-// given the coin type key.
+// given the coin type.
 //
 // In particular this is the hierarchical deterministic extended key path:
 // m/44'/<coin type>'
@@ -2145,6 +2145,37 @@ func deriveCoinTypeKey(masterNode *hdkeychain.ExtendedKey, coinType uint32) (*hd
 
 	// Derive the purpose key as a child of the master node.
 	purpose, err := masterNode.Child(44 + hdkeychain.HardenedKeyStart)
+	if err != nil {
+		return nil, err
+	}
+
+	// Derive the coin type key as a child of the purpose key.
+	coinTypeKey, err := purpose.Child(coinType + hdkeychain.HardenedKeyStart)
+	if err != nil {
+		return nil, err
+	}
+
+	return coinTypeKey, nil
+}
+
+// deriveVSPPurposeCoinTypeKey derives the extended private key which can be
+// used to derive address private keys to share with VSPs given the coin type.
+//
+// In particular this is the hierarchical deterministic extended key path:
+// m/14679'/<coin type>'
+func deriveVSPPurposeCoinTypeKey(masterNode *hdkeychain.ExtendedKey, coinType uint32) (*hdkeychain.ExtendedKey, error) {
+	// Enforce maximum coin type.
+	if coinType > maxCoinType {
+		return nil, errors.E(errors.Invalid, errors.Errorf("coin type %d", coinType))
+	}
+
+	// The hierarchy described by BIP0043 is:
+	//  m/<purpose>'/*
+	// This is further extended by VSP purpose branch format to:
+	//  m/14679'/<coin type>'/<address index>'
+
+	// Derive the purpose key as a child of the master node.
+	purpose, err := masterNode.Child(14679 + hdkeychain.HardenedKeyStart)
 	if err != nil {
 		return nil, err
 	}
@@ -2189,7 +2220,7 @@ func checkBranchKeys(acctKey *hdkeychain.ExtendedKey) error {
 		return err
 	}
 
-	// Derive the external branch as the second child of the account key.
+	// Derive the internal branch as the second child of the account key.
 	_, err := acctKey.Child(InternalBranch)
 	return err
 }
@@ -2275,6 +2306,9 @@ func CoinTypes(params *chaincfg.Params) (legacyCoinType, slip0044CoinType uint32
 // will be used to create the master root node from which all hierarchical
 // deterministic addresses are derived.  This allows all chained addresses in
 // the address manager to be recovered by using the same seed.
+//
+// The seed is also used to derive the extended public and private keys for
+// the vsp purpose branch.
 //
 // All private and public keys and information are protected by secret keys
 // derived from the provided private and public passphrases.  The public
@@ -2481,6 +2515,29 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		return errors.E(errors.Crypto, fmt.Errorf("encrypt account 0 privkey: %v", err))
 	}
 
+	// Derive the vsp purpose extended private key.
+	vspPurposeExtPrivKey, err := deriveVSPPurposeCoinTypeKey(root, slip0044CoinType)
+	if err != nil {
+		return err
+	}
+	defer vspPurposeExtPrivKey.Zero()
+
+	// Encrypt the vsp purpose branch keys with the associated crypto keys.
+	vspPurposeExtPubKey, err := vspPurposeExtPrivKey.Neuter()
+	if err != nil {
+		return err
+	}
+	vspPurposeXPub := vspPurposeExtPubKey.String()
+	vspPurposeXPubEnc, err := cryptoKeyPub.Encrypt([]byte(vspPurposeXPub))
+	if err != nil {
+		return errors.E(errors.Crypto, fmt.Errorf("encrypt vsp purpose branch pubkey: %v", err))
+	}
+	vspPurposeXPriv := vspPurposeExtPrivKey.String()
+	vspPurposeXPrivEnc, err := cryptoKeyPriv.Encrypt([]byte(vspPurposeXPriv))
+	if err != nil {
+		return errors.E(errors.Crypto, fmt.Errorf("encrypt vsp purpose branch privkey: %v", err))
+	}
+
 	// Save the master key params to the database.
 	pubParams := masterKeyPub.Marshal()
 	privParams := masterKeyPriv.Marshal()
@@ -2504,6 +2561,12 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 
 	// Save the encrypted SLIP0044 cointype keys.
 	err = putCoinTypeSLIP0044Keys(ns, coinTypeSLIP0044PubEnc, coinTypeSLIP0044PrivEnc)
+	if err != nil {
+		return err
+	}
+
+	// Save the encrypted vsp purpose branch keys.
+	err = putVSPPurposeBranchKeys(ns, vspPurposeXPubEnc, vspPurposeXPrivEnc)
 	if err != nil {
 		return err
 	}
