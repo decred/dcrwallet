@@ -624,7 +624,17 @@ func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, re
 			return err
 		}
 		utxoCount = uint64(len(unspent))
-		return n.LoadTxFilter(ctx, false, nil, unspent)
+		const chunk = 64 // partition into chunks and load each individually
+		for i := 0; i < len(unspent); i += chunk {
+			part := unspent[i*chunk:]
+			if len(part) > chunk {
+				part = part[:chunk]
+			}
+			if err := n.LoadTxFilter(ctx, false, nil, part); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return errors.E(op, err)
