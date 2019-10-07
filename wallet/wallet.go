@@ -626,7 +626,7 @@ func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, re
 		utxoCount = uint64(len(unspent))
 		const chunk = 64 // partition into chunks and load each individually
 		for i := 0; i < len(unspent); i += chunk {
-			part := unspent[i*chunk:]
+			part := unspent[i:]
 			if len(part) > chunk {
 				part = part[:chunk]
 			}
