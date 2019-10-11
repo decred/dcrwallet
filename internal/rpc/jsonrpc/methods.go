@@ -1940,7 +1940,7 @@ func (s *Server) listScripts(ctx context.Context, icmd interface{}) (interface{}
 		return nil, errUnloadedWallet
 	}
 
-	redeemScripts, err := w.FetchAllRedeemScripts(ctx, )
+	redeemScripts, err := w.FetchAllRedeemScripts(ctx)
 	if err != nil {
 		return nil, err
 	}

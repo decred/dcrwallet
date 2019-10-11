@@ -57,11 +57,12 @@ func (w *Wallet) MakeSecp256k1MultiSigScript(ctx context.Context, secp256k1Addrs
 
 			if dbtx == nil {
 				var err error
+				defer trace.StartRegion(ctx, "db.View").End()
 				dbtx, err = w.db.BeginReadTx()
 				if err != nil {
 					return nil, err
 				}
-				defer trace.StartRegion(ctx, "db.View").End()
+				defer trace.StartRegion(ctx, "db.ReadTx").End()
 				addrmgrNs = dbtx.ReadBucket(waddrmgrNamespaceKey)
 			}
 			addrInfo, err := w.Manager.Address(addrmgrNs, addr)

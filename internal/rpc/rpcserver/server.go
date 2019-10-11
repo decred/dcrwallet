@@ -311,7 +311,7 @@ func (s *walletServer) AccountNumber(ctx context.Context, req *pb.AccountNumberR
 }
 
 func (s *walletServer) Accounts(ctx context.Context, req *pb.AccountsRequest) (*pb.AccountsResponse, error) {
-	resp, err := s.wallet.Accounts(ctx, )
+	resp, err := s.wallet.Accounts(ctx)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -645,11 +645,11 @@ func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
 }
 
 func (s *walletServer) TicketPrice(ctx context.Context, req *pb.TicketPriceRequest) (*pb.TicketPriceResponse, error) {
-	sdiff, err := s.wallet.NextStakeDifficulty(ctx, )
+	sdiff, err := s.wallet.NextStakeDifficulty(ctx)
 	if err != nil {
 		return nil, translateError(err)
 	}
-	_, tipHeight := s.wallet.MainChainTip(ctx, )
+	_, tipHeight := s.wallet.MainChainTip(ctx)
 	resp := &pb.TicketPriceResponse{
 		TicketPrice: int64(sdiff),
 		Height:      tipHeight,
@@ -668,7 +668,7 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 	if rpc != nil {
 		si, err = s.wallet.StakeInfoPrecise(ctx, rpc)
 	} else {
-		si, err = s.wallet.StakeInfo(ctx, )
+		si, err = s.wallet.StakeInfo(ctx)
 	}
 	if err != nil {
 		return nil, translateError(err)
@@ -2752,7 +2752,7 @@ func (s *votingServer) checkReady() bool {
 
 func (s *votingServer) VoteChoices(ctx context.Context, req *pb.VoteChoicesRequest) (*pb.VoteChoicesResponse, error) {
 	version, agendas := wallet.CurrentAgendas(s.wallet.ChainParams())
-	choices, voteBits, err := s.wallet.AgendaChoices(ctx, )
+	choices, voteBits, err := s.wallet.AgendaChoices(ctx)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -2957,7 +2957,7 @@ func (s *decodeMessageServer) DecodeRawTransaction(ctx context.Context, req *pb.
 }
 
 func (s *walletServer) BestBlock(ctx context.Context, req *pb.BestBlockRequest) (*pb.BestBlockResponse, error) {
-	hash, height := s.wallet.MainChainTip(ctx, )
+	hash, height := s.wallet.MainChainTip(ctx)
 	resp := &pb.BestBlockResponse{
 		Hash:   hash[:],
 		Height: uint32(height),

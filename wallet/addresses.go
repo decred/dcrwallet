@@ -355,11 +355,12 @@ func (w *Wallet) persistReturnedChild(ctx context.Context, maybeDBTX walletdb.Re
 		// transaction as necessary.
 		if maybeDBTX == nil {
 			var err error
+			defer trace.StartRegion(ctx, "db.Update").End()
 			maybeDBTX, err = w.db.BeginReadWriteTx()
 			if err != nil {
 				return err
 			}
-			region := trace.StartRegion(ctx, "db.Update")
+			region := trace.StartRegion(ctx, "db.ReadWriteTx")
 			defer func() {
 				if rerr == nil {
 					rerr = maybeDBTX.Commit()

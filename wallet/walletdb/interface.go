@@ -199,11 +199,13 @@ type DB interface {
 // any occurred).
 func View(ctx context.Context, db DB, f func(tx ReadTx) error) error {
 	defer trace.StartRegion(ctx, "db.View").End()
-	
+
 	tx, err := db.BeginReadTx()
 	if err != nil {
 		return err
 	}
+
+	defer trace.StartRegion(ctx, "db.ReadTx").End()
 
 	// Rollback the transaction after f returns or panics.  Do not recover from
 	// any panic to keep the original stack trace intact.
@@ -224,11 +226,13 @@ func View(ctx context.Context, db DB, f func(tx ReadTx) error) error {
 // by f is still returned.  If the commit fails, the commit error is returned.
 func Update(ctx context.Context, db DB, f func(tx ReadWriteTx) error) (err error) {
 	defer trace.StartRegion(ctx, "db.Update").End()
-	
+
 	tx, err := db.BeginReadWriteTx()
 	if err != nil {
 		return err
 	}
+
+	defer trace.StartRegion(ctx, "db.ReadWriteTx").End()
 
 	// Commit or rollback the transaction after f returns or panics.  Do not
 	// recover from the panic to keep the original stack trace intact.
