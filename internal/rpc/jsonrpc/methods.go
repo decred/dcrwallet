@@ -12,33 +12,15 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-<<<<<<< HEAD
-	"hash"
-	"io/ioutil"
 	"math/big"
 	"sort"
 	"strconv"
 	"strings"
-=======
->>>>>>> update
 	"sync"
 	"time"
 
-<<<<<<< HEAD:internal/rpc/jsonrpc/methods.go
 	"github.com/decred/dcrd/blockchain/stake/v2"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
-=======
-<<<<<<< HEAD
-<<<<<<< HEAD
-	"github.com/decred/dcrd/blockchain"
-=======
-	"github.com/decred/base58"
->>>>>>> legacyrpc: add paytocontracthashaddress rpc method
-=======
->>>>>>> update
-	"github.com/decred/dcrd/blockchain/stake"
-	"github.com/decred/dcrd/chaincfg"
->>>>>>> legacyrpc: add getContractHash method:rpc/legacyrpc/methods.go
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrec"
