@@ -196,7 +196,7 @@ func run(ctx context.Context) error {
 		errc := make(chan error, 1)
 		go func() {
 			var err error
-			w, err = loader.OpenExistingWallet(walletPass)
+			w, err = loader.OpenExistingWallet(ctx, walletPass)
 			if err != nil {
 				log.Errorf("Failed to open wallet: %v", err)
 				if errors.Is(err, errors.Passphrase) {
@@ -228,7 +228,7 @@ func run(ctx context.Context) error {
 		// the wallet only over RPC, disable this feature for them.
 		if cfg.Pass != "" {
 			passphrase = []byte(cfg.Pass)
-			err = w.Unlock(passphrase, nil)
+			err = w.Unlock(ctx, passphrase, nil)
 			if err != nil {
 				log.Errorf("Incorrect passphrase in pass config setting.")
 				return err
@@ -239,7 +239,7 @@ func run(ctx context.Context) error {
 
 		// Start a ticket buyer.
 		if cfg.EnableTicketBuyer {
-			acct, err := w.AccountNumber(cfg.PurchaseAccount)
+			acct, err := w.AccountNumber(ctx, cfg.PurchaseAccount)
 			if err != nil {
 				log.Errorf("Purchase account %q does not exist", cfg.PurchaseAccount)
 				return err
@@ -359,7 +359,7 @@ func startPromptPass(ctx context.Context, w *wallet.Wallet) []byte {
 	// The wallet is totally desynced, so we need to resync accounts.
 	// Prompt for the password. Then, set the flag it wallet so it
 	// knows which address functions to call when resyncing.
-	needSync, err := w.NeedsAccountsSync()
+	needSync, err := w.NeedsAccountsSync(ctx)
 	if err != nil {
 		log.Errorf("Error determining whether an accounts sync is necessary: %v", err)
 	}
@@ -389,7 +389,7 @@ func startPromptPass(ctx context.Context, w *wallet.Wallet) []byte {
 	// are prompted here as well.
 	for {
 		if w.ChainParams().Net == wire.SimNet {
-			err := w.Unlock(wallet.SimulationPassphrase, nil)
+			err := w.Unlock(ctx, wallet.SimulationPassphrase, nil)
 			if err == nil {
 				// Unlock success with the default password.
 				return wallet.SimulationPassphrase
@@ -401,7 +401,7 @@ func startPromptPass(ctx context.Context, w *wallet.Wallet) []byte {
 			return nil
 		}
 
-		err = w.Unlock(passphrase, nil)
+		err = w.Unlock(ctx, passphrase, nil)
 		if err != nil {
 			fmt.Println("Incorrect password entered. Please " +
 				"try again.")

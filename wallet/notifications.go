@@ -351,7 +351,7 @@ func (s *NotificationServer) notifyAttachedBlock(dbtx walletdb.ReadTx, block *wi
 	}
 }
 
-func (s *NotificationServer) sendAttachedBlockNotification() {
+func (s *NotificationServer) sendAttachedBlockNotification(ctx context.Context) {
 	// Avoid work if possible
 	s.mu.Lock()
 	if len(s.transactions) == 0 {
@@ -375,7 +375,7 @@ func (s *NotificationServer) sendAttachedBlockNotification() {
 		bals          = make(map[uint32]dcrutil.Amount)
 		unminedHashes []*chainhash.Hash
 	)
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
 		unminedHashes, err = w.TxStore.UnminedTxHashes(txmgrNs)
@@ -834,7 +834,7 @@ type ConfirmationNotification struct {
 func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stopAfter int32) {
 	w := c.s.wallet
 	r := make([]ConfirmationNotification, 0, len(c.watched))
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(c.ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 		// cannot range here, txHashes may be modified
@@ -930,7 +930,7 @@ func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
 		result: make([]ConfirmationNotification, 0, len(c.watched)),
 	}
 	var unwatch []*chainhash.Hash
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(c.ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		for txHash, stopAfter := range c.watched {
 			txHash := txHash // copy

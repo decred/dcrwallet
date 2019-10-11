@@ -152,11 +152,11 @@ type Config struct {
 
 // FetchOutput fetches the associated transaction output given an outpoint.
 // It cannot be used to fetch multi-signature outputs.
-func (w *Wallet) FetchOutput(outPoint *wire.OutPoint) (*wire.TxOut, error) {
+func (w *Wallet) FetchOutput(ctx context.Context, outPoint *wire.OutPoint) (*wire.TxOut, error) {
 	const op errors.Op = "wallet.FetchOutput"
 
 	var out *wire.TxOut
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		outTx, err := w.TxStore.Tx(txmgrNs, &outPoint.Hash)
 		if err != nil {
@@ -271,7 +271,7 @@ type AgendaChoice struct {
 
 // AgendaChoices returns the choice IDs for every agenda of the supported stake
 // version.  Abstains are included.
-func (w *Wallet) AgendaChoices() (choices []AgendaChoice, voteBits uint16, err error) {
+func (w *Wallet) AgendaChoices(ctx context.Context) (choices []AgendaChoice, voteBits uint16, err error) {
 	const op errors.Op = "wallet.AgendaChoices"
 	version, deployments := CurrentAgendas(w.chainParams)
 	if len(deployments) == 0 {
@@ -284,7 +284,7 @@ func (w *Wallet) AgendaChoices() (choices []AgendaChoice, voteBits uint16, err e
 	}
 
 	voteBits = 1
-	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		for i := range deployments {
 			agenda := &deployments[i].Vote
 			choice := udb.AgendaPreference(tx, version, agenda.Id)
@@ -310,7 +310,7 @@ func (w *Wallet) AgendaChoices() (choices []AgendaChoice, voteBits uint16, err e
 // SetAgendaChoices sets the choices for agendas defined by the supported stake
 // version.  If a choice is set multiple times, the last takes preference.  The
 // new votebits after each change is made are returned.
-func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) (voteBits uint16, err error) {
+func (w *Wallet) SetAgendaChoices(ctx context.Context, choices ...AgendaChoice) (voteBits uint16, err error) {
 	const op errors.Op = "wallet.SetAgendaChoices"
 	version, deployments := CurrentAgendas(w.chainParams)
 	if len(deployments) == 0 {
@@ -323,7 +323,7 @@ func (w *Wallet) SetAgendaChoices(choices ...AgendaChoice) (voteBits uint16, err
 	}
 	var appliedChoices []maskChoice
 
-	err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		for _, c := range choices {
 			var matchingAgenda *chaincfg.Vote
 			for i := range deployments {
@@ -426,12 +426,12 @@ func (w *Wallet) SetTicketFeeIncrement(fee dcrutil.Amount) {
 
 // MainChainTip returns the hash and height of the tip-most block in the main
 // chain that the wallet is synchronized to.
-func (w *Wallet) MainChainTip() (hash chainhash.Hash, height int32) {
+func (w *Wallet) MainChainTip(ctx context.Context) (hash chainhash.Hash, height int32) {
 	// TODO: after the main chain tip is successfully updated in the db, it
 	// should be saved in memory.  This will speed up access to it, and means
 	// there won't need to be an ignored error here for ergonomic access to the
 	// hash and height.
-	walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		hash, height = w.TxStore.MainChainTip(txmgrNs)
 		return nil
@@ -442,9 +442,9 @@ func (w *Wallet) MainChainTip() (hash chainhash.Hash, height int32) {
 // BlockInMainChain returns whether hash is a block hash of any block in the
 // wallet's main chain.  If the block is in the main chain, invalidated reports
 // whether a child block in the main chain stake invalidates the queried block.
-func (w *Wallet) BlockInMainChain(hash *chainhash.Hash) (haveBlock, invalidated bool, err error) {
+func (w *Wallet) BlockInMainChain(ctx context.Context,hash *chainhash.Hash) (haveBlock, invalidated bool, err error) {
 	const op errors.Op = "wallet.BlockInMainChain"
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		haveBlock, invalidated = w.TxStore.BlockInMainChain(dbtx, hash)
 		return nil
 	})
@@ -456,9 +456,9 @@ func (w *Wallet) BlockInMainChain(hash *chainhash.Hash) (haveBlock, invalidated 
 
 // BlockHeader returns the block header for a block by it's identifying hash, if
 // it is recorded by the wallet.
-func (w *Wallet) BlockHeader(blockHash *chainhash.Hash) (*wire.BlockHeader, error) {
+func (w *Wallet) BlockHeader(ctx context.Context, blockHash *chainhash.Hash) (*wire.BlockHeader, error) {
 	var header *wire.BlockHeader
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		header, err = w.TxStore.GetBlockHeader(dbtx, blockHash)
 		return err
@@ -467,9 +467,9 @@ func (w *Wallet) BlockHeader(blockHash *chainhash.Hash) (*wire.BlockHeader, erro
 }
 
 // CFilter returns the regular compact filter for a block.
-func (w *Wallet) CFilter(blockHash *chainhash.Hash) (*gcs.Filter, error) {
+func (w *Wallet) CFilter(ctx context.Context, blockHash *chainhash.Hash) (*gcs.Filter, error) {
 	var f *gcs.Filter
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		f, err = w.TxStore.CFilter(dbtx, blockHash)
 		return err
@@ -568,10 +568,10 @@ func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb N
 // CoinType returns the active BIP0044 coin type. For watching-only wallets,
 // which do not save the coin type keys, this method will return an error with
 // code errors.WatchingOnly.
-func (w *Wallet) CoinType() (uint32, error) {
+func (w *Wallet) CoinType(ctx context.Context) (uint32, error) {
 	const op errors.Op = "wallet.CoinType"
 	var coinType uint32
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		var err error
 		coinType, err = w.Manager.CoinType(tx)
 		return err
@@ -583,10 +583,10 @@ func (w *Wallet) CoinType() (uint32, error) {
 }
 
 // CoinTypePrivKey returns the BIP0044 coin type private key.
-func (w *Wallet) CoinTypePrivKey() (*hdkeychain.ExtendedKey, error) {
+func (w *Wallet) CoinTypePrivKey(ctx context.Context) (*hdkeychain.ExtendedKey, error) {
 	const op errors.Op = "wallet.CoinTypePrivKey"
 	var coinTypePrivKey *hdkeychain.ExtendedKey
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		var err error
 		coinTypePrivKey, err = w.Manager.CoinTypePrivKey(tx)
 		return err
@@ -611,7 +611,7 @@ func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, re
 	}
 
 	var addrCount, utxoCount uint64
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		addrCount, err = w.loadActiveAddrs(ctx, dbtx, n)
 		if err != nil {
@@ -647,12 +647,12 @@ func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, re
 
 // CommittedTickets takes a list of tickets and returns a filtered list of
 // tickets that are controlled by this wallet.
-func (w *Wallet) CommittedTickets(tickets []*chainhash.Hash) ([]*chainhash.Hash, []dcrutil.Address, error) {
+func (w *Wallet) CommittedTickets(ctx context.Context,tickets []*chainhash.Hash) ([]*chainhash.Hash, []dcrutil.Address, error) {
 	const op errors.Op = "wallet.CommittedTickets"
 	hashes := make([]*chainhash.Hash, 0, len(tickets))
 	addresses := make([]dcrutil.Address, 0, len(tickets))
 	// Verify we own this ticket
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		for _, v := range tickets {
@@ -732,7 +732,7 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, p Peer, progress chan
 	var missing bool
 	var height int32
 
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		missing = w.TxStore.IsMissingMainChainCFilters(dbtx)
 		if missing {
@@ -760,7 +760,7 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, p Peer, progress chan
 		var hashes []chainhash.Hash
 		var get []*chainhash.Hash
 		var cont bool
-		err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 			ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 			var err error
 			missing = w.TxStore.IsMissingMainChainCFilters(dbtx)
@@ -808,7 +808,7 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, p Peer, progress chan
 			return err
 		}
 
-		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			_, err := w.TxStore.CFilter(dbtx, get[len(get)-1])
 			if err == nil {
 				cont = true
@@ -911,10 +911,10 @@ func log2(x int) int {
 // from the tip are returned.  Otherwise, locators are created starting with the
 // best (last) block of sidechain and sidechain[0] must be a child of a main
 // chain block (sidechain may not contain orphan blocks).
-func (w *Wallet) BlockLocators(sidechain []*BlockNode) ([]*chainhash.Hash, error) {
+func (w *Wallet) BlockLocators(ctx context.Context,sidechain []*BlockNode) ([]*chainhash.Hash, error) {
 	const op errors.Op = "wallet.BlockLocators"
 	var locators []*chainhash.Hash
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		locators, err = w.blockLocators(dbtx, sidechain)
 		return err
@@ -966,7 +966,7 @@ func (w *Wallet) blockLocators(dbtx walletdb.ReadTx, sidechain []*BlockNode) ([]
 
 func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstNew chainhash.Hash, err error) {
 	var blockLocators []*chainhash.Hash
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		blockLocators, err = w.blockLocators(dbtx, nil)
 		return err
@@ -1009,10 +1009,10 @@ func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstN
 		log.Debugf("First header: block %v", &headerData[0].BlockHash)
 
 		var brk bool
-		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			ns := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 			addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
-			chain, err := w.EvaluateBestChain(&chainBuilder)
+			chain, err := w.EvaluateBestChain(ctx, &chainBuilder)
 			if err != nil {
 				return err
 			}
@@ -1065,7 +1065,7 @@ func (w *Wallet) FetchHeaders(ctx context.Context, p Peer) (count int, rescanFro
 		return
 	}
 
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		mainChainTipBlockHash, mainChainTipBlockHeight = w.TxStore.MainChainTip(ns)
@@ -1193,7 +1193,7 @@ type heldUnlock chan struct{}
 // locked in the background after reading from the channel.
 // If the wallet is already unlocked with a previous timeout, the new timeout
 // replaces the prior.
-func (w *Wallet) Unlock(passphrase []byte, timeout <-chan time.Time) error {
+func (w *Wallet) Unlock(ctx context.Context,passphrase []byte, timeout <-chan time.Time) error {
 	const op errors.Op = "wallet.Unlock"
 
 	w.passphraseUsedMu.RLock()
@@ -1214,7 +1214,7 @@ func (w *Wallet) Unlock(passphrase []byte, timeout <-chan time.Time) error {
 	case errors.Is(err, errors.Locked):
 		defer w.passphraseUsedMu.Unlock()
 		w.passphraseUsedMu.Lock()
-		err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 			addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 			return w.Manager.Unlock(addrmgrNs, passphrase)
 		})
@@ -1311,11 +1311,11 @@ func (c heldUnlock) release() {
 // old to new.  Changing the passphrase is synchronized with all other address
 // manager locking and unlocking.  The lock state will be the same as it was
 // before the password change.
-func (w *Wallet) ChangePrivatePassphrase(old, new []byte) error {
+func (w *Wallet) ChangePrivatePassphrase(ctx context.Context,old, new []byte) error {
 	const op errors.Op = "wallet.ChangePrivatePassphrase"
 	defer w.passphraseUsedMu.Unlock()
 	w.passphraseUsedMu.Lock()
-	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 		return w.Manager.ChangePassphrase(addrmgrNs, old, new, true)
 	})
@@ -1326,9 +1326,9 @@ func (w *Wallet) ChangePrivatePassphrase(old, new []byte) error {
 }
 
 // ChangePublicPassphrase modifies the public passphrase of the wallet.
-func (w *Wallet) ChangePublicPassphrase(old, new []byte) error {
+func (w *Wallet) ChangePublicPassphrase(ctx context.Context,old, new []byte) error {
 	const op errors.Op = "wallet.ChangePublicPassphrase"
-	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 		return w.Manager.ChangePassphrase(addrmgrNs, old, new, false)
 	})
@@ -1340,10 +1340,10 @@ func (w *Wallet) ChangePublicPassphrase(old, new []byte) error {
 
 // CalculateAccountBalance sums the amounts of all unspent transaction
 // outputs to the given account of a wallet and returns the balance.
-func (w *Wallet) CalculateAccountBalance(account uint32, confirms int32) (udb.Balances, error) {
+func (w *Wallet) CalculateAccountBalance(ctx context.Context,account uint32, confirms int32) (udb.Balances, error) {
 	const op errors.Op = "wallet.CalculateAccountBalance"
 	var balance udb.Balances
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
@@ -1361,10 +1361,10 @@ func (w *Wallet) CalculateAccountBalance(account uint32, confirms int32) (udb.Ba
 // CalculateAccountBalances calculates the values for the wtxmgr struct Balance,
 // which includes the total balance, the spendable balance, and the balance
 // which has yet to mature.
-func (w *Wallet) CalculateAccountBalances(confirms int32) (map[uint32]*udb.Balances, error) {
+func (w *Wallet) CalculateAccountBalances(ctx context.Context,confirms int32) (map[uint32]*udb.Balances, error) {
 	const op errors.Op = "wallet.CalculateAccountBalances"
 	balances := make(map[uint32]*udb.Balances)
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		return w.Manager.ForEachAccount(addrmgrNs, func(acct uint32) error {
@@ -1411,10 +1411,10 @@ func (w *Wallet) CurrentAddress(account uint32) (dcrutil.Address, error) {
 }
 
 // PubKeyForAddress looks up the associated public key for a P2PKH address.
-func (w *Wallet) PubKeyForAddress(a dcrutil.Address) (chainec.PublicKey, error) {
+func (w *Wallet) PubKeyForAddress(ctx context.Context,a dcrutil.Address) (chainec.PublicKey, error) {
 	const op errors.Op = "wallet.PubKeyForAddress"
 	var pubKey chainec.PublicKey
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		managedAddr, err := w.Manager.Address(addrmgrNs, a)
 		if err != nil {
@@ -1435,7 +1435,7 @@ func (w *Wallet) PubKeyForAddress(a dcrutil.Address) (chainec.PublicKey, error) 
 
 // SignMessage returns the signature of a signed message using an address'
 // associated private key.
-func (w *Wallet) SignMessage(msg string, addr dcrutil.Address) (sig []byte, err error) {
+func (w *Wallet) SignMessage(ctx context.Context,msg string, addr dcrutil.Address) (sig []byte, err error) {
 	const op errors.Op = "wallet.SignMessage"
 	var buf bytes.Buffer
 	wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
@@ -1448,7 +1448,7 @@ func (w *Wallet) SignMessage(msg string, addr dcrutil.Address) (sig []byte, err 
 			done()
 		}
 	}()
-	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
 		privKey, done, err = w.Manager.PrivateKey(addrmgrNs, addr)
@@ -1501,9 +1501,9 @@ func VerifyMessage(msg string, addr dcrutil.Address, sig []byte, params dcrutil.
 }
 
 // HaveAddress returns whether the wallet is the owner of the address a.
-func (w *Wallet) HaveAddress(a dcrutil.Address) (bool, error) {
+func (w *Wallet) HaveAddress(ctx context.Context,a dcrutil.Address) (bool, error) {
 	const op errors.Op = "wallet.HaveAddress"
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		_, err := w.Manager.Address(addrmgrNs, a)
 		return err
@@ -1518,10 +1518,10 @@ func (w *Wallet) HaveAddress(a dcrutil.Address) (bool, error) {
 }
 
 // AccountOfAddress finds the account that an address is associated with.
-func (w *Wallet) AccountOfAddress(a dcrutil.Address) (uint32, error) {
+func (w *Wallet) AccountOfAddress(ctx context.Context,a dcrutil.Address) (uint32, error) {
 	const op errors.Op = "wallet.AccountOfAddress"
 	var account uint32
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
 		account, err = w.Manager.AddrAccount(addrmgrNs, a)
@@ -1534,10 +1534,10 @@ func (w *Wallet) AccountOfAddress(a dcrutil.Address) (uint32, error) {
 }
 
 // AddressInfo returns detailed information regarding a wallet address.
-func (w *Wallet) AddressInfo(a dcrutil.Address) (udb.ManagedAddress, error) {
+func (w *Wallet) AddressInfo(ctx context.Context,a dcrutil.Address) (udb.ManagedAddress, error) {
 	const op errors.Op = "wallet.AddressInfo"
 	var managedAddress udb.ManagedAddress
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
 		managedAddress, err = w.Manager.Address(addrmgrNs, a)
@@ -1550,10 +1550,10 @@ func (w *Wallet) AddressInfo(a dcrutil.Address) (udb.ManagedAddress, error) {
 }
 
 // AccountNumber returns the account number for an account name.
-func (w *Wallet) AccountNumber(accountName string) (uint32, error) {
+func (w *Wallet) AccountNumber(ctx context.Context,accountName string) (uint32, error) {
 	const op errors.Op = "wallet.AccountNumber"
 	var account uint32
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
 		account, err = w.Manager.LookupAccount(addrmgrNs, accountName)
@@ -1566,10 +1566,10 @@ func (w *Wallet) AccountNumber(accountName string) (uint32, error) {
 }
 
 // AccountName returns the name of an account.
-func (w *Wallet) AccountName(accountNumber uint32) (string, error) {
+func (w *Wallet) AccountName(ctx context.Context,accountNumber uint32) (string, error) {
 	const op errors.Op = "wallet.AccountName"
 	var accountName string
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
 		accountName, err = w.Manager.AccountName(addrmgrNs, accountNumber)
@@ -1584,10 +1584,10 @@ func (w *Wallet) AccountName(accountNumber uint32) (string, error) {
 // AccountProperties returns the properties of an account, including address
 // indexes and name. It first fetches the desynced information from the address
 // manager, then updates the indexes based on the address pools.
-func (w *Wallet) AccountProperties(acct uint32) (*udb.AccountProperties, error) {
+func (w *Wallet) AccountProperties(ctx context.Context,acct uint32) (*udb.AccountProperties, error) {
 	const op errors.Op = "wallet.AccountProperties"
 	var props *udb.AccountProperties
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		waddrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
 		props, err = w.Manager.AccountProperties(waddrmgrNs, acct)
@@ -1600,10 +1600,10 @@ func (w *Wallet) AccountProperties(acct uint32) (*udb.AccountProperties, error) 
 }
 
 // RenameAccount sets the name for an account number to newName.
-func (w *Wallet) RenameAccount(account uint32, newName string) error {
+func (w *Wallet) RenameAccount(ctx context.Context,account uint32, newName string) error {
 	const op errors.Op = "wallet.RenameAccount"
 	var props *udb.AccountProperties
-	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 		err := w.Manager.RenameAccount(addrmgrNs, account, newName)
 		if err != nil {
@@ -1630,7 +1630,7 @@ func (w *Wallet) NextAccount(ctx context.Context, name string) (uint32, error) {
 	var account uint32
 	var props *udb.AccountProperties
 	var xpub *hdkeychain.ExtendedKey
-	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 
 		// Ensure that there is transaction history in the last 100 accounts.
@@ -1728,10 +1728,10 @@ func (w *Wallet) NextAccount(ctx context.Context, name string) (uint32, error) {
 }
 
 // MasterPubKey returns the BIP0044 master public key for the passed account.
-func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
+func (w *Wallet) MasterPubKey(ctx context.Context,account uint32) (*hdkeychain.ExtendedKey, error) {
 	const op errors.Op = "wallet.MasterPubKey"
 	var masterPubKey string
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
 		masterPubKey, err = w.Manager.GetMasterPubkey(addrmgrNs, account)
@@ -1750,11 +1750,11 @@ func (w *Wallet) MasterPubKey(account uint32) (*hdkeychain.ExtendedKey, error) {
 // MasterPrivKey returns the extended private key for the given account. The
 // account must exist and the wallet must be unlocked, otherwise this function
 // fails.
-func (w *Wallet) MasterPrivKey(account uint32) (*hdkeychain.ExtendedKey, error) {
+func (w *Wallet) MasterPrivKey(ctx context.Context,account uint32) (*hdkeychain.ExtendedKey, error) {
 	const op errors.Op = "wallet.MasterPrivKey"
 
 	var privKey *hdkeychain.ExtendedKey
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		var err error
 		privKey, err = w.Manager.AccountExtendedPrivKey(tx, account)
 		return err
@@ -1771,8 +1771,8 @@ func (w *Wallet) MasterPrivKey(account uint32) (*hdkeychain.ExtendedKey, error) 
 // and in this case the known results will be returned along with an inventory
 // vector of all missing transactions and an error with code
 // NotExist.
-func (w *Wallet) GetTransactionsByHashes(txHashes []*chainhash.Hash) (txs []*wire.MsgTx, notFound []*wire.InvVect, err error) {
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+func (w *Wallet) GetTransactionsByHashes(ctx context.Context,txHashes []*chainhash.Hash) (txs []*wire.MsgTx, notFound []*wire.InvVect, err error) {
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		for _, hash := range txHashes {
 			tx, err := w.TxStore.Tx(ns, hash)
@@ -1978,10 +1978,10 @@ outputs:
 // ListSinceBlock returns a slice of objects with details about transactions
 // since the given block. If the block is -1 then all transactions are included.
 // This is intended to be used for listsinceblock RPC replies.
-func (w *Wallet) ListSinceBlock(start, end, syncHeight int32) ([]types.ListTransactionsResult, error) {
+func (w *Wallet) ListSinceBlock(ctx context.Context,start, end, syncHeight int32) ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListSinceBlock"
 	txList := []types.ListTransactionsResult{}
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
@@ -2005,10 +2005,10 @@ func (w *Wallet) ListSinceBlock(start, end, syncHeight int32) ([]types.ListTrans
 // ListTransactions returns a slice of objects with details about a recorded
 // transaction.  This is intended to be used for listtransactions RPC
 // replies.
-func (w *Wallet) ListTransactions(from, count int) ([]types.ListTransactionsResult, error) {
+func (w *Wallet) ListTransactions(ctx context.Context,from, count int) ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListTransactions"
 	txList := []types.ListTransactionsResult{}
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
 		// Get current block.  The block height used for calculating
@@ -2066,10 +2066,10 @@ func (w *Wallet) ListTransactions(from, count int) ([]types.ListTransactionsResu
 // ListAddressTransactions returns a slice of objects with details about
 // recorded transactions to or from any address belonging to a set.  This is
 // intended to be used for listaddresstransactions RPC replies.
-func (w *Wallet) ListAddressTransactions(pkHashes map[string]struct{}) ([]types.ListTransactionsResult, error) {
+func (w *Wallet) ListAddressTransactions(ctx context.Context,pkHashes map[string]struct{}) ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListAddressTransactions"
 	txList := []types.ListTransactionsResult{}
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
 		// Get current block.  The block height used for calculating
@@ -2117,10 +2117,10 @@ func (w *Wallet) ListAddressTransactions(pkHashes map[string]struct{}) ([]types.
 // ListAllTransactions returns a slice of objects with details about a recorded
 // transaction.  This is intended to be used for listalltransactions RPC
 // replies.
-func (w *Wallet) ListAllTransactions() ([]types.ListTransactionsResult, error) {
+func (w *Wallet) ListAllTransactions(ctx context.Context) ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListAllTransactions"
 	txList := []types.ListTransactionsResult{}
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
 		// Get current block.  The block height used for calculating
@@ -2159,10 +2159,10 @@ func (w *Wallet) ListAllTransactions() ([]types.ListTransactionsResult, error) {
 
 // ListTransactionDetails returns the listtransaction results for a single
 // transaction.
-func (w *Wallet) ListTransactionDetails(txHash *chainhash.Hash) ([]types.ListTransactionsResult, error) {
+func (w *Wallet) ListTransactionDetails(ctx context.Context,txHash *chainhash.Hash) ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListTransactionDetails"
 	txList := []types.ListTransactionsResult{}
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		// Get current block.  The block height used for calculating
@@ -2214,10 +2214,10 @@ type BlockInfo struct {
 }
 
 // BlockInfo returns info regarding a block recorded by the wallet.
-func (w *Wallet) BlockInfo(blockID *BlockIdentifier) (*BlockInfo, error) {
+func (w *Wallet) BlockInfo(ctx context.Context,blockID *BlockIdentifier) (*BlockInfo, error) {
 	const op errors.Op = "wallet.BlockInfo"
 	var blockInfo *BlockInfo
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
 		blockHash := blockID.hash
@@ -2257,9 +2257,9 @@ func (w *Wallet) BlockInfo(blockID *BlockIdentifier) (*BlockInfo, error) {
 
 // TransactionSummary returns details about a recorded transaction that is
 // relevant to the wallet in some way.
-func (w *Wallet) TransactionSummary(txHash *chainhash.Hash) (txSummary *TransactionSummary, confs int32, blockHash *chainhash.Hash, err error) {
+func (w *Wallet) TransactionSummary(ctx context.Context,txHash *chainhash.Hash) (txSummary *TransactionSummary, confs int32, blockHash *chainhash.Hash, err error) {
 	const opf = "wallet.TransactionSummary(%v)"
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(ns)
 		txDetails, err := w.TxStore.TxDetails(ns, txHash)
@@ -2325,7 +2325,7 @@ func (w *Wallet) GetTicketInfoPrecise(ctx context.Context, rpcCaller Caller, has
 	var blockHeader *wire.BlockHeader
 
 	rpc := dcrd.New(rpcCaller)
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		ticketDetails, err := w.fetchTicketDetails(txmgrNs, hash)
@@ -2367,13 +2367,13 @@ func (w *Wallet) GetTicketInfoPrecise(ctx context.Context, rpcCaller Caller, has
 // current status.
 //
 // If the ticket is unmined, then the returned block header will be nil.
-func (w *Wallet) GetTicketInfo(hash *chainhash.Hash) (*TicketSummary, *wire.BlockHeader, error) {
+func (w *Wallet) GetTicketInfo(ctx context.Context,hash *chainhash.Hash) (*TicketSummary, *wire.BlockHeader, error) {
 	const op errors.Op = "wallet.GetTicketInfo"
 
 	var ticketSummary *TicketSummary
 	var blockHeader *wire.BlockHeader
 
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		ticketDetails, err := w.fetchTicketDetails(txmgrNs, hash)
@@ -2438,7 +2438,7 @@ func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpcCaller Caller,
 		if startBlock.hash == nil {
 			start = startBlock.height
 		} else {
-			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+			err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, startBlock.hash)
 				if err != nil {
@@ -2461,7 +2461,7 @@ func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpcCaller Caller,
 		if endBlock.hash == nil {
 			end = endBlock.height
 		} else {
-			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+			err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, endBlock.hash)
 				if err != nil {
@@ -2482,7 +2482,7 @@ func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpcCaller Caller,
 	}
 
 	rpc := dcrd.New(rpcCaller)
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		header := &wire.BlockHeader{}
 
@@ -2542,7 +2542,7 @@ func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpcCaller Caller,
 //
 // Because this function does not have any chain client argument, tickets are
 // unable to be determined whether or not they have been missed, simply unspent.
-func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, error), startBlock, endBlock *BlockIdentifier) error {
+func (w *Wallet) GetTickets(ctx context.Context,f func([]*TicketSummary, *wire.BlockHeader) (bool, error), startBlock, endBlock *BlockIdentifier) error {
 	const op errors.Op = "wallet.GetTickets"
 	var start, end int32 = 0, -1
 
@@ -2550,7 +2550,7 @@ func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, e
 		if startBlock.hash == nil {
 			start = startBlock.height
 		} else {
-			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+			err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, startBlock.hash)
 				if err != nil {
@@ -2573,7 +2573,7 @@ func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, e
 		if endBlock.hash == nil {
 			end = endBlock.height
 		} else {
-			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+			err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, endBlock.hash)
 				if err != nil {
@@ -2593,7 +2593,7 @@ func (w *Wallet) GetTickets(f func([]*TicketSummary, *wire.BlockHeader) (bool, e
 		}
 	}
 
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		header := &wire.BlockHeader{}
 
@@ -2659,7 +2659,7 @@ type GetTransactionsResult struct {
 //
 // Internally this function uses the udb store RangeTransactions function,
 // therefore the notes and restrictions of that function also apply here.
-func (w *Wallet) GetTransactions(f func(*Block) (bool, error), startBlock, endBlock *BlockIdentifier) error {
+func (w *Wallet) GetTransactions(ctx context.Context,f func(*Block) (bool, error), startBlock, endBlock *BlockIdentifier) error {
 	const op errors.Op = "wallet.GetTransactions"
 	var start, end int32 = 0, -1
 
@@ -2667,7 +2667,7 @@ func (w *Wallet) GetTransactions(f func(*Block) (bool, error), startBlock, endBl
 		if startBlock.hash == nil {
 			start = startBlock.height
 		} else {
-			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+			err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, endBlock.hash)
 				if err != nil {
@@ -2690,7 +2690,7 @@ func (w *Wallet) GetTransactions(f func(*Block) (bool, error), startBlock, endBl
 		if endBlock.hash == nil {
 			end = endBlock.height
 		} else {
-			err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+			err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, endBlock.hash)
 				if err != nil {
@@ -2710,7 +2710,7 @@ func (w *Wallet) GetTransactions(f func(*Block) (bool, error), startBlock, endBl
 		}
 	}
 
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
@@ -2779,14 +2779,14 @@ type AccountsResult struct {
 //
 // TODO(jrick): Is the chain tip really needed, since only the total balances
 // are included?
-func (w *Wallet) Accounts() (*AccountsResult, error) {
+func (w *Wallet) Accounts(ctx context.Context) (*AccountsResult, error) {
 	const op errors.Op = "wallet.Accounts"
 	var (
 		accounts  []AccountResult
 		tipHash   chainhash.Hash
 		tipHeight int32
 	)
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -2883,10 +2883,10 @@ func (s creditSlice) Swap(i, j int) {
 // minconf, less than maxconf and if addresses is populated only the addresses
 // contained within it will be considered.  If we know nothing about a
 // transaction an empty array will be returned.
-func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct{}) ([]*types.ListUnspentResult, error) {
+func (w *Wallet) ListUnspent(ctx context.Context,minconf, maxconf int32, addresses map[string]struct{}) ([]*types.ListUnspentResult, error) {
 	const op errors.Op = "wallet.ListUnspent"
 	var results []*types.ListUnspentResult
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -3066,7 +3066,7 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32, addresses map[string]struct
 
 // DumpWIFPrivateKey returns the WIF encoded private key for a
 // single wallet address.
-func (w *Wallet) DumpWIFPrivateKey(addr dcrutil.Address) (string, error) {
+func (w *Wallet) DumpWIFPrivateKey(ctx context.Context,addr dcrutil.Address) (string, error) {
 	const op errors.Op = "wallet.DumpWIFPrivateKey"
 	var privKey chainec.PrivateKey
 	var done func()
@@ -3075,7 +3075,7 @@ func (w *Wallet) DumpWIFPrivateKey(addr dcrutil.Address) (string, error) {
 			done()
 		}
 	}()
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
 		privKey, done, err = w.Manager.PrivateKey(addrmgrNs, addr)
@@ -3095,7 +3095,7 @@ func (w *Wallet) ImportPrivateKey(ctx context.Context, wif *dcrutil.WIF) (string
 	// Attempt to import private key into wallet.
 	var addr dcrutil.Address
 	var props *udb.AccountProperties
-	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 		maddr, err := w.Manager.ImportPrivateKey(addrmgrNs, wif)
 		if err == nil {
@@ -3130,7 +3130,7 @@ func (w *Wallet) ImportPrivateKey(ctx context.Context, wif *dcrutil.WIF) (string
 // and how far back they wish to rescan.
 func (w *Wallet) ImportScript(ctx context.Context, rs []byte) error {
 	const op errors.Op = "wallet.ImportScript"
-	err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadWriteBucket(wtxmgrNamespaceKey)
 
@@ -3173,10 +3173,10 @@ func (w *Wallet) ImportScript(ctx context.Context, rs []byte) error {
 
 // RedeemScriptCopy returns a copy of a redeem script to redeem outputs paid to
 // a P2SH address.
-func (w *Wallet) RedeemScriptCopy(addr dcrutil.Address) ([]byte, error) {
+func (w *Wallet) RedeemScriptCopy(ctx context.Context,addr dcrutil.Address) ([]byte, error) {
 	const op errors.Op = "wallet.RedeemScriptCopy"
 	var scriptCopy []byte
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrNamespaceKey)
 		script, done, err := w.Manager.RedeemScript(ns, addr)
 		if err != nil {
@@ -3239,12 +3239,12 @@ func (w *Wallet) hasVotingAuthority(addrmgrNs walletdb.ReadBucket, ticketPurchas
 }
 
 // StakeInfo collects and returns staking statistics for this wallet.
-func (w *Wallet) StakeInfo() (*StakeInfoData, error) {
+func (w *Wallet) StakeInfo(ctx context.Context) (*StakeInfoData, error) {
 	const op errors.Op = "wallet.StakeInfo"
 
 	var res StakeInfoData
 
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		tipHash, tipHeight := w.TxStore.MainChainTip(txmgrNs)
@@ -3353,7 +3353,7 @@ func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpcCaller Caller) (*Stake
 	// states later by querying the consensus RPC server.
 	var liveOrExpiredOrMissed []*chainhash.Hash
 
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		tipHash, tipHeight := w.TxStore.MainChainTip(txmgrNs)
@@ -3548,10 +3548,10 @@ func (w *Wallet) LockedOutpoints() []dcrdtypes.TransactionInput {
 // UnminedTransactions returns all unmined transactions from the wallet.
 // Transactions are sorted in dependency order making it suitable to range them
 // in order to broadcast at wallet startup.
-func (w *Wallet) UnminedTransactions() ([]*wire.MsgTx, error) {
+func (w *Wallet) UnminedTransactions(ctx context.Context) ([]*wire.MsgTx, error) {
 	const op errors.Op = "wallet.UnminedTransactions"
 	var txs []*wire.MsgTx
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
 		txs, err = w.TxStore.UnminedTxs(txmgrNs)
@@ -3565,10 +3565,10 @@ func (w *Wallet) UnminedTransactions() ([]*wire.MsgTx, error) {
 
 // SortedActivePaymentAddresses returns a slice of all active payment
 // addresses in a wallet.
-func (w *Wallet) SortedActivePaymentAddresses() ([]string, error) {
+func (w *Wallet) SortedActivePaymentAddresses(ctx context.Context) ([]string, error) {
 	const op errors.Op = "wallet.SortedActivePaymentAddresses"
 	var addrStrs []string
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		return w.Manager.ForEachActiveAddress(addrmgrNs, func(addr dcrutil.Address) error {
 			addrStrs = append(addrStrs, addr.Address())
@@ -3641,10 +3641,10 @@ type AccountTotalReceivedResult struct {
 
 // TotalReceivedForAccounts iterates through a wallet's transaction history,
 // returning the total amount of decred received for all accounts.
-func (w *Wallet) TotalReceivedForAccounts(minConf int32) ([]AccountTotalReceivedResult, error) {
+func (w *Wallet) TotalReceivedForAccounts(ctx context.Context,minConf int32) ([]AccountTotalReceivedResult, error) {
 	const op errors.Op = "wallet.TotalReceivedForAccounts"
 	var results []AccountTotalReceivedResult
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -3711,10 +3711,10 @@ func (w *Wallet) TotalReceivedForAccounts(minConf int32) ([]AccountTotalReceived
 // TotalReceivedForAddr iterates through a wallet's transaction history,
 // returning the total amount of decred received for a single wallet
 // address.
-func (w *Wallet) TotalReceivedForAddr(addr dcrutil.Address, minConf int32) (dcrutil.Amount, error) {
+func (w *Wallet) TotalReceivedForAddr(ctx context.Context,addr dcrutil.Address, minConf int32) (dcrutil.Amount, error) {
 	const op errors.Op = "wallet.TotalReceivedForAddr"
 	var amount dcrutil.Amount
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
@@ -3801,7 +3801,7 @@ type SignatureError struct {
 // being unable to determine a previous output script to redeem.
 //
 // The transaction pointed to by tx is modified by this function.
-func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, additionalPrevScripts map[wire.OutPoint][]byte,
+func (w *Wallet) SignTransaction(ctx context.Context,tx *wire.MsgTx, hashType txscript.SigHashType, additionalPrevScripts map[wire.OutPoint][]byte,
 	additionalKeysByAddress map[string]*dcrutil.WIF, p2shRedeemScriptsByAddress map[string][]byte) ([]SignatureError, error) {
 
 	const op errors.Op = "wallet.SignTransaction"
@@ -3814,7 +3814,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 	}()
 
 	var signErrors []SignatureError
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -3984,7 +3984,8 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType, 
 // CreateSignature returns the raw signature created by the private key of addr
 // for tx's idx'th input script and the serialized compressed pubkey for the
 // address.
-func (w *Wallet) CreateSignature(tx *wire.MsgTx, idx uint32, addr dcrutil.Address, hashType txscript.SigHashType, prevPkScript []byte) (sig, pubkey []byte, err error) {
+func (w *Wallet) CreateSignature(ctx context.Context,tx *wire.MsgTx, idx uint32, addr dcrutil.Address,
+	hashType txscript.SigHashType, prevPkScript []byte) (sig, pubkey []byte, err error) {
 	const op errors.Op = "wallet.CreateSignature"
 	var privKey chainec.PrivateKey
 	var pubKey chainec.PublicKey
@@ -3995,7 +3996,7 @@ func (w *Wallet) CreateSignature(tx *wire.MsgTx, idx uint32, addr dcrutil.Addres
 		}
 	}()
 
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
 		var err error
@@ -4062,9 +4063,9 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 // as purged transactions may be rejected by full nodes due to being double
 // spends.  In turn, this can cause the purged transaction to be mined later and
 // replace other transactions authored by the wallet.
-func (w *Wallet) AbandonTransaction(hash *chainhash.Hash) error {
+func (w *Wallet) AbandonTransaction(ctx context.Context,hash *chainhash.Hash) error {
 	const opf = "wallet.AbandonTransaction(%v)"
-	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		ns := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 		details, err := w.TxStore.TxDetails(ns, hash)
 		if err != nil {
@@ -4091,7 +4092,7 @@ func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, seriali
 	txHash := tx.TxHash()
 
 	var relevant bool
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		relevant = w.isRelevantTx(dbtx, tx)
 
 		// Prevent high fee transactions from being published, if disabled and
@@ -4116,7 +4117,7 @@ func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, seriali
 
 	var watchOutPoints []wire.OutPoint
 	if relevant {
-		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			rec, err := udb.NewTxRecord(serializedTx, time.Now())
 			if err != nil {
 				return err
@@ -4133,7 +4134,7 @@ func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, seriali
 	err = n.PublishTransactions(ctx, tx)
 	if err != nil {
 		if relevant {
-			if err := w.AbandonTransaction(&txHash); err != nil {
+			if err := w.AbandonTransaction(ctx, &txHash); err != nil {
 				log.Warnf("Failed to abandon unmined transaction: %v", err)
 			}
 		}
@@ -4156,7 +4157,7 @@ func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, seriali
 // and eventually mined.
 func (w *Wallet) PublishUnminedTransactions(ctx context.Context, p Peer) error {
 	const op errors.Op = "wallet.PublishUnminedTransactions"
-	unminedTxs, err := w.UnminedTransactions()
+	unminedTxs, err := w.UnminedTransactions(ctx)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -4178,14 +4179,14 @@ func (w *Wallet) ChainParams() *chaincfg.Params {
 // block as the main chain tip.  When these are both true, an accounts sync
 // should be performed to restore, per BIP0044, any generated accounts and
 // addresses from a restored seed.
-func (w *Wallet) NeedsAccountsSync() (bool, error) {
-	_, tipHeight := w.MainChainTip()
+func (w *Wallet) NeedsAccountsSync(ctx context.Context) (bool, error) {
+	_, tipHeight := w.MainChainTip(ctx)
 	if tipHeight != 0 {
 		return false, nil
 	}
 
 	needsSync := true
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		lastAcct, err := w.Manager.LastAccount(addrmgrNs)
 		if err != nil {
@@ -4215,7 +4216,7 @@ func (w *Wallet) NeedsAccountsSync() (bool, error) {
 // Create creates an new wallet, writing it to an empty database.  If the passed
 // seed is non-nil, it is used.  Otherwise, a secure random seed of the
 // recommended length is generated.
-func Create(db DB, pubPass, privPass, seed []byte, params *chaincfg.Params) error {
+func Create(ctx context.Context,db DB, pubPass, privPass, seed []byte, params *chaincfg.Params) error {
 	const op errors.Op = "wallet.Create"
 	// If a seed was provided, ensure that it is of valid length. Otherwise,
 	// we generate a random seed for the wallet with the recommended seed
@@ -4231,7 +4232,7 @@ func Create(db DB, pubPass, privPass, seed []byte, params *chaincfg.Params) erro
 		return errors.E(op, hdkeychain.ErrInvalidSeedLen)
 	}
 
-	err := udb.Initialize(db.internal(), params, seed, pubPass, privPass)
+	err := udb.Initialize(ctx, db.internal(), params, seed, pubPass, privPass)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -4239,9 +4240,9 @@ func Create(db DB, pubPass, privPass, seed []byte, params *chaincfg.Params) erro
 }
 
 // CreateWatchOnly creates a watchonly wallet on the provided db.
-func CreateWatchOnly(db DB, extendedPubKey string, pubPass []byte, params *chaincfg.Params) error {
+func CreateWatchOnly(ctx context.Context,db DB, extendedPubKey string, pubPass []byte, params *chaincfg.Params) error {
 	const op errors.Op = "wallet.CreateWatchOnly"
-	err := udb.InitializeWatchOnly(db.internal(), params, extendedPubKey, pubPass)
+	err := udb.InitializeWatchOnly(ctx, db.internal(), params, extendedPubKey, pubPass)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -4309,23 +4310,23 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 
 // Open loads an already-created wallet from the passed database and namespaces
 // configuration options and sets it up it according to the rest of options.
-func Open(cfg *Config) (*Wallet, error) {
+func Open(ctx context.Context,cfg *Config) (*Wallet, error) {
 	const op errors.Op = "wallet.Open"
 	// Migrate to the unified DB if necessary.
 	db := cfg.DB.internal()
-	needsMigration, err := udb.NeedsMigration(db)
+	needsMigration, err := udb.NeedsMigration(ctx, db)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 	if needsMigration {
-		err := udb.Migrate(db, cfg.Params)
+		err := udb.Migrate(ctx, db, cfg.Params)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
 	}
 
 	// Perform upgrades as necessary.
-	err = udb.Upgrade(db, cfg.PubPassphrase, cfg.Params)
+	err = udb.Upgrade(ctx, db, cfg.PubPassphrase, cfg.Params)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -4356,14 +4357,14 @@ func Open(cfg *Config) (*Wallet, error) {
 	}
 
 	// Open database managers
-	w.Manager, w.TxStore, w.StakeMgr, err = udb.Open(db, cfg.Params, cfg.PubPassphrase)
+	w.Manager, w.TxStore, w.StakeMgr, err = udb.Open(ctx, db, cfg.Params, cfg.PubPassphrase)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 	log.Infof("Opened wallet") // TODO: log balance? last sync height?
 
 	var vb stake.VoteBits
-	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrNamespaceKey)
 		lastAcct, err := w.Manager.LastAccount(ns)
 		if err != nil {

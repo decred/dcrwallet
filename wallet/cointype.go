@@ -5,6 +5,8 @@
 package wallet
 
 import (
+	"context"
+	
 	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
@@ -18,12 +20,12 @@ import (
 // This function does not register addresses from the new account 0 with the
 // wallet's network backend.  This is intentional as it allows offline
 // activities, such as wallet creation, to perform this upgrade.
-func (w *Wallet) UpgradeToSLIP0044CoinType() error {
+func (w *Wallet) UpgradeToSLIP0044CoinType(ctx context.Context) error {
 	const op errors.Op = "wallet.UpgradeToSLIP0044CoinType"
 
 	var acctXpub, extBranchXpub, intBranchXpub *hdkeychain.ExtendedKey
 
-	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		err := w.Manager.UpgradeToSLIP0044CoinType(dbtx)
 		if err != nil {
 			return err

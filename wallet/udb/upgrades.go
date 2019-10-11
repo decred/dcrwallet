@@ -5,6 +5,7 @@
 package udb
 
 import (
+	"context"
 	"crypto/sha256"
 
 	"github.com/decred/dcrd/blockchain/stake/v2"
@@ -996,9 +997,9 @@ func ticketCommitmentsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, 
 
 // Upgrade checks whether the any upgrades are necessary before the database is
 // ready for application usage.  If any are, they are performed.
-func Upgrade(db walletdb.DB, publicPassphrase []byte, params *chaincfg.Params) error {
+func Upgrade(ctx context.Context, db walletdb.DB, publicPassphrase []byte, params *chaincfg.Params) error {
 	var version uint32
-	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		var err error
 		metadataBucket := tx.ReadBucket(unifiedDBMetadata{}.rootBucketKey())
 		if metadataBucket == nil {
@@ -1020,7 +1021,7 @@ func Upgrade(db walletdb.DB, publicPassphrase []byte, params *chaincfg.Params) e
 
 	log.Infof("Upgrading database from version %d to %d", version, DBVersion)
 
-	return walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+	return walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 		// Execute all necessary upgrades in order.
 		for _, upgrade := range upgrades[version:] {
 			err := upgrade(tx, publicPassphrase, params)

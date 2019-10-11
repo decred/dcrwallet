@@ -7,6 +7,7 @@ package wallet
 import (
 	"context"
 	"encoding/binary"
+	"runtime/trace"
 
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
@@ -348,7 +349,7 @@ type persistReturnedChildFunc func(account, branch, child uint32) error
 // transaction at all (in which case it must be nil and the method opens a
 // transaction).  It must never be called while inside a db view as this results
 // in a deadlock situation.
-func (w *Wallet) persistReturnedChild(maybeDBTX walletdb.ReadWriteTx) persistReturnedChildFunc {
+func (w *Wallet) persistReturnedChild(ctx context.Context, maybeDBTX walletdb.ReadWriteTx) persistReturnedChildFunc {
 	return func(account, branch, child uint32) (rerr error) {
 		// Write the returned child index to the database, opening a write
 		// transaction as necessary.
@@ -358,12 +359,14 @@ func (w *Wallet) persistReturnedChild(maybeDBTX walletdb.ReadWriteTx) persistRet
 			if err != nil {
 				return err
 			}
+			region := trace.StartRegion(ctx, "db.Update")
 			defer func() {
 				if rerr == nil {
 					rerr = maybeDBTX.Commit()
 				} else {
 					maybeDBTX.Rollback()
 				}
+				region.End()
 			}()
 		}
 		ns := maybeDBTX.ReadWriteBucket(waddrmgrNamespaceKey)
@@ -385,12 +388,12 @@ func (w *Wallet) persistReturnedChild(maybeDBTX walletdb.ReadWriteTx) persistRet
 // allows the updates to not be performed if a later error occurs and the child
 // indexes should not be written.  It also allows the updates to be grouped
 // together in a single atomic transaction.
-func (w *Wallet) deferPersistReturnedChild(updates *[]func(walletdb.ReadWriteTx) error) persistReturnedChildFunc {
+func (w *Wallet) deferPersistReturnedChild(ctx context.Context, updates *[]func(walletdb.ReadWriteTx) error) persistReturnedChildFunc {
 	// These vars are closed-over by the update function and modified by the
 	// returned persist function.
 	var account, branch, child uint32
 	update := func(tx walletdb.ReadWriteTx) error {
-		persist := w.persistReturnedChild(tx)
+		persist := w.persistReturnedChild(ctx, tx)
 		return persist(account, branch, child)
 	}
 	*updates = append(*updates, update)
@@ -659,13 +662,13 @@ func (w *Wallet) watchFutureAddresses(ctx context.Context, dbtx walletdb.ReadTx)
 // NewExternalAddress returns an external address.
 func (w *Wallet) NewExternalAddress(ctx context.Context, account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
 	const op errors.Op = "wallet.NewExternalAddress"
-	return w.nextAddress(ctx, op, w.persistReturnedChild(nil), account, udb.ExternalBranch, callOpts...)
+	return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil), account, udb.ExternalBranch, callOpts...)
 }
 
 // NewInternalAddress returns an internal address.
 func (w *Wallet) NewInternalAddress(ctx context.Context, account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
 	const op errors.Op = "wallet.NewExternalAddress"
-	return w.nextAddress(ctx, op, w.persistReturnedChild(nil), account, udb.InternalBranch, callOpts...)
+	return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil), account, udb.InternalBranch, callOpts...)
 }
 
 func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc, account uint32) (dcrutil.Address, error) {
@@ -685,7 +688,7 @@ func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist per
 // policy.
 func (w *Wallet) NewChangeAddress(ctx context.Context, account uint32) (dcrutil.Address, error) {
 	const op errors.Op = "wallet.NewChangeAddress"
-	return w.newChangeAddress(ctx, op, w.persistReturnedChild(nil), account)
+	return w.newChangeAddress(ctx, op, w.persistReturnedChild(ctx, nil), account)
 }
 
 // BIP0044BranchNextIndexes returns the next external and internal branch child
@@ -741,7 +744,7 @@ func (w *Wallet) ExtendWatchedAddresses(ctx context.Context, account, branch, ch
 		return err
 	}
 
-	err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 		return w.Manager.SyncAccountToAddrIndex(ns, account, child, branch)
 	})

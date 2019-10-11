@@ -9,6 +9,7 @@ package wallet
 // dcrwallet's header storage.
 
 import (
+	"context"
 	"math/big"
 	"time"
 
@@ -445,10 +446,10 @@ func (w *Wallet) nextRequiredDCP0001PoSDifficulty(dbtx walletdb.ReadTx, curHeade
 // known to be active.  As a fallback, the StakeDifficulty method of
 // wallet.NetworkBackend may be used to query the next ticket price from a
 // trusted full node.
-func (w *Wallet) NextStakeDifficulty() (dcrutil.Amount, error) {
+func (w *Wallet) NextStakeDifficulty(ctx context.Context) (dcrutil.Amount, error) {
 	const op errors.Op = "wallet.NextStakeDifficulty"
 	var sdiff dcrutil.Amount
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		tipHash, tipHeight := w.TxStore.MainChainTip(ns)
 		if !deployments.DCP0001.Active(tipHeight, w.chainParams.Net) {
@@ -470,13 +471,13 @@ func (w *Wallet) NextStakeDifficulty() (dcrutil.Amount, error) {
 // NextStakeDifficultyAfterHeader returns the ticket price for the child of h.
 // All headers of ancestor blocks of h must be recorded by the wallet.  This
 // function only succeeds when DCP0001 is known to be active.
-func (w *Wallet) NextStakeDifficultyAfterHeader(h *wire.BlockHeader) (dcrutil.Amount, error) {
+func (w *Wallet) NextStakeDifficultyAfterHeader(ctx context.Context, h *wire.BlockHeader) (dcrutil.Amount, error) {
 	const op errors.Op = "wallet.NextStakeDifficultyAfterHeader"
 	if !deployments.DCP0001.Active(int32(h.Height), w.chainParams.Net) {
 		return 0, errors.E(op, errors.Deployment, "DCP0001 is not known to be active")
 	}
 	var sdiff dcrutil.Amount
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		sdiff, err = w.nextRequiredDCP0001PoSDifficulty(dbtx, h, nil)
 		return err
@@ -491,9 +492,9 @@ func (w *Wallet) NextStakeDifficultyAfterHeader(h *wire.BlockHeader) (dcrutil.Am
 // blocks in chain[idx:].  The parent of chain[0] must be recorded as wallet
 // main chain block.  If a consensus violation is caught, a subslice of chain
 // beginning with the invalid block is returned.
-func (w *Wallet) ValidateHeaderChainDifficulties(chain []*BlockNode, idx int) ([]*BlockNode, error) {
+func (w *Wallet) ValidateHeaderChainDifficulties(ctx context.Context, chain []*BlockNode, idx int) ([]*BlockNode, error) {
 	var invalid []*BlockNode
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		invalid, err = w.validateHeaderChainDifficulties(dbtx, chain, idx)
 		return err

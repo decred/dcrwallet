@@ -5,6 +5,7 @@
 package wallet
 
 import (
+	"context"
 	"runtime"
 	"testing"
 	"time"
@@ -34,6 +35,7 @@ func TestLocking(t *testing.T) {
 }
 
 func testUnlock(t *testing.T, w *Wallet) {
+	ctx := context.Background()
 	if !w.Locked() {
 		t.Fatal("expected wallet to be locked")
 	}
@@ -42,7 +44,7 @@ func testUnlock(t *testing.T, w *Wallet) {
 		t.Fatal("expected error when holding unlocked state when locked")
 	}
 	// Unlock without timeout
-	err = w.Unlock(testPrivPass, nil)
+	err = w.Unlock(ctx, testPrivPass, nil)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
 	}
@@ -96,11 +98,12 @@ func testUnlock(t *testing.T, w *Wallet) {
 }
 
 func testLockOnBadPassphrase(t *testing.T, w *Wallet) {
-	err := w.Unlock(testPrivPass, nil)
+	ctx := context.Background()
+	err := w.Unlock(ctx, testPrivPass, nil)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
 	}
-	err = w.Unlock([]byte("incorrect"), nil)
+	err = w.Unlock(ctx, []byte("incorrect"), nil)
 	if !errors.Is(err, errors.Passphrase) {
 		t.Fatal("expected Passphrase error on bad Unlock")
 	}
@@ -108,7 +111,7 @@ func testLockOnBadPassphrase(t *testing.T, w *Wallet) {
 		t.Fatal("expected wallet to be locked after failed Unlock")
 	}
 
-	err = w.Unlock(testPrivPass, nil)
+	err = w.Unlock(ctx, testPrivPass, nil)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
 	}
@@ -118,7 +121,7 @@ func testLockOnBadPassphrase(t *testing.T, w *Wallet) {
 	}
 	c := make(chan error)
 	go func() {
-		c <- w.Unlock([]byte("incorrect"), nil)
+		c <- w.Unlock(ctx, []byte("incorrect"), nil)
 	}()
 	runtime.Gosched()
 	select {
@@ -143,12 +146,13 @@ func testLockOnBadPassphrase(t *testing.T, w *Wallet) {
 // If the wallet is currently unlocked without any timeout, timeout is ignored
 // and if non-nil, is read in a background goroutine to avoid blocking sends.
 func testNoNilTimeoutReplacement(t *testing.T, w *Wallet) {
-	err := w.Unlock(testPrivPass, nil)
+	ctx := context.Background()
+	err := w.Unlock(ctx, testPrivPass, nil)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
 	}
 	timeChan := make(chan time.Time)
-	err = w.Unlock(testPrivPass, timeChan)
+	err = w.Unlock(ctx, testPrivPass, timeChan)
 	if err != nil {
 		t.Fatal("failed to unlock wallet with time channel")
 	}
@@ -167,7 +171,8 @@ func testNoNilTimeoutReplacement(t *testing.T, w *Wallet) {
 // locked in the background after reading from the channel.
 func testNonNilTimeoutLock(t *testing.T, w *Wallet) {
 	timeChan := make(chan time.Time)
-	err := w.Unlock(testPrivPass, timeChan)
+	ctx := context.Background()
+	err := w.Unlock(ctx, testPrivPass, timeChan)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
 	}
@@ -184,11 +189,12 @@ func testNonNilTimeoutLock(t *testing.T, w *Wallet) {
 func testTimeoutReplacement(t *testing.T, w *Wallet) {
 	timeChan1 := make(chan time.Time)
 	timeChan2 := make(chan time.Time)
-	err := w.Unlock(testPrivPass, timeChan1)
+	ctx := context.Background()
+	err := w.Unlock(ctx, testPrivPass, timeChan1)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
 	}
-	err = w.Unlock(testPrivPass, timeChan2)
+	err = w.Unlock(ctx, testPrivPass, timeChan2)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
 	}
@@ -208,7 +214,8 @@ func testTimeoutReplacement(t *testing.T, w *Wallet) {
 // If the wallet is unlocked and the unlocked state is held by some routine,
 // Unlock with the correct passphrase is not blocked by any mutex.
 func testHoldDoesNotBlockSuccessfulUnlock(t *testing.T, w *Wallet) {
-	err := w.Unlock(testPrivPass, nil)
+	ctx := context.Background()
+	err := w.Unlock(ctx, testPrivPass, nil)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
 	}
@@ -217,11 +224,11 @@ func testHoldDoesNotBlockSuccessfulUnlock(t *testing.T, w *Wallet) {
 		t.Fatal("expected to hold unlock")
 	}
 	defer hold.release()
-	err = w.Unlock(testPrivPass, nil)
+	err = w.Unlock(ctx, testPrivPass, nil)
 	if err != nil {
 		t.Fatal("expected Unlock to return without error")
 	}
-	err = w.Unlock(testPrivPass, make(chan time.Time, 1))
+	err = w.Unlock(ctx, testPrivPass, make(chan time.Time, 1))
 	if err != nil {
 		t.Fatal("expected Unlock to return without error")
 	}
@@ -232,7 +239,8 @@ func testHoldDoesNotBlockSuccessfulUnlock(t *testing.T, w *Wallet) {
 // routine, Unlock with an incorrect passphase will block until the hold is
 // released, and return with the wallet in a locked state.
 func testHoldBlocksBadUnlock(t *testing.T, w *Wallet) {
-	err := w.Unlock(testPrivPass, nil)
+	ctx := context.Background()
+	err := w.Unlock(ctx, testPrivPass, nil)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
 	}
@@ -242,7 +250,7 @@ func testHoldBlocksBadUnlock(t *testing.T, w *Wallet) {
 	}
 	c := make(chan error)
 	go func() {
-		c <- w.Unlock([]byte("incorrect"), nil)
+		c <- w.Unlock(ctx, []byte("incorrect"), nil)
 	}()
 	time.Sleep(100 * time.Millisecond)
 	select {

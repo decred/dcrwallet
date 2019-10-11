@@ -5,6 +5,8 @@
 package wallet
 
 import (
+	"context"
+	
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
@@ -13,7 +15,7 @@ import (
 
 // StakePoolUserInfo returns the stake pool user information for a user
 // identified by their P2SH voting address.
-func (w *Wallet) StakePoolUserInfo(userAddress dcrutil.Address) (*udb.StakePoolUser, error) {
+func (w *Wallet) StakePoolUserInfo(ctx context.Context, userAddress dcrutil.Address) (*udb.StakePoolUser, error) {
 	const op errors.Op = "wallet.StakePoolUserInfo"
 
 	switch userAddress.(type) {
@@ -24,7 +26,7 @@ func (w *Wallet) StakePoolUserInfo(userAddress dcrutil.Address) (*udb.StakePoolU
 	}
 
 	var user *udb.StakePoolUser
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		stakemgrNs := tx.ReadBucket(wstakemgrNamespaceKey)
 		var err error
 		user, err = w.StakeMgr.StakePoolUserInfo(stakemgrNs, userAddress)

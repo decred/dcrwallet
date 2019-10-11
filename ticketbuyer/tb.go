@@ -59,7 +59,7 @@ func New(w *wallet.Wallet) *TB {
 // ever becomes incorrect due to a wallet passphrase change, Run exits with an
 // errors.Passphrase error.
 func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
-	err := tb.wallet.Unlock(passphrase, nil)
+	err := tb.wallet.Unlock(ctx, passphrase, nil)
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 
 	// Don't buy tickets for this attached block when transactions are not
 	// synced through the tip block.
-	rp, err := w.RescanPoint()
+	rp, err := w.RescanPoint(ctx)
 	if err != nil {
 		return err
 	}
@@ -131,12 +131,12 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 	// Ensure wallet is unlocked with the current passphrase.  If the passphase
 	// is changed, the Run exits and TB must be restarted with the new
 	// passphrase.
-	err = w.Unlock(passphrase, nil)
+	err = w.Unlock(ctx, passphrase, nil)
 	if err != nil {
 		return err
 	}
 
-	header, err := w.BlockHeader(tip)
+	header, err := w.BlockHeader(ctx, tip)
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 	tb.mu.Unlock()
 
 	// Determine how many tickets to buy
-	bal, err := w.CalculateAccountBalance(account, minconf)
+	bal, err := w.CalculateAccountBalance(ctx, account, minconf)
 	if err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *chainhash.Hash) e
 		return nil
 	}
 	spendable -= maintain
-	sdiff, err := w.NextStakeDifficultyAfterHeader(header)
+	sdiff, err := w.NextStakeDifficultyAfterHeader(ctx, header)
 	if err != nil {
 		return err
 	}

@@ -9,7 +9,9 @@
 package walletdb
 
 import (
+	"context"
 	"io"
+	"runtime/trace"
 
 	"github.com/decred/dcrwallet/errors/v2"
 )
@@ -195,7 +197,9 @@ type DB interface {
 // transaction passed as a parameter.  After f exits or panics, the transaction
 // is rolled back.  If f errors, its error is returned, not a rollback error (if
 // any occurred).
-func View(db DB, f func(tx ReadTx) error) error {
+func View(ctx context.Context, db DB, f func(tx ReadTx) error) error {
+	defer trace.StartRegion(ctx, "db.View").End()
+	
 	tx, err := db.BeginReadTx()
 	if err != nil {
 		return err
@@ -218,7 +222,9 @@ func View(db DB, f func(tx ReadTx) error) error {
 // error, the transaction is committed.  Otherwise, if f did error or panic, the
 // transaction is rolled back.  If a rollback fails, the original error returned
 // by f is still returned.  If the commit fails, the commit error is returned.
-func Update(db DB, f func(tx ReadWriteTx) error) (err error) {
+func Update(ctx context.Context, db DB, f func(tx ReadWriteTx) error) (err error) {
+	defer trace.StartRegion(ctx, "db.Update").End()
+	
 	tx, err := db.BeginReadWriteTx()
 	if err != nil {
 		return err

@@ -5,6 +5,7 @@
 package wallet
 
 import (
+	"context"
 	"math/big"
 	"sort"
 
@@ -243,10 +244,10 @@ func (f *SidechainForest) PruneTree(root *chainhash.Hash) {
 // EvaluateBestChain returns block nodes to create the best main chain.  These
 // may extend the main chain or require a reorg.  An empty slice indicates there
 // is no better chain.
-func (w *Wallet) EvaluateBestChain(f *SidechainForest) ([]*BlockNode, error) {
+func (w *Wallet) EvaluateBestChain(ctx context.Context, f *SidechainForest) ([]*BlockNode, error) {
 	const op errors.Op = "wallet.EvaluateBestChain"
 	var newBestChain []*BlockNode
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		tipHash, _ := w.TxStore.MainChainTip(ns)
 		tipHeader, err := w.TxStore.GetBlockHeader(dbtx, &tipHash)

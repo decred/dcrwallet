@@ -8,6 +8,7 @@ package bdb_test
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"testing"
 
@@ -89,6 +90,7 @@ func TestCreateOpenFail(t *testing.T) {
 // TestPersistence ensures that values stored are still valid after closing and
 // reopening the database.
 func TestPersistence(t *testing.T) {
+	ctx := context.Background()
 	// Create a new database to run tests against.
 	dbPath := "persistencetest.db"
 	db, err := walletdb.Create(dbType, dbPath)
@@ -108,7 +110,7 @@ func TestPersistence(t *testing.T) {
 	}
 	ns1Key := []byte("ns1")
 
-	walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+	walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 		ns1Bkt, err := tx.CreateTopLevelBucket(ns1Key)
 		if err != nil {
 			return errors.E(errors.IO, err)
@@ -138,7 +140,7 @@ func TestPersistence(t *testing.T) {
 
 	// Ensure the values previously stored in the bucket still exist
 	// and are correct.
-	walletdb.View(db, func(tx walletdb.ReadTx) error {
+	walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		ns1Bkt := tx.ReadBucket(ns1Key)
 		for k, v := range storeValues {
 			val := ns1Bkt.Get([]byte(k))

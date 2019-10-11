@@ -6,6 +6,7 @@ package udb
 
 import (
 	"bytes"
+	"context"
 	"compress/gzip"
 	"encoding/hex"
 	"fmt"
@@ -44,6 +45,7 @@ var pubPass = []byte("public")
 func TestUpgrades(t *testing.T) {
 	t.Parallel()
 
+	ctx := context.Background()
 	d, err := ioutil.TempDir("", "dcrwallet_udb_TestUpgrades")
 	if err != nil {
 		t.Fatal(err)
@@ -79,7 +81,7 @@ func TestUpgrades(t *testing.T) {
 					t.Fatal(err)
 				}
 				defer db.Close()
-				err = Upgrade(db, pubPass, chaincfg.TestNet3Params())
+				err = Upgrade(ctx, db, pubPass, chaincfg.TestNet3Params())
 				if err != nil {
 					t.Fatalf("Upgrade failed: %v", err)
 				}
@@ -92,12 +94,13 @@ func TestUpgrades(t *testing.T) {
 }
 
 func verifyV2Upgrade(t *testing.T, db walletdb.DB) {
-	amgr, _, _, err := Open(db, chaincfg.TestNet3Params(), pubPass)
+	ctx := context.Background()
+	amgr, _, _, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPass)
 	if err != nil {
 		t.Fatalf("Open after Upgrade failed: %v", err)
 	}
 
-	err = walletdb.View(db, func(tx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrBucketKey)
 		nsMetaBucket := ns.NestedReadBucket(metaBucketName)
 
@@ -161,12 +164,13 @@ func verifyV2Upgrade(t *testing.T, db walletdb.DB) {
 }
 
 func verifyV3Upgrade(t *testing.T, db walletdb.DB) {
-	_, _, smgr, err := Open(db, chaincfg.TestNet3Params(), pubPass)
+	ctx := context.Background()
+	_, _, smgr, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPass)
 	if err != nil {
 		t.Fatalf("Open after Upgrade failed: %v", err)
 	}
 
-	err = walletdb.View(db, func(tx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(wstakemgrBucketKey)
 
 		const (
@@ -230,7 +234,8 @@ func verifyV3Upgrade(t *testing.T, db walletdb.DB) {
 }
 
 func verifyV4Upgrade(t *testing.T, db walletdb.DB) {
-	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
+	ctx := context.Background()
+	err := walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrBucketKey)
 		mainBucket := ns.NestedReadBucket(mainBucketName)
 		if mainBucket.Get(seedName) != nil {
@@ -244,7 +249,8 @@ func verifyV4Upgrade(t *testing.T, db walletdb.DB) {
 }
 
 func verifyV5Upgrade(t *testing.T, db walletdb.DB) {
-	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
+	ctx := context.Background()
+	err := walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrBucketKey)
 
 		data := []struct {
@@ -297,7 +303,8 @@ func verifyV5Upgrade(t *testing.T, db walletdb.DB) {
 }
 
 func verifyV6Upgrade(t *testing.T, db walletdb.DB) {
-	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
+	ctx := context.Background()
+	err := walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(wtxmgrBucketKey)
 
 		data := []*chainhash.Hash{
@@ -349,7 +356,8 @@ func verifyV6Upgrade(t *testing.T, db walletdb.DB) {
 }
 
 func verifyV8Upgrade(t *testing.T, db walletdb.DB) {
-	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
+	ctx := context.Background()
+	err := walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(wtxmgrBucketKey)
 		creditBucket := ns.NestedReadBucket(bucketCredits)
 		err := creditBucket.ForEach(func(k []byte, v []byte) error {
@@ -421,12 +429,13 @@ func verifyV8Upgrade(t *testing.T, db walletdb.DB) {
 // See the v11.db.go file for an explanation of the database layout and test
 // plan.
 func verifyV12Upgrade(t *testing.T, db walletdb.DB) {
-	_, txmgr, _, err := Open(db, chaincfg.TestNet3Params(), pubPass)
+	ctx := context.Background()
+	_, txmgr, _, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPass)
 	if err != nil {
 		t.Fatalf("Open after Upgrade failed: %v", err)
 	}
 
-	err = walletdb.View(db, func(tx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		txmgrns := tx.ReadBucket(wtxmgrBucketKey)
 		amgrns := tx.ReadBucket(waddrmgrBucketKey)
 

@@ -81,7 +81,8 @@ const (
 // The changeSource parameter is optional and can be nil.  When nil, and if a
 // change output should be added, an internal change address is created for the
 // account.
-func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount, account uint32, minConf int32,
+func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxOut,
+	relayFeePerKb dcrutil.Amount, account uint32, minConf int32,
 	algo OutputSelectionAlgorithm, changeSource txauthor.ChangeSource) (*txauthor.AuthoredTx, error) {
 
 	const op errors.Op = "wallet.NewUnsignedTransaction"
@@ -103,7 +104,7 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 
 	var authoredTx *txauthor.AuthoredTx
 	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
@@ -141,7 +142,7 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 
 		if changeSource == nil {
 			changeSource = &p2PKHChangeSource{
-				persist: w.deferPersistReturnedChild(&changeSourceUpdates),
+				persist: w.deferPersistReturnedChild(ctx, &changeSourceUpdates),
 				account: account,
 				wallet:  w,
 			}
@@ -166,7 +167,7 @@ func (w *Wallet) NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcr
 		return nil, errors.E(op, err)
 	}
 	if len(changeSourceUpdates) != 0 {
-		err := walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+		err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 			for _, up := range changeSourceUpdates {
 				err := up(tx)
 				if err != nil {
@@ -349,7 +350,7 @@ func (w *Wallet) txToOutputsInternal(ctx context.Context, op errors.Op, outputs 
 
 	var atx *txauthor.AuthoredTx
 	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -362,7 +363,7 @@ func (w *Wallet) txToOutputsInternal(ctx context.Context, op errors.Op, outputs 
 		inputSource := w.TxStore.MakeIgnoredInputSource(txmgrNs, addrmgrNs, account,
 			minconf, tipHeight, ignoreInput)
 		changeSource := &p2PKHChangeSource{
-			persist: w.deferPersistReturnedChild(&changeSourceUpdates),
+			persist: w.deferPersistReturnedChild(ctx, &changeSourceUpdates),
 			account: account,
 			wallet:  w,
 			ctx:     ctx,
@@ -426,7 +427,7 @@ func (w *Wallet) txToOutputsInternal(ctx context.Context, op errors.Op, outputs 
 	// a database view during PublishTransaction, the update must be committed
 	// before publishing the transaction to the network.
 	var watch []wire.OutPoint
-	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for _, up := range changeSourceUpdates {
 			err := up(dbtx)
 			if err != nil {
@@ -447,14 +448,14 @@ func (w *Wallet) txToOutputsInternal(ctx context.Context, op errors.Op, outputs 
 	if err != nil {
 		hash := atx.Tx.TxHash()
 		log.Errorf("Abandoning transaction %v which failed to publish", &hash)
-		if err := w.AbandonTransaction(&hash); err != nil {
+		if err := w.AbandonTransaction(ctx, &hash); err != nil {
 			log.Errorf("Cannot abandon %v: %v", &hash, err)
 		}
 		return nil, errors.E(op, err)
 	}
 
 	// Watch for future relevant transactions.
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		return w.watchFutureAddresses(ctx, dbtx)
 	})
 	if err != nil {
@@ -480,7 +481,7 @@ func (w *Wallet) txToMultisig(ctx context.Context, op errors.Op, account uint32,
 		addr     dcrutil.Address
 		msScript []byte
 	)
-	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		var err error
 		created, addr, msScript, err = w.txToMultisigInternal(ctx, op, dbtx,
 			account, amount, pubkeys, nRequired, minconf)
@@ -594,7 +595,7 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 	}
 	if totalInput > amount+feeEst {
 		changeSource := p2PKHChangeSource{
-			persist: w.persistReturnedChild(dbtx),
+			persist: w.persistReturnedChild(ctx, dbtx),
 			account: account,
 			wallet:  w,
 			ctx:     ctx,
@@ -679,7 +680,7 @@ func creditScripts(credits []udb.Credit) [][]byte {
 // address. For use when it becomes dusty.
 func (w *Wallet) compressWallet(ctx context.Context, op errors.Op, maxNumIns int, account uint32, changeAddr dcrutil.Address) (*chainhash.Hash, error) {
 	var hash *chainhash.Hash
-	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		var err error
 		hash, err = w.compressWalletInternal(ctx, op, dbtx, maxNumIns, account, changeAddr)
 		return err
@@ -716,7 +717,7 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 
 	// Check if output address is default, and generate a new address if needed
 	if changeAddr == nil {
-		changeAddr, err = w.newChangeAddress(ctx, op, w.persistReturnedChild(dbtx), account)
+		changeAddr, err = w.newChangeAddress(ctx, op, w.persistReturnedChild(ctx, dbtx), account)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
@@ -951,7 +952,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 
 	// Perform a sanity check on expiry.
 	var tipHeight int32
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight = w.TxStore.MainChainTip(ns)
 		return nil
@@ -990,7 +991,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 
 	// Calculate the current ticket price.  If the DCP0001 deployment is not
 	// active, fallback to querying the ticket price over RPC.
-	ticketPrice, err := w.NextStakeDifficulty()
+	ticketPrice, err := w.NextStakeDifficulty(ctx)
 	if errors.Is(err, errors.Deployment) {
 		ticketPrice, err = n.StakeDifficulty(ctx)
 	}
@@ -1096,7 +1097,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	// end user through the legacy RPC, so it should only ever be
 	// set by internal calls e.g. automatic ticket purchase.
 	if req.minBalance > 0 {
-		bal, err := w.CalculateAccountBalance(account, req.MinConf)
+		bal, err := w.CalculateAccountBalance(ctx, account, req.MinConf)
 		if err != nil {
 			return nil, err
 		}
@@ -1173,7 +1174,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	// relevant transactions
 	var watchOutPoints []wire.OutPoint
 	defer func() {
-		err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 			return w.watchFutureAddresses(ctx, tx)
 		})
 		if err != nil {
@@ -1241,19 +1242,19 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 		// stored from the configuation. Finally, generate
 		// an address.
 		var addrVote, addrSubsidy dcrutil.Address
-		err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			addrVote = req.VotingAddress
 			if addrVote == nil {
 				addrVote = w.ticketAddress
 				if addrVote == nil {
-					addrVote, err = addrFunc(ctx, op, w.persistReturnedChild(dbtx), req.SourceAccount)
+					addrVote, err = addrFunc(ctx, op, w.persistReturnedChild(ctx, dbtx), req.SourceAccount)
 					if err != nil {
 						return err
 					}
 				}
 			}
 
-			addrSubsidy, err = addrFunc(ctx, op, w.persistReturnedChild(dbtx), req.SourceAccount)
+			addrSubsidy, err = addrFunc(ctx, op, w.persistReturnedChild(ctx, dbtx), req.SourceAccount)
 			return err
 		})
 		if err != nil {
@@ -1291,7 +1292,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 		// Set the expiry.
 		ticket.Expiry = uint32(req.Expiry)
 
-		err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+		err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 			ns := tx.ReadBucket(waddrmgrNamespaceKey)
 			return w.signP2PKHMsgTx(ticket, forSigning, ns)
 		})
@@ -1313,7 +1314,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 			return ticketHashes, errors.E(op, err)
 		}
 
-		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			watch, err := w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
 			watchOutPoints = append(watchOutPoints, watch...)
 			return err
@@ -1421,11 +1422,11 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 
 // FindEligibleOutputs is the exported version of findEligibleOutputs (which
 // tried to find unspent outputs that pass a maturity check).
-func (w *Wallet) FindEligibleOutputs(account uint32, minconf int32, currentHeight int32) ([]udb.Credit, error) {
+func (w *Wallet) FindEligibleOutputs(ctx context.Context, account uint32, minconf int32, currentHeight int32) ([]udb.Credit, error) {
 	const op errors.Op = "wallet.FindEligibleOutputs"
 
 	var unspentOutputs []udb.Credit
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		unspentOutputs, err = w.findEligibleOutputs(dbtx, account, minconf, currentHeight)
 		return err

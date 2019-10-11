@@ -5,6 +5,8 @@
 package udb
 
 import (
+	"context"
+	
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
@@ -13,8 +15,8 @@ import (
 // Initialize prepares an empty database for usage by initializing all buckets
 // and key/value pairs.  The database is initialized with the latest version and
 // does not require any upgrades to use.
-func Initialize(db walletdb.DB, params *chaincfg.Params, seed, pubPass, privPass []byte) error {
-	err := walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+func Initialize(ctx context.Context, db walletdb.DB, params *chaincfg.Params, seed, pubPass, privPass []byte) error {
+	err := walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs, err := tx.CreateTopLevelBucket(waddrmgrBucketKey)
 		if err != nil {
 			return errors.E(errors.IO, err)
@@ -53,14 +55,14 @@ func Initialize(db walletdb.DB, params *chaincfg.Params, seed, pubPass, privPass
 	if err != nil {
 		return err
 	}
-	return Upgrade(db, pubPass, params)
+	return Upgrade(ctx, db, pubPass, params)
 }
 
 // InitializeWatchOnly prepares an empty database for watching-only wallet usage
 // by initializing all buckets and key/value pairs.  The database is initialized
 // with the latest version and does not require any upgrades to use.
-func InitializeWatchOnly(db walletdb.DB, params *chaincfg.Params, hdPubKey string, pubPass []byte) error {
-	err := walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+func InitializeWatchOnly(ctx context.Context, db walletdb.DB, params *chaincfg.Params, hdPubKey string, pubPass []byte) error {
+	err := walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs, err := tx.CreateTopLevelBucket(waddrmgrBucketKey)
 		if err != nil {
 			return errors.E(errors.IO, err)
@@ -99,5 +101,5 @@ func InitializeWatchOnly(db walletdb.DB, params *chaincfg.Params, hdPubKey strin
 	if err != nil {
 		return err
 	}
-	return Upgrade(db, pubPass, params)
+	return Upgrade(ctx, db, pubPass, params)
 }

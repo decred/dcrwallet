@@ -24,11 +24,12 @@ import (
 // GenerateVoteTx creates a vote transaction for a chosen ticket purchase hash
 // using the provided votebits.  The ticket purchase transaction must be stored
 // by the wallet.
-func (w *Wallet) GenerateVoteTx(blockHash *chainhash.Hash, height int32, ticketHash *chainhash.Hash, voteBits stake.VoteBits) (*wire.MsgTx, error) {
+func (w *Wallet) GenerateVoteTx(ctx context.Context, blockHash *chainhash.Hash, height int32,
+	ticketHash *chainhash.Hash, voteBits stake.VoteBits) (*wire.MsgTx, error) {
 	const op errors.Op = "wallet.GenerateVoteTx"
 
 	var vote *wire.MsgTx
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		ticketPurchase, err := w.TxStore.Tx(txmgrNs, ticketHash)
@@ -64,7 +65,7 @@ func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, include
 
 	var tipHeight int32 // Assigned in view below.
 
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		// Remove tickets from the extraTickets slice if they will appear in the
@@ -188,11 +189,11 @@ func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, include
 // TicketHashesForVotingAddress returns the hashes of all tickets with voting
 // rights delegated to votingAddr.  This function does not return the hashes of
 // pruned tickets.
-func (w *Wallet) TicketHashesForVotingAddress(votingAddr dcrutil.Address) ([]chainhash.Hash, error) {
+func (w *Wallet) TicketHashesForVotingAddress(ctx context.Context, votingAddr dcrutil.Address) ([]chainhash.Hash, error) {
 	const op errors.Op = "wallet.TicketHashesForVotingAddress"
 
 	var ticketHashes []chainhash.Hash
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		stakemgrNs := tx.ReadBucket(wstakemgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -222,7 +223,7 @@ func (w *Wallet) TicketHashesForVotingAddress(votingAddr dcrutil.Address) ([]cha
 // AddTicket adds a ticket transaction to the stake manager.  It is not added to
 // the transaction manager because it is unknown where the transaction belongs
 // on the blockchain.  It will be used to create votes.
-func (w *Wallet) AddTicket(ticket *wire.MsgTx) error {
+func (w *Wallet) AddTicket(ctx context.Context, ticket *wire.MsgTx) error {
 	const op errors.Op = "wallet.AddTicket"
 
 	err := stake.CheckSStx(ticket)
@@ -231,7 +232,7 @@ func (w *Wallet) AddTicket(ticket *wire.MsgTx) error {
 		return errors.E(op, errors.Invalid, errors.Errorf("%v is not a ticket", &txHash))
 	}
 
-	err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
 
 		// Insert the ticket to be tracked and voted.
@@ -283,7 +284,7 @@ func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 	const op errors.Op = "wallet.RevokeTickets"
 
 	var ticketHashes []chainhash.Hash
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
 		_, tipHeight := w.TxStore.MainChainTip(ns)
@@ -311,7 +312,7 @@ func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 	}
 	feePerKb := w.RelayFee()
 	revocations := make([]*wire.MsgTx, 0, len(revokableTickets))
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		for _, ticketHash := range revokableTickets {
 			addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -353,7 +354,7 @@ func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 			return errors.E(op, err)
 		}
 		var watch []wire.OutPoint
-		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			// Could be more efficient by avoiding processTransaction, as we
 			// know it is a revocation.
 			watch, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
@@ -390,7 +391,7 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 	}()
 
 	var expired []chainhash.Hash
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(ns)
 
@@ -419,7 +420,7 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 
 	feePerKb := w.RelayFee()
 	revocations := make([]*wire.MsgTx, 0, len(expired))
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		for i := range expired {
 			ticketHash := &expired[i]
 			addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
@@ -457,7 +458,7 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 	}
 
 	var watchOutPoints []wire.OutPoint
-	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for i, revocation := range revocations {
 			rec, err := udb.NewTxRecordFromMsgTx(revocation, time.Now())
 			if err != nil {

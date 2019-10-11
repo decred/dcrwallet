@@ -74,7 +74,8 @@ func mustAddBlockNode(t *testing.T, forest *SidechainForest, n *BlockNode) {
 }
 
 func (tw *tw) evaluateBestChain(forest *SidechainForest, expectedBranchLen int, expectedTip *chainhash.Hash) []*BlockNode {
-	bestChain, err := tw.EvaluateBestChain(forest)
+	ctx := context.Background()
+	bestChain, err := tw.EvaluateBestChain(ctx, forest)
 	if err != nil {
 		tw.Fatal(err)
 	}
@@ -92,6 +93,7 @@ func (tw *tw) assertNoBetterChain(forest *SidechainForest) {
 }
 
 func (tw *tw) chainSwitch(forest *SidechainForest, chain []*BlockNode) {
+	ctx := context.Background()
 	prevChain, err := tw.ChainSwitch(context.Background(), forest, chain, nil)
 	if err != nil {
 		tw.Fatal(err)
@@ -99,14 +101,15 @@ func (tw *tw) chainSwitch(forest *SidechainForest, chain []*BlockNode) {
 	for _, n := range prevChain {
 		forest.AddBlockNode(n)
 	}
-	tip, _ := tw.MainChainTip()
+	tip, _ := tw.MainChainTip(ctx)
 	if tip != *chain[len(chain)-1].Hash {
 		tw.Fatalf("expected tip %v, got %v", chain[len(chain)-1].Hash, &tip)
 	}
 }
 
 func (tw *tw) expectBlockInMainChain(hash *chainhash.Hash, have, invalidated bool) {
-	haveBlock, isInvalidated, err := tw.BlockInMainChain(hash)
+	ctx := context.Background()
+	haveBlock, isInvalidated, err := tw.BlockInMainChain(ctx, hash)
 	if err != nil {
 		tw.Fatal(err)
 	}

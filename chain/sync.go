@@ -277,14 +277,14 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	s.wallet.SetNetworkBackend(s.rpc)
 	defer s.wallet.SetNetworkBackend(nil)
 
-	tipHash, tipHeight := s.wallet.MainChainTip()
-	rescanPoint, err := s.wallet.RescanPoint()
+	tipHash, tipHeight := s.wallet.MainChainTip(ctx)
+	rescanPoint, err := s.wallet.RescanPoint(ctx)
 	if err != nil {
 		return err
 	}
 	log.Infof("Headers synced through block %v height %d", &tipHash, tipHeight)
 	if rescanPoint != nil {
-		h, err := s.wallet.BlockHeader(rescanPoint)
+		h, err := s.wallet.BlockHeader(ctx, rescanPoint)
 		if err != nil {
 			return err
 		}
@@ -330,7 +330,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	}
 
 	// Fetch new headers and cfilters from the server.
-	locators, err := s.wallet.BlockLocators(nil)
+	locators, err := s.wallet.BlockLocators(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -370,7 +370,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 
 		var added int
 		for _, n := range nodes {
-			haveBlock, _, _ := s.wallet.BlockInMainChain(n.Hash)
+			haveBlock, _, _ := s.wallet.BlockInMainChain(ctx, n.Hash)
 			if haveBlock {
 				continue
 			}
@@ -397,7 +397,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		}
 
 		s.sidechainsMu.Lock()
-		bestChain, err := s.wallet.EvaluateBestChain(&s.sidechains)
+		bestChain, err := s.wallet.EvaluateBestChain(ctx, &s.sidechains)
 		s.sidechainsMu.Unlock()
 		if err != nil {
 			return err
@@ -406,7 +406,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 			continue
 		}
 
-		_, err = s.wallet.ValidateHeaderChainDifficulties(bestChain, 0)
+		_, err = s.wallet.ValidateHeaderChainDifficulties(ctx, bestChain, 0)
 		if err != nil {
 			return err
 		}
@@ -435,14 +435,14 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 				len(bestChain), tip.Hash, tip.Header.Height, tip.Header.Timestamp)
 		}
 
-		locators, err = s.wallet.BlockLocators(nil)
+		locators, err = s.wallet.BlockLocators(ctx, nil)
 		if err != nil {
 			return err
 		}
 	}
 	s.fetchHeadersFinished()
 
-	rescanPoint, err = s.wallet.RescanPoint()
+	rescanPoint, err = s.wallet.RescanPoint(ctx)
 	if err != nil {
 		return err
 	}
@@ -465,7 +465,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		}
 
 		s.rescanStart()
-		rescanBlock, err := s.wallet.BlockHeader(rescanPoint)
+		rescanBlock, err := s.wallet.BlockHeader(ctx, rescanPoint)
 		if err != nil {
 			return err
 		}
@@ -601,7 +601,7 @@ func (s *Syncer) blockConnected(ctx context.Context, params json.RawMessage) err
 	s.sidechains.AddBlockNode(blockNode)
 	s.relevantTxs[blockHash] = relevant
 
-	bestChain, err := s.wallet.EvaluateBestChain(&s.sidechains)
+	bestChain, err := s.wallet.EvaluateBestChain(ctx, &s.sidechains)
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@
 package wallet
 
 import (
+	"context"
 	"time"
 
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
@@ -30,10 +31,10 @@ func (p *OutputSelectionPolicy) meetsRequiredConfs(txHeight, curHeight int32) bo
 
 // UnspentOutputs fetches all unspent outputs from the wallet that match rules
 // described in the passed policy.
-func (w *Wallet) UnspentOutputs(policy OutputSelectionPolicy) ([]*TransactionOutput, error) {
+func (w *Wallet) UnspentOutputs(ctx context.Context, policy OutputSelectionPolicy) ([]*TransactionOutput, error) {
 	const op errors.Op = "wallet.UnspentOutputs"
 	var outputResults []*TransactionOutput
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -105,9 +106,9 @@ func (w *Wallet) UnspentOutputs(policy OutputSelectionPolicy) ([]*TransactionOut
 
 // SelectInputs selects transaction inputs to redeem unspent outputs stored in
 // the wallet.  It returns an input detail summary.
-func (w *Wallet) SelectInputs(targetAmount dcrutil.Amount, policy OutputSelectionPolicy) (inputDetail *txauthor.InputDetail, err error) {
+func (w *Wallet) SelectInputs(ctx context.Context, targetAmount dcrutil.Amount, policy OutputSelectionPolicy) (inputDetail *txauthor.InputDetail, err error) {
 	const op errors.Op = "wallet.SelectInputs"
-	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
@@ -144,10 +145,10 @@ type OutputInfo struct {
 
 // OutputInfo queries the wallet for additional transaction output info
 // regarding an outpoint.
-func (w *Wallet) OutputInfo(out *wire.OutPoint) (OutputInfo, error) {
+func (w *Wallet) OutputInfo(ctx context.Context, out *wire.OutPoint) (OutputInfo, error) {
 	const op errors.Op = "wallet.OutputInfo"
 	var info OutputInfo
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		txDetails, err := w.TxStore.TxDetails(txmgrNs, &out.Hash)

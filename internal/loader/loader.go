@@ -6,6 +6,7 @@
 package loader
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sync"
@@ -102,7 +103,7 @@ func (l *Loader) RunAfterLoad(fn func(*wallet.Wallet)) {
 
 // CreateWatchingOnlyWallet creates a new watch-only wallet using the provided
 // extended public key and public passphrase.
-func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte) (w *wallet.Wallet, err error) {
+func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey string, pubPass []byte) (w *wallet.Wallet, err error) {
 	const op errors.Op = "loader.CreateWatchingOnlyWallet"
 
 	defer l.mu.Unlock()
@@ -157,7 +158,7 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 	}
 
 	// Initialize the watch-only database for the wallet before opening.
-	err = wallet.CreateWatchOnly(db, extendedPubKey, pubPass, l.chainParams)
+	err = wallet.CreateWatchOnly(ctx, db, extendedPubKey, pubPass, l.chainParams)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -181,7 +182,7 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 		RelayFee:                l.relayFee,
 		Params:                  l.chainParams,
 	}
-	w, err = wallet.Open(cfg)
+	w, err = wallet.Open(ctx, cfg)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -193,7 +194,7 @@ func (l *Loader) CreateWatchingOnlyWallet(extendedPubKey string, pubPass []byte)
 // CreateNewWallet creates a new wallet using the provided public and private
 // passphrases.  The seed is optional.  If non-nil, addresses are derived from
 // this seed.  If nil, a secure random seed is generated.
-func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w *wallet.Wallet, err error) {
+func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphrase, seed []byte) (w *wallet.Wallet, err error) {
 	const op errors.Op = "loader.CreateNewWallet"
 
 	defer l.mu.Unlock()
@@ -248,7 +249,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 	}
 
 	// Initialize the newly created database for the wallet before opening.
-	err = wallet.Create(db, pubPassphrase, privPassphrase, seed, l.chainParams)
+	err = wallet.Create(ctx, db, pubPassphrase, privPassphrase, seed, l.chainParams)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -272,7 +273,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 		RelayFee:                l.relayFee,
 		Params:                  l.chainParams,
 	}
-	w, err = wallet.Open(cfg)
+	w, err = wallet.Open(ctx, cfg)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -285,7 +286,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte) (w 
 // and the public passphrase.  If the loader is being called by a context where
 // standard input prompts may be used during wallet upgrades, setting
 // canConsolePrompt will enable these prompts.
-func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rerr error) {
+func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (w *wallet.Wallet, rerr error) {
 	const op errors.Op = "loader.OpenExistingWallet"
 
 	defer l.mu.Unlock()
@@ -333,7 +334,7 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte) (w *wallet.Wallet, rer
 		RelayFee:                l.relayFee,
 		Params:                  l.chainParams,
 	}
-	w, err = wallet.Open(cfg)
+	w, err = wallet.Open(ctx, cfg)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}

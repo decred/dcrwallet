@@ -86,7 +86,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 
 	var watchOutPoints []wire.OutPoint
 
-	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
@@ -190,7 +190,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 		return nil, errors.E(op, err)
 	}
 
-	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		return w.watchFutureAddresses(ctx, tx)
 	})
 	if err != nil && !errors.Is(err, errors.NoPeers) {
@@ -208,7 +208,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 	forest.Prune(int32(chain[len(chain)-1].Header.Height), w.chainParams)
 
 	w.NtfnServer.notifyMainChainTipChanged(chainTipChanges)
-	w.NtfnServer.sendAttachedBlockNotification()
+	w.NtfnServer.sendAttachedBlockNotification(ctx)
 
 	return prevChain, nil
 }
@@ -296,7 +296,7 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 func (w *Wallet) AcceptMempoolTx(ctx context.Context, tx *wire.MsgTx) error {
 	const op errors.Op = "wallet.AcceptMempoolTx"
 	var watchOutPoints []wire.OutPoint
-	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		rec, err := udb.NewTxRecordFromMsgTx(tx, time.Now())
@@ -322,7 +322,7 @@ func (w *Wallet) AcceptMempoolTx(ctx context.Context, tx *wire.MsgTx) error {
 	if err != nil {
 		return errors.E(op, err)
 	}
-	err = walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		return w.watchFutureAddresses(ctx, tx)
 	})
 	if err != nil {
@@ -804,7 +804,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 	var ticketHashes []*chainhash.Hash
 	var votes []*wire.MsgTx
 	voteBits := w.VoteBits()
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		// Only consider tickets owned by this wallet.
@@ -879,7 +879,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 		voteRecords = append(voteRecords, rec)
 	}
 	var watchOutPoints []wire.OutPoint
-	err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for i := range voteRecords {
 			watch, err := w.processTransactionRecord(ctx, dbtx, voteRecords[i], nil, nil)
 			if err != nil {
@@ -930,7 +930,7 @@ func (w *Wallet) RevokeOwnedTickets(ctx context.Context, missedTicketHashes []*c
 	var ticketHashes []*chainhash.Hash
 	var revocations []*wire.MsgTx
 	relayFee := w.RelayFee()
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		// Only consider tickets owned by this wallet.
@@ -1008,7 +1008,7 @@ func (w *Wallet) RevokeOwnedTickets(ctx context.Context, missedTicketHashes []*c
 		}
 		revocationHash := &txRec.Hash
 		var watchOutPoints []wire.OutPoint
-		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			var err error
 			watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, txRec, nil, nil)
 			return err

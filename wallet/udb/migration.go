@@ -5,6 +5,8 @@
 package udb
 
 import (
+	"context"
+	
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
@@ -20,9 +22,9 @@ var (
 
 // NeedsMigration checks whether the database needs to be converted to the
 // unified database format.
-func NeedsMigration(db walletdb.DB) (bool, error) {
+func NeedsMigration(ctx context.Context, db walletdb.DB) (bool, error) {
 	var needsMigration bool
-	err := walletdb.View(db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		needsMigration = tx.ReadBucket(unifiedDBMetadata{}.rootBucketKey()) == nil
 		return nil
 	})
@@ -33,8 +35,8 @@ func NeedsMigration(db walletdb.DB) (bool, error) {
 // format.  If any old upgrades are necessary, they are performed first.
 // Upgrades added after the migration was implemented may still need to be
 // performed.
-func Migrate(db walletdb.DB, params *chaincfg.Params) error {
-	return walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+func Migrate(ctx context.Context, db walletdb.DB, params *chaincfg.Params) error {
+	return walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrBucketKey)
 		txmgrNs := tx.ReadWriteBucket(wtxmgrBucketKey)
 		stakemgrNs := tx.ReadWriteBucket(wstakemgrBucketKey)

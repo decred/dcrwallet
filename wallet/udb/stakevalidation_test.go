@@ -6,6 +6,7 @@ package udb
 
 import (
 	"bytes"
+	"context"
 	"testing"
 	"time"
 
@@ -36,6 +37,7 @@ func insertMainChainHeaders(s *Store, ns walletdb.ReadWriteBucket, addrmgrNs wal
 }
 
 func TestStakeInvalidationOfTip(t *testing.T) {
+	ctx := context.Background()
 	db, _, s, _, teardown, err := cloneDB("stake_inv_of_tip.kv")
 	defer teardown()
 	if err != nil {
@@ -71,7 +73,7 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(wtxmgrBucketKey)
 		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
 

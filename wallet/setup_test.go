@@ -5,6 +5,7 @@
 package wallet
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -23,6 +24,7 @@ var basicWalletConfig = Config{
 }
 
 func testWallet(t *testing.T, cfg *Config) (w *Wallet, teardown func()) {
+	ctx := context.Background()
 	f, err := ioutil.TempFile("", "dcrwallet.testdb")
 	if err != nil {
 		t.Fatal(err)
@@ -36,13 +38,13 @@ func testWallet(t *testing.T, cfg *Config) (w *Wallet, teardown func()) {
 		db.Close()
 		os.Remove(f.Name())
 	}
-	err = Create(opaqueDB{db}, []byte(InsecurePubPassphrase), []byte("private"), nil, cfg.Params)
+	err = Create(ctx, opaqueDB{db}, []byte(InsecurePubPassphrase), []byte("private"), nil, cfg.Params)
 	if err != nil {
 		rm()
 		t.Fatal(err)
 	}
 	cfg.DB = opaqueDB{db}
-	w, err = Open(cfg)
+	w, err = Open(ctx, cfg)
 	if err != nil {
 		rm()
 		t.Fatal(err)

@@ -292,7 +292,7 @@ func (s *walletServer) Network(ctx context.Context, req *pb.NetworkRequest) (
 }
 
 func (s *walletServer) CoinType(ctx context.Context, req *pb.CoinTypeRequest) (*pb.CoinTypeResponse, error) {
-	coinType, err := s.wallet.CoinType()
+	coinType, err := s.wallet.CoinType(ctx)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -302,7 +302,7 @@ func (s *walletServer) CoinType(ctx context.Context, req *pb.CoinTypeRequest) (*
 func (s *walletServer) AccountNumber(ctx context.Context, req *pb.AccountNumberRequest) (
 	*pb.AccountNumberResponse, error) {
 
-	accountNum, err := s.wallet.AccountNumber(req.AccountName)
+	accountNum, err := s.wallet.AccountNumber(ctx, req.AccountName)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -311,7 +311,7 @@ func (s *walletServer) AccountNumber(ctx context.Context, req *pb.AccountNumberR
 }
 
 func (s *walletServer) Accounts(ctx context.Context, req *pb.AccountsRequest) (*pb.AccountsResponse, error) {
-	resp, err := s.wallet.Accounts()
+	resp, err := s.wallet.Accounts(ctx, )
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -337,7 +337,7 @@ func (s *walletServer) Accounts(ctx context.Context, req *pb.AccountsRequest) (*
 func (s *walletServer) RenameAccount(ctx context.Context, req *pb.RenameAccountRequest) (
 	*pb.RenameAccountResponse, error) {
 
-	err := s.wallet.RenameAccount(req.AccountNumber, req.NewName)
+	err := s.wallet.RenameAccount(ctx, req.AccountNumber, req.NewName)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -381,7 +381,7 @@ func (s *walletServer) Rescan(req *pb.RescanRequest, svr pb.WalletService_Rescan
 		blockID = wallet.NewBlockIdentifierFromHeight(req.BeginHeight)
 	}
 
-	b, err := s.wallet.BlockInfo(blockID)
+	b, err := s.wallet.BlockInfo(svr.Context(), blockID)
 	if err != nil {
 		return translateError(err)
 	}
@@ -427,7 +427,7 @@ func (s *walletServer) NextAccount(ctx context.Context, req *pb.NextAccountReque
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err := s.wallet.Unlock(req.Passphrase, lock)
+	err := s.wallet.Unlock(ctx, req.Passphrase, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -509,7 +509,7 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err = s.wallet.Unlock(req.Passphrase, lock)
+	err = s.wallet.Unlock(ctx, req.Passphrase, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -563,7 +563,7 @@ func (s *walletServer) ImportScript(ctx context.Context,
 	}
 	ownAddrs := 0
 	for _, a := range addrs {
-		haveAddr, err := s.wallet.HaveAddress(a)
+		haveAddr, err := s.wallet.HaveAddress(ctx, a)
 		if err != nil {
 			return nil, translateError(err)
 		}
@@ -582,7 +582,7 @@ func (s *walletServer) ImportScript(ctx context.Context,
 		defer func() {
 			lock <- time.Time{} // send matters, not the value
 		}()
-		err = s.wallet.Unlock(req.Passphrase, lock)
+		err = s.wallet.Unlock(ctx, req.Passphrase, lock)
 		if err != nil {
 			return nil, translateError(err)
 		}
@@ -625,7 +625,7 @@ func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
 
 	account := req.AccountNumber
 	reqConfs := req.RequiredConfirmations
-	bals, err := s.wallet.CalculateAccountBalance(account, reqConfs)
+	bals, err := s.wallet.CalculateAccountBalance(ctx, account, reqConfs)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -645,11 +645,11 @@ func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
 }
 
 func (s *walletServer) TicketPrice(ctx context.Context, req *pb.TicketPriceRequest) (*pb.TicketPriceResponse, error) {
-	sdiff, err := s.wallet.NextStakeDifficulty()
+	sdiff, err := s.wallet.NextStakeDifficulty(ctx, )
 	if err != nil {
 		return nil, translateError(err)
 	}
-	_, tipHeight := s.wallet.MainChainTip()
+	_, tipHeight := s.wallet.MainChainTip(ctx, )
 	resp := &pb.TicketPriceResponse{
 		TicketPrice: int64(sdiff),
 		Height:      tipHeight,
@@ -668,7 +668,7 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 	if rpc != nil {
 		si, err = s.wallet.StakeInfoPrecise(ctx, rpc)
 	} else {
-		si, err = s.wallet.StakeInfo()
+		si, err = s.wallet.StakeInfo(ctx, )
 	}
 	if err != nil {
 		return nil, translateError(err)
@@ -762,7 +762,7 @@ func (s *walletServer) SweepAccount(ctx context.Context, req *pb.SweepAccountReq
 		}
 	}
 
-	account, err := s.wallet.AccountNumber(req.SourceAccount)
+	account, err := s.wallet.AccountNumber(ctx, req.SourceAccount)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -772,7 +772,7 @@ func (s *walletServer) SweepAccount(ctx context.Context, req *pb.SweepAccountReq
 		return nil, translateError(err)
 	}
 
-	tx, err := s.wallet.NewUnsignedTransaction(nil, feePerKb, account,
+	tx, err := s.wallet.NewUnsignedTransaction(ctx, nil, feePerKb, account,
 		int32(req.RequiredConfirmations), wallet.OutputSelectionAlgorithmAll,
 		changeSource)
 	if err != nil {
@@ -811,7 +811,7 @@ func (s *walletServer) BlockInfo(ctx context.Context, req *pb.BlockInfoRequest) 
 		blockID = wallet.NewBlockIdentifierFromHeight(req.BlockHeight)
 	}
 
-	b, err := s.wallet.BlockInfo(blockID)
+	b, err := s.wallet.BlockInfo(ctx, blockID)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -838,7 +838,7 @@ func (s *walletServer) UnspentOutputs(req *pb.UnspentOutputsRequest, svr pb.Wall
 		Account:               req.Account,
 		RequiredConfirmations: req.RequiredConfirmations,
 	}
-	inputDetail, err := s.wallet.SelectInputs(dcrutil.Amount(req.TargetAmount), policy)
+	inputDetail, err := s.wallet.SelectInputs(svr.Context(), dcrutil.Amount(req.TargetAmount), policy)
 	// Do not return errors to caller when there was insufficient spendable
 	// outputs available for the target amount.
 	if err != nil && !errors.Is(err, errors.InsufficientBalance) {
@@ -851,7 +851,7 @@ func (s *walletServer) UnspentOutputs(req *pb.UnspentOutputsRequest, svr pb.Wall
 		case <-svr.Context().Done():
 			return status.Errorf(codes.Canceled, "unspentoutputs cancelled")
 		default:
-			outputInfo, err := s.wallet.OutputInfo(&input.PreviousOutPoint)
+			outputInfo, err := s.wallet.OutputInfo(svr.Context(), &input.PreviousOutPoint)
 			if err != nil {
 				return translateError(err)
 			}
@@ -884,7 +884,7 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 		Account:               req.Account,
 		RequiredConfirmations: req.RequiredConfirmations,
 	}
-	inputDetail, err := s.wallet.SelectInputs(dcrutil.Amount(req.TargetAmount), policy)
+	inputDetail, err := s.wallet.SelectInputs(ctx, dcrutil.Amount(req.TargetAmount), policy)
 	// Do not return errors to caller when there was insufficient spendable
 	// outputs available for the target amount.
 	if err != nil && !errors.Is(err, errors.InsufficientBalance) {
@@ -893,7 +893,7 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 
 	selectedOutputs := make([]*pb.FundTransactionResponse_PreviousOutput, len(inputDetail.Inputs))
 	for i, input := range inputDetail.Inputs {
-		outputInfo, err := s.wallet.OutputInfo(&input.PreviousOutPoint)
+		outputInfo, err := s.wallet.OutputInfo(ctx, &input.PreviousOutPoint)
 		if err != nil {
 			return nil, translateError(err)
 		}
@@ -1028,7 +1028,7 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 		}
 	}
 
-	tx, err := s.wallet.NewUnsignedTransaction(outputs, feePerKb, req.SourceAccount,
+	tx, err := s.wallet.NewUnsignedTransaction(ctx, outputs, feePerKb, req.SourceAccount,
 		req.RequiredConfirmations, algo, changeSource)
 	if err != nil {
 		return nil, translateError(err)
@@ -1056,7 +1056,7 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 }
 
 func (s *walletServer) GetAccountExtendedPubKey(ctx context.Context, req *pb.GetAccountExtendedPubKeyRequest) (*pb.GetAccountExtendedPubKeyResponse, error) {
-	accExtendedPubKey, err := s.wallet.MasterPubKey(req.AccountNumber)
+	accExtendedPubKey, err := s.wallet.MasterPubKey(ctx, req.AccountNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -1073,13 +1073,13 @@ func (s *walletServer) GetAccountExtendedPrivKey(ctx context.Context, req *pb.Ge
 		zero(req.Passphrase)
 	}
 
-	err := s.wallet.Unlock(req.Passphrase, lock)
+	err := s.wallet.Unlock(ctx, req.Passphrase, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
 	defer lockWallet()
 
-	accExtendedPrivKey, err := s.wallet.MasterPrivKey(req.AccountNumber)
+	accExtendedPrivKey, err := s.wallet.MasterPrivKey(ctx, req.AccountNumber)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1095,7 +1095,7 @@ func (s *walletServer) GetTransaction(ctx context.Context, req *pb.GetTransactio
 		return nil, status.Errorf(codes.InvalidArgument, "transaction_hash has invalid length")
 	}
 
-	txSummary, confs, blockHash, err := s.wallet.TransactionSummary(txHash)
+	txSummary, confs, blockHash, err := s.wallet.TransactionSummary(ctx, txHash)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1188,7 +1188,7 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 		}
 	}
 
-	err := s.wallet.GetTransactions(rangeFn, startBlock, endBlock)
+	err := s.wallet.GetTransactions(ctx, rangeFn, startBlock, endBlock)
 	if err != nil {
 		return translateError(err)
 	}
@@ -1211,7 +1211,7 @@ func (s *walletServer) GetTicket(ctx context.Context, req *pb.GetTicketRequest) 
 	var ticketSummary *wallet.TicketSummary
 	var blockHeader *wire.BlockHeader
 	if rpc == nil {
-		ticketSummary, blockHeader, err = s.wallet.GetTicketInfo(ticketHash)
+		ticketSummary, blockHeader, err = s.wallet.GetTicketInfo(ctx, ticketHash)
 	} else {
 		ticketSummary, blockHeader, err =
 			s.wallet.GetTicketInfoPrecise(ctx, rpc, ticketHash)
@@ -1295,7 +1295,7 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 	if rpc, ok := n.(*dcrd.RPC); ok {
 		err = s.wallet.GetTicketsPrecise(ctx, rpc, rangeFn, startBlock, endBlock)
 	} else {
-		err = s.wallet.GetTickets(rangeFn, startBlock, endBlock)
+		err = s.wallet.GetTickets(ctx, rangeFn, startBlock, endBlock)
 	}
 	if err != nil {
 		return translateError(err)
@@ -1320,7 +1320,7 @@ func (s *walletServer) ChangePassphrase(ctx context.Context, req *pb.ChangePassp
 	var err error
 	switch req.Key {
 	case pb.ChangePassphraseRequest_PRIVATE:
-		err = s.wallet.ChangePrivatePassphrase(oldPass, newPass)
+		err = s.wallet.ChangePrivatePassphrase(ctx, oldPass, newPass)
 	case pb.ChangePassphraseRequest_PUBLIC:
 		if len(oldPass) == 0 {
 			oldPass = []byte(wallet.InsecurePubPassphrase)
@@ -1328,7 +1328,7 @@ func (s *walletServer) ChangePassphrase(ctx context.Context, req *pb.ChangePassp
 		if len(newPass) == 0 {
 			newPass = []byte(wallet.InsecurePubPassphrase)
 		}
-		err = s.wallet.ChangePublicPassphrase(oldPass, newPass)
+		err = s.wallet.ChangePublicPassphrase(ctx, oldPass, newPass)
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "Unknown key type (%d)", req.Key)
 	}
@@ -1354,7 +1354,7 @@ func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransact
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err = s.wallet.Unlock(req.Passphrase, lock)
+	err = s.wallet.Unlock(ctx, req.Passphrase, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1375,7 +1375,7 @@ func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransact
 		}
 	}
 
-	invalidSigs, err := s.wallet.SignTransaction(&tx, txscript.SigHashAll, additionalPkScripts, nil, nil)
+	invalidSigs, err := s.wallet.SignTransaction(ctx, &tx, txscript.SigHashAll, additionalPkScripts, nil, nil)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1407,7 +1407,7 @@ func (s *walletServer) SignTransactions(ctx context.Context, req *pb.SignTransac
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err := s.wallet.Unlock(req.Passphrase, lock)
+	err := s.wallet.Unlock(ctx, req.Passphrase, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1438,7 +1438,7 @@ func (s *walletServer) SignTransactions(ctx context.Context, req *pb.SignTransac
 				"Bytes do not represent a valid raw transaction: %v", err)
 		}
 
-		invalidSigs, err := s.wallet.SignTransaction(&tx, txscript.SigHashAll, additionalPkScripts, nil, nil)
+		invalidSigs, err := s.wallet.SignTransaction(ctx, &tx, txscript.SigHashAll, additionalPkScripts, nil, nil)
 		if err != nil {
 			return nil, translateError(err)
 		}
@@ -1485,7 +1485,7 @@ func (s *walletServer) CreateSignature(ctx context.Context, req *pb.CreateSignat
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err = s.wallet.Unlock(req.Passphrase, lock)
+	err = s.wallet.Unlock(ctx, req.Passphrase, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1496,7 +1496,7 @@ func (s *walletServer) CreateSignature(ctx context.Context, req *pb.CreateSignat
 	}
 
 	hashType := txscript.SigHashType(req.HashType)
-	sig, pubkey, err := s.wallet.CreateSignature(&tx, req.InputIndex, addr, hashType, req.PreviousPkScript)
+	sig, pubkey, err := s.wallet.CreateSignature(ctx, &tx, req.InputIndex, addr, hashType, req.PreviousPkScript)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1598,7 +1598,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err = s.wallet.Unlock(req.Passphrase, lock)
+	err = s.wallet.Unlock(ctx, req.Passphrase, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1626,7 +1626,7 @@ func (s *walletServer) RevokeTickets(ctx context.Context, req *pb.RevokeTicketsR
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err = s.wallet.Unlock(req.Passphrase, lock)
+	err = s.wallet.Unlock(ctx, req.Passphrase, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1683,7 +1683,7 @@ func (s *walletServer) CommittedTickets(ctx context.Context, req *pb.CommittedTi
 	}
 
 	// Figure out which tickets we own
-	out, outAddr, err := s.wallet.CommittedTickets(in)
+	out, outAddr, err := s.wallet.CommittedTickets(ctx, in)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1709,7 +1709,7 @@ func (s *walletServer) CommittedTickets(ctx context.Context, req *pb.CommittedTi
 	return ctr, nil
 }
 
-func (s *walletServer) signMessage(address, message string) ([]byte, error) {
+func (s *walletServer) signMessage(ctx context.Context, address, message string) ([]byte, error) {
 	addr, err := decodeAddress(address, s.wallet.ChainParams())
 	if err != nil {
 		return nil, err
@@ -1728,7 +1728,7 @@ func (s *walletServer) signMessage(address, message string) ([]byte, error) {
 		goto WrongAddrKind
 	}
 
-	sig, err = s.wallet.SignMessage(message, addr)
+	sig, err = s.wallet.SignMessage(ctx, message, addr)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1739,17 +1739,17 @@ WrongAddrKind:
 		"address must be secp256k1 P2PK or P2PKH")
 }
 
-func (s *walletServer) SignMessage(cts context.Context, req *pb.SignMessageRequest) (*pb.SignMessageResponse, error) {
+func (s *walletServer) SignMessage(ctx context.Context, req *pb.SignMessageRequest) (*pb.SignMessageResponse, error) {
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err := s.wallet.Unlock(req.Passphrase, lock)
+	err := s.wallet.Unlock(ctx, req.Passphrase, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
 
-	sig, err := s.signMessage(req.Address, req.Message)
+	sig, err := s.signMessage(ctx, req.Address, req.Message)
 	if err != nil {
 		return nil, err
 	}
@@ -1757,12 +1757,12 @@ func (s *walletServer) SignMessage(cts context.Context, req *pb.SignMessageReque
 	return &pb.SignMessageResponse{Signature: sig}, nil
 }
 
-func (s *walletServer) SignMessages(cts context.Context, req *pb.SignMessagesRequest) (*pb.SignMessagesResponse, error) {
+func (s *walletServer) SignMessages(ctx context.Context, req *pb.SignMessagesRequest) (*pb.SignMessagesResponse, error) {
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err := s.wallet.Unlock(req.Passphrase, lock)
+	err := s.wallet.Unlock(ctx, req.Passphrase, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1773,7 +1773,7 @@ func (s *walletServer) SignMessages(cts context.Context, req *pb.SignMessagesReq
 	}
 	for _, v := range req.Messages {
 		e := ""
-		sig, err := s.signMessage(v.Address, v.Message)
+		sig, err := s.signMessage(ctx, v.Address, v.Message)
 		if err != nil {
 			e = err.Error()
 		}
@@ -1795,7 +1795,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 	}
 
 	result.IsValid = true
-	addrInfo, err := s.wallet.AddressInfo(addr)
+	addrInfo, err := s.wallet.AddressInfo(ctx, addr)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
 			// No additional information available about the address.
@@ -1807,12 +1807,12 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 	// The address lookup was successful which means there is further
 	// information about it available and it is "mine".
 	result.IsMine = true
-	acctName, err := s.wallet.AccountName(addrInfo.Account())
+	acctName, err := s.wallet.AccountName(ctx, addrInfo.Account())
 	if err != nil {
 		return nil, translateError(err)
 	}
 
-	acctNumber, err := s.wallet.AccountNumber(acctName)
+	acctNumber, err := s.wallet.AccountNumber(ctx, acctName)
 	if err != nil {
 		return nil, err
 	}
@@ -1835,7 +1835,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 
 		// The script is only available if the manager is unlocked, so
 		// just break out now if there is an error.
-		script, err := s.wallet.RedeemScriptCopy(addr)
+		script, err := s.wallet.RedeemScriptCopy(ctx, addr)
 		if err != nil {
 			break
 		}
@@ -2208,7 +2208,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		zero(req.Passphrase)
 	}
 
-	err = wallet.Unlock(req.Passphrase, lock)
+	err = wallet.Unlock(svr.Context(), req.Passphrase, lock)
 	if err != nil {
 		return translateError(err)
 	}
@@ -2248,7 +2248,7 @@ func (s *loaderServer) CreateWallet(ctx context.Context, req *pb.CreateWalletReq
 		return nil, status.Errorf(codes.InvalidArgument, "seed is a required parameter")
 	}
 
-	_, err := s.loader.CreateNewWallet(pubPassphrase, req.PrivatePassphrase, req.Seed)
+	_, err := s.loader.CreateNewWallet(ctx, pubPassphrase, req.PrivatePassphrase, req.Seed)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -2265,7 +2265,7 @@ func (s *loaderServer) CreateWatchingOnlyWallet(ctx context.Context, req *pb.Cre
 		pubPassphrase = []byte(wallet.InsecurePubPassphrase)
 	}
 
-	_, err := s.loader.CreateWatchingOnlyWallet(req.ExtendedPubKey, pubPassphrase)
+	_, err := s.loader.CreateWatchingOnlyWallet(ctx, req.ExtendedPubKey, pubPassphrase)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -2282,7 +2282,7 @@ func (s *loaderServer) OpenWallet(ctx context.Context, req *pb.OpenWalletRequest
 		pubPassphrase = []byte(wallet.InsecurePubPassphrase)
 	}
 
-	w, err := s.loader.OpenExistingWallet(pubPassphrase)
+	w, err := s.loader.OpenExistingWallet(ctx, pubPassphrase)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -2354,7 +2354,7 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 			zero(req.PrivatePassphrase)
 		}
 		defer lockWallet()
-		err := wallet.Unlock(req.PrivatePassphrase, lock)
+		err := wallet.Unlock(svr.Context(), req.PrivatePassphrase, lock)
 		if err != nil {
 			return translateError(err)
 		}
@@ -2496,7 +2496,7 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 			zero(req.PrivatePassphrase)
 		}
 		defer lockWallet()
-		err := wallet.Unlock(req.PrivatePassphrase, lock)
+		err := wallet.Unlock(svr.Context(), req.PrivatePassphrase, lock)
 		if err != nil {
 			return translateError(err)
 		}
@@ -2652,7 +2652,7 @@ func (s *loaderServer) RescanPoint(ctx context.Context, req *pb.RescanPointReque
 	if !ok {
 		return nil, status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
 	}
-	rescanPoint, err := wallet.RescanPoint()
+	rescanPoint, err := wallet.RescanPoint(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "Rescan point failed to be requested %v", err)
 	}
@@ -2752,7 +2752,7 @@ func (s *votingServer) checkReady() bool {
 
 func (s *votingServer) VoteChoices(ctx context.Context, req *pb.VoteChoicesRequest) (*pb.VoteChoicesResponse, error) {
 	version, agendas := wallet.CurrentAgendas(s.wallet.ChainParams())
-	choices, voteBits, err := s.wallet.AgendaChoices()
+	choices, voteBits, err := s.wallet.AgendaChoices(ctx, )
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -2787,7 +2787,7 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 			ChoiceID: c.ChoiceId,
 		}
 	}
-	voteBits, err := s.wallet.SetAgendaChoices(choices...)
+	voteBits, err := s.wallet.SetAgendaChoices(ctx, choices...)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -2957,7 +2957,7 @@ func (s *decodeMessageServer) DecodeRawTransaction(ctx context.Context, req *pb.
 }
 
 func (s *walletServer) BestBlock(ctx context.Context, req *pb.BestBlockRequest) (*pb.BestBlockResponse, error) {
-	hash, height := s.wallet.MainChainTip()
+	hash, height := s.wallet.MainChainTip(ctx, )
 	resp := &pb.BestBlockResponse{
 		Hash:   hash[:],
 		Height: uint32(height),

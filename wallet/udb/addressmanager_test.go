@@ -7,6 +7,7 @@ package udb
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -453,6 +454,7 @@ func testImportScript(tc *testContext, wb walletdb.ReadWriteBucket) {
 }
 
 func TestManagerImports(t *testing.T) {
+	ctx := context.Background()
 	db, mgr, _, _, teardown, err := cloneDB("imports.kv")
 	defer teardown()
 	if err != nil {
@@ -470,7 +472,7 @@ func TestManagerImports(t *testing.T) {
 	}
 
 	testImports := func(tc *testContext) {
-		err := walletdb.Update(tc.db, func(tx walletdb.ReadWriteTx) error {
+		err := walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
 			ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 			testImportPrivateKey(tc, ns)
 			testImportScript(tc, ns)
@@ -747,6 +749,7 @@ func testForEachAccount(tc *testContext, rb walletdb.ReadBucket) {
 // testEncryptDecryptErrors ensures that errors which occur while encrypting and
 // decrypting data return the expected errors.
 func testEncryptDecryptErrors(tc *testContext) {
+	ctx := context.Background()
 	invalidKeyType := CryptoKeyType(0xff)
 	if _, err := tc.manager.Encrypt(invalidKeyType, []byte{}); err == nil {
 		tc.t.Fatal("Encrypt accepted an invalid key type!")
@@ -776,7 +779,7 @@ func testEncryptDecryptErrors(tc *testContext) {
 
 	}
 
-	walletdb.Update(tc.db, func(tx walletdb.ReadWriteTx) error {
+	walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 		// Unlock the manager for these tests
 		if err = tc.manager.Unlock(ns, privPassphrase); err != nil {
@@ -802,9 +805,10 @@ func testEncryptDecryptErrors(tc *testContext) {
 // testEncryptDecrypt ensures that encrypting and decrypting data with the
 // the various crypto key types works as expected.
 func testEncryptDecrypt(tc *testContext) {
+	ctx := context.Background()
 	plainText := []byte("this is a plaintext")
 
-	walletdb.Update(tc.db, func(tx walletdb.ReadWriteTx) error {
+	walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 		// Make sure address manager is unlocked
 		if err := tc.manager.Unlock(ns, privPassphrase); err != nil {
@@ -863,6 +867,7 @@ func TestManagerEncryptDecrypt(t *testing.T) {
 }
 
 func TestChangePassphrase(t *testing.T) {
+	ctx := context.Background()
 	db, mgr, _, _, teardown, err := cloneDB("change_passphrase.kv")
 	defer teardown()
 	if err != nil {
@@ -879,7 +884,7 @@ func TestChangePassphrase(t *testing.T) {
 		watchingOnly: false,
 	}
 
-	err = walletdb.Update(tc.db, func(tx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 		testChangePassphrase(tc, ns)
 		return nil
@@ -891,7 +896,8 @@ func TestChangePassphrase(t *testing.T) {
 
 // testManagerAPI tests the functions provided by the Manager API.
 func testManagerAPI(tc *testContext) {
-	err := walletdb.Update(tc.db, func(tx walletdb.ReadWriteTx) error {
+	ctx := context.Background()
+	err := walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 
 		testLocking(tc, ns)
@@ -917,6 +923,7 @@ func testManagerAPI(tc *testContext) {
 // manager such as running the full set of API tests against a newly converted
 // copy as well as when it is opened from an existing namespace.
 func TestManagerWatchingOnly(t *testing.T) {
+	ctx := context.Background()
 	db, mgr, _, _, teardown, err := cloneDB("mgr_watching_only.kv")
 	defer teardown()
 	if err != nil {
@@ -934,13 +941,13 @@ func TestManagerWatchingOnly(t *testing.T) {
 	})
 	mgr.Close()
 
-	mgr, _, _, err = Open(db, chaincfg.TestNet3Params(), pubPassphrase)
+	mgr, _, _, err = Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	defer mgr.Close()
 
-	err = walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 		if err = mgr.ConvertToWatchingOnly(ns); err != nil {
 			t.Fatalf("failed to convert manager to watching-only: %v", err)
@@ -962,7 +969,7 @@ func TestManagerWatchingOnly(t *testing.T) {
 	})
 
 	// Open the watching-only manager and run all the tests again.
-	mgr, _, _, err = Open(db, chaincfg.TestNet3Params(), pubPassphrase)
+	mgr, _, _, err = Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -986,6 +993,7 @@ func TestManager(t *testing.T) {
 		t.Skip("short: skipping TestManager")
 	}
 
+	ctx := context.Background()
 	db, mgr, _, _, teardown, err := cloneDB("mgr_watching_only.kv")
 	defer teardown()
 	if err != nil {
@@ -1004,7 +1012,7 @@ func TestManager(t *testing.T) {
 
 	// Open the manager and run all the tests again in open mode which
 	// avoids reinserting new addresses like the create mode tests do.
-	mgr, _, _, err = Open(db, chaincfg.TestNet3Params(), pubPassphrase)
+	mgr, _, _, err = Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
 		t.Fatalf("Open: unexpected error: %v", err)
 	}

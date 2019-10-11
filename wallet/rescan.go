@@ -162,9 +162,9 @@ func (f *RescanFilter) RemoveUnspentOutPoint(op *wire.OutPoint) {
 // does not update the network backend with data to watch for future
 // relevant transactions as the rescanner is assumed to handle this
 // task.
-func (w *Wallet) SaveRescanned(hash *chainhash.Hash, txs []*wire.MsgTx) error {
+func (w *Wallet) SaveRescanned(ctx context.Context, hash *chainhash.Hash, txs []*wire.MsgTx) error {
 	const op errors.Op = "wallet.SaveRescanned"
-	err := walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 		blockMeta, err := w.TxStore.GetBlockMetaForHash(txmgrNs, hash)
 		if err != nil {
@@ -211,7 +211,7 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 		}
 
 		var rescanBlocks []chainhash.Hash
-		err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+		err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 			var err error
 			rescanBlocks, err = w.TxStore.GetMainChainBlockHashes(txmgrNs,
@@ -235,11 +235,14 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 			}
 		}
 		log.Infof("Rescanning block range [%v, %v]...", height, through)
-		err = n.Rescan(ctx, rescanBlocks, w.SaveRescanned)
+		saveRescanned := func(block *chainhash.Hash, txs []*wire.MsgTx) error {
+			return w.SaveRescanned(ctx, block, txs)
+		}
+		err = n.Rescan(ctx, rescanBlocks, saveRescanned)
 		if err != nil {
 			return err
 		}
-		err = walletdb.Update(w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			return w.TxStore.UpdateProcessedTxsBlockMarker(dbtx, &rescanBlocks[len(rescanBlocks)-1])
 		})
 		if err != nil {
@@ -263,7 +266,7 @@ func (w *Wallet) Rescan(ctx context.Context, n NetworkBackend, startHash *chainh
 	const op errors.Op = "wallet.Rescan"
 
 	var startHeight int32
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		header, err := w.TxStore.GetSerializedBlockHeader(txmgrNs, startHash)
 		if err != nil {
@@ -289,7 +292,7 @@ func (w *Wallet) RescanFromHeight(ctx context.Context, n NetworkBackend, startHe
 	const op errors.Op = "wallet.RescanFromHeight"
 
 	var startHash chainhash.Hash
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
 		startHash, err = w.TxStore.GetMainChainBlockHashForHeight(
@@ -326,7 +329,7 @@ func (w *Wallet) RescanProgressFromHeight(ctx context.Context, n NetworkBackend,
 	defer close(p)
 
 	var startHash chainhash.Hash
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
 		startHash, err = w.TxStore.GetMainChainBlockHashForHeight(
@@ -361,10 +364,10 @@ func (w *Wallet) mainChainAncestor(dbtx walletdb.ReadTx, hash *chainhash.Hash) (
 
 // RescanPoint returns the block hash at which a rescan should begin
 // (inclusive), or nil when no rescan is necessary.
-func (w *Wallet) RescanPoint() (*chainhash.Hash, error) {
+func (w *Wallet) RescanPoint(ctx context.Context) (*chainhash.Hash, error) {
 	const op errors.Op = "wallet.RescanPoint"
 	var rp *chainhash.Hash
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		rp, err = w.rescanPoint(dbtx)
 		return err

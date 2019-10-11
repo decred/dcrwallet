@@ -6,6 +6,7 @@
 package udb
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 )
 
 func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
+	ctx := context.Background()
 	db, _, s, _, teardown, err := cloneDB("inserts_credits_debits_rollbacks.kv")
 	defer teardown()
 	if err != nil {
@@ -80,7 +82,7 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(wtxmgrBucketKey)
 		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
 		err = insertMainChainHeaders(s, ns, addrmgrNs, headerData, filters)
@@ -258,7 +260,7 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		err := walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+		err := walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 			ns := tx.ReadWriteBucket(wtxmgrBucketKey)
 			addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
 
@@ -356,6 +358,7 @@ func spendOutput(txHash *chainhash.Hash, index uint32, tree int8, outputValues .
 }
 
 func TestCoinbases(t *testing.T) {
+	ctx := context.Background()
 	db, _, s, _, teardown, err := cloneDB("coinbases.kv")
 	defer teardown()
 	if err != nil {
@@ -384,7 +387,7 @@ func TestCoinbases(t *testing.T) {
 	headerData := makeHeaderDataSlice(headers...)
 	filters := emptyFilters(18)
 
-	err = walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(wtxmgrBucketKey)
 		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
 

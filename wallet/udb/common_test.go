@@ -6,6 +6,7 @@
 package udb
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -44,6 +45,7 @@ func hexToBytes(origHex string) []byte {
 
 // createEmptyDB is a helper function for creating an empty wallet db.
 func createEmptyDB() error {
+	ctx := context.Background()
 	db, err := walletdb.Create("bdb", emptyDbPath)
 	defer db.Close()
 
@@ -51,13 +53,13 @@ func createEmptyDB() error {
 		return err
 	}
 
-	err = Initialize(db, chaincfg.TestNet3Params(), seed, pubPassphrase,
+	err = Initialize(ctx, db, chaincfg.TestNet3Params(), seed, pubPassphrase,
 		privPassphrase)
 	if err != nil {
 		return err
 	}
 
-	err = Upgrade(db, pubPassphrase, chaincfg.TestNet3Params())
+	err = Upgrade(ctx, db, pubPassphrase, chaincfg.TestNet3Params())
 	if err != nil {
 		return err
 	}
@@ -68,6 +70,7 @@ func createEmptyDB() error {
 // cloneDB makes a copy of an empty wallet db. It returns a wallet db, store, a
 // stake store and a teardown function.
 func cloneDB(cloneName string) (walletdb.DB, *Manager, *Store, *StakeStore, func(), error) {
+	ctx := context.Background()
 	file, err := ioutil.ReadFile(emptyDbPath)
 	if err != nil {
 		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
@@ -83,7 +86,7 @@ func cloneDB(cloneName string) (walletdb.DB, *Manager, *Store, *StakeStore, func
 		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
 	}
 
-	mgr, txStore, stkStore, err := Open(db, chaincfg.TestNet3Params(), pubPassphrase)
+	mgr, txStore, stkStore, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
 		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
 	}

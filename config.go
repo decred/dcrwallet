@@ -543,7 +543,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 
 		if !tempWalletExists {
 			// Perform the initial wallet creation wizard.
-			if err := createSimulationWallet(&cfg); err != nil {
+			if err := createSimulationWallet(ctx, &cfg); err != nil {
 				fmt.Fprintln(os.Stderr, "Unable to create wallet:", err)
 				return loadConfigError(err)
 			}
@@ -567,7 +567,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		// Perform the initial wallet creation wizard.
 		os.Stdout.Sync()
 		if cfg.CreateWatchingOnly {
-			err = createWatchingOnlyWallet(&cfg)
+			err = createWatchingOnlyWallet(ctx, &cfg)
 		} else {
 			err = createWallet(ctx, &cfg)
 		}

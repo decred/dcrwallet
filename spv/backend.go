@@ -145,7 +145,7 @@ func (s *Syncer) Rescan(ctx context.Context, blockHashes []chainhash.Hash, save 
 
 	cfilters := make([]*gcs.Filter, 0, len(blockHashes))
 	for i := 0; i < len(blockHashes); i++ {
-		f, err := s.wallet.CFilter(&blockHashes[i])
+		f, err := s.wallet.CFilter(ctx, &blockHashes[i])
 		if err != nil {
 			return err
 		}

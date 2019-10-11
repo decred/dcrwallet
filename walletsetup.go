@@ -78,13 +78,13 @@ func createWallet(ctx context.Context, cfg *config) error {
 	}
 
 	fmt.Println("Creating the wallet...")
-	w, err := loader.CreateNewWallet(pubPass, privPass, seed)
+	w, err := loader.CreateNewWallet(ctx, pubPass, privPass, seed)
 	if err != nil {
 		return err
 	}
 
 	if !imported {
-		err := w.UpgradeToSLIP0044CoinType()
+		err := w.UpgradeToSLIP0044CoinType(ctx)
 		if err != nil {
 			return err
 		}
@@ -92,7 +92,7 @@ func createWallet(ctx context.Context, cfg *config) error {
 
 	// Display a mining address when creating a simnet wallet.
 	if cfg.SimNet {
-		xpub, err := w.MasterPubKey(0)
+		xpub, err := w.MasterPubKey(ctx, 0)
 		if err != nil {
 			return err
 		}
@@ -127,7 +127,7 @@ func createWallet(ctx context.Context, cfg *config) error {
 
 // createSimulationWallet is intended to be called from the rpcclient
 // and used to create a wallet for actors involved in simulations.
-func createSimulationWallet(cfg *config) error {
+func createSimulationWallet(ctx context.Context, cfg *config) error {
 	// Simulation wallet password is 'password'.
 	privPass := wallet.SimulationPassphrase
 
@@ -162,7 +162,7 @@ func createSimulationWallet(cfg *config) error {
 	defer db.Close()
 
 	// Create the wallet.
-	err = wallet.Create(db, pubPass, privPass, seed, activeNet.Params)
+	err = wallet.Create(ctx, db, pubPass, privPass, seed, activeNet.Params)
 	if err != nil {
 		return err
 	}
@@ -188,7 +188,7 @@ func promptHDPublicKey(reader *bufio.Reader) (string, error) {
 
 // createWatchingOnlyWallet creates a watching only wallet using the passed
 // extended public key.
-func createWatchingOnlyWallet(cfg *config) error {
+func createWatchingOnlyWallet(ctx context.Context, cfg *config) error {
 	// Get the public key.
 	reader := bufio.NewReader(os.Stdin)
 	pubKeyString, err := promptHDPublicKey(reader)
@@ -216,7 +216,7 @@ func createWatchingOnlyWallet(cfg *config) error {
 	}
 	defer db.Close()
 
-	err = wallet.CreateWatchOnly(db, pubKeyString, pubPass, activeNet.Params)
+	err = wallet.CreateWatchOnly(ctx, db, pubKeyString, pubPass, activeNet.Params)
 	if err != nil {
 		errOS := os.Remove(dbPath)
 		if errOS != nil {

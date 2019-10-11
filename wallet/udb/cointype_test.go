@@ -5,6 +5,7 @@
 package udb
 
 import (
+	"context"
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/v2"
@@ -58,17 +59,18 @@ func equalExtKeys(k0, k1 *hdkeychain.ExtendedKey) bool {
 func TestCoinTypeUpgrade(t *testing.T) {
 	t.Parallel()
 
+	ctx := context.Background()
 	db, teardown := tempDB(t)
 	defer teardown()
 
 	params := chaincfg.TestNet3Params()
 
-	err := Initialize(db, params, seed, pubPass, privPassphrase)
+	err := Initialize(ctx, db, params, seed, pubPass, privPassphrase)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	m, _, _, err := Open(db, params, pubPass)
+	m, _, _, err := Open(ctx, db, params, pubPass)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +114,7 @@ func TestCoinTypeUpgrade(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = walletdb.Update(db, func(dbtx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, db, func(dbtx walletdb.ReadWriteTx) error {
 		ns := dbtx.ReadWriteBucket(waddrmgrBucketKey)
 		err := m.Unlock(ns, privPassphrase)
 		if err != nil {
