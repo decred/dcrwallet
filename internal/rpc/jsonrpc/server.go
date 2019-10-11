@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"runtime/trace"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -428,9 +429,11 @@ out:
 
 			default:
 				req := req // Copy for the closure
+				ctx, task := trace.NewTask(ctx, req.Method)
 				f := s.handlerClosure(ctx, &req)
 				wsc.wg.Add(1)
 				go func() {
+					defer task.End()
 					resp, jsonErr := f()
 					mresp, err := dcrjson.MarshalResponse(req.Jsonrpc, req.ID, resp, jsonErr)
 					if err != nil {
@@ -550,6 +553,9 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	ctx, task := trace.NewTask(ctx, req.Method)
+	defer task.End()
 
 	// Create the response and error from the request.  Two special cases
 	// are handled for the authenticate and stop request methods.

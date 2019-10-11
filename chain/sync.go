@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"net"
+	"runtime/trace"
 	"sync"
 	"sync/atomic"
 
@@ -532,14 +533,16 @@ type notifier struct {
 func (n *notifier) Notify(method string, params json.RawMessage) error {
 	s := n.syncer
 	op := errors.Op(method)
+	ctx, task := trace.NewTask(n.ctx, method)
+	defer task.End()
 	switch method {
 	case "winningtickets":
-		err := s.winningTickets(n.ctx, params)
+		err := s.winningTickets(ctx, params)
 		if err != nil {
 			log.Error(errors.E(op, err))
 		}
 	case "blockconnected":
-		err := s.blockConnected(n.ctx, params)
+		err := s.blockConnected(ctx, params)
 		if err == nil {
 			n.connectingBlocks = true
 			return nil
@@ -551,12 +554,12 @@ func (n *notifier) Notify(method string, params json.RawMessage) error {
 		}
 		return err
 	case "relevanttxaccepted":
-		err := s.relevantTxAccepted(n.ctx, params)
+		err := s.relevantTxAccepted(ctx, params)
 		if err != nil {
 			log.Error(errors.E(op, err))
 		}
 	case "spentandmissedtickets":
-		err := s.spentAndMissedTickets(n.ctx, params)
+		err := s.spentAndMissedTickets(ctx, params)
 		if err != nil {
 			log.Error(errors.E(op, err))
 		}
