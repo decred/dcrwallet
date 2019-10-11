@@ -101,6 +101,7 @@ var Methods = []struct {
 	{"validateaddress", []interface{}{(*types.ValidateAddressWalletResult)(nil)}},
 	{"validatepredcp0005cf", returnsBool},
 	{"verifymessage", returnsBool},
+	{"verifyseed", []interface{}{(*types.VerifySeedResult)(nil)}},
 	{"version", []interface{}{(*map[string]dcrdtypes.VersionResult)(nil)}},
 	{"walletinfo", []interface{}{(*types.WalletInfoResult)(nil)}},
 	{"walletislocked", returnsBool},

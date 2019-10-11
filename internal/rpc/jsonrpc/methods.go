@@ -27,6 +27,7 @@ import (
 	"decred.org/dcrwallet/wallet/txauthor"
 	"decred.org/dcrwallet/wallet/txrules"
 	"decred.org/dcrwallet/wallet/udb"
+	"decred.org/dcrwallet/walletseed"
 	"github.com/decred/dcrd/blockchain/stake/v3"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -132,6 +133,7 @@ var handlers = map[string]handler{
 	"validateaddress":         {fn: (*Server).validateAddress},
 	"validatepredcp0005cf":    {fn: (*Server).validatePreDCP0005CF},
 	"verifymessage":           {fn: (*Server).verifyMessage},
+	"verifyseed":              {fn: (*Server).verifySeed},
 	"version":                 {fn: (*Server).version},
 	"walletinfo":              {fn: (*Server).walletInfo},
 	"walletlock":              {fn: (*Server).walletLock},
@@ -3761,6 +3763,95 @@ func (s *Server) verifyMessage(ctx context.Context, icmd interface{}) (interface
 
 WrongAddrKind:
 	return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "address must be secp256k1 P2PK or P2PKH")
+}
+
+func deriveCoinTypeKey(seed []byte, coinType uint32, params *chaincfg.Params) (*hdkeychain.ExtendedKey, error) {
+	// Create new root from the inputted seed and the current net
+	root, err := hdkeychain.NewMaster(seed[:], params)
+	if err != nil {
+		return nil, err
+	}
+
+	// BIP0032 hierarchy: m/<purpose>'/
+	// Where purpose = 44 and the ' indicates hardening with the HardenedKeyStart 0x80000000
+	purpose, err := root.Child(44 + hdkeychain.HardenedKeyStart)
+	if err != nil {
+		return nil, err
+	}
+	defer purpose.Zero()
+
+	// BIP0044 hierarchy: m/<purpose>'/<coin type>'
+	// Where coin type is either the legacy coin type, 20, or the coin type described in SLIP0044, 44. Note these parameters
+	// are only appropraite for main net.
+	coinTypePrivKey, err := purpose.Child(coinType + hdkeychain.HardenedKeyStart)
+	if err != nil {
+		return nil, err
+	}
+
+	return coinTypePrivKey, nil
+}
+
+// verifySeed checks if a user inputted seed is equivalent to the running wallets.
+func (s *Server) verifySeed(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.VerifySeedCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	// obtain the wallet public key to check against the wallet derived seed
+	account := 0
+	if cmd.Account != nil {
+		account = int(*cmd.Account)
+	}
+
+	// snag the coin type from the running wallet
+	coinType, err := w.CoinType(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	decodedSeed, err := walletseed.DecodeUserInput(cmd.Seed)
+	if err != nil {
+		return nil, err
+	}
+
+	// derive the coin type using the user inputted seed, the wallets coin type, and the current chains parameters.
+	coinTypePrivKey, err := deriveCoinTypeKey(decodedSeed, coinType, w.ChainParams())
+	if err != nil {
+		return nil, err
+	}
+	defer coinTypePrivKey.Zero()
+
+	// both derivedAccountKey and walletDerivedAccountKey use the BIP044 hierachy: m/44'/<coin type>'/<account>'
+	accountKey, err := coinTypePrivKey.Child(uint32(account) + hdkeychain.HardenedKeyStart)
+	if err != nil {
+		return nil, err
+	}
+	defer accountKey.Zero()
+
+	// to be matched with walletxPubKey
+	seedPubKey := accountKey.Neuter()
+
+	// get the wallet coin type key from the wallet and take the account # if non 0 to get the wallet's public key
+
+	// TODO: get the cointype key instead
+	walletCoinTypePrivKey, err := w.CoinTypePrivKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	walletPubKey, err := walletCoinTypePrivKey.Child(uint32(account) + hdkeychain.HardenedKeyStart)
+	if err != nil {
+		return nil, err
+	}
+	defer accountKey.Zero()
+
+	// compare the wallets public key to the inputted seeds public key, and return the results
+	return &types.VerifySeedResult{
+		Result:   walletPubKey.String() == seedPubKey.String(),
+		CoinType: coinType,
+	}, nil
 }
 
 // version handles the version command by returning the RPC API versions of the

@@ -1,0 +1,220 @@
+Sending build context to Docker daemon  125.4MB
+Step 1/11 : FROM golang:1.13-alpine as builder
+ ---> 3024b4e742b0
+Step 2/11 : WORKDIR /go/src/github.com/decred/dcrwallet
+ ---> Using cache
+ ---> d46b40396d01
+Step 3/11 : COPY . .
+ ---> fca7fb3f4849
+Step 4/11 : RUN apk add --no-cache --update alpine-sdk && mkdir -p go/bin && go install
+ ---> Running in d2e681a9b021
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.10/main/x86_64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.10/community/x86_64/APKINDEX.tar.gz
+(1/37) Installing fakeroot (1.23-r0)
+(2/37) Installing sudo (1.8.27-r0)
+(3/37) Installing libcap (2.27-r0)
+(4/37) Installing pax-utils (1.2.3-r0)
+(5/37) Installing openssl (1.1.1d-r0)
+(6/37) Installing libattr (2.4.48-r0)
+(7/37) Installing attr (2.4.48-r0)
+(8/37) Installing tar (1.32-r0)
+(9/37) Installing pkgconf (1.6.1-r1)
+(10/37) Installing patch (2.7.6-r6)
+(11/37) Installing libgcc (8.3.0-r0)
+(12/37) Installing libstdc++ (8.3.0-r0)
+(13/37) Installing lzip (1.21-r0)
+(14/37) Installing nghttp2-libs (1.39.2-r0)
+(15/37) Installing libcurl (7.66.0-r0)
+(16/37) Installing curl (7.66.0-r0)
+(17/37) Installing abuild (3.4.0-r0)
+Executing abuild-3.4.0-r0.pre-install
+(18/37) Installing binutils (2.32-r0)
+(19/37) Installing libmagic (5.37-r1)
+(20/37) Installing file (5.37-r1)
+(21/37) Installing gmp (6.1.2-r1)
+(22/37) Installing isl (0.18-r0)
+(23/37) Installing libgomp (8.3.0-r0)
+(24/37) Installing libatomic (8.3.0-r0)
+(25/37) Installing mpfr3 (3.1.5-r1)
+(26/37) Installing mpc1 (1.1.0-r0)
+(27/37) Installing gcc (8.3.0-r0)
+(28/37) Installing musl-dev (1.1.22-r3)
+(29/37) Installing libc-dev (0.7.1-r0)
+(30/37) Installing g++ (8.3.0-r0)
+(31/37) Installing make (4.2.1-r2)
+(32/37) Installing fortify-headers (1.1-r0)
+(33/37) Installing build-base (0.5-r1)
+(34/37) Installing expat (2.2.8-r0)
+(35/37) Installing pcre2 (10.33-r0)
+(36/37) Installing git (2.22.0-r0)
+(37/37) Installing alpine-sdk (1.0-r0)
+Executing busybox-1.30.1-r2.trigger
+OK: 182 MiB in 52 packages
+[91mgo: downloading github.com/decred/dcrd/dcrec v1.0.0
+[0m[91mgo: downloading github.com/decred/dcrd/wire v1.3.0
+[0m[91mgo: downloading google.golang.org/grpc v1.22.0
+[0m[91mgo: downloading github.com/decred/dcrd/blockchain/standalone v1.1.0
+[0m[91mgo: downloading github.com/decred/dcrd/connmgr v1.0.2
+[0m[91mgo: downloading github.com/decred/go-socks v1.0.1-0.20191001171050-775b73941e73
+[0m[91mgo: downloading github.com/jrick/logrotate v1.0.0
+go: downloading decred.org/cspp v0.1.3
+[0m[91mgo: downloading github.com/decred/dcrd/addrmgr v1.0.2
+[0m[91mgo: extracting github.com/decred/dcrd/dcrec v1.0.0
+[0m[91mgo: downloading github.com/decred/dcrd/chaincfg v1.5.2
+[0m[91mgo: extracting github.com/decred/dcrd/wire v1.3.0
+[0m[91mgo: extracting github.com/decred/dcrd/addrmgr v1.0.2
+[0m[91mgo: downloading github.com/decred/dcrd/txscript v1.1.0
+[0m[91mgo: downloading github.com/decred/dcrd/gcs v1.1.0
+[0m[91mgo: extracting github.com/jrick/logrotate v1.0.0
+[0m[91mgo: extracting github.com/decred/dcrd/connmgr v1.0.2
+[0m[91mgo: extracting decred.org/cspp v0.1.3
+[0m[91mgo: downloading golang.org/x/sync v0.0.0-20190423024810-112230192c58
+[0m[91mgo: extracting github.com/decred/dcrd/blockchain/standalone v1.1.0
+[0m[91mgo: extracting github.com/decred/go-socks v1.0.1-0.20191001171050-775b73941e73
+[0m[91mgo: downloading github.com/decred/dcrd/rpc/jsonrpc/types v1.0.1
+[0m[91mgo: extracting github.com/decred/dcrd/chaincfg v1.5.2
+[0m[91mgo: downloading github.com/decred/dcrd/chaincfg/chainhash v1.0.2
+[0m[91mgo: downloading github.com/decred/dcrd/chaincfg/v2 v2.3.0
+[0m[91mgo: downloading github.com/decred/dcrd/blockchain/stake v1.2.1
+[0m[91mgo: extracting github.com/decred/dcrd/gcs v1.1.0
+[0m[91mgo: extracting golang.org/x/sync v0.0.0-20190423024810-112230192c58
+[0m[91mgo: downloading github.com/decred/dcrd/connmgr/v2 v2.0.0
+[0m[91mgo: downloading github.com/decred/dcrd/hdkeychain/v2 v2.1.0
+[0m[91mgo: extracting github.com/decred/dcrd/chaincfg/chainhash v1.0.2
+[0m[91mgo: extracting github.com/decred/dcrd/rpc/jsonrpc/types v1.0.1
+[0m[91mgo: downloading github.com/decred/dcrd/dcrec/secp256k1 v1.0.2
+[0m[91mgo: downloading golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
+[0m[91mgo: extracting github.com/decred/dcrd/txscript v1.1.0
+[0m[91mgo: downloading github.com/decred/dcrd/txscript/v2 v2.1.0
+[0m[91mgo: extracting github.com/decred/dcrd/chaincfg/v2 v2.3.0
+[0m[91mgo: extracting google.golang.org/grpc v1.22.0
+[0m[91mgo: downloading github.com/decred/dcrd/certgen v1.1.0
+[0m[91mgo: downloading github.com/jessevdk/go-flags v1.4.0
+[0m[91mgo: extracting github.com/decred/dcrd/connmgr/v2 v2.0.0
+[0m[91mgo: downloading github.com/gorilla/websocket v1.4.1
+[0m[91mgo: downloading github.com/decred/dcrd/crypto/blake256 v1.0.0
+[0m[91mgo: downloading github.com/dchest/blake256 v1.0.0
+[0m[91mgo: extracting github.com/decred/dcrd/hdkeychain/v2 v2.1.0
+[0m[91mgo: downloading go.etcd.io/bbolt v1.3.3
+[0m[91mgo: extracting github.com/decred/dcrd/blockchain/stake v1.2.1
+[0m[91mgo: extracting github.com/decred/dcrd/dcrec/secp256k1 v1.0.2
+[0m[91mgo: downloading github.com/decred/dcrd/blockchain/stake/v2 v2.0.2
+[0m[91mgo: extracting github.com/decred/dcrd/txscript/v2 v2.1.0
+[0m[91mgo: extracting github.com/decred/dcrd/certgen v1.1.0
+[0m[91mgo: downloading github.com/decred/dcrd/dcrec/secp256k1/v2 v2.0.0
+[0m[91mgo: downloading github.com/dchest/siphash v1.2.1
+[0m[91mgo: extracting github.com/jessevdk/go-flags v1.4.0
+[0m[91mgo: downloading github.com/jrick/wsrpc/v2 v2.1.5
+[0m[91mgo: extracting github.com/decred/dcrd/crypto/blake256 v1.0.0
+[0m[91mgo: extracting github.com/dchest/blake256 v1.0.0
+[0m[91mgo: downloading github.com/decred/base58 v1.0.1
+[0m[91mgo: downloading github.com/decred/dcrd/dcrjson/v3 v3.0.1
+[0m[91mgo: extracting github.com/gorilla/websocket v1.4.1
+[0m[91mgo: extracting go.etcd.io/bbolt v1.3.3
+[0m[91mgo: downloading github.com/decred/dcrd/dcrec/edwards v1.0.0
+[0m[91mgo: downloading github.com/jrick/bitset v1.0.0
+[0m[91mgo: extracting golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
+[0m[91mgo: extracting github.com/decred/dcrd/blockchain/stake/v2 v2.0.2
+[0m[91mgo: downloading github.com/decred/slog v1.0.0
+[0m[91mgo: extracting github.com/dchest/siphash v1.2.1
+[0m[91mgo: downloading github.com/decred/dcrd/database v1.1.0
+[0m[91mgo: extracting github.com/jrick/wsrpc/v2 v2.1.5
+[0m[91mgo: downloading github.com/decred/dcrd/dcrutil v1.4.0
+[0m[91mgo: downloading github.com/golang/protobuf v1.3.2
+[0m[91mgo: extracting github.com/decred/base58 v1.0.1
+[0m[91mgo: extracting github.com/decred/slog v1.0.0
+[0m[91mgo: extracting github.com/decred/dcrd/dcrutil v1.4.0
+[0m[91mgo: downloading golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
+[0m[91mgo: extracting github.com/decred/dcrd/dcrjson/v3 v3.0.1
+[0m[91mgo: extracting github.com/decred/dcrd/dcrec/secp256k1/v2 v2.0.0
+[0m[91mgo: extracting github.com/jrick/bitset v1.0.0
+[0m[91mgo: downloading github.com/decred/dcrd/dcrutil/v2 v2.0.1
+[0m[91mgo: extracting github.com/decred/dcrd/dcrec/edwards v1.0.0
+[0m[91mgo: downloading golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
+[0m[91mgo: downloading google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8
+[0m[91mgo: downloading github.com/decred/dcrd/dcrec/edwards/v2 v2.0.0
+[0m[91mgo: extracting github.com/decred/dcrd/database v1.1.0
+[0m[91mgo: downloading github.com/decred/dcrd/database/v2 v2.0.1
+[0m[91mgo: downloading github.com/decred/dcrd/crypto/ripemd160 v1.0.0
+[0m[91mgo: extracting golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
+[0m[91mgo: extracting github.com/decred/dcrd/dcrutil/v2 v2.0.1
+[0m[91mgo: extracting github.com/golang/protobuf v1.3.2
+[0m[91mgo: downloading golang.org/x/sys v0.0.0-20191010194322-b09406accb47
+[0m[91mgo: extracting github.com/decred/dcrd/dcrec/edwards/v2 v2.0.0
+[0m[91mgo: extracting github.com/decred/dcrd/crypto/ripemd160 v1.0.0
+[0m[91mgo: downloading github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
+[0m[91mgo: extracting github.com/decred/dcrd/database/v2 v2.0.1
+[0m[91mgo: extracting github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
+[0m[91mgo: extracting google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8
+[0m[91mgo: extracting golang.org/x/sys v0.0.0-20191010194322-b09406accb47
+[0m[91mgo: extracting golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
+[0m[91mgo: downloading golang.org/x/text v0.3.2
+[0m[91mgo: extracting golang.org/x/text v0.3.2
+[0m[91mgo: finding github.com/decred/dcrd/certgen v1.1.0
+[0m[91mgo: finding github.com/decred/dcrd/chaincfg/v2 v2.3.0
+[0m[91mgo: finding github.com/decred/dcrd/dcrutil/v2 v2.0.1
+[0m[91mgo: finding github.com/decred/dcrd/chaincfg/chainhash v1.0.2
+[0m[91mgo: finding golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
+[0m[91mgo: finding github.com/decred/dcrd/addrmgr v1.0.2
+[0m[91mgo: finding github.com/decred/dcrd/hdkeychain/v2 v2.1.0
+[0m[91mgo: finding github.com/decred/slog v1.0.0
+[0m[91mgo: finding github.com/decred/dcrd/wire v1.3.0
+[0m[91mgo: finding github.com/decred/base58 v1.0.1
+[0m[91mgo: finding github.com/decred/dcrd/connmgr v1.0.2
+[0m[91mgo: finding github.com/decred/dcrd/crypto/blake256 v1.0.0
+[0m[91mgo: finding github.com/decred/dcrd/connmgr/v2 v2.0.0
+[0m[91mgo: finding golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
+[0m[91mgo: finding github.com/decred/dcrd/crypto/ripemd160 v1.0.0
+[0m[91mgo: finding github.com/decred/dcrd/dcrec v1.0.0
+[0m[91mgo: finding go.etcd.io/bbolt v1.3.3
+[0m[91mgo: finding decred.org/cspp v0.1.3
+[0m[91mgo: finding github.com/decred/dcrd/dcrec/edwards/v2 v2.0.0
+[0m[91mgo: finding golang.org/x/sys v0.0.0-20191010194322-b09406accb47
+[0m[91mgo: finding github.com/decred/dcrd/dcrec/secp256k1/v2 v2.0.0
+[0m[91mgo: finding github.com/decred/dcrd/chaincfg v1.5.2
+[0m[91mgo: finding github.com/decred/dcrd/blockchain/stake/v2 v2.0.2
+[0m[91mgo: finding github.com/decred/dcrd/blockchain/standalone v1.1.0
+[0m[91mgo: finding github.com/decred/dcrd/dcrjson/v3 v3.0.1
+[0m[91mgo: finding github.com/decred/dcrd/txscript/v2 v2.1.0
+[0m[91mgo: finding github.com/decred/dcrd/rpc/jsonrpc/types v1.0.1
+[0m[91mgo: finding github.com/decred/dcrd/gcs v1.1.0
+[0m[91mgo: finding github.com/decred/dcrd/database/v2 v2.0.1
+[0m[91mgo: finding github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
+[0m[91mgo: finding github.com/decred/go-socks v1.0.1-0.20191001171050-775b73941e73
+go: finding github.com/dchest/blake256 v1.0.0
+[0m[91mgo: finding github.com/jrick/wsrpc/v2 v2.1.5
+[0m[91mgo: finding github.com/dchest/siphash v1.2.1
+[0m[91mgo: finding github.com/jessevdk/go-flags v1.4.0
+[0m[91mgo: finding golang.org/x/sync v0.0.0-20190423024810-112230192c58
+[0m[91mgo: finding github.com/jrick/logrotate v1.0.0
+[0m[91mgo: finding github.com/golang/protobuf v1.3.2
+[0m[91mgo: finding google.golang.org/grpc v1.22.0
+[0m[91mgo: finding github.com/gorilla/websocket v1.4.1
+[0m[91mgo: finding github.com/jrick/bitset v1.0.0
+[0m[91mgo: finding google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8
+[0m[91mgo: finding golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
+[0m[91mgo: finding golang.org/x/text v0.3.2
+[0mRemoving intermediate container d2e681a9b021
+ ---> 6e51e003b75b
+Step 5/11 : FROM alpine as final
+ ---> 965ea09ff2eb
+Step 6/11 : VOLUME /root/.dcrwallet
+ ---> Using cache
+ ---> f12d959d3206
+Step 7/11 : COPY --from=builder /go/src/github.com/decred/dcrwallet/start-dcrwallet.sh /bin/
+ ---> Using cache
+ ---> d34e7c3d71ef
+Step 8/11 : COPY --from=builder /go/bin/dcrwallet /bin/
+ ---> Using cache
+ ---> 8e56e25816c3
+Step 9/11 : EXPOSE 9735 10009
+ ---> Using cache
+ ---> e8f8f5f5e7c1
+Step 10/11 : RUN cd bin
+ ---> Using cache
+ ---> c0d6498d0c5a
+Step 11/11 : ENTRYPOINT [./dcrwallet]
+ ---> Using cache
+ ---> 48e812d23c1e
+Successfully built 48e812d23c1e
+Successfully tagged dcrwallet:latest
