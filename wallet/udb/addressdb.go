@@ -54,7 +54,8 @@ type accountType uint8
 
 // These constants define the various supported account types.
 const (
-	actBIP0044 accountType = 0 // not iota as they need to be stable for db
+	actBIP0044    accountType = 0 // not iota as they need to be stable for db
+	actVSPPurpose accountType = 1
 )
 
 // dbAccountRow houses information stored about an account in the database.
@@ -76,6 +77,15 @@ type dbBIP0044AccountRow struct {
 	lastReturnedExternalIndex uint32 // Added in version 5
 	lastReturnedInternalIndex uint32 // Added in version 5
 	name                      string
+}
+
+// vspPurposeAccountRow houses additional information stored about a vsp
+// purpose account in the database.
+type vspPurposeAccountRow struct {
+	dbAccountRow
+	pubKeyEncrypted          []byte
+	privKeyEncrypted         []byte
+	lastReturnedAddressIndex uint32
 }
 
 // dbAddressRow houses common information stored about an address in the
@@ -195,8 +205,6 @@ var (
 	coinTypeLegacyPubKeyName    = []byte("ctpub")
 	coinTypeSLIP0044PrivKeyName = []byte("ctpriv-slip0044")
 	coinTypeSLIP0044PubKeyName  = []byte("ctpub-slip0044")
-	vspPurposeBranchPrivKeyName = []byte("vsp-priv")
-	vspPurposeBranchPubKeyName  = []byte("vsp-pub")
 	watchingOnlyName            = []byte("watchonly")
 	slip0044Account0RowName     = []byte("slip0044acct0")
 
@@ -368,29 +376,6 @@ func putCoinTypeSLIP0044Keys(ns walletdb.ReadWriteBucket, coinTypePubKeyEnc []by
 
 	if coinTypePrivKeyEnc != nil {
 		err := bucket.Put(coinTypeSLIP0044PrivKeyName, coinTypePrivKeyEnc)
-		if err != nil {
-			return errors.E(errors.IO, err)
-		}
-	}
-
-	return nil
-}
-
-// putVSPPurposeBranchKeys stores the encrypted vsp purpose keys which are in
-// turn used to derive the address private keys to be shared with vsps. Either
-// parameter can be nil in which case no value is written for the parameter.
-func putVSPPurposeBranchKeys(ns walletdb.ReadWriteBucket, vspXPubEnc []byte, vspXPrivEnc []byte) error {
-	bucket := ns.NestedReadWriteBucket(mainBucketName)
-
-	if vspXPubEnc != nil {
-		err := bucket.Put(vspPurposeBranchPubKeyName, vspXPubEnc)
-		if err != nil {
-			return errors.E(errors.IO, err)
-		}
-	}
-
-	if vspXPrivEnc != nil {
-		err := bucket.Put(vspPurposeBranchPrivKeyName, vspXPrivEnc)
 		if err != nil {
 			return errors.E(errors.IO, err)
 		}
@@ -671,6 +656,87 @@ func bip0044AccountInfo(pubKeyEnc, privKeyEnc []byte, nextExtIndex, nextIntIndex
 	return row
 }
 
+// deserializeVSPPurposeAccountRow deserializes the raw data from the passed
+// account row as a vsp purpose account.
+func deserializeVSPPurposeAccountRow(row *dbAccountRow) (*vspPurposeAccountRow, error) {
+	// The serialized vsp purpose account raw data format is:
+	//   <encpubkeylen><encpubkey><encprivkeylen><encprivkey>
+	//   <lastreturnedaddressindex>
+	//
+	// 4 bytes encrypted pubkey len + encrypted pubkey
+	// + 4 bytes encrypted privkey len + encrypted privkey
+	// + 4 bytes last returned address index
+
+	// Given the above, the length of the entry must be at a minimum
+	// the constant value sizes.
+	if len(row.rawData) < 12 {
+		return nil, errors.E(errors.IO, errors.Errorf("vsp purpose account bad len %d", len(row.rawData)))
+	}
+
+	retRow := vspPurposeAccountRow{
+		dbAccountRow: *row,
+	}
+
+	pubLen := binary.LittleEndian.Uint32(row.rawData[0:4])
+	retRow.pubKeyEncrypted = make([]byte, pubLen)
+	copy(retRow.pubKeyEncrypted, row.rawData[4:4+pubLen])
+	offset := 4 + pubLen
+
+	privLen := binary.LittleEndian.Uint32(row.rawData[offset : offset+4])
+	offset += 4
+	retRow.privKeyEncrypted = make([]byte, privLen)
+	copy(retRow.privKeyEncrypted, row.rawData[offset:offset+privLen])
+	offset += privLen
+
+	retRow.lastReturnedAddressIndex = binary.LittleEndian.Uint32(row.rawData[offset : offset+4])
+
+	return &retRow, nil
+}
+
+// serializeVSPPurposeAccountRow returns the serialization of the raw data field
+// for a vsp purpose account.
+func serializeVSPPurposeAccountRow(row *vspPurposeAccountRow) []byte {
+	// The serialized vsp purpose account raw data format is:
+	//   <encpubkeylen><encpubkey><encprivkeylen><encprivkey>
+	//   <lastreturnedaddressindex>
+	//
+	// 4 bytes encrypted pubkey len + encrypted pubkey
+	// + 4 bytes encrypted privkey len + encrypted privkey
+	// + 4 bytes last returned address index
+	pubLen := uint32(len(row.pubKeyEncrypted))
+	privLen := uint32(len(row.privKeyEncrypted))
+
+	rowSize := 12 + pubLen + privLen
+	rawData := make([]byte, rowSize)
+
+	binary.LittleEndian.PutUint32(rawData[0:4], pubLen)
+	copy(rawData[4:4+pubLen], row.pubKeyEncrypted)
+	offset := 4 + pubLen
+
+	binary.LittleEndian.PutUint32(rawData[offset:offset+4], privLen)
+	offset += 4
+	copy(rawData[offset:offset+privLen], row.privKeyEncrypted)
+	offset += privLen
+
+	binary.LittleEndian.PutUint32(rawData[offset:offset+4], row.lastReturnedAddressIndex)
+
+	return rawData
+}
+
+func vspPurposeAccountInfo(pubKeyEnc, privKeyEnc []byte, lastRetExtIndex uint32) *vspPurposeAccountRow {
+	row := &vspPurposeAccountRow{
+		dbAccountRow: dbAccountRow{
+			acctType: actVSPPurpose,
+			rawData:  nil,
+		},
+		pubKeyEncrypted:          pubKeyEnc,
+		privKeyEncrypted:         privKeyEnc,
+		lastReturnedAddressIndex: lastRetExtIndex,
+	}
+	row.rawData = serializeVSPPurposeAccountRow(row)
+	return row
+}
+
 // forEachAccount calls the given function with each account stored in
 // the manager, breaking early on error.
 func forEachAccount(ns walletdb.ReadBucket, fn func(account uint32) error) error {
@@ -726,9 +792,23 @@ func fetchAccountByName(ns walletdb.ReadBucket, name string) (uint32, error) {
 	return binary.LittleEndian.Uint32(val), nil
 }
 
+// fetchAccountRow loads information about the passed account from the
+// database.
+func fetchAccountRow(ns walletdb.ReadBucket, account, dbVersion uint32) (*dbAccountRow, error) {
+	bucket := ns.NestedReadBucket(acctBucketName)
+
+	accountID := uint32ToBytes(account)
+	serializedRow := bucket.Get(accountID)
+	if serializedRow == nil {
+		return nil, errors.E(errors.NotExist, errors.Errorf("no account %d", account))
+	}
+
+	return deserializeAccountRow(accountID, serializedRow)
+}
+
 // fetchAccountInfo loads information about the passed account from the
 // database.
-func fetchAccountInfo(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (*dbBIP0044AccountRow, error) {
+func fetchAccountInfo(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (*accountInfo, error) {
 	bucket := ns.NestedReadBucket(acctBucketName)
 
 	accountID := uint32ToBytes(account)
@@ -744,7 +824,28 @@ func fetchAccountInfo(ns walletdb.ReadBucket, account uint32, dbVersion uint32) 
 
 	switch row.acctType {
 	case actBIP0044:
-		return deserializeBIP0044AccountRow(accountID, row, dbVersion)
+		bip0044Account, err := deserializeBIP0044AccountRow(accountID, row, dbVersion)
+		if err != nil {
+			return nil, err
+		}
+		return &accountInfo{
+			acctName: bip0044Account.name,
+			acctType: actBIP0044,
+			pubKeyEncrypted: bip0044Account.pubKeyEncrypted,
+			privKeyEncrypted: bip0044Account.privKeyEncrypted,
+		}, nil
+
+	case actVSPPurpose:
+		vspPurposeAccount, err := deserializeBIP0044AccountRow(accountID, row, dbVersion)
+		if err != nil {
+			return nil, err
+		}
+		return &accountInfo{
+			acctName: VSPPurposeAccountName,
+			acctType: actVSPPurpose,
+			pubKeyEncrypted: vspPurposeAccount.pubKeyEncrypted,
+			privKeyEncrypted: vspPurposeAccount.privKeyEncrypted,
+		}, nil
 	}
 
 	return nil, errors.E(errors.IO, errors.Errorf("unknown account type %d", row.acctType))
@@ -833,17 +934,28 @@ func putAccountRow(ns walletdb.ReadWriteBucket, account uint32, row *dbAccountRo
 	return nil
 }
 
-// putAccountInfo stores the provided account information to the database.
-func putAccountInfo(ns walletdb.ReadWriteBucket, account uint32, row *dbBIP0044AccountRow) error {
-	if err := putAccountRow(ns, account, &row.dbAccountRow); err != nil {
+func putAccountInfo(ns walletdb.ReadWriteBucket, account uint32, row *dbAccountRow, name string) error {
+	if err := putAccountRow(ns, account, row); err != nil {
 		return err
 	}
 	// Update account id index
-	if err := putAccountIDIndex(ns, account, row.name); err != nil {
+	if err := putAccountIDIndex(ns, account, name); err != nil {
 		return err
 	}
 	// Update account name index
-	return putAccountNameIndex(ns, account, row.name)
+	return putAccountNameIndex(ns, account, name)
+}
+
+// putBIP0044AccountInfo stores the provided bip044 account information
+// to the database.
+func putBIP0044AccountInfo(ns walletdb.ReadWriteBucket, account uint32, row *dbBIP0044AccountRow) error {
+	return putAccountInfo(ns, account, &row.dbAccountRow, row.name)
+}
+
+// putVSPPurposeAccountInfo stores the provided vsp purpose account information
+// to the database.
+func putVSPPurposeAccountInfo(ns walletdb.ReadWriteBucket, row *vspPurposeAccountRow) error {
+	return putAccountInfo(ns, VSPPurposeAccount, &row.dbAccountRow, VSPPurposeAccountName)
 }
 
 // putLastAccount stores the provided metadata - last account - to the database.
@@ -1254,9 +1366,6 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 		return errors.E(errors.IO, err)
 	}
 	if err := bucket.Delete(coinTypeSLIP0044PrivKeyName); err != nil {
-		return errors.E(errors.IO, err)
-	}
-	if err := bucket.Delete(vspPurposeBranchPrivKeyName); err != nil {
 		return errors.E(errors.IO, err)
 	}
 

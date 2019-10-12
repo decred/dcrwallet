@@ -268,7 +268,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 		// replaces the next to use indexes with the last used indexes.
 		row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted,
 			0, 0, lastUsedExtIndex, lastUsedIntIndex, 0, 0, row.name, newVersion)
-		err = putAccountInfo(addrmgrBucket, account, row)
+		err = putBIP0044AccountInfo(addrmgrBucket, account, row)
 		if err != nil {
 			return err
 		}
@@ -400,7 +400,7 @@ func lastReturnedAddressUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte
 			0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex,
 			row.lastUsedExternalIndex, row.lastUsedInternalIndex,
 			row.name, newVersion)
-		return putAccountInfo(addrmgrBucket, account, row)
+		return putBIP0044AccountInfo(addrmgrBucket, account, row)
 	}
 
 	// Determine how many BIP0044 accounts have been created.  Each of these

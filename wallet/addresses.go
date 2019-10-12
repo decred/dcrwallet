@@ -12,6 +12,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrd/txscript/v2"
+	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
 	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
@@ -494,6 +495,71 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 		}
 		return addr, nil
 	}
+}
+
+func (w *Wallet) nextSharableVotingAddress(ctx context.Context, op errors.Op, maybeDBTX walletdb.ReadWriteTx,
+	callOpts ...NextAddressCallOption) (addr dcrutil.Address, err error) {
+
+	dbtx := maybeDBTX
+	if dbtx == nil {
+		dbtx, err = w.db.BeginReadWriteTx()
+		if err != nil {
+			return nil, err
+		}
+		defer func() {
+			if err == nil {
+				err = dbtx.Commit()
+			} else {
+				dbtx.Rollback()
+			}
+		}()
+	}
+
+	ns := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
+	props, err := w.Manager.AccountProperties(ns, udb.VSPPurposeAccount)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	nextChild := props.LastReturnedExternalIndex
+
+	xpub, err := w.Manager.AccountExtendedPubKey(dbtx, udb.VSPPurposeAccount)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	branchKey, err := xpub.Child(branch)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	var childKey *hdkeychain.ExtendedKey
+	for {
+		childKey, err = branchKey.Child(child)
+		if err == hdkeychain.ErrInvalidChild {
+			child++
+			continue
+		}
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+		break
+	}
+	apkh, err := compat.HD2Address(childKey, w.chainParams)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	addr = &xpubAddress{
+		AddressPubKeyHash: apkh,
+		xpub:              xpub,
+		branch:            branch,
+		child:             child,
+	}
+	err = w.Manager.MarkReturnedChildIndex(dbtx, account, branch, child)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return addr, nil
 }
 
 func minUint32(a, b uint32) uint32 {
