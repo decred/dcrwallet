@@ -576,6 +576,13 @@ func NewImportScriptCmd(hex string, rescan *bool, scanFrom *int) *ImportScriptCm
 	return &ImportScriptCmd{hex, rescan, scanFrom}
 }
 
+// ImportXpubCmd is a type for handling custom marshaling and unmarshaling of
+// importxpub JSON-RPC commands.
+type ImportXpubCmd struct {
+	Name string `json:"name"`
+	Xpub string `json:"xpub"`
+}
+
 // KeyPoolRefillCmd defines the keypoolrefill JSON-RPC command.
 //
 // Deprecated: This method is not implemented by the RPC server.
@@ -1266,6 +1273,14 @@ func NewWalletPassphraseChangeCmd(oldPassphrase, newPassphrase string) *WalletPa
 	}
 }
 
+// MixAccountCmd defines the mixaccount JSON-RPC command.
+type MixAccountCmd struct {}
+
+// MixOutputCmd defines the mixoutput JSON-RPC command.
+type MixOutputCmd struct {
+	Outpoint string `json:"outpoint"`
+}
+
 type registeredMethod struct {
 	method string
 	cmd    interface{}
@@ -1310,6 +1325,7 @@ func init() {
 		{"getwalletfee", (*GetWalletFeeCmd)(nil)},
 		{"importprivkey", (*ImportPrivKeyCmd)(nil)},
 		{"importscript", (*ImportScriptCmd)(nil)},
+		{"importxpub", (*ImportXpubCmd)(nil)},
 		{"listaccounts", (*ListAccountsCmd)(nil)},
 		{"listaddresstransactions", (*ListAddressTransactionsCmd)(nil)},
 		{"listalltransactions", (*ListAllTransactionsCmd)(nil)},
@@ -1322,6 +1338,8 @@ func init() {
 		{"listtransactions", (*ListTransactionsCmd)(nil)},
 		{"listunspent", (*ListUnspentCmd)(nil)},
 		{"lockunspent", (*LockUnspentCmd)(nil)},
+		{"mixoutput", (*MixOutputCmd)(nil)},
+		{"mixaccount", (*MixAccountCmd)(nil)},
 		{"purchaseticket", (*PurchaseTicketCmd)(nil)},
 		{"redeemmultisigout", (*RedeemMultiSigOutCmd)(nil)},
 		{"redeemmultisigouts", (*RedeemMultiSigOutsCmd)(nil)},
