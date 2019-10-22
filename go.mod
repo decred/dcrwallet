@@ -10,7 +10,7 @@ require (
 	github.com/decred/dcrd/certgen v1.1.0
 	github.com/decred/dcrd/chaincfg v1.5.2
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.2
-	github.com/decred/dcrd/chaincfg/v2 v2.2.0
+	github.com/decred/dcrd/chaincfg/v2 v2.3.0
 	github.com/decred/dcrd/connmgr v1.0.2
 	github.com/decred/dcrd/connmgr/v2 v2.0.0
 	github.com/decred/dcrd/dcrec v1.0.0
@@ -23,7 +23,7 @@ require (
 	github.com/decred/dcrd/rpcclient/v2 v2.1.0
 	github.com/decred/dcrd/txscript v1.1.0
 	github.com/decred/dcrd/txscript/v2 v2.0.0
-	github.com/decred/dcrd/wire v1.2.0
+	github.com/decred/dcrd/wire v1.3.0
 	github.com/decred/dcrwallet/chain/v3 v3.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/errors/v2 v2.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/p2p/v2 v2.0.0-00010101000000-000000000000
