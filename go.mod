@@ -24,14 +24,14 @@ require (
 	github.com/decred/dcrd/txscript v1.1.0
 	github.com/decred/dcrd/txscript/v2 v2.1.0
 	github.com/decred/dcrd/wire v1.3.0
-	github.com/decred/dcrwallet/chain/v3 v3.0.0-00010101000000-000000000000
+	github.com/decred/dcrwallet/chain/v3 v3.0.0
 	github.com/decred/dcrwallet/errors/v2 v2.0.0
 	github.com/decred/dcrwallet/p2p/v2 v2.0.0
 	github.com/decred/dcrwallet/rpc/client/dcrd v1.0.0
 	github.com/decred/dcrwallet/rpc/jsonrpc/types v1.3.0
-	github.com/decred/dcrwallet/rpc/walletrpc v0.2.0
-	github.com/decred/dcrwallet/spv/v3 v3.0.0-00010101000000-000000000000
-	github.com/decred/dcrwallet/ticketbuyer/v4 v4.0.0-00010101000000-000000000000
+	github.com/decred/dcrwallet/rpc/walletrpc v0.3.0
+	github.com/decred/dcrwallet/spv/v3 v3.0.0
+	github.com/decred/dcrwallet/ticketbuyer/v4 v4.0.0
 	github.com/decred/dcrwallet/version v1.0.1
 	github.com/decred/dcrwallet/wallet/v3 v3.0.0
 	github.com/decred/dcrwallet/walletseed v1.0.1
@@ -44,26 +44,3 @@ require (
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	google.golang.org/grpc v1.22.0
 )
-
-replace (
-	github.com/decred/dcrwallet/errors/v2 => ./errors
-	github.com/decred/dcrwallet/lru => ./lru
-	github.com/decred/dcrwallet/p2p/v2 => ./p2p
-	github.com/decred/dcrwallet/pgpwordlist => ./pgpwordlist
-	github.com/decred/dcrwallet/rpc/jsonrpc/types => ./rpc/jsonrpc/types
-	github.com/decred/dcrwallet/rpc/walletrpc => ./rpc/walletrpc
-	github.com/decred/dcrwallet/validate => ./validate
-	github.com/decred/dcrwallet/version => ./version
-	github.com/decred/dcrwallet/wallet/v3 => ./wallet
-	github.com/decred/dcrwallet/walletseed => ./walletseed
-)
-
-replace github.com/decred/dcrwallet/spv/v3 => ./spv
-
-replace github.com/decred/dcrwallet/ticketbuyer/v4 => ./ticketbuyer
-
-replace github.com/decred/dcrwallet/chain/v3 => ./chain
-
-replace github.com/decred/dcrwallet/rpc/client/dcrd => ./rpc/client/dcrd
-
-replace github.com/decred/dcrwallet/deployments/v2 => ./deployments
