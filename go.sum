@@ -189,6 +189,8 @@ github.com/decred/dcrwallet/validate v1.1.1 h1:hoHrHaJTQoANN/ZW37HbeTQSJ+N4rMFFL
 github.com/decred/dcrwallet/validate v1.1.1/go.mod h1:T++tlVcCOh2oSrEq4r5CKCvmftaQdq9uZwO7jSNYZaw=
 github.com/decred/dcrwallet/version v1.0.1 h1:gAz1lDkcJ+oAbg0tOn/J0KwZBVWIlhWmHhSUi9GbB2E=
 github.com/decred/dcrwallet/version v1.0.1/go.mod h1:rXeMsUaI03WtlQrSol7Q7sJ8HBOB+tZvT7YQRXD5Y7M=
+github.com/decred/dcrwallet/version v1.0.3 h1:eqCXlRrv1KDaZIzddB1bzPyEhBkEflCuCUwtgm7BWYI=
+github.com/decred/dcrwallet/version v1.0.3/go.mod h1:2ZrmBsFYU/2C2C6dnNDiISTGaUdMHjethtL6BEFz37M=
 github.com/decred/dcrwallet/wallet/v3 v3.0.0 h1:6izrN1ZF7M7zb54GRb8RTRaO0z2+MjgX/BoJogI0SPw=
 github.com/decred/dcrwallet/wallet/v3 v3.0.0/go.mod h1:4aUyeRVmnT+3jPXMJrfUFppguKjKueZi1q978eYdGfs=
 github.com/decred/dcrwallet/walletseed v1.0.1 h1:gxvlj0GRw+H0VumCxTlEysu+/nltcp9+lgzVgzsnI/Y=
