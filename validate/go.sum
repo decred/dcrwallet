@@ -18,11 +18,17 @@ github.com/decred/dcrd/blockchain/stake/v2 v2.0.0 h1:+FMrSt5tPicBKlev0k/r/2VsaVw
 github.com/decred/dcrd/blockchain/stake/v2 v2.0.0/go.mod h1:jv/rKMcZ87lhvVkHot/tElxeAYEUJ3mnKPHJ7WPq86U=
 github.com/decred/dcrd/blockchain/standalone v1.0.0 h1:bPkFgSV7/NeZI+ZEGhaOP+XccCUBTIJb3YTf8dMwe8g=
 github.com/decred/dcrd/blockchain/standalone v1.0.0/go.mod h1:U5lOleFSi1nL7heSdLgEtuvg0udS1p3cvHxvLJbihfE=
+github.com/decred/dcrd/blockchain/standalone v1.1.0 h1:yclvVGEY09Gf8A4GSAo+NCtL1dW2TYJ4OKp4+g0ICI0=
+github.com/decred/dcrd/blockchain/standalone v1.1.0/go.mod h1:6K8ZgzlWM1Kz2TwXbrtiAvfvIwfAmlzrtpA7CVPCUPE=
 github.com/decred/dcrd/chaincfg/chainhash v1.0.1 h1:0vG7U9+dSjSCaHQKdoSKURK2pOb47+b+8FK5q4+Je7M=
 github.com/decred/dcrd/chaincfg/chainhash v1.0.1/go.mod h1:OVfvaOsNLS/A1y4Eod0Ip/Lf8qga7VXCQjUQLbkY0Go=
+github.com/decred/dcrd/chaincfg/chainhash v1.0.2 h1:rt5Vlq/jM3ZawwiacWjPa+smINyLRN07EO0cNBV6DGU=
+github.com/decred/dcrd/chaincfg/chainhash v1.0.2/go.mod h1:BpbrGgrPTr3YJYRN3Bm+D9NuaFd+zGyNeIKgrhCXK60=
 github.com/decred/dcrd/chaincfg/v2 v2.0.2/go.mod h1:hpKvhLCDAD/xDZ3V1Pqpv9fIKVYYi11DyxETguazyvg=
 github.com/decred/dcrd/chaincfg/v2 v2.1.0 h1:2S7TL9YWnKDDiH5bTpp3xcBo+1gl1IXFi5KU4QwSIDk=
 github.com/decred/dcrd/chaincfg/v2 v2.1.0/go.mod h1:hpKvhLCDAD/xDZ3V1Pqpv9fIKVYYi11DyxETguazyvg=
+github.com/decred/dcrd/crypto/blake256 v1.0.0 h1:/8DMNYp9SGi5f0w7uCm6d6M4OU2rGFK09Y2A4Xv7EE0=
+github.com/decred/dcrd/crypto/blake256 v1.0.0/go.mod h1:sQl2p6Y26YV+ZOcSTP6thNdn47hh8kt6rqSlvmrXFAc=
 github.com/decred/dcrd/database/v2 v2.0.0 h1:KWiyZHk+QyNKQvvxm/KpIejhTqYJqH9ssz1+9sT9nVA=
 github.com/decred/dcrd/database/v2 v2.0.0/go.mod h1:Sj2lvTRB0mfSu9uD7ObfwCY/eJ954GFU/X+AndJIyfE=
 github.com/decred/dcrd/dcrec v1.0.0 h1:W+z6Es+Rai3MXYVoPAxYr5U1DGis0Co33scJ6uH2J6o=
@@ -41,6 +47,8 @@ github.com/decred/dcrd/txscript/v2 v2.0.0 h1:So+NcQY58mDHDN2N2edED5syGZp2ed8Ltxj
 github.com/decred/dcrd/txscript/v2 v2.0.0/go.mod h1:WStcyYYJa+PHJB4XjrLDRzV96/Z4thtsu8mZoVrU6C0=
 github.com/decred/dcrd/wire v1.2.0 h1:HqJVB7vcklIguzFWgRXw/WYCQ9cD3bUC5TKj53i1Hng=
 github.com/decred/dcrd/wire v1.2.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
+github.com/decred/dcrd/wire v1.3.0 h1:X76I2/a8esUmxXmFpJpAvXEi014IA4twgwcOBeIS8lE=
+github.com/decred/dcrd/wire v1.3.0/go.mod h1:fnKGlUY2IBuqnpxx5dYRU5Oiq392OBqAuVjRVSkIoXM=
 github.com/decred/slog v1.0.0 h1:Dl+W8O6/JH6n2xIFN2p3DNjCmjYwvrXsjlSJTQQ4MhE=
 github.com/decred/slog v1.0.0/go.mod h1:zR98rEZHSnbZ4WHZtO0iqmSZjDLKhkXfrPTZQKtAonQ=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=

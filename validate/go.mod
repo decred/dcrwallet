@@ -3,9 +3,9 @@ module github.com/decred/dcrwallet/validate
 go 1.12
 
 require (
-	github.com/decred/dcrd/blockchain/standalone v1.0.0
+	github.com/decred/dcrd/blockchain/standalone v1.1.0
 	github.com/decred/dcrd/gcs v1.1.0
-	github.com/decred/dcrd/wire v1.2.0
+	github.com/decred/dcrd/wire v1.3.0
 	github.com/decred/dcrwallet/errors/v2 v2.0.0-00010101000000-000000000000
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
 	github.com/golang/protobuf v1.2.0 // indirect

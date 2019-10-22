@@ -39,6 +39,25 @@ func MerkleRoots(block *wire.MsgBlock) error {
 	return nil
 }
 
+// DCP0005MerkleRoot recreates the combined regular and stake transaction merkle
+// root and compares it against the merkle root in the block header.
+//
+// DCP0005 (https://github.com/decred/dcps/blob/master/dcp-0005/dcp-0005.mediawiki)
+// describes (among other changes) the hard forking change which combined the
+// individual regular and stake merkle roots into a single root.
+func DCP0005MerkleRoot(block *wire.MsgBlock) error {
+	const opf = "validate.DCP0005MerkleRoot(%v)"
+
+	mroot := blockchain.CalcCombinedTxTreeMerkleRoot(block.Transactions, block.STransactions)
+	if block.Header.MerkleRoot != mroot {
+		blockHash := block.BlockHash()
+		op := errors.Opf(opf, &blockHash)
+		return errors.E(op, errors.Consensus, "invalid combined merkle root")
+	}
+
+	return nil
+}
+
 // RegularCFilter verifies a regular committed filter received over wire
 // protocol matches the block.  Currently (without cfilter header commitments)
 // this is performed by reconstructing the filter from the block and comparing
