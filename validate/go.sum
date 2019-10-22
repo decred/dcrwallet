@@ -16,8 +16,6 @@ github.com/decred/base58 v1.0.0 h1:BVi1FQCThIjZ0ehG+I99NJ51o0xcc9A/fDKhmJxY6+w=
 github.com/decred/base58 v1.0.0/go.mod h1:LLY1p5e3g91byL/UO1eiZaYd+uRoVRarybgcoymu9Ks=
 github.com/decred/dcrd/blockchain/stake/v2 v2.0.0 h1:+FMrSt5tPicBKlev0k/r/2VsaVwpIUcm1TPw69XgZw0=
 github.com/decred/dcrd/blockchain/stake/v2 v2.0.0/go.mod h1:jv/rKMcZ87lhvVkHot/tElxeAYEUJ3mnKPHJ7WPq86U=
-github.com/decred/dcrd/blockchain/standalone v1.0.0 h1:bPkFgSV7/NeZI+ZEGhaOP+XccCUBTIJb3YTf8dMwe8g=
-github.com/decred/dcrd/blockchain/standalone v1.0.0/go.mod h1:U5lOleFSi1nL7heSdLgEtuvg0udS1p3cvHxvLJbihfE=
 github.com/decred/dcrd/blockchain/standalone v1.1.0 h1:yclvVGEY09Gf8A4GSAo+NCtL1dW2TYJ4OKp4+g0ICI0=
 github.com/decred/dcrd/blockchain/standalone v1.1.0/go.mod h1:6K8ZgzlWM1Kz2TwXbrtiAvfvIwfAmlzrtpA7CVPCUPE=
 github.com/decred/dcrd/chaincfg/chainhash v1.0.1 h1:0vG7U9+dSjSCaHQKdoSKURK2pOb47+b+8FK5q4+Je7M=
@@ -49,6 +47,8 @@ github.com/decred/dcrd/wire v1.2.0 h1:HqJVB7vcklIguzFWgRXw/WYCQ9cD3bUC5TKj53i1Hn
 github.com/decred/dcrd/wire v1.2.0/go.mod h1:/JKOsLInOJu6InN+/zH5AyCq3YDIOW/EqcffvU8fJHM=
 github.com/decred/dcrd/wire v1.3.0 h1:X76I2/a8esUmxXmFpJpAvXEi014IA4twgwcOBeIS8lE=
 github.com/decred/dcrd/wire v1.3.0/go.mod h1:fnKGlUY2IBuqnpxx5dYRU5Oiq392OBqAuVjRVSkIoXM=
+github.com/decred/dcrwallet/errors/v2 v2.0.0 h1:b3QHoQNjKkrcO0GSpueeHvFKp5eqtRv9aw649MDyejA=
+github.com/decred/dcrwallet/errors/v2 v2.0.0/go.mod h1:2HYvtRuCE9XqDNCWhKmBuzLG364xUgcUIsJu02r0F5Q=
 github.com/decred/slog v1.0.0 h1:Dl+W8O6/JH6n2xIFN2p3DNjCmjYwvrXsjlSJTQQ4MhE=
 github.com/decred/slog v1.0.0/go.mod h1:zR98rEZHSnbZ4WHZtO0iqmSZjDLKhkXfrPTZQKtAonQ=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
