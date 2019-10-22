@@ -10,7 +10,7 @@ require (
 	github.com/decred/dcrd/connmgr/v2 v2.0.0
 	github.com/decred/dcrd/gcs v1.0.2
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrwallet/errors/v2 v2.0.0-00010101000000-000000000000
+	github.com/decred/dcrwallet/errors/v2 v2.0.0
 	github.com/decred/dcrwallet/lru v1.0.0
 	github.com/decred/dcrwallet/version v1.0.1
 	github.com/decred/slog v1.0.0
@@ -23,5 +23,3 @@ require (
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )
-
-replace github.com/decred/dcrwallet/errors/v2 => ../errors
