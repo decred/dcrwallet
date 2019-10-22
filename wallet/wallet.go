@@ -485,6 +485,10 @@ func (w *Wallet) CFilter(ctx context.Context, blockHash *chainhash.Hash) (*gcs.F
 func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb NetworkBackend) (uint64, error) {
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
+	// Serialize requests to load addresses into the filter to avoid TCP
+	// timeout when registering very many addresses together.
+	var loadMu sync.Mutex
+
 	// loadBranchAddrs loads addresses for the branch with the child range [0,n].
 	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, n uint32, errs chan<- error) {
 		const step = 256
@@ -504,6 +508,8 @@ func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb N
 					}
 					addrs = append(addrs, addr)
 				}
+				defer loadMu.Unlock()
+				loadMu.Lock()
 				return nb.LoadTxFilter(ctx, false, addrs, nil)
 			})
 		}
