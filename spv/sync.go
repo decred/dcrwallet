@@ -277,7 +277,11 @@ func (s *Syncer) Run(ctx context.Context) error {
 
 	s.lp.AddrManager().Start()
 	defer func() {
-		err := s.lp.AddrManager().Stop()
+		n, err := s.wallet.NetworkBackend()
+		if n != nil {
+			s.wallet.SetNetworkBackend(nil)
+		}
+		err = s.lp.AddrManager().Stop()
 		if err != nil {
 			log.Errorf("Failed to cleanly stop address manager: %v", err)
 		}
@@ -935,7 +939,7 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 			return err
 		}
 
-		rpt, err := s.wallet.RescanPoint(ctx, )
+		rpt, err := s.wallet.RescanPoint(ctx)
 		if err != nil {
 			return err
 		}
@@ -1182,7 +1186,7 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 
 	if atomic.CompareAndSwapUint32(&s.atomicCatchUpTryLock, 0, 1) {
 		err = func() error {
-			rescanPoint, err := s.wallet.RescanPoint(ctx, )
+			rescanPoint, err := s.wallet.RescanPoint(ctx)
 			if err != nil {
 				return err
 			}

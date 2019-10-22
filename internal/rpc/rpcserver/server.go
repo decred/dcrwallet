@@ -2622,6 +2622,16 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 		},
 	}
 	syncer := spv.NewSyncer(wallet, lp)
+	n, err := wallet.NetworkBackend()
+	if err != nil {
+		// If fails getting network and n is not nil, we return the error.
+		// We set the network otherwise, as it could means the wallet was
+		// loaded with --noinitialload flag.
+		if n != nil {
+			return translateError(err)
+		}
+		wallet.SetNetworkBackend(syncer)
+	}
 	syncer.SetNotifications(ntfns)
 	if len(req.SpvConnect) > 0 {
 		spvConnects := make([]string, len(req.SpvConnect))
@@ -2635,7 +2645,7 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 		syncer.SetPersistentPeers(spvConnects)
 	}
 
-	err := syncer.Run(svr.Context())
+	err = syncer.Run(svr.Context())
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			return status.Errorf(codes.Canceled, "SPV synchronization canceled: %v", err)
