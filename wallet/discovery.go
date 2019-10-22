@@ -348,6 +348,9 @@ func (a *addrFinder) filter(ctx context.Context, fs []*udb.BlockCFilter, data bl
 					// validate blocks
 					err := validate.MerkleRoots(b)
 					if err != nil {
+						err = validate.DCP0005MerkleRoot(b)
+					}
+					if err != nil {
 						return err
 					}
 					err = validate.RegularCFilter(b, fs[fetchidx[i]].Filter)

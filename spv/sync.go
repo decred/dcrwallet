@@ -833,6 +833,9 @@ FilterLoop:
 				// Disconnect peer when invalid.
 				err := validate.MerkleRoots(b)
 				if err != nil {
+					err = validate.DCP0005MerkleRoot(b)
+				}
+				if err != nil {
 					rp.Disconnect(err)
 					return nil, err
 				}

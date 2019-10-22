@@ -229,6 +229,9 @@ FilterLoop:
 					i := fmatchidx[j]
 					err = validate.MerkleRoots(b)
 					if err != nil {
+						err = validate.DCP0005MerkleRoot(b)
+					}
+					if err != nil {
 						err := errors.E(op, err)
 						rp.Disconnect(err)
 						rp = nil
