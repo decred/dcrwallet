@@ -489,13 +489,17 @@ func spvLoop(ctx context.Context, w *wallet.Wallet) {
 // disassociated from the client and a new connection is attempmted.
 func rpcSyncLoop(ctx context.Context, w *wallet.Wallet) {
 	certs := readCAFile()
+	dial := cfg.dial
+	if cfg.NoDcrdProxy {
+		dial = new(net.Dialer).DialContext
+	}
 	for {
 		syncer := chain.NewSyncer(w, &chain.RPCOptions{
 			Address:     cfg.RPCConnect,
 			DefaultPort: activeNet.JSONRPCClientPort,
 			User:        cfg.DcrdUsername,
 			Pass:        cfg.DcrdPassword,
-			Dial:        cfg.dial,
+			Dial:        dial,
 			CA:          certs,
 			Insecure:    cfg.DisableClientTLS,
 		})

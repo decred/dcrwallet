@@ -116,6 +116,7 @@ type config struct {
 	ProxyPass    string `long:"proxypass" default-mask:"-" description:"Proxy server password"`
 	CircuitLimit int    `long:"circuitlimit" description:"Set maximum number of open Tor circuits; used only when --torisolation is enabled"`
 	TorIsolation bool   `long:"torisolation" description:"Enable Tor stream isolation by randomizing user credentials for each connection"`
+	NoDcrdProxy  bool   `long:"nodcrdproxy" description:"Never use configured proxy to dial dcrd websocket connectons"`
 	dial         func(ctx context.Context, network, address string) (net.Conn, error)
 	lookup       func(name string) ([]net.IP, error)
 
