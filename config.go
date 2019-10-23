@@ -667,6 +667,9 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			if err != nil {
 				host = address
 			}
+			if host == "localhost" {
+				return noproxyDialer.DialContext(ctx, network, address)
+			}
 			ip := net.ParseIP(host)
 			if len(ip) == 4 || len(ip) == 16 {
 				for i := range privNets {
