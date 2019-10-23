@@ -304,6 +304,9 @@ func (s *Syncer) Run(ctx context.Context) error {
 		g.Go(func() error { return s.connectToCandidates(ctx) })
 	}
 
+	s.wallet.SetNetworkBackend(s)
+	defer s.wallet.SetNetworkBackend(nil)
+
 	// Wait until cancellation or a handler errors.
 	return g.Wait()
 }
@@ -938,7 +941,7 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 			return err
 		}
 
-		rpt, err := s.wallet.RescanPoint(ctx, )
+		rpt, err := s.wallet.RescanPoint(ctx)
 		if err != nil {
 			return err
 		}
@@ -1185,7 +1188,7 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 
 	if atomic.CompareAndSwapUint32(&s.atomicCatchUpTryLock, 0, 1) {
 		err = func() error {
-			rescanPoint, err := s.wallet.RescanPoint(ctx, )
+			rescanPoint, err := s.wallet.RescanPoint(ctx)
 			if err != nil {
 				return err
 			}
