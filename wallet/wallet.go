@@ -479,20 +479,82 @@ func (w *Wallet) CFilter(ctx context.Context, blockHash *chainhash.Hash) (*gcs.F
 	return f, err
 }
 
-// loadActiveAddrs loads the consensus RPC server with active addresses for
+// loadActiveAddrs loads the transaction filter with all addresses for
 // transaction notifications.  For logging purposes, it returns the total number
 // of addresses loaded.
-func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb NetworkBackend) (uint64, error) {
-	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+func (w *Wallet) loadActiveAddrs(ctx context.Context, nb NetworkBackend) (uint64, error) {
+	var addrCount uint64
+
+	// Read branch keys and child counts for all derived and imported
+	// HD accounts.
+	type hdAccount struct {
+		externalKey, internalKey     *hdkeychain.ExtendedKey
+		externalCount, internalCount uint32
+	}
+	hdAccounts := make(map[uint32]hdAccount)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+
+		var err error
+		lastAcct, err := w.Manager.LastAccount(addrmgrNs)
+		if err != nil {
+			return err
+		}
+		lastImportedAcct, err := w.Manager.LastImportedAccount(dbtx)
+		if err != nil {
+			return err
+		}
+
+		gapLimit := uint32(w.gapLimit)
+		loadAccount := func(acct uint32) error {
+			accountKey, err := w.Manager.AccountExtendedPubKey(dbtx, acct)
+			if err != nil {
+				return err
+			}
+			props, err := w.Manager.AccountProperties(addrmgrNs, acct)
+			if err != nil {
+				return err
+			}
+			extKey, intKey, err := deriveBranches(accountKey)
+			if err != nil {
+				return err
+			}
+			hdAccounts[acct] = hdAccount{
+				externalKey:   extKey,
+				internalKey:   intKey,
+				externalCount: minUint32(props.LastReturnedExternalIndex+gapLimit, hdkeychain.HardenedKeyStart-1),
+				internalCount: minUint32(props.LastReturnedInternalIndex+gapLimit, hdkeychain.HardenedKeyStart-1),
+			}
+			return nil
+		}
+		for acct := uint32(0); acct <= lastAcct; acct++ {
+			err := loadAccount(acct)
+			if err != nil {
+				return err
+			}
+		}
+		for acct := uint32(udb.ImportedAddrAccount + 1); acct <= lastImportedAcct; acct++ {
+			err := loadAccount(acct)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
 
 	// Serialize requests to load addresses into the filter to avoid TCP
 	// timeout when registering very many addresses together.
 	var loadMu sync.Mutex
 
-	// loadBranchAddrs loads addresses for the branch with the child range [0,n].
-	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, n uint32, errs chan<- error) {
+	var g errgroup.Group
+
+	// loadBranchAddrs runs goroutines in the error group loading addresses
+	// for the branch with the child range [0,n].
+	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, n uint32) {
 		const step = 256
-		var g errgroup.Group
 		for child := uint32(0); child <= n; child += step {
 			child := child
 			g.Go(func() error {
@@ -513,81 +575,56 @@ func (w *Wallet) loadActiveAddrs(ctx context.Context, dbtx walletdb.ReadTx, nb N
 				return nb.LoadTxFilter(ctx, false, addrs, nil)
 			})
 		}
-		errs <- g.Wait()
 	}
 
-	var bip0044AddrCount, importedAddrCount uint64
-	lastAcct, err := w.Manager.LastAccount(addrmgrNs)
+	for _, hd := range hdAccounts {
+		// Memoize serialized pubkeys so that concurrent access in
+		// loadBranchAddrs does not cause a data race.
+		_, _ = hd.externalKey.ECPubKey()
+		_, _ = hd.internalKey.ECPubKey()
+
+		loadBranchAddrs(hd.externalKey, hd.externalCount)
+		loadBranchAddrs(hd.internalKey, hd.internalCount)
+
+		// total watched address count is one more for each branch due
+		// to zero indexing.
+		addrCount += 2 + uint64(hd.externalCount) + uint64(hd.internalCount)
+	}
+	err = g.Wait()
 	if err != nil {
 		return 0, err
 	}
-	lastImportedAcct, err := w.Manager.LastImportedAccount(dbtx)
-	if err != nil {
-		return 0, err
-	}
-	errs := make(chan error, int(lastAcct+1+(lastImportedAcct-udb.ImportedAddrAccount))*2+1)
-	loadAccountAddrs := func(acct uint32) error {
-		props, err := w.Manager.AccountProperties(addrmgrNs, acct)
-		if err != nil {
+
+	// Watch individually-imported addresses (which must each be read out of
+	// the DB).
+	abuf := make([]dcrutil.Address, 0, 256)
+	watchAddress := func(a udb.ManagedAddress) error {
+		addr := a.Address()
+		abuf = append(abuf, addr)
+		if len(abuf) == cap(abuf) {
+			addrCount += uint64(len(abuf))
+			err := nb.LoadTxFilter(ctx, false, abuf, nil)
+			abuf = abuf[:0]
 			return err
 		}
-		acctXpub, err := w.Manager.AccountExtendedPubKey(dbtx, acct)
-		if err != nil {
-			return err
-		}
-		extKey, intKey, err := deriveBranches(acctXpub)
-		if err != nil {
-			return err
-		}
-		gapLimit := uint32(w.gapLimit)
-		extn := minUint32(props.LastReturnedExternalIndex+gapLimit, hdkeychain.HardenedKeyStart-1)
-		intn := minUint32(props.LastReturnedInternalIndex+gapLimit, hdkeychain.HardenedKeyStart-1)
-		// pre-cache the pubkey results so concurrent access does not race.
-		extKey.ECPubKey()
-		intKey.ECPubKey()
-		go loadBranchAddrs(extKey, extn, errs)
-		go loadBranchAddrs(intKey, intn, errs)
-		// loadBranchAddrs loads addresses through extn/intn, and the actual
-		// number of watched addresses is one more for each branch due to zero
-		// indexing.
-		bip0044AddrCount += uint64(extn) + uint64(intn) + 2
 		return nil
 	}
-
-	for acct := uint32(0); acct <= lastAcct; acct++ {
-		if err := loadAccountAddrs(acct); err != nil {
-			return 0, err
-		}
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		return w.Manager.ForEachAccountAddress(addrmgrNs, udb.ImportedAddrAccount, watchAddress)
+	})
+	if err != nil {
+		return 0, err
 	}
-	for acct := uint32(udb.ImportedAddrAccount + 1); acct <= lastImportedAcct; acct++ {
-		if err := loadAccountAddrs(acct); err != nil {
-			return 0, err
-		}
-	}
-	go func() {
-		// Imported addresses are still sent as a single slice for now.  Could
-		// use the optimization above to avoid appends and reallocations.
-		var addrs []dcrutil.Address
-		err := w.Manager.ForEachAccountAddress(addrmgrNs, udb.ImportedAddrAccount,
-			func(a udb.ManagedAddress) error {
-				addrs = append(addrs, a.Address())
-				return nil
-			})
-		if err != nil {
-			errs <- err
-			return
-		}
-		importedAddrCount = uint64(len(addrs))
-		errs <- nb.LoadTxFilter(ctx, false, addrs, nil)
-	}()
-	for i := 0; i < cap(errs); i++ {
-		err := <-errs
+	if len(abuf) != 0 {
+		addrCount += uint64(len(abuf))
+		err := nb.LoadTxFilter(ctx, false, abuf, nil)
 		if err != nil {
 			return 0, err
 		}
 	}
 
-	return bip0044AddrCount + importedAddrCount, nil
+	return addrCount, nil
 }
 
 // CoinType returns the active BIP0044 coin type. For watching-only wallets,
@@ -653,14 +690,13 @@ func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, re
 		return
 	}
 
-	var addrCount uint64
+	addrCount, err := w.loadActiveAddrs(ctx, n)
+	if err != nil {
+		return err
+	}
+
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		var err error
-		addrCount, err = w.loadActiveAddrs(ctx, dbtx, n)
-		if err != nil {
-			return err
-		}
-		err = w.TxStore.ForEachUnspentOutpoint(dbtx, watchOutPoint)
+		err := w.TxStore.ForEachUnspentOutpoint(dbtx, watchOutPoint)
 		if err != nil {
 			return err
 		}
