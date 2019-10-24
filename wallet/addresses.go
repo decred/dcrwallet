@@ -616,10 +616,24 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 // watchFutureAddresses loads the transaction filter with future addresses, one
 // gap limit beyond the last used address.
 //
+// This method does nothing if the wallet's rescan point is behind the main
+// chain tip block.  That is, it does not watch any addresses if the wallet's
+// transactions are not synced with the best known block.  There is no reason to
+// watch addresses if there is a known possibility of not having all relevant
+// transactions.
+//
 // This method requires that the wallet's addressBuffersMu held be held, prior
 // to opening the database transaction.
 func (w *Wallet) watchFutureAddresses(ctx context.Context, dbtx walletdb.ReadTx) error {
 	const op errors.Op = "wallet.watchFutureAddresses"
+
+	rp, err := w.rescanPoint(dbtx)
+	if err != nil {
+		return errors.E(op, err)
+	}
+	if rp != nil {
+		return nil
+	}
 
 	// TODO: There is room here for optimization.  Improvements could be made by
 	// keeping track of all accounts that have been updated and how many more
