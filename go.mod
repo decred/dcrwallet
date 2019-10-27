@@ -13,6 +13,7 @@ require (
 	github.com/decred/dcrd/chaincfg/v2 v2.3.0
 	github.com/decred/dcrd/connmgr v1.0.2
 	github.com/decred/dcrd/connmgr/v2 v2.0.0
+	github.com/decred/dcrd/crypto/blake256 v1.0.0
 	github.com/decred/dcrd/dcrec v1.0.0
 	github.com/decred/dcrd/dcrjson/v2 v2.2.0
 	github.com/decred/dcrd/dcrjson/v3 v3.0.1

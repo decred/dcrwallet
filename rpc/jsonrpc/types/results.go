@@ -43,7 +43,7 @@ type GetBalanceResult struct {
 
 // GetContractHashResult models the data from the getcontracthash command.
 type GetContractHashResult struct {
-	ContractHash string `json:"contracthash"`
+	ContractHash []string `json:"contracthash"`
 }
 
 // GetMultisigOutInfoResult models the data returned from the getmultisigoutinfo
@@ -63,9 +63,9 @@ type GetMultisigOutInfoResult struct {
 	Amount       float64  `json:"amount"`
 }
 
-// GetPayToContractHashResult models the data returned from the getpaytocontracthash
+// GetPayToContractAddressResult models the data returned from the getpaytocontracthash
 // command.
-type GetPayToContractHashResult struct {
+type GetPayToContractAddressResult struct {
 	Address string `json:"address"`
 }
 

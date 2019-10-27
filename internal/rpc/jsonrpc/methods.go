@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"io/ioutil"
 	"math/big"
 	"sort"
 	"strconv"
@@ -23,6 +24,7 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/crypto/blake256"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrjson/v3"
 	"github.com/decred/dcrd/dcrutil/v2"
@@ -80,8 +82,10 @@ var handlers = map[string]handler{
 	"getbestblockhash":        {fn: (*Server).getBestBlockHash},
 	"getblockcount":           {fn: (*Server).getBlockCount},
 	"getblockhash":            {fn: (*Server).getBlockHash},
+	"getcontracthash":         {fn: (*Server).getContractHash},
 	"getinfo":                 {fn: (*Server).getInfo},
 	"getmasterpubkey":         {fn: (*Server).getMasterPubkey},
+	"getpaytocontractaddress": {fn: (*Server).getPayToContractAddress},
 	"getmultisigoutinfo":      {fn: (*Server).getMultisigOutInfo},
 	"getnewaddress":           {fn: (*Server).getNewAddress},
 	"getrawchangeaddress":     {fn: (*Server).getRawChangeAddress},
@@ -832,64 +836,52 @@ func difficultyRatio(bits uint32, params *chaincfg.Params) float64 {
 	return ratio
 }
 
-<<<<<<< HEAD:internal/rpc/jsonrpc/methods.go
-=======
 // hashContracts hashes contracts and places them in a array.
->>>>>>> legacyrpc: add getContractHash method:rpc/legacyrpc/methods.go
-func hashContracts(contractArray [][]byte, contractAmounts int) [][]byte {
-
-	var hashedContracts []hash.Hash
-	hashedContractsByte := make([][]byte, contractAmounts)
+func hashContracts(contractArray [][]byte) [][]byte {
+	// var contractHasher hash.Hash = blake256.New()
+	hc32 := make([][32]byte, len(contractArray))
+	hc := make([][]byte, len(contractArray))
 	for i := range contractArray {
-		hashedContracts[i] = hmac.New(sha512.New, contractArray[i])
-		hashedContractsByte[i] = hashedContracts[i].Sum(nil)
+		hc32[i] = blake256.Sum256(contractArray[i])
+		hc[i] = hc32[i][:]
 	}
 
-	return hashedContractsByte
+	return hc
 }
 
-// hashContracts hashes contracts and places them in a array.
-func hashContracts(contractArray [][]byte, contractAmount int) [][]byte {
-	var hashedContracts []hash.Hash
-	hashedContracts := make([][]byte, contractAmount)
-	hasher := sha256.New()
-	for i := range contractArray {
-		hasher.Write(contractArray[i])
-		hashedContracts[i] = hasher.Sum(nil)
-	}
-
-	return hashedContracts
-}
-
-// createContractArray creates a array of contracts from the input filepath slice.
+// createContractArray creates a array of contracts in byte form from the input filepath slice.
 func createContractArray(filePaths []string) ([][]byte, error) {
-	contractArray := make([][]byte, len(filePaths))
+	// TODO: add checking here for right file type
+	var contractArray = make([][]byte, len(filePaths))
 	for i := range filePaths {
-		contractArray[i], err = ioutil.ReadFile(filePaths[i])
-		if err != nil {
-			return nil, err
-		}
+		contractArray[i], _ = ioutil.ReadFile(filePaths[i])
+		/*
+			if err != nil {
+				return nil, err
+			}
+		*/
 	}
 
 	return contractArray, nil
 }
 
 // getContractHash returns a slice of hashed contracts in string form.
-func getContractHash(s *Server, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrjson.GetContractHashCmd)
-
-	contractArray, err := createContractArray(cmd.FilePath[i])
+func (s *Server) getContractHash(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.GetContractHashCmd)
+	contractArray, err := createContractArray(cmd.FilePath)
 	if err != nil {
 		return nil, err
 	}
 
-	hashedContracts := hashContracts(contractArray, len(cmd.FilePath))
+	hashedContracts := hashContracts(contractArray)
+
+	// TODO: how can I do this better, do I really need to make them as strings?
 	hashedContractsString := make([]string, len(cmd.FilePath))
 	for i := range hashedContracts {
 		hashedContractsString[i] = string(hashedContractsString[i])
 	}
 
-	return &dcrjson.GetContractHashResult{
+	return &types.GetContractHashResult{
 		ContractHash: hashedContractsString,
 	}, nil
 }
@@ -1337,12 +1329,8 @@ func (s *Server) getNewAddress(ctx context.Context, icmd interface{}) (interface
 	if cmd.Account != nil {
 		acctName = *cmd.Account
 	}
-<<<<<<< HEAD:internal/rpc/jsonrpc/methods.go
-	account, err := w.AccountNumber(ctx, acctName)
-=======
 
-	account, err := w.AccountNumber(acctName)
->>>>>>> legacyrpc: add getContractHash method:rpc/legacyrpc/methods.go
+	account, err := w.AccountNumber(ctx, acctName)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
 			return nil, errAccountNotFound
@@ -1371,48 +1359,81 @@ func lexiSort(hashedContracts [][]byte) [][]byte {
 	return hashedContracts
 }
 
+func getP2PKHFromExtendedKey(extKey *hdkeychain.ExtendedKey, n *chaincfg.Params) (string, error) {
+	ecPubKey, err := extKey.ECPubKey()
+	if err != nil {
+		return "", err
+	}
+	pkHash := dcrutil.Hash160(ecPubKey.SerializeCompressed())
+	addr, err := dcrutil.NewAddressPubKeyHash(pkHash, n, dcrec.STEcdsaSecp256k1)
+	if err != nil {
+		return "", err
+	}
+	return addr.String(), nil
+}
+
 // getPayToContractAddress handles the getpaytocontractaddress by returning a
 // address for a contract array
-func getPayToContractAddress(s *Server, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrjson.GetPayToContractAddressCmd)
+func (s *Server) getPayToContractAddress(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.GetPayToContractAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
-		return nil, ErrUnloadedWallet
+		return nil, errUnloadedWallet
 	}
 
-	// TODO: I need to utilize the hdkeychain.Zero() after every childkey derivation
-	contractArray, err := createContractArray(cmd.FilePath[i])
+	net := w.ChainParams()
+
+	contractArray, err := createContractArray(cmd.FilePath)
 	if err != nil {
 		return nil, err
 	}
 
-	// hash each contract and then sort them lexicographically
-	hashedContracts := hashContracts(contractArray, len(cmd.FilePath))
-	hashedContracts = lexiSort(hashedContracts)
+	hashedContracts := lexiSort(hashContracts(contractArray))
 
-	// obtain the contractHash extendedKey
-	contractHash := ContractHash(hashedContracts)
+	var contractHash []byte
+	for i := 0; i < len(hashedContracts); i++ {
+		for j := 0; i < len(hashedContracts); j++ {
+			contractHash = append(contractHash, hashedContracts[i][j])
+		}
+	}
 
-	// paymentBase and coin type key are synonyms.
-	paymentBase, err := w.CoinTypeKey()
+	ch32 := blake256.Sum256(contractHash)
+	stringCh := string(ch32[:])
+
+	contractsHashedExtKey, err := hdkeychain.NewKeyFromString(stringCh, net)
+	if err != nil {
+		return nil, err
+	}
+	defer contractsHashedExtKey.Zero()
+
+	contractsHashedExtKey, err = contractsHashedExtKey.Child(0)
 	if err != nil {
 		return nil, err
 	}
 
-	// append the contractHash derivation path to the paymentBase
-	extendedKey, err := NewKeyFromString(append(paymentBase.String(), contractHash.String()))
+	coinTypePrivKey, err := w.CoinTypePrivKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer coinTypePrivKey.Zero()
+
+	contractsHashedExtKey, err = hdkeychain.NewKeyFromString(coinTypePrivKey.String()+contractsHashedExtKey.String(), w.ChainParams())
 	if err != nil {
 		return nil, err
 	}
 
-	// take the address format 1. begins with the version byte denoting the address type and end with a 4 byte checksum - checksum (SHA256(SHA256(prefix+data)))
-	addr, err := extendedKey.Address(w.ChainParams())
+	contractsHashedExtKey, err = contractsHashedExtKey.Child(0)
 	if err != nil {
 		return nil, err
 	}
 
-	return &dcrjson.GetPayToContractAddressResult{
-		ContractAddress: addr.EncodeAddress(),
+	payToContractAddress, err := getP2PKHFromExtendedKey(contractsHashedExtKey, net)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.GetPayToContractAddressResult{
+		Address: payToContractAddress,
 	}, nil
 }
 
