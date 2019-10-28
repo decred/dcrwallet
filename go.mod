@@ -35,7 +35,7 @@ require (
 	github.com/decred/dcrwallet/version v1.0.1
 	github.com/decred/dcrwallet/wallet/v3 v3.0.0
 	github.com/decred/dcrwallet/walletseed v1.0.1
-	github.com/decred/go-socks v1.0.1-0.20191001171050-775b73941e73
+	github.com/decred/go-socks v1.1.0
 	github.com/decred/slog v1.0.0
 	github.com/gorilla/websocket v1.4.1
 	github.com/jessevdk/go-flags v1.4.0

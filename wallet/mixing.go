@@ -20,6 +20,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/v3/txrules"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
+	"github.com/decred/go-socks/socks"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -215,6 +216,9 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 		g.Go(func() error {
 			err := w.MixOutput(ctx, dialTLS, csppserver, op, changeAccount, mixAccount, mixBranch)
 			if errors.Is(err, errNoSplitDenomination) {
+				return nil
+			}
+			if errors.Is(err, socks.ErrPoolMaxConnections) {
 				return nil
 			}
 			return err

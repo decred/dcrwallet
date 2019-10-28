@@ -22,6 +22,7 @@ require (
 	github.com/decred/dcrwallet/rpc/client/dcrd v1.0.0
 	github.com/decred/dcrwallet/rpc/jsonrpc/types v1.3.0
 	github.com/decred/dcrwallet/validate v1.1.1
+	github.com/decred/go-socks v1.1.0
 	github.com/decred/slog v1.0.0
 	github.com/onsi/ginkgo v1.7.0 // indirect
 	github.com/onsi/gomega v1.4.3 // indirect
