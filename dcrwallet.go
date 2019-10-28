@@ -168,6 +168,12 @@ func run(ctx context.Context) error {
 	// Stop any services started by the loader after the shutdown procedure is
 	// initialized and this function returns.
 	defer func() {
+		// When panicing, do not cleanly unload the wallet (by closing
+		// the db).  If a panic occured inside a bolt transaction, the
+		// db mutex is still held and this causes a deadlock.
+		if r := recover(); r != nil {
+			panic(r)
+		}
 		err := loader.UnloadWallet()
 		if err != nil && !errors.Is(err, errors.Invalid) {
 			log.Errorf("Failed to close wallet: %v", err)
