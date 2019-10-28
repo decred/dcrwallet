@@ -325,7 +325,8 @@ type addressBuffer struct {
 	// cursor is added to lastUsed to derive child index
 	// warning: this is not decremented after errors, and therefore may refer
 	// to children beyond the last returned child recorded in the database.
-	cursor uint32
+	cursor      uint32
+	lastWatched uint32
 }
 
 type bip0044AccountData struct {
@@ -613,162 +614,6 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 	return nil
 }
 
-// watchFutureAddresses loads the transaction filter with future addresses, one
-// gap limit beyond the last used address.
-//
-// This method does nothing if the wallet's rescan point is behind the main
-// chain tip block.  That is, it does not watch any addresses if the wallet's
-// transactions are not synced with the best known block.  There is no reason to
-// watch addresses if there is a known possibility of not having all relevant
-// transactions.
-//
-// This method requires that the wallet's addressBuffersMu held be held, prior
-// to opening the database transaction.
-func (w *Wallet) watchFutureAddresses(ctx context.Context, dbtx walletdb.ReadTx) error {
-	const op errors.Op = "wallet.watchFutureAddresses"
-
-	rp, err := w.rescanPoint(dbtx)
-	if err != nil {
-		return errors.E(op, err)
-	}
-	if rp != nil {
-		return nil
-	}
-
-	// TODO: There is room here for optimization.  Improvements could be made by
-	// keeping track of all accounts that have been updated and how many more
-	// addresses must be generated when marking addresses as used so only those
-	// need to be updated.
-
-	gapLimit := uint32(w.gapLimit)
-
-	n, err := w.NetworkBackend()
-	if err != nil {
-		return errors.E(op, err)
-	}
-
-	type children struct {
-		external uint32
-		internal uint32
-	}
-	ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
-	lastAccount, err := w.Manager.LastAccount(ns)
-	if err != nil {
-		return errors.E(op, err)
-	}
-	lastImportedAccount, err := w.Manager.LastImportedAccount(dbtx)
-	if err != nil {
-		return errors.E(op, err)
-	}
-	numAccounts := lastAccount + 1 + (lastImportedAccount - udb.ImportedAddrAccount)
-	dbLastUsedChildren := make(map[uint32]children, numAccounts)
-	dbLastRetChildren := make(map[uint32]children, numAccounts)
-	var lastUsedExt, lastUsedInt uint32
-	var lastRetExt, lastRetInt uint32
-	readIndexes := func(account uint32) error {
-		for branch := udb.ExternalBranch; branch <= udb.InternalBranch; branch++ {
-			props, err := w.Manager.AccountProperties(ns, account)
-			if err != nil {
-				return err
-			}
-			switch branch {
-			case udb.ExternalBranch:
-				lastUsedExt = props.LastUsedExternalIndex
-				lastRetExt = props.LastReturnedExternalIndex
-			case udb.InternalBranch:
-				lastUsedInt = props.LastUsedInternalIndex
-				lastRetInt = props.LastReturnedInternalIndex
-			}
-		}
-		dbLastUsedChildren[account] = children{lastUsedExt, lastUsedInt}
-		dbLastRetChildren[account] = children{lastRetExt, lastRetInt}
-		return nil
-	}
-	for account := uint32(0); account <= lastAccount; account++ {
-		err := readIndexes(account)
-		if err != nil {
-			return errors.E(op, err)
-		}
-	}
-	for account := uint32(udb.ImportedAddrAccount + 1); account <= lastImportedAccount; account++ {
-		err := readIndexes(account)
-		if err != nil {
-			return errors.E(op, err)
-		}
-	}
-
-	// Update the buffer's last used child if it was updated, and then update
-	// the cursor to point to the same child index relative to the new last used
-	// index.  Request transaction notifications for future addresses that will
-	// be returned by the buffer.
-	errs := make(chan error, len(w.addressBuffers))
-	for account, a := range w.addressBuffers {
-		// startExt/Int are the indexes of the next child after the last
-		// currently watched address.
-		startExt := a.albExternal.lastUsed + 1 + gapLimit
-		startInt := a.albInternal.lastUsed + 1 + gapLimit
-
-		dbLastUsed := dbLastUsedChildren[account]
-		dbLastRet := dbLastRetChildren[account]
-
-		// endExt/Int are the end indexes for newly watched addresses.  Because
-		// addresses ranges are described using a half open range, these indexes
-		// are one beyond the last address that will be watched.
-		endExt := dbLastRet.external + 1 + gapLimit
-		endInt := dbLastRet.internal + 1 + gapLimit
-
-		xpubBranchExt := a.albExternal.branchXpub
-		xpubBranchInt := a.albInternal.branchXpub
-
-		// Create a slice of all new addresses that must be watched.
-		var totalAddrs uint32
-		if endExt > startExt {
-			totalAddrs += endExt - startExt
-		}
-		if endInt > startInt {
-			totalAddrs += endInt - startInt
-		}
-		if totalAddrs == 0 {
-			errs <- nil
-			continue
-		}
-		addrs := make([]dcrutil.Address, 0, totalAddrs)
-		err := appendChildAddrsRange(&addrs, xpubBranchExt, startExt, endExt,
-			w.chainParams)
-		if err != nil {
-			return errors.E(op, err)
-		}
-		err = appendChildAddrsRange(&addrs, xpubBranchInt, startInt, endInt,
-			w.chainParams)
-		if err != nil {
-			return errors.E(op, err)
-		}
-
-		// Update the in-memory address buffers with the latest last
-		// used and last returned indexes retreived from the db.
-		if endExt > startExt {
-			a.albExternal.lastUsed = dbLastUsed.external
-			a.albExternal.cursor = dbLastRet.external - dbLastUsed.external
-		}
-		if endInt > startInt {
-			a.albInternal.lastUsed = dbLastUsed.internal
-			a.albInternal.cursor = dbLastRet.internal - dbLastUsed.internal
-		}
-
-		go func() {
-			errs <- n.LoadTxFilter(ctx, false, addrs, nil)
-		}()
-	}
-
-	for i := 0; i < cap(errs); i++ {
-		err := <-errs
-		if err != nil {
-			return errors.E(op, err)
-		}
-	}
-	return nil
-}
-
 // NewExternalAddress returns an external address.
 func (w *Wallet) NewExternalAddress(ctx context.Context, account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
 	const op errors.Op = "wallet.NewExternalAddress"
@@ -981,23 +826,4 @@ func deriveBranches(acctXpub *hdkeychain.ExtendedKey) (extKey, intKey *hdkeychai
 	}
 	intKey, err = acctXpub.Child(udb.InternalBranch)
 	return
-}
-
-// appendChildAddrsRange appends non-hardened child addresses from the range
-// [a,b) to the addrs slice.  If a child is unusable, it is skipped, so the
-// total number of addresses appended may not be exactly b-a.
-func appendChildAddrsRange(addrs *[]dcrutil.Address, key *hdkeychain.ExtendedKey,
-	a, b uint32, params *chaincfg.Params) error {
-
-	for ; a < b && a < hdkeychain.HardenedKeyStart; a++ {
-		addr, err := deriveChildAddress(key, a, params)
-		if errors.Is(err, hdkeychain.ErrInvalidChild) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		*addrs = append(*addrs, addr)
-	}
-	return nil
 }

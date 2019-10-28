@@ -453,11 +453,7 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 	}
 
 	// Watch for future relevant transactions.
-	w.addressBuffersMu.Lock()
-	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		return w.watchFutureAddresses(ctx, dbtx)
-	})
-	w.addressBuffersMu.Unlock()
+	_, err = w.watchHDAddrs(ctx, false, n)
 	if err != nil {
 		log.Errorf("Failed to watch for future address usage after publishing "+
 			"transaction: %v", err)
@@ -1328,11 +1324,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	// relevant transactions
 	var watchOutPoints []wire.OutPoint
 	defer func() {
-		w.addressBuffersMu.Lock()
-		err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-			return w.watchFutureAddresses(ctx, tx)
-		})
-		w.addressBuffersMu.Unlock()
+		_, err := w.watchHDAddrs(ctx, false, n)
+		if err != nil {
+			log.Errorf("Failed to watch for future address usage after publishing "+
+				"transaction: %v", err)
+		}
 		if err != nil {
 			log.Errorf("Failed to watch for future addresses after ticket "+
 				"purchases: %v", err)

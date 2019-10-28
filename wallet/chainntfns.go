@@ -196,19 +196,17 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 		return nil, errors.E(op, err)
 	}
 
-	w.addressBuffersMu.Lock()
-	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		return w.watchFutureAddresses(ctx, tx)
-	})
-	w.addressBuffersMu.Unlock()
-	if err != nil && !errors.Is(err, errors.NoPeers) {
-		return nil, err
-	}
-
-	if n, err := w.NetworkBackend(); err == nil && len(watchOutPoints) > 0 {
-		err := n.LoadTxFilter(ctx, false, nil, watchOutPoints)
+	if n, err := w.NetworkBackend(); err == nil {
+		_, err = w.watchHDAddrs(ctx, false, n)
 		if err != nil {
-			log.Errorf("Failed to watch outpoints: %v", err)
+			return nil, errors.E(op, err)
+		}
+
+		if len(watchOutPoints) > 0 {
+			err = n.LoadTxFilter(ctx, false, nil, watchOutPoints)
+			if err != nil {
+				log.Errorf("Failed to watch outpoints: %v", err)
+			}
 		}
 	}
 
@@ -338,18 +336,16 @@ func (w *Wallet) AcceptMempoolTx(ctx context.Context, tx *wire.MsgTx) error {
 	if err != nil {
 		return errors.E(op, err)
 	}
-	w.addressBuffersMu.Lock()
-	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		return w.watchFutureAddresses(ctx, tx)
-	})
-	w.addressBuffersMu.Unlock()
-	if err != nil {
-		log.Errorf("Failed to watch for future address usage: %v", err)
-	}
 	if n, err := w.NetworkBackend(); err == nil && len(watchOutPoints) > 0 {
-		err := n.LoadTxFilter(ctx, false, nil, watchOutPoints)
+		_, err := w.watchHDAddrs(ctx, false, n)
 		if err != nil {
-			log.Errorf("Failed to watch outpoints: %v", err)
+			return errors.E(op, err)
+		}
+		if len(watchOutPoints) > 0 {
+			err = n.LoadTxFilter(ctx, false, nil, watchOutPoints)
+			if err != nil {
+				log.Errorf("Failed to watch outpoints: %v", err)
+			}
 		}
 	}
 	return nil
@@ -934,12 +930,13 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 		return err
 	}
 
-	w.addressBuffersMu.Lock()
-	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		return w.watchFutureAddresses(ctx, dbtx)
-	})
-	w.addressBuffersMu.Unlock()
-	return err
+	if n, err := w.NetworkBackend(); err == nil {
+		_, err := w.watchHDAddrs(ctx, false, n)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // RevokeOwnedTickets revokes any owned tickets specified in the
@@ -1073,10 +1070,11 @@ func (w *Wallet) RevokeOwnedTickets(ctx context.Context, missedTicketHashes []*c
 		return err
 	}
 
-	w.addressBuffersMu.Lock()
-	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		return w.watchFutureAddresses(ctx, dbtx)
-	})
-	w.addressBuffersMu.Unlock()
-	return err
+	if n, err := w.NetworkBackend(); err == nil {
+		_, err := w.watchHDAddrs(ctx, false, n)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

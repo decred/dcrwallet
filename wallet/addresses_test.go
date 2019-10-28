@@ -385,9 +385,8 @@ func nextAddresses(n int) func(t *testing.T, w *Wallet) {
 
 func watchFutureAddresses(t *testing.T, w *Wallet) {
 	ctx := context.Background()
-	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		return w.watchFutureAddresses(context.Background(), dbtx)
-	})
+	n, _ := w.NetworkBackend()
+	_, err := w.watchHDAddrs(ctx, false, n)
 	if err != nil {
 		t.Fatal(err)
 	}
