@@ -207,7 +207,7 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 		return errors.E(op, err)
 	}
 
-	g, ctx := errgroup.WithContext(ctx)
+	var g errgroup.Group
 	for i := range credits {
 		if credits[i].Amount <= splitPoints[len(splitPoints)-1] {
 			continue
