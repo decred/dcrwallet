@@ -143,7 +143,7 @@ func (s *Syncer) synced() {
 	}
 }
 
-// GetRemotePeers returns a map of connected remote peers
+// GetRemotePeers returns a map of connected remote peers.
 func (s *Syncer) GetRemotePeers() map[string]*p2p.RemotePeer {
 	return s.remotes
 }
@@ -370,8 +370,6 @@ func (s *Syncer) connectToPersistent(ctx context.Context, raddr string) error {
 			k := addrmgr.NetAddressKey(rp.NA())
 			s.remotesMu.Lock()
 			s.remotes[k] = rp
-			_, height := s.wallet.MainChainTip()
-			rp.UpdateLastBlockHeight(int64(height))
 			n := len(s.remotes)
 			s.remotesMu.Unlock()
 			s.peerConnected(n, k)
@@ -464,8 +462,6 @@ func (s *Syncer) connectToCandidates(ctx context.Context) error {
 			s.remotesMu.Lock()
 			delete(s.connectingRemotes, k)
 			s.remotes[k] = rp
-			_, height := s.wallet.MainChainTip()
-			rp.UpdateLastBlockHeight(int64(height))
 			n := len(s.remotes)
 			s.remotesMu.Unlock()
 			s.peerConnected(n, k)

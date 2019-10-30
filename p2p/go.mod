@@ -1,16 +1,13 @@
-module github.com/decred/dcrwallet/p2p/v2
-
-go 1.13
+module github.com/decred/dcrwallet/p2p
 
 require (
 	github.com/decred/dcrd/addrmgr v1.0.2
-	github.com/decred/dcrd/chaincfg v1.5.1 // indirect
+	github.com/decred/dcrd/chaincfg v1.5.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
-	github.com/decred/dcrd/chaincfg/v2 v2.0.2
-	github.com/decred/dcrd/connmgr/v2 v2.0.0
+	github.com/decred/dcrd/connmgr v1.0.2
 	github.com/decred/dcrd/gcs v1.0.2
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrwallet/errors/v2 v2.0.0
+	github.com/decred/dcrwallet/errors v1.0.1
 	github.com/decred/dcrwallet/lru v1.0.0
 	github.com/decred/dcrwallet/version v1.0.1
 	github.com/decred/slog v1.0.0
