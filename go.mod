@@ -27,6 +27,7 @@ require (
 	github.com/decred/dcrwallet/chain/v3 v3.0.1
 	github.com/decred/dcrwallet/errors/v2 v2.0.0
 	github.com/decred/dcrwallet/p2p/v2 v2.0.0
+	github.com/decred/dcrwallet/pgpwordlist v1.0.1 // indirect
 	github.com/decred/dcrwallet/rpc/client/dcrd v1.0.0
 	github.com/decred/dcrwallet/rpc/jsonrpc/types v1.3.0
 	github.com/decred/dcrwallet/rpc/walletrpc v0.3.0
@@ -34,7 +35,7 @@ require (
 	github.com/decred/dcrwallet/ticketbuyer/v4 v4.0.0
 	github.com/decred/dcrwallet/version v1.0.3
 	github.com/decred/dcrwallet/wallet/v3 v3.0.2
-	github.com/decred/dcrwallet/walletseed v1.0.1
+	github.com/decred/dcrwallet/walletseed v1.0.2
 	github.com/decred/go-socks v1.1.0
 	github.com/decred/slog v1.0.0
 	github.com/gorilla/websocket v1.4.1

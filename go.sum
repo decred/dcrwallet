@@ -80,7 +80,6 @@ github.com/decred/dcrd/database/v2 v2.0.0/go.mod h1:Sj2lvTRB0mfSu9uD7ObfwCY/eJ95
 github.com/decred/dcrd/database/v2 v2.0.1 h1:ghLzkKpVpwvjrdRv3njrEfkvygQpYQX66sGVs8ha+E8=
 github.com/decred/dcrd/database/v2 v2.0.1/go.mod h1:ZOaWTv3IlNqCA+y7q3q5EozgmiDOmNwCSq3ntZn2CDo=
 github.com/decred/dcrd/dcrec v0.0.0-20180721005212-59fe2b293f69/go.mod h1:cRAH1SNk8Mi9hKBc/DHbeiWz/fyO8KWZR3H7okrIuOA=
-github.com/decred/dcrd/dcrec v0.0.0-20180721005914-d26200ec716b/go.mod h1:cRAH1SNk8Mi9hKBc/DHbeiWz/fyO8KWZR3H7okrIuOA=
 github.com/decred/dcrd/dcrec v0.0.0-20180721031028-5369a485acf6/go.mod h1:cRAH1SNk8Mi9hKBc/DHbeiWz/fyO8KWZR3H7okrIuOA=
 github.com/decred/dcrd/dcrec v0.0.0-20180801202239-0761de129164 h1:N5s3yVfjBNW6XNG3gLxYpvt0IUjUsp/FRfC75QpSI+E=
 github.com/decred/dcrd/dcrec v0.0.0-20180801202239-0761de129164/go.mod h1:cRAH1SNk8Mi9hKBc/DHbeiWz/fyO8KWZR3H7okrIuOA=
@@ -130,11 +129,10 @@ github.com/decred/dcrd/gcs v1.0.2/go.mod h1:eLCvrzUsWro48TlTyrmFcZAZqnllYFz0vEv5
 github.com/decred/dcrd/gcs v1.1.0 h1:djuYzaFUzUTJR+6ulMSRZOQ+P9rxtIyuxQeViAEfB8s=
 github.com/decred/dcrd/gcs v1.1.0/go.mod h1:yBjhj217Vw5lw3aKnCdHip7fYb9zwMos8bCy5s79M9w=
 github.com/decred/dcrd/gcs/v2 v2.0.0/go.mod h1:3XjKcrtvB+r2ezhIsyNCLk6dRnXRJVyYmsd1P3SkU3o=
-github.com/decred/dcrd/hdkeychain v1.1.1 h1:6+BwOmPfEyw/Krm+91RXysc76F1jqCta3m45DyD5+s4=
-github.com/decred/dcrd/hdkeychain v1.1.1/go.mod h1:CLBVXLoO63fIiqkv38KR23zXGSgrfiAWOybOKTneLhA=
 github.com/decred/dcrd/hdkeychain/v2 v2.0.0 h1:b6GklXT+LeDumc0bDqMHkss+p2Bu+mgiUDhjAX01LOc=
 github.com/decred/dcrd/hdkeychain/v2 v2.0.0/go.mod h1:tG+VpXfloIkNGHGd6NeoTElHWA68Wf1aP87zegXDGEw=
 github.com/decred/dcrd/hdkeychain/v2 v2.0.0/go.mod h1:tG+VpXfloIkNGHGd6NeoTElHWA68Wf1aP87zegXDGEw=
+github.com/decred/dcrd/hdkeychain/v2 v2.0.1/go.mod h1:qPv+vTla19liVHFuXVnQ70dMI4ERPCniDXbV5RzwQiM=
 github.com/decred/dcrd/hdkeychain/v2 v2.1.0 h1:NVNIz36HPukOnaysBDsLO+2kWqijLM4tvLUsLLyLfME=
 github.com/decred/dcrd/hdkeychain/v2 v2.1.0/go.mod h1:DR+lD4uV8G0i3c9qnUJwjiGaaEWK+nSrbWCz1BRHBL8=
 github.com/decred/dcrd/rpc/jsonrpc/types v1.0.0 h1:d5ptnjuSADTQMa3i83VpeJNoMRTOJZZBqk7P+E41VXM=
@@ -163,9 +161,8 @@ github.com/decred/dcrwallet/chain/v3 v3.0.1 h1:y/6dO5AchJiVHI/gSIyaLO9zP8ibsHjfh
 github.com/decred/dcrwallet/chain/v3 v3.0.1/go.mod h1:2Hp5WRdNeZGiW6YIz023+kbagMvYmIJ8JhaeAMn6kEE=
 github.com/decred/dcrwallet/deployments/v2 v2.0.0 h1:sSjkc87hcDFGoLMTIwNt5ze+rCHbholqyM8Z3H9k5CE=
 github.com/decred/dcrwallet/deployments/v2 v2.0.0/go.mod h1:fY1HV1vIeeY5bHjrMknUhB/ZOVIfthBiUlSgRqFFKrg=
+github.com/decred/dcrwallet/errors v1.0.0 h1:XjSILZ2mK5HqWYlhdBpsm+CimFDqDB+hY3tuX0Yh0Jo=
 github.com/decred/dcrwallet/errors v1.0.0/go.mod h1:XUm95dWmm9XmQGvneBXJkkIaFeRsQVBB6ni/KTy1hrY=
-github.com/decred/dcrwallet/errors v1.0.1 h1:8EF7IY6twRlo9sqWaSfm8abfi2/rHZ1wacOiGvBy+bM=
-github.com/decred/dcrwallet/errors v1.0.1/go.mod h1:XUm95dWmm9XmQGvneBXJkkIaFeRsQVBB6ni/KTy1hrY=
 github.com/decred/dcrwallet/errors/v2 v2.0.0 h1:b3QHoQNjKkrcO0GSpueeHvFKp5eqtRv9aw649MDyejA=
 github.com/decred/dcrwallet/errors/v2 v2.0.0/go.mod h1:2HYvtRuCE9XqDNCWhKmBuzLG364xUgcUIsJu02r0F5Q=
 github.com/decred/dcrwallet/lru v1.0.0 h1:vz71/Wa2890CUQeWsOTI6u6iGGfXGAhIQ/hnqMUh6Xc=
@@ -174,6 +171,8 @@ github.com/decred/dcrwallet/p2p/v2 v2.0.0 h1:YFnzIhJITUmFcTU1PzuJ0Wenz/1s8ijDtu0
 github.com/decred/dcrwallet/p2p/v2 v2.0.0/go.mod h1:5/sskXRO69fGsuBcCekirXZCC/cZ5MwjNmj/wEPoLe0=
 github.com/decred/dcrwallet/pgpwordlist v1.0.0 h1:H7Y3+yRZq7PXMPfpKLMnY5TKTjTWhc0oJmyN7v8tC/M=
 github.com/decred/dcrwallet/pgpwordlist v1.0.0/go.mod h1:Fek3uYn+9DnEFIreA/8PnTIXUl2lBO64JpEBkL9BXtk=
+github.com/decred/dcrwallet/pgpwordlist v1.0.1 h1:SIGGOEQ+hNFDr/1wJOf8XAKxEw4zooKIpjLNQSxGjH8=
+github.com/decred/dcrwallet/pgpwordlist v1.0.1/go.mod h1:lPHIIVPkuRNwCfBPSr80kjR+6a2Vpm3nsUeUoUIPPQ4=
 github.com/decred/dcrwallet/rpc/client/dcrd v1.0.0 h1:xRx6XdG3IFWDVL4XMBzy41dz6Gtff/suzQggSR6uKyw=
 github.com/decred/dcrwallet/rpc/client/dcrd v1.0.0/go.mod h1:qrJri+p+cn+obQ8nkW5hTtagPcOnCqKPGBq1t02gBc0=
 github.com/decred/dcrwallet/rpc/jsonrpc/types v1.1.0/go.mod h1:xUT7XXATLOzE0pwwmvgfRWtZdrB+PsWFilo+jkH5/Ig=
@@ -195,8 +194,8 @@ github.com/decred/dcrwallet/wallet/v3 v3.0.0 h1:6izrN1ZF7M7zb54GRb8RTRaO0z2+MjgX
 github.com/decred/dcrwallet/wallet/v3 v3.0.0/go.mod h1:4aUyeRVmnT+3jPXMJrfUFppguKjKueZi1q978eYdGfs=
 github.com/decred/dcrwallet/wallet/v3 v3.0.2 h1:1btS/ooscpioQr62UX6kzwFZw9rrvtrXJ8fLP+prKkw=
 github.com/decred/dcrwallet/wallet/v3 v3.0.2/go.mod h1:DvwWznhVxEAyRIqjPRqMxdi6GmukS6trGe7bexQ/ibI=
-github.com/decred/dcrwallet/walletseed v1.0.1 h1:gxvlj0GRw+H0VumCxTlEysu+/nltcp9+lgzVgzsnI/Y=
-github.com/decred/dcrwallet/walletseed v1.0.1/go.mod h1:ENlwTabC2JVmT4S1eCP44fnwX4+9y2RLsnfSU21CJ+4=
+github.com/decred/dcrwallet/walletseed v1.0.2 h1:6K/90/i6YEQQEKSjeDcYa2zfc3vFMeFfrUfDouwzQfQ=
+github.com/decred/dcrwallet/walletseed v1.0.2/go.mod h1:4fmyRf4sZKRrU6pKuRAQ+Og9xJtHalydXUrvGGQ9+Ak=
 github.com/decred/go-socks v1.0.0 h1:gd5+vE9LmL+FYiN5cxAMtaAVb791mG8E/+Jo411M/BE=
 github.com/decred/go-socks v1.0.0/go.mod h1:sDhHqkZH0X4JjSa02oYOGhcGHYp12FsY1jQ/meV8md0=
 github.com/decred/go-socks v1.1.0 h1:dnENcc0KIqQo3HSXdgboXAHgqsCIutkqq6ntQjYtm2U=
