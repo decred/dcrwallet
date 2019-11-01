@@ -190,8 +190,11 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	return nil
 }
 
-// MixAccount mixes all possible outputs of a mixing change account into
-// standard denominations, creating newly mixed outputs for a mixed account.
+// MixAccount individually mixes outputs of an account into standard
+// denominations, creating newly mixed outputs for a mixed account.
+//
+// Due to performance concerns of timing out in a CoinShuffle++ run, this
+// function may throttle how many of the outputs are mixed each call.
 func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver string, changeAccount, mixAccount, mixBranch uint32) error {
 	const op errors.Op = "wallet.MixAccount"
 
@@ -206,12 +209,25 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 	if err != nil {
 		return errors.E(op, err)
 	}
-
-	var g errgroup.Group
+	unlockedCredits := credits[:0]
 	for i := range credits {
 		if credits[i].Amount <= splitPoints[len(splitPoints)-1] {
 			continue
 		}
+		w.lockedOutpointMu.Lock()
+		_, locked := w.lockedOutpoints[credits[i].OutPoint]
+		w.lockedOutpointMu.Unlock()
+		if !locked {
+			unlockedCredits = append(unlockedCredits, credits[i])
+		}
+	}
+	credits = unlockedCredits
+	shuffle(len(credits), func(i, j int) {
+		credits[i], credits[j] = credits[j], credits[i]
+	})
+	credits = credits[:32] // simple throttle
+	var g errgroup.Group
+	for i := range credits {
 		op := &credits[i].OutPoint
 		g.Go(func() error {
 			err := w.MixOutput(ctx, dialTLS, csppserver, op, changeAccount, mixAccount, mixBranch)
