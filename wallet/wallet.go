@@ -596,7 +596,6 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 				cancel()
 				return
 			}
-			count += uint64(len(addrs))
 		}
 		watchError <- nil
 	}()
