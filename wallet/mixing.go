@@ -226,7 +226,9 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 	shuffle(len(credits), func(i, j int) {
 		credits[i], credits[j] = credits[j], credits[i]
 	})
-	credits = credits[:32] // simple throttle
+	if len(credits) > 32 { // simple throttle
+		credits = credits[:32]
+	}
 	var g errgroup.Group
 	for i := range credits {
 		op := &credits[i].OutPoint
