@@ -1036,6 +1036,7 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 	if err != nil {
 		return
 	}
+	defer conn.Close()
 	log.Infof("Dialed CSPPServer %v -> %v", conn.LocalAddr(), conn.RemoteAddr())
 	err = csppSession.DiceMix(ctx, conn, cj)
 	if err != nil {

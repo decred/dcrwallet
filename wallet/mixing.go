@@ -132,6 +132,7 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	if err != nil {
 		return errors.E(op, err)
 	}
+	defer conn.Close()
 	log.Infof("Dialed CSPPServer %v -> %v", conn.LocalAddr(), conn.RemoteAddr())
 
 	// Create change output from remaining value and contributed fee
