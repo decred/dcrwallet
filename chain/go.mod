@@ -10,6 +10,6 @@ require (
 	github.com/decred/dcrwallet/wallet/v3 v3.0.0
 	github.com/decred/slog v1.0.0
 	github.com/gorilla/websocket v1.4.1 // indirect
-	github.com/jrick/wsrpc/v2 v2.1.5
+	github.com/jrick/wsrpc/v2 v2.2.0
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 )

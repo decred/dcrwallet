@@ -188,8 +188,8 @@ github.com/jrick/logrotate v1.0.0 h1:lQ1bL/n9mBNeIXoTUoYRlK4dHuNJVofX9oWqBtPnSzI
 github.com/jrick/logrotate v1.0.0/go.mod h1:LNinyqDIJnpAur+b8yyulnQw/wDuN1+BYKlTRt3OuAQ=
 github.com/jrick/wsrpc/v2 v2.0.0 h1:f0ACoYeSG0fUNpA42gPpDdZ/xzYLUxZjT1F4L+HLTgY=
 github.com/jrick/wsrpc/v2 v2.0.0/go.mod h1:naH/fojac6vQWYgAA0e7b9TX/bShsWoVL7CwrdvFmUk=
-github.com/jrick/wsrpc/v2 v2.1.5 h1:V30d6h++lUmkxqLnnLpUwJxhItU6+4znGe/4a8lNIrE=
-github.com/jrick/wsrpc/v2 v2.1.5/go.mod h1:naH/fojac6vQWYgAA0e7b9TX/bShsWoVL7CwrdvFmUk=
+github.com/jrick/wsrpc/v2 v2.2.0 h1:6/vdMn8DhCg2gYedvZL2C44cyWv9JCw62tK3+9popMU=
+github.com/jrick/wsrpc/v2 v2.2.0/go.mod h1:naH/fojac6vQWYgAA0e7b9TX/bShsWoVL7CwrdvFmUk=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=

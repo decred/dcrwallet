@@ -221,9 +221,10 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	} else {
 		addr = "wss://" + addr + "/ws"
 	}
-	opts := make([]wsrpc.Option, 0, 4)
+	opts := make([]wsrpc.Option, 0, 5)
 	opts = append(opts, wsrpc.WithBasicAuth(s.opts.User, s.opts.Pass))
 	opts = append(opts, wsrpc.WithNotifier(s.notifier))
+	opts = append(opts, wsrpc.WithoutPongDeadline())
 	if s.opts.Dial != nil {
 		opts = append(opts, wsrpc.WithDial(s.opts.Dial))
 	}
