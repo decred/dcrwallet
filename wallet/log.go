@@ -36,3 +36,10 @@ var infoLog infoLogger
 
 func (infoLogger) Print(args ...interface{})                 { log.Info(args...) }
 func (infoLogger) Printf(format string, args ...interface{}) { log.Infof(format, args...) }
+
+type debugLogger struct{}
+
+var debugLog debugLogger
+
+func (debugLogger) Print(args ...interface{})                 { log.Debug(args...) }
+func (debugLogger) Printf(format string, args ...interface{}) { log.Debugf(format, args...) }

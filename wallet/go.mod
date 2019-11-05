@@ -3,7 +3,7 @@ module github.com/decred/dcrwallet/wallet/v3
 go 1.12
 
 require (
-	decred.org/cspp v0.1.3
+	decred.org/cspp v0.2.0
 	github.com/decred/dcrd/blockchain/stake/v2 v2.0.2
 	github.com/decred/dcrd/blockchain/standalone v1.1.0
 	github.com/decred/dcrd/blockchain/v2 v2.1.0

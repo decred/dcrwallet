@@ -119,7 +119,7 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		expiry    = 0
 	)
 	pairing := coinjoin.EncodeDesc(coinjoin.P2PKHv0, int64(mixValue), txVersion, locktime, expiry)
-	ses, err := cspp.NewSession(rand.Reader, infoLog, pairing, count)
+	ses, err := cspp.NewSession(rand.Reader, debugLog, pairing, count)
 	if err != nil {
 		return errors.E(op, err)
 	}

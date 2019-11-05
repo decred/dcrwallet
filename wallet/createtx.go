@@ -1023,7 +1023,7 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 		cj.addTxIn(atx.PrevScripts[i], in)
 	}
 
-	csppSession, err := cspp.NewSession(rand.Reader, infoLog, pairing, req.Count)
+	csppSession, err := cspp.NewSession(rand.Reader, debugLog, pairing, req.Count)
 	if err != nil {
 		return
 	}

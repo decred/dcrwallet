@@ -1,6 +1,6 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
-decred.org/cspp v0.1.3 h1:7l2SikgbzinIHS8EVq+lvOXAby7ZVuIj/hzz/RcNEz0=
-decred.org/cspp v0.1.3/go.mod h1:AluGqqtq580GdsWxH2wbYtCDKi5D5P4sA96waw70D5c=
+decred.org/cspp v0.2.0 h1:SdwdoGT2wZenkczeDxzcKwoAA55Y0Ti3aZslabBORvA=
+decred.org/cspp v0.2.0/go.mod h1:KVnB49sueBFCldRa/ivZCaWZbrPNEiXWwxHCf1jTYKI=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 h1:w1UutsfOrms1J05zt7ISrnJIXKzwaspym5BTKGx93EI=
 github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412/go.mod h1:WPjqKcmVOxf0XSf3YxCJs6N6AOSrOx3obionmG7T0y0=
