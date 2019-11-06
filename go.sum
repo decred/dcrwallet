@@ -27,6 +27,8 @@ github.com/decred/base58 v1.0.1 h1:w5qTcb0hYpKuIBYIn4Ckirkj1aOWrSq8onPQpb3eGg8=
 github.com/decred/base58 v1.0.1/go.mod h1:H2ENcsJjye1G7CbRa67kV9OFaui0LGr56ntKKoY5g9c=
 github.com/decred/dcrd/addrmgr v1.0.2 h1:BfJoFEkdDDhaQSsx9NkVOTiOTUbEevbVf+aYRQSIAmU=
 github.com/decred/dcrd/addrmgr v1.0.2/go.mod h1:gNnmTuf/Xkg8ZX3j5GXbajzPrSdf5bA7HitO2bjmq0Q=
+github.com/decred/dcrd/addrmgr v1.1.0 h1:VQkn1qmafZypfN2u7yi7J/girwz4ZDicquo7JzsoxdQ=
+github.com/decred/dcrd/addrmgr v1.1.0/go.mod h1:exghL+0+QeVvO4MXezWJ1C2tcpBn3ngfuP6S1R+adB8=
 github.com/decred/dcrd/blockchain/stake v1.0.1 h1:IYGsNZRyMUsoFtVAUjd7XIccrIQ4YIqDeNzQJCjyS8A=
 github.com/decred/dcrd/blockchain/stake v1.0.1 h1:IYGsNZRyMUsoFtVAUjd7XIccrIQ4YIqDeNzQJCjyS8A=
 github.com/decred/dcrd/blockchain/stake v1.0.1/go.mod h1:hgoGmWMIu2LLApBbcguVpzCEEfX7M2YhuMrQdpohJzc=
@@ -69,6 +71,8 @@ github.com/decred/dcrd/connmgr v1.0.2/go.mod h1:jBNfQLh+454n3crgNCPrhMgZ9mVvYcMb
 github.com/decred/dcrd/connmgr v1.0.2/go.mod h1:jBNfQLh+454n3crgNCPrhMgZ9mVvYcMbWSCEAHsJQus=
 github.com/decred/dcrd/connmgr/v2 v2.0.0 h1:GjDy9KD5m8uBs34yDXriwj4dvf5VLo/JeiPkUHwFg0k=
 github.com/decred/dcrd/connmgr/v2 v2.0.0/go.mod h1:HJ2q+m7DaMlNmQlY3WtbV3zETZfo4dfAi78z0ILLdqA=
+github.com/decred/dcrd/connmgr/v2 v2.1.0 h1:nfitnK4FXWLvuE5uNNtUjiyBZtwzROEpuWD5OdWeGpo=
+github.com/decred/dcrd/connmgr/v2 v2.1.0/go.mod h1:a3cjZ9xP5Ulm/eptpqma2Is3wHcoUXYvx5gFoOou5J0=
 github.com/decred/dcrd/crypto/blake256 v1.0.0 h1:/8DMNYp9SGi5f0w7uCm6d6M4OU2rGFK09Y2A4Xv7EE0=
 github.com/decred/dcrd/crypto/blake256 v1.0.0/go.mod h1:sQl2p6Y26YV+ZOcSTP6thNdn47hh8kt6rqSlvmrXFAc=
 github.com/decred/dcrd/crypto/ripemd160 v1.0.0 h1:MciTnR4NfBqDFRFjFkrn8WPLP4Vo7t6ww6ghfn6wcXQ=
