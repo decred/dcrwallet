@@ -21,7 +21,7 @@ import (
 
 	"decred.org/dcrwallet/internal/cfgutil"
 	"decred.org/dcrwallet/internal/netparams"
-	"github.com/decred/dcrd/connmgr"
+	"github.com/decred/dcrd/connmgr/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/version"
