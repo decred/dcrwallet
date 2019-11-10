@@ -32,7 +32,6 @@ import (
 
 	"decred.org/dcrwallet/internal/cfgutil"
 	"decred.org/dcrwallet/internal/loader"
-	"decred.org/dcrwallet/internal/netparams"
 	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -152,9 +151,8 @@ type walletServer struct {
 // loaderServer provides RPC clients with the ability to load and close wallets,
 // as well as establishing a RPC connection to a dcrd consensus server.
 type loaderServer struct {
-	ready     uint32 // atomic
-	loader    *loader.Loader
-	activeNet *netparams.Params
+	ready  uint32 // atomic
+	loader *loader.Loader
 }
 
 // seedServer provides RPC clients with the ability to generate secure random
@@ -2140,9 +2138,8 @@ func (s *walletServer) ConfirmationNotifications(svr pb.WalletService_Confirmati
 }
 
 // StartWalletLoaderService starts the WalletLoaderService.
-func StartWalletLoaderService(server *grpc.Server, loader *loader.Loader, activeNet *netparams.Params) {
+func StartWalletLoaderService(server *grpc.Server, loader *loader.Loader) {
 	loaderService.loader = loader
-	loaderService.activeNet = activeNet
 	if atomic.SwapUint32(&loaderService.ready, 1) != 0 {
 		panic("service already started")
 	}
@@ -2362,7 +2359,7 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 
 	syncer := chain.NewSyncer(wallet, &chain.RPCOptions{
 		Address:     req.NetworkAddress,
-		DefaultPort: s.activeNet.JSONRPCClientPort,
+		DefaultPort: s.loader.RPCClientPort(),
 		User:        req.Username,
 		Pass:        string(req.Password),
 		CA:          req.Certificate,
@@ -2626,7 +2623,7 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 	if len(req.SpvConnect) > 0 {
 		spvConnects := make([]string, len(req.SpvConnect))
 		for i := 0; i < len(req.SpvConnect); i++ {
-			spvConnect, err := cfgutil.NormalizeAddress(req.SpvConnect[i], s.activeNet.Params.DefaultPort)
+			spvConnect, err := cfgutil.NormalizeAddress(req.SpvConnect[i], s.loader.Params().DefaultPort)
 			if err != nil {
 				return status.Errorf(codes.FailedPrecondition, "SPV Connect address invalid: %v", err)
 			}

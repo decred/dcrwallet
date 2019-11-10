@@ -43,6 +43,7 @@ type Loader struct {
 	disableCoinTypeUpgrades bool
 	allowHighFees           bool
 	relayFee                float64
+	jsonRPCClientPort       string
 
 	mu sync.Mutex
 }
@@ -60,7 +61,8 @@ type StakeOptions struct {
 
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, gapLimit int,
-	allowHighFees bool, relayFee float64, accountGapLimit int, disableCoinTypeUpgrades bool) *Loader {
+	allowHighFees bool, relayFee float64, accountGapLimit int, disableCoinTypeUpgrades bool,
+	jsonRPCClientPort string) *Loader {
 
 	return &Loader{
 		chainParams:             chainParams,
@@ -71,6 +73,7 @@ func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *Sta
 		disableCoinTypeUpgrades: disableCoinTypeUpgrades,
 		allowHighFees:           allowHighFees,
 		relayFee:                relayFee,
+		jsonRPCClientPort:       jsonRPCClientPort,
 	}
 }
 
@@ -84,6 +87,16 @@ func (l *Loader) onLoaded(w *wallet.Wallet, db wallet.DB) {
 	l.wallet = w
 	l.db = db
 	l.callbacks = nil // not needed anymore
+}
+
+// RPCClientPort returns the RPC client port.
+func (l *Loader) RPCClientPort() string {
+	return l.jsonRPCClientPort
+}
+
+// Params returns the chain parameters for the active network.
+func (l *Loader) Params() *chaincfg.Params {
+	return l.chainParams
 }
 
 // RunAfterLoad adds a function to be executed when the loader creates or opens

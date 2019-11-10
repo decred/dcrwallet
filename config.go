@@ -70,6 +70,9 @@ var (
 )
 
 type config struct {
+	// Active network parameters
+	params *netparams.Params
+
 	// General application behavior
 	ConfigFile         *cfgutil.ExplicitString `short:"C" long:"configfile" description:"Path to configuration file"`
 	ShowVersion        bool                    `short:"V" long:"version" description:"Display version information and exit"`
@@ -317,6 +320,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 
 	// Default config.
 	cfg := config{
+		params:                  &netparams.MainNetParams,
 		DebugLevel:              defaultLogLevel,
 		ConfigFile:              cfgutil.NewExplicitString(defaultConfigFile),
 		AppDataDir:              cfgutil.NewExplicitString(defaultAppDataDir),
@@ -431,11 +435,11 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Multiple networks can't be selected simultaneously.
 	numNets := 0
 	if cfg.TestNet {
-		activeNet = &netparams.TestNet3Params
+		cfg.params = &netparams.TestNet3Params
 		numNets++
 	}
 	if cfg.SimNet {
-		activeNet = &netparams.SimNetParams
+		cfg.params = &netparams.SimNetParams
 		numNets++
 	}
 	if numNets > 1 {
@@ -449,7 +453,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Append the network type to the log directory so it is "namespaced"
 	// per network.
 	cfg.LogDir.Value = cleanAndExpandPath(cfg.LogDir.Value)
-	cfg.LogDir.Value = filepath.Join(cfg.LogDir.Value, activeNet.Params.Name)
+	cfg.LogDir.Value = filepath.Join(cfg.LogDir.Value, cfg.params.Name)
 
 	// Special show command to list supported subsystems and exit.
 	if cfg.DebugLevel == "show" {
@@ -469,7 +473,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		{cfg.PoolAddress, &cfg.poolAddress},
 		{cfg.TBOpts.VotingAddress, &cfg.TBOpts.votingAddress},
 	} {
-		addr, err := a.flag.Address(activeNet.Params)
+		addr, err := a.flag.Address(cfg.params.Params)
 		if err != nil {
 			log.Error(err)
 			return loadConfigError(err)
@@ -537,7 +541,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	}
 
 	// Ensure the wallet exists or create it when the create flag is set.
-	netDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
+	netDir := networkDir(cfg.AppDataDir.Value, cfg.params.Params)
 	dbPath := filepath.Join(netDir, walletDbName)
 
 	if cfg.CreateTemp && cfg.Create {
@@ -752,12 +756,12 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	}
 
 	if cfg.RPCConnect == "" {
-		cfg.RPCConnect = net.JoinHostPort("localhost", activeNet.JSONRPCClientPort)
+		cfg.RPCConnect = net.JoinHostPort("localhost", cfg.params.JSONRPCClientPort)
 	}
 
 	// Add default port to connect flag if missing.
 	cfg.RPCConnect, err = cfgutil.NormalizeAddress(cfg.RPCConnect,
-		activeNet.JSONRPCClientPort)
+		cfg.params.JSONRPCClientPort)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
 			"Invalid rpcconnect network address: %v\n", err)
@@ -822,7 +826,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		return loadConfigError(err)
 	}
 	for i, p := range cfg.SPVConnect {
-		cfg.SPVConnect[i], err = cfgutil.NormalizeAddress(p, activeNet.Params.DefaultPort)
+		cfg.SPVConnect[i], err = cfgutil.NormalizeAddress(p, cfg.params.Params.DefaultPort)
 		if err != nil {
 			return loadConfigError(err)
 		}
@@ -839,7 +843,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		cfg.GRPCListeners = make([]string, 0, len(localhostAddrs))
 		for _, addr := range localhostAddrs {
 			cfg.GRPCListeners = append(cfg.GRPCListeners,
-				net.JoinHostPort(addr, activeNet.GRPCServerPort))
+				net.JoinHostPort(addr, cfg.params.GRPCServerPort))
 		}
 	} else if cfg.NoGRPC {
 		cfg.GRPCListeners = nil
@@ -848,7 +852,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		cfg.LegacyRPCListeners = make([]string, 0, len(localhostAddrs))
 		for _, addr := range localhostAddrs {
 			cfg.LegacyRPCListeners = append(cfg.LegacyRPCListeners,
-				net.JoinHostPort(addr, activeNet.JSONRPCServerPort))
+				net.JoinHostPort(addr, cfg.params.JSONRPCServerPort))
 		}
 	} else if cfg.NoLegacyRPC {
 		cfg.LegacyRPCListeners = nil
@@ -857,14 +861,14 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Add default port to all rpc listener addresses if needed and remove
 	// duplicate addresses.
 	cfg.LegacyRPCListeners, err = cfgutil.NormalizeAddresses(
-		cfg.LegacyRPCListeners, activeNet.JSONRPCServerPort)
+		cfg.LegacyRPCListeners, cfg.params.JSONRPCServerPort)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
 			"Invalid network address in legacy RPC listeners: %v\n", err)
 		return loadConfigError(err)
 	}
 	cfg.GRPCListeners, err = cfgutil.NormalizeAddresses(
-		cfg.GRPCListeners, activeNet.GRPCServerPort)
+		cfg.GRPCListeners, cfg.params.GRPCServerPort)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
 			"Invalid network address in RPC listeners: %v\n", err)

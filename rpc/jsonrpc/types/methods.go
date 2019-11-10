@@ -1274,7 +1274,7 @@ func NewWalletPassphraseChangeCmd(oldPassphrase, newPassphrase string) *WalletPa
 }
 
 // MixAccountCmd defines the mixaccount JSON-RPC command.
-type MixAccountCmd struct {}
+type MixAccountCmd struct{}
 
 // MixOutputCmd defines the mixoutput JSON-RPC command.
 type MixOutputCmd struct {

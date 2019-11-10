@@ -150,11 +150,11 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 				grpc.UnaryInterceptor(interceptUnary),
 			)
 			rpcserver.RegisterServices(server)
-			rpcserver.StartWalletLoaderService(server, walletLoader, activeNet)
+			rpcserver.StartWalletLoaderService(server, walletLoader)
 			rpcserver.StartTicketBuyerV2Service(server, walletLoader)
-			rpcserver.StartAgendaService(server, activeNet.Params)
-			rpcserver.StartDecodeMessageService(server, activeNet.Params)
-			rpcserver.StartMessageVerificationService(server, activeNet.Params)
+			rpcserver.StartAgendaService(server, walletLoader.Params())
+			rpcserver.StartDecodeMessageService(server, walletLoader.Params())
+			rpcserver.StartMessageVerificationService(server, walletLoader.Params())
 			for _, lis := range listeners {
 				lis := lis
 				go func() {
@@ -187,7 +187,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 			MixBranch:           cfg.mixedBranch,
 			MixChangeAccount:    cfg.ChangeAccount,
 		}
-		jsonrpcServer = jsonrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
+		jsonrpcServer = jsonrpc.NewServer(&opts, walletLoader.Params(), walletLoader, listeners)
 		for _, lis := range listeners {
 			jsonrpcAddrNotifier.notify(lis.Addr().String())
 		}

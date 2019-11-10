@@ -47,16 +47,17 @@ func networkDir(dataDir string, chainParams *chaincfg.Params) string {
 // restored from seed, while the []byte passed is the private password required
 // to do the initial sync.
 func createWallet(ctx context.Context, cfg *config) error {
-	dbDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
+	dbDir := networkDir(cfg.AppDataDir.Value, cfg.params.Params)
 	stakeOptions := &loader.StakeOptions{
 		VotingEnabled: cfg.EnableVoting,
 		AddressReuse:  cfg.ReuseAddresses,
 		VotingAddress: cfg.TBOpts.votingAddress,
 		TicketFee:     cfg.RelayFee.ToCoin(),
 	}
-	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
+	loader := loader.NewLoader(cfg.params.Params, dbDir, stakeOptions,
 		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.ToCoin(),
-		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades)
+		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades,
+		cfg.params.JSONRPCClientPort)
 
 	var privPass, pubPass, seed []byte
 	var imported bool
@@ -140,7 +141,7 @@ func createSimulationWallet(ctx context.Context, cfg *config) error {
 		return err
 	}
 
-	netDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
+	netDir := networkDir(cfg.AppDataDir.Value, cfg.params.Params)
 
 	// Write the seed to disk, so that we can restore it later
 	// if need be, for testing purposes.
@@ -162,7 +163,7 @@ func createSimulationWallet(ctx context.Context, cfg *config) error {
 	defer db.Close()
 
 	// Create the wallet.
-	err = wallet.Create(ctx, db, pubPass, privPass, seed, activeNet.Params)
+	err = wallet.Create(ctx, db, pubPass, privPass, seed, cfg.params.Params)
 	if err != nil {
 		return err
 	}
@@ -203,7 +204,7 @@ func createWatchingOnlyWallet(ctx context.Context, cfg *config) error {
 		return err
 	}
 
-	netDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
+	netDir := networkDir(cfg.AppDataDir.Value, cfg.params.Params)
 
 	// Create the wallet.
 	dbPath := filepath.Join(netDir, walletDbName)
@@ -216,7 +217,7 @@ func createWatchingOnlyWallet(ctx context.Context, cfg *config) error {
 	}
 	defer db.Close()
 
-	err = wallet.CreateWatchOnly(ctx, db, pubKeyString, pubPass, activeNet.Params)
+	err = wallet.CreateWatchOnly(ctx, db, pubKeyString, pubPass, cfg.params.Params)
 	if err != nil {
 		errOS := os.Remove(dbPath)
 		if errOS != nil {

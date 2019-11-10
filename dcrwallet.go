@@ -151,7 +151,7 @@ func run(ctx context.Context) error {
 	// Create the loader which is used to load and unload the wallet.  If
 	// --noinitialload is not set, this function is responsible for loading the
 	// wallet.  Otherwise, loading is deferred so it can be performed over RPC.
-	dbDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
+	dbDir := networkDir(cfg.AppDataDir.Value, cfg.params.Params)
 	stakeOptions := &ldr.StakeOptions{
 		VotingEnabled:       cfg.EnableVoting,
 		AddressReuse:        cfg.ReuseAddresses,
@@ -161,9 +161,10 @@ func run(ctx context.Context) error {
 		StakePoolColdExtKey: cfg.StakePoolColdExtKey,
 		TicketFee:           cfg.RelayFee.ToCoin(),
 	}
-	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
+	loader := ldr.NewLoader(cfg.params.Params, dbDir, stakeOptions,
 		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.ToCoin(),
-		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades)
+		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades,
+		cfg.params.JSONRPCClientPort)
 
 	// Stop any services started by the loader after the shutdown procedure is
 	// initialized and this function returns.
@@ -502,7 +503,7 @@ func rpcSyncLoop(ctx context.Context, w *wallet.Wallet) {
 	for {
 		syncer := chain.NewSyncer(w, &chain.RPCOptions{
 			Address:     cfg.RPCConnect,
-			DefaultPort: activeNet.JSONRPCClientPort,
+			DefaultPort: cfg.params.JSONRPCClientPort,
 			User:        cfg.DcrdUsername,
 			Pass:        cfg.DcrdPassword,
 			Dial:        dial,

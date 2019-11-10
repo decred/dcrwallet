@@ -6,8 +6,8 @@ package udb
 
 import (
 	"bytes"
-	"context"
 	"compress/gzip"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"io"
