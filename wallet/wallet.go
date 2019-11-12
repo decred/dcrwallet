@@ -560,14 +560,31 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 		hd := hdAccounts[acct]
 
 		// Update the in-memory address tracking with the latest last
-		// used and last returned indexes retreived from the db.
-		ad.albExternal.lastUsed = hd.lastUsedExternal
-		ad.albInternal.lastUsed = hd.lastUsedInternal
-		if hd.externalCount > hd.lastWatchedExternal {
-			ad.albExternal.cursor = hd.lastReturnedExternal - hd.lastUsedExternal
+		// used index retreived from the db.
+		// Because the cursor may be advanced ahead of what the database
+		// would otherwise record as the last returned address, due to
+		// delayed db updates during some operations, a delta is
+		// calculated between the in-memory and db last returned
+		// indexes, and this delta is added back to the new cursor.
+		//
+		// This is calculated as:
+		//   delta := ad.albExternal.lastUsed + ad.albExternal.cursor - hd.lastReturnedExternal
+		//   ad.albExternal.cursor = hd.lastReturnedExternal - hd.lastUsedExternal + delta
+		// which simplifies to the calculation below.  An additional clamp
+		// is added to prevent the cursors from going negative.
+		if hd.lastUsedExternal+1 > ad.albExternal.lastUsed+1 {
+			ad.albExternal.cursor += ad.albExternal.lastUsed - hd.lastUsedExternal
+			if ad.albExternal.cursor > ^uint32(0)>>1 {
+				ad.albExternal.cursor = 0
+			}
+			ad.albExternal.lastUsed = hd.lastUsedExternal
 		}
-		if hd.internalCount > hd.lastWatchedInternal {
-			ad.albInternal.cursor = hd.lastReturnedInternal - hd.lastUsedInternal
+		if hd.lastUsedInternal+1 > ad.albInternal.lastUsed+1 {
+			ad.albInternal.cursor += ad.albInternal.lastUsed - hd.lastUsedInternal
+			if ad.albInternal.cursor > ^uint32(0)>>1 {
+				ad.albInternal.cursor = 0
+			}
+			ad.albInternal.lastUsed = hd.lastUsedInternal
 		}
 
 		hd.externalKey = ad.albExternal.branchXpub

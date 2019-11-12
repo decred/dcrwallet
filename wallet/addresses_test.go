@@ -355,6 +355,8 @@ func TestAccountIndexes(t *testing.T) {
 		}
 		w.addressBuffersMu.Lock()
 		b := w.addressBuffers[0]
+		t.Logf("ext last=%d, ext cursor=%d, int last=%d, int cursor=%d",
+			b.albExternal.lastUsed,  b.albExternal.cursor,  b.albInternal.lastUsed,  b.albInternal.cursor)
 		check := func(what string, a, b uint32) {
 			if a != b {
 				t.Fatalf("%d: %s do not match: %d != %d", i, what, a, b)
