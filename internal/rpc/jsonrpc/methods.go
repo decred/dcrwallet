@@ -69,8 +69,10 @@ var handlers = map[string]handler{
 	"accountsyncaddressindex": {fn: (*Server).accountSyncAddressIndex},
 	"addmultisigaddress":      {fn: (*Server).addMultiSigAddress},
 	"addticket":               {fn: (*Server).addTicket},
+	"auditreuse":              {fn: (*Server).auditReuse},
 	"consolidate":             {fn: (*Server).consolidate},
 	"createmultisig":          {fn: (*Server).createMultiSig},
+	"createrawtransaction":    {fn: (*Server).createRawTransaction},
 	"dumpprivkey":             {fn: (*Server).dumpPrivKey},
 	"generatevote":            {fn: (*Server).generateVote},
 	"getaccount":              {fn: (*Server).getAccount},
@@ -453,6 +455,89 @@ func (s *Server) addTicket(ctx context.Context, icmd interface{}) (interface{}, 
 	return nil, err
 }
 
+// auditReuse returns an object keying reused addresses to two or more outputs
+// referencing them.
+func (s *Server) auditReuse(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.AuditReuseCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	var since int32
+	if cmd.Since != nil {
+		since = *cmd.Since
+	}
+
+	reuse := make(map[string][]string)
+	inRange := make(map[string]struct{})
+	params := w.ChainParams()
+	err := w.GetTransactions(ctx, func(b *wallet.Block) (bool, error) {
+		for _, tx := range b.Transactions {
+			// Votes and revocations are skipped because they must
+			// only pay to addresses previously committed to by
+			// ticket purchases, and this "address reuse" is
+			// expected.
+			switch tx.Type {
+			case wallet.TransactionTypeVote, wallet.TransactionTypeRevocation:
+				continue
+			}
+			for _, out := range tx.MyOutputs {
+				addr := out.Address.String()
+				outpoints := reuse[addr]
+				outpoint := wire.OutPoint{Hash: *tx.Hash, Index: out.Index}
+				reuse[addr] = append(outpoints, outpoint.String())
+				if b.Header == nil || int32(b.Header.Height) >= since {
+					inRange[addr] = struct{}{}
+				}
+			}
+			if tx.Type != wallet.TransactionTypeTicketPurchase {
+				continue
+			}
+			ticket := new(wire.MsgTx)
+			err := ticket.Deserialize(bytes.NewReader(tx.Transaction))
+			if err != nil {
+				return false, err
+			}
+			for i := 1; i < len(ticket.TxOut); i += 2 { // iterate commitments
+				out := ticket.TxOut[i]
+				addr, err := stake.AddrFromSStxPkScrCommitment(out.PkScript, params)
+				if err != nil {
+					return false, err
+				}
+				_, err = w.AddressInfo(ctx, addr)
+				if errors.Is(err, errors.NotExist) {
+					continue
+				}
+				if err != nil {
+					return false, err
+				}
+				s := addr.String()
+				outpoints := reuse[s]
+				outpoint := wire.OutPoint{Hash: *tx.Hash, Index: uint32(i)}
+				reuse[s] = append(outpoints, outpoint.String())
+				if b.Header == nil || int32(b.Header.Height) >= since {
+					inRange[s] = struct{}{}
+				}
+			}
+		}
+		return false, nil
+	}, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	for s, outpoints := range reuse {
+		if len(outpoints) <= 1 {
+			delete(reuse, s)
+			continue
+		}
+		if _, ok := inRange[s]; !ok {
+			delete(reuse, s)
+		}
+	}
+	return reuse, nil
+}
+
 // consolidate handles a consolidate request by returning attempting to compress
 // as many inputs as given and then returning the txHash and error.
 func (s *Server) consolidate(ctx context.Context, icmd interface{}) (interface{}, error) {
@@ -519,6 +604,117 @@ func (s *Server) createMultiSig(ctx context.Context, icmd interface{}) (interfac
 		Address:      address.Address(),
 		RedeemScript: hex.EncodeToString(script),
 	}, nil
+}
+
+// createRawTransaction handles createrawtransaction commands.
+func (s *Server) createRawTransaction(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrdtypes.CreateRawTransactionCmd)
+
+	// Validate expiry, if given.
+	if cmd.Expiry != nil && *cmd.Expiry < 0 {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "Expiry out of range")
+	}
+
+	// Validate the locktime, if given.
+	if cmd.LockTime != nil &&
+		(*cmd.LockTime < 0 ||
+			*cmd.LockTime > int64(wire.MaxTxInSequenceNum)) {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "Locktime out of range")
+	}
+
+	// Add all transaction inputs to a new transaction after performing
+	// some validity checks.
+	mtx := wire.NewMsgTx()
+	for _, input := range cmd.Inputs {
+		txHash, err := chainhash.NewHashFromStr(input.Txid)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+		}
+
+		switch input.Tree {
+		case wire.TxTreeRegular, wire.TxTreeStake:
+		default:
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"Tx tree must be regular or stake")
+		}
+
+		amt, err := dcrutil.NewAmount(input.Amount)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+		}
+		if amt < 0 {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"Positive input amount is required")
+		}
+
+		prevOut := wire.NewOutPoint(txHash, input.Vout, input.Tree)
+		txIn := wire.NewTxIn(prevOut, int64(amt), nil)
+		if cmd.LockTime != nil && *cmd.LockTime != 0 {
+			txIn.Sequence = wire.MaxTxInSequenceNum - 1
+		}
+		mtx.AddTxIn(txIn)
+	}
+
+	// Add all transaction outputs to the transaction after performing
+	// some validity checks.
+	for encodedAddr, amount := range cmd.Amounts {
+		// Ensure amount is in the valid range for monetary amounts.
+		if amount <= 0 || amount > dcrutil.MaxAmount {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"Invalid amount: 0 >= %v > %v", amount, dcrutil.MaxAmount)
+		}
+
+		// Decode the provided address.  This also ensures the network encoded
+		// with the address matches the network the server is currently on.
+		addr, err := dcrutil.DecodeAddress(encodedAddr, s.activeNet)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
+				"Address %q: %v", encodedAddr, err)
+		}
+
+		// Ensure the address is one of the supported types.
+		switch addr.(type) {
+		case *dcrutil.AddressPubKeyHash:
+		case *dcrutil.AddressScriptHash:
+		default:
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
+				"Invalid type: %T", addr)
+		}
+
+		// Create a new script which pays to the provided address.
+		pkScript, err := txscript.PayToAddrScript(addr)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code,
+				"Pay to address script: %v", err)
+		}
+
+		atomic, err := dcrutil.NewAmount(amount)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code,
+				"New amount: %v", err)
+		}
+
+		txOut := wire.NewTxOut(int64(atomic), pkScript)
+		mtx.AddTxOut(txOut)
+	}
+
+	// Set the Locktime, if given.
+	if cmd.LockTime != nil {
+		mtx.LockTime = uint32(*cmd.LockTime)
+	}
+
+	// Set the Expiry, if given.
+	if cmd.Expiry != nil {
+		mtx.Expiry = uint32(*cmd.Expiry)
+	}
+
+	// Return the serialized and hex-encoded transaction.
+	sb := new(strings.Builder)
+	err := mtx.Serialize(hex.NewEncoder(sb))
+	if err != nil {
+		return nil, err
+	}
+	return sb.String(), nil
 }
 
 // dumpPrivKey handles a dumpprivkey request with the private key
@@ -3002,6 +3198,7 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 			}
 
 			// Asynchronously request the output script.
+			txIn := txIn
 			requestedGroup.Go(func() error {
 				hash := txIn.PreviousOutPoint.Hash.String()
 				index := txIn.PreviousOutPoint.Index

@@ -31,6 +31,13 @@ var helpDescsEnUS = map[string]string{
 	"addmultisigaddress-nrequired": "The number of signatures required to redeem outputs paid to this address",
 	"addmultisigaddress--result0":  "The imported pay-to-script-hash address",
 
+	// AuditReuseCmd help.
+	"auditreuse--synopsis":       "Reports outputs identifying address reuse",
+	"auditreuse-since":           "Only report reusage since some main chain block height",
+	"auditreuse--result0--desc":  "Object keying reused addresses to arrays of outpoint strings",
+	"auditreuse--result0--value": "Reused address",
+	"auditreuse--result0--key":   "Array of outpoints referencing the reused address",
+
 	// ConsolidateCmd help.
 	"consolidate--synopsis": "Consolidate n many UTXOs into a single output in the wallet.",
 	"consolidate-inputs":    "Number of UTXOs to consolidate as inputs",
@@ -46,6 +53,19 @@ var helpDescsEnUS = map[string]string{
 	// CreateMultisigResult help.
 	"createmultisigresult-address":      "The generated pay-to-script-hash address",
 	"createmultisigresult-redeemScript": "The script required to redeem outputs paid to the multisig address",
+
+	// CreateRawTransactionCmd help.
+	"createrawtransaction--synopsis": "Returns a new transaction spending the provided inputs and sending to the provided addresses.\n" +
+		"The transaction inputs are not signed in the created transaction.\n" +
+		"The signrawtransaction RPC command provided by wallet must be used to sign the resulting transaction.",
+	"createrawtransaction-inputs":         "The inputs to the transaction",
+	"createrawtransaction-amounts":        "JSON object with the destination addresses as keys and amounts as values",
+	"createrawtransaction-amounts--key":   "address",
+	"createrawtransaction-amounts--value": "n.nnn",
+	"createrawtransaction-amounts--desc":  "The destination address as the key and the amount in DCR as the value",
+	"createrawtransaction-locktime":       "Locktime value; a non-zero value will also locktime-activate the inputs",
+	"createrawtransaction-expiry":         "Expiry value; a non-zero value when the transaction expiry",
+	"createrawtransaction--result0":       "Hex-encoded bytes of the serialized transaction",
 
 	// DumpPrivKeyCmd help.
 	"dumpprivkey--synopsis": "Returns the private key in WIF encoding that controls some wallet address.",
