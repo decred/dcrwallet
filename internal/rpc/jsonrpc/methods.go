@@ -69,6 +69,7 @@ var handlers = map[string]handler{
 	"accountsyncaddressindex": {fn: (*Server).accountSyncAddressIndex},
 	"addmultisigaddress":      {fn: (*Server).addMultiSigAddress},
 	"addticket":               {fn: (*Server).addTicket},
+	"auditreuse":              {fn: (*Server).auditReuse},
 	"consolidate":             {fn: (*Server).consolidate},
 	"createmultisig":          {fn: (*Server).createMultiSig},
 	"dumpprivkey":             {fn: (*Server).dumpPrivKey},
@@ -451,6 +452,89 @@ func (s *Server) addTicket(ctx context.Context, icmd interface{}) (interface{}, 
 
 	err = w.AddTicket(ctx, mtx)
 	return nil, err
+}
+
+// auditReuse returns an object keying reused addresses to two or more outputs
+// referencing them.
+func (s *Server) auditReuse(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.AuditReuseCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	var since int32
+	if cmd.Since != nil {
+		since = *cmd.Since
+	}
+
+	reuse := make(map[string][]string)
+	inRange := make(map[string]struct{})
+	params := w.ChainParams()
+	err := w.GetTransactions(ctx, func(b *wallet.Block) (bool, error) {
+		for _, tx := range b.Transactions {
+			// Votes and revocations are skipped because they must
+			// only pay to addresses previously committed to by
+			// ticket purchases, and this "address reuse" is
+			// expected.
+			switch tx.Type {
+			case wallet.TransactionTypeVote, wallet.TransactionTypeRevocation:
+				continue
+			}
+			for _, out := range tx.MyOutputs {
+				addr := out.Address.String()
+				outpoints := reuse[addr]
+				outpoint := wire.OutPoint{Hash: *tx.Hash, Index: out.Index}
+				reuse[addr] = append(outpoints, outpoint.String())
+				if b.Header == nil || int32(b.Header.Height) >= since {
+					inRange[addr] = struct{}{}
+				}
+			}
+			if tx.Type != wallet.TransactionTypeTicketPurchase {
+				continue
+			}
+			ticket := new(wire.MsgTx)
+			err := ticket.Deserialize(bytes.NewReader(tx.Transaction))
+			if err != nil {
+				return false, err
+			}
+			for i := 1; i < len(ticket.TxOut); i += 2 { // iterate commitments
+				out := ticket.TxOut[i]
+				addr, err := stake.AddrFromSStxPkScrCommitment(out.PkScript, params)
+				if err != nil {
+					return false, err
+				}
+				_, err = w.AddressInfo(ctx, addr)
+				if errors.Is(err, errors.NotExist) {
+					continue
+				}
+				if err != nil {
+					return false, err
+				}
+				s := addr.String()
+				outpoints := reuse[s]
+				outpoint := wire.OutPoint{Hash: *tx.Hash, Index: uint32(i)}
+				reuse[s] = append(outpoints, outpoint.String())
+				if b.Header == nil || int32(b.Header.Height) >= since {
+					inRange[s] = struct{}{}
+				}
+			}
+		}
+		return false, nil
+	}, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	for s, outpoints := range reuse {
+		if len(outpoints) <= 1 {
+			delete(reuse, s)
+			continue
+		}
+		if _, ok := inRange[s]; !ok {
+			delete(reuse, s)
+		}
+	}
+	return reuse, nil
 }
 
 // consolidate handles a consolidate request by returning attempting to compress

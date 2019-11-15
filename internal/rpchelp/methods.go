@@ -32,6 +32,7 @@ var Methods = []struct {
 	{"accountsyncaddressindex", nil},
 	{"addmultisigaddress", returnsString},
 	{"addticket", nil},
+	{"auditreuse", []interface{}{(*map[string][]string)(nil)}},
 	{"consolidate", returnsString},
 	{"createmultisig", []interface{}{(*types.CreateMultiSigResult)(nil)}},
 	{"createnewaccount", nil},

@@ -31,6 +31,13 @@ var helpDescsEnUS = map[string]string{
 	"addmultisigaddress-nrequired": "The number of signatures required to redeem outputs paid to this address",
 	"addmultisigaddress--result0":  "The imported pay-to-script-hash address",
 
+	// AuditReuseCmd help.
+	"auditreuse--synopsis":       "Reports outputs identifying address reuse",
+	"auditreuse-since":           "Only report reusage since some main chain block height",
+	"auditreuse--result0--desc":  "Object keying reused addresses to arrays of outpoint strings",
+	"auditreuse--result0--value": "Reused address",
+	"auditreuse--result0--key":   "Array of outpoints referencing the reused address",
+
 	// ConsolidateCmd help.
 	"consolidate--synopsis": "Consolidate n many UTXOs into a single output in the wallet.",
 	"consolidate-inputs":    "Number of UTXOs to consolidate as inputs",

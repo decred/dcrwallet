@@ -89,6 +89,15 @@ func NewAddTicketCmd(ticketHex string) *AddTicketCmd {
 	return &AddTicketCmd{TicketHex: ticketHex}
 }
 
+// AuditReuseCmd defines the auditreuse JSON-RPC command.
+//
+// This method returns an object keying reused addresses to two or more outputs
+// referencing them, optionally filtering results of address reusage since a
+// particular block height.
+type AuditReuseCmd struct{
+	Since *int32 `json:"since"`
+}
+
 // ConsolidateCmd is a type handling custom marshaling and
 // unmarshaling of consolidate JSON wallet extension
 // commands.
@@ -1274,7 +1283,7 @@ func NewWalletPassphraseChangeCmd(oldPassphrase, newPassphrase string) *WalletPa
 }
 
 // MixAccountCmd defines the mixaccount JSON-RPC command.
-type MixAccountCmd struct {}
+type MixAccountCmd struct{}
 
 // MixOutputCmd defines the mixoutput JSON-RPC command.
 type MixOutputCmd struct {
@@ -1296,6 +1305,7 @@ func init() {
 		{"accountsyncaddressindex", (*AccountSyncAddressIndexCmd)(nil)},
 		{"addmultisigaddress", (*AddMultisigAddressCmd)(nil)},
 		{"addticket", (*AddTicketCmd)(nil)},
+		{"auditreuse", (*AuditReuseCmd)(nil)},
 		{"consolidate", (*ConsolidateCmd)(nil)},
 		{"createmultisig", (*CreateMultisigCmd)(nil)},
 		{"createnewaccount", (*CreateNewAccountCmd)(nil)},
