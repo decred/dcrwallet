@@ -576,10 +576,22 @@ var helpDescsEnUS = map[string]string{
 	"getbestblockresult-hash":   "The hash of the block",
 	"getbestblockresult-height": "The blockchain height of the block",
 
+	// GetContractHash help.
+	"getcontracthash--synopsis": "Takes contracts (files) and hashes them.",
+	"getcontracthash-filepath":  "The paths of the files to be hashed.",
+	// GetContractHashResult help.
+	"getcontracthashresult-contracthash": "Returns the contracts hashed",
+
 	// GetUnconfirmedBalanceCmd help.
 	"getunconfirmedbalance--synopsis": "Calculates the unspent output value of all unmined transaction outputs for an account.",
 	"getunconfirmedbalance-account":   "The account to query the unconfirmed balance for (default=\"default\")",
 	"getunconfirmedbalance--result0":  "Total amount of all unmined unspent outputs of the account valued in decred.",
+
+	"getpaytocontractaddress--synopsis": "Returns the pay to contract P2PKH of given contracts.",
+	"getpaytocontractaddress-filepath":  "The filepaths of the contracts to be used for the P2PKH",
+
+	// GetPayToContractAddressResultCmd help.
+	"getpaytocontractaddress--result0": "The pay to contract P2PKH",
 
 	// ListAddressTransactionsCmd help.
 	"listaddresstransactions--synopsis": "Returns a JSON array of objects containing verbose details for wallet transactions pertaining some addresses.",

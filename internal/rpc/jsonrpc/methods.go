@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"io/ioutil"
 	"math/big"
 	"sort"
 	"strconv"
@@ -23,6 +24,7 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/crypto/blake256"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrjson/v3"
 	"github.com/decred/dcrd/dcrutil/v2"
@@ -80,8 +82,10 @@ var handlers = map[string]handler{
 	"getbestblockhash":        {fn: (*Server).getBestBlockHash},
 	"getblockcount":           {fn: (*Server).getBlockCount},
 	"getblockhash":            {fn: (*Server).getBlockHash},
+	"getcontracthash":         {fn: (*Server).getContractHash},
 	"getinfo":                 {fn: (*Server).getInfo},
 	"getmasterpubkey":         {fn: (*Server).getMasterPubkey},
+	"getpaytocontractaddress": {fn: (*Server).getPayToContractAddress},
 	"getmultisigoutinfo":      {fn: (*Server).getMultisigOutInfo},
 	"getnewaddress":           {fn: (*Server).getNewAddress},
 	"getrawchangeaddress":     {fn: (*Server).getRawChangeAddress},
@@ -832,6 +836,56 @@ func difficultyRatio(bits uint32, params *chaincfg.Params) float64 {
 	return ratio
 }
 
+// hashContracts hashes contracts and places them in a array.
+func hashContracts(contractArray [][]byte) [][]byte {
+	// var contractHasher hash.Hash = blake256.New()
+	hc32 := make([][32]byte, len(contractArray))
+	hc := make([][]byte, len(contractArray))
+	for i := range contractArray {
+		hc32[i] = blake256.Sum256(contractArray[i])
+		hc[i] = hc32[i][:]
+	}
+
+	return hc
+}
+
+// createContractArray creates a array of contracts in byte form from the input filepath slice.
+func createContractArray(filePaths []string) ([][]byte, error) {
+	// TODO: add checking here for right file type
+	var contractArray = make([][]byte, len(filePaths))
+	for i := range filePaths {
+		contractArray[i], _ = ioutil.ReadFile(filePaths[i])
+		/*
+			if err != nil {
+				return nil, err
+			}
+		*/
+	}
+
+	return contractArray, nil
+}
+
+// getContractHash returns a slice of hashed contracts in string form.
+func (s *Server) getContractHash(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.GetContractHashCmd)
+	contractArray, err := createContractArray(cmd.FilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	hashedContracts := hashContracts(contractArray)
+
+	// TODO: how can I do this better, do I really need to make them as strings?
+	hashedContractsString := make([]string, len(cmd.FilePath))
+	for i := range hashedContracts {
+		hashedContractsString[i] = string(hashedContractsString[i])
+	}
+
+	return &types.GetContractHashResult{
+		ContractHash: hashedContractsString,
+	}, nil
+}
+
 // getInfo handles a getinfo request by returning a structure containing
 // information about the current state of the wallet.
 func (s *Server) getInfo(ctx context.Context, icmd interface{}) (interface{}, error) {
@@ -1275,6 +1329,7 @@ func (s *Server) getNewAddress(ctx context.Context, icmd interface{}) (interface
 	if cmd.Account != nil {
 		acctName = *cmd.Account
 	}
+
 	account, err := w.AccountNumber(ctx, acctName)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
@@ -1288,6 +1343,98 @@ func (s *Server) getNewAddress(ctx context.Context, icmd interface{}) (interface
 		return nil, err
 	}
 	return addr.Address(), nil
+}
+
+// lexiSort arranges hashedcontracts lexigraphically.  Since all inputted hashes are size 256
+// sorting by size is unnecessary.
+func lexiSort(hashedContracts [][]byte) [][]byte {
+	for i := range hashedContracts {
+		for j := range hashedContracts {
+			if hashedContracts[i][j] > hashedContracts[i][j+1] {
+				hashedContracts[i], hashedContracts[i+1] = hashedContracts[i+1], hashedContracts[i]
+			}
+		}
+	}
+
+	return hashedContracts
+}
+
+func getP2PKHFromExtendedKey(extKey *hdkeychain.ExtendedKey, n *chaincfg.Params) (string, error) {
+	ecPubKey, err := extKey.ECPubKey()
+	if err != nil {
+		return "", err
+	}
+	pkHash := dcrutil.Hash160(ecPubKey.SerializeCompressed())
+	addr, err := dcrutil.NewAddressPubKeyHash(pkHash, n, dcrec.STEcdsaSecp256k1)
+	if err != nil {
+		return "", err
+	}
+	return addr.String(), nil
+}
+
+// getPayToContractAddress handles the getpaytocontractaddress by returning a
+// address for a contract array
+func (s *Server) getPayToContractAddress(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.GetPayToContractAddressCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	net := w.ChainParams()
+
+	contractArray, err := createContractArray(cmd.FilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	hashedContracts := lexiSort(hashContracts(contractArray))
+
+	var contractHash []byte
+	for i := 0; i < len(hashedContracts); i++ {
+		for j := 0; i < len(hashedContracts); j++ {
+			contractHash = append(contractHash, hashedContracts[i][j])
+		}
+	}
+
+	ch32 := blake256.Sum256(contractHash)
+	stringCh := string(ch32[:])
+
+	contractsHashedExtKey, err := hdkeychain.NewKeyFromString(stringCh, net)
+	if err != nil {
+		return nil, err
+	}
+	defer contractsHashedExtKey.Zero()
+
+	contractsHashedExtKey, err = contractsHashedExtKey.Child(0)
+	if err != nil {
+		return nil, err
+	}
+
+	coinTypePrivKey, err := w.CoinTypePrivKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer coinTypePrivKey.Zero()
+
+	contractsHashedExtKey, err = hdkeychain.NewKeyFromString(coinTypePrivKey.String()+contractsHashedExtKey.String(), w.ChainParams())
+	if err != nil {
+		return nil, err
+	}
+
+	contractsHashedExtKey, err = contractsHashedExtKey.Child(0)
+	if err != nil {
+		return nil, err
+	}
+
+	payToContractAddress, err := getP2PKHFromExtendedKey(contractsHashedExtKey, net)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.GetPayToContractAddressResult{
+		Address: payToContractAddress,
+	}, nil
 }
 
 // getRawChangeAddress handles a getrawchangeaddress request by creating
