@@ -184,8 +184,8 @@ github.com/decred/dcrwallet/rpc/walletrpc v0.3.0 h1:xACej+foFUvFX3RPwkg2yp4x5Ur1
 github.com/decred/dcrwallet/rpc/walletrpc v0.3.0/go.mod h1:cl2sU4NOgVXAAwkJPNThyN2P1+bEk27rN+guw9nyRiI=
 github.com/decred/dcrwallet/spv/v3 v3.0.1 h1:nZ5fWwBpgl0+/DlqoHovbYvxea87tdwnrR3UVM7QP4I=
 github.com/decred/dcrwallet/spv/v3 v3.0.1/go.mod h1:D4yYwLJLLEdPCYlpvKJf2ZW+LMPSa3LqyTn/764Wpgk=
-github.com/decred/dcrwallet/ticketbuyer/v4 v4.0.0 h1:pVlYm2yWYZxc6OGjvAq9jBHZ1gimzBNiLQiHccr/nf0=
-github.com/decred/dcrwallet/ticketbuyer/v4 v4.0.0/go.mod h1:5UXlcyVPthPem5PY5mrbLM9tPBYAIm+wLnzvHlZHqms=
+github.com/decred/dcrwallet/ticketbuyer/v4 v4.0.1 h1:QVRkj1y5Dfe+zqtwNQs8SAG5l25PeG8PKgYnAW+BT+U=
+github.com/decred/dcrwallet/ticketbuyer/v4 v4.0.1/go.mod h1:T2u4C7R/XQRsGb5gI8S+Igf2W7Ra8Ps0slKvSmB88Uo=
 github.com/decred/dcrwallet/validate v1.1.1 h1:hoHrHaJTQoANN/ZW37HbeTQSJ+N4rMFFLz6LT/FACJQ=
 github.com/decred/dcrwallet/validate v1.1.1/go.mod h1:T++tlVcCOh2oSrEq4r5CKCvmftaQdq9uZwO7jSNYZaw=
 github.com/decred/dcrwallet/version v1.0.1 h1:gAz1lDkcJ+oAbg0tOn/J0KwZBVWIlhWmHhSUi9GbB2E=
@@ -194,8 +194,8 @@ github.com/decred/dcrwallet/version v1.0.3 h1:eqCXlRrv1KDaZIzddB1bzPyEhBkEflCuCU
 github.com/decred/dcrwallet/version v1.0.3/go.mod h1:2ZrmBsFYU/2C2C6dnNDiISTGaUdMHjethtL6BEFz37M=
 github.com/decred/dcrwallet/wallet/v3 v3.0.0 h1:6izrN1ZF7M7zb54GRb8RTRaO0z2+MjgX/BoJogI0SPw=
 github.com/decred/dcrwallet/wallet/v3 v3.0.0/go.mod h1:4aUyeRVmnT+3jPXMJrfUFppguKjKueZi1q978eYdGfs=
-github.com/decred/dcrwallet/wallet/v3 v3.0.5 h1:v2wVtyhRLomTfjmAKptQl/xhVFf90ZpeC6Oo+7t2acE=
-github.com/decred/dcrwallet/wallet/v3 v3.0.5/go.mod h1:SJ+++gtMdcUeqMv6iIO3gVGlGJfM+4iY2QSaAakhbUw=
+github.com/decred/dcrwallet/wallet/v3 v3.1.0 h1:qPbkX7ut3nosCRxM21KiPOpx51OuczlwVthtm0ZpkWw=
+github.com/decred/dcrwallet/wallet/v3 v3.1.0/go.mod h1:SJ+++gtMdcUeqMv6iIO3gVGlGJfM+4iY2QSaAakhbUw=
 github.com/decred/dcrwallet/walletseed v1.0.2 h1:6K/90/i6YEQQEKSjeDcYa2zfc3vFMeFfrUfDouwzQfQ=
 github.com/decred/dcrwallet/walletseed v1.0.2/go.mod h1:4fmyRf4sZKRrU6pKuRAQ+Og9xJtHalydXUrvGGQ9+Ak=
 github.com/decred/go-socks v1.0.0 h1:gd5+vE9LmL+FYiN5cxAMtaAVb791mG8E/+Jo411M/BE=
