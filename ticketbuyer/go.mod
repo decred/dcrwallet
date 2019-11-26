@@ -9,3 +9,5 @@ require (
 	github.com/decred/dcrwallet/wallet/v3 v3.0.0
 	github.com/decred/slog v1.0.0
 )
+
+replace github.com/decred/dcrwallet/wallet/v3 => ../wallet

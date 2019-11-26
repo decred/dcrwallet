@@ -1219,11 +1219,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	// Try to get the pool address from the request. If none exists
 	// in the request, try to get the global pool address. Then do
 	// the same for pool fees, but check sanity too.
-	poolAddress := req.poolAddress
+	poolAddress := req.VSPAddress
 	if poolAddress == nil {
 		poolAddress = w.PoolAddress()
 	}
-	poolFees := req.poolFees
+	poolFees := req.VSPFees
 	if poolFees == 0.0 {
 		poolFees = w.PoolFees()
 	}
@@ -1347,7 +1347,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	switch {
 	case req.CSPPServer != "":
 		splitTx, splitOutputIndexes, err = w.mixedSplit(ctx, req, neededPerTicket)
-	case req.poolAddress != nil:
+	case req.VSPAddress != nil:
 		splitTx, splitOutputIndexes, err = w.vspSplit(ctx, req, neededPerTicket, vspFee)
 	default:
 		splitTx, splitOutputIndexes, err = w.individualSplit(ctx, req, neededPerTicket)

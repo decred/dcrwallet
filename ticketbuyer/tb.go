@@ -256,11 +256,6 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		buy = limit
 	}
 
-	if poolFeeAddr != nil {
-		_ = poolFees
-		log.Errorf("Stakepool ticket buying is not yet implemented on this branch")
-		return nil
-	}
 	tix, err := w.PurchaseTicketsContext(ctx, n, &wallet.PurchaseTicketsRequest{
 		Count:         buy,
 		SourceAccount: account,
@@ -276,6 +271,10 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		MixedAccountBranch: mixedBranch,
 		MixedSplitAccount:  splitAccount,
 		ChangeAccount:      changeAccount,
+
+		// VSPs
+		VSPAddress: poolFeeAddr,
+		VSPFees:    poolFees,
 	})
 	for _, hash := range tix {
 		log.Infof("Purchased ticket %v at stake difficulty %v", hash, sdiff)

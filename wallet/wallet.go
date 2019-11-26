@@ -1257,7 +1257,7 @@ func (w *Wallet) CreateMultisigTx(ctx context.Context, account uint32, amount dc
 // PurchaseTickets purchases tickets, returning the hashes of all ticket
 // purchase transactions.
 //
-// Deprecated: Use PurchaseTicketsContext for solo buying.
+// Deprecated: Use PurchaseTicketsContext.
 func (w *Wallet) PurchaseTickets(ctx context.Context, minBalance, spendLimit dcrutil.Amount, minConf int32,
 	votingAddr dcrutil.Address, account uint32, count int, poolAddress dcrutil.Address,
 	poolFees float64, expiry int32, txFee dcrutil.Amount, ticketFee dcrutil.Amount) ([]*chainhash.Hash, error) {
@@ -1276,12 +1276,12 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, minBalance, spendLimit dcr
 		MinConf:       minConf,
 		Expiry:        expiry,
 
-		minBalance:  minBalance,
-		spendLimit:  spendLimit,
-		poolAddress: poolAddress,
-		poolFees:    poolFees,
-		txFee:       txFee,
-		ticketFee:   ticketFee,
+		minBalance: minBalance,
+		spendLimit: spendLimit,
+		VSPAddress: poolAddress,
+		VSPFees:    poolFees,
+		txFee:      txFee,
+		ticketFee:  ticketFee,
 
 		ChangeAccount: account,
 	}
@@ -1304,14 +1304,6 @@ type PurchaseTicketsRequest struct {
 	Expiry        int32
 	VotingAccount uint32 // Used when VotingAddress == nil, or CSPPServer != ""
 
-	// may be set by deprecated methods, subject to change
-	minBalance  dcrutil.Amount
-	spendLimit  dcrutil.Amount
-	poolAddress dcrutil.Address
-	poolFees    float64
-	txFee       dcrutil.Amount
-	ticketFee   dcrutil.Amount
-
 	// Mixed split buying through CoinShuffle++
 	CSPPServer         string
 	DialCSPPServer     DialFunc
@@ -1319,6 +1311,16 @@ type PurchaseTicketsRequest struct {
 	MixedAccountBranch uint32
 	MixedSplitAccount  uint32
 	ChangeAccount      uint32
+
+	// VSP ticket buying; not currently usable with CoinShuffle++.
+	VSPAddress dcrutil.Address
+	VSPFees    float64
+
+	// may be set by deprecated methods, subject to change
+	minBalance dcrutil.Amount
+	spendLimit dcrutil.Amount
+	txFee      dcrutil.Amount
+	ticketFee  dcrutil.Amount
 }
 
 // PurchaseTicketsContext purchases tickets, returning the hashes of all ticket
