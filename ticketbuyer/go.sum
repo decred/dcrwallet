@@ -1,5 +1,3 @@
-decred.org/cspp v0.1.3 h1:7l2SikgbzinIHS8EVq+lvOXAby7ZVuIj/hzz/RcNEz0=
-decred.org/cspp v0.1.3/go.mod h1:AluGqqtq580GdsWxH2wbYtCDKi5D5P4sA96waw70D5c=
 decred.org/cspp v0.2.0 h1:SdwdoGT2wZenkczeDxzcKwoAA55Y0Ti3aZslabBORvA=
 decred.org/cspp v0.2.0/go.mod h1:KVnB49sueBFCldRa/ivZCaWZbrPNEiXWwxHCf1jTYKI=
 github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 h1:w1UutsfOrms1J05zt7ISrnJIXKzwaspym5BTKGx93EI=
@@ -56,8 +54,6 @@ github.com/decred/dcrd/dcrec/secp256k1 v1.0.1 h1:EFWVd1p0t0Y5tnsm/dJujgV0ORogRJ6
 github.com/decred/dcrd/dcrec/secp256k1 v1.0.1/go.mod h1:lhu4eZFSfTJWUnR3CFRcpD+Vta0KUAqnhTsTksHXgy0=
 github.com/decred/dcrd/dcrec/secp256k1 v1.0.2 h1:awk7sYJ4pGWmtkiGHFfctztJjHMKGLV8jctGQhAbKe0=
 github.com/decred/dcrd/dcrec/secp256k1 v1.0.2/go.mod h1:CHTUIVfmDDd0KFVFpNX1pFVCBUegxW387nN0IGwNKR0=
-github.com/decred/dcrd/dcrec/secp256k1 v1.0.3 h1:u4XpHqlscRolxPxt2YHrFBDVZYY1AK+KMV02H1r+HmU=
-github.com/decred/dcrd/dcrec/secp256k1 v1.0.3/go.mod h1:eCL8H4MYYjRvsw2TuANvEOcVMFbmi9rt/6hJUWU5wlU=
 github.com/decred/dcrd/dcrec/secp256k1/v2 v2.0.0 h1:3GIJYXQDAKpLEFriGFN8SbSffak10UXHGdIcFaMPykY=
 github.com/decred/dcrd/dcrec/secp256k1/v2 v2.0.0/go.mod h1:3s92l0paYkZoIHuj4X93Teg/HB7eGM9x/zokGw+u4mY=
 github.com/decred/dcrd/dcrjson/v3 v3.0.1 h1:b9cpplNJG+nutE2jS8K/BtSGIJihEQHhFjFAsvJF/iI=
@@ -91,8 +87,8 @@ github.com/decred/dcrwallet/rpc/jsonrpc/types v1.3.0 h1:yCxtFqK7X6GvZWQzHXjCwoGC
 github.com/decred/dcrwallet/rpc/jsonrpc/types v1.3.0/go.mod h1:Xvekb43GtfMiRbyIY4ZJ9Uhd9HRIAcnp46f3q2eIExU=
 github.com/decred/dcrwallet/validate v1.1.1 h1:hoHrHaJTQoANN/ZW37HbeTQSJ+N4rMFFLz6LT/FACJQ=
 github.com/decred/dcrwallet/validate v1.1.1/go.mod h1:T++tlVcCOh2oSrEq4r5CKCvmftaQdq9uZwO7jSNYZaw=
-github.com/decred/dcrwallet/wallet/v3 v3.0.0 h1:6izrN1ZF7M7zb54GRb8RTRaO0z2+MjgX/BoJogI0SPw=
-github.com/decred/dcrwallet/wallet/v3 v3.0.0/go.mod h1:4aUyeRVmnT+3jPXMJrfUFppguKjKueZi1q978eYdGfs=
+github.com/decred/dcrwallet/wallet/v3 v3.1.0 h1:qPbkX7ut3nosCRxM21KiPOpx51OuczlwVthtm0ZpkWw=
+github.com/decred/dcrwallet/wallet/v3 v3.1.0/go.mod h1:SJ+++gtMdcUeqMv6iIO3gVGlGJfM+4iY2QSaAakhbUw=
 github.com/decred/go-socks v1.1.0 h1:dnENcc0KIqQo3HSXdgboXAHgqsCIutkqq6ntQjYtm2U=
 github.com/decred/go-socks v1.1.0/go.mod h1:sDhHqkZH0X4JjSa02oYOGhcGHYp12FsY1jQ/meV8md0=
 github.com/decred/slog v1.0.0 h1:Dl+W8O6/JH6n2xIFN2p3DNjCmjYwvrXsjlSJTQQ4MhE=
