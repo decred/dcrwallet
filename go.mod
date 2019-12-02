@@ -33,7 +33,7 @@ require (
 	github.com/decred/dcrwallet/spv/v3 v3.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/ticketbuyer/v4 v4.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/version v1.0.1
-	github.com/decred/dcrwallet/wallet/v3 v3.0.0
+	github.com/decred/dcrwallet/wallet/v3 v3.1.0
 	github.com/decred/dcrwallet/walletseed v1.0.1
 	github.com/decred/go-socks v1.1.0
 	github.com/decred/slog v1.0.0

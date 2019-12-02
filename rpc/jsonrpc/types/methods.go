@@ -94,7 +94,7 @@ func NewAddTicketCmd(ticketHex string) *AddTicketCmd {
 // This method returns an object keying reused addresses to two or more outputs
 // referencing them, optionally filtering results of address reusage since a
 // particular block height.
-type AuditReuseCmd struct{
+type AuditReuseCmd struct {
 	Since *int32 `json:"since"`
 }
 
@@ -1383,6 +1383,7 @@ func init() {
 	// dcrd methods also implemented by dcrwallet
 	register = []registeredMethod{
 		{"authenticate", (*dcrdtypes.AuthenticateCmd)(nil)},
+		{"createrawtransaction", (*dcrdtypes.CreateRawTransactionCmd)(nil)},
 		{"getbestblock", (*dcrdtypes.GetBestBlockCmd)(nil)},
 		{"getbestblockhash", (*dcrdtypes.GetBestBlockHashCmd)(nil)},
 		{"getblockcount", (*dcrdtypes.GetBlockCountCmd)(nil)},

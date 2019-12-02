@@ -72,6 +72,7 @@ var handlers = map[string]handler{
 	"auditreuse":              {fn: (*Server).auditReuse},
 	"consolidate":             {fn: (*Server).consolidate},
 	"createmultisig":          {fn: (*Server).createMultiSig},
+	"createrawtransaction":    {fn: (*Server).createRawTransaction},
 	"dumpprivkey":             {fn: (*Server).dumpPrivKey},
 	"generatevote":            {fn: (*Server).generateVote},
 	"getaccount":              {fn: (*Server).getAccount},
@@ -603,6 +604,117 @@ func (s *Server) createMultiSig(ctx context.Context, icmd interface{}) (interfac
 		Address:      address.Address(),
 		RedeemScript: hex.EncodeToString(script),
 	}, nil
+}
+
+// createRawTransaction handles createrawtransaction commands.
+func (s *Server) createRawTransaction(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrdtypes.CreateRawTransactionCmd)
+
+	// Validate expiry, if given.
+	if cmd.Expiry != nil && *cmd.Expiry < 0 {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "Expiry out of range")
+	}
+
+	// Validate the locktime, if given.
+	if cmd.LockTime != nil &&
+		(*cmd.LockTime < 0 ||
+			*cmd.LockTime > int64(wire.MaxTxInSequenceNum)) {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "Locktime out of range")
+	}
+
+	// Add all transaction inputs to a new transaction after performing
+	// some validity checks.
+	mtx := wire.NewMsgTx()
+	for _, input := range cmd.Inputs {
+		txHash, err := chainhash.NewHashFromStr(input.Txid)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+		}
+
+		switch input.Tree {
+		case wire.TxTreeRegular, wire.TxTreeStake:
+		default:
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"Tx tree must be regular or stake")
+		}
+
+		amt, err := dcrutil.NewAmount(input.Amount)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+		}
+		if amt < 0 {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"Positive input amount is required")
+		}
+
+		prevOut := wire.NewOutPoint(txHash, input.Vout, input.Tree)
+		txIn := wire.NewTxIn(prevOut, int64(amt), nil)
+		if cmd.LockTime != nil && *cmd.LockTime != 0 {
+			txIn.Sequence = wire.MaxTxInSequenceNum - 1
+		}
+		mtx.AddTxIn(txIn)
+	}
+
+	// Add all transaction outputs to the transaction after performing
+	// some validity checks.
+	for encodedAddr, amount := range cmd.Amounts {
+		// Ensure amount is in the valid range for monetary amounts.
+		if amount <= 0 || amount > dcrutil.MaxAmount {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"Invalid amount: 0 >= %v > %v", amount, dcrutil.MaxAmount)
+		}
+
+		// Decode the provided address.  This also ensures the network encoded
+		// with the address matches the network the server is currently on.
+		addr, err := dcrutil.DecodeAddress(encodedAddr, s.activeNet)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
+				"Address %q: %v", encodedAddr, err)
+		}
+
+		// Ensure the address is one of the supported types.
+		switch addr.(type) {
+		case *dcrutil.AddressPubKeyHash:
+		case *dcrutil.AddressScriptHash:
+		default:
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
+				"Invalid type: %T", addr)
+		}
+
+		// Create a new script which pays to the provided address.
+		pkScript, err := txscript.PayToAddrScript(addr)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code,
+				"Pay to address script: %v", err)
+		}
+
+		atomic, err := dcrutil.NewAmount(amount)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code,
+				"New amount: %v", err)
+		}
+
+		txOut := wire.NewTxOut(int64(atomic), pkScript)
+		mtx.AddTxOut(txOut)
+	}
+
+	// Set the Locktime, if given.
+	if cmd.LockTime != nil {
+		mtx.LockTime = uint32(*cmd.LockTime)
+	}
+
+	// Set the Expiry, if given.
+	if cmd.Expiry != nil {
+		mtx.Expiry = uint32(*cmd.Expiry)
+	}
+
+	// Return the serialized and hex-encoded transaction.
+	sb := new(strings.Builder)
+	err := mtx.Serialize(hex.NewEncoder(sb))
+	if err != nil {
+		return nil, err
+	}
+	return sb.String(), nil
 }
 
 // dumpPrivKey handles a dumpprivkey request with the private key

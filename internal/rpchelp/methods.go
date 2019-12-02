@@ -36,6 +36,7 @@ var Methods = []struct {
 	{"consolidate", returnsString},
 	{"createmultisig", []interface{}{(*types.CreateMultiSigResult)(nil)}},
 	{"createnewaccount", nil},
+	{"createrawtransaction", returnsString},
 	{"dumpprivkey", returnsString},
 	{"generatevote", []interface{}{(*types.GenerateVoteResult)(nil)}},
 	{"getaccountaddress", returnsString},
