@@ -279,14 +279,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	for _, hash := range tix {
 		log.Infof("Purchased ticket %v at stake difficulty %v", hash, sdiff)
 	}
-	if err != nil && !errors.Is(errors.InsufficientBalance, err) {
-		// Invalid passphrase errors must be returned so Run exits.
-		if errors.Is(err, errors.Passphrase) {
-			return err
-		}
-		log.Errorf("One or more tickets could not be purchased: %v", err)
-	}
-	return nil
+	return err
 }
 
 // AccessConfig runs f with the current config passed as a parameter.  The
