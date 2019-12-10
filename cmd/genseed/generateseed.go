@@ -10,8 +10,12 @@ import (
 
 var (
 	s = flag.Bool("mne", false, "Optional command line argument to print as seed as a mnemonic phrase rather then its hexadecimal form")
+<<<<<<< HEAD
 	b = flag.Uint("size", 32, "Optional command line argument to print a seed as a certian size.  The default size is 32 and recommended size is between 16 and 64.  Anything under 16 or 64 will cause the program to crash")
 	m = flag.Bool("master", false, "Optional command line argument to print master key of the created seed.")
+=======
+	b = flag.Uint("size", 32, "Optional command line argument to print a seed as a certain size.  The default size is 32 and recommended size is between 16 and 64.  Anything under 16 or 64 will cause the program to crash")
+>>>>>>> 18c275e... genseed: add tool to cmd that generates a seed
 )
 
 func main() {
