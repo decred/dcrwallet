@@ -30,7 +30,7 @@ require (
 	github.com/decred/dcrwallet/errors/v2 v2.0.0
 	github.com/decred/dcrwallet/p2p/v2 v2.0.0
 	github.com/decred/dcrwallet/rpc/client/dcrd v1.0.0
-	github.com/decred/dcrwallet/rpc/jsonrpc/types v1.3.0
+	github.com/decred/dcrwallet/rpc/jsonrpc/types v1.4.0
 	github.com/decred/dcrwallet/rpc/walletrpc v0.3.0
 	github.com/decred/dcrwallet/spv/v3 v3.0.1
 	github.com/decred/dcrwallet/ticketbuyer/v4 v4.0.1
