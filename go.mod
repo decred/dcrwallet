@@ -3,7 +3,8 @@ module decred.org/dcrwallet
 go 1.12
 
 require (
-	github.com/decred/dcrd/addrmgr v1.0.2
+	github.com/decred/base58 v1.0.2 // indirect
+	github.com/decred/dcrd/addrmgr v1.1.0
 	github.com/decred/dcrd/blockchain/stake v1.2.1
 	github.com/decred/dcrd/blockchain/stake/v2 v2.0.2
 	github.com/decred/dcrd/blockchain/standalone v1.1.0
@@ -11,9 +12,10 @@ require (
 	github.com/decred/dcrd/chaincfg v1.5.2
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.2
 	github.com/decred/dcrd/chaincfg/v2 v2.3.0
-	github.com/decred/dcrd/connmgr v1.0.2
-	github.com/decred/dcrd/connmgr/v2 v2.0.0
+	github.com/decred/dcrd/connmgr v1.1.0
+	github.com/decred/dcrd/connmgr/v2 v2.1.0
 	github.com/decred/dcrd/dcrec v1.0.0
+	github.com/decred/dcrd/dcrec/secp256k1 v1.0.3 // indirect
 	github.com/decred/dcrd/dcrjson/v2 v2.2.0
 	github.com/decred/dcrd/dcrjson/v3 v3.0.1
 	github.com/decred/dcrd/dcrutil v1.4.0
@@ -40,9 +42,10 @@ require (
 	github.com/gorilla/websocket v1.4.1
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/jrick/logrotate v1.0.0
+	github.com/jrick/wsrpc/v2 v2.2.1 // indirect
 	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
-	google.golang.org/grpc v1.22.0
+	google.golang.org/grpc v1.25.1
 )
 
 replace (
