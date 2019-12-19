@@ -9,3 +9,5 @@ require (
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrwallet/wallet v1.1.0
 )
+
+go 1.12
