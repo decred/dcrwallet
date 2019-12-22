@@ -13,7 +13,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/decred/dcrwallet/errors"
 	"math/big"
 	"sort"
 	"strconv"
@@ -1621,32 +1620,30 @@ func (s *Server) getPeerInfo(ctx context.Context, icmd interface{}) (interface{}
 		return nil, errUnloadedWallet
 	}
 	n, err := w.NetworkBackend()
-
 	if err != nil {
 		return nil, err
 	}
 
 	syncer, ok := n.(*spv.Syncer)
-
-	if ok {
-		infos := make([]*types.GetPeerInfoResult, 0, len(syncer.GetRemotePeers()))
-		for _, rp := range syncer.GetRemotePeers() {
-			snapshot := rp.StatsSnapshot()
-			info := &types.GetPeerInfoResult{
-				ID:             int32(snapshot.Id),
-				Addr:           snapshot.Raddr,
-				Services:       fmt.Sprintf("%08d", uint64(snapshot.Services)),
-				StartingHeight: int64(snapshot.InitHeight),
-				Version:        snapshot.Version,
-				SubVer:         snapshot.UserAgent,
-				BanScore:       snapshot.Banscore,
-			}
-			infos = append(infos, info)
-		}
-		return infos, nil
-	} else {
+	if !ok {
 		return nil, nil
 	}
+
+	infos := make([]*types.GetPeerInfoResult, 0, len(syncer.GetRemotePeers()))
+	for _, rp := range syncer.GetRemotePeers() {
+		remotePeerInfo := rp.Info()
+		info := &types.GetPeerInfoResult{
+			ID:             int32(remotePeerInfo.ID),
+			Addr:           remotePeerInfo.Addr,
+			Services:       fmt.Sprintf("%08d", uint64(remotePeerInfo.Services)),
+			StartingHeight: int64(remotePeerInfo.InitHeight),
+			Version:        remotePeerInfo.Version,
+			SubVer:         remotePeerInfo.UserAgent,
+			BanScore:       remotePeerInfo.Banscore,
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
 }
 
 // getStakeInfo gets a large amounts of information about the stake environment

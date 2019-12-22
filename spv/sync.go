@@ -145,6 +145,8 @@ func (s *Syncer) synced() {
 
 // GetRemotePeers returns a map of connected remote peers.
 func (s *Syncer) GetRemotePeers() map[string]*p2p.RemotePeer {
+	s.remotesMu.Lock()
+	defer s.remotesMu.Unlock()
 	return s.remotes
 }
 
