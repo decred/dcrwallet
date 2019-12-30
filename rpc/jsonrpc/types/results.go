@@ -63,6 +63,20 @@ type GetMultisigOutInfoResult struct {
 	Amount       float64  `json:"amount"`
 }
 
+// CreateMultiSigResult models the data returned from the createmultisig
+// command.
+type CreateMultiSigResult struct {
+	Address      string `json:"address"`
+	RedeemScript string `json:"redeemScript"`
+}
+
+// CreateSignatureResult models the data returned from the createsignature
+// command.
+type CreateSignatureResult struct {
+	Signature string `json:"signature"`
+	PublicKey string `json:"publickey"`
+}
+
 // GetPayToContractHashResult models the data returned from the getpaytocontracthash
 // command.
 type GetPayToContractHashResult struct {
