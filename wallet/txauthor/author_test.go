@@ -14,8 +14,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/v3/txauthor"
 	. "github.com/decred/dcrwallet/wallet/v3/txauthor"
 	"github.com/decred/dcrwallet/wallet/v3/txrules"
-
-	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
+	"github.com/decred/dcrwallet/wallet/v3/txsizes"
 )
 
 type AuthorTestChangeSource struct{}

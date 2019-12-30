@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
-	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
+	"github.com/decred/dcrwallet/wallet/v3/txsizes"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
