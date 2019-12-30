@@ -706,6 +706,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		}
 	}
 	if cfg.CSPPServerCA != "" {
+		cfg.CSPPServerCA = cleanAndExpandPath(cfg.CSPPServerCA)
 		ca, err := ioutil.ReadFile(cfg.CSPPServerCA)
 		if err != nil {
 			err := errors.Errorf("Cannot read CoinShuffle++ "+
