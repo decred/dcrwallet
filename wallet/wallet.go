@@ -35,6 +35,7 @@ import (
 	"github.com/decred/dcrwallet/rpc/client/dcrd"
 	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
 	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
+	"github.com/decred/dcrwallet/wallet/v3/txauthor"
 	"github.com/decred/dcrwallet/wallet/v3/txrules"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
 	"github.com/decred/dcrwallet/wallet/v3/walletdb"
@@ -4405,6 +4406,146 @@ func (w *Wallet) PublishUnminedTransactions(ctx context.Context, p Peer) error {
 // belongs to.
 func (w *Wallet) ChainParams() *chaincfg.Params {
 	return w.chainParams
+}
+
+// scriptChangeSource is a changeSource paying to the script of
+// the provided change address.
+type scriptChangeSource struct {
+	version uint16
+	script  []byte
+}
+
+func (src *scriptChangeSource) Script() ([]byte, uint16, error) {
+	return src.script, src.version, nil
+}
+
+func (src *scriptChangeSource) ScriptSize() int {
+	return len(src.script)
+}
+
+func makeScriptChangeSource(address string, version uint16, params *chaincfg.Params) (*scriptChangeSource, error) {
+	addr, err := dcrutil.DecodeAddress(address, params)
+	if err != nil {
+		return nil, err
+	}
+
+	script, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	source := &scriptChangeSource{
+		version: version,
+		script:  script,
+	}
+
+	return source, nil
+}
+
+// FundingOptions represents the optional parameters for funding a transaction.
+type FundingOptions struct {
+	ChangeAddr string
+	FeeRate    dcrutil.Amount
+	ConfTarget int32
+}
+
+// FundRawTransaction adds inputs sourced from the wallet matching the total
+// output value to a transaction.
+func (w *Wallet) FundRawTransaction(ctx context.Context, tx *wire.MsgTx, account uint32, options *FundingOptions) error {
+	const op errors.Op = "wallet.FundRawTransaction"
+	var changeSource txauthor.ChangeSource
+	var err error
+	if options.ChangeAddr != "" {
+		changeSource, err = makeScriptChangeSource(options.ChangeAddr, 0, w.chainParams)
+		if err != nil {
+			return err
+		}
+	}
+
+	minConf := int32(1)
+	if options.ConfTarget > minConf {
+		minConf = options.ConfTarget
+	}
+
+	relayFee := w.RelayFee()
+	if options.FeeRate != 0 {
+		relayFee = options.FeeRate
+	}
+
+	var unlockOutpoints []*wire.OutPoint
+	defer func() {
+		if len(unlockOutpoints) != 0 {
+			w.lockedOutpointMu.Lock()
+			for _, op := range unlockOutpoints {
+				delete(w.lockedOutpoints, *op)
+			}
+			w.lockedOutpointMu.Unlock()
+		}
+	}()
+	ignoreInput := func(op *wire.OutPoint) bool {
+		_, ok := w.lockedOutpoints[*op]
+		return ok
+	}
+
+	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+
+		if account != udb.ImportedAddrAccount {
+			lastAcct, err := w.Manager.LastAccount(addrmgrNs)
+			if err != nil {
+				return err
+			}
+			if account > lastAcct {
+				return errors.E(errors.NotExist, "missing account")
+			}
+		}
+
+		sourceImpl := w.TxStore.MakeIgnoredInputSource(txmgrNs, addrmgrNs, account,
+			minConf, tipHeight, ignoreInput)
+		inputSource := sourceImpl.SelectInputs
+		if changeSource == nil {
+			changeSource = &p2PKHChangeSource{
+				persist: w.deferPersistReturnedChild(ctx, &changeSourceUpdates),
+				account: account,
+				wallet:  w,
+			}
+		}
+
+		defer w.lockedOutpointMu.Unlock()
+		w.lockedOutpointMu.Lock()
+
+		err := txauthor.FundTransaction(tx, relayFee, inputSource, changeSource)
+		if err != nil {
+			return err
+		}
+		for _, in := range tx.TxIn {
+			w.lockedOutpoints[in.PreviousOutPoint] = struct{}{}
+			unlockOutpoints = append(unlockOutpoints, &in.PreviousOutPoint)
+		}
+		return nil
+	})
+	if err != nil {
+		return errors.E(op, err)
+	}
+	if len(changeSourceUpdates) != 0 {
+		err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
+			for _, up := range changeSourceUpdates {
+				err := up(tx)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return errors.E(op, err)
+		}
+	}
+
+	return nil
 }
 
 // NeedsAccountsSync returns whether or not the wallet is void of any generated

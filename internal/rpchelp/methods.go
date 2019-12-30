@@ -38,6 +38,7 @@ var Methods = []struct {
 	{"createnewaccount", nil},
 	{"createrawtransaction", returnsString},
 	{"dumpprivkey", returnsString},
+	{"fundrawtransaction", []interface{}{(*types.FundRawTransactionResult)(nil)}},
 	{"generatevote", []interface{}{(*types.GenerateVoteResult)(nil)}},
 	{"getaccountaddress", returnsString},
 	{"getaccount", returnsString},

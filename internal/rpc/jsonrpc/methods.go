@@ -43,9 +43,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "6.2.0"
+	jsonrpcSemverString = "6.4.0"
 	jsonrpcSemverMajor  = 6
-	jsonrpcSemverMinor  = 2
+	jsonrpcSemverMinor  = 4
 	jsonrpcSemverPatch  = 0
 )
 
@@ -74,6 +74,7 @@ var handlers = map[string]handler{
 	"createmultisig":          {fn: (*Server).createMultiSig},
 	"createrawtransaction":    {fn: (*Server).createRawTransaction},
 	"dumpprivkey":             {fn: (*Server).dumpPrivKey},
+	"fundrawtransaction":      {fn: (*Server).fundRawTransaction},
 	"generatevote":            {fn: (*Server).generateVote},
 	"getaccount":              {fn: (*Server).getAccount},
 	"getaccountaddress":       {fn: (*Server).getAccountAddress},
@@ -740,6 +741,78 @@ func (s *Server) dumpPrivKey(ctx context.Context, icmd interface{}) (interface{}
 		return nil, err
 	}
 	return key, nil
+}
+
+// fundRawTransaction adds inputs matching the total output value to a transaction.
+func (s *Server) fundRawTransaction(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.FundRawTransactionCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	tx := new(wire.MsgTx)
+	err := tx.Deserialize(hex.NewDecoder(strings.NewReader(cmd.HexString)))
+	if err != nil {
+		return nil, err
+	}
+
+	account, err := w.AccountNumber(ctx, cmd.FundAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	var options wallet.FundingOptions
+	if cmd.Options != nil {
+		if cmd.Options.ChangeAddress != nil {
+			options.ChangeAddr = *cmd.Options.ChangeAddress
+		}
+
+		if cmd.Options.FeeRate != nil {
+			feeRate, err := dcrutil.NewAmount(*cmd.Options.FeeRate)
+			if err != nil {
+				return nil, err
+			}
+
+			options.FeeRate = feeRate
+		}
+
+		if cmd.Options.ConfTarget != nil {
+			options.ConfTarget = *cmd.Options.ConfTarget
+		}
+	}
+
+	err = w.FundRawTransaction(ctx, tx, account, &options)
+	if err != nil {
+		return nil, err
+	}
+
+	var b strings.Builder
+	b.Grow(tx.SerializeSize() * 2)
+	err = tx.Serialize(hex.NewEncoder(&b))
+	if err != nil {
+		return nil, err
+	}
+
+	var totalOut int64
+	for _, out := range tx.TxOut {
+		totalOut += out.Value
+	}
+
+	var totalIn int64
+	for _, in := range tx.TxIn {
+		totalIn += in.ValueIn
+	}
+
+	// the transaction fee is the difference between the total input value and
+	// the total output value.
+	fee := float64(totalIn - totalOut)
+	resp := &types.FundRawTransactionResult{
+		Hex: b.String(),
+		Fee: fee,
+	}
+
+	return resp, nil
 }
 
 // generateVote handles a generatevote request by constructing a signed

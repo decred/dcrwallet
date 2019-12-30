@@ -160,6 +160,83 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	}
 }
 
+// FundTransaction adds inputs to fund the provided unsigned transaction paying
+// to one or more non-change outputs.  An appropriate transaction fee is
+// included based on the transaction size.
+//
+// Transaction inputs are chosen from repeated calls to fetchInputs with
+// increasing targets amounts.
+//
+// If any remaining output value can be returned to the wallet via a change
+// output without violating mempool dust rules, a P2PKH change output is
+// appended to the transaction outputs.  Since the change output may not be
+// necessary, fetchChange is called zero or one times to generate this script.
+// This function must return a P2PKH script or smaller, otherwise fee estimation
+// will be incorrect.
+//
+// If successful, the funded transaction, total input value spent, and all
+// previous output scripts are returned.  If the input source was unable to
+// provide enough input value to pay for every output any any necessary fees,
+// an InputSourceError is returned.
+func FundTransaction(tx *wire.MsgTx, relayFeePerKb dcrutil.Amount,
+	fetchInputs InputSource, fetchChange ChangeSource) error {
+	const op errors.Op = "txauthor.FundTransaction"
+	targetAmount := sumOutputValues(tx.TxOut)
+	scriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
+	changeScript, changeScriptVersion, err := fetchChange.Script()
+	if err != nil {
+		return errors.E(op, err)
+	}
+	changeScriptSize := fetchChange.ScriptSize()
+	maxSignedSize := txsizes.EstimateSerializeSize(scriptSizes, tx.TxOut, changeScriptSize)
+	targetFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
+
+	for {
+		inputDetail, err := fetchInputs(targetAmount + targetFee)
+		if err != nil {
+			return errors.E(op, err)
+		}
+
+		if inputDetail.Amount < targetAmount+targetFee {
+			return errors.E(op, errors.InsufficientBalance)
+		}
+
+		scriptSizes := make([]int, 0, len(inputDetail.RedeemScriptSizes))
+		scriptSizes = append(scriptSizes, inputDetail.RedeemScriptSizes...)
+
+		maxSignedSize = txsizes.EstimateSerializeSize(scriptSizes, tx.TxOut, changeScriptSize)
+		maxRequiredFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
+		remainingAmount := inputDetail.Amount - targetAmount
+		if remainingAmount < maxRequiredFee {
+			targetFee = maxRequiredFee
+			continue
+		}
+
+		for _, in := range inputDetail.Inputs {
+			tx.AddTxIn(in)
+		}
+
+		changeAmount := inputDetail.Amount - targetAmount - maxRequiredFee
+		if changeAmount != 0 && !txrules.IsDustAmount(changeAmount,
+			changeScriptSize, relayFeePerKb) {
+			if len(changeScript) > txscript.MaxScriptElementSize {
+				return errors.E(errors.Invalid, "script size exceed maximum "+
+					"bytes pushable to the stack")
+			}
+			change := &wire.TxOut{
+				Value:    int64(changeAmount),
+				Version:  changeScriptVersion,
+				PkScript: changeScript,
+			}
+			l := len(tx.TxOut)
+			tx.TxOut = append(tx.TxOut[:l:l], change)
+		} else {
+			maxSignedSize = txsizes.EstimateSerializeSize(scriptSizes, tx.TxOut, 0)
+		}
+		return nil
+	}
+}
+
 // RandomizeOutputPosition randomizes the position of a transaction's output by
 // swapping it with a random output.  The new index is returned.  This should be
 // done before signing.
