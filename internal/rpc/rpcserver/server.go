@@ -2223,11 +2223,12 @@ func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr
 		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
 	}
 
-	mixer := accountmixer.NewAccountMixer(wallet)
+	mixer := accountmixer.New(wallet)
 
 	// Set ticketbuyerV2 config
-	mixer.AccessConfig(func(c *mixer.AccountMixer) {
-		c.MixingAccount = req.MixingAccount
+	mixer.AccessConfig(func(c *accountmixer.Config) {
+		c.MixedAccountBranch = req.MixedAccountBranch
+		c.MixedAccount = req.MixedAccount
 		c.ChangeAccount = req.ChangeAccount
 		c.CSPPServer = req.CsppServer
 	})
@@ -2248,7 +2249,7 @@ func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr
 	err = mixer.Run(svr.Context(), req.Passphrase)
 	if err != nil {
 		if svr.Context().Err() != nil {
-			return status.Errorf(codes.Canceled, "AccountMixer instance canceled, account number: %v", req.Account)
+			return status.Errorf(codes.Canceled, "AccountMixer instance canceled, account number: %v", req.MixedAccount)
 		}
 		return status.Errorf(codes.Unknown, "AccountMixer instance errored: %v", err)
 	}

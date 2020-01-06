@@ -15,7 +15,7 @@ import (
 
 const minconf = 1
 
-// AccountMixerConfig modifies the behavior of TB.
+// AccountMixerConfig modifies the behavior of account mixer.
 type Config struct {
 	// CSPP-related options
 	CSPPServer         string
@@ -90,4 +90,14 @@ func (m *AccountMixer) mixChange(ctx context.Context) error {
 	defer task.End()
 
 	return m.wallet.MixAccount(ctx, dial, csppServer, changeAccount, mixedAccount, mixedBranch)
+}
+
+// AccessConfig runs f with the current config passed as a parameter.  The
+// config is protected by a mutex and this function is safe for concurrent
+// access to read or modify the config.  It is unsafe to leak a pointer to the
+// config, but a copy of *cfg is legal.
+func (m *AccountMixer) AccessConfig(f func(cfg *Config)) {
+	m.mu.Lock()
+	f(&m.cfg)
+	m.mu.Unlock()
 }

@@ -803,9 +803,10 @@ message RunTicketBuyerResponse {}
 
 message RunAccountMixerRequest {
 	bytes passphrase = 1;
-	uint32 mixing_account = 2;
-	uint32 change_account = 3;
-	string cspp_server = 4;
+	uint32 mixed_account = 2;
+	uint32 mixed_account_branch = 3;
+	uint32 change_account = 4;
+	string cspp_server = 5;
 }
 
 message RunAccountMixerResponse {}
