@@ -19,7 +19,6 @@ require (
 	github.com/decred/dcrd/rpc/jsonrpc/types v1.0.1
 	github.com/decred/dcrd/txscript/v2 v2.1.0
 	github.com/decred/dcrd/wire v1.3.0
-	github.com/decred/dcrwallet/accountmixer v0.0.0-00010101000000-000000000000
 	github.com/decred/dcrwallet/chain/v3 v3.0.1
 	github.com/decred/dcrwallet/errors/v2 v2.0.0
 	github.com/decred/dcrwallet/p2p/v2 v2.0.0
@@ -42,7 +41,6 @@ require (
 )
 
 replace (
-	github.com/decred/dcrwallet/accountmixer => ./accountmixer
 	github.com/decred/dcrwallet/errors/v2 => ./errors
 	github.com/decred/dcrwallet/lru => ./lru
 	github.com/decred/dcrwallet/p2p/v2 => ./p2p

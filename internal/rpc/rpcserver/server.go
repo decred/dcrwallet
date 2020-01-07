@@ -42,7 +42,6 @@ import (
 	"github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/accountmixer"
 	"github.com/decred/dcrwallet/chain/v3"
 	"github.com/decred/dcrwallet/errors/v2"
 	"github.com/decred/dcrwallet/p2p/v2"
@@ -2216,21 +2215,22 @@ func StartAccountMixerService(server *grpc.Server, loader *loader.Loader) {
 	}
 }
 
-// StartTicketBuyer starts the automatic ticket buyer for the v2 service.
+// RunAccountMixer starts the automatic account mixer for the service.
 func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr pb.AccountMixerService_RunAccountMixerServer) error {
 	wallet, ok := t.loader.LoadedWallet()
 	if !ok {
 		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
 	}
 
-	mixer := accountmixer.New(wallet)
+	tb := ticketbuyer.New(wallet)
 
 	// Set ticketbuyerV2 config
-	mixer.AccessConfig(func(c *accountmixer.Config) {
+	tb.AccessConfig(func(c *ticketbuyer.Config) {
 		c.MixedAccountBranch = req.MixedAccountBranch
 		c.MixedAccount = req.MixedAccount
 		c.ChangeAccount = req.ChangeAccount
 		c.CSPPServer = req.CsppServer
+		c.BuyTickets = false
 	})
 
 	lock := make(chan time.Time, 1)
@@ -2246,7 +2246,7 @@ func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr
 	}
 	defer lockWallet()
 
-	err = mixer.Run(svr.Context(), req.Passphrase)
+	err = tb.Run(svr.Context(), req.Passphrase)
 	if err != nil {
 		if svr.Context().Err() != nil {
 			return status.Errorf(codes.Canceled, "AccountMixer instance canceled, account number: %v", req.MixedAccount)
