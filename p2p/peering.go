@@ -132,22 +132,15 @@ type RemotePeerInfo struct {
 
 // Info returns information of a remote peer flags and statistics
 func (rp *RemotePeer) Info() *RemotePeerInfo {
-	id := rp.id
-	addr := rp.RemoteAddr().String()
-	protocolVersion := rp.pver
-	services := rp.Services()
-
-	info := &RemotePeerInfo{
-		ID:         id,
-		Services:   services,
+	return &RemotePeerInfo{
+		ID:         rp.id,
+		Services:   rp.Services(),
 		InitHeight: rp.InitialHeight(),
-		Addr:       addr,
-		Version:    protocolVersion,
+		Addr:       rp.RemoteAddr().String(),
+		Version:    rp.pver,
 		UserAgent:  rp.UA(),
 		Banscore:   int32(rp.banScore.Int()),
-	}
-
-	return info
+	   }
 }
 
 // NewLocalPeer creates a LocalPeer that is externally reachable to remote peers
