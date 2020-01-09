@@ -2231,6 +2231,7 @@ func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr
 		c.ChangeAccount = req.ChangeAccount
 		c.CSPPServer = req.CsppServer
 		c.BuyTickets = false
+		c.MixChange = true
 	})
 
 	lock := make(chan time.Time, 1)
