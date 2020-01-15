@@ -6,10 +6,10 @@ package udb
 
 import (
 	"context"
-	
+
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // Initialize prepares an empty database for usage by initializing all buckets

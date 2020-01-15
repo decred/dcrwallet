@@ -12,6 +12,10 @@ import (
 	"sort"
 	"time"
 
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/wallet/txauthor"
+	"decred.org/dcrwallet/wallet/txsizes"
+	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v2"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -21,10 +25,6 @@ import (
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/wallet/v3/txauthor"
-	"github.com/decred/dcrwallet/wallet/v3/txsizes"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
 

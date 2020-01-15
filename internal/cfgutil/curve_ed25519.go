@@ -9,8 +9,8 @@ package cfgutil
 import (
 	"time"
 
+	"decred.org/dcrwallet/errors"
 	"github.com/decred/dcrd/certgen"
-	"github.com/decred/dcrwallet/errors/v2"
 )
 
 const (

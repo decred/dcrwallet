@@ -10,16 +10,16 @@ import (
 	"runtime"
 	"sync"
 
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/rpc/client/dcrd"
+	"decred.org/dcrwallet/validate"
+	"decred.org/dcrwallet/wallet/udb"
+	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/gcs/blockcf"
 	hd "github.com/decred/dcrd/hdkeychain/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/rpc/client/dcrd"
-	"github.com/decred/dcrwallet/validate"
-	"github.com/decred/dcrwallet/wallet/v3/udb"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 	"golang.org/x/sync/errgroup"
 )
 

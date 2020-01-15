@@ -8,11 +8,11 @@ package udb
 import (
 	"bytes"
 
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // InsertMemPoolTx inserts a memory pool transaction record.  It also marks

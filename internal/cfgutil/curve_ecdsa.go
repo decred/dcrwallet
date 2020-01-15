@@ -9,8 +9,8 @@ package cfgutil
 import (
 	"time"
 
+	"decred.org/dcrwallet/errors"
 	"github.com/decred/dcrd/certgen"
-	"github.com/decred/dcrwallet/errors/v2"
 )
 
 // PreferredCurve is the curve that should be used as the application default.

@@ -10,10 +10,10 @@ import (
 	"runtime/trace"
 	"sync"
 
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/wallet"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/wallet/v3"
 )
 
 const minconf = 1

@@ -83,32 +83,28 @@ Building or updating from source requires the following build dependencies:
   Installation instructions can be found here: https://golang.org/doc/install.
   It is recommended to add `$GOPATH/bin` to your `PATH` at this point.
 
-To build and install from a checked-out repo, run `go install` in the repo's
-root directory.  Some notes:
+To build from a local repo, run `go install` in the repo's root directory.
 
-* Set the `GO111MODULE=on` environment variable if building from within
-  `GOPATH`.
+Some notes:
+
+* Module builds are required.  When working with a source tree under
+  `$GOPATH/src`, set the `GO111MODULE=on` environment variable.
 
 * The `dcrwallet` executable will be installed to `$GOPATH/bin`.  `GOPATH`
   defaults to `$HOME/go` (or `%USERPROFILE%\go` on Windows) if unset.
 
-## Docker
-
-All tests and linters may be run in a docker container using the script
-`run_tests.sh`.  This script defaults to using the current supported version of
-go.  You can run it with the major version of go you would like to use as the
-only argument to test a previous on a previous version of go (generally decred
-supports the current version of go and the previous one).
+The `go get` command can also be used to fetch sources, build, and install
+through a single command, without needing to clone the repo.  While outside of
+any module (`go env GOMOD` prints an empty newline), run:
 
 ```
-./run_tests.sh 1.12
+GO111MODULE=on go get decred.org/dcrwallet
 ```
 
-To run the tests locally without docker:
-
-```
-./run_tests.sh local
-```
+An optional version, branch, or tag may be appended following a `@` character
+after the package name.  The implicit default is to build `@latest`, which is
+the latest semantic version tag.  Building `@master` will build the latest
+development version.  See `go help module-get` for more details.
 
 ## Getting Started
 

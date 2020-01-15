@@ -12,14 +12,14 @@ import (
 	"math/big"
 	"sync"
 
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/wallet/internal/compat"
+	"decred.org/dcrwallet/wallet/internal/snacl"
+	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/chaincfg/v2/chainec"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/hdkeychain/v2"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
-	"github.com/decred/dcrwallet/wallet/v3/internal/snacl"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 	"golang.org/x/crypto/ripemd160"
 )
 

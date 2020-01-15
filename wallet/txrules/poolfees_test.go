@@ -3,9 +3,9 @@ package txrules_test
 import (
 	"testing"
 
+	. "decred.org/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrd/chaincfg/v2"
 	"github.com/decred/dcrd/dcrutil/v2"
-	. "github.com/decred/dcrwallet/wallet/v3/txrules"
 )
 
 func TestStakePoolTicketFee(t *testing.T) {

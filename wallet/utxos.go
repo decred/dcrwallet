@@ -8,14 +8,14 @@ import (
 	"context"
 	"time"
 
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/wallet/txauthor"
+	"decred.org/dcrwallet/wallet/udb"
+	"decred.org/dcrwallet/wallet/walletdb"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/txscript/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/wallet/v3/txauthor"
-	"github.com/decred/dcrwallet/wallet/v3/udb"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // OutputSelectionPolicy describes the rules for selecting an output from the

@@ -19,8 +19,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/wallet/walletdb"
 )
 
 // errSubTestFail is used to signal that a sub test returned false.

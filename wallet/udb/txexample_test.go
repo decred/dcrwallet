@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/dcrutil/v2"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 func ExampleStore_Rollback(t *testing.T) {

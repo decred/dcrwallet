@@ -12,9 +12,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/decred/dcrwallet/errors/v2"
-	_ "github.com/decred/dcrwallet/wallet/v3/internal/bdb"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
+	"decred.org/dcrwallet/errors"
+	_ "decred.org/dcrwallet/wallet/internal/bdb"
+	"decred.org/dcrwallet/wallet/walletdb"
 )
 
 // dbType is the database type name for this driver.
