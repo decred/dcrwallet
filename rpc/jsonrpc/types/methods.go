@@ -1300,6 +1300,12 @@ type MixOutputCmd struct {
 	Outpoint string `json:"outpoint"`
 }
 
+// DiscoverUsageCmd defines the discoverusage JSON-RPC command.
+type DiscoverUsageCmd struct {
+	StartBlock       *string `json:"startblock"`
+	DiscoverAccounts *bool   `json:"discoveraccounts"`
+}
+
 type registeredMethod struct {
 	method string
 	cmd    interface{}
@@ -1321,6 +1327,7 @@ func init() {
 		{"createsignature", (*CreateSignatureCmd)(nil)},
 		{"createnewaccount", (*CreateNewAccountCmd)(nil)},
 		{"createvotingaccount", (*CreateVotingAccountCmd)(nil)},
+		{"discoverusage", (*DiscoverUsageCmd)(nil)},
 		{"dropvotingaccount", (*DropVotingAccountCmd)(nil)},
 		{"dumpprivkey", (*DumpPrivKeyCmd)(nil)},
 		{"fundrawtransaction", (*FundRawTransactionCmd)(nil)},

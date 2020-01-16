@@ -79,6 +79,11 @@ var helpDescsEnUS = map[string]string{
 	"createsignature-hashtype":              "The signature hash flags to use.",
 	"createsignature-previouspkscript":      "The the hex encoded previous output script or P2SH redeem script.",
 
+	// DiscoverUsageCmd help.
+	"discoverusage--synopsis":        "Perform address and/or account discovery",
+	"discoverusage-startblock":       "Hash of block to begin discovery from, or null to scan from the genesis block",
+	"discoverusage-discoveraccounts": "Perform account discovery in addition to address discovery.  Requires unlocked wallet.",
+
 	// DumpPrivKeyCmd help.
 	"dumpprivkey--synopsis": "Returns the private key in WIF encoding that controls some wallet address.",
 	"dumpprivkey-address":   "The address to return a private key for",

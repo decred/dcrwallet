@@ -74,6 +74,7 @@ var handlers = map[string]handler{
 	"createmultisig":          {fn: (*Server).createMultiSig},
 	"createrawtransaction":    {fn: (*Server).createRawTransaction},
 	"createsignature":         {fn: (*Server).createSignature},
+	"discoverusage":           {fn: (*Server).discoverUsage},
 	"dumpprivkey":             {fn: (*Server).dumpPrivKey},
 	"generatevote":            {fn: (*Server).generateVote},
 	"getaccount":              {fn: (*Server).getAccount},
@@ -761,6 +762,32 @@ func (s *Server) createSignature(ctx context.Context, icmd interface{}) (interfa
 		Signature: hex.EncodeToString(sig),
 		PublicKey: hex.EncodeToString(pubkey),
 	}, nil
+}
+
+func (s *Server) discoverUsage(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.DiscoverUsageCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	n, ok := s.walletLoader.NetworkBackend()
+	if !ok {
+		return nil, errNoNetwork
+	}
+
+	startBlock := w.ChainParams().GenesisHash
+	if cmd.StartBlock != nil {
+		h, err := chainhash.NewHashFromStr(*cmd.StartBlock)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "startblock: %v", err)
+		}
+		startBlock = *h
+	}
+	discoverAccounts := cmd.DiscoverAccounts != nil && *cmd.DiscoverAccounts
+
+	err := w.DiscoverActiveAddresses(ctx, n, &startBlock, discoverAccounts)
+	return nil, err
 }
 
 // dumpPrivKey handles a dumpprivkey request with the private key

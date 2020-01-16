@@ -38,6 +38,7 @@ var Methods = []struct {
 	{"createsignature", []interface{}{(*types.CreateSignatureResult)(nil)}},
 	{"createnewaccount", nil},
 	{"createrawtransaction", returnsString},
+	{"discoverusage", nil},
 	{"dumpprivkey", returnsString},
 	{"generatevote", []interface{}{(*types.GenerateVoteResult)(nil)}},
 	{"getaccountaddress", returnsString},
