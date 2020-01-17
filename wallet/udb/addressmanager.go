@@ -418,6 +418,9 @@ func deriveKey(acctInfo *accountInfo, branch, index uint32, private bool) (*hdke
 	// private child derivation.
 	acctKey := acctInfo.acctKeyPub
 	if private {
+		if acctInfo.acctKeyPriv == nil {
+			return nil, errors.Errorf("no private key for %s/%d/%d", acctInfo.acctName, branch, index)
+		}
 		acctKey = acctInfo.acctKeyPriv
 	}
 
@@ -492,7 +495,7 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 		acctKeyPub:       acctKeyPub,
 	}
 
-	if !m.locked {
+	if !m.locked && len(acctInfo.acctKeyEncrypted) != 0 {
 		// Use the crypto private key to decrypt the account private
 		// extended keys.
 		decrypted, err := m.cryptoKeyPriv.Decrypt(acctInfo.acctKeyEncrypted)
@@ -590,7 +593,10 @@ func (m *Manager) AccountExtendedPubKey(dbtx walletdb.ReadTx, account uint32) (*
 // unlocked for this operation to complete.
 func (m *Manager) AccountExtendedPrivKey(dbtx walletdb.ReadTx, account uint32) (*hdkeychain.ExtendedKey, error) {
 	if account == ImportedAddrAccount {
-		return nil, errors.E(errors.Invalid, "imported address account has no extended pubkey")
+		return nil, errors.E(errors.Invalid, "imported address account has no extended privkey")
+	}
+	if account > ImportedAddrAccount {
+		return nil, errors.E(errors.Invalid, "imported xpub account has no extended privkey")
 	}
 
 	ns := dbtx.ReadBucket(waddrmgrBucketKey)
