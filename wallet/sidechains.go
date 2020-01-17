@@ -14,7 +14,7 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/gcs"
+	gcs2 "github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -32,11 +32,11 @@ type SidechainForest struct {
 // safe for concurrent access, and all exported fields must be treated as
 // immutable.
 type BlockNode struct {
-	Header  *wire.BlockHeader
-	Hash    *chainhash.Hash
-	Filter  *gcs.Filter
-	parent  *BlockNode
-	workSum *big.Int
+	Header   *wire.BlockHeader
+	Hash     *chainhash.Hash
+	FilterV2 *gcs2.FilterV2
+	parent   *BlockNode
+	workSum  *big.Int
 }
 
 // sidechainRootedTree represents a rooted tree of blocks not currently in the
@@ -62,11 +62,11 @@ func newSideChainRootedTree(root *BlockNode) *sidechainRootedTree {
 }
 
 // NewBlockNode creates a block node for usage with a SidechainForest.
-func NewBlockNode(header *wire.BlockHeader, hash *chainhash.Hash, filter *gcs.Filter) *BlockNode {
+func NewBlockNode(header *wire.BlockHeader, hash *chainhash.Hash, filter *gcs2.FilterV2) *BlockNode {
 	return &BlockNode{
-		Header: header,
-		Hash:   hash,
-		Filter: filter,
+		Header:   header,
+		Hash:     hash,
+		FilterV2: filter,
 	}
 }
 

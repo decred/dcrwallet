@@ -97,6 +97,7 @@ var handlers = map[string]handler{
 	"getvotechoices":          {fn: (*Server).getVoteChoices},
 	"getwalletfee":            {fn: (*Server).getWalletFee},
 	"help":                    {fn: (*Server).help},
+	"importcfiltersv2":        {fn: (*Server).importCFiltersV2},
 	"importprivkey":           {fn: (*Server).importPrivKey},
 	"importscript":            {fn: (*Server).importScript},
 	"importxpub":              {fn: (*Server).importXpub},
@@ -128,6 +129,7 @@ var handlers = map[string]handler{
 	"stakepooluserinfo":       {fn: (*Server).stakePoolUserInfo},
 	"ticketsforaddress":       {fn: (*Server).ticketsForAddress},
 	"validateaddress":         {fn: (*Server).validateAddress},
+	"validatepredcp0005cf":    {fn: (*Server).validatePreDCP0005CF},
 	"verifymessage":           {fn: (*Server).verifyMessage},
 	"version":                 {fn: (*Server).version},
 	"walletinfo":              {fn: (*Server).walletInfo},
@@ -1265,6 +1267,33 @@ func (s *Server) getUnconfirmedBalance(ctx context.Context, icmd interface{}) (i
 	}
 
 	return (bals.Total - bals.Spendable).ToCoin(), nil
+}
+
+// importCFiltersV2 handles an importcfiltersv2 request by parsing the provided
+// hex-encoded filters into bytes and importing them into the wallet.
+func (s *Server) importCFiltersV2(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.ImportCFiltersV2Cmd)
+
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	filterData := make([][]byte, len(cmd.Filters))
+	for i, fdhex := range cmd.Filters {
+		var err error
+		filterData[i], err = hex.DecodeString(fdhex)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParams.Code, "filter %d is not a valid hex string", i)
+		}
+	}
+
+	err := w.ImportCFiltersV2(ctx, cmd.StartHeight, filterData)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCInvalidRequest.Code, err)
+	}
+
+	return nil, nil
 }
 
 // importPrivKey handles an importprivkey request by parsing
@@ -3575,6 +3604,17 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 	}
 
 	return result, nil
+}
+
+// validatePreDCP0005CF handles the validatepredcp0005cf command.
+func (s *Server) validatePreDCP0005CF(ctx context.Context, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	err := w.ValidatePreDCP0005CFilters(ctx)
+	return err == nil, err
 }
 
 // verifyMessage handles the verifymessage command by verifying the provided

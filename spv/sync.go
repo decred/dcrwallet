@@ -20,7 +20,7 @@ import (
 	"decred.org/dcrwallet/wallet"
 	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/gcs/blockcf"
+	"github.com/decred/dcrd/gcs/v2/blockcf2"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
 )
@@ -55,7 +55,7 @@ type Syncer struct {
 	// TODO: Replace precise rescan filter with wallet db accesses to avoid
 	// needing to keep all relevant data in memory.
 	rescanFilter *wallet.RescanFilter
-	filterData   blockcf.Entries
+	filterData   blockcf2.Entries
 	filterMu     sync.Mutex
 
 	// seenTxs records hashes of received inventoried transactions.  Once a
@@ -794,8 +794,8 @@ FilterLoop:
 		worker := func() {
 			for i := range c {
 				n := chain[i]
-				f := n.Filter
-				k := blockcf.Key(n.Hash)
+				f := n.FilterV2
+				k := blockcf2.Key(&n.Header.MerkleRoot)
 				if f.N() != 0 && f.MatchAny(k, filterData) {
 					fmatchMu.Lock()
 					fmatches = append(fmatches, n.Hash)
@@ -838,11 +838,6 @@ FilterLoop:
 				if err != nil {
 					err = validate.DCP0005MerkleRoot(b)
 				}
-				if err != nil {
-					rp.Disconnect(err)
-					return nil, err
-				}
-				err = validate.RegularCFilter(b, chain[i].Filter)
 				if err != nil {
 					rp.Disconnect(err)
 					return nil, err
@@ -898,7 +893,7 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 		hash := h.BlockHash()
 		blockHashes = append(blockHashes, &hash)
 	}
-	filters, err := rp.CFilters(ctx, blockHashes)
+	filters, err := rp.CFiltersV2(ctx, blockHashes)
 	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -909,6 +904,7 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 	newBlocks := make([]*wallet.BlockNode, 0, len(headers))
 	var bestChain []*wallet.BlockNode
 	var matchingTxs map[chainhash.Hash][]*wire.MsgTx
+	cnet := s.wallet.ChainParams().Net
 	err = func() error {
 		defer s.sidechainMu.Unlock()
 		s.sidechainMu.Lock()
@@ -921,7 +917,17 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 			if haveBlock {
 				continue
 			}
-			n := wallet.NewBlockNode(headers[i], blockHashes[i], filters[i])
+
+			cf := filters[i]
+			filter, proofIndex, proof := cf.Filter, cf.ProofIndex, cf.Proof
+
+			err = validate.CFilterV2HeaderCommitment(cnet, headers[i],
+				filter, proofIndex, proof)
+			if err != nil {
+				return err
+			}
+
+			n := wallet.NewBlockNode(headers[i], blockHashes[i], filter)
 			if s.sidechains.AddBlockNode(n) {
 				newBlocks = append(newBlocks, n)
 			}
@@ -1025,6 +1031,7 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 	s.locatorMu.Unlock()
 
 	var lastHeight int32
+	cnet := s.wallet.ChainParams().Net
 
 	for {
 		headers, err := rp.Headers(ctx, locators, &hashStop)
@@ -1058,10 +1065,17 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 			g.Go(func() error {
 				header := headers[i]
 				hash := header.BlockHash()
-				filter, err := rp.CFilter(ctx, &hash)
+				filter, proofIndex, proof, err := rp.CFilterV2(ctx, &hash)
 				if err != nil {
 					return err
 				}
+
+				err = validate.CFilterV2HeaderCommitment(cnet, header,
+					filter, proofIndex, proof)
+				if err != nil {
+					return err
+				}
+
 				nodes[i] = wallet.NewBlockNode(header, &hash, filter)
 				return nil
 			})

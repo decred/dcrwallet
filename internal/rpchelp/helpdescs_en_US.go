@@ -300,6 +300,11 @@ var helpDescsEnUS = map[string]string{
 	"gettransactiondetailsresult-vout":              "The transaction output index",
 	"gettransactiondetailsresult-involveswatchonly": "Unset",
 
+	// ImportCFiltersV2Cmd help.
+	"importcfiltersv2--synopsis":   "Imports a list of v2 cfilters into the wallet. Does not perform validation on the filters",
+	"importcfiltersv2-startheight": "The starting block height for this list of cfilters",
+	"importcfiltersv2-filters":     "The list of hex-encoded cfilters",
+
 	// ImportPrivKeyCmd help.
 	"importprivkey--synopsis": "Imports a WIF-encoded private key to the 'imported' account.",
 	"importprivkey-privkey":   "The WIF-encoded private key",
@@ -574,6 +579,10 @@ var helpDescsEnUS = map[string]string{
 	"validateaddressresult-hex":          "The redeem script ",
 	"validateaddressresult-script":       "The class of redeem script for a multisig address",
 	"validateaddressresult-sigsrequired": "The number of required signatures to redeem outputs to the multisig address",
+
+	// ValidatePreDCP0005CFCmd help
+	"validatepredcp0005cf--synopsis": "Validate whether all stored cfilters from before DCP0005 activation are correct according to the expected hardcoded hash",
+	"validatepredcp0005cf--result0":  "Whether the cfilters are valid",
 
 	// VerifyMessageCmd help.
 	"verifymessage--synopsis": "Verify a message was signed with the associated private key of some address.",

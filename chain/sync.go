@@ -16,6 +16,7 @@ import (
 
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/rpc/client/dcrd"
+	"decred.org/dcrwallet/validate"
 	"decred.org/dcrwallet/wallet"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
@@ -328,6 +329,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		return err
 	}
 
+	cnet := s.wallet.ChainParams().Net
 	s.fetchHeadersStart()
 	for {
 		if err := ctx.Err(); err != nil {
@@ -348,10 +350,17 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 			g.Go(func() error {
 				header := headers[i]
 				hash := header.BlockHash()
-				filter, err := s.rpc.CFilter(ctx, &hash)
+				filter, proofIndex, proof, err := s.rpc.CFilterV2(ctx, &hash)
 				if err != nil {
 					return err
 				}
+
+				err = validate.CFilterV2HeaderCommitment(cnet, header,
+					filter, proofIndex, proof)
+				if err != nil {
+					return err
+				}
+
 				nodes[i] = wallet.NewBlockNode(header, &hash, filter)
 				return nil
 			})
@@ -582,7 +591,13 @@ func (s *Syncer) blockConnected(ctx context.Context, params json.RawMessage) err
 	}
 
 	blockHash := header.BlockHash()
-	filter, err := s.rpc.CFilter(ctx, &blockHash)
+	filter, proofIndex, proof, err := s.rpc.CFilterV2(ctx, &blockHash)
+	if err != nil {
+		return err
+	}
+
+	cnet := s.wallet.ChainParams().Net
+	err = validate.CFilterV2HeaderCommitment(cnet, header, filter, proofIndex, proof)
 	if err != nil {
 		return err
 	}

@@ -1268,6 +1268,15 @@ type DiscoverUsageCmd struct {
 	DiscoverAccounts *bool   `json:"discoveraccounts"`
 }
 
+// ValidatePreDCP0005CFCmd defines the validatepredcp0005cf JSON-RPC command.
+type ValidatePreDCP0005CFCmd struct{}
+
+// ImportCfiltersV2Cmd defines the importcfiltersv2 JSON-RPC command.
+type ImportCFiltersV2Cmd struct {
+	StartHeight int32    `json:"startheight"`
+	Filters     []string `json:"filters"`
+}
+
 type registeredMethod struct {
 	method string
 	cmd    interface{}
@@ -1312,6 +1321,7 @@ func init() {
 		{"getunconfirmedbalance", (*GetUnconfirmedBalanceCmd)(nil)},
 		{"getvotechoices", (*GetVoteChoicesCmd)(nil)},
 		{"getwalletfee", (*GetWalletFeeCmd)(nil)},
+		{"importcfiltersv2", (*ImportCFiltersV2Cmd)(nil)},
 		{"importprivkey", (*ImportPrivKeyCmd)(nil)},
 		{"importscript", (*ImportScriptCmd)(nil)},
 		{"importxpub", (*ImportXpubCmd)(nil)},
@@ -1346,6 +1356,7 @@ func init() {
 		{"stakepooluserinfo", (*StakePoolUserInfoCmd)(nil)},
 		{"sweepaccount", (*SweepAccountCmd)(nil)},
 		{"verifyseed", (*VerifySeedCmd)(nil)},
+		{"validatepredcp0005cf", (*ValidatePreDCP0005CFCmd)(nil)},
 		{"walletinfo", (*WalletInfoCmd)(nil)},
 		{"walletislocked", (*WalletIsLockedCmd)(nil)},
 		{"walletlock", (*WalletLockCmd)(nil)},

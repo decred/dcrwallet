@@ -18,13 +18,13 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/gcs"
+	gcs2 "github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
 
 func (w *Wallet) extendMainChain(ctx context.Context, op errors.Op, dbtx walletdb.ReadWriteTx,
-	header *wire.BlockHeader, f *gcs.Filter, transactions []*wire.MsgTx) ([]wire.OutPoint, error) {
+	header *wire.BlockHeader, f *gcs2.FilterV2, transactions []*wire.MsgTx) ([]wire.OutPoint, error) {
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
 	blockHash := header.BlockHash()
@@ -110,7 +110,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 				if err != nil {
 					return err
 				}
-				filter, err := w.txStore.CFilter(dbtx, &hash)
+				_, filter, err := w.txStore.CFilterV2(dbtx, &hash)
 				if err != nil {
 					return err
 				}
@@ -145,7 +145,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 					"wallet to the latest version.", voteVersion(w.chainParams))
 			}
 
-			watch, err := w.extendMainChain(ctx, op, dbtx, n.Header, n.Filter, relevantTxs[*n.Hash])
+			watch, err := w.extendMainChain(ctx, op, dbtx, n.Header, n.FilterV2, relevantTxs[*n.Hash])
 			if err != nil {
 				return err
 			}

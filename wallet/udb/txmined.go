@@ -21,8 +21,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/gcs"
-	"github.com/decred/dcrd/gcs/blockcf"
+	gcs2 "github.com/decred/dcrd/gcs/v2"
+	"github.com/decred/dcrd/gcs/v2/blockcf2"
 	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/crypto/ripemd160"
@@ -189,7 +189,7 @@ func (s *Store) MainChainTip(ns walletdb.ReadBucket) (chainhash.Hash, int32) {
 //
 // The main chain tip may not be extended unless compact filters have been saved
 // for all existing main chain blocks.
-func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *wire.BlockHeader, f *gcs.Filter) error {
+func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *wire.BlockHeader, f *gcs2.FilterV2) error {
 	height := int32(header.Height)
 	if height < 1 {
 		return errors.E(errors.Invalid, "block 0 cannot be added")
@@ -257,8 +257,9 @@ func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *wire.BlockH
 		return err
 	}
 
-	// Save the compact filter
-	return putRawCFilter(ns, blockHash[:], f.NBytes())
+	// Save the compact filter.
+	bcf2Key := blockcf2.Key(&header.MerkleRoot)
+	return putRawCFilter(ns, blockHash[:], valueRawCFilter2(bcf2Key, f.Bytes()))
 }
 
 // ProcessedTxsBlockMarker returns the hash of the block which records the last
@@ -328,7 +329,7 @@ func (s *Store) MissingCFiltersHeight(dbtx walletdb.ReadTx) (int32, error) {
 	defer c.Close()
 	for k, v := c.First(); k != nil; k, v = c.Next() {
 		hash := extractRawBlockRecordHash(v)
-		_, err := fetchRawCFilter(ns, hash)
+		_, _, err := fetchRawCFilter2(ns, hash)
 		if errors.Is(err, errors.NotExist) {
 			height := int32(byteOrder.Uint32(k))
 			return height, nil
@@ -344,7 +345,7 @@ func (s *Store) MissingCFiltersHeight(dbtx walletdb.ReadTx) (int32, error) {
 // called incrementally to record all main chain block cfilters.  When all
 // cfilters of the main chain are recorded, extending the main chain becomes
 // possible again.
-func (s *Store) InsertMissingCFilters(dbtx walletdb.ReadWriteTx, blockHashes []*chainhash.Hash, filters []*gcs.Filter) error {
+func (s *Store) InsertMissingCFilters(dbtx walletdb.ReadWriteTx, blockHashes []*chainhash.Hash, filters []*gcs2.FilterV2) error {
 	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
 	v := ns.Get(rootHaveCFilters)
 	if len(v) == 1 && v[0] != 0 {
@@ -362,14 +363,21 @@ func (s *Store) InsertMissingCFilters(dbtx walletdb.ReadWriteTx, blockHashes []*
 		// Ensure that blockHashes are ordered and that all previous cfilters in the
 		// main chain are known.
 		ok := i == 0 && *blockHash == s.chainParams.GenesisHash
+		var bcf2Key [gcs2.KeySize]byte
 		if !ok {
 			header := existsBlockHeader(ns, blockHash[:])
 			if header == nil {
 				return errors.E(errors.NotExist, errors.Errorf("missing header for block %v", blockHash))
 			}
 			parentHash := extractBlockHeaderParentHash(header)
+			merkleRoot := extractBlockHeaderMerkleRoot(header)
+			merkleRootHash, err := chainhash.NewHash(merkleRoot)
+			if err != nil {
+				return errors.E(errors.Invalid, errors.Errorf("invalid stored header %v", blockHash))
+			}
+			bcf2Key = blockcf2.Key(merkleRootHash)
 			if i == 0 {
-				_, err := fetchRawCFilter(ns, parentHash)
+				_, _, err := fetchRawCFilter2(ns, parentHash)
 				ok = err == nil
 			} else {
 				ok = bytes.Equal(parentHash, blockHashes[i-1][:])
@@ -380,7 +388,7 @@ func (s *Store) InsertMissingCFilters(dbtx walletdb.ReadWriteTx, blockHashes []*
 		}
 
 		// Record cfilter for this block
-		err := putRawCFilter(ns, blockHash[:], filters[i].NBytes())
+		err := putRawCFilter(ns, blockHash[:], valueRawCFilter2(bcf2Key, filters[i].Bytes()))
 		if err != nil {
 			return err
 		}
@@ -402,7 +410,8 @@ func (s *Store) InsertMissingCFilters(dbtx walletdb.ReadWriteTx, blockHashes []*
 // BlockCFilter is a compact filter for a Decred block.
 type BlockCFilter struct {
 	BlockHash chainhash.Hash
-	Filter    *gcs.Filter
+	FilterV2  *gcs2.FilterV2
+	Key       [gcs2.KeySize]byte
 }
 
 // GetMainChainCFilters returns compact filters from the main chain, starting at
@@ -431,17 +440,17 @@ func (s *Store) GetMainChainCFilters(dbtx walletdb.ReadTx, startHash *chainhash.
 			break
 		}
 		blockHash := extractRawBlockRecordHash(v)
-		rawFilter, err := fetchRawCFilter(ns, blockHash)
+		bcf2Key, rawFilter, err := fetchRawCFilter2(ns, blockHash)
 		if err != nil {
 			return nil, err
 		}
 		fCopy := make([]byte, len(rawFilter))
 		copy(fCopy, rawFilter)
-		f, err := gcs.FromNBytes(blockcf.P, fCopy)
+		f, err := gcs2.FromBytesV2(blockcf2.B, blockcf2.M, fCopy)
 		if err != nil {
 			return nil, err
 		}
-		bf := &BlockCFilter{Filter: f}
+		bf := &BlockCFilter{FilterV2: f, Key: bcf2Key}
 		copy(bf.BlockHash[:], blockHash)
 		storage[storageUsed] = bf
 
@@ -454,6 +463,11 @@ func (s *Store) GetMainChainCFilters(dbtx walletdb.ReadTx, startHash *chainhash.
 func extractBlockHeaderParentHash(header []byte) []byte {
 	const parentOffset = 4
 	return header[parentOffset : parentOffset+chainhash.HashSize]
+}
+
+func extractBlockHeaderMerkleRoot(header []byte) []byte {
+	const merkleRootOffset = 36
+	return header[merkleRootOffset : merkleRootOffset+chainhash.HashSize]
 }
 
 // ExtractBlockHeaderParentHash subslices the header to return the bytes of the

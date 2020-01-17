@@ -709,3 +709,53 @@ func (s *Store) Spender(dbtx walletdb.ReadTx, out *wire.OutPoint) (*wire.MsgTx, 
 	}
 	return &spender, spenderIndex, nil
 }
+
+// RangeBlocks execute function `f` for all blocks within the given range of
+// blocks in the main chain.
+func (s *Store) RangeBlocks(ns walletdb.ReadBucket, begin, end int32,
+	f func(*Block) (bool, error)) error {
+
+	// Same convention as rangeTransactions: -1 means the full range.
+	if begin < 0 {
+		begin = int32(^uint32(0) >> 1)
+	}
+	if end < 0 {
+		end = int32(^uint32(0) >> 1)
+	}
+
+	var blockIter blockIterator
+	var advance func(*blockIterator) bool
+
+	if begin < end {
+		// Iterate in forwards order
+		blockIter = makeReadBlockIterator(ns, begin)
+		defer blockIter.close()
+		advance = func(it *blockIterator) bool {
+			if !it.next() {
+				return false
+			}
+			return it.elem.Height <= end
+		}
+	} else {
+		// Iterate in backwards order, from begin -> end.
+		blockIter = makeReadBlockIterator(ns, begin)
+		defer blockIter.close()
+		advance = func(it *blockIterator) bool {
+			if !it.prev() {
+				return false
+			}
+			return end <= it.elem.Height
+		}
+	}
+
+	for advance(&blockIter) {
+		block := &blockIter.elem
+
+		brk, err := f(&block.Block)
+		if err != nil || brk {
+			return err
+		}
+	}
+
+	return nil
+}

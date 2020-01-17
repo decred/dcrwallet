@@ -26,6 +26,8 @@ import (
 	"github.com/decred/dcrd/connmgr/v3"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"
+	gcs2 "github.com/decred/dcrd/gcs/v2"
+	"github.com/decred/dcrd/gcs/v2/blockcf2"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
 )
@@ -36,8 +38,12 @@ const uaName = "dcrwallet"
 // uaVersion is the LocalPeer useragent version.
 var uaVersion = version.String()
 
+// minPver is the minimum protocol version we require remote peers to
+// implement.
+const minPver = wire.CFilterV2Version
+
 // Pver is the maximum protocol version implemented by the LocalPeer.
-const Pver = wire.NodeCFVersion
+const Pver = wire.CFilterV2Version
 
 const maxOutboundConns = 8
 
@@ -81,10 +87,11 @@ type RemotePeer struct {
 	outPrio chan *msgAck
 	pongs   chan *wire.MsgPong
 
-	requestedBlocks   sync.Map // k=chainhash.Hash v=chan<- *wire.MsgBlock
-	requestedCFilters sync.Map // k=chainhash.Hash v=chan<- *wire.MsgCFilter
-	requestedTxs      map[chainhash.Hash]chan<- *wire.MsgTx
-	requestedTxsMu    sync.Mutex
+	requestedBlocks     sync.Map // k=chainhash.Hash v=chan<- *wire.MsgBlock
+	requestedCFilters   sync.Map // k=chainhash.Hash v=chan<- *wire.MsgCFilter
+	requestedCFiltersV2 sync.Map // k=chainhash.Hash v=chan<- *wire.MsgCFilterV2
+	requestedTxs        map[chainhash.Hash]chan<- *wire.MsgTx
+	requestedTxsMu      sync.Mutex
 
 	// headers message management.  Headers can either be fetched synchronously
 	// or used to push block notifications with sendheaders.
@@ -437,6 +444,9 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *wire.NetAddres
 	rp.ua = rversion.UserAgent
 
 	// Negotiate protocol down to compatible version
+	if uint32(rversion.ProtocolVersion) < minPver {
+		return nil, errors.E(op, errors.Protocol, "remote peer has pver lower than minimum required")
+	}
 	if uint32(rversion.ProtocolVersion) < rp.pver {
 		rp.pver = uint32(rversion.ProtocolVersion)
 	}
@@ -652,6 +662,8 @@ func (rp *RemotePeer) readMessages(ctx context.Context) error {
 				rp.receivedBlock(ctx, m)
 			case *wire.MsgCFilter:
 				rp.receivedCFilter(ctx, m)
+			case *wire.MsgCFilterV2:
+				rp.receivedCFilterV2(ctx, m)
 			case *wire.MsgNotFound:
 				rp.receivedNotFound(ctx, m)
 			case *wire.MsgTx:
@@ -834,8 +846,17 @@ func (rp *RemotePeer) addRequestedCFilter(hash *chainhash.Hash, c chan<- *wire.M
 	return !loaded
 }
 
+func (rp *RemotePeer) addRequestedCFilterV2(hash *chainhash.Hash, c chan<- *wire.MsgCFilterV2) (newRequest bool) {
+	_, loaded := rp.requestedCFiltersV2.LoadOrStore(*hash, c)
+	return !loaded
+}
+
 func (rp *RemotePeer) deleteRequestedCFilter(hash *chainhash.Hash) {
 	rp.requestedCFilters.Delete(*hash)
+}
+
+func (rp *RemotePeer) deleteRequestedCFilterV2(hash *chainhash.Hash) {
+	rp.requestedCFiltersV2.Delete(*hash)
 }
 
 func (rp *RemotePeer) receivedCFilter(ctx context.Context, msg *wire.MsgCFilter) {
@@ -850,6 +871,25 @@ func (rp *RemotePeer) receivedCFilter(ctx context.Context, msg *wire.MsgCFilter)
 	}
 	rp.requestedCFilters.Delete(k)
 	c := v.(chan<- *wire.MsgCFilter)
+	select {
+	case <-ctx.Done():
+	case c <- msg:
+	}
+}
+
+func (rp *RemotePeer) receivedCFilterV2(ctx context.Context, msg *wire.MsgCFilterV2) {
+	const opf = "remotepeer(%v).receivedCFilterV2(%v)"
+	var k interface{} = msg.BlockHash
+	v, ok := rp.requestedCFiltersV2.Load(k)
+	if !ok {
+		op := errors.Opf(opf, rp.raddr, &msg.BlockHash)
+		err := errors.E(op, errors.Protocol, "received unrequested cfilter")
+		rp.Disconnect(err)
+		return
+	}
+
+	rp.requestedCFiltersV2.Delete(k)
+	c := v.(chan<- *wire.MsgCFilterV2)
 	select {
 	case <-ctx.Done():
 	case c <- msg:
@@ -1206,6 +1246,9 @@ func (rp *RemotePeer) Transactions(ctx context.Context, hashes []*chainhash.Hash
 
 // CFilter requests a regular compact filter from a RemotePeer using getcfilter.
 // The same block can not be requested concurrently from the same peer.
+//
+// Deprecated: Prefer using CFilterV2 as that information is comitted to in the
+// header.
 func (rp *RemotePeer) CFilter(ctx context.Context, blockHash *chainhash.Hash) (*gcs.Filter, error) {
 	const opf = "remotepeer(%v).CFilter(%v)"
 
@@ -1257,6 +1300,9 @@ func (rp *RemotePeer) CFilter(ctx context.Context, blockHash *chainhash.Hash) (*
 // CFilters requests cfilters for all blocks described by blockHashes.  This
 // is currently implemented by making many separate getcfilter requests
 // concurrently and waiting on every result.
+//
+// Deprecated: Prefer using CFiltersV2 as those filters are committed to in the
+// headers.
 func (rp *RemotePeer) CFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error) {
 	const opf = "remotepeer(%v).CFilters"
 
@@ -1269,6 +1315,108 @@ func (rp *RemotePeer) CFilters(ctx context.Context, blockHashes []*chainhash.Has
 		g.Go(func() error {
 			f, err := rp.CFilter(ctx, blockHashes[i])
 			filters[i] = f
+			return err
+		})
+	}
+	err := g.Wait()
+	if err != nil {
+		return nil, err
+	}
+	return filters, nil
+}
+
+// CFilterV2 requests a version 2 regular compact filter from a RemotePeer
+// using getcfilterv2.  The same block can not be requested concurrently from
+// the same peer.
+//
+// The inclusion proof data that ensures the cfilter is committed to in the
+// header is returned as well.
+func (rp *RemotePeer) CFilterV2(ctx context.Context, blockHash *chainhash.Hash) (*gcs2.FilterV2, uint32, []chainhash.Hash, error) {
+	const opf = "remotepeer(%v).CFilterV2(%v)"
+
+	if rp.pver < wire.CFilterV2Version {
+		op := errors.Opf(opf, rp.raddr, blockHash)
+		err := errors.Errorf("protocol version %v is too low to fetch cfiltersv2 from this peer", rp.pver)
+		return nil, 0, nil, errors.E(op, errors.Protocol, err)
+	}
+
+	m := wire.NewMsgGetCFilterV2(blockHash)
+	c := make(chan *wire.MsgCFilterV2, 1)
+	if !rp.addRequestedCFilterV2(blockHash, c) {
+		op := errors.Opf(opf, rp.raddr, blockHash)
+		return nil, 0, nil, errors.E(op, errors.Invalid, "cfilterv2 is already being requested from this peer for this block")
+	}
+	stalled := time.NewTimer(stallTimeout)
+	out := rp.out
+	for {
+		select {
+		case <-ctx.Done():
+			go func() {
+				<-stalled.C
+				rp.deleteRequestedCFilterV2(blockHash)
+			}()
+			return nil, 0, nil, ctx.Err()
+		case <-stalled.C:
+			rp.deleteRequestedCFilterV2(blockHash)
+			op := errors.Opf(opf, rp.raddr, blockHash)
+			err := errors.E(op, errors.IO, "peer appears stalled")
+			rp.Disconnect(err)
+			return nil, 0, nil, err
+		case <-rp.errc:
+			stalled.Stop()
+			return nil, 0, nil, rp.err
+		case out <- &msgAck{m, nil}:
+			out = nil
+		case m := <-c:
+			stalled.Stop()
+			var f *gcs2.FilterV2
+			var err error
+			f, err = gcs2.FromBytesV2(blockcf2.B, blockcf2.M, m.Data)
+			if err != nil {
+				op := errors.Opf(opf, rp.raddr, blockHash)
+				return nil, 0, nil, errors.E(op, err)
+			}
+			return f, m.ProofIndex, m.ProofHashes, nil
+		}
+	}
+
+}
+
+// filterProof is an alias to the same anonymous struct as wallet package's
+// FilterProof struct.
+type filterProof = struct {
+	Filter     *gcs2.FilterV2
+	ProofIndex uint32
+	Proof      []chainhash.Hash
+}
+
+// CFiltersV2 requests version 2 cfilters for all blocks described by
+// blockHashes.  This is currently implemented by making many separate
+// getcfilter requests concurrently and waiting on every result.
+//
+// Note: returning a []func() is an ugly hack to prevent a cyclical dependency
+// between the rpc package and the wallet package.
+func (rp *RemotePeer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]filterProof, error) {
+	const opf = "remotepeer(%v).CFiltersV2"
+
+	// TODO: this is spammy and would be better implemented with a single
+	// request/response.
+	type result struct {
+		filter     *gcs2.FilterV2
+		proofIndex uint32
+		proof      []chainhash.Hash
+	}
+	filters := make([]filterProof, len(blockHashes))
+	g, ctx := errgroup.WithContext(ctx)
+	for i := range blockHashes {
+		i := i
+		g.Go(func() error {
+			f, pi, prf, err := rp.CFilterV2(ctx, blockHashes[i])
+			filters[i] = filterProof{
+				Filter:     f,
+				ProofIndex: pi,
+				Proof:      prf,
+			}
 			return err
 		})
 	}

@@ -16,6 +16,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"
+	gcs2 "github.com/decred/dcrd/gcs/v2"
+	"github.com/decred/dcrd/gcs/v2/blockcf2"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -58,6 +60,61 @@ func (f *cfilter) Deserialize(r io.Reader) error {
 	}
 	f.Filter, err = gcs.FromNBytes(blockcf.P, b)
 	return err
+}
+
+// cfilterV2 implements deserializer to read a version 2 committed filter from
+// a io.Reader.  Filters are assumed to be serialized as <n filter> with
+// consensus-determined B and M values.
+//
+// Note that this is only the deserializer for the raw filter data and *not*
+// for the full response to a cfilterv2 call (see cfilterv2Reply for that).
+type cfilterV2 struct {
+	Filter *gcs2.FilterV2
+}
+
+func (f *cfilterV2) Deserialize(r io.Reader) error {
+	b, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	f.Filter, err = gcs2.FromBytesV2(blockcf2.B, blockcf2.M, b)
+	return err
+}
+
+func (f *cfilterV2) UnmarshalJSON(j []byte) error {
+	if len(j)&1 == 1 || j[0] != '"' || j[len(j)-1] != '"' {
+		return errors.E(errors.Encoding, "cfilterv2 is not an even hex string")
+	}
+
+	b := make([]byte, len(j)/2-1)
+	_, err := hex.Decode(b, j[1:len(j)-1])
+	if err != nil {
+		return errors.E(errors.Encoding, err)
+	}
+
+	f.Filter, err = gcs2.FromBytesV2(blockcf2.B, blockcf2.M, b)
+	return err
+}
+
+// cfilterv2Reply implements the reply to a cfilterv2 query to a dcrd rpc
+// server.
+type cfilterV2Reply struct {
+	Filter      *cfilterV2 `json:"data"`
+	ProofIndex  uint32     `json:"proofindex"`
+	ProofHashes *hashes    `json:"proofhashes"`
+}
+
+// hashes converts the internal []*chainhash.Hash to a []chainhash.Hash used by
+// inclusion proofs.
+func (r cfilterV2Reply) proofHashes() []chainhash.Hash {
+	if r.ProofHashes == nil {
+		return nil
+	}
+	h := make([]chainhash.Hash, len(r.ProofHashes.Hashes))
+	for i, hp := range r.ProofHashes.Hashes {
+		h[i] = *hp
+	}
+	return h
 }
 
 // hash implements json.Unmarshaler to decode 32-byte reversed hex hashes.

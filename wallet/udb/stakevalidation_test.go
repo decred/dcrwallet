@@ -13,12 +13,12 @@ import (
 	_ "decred.org/dcrwallet/wallet/internal/bdb"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/gcs"
+	gcs2 "github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/wire"
 )
 
 func insertMainChainHeaders(s *Store, ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket,
-	headerData []BlockHeaderData, filters []*gcs.Filter) error {
+	headerData []BlockHeaderData, filters []*gcs2.FilterV2) error {
 
 	for i := range headerData {
 		h := &headerData[i]

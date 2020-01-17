@@ -12,7 +12,8 @@ import (
 	"github.com/decred/dcrd/blockchain/v3/chaingen"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/gcs/blockcf"
+	"github.com/decred/dcrd/gcs/v2/blockcf2"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -39,25 +40,42 @@ func maketg(t *testing.T, params *chaincfg.Params) *tg {
 	return &tg{t, &g}
 }
 
+// chaingenPrevScripter is only usable when all spent utxos use the default
+// chaingen OP_TRUE p2sh pkscript.
+type chaingenPrevScripter struct{}
+
+func (cps chaingenPrevScripter) PrevScript(*wire.OutPoint) (uint16, []byte, bool) {
+	// All scripts generated internally by chaingen are the same p2sh
+	// OP_TRUE.
+	script := []byte{
+		txscript.OP_HASH160,
+		// txscript.hash160([]byte{OP_TRUE})
+		0xf5, 0xa8, 0x30, 0x2e, 0xe8, 0x69, 0x5b, 0xf8, 0x36, 0x25,
+		0x8b, 0x8f, 0x2b, 0x57, 0xb3, 0x8a, 0x0b, 0xe1, 0x4e, 0x47,
+		txscript.OP_EQUAL,
+	}
+	return 0, script, true
+}
+
 func (tg *tg) createBlockOne(name string) *gblock {
 	blockOne := tg.CreateBlockOne(name, 0)
-	f, err := blockcf.Regular(blockOne)
+	f, err := blockcf2.Regular(blockOne, chaingenPrevScripter{})
 	if err != nil {
 		tg.Fatal(err)
 	}
 	h := blockOne.BlockHash()
-	n := &BlockNode{Header: &blockOne.Header, Hash: &h, Filter: f}
+	n := &BlockNode{Header: &blockOne.Header, Hash: &h, FilterV2: f}
 	return &gblock{blockOne, n}
 }
 
 func (tg *tg) nextBlock(blockName string, spend *chaingen.SpendableOut, ticketSpends []chaingen.SpendableOut) *gblock {
 	b := tg.NextBlock(blockName, spend, ticketSpends)
-	f, err := blockcf.Regular(b)
+	f, err := blockcf2.Regular(b, chaingenPrevScripter{})
 	if err != nil {
 		tg.Fatal(err)
 	}
 	h := b.BlockHash()
-	n := &BlockNode{Header: &b.Header, Hash: &h, Filter: f}
+	n := &BlockNode{Header: &b.Header, Hash: &h, FilterV2: f}
 	return &gblock{b, n}
 }
 

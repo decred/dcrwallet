@@ -7,7 +7,7 @@ package spv
 
 import (
 	"github.com/decred/dcrd/blockchain/stake/v3"
-	"github.com/decred/dcrd/gcs/blockcf"
+	"github.com/decred/dcrd/gcs/v2/blockcf2"
 	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
@@ -19,7 +19,7 @@ import (
 // added to fadded.
 //
 // This function may only be called with the filter mutex held.
-func (s *Syncer) rescanCheckTransactions(matches *[]*wire.MsgTx, fadded *blockcf.Entries, txs []*wire.MsgTx, tree int8) {
+func (s *Syncer) rescanCheckTransactions(matches *[]*wire.MsgTx, fadded *blockcf2.Entries, txs []*wire.MsgTx, tree int8) {
 	for i, tx := range txs {
 		// Keep track of whether the transaction has already been added
 		// to the result.  It shouldn't be added twice.
@@ -71,8 +71,6 @@ func (s *Syncer) rescanCheckTransactions(matches *[]*wire.MsgTx, fadded *blockcf
 				}
 				if !s.rescanFilter.ExistsUnspentOutPoint(&op) {
 					s.rescanFilter.AddUnspentOutPoint(&op)
-					s.filterData.AddOutPoint(&op)
-					fadded.AddOutPoint(&op)
 				}
 
 				if !added {
@@ -87,7 +85,7 @@ func (s *Syncer) rescanCheckTransactions(matches *[]*wire.MsgTx, fadded *blockcf
 // rescanBlock rescans a block for any relevant transactions for the passed
 // lookup keys.  Returns any discovered transactions and any new data added to
 // the filter.
-func (s *Syncer) rescanBlock(block *wire.MsgBlock) (matches []*wire.MsgTx, fadded blockcf.Entries) {
+func (s *Syncer) rescanBlock(block *wire.MsgBlock) (matches []*wire.MsgTx, fadded blockcf2.Entries) {
 	s.filterMu.Lock()
 	s.rescanCheckTransactions(&matches, &fadded, block.STransactions, wire.TxTreeStake)
 	s.rescanCheckTransactions(&matches, &fadded, block.Transactions, wire.TxTreeRegular)

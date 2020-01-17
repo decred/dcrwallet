@@ -1922,20 +1922,36 @@ func existsMultisigOutUS(ns walletdb.ReadBucket, k []byte) bool {
 // blocks can be processed.
 //
 // Compact filters are keyed by their block hash.  The value is the serialized
-// filter.
+// as such:
+//
+// 	[0:16]	Key used to search for values in the filter (i.e. the
+// 		merkle root of the block).
+// 	[16:]	The data for the filter.
+
+func valueRawCFilter2(key [16]byte, data []byte) []byte {
+	v := make([]byte, 16+len(data))
+	copy(v[:], key[:])
+	copy(v[16:], data)
+	return v
+}
 
 func putRawCFilter(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	return ns.NestedReadWriteBucket(bucketCFilters).Put(k, v)
 }
 
-func fetchRawCFilter(ns walletdb.ReadBucket, k []byte) ([]byte, error) {
+func fetchRawCFilter2(ns walletdb.ReadBucket, k []byte) ([16]byte, []byte, error) {
+	var bcf2Key [16]byte
 	v := ns.NestedReadBucket(bucketCFilters).Get(k)
 	if v == nil {
 		var hash chainhash.Hash
 		copy(hash[:], k)
-		return nil, errors.E(errors.NotExist, errors.Errorf("no cfilter saved for block %v", &hash))
+		return bcf2Key, nil, errors.E(errors.NotExist, errors.Errorf("no cfilter saved for block %v", &hash))
 	}
-	return v, nil
+	if len(v) < 16 {
+		return bcf2Key, nil, errors.E(errors.IO, errors.Errorf("cfilter data len: %d", len(v)))
+	}
+	copy(bcf2Key[:], v)
+	return bcf2Key, v[16:], nil
 }
 
 // The ticket commitments bucket stores serialized information about ticket

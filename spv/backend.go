@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/gcs"
-	"github.com/decred/dcrd/gcs/blockcf"
+	gcs2 "github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
@@ -66,6 +66,32 @@ func (s *Syncer) CFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([
 	}
 }
 
+// filterProof is an alias to the same anonymous struct as wallet package's
+// FilterProof struct.
+type filterProof = struct {
+	Filter     *gcs2.FilterV2
+	ProofIndex uint32
+	Proof      []chainhash.Hash
+}
+
+// CFilters implements the CFiltersV2 method of the wallet.Peer interface.
+func (s Syncer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]filterProof, error) {
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		rp, err := s.pickRemote(pickAny)
+		if err != nil {
+			return nil, err
+		}
+		fs, err := rp.CFiltersV2(ctx, blockHashes)
+		if err != nil {
+			continue
+		}
+		return fs, nil
+	}
+}
+
 // Headers implements the Headers method of the wallet.Peer interface.
 func (s *Syncer) Headers(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([]*wire.BlockHeader, error) {
 	for {
@@ -93,6 +119,10 @@ func (s *Syncer) String() string {
 
 // LoadTxFilter implements the LoadTxFilter method of the wallet.NetworkBackend
 // interface.
+//
+// NOTE: due to blockcf2 *not* including the spent outpoints in the block, the
+// addrs[] slice MUST include the addresses corresponding to the respective
+// outpoints, otherwise they will not be returned during the rescan.
 func (s *Syncer) LoadTxFilter(ctx context.Context, reload bool, addrs []dcrutil.Address, outpoints []wire.OutPoint) error {
 	s.filterMu.Lock()
 	if reload || s.rescanFilter == nil {
@@ -117,7 +147,6 @@ func (s *Syncer) LoadTxFilter(ctx context.Context, reload bool, addrs []dcrutil.
 	}
 	for i := range outpoints {
 		s.rescanFilter.AddUnspentOutPoint(&outpoints[i])
-		s.filterData.AddOutPoint(&outpoints[i])
 	}
 	s.filterMu.Unlock()
 	return nil
@@ -146,13 +175,15 @@ func (s *Syncer) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) er
 func (s *Syncer) Rescan(ctx context.Context, blockHashes []chainhash.Hash, save func(*chainhash.Hash, []*wire.MsgTx) error) error {
 	const op errors.Op = "spv.Rescan"
 
-	cfilters := make([]*gcs.Filter, 0, len(blockHashes))
+	cfilters := make([]*gcs2.FilterV2, 0, len(blockHashes))
+	cfilterKeys := make([][gcs2.KeySize]byte, 0, len(blockHashes))
 	for i := 0; i < len(blockHashes); i++ {
-		f, err := s.wallet.CFilter(ctx, &blockHashes[i])
+		k, f, err := s.wallet.CFilterV2(ctx, &blockHashes[i])
 		if err != nil {
 			return err
 		}
 		cfilters = append(cfilters, f)
+		cfilterKeys = append(cfilterKeys, k)
 	}
 
 	blockMatches := make([]*wire.MsgBlock, len(blockHashes)) // Block assigned to slice once fetched
@@ -180,7 +211,7 @@ FilterLoop:
 			go func() {
 				for i := range c {
 					blockHash := &blockHashes[i]
-					key := blockcf.Key(blockHash)
+					key := cfilterKeys[i]
 					f := cfilters[i]
 					if f.MatchAny(key, filterData) {
 						fmatchMu.Lock()
@@ -229,7 +260,10 @@ FilterLoop:
 					// header is saved by the wallet, and modifications to these in
 					// the downloaded block would result in a different block hash
 					// and failure to fetch the block.
-					i := fmatchidx[j]
+					//
+					// Block filters were also validated
+					// against the header (assuming dcp0005
+					// was activated).
 					err = validate.MerkleRoots(b)
 					if err != nil {
 						err = validate.DCP0005MerkleRoot(b)
@@ -240,14 +274,8 @@ FilterLoop:
 						rp = nil
 						continue PickPeer
 					}
-					err = validate.RegularCFilter(b, cfilters[i])
-					if err != nil {
-						err := errors.E(op, err)
-						rp.Disconnect(err)
-						rp = nil
-						continue PickPeer
-					}
 
+					i := fmatchidx[j]
 					blockMatches[i] = b
 				}
 				break

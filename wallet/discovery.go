@@ -17,7 +17,7 @@ import (
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/gcs/blockcf"
+	"github.com/decred/dcrd/gcs/v2/blockcf2"
 	hd "github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
@@ -312,7 +312,7 @@ func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, p Peer) er
 	}
 }
 
-func (a *addrFinder) filter(ctx context.Context, fs []*udb.BlockCFilter, data blockcf.Entries, p Peer) error {
+func (a *addrFinder) filter(ctx context.Context, fs []*udb.BlockCFilter, data blockcf2.Entries, p Peer) error {
 	g, ctx := errgroup.WithContext(ctx)
 	for i := 0; i < len(fs); i += wire.MaxBlocksPerMsg {
 		fs := fs[i:]
@@ -323,7 +323,7 @@ func (a *addrFinder) filter(ctx context.Context, fs []*udb.BlockCFilter, data bl
 			var fetch []*chainhash.Hash
 			var fetchidx []int
 			for i, f := range fs {
-				if f.Filter.N() == 0 {
+				if f.FilterV2.N() == 0 {
 					continue
 				}
 				a.mu.RLock()
@@ -332,7 +332,7 @@ func (a *addrFinder) filter(ctx context.Context, fs []*udb.BlockCFilter, data bl
 				if ok {
 					continue // Previously fetched block
 				}
-				if f.Filter.MatchAny(blockcf.Key(&f.BlockHash), data) {
+				if f.FilterV2.MatchAny(f.Key, data) {
 					fetch = append(fetch, &f.BlockHash)
 					fetchidx = append(fetchidx, i)
 				}
@@ -355,10 +355,6 @@ func (a *addrFinder) filter(ctx context.Context, fs []*udb.BlockCFilter, data bl
 					if err != nil {
 						return err
 					}
-					err = validate.RegularCFilter(b, fs[fetchidx[i]].Filter)
-					if err != nil {
-						return err
-					}
 
 					c := blockCommitments(b)
 					a.mu.Lock()
@@ -375,7 +371,7 @@ func (a *addrFinder) filter(ctx context.Context, fs []*udb.BlockCFilter, data bl
 
 // filterBlocks returns the block hashes of all blocks in the main chain,
 // starting at startBlock, whose cfilters match against data.
-func (w *Wallet) filterBlocks(ctx context.Context, startBlock *chainhash.Hash, data blockcf.Entries) ([]*chainhash.Hash, error) {
+func (w *Wallet) filterBlocks(ctx context.Context, startBlock *chainhash.Hash, data blockcf2.Entries) ([]*chainhash.Hash, error) {
 	var matches []*chainhash.Hash
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -385,11 +381,10 @@ func (w *Wallet) filterBlocks(ctx context.Context, startBlock *chainhash.Hash, d
 		go func() {
 			for blocks := range c {
 				for _, b := range blocks {
-					if b.Filter.N() == 0 {
+					if b.FilterV2.N() == 0 {
 						continue
 					}
-					key := blockcf.Key(&b.BlockHash)
-					if b.Filter.MatchAny(key, data) {
+					if b.FilterV2.MatchAny(b.Key, data) {
 						h := b.BlockHash
 						mu.Lock()
 						matches = append(matches, &h)

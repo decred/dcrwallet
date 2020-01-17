@@ -11,16 +11,34 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/gcs"
+	gcs2 "github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/wire"
 )
+
+// FilterProof specifies cfilterv2 data of an individual block during a
+// Peer.CFiltersV2 call.
+//
+// Note: This is a type alias of an anonymous struct rather than a regular
+// struct due to the packages that fulfill the Peer interface having a
+// dependency graph (spv -> wallet -> rpc/client/dcrd) that prevents directly
+// returning a struct.
+type FilterProof = struct {
+	Filter     *gcs2.FilterV2
+	ProofIndex uint32
+	Proof      []chainhash.Hash
+}
 
 // Peer provides wallets with a subset of Decred network functionality available
 // to a single peer.
 type Peer interface {
 	Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error)
-	CFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error)
+	CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]FilterProof, error)
 	Headers(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([]*wire.BlockHeader, error)
 	PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error
+
+	// Deprecated: will be removed in a future major version of this
+	// package.
+	CFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error)
 }
 
 // NetworkBackend provides wallets with Decred network functionality.  Some

@@ -21,6 +21,7 @@ import (
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/rpc/client/dcrd"
 	"decred.org/dcrwallet/rpc/jsonrpc/types"
+	"decred.org/dcrwallet/validate"
 	"decred.org/dcrwallet/wallet/internal/compat"
 	"decred.org/dcrwallet/wallet/txrules"
 	"decred.org/dcrwallet/wallet/udb"
@@ -29,10 +30,11 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/crypto/blake256"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrec/secp256k1/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/gcs"
+	gcs2 "github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/txscript/v3"
@@ -415,15 +417,56 @@ func (w *Wallet) BlockHeader(ctx context.Context, blockHash *chainhash.Hash) (*w
 	return header, err
 }
 
-// CFilter returns the regular compact filter for a block.
-func (w *Wallet) CFilter(ctx context.Context, blockHash *chainhash.Hash) (*gcs.Filter, error) {
-	var f *gcs.Filter
+// CFilterV2 returns the version 2 regular compact filter for a block along
+// with the key required to query it for matches against committed scripts.
+func (w *Wallet) CFilterV2(ctx context.Context, blockHash *chainhash.Hash) ([gcs2.KeySize]byte, *gcs2.FilterV2, error) {
+	var f *gcs2.FilterV2
+	var key [gcs2.KeySize]byte
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
-		f, err = w.txStore.CFilter(dbtx, blockHash)
+		key, f, err = w.txStore.CFilterV2(dbtx, blockHash)
 		return err
 	})
-	return f, err
+	return key, f, err
+}
+
+// RangeCFiltersV2 calls the function `f` for the set of version 2 committed
+// filters for the main chain within the specificed block range.
+//
+// The default behavior for an unspecified range is to loop over the entire
+// main chain.
+//
+// The function `f` may return true for the first argument to indicate no more
+// items should be fetched. Any returned errors by `f` also cause the loop to
+// fail.
+//
+// Note that the filter passed to `f` is safe for use after `f` returns.
+func (w *Wallet) RangeCFiltersV2(ctx context.Context, startBlock, endBlock *BlockIdentifier, f func(chainhash.Hash, [gcs2.KeySize]byte, *gcs2.FilterV2) (bool, error)) error {
+	const op errors.Op = "wallet.RangeCFiltersV2"
+
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		start, end, err := w.blockRange(dbtx, startBlock, endBlock)
+		if err != nil {
+			return err
+		}
+
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		rangeFn := func(block *udb.Block) (bool, error) {
+			key, filter, err := w.txStore.CFilterV2(dbtx, &block.Hash)
+			if err != nil {
+				return false, err
+			}
+
+			return f(block.Hash, key, filter)
+		}
+
+		return w.txStore.RangeBlocks(txmgrNs, start, end, rangeFn)
+	})
+	if err != nil {
+		return errors.E(op, err)
+	}
+	return nil
 }
 
 // watchHDAddrs loads the network backend's transaction filter with all HD
@@ -859,7 +902,7 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, p Peer, progress chan
 			if err != nil {
 				return err
 			}
-			_, err = w.txStore.CFilter(dbtx, &hash)
+			_, _, err = w.txStore.CFilterV2(dbtx, &hash)
 			if err == nil {
 				height += span
 				cont = true
@@ -891,13 +934,37 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, p Peer, progress chan
 			continue
 		}
 
-		filters, err := p.CFilters(ctx, get)
+		filterData, err := p.CFiltersV2(ctx, get)
+		if err != nil {
+			return err
+		}
+
+		// Validate the newly received filters against the previously
+		// stored block header using the corresponding inclusion proof
+		// returned by the peer.
+		filters := make([]*gcs2.FilterV2, len(filterData))
+		err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+			for i, cf := range filterData {
+				header, err := w.txStore.GetBlockHeader(dbtx, get[i])
+				if err != nil {
+					return err
+				}
+				err = validate.CFilterV2HeaderCommitment(w.chainParams.Net,
+					header, cf.Filter, cf.ProofIndex, cf.Proof)
+				if err != nil {
+					return err
+				}
+
+				filters[i] = cf.Filter
+			}
+			return nil
+		})
 		if err != nil {
 			return err
 		}
 
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-			_, err := w.txStore.CFilter(dbtx, get[len(get)-1])
+			_, _, err := w.txStore.CFilterV2(dbtx, get[len(get)-1])
 			if err == nil {
 				cont = true
 				return nil
@@ -1077,7 +1144,7 @@ func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstN
 			hash := h.BlockHash()
 			headerHashes = append(headerHashes, &hash)
 		}
-		filters, err := p.CFilters(ctx, headerHashes)
+		filters, err := p.CFiltersV2(ctx, headerHashes)
 		if err != nil {
 			return firstNew, err
 		}
@@ -1087,7 +1154,14 @@ func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstN
 		}
 
 		for i := range headers {
-			chainBuilder.AddBlockNode(NewBlockNode(headers[i], headerHashes[i], filters[i]))
+			cf := filters[i]
+			err := validate.CFilterV2HeaderCommitment(w.chainParams.Net,
+				headers[i], cf.Filter, cf.ProofIndex, cf.Proof)
+			if err != nil {
+				return firstNew, err
+			}
+
+			chainBuilder.AddBlockNode(NewBlockNode(headers[i], headerHashes[i], cf.Filter))
 		}
 
 		headerData, err := createHeaderData(headers)
@@ -1124,7 +1198,7 @@ func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstN
 				}
 			}
 			for _, n := range chain {
-				_, err = w.extendMainChain(ctx, "", dbtx, n.Header, n.Filter, nil)
+				_, err = w.extendMainChain(ctx, "", dbtx, n.Header, n.FilterV2, nil)
 				if err != nil {
 					return err
 				}
@@ -4207,6 +4281,70 @@ func (w *Wallet) NeedsAccountsSync(ctx context.Context) (bool, error) {
 		return err
 	})
 	return needsSync, err
+}
+
+// ValidatePreDCP0005CFilters verifies that all stored cfilters prior to the
+// DCP0005 activation height are the expected ones.
+//
+// Verification is done by hashing all stored cfilter data and comparing the
+// resulting hash to a known, hardcoded hash.
+func (w *Wallet) ValidatePreDCP0005CFilters(ctx context.Context) error {
+	const op errors.Op = "wallet.ValidatePreDCP0005CFilters"
+
+	// Hardcoded activation heights for mainnet and testnet3. Simnet
+	// already follows DCP0005 rules.
+	var end *BlockIdentifier
+	switch w.chainParams.Net {
+	case wire.MainNet:
+		end = NewBlockIdentifierFromHeight(validate.DCP0005ActiveHeightMainNet - 1)
+	case wire.TestNet3:
+		end = NewBlockIdentifierFromHeight(validate.DCP0005ActiveHeightTestNet3 - 1)
+	default:
+		return errors.E(op, "The current network does not have pre-DCP0005 cfilters")
+	}
+
+	// Sum up all the cfilter data.
+	hasher := blake256.New()
+	rangeFn := func(_ chainhash.Hash, _ [gcs2.KeySize]byte, filter *gcs2.FilterV2) (bool, error) {
+		_, err := hasher.Write(filter.Bytes())
+		return false, err
+	}
+
+	err := w.RangeCFiltersV2(ctx, nil, end, rangeFn)
+	if err != nil {
+		return errors.E(op, err)
+	}
+
+	// Verify against the hardcoded hash.
+	var cfsethash chainhash.Hash
+	err = cfsethash.SetBytes(hasher.Sum(nil))
+	if err != nil {
+		return errors.E(op, err)
+	}
+	err = validate.PreDCP0005CFilterHash(w.chainParams.Net, &cfsethash)
+	if err != nil {
+		return errors.E(op, err)
+	}
+	return nil
+}
+
+// ImportCFiltersV2 imports the provided v2 cfilters starting at the specified
+// block height. Headers for all the provided filters must have already been
+// imported into the wallet, otherwise this method fails. Existing filters for
+// the respective blocks are overridden.
+//
+// Note: No validation is performed on the contents of the imported filters.
+// Importing filters that do not correspond to the actual contents of a block
+// might cause the wallet to miss relevant transactions.
+func (w *Wallet) ImportCFiltersV2(ctx context.Context, startBlockHeight int32, filterData [][]byte) error {
+	const op errors.Op = "wallet.ImportCFiltersV2"
+	err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
+		return w.txStore.ImportCFiltersV2(tx, startBlockHeight, filterData)
+	})
+	if err != nil {
+		return errors.E(op, err)
+	}
+	return nil
 }
 
 // Create creates an new wallet, writing it to an empty database.  If the passed

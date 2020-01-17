@@ -17,6 +17,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/gcs/blockcf"
+	"github.com/decred/dcrd/gcs/v2/blockcf2"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
@@ -137,10 +138,17 @@ const (
 	// in the upgrade.
 	unencryptedRedeemScriptsVersion = 14
 
+	// blockcf2Version is the 15th version of the databse. This upgrade
+	// drops the existing cfilter bucket and recreates it, triggering a
+	// re-download of missing cfilters. This is intended to switch the
+	// wallet to using the new, consensus-enforced version 2 committed
+	// filters.
+	blockcf2Version = 15
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = unencryptedRedeemScriptsVersion
+	DBVersion = blockcf2Version
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -160,6 +168,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	ticketCommitmentsVersion - 1:        ticketCommitmentsUpgrade,
 	importedXpubAccountVersion - 1:      importedXpubAccountUpgrade,
 	unencryptedRedeemScriptsVersion - 1: unencryptedRedeemScriptsUpgrade,
+	blockcf2Version - 1:                 blockcf2Upgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -1188,6 +1197,74 @@ func unencryptedRedeemScriptsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase [
 	err = addrmgrMainBucket.Delete(cryptoScriptKeyName)
 	if err != nil && !errors.Is(err, errors.NotExist) {
 		return err
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+// genesisPrevScripter fulfills the blockcf2.PrevScripter interface but only
+// for the genesis block which doesn't have any previous scripts.
+type genesisPrevScripter struct{}
+
+func (_ genesisPrevScripter) PrevScript(*wire.OutPoint) (uint16, []byte, bool) {
+	return 0, nil, false
+}
+
+func blockcf2Upgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 14
+	const newVersion = 15
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 14 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "blockcf2Upgrade inappropriately called")
+	}
+
+	txmgrBucket := tx.ReadWriteBucket(wtxmgrBucketKey)
+
+	// Drop all existing blockcf filters by deleting then recreating the
+	// cfilter bucket.
+	err = txmgrBucket.DeleteNestedBucket(bucketCFilters)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	_, err = txmgrBucket.CreateBucket(bucketCFilters)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	// Reset the rootHaveCFilters flag to false so that cfilters will have
+	// to be downloaded again.
+	err = txmgrBucket.Put(rootHaveCFilters, []byte{0})
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	// Record cfilter for genesis block.
+	f, err := blockcf2.Regular(params.GenesisBlock, genesisPrevScripter{})
+	if err != nil {
+		return err
+	}
+	genesisBcfKey := blockcf2.Key(&params.GenesisBlock.Header.MerkleRoot)
+	err = putRawCFilter(txmgrBucket, params.GenesisHash[:],
+		valueRawCFilter2(genesisBcfKey, f.Bytes()))
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	// Record all cfilters as saved when only the genesis block is saved.
+	var tipHash chainhash.Hash
+	copy(tipHash[:], txmgrBucket.Get(rootTipBlock))
+	if tipHash == params.GenesisHash {
+		err = txmgrBucket.Put(rootHaveCFilters, []byte{1})
+		if err != nil {
+			return errors.E(errors.IO, err)
+		}
 	}
 
 	// Write the new database version.
