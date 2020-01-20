@@ -3198,6 +3198,7 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 			}
 
 			// Asynchronously request the output script.
+			txIn := txIn
 			requestedGroup.Go(func() error {
 				hash := txIn.PreviousOutPoint.Hash.String()
 				index := txIn.PreviousOutPoint.Index
