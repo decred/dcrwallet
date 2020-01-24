@@ -204,9 +204,14 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 	// Perform account updates on all BIP0044 accounts created thus far.
 	for account := uint32(0); account <= lastAccount; account++ {
 		// Load the old account info.
-		row, err := fetchAccountInfo(addrmgrBucket, account, oldVersion)
+		acctRow, err := fetchAccountInfo(addrmgrBucket, account, oldVersion)
 		if err != nil {
 			return err
+		}
+
+		row, ok := acctRow.(*dbBIP0044AccountRow)
+		if !ok {
+			return errors.E(errors.IO, errors.Errorf("unexpected account type %d", row.actType()))
 		}
 
 		// Use the crypto public key to decrypt the account public extended key
@@ -396,9 +401,14 @@ func lastReturnedAddressUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte
 
 	upgradeAcct := func(account uint32) error {
 		// Load the old account info.
-		row, err := fetchAccountInfo(addrmgrBucket, account, oldVersion)
+		acctRow, err := fetchAccountInfo(addrmgrBucket, account, oldVersion)
 		if err != nil {
 			return err
+		}
+
+		row, ok := acctRow.(*dbBIP0044AccountRow)
+		if !ok {
+			return errors.E(errors.IO, errors.Errorf("unexpected account type %d", row.actType()))
 		}
 
 		// Convert account row values to the new serialization format that adds

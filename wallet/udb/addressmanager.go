@@ -439,18 +439,23 @@ func (m *Manager) GetMasterPubkey(ns walletdb.ReadBucket, account uint32) (strin
 
 	// The account is either invalid or just wasn't cached, so attempt to
 	// load the information from the database.
-	row, err := fetchAccountInfo(ns, account, DBVersion)
+	acctRow, err := fetchAccountInfo(ns, account, DBVersion)
 	if err != nil {
 		return "", err
 	}
 
-	// Use the crypto public key to decrypt the account public extended key.
-	serializedKeyPub, err := m.cryptoKeyPub.Decrypt(row.pubKeyEncrypted)
-	if err != nil {
-		return "", errors.E(errors.IO, err)
-	}
+	switch row := acctRow.(type) {
+	case *dbBIP0044AccountRow:
+		// Use the crypto public key to decrypt the account public extended key.
+		serializedKeyPub, err := m.cryptoKeyPub.Decrypt(row.pubKeyEncrypted)
+		if err != nil {
+			return "", errors.E(errors.IO, err)
+		}
 
-	return string(serializedKeyPub), nil
+		return string(serializedKeyPub), nil
+	default:
+		return "", errors.E(errors.IO, errors.Errorf("invalid account type %d", row.actType()))
+	}
 }
 
 // loadAccountInfo attempts to load and cache information about the given
@@ -466,7 +471,7 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 
 	// The account is either invalid or just wasn't cached, so attempt to
 	// load the information from the database.
-	row, err := fetchAccountInfo(ns, account, DBVersion)
+	acctRow, err := fetchAccountInfo(ns, account, DBVersion)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
 			return nil, err
@@ -474,42 +479,48 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 		return nil, errors.E(errors.NotExist, errors.Errorf("no account %d", account))
 	}
 
-	// Use the crypto public key to decrypt the account public extended key.
-	serializedKeyPub, err := m.cryptoKeyPub.Decrypt(row.pubKeyEncrypted)
-	if err != nil {
-		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt account %d pubkey: %v", account, err))
-	}
-	acctKeyPub, err := hdkeychain.NewKeyFromString(string(serializedKeyPub), m.chainParams)
-	if err != nil {
-		return nil, errors.E(errors.IO, err)
-	}
-
-	// Create the new account info with the known information.  The rest
-	// of the fields are filled out below.
-	acctInfo := &accountInfo{
-		acctName:         row.name,
-		acctKeyEncrypted: row.privKeyEncrypted,
-		acctKeyPub:       acctKeyPub,
-	}
-
-	if !m.locked {
-		// Use the crypto private key to decrypt the account private
-		// extended keys.
-		decrypted, err := m.cryptoKeyPriv.Decrypt(acctInfo.acctKeyEncrypted)
+	switch row := acctRow.(type) {
+	case *dbBIP0044AccountRow:
+		// Use the crypto public key to decrypt the account public extended key.
+		serializedKeyPub, err := m.cryptoKeyPub.Decrypt(row.pubKeyEncrypted)
 		if err != nil {
-			return nil, errors.E(errors.Crypto, errors.Errorf("decrypt account %d privkey: %v", account, err))
+			return nil, errors.E(errors.Crypto, errors.Errorf("decrypt account %d pubkey: %v", account, err))
 		}
-
-		acctKeyPriv, err := hdkeychain.NewKeyFromString(string(decrypted), m.chainParams)
+		acctKeyPub, err := hdkeychain.NewKeyFromString(string(serializedKeyPub), m.chainParams)
 		if err != nil {
 			return nil, errors.E(errors.IO, err)
 		}
-		acctInfo.acctKeyPriv = acctKeyPriv
-	}
 
-	// Add it to the cache and return it when everything is successful.
-	m.acctInfo[account] = acctInfo
-	return acctInfo, nil
+		// Create the new account info with the known information.  The rest
+		// of the fields are filled out below.
+		acctInfo := &accountInfo{
+			acctName:         row.name,
+			acctKeyEncrypted: row.privKeyEncrypted,
+			acctKeyPub:       acctKeyPub,
+		}
+
+		if !m.locked {
+			// Use the crypto private key to decrypt the account private
+			// extended keys.
+			decrypted, err := m.cryptoKeyPriv.Decrypt(acctInfo.acctKeyEncrypted)
+			if err != nil {
+				return nil, errors.E(errors.Crypto, errors.Errorf("decrypt account %d privkey: %v", account, err))
+			}
+
+			acctKeyPriv, err := hdkeychain.NewKeyFromString(string(decrypted), m.chainParams)
+			if err != nil {
+				return nil, errors.E(errors.IO, err)
+			}
+			acctInfo.acctKeyPriv = acctKeyPriv
+		}
+
+		// Add it to the cache and return it when everything is successful.
+		m.acctInfo[account] = acctInfo
+		return acctInfo, nil
+
+	default:
+		return nil, errors.E(errors.IO, errors.Errorf("invalid account type %d", row.actType()))
+	}
 }
 
 // AccountProperties returns properties associated with the account, such as the
@@ -542,14 +553,21 @@ func (m *Manager) AccountProperties(ns walletdb.ReadBucket, account uint32) (*Ac
 			return nil, err
 		}
 		props.AccountName = acctInfo.acctName
-		row, err := fetchAccountInfo(ns, account, DBVersion)
+		acctRow, err := fetchAccountInfo(ns, account, DBVersion)
 		if err != nil {
 			return nil, errors.E(errors.IO, err)
 		}
-		props.LastUsedExternalIndex = row.lastUsedExternalIndex
-		props.LastUsedInternalIndex = row.lastUsedInternalIndex
-		props.LastReturnedExternalIndex = row.lastReturnedExternalIndex
-		props.LastReturnedInternalIndex = row.lastReturnedInternalIndex
+
+		switch row := acctRow.(type) {
+		case *dbBIP0044AccountRow:
+			props.LastUsedExternalIndex = row.lastUsedExternalIndex
+			props.LastUsedInternalIndex = row.lastUsedInternalIndex
+			props.LastReturnedExternalIndex = row.lastReturnedExternalIndex
+			props.LastReturnedInternalIndex = row.lastReturnedInternalIndex
+
+		default:
+			return nil, errors.E(errors.IO, errors.Errorf("invalid account type %d", row.actType()))
+		}
 	} else {
 		props.AccountName = ImportedAddrAccountName // reserved, nonchangable
 
@@ -747,21 +765,23 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 		return errors.E(errors.IO, "missing SLIP0044 coin type account row")
 	}
 	accountID := uint32ToBytes(0)
-	row, err := deserializeAccountRow(accountID, serializedRow)
+	acctRow, err := parseAccountRow(accountID, serializedRow, initialVersion)
 	if err != nil {
 		return err
 	}
-	if row.acctType != actBIP0044 {
-		return errors.E(errors.IO, errors.Errorf("invalid SLIP0044 account 0 row type %d", row.acctType))
+
+	row, ok := acctRow.(*dbBIP0044AccountRow)
+	if !ok {
+		return errors.E(errors.IO, errors.Errorf("invalid SLIP0044 account 0 row type %d", row.actType()))
 	}
-	bip0044Row, err := deserializeBIP0044AccountRow(accountID, row, initialVersion)
-	if err != nil {
-		return err
-	}
+
 	// Keep previous name of account 0
-	bip0044Row.name = acctProps.AccountName
-	bip0044Row.rawData = serializeBIP0044AccountRow(bip0044Row, DBVersion)
-	err = putAccountRow(ns, 0, &bip0044Row.dbAccountRow)
+	row.name = acctProps.AccountName
+	row.accountRow = &dbAccountRow{
+		acctType: actBIP0044,
+		rawData:  serializeBIP0044AccountRow(row, DBVersion),
+	}
+	err = putAccountRow(ns, 0, row)
 	if err != nil {
 		return err
 	}
@@ -784,7 +804,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 
 	// Decrypt the SLIP0044 coin type account xpub so the in memory account
 	// information can be updated.
-	acctExtPubKeyStr, err := m.cryptoKeyPub.Decrypt(bip0044Row.pubKeyEncrypted)
+	acctExtPubKeyStr, err := m.cryptoKeyPub.Decrypt(row.pubKeyEncrypted)
 	if err != nil {
 		return errors.E(errors.Crypto, errors.Errorf("decrypt SLIP0044 account 0 xpub: %v", err))
 	}
@@ -796,7 +816,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 	// When unlocked, decrypt the SLIP0044 coin type account xpriv as well.
 	var acctExtPrivKey *hdkeychain.ExtendedKey
 	if !m.locked {
-		acctExtPrivKeyStr, err := m.cryptoKeyPriv.Decrypt(bip0044Row.privKeyEncrypted)
+		acctExtPrivKeyStr, err := m.cryptoKeyPriv.Decrypt(row.privKeyEncrypted)
 		if err != nil {
 			return errors.E(errors.Crypto, errors.Errorf("decrypt SLIP0044 account 0 xpriv: %v", err))
 		}
@@ -806,7 +826,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 		}
 	}
 
-	acctInfo.acctKeyEncrypted = bip0044Row.privKeyEncrypted
+	acctInfo.acctKeyEncrypted = row.privKeyEncrypted
 	acctInfo.acctKeyPriv = acctExtPrivKey
 	acctInfo.acctKeyPub = acctExtPubKey
 
@@ -1516,76 +1536,91 @@ func (m *Manager) MarkUsed(ns walletdb.ReadWriteBucket, address dcrutil.Address)
 	if !ok {
 		return nil
 	}
-	row, err := fetchAccountInfo(ns, bip0044Addr.account, DBVersion)
+	acctRow, err := fetchAccountInfo(ns, bip0044Addr.account, DBVersion)
 	if err != nil {
 		return errors.E(errors.IO, errors.Errorf("missing account %d", bip0044Addr.account))
 	}
-	lastUsedExtIndex := row.lastUsedExternalIndex
-	lastUsedIntIndex := row.lastUsedInternalIndex
-	switch bip0044Addr.branch {
-	case ExternalBranch:
-		lastUsedExtIndex = bip0044Addr.index
-	case InternalBranch:
-		lastUsedIntIndex = bip0044Addr.index
+
+	switch row := acctRow.(type) {
+	case *dbBIP0044AccountRow:
+		lastUsedExtIndex := row.lastUsedExternalIndex
+		lastUsedIntIndex := row.lastUsedInternalIndex
+		switch bip0044Addr.branch {
+		case ExternalBranch:
+			lastUsedExtIndex = bip0044Addr.index
+		case InternalBranch:
+			lastUsedIntIndex = bip0044Addr.index
+		default:
+			return errors.E(errors.IO, errors.Errorf("invalid account branch %d", bip0044Addr.branch))
+		}
+
+		if lastUsedExtIndex+1 < row.lastUsedExternalIndex+1 ||
+			lastUsedIntIndex+1 < row.lastUsedInternalIndex+1 {
+			// More recent addresses have already been marked used, nothing to
+			// update.
+			return nil
+		}
+
+		// The last returned indexes should never be less than the last used.  The
+		// weird addition and subtraction makes this calculation work correctly even
+		// when any of of the indexes are ^uint32(0).
+		lastRetExtIndex := maxUint32(lastUsedExtIndex+1, row.lastReturnedExternalIndex+1) - 1
+		lastRetIntIndex := maxUint32(lastUsedIntIndex+1, row.lastReturnedInternalIndex+1) - 1
+
+		row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted, 0, 0,
+			lastUsedExtIndex, lastUsedIntIndex, lastRetExtIndex, lastRetIntIndex,
+			row.name, DBVersion)
+		return putAccountRow(ns, bip0044Addr.account, row)
+
 	default:
-		return errors.E(errors.IO, errors.Errorf("invalid account branch %d", bip0044Addr.branch))
+		return errors.E(errors.IO, errors.Errorf("invalid account type %d", row.actType()))
 	}
 
-	if lastUsedExtIndex+1 < row.lastUsedExternalIndex+1 ||
-		lastUsedIntIndex+1 < row.lastUsedInternalIndex+1 {
-		// More recent addresses have already been marked used, nothing to
-		// update.
-		return nil
-	}
-
-	// The last returned indexes should never be less than the last used.  The
-	// weird addition and subtraction makes this calculation work correctly even
-	// when any of of the indexes are ^uint32(0).
-	lastRetExtIndex := maxUint32(lastUsedExtIndex+1, row.lastReturnedExternalIndex+1) - 1
-	lastRetIntIndex := maxUint32(lastUsedIntIndex+1, row.lastReturnedInternalIndex+1) - 1
-
-	row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted, 0, 0,
-		lastUsedExtIndex, lastUsedIntIndex, lastRetExtIndex, lastRetIntIndex,
-		row.name, DBVersion)
-	return putAccountRow(ns, bip0044Addr.account, &row.dbAccountRow)
 }
 
 // MarkUsedChildIndex marks a BIP0044 account branch child as used.
 func (m *Manager) MarkUsedChildIndex(tx walletdb.ReadWriteTx, account, branch, child uint32) error {
 	ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 
-	row, err := fetchAccountInfo(ns, account, DBVersion)
+	acctRow, err := fetchAccountInfo(ns, account, DBVersion)
 	if err != nil {
 		return err
 	}
-	lastUsedExtIndex := row.lastUsedExternalIndex
-	lastUsedIntIndex := row.lastUsedInternalIndex
-	switch branch {
-	case ExternalBranch:
-		lastUsedExtIndex = child
-	case InternalBranch:
-		lastUsedIntIndex = child
+
+	switch row := acctRow.(type) {
+	case *dbBIP0044AccountRow:
+		lastUsedExtIndex := row.lastUsedExternalIndex
+		lastUsedIntIndex := row.lastUsedInternalIndex
+		switch branch {
+		case ExternalBranch:
+			lastUsedExtIndex = child
+		case InternalBranch:
+			lastUsedIntIndex = child
+		default:
+			return errors.E(errors.Invalid, errors.Errorf("account branch %d", branch))
+		}
+
+		if lastUsedExtIndex+1 < row.lastUsedExternalIndex+1 ||
+			lastUsedIntIndex+1 < row.lastUsedInternalIndex+1 {
+			// More recent addresses have already been marked used, nothing to
+			// update.
+			return nil
+		}
+
+		// The last returned indexes should never be less than the last used.  The
+		// weird addition and subtraction makes this calculation work correctly even
+		// when any of of the indexes are ^uint32(0).
+		lastRetExtIndex := maxUint32(lastUsedExtIndex+1, row.lastReturnedExternalIndex+1) - 1
+		lastRetIntIndex := maxUint32(lastUsedIntIndex+1, row.lastReturnedInternalIndex+1) - 1
+
+		row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted, 0, 0,
+			lastUsedExtIndex, lastUsedIntIndex, lastRetExtIndex, lastRetIntIndex,
+			row.name, DBVersion)
+		return putAccountRow(ns, account, row)
+
 	default:
-		return errors.E(errors.Invalid, errors.Errorf("account branch %d", branch))
+		return errors.E(errors.IO, errors.Errorf("invalid account type %d", row.actType()))
 	}
-
-	if lastUsedExtIndex+1 < row.lastUsedExternalIndex+1 ||
-		lastUsedIntIndex+1 < row.lastUsedInternalIndex+1 {
-		// More recent addresses have already been marked used, nothing to
-		// update.
-		return nil
-	}
-
-	// The last returned indexes should never be less than the last used.  The
-	// weird addition and subtraction makes this calculation work correctly even
-	// when any of of the indexes are ^uint32(0).
-	lastRetExtIndex := maxUint32(lastUsedExtIndex+1, row.lastReturnedExternalIndex+1) - 1
-	lastRetIntIndex := maxUint32(lastUsedIntIndex+1, row.lastReturnedInternalIndex+1) - 1
-
-	row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted, 0, 0,
-		lastUsedExtIndex, lastUsedIntIndex, lastRetExtIndex, lastRetIntIndex,
-		row.name, DBVersion)
-	return putAccountRow(ns, account, &row.dbAccountRow)
 }
 
 // MarkReturnedChildIndex marks a BIP0044 account branch child as returned to a
@@ -1595,31 +1630,38 @@ func (m *Manager) MarkUsedChildIndex(tx walletdb.ReadWriteTx, account, branch, c
 func (m *Manager) MarkReturnedChildIndex(tx walletdb.ReadWriteTx, account, branch, child uint32) error {
 	ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 
-	row, err := fetchAccountInfo(ns, account, DBVersion)
+	acctRow, err := fetchAccountInfo(ns, account, DBVersion)
 	if err != nil {
 		return err
 	}
-	lastRetExtIndex := row.lastReturnedExternalIndex
-	lastRetIntIndex := row.lastReturnedInternalIndex
-	switch branch {
-	case ExternalBranch:
-		lastRetExtIndex = child
-	case InternalBranch:
-		lastRetIntIndex = child
+
+	switch row := acctRow.(type) {
+	case *dbBIP0044AccountRow:
+		lastRetExtIndex := row.lastReturnedExternalIndex
+		lastRetIntIndex := row.lastReturnedInternalIndex
+		switch branch {
+		case ExternalBranch:
+			lastRetExtIndex = child
+		case InternalBranch:
+			lastRetIntIndex = child
+		default:
+			return errors.E(errors.Invalid, errors.Errorf("account branch %d", branch))
+		}
+
+		// The last returned indexes should never be less than the last used.  The
+		// weird addition and subtraction makes this calculation work correctly even
+		// when any of of the indexes are ^uint32(0).
+		lastRetExtIndex = maxUint32(row.lastUsedExternalIndex+1, lastRetExtIndex+1) - 1
+		lastRetIntIndex = maxUint32(row.lastUsedInternalIndex+1, lastRetIntIndex+1) - 1
+
+		row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted, 0, 0,
+			row.lastUsedExternalIndex, row.lastUsedInternalIndex,
+			lastRetExtIndex, lastRetIntIndex, row.name, DBVersion)
+		return putAccountRow(ns, account, row)
+
 	default:
-		return errors.E(errors.Invalid, errors.Errorf("account branch %d", branch))
+		return errors.E(errors.IO, errors.Errorf("invalid account type %d", row.actType()))
 	}
-
-	// The last returned indexes should never be less than the last used.  The
-	// weird addition and subtraction makes this calculation work correctly even
-	// when any of of the indexes are ^uint32(0).
-	lastRetExtIndex = maxUint32(row.lastUsedExternalIndex+1, lastRetExtIndex+1) - 1
-	lastRetIntIndex = maxUint32(row.lastUsedInternalIndex+1, lastRetIntIndex+1) - 1
-
-	row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted, 0, 0,
-		row.lastUsedExternalIndex, row.lastUsedInternalIndex,
-		lastRetExtIndex, lastRetIntIndex, row.name, DBVersion)
-	return putAccountRow(ns, account, &row.dbAccountRow)
 }
 
 // ChainParams returns the chain parameters for this address manager.
@@ -1851,34 +1893,40 @@ func (m *Manager) RenameAccount(ns walletdb.ReadWriteBucket, account uint32, nam
 		return err
 	}
 
-	row, err := fetchAccountInfo(ns, account, DBVersion)
+	acctRow, err := fetchAccountInfo(ns, account, DBVersion)
 	if err != nil {
 		return err
 	}
 
-	// Remove the old name key from the accout id index
-	if err = deleteAccountIDIndex(ns, account); err != nil {
-		return err
-	}
-	// Remove the old name key from the account name index
-	if err = deleteAccountNameIndex(ns, row.name); err != nil {
-		return err
-	}
-	row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted,
-		0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex,
-		row.lastReturnedExternalIndex, row.lastReturnedInternalIndex,
-		name, DBVersion)
-	err = putAccountInfo(ns, account, row)
-	if err != nil {
-		return err
-	}
+	switch row := acctRow.(type) {
+	case *dbBIP0044AccountRow:
+		// Remove the old name key from the accout id index
+		if err = deleteAccountIDIndex(ns, account); err != nil {
+			return err
+		}
+		// Remove the old name key from the account name index
+		if err = deleteAccountNameIndex(ns, row.name); err != nil {
+			return err
+		}
+		row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted,
+			0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex,
+			row.lastReturnedExternalIndex, row.lastReturnedInternalIndex,
+			name, DBVersion)
+		err = putAccountInfo(ns, account, row)
+		if err != nil {
+			return err
+		}
 
-	// Update in-memory account info with new name if cached and the db
-	// write was successful.
-	if acctInfo, ok := m.acctInfo[account]; ok {
-		acctInfo.acctName = name
+		// Update in-memory account info with new name if cached and the db
+		// write was successful.
+		if acctInfo, ok := m.acctInfo[account]; ok {
+			acctInfo.acctName = name
+		}
+		return nil
+
+	default:
+		return errors.E(errors.IO, errors.Errorf("invalid account type %d", row.actType()))
 	}
-	return nil
 }
 
 // AccountName returns the account name for the given account number
@@ -2610,7 +2658,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 	slip0044Account0Row := bip0044AccountInfo(acctPubSLIP0044Enc, acctPrivSLIP0044Enc,
 		0, 0, 0, 0, 0, 0, defaultAccountName, initialVersion)
 	mainBucket := ns.NestedReadWriteBucket(mainBucketName)
-	err = mainBucket.Put(slip0044Account0RowName, serializeAccountRow(&slip0044Account0Row.dbAccountRow))
+	err = mainBucket.Put(slip0044Account0RowName, serializeBIP0044AccountRow(slip0044Account0Row, initialVersion))
 	if err != nil {
 		return errors.E(errors.IO, err)
 	}
