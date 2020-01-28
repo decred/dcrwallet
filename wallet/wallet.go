@@ -3336,13 +3336,56 @@ func (w *Wallet) ImportXpubAccount(ctx context.Context, name string, xpub *hdkey
 		return errors.E(op, "extended key must be an xpub")
 	}
 
-	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+	extKey, intKey, err := deriveBranches(xpub)
+	if err != nil {
+		return errors.E(op, err)
+	}
+
+	gapLimit := uint32(w.gapLimit)
+	if n, err := w.NetworkBackend(); err == nil {
+		extAddrs, err := deriveChildAddresses(extKey, 0, gapLimit, w.chainParams)
+		if err != nil {
+			return errors.E(op, err)
+		}
+		intAddrs, err := deriveChildAddresses(intKey, 0, gapLimit, w.chainParams)
+		if err != nil {
+			return errors.E(op, err)
+		}
+		watch := append(extAddrs, intAddrs...)
+		err = n.LoadTxFilter(ctx, false, watch, nil)
+		if err != nil {
+			return errors.E(op, err)
+		}
+	}
+
+	var account uint32
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		ns := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 		err := w.Manager.ImportXpubAccount(ns, name, xpub)
+		if err != nil {
+			return err
+		}
+		account, err = w.Manager.LookupAccount(ns, name)
 		return err
 	})
 	if err != nil {
 		return errors.E(op, err)
+	}
+
+	defer w.addressBuffersMu.Unlock()
+	w.addressBuffersMu.Lock()
+	albExternal := addressBuffer{
+		branchXpub:  extKey,
+		lastUsed:    ^uint32(0),
+		cursor:      0,
+		lastWatched: gapLimit - 1,
+	}
+	albInternal := albExternal
+	albInternal.branchXpub = intKey
+	w.addressBuffers[account] = &bip0044AccountData{
+		xpub:        xpub,
+		albExternal: albExternal,
+		albInternal: albInternal,
 	}
 
 	return nil
