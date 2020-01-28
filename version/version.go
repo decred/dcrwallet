@@ -19,7 +19,7 @@ const semverAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrst
 const (
 	Major = 1
 	Minor = 5
-	Patch = 1
+	Patch = 2
 )
 
 // Integer is an integer encoding of the major.minor.patch version.
@@ -29,12 +29,12 @@ const Integer = 1000000*Major + 10000*Minor + 100*Patch
 // so it can be modified at link time (e.g.
 // `-ldflags "-X github.com/decred/dcrwallet/version.PreRelease=rc1"`).
 // It must only contain characters from the semantic version alphabet.
-var PreRelease = ""
+var PreRelease = "pre"
 
 // BuildMetadata defines additional build metadata.  It is modified at link time
 // for official releases.  It must only contain characters from the semantic
 // version alphabet.
-var BuildMetadata = "release.local"
+var BuildMetadata = ""
 
 // String returns the application version as a properly formed string per the
 // semantic versioning 2.0.0 spec (https://semver.org/).
