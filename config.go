@@ -524,7 +524,8 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// data directory.
 	if !cfg.AppDataDir.ExplicitlySet() && cfg.CreateTemp {
 		fmt.Fprintln(os.Stderr, "Tried to create a temporary simulation "+
-			"wallet, but failed to specify data directory!")
+			"wallet, but failed to specify data directory! Try using the flags "+
+			"--appdata=<your directory> --createtemp --simnet in unisome.")
 		os.Exit(0)
 	}
 
@@ -532,7 +533,8 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// simnet or testnet.
 	if !cfg.SimNet && cfg.CreateTemp {
 		fmt.Fprintln(os.Stderr, "Tried to create a temporary simulation "+
-			"wallet for network other than simnet!")
+			"wallet for network other than simnet!.  Try using the flags "+
+			"--appdata=<your directory> --createtemp --simnet in unisome.")
 		os.Exit(0)
 	}
 
