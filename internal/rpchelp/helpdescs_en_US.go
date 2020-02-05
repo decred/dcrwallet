@@ -707,6 +707,7 @@ var helpDescsEnUS = map[string]string{
 	"purchaseticket-nosplittransaction": "Use ticket purchase change outputs instead of a split transaction",
 	"purchaseticket-comment":            "Unused",
 	"purchaseticket-ticketfee":          "The transaction fee rate (DCR/kB) to use (overrides fees set by the wallet config or settxfee RPC)",
+	"purchaseticket-dontsigntx":         "Return unsigned split and ticket transactions instead of signing and publishing",
 
 	// SetTicketFeeCmd help.
 	"setticketfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored stake transaction.",

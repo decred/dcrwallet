@@ -823,6 +823,7 @@ type PurchaseTicketCmd struct {
 	Expiry        *int
 	Comment       *string
 	TicketFee     *float64
+	DontSignTx    *bool
 }
 
 // NewPurchaseTicketCmd creates a new PurchaseTicketCmd.
@@ -841,6 +842,13 @@ func NewPurchaseTicketCmd(fromAccount string, spendLimit float64, minConf *int,
 		Comment:       comment,
 		TicketFee:     ticketFee,
 	}
+}
+
+// CreateUnsignedTicketResult is returned from PurchaseTicketCmd
+// when dontSignTx is true.
+type CreateUnsignedTicketResult struct {
+	UnsignedTickets []string `json:"unsignedtickets"`
+	SplitTx         string   `json:"splittx"`
 }
 
 // RecoverAddressesCmd defines the recoveraddresses JSON-RPC command.

@@ -1292,7 +1292,12 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, minBalance, spendLimit dcr
 	}
 	defer heldUnlock.release()
 
-	return w.purchaseTickets(ctx, op, n, req)
+	ticketsResponse, err := w.purchaseTickets(ctx, op, n, req)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return ticketsResponse.TicketHashes, nil
 }
 
 // PurchaseTicketsRequest describes the parameters for purchasing tickets.
@@ -1303,6 +1308,7 @@ type PurchaseTicketsRequest struct {
 	MinConf       int32
 	Expiry        int32
 	VotingAccount uint32 // Used when VotingAddress == nil, or CSPPServer != ""
+	DontSignTx    bool
 
 	// Mixed split buying through CoinShuffle++
 	CSPPServer         string
@@ -1323,6 +1329,29 @@ type PurchaseTicketsRequest struct {
 	ticketFee  dcrutil.Amount
 }
 
+// PurchaseTicketsResponse describes the response for purchasing tickets request.
+type PurchaseTicketsResponse struct {
+	TicketHashes []*chainhash.Hash
+	Tickets      []*wire.MsgTx
+	SplitTx      *wire.MsgTx
+}
+
+// PurchaseTicketsWithResponse purchases tickets, returning purchase tickets response.
+func (w *Wallet) PurchaseTicketsWithResponse(ctx context.Context, n NetworkBackend,
+	req *PurchaseTicketsRequest) (*PurchaseTicketsResponse, error) {
+	const op errors.Op = "wallet.PurchaseTicketsWithResponse"
+
+	if !req.DontSignTx {
+		heldUnlock, err := w.holdUnlock()
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+		defer heldUnlock.release()
+	}
+
+	return w.purchaseTickets(ctx, op, n, req)
+}
+
 // PurchaseTicketsContext purchases tickets, returning the hashes of all ticket
 // purchase transactions.
 func (w *Wallet) PurchaseTicketsContext(ctx context.Context, n NetworkBackend, req *PurchaseTicketsRequest) ([]*chainhash.Hash, error) {
@@ -1334,7 +1363,12 @@ func (w *Wallet) PurchaseTicketsContext(ctx context.Context, n NetworkBackend, r
 	}
 	defer heldUnlock.release()
 
-	return w.purchaseTickets(ctx, op, n, req)
+	ticketsResponse, err := w.purchaseTickets(ctx, op, n, req)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return ticketsResponse.TicketHashes, nil
 }
 
 // heldUnlock is a tool to prevent the wallet from automatically locking after
@@ -3997,7 +4031,7 @@ func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account
 		return nil, err
 	}
 	defer heldUnlock.release()
-	tx, err := w.txToOutputs(ctx, "wallet.SendOutputs", outputs, account, changeAccount, minconf, nil, true, relayFee)
+	tx, err := w.txToOutputs(ctx, "wallet.SendOutputs", outputs, account, changeAccount, minconf, nil, true, relayFee, false)
 	if err != nil {
 		return nil, err
 	}

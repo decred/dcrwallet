@@ -1662,9 +1662,17 @@ ticker_address, pool_address, expiry, tx_fee, ticket_fee.
 - `int64 ticket_fee`: Fees per kB to use for all purchased tickets. If 0 is
   passed, the global value for a ticket fee will be used.
 
+- `bool dont_sign_tx`: If the tickets tx should be signed or not.
+
 **Response:** `PurchaseTicketsResponse`
 
 - `repeated bytes ticket_hashes`: The transaction hashes of the generated tickets.
+
+- `repeated bytes unsigned_tickets`: The unsigned tickets bytes when dont_sign_tx is true.
+
+- `repeated bytes split_tx`: The split tx bytes when dont_sign_tx is true.
+
+___
 
 **Expected errors:**
 

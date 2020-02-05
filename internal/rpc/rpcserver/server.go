@@ -1543,6 +1543,12 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 
 	var ticketAddr dcrutil.Address
 	var err error
+
+	n, err := s.wallet.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+
 	if req.TicketAddress != "" {
 		ticketAddr, err = decodeAddress(req.TicketAddress, params)
 		if err != nil {
@@ -1551,6 +1557,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}
 
 	var poolAddr dcrutil.Address
+	var poolFees float64
 	if req.PoolAddress != "" {
 		poolAddr, err = decodeAddress(req.PoolAddress, params)
 		if err != nil {
@@ -1559,17 +1566,18 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}
 
 	if req.PoolFees > 0 {
+		poolFees = req.PoolFees
 		if !txrules.ValidPoolFeeRate(req.PoolFees) {
 			return nil, status.Errorf(codes.InvalidArgument, "Invalid pool fees percentage")
 		}
 	}
 
-	if req.PoolFees > 0 && poolAddr == nil {
+	if poolFees > 0 && poolAddr == nil {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"Pool fees set but no pool address given")
 	}
 
-	if req.PoolFees <= 0 && poolAddr != nil {
+	if poolFees <= 0 && poolAddr != nil {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"Pool fees negative or unset but pool address given")
 	}
@@ -1594,26 +1602,63 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 			"Negative fees per KB given")
 	}
 
-	lock := make(chan time.Time, 1)
-	defer func() {
-		lock <- time.Time{} // send matters, not the value
-	}()
-	err = s.wallet.Unlock(ctx, req.Passphrase, lock)
-	if err != nil {
-		return nil, translateError(err)
+	dontSignTx := req.DontSignTx
+
+	request := &wallet.PurchaseTicketsRequest{
+		Count:         numTickets,
+		SourceAccount: req.Account,
+		VotingAddress: ticketAddr,
+		MinConf:       minConf,
+		Expiry:        expiry,
+		DontSignTx:    dontSignTx,
+		VSPAddress:    poolAddr,
+		VSPFees:       poolFees,
 	}
 
-	resp, err := s.wallet.PurchaseTickets(ctx, 0, spendLimit, minConf,
-		ticketAddr, req.Account, numTickets, poolAddr, req.PoolFees,
-		expiry, txFee, ticketFee)
-	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition,
-			"Unable to purchase tickets: %v", err)
+	// If dontSignTx is false we unlock the wallet so we can sign the tx.
+	if !dontSignTx {
+		lock := make(chan time.Time, 1)
+		defer func() {
+			lock <- time.Time{} // send matters, not the value
+		}()
+		err = s.wallet.Unlock(ctx, req.Passphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
 	}
 
-	hashes := marshalHashes(resp)
+	ticketsResponse, err := s.wallet.PurchaseTicketsWithResponse(ctx, n, request)
+	if err != nil {
+		return nil, err
+	}
+	ticketsTx := ticketsResponse.Tickets
+	splitTx := ticketsResponse.SplitTx
 
-	return &pb.PurchaseTicketsResponse{TicketHashes: hashes}, nil
+	unsignedTickets := make([][]byte, len(ticketsTx))
+	for i, mtx := range ticketsTx {
+		var buf bytes.Buffer
+
+		err = mtx.Serialize(&buf)
+		if err != nil {
+			return nil, err
+		}
+		unsignedTickets[i] = buf.Bytes()
+	}
+
+	var splitTxBuf bytes.Buffer
+	splitTxBuf.Grow(splitTx.SerializeSize())
+	err = splitTx.Serialize(&splitTxBuf)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "Error Serializing split tx: %v", err)
+	}
+	splitTxBytes := splitTxBuf.Bytes()
+	hashesBytes := marshalHashes(ticketsResponse.TicketHashes)
+
+	return &pb.PurchaseTicketsResponse{
+		TicketHashes: hashesBytes,
+		Tickets:      unsignedTickets,
+		SplitTx:      splitTxBytes,
+	}, nil
 }
 
 func (s *walletServer) RevokeTickets(ctx context.Context, req *pb.RevokeTicketsRequest) (*pb.RevokeTicketsResponse, error) {

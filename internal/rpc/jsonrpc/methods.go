@@ -2326,6 +2326,11 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		return nil, errUnloadedWallet
 	}
 
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+
 	spendLimit, err := dcrutil.NewAmount(cmd.SpendLimit)
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
@@ -2400,29 +2405,74 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		expiry = int32(*cmd.Expiry)
 	}
 
-	ticketFee := w.TicketFeeIncrement()
+	// The ticketFee code is being deprecated, but still need to be here because of
+	// positional json-rpc parameters.
 
 	// Set the ticket fee if specified.
 	if cmd.TicketFee != nil {
-		ticketFee, err = dcrutil.NewAmount(*cmd.TicketFee)
+		_, err = dcrutil.NewAmount(*cmd.TicketFee)
 		if err != nil {
 			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 		}
 	}
 
-	hashes, err := w.PurchaseTickets(ctx, 0, spendLimit, minConf, ticketAddr,
-		account, numTickets, poolAddr, poolFee, expiry, w.RelayFee(),
-		ticketFee)
+	dontSignTx := false
+	if cmd.DontSignTx != nil {
+		dontSignTx = *cmd.DontSignTx
+	}
+
+	request := &wallet.PurchaseTicketsRequest{
+		Count:         numTickets,
+		SourceAccount: account,
+		VotingAddress: ticketAddr,
+		MinConf:       minConf,
+		Expiry:        expiry,
+		DontSignTx:    dontSignTx,
+		VSPAddress:    poolAddr,
+		VSPFees:       poolFee,
+	}
+	ticketsResponse, err := w.PurchaseTicketsWithResponse(ctx, n, request)
 	if err != nil {
 		return nil, err
 	}
+	ticketsTx := ticketsResponse.Tickets
+	splitTx := ticketsResponse.SplitTx
 
-	hashStrs := make([]string, len(hashes))
-	for i := range hashes {
-		hashStrs[i] = hashes[i].String()
+	// If dontSignTx is false, we return the TicketHashes of the published txs.
+	if !dontSignTx {
+		hashes := ticketsResponse.TicketHashes
+		hashStrs := make([]string, len(hashes))
+		for i := range hashes {
+			hashStrs[i] = hashes[i].String()
+		}
+
+		return hashStrs, err
 	}
 
-	return hashStrs, err
+	// Otherwise we return its unsigned tickets bytes and the splittx, so a
+	// cold wallet can handle it.
+	var stringBuilder strings.Builder
+	unsignedTickets := make([]string, len(ticketsTx))
+	for i, mtx := range ticketsTx {
+		err = mtx.Serialize(hex.NewEncoder(&stringBuilder))
+		if err != nil {
+			return nil, err
+		}
+		unsignedTickets[i] = stringBuilder.String()
+		stringBuilder.Reset()
+	}
+
+	err = splitTx.Serialize(hex.NewEncoder(&stringBuilder))
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+	}
+
+	splitTxString := stringBuilder.String()
+
+	return types.CreateUnsignedTicketResult{
+		UnsignedTickets: unsignedTickets,
+		SplitTx:         splitTxString,
+	}, nil
 }
 
 func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err error) {
