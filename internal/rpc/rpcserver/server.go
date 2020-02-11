@@ -58,9 +58,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.2.0"
+	semverString = "7.3.0"
 	semverMajor  = 7
-	semverMinor  = 2
+	semverMinor  = 3
 	semverPatch  = 0
 )
 
@@ -162,6 +162,13 @@ type loaderServer struct {
 // human-readable input back to binary.
 type seedServer struct{}
 
+// accountMixerServer provides RPC clients with the ability to start/stop the
+// account mixing privacy service.
+type accountMixerServer struct {
+	ready  uint32 // atomic
+	loader *loader.Loader
+}
+
 // ticketbuyerServer provides RPC clients with the ability to start/stop the
 // automatic ticket buyer service.
 type ticketbuyerV2Server struct {
@@ -196,6 +203,7 @@ var (
 	walletService              walletServer
 	loaderService              loaderServer
 	seedService                seedServer
+	accountMixerService        accountMixerServer
 	ticketBuyerV2Service       ticketbuyerV2Server
 	agendaService              agendaServer
 	votingService              votingServer
@@ -210,6 +218,7 @@ func RegisterServices(server *grpc.Server) {
 	pb.RegisterWalletServiceServer(server, &walletService)
 	pb.RegisterWalletLoaderServiceServer(server, &loaderService)
 	pb.RegisterSeedServiceServer(server, &seedService)
+	pb.RegisterAccountMixerServiceServer(server, &accountMixerService)
 	pb.RegisterTicketBuyerV2ServiceServer(server, &ticketBuyerV2Service)
 	pb.RegisterAgendaServiceServer(server, &agendaService)
 	pb.RegisterVotingServiceServer(server, &votingService)
@@ -222,6 +231,7 @@ var serviceMap = map[string]interface{}{
 	"walletrpc.WalletService":              &walletService,
 	"walletrpc.WalletLoaderService":        &loaderService,
 	"walletrpc.SeedService":                &seedService,
+	"walletrpc.AccountMixerService":        &accountMixerService,
 	"walletrpc.TicketBuyerV2Service":       &ticketBuyerV2Service,
 	"walletrpc.AgendaService":              &agendaService,
 	"walletrpc.VotingService":              &votingService,
@@ -2195,6 +2205,61 @@ func StartWalletLoaderService(server *grpc.Server, loader *loader.Loader, active
 
 func (s *loaderServer) checkReady() bool {
 	return atomic.LoadUint32(&s.ready) != 0
+}
+
+// StartAccountMixerService starts the AccountMixerService.
+func StartAccountMixerService(server *grpc.Server, loader *loader.Loader) {
+	accountMixerService.loader = loader
+	if atomic.SwapUint32(&accountMixerService.ready, 1) != 0 {
+		panic("service already started")
+	}
+}
+
+// RunAccountMixer starts the automatic account mixer for the service.
+func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr pb.AccountMixerService_RunAccountMixerServer) error {
+	wallet, ok := t.loader.LoadedWallet()
+	if !ok {
+		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+	}
+
+	tb := ticketbuyer.New(wallet)
+
+	// Set ticketbuyerV2 config
+	tb.AccessConfig(func(c *ticketbuyer.Config) {
+		c.MixedAccountBranch = req.MixedAccountBranch
+		c.MixedAccount = req.MixedAccount
+		c.ChangeAccount = req.ChangeAccount
+		c.CSPPServer = req.CsppServer
+		c.BuyTickets = false
+		c.MixChange = true
+	})
+
+	lock := make(chan time.Time, 1)
+
+	lockWallet := func() {
+		lock <- time.Time{}
+		zero(req.Passphrase)
+	}
+
+	err := wallet.Unlock(svr.Context(), req.Passphrase, lock)
+	if err != nil {
+		return translateError(err)
+	}
+	defer lockWallet()
+
+	err = tb.Run(svr.Context(), req.Passphrase)
+	if err != nil {
+		if svr.Context().Err() != nil {
+			return status.Errorf(codes.Canceled, "AccountMixer instance canceled, account number: %v", req.MixedAccount)
+		}
+		return status.Errorf(codes.Unknown, "AccountMixer instance errored: %v", err)
+	}
+
+	return nil
+}
+
+func (t *accountMixerServer) checkReady() bool {
+	return atomic.LoadUint32(&t.ready) != 0
 }
 
 // StartTicketBuyerV2Service starts the TicketBuyerV2Service.

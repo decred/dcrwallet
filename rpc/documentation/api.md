@@ -2739,6 +2739,39 @@ The users may specify a balance to maintain as well as various settings for purc
 
 - `InvalidArgument`: A negative balance to maintain given.
 
+## `AccountMixerService`
+
+The `AccountMixerService` service provides RPC clients with the ability to
+launch the V2 ticket buyer.  
+
+**Methods:**
+
+- [`RunAccountMixer`](#runautobuyer)
+
+### Methods
+
+#### `RunAccountMixer`
+
+The `RunAccountMixer` starts a new account mixer for the specified account (and branch).
+
+**Request:** `RunAccountMixerRequest`
+
+- `bytes passphrase`: The private passphrase to unlock the wallet.
+
+- `uint32 mixed_account`: The account number to which the mixing funds should end up.
+
+- `uint32 mixed_account_branch`: The branch number to which the mixing funds should end up.
+
+- `uint32 change_account`: The account that will be used for any unmixed change that is waiting to be mixed.
+
+- `string cspp_server`: The CSPP mixing server URL and port.
+
+**Response:** `stream RunAccountMixerResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: Wallet has not been loaded.
+
 ## `AgendaService`
 
 The `AgendaService` service provides RPC clients with the ability to query the
