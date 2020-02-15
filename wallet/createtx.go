@@ -22,14 +22,13 @@ import (
 	"decred.org/dcrwallet/wallet/txsizes"
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
-	"github.com/decred/dcrd/blockchain/stake/v2"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/chaincfg/v2/chainec"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/txscript/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -197,13 +196,13 @@ type secretSource struct {
 	doneFuncs []func()
 }
 
-func (s *secretSource) GetKey(addr dcrutil.Address) (chainec.PrivateKey, bool, error) {
+func (s *secretSource) GetKey(addr dcrutil.Address) ([]byte, dcrec.SignatureType, bool, error) {
 	privKey, done, err := s.Manager.PrivateKey(s.addrmgrNs, addr)
 	if err != nil {
-		return nil, false, err
+		return nil, 0, false, err
 	}
 	s.doneFuncs = append(s.doneFuncs, done)
-	return privKey, true, nil
+	return privKey.Serialize(), dcrec.STEcdsaSecp256k1, true, nil
 }
 
 func (s *secretSource) GetScript(addr dcrutil.Address) ([]byte, error) {
@@ -1735,7 +1734,7 @@ func (w *Wallet) signP2PKHMsgTx(msgtx *wire.MsgTx, prevOutputs []udb.Credit, add
 		defer done()
 
 		sigscript, err := txscript.SignatureScript(msgtx, i, output.PkScript,
-			txscript.SigHashAll, privKey, true)
+			txscript.SigHashAll, privKey.Serialize(), dcrec.STEcdsaSecp256k1, true)
 		if err != nil {
 			return errors.E(errors.Op("txscript.SignatureScript"), err)
 		}
@@ -1759,14 +1758,15 @@ func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurch
 
 	// Prepare functions to look up private key and script secrets so signing
 	// can be performed.
-	var getKey txscript.KeyClosure = func(addr dcrutil.Address) (chainec.PrivateKey, bool, error) {
+	var getKey txscript.KeyClosure = func(addr dcrutil.Address) ([]byte, dcrec.SignatureType, bool, error) {
 		key, done, err := w.Manager.PrivateKey(addrmgrNs, addr)
 		if err != nil {
-			return nil, false, err
+			return nil, 0, false, err
 		}
 		doneFuncs = append(doneFuncs, done)
 
-		return key, true, nil // secp256k1 pubkeys are always compressed in Decred
+		// secp256k1 pubkeys are always compressed in Decred
+		return key.Serialize(), dcrec.STEcdsaSecp256k1, true, nil
 	}
 	var getScript txscript.ScriptClosure = func(addr dcrutil.Address) ([]byte, error) {
 		script, done, err := w.Manager.RedeemScript(addrmgrNs, addr)
@@ -1789,7 +1789,7 @@ func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurch
 	redeemTicketScript := ticketPurchase.TxOut[0].PkScript
 	signedScript, err := txscript.SignTxOutput(w.chainParams, tx, inputToSign,
 		redeemTicketScript, txscript.SigHashAll, getKey, getScript,
-		tx.TxIn[inputToSign].SignatureScript, dcrec.STEcdsaSecp256k1)
+		tx.TxIn[inputToSign].SignatureScript)
 	if err != nil {
 		return errors.E(errors.Op("txscript.SignTxOutput"), errors.ScriptFailure, err)
 	}

@@ -9,7 +9,7 @@ import (
 
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet/walletdb"
-	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
 )
 
 // Open opens the database and returns various "manager" types that must be used

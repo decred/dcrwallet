@@ -20,10 +20,10 @@ import (
 	"decred.org/dcrwallet/wallet"
 	_ "decred.org/dcrwallet/wallet/drivers/bdb"
 	"decred.org/dcrwallet/walletseed"
-	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/hdkeychain/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/wire"
 )
 

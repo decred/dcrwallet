@@ -14,8 +14,8 @@ import (
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/txscript/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -70,7 +70,7 @@ func (w *Wallet) MakeSecp256k1MultiSigScript(ctx context.Context, secp256k1Addrs
 				return nil, err
 			}
 			serializedPubKey := addrInfo.(udb.ManagedPubKeyAddress).
-				PubKey().Serialize()
+				PubKey().SerializeCompressed()
 
 			pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(
 				serializedPubKey, w.chainParams)

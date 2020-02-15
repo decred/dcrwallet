@@ -11,9 +11,9 @@ import (
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet/internal/compat"
 	"decred.org/dcrwallet/wallet/walletdb"
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/hdkeychain/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/hdkeychain/v3"
 )
 
 func TestCoinTypes(t *testing.T) {

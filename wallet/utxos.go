@@ -13,8 +13,8 @@ import (
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/txscript/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
 

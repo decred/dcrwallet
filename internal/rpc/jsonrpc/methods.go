@@ -27,16 +27,16 @@ import (
 	"decred.org/dcrwallet/wallet"
 	"decred.org/dcrwallet/wallet/txrules"
 	"decred.org/dcrwallet/wallet/udb"
-	"github.com/decred/dcrd/blockchain/stake/v2"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrjson/v3"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/hdkeychain/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/hdkeychain/v3"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/txscript/v2"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
 )
@@ -376,12 +376,8 @@ func makeMultiSigScript(ctx context.Context, w *wallet.Wallet, keys []string, nR
 				}
 				return nil, err
 			}
-			if dcrec.SignatureType(pubKey.GetType()) != dcrec.STEcdsaSecp256k1 {
-				return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-					"only secp256k1 pubkeys are currently supported")
-			}
 			pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(
-				pubKey.Serialize(), w.ChainParams())
+				pubKey.SerializeCompressed(), w.ChainParams())
 			if err != nil {
 				return nil, rpcError(dcrjson.ErrRPCInvalidAddressOrKey, err)
 			}
@@ -3018,12 +3014,8 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 				}
 				return nil, err
 			}
-			if dcrec.SignatureType(pubKey.GetType()) != dcrec.STEcdsaSecp256k1 {
-				return nil, errors.New("only secp256k1 " +
-					"pubkeys are currently supported")
-			}
 			pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(
-				pubKey.Serialize(), w.ChainParams())
+				pubKey.SerializeCompressed(), w.ChainParams())
 			if err != nil {
 				return nil, err
 			}
@@ -3283,22 +3275,20 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 			var addr dcrutil.Address
 			switch wif.DSA() {
 			case dcrec.STEcdsaSecp256k1:
-				addr, err = dcrutil.NewAddressSecpPubKey(wif.SerializePubKey(),
+				addr, err = dcrutil.NewAddressSecpPubKey(wif.PubKey(),
 					w.ChainParams())
 				if err != nil {
 					return nil, err
 				}
 			case dcrec.STEd25519:
 				addr, err = dcrutil.NewAddressEdwardsPubKey(
-					wif.SerializePubKey(),
-					w.ChainParams())
+					wif.PubKey(), w.ChainParams())
 				if err != nil {
 					return nil, err
 				}
 			case dcrec.STSchnorrSecp256k1:
 				addr, err = dcrutil.NewAddressSecSchnorrPubKey(
-					wif.SerializePubKey(),
-					w.ChainParams())
+					wif.PubKey(), w.ChainParams())
 				if err != nil {
 					return nil, err
 				}

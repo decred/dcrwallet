@@ -18,7 +18,7 @@ import (
 	"decred.org/dcrwallet/version"
 	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/connmgr/v2"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"

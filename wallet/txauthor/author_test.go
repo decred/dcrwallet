@@ -13,7 +13,7 @@ import (
 	. "decred.org/dcrwallet/wallet/txauthor"
 	"decred.org/dcrwallet/wallet/txrules"
 	"decred.org/dcrwallet/wallet/txsizes"
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/wire"
 )
 

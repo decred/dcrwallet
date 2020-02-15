@@ -14,8 +14,8 @@ import (
 	"testing"
 
 	"decred.org/dcrwallet/wallet/walletdb"
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
 )
 
 // expectedAddr is used to house the expected return values from a managed
@@ -228,10 +228,10 @@ func testExternalAddresses(tc *testContext) {
 				prefix, addr.String(), err)
 		}
 
-		if !bytes.Equal(pubKey.Serialize(), expectedExternalAddrs[i].pubKey) {
+		if !bytes.Equal(pubKey.SerializeCompressed(), expectedExternalAddrs[i].pubKey) {
 			tc.t.Fatalf("%s: expected pubkey %v got %v",
 				prefix, hex.EncodeToString(expectedExternalAddrs[i].pubKey),
-				hex.EncodeToString(pubKey.Serialize()))
+				hex.EncodeToString(pubKey.SerializeCompressed()))
 		}
 	}
 }
@@ -294,10 +294,10 @@ func testInternalAddresses(tc *testContext) {
 				prefix, addr.String(), err)
 		}
 
-		if !bytes.Equal(pubKey.Serialize(), expectedInternalAddrs[i].pubKey) {
+		if !bytes.Equal(pubKey.SerializeCompressed(), expectedInternalAddrs[i].pubKey) {
 			tc.t.Fatalf("%s: expected pubkey %v got %v",
 				prefix, hex.EncodeToString(expectedInternalAddrs[i].pubKey),
-				hex.EncodeToString(pubKey.Serialize()))
+				hex.EncodeToString(pubKey.SerializeCompressed()))
 		}
 	}
 }

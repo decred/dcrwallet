@@ -9,7 +9,7 @@ import (
 
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet/walletdb"
-	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
 )
 
 // Initialize prepares an empty database for usage by initializing all buckets

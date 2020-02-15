@@ -7,8 +7,9 @@ import (
 
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet/walletdb"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/txscript/v2"
+	"github.com/decred/dcrd/dcrec"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -124,7 +125,7 @@ func (c *csppJoin) Confirm() error {
 			}
 			defer done()
 			sigscript, err := txscript.SignatureScript(c.tx, index, outScript,
-				txscript.SigHashAll, privKey, true)
+				txscript.SigHashAll, privKey.Serialize(), dcrec.STEcdsaSecp256k1, true)
 			if err != nil {
 				return errors.E(errors.Op("txscript.SignatureScript"), err)
 			}

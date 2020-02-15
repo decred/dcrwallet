@@ -10,10 +10,9 @@ import (
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet/txrules"
 	"decred.org/dcrwallet/wallet/txsizes"
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/txscript/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -211,7 +210,7 @@ func AddAllInputScripts(tx *wire.MsgTx, prevPkScripts [][]byte, secrets SecretsS
 		sigScript := inputs[i].SignatureScript
 		script, err := txscript.SignTxOutput(chainParams, tx, i,
 			pkScript, txscript.SigHashAll, secrets, secrets,
-			sigScript, dcrec.STEcdsaSecp256k1)
+			sigScript)
 		if err != nil {
 			return err
 		}

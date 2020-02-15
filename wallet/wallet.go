@@ -25,18 +25,17 @@ import (
 	"decred.org/dcrwallet/wallet/txrules"
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
-	"github.com/decred/dcrd/blockchain/stake/v2"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/chaincfg/v2/chainec"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrec/secp256k1/v2"
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/dcrec/secp256k1/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/gcs"
-	"github.com/decred/dcrd/hdkeychain/v2"
+	"github.com/decred/dcrd/hdkeychain/v3"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/txscript/v2"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
 )
@@ -1604,9 +1603,9 @@ func (w *Wallet) CurrentAddress(account uint32) (dcrutil.Address, error) {
 }
 
 // PubKeyForAddress looks up the associated public key for a P2PKH address.
-func (w *Wallet) PubKeyForAddress(ctx context.Context, a dcrutil.Address) (chainec.PublicKey, error) {
+func (w *Wallet) PubKeyForAddress(ctx context.Context, a dcrutil.Address) (*secp256k1.PublicKey, error) {
 	const op errors.Op = "wallet.PubKeyForAddress"
-	var pubKey chainec.PublicKey
+	var pubKey *secp256k1.PublicKey
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		managedAddr, err := w.Manager.Address(addrmgrNs, a)
@@ -1634,7 +1633,7 @@ func (w *Wallet) SignMessage(ctx context.Context, msg string, addr dcrutil.Addre
 	wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
 	wire.WriteVarString(&buf, 0, msg)
 	messageHash := chainhash.HashB(buf.Bytes())
-	var privKey chainec.PrivateKey
+	var privKey *secp256k1.PrivateKey
 	var done func()
 	defer func() {
 		if done != nil {
@@ -1650,11 +1649,7 @@ func (w *Wallet) SignMessage(ctx context.Context, msg string, addr dcrutil.Addre
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	pkCast, ok := privKey.(*secp256k1.PrivateKey)
-	if !ok {
-		return nil, errors.E(op, "unable to create secp256k1.PrivateKey from chainec.PrivateKey")
-	}
-	sig, err = secp256k1.SignCompact(pkCast, messageHash, true)
+	sig, err = secp256k1.SignCompact(privKey, messageHash, true)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -1671,8 +1666,7 @@ func VerifyMessage(msg string, addr dcrutil.Address, sig []byte, params dcrutil.
 	wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
 	wire.WriteVarString(&buf, 0, msg)
 	expectedMessageHash := chainhash.HashB(buf.Bytes())
-	pk, wasCompressed, err := chainec.Secp256k1.RecoverCompact(sig,
-		expectedMessageHash)
+	pk, wasCompressed, err := secp256k1.RecoverCompact(sig, expectedMessageHash)
 	if err != nil {
 		return false, errors.E(op, err)
 	}
@@ -3261,7 +3255,7 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 // single wallet address.
 func (w *Wallet) DumpWIFPrivateKey(ctx context.Context, addr dcrutil.Address) (string, error) {
 	const op errors.Op = "wallet.DumpWIFPrivateKey"
-	var privKey chainec.PrivateKey
+	var privKey *secp256k1.PrivateKey
 	var done func()
 	defer func() {
 		if done != nil {
@@ -3277,7 +3271,11 @@ func (w *Wallet) DumpWIFPrivateKey(ctx context.Context, addr dcrutil.Address) (s
 	if err != nil {
 		return "", errors.E(op, err)
 	}
-	wif := dcrutil.NewWIF(privKey, w.chainParams.PrivateKeyID, dcrec.SignatureType(privKey.GetType()))
+	wif, err := dcrutil.NewWIF(privKey.Serialize(), w.chainParams.PrivateKeyID,
+		dcrec.STEcdsaSecp256k1)
+	if err != nil {
+		return "", errors.E(op, err)
+	}
 	return wif.String(), nil
 }
 
@@ -4046,6 +4044,16 @@ type SignatureError struct {
 	Error      error
 }
 
+type sigDataSource struct {
+	key    func(dcrutil.Address) ([]byte, dcrec.SignatureType, bool, error)
+	script func(dcrutil.Address) ([]byte, error)
+}
+
+func (s sigDataSource) GetKey(a dcrutil.Address) ([]byte, dcrec.SignatureType, bool, error) {
+	return s.key(a)
+}
+func (s sigDataSource) GetScript(a dcrutil.Address) ([]byte, error) { return s.script(a) }
+
 // SignTransaction uses secrets of the wallet, as well as additional secrets
 // passed in by the caller, to create and add input signatures to a transaction.
 //
@@ -4098,37 +4106,27 @@ func (w *Wallet) SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType t
 
 			// Set up our callbacks that we pass to txscript so it can
 			// look up the appropriate keys and scripts by address.
-			getKey := txscript.KeyClosure(func(addr dcrutil.Address) (
-				chainec.PrivateKey, bool, error) {
+			var source sigDataSource
+			source.key = func(addr dcrutil.Address) ([]byte, dcrec.SignatureType, bool, error) {
 				if len(additionalKeysByAddress) != 0 {
 					addrStr := addr.Address()
 					wif, ok := additionalKeysByAddress[addrStr]
 					if !ok {
-						return nil, false,
+						return nil, 0, false,
 							errors.Errorf("no key for address (needed: %v, have %v)",
 								addr.Address(), additionalKeysByAddress)
 					}
-					return wif.PrivKey, true, nil
-				}
-				address, err := w.Manager.Address(addrmgrNs, addr)
-				if err != nil {
-					return nil, false, err
+					return wif.PrivKey(), dcrec.STEcdsaSecp256k1, true, nil
 				}
 
-				pka, ok := address.(udb.ManagedPubKeyAddress)
-				if !ok {
-					return nil, false, errors.Errorf("address %v is not "+
-						"a pubkey address", address.Address().Address())
-				}
 				key, done, err := w.Manager.PrivateKey(addrmgrNs, addr)
 				if err != nil {
-					return nil, false, err
+					return nil, 0, false, err
 				}
 				doneFuncs = append(doneFuncs, done)
-				return key, pka.Compressed(), nil
-			})
-			getScript := txscript.ScriptClosure(func(
-				addr dcrutil.Address) ([]byte, error) {
+				return key.Serialize(), dcrec.STEcdsaSecp256k1, true, nil
+			}
+			source.script = func(addr dcrutil.Address) ([]byte, error) {
 				// If keys were provided then we can only use the
 				// redeem scripts provided with our inputs, too.
 				if len(additionalKeysByAddress) != 0 {
@@ -4156,30 +4154,16 @@ func (w *Wallet) SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType t
 					return nil, err
 				}
 				return script, nil
-			})
+			}
 
 			// SigHashSingle inputs can only be signed if there's a
 			// corresponding output. However this could be already signed,
 			// so we always verify the output.
 			if (hashType&txscript.SigHashSingle) !=
 				txscript.SigHashSingle || i < len(tx.TxOut) {
-				// Check for alternative checksig scripts and
-				// set the signature suite accordingly.
-				ecType := dcrec.STEcdsaSecp256k1
-				class := txscript.GetScriptClass(0, prevOutScript)
-				if class == txscript.PubkeyAltTy ||
-					class == txscript.PubkeyHashAltTy {
-					var err error
-					ecType, err = txscript.ExtractPkScriptAltSigType(prevOutScript)
-					if err != nil {
-						return errors.New("unknown checksigalt signature " +
-							"suite specified")
-					}
-				}
 
 				script, err := txscript.SignTxOutput(w.ChainParams(),
-					tx, i, prevOutScript, hashType, getKey,
-					getScript, txIn.SignatureScript, ecType)
+					tx, i, prevOutScript, hashType, source, source, txIn.SignatureScript)
 				// Failure to sign isn't an error, it just means that
 				// the tx isn't complete.
 				if err != nil {
@@ -4208,7 +4192,7 @@ func (w *Wallet) SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType t
 
 				if txscript.IsErrorCode(err, txscript.ErrInvalidStackOperation) &&
 					class == txscript.ScriptHashTy {
-					redeemScript, _ := getScript(addr[0])
+					redeemScript, _ := source.script(addr[0])
 					redeemClass := txscript.GetScriptClass(
 						0, redeemScript)
 					if redeemClass == txscript.MultiSigTy {
@@ -4241,8 +4225,8 @@ func (w *Wallet) SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType t
 func (w *Wallet) CreateSignature(ctx context.Context, tx *wire.MsgTx, idx uint32, addr dcrutil.Address,
 	hashType txscript.SigHashType, prevPkScript []byte) (sig, pubkey []byte, err error) {
 	const op errors.Op = "wallet.CreateSignature"
-	var privKey chainec.PrivateKey
-	var pubKey chainec.PublicKey
+	var privKey *secp256k1.PrivateKey
+	var pubKey *secp256k1.PublicKey
 	var done func()
 	defer func() {
 		if done != nil {
@@ -4258,14 +4242,15 @@ func (w *Wallet) CreateSignature(ctx context.Context, tx *wire.MsgTx, idx uint32
 		if err != nil {
 			return err
 		}
-		pubKey = chainec.Secp256k1.NewPublicKey(privKey.Public())
+		pubKey = privKey.PubKey()
 		return nil
 	})
 	if err != nil {
 		return nil, nil, errors.E(op, err)
 	}
 
-	sig, err = txscript.RawTxInSignature(tx, int(idx), prevPkScript, hashType, privKey)
+	sig, err = txscript.RawTxInSignature(tx, int(idx), prevPkScript, hashType,
+		privKey.Serialize(), dcrec.STEcdsaSecp256k1)
 	if err != nil {
 		return nil, nil, errors.E(op, err)
 	}

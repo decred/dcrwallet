@@ -16,7 +16,7 @@ import (
 
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/walletseed"
-	"github.com/decred/dcrd/hdkeychain/v2"
+	"github.com/decred/dcrd/hdkeychain/v3"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
