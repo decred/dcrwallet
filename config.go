@@ -25,7 +25,7 @@ import (
 	"decred.org/dcrwallet/version"
 	"decred.org/dcrwallet/wallet"
 	"decred.org/dcrwallet/wallet/txrules"
-	"github.com/decred/dcrd/connmgr/v2"
+	"github.com/decred/dcrd/connmgr/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/go-socks/socks"
 	"github.com/decred/slog"

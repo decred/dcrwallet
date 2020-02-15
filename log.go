@@ -19,7 +19,7 @@ import (
 	"decred.org/dcrwallet/ticketbuyer"
 	"decred.org/dcrwallet/wallet"
 	"decred.org/dcrwallet/wallet/udb"
-	"github.com/decred/dcrd/connmgr/v2"
+	"github.com/decred/dcrd/connmgr/v3"
 	"github.com/decred/slog"
 	"github.com/jrick/logrotate/rotator"
 )
