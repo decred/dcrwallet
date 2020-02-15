@@ -6,8 +6,12 @@ package p2p
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"net/url"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -231,27 +235,87 @@ func (rp *RemotePeer) InvsRecv() *lru.Cache { return &rp.invsRecv }
 // KnownHeaders returns an LRU cache of block hashes from received headers messages.
 func (rp *RemotePeer) KnownHeaders() *lru.Cache { return &rp.knownHeaders }
 
-// DNSSeed uses DNS to seed the local peer with remote addresses matching the
+// SeedPeers seeds the local peer with remote addresses matching the
 // services.
-func (lp *LocalPeer) DNSSeed(services wire.ServiceFlag) {
-	seeders := make([]string, 0, len(lp.chainParams.DNSSeeds))
-	for _, seed := range lp.chainParams.DNSSeeds {
-		if seed.HasFiltering {
-			seeders = append(seeders, seed.Host)
+func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
+	seeders := lp.chainParams.Seeders()
+	url := &url.URL{
+		Scheme:   "https",
+		Path:     "/api/addrs",
+		RawQuery: fmt.Sprintf("services=%d", services),
+	}
+	resps := make(chan *http.Response)
+	client := http.Client{
+		Transport: &http.Transport{
+			DialContext: lp.dialer.DialContext,
+		},
+	}
+	for _, host := range seeders {
+		host := host
+		url.Host = host
+		req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
+		if err != nil {
+			log.Errorf("Bad seeder request: %v", err)
+			continue
+		}
+		go func() {
+			resp, err := client.Do(req)
+			if err != nil {
+				log.Warnf("Failed to seed addresses from %s: %v", host, err)
+				resp = nil
+			}
+			resps <- resp
+		}()
+	}
+	var na []*wire.NetAddress
+	for range seeders {
+		resp := <-resps
+		if resp == nil {
+			continue
+		}
+		var apiResponse struct {
+			Host     string `json:"host"`
+			Services uint64 `json:"services"`
+		}
+		dec := json.NewDecoder(resp.Body)
+		na = na[:0]
+		for {
+			err := dec.Decode(&apiResponse)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				log.Warnf("Invalid seeder API response: %v", err)
+				continue
+			}
+			host, port, err := net.SplitHostPort(apiResponse.Host)
+			if err != nil {
+				log.Warnf("Invalid host in seeder API: %v", err)
+				continue
+			}
+			ip := net.ParseIP(host)
+			if ip == nil {
+				log.Warnf("Invalid IP address %q in seeder API host field", host)
+				continue
+			}
+			portNum, err := strconv.ParseUint(port, 10, 16)
+			if err != nil {
+				log.Warnf("Invalid port %q in seeder API host field", port)
+				continue
+			}
+			log.Debugf("Discovered peer %v from seeder", apiResponse.Host)
+			na = append(na, &wire.NetAddress{
+				Timestamp: time.Now(),
+				Services:  wire.ServiceFlag(apiResponse.Services),
+				IP:        ip,
+				Port:      uint16(portNum),
+			})
+		}
+		resp.Body.Close()
+		if len(na) > 0 {
+			lp.amgr.AddAddresses(na, na[0])
 		}
 	}
-	defaultPort, err := strconv.ParseUint(lp.chainParams.DefaultPort, 10, 16)
-	if err != nil {
-		log.Warnf("Chain params specify invalid default port %q", lp.chainParams.DefaultPort)
-		return
-	}
-	connmgr.SeedFromDNS(seeders, uint16(defaultPort), services, net.LookupIP, func(addrs []*wire.NetAddress) {
-		for _, a := range addrs {
-			as := &net.TCPAddr{IP: a.IP, Port: int(a.Port)}
-			log.Debugf("Discovered peer %v from seeder", as)
-		}
-		lp.amgr.AddAddresses(addrs, addrs[0])
-	})
 }
 
 type msgReader struct {
