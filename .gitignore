@@ -1,3 +1,5 @@
+cmd/movefunds/movefunds
+cmd/sweepaccount/sweepaccount
 dcrwallet
 vendor
 *~
