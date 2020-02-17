@@ -124,13 +124,6 @@ func NewCreateEncryptedWalletCmd(passphrase string) *CreateEncryptedWalletCmd {
 	}
 }
 
-// CreateMultiSigResult models the data returned from the createmultisig
-// command.
-type CreateMultiSigResult struct {
-	Address      string `json:"address"`
-	RedeemScript string `json:"redeemScript"`
-}
-
 // NewConsolidateCmd creates a new ConsolidateCmd.
 func NewConsolidateCmd(inputs int, acct *string, addr *string) *ConsolidateCmd {
 	return &ConsolidateCmd{Inputs: inputs, Account: acct, Address: addr}
@@ -149,6 +142,15 @@ func NewCreateMultisigCmd(nRequired int, keys []string) *CreateMultisigCmd {
 		NRequired: nRequired,
 		Keys:      keys,
 	}
+}
+
+// CreateSignatureCmd defines the createsignature JSON-RPC command.
+type CreateSignatureCmd struct {
+	Address               string
+	InputIndex            int
+	HashType              int
+	PreviousPkScript      string
+	SerializedTransaction string
 }
 
 // CreateNewAccountCmd defines the createnewaccount JSON-RPC command.
@@ -1316,6 +1318,7 @@ func init() {
 		{"auditreuse", (*AuditReuseCmd)(nil)},
 		{"consolidate", (*ConsolidateCmd)(nil)},
 		{"createmultisig", (*CreateMultisigCmd)(nil)},
+		{"createsignature", (*CreateSignatureCmd)(nil)},
 		{"createnewaccount", (*CreateNewAccountCmd)(nil)},
 		{"createvotingaccount", (*CreateVotingAccountCmd)(nil)},
 		{"dropvotingaccount", (*DropVotingAccountCmd)(nil)},

@@ -43,9 +43,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "6.2.0"
+	jsonrpcSemverString = "6.3.0"
 	jsonrpcSemverMajor  = 6
-	jsonrpcSemverMinor  = 2
+	jsonrpcSemverMinor  = 3
 	jsonrpcSemverPatch  = 0
 )
 
@@ -73,6 +73,7 @@ var handlers = map[string]handler{
 	"consolidate":             {fn: (*Server).consolidate},
 	"createmultisig":          {fn: (*Server).createMultiSig},
 	"createrawtransaction":    {fn: (*Server).createRawTransaction},
+	"createsignature":         {fn: (*Server).createSignature},
 	"dumpprivkey":             {fn: (*Server).dumpPrivKey},
 	"generatevote":            {fn: (*Server).generateVote},
 	"getaccount":              {fn: (*Server).getAccount},
@@ -711,6 +712,55 @@ func (s *Server) createRawTransaction(ctx context.Context, icmd interface{}) (in
 		return nil, err
 	}
 	return sb.String(), nil
+}
+
+// createSignature creates a signature using the private key of a wallet
+// address for a transaction input script. The serialized compressed public
+// key of the address is also returned.
+func (s *Server) createSignature(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.CreateSignatureCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	serializedTx, err := hex.DecodeString(cmd.SerializedTransaction)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+
+	var tx wire.MsgTx
+	err = tx.Deserialize(bytes.NewReader(serializedTx))
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
+	}
+
+	if cmd.InputIndex >= len(tx.TxIn) {
+		return nil, rpcErrorf(dcrjson.ErrRPCMisc,
+			"transaction input %d does not exist", cmd.InputIndex)
+	}
+
+	addr, err := decodeAddress(cmd.Address, w.ChainParams())
+	if err != nil {
+		return nil, err
+	}
+
+	hashType := txscript.SigHashType(cmd.HashType)
+	prevOutScript, err := hex.DecodeString(cmd.PreviousPkScript)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+
+	sig, pubkey, err := w.CreateSignature(ctx, &tx, uint32(cmd.InputIndex),
+		addr, hashType, prevOutScript)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.CreateSignatureResult{
+		Signature: hex.EncodeToString(sig),
+		PublicKey: hex.EncodeToString(pubkey),
+	}, nil
 }
 
 // dumpPrivKey handles a dumpprivkey request with the private key

@@ -35,6 +35,7 @@ var Methods = []struct {
 	{"auditreuse", []interface{}{(*map[string][]string)(nil)}},
 	{"consolidate", returnsString},
 	{"createmultisig", []interface{}{(*types.CreateMultiSigResult)(nil)}},
+	{"createsignature", []interface{}{(*types.CreateSignatureResult)(nil)}},
 	{"createnewaccount", nil},
 	{"createrawtransaction", returnsString},
 	{"dumpprivkey", returnsString},

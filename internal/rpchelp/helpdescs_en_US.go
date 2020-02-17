@@ -67,6 +67,18 @@ var helpDescsEnUS = map[string]string{
 	"createrawtransaction-expiry":         "Expiry value; a non-zero value when the transaction expiry",
 	"createrawtransaction--result0":       "Hex-encoded bytes of the serialized transaction",
 
+	// CreateMultisigResult help.
+	"createsignatureresult-signature": "The hex encoded signature.",
+	"createsignatureresult-publickey": "The hex encoded serialized compressed pubkey of the address.",
+
+	// CreateSignatureCmd help.
+	"createsignature--synopsis":             "Generate a signature for a transaction input script.",
+	"createsignature-address":               "The address of the private key to use to create the signature.",
+	"createsignature-serializedtransaction": "The hex encoded transaction to add input signatures to.",
+	"createsignature-inputindex":            "The index of the transaction input to sign.",
+	"createsignature-hashtype":              "The signature hash flags to use.",
+	"createsignature-previouspkscript":      "The the hex encoded previous output script or P2SH redeem script.",
+
 	// DumpPrivKeyCmd help.
 	"dumpprivkey--synopsis": "Returns the private key in WIF encoding that controls some wallet address.",
 	"dumpprivkey-address":   "The address to return a private key for",
