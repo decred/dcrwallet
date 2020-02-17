@@ -13,9 +13,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
+	"decred.org/dcrwallet/wallet/walletdb"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
 )
 
 // expectedAddr is used to house the expected return values from a managed
@@ -228,10 +228,10 @@ func testExternalAddresses(tc *testContext) {
 				prefix, addr.String(), err)
 		}
 
-		if !bytes.Equal(pubKey.Serialize(), expectedExternalAddrs[i].pubKey) {
+		if !bytes.Equal(pubKey.SerializeCompressed(), expectedExternalAddrs[i].pubKey) {
 			tc.t.Fatalf("%s: expected pubkey %v got %v",
 				prefix, hex.EncodeToString(expectedExternalAddrs[i].pubKey),
-				hex.EncodeToString(pubKey.Serialize()))
+				hex.EncodeToString(pubKey.SerializeCompressed()))
 		}
 	}
 }
@@ -294,10 +294,10 @@ func testInternalAddresses(tc *testContext) {
 				prefix, addr.String(), err)
 		}
 
-		if !bytes.Equal(pubKey.Serialize(), expectedInternalAddrs[i].pubKey) {
+		if !bytes.Equal(pubKey.SerializeCompressed(), expectedInternalAddrs[i].pubKey) {
 			tc.t.Fatalf("%s: expected pubkey %v got %v",
 				prefix, hex.EncodeToString(expectedInternalAddrs[i].pubKey),
-				hex.EncodeToString(pubKey.Serialize()))
+				hex.EncodeToString(pubKey.SerializeCompressed()))
 		}
 	}
 }
@@ -356,7 +356,7 @@ func TestAccountIndexes(t *testing.T) {
 		w.addressBuffersMu.Lock()
 		b := w.addressBuffers[0]
 		t.Logf("ext last=%d, ext cursor=%d, int last=%d, int cursor=%d",
-			b.albExternal.lastUsed,  b.albExternal.cursor,  b.albInternal.lastUsed,  b.albInternal.cursor)
+			b.albExternal.lastUsed, b.albExternal.cursor, b.albInternal.lastUsed, b.albInternal.cursor)
 		check := func(what string, a, b uint32) {
 			if a != b {
 				t.Fatalf("%d: %s do not match: %d != %d", i, what, a, b)

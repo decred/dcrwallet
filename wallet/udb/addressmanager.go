@@ -12,14 +12,14 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/chaincfg/v2/chainec"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/hdkeychain/v2"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
-	"github.com/decred/dcrwallet/wallet/v3/internal/snacl"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/wallet/internal/compat"
+	"decred.org/dcrwallet/wallet/internal/snacl"
+	"decred.org/dcrwallet/wallet/walletdb"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrec/secp256k1/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/hdkeychain/v3"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -242,7 +242,7 @@ type Manager struct {
 	// prevent new readers when a writer is waiting on the lock to prevent
 	// access to secrets when another caller has locked the wallet.
 	returnedSecretsMu sync.RWMutex
-	returnedPrivKeys  map[[ripemd160.Size]byte]chainec.PrivateKey
+	returnedPrivKeys  map[[ripemd160.Size]byte]*secp256k1.PrivateKey
 	returnedScripts   map[[ripemd160.Size]byte][]byte
 
 	chainParams  *chaincfg.Params
@@ -322,7 +322,7 @@ func (m *Manager) lock() {
 	// Remove clear text private keys and scripts from all address entries.
 	m.returnedSecretsMu.Lock()
 	for _, privKey := range m.returnedPrivKeys {
-		zeroBigInt(privKey.GetD())
+		zeroBigInt(privKey.D)
 	}
 	for _, script := range m.returnedScripts {
 		zero(script)
@@ -418,6 +418,9 @@ func deriveKey(acctInfo *accountInfo, branch, index uint32, private bool) (*hdke
 	// private child derivation.
 	acctKey := acctInfo.acctKeyPub
 	if private {
+		if acctInfo.acctKeyPriv == nil {
+			return nil, errors.Errorf("no private key for %s/%d/%d", acctInfo.acctName, branch, index)
+		}
 		acctKey = acctInfo.acctKeyPriv
 	}
 
@@ -492,7 +495,7 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 		acctKeyPub:       acctKeyPub,
 	}
 
-	if !m.locked {
+	if !m.locked && len(acctInfo.acctKeyEncrypted) != 0 {
 		// Use the crypto private key to decrypt the account private
 		// extended keys.
 		decrypted, err := m.cryptoKeyPriv.Decrypt(acctInfo.acctKeyEncrypted)
@@ -590,7 +593,10 @@ func (m *Manager) AccountExtendedPubKey(dbtx walletdb.ReadTx, account uint32) (*
 // unlocked for this operation to complete.
 func (m *Manager) AccountExtendedPrivKey(dbtx walletdb.ReadTx, account uint32) (*hdkeychain.ExtendedKey, error) {
 	if account == ImportedAddrAccount {
-		return nil, errors.E(errors.Invalid, "imported address account has no extended pubkey")
+		return nil, errors.E(errors.Invalid, "imported address account has no extended privkey")
+	}
+	if account > ImportedAddrAccount {
+		return nil, errors.E(errors.Invalid, "imported xpub account has no extended privkey")
 	}
 
 	ns := dbtx.ReadBucket(waddrmgrBucketKey)
@@ -858,12 +864,12 @@ func (m *Manager) importedAddressRowToManaged(row *dbImportedAddressRow) (Manage
 		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt imported pubkey: %v", err))
 	}
 
-	pubKey, err := chainec.Secp256k1.ParsePubKey(pubBytes)
+	pubKey, err := secp256k1.ParsePubKey(pubBytes)
 	if err != nil {
 		return nil, errors.E(errors.IO, err)
 	}
 
-	compressed := len(pubBytes) == chainec.Secp256k1.PubKeyBytesLenCompressed()
+	compressed := len(pubBytes) == secp256k1.PubKeyBytesLenCompressed
 	ma, err := newManagedAddressWithoutPrivKey(m, row.account, pubKey,
 		compressed)
 	if err != nil {
@@ -1144,7 +1150,7 @@ func (m *Manager) ConvertToWatchingOnly(ns walletdb.ReadWriteBucket) error {
 	// all address entries.
 	m.returnedSecretsMu.Lock()
 	for _, privKey := range m.returnedPrivKeys {
-		zeroBigInt(privKey.GetD())
+		zeroBigInt(privKey.D)
 	}
 	for _, script := range m.returnedScripts {
 		zero(script)
@@ -1204,7 +1210,7 @@ func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF
 	}
 
 	// Prevent duplicates.
-	serializedPubKey := wif.SerializePubKey()
+	serializedPubKey := wif.PubKey()
 	pubKeyHash := dcrutil.Hash160(serializedPubKey)
 	if existsAddress(ns, pubKeyHash) {
 		return nil, errors.E(errors.Exist, "address for private key already exists")
@@ -1219,7 +1225,7 @@ func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF
 	// Encrypt the private key when not a watching-only address manager.
 	var encryptedPrivKey []byte
 	if !m.watchingOnly {
-		privKeyBytes := wif.PrivKey.Serialize()
+		privKeyBytes := wif.PrivKey()
 		encryptedPrivKey, err = m.cryptoKeyPriv.Encrypt(privKeyBytes)
 		zero(privKeyBytes)
 		if err != nil {
@@ -1236,8 +1242,12 @@ func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF
 	}
 
 	// Create a new managed address based on the imported address.
+	pub, err := secp256k1.ParsePubKey(serializedPubKey)
+	if err != nil {
+		return nil, err
+	}
 	managedAddr, err := newManagedAddressWithoutPrivKey(m, ImportedAddrAccount,
-		chainec.Secp256k1.NewPublicKey(wif.PrivKey.Public()), true)
+		pub, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1951,7 +1961,7 @@ func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr dcru
 // function returns without error, the returned 'done' function must be called
 // when the private key is no longer being used.  Failure to do so will cause
 // deadlocks when the manager is locked.
-func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key chainec.PrivateKey, done func(), err error) {
+func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key *secp256k1.PrivateKey, done func(), err error) {
 	// Lock the manager mutex for writes.  This protects read access to m.locked
 	// and write access to m.returnedPrivKeys and the cached accounts.
 	defer m.mtx.Unlock()
@@ -2005,7 +2015,7 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 		if err != nil {
 			return nil, nil, errors.E(errors.Crypto, errors.Errorf("decrypt imported privkey: %v", err))
 		}
-		key, _ = chainec.Secp256k1.PrivKeyFromBytes(privKeyBytes)
+		key = secp256k1.PrivKeyFromBytes(privKeyBytes)
 		// PrivKeyFromBytes creates a copy of the private key, and therefore
 		// the decrypted private key bytes must be zeroed now.
 		zero(privKeyBytes)
@@ -2027,7 +2037,7 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 
 	// Add the key to the manager so it can be zeroed on wallet lock.
 	if m.returnedPrivKeys == nil {
-		m.returnedPrivKeys = make(map[[ripemd160.Size]byte]chainec.PrivateKey)
+		m.returnedPrivKeys = make(map[[ripemd160.Size]byte]*secp256k1.PrivateKey)
 	}
 	m.returnedPrivKeys[*addr.Hash160()] = key
 

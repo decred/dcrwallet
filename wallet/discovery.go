@@ -10,16 +10,16 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/decred/dcrd/blockchain/stake/v2"
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/rpc/client/dcrd"
+	"decred.org/dcrwallet/validate"
+	"decred.org/dcrwallet/wallet/udb"
+	"decred.org/dcrwallet/wallet/walletdb"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/gcs/blockcf"
-	hd "github.com/decred/dcrd/hdkeychain/v2"
+	hd "github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/rpc/client/dcrd"
-	"github.com/decred/dcrwallet/validate"
-	"github.com/decred/dcrwallet/wallet/v3/udb"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -953,13 +953,26 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 			}
 
 			// Update last used index and cursor for this account's address
-			// buffers.
+			// buffers.  The cursor must not be reset backwards to avoid the
+			// possibility of address reuse.
 			w.addressBuffersMu.Lock()
 			acctData := w.addressBuffers[acct]
-			acctData.albExternal.lastUsed = props.LastUsedExternalIndex
-			acctData.albExternal.cursor = props.LastReturnedExternalIndex - props.LastUsedExternalIndex
-			acctData.albInternal.lastUsed = props.LastUsedInternalIndex
-			acctData.albInternal.cursor = props.LastReturnedInternalIndex - props.LastUsedInternalIndex
+			extern := &acctData.albExternal
+			if props.LastUsedExternalIndex+1 > extern.lastUsed+1 {
+				extern.cursor += extern.lastUsed - props.LastUsedExternalIndex
+				if extern.cursor > ^uint32(0)>>1 {
+					extern.cursor = 0
+				}
+				extern.lastUsed = props.LastUsedExternalIndex
+			}
+			intern := &acctData.albInternal
+			if props.LastUsedInternalIndex+1 > intern.lastUsed+1 {
+				intern.cursor += intern.lastUsed - props.LastUsedInternalIndex
+				if intern.cursor > ^uint32(0)>>1 {
+					intern.cursor = 0
+				}
+				intern.lastUsed = props.LastUsedInternalIndex
+			}
 			w.addressBuffersMu.Unlock()
 			return nil
 		})

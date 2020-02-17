@@ -9,16 +9,16 @@ import (
 	"encoding/binary"
 	"runtime/trace"
 
-	"github.com/decred/dcrd/chaincfg/v2"
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/wallet/internal/compat"
+	"decred.org/dcrwallet/wallet/txsizes"
+	"decred.org/dcrwallet/wallet/udb"
+	"decred.org/dcrwallet/wallet/walletdb"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/hdkeychain/v2"
-	"github.com/decred/dcrd/txscript/v2"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/wallet/v3/internal/compat"
-	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
-	"github.com/decred/dcrwallet/wallet/v3/udb"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/hdkeychain/v3"
+	"github.com/decred/dcrd/txscript/v3"
 )
 
 // V0Scripter is a type (usually addresses) which create or encode to version 0
@@ -556,7 +556,7 @@ func (w *Wallet) nextImportedXpubAddress(ctx context.Context, op errors.Op, mayb
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	pkh := dcrutil.Hash160(pk.Serialize())
+	pkh := dcrutil.Hash160(pk.SerializeCompressed())
 	apkh, err := dcrutil.NewAddressPubKeyHash(pkh, w.chainParams,
 		dcrec.STEcdsaSecp256k1)
 	if err != nil {

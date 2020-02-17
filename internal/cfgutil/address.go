@@ -6,7 +6,7 @@
 package cfgutil
 
 import (
-	"github.com/decred/dcrd/dcrutil/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
 )
 
 // AddressFlag contains a dcrutil.Address and implements the flags.Marshaler and

@@ -13,16 +13,16 @@ import (
 	"sync/atomic"
 	"time"
 
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/lru"
+	"decred.org/dcrwallet/version"
 	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/connmgr/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/connmgr/v3"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/lru"
-	"github.com/decred/dcrwallet/version"
 	"golang.org/x/sync/errgroup"
 )
 

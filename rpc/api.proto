@@ -76,7 +76,9 @@ service WalletLoaderService {
 	rpc RpcSync(RpcSyncRequest) returns (stream RpcSyncResponse);
 	rpc RescanPoint(RescanPointRequest) returns (RescanPointResponse);
 }
-
+service AccountMixerService {
+	rpc RunAccountMixer (RunAccountMixerRequest) returns (stream RunAccountMixerResponse);
+}
 service TicketBuyerV2Service {
 	rpc RunTicketBuyer (RunTicketBuyerRequest) returns (stream RunTicketBuyerResponse);
 }
@@ -553,9 +555,12 @@ message PurchaseTicketsRequest {
 	uint32 expiry = 9;
 	int64 tx_fee = 10;
 	int64 ticket_fee = 11;
+	bool dont_sign_tx = 12;
 }
 message PurchaseTicketsResponse {
 	repeated bytes ticket_hashes = 1;
+	repeated bytes tickets = 2;
+	bytes split_tx = 3;
 }
 
 message RevokeTicketsRequest {
@@ -795,6 +800,16 @@ message RunTicketBuyerRequest {
 }
 
 message RunTicketBuyerResponse {}
+
+message RunAccountMixerRequest {
+	bytes passphrase = 1;
+	uint32 mixed_account = 2;
+	uint32 mixed_account_branch = 3;
+	uint32 change_account = 4;
+	string cspp_server = 5;
+}
+
+message RunAccountMixerResponse {}
 
 message StartAutoBuyerRequest {
 	bytes passphrase = 1;

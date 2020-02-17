@@ -19,25 +19,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake/v2"
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/p2p"
+	"decred.org/dcrwallet/rpc/client/dcrd"
+	"decred.org/dcrwallet/rpc/jsonrpc/types"
+	"decred.org/dcrwallet/version"
+	"decred.org/dcrwallet/wallet"
+	"decred.org/dcrwallet/wallet/txrules"
+	"decred.org/dcrwallet/wallet/udb"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrjson/v3"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/hdkeychain/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/hdkeychain/v3"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/txscript/v2"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/p2p/v2"
-	"github.com/decred/dcrwallet/rpc/client/dcrd"
-	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
-	"github.com/decred/dcrwallet/version"
-	"github.com/decred/dcrwallet/wallet/v3"
-	"github.com/decred/dcrwallet/wallet/v3/txrules"
-	"github.com/decred/dcrwallet/wallet/v3/udb"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -377,12 +377,8 @@ func makeMultiSigScript(ctx context.Context, w *wallet.Wallet, keys []string, nR
 				}
 				return nil, err
 			}
-			if dcrec.SignatureType(pubKey.GetType()) != dcrec.STEcdsaSecp256k1 {
-				return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-					"only secp256k1 pubkeys are currently supported")
-			}
 			pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(
-				pubKey.Serialize(), w.ChainParams())
+				pubKey.SerializeCompressed(), w.ChainParams())
 			if err != nil {
 				return nil, rpcError(dcrjson.ErrRPCInvalidAddressOrKey, err)
 			}
@@ -2376,6 +2372,11 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		return nil, errUnloadedWallet
 	}
 
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+
 	spendLimit, err := dcrutil.NewAmount(cmd.SpendLimit)
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
@@ -2450,29 +2451,74 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		expiry = int32(*cmd.Expiry)
 	}
 
-	ticketFee := w.TicketFeeIncrement()
+	// The ticketFee code is being deprecated, but still need to be here because of
+	// positional json-rpc parameters.
 
 	// Set the ticket fee if specified.
 	if cmd.TicketFee != nil {
-		ticketFee, err = dcrutil.NewAmount(*cmd.TicketFee)
+		_, err = dcrutil.NewAmount(*cmd.TicketFee)
 		if err != nil {
 			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 		}
 	}
 
-	hashes, err := w.PurchaseTickets(ctx, 0, spendLimit, minConf, ticketAddr,
-		account, numTickets, poolAddr, poolFee, expiry, w.RelayFee(),
-		ticketFee)
+	dontSignTx := false
+	if cmd.DontSignTx != nil {
+		dontSignTx = *cmd.DontSignTx
+	}
+
+	request := &wallet.PurchaseTicketsRequest{
+		Count:         numTickets,
+		SourceAccount: account,
+		VotingAddress: ticketAddr,
+		MinConf:       minConf,
+		Expiry:        expiry,
+		DontSignTx:    dontSignTx,
+		VSPAddress:    poolAddr,
+		VSPFees:       poolFee,
+	}
+	ticketsResponse, err := w.PurchaseTicketsWithResponse(ctx, n, request)
 	if err != nil {
 		return nil, err
 	}
+	ticketsTx := ticketsResponse.Tickets
+	splitTx := ticketsResponse.SplitTx
 
-	hashStrs := make([]string, len(hashes))
-	for i := range hashes {
-		hashStrs[i] = hashes[i].String()
+	// If dontSignTx is false, we return the TicketHashes of the published txs.
+	if !dontSignTx {
+		hashes := ticketsResponse.TicketHashes
+		hashStrs := make([]string, len(hashes))
+		for i := range hashes {
+			hashStrs[i] = hashes[i].String()
+		}
+
+		return hashStrs, err
 	}
 
-	return hashStrs, err
+	// Otherwise we return its unsigned tickets bytes and the splittx, so a
+	// cold wallet can handle it.
+	var stringBuilder strings.Builder
+	unsignedTickets := make([]string, len(ticketsTx))
+	for i, mtx := range ticketsTx {
+		err = mtx.Serialize(hex.NewEncoder(&stringBuilder))
+		if err != nil {
+			return nil, err
+		}
+		unsignedTickets[i] = stringBuilder.String()
+		stringBuilder.Reset()
+	}
+
+	err = splitTx.Serialize(hex.NewEncoder(&stringBuilder))
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+	}
+
+	splitTxString := stringBuilder.String()
+
+	return types.CreateUnsignedTicketResult{
+		UnsignedTickets: unsignedTickets,
+		SplitTx:         splitTxString,
+	}, nil
 }
 
 func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err error) {
@@ -3018,12 +3064,8 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 				}
 				return nil, err
 			}
-			if dcrec.SignatureType(pubKey.GetType()) != dcrec.STEcdsaSecp256k1 {
-				return nil, errors.New("only secp256k1 " +
-					"pubkeys are currently supported")
-			}
 			pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(
-				pubKey.Serialize(), w.ChainParams())
+				pubKey.SerializeCompressed(), w.ChainParams())
 			if err != nil {
 				return nil, err
 			}
@@ -3248,6 +3290,7 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 			}
 
 			// Asynchronously request the output script.
+			txIn := txIn
 			requestedGroup.Go(func() error {
 				hash := txIn.PreviousOutPoint.Hash.String()
 				index := txIn.PreviousOutPoint.Index
@@ -3282,22 +3325,20 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 			var addr dcrutil.Address
 			switch wif.DSA() {
 			case dcrec.STEcdsaSecp256k1:
-				addr, err = dcrutil.NewAddressSecpPubKey(wif.SerializePubKey(),
+				addr, err = dcrutil.NewAddressSecpPubKey(wif.PubKey(),
 					w.ChainParams())
 				if err != nil {
 					return nil, err
 				}
 			case dcrec.STEd25519:
 				addr, err = dcrutil.NewAddressEdwardsPubKey(
-					wif.SerializePubKey(),
-					w.ChainParams())
+					wif.PubKey(), w.ChainParams())
 				if err != nil {
 					return nil, err
 				}
 			case dcrec.STSchnorrSecp256k1:
 				addr, err = dcrutil.NewAddressSecSchnorrPubKey(
-					wif.SerializePubKey(),
-					w.ChainParams())
+					wif.PubKey(), w.ChainParams())
 				if err != nil {
 					return nil, err
 				}

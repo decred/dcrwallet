@@ -8,14 +8,13 @@ package txauthor_test
 import (
 	"testing"
 
-	"github.com/decred/dcrd/dcrutil/v2"
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/wallet/txauthor"
+	. "decred.org/dcrwallet/wallet/txauthor"
+	"decred.org/dcrwallet/wallet/txrules"
+	"decred.org/dcrwallet/wallet/txsizes"
+	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/wallet/v3/txauthor"
-	. "github.com/decred/dcrwallet/wallet/v3/txauthor"
-	"github.com/decred/dcrwallet/wallet/v3/txrules"
-
-	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
 )
 
 type AuthorTestChangeSource struct{}

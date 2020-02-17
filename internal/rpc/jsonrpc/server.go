@@ -20,12 +20,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/internal/loader"
-	"github.com/decred/dcrd/chaincfg/v2"
+	"decred.org/dcrwallet/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrjson/v3"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
 	"github.com/gorilla/websocket"
 )
 
@@ -131,8 +131,8 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 				return
 			}
 			server.wg.Add(1)
+			defer server.wg.Done()
 			server.postClientRPC(w, r)
-			server.wg.Done()
 		}))
 
 	serveMux.Handle("/ws", throttledFn(opts.MaxWebsocketClients,
@@ -196,10 +196,10 @@ func httpBasicAuth(username, password string) []byte {
 func (s *Server) serve(lis net.Listener) {
 	s.wg.Add(1)
 	go func() {
+		defer s.wg.Done()
 		log.Infof("Listening on %s", lis.Addr())
 		err := s.httpServer.Serve(lis)
 		log.Tracef("Finished serving RPC: %v", err)
-		s.wg.Done()
 	}()
 }
 
@@ -432,6 +432,7 @@ out:
 				wsc.wg.Add(1)
 				go func() {
 					defer task.End()
+					defer wsc.wg.Done()
 					resp, jsonErr := f()
 					mresp, err := dcrjson.MarshalResponse(req.Jsonrpc, req.ID, resp, jsonErr)
 					if err != nil {
@@ -440,7 +441,6 @@ out:
 					} else {
 						_ = wsc.send(mresp)
 					}
-					wsc.wg.Done()
 				}()
 			}
 
@@ -456,6 +456,7 @@ out:
 }
 
 func (s *Server) websocketClientSend(ctx context.Context, wsc *websocketClient) {
+	defer s.wg.Done()
 	const deadline time.Duration = 2 * time.Second
 out:
 	for {
@@ -484,7 +485,6 @@ out:
 	}
 	close(wsc.quit)
 	log.Infof("Disconnected websocket client %s", remoteAddr(ctx))
-	s.wg.Done()
 }
 
 // websocketClientRPC starts the goroutines to serve JSON-RPC requests over a

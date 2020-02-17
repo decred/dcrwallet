@@ -1662,9 +1662,17 @@ ticker_address, pool_address, expiry, tx_fee, ticket_fee.
 - `int64 ticket_fee`: Fees per kB to use for all purchased tickets. If 0 is
   passed, the global value for a ticket fee will be used.
 
+- `bool dont_sign_tx`: If the tickets tx should be signed or not.
+
 **Response:** `PurchaseTicketsResponse`
 
 - `repeated bytes ticket_hashes`: The transaction hashes of the generated tickets.
+
+- `repeated bytes unsigned_tickets`: The unsigned tickets bytes when dont_sign_tx is true.
+
+- `repeated bytes split_tx`: The split tx bytes when dont_sign_tx is true.
+
+___
 
 **Expected errors:**
 
@@ -2730,6 +2738,39 @@ The users may specify a balance to maintain as well as various settings for purc
 - `InvalidArgument`: An invalid pool address was used.
 
 - `InvalidArgument`: A negative balance to maintain given.
+
+## `AccountMixerService`
+
+The `AccountMixerService` service provides RPC clients with the ability to
+launch the V2 ticket buyer.  
+
+**Methods:**
+
+- [`RunAccountMixer`](#runautobuyer)
+
+### Methods
+
+#### `RunAccountMixer`
+
+The `RunAccountMixer` starts a new account mixer for the specified account (and branch).
+
+**Request:** `RunAccountMixerRequest`
+
+- `bytes passphrase`: The private passphrase to unlock the wallet.
+
+- `uint32 mixed_account`: The account number to which the mixing funds should end up.
+
+- `uint32 mixed_account_branch`: The branch number to which the mixing funds should end up.
+
+- `uint32 change_account`: The account that will be used for any unmixed change that is waiting to be mixed.
+
+- `string cspp_server`: The CSPP mixing server URL and port.
+
+**Response:** `stream RunAccountMixerResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: Wallet has not been loaded.
 
 ## `AgendaService`
 

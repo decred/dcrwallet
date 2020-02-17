@@ -19,18 +19,18 @@ import (
 	"runtime/pprof"
 	"time"
 
+	"decred.org/dcrwallet/chain"
+	"decred.org/dcrwallet/errors"
 	ldr "decred.org/dcrwallet/internal/loader"
 	"decred.org/dcrwallet/internal/prompt"
 	"decred.org/dcrwallet/internal/rpc/rpcserver"
+	"decred.org/dcrwallet/p2p"
+	"decred.org/dcrwallet/spv"
+	"decred.org/dcrwallet/ticketbuyer"
+	"decred.org/dcrwallet/version"
+	"decred.org/dcrwallet/wallet"
 	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/chain/v3"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/p2p/v2"
-	"github.com/decred/dcrwallet/spv/v3"
-	"github.com/decred/dcrwallet/ticketbuyer/v4"
-	"github.com/decred/dcrwallet/version"
-	"github.com/decred/dcrwallet/wallet/v3"
 )
 
 func init() {

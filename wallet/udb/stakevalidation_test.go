@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decred/dcrd/dcrutil/v2"
+	_ "decred.org/dcrwallet/wallet/internal/bdb"
+	"decred.org/dcrwallet/wallet/walletdb"
+	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/wire"
-	_ "github.com/decred/dcrwallet/wallet/v3/internal/bdb"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 func insertMainChainHeaders(s *Store, ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket,

@@ -19,14 +19,14 @@ import (
 	"sort"
 	"strings"
 
+	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/internal/cfgutil"
 	"decred.org/dcrwallet/internal/netparams"
-	"github.com/decred/dcrd/connmgr"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/version"
-	"github.com/decred/dcrwallet/wallet/v3"
-	"github.com/decred/dcrwallet/wallet/v3/txrules"
+	"decred.org/dcrwallet/version"
+	"decred.org/dcrwallet/wallet"
+	"decred.org/dcrwallet/wallet/txrules"
+	"github.com/decred/dcrd/connmgr/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/go-socks/socks"
 	"github.com/decred/slog"
 	flags "github.com/jessevdk/go-flags"
@@ -706,6 +706,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		}
 	}
 	if cfg.CSPPServerCA != "" {
+		cfg.CSPPServerCA = cleanAndExpandPath(cfg.CSPPServerCA)
 		ca, err := ioutil.ReadFile(cfg.CSPPServerCA)
 		if err != nil {
 			err := errors.Errorf("Cannot read CoinShuffle++ "+

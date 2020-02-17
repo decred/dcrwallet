@@ -8,8 +8,8 @@
 package rpchelp
 
 import (
+	"decred.org/dcrwallet/rpc/jsonrpc/types"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrwallet/rpc/jsonrpc/types"
 )
 
 // Common return types.

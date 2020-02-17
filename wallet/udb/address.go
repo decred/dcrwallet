@@ -8,10 +8,10 @@ package udb
 import (
 	"encoding/hex"
 
-	"github.com/decred/dcrd/chaincfg/v2/chainec"
 	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/hdkeychain/v2"
+	"github.com/decred/dcrd/dcrec/secp256k1/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/hdkeychain/v3"
 )
 
 // ManagedAddress is an interface that provides acces to information regarding
@@ -50,7 +50,7 @@ type ManagedPubKeyAddress interface {
 	ManagedAddress
 
 	// PubKey returns the public key associated with the address.
-	PubKey() chainec.PublicKey
+	PubKey() *secp256k1.PublicKey
 
 	// ExportPubKey returns the public key associated with the address
 	// serialized as a hex encoded string.
@@ -81,7 +81,7 @@ type managedAddress struct {
 	internal   bool
 	multisig   bool
 	compressed bool
-	pubKey     chainec.PublicKey
+	pubKey     *secp256k1.PublicKey
 	index      uint32
 }
 
@@ -143,7 +143,7 @@ func (a *managedAddress) Compressed() bool {
 // PubKey returns the public key associated with the address.
 //
 // This is part of the ManagedPubKeyAddress interface implementation.
-func (a *managedAddress) PubKey() chainec.PublicKey {
+func (a *managedAddress) PubKey() *secp256k1.PublicKey {
 	return a.pubKey
 }
 
@@ -174,7 +174,7 @@ func (a *managedAddress) ExportPubKey() string {
 // newManagedAddressWithoutPrivKey returns a new managed address based on the
 // passed account, public key, and whether or not the public key should be
 // compressed.
-func newManagedAddressWithoutPrivKey(m *Manager, account uint32, pubKey chainec.PublicKey, compressed bool) (*managedAddress, error) {
+func newManagedAddressWithoutPrivKey(m *Manager, account uint32, pubKey *secp256k1.PublicKey, compressed bool) (*managedAddress, error) {
 	// Create a pay-to-pubkey-hash address from the public key.
 	var pubKeyHash []byte
 	if compressed {

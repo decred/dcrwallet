@@ -16,21 +16,20 @@ import (
 
 	"decred.org/cspp"
 	"decred.org/cspp/coinjoin"
-	"github.com/decred/dcrd/blockchain/stake/v2"
+	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/wallet/txauthor"
+	"decred.org/dcrwallet/wallet/txrules"
+	"decred.org/dcrwallet/wallet/txsizes"
+	"decred.org/dcrwallet/wallet/udb"
+	"decred.org/dcrwallet/wallet/walletdb"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v2"
-	"github.com/decred/dcrd/chaincfg/v2/chainec"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil/v2"
-	"github.com/decred/dcrd/txscript/v2"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/errors/v2"
-	"github.com/decred/dcrwallet/wallet/v3/internal/txsizes"
-	"github.com/decred/dcrwallet/wallet/v3/txauthor"
-	"github.com/decred/dcrwallet/wallet/v3/txrules"
-	"github.com/decred/dcrwallet/wallet/v3/udb"
-	"github.com/decred/dcrwallet/wallet/v3/walletdb"
 )
 
 // --------------------------------------------------------------------------------
@@ -197,13 +196,13 @@ type secretSource struct {
 	doneFuncs []func()
 }
 
-func (s *secretSource) GetKey(addr dcrutil.Address) (chainec.PrivateKey, bool, error) {
+func (s *secretSource) GetKey(addr dcrutil.Address) ([]byte, dcrec.SignatureType, bool, error) {
 	privKey, done, err := s.Manager.PrivateKey(s.addrmgrNs, addr)
 	if err != nil {
-		return nil, false, err
+		return nil, 0, false, err
 	}
 	s.doneFuncs = append(s.doneFuncs, done)
-	return privKey, true, nil
+	return privKey.Serialize(), dcrec.STEcdsaSecp256k1, true, nil
 }
 
 func (s *secretSource) GetScript(addr dcrutil.Address) ([]byte, error) {
@@ -321,7 +320,7 @@ func (w *Wallet) checkHighFees(totalInput dcrutil.Amount, tx *wire.MsgTx) error 
 // into the database, rather than delegating this work to the caller as
 // btcwallet does.
 func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.TxOut, account, changeAccount uint32, minconf int32,
-	n NetworkBackend, randomizeChangeIdx bool, txFee dcrutil.Amount) (*txauthor.AuthoredTx, error) {
+	n NetworkBackend, randomizeChangeIdx bool, txFee dcrutil.Amount, dontSignTx bool) (*txauthor.AuthoredTx, error) {
 
 	if n == nil {
 		var err error
@@ -385,20 +384,16 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 			atx.RandomizeChangePosition()
 		}
 
-		// Sign the transaction
-		secrets := &secretSource{Manager: w.Manager, addrmgrNs: addrmgrNs}
-		err = atx.AddAllInputScripts(secrets)
-		for _, done := range secrets.doneFuncs {
-			done()
+		if !dontSignTx {
+			// Sign the transaction.
+			secrets := &secretSource{Manager: w.Manager, addrmgrNs: addrmgrNs}
+			err = atx.AddAllInputScripts(secrets)
+			for _, done := range secrets.doneFuncs {
+				done()
+			}
 		}
 		return err
 	})
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	// Ensure valid signatures were created.
-	err = validateMsgTx(op, atx.Tx, atx.PrevScripts)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -412,6 +407,17 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 	}
 
 	err = w.checkHighFees(atx.TotalInput, atx.Tx)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	// if no need to sign it, we do not publish the transaction.
+	if dontSignTx {
+		return atx, nil
+	}
+
+	// Ensure valid signatures were created.
+	err = validateMsgTx(op, atx.Tx, atx.PrevScripts)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -1084,7 +1090,7 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 		txFeeIncrement = w.RelayFee()
 	}
 	splitTx, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
-		nil, false, txFeeIncrement)
+		nil, false, txFeeIncrement, req.DontSignTx)
 	if err != nil {
 		return
 	}
@@ -1134,7 +1140,7 @@ func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, need
 		txFeeIncrement = w.RelayFee()
 	}
 	splitTx, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
-		nil, false, txFeeIncrement)
+		nil, false, txFeeIncrement, req.DontSignTx)
 	if err != nil {
 		return
 	}
@@ -1148,7 +1154,8 @@ func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, need
 // wallet instance will be used.  Also, when the spend limit in the request is
 // greater than or equal to 0, tickets that cost more than that limit will
 // return an error that not enough funds are available.
-func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBackend, req *PurchaseTicketsRequest) ([]*chainhash.Hash, error) {
+func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
+	n NetworkBackend, req *PurchaseTicketsRequest) (*PurchaseTicketsResponse, error) {
 	// Ensure the minimum number of required confirmations is positive.
 	if req.MinConf < 0 {
 		return nil, errors.E(op, errors.Invalid, "negative minconf")
@@ -1342,6 +1349,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 		}
 	}()
 
+	purchaseTicketsResponse := &PurchaseTicketsResponse{}
 	var splitTx *wire.MsgTx
 	var splitOutputIndexes []int
 	switch {
@@ -1355,30 +1363,34 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
+	purchaseTicketsResponse.SplitTx = splitTx
 
 	// Process and publish split tx.
-	rec, err := udb.NewTxRecordFromMsgTx(splitTx, time.Now())
-	if err != nil {
-		return nil, err
-	}
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		watch, err := w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
-		watchOutPoints = append(watchOutPoints, watch...)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-	w.recentlyPublishedMu.Lock()
-	w.recentlyPublished[rec.Hash] = struct{}{}
-	w.recentlyPublishedMu.Unlock()
-	err = n.PublishTransactions(ctx, splitTx)
-	if err != nil {
-		return nil, err
+	if !req.DontSignTx {
+		rec, err := udb.NewTxRecordFromMsgTx(splitTx, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+			watch, err := w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
+			watchOutPoints = append(watchOutPoints, watch...)
+			return err
+		})
+		if err != nil {
+			return nil, err
+		}
+		w.recentlyPublishedMu.Lock()
+		w.recentlyPublished[rec.Hash] = struct{}{}
+		w.recentlyPublishedMu.Unlock()
+		err = n.PublishTransactions(ctx, splitTx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	// Create each ticket
+	// Create each ticket.
 	ticketHashes := make([]*chainhash.Hash, 0, req.Count)
+	tickets := make([]*wire.MsgTx, 0, req.Count)
 	outpoint := wire.OutPoint{Hash: splitTx.TxHash()}
 	for _, index := range splitOutputIndexes {
 		// Generate the extended outpoints that we need to use for ticket
@@ -1444,15 +1456,25 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 			return err
 		})
 		if err != nil {
-			return ticketHashes, errors.E(op, err)
+			return nil, errors.E(op, err)
 		}
 
-		// Generate the ticket msgTx and sign it.
+		// Generate the ticket msgTx and sign it if DontSignTx is false.
 		ticket, err := makeTicket(w.chainParams, eopPool, eop, addrVote,
 			addrSubsidy, int64(ticketPrice), poolAddress)
 		if err != nil {
-			return ticketHashes, err
+			return nil, err
 		}
+		ticketHash := ticket.TxHash()
+		ticketHashes = append(ticketHashes, &ticketHash)
+		tickets = append(tickets, ticket)
+
+		purchaseTicketsResponse.Tickets = tickets
+		purchaseTicketsResponse.TicketHashes = ticketHashes
+		if req.DontSignTx {
+			continue
+		}
+		// Sign and publish tx if DontSignTx is false
 		var forSigning []udb.Credit
 		if eopPool != nil {
 			eopPoolCredit := udb.Credit{
@@ -1483,21 +1505,21 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 			return w.signP2PKHMsgTx(ticket, forSigning, ns)
 		})
 		if err != nil {
-			return ticketHashes, errors.E(op, err)
+			return purchaseTicketsResponse, errors.E(op, err)
 		}
 		err = validateMsgTx(op, ticket, creditScripts(forSigning))
 		if err != nil {
-			return ticketHashes, errors.E(op, err)
+			return purchaseTicketsResponse, errors.E(op, err)
 		}
 
 		err = w.checkHighFees(dcrutil.Amount(eop.amt), ticket)
 		if err != nil {
-			return ticketHashes, errors.E(op, err)
+			return purchaseTicketsResponse, errors.E(op, err)
 		}
 
 		rec, err := udb.NewTxRecordFromMsgTx(ticket, time.Now())
 		if err != nil {
-			return ticketHashes, errors.E(op, err)
+			return purchaseTicketsResponse, errors.E(op, err)
 		}
 
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
@@ -1506,7 +1528,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 			return err
 		})
 		if err != nil {
-			return ticketHashes, errors.E(op, err)
+			return purchaseTicketsResponse, errors.E(op, err)
 		}
 
 		w.recentlyPublishedMu.Lock()
@@ -1517,14 +1539,12 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op, n NetworkBac
 		// transactions from DB if tickets cannot be sent.
 		err = n.PublishTransactions(ctx, ticket)
 		if err != nil {
-			return ticketHashes, errors.E(op, err)
+			return purchaseTicketsResponse, errors.E(op, err)
 		}
-		ticketHash := ticket.TxHash()
-		ticketHashes = append(ticketHashes, &ticketHash)
-		log.Infof("Published ticket purchase %v", &ticketHash)
+		log.Infof("Published ticket purchase %v", ticket.TxHash())
 	}
 
-	return ticketHashes, nil
+	return purchaseTicketsResponse, nil
 }
 
 func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minconf int32,
@@ -1714,7 +1734,7 @@ func (w *Wallet) signP2PKHMsgTx(msgtx *wire.MsgTx, prevOutputs []udb.Credit, add
 		defer done()
 
 		sigscript, err := txscript.SignatureScript(msgtx, i, output.PkScript,
-			txscript.SigHashAll, privKey, true)
+			txscript.SigHashAll, privKey.Serialize(), dcrec.STEcdsaSecp256k1, true)
 		if err != nil {
 			return errors.E(errors.Op("txscript.SignatureScript"), err)
 		}
@@ -1738,14 +1758,15 @@ func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurch
 
 	// Prepare functions to look up private key and script secrets so signing
 	// can be performed.
-	var getKey txscript.KeyClosure = func(addr dcrutil.Address) (chainec.PrivateKey, bool, error) {
+	var getKey txscript.KeyClosure = func(addr dcrutil.Address) ([]byte, dcrec.SignatureType, bool, error) {
 		key, done, err := w.Manager.PrivateKey(addrmgrNs, addr)
 		if err != nil {
-			return nil, false, err
+			return nil, 0, false, err
 		}
 		doneFuncs = append(doneFuncs, done)
 
-		return key, true, nil // secp256k1 pubkeys are always compressed in Decred
+		// secp256k1 pubkeys are always compressed in Decred
+		return key.Serialize(), dcrec.STEcdsaSecp256k1, true, nil
 	}
 	var getScript txscript.ScriptClosure = func(addr dcrutil.Address) ([]byte, error) {
 		script, done, err := w.Manager.RedeemScript(addrmgrNs, addr)
@@ -1768,7 +1789,7 @@ func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurch
 	redeemTicketScript := ticketPurchase.TxOut[0].PkScript
 	signedScript, err := txscript.SignTxOutput(w.chainParams, tx, inputToSign,
 		redeemTicketScript, txscript.SigHashAll, getKey, getScript,
-		tx.TxIn[inputToSign].SignatureScript, dcrec.STEcdsaSecp256k1)
+		tx.TxIn[inputToSign].SignatureScript)
 	if err != nil {
 		return errors.E(errors.Op("txscript.SignTxOutput"), errors.ScriptFailure, err)
 	}
