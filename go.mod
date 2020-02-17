@@ -1,6 +1,6 @@
 module decred.org/dcrwallet
 
-go 1.12
+go 1.13
 
 require (
 	decred.org/cspp v0.2.0
@@ -30,7 +30,7 @@ require (
 	github.com/jrick/logrotate v1.0.0
 	github.com/jrick/wsrpc/v2 v2.3.1
 	go.etcd.io/bbolt v1.3.3
-	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
+	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
 	google.golang.org/grpc v1.25.1

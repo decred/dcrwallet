@@ -78,7 +78,7 @@ https://github.com/decred/decred-binaries/releases
 
 Building or updating from source requires the following build dependencies:
 
-- **Go 1.12 or 1.13**
+- **Go 1.13 or 1.14**
 
   Installation instructions can be found here: https://golang.org/doc/install.
   It is recommended to add `$GOPATH/bin` to your `PATH` at this point.
