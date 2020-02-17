@@ -6,34 +6,35 @@ package txauthor
 
 import (
 	"crypto/rand"
-	"encoding/binary"
-	mrand "math/rand"
 	"sync"
+
+	"decred.org/dcrwallet/internal/uniformprng"
 )
 
-// cprng is a cryptographically random-seeded math/rand prng.  It is seeded
-// during package init.  Any initialization errors result in panics.  It is safe
-// for concurrent access.
+// cprng is a cryptographically random-seeded prng.  It is seeded during package
+// init.  Any initialization errors result in panics.  It is safe for concurrent
+// access.
 var cprng = cprngType{}
 
 type cprngType struct {
-	r  *mrand.Rand
+	r  *uniformprng.Source
 	mu sync.Mutex
 }
 
 func init() {
-	buf := make([]byte, 8)
-	_, err := rand.Read(buf)
+	r, err := uniformprng.RandSource(rand.Reader)
 	if err != nil {
 		panic("Failed to seed prng: " + err.Error())
 	}
-
-	seed := int64(binary.LittleEndian.Uint64(buf))
-	cprng.r = mrand.New(mrand.NewSource(seed))
+	cprng.r = r
 }
 
 func (c *cprngType) Int31n(n int32) int32 {
-	defer c.mu.Unlock() // Int31n may panic
+	defer c.mu.Unlock()
 	c.mu.Lock()
-	return c.r.Int31n(n)
+
+	if n <= 0 {
+		panic("Int31n: non-positive n")
+	}
+	return int32(c.r.Uint32n(uint32(n)))
 }

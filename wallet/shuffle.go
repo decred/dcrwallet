@@ -6,30 +6,39 @@ package wallet
 
 import (
 	"crypto/rand"
-	"encoding/binary"
-	mathrand "math/rand"
 	"sync"
 
+	"decred.org/dcrwallet/internal/uniformprng"
 	"decred.org/dcrwallet/wallet/txauthor"
 )
 
-var shuffleRand *mathrand.Rand
+var shuffleRand *uniformprng.Source
 var shuffleMu sync.Mutex
 
 func init() {
-	buf := make([]byte, 8)
-	_, err := rand.Read(buf)
+	var err error
+	shuffleRand, err = uniformprng.RandSource(rand.Reader)
 	if err != nil {
 		panic(err)
 	}
-	seed := int64(binary.LittleEndian.Uint64(buf))
-	shuffleRand = mathrand.New(mathrand.NewSource(seed))
 }
 
 func shuffle(n int, swap func(i, j int)) {
+	if n < 0 {
+		panic("shuffle: negative n")
+	}
+	if int64(n) >= 1<<32 {
+		panic("shuffle: large n")
+	}
+
+	defer shuffleMu.Unlock()
 	shuffleMu.Lock()
-	shuffleRand.Shuffle(n, swap)
-	shuffleMu.Unlock()
+
+	// Fisher-Yates shuffle: https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
+	for i := uint32(0); i < uint32(n); i++ {
+		j := shuffleRand.Uint32n(uint32(n)-i) + i
+		swap(int(i), int(j))
+	}
 }
 
 func shuffleUTXOs(u *txauthor.InputDetail) {
