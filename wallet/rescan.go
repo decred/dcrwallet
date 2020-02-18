@@ -6,6 +6,7 @@
 package wallet
 
 import (
+	"encoding/binary"
 	"context"
 	"time"
 
@@ -60,6 +61,20 @@ func NewRescanFilter(addresses []dcrutil.Address, unspentOutPoints []*wire.OutPo
 	}
 
 	return filter
+}
+
+// extractBlockHeaderHeight fetches the block height from wire encoded block 
+// header bytes.
+func extractBlockHeaderHeight(header []byte) int32 {
+	const heightOffset = 128
+	return int32(binary.LittleEndian.Uint32(header[heightOffset:]))
+}
+
+// extractBlockHeaderUnixTime fetches the unix timestamp from wire encoded 
+// block header bytes.
+func extractBlockHeaderUnixTime(header []byte) uint32 {
+	const timestampOffset = 136
+	return binary.LittleEndian.Uint32(header[timestampOffset:])
 }
 
 // AddAddress adds an address to the filter if it does not already exist.
@@ -272,7 +287,7 @@ func (w *Wallet) Rescan(ctx context.Context, n NetworkBackend, startHash *chainh
 		if err != nil {
 			return err
 		}
-		startHeight = udb.ExtractBlockHeaderHeight(header)
+		startHeight = extractBlockHeaderHeight(header)
 		return nil
 	})
 	if err != nil {

@@ -2420,7 +2420,7 @@ func (w *Wallet) BlockInfo(ctx context.Context, blockID *BlockIdentifier) (*Bloc
 		if err != nil {
 			return err
 		}
-		height := udb.ExtractBlockHeaderHeight(header)
+		height := extractBlockHeaderHeight(header)
 		inMainChain, invalidated := w.TxStore.BlockInMainChain(dbtx, blockHash)
 		var confs int32
 		if inMainChain {
@@ -2431,7 +2431,7 @@ func (w *Wallet) BlockInfo(ctx context.Context, blockID *BlockIdentifier) (*Bloc
 			Height:           height,
 			Confirmations:    confs,
 			Header:           header,
-			Timestamp:        udb.ExtractBlockHeaderTime(header),
+			Timestamp:        int64(extractBlockHeaderUnixTime(header)),
 			StakeInvalidated: invalidated,
 		}
 		return nil

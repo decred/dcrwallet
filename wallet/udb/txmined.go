@@ -458,7 +458,7 @@ func extractBlockHeaderParentHash(header []byte) []byte {
 // ExtractBlockHeaderParentHash subslices the header to return the bytes of the
 // parent block's hash.  Must only be called on known good input.
 //
-// TODO: This really should not be exported by this package.
+// DEPRECATED: to be removed in the next major release.
 func ExtractBlockHeaderParentHash(header []byte) []byte {
 	return extractBlockHeaderParentHash(header)
 }
@@ -476,7 +476,7 @@ func extractBlockHeaderHeight(header []byte) int32 {
 // ExtractBlockHeaderHeight returns the height field that is encoded in the
 // header.  Must only be called on known good input.
 //
-// TODO: This really should not be exported by this package.
+// DEPRECATED: to be removed in the next major release.
 func ExtractBlockHeaderHeight(header []byte) int32 {
 	return extractBlockHeaderHeight(header)
 }
@@ -490,7 +490,7 @@ func extractBlockHeaderUnixTime(header []byte) uint32 {
 // header.  Must only be called on known good input.  Header timestamps are only
 // 4 bytes and this value is actually limited to a maximum unix time of 2^32-1.
 //
-// TODO: This really should not be exported by this package.
+// DEPRECATED: to be removed in the next major release.
 func ExtractBlockHeaderTime(header []byte) int64 {
 	return int64(extractBlockHeaderUnixTime(header))
 }
@@ -1984,39 +1984,39 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 			// credit output to unmined.  If the credit is marked
 			// unspent, it is removed from the utxo set and the
 			// mined balance is decremented.
-			//
-			// TODO: use a credit iterator
-			for i, output := range rec.MsgTx.TxOut {
-				k, v := existsCredit(ns, &rec.Hash, uint32(i),
-					&b.Block)
-				if v == nil {
-					continue
+			k := keyTxRecord(&rec.Hash, &b.Block)
+			credIter := makeReadCreditIterator(ns, k, DBVersion)
+			defer credIter.close()
+			for credIter.next() {
+				if int(credIter.elem.Index) >= len(rec.MsgTx.TxOut) {
+					credIter.close()
+					return errors.E(errors.IO,
+						"saved credit index exceeds number of outputs")
 				}
-				vcopy := make([]byte, len(v))
-				copy(vcopy, v)
-				removedCredits[string(k)] = vcopy
 
-				amt, change, err := fetchRawCreditAmountChange(v)
-				if err != nil {
-					return err
-				}
-				opCode := fetchRawCreditTagOpCode(v)
-				isCoinbase := fetchRawCreditIsCoinbase(v)
-				hasExpiry := fetchRawCreditHasExpiry(v, DBVersion)
+				// scrType := pkScriptType(output.PkScript)
+				scrPos := fetchRawCreditScriptOffset(credIter.cv)
+				scrLen := fetchRawCreditScriptLength(credIter.cv)
 
-				scrType := pkScriptType(output.PkScript)
-				scrLoc := rec.MsgTx.PkScriptLocs()[i]
-				scrLen := len(rec.MsgTx.TxOut[i].PkScript)
-
-				acct, err := s.fetchAccountForPkScript(addrmgrNs, v, nil, output.PkScript)
+				pkScript, err := fetchRawTxRecordPkScript(credIter.ck,
+					credIter.cv, credIter.elem.Index, scrPos, scrLen)
 				if err != nil {
 					return err
 				}
 
-				outPointKey := canonicalOutPoint(&rec.Hash, uint32(i))
-				unminedCredVal := valueUnminedCredit(amt, change, opCode,
-					isCoinbase, hasExpiry, scrType, uint32(scrLoc), uint32(scrLen),
-					acct, DBVersion)
+				acct, err := s.fetchAccountForPkScript(addrmgrNs, credIter.cv,
+					nil, pkScript)
+				if err != nil {
+					return err
+				}
+
+				scrType := pkScriptType(pkScript)
+				scrLoc := rec.MsgTx.PkScriptLocs()[credIter.elem.Index]
+				outPointKey := canonicalOutPoint(&rec.Hash, credIter.elem.Index)
+				unminedCredVal := valueUnminedCredit(credIter.elem.Amount,
+					credIter.elem.Change, credIter.elem.OpCode,
+					credIter.elem.IsCoinbase, credIter.elem.HasExpiry, scrType,
+					uint32(scrLoc), uint32(scrLen), acct, DBVersion)
 				err = putRawUnminedCredit(ns, outPointKey, unminedCredVal)
 				if err != nil {
 					return err
@@ -2031,9 +2031,10 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 				if credKey != nil {
 					// Ticket amounts were never added, so ignore them when
 					// correcting the balance.
-					isTicketOutput := (txType == stake.TxTypeSStx && i == 0)
+					isTicketOutput := (txType == stake.TxTypeSStx &&
+						credIter.elem.Index == 0)
 					if !isTicketOutput {
-						minedBalance -= dcrutil.Amount(output.Value)
+						minedBalance -= credIter.elem.Amount
 					}
 					err = deleteRawUnspent(ns, outPointKey)
 					if err != nil {
@@ -2041,10 +2042,9 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 					}
 				}
 
-				// Check if this output is a multisignature
-				// P2SH output. If it is, access the value
-				// for the key and mark it unmined.
-				msKey := keyMultisigOut(*txHash, uint32(i))
+				// Check if this output is a multisignature P2SH output.
+				// If it is, access the value for the key and mark it unmined.
+				msKey := keyMultisigOut(*txHash, uint32(credIter.elem.Index))
 				msVal := existsMultisigOutCopy(ns, msKey)
 				if msVal != nil {
 					setMultisigOutUnmined(msVal)
@@ -2053,6 +2053,9 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 						return err
 					}
 				}
+			}
+			if credIter.err != nil {
+				return credIter.err
 			}
 
 			// When rolling back votes and revocations, return unspent status
