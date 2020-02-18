@@ -45,6 +45,10 @@ import (
 	"os"
 	"time"
 
+	"decred.org/dcrwallet/errors"
+	_ "decred.org/dcrwallet/wallet/internal/bdb"
+	"decred.org/dcrwallet/wallet/udb"
+	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -52,10 +56,6 @@ import (
 	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"decred.org/dcrwallet/errors"
-	_ "decred.org/dcrwallet/wallet/internal/bdb"
-	"decred.org/dcrwallet/wallet/udb"
-	"decred.org/dcrwallet/wallet/walletdb"
 )
 
 const dbname = "v11.db"

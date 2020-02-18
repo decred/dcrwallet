@@ -1,12 +1,10 @@
 // Copyright (c) 2014 The btcsuite developers
-// Copyright (c) 2015 The Decred developers
+// Copyright (c) 2015-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 /*
 Package walletdb provides a namespaced database interface for dcrwallet.
-
-Overview
 
 A wallet essentially consists of a multitude of stored data such as private
 and public keys, key derivation bits, pay-to-script-hash scripts, and various
