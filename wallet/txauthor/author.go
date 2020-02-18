@@ -86,7 +86,7 @@ func sumOutputValues(outputs []*wire.TxOut) (totalOutput dcrutil.Amount) {
 // enough input value to pay for every output any any necessary fees, an
 // InputSourceError is returned.
 func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
-	fetchInputs InputSource, fetchChange ChangeSource) (*AuthoredTx, error) {
+	fetchInputs InputSource, fetchChange ChangeSource, maxTxSize int) (*AuthoredTx, error) {
 
 	const op errors.Op = "txauthor.NewUnsignedTransaction"
 
@@ -119,6 +119,10 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 		if remainingAmount < maxRequiredFee {
 			targetFee = maxRequiredFee
 			continue
+		}
+
+		if maxSignedSize > maxTxSize {
+			return nil, errors.E(errors.Invalid, "signed tx size exceeds allowed maximum")
 		}
 
 		unsignedTransaction := &wire.MsgTx{

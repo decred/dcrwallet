@@ -158,7 +158,7 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 
 		var err error
 		authoredTx, err = txauthor.NewUnsignedTransaction(outputs, relayFeePerKb,
-			inputSource, changeSource)
+			inputSource, changeSource, w.chainParams.MaxTxSize)
 		if err != nil {
 			return err
 		}
@@ -367,7 +367,7 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 		}
 		var err error
 		atx, err = txauthor.NewUnsignedTransaction(outputs, txFee,
-			inputSource.SelectInputs, changeSource)
+			inputSource.SelectInputs, changeSource, w.chainParams.MaxTxSize)
 		if err != nil {
 			return err
 		}
@@ -996,7 +996,8 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 		}
 		var err error
 		atx, err = txauthor.NewUnsignedTransaction(mixOut, relayFee,
-			randomInputSource(inputSource.SelectInputs), changeSource)
+			randomInputSource(inputSource.SelectInputs), changeSource,
+			w.chainParams.MaxTxSize)
 		if err != nil {
 			return err
 		}

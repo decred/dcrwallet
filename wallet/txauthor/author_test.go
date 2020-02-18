@@ -13,6 +13,7 @@ import (
 	. "decred.org/dcrwallet/wallet/txauthor"
 	"decred.org/dcrwallet/wallet/txrules"
 	"decred.org/dcrwallet/wallet/txsizes"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/wire"
 )
@@ -198,7 +199,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 
 	for i, test := range tests {
 		inputSource := makeInputSource(test.UnspentOutputs)
-		tx, err := NewUnsignedTransaction(test.Outputs, test.RelayFee, inputSource, changeSource)
+		tx, err := NewUnsignedTransaction(test.Outputs, test.RelayFee, inputSource, changeSource, chaincfg.MainNetParams().MaxTxSize)
 		if err != nil {
 			insufficientBalance := errors.Is(err, errors.InsufficientBalance)
 			if insufficientBalance != test.InputSourceError {
