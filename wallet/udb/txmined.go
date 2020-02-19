@@ -2058,7 +2058,10 @@ func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBuc
 			// When rolling back votes and revocations, return unspent status
 			// for tracked commitments.
 			if (rec.TxType == stake.TxTypeSSGen) || (rec.TxType == stake.TxTypeSSRtx) {
-				s.replaceTicketCommitmentUnminedSpent(ns, rec.TxType, &rec.MsgTx, true)
+				err = s.replaceTicketCommitmentUnminedSpent(ns, rec.TxType, &rec.MsgTx, true)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

@@ -220,7 +220,10 @@ func (s *Store) RemoveUnconfirmed(ns walletdb.ReadWriteBucket, tx *wire.MsgTx, t
 	if (stxType == stake.TxTypeSSGen) || (stxType == stake.TxTypeSSRtx) {
 		// An unconfirmed vote/revocation leaving the store means we need to
 		// unmark the commitments of the respective ticket as unminedSpent.
-		s.replaceTicketCommitmentUnminedSpent(ns, stxType, tx, false)
+		err := s.replaceTicketCommitmentUnminedSpent(ns, stxType, tx, false)
+		if err != nil {
+			return err
+		}
 	}
 
 	// If this tx spends any previous credits (either mined or unmined), set
