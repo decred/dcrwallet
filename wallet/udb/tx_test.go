@@ -402,12 +402,12 @@ func TestCoinbases(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		s.AddCredit(ns, cbRec, b1Meta, 0, false, defaultAccount)
+		err = s.AddCredit(ns, cbRec, b1Meta, 0, false, defaultAccount)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		s.AddCredit(ns, cbRec, b1Meta, 2, false, defaultAccount)
+		err = s.AddCredit(ns, cbRec, b1Meta, 2, false, defaultAccount)
 		if err != nil {
 			t.Fatal(err)
 		}
