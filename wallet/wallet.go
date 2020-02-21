@@ -2824,13 +2824,6 @@ func (w *Wallet) GetTickets(ctx context.Context, f func([]*TicketSummary, *wire.
 	return nil
 }
 
-// GetTransactionsResult is the result of the wallet's GetTransactions method.
-// See GetTransactions for more details.
-type GetTransactionsResult struct {
-	MinedTransactions   []Block
-	UnminedTransactions []TransactionSummary
-}
-
 // GetTransactions runs the function f on all transactions between a starting
 // and ending block.  Blocks in the block range may be specified by either a
 // height or a hash.
