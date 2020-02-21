@@ -2596,6 +2596,52 @@ func (w *Wallet) GetTicketInfo(ctx context.Context, hash *chainhash.Hash) (*Tick
 	return ticketSummary, blockHeader, nil
 }
 
+// blockRange returns the start and ending heights for the given set of block
+// identifiers or the default values used to range over the entire chain
+// (including unmined transactions).
+func (w *Wallet) blockRange(dbtx walletdb.ReadTx, startBlock, endBlock *BlockIdentifier) (int32, int32, error) {
+	var start, end int32 = 0, -1
+	ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+	switch {
+	case startBlock == nil:
+		// Hardcoded default start of 0.
+	case startBlock.hash == nil:
+		start = startBlock.height
+	default:
+		serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, startBlock.hash)
+		if err != nil {
+			return 0, 0, err
+		}
+		var startHeader wire.BlockHeader
+		err = startHeader.Deserialize(bytes.NewReader(serHeader))
+		if err != nil {
+			return 0, 0, err
+		}
+		start = int32(startHeader.Height)
+	}
+
+	switch {
+	case endBlock == nil:
+		// Hardcoded default end of -1.
+	case endBlock.hash == nil:
+		end = endBlock.height
+	default:
+		serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, endBlock.hash)
+		if err != nil {
+			return 0, 0, err
+		}
+		var endHeader wire.BlockHeader
+		err = endHeader.Deserialize(bytes.NewReader(serHeader))
+		if err != nil {
+			return 0, 0, err
+		}
+		end = int32(endHeader.Height)
+	}
+
+	return start, end, nil
+}
+
 // GetTicketsPrecise calls function f for all tickets located in between the
 // given startBlock and endBlock.  TicketSummary includes TransactionSummmary
 // for the ticket and the spender (if already spent) and the ticket's current
@@ -2619,57 +2665,14 @@ func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpcCaller Caller,
 	f func([]*TicketSummary, *wire.BlockHeader) (bool, error), startBlock, endBlock *BlockIdentifier) error {
 
 	const op errors.Op = "wallet.GetTicketsPrecise"
-	var start, end int32 = 0, -1
-
-	if startBlock != nil {
-		if startBlock.hash == nil {
-			start = startBlock.height
-		} else {
-			err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, startBlock.hash)
-				if err != nil {
-					return err
-				}
-				var startHeader wire.BlockHeader
-				err = startHeader.Deserialize(bytes.NewReader(serHeader))
-				if err != nil {
-					return err
-				}
-				start = int32(startHeader.Height)
-				return nil
-			})
-			if err != nil {
-				return errors.E(op, err)
-			}
-		}
-	}
-	if endBlock != nil {
-		if endBlock.hash == nil {
-			end = endBlock.height
-		} else {
-			err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, endBlock.hash)
-				if err != nil {
-					return err
-				}
-				var endHeader wire.BlockHeader
-				err = endHeader.Deserialize(bytes.NewReader(serHeader))
-				if err != nil {
-					return err
-				}
-				end = int32(endHeader.Height)
-				return nil
-			})
-			if err != nil {
-				return errors.E(op, err)
-			}
-		}
-	}
 
 	rpc := dcrd.New(rpcCaller)
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		start, end, err := w.blockRange(dbtx, startBlock, endBlock)
+		if err != nil {
+			return err
+		}
+
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		header := &wire.BlockHeader{}
 
@@ -2731,56 +2734,13 @@ func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpcCaller Caller,
 // unable to be determined whether or not they have been missed, simply unspent.
 func (w *Wallet) GetTickets(ctx context.Context, f func([]*TicketSummary, *wire.BlockHeader) (bool, error), startBlock, endBlock *BlockIdentifier) error {
 	const op errors.Op = "wallet.GetTickets"
-	var start, end int32 = 0, -1
-
-	if startBlock != nil {
-		if startBlock.hash == nil {
-			start = startBlock.height
-		} else {
-			err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, startBlock.hash)
-				if err != nil {
-					return err
-				}
-				var startHeader wire.BlockHeader
-				err = startHeader.Deserialize(bytes.NewReader(serHeader))
-				if err != nil {
-					return err
-				}
-				start = int32(startHeader.Height)
-				return nil
-			})
-			if err != nil {
-				return errors.E(op, err)
-			}
-		}
-	}
-	if endBlock != nil {
-		if endBlock.hash == nil {
-			end = endBlock.height
-		} else {
-			err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, endBlock.hash)
-				if err != nil {
-					return err
-				}
-				var endHeader wire.BlockHeader
-				err = endHeader.Deserialize(bytes.NewReader(serHeader))
-				if err != nil {
-					return err
-				}
-				end = int32(endHeader.Height)
-				return nil
-			})
-			if err != nil {
-				return errors.E(op, err)
-			}
-		}
-	}
 
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		start, end, err := w.blockRange(dbtx, startBlock, endBlock)
+		if err != nil {
+			return err
+		}
+
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		header := &wire.BlockHeader{}
 
@@ -2841,56 +2801,13 @@ func (w *Wallet) GetTickets(ctx context.Context, f func([]*TicketSummary, *wire.
 // therefore the notes and restrictions of that function also apply here.
 func (w *Wallet) GetTransactions(ctx context.Context, f func(*Block) (bool, error), startBlock, endBlock *BlockIdentifier) error {
 	const op errors.Op = "wallet.GetTransactions"
-	var start, end int32 = 0, -1
-
-	if startBlock != nil {
-		if startBlock.hash == nil {
-			start = startBlock.height
-		} else {
-			err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, endBlock.hash)
-				if err != nil {
-					return err
-				}
-				var startHeader wire.BlockHeader
-				err = startHeader.Deserialize(bytes.NewReader(serHeader))
-				if err != nil {
-					return err
-				}
-				start = int32(startHeader.Height)
-				return nil
-			})
-			if err != nil {
-				return errors.E(op, err)
-			}
-		}
-	}
-	if endBlock != nil {
-		if endBlock.hash == nil {
-			end = endBlock.height
-		} else {
-			err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-				ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-				serHeader, err := w.TxStore.GetSerializedBlockHeader(ns, endBlock.hash)
-				if err != nil {
-					return err
-				}
-				var endHeader wire.BlockHeader
-				err = endHeader.Deserialize(bytes.NewReader(serHeader))
-				if err != nil {
-					return err
-				}
-				end = int32(endHeader.Height)
-				return nil
-			})
-			if err != nil {
-				return errors.E(op, err)
-			}
-		}
-	}
 
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		start, end, err := w.blockRange(dbtx, startBlock, endBlock)
+		if err != nil {
+			return err
+		}
+
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
