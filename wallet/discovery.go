@@ -96,6 +96,7 @@ type accountUsage struct {
 }
 
 type scriptPath struct {
+	usageIndex             int
 	account, branch, index uint32
 }
 
@@ -201,7 +202,7 @@ func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, p Peer) er
 		// Map address scripts to their HD path.
 		var data [][]byte
 		scrPaths := make(map[string]scriptPath)
-		addBranch := func(branchPub *hd.ExtendedKey, acct, branch, lo, hi uint32) error {
+		addBranch := func(branchPub *hd.ExtendedKey, usageIndex int, acct, branch, lo, hi uint32) error {
 			if lo > hi || hi >= a.segments { // Terminating condition
 				return nil
 			}
@@ -219,20 +220,21 @@ func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, p Peer) er
 				}
 				data = append(data, scr)
 				scrPaths[string(scr)] = scriptPath{
-					account: acct,
-					branch:  branch,
-					index:   mid*a.gaplimit + uint32(i),
+					usageIndex: usageIndex,
+					account:    acct,
+					branch:     branch,
+					index:      mid*a.gaplimit + uint32(i),
 				}
 			}
 			return nil
 		}
 		for i := range a.usage {
 			u := &a.usage[i]
-			err = addBranch(u.extkey, u.account, 0, u.extlo, u.exthi)
+			err = addBranch(u.extkey, i, u.account, 0, u.extlo, u.exthi)
 			if err != nil {
 				return err
 			}
-			err = addBranch(u.intkey, u.account, 1, u.intlo, u.inthi)
+			err = addBranch(u.intkey, i, u.account, 1, u.intlo, u.inthi)
 			if err != nil {
 				return err
 			}
@@ -262,7 +264,7 @@ func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, p Peer) er
 					// and record usage.
 					path := scrPaths[string(scr)]
 					log.Debugf("Found match for script %x path %v in block %v", scr, path, &hash)
-					u := &a.usage[path.account]
+					u := &a.usage[path.usageIndex]
 					a.mu.Lock()
 					switch path.branch {
 					case 0: // external
