@@ -18,6 +18,10 @@ import (
 func (w *Wallet) StakePoolUserInfo(ctx context.Context, userAddress dcrutil.Address) (*udb.StakePoolUser, error) {
 	const op errors.Op = "wallet.StakePoolUserInfo"
 
+	if !w.stakePoolEnabled {
+		return nil, errors.E(op, errors.Invalid, "VSP features are disabled")
+	}
+
 	switch userAddress.(type) {
 	case *dcrutil.AddressPubKeyHash: // ok
 	case *dcrutil.AddressScriptHash: // ok
