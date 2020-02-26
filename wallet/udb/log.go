@@ -12,12 +12,6 @@ import "github.com/decred/slog"
 // requests it.
 var log = slog.Disabled
 
-// DisableLog disables all library log output.  Logging output is disabled
-// by default until either UseLogger or SetLogWriter are called.
-func DisableLog() {
-	log = slog.Disabled
-}
-
 // UseLogger uses a specified Logger to output package logging info.
 // This should be used in preference to SetLogWriter if the caller is also
 // using slog.
