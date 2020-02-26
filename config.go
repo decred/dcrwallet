@@ -42,7 +42,6 @@ const (
 	defaultRPCMaxWebsockets        = 25
 	defaultEnableTicketBuyer       = false
 	defaultEnableVoting            = false
-	defaultReuseAddresses          = false
 	defaultPurchaseAccount         = "default"
 	defaultPromptPass              = false
 	defaultPass                    = ""
@@ -156,10 +155,6 @@ type config struct {
 	MixChange          bool   `long:"mixchange" description:"Use CoinShuffle++ to mix change account outputs into mix account"`
 
 	TBOpts ticketBuyerOptions `group:"Ticket Buyer Options" namespace:"ticketbuyer"`
-
-	// Deprecated options
-	ReuseAddresses bool `long:"reuseaddresses" description:"DEPRECATED -- Reuse addresses for ticket purchase to cut down on address overuse"`
-	DisallowFree   bool `long:"disallowfree" description:"DEPRECATED -- Force transactions to always include a fee"`
 }
 
 type ticketBuyerOptions struct {
@@ -335,7 +330,6 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		LegacyRPCMaxWebsockets:  defaultRPCMaxWebsockets,
 		EnableTicketBuyer:       defaultEnableTicketBuyer,
 		EnableVoting:            defaultEnableVoting,
-		ReuseAddresses:          defaultReuseAddresses,
 		PurchaseAccount:         defaultPurchaseAccount,
 		GapLimit:                defaultGapLimit,
 		StakePoolColdExtKey:     defaultStakePoolColdExtKey,
@@ -499,17 +493,6 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// options.
 	if configFileError != nil {
 		log.Warnf("%v", configFileError)
-	}
-
-	// Check deprecated options.  The new options receive priority when both
-	// are changed from the default.
-	if cfg.ReuseAddresses {
-		fmt.Fprintln(os.Stderr, "reuseaddresses option is deprecated; please "+
-			"remove from your config")
-	}
-	if cfg.DisallowFree {
-		fmt.Fprintln(os.Stderr, "disallowfree option is deprecated; please "+
-			"remove from your config")
 	}
 
 	// Sanity check BalanceToMaintainAbsolute

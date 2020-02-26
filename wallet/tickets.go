@@ -32,7 +32,7 @@ func (w *Wallet) GenerateVoteTx(ctx context.Context, blockHash *chainhash.Hash, 
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		ticketPurchase, err := w.TxStore.Tx(txmgrNs, ticketHash)
+		ticketPurchase, err := w.txStore.Tx(txmgrNs, ticketHash)
 		if err != nil {
 			return err
 		}
@@ -61,7 +61,7 @@ func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, include
 	var ticketHashes []chainhash.Hash
 	var maybeLive []*chainhash.Hash
 
-	extraTickets := w.StakeMgr.DumpSStxHashes()
+	extraTickets := w.stakeMgr.DumpSStxHashes()
 
 	var tipHeight int32 // Assigned in view below.
 
@@ -74,14 +74,14 @@ func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, include
 		extraTickets = hashes[:0]
 		for i := range hashes {
 			h := &hashes[i]
-			if !w.TxStore.ExistsTx(txmgrNs, h) {
+			if !w.txStore.ExistsTx(txmgrNs, h) {
 				extraTickets = append(extraTickets, *h)
 			}
 		}
 
-		_, tipHeight = w.TxStore.MainChainTip(txmgrNs)
+		_, tipHeight = w.txStore.MainChainTip(txmgrNs)
 
-		it := w.TxStore.IterateTickets(dbtx)
+		it := w.txStore.IterateTickets(dbtx)
 		defer it.Close()
 		for it.Next() {
 			// Tickets that are mined at a height beyond the expiry height can
@@ -197,7 +197,7 @@ func (w *Wallet) TicketHashesForVotingAddress(ctx context.Context, votingAddr dc
 		stakemgrNs := tx.ReadBucket(wstakemgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
-		dump, err := w.StakeMgr.DumpSStxHashesForAddress(
+		dump, err := w.stakeMgr.DumpSStxHashesForAddress(
 			stakemgrNs, votingAddr)
 		if err != nil {
 			return err
@@ -207,7 +207,7 @@ func (w *Wallet) TicketHashesForVotingAddress(ctx context.Context, votingAddr dc
 		ticketHashes = dump[:0]
 		for i := range dump {
 			h := &dump[i]
-			if w.TxStore.ExistsTx(txmgrNs, h) {
+			if w.txStore.ExistsTx(txmgrNs, h) {
 				ticketHashes = append(ticketHashes, *h)
 			}
 		}
@@ -236,7 +236,7 @@ func (w *Wallet) AddTicket(ctx context.Context, ticket *wire.MsgTx) error {
 		stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
 
 		// Insert the ticket to be tracked and voted.
-		err := w.StakeMgr.InsertSStx(stakemgrNs, dcrutil.NewTx(ticket))
+		err := w.stakeMgr.InsertSStx(stakemgrNs, dcrutil.NewTx(ticket))
 		if err != nil {
 			return err
 		}
@@ -255,7 +255,7 @@ func (w *Wallet) AddTicket(ctx context.Context, ticket *wire.MsgTx) error {
 
 			// Update the pool ticket stake. This will include removing it from the
 			// invalid slice and adding a ImmatureOrLive ticket to the valid ones.
-			err = w.StakeMgr.RemoveStakePoolUserInvalTickets(stakemgrNs, addrs[0], &ticketHash)
+			err = w.stakeMgr.RemoveStakePoolUserInvalTickets(stakemgrNs, addrs[0], &ticketHash)
 			if err != nil {
 				return err
 			}
@@ -263,7 +263,7 @@ func (w *Wallet) AddTicket(ctx context.Context, ticket *wire.MsgTx) error {
 				Ticket: ticketHash,
 				Status: udb.TSImmatureOrLive,
 			}
-			err = w.StakeMgr.UpdateStakePoolUserTickets(stakemgrNs, addrs[0], poolTicket)
+			err = w.stakeMgr.UpdateStakePoolUserTickets(stakemgrNs, addrs[0], poolTicket)
 			if err != nil {
 				return err
 			}
@@ -287,8 +287,8 @@ func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
-		_, tipHeight := w.TxStore.MainChainTip(ns)
-		ticketHashes, err = w.TxStore.UnspentTickets(tx, tipHeight, false)
+		_, tipHeight := w.txStore.MainChainTip(ns)
+		ticketHashes, err = w.txStore.UnspentTickets(tx, tipHeight, false)
 		return err
 	})
 	if err != nil {
@@ -317,7 +317,7 @@ func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 		for _, ticketHash := range revokableTickets {
 			addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-			ticketPurchase, err := w.TxStore.Tx(txmgrNs, ticketHash)
+			ticketPurchase, err := w.txStore.Tx(txmgrNs, ticketHash)
 			if err != nil {
 				return err
 			}
@@ -394,9 +394,9 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 	var expired []chainhash.Hash
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		_, tipHeight := w.TxStore.MainChainTip(ns)
+		_, tipHeight := w.txStore.MainChainTip(ns)
 
-		it := w.TxStore.IterateTickets(dbtx)
+		it := w.txStore.IterateTickets(dbtx)
 		defer it.Close()
 		for it.Next() {
 			// Spent tickets are excluded
@@ -426,7 +426,7 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 			ticketHash := &expired[i]
 			addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-			ticketPurchase, err := w.TxStore.Tx(txmgrNs, ticketHash)
+			ticketPurchase, err := w.txStore.Tx(txmgrNs, ticketHash)
 			if err != nil {
 				return err
 			}

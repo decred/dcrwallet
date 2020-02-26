@@ -249,8 +249,8 @@ func (w *Wallet) EvaluateBestChain(ctx context.Context, f *SidechainForest) ([]*
 	var newBestChain []*BlockNode
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		tipHash, _ := w.TxStore.MainChainTip(ns)
-		tipHeader, err := w.TxStore.GetBlockHeader(dbtx, &tipHash)
+		tipHash, _ := w.txStore.MainChainTip(ns)
+		tipHeader, err := w.txStore.GetBlockHeader(dbtx, &tipHash)
 		if err != nil {
 			return err
 		}
@@ -260,7 +260,7 @@ func (w *Wallet) EvaluateBestChain(ctx context.Context, f *SidechainForest) ([]*
 		for _, t := range f.trees {
 			// Ignore orphan trees
 			fork := &t.root.Header.PrevBlock
-			inMainChain, _ := w.TxStore.BlockInMainChain(dbtx, fork)
+			inMainChain, _ := w.txStore.BlockInMainChain(dbtx, fork)
 			if !inMainChain {
 				continue
 			}
@@ -271,7 +271,7 @@ func (w *Wallet) EvaluateBestChain(ctx context.Context, f *SidechainForest) ([]*
 			for hash, header := &tipHash, tipHeader; *hash != *fork; {
 				work.Sub(work, blockchain.CalcWork(header.Bits))
 				prev := &header.PrevBlock
-				header, err = w.TxStore.GetBlockHeader(dbtx, prev)
+				header, err = w.txStore.GetBlockHeader(dbtx, prev)
 				if err != nil {
 					return err
 				}

@@ -68,7 +68,7 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	var amount dcrutil.Amount
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		txDetails, err := w.TxStore.TxDetails(txmgrNs, &output.Hash)
+		txDetails, err := w.txStore.TxDetails(txmgrNs, &output.Hash)
 		if err != nil {
 			return err
 		}
@@ -206,7 +206,12 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 	defer hold.release()
 
 	_, tipHeight := w.MainChainTip(ctx)
-	credits, err := w.FindEligibleOutputs(ctx, changeAccount, 1, tipHeight)
+	var credits []udb.Credit
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		var err error
+		credits, err = w.findEligibleOutputs(dbtx, changeAccount, 1, tipHeight)
+		return err
+	})
 	if err != nil {
 		return errors.E(op, err)
 	}

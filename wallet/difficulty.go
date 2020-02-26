@@ -45,7 +45,7 @@ func (w *Wallet) findPrevTestNetDifficulty(dbtx walletdb.ReadTx, h *wire.BlockHe
 			h = chain[h.Height-chain[0].Header.Height-1].Header
 		} else {
 			var err error
-			h, err = w.TxStore.GetBlockHeader(dbtx, &h.PrevBlock)
+			h, err = w.txStore.GetBlockHeader(dbtx, &h.PrevBlock)
 			if err != nil {
 				return 0, err
 			}
@@ -168,7 +168,7 @@ func (w *Wallet) nextRequiredPoWDifficulty(dbtx walletdb.ReadTx, header *wire.Bl
 				oldHeader = chain[oldHeader.Height-chain[0].Header.Height-1].Header
 			} else {
 				var err error
-				oldHeader, err = w.TxStore.GetBlockHeader(dbtx, &oldHeader.PrevBlock)
+				oldHeader, err = w.txStore.GetBlockHeader(dbtx, &oldHeader.PrevBlock)
 				if err != nil {
 					return 0, err
 				}
@@ -272,7 +272,7 @@ func (w *Wallet) sumPurchasedTickets(dbtx walletdb.ReadTx, startHeader *wire.Blo
 			continue
 		}
 		var err error
-		h, err = w.TxStore.GetBlockHeader(dbtx, &h.PrevBlock)
+		h, err = w.txStore.GetBlockHeader(dbtx, &h.PrevBlock)
 		if err != nil {
 			return 0, err
 		}
@@ -369,11 +369,11 @@ func (w *Wallet) ancestorHeaderAtHeight(dbtx walletdb.ReadTx, h *wire.BlockHeade
 	// Because the parent of chain[0] must be in the main chain, the header can
 	// be queried by its main chain height.
 	ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-	hash, err := w.TxStore.GetMainChainBlockHashForHeight(ns, height)
+	hash, err := w.txStore.GetMainChainBlockHashForHeight(ns, height)
 	if err != nil {
 		return nil, err
 	}
-	return w.TxStore.GetBlockHeader(dbtx, &hash)
+	return w.txStore.GetBlockHeader(dbtx, &hash)
 }
 
 // nextRequiredDCP0001PoSDifficulty calculates the required stake difficulty for
@@ -451,11 +451,11 @@ func (w *Wallet) NextStakeDifficulty(ctx context.Context) (dcrutil.Amount, error
 	var sdiff dcrutil.Amount
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		tipHash, tipHeight := w.TxStore.MainChainTip(ns)
+		tipHash, tipHeight := w.txStore.MainChainTip(ns)
 		if !deployments.DCP0001.Active(tipHeight, w.chainParams.Net) {
 			return errors.E(errors.Deployment, "DCP0001 is not known to be active")
 		}
-		tipHeader, err := w.TxStore.GetBlockHeader(dbtx, &tipHash)
+		tipHeader, err := w.txStore.GetBlockHeader(dbtx, &tipHash)
 		if err != nil {
 			return err
 		}
@@ -505,7 +505,7 @@ func (w *Wallet) ValidateHeaderChainDifficulties(ctx context.Context, chain []*B
 func (w *Wallet) validateHeaderChainDifficulties(dbtx walletdb.ReadTx, chain []*BlockNode, idx int) ([]*BlockNode, error) {
 	const op errors.Op = "wallet.validateHeaderChainDifficulties"
 
-	inMainChain, _ := w.TxStore.BlockInMainChain(dbtx, &chain[0].Header.PrevBlock)
+	inMainChain, _ := w.txStore.BlockInMainChain(dbtx, &chain[0].Header.PrevBlock)
 	if !inMainChain {
 		return nil, errors.E(op, errors.Bug, "parent of chain[0] is not in main chain")
 	}
@@ -519,7 +519,7 @@ func (w *Wallet) validateHeaderChainDifficulties(dbtx walletdb.ReadTx, chain []*
 		if parent == nil && h.Height != 0 {
 			if idx == 0 {
 				var err error
-				parent, err = w.TxStore.GetBlockHeader(dbtx, &h.PrevBlock)
+				parent, err = w.txStore.GetBlockHeader(dbtx, &h.PrevBlock)
 				if err != nil {
 					return nil, err
 				}

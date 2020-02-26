@@ -432,7 +432,6 @@ type WalletInfoResult struct {
 	Unlocked         bool    `json:"unlocked"`
 	CoinType         uint32  `json:"cointype,omitempty"`
 	TxFee            float64 `json:"txfee"`
-	TicketFee        float64 `json:"ticketfee"`
 	TicketPurchasing bool    `json:"ticketpurchasing"`
 	VoteBits         uint16  `json:"votebits"`
 	VoteBitsExtended string  `json:"votebitsextended"`

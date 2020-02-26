@@ -373,11 +373,11 @@ func (w *Wallet) persistReturnedChild(ctx context.Context, maybeDBTX walletdb.Re
 			}()
 		}
 		ns := maybeDBTX.ReadWriteBucket(waddrmgrNamespaceKey)
-		err := w.Manager.SyncAccountToAddrIndex(ns, account, child, branch)
+		err := w.manager.SyncAccountToAddrIndex(ns, account, child, branch)
 		if err != nil {
 			return err
 		}
-		return w.Manager.MarkReturnedChildIndex(maybeDBTX, account, branch, child)
+		return w.manager.MarkReturnedChildIndex(maybeDBTX, account, branch, child)
 	}
 }
 
@@ -522,11 +522,11 @@ func (w *Wallet) nextImportedXpubAddress(ctx context.Context, op errors.Op, mayb
 	}
 
 	ns := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
-	xpub, err := w.Manager.AccountExtendedPubKey(dbtx, account)
+	xpub, err := w.manager.AccountExtendedPubKey(dbtx, account)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	props, err := w.Manager.AccountProperties(ns, account)
+	props, err := w.manager.AccountProperties(ns, account)
 	branchKey, err := xpub.Child(branch)
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -568,7 +568,7 @@ func (w *Wallet) nextImportedXpubAddress(ctx context.Context, op errors.Op, mayb
 		branch:            branch,
 		child:             child,
 	}
-	err = w.Manager.MarkReturnedChildIndex(dbtx, account, branch, child)
+	err = w.manager.MarkReturnedChildIndex(dbtx, account, branch, child)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -588,14 +588,14 @@ func minUint32(a, b uint32) uint32 {
 func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr udb.ManagedAddress) error {
 	ns := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 	account := addr.Account()
-	err := w.Manager.MarkUsed(ns, addr.Address())
+	err := w.manager.MarkUsed(ns, addr.Address())
 	if err != nil {
 		return errors.E(op, err)
 	}
 	if account == udb.ImportedAddrAccount {
 		return nil
 	}
-	props, err := w.Manager.AccountProperties(ns, account)
+	props, err := w.manager.AccountProperties(ns, account)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -605,7 +605,7 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 		lastUsed = props.LastUsedInternalIndex
 		branch = udb.InternalBranch
 	}
-	err = w.Manager.SyncAccountToAddrIndex(ns, account,
+	err = w.manager.SyncAccountToAddrIndex(ns, account,
 		minUint32(hdkeychain.HardenedKeyStart-1, lastUsed+uint32(w.gapLimit)),
 		branch)
 	if err != nil {
@@ -704,11 +704,11 @@ func (w *Wallet) SyncLastReturnedAddress(ctx context.Context, account, branch, c
 
 	err = walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-		err = w.Manager.SyncAccountToAddrIndex(ns, account, child, branch)
+		err = w.manager.SyncAccountToAddrIndex(ns, account, child, branch)
 		if err != nil {
 			return err
 		}
-		return w.Manager.MarkReturnedChildIndex(tx, account, branch, child)
+		return w.manager.MarkReturnedChildIndex(tx, account, branch, child)
 	})
 	if err != nil {
 		return err

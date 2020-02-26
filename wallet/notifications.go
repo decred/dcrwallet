@@ -62,7 +62,7 @@ func lookupInputAccount(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails,
 	// TODO: Debits should record which account(s?) they
 	// debit from so this doesn't need to be looked up.
 	prevOP := &details.MsgTx.TxIn[deb.Index].PreviousOutPoint
-	prev, err := w.TxStore.TxDetails(txmgrNs, &prevOP.Hash)
+	prev, err := w.txStore.TxDetails(txmgrNs, &prevOP.Hash)
 	if err != nil {
 		log.Errorf("Cannot query previous transaction details for %v: %v", prevOP.Hash, err)
 		return 0
@@ -75,7 +75,7 @@ func lookupInputAccount(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails,
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(prevOut.Version, prevOut.PkScript, w.chainParams)
 	var inputAcct uint32
 	if err == nil && len(addrs) > 0 {
-		inputAcct, err = w.Manager.AddrAccount(addrmgrNs, addrs[0])
+		inputAcct, err = w.manager.AddrAccount(addrmgrNs, addrs[0])
 	}
 	if err != nil {
 		log.Errorf("Cannot fetch account for previous output %v: %v", prevOP, err)
@@ -94,7 +94,7 @@ func lookupOutputChain(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails,
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(output.Version, output.PkScript, w.chainParams)
 	var ma udb.ManagedAddress
 	if err == nil && len(addrs) > 0 {
-		ma, err = w.Manager.Address(addrmgrNs, addrs[0])
+		ma, err = w.manager.Address(addrmgrNs, addrs[0])
 	}
 	if err != nil {
 		log.Errorf("Cannot fetch account for wallet output: %v", err)
@@ -210,7 +210,7 @@ func makeTicketSummary(ctx context.Context, rpc *dcrd.RPC, dbtx walletdb.ReadTx,
 	} else {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
 
 		// Check if ticket age is not yet mature
 		if !ticketMatured(w.chainParams, details.Ticket.Height(), tipHeight) {
@@ -229,7 +229,7 @@ func makeTicketSummary(ctx context.Context, rpc *dcrd.RPC, dbtx walletdb.ReadTx,
 
 func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]dcrutil.Amount) error {
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-	unspent, err := w.TxStore.UnspentOutputs(dbtx.ReadBucket(wtxmgrNamespaceKey))
+	unspent, err := w.txStore.UnspentOutputs(dbtx.ReadBucket(wtxmgrNamespaceKey))
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]dcrutil.Amount)
 		_, addrs, _, err := txscript.ExtractPkScriptAddrs(
 			0, output.PkScript, w.chainParams)
 		if err == nil && len(addrs) > 0 {
-			outputAcct, err = w.Manager.AddrAccount(addrmgrNs, addrs[0])
+			outputAcct, err = w.manager.AddrAccount(addrmgrNs, addrs[0])
 		}
 		if err == nil {
 			_, ok := m[outputAcct]
@@ -286,7 +286,7 @@ func (s *NotificationServer) notifyUnminedTransaction(dbtx walletdb.ReadTx, deta
 	}
 
 	unminedTxs := []TransactionSummary{makeTxSummary(dbtx, s.wallet, details)}
-	unminedHashes, err := s.wallet.TxStore.UnminedTxHashes(dbtx.ReadBucket(wtxmgrNamespaceKey))
+	unminedHashes, err := s.wallet.txStore.UnminedTxHashes(dbtx.ReadBucket(wtxmgrNamespaceKey))
 	if err != nil {
 		log.Errorf("Cannot fetch unmined transaction hashes: %v", err)
 		return
@@ -378,7 +378,7 @@ func (s *NotificationServer) sendAttachedBlockNotification(ctx context.Context) 
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
-		unminedHashes, err = w.TxStore.UnminedTxHashes(txmgrNs)
+		unminedHashes, err = w.txStore.UnminedTxHashes(txmgrNs)
 		if err != nil {
 			return err
 		}
@@ -836,11 +836,11 @@ func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stop
 	r := make([]ConfirmationNotification, 0, len(c.watched))
 	err := walletdb.View(c.ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
 		// cannot range here, txHashes may be modified
 		for i := 0; i < len(txHashes); {
 			h := txHashes[i]
-			height, err := w.TxStore.TxBlockHeight(dbtx, h)
+			height, err := w.txStore.TxBlockHeight(dbtx, h)
 			var confs int32
 			switch {
 			case errors.Is(err, errors.NotExist):
@@ -851,11 +851,11 @@ func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stop
 				// Remove tx hash from watching list if tx block has been mined
 				// and then invalidated by next block
 				if tipHeight > height && height > 0 {
-					txDetails, err := w.TxStore.TxDetails(txmgrNs, h)
+					txDetails, err := w.txStore.TxDetails(txmgrNs, h)
 					if err != nil {
 						return err
 					}
-					_, invalidated := w.TxStore.BlockInMainChain(dbtx, &txDetails.Block.Hash)
+					_, invalidated := w.txStore.BlockInMainChain(dbtx, &txDetails.Block.Hash)
 					if invalidated {
 						confs = -1
 						break
@@ -870,11 +870,11 @@ func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stop
 			})
 			if confs > 0 {
 				result := &r[len(r)-1]
-				height, err := w.TxStore.TxBlockHeight(dbtx, result.TxHash)
+				height, err := w.txStore.TxBlockHeight(dbtx, result.TxHash)
 				if err != nil {
 					return err
 				}
-				blockHash, err := w.TxStore.GetMainChainBlockHashForHeight(txmgrNs, height)
+				blockHash, err := w.txStore.GetMainChainBlockHashForHeight(txmgrNs, height)
 				if err != nil {
 					return err
 				}
@@ -934,7 +934,7 @@ func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		for txHash, stopAfter := range c.watched {
 			txHash := txHash // copy
-			height, err := w.TxStore.TxBlockHeight(dbtx, &txHash)
+			height, err := w.txStore.TxBlockHeight(dbtx, &txHash)
 			var confs int32
 			switch {
 			case errors.Is(err, errors.NotExist):
@@ -945,11 +945,11 @@ func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
 				// Remove tx hash from watching list if tx block has been mined
 				// and then invalidated by next block
 				if tipHeight > height && height > 0 {
-					txDetails, err := w.TxStore.TxDetails(txmgrNs, &txHash)
+					txDetails, err := w.txStore.TxDetails(txmgrNs, &txHash)
 					if err != nil {
 						return err
 					}
-					_, invalidated := w.TxStore.BlockInMainChain(dbtx, &txDetails.Block.Hash)
+					_, invalidated := w.txStore.BlockInMainChain(dbtx, &txDetails.Block.Hash)
 					if invalidated {
 						confs = -1
 						break
@@ -964,11 +964,11 @@ func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
 			})
 			if confs > 0 {
 				result := &r.result[len(r.result)-1]
-				height, err := w.TxStore.TxBlockHeight(dbtx, result.TxHash)
+				height, err := w.txStore.TxBlockHeight(dbtx, result.TxHash)
 				if err != nil {
 					return err
 				}
-				blockHash, err := w.TxStore.GetMainChainBlockHashForHeight(txmgrNs, height)
+				blockHash, err := w.txStore.GetMainChainBlockHashForHeight(txmgrNs, height)
 				if err != nil {
 					return err
 				}

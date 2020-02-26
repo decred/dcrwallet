@@ -119,7 +119,7 @@ func (c *csppJoin) Confirm() error {
 			if !ok {
 				return errors.E(errors.Bug, "previous output is not P2PKH")
 			}
-			privKey, done, err := c.wallet.Manager.PrivateKey(addrmgrNs, apkh)
+			privKey, done, err := c.wallet.manager.PrivateKey(addrmgrNs, apkh)
 			if err != nil {
 				return err
 			}

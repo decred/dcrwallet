@@ -166,11 +166,11 @@ func (w *Wallet) SaveRescanned(ctx context.Context, hash *chainhash.Hash, txs []
 	const op errors.Op = "wallet.SaveRescanned"
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
-		blockMeta, err := w.TxStore.GetBlockMetaForHash(txmgrNs, hash)
+		blockMeta, err := w.txStore.GetBlockMetaForHash(txmgrNs, hash)
 		if err != nil {
 			return err
 		}
-		header, err := w.TxStore.GetBlockHeader(dbtx, hash)
+		header, err := w.txStore.GetBlockHeader(dbtx, hash)
 		if err != nil {
 			return err
 		}
@@ -185,7 +185,7 @@ func (w *Wallet) SaveRescanned(ctx context.Context, hash *chainhash.Hash, txs []
 				return err
 			}
 		}
-		return w.TxStore.UpdateProcessedTxsBlockMarker(dbtx, hash)
+		return w.txStore.UpdateProcessedTxsBlockMarker(dbtx, hash)
 	})
 	if err != nil {
 		return errors.E(op, err)
@@ -214,7 +214,7 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 		err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 			var err error
-			rescanBlocks, err = w.TxStore.GetMainChainBlockHashes(txmgrNs,
+			rescanBlocks, err = w.txStore.GetMainChainBlockHashes(txmgrNs,
 				&rescanFrom, inclusive, blockHashStorage)
 			return err
 		})
@@ -243,7 +243,7 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 			return err
 		}
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-			return w.TxStore.UpdateProcessedTxsBlockMarker(dbtx, &rescanBlocks[len(rescanBlocks)-1])
+			return w.txStore.UpdateProcessedTxsBlockMarker(dbtx, &rescanBlocks[len(rescanBlocks)-1])
 		})
 		if err != nil {
 			return err
@@ -268,7 +268,7 @@ func (w *Wallet) Rescan(ctx context.Context, n NetworkBackend, startHash *chainh
 	var startHeight int32
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
-		header, err := w.TxStore.GetSerializedBlockHeader(txmgrNs, startHash)
+		header, err := w.txStore.GetSerializedBlockHeader(txmgrNs, startHash)
 		if err != nil {
 			return err
 		}
@@ -295,7 +295,7 @@ func (w *Wallet) RescanFromHeight(ctx context.Context, n NetworkBackend, startHe
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
-		startHash, err = w.TxStore.GetMainChainBlockHashForHeight(
+		startHash, err = w.txStore.GetMainChainBlockHashForHeight(
 			txmgrNs, startHeight)
 		return err
 	})
@@ -332,7 +332,7 @@ func (w *Wallet) RescanProgressFromHeight(ctx context.Context, n NetworkBackend,
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
-		startHash, err = w.TxStore.GetMainChainBlockHashForHeight(
+		startHash, err = w.txStore.GetMainChainBlockHashForHeight(
 			txmgrNs, startHeight)
 		return err
 	})
@@ -349,11 +349,11 @@ func (w *Wallet) RescanProgressFromHeight(ctx context.Context, n NetworkBackend,
 
 func (w *Wallet) mainChainAncestor(dbtx walletdb.ReadTx, hash *chainhash.Hash) (*chainhash.Hash, error) {
 	for {
-		mainChain, _ := w.TxStore.BlockInMainChain(dbtx, hash)
+		mainChain, _ := w.txStore.BlockInMainChain(dbtx, hash)
 		if mainChain {
 			break
 		}
-		h, err := w.TxStore.GetBlockHeader(dbtx, hash)
+		h, err := w.txStore.GetBlockHeader(dbtx, hash)
 		if err != nil {
 			return nil, err
 		}
@@ -380,21 +380,21 @@ func (w *Wallet) RescanPoint(ctx context.Context) (*chainhash.Hash, error) {
 
 func (w *Wallet) rescanPoint(dbtx walletdb.ReadTx) (*chainhash.Hash, error) {
 	ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-	r := w.TxStore.ProcessedTxsBlockMarker(dbtx)
+	r := w.txStore.ProcessedTxsBlockMarker(dbtx)
 	r, err := w.mainChainAncestor(dbtx, r) // Walk back to the main chain ancestor
 	if err != nil {
 		return nil, err
 	}
-	if tipHash, _ := w.TxStore.MainChainTip(ns); *r == tipHash {
+	if tipHash, _ := w.txStore.MainChainTip(ns); *r == tipHash {
 		return nil, nil
 	}
 	// r is not the tip, so a child block must exist in the main chain.
-	h, err := w.TxStore.GetBlockHeader(dbtx, r)
+	h, err := w.txStore.GetBlockHeader(dbtx, r)
 	if err != nil {
 		log.Info(err)
 		return nil, err
 	}
-	rescanPoint, err := w.TxStore.GetMainChainBlockHashForHeight(ns, int32(h.Height)+1)
+	rescanPoint, err := w.txStore.GetMainChainBlockHashForHeight(ns, int32(h.Height)+1)
 	if err != nil {
 		log.Info(err)
 		return nil, err

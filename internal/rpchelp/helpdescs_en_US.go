@@ -666,7 +666,6 @@ var helpDescsEnUS = map[string]string{
 	"walletinforesult-unlocked":         "Whether or not the wallet is unlocked",
 	"walletinforesult-cointype":         "Active coin type. Not available for watching-only wallets.",
 	"walletinforesult-txfee":            "Transaction fee per kB of the serialized tx size in coins",
-	"walletinforesult-ticketfee":        "Ticket fee per kB of the serialized tx size in coins",
 	"walletinforesult-ticketpurchasing": "Whether or not the wallet is currently purchasing tickets",
 	"walletinforesult-votebits":         "Vote bits setting",
 	"walletinforesult-votebitsextended": "Extended vote bits setting",
@@ -723,17 +722,7 @@ var helpDescsEnUS = map[string]string{
 	"purchaseticket-expiry":             "Height at which the purchase tickets expire",
 	"purchaseticket-nosplittransaction": "Use ticket purchase change outputs instead of a split transaction",
 	"purchaseticket-comment":            "Unused",
-	"purchaseticket-ticketfee":          "The transaction fee rate (DCR/kB) to use (overrides fees set by the wallet config or settxfee RPC)",
 	"purchaseticket-dontsigntx":         "Return unsigned split and ticket transactions instead of signing and publishing",
-
-	// SetTicketFeeCmd help.
-	"setticketfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored stake transaction.",
-	"setticketfee-fee":       "The new fee per kB of the serialized tx size valued in decred",
-	"setticketfee--result0":  "The boolean 'true'",
-
-	// GetTicketFeeCmd help.
-	"getticketfee--synopsis": "Get the current fee per kB of the serialized tx size used for an authored stake transaction.",
-	"getticketfee--result0":  "The current fee",
 
 	// SetBalanceToMaintainCmd help.
 	"setbalancetomaintain--synopsis": "Modify the balance for wallet to maintain for automatic ticket purchasing",

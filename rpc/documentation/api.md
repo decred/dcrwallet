@@ -1623,7 +1623,7 @@ The `PurchaseTickets` method is used to purchase tickets. It can use a specified
 address for voting rights, and can additionally be used in conjunction with a
 stake pool. An expiration value can be set for the tickets. Expired tickets are
 pruned from the wallet and funds and then restored to the user. The following
-fields can be left unset, and unset (empty or zero) behaviour is given below:
+fields can be left unset, and unset (empty or zero) behavior is given below:
 ticker_address, pool_address, expiry, tx_fee, ticket_fee.
 
 **Request:** `PurchaseTicketsRequest`
@@ -1660,7 +1660,8 @@ ticker_address, pool_address, expiry, tx_fee, ticket_fee.
   will be used.
 
 - `int64 ticket_fee`: Fees per kB to use for all purchased tickets. If 0 is
-  passed, the global value for a ticket fee will be used.
+  passed, the global value for a ticket fee will be used.  This option is
+  deprecated and ignored; use `tx_fee` instead.
 
 - `bool dont_sign_tx`: If the tickets tx should be signed or not.
 

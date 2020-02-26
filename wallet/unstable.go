@@ -33,7 +33,7 @@ func (u unstableAPI) TxDetails(ctx context.Context, txHash *chainhash.Hash) (*ud
 	err := walletdb.View(ctx, u.w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
-		details, err = u.w.TxStore.TxDetails(txmgrNs, txHash)
+		details, err = u.w.txStore.TxDetails(txmgrNs, txHash)
 		return err
 	})
 	if err != nil {
@@ -48,7 +48,7 @@ func (u unstableAPI) RangeTransactions(ctx context.Context, begin, end int32, f 
 	const op errors.Op = "wallet.RangeTransactions"
 	err := walletdb.View(ctx, u.w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		return u.w.TxStore.RangeTransactions(txmgrNs, begin, end, f)
+		return u.w.txStore.RangeTransactions(txmgrNs, begin, end, f)
 	})
 	if err != nil {
 		return errors.E(op, err)
@@ -65,7 +65,7 @@ func (u unstableAPI) UnspentMultisigCreditsForAddress(ctx context.Context, p2shA
 	err := walletdb.View(ctx, u.w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
-		multisigCredits, err = u.w.TxStore.UnspentMultisigCreditsForAddress(
+		multisigCredits, err = u.w.txStore.UnspentMultisigCreditsForAddress(
 			txmgrNs, p2shAddr)
 		return err
 	})

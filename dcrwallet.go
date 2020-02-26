@@ -154,15 +154,13 @@ func run(ctx context.Context) error {
 	dbDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
 	stakeOptions := &ldr.StakeOptions{
 		VotingEnabled:       cfg.EnableVoting,
-		AddressReuse:        cfg.ReuseAddresses,
 		VotingAddress:       cfg.TBOpts.votingAddress,
 		PoolAddress:         cfg.poolAddress,
 		PoolFees:            cfg.PoolFees,
 		StakePoolColdExtKey: cfg.StakePoolColdExtKey,
-		TicketFee:           cfg.RelayFee.ToCoin(),
 	}
 	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
-		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.ToCoin(),
+		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.Amount,
 		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades)
 
 	// Stop any services started by the loader after the shutdown procedure is
@@ -410,7 +408,7 @@ func startPromptPass(ctx context.Context, w *wallet.Wallet) []byte {
 	promptPass := cfg.PromptPass
 
 	// Watching only wallets never require a password.
-	if w.Manager.WatchingOnly() {
+	if w.WatchingOnly() {
 		return nil
 	}
 

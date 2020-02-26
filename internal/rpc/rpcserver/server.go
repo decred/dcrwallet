@@ -587,7 +587,7 @@ func (s *walletServer) ImportScript(ctx context.Context,
 			"The script is not redeemable by the wallet")
 	}
 
-	if !s.wallet.Manager.WatchingOnly() {
+	if !s.wallet.WatchingOnly() {
 		lock := make(chan time.Time, 1)
 		defer func() {
 			lock <- time.Time{} // send matters, not the value
@@ -1600,14 +1600,8 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 
 	expiry := int32(req.Expiry)
 	txFee := dcrutil.Amount(req.TxFee)
-	ticketFee := s.wallet.TicketFeeIncrement()
 
-	// Set the ticket fee if specified
-	if req.TicketFee > 0 {
-		ticketFee = dcrutil.Amount(req.TicketFee)
-	}
-
-	if txFee < 0 || ticketFee < 0 {
+	if txFee < 0 {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"Negative fees per KB given")
 	}
@@ -2400,7 +2394,7 @@ func (s *loaderServer) OpenWallet(ctx context.Context, req *pb.OpenWalletRequest
 	}
 
 	return &pb.OpenWalletResponse{
-		WatchingOnly: w.Manager.WatchingOnly(),
+		WatchingOnly: w.WatchingOnly(),
 	}, nil
 }
 

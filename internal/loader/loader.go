@@ -42,7 +42,7 @@ type Loader struct {
 	accountGapLimit         int
 	disableCoinTypeUpgrades bool
 	allowHighFees           bool
-	relayFee                float64
+	relayFee                dcrutil.Amount
 
 	mu sync.Mutex
 }
@@ -50,7 +50,6 @@ type Loader struct {
 // StakeOptions contains the various options necessary for stake mining.
 type StakeOptions struct {
 	VotingEnabled       bool
-	TicketFee           float64
 	AddressReuse        bool
 	VotingAddress       dcrutil.Address
 	PoolAddress         dcrutil.Address
@@ -60,7 +59,7 @@ type StakeOptions struct {
 
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, gapLimit int,
-	allowHighFees bool, relayFee float64, accountGapLimit int, disableCoinTypeUpgrades bool) *Loader {
+	allowHighFees bool, relayFee dcrutil.Amount, accountGapLimit int, disableCoinTypeUpgrades bool) *Loader {
 
 	return &Loader{
 		chainParams:             chainParams,
@@ -173,7 +172,6 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 		VotingAddress:           so.VotingAddress,
 		PoolAddress:             so.PoolAddress,
 		PoolFees:                so.PoolFees,
-		TicketFee:               so.TicketFee,
 		GapLimit:                l.gapLimit,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
@@ -264,7 +262,6 @@ func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphr
 		VotingAddress:           so.VotingAddress,
 		PoolAddress:             so.PoolAddress,
 		PoolFees:                so.PoolFees,
-		TicketFee:               so.TicketFee,
 		GapLimit:                l.gapLimit,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
@@ -325,7 +322,6 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 		VotingAddress:           so.VotingAddress,
 		PoolAddress:             so.PoolAddress,
 		PoolFees:                so.PoolFees,
-		TicketFee:               so.TicketFee,
 		GapLimit:                l.gapLimit,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,

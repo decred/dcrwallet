@@ -33,7 +33,7 @@ func (w *Wallet) StakePoolUserInfo(ctx context.Context, userAddress dcrutil.Addr
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		stakemgrNs := tx.ReadBucket(wstakemgrNamespaceKey)
 		var err error
-		user, err = w.StakeMgr.StakePoolUserInfo(stakemgrNs, userAddress)
+		user, err = w.stakeMgr.StakePoolUserInfo(stakemgrNs, userAddress)
 		return err
 	})
 	if err != nil {

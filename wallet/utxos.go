@@ -38,11 +38,11 @@ func (w *Wallet) UnspentOutputs(ctx context.Context, policy OutputSelectionPolic
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
-		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
 
 		// TODO: actually stream outputs from the db instead of fetching
 		// all of them at once.
-		outputs, err := w.TxStore.UnspentOutputs(txmgrNs)
+		outputs, err := w.txStore.UnspentOutputs(txmgrNs)
 		if err != nil {
 			return err
 		}
@@ -65,7 +65,7 @@ func (w *Wallet) UnspentOutputs(ctx context.Context, policy OutputSelectionPolic
 				// per output.
 				continue
 			}
-			outputAcct, err := w.Manager.AddrAccount(addrmgrNs, addrs[0])
+			outputAcct, err := w.manager.AddrAccount(addrmgrNs, addrs[0])
 			if err != nil {
 				return err
 			}
@@ -111,10 +111,10 @@ func (w *Wallet) SelectInputs(ctx context.Context, targetAmount dcrutil.Amount, 
 	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
-		_, tipHeight := w.TxStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
 
 		if policy.Account != udb.ImportedAddrAccount {
-			lastAcct, err := w.Manager.LastAccount(addrmgrNs)
+			lastAcct, err := w.manager.LastAccount(addrmgrNs)
 			if err != nil {
 				return err
 			}
@@ -123,7 +123,7 @@ func (w *Wallet) SelectInputs(ctx context.Context, targetAmount dcrutil.Amount, 
 			}
 		}
 
-		sourceImpl := w.TxStore.MakeInputSource(txmgrNs, addrmgrNs, policy.Account,
+		sourceImpl := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, policy.Account,
 			policy.RequiredConfirmations, tipHeight)
 		var err error
 		inputDetail, err = sourceImpl.SelectInputs(targetAmount)
@@ -151,7 +151,7 @@ func (w *Wallet) OutputInfo(ctx context.Context, out *wire.OutPoint) (OutputInfo
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-		txDetails, err := w.TxStore.TxDetails(txmgrNs, &out.Hash)
+		txDetails, err := w.txStore.TxDetails(txmgrNs, &out.Hash)
 		if err != nil {
 			return err
 		}

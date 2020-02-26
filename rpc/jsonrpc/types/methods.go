@@ -473,17 +473,6 @@ func NewGetStakeInfoCmd() *GetStakeInfoCmd {
 	return &GetStakeInfoCmd{}
 }
 
-// GetTicketFeeCmd is a type handling custom marshaling and
-// unmarshaling of getticketfee JSON wallet extension
-// commands.
-type GetTicketFeeCmd struct {
-}
-
-// NewGetTicketFeeCmd creates a new GetTicketFeeCmd.
-func NewGetTicketFeeCmd() *GetTicketFeeCmd {
-	return &GetTicketFeeCmd{}
-}
-
 // GetTicketsCmd is a type handling custom marshaling and
 // unmarshaling of gettickets JSON wallet extension
 // commands.
@@ -824,14 +813,13 @@ type PurchaseTicketCmd struct {
 	PoolFees      *float64
 	Expiry        *int
 	Comment       *string
-	TicketFee     *float64
 	DontSignTx    *bool
 }
 
 // NewPurchaseTicketCmd creates a new PurchaseTicketCmd.
 func NewPurchaseTicketCmd(fromAccount string, spendLimit float64, minConf *int,
 	ticketAddress *string, numTickets *int, poolAddress *string, poolFees *float64,
-	expiry *int, comment *string, ticketFee *float64) *PurchaseTicketCmd {
+	expiry *int, comment *string) *PurchaseTicketCmd {
 	return &PurchaseTicketCmd{
 		FromAccount:   fromAccount,
 		SpendLimit:    spendLimit,
@@ -842,7 +830,6 @@ func NewPurchaseTicketCmd(fromAccount string, spendLimit float64, minConf *int,
 		PoolFees:      poolFees,
 		Expiry:        expiry,
 		Comment:       comment,
-		TicketFee:     ticketFee,
 	}
 }
 
@@ -1043,20 +1030,6 @@ type SetTxFeeCmd struct {
 func NewSetTxFeeCmd(amount float64) *SetTxFeeCmd {
 	return &SetTxFeeCmd{
 		Amount: amount,
-	}
-}
-
-// SetTicketFeeCmd is a type handling custom marshaling and
-// unmarshaling of setticketfee JSON RPC commands.
-type SetTicketFeeCmd struct {
-	Fee float64
-}
-
-// NewSetTicketFeeCmd creates a new instance of the setticketfee
-// command.
-func NewSetTicketFeeCmd(fee float64) *SetTicketFeeCmd {
-	return &SetTicketFeeCmd{
-		Fee: fee,
 	}
 }
 
@@ -1345,7 +1318,6 @@ func init() {
 		{"getreceivedbyaccount", (*GetReceivedByAccountCmd)(nil)},
 		{"getreceivedbyaddress", (*GetReceivedByAddressCmd)(nil)},
 		{"getstakeinfo", (*GetStakeInfoCmd)(nil)},
-		{"getticketfee", (*GetTicketFeeCmd)(nil)},
 		{"gettickets", (*GetTicketsCmd)(nil)},
 		{"gettransaction", (*GetTransactionCmd)(nil)},
 		{"getunconfirmedbalance", (*GetUnconfirmedBalanceCmd)(nil)},
@@ -1379,7 +1351,6 @@ func init() {
 		{"sendtoaddress", (*SendToAddressCmd)(nil)},
 		{"sendtomultisig", (*SendToMultiSigCmd)(nil)},
 		{"settxfee", (*SetTxFeeCmd)(nil)},
-		{"setticketfee", (*SetTicketFeeCmd)(nil)},
 		{"setvotechoice", (*SetVoteChoiceCmd)(nil)},
 		{"signmessage", (*SignMessageCmd)(nil)},
 		{"signrawtransaction", (*SignRawTransactionCmd)(nil)},

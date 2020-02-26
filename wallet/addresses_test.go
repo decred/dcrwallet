@@ -60,7 +60,7 @@ var (
 	walletConfig = Config{
 		PubPassphrase: pubPassphrase,
 		GapLimit:      20,
-		RelayFee:      dcrutil.Amount(1e5).ToCoin(),
+		RelayFee:      dcrutil.Amount(1e5),
 		Params:        chaincfg.SimNetParams(),
 	}
 
@@ -180,7 +180,7 @@ func testExternalAddresses(tc *testContext) {
 	if tc.watchingOnly {
 		err := walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 			ns := tx.ReadWriteBucket(waddrmgrBucketKey)
-			return w.Manager.ConvertToWatchingOnly(ns)
+			return w.manager.ConvertToWatchingOnly(ns)
 		})
 		if err != nil {
 			tc.t.Fatalf("%s: failed to convert wallet to watching only: %v",
@@ -246,7 +246,7 @@ func testInternalAddresses(tc *testContext) {
 	if tc.watchingOnly {
 		err := walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 			ns := tx.ReadWriteBucket(waddrmgrBucketKey)
-			return w.Manager.ConvertToWatchingOnly(ns)
+			return w.manager.ConvertToWatchingOnly(ns)
 		})
 		if err != nil {
 			tc.t.Fatalf("%s: failed to convert wallet to watching only: %v",
@@ -406,7 +406,7 @@ func useAddress(child uint32) func(t *testing.T, w *Wallet) {
 		}
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			ns := dbtx.ReadWriteBucket(waddrmgrBucketKey)
-			ma, err := w.Manager.Address(ns, addr)
+			ma, err := w.manager.Address(ns, addr)
 			if err != nil {
 				return err
 			}

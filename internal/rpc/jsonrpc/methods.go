@@ -43,9 +43,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "6.3.0"
-	jsonrpcSemverMajor  = 6
-	jsonrpcSemverMinor  = 3
+	jsonrpcSemverString = "7.0.0"
+	jsonrpcSemverMajor  = 7
+	jsonrpcSemverMinor  = 0
 	jsonrpcSemverPatch  = 0
 )
 
@@ -92,7 +92,6 @@ var handlers = map[string]handler{
 	"getreceivedbyaccount":    {fn: (*Server).getReceivedByAccount},
 	"getreceivedbyaddress":    {fn: (*Server).getReceivedByAddress},
 	"getstakeinfo":            {fn: (*Server).getStakeInfo},
-	"getticketfee":            {fn: (*Server).getTicketFee},
 	"gettickets":              {fn: (*Server).getTickets},
 	"gettransaction":          {fn: (*Server).getTransaction},
 	"getvotechoices":          {fn: (*Server).getVoteChoices},
@@ -119,7 +118,6 @@ var handlers = map[string]handler{
 	"sendmany":                {fn: (*Server).sendMany},
 	"sendtoaddress":           {fn: (*Server).sendToAddress},
 	"sendtomultisig":          {fn: (*Server).sendToMultiSig},
-	"setticketfee":            {fn: (*Server).setTicketFee},
 	"settxfee":                {fn: (*Server).setTxFee},
 	"setvotechoice":           {fn: (*Server).setVoteChoice},
 	"signmessage":             {fn: (*Server).signMessage},
@@ -1738,16 +1736,6 @@ func (s *Server) getStakeInfo(ctx context.Context, icmd interface{}) (interface{
 	return resp, nil
 }
 
-// getTicketFee gets the currently set price per kb for tickets
-func (s *Server) getTicketFee(ctx context.Context, icmd interface{}) (interface{}, error) {
-	w, ok := s.walletLoader.LoadedWallet()
-	if !ok {
-		return nil, errUnloadedWallet
-	}
-
-	return w.TicketFeeIncrement().ToCoin(), nil
-}
-
 // getTickets handles a gettickets request by returning the hashes of the tickets
 // currently owned by wallet, encoded as strings.
 func (s *Server) getTickets(ctx context.Context, icmd interface{}) (interface{}, error) {
@@ -2478,17 +2466,6 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		expiry = int32(*cmd.Expiry)
 	}
 
-	// The ticketFee code is being deprecated, but still need to be here because of
-	// positional json-rpc parameters.
-
-	// Set the ticket fee if specified.
-	if cmd.TicketFee != nil {
-		_, err = dcrutil.NewAmount(*cmd.TicketFee)
-		if err != nil {
-			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
-		}
-	}
-
 	dontSignTx := false
 	if cmd.DontSignTx != nil {
 		dontSignTx = *cmd.DontSignTx
@@ -3116,29 +3093,6 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 		"transaction %v", tx.MsgTx.TxHash().String())
 
 	return result, nil
-}
-
-// setTicketFee sets the transaction fee per kilobyte added to tickets.
-func (s *Server) setTicketFee(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*types.SetTicketFeeCmd)
-	w, ok := s.walletLoader.LoadedWallet()
-	if !ok {
-		return nil, errUnloadedWallet
-	}
-
-	// Check that amount is not negative.
-	if cmd.Fee < 0 {
-		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative fee")
-	}
-
-	incr, err := dcrutil.NewAmount(cmd.Fee)
-	if err != nil {
-		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
-	}
-	w.SetTicketFeeIncrement(incr)
-
-	// A boolean true result is returned upon success.
-	return true, nil
 }
 
 // setTxFee sets the transaction fee per kilobyte added to transactions.
@@ -3813,7 +3767,6 @@ func (s *Server) walletInfo(ctx context.Context, icmd interface{}) (interface{},
 
 	unlocked := !(w.Locked())
 	fi := w.RelayFee()
-	tfi := w.TicketFeeIncrement()
 	voteBits := w.VoteBits()
 	var voteVersion uint32
 	_ = binary.Read(bytes.NewBuffer(voteBits.ExtendedBits[0:4]), binary.LittleEndian, &voteVersion)
@@ -3824,7 +3777,6 @@ func (s *Server) walletInfo(ctx context.Context, icmd interface{}) (interface{},
 		Unlocked:         unlocked,
 		CoinType:         coinType,
 		TxFee:            fi.ToCoin(),
-		TicketFee:        tfi.ToCoin(),
 		VoteBits:         voteBits.Bits,
 		VoteBitsExtended: hex.EncodeToString(voteBits.ExtendedBits),
 		VoteVersion:      voteVersion,

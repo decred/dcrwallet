@@ -65,7 +65,7 @@ func (w *Wallet) MakeSecp256k1MultiSigScript(ctx context.Context, secp256k1Addrs
 				defer trace.StartRegion(ctx, "db.ReadTx").End()
 				addrmgrNs = dbtx.ReadBucket(waddrmgrNamespaceKey)
 			}
-			addrInfo, err := w.Manager.Address(addrmgrNs, addr)
+			addrInfo, err := w.manager.Address(addrmgrNs, addr)
 			if err != nil {
 				return nil, err
 			}
@@ -97,12 +97,12 @@ func (w *Wallet) ImportP2SHRedeemScript(ctx context.Context, script []byte) (*dc
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadWriteBucket(wtxmgrNamespaceKey)
 
-		err := w.TxStore.InsertTxScript(txmgrNs, script)
+		err := w.txStore.InsertTxScript(txmgrNs, script)
 		if err != nil {
 			return err
 		}
 
-		addrInfo, err := w.Manager.ImportScript(addrmgrNs, script)
+		addrInfo, err := w.manager.ImportScript(addrmgrNs, script)
 		if err != nil {
 			// Don't care if it's already there, but still have to
 			// set the p2shAddr since the address manager didn't
@@ -139,12 +139,12 @@ func (w *Wallet) FetchP2SHMultiSigOutput(ctx context.Context, outPoint *wire.Out
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
 
-		mso, err = w.TxStore.GetMultisigOutput(txmgrNs, outPoint)
+		mso, err = w.txStore.GetMultisigOutput(txmgrNs, outPoint)
 		if err != nil {
 			return err
 		}
 
-		redeemScript, err = w.TxStore.GetTxScript(txmgrNs, mso.ScriptHash[:])
+		redeemScript, err = w.txStore.GetTxScript(txmgrNs, mso.ScriptHash[:])
 		return err
 	})
 	if err != nil {
@@ -188,7 +188,7 @@ func (w *Wallet) FetchAllRedeemScripts(ctx context.Context) ([][]byte, error) {
 	var redeemScripts [][]byte
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		redeemScripts = w.TxStore.StoredTxScripts(txmgrNs)
+		redeemScripts = w.txStore.StoredTxScripts(txmgrNs)
 		return nil
 	})
 	if err != nil {

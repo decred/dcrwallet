@@ -26,22 +26,22 @@ func (w *Wallet) UpgradeToSLIP0044CoinType(ctx context.Context) error {
 	var acctXpub, extBranchXpub, intBranchXpub *hdkeychain.ExtendedKey
 
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		err := w.Manager.UpgradeToSLIP0044CoinType(dbtx)
+		err := w.manager.UpgradeToSLIP0044CoinType(dbtx)
 		if err != nil {
 			return err
 		}
 
-		acctXpub, err = w.Manager.AccountExtendedPubKey(dbtx, 0)
+		acctXpub, err = w.manager.AccountExtendedPubKey(dbtx, 0)
 		if err != nil {
 			return err
 		}
 
-		extBranchXpub, err = w.Manager.AccountBranchExtendedPubKey(dbtx, 0,
+		extBranchXpub, err = w.manager.AccountBranchExtendedPubKey(dbtx, 0,
 			udb.ExternalBranch)
 		if err != nil {
 			return err
 		}
-		intBranchXpub, err = w.Manager.AccountBranchExtendedPubKey(dbtx, 0,
+		intBranchXpub, err = w.manager.AccountBranchExtendedPubKey(dbtx, 0,
 			udb.InternalBranch)
 		return err
 	})
