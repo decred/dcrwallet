@@ -944,10 +944,7 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 	for i := 0; i < req.Count; i++ {
 		mixOut[i] = &wire.TxOut{Value: int64(neededPerTicket), Version: 0, PkScript: p2pkhSizedScript}
 	}
-	relayFee := req.txFee
-	if relayFee == 0 {
-		relayFee = w.RelayFee()
-	}
+	relayFee := w.RelayFee()
 	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
 	defer func() {
 		if err != nil {
@@ -1086,12 +1083,9 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 		outIndexes = append(outIndexes, i)
 	}
 
-	txFeeIncrement := req.txFee
-	if txFeeIncrement == 0 {
-		txFeeIncrement = w.RelayFee()
-	}
+	txFee := w.RelayFee()
 	splitTx, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
-		nil, false, txFeeIncrement, req.DontSignTx)
+		nil, false, txFee, req.DontSignTx)
 	if err != nil {
 		return
 	}
@@ -1136,12 +1130,9 @@ func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, need
 		outIndexes = append(outIndexes, i*2)
 	}
 
-	txFeeIncrement := req.txFee
-	if txFeeIncrement == 0 {
-		txFeeIncrement = w.RelayFee()
-	}
+	txFee := w.RelayFee()
 	splitTx, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
-		nil, false, txFeeIncrement, req.DontSignTx)
+		nil, false, txFee, req.DontSignTx)
 	if err != nil {
 		return
 	}
@@ -1196,18 +1187,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 	}
 
-	// Fetch a new address for creating a split transaction. Then,
-	// make a split transaction that contains exact outputs for use
-	// in ticket generation. Cache its hash to use below when
-	// generating a ticket. The account balance is checked first
-	// in case there is not enough money to generate the split
-	// even without fees.
-	// TODO This can still sometimes fail if the split amount
-	// required plus fees for the split is larger than the
-	// balance we have, wasting an address. In the future,
-	// address this better and prevent address burning.
-	account := req.SourceAccount
-
 	// Calculate the current ticket price.  If the DCP0001 deployment is not
 	// active, fallback to querying the ticket price over RPC.
 	ticketPrice, err := w.NextStakeDifficulty(ctx)
@@ -1216,12 +1195,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	}
 	if err != nil {
 		return nil, err
-	}
-
-	// Ensure the ticket price does not exceed the spend limit if set.
-	if req.spendLimit > 0 && ticketPrice > req.spendLimit {
-		return nil, errors.E(op, errors.Invalid,
-			errors.Errorf("ticket price %v above spend limit %v", ticketPrice, req.spendLimit))
 	}
 
 	// Try to get the pool address from the request. If none exists
@@ -1261,12 +1234,9 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	// ticket required amounts depending on whether or not a
 	// pool output is needed. If the ticket fee increment is
 	// unset in the request, use the global ticket fee increment.
-	var neededPerTicket, ticketFee dcrutil.Amount
+	var neededPerTicket dcrutil.Amount
 	var estSize int
-	feeRate := req.txFee
-	if feeRate == 0 {
-		feeRate = w.RelayFee()
-	}
+	ticketRelayFee := w.RelayFee()
 
 	if poolAddress == nil {
 		// A solo ticket has:
@@ -1300,7 +1270,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			outSizes, 0)
 	}
 
-	ticketFee = txrules.FeeForSerializeSize(feeRate, estSize)
+	ticketFee := txrules.FeeForSerializeSize(ticketRelayFee, estSize)
 	neededPerTicket = ticketFee + ticketPrice
 
 	// If we need to calculate the amount for a pool fee percentage,
@@ -1309,24 +1279,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	if poolAddress != nil {
 		vspFee = txrules.StakePoolTicketFee(ticketPrice, ticketFee,
 			tipHeight, poolFees, w.ChainParams())
-	}
-
-	// Make sure this doesn't over spend based on the balance to
-	// maintain. This component of the API is inaccessible to the
-	// end user through the legacy RPC, so it should only ever be
-	// set by internal calls e.g. automatic ticket purchase.
-	if req.minBalance > 0 {
-		bal, err := w.CalculateAccountBalance(ctx, account, req.MinConf)
-		if err != nil {
-			return nil, err
-		}
-
-		estimatedFundsUsed := neededPerTicket * dcrutil.Amount(req.Count)
-		if req.minBalance+estimatedFundsUsed > bal.Spendable {
-			return nil, errors.E(op, errors.InsufficientBalance, errors.Errorf(
-				"estimated ending balance %v is below minimum requested balance %v",
-				bal.Spendable-estimatedFundsUsed, req.minBalance))
-		}
 	}
 
 	// After tickets are created and published, watch for future

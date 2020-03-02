@@ -1631,7 +1631,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		}
 	}
 
-	ticketsResponse, err := s.wallet.PurchaseTicketsWithResponse(ctx, n, request)
+	ticketsResponse, err := s.wallet.PurchaseTickets(ctx, n, request)
 	if err != nil {
 		return nil, err
 	}

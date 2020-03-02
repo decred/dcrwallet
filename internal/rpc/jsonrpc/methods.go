@@ -2481,7 +2481,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		VSPAddress:    poolAddr,
 		VSPFees:       poolFee,
 	}
-	ticketsResponse, err := w.PurchaseTicketsWithResponse(ctx, n, request)
+	ticketsResponse, err := w.PurchaseTickets(ctx, n, request)
 	if err != nil {
 		return nil, err
 	}

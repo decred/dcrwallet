@@ -1233,51 +1233,6 @@ func (w *Wallet) CreateMultisigTx(ctx context.Context, account uint32, amount dc
 	return w.txToMultisig(ctx, "wallet.CreateMultisigTx", account, amount, pubkeys, nrequired, minconf)
 }
 
-// PurchaseTickets purchases tickets, returning the hashes of all ticket
-// purchase transactions.
-//
-// Deprecated: Use PurchaseTicketsContext.
-func (w *Wallet) PurchaseTickets(ctx context.Context, minBalance, spendLimit dcrutil.Amount, minConf int32,
-	votingAddr dcrutil.Address, account uint32, count int, poolAddress dcrutil.Address,
-	poolFees float64, expiry int32, txFee dcrutil.Amount) ([]*chainhash.Hash, error) {
-
-	const op errors.Op = "wallet.PurchaseTickets"
-
-	n, err := w.NetworkBackend()
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	req := &PurchaseTicketsRequest{
-		Count:         count,
-		SourceAccount: account,
-		VotingAddress: votingAddr,
-		MinConf:       minConf,
-		Expiry:        expiry,
-
-		minBalance: minBalance,
-		spendLimit: spendLimit,
-		VSPAddress: poolAddress,
-		VSPFees:    poolFees,
-		txFee:      txFee,
-
-		ChangeAccount: account,
-	}
-
-	heldUnlock, err := w.holdUnlock()
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	defer heldUnlock.release()
-
-	ticketsResponse, err := w.purchaseTickets(ctx, op, n, req)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	return ticketsResponse.TicketHashes, nil
-}
-
 // PurchaseTicketsRequest describes the parameters for purchasing tickets.
 type PurchaseTicketsRequest struct {
 	Count         int
@@ -1299,11 +1254,6 @@ type PurchaseTicketsRequest struct {
 	// VSP ticket buying; not currently usable with CoinShuffle++.
 	VSPAddress dcrutil.Address
 	VSPFees    float64
-
-	// may be set by deprecated methods, subject to change
-	minBalance dcrutil.Amount
-	spendLimit dcrutil.Amount
-	txFee      dcrutil.Amount
 }
 
 // PurchaseTicketsResponse describes the response for purchasing tickets request.
@@ -1313,9 +1263,10 @@ type PurchaseTicketsResponse struct {
 	SplitTx      *wire.MsgTx
 }
 
-// PurchaseTicketsWithResponse purchases tickets, returning purchase tickets response.
-func (w *Wallet) PurchaseTicketsWithResponse(ctx context.Context, n NetworkBackend,
+// PurchaseTickets purchases tickets, returning purchase tickets response.
+func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	req *PurchaseTicketsRequest) (*PurchaseTicketsResponse, error) {
+
 	const op errors.Op = "wallet.PurchaseTicketsWithResponse"
 
 	if !req.DontSignTx {
@@ -1327,25 +1278,6 @@ func (w *Wallet) PurchaseTicketsWithResponse(ctx context.Context, n NetworkBacke
 	}
 
 	return w.purchaseTickets(ctx, op, n, req)
-}
-
-// PurchaseTicketsContext purchases tickets, returning the hashes of all ticket
-// purchase transactions.
-func (w *Wallet) PurchaseTicketsContext(ctx context.Context, n NetworkBackend, req *PurchaseTicketsRequest) ([]*chainhash.Hash, error) {
-	const op errors.Op = "wallet.PurchaseTicketsContext"
-
-	heldUnlock, err := w.holdUnlock()
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	defer heldUnlock.release()
-
-	ticketsResponse, err := w.purchaseTickets(ctx, op, n, req)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	return ticketsResponse.TicketHashes, nil
 }
 
 // heldUnlock is a tool to prevent the wallet from automatically locking after

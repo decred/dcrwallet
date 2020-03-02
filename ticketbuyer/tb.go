@@ -256,7 +256,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		buy = limit
 	}
 
-	tix, err := w.PurchaseTicketsContext(ctx, n, &wallet.PurchaseTicketsRequest{
+	tix, err := w.PurchaseTickets(ctx, n, &wallet.PurchaseTicketsRequest{
 		Count:         buy,
 		SourceAccount: account,
 		VotingAddress: votingAddr,
@@ -276,7 +276,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		VSPAddress: poolFeeAddr,
 		VSPFees:    poolFees,
 	})
-	for _, hash := range tix {
+	for _, hash := range tix.TicketHashes {
 		log.Infof("Purchased ticket %v at stake difficulty %v", hash, sdiff)
 	}
 	return err
