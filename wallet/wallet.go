@@ -1542,45 +1542,33 @@ func (w *Wallet) PubKeyForAddress(ctx context.Context, a dcrutil.Address) (*secp
 
 // SignHashes returns signatures of signed transaction hashes using an
 // address' associated private key.
-func (w *Wallet) SignHashes(hashes [][]byte, addr dcrutil.Address) ([][]byte,
+func (w *Wallet) SignHashes(ctx context.Context, hashes [][]byte, addr dcrutil.Address) ([][]byte,
 	[]byte, error) {
 
-	var privKey chainec.PrivateKey
+	var privKey *secp256k1.PrivateKey
 	var done func()
 	defer func() {
 		if done != nil {
 			done()
 		}
 	}()
-	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
-		privKey, done, err = w.Manager.PrivateKey(addrmgrNs, addr)
+		privKey, done, err = w.manager.PrivateKey(addrmgrNs, addr)
 		return err
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	pubKey := chainec.Secp256k1.NewPublicKey(privKey.Public())
-	pkCast, ok := privKey.(*secp256k1.PrivateKey)
-	if !ok {
-		return nil, nil, fmt.Errorf("Unable to create " +
-			"secp256k1.PrivateKey from chainec.PrivateKey")
-	}
 
 	signatures := make([][]byte, len(hashes))
-
 	for i, hash := range hashes {
-		r, s, err := chainec.Secp256k1.Sign(pkCast, hash)
-		if err != nil {
-			return nil, nil, fmt.Errorf("cannot sign tx hash: %s",
-				err)
-		}
-		sig := chainec.Secp256k1.NewSignature(r, s)
+		sig := privKey.Sign(hash)
 		signatures[i] = sig.Serialize()
 	}
 
-	return signatures, pubKey.SerializeCompressed(), nil
+	return signatures, privKey.PubKey().SerializeCompressed(), nil
 }
 
 // SignMessage returns the signature of a signed message using an address'
@@ -2795,12 +2783,12 @@ func (w *Wallet) GetTransactions(ctx context.Context, f func(*Block) (bool, erro
 // Spender queries for the transaction and input index which spends a Credit.
 // If the output is not a Credit, an error with code ErrInput is returned.  If
 // the output is unspent, the ErrNoExist code is used.
-func (w *Wallet) Spender(out *wire.OutPoint) (*wire.MsgTx, uint32, error) {
+func (w *Wallet) Spender(ctx context.Context, out *wire.OutPoint) (*wire.MsgTx, uint32, error) {
 	var spender *wire.MsgTx
 	var spenderIndex uint32
-	err := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
-		spender, spenderIndex, err = w.TxStore.Spender(dbtx, out)
+		spender, spenderIndex, err = w.txStore.Spender(dbtx, out)
 		return err
 	})
 	return spender, spenderIndex, err

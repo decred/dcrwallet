@@ -1925,7 +1925,7 @@ func (s *walletServer) Spender(ctx context.Context, req *pb.SpenderRequest) (*pb
 	}
 	out := wire.OutPoint{Hash: *txHash, Index: req.Index}
 
-	spender, spenderIndex, err := s.wallet.Spender(&out)
+	spender, spenderIndex, err := s.wallet.Spender(ctx, &out)
 	if err != nil {
 		if errors.Is(errors.NotExist, err) {
 			return nil, status.Errorf(codes.NotFound, "output is unspent")
@@ -3103,12 +3103,12 @@ func (s *walletServer) BestBlock(ctx context.Context, req *pb.BestBlockRequest) 
 	return resp, nil
 }
 
-func (s *walletServer) SignHashes(cts context.Context, req *pb.SignHashesRequest) (*pb.SignHashesResponse, error) {
+func (s *walletServer) SignHashes(ctx context.Context, req *pb.SignHashesRequest) (*pb.SignHashesResponse, error) {
 	lock := make(chan time.Time, 1)
 	defer func() {
 		lock <- time.Time{} // send matters, not the value
 	}()
-	err := s.wallet.Unlock(req.Passphrase, lock)
+	err := s.wallet.Unlock(ctx, req.Passphrase, lock)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -3132,7 +3132,7 @@ func (s *walletServer) SignHashes(cts context.Context, req *pb.SignHashesRequest
 			"address must be secp256k1 P2PK or P2PKH")
 	}
 
-	signatures, pubKey, err := s.wallet.SignHashes(req.Hashes, addr)
+	signatures, pubKey, err := s.wallet.SignHashes(ctx, req.Hashes, addr)
 	if err != nil {
 		return nil, translateError(err)
 	}
