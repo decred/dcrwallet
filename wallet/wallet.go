@@ -1811,31 +1811,27 @@ func (w *Wallet) NextAccount(ctx context.Context, name string) (uint32, error) {
 	return account, nil
 }
 
-// MasterPubKey returns the BIP0044 master public key for the passed account.
-func (w *Wallet) MasterPubKey(ctx context.Context, account uint32) (*hdkeychain.ExtendedKey, error) {
-	const op errors.Op = "wallet.MasterPubKey"
-	var masterPubKey string
+// AccountXpub returns a BIP0044 account's extended public key.
+func (w *Wallet) AccountXpub(ctx context.Context, account uint32) (*hdkeychain.ExtendedKey, error) {
+	const op errors.Op = "wallet.AccountXpub"
+
+	var pubKey *hdkeychain.ExtendedKey
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
-		masterPubKey, err = w.manager.GetMasterPubkey(addrmgrNs, account)
+		pubKey, err = w.manager.AccountExtendedPubKey(tx, account)
 		return err
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	extKey, err := hdkeychain.NewKeyFromString(masterPubKey, w.chainParams)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	return extKey, nil
+
+	return pubKey, nil
 }
 
-// MasterPrivKey returns the extended private key for the given account. The
-// account must exist and the wallet must be unlocked, otherwise this function
-// fails.
-func (w *Wallet) MasterPrivKey(ctx context.Context, account uint32) (*hdkeychain.ExtendedKey, error) {
-	const op errors.Op = "wallet.MasterPrivKey"
+// AccountXpriv returns a BIP0044 account's extended private key.  The account
+// must exist and the wallet must be unlocked, otherwise this function fails.
+func (w *Wallet) AccountXpriv(ctx context.Context, account uint32) (*hdkeychain.ExtendedKey, error) {
+	const op errors.Op = "wallet.AccountXpriv"
 
 	var privKey *hdkeychain.ExtendedKey
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {

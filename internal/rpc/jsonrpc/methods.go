@@ -1673,11 +1673,11 @@ func (s *Server) getMasterPubkey(ctx context.Context, icmd interface{}) (interfa
 		}
 	}
 
-	masterPubKey, err := w.MasterPubKey(ctx, account)
+	xpub, err := w.AccountXpub(ctx, account)
 	if err != nil {
 		return nil, err
 	}
-	return masterPubKey.String(), nil
+	return xpub.String(), nil
 }
 
 // getStakeInfo gets a large amounts of information about the stake environment

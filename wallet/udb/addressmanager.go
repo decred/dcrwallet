@@ -434,28 +434,6 @@ func deriveKey(acctInfo *accountInfo, branch, index uint32, private bool) (*hdke
 	return addressKey, err
 }
 
-// GetMasterPubkey gives the encoded string version of the HD master public key
-// for the default account of the wallet.
-func (m *Manager) GetMasterPubkey(ns walletdb.ReadBucket, account uint32) (string, error) {
-	defer m.mtx.Unlock()
-	m.mtx.Lock()
-
-	// The account is either invalid or just wasn't cached, so attempt to
-	// load the information from the database.
-	row, err := fetchAccountInfo(ns, account, DBVersion)
-	if err != nil {
-		return "", err
-	}
-
-	// Use the crypto public key to decrypt the account public extended key.
-	serializedKeyPub, err := m.cryptoKeyPub.Decrypt(row.pubKeyEncrypted)
-	if err != nil {
-		return "", errors.E(errors.IO, err)
-	}
-
-	return string(serializedKeyPub), nil
-}
-
 // loadAccountInfo attempts to load and cache information about the given
 // account from the database.   This includes what is necessary to derive new
 // keys for it and track the state of the internal and external branches.

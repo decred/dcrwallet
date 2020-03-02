@@ -1066,7 +1066,7 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 }
 
 func (s *walletServer) GetAccountExtendedPubKey(ctx context.Context, req *pb.GetAccountExtendedPubKeyRequest) (*pb.GetAccountExtendedPubKeyResponse, error) {
-	accExtendedPubKey, err := s.wallet.MasterPubKey(ctx, req.AccountNumber)
+	accExtendedPubKey, err := s.wallet.AccountXpub(ctx, req.AccountNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -1089,7 +1089,7 @@ func (s *walletServer) GetAccountExtendedPrivKey(ctx context.Context, req *pb.Ge
 	}
 	defer lockWallet()
 
-	accExtendedPrivKey, err := s.wallet.MasterPrivKey(ctx, req.AccountNumber)
+	accExtendedPrivKey, err := s.wallet.AccountXpriv(ctx, req.AccountNumber)
 	if err != nil {
 		return nil, translateError(err)
 	}

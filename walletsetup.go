@@ -90,7 +90,7 @@ func createWallet(ctx context.Context, cfg *config) error {
 
 	// Display a mining address when creating a simnet wallet.
 	if cfg.SimNet {
-		xpub, err := w.MasterPubKey(ctx, 0)
+		xpub, err := w.AccountXpub(ctx, 0)
 		if err != nil {
 			return err
 		}
