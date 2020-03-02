@@ -1285,6 +1285,9 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	// relevant transactions
 	var watchOutPoints []wire.OutPoint
 	defer func() {
+		if ctx.Err() != nil {
+			return
+		}
 		_, err := w.watchHDAddrs(ctx, false, n)
 		if err != nil {
 			log.Errorf("Failed to watch for future address usage after publishing "+
