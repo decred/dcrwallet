@@ -31,7 +31,7 @@ func Initialize(ctx context.Context, db walletdb.DB, params *chaincfg.Params, se
 		}
 
 		// Create the address manager, transaction store, and stake store.
-		err = createAddressManager(addrmgrNs, seed, pubPass, privPass, params, &defaultScryptOptions)
+		err = createAddressManager(addrmgrNs, seed, pubPass, privPass, params)
 		if err != nil {
 			return err
 		}
@@ -77,7 +77,7 @@ func InitializeWatchOnly(ctx context.Context, db walletdb.DB, params *chaincfg.P
 		}
 
 		// Create the address manager, transaction store, and stake store.
-		err = createWatchOnly(addrmgrNs, hdPubKey, pubPass, params, &defaultScryptOptions)
+		err = createWatchOnly(addrmgrNs, hdPubKey, pubPass, params)
 		if err != nil {
 			return err
 		}

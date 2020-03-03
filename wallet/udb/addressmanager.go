@@ -20,6 +20,7 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/hdkeychain/v3"
+	"github.com/decred/dcrd/wire"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -110,17 +111,23 @@ func normalizeAddress(addr dcrutil.Address) dcrutil.Address {
 	}
 }
 
-// ScryptOptions is used to hold the scrypt parameters needed when deriving new
+// scryptOptions is used to hold the scrypt parameters needed when deriving new
 // passphrase keys.
-type ScryptOptions struct {
+type scryptOptions struct {
 	N, R, P int
 }
 
-// defaultScryptOptions is the default options used with scrypt.
-var defaultScryptOptions = ScryptOptions{
-	N: 262144, // 2^18
-	R: 8,
-	P: 1,
+// scryptOptionsForNet returns the desired scrypt options for a given network.
+func scryptOptionsForNet(net wire.CurrencyNet) *scryptOptions {
+	if net == wire.SimNet {
+		return &scryptOptions{N: 2, R: 1, P: 1}
+	}
+
+	return &scryptOptions{
+		N: 262144, // 2^18
+		R: 8,
+		P: 1,
+	}
 }
 
 // accountInfo houses the current state of the internal and external branches
@@ -154,7 +161,7 @@ type AccountProperties struct {
 }
 
 // defaultNewSecretKey returns a new secret key.  See newSecretKey.
-func defaultNewSecretKey(passphrase *[]byte, config *ScryptOptions) (*snacl.SecretKey, error) {
+func defaultNewSecretKey(passphrase *[]byte, config *scryptOptions) (*snacl.SecretKey, error) {
 	return snacl.NewSecretKey(passphrase, config.N, config.R, config.P)
 }
 
@@ -967,7 +974,7 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 
 	// Generate a new master key from the passphrase which is used to secure
 	// the actual secret keys.
-	newMasterKey, err := newSecretKey(&newPassphrase, &defaultScryptOptions)
+	newMasterKey, err := newSecretKey(&newPassphrase, scryptOptionsForNet(m.chainParams.Net))
 	if err != nil {
 		return err
 	}
@@ -2330,7 +2337,7 @@ func CoinTypes(params *chaincfg.Params) (legacyCoinType, slip0044CoinType uint32
 // passphrase is required on subsequent opens of the address manager, and the
 // private passphrase is required to unlock the address manager in order to gain
 // access to any private keys and information.
-func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, privPassphrase []byte, chainParams *chaincfg.Params, config *ScryptOptions) error {
+func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, privPassphrase []byte, chainParams *chaincfg.Params) error {
 	// Return an error if the manager has already been created in the given
 	// database namespace.
 	if managerExists(ns) {
@@ -2424,11 +2431,12 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 
 	// Generate new master keys.  These master keys are used to protect the
 	// crypto keys that will be generated next.
-	masterKeyPub, err := newSecretKey(&pubPassphrase, config)
+	scryptOpts := scryptOptionsForNet(chainParams.Net)
+	masterKeyPub, err := newSecretKey(&pubPassphrase, scryptOpts)
 	if err != nil {
 		return err
 	}
-	masterKeyPriv, err := newSecretKey(&privPassphrase, config)
+	masterKeyPriv, err := newSecretKey(&privPassphrase, scryptOpts)
 	if err != nil {
 		return err
 	}
@@ -2612,7 +2620,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 // All public keys and information are protected by secret keys derived from the
 // provided public passphrase.  The public passphrase is required on subsequent
 // opens of the address manager.
-func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase []byte, chainParams *chaincfg.Params, config *ScryptOptions) (err error) {
+func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase []byte, chainParams *chaincfg.Params) (err error) {
 	// Return an error if the manager has already been created in the given
 	// database namespace.
 	if managerExists(ns) {
@@ -2650,11 +2658,12 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase
 
 	// Generate new master keys.  These master keys are used to protect the
 	// crypto keys that will be generated next.
-	masterKeyPub, err := newSecretKey(&pubPassphrase, config)
+	scryptOpts := scryptOptionsForNet(chainParams.Net)
+	masterKeyPub, err := newSecretKey(&pubPassphrase, scryptOpts)
 	if err != nil {
 		return err
 	}
-	masterKeyPriv, err := newSecretKey(&pubPassphrase, config)
+	masterKeyPriv, err := newSecretKey(&pubPassphrase, scryptOpts)
 	if err != nil {
 		return err
 	}

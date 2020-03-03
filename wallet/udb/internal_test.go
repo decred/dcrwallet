@@ -29,7 +29,7 @@ func TstRunWithReplacedNewSecretKey(callback func()) {
 	defer func() {
 		newSecretKey = orig
 	}()
-	newSecretKey = func(passphrase *[]byte, config *ScryptOptions) (*snacl.SecretKey, error) {
+	newSecretKey = func(passphrase *[]byte, config *scryptOptions) (*snacl.SecretKey, error) {
 		return nil, errors.E(errors.Crypto)
 	}
 	callback()
