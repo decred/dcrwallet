@@ -1202,11 +1202,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	// the same for pool fees, but check sanity too.
 	poolAddress := req.VSPAddress
 	if poolAddress == nil {
-		poolAddress = w.PoolAddress()
+		poolAddress = w.poolAddress
 	}
 	poolFees := req.VSPFees
 	if poolFees == 0.0 {
-		poolFees = w.PoolFees()
+		poolFees = w.poolFees
 	}
 	if poolAddress != nil && poolFees == 0.0 {
 		return nil, errors.E(op, errors.Invalid, "stakepool fee percent unset")

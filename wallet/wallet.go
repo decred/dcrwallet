@@ -86,7 +86,6 @@ type Wallet struct {
 	stakeSettingsLock  sync.Mutex
 	voteBits           stake.VoteBits
 	votingEnabled      bool
-	balanceToMaintain  dcrutil.Amount
 	poolAddress        dcrutil.Address
 	poolFees           float64
 	stakePoolEnabled   bool
@@ -169,22 +168,6 @@ func (w *Wallet) FetchOutput(ctx context.Context, outPoint *wire.OutPoint) (*wir
 	}
 
 	return out, nil
-}
-
-// BalanceToMaintain is used to get the current balancetomaintain for the wallet.
-func (w *Wallet) BalanceToMaintain() dcrutil.Amount {
-	w.stakeSettingsLock.Lock()
-	balance := w.balanceToMaintain
-	w.stakeSettingsLock.Unlock()
-
-	return balance
-}
-
-// SetBalanceToMaintain is used to set the current w.balancetomaintain for the wallet.
-func (w *Wallet) SetBalanceToMaintain(balance dcrutil.Amount) {
-	w.stakeSettingsLock.Lock()
-	w.balanceToMaintain = balance
-	w.stakeSettingsLock.Unlock()
 }
 
 // VotingEnabled returns whether the wallet is configured to vote tickets.
@@ -371,22 +354,6 @@ func (w *Wallet) SetAgendaChoices(ctx context.Context, choices ...AgendaChoice) 
 	w.stakeSettingsLock.Unlock()
 
 	return voteBits, nil
-}
-
-// TicketAddress gets the ticket address for the wallet to give the ticket
-// voting rights to.
-func (w *Wallet) TicketAddress() dcrutil.Address {
-	return w.ticketAddress
-}
-
-// PoolAddress gets the pool address for the wallet to give ticket fees to.
-func (w *Wallet) PoolAddress() dcrutil.Address {
-	return w.poolAddress
-}
-
-// PoolFees gets the per-ticket pool fee for the wallet.
-func (w *Wallet) PoolFees() float64 {
-	return w.poolFees
 }
 
 // RelayFee returns the current minimum relay fee (per kB of serialized

@@ -271,7 +271,7 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 		// Calculate the fee required based on the current
 		// height and the required amount from the pool.
 		feeNeeded := txrules.StakePoolTicketFee(dcrutil.Amount(
-			tx.TxOut[0].Value), fees, blockHeight, w.PoolFees(),
+			tx.TxOut[0].Value), fees, blockHeight, w.poolFees,
 			w.chainParams)
 		if commitAmt < feeNeeded {
 			log.Warnf("User %s submitted ticket %v which "+
