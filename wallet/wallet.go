@@ -630,11 +630,7 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 	if deriveError != nil {
 		return 0, deriveError
 	}
-	select {
-	case err = <-watchError:
-	case <-ctx.Done():
-		err = ctx.Err()
-	}
+	err = <-watchError
 	return count, err
 }
 
