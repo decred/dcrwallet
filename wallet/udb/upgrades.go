@@ -15,6 +15,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/gcs/blockcf"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/txscript/v3"
@@ -122,28 +123,43 @@ const (
 	// panics.
 	importedXpubAccountVersion = 13
 
+	// unencryptedRedeemScriptsVersion is the 14th version of the database.
+	// The goal of this upgrade is to make it possible to read P2SH redeem
+	// scripts through the address manager without needing the wallet to be
+	// unlocked.  This is made possible by relying on the fact that since
+	// mainnet launch, dcrwallet has always recorded imported P2SH redeem
+	// scripts both encrypted in the address manager bucket, and unencrypted
+	// in the transaction store buckets.  During this upgrade, a check is
+	// performed ensuring that no unencrypted scripts are missing.
+	// Unencrypted scripts are read from the transaction store buckets and
+	// the address manager values are rewritten with these plaintext
+	// scripts.  The now-unnecessary transaction store scripts are removed
+	// in the upgrade.
+	unencryptedRedeemScriptsVersion = 14
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = importedXpubAccountVersion
+	DBVersion = unencryptedRedeemScriptsVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
 // upgrade the database to the next version.  Note that there was never a
 // version zero so upgrades[0] is nil.
 var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
-	lastUsedAddressIndexVersion - 1:  lastUsedAddressIndexUpgrade,
-	votingPreferencesVersion - 1:     votingPreferencesUpgrade,
-	noEncryptedSeedVersion - 1:       noEncryptedSeedUpgrade,
-	lastReturnedAddressVersion - 1:   lastReturnedAddressUpgrade,
-	ticketBucketVersion - 1:          ticketBucketUpgrade,
-	slip0044CoinTypeVersion - 1:      slip0044CoinTypeUpgrade,
-	hasExpiryVersion - 1:             hasExpiryUpgrade,
-	hasExpiryFixedVersion - 1:        hasExpiryFixedUpgrade,
-	cfVersion - 1:                    cfUpgrade,
-	lastProcessedTxsBlockVersion - 1: lastProcessedTxsBlockUpgrade,
-	ticketCommitmentsVersion - 1:     ticketCommitmentsUpgrade,
-	importedXpubAccountVersion - 1:   importedXpubAccountUpgrade,
+	lastUsedAddressIndexVersion - 1:     lastUsedAddressIndexUpgrade,
+	votingPreferencesVersion - 1:        votingPreferencesUpgrade,
+	noEncryptedSeedVersion - 1:          noEncryptedSeedUpgrade,
+	lastReturnedAddressVersion - 1:      lastReturnedAddressUpgrade,
+	ticketBucketVersion - 1:             ticketBucketUpgrade,
+	slip0044CoinTypeVersion - 1:         slip0044CoinTypeUpgrade,
+	hasExpiryVersion - 1:                hasExpiryUpgrade,
+	hasExpiryFixedVersion - 1:           hasExpiryFixedUpgrade,
+	cfVersion - 1:                       cfUpgrade,
+	lastProcessedTxsBlockVersion - 1:    lastProcessedTxsBlockUpgrade,
+	ticketCommitmentsVersion - 1:        ticketCommitmentsUpgrade,
+	importedXpubAccountVersion - 1:      importedXpubAccountUpgrade,
+	unencryptedRedeemScriptsVersion - 1: unencryptedRedeemScriptsUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -183,7 +199,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 		return errors.E(errors.Passphrase, "incorrect public passphrase")
 	}
 
-	cryptoPubKeyEnc, _, _, err := fetchCryptoKeys(addrmgrBucket)
+	cryptoPubKeyEnc, _, err := fetchCryptoKeys(addrmgrBucket)
 	if err != nil {
 		return err
 	}
@@ -1020,6 +1036,158 @@ func importedXpubAccountUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte
 	}
 	if dbVersion != oldVersion {
 		return errors.E(errors.Invalid, "importedXpubAccountUpgrade inappropriately called")
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func unencryptedRedeemScriptsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 13
+	const newVersion = 14
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	txmgrBucket := tx.ReadWriteBucket(wtxmgrBucketKey)
+	addrmgrBucket := tx.ReadWriteBucket(waddrmgrBucketKey)
+
+	// Assert that this function is only called on version 13 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "unencryptedRedeemScriptsUpgrade inappropriately called")
+	}
+
+	// Open the encrypted public data crypto key.
+	masterKeyPubParams, _, err := fetchMasterKeyParams(addrmgrBucket)
+	if err != nil {
+		return err
+	}
+	var masterKeyPub snacl.SecretKey
+	err = masterKeyPub.Unmarshal(masterKeyPubParams)
+	if err != nil {
+		return errors.E(errors.IO, errors.Errorf("unmarshal master pubkey params: %v", err))
+	}
+	err = masterKeyPub.DeriveKey(&publicPassphrase)
+	if err != nil {
+		return errors.E(errors.Passphrase, "incorrect public passphrase")
+	}
+	cryptoPubKeyEnc, _, err := fetchCryptoKeys(addrmgrBucket)
+	if err != nil {
+		return err
+	}
+	cryptoPubKeyCT, err := masterKeyPub.Decrypt(cryptoPubKeyEnc)
+	if err != nil {
+		return errors.E(errors.Crypto, errors.Errorf("decrypt public crypto key: %v", err))
+	}
+	cryptoPubKey := &cryptoKey{snacl.CryptoKey{}}
+	copy(cryptoPubKey.CryptoKey[:], cryptoPubKeyCT)
+
+	// Read all unencrypted redeem scripts saved in the transaction store
+	// into memory.
+	scripts := make(map[[20]byte][]byte)
+	scriptsBucket := txmgrBucket.NestedReadWriteBucket(bucketScripts)
+	cursor := scriptsBucket.ReadCursor()
+	for _, v := cursor.First(); v != nil; _, v = cursor.Next() {
+		script := append(v[:0:0], v...) // copy
+		var hash [20]byte
+		copy(hash[:], dcrutil.Hash160(script))
+		scripts[hash] = script
+	}
+	cursor.Close()
+
+	// Read all script hashes of recorded managed p2sh addresses.
+	// These are only recorded by the "imported" account.
+	p2shRows := make(map[[20]byte]*dbScriptAddressRow)
+	importedAddrsBucket := addrmgrBucket.NestedReadBucket(addrAcctIdxBucketName).
+		NestedReadBucket(uint32ToBytes(ImportedAddrAccount))
+	cursor = nil
+	var ck, cv []byte
+	if importedAddrsBucket != nil {
+		cursor = importedAddrsBucket.ReadCursor()
+		ck, cv = cursor.First()
+	}
+	for ; ck != nil; ck, cv = cursor.Next() {
+		if cv == nil {
+			continue // skip nested buckets
+		}
+		row, err := fetchAddressByHash(addrmgrBucket, ck)
+		if err != nil {
+			return errors.E(errors.IO, err)
+		}
+		r, ok := row.(*dbScriptAddressRow)
+		if !ok {
+			continue
+		}
+		// Decrypt HASH160 using the public data encryption key.
+		decryptedHash160, err := cryptoPubKey.Decrypt(r.encryptedHash)
+		if err != nil {
+			return err
+		}
+		if len(decryptedHash160) != 20 {
+			return errors.E(errors.IO, "decrypted hash160 is not 20 bytes")
+		}
+		var hash160 [20]byte
+		copy(hash160[:], decryptedHash160)
+		p2shRows[hash160] = r
+	}
+	if cursor != nil {
+		cursor.Close()
+	}
+
+	// For every encrypted address manager script, ensure that an
+	// unencrypted version of the script is recorded.  Rewrite each p2sh
+	// address row with the cleartext script.
+	for k, r := range p2shRows {
+		script, ok := scripts[k]
+		if !ok {
+			err := errors.Errorf("missing cleartext script for p2sh hash160 %x", k[:])
+			return errors.E(errors.IO, err)
+		}
+		r.script = script
+		r.rawData = serializeScriptAddress(r.encryptedHash, r.script)
+		err := putAddress(addrmgrBucket, k[:], &r.dbAddressRow)
+		if err != nil {
+			return err
+		}
+		err = scriptsBucket.Delete(k[:])
+		if err != nil {
+			return err
+		}
+		delete(scripts, k)
+	}
+
+	// For each remaining imported script that only appeared in the
+	// transaction store buckets, add an imported p2sh address to the
+	// address manager.
+	for k, script := range scripts {
+		encryptedHash, err := cryptoPubKey.Encrypt(k[:])
+		if err != nil {
+			return err
+		}
+		err = putScriptAddress(addrmgrBucket, k[:], ImportedAddrAccount,
+			ssFull, encryptedHash, script)
+		if err != nil {
+			return err
+		}
+		err = scriptsBucket.Delete(k[:])
+		if err != nil {
+			return err
+		}
+	}
+
+	// Remove the transaction store's nested scripts bucket.
+	err = txmgrBucket.DeleteNestedBucket(bucketScripts)
+	if err != nil {
+		return err
+	}
+
+	// Remove the address manager's sealed symmetric key for script encryption.
+	addrmgrMainBucket := addrmgrBucket.NestedReadWriteBucket(mainBucketName)
+	err = addrmgrMainBucket.Delete(cryptoScriptKeyName)
+	if err != nil && !errors.Is(err, errors.NotExist) {
+		return err
 	}
 
 	// Write the new database version.

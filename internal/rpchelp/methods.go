@@ -74,7 +74,6 @@ var Methods = []struct {
 	{"listlockunspent", []interface{}{(*[]dcrdtypes.TransactionInput)(nil)}},
 	{"listreceivedbyaccount", []interface{}{(*[]types.ListReceivedByAccountResult)(nil)}},
 	{"listreceivedbyaddress", []interface{}{(*[]types.ListReceivedByAddressResult)(nil)}},
-	{"listscripts", []interface{}{(*types.ListScriptsResult)(nil)}},
 	{"listsinceblock", []interface{}{(*types.ListSinceBlockResult)(nil)}},
 	{"listtransactions", returnsLTRArray},
 	{"listunspent", []interface{}{(*types.ListUnspentResult)(nil)}},

@@ -63,10 +63,9 @@ func (u unstableAPI) UnspentMultisigCreditsForAddress(ctx context.Context, p2shA
 	const op errors.Op = "wallet.UnspentMultisigCreditsForAddress"
 	var multisigCredits []*udb.MultisigCredit
 	err := walletdb.View(ctx, u.w.db, func(tx walletdb.ReadTx) error {
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
 		multisigCredits, err = u.w.txStore.UnspentMultisigCreditsForAddress(
-			txmgrNs, p2shAddr)
+			tx, p2shAddr)
 		return err
 	})
 	if err != nil {

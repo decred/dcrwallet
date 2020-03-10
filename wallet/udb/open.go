@@ -47,6 +47,7 @@ func Open(ctx context.Context, db walletdb.DB, params *chaincfg.Params, pubPass 
 		txStore = &Store{
 			chainParams:    params,
 			acctLookupFunc: addrMgr.AddrAccount,
+			manager:        addrMgr,
 		}
 		stakeStore, err = openStakeStore(stakemgrNs, addrMgr, params)
 		return err

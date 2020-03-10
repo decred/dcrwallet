@@ -88,44 +88,6 @@ func (w *Wallet) MakeSecp256k1MultiSigScript(ctx context.Context, secp256k1Addrs
 	return script, nil
 }
 
-// ImportP2SHRedeemScript adds a P2SH redeem script to the wallet.
-func (w *Wallet) ImportP2SHRedeemScript(ctx context.Context, script []byte) (*dcrutil.AddressScriptHash, error) {
-	const op errors.Op = "wallet.ImportP2SHRedeemScript"
-
-	var p2shAddr *dcrutil.AddressScriptHash
-	err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
-		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadWriteBucket(wtxmgrNamespaceKey)
-
-		err := w.txStore.InsertTxScript(txmgrNs, script)
-		if err != nil {
-			return err
-		}
-
-		addrInfo, err := w.manager.ImportScript(addrmgrNs, script)
-		if err != nil {
-			// Don't care if it's already there, but still have to
-			// set the p2shAddr since the address manager didn't
-			// return anything useful.
-			if errors.Is(err, errors.Exist) {
-				// This function will never error as it always
-				// hashes the script to the correct length.
-				p2shAddr, _ = dcrutil.NewAddressScriptHash(script,
-					w.chainParams)
-				return nil
-			}
-			return err
-		}
-
-		p2shAddr = addrInfo.Address().(*dcrutil.AddressScriptHash)
-		return nil
-	})
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	return p2shAddr, nil
-}
-
 // FetchP2SHMultiSigOutput fetches information regarding a wallet's P2SH
 // multi-signature output.
 func (w *Wallet) FetchP2SHMultiSigOutput(ctx context.Context, outPoint *wire.OutPoint) (*P2SHMultiSigOutput, error) {
@@ -136,6 +98,7 @@ func (w *Wallet) FetchP2SHMultiSigOutput(ctx context.Context, outPoint *wire.Out
 		redeemScript []byte
 	)
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
+		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
 
@@ -144,7 +107,8 @@ func (w *Wallet) FetchP2SHMultiSigOutput(ctx context.Context, outPoint *wire.Out
 			return err
 		}
 
-		redeemScript, err = w.txStore.GetTxScript(txmgrNs, mso.ScriptHash[:])
+		addr, _ := dcrutil.NewAddressScriptHashFromHash(mso.ScriptHash[:], w.chainParams)
+		redeemScript, err = w.manager.RedeemScript(addrmgrNs, addr)
 		return err
 	})
 	if err != nil {
@@ -179,22 +143,6 @@ func (w *Wallet) FetchP2SHMultiSigOutput(ctx context.Context, outPoint *wire.Out
 	}
 
 	return &multiSigOutput, nil
-}
-
-// FetchAllRedeemScripts returns all P2SH redeem scripts saved by the wallet.
-func (w *Wallet) FetchAllRedeemScripts(ctx context.Context) ([][]byte, error) {
-	const op errors.Op = "wallet.FetchAllRedeemScripts"
-
-	var redeemScripts [][]byte
-	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		redeemScripts = w.txStore.StoredTxScripts(txmgrNs)
-		return nil
-	})
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	return redeemScripts, nil
 }
 
 // PrepareRedeemMultiSigOutTxOutput estimates the tx value for a MultiSigOutTx

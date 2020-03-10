@@ -206,12 +206,7 @@ func (s *secretSource) GetKey(addr dcrutil.Address) ([]byte, dcrec.SignatureType
 }
 
 func (s *secretSource) GetScript(addr dcrutil.Address) ([]byte, error) {
-	script, done, err := s.Manager.RedeemScript(s.addrmgrNs, addr)
-	if err != nil {
-		return nil, err
-	}
-	s.doneFuncs = append(s.doneFuncs, done)
-	return script, nil
+	return s.Manager.RedeemScript(s.addrmgrNs, addr)
 }
 
 // CreatedTx holds the state of a newly-created transaction and the change
@@ -287,14 +282,14 @@ func (w *Wallet) insertCreditsIntoTxMgr(op errors.Op, tx walletdb.ReadWriteTx, m
 
 // insertMultisigOutIntoTxMgr inserts a multisignature output into the
 // transaction store database.
-func (w *Wallet) insertMultisigOutIntoTxMgr(ns walletdb.ReadWriteBucket, msgTx *wire.MsgTx, index uint32) error {
+func (w *Wallet) insertMultisigOutIntoTxMgr(dbtx walletdb.ReadWriteTx, msgTx *wire.MsgTx, index uint32) error {
 	// Create transaction record and insert into the db.
 	rec, err := udb.NewTxRecordFromMsgTx(msgTx, time.Now())
 	if err != nil {
 		return err
 	}
 
-	return w.txStore.AddMultisigOut(ns, rec, nil, index)
+	return w.txStore.AddMultisigOut(dbtx, rec, nil, index)
 }
 
 // checkHighFees performs a high fee check if enabled and possible, returning an
@@ -566,10 +561,6 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 			return txToMultisigError(errors.E(op, err))
 		}
 	}
-	err = w.txStore.InsertTxScript(txmgrNs, msScript)
-	if err != nil {
-		return txToMultisigError(errors.E(op, err))
-	}
 	scAddr, err := dcrutil.NewAddressScriptHash(msScript, w.chainParams)
 	if err != nil {
 		return txToMultisigError(errors.E(op, err))
@@ -633,7 +624,7 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 		return txToMultisigError(errors.E(op, err))
 	}
 
-	err = w.insertMultisigOutIntoTxMgr(txmgrNs, msgtx, 0)
+	err = w.insertMultisigOutIntoTxMgr(dbtx, msgtx, 0)
 	if err != nil {
 		return txToMultisigError(errors.E(op, err))
 	}
@@ -1708,12 +1699,7 @@ func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurch
 		return key.Serialize(), dcrec.STEcdsaSecp256k1, true, nil
 	}
 	var getScript txscript.ScriptClosure = func(addr dcrutil.Address) ([]byte, error) {
-		script, done, err := w.manager.RedeemScript(addrmgrNs, addr)
-		if err != nil {
-			return nil, err
-		}
-		doneFuncs = append(doneFuncs, done)
-		return script, nil
+		return w.manager.RedeemScript(addrmgrNs, addr)
 	}
 
 	// Revocations only contain one input, which is the input that must be

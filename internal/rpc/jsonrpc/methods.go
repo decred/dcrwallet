@@ -105,7 +105,6 @@ var handlers = map[string]handler{
 	"listreceivedbyaccount":   {fn: (*Server).listReceivedByAccount},
 	"listreceivedbyaddress":   {fn: (*Server).listReceivedByAddress},
 	"listsinceblock":          {fn: (*Server).listSinceBlock},
-	"listscripts":             {fn: (*Server).listScripts},
 	"listtransactions":        {fn: (*Server).listTransactions},
 	"listunspent":             {fn: (*Server).listUnspent},
 	"lockunspent":             {fn: (*Server).lockUnspent},
@@ -416,21 +415,12 @@ func (s *Server) addMultiSigAddress(ctx context.Context, icmd interface{}) (inte
 		return nil, err
 	}
 
-	p2shAddr, err := w.ImportP2SHRedeemScript(ctx, script)
+	err = w.ImportScript(ctx, script)
 	if err != nil {
 		return nil, err
 	}
 
-	n, ok := s.walletLoader.NetworkBackend()
-	if !ok {
-		return nil, errNoNetwork
-	}
-	err = n.LoadTxFilter(ctx, false, []dcrutil.Address{p2shAddr}, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return p2shAddr.Address(), nil
+	return dcrutil.NewAddressScriptHash(script, w.ChainParams())
 }
 
 // addTicket adds a ticket to the stake manager manually.
@@ -1366,15 +1356,10 @@ func (s *Server) importScript(ctx context.Context, icmd interface{}) (interface{
 
 	err = w.ImportScript(ctx, rs)
 	if err != nil {
-		switch {
-		case errors.Is(err, errors.Exist):
-			// Do not return duplicate script errors to the client.
+		if errors.Is(err, errors.Exist) {
 			return nil, nil
-		case errors.Is(err, errors.Locked):
-			return nil, errWalletUnlockNeeded
-		default:
-			return nil, err
 		}
+		return nil, err
 	}
 
 	if rescan {
@@ -2213,34 +2198,6 @@ func (s *Server) listSinceBlock(ctx context.Context, icmd interface{}) (interfac
 		LastBlock:    lastBlock.String(),
 	}
 	return res, nil
-}
-
-// listScripts handles a listscripts request by returning an
-// array of script details for all scripts in the wallet.
-func (s *Server) listScripts(ctx context.Context, icmd interface{}) (interface{}, error) {
-	w, ok := s.walletLoader.LoadedWallet()
-	if !ok {
-		return nil, errUnloadedWallet
-	}
-
-	redeemScripts, err := w.FetchAllRedeemScripts(ctx)
-	if err != nil {
-		return nil, err
-	}
-	listScriptsResultSIs := make([]types.ScriptInfo, len(redeemScripts))
-	for i, redeemScript := range redeemScripts {
-		p2shAddr, err := dcrutil.NewAddressScriptHash(redeemScript,
-			w.ChainParams())
-		if err != nil {
-			return nil, err
-		}
-		listScriptsResultSIs[i] = types.ScriptInfo{
-			Hash160:      hex.EncodeToString(p2shAddr.Hash160()[:]),
-			Address:      p2shAddr.Address(),
-			RedeemScript: hex.EncodeToString(redeemScript),
-		}
-	}
-	return &types.ListScriptsResult{Scripts: listScriptsResultSIs}, nil
 }
 
 // listTransactions handles a listtransactions request by returning an

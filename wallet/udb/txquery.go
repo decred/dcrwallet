@@ -7,7 +7,7 @@ package udb
 
 import (
 	"bytes"
-	
+
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v3"

@@ -713,17 +713,6 @@ func NewListAllTransactionsCmd(account *string) *ListAllTransactionsCmd {
 	}
 }
 
-// ListScriptsCmd is a type for handling custom marshaling and
-// unmarshaling of listscripts JSON wallet extension commands.
-type ListScriptsCmd struct {
-}
-
-// NewListScriptsCmd returns a new instance which can be used to issue a
-// listscripts JSON-RPC command.
-func NewListScriptsCmd() *ListScriptsCmd {
-	return &ListScriptsCmd{}
-}
-
 // ListSinceBlockCmd defines the listsinceblock JSON-RPC command.
 type ListSinceBlockCmd struct {
 	BlockHash           *string
@@ -1332,7 +1321,6 @@ func init() {
 		{"listlockunspent", (*ListLockUnspentCmd)(nil)},
 		{"listreceivedbyaccount", (*ListReceivedByAccountCmd)(nil)},
 		{"listreceivedbyaddress", (*ListReceivedByAddressCmd)(nil)},
-		{"listscripts", (*ListScriptsCmd)(nil)},
 		{"listsinceblock", (*ListSinceBlockCmd)(nil)},
 		{"listtickets", (*ListTicketsCmd)(nil)},
 		{"listtransactions", (*ListTransactionsCmd)(nil)},

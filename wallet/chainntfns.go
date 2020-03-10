@@ -566,28 +566,18 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 			// Add the script to the script databases.
 			// TODO Markused script address? cj
 			if isRelevant {
-				err = w.txStore.InsertTxScript(txmgrNs, rs)
-				if err != nil {
-					return nil, errors.E(op, err)
-				}
-				mscriptaddr, err := w.manager.ImportScript(addrmgrNs, rs)
+				n, _ := w.NetworkBackend()
+				addr, err := w.manager.ImportScript(addrmgrNs, rs)
 				switch {
-				case errors.Is(err, errors.Exist): // Don't care if it's already there.
-				case errors.Is(err, errors.Locked):
-					log.Warnf("failed to attempt script importation "+
-						"of incoming tx script %x because addrmgr "+
-						"was locked", rs)
-				case err == nil:
-					if n, err := w.NetworkBackend(); err == nil {
-						addr := mscriptaddr.Address()
-						err := n.LoadTxFilter(ctx,
-							false, []dcrutil.Address{addr}, nil)
-						if err != nil {
-							return nil, errors.E(op, err)
-						}
-					}
-				default:
+				case errors.Is(err, errors.Exist):
+				case err != nil:
 					return nil, errors.E(op, err)
+				case n != nil:
+					addrs := []dcrutil.Address{addr.Address()}
+					err := n.LoadTxFilter(ctx, false, addrs, nil)
+					if err != nil {
+						return nil, errors.E(op, err)
+					}
 				}
 			}
 
@@ -695,23 +685,12 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 		if class == txscript.ScriptHashTy {
 			var expandedScript []byte
 			for _, addr := range addrs {
-				// Search both the script store in the tx store
-				// and the address manager for the redeem script.
-				var err error
-				expandedScript, err = w.txStore.GetTxScript(txmgrNs,
-					addr.ScriptAddress())
-				if errors.Is(err, errors.NotExist) {
-					script, done, err := w.manager.RedeemScript(addrmgrNs, addr)
-					if err != nil {
-						log.Debugf("failed to find redeemscript for "+
-							"address %v in address manager: %v",
-							addr.Address(), err)
-						continue
-					}
-					defer done()
-					expandedScript = script
-				} else if err != nil {
-					return nil, errors.E(op, err)
+				expandedScript, err = w.manager.RedeemScript(addrmgrNs, addr)
+				if err != nil {
+					log.Debugf("failed to find redeemscript for "+
+						"address %v in address manager: %v",
+						addr.Address(), err)
+					continue
 				}
 			}
 
@@ -735,7 +714,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				// An address we own; handle accordingly.
 				if err == nil {
 					err := w.txStore.AddMultisigOut(
-						txmgrNs, rec, blockMeta, uint32(i))
+						dbtx, rec, blockMeta, uint32(i))
 					if err != nil {
 						// This will throw if there are multiple private keys
 						// for this multisignature output owned by the wallet,

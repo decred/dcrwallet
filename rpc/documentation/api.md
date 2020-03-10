@@ -1116,7 +1116,8 @@ as an output or in a P2SH input.
 
 **Request:** `ImportScriptRequest`
 
-- `bytes passphrase`: The wallet's private passphrase.
+- `bytes passphrase`: The wallet's private passphrase.  This parameter is
+  deprecated and ignored.
 
 - `bytes script`: The raw script.
 
@@ -1136,8 +1137,6 @@ as an output or in a P2SH input.
   of the keys necessary to redeem the script are available to the wallet.
 
 **Expected errors:**
-
-- `InvalidArgument`: The private passphrase is incorrect.
 
 - `InvalidArgument`: A rescan height was specified, but the rescan option was
   not set.

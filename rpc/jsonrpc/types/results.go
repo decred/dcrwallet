@@ -192,12 +192,6 @@ type ScriptInfo struct {
 	RedeemScript string `json:"redeemscript"`
 }
 
-// ListScriptsResult models the data returned from the listscripts
-// command.
-type ListScriptsResult struct {
-	Scripts []ScriptInfo `json:"scripts"`
-}
-
 // ListTicketsTransactionSummaryInput defines the type used in the listtickets JSON-RPC
 // result for the MyInputs field of Ticket and Spender command field.
 type ListTicketsTransactionSummaryInput struct {

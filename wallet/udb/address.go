@@ -65,10 +65,8 @@ type ManagedPubKeyAddress interface {
 type ManagedScriptAddress interface {
 	ManagedAddress
 
-	// isScriptAddress tags the interface to the concrete type in this package.
-	// This prevents non-script types from being mistakenly type asserted as
-	// a ManagedScriptAddress.
-	isScriptAddress()
+	// RedeemScript returns the redeem script and script version.
+	RedeemScript() (uint16, []byte)
 }
 
 // managedAddress represents a public key address.  It also may or may not have
@@ -215,9 +213,10 @@ func newManagedAddressFromExtKey(m *Manager, account uint32, key *hdkeychain.Ext
 
 // scriptAddress represents a pay-to-script-hash address.
 type scriptAddress struct {
-	manager *Manager
-	account uint32
-	address *dcrutil.AddressScriptHash
+	manager      *Manager
+	account      uint32
+	address      *dcrutil.AddressScriptHash
+	redeemScript []byte
 }
 
 // Enforce scriptAddress satisfies the ManagedScriptAddress interface.
@@ -279,10 +278,12 @@ func (a *scriptAddress) Compressed() bool {
 	return false
 }
 
-func (*scriptAddress) isScriptAddress() {}
+func (a *scriptAddress) RedeemScript() (version uint16, script []byte) {
+	return 0, a.redeemScript
+}
 
 // newScriptAddress initializes and returns a new pay-to-script-hash address.
-func newScriptAddress(m *Manager, account uint32, scriptHash []byte) (*scriptAddress, error) {
+func newScriptAddress(m *Manager, account uint32, scriptHash, redeemScript []byte) (*scriptAddress, error) {
 	address, err := dcrutil.NewAddressScriptHashFromHash(scriptHash,
 		m.chainParams)
 	if err != nil {
@@ -290,8 +291,9 @@ func newScriptAddress(m *Manager, account uint32, scriptHash []byte) (*scriptAdd
 	}
 
 	return &scriptAddress{
-		manager: m,
-		account: account,
-		address: address,
+		manager:      m,
+		account:      account,
+		address:      address,
+		redeemScript: redeemScript,
 	}, nil
 }

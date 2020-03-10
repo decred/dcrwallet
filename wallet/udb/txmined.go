@@ -165,6 +165,7 @@ type Credit struct {
 type Store struct {
 	chainParams    *chaincfg.Params
 	acctLookupFunc func(walletdb.ReadBucket, dcrutil.Address) (uint32, error)
+	manager        *Manager
 }
 
 // MainChainTip returns the hash and height of the currently marked tip-most
@@ -1626,7 +1627,10 @@ func getScriptHashFromP2SHScript(pkScript []byte) ([]byte, error) {
 // transaction manager. In the event that the output already existed but
 // was not mined, the output is updated so its value reflects the block
 // it was included in.
-func (s *Store) AddMultisigOut(ns walletdb.ReadWriteBucket, rec *TxRecord, block *BlockMeta, index uint32) error {
+func (s *Store) AddMultisigOut(dbtx walletdb.ReadWriteTx, rec *TxRecord, block *BlockMeta, index uint32) error {
+	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
+	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrBucketKey)
+
 	if int(index) >= len(rec.MsgTx.TxOut) {
 		return errors.E(errors.Invalid, "transaction output does not exist")
 	}
@@ -1689,9 +1693,9 @@ func (s *Store) AddMultisigOut(ns walletdb.ReadWriteBucket, rec *TxRecord, block
 	if err != nil {
 		return err
 	}
-	multisigScript := existsTxScript(ns, scriptHash)
-	if multisigScript == nil {
-		return errors.E(errors.Invalid, "no recorded redeem script for multisig output")
+	multisigScript, err := s.manager.redeemScriptForHash160(addrmgrNs, scriptHash)
+	if err != nil {
+		return err
 	}
 	numPubKeys, requiredSigs, err := txscript.CalcMultiSigStats(multisigScript)
 	if err != nil {
@@ -2605,7 +2609,10 @@ func (s *Store) GetMultisigOutput(ns walletdb.ReadBucket, op *wire.OutPoint) (*M
 
 // UnspentMultisigCreditsForAddress returns all unspent multisignature P2SH
 // credits in the wallet for some specified address.
-func (s *Store) UnspentMultisigCreditsForAddress(ns walletdb.ReadBucket, addr dcrutil.Address) ([]*MultisigCredit, error) {
+func (s *Store) UnspentMultisigCreditsForAddress(dbtx walletdb.ReadTx, addr dcrutil.Address) ([]*MultisigCredit, error) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	addrmgrNs := dbtx.ReadBucket(waddrmgrBucketKey)
+
 	p2shAddr, ok := addr.(*dcrutil.AddressScriptHash)
 	if !ok {
 		return nil, errors.E(errors.Invalid, "address must be P2SH")
@@ -2634,9 +2641,9 @@ func (s *Store) UnspentMultisigCreditsForAddress(ns walletdb.ReadBucket, addr dc
 			return nil, err
 		}
 
-		multisigScript := existsTxScript(ns, scriptHash[:])
-		if multisigScript == nil {
-			return nil, errors.E(errors.IO, "missing multisig redeem script")
+		multisigScript, err := s.manager.redeemScriptForHash160(addrmgrNs, scriptHash[:])
+		if err != nil {
+			return nil, err
 		}
 		m, n := fetchMultisigOutMN(val)
 		amount := fetchMultisigOutAmount(val)
@@ -3596,35 +3603,6 @@ func (s *Store) AccountBalance(ns, addrmgrNs walletdb.ReadBucket, minConf int32,
 func (s *Store) AccountBalances(ns, addrmgrNs walletdb.ReadBucket, minConf int32) (map[uint32]*Balances, error) {
 	_, syncHeight := s.MainChainTip(ns)
 	return s.balanceFullScan(ns, addrmgrNs, minConf, syncHeight)
-}
-
-// InsertTxScript inserts a transaction script into the database.
-func (s *Store) InsertTxScript(ns walletdb.ReadWriteBucket, script []byte) error {
-	return putTxScript(ns, script)
-}
-
-// GetTxScript fetches a transaction script from the database using
-// the RIPEMD160 hash as a key.
-func (s *Store) GetTxScript(ns walletdb.ReadBucket, hash []byte) ([]byte, error) {
-	v := existsTxScript(ns, hash)
-	if v == nil {
-		return nil, errors.E(errors.NotExist, errors.Errorf("no script for hash %x", hash))
-	}
-	return v, nil
-}
-
-// StoredTxScripts returns a slice of byte slices containing all the transaction
-// scripts currently stored in wallet.
-func (s *Store) StoredTxScripts(ns walletdb.ReadBucket) [][]byte {
-	var scripts [][]byte
-	c := ns.NestedReadBucket(bucketScripts).ReadCursor()
-	for k, v := c.First(); k != nil; k, v = c.Next() {
-		s := make([]byte, len(v))
-		copy(s, v)
-		scripts = append(scripts, s)
-	}
-	c.Close()
-	return scripts
 }
 
 // TotalInput calculates the input value referenced by all transaction inputs.

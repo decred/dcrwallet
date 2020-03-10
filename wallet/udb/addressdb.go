@@ -108,8 +108,8 @@ type dbImportedAddressRow struct {
 // address in the database.
 type dbScriptAddressRow struct {
 	dbAddressRow
-	encryptedHash   []byte
-	encryptedScript []byte
+	encryptedHash []byte
+	script        []byte
 }
 
 // Key names for various database fields.
@@ -194,7 +194,7 @@ var (
 	masterPubKeyName            = []byte("mpub")
 	cryptoPrivKeyName           = []byte("cpriv")
 	cryptoPubKeyName            = []byte("cpub")
-	cryptoScriptKeyName         = []byte("cscript")
+	cryptoScriptKeyName         = []byte("cscript") // removed in db v14
 	coinTypeLegacyPrivKeyName   = []byte("ctpriv")
 	coinTypeLegacyPubKeyName    = []byte("ctpub")
 	coinTypeSLIP0044PrivKeyName = []byte("ctpriv-slip0044")
@@ -379,16 +379,16 @@ func putCoinTypeSLIP0044Keys(ns walletdb.ReadWriteBucket, coinTypePubKeyEnc []by
 }
 
 // fetchCryptoKeys loads the encrypted crypto keys which are in turn used to
-// protect the extended keys, imported keys, and scripts.  Any of the returned
-// values can be nil, but in practice only the crypto private and script keys
-// will be nil for a watching-only database.
-func fetchCryptoKeys(ns walletdb.ReadBucket) ([]byte, []byte, []byte, error) {
+// protect the extended keys and imported keys.  Any of the returned values can
+// be nil, but in practice only the crypto private key will be nil for a
+// watching-only database.
+func fetchCryptoKeys(ns walletdb.ReadBucket) ([]byte, []byte, error) {
 	bucket := ns.NestedReadBucket(mainBucketName)
 
 	// Load the crypto public key parameters.  Required.
 	val := bucket.Get(cryptoPubKeyName)
 	if val == nil {
-		return nil, nil, nil, errors.E(errors.IO, "missing encrypted crypto pubkey")
+		return nil, nil, errors.E(errors.IO, "missing encrypted crypto pubkey")
 	}
 	pubKey := make([]byte, len(val))
 	copy(pubKey, val)
@@ -401,21 +401,13 @@ func fetchCryptoKeys(ns walletdb.ReadBucket) ([]byte, []byte, []byte, error) {
 		copy(privKey, val)
 	}
 
-	// Load the crypto script key parameters if they were stored.
-	var scriptKey []byte
-	val = bucket.Get(cryptoScriptKeyName)
-	if val != nil {
-		scriptKey = make([]byte, len(val))
-		copy(scriptKey, val)
-	}
-
-	return pubKey, privKey, scriptKey, nil
+	return pubKey, privKey, nil
 }
 
 // putCryptoKeys stores the encrypted crypto keys which are in turn used to
 // protect the extended and imported keys.  Either parameter can be nil in which
 // case no value is written for the parameter.
-func putCryptoKeys(ns walletdb.ReadWriteBucket, pubKeyEncrypted, privKeyEncrypted, scriptKeyEncrypted []byte) error {
+func putCryptoKeys(ns walletdb.ReadWriteBucket, pubKeyEncrypted, privKeyEncrypted []byte) error {
 	bucket := ns.NestedReadWriteBucket(mainBucketName)
 
 	if pubKeyEncrypted != nil {
@@ -427,13 +419,6 @@ func putCryptoKeys(ns walletdb.ReadWriteBucket, pubKeyEncrypted, privKeyEncrypte
 
 	if privKeyEncrypted != nil {
 		err := bucket.Put(cryptoPrivKeyName, privKeyEncrypted)
-		if err != nil {
-			return errors.E(errors.IO, err)
-		}
-	}
-
-	if scriptKeyEncrypted != nil {
-		err := bucket.Put(cryptoScriptKeyName, scriptKeyEncrypted)
 		if err != nil {
 			return errors.E(errors.IO, err)
 		}
@@ -1004,10 +989,10 @@ func serializeImportedAddress(encryptedPubKey, encryptedPrivKey []byte) []byte {
 // row as a script address.
 func deserializeScriptAddress(row *dbAddressRow) (*dbScriptAddressRow, error) {
 	// The serialized script address raw data format is:
-	//   <encscripthashlen><encscripthash><encscriptlen><encscript>
+	//   <encscripthashlen><encscripthash><scriptlen><script>
 	//
 	// 4 bytes encrypted script hash len + encrypted script hash + 4 bytes
-	// encrypted script len + encrypted script
+	// script len + script
 
 	// Given the above, the length of the entry must be at a minimum
 	// the constant value sizes.
@@ -1025,30 +1010,30 @@ func deserializeScriptAddress(row *dbAddressRow) (*dbScriptAddressRow, error) {
 	offset := 4 + hashLen
 	scriptLen := binary.LittleEndian.Uint32(row.rawData[offset : offset+4])
 	offset += 4
-	retRow.encryptedScript = make([]byte, scriptLen)
-	copy(retRow.encryptedScript, row.rawData[offset:offset+scriptLen])
+	retRow.script = make([]byte, scriptLen)
+	copy(retRow.script, row.rawData[offset:offset+scriptLen])
 
 	return &retRow, nil
 }
 
 // serializeScriptAddress returns the serialization of the raw data field for
 // a script address.
-func serializeScriptAddress(encryptedHash, encryptedScript []byte) []byte {
+func serializeScriptAddress(encryptedHash, script []byte) []byte {
 	// The serialized script address raw data format is:
-	//   <encscripthashlen><encscripthash><encscriptlen><encscript>
+	//   <encscripthashlen><encscripthash><scriptlen><script>
 	//
 	// 4 bytes encrypted script hash len + encrypted script hash + 4 bytes
-	// encrypted script len + encrypted script
+	// script len + script
 
 	hashLen := uint32(len(encryptedHash))
-	scriptLen := uint32(len(encryptedScript))
+	scriptLen := uint32(len(script))
 	rawData := make([]byte, 8+hashLen+scriptLen)
 	binary.LittleEndian.PutUint32(rawData[0:4], hashLen)
 	copy(rawData[4:4+hashLen], encryptedHash)
 	offset := 4 + hashLen
 	binary.LittleEndian.PutUint32(rawData[offset:offset+4], scriptLen)
 	offset += 4
-	copy(rawData[offset:offset+scriptLen], encryptedScript)
+	copy(rawData[offset:offset+scriptLen], script)
 	return rawData
 }
 
@@ -1147,9 +1132,9 @@ func putImportedAddress(ns walletdb.ReadWriteBucket, addressID []byte, account u
 // putScriptAddress stores the provided script address information to the
 // database.
 func putScriptAddress(ns walletdb.ReadWriteBucket, addressID []byte, account uint32,
-	status syncStatus, encryptedHash, encryptedScript []byte) error {
+	status syncStatus, encryptedHash, script []byte) error {
 
-	rawData := serializeScriptAddress(encryptedHash, encryptedScript)
+	rawData := serializeScriptAddress(encryptedHash, script)
 	addrRow := dbAddressRow{
 		addrType:   adtScript,
 		account:    account,
@@ -1245,20 +1230,16 @@ func forEachActiveAddress(ns walletdb.ReadBucket, fn func(rowInterface interface
 // NOTE: Care should be taken when calling this function.  It is primarily
 // intended for use in converting to a watching-only copy.  Removing the private
 // keys from the main database without also marking it watching-only will result
-// in an unusable database.  It will also make any imported scripts and private
-// keys unrecoverable unless there is a backup copy available.
+// in an unusable database.  It will also make any private keys unrecoverable
+// unless there is a backup copy available.
 func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 	bucket := ns.NestedReadWriteBucket(mainBucketName)
 
-	// Delete the master private key params and the crypto private and
-	// script keys.
+	// Delete the master private key params and the crypto private keys.
 	if err := bucket.Delete(masterPrivKeyName); err != nil {
 		return errors.E(errors.IO, err)
 	}
 	if err := bucket.Delete(cryptoPrivKeyName); err != nil {
-		return errors.E(errors.IO, err)
-	}
-	if err := bucket.Delete(cryptoScriptKeyName); err != nil {
 		return errors.E(errors.IO, err)
 	}
 	if err := bucket.Delete(coinTypeLegacyPrivKeyName); err != nil {
@@ -1314,7 +1295,6 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 	}
 
 	importedAddrSet := map[string]*dbAddressRow{}
-	importedScriptAddrSet := map[string]*dbAddressRow{}
 
 	// Fetch all imported addresses.
 	bucket = ns.NestedReadWriteBucket(addrBucketName)
@@ -1336,9 +1316,6 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 		switch row.addrType {
 		case adtImport:
 			importedAddrSet[string(k)] = row
-
-		case adtScript:
-			importedScriptAddrSet[string(k)] = row
 		}
 	}
 	c.Close()
@@ -1354,22 +1331,6 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 		// key and store it.
 		row.rawData = serializeImportedAddress(
 			irow.encryptedPubKey, nil)
-		err = bucket.Put([]byte(k), serializeAddressRow(row))
-		if err != nil {
-			return errors.E(errors.IO, err)
-		}
-	}
-
-	for k, row := range importedScriptAddrSet {
-		srow, err := deserializeScriptAddress(row)
-		if err != nil {
-			return err
-		}
-
-		// Reserialize the script address without the script
-		// and store it.
-		row.rawData = serializeScriptAddress(srow.encryptedHash,
-			nil)
 		err = bucket.Put([]byte(k), serializeAddressRow(row))
 		if err != nil {
 			return errors.E(errors.IO, err)

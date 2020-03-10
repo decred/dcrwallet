@@ -695,11 +695,6 @@ var helpDescsEnUS = map[string]string{
 	"pooluserticket-ticket":        "The hash of the added ticket",
 	"pooluserticket-status":        "The current status of the added ticket",
 
-	// ListScriptsCmd help.
-	"listscripts--synopsis": "List all scripts that have been added to wallet",
-
-	"listscriptsresult-scripts": "A list of the imported scripts",
-
 	"scriptinfo-redeemscript": "The redeem script",
 	"scriptinfo-address":      "The script address",
 	"scriptinfo-hash160":      "The script hash",

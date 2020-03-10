@@ -561,8 +561,6 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 func (s *walletServer) ImportScript(ctx context.Context,
 	req *pb.ImportScriptRequest) (*pb.ImportScriptResponse, error) {
 
-	defer zero(req.Passphrase)
-
 	// TODO: Rather than assuming the "default" version, it must be a parameter
 	// to the request.
 	sc, addrs, requiredSigs, err := txscript.ExtractPkScriptAddrs(
@@ -585,17 +583,6 @@ func (s *walletServer) ImportScript(ctx context.Context,
 	if !redeemable && req.RequireRedeemable {
 		return nil, status.Errorf(codes.FailedPrecondition,
 			"The script is not redeemable by the wallet")
-	}
-
-	if !s.wallet.WatchingOnly() {
-		lock := make(chan time.Time, 1)
-		defer func() {
-			lock <- time.Time{} // send matters, not the value
-		}()
-		err = s.wallet.Unlock(ctx, req.Passphrase, lock)
-		if err != nil {
-			return nil, translateError(err)
-		}
 	}
 
 	if req.ScanFrom < 0 {

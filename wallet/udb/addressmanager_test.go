@@ -820,7 +820,6 @@ func testEncryptDecrypt(tc *testContext) {
 	keyTypes := []CryptoKeyType{
 		CKTPublic,
 		CKTPrivate,
-		CKTScript,
 	}
 
 	for _, keyType := range keyTypes {
@@ -1043,7 +1042,7 @@ func TestMain(m *testing.M) {
 
 	err = createEmptyDB()
 	if err != nil {
-		fmt.Printf("Unable to create empty test db: %v", err)
+		fmt.Printf("Unable to create empty test db: %v\n", err)
 		teardown()
 		os.Exit(1)
 	}

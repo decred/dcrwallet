@@ -139,7 +139,7 @@ var (
 	bucketUnminedCredits          = []byte("mc")
 	bucketUnminedInputs           = []byte("mi")
 	bucketTickets                 = []byte("tix")
-	bucketScripts                 = []byte("sc")
+	bucketScripts                 = []byte("sc") // removed in db v14
 	bucketMultisig                = []byte("ms")
 	bucketMultisigUsp             = []byte("mu")
 	bucketStakeInvalidatedCredits = []byte("ic")
@@ -1695,31 +1695,6 @@ func existsRawTicketRecord(ns walletdb.ReadBucket, k []byte) (v []byte) {
 
 func extractRawTicketPickedHeight(v []byte) int32 {
 	return int32(byteOrder.Uint32(v))
-}
-
-// Tx scripts are stored as the raw serialized script. The key in the database
-// for the TxScript itself is the hash160 of the script.
-func keyTxScript(script []byte) []byte {
-	return dcrutil.Hash160(script)
-}
-
-func putTxScript(ns walletdb.ReadWriteBucket, script []byte) error {
-	k := keyTxScript(script)
-	err := ns.NestedReadWriteBucket(bucketScripts).Put(k, script)
-	if err != nil {
-		return errors.E(errors.IO, err)
-	}
-	return nil
-}
-
-func existsTxScript(ns walletdb.ReadBucket, hash []byte) []byte {
-	vOrig := ns.NestedReadBucket(bucketScripts).Get(hash)
-	if vOrig == nil {
-		return nil
-	}
-	v := make([]byte, len(vOrig))
-	copy(v, vOrig)
-	return v
 }
 
 // The multisig bucket stores utxos that are P2SH output scripts to the user.

@@ -3134,31 +3134,18 @@ func (w *Wallet) ImportScript(ctx context.Context, rs []byte) error {
 	const op errors.Op = "wallet.ImportScript"
 	err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadWriteBucket(wtxmgrNamespaceKey)
-
-		err := w.txStore.InsertTxScript(txmgrNs, rs)
+		mscriptaddr, err := w.manager.ImportScript(addrmgrNs, rs)
 		if err != nil {
+			if errors.Is(err, errors.Exist) {
+				return nil
+			}
 			return err
 		}
 
-		mscriptaddr, err := w.manager.ImportScript(addrmgrNs, rs)
-		if err != nil {
-			switch {
-			// Don't care if it's already there.
-			case errors.Is(err, errors.Exist):
-				return nil
-			case errors.Is(err, errors.Locked):
-				log.Debugf("failed to attempt script importation " +
-					"of incoming tx because addrmgr was locked")
-				return err
-			default:
-				return err
-			}
-		}
 		addr := mscriptaddr.Address()
-
 		if n, err := w.NetworkBackend(); err == nil {
-			err := n.LoadTxFilter(ctx, false, []dcrutil.Address{addr}, nil)
+			addrs := []dcrutil.Address{addr}
+			err := n.LoadTxFilter(ctx, false, addrs, nil)
 			if err != nil {
 				return err
 			}
@@ -3241,11 +3228,10 @@ func (w *Wallet) RedeemScriptCopy(ctx context.Context, addr dcrutil.Address) ([]
 	var scriptCopy []byte
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrNamespaceKey)
-		script, done, err := w.manager.RedeemScript(ns, addr)
+		script, err := w.manager.RedeemScript(ns, addr)
 		if err != nil {
 			return err
 		}
-		defer done()
 		scriptCopy = make([]byte, len(script))
 		copy(scriptCopy, script)
 		return nil
@@ -3950,21 +3936,7 @@ func (w *Wallet) SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType t
 					return script, nil
 				}
 
-				// First check tx manager script store.
-				script, err := w.txStore.GetTxScript(txmgrNs,
-					addr.ScriptAddress())
-				if errors.Is(err, errors.NotExist) {
-					// Then check the address manager.
-					sc, done, err := w.manager.RedeemScript(addrmgrNs, addr)
-					if err != nil {
-						return nil, err
-					}
-					script = sc
-					doneFuncs = append(doneFuncs, done)
-				} else if err != nil {
-					return nil, err
-				}
-				return script, nil
+				return w.manager.RedeemScript(addrmgrNs, addr)
 			}
 
 			// SigHashSingle inputs can only be signed if there's a

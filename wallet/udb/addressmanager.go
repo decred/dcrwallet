@@ -215,8 +215,7 @@ const (
 	// private keys.
 	CKTPrivate CryptoKeyType = iota
 
-	// CKTScript specifies the key that is used for encryption of scripts.
-	CKTScript
+	_ // Was CKTScript, now removed.  Left for iota to work properly.
 
 	// CKTPublic specifies the key that is used for encryption of public
 	// key material such as dervied extended public keys and imported public
@@ -235,22 +234,21 @@ type Manager struct {
 	mtx sync.RWMutex
 
 	// returnedSecretsMu is a read/write mutex that is held for reads when
-	// secrets (private keys and redeem scripts) are being used and held for
-	// writes when secrets must be zeroed while locking the manager.  It manages
-	// every private key in the returnedPrivKeys and returnedScripts maps.  When
-	// a private key or redeem script is returned to a caller, an entry is added
-	// to the corresponding map (if the key has not yet already been added) and
-	// a reader lock is grabbed for the duration of the private key or script
-	// usage.  When secrets must be cleared on lock, the writer lock of the
-	// mutex is grabbed and each returned secret is cleared.  This means that
-	// locking the manager blocks on all private key and redeem script usage,
-	// and that callers must be sure to unlock the mutex when they are finished
-	// using the secret. We rely on the implementation of sync.RWMutex to
-	// prevent new readers when a writer is waiting on the lock to prevent
-	// access to secrets when another caller has locked the wallet.
+	// secrets (private keys) are being used and held for writes when
+	// secrets must be zeroed while locking the manager.  It manages every
+	// private key in the returnedPrivKeys map.  When a private key is
+	// returned to a caller, an entry is added to the corresponding map (if
+	// the key has not yet already been added) and a reader lock is grabbed
+	// for the duration of the private key usage.  When secrets must be
+	// cleared on lock, the writer lock of the mutex is grabbed and each
+	// returned secret is cleared.  This means that locking the manager
+	// blocks on all private key usage, and that callers must be sure to
+	// unlock the mutex when they are finished using the secret. We rely on
+	// the implementation of sync.RWMutex to prevent new readers when a
+	// writer is waiting on the lock to prevent access to secrets when
+	// another caller has locked the wallet.
 	returnedSecretsMu sync.RWMutex
 	returnedPrivKeys  map[[ripemd160.Size]byte]*secp256k1.PrivateKey
-	returnedScripts   map[[ripemd160.Size]byte][]byte
 
 	chainParams  *chaincfg.Params
 	watchingOnly bool
@@ -286,12 +284,6 @@ type Manager struct {
 	cryptoKeyPrivEncrypted []byte
 	cryptoKeyPriv          EncryptorDecryptor
 
-	// cryptoKeyScript is the key used to encrypt script data.
-	//
-	// This key will be zeroed when the address manager is locked.
-	cryptoKeyScriptEncrypted []byte
-	cryptoKeyScript          EncryptorDecryptor
-
 	// privPassphraseSalt and hashedPrivPassphrase allow for the secure
 	// detection of a correct passphrase on manager unlock when the
 	// manager is already unlocked.  The hash is zeroed each lock.
@@ -326,20 +318,15 @@ func (m *Manager) lock() {
 		acctInfo.acctKeyPriv = nil
 	}
 
-	// Remove clear text private keys and scripts from all address entries.
+	// Remove clear text private keys from all address entries.
 	m.returnedSecretsMu.Lock()
 	for _, privKey := range m.returnedPrivKeys {
 		zeroBigInt(privKey.D)
 	}
-	for _, script := range m.returnedScripts {
-		zero(script)
-	}
 	m.returnedPrivKeys = nil
-	m.returnedScripts = nil
 	m.returnedSecretsMu.Unlock()
 
 	// Remove clear text private master and crypto keys from memory.
-	m.cryptoKeyScript.Zero()
 	m.cryptoKeyPriv.Zero()
 	m.masterKeyPriv.Zero()
 
@@ -874,7 +861,7 @@ func (m *Manager) scriptAddressRowToManaged(row *dbScriptAddressRow) (ManagedAdd
 		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt imported P2SH address: %v", err))
 	}
 
-	return newScriptAddress(m, row.account, scriptHash)
+	return newScriptAddress(m, row.account, scriptHash, row.script)
 }
 
 // rowInterfaceToManaged returns a new managed address based on the given
@@ -1008,18 +995,6 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 			return errors.E(errors.Crypto, errors.Errorf("encrypt crypto privkey: %v", err))
 		}
 
-		// Re-encrypt the crypto script key using the new master private
-		// key.
-		decScript, err := secretKey.Decrypt(m.cryptoKeyScriptEncrypted)
-		if err != nil {
-			return errors.E(errors.Crypto, errors.Errorf("decrypt crypto script key: %v", err))
-		}
-		encScript, err := newMasterKey.Encrypt(decScript)
-		zero(decScript)
-		if err != nil {
-			return errors.E(errors.Crypto, errors.Errorf("encrypt crypto script key: %v", err))
-		}
-
 		// When the manager is locked, ensure the new clear text master
 		// key is cleared from memory now that it is no longer needed.
 		// If unlocked, create the new passphrase hash with the new
@@ -1036,7 +1011,7 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 
 		// Save the new keys and params to the the db in a single
 		// transaction.
-		err = putCryptoKeys(ns, nil, encPriv, encScript)
+		err = putCryptoKeys(ns, nil, encPriv)
 		if err != nil {
 			return err
 		}
@@ -1049,7 +1024,6 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 		// Now that the db has been successfully updated, clear the old
 		// key and set the new one.
 		copy(m.cryptoKeyPrivEncrypted[:], encPriv)
-		copy(m.cryptoKeyScriptEncrypted[:], encScript)
 		m.masterKeyPriv.Zero() // Clear the old key.
 		m.masterKeyPriv = newMasterKey
 		m.privPassphraseSalt = passphraseSalt
@@ -1064,7 +1038,7 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 
 		// Save the new keys and params to the the db in a single
 		// transaction.
-		err = putCryptoKeys(ns, encryptedPub, nil, nil)
+		err = putCryptoKeys(ns, encryptedPub, nil)
 		if err != nil {
 			return err
 		}
@@ -1089,7 +1063,7 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 // WARNING: This function removes private keys from the existing address manager
 // which means they will no longer be available.  Typically the caller will make
 // a copy of the existing wallet database and modify the copy since otherwise it
-// would mean permanent loss of any imported private keys and scripts.
+// would mean permanent loss of any imported private keys.
 //
 // Executing this function on a manager that is already watching-only will have
 // no effect.
@@ -1131,23 +1105,15 @@ func (m *Manager) ConvertToWatchingOnly(ns walletdb.ReadWriteBucket) error {
 		acctInfo.acctKeyEncrypted = nil
 	}
 
-	// Clear and remove encrypted private keys and encrypted scripts from
-	// all address entries.
+	// Clear and remove encrypted private keys from all address entries.
 	m.returnedSecretsMu.Lock()
 	for _, privKey := range m.returnedPrivKeys {
 		zeroBigInt(privKey.D)
 	}
-	for _, script := range m.returnedScripts {
-		zero(script)
-	}
 	m.returnedPrivKeys = nil
-	m.returnedScripts = nil
 	m.returnedSecretsMu.Unlock()
 
-	// Clear and remove encrypted private and script crypto keys.
-	zero(m.cryptoKeyScriptEncrypted)
-	m.cryptoKeyScriptEncrypted = nil
-	m.cryptoKeyScript = nil
+	// Clear and remove encrypted private crypto key.
 	zero(m.cryptoKeyPrivEncrypted)
 	m.cryptoKeyPrivEncrypted = nil
 	m.cryptoKeyPriv = nil
@@ -1245,13 +1211,6 @@ func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF
 //
 // All imported script addresses will be part of the account defined by the
 // ImportedAddrAccount constant.
-//
-// When the address manager is watching-only, the script itself will not be
-// stored or available since it is considered private data.
-//
-// This function will return an error if the address manager is locked and not
-// watching-only, or the address already exists.  Any other errors returned are
-// generally unexpected.
 func (m *Manager) ImportScript(ns walletdb.ReadWriteBucket, script []byte) (ManagedScriptAddress, error) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
@@ -1262,11 +1221,6 @@ func (m *Manager) ImportScript(ns walletdb.ReadWriteBucket, script []byte) (Mana
 		return nil, errors.E(errors.Exist, "script already exists")
 	}
 
-	// The manager must be unlocked to encrypt the imported script.
-	if !m.watchingOnly && m.locked {
-		return nil, errors.E(errors.Locked)
-	}
-
 	// Encrypt the script hash using the crypto public key so it is
 	// accessible when the address manager is locked or watching-only.
 	encryptedHash, err := m.cryptoKeyPub.Encrypt(scriptHash)
@@ -1274,26 +1228,16 @@ func (m *Manager) ImportScript(ns walletdb.ReadWriteBucket, script []byte) (Mana
 		return nil, errors.E(errors.Crypto, errors.Errorf("encrypt script hash: %v", err))
 	}
 
-	// Encrypt the script for storage in database using the crypto script
-	// key when not a watching-only address manager.
-	var encryptedScript []byte
-	if !m.watchingOnly {
-		encryptedScript, err = m.cryptoKeyScript.Encrypt(script)
-		if err != nil {
-			return nil, errors.E(errors.Crypto, errors.Errorf("encrypt script: %v", err))
-		}
-	}
-
 	// Save the new imported address to the db and update start block (if
 	// needed) in a single transaction.
 	err = putScriptAddress(ns, scriptHash, ImportedAddrAccount,
-		ssNone, encryptedHash, encryptedScript)
+		ssNone, encryptedHash, script)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create a new managed address based on the imported script.
-	return newScriptAddress(m, ImportedAddrAccount, scriptHash)
+	return newScriptAddress(m, ImportedAddrAccount, scriptHash, script)
 }
 
 func (m *Manager) ImportXpubAccount(ns walletdb.ReadWriteBucket, name string, xpub *hdkeychain.ExtendedKey) error {
@@ -2030,67 +1974,26 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 }
 
 // RedeemScript retreives the redeem script to redeem an output paid to a P2SH
-// address.  If this function returns without error, the returned 'done'
-// function must be called when the script is no longer being used. Failure to
-// do so will cause deadlocks when the manager is locked.
-func (m *Manager) RedeemScript(ns walletdb.ReadBucket, addr dcrutil.Address) (script []byte, done func(), err error) {
-	// Lock the manager mutex for writes.  This protects read access to m.locked
-	// and write access to m.returnedScripts and the cached accounts.
-	defer m.mtx.Unlock()
-	m.mtx.Lock()
+// address.
+func (m *Manager) RedeemScript(ns walletdb.ReadBucket, addr dcrutil.Address) ([]byte, error) {
+	return m.redeemScriptForHash160(ns, addr.Hash160()[:])
+}
 
-	// No scripts are available for a watching-only address manager.
-	if m.watchingOnly {
-		return nil, nil, errors.E(errors.WatchingOnly)
-	}
-
-	if m.locked {
-		return nil, nil, errors.E(errors.Locked)
-	}
-
-	// If the script for this address' hash160 has already been returned, return
-	// it again.
-	if m.returnedScripts != nil {
-		script, ok := m.returnedScripts[*addr.Hash160()]
-		if ok {
-			m.returnedSecretsMu.RLock()
-			return script, m.returnedSecretsMu.RUnlock, nil
-		}
-	}
-
-	addrInterface, err := fetchAddress(ns, addr.Hash160()[:])
+func (m *Manager) redeemScriptForHash160(ns walletdb.ReadBucket, hash160 []byte) ([]byte, error) {
+	addrInterface, err := fetchAddress(ns, hash160)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
+	var script []byte
 	switch a := addrInterface.(type) {
 	case *dbScriptAddressRow:
-		script, err = m.cryptoKeyScript.Decrypt(a.encryptedScript)
-		if err != nil {
-			return nil, nil, errors.E(errors.Crypto, errors.Errorf("decrypt imported script: %v", err))
-		}
-
+		script = a.script
 	case *dbChainAddressRow, *dbImportedAddressRow:
-		return nil, nil, errors.E(errors.Invalid, "redeem script lookup requires P2SH address")
-
+		err = errors.E(errors.Invalid, "redeem script lookup requires P2SH address")
 	default:
-		return nil, nil, errors.E(errors.Invalid, errors.Errorf("address row type %T", addrInterface))
+		err = errors.E(errors.Invalid, errors.Errorf("address row type %T", addrInterface))
 	}
-
-	// Lock the RWMutex for reads for the caller and prepare to return the
-	// function to unlock. Clearing scripts first grabs the write lock and no
-	// scripts will be cleared while the caller is holding the read lock.  This
-	// prevents zeroing scripts (and data racing while doing so) when the caller
-	// is still using them.
-	m.returnedSecretsMu.RLock()
-	done = m.returnedSecretsMu.RUnlock
-
-	// Add the script to the manager so it can be zeroed on wallet lock.
-	if m.returnedScripts == nil {
-		m.returnedScripts = make(map[[ripemd160.Size]byte][]byte)
-	}
-	m.returnedScripts[*addr.Hash160()] = script
-
-	return script, done, nil
+	return script, err
 }
 
 // selectCryptoKey selects the appropriate crypto key based on the key type. An
@@ -2099,7 +2002,7 @@ func (m *Manager) RedeemScript(ns walletdb.ReadBucket, addr dcrutil.Address) (sc
 //
 // This function MUST be called with the manager lock held for reads.
 func (m *Manager) selectCryptoKey(keyType CryptoKeyType) (EncryptorDecryptor, error) {
-	if keyType == CKTPrivate || keyType == CKTScript {
+	if keyType == CKTPrivate {
 		// The manager must be unlocked to work with the private keys.
 		if m.locked || m.watchingOnly {
 			return nil, errors.E(errors.Locked)
@@ -2110,8 +2013,6 @@ func (m *Manager) selectCryptoKey(keyType CryptoKeyType) (EncryptorDecryptor, er
 	switch keyType {
 	case CKTPrivate:
 		cryptoKey = m.cryptoKeyPriv
-	case CKTScript:
-		cryptoKey = m.cryptoKeyScript
 	case CKTPublic:
 		cryptoKey = m.cryptoKeyPub
 	default:
@@ -2162,8 +2063,7 @@ func (m *Manager) Decrypt(keyType CryptoKeyType, in []byte) ([]byte, error) {
 // newManager returns a new locked address manager with the given parameters.
 func newManager(chainParams *chaincfg.Params, masterKeyPub *snacl.SecretKey,
 	masterKeyPriv *snacl.SecretKey, cryptoKeyPub EncryptorDecryptor,
-	cryptoKeyPrivEncrypted, cryptoKeyScriptEncrypted []byte,
-	privPassphraseSalt [saltSize]byte) *Manager {
+	cryptoKeyPrivEncrypted []byte, privPassphraseSalt [saltSize]byte) *Manager {
 
 	return &Manager{
 		chainParams:              chainParams,
@@ -2174,8 +2074,6 @@ func newManager(chainParams *chaincfg.Params, masterKeyPub *snacl.SecretKey,
 		cryptoKeyPub:             cryptoKeyPub,
 		cryptoKeyPrivEncrypted:   cryptoKeyPrivEncrypted,
 		cryptoKeyPriv:            &cryptoKey{},
-		cryptoKeyScriptEncrypted: cryptoKeyScriptEncrypted,
-		cryptoKeyScript:          &cryptoKey{},
 		privPassphraseSalt:       privPassphraseSalt,
 	}
 }
@@ -2267,8 +2165,7 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte, chainParams *chai
 	}
 
 	// Load the crypto keys from the db.
-	cryptoKeyPubEnc, cryptoKeyPrivEnc, cryptoKeyScriptEnc, err :=
-		fetchCryptoKeys(ns)
+	cryptoKeyPubEnc, cryptoKeyPrivEnc, err := fetchCryptoKeys(ns)
 	if err != nil {
 		return nil, err
 	}
@@ -2313,8 +2210,7 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte, chainParams *chai
 	// the defaults for the additional fields which are not specified in the
 	// call to new with the values loaded from the database.
 	mgr := newManager(chainParams, &masterKeyPub, &masterKeyPriv,
-		cryptoKeyPub, cryptoKeyPrivEnc, cryptoKeyScriptEnc,
-		privPassphraseSalt)
+		cryptoKeyPub, cryptoKeyPrivEnc,	privPassphraseSalt)
 	mgr.watchingOnly = watchingOnly
 	return mgr, nil
 }
@@ -2451,9 +2347,9 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		return errors.E(errors.IO, err)
 	}
 
-	// Generate new crypto public, private, and script keys.  These keys are
-	// used to protect the actual public and private data such as addresses,
-	// extended keys, and scripts.
+	// Generate new crypto public and private keys.  These keys are used to
+	// protect the actual public and private data such as addresses, and
+	// extended keys.
 	cryptoKeyPub, err := newCryptoKey()
 	if err != nil {
 		return err
@@ -2464,12 +2360,6 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 	}
 	defer cryptoKeyPriv.Zero()
 
-	cryptoKeyScript, err := newCryptoKey()
-	if err != nil {
-		return err
-	}
-	defer cryptoKeyScript.Zero()
-
 	// Encrypt the crypto keys with the associated master keys.
 	cryptoKeyPubEnc, err := masterKeyPub.Encrypt(cryptoKeyPub.Bytes())
 	if err != nil {
@@ -2478,10 +2368,6 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 	cryptoKeyPrivEnc, err := masterKeyPriv.Encrypt(cryptoKeyPriv.Bytes())
 	if err != nil {
 		return errors.E(errors.Crypto, errors.Errorf("encrypt crypto privkey: %v", err))
-	}
-	cryptoKeyScriptEnc, err := masterKeyPriv.Encrypt(cryptoKeyScript.Bytes())
-	if err != nil {
-		return errors.E(errors.Crypto, errors.Errorf("encrypt crypto script key: %v", err))
 	}
 
 	// Encrypt the legacy cointype keys with the associated crypto keys.
@@ -2547,8 +2433,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 	}
 
 	// Save the encrypted crypto keys to the database.
-	err = putCryptoKeys(ns, cryptoKeyPubEnc, cryptoKeyPrivEnc,
-		cryptoKeyScriptEnc)
+	err = putCryptoKeys(ns, cryptoKeyPubEnc, cryptoKeyPrivEnc)
 	if err != nil {
 		return err
 	}
@@ -2678,9 +2563,9 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase
 		return errors.E(errors.IO, err)
 	}
 
-	// Generate new crypto public, private, and script keys.  These keys are
-	// used to protect the actual public and private data such as addresses,
-	// extended keys, and scripts.
+	// Generate new crypto public and private keys.  These keys are
+	// used to protect the actual public and private data such as addresses
+	// and extended keys.
 	cryptoKeyPub, err := newCryptoKey()
 	if err != nil {
 		return err
@@ -2690,11 +2575,6 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase
 		return err
 	}
 	defer cryptoKeyPriv.Zero()
-	cryptoKeyScript, err := newCryptoKey()
-	if err != nil {
-		return err
-	}
-	defer cryptoKeyScript.Zero()
 
 	// Encrypt the crypto keys with the associated master keys.
 	cryptoKeyPubEnc, err := masterKeyPub.Encrypt(cryptoKeyPub.Bytes())
@@ -2704,10 +2584,6 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase
 	cryptoKeyPrivEnc, err := masterKeyPriv.Encrypt(cryptoKeyPriv.Bytes())
 	if err != nil {
 		return errors.E(errors.Crypto, errors.Errorf("encrypt crypto privkey: %v", err))
-	}
-	cryptoKeyScriptEnc, err := masterKeyPriv.Encrypt(cryptoKeyScript.Bytes())
-	if err != nil {
-		return errors.E(errors.Crypto, errors.Errorf("encrypt crypto script key: %v", err))
 	}
 
 	// Encrypt the default account keys with the associated crypto keys.
@@ -2731,8 +2607,7 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase
 	}
 
 	// Save the encrypted crypto keys to the database.
-	err = putCryptoKeys(ns, cryptoKeyPubEnc, cryptoKeyPrivEnc,
-		cryptoKeyScriptEnc)
+	err = putCryptoKeys(ns, cryptoKeyPubEnc, cryptoKeyPrivEnc)
 	if err != nil {
 		return err
 	}
