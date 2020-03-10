@@ -601,11 +601,10 @@ func (s *walletServer) ImportScript(ctx context.Context,
 	}
 
 	err = s.wallet.ImportScript(ctx, req.Script)
-	if err != nil {
+	if err != nil && !errors.Is(err, errors.Exist) {
 		return nil, translateError(err)
 	}
-
-	if req.Rescan {
+	if err == nil && req.Rescan {
 		go s.wallet.RescanFromHeight(context.Background(), n, req.ScanFrom)
 	}
 

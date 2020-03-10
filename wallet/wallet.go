@@ -3136,9 +3136,6 @@ func (w *Wallet) ImportScript(ctx context.Context, rs []byte) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 		mscriptaddr, err := w.manager.ImportScript(addrmgrNs, rs)
 		if err != nil {
-			if errors.Is(err, errors.Exist) {
-				return nil
-			}
 			return err
 		}
 

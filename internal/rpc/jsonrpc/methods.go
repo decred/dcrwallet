@@ -416,7 +416,7 @@ func (s *Server) addMultiSigAddress(ctx context.Context, icmd interface{}) (inte
 	}
 
 	err = w.ImportScript(ctx, script)
-	if err != nil {
+	if err != nil && !errors.Is(err, errors.Exist) {
 		return nil, err
 	}
 
@@ -1355,10 +1355,10 @@ func (s *Server) importScript(ctx context.Context, icmd interface{}) (interface{
 	}
 
 	err = w.ImportScript(ctx, rs)
+	if errors.Is(err, errors.Exist) {
+		return nil, nil
+	}
 	if err != nil {
-		if errors.Is(err, errors.Exist) {
-			return nil, nil
-		}
 		return nil, err
 	}
 
