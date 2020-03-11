@@ -148,7 +148,9 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	var change *wire.TxOut
 	if !txrules.IsDustAmount(changeValue, P2PKHv0Len, feeRate) {
 		persist := w.deferPersistReturnedChild(ctx, &updates)
-		addr, err := w.nextAddress(ctx, op, persist, changeAccount, udb.InternalBranch, WithGapPolicyIgnore())
+		const accountName = "" // not used, so can be faked.
+		addr, err := w.nextAddress(ctx, op, persist,
+			accountName, changeAccount, udb.InternalBranch, WithGapPolicyIgnore())
 		if err != nil {
 			return errors.E(op, err)
 		}

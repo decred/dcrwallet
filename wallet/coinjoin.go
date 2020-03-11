@@ -67,7 +67,9 @@ func (c *csppJoin) Gen() ([][]byte, error) {
 	var updates []func(walletdb.ReadWriteTx) error
 	for i := 0; i < c.mcount; i++ {
 		persist := c.wallet.deferPersistReturnedChild(c.ctx, &updates)
-		mixAddr, err := c.wallet.nextAddress(c.ctx, op, persist, c.mixAccount, c.mixBranch, WithGapPolicyIgnore())
+		const accountName = "" // not used, so can be faked.
+		mixAddr, err := c.wallet.nextAddress(c.ctx, op, persist,
+			accountName, c.mixAccount, c.mixBranch, WithGapPolicyIgnore())
 		if err != nil {
 			return nil, err
 		}

@@ -710,7 +710,9 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 
 	// Check if output address is default, and generate a new address if needed
 	if changeAddr == nil {
-		changeAddr, err = w.newChangeAddress(ctx, op, w.persistReturnedChild(ctx, dbtx), account, gapPolicyIgnore)
+		const accountName = "" // not used, so can be faked.
+		changeAddr, err = w.newChangeAddress(ctx, op, w.persistReturnedChild(ctx, dbtx),
+			accountName, account, gapPolicyIgnore)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
@@ -1164,7 +1166,9 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	}
 
 	addrFunc := func(op errors.Op, maybeDBTX walletdb.ReadWriteTx, account, branch uint32) (dcrutil.Address, error) {
-		return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, maybeDBTX), account, branch, WithGapPolicyIgnore())
+		const accountName = "" // not used, so can be faked.
+		return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, maybeDBTX), accountName,
+			account, branch, WithGapPolicyIgnore())
 	}
 
 	if w.addressReuse && req.CSPPServer == "" {
@@ -1209,12 +1213,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	switch req.VotingAddress.(type) {
 	case *dcrutil.AddressScriptHash:
 		stakeSubmissionPkScriptSize = txsizes.P2SHPkScriptSize + 1
-	case interface {
-		V0Scripter
-		SecpPubKeyHash160er
-	}:
-		stakeSubmissionPkScriptSize = txsizes.P2PKHPkScriptSize + 1
-	case *dcrutil.AddressPubKeyHash, nil:
+	case *dcrutil.AddressPubKeyHash, PubKeyHashAddress, nil:
 		stakeSubmissionPkScriptSize = txsizes.P2PKHPkScriptSize + 1
 	default:
 		return nil, errors.E(op, errors.Invalid,

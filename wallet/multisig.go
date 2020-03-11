@@ -6,87 +6,15 @@ package wallet
 
 import (
 	"context"
-	"runtime/trace"
 
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet/txrules"
 	"decred.org/dcrwallet/wallet/txsizes"
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
-	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
-
-// MakeSecp256k1MultiSigScript creates a multi-signature script that can be
-// redeemed with nRequired signatures of the passed keys and addresses.  If the
-// address is a P2PKH address, the associated pubkey is looked up by the wallet
-// if possible, otherwise an error is returned for a missing pubkey.
-//
-// This function only works with secp256k1 pubkeys and P2PKH addresses derived
-// from them.
-func (w *Wallet) MakeSecp256k1MultiSigScript(ctx context.Context, secp256k1Addrs []dcrutil.Address, nRequired int) ([]byte, error) {
-	const op errors.Op = "wallet.MakeSecp256k1MultiSigScript"
-
-	secp256k1PubKeys := make([]*dcrutil.AddressSecpPubKey, len(secp256k1Addrs))
-
-	var dbtx walletdb.ReadTx
-	var addrmgrNs walletdb.ReadBucket
-	defer func() {
-		if dbtx != nil {
-			dbtx.Rollback()
-		}
-	}()
-
-	// The address list will made up either of addreseses (pubkey hash), for
-	// which we need to look up the keys in wallet, straight pubkeys, or a
-	// mixture of the two.
-	for i, addr := range secp256k1Addrs {
-		switch addr := addr.(type) {
-		default:
-			return nil, errors.E(op, errors.Invalid, "address key is not secp256k1")
-
-		case *dcrutil.AddressSecpPubKey:
-			secp256k1PubKeys[i] = addr
-
-		case *dcrutil.AddressPubKeyHash:
-			if addr.DSA() != dcrec.STEcdsaSecp256k1 {
-				return nil, errors.E(op, errors.Invalid, "address key is not secp256k1")
-			}
-
-			if dbtx == nil {
-				var err error
-				defer trace.StartRegion(ctx, "db.View").End()
-				dbtx, err = w.db.BeginReadTx()
-				if err != nil {
-					return nil, err
-				}
-				defer trace.StartRegion(ctx, "db.ReadTx").End()
-				addrmgrNs = dbtx.ReadBucket(waddrmgrNamespaceKey)
-			}
-			addrInfo, err := w.manager.Address(addrmgrNs, addr)
-			if err != nil {
-				return nil, err
-			}
-			serializedPubKey := addrInfo.(udb.ManagedPubKeyAddress).
-				PubKey().SerializeCompressed()
-
-			pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(
-				serializedPubKey, w.chainParams)
-			if err != nil {
-				return nil, err
-			}
-			secp256k1PubKeys[i] = pubKeyAddr
-		}
-	}
-
-	script, err := txscript.MultiSigScript(secp256k1PubKeys, nRequired)
-	if err != nil {
-		return nil, errors.E(op, errors.E(errors.Op("txscript.MultiSigScript"), err))
-	}
-	return script, nil
-}
 
 // FetchP2SHMultiSigOutput fetches information regarding a wallet's P2SH
 // multi-signature output.

@@ -21,50 +21,239 @@ import (
 	"github.com/decred/dcrd/txscript/v3"
 )
 
-// V0Scripter is a type (usually addresses) which create or encode to version 0
-// output scripts.
-type V0Scripter interface {
-	ScriptV0() []byte
+// AccountKind describes the purpose and type of a wallet account.
+type AccountKind int
+
+const (
+	// AccountKindBIP0044 describes a BIP0044 account derived from the
+	// wallet seed.  New addresses created from the account encode secp256k1
+	// P2PKH output scripts.
+	AccountKindBIP0044 AccountKind = iota
+
+	// AccountKindImported describes an account with only singular, possibly
+	// unrelated imported keys.  Keys must be manually reimported after seed
+	// restore.  New addresses can not be derived from the account.
+	AccountKindImported
+
+	// AccountKindImportedXpub describes a BIP0044 account created from an
+	// imported extended key.  It operates like a seed-derived BIP0044
+	// account.
+	AccountKindImportedXpub
+)
+
+// Address is a human-readable encoding of an output script.
+//
+// Address encodings may include a network identifier, to prevent misuse on an
+// alternate Decred network.
+type Address interface {
+	String() string
+
+	// PaymentScript returns the output script and script version to pay the
+	// address.  The version is always returned with the script, as it is
+	// not useful to use the script without the version.
+	PaymentScript() (version uint16, script []byte)
+
+	// ScriptLen returns the known length of the address output script.
+	ScriptLen() int
 }
 
-// SecpPubKeyHasher is any address used to create scripts paying to the hash of
-// a secp256k1 pubkey, requiring the pubkey and a signature to redeem.
-type SecpPubKeyHasher interface {
-	SecpPubKeyHash(version uint16) ([]byte, error)
+// KnownAddress represents an address recorded by the wallet.  It is potentially
+// watched for involving transactions during wallet syncs.
+type KnownAddress interface {
+	Address
+
+	// AccountName returns the account name associated with the known
+	// address.
+	AccountName() string
+
+	// AccountKind describes the kind or purpose of the address' account.
+	AccountKind() AccountKind
 }
 
-// SecpPubKeyer is any type (usually addresses) where a secp256k1 public key is
-// known.
-type SecpPubKeyer interface {
-	SecpPubKey() []byte
+// PubKeyHashAddress is a KnownAddress for a secp256k1 pay-to-pubkey-hash
+// (P2PKH) output script.
+type PubKeyHashAddress interface {
+	KnownAddress
+
+	// PubKey returns the serialized compressed public key.  This key must
+	// be included in scripts redeeming P2PKH outputs paying the address.
+	PubKey() []byte
+
+	// PubKeyHash returns the hashed compressed public key.  This hash must
+	// appear in output scripts paying to the address.
+	PubKeyHash() []byte
 }
 
-// SecpPubKeyHash160er is any address created from the HASH160 of a pubkey.
-type SecpPubKeyHash160er interface {
-	SecpPubKeyHash160() *[20]byte
+// BIP0044Address is a KnownAddress for a secp256k1 pay-to-pubkey-hash output,
+// with keys created from a derived or imported BIP0044 account extended pubkey.
+type BIP0044Address interface {
+	PubKeyHashAddress
+
+	// Path returns the BIP0032 indexes to derive the BIP0044 address from
+	// the coin type key.  The account index is always the non-hardened
+	// identifier, with values between 0 through 1<<31 - 1 (inclusive).  The
+	// account index will always be zero if this address belongs to an
+	// imported xpub or imported xpriv account.
+	Path() (account, branch, child uint32)
 }
 
-// AddressP2PKHv0 is a union of interfaces implemented by version 0 P2PKH
-// addresses.
-type AddressP2PKHv0 interface {
-	dcrutil.Address
-	V0Scripter
-	SecpPubKeyHasher
-	SecpPubKeyHash160er
+// P2SHAddress is a KnownAddress which pays to the hash of an arbitrary script.
+type P2SHAddress interface {
+	KnownAddress
+
+	// RedeemScript returns the preimage of the script hash.  The returned
+	// version is the script version of the address, or the script version
+	// of the redeemed previous output, and must be used for any operations
+	// involving the script.
+	RedeemScript() (script []byte, version uint16)
 }
 
-// BIP44AccountXpubPather is any address which is derived from a BIP0044
-// extended pubkey.
-type BIP44AccountXpubPather interface {
-	BIP44AccountXpubPath() (xpub *hdkeychain.ExtendedKey, branch, child uint32)
+// managedAddress implements KnownAddress for a wrapped udb.ManagedAddress.
+type managedAddress struct {
+	acct      string
+	acctKind  AccountKind
+	addr      udb.ManagedAddress
+	script    func() (uint16, []byte)
+	scriptLen int
 }
 
-// BIP44XpubP2PKHv0 is a union of interfaces implemented by version 0 P2PKH
-// addresses derived from a known BIP0044 account xpub.
-type BIP44XpubP2PKHv0 interface {
-	AddressP2PKHv0
-	SecpPubKeyer
-	BIP44AccountXpubPather
+func (m *managedAddress) String() string                  { return m.addr.Address().String() }
+func (m *managedAddress) PaymentScript() (uint16, []byte) { return m.script() }
+func (m *managedAddress) ScriptLen() int                  { return m.scriptLen }
+func (m *managedAddress) AccountName() string             { return m.acct }
+func (m *managedAddress) AccountKind() AccountKind        { return m.acctKind }
+
+// Possible implementations of m.script
+func (m *managedAddress) p2pkhScript() (uint16, []byte) {
+	pkh := m.addr.(udb.ManagedPubKeyAddress).AddrHash()
+	s := []byte{
+		0:  txscript.OP_DUP,
+		1:  txscript.OP_HASH160,
+		2:  txscript.OP_DATA_20,
+		23: txscript.OP_EQUALVERIFY,
+		24: txscript.OP_CHECKSIG,
+	}
+	copy(s[3:23], pkh)
+	return 0, s
+}
+func (m *managedAddress) p2shScript() (uint16, []byte) {
+	sh := m.addr.(udb.ManagedScriptAddress).AddrHash()
+	s := []byte{
+		0:  txscript.OP_HASH160,
+		1:  txscript.OP_DATA_20,
+		22: txscript.OP_EQUALVERIFY,
+	}
+	copy(s[2:22], sh)
+	return 0, s
+}
+
+// managedP2PKHAddress implements PubKeyHashAddress for a wrapped udb.ManagedAddress.
+type managedP2PKHAddress struct {
+	managedAddress
+}
+
+func (m *managedP2PKHAddress) PubKey() []byte {
+	return m.addr.(udb.ManagedPubKeyAddress).PubKey().SerializeCompressed()
+}
+func (m *managedP2PKHAddress) PubKeyHash() []byte {
+	return m.addr.(udb.ManagedPubKeyAddress).AddrHash()
+}
+
+// managedBIP0044Address implements BIP0044Address for a wrapped udb.ManagedAddress.
+type managedBIP0044Address struct {
+	managedP2PKHAddress
+	account, branch, child uint32
+}
+
+func (m *managedBIP0044Address) Path() (account, branch, child uint32) {
+	return m.account, m.branch, m.child
+}
+
+// managedP2SHAddress implements P2SHAddress for a wrapped udb.ManagedAddress.
+type managedP2SHAddress struct {
+	managedAddress
+	redeemScript []byte
+}
+
+// KnownAddress returns the KnownAddress implementation for an address.  The
+// returned address may implement other interfaces (such as, but not limited to,
+// PubKeyHashAddress, BIP0044Address, or P2SHAddress) depending on the script
+// type and account for the address.
+func (w *Wallet) KnownAddress(ctx context.Context, a dcrutil.Address) (KnownAddress, error) {
+	const op errors.Op = "wallet.KnownAddress"
+
+	var ma udb.ManagedAddress
+	var acct uint32
+	var acctName string
+	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
+		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
+		var err error
+		ma, err = w.manager.Address(addrmgrNs, a)
+		if err != nil {
+			return err
+		}
+		acct = ma.Account()
+		acctName, err = w.manager.AccountName(addrmgrNs, acct)
+		return err
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	ka := managedAddress{
+		acct: acctName,
+		addr: ma,
+	}
+	var p2pkhKnownAddr managedP2PKHAddress
+	var p2shKnownAddr managedP2PKHAddress
+	var child uint32
+	switch ma := ma.(type) {
+	case udb.ManagedPubKeyAddress:
+		ka.script = ka.p2pkhScript
+		ka.scriptLen = 25
+		child = ma.Index()
+		p2pkhKnownAddr.managedAddress = ka
+	case udb.ManagedScriptAddress:
+		ka.script = ka.p2shScript
+		ka.scriptLen = 23
+		p2shKnownAddr.managedAddress = ka
+	default:
+		err := errors.Errorf("don't know how to wrap %T", ma)
+		return nil, errors.E(errors.Bug, err)
+	}
+
+	// BIP0044 addresses may be from seed-derived account xpubs or
+	// imported xpubs.
+	if acct < udb.ImportedAddrAccount || acct > udb.ImportedAddrAccount {
+		p2pkhKnownAddr.acctKind = AccountKindBIP0044
+		bip44Addr := &managedBIP0044Address{
+			managedP2PKHAddress: p2pkhKnownAddr,
+			account:             ma.Account(),
+			branch:              0,
+			child:               child,
+		}
+		if ma.Internal() {
+			bip44Addr.branch = 1
+		}
+		if acct < udb.ImportedAddrAccount {
+			bip44Addr.acctKind = AccountKindBIP0044
+		} else {
+			bip44Addr.acctKind = AccountKindImportedXpub
+		}
+		return bip44Addr, nil
+	}
+
+	// Dealing with a loose imported address
+	switch ma.(type) {
+	case udb.ManagedPubKeyAddress:
+		p2pkhKnownAddr.acctKind = AccountKindImported
+		return &p2pkhKnownAddr, nil
+	case udb.ManagedScriptAddress:
+		p2shKnownAddr.acctKind = AccountKindImported
+		return &p2shKnownAddr, nil
+	default:
+		panic("unreachable")
+	}
 }
 
 type stakeAddress interface {
@@ -77,15 +266,17 @@ type stakeAddress interface {
 
 type xpubAddress struct {
 	*dcrutil.AddressPubKeyHash
-	xpub   *hdkeychain.ExtendedKey
-	branch uint32
-	child  uint32
+	xpub        *hdkeychain.ExtendedKey
+	accountName string
+	account     uint32
+	branch      uint32
+	child       uint32
 }
 
-var _ BIP44XpubP2PKHv0 = (*xpubAddress)(nil)
+var _ BIP0044Address = (*xpubAddress)(nil)
 var _ stakeAddress = (*xpubAddress)(nil)
 
-func (x *xpubAddress) ScriptV0() []byte {
+func (x *xpubAddress) PaymentScript() (uint16, []byte) {
 	s := []byte{
 		0:  txscript.OP_DUP,
 		1:  txscript.OP_HASH160,
@@ -94,72 +285,27 @@ func (x *xpubAddress) ScriptV0() []byte {
 		24: txscript.OP_CHECKSIG,
 	}
 	copy(s[3:23], x.Hash160()[:])
-	return s
+	return 0, s
 }
 
-func (x *xpubAddress) voteRights() (script []byte, version uint16) {
-	s := []byte{
-		0:  txscript.OP_SSTX,
-		1:  txscript.OP_DUP,
-		2:  txscript.OP_HASH160,
-		3:  txscript.OP_DATA_20,
-		24: txscript.OP_EQUALVERIFY,
-		25: txscript.OP_CHECKSIG,
+func (x *xpubAddress) ScriptLen() int      { return txsizes.P2PKHPkScriptSize }
+func (x *xpubAddress) AccountName() string { return x.accountName }
+
+func (x *xpubAddress) AccountKind() AccountKind {
+	if x.account > udb.ImportedAddrAccount {
+		return AccountKindImportedXpub
 	}
-	copy(s[4:24], x.SecpPubKeyHash160()[:])
-	return s, 0
+	return AccountKindBIP0044
 }
-
-func (x *xpubAddress) ticketChange() (script []byte, version uint16) {
-	s := []byte{
-		0:  txscript.OP_SSTXCHANGE,
-		1:  txscript.OP_DUP,
-		2:  txscript.OP_HASH160,
-		3:  txscript.OP_DATA_20,
-		24: txscript.OP_EQUALVERIFY,
-		25: txscript.OP_CHECKSIG,
+func (x *xpubAddress) Path() (account, branch, child uint32) {
+	account, branch, child = x.account, x.branch, x.child
+	if x.account > udb.ImportedAddrAccount {
+		account = 0
 	}
-	copy(s[4:24], x.SecpPubKeyHash160()[:])
-	return s, 0
+	return
 }
 
-func (x *xpubAddress) rewardCommitment(amount dcrutil.Amount, limits uint16) ([]byte, uint16) {
-	s := make([]byte, 32)
-	s[0] = txscript.OP_RETURN
-	s[1] = txscript.OP_DATA_30
-	copy(s[2:22], x.SecpPubKeyHash160()[:])
-	binary.LittleEndian.PutUint64(s[22:30], uint64(amount))
-	binary.LittleEndian.PutUint16(s[30:32], limits)
-	return s, 0
-}
-
-func (x *xpubAddress) payVoteCommitment() (script []byte, version uint16) {
-	s := []byte{
-		0:  txscript.OP_SSGEN,
-		1:  txscript.OP_DUP,
-		2:  txscript.OP_HASH160,
-		3:  txscript.OP_DATA_20,
-		24: txscript.OP_EQUALVERIFY,
-		25: txscript.OP_CHECKSIG,
-	}
-	copy(s[4:24], x.SecpPubKeyHash160()[:])
-	return s, 0
-}
-
-func (x *xpubAddress) payRevokeCommitment() (script []byte, version uint16) {
-	s := []byte{
-		0:  txscript.OP_SSRTX,
-		1:  txscript.OP_DUP,
-		2:  txscript.OP_HASH160,
-		3:  txscript.OP_DATA_20,
-		24: txscript.OP_EQUALVERIFY,
-		25: txscript.OP_CHECKSIG,
-	}
-	copy(s[4:24], x.SecpPubKeyHash160()[:])
-	return s, 0
-}
-
-func (x *xpubAddress) SecpPubKey() []byte {
+func (x *xpubAddress) PubKey() []byte {
 	// All errors are unexpected, since the P2PKH address must have already
 	// been created from the same path.
 	branchKey, err := x.xpub.Child(x.branch)
@@ -177,30 +323,81 @@ func (x *xpubAddress) SecpPubKey() []byte {
 	return pubkey.SerializeCompressed()
 }
 
-func (x *xpubAddress) SecpPubKeyHash160() *[20]byte {
-	return x.Hash160()
-}
+func (x *xpubAddress) PubKeyHash() []byte { return x.Hash160()[:] }
 
-func (x *xpubAddress) SecpPubKeyHash(version uint16) ([]byte, error) {
-	switch version {
-	case 0:
-		return x.Hash160()[:], nil
-	default:
-		return nil, errors.New("unrecognized script version")
+func (x *xpubAddress) voteRights() (script []byte, version uint16) {
+	s := []byte{
+		0:  txscript.OP_SSTX,
+		1:  txscript.OP_DUP,
+		2:  txscript.OP_HASH160,
+		3:  txscript.OP_DATA_20,
+		24: txscript.OP_EQUALVERIFY,
+		25: txscript.OP_CHECKSIG,
 	}
+	copy(s[4:24], x.PubKeyHash())
+	return s, 0
 }
 
-func (x *xpubAddress) BIP44AccountXpubPath() (xpub *hdkeychain.ExtendedKey, branch, child uint32) {
-	return x.xpub, x.branch, x.child
+func (x *xpubAddress) ticketChange() (script []byte, version uint16) {
+	s := []byte{
+		0:  txscript.OP_SSTXCHANGE,
+		1:  txscript.OP_DUP,
+		2:  txscript.OP_HASH160,
+		3:  txscript.OP_DATA_20,
+		24: txscript.OP_EQUALVERIFY,
+		25: txscript.OP_CHECKSIG,
+	}
+	copy(s[4:24], x.PubKeyHash())
+	return s, 0
+}
+
+func (x *xpubAddress) rewardCommitment(amount dcrutil.Amount, limits uint16) ([]byte, uint16) {
+	s := make([]byte, 32)
+	s[0] = txscript.OP_RETURN
+	s[1] = txscript.OP_DATA_30
+	copy(s[2:22], x.PubKeyHash())
+	binary.LittleEndian.PutUint64(s[22:30], uint64(amount))
+	binary.LittleEndian.PutUint16(s[30:32], limits)
+	return s, 0
+}
+
+func (x *xpubAddress) payVoteCommitment() (script []byte, version uint16) {
+	s := []byte{
+		0:  txscript.OP_SSGEN,
+		1:  txscript.OP_DUP,
+		2:  txscript.OP_HASH160,
+		3:  txscript.OP_DATA_20,
+		24: txscript.OP_EQUALVERIFY,
+		25: txscript.OP_CHECKSIG,
+	}
+	copy(s[4:24], x.PubKeyHash())
+	return s, 0
+}
+
+func (x *xpubAddress) payRevokeCommitment() (script []byte, version uint16) {
+	s := []byte{
+		0:  txscript.OP_SSRTX,
+		1:  txscript.OP_DUP,
+		2:  txscript.OP_HASH160,
+		3:  txscript.OP_DATA_20,
+		24: txscript.OP_EQUALVERIFY,
+		25: txscript.OP_CHECKSIG,
+	}
+	copy(s[4:24], x.PubKeyHash())
+	return s, 0
 }
 
 // addressScript returns an output script paying to address.  This func is
 // always preferred over direct usage of txscript.PayToAddrScript due to the
 // latter failing on unexpected concrete types.
 func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err error) {
+	type scripter interface {
+		PaymentScript() (uint16, []byte)
+	}
 	switch addr := addr.(type) {
-	case V0Scripter:
-		return addr.ScriptV0(), 0, nil
+	case scripter:
+		vers, script := addr.PaymentScript()
+		return script, vers, nil
 	default:
 		pkScript, err = txscript.PayToAddrScript(addr)
 		return pkScript, 0, err
@@ -407,7 +604,8 @@ func (w *Wallet) deferPersistReturnedChild(ctx context.Context, updates *[]func(
 }
 
 // nextAddress returns the next address of an account branch.
-func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc, account, branch uint32,
+func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc,
+	accountName string, account, branch uint32,
 	callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
 
 	var opts nextAddressCallOptions // TODO: zero values for now, add to wallet config later.
@@ -489,12 +687,14 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 		// Write the returned child index to the database.
 		err = persist(account, branch, childIndex)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 		alb.cursor++
 		addr := &xpubAddress{
 			AddressPubKeyHash: apkh,
 			xpub:              ad.xpub,
+			account:           account,
+			accountName:       accountName,
 			branch:            branch,
 			child:             childIndex,
 		}
@@ -503,8 +703,9 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 	}
 }
 
-func (w *Wallet) nextImportedXpubAddress(ctx context.Context, op errors.Op, maybeDBTX walletdb.ReadWriteTx,
-	account uint32, branch uint32, callOpts ...NextAddressCallOption) (addr dcrutil.Address, err error) {
+func (w *Wallet) nextImportedXpubAddress(ctx context.Context, op errors.Op,
+	maybeDBTX walletdb.ReadWriteTx, accountName string, account uint32, branch uint32,
+	callOpts ...NextAddressCallOption) (addr dcrutil.Address, err error) {
 
 	dbtx := maybeDBTX
 	if dbtx == nil {
@@ -565,6 +766,7 @@ func (w *Wallet) nextImportedXpubAddress(ctx context.Context, op errors.Op, mayb
 	addr = &xpubAddress{
 		AddressPubKeyHash: apkh,
 		xpub:              xpub,
+		account:           account,
 		branch:            branch,
 		child:             child,
 	}
@@ -617,16 +819,23 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 // NewExternalAddress returns an external address.
 func (w *Wallet) NewExternalAddress(ctx context.Context, account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
 	const op errors.Op = "wallet.NewExternalAddress"
-	return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil), account, udb.ExternalBranch, callOpts...)
+
+	accountName, _ := w.AccountName(ctx, account)
+	return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil),
+		accountName, account, udb.ExternalBranch, callOpts...)
 }
 
 // NewInternalAddress returns an internal address.
 func (w *Wallet) NewInternalAddress(ctx context.Context, account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
 	const op errors.Op = "wallet.NewExternalAddress"
-	return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil), account, udb.InternalBranch, callOpts...)
+
+	accountName, _ := w.AccountName(ctx, account)
+	return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil),
+		accountName, account, udb.InternalBranch, callOpts...)
 }
 
-func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc, account uint32, gap gapPolicy) (dcrutil.Address, error) {
+func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc,
+	accountName string, account uint32, gap gapPolicy) (dcrutil.Address, error) {
 	// Addresses can not be generated for the imported account, so as a
 	// workaround, change is sent to the first account.
 	//
@@ -634,7 +843,7 @@ func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist per
 	if account == udb.ImportedAddrAccount {
 		account = udb.DefaultAccountNum
 	}
-	return w.nextAddress(ctx, op, persist, account, udb.InternalBranch, withGapPolicy(gap))
+	return w.nextAddress(ctx, op, persist, accountName, account, udb.InternalBranch, withGapPolicy(gap))
 }
 
 // NewChangeAddress returns an internal address.  This is identical to
@@ -643,7 +852,8 @@ func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist per
 // policy.
 func (w *Wallet) NewChangeAddress(ctx context.Context, account uint32) (dcrutil.Address, error) {
 	const op errors.Op = "wallet.NewChangeAddress"
-	return w.newChangeAddress(ctx, op, w.persistReturnedChild(ctx, nil), account, gapPolicyWrap)
+	accountName, _ := w.AccountName(ctx, account)
+	return w.newChangeAddress(ctx, op, w.persistReturnedChild(ctx, nil), accountName, account, gapPolicyWrap)
 }
 
 // BIP0044BranchNextIndexes returns the next external and internal branch child
@@ -781,7 +991,9 @@ type p2PKHChangeSource struct {
 }
 
 func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
-	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.persist, src.account, src.gapPolicy)
+	const accountName = "" // not returned, so can be faked.
+	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.persist,
+		accountName, src.account, src.gapPolicy)
 	if err != nil {
 		return nil, 0, err
 	}

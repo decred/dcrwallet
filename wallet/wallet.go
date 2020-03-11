@@ -1480,29 +1480,6 @@ func (w *Wallet) CurrentAddress(account uint32) (dcrutil.Address, error) {
 	return addr, nil
 }
 
-// PubKeyForAddress looks up the associated public key for a P2PKH address.
-func (w *Wallet) PubKeyForAddress(ctx context.Context, a dcrutil.Address) (*secp256k1.PublicKey, error) {
-	const op errors.Op = "wallet.PubKeyForAddress"
-	var pubKey *secp256k1.PublicKey
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		managedAddr, err := w.manager.Address(addrmgrNs, a)
-		if err != nil {
-			return err
-		}
-		managedPubKeyAddr, ok := managedAddr.(udb.ManagedPubKeyAddress)
-		if !ok {
-			return errors.New("address does not have an associated public key")
-		}
-		pubKey = managedPubKeyAddr.PubKey()
-		return nil
-	})
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	return pubKey, nil
-}
-
 // SignHashes returns signatures of signed transaction hashes using an
 // address' associated private key.
 func (w *Wallet) SignHashes(ctx context.Context, hashes [][]byte, addr dcrutil.Address) ([][]byte,
@@ -1611,38 +1588,6 @@ func (w *Wallet) HaveAddress(ctx context.Context, a dcrutil.Address) (bool, erro
 		return false, errors.E(op, err)
 	}
 	return true, nil
-}
-
-// AccountOfAddress finds the account that an address is associated with.
-func (w *Wallet) AccountOfAddress(ctx context.Context, a dcrutil.Address) (uint32, error) {
-	const op errors.Op = "wallet.AccountOfAddress"
-	var account uint32
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		var err error
-		account, err = w.manager.AddrAccount(addrmgrNs, a)
-		return err
-	})
-	if err != nil {
-		return 0, errors.E(op, err)
-	}
-	return account, nil
-}
-
-// AddressInfo returns detailed information regarding a wallet address.
-func (w *Wallet) AddressInfo(ctx context.Context, a dcrutil.Address) (udb.ManagedAddress, error) {
-	const op errors.Op = "wallet.AddressInfo"
-	var managedAddress udb.ManagedAddress
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		var err error
-		managedAddress, err = w.manager.Address(addrmgrNs, a)
-		return err
-	})
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	return managedAddress, nil
 }
 
 // AccountNumber returns the account number for an account name.
@@ -3216,27 +3161,6 @@ func (w *Wallet) ImportXpubAccount(ctx context.Context, name string, xpub *hdkey
 	}
 
 	return nil
-}
-
-// RedeemScriptCopy returns a copy of a redeem script to redeem outputs paid to
-// a P2SH address.
-func (w *Wallet) RedeemScriptCopy(ctx context.Context, addr dcrutil.Address) ([]byte, error) {
-	const op errors.Op = "wallet.RedeemScriptCopy"
-	var scriptCopy []byte
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		ns := tx.ReadBucket(waddrmgrNamespaceKey)
-		script, err := w.manager.RedeemScript(ns, addr)
-		if err != nil {
-			return err
-		}
-		scriptCopy = make([]byte, len(script))
-		copy(scriptCopy, script)
-		return nil
-	})
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	return scriptCopy, nil
 }
 
 // StakeInfoData carries counts of ticket states and other various stake data.

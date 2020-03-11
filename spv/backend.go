@@ -101,9 +101,12 @@ func (s *Syncer) LoadTxFilter(ctx context.Context, reload bool, addrs []dcrutil.
 	}
 	for _, addr := range addrs {
 		var pkScript []byte
+		type scripter interface {
+			PaymentScript() (uint16, []byte)
+		}
 		switch addr := addr.(type) {
-		case wallet.V0Scripter:
-			pkScript = addr.ScriptV0()
+		case scripter:
+			_, pkScript = addr.PaymentScript()
 		default:
 			pkScript, _ = txscript.PayToAddrScript(addr)
 		}

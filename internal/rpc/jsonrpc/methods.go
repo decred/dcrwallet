@@ -351,40 +351,45 @@ func (s *Server) accountSyncAddressIndex(ctx context.Context, icmd interface{}) 
 	return nil, w.SyncLastReturnedAddress(ctx, account, branch, index)
 }
 
-func makeMultiSigScript(ctx context.Context, w *wallet.Wallet, keys []string, nRequired int) ([]byte, error) {
-	keysesPrecious := make([]*dcrutil.AddressSecpPubKey, len(keys))
+// walletPubKeys decodes each encoded key or address to a public key.  If the
+// address is P2PKH, the wallet is queried for the public key.
+func walletPubKeys(ctx context.Context, w *wallet.Wallet, keys []string) ([]*dcrutil.AddressSecpPubKey, error) {
+	pubKeyAddrs := make([]*dcrutil.AddressSecpPubKey, len(keys))
 
-	// The address list will made up either of addreseses (pubkey hash), for
-	// which we need to look up the keys in wallet, straight pubkeys, or a
-	// mixture of the two.
-	for i, a := range keys {
-		// try to parse as pubkey address
-		a, err := decodeAddress(a, w.ChainParams())
+	for i, key := range keys {
+		addr, err := decodeAddress(key, w.ChainParams())
 		if err != nil {
 			return nil, err
 		}
-
-		switch addr := a.(type) {
+		switch addr := addr.(type) {
 		case *dcrutil.AddressSecpPubKey:
-			keysesPrecious[i] = addr
-		default:
-			pubKey, err := w.PubKeyForAddress(ctx, addr)
-			if err != nil {
-				if errors.Is(err, errors.NotExist) {
-					return nil, errAddressNotInWallet
-				}
-				return nil, err
-			}
-			pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(
-				pubKey.SerializeCompressed(), w.ChainParams())
-			if err != nil {
-				return nil, rpcError(dcrjson.ErrRPCInvalidAddressOrKey, err)
-			}
-			keysesPrecious[i] = pubKeyAddr
+			pubKeyAddrs[i] = addr
+			continue
 		}
+
+		a, err := w.KnownAddress(ctx, addr)
+		if err != nil {
+			if errors.Is(err, errors.NotExist) {
+				return nil, errAddressNotInWallet
+			}
+			return nil, err
+		}
+		var pubKey []byte
+		switch a := a.(type) {
+		case wallet.PubKeyHashAddress:
+			pubKey = a.PubKey()
+		default:
+			err = errors.New("address has no associated public key")
+			return nil, rpcError(dcrjson.ErrRPCInvalidAddressOrKey, err)
+		}
+		pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(pubKey, w.ChainParams())
+		if err != nil {
+			return nil, err
+		}
+		pubKeyAddrs[i] = pubKeyAddr
 	}
 
-	return txscript.MultiSigScript(keysesPrecious, nRequired)
+	return pubKeyAddrs, nil
 }
 
 // addMultiSigAddress handles an addmultisigaddress request by adding a
@@ -401,16 +406,11 @@ func (s *Server) addMultiSigAddress(ctx context.Context, icmd interface{}) (inte
 		return nil, errUnloadedWallet
 	}
 
-	secp256k1Addrs := make([]dcrutil.Address, len(cmd.Keys))
-	for i, k := range cmd.Keys {
-		addr, err := decodeAddress(k, w.ChainParams())
-		if err != nil {
-			return nil, err
-		}
-		secp256k1Addrs[i] = addr
+	pubKeyAddrs, err := walletPubKeys(ctx, w, cmd.Keys)
+	if err != nil {
+		return nil, err
 	}
-
-	script, err := w.MakeSecp256k1MultiSigScript(ctx, secp256k1Addrs, cmd.NRequired)
+	script, err := txscript.MultiSigScript(pubKeyAddrs, cmd.NRequired)
 	if err != nil {
 		return nil, err
 	}
@@ -491,12 +491,12 @@ func (s *Server) auditReuse(ctx context.Context, icmd interface{}) (interface{},
 				if err != nil {
 					return false, err
 				}
-				_, err = w.AddressInfo(ctx, addr)
-				if errors.Is(err, errors.NotExist) {
-					continue
-				}
+				have, err := w.HaveAddress(ctx, addr)
 				if err != nil {
 					return false, err
+				}
+				if !have {
+					continue
 				}
 				s := addr.String()
 				outpoints := reuse[s]
@@ -576,7 +576,11 @@ func (s *Server) createMultiSig(ctx context.Context, icmd interface{}) (interfac
 		return nil, errUnloadedWallet
 	}
 
-	script, err := makeMultiSigScript(ctx, w, cmd.Keys, cmd.NRequired)
+	pubKeyAddrs, err := walletPubKeys(ctx, w, cmd.Keys)
+	if err != nil {
+		return nil, err
+	}
+	script, err := txscript.MultiSigScript(pubKeyAddrs, cmd.NRequired)
 	if err != nil {
 		return nil, err
 	}
@@ -1188,8 +1192,7 @@ func (s *Server) getAccount(ctx context.Context, icmd interface{}) (interface{},
 		return nil, err
 	}
 
-	// Fetch the associated account
-	account, err := w.AccountOfAddress(ctx, addr)
+	a, err := w.KnownAddress(ctx, addr)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
 			return nil, errAddressNotInWallet
@@ -1197,11 +1200,7 @@ func (s *Server) getAccount(ctx context.Context, icmd interface{}) (interface{},
 		return nil, err
 	}
 
-	acctName, err := w.AccountName(ctx, account)
-	if err != nil {
-		return nil, err
-	}
-	return acctName, nil
+	return a.AccountName(), nil
 }
 
 // getAccountAddress handles a getaccountaddress by returning the most
@@ -2483,9 +2482,13 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 }
 
 func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err error) {
+	type scripter interface {
+		PaymentScript() (uint16, []byte)
+	}
 	switch addr := addr.(type) {
-	case wallet.V0Scripter:
-		return addr.ScriptV0(), 0, nil
+	case scripter:
+		version, script := addr.PaymentScript()
+		return script, version, nil
 	default:
 		pkScript, err = txscript.PayToAddrScript(addr)
 		return pkScript, 0, err
@@ -3002,40 +3005,14 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 	}
 	nrequired := int8(*cmd.NRequired)
 	minconf := int32(*cmd.MinConf)
-	pubkeys := make([]*dcrutil.AddressSecpPubKey, len(cmd.Pubkeys))
 
-	// The address list will made up either of addreseses (pubkey hash), for
-	// which we need to look up the keys in wallet, straight pubkeys, or a
-	// mixture of the two.
-	for i, a := range cmd.Pubkeys {
-		// Try to parse as pubkey address.
-		a, err := decodeAddress(a, w.ChainParams())
-		if err != nil {
-			return nil, err
-		}
-
-		switch addr := a.(type) {
-		case *dcrutil.AddressSecpPubKey:
-			pubkeys[i] = addr
-		default:
-			pubKey, err := w.PubKeyForAddress(ctx, addr)
-			if err != nil {
-				if errors.Is(err, errors.NotExist) {
-					return nil, errAddressNotInWallet
-				}
-				return nil, err
-			}
-			pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(
-				pubKey.SerializeCompressed(), w.ChainParams())
-			if err != nil {
-				return nil, err
-			}
-			pubkeys[i] = pubKeyAddr
-		}
+	pubKeyAddrs, err := walletPubKeys(ctx, w, cmd.Pubkeys)
+	if err != nil {
+		return nil, err
 	}
 
 	tx, addr, script, err :=
-		w.CreateMultisigTx(ctx, account, amount, pubkeys, nrequired, minconf)
+		w.CreateMultisigTx(ctx, account, amount, pubKeyAddrs, nrequired, minconf)
 	if err != nil {
 		return nil, err
 	}
@@ -3438,22 +3415,14 @@ func makeScriptChangeSource(address string, version uint16, params *chaincfg.Par
 	if err != nil {
 		return nil, err
 	}
-
-	var script []byte
-	if addr, ok := destinationAddress.(wallet.V0Scripter); ok && version == 0 {
-		script = addr.ScriptV0()
-	} else {
-		script, err = txscript.PayToAddrScript(destinationAddress)
-		if err != nil {
-			return nil, err
-		}
+	script, version, err := addressScript(destinationAddress)
+	if err != nil {
+		return nil, err
 	}
-
 	source := &scriptChangeSource{
 		version: version,
 		script:  script,
 	}
-
 	return source, nil
 }
 
@@ -3551,7 +3520,7 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 	result.Address = addr.Address()
 	result.IsValid = true
 
-	ainfo, err := w.AddressInfo(ctx, addr)
+	ka, err := w.KnownAddress(ctx, addr)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
 			// No additional information available about the address.
@@ -3563,39 +3532,21 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 	// The address lookup was successful which means there is further
 	// information about it available and it is "mine".
 	result.IsMine = true
-	acctName, err := w.AccountName(ctx, ainfo.Account())
-	if err != nil {
-		return nil, err
-	}
-	result.Account = acctName
+	result.Account = ka.AccountName()
 
-	switch ma := ainfo.(type) {
-	case udb.ManagedPubKeyAddress:
-		result.IsCompressed = ma.Compressed()
-		result.PubKey = ma.ExportPubKey()
-		pubKeyBytes, err := hex.DecodeString(result.PubKey)
-		if err != nil {
-			return nil, err
-		}
-		pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(pubKeyBytes,
-			w.ChainParams())
+	switch ka := ka.(type) {
+	case wallet.PubKeyHashAddress:
+		result.IsCompressed = true
+		pubKey := ka.PubKey()
+		result.PubKey = hex.EncodeToString(pubKey)
+		pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(pubKey, w.ChainParams())
 		if err != nil {
 			return nil, err
 		}
 		result.PubKeyAddr = pubKeyAddr.String()
-
-	case udb.ManagedScriptAddress:
+	case wallet.P2SHAddress:
 		result.IsScript = true
-
-		// The script is only available if the manager is unlocked, so
-		// just break out now if there is an error.
-		script, err := w.RedeemScriptCopy(ctx, addr)
-		if err != nil {
-			if errors.Is(err, errors.Locked) {
-				break
-			}
-			return nil, err
-		}
+		script, _ := ka.RedeemScript()
 		result.Hex = hex.EncodeToString(script)
 
 		// This typically shouldn't fail unless an invalid script was

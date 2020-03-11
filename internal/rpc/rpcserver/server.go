@@ -489,8 +489,9 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	}
 
 	var pubKeyAddrString string
-	if secp, ok := addr.(wallet.SecpPubKeyer); ok {
-		pubKey := secp.SecpPubKey()
+	switch addr := addr.(type) {
+	case wallet.PubKeyHashAddress:
+		pubKey := addr.PubKey()
 		pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(pubKey, s.wallet.ChainParams())
 		if err != nil {
 			return nil, translateError(err)
@@ -686,9 +687,13 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 }
 
 func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err error) {
+	type scripter interface {
+		PaymentScript() (uint16, []byte)
+	}
 	switch addr := addr.(type) {
-	case wallet.V0Scripter:
-		return addr.ScriptV0(), 0, nil
+	case scripter:
+		version, script := addr.PaymentScript()
+		return script, version, nil
 	default:
 		pkScript, err = txscript.PayToAddrScript(addr)
 		return pkScript, 0, err
@@ -715,22 +720,14 @@ func makeScriptChangeSource(address string, version uint16, params *chaincfg.Par
 	if err != nil {
 		return nil, err
 	}
-
-	var script []byte
-	if addr, ok := destinationAddress.(wallet.V0Scripter); ok && version == 0 {
-		script = addr.ScriptV0()
-	} else {
-		script, err = txscript.PayToAddrScript(destinationAddress)
-		if err != nil {
-			return nil, err
-		}
+	script, version, err := addressScript(destinationAddress)
+	if err != nil {
+		return nil, err
 	}
-
 	source := &scriptChangeSource{
 		version: version,
 		script:  script,
 	}
-
 	return source, nil
 }
 
@@ -1830,7 +1827,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 	}
 
 	result.IsValid = true
-	addrInfo, err := s.wallet.AddressInfo(ctx, addr)
+	ka, err := s.wallet.KnownAddress(ctx, addr)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
 			// No additional information available about the address.
@@ -1838,42 +1835,28 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 		}
 		return nil, err
 	}
+	acct, err := s.wallet.AccountNumber(ctx, ka.AccountName())
+	if err != nil {
+		return nil, err
+	}
 
 	// The address lookup was successful which means there is further
 	// information about it available and it is "mine".
 	result.IsMine = true
-	acctName, err := s.wallet.AccountName(ctx, addrInfo.Account())
-	if err != nil {
-		return nil, translateError(err)
-	}
+	result.AccountNumber = acct
 
-	acctNumber, err := s.wallet.AccountNumber(ctx, acctName)
-	if err != nil {
-		return nil, err
-	}
-	result.AccountNumber = acctNumber
-
-	switch ma := addrInfo.(type) {
-	case udb.ManagedPubKeyAddress:
-		result.PubKey = ma.PubKey().SerializeCompressed()
+	switch ka := ka.(type) {
+	case wallet.PubKeyHashAddress:
+		result.PubKey = ka.PubKey()
 		pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(result.PubKey,
 			s.wallet.ChainParams())
 		if err != nil {
 			return nil, err
 		}
 		result.PubKeyAddr = pubKeyAddr.String()
-		result.IsInternal = ma.Internal()
-		result.Index = ma.Index()
-
-	case udb.ManagedScriptAddress:
+	case wallet.P2SHAddress:
 		result.IsScript = true
-
-		// The script is only available if the manager is unlocked, so
-		// just break out now if there is an error.
-		script, err := s.wallet.RedeemScriptCopy(ctx, addr)
-		if err != nil {
-			break
-		}
+		_, script := ka.PaymentScript()
 		result.PayToAddrScript = script
 
 		// This typically shouldn't fail unless an invalid script was
@@ -1899,6 +1882,13 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 		if class == txscript.MultiSigTy {
 			result.SigsRequired = uint32(reqSigs)
 		}
+	}
+
+	switch ka := ka.(type) {
+	case wallet.BIP0044Address:
+		_, branch, child := ka.Path()
+		result.IsInternal = branch == 1
+		result.Index = child
 	}
 
 	return result, nil
