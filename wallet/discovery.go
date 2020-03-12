@@ -449,11 +449,7 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blo
 			if err != nil {
 				return 0, err
 			}
-			xpub, err := xpriv.Neuter()
-			if err != nil {
-				xpriv.Zero()
-				return 0, err
-			}
+			xpub := xpriv.Neuter()
 			extKey, intKey, err := deriveBranches(xpub)
 			if err != nil {
 				xpriv.Zero()
@@ -591,11 +587,7 @@ Bsearch:
 			if err != nil {
 				return 0, err
 			}
-			xpub, err := xpriv.Neuter()
-			if err != nil {
-				xpriv.Zero()
-				return 0, err
-			}
+			xpub := xpriv.Neuter()
 			wg.Add(1)
 			go func() {
 				used, err := f.accountUsed(ctx, xpub)

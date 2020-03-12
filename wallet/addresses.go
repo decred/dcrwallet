@@ -153,7 +153,7 @@ type managedP2PKHAddress struct {
 }
 
 func (m *managedP2PKHAddress) PubKey() []byte {
-	return m.addr.(udb.ManagedPubKeyAddress).PubKey().SerializeCompressed()
+	return m.addr.(udb.ManagedPubKeyAddress).PubKey()
 }
 func (m *managedP2PKHAddress) PubKeyHash() []byte {
 	return m.addr.(udb.ManagedPubKeyAddress).AddrHash()
@@ -316,11 +316,7 @@ func (x *xpubAddress) PubKey() []byte {
 	if err != nil {
 		panic(err)
 	}
-	pubkey, err := childKey.ECPubKey()
-	if err != nil {
-		panic(err)
-	}
-	return pubkey.SerializeCompressed()
+	return childKey.SerializedPubKey()
 }
 
 func (x *xpubAddress) PubKeyHash() []byte { return x.Hash160()[:] }
@@ -753,11 +749,7 @@ func (w *Wallet) nextImportedXpubAddress(ctx context.Context, op errors.Op,
 		}
 		break
 	}
-	pk, err := childKey.ECPubKey()
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	pkh := dcrutil.Hash160(pk.SerializeCompressed())
+	pkh := dcrutil.Hash160(childKey.SerializedPubKey())
 	apkh, err := dcrutil.NewAddressPubKeyHash(pkh, w.chainParams,
 		dcrec.STEcdsaSecp256k1)
 	if err != nil {

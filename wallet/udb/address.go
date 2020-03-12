@@ -6,12 +6,8 @@
 package udb
 
 import (
-	"encoding/hex"
-
 	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrec/secp256k1/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/hdkeychain/v3"
 )
 
 // ManagedAddress is an interface that provides acces to information regarding
@@ -39,9 +35,6 @@ type ManagedAddress interface {
 	// Multisig returns true if the backing address was created for multisig
 	// use.
 	Multisig() bool
-
-	// Compressed returns true if the backing address is compressed.
-	Compressed() bool
 }
 
 // ManagedPubKeyAddress extends ManagedAddress and additionally provides the
@@ -50,11 +43,7 @@ type ManagedPubKeyAddress interface {
 	ManagedAddress
 
 	// PubKey returns the public key associated with the address.
-	PubKey() *secp256k1.PublicKey
-
-	// ExportPubKey returns the public key associated with the address
-	// serialized as a hex encoded string.
-	ExportPubKey() string
+	PubKey() []byte
 
 	// Index returns the child number used to derive this public key address
 	Index() uint32
@@ -72,15 +61,14 @@ type ManagedScriptAddress interface {
 // managedAddress represents a public key address.  It also may or may not have
 // the private key associated with the public key.
 type managedAddress struct {
-	manager    *Manager
-	account    uint32
-	address    *dcrutil.AddressPubKeyHash
-	imported   bool
-	internal   bool
-	multisig   bool
-	compressed bool
-	pubKey     *secp256k1.PublicKey
-	index      uint32
+	manager  *Manager
+	account  uint32
+	address  *dcrutil.AddressPubKeyHash
+	imported bool
+	internal bool
+	multisig bool
+	pubKey   []byte
+	index    uint32
 }
 
 // Enforce managedAddress satisfies the ManagedPubKeyAddress interface.
@@ -131,17 +119,10 @@ func (a *managedAddress) Multisig() bool {
 	return a.multisig
 }
 
-// Compressed returns true if the address is compressed.
-//
-// This is part of the ManagedAddress interface implementation.
-func (a *managedAddress) Compressed() bool {
-	return a.compressed
-}
-
 // PubKey returns the public key associated with the address.
 //
 // This is part of the ManagedPubKeyAddress interface implementation.
-func (a *managedAddress) PubKey() *secp256k1.PublicKey {
+func (a *managedAddress) PubKey() []byte {
 	return a.pubKey
 }
 
@@ -152,34 +133,12 @@ func (a *managedAddress) Index() uint32 {
 	return a.index
 }
 
-// pubKeyBytes returns the serialized public key bytes for the managed address
-// based on whether or not the managed address is marked as compressed.
-func (a *managedAddress) pubKeyBytes() []byte {
-	if a.compressed {
-		return a.pubKey.SerializeCompressed()
-	}
-	return a.pubKey.SerializeUncompressed()
-}
-
-// ExportPubKey returns the public key associated with the address
-// serialized as a hex encoded string.
-//
-// This is part of the ManagedPubKeyAddress interface implementation.
-func (a *managedAddress) ExportPubKey() string {
-	return hex.EncodeToString(a.pubKeyBytes())
-}
-
 // newManagedAddressWithoutPrivKey returns a new managed address based on the
 // passed account, public key, and whether or not the public key should be
 // compressed.
-func newManagedAddressWithoutPrivKey(m *Manager, account uint32, pubKey *secp256k1.PublicKey, compressed bool) (*managedAddress, error) {
+func newManagedAddressWithoutPrivKey(m *Manager, account uint32, pubKey []byte) (*managedAddress, error) {
 	// Create a pay-to-pubkey-hash address from the public key.
-	var pubKeyHash []byte
-	if compressed {
-		pubKeyHash = dcrutil.Hash160(pubKey.SerializeCompressed())
-	} else {
-		pubKeyHash = dcrutil.Hash160(pubKey.SerializeUncompressed())
-	}
+	pubKeyHash := dcrutil.Hash160(pubKey)
 	address, err := dcrutil.NewAddressPubKeyHash(pubKeyHash, m.chainParams,
 		dcrec.STEcdsaSecp256k1)
 	if err != nil {
@@ -187,28 +146,14 @@ func newManagedAddressWithoutPrivKey(m *Manager, account uint32, pubKey *secp256
 	}
 
 	return &managedAddress{
-		manager:    m,
-		address:    address,
-		account:    account,
-		imported:   false,
-		internal:   false,
-		multisig:   false,
-		compressed: compressed,
-		pubKey:     pubKey,
+		manager:  m,
+		address:  address,
+		account:  account,
+		imported: false,
+		internal: false,
+		multisig: false,
+		pubKey:   pubKey,
 	}, nil
-}
-
-// newManagedAddressFromExtKey returns a new managed address based on the passed
-// account and extended key.  The managed address will have access to the
-// private and public keys if the provided extended key is private, otherwise it
-// will only have access to the public key.
-func newManagedAddressFromExtKey(m *Manager, account uint32, key *hdkeychain.ExtendedKey) (*managedAddress, error) {
-	pubKey, err := key.ECPubKey()
-	if err != nil {
-		return nil, err
-	}
-
-	return newManagedAddressWithoutPrivKey(m, account, pubKey, true)
 }
 
 // scriptAddress represents a pay-to-script-hash address.
@@ -268,13 +213,6 @@ func (a *scriptAddress) Internal() bool {
 //
 // This is part of the ManagedAddress interface implementation.
 func (a *scriptAddress) Multisig() bool {
-	return false
-}
-
-// Compressed returns false since script addresses are never compressed.
-//
-// This is part of the ManagedAddress interface implementation.
-func (a *scriptAddress) Compressed() bool {
 	return false
 }
 

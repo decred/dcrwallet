@@ -102,11 +102,7 @@ func createWallet(ctx context.Context, cfg *config) error {
 		if err != nil {
 			return err
 		}
-		pk, err := child.ECPubKey()
-		if err != nil {
-			return err
-		}
-		pkh := dcrutil.Hash160(pk.SerializeCompressed())
+		pkh := dcrutil.Hash160(child.SerializedPubKey())
 		addr, err := dcrutil.NewAddressPubKeyHash(pkh, chaincfg.SimNetParams(), dcrec.STEcdsaSecp256k1)
 		if err != nil {
 			return err

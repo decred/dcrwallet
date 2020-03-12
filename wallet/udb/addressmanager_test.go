@@ -8,7 +8,6 @@ package udb
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -65,26 +64,11 @@ func testNamePrefix(tc *testContext) string {
 // fields in the provided expected address.
 func testManagedPubKeyAddress(tc *testContext, prefix string, gotAddr ManagedPubKeyAddress, wantAddr *expectedAddr) bool {
 	// Ensure pubkey is the expected value for the managed address.
-	var gpubBytes []byte
-	if gotAddr.Compressed() {
-		gpubBytes = gotAddr.PubKey().SerializeCompressed()
-	} else {
-		gpubBytes = gotAddr.PubKey().SerializeUncompressed()
-	}
+	gpubBytes := gotAddr.PubKey()
 
 	if !bytes.Equal(gpubBytes, wantAddr.pubKey) {
 		tc.t.Errorf("%s PubKey: unexpected public key - got %x, want "+
 			"%x", prefix, gpubBytes, wantAddr.pubKey)
-		return false
-	}
-
-	// Ensure exported pubkey string is the expected value for the managed
-	// address.
-	gpubHex := gotAddr.ExportPubKey()
-	wantPubHex := hex.EncodeToString(wantAddr.pubKey)
-	if gpubHex != wantPubHex {
-		tc.t.Errorf("%s ExportPubKey: unexpected public key - got %s, "+
-			"want %s", prefix, gpubHex, wantPubHex)
 		return false
 	}
 
@@ -133,13 +117,6 @@ func testAddress(tc *testContext, prefix string, gotAddr ManagedAddress, wantAdd
 	if gotAddr.Internal() != wantAddr.internal {
 		tc.t.Errorf("%s Internal: unexpected internal flag - got %v, "+
 			"want %v", prefix, gotAddr.Internal(), wantAddr.internal)
-		return false
-	}
-
-	if gotAddr.Compressed() != wantAddr.compressed {
-		tc.t.Errorf("%s Compressed: unexpected compressed flag - got "+
-			"%v, want %v", prefix, gotAddr.Compressed(),
-			wantAddr.compressed)
 		return false
 	}
 

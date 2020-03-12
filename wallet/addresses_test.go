@@ -167,11 +167,18 @@ func setupWallet(t *testing.T, cfg *Config) (*Wallet, walletdb.DB, func()) {
 
 type newAddressFunc func(*Wallet, context.Context, uint32, ...NextAddressCallOption) (dcrutil.Address, error)
 
-func testKnownAddresses(tc *testContext, prefix string, newAddr newAddressFunc, tests []expectedAddr) {
+func testKnownAddresses(tc *testContext, prefix string, unlock bool, newAddr newAddressFunc, tests []expectedAddr) {
 	w, db, teardown := setupWallet(tc.t, &walletConfig)
 	defer teardown()
 
 	ctx := context.Background()
+
+	if unlock {
+		err := w.Unlock(ctx, privPassphrase, nil)
+		if err != nil {
+			tc.t.Fatal(err)
+		}
+	}
 
 	if tc.watchingOnly {
 		err := walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
@@ -228,29 +235,34 @@ func testKnownAddresses(tc *testContext, prefix string, newAddr newAddressFunc, 
 }
 
 func TestAddresses(t *testing.T) {
+	testAddresses(t, false)
+	testAddresses(t, true)
+}
+
+func testAddresses(t *testing.T, unlock bool) {
 	testKnownAddresses(&testContext{
 		t:            t,
 		account:      defaultAccount,
 		watchingOnly: false,
-	}, "testInternalAddresses", (*Wallet).NewInternalAddress, expectedInternalAddrs)
+	}, "testInternalAddresses", unlock, (*Wallet).NewInternalAddress, expectedInternalAddrs)
 
 	testKnownAddresses(&testContext{
 		t:            t,
 		account:      defaultAccount,
 		watchingOnly: true,
-	}, "testInternalAddresses", (*Wallet).NewInternalAddress, expectedInternalAddrs)
+	}, "testInternalAddresses", unlock, (*Wallet).NewInternalAddress, expectedInternalAddrs)
 
 	testKnownAddresses(&testContext{
 		t:            t,
 		account:      defaultAccount,
 		watchingOnly: false,
-	}, "testExternalAddresses", (*Wallet).NewExternalAddress, expectedExternalAddrs)
+	}, "testExternalAddresses", unlock, (*Wallet).NewExternalAddress, expectedExternalAddrs)
 
 	testKnownAddresses(&testContext{
 		t:            t,
 		account:      defaultAccount,
 		watchingOnly: true,
-	}, "testExternalAddresses", (*Wallet).NewExternalAddress, expectedExternalAddrs)
+	}, "testExternalAddresses", unlock, (*Wallet).NewExternalAddress, expectedExternalAddrs)
 }
 
 func TestAccountIndexes(t *testing.T) {

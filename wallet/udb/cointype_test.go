@@ -93,18 +93,12 @@ func TestCoinTypeUpgrade(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	slip0044Account0ExtKey, err = slip0044Account0ExtKey.Neuter()
-	if err != nil {
-		t.Fatal(err)
-	}
+	slip0044Account0ExtKey = slip0044Account0ExtKey.Neuter()
 	slip0044Account1ExtKey, err := deriveAccountKey(slip0044CoinTypeExtKey, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	slip0044Account1ExtKey, err = slip0044Account1ExtKey.Neuter()
-	if err != nil {
-		t.Fatal(err)
-	}
+	slip0044Account1ExtKey = slip0044Account1ExtKey.Neuter()
 	slip0044Account0Address0, err := deriveChildAddress(slip0044Account0ExtKey, 0, 0, params)
 	if err != nil {
 		t.Fatal(err)

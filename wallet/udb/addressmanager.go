@@ -9,7 +9,6 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"fmt"
-	"math/big"
 	"sync"
 
 	"decred.org/dcrwallet/errors"
@@ -297,14 +296,6 @@ func zero(b []byte) {
 	}
 }
 
-func zeroBigInt(x *big.Int) {
-	b := x.Bits()
-	for i := range b {
-		b[i] = 0
-	}
-	x.SetInt64(0)
-}
-
 // lock performs a best try effort to remove and zero all secret keys associated
 // with the address manager.
 //
@@ -321,7 +312,7 @@ func (m *Manager) lock() {
 	// Remove clear text private keys from all address entries.
 	m.returnedSecretsMu.Lock()
 	for _, privKey := range m.returnedPrivKeys {
-		zeroBigInt(privKey.D)
+		privKey.Zero()
 	}
 	m.returnedPrivKeys = nil
 	m.returnedSecretsMu.Unlock()
@@ -380,18 +371,12 @@ func (m *Manager) Close() error {
 	return nil
 }
 
-// keyToManaged returns a new managed address for the provided derived key and
-// its derivation path which consists of the account, branch, and index.
-//
-// The passed derivedKey is zeroed after the new address is created.
+// keyToManaged returns a new managed address for a public key and its BIP0044
+// derivation path from the coin type key.
 //
 // This function MUST be called with the manager lock held for writes.
-func (m *Manager) keyToManaged(derivedKey *hdkeychain.ExtendedKey, account, branch, index uint32) (ManagedAddress, error) {
-	// Create a new managed address based on the public or private key
-	// depending on whether the passed key is private.  Also, zero the
-	// key after creating the managed address from it.
-	ma, err := newManagedAddressFromExtKey(m, account, derivedKey)
-	defer derivedKey.Zero()
+func (m *Manager) keyToManaged(pubKey []byte, account, branch, index uint32) (ManagedAddress, error) {
+	ma, err := newManagedAddressWithoutPrivKey(m, account, pubKey)
 	if err != nil {
 		return nil, err
 	}
@@ -824,7 +809,16 @@ func (m *Manager) chainAddressRowToManaged(ns walletdb.ReadBucket, row *dbChainA
 		return nil, err
 	}
 
-	return m.keyToManaged(addressKey, row.account, row.branch, row.index)
+	// Create serialized pubkey.  Zero the extended key only if it is
+	// private.  A public key copy must be made if the extended key is
+	// private, otherwise it may be unintentionally zeroed as well.
+	pubKey := addressKey.SerializedPubKey()
+	if addressKey.IsPrivate() {
+		defer addressKey.Zero()
+		pubKey = append(pubKey[:0:0], pubKey...)
+	}
+
+	return m.keyToManaged(pubKey, row.account, row.branch, row.index)
 }
 
 // importedAddressRowToManaged returns a new managed address based on imported
@@ -836,14 +830,7 @@ func (m *Manager) importedAddressRowToManaged(row *dbImportedAddressRow) (Manage
 		return nil, errors.E(errors.Crypto, errors.Errorf("decrypt imported pubkey: %v", err))
 	}
 
-	pubKey, err := secp256k1.ParsePubKey(pubBytes)
-	if err != nil {
-		return nil, errors.E(errors.IO, err)
-	}
-
-	compressed := len(pubBytes) == secp256k1.PubKeyBytesLenCompressed
-	ma, err := newManagedAddressWithoutPrivKey(m, row.account, pubKey,
-		compressed)
+	ma, err := newManagedAddressWithoutPrivKey(m, row.account, pubBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -1108,7 +1095,7 @@ func (m *Manager) ConvertToWatchingOnly(ns walletdb.ReadWriteBucket) error {
 	// Clear and remove encrypted private keys from all address entries.
 	m.returnedSecretsMu.Lock()
 	for _, privKey := range m.returnedPrivKeys {
-		zeroBigInt(privKey.D)
+		privKey.Zero()
 	}
 	m.returnedPrivKeys = nil
 	m.returnedSecretsMu.Unlock()
@@ -1193,12 +1180,8 @@ func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF
 	}
 
 	// Create a new managed address based on the imported address.
-	pub, err := secp256k1.ParsePubKey(serializedPubKey)
-	if err != nil {
-		return nil, err
-	}
 	managedAddr, err := newManagedAddressWithoutPrivKey(m, ImportedAddrAccount,
-		pub, true)
+		serializedPubKey)
 	if err != nil {
 		return nil, err
 	}
@@ -1736,10 +1719,7 @@ func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, 
 	if err != nil {
 		return 0, err
 	}
-	acctKeyPub, err := acctKeyPriv.Neuter()
-	if err != nil {
-		return 0, err
-	}
+	acctKeyPub := acctKeyPriv.Neuter()
 	// Encrypt the default account keys with the associated crypto keys.
 	apes := acctKeyPub.String()
 	acctPubEnc, err := m.cryptoKeyPub.Encrypt([]byte(apes))
@@ -1931,13 +1911,12 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 		if err != nil {
 			return nil, nil, err
 		}
-		key, err = xpriv.ECPrivKey()
-		// hdkeychain.ExtendedKey.ECPrivKey creates a copy of the private key,
-		// and therefore the extended private key should be zeroed.
-		xpriv.Zero()
+		serializedPriv, err := xpriv.SerializedPrivKey()
 		if err != nil {
 			return nil, nil, err
 		}
+		key = secp256k1.PrivKeyFromBytes(serializedPriv)
+		zero(serializedPriv)
 
 	case *dbImportedAddressRow:
 		privKeyBytes, err := m.cryptoKeyPriv.Decrypt(a.encryptedPrivKey)
@@ -2066,15 +2045,15 @@ func newManager(chainParams *chaincfg.Params, masterKeyPub *snacl.SecretKey,
 	cryptoKeyPrivEncrypted []byte, privPassphraseSalt [saltSize]byte) *Manager {
 
 	return &Manager{
-		chainParams:              chainParams,
-		locked:                   true,
-		acctInfo:                 make(map[uint32]*accountInfo),
-		masterKeyPub:             masterKeyPub,
-		masterKeyPriv:            masterKeyPriv,
-		cryptoKeyPub:             cryptoKeyPub,
-		cryptoKeyPrivEncrypted:   cryptoKeyPrivEncrypted,
-		cryptoKeyPriv:            &cryptoKey{},
-		privPassphraseSalt:       privPassphraseSalt,
+		chainParams:            chainParams,
+		locked:                 true,
+		acctInfo:               make(map[uint32]*accountInfo),
+		masterKeyPub:           masterKeyPub,
+		masterKeyPriv:          masterKeyPriv,
+		cryptoKeyPub:           cryptoKeyPub,
+		cryptoKeyPrivEncrypted: cryptoKeyPrivEncrypted,
+		cryptoKeyPriv:          &cryptoKey{},
+		privPassphraseSalt:     privPassphraseSalt,
 	}
 }
 
@@ -2210,7 +2189,7 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte, chainParams *chai
 	// the defaults for the additional fields which are not specified in the
 	// call to new with the values loaded from the database.
 	mgr := newManager(chainParams, &masterKeyPub, &masterKeyPriv,
-		cryptoKeyPub, cryptoKeyPrivEnc,	privPassphraseSalt)
+		cryptoKeyPub, cryptoKeyPrivEnc, privPassphraseSalt)
 	mgr.watchingOnly = watchingOnly
 	return mgr, nil
 }
@@ -2316,14 +2295,8 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 	}
 
 	// The address manager needs the public extended key for the account.
-	acctKeyLegacyPub, err := acctKeyLegacyPriv.Neuter()
-	if err != nil {
-		return err
-	}
-	acctKeySLIP0044Pub, err := acctKeySLIP0044Priv.Neuter()
-	if err != nil {
-		return err
-	}
+	acctKeyLegacyPub := acctKeyLegacyPriv.Neuter()
+	acctKeySLIP0044Pub := acctKeySLIP0044Priv.Neuter()
 
 	// Generate new master keys.  These master keys are used to protect the
 	// crypto keys that will be generated next.
@@ -2371,10 +2344,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 	}
 
 	// Encrypt the legacy cointype keys with the associated crypto keys.
-	coinTypeLegacyKeyPub, err := coinTypeLegacyKeyPriv.Neuter()
-	if err != nil {
-		return err
-	}
+	coinTypeLegacyKeyPub := coinTypeLegacyKeyPriv.Neuter()
 	ctpes := coinTypeLegacyKeyPub.String()
 	coinTypeLegacyPubEnc, err := cryptoKeyPub.Encrypt([]byte(ctpes))
 	if err != nil {
@@ -2387,10 +2357,7 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 	}
 
 	// Encrypt the SLIP0044 cointype keys with the associated crypto keys.
-	coinTypeSLIP0044KeyPub, err := coinTypeSLIP0044KeyPriv.Neuter()
-	if err != nil {
-		return err
-	}
+	coinTypeSLIP0044KeyPub := coinTypeSLIP0044KeyPriv.Neuter()
 	ctpes = coinTypeSLIP0044KeyPub.String()
 	coinTypeSLIP0044PubEnc, err := cryptoKeyPub.Encrypt([]byte(ctpes))
 	if err != nil {

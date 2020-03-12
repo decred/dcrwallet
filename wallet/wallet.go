@@ -1535,10 +1535,7 @@ func (w *Wallet) SignMessage(ctx context.Context, msg string, addr dcrutil.Addre
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	sig, err = secp256k1.SignCompact(privKey, messageHash, true)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
+	sig = secp256k1.SignCompact(privKey, messageHash, true)
 	return sig, nil
 }
 
