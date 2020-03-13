@@ -24,10 +24,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/connmgr/v3"
-	"github.com/decred/dcrd/gcs"
-	"github.com/decred/dcrd/gcs/blockcf"
-	gcs2 "github.com/decred/dcrd/gcs/v2"
-	"github.com/decred/dcrd/gcs/v2/blockcf2"
+	"github.com/decred/dcrd/gcs/v2"
+	blockcf "github.com/decred/dcrd/gcs/v2/blockcf2"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
 )
@@ -1244,94 +1242,13 @@ func (rp *RemotePeer) Transactions(ctx context.Context, hashes []*chainhash.Hash
 	return txs, nil
 }
 
-// CFilter requests a regular compact filter from a RemotePeer using getcfilter.
-// The same block can not be requested concurrently from the same peer.
-//
-// Deprecated: Prefer using CFilterV2 as that information is comitted to in the
-// header.
-func (rp *RemotePeer) CFilter(ctx context.Context, blockHash *chainhash.Hash) (*gcs.Filter, error) {
-	const opf = "remotepeer(%v).CFilter(%v)"
-
-	m := wire.NewMsgGetCFilter(blockHash, wire.GCSFilterRegular)
-	c := make(chan *wire.MsgCFilter, 1)
-	if !rp.addRequestedCFilter(blockHash, c) {
-		op := errors.Opf(opf, rp.raddr, blockHash)
-		return nil, errors.E(op, errors.Invalid, "cfilter is already being requested from this peer for this block")
-	}
-	stalled := time.NewTimer(stallTimeout)
-	out := rp.out
-	for {
-		select {
-		case <-ctx.Done():
-			go func() {
-				<-stalled.C
-				rp.deleteRequestedCFilter(blockHash)
-			}()
-			return nil, ctx.Err()
-		case <-stalled.C:
-			rp.deleteRequestedCFilter(blockHash)
-			op := errors.Opf(opf, rp.raddr, blockHash)
-			err := errors.E(op, errors.IO, "peer appears stalled")
-			rp.Disconnect(err)
-			return nil, err
-		case <-rp.errc:
-			stalled.Stop()
-			return nil, rp.err
-		case out <- &msgAck{m, nil}:
-			out = nil
-		case m := <-c:
-			stalled.Stop()
-			var f *gcs.Filter
-			var err error
-			if len(m.Data) == 0 {
-				f, err = gcs.FromBytes(0, blockcf.P, nil)
-			} else {
-				f, err = gcs.FromNBytes(blockcf.P, m.Data)
-			}
-			if err != nil {
-				op := errors.Opf(opf, rp.raddr, blockHash)
-				return nil, errors.E(op, err)
-			}
-			return f, nil
-		}
-	}
-}
-
-// CFilters requests cfilters for all blocks described by blockHashes.  This
-// is currently implemented by making many separate getcfilter requests
-// concurrently and waiting on every result.
-//
-// Deprecated: Prefer using CFiltersV2 as those filters are committed to in the
-// headers.
-func (rp *RemotePeer) CFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error) {
-	const opf = "remotepeer(%v).CFilters"
-
-	// TODO: this is spammy and would be better implemented with a single
-	// request/response.
-	filters := make([]*gcs.Filter, len(blockHashes))
-	g, ctx := errgroup.WithContext(ctx)
-	for i := range blockHashes {
-		i := i
-		g.Go(func() error {
-			f, err := rp.CFilter(ctx, blockHashes[i])
-			filters[i] = f
-			return err
-		})
-	}
-	err := g.Wait()
-	if err != nil {
-		return nil, err
-	}
-	return filters, nil
-}
-
 // CFilterV2 requests a version 2 regular compact filter from a RemotePeer
 // using getcfilterv2.  The same block can not be requested concurrently from
 // the same peer.
 //
 // The inclusion proof data that ensures the cfilter is committed to in the
 // header is returned as well.
-func (rp *RemotePeer) CFilterV2(ctx context.Context, blockHash *chainhash.Hash) (*gcs2.FilterV2, uint32, []chainhash.Hash, error) {
+func (rp *RemotePeer) CFilterV2(ctx context.Context, blockHash *chainhash.Hash) (*gcs.FilterV2, uint32, []chainhash.Hash, error) {
 	const opf = "remotepeer(%v).CFilterV2(%v)"
 
 	if rp.pver < wire.CFilterV2Version {
@@ -1369,9 +1286,9 @@ func (rp *RemotePeer) CFilterV2(ctx context.Context, blockHash *chainhash.Hash) 
 			out = nil
 		case m := <-c:
 			stalled.Stop()
-			var f *gcs2.FilterV2
+			var f *gcs.FilterV2
 			var err error
-			f, err = gcs2.FromBytesV2(blockcf2.B, blockcf2.M, m.Data)
+			f, err = gcs.FromBytesV2(blockcf.B, blockcf.M, m.Data)
 			if err != nil {
 				op := errors.Opf(opf, rp.raddr, blockHash)
 				return nil, 0, nil, errors.E(op, err)
@@ -1385,7 +1302,7 @@ func (rp *RemotePeer) CFilterV2(ctx context.Context, blockHash *chainhash.Hash) 
 // filterProof is an alias to the same anonymous struct as wallet package's
 // FilterProof struct.
 type filterProof = struct {
-	Filter     *gcs2.FilterV2
+	Filter     *gcs.FilterV2
 	ProofIndex uint32
 	Proof      []chainhash.Hash
 }
@@ -1402,7 +1319,7 @@ func (rp *RemotePeer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.H
 	// TODO: this is spammy and would be better implemented with a single
 	// request/response.
 	type result struct {
-		filter     *gcs2.FilterV2
+		filter     *gcs.FilterV2
 		proofIndex uint32
 		proof      []chainhash.Hash
 	}

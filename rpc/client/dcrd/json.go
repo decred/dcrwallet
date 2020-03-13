@@ -14,10 +14,8 @@ import (
 
 	"decred.org/dcrwallet/errors"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/gcs"
-	"github.com/decred/dcrd/gcs/blockcf"
-	gcs2 "github.com/decred/dcrd/gcs/v2"
-	"github.com/decred/dcrd/gcs/v2/blockcf2"
+	"github.com/decred/dcrd/gcs/v2"
+	blockcf "github.com/decred/dcrd/gcs/v2/blockcf2"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -46,22 +44,6 @@ func unhex(msg deserializer) json.Unmarshaler {
 	return (*unmarshalFunc)(&f)
 }
 
-// cfilter implements deserializer to read a committed filter from a io.Reader.
-// Filters are assumed to be serialized as <n filter> with a
-// consensus-determined P value.
-type cfilter struct {
-	Filter *gcs.Filter
-}
-
-func (f *cfilter) Deserialize(r io.Reader) error {
-	b, err := ioutil.ReadAll(r)
-	if err != nil {
-		return err
-	}
-	f.Filter, err = gcs.FromNBytes(blockcf.P, b)
-	return err
-}
-
 // cfilterV2 implements deserializer to read a version 2 committed filter from
 // a io.Reader.  Filters are assumed to be serialized as <n filter> with
 // consensus-determined B and M values.
@@ -69,7 +51,7 @@ func (f *cfilter) Deserialize(r io.Reader) error {
 // Note that this is only the deserializer for the raw filter data and *not*
 // for the full response to a cfilterv2 call (see cfilterv2Reply for that).
 type cfilterV2 struct {
-	Filter *gcs2.FilterV2
+	Filter *gcs.FilterV2
 }
 
 func (f *cfilterV2) Deserialize(r io.Reader) error {
@@ -77,7 +59,7 @@ func (f *cfilterV2) Deserialize(r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	f.Filter, err = gcs2.FromBytesV2(blockcf2.B, blockcf2.M, b)
+	f.Filter, err = gcs.FromBytesV2(blockcf.B, blockcf.M, b)
 	return err
 }
 
@@ -92,7 +74,7 @@ func (f *cfilterV2) UnmarshalJSON(j []byte) error {
 		return errors.E(errors.Encoding, err)
 	}
 
-	f.Filter, err = gcs2.FromBytesV2(blockcf2.B, blockcf2.M, b)
+	f.Filter, err = gcs.FromBytesV2(blockcf.B, blockcf.M, b)
 	return err
 }
 

@@ -15,8 +15,7 @@ import (
 	"decred.org/dcrwallet/errors"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/gcs"
-	gcs2 "github.com/decred/dcrd/gcs/v2"
+	"github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/jrick/bitset"
 	"github.com/jrick/wsrpc/v2"
@@ -238,55 +237,9 @@ func (r *RPC) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wir
 	return blocks, nil
 }
 
-// CFilter returns the committed filter for a block.
-//
-// Deprecated: Prefer using CFilterV2 as those filters are committed to the
-// block header and are safer for SPV clients.
-func (r *RPC) CFilter(ctx context.Context, blockHash *chainhash.Hash) (*gcs.Filter, error) {
-	const opf = "dcrd.CFilter(%v)"
-
-	var f cfilter
-	err := r.Call(ctx, "getcfilter", unhex(&f), blockHash.String(), "regular")
-	if err != nil {
-		op := errors.Opf(opf, blockHash)
-		return nil, errors.E(op, err)
-	}
-	return f.Filter, nil
-}
-
-// CFilters returns committed filters for blocks.
-//
-// Deprecated: Prefer using CFiltersV2 as those filters are committed to the
-// block header and safer for SPV clients.
-func (r *RPC) CFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error) {
-	const opf = "dcrd.CFilters(%v)"
-
-	// TODO: this is spammy and would be better implemented with a single RPC.
-	filters := make([]*gcs.Filter, len(blockHashes))
-	var g errgroup.Group
-	for i := range blockHashes {
-		i := i
-		g.Go(func() error {
-			var f cfilter
-			err := r.Call(ctx, "getcfilter", unhex(&f), blockHashes[i].String(), "regular")
-			filters[i] = f.Filter
-			if err != nil {
-				op := errors.Opf(opf, blockHashes[i])
-				err = errors.E(op, err)
-			}
-			return err
-		})
-	}
-	err := g.Wait()
-	if err != nil {
-		return nil, err
-	}
-	return filters, nil
-}
-
 // CFilterV2 returns the version 2 committed filter and the data required for
 // verifying the inclusion proof of the cfilter for a block.
-func (r *RPC) CFilterV2(ctx context.Context, blockHash *chainhash.Hash) (*gcs2.FilterV2, uint32, []chainhash.Hash, error) {
+func (r *RPC) CFilterV2(ctx context.Context, blockHash *chainhash.Hash) (*gcs.FilterV2, uint32, []chainhash.Hash, error) {
 	const opf = "dcrd.CFilterV2(%v)"
 
 	var res cfilterV2Reply
@@ -302,16 +255,12 @@ func (r *RPC) CFilterV2(ctx context.Context, blockHash *chainhash.Hash) (*gcs2.F
 // filterProof is an alias to the same anonymous struct as wallet package's
 // FilterProof struct.
 type filterProof = struct {
-	Filter     *gcs2.FilterV2
+	Filter     *gcs.FilterV2
 	ProofIndex uint32
 	Proof      []chainhash.Hash
 }
 
 // CFiltersV2 returns the version 2 committed filters for blocks.
-//
-// FIXME: Returning a []func() (...) is an ugly hack to be able to avoid the
-// circular dependency between the wallet pkg and this pkg and have it fulfill
-// an interface defined there.
 func (r *RPC) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]filterProof, error) {
 	const opf = "dcrd.CFiltersV2(%v)"
 

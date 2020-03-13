@@ -108,6 +108,10 @@ github.com/decred/dcrd/gcs v1.1.0 h1:djuYzaFUzUTJR+6ulMSRZOQ+P9rxtIyuxQeViAEfB8s
 github.com/decred/dcrd/gcs v1.1.0/go.mod h1:yBjhj217Vw5lw3aKnCdHip7fYb9zwMos8bCy5s79M9w=
 github.com/decred/dcrd/gcs/v2 v2.0.0 h1:nCc3q9iIwIpF0khTSiC7xYgojKoKnPrqrgVjboOBXDE=
 github.com/decred/dcrd/gcs/v2 v2.0.0/go.mod h1:3XjKcrtvB+r2ezhIsyNCLk6dRnXRJVyYmsd1P3SkU3o=
+github.com/decred/dcrd/gcs/v2 v2.0.1 h1:A6OQLuvffyMWdvGvj+xIgx/WyuWCLQbSnbYpT2frKTo=
+github.com/decred/dcrd/gcs/v2 v2.0.1/go.mod h1:3XjKcrtvB+r2ezhIsyNCLk6dRnXRJVyYmsd1P3SkU3o=
+github.com/decred/dcrd/gcs/v2 v2.0.2-0.20200312171759-0a8cc56a776e h1:tBOk2P8F9JyRUSp0iRTs4nYEBro1FKBDIbg/UualLWw=
+github.com/decred/dcrd/gcs/v2 v2.0.2-0.20200312171759-0a8cc56a776e/go.mod h1:JJGd1m0DrFgV4J2J8HKNB9YVkM06ewQHT6iINis39Z4=
 github.com/decred/dcrd/hdkeychain/v3 v3.0.0-20200312163737-f8c59264b16d h1:ocvknHhUTlqHyx7hwC98xfg4gHWBnoHXOO0NIGQ6vjA=
 github.com/decred/dcrd/hdkeychain/v3 v3.0.0-20200312163737-f8c59264b16d/go.mod h1:jvYToDkKjOoBORwXxIh1H9ORcohN2JPnRwfgaYYQC7Y=
 github.com/decred/dcrd/rpc/jsonrpc/types v1.0.1 h1:sWsGtWzdmrna6aysDCHwjANTJh+Lxt2xp6S10ahP79Y=

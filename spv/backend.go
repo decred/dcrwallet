@@ -15,8 +15,7 @@ import (
 	"decred.org/dcrwallet/wallet"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/gcs"
-	gcs2 "github.com/decred/dcrd/gcs/v2"
+	"github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
@@ -48,33 +47,15 @@ func (s *Syncer) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*
 	}
 }
 
-// CFilters implements the CFilters method of the wallet.Peer interface.
-func (s *Syncer) CFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error) {
-	for {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		rp, err := s.pickRemote(pickAny)
-		if err != nil {
-			return nil, err
-		}
-		fs, err := rp.CFilters(ctx, blockHashes)
-		if err != nil {
-			continue
-		}
-		return fs, nil
-	}
-}
-
 // filterProof is an alias to the same anonymous struct as wallet package's
 // FilterProof struct.
 type filterProof = struct {
-	Filter     *gcs2.FilterV2
+	Filter     *gcs.FilterV2
 	ProofIndex uint32
 	Proof      []chainhash.Hash
 }
 
-// CFilters implements the CFiltersV2 method of the wallet.Peer interface.
+// CFiltersV2 implements the CFiltersV2 method of the wallet.Peer interface.
 func (s Syncer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]filterProof, error) {
 	for {
 		if err := ctx.Err(); err != nil {
@@ -175,8 +156,8 @@ func (s *Syncer) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) er
 func (s *Syncer) Rescan(ctx context.Context, blockHashes []chainhash.Hash, save func(*chainhash.Hash, []*wire.MsgTx) error) error {
 	const op errors.Op = "spv.Rescan"
 
-	cfilters := make([]*gcs2.FilterV2, 0, len(blockHashes))
-	cfilterKeys := make([][gcs2.KeySize]byte, 0, len(blockHashes))
+	cfilters := make([]*gcs.FilterV2, 0, len(blockHashes))
+	cfilterKeys := make([][gcs.KeySize]byte, 0, len(blockHashes))
 	for i := 0; i < len(blockHashes); i++ {
 		k, f, err := s.wallet.CFilterV2(ctx, &blockHashes[i])
 		if err != nil {

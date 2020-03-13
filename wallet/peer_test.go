@@ -8,7 +8,6 @@ import (
 	"context"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -16,7 +15,6 @@ import (
 // Functions may be left nil (unimplemented) if they will not be called by the test code.
 type peerFuncs struct {
 	blocks              func(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error)
-	cfilters            func(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error)
 	cfiltersV2          func(ctx context.Context, blockHashes []*chainhash.Hash) ([]FilterProof, error)
 	headers             func(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([]*wire.BlockHeader, error)
 	publishTransactions func(ctx context.Context, txs ...*wire.MsgTx) error
@@ -24,9 +22,6 @@ type peerFuncs struct {
 
 func (p *peerFuncs) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error) {
 	return p.blocks(ctx, blockHashes)
-}
-func (p *peerFuncs) CFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error) {
-	return p.cfilters(ctx, blockHashes)
 }
 func (p *peerFuncs) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]FilterProof, error) {
 	return p.cfiltersV2(ctx, blockHashes)

@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/gcs/blockcf"
+	"github.com/decred/dcrd/gcs/v2/blockcf"
 	"github.com/decred/dcrd/gcs/v2/blockcf2"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/txscript/v3"
@@ -807,7 +807,7 @@ func cfUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincf
 	if err != nil {
 		return err
 	}
-	err = putRawCFilter(txmgrBucket, params.GenesisHash[:], f.NBytes())
+	err = putRawCFilter(txmgrBucket, params.GenesisHash[:], f.Bytes())
 	if err != nil {
 		return errors.E(errors.IO, err)
 	}

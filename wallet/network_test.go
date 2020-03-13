@@ -9,7 +9,6 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/gcs"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -19,9 +18,6 @@ import (
 type mockNetwork struct{}
 
 func (mockNetwork) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error) {
-	return nil, nil
-}
-func (mockNetwork) CFilters(ctx context.Context, blockHashes []*chainhash.Hash) ([]*gcs.Filter, error) {
 	return nil, nil
 }
 func (mockNetwork) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]FilterProof, error) {
