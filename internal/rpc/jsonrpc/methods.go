@@ -3575,7 +3575,7 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 		result.PubKeyAddr = pubKeyAddr.String()
 	case wallet.P2SHAddress:
 		result.IsScript = true
-		script, _ := ka.RedeemScript()
+		_, script := ka.RedeemScript()
 		result.Hex = hex.EncodeToString(script)
 
 		// This typically shouldn't fail unless an invalid script was

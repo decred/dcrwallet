@@ -105,7 +105,7 @@ type P2SHAddress interface {
 	// version is the script version of the address, or the script version
 	// of the redeemed previous output, and must be used for any operations
 	// involving the script.
-	RedeemScript() (script []byte, version uint16)
+	RedeemScript() (version uint16, script []byte)
 }
 
 // managedAddress implements KnownAddress for a wrapped udb.ManagedAddress.
@@ -172,7 +172,10 @@ func (m *managedBIP0044Address) Path() (account, branch, child uint32) {
 // managedP2SHAddress implements P2SHAddress for a wrapped udb.ManagedAddress.
 type managedP2SHAddress struct {
 	managedAddress
-	redeemScript []byte
+}
+
+func (m *managedP2SHAddress) RedeemScript() (uint16, []byte) {
+	return m.addr.(udb.ManagedScriptAddress).RedeemScript()
 }
 
 // KnownAddress returns the KnownAddress implementation for an address.  The
