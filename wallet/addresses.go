@@ -205,7 +205,7 @@ func (w *Wallet) KnownAddress(ctx context.Context, a dcrutil.Address) (KnownAddr
 		addr: ma,
 	}
 	var p2pkhKnownAddr managedP2PKHAddress
-	var p2shKnownAddr managedP2PKHAddress
+	var p2shKnownAddr managedP2SHAddress
 	var child uint32
 	switch ma := ma.(type) {
 	case udb.ManagedPubKeyAddress:
