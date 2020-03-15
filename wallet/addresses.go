@@ -977,6 +977,49 @@ func (w *Wallet) AccountBranchAddressRange(account, branch, start, end uint32) (
 	return addrs, nil
 }
 
+// ImportedAddresses returns each of the addresses imported into an account.
+func (w *Wallet) ImportedAddresses(ctx context.Context, account string) (_ []KnownAddress, err error) {
+	const opf = "wallet.ImportedAddresses(%q)"
+	defer func() {
+		if err != nil {
+			op := errors.Opf(opf, account)
+			err = errors.E(op, err)
+		}
+	}()
+
+	if account != "imported" {
+		return nil, errors.E("account does not record imported keys")
+	}
+
+	var addrs []KnownAddress
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		f := func(a udb.ManagedAddress) error {
+			ma := managedAddress{
+				acct:     account,
+				acctKind: AccountKindImported,
+				addr:     a,
+			}
+			switch a.(type) {
+			case udb.ManagedPubKeyAddress:
+				ma.script = ma.p2pkhScript
+				ma.scriptLen = 25
+				addrs = append(addrs, &managedP2PKHAddress{ma})
+			case udb.ManagedScriptAddress:
+				ma.script = ma.p2shScript
+				ma.scriptLen = 23
+				addrs = append(addrs, &managedP2SHAddress{ma})
+			default:
+				err := errors.Errorf("don't know how to wrap %T", ma)
+				return errors.E(errors.Bug, err)
+			}
+			return nil
+		}
+		return w.manager.ForEachAccountAddress(ns, udb.ImportedAddrAccount, f)
+	})
+	return addrs, err
+}
+
 type p2PKHChangeSource struct {
 	persist   persistReturnedChildFunc
 	account   uint32

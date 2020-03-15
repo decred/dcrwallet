@@ -866,6 +866,14 @@ func (s *Server) getAddressesByAccount(ctx context.Context, icmd interface{}) (i
 		return nil, errUnloadedWallet
 	}
 
+	if cmd.Account == "imported" {
+		addrs, err := w.ImportedAddresses(ctx, cmd.Account)
+		if err != nil {
+			return nil, err
+		}
+		return knownAddressMarshaler(addrs), nil
+	}
+
 	account, err := w.AccountNumber(ctx, cmd.Account)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
