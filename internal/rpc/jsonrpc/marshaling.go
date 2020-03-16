@@ -40,3 +40,9 @@ func knownAddressMarshaler(addrs []wallet.KnownAddress) json.Marshaler {
 		return addrs[i].String()
 	})
 }
+
+func addressStringsMarshaler(addrs []string) json.Marshaler {
+	return addressArrayMarshaler(len(addrs), func(i int) string {
+		return addrs[i]
+	})
+}

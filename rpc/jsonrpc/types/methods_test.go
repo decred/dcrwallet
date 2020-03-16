@@ -105,19 +105,6 @@ func TestWalletSvrCmds(t *testing.T) {
 			},
 		},
 		{
-			name: "estimatepriority",
-			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("estimatepriority", 6)
-			},
-			staticCmd: func() interface{} {
-				return NewEstimatePriorityCmd(6)
-			},
-			marshalled: `{"jsonrpc":"1.0","method":"estimatepriority","params":[6],"id":1}`,
-			unmarshalled: &EstimatePriorityCmd{
-				NumBlocks: 6,
-			},
-		},
-		{
 			name: "getaccount",
 			newCmd: func() (interface{}, error) {
 				return dcrjson.NewCmd("getaccount", "1Address")
@@ -395,32 +382,6 @@ func TestWalletSvrCmds(t *testing.T) {
 				Label:    dcrjson.String("label"),
 				Rescan:   dcrjson.Bool(false),
 				ScanFrom: dcrjson.Int(12345),
-			},
-		},
-		{
-			name: "keypoolrefill",
-			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("keypoolrefill")
-			},
-			staticCmd: func() interface{} {
-				return NewKeyPoolRefillCmd(nil)
-			},
-			marshalled: `{"jsonrpc":"1.0","method":"keypoolrefill","params":[],"id":1}`,
-			unmarshalled: &KeyPoolRefillCmd{
-				NewSize: dcrjson.Uint(100),
-			},
-		},
-		{
-			name: "keypoolrefill optional",
-			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("keypoolrefill", 200)
-			},
-			staticCmd: func() interface{} {
-				return NewKeyPoolRefillCmd(dcrjson.Uint(200))
-			},
-			marshalled: `{"jsonrpc":"1.0","method":"keypoolrefill","params":[200],"id":1}`,
-			unmarshalled: &KeyPoolRefillCmd{
-				NewSize: dcrjson.Uint(200),
 			},
 		},
 		{

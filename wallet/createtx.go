@@ -123,7 +123,7 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 			}
 		}
 
-		sourceImpl := w.txStore.MakeIgnoredInputSource(txmgrNs, addrmgrNs, account,
+		sourceImpl := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 			minConf, tipHeight, ignoreInput)
 		var inputSource txauthor.InputSource
 		switch algo {
@@ -352,7 +352,7 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 
 		// Create the unsigned transaction.
 		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
-		inputSource := w.txStore.MakeIgnoredInputSource(txmgrNs, addrmgrNs, account,
+		inputSource := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 			minconf, tipHeight, ignoreInput)
 		changeSource := &p2PKHChangeSource{
 			persist: w.deferPersistReturnedChild(ctx, &changeSourceUpdates),
@@ -975,7 +975,7 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 		w.lockedOutpointMu.Lock()
 
 		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
-		inputSource := w.txStore.MakeIgnoredInputSource(txmgrNs, addrmgrNs, req.SourceAccount,
+		inputSource := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, req.SourceAccount,
 			req.MinConf, tipHeight, ignoreInput)
 		changeSource := &p2PKHChangeSource{
 			persist:   w.deferPersistReturnedChild(ctx, &changeSourceUpdates),

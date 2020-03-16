@@ -124,7 +124,7 @@ func (w *Wallet) SelectInputs(ctx context.Context, targetAmount dcrutil.Amount, 
 		}
 
 		sourceImpl := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, policy.Account,
-			policy.RequiredConfirmations, tipHeight)
+			policy.RequiredConfirmations, tipHeight, nil)
 		var err error
 		inputDetail, err = sourceImpl.SelectInputs(targetAmount)
 		return err

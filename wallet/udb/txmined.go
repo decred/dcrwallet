@@ -3072,16 +3072,9 @@ func (s *InputSource) SelectInputs(target dcrutil.Amount) (*txauthor.InputDetail
 
 // MakeInputSource creates an InputSource to redeem unspent outputs from an
 // account.  The minConf and syncHeight parameters are used to filter outputs
-// based on some spendable policy.
-//
-// Deprecated: Use MakeIgnoredInputSource.
-func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint32, minConf, syncHeight int32) InputSource {
-	return s.MakeIgnoredInputSource(ns, addrmgrNs, account, minConf, syncHeight, nil)
-}
-
-// MakeIgnoredInputSource is identical to MakeInputSource but allows an optional
-// function to be checked to ignore including an input in the results.
-func (s *Store) MakeIgnoredInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint32, minConf,
+// based on some spendable policy.  An ignore func is called to determine whether
+// an output must be excluded from the source, and may be nil to ignore nothing.
+func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint32, minConf,
 	syncHeight int32, ignore func(*wire.OutPoint) bool) InputSource {
 
 	// Cursors to iterate over the (mined) unspent and unmined credit

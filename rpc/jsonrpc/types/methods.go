@@ -107,23 +107,6 @@ type ConsolidateCmd struct {
 	Address *string
 }
 
-// CreateEncryptedWalletCmd defines the createencryptedwallet JSON-RPC command.
-//
-// Deprecated: This method is not implemented by the RPC server.
-type CreateEncryptedWalletCmd struct {
-	Passphrase string
-}
-
-// NewCreateEncryptedWalletCmd returns a new instance which can be used to issue
-// a createencryptedwallet JSON-RPC command.
-//
-// Deprecated: This method is not implemented by the RPC server.
-func NewCreateEncryptedWalletCmd(passphrase string) *CreateEncryptedWalletCmd {
-	return &CreateEncryptedWalletCmd{
-		Passphrase: passphrase,
-	}
-}
-
 // NewConsolidateCmd creates a new ConsolidateCmd.
 func NewConsolidateCmd(inputs int, acct *string, addr *string) *ConsolidateCmd {
 	return &ConsolidateCmd{Inputs: inputs, Account: acct, Address: addr}
@@ -199,45 +182,6 @@ type DumpPrivKeyCmd struct {
 func NewDumpPrivKeyCmd(address string) *DumpPrivKeyCmd {
 	return &DumpPrivKeyCmd{
 		Address: address,
-	}
-}
-
-// EstimatePriorityCmd defines the estimatepriority JSON-RPC command.
-//
-// Deprecated: This method is not implemented by the RPC server.
-type EstimatePriorityCmd struct {
-	NumBlocks int64
-}
-
-// NewEstimatePriorityCmd returns a new instance which can be used to issue a
-// estimatepriority JSON-RPC command.
-//
-// Deprecated: This method is not implemented by the RPC server.
-func NewEstimatePriorityCmd(numBlocks int64) *EstimatePriorityCmd {
-	return &EstimatePriorityCmd{
-		NumBlocks: numBlocks,
-	}
-}
-
-// ExportWatchingWalletCmd defines the exportwatchingwallet JSON-RPC command.
-//
-// Deprecated: This method is not implemented by the RPC server.
-type ExportWatchingWalletCmd struct {
-	Account  *string
-	Download *bool `jsonrpcdefault:"false"`
-}
-
-// NewExportWatchingWalletCmd returns a new instance which can be used to issue
-// a exportwatchingwallet JSON-RPC command.
-//
-// The parameters which are pointers indicate they are optional.  Passing nil
-// for optional parameters will use the default value.
-//
-// Deprecated: This method is not implemented by the RPC server.
-func NewExportWatchingWalletCmd(account *string, download *bool) *ExportWatchingWalletCmd {
-	return &ExportWatchingWalletCmd{
-		Account:  account,
-		Download: download,
 	}
 }
 
@@ -583,26 +527,6 @@ type ImportXpubCmd struct {
 	Xpub string `json:"xpub"`
 }
 
-// KeyPoolRefillCmd defines the keypoolrefill JSON-RPC command.
-//
-// Deprecated: This method is not implemented by the RPC server.
-type KeyPoolRefillCmd struct {
-	NewSize *uint `jsonrpcdefault:"100"`
-}
-
-// NewKeyPoolRefillCmd returns a new instance which can be used to issue a
-// keypoolrefill JSON-RPC command.
-//
-// The parameters which are pointers indicate they are optional.  Passing nil
-// for optional parameters will use the default value.
-//
-// Deprecated: This method is not implemented by the RPC server.
-func NewKeyPoolRefillCmd(newSize *uint) *KeyPoolRefillCmd {
-	return &KeyPoolRefillCmd{
-		NewSize: newSize,
-	}
-}
-
 // ListAccountsCmd defines the listaccounts JSON-RPC command.
 type ListAccountsCmd struct {
 	MinConf *int `jsonrpcdefault:"1"`
@@ -827,25 +751,6 @@ func NewPurchaseTicketCmd(fromAccount string, spendLimit float64, minConf *int,
 type CreateUnsignedTicketResult struct {
 	UnsignedTickets []string `json:"unsignedtickets"`
 	SplitTx         string   `json:"splittx"`
-}
-
-// RecoverAddressesCmd defines the recoveraddresses JSON-RPC command.
-//
-// Deprecated: This method is not implemented by the RPC server.
-type RecoverAddressesCmd struct {
-	Account string
-	N       int
-}
-
-// NewRecoverAddressesCmd returns a new instance which can be used to issue a
-// recoveraddresses JSON-RPC command.
-//
-// Deprecated: This method is not implemented by the RPC server.
-func NewRecoverAddressesCmd(account string, n int) *RecoverAddressesCmd {
-	return &RecoverAddressesCmd{
-		Account: account,
-		N:       n,
-	}
 }
 
 // RedeemMultiSigOutCmd is a type handling custom marshaling and
@@ -1110,56 +1015,6 @@ func NewStakePoolUserInfoCmd(user string) *StakePoolUserInfoCmd {
 	}
 }
 
-// StartAutoBuyerCmd is a type handling custom marshaling and
-// unmarshaling of startautobuyer JSON RPC commands.
-//
-// Deprecated: This method is not implemented by the RPC server.
-type StartAutoBuyerCmd struct {
-	Account           string
-	Passphrase        string
-	BalanceToMaintain *int64
-	MaxFeePerKb       *int64
-	MaxPriceRelative  *float64
-	MaxPriceAbsolute  *int64
-	VotingAddress     *string
-	PoolAddress       *string
-	PoolFees          *float64
-	MaxPerBlock       *int64
-}
-
-// NewStartAutoBuyerCmd creates a new StartAutoBuyerCmd.
-//
-// Deprecated: This method is not implemented by the RPC server.
-func NewStartAutoBuyerCmd(account string, passphrase string, balanceToMaintain *int64, maxFeePerKb *int64, maxPriceRelative *float64, maxPriceAbsolute *int64, votingAddress *string, poolAddress *string, poolFees *float64,
-	maxPerBlock *int64) *StartAutoBuyerCmd {
-	return &StartAutoBuyerCmd{
-		Account:           account,
-		Passphrase:        passphrase,
-		BalanceToMaintain: balanceToMaintain,
-		MaxFeePerKb:       maxFeePerKb,
-		MaxPriceRelative:  maxPriceRelative,
-		MaxPriceAbsolute:  maxPriceAbsolute,
-		VotingAddress:     votingAddress,
-		PoolAddress:       poolAddress,
-		PoolFees:          poolFees,
-		MaxPerBlock:       maxPerBlock,
-	}
-}
-
-// StopAutoBuyerCmd is a type handling custom marshaling and
-// unmarshaling of stopautobuyer JSON RPC commands.
-//
-// Deprecated: This method is not implemented by the RPC server.
-type StopAutoBuyerCmd struct {
-}
-
-// NewStopAutoBuyerCmd creates a new StopAutoBuyerCmd.
-//
-// Deprecated: This method is not implemented by the RPC server.
-func NewStopAutoBuyerCmd() *StopAutoBuyerCmd {
-	return &StopAutoBuyerCmd{}
-}
-
 // SweepAccountCmd defines the sweep account JSON-RPC command.
 type SweepAccountCmd struct {
 	SourceAccount         string
@@ -1385,19 +1240,5 @@ func init() {
 	}
 	for i := range register {
 		dcrjson.MustRegister(Method(register[i].method), register[i].cmd, 0)
-	}
-
-	// Deprecated methods (only registered with plain string method)
-	register = []registeredMethod{
-		{"createencryptedwallet", (*CreateEncryptedWalletCmd)(nil)},
-		{"estimatepriority", (*EstimatePriorityCmd)(nil)},
-		{"exportwatchingwallet", (*ExportWatchingWalletCmd)(nil)},
-		{"keypoolrefill", (*KeyPoolRefillCmd)(nil)},
-		{"recoveraddresses", (*RecoverAddressesCmd)(nil)},
-		{"startautobuyer", (*StartAutoBuyerCmd)(nil)},
-		{"stopautobuyer", (*StopAutoBuyerCmd)(nil)},
-	}
-	for i := range register {
-		dcrjson.MustRegister(register[i].method, register[i].cmd, dcrjsonv2WalletOnly)
 	}
 }

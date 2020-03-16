@@ -935,42 +935,6 @@ func (w *Wallet) SyncLastReturnedAddress(ctx context.Context, account, branch, c
 	return nil
 }
 
-// AccountBranchAddressRange returns all addresses in the range [start, end)
-// belonging to the BIP0044 account and address branch.
-//
-// Deprecated: Dump the xpub and perform this yourself.  The addresses returned by
-// this function do not implement all of the wallet's address interfaces.
-func (w *Wallet) AccountBranchAddressRange(account, branch, start, end uint32) ([]dcrutil.Address, error) {
-	const op errors.Op = "wallet.AccountBranchAddressRange"
-
-	if end < start {
-		return nil, errors.E(op, errors.Invalid, "end < start")
-	}
-
-	defer w.addressBuffersMu.Unlock()
-	w.addressBuffersMu.Lock()
-
-	acctBufs, ok := w.addressBuffers[account]
-	if !ok {
-		return nil, errors.E(op, errors.NotExist, errors.Errorf("account %d", account))
-	}
-
-	var buf *addressBuffer
-	switch branch {
-	case udb.ExternalBranch:
-		buf = &acctBufs.albExternal
-	case udb.InternalBranch:
-		buf = &acctBufs.albInternal
-	default:
-		return nil, errors.E(op, errors.Invalid, "branch must be external (0) or internal (1)")
-	}
-	addrs, err := deriveChildAddresses(buf.branchXpub, start, end-start, w.chainParams)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	return addrs, nil
-}
-
 // ImportedAddresses returns each of the addresses imported into an account.
 func (w *Wallet) ImportedAddresses(ctx context.Context, account string) (_ []KnownAddress, err error) {
 	const opf = "wallet.ImportedAddresses(%q)"

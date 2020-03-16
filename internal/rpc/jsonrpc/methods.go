@@ -882,35 +882,48 @@ func (s *Server) getAddressesByAccount(ctx context.Context, icmd interface{}) (i
 		return nil, err
 	}
 
-	// Find the next child address indexes for the account.
+	xpub, err := w.AccountXpub(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	extBranch, err := xpub.Child(0)
+	if err != nil {
+		return nil, err
+	}
+	intBranch, err := xpub.Child(1)
+	if err != nil {
+		return nil, err
+	}
 	endExt, endInt, err := w.BIP0044BranchNextIndexes(ctx, account)
 	if err != nil {
 		return nil, err
 	}
-
-	// Nothing to do if we have no addresses.
-	if endExt+endInt == 0 {
-		return nil, nil
+	params := w.ChainParams()
+	addrs := make([]string, 0, endExt+endInt)
+	appendAddrs := func(branchKey *hdkeychain.ExtendedKey, n uint32) error {
+		for i := uint32(0); i < n; i++ {
+			child, err := branchKey.Child(i)
+			if errors.Is(err, hdkeychain.ErrInvalidChild) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			pkh := dcrutil.Hash160(child.SerializedPubKey())
+			addr, _ := dcrutil.NewAddressPubKeyHash(pkh, params, dcrec.STEcdsaSecp256k1)
+			addrs = append(addrs, addr.String())
+		}
+		return nil
 	}
-
-	// Derive the addresses.
-	addrsStr := make([]string, endInt+endExt)
-	addrsExt, err := w.AccountBranchAddressRange(account, udb.ExternalBranch, 0, endExt)
+	err = appendAddrs(extBranch, endExt)
 	if err != nil {
 		return nil, err
 	}
-	for i := range addrsExt {
-		addrsStr[i] = addrsExt[i].Address()
-	}
-	addrsInt, err := w.AccountBranchAddressRange(account, udb.InternalBranch, 0, endInt)
+	err = appendAddrs(intBranch, endInt)
 	if err != nil {
 		return nil, err
 	}
-	for i := range addrsInt {
-		addrsStr[i+int(endExt)] = addrsInt[i].Address()
-	}
-
-	return addrsStr, nil
+	return addressStringsMarshaler(addrs), nil
 }
 
 // getBalance handles a getbalance request by returning the balance for an

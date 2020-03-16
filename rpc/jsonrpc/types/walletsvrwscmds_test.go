@@ -31,60 +31,6 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		unmarshalled interface{}
 	}{
 		{
-			name: "createencryptedwallet",
-			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("createencryptedwallet", "pass")
-			},
-			staticCmd: func() interface{} {
-				return NewCreateEncryptedWalletCmd("pass")
-			},
-			marshalled:   `{"jsonrpc":"1.0","method":"createencryptedwallet","params":["pass"],"id":1}`,
-			unmarshalled: &CreateEncryptedWalletCmd{Passphrase: "pass"},
-		},
-		{
-			name: "exportwatchingwallet",
-			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("exportwatchingwallet")
-			},
-			staticCmd: func() interface{} {
-				return NewExportWatchingWalletCmd(nil, nil)
-			},
-			marshalled: `{"jsonrpc":"1.0","method":"exportwatchingwallet","params":[],"id":1}`,
-			unmarshalled: &ExportWatchingWalletCmd{
-				Account:  nil,
-				Download: dcrjson.Bool(false),
-			},
-		},
-		{
-			name: "exportwatchingwallet optional1",
-			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("exportwatchingwallet", "acct")
-			},
-			staticCmd: func() interface{} {
-				return NewExportWatchingWalletCmd(dcrjson.String("acct"), nil)
-			},
-			marshalled: `{"jsonrpc":"1.0","method":"exportwatchingwallet","params":["acct"],"id":1}`,
-			unmarshalled: &ExportWatchingWalletCmd{
-				Account:  dcrjson.String("acct"),
-				Download: dcrjson.Bool(false),
-			},
-		},
-		{
-			name: "exportwatchingwallet optional2",
-			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("exportwatchingwallet", "acct", true)
-			},
-			staticCmd: func() interface{} {
-				return NewExportWatchingWalletCmd(dcrjson.String("acct"),
-					dcrjson.Bool(true))
-			},
-			marshalled: `{"jsonrpc":"1.0","method":"exportwatchingwallet","params":["acct",true],"id":1}`,
-			unmarshalled: &ExportWatchingWalletCmd{
-				Account:  dcrjson.String("acct"),
-				Download: dcrjson.Bool(true),
-			},
-		},
-		{
 			name: "getunconfirmedbalance",
 			newCmd: func() (interface{}, error) {
 				return dcrjson.NewCmd("getunconfirmedbalance")
@@ -163,20 +109,6 @@ func TestWalletSvrWsCmds(t *testing.T) {
 			marshalled: `{"jsonrpc":"1.0","method":"listalltransactions","params":["acct"],"id":1}`,
 			unmarshalled: &ListAllTransactionsCmd{
 				Account: dcrjson.String("acct"),
-			},
-		},
-		{
-			name: "recoveraddresses",
-			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("recoveraddresses", "acct", 10)
-			},
-			staticCmd: func() interface{} {
-				return NewRecoverAddressesCmd("acct", 10)
-			},
-			marshalled: `{"jsonrpc":"1.0","method":"recoveraddresses","params":["acct",10],"id":1}`,
-			unmarshalled: &RecoverAddressesCmd{
-				Account: "acct",
-				N:       10,
 			},
 		},
 		{
