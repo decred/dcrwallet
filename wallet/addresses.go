@@ -178,6 +178,44 @@ func (m *managedP2SHAddress) RedeemScript() (uint16, []byte) {
 	return m.addr.(udb.ManagedScriptAddress).RedeemScript()
 }
 
+func wrapManagedAddress(addr udb.ManagedAddress, account string, kind AccountKind) (KnownAddress, error) {
+	ma := managedAddress{
+		acct:     account,
+		acctKind: kind,
+		addr:     addr,
+	}
+	switch a := addr.(type) {
+	case udb.ManagedPubKeyAddress:
+		ma.script = ma.p2pkhScript
+		ma.scriptLen = 25
+
+		if kind == AccountKindImported {
+			return &managedP2PKHAddress{ma}, nil
+		}
+
+		var acctNum, branch uint32
+		if kind == AccountKindBIP0044 {
+			acctNum = a.Account()
+		}
+		if a.Internal() {
+			branch = 1
+		}
+		return &managedBIP0044Address{
+			managedP2PKHAddress: managedP2PKHAddress{ma},
+			account:             acctNum,
+			branch:              branch,
+			child:               a.Index(),
+		}, nil
+	case udb.ManagedScriptAddress:
+		ma.script = ma.p2shScript
+		ma.scriptLen = 23
+		return &managedP2SHAddress{ma}, nil
+	default:
+		err := errors.Errorf("don't know how to wrap %T", a)
+		return nil, errors.E(errors.Bug, err)
+	}
+}
+
 // KnownAddress returns the KnownAddress implementation for an address.  The
 // returned address may implement other interfaces (such as, but not limited to,
 // PubKeyHashAddress, BIP0044Address, or P2SHAddress) depending on the script
@@ -203,60 +241,16 @@ func (w *Wallet) KnownAddress(ctx context.Context, a dcrutil.Address) (KnownAddr
 		return nil, errors.E(op, err)
 	}
 
-	ka := managedAddress{
-		acct: acctName,
-		addr: ma,
-	}
-	var p2pkhKnownAddr managedP2PKHAddress
-	var p2shKnownAddr managedP2SHAddress
-	var child uint32
-	switch ma := ma.(type) {
-	case udb.ManagedPubKeyAddress:
-		ka.script = ka.p2pkhScript
-		ka.scriptLen = 25
-		child = ma.Index()
-		p2pkhKnownAddr.managedAddress = ka
-	case udb.ManagedScriptAddress:
-		ka.script = ka.p2shScript
-		ka.scriptLen = 23
-		p2shKnownAddr.managedAddress = ka
+	var acctKind AccountKind
+	switch {
+	case acct < udb.ImportedAddrAccount:
+		acctKind = AccountKindBIP0044
+	case acct == udb.ImportedAddrAccount:
+		acctKind = AccountKindImported
 	default:
-		err := errors.Errorf("don't know how to wrap %T", ma)
-		return nil, errors.E(errors.Bug, err)
+		acctKind = AccountKindImportedXpub
 	}
-
-	// BIP0044 addresses may be from seed-derived account xpubs or
-	// imported xpubs.
-	if acct < udb.ImportedAddrAccount || acct > udb.ImportedAddrAccount {
-		p2pkhKnownAddr.acctKind = AccountKindBIP0044
-		bip44Addr := &managedBIP0044Address{
-			managedP2PKHAddress: p2pkhKnownAddr,
-			account:             ma.Account(),
-			branch:              0,
-			child:               child,
-		}
-		if ma.Internal() {
-			bip44Addr.branch = 1
-		}
-		if acct < udb.ImportedAddrAccount {
-			bip44Addr.acctKind = AccountKindBIP0044
-		} else {
-			bip44Addr.acctKind = AccountKindImportedXpub
-		}
-		return bip44Addr, nil
-	}
-
-	// Dealing with a loose imported address
-	switch ma.(type) {
-	case udb.ManagedPubKeyAddress:
-		p2pkhKnownAddr.acctKind = AccountKindImported
-		return &p2pkhKnownAddr, nil
-	case udb.ManagedScriptAddress:
-		p2shKnownAddr.acctKind = AccountKindImported
-		return &p2shKnownAddr, nil
-	default:
-		panic("unreachable")
-	}
+	return wrapManagedAddress(ma, acctName, acctKind)
 }
 
 type stakeAddress interface {
@@ -995,24 +989,11 @@ func (w *Wallet) ImportedAddresses(ctx context.Context, account string) (_ []Kno
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		f := func(a udb.ManagedAddress) error {
-			ma := managedAddress{
-				acct:     account,
-				acctKind: AccountKindImported,
-				addr:     a,
+			ma, err := wrapManagedAddress(a, account, AccountKindImported)
+			if err != nil {
+				return err
 			}
-			switch a.(type) {
-			case udb.ManagedPubKeyAddress:
-				ma.script = ma.p2pkhScript
-				ma.scriptLen = 25
-				addrs = append(addrs, &managedP2PKHAddress{ma})
-			case udb.ManagedScriptAddress:
-				ma.script = ma.p2shScript
-				ma.scriptLen = 23
-				addrs = append(addrs, &managedP2SHAddress{ma})
-			default:
-				err := errors.Errorf("don't know how to wrap %T", ma)
-				return errors.E(errors.Bug, err)
-			}
+			addrs = append(addrs, ma)
 			return nil
 		}
 		return w.manager.ForEachAccountAddress(ns, udb.ImportedAddrAccount, f)
