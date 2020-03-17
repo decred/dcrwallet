@@ -121,7 +121,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 
 				// For transaction notifications, the blocks are notified in reverse
 				// height order.
-				w.NtfnServer.notifyDetachedBlock(&hash)
+				w.NtfnServer.notifyDetachedBlock(header)
 
 				oldWork.Add(oldWork, blockchain.CalcWork(header.Bits))
 			}

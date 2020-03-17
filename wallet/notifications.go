@@ -308,14 +308,14 @@ func (s *NotificationServer) notifyUnminedTransaction(dbtx walletdb.ReadTx, deta
 	}
 }
 
-func (s *NotificationServer) notifyDetachedBlock(hash *chainhash.Hash) {
+func (s *NotificationServer) notifyDetachedBlock(header *wire.BlockHeader) {
 	defer s.mu.Unlock()
 	s.mu.Lock()
 
 	if s.currentTxNtfn == nil {
 		s.currentTxNtfn = &TransactionNotifications{}
 	}
-	s.currentTxNtfn.DetachedBlocks = append(s.currentTxNtfn.DetachedBlocks, hash)
+	s.currentTxNtfn.DetachedBlocks = append(s.currentTxNtfn.DetachedBlocks, header)
 }
 
 func (s *NotificationServer) notifyMinedTransaction(dbtx walletdb.ReadTx, details *udb.TxDetails, block *udb.BlockMeta) {
@@ -423,7 +423,7 @@ func (s *NotificationServer) sendAttachedBlockNotification(ctx context.Context) 
 // changes to transactions, it needs a better name.
 type TransactionNotifications struct {
 	AttachedBlocks           []Block
-	DetachedBlocks           []*chainhash.Hash
+	DetachedBlocks           []*wire.BlockHeader
 	UnminedTransactions      []TransactionSummary
 	UnminedTransactionHashes []*chainhash.Hash
 	NewBalances              []AccountBalance

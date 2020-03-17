@@ -58,9 +58,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.3.0"
+	semverString = "7.4.0"
 	semverMajor  = 7
-	semverMinor  = 3
+	semverMinor  = 4
 	semverPatch  = 0
 )
 
@@ -2055,6 +2055,7 @@ func marshalBlock(v *wallet.Block) *pb.BlockDetails {
 		Timestamp:      v.Header.Timestamp.Unix(),
 		ApprovesParent: v.Header.VoteBits&dcrutil.BlockValid != 0,
 		Transactions:   txs,
+		PrevBlock:      v.Header.PrevBlock[:],
 	}
 }
 
@@ -2064,6 +2065,33 @@ func marshalBlocks(v []wallet.Block) []*pb.BlockDetails {
 		blocks[i] = marshalBlock(&v[i])
 	}
 	return blocks
+}
+
+func marshalDetachedBlock(v *wire.BlockHeader) *pb.DetachedBlockDetails {
+	hash := v.BlockHash()
+	return &pb.DetachedBlockDetails{
+		Hash:      hash[:],
+		Height:    int32(v.Height),
+		Timestamp: v.Timestamp.Unix(),
+		PrevBlock: v.PrevBlock[:],
+	}
+}
+
+func marshalDetachedBlocks(v []*wire.BlockHeader) []*pb.DetachedBlockDetails {
+	blocks := make([]*pb.DetachedBlockDetails, len(v))
+	for i := range v {
+		blocks[i] = marshalDetachedBlock(v[i])
+	}
+	return blocks
+}
+
+func marshalHeaderHashes(v []*wire.BlockHeader) [][]byte {
+	hashes := make([][]byte, len(v))
+	for i := range v {
+		hash := v[i].BlockHash()
+		hashes[i] = hash[:]
+	}
+	return hashes
 }
 
 func marshalHashes(v []*chainhash.Hash) [][]byte {
@@ -2086,9 +2114,10 @@ func (s *walletServer) TransactionNotifications(req *pb.TransactionNotifications
 		case v := <-n.C:
 			resp := pb.TransactionNotificationsResponse{
 				AttachedBlocks:           marshalBlocks(v.AttachedBlocks),
-				DetachedBlocks:           marshalHashes(v.DetachedBlocks),
+				DetachedBlocks:           marshalHeaderHashes(v.DetachedBlocks),
 				UnminedTransactions:      marshalTransactionDetailsSlice(v.UnminedTransactions),
 				UnminedTransactionHashes: marshalHashes(v.UnminedTransactionHashes),
+				DetachedBlockHeaders:     marshalDetachedBlocks(v.DetachedBlocks),
 			}
 			err := svr.Send(&resp)
 			if err != nil {

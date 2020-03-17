@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 7.2.x
+Version: 7.4.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](https://www.grpc.io/docs/guides/concepts.html)
@@ -100,6 +100,7 @@ no dependencies and is always running.
 **Shared messages:**
 
 - [`BlockDetails`](#blockdetails)
+- [`DetachedBlockDetails`](#detachedblockdetails)
 - [`TransactionDetails`](#transactiondetails)
 - [`DecodedTransaction`](#decodedtransaction)
 
@@ -1957,6 +1958,11 @@ regarding changes to the blockchain and transactions relevant to the wallet.
   field by including every unmined transaction, rather than those newly added to
   the unmined set.
 
+- `repeated detached_block_headers`: Details of every block that was reorganized
+  out of the main chain. These are in the same order as `detached_blocks`.
+
+  The `DetachedBlockDetails` message is documented [here](#detachedblockdetails).
+
 **Expected errors:**
 
 - `Aborted`: The wallet database is closed.
@@ -2063,7 +2069,29 @@ wallet's relevant transactions contained therein.
 
 - `bool approves_parent`: Whether this block stake validates its parent block.
 
+- `bytes prev_block`: The hash of the parent (previous) block of the block being
+  reported.
+
+
 ___
+
+
+#### `DetachedBlockDetails`
+
+The `DetachedBlockDetails` message is included in responses to report a block
+detached from the wallet's main chain.
+
+- `bytes hash`: The hash of the block being reported.
+
+- `int32 height`: The height of the block being reported.
+
+- `int64 timestamp`: The Unix time included in the block header.
+
+- `bytes prev_block`: The hash of the parent (previous) block of the block being
+  reported.
+
+___
+
 
 #### `TransactionDetails`
 

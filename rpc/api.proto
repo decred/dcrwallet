@@ -154,6 +154,14 @@ message BlockDetails {
 	int64 timestamp = 3;
 	bool approves_parent = 5;
 	repeated TransactionDetails transactions = 4;
+	bytes prev_block = 6;
+}
+
+message DetachedBlockDetails {
+	bytes hash = 1;
+	int32 height = 2;
+	bytes prev_block = 3;
+	int64 timestamp = 4;
 }
 
 message AccountBalance {
@@ -619,6 +627,8 @@ message TransactionNotificationsResponse {
 	// Instead of notifying all of the removed unmined transactions,
 	// just send all of the current hashes.
 	repeated bytes unmined_transaction_hashes = 4;
+
+	repeated DetachedBlockDetails detached_block_headers = 5;
 }
 
 message AccountNotificationsRequest {}
