@@ -276,8 +276,10 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		VSPAddress: poolFeeAddr,
 		VSPFees:    poolFees,
 	})
-	for _, hash := range tix.TicketHashes {
-		log.Infof("Purchased ticket %v at stake difficulty %v", hash, sdiff)
+	if tix != nil {
+		for _, hash := range tix.TicketHashes {
+			log.Infof("Purchased ticket %v at stake difficulty %v", hash, sdiff)
+		}
 	}
 	return err
 }
