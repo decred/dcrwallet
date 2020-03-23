@@ -622,7 +622,7 @@ func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
 
 	account := req.AccountNumber
 	reqConfs := req.RequiredConfirmations
-	bals, err := s.wallet.CalculateAccountBalance(ctx, account, reqConfs)
+	bals, err := s.wallet.AccountBalance(ctx, account, reqConfs)
 	if err != nil {
 		return nil, translateError(err)
 	}

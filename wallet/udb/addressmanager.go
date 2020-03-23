@@ -149,7 +149,7 @@ type accountInfo struct {
 // the account name, number, and the nubmer of derived and imported keys.  If no
 // address usage has been recorded on any of the external or internal branches,
 // the child index is ^uint32(0).
-type AccountProperties struct {
+type AccountProperties = struct {
 	AccountNumber             uint32
 	AccountName               string
 	LastUsedExternalIndex     uint32

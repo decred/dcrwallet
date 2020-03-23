@@ -1482,11 +1482,23 @@ func (w *Wallet) ChangePublicPassphrase(ctx context.Context, old, new []byte) er
 	return nil
 }
 
-// CalculateAccountBalance sums the amounts of all unspent transaction
-// outputs to the given account of a wallet and returns the balance.
-func (w *Wallet) CalculateAccountBalance(ctx context.Context, account uint32, confirms int32) (udb.Balances, error) {
+// Balances describes a breakdown of an account's balances in various
+// categories.
+type Balances struct {
+	Account                 uint32
+	ImmatureCoinbaseRewards dcrutil.Amount
+	ImmatureStakeGeneration dcrutil.Amount
+	LockedByTickets         dcrutil.Amount
+	Spendable               dcrutil.Amount
+	Total                   dcrutil.Amount
+	VotingAuthority         dcrutil.Amount
+	Unconfirmed             dcrutil.Amount
+}
+
+// AccountBalance returns the balance breakdown for a single account.
+func (w *Wallet) AccountBalance(ctx context.Context, account uint32, confirms int32) (Balances, error) {
 	const op errors.Op = "wallet.CalculateAccountBalance"
-	var balance udb.Balances
+	var balance Balances
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
@@ -1502,12 +1514,10 @@ func (w *Wallet) CalculateAccountBalance(ctx context.Context, account uint32, co
 	return balance, nil
 }
 
-// CalculateAccountBalances calculates the values for the wtxmgr struct Balance,
-// which includes the total balance, the spendable balance, and the balance
-// which has yet to mature.
-func (w *Wallet) CalculateAccountBalances(ctx context.Context, confirms int32) (map[uint32]*udb.Balances, error) {
+// AccountBalances returns the balance breakdowns for a each account.
+func (w *Wallet) AccountBalances(ctx context.Context, confirms int32) ([]Balances, error) {
 	const op errors.Op = "wallet.CalculateAccountBalances"
-	balances := make(map[uint32]*udb.Balances)
+	var balances []Balances
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
@@ -1517,7 +1527,7 @@ func (w *Wallet) CalculateAccountBalances(ctx context.Context, confirms int32) (
 			if err != nil {
 				return err
 			}
-			balances[acct] = &balance
+			balances = append(balances, balance)
 			return nil
 		})
 	})
@@ -2773,9 +2783,23 @@ func (w *Wallet) Spender(ctx context.Context, out *wire.OutPoint) (*wire.MsgTx, 
 	return spender, spenderIndex, err
 }
 
+// AccountProperties contains properties associated with each account, such as
+// the account name, number, and the nubmer of derived and imported keys.  If no
+// address usage has been recorded on any of the external or internal branches,
+// the child index is ^uint32(0).
+type AccountProperties struct {
+	AccountNumber             uint32
+	AccountName               string
+	LastUsedExternalIndex     uint32
+	LastUsedInternalIndex     uint32
+	LastReturnedExternalIndex uint32
+	LastReturnedInternalIndex uint32
+	ImportedKeyCount          uint32
+}
+
 // AccountResult is a single account result for the AccountsResult type.
 type AccountResult struct {
-	udb.AccountProperties
+	AccountProperties
 	TotalBalance dcrutil.Amount
 }
 

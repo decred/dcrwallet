@@ -230,7 +230,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	tb.mu.Unlock()
 
 	// Determine how many tickets to buy
-	bal, err := w.CalculateAccountBalance(ctx, account, minconf)
+	bal, err := w.AccountBalance(ctx, account, minconf)
 	if err != nil {
 		return err
 	}

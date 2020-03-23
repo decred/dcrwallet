@@ -13,7 +13,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"math/big"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -952,17 +951,10 @@ func (s *Server) getBalance(ctx context.Context, icmd interface{}) (interface{},
 	}
 
 	if accountName == "*" {
-		balanceMap, err := w.CalculateAccountBalances(ctx, int32(*cmd.MinConf))
+		balances, err := w.AccountBalances(ctx, int32(*cmd.MinConf))
 		if err != nil {
 			return nil, err
 		}
-		balances := make([]*udb.Balances, 0, len(balanceMap))
-		for _, bal := range balanceMap {
-			balances = append(balances, bal)
-		}
-		sort.Slice(balances, func(i, j int) bool {
-			return balances[i].Account < balances[j].Account
-		})
 
 		var (
 			totImmatureCoinbase dcrutil.Amount
@@ -1025,7 +1017,7 @@ func (s *Server) getBalance(ctx context.Context, icmd interface{}) (interface{},
 			return nil, err
 		}
 
-		bal, err := w.CalculateAccountBalance(ctx, account, int32(*cmd.MinConf))
+		bal, err := w.AccountBalance(ctx, account, int32(*cmd.MinConf))
 		if err != nil {
 			// Expect account lookup to succeed
 			if errors.Is(err, errors.NotExist) {
@@ -1130,7 +1122,7 @@ func (s *Server) getInfo(ctx context.Context, icmd interface{}) (interface{}, er
 		return nil, err
 	}
 
-	balances, err := w.CalculateAccountBalances(ctx, 1)
+	balances, err := w.AccountBalances(ctx, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -1278,7 +1270,7 @@ func (s *Server) getUnconfirmedBalance(ctx context.Context, icmd interface{}) (i
 		}
 		return nil, err
 	}
-	bals, err := w.CalculateAccountBalance(ctx, account, 1)
+	bals, err := w.AccountBalance(ctx, account, 1)
 	if err != nil {
 		// Expect account lookup to succeed
 		if errors.Is(err, errors.NotExist) {
@@ -2031,7 +2023,7 @@ func (s *Server) listAccounts(ctx context.Context, icmd interface{}) (interface{
 	}
 
 	accountBalances := map[string]float64{}
-	results, err := w.CalculateAccountBalances(ctx, int32(*cmd.MinConf))
+	results, err := w.AccountBalances(ctx, int32(*cmd.MinConf))
 	if err != nil {
 		return nil, err
 	}

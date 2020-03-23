@@ -3575,7 +3575,7 @@ func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32
 }
 
 // Balances is an convenience type.
-type Balances struct {
+type Balances = struct {
 	Account                 uint32
 	ImmatureCoinbaseRewards dcrutil.Amount
 	ImmatureStakeGeneration dcrutil.Amount
