@@ -51,6 +51,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
@@ -196,6 +197,13 @@ type decodeMessageServer struct {
 	chainParams *chaincfg.Params
 }
 
+// networkServer provices RPC clients with the ability to perform network
+// related calls that are not necessarily used or backed by the wallet itself.
+type networkServer struct {
+	ready  uint32 // atomic
+	wallet *wallet.Wallet
+}
+
 // Singleton implementations of each service.  Not all services are immediately
 // usable.
 var (
@@ -209,6 +217,7 @@ var (
 	votingService              votingServer
 	messageVerificationService messageVerificationServer
 	decodeMessageService       decodeMessageServer
+	networkService             networkServer
 )
 
 // RegisterServices registers implementations of each gRPC service and registers
@@ -224,6 +233,7 @@ func RegisterServices(server *grpc.Server) {
 	pb.RegisterVotingServiceServer(server, &votingService)
 	pb.RegisterMessageVerificationServiceServer(server, &messageVerificationService)
 	pb.RegisterDecodeMessageServiceServer(server, &decodeMessageService)
+	pb.RegisterNetworkServiceServer(server, &networkService)
 }
 
 var serviceMap = map[string]interface{}{
@@ -237,6 +247,7 @@ var serviceMap = map[string]interface{}{
 	"walletrpc.VotingService":              &votingService,
 	"walletrpc.MessageVerificationService": &messageVerificationService,
 	"walletrpc.DecodeMessageService":       &decodeMessageService,
+	"walletrpc.NetworkService":             &networkService,
 }
 
 // ServiceReady returns nil when the service is ready and a gRPC error when not.
@@ -1102,37 +1113,80 @@ func (s *walletServer) GetTransaction(ctx context.Context, req *pb.GetTransactio
 	return resp, nil
 }
 
+type blockRangeReq interface {
+	GetStartingBlockHash() []byte
+	GetStartingBlockHeight() int32
+	GetEndingBlockHash() []byte
+	GetEndingBlockHeight() int32
+}
+
+// decodeBlockRange converts a request that has the standard set of
+// StartingBlockHash/StartingBlockHeight, EndingBlockHash/EndingBlockHeight
+// parameters into corresponding *wallet.BlockIdentifier for use in functions
+// that range over blocks.
+//
+// For each (hash,height) pair of each (start,end) set, the following
+// conversion is made:
+//
+// - Specifying both hash and height is an error
+// - Non-nil hash is used
+// - Non-zero height is used
+// - Otherwise a nil identifier is returned
+//
+// This behavior makes the wallet's internal `blockRange` function match blocks
+// over the entire range of mainchain blocks, including unmined transactions
+// (when applicable).
+func decodeBlockRange(req blockRangeReq) (*wallet.BlockIdentifier, *wallet.BlockIdentifier, error) {
+	var startBlock, endBlock *wallet.BlockIdentifier
+	sbh := req.GetStartingBlockHash()
+	sh := req.GetStartingBlockHeight()
+	ebh := req.GetEndingBlockHash()
+	eh := req.GetEndingBlockHeight()
+
+	// Determine start block identifier.
+	switch {
+	case sbh != nil && sh != 0:
+		return nil, nil, status.Errorf(codes.InvalidArgument,
+			"starting block hash and height may not be specified simultaneously")
+	case sbh != nil:
+		hash, err := chainhash.NewHash(sbh)
+		if err != nil {
+			return nil, nil, status.Errorf(codes.InvalidArgument,
+				"invalid starting block hash: %s", err.Error())
+		}
+		startBlock = wallet.NewBlockIdentifierFromHash(hash)
+	case sh != 0:
+		startBlock = wallet.NewBlockIdentifierFromHeight(sh)
+	}
+
+	// Determine end block identifier.
+	switch {
+	case ebh != nil && eh != 0:
+		return nil, nil, status.Errorf(codes.InvalidArgument,
+			"ending block hash and height may not be specified simultaneously")
+	case ebh != nil:
+		hash, err := chainhash.NewHash(ebh)
+		if err != nil {
+			return nil, nil, status.Errorf(codes.InvalidArgument,
+				"invalid ending block hash: %s", err.Error())
+		}
+		endBlock = wallet.NewBlockIdentifierFromHash(hash)
+	case eh != 0:
+		endBlock = wallet.NewBlockIdentifierFromHeight(eh)
+	}
+
+	return startBlock, endBlock, nil
+}
+
 // BUGS:
 // - MinimumRecentTransactions is ignored.
 // - Wrong error codes when a block height or hash is not recognized
 func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 	server pb.WalletService_GetTransactionsServer) error {
 
-	var startBlock, endBlock *wallet.BlockIdentifier
-	if req.StartingBlockHash != nil && req.StartingBlockHeight != 0 {
-		return status.Errorf(codes.InvalidArgument,
-			"starting block hash and height may not be specified simultaneously")
-	} else if req.StartingBlockHash != nil {
-		startBlockHash, err := chainhash.NewHash(req.StartingBlockHash)
-		if err != nil {
-			return status.Errorf(codes.InvalidArgument, "%s", err.Error())
-		}
-		startBlock = wallet.NewBlockIdentifierFromHash(startBlockHash)
-	} else if req.StartingBlockHeight != 0 {
-		startBlock = wallet.NewBlockIdentifierFromHeight(req.StartingBlockHeight)
-	}
-
-	if req.EndingBlockHash != nil && req.EndingBlockHeight != 0 {
-		return status.Errorf(codes.InvalidArgument,
-			"ending block hash and height may not be specified simultaneously")
-	} else if req.EndingBlockHash != nil {
-		endBlockHash, err := chainhash.NewHash(req.EndingBlockHash)
-		if err != nil {
-			return status.Errorf(codes.InvalidArgument, "%s", err.Error())
-		}
-		endBlock = wallet.NewBlockIdentifierFromHash(endBlockHash)
-	} else if req.EndingBlockHeight != 0 {
-		endBlock = wallet.NewBlockIdentifierFromHeight(req.EndingBlockHeight)
+	startBlock, endBlock, err := decodeBlockRange(req)
+	if err != nil {
+		return err
 	}
 
 	var minRecentTxs int
@@ -1181,7 +1235,7 @@ func (s *walletServer) GetTransactions(req *pb.GetTransactionsRequest,
 		}
 	}
 
-	err := s.wallet.GetTransactions(ctx, rangeFn, startBlock, endBlock)
+	err = s.wallet.GetTransactions(ctx, rangeFn, startBlock, endBlock)
 	if err != nil {
 		return translateError(err)
 	}
@@ -1223,31 +1277,9 @@ func (s *walletServer) GetTicket(ctx context.Context, req *pb.GetTicketRequest) 
 func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 	server pb.WalletService_GetTicketsServer) error {
 
-	var startBlock, endBlock *wallet.BlockIdentifier
-	if req.StartingBlockHash != nil && req.StartingBlockHeight != 0 {
-		return status.Errorf(codes.InvalidArgument,
-			"starting block hash and height may not be specified simultaneously")
-	} else if req.StartingBlockHash != nil {
-		startBlockHash, err := chainhash.NewHash(req.StartingBlockHash)
-		if err != nil {
-			return status.Errorf(codes.InvalidArgument, "%s", err.Error())
-		}
-		startBlock = wallet.NewBlockIdentifierFromHash(startBlockHash)
-	} else if req.StartingBlockHeight != 0 {
-		startBlock = wallet.NewBlockIdentifierFromHeight(req.StartingBlockHeight)
-	}
-
-	if req.EndingBlockHash != nil && req.EndingBlockHeight != 0 {
-		return status.Errorf(codes.InvalidArgument,
-			"ending block hash and height may not be specified simultaneously")
-	} else if req.EndingBlockHash != nil {
-		endBlockHash, err := chainhash.NewHash(req.EndingBlockHash)
-		if err != nil {
-			return status.Errorf(codes.InvalidArgument, "%s", err.Error())
-		}
-		endBlock = wallet.NewBlockIdentifierFromHash(endBlockHash)
-	} else if req.EndingBlockHeight != 0 {
-		endBlock = wallet.NewBlockIdentifierFromHeight(req.EndingBlockHeight)
+	startBlock, endBlock, err := decodeBlockRange(req)
+	if err != nil {
+		return err
 	}
 
 	targetTicketCount := int(req.TargetTicketCount)
@@ -1284,7 +1316,6 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 		}
 	}
 	n, _ := s.wallet.NetworkBackend()
-	var err error
 	if rpc, ok := n.(*dcrd.RPC); ok {
 		err = s.wallet.GetTicketsPrecise(ctx, rpc, rangeFn, startBlock, endBlock)
 	} else {
@@ -1924,6 +1955,39 @@ func (s *walletServer) Spender(ctx context.Context, req *pb.SpenderRequest) (*pb
 		InputIndex:         spenderIndex,
 	}
 	return resp, nil
+}
+
+func (s *walletServer) GetCFilters(req *pb.GetCFiltersRequest, server pb.WalletService_GetCFiltersServer) error {
+	startBlock, endBlock, err := decodeBlockRange(req)
+	if err != nil {
+		return err
+	}
+
+	ctx := server.Context()
+	rangeFn := func(bh chainhash.Hash, key [gcs.KeySize]byte, cf *gcs.FilterV2) (bool, error) {
+		resp := &pb.GetCFiltersResponse{
+			Key:       key[:],
+			Filter:    cf.Bytes(),
+			BlockHash: bh[:],
+		}
+		err := server.Send(resp)
+		if err != nil {
+			return true, err
+		}
+
+		select {
+		case <-ctx.Done():
+			return true, ctx.Err()
+		default:
+			return false, nil
+		}
+	}
+	err = s.wallet.RangeCFiltersV2(ctx, startBlock, endBlock, rangeFn)
+	if err != nil {
+		return translateError(err)
+	}
+
+	return nil
 }
 
 func marshalTransactionInputs(v []wallet.TransactionSummaryInput) []*pb.TransactionDetails_Input {
@@ -3176,4 +3240,57 @@ func (s *walletServer) AbandonTransaction(ctx context.Context, req *pb.AbandonTr
 		return nil, translateError(err)
 	}
 	return &pb.AbandonTransactionResponse{}, nil
+}
+
+// StartNetworkService starts the NetworkService.
+func StartNetworkService(server *grpc.Server, wallet *wallet.Wallet) {
+	networkService.wallet = wallet
+	if atomic.SwapUint32(&networkService.ready, 1) != 0 {
+		panic("service already started")
+	}
+}
+
+func (s *networkServer) checkReady() bool {
+	return atomic.LoadUint32(&s.ready) != 0
+}
+
+func (s *networkServer) GetRawBlock(ctx context.Context, req *pb.GetRawBlockRequest) (*pb.GetRawBlockResponse, error) {
+	n, err := s.wallet.NetworkBackend()
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	var bh *chainhash.Hash
+	if req.BlockHash == nil {
+		id := wallet.NewBlockIdentifierFromHeight(req.BlockHeight)
+		info, err := s.wallet.BlockInfo(ctx, id)
+		if err != nil {
+			return nil, translateError(err)
+		}
+
+		bh = &info.Hash
+	} else {
+		bh, err = chainhash.NewHash(req.BlockHash)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid blockhash: %s", err.Error())
+		}
+	}
+
+	blocks, err := n.Blocks(ctx, []*chainhash.Hash{bh})
+	if err != nil {
+		return nil, translateError(err)
+	}
+	if len(blocks) == 0 {
+		// Should never happen but protects against a possible panic on
+		// the following code.
+		return nil, status.Errorf(codes.Internal, "network returned 0 blocks")
+	}
+
+	rawBlock, err := blocks[0].Bytes()
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.GetRawBlockResponse{
+		Block: rawBlock,
+	}, nil
 }

@@ -37,6 +37,7 @@ service WalletService {
 	rpc BlockInfo (BlockInfoRequest) returns (BlockInfoResponse);
 	rpc BestBlock (BestBlockRequest) returns (BestBlockResponse);
 	rpc Spender (SpenderRequest) returns (SpenderResponse);
+	rpc GetCFilters (GetCFiltersRequest) returns (stream GetCFiltersResponse);
 
 	// Notifications
 	rpc TransactionNotifications (TransactionNotificationsRequest) returns (stream TransactionNotificationsResponse);
@@ -119,6 +120,10 @@ service VotingService {
 
 service MessageVerificationService {
 	rpc VerifyMessage (VerifyMessageRequest) returns (VerifyMessageResponse);
+}
+
+service NetworkService {
+	rpc GetRawBlock (GetRawBlockRequest) returns (GetRawBlockResponse);
 }
 
 message TransactionDetails {
@@ -1140,4 +1145,26 @@ message SpenderRequest {
 message SpenderResponse {
 	bytes spender_transaction = 1;
 	uint32 input_index = 2;
+}
+
+message GetCFiltersRequest {
+	bytes starting_block_hash = 1;
+	sint32 starting_block_height = 2;
+	bytes ending_block_hash = 3;
+	sint32 ending_block_height = 4;
+}
+
+message GetCFiltersResponse {
+	bytes key = 1;
+	bytes filter = 2;
+	bytes block_hash = 3;
+}
+
+message GetRawBlockRequest {
+	bytes block_hash = 1;
+	sint32 block_height = 2;
+}
+
+message GetRawBlockResponse {
+	bytes block = 1;
 }

@@ -41,6 +41,7 @@ existing wallet.
 - [`VotingService`](#votingservice)
 - [`MessageVerificationService`](#messageverificationservice)
 - [`DecodeMessageService`](#decodemessageservice)
+- [`NetworkService`](#networkservice)
 
 ## `VersionService`
 
@@ -434,6 +435,7 @@ The service provides the following methods:
 - [`BestBlock`](#bestblock)
 - [`SweepAccount`](#sweepaccount)
 - [`SignHashes`](#signhashes)
+- [`GetCFilters`](#GetCFilters)
 
 #### `Ping`
 
@@ -2388,6 +2390,65 @@ the peer that caused a notification to be sent.
 
 - `string address`:  The address of the peer that caused the notification.
 
+___
+
+#### `GetCFilters`
+
+The `GetCFilters` method allows callers to fetch the V2 committed filters from
+the wallet database. Callers can query these filters to search for the presence
+(as spends or new outputs) of arbitrary scripts in blocks.
+
+Only blocks from the current mainchain (from the wallet's point of view) can be
+queried. The available filters have already been verified against the header
+following DCP0005 activation and are therefore safe for use.
+
+
+**Request:** `GetCFiltersRequest`
+
+- `bytes starting_block_hash`: The block hash of the block to begin including
+  cfilters from.  If this field is set to the default, the
+  `starting_block_height` field is used instead.  If changed, the byte array
+  must have length 32 and `starting_block_height` must be zero.
+
+- `sint32 starting_block_height`: The block height to begin including
+  cfilters from.  If this field is non-zero, `starting_block_hash` must be
+  set to its default value to avoid ambiguity.  If positive, the field is
+  interpreted as a block height.  If negative, the height is subtracted from the
+  block wallet considers itself in sync with.
+
+- `bytes ending_block_hash`: The block hash of the last block to return
+  cfilters from.  If this default is set to the default, the
+  `ending_block_height` field is used instead.  If changed, the byte array must
+  have length 32 and `ending_block_height` must be zero.
+
+- `int32 ending_block_height`: The block height of the last block to return
+  cfilters from.  If non-zero, the `ending_block_hash` field must be set to
+  its default value to avoid ambiguity.  If both this field and
+  `ending_block_hash` are set to their default values, no upper block limit is
+  used and cfilters through the best block are returned.
+
+
+**Response:** `stream GetCFiltersResponse`
+
+Each returned element of the stream corresponds to a single cfilter. The
+returned fields for each element are:
+
+- `bytes key`: A byte array with the key that must be used to query the filter.
+  This byte array will be of length 16.
+
+- `bytes filter`: The serialized, version 2 committed filter.
+
+- `bytes block_hash`: The block hash of the corresponding block.
+
+**Expected errors:**
+
+- `InvalidArgument`: When both `starting_block_hash` and `starting_block_height`
+  are specified.
+
+- `InvalidArgument`: When both `ending_block_hash` and `ending_block_height` are
+  specified.
+
+
 ## `SeedService`
 
 The `SeedService` service provides RPC clients with the ability to generate
@@ -3057,3 +3118,41 @@ The `DecodedTransaction` message is documented [here](#decodedtransaction).
 **Expected errors:**
 
 - `InvalidArgument`: The serialized transaction could not be decoded.
+
+## NetworkService
+
+The `NetworkService` service provides the caller with the ability to query and
+perform actions in the P2P network related to blockchain data not necessarily
+tracked by the wallet.
+
+In order to use this service, the wallet must have already been loaded. Most
+operations fail if the wallet is not connected to an underlying dcrd instance
+(when running in regular RPC mode) or to remote peers (when running in SPV mode).
+
+**Methods**
+
+- [`GetRawBlock`](#GetRawBlock)
+
+### Methods
+
+#### `GetRawBlock`
+
+The `GetRawBlock` method queries the network for a full blockchain block. The
+returned block is **not** cached by the wallet, therefore callers are advised
+to consider the bandwidth implications of requesting a large number of blocks.
+
+**Request:** `GetRawBlockRequest`
+
+- `bytes block_hash`: The hash of the desired block. If unspecified, the block
+  is fetched by `block_height`.
+
+- `sint32 block_height` The height of the (mainchain) block to fetch. The wallet
+  must have seen this block height for the request to succeed.
+
+**Response:** `GetRawBlockResponse`
+
+- `bytes block`: The serialized raw block.
+
+**Expected errors:**
+
+- `Unavailable`: The wallet is not currently connected to the p2p network.
