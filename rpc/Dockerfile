@@ -1,9 +1,8 @@
-FROM golang:1.12-stretch
+FROM golang:1.14-buster
 
 RUN apt-get update && apt-get install -y protobuf-compiler
-RUN go get -u github.com/golang/protobuf/protoc-gen-go
 
-WORKDIR /build
-CMD "./regen.sh"
+WORKDIR /build/rpc
+CMD ["/bin/bash", "regen.sh"]
 
 
