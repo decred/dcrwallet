@@ -24,6 +24,7 @@ import (
 	"decred.org/dcrwallet/rpc/jsonrpc/types"
 	"decred.org/dcrwallet/version"
 	"decred.org/dcrwallet/wallet"
+	"decred.org/dcrwallet/wallet/txauthor"
 	"decred.org/dcrwallet/wallet/txrules"
 	"decred.org/dcrwallet/wallet/udb"
 	"github.com/decred/dcrd/blockchain/stake/v3"
@@ -42,9 +43,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "7.0.0"
+	jsonrpcSemverString = "7.1.0"
 	jsonrpcSemverMajor  = 7
-	jsonrpcSemverMinor  = 0
+	jsonrpcSemverMinor  = 1
 	jsonrpcSemverPatch  = 0
 )
 
@@ -75,6 +76,7 @@ var handlers = map[string]handler{
 	"createsignature":         {fn: (*Server).createSignature},
 	"discoverusage":           {fn: (*Server).discoverUsage},
 	"dumpprivkey":             {fn: (*Server).dumpPrivKey},
+	"fundrawtransaction":      {fn: (*Server).fundRawTransaction},
 	"generatevote":            {fn: (*Server).generateVote},
 	"getaccount":              {fn: (*Server).getAccount},
 	"getaccountaddress":       {fn: (*Server).getAccountAddress},
@@ -806,6 +808,99 @@ func (s *Server) dumpPrivKey(ctx context.Context, icmd interface{}) (interface{}
 		return nil, err
 	}
 	return key, nil
+}
+
+func (s *Server) fundRawTransaction(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.FundRawTransactionCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	var (
+		changeAddress string
+		feeRate       = w.RelayFee()
+		confs         = int32(1)
+	)
+	if cmd.Options != nil {
+		opts := cmd.Options
+		var err error
+		if opts.ChangeAddress != nil {
+			changeAddress = *opts.ChangeAddress
+		}
+		if opts.FeeRate != nil {
+			feeRate, err = dcrutil.NewAmount(*opts.FeeRate)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if opts.ConfTarget != nil {
+			confs = *opts.ConfTarget
+			if confs < 0 {
+				return nil, errors.New("confs must be non-negative")
+			}
+		}
+	}
+
+	tx := new(wire.MsgTx)
+	err := tx.Deserialize(hex.NewDecoder(strings.NewReader(cmd.HexString)))
+	if err != nil {
+		return nil, err
+	}
+	// Existing inputs are problematic.  Without information about
+	// how large the input scripts will be once signed, the wallet is
+	// unable to perform correct fee estimation.  If fundrawtransaction
+	// is changed later to work on a PSDT structure that includes this
+	// information, this functionality may be enabled.  For now, prevent
+	// the method from continuing.
+	if len(tx.TxIn) != 0 {
+		return nil, errors.New("transaction must not already have inputs")
+	}
+
+	accountNum, err := w.AccountNumber(ctx, cmd.FundAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	// Because there are no other inputs, a new transaction can be created.
+	var changeSource txauthor.ChangeSource
+	if changeAddress != "" {
+		var err error
+		changeSource, err = makeScriptChangeSource(changeAddress, 0, w.ChainParams())
+		if err != nil {
+			return nil, err
+		}
+	}
+	atx, err := w.NewUnsignedTransaction(ctx, tx.TxOut, feeRate, accountNum, confs,
+		wallet.OutputSelectionAlgorithmDefault, changeSource)
+	if err != nil {
+		return nil, err
+	}
+
+	// Include chosen inputs and change output (if any) in decoded
+	// transaction.
+	tx.TxIn = atx.Tx.TxIn
+	if atx.ChangeIndex >= 0 {
+		tx.TxOut = append(tx.TxOut, atx.Tx.TxOut[atx.ChangeIndex])
+	}
+
+	// Determine the absolute fee of the funded transaction
+	fee := atx.TotalInput
+	for i := range tx.TxOut {
+		fee -= dcrutil.Amount(tx.TxOut[i].Value)
+	}
+
+	b := new(strings.Builder)
+	b.Grow(2 * tx.SerializeSize())
+	err = tx.Serialize(hex.NewEncoder(b))
+	if err != nil {
+		return nil, err
+	}
+	res := &types.FundRawTransactionResult{
+		Hex: b.String(),
+		Fee: fee.ToCoin(),
+	}
+	return res, nil
 }
 
 // generateVote handles a generatevote request by constructing a signed

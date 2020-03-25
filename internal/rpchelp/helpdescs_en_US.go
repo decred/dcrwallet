@@ -89,6 +89,17 @@ var helpDescsEnUS = map[string]string{
 	"dumpprivkey-address":   "The address to return a private key for",
 	"dumpprivkey--result0":  "The WIF-encoded private key",
 
+	// FundRawTransactionCmd help.
+	"fundrawtransaction--synopsis":            "Adds unsigned inputs and change output to a raw transaction",
+	"fundrawtransaction-hexstring":            "Serialized transaction in hex encoding",
+	"fundrawtransaction-fundaccount":          "Account of outputs to spend in transaction",
+	"fundrawtransaction-options":              "Object to specify fixed change address, alternative fee rate, and confirmation target",
+	"fundrawtransactionoptions-conf_target":   "Required confirmations of selected previous outputs",
+	"fundrawtransactionoptions-feerate":       "Alternative fee rate",
+	"fundrawtransactionoptions-changeaddress": "Provide a change address rather than deriving one from the funding account",
+	"fundrawtransactionresult-hex":            "Funded transaction in hex encoding",
+	"fundrawtransactionresult-fee":            "Absolute fee of funded transaction",
+
 	// GenerateVote help.
 	"generatevote--synopsis":   "Returns the vote transaction encoded as a hexadecimal string",
 	"generatevote-blockhash":   "Block hash for the ticket",
