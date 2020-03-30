@@ -52,15 +52,16 @@ import (
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/hdkeychain/v3"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
 
 // Public API version constants
 const (
-	semverString = "7.4.0"
+	semverString = "7.5.0"
 	semverMajor  = 7
-	semverMinor  = 4
+	semverMinor  = 5
 	semverPatch  = 0
 )
 
@@ -1495,6 +1496,47 @@ func (s *walletServer) CreateSignature(ctx context.Context, req *pb.CreateSignat
 	}
 
 	return &pb.CreateSignatureResponse{Signature: sig, PublicKey: pubkey}, nil
+}
+
+func (s *walletServer) CreateRawTransaction(ctx context.Context, req *pb.CreateRawTransactionRequest) (
+	*pb.CreateRawTransactionResponse, error) {
+
+	chainParams := s.wallet.ChainParams()
+
+	inputs := make([]dcrdtypes.TransactionInput, len(req.Inputs))
+	for i, input := range req.Inputs {
+		amt := dcrutil.Amount(input.GetAmount())
+		hash, err := chainhash.NewHash(input.GetTransactionHash())
+		if err != nil {
+			return nil, translateError(err)
+		}
+		inputs[i] = dcrdtypes.TransactionInput{
+			Amount: amt.ToCoin(),
+			Txid:   hash.String(),
+			Vout:   input.GetOutputIndex(),
+			Tree:   int8(input.GetTree()),
+		}
+	}
+	amountsAtoms := make(map[string]float64)
+	for addr, amtAtoms := range req.Amounts {
+		amt := dcrutil.Amount(amtAtoms)
+		amountsAtoms[addr] = amt.ToCoin()
+	}
+	msgTx, err := s.wallet.CreateRawTransaction(ctx, inputs, amountsAtoms, &req.LockTime, &req.Expiry, chainParams)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	var txBuf bytes.Buffer
+	txBuf.Grow(msgTx.SerializeSize())
+	err = msgTx.Serialize(&txBuf)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	return &pb.CreateRawTransactionResponse{
+		UnsignedTransaction: txBuf.Bytes(),
+	}, nil
 }
 
 func (s *walletServer) PublishTransaction(ctx context.Context, req *pb.PublishTransactionRequest) (

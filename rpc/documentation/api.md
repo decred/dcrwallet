@@ -413,6 +413,7 @@ The service provides the following methods:
 - [`FundTransaction`](#fundtransaction)
 - [`UnspentOutputs`](#unspentoutputs)
 - [`ConstructTransaction`](#constructtransaction)
+- [`CreateRawTransaction`](#createrawtransaction)
 - [`SignTransaction`](#signtransaction)
 - [`SignTransactions`](#signtransactions)
 - [`CreateSignature`](#createsignature)
@@ -1383,6 +1384,54 @@ change output is added, it is inserted at a random output position.
   the transaction.
 
 ___
+#### `CreateRawTransaction`
+
+The `CreateRawTransaction` method returns a new transaction spending the provided
+inputs and sending to the provided addresses.  The transaction inputs are not 
+signed in the created transaction.
+
+**Request:** `CreateRawTransactionRequest`
+
+- `repeated TransactionInput inputs`: The inputs to the transaction.
+
+- `map<string, int64> amounts`:  The destination address as the key and the amount
+  (in Atoms) as the value.
+
+- `int64 lock_time`: A non-zero value will also locktime-activate the inputs.
+
+- `int64 expiry`: A non-zero value when the transaction expires.
+
+  **Nested message:** `TransactionInput`
+
+  - `int64 amount`: The output value (counted in Atoms) of the unspent
+    transaction output.
+
+  - `bytes transaction_hash`: Transaction hash of the input
+
+  - `uint32 output_index`: The output index of the previous output.
+
+  - `int32 tree`: The transaction tree the previous transaction belongs to.
+
+
+**Response:** `CreateRawTransactionResponse`
+
+- `bytes unsigned_transaction`: The raw serialized transaction.
+
+**Expected errors:**
+
+- `InvalidArgument`: An invalid expiry was provided.
+
+- `InvalidArgument`: An invalid locktime was provided.
+
+- `InvalidArgument`: An invalid input hash has been provided.
+
+- `InvalidArgument`: An invalid input tree value has been provided.
+  Tree can be regular or stake.
+
+- `InvalidArgument`: An output destination address could not be decoded, or has
+  invalid type.
+
+- `InvalidArgument`: No output destinations (change or non-change) were provided.
 
 #### `SignTransaction`
 

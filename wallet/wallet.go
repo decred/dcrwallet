@@ -4060,6 +4060,106 @@ func (w *Wallet) CreateSignature(ctx context.Context, tx *wire.MsgTx, idx uint32
 	return sig, pubKey.SerializeCompressed(), nil
 }
 
+// CreateRawTransaction creates a new raw transaction.
+func (w *Wallet) CreateRawTransaction(ctx context.Context, inputs []dcrdtypes.TransactionInput, amounts map[string]float64, lockTime *int64, expiry *int64, params *chaincfg.Params) (*wire.MsgTx, error) {
+
+	const opf = "wallet.CreateRawTransaction()"
+	op := errors.Opf(opf)
+
+	// Validate expiry, if given.
+	if expiry != nil && *expiry < 0 {
+		return nil, errors.E(errors.Invalid, "Expiry out of range")
+	}
+
+	// Validate the locktime, if given.
+	if lockTime != nil &&
+		(*lockTime < 0 ||
+			*lockTime > int64(wire.MaxTxInSequenceNum)) {
+		return nil, errors.E(errors.Invalid, "Locktime out of range")
+	}
+
+	// Add all transaction inputs to a new transaction after performing
+	// some validity checks.
+	mtx := wire.NewMsgTx()
+	for _, input := range inputs {
+		txHash, err := chainhash.NewHashFromStr(input.Txid)
+		if err != nil {
+			return nil, errors.E(errors.Invalid, err)
+		}
+
+		switch input.Tree {
+		case wire.TxTreeRegular, wire.TxTreeStake:
+		default:
+			return nil, errors.E(errors.Invalid, "Tx tree must be regular or stake")
+		}
+
+		amt, err := dcrutil.NewAmount(input.Amount)
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+		if amt < 0 {
+			return nil, errors.E(errors.Invalid, "Positive input amount is required")
+		}
+
+		prevOut := wire.NewOutPoint(txHash, input.Vout, input.Tree)
+		txIn := wire.NewTxIn(prevOut, int64(amt), nil)
+		if lockTime != nil && *lockTime != 0 {
+			txIn.Sequence = wire.MaxTxInSequenceNum - 1
+		}
+		mtx.AddTxIn(txIn)
+	}
+
+	// Add all transaction outputs to the transaction after performing
+	// some validity checks.
+	for encodedAddr, amount := range amounts {
+		// Ensure amount is in the valid range for monetary amounts.
+		if amount <= 0 || amount > dcrutil.MaxAmount {
+			return nil, errors.E(errors.Invalid, "Invalid amount: 0 >= %v > %v", amount, dcrutil.MaxAmount)
+		}
+
+		// Decode the provided address.  This also ensures the network encoded
+		// with the address matches the network the server is currently on.
+		addr, err := dcrutil.DecodeAddress(encodedAddr, params)
+		if err != nil {
+			return nil, errors.E(errors.Invalid, "Address %q: %v", encodedAddr, err)
+		}
+
+		// Ensure the address is one of the supported types.
+		switch addr.(type) {
+		case *dcrutil.AddressPubKeyHash:
+		case *dcrutil.AddressScriptHash:
+		default:
+			return nil, errors.E(errors.Invalid, "Invalid type: %T", addr)
+		}
+
+		// Create a new script which pays to the provided address.
+		pkScript, err := txscript.PayToAddrScript(addr)
+		if err != nil {
+			return nil, errors.E(errors.Bug, "Pay to address script: %v", err)
+		}
+
+		atomic, err := dcrutil.NewAmount(amount)
+		if err != nil {
+			return nil, errors.E(errors.Bug, "New amount: %v", err)
+		}
+
+		txOut := wire.NewTxOut(int64(atomic), pkScript)
+		mtx.AddTxOut(txOut)
+	}
+
+	// Set the Locktime, if given.
+	if lockTime != nil {
+		mtx.LockTime = uint32(*lockTime)
+	}
+
+	// Set the Expiry, if given.
+	if expiry != nil {
+		mtx.Expiry = uint32(*expiry)
+	}
+
+	return mtx, nil
+}
+
 // isRelevantTx determines whether the transaction is relevant to the wallet and
 // should be recorded in the database.
 func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
