@@ -755,6 +755,9 @@ func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, re
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		_, height := w.txStore.MainChainTip(ns)
 		tickets, err := w.txStore.UnspentTickets(dbtx, height, true)
+		if err != nil {
+			return err
+		}
 		for i := range tickets {
 			op := wire.OutPoint{
 				Hash:  tickets[i],
