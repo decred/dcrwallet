@@ -1968,12 +1968,12 @@ func (w *Wallet) GetTransactionsByHashes(ctx context.Context, txHashes []*chainh
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		for _, hash := range txHashes {
 			tx, err := w.txStore.Tx(ns, hash)
-			if err != nil {
+			switch {
+			case err != nil && !errors.Is(err, errors.NotExist):
 				return err
-			}
-			if tx == nil {
+			case tx == nil:
 				notFound = append(notFound, wire.NewInvVect(wire.InvTypeTx, hash))
-			} else {
+			default:
 				txs = append(txs, tx)
 			}
 		}
