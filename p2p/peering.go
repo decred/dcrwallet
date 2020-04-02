@@ -86,7 +86,6 @@ type RemotePeer struct {
 	pongs   chan *wire.MsgPong
 
 	requestedBlocks     sync.Map // k=chainhash.Hash v=chan<- *wire.MsgBlock
-	requestedCFilters   sync.Map // k=chainhash.Hash v=chan<- *wire.MsgCFilter
 	requestedCFiltersV2 sync.Map // k=chainhash.Hash v=chan<- *wire.MsgCFilterV2
 	requestedTxs        map[chainhash.Hash]chan<- *wire.MsgTx
 	requestedTxsMu      sync.Mutex
@@ -658,8 +657,6 @@ func (rp *RemotePeer) readMessages(ctx context.Context) error {
 				rp.lp.amgr.AddAddresses(m.AddrList, rp.na)
 			case *wire.MsgBlock:
 				rp.receivedBlock(ctx, m)
-			case *wire.MsgCFilter:
-				rp.receivedCFilter(ctx, m)
 			case *wire.MsgCFilterV2:
 				rp.receivedCFilterV2(ctx, m)
 			case *wire.MsgNotFound:
@@ -839,40 +836,13 @@ func (rp *RemotePeer) receivedBlock(ctx context.Context, msg *wire.MsgBlock) {
 	}
 }
 
-func (rp *RemotePeer) addRequestedCFilter(hash *chainhash.Hash, c chan<- *wire.MsgCFilter) (newRequest bool) {
-	_, loaded := rp.requestedCFilters.LoadOrStore(*hash, c)
-	return !loaded
-}
-
 func (rp *RemotePeer) addRequestedCFilterV2(hash *chainhash.Hash, c chan<- *wire.MsgCFilterV2) (newRequest bool) {
 	_, loaded := rp.requestedCFiltersV2.LoadOrStore(*hash, c)
 	return !loaded
 }
 
-func (rp *RemotePeer) deleteRequestedCFilter(hash *chainhash.Hash) {
-	rp.requestedCFilters.Delete(*hash)
-}
-
 func (rp *RemotePeer) deleteRequestedCFilterV2(hash *chainhash.Hash) {
 	rp.requestedCFiltersV2.Delete(*hash)
-}
-
-func (rp *RemotePeer) receivedCFilter(ctx context.Context, msg *wire.MsgCFilter) {
-	const opf = "remotepeer(%v).receivedCFilter(%v)"
-	var k interface{} = msg.BlockHash
-	v, ok := rp.requestedCFilters.Load(k)
-	if !ok {
-		op := errors.Opf(opf, rp.raddr, &msg.BlockHash)
-		err := errors.E(op, errors.Protocol, "received unrequested cfilter")
-		rp.Disconnect(err)
-		return
-	}
-	rp.requestedCFilters.Delete(k)
-	c := v.(chan<- *wire.MsgCFilter)
-	select {
-	case <-ctx.Done():
-	case c <- msg:
-	}
 }
 
 func (rp *RemotePeer) receivedCFilterV2(ctx context.Context, msg *wire.MsgCFilterV2) {
