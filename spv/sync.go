@@ -74,6 +74,10 @@ type Syncer struct {
 
 	// Holds all potential callbacks used to notify clients
 	notifications *Notifications
+
+	// Mempool for non-wallet-relevant transactions.
+	mempool     sync.Map // k=chainhash.Hash v=*wire.MsgTx
+	mempoolAdds chan *chainhash.Hash
 }
 
 // Notifications struct to contain all of the upcoming callbacks that will
@@ -118,6 +122,7 @@ func NewSyncer(w *wallet.Wallet, lp *p2p.LocalPeer) *Syncer {
 		rescanFilter:      wallet.NewRescanFilter(nil, nil),
 		seenTxs:           lru.NewCache(2000),
 		lp:                lp,
+		mempoolAdds:       make(chan *chainhash.Hash),
 	}
 }
 
@@ -303,6 +308,8 @@ func (s *Syncer) Run(ctx context.Context) error {
 	} else {
 		g.Go(func() error { return s.connectToCandidates(ctx) })
 	}
+
+	g.Go(func() error { return s.handleMempool(ctx) })
 
 	s.wallet.SetNetworkBackend(s)
 	defer s.wallet.SetNetworkBackend(nil)
@@ -554,8 +561,16 @@ func (s *Syncer) receiveGetData(ctx context.Context) error {
 						rp.RemoteAddr(), err)
 					return
 				}
-				if len(missing) != 0 {
-					notFound = append(notFound, missing...)
+
+				// For the missing ones, attempt to search in
+				// the non-wallet-relevant syncer mempool.
+				for _, miss := range missing {
+					if v, ok := s.mempool.Load(miss.Hash); ok {
+						tx := v.(*wire.MsgTx)
+						foundTxs = append(foundTxs, tx)
+						continue
+					}
+					notFound = append(notFound, miss)
 				}
 			}
 
@@ -1278,4 +1293,25 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 		log.Errorf("Failed to resent one or more unmined transactions: %v", err)
 	}
 	return nil
+}
+
+// handleMempool handles eviction from the local mempool of non-wallet-backed
+// transactions. It MUST be run as a goroutine.
+func (s *Syncer) handleMempool(ctx context.Context) error {
+	const mempoolEvictionTimeout = 60 * time.Minute
+
+	for {
+		select {
+		case txHash := <-s.mempoolAdds:
+			go func() {
+				select {
+				case <-ctx.Done():
+				case <-time.After(mempoolEvictionTimeout):
+					s.mempool.Delete(txHash)
+				}
+			}()
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }

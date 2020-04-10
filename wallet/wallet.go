@@ -4187,6 +4187,24 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 	return false
 }
 
+// DetermineRelevantTxs splits the given transactions into slices of relevant
+// and non-wallet-relevant transactions (respectively).
+func (w *Wallet) DetermineRelevantTxs(ctx context.Context, txs ...*wire.MsgTx) ([]*wire.MsgTx, []*wire.MsgTx, error) {
+	var relevant, nonRelevant []*wire.MsgTx
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		for _, tx := range txs {
+			switch w.isRelevantTx(dbtx, tx) {
+			case true:
+				relevant = append(relevant, tx)
+			default:
+				nonRelevant = append(nonRelevant, tx)
+			}
+		}
+		return nil
+	})
+	return relevant, nonRelevant, err
+}
+
 func (w *Wallet) appendRelevantOutpoints(relevant []wire.OutPoint, dbtx walletdb.ReadTx, tx *wire.MsgTx) []wire.OutPoint {
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
