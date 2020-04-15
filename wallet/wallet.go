@@ -1764,7 +1764,8 @@ func (w *Wallet) NextAccount(ctx context.Context, name string) (uint32, error) {
 			}
 		}
 		if !canCreate {
-			return errors.New("last 100 accounts have no transaction history")
+			return errors.Errorf("last %d accounts have no transaction history",
+				maxEmptyAccounts)
 		}
 
 		account, err = w.manager.NewAccount(addrmgrNs, name)
