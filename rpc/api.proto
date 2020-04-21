@@ -67,6 +67,7 @@ service WalletService {
 	rpc ValidateAddress (ValidateAddressRequest) returns (ValidateAddressResponse);
 	rpc CommittedTickets (CommittedTicketsRequest) returns (CommittedTicketsResponse);
 	rpc SweepAccount (SweepAccountRequest) returns (SweepAccountResponse);
+	rpc AbandonTransaction (AbandonTransactionRequest) returns (AbandonTransactionResponse);
 	rpc SignHashes (SignHashesRequest) returns (SignHashesResponse);
 }
 
@@ -1110,6 +1111,12 @@ message SweepAccountResponse {
 	int64 total_previous_output_amount = 2;
 	int64 total_output_amount = 3;
 	uint32 estimated_signed_size = 4;
+}
+
+message AbandonTransactionRequest{
+	bytes transaction_hash = 1;
+}
+message AbandonTransactionResponse {
 }
 
 message SignHashesRequest {

@@ -426,6 +426,7 @@ The service provides the following methods:
 - [`SignMessage`](#signmessage)
 - [`SignMessages`](#signmessages)
 - [`ValidateAddress`](#validateaddress)
+- [`AbandonTransaction`](#abandontransaction)
 - [`TransactionNotifications`](#transactionnotifications)
 - [`AccountNotifications`](#accountnotifications)
 - [`ConfirmationNotifications`](#confirmationnotifications)
@@ -1863,6 +1864,7 @@ The `ValidateAddress` method verifies if an address is valid.
 
 - `index`: The child index for addresses derived from hd public keys. It will be
   0 for other types of addresses.
+
 ___
 
 #### `CommittedTickets`
@@ -1898,6 +1900,7 @@ the main chain.
 - `bytes hash`: The hash of the best block.
 
 - `uint32 height`: The height of the best block.
+
 ___
 
 #### `SweepAccount`
@@ -1922,6 +1925,25 @@ an account per the request parameters.
 - `int64 total_output_amount`: The total transaction output amount.
 
 - `uint32 estimated_signed_size`: The estimated size of the transaction when signed.
+
+___
+
+#### `AbandonTransaction`
+
+The `AbandonTransaction` method removes a pending mempool transaction from the
+wallet.  Mined transactions may not be abandoned.
+
+**Request:** `AbandonTransactionRequest`
+- `bytes transaction_hash`: Hash of the transaction to remove
+
+**Response:** `AbandonTransactionResponse`
+
+**Expected errors:**
+
+- `Aborted`: The wallet database is closed.
+
+- `NotFound`: The transaction does not exist.
+
 ___
 
 #### `TransactionNotifications`

@@ -3147,3 +3147,17 @@ func (s *walletServer) SignHashes(ctx context.Context, req *pb.SignHashesRequest
 		Signatures: signatures,
 	}, nil
 }
+
+func (s *walletServer) AbandonTransaction(ctx context.Context, req *pb.AbandonTransactionRequest) (
+	*pb.AbandonTransactionResponse, error) {
+
+	txHash, err := chainhash.NewHash(req.TransactionHash)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid transaction hash: %v", err)
+	}
+	err = s.wallet.AbandonTransaction(ctx, txHash)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.AbandonTransactionResponse{}, nil
+}
