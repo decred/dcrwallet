@@ -62,6 +62,13 @@ type msgAck struct {
 	ack chan<- struct{}
 }
 
+type blockRequest struct {
+	hash  *chainhash.Hash
+	ready chan struct{}
+	block *wire.MsgBlock
+	err   error
+}
+
 // RemotePeer represents a remote peer that can send and receive wire protocol
 // messages with the local peer.  RemotePeers must be created by dialing the
 // peer's address with a LocalPeer.
@@ -85,7 +92,12 @@ type RemotePeer struct {
 	outPrio chan *msgAck
 	pongs   chan *wire.MsgPong
 
-	requestedBlocks     sync.Map // k=chainhash.Hash v=chan<- *wire.MsgBlock
+	// requestedBlocksMu controls access to both the requestedBlocks map
+	// *and* its contents. Changes to individual *blockRequests MUST only
+	// be made under a locked requestedBlocksMu.
+	requestedBlocksMu sync.Mutex
+	requestedBlocks   map[chainhash.Hash]*blockRequest
+
 	requestedCFiltersV2 sync.Map // k=chainhash.Hash v=chan<- *wire.MsgCFilterV2
 	requestedTxs        map[chainhash.Hash]chan<- *wire.MsgTx
 	requestedTxsMu      sync.Mutex
@@ -392,23 +404,24 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *wire.NetAddres
 	const op errors.Op = "p2p.handshake"
 
 	rp := &RemotePeer{
-		id:           id,
-		lp:           lp,
-		ua:           "",
-		services:     0,
-		pver:         Pver,
-		raddr:        c.RemoteAddr(),
-		na:           na,
-		c:            c,
-		mr:           msgReader{r: c, net: lp.chainParams.Net},
-		out:          nil,
-		outPrio:      nil,
-		pongs:        make(chan *wire.MsgPong, 1),
-		requestedTxs: make(map[chainhash.Hash]chan<- *wire.MsgTx),
-		invsSent:     lru.NewCache(invLRUSize),
-		invsRecv:     lru.NewCache(invLRUSize),
-		knownHeaders: lru.NewCache(invLRUSize),
-		errc:         make(chan struct{}),
+		id:              id,
+		lp:              lp,
+		ua:              "",
+		services:        0,
+		pver:            Pver,
+		raddr:           c.RemoteAddr(),
+		na:              na,
+		c:               c,
+		mr:              msgReader{r: c, net: lp.chainParams.Net},
+		out:             nil,
+		outPrio:         nil,
+		pongs:           make(chan *wire.MsgPong, 1),
+		requestedBlocks: make(map[chainhash.Hash]*blockRequest),
+		requestedTxs:    make(map[chainhash.Hash]chan<- *wire.MsgTx),
+		invsSent:        lru.NewCache(invLRUSize),
+		invsRecv:        lru.NewCache(invLRUSize),
+		knownHeaders:    lru.NewCache(invLRUSize),
+		errc:            make(chan struct{}),
 	}
 
 	mw := msgWriter{c, lp.chainParams.Net}
@@ -805,35 +818,28 @@ func (rp *RemotePeer) receivedPong(ctx context.Context, msg *wire.MsgPong) {
 	}
 }
 
-// addRequestBlock records the channel that a requested block is sent to when
-// the block message is received.  If a block has already been requested, this
-// returns false and the getdata request should not be queued.
-func (rp *RemotePeer) addRequestedBlock(hash *chainhash.Hash, c chan<- *wire.MsgBlock) (newRequest bool) {
-	_, loaded := rp.requestedBlocks.LoadOrStore(*hash, c)
-	return !loaded
-}
-
-func (rp *RemotePeer) deleteRequestedBlock(hash *chainhash.Hash) {
-	rp.requestedBlocks.Delete(*hash)
-}
-
 func (rp *RemotePeer) receivedBlock(ctx context.Context, msg *wire.MsgBlock) {
 	const opf = "remotepeer(%v).receivedBlock(%v)"
 	blockHash := msg.Header.BlockHash()
-	var k interface{} = blockHash
-	v, ok := rp.requestedBlocks.Load(k)
-	if !ok {
+
+	// Acquire the lock so we can work with the relevant blockRequest.
+	rp.requestedBlocksMu.Lock()
+	req := rp.requestedBlocks[blockHash]
+	if req == nil {
+		rp.requestedBlocksMu.Unlock()
 		op := errors.Opf(opf, rp.raddr, &blockHash)
 		err := errors.E(op, errors.Protocol, "received unrequested block")
 		rp.Disconnect(err)
 		return
 	}
-	rp.requestedBlocks.Delete(k)
-	c := v.(chan<- *wire.MsgBlock)
 	select {
-	case <-ctx.Done():
-	case c <- msg:
+	case <-req.ready:
+		// Already have a resolution for this block.
+	default:
+		req.block = msg
+		close(req.ready)
 	}
+	rp.requestedBlocksMu.Unlock()
 }
 
 func (rp *RemotePeer) addRequestedCFilterV2(hash *chainhash.Hash, c chan<- *wire.MsgCFilterV2) (newRequest bool) {
@@ -929,6 +935,8 @@ func (rp *RemotePeer) receivedNotFound(ctx context.Context, msg *wire.MsgNotFoun
 			continue
 		}
 
+		// Blocks that were requested but that the remote peer does not
+		// have end up also falling through to this conditional.
 		if err == nil {
 			op := errors.Errorf(opf, rp.raddr, &inv.Hash)
 			err = errors.E(op, errors.Protocol, "received notfound for unrequested hash")
@@ -1013,128 +1021,150 @@ func (rp *RemotePeer) Addrs(ctx context.Context) error {
 	}
 }
 
-// Block requests a block from a RemotePeer using getdata.  The same block can
-// not be requested multiple times concurrently from the same peer.
+// Block requests a block from a RemotePeer using getdata.
 func (rp *RemotePeer) Block(ctx context.Context, blockHash *chainhash.Hash) (*wire.MsgBlock, error) {
 	const opf = "remotepeer(%v).Block(%v)"
 
-	m := wire.NewMsgGetDataSizeHint(1)
-	err := m.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, blockHash))
+	blocks, err := rp.Blocks(ctx, []*chainhash.Hash{blockHash})
 	if err != nil {
 		op := errors.Opf(opf, rp.raddr, blockHash)
 		return nil, errors.E(op, err)
 	}
-	c := make(chan *wire.MsgBlock, 1)
-	if !rp.addRequestedBlock(blockHash, c) {
-		op := errors.Opf(opf, rp.raddr, blockHash)
-		return nil, errors.E(op, errors.Invalid, "block is already being requested from this peer")
-	}
 
-	stalled := time.NewTimer(stallTimeout)
-	out := rp.out
-	for {
-		select {
-		case <-ctx.Done():
-			go func() {
-				<-stalled.C
-				rp.deleteRequestedBlock(blockHash)
-			}()
-			return nil, ctx.Err()
-		case <-stalled.C:
-			rp.deleteRequestedBlock(blockHash)
-			op := errors.Opf(opf, rp.raddr, blockHash)
-			err := errors.E(op, errors.IO, "peer appears stalled")
-			rp.Disconnect(err)
-			return nil, err
-		case <-rp.errc:
-			stalled.Stop()
-			return nil, rp.err
-		case out <- &msgAck{m, nil}:
-			out = nil
-		case m := <-c:
-			stalled.Stop()
-			return m, nil
-		}
-	}
+	return blocks[0], nil
 }
 
-// Blocks requests multiple blocks at a time from a RemotePeer using a single
-// getdata message.  It returns when all of the blocks have been received.  The
-// same block may not be requested multiple times concurrently from the same
-// peer.
-func (rp *RemotePeer) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error) {
-	const opf = "remotepeer(%v).Blocks"
-
-	m := wire.NewMsgGetDataSizeHint(uint(len(blockHashes)))
-	cs := make([]chan *wire.MsgBlock, len(blockHashes))
-	for i, h := range blockHashes {
-		err := m.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, h))
-		if err != nil {
-			op := errors.Opf(opf, rp.raddr)
-			return nil, errors.E(op, err)
-		}
-		cs[i] = make(chan *wire.MsgBlock, 1)
-		if !rp.addRequestedBlock(h, cs[i]) {
-			for _, h := range blockHashes[:i] {
-				rp.deleteRequestedBlock(h)
+// requestBlocks sends a getdata wire message and waits for all the specified
+// blocks to be received. This blocks so it should be called from a goroutine.
+func (rp *RemotePeer) requestBlocks(reqs []*blockRequest) {
+	// Aux func to fulfill requests. It signals any outstanding requests of
+	// the given error and removes all from the requestedBlocks map.
+	fulfill := func(err error) {
+		rp.requestedBlocksMu.Lock()
+		for _, req := range reqs {
+			select {
+			case <-req.ready:
+				// Already fulfilled.
+			default:
+				req.err = err
+				close(req.ready)
 			}
-			op := errors.Opf(opf, rp.raddr)
-			return nil, errors.E(op, errors.Errorf("block %v is already being requested from this peer", h))
+			delete(rp.requestedBlocks, *req.hash)
+		}
+		rp.requestedBlocksMu.Unlock()
+	}
+
+	// Build the message.
+	//
+	// TODO: split into batches when len(blockHashes) > wire.MaxInvPerMsg
+	// so AddInvVect() can't error.
+	m := wire.NewMsgGetDataSizeHint(uint(len(reqs)))
+	for _, req := range reqs {
+		err := m.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, req.hash))
+		if err != nil {
+			fulfill(err)
+			return
 		}
 	}
+
+	// Send the message.
 	stalled := time.NewTimer(stallTimeout)
 	select {
-	case <-ctx.Done():
-		go func() {
-			<-stalled.C
-			for _, h := range blockHashes {
-				rp.deleteRequestedBlock(h)
-			}
-		}()
-		return nil, ctx.Err()
 	case <-stalled.C:
-		op := errors.Opf(opf, rp.raddr)
-		err := errors.E(op, errors.IO, "peer appears stalled")
+		err := errors.E(errors.IO, "peer appears stalled")
 		rp.Disconnect(err)
-		for _, h := range blockHashes {
-			rp.deleteRequestedBlock(h)
-		}
-		return nil, err
+		fulfill(err)
+		return
+
 	case <-rp.errc:
-		stalled.Stop()
-		return nil, rp.err
+		if !stalled.Stop() {
+			<-stalled.C
+		}
+		fulfill(rp.err)
+		return
+
 	case rp.out <- &msgAck{m, nil}:
 	}
-	blocks := make([]*wire.MsgBlock, len(blockHashes))
-	for i := 0; i < len(blockHashes); i++ {
+
+	// Receive responses.
+	for i := 0; i < len(reqs); i++ {
 		select {
-		case <-ctx.Done():
-			go func() {
-				<-stalled.C
-				for _, h := range blockHashes[i:] {
-					rp.deleteRequestedBlock(h)
-				}
-			}()
-			return nil, ctx.Err()
 		case <-stalled.C:
-			op := errors.Opf(opf, rp.raddr)
-			err := errors.E(op, errors.IO, "peer appears stalled")
+			err := errors.E(errors.IO, "peer appears stalled")
 			rp.Disconnect(err)
-			for _, h := range blockHashes[i:] {
-				rp.deleteRequestedBlock(h)
-			}
-			return nil, err
+			fulfill(err)
+			return
+
 		case <-rp.errc:
-			stalled.Stop()
-			return nil, rp.err
-		case m := <-cs[i]:
-			blocks[i] = m
+			if !stalled.Stop() {
+				<-stalled.C
+			}
+			fulfill(rp.err)
+			return
+
+		case <-reqs[i].ready:
 			if !stalled.Stop() {
 				<-stalled.C
 			}
 			stalled.Reset(stallTimeout)
 		}
 	}
+
+	// Remove all requests that were just completed from the
+	// `requestedBlocks` map.
+	fulfill(nil)
+}
+
+// Blocks requests multiple blocks at a time from a RemotePeer using a single
+// getdata message.  It returns when all of the blocks have been received.
+func (rp *RemotePeer) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error) {
+	const opf = "remotepeer(%v).Blocks"
+
+	// Determine which blocks don't have an in-flight request yet so we can
+	// dispatch a new one for them.
+	reqs := make([]*blockRequest, len(blockHashes))
+	newReqs := make([]*blockRequest, 0, len(blockHashes))
+	rp.requestedBlocksMu.Lock()
+	for i, h := range blockHashes {
+		if req, ok := rp.requestedBlocks[*h]; ok {
+			// Already requesting this block.
+			reqs[i] = req
+			continue
+		}
+
+		// Not requesting this block yet.
+		req := &blockRequest{
+			ready: make(chan struct{}),
+			hash:  h,
+		}
+		reqs[i] = req
+		rp.requestedBlocks[*h] = req
+		newReqs = append(newReqs, req)
+	}
+	rp.requestedBlocksMu.Unlock()
+
+	// Request any blocks which have not yet been requested.
+	if len(newReqs) > 0 {
+		go rp.requestBlocks(newReqs)
+	}
+
+	// Wait for all blocks to be received or to error out.
+	blocks := make([]*wire.MsgBlock, len(blockHashes))
+	for i, req := range reqs {
+		select {
+		case <-req.ready:
+			if req.err != nil {
+				op := errors.Opf(opf, rp.raddr)
+				return nil, errors.E(op, req.err)
+			}
+			blocks[i] = req.block
+
+		case <-ctx.Done():
+			op := errors.Opf(opf, rp.raddr)
+			return nil, errors.E(op, ctx.Err())
+		}
+	}
+
 	return blocks, nil
 }
 
