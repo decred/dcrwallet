@@ -66,94 +66,111 @@ Wallet clients interact with the wallet using one of two RPC servers:
      need notifications for changes to the wallet, this is the RPC server to
      use. The gRPC server is documented [here](./rpc/documentation/README.md).
 
-## Installation and updating
+## Installing and updating
 
 ### Binaries (Windows/Linux/macOS)
 
-Binary releases are provided for common operating systems and architectures:
+Binary releases are provided for common operating systems and architectures.
+Please note that dcrwallet is CLI only. It is included in the
+[CLI app suite](https://github.com/decred/decred-release/releases/tag/v1.5.1).
+If you would prefer a graphical user interface (GUI) instead, consider
+downloading the GUI wallet [Decrediton](https://github.com/decred/decrediton).
 
-https://github.com/decred/decred-binaries/releases
+https://decred.org/downloads/
+
+* How to verify binaries before installing: https://docs.decred.org/advanced/verifying-binaries/
+* How to install the CLI Suite: https://docs.decred.org/wallets/cli/cli-installation/
+* How to install Decrediton: https://docs.decred.org/wallets/decrediton/decrediton-setup/
 
 ### Build from source (all platforms)
 
-Building or updating from source requires the following build dependencies:
-
-- **Go 1.13 or 1.14**
+- **Install Go 1.13 or 1.14**
 
   Installation instructions can be found here: https://golang.org/doc/install.
-  It is recommended to add `$GOPATH/bin` to your `PATH` at this point.
+  Ensure Go was installed properly and is a supported version:
+  ```sh
+  $ go version
+  $ go env GOROOT GOPATH
+  ```
+  NOTE: `GOROOT` and `GOPATH` must not be on the same path. It is recommended
+  to add `$GOPATH/bin` to your `PATH` according to the Golang.org instructions.
 
-To build from a local repo, run `go install` in the repo's root directory.
+- **Build or Update dcrwallet**
 
-Some notes:
+  Since dcrwallet is a single Go module, it's possible to use a single command to
+  download, build, and install without needing to clone the repo. While outside
+  of any module (`go env GOMOD` prints an empty newline), run:
 
-* Module builds are required.  When working with a source tree under
-  `$GOPATH/src`, set the `GO111MODULE=on` environment variable.
+  ```sh
+  $ GO111MODULE=on go get decred.org/dcrwallet
+  ```
 
-* The `dcrwallet` executable will be installed to `$GOPATH/bin`.  `GOPATH`
-  defaults to `$HOME/go` (or `%USERPROFILE%\go` on Windows) if unset.
+  An optional version, branch, or tag may be appended following a `@` character
+  after the package name.  The implicit default is to build `@latest`, which is
+  the latest semantic version tag.  Building `@master` will build the latest
+  development version.  See `go help module-get` for more details.
 
-The `go get` command can also be used to fetch sources, build, and install
-through a single command, without needing to clone the repo.  While outside of
-any module (`go env GOMOD` prints an empty newline), run:
-
-```
-GO111MODULE=on go get decred.org/dcrwallet
-```
-
-An optional version, branch, or tag may be appended following a `@` character
-after the package name.  The implicit default is to build `@latest`, which is
-the latest semantic version tag.  Building `@master` will build the latest
-development version.  See `go help module-get` for more details.
+  The `dcrwallet` executable will be installed to `$GOPATH/bin`.  `GOPATH`
+  defaults to `$HOME/go` (or `%USERPROFILE%\go` on Windows).
 
 ## Getting Started
 
-The following instructions detail how to get started with dcrwallet connecting
-to a localhost dcrd.  Commands should be run in `cmd.exe` or PowerShell on
-Windows, or any terminal emulator on *nix.
-
-- Run the following command to start dcrd:
-
-```
-dcrd -u rpcuser -P rpcpass
-```
+dcrwallet can connect to the Decred blockchain using either [dcrd](https://github.com/decred/dcrd)
+or by running in [Simple Payment Verification (SPV)](https://docs.decred.org/wallets/spv/)
+mode. Commands should be run in `cmd.exe` or PowerShell on Windows, or any
+terminal emulator on *nix.
 
 - Run the following command to create a wallet:
 
-```
-dcrwallet -u rpcuser -P rpcpass --create
-```
-
-- Run the following command to start dcrwallet:
-
-```
-dcrwallet -u rpcuser -P rpcpass
+```sh
+dcrwallet --create
 ```
 
-If everything appears to be working, it is recommended at this point to
-copy the sample dcrd and dcrwallet configurations and update with your
-RPC username and password.
+- To use dcrwallet in SPV mode:
 
-PowerShell (Installed from source):
-```
-PS> cp $env:GOPATH\src\github.com\decred\dcrd\sample-dcrd.conf $env:LOCALAPPDATA\Dcrd\dcrd.conf
-PS> cp $env:GOPATH\src\github.com\decred\dcrwallet\sample-dcrwallet.conf $env:LOCALAPPDATA\Dcrwallet\dcrwallet.conf
-PS> $editor $env:LOCALAPPDATA\Dcrd\dcrd.conf
-PS> $editor $env:LOCALAPPDATA\Dcrwallet\dcrwallet.conf
+```sh
+dcrwallet --spv
 ```
 
-Linux/BSD/POSIX (Installed from source):
-```bash
-$ cp $GOPATH/src/github.com/decred/dcrd/sample-dcrd.conf ~/.dcrd/dcrd.conf
-$ cp $GOPATH/src/github.com/decred/dcrwallet/sample-dcrwallet.conf ~/.dcrwallet/dcrwallet.conf
-$ $EDITOR ~/.dcrd/dcrd.conf
-$ $EDITOR ~/.dcrwallet/dcrwallet.conf
+dcrwallet will find external full node peers. It will take a few minutes to
+download the blockchain headers and filters, but it will not download full blocks.
+
+- To use dcrwallet using a localhost dcrd:
+
+You will need to install both [dcrd](https://github.com/decred/dcrd) and
+[dcrctl](https://github.com/decred/dcrctl). `dcrctl` is the client that controls
+`dcrd` and `dcrwallet` via remote procedure call (RPC).
+
+Please follow the instructions in the documentation, beginning with
+[Startup Basics](https://docs.decred.org/wallets/cli/startup-basics/)
+
+## Running Tests
+
+All tests may be run using the script `run_tests.sh`. Generally, Decred only
+supports the current and previous major versions of Go.
+
+```sh
+./run_tests.sh
 ```
+
+## Contact
+
+If you have any further questions you can find us at:
+
+https://decred.org/community/
 
 ## Issue Tracker
 
 The [integrated github issue tracker](https://github.com/decred/dcrwallet/issues)
 is used for this project.
+
+## Documentation
+
+The documentation for dcrwallet is a work-in-progress.  It is located in the
+[docs](https://github.com/decred/dcrwallet/tree/master/docs) folder.
+
+Additional documentation can be found on
+[docs.decred.org](https://docs.decred.org/wallets/cli/dcrwallet-setup/).
 
 ## License
 
