@@ -649,7 +649,7 @@ func (s *Syncer) relevantTxAccepted(ctx context.Context, params json.RawMessage)
 	if err != nil {
 		return err
 	}
-	return s.wallet.AcceptMempoolTx(ctx, tx)
+	return s.wallet.AddTransaction(ctx, tx, nil)
 }
 
 func (s *Syncer) spentAndMissedTickets(ctx context.Context, params json.RawMessage) error {

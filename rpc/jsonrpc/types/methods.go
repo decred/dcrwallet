@@ -89,6 +89,16 @@ func NewAddTicketCmd(ticketHex string) *AddTicketCmd {
 	return &AddTicketCmd{TicketHex: ticketHex}
 }
 
+// AddTransactionCmd manually adds a single mined transaction to the wallet,
+// which may be useful to add a transaction which was mined before a private
+// key was imported.
+// There is currently no validation that the transaction is indeed mined in
+// this block.
+type AddTransactionCmd struct {
+	BlockHash   string `json:"blockhash"`
+	Transaction string `json:"transaction"`
+}
+
 // AuditReuseCmd defines the auditreuse JSON-RPC command.
 //
 // This method returns an object keying reused addresses to two or more outputs
@@ -1002,19 +1012,6 @@ func NewSignRawTransactionsCmd(hexEncodedTxs []string,
 	}
 }
 
-// StakePoolUserInfoCmd defines the stakepooluserinfo JSON-RPC command.
-type StakePoolUserInfoCmd struct {
-	User string
-}
-
-// NewStakePoolUserInfoCmd returns a new instance which can be used to issue a
-// signrawtransactions JSON-RPC command.
-func NewStakePoolUserInfoCmd(user string) *StakePoolUserInfoCmd {
-	return &StakePoolUserInfoCmd{
-		User: user,
-	}
-}
-
 // SweepAccountCmd defines the sweep account JSON-RPC command.
 type SweepAccountCmd struct {
 	SourceAccount         string
@@ -1146,7 +1143,7 @@ func init() {
 		{"accountaddressindex", (*AccountAddressIndexCmd)(nil)},
 		{"accountsyncaddressindex", (*AccountSyncAddressIndexCmd)(nil)},
 		{"addmultisigaddress", (*AddMultisigAddressCmd)(nil)},
-		{"addticket", (*AddTicketCmd)(nil)},
+		{"addtransaction", (*AddTransactionCmd)(nil)},
 		{"auditreuse", (*AuditReuseCmd)(nil)},
 		{"consolidate", (*ConsolidateCmd)(nil)},
 		{"createmultisig", (*CreateMultisigCmd)(nil)},
@@ -1208,7 +1205,6 @@ func init() {
 		{"signmessage", (*SignMessageCmd)(nil)},
 		{"signrawtransaction", (*SignRawTransactionCmd)(nil)},
 		{"signrawtransactions", (*SignRawTransactionsCmd)(nil)},
-		{"stakepooluserinfo", (*StakePoolUserInfoCmd)(nil)},
 		{"sweepaccount", (*SweepAccountCmd)(nil)},
 		{"verifyseed", (*VerifySeedCmd)(nil)},
 		{"validatepredcp0005cf", (*ValidatePreDCP0005CFCmd)(nil)},

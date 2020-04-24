@@ -43,9 +43,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "7.1.0"
-	jsonrpcSemverMajor  = 7
-	jsonrpcSemverMinor  = 1
+	jsonrpcSemverString = "8.0.0"
+	jsonrpcSemverMajor  = 8
+	jsonrpcSemverMinor  = 0
 	jsonrpcSemverPatch  = 0
 )
 
@@ -68,7 +68,7 @@ var handlers = map[string]handler{
 	"accountaddressindex":     {fn: (*Server).accountAddressIndex},
 	"accountsyncaddressindex": {fn: (*Server).accountSyncAddressIndex},
 	"addmultisigaddress":      {fn: (*Server).addMultiSigAddress},
-	"addticket":               {fn: (*Server).addTicket},
+	"addtransaction":          {fn: (*Server).addTransaction},
 	"auditreuse":              {fn: (*Server).auditReuse},
 	"consolidate":             {fn: (*Server).consolidate},
 	"createmultisig":          {fn: (*Server).createMultiSig},
@@ -127,7 +127,6 @@ var handlers = map[string]handler{
 	"sweepaccount":            {fn: (*Server).sweepAccount},
 	"redeemmultisigout":       {fn: (*Server).redeemMultiSigOut},
 	"redeemmultisigouts":      {fn: (*Server).redeemMultiSigOuts},
-	"stakepooluserinfo":       {fn: (*Server).stakePoolUserInfo},
 	"ticketsforaddress":       {fn: (*Server).ticketsForAddress},
 	"validateaddress":         {fn: (*Server).validateAddress},
 	"validatepredcp0005cf":    {fn: (*Server).validatePreDCP0005CF},
@@ -426,21 +425,25 @@ func (s *Server) addMultiSigAddress(ctx context.Context, icmd interface{}) (inte
 	return dcrutil.NewAddressScriptHash(script, w.ChainParams())
 }
 
-// addTicket adds a ticket to the stake manager manually.
-func (s *Server) addTicket(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*types.AddTicketCmd)
+func (s *Server) addTransaction(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.AddTransactionCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
 	}
 
-	mtx := new(wire.MsgTx)
-	err := mtx.Deserialize(hex.NewDecoder(strings.NewReader(cmd.TicketHex)))
+	blockHash, err := chainhash.NewHashFromStr(cmd.BlockHash)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+
+	tx := new(wire.MsgTx)
+	err = tx.Deserialize(hex.NewDecoder(strings.NewReader(cmd.Transaction)))
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
 	}
 
-	err = w.AddTicket(ctx, mtx)
+	err = w.AddTransaction(ctx, tx, blockHash)
 	return nil, err
 }
 
@@ -2900,67 +2903,6 @@ func (s *Server) revokeTickets(ctx context.Context, icmd interface{}) (interface
 	}
 	err := w.RevokeExpiredTickets(ctx, n)
 	return nil, err
-}
-
-// stakePoolUserInfo returns the ticket information for a given user from the
-// stake pool.
-func (s *Server) stakePoolUserInfo(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*types.StakePoolUserInfoCmd)
-	w, ok := s.walletLoader.LoadedWallet()
-	if !ok {
-		return nil, errUnloadedWallet
-	}
-
-	userAddr, err := dcrutil.DecodeAddress(cmd.User, w.ChainParams())
-	if err != nil {
-		return nil, err
-	}
-	spui, err := w.StakePoolUserInfo(ctx, userAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := new(types.StakePoolUserInfoResult)
-	resp.Tickets = make([]types.PoolUserTicket, 0, len(spui.Tickets))
-	resp.InvalidTickets = make([]string, 0, len(spui.InvalidTickets))
-	_, height := w.MainChainTip(ctx)
-	for _, ticket := range spui.Tickets {
-		var ticketRes types.PoolUserTicket
-
-		status := ""
-		switch ticket.Status {
-		case udb.TSImmatureOrLive:
-			maturedHeight := int32(ticket.HeightTicket + uint32(w.ChainParams().TicketMaturity) + 1)
-
-			if height >= maturedHeight {
-				status = "live"
-			} else {
-				status = "immature"
-			}
-		case udb.TSVoted:
-			status = "voted"
-		case udb.TSMissed:
-			status = "missed"
-			if ticket.HeightSpent-ticket.HeightTicket >= w.ChainParams().TicketExpiry {
-				status = "expired"
-			}
-		}
-		ticketRes.Status = status
-
-		ticketRes.Ticket = ticket.Ticket.String()
-		ticketRes.TicketHeight = ticket.HeightTicket
-		ticketRes.SpentBy = ticket.SpentBy.String()
-		ticketRes.SpentByHeight = ticket.HeightSpent
-
-		resp.Tickets = append(resp.Tickets, ticketRes)
-	}
-	for _, invalid := range spui.InvalidTickets {
-		invalidTicket := invalid.String()
-
-		resp.InvalidTickets = append(resp.InvalidTickets, invalidTicket)
-	}
-
-	return resp, nil
 }
 
 // ticketsForAddress retrieves all ticket hashes that have the passed voting

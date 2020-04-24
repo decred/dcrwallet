@@ -722,7 +722,7 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 	// Save any relevant transaction.
 	relevant := s.filterRelevant(txs)
 	for _, tx := range relevant {
-		err := s.wallet.AcceptMempoolTx(ctx, tx)
+		err := s.wallet.AddTransaction(ctx, tx, nil)
 		if err != nil {
 			op := errors.Opf(opf, rp.RemoteAddr())
 			log.Warn(errors.E(op, err))

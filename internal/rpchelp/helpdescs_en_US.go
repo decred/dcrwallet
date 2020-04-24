@@ -31,6 +31,10 @@ var helpDescsEnUS = map[string]string{
 	"addmultisigaddress-nrequired": "The number of signatures required to redeem outputs paid to this address",
 	"addmultisigaddress--result0":  "The imported pay-to-script-hash address",
 
+	"addtransaction--synopsis":   "Manually record a transaction mined in a main chain block",
+	"addtransaction-blockhash":   "Hash of block which mines transaction",
+	"addtransaction-transaction": "Hex-encoded serialized transaction",
+
 	// AuditReuseCmd help.
 	"auditreuse--synopsis":       "Reports outputs identifying address reuse",
 	"auditreuse-since":           "Only report reusage since some main chain block height",
@@ -694,26 +698,9 @@ var helpDescsEnUS = map[string]string{
 
 	// TODO Alphabetize
 
-	// AddTicketCmd help.
-	"addticket--synopsis": "Add a ticket to the wallet for vote and revocation creation.  Added tickets are auxiliary to transaction history and do not appear in getstakeinfo stats.",
-	"addticket-tickethex": "Hex-encoded serialized transaction",
-
 	// GetWalletFeeCmd help.
 	"getwalletfee--synopsis": "Get currently set transaction fee for the wallet",
 	"getwalletfee--result0":  "Current tx fee (in DCR)",
-
-	// StakePoolUserInfoCmd help.
-	"stakepooluserinfo--synopsis": "Get user info for stakepool",
-	"stakepooluserinfo-user":      "The id of the user to be looked up",
-
-	"stakepooluserinforesult-invalid": "A list of invalid tickets that the user has added",
-	"stakepooluserinforesult-tickets": "A list of valid tickets that the user has added",
-
-	"pooluserticket-spentbyheight": "The height in which the ticket was spent",
-	"pooluserticket-spentby":       "The vote in which the ticket was spent",
-	"pooluserticket-ticketheight":  "The height in which the ticket was added",
-	"pooluserticket-ticket":        "The hash of the added ticket",
-	"pooluserticket-status":        "The current status of the added ticket",
 
 	"scriptinfo-redeemscript": "The redeem script",
 	"scriptinfo-address":      "The script address",

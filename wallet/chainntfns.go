@@ -296,11 +296,10 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 	return true
 }
 
-// AcceptMempoolTx adds a relevant unmined transaction to the wallet.
-// If a network backend is associated with the wallet, it is updated
-// with new addresses and unspent outpoints to watch.
-func (w *Wallet) AcceptMempoolTx(ctx context.Context, tx *wire.MsgTx) error {
-	const op errors.Op = "wallet.AcceptMempoolTx"
+// AddTransaction stores tx, marking it as mined in the block described by
+// blockHash, or recording it to the wallet's mempool when nil.
+func (w *Wallet) AddTransaction(ctx context.Context, tx *wire.MsgTx, blockHash *chainhash.Hash) error {
+	const op errors.Op = "wallet.AddTransaction"
 
 	w.recentlyPublishedMu.Lock()
 	_, recent := w.recentlyPublished[tx.TxHash()]
@@ -320,7 +319,7 @@ func (w *Wallet) AcceptMempoolTx(ctx context.Context, tx *wire.MsgTx) error {
 
 		// Prevent orphan votes from entering the wallet's unmined transaction
 		// set.
-		if isVote(&rec.MsgTx) {
+		if isVote(&rec.MsgTx) && blockHash == nil {
 			votedBlock, _ := stake.SSGenBlockVotedOn(&rec.MsgTx)
 			tipBlock, _ := w.txStore.MainChainTip(txmgrNs)
 			if votedBlock != tipBlock {
@@ -330,7 +329,25 @@ func (w *Wallet) AcceptMempoolTx(ctx context.Context, tx *wire.MsgTx) error {
 			}
 		}
 
-		watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
+		var header *wire.BlockHeader
+		var meta udb.BlockMeta
+		switch {
+		case blockHash != nil:
+			inChain, _ := w.txStore.BlockInMainChain(dbtx, blockHash)
+			if !inChain {
+				break
+			}
+			header, err = w.txStore.GetBlockHeader(dbtx, blockHash)
+			if err != nil {
+				return err
+			}
+			meta, err = w.txStore.GetBlockMetaForHash(txmgrNs, blockHash)
+			if err != nil {
+				return err
+			}
+		}
+
+		watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, rec, header, &meta)
 		return err
 	})
 	if err != nil {
@@ -398,7 +415,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 	// the OP_SSTX tagged out, except if we're operating as a stake pool
 	// server. In that case, additionally consider the first commitment
 	// output as well.
-	if stake.IsSStx(&rec.MsgTx) {
+	if w.stakePoolEnabled && header != nil && stake.IsSStx(&rec.MsgTx) {
 		// Errors don't matter here.  If addrs is nil, the range below
 		// does nothing.
 		txOut := rec.MsgTx.TxOut[0]
@@ -408,21 +425,6 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 		for _, addr := range addrs {
 			if !w.manager.ExistsHash160(addrmgrNs, addr.Hash160()[:]) {
 				continue
-			}
-			// We own the voting output pubkey or script and we're
-			// not operating as a stake pool, so simply insert this
-			// ticket now.
-			if !w.stakePoolEnabled {
-				insert = true
-				break
-			}
-
-			// We are operating as a stake pool. The below
-			// function will ONLY add the ticket into the
-			// stake pool if it has been found within a
-			// block.
-			if header == nil {
-				break
 			}
 
 			if w.evaluateStakePoolTicket(rec, height, addr) {
@@ -442,7 +444,6 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				log.Debugf("Inserted stake pool ticket %v for user %v "+
 					"into the stake store database", &rec.Hash, addr)
 
-				insert = true
 				break
 			}
 

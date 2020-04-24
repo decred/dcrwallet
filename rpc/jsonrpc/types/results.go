@@ -366,23 +366,6 @@ type SignRawTransactionsResult struct {
 	Results []SignedTransaction `json:"results"`
 }
 
-// PoolUserTicket is the JSON struct corresponding to a stake pool user ticket
-// object.
-type PoolUserTicket struct {
-	Status        string `json:"status"`
-	Ticket        string `json:"ticket"`
-	TicketHeight  uint32 `json:"ticketheight"`
-	SpentBy       string `json:"spentby"`
-	SpentByHeight uint32 `json:"spentbyheight"`
-}
-
-// StakePoolUserInfoResult models the data returned from the stakepooluserinfo
-// command.
-type StakePoolUserInfoResult struct {
-	Tickets        []PoolUserTicket `json:"tickets"`
-	InvalidTickets []string         `json:"invalid"`
-}
-
 // SweepAccountResult models the data returned from the sweepaccount
 // command.
 type SweepAccountResult struct {

@@ -16,7 +16,6 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v3"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
-	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
 )
@@ -218,63 +217,6 @@ func (w *Wallet) TicketHashesForVotingAddress(ctx context.Context, votingAddr dc
 		return nil, errors.E(op, err)
 	}
 	return ticketHashes, nil
-}
-
-// AddTicket adds a ticket transaction to the stake manager.  It is not added to
-// the transaction manager because it is unknown where the transaction belongs
-// on the blockchain.  It will be used to create votes.
-func (w *Wallet) AddTicket(ctx context.Context, ticket *wire.MsgTx) error {
-	const op errors.Op = "wallet.AddTicket"
-
-	err := stake.CheckSStx(ticket)
-	if err != nil {
-		txHash := ticket.TxHash()
-		return errors.E(op, errors.Invalid, errors.Errorf("%v is not a ticket", &txHash))
-	}
-
-	err = walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
-		stakemgrNs := tx.ReadWriteBucket(wstakemgrNamespaceKey)
-
-		// Insert the ticket to be tracked and voted.
-		err := w.stakeMgr.InsertSStx(stakemgrNs, dcrutil.NewTx(ticket))
-		if err != nil {
-			return err
-		}
-
-		if w.stakePoolEnabled {
-			// Pluck the ticketaddress to identify the stakepool user.
-			pkVersion := ticket.TxOut[0].Version
-			pkScript := ticket.TxOut[0].PkScript
-			_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkVersion,
-				pkScript, w.ChainParams())
-			if err != nil {
-				return err
-			}
-
-			ticketHash := ticket.TxHash()
-
-			// Update the pool ticket stake. This will include removing it from the
-			// invalid slice and adding a ImmatureOrLive ticket to the valid ones.
-			err = w.stakeMgr.RemoveStakePoolUserInvalTickets(stakemgrNs, addrs[0], &ticketHash)
-			if err != nil {
-				return err
-			}
-			poolTicket := &udb.PoolTicket{
-				Ticket: ticketHash,
-				Status: udb.TSImmatureOrLive,
-			}
-			err = w.stakeMgr.UpdateStakePoolUserTickets(stakemgrNs, addrs[0], poolTicket)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return errors.E(op, err)
-	}
-	return nil
 }
 
 // RevokeTickets creates and sends revocation transactions for any unrevoked
