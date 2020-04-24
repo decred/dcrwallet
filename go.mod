@@ -14,13 +14,13 @@ require (
 	github.com/decred/dcrd/connmgr/v3 v3.0.0-20200311044114-143c1884e4c8
 	github.com/decred/dcrd/crypto/blake256 v1.0.0
 	github.com/decred/dcrd/dcrec v1.0.0
-	github.com/decred/dcrd/dcrec/secp256k1/v3 v3.0.0-20200312171759-0a8cc56a776e
+	github.com/decred/dcrd/dcrec/secp256k1/v3 v3.0.0-20200421213827-b60c60ffe98b
 	github.com/decred/dcrd/dcrjson/v3 v3.0.1
 	github.com/decred/dcrd/dcrutil/v3 v3.0.0-20200311044114-143c1884e4c8
 	github.com/decred/dcrd/gcs/v2 v2.0.2-0.20200312171759-0a8cc56a776e
-	github.com/decred/dcrd/hdkeychain/v3 v3.0.0-20200312163737-f8c59264b16d
+	github.com/decred/dcrd/hdkeychain/v3 v3.0.0-20200421213827-b60c60ffe98b
 	github.com/decred/dcrd/rpc/jsonrpc/types v1.0.1
-	github.com/decred/dcrd/txscript/v3 v3.0.0-20200311044114-143c1884e4c8
+	github.com/decred/dcrd/txscript/v3 v3.0.0-20200421213827-b60c60ffe98b
 	github.com/decred/dcrd/wire v1.3.0
 	github.com/decred/go-socks v1.1.0
 	github.com/decred/slog v1.0.0

@@ -33,6 +33,7 @@ import (
 	"github.com/decred/dcrd/crypto/blake256"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrec/secp256k1/v3"
+	"github.com/decred/dcrd/dcrec/secp256k1/v3/ecdsa"
 	"github.com/decred/dcrd/dcrutil/v3"
 	gcs2 "github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/hdkeychain/v3"
@@ -1591,7 +1592,7 @@ func (w *Wallet) SignHashes(ctx context.Context, hashes [][]byte, addr dcrutil.A
 
 	signatures := make([][]byte, len(hashes))
 	for i, hash := range hashes {
-		sig := privKey.Sign(hash)
+		sig := ecdsa.Sign(privKey, hash)
 		signatures[i] = sig.Serialize()
 	}
 
@@ -1622,7 +1623,7 @@ func (w *Wallet) SignMessage(ctx context.Context, msg string, addr dcrutil.Addre
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	sig = secp256k1.SignCompact(privKey, messageHash, true)
+	sig = ecdsa.SignCompact(privKey, messageHash, true)
 	return sig, nil
 }
 
@@ -1636,7 +1637,7 @@ func VerifyMessage(msg string, addr dcrutil.Address, sig []byte, params dcrutil.
 	wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
 	wire.WriteVarString(&buf, 0, msg)
 	expectedMessageHash := chainhash.HashB(buf.Bytes())
-	pk, wasCompressed, err := secp256k1.RecoverCompact(sig, expectedMessageHash)
+	pk, wasCompressed, err := ecdsa.RecoverCompact(sig, expectedMessageHash)
 	if err != nil {
 		return false, errors.E(op, err)
 	}
