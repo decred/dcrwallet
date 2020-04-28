@@ -330,7 +330,7 @@ func (w *Wallet) AddTransaction(ctx context.Context, tx *wire.MsgTx, blockHash *
 		}
 
 		var header *wire.BlockHeader
-		var meta udb.BlockMeta
+		var meta *udb.BlockMeta
 		switch {
 		case blockHash != nil:
 			inChain, _ := w.txStore.BlockInMainChain(dbtx, blockHash)
@@ -341,13 +341,14 @@ func (w *Wallet) AddTransaction(ctx context.Context, tx *wire.MsgTx, blockHash *
 			if err != nil {
 				return err
 			}
-			meta, err = w.txStore.GetBlockMetaForHash(txmgrNs, blockHash)
+			meta = new(udb.BlockMeta)
+			*meta, err = w.txStore.GetBlockMetaForHash(txmgrNs, blockHash)
 			if err != nil {
 				return err
 			}
 		}
 
-		watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, rec, header, &meta)
+		watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, rec, header, meta)
 		return err
 	})
 	if err != nil {
