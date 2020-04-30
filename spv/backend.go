@@ -56,7 +56,7 @@ type filterProof = struct {
 }
 
 // CFiltersV2 implements the CFiltersV2 method of the wallet.Peer interface.
-func (s Syncer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]filterProof, error) {
+func (s *Syncer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]filterProof, error) {
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
