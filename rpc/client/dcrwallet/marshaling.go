@@ -62,7 +62,7 @@ func marshalTx(tx *wire.MsgTx) json.Marshaler {
 }
 
 func unmarshalOutpoints(ops *[]*wire.OutPoint) json.Unmarshaler {
-	return unmarshalJSONFunc(func(j []byte) error {
+	f := unmarshalJSONFunc(func(j []byte) error {
 		var array []dcrdtypes.TransactionInput
 		err := json.Unmarshal(j, &array)
 		if err != nil {
@@ -78,10 +78,11 @@ func unmarshalOutpoints(ops *[]*wire.OutPoint) json.Unmarshaler {
 		}
 		return nil
 	})
+	return &f
 }
 
 func unmarshalHash(hash **chainhash.Hash) json.Unmarshaler {
-	return unmarshalJSONFunc(func(j []byte) error {
+	f := unmarshalJSONFunc(func(j []byte) error {
 		var s string
 		err := json.Unmarshal(j, &s)
 		if err != nil {
@@ -90,10 +91,11 @@ func unmarshalHash(hash **chainhash.Hash) json.Unmarshaler {
 		*hash, err = chainhash.NewHashFromStr(s)
 		return err
 	})
+	return &f
 }
 
 func unmarshalHashes(hashes *[]*chainhash.Hash) json.Unmarshaler {
-	return unmarshalJSONFunc(func(j []byte) error {
+	f := unmarshalJSONFunc(func(j []byte) error {
 		var array []string
 		err := json.Unmarshal(j, &array)
 		if err != nil {
@@ -109,10 +111,11 @@ func unmarshalHashes(hashes *[]*chainhash.Hash) json.Unmarshaler {
 		}
 		return nil
 	})
+	return &f
 }
 
 func unmarshalAddress(addr *dcrutil.Address, net *chaincfg.Params) json.Unmarshaler {
-	return unmarshalJSONFunc(func(j []byte) error {
+	f := unmarshalJSONFunc(func(j []byte) error {
 		var s string
 		err := json.Unmarshal(j, &s)
 		if err != nil {
@@ -125,10 +128,11 @@ func unmarshalAddress(addr *dcrutil.Address, net *chaincfg.Params) json.Unmarsha
 		*addr = a
 		return nil
 	})
+	return &f
 }
 
 func unmarshalAddresses(addrs *[]dcrutil.Address, net *chaincfg.Params) json.Unmarshaler {
-	return unmarshalJSONFunc(func(j []byte) error {
+	f := unmarshalJSONFunc(func(j []byte) error {
 		var array []string
 		err := json.Unmarshal(j, &array)
 		if err != nil {
@@ -144,10 +148,11 @@ func unmarshalAddresses(addrs *[]dcrutil.Address, net *chaincfg.Params) json.Unm
 		}
 		return nil
 	})
+	return &f
 }
 
 func unmarshalListAccounts(accounts map[string]dcrutil.Amount) json.Unmarshaler {
-	return unmarshalJSONFunc(func(j []byte) error {
+	f := unmarshalJSONFunc(func(j []byte) error {
 		object := make(map[string]float64)
 		err := json.Unmarshal(j, &object)
 		if err != nil {
@@ -162,10 +167,11 @@ func unmarshalListAccounts(accounts map[string]dcrutil.Amount) json.Unmarshaler 
 		}
 		return nil
 	})
+	return &f
 }
 
 func unmarshalHDKey(key **hdkeychain.ExtendedKey, net *chaincfg.Params) json.Unmarshaler {
-	return unmarshalJSONFunc(func(j []byte) error {
+	f := unmarshalJSONFunc(func(j []byte) error {
 		var s string
 		err := json.Unmarshal(j, &s)
 		if err != nil {
@@ -174,10 +180,11 @@ func unmarshalHDKey(key **hdkeychain.ExtendedKey, net *chaincfg.Params) json.Unm
 		*key, err = hdkeychain.NewKeyFromString(s, net)
 		return err
 	})
+	return &f
 }
 
 func unmarshalAmount(amount *dcrutil.Amount) json.Unmarshaler {
-	return unmarshalJSONFunc(func(j []byte) error {
+	f := unmarshalJSONFunc(func(j []byte) error {
 		var number float64
 		err := json.Unmarshal(j, &number)
 		if err != nil {
@@ -186,10 +193,11 @@ func unmarshalAmount(amount *dcrutil.Amount) json.Unmarshaler {
 		*amount, err = dcrutil.NewAmount(number)
 		return err
 	})
+	return &f
 }
 
 func unmarshalWIF(wif **dcrutil.WIF, net *chaincfg.Params) json.Unmarshaler {
-	return unmarshalJSONFunc(func(j []byte) error {
+	f := unmarshalJSONFunc(func(j []byte) error {
 		var s string
 		err := json.Unmarshal(j, &s)
 		if err != nil {
@@ -198,10 +206,11 @@ func unmarshalWIF(wif **dcrutil.WIF, net *chaincfg.Params) json.Unmarshaler {
 		*wif, err = dcrutil.DecodeWIF(s, net.PrivateKeyID)
 		return nil
 	})
+	return &f
 }
 
 func unmarshalTx(tx **wire.MsgTx) json.Unmarshaler {
-	return unmarshalJSONFunc(func(j []byte) error {
+	f := unmarshalJSONFunc(func(j []byte) error {
 		var s string
 		err := json.Unmarshal(j, &s)
 		if err != nil {
@@ -210,4 +219,5 @@ func unmarshalTx(tx **wire.MsgTx) json.Unmarshaler {
 		*tx = new(wire.MsgTx)
 		return (*tx).Deserialize(hex.NewDecoder(strings.NewReader(s)))
 	})
+	return &f
 }
