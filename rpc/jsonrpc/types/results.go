@@ -41,11 +41,6 @@ type GetBalanceResult struct {
 	TotalVotingAuthority         float64                   `json:"totalvotingauthority,omitempty"`
 }
 
-// GetContractHashResult models the data from the getcontracthash command.
-type GetContractHashResult struct {
-	ContractHash string `json:"contracthash"`
-}
-
 // GetMultisigOutInfoResult models the data returned from the getmultisigoutinfo
 // command.
 type GetMultisigOutInfoResult struct {
@@ -75,12 +70,6 @@ type CreateMultiSigResult struct {
 type CreateSignatureResult struct {
 	Signature string `json:"signature"`
 	PublicKey string `json:"publickey"`
-}
-
-// GetPayToContractHashResult models the data returned from the getpaytocontracthash
-// command.
-type GetPayToContractHashResult struct {
-	Address string `json:"address"`
 }
 
 // GetStakeInfoResult models the data returned from the getstakeinfo
@@ -190,44 +179,6 @@ type ScriptInfo struct {
 	Hash160      string `json:"hash160"`
 	Address      string `json:"address"`
 	RedeemScript string `json:"redeemscript"`
-}
-
-// ListTicketsTransactionSummaryInput defines the type used in the listtickets JSON-RPC
-// result for the MyInputs field of Ticket and Spender command field.
-type ListTicketsTransactionSummaryInput struct {
-	Index           uint32  `json:"index"`
-	PreviousAccount string  `json:"previousaccount"`
-	PreviousAmount  float64 `json:"previousamount"`
-}
-
-// ListTicketsTransactionSummaryOutput defines the type used in the listtickets JSON-RPC
-// result for the MyOutputs field of Ticket and Spender command field.
-type ListTicketsTransactionSummaryOutput struct {
-	Index        uint32  `json:"index"`
-	Account      string  `json:"account"`
-	Internal     bool    `json:"internal"`
-	Amount       float64 `json:"amount"`
-	Address      string  `json:"address"`
-	OutputScript string  `json:"outputscript"`
-}
-
-// ListTicketsTransactionSummary defines the type used in the listtickets JSON-RPC
-// result for the Ticket and Spender command fields.
-type ListTicketsTransactionSummary struct {
-	Hash        string                                `json:"hash"`
-	Transaction string                                `json:"transaction"`
-	MyInputs    []ListTicketsTransactionSummaryInput  `json:"myinputs"`
-	MyOutputs   []ListTicketsTransactionSummaryOutput `json:"myoutputs"`
-	Fee         float64                               `json:"fee"`
-	Timestamp   int64                                 `json:"timestamp"`
-	Type        string                                `json:"type"`
-}
-
-// ListTicketsResult models the data from the listtickets command.
-type ListTicketsResult struct {
-	Ticket  *ListTicketsTransactionSummary `json:"ticket"`
-	Spender *ListTicketsTransactionSummary `json:"spender"`
-	Status  string                         `json:"status"`
 }
 
 // ListTransactionsTxType defines the type used in the listtransactions JSON-RPC
@@ -395,13 +346,6 @@ type ValidateAddressResult struct {
 
 // ValidateAddressWalletResult aliases ValidateAddressResult.
 type ValidateAddressWalletResult = ValidateAddressResult
-
-// VerifySeedResult models the data returned by the wallet server verify
-// seed command.
-type VerifySeedResult struct {
-	Result   bool   `json:"keyresult"`
-	CoinType uint32 `json:"cointype"`
-}
 
 // WalletInfoResult models the data returned from the walletinfo command.
 type WalletInfoResult struct {

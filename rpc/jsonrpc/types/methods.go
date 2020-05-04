@@ -172,16 +172,6 @@ func NewCreateVotingAccountCmd(name, pubKey string, childIndex *uint32) *CreateV
 	return &CreateVotingAccountCmd{name, pubKey, childIndex}
 }
 
-// DropVotingAccountCmd is a type for handling custom marshaling and
-// unmarshalling of dropvotingaccount JSON-RPC command
-type DropVotingAccountCmd struct {
-}
-
-// NewDropVotingAccountCmd creates a new DropVotingAccountCmd.
-func NewDropVotingAccountCmd() *DropVotingAccountCmd {
-	return &DropVotingAccountCmd{}
-}
-
 // DumpPrivKeyCmd defines the dumpprivkey JSON-RPC command.
 type DumpPrivKeyCmd struct {
 	Address string
@@ -299,17 +289,6 @@ func NewGetBalanceCmd(account *string, minConf *int) *GetBalanceCmd {
 	}
 }
 
-// GetContractHashCmd defines the getcontracthash JSON-RPC command.
-type GetContractHashCmd struct {
-	FilePath []string
-}
-
-// NewGetContractHashCmd returns a new instance which can be used to issue a
-// getcontracthash JSON-RPC command.
-func NewGetContractHashCmd(filepaths []string) *GetContractHashCmd {
-	return &GetContractHashCmd{FilePath: filepaths}
-}
-
 // GetMasterPubkeyCmd is a type handling custom marshaling and unmarshaling of
 // getmasterpubkey JSON wallet extension commands.
 type GetMasterPubkeyCmd struct {
@@ -349,19 +328,6 @@ func NewGetNewAddressCmd(account *string, gapPolicy *string) *GetNewAddressCmd {
 	return &GetNewAddressCmd{
 		Account:   account,
 		GapPolicy: gapPolicy,
-	}
-}
-
-// GetPayToContractAddressCmd defines the getpaytocontracthash JSON-RPC command.
-type GetPayToContractAddressCmd struct {
-	FilePath []string
-}
-
-// NewGetPayToContractAddressCmd returns a new instance which can be used to issue a
-// getpaytocontractaddress JSON-RPC command.
-func NewGetPayToContractAddressCmd(filepaths []string) *GetPayToContractAddressCmd {
-	return &GetPayToContractAddressCmd{
-		FilePath: filepaths,
 	}
 }
 
@@ -551,16 +517,6 @@ func NewListAccountsCmd(minConf *int) *ListAccountsCmd {
 	return &ListAccountsCmd{
 		MinConf: minConf,
 	}
-}
-
-// ListTicketsCmd defines the listtickets JSON-RPC command.
-type ListTicketsCmd struct {
-}
-
-// NewListTicketsCmd returns a new instance which can be used to issue a
-// listtickets JSON-RPC command.
-func NewListTicketsCmd() *ListTicketsCmd {
-	return &ListTicketsCmd{}
 }
 
 // ListLockUnspentCmd defines the listlockunspent JSON-RPC command.
@@ -1030,24 +986,6 @@ func NewSweepAccountCmd(sourceAccount string, destinationAddress string, require
 	}
 }
 
-// VerifySeedCmd defines the verifyseed JSON-RPC command.
-type VerifySeedCmd struct {
-	Seed    string
-	Account *uint32
-}
-
-// NewVerifySeedCmd returns a new instance which can be used to issue a
-// walletlock JSON-RPC command.
-//
-// The parameters which are pointers indicate that they are optional. Passing
-// nil for the optional parameters will use the default value.
-func NewVerifySeedCmd(seed string, account *uint32) *VerifySeedCmd {
-	return &VerifySeedCmd{
-		Seed:    seed,
-		Account: account,
-	}
-}
-
 // WalletInfoCmd defines the walletinfo JSON-RPC command.
 type WalletInfoCmd struct {
 }
@@ -1151,7 +1089,6 @@ func init() {
 		{"createnewaccount", (*CreateNewAccountCmd)(nil)},
 		{"createvotingaccount", (*CreateVotingAccountCmd)(nil)},
 		{"discoverusage", (*DiscoverUsageCmd)(nil)},
-		{"dropvotingaccount", (*DropVotingAccountCmd)(nil)},
 		{"dumpprivkey", (*DumpPrivKeyCmd)(nil)},
 		{"fundrawtransaction", (*FundRawTransactionCmd)(nil)},
 		{"generatevote", (*GenerateVoteCmd)(nil)},
@@ -1159,11 +1096,9 @@ func init() {
 		{"getaccountaddress", (*GetAccountAddressCmd)(nil)},
 		{"getaddressesbyaccount", (*GetAddressesByAccountCmd)(nil)},
 		{"getbalance", (*GetBalanceCmd)(nil)},
-		{"getcontracthash", (*GetContractHashCmd)(nil)},
 		{"getmasterpubkey", (*GetMasterPubkeyCmd)(nil)},
 		{"getmultisigoutinfo", (*GetMultisigOutInfoCmd)(nil)},
 		{"getnewaddress", (*GetNewAddressCmd)(nil)},
-		{"getpaytocontractaddress", (*GetPayToContractAddressCmd)(nil)},
 		{"getrawchangeaddress", (*GetRawChangeAddressCmd)(nil)},
 		{"getreceivedbyaccount", (*GetReceivedByAccountCmd)(nil)},
 		{"getreceivedbyaddress", (*GetReceivedByAddressCmd)(nil)},
@@ -1184,7 +1119,6 @@ func init() {
 		{"listreceivedbyaccount", (*ListReceivedByAccountCmd)(nil)},
 		{"listreceivedbyaddress", (*ListReceivedByAddressCmd)(nil)},
 		{"listsinceblock", (*ListSinceBlockCmd)(nil)},
-		{"listtickets", (*ListTicketsCmd)(nil)},
 		{"listtransactions", (*ListTransactionsCmd)(nil)},
 		{"listunspent", (*ListUnspentCmd)(nil)},
 		{"lockunspent", (*LockUnspentCmd)(nil)},
@@ -1206,7 +1140,6 @@ func init() {
 		{"signrawtransaction", (*SignRawTransactionCmd)(nil)},
 		{"signrawtransactions", (*SignRawTransactionsCmd)(nil)},
 		{"sweepaccount", (*SweepAccountCmd)(nil)},
-		{"verifyseed", (*VerifySeedCmd)(nil)},
 		{"validatepredcp0005cf", (*ValidatePreDCP0005CFCmd)(nil)},
 		{"walletinfo", (*WalletInfoCmd)(nil)},
 		{"walletislocked", (*WalletIsLockedCmd)(nil)},
