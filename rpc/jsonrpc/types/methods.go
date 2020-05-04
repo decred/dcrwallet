@@ -731,7 +731,7 @@ type PurchaseTicketCmd struct {
 	SpendLimit    float64 // In Coins
 	MinConf       *int    `jsonrpcdefault:"1"`
 	TicketAddress *string
-	NumTickets    *int
+	NumTickets    *int `jsonrpcdefault:"1"`
 	PoolAddress   *string
 	PoolFees      *float64
 	Expiry        *int
