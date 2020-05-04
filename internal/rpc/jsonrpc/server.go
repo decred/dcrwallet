@@ -25,7 +25,7 @@ import (
 	"decred.org/dcrwallet/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrjson/v3"
-	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/gorilla/websocket"
 )
 

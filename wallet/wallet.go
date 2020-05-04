@@ -37,7 +37,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v3"
 	gcs2 "github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/hdkeychain/v3"
-	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
