@@ -968,6 +968,19 @@ func NewSignRawTransactionsCmd(hexEncodedTxs []string,
 	}
 }
 
+// StakePoolUserInfoCmd defines the stakepooluserinfo JSON-RPC command.
+type StakePoolUserInfoCmd struct {
+	User string
+}
+
+// NewStakePoolUserInfoCmd returns a new instance which can be used to issue a
+// signrawtransactions JSON-RPC command.
+func NewStakePoolUserInfoCmd(user string) *StakePoolUserInfoCmd {
+	return &StakePoolUserInfoCmd{
+		User: user,
+	}
+}
+
 // SweepAccountCmd defines the sweep account JSON-RPC command.
 type SweepAccountCmd struct {
 	SourceAccount         string
@@ -1139,6 +1152,7 @@ func init() {
 		{"signmessage", (*SignMessageCmd)(nil)},
 		{"signrawtransaction", (*SignRawTransactionCmd)(nil)},
 		{"signrawtransactions", (*SignRawTransactionsCmd)(nil)},
+		{"stakepooluserinfo", (*StakePoolUserInfoCmd)(nil)},
 		{"sweepaccount", (*SweepAccountCmd)(nil)},
 		{"validatepredcp0005cf", (*ValidatePreDCP0005CFCmd)(nil)},
 		{"walletinfo", (*WalletInfoCmd)(nil)},

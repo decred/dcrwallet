@@ -124,6 +124,7 @@ var handlers = map[string]handler{
 	"signmessage":             {fn: (*Server).signMessage},
 	"signrawtransaction":      {fn: (*Server).signRawTransaction},
 	"signrawtransactions":     {fn: (*Server).signRawTransactions},
+	"stakepooluserinfo":       {fn: (*Server).stakePoolUserInfo},
 	"sweepaccount":            {fn: (*Server).sweepAccount},
 	"redeemmultisigout":       {fn: (*Server).redeemMultiSigOut},
 	"redeemmultisigouts":      {fn: (*Server).redeemMultiSigOuts},
@@ -2903,6 +2904,67 @@ func (s *Server) revokeTickets(ctx context.Context, icmd interface{}) (interface
 	}
 	err := w.RevokeExpiredTickets(ctx, n)
 	return nil, err
+}
+
+// stakePoolUserInfo returns the ticket information for a given user from the
+// stake pool.
+func (s *Server) stakePoolUserInfo(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.StakePoolUserInfoCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	userAddr, err := dcrutil.DecodeAddress(cmd.User, w.ChainParams())
+	if err != nil {
+		return nil, err
+	}
+	spui, err := w.StakePoolUserInfo(ctx, userAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := new(types.StakePoolUserInfoResult)
+	resp.Tickets = make([]types.PoolUserTicket, 0, len(spui.Tickets))
+	resp.InvalidTickets = make([]string, 0, len(spui.InvalidTickets))
+	_, height := w.MainChainTip(ctx)
+	for _, ticket := range spui.Tickets {
+		var ticketRes types.PoolUserTicket
+
+		status := ""
+		switch ticket.Status {
+		case udb.TSImmatureOrLive:
+			maturedHeight := int32(ticket.HeightTicket + uint32(w.ChainParams().TicketMaturity) + 1)
+
+			if height >= maturedHeight {
+				status = "live"
+			} else {
+				status = "immature"
+			}
+		case udb.TSVoted:
+			status = "voted"
+		case udb.TSMissed:
+			status = "missed"
+			if ticket.HeightSpent-ticket.HeightTicket >= w.ChainParams().TicketExpiry {
+				status = "expired"
+			}
+		}
+		ticketRes.Status = status
+
+		ticketRes.Ticket = ticket.Ticket.String()
+		ticketRes.TicketHeight = ticket.HeightTicket
+		ticketRes.SpentBy = ticket.SpentBy.String()
+		ticketRes.SpentByHeight = ticket.HeightSpent
+
+		resp.Tickets = append(resp.Tickets, ticketRes)
+	}
+	for _, invalid := range spui.InvalidTickets {
+		invalidTicket := invalid.String()
+
+		resp.InvalidTickets = append(resp.InvalidTickets, invalidTicket)
+	}
+
+	return resp, nil
 }
 
 // ticketsForAddress retrieves all ticket hashes that have the passed voting

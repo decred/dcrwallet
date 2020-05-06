@@ -95,6 +95,7 @@ var Methods = []struct {
 	{"signmessage", returnsString},
 	{"signrawtransaction", []interface{}{(*types.SignRawTransactionResult)(nil)}},
 	{"signrawtransactions", []interface{}{(*types.SignRawTransactionsResult)(nil)}},
+	{"stakepooluserinfo", []interface{}{(*types.StakePoolUserInfoResult)(nil)}},
 	{"sweepaccount", []interface{}{(*types.SweepAccountResult)(nil)}},
 	{"ticketsforaddress", returnsBool},
 	{"validateaddress", []interface{}{(*types.ValidateAddressWalletResult)(nil)}},

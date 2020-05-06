@@ -702,6 +702,19 @@ var helpDescsEnUS = map[string]string{
 	"getwalletfee--synopsis": "Get currently set transaction fee for the wallet",
 	"getwalletfee--result0":  "Current tx fee (in DCR)",
 
+	// StakePoolUserInfoCmd help.
+	"stakepooluserinfo--synopsis": "Get user info for stakepool",
+	"stakepooluserinfo-user":      "The id of the user to be looked up",
+
+	"stakepooluserinforesult-invalid": "A list of invalid tickets that the user has added",
+	"stakepooluserinforesult-tickets": "A list of valid tickets that the user has added",
+
+	"pooluserticket-spentbyheight": "The height in which the ticket was spent",
+	"pooluserticket-spentby":       "The vote in which the ticket was spent",
+	"pooluserticket-ticketheight":  "The height in which the ticket was added",
+	"pooluserticket-ticket":        "The hash of the added ticket",
+	"pooluserticket-status":        "The current status of the added ticket",
+
 	"scriptinfo-redeemscript": "The redeem script",
 	"scriptinfo-address":      "The script address",
 	"scriptinfo-hash160":      "The script hash",
