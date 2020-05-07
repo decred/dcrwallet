@@ -705,9 +705,14 @@ func (c *Client) GetStakeInfo(ctx context.Context) (*types.GetStakeInfoResult, e
 // or in full. The flag includeImmature is used to indicate if non mature
 // tickets should also be returned.
 func (c *Client) GetTickets(ctx context.Context, includeImmature bool) ([]*chainhash.Hash, error) {
-	var res []*chainhash.Hash
-	err := c.Call(ctx, "gettickets", unmarshalHashes(&res), includeImmature)
-	return res, err
+	var hashes []*chainhash.Hash
+	var res = struct {
+		Hashes json.Unmarshaler `json:"hashes"`
+	}{
+		Hashes: unmarshalHashes(&hashes),
+	}
+	err := c.Call(ctx, "gettickets", &res, includeImmature)
+	return hashes, err
 }
 
 // SetTxFee sets the transaction fee per KB amount.
