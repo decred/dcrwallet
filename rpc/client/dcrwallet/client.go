@@ -45,6 +45,9 @@ func (r *rawRequester) Call(ctx context.Context, method string, res interface{},
 	if err != nil {
 		return err
 	}
+	if res == nil {
+		return nil
+	}
 	return json.Unmarshal(resp, res)
 }
 
