@@ -815,7 +815,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 
 	var ticketHashes []*chainhash.Hash
 	var votes []*wire.MsgTx
-	voteBits := w.VoteBits()
+	defaultVoteBits, ticketsVoteBits := w.VoteBits()
 	var watchOutPoints []wire.OutPoint
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -850,8 +850,12 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 				continue
 			}
 
+			ticketVoteBits, exists := ticketsVoteBits[ticketHash.String()]
+			if !exists {
+				ticketVoteBits = defaultVoteBits
+			}
 			vote, err := createUnsignedVote(ticketHash, ticketPurchase,
-				blockHeight, blockHash, voteBits, w.subsidyCache, w.chainParams)
+				blockHeight, blockHash, ticketVoteBits, w.subsidyCache, w.chainParams)
 			if err != nil {
 				log.Errorf("Failed to create vote transaction for ticket "+
 					"hash %v: %v", ticketHash, err)
@@ -896,9 +900,13 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 	for i := range voteRecords {
 		w.recentlyPublished[voteRecords[i].Hash] = struct{}{}
 
+		ticketVoteBits, exists := ticketsVoteBits[ticketHashes[i].String()]
+		if !exists {
+			ticketVoteBits = defaultVoteBits
+		}
 		log.Infof("Voting on block %v (height %v) using ticket %v "+
 			"(vote hash: %v bits: %v)", blockHash, blockHeight,
-			ticketHashes[i], &voteRecords[i].Hash, voteBits.Bits)
+			ticketHashes[i], &voteRecords[i].Hash, ticketVoteBits.Bits)
 	}
 	w.recentlyPublishedMu.Unlock()
 

@@ -366,13 +366,14 @@ type ValidateAddressWalletResult = ValidateAddressResult
 
 // WalletInfoResult models the data returned from the walletinfo command.
 type WalletInfoResult struct {
-	DaemonConnected  bool    `json:"daemonconnected"`
-	Unlocked         bool    `json:"unlocked"`
-	CoinType         uint32  `json:"cointype,omitempty"`
-	TxFee            float64 `json:"txfee"`
-	TicketPurchasing bool    `json:"ticketpurchasing"`
-	VoteBits         uint16  `json:"votebits"`
-	VoteBitsExtended string  `json:"votebitsextended"`
-	VoteVersion      uint32  `json:"voteversion"`
-	Voting           bool    `json:"voting"`
+	DaemonConnected  bool              `json:"daemonconnected"`
+	Unlocked         bool              `json:"unlocked"`
+	CoinType         uint32            `json:"cointype,omitempty"`
+	TxFee            float64           `json:"txfee"`
+	TicketPurchasing bool              `json:"ticketpurchasing"`
+	DefaultVoteBits  uint16            `json:"defaultvotebits"`
+	TicketVoteBits   map[string]uint16 `json:"ticketsvotebits"`
+	VoteBitsExtended string            `json:"votebitsextended"`
+	VoteVersion      uint32            `json:"voteversion"`
+	Voting           bool              `json:"voting"`
 }

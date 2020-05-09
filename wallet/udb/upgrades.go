@@ -145,30 +145,36 @@ const (
 	// filters.
 	blockcf2Version = 15
 
+	// perTicketVotingPreferencesVersion is the 16th version of the database.
+	// It creates a top-level ticketsagendaprefs bucket for storing voting
+	// preferences for individual tickets.
+	perTicketVotingPreferencesVersion = 16
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = blockcf2Version
+	DBVersion = perTicketVotingPreferencesVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
 // upgrade the database to the next version.  Note that there was never a
 // version zero so upgrades[0] is nil.
 var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
-	lastUsedAddressIndexVersion - 1:     lastUsedAddressIndexUpgrade,
-	votingPreferencesVersion - 1:        votingPreferencesUpgrade,
-	noEncryptedSeedVersion - 1:          noEncryptedSeedUpgrade,
-	lastReturnedAddressVersion - 1:      lastReturnedAddressUpgrade,
-	ticketBucketVersion - 1:             ticketBucketUpgrade,
-	slip0044CoinTypeVersion - 1:         slip0044CoinTypeUpgrade,
-	hasExpiryVersion - 1:                hasExpiryUpgrade,
-	hasExpiryFixedVersion - 1:           hasExpiryFixedUpgrade,
-	cfVersion - 1:                       cfUpgrade,
-	lastProcessedTxsBlockVersion - 1:    lastProcessedTxsBlockUpgrade,
-	ticketCommitmentsVersion - 1:        ticketCommitmentsUpgrade,
-	importedXpubAccountVersion - 1:      importedXpubAccountUpgrade,
-	unencryptedRedeemScriptsVersion - 1: unencryptedRedeemScriptsUpgrade,
-	blockcf2Version - 1:                 blockcf2Upgrade,
+	lastUsedAddressIndexVersion - 1:       lastUsedAddressIndexUpgrade,
+	votingPreferencesVersion - 1:          votingPreferencesUpgrade,
+	noEncryptedSeedVersion - 1:            noEncryptedSeedUpgrade,
+	lastReturnedAddressVersion - 1:        lastReturnedAddressUpgrade,
+	ticketBucketVersion - 1:               ticketBucketUpgrade,
+	slip0044CoinTypeVersion - 1:           slip0044CoinTypeUpgrade,
+	hasExpiryVersion - 1:                  hasExpiryUpgrade,
+	hasExpiryFixedVersion - 1:             hasExpiryFixedUpgrade,
+	cfVersion - 1:                         cfUpgrade,
+	lastProcessedTxsBlockVersion - 1:      lastProcessedTxsBlockUpgrade,
+	ticketCommitmentsVersion - 1:          ticketCommitmentsUpgrade,
+	importedXpubAccountVersion - 1:        importedXpubAccountUpgrade,
+	unencryptedRedeemScriptsVersion - 1:   unencryptedRedeemScriptsUpgrade,
+	blockcf2Version - 1:                   blockcf2Upgrade,
+	perTicketVotingPreferencesVersion - 1: perTicketVotingPreferencesUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -367,7 +373,7 @@ func votingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, 
 	}
 
 	// Create the top level bucket for agenda preferences.
-	_, err = tx.CreateTopLevelBucket(agendaPreferences.rootBucketKey())
+	_, err = tx.CreateTopLevelBucket(agendaPreferences.defaultBucketKey())
 	if err != nil {
 		return err
 	}
@@ -1265,6 +1271,31 @@ func blockcf2Upgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *c
 		if err != nil {
 			return errors.E(errors.IO, err)
 		}
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func perTicketVotingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 15
+	const newVersion = 16
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 15 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "perTicketVotingPreferencesUpgrade inappropriately called")
+	}
+
+	// Create the top level bucket for per-ticket voting preferences.
+	_, err = tx.CreateTopLevelBucket(agendaPreferences.ticketsBucketKey())
+	if err != nil {
+		return err
 	}
 
 	// Write the new database version.
