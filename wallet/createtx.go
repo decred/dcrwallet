@@ -653,7 +653,7 @@ func validateMsgTx(op errors.Op, tx *wire.MsgTx, prevScripts [][]byte) error {
 			prevOut := &tx.TxIn[i].PreviousOutPoint
 			sigScript := tx.TxIn[i].SignatureScript
 
-			log.Errorf("Script validation failed (outpoint %v pkscript %v sigscript %v): %v",
+			log.Errorf("Script validation failed (outpoint %v pkscript %x sigscript %x): %v",
 				prevOut, prevScript, sigScript, err)
 			return errors.E(op, errors.ScriptFailure, err)
 		}
