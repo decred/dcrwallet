@@ -53,7 +53,7 @@ func marshalAddresses(addrs []dcrutil.Address) json.Marshaler {
 func marshalTx(tx *wire.MsgTx) json.Marshaler {
 	return marshalJSONFunc(func() ([]byte, error) {
 		s := new(strings.Builder)
-		err := tx.Serialize(s)
+		err := tx.Serialize(hex.NewEncoder(s))
 		if err != nil {
 			return nil, err
 		}
