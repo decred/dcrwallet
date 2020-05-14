@@ -303,11 +303,10 @@ func (w *Wallet) AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) 
 		choices[i].ChoiceID = "abstain"
 	}
 
-	// validate ticket ownership
 	var ownTicket bool
+	var hasSavedPrefs bool
 
 	voteBits = 1
-	voteBitsNotSet := true
 	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		if ticketHash != nil {
 			ownTicket = w.txStore.OwnTicket(tx, ticketHash) || w.stakeMgr.OwnTicket(ticketHash)
@@ -327,11 +326,11 @@ func (w *Wallet) AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) 
 			if choice == "" {
 				continue
 			}
+			hasSavedPrefs = true
 			choices[i].ChoiceID = choice
 			for j := range agenda.Choices {
 				if agenda.Choices[j].Id == choice {
 					voteBits |= agenda.Choices[j].Bits
-					voteBitsNotSet = false
 					break
 				}
 			}
@@ -344,7 +343,7 @@ func (w *Wallet) AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) 
 	if ticketHash != nil && !ownTicket {
 		return nil, 0, errors.E(errors.NotExist, "ticket not found")
 	}
-	if ticketHash != nil && voteBitsNotSet {
+	if ticketHash != nil && !hasSavedPrefs {
 		// no choices set for ticket hash, return default choices.
 		return w.AgendaChoices(ctx, nil)
 	}
