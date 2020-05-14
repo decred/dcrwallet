@@ -687,20 +687,15 @@ var helpDescsEnUS = map[string]string{
 	"walletislocked--result0":  "Whether the wallet is locked",
 
 	// WalletInfoCmd help.
-	"walletinfo--synopsis":                    "Returns global information about the wallet",
-	"walletinforesult-daemonconnected":        "Whether or not the wallet is currently connected to the daemon RPC",
-	"walletinforesult-unlocked":               "Whether or not the wallet is unlocked",
-	"walletinforesult-cointype":               "Active coin type. Not available for watching-only wallets.",
-	"walletinforesult-txfee":                  "Transaction fee per kB of the serialized tx size in coins",
-	"walletinforesult-ticketpurchasing":       "Whether or not the wallet is currently purchasing tickets",
-	"walletinforesult-defaultvotebits":        "Default vote bits setting",
-	"walletinforesult-ticketsvotebits":        "List of saved per-ticket vote bits",
-	"walletinforesult-ticketsvotebits--desc":  "JSON object keying ticket hashes to vote bits setting",
-	"walletinforesult-ticketsvotebits--value": "Ticket hash",
-	"walletinforesult-ticketsvotebits--key":   "Vote bits setting",
-	"walletinforesult-votebitsextended":       "Extended vote bits setting",
-	"walletinforesult-voteversion":            "Version of votes that will be generated",
-	"walletinforesult-voting":                 "Whether or not the wallet is currently voting tickets",
+	"walletinfo--synopsis":              "Returns global information about the wallet",
+	"walletinforesult-daemonconnected":  "Whether or not the wallet is currently connected to the daemon RPC",
+	"walletinforesult-unlocked":         "Whether or not the wallet is unlocked",
+	"walletinforesult-cointype":         "Active coin type. Not available for watching-only wallets.",
+	"walletinforesult-txfee":            "Transaction fee per kB of the serialized tx size in coins",
+	"walletinforesult-votebits":         "Vote bits setting",
+	"walletinforesult-votebitsextended": "Extended vote bits setting",
+	"walletinforesult-voteversion":      "Version of votes that will be generated",
+	"walletinforesult-voting":           "Whether or not the wallet is currently voting tickets",
 
 	// TODO Alphabetize
 

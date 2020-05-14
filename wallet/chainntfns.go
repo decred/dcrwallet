@@ -815,7 +815,8 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 
 	var ticketHashes []*chainhash.Hash
 	var votes []*wire.MsgTx
-	defaultVoteBits, ticketsVoteBits := w.VoteBits()
+	var usedVoteBits []stake.VoteBits
+	defaultVoteBits := w.VoteBits()
 	var watchOutPoints []wire.OutPoint
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -827,6 +828,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 		}
 
 		votes = make([]*wire.MsgTx, len(ticketHashes))
+		usedVoteBits = make([]stake.VoteBits, len(ticketHashes))
 
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		for i, ticketHash := range ticketHashes {
@@ -850,9 +852,10 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 				continue
 			}
 
-			ticketVoteBits, exists := ticketsVoteBits[ticketHash.String()]
-			if !exists {
-				ticketVoteBits = defaultVoteBits
+			ticketVoteBits := defaultVoteBits
+			// Check for and use per-ticket votebits if set for this ticket.
+			if tvb := w.readDBTicketVoteBits(dbtx, ticketHash); tvb != nil {
+				ticketVoteBits = *tvb
 			}
 			vote, err := createUnsignedVote(ticketHash, ticketPurchase,
 				blockHeight, blockHash, ticketVoteBits, w.subsidyCache, w.chainParams)
@@ -868,6 +871,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 				continue
 			}
 			votes[i] = vote
+			usedVoteBits[i] = ticketVoteBits
 
 			watchOutPoints = w.appendRelevantOutpoints(watchOutPoints, dbtx, vote)
 		}
@@ -900,13 +904,9 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 	for i := range voteRecords {
 		w.recentlyPublished[voteRecords[i].Hash] = struct{}{}
 
-		ticketVoteBits, exists := ticketsVoteBits[ticketHashes[i].String()]
-		if !exists {
-			ticketVoteBits = defaultVoteBits
-		}
 		log.Infof("Voting on block %v (height %v) using ticket %v "+
 			"(vote hash: %v bits: %v)", blockHash, blockHeight,
-			ticketHashes[i], &voteRecords[i].Hash, ticketVoteBits.Bits)
+			ticketHashes[i], &voteRecords[i].Hash, usedVoteBits[i].Bits)
 	}
 	w.recentlyPublishedMu.Unlock()
 

@@ -3846,24 +3846,18 @@ func (s *Server) walletInfo(ctx context.Context, icmd interface{}) (interface{},
 
 	unlocked := !(w.Locked())
 	fi := w.RelayFee()
-	defaultVoteBits, ticketsVoteBits := w.VoteBits()
+	voteBits := w.VoteBits()
 	var voteVersion uint32
-	_ = binary.Read(bytes.NewBuffer(defaultVoteBits.ExtendedBits[0:4]), binary.LittleEndian, &voteVersion)
+	_ = binary.Read(bytes.NewBuffer(voteBits.ExtendedBits[0:4]), binary.LittleEndian, &voteVersion)
 	voting := w.VotingEnabled()
-
-	ticketsVBs := make(map[string]uint16, len(ticketsVoteBits))
-	for ticketHash, ticketsVoteBit := range ticketsVoteBits {
-		ticketsVBs[ticketHash] = ticketsVoteBit.Bits
-	}
 
 	return &types.WalletInfoResult{
 		DaemonConnected:  connected,
 		Unlocked:         unlocked,
 		CoinType:         coinType,
 		TxFee:            fi.ToCoin(),
-		DefaultVoteBits:  defaultVoteBits.Bits,
-		TicketVoteBits:   ticketsVBs,
-		VoteBitsExtended: hex.EncodeToString(defaultVoteBits.ExtendedBits),
+		VoteBits:         voteBits.Bits,
+		VoteBitsExtended: hex.EncodeToString(voteBits.ExtendedBits),
 		VoteVersion:      voteVersion,
 		Voting:           voting,
 	}, nil

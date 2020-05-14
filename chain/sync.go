@@ -299,15 +299,9 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		if err != nil {
 			return err
 		}
-		defaultVB, ticketsVBs := s.wallet.VoteBits()
-		if len(ticketsVBs) == 0 {
-			log.Infof("Wallet voting enabled: vote bits = %#04x, "+
-				"extended vote bits = %x", defaultVB.Bits, defaultVB.ExtendedBits)
-		} else {
-			log.Infof("Wallet voting enabled: default vote bits = %#04x, "+
-				"extended vote bits = %x, with other vote bits set for %d tickets",
-				defaultVB.Bits, defaultVB.ExtendedBits, len(ticketsVBs))
-		}
+		vb := s.wallet.VoteBits()
+		log.Infof("Wallet voting enabled: vote bits = %#04x, "+
+			"extended vote bits = %x", vb.Bits, vb.ExtendedBits)
 		log.Infof("Please ensure your wallet remains unlocked so it may vote")
 	}
 
