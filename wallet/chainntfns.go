@@ -854,8 +854,8 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 
 			ticketVoteBits := defaultVoteBits
 			// Check for and use per-ticket votebits if set for this ticket.
-			if tvb := w.readDBTicketVoteBits(dbtx, ticketHash); tvb != nil {
-				ticketVoteBits = *tvb
+			if tvb, found := w.readDBTicketVoteBits(dbtx, ticketHash); found {
+				ticketVoteBits = tvb
 			}
 			vote, err := createUnsignedVote(ticketHash, ticketPurchase,
 				blockHeight, blockHash, ticketVoteBits, w.subsidyCache, w.chainParams)

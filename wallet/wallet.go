@@ -236,11 +236,19 @@ func (w *Wallet) readDBVoteBits(dbtx walletdb.ReadTx) stake.VoteBits {
 	return vb
 }
 
-func (w *Wallet) readDBTicketVoteBits(dbtx walletdb.ReadTx, ticketHash *chainhash.Hash) *stake.VoteBits {
-	var bits uint16 = 0x0001
-	var hasSavedPrefs bool
-
+func (w *Wallet) readDBTicketVoteBits(dbtx walletdb.ReadTx, ticketHash *chainhash.Hash) (stake.VoteBits, bool) {
 	version, deployments := CurrentAgendas(w.chainParams)
+	tvb := stake.VoteBits{
+		Bits:         0x0001,
+		ExtendedBits: make([]byte, 4),
+	}
+	binary.LittleEndian.PutUint32(tvb.ExtendedBits, version)
+
+	if len(deployments) == 0 {
+		return tvb, false
+	}
+
+	var hasSavedPrefs bool
 	for i := range deployments {
 		d := &deployments[i]
 		choiceID := udb.TicketAgendaPreference(dbtx, ticketHash, version, d.Vote.Id)
@@ -251,22 +259,12 @@ func (w *Wallet) readDBTicketVoteBits(dbtx walletdb.ReadTx, ticketHash *chainhas
 		for j := range d.Vote.Choices {
 			choice := &d.Vote.Choices[j]
 			if choiceID == choice.Id {
-				bits |= choice.Bits
+				tvb.Bits |= choice.Bits
 				break
 			}
 		}
 	}
-
-	if !hasSavedPrefs {
-		return nil
-	}
-
-	tvb := stake.VoteBits{
-		Bits:         bits,
-		ExtendedBits: make([]byte, 4),
-	}
-	binary.LittleEndian.PutUint32(tvb.ExtendedBits, version)
-	return &tvb
+	return tvb, hasSavedPrefs
 }
 
 // VoteBits returns the vote bits that are described by the currently set agenda
@@ -421,7 +419,10 @@ func (w *Wallet) SetAgendaChoices(ctx context.Context, ticketHash *chainhash.Has
 				bits: matchingChoice.Bits,
 			})
 			if ticketHash != nil {
-				voteBits = w.readDBTicketVoteBits(tx, ticketHash).Bits
+				// No need to check that this ticket has prefs set,
+				// we just saved the per-ticket vote bits.
+				ticketVoteBits, _ := w.readDBTicketVoteBits(tx, ticketHash)
+				voteBits = ticketVoteBits.Bits
 			}
 		}
 		return nil
