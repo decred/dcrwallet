@@ -58,9 +58,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.4.0"
+	semverString = "7.5.0"
 	semverMajor  = 7
-	semverMinor  = 4
+	semverMinor  = 5
 	semverPatch  = 0
 )
 
@@ -2894,8 +2894,16 @@ func (s *votingServer) checkReady() bool {
 }
 
 func (s *votingServer) VoteChoices(ctx context.Context, req *pb.VoteChoicesRequest) (*pb.VoteChoicesResponse, error) {
+	var ticketHash *chainhash.Hash
+	var err error
+	if len(req.TicketHash) != 0 {
+		ticketHash, err = chainhash.NewHash(req.TicketHash)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
+	}
 	version, agendas := wallet.CurrentAgendas(s.wallet.ChainParams())
-	choices, voteBits, err := s.wallet.AgendaChoices(ctx)
+	choices, voteBits, err := s.wallet.AgendaChoices(ctx, ticketHash)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -2923,6 +2931,14 @@ func (s *votingServer) VoteChoices(ctx context.Context, req *pb.VoteChoicesReque
 }
 
 func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoicesRequest) (*pb.SetVoteChoicesResponse, error) {
+	var ticketHash *chainhash.Hash
+	var err error
+	if len(req.TicketHash) != 0 {
+		ticketHash, err = chainhash.NewHash(req.TicketHash)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
+	}
 	choices := make([]wallet.AgendaChoice, len(req.Choices))
 	for i, c := range req.Choices {
 		choices[i] = wallet.AgendaChoice{
@@ -2930,7 +2946,7 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 			ChoiceID: c.ChoiceId,
 		}
 	}
-	voteBits, err := s.wallet.SetAgendaChoices(ctx, choices...)
+	voteBits, err := s.wallet.SetAgendaChoices(ctx, ticketHash, choices...)
 	if err != nil {
 		return nil, translateError(err)
 	}

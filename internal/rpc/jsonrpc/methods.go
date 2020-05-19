@@ -43,9 +43,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "8.0.0"
+	jsonrpcSemverString = "8.1.0"
 	jsonrpcSemverMajor  = 8
-	jsonrpcSemverMinor  = 0
+	jsonrpcSemverMinor  = 1
 	jsonrpcSemverPatch  = 0
 )
 
@@ -1986,9 +1986,19 @@ func (s *Server) getTransaction(ctx context.Context, icmd interface{}) (interfac
 // getVoteChoices handles a getvotechoices request by returning configured vote
 // preferences for each agenda of the latest supported stake version.
 func (s *Server) getVoteChoices(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.GetVoteChoicesCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
+	}
+
+	var ticketHash *chainhash.Hash
+	if cmd.TicketHash != nil {
+		hash, err := chainhash.NewHashFromStr(*cmd.TicketHash)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+		}
+		ticketHash = hash
 	}
 
 	version, agendas := wallet.CurrentAgendas(w.ChainParams())
@@ -1997,7 +2007,7 @@ func (s *Server) getVoteChoices(ctx context.Context, icmd interface{}) (interfac
 		Choices: make([]types.VoteChoice, len(agendas)),
 	}
 
-	choices, _, err := w.AgendaChoices(ctx)
+	choices, _, err := w.AgendaChoices(ctx, ticketHash)
 	if err != nil {
 		return nil, err
 	}
@@ -3202,7 +3212,16 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface
 		return nil, errUnloadedWallet
 	}
 
-	_, err := w.SetAgendaChoices(ctx, wallet.AgendaChoice{
+	var ticketHash *chainhash.Hash
+	if cmd.TicketHash != nil {
+		hash, err := chainhash.NewHashFromStr(*cmd.TicketHash)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+		}
+		ticketHash = hash
+	}
+
+	_, err := w.SetAgendaChoices(ctx, ticketHash, wallet.AgendaChoice{
 		AgendaID: cmd.AgendaID,
 		ChoiceID: cmd.ChoiceID,
 	})

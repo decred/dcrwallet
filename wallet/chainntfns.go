@@ -815,7 +815,8 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 
 	var ticketHashes []*chainhash.Hash
 	var votes []*wire.MsgTx
-	voteBits := w.VoteBits()
+	var usedVoteBits []stake.VoteBits
+	defaultVoteBits := w.VoteBits()
 	var watchOutPoints []wire.OutPoint
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -827,6 +828,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 		}
 
 		votes = make([]*wire.MsgTx, len(ticketHashes))
+		usedVoteBits = make([]stake.VoteBits, len(ticketHashes))
 
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		for i, ticketHash := range ticketHashes {
@@ -850,8 +852,13 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 				continue
 			}
 
+			ticketVoteBits := defaultVoteBits
+			// Check for and use per-ticket votebits if set for this ticket.
+			if tvb, found := w.readDBTicketVoteBits(dbtx, ticketHash); found {
+				ticketVoteBits = tvb
+			}
 			vote, err := createUnsignedVote(ticketHash, ticketPurchase,
-				blockHeight, blockHash, voteBits, w.subsidyCache, w.chainParams)
+				blockHeight, blockHash, ticketVoteBits, w.subsidyCache, w.chainParams)
 			if err != nil {
 				log.Errorf("Failed to create vote transaction for ticket "+
 					"hash %v: %v", ticketHash, err)
@@ -864,6 +871,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 				continue
 			}
 			votes[i] = vote
+			usedVoteBits[i] = ticketVoteBits
 
 			watchOutPoints = w.appendRelevantOutpoints(watchOutPoints, dbtx, vote)
 		}
@@ -898,7 +906,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 
 		log.Infof("Voting on block %v (height %v) using ticket %v "+
 			"(vote hash: %v bits: %v)", blockHash, blockHeight,
-			ticketHashes[i], &voteRecords[i].Hash, voteBits.Bits)
+			ticketHashes[i], &voteRecords[i].Hash, usedVoteBits[i].Bits)
 	}
 	w.recentlyPublishedMu.Unlock()
 

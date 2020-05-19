@@ -934,7 +934,9 @@ message AgendasResponse {
 	repeated Agenda agendas = 2;
 }
 
-message VoteChoicesRequest {}
+message VoteChoicesRequest {
+	bytes ticket_hash = 1;
+}
 message VoteChoicesResponse {
 	message Choice {
 		string agenda_id = 1;
@@ -953,6 +955,7 @@ message SetVoteChoicesRequest {
 		string choice_id = 2;
 	}
 	repeated Choice choices = 1;
+	bytes ticket_hash = 2;
 }
 message SetVoteChoicesResponse {
 	uint32 votebits = 1;

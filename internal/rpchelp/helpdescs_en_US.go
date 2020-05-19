@@ -214,7 +214,8 @@ var helpDescsEnUS = map[string]string{
 	"gettickets-includeimmature": "If true include immature tickets in the results.",
 
 	// GetVoteChoices help.
-	"getvotechoices--synopsis": "Retrieve the currently configured vote choices for the latest supported stake agendas",
+	"getvotechoices--synopsis":  "Retrieve the currently configured default vote choices for the latest supported stake agendas",
+	"getvotechoices-tickethash": "The hash of the ticket to return vote choices for. If the ticket has no choices set, the default vote choices are returned",
 
 	// GetVoteChoicesResult help.
 	"getvotechoicesresult-version": "The latest stake version supported by the software and the version of the included agendas",
@@ -517,9 +518,10 @@ var helpDescsEnUS = map[string]string{
 	"settxfee--result0":  "The boolean 'true'",
 
 	// SetVoteChoice help.
-	"setvotechoice--synopsis": "Sets choices for defined agendas in the latest stake version supported by this software",
-	"setvotechoice-agendaid":  "The ID for the agenda to modify",
-	"setvotechoice-choiceid":  "The ID for the choice to choose",
+	"setvotechoice--synopsis":  "Sets choices for defined agendas in the latest stake version supported by this software",
+	"setvotechoice-agendaid":   "The ID for the agenda to modify",
+	"setvotechoice-choiceid":   "The ID for the choice to choose",
+	"setvotechoice-tickethash": "The hash of the ticket to set choices for",
 
 	// SignMessageCmd help.
 	"signmessage--synopsis": "Signs a message using the private key of a payment address.",
@@ -690,7 +692,6 @@ var helpDescsEnUS = map[string]string{
 	"walletinforesult-unlocked":         "Whether or not the wallet is unlocked",
 	"walletinforesult-cointype":         "Active coin type. Not available for watching-only wallets.",
 	"walletinforesult-txfee":            "Transaction fee per kB of the serialized tx size in coins",
-	"walletinforesult-ticketpurchasing": "Whether or not the wallet is currently purchasing tickets",
 	"walletinforesult-votebits":         "Vote bits setting",
 	"walletinforesult-votebitsextended": "Extended vote bits setting",
 	"walletinforesult-voteversion":      "Version of votes that will be generated",

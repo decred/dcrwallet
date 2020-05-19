@@ -7,6 +7,7 @@ package udb
 import (
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet/walletdb"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 )
 
 type agendaPreferencesTy struct {
@@ -14,9 +15,10 @@ type agendaPreferencesTy struct {
 
 var agendaPreferences agendaPreferencesTy
 
-var agendaPreferencesRootBucketKey = []byte("agendaprefs")
-
-func (agendaPreferencesTy) rootBucketKey() []byte { return agendaPreferencesRootBucketKey }
+var (
+	defaultAgendaPrefsBucketKey = []byte("agendaprefs")
+	ticketsAgendaPrefsBucketKey = []byte("ticketsagendaprefs")
+)
 
 func (agendaPreferencesTy) key(version uint32, agendaID string) []byte {
 	k := make([]byte, 4+len(agendaID))
@@ -25,30 +27,68 @@ func (agendaPreferencesTy) key(version uint32, agendaID string) []byte {
 	return k
 }
 
-func (t agendaPreferencesTy) setPreference(tx walletdb.ReadWriteTx, version uint32, agendaID, choiceID string) error {
-	b := tx.ReadWriteBucket(t.rootBucketKey())
+func (agendaPreferencesTy) defaultBucketKey() []byte { return defaultAgendaPrefsBucketKey }
+
+func (agendaPreferencesTy) ticketsBucketKey() []byte { return ticketsAgendaPrefsBucketKey }
+
+func (t agendaPreferencesTy) setDefaultPreference(tx walletdb.ReadWriteTx, version uint32, agendaID, choiceID string) error {
+	b := tx.ReadWriteBucket(t.defaultBucketKey())
 	return b.Put(t.key(version, agendaID), []byte(choiceID))
 }
 
-func (t agendaPreferencesTy) preference(tx walletdb.ReadTx, version uint32, agendaID string) (choiceID string) {
-	b := tx.ReadBucket(t.rootBucketKey())
+func (t agendaPreferencesTy) setTicketPreference(tx walletdb.ReadWriteTx, txHash *chainhash.Hash, version uint32, agendaID, choiceID string) error {
+	b, err := tx.ReadWriteBucket(t.ticketsBucketKey()).CreateBucketIfNotExists(txHash[:])
+	if err != nil {
+		return err
+	}
+	return b.Put(t.key(version, agendaID), []byte(choiceID))
+}
+
+func (t agendaPreferencesTy) defaultPreference(dbtx walletdb.ReadTx, version uint32, agendaID string) (choiceID string) {
+	b := dbtx.ReadBucket(t.defaultBucketKey())
 	v := b.Get(t.key(version, agendaID))
 	return string(v)
 }
 
-// SetAgendaPreference saves an agenda choice ID for an agenda ID and deployment
-// version.
-func SetAgendaPreference(tx walletdb.ReadWriteTx, version uint32, agendaID, choiceID string) error {
-	err := agendaPreferences.setPreference(tx, version, agendaID, choiceID)
+func (t agendaPreferencesTy) ticketPreference(dbtx walletdb.ReadTx, ticketHash *chainhash.Hash, version uint32, agendaID string) (choiceID string) {
+	ticketBucket := dbtx.ReadBucket(t.ticketsBucketKey()).NestedReadBucket(ticketHash[:])
+	if ticketBucket == nil {
+		return ""
+	}
+	v := ticketBucket.Get(t.key(version, agendaID))
+	return string(v)
+}
+
+// SetDefaultAgendaPreference saves a default agenda choice ID for an agenda ID
+// and deployment version.
+func SetDefaultAgendaPreference(dbtx walletdb.ReadWriteTx, version uint32, agendaID, choiceID string) error {
+	err := agendaPreferences.setDefaultPreference(dbtx, version, agendaID, choiceID)
 	if err != nil {
 		return errors.E(errors.IO, err)
 	}
 	return nil
 }
 
-// AgendaPreference returns the saved choice ID, if any, for an agenda ID and
-// deployment version.  If no choice has been saved, this returns the empty
+// SetTicketAgendaPreference saves a ticket-specific agenda choice ID for an
+// agenda ID and deployment version.
+func SetTicketAgendaPreference(dbtx walletdb.ReadWriteTx, txHash *chainhash.Hash, version uint32, agendaID, choiceID string) error {
+	err := agendaPreferences.setTicketPreference(dbtx, txHash, version, agendaID, choiceID)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
+// DefaultAgendaPreference returns the saved default choice ID, if any, for an
+// agenda ID and deployment version.  If no choice has been saved, this returns
+// the empty string.
+func DefaultAgendaPreference(dbtx walletdb.ReadTx, version uint32, agendaID string) (choiceID string) {
+	return agendaPreferences.defaultPreference(dbtx, version, agendaID)
+}
+
+// TicketAgendaPreference returns a ticket's saved choice ID, if any, for an agenda
+// ID and deployment version.  If no choice has been saved, this returns the empty
 // string.
-func AgendaPreference(tx walletdb.ReadTx, version uint32, agendaID string) (choiceID string) {
-	return agendaPreferences.preference(tx, version, agendaID)
+func TicketAgendaPreference(dbtx walletdb.ReadTx, ticketHash *chainhash.Hash, version uint32, agendaID string) (choiceID string) {
+	return agendaPreferences.ticketPreference(dbtx, ticketHash, version, agendaID)
 }

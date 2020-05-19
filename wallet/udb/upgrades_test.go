@@ -222,7 +222,7 @@ func verifyV3Upgrade(t *testing.T, db walletdb.DB) {
 		}
 
 		// Verify that the agenda preferences bucket was created.
-		if tx.ReadBucket(agendaPreferences.rootBucketKey()) == nil {
+		if tx.ReadBucket(agendaPreferences.defaultBucketKey()) == nil {
 			t.Errorf("Agenda preferences bucket was not created")
 		}
 

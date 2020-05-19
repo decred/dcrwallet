@@ -77,18 +77,6 @@ func NewAddMultisigAddressCmd(nRequired int, keys []string, account *string) *Ad
 	}
 }
 
-// AddTicketCmd forces a ticket into the wallet stake manager, for example if
-// someone made an invalid ticket for a stake pool and the pool manager wanted
-// to manually add it.
-type AddTicketCmd struct {
-	TicketHex string `json:"tickethex"`
-}
-
-// NewAddTicketCmd creates a new AddTicketCmd.
-func NewAddTicketCmd(ticketHex string) *AddTicketCmd {
-	return &AddTicketCmd{TicketHex: ticketHex}
-}
-
 // AddTransactionCmd manually adds a single mined transaction to the wallet,
 // which may be useful to add a transaction which was mined before a private
 // key was imported.
@@ -443,12 +431,15 @@ func NewGetUnconfirmedBalanceCmd(account *string) *GetUnconfirmedBalanceCmd {
 // GetVoteChoicesCmd returns a new instance which can be used to issue a
 // getvotechoices JSON-RPC command.
 type GetVoteChoicesCmd struct {
+	TicketHash *string
 }
 
 // NewGetVoteChoicesCmd returns a new instance which can be used to
 // issue a JSON-RPC getvotechoices command.
-func NewGetVoteChoicesCmd() *GetVoteChoicesCmd {
-	return &GetVoteChoicesCmd{}
+func NewGetVoteChoicesCmd(tickethash *string) *GetVoteChoicesCmd {
+	return &GetVoteChoicesCmd{
+		TicketHash: tickethash,
+	}
 }
 
 // GetWalletFeeCmd defines the getwalletfee JSON-RPC command.
@@ -895,14 +886,15 @@ func NewSetTxFeeCmd(amount float64) *SetTxFeeCmd {
 
 // SetVoteChoiceCmd defines the parameters to the setvotechoice method.
 type SetVoteChoiceCmd struct {
-	AgendaID string
-	ChoiceID string
+	AgendaID   string
+	ChoiceID   string
+	TicketHash *string
 }
 
 // NewSetVoteChoiceCmd returns a new instance which can be used to issue a
 // setvotechoice JSON-RPC command.
-func NewSetVoteChoiceCmd(agendaID, choiceID string) *SetVoteChoiceCmd {
-	return &SetVoteChoiceCmd{AgendaID: agendaID, ChoiceID: choiceID}
+func NewSetVoteChoiceCmd(agendaID, choiceID string, tickethash *string) *SetVoteChoiceCmd {
+	return &SetVoteChoiceCmd{AgendaID: agendaID, ChoiceID: choiceID, TicketHash: tickethash}
 }
 
 // SignMessageCmd defines the signmessage JSON-RPC command.

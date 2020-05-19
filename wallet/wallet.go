@@ -87,7 +87,7 @@ type Wallet struct {
 
 	// Handlers for stake system.
 	stakeSettingsLock  sync.Mutex
-	voteBits           stake.VoteBits
+	defaultVoteBits    stake.VoteBits
 	votingEnabled      bool
 	poolAddress        dcrutil.Address
 	poolFees           float64
@@ -220,7 +220,7 @@ func (w *Wallet) readDBVoteBits(dbtx walletdb.ReadTx) stake.VoteBits {
 
 	for i := range deployments {
 		d := &deployments[i]
-		choiceID := udb.AgendaPreference(dbtx, version, d.Vote.Id)
+		choiceID := udb.DefaultAgendaPreference(dbtx, version, d.Vote.Id)
 		if choiceID == "" {
 			continue
 		}
@@ -236,13 +236,44 @@ func (w *Wallet) readDBVoteBits(dbtx walletdb.ReadTx) stake.VoteBits {
 	return vb
 }
 
+func (w *Wallet) readDBTicketVoteBits(dbtx walletdb.ReadTx, ticketHash *chainhash.Hash) (stake.VoteBits, bool) {
+	version, deployments := CurrentAgendas(w.chainParams)
+	tvb := stake.VoteBits{
+		Bits:         0x0001,
+		ExtendedBits: make([]byte, 4),
+	}
+	binary.LittleEndian.PutUint32(tvb.ExtendedBits, version)
+
+	if len(deployments) == 0 {
+		return tvb, false
+	}
+
+	var hasSavedPrefs bool
+	for i := range deployments {
+		d := &deployments[i]
+		choiceID := udb.TicketAgendaPreference(dbtx, ticketHash, version, d.Vote.Id)
+		if choiceID == "" {
+			continue
+		}
+		hasSavedPrefs = true
+		for j := range d.Vote.Choices {
+			choice := &d.Vote.Choices[j]
+			if choiceID == choice.Id {
+				tvb.Bits |= choice.Bits
+				break
+			}
+		}
+	}
+	return tvb, hasSavedPrefs
+}
+
 // VoteBits returns the vote bits that are described by the currently set agenda
 // preferences.  The previous block valid bit is always set, and must be unset
 // elsewhere if the previous block's regular transactions should be voted
 // against.
 func (w *Wallet) VoteBits() stake.VoteBits {
 	w.stakeSettingsLock.Lock()
-	vb := w.voteBits
+	vb := w.defaultVoteBits
 	w.stakeSettingsLock.Unlock()
 	return vb
 }
@@ -254,27 +285,46 @@ type AgendaChoice struct {
 }
 
 // AgendaChoices returns the choice IDs for every agenda of the supported stake
-// version.  Abstains are included.
-func (w *Wallet) AgendaChoices(ctx context.Context) (choices []AgendaChoice, voteBits uint16, err error) {
+// version.  Abstains are included.  Returns choice IDs set for the specified
+// non-nil ticket hash, or the default choice IDs if the ticket hash is nil or
+// there are no choices set for the ticket.
+func (w *Wallet) AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) (choices []AgendaChoice, voteBits uint16, err error) {
 	const op errors.Op = "wallet.AgendaChoices"
 	version, deployments := CurrentAgendas(w.chainParams)
 	if len(deployments) == 0 {
 		return nil, 0, nil
 	}
+
 	choices = make([]AgendaChoice, len(deployments))
 	for i := range choices {
 		choices[i].AgendaID = deployments[i].Vote.Id
 		choices[i].ChoiceID = "abstain"
 	}
 
+	var ownTicket bool
+	var hasSavedPrefs bool
+
 	voteBits = 1
 	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
+		if ticketHash != nil {
+			ownTicket = w.txStore.OwnTicket(tx, ticketHash) || w.stakeMgr.OwnTicket(ticketHash)
+			if !ownTicket {
+				return nil
+			}
+		}
+
 		for i := range deployments {
 			agenda := &deployments[i].Vote
-			choice := udb.AgendaPreference(tx, version, agenda.Id)
+			var choice string
+			if ticketHash == nil {
+				choice = udb.DefaultAgendaPreference(tx, version, agenda.Id)
+			} else {
+				choice = udb.TicketAgendaPreference(tx, ticketHash, version, agenda.Id)
+			}
 			if choice == "" {
 				continue
 			}
+			hasSavedPrefs = true
 			choices[i].ChoiceID = choice
 			for j := range agenda.Choices {
 				if agenda.Choices[j].Id == choice {
@@ -288,17 +338,41 @@ func (w *Wallet) AgendaChoices(ctx context.Context) (choices []AgendaChoice, vot
 	if err != nil {
 		return nil, 0, errors.E(op, err)
 	}
+	if ticketHash != nil && !ownTicket {
+		return nil, 0, errors.E(errors.NotExist, "ticket not found")
+	}
+	if ticketHash != nil && !hasSavedPrefs {
+		// no choices set for ticket hash, return default choices.
+		return w.AgendaChoices(ctx, nil)
+	}
 	return choices, voteBits, nil
 }
 
 // SetAgendaChoices sets the choices for agendas defined by the supported stake
 // version.  If a choice is set multiple times, the last takes preference.  The
 // new votebits after each change is made are returned.
-func (w *Wallet) SetAgendaChoices(ctx context.Context, choices ...AgendaChoice) (voteBits uint16, err error) {
+// If a ticketHash is provided, agenda choices are only set for that ticket and
+// the new votebits for that ticket is returned.
+func (w *Wallet) SetAgendaChoices(ctx context.Context, ticketHash *chainhash.Hash, choices ...AgendaChoice) (voteBits uint16, err error) {
 	const op errors.Op = "wallet.SetAgendaChoices"
 	version, deployments := CurrentAgendas(w.chainParams)
 	if len(deployments) == 0 {
 		return 0, errors.E("no agendas to set for this network")
+	}
+
+	if ticketHash != nil {
+		// validate ticket ownership
+		var ownTicket bool
+		err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+			ownTicket = w.txStore.OwnTicket(dbtx, ticketHash) || w.stakeMgr.OwnTicket(ticketHash)
+			return nil
+		})
+		if err != nil {
+			return 0, errors.E(op, err)
+		}
+		if !ownTicket {
+			return 0, errors.E(errors.NotExist, "ticket not found")
+		}
 	}
 
 	type maskChoice struct {
@@ -331,7 +405,12 @@ func (w *Wallet) SetAgendaChoices(ctx context.Context, choices ...AgendaChoice) 
 				return errors.E(errors.Invalid, errors.Errorf("agenda %q has no choice ID %q", c.AgendaID, c.ChoiceID))
 			}
 
-			err := udb.SetAgendaPreference(tx, version, c.AgendaID, c.ChoiceID)
+			var err error
+			if ticketHash == nil {
+				err = udb.SetDefaultAgendaPreference(tx, version, c.AgendaID, c.ChoiceID)
+			} else {
+				err = udb.SetTicketAgendaPreference(tx, ticketHash, version, c.AgendaID, c.ChoiceID)
+			}
 			if err != nil {
 				return err
 			}
@@ -339,6 +418,12 @@ func (w *Wallet) SetAgendaChoices(ctx context.Context, choices ...AgendaChoice) 
 				mask: matchingAgenda.Mask,
 				bits: matchingChoice.Bits,
 			})
+			if ticketHash != nil {
+				// No need to check that this ticket has prefs set,
+				// we just saved the per-ticket vote bits.
+				ticketVoteBits, _ := w.readDBTicketVoteBits(tx, ticketHash)
+				voteBits = ticketVoteBits.Bits
+			}
 		}
 		return nil
 	})
@@ -346,15 +431,17 @@ func (w *Wallet) SetAgendaChoices(ctx context.Context, choices ...AgendaChoice) 
 		return 0, errors.E(op, err)
 	}
 
-	// With the DB update successful, modify the actual votebits cached by the
-	// wallet structure.
-	w.stakeSettingsLock.Lock()
-	for _, c := range appliedChoices {
-		w.voteBits.Bits &^= c.mask // Clear all bits from this agenda
-		w.voteBits.Bits |= c.bits  // Set bits for this choice
+	// With the DB update successful, modify the default votebits cached by the
+	// wallet structure. Per-ticket votebits are not cached.
+	if ticketHash == nil {
+		w.stakeSettingsLock.Lock()
+		for _, c := range appliedChoices {
+			w.defaultVoteBits.Bits &^= c.mask // Clear all bits from this agenda
+			w.defaultVoteBits.Bits |= c.bits  // Set bits for this choice
+		}
+		voteBits = w.defaultVoteBits.Bits
+		w.stakeSettingsLock.Unlock()
 	}
-	voteBits = w.voteBits.Bits
-	w.stakeSettingsLock.Unlock()
 
 	return voteBits, nil
 }
@@ -4587,7 +4674,7 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 	}
 
 	w.NtfnServer = newNotificationServer(w)
-	w.voteBits = vb
+	w.defaultVoteBits = vb
 
 	w.stakePoolColdAddrs, err = decodeStakePoolColdExtKey(cfg.StakePoolColdExtKey,
 		cfg.Params)

@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 7.4.x
+Version: 7.5.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](https://www.grpc.io/docs/guides/concepts.html)
@@ -2931,6 +2931,10 @@ vote bits of the latest supported stake version agendas.
 
 **Request:** `VoteChoicesRequest`
 
+- `bytes ticket_hash`: The hash of the ticket to return vote choices for. If
+  hash is not specified or the ticket has no choices set, the default vote
+  choices are returned.
+
 **Response:** `VoteChoicesResponse`
 
 - `uint32 version`: The latest stake version supported by the software and the
@@ -2972,6 +2976,8 @@ supported by this software.
   - `string agenda_id`: The ID for the agenda to modify.
 
   - `string choice_id`: The ID for the choice to choose.
+
+- `bytes ticket_hash`: The hash of the ticket to set choices for.
 
 **Response:** `SetVoteChoicesResponse`
 
