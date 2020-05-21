@@ -74,13 +74,13 @@ type CreateSignatureResult struct {
 
 // GetPeerInfoResult models the data returned from the getpeerinfo command.
 type GetPeerInfoResult struct {
-	ID             int32   `json:"id"`
-	Addr           string  `json:"addr"`
-	Services       string  `json:"services"`
-	Version        uint32  `json:"version"`
-	SubVer         string  `json:"subver"`
-	StartingHeight int64   `json:"startingheight"`
-	BanScore       int32   `json:"banscore"`
+	ID             int32  `json:"id"`
+	Addr           string `json:"addr"`
+	Services       string `json:"services"`
+	Version        uint32 `json:"version"`
+	SubVer         string `json:"subver"`
+	StartingHeight int64  `json:"startingheight"`
+	BanScore       int32  `json:"banscore"`
 }
 
 // GetStakeInfoResult models the data returned from the getstakeinfo

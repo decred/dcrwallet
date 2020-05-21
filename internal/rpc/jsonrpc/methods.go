@@ -1822,20 +1822,27 @@ func (s *Server) getPeerInfo(ctx context.Context, icmd interface{}) (interface{}
 
 	syncer, ok := n.(*spv.Syncer)
 	if !ok {
-		return nil, nil
+		var resp []*dcrdtypes.GetPeerInfoResult
+		if rpc, ok := n.(*dcrd.RPC); ok {
+			err := rpc.Call(ctx, "getpeerinfo", &resp)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return resp, nil
 	}
 
 	infos := make([]*types.GetPeerInfoResult, 0, len(syncer.GetRemotePeers()))
+
 	for _, rp := range syncer.GetRemotePeers() {
-		remotePeerInfo := rp.Info()
 		info := &types.GetPeerInfoResult{
-			ID:             int32(remotePeerInfo.ID),
-			Addr:           remotePeerInfo.Addr,
-			Services:       fmt.Sprintf("%08d", uint64(remotePeerInfo.Services)),
-			StartingHeight: int64(remotePeerInfo.InitHeight),
-			Version:        remotePeerInfo.Version,
-			SubVer:         remotePeerInfo.UserAgent,
-			BanScore:       remotePeerInfo.Banscore,
+			ID:             int32(rp.ID()),
+			Addr:           rp.RemoteAddr().String(),
+			Services:       fmt.Sprintf("%08d", uint64(rp.Services())),
+			StartingHeight: int64(rp.InitialHeight()),
+			Version:        p2p.Pver,
+			SubVer:         rp.UA(),
+			BanScore:       int32(rp.BanScore()),
 		}
 		infos = append(infos, info)
 	}

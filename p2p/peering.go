@@ -139,30 +139,6 @@ type LocalPeer struct {
 	rpMu   sync.Mutex
 }
 
-// RemotePeerInfo is a snapshot of peer stats at a point in time
-type RemotePeerInfo struct {
-	ID         uint64
-	Services   wire.ServiceFlag
-	InitHeight int32
-	Addr       string
-	Version    uint32
-	UserAgent  string
-	Banscore   int32
-}
-
-// Info returns information of a remote peer flags and statistics
-func (rp *RemotePeer) Info() *RemotePeerInfo {
-	return &RemotePeerInfo{
-		ID:         rp.id,
-		Services:   rp.Services(),
-		InitHeight: rp.InitialHeight(),
-		Addr:       rp.RemoteAddr().String(),
-		Version:    rp.pver,
-		UserAgent:  rp.UA(),
-		Banscore:   int32(rp.banScore.Int()),
-	   }
-}
-
 // NewLocalPeer creates a LocalPeer that is externally reachable to remote peers
 // through extaddr.
 func NewLocalPeer(params *chaincfg.Params, extaddr *net.TCPAddr, amgr *addrmgr.AddrManager) *LocalPeer {
@@ -257,6 +233,9 @@ func (rp *RemotePeer) NA() *wire.NetAddress { return rp.na }
 
 // UA returns the remote peer's user agent.
 func (rp *RemotePeer) UA() string { return rp.ua }
+
+// ID returns the remote ID.
+func (rp *RemotePeer) ID() uint64 { return rp.id }
 
 // InitialHeight returns the current height the peer advertised in its version
 // message.
@@ -653,6 +632,16 @@ func (rp *RemotePeer) Err() error {
 // RemoteAddr returns the remote address of the peer's TCP connection.
 func (rp *RemotePeer) RemoteAddr() net.Addr {
 	return rp.c.RemoteAddr()
+}
+
+// LocalAddr returns the local address of the peer's TCP connection.
+func (rp *RemotePeer) LocalAddr() net.Addr {
+	return rp.c.LocalAddr()
+}
+
+// BanScore returns the banScore of the peer's.
+func (rp *RemotePeer) BanScore() uint32 {
+	return rp.banScore.Int()
 }
 
 func (rp *RemotePeer) String() string {
