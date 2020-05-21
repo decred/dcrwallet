@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ import (
 	"decred.org/dcrwallet/p2p"
 	"decred.org/dcrwallet/rpc/client/dcrd"
 	"decred.org/dcrwallet/rpc/jsonrpc/types"
+	"decred.org/dcrwallet/spv"
 	"decred.org/dcrwallet/version"
 	"decred.org/dcrwallet/wallet"
 	"decred.org/dcrwallet/wallet/txauthor"
@@ -141,6 +143,7 @@ var handlers = map[string]handler{
 	// Extensions to the reference client JSON-RPC API
 	"getbestblock":     {fn: (*Server).getBestBlock},
 	"createnewaccount": {fn: (*Server).createNewAccount},
+	"getpeerinfo":      {fn: (*Server).getPeerInfo},
 	// This was an extension but the reference implementation added it as
 	// well, but with a different API (no account parameter).  It's listed
 	// here because it hasn't been update to use the reference
@@ -1803,6 +1806,40 @@ func (s *Server) getMasterPubkey(ctx context.Context, icmd interface{}) (interfa
 		return nil, err
 	}
 	return xpub.String(), nil
+}
+
+// getPeerInfo responds to the getpeerinfo request.
+// It gets the network backend and views the data on remote peers when in spv mode
+func (s *Server) getPeerInfo(ctx context.Context, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	syncer, ok := n.(*spv.Syncer)
+	if !ok {
+		return nil, nil
+	}
+
+	infos := make([]*types.GetPeerInfoResult, 0, len(syncer.GetRemotePeers()))
+	for _, rp := range syncer.GetRemotePeers() {
+		remotePeerInfo := rp.Info()
+		info := &types.GetPeerInfoResult{
+			ID:             int32(remotePeerInfo.ID),
+			Addr:           remotePeerInfo.Addr,
+			Services:       fmt.Sprintf("%08d", uint64(remotePeerInfo.Services)),
+			StartingHeight: int64(remotePeerInfo.InitHeight),
+			Version:        remotePeerInfo.Version,
+			SubVer:         remotePeerInfo.UserAgent,
+			BanScore:       remotePeerInfo.Banscore,
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
 }
 
 // getStakeInfo gets a large amounts of information about the stake environment

@@ -139,6 +139,30 @@ type LocalPeer struct {
 	rpMu   sync.Mutex
 }
 
+// RemotePeerInfo is a snapshot of peer stats at a point in time
+type RemotePeerInfo struct {
+	ID         uint64
+	Services   wire.ServiceFlag
+	InitHeight int32
+	Addr       string
+	Version    uint32
+	UserAgent  string
+	Banscore   int32
+}
+
+// Info returns information of a remote peer flags and statistics
+func (rp *RemotePeer) Info() *RemotePeerInfo {
+	return &RemotePeerInfo{
+		ID:         rp.id,
+		Services:   rp.Services(),
+		InitHeight: rp.InitialHeight(),
+		Addr:       rp.RemoteAddr().String(),
+		Version:    rp.pver,
+		UserAgent:  rp.UA(),
+		Banscore:   int32(rp.banScore.Int()),
+	   }
+}
+
 // NewLocalPeer creates a LocalPeer that is externally reachable to remote peers
 // through extaddr.
 func NewLocalPeer(params *chaincfg.Params, extaddr *net.TCPAddr, amgr *addrmgr.AddrManager) *LocalPeer {
