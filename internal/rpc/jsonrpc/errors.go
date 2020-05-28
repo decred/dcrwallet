@@ -10,11 +10,18 @@ import (
 
 	"decred.org/dcrwallet/errors"
 	"github.com/decred/dcrd/dcrjson/v3"
+	"github.com/jrick/wsrpc/v2"
 )
 
 func convertError(err error) *dcrjson.RPCError {
-	if err, ok := err.(*dcrjson.RPCError); ok {
+	switch err := err.(type) {
+	case *dcrjson.RPCError:
 		return err
+	case *wsrpc.Error:
+		return &dcrjson.RPCError{
+			Code:    dcrjson.RPCErrorCode(err.Code),
+			Message: err.Message,
+		}
 	}
 
 	code := dcrjson.ErrRPCWallet
