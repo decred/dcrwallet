@@ -3934,10 +3934,15 @@ func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account
 		return nil, err
 	}
 	defer heldUnlock.release()
-	tx, err := w.txToOutputs(ctx, "wallet.SendOutputs", outputs, account, changeAccount, minconf, nil, true, relayFee, false)
+	tx, watch, err := w.txToOutputs(ctx, op, outputs, account, changeAccount, minconf, true, relayFee, false)
 	if err != nil {
 		return nil, err
 	}
+	err = w.publishAndWatch(ctx, op, nil, tx, watch)
+	if err != nil {
+		return nil, err
+	}
+
 	hash := tx.Tx.TxHash()
 	return &hash, nil
 }

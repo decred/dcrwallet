@@ -304,26 +304,52 @@ func (w *Wallet) checkHighFees(totalInput dcrutil.Amount, tx *wire.MsgTx) error 
 	return nil
 }
 
-// txToOutputs creates a signed transaction which includes each output
-// from outputs.  Previous outputs to reedeem are chosen from the passed
-// account's UTXO set and minconf policy. An additional output may be added to
-// return change to the wallet.  An appropriate fee is included based on the
-// wallet's current relay fee.  The wallet must be unlocked to create the
-// transaction.
-//
-// Decred: This func also sends the transaction, and if successful, inserts it
-// into the database, rather than delegating this work to the caller as
-// btcwallet does.
-func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.TxOut, account, changeAccount uint32, minconf int32,
-	n NetworkBackend, randomizeChangeIdx bool, txFee dcrutil.Amount, dontSignTx bool) (*txauthor.AuthoredTx, error) {
+// publishAndWatch publishes an authored transaction to the network and begins watching for
+// relevant transactions.
+func (w *Wallet) publishAndWatch(ctx context.Context, op errors.Op, n NetworkBackend, atx *txauthor.AuthoredTx,
+	watch []wire.OutPoint) error {
 
 	if n == nil {
 		var err error
 		n, err = w.NetworkBackend()
 		if err != nil {
-			return nil, errors.E(op, err)
+			return errors.E(op, err)
 		}
 	}
+
+	err := n.PublishTransactions(ctx, atx.Tx)
+	if err != nil {
+		hash := atx.Tx.TxHash()
+		log.Errorf("Abandoning transaction %v which failed to publish", &hash)
+		if err := w.AbandonTransaction(ctx, &hash); err != nil {
+			log.Errorf("Cannot abandon %v: %v", &hash, err)
+		}
+		return errors.E(op, err)
+	}
+
+	// Watch for future relevant transactions.
+	_, err = w.watchHDAddrs(ctx, false, n)
+	if err != nil {
+		log.Errorf("Failed to watch for future address usage after publishing "+
+			"transaction: %v", err)
+	}
+	if len(watch) > 0 {
+		err := n.LoadTxFilter(ctx, false, nil, watch)
+		if err != nil {
+			log.Errorf("Failed to watch outpoints: %v", err)
+		}
+	}
+	return nil
+}
+
+// txToOutputs creates a signed transaction which includes each output
+// from outputs.  Previous outputs to redeem are chosen from the passed
+// account's UTXO set and minconf policy. An additional output may be added to
+// return change to the wallet.  An appropriate fee is included based on the
+// wallet's current relay fee.  The wallet must be unlocked to create the
+// transaction.
+func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.TxOut, account, changeAccount uint32, minconf int32,
+	randomizeChangeIdx bool, txFee dcrutil.Amount, dontSignTx bool) (*txauthor.AuthoredTx, []wire.OutPoint, error) {
 
 	var unlockOutpoints []*wire.OutPoint
 	defer func() {
@@ -390,7 +416,7 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 		return err
 	})
 	if err != nil {
-		return nil, errors.E(op, err)
+		return nil, nil, errors.E(op, err)
 	}
 
 	// Warn when spending UTXOs controlled by imported keys created change for
@@ -403,23 +429,23 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 
 	err = w.checkHighFees(atx.TotalInput, atx.Tx)
 	if err != nil {
-		return nil, errors.E(op, err)
+		return nil, nil, errors.E(op, err)
 	}
 
 	// if no need to sign it, we do not publish the transaction.
 	if dontSignTx {
-		return atx, nil
+		return atx, nil, nil
 	}
 
 	// Ensure valid signatures were created.
 	err = validateMsgTx(op, atx.Tx, atx.PrevScripts)
 	if err != nil {
-		return nil, errors.E(op, err)
+		return nil, nil, errors.E(op, err)
 	}
 
 	rec, err := udb.NewTxRecordFromMsgTx(atx.Tx, time.Now())
 	if err != nil {
-		return nil, errors.E(op, err)
+		return nil, nil, errors.E(op, err)
 	}
 
 	// To avoid a race between publishing a transaction and potentially opening
@@ -441,31 +467,10 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 		return err
 	})
 	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	err = n.PublishTransactions(ctx, atx.Tx)
-	if err != nil {
-		hash := atx.Tx.TxHash()
-		log.Errorf("Abandoning transaction %v which failed to publish", &hash)
-		if err := w.AbandonTransaction(ctx, &hash); err != nil {
-			log.Errorf("Cannot abandon %v: %v", &hash, err)
-		}
-		return nil, errors.E(op, err)
+		return nil, nil, errors.E(op, err)
 	}
 
-	// Watch for future relevant transactions.
-	_, err = w.watchHDAddrs(ctx, false, n)
-	if err != nil {
-		log.Errorf("Failed to watch for future address usage after publishing "+
-			"transaction: %v", err)
-	}
-	if len(watch) > 0 {
-		err := n.LoadTxFilter(ctx, false, nil, watch)
-		if err != nil {
-			log.Errorf("Failed to watch outpoints: %v", err)
-		}
-	}
-	return atx, nil
+	return atx, watch, nil
 }
 
 // txToMultisig spends funds to a multisig output, partially signs the
@@ -1077,11 +1082,16 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 	}
 
 	txFee := w.RelayFee()
-	splitTx, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
-		nil, false, txFee, req.DontSignTx)
+	splitTx, watch, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
+		false, txFee, req.DontSignTx)
 	if err != nil {
 		return
 	}
+	err = w.publishAndWatch(ctx, "individualSplit", nil, splitTx, watch)
+	if err != nil {
+		return
+	}
+
 	tx = splitTx.Tx
 	return
 }
@@ -1124,11 +1134,16 @@ func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, need
 	}
 
 	txFee := w.RelayFee()
-	splitTx, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
-		nil, false, txFee, req.DontSignTx)
+	splitTx, watch, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
+		false, txFee, req.DontSignTx)
 	if err != nil {
 		return
 	}
+	err = w.publishAndWatch(ctx, "vspSplit", nil, splitTx, watch)
+	if err != nil {
+		return
+	}
+
 	tx = splitTx.Tx
 	return
 }
