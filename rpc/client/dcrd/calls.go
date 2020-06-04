@@ -275,6 +275,7 @@ func (r *RPC) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]
 			if err != nil {
 				op := errors.Opf(opf, blockHashes[i])
 				err = errors.E(op, err)
+				return err
 			}
 			filters[i] = filterProof{
 				Filter:     res.Filter.Filter,
