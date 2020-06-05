@@ -1512,7 +1512,7 @@ func (s *walletServer) PublishTransaction(ctx context.Context, req *pb.PublishTr
 			"Bytes do not represent a valid raw transaction: %v", err)
 	}
 
-	txHash, err := s.wallet.PublishTransaction(ctx, &msgTx, req.SignedTransaction, n)
+	txHash, err := s.wallet.PublishTransaction(ctx, &msgTx, n)
 	if err != nil {
 		return nil, translateError(err)
 	}

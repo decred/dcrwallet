@@ -4277,7 +4277,7 @@ func (w *Wallet) AbandonTransaction(ctx context.Context, hash *chainhash.Hash) e
 // PublishTransaction saves (if relevant) and sends the transaction to the
 // consensus RPC server so it can be propagated to other nodes and eventually
 // mined.  If the send fails, the transaction is not added to the wallet.
-func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, serializedTx []byte, n NetworkBackend) (*chainhash.Hash, error) {
+func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, n NetworkBackend) (*chainhash.Hash, error) {
 	const opf = "wallet.PublishTransaction(%v)"
 
 	txHash := tx.TxHash()
@@ -4308,8 +4308,15 @@ func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, seriali
 
 	var watchOutPoints []wire.OutPoint
 	if relevant {
+		txBuf := new(bytes.Buffer)
+		txBuf.Grow(tx.SerializeSize())
+		if err = tx.Serialize(txBuf); err != nil {
+			op := errors.Opf(opf, &txHash)
+			return nil, errors.E(op, err)
+		}
+
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-			rec, err := udb.NewTxRecord(serializedTx, time.Now())
+			rec, err := udb.NewTxRecord(txBuf.Bytes(), time.Now())
 			if err != nil {
 				return err
 			}
