@@ -7,6 +7,7 @@ package udb
 
 import (
 	"bytes"
+	"context"
 
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet/walletdb"
@@ -347,9 +348,12 @@ func (s *Store) TxBlockHeight(dbtx walletdb.ReadTx, txHash *chainhash.Hash) (int
 // Error returns from f (if any) are propigated to the caller.  Returns true
 // (signaling breaking out of a RangeTransactions) iff f executes and returns
 // true.
-func (s *Store) rangeUnminedTransactions(ns walletdb.ReadBucket, f func([]TxDetails) (bool, error)) (bool, error) {
+func (s *Store) rangeUnminedTransactions(ctx context.Context, ns walletdb.ReadBucket, f func([]TxDetails) (bool, error)) (bool, error) {
 	var details []TxDetails
 	err := ns.NestedReadBucket(bucketUnmined).ForEach(func(k, v []byte) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		if len(k) < 32 {
 			return errors.E(errors.IO, errors.Errorf("bad unmined tx key len %d", len(k)))
 		}
@@ -377,7 +381,7 @@ func (s *Store) rangeUnminedTransactions(ns walletdb.ReadBucket, f func([]TxDeta
 // between heights begin and end (reverse order when end > begin) until f
 // returns true, or the transactions from block is processed.  Returns true iff
 // f executes and returns true.
-func (s *Store) rangeBlockTransactions(ns walletdb.ReadBucket, begin, end int32,
+func (s *Store) rangeBlockTransactions(ctx context.Context, ns walletdb.ReadBucket, begin, end int32,
 	f func([]TxDetails) (bool, error)) (bool, error) {
 
 	// Mempool height is considered a high bound.
@@ -414,6 +418,10 @@ func (s *Store) rangeBlockTransactions(ns walletdb.ReadBucket, begin, end int32,
 
 	var details []TxDetails
 	for advance(&blockIter) {
+		if ctx.Err() != nil {
+			return false, ctx.Err()
+		}
+
 		block := &blockIter.elem
 
 		if cap(details) < len(block.transactions) {
@@ -506,21 +514,21 @@ func (s *Store) rangeBlockTransactions(ns walletdb.ReadBucket, begin, end int32,
 // All calls to f are guaranteed to be passed a slice with more than zero
 // elements.  The slice may be reused for multiple blocks, so it is not safe to
 // use it after the loop iteration it was acquired.
-func (s *Store) RangeTransactions(ns walletdb.ReadBucket, begin, end int32,
+func (s *Store) RangeTransactions(ctx context.Context, ns walletdb.ReadBucket, begin, end int32,
 	f func([]TxDetails) (bool, error)) error {
 
 	var addedUnmined bool
 	if begin < 0 {
-		brk, err := s.rangeUnminedTransactions(ns, f)
+		brk, err := s.rangeUnminedTransactions(ctx, ns, f)
 		if err != nil || brk {
 			return err
 		}
 		addedUnmined = true
 	}
 
-	brk, err := s.rangeBlockTransactions(ns, begin, end, f)
+	brk, err := s.rangeBlockTransactions(ctx, ns, begin, end, f)
 	if err == nil && !brk && !addedUnmined && end < 0 {
-		_, err = s.rangeUnminedTransactions(ns, f)
+		_, err = s.rangeUnminedTransactions(ctx, ns, f)
 	}
 	return err
 }

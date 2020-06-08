@@ -48,7 +48,7 @@ func (u unstableAPI) RangeTransactions(ctx context.Context, begin, end int32, f 
 	const op errors.Op = "wallet.RangeTransactions"
 	err := walletdb.View(ctx, u.w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		return u.w.txStore.RangeTransactions(txmgrNs, begin, end, f)
+		return u.w.txStore.RangeTransactions(ctx, txmgrNs, begin, end, f)
 	})
 	if err != nil {
 		return errors.E(op, err)

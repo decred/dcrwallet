@@ -2186,7 +2186,7 @@ func (w *Wallet) ListSinceBlock(ctx context.Context, start, end, syncHeight int3
 			return false, nil
 		}
 
-		return w.txStore.RangeTransactions(txmgrNs, start, end, rangeFn)
+		return w.txStore.RangeTransactions(ctx, txmgrNs, start, end, rangeFn)
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -2242,7 +2242,7 @@ func (w *Wallet) ListTransactions(ctx context.Context, from, count int) ([]types
 
 		// Return newer results first by starting at mempool height and working
 		// down to the genesis block.
-		return w.txStore.RangeTransactions(txmgrNs, -1, 0, rangeFn)
+		return w.txStore.RangeTransactions(ctx, txmgrNs, -1, 0, rangeFn)
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -2298,7 +2298,7 @@ func (w *Wallet) ListAddressTransactions(ctx context.Context, pkHashes map[strin
 			return false, nil
 		}
 
-		return w.txStore.RangeTransactions(txmgrNs, 0, -1, rangeFn)
+		return w.txStore.RangeTransactions(ctx, txmgrNs, 0, -1, rangeFn)
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -2336,7 +2336,7 @@ func (w *Wallet) ListAllTransactions(ctx context.Context) ([]types.ListTransacti
 
 		// Return newer results first by starting at mempool height and
 		// working down to the genesis block.
-		return w.txStore.RangeTransactions(txmgrNs, -1, 0, rangeFn)
+		return w.txStore.RangeTransactions(ctx, txmgrNs, -1, 0, rangeFn)
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -2713,7 +2713,7 @@ func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpcCaller Caller,
 			return f(tickets, header)
 		}
 
-		return w.txStore.RangeTransactions(txmgrNs, start, end, rangeFn)
+		return w.txStore.RangeTransactions(ctx, txmgrNs, start, end, rangeFn)
 	})
 	if err != nil {
 		return errors.E(op, err)
@@ -2781,7 +2781,7 @@ func (w *Wallet) GetTickets(ctx context.Context, f func([]*TicketSummary, *wire.
 			return f(tickets, header)
 		}
 
-		return w.txStore.RangeTransactions(txmgrNs, start, end, rangeFn)
+		return w.txStore.RangeTransactions(ctx, txmgrNs, start, end, rangeFn)
 	})
 	if err != nil {
 		return errors.E(op, err)
@@ -2853,7 +2853,7 @@ func (w *Wallet) GetTransactions(ctx context.Context, f func(*Block) (bool, erro
 			return f(block)
 		}
 
-		return w.txStore.RangeTransactions(txmgrNs, start, end, rangeFn)
+		return w.txStore.RangeTransactions(ctx, txmgrNs, start, end, rangeFn)
 	})
 	if err != nil {
 		return errors.E(op, err)
@@ -3857,7 +3857,7 @@ func (w *Wallet) TotalReceivedForAccounts(ctx context.Context, minConf int32) ([
 			}
 			return false, nil
 		}
-		return w.txStore.RangeTransactions(txmgrNs, 0, stopHeight, rangeFn)
+		return w.txStore.RangeTransactions(ctx, txmgrNs, 0, stopHeight, rangeFn)
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -3909,7 +3909,7 @@ func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr dcrutil.Address,
 			}
 			return false, nil
 		}
-		return w.txStore.RangeTransactions(txmgrNs, 0, stopHeight, rangeFn)
+		return w.txStore.RangeTransactions(ctx, txmgrNs, 0, stopHeight, rangeFn)
 	})
 	if err != nil {
 		return 0, errors.E(op, err)
