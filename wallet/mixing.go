@@ -224,10 +224,11 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 		}
 		w.lockedOutpointMu.Lock()
 		_, locked := w.lockedOutpoints[credits[i].OutPoint]
-		w.lockedOutpointMu.Unlock()
 		if !locked {
+			w.lockedOutpoints[credits[i].OutPoint] = struct{}{}
 			unlockedCredits = append(unlockedCredits, credits[i])
 		}
+		w.lockedOutpointMu.Unlock()
 	}
 	credits = unlockedCredits
 	shuffle(len(credits), func(i, j int) {
