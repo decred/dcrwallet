@@ -549,6 +549,10 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 
 	// Handle input scripts that contain P2PKs that we care about.
 	for i, input := range rec.MsgTx.TxIn {
+		w.lockedOutpointMu.Lock()
+		delete(w.lockedOutpoints, input.PreviousOutPoint)
+		w.lockedOutpointMu.Unlock()
+
 		if txscript.IsMultisigSigScript(input.SignatureScript) {
 			rs := txscript.MultisigRedeemScriptFromScriptSig(input.SignatureScript)
 
