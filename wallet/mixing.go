@@ -56,6 +56,11 @@ type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver string, output *wire.OutPoint, changeAccount, mixAccount, mixBranch uint32) error {
 	op := errors.Opf("wallet.MixOutput(%v)", output)
 
+	sdiff, err := w.NextStakeDifficulty(ctx)
+	if err != nil {
+		return errors.E(op, err)
+	}
+
 	var updates []func(walletdb.ReadWriteTx) error
 
 	hold, err := w.holdUnlock()
@@ -92,6 +97,17 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	var count int
 	var mixValue, remValue dcrutil.Amount
 	for i, v := range splitPoints {
+		// When the sdiff is more than four times this mixed output
+		// amount, there is a smaller common mixed amount with more
+		// pairing activity (due to CoinShuffle++ participation from
+		// ticket buyers).  Skipping this amount and moving to the next
+		// smallest common mixed amount will result in quicker pairings,
+		// or pairings occurring at all.  Unlike any downmixing of mixed
+		// ticketbuying change, this will result in four or more outputs
+		// when mixing larger UTXOs.
+		if i != len(splitPoints)-1 && 4*v >= sdiff {
+			continue
+		}
 		count = int(amount / v)
 		if count > 0 {
 			remValue = amount - dcrutil.Amount(count)*v
