@@ -110,7 +110,7 @@ func TestPersistence(t *testing.T) {
 	}
 	ns1Key := []byte("ns1")
 
-	walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 		ns1Bkt, err := tx.CreateTopLevelBucket(ns1Key)
 		if err != nil {
 			return errors.E(errors.IO, err)
@@ -140,7 +140,7 @@ func TestPersistence(t *testing.T) {
 
 	// Ensure the values previously stored in the bucket still exist
 	// and are correct.
-	walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		ns1Bkt := tx.ReadBucket(ns1Key)
 		for k, v := range storeValues {
 			val := ns1Bkt.Get([]byte(k))
@@ -153,4 +153,7 @@ func TestPersistence(t *testing.T) {
 
 		return nil
 	})
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 }

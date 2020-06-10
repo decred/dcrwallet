@@ -756,14 +756,14 @@ func testEncryptDecryptErrors(tc *testContext) {
 
 	}
 
-	walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
+	err = walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 		// Unlock the manager for these tests
-		if err = tc.manager.Unlock(ns, privPassphrase); err != nil {
-			tc.t.Fatal("Attempted to unlock the manager, but failed:", err)
-		}
-		return nil
+		return tc.manager.Unlock(ns, privPassphrase)
 	})
+	if err != nil {
+		tc.t.Fatalf("Attempted to unlock the manager, but failed: %v", err)
+	}
 
 	// Make sure to cover the ErrCrypto error path in Encrypt.
 	TstRunWithFailingCryptoKeyPriv(tc.manager, func() {
@@ -785,14 +785,14 @@ func testEncryptDecrypt(tc *testContext) {
 	ctx := context.Background()
 	plainText := []byte("this is a plaintext")
 
-	walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 		// Make sure address manager is unlocked
-		if err := tc.manager.Unlock(ns, privPassphrase); err != nil {
-			tc.t.Fatal("Attempted to unlock the manager, but failed:", err)
-		}
-		return nil
+		return tc.manager.Unlock(ns, privPassphrase)
 	})
+	if err != nil {
+		tc.t.Fatal("Attempted to unlock the manager, but failed: ", err)
+	}
 
 	keyTypes := []CryptoKeyType{
 		CKTPublic,

@@ -1385,43 +1385,43 @@ func managerExists(ns walletdb.ReadBucket) bool {
 func createManagerNS(ns walletdb.ReadWriteBucket) error {
 	mainBucket, err := ns.CreateBucket(mainBucketName)
 	if err != nil {
-		errors.E(errors.IO, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(addrBucketName)
 	if err != nil {
-		errors.E(errors.IO, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(acctBucketName)
 	if err != nil {
-		errors.E(errors.IO, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(addrAcctIdxBucketName)
 	if err != nil {
-		errors.E(errors.IO, err)
+		return errors.E(errors.IO, err)
 	}
 
 	// usedAddrBucketName bucket was added after manager version 1 release
 	_, err = ns.CreateBucket(usedAddrBucketName)
 	if err != nil {
-		errors.E(errors.IO, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(acctNameIdxBucketName)
 	if err != nil {
-		errors.E(errors.IO, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(acctIDIdxBucketName)
 	if err != nil {
-		errors.E(errors.IO, err)
+		return errors.E(errors.IO, err)
 	}
 
 	_, err = ns.CreateBucket(metaBucketName)
 	if err != nil {
-		errors.E(errors.IO, err)
+		return errors.E(errors.IO, err)
 	}
 
 	if err := putLastAccount(ns, DefaultAccountNum); err != nil {
@@ -1437,7 +1437,7 @@ func createManagerNS(ns walletdb.ReadWriteBucket) error {
 	binary.LittleEndian.PutUint64(dateBytes[:], createDate)
 	err = mainBucket.Put(mgrCreateDateName, dateBytes[:])
 	if err != nil {
-		errors.E(errors.IO, err)
+		return errors.E(errors.IO, err)
 	}
 
 	return nil
