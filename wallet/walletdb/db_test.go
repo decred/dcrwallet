@@ -80,11 +80,15 @@ func TestCreateOpenFail(t *testing.T) {
 		Create: bogusCreateDB,
 		Open:   bogusCreateDB,
 	}
-	walletdb.RegisterDriver(driver)
+	err := walletdb.RegisterDriver(driver)
+	if err != nil {
+		t.Errorf("failed to register driver: %v", err)
+		return
+	}
 
 	// Ensure creating a database with the new type fails with the expected
 	// error.
-	_, err := walletdb.Create(dbType)
+	_, err = walletdb.Create(dbType)
 	if !errors.Is(err, openError) {
 		t.Errorf("expected error not received - got: %v, want %v", err,
 			openError)

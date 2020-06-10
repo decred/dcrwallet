@@ -204,7 +204,7 @@ func unmarshalWIF(wif **dcrutil.WIF, net *chaincfg.Params) json.Unmarshaler {
 			return err
 		}
 		*wif, err = dcrutil.DecodeWIF(s, net.PrivateKeyID)
-		return nil
+		return err
 	})
 	return &f
 }
