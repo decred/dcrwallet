@@ -4086,7 +4086,7 @@ func (w *Wallet) SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType t
 					additionalPrevScripts[txIn.PreviousOutPoint],
 					w.ChainParams())
 
-				if txscript.IsErrorCode(err, txscript.ErrInvalidStackOperation) &&
+				if errors.Is(err, txscript.ErrInvalidStackOperation) &&
 					class == txscript.ScriptHashTy {
 					redeemScript, _ := source.script(addr[0])
 					redeemClass := txscript.GetScriptClass(

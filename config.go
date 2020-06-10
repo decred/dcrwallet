@@ -668,7 +668,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			return conn, nil
 		}
 		cfg.lookup = func(host string) ([]net.IP, error) {
-			ip, err := connmgr.TorLookupIP(host, cfg.Proxy)
+			ip, err := connmgr.TorLookupIP(context.Background(), host, cfg.Proxy)
 			if err != nil {
 				return nil, errors.Errorf("proxy lookup for %v: %w", host, err)
 			}
