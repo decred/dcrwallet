@@ -1426,6 +1426,9 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		if err != nil {
 			return nil, err
 		}
+		// Set the expiry.
+		ticket.Expiry = uint32(req.Expiry)
+
 		ticketHash := ticket.TxHash()
 		ticketHashes = append(ticketHashes, &ticketHash)
 		tickets = append(tickets, ticket)
@@ -1457,9 +1460,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			FromCoinBase: false,
 		}
 		forSigning = append(forSigning, eopCredit)
-
-		// Set the expiry.
-		ticket.Expiry = uint32(req.Expiry)
 
 		err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 			ns := tx.ReadBucket(waddrmgrNamespaceKey)
