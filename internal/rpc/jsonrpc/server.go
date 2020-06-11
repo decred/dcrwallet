@@ -239,7 +239,7 @@ func (s *Server) Stop() {
 // method.  Each of these must be checked beforehand (the method is already
 // known) and handled accordingly.
 func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) lazyHandler {
-	log.Infof("RPC method %v invoked by %v", request.Method, remoteAddr(ctx))
+	log.Infof("RPC method %q invoked by %v", request.Method, remoteAddr(ctx))
 	return lazyApplyHandler(s, ctx, request)
 }
 
