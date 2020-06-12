@@ -102,13 +102,16 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		// pairing activity (due to CoinShuffle++ participation from
 		// ticket buyers).  Skipping this amount and moving to the next
 		// smallest common mixed amount will result in quicker pairings,
-		// or pairings occurring at all.  Unlike any downmixing of mixed
-		// ticketbuying change, this will result in four or more outputs
-		// when mixing larger UTXOs.
+		// or pairings occurring at all.  The number of mixed outputs is
+		// capped to prevent a single mix being overwhelmingly funded by
+		// a single output, and to conserve memory resources.
 		if i != len(splitPoints)-1 && 4*v >= sdiff {
 			continue
 		}
 		count = int(amount / v)
+		if count > 4 {
+			count = 4
+		}
 		if count > 0 {
 			remValue = amount - dcrutil.Amount(count)*v
 			mixValue = v
