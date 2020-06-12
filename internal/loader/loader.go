@@ -1,5 +1,5 @@
 // Copyright (c) 2015-2018 The btcsuite developers
-// Copyright (c) 2017-2019 The Decred developers
+// Copyright (c) 2017-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -38,7 +38,7 @@ type Loader struct {
 	db          wallet.DB
 
 	stakeOptions            *StakeOptions
-	gapLimit                int
+	gapLimit                uint32
 	accountGapLimit         int
 	disableCoinTypeUpgrades bool
 	allowHighFees           bool
@@ -58,7 +58,7 @@ type StakeOptions struct {
 }
 
 // NewLoader constructs a Loader.
-func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, gapLimit int,
+func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, gapLimit uint32,
 	allowHighFees bool, relayFee dcrutil.Amount, accountGapLimit int, disableCoinTypeUpgrades bool) *Loader {
 
 	return &Loader{

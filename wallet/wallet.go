@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2019 The Decred developers
+// Copyright (c) 2015-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -96,7 +96,7 @@ type Wallet struct {
 	subsidyCache       *blockchain.SubsidyCache
 
 	// Start up flags/settings
-	gapLimit        int
+	gapLimit        uint32
 	accountGapLimit int
 
 	networkBackend   NetworkBackend
@@ -140,7 +140,7 @@ type Config struct {
 	PoolAddress   dcrutil.Address
 	PoolFees      float64
 
-	GapLimit                int
+	GapLimit                uint32
 	AccountGapLimit         int
 	DisableCoinTypeUpgrades bool
 
@@ -599,15 +599,14 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 			return err
 		}
 
-		gapLimit := uint32(w.gapLimit)
 		loadAccount := func(acct uint32) error {
 			props, err := w.manager.AccountProperties(addrmgrNs, acct)
 			if err != nil {
 				return err
 			}
 			hdAccounts[acct] = hdAccount{
-				externalCount:        minUint32(props.LastReturnedExternalIndex+gapLimit, hdkeychain.HardenedKeyStart-1),
-				internalCount:        minUint32(props.LastReturnedInternalIndex+gapLimit, hdkeychain.HardenedKeyStart-1),
+				externalCount:        minUint32(props.LastReturnedExternalIndex+w.gapLimit, hdkeychain.HardenedKeyStart-1),
+				internalCount:        minUint32(props.LastReturnedInternalIndex+w.gapLimit, hdkeychain.HardenedKeyStart-1),
 				lastReturnedExternal: props.LastReturnedExternalIndex,
 				lastReturnedInternal: props.LastReturnedInternalIndex,
 				lastUsedExternal:     props.LastUsedExternalIndex,
@@ -696,7 +695,7 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 	var deriveError error
 	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, start, end uint32) {
 		const step = 256
-		for start := uint32(start); start <= end; start += step {
+		for ; start <= end; start += step {
 			addrs := make([]dcrutil.Address, 0, step)
 			stop := minUint32(end+1, start+step)
 			for child := start; child < stop; child++ {
@@ -1871,14 +1870,13 @@ func (w *Wallet) NextAccount(ctx context.Context, name string) (uint32, error) {
 			return err
 		}
 
-		gapLimit := uint32(w.gapLimit)
 		err = w.manager.SyncAccountToAddrIndex(addrmgrNs, account,
-			gapLimit, udb.ExternalBranch)
+			w.gapLimit, udb.ExternalBranch)
 		if err != nil {
 			return err
 		}
 		return w.manager.SyncAccountToAddrIndex(addrmgrNs, account,
-			gapLimit, udb.InternalBranch)
+			w.gapLimit, udb.InternalBranch)
 	})
 	if err != nil {
 		return 0, errors.E(op, err)
@@ -1902,7 +1900,7 @@ func (w *Wallet) NextAccount(ctx context.Context, name string) (uint32, error) {
 			branchKey := branchKey
 			go func() {
 				addrs, err := deriveChildAddresses(branchKey, 0,
-					uint32(w.gapLimit), w.chainParams)
+					w.gapLimit, w.chainParams)
 				if err != nil {
 					errs <- err
 					return
@@ -3300,13 +3298,12 @@ func (w *Wallet) ImportXpubAccount(ctx context.Context, name string, xpub *hdkey
 		return errors.E(op, err)
 	}
 
-	gapLimit := uint32(w.gapLimit)
 	if n, err := w.NetworkBackend(); err == nil {
-		extAddrs, err := deriveChildAddresses(extKey, 0, gapLimit, w.chainParams)
+		extAddrs, err := deriveChildAddresses(extKey, 0, w.gapLimit, w.chainParams)
 		if err != nil {
 			return errors.E(op, err)
 		}
-		intAddrs, err := deriveChildAddresses(intKey, 0, gapLimit, w.chainParams)
+		intAddrs, err := deriveChildAddresses(intKey, 0, w.gapLimit, w.chainParams)
 		if err != nil {
 			return errors.E(op, err)
 		}
@@ -3337,7 +3334,7 @@ func (w *Wallet) ImportXpubAccount(ctx context.Context, name string, xpub *hdkey
 		branchXpub:  extKey,
 		lastUsed:    ^uint32(0),
 		cursor:      0,
-		lastWatched: gapLimit - 1,
+		lastWatched: w.gapLimit - 1,
 	}
 	albInternal := albExternal
 	albInternal.branchXpub = intKey
@@ -4586,6 +4583,11 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 	}
 
 	return addrMap, nil
+}
+
+// GapLimit returns the currently used gap limit.
+func (w *Wallet) GapLimit() uint32 {
+	return w.gapLimit
 }
 
 // Open loads an already-created wallet from the passed database and namespaces

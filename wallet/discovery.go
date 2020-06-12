@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2019 The Decred developers
+// Copyright (c) 2015-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -112,8 +112,8 @@ type addrFinder struct {
 func newAddrFinder(ctx context.Context, w *Wallet) (*addrFinder, error) {
 	a := &addrFinder{
 		w:           w,
-		gaplimit:    uint32(w.gapLimit),
-		segments:    hd.HardenedKeyStart / uint32(w.gapLimit),
+		gaplimit:    w.gapLimit,
+		segments:    hd.HardenedKeyStart / w.gapLimit,
 		commitments: make(blockCommitmentCache),
 	}
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
@@ -426,9 +426,8 @@ func (w *Wallet) filterBlocks(ctx context.Context, startBlock *chainhash.Hash, d
 	return matches, ctx.Err()
 }
 
-func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blockCommitmentCache, coinTypeXpriv *hd.ExtendedKey) (uint32, error) {
+func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blockCommitmentCache, coinTypeXpriv *hd.ExtendedKey, gapLimit uint32) (uint32, error) {
 	var (
-		gapLimit     = uint32(w.gapLimit)
 		acctGapLimit = uint32(w.accountGapLimit)
 		addrScripts  = make([][]byte, 0, acctGapLimit*gapLimit*2*2)
 	)
@@ -638,7 +637,7 @@ func (f *existsAddrIndexFinder) accountUsed(ctx context.Context, xpub *hd.Extend
 }
 
 func (f *existsAddrIndexFinder) branchUsed(ctx context.Context, branchXpub *hd.ExtendedKey) (bool, error) {
-	addrs, err := deriveChildAddresses(branchXpub, 0, uint32(f.wallet.gapLimit), f.wallet.chainParams)
+	addrs, err := deriveChildAddresses(branchXpub, 0, f.wallet.gapLimit, f.wallet.chainParams)
 	if err != nil {
 		return false, err
 	}
@@ -660,7 +659,7 @@ func (f *existsAddrIndexFinder) branchUsed(ctx context.Context, branchXpub *hd.E
 func (f *existsAddrIndexFinder) findLastUsedAddress(ctx context.Context, xpub *hd.ExtendedKey) (uint32, error) {
 	var (
 		lastUsed        = ^uint32(0)
-		scanLen         = uint32(f.wallet.gapLimit)
+		scanLen         = f.wallet.gapLimit
 		segments        = hd.HardenedKeyStart / scanLen
 		lo, hi   uint32 = 0, segments - 1
 	)
@@ -736,7 +735,7 @@ func rpcFromPeer(p Peer) (*dcrd.RPC, bool) {
 // usage is observed and coin type upgrades are not disabled, the wallet will be
 // upgraded to the SLIP0044 coin type and the address discovery will occur
 // again.
-func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock *chainhash.Hash, discoverAccts bool) error {
+func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock *chainhash.Hash, discoverAccts bool, gapLimit uint32) error {
 	const op errors.Op = "wallet.DiscoverActiveAddresses"
 	_, slip0044CoinType := udb.CoinTypes(w.chainParams)
 	var activeCoinType uint32
@@ -790,7 +789,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 			f := existsAddrIndexFinder{w, rpc}
 			lastUsed, err = f.findLastUsedAccount(ctx, coinTypePrivKey)
 		} else {
-			lastUsed, err = w.findLastUsedAccount(ctx, p, blockAddresses, coinTypePrivKey)
+			lastUsed, err = w.findLastUsedAccount(ctx, p, blockAddresses, coinTypePrivKey, gapLimit)
 		}
 		if err != nil {
 			return errors.E(op, err)
@@ -871,7 +870,6 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 	// addresses that may be used by other wallets sharing the same seed.
 	// Multiple updates are used to allow cancellation.
 	log.Infof("Updating DB with discovered addresses...")
-	gapLimit := uint32(w.gapLimit)
 	for i := range finder.usage {
 		u := &finder.usage[i]
 		acct := u.account
@@ -1004,5 +1002,5 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 	log.Infof("Upgraded coin type.")
 
 	// Perform address discovery a second time using the upgraded coin type.
-	return w.DiscoverActiveAddresses(ctx, p, startBlock, discoverAccts)
+	return w.DiscoverActiveAddresses(ctx, p, startBlock, discoverAccts, gapLimit)
 }
