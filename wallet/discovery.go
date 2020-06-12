@@ -321,8 +321,7 @@ func (a *addrFinder) filter(ctx context.Context, fs []*udb.BlockCFilter, data bl
 		}
 		g.Go(func() error {
 			var fetch []*chainhash.Hash
-			var fetchidx []int
-			for i, f := range fs {
+			for _, f := range fs {
 				if f.FilterV2.N() == 0 {
 					continue
 				}
@@ -334,7 +333,6 @@ func (a *addrFinder) filter(ctx context.Context, fs []*udb.BlockCFilter, data bl
 				}
 				if f.FilterV2.MatchAny(f.Key, data) {
 					fetch = append(fetch, &f.BlockHash)
-					fetchidx = append(fetchidx, i)
 				}
 			}
 			if len(fetch) == 0 {
