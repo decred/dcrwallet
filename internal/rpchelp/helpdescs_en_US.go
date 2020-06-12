@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -87,6 +87,7 @@ var helpDescsEnUS = map[string]string{
 	"discoverusage--synopsis":        "Perform address and/or account discovery",
 	"discoverusage-startblock":       "Hash of block to begin discovery from, or null to scan from the genesis block",
 	"discoverusage-discoveraccounts": "Perform account discovery in addition to address discovery.  Requires unlocked wallet.",
+	"discoverusage-gaplimit":         "Allowed unused address gap.",
 
 	// DumpPrivKeyCmd help.
 	"dumpprivkey--synopsis": "Returns the private key in WIF encoding that controls some wallet address.",

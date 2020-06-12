@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Decred developers
+// Copyright (c) 2019-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -190,7 +190,7 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	}
 
 	log.Infof("Mixing output %v (%v)", output, amount)
-	cj := w.newCsppJoin(ctx, change, mixValue, mixAccount, mixBranch, int(count))
+	cj := w.newCsppJoin(ctx, change, mixValue, mixAccount, mixBranch, count)
 	cj.addTxIn(prevScript, &wire.TxIn{
 		PreviousOutPoint: *output,
 		ValueIn:          int64(amount),

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2019 The Decred developers
+// Copyright (c) 2017-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -453,7 +453,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		discoverAccts := s.discoverAccts
 		s.mu.Unlock()
 		s.discoverAddressesStart()
-		err = s.wallet.DiscoverActiveAddresses(ctx, s.rpc, rescanPoint, discoverAccts)
+		err = s.wallet.DiscoverActiveAddresses(ctx, s.rpc, rescanPoint, discoverAccts, s.wallet.GapLimit())
 		if err != nil {
 			return err
 		}

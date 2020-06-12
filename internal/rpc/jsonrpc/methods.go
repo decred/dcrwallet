@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2019 The Decred developers
+// Copyright (c) 2015-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -785,7 +785,12 @@ func (s *Server) discoverUsage(ctx context.Context, icmd interface{}) (interface
 	}
 	discoverAccounts := cmd.DiscoverAccounts != nil && *cmd.DiscoverAccounts
 
-	err := w.DiscoverActiveAddresses(ctx, n, &startBlock, discoverAccounts)
+	gapLimit := w.GapLimit()
+	if cmd.GapLimit != nil {
+		gapLimit = *cmd.GapLimit
+	}
+
+	err := w.DiscoverActiveAddresses(ctx, n, &startBlock, discoverAccounts, gapLimit)
 	return nil, err
 }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2019 The Decred developers
+// Copyright (c) 2017-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -448,7 +448,7 @@ func payRevokeCommitment(addr dcrutil.Address) (script []byte, version uint16, e
 }
 
 // DefaultGapLimit is the default unused address gap limit defined by BIP0044.
-const DefaultGapLimit = 20
+const DefaultGapLimit = uint32(20)
 
 // DefaultAccountGapLimit is the default number of accounts that can be
 // created in a row without using any of them
@@ -606,8 +606,6 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 		c(&opts)
 	}
 
-	gapLimit := uint32(w.gapLimit)
-
 	defer w.addressBuffersMu.Unlock()
 	w.addressBuffersMu.Lock()
 	ad, ok := w.addressBuffers[account]
@@ -626,7 +624,7 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 	}
 
 	for {
-		if alb.cursor >= gapLimit {
+		if alb.cursor >= w.gapLimit {
 			switch opts.policy {
 			case gapPolicyError:
 				return nil, errors.E(op, errors.Policy,
@@ -638,7 +636,7 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 				// connected to a consensus RPC server.  Watch addresses in
 				// batches of the gap limit at a time to avoid introducing many
 				// RPCs from repeated new address calls.
-				if alb.cursor%uint32(w.gapLimit) != 0 {
+				if alb.cursor%w.gapLimit != 0 {
 					break
 				}
 				n, err := w.NetworkBackend()
@@ -646,7 +644,7 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 					break
 				}
 				addrs, err := deriveChildAddresses(alb.branchXpub,
-					alb.lastUsed+1+alb.cursor, gapLimit, w.chainParams)
+					alb.lastUsed+1+alb.cursor, w.gapLimit, w.chainParams)
 				if err != nil {
 					return nil, errors.E(op, err)
 				}
@@ -797,7 +795,7 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 		branch = udb.InternalBranch
 	}
 	err = w.manager.SyncAccountToAddrIndex(ns, account,
-		minUint32(hdkeychain.HardenedKeyStart-1, lastUsed+uint32(w.gapLimit)),
+		minUint32(hdkeychain.HardenedKeyStart-1, lastUsed+w.gapLimit),
 		branch)
 	if err != nil {
 		return errors.E(op, err)
@@ -914,14 +912,13 @@ func (w *Wallet) SyncLastReturnedAddress(ctx context.Context, account, branch, c
 	}
 
 	if n, err := w.NetworkBackend(); err == nil {
-		gapLimit := uint32(w.gapLimit)
-		lastWatched := lastUsed + gapLimit
+		lastWatched := lastUsed + w.gapLimit
 		if child <= lastWatched {
 			// No need to derive anything more.
 			return nil
 		}
 		additionalAddrs := child - lastWatched
-		addrs, err := deriveChildAddresses(branchXpub, lastUsed+1+gapLimit,
+		addrs, err := deriveChildAddresses(branchXpub, lastUsed+1+w.gapLimit,
 			additionalAddrs, w.chainParams)
 		if err != nil {
 			return errors.E(op, err)

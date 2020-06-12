@@ -1,5 +1,5 @@
 // Copyright (c) 2014 The btcsuite developers
-// Copyright (c) 2015-2019 The Decred developers
+// Copyright (c) 2015-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1061,6 +1061,7 @@ type MixOutputCmd struct {
 type DiscoverUsageCmd struct {
 	StartBlock       *string `json:"startblock"`
 	DiscoverAccounts *bool   `json:"discoveraccounts"`
+	GapLimit         *uint32 `json:"gaplimit"`
 }
 
 // ValidatePreDCP0005CFCmd defines the validatepredcp0005cf JSON-RPC command.

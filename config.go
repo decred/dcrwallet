@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2018 The Decred developers
+// Copyright (c) 2015-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -95,7 +95,7 @@ type config struct {
 	PoolAddress             *cfgutil.AddressFlag `long:"pooladdress" description:"VSP fee address"`
 	poolAddress             dcrutil.Address
 	PoolFees                float64             `long:"poolfees" description:"VSP fee percentage (1.00 equals 1.00% fee)"`
-	GapLimit                int                 `long:"gaplimit" description:"Allowed unused address gap between used addresses of accounts"`
+	GapLimit                uint32              `long:"gaplimit" description:"Allowed unused address gap between used addresses of accounts"`
 	StakePoolColdExtKey     string              `long:"stakepoolcoldextkey" description:"xpub:maxindex for fee addresses (VSP-only option)"`
 	AllowHighFees           bool                `long:"allowhighfees" description:"Do not perform high fee checks"`
 	RelayFee                *cfgutil.AmountFlag `long:"txfee" description:"Transaction fee per kilobyte"`

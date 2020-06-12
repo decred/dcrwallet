@@ -1,5 +1,5 @@
 // Copyright (c) 2015-2016 The btcsuite developers
-// Copyright (c) 2016-2019 The Decred developers
+// Copyright (c) 2016-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -630,9 +630,9 @@ func (s *NotificationServer) notifyAccountProperties(props *udb.AccountPropertie
 	// activity.
 	if props.AccountNumber <= udb.MaxAccountNum {
 		n.ExternalKeyCount = minUint32(hdkeychain.HardenedKeyStart,
-			props.LastUsedExternalIndex+uint32(s.wallet.gapLimit))
+			props.LastUsedExternalIndex+s.wallet.gapLimit)
 		n.InternalKeyCount = minUint32(hdkeychain.HardenedKeyStart,
-			props.LastUsedInternalIndex+uint32(s.wallet.gapLimit))
+			props.LastUsedInternalIndex+s.wallet.gapLimit)
 	}
 	for _, c := range clients {
 		c <- n
