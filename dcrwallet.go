@@ -184,8 +184,6 @@ func run(ctx context.Context) error {
 	passphrase := []byte{}
 	if !cfg.NoInitialLoad {
 		walletPass := []byte(cfg.WalletPass)
-		defer zero(walletPass)
-
 		if cfg.PromptPublicPass {
 			walletPass, _ = passPrompt(ctx, "Enter public wallet passphrase", false)
 		}
@@ -199,6 +197,7 @@ func run(ctx context.Context) error {
 		var w *wallet.Wallet
 		errc := make(chan error, 1)
 		go func() {
+			defer zero(walletPass)
 			var err error
 			w, err = loader.OpenExistingWallet(ctx, walletPass)
 			if err != nil {
