@@ -1331,14 +1331,14 @@ func (s *Store) AddCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 // the stake op code tag for stake transactions.
 func getP2PKHOpCode(pkScript []byte) uint8 {
 	class := txscript.GetScriptClass(0, pkScript)
-	switch {
-	case class == txscript.StakeSubmissionTy:
+	switch class {
+	case txscript.StakeSubmissionTy:
 		return txscript.OP_SSTX
-	case class == txscript.StakeGenTy:
+	case txscript.StakeGenTy:
 		return txscript.OP_SSGEN
-	case class == txscript.StakeRevocationTy:
+	case txscript.StakeRevocationTy:
 		return txscript.OP_SSRTX
-	case class == txscript.StakeSubChangeTy:
+	case txscript.StakeSubChangeTy:
 		return txscript.OP_SSTXCHANGE
 	}
 
