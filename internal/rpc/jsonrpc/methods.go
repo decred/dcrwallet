@@ -2450,7 +2450,11 @@ func (s *Server) listUnspent(ctx context.Context, icmd interface{}) (interface{}
 		}
 	}
 
-	result, err := w.ListUnspent(ctx, int32(*cmd.MinConf), int32(*cmd.MaxConf), addresses)
+	var account string
+	if cmd.Account != nil {
+		account = *cmd.Account
+	}
+	result, err := w.ListUnspent(ctx, int32(*cmd.MinConf), int32(*cmd.MaxConf), addresses, account)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
 			return nil, errAddressNotInWallet

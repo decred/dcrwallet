@@ -641,6 +641,7 @@ type ListUnspentCmd struct {
 	MinConf   *int `jsonrpcdefault:"1"`
 	MaxConf   *int `jsonrpcdefault:"9999999"`
 	Addresses *[]string
+	Account   *string
 }
 
 // NewListUnspentCmd returns a new instance which can be used to issue a
