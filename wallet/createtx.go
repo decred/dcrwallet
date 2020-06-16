@@ -1601,7 +1601,7 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 	var outTotal dcrutil.Amount
 
 	unspent, err := w.txStore.UnspentOutputsForAmount(txmgrNs, addrmgrNs,
-		amount, currentHeight, minconf, false, account)
+		amount, currentHeight, minconf, account)
 	if err != nil {
 		return nil, err
 	}

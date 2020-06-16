@@ -2828,9 +2828,9 @@ func (s *Store) minimalCreditToCredit(ns walletdb.ReadBucket, mc *minimalCredit)
 }
 
 // UnspentOutputsForAmount returns all non-stake outputs that sum up to the
-// amount passed. If not enough funds are found, a nil pointer is returned
-// without error.
-func (s *Store) UnspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, needed dcrutil.Amount, syncHeight int32, minConf int32, all bool, account uint32) ([]*Credit, error) {
+// amount passed for the specified account. If not enough funds are found,
+// a nil pointer is returned without error.
+func (s *Store) UnspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, needed dcrutil.Amount, syncHeight int32, minConf int32, account uint32) ([]*Credit, error) {
 	var eligible []*minimalCredit
 	var toUse []*minimalCredit
 	var unspent []*Credit
@@ -2859,21 +2859,19 @@ func (s *Store) UnspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 			continue
 		}
 
-		if !all {
-			// Check the account first.
-			pkScript, err := s.fastCreditPkScriptLookup(ns, cKey, nil)
-			if err != nil {
-				c.Close()
-				return nil, err
-			}
-			thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, cVal, nil, pkScript)
-			if err != nil {
-				c.Close()
-				return nil, err
-			}
-			if account != thisAcct {
-				continue
-			}
+		// Check the account matches.
+		pkScript, err := s.fastCreditPkScriptLookup(ns, cKey, nil)
+		if err != nil {
+			c.Close()
+			return nil, err
+		}
+		thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, cVal, nil, pkScript)
+		if err != nil {
+			c.Close()
+			return nil, err
+		}
+		if account != thisAcct {
+			continue
 		}
 
 		amt, spent, err := fetchRawCreditAmountSpent(cVal)
@@ -2959,21 +2957,19 @@ func (s *Store) UnspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 				continue
 			}
 
-			// Check the account first.
-			if !all {
-				pkScript, err := s.fastCreditPkScriptLookup(ns, nil, k)
-				if err != nil {
-					c.Close()
-					return nil, err
-				}
-				thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, nil, v, pkScript)
-				if err != nil {
-					c.Close()
-					return nil, err
-				}
-				if account != thisAcct {
-					continue
-				}
+			// Check the account matches.
+			pkScript, err := s.fastCreditPkScriptLookup(ns, nil, k)
+			if err != nil {
+				c.Close()
+				return nil, err
+			}
+			thisAcct, err := s.fetchAccountForPkScript(addrmgrNs, nil, v, pkScript)
+			if err != nil {
+				c.Close()
+				return nil, err
+			}
+			if account != thisAcct {
+				continue
 			}
 
 			amt, err := fetchRawUnminedCreditAmount(v)
