@@ -436,6 +436,7 @@ var helpDescsEnUS = map[string]string{
 	"listunspent-minconf":   "Minimum number of block confirmations required before a transaction output is considered",
 	"listunspent-maxconf":   "Maximum number of block confirmations required before a transaction output is excluded",
 	"listunspent-addresses": "If set, limits the returned details to unspent outputs received by any of these payment addresses",
+	"listunspent-account":   "If set, only return unspent outputs from this account",
 
 	// ListUnspentResult help.
 	"listunspentresult-txid":          "The transaction hash of the referenced output",

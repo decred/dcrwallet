@@ -3011,7 +3011,7 @@ func (s creditSlice) Swap(i, j int) {
 // minconf, less than maxconf and if addresses is populated only the addresses
 // contained within it will be considered.  If we know nothing about a
 // transaction an empty array will be returned.
-func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addresses map[string]struct{}) ([]*types.ListUnspentResult, error) {
+func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addresses map[string]struct{}, accountName string) ([]*types.ListUnspentResult, error) {
 	const op errors.Op = "wallet.ListUnspent"
 	var results []*types.ListUnspentResult
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
@@ -3111,7 +3111,9 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 					}
 				}
 			}
-
+			if accountName != "" && accountName != acctName {
+				continue
+			}
 			if filter {
 				for _, addr := range addrs {
 					_, ok := addresses[addr.Address()]
