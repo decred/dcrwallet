@@ -538,6 +538,13 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 	if eligible == nil {
 		return txToMultisigError(errors.E(op, "not enough funds to send to multisig address"))
 	}
+	defer func() {
+		w.lockedOutpointMu.Lock()
+		for _, e := range eligible {
+			delete(w.lockedOutpoints, e.OutPoint)
+		}
+		w.lockedOutpointMu.Unlock()
+	}()
 
 	msgtx := wire.NewMsgTx()
 	scriptSizes := make([]int, 0, len(eligible))
@@ -708,6 +715,13 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
+	defer func() {
+		w.lockedOutpointMu.Lock()
+		for _, e := range eligible {
+			delete(w.lockedOutpoints, e.OutPoint)
+		}
+		w.lockedOutpointMu.Unlock()
+	}()
 
 	if len(eligible) <= 1 {
 		return nil, errors.E(op, "too few outputs to consolidate")
@@ -1519,6 +1533,9 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 		return nil, err
 	}
 
+	defer w.lockedOutpointMu.Unlock()
+	w.lockedOutpointMu.Lock()
+
 	// TODO: Eventually all of these filters (except perhaps output locking)
 	// should be handled by the call to UnspentOutputs (or similar).
 	// Because one of these filters requires matching the output script to
@@ -1536,7 +1553,7 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 		}
 
 		// Locked unspent outputs are skipped.
-		if w.LockedOutpoint(output.OutPoint) {
+		if _, exists := w.lockedOutpoints[output.OutPoint]; exists {
 			continue
 		}
 
@@ -1589,6 +1606,9 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 
 		eligible = append(eligible, *output)
 	}
+	for _, output := range eligible {
+		w.lockedOutpoints[output.OutPoint] = struct{}{}
+	}
 	return eligible, nil
 }
 
@@ -1606,12 +1626,15 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 		return nil, err
 	}
 
+	defer w.lockedOutpointMu.Unlock()
+	w.lockedOutpointMu.Lock()
+
 	eligible := make([]udb.Credit, 0, len(unspent))
 	for i := range unspent {
 		output := unspent[i]
 
 		// Locked unspent outputs are skipped.
-		if w.LockedOutpoint(output.OutPoint) {
+		if _, exists := w.lockedOutpoints[output.OutPoint]; exists {
 			continue
 		}
 
@@ -1641,11 +1664,13 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 		eligible = append(eligible, *output)
 		outTotal += output.Amount
 	}
-
 	if outTotal < amount {
 		return nil, nil
 	}
 
+	for _, output := range eligible {
+		w.lockedOutpoints[output.OutPoint] = struct{}{}
+	}
 	return eligible, nil
 }
 

@@ -85,15 +85,6 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		return errors.E(op, err)
 	}
 
-	w.lockedOutpointMu.Lock()
-	w.lockedOutpoints[*output] = struct{}{}
-	w.lockedOutpointMu.Unlock()
-	defer func() {
-		w.lockedOutpointMu.Lock()
-		delete(w.lockedOutpoints, *output)
-		w.lockedOutpointMu.Unlock()
-	}()
-
 	var count int
 	var mixValue, remValue dcrutil.Amount
 	for i, v := range splitPoints {
@@ -236,20 +227,14 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 	if err != nil {
 		return errors.E(op, err)
 	}
-	unlockedCredits := credits[:0]
+	validCredits := credits[:0]
 	for i := range credits {
 		if credits[i].Amount <= splitPoints[len(splitPoints)-1] {
+			w.UnlockOutpoint(credits[i].OutPoint)
 			continue
 		}
-		w.lockedOutpointMu.Lock()
-		_, locked := w.lockedOutpoints[credits[i].OutPoint]
-		if !locked {
-			w.lockedOutpoints[credits[i].OutPoint] = struct{}{}
-			unlockedCredits = append(unlockedCredits, credits[i])
-		}
-		w.lockedOutpointMu.Unlock()
 	}
-	credits = unlockedCredits
+	credits = validCredits
 	shuffle(len(credits), func(i, j int) {
 		credits[i], credits[j] = credits[j], credits[i]
 	})
@@ -260,6 +245,7 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 	for i := range credits {
 		op := &credits[i].OutPoint
 		g.Go(func() error {
+			defer w.UnlockOutpoint(*op)
 			err := w.MixOutput(ctx, dialTLS, csppserver, op, changeAccount, mixAccount, mixBranch)
 			if errors.Is(err, errNoSplitDenomination) {
 				return nil
