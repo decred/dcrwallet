@@ -3334,3 +3334,23 @@ func (s *networkServer) GetRawBlock(ctx context.Context, req *pb.GetRawBlockRequ
 		Block: rawBlock,
 	}, nil
 }
+
+func (s *walletServer) GetCoinjoinOutputspByAcct(ctx context.Context, req *pb.GetCoinjoinOutputspByAcctRequest) (
+	*pb.GetCoinjoinOutputspByAcctResponse, error) {
+	coinjumSumByAcct, err := s.wallet.GetCoinjoinTxsSumbByAcct(ctx)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	var resp []*pb.CoinjoinTxsSumByAcct
+	for acctIdx, sum := range coinjumSumByAcct {
+		s := &pb.CoinjoinTxsSumByAcct{
+			AccountNumber:  acctIdx,
+			CoinjoinTxsSum: int32(sum),
+		}
+		resp = append(resp, s)
+	}
+
+	return &pb.GetCoinjoinOutputspByAcctResponse{
+		Data: resp,
+	}, nil
+}
