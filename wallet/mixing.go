@@ -39,10 +39,14 @@ var splitPoints = [...]dcrutil.Amount{
 }
 
 var splitSems = [len(splitPoints)]chan struct{}{}
+var splitPointMap = map[int64]struct{}{}
 
 func init() {
 	for i := range splitSems {
 		splitSems[i] = make(chan struct{}, 10)
+	}
+	for _, amt := range splitPoints {
+		splitPointMap[int64(amt)] = struct{}{}
 	}
 }
 
@@ -323,4 +327,37 @@ func randomInputSource(source txauthor.InputSource) txauthor.InputSource {
 		}
 		return selected, nil
 	}
+}
+
+// IsMixTx tests if a transaction is a CSPP-mixed transaction, which must have 3
+// or more outputs of the same amount, which is one of the pre-defined mix
+// denominations. mixDenom is the largest of such denominations. mixCount is the
+// number of outputs of this denomination.
+func IsMixTx(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint32) {
+	if len(tx.TxOut) < 3 || len(tx.TxIn) < 3 {
+		return false, 0, 0
+	}
+
+	mixedOuts := make(map[int64]uint32)
+	for _, o := range tx.TxOut {
+		val := o.Value
+		if _, ok := splitPointMap[val]; ok {
+			mixedOuts[val]++
+			continue
+		}
+	}
+
+	for val, count := range mixedOuts {
+		if count < 3 {
+			continue
+		}
+		if val > mixDenom {
+			mixDenom = val
+			mixCount = count
+		}
+	}
+
+	// TODO: revisit the input count requirements
+	isMix = mixCount >= uint32(len(tx.TxOut)/2)
+	return
 }
