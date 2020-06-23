@@ -338,13 +338,13 @@ func IsMixTx(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint32) {
 		return false, 0, 0
 	}
 
+	numberOfOutputs := len(tx.TxOut)
+	numberOfInputs := len(tx.TxIn)
+
 	mixedOuts := make(map[int64]uint32)
 	for _, o := range tx.TxOut {
 		val := o.Value
-		if _, ok := splitPointMap[val]; ok {
-			mixedOuts[val]++
-			continue
-		}
+		mixedOuts[val]++
 	}
 
 	for val, count := range mixedOuts {
@@ -355,9 +355,77 @@ func IsMixTx(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint32) {
 			mixDenom = val
 			mixCount = count
 		}
+
+		outputsWithNotSameAmount := uint32(numberOfOutputs) - count
+		if outputsWithNotSameAmount > uint32(numberOfInputs) {
+			return false, 0, 0
+		}
 	}
 
-	// TODO: revisit the input count requirements
 	isMix = mixCount >= uint32(len(tx.TxOut)/2)
+	return
+}
+
+// The size of a solo (non-pool) ticket purchase transaction assumes a specific
+// transaction structure and worst-case signature script sizes.
+func calcSoloTicketTxSize() int {
+	inSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
+	outSizes := []int{txsizes.P2PKHPkScriptSize + 1, txsizes.TicketCommitmentScriptSize, txsizes.P2PKHPkScriptSize + 1}
+	return txsizes.EstimateSerializeSizeFromScriptSizes(inSizes, outSizes, 0)
+}
+
+var (
+	soloTicketTxSize    = calcSoloTicketTxSize()
+	defaultFeeForTicket = txrules.FeeForSerializeSize(txrules.DefaultRelayFeePerKb, soloTicketTxSize)
+)
+
+// IsMixedSplitTx tests if a transaction is a CSPP-mixed ticket split
+// transaction (the transaction that creates appropriately-sized outputs to be
+// spent by a ticket purchase). Such a transaction must have 3 or more outputs
+// with an amount equal to the ticket price plus transaction fees, and at least
+// as many other outputs. The expected fees to be included in the amount are
+// based on the provided fee rate, relayFeeRate, and an assumed serialized size
+// of a solo ticket transaction with one P2PKH input, two P2PKH outputs and one
+// ticket commitment output.
+func IsMixedSplitTx(tx *wire.MsgTx, relayFeeRate, ticketPrice int64) (isMix bool, ticketOutAmt int64, numTickets uint32) {
+	if len(tx.TxOut) < 6 || len(tx.TxIn) < 3 {
+		return false, 0, 0
+	}
+
+	ticketTxFee := defaultFeeForTicket
+	if relayFeeRate != int64(txrules.DefaultRelayFeePerKb) {
+		ticketTxFee = txrules.FeeForSerializeSize(dcrutil.Amount(relayFeeRate), soloTicketTxSize)
+	}
+	ticketOutAmt = ticketPrice + int64(ticketTxFee)
+
+	var numOtherOut uint32
+	for _, o := range tx.TxOut {
+		if o.Value == ticketOutAmt {
+			numTickets++
+		} else {
+			numOtherOut++
+		}
+	}
+
+	// NOTE: The numOtherOut requirement may be too strict,
+	if numTickets < 3 || numOtherOut < 3 {
+		return false, 0, 0
+	}
+
+	// The input amounts do not indicate if a split tx is a mix, although it is
+	// common to fund such a split transaction with mixed outputs.
+
+	// Count the mix denomination inputs.
+	// mixedIns := make(map[int64]int64)
+	// for _, in := range tx.TxIn {
+	// 	val := in.ValueIn
+	// 	if _, ok := splitPointMap[val]; ok {
+	// 		mixedIns[val]++
+	// 		//numMixedIns++
+	// 		continue
+	// 	}
+	// }
+
+	isMix = true
 	return
 }
