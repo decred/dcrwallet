@@ -4918,15 +4918,28 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 func (w *Wallet) getCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, error) {
 	const op errors.Op = "wallet.getCoinjoinTxsSumbByAcct"
 	coinJoinTxsByAcctSum := make(map[uint32]int)
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		// Get current block.  The block height used for calculating
 		// the number of tx confirmations.
 		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
 			for _, detail := range details {
+				var sdiff dcrutil.Amount
+				if !deployments.DCP0001.Active(detail.Block.Height, w.chainParams.Net) {
+					// if DCP001 is not active we can ignore this tx as it is
+					// not a coinjoin tx.
+					continue
+				}
+				blkHeader, err := w.txStore.GetBlockHeader(dbtx, &detail.Block.Hash)
+				if err != nil {
+					return false, err
+				}
+				sdiff, err = w.nextRequiredDCP0001PoSDifficulty(dbtx, blkHeader, nil)
+
 				isMixedTx, _, _ := IsMixTx(&detail.MsgTx)
+				isMixedSplitTx, _, _ := IsMixedSplitTx(&detail.MsgTx, txrules.DefaultRelayFeePerKb, sdiff)
 				if !isMixedTx {
 					continue
 				}

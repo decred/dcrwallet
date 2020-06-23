@@ -387,20 +387,20 @@ var (
 // based on the provided fee rate, relayFeeRate, and an assumed serialized size
 // of a solo ticket transaction with one P2PKH input, two P2PKH outputs and one
 // ticket commitment output.
-func IsMixedSplitTx(tx *wire.MsgTx, relayFeeRate, ticketPrice int64) (isMix bool, ticketOutAmt int64, numTickets uint32) {
+func IsMixedSplitTx(tx *wire.MsgTx, relayFeeRate, ticketPrice dcrutil.Amount) (isMix bool, ticketOutAmt dcrutil.Amount, numTickets uint32) {
 	if len(tx.TxOut) < 6 || len(tx.TxIn) < 3 {
 		return false, 0, 0
 	}
 
 	ticketTxFee := defaultFeeForTicket
-	if relayFeeRate != int64(txrules.DefaultRelayFeePerKb) {
-		ticketTxFee = txrules.FeeForSerializeSize(dcrutil.Amount(relayFeeRate), soloTicketTxSize)
+	if relayFeeRate != txrules.DefaultRelayFeePerKb {
+		ticketTxFee = txrules.FeeForSerializeSize(relayFeeRate, soloTicketTxSize)
 	}
-	ticketOutAmt = ticketPrice + int64(ticketTxFee)
+	ticketOutAmt = ticketPrice + ticketTxFee
 
 	var numOtherOut uint32
 	for _, o := range tx.TxOut {
-		if o.Value == ticketOutAmt {
+		if o.Value == int64(ticketOutAmt) {
 			numTickets++
 		} else {
 			numOtherOut++
