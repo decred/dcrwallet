@@ -1622,6 +1622,39 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 
 	dontSignTx := req.DontSignTx
 
+	var csppServer string
+	var mixedAccount uint32
+	var mixedAccountBranch uint32
+	var mixedSplitAccount uint32
+	var changeAccount uint32
+
+	if req.CsppServer != "" {
+		csppServer = req.CsppServer
+		mixedAccount = req.MixedAccount
+		_, err = s.wallet.AccountName(ctx, mixedAccount)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"CSPP Server set, but error on mixed account: %v", err)
+		}
+		mixedAccountBranch = req.MixedAccountBranch
+		if mixedAccountBranch != 0 && mixedAccountBranch != 1 {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"MixedAccountBranch should be 0 or 1.")
+		}
+		mixedSplitAccount = req.MixedSplitAccount
+		_, err = s.wallet.AccountName(ctx, mixedSplitAccount)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"CSPP Server set, but error on mixedSplitAccount: %v", err)
+		}
+		changeAccount = req.ChangeAccount
+		_, err = s.wallet.AccountName(ctx, changeAccount)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"CSPP Server set, but error on changeAccount: %v", err)
+		}
+	}
+
 	request := &wallet.PurchaseTicketsRequest{
 		Count:         numTickets,
 		SourceAccount: req.Account,
@@ -1631,6 +1664,13 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		DontSignTx:    dontSignTx,
 		VSPAddress:    poolAddr,
 		VSPFees:       poolFees,
+
+		// CSPP
+		CSPPServer:         csppServer,
+		MixedAccount:       mixedAccount,
+		MixedAccountBranch: mixedAccountBranch,
+		MixedSplitAccount:  mixedSplitAccount,
+		ChangeAccount:      changeAccount,
 	}
 
 	// If dontSignTx is false we unlock the wallet so we can sign the tx.

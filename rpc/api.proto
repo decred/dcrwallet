@@ -574,6 +574,11 @@ message PurchaseTicketsRequest {
 	int64 tx_fee = 10;
 	int64 ticket_fee = 11;
 	bool dont_sign_tx = 12;
+	string cspp_server = 13;
+	uint32 mixed_account = 14;
+	uint32 mixed_account_branch = 15;
+	uint32 mixed_split_account = 16;
+	uint32 change_account = 17;
 }
 message PurchaseTicketsResponse {
 	repeated bytes ticket_hashes = 1;
