@@ -4940,7 +4940,7 @@ func (w *Wallet) getCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, 
 
 				isMixedTx, _, _ := IsMixTx(&detail.MsgTx)
 				isMixedSplitTx, _, _ := IsMixedSplitTx(&detail.MsgTx, txrules.DefaultRelayFeePerKb, sdiff)
-				if !isMixedTx {
+				if !isMixedTx || isMixedSplitTx {
 					continue
 				}
 				for _, output := range detail.MsgTx.TxOut {
