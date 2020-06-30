@@ -46,7 +46,10 @@ func init() {
 	}
 }
 
-var errNoSplitDenomination = errors.New("no suitable split denomination")
+var (
+	errNoSplitDenomination = errors.New("no suitable split denomination")
+	errThrottledMixRequest = errors.New("throttled mix request for split denomination")
+)
 
 // DialFunc provides a method to dial a network connection.
 // If the dialed network connection is secured by TLS, TLS
@@ -120,6 +123,8 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 				return errors.E(op, ctx.Err())
 			case splitSems[i] <- struct{}{}:
 				defer func() { <-splitSems[i] }()
+			default:
+				return errThrottledMixRequest
 			}
 			break
 		}
@@ -261,6 +266,9 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 		op := &credits[i].OutPoint
 		g.Go(func() error {
 			err := w.MixOutput(ctx, dialTLS, csppserver, op, changeAccount, mixAccount, mixBranch)
+			if errors.Is(err, errThrottledMixRequest) {
+				return nil
+			}
 			if errors.Is(err, errNoSplitDenomination) {
 				return nil
 			}
