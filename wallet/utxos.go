@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 The Decred developers
+// Copyright (c) 2016-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -33,6 +33,10 @@ func (p *OutputSelectionPolicy) meetsRequiredConfs(txHeight, curHeight int32) bo
 // described in the passed policy.
 func (w *Wallet) UnspentOutputs(ctx context.Context, policy OutputSelectionPolicy) ([]*TransactionOutput, error) {
 	const op errors.Op = "wallet.UnspentOutputs"
+
+	defer w.lockedOutpointMu.Unlock()
+	w.lockedOutpointMu.Lock()
+
 	var outputResults []*TransactionOutput
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
@@ -108,6 +112,10 @@ func (w *Wallet) UnspentOutputs(ctx context.Context, policy OutputSelectionPolic
 // the wallet.  It returns an input detail summary.
 func (w *Wallet) SelectInputs(ctx context.Context, targetAmount dcrutil.Amount, policy OutputSelectionPolicy) (inputDetail *txauthor.InputDetail, err error) {
 	const op errors.Op = "wallet.SelectInputs"
+
+	defer w.lockedOutpointMu.Unlock()
+	w.lockedOutpointMu.Lock()
+
 	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)

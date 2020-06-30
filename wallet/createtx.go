@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2019 The Decred developers
+// Copyright (c) 2015-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -11,7 +11,6 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"net"
-	"sync"
 	"time"
 
 	"decred.org/cspp"
@@ -94,18 +93,16 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 
 	var unlockOutpoints []*wire.OutPoint
 	defer func() {
-		if len(unlockOutpoints) != 0 {
-			w.lockedOutpointMu.Lock()
-			for _, op := range unlockOutpoints {
-				delete(w.lockedOutpoints, *op)
-			}
-			w.lockedOutpointMu.Unlock()
+		for _, op := range unlockOutpoints {
+			delete(w.lockedOutpoints, *op)
 		}
+		w.lockedOutpointMu.Unlock()
 	}()
 	ignoreInput := func(op *wire.OutPoint) bool {
 		_, ok := w.lockedOutpoints[*op]
 		return ok
 	}
+	w.lockedOutpointMu.Lock()
 
 	var authoredTx *txauthor.AuthoredTx
 	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
@@ -154,9 +151,6 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 				ctx:     context.Background(),
 			}
 		}
-
-		defer w.lockedOutpointMu.Unlock()
-		w.lockedOutpointMu.Lock()
 
 		var err error
 		authoredTx, err = txauthor.NewUnsignedTransaction(outputs, relayFeePerKb,
@@ -228,6 +222,7 @@ func (w *Wallet) insertIntoTxMgr(ns walletdb.ReadWriteBucket, msgTx *wire.MsgTx)
 	if err != nil {
 		return nil, err
 	}
+
 	err = w.txStore.InsertMemPoolTx(ns, rec)
 	if err != nil {
 		return nil, err
@@ -355,28 +350,22 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 
 	var unlockOutpoints []*wire.OutPoint
 	defer func() {
-		if len(unlockOutpoints) != 0 {
-			w.lockedOutpointMu.Lock()
-			for _, op := range unlockOutpoints {
-				delete(w.lockedOutpoints, *op)
-			}
-			w.lockedOutpointMu.Unlock()
+		for _, op := range unlockOutpoints {
+			delete(w.lockedOutpoints, *op)
 		}
+		w.lockedOutpointMu.Unlock()
 	}()
 	ignoreInput := func(op *wire.OutPoint) bool {
 		_, ok := w.lockedOutpoints[*op]
 		return ok
 	}
+	w.lockedOutpointMu.Lock()
 
 	var atx *txauthor.AuthoredTx
 	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-
-		var once sync.Once
-		defer once.Do(w.lockedOutpointMu.Unlock)
-		w.lockedOutpointMu.Lock()
 
 		// Create the unsigned transaction.
 		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
@@ -398,7 +387,6 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 			w.lockedOutpoints[in.PreviousOutPoint] = struct{}{}
 			unlockOutpoints = append(unlockOutpoints, &in.PreviousOutPoint)
 		}
-		once.Do(w.lockedOutpointMu.Unlock)
 
 		// Randomize change position, if change exists, before signing.  This
 		// doesn't affect the serialize size, so the change amount will still be
@@ -480,11 +468,12 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 func (w *Wallet) txToMultisig(ctx context.Context, op errors.Op, account uint32, amount dcrutil.Amount, pubkeys []*dcrutil.AddressSecpPubKey,
 	nRequired int8, minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
 
-	var (
-		created  *CreatedTx
-		addr     dcrutil.Address
-		msScript []byte
-	)
+	defer w.lockedOutpointMu.Unlock()
+	w.lockedOutpointMu.Lock()
+
+	var created *CreatedTx
+	var addr dcrutil.Address
+	var msScript []byte
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		var err error
 		created, addr, msScript, err = w.txToMultisigInternal(ctx, op, dbtx,
@@ -540,6 +529,14 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 	if eligible == nil {
 		return txToMultisigError(errors.E(op, "not enough funds to send to multisig address"))
 	}
+	for i := range eligible {
+		w.lockedOutpoints[eligible[i].OutPoint] = struct{}{}
+	}
+	defer func() {
+		for i := range eligible {
+			delete(w.lockedOutpoints, eligible[i].OutPoint)
+		}
+	}()
 
 	msgtx := wire.NewMsgTx()
 	scriptSizes := make([]int, 0, len(eligible))
@@ -679,6 +676,9 @@ func creditScripts(credits []udb.Credit) [][]byte {
 // compressWallet compresses all the utxos in a wallet into a single change
 // address. For use when it becomes dusty.
 func (w *Wallet) compressWallet(ctx context.Context, op errors.Op, maxNumIns int, account uint32, changeAddr dcrutil.Address) (*chainhash.Hash, error) {
+	defer w.lockedOutpointMu.Unlock()
+	w.lockedOutpointMu.Lock()
+
 	var hash *chainhash.Hash
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		var err error
@@ -710,10 +710,18 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-
 	if len(eligible) <= 1 {
 		return nil, errors.E(op, "too few outputs to consolidate")
 	}
+	for i := range eligible {
+		w.lockedOutpoints[eligible[i].OutPoint] = struct{}{}
+	}
+
+	defer func() {
+		for i := range eligible {
+			delete(w.lockedOutpoints, eligible[i].OutPoint)
+		}
+	}()
 
 	// Check if output address is default, and generate a new address if needed
 	if changeAddr == nil {
@@ -973,13 +981,12 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 		_, ok := w.lockedOutpoints[*op]
 		return ok
 	}
+
+	w.lockedOutpointMu.Lock()
 	var atx *txauthor.AuthoredTx
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-
-		defer w.lockedOutpointMu.Unlock()
-		w.lockedOutpointMu.Lock()
 
 		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
 		inputSource := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, req.SourceAccount,
@@ -1004,6 +1011,7 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 		}
 		return nil
 	})
+	w.lockedOutpointMu.Unlock()
 	if err != nil {
 		return
 	}
@@ -1334,11 +1342,13 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		if err != nil {
 			return nil, err
 		}
+		w.lockedOutpointMu.Lock()
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			watch, err := w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
 			watchOutPoints = append(watchOutPoints, watch...)
 			return err
 		})
+		w.lockedOutpointMu.Unlock()
 		if err != nil {
 			return nil, err
 		}
@@ -1350,6 +1360,9 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			return nil, err
 		}
 	}
+
+	defer w.lockedOutpointMu.Unlock()
+	w.lockedOutpointMu.Lock()
 
 	// Create each ticket.
 	ticketHashes := make([]*chainhash.Hash, 0, req.Count)
@@ -1530,15 +1543,15 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 	for i := range unspent {
 		output := unspent[i]
 
+		// Locked unspent outputs are skipped.
+		if _, locked := w.lockedOutpoints[output.OutPoint]; locked {
+			continue
+		}
+
 		// Only include this output if it meets the required number of
 		// confirmations.  Coinbase transactions must have have reached
 		// maturity before their outputs may be spent.
 		if !confirmed(minconf, output.Height, currentHeight) {
-			continue
-		}
-
-		// Locked unspent outputs are skipped.
-		if w.LockedOutpoint(output.OutPoint) {
 			continue
 		}
 
@@ -1613,7 +1626,7 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 		output := unspent[i]
 
 		// Locked unspent outputs are skipped.
-		if w.LockedOutpoint(output.OutPoint) {
+		if _, locked := w.lockedOutpoints[output.OutPoint]; locked {
 			continue
 		}
 

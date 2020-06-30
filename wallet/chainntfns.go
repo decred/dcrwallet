@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2015-2019 The Decred developers
+// Copyright (c) 2015-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -90,8 +90,10 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 	newWork := chain[len(chain)-1].workSum
 	oldWork := new(big.Int)
 
-	var watchOutPoints []wire.OutPoint
+	defer w.lockedOutpointMu.Unlock()
+	w.lockedOutpointMu.Lock()
 
+	var watchOutPoints []wire.OutPoint
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
@@ -311,6 +313,7 @@ func (w *Wallet) AddTransaction(ctx context.Context, tx *wire.MsgTx, blockHash *
 		return nil
 	}
 
+	w.lockedOutpointMu.Lock()
 	var watchOutPoints []wire.OutPoint
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -354,6 +357,7 @@ func (w *Wallet) AddTransaction(ctx context.Context, tx *wire.MsgTx, blockHash *
 		watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, rec, header, meta)
 		return err
 	})
+	w.lockedOutpointMu.Unlock()
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -370,17 +374,6 @@ func (w *Wallet) AddTransaction(ctx context.Context, tx *wire.MsgTx, blockHash *
 		}
 	}
 	return nil
-}
-
-func (w *Wallet) processSerializedTransaction(ctx context.Context, dbtx walletdb.ReadWriteTx, serializedTx []byte,
-	header *wire.BlockHeader, blockMeta *udb.BlockMeta) (watchOutPoints []wire.OutPoint, err error) {
-
-	const op errors.Op = "wallet.processSerializedTransaction"
-	rec, err := udb.NewTxRecord(serializedTx, time.Now())
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	return w.processTransactionRecord(ctx, dbtx, rec, header, blockMeta)
 }
 
 func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.ReadWriteTx, rec *udb.TxRecord,
@@ -552,9 +545,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 
 	// Handle input scripts that contain P2PKs that we care about.
 	for i, input := range rec.MsgTx.TxIn {
-		w.lockedOutpointMu.Lock()
 		delete(w.lockedOutpoints, input.PreviousOutPoint)
-		w.lockedOutpointMu.Unlock()
 
 		if txscript.IsMultisigSigScript(input.SignatureScript) {
 			rs := txscript.MultisigRedeemScriptFromScriptSig(input.SignatureScript)
@@ -838,6 +829,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 		usedVoteBits = make([]stake.VoteBits, len(ticketHashes))
 
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+
 		for i, ticketHash := range ticketHashes {
 			ticketPurchase, err := w.txStore.Tx(txmgrNs, ticketHash)
 			if err != nil && errors.Is(err, errors.NotExist) {

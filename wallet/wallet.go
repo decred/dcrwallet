@@ -833,6 +833,8 @@ func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, re
 		log.Infof("Registered for transaction notifications for %v imported address(es)", importedAddrCount)
 	}
 
+	defer w.lockedOutpointMu.Unlock()
+	w.lockedOutpointMu.Lock()
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		err := w.txStore.ForEachUnspentOutpoint(dbtx, watchOutPoint)
 		if err != nil {
@@ -2914,6 +2916,10 @@ func (w *Wallet) Accounts(ctx context.Context) (*AccountsResult, error) {
 		tipHash   chainhash.Hash
 		tipHeight int32
 	)
+
+	defer w.lockedOutpointMu.Unlock()
+	w.lockedOutpointMu.Lock()
+
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
@@ -3508,7 +3514,6 @@ func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpcCaller Caller) (*Stake
 	// all tickets that are either live, expired, or missed and determine their
 	// states later by querying the consensus RPC server.
 	var liveOrExpiredOrMissed []*chainhash.Hash
-
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -4333,6 +4338,7 @@ func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, n Netwo
 			return nil, errors.E(op, err)
 		}
 
+		w.lockedOutpointMu.Lock()
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			rec, err := udb.NewTxRecord(txBuf.Bytes(), time.Now())
 			if err != nil {
@@ -4341,6 +4347,7 @@ func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, n Netwo
 			watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
 			return err
 		})
+		w.lockedOutpointMu.Unlock()
 		if err != nil {
 			op := errors.Opf(opf, &txHash)
 			return nil, errors.E(op, err)
