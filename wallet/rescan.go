@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2014 The btcsuite developers
-// Copyright (c) 2015-2018 The Decred developers
+// Copyright (c) 2015-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -164,6 +164,10 @@ func (f *RescanFilter) RemoveUnspentOutPoint(op *wire.OutPoint) {
 // task.
 func (w *Wallet) SaveRescanned(ctx context.Context, hash *chainhash.Hash, txs []*wire.MsgTx) error {
 	const op errors.Op = "wallet.SaveRescanned"
+
+	defer w.lockedOutpointMu.Unlock()
+	w.lockedOutpointMu.Lock()
+
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 		blockMeta, err := w.txStore.GetBlockMetaForHash(txmgrNs, hash)

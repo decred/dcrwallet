@@ -72,6 +72,13 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	}
 	defer hold.release()
 
+	w.lockedOutpointMu.Lock()
+	if _, exists := w.lockedOutpoints[*output]; exists {
+		w.lockedOutpointMu.Unlock()
+		err = errors.Errorf("output %v already locked", output)
+		return errors.E(op, err)
+	}
+
 	var prevScript []byte
 	var amount dcrutil.Amount
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
@@ -85,12 +92,12 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		return nil
 	})
 	if err != nil {
+		w.lockedOutpointMu.Unlock()
 		return errors.E(op, err)
 	}
-
-	w.lockedOutpointMu.Lock()
 	w.lockedOutpoints[*output] = struct{}{}
 	w.lockedOutpointMu.Unlock()
+
 	defer func() {
 		w.lockedOutpointMu.Lock()
 		delete(w.lockedOutpoints, *output)
@@ -232,12 +239,14 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 	defer hold.release()
 
 	_, tipHeight := w.MainChainTip(ctx)
+	w.lockedOutpointMu.Lock()
 	var credits []udb.Credit
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		credits, err = w.findEligibleOutputs(dbtx, changeAccount, 1, tipHeight)
 		return err
 	})
+	w.lockedOutpointMu.Unlock()
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -246,13 +255,7 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 		if credits[i].Amount <= splitPoints[len(splitPoints)-1] {
 			continue
 		}
-		w.lockedOutpointMu.Lock()
-		_, locked := w.lockedOutpoints[credits[i].OutPoint]
-		if !locked {
-			w.lockedOutpoints[credits[i].OutPoint] = struct{}{}
-			unlockedCredits = append(unlockedCredits, credits[i])
-		}
-		w.lockedOutpointMu.Unlock()
+		unlockedCredits = append(unlockedCredits, credits[i])
 	}
 	credits = unlockedCredits
 	shuffle(len(credits), func(i, j int) {
