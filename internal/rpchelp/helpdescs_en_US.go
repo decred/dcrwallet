@@ -782,4 +782,10 @@ var helpDescsEnUS = map[string]string{
 	// GetBalanceToMaintainCmd help.
 	"getbalancetomaintain--synopsis": "Get the current balance to maintain",
 	"getbalancetomaintain--result0":  "The current balancetomaintain",
+
+	// SetMixedAccountCmd help.
+	"getcoinjoinsbyacct--synopsis":       "Get coinjoin outputs by account.",
+	"getcoinjoinsbyacct--result0--desc":  "Return a map of account's name and its coinjoin outputs sum.",
+	"getcoinjoinsbyacct--result0--value": "Coinjoin outputs sum.",
+	"getcoinjoinsbyacct--result0--key":   "Accounts name",
 }
