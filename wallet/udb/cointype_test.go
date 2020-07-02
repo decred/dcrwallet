@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"decred.org/dcrwallet/errors"
-	"decred.org/dcrwallet/wallet/internal/compat"
+	"decred.org/dcrwallet/internal/compat"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"

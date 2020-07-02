@@ -10,7 +10,7 @@ import (
 	"runtime/trace"
 
 	"decred.org/dcrwallet/errors"
-	"decred.org/dcrwallet/wallet/internal/compat"
+	"decred.org/dcrwallet/internal/compat"
 	"decred.org/dcrwallet/wallet/txsizes"
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"

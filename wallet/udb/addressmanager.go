@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"decred.org/dcrwallet/errors"
-	"decred.org/dcrwallet/wallet/internal/compat"
+	"decred.org/dcrwallet/internal/compat"
 	"decred.org/dcrwallet/wallet/internal/snacl"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"

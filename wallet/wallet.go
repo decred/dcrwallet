@@ -19,10 +19,10 @@ import (
 
 	"decred.org/dcrwallet/deployments"
 	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/internal/compat"
 	"decred.org/dcrwallet/rpc/client/dcrd"
 	"decred.org/dcrwallet/rpc/jsonrpc/types"
 	"decred.org/dcrwallet/validate"
-	"decred.org/dcrwallet/wallet/internal/compat"
 	"decred.org/dcrwallet/wallet/txrules"
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
