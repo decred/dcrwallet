@@ -881,7 +881,7 @@ func (s *Server) fundRawTransaction(ctx context.Context, icmd interface{}) (inte
 		}
 	}
 	atx, err := w.NewUnsignedTransaction(ctx, tx.TxOut, feeRate, accountNum, confs,
-		wallet.OutputSelectionAlgorithmDefault, changeSource)
+		wallet.OutputSelectionAlgorithmDefault, changeSource, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -3642,7 +3642,7 @@ func (s *Server) sweepAccount(ctx context.Context, icmd interface{}) (interface{
 		return nil, err
 	}
 	tx, err := w.NewUnsignedTransaction(ctx, nil, feePerKb, account,
-		requiredConfs, wallet.OutputSelectionAlgorithmAll, changeSource)
+		requiredConfs, wallet.OutputSelectionAlgorithmAll, changeSource, nil)
 	if err != nil {
 		if errors.Is(err, errors.InsufficientBalance) {
 			return nil, rpcError(dcrjson.ErrRPCWalletInsufficientFunds, err)
