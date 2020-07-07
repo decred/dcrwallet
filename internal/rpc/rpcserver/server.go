@@ -778,7 +778,7 @@ func (s *walletServer) SweepAccount(ctx context.Context, req *pb.SweepAccountReq
 
 	tx, err := s.wallet.NewUnsignedTransaction(ctx, nil, feePerKb, account,
 		int32(req.RequiredConfirmations), wallet.OutputSelectionAlgorithmAll,
-		changeSource)
+		changeSource, nil)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1033,7 +1033,7 @@ func (s *walletServer) ConstructTransaction(ctx context.Context, req *pb.Constru
 	}
 
 	tx, err := s.wallet.NewUnsignedTransaction(ctx, outputs, feePerKb, req.SourceAccount,
-		req.RequiredConfirmations, algo, changeSource)
+		req.RequiredConfirmations, algo, changeSource, nil)
 	if err != nil {
 		return nil, translateError(err)
 	}

@@ -82,12 +82,13 @@ const (
 // NewUnsignedTransaction constructs an unsigned transaction using unspent
 // account outputs.
 //
-// The changeSource parameter is optional and can be nil.  When nil, and if a
-// change output should be added, an internal change address is created for the
-// account.
+// The changeSource and inputSource parameters are optional and can be nil.
+// When the changeSource is nil and change output should be added, an internal
+// change address is created for the account.  When the inputSource is nil,
+// the inputs will be selected by the wallet.
 func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxOut,
 	relayFeePerKb dcrutil.Amount, account uint32, minConf int32,
-	algo OutputSelectionAlgorithm, changeSource txauthor.ChangeSource) (*txauthor.AuthoredTx, error) {
+	algo OutputSelectionAlgorithm, changeSource txauthor.ChangeSource, inputSource txauthor.InputSource) (*txauthor.AuthoredTx, error) {
 
 	const op errors.Op = "wallet.NewUnsignedTransaction"
 
@@ -123,25 +124,26 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 			}
 		}
 
-		sourceImpl := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, account,
-			minConf, tipHeight, ignoreInput)
-		var inputSource txauthor.InputSource
-		switch algo {
-		case OutputSelectionAlgorithmDefault:
-			inputSource = sourceImpl.SelectInputs
-		case OutputSelectionAlgorithmAll:
-			// Wrap the source with one that always fetches the max amount
-			// available and ignores insufficient balance issues.
-			inputSource = func(dcrutil.Amount) (*txauthor.InputDetail, error) {
-				inputDetail, err := sourceImpl.SelectInputs(dcrutil.MaxAmount)
-				if errors.Is(err, errors.InsufficientBalance) {
-					err = nil
+		if inputSource == nil {
+			sourceImpl := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, account,
+				minConf, tipHeight, ignoreInput)
+			switch algo {
+			case OutputSelectionAlgorithmDefault:
+				inputSource = sourceImpl.SelectInputs
+			case OutputSelectionAlgorithmAll:
+				// Wrap the source with one that always fetches the max amount
+				// available and ignores insufficient balance issues.
+				inputSource = func(dcrutil.Amount) (*txauthor.InputDetail, error) {
+					inputDetail, err := sourceImpl.SelectInputs(dcrutil.MaxAmount)
+					if errors.Is(err, errors.InsufficientBalance) {
+						err = nil
+					}
+					return inputDetail, err
 				}
-				return inputDetail, err
+			default:
+				return errors.E(errors.Invalid,
+					errors.Errorf("unknown output selection algorithm %v", algo))
 			}
-		default:
-			return errors.E(errors.Invalid,
-				errors.Errorf("unknown output selection algorithm %v", algo))
 		}
 
 		if changeSource == nil {
