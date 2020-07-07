@@ -184,12 +184,15 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 		// TODO: The stake difficulty passed here is not correct.  This must be
 		// the difficulty of the next block, not the tip block.
 		tip := chain[len(chain)-1]
-		err := w.txStore.PruneUnmined(dbtx, tip.Header.SBits)
+		hashes, err := w.txStore.PruneUnmined(dbtx, tip.Header.SBits)
 		if err != nil {
 			log.Errorf("Failed to prune unmined transactions when "+
 				"connecting block height %v: %v", tip.Header.Height, err)
 		}
 
+		for _, hash := range hashes {
+			w.NtfnServer.notifyRemovedTransaction(*hash)
+		}
 		return nil
 	})
 	if err != nil {
