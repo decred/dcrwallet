@@ -41,12 +41,13 @@ type NotificationServer struct {
 	transactions []chan *TransactionNotifications
 	// Coalesce transaction notifications since wallet previously did not add
 	// mined txs together.  Now it does and this can be rewritten.
-	currentTxNtfn     *TransactionNotifications
-	accountClients    []chan *AccountNotification
-	tipChangedClients []chan *MainTipChangedNotification
-	confClients       []*ConfirmationNotificationsClient
-	mu                sync.Mutex // Only protects registered clients
-	wallet            *Wallet    // smells like hacks
+	currentTxNtfn             *TransactionNotifications
+	accountClients            []chan *AccountNotification
+	tipChangedClients         []chan *MainTipChangedNotification
+	confClients               []*ConfirmationNotificationsClient
+	removedTransactionClients []chan *RemovedTransactionNotification
+	mu                        sync.Mutex // Only protects registered clients
+	wallet                    *Wallet    // smells like hacks
 }
 
 func newNotificationServer(wallet *Wallet) *NotificationServer {
@@ -597,6 +598,70 @@ func (c *TransactionNotificationsClient) Done() {
 		}
 		s.mu.Unlock()
 	}()
+}
+
+// RemovedTransactionNotification includes the removed transaction hash.
+type RemovedTransactionNotification struct {
+	TxHash chainhash.Hash
+}
+
+// RemovedTransactionNotificationsClient receives RemovedTransactionNotifications over the channel C.
+type RemovedTransactionNotificationsClient struct {
+	C      chan *RemovedTransactionNotification
+	server *NotificationServer
+}
+
+// RemovedTransactionNotifications returns a client for receiving RemovedTransactionNotifications over
+// a channel.  The channel is unbuffered.  When finished, the client's Done
+// method should be called to disassociate the client from the server.
+func (s *NotificationServer) RemovedTransactionNotifications() RemovedTransactionNotificationsClient {
+	c := make(chan *RemovedTransactionNotification)
+	s.mu.Lock()
+	s.removedTransactionClients = append(s.removedTransactionClients, c)
+	s.mu.Unlock()
+	return RemovedTransactionNotificationsClient{
+		C:      c,
+		server: s,
+	}
+}
+
+// Done deregisters the client from the server and drains any remaining
+// messages.  It must be called exactly once when the client is finished
+// receiving notifications.
+func (c *RemovedTransactionNotificationsClient) Done() {
+	go func() {
+		for range c.C {
+		}
+	}()
+	go func() {
+		s := c.server
+		s.mu.Lock()
+		clients := s.removedTransactionClients
+		for i, ch := range clients {
+			if c.C == ch {
+				clients[i] = clients[len(clients)-1]
+				s.removedTransactionClients = clients[:len(clients)-1]
+				close(ch)
+				break
+			}
+		}
+		s.mu.Unlock()
+	}()
+}
+
+func (s *NotificationServer) notifyRemovedTransaction(hash chainhash.Hash) {
+	defer s.mu.Unlock()
+	s.mu.Lock()
+	clients := s.removedTransactionClients
+	if len(clients) == 0 {
+		return
+	}
+	n := &RemovedTransactionNotification{
+		TxHash: hash,
+	}
+	for _, c := range clients {
+		c <- n
+	}
 }
 
 // AccountNotification contains properties regarding an account, such as its

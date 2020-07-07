@@ -320,7 +320,7 @@ func (s *Store) unminedTxHashes(ns walletdb.ReadBucket) ([]*chainhash.Hash, erro
 //   * Ticket purchases with a different ticket price than the passed stake
 //     difficulty
 //   * Votes that do not vote on the tip block
-func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) error {
+func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) ([]*chainhash.Hash, error) {
 	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
 
 	tipHash, tipHeight := s.MainChainTip(ns)
@@ -337,7 +337,7 @@ func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) error {
 		var tx wire.MsgTx
 		err := tx.Deserialize(bytes.NewReader(extractRawUnminedTx(v)))
 		if err != nil {
-			return errors.E(errors.IO, err)
+			return nil, errors.E(errors.IO, err)
 		}
 
 		var expired, isTicketPurchase, isVote bool
@@ -362,7 +362,7 @@ func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) error {
 
 		txHash, err := chainhash.NewHash(k)
 		if err != nil {
-			return errors.E(errors.IO, err)
+			return nil, errors.E(errors.IO, err)
 		}
 
 		if expired {
@@ -376,12 +376,14 @@ func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) error {
 		toRemove = append(toRemove, &removeTx{tx, txHash})
 	}
 
+	removed := make([]*chainhash.Hash, 0, len(toRemove))
 	for _, r := range toRemove {
 		err := s.RemoveUnconfirmed(ns, &r.tx, r.hash)
 		if err != nil {
-			return err
+			return removed, err
 		}
+		removed = append(removed, r.hash)
 	}
 
-	return nil
+	return removed, nil
 }

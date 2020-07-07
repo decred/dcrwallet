@@ -4288,6 +4288,7 @@ func (w *Wallet) AbandonTransaction(ctx context.Context, hash *chainhash.Hash) e
 		op := errors.Opf(opf, hash)
 		return errors.E(op, err)
 	}
+	w.NtfnServer.notifyRemovedTransaction(*hash)
 	return nil
 }
 
