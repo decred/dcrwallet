@@ -823,6 +823,8 @@ message RunTicketBuyerRequest {
 	string voting_address = 5;
 	string pool_address = 6;
 	double pool_fees = 7;
+	string vsp_host = 8;
+	string vsp_pubkey = 9;
 }
 
 message RunTicketBuyerResponse {}
