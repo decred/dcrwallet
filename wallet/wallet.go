@@ -4926,21 +4926,8 @@ func (w *Wallet) getCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, 
 		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
 			for _, detail := range details {
-				var sdiff dcrutil.Amount
-				if !deployments.DCP0001.Active(detail.Block.Height, w.chainParams.Net) {
-					// if DCP001 is not active we can ignore this tx as it is
-					// not a coinjoin tx.
-					continue
-				}
-				blkHeader, err := w.txStore.GetBlockHeader(dbtx, &detail.Block.Hash)
-				if err != nil {
-					return false, err
-				}
-				sdiff, err = w.nextRequiredDCP0001PoSDifficulty(dbtx, blkHeader, nil)
-
 				isMixedTx, _, _ := IsMixTx(&detail.MsgTx)
-				isMixedSplitTx, _, _ := IsMixedSplitTx(&detail.MsgTx, txrules.DefaultRelayFeePerKb, sdiff)
-				if !isMixedTx || isMixedSplitTx {
+				if !isMixedTx {
 					continue
 				}
 				for _, output := range detail.MsgTx.TxOut {
