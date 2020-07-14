@@ -39,14 +39,10 @@ var splitPoints = [...]dcrutil.Amount{
 }
 
 var splitSems = [len(splitPoints)]chan struct{}{}
-var splitPointMap = map[int64]struct{}{}
 
 func init() {
 	for i := range splitSems {
 		splitSems[i] = make(chan struct{}, 10)
-	}
-	for _, amt := range splitPoints {
-		splitPointMap[int64(amt)] = struct{}{}
 	}
 }
 
@@ -329,11 +325,10 @@ func randomInputSource(source txauthor.InputSource) txauthor.InputSource {
 	}
 }
 
-// IsMixTx tests if a transaction is a CSPP-mixed transaction, which must have 3
-// or more outputs of the same amount, which is one of the pre-defined mix
-// denominations. mixDenom is the largest of such denominations. mixCount is the
-// number of outputs of this denomination.
-func IsMixTx(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint32) {
+// PossibleCoinJoin tests if a transaction may be a CSPP-mixed transaction.
+// It can return false positives, as one can create a tx which looks like a
+// coinjoin tx, although it isn't.
+func PossibleCoinJoin(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint32) {
 	if len(tx.TxOut) < 3 || len(tx.TxIn) < 3 {
 		return false, 0, 0
 	}

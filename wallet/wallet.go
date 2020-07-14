@@ -4913,8 +4913,8 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 	return w, nil
 }
 
-// getAllTransactions returns a map with key representing accounts and the sum
-// of coinjoin output transactions from the wallet.
+// getCoinjoinTxsSumbByAcct returns a map with key representing the account and
+// the sum of coinjoin output transactions from the account.
 func (w *Wallet) getCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, error) {
 	const op errors.Op = "wallet.getCoinjoinTxsSumbByAcct"
 	coinJoinTxsByAcctSum := make(map[uint32]int)
@@ -4926,7 +4926,7 @@ func (w *Wallet) getCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, 
 		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
 			for _, detail := range details {
-				isMixedTx, _, _ := IsMixTx(&detail.MsgTx)
+				isMixedTx, _, _ := PossibleCoinJoin(&detail.MsgTx)
 				if !isMixedTx {
 					continue
 				}
