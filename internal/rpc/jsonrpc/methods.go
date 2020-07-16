@@ -2214,7 +2214,12 @@ func (s *Server) listLockUnspent(ctx context.Context, icmd interface{}) (interfa
 		return nil, errUnloadedWallet
 	}
 
-	return w.LockedOutpoints(), nil
+	var account string
+	cmd := icmd.(*types.ListLockUnspentCmd)
+	if cmd.Account != nil {
+		account = *cmd.Account
+	}
+	return w.LockedOutpoints(ctx, account)
 }
 
 // listReceivedByAccount handles a listreceivedbyaccount request by returning

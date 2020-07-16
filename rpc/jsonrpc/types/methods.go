@@ -511,7 +511,9 @@ func NewListAccountsCmd(minConf *int) *ListAccountsCmd {
 }
 
 // ListLockUnspentCmd defines the listlockunspent JSON-RPC command.
-type ListLockUnspentCmd struct{}
+type ListLockUnspentCmd struct {
+	Account *string
+}
 
 // NewListLockUnspentCmd returns a new instance which can be used to issue a
 // listlockunspent JSON-RPC command.
