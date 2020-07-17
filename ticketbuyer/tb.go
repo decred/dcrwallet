@@ -252,7 +252,9 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	if max := int(w.ChainParams().MaxFreshStakePerBlock); buy > max {
 		buy = max
 	}
-	if limit > 0 && buy > limit {
+	if limit == 0 && csppServer != "" {
+		buy = 1
+	} else if limit > 0 && buy > limit {
 		buy = limit
 	}
 
