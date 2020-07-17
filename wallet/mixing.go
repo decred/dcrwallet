@@ -240,7 +240,7 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 
 	_, tipHeight := w.MainChainTip(ctx)
 	w.lockedOutpointMu.Lock()
-	var credits []udb.Credit
+	var credits []Input
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		credits, err = w.findEligibleOutputs(dbtx, changeAccount, 1, tipHeight)
@@ -252,7 +252,8 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 	}
 	unlockedCredits := credits[:0]
 	for i := range credits {
-		if credits[i].Amount <= splitPoints[len(splitPoints)-1] {
+		amount := dcrutil.Amount(credits[i].PrevOut.Value)
+		if amount <= splitPoints[len(splitPoints)-1] {
 			continue
 		}
 		unlockedCredits = append(unlockedCredits, credits[i])

@@ -54,11 +54,10 @@ const (
 		txscript.ScriptVerifyCheckSequenceVerify
 )
 
-// extendedOutPoint is a UTXO with an amount.
-type extendedOutPoint struct {
-	op       *wire.OutPoint
-	amt      int64
-	pkScript []byte
+// Input provides transaction inputs referencing spendable outputs.
+type Input struct {
+	OutPoint wire.OutPoint
+	PrevOut  wire.TxOut
 }
 
 // --------------------------------------------------------------------------------
@@ -541,12 +540,12 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 	msgtx := wire.NewMsgTx()
 	scriptSizes := make([]int, 0, len(eligible))
 	// Fill out inputs.
-	forSigning := make([]udb.Credit, 0, len(eligible))
+	forSigning := make([]Input, 0, len(eligible))
 	totalInput := dcrutil.Amount(0)
 	for _, e := range eligible {
-		txIn := wire.NewTxIn(&e.OutPoint, int64(e.Amount), nil)
+		txIn := wire.NewTxIn(&e.OutPoint, e.PrevOut.Value, nil)
 		msgtx.AddTxIn(txIn)
-		totalInput += e.Amount
+		totalInput += dcrutil.Amount(e.PrevOut.Value)
 		forSigning = append(forSigning, e)
 		scriptSizes = append(scriptSizes, txsizes.RedeemP2SHSigScriptSize)
 	}
@@ -665,10 +664,10 @@ func validateMsgTx(op errors.Op, tx *wire.MsgTx, prevScripts [][]byte) error {
 	return nil
 }
 
-func creditScripts(credits []udb.Credit) [][]byte {
+func creditScripts(credits []Input) [][]byte {
 	scripts := make([][]byte, 0, len(credits))
 	for _, c := range credits {
-		scripts = append(scripts, c.PkScript)
+		scripts = append(scripts, c.PrevOut.PkScript)
 	}
 	return scripts
 }
@@ -750,7 +749,7 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 	// Add the txins using all the eligible outputs.
 	totalAdded := dcrutil.Amount(0)
 	scriptSizes := make([]int, 0, maxNumIns)
-	forSigning := make([]udb.Credit, 0, maxNumIns)
+	forSigning := make([]Input, 0, maxNumIns)
 	count := 0
 	for _, e := range eligible {
 		if count >= maxNumIns {
@@ -761,9 +760,9 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 			break
 		}
 
-		txIn := wire.NewTxIn(&e.OutPoint, int64(e.Amount), nil)
+		txIn := wire.NewTxIn(&e.OutPoint, e.PrevOut.Value, nil)
 		msgtx.AddTxIn(txIn)
-		totalAdded += e.Amount
+		totalAdded += dcrutil.Amount(e.PrevOut.Value)
 		forSigning = append(forSigning, e)
 		scriptSizes = append(scriptSizes, txsizes.RedeemP2PKHSigScriptSize)
 		count++
@@ -814,17 +813,17 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 // makeTicket creates a ticket from a split transaction output. It can optionally
 // create a ticket that pays a fee to a pool if a pool input and pool address are
 // passed.
-func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *extendedOutPoint, addrVote dcrutil.Address,
+func makeTicket(params *chaincfg.Params, inputPool *Input, input *Input, addrVote dcrutil.Address,
 	addrSubsidy dcrutil.Address, ticketCost int64, addrPool dcrutil.Address) (*wire.MsgTx, error) {
 
 	mtx := wire.NewMsgTx()
 
 	if addrPool != nil && inputPool != nil {
-		txIn := wire.NewTxIn(inputPool.op, inputPool.amt, []byte{})
+		txIn := wire.NewTxIn(&inputPool.OutPoint, inputPool.PrevOut.Value, []byte{})
 		mtx.AddTxIn(txIn)
 	}
 
-	txIn := wire.NewTxIn(input.op, input.amt, []byte{})
+	txIn := wire.NewTxIn(&input.OutPoint, input.PrevOut.Value, []byte{})
 	mtx.AddTxIn(txIn)
 
 	// Create a new script which pays to the provided address with an
@@ -849,14 +848,14 @@ func makeTicket(params *chaincfg.Params, inputPool *extendedOutPoint, input *ext
 	userSubsidyNullIdx := 0
 	if addrPool == nil {
 		_, amountsCommitted, err = stake.SStxNullOutputAmounts(
-			[]int64{input.amt}, []int64{0}, ticketCost)
+			[]int64{input.PrevOut.Value}, []int64{0}, ticketCost)
 		if err != nil {
 			return nil, err
 		}
 
 	} else {
 		_, amountsCommitted, err = stake.SStxNullOutputAmounts(
-			[]int64{inputPool.amt, input.amt}, []int64{0, 0}, ticketCost)
+			[]int64{inputPool.PrevOut.Value, input.PrevOut.Value}, []int64{0, 0}, ticketCost)
 		if err != nil {
 			return nil, err
 		}
@@ -1370,33 +1369,30 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		// inputs. There are two inputs for pool tickets corresponding to the
 		// fees and the user subsidy, while user-handled tickets have only one
 		// input.
-		var eopPool, eop *extendedOutPoint
+		var eopPool, eop *Input
 		if poolAddress == nil {
 			op := outpoint
 			op.Index = uint32(index)
 			log.Infof("Split output is %v", &op)
 			txOut := splitTx.TxOut[index]
-			eop = &extendedOutPoint{
-				op:       &op,
-				amt:      txOut.Value,
-				pkScript: txOut.PkScript,
+			eop = &Input{
+				OutPoint: op,
+				PrevOut:  *txOut,
 			}
 		} else {
 			vspOutPoint := outpoint
 			vspOutPoint.Index = uint32(index)
 			vspOutput := splitTx.TxOut[vspOutPoint.Index]
-			eopPool = &extendedOutPoint{
-				op:       &vspOutPoint,
-				amt:      vspOutput.Value,
-				pkScript: vspOutput.PkScript,
+			eopPool = &Input{
+				OutPoint: vspOutPoint,
+				PrevOut:  *vspOutput,
 			}
 			myOutPoint := outpoint
 			myOutPoint.Index = uint32(index + 1)
 			myOutput := splitTx.TxOut[myOutPoint.Index]
-			eop = &extendedOutPoint{
-				op:       &myOutPoint,
-				amt:      myOutput.Value,
-				pkScript: myOutput.PkScript,
+			eop = &Input{
+				OutPoint: myOutPoint,
+				PrevOut:  *myOutput,
 			}
 		}
 
@@ -1451,27 +1447,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 				return nil
 			}
 			// Sign and publish tx if DontSignTx is false
-			var forSigning []udb.Credit
+			var forSigning []Input
 			if eopPool != nil {
-				eopPoolCredit := udb.Credit{
-					OutPoint:     *eopPool.op,
-					BlockMeta:    udb.BlockMeta{},
-					Amount:       dcrutil.Amount(eopPool.amt),
-					PkScript:     eopPool.pkScript,
-					Received:     time.Now(),
-					FromCoinBase: false,
-				}
-				forSigning = append(forSigning, eopPoolCredit)
+				forSigning = append(forSigning, *eopPool)
 			}
-			eopCredit := udb.Credit{
-				OutPoint:     *eop.op,
-				BlockMeta:    udb.BlockMeta{},
-				Amount:       dcrutil.Amount(eop.amt),
-				PkScript:     eop.pkScript,
-				Received:     time.Now(),
-				FromCoinBase: false,
-			}
-			forSigning = append(forSigning, eopCredit)
+			forSigning = append(forSigning, *eop)
 
 			ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
 			err = w.signP2PKHMsgTx(ticket, forSigning, ns)
@@ -1483,7 +1463,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 				return err
 			}
 
-			err = w.checkHighFees(dcrutil.Amount(eop.amt), ticket)
+			err = w.checkHighFees(dcrutil.Amount(eop.PrevOut.Value), ticket)
 			if err != nil {
 				return err
 			}
@@ -1522,7 +1502,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 }
 
 func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minconf int32,
-	currentHeight int32) ([]udb.Credit, error) {
+	currentHeight int32) ([]Input, error) {
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -1537,7 +1517,7 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 	// Because one of these filters requires matching the output script to
 	// the desired account, this change depends on making wtxmgr a waddrmgr
 	// dependency and requesting unspent outputs for a single account.
-	eligible := make([]udb.Credit, 0, len(unspent))
+	eligible := make([]Input, 0, len(unspent))
 	for i := range unspent {
 		output := unspent[i]
 
@@ -1600,7 +1580,11 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 			continue
 		}
 
-		eligible = append(eligible, *output)
+		txOut := wire.NewTxOut(int64(output.Amount), output.PkScript)
+		eligible = append(eligible, Input{
+			OutPoint: output.OutPoint,
+			PrevOut:  *txOut,
+		})
 	}
 	return eligible, nil
 }
@@ -1608,7 +1592,7 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 // findEligibleOutputsAmount uses wtxmgr to find a number of unspent outputs
 // while doing maturity checks there.
 func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32, minconf int32,
-	amount dcrutil.Amount, currentHeight int32) ([]udb.Credit, error) {
+	amount dcrutil.Amount, currentHeight int32) ([]Input, error) {
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 	var outTotal dcrutil.Amount
@@ -1619,7 +1603,7 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 		return nil, err
 	}
 
-	eligible := make([]udb.Credit, 0, len(unspent))
+	eligible := make([]Input, 0, len(unspent))
 	for i := range unspent {
 		output := unspent[i]
 
@@ -1651,7 +1635,11 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 			continue
 		}
 
-		eligible = append(eligible, *output)
+		txOut := wire.NewTxOut(int64(output.Amount), output.PkScript)
+		eligible = append(eligible, Input{
+			OutPoint: output.OutPoint,
+			PrevOut:  *txOut,
+		})
 		outTotal += output.Amount
 	}
 
@@ -1665,7 +1653,7 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 // signP2PKHMsgTx sets the SignatureScript for every item in msgtx.TxIn.
 // It must be called every time a msgtx is changed.
 // Only P2PKH outputs are supported at this point.
-func (w *Wallet) signP2PKHMsgTx(msgtx *wire.MsgTx, prevOutputs []udb.Credit, addrmgrNs walletdb.ReadBucket) error {
+func (w *Wallet) signP2PKHMsgTx(msgtx *wire.MsgTx, prevOutputs []Input, addrmgrNs walletdb.ReadBucket) error {
 	if len(prevOutputs) != len(msgtx.TxIn) {
 		return errors.Errorf(
 			"Number of prevOutputs (%d) does not match number of tx inputs (%d)",
@@ -1675,7 +1663,7 @@ func (w *Wallet) signP2PKHMsgTx(msgtx *wire.MsgTx, prevOutputs []udb.Credit, add
 		// Errors don't matter here, as we only consider the
 		// case where len(addrs) == 1.
 		_, addrs, _, _ := txscript.ExtractPkScriptAddrs(
-			0, output.PkScript, w.chainParams)
+			0, output.PrevOut.PkScript, w.chainParams)
 		if len(addrs) != 1 {
 			continue
 		}
@@ -1690,7 +1678,7 @@ func (w *Wallet) signP2PKHMsgTx(msgtx *wire.MsgTx, prevOutputs []udb.Credit, add
 		}
 		defer done()
 
-		sigscript, err := txscript.SignatureScript(msgtx, i, output.PkScript,
+		sigscript, err := txscript.SignatureScript(msgtx, i, output.PrevOut.PkScript,
 			txscript.SigHashAll, privKey.Serialize(), dcrec.STEcdsaSecp256k1, true)
 		if err != nil {
 			return errors.E(errors.Op("txscript.SignatureScript"), err)
