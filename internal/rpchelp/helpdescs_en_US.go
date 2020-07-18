@@ -610,6 +610,17 @@ var helpDescsEnUS = map[string]string{
 	"verifymessage-message":   "The message to verify",
 	"verifymessage--result0":  "Whether the message was signed with the private key of 'address'",
 
+	// VerifySeedCmd help.
+	"verifyseed--synopsis": "Verifies if the wallets seed matches the inputted seed",
+	"verifyseed-seed":      "The seed to check against the running wallet",
+	"verifyseed-account": "The account to check the wallet account derived seed with\n" +
+		"the accounts master public key.  See BIP32: hierarchical deterministic wallets for more info.",
+
+	// VerifySeedResult help.
+	"verifyseedresult-cointype": "The coin type to be used in the hierarchical wallet derivation process.\n" +
+		"See BIP32: hierarchical deterministic wallets for more info",
+	"verifyseedresult-keyresult": "The result of whether or not if the inputted seed matches the wallet",
+
 	// Version help
 	"version--synopsis":       "Returns application and API versions (semver) keyed by their names",
 	"version--result0--desc":  "Version objects keyed by the program or API name",

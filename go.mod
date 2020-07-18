@@ -22,6 +22,13 @@ require (
 	github.com/decred/dcrd/rpc/jsonrpc/types/v2 v2.0.0
 	github.com/decred/dcrd/txscript/v3 v3.0.0-20200608124004-b2f67c2dc475
 	github.com/decred/dcrd/wire v1.3.0
+	github.com/decred/dcrwallet/errors/v2 v2.0.0
+	github.com/decred/dcrwallet/p2p/v2 v2.0.0
+	github.com/decred/dcrwallet/rpc/client/dcrd v1.0.0
+	github.com/decred/dcrwallet/rpc/jsonrpc/types v1.4.0
+	github.com/decred/dcrwallet/version v1.0.5
+	github.com/decred/dcrwallet/wallet/v3 v3.2.1
+	github.com/decred/dcrwallet/walletseed v1.0.3
 	github.com/decred/go-socks v1.1.0
 	github.com/decred/slog v1.0.0
 	github.com/golang/protobuf v1.3.2
@@ -32,9 +39,7 @@ require (
 	github.com/jrick/wsrpc/v2 v2.3.3
 	go.etcd.io/bbolt v1.3.5
 	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6
-	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
 	google.golang.org/grpc v1.25.1
 )
