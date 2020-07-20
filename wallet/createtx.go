@@ -1361,9 +1361,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 	}
 
-	defer w.lockedOutpointMu.Unlock()
-	w.lockedOutpointMu.Lock()
-
 	// Create each ticket.
 	ticketHashes := make([]*chainhash.Hash, 0, req.Count)
 	tickets := make([]*wire.MsgTx, 0, req.Count)
@@ -1410,6 +1407,8 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		// stored from the configuation. Finally, generate
 		// an address.
 		var addrVote, addrSubsidy dcrutil.Address
+		var ticket *wire.MsgTx
+		w.lockedOutpointMu.Lock()
 		err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			addrVote = req.VotingAddress
 			if addrVote == nil && req.CSPPServer == "" {
@@ -1429,87 +1428,86 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 				branch = req.MixedAccountBranch
 			}
 			addrSubsidy, err = addrFunc(op, dbtx, subsidyAccount, branch)
-			return err
-		})
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
+			if err != nil {
+				return err
+			}
 
-		// Generate the ticket msgTx and sign it if DontSignTx is false.
-		ticket, err := makeTicket(w.chainParams, eopPool, eop, addrVote,
-			addrSubsidy, int64(ticketPrice), poolAddress)
-		if err != nil {
-			return nil, err
-		}
-		// Set the expiry.
-		ticket.Expiry = uint32(req.Expiry)
+			// Generate the ticket msgTx and sign it if DontSignTx is false.
+			ticket, err = makeTicket(w.chainParams, eopPool, eop, addrVote,
+				addrSubsidy, int64(ticketPrice), poolAddress)
+			if err != nil {
+				return err
+			}
+			// Set the expiry.
+			ticket.Expiry = uint32(req.Expiry)
 
-		ticketHash := ticket.TxHash()
-		ticketHashes = append(ticketHashes, &ticketHash)
-		tickets = append(tickets, ticket)
+			ticketHash := ticket.TxHash()
+			ticketHashes = append(ticketHashes, &ticketHash)
+			tickets = append(tickets, ticket)
 
-		purchaseTicketsResponse.Tickets = tickets
-		purchaseTicketsResponse.TicketHashes = ticketHashes
-		if req.DontSignTx {
-			continue
-		}
-		// Sign and publish tx if DontSignTx is false
-		var forSigning []udb.Credit
-		if eopPool != nil {
-			eopPoolCredit := udb.Credit{
-				OutPoint:     *eopPool.op,
+			purchaseTicketsResponse.Tickets = tickets
+			purchaseTicketsResponse.TicketHashes = ticketHashes
+			if req.DontSignTx {
+				return nil
+			}
+			// Sign and publish tx if DontSignTx is false
+			var forSigning []udb.Credit
+			if eopPool != nil {
+				eopPoolCredit := udb.Credit{
+					OutPoint:     *eopPool.op,
+					BlockMeta:    udb.BlockMeta{},
+					Amount:       dcrutil.Amount(eopPool.amt),
+					PkScript:     eopPool.pkScript,
+					Received:     time.Now(),
+					FromCoinBase: false,
+				}
+				forSigning = append(forSigning, eopPoolCredit)
+			}
+			eopCredit := udb.Credit{
+				OutPoint:     *eop.op,
 				BlockMeta:    udb.BlockMeta{},
-				Amount:       dcrutil.Amount(eopPool.amt),
-				PkScript:     eopPool.pkScript,
+				Amount:       dcrutil.Amount(eop.amt),
+				PkScript:     eop.pkScript,
 				Received:     time.Now(),
 				FromCoinBase: false,
 			}
-			forSigning = append(forSigning, eopPoolCredit)
-		}
-		eopCredit := udb.Credit{
-			OutPoint:     *eop.op,
-			BlockMeta:    udb.BlockMeta{},
-			Amount:       dcrutil.Amount(eop.amt),
-			PkScript:     eop.pkScript,
-			Received:     time.Now(),
-			FromCoinBase: false,
-		}
-		forSigning = append(forSigning, eopCredit)
+			forSigning = append(forSigning, eopCredit)
 
-		err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-			ns := tx.ReadBucket(waddrmgrNamespaceKey)
-			return w.signP2PKHMsgTx(ticket, forSigning, ns)
-		})
-		if err != nil {
-			return purchaseTicketsResponse, errors.E(op, err)
-		}
-		err = validateMsgTx(op, ticket, creditScripts(forSigning))
-		if err != nil {
-			return purchaseTicketsResponse, errors.E(op, err)
-		}
+			ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
+			err = w.signP2PKHMsgTx(ticket, forSigning, ns)
+			if err != nil {
+				return err
+			}
+			err = validateMsgTx(op, ticket, creditScripts(forSigning))
+			if err != nil {
+				return err
+			}
 
-		err = w.checkHighFees(dcrutil.Amount(eop.amt), ticket)
-		if err != nil {
-			return purchaseTicketsResponse, errors.E(op, err)
-		}
+			err = w.checkHighFees(dcrutil.Amount(eop.amt), ticket)
+			if err != nil {
+				return err
+			}
 
-		rec, err := udb.NewTxRecordFromMsgTx(ticket, time.Now())
-		if err != nil {
-			return purchaseTicketsResponse, errors.E(op, err)
-		}
+			rec, err := udb.NewTxRecordFromMsgTx(ticket, time.Now())
+			if err != nil {
+				return err
+			}
 
-		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			watch, err := w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
 			watchOutPoints = append(watchOutPoints, watch...)
-			return err
+			if err != nil {
+				return err
+			}
+
+			w.recentlyPublishedMu.Lock()
+			w.recentlyPublished[rec.Hash] = struct{}{}
+			w.recentlyPublishedMu.Unlock()
+
+			return nil
 		})
 		if err != nil {
 			return purchaseTicketsResponse, errors.E(op, err)
 		}
-
-		w.recentlyPublishedMu.Lock()
-		w.recentlyPublished[rec.Hash] = struct{}{}
-		w.recentlyPublishedMu.Unlock()
 
 		// TODO: Send all tickets, and all split transactions, together.  Purge
 		// transactions from DB if tickets cannot be sent.

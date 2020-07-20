@@ -624,6 +624,9 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 	}
 
 	for {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		if alb.cursor >= w.gapLimit {
 			switch opts.policy {
 			case gapPolicyError:
