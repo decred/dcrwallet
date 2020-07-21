@@ -3845,7 +3845,7 @@ func (w *Wallet) acctLockedOutpoints(ctx context.Context, acctName string) ([]dc
 	}
 	w.lockedOutpointMu.Unlock()
 
-	acctLocked := make([]dcrdtypes.TransactionInput, 0, len(w.lockedOutpoints))
+	acctLocked := make([]dcrdtypes.TransactionInput, 0, len(locked))
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
@@ -3858,7 +3858,8 @@ func (w *Wallet) acctLockedOutpoints(ctx context.Context, acctName string) ([]dc
 
 		// Outpoints are not validated before they're locked, so
 		// invalid outpoints may be locked. Simply ignore.
-		for _, op := range locked {
+		for i := range locked {
+			op := &locked[i]
 			details, err := w.txStore.TxDetails(txmgrNs, &op.Hash)
 			if err != nil {
 				if errors.Is(err, errors.NotExist) {
@@ -3905,7 +3906,10 @@ func (w *Wallet) acctLockedOutpoints(ctx context.Context, acctName string) ([]dc
 		return nil
 	})
 
-	return acctLocked, err
+	if err != nil {
+		return nil, err
+	}
+	return acctLocked, nil
 }
 
 // UnminedTransactions returns all unmined transactions from the wallet.
