@@ -1483,6 +1483,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 
 			return nil
 		})
+		w.lockedOutpointMu.Unlock()
 		if err != nil {
 			return purchaseTicketsResponse, errors.E(op, err)
 		}
