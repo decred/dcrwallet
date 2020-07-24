@@ -1189,9 +1189,9 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		return nil, errors.E(op, errors.Invalid, "expiry height must be above next block height")
 	}
 
-	addrFunc := func(op errors.Op, maybeDBTX walletdb.ReadWriteTx, account, branch uint32) (dcrutil.Address, error) {
+	addrFunc := func(op errors.Op, account, branch uint32) (dcrutil.Address, error) {
 		const accountName = "" // not used, so can be faked.
-		return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, maybeDBTX), accountName,
+		return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil), accountName,
 			account, branch, WithGapPolicyIgnore())
 	}
 
@@ -1201,7 +1201,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		if err != nil {
 			err = errors.E(op, err)
 		}
-		addrFunc = func(errors.Op, walletdb.ReadWriteTx, uint32, uint32) (dcrutil.Address, error) {
+		addrFunc = func(errors.Op, uint32, uint32) (dcrutil.Address, error) {
 			return addr, err
 		}
 	}
@@ -1402,32 +1402,30 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		// request first, then check the ticket address
 		// stored from the configuation. Finally, generate
 		// an address.
-		var addrVote, addrSubsidy dcrutil.Address
+		addrVote := req.VotingAddress
+		if addrVote == nil && req.CSPPServer == "" {
+			addrVote = w.ticketAddress
+		}
+		if addrVote == nil {
+			addrVote, err = addrFunc(op, req.VotingAccount, 1)
+			if err != nil {
+				return nil, err
+			}
+		}
+		subsidyAccount := req.SourceAccount
+		var branch uint32 = 1
+		if req.CSPPServer != "" {
+			subsidyAccount = req.MixedAccount
+			branch = req.MixedAccountBranch
+		}
+		addrSubsidy, err := addrFunc(op, subsidyAccount, branch)
+		if err != nil {
+			return nil, err
+		}
+
 		var ticket *wire.MsgTx
 		w.lockedOutpointMu.Lock()
-		err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-			addrVote = req.VotingAddress
-			if addrVote == nil && req.CSPPServer == "" {
-				addrVote = w.ticketAddress
-			}
-			if addrVote == nil {
-				addrVote, err = addrFunc(op, dbtx, req.VotingAccount, 1)
-				if err != nil {
-					return err
-				}
-			}
-
-			var subsidyAccount = req.SourceAccount
-			var branch uint32 = 1
-			if req.CSPPServer != "" {
-				subsidyAccount = req.MixedAccount
-				branch = req.MixedAccountBranch
-			}
-			addrSubsidy, err = addrFunc(op, dbtx, subsidyAccount, branch)
-			if err != nil {
-				return err
-			}
-
+		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			// Generate the ticket msgTx and sign it if DontSignTx is false.
 			ticket, err = makeTicket(w.chainParams, eopPool, eop, addrVote,
 				addrSubsidy, int64(ticketPrice), poolAddress)
