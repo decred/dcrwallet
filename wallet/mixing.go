@@ -107,15 +107,15 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	var count int
 	var mixValue, remValue dcrutil.Amount
 	for i, v := range splitPoints {
-		// When the sdiff is more than four times this mixed output
-		// amount, there is a smaller common mixed amount with more
-		// pairing activity (due to CoinShuffle++ participation from
-		// ticket buyers).  Skipping this amount and moving to the next
-		// smallest common mixed amount will result in quicker pairings,
-		// or pairings occurring at all.  The number of mixed outputs is
-		// capped to prevent a single mix being overwhelmingly funded by
-		// a single output, and to conserve memory resources.
-		if i != len(splitPoints)-1 && 4*v >= sdiff {
+		// When the sdiff is more than this mixed output amount, there
+		// is a smaller common mixed amount with more pairing activity
+		// (due to CoinShuffle++ participation from ticket buyers).
+		// Skipping this amount and moving to the next smallest common
+		// mixed amount will result in quicker pairings, or pairings
+		// occurring at all.  The number of mixed outputs is capped to
+		// prevent a single mix being overwhelmingly funded by a single
+		// output, and to conserve memory resources.
+		if i != len(splitPoints)-1 && v >= sdiff {
 			continue
 		}
 		count = int(amount / v)
