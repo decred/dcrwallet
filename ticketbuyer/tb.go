@@ -103,6 +103,18 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 
 			tip := n.AttachedBlocks[len(n.AttachedBlocks)-1]
 			w := tb.wallet
+
+			// Don't perform any actions while transactions are not synced through
+			// the tip block.
+			rp, err := w.RescanPoint(ctx)
+			if err != nil {
+				return err
+			}
+			if rp != nil {
+				log.Debugf("Skipping autobuyer actions: transactions are not synced")
+				continue
+			}
+			
 			tipHeader, err := w.BlockHeader(ctx, tip)
 			if err != nil {
 				log.Error(err)
@@ -186,17 +198,6 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	}
 
 	w := tb.wallet
-
-	// Don't buy tickets for this attached block when transactions are not
-	// synced through the tip block.
-	rp, err := w.RescanPoint(ctx)
-	if err != nil {
-		return err
-	}
-	if rp != nil {
-		log.Debugf("Skipping purchase: transactions are not synced")
-		return nil
-	}
 
 	// Unable to publish any transactions if the network backend is unset.
 	n, err := w.NetworkBackend()
