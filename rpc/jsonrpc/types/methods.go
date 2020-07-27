@@ -1074,6 +1074,9 @@ type ImportCFiltersV2Cmd struct {
 	Filters     []string `json:"filters"`
 }
 
+// TicketInfoCmd defines the ticketinfo JSON-RPC command.
+type TicketInfoCmd struct{}
+
 type registeredMethod struct {
 	method string
 	cmd    interface{}
@@ -1148,6 +1151,7 @@ func init() {
 		{"signrawtransactions", (*SignRawTransactionsCmd)(nil)},
 		{"stakepooluserinfo", (*StakePoolUserInfoCmd)(nil)},
 		{"sweepaccount", (*SweepAccountCmd)(nil)},
+		{"ticketinfo", (*TicketInfoCmd)(nil)},
 		{"validatepredcp0005cf", (*ValidatePreDCP0005CFCmd)(nil)},
 		{"walletinfo", (*WalletInfoCmd)(nil)},
 		{"walletislocked", (*WalletIsLockedCmd)(nil)},

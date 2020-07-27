@@ -727,6 +727,19 @@ var helpDescsEnUS = map[string]string{
 	"ticketsforaddress-address":   "Address to look for.",
 	"ticketsforaddress--result0":  "Tickets owned by the specified address.",
 
+	// TicketInfoCmd help.
+	"ticketinfo--synopsis":           "Returns details of each wallet ticket transaction",
+	"ticketinfo--result0":            "Array of objects describing each ticket",
+	"ticketinforesult-hash":          "Transaction hash of the ticket",
+	"ticketinforesult-cost":          "Amount paid to purchase the ticket; this may be greater than the ticket price at time of purchase",
+	"ticketinforesult-votingaddress": "Address of 0th output, which describes the requirements to spend the ticket",
+	"ticketinforesult-status":        "Description of ticket status (unknown, unmined, immature, mature, live, voted, missed, expired, unspent, revoked)",
+	"ticketinforesult-blockhash":     "Hash of block ticket is mined in",
+	"ticketinforesult-blockheight":   "Height of block ticket is mined in",
+	"ticketinforesult-vote":          "Transaction hash of vote which spends the ticket",
+	"ticketinforesult-revocation":    "Transaction hash of revocation which spends the ticket",
+	"ticketinforesult-choices":       "Vote preferences set for the ticket",
+
 	// PurchaseTicketCmd help.
 	"purchaseticket--synopsis":          "Purchase ticket using available funds.",
 	"purchaseticket--result0":           "Hash of the resulting ticket",

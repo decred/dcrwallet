@@ -307,7 +307,8 @@ func (w *Wallet) AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) 
 	voteBits = 1
 	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		if ticketHash != nil {
-			ownTicket = w.txStore.OwnTicket(tx, ticketHash) || w.stakeMgr.OwnTicket(ticketHash)
+			ownTicket = w.txStore.OwnTicket(tx, ticketHash)
+			ownTicket = ownTicket || w.stakeMgr.OwnTicket(ticketHash)
 			if !ownTicket {
 				return nil
 			}
@@ -2473,11 +2474,6 @@ func (w *Wallet) TransactionSummary(ctx context.Context, txHash *chainhash.Hash)
 	return txSummary, confs, blockHash, nil
 }
 
-// GetTicketsResult response struct for gettickets rpc request
-type GetTicketsResult struct {
-	Tickets []*TicketSummary
-}
-
 // fetchTicketDetails returns the ticket details of the provided ticket hash.
 func (w *Wallet) fetchTicketDetails(ns walletdb.ReadBucket, hash *chainhash.Hash) (*udb.TicketDetails, error) {
 	txDetail, err := w.txStore.TxDetails(ns, hash)
@@ -2496,6 +2492,114 @@ func (w *Wallet) fetchTicketDetails(ns walletdb.ReadBucket, hash *chainhash.Hash
 	}
 
 	return ticketDetails, nil
+}
+
+// TicketSummary contains the properties to describe a ticket's current status
+type TicketSummary struct {
+	Ticket  *TransactionSummary
+	Spender *TransactionSummary
+	Status  TicketStatus
+}
+
+// TicketStatus describes the current status a ticket can be observed to be.
+type TicketStatus uint
+
+//go:generate stringer -type=TicketStatus -linecomment
+
+const (
+	// TicketStatusUnknown any ticket that its status was unable to be determined.
+	TicketStatusUnknown TicketStatus = iota // unknown
+
+	// TicketStatusUnmined any not yet mined ticket.
+	TicketStatusUnmined // unmined
+
+	// TicketStatusImmature any so to be live ticket.
+	TicketStatusImmature // immature
+
+	// TicketStatusLive any currently live ticket.
+	TicketStatusLive // live
+
+	// TicketStatusVoted any ticket that was seen to have voted.
+	TicketStatusVoted // voted
+
+	// TicketStatusMissed any ticket that has yet to be revoked, and was missed.
+	TicketStatusMissed // missed
+
+	// TicketStatusExpired any ticket that has yet to be revoked, and was expired.
+	// In SPV mode, this status may be used by unspent tickets definitely
+	// past the expiry period, even if the ticket was actually missed rather than
+	// expiring.
+	TicketStatusExpired // expired
+
+	// TicketStatusUnspent is a matured ticket that has not been spent.  It
+	// is only used under SPV mode where it is unknown if a ticket is live,
+	// was missed, or expired.
+	TicketStatusUnspent // unspent
+
+	// TicketStatusRevoked any ticket that has been previously revoked.
+	TicketStatusRevoked // revoked
+)
+
+func makeTicketSummary(ctx context.Context, rpc *dcrd.RPC, dbtx walletdb.ReadTx,
+	w *Wallet, details *udb.TicketDetails) *TicketSummary {
+
+	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+	ticketHeight := details.Ticket.Height()
+	_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+
+	ticketTransactionDetails := makeTxSummary(dbtx, w, details.Ticket)
+	summary := &TicketSummary{
+		Ticket: &ticketTransactionDetails,
+		Status: TicketStatusLive,
+	}
+	if rpc == nil {
+		summary.Status = TicketStatusUnspent
+	}
+	// Check if ticket is unmined or immature
+	switch {
+	case ticketHeight == int32(-1):
+		summary.Status = TicketStatusUnmined
+	case !ticketMatured(w.chainParams, ticketHeight, tipHeight):
+		summary.Status = TicketStatusImmature
+	}
+
+	if details.Spender != nil {
+		spenderTransactionDetails := makeTxSummary(dbtx, w, details.Spender)
+		summary.Spender = &spenderTransactionDetails
+
+		switch details.Spender.TxType {
+		case stake.TxTypeSSGen:
+			summary.Status = TicketStatusVoted
+		case stake.TxTypeSSRtx:
+			summary.Status = TicketStatusRevoked
+		}
+		return summary
+	}
+
+	if rpc != nil {
+		// In RPC mode, find if unspent ticket was expired or missed.
+		hashes := []*chainhash.Hash{&details.Ticket.Hash}
+		live, expired, err := rpc.ExistsLiveExpiredTickets(ctx, hashes)
+		switch {
+		case err != nil:
+			log.Errorf("Unable to check if ticket was live "+
+				"for ticket status: %v", &details.Ticket.Hash)
+			summary.Status = TicketStatusUnknown
+		case expired.Get(0):
+			summary.Status = TicketStatusExpired
+		case !live.Get(0):
+			summary.Status = TicketStatusMissed
+		}
+	} else {
+		// In SPV mode, use expired status when the ticket is certainly
+		// past the expiry period (even though it is possible that the
+		// ticket was missed rather than expiring).
+		if ticketExpired(w.chainParams, ticketHeight, tipHeight) {
+			summary.Status = TicketStatusExpired
+		}
+	}
+
+	return summary
 }
 
 // GetTicketInfoPrecise returns the ticket summary and the corresponding block header
@@ -2667,7 +2771,8 @@ func (w *Wallet) blockRange(dbtx walletdb.ReadTx, startBlock, endBlock *BlockIde
 // whether tickets have been missed or not.  Otherwise, tickets are just known
 // to be unspent (possibly live or missed).
 func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpcCaller Caller,
-	f func([]*TicketSummary, *wire.BlockHeader) (bool, error), startBlock, endBlock *BlockIdentifier) error {
+	f func([]*TicketSummary, *wire.BlockHeader) (bool, error),
+	startBlock, endBlock *BlockIdentifier) error {
 
 	const op errors.Op = "wallet.GetTicketsPrecise"
 
@@ -2685,16 +2790,17 @@ func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpcCaller Caller,
 			tickets := make([]*TicketSummary, 0, len(details))
 
 			for i := range details {
-				// XXX Here is where I would look up the ticket information from the db so I can populate spenderhash and ticket status
 				ticketInfo, err := w.txStore.TicketDetails(txmgrNs, &details[i])
 				if err != nil {
-					return false, errors.Errorf("%v while trying to get ticket details for txhash: %v", err, &details[i].Hash)
+					return false, errors.Errorf("%v while trying to get "+
+						"ticket details for txhash: %v", err, &details[i].Hash)
 				}
 				// Continue if not a ticket
 				if ticketInfo == nil {
 					continue
 				}
-				tickets = append(tickets, makeTicketSummary(ctx, rpc, dbtx, w, ticketInfo))
+				summary := makeTicketSummary(ctx, rpc, dbtx, w, ticketInfo)
+				tickets = append(tickets, summary)
 			}
 
 			if len(tickets) == 0 {
@@ -2705,7 +2811,8 @@ func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpcCaller Caller,
 				return f(tickets, nil)
 			}
 
-			headerBytes, err := w.txStore.GetSerializedBlockHeader(txmgrNs, &details[0].Block.Hash)
+			blockHash := &details[0].Block.Hash
+			headerBytes, err := w.txStore.GetSerializedBlockHeader(txmgrNs, blockHash)
 			if err != nil {
 				return false, err
 			}
@@ -2737,7 +2844,10 @@ func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpcCaller Caller,
 //
 // Because this function does not have any chain client argument, tickets are
 // unable to be determined whether or not they have been missed, simply unspent.
-func (w *Wallet) GetTickets(ctx context.Context, f func([]*TicketSummary, *wire.BlockHeader) (bool, error), startBlock, endBlock *BlockIdentifier) error {
+func (w *Wallet) GetTickets(ctx context.Context,
+	f func([]*TicketSummary, *wire.BlockHeader) (bool, error),
+	startBlock, endBlock *BlockIdentifier) error {
+
 	const op errors.Op = "wallet.GetTickets"
 
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
@@ -2753,16 +2863,17 @@ func (w *Wallet) GetTickets(ctx context.Context, f func([]*TicketSummary, *wire.
 			tickets := make([]*TicketSummary, 0, len(details))
 
 			for i := range details {
-				// XXX Here is where I would look up the ticket information from the db so I can populate spenderhash and ticket status
 				ticketInfo, err := w.txStore.TicketDetails(txmgrNs, &details[i])
 				if err != nil {
-					return false, errors.Errorf("%v while trying to get ticket details for txhash: %v", err, &details[i].Hash)
+					return false, errors.Errorf("%v while trying to get "+
+						"ticket details for txhash: %v", err, &details[i].Hash)
 				}
 				// Continue if not a ticket
 				if ticketInfo == nil {
 					continue
 				}
-				tickets = append(tickets, makeTicketSummary(context.Background(), nil, dbtx, w, ticketInfo))
+				summary := makeTicketSummary(ctx, nil, dbtx, w, ticketInfo)
+				tickets = append(tickets, summary)
 			}
 
 			if len(tickets) == 0 {
@@ -2773,7 +2884,8 @@ func (w *Wallet) GetTickets(ctx context.Context, f func([]*TicketSummary, *wire.
 				return f(tickets, nil)
 			}
 
-			headerBytes, err := w.txStore.GetSerializedBlockHeader(txmgrNs, &details[0].Block.Hash)
+			blockHash := &details[0].Block.Hash
+			headerBytes, err := w.txStore.GetSerializedBlockHeader(txmgrNs, blockHash)
 			if err != nil {
 				return false, err
 			}

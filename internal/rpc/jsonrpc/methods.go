@@ -128,6 +128,7 @@ var handlers = map[string]handler{
 	"sweepaccount":            {fn: (*Server).sweepAccount},
 	"redeemmultisigout":       {fn: (*Server).redeemMultiSigOut},
 	"redeemmultisigouts":      {fn: (*Server).redeemMultiSigOuts},
+	"ticketinfo":              {fn: (*Server).ticketInfo},
 	"ticketsforaddress":       {fn: (*Server).ticketsForAddress},
 	"validateaddress":         {fn: (*Server).validateAddress},
 	"validatepredcp0005cf":    {fn: (*Server).validatePreDCP0005CF},
@@ -2984,6 +2985,74 @@ func (s *Server) stakePoolUserInfo(ctx context.Context, icmd interface{}) (inter
 	}
 
 	return resp, nil
+}
+
+func (s *Server) ticketInfo(ctx context.Context, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	res := make([]types.TicketInfoResult, 0)
+
+	start := wallet.NewBlockIdentifierFromHeight(0)
+	end := wallet.NewBlockIdentifierFromHeight(-1)
+	tmptx := new(wire.MsgTx)
+	err := w.GetTickets(ctx, func(ts []*wallet.TicketSummary, h *wire.BlockHeader) (bool, error) {
+		for _, t := range ts {
+			status := t.Status
+			if status == wallet.TicketStatusUnmined {
+				// Standardize on immature.  An unmined ticket
+				// can be determined by the block height field
+				// and the lack of a block hash.
+				status = wallet.TicketStatusImmature
+			}
+			err := tmptx.Deserialize(bytes.NewReader(t.Ticket.Transaction))
+			if err != nil {
+				return false, err
+			}
+			out := tmptx.TxOut[0]
+			info := types.TicketInfoResult{
+				Hash:        t.Ticket.Hash.String(),
+				Cost:        dcrutil.Amount(out.Value).ToCoin(),
+				BlockHeight: -1,
+				Status:      status.String(),
+			}
+			_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
+				out.PkScript, w.ChainParams())
+			if err != nil {
+				return false, err
+			}
+			info.VotingAddress = addrs[0].String()
+			if h != nil {
+				info.BlockHash = h.BlockHash().String()
+				info.BlockHeight = int32(h.Height)
+			}
+			if t.Spender != nil {
+				hash := t.Spender.Hash.String()
+				if t.Spender.Type == wallet.TransactionTypeRevocation {
+					info.Revocation = hash
+				} else {
+					info.Vote = hash
+				}
+			}
+
+			choices, _, err := w.AgendaChoices(ctx, t.Ticket.Hash)
+			if err != nil {
+				return false, err
+			}
+			info.Choices = make([]types.VoteChoice, len(choices))
+			for i := range choices {
+				info.Choices[i].AgendaID = choices[i].AgendaID
+				info.Choices[i].ChoiceID = choices[i].ChoiceID
+			}
+			
+			res = append(res, info)
+		}
+		return false, nil
+	}, start, end)
+
+	return res, err
 }
 
 // ticketsForAddress retrieves all ticket hashes that have the passed voting

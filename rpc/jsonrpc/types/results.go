@@ -138,9 +138,9 @@ type GetTransactionResult struct {
 // VoteChoice models the data for a vote choice in the getvotechoices result.
 type VoteChoice struct {
 	AgendaID          string `json:"agendaid"`
-	AgendaDescription string `json:"agendadescription"`
+	AgendaDescription string `json:"agendadescription,omitempty"`
 	ChoiceID          string `json:"choiceid"`
-	ChoiceDescription string `json:"choicedescription"`
+	ChoiceDescription string `json:"choicedescription,omitempty"`
 }
 
 // GetVoteChoicesResult models the data returned by the getvotechoices command.
@@ -341,6 +341,19 @@ type SweepAccountResult struct {
 	TotalPreviousOutputAmount float64 `json:"totalpreviousoutputamount"`
 	TotalOutputAmount         float64 `json:"totaloutputamount"`
 	EstimatedSignedSize       uint32  `json:"estimatedsignedsize"`
+}
+
+// TicketInfoResult models the data returned from the ticketinfo command.
+type TicketInfoResult struct {
+	Hash          string       `json:"hash"`
+	Cost          float64      `json:"cost"`
+	VotingAddress string       `json:"votingaddress"`
+	Status        string       `json:"status"`
+	BlockHash     string       `json:"blockhash,omitempty"`
+	BlockHeight   int32        `json:"blockheight"`
+	Vote          string       `json:"vote,omitempty"`
+	Revocation    string       `json:"revocation,omitempty"`
+	Choices       []VoteChoice `json:"choices,omitempty"`
 }
 
 // ValidateAddressResult models the data returned by the wallet server

@@ -98,6 +98,7 @@ var Methods = []struct {
 	{"stakepooluserinfo", []interface{}{(*types.StakePoolUserInfoResult)(nil)}},
 	{"sweepaccount", []interface{}{(*types.SweepAccountResult)(nil)}},
 	{"ticketsforaddress", returnsBool},
+	{"ticketinfo", []interface{}{(*[]types.TicketInfoResult)(nil)}},
 	{"validateaddress", []interface{}{(*types.ValidateAddressWalletResult)(nil)}},
 	{"validatepredcp0005cf", returnsBool},
 	{"verifymessage", returnsBool},

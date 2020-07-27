@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"decred.org/dcrwallet/errors"
-	"decred.org/dcrwallet/rpc/client/dcrd"
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v3"
@@ -175,56 +174,6 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 		Fee:         fee,
 		Timestamp:   receiveTime.Unix(),
 		Type:        transactionType,
-	}
-}
-
-func makeTicketSummary(ctx context.Context, rpc *dcrd.RPC, dbtx walletdb.ReadTx, w *Wallet, details *udb.TicketDetails) *TicketSummary {
-	var ticketStatus = TicketStatusLive
-
-	ticketTransactionDetails := makeTxSummary(dbtx, w, details.Ticket)
-	if details.Spender != nil {
-		spenderTransactionDetails := makeTxSummary(dbtx, w, details.Spender)
-		if details.Spender.TxType == stake.TxTypeSSGen {
-			ticketStatus = TicketStatusVoted
-		} else if details.Spender.TxType == stake.TxTypeSSRtx {
-			ticketStatus = TicketStatusRevoked
-		} else if rpc != nil {
-			// rpc can be nil if in spv mode
-			// Final check to see if ticket was missed otherwise it's live
-			live, err := rpc.ExistsLiveTicket(ctx, &details.Ticket.Hash)
-			if err != nil {
-				log.Errorf("Unable to check if ticket was live for ticket status: %v", &details.Ticket.Hash)
-				ticketStatus = TicketStatusUnknown
-			} else if !live {
-				ticketStatus = TicketStatusMissed
-			}
-		}
-		return &TicketSummary{
-			Ticket:  &ticketTransactionDetails,
-			Spender: &spenderTransactionDetails,
-			Status:  ticketStatus,
-		}
-	}
-
-	if details.Ticket.Height() == int32(-1) {
-		ticketStatus = TicketStatusUnmined
-	} else {
-		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
-
-		// Check if ticket age is not yet mature
-		if !ticketMatured(w.chainParams, details.Ticket.Height(), tipHeight) {
-			ticketStatus = TicketStatusImmature
-			// Check if ticket age is over TicketExpiry limit and therefore expired
-		} else if ticketExpired(w.chainParams, details.Ticket.Height(), tipHeight) {
-			ticketStatus = TicketStatusExpired
-		}
-	}
-	return &TicketSummary{
-		Ticket:  &ticketTransactionDetails,
-		Spender: nil,
-		Status:  ticketStatus,
 	}
 }
 
@@ -436,35 +385,6 @@ type Block struct {
 	Header       *wire.BlockHeader // Nil if referring to mempool
 	Transactions []TransactionSummary
 }
-
-// TicketSummary contains the properties to describe a ticket's current status
-type TicketSummary struct {
-	Ticket  *TransactionSummary
-	Spender *TransactionSummary
-	Status  TicketStatus
-}
-
-// TicketStatus describes the current status a ticket can be observed to be.
-type TicketStatus int8
-
-const (
-	// TicketStatusUnknown any ticket that its status was unable to be determined.
-	TicketStatusUnknown TicketStatus = iota
-	// TicketStatusUnmined any not yet mined ticket.
-	TicketStatusUnmined
-	// TicketStatusImmature any so to be live ticket.
-	TicketStatusImmature
-	// TicketStatusLive any currently live ticket.
-	TicketStatusLive
-	// TicketStatusVoted any ticket that was seen to have voted.
-	TicketStatusVoted
-	// TicketStatusRevoked any ticket that has been previously revoked.
-	TicketStatusRevoked
-	// TicketStatusMissed any ticket that has yet to be revoked, and was missed.
-	TicketStatusMissed
-	// TicketStatusExpired any ticket that has yet to be revoked, and was expired.
-	TicketStatusExpired
-)
 
 // TransactionSummary contains a transaction relevant to the wallet and marks
 // which inputs and outputs were relevant.
