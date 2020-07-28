@@ -4358,7 +4358,7 @@ func (w *Wallet) appendRelevantOutpoints(relevant []wire.OutPoint, dbtx walletdb
 		switch class {
 		case txscript.StakeSubmissionTy, txscript.StakeSubChangeTy,
 			txscript.StakeGenTy, txscript.StakeRevocationTy:
-			op.Tree = wire.TxTreeStake
+			tree = wire.TxTreeStake
 		}
 
 		for _, a := range addrs {
