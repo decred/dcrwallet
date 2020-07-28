@@ -81,6 +81,7 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 	defer c.Done()
 
 	ctx, outerCancel := context.WithCancel(ctx)
+	defer outerCancel()
 	var fatal error
 	var fatalMu sync.Mutex
 
@@ -114,7 +115,7 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 				log.Debugf("Skipping autobuyer actions: transactions are not synced")
 				continue
 			}
-			
+
 			tipHeader, err := w.BlockHeader(ctx, tip)
 			if err != nil {
 				log.Error(err)
