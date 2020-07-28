@@ -89,6 +89,7 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 	for {
 		select {
 		case <-ctx.Done():
+			outerCancel()
 			fatalMu.Lock()
 			err := fatal
 			fatalMu.Unlock()
@@ -108,13 +109,14 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 			// the tip block.
 			rp, err := w.RescanPoint(ctx)
 			if err != nil {
+				outerCancel()
 				return err
 			}
 			if rp != nil {
 				log.Debugf("Skipping autobuyer actions: transactions are not synced")
 				continue
 			}
-			
+
 			tipHeader, err := w.BlockHeader(ctx, tip)
 			if err != nil {
 				log.Error(err)

@@ -3046,7 +3046,7 @@ func (s *Server) ticketInfo(ctx context.Context, icmd interface{}) (interface{},
 				info.Choices[i].AgendaID = choices[i].AgendaID
 				info.Choices[i].ChoiceID = choices[i].ChoiceID
 			}
-			
+
 			res = append(res, info)
 		}
 		return false, nil
