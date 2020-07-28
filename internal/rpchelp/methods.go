@@ -57,6 +57,7 @@ var Methods = []struct {
 	{"getrawchangeaddress", returnsString},
 	{"getreceivedbyaccount", returnsNumber},
 	{"getreceivedbyaddress", returnsNumber},
+	{"getpeerinfo", []interface{}{(*types.GetPeerInfoResult)(nil)}},
 	{"getstakeinfo", []interface{}{(*types.GetStakeInfoResult)(nil)}},
 	{"gettickets", []interface{}{(*types.GetTicketsResult)(nil)}},
 	{"gettransaction", []interface{}{(*types.GetTransactionResult)(nil)}},

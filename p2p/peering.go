@@ -234,6 +234,9 @@ func (rp *RemotePeer) NA() *wire.NetAddress { return rp.na }
 // UA returns the remote peer's user agent.
 func (rp *RemotePeer) UA() string { return rp.ua }
 
+// ID returns the remote ID.
+func (rp *RemotePeer) ID() uint64 { return rp.id }
+
 // InitialHeight returns the current height the peer advertised in its version
 // message.
 func (rp *RemotePeer) InitialHeight() int32 { return rp.initHeight }
@@ -630,6 +633,19 @@ func (rp *RemotePeer) Err() error {
 func (rp *RemotePeer) RemoteAddr() net.Addr {
 	return rp.c.RemoteAddr()
 }
+
+// LocalAddr returns the local address of the peer's TCP connection.
+func (rp *RemotePeer) LocalAddr() net.Addr {
+	return rp.c.LocalAddr()
+}
+
+// BanScore returns the banScore of the peer's.
+func (rp *RemotePeer) BanScore() uint32 {
+	return rp.banScore.Int()
+}
+
+// Pver returns the negotiated protocol version.
+func (rp *RemotePeer) Pver() uint32 { return rp.pver }
 
 func (rp *RemotePeer) String() string {
 	return rp.raddr.String()

@@ -1173,6 +1173,7 @@ func init() {
 		{"getblockcount", (*dcrdtypes.GetBlockCountCmd)(nil)},
 		{"getblockhash", (*dcrdtypes.GetBlockHashCmd)(nil)},
 		{"getinfo", (*dcrdtypes.GetInfoCmd)(nil)},
+		{"getpeerinfo", (*dcrdtypes.GetPeerInfoCmd)(nil)},
 		{"help", (*dcrdtypes.HelpCmd)(nil)},
 		{"ticketsforaddress", (*dcrdtypes.TicketsForAddressCmd)(nil)},
 		{"validateaddress", (*dcrdtypes.ValidateAddressCmd)(nil)},

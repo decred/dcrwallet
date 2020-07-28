@@ -12,7 +12,9 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,6 +24,7 @@ import (
 	"decred.org/dcrwallet/p2p"
 	"decred.org/dcrwallet/rpc/client/dcrd"
 	"decred.org/dcrwallet/rpc/jsonrpc/types"
+	"decred.org/dcrwallet/spv"
 	"decred.org/dcrwallet/version"
 	"decred.org/dcrwallet/wallet"
 	"decred.org/dcrwallet/wallet/txauthor"
@@ -142,6 +145,7 @@ var handlers = map[string]handler{
 	// Extensions to the reference client JSON-RPC API
 	"getbestblock":     {fn: (*Server).getBestBlock},
 	"createnewaccount": {fn: (*Server).createNewAccount},
+	"getpeerinfo":      {fn: (*Server).getPeerInfo},
 	// This was an extension but the reference implementation added it as
 	// well, but with a different API (no account parameter).  It's listed
 	// here because it hasn't been update to use the reference
@@ -1811,6 +1815,51 @@ func (s *Server) getMasterPubkey(ctx context.Context, icmd interface{}) (interfa
 	return xpub.String(), nil
 }
 
+// getPeerInfo responds to the getpeerinfo request.
+// It gets the network backend and views the data on remote peers when in spv mode
+func (s *Server) getPeerInfo(ctx context.Context, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	syncer, ok := n.(*spv.Syncer)
+	if !ok {
+		var resp []*dcrdtypes.GetPeerInfoResult
+		if rpc, ok := n.(*dcrd.RPC); ok {
+			err := rpc.Call(ctx, "getpeerinfo", &resp)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return resp, nil
+	}
+
+	infos := make([]*types.GetPeerInfoResult, 0, len(syncer.GetRemotePeers()))
+
+	for _, rp := range syncer.GetRemotePeers() {
+		info := &types.GetPeerInfoResult{
+			ID:             int32(rp.ID()),
+			Addr:           rp.RemoteAddr().String(),
+			AddrLocal:      rp.LocalAddr().String(),
+			Services:       fmt.Sprintf("%08d", uint64(rp.Services())),
+			Version:        rp.Pver(),
+			SubVer:         rp.UA(),
+			StartingHeight: int64(rp.InitialHeight()),
+			BanScore:       int32(rp.BanScore()),
+		}
+		infos = append(infos, info)
+	}
+	sort.Slice(infos, func(i, j int) bool {
+		return infos[i].ID < infos[j].ID
+	})
+	return infos, nil
+}
+
 // getStakeInfo gets a large amounts of information about the stake environment
 // and a number of statistics about local staking in the wallet.
 func (s *Server) getStakeInfo(ctx context.Context, icmd interface{}) (interface{}, error) {
@@ -3046,7 +3095,7 @@ func (s *Server) ticketInfo(ctx context.Context, icmd interface{}) (interface{},
 				info.Choices[i].AgendaID = choices[i].AgendaID
 				info.Choices[i].ChoiceID = choices[i].ChoiceID
 			}
-			
+
 			res = append(res, info)
 		}
 		return false, nil
