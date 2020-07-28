@@ -637,6 +637,11 @@ var helpDescsEnUS = map[string]string{
 	"walletpassphrase-passphrase": "The wallet passphrase",
 	"walletpassphrase-timeout":    "The number of seconds to wait before the wallet automatically locks",
 
+	// WalletPubPassPhraseChangeCmd help
+	"walletpubpassphrasechange--synopsis":     "Change the wallet's public passphrase.",
+	"walletpubpassphrasechange-oldpassphrase": "The old wallet passphrase",
+	"walletpubpassphrasechange-newpassphrase": "The new wallet passphrase",
+
 	// WalletPassphraseChangeCmd help.
 	"walletpassphrasechange--synopsis":     "Change the wallet passphrase.",
 	"walletpassphrasechange-oldpassphrase": "The old wallet passphrase",

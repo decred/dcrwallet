@@ -4148,6 +4148,23 @@ func parseOutpoint(s string) (*wire.OutPoint, error) {
 	return &wire.OutPoint{Hash: *hash, Index: uint32(index)}, nil
 }
 
+// walletPubPassphraseChange responds to the walletpubpassphrasechange request
+// by modifying the public passphrase of the wallet.
+func (s *Server) walletPubPassphraseChange(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.WalletPubPassphraseChangeCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	err := w.ChangePublicPassphrase(ctx, []byte(cmd.OldPassphrase),
+		[]byte(cmd.NewPassphrase))
+	if errors.Is(errors.Passphrase, err) {
+		return nil, rpcErrorf(dcrjson.ErrRPCWalletPassphraseIncorrect, "incorrect passphrase")
+	}
+	return nil, err
+}
+
 // decodeHexStr decodes the hex encoding of a string, possibly prepending a
 // leading '0' character if there is an odd number of bytes in the hex string.
 // This is to prevent an error for an invalid hex string when using an odd

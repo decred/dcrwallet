@@ -1077,6 +1077,12 @@ type ImportCFiltersV2Cmd struct {
 // TicketInfoCmd defines the ticketinfo JSON-RPC command.
 type TicketInfoCmd struct{}
 
+// WalletPubPassphraseChangeCmd defines the walletpubpassphrasechange JSON-RPC command.
+type WalletPubPassphraseChangeCmd struct {
+	OldPassphrase string
+	NewPassphrase string
+}
+
 type registeredMethod struct {
 	method string
 	cmd    interface{}
@@ -1158,6 +1164,7 @@ func init() {
 		{"walletlock", (*WalletLockCmd)(nil)},
 		{"walletpassphrase", (*WalletPassphraseCmd)(nil)},
 		{"walletpassphrasechange", (*WalletPassphraseChangeCmd)(nil)},
+		{"walletpubpassphrasechange", (*WalletPubPassphraseChangeCmd)(nil)},
 	}
 	for i := range register {
 		dcrjson.MustRegister(register[i].method, register[i].cmd, dcrjsonv2WalletOnly)

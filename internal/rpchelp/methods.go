@@ -109,6 +109,7 @@ var Methods = []struct {
 	{"walletlock", nil},
 	{"walletpassphrasechange", nil},
 	{"walletpassphrase", nil},
+	{"walletpubpassphrasechange", nil},
 }
 
 // HelpDescs contains the locale-specific help strings along with the locale.
