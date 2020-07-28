@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 set -ex
 
 go version
 
-go test -short ./...
+go test -short -vet=all ./...
