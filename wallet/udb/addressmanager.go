@@ -20,7 +20,6 @@ import (
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/wire"
-	"golang.org/x/crypto/ripemd160"
 )
 
 const (
@@ -232,23 +231,6 @@ var newCryptoKey = defaultNewCryptoKey
 type Manager struct {
 	mtx sync.RWMutex
 
-	// returnedSecretsMu is a read/write mutex that is held for reads when
-	// secrets (private keys) are being used and held for writes when
-	// secrets must be zeroed while locking the manager.  It manages every
-	// private key in the returnedPrivKeys map.  When a private key is
-	// returned to a caller, an entry is added to the corresponding map (if
-	// the key has not yet already been added) and a reader lock is grabbed
-	// for the duration of the private key usage.  When secrets must be
-	// cleared on lock, the writer lock of the mutex is grabbed and each
-	// returned secret is cleared.  This means that locking the manager
-	// blocks on all private key usage, and that callers must be sure to
-	// unlock the mutex when they are finished using the secret. We rely on
-	// the implementation of sync.RWMutex to prevent new readers when a
-	// writer is waiting on the lock to prevent access to secrets when
-	// another caller has locked the wallet.
-	returnedSecretsMu sync.RWMutex
-	returnedPrivKeys  map[[ripemd160.Size]byte]*secp256k1.PrivateKey
-
 	chainParams  *chaincfg.Params
 	watchingOnly bool
 	locked       bool
@@ -308,14 +290,6 @@ func (m *Manager) lock() {
 		}
 		acctInfo.acctKeyPriv = nil
 	}
-
-	// Remove clear text private keys from all address entries.
-	m.returnedSecretsMu.Lock()
-	for _, privKey := range m.returnedPrivKeys {
-		privKey.Zero()
-	}
-	m.returnedPrivKeys = nil
-	m.returnedSecretsMu.Unlock()
 
 	// Remove clear text private master and crypto keys from memory.
 	m.cryptoKeyPriv.Zero()
@@ -1092,14 +1066,6 @@ func (m *Manager) ConvertToWatchingOnly(ns walletdb.ReadWriteBucket) error {
 		acctInfo.acctKeyEncrypted = nil
 	}
 
-	// Clear and remove encrypted private keys from all address entries.
-	m.returnedSecretsMu.Lock()
-	for _, privKey := range m.returnedPrivKeys {
-		privKey.Zero()
-	}
-	m.returnedPrivKeys = nil
-	m.returnedSecretsMu.Unlock()
-
 	// Clear and remove encrypted private crypto key.
 	zero(m.cryptoKeyPrivEncrypted)
 	m.cryptoKeyPrivEncrypted = nil
@@ -1866,10 +1832,9 @@ func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr dcru
 	return forEachActiveAddress(ns, addrFn)
 }
 
-// PrivateKey retreives the private key for a P2PK or P2PKH address.  If this
-// function returns without error, the returned 'done' function must be called
-// when the private key is no longer being used.  Failure to do so will cause
-// deadlocks when the manager is locked.
+// PrivateKey retreives the private key for a P2PK or P2PKH address.  The
+// retured 'done' function should be called after the key is no longer needed to
+// overwrite the key with zeros.
 func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key *secp256k1.PrivateKey, done func(), err error) {
 	// Lock the manager mutex for writes.  This protects read access to m.locked
 	// and write access to m.returnedPrivKeys and the cached accounts.
@@ -1883,16 +1848,6 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 
 	if m.locked {
 		return nil, nil, errors.E(errors.Locked)
-	}
-
-	// If the private key for this address' hash160 has already been returned,
-	// return it again.
-	if m.returnedPrivKeys != nil {
-		key, ok := m.returnedPrivKeys[*addr.Hash160()]
-		if ok {
-			m.returnedSecretsMu.RLock()
-			return key, m.returnedSecretsMu.RUnlock, nil
-		}
 	}
 
 	// At this point, there are two types of addresses that must be handled:
@@ -1935,21 +1890,7 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 		return nil, nil, errors.E(errors.Invalid, errors.Errorf("address row type %T", addrInterface))
 	}
 
-	// Lock the RWMutex for reads for the caller and prepare to return the
-	// function to unlock. Clearing private keys first grabs the write lock and
-	// no private keys will be cleared while the caller is holding the read
-	// lock.  This prevents zeroing keys (and data racing while doing so) when
-	// the caller is still using them.
-	m.returnedSecretsMu.RLock()
-	done = m.returnedSecretsMu.RUnlock
-
-	// Add the key to the manager so it can be zeroed on wallet lock.
-	if m.returnedPrivKeys == nil {
-		m.returnedPrivKeys = make(map[[ripemd160.Size]byte]*secp256k1.PrivateKey)
-	}
-	m.returnedPrivKeys[*addr.Hash160()] = key
-
-	return key, done, nil
+	return key, key.Zero, nil
 }
 
 // RedeemScript retreives the redeem script to redeem an output paid to a P2SH
