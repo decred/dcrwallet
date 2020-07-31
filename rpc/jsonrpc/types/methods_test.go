@@ -1124,7 +1124,7 @@ func TestWalletSvrCmds(t *testing.T) {
 				return dcrjson.NewCmd("walletpubpassphrasechange", "old", "new")
 			},
 			staticCmd: func() interface{} {
-				return &WalletPubPassphraseChangeCmd{OldPassphrase: "old", NewPassphrase:"new"}
+				return &WalletPubPassphraseChangeCmd{OldPassphrase: "old", NewPassphrase: "new"}
 			},
 			marshalled: `{"jsonrpc":"1.0","method":"walletpubpassphrasechange","params":["old","new"],"id":1}`,
 			unmarshalled: &WalletPubPassphraseChangeCmd{

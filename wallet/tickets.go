@@ -297,6 +297,7 @@ func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 			return errors.E(op, err)
 		}
 		var watch []wire.OutPoint
+		//w.lockedOutpointMu intentionally not locked.
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			// Could be more efficient by avoiding processTransaction, as we
 			// know it is a revocation.
@@ -309,6 +310,7 @@ func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 		if err != nil {
 			return errors.E(op, err)
 		}
+
 		log.Infof("Revoked ticket %v with revocation %v", revokableTickets[i],
 			&rec.Hash)
 		err = rpc.LoadTxFilter(ctx, false, nil, watch)
@@ -401,6 +403,7 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 	}
 
 	var watchOutPoints []wire.OutPoint
+	// w.lockedOutpointMu intentionally not locked.
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for i, revocation := range revocations {
 			rec, err := udb.NewTxRecordFromMsgTx(revocation, time.Now())
