@@ -2576,7 +2576,7 @@ func makeTicketSummary(ctx context.Context, rpc *dcrd.RPC, dbtx walletdb.ReadTx,
 		return summary
 	}
 
-	if rpc != nil {
+	if rpc != nil && summary.Status == TicketStatusLive {
 		// In RPC mode, find if unspent ticket was expired or missed.
 		hashes := []*chainhash.Hash{&details.Ticket.Hash}
 		live, expired, err := rpc.ExistsLiveExpiredTickets(ctx, hashes)
@@ -2590,7 +2590,7 @@ func makeTicketSummary(ctx context.Context, rpc *dcrd.RPC, dbtx walletdb.ReadTx,
 		case !live.Get(0):
 			summary.Status = TicketStatusMissed
 		}
-	} else {
+	} else if rpc == nil {
 		// In SPV mode, use expired status when the ticket is certainly
 		// past the expiry period (even though it is possible that the
 		// ticket was missed rather than expiring).
