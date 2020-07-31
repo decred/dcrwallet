@@ -412,7 +412,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 	// the OP_SSTX tagged out, except if we're operating as a stake pool
 	// server. In that case, additionally consider the first commitment
 	// output as well.
-	if w.stakePoolEnabled && header != nil && stake.IsSStx(&rec.MsgTx) {
+	if w.stakePoolEnabled && header != nil && rec.TxType == stake.TxTypeSStx {
 		// Errors don't matter here.  If addrs is nil, the range below
 		// does nothing.
 		txOut := rec.MsgTx.TxOut[0]
@@ -482,7 +482,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 	}
 
 	// Handle incoming mined votes (only in stakepool mode)
-	if w.stakePoolEnabled && isVote(&rec.MsgTx) && header != nil {
+	if w.stakePoolEnabled && rec.TxType == stake.TxTypeSSGen && header != nil {
 		ticketHash := &rec.MsgTx.TxIn[1].PreviousOutPoint.Hash
 		txInHeight := rec.MsgTx.TxIn[1].BlockHeight
 		poolTicket := &udb.PoolTicket{
@@ -513,7 +513,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 	}
 
 	// Handle incoming mined revocations (only in stakepool mode)
-	if w.stakePoolEnabled && isRevocation(&rec.MsgTx) && header != nil {
+	if w.stakePoolEnabled && rec.TxType == stake.TxTypeSSRtx && header != nil {
 		txInHash := &rec.MsgTx.TxIn[0].PreviousOutPoint.Hash
 		txInHeight := rec.MsgTx.TxIn[0].BlockHeight
 		poolTicket := &udb.PoolTicket{
@@ -543,9 +543,15 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 		}
 	}
 
+	// Skip unlocking outpoints if the transaction is a vote or revocation as the lock
+	// is not held.
+	skipOutpoints := rec.TxType == stake.TxTypeSSGen || rec.TxType == stake.TxTypeSSRtx
+
 	// Handle input scripts that contain P2PKs that we care about.
 	for i, input := range rec.MsgTx.TxIn {
-		delete(w.lockedOutpoints, input.PreviousOutPoint)
+		if !skipOutpoints {
+			delete(w.lockedOutpoints, input.PreviousOutPoint)
+		}
 
 		if txscript.IsMultisigSigScript(input.SignatureScript) {
 			rs := txscript.MultisigRedeemScriptFromScriptSig(input.SignatureScript)
@@ -922,6 +928,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 		}
 	}
 
+	// w.lockedOutpointMu is intentionally not locked.
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for i := range voteRecords {
 			_, err := w.processTransactionRecord(ctx, dbtx, voteRecords[i], nil, nil)
@@ -1062,6 +1069,7 @@ func (w *Wallet) RevokeOwnedTickets(ctx context.Context, missedTicketHashes []*c
 		}
 	}
 
+	// w.lockedOutpointMu intentionally not locked.
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for i := range revocationRecords {
 			_, err := w.processTransactionRecord(ctx, dbtx, revocationRecords[i], nil, nil)
