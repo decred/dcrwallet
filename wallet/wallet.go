@@ -3814,38 +3814,17 @@ func (w *Wallet) ResetLockedOutpoints() {
 // intended to be used by marshaling the result as a JSON array for
 // listlockunspent RPC results.
 func (w *Wallet) LockedOutpoints(ctx context.Context, accountName string) ([]dcrdtypes.TransactionInput, error) {
-	if accountName == "" || accountName == "*" {
-		return w.allLockedOutpoints(), nil
-	}
-	return w.acctLockedOutpoints(ctx, accountName)
-}
-
-func (w *Wallet) allLockedOutpoints() []dcrdtypes.TransactionInput {
 	w.lockedOutpointMu.Lock()
-	locked := make([]dcrdtypes.TransactionInput, len(w.lockedOutpoints))
+	allLocked := make([]outpoint, len(w.lockedOutpoints))
 	i := 0
 	for op := range w.lockedOutpoints {
-		locked[i] = dcrdtypes.TransactionInput{
-			Txid: op.hash.String(),
-			Vout: op.index,
-		}
-		i++
-	}
-	w.lockedOutpointMu.Unlock()
-	return locked
-}
-
-func (w *Wallet) acctLockedOutpoints(ctx context.Context, acctName string) ([]dcrdtypes.TransactionInput, error) {
-	w.lockedOutpointMu.Lock()
-	locked := make([]wire.OutPoint, len(w.lockedOutpoints))
-	i := 0
-	for op := range w.lockedOutpoints {
-		locked[i] = op
+		allLocked[i] = op
 		i++
 	}
 	w.lockedOutpointMu.Unlock()
 
-	acctLocked := make([]dcrdtypes.TransactionInput, 0, len(locked))
+	allAccts := accountName == "" || accountName == "*"
+	acctLocked := make([]dcrdtypes.TransactionInput, 0, len(allLocked))
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
@@ -3858,9 +3837,9 @@ func (w *Wallet) acctLockedOutpoints(ctx context.Context, acctName string) ([]dc
 
 		// Outpoints are not validated before they're locked, so
 		// invalid outpoints may be locked. Simply ignore.
-		for i := range locked {
-			op := &locked[i]
-			details, err := w.txStore.TxDetails(txmgrNs, &op.Hash)
+		for i := range allLocked {
+			op := &allLocked[i]
+			details, err := w.txStore.TxDetails(txmgrNs, &op.hash)
 			if err != nil {
 				if errors.Is(err, errors.NotExist) {
 					// invalid txid
@@ -3868,48 +3847,56 @@ func (w *Wallet) acctLockedOutpoints(ctx context.Context, acctName string) ([]dc
 				}
 				return err
 			}
-			if int(op.Index) >= len(details.MsgTx.TxOut) {
+			if int(op.index) >= len(details.MsgTx.TxOut) {
 				// valid txid, invalid vout
 				continue
 			}
-			output := details.MsgTx.TxOut[op.Index]
-			// Lookup the associated account for the output.  Use the
-			// default account name in case there is no associated account
-			// for some reason, although this should never happen.
-			//
-			// This will be unnecessary once transactions and outputs are
-			// grouped under the associated account in the db.
-			opAcct := defaultAccountName
-			_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				0, output.PkScript, w.chainParams)
-			if err != nil {
-				continue
-			}
-			if len(addrs) > 0 {
-				acct, err := w.manager.AddrAccount(
-					addrmgrNs, addrs[0])
-				if err == nil {
-					s, err := w.manager.AccountName(
-						addrmgrNs, acct)
+			output := details.MsgTx.TxOut[op.index]
+
+			if !allAccts {
+				// Lookup the associated account for the output.  Use the
+				// default account name in case there is no associated account
+				// for some reason, although this should never happen.
+				//
+				// This will be unnecessary once transactions and outputs are
+				// grouped under the associated account in the db.
+				opAcct := defaultAccountName
+				_, addrs, _, err := txscript.ExtractPkScriptAddrs(
+					0, output.PkScript, w.chainParams)
+				if err != nil {
+					continue
+				}
+				if len(addrs) > 0 {
+					acct, err := w.manager.AddrAccount(
+						addrmgrNs, addrs[0])
 					if err == nil {
-						opAcct = s
+						s, err := w.manager.AccountName(
+							addrmgrNs, acct)
+						if err == nil {
+							opAcct = s
+						}
 					}
 				}
+				if opAcct != accountName {
+					continue
+				}
 			}
-			if opAcct == acctName {
-				acctLocked = append(acctLocked, dcrdtypes.TransactionInput{
-					Txid: op.Hash.String(),
-					Vout: op.Index,
-				})
+
+			var tree int8
+			if details.TxType != stake.TxTypeRegular {
+				tree = 1
 			}
+			acctLocked = append(acctLocked, dcrdtypes.TransactionInput{
+				Amount: dcrutil.Amount(output.Value).ToCoin(),
+				Txid:   op.hash.String(),
+				Vout:   op.index,
+				Tree:   tree,
+			})
 		}
 		return nil
 	})
 
-	if err != nil {
-		return nil, err
-	}
-	return acctLocked, nil
+	return acctLocked, err
 }
 
 // UnminedTransactions returns all unmined transactions from the wallet.

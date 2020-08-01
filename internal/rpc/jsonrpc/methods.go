@@ -46,9 +46,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "8.1.0"
+	jsonrpcSemverString = "8.2.0"
 	jsonrpcSemverMajor  = 8
-	jsonrpcSemverMinor  = 1
+	jsonrpcSemverMinor  = 2
 	jsonrpcSemverPatch  = 0
 )
 
