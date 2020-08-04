@@ -75,6 +75,13 @@ type StakeDifficultyInfo struct {
 	StakeDifficulty int64
 }
 
+// outpoint is a wire.OutPoint without specifying a tree.  It is used as the key
+// for the lockedOutpoints map.
+type outpoint struct {
+	hash  chainhash.Hash
+	index uint32
+}
+
 // Wallet is a structure containing all the components for a
 // complete wallet.  It contains the Armory-style key store
 // addresses and keys),
@@ -102,7 +109,7 @@ type Wallet struct {
 	networkBackend   NetworkBackend
 	networkBackendMu sync.Mutex
 
-	lockedOutpoints  map[wire.OutPoint]struct{}
+	lockedOutpoints  map[outpoint]struct{}
 	lockedOutpointMu sync.Mutex
 
 	relayFee                dcrutil.Amount
@@ -3202,7 +3209,7 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 			}
 
 			// Exclude locked outputs from the result set.
-			if w.LockedOutpoint(output.OutPoint) {
+			if w.LockedOutpoint(&output.OutPoint.Hash, output.OutPoint.Index) {
 				continue
 			}
 
@@ -3769,7 +3776,8 @@ func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpcCaller Caller) (*Stake
 
 // LockedOutpoint returns whether an outpoint has been marked as locked and
 // should not be used as an input for created transactions.
-func (w *Wallet) LockedOutpoint(op wire.OutPoint) bool {
+func (w *Wallet) LockedOutpoint(txHash *chainhash.Hash, index uint32) bool {
+	op := outpoint{*txHash, index}
 	w.lockedOutpointMu.Lock()
 	_, locked := w.lockedOutpoints[op]
 	w.lockedOutpointMu.Unlock()
@@ -3778,7 +3786,8 @@ func (w *Wallet) LockedOutpoint(op wire.OutPoint) bool {
 
 // LockOutpoint marks an outpoint as locked, that is, it should not be used as
 // an input for newly created transactions.
-func (w *Wallet) LockOutpoint(op wire.OutPoint) {
+func (w *Wallet) LockOutpoint(txHash *chainhash.Hash, index uint32) {
+	op := outpoint{*txHash, index}
 	w.lockedOutpointMu.Lock()
 	w.lockedOutpoints[op] = struct{}{}
 	w.lockedOutpointMu.Unlock()
@@ -3786,7 +3795,8 @@ func (w *Wallet) LockOutpoint(op wire.OutPoint) {
 
 // UnlockOutpoint marks an outpoint as unlocked, that is, it may be used as an
 // input for newly created transactions.
-func (w *Wallet) UnlockOutpoint(op wire.OutPoint) {
+func (w *Wallet) UnlockOutpoint(txHash *chainhash.Hash, index uint32) {
+	op := outpoint{*txHash, index}
 	w.lockedOutpointMu.Lock()
 	delete(w.lockedOutpoints, op)
 	w.lockedOutpointMu.Unlock()
@@ -3796,7 +3806,7 @@ func (w *Wallet) UnlockOutpoint(op wire.OutPoint) {
 // as inputs for new transactions.
 func (w *Wallet) ResetLockedOutpoints() {
 	w.lockedOutpointMu.Lock()
-	w.lockedOutpoints = map[wire.OutPoint]struct{}{}
+	w.lockedOutpoints = make(map[outpoint]struct{})
 	w.lockedOutpointMu.Unlock()
 }
 
@@ -3809,8 +3819,8 @@ func (w *Wallet) LockedOutpoints() []dcrdtypes.TransactionInput {
 	i := 0
 	for op := range w.lockedOutpoints {
 		locked[i] = dcrdtypes.TransactionInput{
-			Txid: op.Hash.String(),
-			Vout: op.Index,
+			Txid: op.hash.String(),
+			Vout: op.index,
 		}
 		i++
 	}
@@ -4755,7 +4765,7 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		subsidyCache: blockchain.NewSubsidyCache(cfg.Params),
 		chainParams:  cfg.Params,
 
-		lockedOutpoints: map[wire.OutPoint]struct{}{},
+		lockedOutpoints: make(map[outpoint]struct{}),
 
 		recentlyPublished: make(map[chainhash.Hash]struct{}),
 

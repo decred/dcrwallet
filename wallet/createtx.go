@@ -93,12 +93,12 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 	var unlockOutpoints []*wire.OutPoint
 	defer func() {
 		for _, op := range unlockOutpoints {
-			delete(w.lockedOutpoints, *op)
+			delete(w.lockedOutpoints, outpoint{op.Hash, op.Index})
 		}
 		w.lockedOutpointMu.Unlock()
 	}()
 	ignoreInput := func(op *wire.OutPoint) bool {
-		_, ok := w.lockedOutpoints[*op]
+		_, ok := w.lockedOutpoints[outpoint{op.Hash, op.Index}]
 		return ok
 	}
 	w.lockedOutpointMu.Lock()
@@ -158,8 +158,9 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 			return err
 		}
 		for _, in := range authoredTx.Tx.TxIn {
-			w.lockedOutpoints[in.PreviousOutPoint] = struct{}{}
-			unlockOutpoints = append(unlockOutpoints, &in.PreviousOutPoint)
+			prev := &in.PreviousOutPoint
+			w.lockedOutpoints[outpoint{prev.Hash, prev.Index}] = struct{}{}
+			unlockOutpoints = append(unlockOutpoints, prev)
 		}
 		return nil
 	})
@@ -350,12 +351,12 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 	var unlockOutpoints []*wire.OutPoint
 	defer func() {
 		for _, op := range unlockOutpoints {
-			delete(w.lockedOutpoints, *op)
+			delete(w.lockedOutpoints, outpoint{op.Hash, op.Index})
 		}
 		w.lockedOutpointMu.Unlock()
 	}()
 	ignoreInput := func(op *wire.OutPoint) bool {
-		_, ok := w.lockedOutpoints[*op]
+		_, ok := w.lockedOutpoints[outpoint{op.Hash, op.Index}]
 		return ok
 	}
 	w.lockedOutpointMu.Lock()
@@ -383,8 +384,9 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 			return err
 		}
 		for _, in := range atx.Tx.TxIn {
-			w.lockedOutpoints[in.PreviousOutPoint] = struct{}{}
-			unlockOutpoints = append(unlockOutpoints, &in.PreviousOutPoint)
+			prev := &in.PreviousOutPoint
+			w.lockedOutpoints[outpoint{prev.Hash, prev.Index}] = struct{}{}
+			unlockOutpoints = append(unlockOutpoints, prev)
 		}
 
 		// Randomize change position, if change exists, before signing.  This
@@ -529,11 +531,13 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 		return txToMultisigError(errors.E(op, "not enough funds to send to multisig address"))
 	}
 	for i := range eligible {
-		w.lockedOutpoints[eligible[i].OutPoint] = struct{}{}
+		op := &eligible[i].OutPoint
+		w.lockedOutpoints[outpoint{op.Hash, op.Index}] = struct{}{}
 	}
 	defer func() {
 		for i := range eligible {
-			delete(w.lockedOutpoints, eligible[i].OutPoint)
+			op := &eligible[i].OutPoint
+			delete(w.lockedOutpoints, outpoint{op.Hash, op.Index})
 		}
 	}()
 
@@ -713,12 +717,14 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 		return nil, errors.E(op, "too few outputs to consolidate")
 	}
 	for i := range eligible {
-		w.lockedOutpoints[eligible[i].OutPoint] = struct{}{}
+		op := eligible[i].OutPoint
+		w.lockedOutpoints[outpoint{op.Hash, op.Index}] = struct{}{}
 	}
 
 	defer func() {
 		for i := range eligible {
-			delete(w.lockedOutpoints, eligible[i].OutPoint)
+			op := &eligible[i].OutPoint
+			delete(w.lockedOutpoints, outpoint{op.Hash, op.Index})
 		}
 	}()
 
@@ -971,13 +977,13 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 		if len(unlockOutpoints) != 0 {
 			w.lockedOutpointMu.Lock()
 			for _, op := range unlockOutpoints {
-				delete(w.lockedOutpoints, *op)
+				delete(w.lockedOutpoints, outpoint{op.Hash, op.Index})
 			}
 			w.lockedOutpointMu.Unlock()
 		}
 	}()
 	ignoreInput := func(op *wire.OutPoint) bool {
-		_, ok := w.lockedOutpoints[*op]
+		_, ok := w.lockedOutpoints[outpoint{op.Hash, op.Index}]
 		return ok
 	}
 
@@ -1005,8 +1011,9 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 			return err
 		}
 		for _, in := range atx.Tx.TxIn {
-			w.lockedOutpoints[in.PreviousOutPoint] = struct{}{}
-			unlockOutpoints = append(unlockOutpoints, &in.PreviousOutPoint)
+			prev := &in.PreviousOutPoint
+			w.lockedOutpoints[outpoint{prev.Hash, prev.Index}] = struct{}{}
+			unlockOutpoints = append(unlockOutpoints, prev)
 		}
 		return nil
 	})
@@ -1521,7 +1528,7 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 		output := unspent[i]
 
 		// Locked unspent outputs are skipped.
-		if _, locked := w.lockedOutpoints[output.OutPoint]; locked {
+		if _, locked := w.lockedOutpoints[outpoint{output.Hash, output.Index}]; locked {
 			continue
 		}
 
@@ -1607,7 +1614,7 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 		output := unspent[i]
 
 		// Locked unspent outputs are skipped.
-		if _, locked := w.lockedOutpoints[output.OutPoint]; locked {
+		if _, locked := w.lockedOutpoints[outpoint{output.Hash, output.Index}]; locked {
 			continue
 		}
 

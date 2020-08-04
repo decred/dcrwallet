@@ -73,7 +73,7 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	defer hold.release()
 
 	w.lockedOutpointMu.Lock()
-	if _, exists := w.lockedOutpoints[*output]; exists {
+	if _, exists := w.lockedOutpoints[outpoint{output.Hash, output.Index}]; exists {
 		w.lockedOutpointMu.Unlock()
 		err = errors.Errorf("output %v already locked", output)
 		return errors.E(op, err)
@@ -95,12 +95,12 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		w.lockedOutpointMu.Unlock()
 		return errors.E(op, err)
 	}
-	w.lockedOutpoints[*output] = struct{}{}
+	w.lockedOutpoints[outpoint{output.Hash, output.Index}] = struct{}{}
 	w.lockedOutpointMu.Unlock()
 
 	defer func() {
 		w.lockedOutpointMu.Lock()
-		delete(w.lockedOutpoints, *output)
+		delete(w.lockedOutpoints, outpoint{output.Hash, output.Index})
 		w.lockedOutpointMu.Unlock()
 	}()
 

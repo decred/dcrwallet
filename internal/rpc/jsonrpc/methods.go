@@ -2527,15 +2527,14 @@ func (s *Server) lockUnspent(ctx context.Context, icmd interface{}) (interface{}
 		w.ResetLockedOutpoints()
 	default:
 		for _, input := range cmd.Transactions {
-			txSha, err := chainhash.NewHashFromStr(input.Txid)
+			txHash, err := chainhash.NewHashFromStr(input.Txid)
 			if err != nil {
 				return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 			}
-			op := wire.OutPoint{Hash: *txSha, Index: input.Vout}
 			if cmd.Unlock {
-				w.UnlockOutpoint(op)
+				w.UnlockOutpoint(txHash, input.Vout)
 			} else {
-				w.LockOutpoint(op)
+				w.LockOutpoint(txHash, input.Vout)
 			}
 		}
 	}
