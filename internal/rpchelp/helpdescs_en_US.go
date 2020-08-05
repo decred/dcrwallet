@@ -370,6 +370,7 @@ var helpDescsEnUS = map[string]string{
 
 	// ListLockUnspentCmd help.
 	"listlockunspent--synopsis": "Returns a JSON array of outpoints marked as locked (with lockunspent) for this wallet session.",
+	"listlockunspent-account":   "If set, only returns outpoints from this account that are marked as locked",
 
 	// TransactionInput help.
 	"transactioninput-amount": "The the previous output amount",
