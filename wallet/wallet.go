@@ -3829,12 +3829,6 @@ func (w *Wallet) LockedOutpoints(ctx context.Context, accountName string) ([]dcr
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 
-		defaultAccountName, err := w.manager.AccountName(
-			addrmgrNs, udb.DefaultAccountNum)
-		if err != nil {
-			return err
-		}
-
 		// Outpoints are not validated before they're locked, so
 		// invalid outpoints may be locked. Simply ignore.
 		for i := range allLocked {
@@ -3854,18 +3848,13 @@ func (w *Wallet) LockedOutpoints(ctx context.Context, accountName string) ([]dcr
 			output := details.MsgTx.TxOut[op.index]
 
 			if !allAccts {
-				// Lookup the associated account for the output.  Use the
-				// default account name in case there is no associated account
-				// for some reason, although this should never happen.
-				//
-				// This will be unnecessary once transactions and outputs are
-				// grouped under the associated account in the db.
-				opAcct := defaultAccountName
+				// Lookup the associated account for the output.
 				_, addrs, _, err := txscript.ExtractPkScriptAddrs(
 					0, output.PkScript, w.chainParams)
 				if err != nil {
 					continue
 				}
+				var opAcct string
 				if len(addrs) > 0 {
 					acct, err := w.manager.AddrAccount(
 						addrmgrNs, addrs[0])
