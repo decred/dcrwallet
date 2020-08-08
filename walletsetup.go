@@ -61,10 +61,33 @@ func createWallet(ctx context.Context, cfg *config) error {
 	var err error
 	c := make(chan struct{}, 1)
 	go func() {
-		reader := bufio.NewReader(os.Stdin)
-		privPass, pubPass, seed, imported, err = prompt.Setup(reader,
+		defer func() { c <- struct{}{} }()
+		r := bufio.NewReader(os.Stdin)
+
+		// Start by prompting for the private passphrase.  This function
+		// prompts whether any configured private passphrase should be
+		// used.
+		privPass, err = prompt.PrivatePass(r, []byte(cfg.Pass))
+		if err != nil {
+			return
+		}
+
+		// Ascertain the public passphrase.  This will either be a value
+		// specified by the user or the default hard-coded public passphrase if
+		// the user does not want the additional public data encryption.
+		// This function also prompts whether the configured public data
+		// passphrase should be used.
+		pubPass, err = prompt.PublicPass(r, privPass,
 			[]byte(wallet.InsecurePubPassphrase), []byte(cfg.WalletPass))
-		c <- struct{}{}
+		if err != nil {
+			return
+		}
+
+		// Ascertain the wallet generation seed.  This will either be an
+		// automatically generated value the user has already confirmed or a
+		// value the user has entered which has already been validated.
+		// There is no config flag to set the seed.
+		seed, imported, err = prompt.Seed(r)
 	}()
 	select {
 	case <-ctx.Done():

@@ -164,7 +164,18 @@ func PassPrompt(reader *bufio.Reader, prefix string, confirm bool) ([]byte, erro
 
 // PrivatePass prompts the user for a private passphrase.  All prompts are
 // repeated until the user enters a valid response.
-func PrivatePass(reader *bufio.Reader) ([]byte, error) {
+func PrivatePass(reader *bufio.Reader, configPass []byte) ([]byte, error) {
+	if len(configPass) > 0 {
+		useExisting, err := promptListBool(reader, "Use the "+
+			"existing configured private passphrase for "+
+			"wallet encryption?", "no")
+		if err != nil {
+			return nil, err
+		}
+		if useExisting {
+			return configPass, nil
+		}
+	}
 	return PassPrompt(reader, "Enter the private passphrase for your new wallet", true)
 }
 
@@ -296,7 +307,7 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 		// more complicated ending condition rather than just a single
 		// newline.
 		var seedStr string
-		scanner := bufio.NewScanner(os.Stdin)
+		scanner := bufio.NewScanner(reader)
 		for scanner.Scan() {
 			line := scanner.Text()
 			if line == "" {
@@ -337,49 +348,6 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 
 		return seed, true, nil
 	}
-}
-
-// Setup prompts for, from a buffered reader, the private and/or public
-// encryption passphrases to secure a wallet and a previously derived wallet
-// seed to use, if any.  privPass and pubPass will always be non-nil values
-// (private encryption is required and choosing to not use public data
-// encryption will still encrypt the data with an insecure default), and a
-// randomly generated seed of the recommended length will be generated and
-// returned after the user has confirmed the seed has been backed up to a secure
-// location.
-//
-// The configPubPass parameter is optional (nil should be used to represent the
-// lack of a value).  When non-nil, this value represents a public passphrase
-// previously specified in a configuration file.  The user will be given the
-// option of using this passphrase if public data encryption is enabled,
-// otherwise a user-specified passphrase will be prompted for.
-func Setup(r *bufio.Reader, insecurePubPass, configPubPass []byte) (privPass, pubPass, seed []byte, imported bool, err error) {
-	// Decred: no legacy keystore restore is needed (first decred wallet
-	// version did not use the legacy keystore from earlier versions of
-	// btcwallet).
-
-	// Start by prompting for the private passphrase.  When there is an
-	// existing keystore, the user will be promped for that passphrase,
-	// otherwise they will be prompted for a new one.
-	privPass, err = PrivatePass(r)
-	if err != nil {
-		return
-	}
-
-	// Ascertain the public passphrase.  This will either be a value
-	// specified by the user or the default hard-coded public passphrase if
-	// the user does not want the additional public data encryption.
-	pubPass, err = PublicPass(r, privPass, insecurePubPass, configPubPass)
-	if err != nil {
-		return
-	}
-
-	// Ascertain the wallet generation seed.  This will either be an
-	// automatically generated value the user has already confirmed or a
-	// value the user has entered which has already been validated.
-	seed, imported, err = Seed(r)
-
-	return
 }
 
 // collapseSpace takes a string and replaces any repeated areas of whitespace
