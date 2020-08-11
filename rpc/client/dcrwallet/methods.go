@@ -7,6 +7,7 @@ package dcrwallet
 
 import (
 	"context"
+	"strings"
 	"encoding/hex"
 	"encoding/json"
 
@@ -801,6 +802,31 @@ func (s SigHashType) String() string {
 	return string(s)
 }
 
+// SignatureErrors implements the error interface for the "errors" field of a
+// signrawtransaction response.
+type SignatureErrors []types.SignRawTransactionError
+
+func (e SignatureErrors) Error() string {
+	if len(e) == 0 {
+		return "<nil>"
+	}
+	if len(e) == 1 {
+		return e[0].Error
+	}
+	var s strings.Builder
+	s.WriteString("multiple signature errors: [")
+	for i := range e {
+		if i != 0 {
+			s.WriteString("; ")
+		}
+		s.WriteString(`"`)
+		s.WriteString(e[i].Error)
+		s.WriteString(`"`)
+	}
+	s.WriteString("]")
+	return s.String()
+}
+
 // SignRawTransaction signs inputs for the passed transaction and returns the
 // signed transaction as well as whether or not all inputs are now signed.
 //
@@ -808,15 +834,23 @@ func (s SigHashType) String() string {
 // private keys for the passed transaction which needs to be signed and uses the
 // default signature hash type.  Use one of the SignRawTransaction# variants to
 // specify that information if needed.
+//
+// If the "errors" field of the response is set, the error return value will be
+// of type SignatureErrors.  This does not indicate that no signatures were
+// added, and the partially signed transaction is still returned.
 func (c *Client) SignRawTransaction(ctx context.Context, tx *wire.MsgTx) (*wire.MsgTx, bool, error) {
 	var signedTx *wire.MsgTx
 	var res = struct {
-		Tx       json.Unmarshaler `json:"hex"`
-		Complete bool             `json:"complete"`
+		Tx              json.Unmarshaler `json:"hex"`
+		Complete        bool             `json:"complete"`
+		SignatureErrors SignatureErrors  `json:"errors"`
 	}{
 		Tx: unmarshalTx(&signedTx),
 	}
 	err := c.Call(ctx, "signrawtransaction", &res, marshalTx(tx))
+	if err == nil && len(res.SignatureErrors) > 0 {
+		err = res.SignatureErrors
+	}
 	return signedTx, res.Complete, err
 }
 
@@ -833,12 +867,16 @@ func (c *Client) SignRawTransaction(ctx context.Context, tx *wire.MsgTx) (*wire.
 func (c *Client) SignRawTransaction2(ctx context.Context, tx *wire.MsgTx, inputs []types.RawTxInput) (*wire.MsgTx, bool, error) {
 	var signedTx *wire.MsgTx
 	var res = struct {
-		Tx       json.Unmarshaler `json:"hex"`
-		Complete bool             `json:"complete"`
+		Tx              json.Unmarshaler `json:"hex"`
+		Complete        bool             `json:"complete"`
+		SignatureErrors SignatureErrors  `json:"errors"`
 	}{
 		Tx: unmarshalTx(&signedTx),
 	}
 	err := c.Call(ctx, "signrawtransaction", &res, marshalTx(tx), inputs)
+	if err == nil && len(res.SignatureErrors) > 0 {
+		err = res.SignatureErrors
+	}
 	return signedTx, res.Complete, err
 }
 
@@ -865,12 +903,16 @@ func (c *Client) SignRawTransaction3(ctx context.Context, tx *wire.MsgTx,
 
 	var signedTx *wire.MsgTx
 	var res = struct {
-		Tx       json.Unmarshaler `json:"hex"`
-		Complete bool             `json:"complete"`
+		Tx              json.Unmarshaler `json:"hex"`
+		Complete        bool             `json:"complete"`
+		SignatureErrors SignatureErrors  `json:"errors"`
 	}{
 		Tx: unmarshalTx(&signedTx),
 	}
 	err := c.Call(ctx, "signrawtransaction", &res, marshalTx(tx), inputs, privKeysWIF)
+	if err == nil && len(res.SignatureErrors) > 0 {
+		err = res.SignatureErrors
+	}
 	return signedTx, res.Complete, err
 }
 
@@ -899,12 +941,16 @@ func (c *Client) SignRawTransaction4(ctx context.Context, tx *wire.MsgTx,
 
 	var signedTx *wire.MsgTx
 	var res = struct {
-		Tx       json.Unmarshaler `json:"hex"`
-		Complete bool             `json:"complete"`
+		Tx              json.Unmarshaler `json:"hex"`
+		Complete        bool             `json:"complete"`
+		SignatureErrors SignatureErrors  `json:"errors"`
 	}{
 		Tx: unmarshalTx(&signedTx),
 	}
 	err := c.Call(ctx, "signrawtransaction", &res, marshalTx(tx), inputs, privKeysWIF, hashType.String())
+	if err == nil && len(res.SignatureErrors) > 0 {
+		err = res.SignatureErrors
+	}
 	return signedTx, res.Complete, err
 }
 
