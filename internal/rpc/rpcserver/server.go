@@ -2427,6 +2427,10 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	}
 	var poolAddress dcrutil.Address
 	if req.PoolAddress != "" {
+		if req.VspHost != "" || req.VspPubkey != "" {
+			return status.Errorf(codes.InvalidArgument,
+				"request contains both legacy stakepoold and vspd options.")
+		}
 		poolAddress, err = decodeAddress(req.PoolAddress, params)
 		if err != nil {
 			return err
