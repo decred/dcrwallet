@@ -90,7 +90,6 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 	newWork := chain[len(chain)-1].workSum
 	oldWork := new(big.Int)
 
-	defer w.lockedOutpointMu.Unlock()
 	w.lockedOutpointMu.Lock()
 
 	var watchOutPoints []wire.OutPoint
@@ -197,6 +196,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 		}
 		return nil
 	})
+	w.lockedOutpointMu.Unlock()
 	if err != nil {
 		return nil, errors.E(op, err)
 	}

@@ -7,9 +7,9 @@ package dcrwallet
 
 import (
 	"context"
-	"strings"
 	"encoding/hex"
 	"encoding/json"
+	"strings"
 
 	"decred.org/dcrwallet/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/chaincfg/chainhash"

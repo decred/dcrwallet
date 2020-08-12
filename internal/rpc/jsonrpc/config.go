@@ -7,6 +7,8 @@ package jsonrpc
 import (
 	"context"
 	"net"
+
+	"decred.org/dcrwallet/vsp"
 )
 
 // Options contains the required options for running the legacy RPC server.
@@ -22,4 +24,6 @@ type Options struct {
 	MixAccount       string
 	MixBranch        uint32
 	MixChangeAccount string
+
+	vsp *vsp.VSP
 }

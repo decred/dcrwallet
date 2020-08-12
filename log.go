@@ -17,6 +17,7 @@ import (
 	"decred.org/dcrwallet/p2p"
 	"decred.org/dcrwallet/spv"
 	"decred.org/dcrwallet/ticketbuyer"
+	"decred.org/dcrwallet/vsp"
 	"decred.org/dcrwallet/wallet"
 	"decred.org/dcrwallet/wallet/udb"
 	"github.com/decred/dcrd/connmgr/v3"
@@ -60,6 +61,7 @@ var (
 	grpcLog    = backendLog.Logger("GRPC")
 	jsonrpcLog = backendLog.Logger("RPCS")
 	cmgrLog    = backendLog.Logger("CMGR")
+	vspcLog    = backendLog.Logger("VSPC")
 )
 
 // Initialize package-global logger variables.
@@ -74,6 +76,7 @@ func init() {
 	rpcserver.UseLogger(grpcLog)
 	jsonrpc.UseLogger(jsonrpcLog)
 	connmgr.UseLogger(cmgrLog)
+	vsp.UseLogger(vspcLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
@@ -86,6 +89,7 @@ var subsystemLoggers = map[string]slog.Logger{
 	"GRPC": grpcLog,
 	"RPCS": jsonrpcLog,
 	"CMGR": cmgrLog,
+	"VSPC": vspcLog,
 }
 
 // initLogRotator initializes the logging rotater to write logs to logFile and

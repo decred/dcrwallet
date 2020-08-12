@@ -155,6 +155,8 @@ type config struct {
 	MixChange          bool   `long:"mixchange" description:"Use CoinShuffle++ to mix change account outputs into mix account"`
 
 	TBOpts ticketBuyerOptions `group:"Ticket Buyer Options" namespace:"ticketbuyer"`
+
+	VSPOpts vspOptions `group:"VSP Options" namespace:"vsp"`
 }
 
 type ticketBuyerOptions struct {
@@ -163,6 +165,13 @@ type ticketBuyerOptions struct {
 	votingAddress             dcrutil.Address
 	Limit                     uint   `long:"limit" description:"Buy no more than specified number of tickets per block (0 disables limit)"`
 	VotingAccount             string `long:"votingaccount" description:"Account used to derive addresses specifying voting rights"`
+}
+
+type vspOptions struct {
+	// VSP - TODO: VSPServer to a []string to support multiple VSPs
+	Server string `long:"server" description:"Network address of VSP server"`
+	PubKey string `long:"pubkey" description:"VSP server pubkey"`
+	Sync   bool   `long:"sync" description:"sync tickets to vsp"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the

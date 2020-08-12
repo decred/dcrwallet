@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 The Decred developers
+// Copyright (c) 2018-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -11,7 +11,10 @@ import (
 	"sync"
 
 	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/vsp"
 	"decred.org/dcrwallet/wallet"
+	"decred.org/dcrwallet/wallet/txrules"
+	"decred.org/dcrwallet/wallet/txsizes"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/wire"
 )
@@ -51,6 +54,9 @@ type Config struct {
 	TicketSplitAccount uint32
 	ChangeAccount      uint32
 	MixChange          bool
+
+	// VSP-related options
+	VSP *vsp.VSP
 }
 
 // TB is an automated ticket buyer, buying as many tickets as possible given an
@@ -90,6 +96,7 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 	for {
 		select {
 		case <-ctx.Done():
+			defer outerCancel()
 			fatalMu.Lock()
 			err := fatal
 			fatalMu.Unlock()
@@ -237,6 +244,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		return err
 	}
 	spendable := bal.Spendable
+
 	if spendable < maintain {
 		log.Debugf("Skipping purchase: low available balance")
 		return nil
@@ -251,13 +259,58 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		log.Debugf("Skipping purchase: low available balance")
 		return nil
 	}
-	if max := int(w.ChainParams().MaxFreshStakePerBlock); buy > max {
+	max := int(w.ChainParams().MaxFreshStakePerBlock)
+	if buy > max {
 		buy = max
 	}
 	if limit == 0 && csppServer != "" {
 		buy = 1
 	} else if limit > 0 && buy > limit {
 		buy = limit
+	}
+
+	var credits [][]wallet.Input
+	if tb.cfg.VSP != nil {
+		ticketPrice, err := w.NextStakeDifficulty(ctx)
+		if err != nil {
+			return err
+		}
+
+		inSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
+		outSizes := []int{txsizes.P2PKHPkScriptSize + 1,
+			txsizes.TicketCommitmentScriptSize, txsizes.P2PKHPkScriptSize + 1}
+		estSize := txsizes.EstimateSerializeSizeFromScriptSizes(inSizes,
+			outSizes, 0)
+
+		ticketRelayFee := w.RelayFee()
+		ticketFee := txrules.FeeForSerializeSize(ticketRelayFee, estSize)
+
+		poolFee, err := tb.cfg.VSP.PoolFee(ctx)
+		if err != nil {
+			return err
+		}
+
+		fee := txrules.StakePoolTicketFee(ticketPrice, ticketFee,
+			int32(tip.Height), poolFee, w.ChainParams())
+
+		// Reserve outputs for number of buys.
+		credits = make([][]wallet.Input, 0, buy)
+		for i := 0; i < buy; i++ {
+			credit, err := w.ReserveOutputsForAmount(ctx, mixedAccount, fee, minconf)
+			if err != nil {
+				log.Errorf("ReserveOutputsForAmount failed: %v", err)
+				return err
+			}
+			credits = append(credits, credit)
+		}
+		buy = len(credits)
+
+		log.Infof("buy: %d, fee: %d", buy, fee)
+		for _, credit := range credits {
+			for _, c := range credit {
+				log.Infof("%s", c.OutPoint.String())
+			}
+		}
 	}
 
 	tix, err := w.PurchaseTickets(ctx, n, &wallet.PurchaseTicketsRequest{
@@ -281,8 +334,38 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		VSPFees:    poolFees,
 	})
 	if tix != nil {
-		for _, hash := range tix.TicketHashes {
+		for i, hash := range tix.TicketHashes {
 			log.Infof("Purchased ticket %v at stake difficulty %v", hash, sdiff)
+
+			if tb.cfg.VSP != nil {
+				credit := credits[i]
+				txHash := *hash
+				go func() {
+					tb.cfg.VSP.Queue(ctx, txHash, credit)
+				}()
+			}
+		}
+		// unlock unused credits
+		if tb.cfg.VSP != nil {
+			overReserved := len(credits) - len(tix.TicketHashes)
+			for overReserved > 0 {
+				for _, credit := range credits[len(credits)-overReserved:] {
+					for _, c := range credit {
+						log.Infof("unlocked unneeded credit %v", c.OutPoint.String())
+						w.UnlockOutpoint(&c.OutPoint.Hash, c.OutPoint.Index)
+					}
+				}
+				overReserved--
+			}
+		}
+	}
+	if err != nil && tb.cfg.VSP != nil {
+		log.Errorf("BUY: %v", err)
+		for _, credit := range credits {
+			for _, c := range credit {
+				log.Infof("unlocked unneeded credit %v", c.OutPoint.String())
+				w.UnlockOutpoint(&c.OutPoint.Hash, c.OutPoint.Index)
+			}
 		}
 	}
 	return err

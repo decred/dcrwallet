@@ -64,8 +64,6 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		return errors.E(op, err)
 	}
 
-	var updates []func(walletdb.ReadWriteTx) error
-
 	hold, err := w.holdUnlock()
 	if err != nil {
 		return errors.E(op, err)
@@ -177,6 +175,7 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	size := txsizes.EstimateSerializeSizeFromScriptSizes(inScriptSizes, outScriptSizes, P2PKHv0Len)
 	changeValue := remValue - txrules.FeeForSerializeSize(feeRate, size)
 	var change *wire.TxOut
+	var updates []func(walletdb.ReadWriteTx) error
 	if !txrules.IsDustAmount(changeValue, P2PKHv0Len, feeRate) {
 		persist := w.deferPersistReturnedChild(ctx, &updates)
 		const accountName = "" // not used, so can be faked.
@@ -209,6 +208,7 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	cjHash := cj.tx.TxHash()
 	log.Infof("Completed CoinShuffle++ mix of output %v in transaction %v", output, &cjHash)
 
+	w.lockedOutpointMu.Lock()
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for _, f := range updates {
 			if err := f(dbtx); err != nil {
@@ -217,6 +217,7 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		}
 		return nil
 	})
+	w.lockedOutpointMu.Unlock()
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -246,25 +247,27 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 		credits, err = w.findEligibleOutputs(dbtx, changeAccount, 1, tipHeight)
 		return err
 	})
-	w.lockedOutpointMu.Unlock()
 	if err != nil {
+		w.lockedOutpointMu.Unlock()
 		return errors.E(op, err)
 	}
-	unlockedCredits := credits[:0]
+	validCredits := credits[:0]
 	for i := range credits {
 		amount := dcrutil.Amount(credits[i].PrevOut.Value)
 		if amount <= splitPoints[len(splitPoints)-1] {
 			continue
 		}
-		unlockedCredits = append(unlockedCredits, credits[i])
+		validCredits = append(validCredits, credits[i])
 	}
-	credits = unlockedCredits
+	credits = validCredits
 	shuffle(len(credits), func(i, j int) {
 		credits[i], credits[j] = credits[j], credits[i]
 	})
 	if len(credits) > 32 { // simple throttle
 		credits = credits[:32]
 	}
+	w.lockedOutpointMu.Unlock()
+
 	var g errgroup.Group
 	for i := range credits {
 		op := &credits[i].OutPoint

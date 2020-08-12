@@ -817,6 +817,9 @@ type ConfirmationNotification struct {
 // confirmations and are watched until stopAfter confirmations is met or the
 // transaction is unknown or removed from the wallet.
 func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stopAfter int32) {
+	if len(txHashes) == 0 {
+		return
+	}
 	w := c.s.wallet
 	r := make([]ConfirmationNotification, 0, len(c.watched))
 	err := walletdb.View(c.ctx, w.db, func(dbtx walletdb.ReadTx) error {
@@ -882,7 +885,10 @@ func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stop
 	if err != nil {
 		r = nil
 	}
-	c.r <- &confNtfnResult{r, err}
+	select {
+	case c.r <- &confNtfnResult{r, err}:
+	case <-c.ctx.Done():
+	}
 
 	c.mu.Lock()
 	for _, h := range txHashes {
