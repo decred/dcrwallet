@@ -4912,3 +4912,58 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 
 	return w, nil
 }
+
+// getCoinjoinTxsSumbByAcct returns a map with key representing the account and
+// the sum of coinjoin output transactions from the account.
+func (w *Wallet) getCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, error) {
+	const op errors.Op = "wallet.getCoinjoinTxsSumbByAcct"
+	coinJoinTxsByAcctSum := make(map[uint32]int)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		// Get current block.  The block height used for calculating
+		// the number of tx confirmations.
+		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		rangeFn := func(details []udb.TxDetails) (bool, error) {
+			for _, detail := range details {
+				isMixedTx, mixDenom, _ := PossibleCoinJoin(&detail.MsgTx)
+				if !isMixedTx {
+					continue
+				}
+				for _, output := range detail.MsgTx.TxOut {
+					if mixDenom != output.Value {
+						continue
+					}
+					_, addrs, _, _ := txscript.ExtractPkScriptAddrs(output.Version,
+						output.PkScript, w.chainParams)
+					if len(addrs) == 1 {
+						acct, err := w.manager.AddrAccount(addrmgrNs, addrs[0])
+						// mixed output belongs to wallet.
+						if err == nil {
+							coinJoinTxsByAcctSum[acct]++
+						}
+					}
+				}
+			}
+			return false, nil
+		}
+		return w.txStore.RangeTransactions(ctx, txmgrNs, 0, tipHeight, rangeFn)
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return coinJoinTxsByAcctSum, nil
+}
+
+// GetCoinjoinTxsSumbByAcct gets all coinjoin outputs sum by accounts. This is done
+// in case we need to guess a mixed account on wallet recovery.
+func (w *Wallet) GetCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, error) {
+	const op errors.Op = "wallet.GetCoinjoinTxsSumbByAcct"
+	allTxsByAcct, err := w.getCoinjoinTxsSumbByAcct(ctx)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return allTxsByAcct, nil
+}

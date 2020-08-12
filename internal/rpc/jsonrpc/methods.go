@@ -122,6 +122,7 @@ var handlers = map[string]handler{
 	"sendmany":                {fn: (*Server).sendMany},
 	"sendtoaddress":           {fn: (*Server).sendToAddress},
 	"sendtomultisig":          {fn: (*Server).sendToMultiSig},
+	"getcoinjoinsbyacct":      {fn: (*Server).getcoinjoinsbyacct},
 	"settxfee":                {fn: (*Server).setTxFee},
 	"setvotechoice":           {fn: (*Server).setVoteChoice},
 	"signmessage":             {fn: (*Server).signMessage},
@@ -4182,4 +4183,35 @@ func decodeHexStr(hexStr string) ([]byte, error) {
 		return nil, rpcErrorf(dcrjson.ErrRPCDecodeHexString, "hex string decode failed: %v", err)
 	}
 	return decoded, nil
+}
+
+func (s *Server) getcoinjoinsbyacct(ctx context.Context, icmd interface{}) (interface{}, error) {
+	_ = icmd.(*types.GetCoinjoinsByAcctCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	acctCoinjoinsSum, err := w.GetCoinjoinTxsSumbByAcct(ctx)
+	if err != nil {
+		if errors.Is(err, errors.Passphrase) {
+			return nil, rpcErrorf(dcrjson.ErrRPCWalletPassphraseIncorrect, "incorrect passphrase")
+		}
+		return nil, err
+	}
+
+	acctNameCoinjoinSum := map[string]int{}
+	for acctIdx, coinjoinSum := range acctCoinjoinsSum {
+		accountName, err := w.AccountName(ctx, acctIdx)
+		if err != nil {
+			// Expect account lookup to succeed
+			if errors.Is(err, errors.NotExist) {
+				return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
+			}
+			return nil, err
+		}
+		acctNameCoinjoinSum[accountName] = coinjoinSum
+	}
+
+	return acctNameCoinjoinSum, nil
 }

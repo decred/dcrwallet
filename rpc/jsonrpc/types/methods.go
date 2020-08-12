@@ -1090,6 +1090,8 @@ type registeredMethod struct {
 	cmd    interface{}
 }
 
+type GetCoinjoinsByAcctCmd struct{}
+
 func init() {
 	const dcrjsonv2WalletOnly = 1
 
@@ -1152,6 +1154,7 @@ func init() {
 		{"sendmany", (*SendManyCmd)(nil)},
 		{"sendtoaddress", (*SendToAddressCmd)(nil)},
 		{"sendtomultisig", (*SendToMultiSigCmd)(nil)},
+		{"getcoinjoinsbyacct", (*GetCoinjoinsByAcctCmd)(nil)},
 		{"settxfee", (*SetTxFeeCmd)(nil)},
 		{"setvotechoice", (*SetVoteChoiceCmd)(nil)},
 		{"signmessage", (*SignMessageCmd)(nil)},

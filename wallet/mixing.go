@@ -324,3 +324,39 @@ func randomInputSource(source txauthor.InputSource) txauthor.InputSource {
 		return selected, nil
 	}
 }
+
+// PossibleCoinJoin tests if a transaction may be a CSPP-mixed transaction.
+// It can return false positives, as one can create a tx which looks like a
+// coinjoin tx, although it isn't.
+func PossibleCoinJoin(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint32) {
+	if len(tx.TxOut) < 3 || len(tx.TxIn) < 3 {
+		return false, 0, 0
+	}
+
+	numberOfOutputs := len(tx.TxOut)
+	numberOfInputs := len(tx.TxIn)
+
+	mixedOuts := make(map[int64]uint32)
+	for _, o := range tx.TxOut {
+		val := o.Value
+		mixedOuts[val]++
+	}
+
+	for val, count := range mixedOuts {
+		if count < 3 {
+			continue
+		}
+		if val > mixDenom {
+			mixDenom = val
+			mixCount = count
+		}
+
+		outputsWithNotSameAmount := uint32(numberOfOutputs) - count
+		if outputsWithNotSameAmount > uint32(numberOfInputs) {
+			return false, 0, 0
+		}
+	}
+
+	isMix = mixCount >= uint32(len(tx.TxOut)/2)
+	return
+}

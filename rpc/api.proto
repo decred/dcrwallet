@@ -70,6 +70,7 @@ service WalletService {
 	rpc SweepAccount (SweepAccountRequest) returns (SweepAccountResponse);
 	rpc AbandonTransaction (AbandonTransactionRequest) returns (AbandonTransactionResponse);
 	rpc SignHashes (SignHashesRequest) returns (SignHashesResponse);
+	rpc GetCoinjoinOutputspByAcct (GetCoinjoinOutputspByAcctRequest) returns (GetCoinjoinOutputspByAcctResponse);
 }
 
 service WalletLoaderService {
@@ -1172,4 +1173,15 @@ message GetRawBlockRequest {
 
 message GetRawBlockResponse {
 	bytes block = 1;
+}
+
+message GetCoinjoinOutputspByAcctRequest {}
+
+message coinjoinTxsSumByAcct {
+	uint32 account_number = 1;
+	int32 coinjoin_txs_sum = 2;
+}
+
+message GetCoinjoinOutputspByAcctResponse {
+	repeated coinjoinTxsSumByAcct data = 1;
 }
