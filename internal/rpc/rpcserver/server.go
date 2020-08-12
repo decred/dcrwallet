@@ -40,6 +40,7 @@ import (
 	pb "decred.org/dcrwallet/rpc/walletrpc"
 	"decred.org/dcrwallet/spv"
 	"decred.org/dcrwallet/ticketbuyer"
+	"decred.org/dcrwallet/vsp"
 	"decred.org/dcrwallet/wallet"
 	"decred.org/dcrwallet/wallet/txauthor"
 	"decred.org/dcrwallet/wallet/txrules"
@@ -2413,6 +2414,8 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	}
 	params := wallet.ChainParams()
 
+	// Legacy vsp request. After stopping supporting the old vsp version, this
+	// code can be removed.
 	// Confirm validity of provided voting addresses and pool addresses.
 	var votingAddress dcrutil.Address
 	var err error
@@ -2424,14 +2427,36 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	}
 	var poolAddress dcrutil.Address
 	if req.PoolAddress != "" {
+		if req.VspHost != "" || req.VspPubkey != "" {
+			return status.Errorf(codes.InvalidArgument,
+				"request contains both legacy stakepoold and vspd options.")
+		}
 		poolAddress, err = decodeAddress(req.PoolAddress, params)
 		if err != nil {
 			return err
 		}
 	}
 
+	// new vspd request
+	var vspHost string
+	var vspPubKey string
+	if req.VspHost != "" || req.VspPubkey != "" {
+		vspHost = req.VspHost
+		vspPubKey = req.VspPubkey
+		if vspPubKey == "" {
+			return status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
+		}
+		if vspHost == "" {
+			return status.Errorf(codes.InvalidArgument, "vsp host can not be null")
+		}
+	}
 	if req.BalanceToMaintain < 0 {
 		return status.Errorf(codes.InvalidArgument, "Negative balance to maintain given")
+	}
+
+	vspServer, err := vsp.New(vspHost, vspPubKey, req.Account, req.Account, nil, wallet, params)
+	if err != nil {
+		return status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
 	}
 
 	tb := ticketbuyer.New(wallet)
@@ -2446,6 +2471,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		c.VotingAddr = votingAddress
 		c.PoolFeeAddr = poolAddress
 		c.PoolFees = req.PoolFees
+		c.VSP = vspServer
 	})
 
 	lock := make(chan time.Time, 1)
