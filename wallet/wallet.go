@@ -4926,11 +4926,14 @@ func (w *Wallet) getCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, 
 		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
 			for _, detail := range details {
-				isMixedTx, _, _ := PossibleCoinJoin(&detail.MsgTx)
+				isMixedTx, mixDenom, _ := PossibleCoinJoin(&detail.MsgTx)
 				if !isMixedTx {
 					continue
 				}
 				for _, output := range detail.MsgTx.TxOut {
+					if mixDenom != output.Value {
+						continue
+					}
 					_, addrs, _, _ := txscript.ExtractPkScriptAddrs(output.Version,
 						output.PkScript, w.chainParams)
 					if len(addrs) == 1 {
@@ -4956,7 +4959,7 @@ func (w *Wallet) getCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, 
 // GetCoinjoinTxsSumbByAcct gets all coinjoin outputs sum by accounts. This is done
 // in case we need to guess a mixed account on wallet recovery.
 func (w *Wallet) GetCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, error) {
-	const op errors.Op = "wallet.GetTransactionsByAcct"
+	const op errors.Op = "wallet.GetCoinjoinTxsSumbByAcct"
 	allTxsByAcct, err := w.getCoinjoinTxsSumbByAcct(ctx)
 	if err != nil {
 		return nil, errors.E(op, err)
