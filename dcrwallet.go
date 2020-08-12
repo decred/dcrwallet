@@ -242,21 +242,24 @@ func run(ctx context.Context) error {
 			passphrase = startPromptPass(ctx, w)
 		}
 
-		purchaseAcct, err := w.AccountNumber(ctx, cfg.PurchaseAccount)
-		if err != nil {
-			log.Warnf("failed to get account number for %s: %v", cfg.PurchaseAccount, err)
-			return err
-		}
-		changeAcct, err := w.AccountNumber(ctx, cfg.ChangeAccount)
-		if err != nil {
-			log.Warnf("change account not set, using %s", cfg.PurchaseAccount)
-			changeAcct = purchaseAcct
-		}
-
-		vspServer, err = vsp.New(cfg.VSPOpts.Server, cfg.VSPOpts.PubKey, purchaseAcct, changeAcct, cfg.dial, w, activeNet.Params)
-		if err != nil {
-			log.Errorf("vsp: %v", err)
-			return err
+		if cfg.EnableTicketBuyer && cfg.VSPOpts.Server != "" {
+			changeAcct, err := w.AccountNumber(ctx, cfg.ChangeAccount)
+			if err != nil {
+				log.Warnf("failed to get account number for %s: %v",
+					cfg.PurchaseAccount, err)
+				return err
+			}
+			purchaseAcct, err := w.AccountNumber(ctx, cfg.PurchaseAccount)
+			if err != nil {
+				log.Warnf("change account not set, using %s", cfg.PurchaseAccount)
+				changeAcct = purchaseAcct
+			}
+			vspServer, err = vsp.New(cfg.VSPOpts.Server, cfg.VSPOpts.PubKey,
+				purchaseAcct, changeAcct, cfg.dial, w, activeNet.Params)
+			if err != nil {
+				log.Errorf("vsp: %v", err)
+				return err
+			}
 		}
 
 		var tb *ticketbuyer.TB
