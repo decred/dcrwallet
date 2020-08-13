@@ -1995,7 +1995,8 @@ func (m *Manager) RenameAccount(ns walletdb.ReadWriteBucket, account uint32, nam
 	if err != nil {
 		return err
 	}
-	switch dbAcct.(type) {
+	var row *dbBIP0044AccountRow
+	switch dbAcct := dbAcct.(type) {
 	case *dbHardenedPurposeAccount:
 		acctVars := accountVarsBucket(ns, account)
 		err := acctVars.Put(acctVarName, []byte(name))
@@ -2003,11 +2004,8 @@ func (m *Manager) RenameAccount(ns walletdb.ReadWriteBucket, account uint32, nam
 			return errors.E(errors.IO, err)
 		}
 		return nil
-	}
-
-	row, err := fetchAccountInfo(ns, account, DBVersion)
-	if err != nil {
-		return err
+	case *dbBIP0044AccountRow:
+		row = dbAcct
 	}
 
 	// Remove the old name key from the accout id index
