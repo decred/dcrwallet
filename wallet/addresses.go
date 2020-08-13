@@ -1328,7 +1328,7 @@ func (w *Wallet) nextHardenedAddress(ctx context.Context, dbtx walletdb.ReadWrit
 	case branch&mask == 1:
 		child = props.LastReturnedInternalIndex + 1 | h
 	default:
-		return nil, errors.E(errors.Invalid, "branch is neither external nor interal")
+		return nil, errors.E(errors.Invalid, "branch is neither external nor internal")
 	}
 
 	extPrivKey, err := w.manager.CreateHardenedChild(dbtx, account, branch|h, child)
