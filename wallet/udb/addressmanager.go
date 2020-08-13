@@ -1995,36 +1995,42 @@ func (m *Manager) RenameAccount(ns walletdb.ReadWriteBucket, account uint32, nam
 	if err != nil {
 		return err
 	}
-	var row *dbBIP0044AccountRow
+	var oldName string
 	switch dbAcct := dbAcct.(type) {
 	case *dbHardenedPurposeAccount:
 		acctVars := accountVarsBucket(ns, account)
+		oldName = string(acctVars.Get(acctVarName))
 		err := acctVars.Put(acctVarName, []byte(name))
 		if err != nil {
 			return errors.E(errors.IO, err)
 		}
-		return nil
 	case *dbBIP0044AccountRow:
-		row = dbAcct
+		row := dbAcct
+		oldName = row.name
+		row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted,
+			0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex,
+			row.lastReturnedExternalIndex, row.lastReturnedInternalIndex,
+			name, DBVersion)
+		err = putAccountRow(ns, account, &row.dbAccountRow)
+		if err != nil {
+			return err
+		}
 	}
 
-	// Remove the old name key from the accout id index
+	// Rewrite account id -> name and name -> id indexes.
 	if err = deleteAccountIDIndex(ns, account); err != nil {
 		return err
 	}
-	// Remove the old name key from the account name index
-	if err = deleteAccountNameIndex(ns, row.name); err != nil {
+	if err = deleteAccountNameIndex(ns, oldName); err != nil {
 		return err
 	}
-	row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted,
-		0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex,
-		row.lastReturnedExternalIndex, row.lastReturnedInternalIndex,
-		name, DBVersion)
-	err = putBIP0044AccountInfo(ns, account, row)
-	if err != nil {
+	if err := putAccountIDIndex(ns, account, name); err != nil {
 		return err
 	}
-
+	if err := putAccountNameIndex(ns, account, name); err != nil {
+		return err
+	}
+	
 	// Update in-memory account info with new name if cached and the db
 	// write was successful.
 	if acctInfo, ok := m.acctInfo[account]; ok {
