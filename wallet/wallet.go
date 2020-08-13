@@ -856,7 +856,6 @@ func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, re
 	}
 	if len(abuf) != 0 {
 		importedAddrCount += len(abuf)
-		log.Infof("leftovers, watching addrs %v", abuf)
 		err := n.LoadTxFilter(ctx, false, abuf, nil)
 		if err != nil {
 			return err
