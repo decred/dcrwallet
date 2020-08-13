@@ -11,12 +11,12 @@ import (
 
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/p2p"
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/validate"
 	"decred.org/dcrwallet/wallet"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/gcs/v2"
-	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -104,27 +104,16 @@ func (s *Syncer) String() string {
 // NOTE: due to blockcf2 *not* including the spent outpoints in the block, the
 // addrs[] slice MUST include the addresses corresponding to the respective
 // outpoints, otherwise they will not be returned during the rescan.
-func (s *Syncer) LoadTxFilter(ctx context.Context, reload bool, addrs []dcrutil.Address, outpoints []wire.OutPoint) error {
+func (s *Syncer) LoadTxFilter(ctx context.Context, reload bool, addrs []payments.Address, outpoints []wire.OutPoint) error {
 	s.filterMu.Lock()
 	if reload || s.rescanFilter == nil {
 		s.rescanFilter = wallet.NewRescanFilter(nil, nil)
 		s.filterData = nil
 	}
 	for _, addr := range addrs {
-		var pkScript []byte
-		type scripter interface {
-			PaymentScript() (uint16, []byte)
-		}
-		switch addr := addr.(type) {
-		case scripter:
-			_, pkScript = addr.PaymentScript()
-		default:
-			pkScript, _ = txscript.PayToAddrScript(addr)
-		}
-		if pkScript != nil {
-			s.rescanFilter.AddAddress(addr)
-			s.filterData.AddRegularPkScript(pkScript)
-		}
+		_, pkScript := addr.PaymentScript()
+		s.rescanFilter.AddAddress(addr)
+		s.filterData.AddRegularPkScript(pkScript)
 	}
 	for i := range outpoints {
 		s.rescanFilter.AddUnspentOutPoint(&outpoints[i])

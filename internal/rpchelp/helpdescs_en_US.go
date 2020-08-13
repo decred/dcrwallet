@@ -83,6 +83,10 @@ var helpDescsEnUS = map[string]string{
 	"createsignature-hashtype":              "The signature hash flags to use.",
 	"createsignature-previouspkscript":      "The the hex encoded previous output script or P2SH redeem script.",
 
+	// CreateHardenedAccountCmd help.
+	"createhardenedaccount--synopsis": "Create an account which derives hardened keys",
+	"createhardenedaccount-name":      "The name to give the new account",
+
 	// DiscoverUsageCmd help.
 	"discoverusage--synopsis":        "Perform address and/or account discovery",
 	"discoverusage-startblock":       "Hash of block to begin discovery from, or null to scan from the genesis block",

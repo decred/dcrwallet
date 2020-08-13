@@ -69,13 +69,17 @@ func TestDiscoveryCursorPos(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	utilAddr4, err := addressToUtilAddress(addr4, w.chainParams)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		err = w.manager.MarkReturnedChildIndex(dbtx, 0, 0, 9) // 0-9 have been returned
 		if err != nil {
 			return err
 		}
-		maddr4, err := w.manager.Address(ns, addr4)
+		maddr4, err := w.manager.Address(ns, utilAddr4)
 		if err != nil {
 			return err
 		}

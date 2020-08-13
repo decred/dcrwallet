@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/wallet"
 	_ "decred.org/dcrwallet/wallet/drivers/bdb" // driver loaded during init
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -50,9 +51,8 @@ type Loader struct {
 // StakeOptions contains the various options necessary for stake mining.
 type StakeOptions struct {
 	VotingEnabled       bool
-	AddressReuse        bool
-	VotingAddress       dcrutil.Address
-	PoolAddress         dcrutil.Address
+	VotingAddress       payments.Address
+	PoolAddress         payments.Address
 	PoolFees            float64
 	StakePoolColdExtKey string
 }
@@ -168,7 +168,6 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 		DB:                      db,
 		PubPassphrase:           pubPass,
 		VotingEnabled:           so.VotingEnabled,
-		AddressReuse:            so.AddressReuse,
 		VotingAddress:           so.VotingAddress,
 		PoolAddress:             so.PoolAddress,
 		PoolFees:                so.PoolFees,
@@ -258,7 +257,6 @@ func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphr
 		DB:                      db,
 		PubPassphrase:           pubPassphrase,
 		VotingEnabled:           so.VotingEnabled,
-		AddressReuse:            so.AddressReuse,
 		VotingAddress:           so.VotingAddress,
 		PoolAddress:             so.PoolAddress,
 		PoolFees:                so.PoolFees,
@@ -318,7 +316,6 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 		DB:                      db,
 		PubPassphrase:           pubPassphrase,
 		VotingEnabled:           so.VotingEnabled,
-		AddressReuse:            so.AddressReuse,
 		VotingAddress:           so.VotingAddress,
 		PoolAddress:             so.PoolAddress,
 		PoolFees:                so.PoolFees,

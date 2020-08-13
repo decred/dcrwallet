@@ -11,9 +11,11 @@ import (
 
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/internal/compat"
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/wallet/txsizes"
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v3"
@@ -39,22 +41,136 @@ const (
 	// imported extended key.  It operates like a seed-derived BIP0044
 	// account.
 	AccountKindImportedXpub
+
+	// AccountKindHardened describes an account which returns hardened child
+	// keys.
+	AccountKindHardened
 )
 
 // Address is a human-readable encoding of an output script.
 //
 // Address encodings may include a network identifier, to prevent misuse on an
 // alternate Decred network.
-type Address interface {
-	String() string
+type Address = payments.Address
 
-	// PaymentScript returns the output script and script version to pay the
-	// address.  The version is always returned with the script, as it is
-	// not useful to use the script without the version.
-	PaymentScript() (version uint16, script []byte)
+// wrappedUtilAddr implements payments.Address for any non-P2PKH and non-P2SH
+// address.
+type wrappedUtilAddr struct {
+	addr   dcrutil.Address
+	script []byte
+}
 
-	// ScriptLen returns the known length of the address output script.
-	ScriptLen() int
+// WrapUtilAddress wraps a dcrutil.Address with a wallet implementation of the
+// payments.Address interface.
+func WrapUtilAddress(addr dcrutil.Address) (payments.Address, error) {
+	switch addr := addr.(type) {
+	case *dcrutil.AddressPubKeyHash:
+		return &p2pkhAddress{addr}, nil
+	case *dcrutil.AddressScriptHash:
+		return &p2shAddress{addr}, nil
+	default:
+		script, err := txscript.PayToAddrScript(addr)
+		if err != nil {
+			return nil, err
+		}
+		return &wrappedUtilAddr{addr, script}, nil
+	}
+}
+
+func addressToUtilAddress(a Address, params dcrutil.AddressParams) (dcrutil.Address, error) {
+	switch a := a.(type) {
+	case interface{ utilAddr() dcrutil.Address }:
+		return a.utilAddr(), nil
+	}
+	return dcrutil.DecodeAddress(a.String(), params)
+}
+
+var _ payments.Address = (*wrappedUtilAddr)(nil)
+
+func (x *wrappedUtilAddr) String() string { return x.addr.Address() }
+func (x *wrappedUtilAddr) PaymentScript() (version uint16, script []byte) {
+	return 0, x.script
+}
+func (x *wrappedUtilAddr) ScriptLen() int { return len(x.script) }
+
+func (x *wrappedUtilAddr) utilAddr() dcrutil.Address { return x.addr }
+
+// DecodeAddress decodes an address in string encoding for the network described
+// by params.  The wallet depends on addresses implementing payments.Address
+// returned by this func, rather than external implementations of the interface.
+func DecodeAddress(s string, params dcrutil.AddressParams) (payments.Address, error) {
+	utilAddr, err := dcrutil.DecodeAddress(s, params)
+	if err != nil {
+		return nil, err
+	}
+	return WrapUtilAddress(utilAddr)
+}
+
+// ParseAddress parses an address (if the script form matches a known address
+// type) from a transaction's output script.  This function works with both
+// regular and stake-tagged output scripts.
+//
+// If the script is multisig, the returned address implements the
+// payments.MultisigAddress P2SH type.
+func ParseAddress(vers uint16, script []byte, params dcrutil.AddressParams) (Address, error) {
+	_, addrs, m, err := txscript.ExtractPkScriptAddrs(vers, script, params)
+	if err != nil {
+		return nil, err
+	}
+	if m >= 2 && m <= len(addrs) { // multisig
+		n := len(addrs)
+		pubkeyAddrs := make([]*dcrutil.AddressSecpPubKey, 0, n)
+		pubkeys := make([][]byte, 0, n)
+		for i := range addrs {
+			addr := addrs[i]
+			pubkeyAddr, ok := addr.(*dcrutil.AddressSecpPubKey)
+			if !ok {
+				err := errors.Errorf("unexpected address type %T", addr)
+				return nil, err
+			}
+			pubkey := pubkeyAddr.PubKey().SerializeCompressed()
+
+			pubkeyAddrs = append(pubkeyAddrs, pubkeyAddr)
+			pubkeys = append(pubkeys, pubkey)
+		}
+		redeemScript, err := txscript.MultiSigScript(pubkeyAddrs, m)
+		if err != nil {
+			return nil, errors.Errorf("create multisig redeem script: %v", err)
+		}
+		p2shUtilAddr, err := dcrutil.NewAddressScriptHash(redeemScript, params)
+		if err != nil {
+			return nil, errors.Errorf("create multisig P2SH: %v", err)
+		}
+
+		addr := new(multisigAddress)
+		addr.p2shAddress = p2shAddress{p2shUtilAddr}
+		addr.redeemScript = redeemScript
+		addr.pubkeys = pubkeys
+		addr.m = m
+		return addr, nil
+	}
+	if len(addrs) != 1 {
+		return nil, errors.E("expected one address")
+	}
+	addr := addrs[0]
+	return WrapUtilAddress(addr)
+}
+
+// ParseTicketCommitmentAddress parses a P2PKH or P2SH address from a ticket's
+// commitment output script.
+func ParseTicketCommitmentAddress(script []byte, params dcrutil.AddressParams) (Address, error) {
+	utilAddr, err := stake.AddrFromSStxPkScrCommitment(script, params)
+	if err != nil {
+		return nil, err
+	}
+	switch a := utilAddr.(type) {
+	case *dcrutil.AddressPubKeyHash:
+		return &p2pkhAddress{a}, nil
+	case *dcrutil.AddressScriptHash:
+		return &p2shAddress{a}, nil
+	default:
+		return nil, errors.Errorf("unknown address type %T", utilAddr)
+	}
 }
 
 // KnownAddress represents an address recorded by the wallet.  It is potentially
@@ -122,6 +238,8 @@ func (m *managedAddress) PaymentScript() (uint16, []byte) { return m.script() }
 func (m *managedAddress) ScriptLen() int                  { return m.scriptLen }
 func (m *managedAddress) AccountName() string             { return m.acct }
 func (m *managedAddress) AccountKind() AccountKind        { return m.acctKind }
+
+func (m *managedAddress) utilAddr() dcrutil.Address { return m.addr.Address() }
 
 // Possible implementations of m.script
 func (m *managedAddress) p2pkhScript() (uint16, []byte) {
@@ -216,11 +334,25 @@ func wrapManagedAddress(addr udb.ManagedAddress, account string, kind AccountKin
 	}
 }
 
+type multisigAddress struct {
+	p2shAddress
+	redeemScript []byte
+	pubkeys      [][]byte
+	m            int
+}
+
+var _ payments.MultisigAddress = (*multisigAddress)(nil)
+
+func (a *multisigAddress) RedeemScript() []byte { return a.redeemScript }
+func (a *multisigAddress) Pubkeys() [][]byte    { return a.pubkeys }
+func (a *multisigAddress) M() int               { return a.m }
+func (a *multisigAddress) N() int               { return len(a.pubkeys) }
+
 // KnownAddress returns the KnownAddress implementation for an address.  The
 // returned address may implement other interfaces (such as, but not limited to,
 // PubKeyHashAddress, BIP0044Address, or P2SHAddress) depending on the script
 // type and account for the address.
-func (w *Wallet) KnownAddress(ctx context.Context, a dcrutil.Address) (KnownAddress, error) {
+func (w *Wallet) KnownAddress(ctx context.Context, a Address) (KnownAddress, error) {
 	const op errors.Op = "wallet.KnownAddress"
 
 	var ma udb.ManagedAddress
@@ -228,7 +360,10 @@ func (w *Wallet) KnownAddress(ctx context.Context, a dcrutil.Address) (KnownAddr
 	var acctName string
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		var err error
+		a, err := addressToUtilAddress(a, w.chainParams)
+		if err != nil {
+			return err
+		}
 		ma, err = w.manager.Address(addrmgrNs, a)
 		if err != nil {
 			return err
@@ -261,19 +396,47 @@ type stakeAddress interface {
 	payRevokeCommitment() (script []byte, version uint16)
 }
 
-type xpubAddress struct {
+type p2pkhAddress struct {
 	*dcrutil.AddressPubKeyHash
-	xpub        *hdkeychain.ExtendedKey
+}
+
+type p2shAddress struct {
+	*dcrutil.AddressScriptHash
+}
+
+func (x *p2pkhAddress) PubkeyHash() []byte { return x.Hash160()[:] }
+func (x *p2shAddress) ScriptHash() []byte  { return x.Hash160()[:] }
+
+func (x *p2pkhAddress) pubkeyHash160() *[20]byte { return x.Hash160() }
+func (x *p2shAddress) scriptHash160() *[20]byte  { return x.Hash160() }
+
+func (x *p2pkhAddress) utilAddr() dcrutil.Address { return x.AddressPubKeyHash }
+func (x *p2shAddress) utilAddr() dcrutil.Address  { return x.AddressScriptHash }
+
+type hdAddress struct {
+	p2pkhAddress
 	accountName string
 	account     uint32
 	branch      uint32
 	child       uint32
 }
 
-var _ BIP0044Address = (*xpubAddress)(nil)
-var _ stakeAddress = (*xpubAddress)(nil)
+type xpubAddress struct {
+	hdAddress
+	xpub *hdkeychain.ExtendedKey
+}
 
-func (x *xpubAddress) PaymentScript() (uint16, []byte) {
+type hardenedAddress struct {
+	hdAddress
+	pubkey []byte
+}
+
+var _ BIP0044Address = (*xpubAddress)(nil)
+var _ BIP0044Address = (*hardenedAddress)(nil)
+var _ stakeAddress = (*p2pkhAddress)(nil)
+var _ stakeAddress = (*p2shAddress)(nil)
+
+func (x *p2pkhAddress) PaymentScript() (uint16, []byte) {
 	s := []byte{
 		0:  txscript.OP_DUP,
 		1:  txscript.OP_HASH160,
@@ -285,16 +448,28 @@ func (x *xpubAddress) PaymentScript() (uint16, []byte) {
 	return 0, s
 }
 
-func (x *xpubAddress) ScriptLen() int      { return txsizes.P2PKHPkScriptSize }
-func (x *xpubAddress) AccountName() string { return x.accountName }
+func (x *p2shAddress) PaymentScript() (uint16, []byte) {
+	s := []byte{
+		0:  txscript.OP_HASH160,
+		1:  txscript.OP_DATA_20,
+		22: txscript.OP_EQUALVERIFY,
+	}
+	copy(s[2:22], x.Hash160()[:])
+	return 0, s
+}
 
-func (x *xpubAddress) AccountKind() AccountKind {
+func (x *p2pkhAddress) ScriptLen() int   { return txsizes.P2PKHPkScriptSize }
+func (x *p2shAddress) ScriptLen() int    { return txsizes.P2SHPkScriptSize }
+func (x *hdAddress) AccountName() string { return x.accountName }
+
+func (x *hdAddress) AccountKind() AccountKind {
+	// XXX
 	if x.account > udb.ImportedAddrAccount {
 		return AccountKindImportedXpub
 	}
 	return AccountKindBIP0044
 }
-func (x *xpubAddress) Path() (account, branch, child uint32) {
+func (x *hdAddress) Path() (account, branch, child uint32) {
 	account, branch, child = x.account, x.branch, x.child
 	if x.account > udb.ImportedAddrAccount {
 		account = 0
@@ -316,9 +491,13 @@ func (x *xpubAddress) PubKey() []byte {
 	return childKey.SerializedPubKey()
 }
 
-func (x *xpubAddress) PubKeyHash() []byte { return x.Hash160()[:] }
+func (x *hardenedAddress) PubKey() []byte {
+	return x.pubkey
+}
 
-func (x *xpubAddress) voteRights() (script []byte, version uint16) {
+func (x *hdAddress) PubKeyHash() []byte { return x.Hash160()[:] }
+
+func (x *p2pkhAddress) voteRights() (script []byte, version uint16) {
 	s := []byte{
 		0:  txscript.OP_SSTX,
 		1:  txscript.OP_DUP,
@@ -327,11 +506,22 @@ func (x *xpubAddress) voteRights() (script []byte, version uint16) {
 		24: txscript.OP_EQUALVERIFY,
 		25: txscript.OP_CHECKSIG,
 	}
-	copy(s[4:24], x.PubKeyHash())
+	copy(s[4:24], x.Hash160()[:])
 	return s, 0
 }
 
-func (x *xpubAddress) ticketChange() (script []byte, version uint16) {
+func (x *p2shAddress) voteRights() (script []byte, version uint16) {
+	s := []byte{
+		0:  txscript.OP_SSTX,
+		1:  txscript.OP_HASH160,
+		2:  txscript.OP_DATA_20,
+		23: txscript.OP_EQUALVERIFY,
+	}
+	copy(s[3:23], x.Hash160()[:])
+	return s, 0
+}
+
+func (x *p2pkhAddress) ticketChange() (script []byte, version uint16) {
 	s := []byte{
 		0:  txscript.OP_SSTXCHANGE,
 		1:  txscript.OP_DUP,
@@ -340,21 +530,43 @@ func (x *xpubAddress) ticketChange() (script []byte, version uint16) {
 		24: txscript.OP_EQUALVERIFY,
 		25: txscript.OP_CHECKSIG,
 	}
-	copy(s[4:24], x.PubKeyHash())
+	copy(s[4:24], x.Hash160()[:])
 	return s, 0
 }
 
-func (x *xpubAddress) rewardCommitment(amount dcrutil.Amount, limits uint16) ([]byte, uint16) {
+func (x *p2shAddress) ticketChange() (script []byte, version uint16) {
+	s := []byte{
+		0:  txscript.OP_SSTXCHANGE,
+		1:  txscript.OP_HASH160,
+		2:  txscript.OP_DATA_20,
+		23: txscript.OP_EQUALVERIFY,
+	}
+	copy(s[3:23], x.Hash160()[:])
+	return s, 0
+}
+
+func (x *p2pkhAddress) rewardCommitment(amount dcrutil.Amount, limits uint16) ([]byte, uint16) {
 	s := make([]byte, 32)
 	s[0] = txscript.OP_RETURN
 	s[1] = txscript.OP_DATA_30
-	copy(s[2:22], x.PubKeyHash())
+	copy(s[2:22], x.Hash160()[:])
 	binary.LittleEndian.PutUint64(s[22:30], uint64(amount))
 	binary.LittleEndian.PutUint16(s[30:32], limits)
 	return s, 0
 }
 
-func (x *xpubAddress) payVoteCommitment() (script []byte, version uint16) {
+func (x *p2shAddress) rewardCommitment(amount dcrutil.Amount, limits uint16) ([]byte, uint16) {
+	s := make([]byte, 32)
+	s[0] = txscript.OP_RETURN
+	s[1] = txscript.OP_DATA_30
+	copy(s[2:22], x.Hash160()[:])
+	binary.LittleEndian.PutUint64(s[22:30], uint64(amount))
+	binary.LittleEndian.PutUint16(s[30:32], limits)
+	s[29] |= 0x80 // mark the hash160 as a script hash
+	return s, 0
+}
+
+func (x *p2pkhAddress) payVoteCommitment() (script []byte, version uint16) {
 	s := []byte{
 		0:  txscript.OP_SSGEN,
 		1:  txscript.OP_DUP,
@@ -363,11 +575,22 @@ func (x *xpubAddress) payVoteCommitment() (script []byte, version uint16) {
 		24: txscript.OP_EQUALVERIFY,
 		25: txscript.OP_CHECKSIG,
 	}
-	copy(s[4:24], x.PubKeyHash())
+	copy(s[4:24], x.Hash160()[:])
 	return s, 0
 }
 
-func (x *xpubAddress) payRevokeCommitment() (script []byte, version uint16) {
+func (x *p2shAddress) payVoteCommitment() (script []byte, version uint16) {
+	s := []byte{
+		0:  txscript.OP_SSGEN,
+		1:  txscript.OP_HASH160,
+		2:  txscript.OP_DATA_20,
+		23: txscript.OP_EQUALVERIFY,
+	}
+	copy(s[3:23], x.Hash160()[:])
+	return s, 0
+}
+
+func (x *p2pkhAddress) payRevokeCommitment() (script []byte, version uint16) {
 	s := []byte{
 		0:  txscript.OP_SSRTX,
 		1:  txscript.OP_DUP,
@@ -376,7 +599,18 @@ func (x *xpubAddress) payRevokeCommitment() (script []byte, version uint16) {
 		24: txscript.OP_EQUALVERIFY,
 		25: txscript.OP_CHECKSIG,
 	}
-	copy(s[4:24], x.PubKeyHash())
+	copy(s[4:24], x.Hash160()[:])
+	return s, 0
+}
+
+func (x *p2shAddress) payRevokeCommitment() (script []byte, version uint16) {
+	s := []byte{
+		0:  txscript.OP_SSRTX,
+		1:  txscript.OP_HASH160,
+		2:  txscript.OP_DATA_20,
+		23: txscript.OP_EQUALVERIFY,
+	}
+	copy(s[3:23], x.Hash160()[:])
 	return s, 0
 }
 
@@ -571,6 +805,7 @@ func (w *Wallet) persistReturnedChild(ctx context.Context, maybeDBTX walletdb.Re
 	}
 }
 
+/*
 // deferPersistReturnedChild returns a persistReturnedChildFunc that is not
 // immediately written to the database.  Instead, an update function is appended
 // to the updates slice.  This allows all updates to be run under a single
@@ -595,11 +830,20 @@ func (w *Wallet) deferPersistReturnedChild(ctx context.Context, updates *[]func(
 		return nil
 	}
 }
+*/
 
 // nextAddress returns the next address of an account branch.
-func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc,
-	accountName string, account, branch uint32,
-	callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
+func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, dbtx walletdb.ReadWriteTx,
+	persist persistReturnedChildFunc, accountName string, account, branch uint32,
+	callOpts ...NextAddressCallOption) (KnownAddress, error) {
+
+	if w.manager.IsHardenedAccount(dbtx, account) {
+		addr, err := w.nextHardenedAddress(ctx, dbtx, account, branch)
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+		return addr, nil
+	}
 
 	var opts nextAddressCallOptions // TODO: zero values for now, add to wallet config later.
 	for _, c := range callOpts {
@@ -684,14 +928,13 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 			return nil, errors.E(op, err)
 		}
 		alb.cursor++
-		addr := &xpubAddress{
-			AddressPubKeyHash: apkh,
-			xpub:              ad.xpub,
-			account:           account,
-			accountName:       accountName,
-			branch:            branch,
-			child:             childIndex,
-		}
+		addr := new(xpubAddress)
+		addr.AddressPubKeyHash = apkh
+		addr.account = account
+		addr.accountName = accountName
+		addr.branch = branch
+		addr.child = childIndex
+		addr.xpub = ad.xpub
 		log.Infof("Returning address (account=%v branch=%v child=%v)", account, branch, childIndex)
 		return addr, nil
 	}
@@ -699,7 +942,7 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 
 func (w *Wallet) nextImportedXpubAddress(ctx context.Context, op errors.Op,
 	maybeDBTX walletdb.ReadWriteTx, accountName string, account uint32, branch uint32,
-	callOpts ...NextAddressCallOption) (addr dcrutil.Address, err error) {
+	callOpts ...NextAddressCallOption) (_ KnownAddress, err error) {
 
 	dbtx := maybeDBTX
 	if dbtx == nil {
@@ -753,13 +996,13 @@ func (w *Wallet) nextImportedXpubAddress(ctx context.Context, op errors.Op,
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	addr = &xpubAddress{
-		AddressPubKeyHash: apkh,
-		xpub:              xpub,
-		account:           account,
-		branch:            branch,
-		child:             child,
-	}
+	addr := new(xpubAddress)
+	addr.AddressPubKeyHash = apkh
+	addr.account = account
+	addr.accountName = accountName
+	addr.branch = branch
+	addr.child = child
+	addr.xpub = xpub
 	err = w.manager.MarkReturnedChildIndex(dbtx, account, branch, child)
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -784,7 +1027,9 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 	if err != nil {
 		return errors.E(op, err)
 	}
-	if account == udb.ImportedAddrAccount {
+	// TODO: advance the last used address for hardened acccounts (update
+	// the rest of these calls to support that account format)
+	if account == udb.ImportedAddrAccount || w.manager.IsHardenedAccount(dbtx, account) {
 		return nil
 	}
 	props, err := w.manager.AccountProperties(ns, account)
@@ -806,26 +1051,34 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 	return nil
 }
 
-// NewExternalAddress returns an external address.
-func (w *Wallet) NewExternalAddress(ctx context.Context, account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
-	const op errors.Op = "wallet.NewExternalAddress"
+func (w *Wallet) newAddressOpenDBTX(ctx context.Context, op errors.Op, account, branch uint32,
+	callOpts ...NextAddressCallOption) (addr KnownAddress, err error) {
 
 	accountName, _ := w.AccountName(ctx, account)
-	return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil),
-		accountName, account, udb.ExternalBranch, callOpts...)
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		var err error
+		addr, err = w.nextAddress(ctx, op, dbtx, w.persistReturnedChild(ctx, dbtx),
+			accountName, account, branch, callOpts...)
+		return err
+	})
+	return addr, err
+}
+
+// NewExternalAddress returns an external address.
+func (w *Wallet) NewExternalAddress(ctx context.Context, account uint32, callOpts ...NextAddressCallOption) (addr KnownAddress, err error) {
+	const op errors.Op = "wallet.NewExternalAddress"
+	return w.newAddressOpenDBTX(ctx, op, account, 0, callOpts...)
 }
 
 // NewInternalAddress returns an internal address.
-func (w *Wallet) NewInternalAddress(ctx context.Context, account uint32, callOpts ...NextAddressCallOption) (dcrutil.Address, error) {
-	const op errors.Op = "wallet.NewExternalAddress"
-
-	accountName, _ := w.AccountName(ctx, account)
-	return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil),
-		accountName, account, udb.InternalBranch, callOpts...)
+func (w *Wallet) NewInternalAddress(ctx context.Context, account uint32, callOpts ...NextAddressCallOption) (KnownAddress, error) {
+	const op errors.Op = "wallet.NewInternalAddress"
+	return w.newAddressOpenDBTX(ctx, op, account, 1, callOpts...)
 }
 
-func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc,
-	accountName string, account uint32, gap gapPolicy) (dcrutil.Address, error) {
+func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, dbtx walletdb.ReadWriteTx,
+	persist persistReturnedChildFunc, accountName string, account uint32,
+	gap gapPolicy) (KnownAddress, error) {
 	// Addresses can not be generated for the imported account, so as a
 	// workaround, change is sent to the first account.
 	//
@@ -833,17 +1086,23 @@ func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist per
 	if account == udb.ImportedAddrAccount {
 		account = udb.DefaultAccountNum
 	}
-	return w.nextAddress(ctx, op, persist, accountName, account, udb.InternalBranch, withGapPolicy(gap))
+	return w.nextAddress(ctx, op, dbtx, persist, accountName, account, 1, withGapPolicy(gap))
 }
 
 // NewChangeAddress returns an internal address.  This is identical to
 // NewInternalAddress but handles the imported account (which can't create
 // addresses) by using account 0 instead, and always uses the wrapping gap limit
 // policy.
-func (w *Wallet) NewChangeAddress(ctx context.Context, account uint32) (dcrutil.Address, error) {
+func (w *Wallet) NewChangeAddress(ctx context.Context, account uint32) (addr KnownAddress, err error) {
 	const op errors.Op = "wallet.NewChangeAddress"
 	accountName, _ := w.AccountName(ctx, account)
-	return w.newChangeAddress(ctx, op, w.persistReturnedChild(ctx, nil), accountName, account, gapPolicyWrap)
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		var err error
+		addr, err = w.newChangeAddress(ctx, op, dbtx,
+			w.persistReturnedChild(ctx, dbtx), accountName, account, gapPolicyWrap)
+		return err
+	})
+	return addr, err
 }
 
 // BIP0044BranchNextIndexes returns the next external and internal branch child
@@ -851,13 +1110,33 @@ func (w *Wallet) NewChangeAddress(ctx context.Context, account uint32) (dcrutil.
 func (w *Wallet) BIP0044BranchNextIndexes(ctx context.Context, account uint32) (extChild, intChild uint32, err error) {
 	const op errors.Op = "wallet.BIP0044BranchNextIndexes"
 
-	defer w.addressBuffersMu.Unlock()
 	w.addressBuffersMu.Lock()
-
 	acctData, ok := w.addressBuffers[account]
 	if !ok {
+		w.addressBuffersMu.Unlock()
+
+		var isHardened bool
+		err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+			ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
+			isHardened = w.manager.IsHardenedAccount(dbtx, account)
+			if !isHardened {
+				return nil
+			}
+			props, err := w.manager.AccountProperties(ns, account)
+			if err != nil {
+				return err
+			}
+			extChild = props.LastReturnedExternalIndex + 1
+			intChild = props.LastReturnedInternalIndex + 1
+			return nil
+		})
+		if isHardened || err != nil {
+			return
+		}
+
 		return 0, 0, errors.E(op, errors.NotExist, errors.Errorf("account %v", account))
 	}
+	defer w.addressBuffersMu.Unlock()
 	extChild = acctData.albExternal.lastUsed + 1 + acctData.albExternal.cursor
 	intChild = acctData.albInternal.lastUsed + 1 + acctData.albInternal.cursor
 	return extChild, intChild, nil
@@ -866,69 +1145,97 @@ func (w *Wallet) BIP0044BranchNextIndexes(ctx context.Context, account uint32) (
 // SyncLastReturnedAddress advances the last returned child address for a
 // BIP00044 account branch.  The next returned address for the branch will be
 // child+1.
-func (w *Wallet) SyncLastReturnedAddress(ctx context.Context, account, branch, child uint32) error {
-	const op errors.Op = "wallet.ExtendWatchedAddresses"
-
-	var (
-		branchXpub *hdkeychain.ExtendedKey
-		lastUsed   uint32
-	)
-	err := func() error {
-		defer w.addressBuffersMu.Unlock()
-		w.addressBuffersMu.Lock()
-
-		acctData, ok := w.addressBuffers[account]
-		if !ok {
-			return errors.E(op, errors.NotExist, errors.Errorf("account %v", account))
+func (w *Wallet) SyncLastReturnedAddress(ctx context.Context, account, branch, child uint32) (err error) {
+	defer func() {
+		const op errors.Op = "wallet.SyncLastReturnedAddress"
+		if err != nil {
+			err = errors.E(op, err)
 		}
-		var alb *addressBuffer
-		switch branch {
-		case udb.ExternalBranch:
-			alb = &acctData.albInternal
-		case udb.InternalBranch:
-			alb = &acctData.albInternal
-		default:
-			return errors.E(op, errors.Invalid, "branch must be external (0) or internal (1)")
-		}
-
-		branchXpub = alb.branchXpub
-		lastUsed = alb.lastUsed
-		if lastUsed != ^uint32(0) && child > lastUsed {
-			alb.cursor = child - lastUsed
-		}
-		return nil
 	}()
-	if err != nil {
-		return err
-	}
 
-	err = walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
-		ns := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-		err = w.manager.SyncAccountToAddrIndex(ns, account, child, branch)
+	var addrs []Address
+
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		ns := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
+		props, err := w.manager.AccountProperties(ns, account)
 		if err != nil {
 			return err
 		}
-		return w.manager.MarkReturnedChildIndex(tx, account, branch, child)
+
+		lastReturned := props.LastReturnedExternalIndex
+		if branch == 1 {
+			lastReturned = props.LastReturnedInternalIndex
+		}
+		if lastReturned != ^uint32(0) && child <= lastReturned {
+			// Nothing to derive
+			return nil
+		}
+
+		hardened := w.manager.IsHardenedAccount(dbtx, account)
+
+		getAccountKey := w.manager.AccountExtendedPubKey
+		var h uint32 // hardening offset
+		if hardened {
+			getAccountKey = w.manager.AccountExtendedPrivKey
+			h = hdkeychain.HardenedKeyStart
+		}
+
+		// Note: account extended privkeys are intentionally not cleared
+		// here.  This is due to the key being cached and managed by the
+		// address manager, and zeroing would neuter the private key and
+		// break other functionality.  When this changes and udb becomes
+		// a dumb storage layer, the key should be zeroed here, or
+		// cached by the wallet structure.
+		acctKey, err := getAccountKey(dbtx, account)
+		if err != nil {
+			return err
+		}
+		branchKey, err := acctKey.Child(branch + h)
+		if err != nil {
+			return err
+		}
+		defer branchKey.Zero()
+
+		// XXX record additional addresses in the gap limit?
+		// ideally syncers would look up relevance via the wallet
+		// rather than their own memory structures, leaving us with recording
+		// these addresses in the db, or saving the gap limit addresses
+		// in memory before finally saving them to the db.
+		for i := lastReturned + 1; i <= child; i++ {
+			childKey, err := branchKey.Child(i + h)
+			if err != nil {
+				if errors.Is(err, hdkeychain.ErrInvalidChild) {
+					continue
+				}
+				return err
+			}
+			pubkey := childKey.SerializedPubKey()
+			childKey.Zero()
+
+			err = w.manager.RecordDerivedAddress(dbtx, account, branch, child, pubkey)
+			if err != nil {
+				return err
+			}
+
+			pubkeyHash := dcrutil.Hash160(pubkey)
+			apkh, err := dcrutil.NewAddressPubKeyHash(pubkeyHash, w.chainParams,
+				dcrec.STEcdsaSecp256k1)
+			if err != nil {
+				return err
+			}
+			addrs = append(addrs, &p2pkhAddress{apkh})
+		}
+
+		return w.manager.MarkReturnedChildIndex(dbtx, account, branch, child)
 	})
 	if err != nil {
 		return err
 	}
 
 	if n, err := w.NetworkBackend(); err == nil {
-		lastWatched := lastUsed + w.gapLimit
-		if child <= lastWatched {
-			// No need to derive anything more.
-			return nil
-		}
-		additionalAddrs := child - lastWatched
-		addrs, err := deriveChildAddresses(branchXpub, lastUsed+1+w.gapLimit,
-			additionalAddrs, w.chainParams)
-		if err != nil {
-			return errors.E(op, err)
-		}
 		err = n.LoadTxFilter(ctx, false, addrs, nil)
 		if err != nil {
-			return errors.E(op, err)
+			return err
 		}
 	}
 
@@ -967,6 +1274,7 @@ func (w *Wallet) ImportedAddresses(ctx context.Context, account string) (_ []Kno
 
 type p2PKHChangeSource struct {
 	persist   persistReturnedChildFunc
+	dbtx      walletdb.ReadWriteTx
 	account   uint32
 	wallet    *Wallet
 	ctx       context.Context
@@ -975,20 +1283,21 @@ type p2PKHChangeSource struct {
 
 func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
 	const accountName = "" // not returned, so can be faked.
-	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.persist,
-		accountName, src.account, src.gapPolicy)
+	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.dbtx,
+		src.persist, accountName, src.account, src.gapPolicy)
 	if err != nil {
 		return nil, 0, err
 	}
-	return addressScript(changeAddress)
+	version, script := changeAddress.PaymentScript()
+	return script, version, nil
 }
 
 func (src *p2PKHChangeSource) ScriptSize() int {
 	return txsizes.P2PKHPkScriptSize
 }
 
-func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32, params *chaincfg.Params) ([]dcrutil.Address, error) {
-	addresses := make([]dcrutil.Address, 0, count)
+func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32, params *chaincfg.Params) ([]Address, error) {
+	addresses := make([]Address, 0, count)
 	for i := uint32(0); i < count; i++ {
 		child, err := key.Child(startIndex + i)
 		if errors.Is(err, hdkeychain.ErrInvalidChild) {
@@ -1001,17 +1310,21 @@ func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32,
 		if err != nil {
 			return nil, err
 		}
-		addresses = append(addresses, addr)
+		addresses = append(addresses, &p2pkhAddress{addr})
 	}
 	return addresses, nil
 }
 
-func deriveChildAddress(key *hdkeychain.ExtendedKey, child uint32, params *chaincfg.Params) (dcrutil.Address, error) {
+func deriveChildAddress(key *hdkeychain.ExtendedKey, child uint32, params *chaincfg.Params) (Address, error) {
 	childKey, err := key.Child(child)
 	if err != nil {
 		return nil, err
 	}
-	return compat.HD2Address(childKey, params)
+	apkh, err := compat.HD2Address(childKey, params)
+	if err != nil {
+		return nil, err
+	}
+	return &p2pkhAddress{apkh}, nil
 }
 
 func deriveBranches(acctXpub *hdkeychain.ExtendedKey) (extKey, intKey *hdkeychain.ExtendedKey, err error) {
@@ -1021,4 +1334,66 @@ func deriveBranches(acctXpub *hdkeychain.ExtendedKey) (extKey, intKey *hdkeychai
 	}
 	intKey, err = acctXpub.Child(udb.InternalBranch)
 	return
+}
+
+// XXX this is ignoring gap limits. do we care? (discovery currently doesn't
+// work on the hardened accounts at all)
+func (w *Wallet) nextHardenedAddress(ctx context.Context, dbtx walletdb.ReadWriteTx,
+	account, branch uint32) (_ KnownAddress, err error) {
+
+	ns := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
+	props, err := w.manager.AccountProperties(ns, account)
+	if err != nil {
+		return nil, err
+	}
+	var child uint32
+	const h = hdkeychain.HardenedKeyStart
+	const mask = h - 1
+	switch {
+	case branch&mask == 0:
+		child = props.LastReturnedExternalIndex + 1 | h
+	case branch&mask == 1:
+		child = props.LastReturnedInternalIndex + 1 | h
+	default:
+		return nil, errors.E(errors.Invalid, "branch is neither external nor interal")
+	}
+
+	extPrivKey, err := w.manager.CreateHardenedChild(dbtx, account, branch|h, child)
+	if err != nil {
+		return nil, err
+	}
+	defer extPrivKey.Zero()
+
+	pubkey := extPrivKey.SerializedPubKey()
+	pubkeyHash := dcrutil.Hash160(pubkey)
+	apkh, err := dcrutil.NewAddressPubKeyHash(pubkeyHash, w.chainParams,
+		dcrec.STEcdsaSecp256k1)
+	if err != nil {
+		return nil, err
+	}
+	addr := new(hardenedAddress)
+	addr.AddressPubKeyHash = apkh
+	addr.account = account
+	addr.accountName = props.AccountName
+	addr.branch = branch
+	addr.child = child & mask
+
+	err = w.manager.RecordDerivedAddress(dbtx, account, branch&mask, child&mask, pubkey)
+	if err != nil {
+		return nil, err
+	}
+	err = w.manager.MarkReturnedChildIndex(dbtx, account, branch&mask, child&mask)
+	if err != nil {
+		return nil, err
+	}
+
+	if n, err := w.NetworkBackend(); err == nil {
+		err = n.LoadTxFilter(ctx, false, []payments.Address{addr}, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	log.Infof("Returning address (account=%v branch=%v child=%v)", account, branch, child)
+	return addr, err
 }

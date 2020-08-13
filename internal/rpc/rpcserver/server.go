@@ -36,6 +36,7 @@ import (
 	"decred.org/dcrwallet/internal/loader"
 	"decred.org/dcrwallet/internal/netparams"
 	"decred.org/dcrwallet/p2p"
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/rpc/client/dcrd"
 	pb "decred.org/dcrwallet/rpc/walletrpc"
 	"decred.org/dcrwallet/spv"
@@ -50,7 +51,6 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/hdkeychain/v3"
@@ -121,8 +121,8 @@ func errorCode(err error) codes.Code {
 // decodeAddress decodes an address and verifies it is intended for the active
 // network.  This should be used preferred to direct usage of
 // dcrutil.DecodeAddress, which does not perform the network check.
-func decodeAddress(a string, params *chaincfg.Params) (dcrutil.Address, error) {
-	addr, err := dcrutil.DecodeAddress(a, params)
+func decodeAddress(a string, params *chaincfg.Params) (payments.Address, error) {
+	addr, err := wallet.DecodeAddress(a, params)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid address %v: %v", a, err)
 	}
@@ -479,7 +479,7 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	}
 
 	var (
-		addr dcrutil.Address
+		addr payments.Address
 		err  error
 	)
 	switch req.Kind {
@@ -512,7 +512,7 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	}
 
 	return &pb.NextAddressResponse{
-		Address:   addr.Address(),
+		Address:   addr.String(),
 		PublicKey: pubKeyAddrString,
 	}, nil
 }
@@ -576,26 +576,32 @@ func (s *walletServer) ImportScript(ctx context.Context,
 
 	// TODO: Rather than assuming the "default" version, it must be a parameter
 	// to the request.
-	sc, addrs, requiredSigs, err := txscript.ExtractPkScriptAddrs(
-		0, req.Script, s.wallet.ChainParams())
+	const defaultVersion = 0
+	addr, err := wallet.ParseAddress(defaultVersion, req.Script, s.wallet.ChainParams())
 	if err != nil && req.RequireRedeemable {
 		return nil, status.Errorf(codes.FailedPrecondition,
 			"The script is not redeemable by the wallet")
 	}
-	ownAddrs := 0
-	for _, a := range addrs {
-		haveAddr, err := s.wallet.HaveAddress(ctx, a)
-		if err != nil {
-			return nil, translateError(err)
+	var multisigRedeemable bool
+	switch addr := addr.(type) {
+	case payments.MultisigAddress:
+		pubkeys := addr.Pubkeys()
+		m := addr.M()
+		var own int
+		for i := range pubkeys {
+			ok, err := s.wallet.HavePubkey(ctx, pubkeys[i])
+			if err != nil {
+				return nil, err
+			}
+			if ok {
+				own++
+			}
+			multisigRedeemable = own >= m
+			if !multisigRedeemable && req.RequireRedeemable {
+				return nil, status.Errorf(codes.FailedPrecondition,
+					"The script is not redeemable by the wallet")
+			}
 		}
-		if haveAddr {
-			ownAddrs++
-		}
-	}
-	redeemable := sc == txscript.MultiSigTy && ownAddrs >= requiredSigs
-	if !redeemable && req.RequireRedeemable {
-		return nil, status.Errorf(codes.FailedPrecondition,
-			"The script is not redeemable by the wallet")
 	}
 
 	if req.ScanFrom < 0 {
@@ -626,7 +632,11 @@ func (s *walletServer) ImportScript(ctx context.Context,
 		return nil, translateError(err)
 	}
 
-	return &pb.ImportScriptResponse{P2ShAddress: p2sh.String(), Redeemable: redeemable}, nil
+	resp := &pb.ImportScriptResponse{
+		P2ShAddress: p2sh.String(),
+		Redeemable:  multisigRedeemable,
+	}
+	return resp, nil
 }
 
 func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
@@ -919,10 +929,7 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 		if err != nil {
 			return nil, translateError(err)
 		}
-		changeScript, _, err = addressScript(changeAddr)
-		if err != nil {
-			return nil, translateError(err)
-		}
+		_, changeScript = changeAddr.PaymentScript()
 	}
 
 	return &pb.FundTransactionResponse{
@@ -946,10 +953,7 @@ func decodeDestination(dest *pb.ConstructTransactionRequest_OutputDestination,
 		if err != nil {
 			return nil, 0, err
 		}
-		pkScript, version, err = addressScript(addr)
-		if err != nil {
-			return nil, 0, translateError(err)
-		}
+		version, pkScript = addr.PaymentScript()
 		return pkScript, version, nil
 	case dest.Script != nil:
 		if dest.ScriptVersion > uint32(^uint16(0)) {
@@ -1566,7 +1570,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	minConf := int32(req.RequiredConfirmations)
 	params := s.wallet.ChainParams()
 
-	var ticketAddr dcrutil.Address
+	var ticketAddr payments.Address
 	var err error
 
 	n, err := s.wallet.NetworkBackend()
@@ -1581,7 +1585,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		}
 	}
 
-	var poolAddr dcrutil.Address
+	var poolAddr payments.Address
 	var poolFees float64
 	if req.PoolAddress != "" {
 		poolAddr, err = decodeAddress(req.PoolAddress, params)
@@ -1822,14 +1826,11 @@ func (s *walletServer) signMessage(ctx context.Context, address, message string)
 	// Addresses must have an associated secp256k1 private key and therefore
 	// must be P2PK or P2PKH (P2SH is not allowed).
 	var sig []byte
-	switch a := addr.(type) {
-	case *dcrutil.AddressSecpPubKey:
-	case *dcrutil.AddressPubKeyHash:
-		if a.DSA() != dcrec.STEcdsaSecp256k1 {
-			goto WrongAddrKind
-		}
+	switch addr.(type) {
+	case payments.PubkeyHashAddress, payments.PubkeyAddress:
 	default:
-		goto WrongAddrKind
+		return nil, status.Error(codes.InvalidArgument,
+			"address must be secp256k1 P2PK or P2PKH")
 	}
 
 	sig, err = s.wallet.SignMessage(ctx, message, addr)
@@ -1837,10 +1838,6 @@ func (s *walletServer) signMessage(ctx context.Context, address, message string)
 		return nil, translateError(err)
 	}
 	return sig, nil
-
-WrongAddrKind:
-	return nil, status.Error(codes.InvalidArgument,
-		"address must be secp256k1 P2PK or P2PKH")
 }
 
 func (s *walletServer) SignMessage(ctx context.Context, req *pb.SignMessageRequest) (*pb.SignMessageResponse, error) {
@@ -2417,7 +2414,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	// Legacy vsp request. After stopping supporting the old vsp version, this
 	// code can be removed.
 	// Confirm validity of provided voting addresses and pool addresses.
-	var votingAddress dcrutil.Address
+	var votingAddress payments.Address
 	var err error
 	if req.VotingAddress != "" {
 		votingAddress, err = decodeAddress(req.VotingAddress, params)
@@ -2425,7 +2422,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 			return err
 		}
 	}
-	var poolAddress dcrutil.Address
+	var poolAddress payments.Address
 	if req.PoolAddress != "" {
 		if req.VspHost != "" || req.VspPubkey != "" {
 			return status.Errorf(codes.InvalidArgument,
@@ -3096,21 +3093,18 @@ func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.V
 
 	var valid bool
 
-	addr, err := dcrutil.DecodeAddress(req.Address, s.chainParams)
+	addr, err := decodeAddress(req.Address, s.chainParams)
 	if err != nil {
 		return nil, translateError(err)
 	}
 
 	// Addresses must have an associated secp256k1 private key and therefore
 	// must be P2PK or P2PKH (P2SH is not allowed).
-	switch a := addr.(type) {
-	case *dcrutil.AddressSecpPubKey:
-	case *dcrutil.AddressPubKeyHash:
-		if a.DSA() != dcrec.STEcdsaSecp256k1 {
-			goto WrongAddrKind
-		}
+	switch addr.(type) {
+	case payments.PubkeyHashAddress, payments.PubkeyAddress:
 	default:
-		goto WrongAddrKind
+		return nil, status.Error(codes.InvalidArgument,
+			"address must be secp256k1 P2PK or P2PKH")
 	}
 
 	valid, err = wallet.VerifyMessage(req.Message, addr, req.Signature, s.chainParams)
@@ -3118,9 +3112,6 @@ func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.V
 		return nil, translateError(err)
 	}
 	return &pb.VerifyMessageResponse{Valid: valid}, nil
-
-WrongAddrKind:
-	return nil, status.Error(codes.InvalidArgument, "address must be secp256k1 P2PK or P2PKH")
 }
 
 // StartDecodeMessageService starts the MessageDecode service
@@ -3271,13 +3262,8 @@ func (s *walletServer) SignHashes(ctx context.Context, req *pb.SignHashesRequest
 
 	// Addresses must have an associated secp256k1 private key and therefore
 	// must be P2PK or P2PKH (P2SH is not allowed).
-	switch a := addr.(type) {
-	case *dcrutil.AddressSecpPubKey:
-	case *dcrutil.AddressPubKeyHash:
-		if a.DSA() != dcrec.STEcdsaSecp256k1 {
-			return nil, status.Error(codes.InvalidArgument,
-				"address must be secp256k1 P2PK or P2PKH")
-		}
+	switch addr.(type) {
+	case payments.PubkeyHashAddress, payments.PubkeyAddress:
 	default:
 		return nil, status.Error(codes.InvalidArgument,
 			"address must be secp256k1 P2PK or P2PKH")

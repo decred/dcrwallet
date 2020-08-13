@@ -13,7 +13,6 @@ import (
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/crypto/ripemd160"
 )
@@ -42,14 +41,12 @@ type RescanFilter struct {
 
 // NewRescanFilter creates and initializes a RescanFilter containing each passed
 // address and outpoint.
-func NewRescanFilter(addresses []dcrutil.Address, unspentOutPoints []*wire.OutPoint) *RescanFilter {
+func NewRescanFilter(addresses []Address, unspentOutPoints []*wire.OutPoint) *RescanFilter {
 	filter := &RescanFilter{
-		pubKeyHashes:        map[[ripemd160.Size]byte]struct{}{},
-		scriptHashes:        map[[ripemd160.Size]byte]struct{}{},
-		compressedPubKeys:   map[[33]byte]struct{}{},
-		uncompressedPubKeys: map[[65]byte]struct{}{},
-		otherAddresses:      map[string]struct{}{},
-		unspent:             make(map[wire.OutPoint]struct{}, len(unspentOutPoints)),
+		pubKeyHashes:   map[[ripemd160.Size]byte]struct{}{},
+		scriptHashes:   map[[ripemd160.Size]byte]struct{}{},
+		otherAddresses: map[string]struct{}{},
+		unspent:        make(map[wire.OutPoint]struct{}, len(unspentOutPoints)),
 	}
 
 	for _, s := range addresses {
@@ -63,81 +60,39 @@ func NewRescanFilter(addresses []dcrutil.Address, unspentOutPoints []*wire.OutPo
 }
 
 // AddAddress adds an address to the filter if it does not already exist.
-func (f *RescanFilter) AddAddress(a dcrutil.Address) {
+func (f *RescanFilter) AddAddress(a Address) {
 	switch a := a.(type) {
-	case *dcrutil.AddressPubKeyHash:
-		f.pubKeyHashes[*a.Hash160()] = struct{}{}
-	case *dcrutil.AddressScriptHash:
-		f.scriptHashes[*a.Hash160()] = struct{}{}
-	case *dcrutil.AddressSecpPubKey:
-		serializedPubKey := a.ScriptAddress()
-		switch len(serializedPubKey) {
-		case 33: // compressed
-			var compressedPubKey [33]byte
-			copy(compressedPubKey[:], serializedPubKey)
-			f.compressedPubKeys[compressedPubKey] = struct{}{}
-		case 65: // uncompressed
-			var uncompressedPubKey [65]byte
-			copy(uncompressedPubKey[:], serializedPubKey)
-			f.uncompressedPubKeys[uncompressedPubKey] = struct{}{}
-		}
+	case interface{ pubkeyHash160() *[20]byte }:
+		f.pubKeyHashes[*a.pubkeyHash160()] = struct{}{}
+	case interface{ scriptHash160() *[20]byte }:
+		f.scriptHashes[*a.scriptHash160()] = struct{}{}
 	default:
-		f.otherAddresses[a.Address()] = struct{}{}
+		f.otherAddresses[a.String()] = struct{}{}
 	}
 }
 
 // ExistsAddress returns whether an address is contained in the filter.
-func (f *RescanFilter) ExistsAddress(a dcrutil.Address) (ok bool) {
+func (f *RescanFilter) ExistsAddress(a Address) (ok bool) {
 	switch a := a.(type) {
-	case *dcrutil.AddressPubKeyHash:
-		_, ok = f.pubKeyHashes[*a.Hash160()]
-	case *dcrutil.AddressScriptHash:
-		_, ok = f.scriptHashes[*a.Hash160()]
-	case *dcrutil.AddressSecpPubKey:
-		serializedPubKey := a.ScriptAddress()
-		switch len(serializedPubKey) {
-		case 33: // compressed
-			var compressedPubKey [33]byte
-			copy(compressedPubKey[:], serializedPubKey)
-			_, ok = f.compressedPubKeys[compressedPubKey]
-			if !ok {
-				_, ok = f.pubKeyHashes[*a.AddressPubKeyHash().Hash160()]
-			}
-		case 65: // uncompressed
-			var uncompressedPubKey [65]byte
-			copy(uncompressedPubKey[:], serializedPubKey)
-			_, ok = f.uncompressedPubKeys[uncompressedPubKey]
-			if !ok {
-				_, ok = f.pubKeyHashes[*a.AddressPubKeyHash().Hash160()]
-			}
-		}
+	case interface{ pubkeyHash160() *[20]byte }:
+		_, ok = f.pubKeyHashes[*a.pubkeyHash160()]
+	case interface{ scriptHash160() *[20]byte }:
+		_, ok = f.scriptHashes[*a.scriptHash160()]
 	default:
-		_, ok = f.otherAddresses[a.Address()]
+		_, ok = f.otherAddresses[a.String()]
 	}
 	return
 }
 
 // RemoveAddress removes an address from the filter if it exists.
-func (f *RescanFilter) RemoveAddress(a dcrutil.Address) {
+func (f *RescanFilter) RemoveAddress(a Address) {
 	switch a := a.(type) {
-	case *dcrutil.AddressPubKeyHash:
-		delete(f.pubKeyHashes, *a.Hash160())
-	case *dcrutil.AddressScriptHash:
-		delete(f.scriptHashes, *a.Hash160())
-	case *dcrutil.AddressSecpPubKey:
-		serializedPubKey := a.ScriptAddress()
-		switch len(serializedPubKey) {
-		case 33: // compressed
-			var compressedPubKey [33]byte
-			copy(compressedPubKey[:], serializedPubKey)
-			delete(f.compressedPubKeys, compressedPubKey)
-		case 65: // uncompressed
-			var uncompressedPubKey [65]byte
-			copy(uncompressedPubKey[:], serializedPubKey)
-			delete(f.uncompressedPubKeys, uncompressedPubKey)
-		}
+	case interface{ pubkeyHash160() *[20]byte }:
+		delete(f.pubKeyHashes, *a.pubkeyHash160())
+	case interface{ scriptHash160() *[20]byte }:
+		delete(f.scriptHashes, *a.scriptHash160())
 	default:
-		delete(f.otherAddresses, a.Address())
+		delete(f.otherAddresses, a.String())
 	}
 }
 

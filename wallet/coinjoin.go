@@ -64,30 +64,24 @@ func (c *csppJoin) Gen() ([][]byte, error) {
 	const op errors.Op = "cspp.Gen"
 	gen := make([][]byte, c.mcount)
 	c.genScripts = make([][]byte, c.mcount)
-	var updates []func(walletdb.ReadWriteTx) error
-	for i := 0; i < c.mcount; i++ {
-		persist := c.wallet.deferPersistReturnedChild(c.ctx, &updates)
-		const accountName = "" // not used, so can be faked.
-		mixAddr, err := c.wallet.nextAddress(c.ctx, op, persist,
-			accountName, c.mixAccount, c.mixBranch, WithGapPolicyIgnore())
-		if err != nil {
-			return nil, err
-		}
-		script, version, err := addressScript(mixAddr)
-		if err != nil {
-			return nil, err
-		}
-		if version != 0 {
-			return nil, errors.E("expected script version 0")
-		}
-		c.genScripts[i] = script
-		gen[i] = mixAddr.Hash160()[:]
-	}
 	err := walletdb.Update(c.ctx, c.wallet.db, func(dbtx walletdb.ReadWriteTx) error {
-		for _, f := range updates {
-			if err := f(dbtx); err != nil {
+		for i := 0; i < c.mcount; i++ {
+			persist := c.wallet.persistReturnedChild(c.ctx, dbtx)
+			const accountName = "" // not used, so can be faked.
+			mixAddr, err := c.wallet.nextAddress(c.ctx, op, dbtx, persist,
+				accountName, c.mixAccount, c.mixBranch, WithGapPolicyIgnore())
+			if err != nil {
 				return err
 			}
+			version, script := mixAddr.PaymentScript()
+			if err != nil {
+				return err
+			}
+			if version != 0 {
+				return errors.E("expected script version 0")
+			}
+			c.genScripts[i] = script
+			gen[i] = mixAddr.(PubKeyHashAddress).PubKeyHash()
 		}
 		return nil
 	})

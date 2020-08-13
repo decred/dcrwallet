@@ -6,6 +6,7 @@
 package spv
 
 import (
+	"decred.org/dcrwallet/wallet"
 	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/gcs/v2/blockcf2"
 	"github.com/decred/dcrd/txscript/v3"
@@ -60,7 +61,11 @@ func (s *Syncer) rescanCheckTransactions(matches *[]*wire.MsgTx, fadded *blockcf
 				continue
 			}
 			for _, a := range addrs {
-				if !s.rescanFilter.ExistsAddress(a) {
+				addr, err := wallet.WrapUtilAddress(a)
+				if err != nil {
+					continue
+				}
+				if !s.rescanFilter.ExistsAddress(addr) {
 					continue
 				}
 
@@ -115,7 +120,11 @@ Txs:
 				continue
 			}
 			for _, a := range addrs {
-				if s.rescanFilter.ExistsAddress(a) {
+				addr, err := wallet.WrapUtilAddress(a)
+				if err != nil {
+					continue
+				}
+				if s.rescanFilter.ExistsAddress(addr) {
 					matches = append(matches, tx)
 					continue Txs
 				}

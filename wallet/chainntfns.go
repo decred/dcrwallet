@@ -597,7 +597,10 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				case err != nil:
 					return nil, errors.E(op, err)
 				case n != nil:
-					addrs := []dcrutil.Address{addr.Address()}
+					p2shAddr := new(p2shAddress)
+					p2shAddr.AddressScriptHash = addr.
+						Address().(*dcrutil.AddressScriptHash)
+					addrs := []Address{p2shAddr}
 					err := n.LoadTxFilter(ctx, false, addrs, nil)
 					if err != nil {
 						return nil, errors.E(op, err)

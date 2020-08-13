@@ -150,10 +150,16 @@ const (
 	// preferences for individual tickets.
 	perTicketVotingPreferencesVersion = 16
 
+	// hardenedPurposeAccountVersion is the 17th version of the database.
+	// It introduces a new account row for hardened purpose accounts derived
+	// from the BIP0044 cointype key.  Internal address identifiers share
+	// the same numbering and indexing system as imported xpub accounts.
+	hardenedPurposeAccountVersion = 17
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = perTicketVotingPreferencesVersion
+	DBVersion = hardenedPurposeAccountVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -175,6 +181,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	unencryptedRedeemScriptsVersion - 1:   unencryptedRedeemScriptsUpgrade,
 	blockcf2Version - 1:                   blockcf2Upgrade,
 	perTicketVotingPreferencesVersion - 1: perTicketVotingPreferencesUpgrade,
+	hardenedPurposeAccountVersion - 1:     hardenedPurposeAccountUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -307,7 +314,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 		// replaces the next to use indexes with the last used indexes.
 		row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted,
 			0, 0, lastUsedExtIndex, lastUsedIntIndex, 0, 0, row.name, newVersion)
-		err = putAccountInfo(addrmgrBucket, account, row)
+		err = putBIP0044AccountInfo(addrmgrBucket, account, row)
 		if err != nil {
 			return err
 		}
@@ -439,7 +446,7 @@ func lastReturnedAddressUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte
 			0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex,
 			row.lastUsedExternalIndex, row.lastUsedInternalIndex,
 			row.name, newVersion)
-		return putAccountInfo(addrmgrBucket, account, row)
+		return putBIP0044AccountInfo(addrmgrBucket, account, row)
 	}
 
 	// Determine how many BIP0044 accounts have been created.  Each of these
@@ -1182,7 +1189,7 @@ func unencryptedRedeemScriptsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase [
 			return err
 		}
 		err = putScriptAddress(addrmgrBucket, k[:], ImportedAddrAccount,
-			ssFull, encryptedHash, script)
+			encryptedHash, script)
 		if err != nil {
 			return err
 		}
@@ -1296,6 +1303,33 @@ func perTicketVotingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase
 	_, err = tx.CreateTopLevelBucket(agendaPreferences.ticketsBucketKey())
 	if err != nil {
 		return err
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func hardenedPurposeAccountUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 16
+	const newVersion = 17
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 15 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "hardenedPurposeAccountUpgrade inappropriately called")
+	}
+
+	addrmgrBucket := tx.ReadWriteBucket(waddrmgrBucketKey)
+
+	// Create account variables bucket
+	_, err = addrmgrBucket.CreateBucket(acctVarsBucketName)
+	if err != nil {
+		return errors.E(errors.IO, err)
 	}
 
 	// Write the new database version.

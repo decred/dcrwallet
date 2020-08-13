@@ -165,7 +165,7 @@ func setupWallet(t *testing.T, cfg *Config) (*Wallet, walletdb.DB, func()) {
 	return w, db, teardown
 }
 
-type newAddressFunc func(*Wallet, context.Context, uint32, ...NextAddressCallOption) (dcrutil.Address, error)
+type newAddressFunc func(*Wallet, context.Context, uint32, ...NextAddressCallOption) (KnownAddress, error)
 
 func testKnownAddresses(tc *testContext, prefix string, unlock bool, newAddr newAddressFunc, tests []expectedAddr) {
 	w, db, teardown := setupWallet(tc.t, &walletConfig)
@@ -341,9 +341,13 @@ func useAddress(child uint32) func(t *testing.T, w *Wallet) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		utilAddr, err := addressToUtilAddress(addr, basicWalletConfig.Params)
+		if err != nil {
+			t.Fatal(err)
+		}
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			ns := dbtx.ReadWriteBucket(waddrmgrBucketKey)
-			ma, err := w.manager.Address(ns, addr)
+			ma, err := w.manager.Address(ns, utilAddr)
 			if err != nil {
 				return err
 			}

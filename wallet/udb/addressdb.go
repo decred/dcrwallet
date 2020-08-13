@@ -12,6 +12,7 @@ import (
 
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet/walletdb"
+	"github.com/decred/dcrd/hdkeychain/v3"
 )
 
 var (
@@ -25,36 +26,31 @@ var (
 // wallet seed and private passphrase.
 type ObtainUserInputFunc func() ([]byte, error)
 
-// syncStatus represents a address synchronization status stored in the
-// database.
-type syncStatus uint8
-
-// These constants define the various supported sync status types.
-//
-// NOTE: These are currently unused but are being defined for the possibility of
-// supporting sync status on a per-address basis.
-const (
-	ssNone    syncStatus = 0 // not iota as they need to be stable for db
-	ssPartial syncStatus = 1
-	ssFull    syncStatus = 2
-)
-
 // addressType represents a type of address stored in the database.
 type addressType uint8
 
 // These constants define the various supported address types.
+// They must remain stable as their values are recorded to the DB.
 const (
-	adtChain  addressType = 0 // not iota as they need to be stable for db
-	adtImport addressType = 1
-	adtScript addressType = 2
+	adtChain       addressType = iota // seed-derived BIP0044
+	adtImport                         // individually imported privkey
+	adtScript                         // individually imported p2sh script
+	adtHardenedKey                    // keys derived from hardened purpose keys
 )
+
+type dbAccount interface {
+	accountType() accountType
+	rowData() []byte
+}
 
 // accountType represents a type of address stored in the database.
 type accountType uint8
 
 // These constants define the various supported account types.
+// They must remain stable as their values are recorded to the DB.
 const (
-	actBIP0044 accountType = 0 // not iota as they need to be stable for db
+	actBIP0044 accountType = iota
+	actHardenedPurpose
 )
 
 // dbAccountRow houses information stored about an account in the database.
@@ -78,14 +74,63 @@ type dbBIP0044AccountRow struct {
 	name                      string
 }
 
+func (r *dbBIP0044AccountRow) accountType() accountType { return actBIP0044 }
+func (r *dbBIP0044AccountRow) rowData() []byte          { return r.dbAccountRow.rawData }
+
+// dbHardenedPurposeAccount records both the static metadata for a hardened
+// purpose account, as well as the variables which change over time.
+type dbHardenedPurposeAccount struct {
+	// row data stores the static fields
+	dbAccountRow
+	privKeyEncrypted []byte
+	cointypeChild    uint32 // non-hardened child off cointype key
+
+	// variables subbucket is used to record remaining fields
+	lastUsedExternalIndex     uint32
+	lastUsedInternalIndex     uint32
+	lastReturnedExternalIndex uint32
+	lastReturnedInternalIndex uint32
+	name                      string
+}
+
+func (r *dbHardenedPurposeAccount) accountType() accountType { return actHardenedPurpose }
+func (r *dbHardenedPurposeAccount) rowData() []byte          { return r.dbAccountRow.rawData }
+
+func (r *dbHardenedPurposeAccount) serializeRow() []byte {
+	// Format:
+	//   <cointype child><encprivkey>
+	//
+	// 4 bytes cointype child + varlength sealed privkey (to end of value)
+
+	data := make([]byte, 4+len(r.privKeyEncrypted))
+	binary.LittleEndian.PutUint32(data, r.cointypeChild)
+	copy(data[4:], r.privKeyEncrypted)
+
+	r.rawData = data
+	return data
+}
+
+func (r *dbHardenedPurposeAccount) deserializeRow(v []byte) error {
+	if len(v) < 5 {
+		return errors.E(errors.IO, errors.Errorf("purpose account row bad len %d", len(v)))
+	}
+
+	cointypeChild := binary.LittleEndian.Uint32(v)
+	privKeyEncrypted := v[4:]
+
+	r.cointypeChild = cointypeChild
+	r.privKeyEncrypted = privKeyEncrypted
+	r.rawData = v
+	return nil
+}
+
 // dbAddressRow houses common information stored about an address in the
 // database.
 type dbAddressRow struct {
-	addrType   addressType
-	account    uint32
-	addTime    uint64
-	syncStatus syncStatus
-	rawData    []byte // Varies based on address type field.
+	addrType addressType
+	account  uint32
+	addTime  uint64
+	rawData  []byte // Varies based on address type field.
 }
 
 // dbChainAddressRow houses additional information stored about a chained
@@ -112,14 +157,22 @@ type dbScriptAddressRow struct {
 	script        []byte
 }
 
+type dbHardenedAddressRow struct {
+	dbAddressRow
+	branch          uint32
+	index           uint32
+	encryptedPubKey []byte
+}
+
 // Key names for various database fields.
 var (
 	// nullVall is null byte used as a flag value in a bucket entry
 	nullVal = []byte{0}
 
 	// Bucket names.
-	acctBucketName = []byte("acct")
-	addrBucketName = []byte("addr")
+	acctBucketName     = []byte("acct")
+	acctVarsBucketName = []byte("acctvars")
+	addrBucketName     = []byte("addr")
 
 	// addrAcctIdxBucketName is used to index account addresses
 	// Entries in this index may map:
@@ -181,6 +234,13 @@ var (
 	// lastImportedAccountName is the metadata key use for the last imported
 	// xpub account.
 	lastImportedAccountName = []byte("lastimportedaccount")
+
+	// lastHardenedAccountIndexName is the metadata key used for storing the
+	// last created hardened account, recording the non-hardened child off
+	// of the cointype key.  If the value is nil, then no hardened accounts
+	// are recorded and creating the first hardened account will write 0 to
+	// this value.
+	lastHardenedAccountIndexName = []byte("lasthardenedaccount")
 
 	mainBucketName = []byte("main")
 
@@ -649,7 +709,7 @@ func forEachAccount(ns walletdb.ReadBucket, fn func(account uint32) error) error
 	})
 }
 
-// fetchLastAccount retreives the last account from the database.
+// fetchLastAccount retreives the last BIP0044 account from the database.
 func fetchLastAccount(ns walletdb.ReadBucket) (uint32, error) {
 	bucket := ns.NestedReadBucket(metaBucketName)
 
@@ -661,7 +721,7 @@ func fetchLastAccount(ns walletdb.ReadBucket) (uint32, error) {
 	return account, nil
 }
 
-// fetchLastImportedAccount retreives the last imported xpub account from the
+// fetchLastAccount retreives the last imported xpub account from the
 // database.
 func fetchLastImportedAccount(ns walletdb.ReadBucket) (uint32, error) {
 	bucket := ns.NestedReadBucket(metaBucketName)
@@ -680,6 +740,23 @@ func fetchLastImportedAccount(ns walletdb.ReadBucket) (uint32, error) {
 		return 0, errors.E(errors.IO, errors.Errorf("bad imported xpub account value %d", account))
 	}
 	return account, nil
+}
+
+func fetchLastHardenedAccountIndex(ns walletdb.ReadBucket) (uint32, error) {
+	bucket := ns.NestedReadBucket(metaBucketName)
+
+	val := bucket.Get(lastHardenedAccountIndexName)
+	if len(val) == 0 {
+		return 0, errors.E(errors.NotExist)
+	}
+	if len(val) != 4 {
+		return 0, errors.E(errors.IO, errors.Errorf("bad last hardened account len %d", len(val)))
+	}
+	child := binary.LittleEndian.Uint32(val[0:4])
+	if child >= hdkeychain.HardenedKeyStart {
+		return 0, errors.E(errors.IO, errors.Errorf("bad hardened account child index %d", child))
+	}
+	return child, nil
 }
 
 // fetchAccountName retreives the account name given an account number from
@@ -711,9 +788,9 @@ func fetchAccountByName(ns walletdb.ReadBucket, name string) (uint32, error) {
 	return binary.LittleEndian.Uint32(val), nil
 }
 
-// fetchAccountInfo loads information about the passed account from the
-// database.
-func fetchAccountInfo(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (*dbBIP0044AccountRow, error) {
+// fetchAccountRow loads the row serializing details regarding an account.
+// This function does not perform any further parsing based on the account type.
+func fetchAccountRow(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (*dbAccountRow, error) {
 	bucket := ns.NestedReadBucket(acctBucketName)
 
 	accountID := uint32ToBytes(account)
@@ -722,14 +799,66 @@ func fetchAccountInfo(ns walletdb.ReadBucket, account uint32, dbVersion uint32) 
 		return nil, errors.E(errors.NotExist, errors.Errorf("no account %d", account))
 	}
 
-	row, err := deserializeAccountRow(accountID, serializedRow)
+	return deserializeAccountRow(accountID, serializedRow)
+}
+
+// fetchAccountInfo loads information about the passed account from the
+// database.
+func fetchAccountInfo(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (*dbBIP0044AccountRow, error) {
+	row, err := fetchAccountRow(ns, account, dbVersion)
 	if err != nil {
 		return nil, err
 	}
 
+	accountID := uint32ToBytes(account)
 	switch row.acctType {
 	case actBIP0044:
 		return deserializeBIP0044AccountRow(accountID, row, dbVersion)
+	}
+
+	return nil, errors.E(errors.IO, errors.Errorf("unknown account type %d", row.acctType))
+}
+
+func fetchDBAccount(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (dbAccount, error) {
+	row, err := fetchAccountRow(ns, account, dbVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	accountID := uint32ToBytes(account)
+	switch row.acctType {
+	case actBIP0044:
+		return deserializeBIP0044AccountRow(accountID, row, dbVersion)
+	case actHardenedPurpose:
+		bucketKey := uint32ToBytes(account)
+		varsBucket := ns.NestedReadBucket(acctVarsBucketName).NestedReadBucket(bucketKey)
+		if err != nil {
+			return nil, err
+		}
+
+		var r accountVarReader
+		lastUsedExt := r.getAccountUint32Var(varsBucket, acctVarLastUsedExternal)
+		lastUsedInt := r.getAccountUint32Var(varsBucket, acctVarLastUsedInternal)
+		lastRetExt := r.getAccountUint32Var(varsBucket, acctVarLastReturnedExternal)
+		lastRetInt := r.getAccountUint32Var(varsBucket, acctVarLastReturnedInternal)
+		name := r.getAccountStringVar(varsBucket, acctVarName)
+		if r.err != nil {
+			return nil, errors.E(errors.IO, err)
+		}
+
+		hpa := new(dbHardenedPurposeAccount)
+		hpa.dbAccountRow = *row
+		err := hpa.deserializeRow(row.rawData)
+		if r.err != nil {
+			return nil, err
+		}
+		hpa.lastUsedExternalIndex = lastUsedExt
+		hpa.lastUsedInternalIndex = lastUsedInt
+		hpa.lastReturnedExternalIndex = lastRetExt
+		hpa.lastReturnedInternalIndex = lastRetInt
+		hpa.name = name
+
+		return hpa, err
 	}
 
 	return nil, errors.E(errors.IO, errors.Errorf("unknown account type %d", row.acctType))
@@ -818,8 +947,8 @@ func putAccountRow(ns walletdb.ReadWriteBucket, account uint32, row *dbAccountRo
 	return nil
 }
 
-// putAccountInfo stores the provided account information to the database.
-func putAccountInfo(ns walletdb.ReadWriteBucket, account uint32, row *dbBIP0044AccountRow) error {
+// putBIP0044AccountInfo stores the provided account information to the database.
+func putBIP0044AccountInfo(ns walletdb.ReadWriteBucket, account uint32, row *dbBIP0044AccountRow) error {
 	if err := putAccountRow(ns, account, &row.dbAccountRow); err != nil {
 		return err
 	}
@@ -853,6 +982,115 @@ func putLastImportedAccount(ns walletdb.ReadWriteBucket, account uint32) error {
 	return nil
 }
 
+func putLastHardenedAccountIndex(ns walletdb.ReadWriteBucket, child uint32) error {
+	bucket := ns.NestedReadWriteBucket(metaBucketName)
+
+	err := bucket.Put(lastHardenedAccountIndexName, uint32ToBytes(child))
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
+func putHardenedPurposeAccount(ns walletdb.ReadWriteBucket, account uint32, a *dbHardenedPurposeAccount) error {
+	err := putAccountRow(ns, account, &a.dbAccountRow)
+	if err != nil {
+		return err
+	}
+	// Update account id index
+	err = putAccountIDIndex(ns, account, a.name)
+	if err != nil {
+		return err
+	}
+	// Update account name index
+	err = putAccountNameIndex(ns, account, a.name)
+	if err != nil {
+		return err
+	}
+	// Create the bucket for this account's variables (such as last
+	// used/returned address indexes)
+	bucketKey := uint32ToBytes(account)
+	varsBucket, err := ns.NestedReadWriteBucket(acctVarsBucketName).CreateBucket(bucketKey)
+	if err != nil {
+		return err
+	}
+
+	// Write the account's variables
+	err = putAccountUint32Var(varsBucket, acctVarLastUsedExternal, a.lastUsedExternalIndex)
+	if err != nil {
+		return err
+	}
+	err = putAccountUint32Var(varsBucket, acctVarLastUsedInternal, a.lastUsedInternalIndex)
+	if err != nil {
+		return err
+	}
+	err = putAccountUint32Var(varsBucket, acctVarLastReturnedExternal, a.lastReturnedExternalIndex)
+	if err != nil {
+		return err
+	}
+	err = putAccountUint32Var(varsBucket, acctVarLastReturnedInternal, a.lastReturnedInternalIndex)
+	if err != nil {
+		return err
+	}
+	err = putAccountStringVar(varsBucket, acctVarName, a.name)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Account variable keys
+var (
+	acctVarLastUsedExternal     = []byte("extused")
+	acctVarLastUsedInternal     = []byte("intused")
+	acctVarLastReturnedExternal = []byte("extret")
+	acctVarLastReturnedInternal = []byte("intret")
+	acctVarName                 = []byte("name")
+)
+
+func putAccountUint32Var(varsBucket walletdb.ReadWriteBucket, varName []byte, value uint32) error {
+	v := make([]byte, 4)
+	binary.LittleEndian.PutUint32(v, value)
+	err := varsBucket.Put(varName, v)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
+func putAccountStringVar(varsBucket walletdb.ReadWriteBucket, varName []byte, value string) error {
+	err := varsBucket.Put(varName, []byte(value))
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
+type accountVarReader struct {
+	err error
+}
+
+func (r *accountVarReader) getAccountUint32Var(varsBucket walletdb.ReadBucket, varName []byte) uint32 {
+	if r.err != nil {
+		return 0
+	}
+	value := varsBucket.Get(varName)
+	if len(value) != 4 {
+		r.err = errors.E(errors.IO, errors.Errorf(`bad len %d for uint32 value "%s"`, varName))
+		return 0
+	}
+	return binary.LittleEndian.Uint32(value)
+}
+
+func (r *accountVarReader) getAccountStringVar(varsBucket walletdb.ReadBucket, varName []byte) string {
+	if r.err != nil {
+		return ""
+	}
+	value := varsBucket.Get(varName)
+	return string(value)
+}
+
 // deserializeAddressRow deserializes the passed serialized address information.
 // This is used as a common base for the various address types to deserialize
 // the common parts.
@@ -873,7 +1111,6 @@ func deserializeAddressRow(serializedAddress []byte) (*dbAddressRow, error) {
 	row.addrType = addressType(serializedAddress[0])
 	row.account = binary.LittleEndian.Uint32(serializedAddress[1:5])
 	row.addTime = binary.LittleEndian.Uint64(serializedAddress[5:13])
-	row.syncStatus = syncStatus(serializedAddress[13])
 	rdlen := binary.LittleEndian.Uint32(serializedAddress[14:18])
 	row.rawData = make([]byte, rdlen)
 	copy(row.rawData, serializedAddress[18:18+rdlen])
@@ -894,7 +1131,7 @@ func serializeAddressRow(row *dbAddressRow) []byte {
 	buf[0] = byte(row.addrType)
 	binary.LittleEndian.PutUint32(buf[1:5], row.account)
 	binary.LittleEndian.PutUint64(buf[5:13], row.addTime)
-	buf[13] = byte(row.syncStatus)
+	buf[13] = 0 // not used
 	binary.LittleEndian.PutUint32(buf[14:18], uint32(rdlen))
 	copy(buf[18:18+rdlen], row.rawData)
 	return buf
@@ -1037,6 +1274,41 @@ func serializeScriptAddress(encryptedHash, script []byte) []byte {
 	return rawData
 }
 
+// deserializeHardenedAddress deserializes the raw data from the passed address
+// row as a chained address.
+func deserializeHardenedAddress(row *dbAddressRow) (*dbHardenedAddressRow, error) {
+	// The serialized chain address raw data format is:
+	//   <branch><index><encrypted pubkey>
+
+	if len(row.rawData) < 8 {
+		return nil, errors.E(errors.IO, errors.Errorf("bad hardened address len %d", len(row.rawData)))
+	}
+
+	retRow := dbHardenedAddressRow{
+		dbAddressRow: *row,
+	}
+
+	retRow.branch = binary.LittleEndian.Uint32(row.rawData[0:4])
+	retRow.index = binary.LittleEndian.Uint32(row.rawData[4:8])
+	retRow.encryptedPubKey = make([]byte, len(row.rawData)-8)
+	copy(retRow.encryptedPubKey, row.rawData[8:])
+
+	return &retRow, nil
+}
+
+// serializeHardenedAddress returns the serialization of the raw data field for
+// a hardened account address.
+func serializeHardenedAddress(branch, index uint32, encryptedPubKey []byte) []byte {
+	// The serialized chain address raw data format is:
+	//   <branch><index><encrypted pubkey>
+
+	rawData := make([]byte, 4+4+len(encryptedPubKey))
+	binary.LittleEndian.PutUint32(rawData[0:4], branch)
+	binary.LittleEndian.PutUint32(rawData[4:8], index)
+	copy(rawData[8:], encryptedPubKey)
+	return rawData
+}
+
 // fetchAddressByHash loads address information for the provided address hash
 // from the database.  The returned value is one of the address rows for the
 // specific address type.  The caller should use type assertions to ascertain
@@ -1062,6 +1334,8 @@ func fetchAddressByHash(ns walletdb.ReadBucket, addrHash []byte) (interface{}, e
 		return deserializeImportedAddress(row)
 	case adtScript:
 		return deserializeScriptAddress(row)
+	case adtHardenedKey:
+		return deserializeHardenedAddress(row)
 	}
 
 	return nil, errors.E(errors.IO, errors.Errorf("unknown address type %d", row.addrType))
@@ -1101,14 +1375,13 @@ func putAddress(ns walletdb.ReadWriteBucket, addressID []byte, row *dbAddressRow
 // putChainedAddress stores the provided chained address information to the
 // database.
 func putChainedAddress(ns walletdb.ReadWriteBucket, addressID []byte, account uint32,
-	status syncStatus, branch, index uint32) error {
+	branch, index uint32) error {
 
 	addrRow := dbAddressRow{
-		addrType:   adtChain,
-		account:    account,
-		addTime:    uint64(time.Now().Unix()),
-		syncStatus: status,
-		rawData:    serializeChainedAddress(branch, index),
+		addrType: adtChain,
+		account:  account,
+		addTime:  uint64(time.Now().Unix()),
+		rawData:  serializeChainedAddress(branch, index),
 	}
 	return putAddress(ns, addressID, &addrRow)
 }
@@ -1116,15 +1389,14 @@ func putChainedAddress(ns walletdb.ReadWriteBucket, addressID []byte, account ui
 // putImportedAddress stores the provided imported address information to the
 // database.
 func putImportedAddress(ns walletdb.ReadWriteBucket, addressID []byte, account uint32,
-	status syncStatus, encryptedPubKey, encryptedPrivKey []byte) error {
+	encryptedPubKey, encryptedPrivKey []byte) error {
 
 	rawData := serializeImportedAddress(encryptedPubKey, encryptedPrivKey)
 	addrRow := dbAddressRow{
-		addrType:   adtImport,
-		account:    account,
-		addTime:    uint64(time.Now().Unix()),
-		syncStatus: status,
-		rawData:    rawData,
+		addrType: adtImport,
+		account:  account,
+		addTime:  uint64(time.Now().Unix()),
+		rawData:  rawData,
 	}
 	return putAddress(ns, addressID, &addrRow)
 }
@@ -1132,15 +1404,28 @@ func putImportedAddress(ns walletdb.ReadWriteBucket, addressID []byte, account u
 // putScriptAddress stores the provided script address information to the
 // database.
 func putScriptAddress(ns walletdb.ReadWriteBucket, addressID []byte, account uint32,
-	status syncStatus, encryptedHash, script []byte) error {
+	encryptedHash, script []byte) error {
 
 	rawData := serializeScriptAddress(encryptedHash, script)
 	addrRow := dbAddressRow{
-		addrType:   adtScript,
-		account:    account,
-		addTime:    uint64(time.Now().Unix()),
-		syncStatus: status,
-		rawData:    rawData,
+		addrType: adtScript,
+		account:  account,
+		addTime:  uint64(time.Now().Unix()),
+		rawData:  rawData,
+	}
+	return putAddress(ns, addressID, &addrRow)
+}
+
+// putHardenedAddress stores the provided hardened address information to the
+// database.
+func putHardenedAddress(ns walletdb.ReadWriteBucket, addressID []byte, account uint32,
+	branch, index uint32, encryptedPubKey []byte) error {
+
+	addrRow := dbAddressRow{
+		addrType: adtHardenedKey,
+		account:  account,
+		addTime:  uint64(time.Now().Unix()),
+		rawData:  serializeHardenedAddress(branch, index, encryptedPubKey),
 	}
 	return putAddress(ns, addressID, &addrRow)
 }

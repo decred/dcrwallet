@@ -175,16 +175,18 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	size := txsizes.EstimateSerializeSizeFromScriptSizes(inScriptSizes, outScriptSizes, P2PKHv0Len)
 	changeValue := remValue - txrules.FeeForSerializeSize(feeRate, size)
 	var change *wire.TxOut
-	var updates []func(walletdb.ReadWriteTx) error
 	if !txrules.IsDustAmount(changeValue, P2PKHv0Len, feeRate) {
-		persist := w.deferPersistReturnedChild(ctx, &updates)
-		const accountName = "" // not used, so can be faked.
-		addr, err := w.nextAddress(ctx, op, persist,
-			accountName, changeAccount, udb.InternalBranch, WithGapPolicyIgnore())
-		if err != nil {
-			return errors.E(op, err)
-		}
-		changeScript, version, err := addressScript(addr)
+		var addr Address
+		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+			persist := w.persistReturnedChild(ctx, dbtx)
+			const accountName = "" // not used, so can be faked.
+			var err error
+			addr, err = w.nextAddress(ctx, op, dbtx, persist,
+				accountName, changeAccount, udb.InternalBranch, WithGapPolicyIgnore())
+			return err
+		})
+
+		version, changeScript := addr.PaymentScript()
 		if err != nil {
 			return errors.E(op, err)
 		}
@@ -207,20 +209,6 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	}
 	cjHash := cj.tx.TxHash()
 	log.Infof("Completed CoinShuffle++ mix of output %v in transaction %v", output, &cjHash)
-
-	w.lockedOutpointMu.Lock()
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		for _, f := range updates {
-			if err := f(dbtx); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	w.lockedOutpointMu.Unlock()
-	if err != nil {
-		return errors.E(op, err)
-	}
 
 	return nil
 }
