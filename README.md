@@ -84,7 +84,7 @@ https://decred.org/downloads/
 
 ### Build from source (all platforms)
 
-- **Install Go 1.13 or 1.14**
+- **Install Go 1.14 or 1.15**
 
   Installation instructions can be found here: https://golang.org/doc/install.
   Ensure Go was installed properly and is a supported version:
