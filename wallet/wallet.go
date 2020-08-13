@@ -2091,7 +2091,7 @@ func (w *Wallet) CreateHardenedAccount(ctx context.Context, name string) (accoun
 		}
 		saveBranchAddrs := func(branch uint32, branchKey *hdkeychain.ExtendedKey) error {
 			for i := uint32(0); i < gapLimit; i++ {
-				c, err := extBranch.Child(i + h)
+				c, err := branchKey.Child(i + h)
 				if errors.Is(err, hdkeychain.ErrInvalidChild) {
 					continue
 				}
@@ -2105,8 +2105,6 @@ func (w *Wallet) CreateHardenedAccount(ctx context.Context, name string) (accoun
 					return err
 				}
 
-				c.Zero()
-
 				pkh := dcrutil.Hash160(pk)
 				addr, err := dcrutil.NewAddressPubKeyHash(
 					pkh, w.chainParams, dcrec.STEcdsaSecp256k1)
@@ -2114,6 +2112,8 @@ func (w *Wallet) CreateHardenedAccount(ctx context.Context, name string) (accoun
 					return err
 				}
 				watch = append(watch, &p2pkhAddress{addr})
+
+				c.Zero()
 			}
 			return nil
 		}
