@@ -805,33 +805,6 @@ func (w *Wallet) persistReturnedChild(ctx context.Context, maybeDBTX walletdb.Re
 	}
 }
 
-/*
-// deferPersistReturnedChild returns a persistReturnedChildFunc that is not
-// immediately written to the database.  Instead, an update function is appended
-// to the updates slice.  This allows all updates to be run under a single
-// database update later and allows deferred child persistence even when
-// generating addresess in a view (as long as the update is called after).
-//
-// This is preferable to running updates asynchronously using goroutines as it
-// allows the updates to not be performed if a later error occurs and the child
-// indexes should not be written.  It also allows the updates to be grouped
-// together in a single atomic transaction.
-func (w *Wallet) deferPersistReturnedChild(ctx context.Context, updates *[]func(walletdb.ReadWriteTx) error) persistReturnedChildFunc {
-	// These vars are closed-over by the update function and modified by the
-	// returned persist function.
-	var account, branch, child uint32
-	update := func(tx walletdb.ReadWriteTx) error {
-		persist := w.persistReturnedChild(ctx, tx)
-		return persist(account, branch, child)
-	}
-	*updates = append(*updates, update)
-	return func(a, b, c uint32) error {
-		account, branch, child = a, b, c
-		return nil
-	}
-}
-*/
-
 // nextAddress returns the next address of an account branch.
 func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, dbtx walletdb.ReadWriteTx,
 	persist persistReturnedChildFunc, accountName string, account, branch uint32,
