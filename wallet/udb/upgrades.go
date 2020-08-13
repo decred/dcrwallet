@@ -7,6 +7,7 @@ package udb
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/internal/compat"
@@ -1326,8 +1327,17 @@ func hardenedPurposeAccountUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []b
 
 	addrmgrBucket := tx.ReadWriteBucket(waddrmgrBucketKey)
 
-	// Create account variables bucket
-	_, err = addrmgrBucket.CreateBucket(acctVarsBucketName)
+	// Create account variables bucket and empty buckets for each account.
+	varsBucket, err := addrmgrBucket.CreateBucket(acctVarsBucketName)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	acctKey := make([]byte, 4)
+	err = forEachAccount(addrmgrBucket, func(account uint32) error {
+		binary.LittleEndian.PutUint32(acctKey, account)
+		_, err := varsBucket.CreateBucket(acctKey)
+		return err
+	})
 	if err != nil {
 		return errors.E(errors.IO, err)
 	}
