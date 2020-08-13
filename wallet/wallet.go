@@ -20,6 +20,7 @@ import (
 	"decred.org/dcrwallet/deployments"
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/internal/compat"
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/rpc/client/dcrd"
 	"decred.org/dcrwallet/rpc/jsonrpc/types"
 	"decred.org/dcrwallet/validate"
@@ -2057,6 +2058,8 @@ func (w *Wallet) CreateHardenedAccount(ctx context.Context, name string) (accoun
 		}
 	}()
 
+	gapLimit := uint32(w.gapLimit)
+	watch := make([]payments.Address, 0, gapLimit*2)
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		var err error
 		account, err = w.manager.CreateHardenedAccount(dbtx, name)
@@ -2086,7 +2089,6 @@ func (w *Wallet) CreateHardenedAccount(ctx context.Context, name string) (accoun
 		if err != nil {
 			return err
 		}
-		gapLimit := uint32(w.gapLimit)
 		saveBranchAddrs := func(branch uint32, branchKey *hdkeychain.ExtendedKey) error {
 			for i := uint32(0); i < gapLimit; i++ {
 				c, err := extBranch.Child(i + h)
@@ -2104,6 +2106,14 @@ func (w *Wallet) CreateHardenedAccount(ctx context.Context, name string) (accoun
 				}
 
 				c.Zero()
+
+				pkh := dcrutil.Hash160(pk)
+				addr, err := dcrutil.NewAddressPubKeyHash(
+					pkh, w.chainParams, dcrec.STEcdsaSecp256k1)
+				if err != nil {
+					return err
+				}
+				watch = append(watch, &p2pkhAddress{addr})
 			}
 			return nil
 		}
@@ -2118,6 +2128,14 @@ func (w *Wallet) CreateHardenedAccount(ctx context.Context, name string) (accoun
 
 		return nil
 	})
+
+	if n, err := w.NetworkBackend(); err == nil {
+		err = n.LoadTxFilter(ctx, false, watch, nil)
+		if err != nil {
+			return 0, err
+		}
+	}
+
 	return account, err
 }
 
