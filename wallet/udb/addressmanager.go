@@ -1991,6 +1991,20 @@ func (m *Manager) RenameAccount(ns walletdb.ReadWriteBucket, account uint32, nam
 		return err
 	}
 
+	dbAcct, err := fetchDBAccount(ns, account, DBVersion)
+	if err != nil {
+		return err
+	}
+	switch dbAcct.(type) {
+	case *dbHardenedPurposeAccount:
+		acctVars := accountVarsBucket(ns, account)
+		err := acctVars.Put(acctVarName, []byte(name))
+		if err != nil {
+			return errors.E(errors.IO, err)
+		}
+		return nil
+	}
+
 	row, err := fetchAccountInfo(ns, account, DBVersion)
 	if err != nil {
 		return err

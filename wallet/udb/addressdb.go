@@ -864,6 +864,11 @@ func fetchDBAccount(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (d
 	return nil, errors.E(errors.IO, errors.Errorf("unknown account type %d", row.acctType))
 }
 
+func accountVarsBucket(ns walletdb.ReadWriteBucket, account uint32) walletdb.ReadWriteBucket {
+	accountKey := uint32ToBytes(account)
+	return ns.NestedReadWriteBucket(acctVarsBucketName).NestedReadWriteBucket(accountKey)
+}
+
 // deleteAccountNameIndex deletes the given key from the account name index of the database.
 func deleteAccountNameIndex(ns walletdb.ReadWriteBucket, name string) error {
 	bucket := ns.NestedReadWriteBucket(acctNameIdxBucketName)
