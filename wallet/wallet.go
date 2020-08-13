@@ -2047,6 +2047,8 @@ func (w *Wallet) NextAccount(ctx context.Context, name string) (uint32, error) {
 	return account, nil
 }
 
+// CreateHardenedAccount derives the next account returning only hardened
+// BIP0032 keys.  The wallet must be unlocked to create this account.
 func (w *Wallet) CreateHardenedAccount(ctx context.Context, name string) (account uint32, err error) {
 	const op errors.Op = "wallet.CreateHardenedAccount"
 	defer func() {
@@ -2066,27 +2068,54 @@ func (w *Wallet) CreateHardenedAccount(ctx context.Context, name string) (accoun
 			return err
 		}
 		const h = hdkeychain.HardenedKeyStart
-		gapLimit := uint32(w.gapLimit)
-		for i := uint32(0); i < gapLimit; i++ {
-			c, err := key.Child(i + h)
-			if errors.Is(err, hdkeychain.ErrInvalidChild) {
-				continue
-			}
-			if err != nil {
-				return err
-			}
-			pk := c.SerializedPubKey()
-			pkh := dcrutil.Hash160(pk)
-			addr, err := dcrutil.NewAddressPubKeyHash(pkh, w.chainParams, dcrec.STEcdsaSecp256k1)
-			if err != nil {
-				return err
-			}
 
-			// TODO: save addr
-			_ = addr
-
-			c.Zero()
+		// Derive the current gaplimit number of address in both
+		// branches and record these to the database.  These future
+		// addresses must be recorded to the database so transactions
+		// involving them can be found after the wallet is restarted and
+		// loads transaction filters, as deriving them again would
+		// require an unlocked wallet.
+		//
+		// If the gaplimit is increased between restarts, the addresses
+		// beyond the original limit cannot be automatically watched.
+		extBranch, err := key.Child(0 + h)
+		if err != nil {
+			return err
 		}
+		intBranch, err := key.Child(1 + h)
+		if err != nil {
+			return err
+		}
+		gapLimit := uint32(w.gapLimit)
+		saveBranchAddrs := func(branch uint32, branchKey *hdkeychain.ExtendedKey) error {
+			for i := uint32(0); i < gapLimit; i++ {
+				c, err := extBranch.Child(i + h)
+				if errors.Is(err, hdkeychain.ErrInvalidChild) {
+					continue
+				}
+				if err != nil {
+					return err
+				}
+				pk := c.SerializedPubKey()
+				err = w.manager.RecordDerivedAddress(dbtx,
+					account, branch, i, pk)
+				if err != nil {
+					return err
+				}
+
+				c.Zero()
+			}
+			return nil
+		}
+		err = saveBranchAddrs(0, extBranch)
+		if err != nil {
+			return err
+		}
+		err = saveBranchAddrs(1, intBranch)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 	return account, err
