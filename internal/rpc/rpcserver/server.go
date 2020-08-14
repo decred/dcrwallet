@@ -2471,6 +2471,9 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	if req.BalanceToMaintain < 0 {
 		return status.Errorf(codes.InvalidArgument, "Negative balance to maintain given")
 	}
+	// set limit. If it is not informed by the request it is used 0, which
+	// is defaulted to 20.
+	limit := int(req.Limit)
 
 	tb := ticketbuyer.New(wallet)
 
@@ -2485,6 +2488,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		c.PoolFeeAddr = poolAddress
 		c.PoolFees = req.PoolFees
 		c.VSP = vspServer
+		c.Limit = limit
 	})
 
 	lock := make(chan time.Time, 1)
