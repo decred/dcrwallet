@@ -832,6 +832,7 @@ message RunTicketBuyerRequest {
 	double pool_fees = 7;
 	string vsp_host = 8;
 	string vsp_pubkey = 9;
+	int32 limit = 10;
 }
 
 message RunTicketBuyerResponse {}
