@@ -175,6 +175,10 @@ func (r *RPC) MempoolCount(ctx context.Context, kind string) (int, error) {
 // The transaction may not be an orphan.
 func (r *RPC) PublishTransaction(ctx context.Context, tx *wire.MsgTx) error {
 	const op errors.Op = "dcrd.PublishTransaction"
+	return r.publishTransaction(ctx, op, tx)
+}
+
+func (r *RPC) publishTransaction(ctx context.Context, op errors.Op, tx *wire.MsgTx) error {
 	var b strings.Builder
 	b.Grow(tx.SerializeSize() * 2)
 	err := tx.Serialize(hex.NewEncoder(&b))
@@ -206,7 +210,7 @@ func (r *RPC) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error
 	// first non-nil error is returned.
 	var firstErr error
 	for _, tx := range txs {
-		err := r.PublishTransaction(ctx, tx)
+		err := r.publishTransaction(ctx, op, tx)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
