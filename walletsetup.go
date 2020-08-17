@@ -104,7 +104,11 @@ func createWallet(ctx context.Context, cfg *config) error {
 		return err
 	}
 
-	if !imported {
+	// Upgrade to the SLIP0044 cointype if this is a new (rather than
+	// user-provided) seed, and also unconditionally on simnet (to prevent
+	// the mining address printed below from ever becoming invalid if a
+	// cointype upgrade occurred later).
+	if !imported || cfg.SimNet {
 		err := w.UpgradeToSLIP0044CoinType(ctx)
 		if err != nil {
 			return err
