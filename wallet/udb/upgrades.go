@@ -150,10 +150,18 @@ const (
 	// preferences for individual tickets.
 	perTicketVotingPreferencesVersion = 16
 
+	// accountVariablesVersion is the 17th version of the database.  It adds
+	// a bucket for each account which records individual key/value pairs
+	// for account metadata which can change over time (such as account
+	// names, last used child indexes, etc).  This is more efficient than
+	// reserializing all account metadata into a single field when only some
+	// fields changed.
+	accountVariablesVersion = 17
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = perTicketVotingPreferencesVersion
+	DBVersion = accountVariablesVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -175,6 +183,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	unencryptedRedeemScriptsVersion - 1:   unencryptedRedeemScriptsUpgrade,
 	blockcf2Version - 1:                   blockcf2Upgrade,
 	perTicketVotingPreferencesVersion - 1: perTicketVotingPreferencesUpgrade,
+	accountVariablesVersion - 1:           accountVariablesUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -307,7 +316,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 		// replaces the next to use indexes with the last used indexes.
 		row = bip0044AccountInfo(row.pubKeyEncrypted, row.privKeyEncrypted,
 			0, 0, lastUsedExtIndex, lastUsedIntIndex, 0, 0, row.name, newVersion)
-		err = putAccountInfo(addrmgrBucket, account, row)
+		err = putBIP0044AccountInfo(addrmgrBucket, account, row)
 		if err != nil {
 			return err
 		}
@@ -439,7 +448,7 @@ func lastReturnedAddressUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte
 			0, 0, row.lastUsedExternalIndex, row.lastUsedInternalIndex,
 			row.lastUsedExternalIndex, row.lastUsedInternalIndex,
 			row.name, newVersion)
-		return putAccountInfo(addrmgrBucket, account, row)
+		return putBIP0044AccountInfo(addrmgrBucket, account, row)
 	}
 
 	// Determine how many BIP0044 accounts have been created.  Each of these
@@ -1182,7 +1191,7 @@ func unencryptedRedeemScriptsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase [
 			return err
 		}
 		err = putScriptAddress(addrmgrBucket, k[:], ImportedAddrAccount,
-			ssFull, encryptedHash, script)
+			encryptedHash, script)
 		if err != nil {
 			return err
 		}
@@ -1296,6 +1305,61 @@ func perTicketVotingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase
 	_, err = tx.CreateTopLevelBucket(agendaPreferences.ticketsBucketKey())
 	if err != nil {
 		return err
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func accountVariablesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 16
+	const newVersion = 17
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 16 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "accountVariablesUpgrade inappropriately called")
+	}
+
+	addrmgrBucket := tx.ReadWriteBucket(waddrmgrBucketKey)
+
+	// For each previous BIP0044 account, create the variables bucket for it
+	// and rewrite both the row and all variables.
+	_, err = addrmgrBucket.CreateBucket(acctVarsBucketName)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	newAcct := new(dbBIP0044Account)
+	err = forEachAccount(addrmgrBucket, func(account uint32) error {
+		a, err := fetchDBAccount(addrmgrBucket, account, oldVersion)
+		if err != nil {
+			return err
+		}
+		switch a := a.(type) {
+		case *dbBIP0044AccountRow:
+			newAcct.dbAccountRow = a.dbAccountRow
+			newAcct.dbAccountRow.acctType = actBIP0044
+			newAcct.pubKeyEncrypted = a.pubKeyEncrypted
+			newAcct.privKeyEncrypted = a.privKeyEncrypted
+			newAcct.lastUsedExternalIndex = a.lastUsedExternalIndex
+			newAcct.lastUsedInternalIndex = a.lastUsedInternalIndex
+			newAcct.lastReturnedExternalIndex = a.lastReturnedExternalIndex
+			newAcct.lastReturnedInternalIndex = a.lastReturnedInternalIndex
+			newAcct.name = a.name
+			newAcct.dbAccountRow.rawData = newAcct.serializeRow()
+		default:
+			return nil
+		}
+
+		return putNewBIP0044Account(addrmgrBucket, account, newAcct)
+	})
+	if err != nil {
+		return errors.E(errors.IO, err)
 	}
 
 	// Write the new database version.

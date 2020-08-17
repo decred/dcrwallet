@@ -780,7 +780,7 @@ func minUint32(a, b uint32) uint32 {
 func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr udb.ManagedAddress) error {
 	ns := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 	account := addr.Account()
-	err := w.manager.MarkUsed(ns, addr.Address())
+	err := w.manager.MarkUsed(dbtx, addr.Address())
 	if err != nil {
 		return errors.E(op, err)
 	}

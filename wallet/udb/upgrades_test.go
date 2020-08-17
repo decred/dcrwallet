@@ -273,25 +273,29 @@ func verifyV5Upgrade(t *testing.T, db walletdb.DB) {
 		const dbVersion = 5
 
 		for _, d := range data {
-			row, err := fetchAccountInfo(ns, d.acct, dbVersion)
+			acct, err := fetchDBAccount(ns, d.acct, dbVersion)
 			if err != nil {
 				return err
 			}
-			if row.lastUsedExternalIndex != d.lastUsedExtChild {
+			a, ok := acct.(*dbBIP0044Account)
+			if !ok {
+				return fmt.Errorf("unknown account type %T", acct)
+			}
+			if a.lastUsedExternalIndex != d.lastUsedExtChild {
 				t.Errorf("Account %d last used ext child mismatch %d != %d",
-					d.acct, row.lastUsedExternalIndex, d.lastUsedExtChild)
+					d.acct, a.lastUsedExternalIndex, d.lastUsedExtChild)
 			}
-			if row.lastReturnedExternalIndex != d.lastUsedExtChild {
+			if a.lastReturnedExternalIndex != d.lastUsedExtChild {
 				t.Errorf("Account %d last returned ext child mismatch %d != %d",
-					d.acct, row.lastReturnedExternalIndex, d.lastUsedExtChild)
+					d.acct, a.lastReturnedExternalIndex, d.lastUsedExtChild)
 			}
-			if row.lastUsedInternalIndex != d.lastUsedIntChild {
+			if a.lastUsedInternalIndex != d.lastUsedIntChild {
 				t.Errorf("Account %d last used int child mismatch %d != %d",
-					d.acct, row.lastUsedInternalIndex, d.lastUsedIntChild)
+					d.acct, a.lastUsedInternalIndex, d.lastUsedIntChild)
 			}
-			if row.lastReturnedInternalIndex != d.lastUsedIntChild {
+			if a.lastReturnedInternalIndex != d.lastUsedIntChild {
 				t.Errorf("Account %d last returned int child mismatch %d != %d",
-					d.acct, row.lastReturnedInternalIndex, d.lastUsedIntChild)
+					d.acct, a.lastReturnedInternalIndex, d.lastUsedIntChild)
 			}
 		}
 
