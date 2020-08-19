@@ -269,18 +269,23 @@ func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
 			DialContext: lp.dialer.DialContext,
 		},
 	}
+	cancels := make([]func(), 0, len(seeders))
+	defer func() {
+		for _, cancel := range cancels {
+			cancel()
+		}
+	}()
 	for _, host := range seeders {
 		host := host
 		url.Host = host
 		ctx, cancel := context.WithTimeout(ctx, time.Minute)
+		cancels = append(cancels, cancel)
 		req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
 		if err != nil {
-			cancel()
 			log.Errorf("Bad seeder request: %v", err)
 			continue
 		}
 		go func() {
-			defer cancel()
 			resp, err := client.Do(req)
 			if err != nil {
 				log.Warnf("Failed to seed addresses from %s: %v", host, err)
