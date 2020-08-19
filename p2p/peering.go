@@ -300,11 +300,12 @@ func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
 		if resp == nil {
 			continue
 		}
+		seeder := resp.Request.Host
 		var apiResponse struct {
 			Host     string `json:"host"`
 			Services uint64 `json:"services"`
 		}
-		dec := json.NewDecoder(resp.Body)
+		dec := json.NewDecoder(io.LimitReader(resp.Body, 4096))
 		na = na[:0]
 		// Read at most 16 entries from each seeder, discard rest
 		for i := 0; i < 16; i++ {
@@ -313,25 +314,28 @@ func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
 				break
 			}
 			if err != nil {
-				log.Warnf("Invalid seeder API response: %v", err)
-				continue
+				log.Warnf("Invalid seeder %v API response: %v", seeder, err)
+				break
 			}
 			host, port, err := net.SplitHostPort(apiResponse.Host)
 			if err != nil {
-				log.Warnf("Invalid host in seeder API: %v", err)
+				log.Warnf("Invalid host in seeder %v API: %v", seeder, err)
 				continue
 			}
 			ip := net.ParseIP(host)
 			if ip == nil {
-				log.Warnf("Invalid IP address %q in seeder API host field", host)
+				log.Warnf("Invalid IP address %q in seeder %v API host field",
+					host, seeder)
 				continue
 			}
 			portNum, err := strconv.ParseUint(port, 10, 16)
 			if err != nil {
-				log.Warnf("Invalid port %q in seeder API host field", port)
+				log.Warnf("Invalid port %q in seeder %v API host field", port,
+					seeder)
 				continue
 			}
-			log.Debugf("Discovered peer %v from seeder", apiResponse.Host)
+			log.Debugf("Discovered peer %v from seeder %v", apiResponse.Host,
+				seeder)
 			na = append(na, &wire.NetAddress{
 				Timestamp: time.Now(),
 				Services:  wire.ServiceFlag(apiResponse.Services),
