@@ -272,12 +272,15 @@ func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
 	for _, host := range seeders {
 		host := host
 		url.Host = host
+		ctx, cancel := context.WithTimeout(ctx, time.Minute)
 		req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
 		if err != nil {
+			cancel()
 			log.Errorf("Bad seeder request: %v", err)
 			continue
 		}
 		go func() {
+			defer cancel()
 			resp, err := client.Do(req)
 			if err != nil {
 				log.Warnf("Failed to seed addresses from %s: %v", host, err)
@@ -298,7 +301,8 @@ func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
 		}
 		dec := json.NewDecoder(resp.Body)
 		na = na[:0]
-		for {
+		// Read at most 16 entries from each seeder, discard rest
+		for i := 0; i < 16; i++ {
 			err := dec.Decode(&apiResponse)
 			if errors.Is(err, io.EOF) {
 				break
