@@ -102,7 +102,7 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash *chainhash.Hash) (dc
 		log.Warnf("feeaddress missing server signature")
 		return 0, fmt.Errorf("server signature missing from feeaddress response")
 	}
-	serverSig, err := hex.DecodeString(serverSigStr)
+	serverSig, err := base64.StdEncoding.DecodeString(serverSigStr)
 	if err != nil {
 		log.Warnf("failed to decode server signature: %v", err)
 		return 0, err

@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -68,7 +67,7 @@ func (v *VSP) TicketStatus(ctx context.Context, hash *chainhash.Hash) (*TicketSt
 		log.Warnf("ticket status response missing server signature")
 		return nil, fmt.Errorf("ticket status response missing server signature")
 	}
-	serverSig, err := hex.DecodeString(serverSigStr)
+	serverSig, err := base64.StdEncoding.DecodeString(serverSigStr)
 	if err != nil {
 		log.Warnf("failed to decode server signature: %v", err)
 		return nil, err
