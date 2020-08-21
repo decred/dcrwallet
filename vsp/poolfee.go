@@ -3,7 +3,7 @@ package vsp
 import (
 	"context"
 	"crypto/ed25519"
-	"encoding/hex"
+	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -40,7 +40,7 @@ func (v *VSP) PoolFee(ctx context.Context) (float64, error) {
 		log.Warnf("vspinfo response missing server signature")
 		return -1, err
 	}
-	serverSig, err := hex.DecodeString(serverSigStr)
+	serverSig, err := base64.StdEncoding.DecodeString(serverSigStr)
 	if err != nil {
 		log.Warnf("failed to decode server signature: %v", err)
 		return -1, err

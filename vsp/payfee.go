@@ -208,7 +208,7 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, credits []
 		log.Warnf("pay fee response missing server signature")
 		return nil, err
 	}
-	serverSig, err := hex.DecodeString(serverSigStr)
+	serverSig, err := base64.StdEncoding.DecodeString(serverSigStr)
 	if err != nil {
 		log.Warnf("failed to decode server signature: %v", err)
 		return nil, err
