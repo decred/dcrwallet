@@ -361,6 +361,10 @@ var helpDescsEnUS = map[string]string{
 	"mixoutput--synopsis": "Mix a specific output.",
 	"mixoutput-outpoint":  `Outpoint (in form "txhash:index") to mix`,
 
+	// LockAccountCmd help.
+	"lockaccount--synopsis": "Lock an individually-encrypted account",
+	"lockaccount-account":   "Account to lock",
+
 	// ListAccountsCmd help.
 	"listaccounts--synopsis":       "DEPRECATED -- Returns a JSON object of all accounts and their balances.",
 	"listaccounts-minconf":         "Minimum number of block confirmations required before an unspent output's value is included in the balance",
@@ -519,6 +523,10 @@ var helpDescsEnUS = map[string]string{
 	"sendtomultisig-comment":     "Unused",
 	"sendtomultisig--result0":    "The transaction hash of the sent transaction",
 
+	"setaccountpassphrase--synopsis":  "Individually encrypt or change per-account passphrase",
+	"setaccountpassphrase-account":    "Account to modify",
+	"setaccountpassphrase-passphrase": "New passphrase to use",
+
 	// SetGenerate help
 	"setgenerate--synopsis":    "Enable or disable stake mining",
 	"setgenerate-generate":     "True to enable stake mining, false to disable.",
@@ -588,6 +596,11 @@ var helpDescsEnUS = map[string]string{
 	"sweepaccountresult-totalpreviousoutputamount": "The total transaction input amount.",
 	"sweepaccountresult-totaloutputamount":         "The total transaction output amount.",
 	"sweepaccountresult-estimatedsignedsize":       "The estimated size of the transaction when signed.",
+
+	// UnlockAccountCmd help.
+	"unlockaccount--synopsis":  "Unlock an individually-encrypted account",
+	"unlockaccount-account":    "Account to unlock",
+	"unlockaccount-passphrase": "Account passphrase",
 
 	// ValidateAddressCmd help.
 	"validateaddress--synopsis": "Verify that an address is valid.\n" +

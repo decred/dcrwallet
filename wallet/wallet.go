@@ -1466,6 +1466,25 @@ func (w *Wallet) Unlock(ctx context.Context, passphrase []byte, timeout <-chan t
 	return nil
 }
 
+func (w *Wallet) SetAccountPassphrase(ctx context.Context, account uint32, passphrase []byte) error {
+	return walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
+		return w.manager.SetAccountPassphrase(tx, account, passphrase)
+	})
+}
+
+// TODO: timeout?
+func (w *Wallet) UnlockAccount(ctx context.Context, account uint32, passphrase []byte) error {
+	return walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
+		return w.manager.UnlockAccount(tx, account, passphrase)
+	})
+}
+
+func (w *Wallet) LockAccount(ctx context.Context, account uint32) error {
+	return walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
+		return w.manager.LockAccount(tx, account)
+	})
+}
+
 func (w *Wallet) replacePassphraseTimeout(wasLocked bool, newTimeout <-chan time.Time) {
 	defer w.passphraseTimeoutMu.Unlock()
 	w.passphraseTimeoutMu.Lock()

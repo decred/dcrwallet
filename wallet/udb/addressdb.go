@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/kdf"
 	"decred.org/dcrwallet/wallet/walletdb"
 )
 
@@ -70,6 +71,9 @@ type dbBIP0044AccountRow struct {
 	lastReturnedExternalIndex uint32 // Added in version 5
 	lastReturnedInternalIndex uint32 // Added in version 5
 	name                      string
+
+	// variables subbucket is used to record remaining fields
+	uniqueKey *kdf.Argon2idParams
 }
 
 func (r *dbBIP0044AccountRow) accountType() accountType { return actBIP0044Legacy }
@@ -88,6 +92,7 @@ type dbBIP0044Account struct {
 	lastReturnedExternalIndex uint32
 	lastReturnedInternalIndex uint32
 	name                      string
+	uniqueKey                 *kdf.Argon2idParams
 }
 
 func (a *dbBIP0044Account) accountType() accountType { return actBIP0044 }
@@ -823,6 +828,7 @@ func fetchDBAccount(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (d
 		lastRetExt := r.getAccountUint32Var(varsBucket, acctVarLastReturnedExternal)
 		lastRetInt := r.getAccountUint32Var(varsBucket, acctVarLastReturnedInternal)
 		name := r.getAccountStringVar(varsBucket, acctVarName)
+		kdfParams := r.getAccountKDFVar(varsBucket, acctVarKDF)
 		if r.err != nil {
 			return nil, errors.E(errors.IO, err)
 		}
@@ -838,6 +844,7 @@ func fetchDBAccount(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (d
 		a.lastReturnedExternalIndex = lastRetExt
 		a.lastReturnedInternalIndex = lastRetInt
 		a.name = name
+		a.uniqueKey = kdfParams
 
 		return a, nil
 	}
@@ -990,6 +997,12 @@ func putNewBIP0044Account(ns walletdb.ReadWriteBucket, account uint32, a *dbBIP0
 	if err != nil {
 		return err
 	}
+	if a.uniqueKey != nil {
+		err = putAccountKDFVar(varsBucket, acctVarKDF, a.uniqueKey)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -1023,6 +1036,7 @@ var (
 	acctVarLastReturnedExternal = []byte("extret")
 	acctVarLastReturnedInternal = []byte("intret")
 	acctVarName                 = []byte("name")
+	acctVarKDF                  = []byte("kdf-params")
 )
 
 func putAccountUint32Var(varsBucket walletdb.ReadWriteBucket, varName []byte, value uint32) error {
@@ -1037,6 +1051,18 @@ func putAccountUint32Var(varsBucket walletdb.ReadWriteBucket, varName []byte, va
 
 func putAccountStringVar(varsBucket walletdb.ReadWriteBucket, varName []byte, value string) error {
 	err := varsBucket.Put(varName, []byte(value))
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
+func putAccountKDFVar(varsBucket walletdb.ReadWriteBucket, varName []byte, value *kdf.Argon2idParams) error {
+	marshaled, err := value.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	err = varsBucket.Put(varName, marshaled)
 	if err != nil {
 		return errors.E(errors.IO, err)
 	}
@@ -1066,6 +1092,19 @@ func (r *accountVarReader) getAccountStringVar(varsBucket walletdb.ReadBucket, v
 	}
 	value := varsBucket.Get(varName)
 	return string(value)
+}
+
+func (r *accountVarReader) getAccountKDFVar(varsBucket walletdb.ReadBucket, varName []byte) *kdf.Argon2idParams {
+	if r.err != nil {
+		return nil
+	}
+	value := varsBucket.Get(varName)
+	if value == nil {
+		return nil
+	}
+	params := new(kdf.Argon2idParams)
+	r.err = params.UnmarshalBinary(value)
+	return params
 }
 
 // deserializeAddressRow deserializes the passed serialized address information.
