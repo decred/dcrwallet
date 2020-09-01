@@ -7,7 +7,6 @@ package udb
 
 import (
 	"crypto/rand"
-	"crypto/sha512"
 	"crypto/subtle"
 	"fmt"
 	"hash"
@@ -340,8 +339,10 @@ type Manager struct {
 	// privPassphraseSalt and hashedPrivPassphrase allow for the secure
 	// detection of a correct passphrase on manager unlock when the
 	// manager is already unlocked.  The hash is zeroed each lock.
-	privPassphraseSalt   [saltSize]byte
-	hashedPrivPassphrase [sha512.Size]byte
+	privPassphraseHasher hash.Hash // blake2b-256 keyed hash with random bytes
+	privPassphraseHash   []byte
+	//privPassphraseSalt   [saltSize]byte
+	//hashedPrivPassphrase [sha512.Size]byte
 }
 
 func zero(b []byte) {
@@ -367,15 +368,13 @@ func (m *Manager) lock() {
 	m.cryptoKeyPriv.Zero()
 	m.masterKeyPriv.Zero()
 
-	// Zero the hashed passphrase.
-	m.hashedPrivPassphrase = [64]byte{}
-
 	// NOTE: m.cryptoKeyPub is intentionally not cleared here as the address
 	// manager needs to be able to continue to read and decrypt public data
 	// which uses a separate derived key from the database even when it is
 	// locked.
 
 	m.locked = true
+	m.privPassphraseHash = nil
 }
 
 // zeroSensitivePublicData performs a best try effort to remove and zero all
@@ -1046,12 +1045,15 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 		// fast, and it's less cyclomatic complexity to simply decrypt
 		// in either case.
 
-		// Create a new salt that will be used for hashing the new
-		// passphrase each unlock.
-		var passphraseSalt [saltSize]byte
-		_, err := rand.Read(passphraseSalt[:])
+		// Create a new passphrase hasher.
+		hashKey := make([]byte, 32)
+		_, err := io.ReadFull(rand.Reader, hashKey)
 		if err != nil {
 			return errors.E(errors.IO, err)
+		}
+		passHasher, err := blake2b.New256(hashKey)
+		if err != nil {
+			return err
 		}
 
 		// Re-encrypt the crypto private key using the new master
@@ -1069,15 +1071,14 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 		// When the manager is locked, ensure the new clear text master
 		// key is cleared from memory now that it is no longer needed.
 		// If unlocked, create the new passphrase hash with the new
-		// passphrase and salt.
-		var hashedPassphrase [sha512.Size]byte
+		// keyed hash.
+		var passHash []byte
 		if m.locked {
 			newMasterKey.Zero()
 		} else {
-			saltedPassphrase := append(passphraseSalt[:],
-				newPassphrase...)
-			hashedPassphrase = sha512.Sum512(saltedPassphrase)
-			zero(saltedPassphrase)
+			passHasher.Reset()
+			passHasher.Write(newPassphrase)
+			passHash = passHasher.Sum(nil)
 		}
 
 		// Save the new keys and params to the the db in a single
@@ -1097,8 +1098,8 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 		copy(m.cryptoKeyPrivEncrypted[:], encPriv)
 		m.masterKeyPriv.Zero() // Clear the old key.
 		m.masterKeyPriv = newMasterKey
-		m.privPassphraseSalt = passphraseSalt
-		m.hashedPrivPassphrase = hashedPassphrase
+		m.privPassphraseHasher = passHasher
+		m.privPassphraseHash = passHash
 	} else {
 		// Re-encrypt the crypto public key using the new master public
 		// key.
@@ -1411,10 +1412,11 @@ func (m *Manager) UnlockedWithPassphrase(passphrase []byte) error {
 		return errors.E(errors.Locked)
 	}
 
-	saltedPassphrase := append(m.privPassphraseSalt[:], passphrase...)
-	hashedPassphrase := sha512.Sum512(saltedPassphrase)
-	zero(saltedPassphrase)
-	if hashedPassphrase != m.hashedPrivPassphrase {
+	m.privPassphraseHasher.Reset()
+	m.privPassphraseHasher.Write(passphrase)
+	passHash := m.privPassphraseHasher.Sum(nil)
+
+	if subtle.ConstantTimeCompare(passHash, m.privPassphraseHash) != 1 {
 		return errors.E(errors.Passphrase)
 	}
 
@@ -1438,14 +1440,15 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 		return errors.E(errors.WatchingOnly, "cannot unlock watching wallet")
 	}
 
+	m.privPassphraseHasher.Reset()
+	m.privPassphraseHasher.Write(passphrase)
+	passHash := m.privPassphraseHasher.Sum(nil)
+
 	// Avoid actually unlocking if the manager is already unlocked
 	// and the passphrases match.
 	if !m.locked {
-		saltedPassphrase := append(m.privPassphraseSalt[:],
-			passphrase...)
-		hashedPassphrase := sha512.Sum512(saltedPassphrase)
-		zero(saltedPassphrase)
-		if hashedPassphrase != m.hashedPrivPassphrase {
+		// compare passphrase hashes
+		if subtle.ConstantTimeCompare(passHash, m.privPassphraseHash) != 1 {
 			m.lock()
 			return errors.E(errors.Passphrase)
 		}
@@ -1493,9 +1496,7 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 	}
 
 	m.locked = false
-	saltedPassphrase := append(m.privPassphraseSalt[:], passphrase...)
-	m.hashedPrivPassphrase = sha512.Sum512(saltedPassphrase)
-	zero(saltedPassphrase)
+	m.privPassphraseHash = passHash
 	return nil
 }
 
@@ -2262,7 +2263,7 @@ func (m *Manager) Decrypt(keyType CryptoKeyType, in []byte) ([]byte, error) {
 // newManager returns a new locked address manager with the given parameters.
 func newManager(chainParams *chaincfg.Params, masterKeyPub *snacl.SecretKey,
 	masterKeyPriv *snacl.SecretKey, cryptoKeyPub EncryptorDecryptor,
-	cryptoKeyPrivEncrypted []byte, privPassphraseSalt [saltSize]byte) *Manager {
+	cryptoKeyPrivEncrypted []byte, privPassphraseHasher hash.Hash) *Manager {
 
 	return &Manager{
 		chainParams:            chainParams,
@@ -2273,7 +2274,7 @@ func newManager(chainParams *chaincfg.Params, masterKeyPub *snacl.SecretKey,
 		cryptoKeyPub:           cryptoKeyPub,
 		cryptoKeyPrivEncrypted: cryptoKeyPrivEncrypted,
 		cryptoKeyPriv:          &cryptoKey{},
-		privPassphraseSalt:     privPassphraseSalt,
+		privPassphraseHasher:   privPassphraseHasher,
 	}
 }
 
@@ -2398,18 +2399,22 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte, chainParams *chai
 	cryptoKeyPub.CopyBytes(cryptoKeyPubCT)
 	zero(cryptoKeyPubCT)
 
-	// Generate private passphrase salt.
-	var privPassphraseSalt [saltSize]byte
-	_, err = rand.Read(privPassphraseSalt[:])
+	// Generate a private passphrase hasher.
+	hasherKey := make([]byte, 32)
+	_, err = io.ReadFull(rand.Reader, hasherKey)
 	if err != nil {
 		return nil, errors.E(errors.IO, err)
+	}
+	passHasher, err := blake2b.New256(hasherKey)
+	if err != nil {
+		return nil, err
 	}
 
 	// Create new address manager with the given parameters.  Also, override
 	// the defaults for the additional fields which are not specified in the
 	// call to new with the values loaded from the database.
 	mgr := newManager(chainParams, &masterKeyPub, &masterKeyPriv,
-		cryptoKeyPub, cryptoKeyPrivEnc, privPassphraseSalt)
+		cryptoKeyPub, cryptoKeyPrivEnc, passHasher)
 	mgr.watchingOnly = watchingOnly
 	return mgr, nil
 }
