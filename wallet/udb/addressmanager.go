@@ -2108,10 +2108,6 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 		return nil, nil, errors.E(errors.WatchingOnly)
 	}
 
-	if m.locked {
-		return nil, nil, errors.E(errors.Locked)
-	}
-
 	// At this point, there are two types of addresses that must be handled:
 	// those that are derived from a BIP0044 account and addresses for imported
 	// keys.  For BIP0044 addresses, the private key must be derived using the
