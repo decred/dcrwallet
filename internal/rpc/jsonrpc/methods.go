@@ -1812,6 +1812,12 @@ func (s *Server) getMasterPubkey(ctx context.Context, icmd interface{}) (interfa
 	if err != nil {
 		return nil, err
 	}
+
+	log.Warnf("Attention: Extended public keys must not be shared with or " +
+		"leaked to external parties, such as VSPs, in combination with " +
+		"any account private key; this reveals all private keys of " +
+		"this account")
+
 	return xpub.String(), nil
 }
 
