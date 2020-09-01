@@ -336,13 +336,11 @@ type Manager struct {
 	cryptoKeyPrivEncrypted []byte
 	cryptoKeyPriv          EncryptorDecryptor
 
-	// privPassphraseSalt and hashedPrivPassphrase allow for the secure
-	// detection of a correct passphrase on manager unlock when the
-	// manager is already unlocked.  The hash is zeroed each lock.
-	privPassphraseHasher hash.Hash // blake2b-256 keyed hash with random bytes
+	// privPassphraseHasher is a blake2b-256 hasher (keyed with random
+	// bytes) to hash passphrases, to compare for correct passphrases when
+	// unlocking an already unlocked wallet without deriving another key.
+	privPassphraseHasher hash.Hash
 	privPassphraseHash   []byte
-	//privPassphraseSalt   [saltSize]byte
-	//hashedPrivPassphrase [sha512.Size]byte
 }
 
 func zero(b []byte) {
