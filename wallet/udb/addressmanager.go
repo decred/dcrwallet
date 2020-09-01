@@ -1630,8 +1630,6 @@ func (m *Manager) SetAccountPassphrase(dbtx walletdb.ReadWriteTx, account uint32
 	acctInfo.acctKeyEncrypted = ciphertext
 	acctInfo.uniqueKey = kdfp
 
-	// XXX rewrite the encrypted private key or decryption will never authenticate!
-
 	return nil
 }
 
