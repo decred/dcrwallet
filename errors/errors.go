@@ -4,7 +4,7 @@
 
 // API originally inspired by https://commandcenter.blogspot.com/2017/12/error-handling-in-upspin.html.
 // Currently, dcrwallet is in the process of converting to the new Go 1.13 error
-// wrapping features, and this package wraps xerrors for compatibility with Go 1.12.
+// wrapping features.
 
 /*
 Package errors provides error creation and matching for all wallet systems.  It
@@ -16,7 +16,6 @@ package errors
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/xerrors"
 	"runtime/debug"
 	"strings"
 )
@@ -156,23 +155,9 @@ func New(text string) error {
 	return errors.New(text)
 }
 
-// Errorf creates a simple error from a format string and arguments.  If format
-// has suffix ": %w" and the last argument implements error, the returned error
-// implements the Unwrap method and wraps the error.
+// Errorf wraps fmt.Errorf as a convenience for creating formatted error
+// strings.
 func Errorf(format string, args ...interface{}) error {
-	// xerrors.Errorf does not perfectly implement the behavior of Go 1.13
-	// fmt.Errorf because it will also wrap errors using the %v and %s
-	// format verbs.  To avoid issues switching to the standard library's
-	// behavior in a future change, this behavior is prevented by only using
-	// xerrors.Errorf when the format string ends exactly in ": %w".
-	if strings.HasSuffix(format, ": %w") {
-		return xerrors.Errorf(format, args...)
-	}
-	// fmt.Errorf will also wrap for any occurrance of %w, not only with the
-	// suffix ": %w".  This is also undesirable until Go 1.13 is the minimum
-	// supported version as as it would cause different wrapping behavior
-	// with Go 1.12.  Replaces these occurances with %v.
-	format = strings.ReplaceAll(format, "%w", "%v")
 	return fmt.Errorf(format, args...)
 }
 
@@ -357,14 +342,14 @@ func (e *Error) Is(target error) bool {
 
 // Is returns whether err equals or wraps target.
 func Is(err, target error) bool {
-	return xerrors.Is(err, target)
+	return errors.Is(err, target)
 }
 
 // As attempts to assign the error pointed to by target with the first error in
 // err's error chain with a compatible type.  Returns true if target is
 // assigned.
 func As(err error, target interface{}) bool {
-	return xerrors.As(err, target)
+	return errors.As(err, target)
 }
 
 func match(err1, err2 error) bool {

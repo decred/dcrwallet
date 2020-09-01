@@ -1053,7 +1053,8 @@ func (r *accountVarReader) getAccountUint32Var(varsBucket walletdb.ReadBucket, v
 	}
 	value := varsBucket.Get(varName)
 	if len(value) != 4 {
-		r.err = errors.E(errors.IO, errors.Errorf(`bad len %d for uint32 value "%s"`, varName))
+		err := errors.Errorf(`bad len %d for uint32 value "%s"`, len(value), varName)
+		r.err = errors.E(errors.IO, err)
 		return 0
 	}
 	return binary.LittleEndian.Uint32(value)
