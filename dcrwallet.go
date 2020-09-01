@@ -243,16 +243,25 @@ func run(ctx context.Context) error {
 		}
 
 		if cfg.EnableTicketBuyer && cfg.VSPOpts.Server != "" {
-			changeAcct, err := w.AccountNumber(ctx, cfg.ChangeAccount)
+			changeAccountName := cfg.ChangeAccount
+			if changeAccountName == "" && cfg.CSPPServer == "" {
+				log.Warnf("Change account not set, using "+
+					"purchase account %q", cfg.PurchaseAccount)
+				changeAccountName = cfg.PurchaseAccount
+			}
+			changeAcct, err := w.AccountNumber(ctx, changeAccountName)
 			if err != nil {
-				log.Warnf("failed to get account number for %s: %v",
-					cfg.PurchaseAccount, err)
+				log.Warnf("failed to get account number for "+
+					"ticket change account %q: %v",
+					changeAccountName, err)
 				return err
 			}
 			purchaseAcct, err := w.AccountNumber(ctx, cfg.PurchaseAccount)
 			if err != nil {
-				log.Warnf("change account not set, using %s", cfg.PurchaseAccount)
-				changeAcct = purchaseAcct
+				log.Warnf("failed to get account number for "+
+					"ticket purchase account %q: %v",
+					cfg.PurchaseAccount, err)
+				return err
 			}
 			vspServer, err = vsp.New(cfg.VSPOpts.Server, cfg.VSPOpts.PubKey,
 				purchaseAcct, changeAcct, cfg.dial, w, activeNet.Params)
