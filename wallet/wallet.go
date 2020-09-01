@@ -1351,22 +1351,14 @@ func (w *Wallet) FetchHeaders(ctx context.Context, p Peer) (count int, rescanFro
 // If that many UTXOs can not be found, it will use the maximum it finds. This
 // will only compress UTXOs in the default account
 func (w *Wallet) Consolidate(ctx context.Context, inputs int, account uint32, address dcrutil.Address) (*chainhash.Hash, error) {
-	heldUnlock, err := w.holdUnlock()
-	if err != nil {
-		return nil, err
-	}
-	defer heldUnlock.release()
+	defer w.holdUnlock().release()
 	return w.compressWallet(ctx, "wallet.Consolidate", inputs, account, address)
 }
 
 // CreateMultisigTx creates and signs a multisig transaction.
 func (w *Wallet) CreateMultisigTx(ctx context.Context, account uint32, amount dcrutil.Amount,
 	pubkeys []*dcrutil.AddressSecpPubKey, nrequired int8, minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
-	heldUnlock, err := w.holdUnlock()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	defer heldUnlock.release()
+	defer w.holdUnlock().release()
 	return w.txToMultisig(ctx, "wallet.CreateMultisigTx", account, amount, pubkeys, nrequired, minconf)
 }
 
@@ -1407,11 +1399,7 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	const op errors.Op = "wallet.PurchaseTicketsWithResponse"
 
 	if !req.DontSignTx {
-		heldUnlock, err := w.holdUnlock()
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
-		defer heldUnlock.release()
+		defer w.holdUnlock().release()
 	}
 
 	return w.purchaseTickets(ctx, op, n, req)
@@ -1451,8 +1439,8 @@ func (w *Wallet) Unlock(ctx context.Context, passphrase []byte, timeout <-chan t
 	default:
 		return errors.E(op, err)
 	case errors.Is(err, errors.Locked):
-		defer w.passphraseUsedMu.Unlock()
-		w.passphraseUsedMu.Lock()
+		defer w.passphraseUsedMu.RUnlock()
+		w.passphraseUsedMu.RLock()
 		err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 			addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 			return w.manager.Unlock(addrmgrNs, passphrase)
@@ -1543,19 +1531,14 @@ func (w *Wallet) Locked() bool {
 // TODO: To prevent the above scenario, perhaps closures should be passed
 // to the walletLocker goroutine and disallow callers from explicitly
 // handling the locking mechanism.
-func (w *Wallet) holdUnlock() (heldUnlock, error) {
+func (w *Wallet) holdUnlock() heldUnlock {
 	w.passphraseUsedMu.RLock()
-	locked := w.manager.IsLocked()
-	if locked {
-		w.passphraseUsedMu.RUnlock()
-		return nil, errors.E(errors.Locked)
-	}
 	hold := make(heldUnlock)
 	go func() {
 		<-hold
 		w.passphraseUsedMu.RUnlock()
 	}()
-	return hold, nil
+	return hold
 }
 
 // release releases the hold on the unlocked-state of the wallet and allows the
@@ -4134,11 +4117,7 @@ func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account
 		}
 	}
 
-	heldUnlock, err := w.holdUnlock()
-	if err != nil {
-		return nil, err
-	}
-	defer heldUnlock.release()
+	defer w.holdUnlock().release()
 	tx, watch, err := w.txToOutputs(ctx, op, outputs, account, changeAccount, minconf, true, relayFee, false)
 	if err != nil {
 		return nil, err
