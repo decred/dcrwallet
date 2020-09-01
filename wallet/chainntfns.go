@@ -424,14 +424,6 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				continue
 			}
 
-			// We own the voting output pubkey or script and we're
-			// not operating as a stake pool, so simply insert this
-			// ticket now.
-			if !w.stakePoolEnabled {
-				insert = true
-				break
-			}
-
 			// We are operating as a stake pool. The below
 			// function will ONLY add the ticket into the
 			// stake pool if it has been found within a
