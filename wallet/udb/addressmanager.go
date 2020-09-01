@@ -1610,6 +1610,20 @@ func (m *Manager) SetAccountPassphrase(dbtx walletdb.ReadWriteTx, account uint32
 			"set a unique account passphrase")
 	}
 
+	// Create a new passphase hasher from a new key, and hash the new
+	// passphrase.
+	hashKey := make([]byte, 32)
+	_, err = io.ReadFull(rand.Reader, hashKey)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	hasher, err := blake2b.New256(hashKey)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	hasher.Write(passphrase)
+	passHash := hasher.Sum(nil)
+
 	// Encrypt the account xpriv with a new key.
 	kdfp, err := kdf.NewArgon2idParams(rand.Reader)
 	if err != nil {
@@ -1651,6 +1665,8 @@ func (m *Manager) SetAccountPassphrase(dbtx walletdb.ReadWriteTx, account uint32
 
 	acctInfo.acctKeyEncrypted = ciphertext
 	acctInfo.uniqueKey = kdfp
+	acctInfo.uniquePassHasher = hasher
+	acctInfo.uniquePassHash = passHash
 
 	return nil
 }
