@@ -661,12 +661,6 @@ func (s *Server) createRawTransaction(ctx context.Context, icmd interface{}) (in
 	// Add all transaction outputs to the transaction after performing
 	// some validity checks.
 	for encodedAddr, amount := range cmd.Amounts {
-		// Ensure amount is in the valid range for monetary amounts.
-		if amount <= 0 || amount > dcrutil.MaxAmount {
-			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-				"Invalid amount: 0 >= %v > %v", amount, dcrutil.MaxAmount)
-		}
-
 		// Decode the provided address.  This also ensures the network encoded
 		// with the address matches the network the server is currently on.
 		addr, err := dcrutil.DecodeAddress(encodedAddr, s.activeNet)
@@ -695,6 +689,11 @@ func (s *Server) createRawTransaction(ctx context.Context, icmd interface{}) (in
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code,
 				"New amount: %v", err)
+		}
+		// Ensure amount is in the valid range for monetary amounts.
+		if atomic <= 0 || atomic > dcrutil.MaxAmount {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"Amount outside valid range: %v", atomic)
 		}
 
 		txOut := wire.NewTxOut(int64(atomic), pkScript)
