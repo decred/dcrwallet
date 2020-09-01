@@ -500,16 +500,18 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 		acctInfo.acctKeyEncrypted = row.privKeyEncrypted
 		acctInfo.acctKeyPub = acctKeyPub
 		acctInfo.uniqueKey = row.uniqueKey
-		hashKey := make([]byte, 32)
-		_, err = io.ReadFull(rand.Reader, hashKey)
-		if err != nil {
-			return nil, errors.E(errors.IO, err)
+		if acctInfo.uniqueKey != nil { // a passphrase hasher is required
+			hashKey := make([]byte, 32)
+			_, err = io.ReadFull(rand.Reader, hashKey)
+			if err != nil {
+				return nil, errors.E(errors.IO, err)
+			}
+			hasher, err := blake2b.New256(hashKey)
+			if err != nil {
+				return nil, errors.E(errors.IO, err)
+			}
+			acctInfo.uniquePassHasher = hasher
 		}
-		hasher, err := blake2b.New256(hashKey)
-		if err != nil {
-			return nil, errors.E(errors.IO, err)
-		}
-		acctInfo.uniquePassHasher = hasher
 	default:
 		return nil, errors.Errorf("unknown account type %T", row)
 	}
