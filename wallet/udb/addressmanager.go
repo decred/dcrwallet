@@ -613,23 +613,18 @@ func (m *Manager) AccountExtendedPrivKey(dbtx walletdb.ReadTx, account uint32) (
 
 	ns := dbtx.ReadBucket(waddrmgrBucketKey)
 
-	var (
-		acctInfo *accountInfo
-		err      error
-	)
+	defer m.mtx.Unlock()
 	m.mtx.Lock()
-	if m.locked {
-		err = errors.E(errors.Locked, "locked address manager cannot fetch extended privkey")
-	} else {
-		acctInfo, err = m.loadAccountInfo(ns, account)
-	}
-	m.mtx.Unlock()
+
+	acctInfo, err := m.loadAccountInfo(ns, account)
 	if err != nil {
 		return nil, err
 	}
-
-	if acctInfo.acctKeyPriv == nil {
+	if acctInfo.acctKeyPriv == nil && account > ImportedAddrAccount {
 		return nil, errors.E(errors.Invalid, "imported xpub account has no extended privkey")
+	}
+	if acctInfo.acctKeyPriv == nil {
+		return nil, errors.E(errors.Locked, "unable to access account extended privkey")
 	}
 
 	return acctInfo.acctKeyPriv, nil
