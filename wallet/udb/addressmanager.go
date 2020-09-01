@@ -160,9 +160,11 @@ func argon2idKey(password []byte, k *kdf.Argon2idParams) keyType {
 	return keyType(kdf.DeriveKey(password, k, 32))
 }
 
-const xchacha20NonceSize = 24
-const poly1305TagSize = 16
-const xchacha20poly1305Overhead = xchacha20NonceSize + poly1305TagSize
+const (
+	xchacha20NonceSize        = 24
+	poly1305TagSize           = 16
+	xchacha20poly1305Overhead = xchacha20NonceSize + poly1305TagSize
+)
 
 // improves type safety for seal and unseal funcs with a new type for
 // argon2id-derived keys.
