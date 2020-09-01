@@ -8,7 +8,9 @@ package udb
 import (
 	"crypto/rand"
 	"crypto/sha512"
+	"crypto/subtle"
 	"fmt"
+	"hash"
 	"io"
 	"sync"
 
@@ -22,6 +24,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/wire"
+	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/ripemd160"
 )
@@ -152,6 +155,7 @@ type accountInfo struct {
 	acctKeyPriv      *hdkeychain.ExtendedKey
 	acctKeyPub       *hdkeychain.ExtendedKey
 	uniqueKey        *kdf.Argon2idParams
+	uniquePassHasher hash.Hash // blake2b-256 keyed hash with random bytes
 	uniquePassHash   []byte
 	uniqueKeyPrivs   map[[ripemd160.Size]byte]*secp256k1.PrivateKey
 }
@@ -499,6 +503,16 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 		acctInfo.acctKeyEncrypted = row.privKeyEncrypted
 		acctInfo.acctKeyPub = acctKeyPub
 		acctInfo.uniqueKey = row.uniqueKey
+		hashKey := make([]byte, 32)
+		_, err = io.ReadFull(rand.Reader, hashKey)
+		if err != nil {
+			return nil, errors.E(errors.IO, err)
+		}
+		hasher, err := blake2b.New256(hashKey)
+		if err != nil {
+			return nil, errors.E(errors.IO, err)
+		}
+		acctInfo.uniquePassHasher = hasher
 	default:
 		return nil, errors.Errorf("unknown account type %T", row)
 	}
@@ -1507,10 +1521,20 @@ func (m *Manager) UnlockAccount(dbtx walletdb.ReadTx, account uint32,
 		return errors.E(errors.Crypto, "account is not "+
 			"encrypted with a unique passphrase")
 	}
+
+	// Using a hash object (keyed at runtime with random bytes), hash the
+	// passphrase to compare with an existing unlocked account, or to record
+	// its passphrase hash for later authentication of an already unlocked
+	// account without deriving a key.
+	acctInfo.uniquePassHasher.Reset()
+	acctInfo.uniquePassHasher.Write(passphrase)
+	passHash := acctInfo.uniquePassHasher.Sum(nil)
+
 	if acctInfo.acctKeyPriv != nil {
-		// already unlocked
-		// XXX check for correct passphrase,
-		// lock account when wrong, just like the normal accounts.
+		// already unlocked. compare passphrase hashes.
+		if subtle.ConstantTimeCompare(passHash, acctInfo.uniquePassHash) != 1 {
+			return errors.E(errors.Passphrase)
+		}
 		return nil
 	}
 	kdfp := acctInfo.uniqueKey
@@ -1528,6 +1552,7 @@ func (m *Manager) UnlockAccount(dbtx walletdb.ReadTx, account uint32,
 		return errors.E(errors.IO, err)
 	}
 	acctInfo.acctKeyPriv = acctKeyPriv
+	acctInfo.uniquePassHash = passHash
 
 	return nil
 }
