@@ -170,7 +170,6 @@ const (
 // argon2id-derived keys.
 type keyType []byte
 
-// XXX authenticate additional data?
 func seal(rand io.Reader, key keyType, plaintext []byte) ([]byte, error) {
 	sealedLen := len(plaintext) + xchacha20poly1305Overhead
 	nonce := make([]byte, xchacha20NonceSize, sealedLen)
