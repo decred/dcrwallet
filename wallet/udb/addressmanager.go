@@ -84,10 +84,6 @@ const (
 	// style hierarchical deterministic key derivation for the internal
 	// branch.
 	InternalBranch uint32 = 1
-
-	// saltSize is the number of bytes of the salt used when hashing
-	// private passphrases.
-	saltSize = 32
 )
 
 // isReservedAccountName returns true if the account name is reserved.  Reserved
@@ -2552,15 +2548,6 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 	}
 	defer masterKeyPriv.Zero()
 
-	// Generate the private passphrase salt.  This is used when hashing
-	// passwords to detect whether an unlock can be avoided when the manager
-	// is already unlocked.
-	var privPassphraseSalt [saltSize]byte
-	_, err = rand.Read(privPassphraseSalt[:])
-	if err != nil {
-		return errors.E(errors.IO, err)
-	}
-
 	// Generate new crypto public and private keys.  These keys are used to
 	// protect the actual public and private data such as addresses, and
 	// extended keys.
@@ -2761,15 +2748,6 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase
 		return err
 	}
 	defer masterKeyPriv.Zero()
-
-	// Generate the private passphrase salt.  This is used when hashing
-	// passwords to detect whether an unlock can be avoided when the manager
-	// is already unlocked.
-	var privPassphraseSalt [saltSize]byte
-	_, err = rand.Read(privPassphraseSalt[:])
-	if err != nil {
-		return errors.E(errors.IO, err)
-	}
 
 	// Generate new crypto public and private keys.  These keys are
 	// used to protect the actual public and private data such as addresses
