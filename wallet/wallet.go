@@ -4178,13 +4178,10 @@ func (w *Wallet) SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType t
 
 		for i, txIn := range tx.TxIn {
 			// For an SSGen tx, skip the first input as it is a stake base
-			// and doesn't need to be signed.
-			if i == 0 {
-				if stake.IsSSGen(tx) {
-					// Put some garbage in the signature script.
-					txIn.SignatureScript = []byte{0xDE, 0xAD, 0xBE, 0xEF}
-					continue
-				}
+			// and doesn't need to be signed.  The transaction is expected
+			// to already contain the consensus-validated stakebase script.
+			if i == 0 && stake.IsSSGen(tx) {
+				continue
 			}
 
 			prevOutScript, ok := additionalPrevScripts[txIn.PreviousOutPoint]

@@ -1772,9 +1772,6 @@ func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurch
 	if err != nil {
 		return errors.E(errors.Op("txscript.SignTxOutput"), errors.ScriptFailure, err)
 	}
-	if isVote {
-		tx.TxIn[0].SignatureScript = w.chainParams.StakeBaseSigScript
-	}
 	tx.TxIn[inputToSign].SignatureScript = signedScript
 
 	return nil
@@ -1827,7 +1824,8 @@ func createUnsignedVote(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx,
 	// Add stakebase input to the vote.
 	stakebaseOutPoint := wire.NewOutPoint(&chainhash.Hash{}, ^uint32(0),
 		wire.TxTreeRegular)
-	stakebaseInput := wire.NewTxIn(stakebaseOutPoint, subsidy, nil)
+	stakebaseInput := wire.NewTxIn(stakebaseOutPoint, subsidy,
+		params.StakeBaseSigScript)
 	vote.AddTxIn(stakebaseInput)
 
 	// Votes reference the ticket purchase with the second input.
