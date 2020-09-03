@@ -523,9 +523,10 @@ var helpDescsEnUS = map[string]string{
 	"sendtomultisig-comment":     "Unused",
 	"sendtomultisig--result0":    "The transaction hash of the sent transaction",
 
-	"setaccountpassphrase--synopsis":  "Individually encrypt or change per-account passphrase",
-	"setaccountpassphrase-account":    "Account to modify",
-	"setaccountpassphrase-passphrase": "New passphrase to use",
+	"setaccountpassphrase--synopsis": "Individually encrypt or change per-account passphrase",
+	"setaccountpassphrase-account":   "Account to modify",
+	"setaccountpassphrase-passphrase": "New passphrase to use.\n" +
+		"If this is the empty string, the account passphrase is removed and the account becomes encrypted by the global wallet passhprase.",
 
 	// SetGenerate help
 	"setgenerate--synopsis":    "Enable or disable stake mining",
