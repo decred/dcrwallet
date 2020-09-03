@@ -10,7 +10,7 @@ require (
 	github.com/decred/dcrd/blockchain/v3 v3.0.0-20200608124004-b2f67c2dc475
 	github.com/decred/dcrd/certgen v1.1.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.2
-	github.com/decred/dcrd/chaincfg/v3 v3.0.0-20200608124004-b2f67c2dc475
+	github.com/decred/dcrd/chaincfg/v3 v3.0.0-20200903180623-3c2f8ad6a320
 	github.com/decred/dcrd/connmgr/v3 v3.0.0-20200608124004-b2f67c2dc475
 	github.com/decred/dcrd/crypto/blake256 v1.0.0
 	github.com/decred/dcrd/dcrec v1.0.0
