@@ -1496,6 +1496,7 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 	return nil
 }
 
+// UnlockAccount decrypts a uniquely-encrypted account's private keys.
 func (m *Manager) UnlockAccount(dbtx walletdb.ReadTx, account uint32,
 	passphrase []byte) error {
 
@@ -1554,6 +1555,8 @@ func (m *Manager) UnlockAccount(dbtx walletdb.ReadTx, account uint32,
 	return nil
 }
 
+// LockAccount locks an individually-encrypted account by removing private key
+// access until unlocked again.
 func (m *Manager) LockAccount(dbtx walletdb.ReadTx, account uint32) error {
 	ns := dbtx.ReadBucket(waddrmgrBucketKey)
 
@@ -1583,6 +1586,11 @@ func (m *Manager) LockAccount(dbtx walletdb.ReadTx, account uint32) error {
 	return nil
 }
 
+// SetAccountPassphrase individually-encrypts or changes the passphrase for
+// account private keys.
+//
+// If the passphrase has zero length, the private keys are re-encrypted with the
+// manager's global passphrase.
 func (m *Manager) SetAccountPassphrase(dbtx walletdb.ReadWriteTx, account uint32,
 	passphrase []byte) error {
 
@@ -1602,8 +1610,12 @@ func (m *Manager) SetAccountPassphrase(dbtx walletdb.ReadWriteTx, account uint32
 		return err
 	}
 	if acctInfo.acctKeyPriv == nil {
-		return errors.E(errors.Locked, "wallet must be unlocked to "+
-			"set a unique account passphrase")
+		return errors.E(errors.Locked, "wallet or account must be "+
+			"unlocked to set a unique account passphrase")
+	}
+
+	if len(passphrase) == 0 {
+		return m.removeAccountPassphrase(ns, account, acctInfo)
 	}
 
 	// Create a new passphase hasher from a new key, and hash the new
@@ -1663,6 +1675,55 @@ func (m *Manager) SetAccountPassphrase(dbtx walletdb.ReadWriteTx, account uint32
 	acctInfo.uniqueKey = kdfp
 	acctInfo.uniquePassHasher = hasher
 	acctInfo.uniquePassHash = passHash
+
+	return nil
+}
+
+func (m *Manager) removeAccountPassphrase(ns walletdb.ReadWriteBucket, account uint32,
+	acctInfo *accountInfo) error {
+
+	if m.locked {
+		return errors.E(errors.Locked, "wallet must be unlocked "+
+			"to remove account's unique passphrase")
+	}
+
+	plaintext := []byte(acctInfo.acctKeyPriv.String())
+	ciphertext, err := m.cryptoKeyPriv.Encrypt(plaintext)
+	zero(plaintext)
+	if err != nil {
+		err := errors.Errorf("encrypt account %d privkey: %v", account, err)
+		return errors.E(errors.Crypto, err)
+	}
+
+	acctKey := uint32ToBytes(account)
+	vars := ns.NestedReadWriteBucket(acctVarsBucketName).
+		NestedReadWriteBucket(acctKey)
+	err = vars.Delete(acctVarKDF)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	// Write a new account row with the new xpriv ciphertext.
+	dbAcct, err := fetchDBAccount(ns, account, DBVersion)
+	if err != nil {
+		return err
+	}
+	switch a := dbAcct.(type) {
+	case *dbBIP0044Account:
+		a.privKeyEncrypted = ciphertext
+		a.rawData = a.serializeRow()
+		err := putAccountRow(ns, account, &a.dbAccountRow)
+		if err != nil {
+			return err
+		}
+	default:
+		return errors.Errorf("unknown account type %T", a)
+	}
+
+	acctInfo.acctKeyEncrypted = ciphertext
+	acctInfo.uniqueKey = nil
+	acctInfo.uniquePassHasher = nil
+	acctInfo.uniquePassHash = nil
 
 	return nil
 }
