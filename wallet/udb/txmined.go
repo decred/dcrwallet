@@ -90,6 +90,7 @@ type TxRecord struct {
 	Received     time.Time
 	SerializedTx []byte // Optional: may be nil
 	TxType       stake.TxType
+	Unpublished  bool
 }
 
 // NewTxRecord creates a new transaction record that may be inserted into the

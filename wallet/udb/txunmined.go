@@ -90,6 +90,12 @@ func (s *Store) InsertMemPoolTx(dbtx walletdb.ReadWriteTx, rec *TxRecord) error 
 	if err != nil {
 		return err
 	}
+	if rec.Unpublished {
+		err = putUnpublished(ns, rec.Hash[:])
+		if err != nil {
+			return err
+		}
+	}
 
 	txType := stake.DetermineTxType(&rec.MsgTx)
 
@@ -124,6 +130,15 @@ func (s *Store) InsertMemPoolTx(dbtx walletdb.ReadWriteTx, rec *TxRecord) error 
 	// here currently).
 
 	return nil
+}
+
+// SetPublished modifies the published state of an unmined transaction.
+func (s *Store) SetPublished(dbtx walletdb.ReadWriteTx, txHash *chainhash.Hash, published bool) error {
+	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
+	if published {
+		return deleteUnpublished(ns, txHash[:])
+	}
+	return putUnpublished(ns, txHash[:])
 }
 
 // removeDoubleSpends checks for any unmined transactions which would introduce
@@ -255,13 +270,18 @@ func (s *Store) RemoveUnconfirmed(ns walletdb.ReadWriteBucket, tx *wire.MsgTx, t
 		}
 	}
 
+	err := deleteUnpublished(ns, txHash[:])
+	if err != nil {
+		return err
+	}
+
 	return deleteRawUnmined(ns, txHash[:])
 }
 
-// UnminedTxs returns the underlying transactions for all unmined transactions
+// UnminedTxs returns the transaction records for all unmined transactions
 // which are not known to have been mined in a block.  Transactions are
 // guaranteed to be sorted by their dependency order.
-func (s *Store) UnminedTxs(dbtx walletdb.ReadTx) ([]*wire.MsgTx, error) {
+func (s *Store) UnminedTxs(dbtx walletdb.ReadTx) ([]*TxRecord, error) {
 	ns := dbtx.ReadBucket(wtxmgrBucketKey)
 	recSet, err := s.unminedTxRecords(ns)
 	if err != nil {
@@ -269,11 +289,7 @@ func (s *Store) UnminedTxs(dbtx walletdb.ReadTx) ([]*wire.MsgTx, error) {
 	}
 
 	recs := dependencySort(recSet)
-	txs := make([]*wire.MsgTx, 0, len(recs))
-	for _, rec := range recs {
-		txs = append(txs, &rec.MsgTx)
-	}
-	return txs, nil
+	return recs, nil
 }
 
 func (s *Store) unminedTxRecords(ns walletdb.ReadBucket) (map[chainhash.Hash]*TxRecord, error) {
@@ -290,6 +306,7 @@ func (s *Store) unminedTxRecords(ns walletdb.ReadBucket) (map[chainhash.Hash]*Tx
 		if err != nil {
 			return err
 		}
+		rec.Unpublished = existsUnpublished(ns, txHash[:])
 
 		unmined[rec.Hash] = rec
 		return nil

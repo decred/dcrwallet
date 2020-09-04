@@ -136,6 +136,7 @@ var (
 	bucketUnspent                 = []byte("u")
 	bucketDebits                  = []byte("d")
 	bucketUnmined                 = []byte("m")
+	bucketUnpublished             = []byte("up")
 	bucketUnminedCredits          = []byte("mc")
 	bucketUnminedInputs           = []byte("mi")
 	bucketTickets                 = []byte("tix")
@@ -1365,6 +1366,32 @@ func fetchRawUnminedReceiveTime(v []byte) (int64, error) {
 
 func extractRawUnminedTx(v []byte) []byte {
 	return v[8:]
+}
+
+// Unmined transactions which have been saved in an unpublished state are
+// recorded as such in the unpublished bucket keyed by the transaction hash.
+// The value is is a single non-zero byte if the transaction is unpublished, or
+// zero or missing from the bucket when published.
+
+func putUnpublished(ns walletdb.ReadWriteBucket, k []byte) error {
+	err := ns.NestedReadWriteBucket(bucketUnpublished).Put(k, []byte{1})
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
+func existsUnpublished(ns walletdb.ReadBucket, k []byte) bool {
+	v := ns.NestedReadBucket(bucketUnpublished).Get(k)
+	return len(v) == 1 && v[0] != 0
+}
+
+func deleteUnpublished(ns walletdb.ReadWriteBucket, k []byte) error {
+	err := ns.NestedReadWriteBucket(bucketUnpublished).Delete(k)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
 }
 
 // Unmined transaction credits use the canonical serialization format:

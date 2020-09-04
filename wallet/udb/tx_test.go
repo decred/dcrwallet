@@ -305,12 +305,11 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 					test.name, err)
 			}
 			for _, tx := range unmined {
-				txHash := tx.TxHash()
-				if _, ok := test.unmined[txHash]; !ok {
+				if _, ok := test.unmined[tx.Hash]; !ok {
 					t.Fatalf("%s: unexpected unmined tx: %v",
-						test.name, txHash)
+						test.name, tx.Hash)
 				}
-				delete(test.unmined, txHash)
+				delete(test.unmined, tx.Hash)
 			}
 			if len(test.unmined) != 0 {
 				t.Fatalf("%s: missing expected unmined tx(s)", test.name)

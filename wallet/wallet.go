@@ -3878,17 +3878,25 @@ func (w *Wallet) LockedOutpoints(ctx context.Context, accountName string) ([]dcr
 
 // UnminedTransactions returns all unmined transactions from the wallet.
 // Transactions are sorted in dependency order making it suitable to range them
-// in order to broadcast at wallet startup.
+// in order to broadcast at wallet startup.  This method skips over any
+// transactions that are recorded as unpublished.
 func (w *Wallet) UnminedTransactions(ctx context.Context) ([]*wire.MsgTx, error) {
 	const op errors.Op = "wallet.UnminedTransactions"
-	var txs []*wire.MsgTx
+	var recs []*udb.TxRecord
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
-		txs, err = w.txStore.UnminedTxs(dbtx)
+		recs, err = w.txStore.UnminedTxs(dbtx)
 		return err
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
+	}
+	txs := make([]*wire.MsgTx, 0, len(recs))
+	for i := range recs {
+		if recs[i].Unpublished {
+			continue
+		}
+		txs = append(txs, &recs[i].MsgTx)
 	}
 	return txs, nil
 }

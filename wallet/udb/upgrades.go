@@ -158,10 +158,17 @@ const (
 	// fields changed.
 	accountVariablesVersion = 17
 
+	// unpublishedTxsVersion is the 18th version of the database.  It
+	// adds a bucket for recording unmined transactions which have not yet
+	// been published to the network, but still recording them to the
+	// database and not considering spent previous outputs to be UTXOs
+	// unless the transaction is abandoned.
+	unpublishedTxsVersion = 18
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = accountVariablesVersion
+	DBVersion = unpublishedTxsVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -184,6 +191,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	blockcf2Version - 1:                   blockcf2Upgrade,
 	perTicketVotingPreferencesVersion - 1: perTicketVotingPreferencesUpgrade,
 	accountVariablesVersion - 1:           accountVariablesUpgrade,
+	unpublishedTxsVersion - 1:             unpublishedTxsUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -1360,6 +1368,31 @@ func accountVariablesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, p
 	})
 	if err != nil {
 		return errors.E(errors.IO, err)
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func unpublishedTxsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 17
+	const newVersion = 18
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 17 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "unpublishedTxsUpgrade inappropriately called")
+	}
+
+	txmgrNs := tx.ReadWriteBucket(wtxmgrBucketKey)
+	_, err = txmgrNs.CreateBucket(bucketUnpublished)
+	if err != nil {
+		return err
 	}
 
 	// Write the new database version.
