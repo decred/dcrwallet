@@ -248,8 +248,7 @@ func (w *Wallet) EvaluateBestChain(ctx context.Context, f *SidechainForest) ([]*
 	const op errors.Op = "wallet.EvaluateBestChain"
 	var newBestChain []*BlockNode
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		tipHash, _ := w.txStore.MainChainTip(ns)
+		tipHash, _ := w.txStore.MainChainTip(dbtx)
 		tipHeader, err := w.txStore.GetBlockHeader(dbtx, &tipHash)
 		if err != nil {
 			return err

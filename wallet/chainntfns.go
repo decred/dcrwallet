@@ -94,10 +94,9 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 
 	var watchOutPoints []wire.OutPoint
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
-		tipHash, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		tipHash, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		if sideChainForkHeight <= tipHeight {
 			chainTipChanges.DetachedBlocks = make([]*chainhash.Hash, tipHeight-sideChainForkHeight+1)
@@ -134,7 +133,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 
 			// Remove blocks on the current main chain that are at or above the
 			// height of the block that begins the side chain.
-			err := w.txStore.Rollback(txmgrNs, addrmgrNs, sideChainForkHeight)
+			err := w.txStore.Rollback(dbtx, sideChainForkHeight)
 			if err != nil {
 				return err
 			}
@@ -327,7 +326,7 @@ func (w *Wallet) AddTransaction(ctx context.Context, tx *wire.MsgTx, blockHash *
 		// set.
 		if isVote(&rec.MsgTx) && blockHash == nil {
 			votedBlock, _ := stake.SSGenBlockVotedOn(&rec.MsgTx)
-			tipBlock, _ := w.txStore.MainChainTip(txmgrNs)
+			tipBlock, _ := w.txStore.MainChainTip(dbtx)
 			if votedBlock != tipBlock {
 				log.Debugf("Rejected unmined orphan vote %v which votes on block %v",
 					&rec.Hash, &votedBlock)
@@ -395,14 +394,14 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 	// added, but until then, simply insert the transaction because there
 	// should either be one or more relevant inputs or outputs.
 	if header == nil {
-		err = w.txStore.InsertMemPoolTx(txmgrNs, rec)
+		err = w.txStore.InsertMemPoolTx(dbtx, rec)
 		if errors.Is(err, errors.Exist) {
 			log.Warnf("Refusing to add unmined transaction %v since same "+
 				"transaction already exists mined", &rec.Hash)
 			return nil, nil
 		}
 	} else {
-		err = w.txStore.InsertMinedTx(txmgrNs, addrmgrNs, rec, &blockMeta.Hash)
+		err = w.txStore.InsertMinedTx(dbtx, rec, &blockMeta.Hash)
 	}
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -679,7 +678,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				err = w.txStore.AddTicketCommitment(txmgrNs, rec, uint32(i),
 					ma.Account())
 			} else {
-				err = w.txStore.AddCredit(txmgrNs, rec, blockMeta,
+				err = w.txStore.AddCredit(dbtx, rec, blockMeta,
 					uint32(i), ma.Internal(), ma.Account())
 			}
 			if err != nil {

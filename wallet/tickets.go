@@ -78,7 +78,7 @@ func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, include
 			}
 		}
 
-		_, tipHeight = w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight = w.txStore.MainChainTip(dbtx)
 
 		it := w.txStore.IterateTickets(dbtx)
 		defer it.Close()
@@ -226,11 +226,10 @@ func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 	const op errors.Op = "wallet.RevokeTickets"
 
 	var ticketHashes []chainhash.Hash
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		ns := tx.ReadBucket(wtxmgrNamespaceKey)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
-		_, tipHeight := w.txStore.MainChainTip(ns)
-		ticketHashes, err = w.txStore.UnspentTickets(tx, tipHeight, false)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
+		ticketHashes, err = w.txStore.UnspentTickets(dbtx, tipHeight, false)
 		return err
 	})
 	if err != nil {
@@ -337,8 +336,7 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 
 	var expired []chainhash.Hash
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		_, tipHeight := w.txStore.MainChainTip(ns)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		it := w.txStore.IterateTickets(dbtx)
 		defer it.Close()

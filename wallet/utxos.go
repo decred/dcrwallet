@@ -38,15 +38,14 @@ func (w *Wallet) UnspentOutputs(ctx context.Context, policy OutputSelectionPolic
 	w.lockedOutpointMu.Lock()
 
 	var outputResults []*TransactionOutput
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		// TODO: actually stream outputs from the db instead of fetching
 		// all of them at once.
-		outputs, err := w.txStore.UnspentOutputs(txmgrNs)
+		outputs, err := w.txStore.UnspentOutputs(dbtx)
 		if err != nil {
 			return err
 		}
@@ -116,10 +115,10 @@ func (w *Wallet) SelectInputs(ctx context.Context, targetAmount dcrutil.Amount, 
 	defer w.lockedOutpointMu.Unlock()
 	w.lockedOutpointMu.Lock()
 
-	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		if policy.Account != udb.ImportedAddrAccount {
 			lastAcct, err := w.manager.LastAccount(addrmgrNs)

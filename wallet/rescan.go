@@ -389,7 +389,7 @@ func (w *Wallet) rescanPoint(dbtx walletdb.ReadTx) (*chainhash.Hash, error) {
 	if err != nil {
 		return nil, err
 	}
-	if tipHash, _ := w.txStore.MainChainTip(ns); *r == tipHash {
+	if tipHash, _ := w.txStore.MainChainTip(dbtx); *r == tipHash {
 		return nil, nil
 	}
 	// r is not the tip, so a child block must exist in the main chain.

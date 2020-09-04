@@ -102,7 +102,7 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		if account != udb.ImportedAddrAccount {
 			lastAcct, err := w.manager.LastAccount(addrmgrNs)
@@ -206,14 +206,14 @@ type CreatedTx struct {
 
 // insertIntoTxMgr inserts a newly created transaction into the tx store
 // as unconfirmed.
-func (w *Wallet) insertIntoTxMgr(ns walletdb.ReadWriteBucket, msgTx *wire.MsgTx) (*udb.TxRecord, error) {
+func (w *Wallet) insertIntoTxMgr(dbtx walletdb.ReadWriteTx, msgTx *wire.MsgTx) (*udb.TxRecord, error) {
 	// Create transaction record and insert into the db.
 	rec, err := udb.NewTxRecordFromMsgTx(msgTx, time.Now())
 	if err != nil {
 		return nil, err
 	}
 
-	err = w.txStore.InsertMemPoolTx(ns, rec)
+	err = w.txStore.InsertMemPoolTx(dbtx, rec)
 	if err != nil {
 		return nil, err
 	}
@@ -224,9 +224,8 @@ func (w *Wallet) insertIntoTxMgr(ns walletdb.ReadWriteBucket, msgTx *wire.MsgTx)
 // transaction store. It assumes msgTx is a regular transaction, which will
 // cause balance issues if this is called from a code path where msgtx is not
 // guaranteed to be a regular tx.
-func (w *Wallet) insertCreditsIntoTxMgr(op errors.Op, tx walletdb.ReadWriteTx, msgTx *wire.MsgTx, rec *udb.TxRecord) error {
-	addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-	txmgrNs := tx.ReadWriteBucket(wtxmgrNamespaceKey)
+func (w *Wallet) insertCreditsIntoTxMgr(op errors.Op, dbtx walletdb.ReadWriteTx, msgTx *wire.MsgTx, rec *udb.TxRecord) error {
+	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 
 	// Check every output to determine whether it is controlled by a wallet
 	// key.  If so, mark the output as a credit.
@@ -243,12 +242,12 @@ func (w *Wallet) insertCreditsIntoTxMgr(op errors.Op, tx walletdb.ReadWriteTx, m
 				// TODO: Credits should be added with the
 				// account they belong to, so wtxmgr is able to
 				// track per-account balances.
-				err = w.txStore.AddCredit(txmgrNs, rec, nil,
+				err = w.txStore.AddCredit(dbtx, rec, nil,
 					uint32(i), ma.Internal(), ma.Account())
 				if err != nil {
 					return errors.E(op, err)
 				}
-				err = w.markUsedAddress(op, tx, ma)
+				err = w.markUsedAddress(op, dbtx, ma)
 				if err != nil {
 					return err
 				}
@@ -358,7 +357,7 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		// Create the unsigned transaction.
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 		inputSource := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 			minconf, tipHeight, ignoreInput)
 		changeSource := &p2PKHChangeSource{
@@ -481,7 +480,6 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 	pubkeys []*dcrutil.AddressSecpPubKey, nRequired int8, minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
-	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
 	txToMultisigError := func(err error) (*CreatedTx, dcrutil.Address, []byte, error) {
 		return nil, nil, nil, err
@@ -493,7 +491,7 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 	}
 
 	// Get current block's height and hash.
-	_, topHeight := w.txStore.MainChainTip(txmgrNs)
+	_, topHeight := w.txStore.MainChainTip(dbtx)
 
 	// Add in some extra for fees. TODO In the future, make a better
 	// fee estimator.
@@ -688,7 +686,6 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 	changeAddr dcrutil.Address) (*chainhash.Hash, error) {
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
-	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
 	n, err := w.NetworkBackend()
 	if err != nil {
@@ -696,7 +693,7 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 	}
 
 	// Get current block's height
-	_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+	_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 	minconf := int32(1)
 	eligible, err := w.findEligibleOutputs(dbtx, account, minconf, tipHeight)
@@ -791,7 +788,7 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 	}
 
 	// Insert the transaction and credits into the transaction manager.
-	rec, err := w.insertIntoTxMgr(txmgrNs, msgtx)
+	rec, err := w.insertIntoTxMgr(dbtx, msgtx)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -984,7 +981,7 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 		inputSource := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, req.SourceAccount,
 			req.MinConf, tipHeight, ignoreInput)
 		changeSource := &p2PKHChangeSource{
@@ -1175,9 +1172,8 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 
 	// Perform a sanity check on expiry.
 	var tipHeight int32
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		ns := tx.ReadBucket(wtxmgrNamespaceKey)
-		_, tipHeight = w.txStore.MainChainTip(ns)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		_, tipHeight = w.txStore.MainChainTip(dbtx)
 		return nil
 	})
 	if err != nil {
@@ -1508,8 +1504,7 @@ func (w *Wallet) ReserveOutputsForAmount(ctx context.Context, account uint32, am
 	var outputs []Input
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		// Get current block's height
-		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		var err error
 		outputs, err = w.findEligibleOutputsAmount(dbtx, account, minconf, amount, tipHeight)
@@ -1534,9 +1529,8 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 	currentHeight int32) ([]Input, error) {
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-	unspent, err := w.txStore.UnspentOutputs(txmgrNs)
+	unspent, err := w.txStore.UnspentOutputs(dbtx)
 	if err != nil {
 		return nil, err
 	}
@@ -1625,9 +1619,8 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 	amount dcrutil.Amount, currentHeight int32) ([]Input, error) {
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-	unspent, err := w.txStore.UnspentOutputs(txmgrNs)
+	unspent, err := w.txStore.UnspentOutputs(dbtx)
 	if err != nil {
 		return nil, err
 	}

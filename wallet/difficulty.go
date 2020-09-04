@@ -450,8 +450,7 @@ func (w *Wallet) NextStakeDifficulty(ctx context.Context) (dcrutil.Amount, error
 	const op errors.Op = "wallet.NextStakeDifficulty"
 	var sdiff dcrutil.Amount
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		tipHash, tipHeight := w.txStore.MainChainTip(ns)
+		tipHash, tipHeight := w.txStore.MainChainTip(dbtx)
 		if !deployments.DCP0001.Active(tipHeight, w.chainParams.Net) {
 			return errors.E(errors.Deployment, "DCP0001 is not known to be active")
 		}

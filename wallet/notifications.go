@@ -179,7 +179,7 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails) Tran
 
 func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]dcrutil.Amount) error {
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-	unspent, err := w.txStore.UnspentOutputs(dbtx.ReadBucket(wtxmgrNamespaceKey))
+	unspent, err := w.txStore.UnspentOutputs(dbtx)
 	if err != nil {
 		return err
 	}
@@ -824,7 +824,7 @@ func (c *ConfirmationNotificationsClient) Watch(txHashes []*chainhash.Hash, stop
 	r := make([]ConfirmationNotification, 0, len(c.watched))
 	err := walletdb.View(c.ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 		// cannot range here, txHashes may be modified
 		for i := 0; i < len(txHashes); {
 			h := txHashes[i]

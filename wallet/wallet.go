@@ -478,9 +478,8 @@ func (w *Wallet) MainChainTip(ctx context.Context) (hash chainhash.Hash, height 
 	// should be saved in memory.  This will speed up access to it, and means
 	// there won't need to be an ignored error here for ergonomic access to the
 	// hash and height.
-	walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
-		hash, height = w.txStore.MainChainTip(txmgrNs)
+	walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		hash, height = w.txStore.MainChainTip(dbtx)
 		return nil
 	})
 	return
@@ -849,8 +848,7 @@ func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, re
 			return err
 		}
 
-		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		_, height := w.txStore.MainChainTip(ns)
+		_, height := w.txStore.MainChainTip(dbtx)
 		tickets, err := w.txStore.UnspentTickets(dbtx, height, true)
 		if err != nil {
 			return err
@@ -1185,7 +1183,7 @@ func (w *Wallet) blockLocators(dbtx walletdb.ReadTx, sidechain []*BlockNode) ([]
 	var hash chainhash.Hash
 	var height int32
 	if len(sidechain) == 0 {
-		hash, height = w.txStore.MainChainTip(ns)
+		hash, height = w.txStore.MainChainTip(dbtx)
 	} else {
 		n := sidechain[len(sidechain)-1]
 		hash = *n.Hash
@@ -1272,8 +1270,6 @@ func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstN
 
 		var brk bool
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-			ns := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
-			addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 			chain, err := w.EvaluateBestChain(ctx, &chainBuilder)
 			if err != nil {
 				return err
@@ -1289,9 +1285,9 @@ func (w *Wallet) fetchHeaders(ctx context.Context, op errors.Op, p Peer) (firstN
 
 			if firstNew == (chainhash.Hash{}) {
 				firstNew = *chain[0].Hash
-				tip, _ := w.txStore.MainChainTip(ns)
+				tip, _ := w.txStore.MainChainTip(dbtx)
 				if chain[0].Header.PrevBlock != tip {
-					err := w.txStore.Rollback(ns, addrmgrNs, int32(chain[0].Header.Height))
+					err := w.txStore.Rollback(dbtx, int32(chain[0].Header.Height))
 					if err != nil {
 						return err
 					}
@@ -1328,9 +1324,7 @@ func (w *Wallet) FetchHeaders(ctx context.Context, p Peer) (count int, rescanFro
 	}
 
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-
-		mainChainTipBlockHash, mainChainTipBlockHeight = w.txStore.MainChainTip(ns)
+		mainChainTipBlockHash, mainChainTipBlockHeight = w.txStore.MainChainTip(dbtx)
 		if rescanFrom != (chainhash.Hash{}) {
 			firstHeader, err := w.txStore.GetBlockHeader(dbtx, &rescanFrom)
 			if err != nil {
@@ -1599,12 +1593,9 @@ type Balances struct {
 func (w *Wallet) AccountBalance(ctx context.Context, account uint32, confirms int32) (Balances, error) {
 	const op errors.Op = "wallet.CalculateAccountBalance"
 	var balance Balances
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
-
-		balance, err = w.txStore.AccountBalance(txmgrNs, addrmgrNs,
+		balance, err = w.txStore.AccountBalance(dbtx,
 			confirms, account)
 		return err
 	})
@@ -1618,11 +1609,10 @@ func (w *Wallet) AccountBalance(ctx context.Context, account uint32, confirms in
 func (w *Wallet) AccountBalances(ctx context.Context, confirms int32) ([]Balances, error) {
 	const op errors.Op = "wallet.CalculateAccountBalances"
 	var balances []Balances
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		return w.manager.ForEachAccount(addrmgrNs, func(acct uint32) error {
-			balance, err := w.txStore.AccountBalance(txmgrNs, addrmgrNs,
+			balance, err := w.txStore.AccountBalance(dbtx,
 				confirms, acct)
 			if err != nil {
 				return err
@@ -2208,12 +2198,12 @@ func (w *Wallet) ListSinceBlock(ctx context.Context, start, end, syncHeight int3
 func (w *Wallet) ListTransactions(ctx context.Context, from, count int) ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListTransactions"
 	txList := []types.ListTransactionsResult{}
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		// Get current block.  The block height used for calculating
 		// the number of tx confirmations.
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		// Need to skip the first from transactions, and after those, only
 		// include the next count transactions.
@@ -2235,7 +2225,7 @@ func (w *Wallet) ListTransactions(ctx context.Context, from, count int) ([]types
 					continue
 				}
 
-				sends, receives := listTransactions(tx, &details[i],
+				sends, receives := listTransactions(dbtx, &details[i],
 					w.manager, tipHeight, w.chainParams)
 				txList = append(txList, sends...)
 				txList = append(txList, receives...)
@@ -2269,12 +2259,12 @@ func (w *Wallet) ListTransactions(ctx context.Context, from, count int) ([]types
 func (w *Wallet) ListAddressTransactions(ctx context.Context, pkHashes map[string]struct{}) ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListAddressTransactions"
 	txList := []types.ListTransactionsResult{}
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		// Get current block.  The block height used for calculating
 		// the number of tx confirmations.
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
 		loopDetails:
 			for i := range details {
@@ -2296,7 +2286,7 @@ func (w *Wallet) ListAddressTransactions(ctx context.Context, pkHashes map[strin
 						continue
 					}
 
-					sends, receives := listTransactions(tx, detail,
+					sends, receives := listTransactions(dbtx, detail,
 						w.manager, tipHeight, w.chainParams)
 					txList = append(txList, receives...)
 					txList = append(txList, sends...)
@@ -2320,12 +2310,12 @@ func (w *Wallet) ListAddressTransactions(ctx context.Context, pkHashes map[strin
 func (w *Wallet) ListAllTransactions(ctx context.Context) ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListAllTransactions"
 	txList := []types.ListTransactionsResult{}
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 		// Get current block.  The block height used for calculating
 		// the number of tx confirmations.
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
 			// Iterate over transactions at this height in reverse
@@ -2334,7 +2324,7 @@ func (w *Wallet) ListAllTransactions(ctx context.Context) ([]types.ListTransacti
 			// transactions in the reverse order they were marked
 			// mined.
 			for i := len(details) - 1; i >= 0; i-- {
-				sends, receives := listTransactions(tx, &details[i],
+				sends, receives := listTransactions(dbtx, &details[i],
 					w.manager, tipHeight, w.chainParams)
 				txList = append(txList, sends...)
 				txList = append(txList, receives...)
@@ -2367,7 +2357,7 @@ func (w *Wallet) ListTransactionDetails(ctx context.Context, txHash *chainhash.H
 
 		// Get current block.  The block height used for calculating
 		// the number of tx confirmations.
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		txd, err := w.txStore.TxDetails(txmgrNs, txHash)
 		if err != nil {
@@ -2419,7 +2409,7 @@ func (w *Wallet) BlockInfo(ctx context.Context, blockID *BlockIdentifier) (*Bloc
 	var blockInfo *BlockInfo
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 		blockHash := blockID.hash
 		if blockHash == nil {
 			hash, err := w.txStore.GetMainChainBlockHashForHeight(txmgrNs,
@@ -2461,7 +2451,7 @@ func (w *Wallet) TransactionSummary(ctx context.Context, txHash *chainhash.Hash)
 	const opf = "wallet.TransactionSummary(%v)"
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		_, tipHeight := w.txStore.MainChainTip(ns)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 		txDetails, err := w.txStore.TxDetails(ns, txHash)
 		if err != nil {
 			return err
@@ -2550,9 +2540,8 @@ const (
 func makeTicketSummary(ctx context.Context, rpc *dcrd.RPC, dbtx walletdb.ReadTx,
 	w *Wallet, details *udb.TicketDetails) *TicketSummary {
 
-	txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 	ticketHeight := details.Ticket.Height()
-	_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+	_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 	ticketTransactionDetails := makeTxSummary(dbtx, w, details.Ticket)
 	summary := &TicketSummary{
@@ -3039,12 +3028,11 @@ func (w *Wallet) Accounts(ctx context.Context) (*AccountsResult, error) {
 	defer w.lockedOutpointMu.Unlock()
 	w.lockedOutpointMu.Lock()
 
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
-		tipHash, tipHeight = w.txStore.MainChainTip(txmgrNs)
-		unspent, err := w.txStore.UnspentOutputs(txmgrNs)
+		tipHash, tipHeight = w.txStore.MainChainTip(dbtx)
+		unspent, err := w.txStore.UnspentOutputs(dbtx)
 		if err != nil {
 			return err
 		}
@@ -3139,14 +3127,14 @@ func (s creditSlice) Swap(i, j int) {
 func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addresses map[string]struct{}, accountName string) ([]*types.ListUnspentResult, error) {
 	const op errors.Op = "wallet.ListUnspent"
 	var results []*types.ListUnspentResult
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		filter := len(addresses) != 0
-		unspent, err := w.txStore.UnspentOutputs(txmgrNs)
+		unspent, err := w.txStore.UnspentOutputs(dbtx)
 		if err != nil {
 			return err
 		}
@@ -3528,7 +3516,7 @@ func (w *Wallet) StakeInfo(ctx context.Context) (*StakeInfoData, error) {
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		tipHash, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		tipHash, tipHeight := w.txStore.MainChainTip(dbtx)
 		res.BlockHeight = int64(tipHeight)
 		if deployments.DCP0001.Active(tipHeight, w.chainParams.Net) {
 			tipHeader, err := w.txStore.GetBlockHeader(dbtx, &tipHash)
@@ -3636,7 +3624,7 @@ func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpcCaller Caller) (*Stake
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		tipHash, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		tipHash, tipHeight := w.txStore.MainChainTip(dbtx)
 		res.BlockHeight = int64(tipHeight)
 		if deployments.DCP0001.Active(tipHeight, w.chainParams.Net) {
 			tipHeader, err := w.txStore.GetBlockHeader(dbtx, &tipHash)
@@ -3894,10 +3882,9 @@ func (w *Wallet) LockedOutpoints(ctx context.Context, accountName string) ([]dcr
 func (w *Wallet) UnminedTransactions(ctx context.Context) ([]*wire.MsgTx, error) {
 	const op errors.Op = "wallet.UnminedTransactions"
 	var txs []*wire.MsgTx
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
-		txs, err = w.txStore.UnminedTxs(txmgrNs)
+		txs, err = w.txStore.UnminedTxs(dbtx)
 		return err
 	})
 	if err != nil {
@@ -3987,11 +3974,11 @@ type AccountTotalReceivedResult struct {
 func (w *Wallet) TotalReceivedForAccounts(ctx context.Context, minConf int32) ([]AccountTotalReceivedResult, error) {
 	const op errors.Op = "wallet.TotalReceivedForAccounts"
 	var results []AccountTotalReceivedResult
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		err := w.manager.ForEachAccount(addrmgrNs, func(account uint32) error {
 			accountName, err := w.manager.AccountName(addrmgrNs, account)
@@ -4057,10 +4044,10 @@ func (w *Wallet) TotalReceivedForAccounts(ctx context.Context, minConf int32) ([
 func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr dcrutil.Address, minConf int32) (dcrutil.Amount, error) {
 	const op errors.Op = "wallet.TotalReceivedForAddr"
 	var amount dcrutil.Amount
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		var (
 			addrStr    = addr.Address()
@@ -4920,7 +4907,7 @@ func (w *Wallet) getCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, 
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		// Get current block.  The block height used for calculating
 		// the number of tx confirmations.
-		_, tipHeight := w.txStore.MainChainTip(txmgrNs)
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
 			for _, detail := range details {
 				isMixedTx, mixDenom, _ := PossibleCoinJoin(&detail.MsgTx)

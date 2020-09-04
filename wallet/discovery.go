@@ -179,12 +179,11 @@ func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, p Peer) er
 	// Load main chain cfilters beginning with start.
 	var fs []*udb.BlockCFilter
 	err := walletdb.View(ctx, a.w.db, func(dbtx walletdb.ReadTx) error {
-		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		h, err := a.w.txStore.GetBlockHeader(dbtx, start)
 		if err != nil {
 			return err
 		}
-		_, tipHeight := a.w.txStore.MainChainTip(ns)
+		_, tipHeight := a.w.txStore.MainChainTip(dbtx)
 		storage := make([]*udb.BlockCFilter, tipHeight-int32(h.Height))
 		fs, err = a.w.txStore.GetMainChainCFilters(dbtx, start, true, storage)
 		return err

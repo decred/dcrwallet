@@ -82,10 +82,8 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
-		ns := tx.ReadWriteBucket(wtxmgrBucketKey)
-		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
-		err = insertMainChainHeaders(s, ns, addrmgrNs, headerData, filters)
+	err = walletdb.Update(ctx, db, func(dbtx walletdb.ReadWriteTx) error {
+		err = insertMainChainHeaders(s, dbtx, headerData, filters)
 		if err != nil {
 			return err
 		}
@@ -98,14 +96,14 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 	defaultAccount := uint32(0)
 	tests := []struct {
 		name     string
-		f        func(*Store, walletdb.ReadWriteBucket, walletdb.ReadBucket) (*Store, error)
+		f        func(*Store, walletdb.ReadWriteTx) (*Store, error)
 		bal, unc dcrutil.Amount
 		unspents map[wire.OutPoint]struct{}
 		unmined  map[chainhash.Hash]struct{}
 	}{
 		{
 			name: "new store",
-			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
+			f: func(s *Store, dbtx walletdb.ReadWriteTx) (*Store, error) {
 				return s, nil
 			},
 			bal:      0,
@@ -115,13 +113,13 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		},
 		{
 			name: "txout insert",
-			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
-				err = s.InsertMemPoolTx(txmgrNs, tx1Rec)
+			f: func(s *Store, dbtx walletdb.ReadWriteTx) (*Store, error) {
+				err = s.InsertMemPoolTx(dbtx, tx1Rec)
 				if err != nil {
 					return nil, err
 				}
 
-				err = s.AddCredit(txmgrNs, tx1Rec, nil, 0, false, defaultAccount)
+				err = s.AddCredit(dbtx, tx1Rec, nil, 0, false, defaultAccount)
 				return s, err
 			},
 			bal: 0,
@@ -139,8 +137,8 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		},
 		{
 			name: "insert duplicate unconfirmed",
-			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
-				err = s.InsertMemPoolTx(txmgrNs, tx1Rec)
+			f: func(s *Store, dbtx walletdb.ReadWriteTx) (*Store, error) {
+				err = s.InsertMemPoolTx(dbtx, tx1Rec)
 				return s, err
 			},
 			bal: 0,
@@ -158,8 +156,8 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		},
 		{
 			name: "confirmed txout insert",
-			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
-				err = s.InsertMinedTx(txmgrNs, addrmgrNs, tx1Rec, &b1Hash)
+			f: func(s *Store, dbtx walletdb.ReadWriteTx) (*Store, error) {
+				err = s.InsertMinedTx(dbtx, tx1Rec, &b1Hash)
 				return s, err
 			},
 			bal: dcrutil.Amount(tx1Rec.MsgTx.TxOut[0].Value),
@@ -175,8 +173,8 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		},
 		{
 			name: "rollback confirmed credit",
-			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
-				err := s.Rollback(txmgrNs, addrmgrNs, int32(b1H.Height))
+			f: func(s *Store, dbtx walletdb.ReadWriteTx) (*Store, error) {
+				err := s.Rollback(dbtx, int32(b1H.Height))
 				return s, err
 			},
 			bal: 0,
@@ -194,13 +192,13 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		},
 		{
 			name: "insert duplicate confirmed",
-			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
-				err = insertMainChainHeaders(s, txmgrNs, addrmgrNs, headerData, filters)
+			f: func(s *Store, dbtx walletdb.ReadWriteTx) (*Store, error) {
+				err = insertMainChainHeaders(s, dbtx, headerData, filters)
 				if err != nil {
 					return nil, err
 				}
 
-				err = s.InsertMinedTx(txmgrNs, addrmgrNs, tx1Rec, &b1Hash)
+				err = s.InsertMinedTx(dbtx, tx1Rec, &b1Hash)
 				return s, nil
 			},
 			bal: dcrutil.Amount(tx1Rec.MsgTx.TxOut[0].Value),
@@ -216,13 +214,13 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		},
 		{
 			name: "insert confirmed double spend",
-			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
-				err = s.InsertMinedTx(txmgrNs, addrmgrNs, sTx1Rec, &b2Hash)
+			f: func(s *Store, dbtx walletdb.ReadWriteTx) (*Store, error) {
+				err = s.InsertMinedTx(dbtx, sTx1Rec, &b2Hash)
 				if err != nil {
 					return nil, err
 				}
 
-				err = s.InsertMinedTx(txmgrNs, addrmgrNs, sTx1Rec, &b2Hash)
+				err = s.InsertMinedTx(dbtx, sTx1Rec, &b2Hash)
 				return s, err
 			},
 			bal:      0,
@@ -232,8 +230,8 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		},
 		{
 			name: "rollback after spending tx",
-			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
-				err := s.Rollback(txmgrNs, addrmgrNs, int32(b2H.Height))
+			f: func(s *Store, dbtx walletdb.ReadWriteTx) (*Store, error) {
+				err := s.Rollback(dbtx, int32(b2H.Height))
 				return s, err
 			},
 			bal:      0,
@@ -245,8 +243,8 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		},
 		{
 			name: "insert unconfirmed debit",
-			f: func(s *Store, txmgrNs walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket) (*Store, error) {
-				err = s.InsertMemPoolTx(txmgrNs, sTx2Rec)
+			f: func(s *Store, dbtx walletdb.ReadWriteTx) (*Store, error) {
+				err = s.InsertMemPoolTx(dbtx, sTx2Rec)
 				return s, err
 			},
 			bal:      0,
@@ -260,17 +258,14 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		err := walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
-			ns := tx.ReadWriteBucket(wtxmgrBucketKey)
-			addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
-
-			tmpStore, err := test.f(s, ns, addrmgrNs)
+		err := walletdb.Update(ctx, db, func(dbtx walletdb.ReadWriteTx) error {
+			tmpStore, err := test.f(s, dbtx)
 			if err != nil {
 				t.Fatalf("%s: got error: %v", test.name, err)
 			}
 
 			s := tmpStore
-			bal, err := s.AccountBalance(ns, addrmgrNs, 1, defaultAccount)
+			bal, err := s.AccountBalance(dbtx, 1, defaultAccount)
 			if err != nil {
 				t.Fatalf("%s: Confirmed Balance failed: %v", test.name, err)
 			}
@@ -278,7 +273,7 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 				t.Fatalf("%s: balance mismatch: expected: %d, got: %v",
 					test.name, test.bal, bal.Spendable)
 			}
-			unc, err := s.AccountBalance(ns, addrmgrNs, 1, defaultAccount)
+			unc, err := s.AccountBalance(dbtx, 1, defaultAccount)
 			if err != nil {
 				t.Fatalf("%s: Unconfirmed Balance failed: %v", test.name, err)
 			}
@@ -288,7 +283,7 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 			}
 
 			// Check that unspent outputs match expected.
-			unspent, err := s.UnspentOutputs(ns)
+			unspent, err := s.UnspentOutputs(dbtx)
 			if err != nil {
 				t.Fatalf("%s: failed to fetch unspent outputs: %v", test.name, err)
 			}
@@ -304,7 +299,7 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 			}
 
 			// Check that unmined txs match expected.
-			unmined, err := s.UnminedTxs(ns)
+			unmined, err := s.UnminedTxs(dbtx)
 			if err != nil {
 				t.Fatalf("%s: cannot load unmined transactions: %v",
 					test.name, err)
@@ -387,27 +382,24 @@ func TestCoinbases(t *testing.T) {
 	headerData := makeHeaderDataSlice(headers...)
 	filters := emptyFilters(18)
 
-	err = walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
-		ns := tx.ReadWriteBucket(wtxmgrBucketKey)
-		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
-
-		err = insertMainChainHeaders(s, ns, addrmgrNs, headerData[0:1], filters[0:1])
+	err = walletdb.Update(ctx, db, func(dbtx walletdb.ReadWriteTx) error {
+		err = insertMainChainHeaders(s, dbtx, headerData[0:1], filters[0:1])
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		// Insert coinbase and mark outputs 0 and 2 as credits.
-		err = s.InsertMinedTx(ns, addrmgrNs, cbRec, &b1Hash)
+		err = s.InsertMinedTx(dbtx, cbRec, &b1Hash)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = s.AddCredit(ns, cbRec, b1Meta, 0, false, defaultAccount)
+		err = s.AddCredit(dbtx, cbRec, b1Meta, 0, false, defaultAccount)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = s.AddCredit(ns, cbRec, b1Meta, 2, false, defaultAccount)
+		err = s.AddCredit(dbtx, cbRec, b1Meta, 2, false, defaultAccount)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -419,7 +411,7 @@ func TestCoinbases(t *testing.T) {
 
 		testMaturity := func(tests []coinbaseTest) error {
 			for i, tst := range tests {
-				bal, err := s.AccountBalance(ns, addrmgrNs, 0, defaultAccount)
+				bal, err := s.AccountBalance(dbtx, 0, defaultAccount)
 				if err != nil {
 					t.Fatalf("Coinbase test %d: Store.Balance failed: %v", i, err)
 				}
@@ -452,7 +444,7 @@ func TestCoinbases(t *testing.T) {
 		}
 
 		// Extend chain by 6 blocks.
-		err = insertMainChainHeaders(s, ns, addrmgrNs, headerData[1:7], filters[1:7])
+		err = insertMainChainHeaders(s, dbtx, headerData[1:7], filters[1:7])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -464,7 +456,7 @@ func TestCoinbases(t *testing.T) {
 		}
 
 		// Extend chain by 6 blocks.
-		err = insertMainChainHeaders(s, ns, addrmgrNs, headerData[7:13], filters[7:13])
+		err = insertMainChainHeaders(s, dbtx, headerData[7:13], filters[7:13])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -484,7 +476,7 @@ func TestCoinbases(t *testing.T) {
 
 		// Extend chain by 3 blocks. The coinbase should still be immature since
 		// it is still a block away from maturity.
-		err = insertMainChainHeaders(s, ns, addrmgrNs,
+		err = insertMainChainHeaders(s, dbtx,
 			headerData[13:16], filters[13:16])
 		if err != nil {
 			t.Fatal(err)
@@ -497,7 +489,7 @@ func TestCoinbases(t *testing.T) {
 		}
 
 		// Extend chain by 1 block.
-		err = insertMainChainHeaders(s, ns, addrmgrNs,
+		err = insertMainChainHeaders(s, dbtx,
 			headerData[16:17], filters[16:17])
 		if err != nil {
 			t.Fatal(err)
@@ -520,7 +512,7 @@ func TestCoinbases(t *testing.T) {
 
 		b17H := headers[16]
 		b17Hash := b17H.BlockHash()
-		err = s.InsertMinedTx(ns, addrmgrNs, spenderARec, &b17Hash)
+		err = s.InsertMinedTx(dbtx, spenderARec, &b17Hash)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -540,7 +532,7 @@ func TestCoinbases(t *testing.T) {
 		// Reorg out the block that matured the coinbase and spends part of the
 		// coinbase. The immature coinbase should be deducted by the amount
 		// being spent by the tx.
-		err = s.Rollback(ns, addrmgrNs, int32(b17H.Height))
+		err = s.Rollback(dbtx, int32(b17H.Height))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -560,7 +552,7 @@ func TestCoinbases(t *testing.T) {
 		// Reorg out the block that contained the coinbase. Since the block
 		// with the coinbase is no longer part of the chain there should not be
 		// any mature or immature amounts reported.
-		err = s.Rollback(ns, addrmgrNs, int32(b1H.Height))
+		err = s.Rollback(dbtx, int32(b1H.Height))
 		if err != nil {
 			t.Fatal(err)
 		}

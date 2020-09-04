@@ -17,8 +17,10 @@ import (
 	"github.com/decred/dcrd/wire"
 )
 
-func insertMainChainHeaders(s *Store, ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket,
+func insertMainChainHeaders(s *Store, dbtx walletdb.ReadWriteTx,
 	headerData []BlockHeaderData, filters []*gcs2.FilterV2) error {
+
+	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
 
 	for i := range headerData {
 		h := &headerData[i]
@@ -73,28 +75,25 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
-		ns := tx.ReadWriteBucket(wtxmgrBucketKey)
-		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
-
-		err := s.InsertMemPoolTx(ns, block1TxRec)
+	err = walletdb.Update(ctx, db, func(dbtx walletdb.ReadWriteTx) error {
+		err := s.InsertMemPoolTx(dbtx, block1TxRec)
 		if err != nil {
 			return err
 		}
-		err = s.AddCredit(ns, block1TxRec, nil, 0, false, 0)
+		err = s.AddCredit(dbtx, block1TxRec, nil, 0, false, 0)
 		if err != nil {
 			return err
 		}
-		err = s.InsertMemPoolTx(ns, block2TxRec)
+		err = s.InsertMemPoolTx(dbtx, block2TxRec)
 		if err != nil {
 			return err
 		}
-		err = s.AddCredit(ns, block2TxRec, nil, 0, false, 0)
+		err = s.AddCredit(dbtx, block2TxRec, nil, 0, false, 0)
 		if err != nil {
 			return err
 		}
 
-		bal, err := s.AccountBalance(ns, addrmgrNs, 0, 0)
+		bal, err := s.AccountBalance(dbtx, 0, 0)
 		if err != nil {
 			return err
 		}
@@ -104,22 +103,22 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 
 		headerData := makeHeaderDataSlice(block1Header, block2Header)
 		filters := emptyFilters(2)
-		err = insertMainChainHeaders(s, ns, addrmgrNs, headerData, filters)
+		err = insertMainChainHeaders(s, dbtx, headerData, filters)
 		if err != nil {
 			return err
 		}
 
-		err = s.InsertMinedTx(ns, addrmgrNs, block1TxRec, &headerData[0].BlockHash)
+		err = s.InsertMinedTx(dbtx, block1TxRec, &headerData[0].BlockHash)
 		if err != nil {
 			return err
 		}
-		err = s.InsertMinedTx(ns, addrmgrNs, block2TxRec, &headerData[1].BlockHash)
+		err = s.InsertMinedTx(dbtx, block2TxRec, &headerData[1].BlockHash)
 		if err != nil {
 			return err
 		}
 
 		// At this point there should only be one credit for the tx in block 2.
-		bal, err = s.AccountBalance(ns, addrmgrNs, 1, 0)
+		bal, err = s.AccountBalance(dbtx, 1, 0)
 		if err != nil {
 			return err
 		}
@@ -127,7 +126,7 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 			t.Errorf("Wrong balance: expected %v got %v",
 				dcrutil.Amount(block2Tx.TxOut[0].Value), bal)
 		}
-		credits, err := s.UnspentOutputs(ns)
+		credits, err := s.UnspentOutputs(dbtx)
 		if err != nil {
 			return err
 		}
@@ -149,21 +148,21 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 		t.Log("Invalidating block 2")
 		headerData = makeHeaderDataSlice(block3Header)
 		filters = emptyFilters(1)
-		err = insertMainChainHeaders(s, ns, addrmgrNs, headerData, filters)
+		err = insertMainChainHeaders(s, dbtx, headerData, filters)
 		if err != nil {
 			return err
 		}
 
 		// Now the transaction in block 2 is invalidated.  There should only be
 		// one unspent output, from block 1.
-		bal, err = s.AccountBalance(ns, addrmgrNs, 1, 0)
+		bal, err = s.AccountBalance(dbtx, 1, 0)
 		if err != nil {
 			return err
 		}
 		if bal.Total != dcrutil.Amount(block1Tx.TxOut[0].Value) {
 			t.Errorf("Wrong balance: expected %v got %v", dcrutil.Amount(block1Tx.TxOut[0].Value), bal)
 		}
-		credits, err = s.UnspentOutputs(ns)
+		credits, err = s.UnspentOutputs(dbtx)
 		if err != nil {
 			return err
 		}

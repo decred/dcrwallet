@@ -19,7 +19,9 @@ import (
 // previous outputs referenced by its inputs as spent.  Errors with the
 // DoubleSpend code if another unmined transaction is a double spend of this
 // transaction.
-func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) error {
+func (s *Store) InsertMemPoolTx(dbtx walletdb.ReadWriteTx, rec *TxRecord) error {
+	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
+
 	_, recVal := latestTxRecord(ns, rec.Hash[:])
 	if recVal != nil {
 		return errors.E(errors.Exist, "transaction already exists mined")
@@ -60,7 +62,7 @@ func (s *Store) InsertMemPoolTx(ns walletdb.ReadWriteBucket, rec *TxRecord) erro
 					break DoubleSpendVoteCheck
 				}
 				votedBlock, _ := stake.SSGenBlockVotedOn(&spenderTx)
-				tipBlock, _ := s.MainChainTip(ns)
+				tipBlock, _ := s.MainChainTip(dbtx)
 				if votedBlock == tipBlock {
 					err := errors.Errorf("vote or revocation %v double spends unmined "+
 						"vote %v on the tip block", &rec.Hash, &spenderHash)
@@ -259,7 +261,8 @@ func (s *Store) RemoveUnconfirmed(ns walletdb.ReadWriteBucket, tx *wire.MsgTx, t
 // UnminedTxs returns the underlying transactions for all unmined transactions
 // which are not known to have been mined in a block.  Transactions are
 // guaranteed to be sorted by their dependency order.
-func (s *Store) UnminedTxs(ns walletdb.ReadBucket) ([]*wire.MsgTx, error) {
+func (s *Store) UnminedTxs(dbtx walletdb.ReadTx) ([]*wire.MsgTx, error) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
 	recSet, err := s.unminedTxRecords(ns)
 	if err != nil {
 		return nil, err
@@ -323,7 +326,7 @@ func (s *Store) unminedTxHashes(ns walletdb.ReadBucket) ([]*chainhash.Hash, erro
 func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) ([]*chainhash.Hash, error) {
 	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
 
-	tipHash, tipHeight := s.MainChainTip(ns)
+	tipHash, tipHeight := s.MainChainTip(dbtx)
 
 	type removeTx struct {
 		tx   wire.MsgTx

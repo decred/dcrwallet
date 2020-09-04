@@ -441,7 +441,6 @@ func verifyV12Upgrade(t *testing.T, db walletdb.DB) {
 
 	err = walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		txmgrns := tx.ReadBucket(wtxmgrBucketKey)
-		amgrns := tx.ReadBucket(waddrmgrBucketKey)
 
 		if b := txmgrns.NestedReadBucket(bucketTicketCommitments); b == nil {
 			t.Fatalf("upgrade should have created bucketTicketCommitments")
@@ -451,7 +450,7 @@ func verifyV12Upgrade(t *testing.T, db walletdb.DB) {
 			t.Fatalf("upgrade should have created bucketTicketCommitmentsUsp")
 		}
 
-		balances, err := txmgr.AccountBalances(txmgrns, amgrns, 0)
+		balances, err := txmgr.AccountBalances(tx, 0)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -170,7 +170,8 @@ type Store struct {
 
 // MainChainTip returns the hash and height of the currently marked tip-most
 // block of the main chain.
-func (s *Store) MainChainTip(ns walletdb.ReadBucket) (chainhash.Hash, int32) {
+func (s *Store) MainChainTip(dbtx walletdb.ReadTx) (chainhash.Hash, int32) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
 	var hash chainhash.Hash
 	tipHash := ns.Get(rootTipBlock)
 	copy(hash[:], tipHash)
@@ -396,7 +397,7 @@ func (s *Store) InsertMissingCFilters(dbtx walletdb.ReadWriteTx, blockHashes []*
 
 	// Mark all main chain cfilters as saved if the last block hash is the main
 	// chain tip.
-	tip, _ := s.MainChainTip(ns)
+	tip, _ := s.MainChainTip(dbtx)
 	if bytes.Equal(tip[:], blockHashes[len(blockHashes)-1][:]) {
 		err := ns.Put(rootHaveCFilters, []byte{1})
 		if err != nil {
@@ -1112,7 +1113,10 @@ func (s *Store) moveMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Read
 // the database.  The block header must have been previously saved.  If the
 // exact transaction is already saved as an unmined transaction, it is moved to
 // a block.  Other unmined transactions which become double spends are removed.
-func (s *Store) InsertMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket, rec *TxRecord, blockHash *chainhash.Hash) error {
+func (s *Store) InsertMinedTx(dbtx walletdb.ReadWriteTx, rec *TxRecord, blockHash *chainhash.Hash) error {
+	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
+	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrBucketKey)
+
 	// Ensure block is in the main chain before proceeding.
 	blockHeader := existsBlockHeader(ns, blockHash[:])
 	if blockHeader == nil {
@@ -1280,8 +1284,10 @@ func (s *Store) InsertMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Re
 // TODO(jrick): This should not be necessary.  Instead, pass the indexes
 // that are known to contain credits when a transaction or merkleblock is
 // inserted into the store.
-func (s *Store) AddCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *BlockMeta,
+func (s *Store) AddCredit(dbtx walletdb.ReadWriteTx, rec *TxRecord, block *BlockMeta,
 	index uint32, change bool, account uint32) error {
+
+	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
 
 	if int(index) >= len(rec.MsgTx.TxOut) {
 		return errors.E(errors.Invalid, "transaction output index for credit does not exist")
@@ -1773,20 +1779,20 @@ func (s *Store) SpendMultisigOut(ns walletdb.ReadWriteBucket, op *wire.OutPoint,
 	return deleteMultisigOutUS(ns, key)
 }
 
-// Rollback removes all blocks at height onwards, moving any transactions within
-// each block to the unconfirmed pool.
-func (s *Store) Rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket, height int32) error {
-	return s.rollback(ns, addrmgrNs, height)
-}
-
 func approvesParent(voteBits uint16) bool {
 	return dcrutil.IsFlagSet16(voteBits, dcrutil.BlockValid)
 }
 
-// Note: does not stake validate the parent block at height-1.  Assumes the
-// rollback is being done to add more blocks starting at height, and stake
-// validation will occur when that block is attached.
-func (s *Store) rollback(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.ReadBucket, height int32) error {
+// Rollback removes all blocks at height onwards, moving any transactions within
+// each block to the unconfirmed pool.
+func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
+	// Note: does not stake validate the parent block at height-1.  Assumes the
+	// rollback is being done to add more blocks starting at height, and stake
+	// validation will occur when that block is attached.
+
+	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
+	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrBucketKey)
+
 	if height == 0 {
 		return errors.E(errors.Invalid, "cannot rollback the genesis block")
 	}
@@ -2252,7 +2258,8 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint, block
 
 // UnspentOutputs returns all unspent received transaction outputs.
 // The order is undefined.
-func (s *Store) UnspentOutputs(ns walletdb.ReadBucket) ([]*Credit, error) {
+func (s *Store) UnspentOutputs(dbtx walletdb.ReadTx) ([]*Credit, error) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
 	var unspent []*Credit
 
 	var op wire.OutPoint
@@ -2406,7 +2413,7 @@ func (s *Store) IsUnspentOutpoint(dbtx walletdb.ReadTx, op *wire.OutPoint) bool 
 // is undefined.
 func (s *Store) UnspentTickets(dbtx walletdb.ReadTx, syncHeight int32, includeImmature bool) ([]chainhash.Hash, error) {
 	ns := dbtx.ReadBucket(wtxmgrBucketKey)
-	tipBlock, _ := s.MainChainTip(ns)
+	tipBlock, _ := s.MainChainTip(dbtx)
 	var tickets []chainhash.Hash
 	c := ns.NestedReadBucket(bucketTickets).ReadCursor()
 	defer c.Close()
@@ -3391,7 +3398,10 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 // balanceFullScan does a fullscan of the UTXO set to get the current balance.
 // It is less efficient than the other balance functions, but works fine for
 // accounts.
-func (s *Store) balanceFullScan(ns, addrmgrNs walletdb.ReadBucket, minConf int32, syncHeight int32) (map[uint32]*Balances, error) {
+func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight int32) (map[uint32]*Balances, error) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	addrmgrNs := dbtx.ReadBucket(waddrmgrBucketKey)
+
 	accountBalances := make(map[uint32]*Balances)
 	c := ns.NestedReadBucket(bucketUnspent).ReadCursor()
 	for k, v := c.First(); k != nil; k, v = c.Next() {
@@ -3584,8 +3594,8 @@ type Balances = struct {
 
 // AccountBalance returns a Balances struct for some given account at
 // syncHeight block height with all UTXOS that have minConf manyn confirms.
-func (s *Store) AccountBalance(ns, addrmgrNs walletdb.ReadBucket, minConf int32, account uint32) (Balances, error) {
-	balances, err := s.AccountBalances(ns, addrmgrNs, minConf)
+func (s *Store) AccountBalance(dbtx walletdb.ReadTx, minConf int32, account uint32) (Balances, error) {
+	balances, err := s.AccountBalances(dbtx, minConf)
 	if err != nil {
 		return Balances{}, err
 	}
@@ -3603,9 +3613,9 @@ func (s *Store) AccountBalance(ns, addrmgrNs walletdb.ReadBucket, minConf int32,
 
 // AccountBalances returns a map of all account balances at syncHeight block
 // height with all UTXOs that have minConf many confirms.
-func (s *Store) AccountBalances(ns, addrmgrNs walletdb.ReadBucket, minConf int32) (map[uint32]*Balances, error) {
-	_, syncHeight := s.MainChainTip(ns)
-	return s.balanceFullScan(ns, addrmgrNs, minConf, syncHeight)
+func (s *Store) AccountBalances(dbtx walletdb.ReadTx, minConf int32) (map[uint32]*Balances, error) {
+	_, syncHeight := s.MainChainTip(dbtx)
+	return s.balanceFullScan(dbtx, minConf, syncHeight)
 }
 
 // TotalInput calculates the input value referenced by all transaction inputs.
