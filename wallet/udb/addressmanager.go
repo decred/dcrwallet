@@ -1609,9 +1609,17 @@ func (m *Manager) SetAccountPassphrase(dbtx walletdb.ReadWriteTx, account uint32
 	if err != nil {
 		return err
 	}
-	if acctInfo.acctKeyPriv == nil {
-		return errors.E(errors.Locked, "wallet or account must be "+
-			"unlocked to set a unique account passphrase")
+	var needUnlocked string
+	switch {
+	case acctInfo.acctKeyPriv == nil && acctInfo.uniqueKey == nil:
+		needUnlocked = "wallet"
+	case acctInfo.acctKeyPriv == nil: // uniqueKey != nil
+		needUnlocked = "account"
+	}
+	if needUnlocked != "" {
+		err := errors.Errorf("%s must be unlocked to set a "+
+			"unique account passphrase", needUnlocked)
+		return errors.E(errors.Locked, err)
 	}
 
 	if len(passphrase) == 0 {
