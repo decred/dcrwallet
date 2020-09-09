@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/vsp"
 	"decred.org/dcrwallet/wallet"
 	"decred.org/dcrwallet/wallet/txrules"
@@ -35,10 +36,10 @@ type Config struct {
 	Maintain dcrutil.Amount
 
 	// Address to assign voting rights; overrides VotingAccount
-	VotingAddr dcrutil.Address
+	VotingAddr payments.Address
 
 	// Commitment address for stakepool fees
-	PoolFeeAddr dcrutil.Address
+	PoolFeeAddr payments.Address
 
 	// Stakepool fee percentage (between 0-100)
 	PoolFees float64

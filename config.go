@@ -22,6 +22,7 @@ import (
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/internal/cfgutil"
 	"decred.org/dcrwallet/internal/netparams"
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/version"
 	"decred.org/dcrwallet/wallet"
 	"decred.org/dcrwallet/wallet/txrules"
@@ -93,7 +94,7 @@ type config struct {
 	EnableVoting            bool                 `long:"enablevoting" description:"Automatically create votes and revocations"`
 	PurchaseAccount         string               `long:"purchaseaccount" description:"Account to autobuy tickets from"`
 	PoolAddress             *cfgutil.AddressFlag `long:"pooladdress" description:"VSP fee address"`
-	poolAddress             dcrutil.Address
+	poolAddress             payments.Address
 	PoolFees                float64             `long:"poolfees" description:"VSP fee percentage (1.00 equals 1.00% fee)"`
 	GapLimit                uint32              `long:"gaplimit" description:"Allowed unused address gap between used addresses of accounts"`
 	StakePoolColdExtKey     string              `long:"stakepoolcoldextkey" description:"xpub:maxindex for fee addresses (VSP-only option)"`
@@ -163,7 +164,7 @@ type config struct {
 type ticketBuyerOptions struct {
 	BalanceToMaintainAbsolute *cfgutil.AmountFlag  `long:"balancetomaintainabsolute" description:"Amount of funds to keep in wallet when purchasing tickets"`
 	VotingAddress             *cfgutil.AddressFlag `long:"votingaddress" description:"Purchase tickets with voting rights assigned to this address"`
-	votingAddress             dcrutil.Address
+	votingAddress             payments.Address
 	Limit                     uint   `long:"limit" description:"Buy no more than specified number of tickets per block (0 disables limit)"`
 	VotingAccount             string `long:"votingaccount" description:"Account used to derive addresses specifying voting rights"`
 }
@@ -345,7 +346,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		StakePoolColdExtKey:     defaultStakePoolColdExtKey,
 		AllowHighFees:           defaultAllowHighFees,
 		RelayFee:                cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
-		PoolAddress:             cfgutil.NewAddressFlag(),
+		PoolAddress:             new(cfgutil.AddressFlag),
 		AccountGapLimit:         defaultAccountGapLimit,
 		DisableCoinTypeUpgrades: defaultDisableCoinTypeUpgrades,
 		CircuitLimit:            defaultCircuitLimit,
@@ -353,7 +354,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
 			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
-			VotingAddress:             cfgutil.NewAddressFlag(),
+			VotingAddress:             new(cfgutil.AddressFlag),
 		},
 	}
 
@@ -468,7 +469,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Check that no addresses were created for the wrong network
 	for _, a := range []struct {
 		flag *cfgutil.AddressFlag
-		addr *dcrutil.Address
+		addr *payments.Address
 	}{
 		{cfg.PoolAddress, &cfg.poolAddress},
 		{cfg.TBOpts.VotingAddress, &cfg.TBOpts.votingAddress},

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/wallet/txrules"
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
@@ -602,8 +603,12 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				case err != nil:
 					return nil, errors.E(op, err)
 				case n != nil:
-					addrs := []dcrutil.Address{addr.Address()}
-					err := n.LoadTxFilter(ctx, false, addrs, nil)
+					addr, err := payments.WrapUtilAddress(addr.Address())
+					if err != nil {
+						return nil, errors.E(op, err)
+					}
+					addrs := []payments.Address{addr}
+					err = n.LoadTxFilter(ctx, false, addrs, nil)
 					if err != nil {
 						return nil, errors.E(op, err)
 					}

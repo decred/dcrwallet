@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"time"
 
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/wallet"
 	"decred.org/dcrwallet/wallet/txauthor"
 	"decred.org/dcrwallet/wallet/txsizes"
@@ -46,22 +47,16 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, credits []
 		return nil, fmt.Errorf("not enough fee: %v < %v", dcrutil.Amount(totalValue), feeInfo.FeeAmount)
 	}
 
-	pkScript, err := txscript.PayToAddrScript(feeInfo.FeeAddress)
-	if err != nil {
-		log.Warnf("failed to generate pay to addr script for %v: %v", feeInfo.FeeAddress, err)
-		return nil, err
-	}
-
 	a, err := v.w.NewChangeAddress(ctx, v.changeAccount)
 	if err != nil {
 		log.Warnf("failed to get new change address: %v", err)
 		return nil, err
 	}
 
-	c, ok := a.(wallet.Address)
+	c, ok := a.(payments.Address)
 	if !ok {
-		log.Warnf("failed to convert '%T' to wallet.Address", a)
-		return nil, fmt.Errorf("failed to convert '%T' to wallet.Address", a)
+		log.Warnf("failed to convert '%T' to payments.Address", a)
+		return nil, fmt.Errorf("failed to convert '%T' to payments.Address", a)
 	}
 
 	cver, cscript := c.PaymentScript()
@@ -134,7 +129,10 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, credits []
 		}
 	}
 
-	txOut := []*wire.TxOut{wire.NewTxOut(int64(feeInfo.FeeAmount), pkScript)}
+	out := wire.NewTxOut(int64(feeInfo.FeeAmount), nil)
+	out.Version, out.PkScript = feeInfo.FeeAddress.PaymentScript()
+
+	txOut := []*wire.TxOut{out}
 	feeTx, err := v.w.NewUnsignedTransaction(ctx, txOut, v.w.RelayFee(), v.purchaseAccount, 6,
 		wallet.OutputSelectionAlgorithmDefault, cs, inputSource)
 	if err != nil {

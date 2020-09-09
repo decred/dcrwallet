@@ -35,7 +35,7 @@ func addressArrayMarshaler(n int, s func(i int) string) json.Marshaler {
 	})
 }
 
-func knownAddressMarshaler(addrs []wallet.KnownAddress) json.Marshaler {
+func walletAddressMarshaler(addrs []wallet.Address) json.Marshaler {
 	return addressArrayMarshaler(len(addrs), func(i int) string {
 		return addrs[i].String()
 	})
