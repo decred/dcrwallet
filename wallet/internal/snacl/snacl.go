@@ -44,8 +44,10 @@ func (ck *CryptoKey) Encrypt(in []byte) ([]byte, error) {
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	blob := secretbox.Seal(nil, in, &nonce, (*[KeySize]byte)(ck))
-	return append(nonce[:], blob...), nil
+	sealed := make([]byte, NonceSize, NonceSize+len(in)+Overhead)
+	copy(sealed, nonce[:])
+	sealed = secretbox.Seal(sealed, in, &nonce, (*[KeySize]byte)(ck))
+	return sealed, nil
 }
 
 // Decrypt decrypts the passed data.  The must be the output of the Encrypt
