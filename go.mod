@@ -23,7 +23,7 @@ require (
 	github.com/decred/dcrd/txscript/v3 v3.0.0-20200608124004-b2f67c2dc475
 	github.com/decred/dcrd/wire v1.3.0
 	github.com/decred/go-socks v1.1.0
-	github.com/decred/slog v1.0.0
+	github.com/decred/slog v1.1.0
 	github.com/golang/protobuf v1.3.2
 	github.com/gorilla/websocket v1.4.2
 	github.com/jessevdk/go-flags v1.4.1-0.20200711081900-c17162fe8fd7

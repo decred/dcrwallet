@@ -105,6 +105,8 @@ github.com/decred/go-socks v1.1.0 h1:dnENcc0KIqQo3HSXdgboXAHgqsCIutkqq6ntQjYtm2U
 github.com/decred/go-socks v1.1.0/go.mod h1:sDhHqkZH0X4JjSa02oYOGhcGHYp12FsY1jQ/meV8md0=
 github.com/decred/slog v1.0.0 h1:Dl+W8O6/JH6n2xIFN2p3DNjCmjYwvrXsjlSJTQQ4MhE=
 github.com/decred/slog v1.0.0/go.mod h1:zR98rEZHSnbZ4WHZtO0iqmSZjDLKhkXfrPTZQKtAonQ=
+github.com/decred/slog v1.1.0 h1:uz5ZFfmaexj1rEDgZvzQ7wjGkoSPjw2LCh8K+K1VrW4=
+github.com/decred/slog v1.1.0/go.mod h1:kVXlGnt6DHy2fV5OjSeuvCJ0OmlmTF6LFpEPMu/fOY0=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
