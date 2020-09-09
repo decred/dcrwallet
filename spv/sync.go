@@ -19,6 +19,7 @@ import (
 	"decred.org/dcrwallet/validate"
 	"decred.org/dcrwallet/wallet"
 	"github.com/decred/dcrd/addrmgr"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/gcs/v2/blockcf2"
 	"github.com/decred/dcrd/wire"
@@ -749,6 +750,9 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 	// Save any relevant transaction.
 	relevant := s.filterRelevant(txs)
 	for _, tx := range relevant {
+		if s.wallet.ManualTickets() && stake.IsSStx(tx) {
+			continue
+		}
 		err := s.wallet.AddTransaction(ctx, tx, nil)
 		if err != nil {
 			op := errors.Opf(opf, rp.RemoteAddr())

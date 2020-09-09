@@ -162,7 +162,7 @@ func run(ctx context.Context) error {
 	}
 	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.Amount,
-		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades)
+		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, cfg.ManualTickets)
 
 	// Stop any services started by the loader after the shutdown procedure is
 	// initialized and this function returns.

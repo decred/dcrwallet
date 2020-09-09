@@ -46,6 +46,16 @@ func (w *Wallet) extendMainChain(ctx context.Context, op errors.Op, dbtx walletd
 
 	var watch []wire.OutPoint
 	for _, tx := range transactions {
+		// In manual ticket mode, tickets are only ever added to the
+		// wallet using AddTransaction.  Skip over any relevant tickets
+		// seen in this block unless they already exist in the wallet.
+		if w.manualTickets && stake.IsSStx(tx) {
+			txHash := tx.TxHash()
+			if !w.txStore.ExistsTx(txmgrNs, &txHash) {
+				continue
+			}
+		}
+
 		rec, err := udb.NewTxRecordFromMsgTx(tx, time.Now())
 		if err != nil {
 			return nil, errors.E(op, err)
@@ -302,6 +312,10 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 
 // AddTransaction stores tx, marking it as mined in the block described by
 // blockHash, or recording it to the wallet's mempool when nil.
+//
+// This method will always add ticket transactions to the wallet, even when
+// configured in manual ticket mode.  It is up to network syncers to avoid
+// calling this method on unmined tickets.
 func (w *Wallet) AddTransaction(ctx context.Context, tx *wire.MsgTx, blockHash *chainhash.Hash) error {
 	const op errors.Op = "wallet.AddTransaction"
 

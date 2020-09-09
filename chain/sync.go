@@ -18,6 +18,7 @@ import (
 	"decred.org/dcrwallet/rpc/client/dcrd"
 	"decred.org/dcrwallet/validate"
 	"decred.org/dcrwallet/wallet"
+	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
 	"github.com/jrick/wsrpc/v2"
@@ -658,6 +659,9 @@ func (s *Syncer) relevantTxAccepted(ctx context.Context, params json.RawMessage)
 	tx, err := dcrd.RelevantTxAccepted(params)
 	if err != nil {
 		return err
+	}
+	if s.wallet.ManualTickets() && stake.IsSStx(tx) {
+		return nil
 	}
 	return s.wallet.AddTransaction(ctx, tx, nil)
 }

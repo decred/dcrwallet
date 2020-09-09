@@ -98,6 +98,7 @@ type Wallet struct {
 	votingEnabled      bool
 	poolAddress        dcrutil.Address
 	poolFees           float64
+	manualTickets      bool
 	stakePoolEnabled   bool
 	stakePoolColdAddrs map[string]struct{}
 	subsidyCache       *blockchain.SubsidyCache
@@ -152,6 +153,7 @@ type Config struct {
 	DisableCoinTypeUpgrades bool
 
 	StakePoolColdExtKey string
+	ManualTickets       bool
 	AllowHighFees       bool
 	RelayFee            dcrutil.Amount
 	Params              *chaincfg.Params
@@ -4772,6 +4774,14 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 // GapLimit returns the currently used gap limit.
 func (w *Wallet) GapLimit() uint32 {
 	return w.gapLimit
+}
+
+// ManualTickets returns whether network syncers should avoid adding ticket
+// transactions to the wallet, instead requiring the wallet administrator to
+// manually record any tickets.  This can be used to prevent wallets from voting
+// using tickets bought by others but which reuse our voting address.
+func (w *Wallet) ManualTickets() bool {
+	return w.manualTickets
 }
 
 // Open loads an already-created wallet from the passed database and namespaces
