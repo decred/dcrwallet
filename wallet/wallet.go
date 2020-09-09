@@ -1454,23 +1454,49 @@ func (w *Wallet) Unlock(ctx context.Context, passphrase []byte, timeout <-chan t
 	return nil
 }
 
+// SetAccountPassphrase individually-encrypts or changes the passphrase for
+// account private keys.
+//
+// If the passphrase has zero length, the private keys are re-encrypted with the
+// manager's global passphrase.
 func (w *Wallet) SetAccountPassphrase(ctx context.Context, account uint32, passphrase []byte) error {
-	return walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
-		return w.manager.SetAccountPassphrase(tx, account, passphrase)
+	return walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		return w.manager.SetAccountPassphrase(dbtx, account, passphrase)
 	})
 }
 
-// TODO: timeout?
+// UnlockAccount decrypts a uniquely-encrypted account's private keys.
 func (w *Wallet) UnlockAccount(ctx context.Context, account uint32, passphrase []byte) error {
-	return walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		return w.manager.UnlockAccount(tx, account, passphrase)
+	return walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		return w.manager.UnlockAccount(dbtx, account, passphrase)
 	})
 }
 
+// LockAccount locks an individually-encrypted account by removing private key
+// access until unlocked again.
 func (w *Wallet) LockAccount(ctx context.Context, account uint32) error {
-	return walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		return w.manager.LockAccount(tx, account)
+	return walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		return w.manager.LockAccount(dbtx, account)
 	})
+}
+
+// AccountUnlocked returns whether an individually-encrypted account is unlocked.
+func (w *Wallet) AccountUnlocked(ctx context.Context, account uint32) (bool, error) {
+	const op errors.Op = "wallet.AccountUnlocked"
+	var unlocked bool
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		var encrypted bool
+		encrypted, unlocked = w.manager.AccountHasPassphrase(dbtx, account)
+		if !encrypted {
+			const s = "account is not individually encrypted"
+			return errors.E(errors.Invalid, s)
+		}
+		return nil
+	})
+	if err != nil {
+		return false, errors.E(op, err)
+	}
+	return unlocked, nil
 }
 
 func (w *Wallet) replacePassphraseTimeout(wasLocked bool, newTimeout <-chan time.Time) {
@@ -1523,6 +1549,11 @@ func (w *Wallet) Lock() {
 // Locked returns whether the account manager for a wallet is locked.
 func (w *Wallet) Locked() bool {
 	return w.manager.IsLocked()
+}
+
+// Unlocked returns whether the account manager for a wallet is unlocked.
+func (w *Wallet) Unlocked() bool {
+	return !w.Locked()
 }
 
 // holdUnlock prevents the wallet from being locked.  The heldUnlock object
@@ -3008,6 +3039,8 @@ type AccountProperties struct {
 	LastReturnedExternalIndex uint32
 	LastReturnedInternalIndex uint32
 	ImportedKeyCount          uint32
+	AccountEncrypted          bool
+	AccountUnlocked           bool
 }
 
 // AccountResult is a single account result for the AccountsResult type.

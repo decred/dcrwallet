@@ -4221,6 +4221,22 @@ func (s *Server) lockAccount(ctx context.Context, icmd interface{}) (interface{}
 		return nil, errUnloadedWallet
 	}
 
+	if cmd.Account == "*" {
+		a, err := w.Accounts(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, acct := range a.Accounts {
+			if acct.AccountEncrypted && acct.AccountUnlocked {
+				err = w.LockAccount(ctx, acct.AccountNumber)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+		return nil, nil
+	}
+
 	account, err := w.AccountNumber(ctx, cmd.Account)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {

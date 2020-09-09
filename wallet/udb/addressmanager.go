@@ -223,6 +223,8 @@ type AccountProperties = struct {
 	LastReturnedExternalIndex uint32
 	LastReturnedInternalIndex uint32
 	ImportedKeyCount          uint32
+	AccountEncrypted          bool
+	AccountUnlocked           bool
 }
 
 // defaultNewSecretKey returns a new secret key.  See newSecretKey.
@@ -590,6 +592,8 @@ func (m *Manager) AccountProperties(ns walletdb.ReadBucket, account uint32) (*Ac
 		}
 		props.ImportedKeyCount = importedKeyCount
 	}
+
+	props.AccountEncrypted, props.AccountUnlocked = m.accountHasPassphrase(ns, account)
 
 	return props, nil
 }
@@ -1734,6 +1738,30 @@ func (m *Manager) removeAccountPassphrase(ns walletdb.ReadWriteBucket, account u
 	acctInfo.uniquePassHash = nil
 
 	return nil
+}
+
+// AccountHasPassphrase returns whether an account's keys are currently
+// protected by a per-account passphrase, and if so, whether the account is
+// currently locked or unlocked.
+func (m *Manager) AccountHasPassphrase(dbtx walletdb.ReadTx, account uint32) (hasPassphrase, unlocked bool) {
+	defer m.mtx.RUnlock()
+	m.mtx.RLock()
+
+	ns := dbtx.ReadBucket(waddrmgrBucketKey)
+
+	return m.accountHasPassphrase(ns, account)
+}
+
+func (m *Manager) accountHasPassphrase(ns walletdb.ReadBucket, account uint32) (hasPassphrase, unlocked bool) {
+	acctInfo, err := m.loadAccountInfo(ns, account)
+	if err != nil {
+		return
+	}
+	hasPassphrase = acctInfo.uniqueKey != nil
+	if hasPassphrase {
+		unlocked = acctInfo.acctKeyPriv != nil
+	}
+	return
 }
 
 func maxUint32(a, b uint32) uint32 {
