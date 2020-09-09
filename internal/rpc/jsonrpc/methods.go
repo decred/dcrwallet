@@ -22,6 +22,7 @@ import (
 
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/p2p"
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/rpc/client/dcrd"
 	"decred.org/dcrwallet/rpc/jsonrpc/types"
 	"decred.org/dcrwallet/spv"
@@ -366,16 +367,22 @@ func walletPubKeys(ctx context.Context, w *wallet.Wallet, keys []string) ([]*dcr
 	pubKeyAddrs := make([]*dcrutil.AddressSecpPubKey, len(keys))
 
 	for i, key := range keys {
-		addr, err := decodeAddress(key, w.ChainParams())
+		// Raw pubkeys aren't used in Decred, only their encoded address format.
+		utilAddr, err := dcrutil.DecodeAddress(key, w.ChainParams())
 		if err != nil {
-			return nil, err
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
+				"Address %q: %v", key, err)
 		}
-		switch addr := addr.(type) {
+		switch addr := utilAddr.(type) {
 		case *dcrutil.AddressSecpPubKey:
 			pubKeyAddrs[i] = addr
 			continue
 		}
 
+		addr, err := payments.WrapUtilAddress(utilAddr)
+		if err != nil {
+			return nil, err
+		}
 		a, err := w.KnownAddress(ctx, addr)
 		if err != nil {
 			if errors.Is(err, errors.NotExist) {
@@ -500,7 +507,7 @@ func (s *Server) auditReuse(ctx context.Context, icmd interface{}) (interface{},
 			}
 			for i := 1; i < len(ticket.TxOut); i += 2 { // iterate commitments
 				out := ticket.TxOut[i]
-				addr, err := stake.AddrFromSStxPkScrCommitment(out.PkScript, params)
+				addr, err := payments.ParseTicketCommitmentAddress(out.PkScript, params)
 				if err != nil {
 					return false, err
 				}
@@ -559,7 +566,7 @@ func (s *Server) consolidate(ctx context.Context, icmd interface{}) (interface{}
 	}
 
 	// Set change address if specified.
-	var changeAddr dcrutil.Address
+	var changeAddr payments.Address
 	if cmd.Address != nil {
 		if *cmd.Address != "" {
 			addr, err := decodeAddress(*cmd.Address, w.ChainParams())
@@ -663,26 +670,10 @@ func (s *Server) createRawTransaction(ctx context.Context, icmd interface{}) (in
 	for encodedAddr, amount := range cmd.Amounts {
 		// Decode the provided address.  This also ensures the network encoded
 		// with the address matches the network the server is currently on.
-		addr, err := dcrutil.DecodeAddress(encodedAddr, s.activeNet)
+		addr, err := payments.DecodeAddress(encodedAddr, s.activeNet)
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
 				"Address %q: %v", encodedAddr, err)
-		}
-
-		// Ensure the address is one of the supported types.
-		switch addr.(type) {
-		case *dcrutil.AddressPubKeyHash:
-		case *dcrutil.AddressScriptHash:
-		default:
-			return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
-				"Invalid type: %T", addr)
-		}
-
-		// Create a new script which pays to the provided address.
-		pkScript, err := txscript.PayToAddrScript(addr)
-		if err != nil {
-			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code,
-				"Pay to address script: %v", err)
 		}
 
 		atomic, err := dcrutil.NewAmount(amount)
@@ -696,7 +687,12 @@ func (s *Server) createRawTransaction(ctx context.Context, icmd interface{}) (in
 				"Amount outside valid range: %v", atomic)
 		}
 
-		txOut := wire.NewTxOut(int64(atomic), pkScript)
+		version, pkScript := addr.PaymentScript()
+		txOut := &wire.TxOut{
+			Version:  version,
+			PkScript: pkScript,
+			Value:    int64(atomic),
+		}
 		mtx.AddTxOut(txOut)
 	}
 
@@ -979,7 +975,7 @@ func (s *Server) getAddressesByAccount(ctx context.Context, icmd interface{}) (i
 		if err != nil {
 			return nil, err
 		}
-		return knownAddressMarshaler(addrs), nil
+		return walletAddressMarshaler(addrs), nil
 	}
 
 	account, err := w.AccountNumber(ctx, cmd.Account)
@@ -1278,7 +1274,7 @@ func (s *Server) getInfo(ctx context.Context, icmd interface{}) (interface{}, er
 	return info, nil
 }
 
-func decodeAddress(s string, params *chaincfg.Params) (dcrutil.Address, error) {
+func decodeAddress(s string, params *chaincfg.Params) (payments.Address, error) {
 	// Secp256k1 pubkey as a string, handle differently.
 	if len(s) == 66 || len(s) == 130 {
 		pubKeyBytes, err := hex.DecodeString(s)
@@ -1290,11 +1286,10 @@ func decodeAddress(s string, params *chaincfg.Params) (dcrutil.Address, error) {
 		if err != nil {
 			return nil, err
 		}
-
-		return pubKeyAddr, nil
+		return payments.WrapUtilAddress(pubKeyAddr)
 	}
 
-	addr, err := dcrutil.DecodeAddress(s, params)
+	addr, err := payments.DecodeAddress(s, params)
 	if err != nil {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidAddressOrKey,
 			"invalid address %q: decode failed: %#q", s, err)
@@ -1347,7 +1342,7 @@ func (s *Server) getAccountAddress(ctx context.Context, icmd interface{}) (inter
 		}
 		return nil, err
 	}
-	addr, err := w.CurrentAddress(account)
+	addr, err := w.CurrentAddress(ctx, account)
 	if err != nil {
 		// Expect account lookup to succeed
 		if errors.Is(err, errors.NotExist) {
@@ -1356,7 +1351,7 @@ func (s *Server) getAccountAddress(ctx context.Context, icmd interface{}) (inter
 		return nil, err
 	}
 
-	return addr.Address(), nil
+	return addr.String(), nil
 }
 
 // getUnconfirmedBalance handles a getunconfirmedbalance extension request
@@ -1689,7 +1684,7 @@ func (s *Server) getNewAddress(ctx context.Context, icmd interface{}) (interface
 	if err != nil {
 		return nil, err
 	}
-	return addr.Address(), nil
+	return addr.String(), nil
 }
 
 // getRawChangeAddress handles a getrawchangeaddress request by creating
@@ -1722,7 +1717,7 @@ func (s *Server) getRawChangeAddress(ctx context.Context, icmd interface{}) (int
 	}
 
 	// Return the new payment address string.
-	return addr.Address(), nil
+	return addr.String(), nil
 }
 
 // getReceivedByAccount handles a getreceivedbyaccount request by returning
@@ -2459,16 +2454,16 @@ func (s *Server) listAddressTransactions(ctx context.Context, icmd interface{}) 
 	}
 
 	// Decode addresses.
-	hash160Map := make(map[string]struct{})
+	addrSet := make(map[string]struct{})
 	for _, addrStr := range cmd.Addresses {
 		addr, err := decodeAddress(addrStr, w.ChainParams())
 		if err != nil {
 			return nil, err
 		}
-		hash160Map[string(addr.ScriptAddress())] = struct{}{}
+		addrSet[addr.String()] = struct{}{}
 	}
 
-	return w.ListAddressTransactions(ctx, hash160Map)
+	return w.ListAddressTransactions(ctx, addrSet)
 }
 
 // listAllTransactions handles a listalltransactions request by returning
@@ -2507,7 +2502,7 @@ func (s *Server) listUnspent(ctx context.Context, icmd interface{}) (interface{}
 			if err != nil {
 				return nil, err
 			}
-			addresses[a.Address()] = struct{}{}
+			addresses[a.String()] = struct{}{}
 		}
 	}
 
@@ -2595,7 +2590,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 	}
 
 	// Set ticket address if specified.
-	var ticketAddr dcrutil.Address
+	var ticketAddr payments.Address
 	if cmd.TicketAddress != nil {
 		if *cmd.TicketAddress != "" {
 			addr, err := decodeAddress(*cmd.TicketAddress, w.ChainParams())
@@ -2614,7 +2609,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 	}
 
 	// Set pool address if specified.
-	var poolAddr dcrutil.Address
+	var poolAddr payments.Address
 	var poolFee float64
 	if cmd.PoolAddress != nil {
 		if *cmd.PoolAddress != "" {
@@ -2729,12 +2724,7 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 		if err != nil {
 			return nil, err
 		}
-
-		pkScript, vers, err := addressScript(addr)
-		if err != nil {
-			return nil, err
-		}
-
+		vers, pkScript := addr.PaymentScript()
 		outputs = append(outputs, &wire.TxOut{
 			Value:    int64(amt),
 			PkScript: pkScript,
@@ -2795,7 +2785,7 @@ func (s *Server) redeemMultiSigOut(ctx context.Context, icmd interface{}) (inter
 	// Convert the address to a useable format. If
 	// we have no address, create a new address in
 	// this wallet to send the output to.
-	var addr dcrutil.Address
+	var addr payments.Address
 	var err error
 	if cmd.Address != nil {
 		addr, err = decodeAddress(*cmd.Address, w.ChainParams())
@@ -2835,10 +2825,7 @@ func (s *Server) redeemMultiSigOut(ctx context.Context, icmd interface{}) (inter
 	txIn := wire.NewTxIn(&op, int64(p2shOutput.OutputAmount), nil)
 	msgTx.AddTxIn(txIn)
 
-	pkScript, _, err := addressScript(addr)
-	if err != nil {
-		return nil, err
-	}
+	_, pkScript := addr.PaymentScript()
 
 	err = w.PrepareRedeemMultiSigOutTxOutput(&msgTx, p2shOutput, &pkScript)
 	if err != nil {
@@ -2903,11 +2890,7 @@ func (s *Server) redeemMultiSigOuts(ctx context.Context, icmd interface{}) (inte
 	if err != nil {
 		return nil, err
 	}
-	p2shAddr, ok := addr.(*dcrutil.AddressScriptHash)
-	if !ok {
-		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "address is not P2SH")
-	}
-	msos, err := wallet.UnstableAPI(w).UnspentMultisigCreditsForAddress(ctx, p2shAddr)
+	msos, err := wallet.UnstableAPI(w).UnspentMultisigCreditsForAddress(ctx, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -3307,7 +3290,7 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 
 	result := &types.SendToMultiSigResult{
 		TxHash:       tx.MsgTx.TxHash().String(),
-		Address:      addr.Address(),
+		Address:      addr.String(),
 		RedeemScript: hex.EncodeToString(script),
 	}
 
@@ -3814,7 +3797,7 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 	// by checking the type of "addr", however, the reference
 	// implementation only puts that information if the script is
 	// "ismine", and we follow that behaviour.
-	result.Address = addr.Address()
+	result.Address = addr.String()
 	result.IsValid = true
 
 	ka, err := w.KnownAddress(ctx, addr)
@@ -3893,7 +3876,7 @@ func (s *Server) verifyMessage(ctx context.Context, icmd interface{}) (interface
 	var valid bool
 
 	// Decode address and base64 signature from the request.
-	addr, err := dcrutil.DecodeAddress(cmd.Address, s.activeNet)
+	addr, err := decodeAddress(cmd.Address, s.activeNet)
 	if err != nil {
 		return nil, err
 	}
@@ -3902,25 +3885,10 @@ func (s *Server) verifyMessage(ctx context.Context, icmd interface{}) (interface
 		return nil, err
 	}
 
-	// Addresses must have an associated secp256k1 private key and therefore
-	// must be P2PK or P2PKH (P2SH is not allowed).
-	switch a := addr.(type) {
-	case *dcrutil.AddressSecpPubKey:
-	case *dcrutil.AddressPubKeyHash:
-		if a.DSA() != dcrec.STEcdsaSecp256k1 {
-			goto WrongAddrKind
-		}
-	default:
-		goto WrongAddrKind
-	}
-
 	valid, err = wallet.VerifyMessage(cmd.Message, addr, sig, s.activeNet)
 	// Mirror Bitcoin Core behavior, which treats all erorrs as an invalid
 	// signature.
 	return err == nil && valid, nil
-
-WrongAddrKind:
-	return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "address must be secp256k1 P2PK or P2PKH")
 }
 
 // version handles the version command by returning the RPC API versions of the

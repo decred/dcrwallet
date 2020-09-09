@@ -8,10 +8,10 @@ import (
 	"context"
 
 	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil/v3"
 )
 
 type unstableAPI struct {
@@ -59,13 +59,24 @@ func (u unstableAPI) RangeTransactions(ctx context.Context, begin, end int32, f 
 // UnspentMultisigCreditsForAddress calls
 // udb.Store.UnspentMultisigCreditsForAddress under a single database view
 // transaction.
-func (u unstableAPI) UnspentMultisigCreditsForAddress(ctx context.Context, p2shAddr *dcrutil.AddressScriptHash) ([]*udb.MultisigCredit, error) {
+func (u unstableAPI) UnspentMultisigCreditsForAddress(ctx context.Context,
+	p2shAddr payments.Address) ([]*udb.MultisigCredit, error) {
 	const op errors.Op = "wallet.UnspentMultisigCreditsForAddress"
+
+	var scriptHash []byte
+	switch a := p2shAddr.(type) {
+	case payments.ScriptHashAddress:
+		scriptHash = a.ScriptHash()
+	default:
+		err := errors.Errorf("address %v (type %[1]T) does not implement ScriptHashAddress", p2shAddr)
+		return nil, err
+	}
+
 	var multisigCredits []*udb.MultisigCredit
 	err := walletdb.View(ctx, u.w.db, func(tx walletdb.ReadTx) error {
 		var err error
 		multisigCredits, err = u.w.txStore.UnspentMultisigCreditsForAddress(
-			tx, p2shAddr)
+			tx, scriptHash)
 		return err
 	})
 	if err != nil {

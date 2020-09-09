@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"decred.org/dcrwallet/payments"
 	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 )
@@ -28,7 +29,7 @@ func (v *VSP) TicketStatus(ctx context.Context, hash *chainhash.Hash) (*TicketSt
 		log.Errorf("%v is not a ticket", hash)
 		return nil, fmt.Errorf("%v is not a ticket", hash)
 	}
-	commitmentAddr, err := stake.AddrFromSStxPkScrCommitment(ticketTx.TxOut[1].PkScript, v.params)
+	commitmentAddr, err := payments.ParseTicketCommitmentAddress(ticketTx.TxOut[1].PkScript, v.params)
 	if err != nil {
 		log.Errorf("failed to extract script addr from %v: %v", hash, err)
 		return nil, err

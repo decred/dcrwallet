@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"sync"
 
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/wallet"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -24,9 +25,9 @@ const (
 )
 
 type PendingFee struct {
-	CommitmentAddress dcrutil.Address
-	VotingAddress     dcrutil.Address
-	FeeAddress        dcrutil.Address
+	CommitmentAddress payments.Address
+	VotingAddress     payments.Address
+	FeeAddress        payments.Address
 	FeeAmount         dcrutil.Amount
 	FeeTx             *wire.MsgTx
 }

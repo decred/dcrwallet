@@ -2631,15 +2631,16 @@ func (s *Store) GetMultisigOutput(ns walletdb.ReadBucket, op *wire.OutPoint) (*M
 
 // UnspentMultisigCreditsForAddress returns all unspent multisignature P2SH
 // credits in the wallet for some specified address.
-func (s *Store) UnspentMultisigCreditsForAddress(dbtx walletdb.ReadTx, addr dcrutil.Address) ([]*MultisigCredit, error) {
+func (s *Store) UnspentMultisigCreditsForAddress(dbtx walletdb.ReadTx, p2shScriptHash []byte) ([]*MultisigCredit, error) {
 	ns := dbtx.ReadBucket(wtxmgrBucketKey)
 	addrmgrNs := dbtx.ReadBucket(waddrmgrBucketKey)
 
-	p2shAddr, ok := addr.(*dcrutil.AddressScriptHash)
-	if !ok {
-		return nil, errors.E(errors.Invalid, "address must be P2SH")
+	if len(p2shScriptHash) != 20 {
+		err := errors.Errorf("P2SH script hash is invalid length %d", len(p2shScriptHash))
+		return nil, errors.E(errors.Invalid, err)
 	}
-	addrScrHash := p2shAddr.Hash160()
+	var addrScrHash [20]byte
+	copy(addrScrHash[:], p2shScriptHash)
 
 	var mscs []*MultisigCredit
 	c := ns.NestedReadBucket(bucketMultisigUsp).ReadCursor()
@@ -2653,7 +2654,7 @@ func (s *Store) UnspentMultisigCreditsForAddress(dbtx walletdb.ReadTx, addr dcru
 		// Skip everything that's unrelated to the address
 		// we're concerned about.
 		scriptHash := fetchMultisigOutScrHash(val)
-		if scriptHash != *addrScrHash {
+		if scriptHash != addrScrHash {
 			continue
 		}
 

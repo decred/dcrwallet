@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/payments"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/gcs/v2"
@@ -44,7 +45,7 @@ type Peer interface {
 // functionality for rescanning and filtering.
 type NetworkBackend interface {
 	Peer
-	LoadTxFilter(ctx context.Context, reload bool, addrs []dcrutil.Address, outpoints []wire.OutPoint) error
+	LoadTxFilter(ctx context.Context, reload bool, addrs []payments.Address, outpoints []wire.OutPoint) error
 	Rescan(ctx context.Context, blocks []chainhash.Hash, save func(block *chainhash.Hash, txs []*wire.MsgTx) error) error
 
 	// This is impossible to determine over the wire protocol, and will always

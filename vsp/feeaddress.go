@@ -12,10 +12,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/decred/dcrd/blockchain/stake/v3"
+	"decred.org/dcrwallet/payments"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/txscript/v3"
 )
 
 func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash *chainhash.Hash) (dcrutil.Amount, error) {
@@ -27,19 +26,15 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash *chainhash.Hash) (dc
 	ticketTx := txs[0]
 
 	const scriptVersion = 0
-	_, addrs, _, err := txscript.ExtractPkScriptAddrs(scriptVersion,
-		ticketTx.TxOut[0].PkScript, v.params)
+	pkScript := ticketTx.TxOut[0].PkScript
+	votingAddr, err := payments.ParseAddress(scriptVersion, pkScript, v.params)
 	if err != nil {
 		log.Errorf("failed to extract stake submission address from %v: %v", ticketHash, err)
 		return 0, err
 	}
-	if len(addrs) == 0 {
-		log.Errorf("failed to get address from %v", ticketHash)
-		return 0, fmt.Errorf("failed to get address from %v", ticketHash)
-	}
-	votingAddress := addrs[0]
 
-	commitmentAddr, err := stake.AddrFromSStxPkScrCommitment(ticketTx.TxOut[1].PkScript, v.params)
+	pkScript = ticketTx.TxOut[1].PkScript
+	commitmentAddr, err := payments.ParseTicketCommitmentAddress(pkScript, v.params)
 	if err != nil {
 		log.Errorf("failed to extract script addr from %v: %v", ticketHash, err)
 		return 0, err
@@ -133,7 +128,7 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash *chainhash.Hash) (dc
 	}
 	// TODO - validate server timestamp?
 
-	feeAddress, err := dcrutil.DecodeAddress(feeResponse.FeeAddress, v.params)
+	feeAddr, err := payments.DecodeAddress(feeResponse.FeeAddress, v.params)
 	if err != nil {
 		log.Warnf("server fee address invalid: %v", err)
 		return 0, fmt.Errorf("server fee address invalid: %v", err)
@@ -154,8 +149,8 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash *chainhash.Hash) (dc
 	v.ticketToFeeMu.Lock()
 	v.ticketToFeeMap[*ticketHash] = PendingFee{
 		CommitmentAddress: commitmentAddr,
-		VotingAddress:     votingAddress,
-		FeeAddress:        feeAddress,
+		VotingAddress:     votingAddr,
+		FeeAddress:        feeAddr,
 		FeeAmount:         feeAmount,
 	}
 	v.ticketToFeeMu.Unlock()

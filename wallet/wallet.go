@@ -19,7 +19,7 @@ import (
 
 	"decred.org/dcrwallet/deployments"
 	"decred.org/dcrwallet/errors"
-	"decred.org/dcrwallet/internal/compat"
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/rpc/client/dcrd"
 	"decred.org/dcrwallet/rpc/jsonrpc/types"
 	"decred.org/dcrwallet/validate"
@@ -96,7 +96,7 @@ type Wallet struct {
 	stakeSettingsLock  sync.Mutex
 	defaultVoteBits    stake.VoteBits
 	votingEnabled      bool
-	poolAddress        dcrutil.Address
+	poolAddress        payments.StakeAddress
 	poolFees           float64
 	manualTickets      bool
 	stakePoolEnabled   bool
@@ -121,8 +121,7 @@ type Wallet struct {
 	recentlyPublishedMu     sync.Mutex
 
 	// Internal address handling.
-	addressReuse     bool
-	ticketAddress    dcrutil.Address
+	ticketAddress    payments.StakeAddress
 	addressBuffers   map[uint32]*bip0044AccountData
 	addressBuffersMu sync.Mutex
 
@@ -143,9 +142,8 @@ type Config struct {
 	PubPassphrase []byte
 
 	VotingEnabled bool
-	AddressReuse  bool
-	VotingAddress dcrutil.Address
-	PoolAddress   dcrutil.Address
+	VotingAddress payments.Address
+	PoolAddress   payments.Address
 	PoolFees      float64
 
 	GapLimit                uint32
@@ -687,7 +685,7 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	watchAddrs := make(chan []dcrutil.Address, runtime.NumCPU())
+	watchAddrs := make(chan []payments.Address, runtime.NumCPU())
 	watchError := make(chan error)
 	go func() {
 		for addrs := range watchAddrs {
@@ -705,7 +703,7 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, start, end uint32) {
 		const step = 256
 		for ; start <= end; start += step {
-			addrs := make([]dcrutil.Address, 0, step)
+			addrs := make([]payments.Address, 0, step)
 			stop := minUint32(end+1, start+step)
 			for child := start; child < stop; child++ {
 				addr, err := deriveChildAddress(branchKey, child, w.chainParams)
@@ -809,15 +807,24 @@ func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, re
 	}
 	log.Infof("Registered for transaction notifications for %v HD address(es)", hdAddrCount)
 
-	// Watch individually-imported addresses (which must each be read out of
-	// the DB).
-	abuf := make([]dcrutil.Address, 0, 256)
+	// Watch individually-imported and hardened account addresses (which
+	// must each be read out of the DB).
+	abuf := make([]payments.Address, 0, 256)
 	var importedAddrCount int
 	watchAddress := func(a udb.ManagedAddress) error {
-		addr := a.Address()
+		const accountName = "" // not used; can be faked
+		importedAddrCount++
+		var kind AccountKind = AccountKindImported
+		if a.Account() == udb.ImportedAddrAccount {
+		} else {
+		}
+		addr, err := wrapManagedAddress(a, accountName, kind)
+		if err != nil {
+			return err
+		}
 		abuf = append(abuf, addr)
 		if len(abuf) == cap(abuf) {
-			importedAddrCount += len(abuf)
+			log.Infof("acct %d watching addrs %v", a.Account(), abuf)
 			err := n.LoadTxFilter(ctx, false, abuf, nil)
 			abuf = abuf[:0]
 			return err
@@ -825,8 +832,19 @@ func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, re
 		return nil
 	}
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-		return w.manager.ForEachAccountAddress(addrmgrNs, udb.ImportedAddrAccount, watchAddress)
+		ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
+
+		lastImported, err := w.manager.LastImportedAccount(dbtx)
+		if err != nil {
+			return err
+		}
+		for acct := uint32(udb.ImportedAddrAccount); acct <= lastImported; acct++ {
+			err = w.manager.ForEachAccountAddress(ns, acct, watchAddress)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return err
@@ -878,10 +896,10 @@ func (w *Wallet) LoadActiveDataFilters(ctx context.Context, n NetworkBackend, re
 
 // CommittedTickets takes a list of tickets and returns a filtered list of
 // tickets that are controlled by this wallet.
-func (w *Wallet) CommittedTickets(ctx context.Context, tickets []*chainhash.Hash) ([]*chainhash.Hash, []dcrutil.Address, error) {
+func (w *Wallet) CommittedTickets(ctx context.Context, tickets []*chainhash.Hash) ([]*chainhash.Hash, []payments.Address, error) {
 	const op errors.Op = "wallet.CommittedTickets"
 	hashes := make([]*chainhash.Hash, 0, len(tickets))
-	addresses := make([]dcrutil.Address, 0, len(tickets))
+	addresses := make([]payments.Address, 0, len(tickets))
 	// Verify we own this ticket
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -899,18 +917,19 @@ func (w *Wallet) CommittedTickets(ctx context.Context, tickets []*chainhash.Hash
 
 			// Commitment outputs are at alternating output
 			// indexes, starting at 1.
-			var bestAddr dcrutil.Address
+			var bestAddr payments.PubKeyHashAddress
 			var bestAmount dcrutil.Amount
 
 			for i := 1; i < len(tx.TxOut); i += 2 {
 				scr := tx.TxOut[i].PkScript
-				addr, err := stake.AddrFromSStxPkScrCommitment(scr,
+				addr, err := payments.ParseTicketCommitmentAddress(scr,
 					w.chainParams)
 				if err != nil {
 					log.Debugf("%v", err)
 					break
 				}
-				if _, ok := addr.(*dcrutil.AddressPubKeyHash); !ok {
+				pkha, ok := addr.(payments.PubKeyHashAddress)
+				if !ok {
 					log.Tracef("Skipping commitment at "+
 						"index %v: address is not "+
 						"P2PKH", i)
@@ -922,7 +941,7 @@ func (w *Wallet) CommittedTickets(ctx context.Context, tickets []*chainhash.Hash
 					break
 				}
 				if amt > bestAmount {
-					bestAddr = addr
+					bestAddr = pkha
 					bestAmount = amt
 				}
 			}
@@ -933,9 +952,8 @@ func (w *Wallet) CommittedTickets(ctx context.Context, tickets []*chainhash.Hash
 			}
 
 			if !w.manager.ExistsHash160(addrmgrNs,
-				bestAddr.Hash160()[:]) {
-				log.Debugf("not our address: %x",
-					bestAddr.Hash160())
+				bestAddr.PubKeyHash()) {
+				log.Debugf("not our address: %s", bestAddr)
 				continue
 			}
 			ticketHash := tx.TxHash()
@@ -1346,7 +1364,8 @@ func (w *Wallet) FetchHeaders(ctx context.Context, p Peer) (count int, rescanFro
 // Consolidate consolidates as many UTXOs as are passed in the inputs argument.
 // If that many UTXOs can not be found, it will use the maximum it finds. This
 // will only compress UTXOs in the default account
-func (w *Wallet) Consolidate(ctx context.Context, inputs int, account uint32, address dcrutil.Address) (*chainhash.Hash, error) {
+func (w *Wallet) Consolidate(ctx context.Context, inputs int, account uint32,
+	address payments.Address) (*chainhash.Hash, error) {
 	heldUnlock, err := w.holdUnlock()
 	if err != nil {
 		return nil, err
@@ -1357,7 +1376,7 @@ func (w *Wallet) Consolidate(ctx context.Context, inputs int, account uint32, ad
 
 // CreateMultisigTx creates and signs a multisig transaction.
 func (w *Wallet) CreateMultisigTx(ctx context.Context, account uint32, amount dcrutil.Amount,
-	pubkeys []*dcrutil.AddressSecpPubKey, nrequired int8, minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
+	pubkeys []*dcrutil.AddressSecpPubKey, nrequired int8, minconf int32) (*CreatedTx, payments.Address, []byte, error) {
 	heldUnlock, err := w.holdUnlock()
 	if err != nil {
 		return nil, nil, nil, err
@@ -1370,7 +1389,7 @@ func (w *Wallet) CreateMultisigTx(ctx context.Context, account uint32, amount dc
 type PurchaseTicketsRequest struct {
 	Count         int
 	SourceAccount uint32
-	VotingAddress dcrutil.Address
+	VotingAddress payments.Address
 	MinConf       int32
 	Expiry        int32
 	VotingAccount uint32 // Used when VotingAddress == nil, or CSPPServer != ""
@@ -1385,7 +1404,7 @@ type PurchaseTicketsRequest struct {
 	ChangeAccount      uint32
 
 	// VSP ticket buying; not currently usable with CoinShuffle++.
-	VSPAddress dcrutil.Address
+	VSPAddress payments.Address
 	VSPFees    float64
 }
 
@@ -1629,12 +1648,13 @@ func (w *Wallet) AccountBalances(ctx context.Context, confirms int32) ([]Balance
 	return balances, nil
 }
 
-// CurrentAddress gets the most recently requested payment address from a wallet.
-// If the address has already been used (there is at least one transaction
-// spending to it in the blockchain or dcrd mempool), the next chained address
-// is returned.
-func (w *Wallet) CurrentAddress(account uint32) (dcrutil.Address, error) {
+// CurrentAddress gets the most recently external payment address from an
+// account.  If the address has already been used (there is at least one
+// transaction spending to it in the blockchain or mempool), the next account
+// address is returned.
+func (w *Wallet) CurrentAddress(ctx context.Context, account uint32) (payments.Address, error) {
 	const op errors.Op = "wallet.CurrentAddress"
+
 	defer w.addressBuffersMu.Unlock()
 	w.addressBuffersMu.Lock()
 
@@ -1649,17 +1669,18 @@ func (w *Wallet) CurrentAddress(account uint32) (dcrutil.Address, error) {
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	addr, err := compat.HD2Address(child, w.chainParams)
+	pkh := child.SerializedPubKey()
+	pkha, err := payments.P2PKHAddress(pkh, w.chainParams)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	return addr, nil
+	return pkha, nil
 }
 
 // SignHashes returns signatures of signed transaction hashes using an
 // address' associated private key.
-func (w *Wallet) SignHashes(ctx context.Context, hashes [][]byte, addr dcrutil.Address) ([][]byte,
-	[]byte, error) {
+func (w *Wallet) SignHashes(ctx context.Context, hashes [][]byte,
+	addr payments.Address) ([][]byte, []byte, error) {
 
 	var privKey *secp256k1.PrivateKey
 	var done func()
@@ -1670,8 +1691,11 @@ func (w *Wallet) SignHashes(ctx context.Context, hashes [][]byte, addr dcrutil.A
 	}()
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		var err error
-		privKey, done, err = w.manager.PrivateKey(addrmgrNs, addr)
+		utilAddr, err := payments.AddressToUtilAddress(addr, w.chainParams)
+		if err != nil {
+			return err
+		}
+		privKey, done, err = w.manager.PrivateKey(addrmgrNs, utilAddr)
 		return err
 	})
 	if err != nil {
@@ -1689,7 +1713,7 @@ func (w *Wallet) SignHashes(ctx context.Context, hashes [][]byte, addr dcrutil.A
 
 // SignMessage returns the signature of a signed message using an address'
 // associated private key.
-func (w *Wallet) SignMessage(ctx context.Context, msg string, addr dcrutil.Address) (sig []byte, err error) {
+func (w *Wallet) SignMessage(ctx context.Context, msg string, addr payments.Address) (sig []byte, err error) {
 	const op errors.Op = "wallet.SignMessage"
 	var buf bytes.Buffer
 	wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
@@ -1704,8 +1728,11 @@ func (w *Wallet) SignMessage(ctx context.Context, msg string, addr dcrutil.Addre
 	}()
 	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		var err error
-		privKey, done, err = w.manager.PrivateKey(addrmgrNs, addr)
+		utilAddr, err := payments.AddressToUtilAddress(addr, w.chainParams)
+		if err != nil {
+			return err
+		}
+		privKey, done, err = w.manager.PrivateKey(addrmgrNs, utilAddr)
 		return err
 	})
 	if err != nil {
@@ -1717,7 +1744,7 @@ func (w *Wallet) SignMessage(ctx context.Context, msg string, addr dcrutil.Addre
 
 // VerifyMessage verifies that sig is a valid signature of msg and was created
 // using the secp256k1 private key for addr.
-func VerifyMessage(msg string, addr dcrutil.Address, sig []byte, params dcrutil.AddressParams) (bool, error) {
+func VerifyMessage(msg string, addr payments.Address, sig []byte, params dcrutil.AddressParams) (bool, error) {
 	const op errors.Op = "wallet.VerifyMessage"
 	// Validate the signature - this just shows that it was valid for any pubkey
 	// at all. Whether the pubkey matches is checked below.
@@ -1743,15 +1770,41 @@ func VerifyMessage(msg string, addr dcrutil.Address, sig []byte, params dcrutil.
 	}
 
 	// Return whether addresses match.
-	return recoveredAddr.Address() == addr.Address(), nil
+	return recoveredAddr.Address() == addr.String(), nil
 }
 
-// HaveAddress returns whether the wallet is the owner of the address a.
-func (w *Wallet) HaveAddress(ctx context.Context, a dcrutil.Address) (bool, error) {
+// HaveAddress returns whether the wallet manages the address addr.
+func (w *Wallet) HaveAddress(ctx context.Context, addr payments.Address) (bool, error) {
 	const op errors.Op = "wallet.HaveAddress"
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		_, err := w.manager.Address(addrmgrNs, a)
+	utilAddr, err := payments.AddressToUtilAddress(addr, w.chainParams)
+	if err != nil {
+		return false, errors.E(op, err)
+	}
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		_, err := w.manager.Address(addrmgrNs, utilAddr)
+		return err
+	})
+	if err != nil {
+		if errors.Is(err, errors.NotExist) {
+			return false, nil
+		}
+		return false, errors.E(op, err)
+	}
+	return true, nil
+}
+
+// HavePubkey returns whether the wallet manages a public key.
+func (w *Wallet) HavePubkey(ctx context.Context, pubkey []byte) (bool, error) {
+	const op errors.Op = "wallet.HavePubkey"
+	pubkeyHash := dcrutil.Hash160(pubkey)
+	utilAddr, err := dcrutil.NewAddressPubKeyHash(pubkeyHash, w.chainParams, dcrec.STEcdsaSecp256k1)
+	if err != nil {
+		return false, errors.E(op, err)
+	}
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		_, err := w.manager.Address(addrmgrNs, utilAddr)
 		return err
 	})
 	if err != nil {
@@ -2258,7 +2311,7 @@ func (w *Wallet) ListTransactions(ctx context.Context, from, count int) ([]types
 // ListAddressTransactions returns a slice of objects with details about
 // recorded transactions to or from any address belonging to a set.  This is
 // intended to be used for listaddresstransactions RPC replies.
-func (w *Wallet) ListAddressTransactions(ctx context.Context, pkHashes map[string]struct{}) ([]types.ListTransactionsResult, error) {
+func (w *Wallet) ListAddressTransactions(ctx context.Context, addrSet map[string]struct{}) ([]types.ListTransactionsResult, error) {
 	const op errors.Op = "wallet.ListAddressTransactions"
 	txList := []types.ListTransactionsResult{}
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
@@ -2283,7 +2336,7 @@ func (w *Wallet) ListAddressTransactions(ctx context.Context, pkHashes map[strin
 					if !ok {
 						continue
 					}
-					_, ok = pkHashes[string(apkh.ScriptAddress())]
+					_, ok = addrSet[apkh.Address()]
 					if !ok {
 						continue
 					}
@@ -3311,7 +3364,7 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 
 // DumpWIFPrivateKey returns the WIF encoded private key for a
 // single wallet address.
-func (w *Wallet) DumpWIFPrivateKey(ctx context.Context, addr dcrutil.Address) (string, error) {
+func (w *Wallet) DumpWIFPrivateKey(ctx context.Context, addr payments.Address) (string, error) {
 	const op errors.Op = "wallet.DumpWIFPrivateKey"
 	var privKey *secp256k1.PrivateKey
 	var done func()
@@ -3320,10 +3373,14 @@ func (w *Wallet) DumpWIFPrivateKey(ctx context.Context, addr dcrutil.Address) (s
 			done()
 		}
 	}()
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
+	utilAddr, err := payments.AddressToUtilAddress(addr, w.chainParams)
+	if err != nil {
+		return "", errors.E(op, err)
+	}
+	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		var err error
-		privKey, done, err = w.manager.PrivateKey(addrmgrNs, addr)
+		privKey, done, err = w.manager.PrivateKey(addrmgrNs, utilAddr)
 		return err
 	})
 	if err != nil {
@@ -3342,13 +3399,16 @@ func (w *Wallet) DumpWIFPrivateKey(ctx context.Context, addr dcrutil.Address) (s
 func (w *Wallet) ImportPrivateKey(ctx context.Context, wif *dcrutil.WIF) (string, error) {
 	const op errors.Op = "wallet.ImportPrivateKey"
 	// Attempt to import private key into wallet.
-	var addr dcrutil.Address
+	var addr payments.Address
 	var props *udb.AccountProperties
 	err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 		maddr, err := w.manager.ImportPrivateKey(addrmgrNs, wif)
+		if err != nil {
+			return err
+		}
+		addr, err = wrapManagedAddress(maddr, "imported", AccountKindImported)
 		if err == nil {
-			addr = maddr.Address()
 			props, err = w.manager.AccountProperties(
 				addrmgrNs, udb.ImportedAddrAccount)
 		}
@@ -3359,13 +3419,13 @@ func (w *Wallet) ImportPrivateKey(ctx context.Context, wif *dcrutil.WIF) (string
 	}
 
 	if n, err := w.NetworkBackend(); err == nil {
-		err := n.LoadTxFilter(ctx, false, []dcrutil.Address{addr}, nil)
+		err := n.LoadTxFilter(ctx, false, []payments.Address{addr}, nil)
 		if err != nil {
 			return "", errors.E(op, err)
 		}
 	}
 
-	addrStr := addr.Address()
+	addrStr := addr.String()
 	log.Infof("Imported payment address %s", addrStr)
 
 	w.NtfnServer.notifyAccountProperties(props)
@@ -3386,9 +3446,12 @@ func (w *Wallet) ImportScript(ctx context.Context, rs []byte) error {
 			return err
 		}
 
-		addr := mscriptaddr.Address()
+		addr, err := wrapManagedAddress(mscriptaddr, "imported", AccountKindImported)
+		if err != nil {
+			return err
+		}
 		if n, err := w.NetworkBackend(); err == nil {
-			addrs := []dcrutil.Address{addr}
+			addrs := []payments.Address{addr}
 			err := n.LoadTxFilter(ctx, false, addrs, nil)
 			if err != nil {
 				return err
@@ -4051,7 +4114,8 @@ func (w *Wallet) TotalReceivedForAccounts(ctx context.Context, minConf int32) ([
 // TotalReceivedForAddr iterates through a wallet's transaction history,
 // returning the total amount of decred received for a single wallet
 // address.
-func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr dcrutil.Address, minConf int32) (dcrutil.Amount, error) {
+func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr payments.Address,
+	minConf int32) (dcrutil.Amount, error) {
 	const op errors.Op = "wallet.TotalReceivedForAddr"
 	var amount dcrutil.Amount
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
@@ -4060,7 +4124,7 @@ func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr dcrutil.Address,
 		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		var (
-			addrStr    = addr.Address()
+			addrStr    = addr.String()
 			stopHeight int32
 		)
 
@@ -4298,7 +4362,7 @@ func (w *Wallet) SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType t
 // CreateSignature returns the raw signature created by the private key of addr
 // for tx's idx'th input script and the serialized compressed pubkey for the
 // address.
-func (w *Wallet) CreateSignature(ctx context.Context, tx *wire.MsgTx, idx uint32, addr dcrutil.Address,
+func (w *Wallet) CreateSignature(ctx context.Context, tx *wire.MsgTx, idx uint32, addr payments.Address,
 	hashType txscript.SigHashType, prevPkScript []byte) (sig, pubkey []byte, err error) {
 	const op errors.Op = "wallet.CreateSignature"
 	var privKey *secp256k1.PrivateKey
@@ -4313,7 +4377,10 @@ func (w *Wallet) CreateSignature(ctx context.Context, tx *wire.MsgTx, idx uint32
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
-		var err error
+		addr, err := payments.AddressToUtilAddress(addr, w.chainParams)
+		if err != nil {
+			return err
+		}
 		privKey, done, err = w.manager.PrivateKey(ns, addr)
 		if err != nil {
 			return err
@@ -4422,7 +4489,7 @@ func (w *Wallet) appendRelevantOutpoints(relevant []wire.OutPoint, dbtx walletdb
 		switch class {
 		case txscript.StakeSubmissionTy, txscript.StakeSubChangeTy,
 			txscript.StakeGenTy, txscript.StakeRevocationTy:
-			tree = wire.TxTreeStake
+			op.Tree = wire.TxTreeStake
 		}
 
 		for _, a := range addrs {
@@ -4765,7 +4832,7 @@ func decodeStakePoolColdExtKey(encStr string, params *chaincfg.Params) (map[stri
 
 	addrMap := make(map[string]struct{})
 	for i := range addrs {
-		addrMap[addrs[i].Address()] = struct{}{}
+		addrMap[addrs[i].String()] = struct{}{}
 	}
 
 	return addrMap, nil
@@ -4807,14 +4874,31 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		return nil, errors.E(op, err)
 	}
 
+	var votingAddress, poolAddress payments.StakeAddress
+	switch addr := cfg.VotingAddress.(type) {
+	case nil:
+	case payments.StakeAddress:
+		votingAddress = addr
+	default:
+		err := errors.Errorf("%v is not usable as a voting address", addr)
+		return nil, errors.E(op, err)
+	}
+	switch addr := cfg.PoolAddress.(type) {
+	case nil:
+	case payments.StakeAddress:
+		poolAddress = addr
+	default:
+		err := errors.Errorf("%v is not usable as a VSP fee commitment address", addr)
+		return nil, errors.E(op, err)
+	}
+
 	w := &Wallet{
 		db: db,
 
 		// StakeOptions
 		votingEnabled: cfg.VotingEnabled,
-		addressReuse:  cfg.AddressReuse,
-		ticketAddress: cfg.VotingAddress,
-		poolAddress:   cfg.PoolAddress,
+		ticketAddress: votingAddress,
+		poolAddress:   poolAddress,
 		poolFees:      cfg.PoolFees,
 
 		// LoaderOptions

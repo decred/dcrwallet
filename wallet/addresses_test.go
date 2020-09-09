@@ -12,6 +12,7 @@ import (
 	"os"
 	"testing"
 
+	"decred.org/dcrwallet/payments"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
@@ -165,7 +166,7 @@ func setupWallet(t *testing.T, cfg *Config) (*Wallet, walletdb.DB, func()) {
 	return w, db, teardown
 }
 
-type newAddressFunc func(*Wallet, context.Context, uint32, ...NextAddressCallOption) (dcrutil.Address, error)
+type newAddressFunc func(*Wallet, context.Context, uint32, ...NextAddressCallOption) (Address, error)
 
 func testKnownAddresses(tc *testContext, prefix string, unlock bool, newAddr newAddressFunc, tests []expectedAddr) {
 	w, db, teardown := setupWallet(tc.t, &walletConfig)
@@ -341,9 +342,13 @@ func useAddress(child uint32) func(t *testing.T, w *Wallet) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		utilAddr, err := payments.AddressToUtilAddress(addr, basicWalletConfig.Params)
+		if err != nil {
+			t.Fatal(err)
+		}
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			ns := dbtx.ReadWriteBucket(waddrmgrBucketKey)
-			ma, err := w.manager.Address(ns, addr)
+			ma, err := w.manager.Address(ns, utilAddr)
 			if err != nil {
 				return err
 			}
