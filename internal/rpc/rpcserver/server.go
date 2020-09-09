@@ -3380,3 +3380,62 @@ func (s *walletServer) GetCoinjoinOutputspByAcct(ctx context.Context, req *pb.Ge
 		Data: resp,
 	}, nil
 }
+
+func (s *walletServer) SetAccountPassphrase(ctx context.Context, req *pb.SetAccountPassphraseRequest) (
+	*pb.SetAccountPassphraseResponse, error) {
+	defer zero(req.Passphrase)
+
+	_, err := s.wallet.AccountName(ctx, req.AccountNumber)
+	if err != nil {
+		if errors.Is(err, errors.NotExist) {
+			return nil, status.Errorf(codes.NotFound, "account not found")
+		}
+		return nil, err
+	}
+
+	lock := make(chan time.Time, 1)
+	defer func() {
+		lock <- time.Time{} // send matters, not the value
+	}()
+	err = s.wallet.Unlock(ctx, req.Passphrase, lock)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	err = s.wallet.SetAccountPassphrase(ctx, req.AccountNumber, []byte(req.AccountPassphrase))
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.SetAccountPassphraseResponse{}, nil
+}
+
+func (s *walletServer) UnlockAccount(ctx context.Context, req *pb.UnlockAccountRequest) (
+	*pb.UnlockAccountResponse, error) {
+	_, err := s.wallet.AccountName(ctx, req.AccountNumber)
+	if err != nil {
+		if errors.Is(err, errors.NotExist) {
+			return nil, status.Errorf(codes.NotFound, "account not found")
+		}
+		return nil, err
+	}
+	err = s.wallet.UnlockAccount(ctx, req.AccountNumber, []byte(req.Passphrase))
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.UnlockAccountResponse{}, nil
+}
+
+func (s *walletServer) LockAccount(ctx context.Context, req *pb.LockAccountRequest) (
+	*pb.LockAccountResponse, error) {
+	_, err := s.wallet.AccountName(ctx, req.AccountNumber)
+	if err != nil {
+		if errors.Is(err, errors.NotExist) {
+			return nil, status.Errorf(codes.NotFound, "account not found")
+		}
+		return nil, translateError(err)
+	}
+	err = s.wallet.LockAccount(ctx, req.AccountNumber)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.LockAccountResponse{}, nil
+}
