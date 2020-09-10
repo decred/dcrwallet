@@ -210,6 +210,8 @@ message AccountsResponse {
 		uint32 external_key_count = 4;
 		uint32 internal_key_count = 5;
 		uint32 imported_key_count = 6;
+		bool account_encrypted = 7;
+		bool account_unlocked = 8;
 	}
 	repeated Account accounts = 1;
 	bytes current_block_hash = 2;
@@ -1192,9 +1194,11 @@ message GetCoinjoinOutputspByAcctResponse {
 }
 
 message SetAccountPassphraseRequest {
-	bytes passphrase = 1;
-	bytes account_passphrase = 2;
+	bytes account_passphrase = 1;
+	bytes new_account_passphrase = 2;
 	uint32 account_number = 3;
+	// used only in case account pass not yet set.
+	bytes wallet_passphrase = 4;
 }
 
 message UnlockAccountRequest {
@@ -1203,7 +1207,7 @@ message UnlockAccountRequest {
 }
 
 message LockAccountRequest {
-	uint32 account_number = 2;
+	uint32 account_number = 1;
 }
 
 message SetAccountPassphraseResponse {}

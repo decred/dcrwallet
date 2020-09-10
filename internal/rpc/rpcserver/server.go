@@ -3383,8 +3383,6 @@ func (s *walletServer) GetCoinjoinOutputspByAcct(ctx context.Context, req *pb.Ge
 
 func (s *walletServer) SetAccountPassphrase(ctx context.Context, req *pb.SetAccountPassphraseRequest) (
 	*pb.SetAccountPassphraseResponse, error) {
-	defer zero(req.Passphrase)
-
 	_, err := s.wallet.AccountName(ctx, req.AccountNumber)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
@@ -3392,16 +3390,34 @@ func (s *walletServer) SetAccountPassphrase(ctx context.Context, req *pb.SetAcco
 		}
 		return nil, err
 	}
-
-	lock := make(chan time.Time, 1)
-	defer func() {
-		lock <- time.Time{} // send matters, not the value
-	}()
-	err = s.wallet.Unlock(ctx, req.Passphrase, lock)
+	encryptedAcct, err := s.wallet.AccountHasPassphrase(ctx, req.AccountNumber)
 	if err != nil {
-		return nil, translateError(err)
+		return nil, err
 	}
-	err = s.wallet.SetAccountPassphrase(ctx, req.AccountNumber, []byte(req.AccountPassphrase))
+	// if account is not encrypted we need to unlock the wallet. Otherwise it is
+	// used the account passphrase for it.
+	if encryptedAcct {
+		err = s.wallet.UnlockAccount(ctx, req.AccountNumber, []byte(req.AccountPassphrase))
+		if err != nil {
+			return nil, translateError(err)
+		}
+		defer func() {
+			zero(req.AccountPassphrase)
+			err = s.wallet.LockAccount(ctx, req.AccountNumber)
+		}()
+	} else {
+		lock := make(chan time.Time, 1)
+		defer func() {
+			zero(req.WalletPassphrase)
+			lock <- time.Time{} // send matters, not the value
+		}()
+		err = s.wallet.Unlock(ctx, req.WalletPassphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
+	}
+
+	err = s.wallet.SetAccountPassphrase(ctx, req.AccountNumber, []byte(req.NewAccountPassphrase))
 	if err != nil {
 		return nil, translateError(err)
 	}
