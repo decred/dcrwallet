@@ -347,6 +347,8 @@ func (s *walletServer) Accounts(ctx context.Context, req *pb.AccountsRequest) (*
 			ExternalKeyCount: a.LastUsedExternalIndex + 20, // Add gap limit
 			InternalKeyCount: a.LastUsedInternalIndex + 20,
 			ImportedKeyCount: a.ImportedKeyCount,
+			AccountEncrypted: a.AccountEncrypted,
+			AccountUnlocked:  a.AccountUnlocked,
 		}
 	}
 	return &pb.AccountsResponse{
