@@ -10,7 +10,7 @@ import (
 )
 
 func (v *VSP) PoolFee(ctx context.Context) (float64, error) {
-	url := "https://" + v.hostname + apiVSPInfo
+	url := protocol + v.hostname + apiVSPInfo
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
