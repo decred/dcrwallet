@@ -3396,10 +3396,11 @@ func (s *walletServer) SetAccountPassphrase(ctx context.Context, req *pb.SetAcco
 	if err != nil {
 		return nil, err
 	}
+
 	// if account is not encrypted we need to unlock the wallet. Otherwise it is
 	// used the account passphrase for it.
 	if encryptedAcct {
-		err = s.wallet.UnlockAccount(ctx, req.AccountNumber, []byte(req.AccountPassphrase))
+		err = s.wallet.UnlockAccount(ctx, req.AccountNumber, req.AccountPassphrase)
 		if err != nil {
 			return nil, translateError(err)
 		}
@@ -3419,7 +3420,7 @@ func (s *walletServer) SetAccountPassphrase(ctx context.Context, req *pb.SetAcco
 		}
 	}
 
-	err = s.wallet.SetAccountPassphrase(ctx, req.AccountNumber, []byte(req.NewAccountPassphrase))
+	err = s.wallet.SetAccountPassphrase(ctx, req.AccountNumber, req.NewAccountPassphrase)
 	if err != nil {
 		return nil, translateError(err)
 	}
