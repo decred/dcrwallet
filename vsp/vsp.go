@@ -298,5 +298,9 @@ func (v *VSP) Process(ctx context.Context, queuedItem *Queue) (*chainhash.Hash, 
 			dcrutil.Amount(totalValue), feeAmount)
 	}
 
-	return v.PayFee(ctx, ticketHash, credits)
+	feeTx, err := v.createFeeTx(ctx, ticketHash, credits)
+	if err != nil {
+		return nil, err
+	}
+	return v.PayFee(ctx, ticketHash, feeTx)
 }
