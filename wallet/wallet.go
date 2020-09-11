@@ -3252,6 +3252,7 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 			// private key (currently it only checks whether the pubkey
 			// exists, since the private key is required at the moment).
 			var spendable bool
+			var redeemScript []byte
 		scSwitch:
 			switch sc {
 			case txscript.PubKeyHashTy:
@@ -3260,6 +3261,13 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 				spendable = true
 			case txscript.ScriptHashTy:
 				spendable = true
+				if len(addrs) != 1 {
+					return errors.Errorf("invalid address count for pay-to-script-hash output")
+				}
+				redeemScript, err = w.manager.RedeemScript(addrmgrNs, addrs[0])
+				if err != nil {
+					return err
+				}
 			case txscript.StakeGenTy:
 				spendable = true
 			case txscript.StakeRevocationTy:
@@ -3286,6 +3294,7 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 				Tree:          output.OutPoint.Tree,
 				Account:       acctName,
 				ScriptPubKey:  hex.EncodeToString(output.PkScript),
+				RedeemScript:  hex.EncodeToString(redeemScript),
 				TxType:        int(details.TxType),
 				Amount:        output.Amount.ToCoin(),
 				Confirmations: int64(confs),
