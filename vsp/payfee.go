@@ -22,7 +22,7 @@ import (
 	"github.com/decred/dcrd/wire"
 )
 
-func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, credits []wallet.Input) (*chainhash.Hash, error) {
+func (v *VSP) createFeeTx(ctx context.Context, ticketHash *chainhash.Hash, credits []wallet.Input) (*wire.MsgTx, error) {
 	if ticketHash == nil {
 		return nil, fmt.Errorf("nil tickethash")
 	}
@@ -153,12 +153,31 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, credits []
 		}
 		return nil, err
 	}
+
+	return feeTx.Tx, nil
+}
+
+func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx) (*chainhash.Hash, error) {
+	if ticketHash == nil {
+		return nil, fmt.Errorf("nil tickethash")
+	}
+	if feeTx == nil {
+		return nil, fmt.Errorf("nil fee tx")
+	}
+
 	txBuf := new(bytes.Buffer)
-	txBuf.Grow(feeTx.Tx.SerializeSize())
-	err = feeTx.Tx.Serialize(txBuf)
+	txBuf.Grow(feeTx.SerializeSize())
+	err := feeTx.Serialize(txBuf)
 	if err != nil {
 		log.Errorf("failed to serialize fee transaction: %v", err)
 		return nil, err
+	}
+
+	v.ticketToFeeMu.Lock()
+	feeInfo, exists := v.ticketToFeeMap[*ticketHash]
+	v.ticketToFeeMu.Unlock()
+	if !exists {
+		return nil, fmt.Errorf("call GetFeeAddress first")
 	}
 
 	votingKeyWIF, err := v.w.DumpWIFPrivateKey(ctx, feeInfo.VotingAddress)
@@ -232,14 +251,14 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, credits []
 	}
 
 	v.ticketToFeeMu.Lock()
-	feeInfo.FeeTx = feeTx.Tx
+	feeInfo.FeeTx = feeTx
 	v.ticketToFeeMap[*ticketHash] = feeInfo
 	v.ticketToFeeMu.Unlock()
 	v.c.Watch([]*chainhash.Hash{ticketHash}, requiredConfs)
 
 	log.Infof("successfully processed %v", ticketHash)
 
-	feeTxHash := feeTx.Tx.TxHash()
+	feeTxHash := feeTx.TxHash()
 	return &feeTxHash, nil
 }
 
