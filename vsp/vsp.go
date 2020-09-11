@@ -45,7 +45,7 @@ type VSP struct {
 	queue    chan *Queue
 
 	outpointsMu sync.Mutex
-	outpoints   map[chainhash.Hash][]wallet.Input
+	outpoints   map[chainhash.Hash]*wire.MsgTx
 
 	ticketToFeeMu  sync.Mutex
 	feeToTicketMap map[chainhash.Hash]chainhash.Hash
@@ -80,7 +80,7 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 		queue:           make(chan *Queue, 256),
 		purchaseAccount: purchaseAccount,
 		changeAccount:   changeAccount,
-		outpoints:       make(map[chainhash.Hash][]wallet.Input),
+		outpoints:       make(map[chainhash.Hash]*wire.MsgTx),
 		feeToTicketMap:  make(map[chainhash.Hash]chainhash.Hash),
 		ticketToFeeMap:  make(map[chainhash.Hash]PendingFee),
 	}
@@ -185,10 +185,11 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 				if exists {
 					delete(v.outpoints, txHash)
 					go func() {
-						for _, credit := range credits {
-							w.UnlockOutpoint(&credit.OutPoint.Hash, credit.OutPoint.Index)
+						for _, input := range credits.TxIn {
+							outpoint := input.PreviousOutPoint
+							w.UnlockOutpoint(&outpoint.Hash, outpoint.Index)
 							log.Infof("unlocked outpoint %v for deleted ticket %s",
-								credit.OutPoint, txHash)
+								outpoint, txHash)
 						}
 					}()
 				}
@@ -209,14 +210,14 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 				feeTxHash, err := v.Process(ctx, queuedItem)
 				if err != nil {
 					log.Warnf("Failed to process queued ticket %v", queuedItem.TicketHash)
-					for _, credit := range queuedItem.Credits {
-						outpoint := credit.OutPoint
+					for _, input := range queuedItem.FeeTx.TxIn {
+						outpoint := input.PreviousOutPoint
 						go func() { w.UnlockOutpoint(&outpoint.Hash, outpoint.Index) }()
 					}
 					continue
 				}
 				v.outpointsMu.Lock()
-				v.outpoints[*feeTxHash] = queuedItem.Credits
+				v.outpoints[*feeTxHash] = queuedItem.FeeTx
 				v.outpointsMu.Unlock()
 			}
 		}
@@ -227,13 +228,13 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 
 type Queue struct {
 	TicketHash *chainhash.Hash
-	Credits    []wallet.Input
+	FeeTx      *wire.MsgTx
 }
 
-func (v *VSP) Queue(ctx context.Context, ticketHash chainhash.Hash, credits []wallet.Input) {
+func (v *VSP) Queue(ctx context.Context, ticketHash chainhash.Hash, feeTx *wire.MsgTx) {
 	queuedTicket := &Queue{
 		TicketHash: &ticketHash,
-		Credits:    credits,
+		FeeTx:      feeTx,
 	}
 	select {
 	case v.queue <- queuedTicket:
@@ -275,7 +276,6 @@ func (v *VSP) Sync(ctx context.Context) {
 
 func (v *VSP) Process(ctx context.Context, queuedItem *Queue) (*chainhash.Hash, error) {
 	ticketHash := queuedItem.TicketHash
-	credits := queuedItem.Credits
 
 	feeAmount, err := v.GetFeeAddress(ctx, ticketHash)
 	if err != nil {
@@ -283,24 +283,30 @@ func (v *VSP) Process(ctx context.Context, queuedItem *Queue) (*chainhash.Hash, 
 	}
 
 	var totalValue int64
-	if len(credits) == 0 {
+	feeTx := queuedItem.FeeTx
+	if feeTx == nil {
 		const minconf = 1
-		credits, err = v.w.ReserveOutputsForAmount(ctx, v.purchaseAccount, feeAmount, minconf)
+		credits, err := v.w.ReserveOutputsForAmount(ctx, v.purchaseAccount, feeAmount, minconf)
+		if err != nil {
+			return nil, err
+		}
+		for _, credit := range credits {
+			totalValue += credit.PrevOut.Value
+		}
+		if dcrutil.Amount(totalValue) < feeAmount {
+			return nil, fmt.Errorf("reserved credits insufficient: %v < %v",
+				dcrutil.Amount(totalValue), feeAmount)
+		}
+
+		feeTx, err = v.CreateFeeTx(ctx, ticketHash, credits)
 		if err != nil {
 			return nil, err
 		}
 	}
-	for _, credit := range credits {
-		totalValue += credit.PrevOut.Value
-	}
-	if dcrutil.Amount(totalValue) < feeAmount {
-		return nil, fmt.Errorf("reserved credits insufficient: %v < %v",
-			dcrutil.Amount(totalValue), feeAmount)
-	}
-
-	feeTx, err := v.createFeeTx(ctx, ticketHash, credits)
+	paidTx, err := v.PayFee(ctx, ticketHash, feeTx)
 	if err != nil {
 		return nil, err
 	}
-	return v.PayFee(ctx, ticketHash, feeTx)
+	txHash := paidTx.TxHash()
+	return &txHash, nil
 }

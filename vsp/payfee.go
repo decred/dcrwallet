@@ -22,7 +22,7 @@ import (
 	"github.com/decred/dcrd/wire"
 )
 
-func (v *VSP) createFeeTx(ctx context.Context, ticketHash *chainhash.Hash, credits []wallet.Input) (*wire.MsgTx, error) {
+func (v *VSP) CreateFeeTx(ctx context.Context, ticketHash *chainhash.Hash, credits []wallet.Input) (*wire.MsgTx, error) {
 	if ticketHash == nil {
 		return nil, fmt.Errorf("nil tickethash")
 	}
@@ -157,7 +157,7 @@ func (v *VSP) createFeeTx(ctx context.Context, ticketHash *chainhash.Hash, credi
 	return feeTx.Tx, nil
 }
 
-func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx) (*chainhash.Hash, error) {
+func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx) (*wire.MsgTx, error) {
 	if ticketHash == nil {
 		return nil, fmt.Errorf("nil tickethash")
 	}
@@ -258,8 +258,7 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wir
 
 	log.Infof("successfully processed %v", ticketHash)
 
-	feeTxHash := feeTx.TxHash()
-	return &feeTxHash, nil
+	return feeTx, nil
 }
 
 type changeSource struct {
