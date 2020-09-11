@@ -458,7 +458,7 @@ var helpDescsEnUS = map[string]string{
 	"listunspentresult-address":       "The payment address that received the output",
 	"listunspentresult-account":       "The account associated with the receiving payment address",
 	"listunspentresult-scriptPubKey":  "The output script encoded as a hexadecimal string",
-	"listunspentresult-redeemScript":  "Unset",
+	"listunspentresult-redeemScript":  "The redeemScript if scriptPubKey is P2SH",
 	"listunspentresult-amount":        "The amount of the output valued in decred",
 	"listunspentresult-confirmations": "The number of block confirmations of the transaction",
 	"listunspentresult-spendable":     "Whether the output is entirely controlled by wallet keys/scripts (false for partially controlled multisig outputs or outputs to watch-only addresses)",
