@@ -204,10 +204,10 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wir
 		return nil, err
 	}
 
-	url := "https://" + v.hostname + "/api/v3/payfee"
+	url := protocol + v.hostname + "/api/v3/payfee"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(requestBody))
 	if err != nil {
-		log.Errorf("failed to create new http requeust: %v", err)
+		log.Errorf("failed to create new http request: %v", err)
 		return nil, err
 	}
 	signature, err := v.w.SignMessage(ctx, string(requestBody), feeInfo.CommitmentAddress)

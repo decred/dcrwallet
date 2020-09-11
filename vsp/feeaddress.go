@@ -65,7 +65,7 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash *chainhash.Hash) (dc
 		return 0, err
 	}
 
-	url := "https://" + v.hostname + "/api/v3/feeaddress"
+	url := protocol + v.hostname + "/api/v3/feeaddress"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(requestBody))
 	if err != nil {
 		log.Errorf("failed to create new fee address request: %v", err)

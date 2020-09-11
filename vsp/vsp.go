@@ -21,6 +21,8 @@ const (
 
 	serverSignature = "VSP-Server-Signature"
 	requiredConfs   = 6 + 2
+
+	protocol = "https://"
 )
 
 type PendingFee struct {

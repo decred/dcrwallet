@@ -15,7 +15,7 @@ import (
 )
 
 func (v *VSP) TicketStatus(ctx context.Context, hash *chainhash.Hash) (*TicketStatusResponse, error) {
-	url := "https://" + v.hostname + "/api/v3/ticketstatus"
+	url := protocol + v.hostname + "/api/v3/ticketstatus"
 
 	txs, _, err := v.w.GetTransactionsByHashes(ctx, []*chainhash.Hash{hash})
 	if err != nil {
