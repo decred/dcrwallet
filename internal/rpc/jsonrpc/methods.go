@@ -46,10 +46,10 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "8.2.1"
+	jsonrpcSemverString = "8.3.0"
 	jsonrpcSemverMajor  = 8
-	jsonrpcSemverMinor  = 2
-	jsonrpcSemverPatch  = 1
+	jsonrpcSemverMinor  = 3
+	jsonrpcSemverPatch  = 0
 )
 
 // confirms returns the number of confirmations for a transaction in a block at
