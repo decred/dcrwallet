@@ -338,10 +338,15 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 			log.Infof("Purchased ticket %v at stake difficulty %v", hash, sdiff)
 
 			if tb.cfg.VSP != nil {
-				credit := credits[i]
 				txHash := *hash
+				credit := credits[i]
+				feeTx, err := tb.cfg.VSP.CreateFeeTx(ctx, &txHash, credit)
+				if err != nil {
+					log.Errorf("failed to create vsp feetx for ticket %v: %v", txHash, err)
+					continue
+				}
 				go func() {
-					tb.cfg.VSP.Queue(ctx, txHash, credit)
+					tb.cfg.VSP.Queue(ctx, txHash, feeTx)
 				}()
 			}
 		}
