@@ -580,6 +580,8 @@ message PurchaseTicketsRequest {
 	uint32 mixed_account_branch = 15;
 	uint32 mixed_split_account = 16;
 	uint32 change_account = 17;
+	string vsp_host = 18;
+	string vsp_pubkey = 19;
 }
 message PurchaseTicketsResponse {
 	repeated bytes ticket_hashes = 1;

@@ -2440,6 +2440,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	// new vspd request
 	var vspHost string
 	var vspPubKey string
+	var vspServer *vsp.VSP
 	if req.VspHost != "" || req.VspPubkey != "" {
 		vspHost = req.VspHost
 		vspPubKey = req.VspPubkey
@@ -2449,14 +2450,13 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		if vspHost == "" {
 			return status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 		}
+		vspServer, err = vsp.New(vspHost, vspPubKey, req.Account, req.Account, nil, wallet, params)
+		if err != nil {
+			return status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
+		}
 	}
 	if req.BalanceToMaintain < 0 {
 		return status.Errorf(codes.InvalidArgument, "Negative balance to maintain given")
-	}
-
-	vspServer, err := vsp.New(vspHost, vspPubKey, req.Account, req.Account, nil, wallet, params)
-	if err != nil {
-		return status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
 	}
 
 	tb := ticketbuyer.New(wallet)
