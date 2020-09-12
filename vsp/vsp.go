@@ -44,7 +44,7 @@ type VSP struct {
 	changeAccount   uint32
 
 	queueMtx sync.Mutex
-	queue    chan *Queue
+	queue    chan *QueueEntry
 
 	outpointsMu sync.Mutex
 	outpoints   map[chainhash.Hash]*wire.MsgTx
@@ -79,7 +79,7 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 		params:          params,
 		w:               w,
 		c:               c,
-		queue:           make(chan *Queue, 256),
+		queue:           make(chan *QueueEntry, 256),
 		purchaseAccount: purchaseAccount,
 		changeAccount:   changeAccount,
 		outpoints:       make(map[chainhash.Hash]*wire.MsgTx),
@@ -228,13 +228,13 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 	return v, nil
 }
 
-type Queue struct {
+type QueueEntry struct {
 	TicketHash *chainhash.Hash
 	FeeTx      *wire.MsgTx
 }
 
 func (v *VSP) Queue(ctx context.Context, ticketHash chainhash.Hash, feeTx *wire.MsgTx) {
-	queuedTicket := &Queue{
+	queuedTicket := &QueueEntry{
 		TicketHash: &ticketHash,
 		FeeTx:      feeTx,
 	}
@@ -276,7 +276,7 @@ func (v *VSP) Sync(ctx context.Context) {
 	}
 }
 
-func (v *VSP) Process(ctx context.Context, queuedItem *Queue) (*chainhash.Hash, error) {
+func (v *VSP) Process(ctx context.Context, queuedItem *QueueEntry) (*chainhash.Hash, error) {
 	ticketHash := queuedItem.TicketHash
 
 	feeAmount, err := v.GetFeeAddress(ctx, ticketHash)
