@@ -536,7 +536,7 @@ var helpDescsEnUS = map[string]string{
 	// SendRawTransactionCmd help.
 	"sendrawtransaction--synopsis":     "Submits the serialized, hex-encoded transaction to the local peer and relays it to the network.",
 	"sendrawtransaction-hextx":         "Serialized, hex-encoded signed transaction",
-	"sendrawtransaction-allowhighfees": "Whether or not to allow insanely high fees (not yet implemented, so has no effect)",
+	"sendrawtransaction-allowhighfees": "Whether or not to allow insanely high fees",
 	"sendrawtransaction--result0":      "The transaction hash of the sent transaction",
 
 	// SetGenerate help
