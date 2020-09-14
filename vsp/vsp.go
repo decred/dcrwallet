@@ -44,7 +44,7 @@ type VSP struct {
 	changeAccount   uint32
 
 	queueMtx sync.Mutex
-	queue    chan *QueueEntry
+	queue    chan *queueEntry
 
 	outpointsMu sync.Mutex
 	outpoints   map[chainhash.Hash]*wire.MsgTx
@@ -79,7 +79,7 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 		params:          params,
 		w:               w,
 		c:               c,
-		queue:           make(chan *QueueEntry, 256),
+		queue:           make(chan *queueEntry, 256),
 		purchaseAccount: purchaseAccount,
 		changeAccount:   changeAccount,
 		outpoints:       make(map[chainhash.Hash]*wire.MsgTx),
@@ -209,7 +209,7 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 				break
 
 			case queuedItem := <-v.queue:
-				feeTxHash, err := v.Process(ctx, queuedItem)
+				feeTxHash, err := v.Process(ctx, queuedItem.TicketHash, queuedItem.FeeTx)
 				if err != nil {
 					log.Warnf("Failed to process queued ticket %v", queuedItem.TicketHash)
 					for _, input := range queuedItem.FeeTx.TxIn {
@@ -228,13 +228,13 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 	return v, nil
 }
 
-type QueueEntry struct {
+type queueEntry struct {
 	TicketHash *chainhash.Hash
 	FeeTx      *wire.MsgTx
 }
 
 func (v *VSP) Queue(ctx context.Context, ticketHash chainhash.Hash, feeTx *wire.MsgTx) {
-	queuedTicket := &QueueEntry{
+	queuedTicket := &queueEntry{
 		TicketHash: &ticketHash,
 		FeeTx:      feeTx,
 	}
@@ -276,16 +276,13 @@ func (v *VSP) Sync(ctx context.Context) {
 	}
 }
 
-func (v *VSP) Process(ctx context.Context, queuedItem *QueueEntry) (*chainhash.Hash, error) {
-	ticketHash := queuedItem.TicketHash
-
+func (v *VSP) Process(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx) (*chainhash.Hash, error) {
 	feeAmount, err := v.GetFeeAddress(ctx, ticketHash)
 	if err != nil {
 		return nil, err
 	}
 
 	var totalValue int64
-	feeTx := queuedItem.FeeTx
 	if feeTx == nil {
 		const minconf = 1
 		credits, err := v.w.ReserveOutputsForAmount(ctx, v.purchaseAccount, feeAmount, minconf)
