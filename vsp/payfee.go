@@ -34,7 +34,16 @@ func (v *VSP) CreateFeeTx(ctx context.Context, ticketHash *chainhash.Hash, credi
 	feeInfo, exists := v.ticketToFeeMap[*ticketHash]
 	v.ticketToFeeMu.Unlock()
 	if !exists {
-		return nil, fmt.Errorf("call GetFeeAddress first")
+		_, err := v.GetFeeAddress(ctx, ticketHash)
+		if err != nil {
+			return nil, err
+		}
+		v.ticketToFeeMu.Lock()
+		feeInfo, exists = v.ticketToFeeMap[*ticketHash]
+		v.ticketToFeeMu.Unlock()
+		if !exists {
+			return nil, fmt.Errorf("failed to find fee info for ticket %v", ticketHash)
+		}
 	}
 
 	// validate credits
