@@ -166,6 +166,8 @@ func (v *VSP) CreateFeeTx(ctx context.Context, ticketHash *chainhash.Hash, credi
 	return feeTx.Tx, nil
 }
 
+// PayFee receives an unsigned fee tx, signs it and make a pays fee request to
+// the vsp, so the ticket get registered.
 func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx) (*wire.MsgTx, error) {
 	if ticketHash == nil {
 		return nil, fmt.Errorf("nil tickethash")

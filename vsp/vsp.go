@@ -200,7 +200,7 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 		}
 	}()
 
-	// Launch routine to process tickets.
+	// Launch routine to pay fee of processed tickets.
 	go func() {
 		for {
 			select {
@@ -211,7 +211,7 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 			case queuedItem := <-v.queue:
 				feeTxHash, err := v.Process(ctx, queuedItem.TicketHash, queuedItem.FeeTx)
 				if err != nil {
-					log.Warnf("Failed to process queued ticket %v", queuedItem.TicketHash)
+					log.Warnf("Failed to process queued ticket %v, err: %v", queuedItem.TicketHash, err)
 					for _, input := range queuedItem.FeeTx.TxIn {
 						outpoint := input.PreviousOutPoint
 						go func() { w.UnlockOutpoint(&outpoint.Hash, outpoint.Index) }()
@@ -264,6 +264,7 @@ func (v *VSP) Sync(ctx context.Context) {
 			default:
 				continue
 			}
+			// TODO get unpublished fee txs here and sync them
 			v.Queue(ctx, *ticketSummary.Ticket.Hash, nil)
 		}
 
