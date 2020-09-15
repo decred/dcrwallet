@@ -1657,6 +1657,32 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 			continue
 		}
 
+		// Make sure everything we're trying to spend is actually mature.
+		switch class {
+		case txscript.StakeSubmissionTy:
+			continue
+		case txscript.StakeGenTy:
+			if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
+				continue
+			}
+		case txscript.StakeRevocationTy:
+			if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
+				continue
+			}
+		case txscript.StakeSubChangeTy:
+			if !ticketChangeMatured(w.chainParams, output.Height, currentHeight) {
+				continue
+			}
+		case txscript.PubKeyHashTy:
+			if output.FromCoinBase {
+				if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
+					continue
+				}
+			}
+		default:
+			continue
+		}
+
 		// Only include the output if it is associated with the passed
 		// account.  There should only be one address since this is a
 		// P2PKH script.
