@@ -3503,16 +3503,12 @@ func (s *Server) sendRawTransaction(ctx context.Context, icmd interface{}) (inte
 	}
 
 	n, err := w.NetworkBackend()
-	hexStr := cmd.HexTx
-	if len(hexStr)%2 != 0 {
-		hexStr = "0" + hexStr
-	}
-	serializedTx, err := hex.DecodeString(hexStr)
 	if err != nil {
-		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+		return nil, err
 	}
+
 	msgtx := wire.NewMsgTx()
-	err = msgtx.Deserialize(bytes.NewReader(serializedTx))
+	err = msgtx.Deserialize(hex.NewDecoder(strings.NewReader(cmd.HexTx)))
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
 	}
