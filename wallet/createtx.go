@@ -1342,6 +1342,47 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 	}()
 
+	var vspFeeCredits [][]Input
+	unlockCredits := true
+	if req.VSPFeePaymentProcess != nil {
+		if req.VSPFeeProcess == nil {
+			return nil, errors.E(op, errors.Invalid,
+				"VSPFeeProcess can not be null if VSPServerProcess exists")
+		}
+		feePrice, err := req.VSPFeeProcess(ctx)
+		if err != nil {
+			return nil, err
+		}
+		fee := txrules.StakePoolTicketFee(ticketPrice, ticketFee,
+			int32(tipHeight), feePrice, w.ChainParams())
+		// Reserve outputs for number of buys.
+		vspFeeCredits = make([][]Input, 0, req.Count)
+		for i := 0; i < req.Count; i++ {
+			credit, err := w.ReserveOutputsForAmount(ctx, req.SourceAccount, fee, req.MinConf)
+			if err != nil {
+				log.Errorf("ReserveOutputsForAmount failed: %v", err)
+				return nil, err
+			}
+			vspFeeCredits = append(vspFeeCredits, credit)
+		}
+		log.Infof("Reserved credits for %d tickets: total fee: %v", req.Count, fee)
+		for _, credit := range vspFeeCredits {
+			for _, c := range credit {
+				log.Debugf("%s reserved for vsp fee transaction", c.OutPoint.String())
+			}
+		}
+	}
+	defer func() {
+		if unlockCredits {
+			for _, credit := range vspFeeCredits {
+				for _, c := range credit {
+					log.Debugf("unlocked unneeded credit for vsp fee tx: %v", c.OutPoint.String())
+					w.UnlockOutpoint(&c.OutPoint.Hash, c.OutPoint.Index)
+				}
+			}
+		}
+	}()
+
 	purchaseTicketsResponse := &PurchaseTicketsResponse{}
 	var splitTx *wire.MsgTx
 	var splitOutputIndexes []int
@@ -1511,7 +1552,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		if err != nil {
 			return purchaseTicketsResponse, errors.E(op, err)
 		}
-
 		// TODO: Send all tickets, and all split transactions, together.  Purge
 		// transactions from DB if tickets cannot be sent.
 		err = n.PublishTransactions(ctx, ticket)
@@ -1521,6 +1561,16 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		log.Infof("Published ticket purchase %v", ticket.TxHash())
 	}
 
+	if req.VSPFeePaymentProcess != nil {
+		unlockCredits = false
+		for i, ticketHash := range purchaseTicketsResponse.TicketHashes {
+			_, err := req.VSPFeePaymentProcess(ctx, ticketHash, vspFeeCredits[i])
+			if err != nil {
+				// TODO save fee tx on db in case of failure?
+				return purchaseTicketsResponse, err
+			}
+		}
+	}
 	return purchaseTicketsResponse, nil
 }
 

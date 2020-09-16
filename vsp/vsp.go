@@ -209,7 +209,7 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 				break
 
 			case queuedItem := <-v.queue:
-				feeTxHash, err := v.Process(ctx, queuedItem.TicketHash, queuedItem.FeeTx)
+				feeTx, err := v.Process(ctx, queuedItem.TicketHash, nil)
 				if err != nil {
 					log.Warnf("Failed to process queued ticket %v, err: %v", queuedItem.TicketHash, err)
 					for _, input := range queuedItem.FeeTx.TxIn {
@@ -219,7 +219,7 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 					continue
 				}
 				v.outpointsMu.Lock()
-				v.outpoints[*feeTxHash] = queuedItem.FeeTx
+				v.outpoints[feeTx.TxHash()] = queuedItem.FeeTx
 				v.outpointsMu.Unlock()
 			}
 		}
@@ -277,14 +277,14 @@ func (v *VSP) Sync(ctx context.Context) {
 	}
 }
 
-func (v *VSP) Process(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx) (*chainhash.Hash, error) {
+func (v *VSP) Process(ctx context.Context, ticketHash *chainhash.Hash, credits []wallet.Input) (*wire.MsgTx, error) {
 	feeAmount, err := v.GetFeeAddress(ctx, ticketHash)
 	if err != nil {
 		return nil, err
 	}
 
 	var totalValue int64
-	if feeTx == nil {
+	if credits == nil {
 		const minconf = 1
 		credits, err := v.w.ReserveOutputsForAmount(ctx, v.purchaseAccount, feeAmount, minconf)
 		if err != nil {
@@ -297,16 +297,15 @@ func (v *VSP) Process(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wi
 			return nil, fmt.Errorf("reserved credits insufficient: %v < %v",
 				dcrutil.Amount(totalValue), feeAmount)
 		}
+	}
 
-		feeTx, err = v.CreateFeeTx(ctx, ticketHash, credits)
-		if err != nil {
-			return nil, err
-		}
+	feeTx, err := v.CreateFeeTx(ctx, ticketHash, credits)
+	if err != nil {
+		return nil, err
 	}
 	paidTx, err := v.PayFee(ctx, ticketHash, feeTx)
 	if err != nil {
 		return nil, err
 	}
-	txHash := paidTx.TxHash()
-	return &txHash, nil
+	return paidTx, nil
 }
