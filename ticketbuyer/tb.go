@@ -13,8 +13,6 @@ import (
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/vsp"
 	"decred.org/dcrwallet/wallet"
-	"decred.org/dcrwallet/wallet/txrules"
-	"decred.org/dcrwallet/wallet/txsizes"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/wire"
 )
@@ -269,50 +267,6 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		buy = limit
 	}
 
-	var credits [][]wallet.Input
-	if tb.cfg.VSP != nil {
-		ticketPrice, err := w.NextStakeDifficulty(ctx)
-		if err != nil {
-			return err
-		}
-
-		inSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
-		outSizes := []int{txsizes.P2PKHPkScriptSize + 1,
-			txsizes.TicketCommitmentScriptSize, txsizes.P2PKHPkScriptSize + 1}
-		estSize := txsizes.EstimateSerializeSizeFromScriptSizes(inSizes,
-			outSizes, 0)
-
-		ticketRelayFee := w.RelayFee()
-		ticketFee := txrules.FeeForSerializeSize(ticketRelayFee, estSize)
-
-		poolFee, err := tb.cfg.VSP.PoolFee(ctx)
-		if err != nil {
-			return err
-		}
-
-		fee := txrules.StakePoolTicketFee(ticketPrice, ticketFee,
-			int32(tip.Height), poolFee, w.ChainParams())
-
-		// Reserve outputs for number of buys.
-		credits = make([][]wallet.Input, 0, buy)
-		for i := 0; i < buy; i++ {
-			credit, err := w.ReserveOutputsForAmount(ctx, mixedAccount, fee, minconf)
-			if err != nil {
-				log.Errorf("ReserveOutputsForAmount failed: %v", err)
-				return err
-			}
-			credits = append(credits, credit)
-		}
-		buy = len(credits)
-
-		log.Infof("buy: %d, fee: %d", buy, fee)
-		for _, credit := range credits {
-			for _, c := range credit {
-				log.Infof("%s", c.OutPoint.String())
-			}
-		}
-	}
-
 	tix, err := w.PurchaseTickets(ctx, n, &wallet.PurchaseTicketsRequest{
 		Count:         buy,
 		SourceAccount: account,
@@ -334,44 +288,12 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		VSPFees:    poolFees,
 	})
 	if tix != nil {
-		for i, hash := range tix.TicketHashes {
+		for _, hash := range tix.TicketHashes {
 			log.Infof("Purchased ticket %v at stake difficulty %v", hash, sdiff)
-
-			if tb.cfg.VSP != nil {
-				txHash := *hash
-				credit := credits[i]
-				feeTx, err := tb.cfg.VSP.CreateFeeTx(ctx, &txHash, credit)
-				if err != nil {
-					log.Errorf("failed to create vsp feetx for ticket %v: %v", txHash, err)
-					continue
-				}
-				go func() {
-					tb.cfg.VSP.Queue(ctx, txHash, feeTx)
-				}()
-			}
-		}
-		// unlock unused credits
-		if tb.cfg.VSP != nil {
-			overReserved := len(credits) - len(tix.TicketHashes)
-			for overReserved > 0 {
-				for _, credit := range credits[len(credits)-overReserved:] {
-					for _, c := range credit {
-						log.Infof("unlocked unneeded credit %v", c.OutPoint.String())
-						w.UnlockOutpoint(&c.OutPoint.Hash, c.OutPoint.Index)
-					}
-				}
-				overReserved--
-			}
 		}
 	}
-	if err != nil && tb.cfg.VSP != nil {
+	if err != nil {
 		log.Errorf("BUY: %v", err)
-		for _, credit := range credits {
-			for _, c := range credit {
-				log.Infof("unlocked unneeded credit %v", c.OutPoint.String())
-				w.UnlockOutpoint(&c.OutPoint.Hash, c.OutPoint.Index)
-			}
-		}
 	}
 	return err
 }

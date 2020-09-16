@@ -1469,6 +1469,15 @@ type PurchaseTicketsRequest struct {
 	// VSP ticket buying; not currently usable with CoinShuffle++.
 	VSPAddress dcrutil.Address
 	VSPFees    float64
+
+	// VSPServer methods
+
+	// VSPFeeProcessFunc Process the fee price for the vsp to register a ticket
+	// so we can reserve the amount.
+	VSPFeeProcess func(context.Context) (float64, error)
+	// VSPFeePaymentProcess processes the payment of the vsp fee and returns
+	// the paid fee tx.
+	VSPFeePaymentProcess func(context.Context, *chainhash.Hash, []Input) (*wire.MsgTx, error)
 }
 
 // PurchaseTicketsResponse describes the response for purchasing tickets request.
