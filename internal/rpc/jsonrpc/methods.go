@@ -3997,6 +3997,7 @@ func (s *Server) walletInfo(ctx context.Context, icmd interface{}) (interface{},
 		VoteBitsExtended: hex.EncodeToString(voteBits.ExtendedBits),
 		VoteVersion:      voteVersion,
 		Voting:           voting,
+		ManualTickets:    w.ManualTickets(),
 	}, nil
 }
 

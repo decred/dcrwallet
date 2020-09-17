@@ -399,4 +399,5 @@ type WalletInfoResult struct {
 	VoteBitsExtended string  `json:"votebitsextended"`
 	VoteVersion      uint32  `json:"voteversion"`
 	Voting           bool    `json:"voting"`
+	ManualTickets    bool    `json:"manualtickets"`
 }
