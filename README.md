@@ -72,7 +72,7 @@ Wallet clients interact with the wallet using one of two RPC servers:
 
 Binary releases are provided for common operating systems and architectures.
 Please note that dcrwallet is CLI only. It is included in the
-[CLI app suite](https://github.com/decred/decred-release/releases/tag/v1.5.1).
+[CLI app suite](https://github.com/decred/decred-release/releases/latest).
 If you would prefer a graphical user interface (GUI) instead, consider
 downloading the GUI wallet [Decrediton](https://github.com/decred/decrediton).
 
