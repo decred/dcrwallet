@@ -165,10 +165,15 @@ const (
 	// unless the transaction is abandoned.
 	unpublishedTxsVersion = 18
 
+	// tspendPolicyVersion is the 19th version of the database.  It adds a
+	// top-level bucket for recording voting policy on treasury-spending
+	// transactions.
+	tspendPolicyVersion = 19
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = unpublishedTxsVersion
+	DBVersion = tspendPolicyVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -192,6 +197,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	perTicketVotingPreferencesVersion - 1: perTicketVotingPreferencesUpgrade,
 	accountVariablesVersion - 1:           accountVariablesUpgrade,
 	unpublishedTxsVersion - 1:             unpublishedTxsUpgrade,
+	tspendPolicyVersion - 1:               tspendPolicyUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -730,7 +736,7 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, par
 			// OP_SSTXCHANGE output.
 			out := record.MsgTx.TxOut[extractRawCreditIndex(k)]
 			if stake.IsSStx(&record.MsgTx) &&
-				txscript.GetScriptClass(out.Version, out.PkScript) == txscript.StakeSubChangeTy {
+				txscript.GetScriptClass(out.Version, out.PkScript, true /* Yes treasury */) == txscript.StakeSubChangeTy {
 				vCpy[8] |= 1 << 4
 			}
 
@@ -781,7 +787,7 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, par
 			}
 			out := record.MsgTx.TxOut[idx]
 			if stake.IsSStx(&record.MsgTx) &&
-				txscript.GetScriptClass(out.Version, out.PkScript) == txscript.StakeSubChangeTy {
+				txscript.GetScriptClass(out.Version, out.PkScript, true /* Yes treasury */) == txscript.StakeSubChangeTy {
 				vCpy[8] |= 1 << 4
 			}
 
@@ -1393,6 +1399,30 @@ func unpublishedTxsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, par
 	_, err = txmgrNs.CreateBucket(bucketUnpublished)
 	if err != nil {
 		return err
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func tspendPolicyUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 18
+	const newVersion = 19
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 18 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "tspendPolicyUpgrade inappropriately called")
+	}
+
+	_, err = tx.CreateTopLevelBucket(treasuryPolicyBucketKey)
+	if err != nil {
+		return errors.E(errors.IO, err)
 	}
 
 	// Write the new database version.

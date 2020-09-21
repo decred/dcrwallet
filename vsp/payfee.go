@@ -101,7 +101,7 @@ func (v *VSP) CreateFeeTx(ctx context.Context, ticketHash *chainhash.Hash, credi
 				// Unspent credits are currently expected to be either P2PKH or
 				// P2PK, P2PKH/P2SH nested in a revocation/stakechange/vote output.
 				var scriptSize int
-				scriptClass := txscript.GetScriptClass(0, credit.PrevOut.PkScript)
+				scriptClass := txscript.GetScriptClass(0, credit.PrevOut.PkScript, true) // Yes treasury
 				switch scriptClass {
 				case txscript.PubKeyHashTy:
 					scriptSize = txsizes.RedeemP2PKHSigScriptSize
@@ -109,7 +109,7 @@ func (v *VSP) CreateFeeTx(ctx context.Context, ticketHash *chainhash.Hash, credi
 					scriptSize = txsizes.RedeemP2PKSigScriptSize
 				case txscript.StakeRevocationTy, txscript.StakeSubChangeTy,
 					txscript.StakeGenTy:
-					scriptClass, err = txscript.GetStakeOutSubclass(credit.PrevOut.PkScript)
+					scriptClass, err = txscript.GetStakeOutSubclass(credit.PrevOut.PkScript, true) // Yes treasury
 					if err != nil {
 						return nil, fmt.Errorf(
 							"failed to extract nested script in stake output: %v",

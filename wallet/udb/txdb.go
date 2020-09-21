@@ -17,6 +17,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/crypto/ripemd160"
 )
@@ -567,7 +568,7 @@ func readRawTxRecord(txHash *chainhash.Hash, v []byte, rec *TxRecord) error {
 	}
 
 	// Calculate the stake TxType from the MsgTx.
-	rec.TxType = stake.DetermineTxType(&rec.MsgTx)
+	rec.TxType = stake.DetermineTxType(&rec.MsgTx, true) // Yes treasury
 
 	return nil
 }
@@ -703,6 +704,7 @@ func latestTxRecord(ns walletdb.ReadBucket, txHash []byte) (k, v []byte) {
 //                 0x08: OP_SSGEN
 //                 0x0c: OP_SSRTX
 //                 0x10: OP_SSTXCHANGE
+//                 0x1c: OP_TGEN
 //             0x20: IsCoinbase
 //             0x40: HasExpiry
 //   [9:81]  OPTIONAL Debit bucket key (72 bytes)
@@ -737,7 +739,28 @@ func keyCredit(txHash *chainhash.Hash, index uint32, block *Block) []byte {
 }
 
 func condenseOpCode(opCode uint8) byte {
-	return (opCode - 0xb9) << 2
+	switch {
+	case opCode == txscript.OP_TGEN:
+		return 0x1c
+	default:
+		// Original behavior. Compresses the txscript OP_SS* opcode to
+		// an appropriate flag value.
+		return (opCode - 0xb9) << 2
+	}
+}
+
+func expandOpCode(opCodeFlag byte) uint8 {
+	// Bits used by the stake opcode flag.
+	mask := byte(0x1c)
+
+	switch {
+	case opCodeFlag&mask == 0x1c:
+		return txscript.OP_TGEN
+	default:
+		// Original behavior. This cashes out to one of the OP_SS***
+		// opcode constants.
+		return uint8(((opCodeFlag >> 2) & 0x07) + 0xb9)
+	}
 }
 
 // valueUnspentCredit creates a new credit value for an unspent credit.  All
@@ -856,7 +879,7 @@ func fetchRawCreditUnspentValue(k []byte) ([]byte, error) {
 
 // fetchRawCreditTagOpCode fetches the compressed OP code for a transaction.
 func fetchRawCreditTagOpCode(v []byte) uint8 {
-	return (((v[8] >> 2) & 0x07) + 0xb9)
+	return expandOpCode(v[8])
 }
 
 // fetchRawCreditIsCoinbase returns whether or not the credit is a coinbase
@@ -1495,8 +1518,8 @@ func fetchRawUnminedCreditAmountChange(v []byte) (dcrutil.Amount, bool, error) {
 	return amt, change, nil
 }
 
-func fetchRawUnminedCreditTagOpcode(v []byte) uint8 {
-	return (((v[8] >> 2) & 0x07) + 0xb9)
+func fetchRawUnminedCreditTagOpCode(v []byte) uint8 {
+	return expandOpCode(v[8])
 }
 
 func fetchRawUnminedCreditTagIsCoinbase(v []byte) bool {

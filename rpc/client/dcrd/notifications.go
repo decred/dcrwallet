@@ -100,3 +100,12 @@ func MissedTickets(params json.RawMessage) (missed []*chainhash.Hash, err error)
 	}
 	return missed, nil
 }
+
+// TSpend extracts the parameters from a tspend JSON-RPC notification.
+func TSpend(params json.RawMessage) (tx *wire.MsgTx, err error) {
+	// Parameters (array):
+	// 0: relevant hex-encoded transaction
+	tx = new(wire.MsgTx)
+	err = unmarshalArray(params, unhex(tx))
+	return
+}

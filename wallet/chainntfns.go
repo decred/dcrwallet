@@ -15,8 +15,9 @@ import (
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v3"
-	blockchain "github.com/decred/dcrd/blockchain/standalone"
+	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	gcs2 "github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/txscript/v3"
@@ -326,6 +327,13 @@ func (w *Wallet) AddTransaction(ctx context.Context, tx *wire.MsgTx, blockHash *
 		return nil
 	}
 
+	// Prevent recording unmined tspends since they need to go through
+	// voting for potentially a long time.
+	if isTreasurySpend(tx) && blockHash == nil {
+		log.Debugf("Ignoring unmined TSPend %s", tx.TxHash())
+		return nil
+	}
+
 	w.lockedOutpointMu.Lock()
 	var watchOutPoints []wire.OutPoint
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
@@ -430,7 +438,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 		// does nothing.
 		txOut := rec.MsgTx.TxOut[0]
 		_, addrs, _, _ := txscript.ExtractPkScriptAddrs(txOut.Version,
-			txOut.PkScript, w.chainParams)
+			txOut.PkScript, w.chainParams, true) // Yes treasury
 		insert := false
 		for _, addr := range addrs {
 			if !w.manager.ExistsHash160(addrmgrNs, addr.Hash160()[:]) {
@@ -563,7 +571,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 			rs := txscript.MultisigRedeemScriptFromScriptSig(input.SignatureScript)
 
 			class, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				0, rs, w.chainParams)
+				0, rs, w.chainParams, true) // Yes treasury
 			if err != nil {
 				// Non-standard outputs are skipped.
 				continue
@@ -635,7 +643,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 	// outpoints to watch.
 	for i, output := range rec.MsgTx.TxOut {
 		class, addrs, _, err := txscript.ExtractPkScriptAddrs(output.Version,
-			output.PkScript, w.chainParams)
+			output.PkScript, w.chainParams, true) // Yes treasury
 		if err != nil {
 			// Non-standard outputs are skipped.
 			continue
@@ -643,9 +651,11 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 		isStakeType := class == txscript.StakeSubmissionTy ||
 			class == txscript.StakeSubChangeTy ||
 			class == txscript.StakeGenTy ||
-			class == txscript.StakeRevocationTy
+			class == txscript.StakeRevocationTy ||
+			class == txscript.TreasuryAddTy ||
+			class == txscript.TreasuryGenTy
 		if isStakeType {
-			class, err = txscript.GetStakeOutSubclass(output.PkScript)
+			class, err = txscript.GetStakeOutSubclass(output.PkScript, true) // Yes treasury
 			if err != nil {
 				err = errors.E(op, errors.E(errors.Op("txscript.GetStakeOutSubclass"), err))
 				log.Error(err)
@@ -728,7 +738,8 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 			expClass, multisigAddrs, _, err := txscript.ExtractPkScriptAddrs(
 				0,
 				expandedScript,
-				w.chainParams)
+				w.chainParams,
+				true) // Yes treasury
 			if err != nil {
 				return nil, errors.E(op, errors.E(errors.Op("txscript.ExtractPkScriptAddrs"), err))
 			}
@@ -868,13 +879,63 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 			if tvb, found := w.readDBTicketVoteBits(dbtx, ticketHash); found {
 				ticketVoteBits = tvb
 			}
+
+			// Deal with treasury votes
+			tspends := w.GetAllTSpends(ctx)
+
+			// Dealwith consensus votes
 			vote, err := createUnsignedVote(ticketHash, ticketPurchase,
-				blockHeight, blockHash, ticketVoteBits, w.subsidyCache, w.chainParams)
+				blockHeight, blockHash, ticketVoteBits, w.subsidyCache,
+				w.chainParams)
 			if err != nil {
 				log.Errorf("Failed to create vote transaction for ticket "+
 					"hash %v: %v", ticketHash, err)
 				continue
 			}
+
+			// Iterate over all tpends and determine if they are
+			// within the voting window.
+			tVotes := make([]byte, 0, 256)
+			tVotes = append(tVotes[:], 'T', 'V')
+			for _, v := range tspends {
+				if !blockchain.InsideTSpendWindow(int64(blockHeight),
+					v.Expiry, w.chainParams.TreasuryVoteInterval,
+					w.chainParams.TreasuryVoteIntervalMultiplier) {
+					continue
+				}
+
+				// Get policy for Pi key.
+				piKey := v.TxIn[0].SignatureScript[66 : 66+secp256k1.PubKeyBytesLenCompressed]
+				tspendVote := w.TreasuryKeyPolicy(piKey)
+				if tspendVote == stake.TreasuryVoteInvalid {
+					continue
+				}
+
+				// Append tspend hash and vote bits
+				tspendHash := v.TxHash()
+				tVotes = append(tVotes[:], tspendHash[:]...)
+				tVotes = append(tVotes[:], byte(tspendVote))
+			}
+			if len(tVotes) > 2 {
+				// Vote was appended. Create output and flip
+				// script version.
+				var b txscript.ScriptBuilder
+				b.AddOp(txscript.OP_RETURN)
+				b.AddData(tVotes)
+				tspendVoteScript, err := b.Script()
+				if err != nil {
+					// Log error and continue.
+					log.Errorf("Failed to create treasury "+
+						"vote for ticket hash %v: %v",
+						ticketHash, err)
+				} else {
+					// Success.
+					vote.AddTxOut(wire.NewTxOut(0, tspendVoteScript))
+					vote.Version = 3
+				}
+			}
+
+			// Sign vote and sumit.
 			err = w.signVote(addrmgrNs, ticketPurchase, vote)
 			if err != nil {
 				log.Errorf("Failed to sign vote for ticket hash %v: %v",

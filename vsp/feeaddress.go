@@ -28,7 +28,7 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash *chainhash.Hash) (dc
 
 	const scriptVersion = 0
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(scriptVersion,
-		ticketTx.TxOut[0].PkScript, v.params)
+		ticketTx.TxOut[0].PkScript, v.params, true) // Yes treasury
 	if err != nil {
 		log.Errorf("failed to extract stake submission address from %v: %v", ticketHash, err)
 		return 0, err

@@ -485,6 +485,20 @@ var helpDescsEnUS = map[string]string{
 	"sendfrom-commentto":   "Unused",
 	"sendfrom--result0":    "The transaction hash of the sent transaction",
 
+	// SendFromTreasuryCmd help.
+	"sendfromtreasury--synopsis":      "Send from treasury balance to multiple recipients.",
+	"sendfromtreasury-key":            "Politeia public key",
+	"sendfromtreasury-amounts":        "Pairs of payment addresses and the output amount to pay each",
+	"sendfromtreasury-amounts--desc":  "JSON object using payment addresses as keys and output amounts valued in decred to send to each address",
+	"sendfromtreasury-amounts--key":   "Address to pay",
+	"sendfromtreasury-amounts--value": "Amount to send to the payment address valued in decred",
+	"sendfromtreasury--result0":       "The transaction hash of the sent transaction",
+
+	// SendToTreasuryCmd help.
+	"sendtotreasury--synopsis": "Send decred to treasury",
+	"sendtotreasury-amount":    "Amount to send to treasury",
+	"sendtotreasury--result0":  "The transaction hash of the sent transaction",
+
 	// SendManyCmd help.
 	"sendmany--synopsis": "Authors, signs, and sends a transaction that outputs to many payment addresses.\n" +
 		"A change output is automatically included to send extra output value back to the original account.",

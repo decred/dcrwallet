@@ -334,6 +334,22 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		return err
 	}
 
+	// Populate tspends.
+	tspends, err := s.rpc.GetMempoolTSpends(ctx)
+	if err != nil {
+		return err
+	}
+	for _, v := range tspends {
+		s.wallet.AddTSpend(*v)
+	}
+	log.Tracef("TSpends in mempool: %v", len(tspends))
+
+	// Request notifications for mempool tspennd arrivals.
+	err = s.rpc.Call(ctx, "notifytspend", nil)
+	if err != nil {
+		return err
+	}
+
 	// Fetch new headers and cfilters from the server.
 	locators, err := s.wallet.BlockLocators(ctx, nil)
 	if err != nil {
@@ -576,6 +592,11 @@ func (n *notifier) Notify(method string, params json.RawMessage) error {
 		if err != nil {
 			log.Error(errors.E(op, err))
 		}
+	case "tspend":
+		err := s.storeTSpend(ctx, params)
+		if err != nil {
+			log.Error(errors.E(op, err))
+		}
 	}
 	return nil
 }
@@ -672,4 +693,12 @@ func (s *Syncer) spentAndMissedTickets(ctx context.Context, params json.RawMessa
 		return err
 	}
 	return s.wallet.RevokeOwnedTickets(ctx, missed)
+}
+
+func (s *Syncer) storeTSpend(ctx context.Context, params json.RawMessage) error {
+	tx, err := dcrd.TSpend(params)
+	if err != nil {
+		return err
+	}
+	return s.wallet.AddTSpend(*tx)
 }

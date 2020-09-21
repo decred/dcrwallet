@@ -22,7 +22,7 @@ import (
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v3"
-	blockchain "github.com/decred/dcrd/blockchain/standalone"
+	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec"
@@ -51,7 +51,8 @@ const (
 	sanityVerifyFlags = txscript.ScriptDiscourageUpgradableNops |
 		txscript.ScriptVerifyCleanStack |
 		txscript.ScriptVerifyCheckLockTimeVerify |
-		txscript.ScriptVerifyCheckSequenceVerify
+		txscript.ScriptVerifyCheckSequenceVerify |
+		txscript.ScriptVerifyTreasury
 )
 
 // Input provides transaction inputs referencing spendable outputs.
@@ -231,7 +232,7 @@ func (w *Wallet) insertCreditsIntoTxMgr(op errors.Op, dbtx walletdb.ReadWriteTx,
 	// key.  If so, mark the output as a credit.
 	for i, output := range msgTx.TxOut {
 		_, addrs, _, err := txscript.ExtractPkScriptAddrs(output.Version,
-			output.PkScript, w.chainParams)
+			output.PkScript, w.chainParams, true) // Yes treasury
 		if err != nil {
 			// Non-standard outputs are skipped.
 			continue
@@ -335,7 +336,7 @@ func (w *Wallet) publishAndWatch(ctx context.Context, op errors.Op, n NetworkBac
 // wallet's current relay fee.  The wallet must be unlocked to create the
 // transaction.
 func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.TxOut, account, changeAccount uint32, minconf int32,
-	randomizeChangeIdx bool, txFee dcrutil.Amount, dontSignTx bool) (*txauthor.AuthoredTx, []wire.OutPoint, error) {
+	randomizeChangeIdx bool, txFee dcrutil.Amount, dontSignTx bool, isTreasury bool) (*txauthor.AuthoredTx, []wire.OutPoint, error) {
 
 	var unlockOutpoints []*wire.OutPoint
 	defer func() {
@@ -360,11 +361,23 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 		_, tipHeight := w.txStore.MainChainTip(dbtx)
 		inputSource := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, account,
 			minconf, tipHeight, ignoreInput)
-		changeSource := &p2PKHChangeSource{
-			persist: w.deferPersistReturnedChild(ctx, &changeSourceUpdates),
-			account: changeAccount,
-			wallet:  w,
-			ctx:     ctx,
+		var changeSource txauthor.ChangeSource
+		if isTreasury {
+			changeSource = &p2PKHTreasuryChangeSource{
+				persist: w.deferPersistReturnedChild(ctx,
+					&changeSourceUpdates),
+				account: changeAccount,
+				wallet:  w,
+				ctx:     ctx,
+			}
+		} else {
+			changeSource = &p2PKHChangeSource{
+				persist: w.deferPersistReturnedChild(ctx,
+					&changeSourceUpdates),
+				account: changeAccount,
+				wallet:  w,
+				ctx:     ctx,
+			}
 		}
 		var err error
 		atx, err = txauthor.NewUnsignedTransaction(outputs, txFee,
@@ -378,11 +391,27 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 			unlockOutpoints = append(unlockOutpoints, prev)
 		}
 
-		// Randomize change position, if change exists, before signing.  This
-		// doesn't affect the serialize size, so the change amount will still be
-		// valid.
+		// Randomize change position, if change exists, before signing.
+		// This doesn't affect the serialize size, so the change amount
+		// will still be valid.
 		if atx.ChangeIndex >= 0 && randomizeChangeIdx {
 			atx.RandomizeChangePosition()
+		}
+
+		// TADDs need to use version 3 txs.
+		if isTreasury {
+			// This check ensures that if NewUnsignedTransaction is
+			// updated to generate a different transaction version
+			// we error out loudly instead of failing to validate
+			// in some obscure way.
+			//
+			// TODO: maybe isTreasury should be passed into
+			// NewUnsignedTransaction?
+			if atx.Tx.Version != wire.TxVersion {
+				return errors.E(op, "violated assumption: "+
+					"expected unsigned tx to be version 1")
+			}
+			atx.Tx.Version = wire.TxVersionTreasury
 		}
 
 		if !dontSignTx {
@@ -1087,7 +1116,7 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 
 	txFee := w.RelayFee()
 	splitTx, watch, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
-		false, txFee, req.DontSignTx)
+		false, txFee, req.DontSignTx, false)
 	if err != nil {
 		return
 	}
@@ -1139,7 +1168,7 @@ func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, need
 
 	txFee := w.RelayFee()
 	splitTx, watch, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
-		false, txFee, req.DontSignTx)
+		false, txFee, req.DontSignTx, false)
 	if err != nil {
 		return
 	}
@@ -1562,20 +1591,22 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 		// using createrawtransaction, signrawtransaction, and
 		// sendrawtransaction).
 		class, addrs, _, err := txscript.ExtractPkScriptAddrs(
-			0, output.PkScript, w.chainParams)
+			0, output.PkScript, w.chainParams, true) // Yes treasury
 		if err != nil || len(addrs) != 1 {
 			continue
 		}
 
 		// Make sure everything we're trying to spend is actually mature.
 		switch class {
-		case txscript.StakeSubmissionTy:
-			continue
 		case txscript.StakeGenTy:
 			if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
 				continue
 			}
 		case txscript.StakeRevocationTy:
+			if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
+				continue
+			}
+		case txscript.TreasuryAddTy, txscript.TreasuryGenTy:
 			if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
 				continue
 			}
@@ -1648,24 +1679,22 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 		// using createrawtransaction, signrawtransaction, and
 		// sendrawtransaction).
 		class, addrs, _, err := txscript.ExtractPkScriptAddrs(
-			0, output.PkScript, w.chainParams)
-		if err != nil ||
-			!(class == txscript.PubKeyHashTy ||
-				class == txscript.StakeGenTy ||
-				class == txscript.StakeRevocationTy ||
-				class == txscript.StakeSubChangeTy) {
+			0, output.PkScript, w.chainParams, true) // Yes treasury
+		if err != nil || len(addrs) != 1 {
 			continue
 		}
 
 		// Make sure everything we're trying to spend is actually mature.
 		switch class {
-		case txscript.StakeSubmissionTy:
-			continue
 		case txscript.StakeGenTy:
 			if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
 				continue
 			}
 		case txscript.StakeRevocationTy:
+			if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
+				continue
+			}
+		case txscript.TreasuryAddTy, txscript.TreasuryGenTy:
 			if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
 				continue
 			}
@@ -1721,7 +1750,7 @@ func (w *Wallet) signP2PKHMsgTx(msgtx *wire.MsgTx, prevOutputs []Input, addrmgrN
 		// Errors don't matter here, as we only consider the
 		// case where len(addrs) == 1.
 		_, addrs, _, _ := txscript.ExtractPkScriptAddrs(
-			0, output.PrevOut.PkScript, w.chainParams)
+			0, output.PrevOut.PkScript, w.chainParams, true) // Yes treasury
 		if len(addrs) != 1 {
 			continue
 		}
@@ -1787,7 +1816,7 @@ func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurch
 	redeemTicketScript := ticketPurchase.TxOut[0].PkScript
 	signedScript, err := txscript.SignTxOutput(w.chainParams, tx, inputToSign,
 		redeemTicketScript, txscript.SigHashAll, getKey, getScript,
-		tx.TxIn[inputToSign].SignatureScript)
+		tx.TxIn[inputToSign].SignatureScript, true) // Yes treasury
 	if err != nil {
 		return errors.E(errors.Op("txscript.SignTxOutput"), errors.ScriptFailure, err)
 	}

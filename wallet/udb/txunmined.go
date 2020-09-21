@@ -58,7 +58,7 @@ func (s *Store) InsertMemPoolTx(dbtx walletdb.ReadWriteTx, rec *TxRecord) error 
 				if err != nil {
 					return errors.E(errors.IO, err)
 				}
-				if stake.DetermineTxType(&spenderTx) != stake.TxTypeSSGen {
+				if stake.DetermineTxType(&spenderTx, true /* Yes treasury */) != stake.TxTypeSSGen {
 					break DoubleSpendVoteCheck
 				}
 				votedBlock, _ := stake.SSGenBlockVotedOn(&spenderTx)
@@ -97,7 +97,7 @@ func (s *Store) InsertMemPoolTx(dbtx walletdb.ReadWriteTx, rec *TxRecord) error 
 		}
 	}
 
-	txType := stake.DetermineTxType(&rec.MsgTx)
+	txType := stake.DetermineTxType(&rec.MsgTx, true) // Yes Treasury
 
 	for i, input := range rec.MsgTx.TxIn {
 		// Skip stakebases for votes.
@@ -179,7 +179,7 @@ func (s *Store) removeDoubleSpends(ns walletdb.ReadWriteBucket, rec *TxRecord) e
 // and expired transactions.
 func (s *Store) RemoveUnconfirmed(ns walletdb.ReadWriteBucket, tx *wire.MsgTx, txHash *chainhash.Hash) error {
 
-	stxType := stake.DetermineTxType(tx)
+	stxType := stake.DetermineTxType(tx, true) // Yes treasury
 
 	// For each potential credit for this record, each spender (if any) must
 	// be recursively removed as well.  Once the spenders are removed, the
@@ -369,7 +369,7 @@ func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) ([]*cha
 			if tx.TxOut[0].Value == stakeDiff {
 				continue
 			}
-		case stake.IsSSGen(&tx):
+		case stake.IsSSGen(&tx, true): // Yes treasury
 			isVote = true
 			// This will never actually error
 			votedBlockHash, _ := stake.SSGenBlockVotedOn(&tx)

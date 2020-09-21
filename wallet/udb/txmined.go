@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/internal/compat"
 	"decred.org/dcrwallet/wallet/txauthor"
 	"decred.org/dcrwallet/wallet/txsizes"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v3"
-	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
@@ -105,7 +105,7 @@ func NewTxRecord(serializedTx []byte, received time.Time) (*TxRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	rec.TxType = stake.DetermineTxType(&rec.MsgTx)
+	rec.TxType = stake.DetermineTxType(&rec.MsgTx, true) // Yes treasury
 	hash := rec.MsgTx.TxHash()
 	copy(rec.Hash[:], hash[:])
 	return rec, nil
@@ -125,7 +125,7 @@ func NewTxRecordFromMsgTx(msgTx *wire.MsgTx, received time.Time) (*TxRecord, err
 		Received:     received,
 		SerializedTx: buf.Bytes(),
 	}
-	rec.TxType = stake.DetermineTxType(&rec.MsgTx)
+	rec.TxType = stake.DetermineTxType(&rec.MsgTx, true) // Yes treasury
 	hash := rec.MsgTx.TxHash()
 	copy(rec.Hash[:], hash[:])
 	return rec, nil
@@ -948,7 +948,8 @@ func (s *Store) fetchAccountForPkScript(addrmgrNs walletdb.ReadBucket,
 	// Neither credVal or unminedCredVal were passed, or if they were, they
 	// didn't have the account set. Figure out the account from the pkScript the
 	// expensive way.
-	_, addrs, _, err := txscript.ExtractPkScriptAddrs(0, pkScript, s.chainParams)
+	_, addrs, _, err := txscript.ExtractPkScriptAddrs(0, pkScript, s.chainParams,
+		true) // Yes treasury
 	if err != nil {
 		return 0, err
 	}
@@ -1062,7 +1063,7 @@ func (s *Store) moveMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Read
 		cred.outPoint.Index = i
 		cred.amount = amount
 		cred.change = change
-		cred.opCode = fetchRawUnminedCreditTagOpcode(v)
+		cred.opCode = fetchRawUnminedCreditTagOpCode(v)
 		cred.isCoinbase = fetchRawUnminedCreditTagIsCoinbase(v)
 
 		// Legacy credit output values may be of the wrong
@@ -1144,7 +1145,7 @@ func (s *Store) InsertMinedTx(dbtx walletdb.ReadWriteTx, rec *TxRecord, blockHas
 		},
 		// index set for each iteration below
 	}
-	txType := stake.DetermineTxType(&rec.MsgTx)
+	txType := stake.DetermineTxType(&rec.MsgTx, true) // Yes treasury
 
 	invalidated := false
 	if txType == stake.TxTypeRegular {
@@ -1316,7 +1317,7 @@ func (s *Store) AddCredit(dbtx walletdb.ReadWriteTx, rec *TxRecord, block *Block
 			change:     change,
 			spentBy:    indexedIncidence{index: ^uint32(0)},
 			opCode:     getP2PKHOpCode(pkScript),
-			isCoinbase: blockchain.IsCoinBaseTx(&rec.MsgTx),
+			isCoinbase: compat.IsEitherCoinBaseTx(&rec.MsgTx),
 			hasExpiry:  rec.MsgTx.Expiry != 0,
 		}
 		scTy := pkScriptType(pkScript)
@@ -1337,7 +1338,7 @@ func (s *Store) AddCredit(dbtx walletdb.ReadWriteTx, rec *TxRecord, block *Block
 // getP2PKHOpCode returns opNonstake for non-stake transactions, or
 // the stake op code tag for stake transactions.
 func getP2PKHOpCode(pkScript []byte) uint8 {
-	class := txscript.GetScriptClass(0, pkScript)
+	class := txscript.GetScriptClass(0, pkScript, true) // Yes treasury
 	switch class {
 	case txscript.StakeSubmissionTy:
 		return txscript.OP_SSTX
@@ -1347,6 +1348,8 @@ func getP2PKHOpCode(pkScript []byte) uint8 {
 		return txscript.OP_SSRTX
 	case txscript.StakeSubChangeTy:
 		return txscript.OP_SSTXCHANGE
+	case txscript.TreasuryGenTy:
+		return txscript.OP_TGEN
 	}
 
 	return opNonstake
@@ -1355,7 +1358,7 @@ func getP2PKHOpCode(pkScript []byte) uint8 {
 // pkScriptType determines the general type of pkScript for the purposes of
 // fast extraction of pkScript data from a raw transaction record.
 func pkScriptType(pkScript []byte) scriptType {
-	class := txscript.GetScriptClass(0, pkScript)
+	class := txscript.GetScriptClass(0, pkScript, true) // Yes treasury
 	switch class {
 	case txscript.PubKeyHashTy:
 		return scriptTypeP2PKH
@@ -1373,8 +1376,10 @@ func pkScriptType(pkScript []byte) scriptType {
 		fallthrough
 	case txscript.StakeRevocationTy:
 		fallthrough
+	case txscript.TreasuryGenTy:
+		fallthrough
 	case txscript.StakeSubChangeTy:
-		subClass, err := txscript.GetStakeOutSubclass(pkScript)
+		subClass, err := txscript.GetStakeOutSubclass(pkScript, true) // Yes treasury
 		if err != nil {
 			return scriptTypeUnspecified
 		}
@@ -1393,7 +1398,7 @@ func (s *Store) addCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 	index uint32, change bool, account uint32) (bool, error) {
 
 	opCode := getP2PKHOpCode(rec.MsgTx.TxOut[index].PkScript)
-	isCoinbase := blockchain.IsCoinBaseTx(&rec.MsgTx)
+	isCoinbase := compat.IsEitherCoinBaseTx(&rec.MsgTx)
 	hasExpiry := rec.MsgTx.Expiry != wire.NoExpiryValue
 
 	if block == nil {
@@ -1691,7 +1696,8 @@ func (s *Store) AddMultisigOut(dbtx walletdb.ReadWriteTx, rec *TxRecord, block *
 	// Otherwise create a full record and insert it.
 	p2shScript := rec.MsgTx.TxOut[index].PkScript
 	class, _, _, err := txscript.ExtractPkScriptAddrs(
-		rec.MsgTx.TxOut[index].Version, p2shScript, s.chainParams)
+		rec.MsgTx.TxOut[index].Version, p2shScript, s.chainParams,
+		true) // Yes treasury
 	if err != nil {
 		return err
 	}
@@ -1699,9 +1705,10 @@ func (s *Store) AddMultisigOut(dbtx walletdb.ReadWriteTx, rec *TxRecord, block *
 	isStakeType := class == txscript.StakeSubmissionTy ||
 		class == txscript.StakeSubChangeTy ||
 		class == txscript.StakeGenTy ||
-		class == txscript.StakeRevocationTy
+		class == txscript.StakeRevocationTy ||
+		class == txscript.TreasuryGenTy
 	if isStakeType {
-		class, err = txscript.GetStakeOutSubclass(p2shScript)
+		class, err = txscript.GetStakeOutSubclass(p2shScript, true) // Yes treasury
 		if err != nil {
 			return errors.E(errors.Bug, err)
 		}
@@ -1851,7 +1858,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 			// not moved to the unconfirmed store.  A coinbase cannot
 			// contain any debits, but all credits should be removed
 			// and the mined balance decremented.
-			if blockchain.IsCoinBaseTx(&rec.MsgTx) {
+			if compat.IsEitherCoinBaseTx(&rec.MsgTx) {
 				for i, output := range rec.MsgTx.TxOut {
 					k, v := existsCredit(ns, &rec.Hash,
 						uint32(i), &b.Block)
@@ -2190,7 +2197,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint, block
 			return nil, err
 		}
 
-		opCode = fetchRawUnminedCreditTagOpcode(unminedCredV)
+		opCode = fetchRawUnminedCreditTagOpCode(unminedCredV)
 		hasExpiry = fetchRawCreditHasExpiry(unminedCredV, DBVersion)
 
 		v := existsRawUnmined(ns, op.Hash[:])
@@ -2377,7 +2384,7 @@ func (s *Store) ForEachUnspentOutpoint(dbtx walletdb.ReadTx, f func(*wire.OutPoi
 			return err
 		}
 
-		opCode := fetchRawUnminedCreditTagOpcode(v)
+		opCode := fetchRawUnminedCreditTagOpCode(v)
 		op.Tree = wire.TxTreeRegular
 		if opCode != opNonstake {
 			op.Tree = wire.TxTreeStake
@@ -2446,7 +2453,7 @@ func (s *Store) UnspentTickets(dbtx walletdb.ReadTx, syncHeight int32, includeIm
 			if err != nil {
 				return nil, errors.E(errors.IO, err)
 			}
-			if stake.IsSSGen(&spender) {
+			if stake.IsSSGen(&spender, true) { // Yes treasury
 				voteBlock, _ := stake.SSGenBlockVotedOn(&spender)
 				if voteBlock != tipBlock {
 					goto Include
@@ -2920,7 +2927,9 @@ func (s *Store) UnspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 				continue
 			}
 		}
-		if opcode == txscript.OP_SSGEN || opcode == txscript.OP_SSRTX {
+		switch opcode {
+		case txscript.OP_SSGEN, txscript.OP_SSRTX,
+			txscript.OP_TADD, txscript.OP_TGEN:
 			if !coinbaseMatured(s.chainParams, txHeight, syncHeight) {
 				continue
 			}
@@ -2987,14 +2996,15 @@ func (s *Store) UnspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 			}
 
 			// Skip ticket outputs, as only SSGen can spend these.
-			opcode := fetchRawUnminedCreditTagOpcode(v)
+			opcode := fetchRawUnminedCreditTagOpCode(v)
 			if opcode == txscript.OP_SSTX {
 				continue
 			}
 
 			// Skip outputs that are not mature.
 			switch opcode {
-			case txscript.OP_SSGEN, txscript.OP_SSRTX, txscript.OP_SSTXCHANGE:
+			case txscript.OP_SSGEN, txscript.OP_SSRTX, txscript.OP_SSTXCHANGE,
+				txscript.OP_TADD, txscript.OP_TGEN:
 				continue
 			}
 
@@ -3190,7 +3200,9 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 					continue
 				}
 			}
-			if opcode == txscript.OP_SSGEN || opcode == txscript.OP_SSRTX {
+			switch opcode {
+			case txscript.OP_SSGEN, txscript.OP_SSRTX, txscript.OP_TADD,
+				txscript.OP_TGEN:
 				if !coinbaseMatured(s.chainParams, txHeight, syncHeight) {
 					continue
 				}
@@ -3224,15 +3236,16 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 
 			// Unspent credits are currently expected to be either P2PKH or
 			// P2PK, P2PKH/P2SH nested in a revocation/stakechange/vote output.
-			scriptClass := txscript.GetScriptClass(0, pkScript)
+			scriptClass := txscript.GetScriptClass(0, pkScript, true) // Yes treasury
 
 			switch scriptClass {
 			case txscript.PubKeyHashTy:
 				scriptSize = txsizes.RedeemP2PKHSigScriptSize
 			case txscript.PubKeyTy:
 				scriptSize = txsizes.RedeemP2PKSigScriptSize
-			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy, txscript.StakeGenTy:
-				scriptClass, err = txscript.GetStakeOutSubclass(pkScript)
+			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy, txscript.StakeGenTy,
+				txscript.TreasuryGenTy:
+				scriptClass, err = txscript.GetStakeOutSubclass(pkScript, true) // Yes treasury
 				if err != nil {
 					return nil, fmt.Errorf(
 						"failed to extract nested script in stake output: %v",
@@ -3313,16 +3326,15 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			}
 
 			// Skip ticket outputs, as only SSGen can spend these.
-			opcode := fetchRawUnminedCreditTagOpcode(v)
+			opcode := fetchRawUnminedCreditTagOpCode(v)
 			if opcode == txscript.OP_SSTX {
 				continue
 			}
 
 			// Skip outputs that are not mature.
-			if opcode == txscript.OP_SSGEN || opcode == txscript.OP_SSRTX {
-				continue
-			}
-			if opcode == txscript.OP_SSTXCHANGE {
+			switch opcode {
+			case txscript.OP_SSGEN, txscript.OP_SSTXCHANGE, txscript.OP_SSRTX,
+				txscript.OP_TADD, txscript.OP_TGEN:
 				continue
 			}
 
@@ -3345,7 +3357,7 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 
 			// Unspent credits are currently expected to be either P2PKH or
 			// P2PK, P2PKH/P2SH nested in a revocation/stakechange/vote output.
-			scriptClass := txscript.GetScriptClass(0, pkScript)
+			scriptClass := txscript.GetScriptClass(0, pkScript, true) // Yes treasury
 
 			switch scriptClass {
 			case txscript.PubKeyHashTy:
@@ -3353,8 +3365,8 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			case txscript.PubKeyTy:
 				scriptSize = txsizes.RedeemP2PKSigScriptSize
 			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy,
-				txscript.StakeGenTy:
-				scriptClass, err = txscript.GetStakeOutSubclass(pkScript)
+				txscript.StakeGenTy, txscript.TreasuryGenTy:
+				scriptClass, err = txscript.GetStakeOutSubclass(pkScript, true) // Yes treasury
 				if err != nil {
 					return nil, fmt.Errorf(
 						"failed to extract nested script in stake output: %v",
@@ -3454,6 +3466,9 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 		}
 
 		switch opcode {
+		case txscript.OP_TGEN:
+			// Or add another type of balance?
+			fallthrough
 		case opNonstake:
 			isConfirmed := confirmed(minConf, height, syncHeight)
 			creditFromCoinbase := fetchRawCreditIsCoinbase(cVal)
@@ -3526,7 +3541,7 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 			accountBalances[thisAcct] = ab
 		}
 		// Skip ticket outputs, as only SSGen can spend these.
-		opcode := fetchRawUnminedCreditTagOpcode(v)
+		opcode := fetchRawUnminedCreditTagOpCode(v)
 
 		switch opcode {
 		case opNonstake:
@@ -3546,6 +3561,9 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 		case txscript.OP_SSTXCHANGE:
 			ab.Total += utxoAmt
 			continue
+		case txscript.OP_TGEN:
+			// Only consider mined tspends for simpler balance
+			// accounting.
 		default:
 			log.Warnf("Unhandled unconfirmed opcode %v: %v", opcode, v)
 		}

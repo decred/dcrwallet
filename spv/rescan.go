@@ -27,7 +27,7 @@ func (s *Syncer) rescanCheckTransactions(matches *[]*wire.MsgTx, fadded *blockcf
 
 		txty := stake.TxTypeRegular
 		if tree == wire.TxTreeStake {
-			txty = stake.DetermineTxType(tx)
+			txty = stake.DetermineTxType(tx, true) // Yes treasury
 		}
 
 		// Coinbases and stakebases are handled specially: all inputs of a
@@ -55,7 +55,7 @@ func (s *Syncer) rescanCheckTransactions(matches *[]*wire.MsgTx, fadded *blockcf
 		for i, output := range tx.TxOut {
 			_, addrs, _, err := txscript.ExtractPkScriptAddrs(
 				output.Version, output.PkScript,
-				s.wallet.ChainParams())
+				s.wallet.ChainParams(), true) // Yes treasury
 			if err != nil {
 				continue
 			}
@@ -110,7 +110,7 @@ Txs:
 		}
 		for _, out := range tx.TxOut {
 			_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
-				out.PkScript, s.wallet.ChainParams())
+				out.PkScript, s.wallet.ChainParams(), true) // Yes treasury
 			if err != nil {
 				continue
 			}

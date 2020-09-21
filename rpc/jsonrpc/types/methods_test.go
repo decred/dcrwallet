@@ -936,6 +936,34 @@ func TestWalletSvrCmds(t *testing.T) {
 			},
 		},
 		{
+			name: "sendfromtreasury",
+			newCmd: func() (interface{}, error) {
+				return dcrjson.NewCmd("sendfromtreasury", "key", `{"1Address":0.5}`)
+			},
+			staticCmd: func() interface{} {
+				var debits = map[string]float64{"1Address": 0.5}
+				return NewSendFromTreasuryCmd("key", debits)
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"sendfromtreasury","params":["key",{"1Address":0.5}],"id":1}`,
+			unmarshalled: &SendFromTreasuryCmd{
+				Key:     "key",
+				Amounts: map[string]float64{"1Address": 0.5},
+			},
+		},
+		{
+			name: "sendtotreasury",
+			newCmd: func() (interface{}, error) {
+				return dcrjson.NewCmd("sendtotreasury", 0.5)
+			},
+			staticCmd: func() interface{} {
+				return NewSendToTreasuryCmd(0.5, nil, nil)
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"sendtotreasury","params":[0.5],"id":1}`,
+			unmarshalled: &SendToTreasuryCmd{
+				Amount: 0.5,
+			},
+		},
+		{
 			name: "settxfee",
 			newCmd: func() (interface{}, error) {
 				return dcrjson.NewCmd("settxfee", 0.0001)

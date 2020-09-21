@@ -8,6 +8,7 @@ package jsonrpc
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -29,9 +30,10 @@ import (
 	"decred.org/dcrwallet/wallet"
 	"decred.org/dcrwallet/wallet/txauthor"
 	"decred.org/dcrwallet/wallet/txrules"
+	"decred.org/dcrwallet/wallet/txsizes"
 	"decred.org/dcrwallet/wallet/udb"
 	"github.com/decred/dcrd/blockchain/stake/v3"
-	blockchain "github.com/decred/dcrd/blockchain/standalone"
+	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec"
@@ -119,9 +121,11 @@ var handlers = map[string]handler{
 	"rescanwallet":            {fn: (*Server).rescanWallet},
 	"revoketickets":           {fn: (*Server).revokeTickets},
 	"sendfrom":                {fn: (*Server).sendFrom},
+	"sendfromtreasury":        {fn: (*Server).sendFromTreasury},
 	"sendmany":                {fn: (*Server).sendMany},
 	"sendtoaddress":           {fn: (*Server).sendToAddress},
 	"sendtomultisig":          {fn: (*Server).sendToMultiSig},
+	"sendtotreasury":          {fn: (*Server).sendToTreasury},
 	"getcoinjoinsbyacct":      {fn: (*Server).getcoinjoinsbyacct},
 	"settxfee":                {fn: (*Server).setTxFee},
 	"setvotechoice":           {fn: (*Server).setVoteChoice},
@@ -1618,7 +1622,7 @@ func (s *Server) getMultisigOutInfo(ctx context.Context, icmd interface{}) (inte
 	// Get the list of pubkeys required to sign.
 	_, pubkeyAddrs, _, err := txscript.ExtractPkScriptAddrs(
 		0, p2shOutput.RedeemScript,
-		w.ChainParams())
+		w.ChainParams(), true) // Yes treasury
 	if err != nil {
 		return nil, err
 	}
@@ -1990,7 +1994,7 @@ func (s *Server) getTransaction(ctx context.Context, icmd interface{}) (interfac
 		Time:            txd.Received.Unix(),
 		TimeReceived:    txd.Received.Unix(),
 		WalletConflicts: []string{}, // Not saved
-		//Generated:     blockchain.IsCoinBaseTx(&details.MsgTx),
+		//Generated:     compat.IsEitherCoinBaseTx(&details.MsgTx),
 	}
 
 	if txd.Block.Height != -1 {
@@ -2318,7 +2322,7 @@ func (s *Server) listReceivedByAddress(ctx context.Context, icmd interface{}) (i
 				pkVersion := tx.MsgTx.TxOut[cred.Index].Version
 				pkScript := tx.MsgTx.TxOut[cred.Index].PkScript
 				_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkVersion,
-					pkScript, w.ChainParams())
+					pkScript, w.ChainParams(), true) // Yes treasury
 				if err != nil {
 					// Non standard script, skip.
 					continue
@@ -2780,6 +2784,177 @@ func (s *Server) sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[st
 	return txSha.String(), nil
 }
 
+// sendAmountToTreasury creates and sends payment transactions to the treasury.
+// It returns the transaction hash in string format upon success All errors are
+// returned in dcrjson.RPCError format
+func (s *Server) sendAmountToTreasury(ctx context.Context, w *wallet.Wallet, amount dcrutil.Amount, account uint32, minconf int32) (string, error) {
+	changeAccount := account
+	if s.cfg.CSPPServer != "" {
+		mixAccount, err := w.AccountNumber(ctx, s.cfg.MixAccount)
+		if err != nil {
+			return "", err
+		}
+		if account == mixAccount {
+			changeAccount, err = w.AccountNumber(ctx,
+				s.cfg.MixChangeAccount)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+
+	outputs := []*wire.TxOut{
+		&wire.TxOut{
+			Value:    int64(amount),
+			PkScript: []byte{txscript.OP_TADD},
+			Version:  wire.DefaultPkScriptVersion,
+		},
+	}
+	txSha, err := w.SendOutputsToTreasury(ctx, outputs, account,
+		changeAccount, minconf)
+	if err != nil {
+		if errors.Is(err, errors.Locked) {
+			return "", errWalletUnlockNeeded
+		}
+		if errors.Is(err, errors.InsufficientBalance) {
+			return "", rpcError(dcrjson.ErrRPCWalletInsufficientFunds,
+				err)
+		}
+		return "", err
+	}
+
+	return txSha.String(), nil
+}
+
+// sendOutputsFromTreasury creates and sends payment transactions from the treasury.
+// It returns the transaction hash in string format upon success All errors are
+// returned in dcrjson.RPCError format
+func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, cmd types.SendFromTreasuryCmd) (string, error) {
+	// Look to see if the we have the private key imported.
+	publicKey, err := decodeAddress(cmd.Key, w.ChainParams())
+	if err != nil {
+		return "", err
+	}
+	privKey, zero, err := w.LoadPrivateKey(ctx, publicKey)
+	if err != nil {
+		return "", err
+	}
+	defer zero()
+
+	_, tipHeight := w.MainChainTip(ctx)
+
+	// OP_RETURN <8 Bytes ValueIn><24 byte random>. The encoded ValueIn is
+	// added at the end of this function.
+	var payload [32]byte
+	_, err = rand.Read(payload[8:])
+	if err != nil {
+		return "", rpcErrorf(dcrjson.ErrRPCInternal.Code,
+			"sendOutputsFromTreasury Read: %v", err)
+	}
+	builder := txscript.NewScriptBuilder()
+	builder.AddOp(txscript.OP_RETURN)
+	builder.AddData(payload[:])
+	opretScript, err := builder.Script()
+	if err != nil {
+		return "", rpcErrorf(dcrjson.ErrRPCInternal.Code,
+			"sendOutputsFromTreasury NewScriptBuilder: %v", err)
+	}
+	msgTx := wire.NewMsgTx()
+	msgTx.Version = wire.TxVersionTreasury
+	msgTx.AddTxOut(wire.NewTxOut(0, opretScript))
+
+	// Calculate expiry.
+	msgTx.Expiry = blockchain.CalculateTSpendExpiry(int64(tipHeight+1),
+		w.ChainParams().TreasuryVoteInterval,
+		w.ChainParams().TreasuryVoteIntervalMultiplier)
+
+	// OP_TGEN and calculate totals.
+	var totalPayout dcrutil.Amount
+	for address, amount := range cmd.Amounts {
+		amt, err := dcrutil.NewAmount(amount)
+		if err != nil {
+			return "", rpcError(dcrjson.ErrRPCInvalidParameter, err)
+		}
+
+		// While looping calculate total amount
+		totalPayout += amt
+
+		// Decode address.
+		addr, err := decodeAddress(address, w.ChainParams())
+		if err != nil {
+			return "", err
+		}
+
+		// Create OP_TGEN prefixed script.
+		p2ahs, err := txscript.PayToAddrScript(addr)
+		if err != nil {
+			return "", rpcErrorf(dcrjson.ErrRPCInternal.Code,
+				"sendOutputsFromTreasury PayToAddrScript: %v",
+				err)
+		}
+		script := make([]byte, len(p2ahs)+1)
+		script[0] = txscript.OP_TGEN
+		copy(script[1:], p2ahs)
+
+		// Make sure this is not dust.
+		txOut := wire.NewTxOut(int64(amt), script)
+		if txrules.IsDustOutput(txOut, w.RelayFee()) {
+			return "", rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"Amount is dust: %v %v", addr, amt)
+		}
+
+		// Add to transaction.
+		msgTx.AddTxOut(txOut)
+	}
+
+	// Calculate fee. Inputs are <signature> <compressed key> OP_TSPEND.
+	estimatedFee := txsizes.EstimateSerializeSize([]int{txsizes.TSPENDInputSize},
+		msgTx.TxOut, 0)
+	fee := txrules.FeeForSerializeSize(w.RelayFee(), estimatedFee)
+
+	// Assemble TxIn.
+	msgTx.AddTxIn(&wire.TxIn{
+		// Stakebase transactions have no inputs, so previous outpoint
+		// is zero hash and max index.
+		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{},
+			wire.MaxPrevOutIndex, wire.TxTreeRegular),
+		Sequence:        wire.MaxTxInSequenceNum,
+		ValueIn:         int64(fee) + int64(totalPayout),
+		BlockHeight:     wire.NullBlockHeight,
+		BlockIndex:      wire.NullBlockIndex,
+		SignatureScript: []byte{}, // Empty for now
+	})
+
+	// Encode total amount in first 8 bytes of TxOut[0] OP_RETURN.
+	binary.LittleEndian.PutUint64(msgTx.TxOut[0].PkScript[2:2+8],
+		uint64(fee)+uint64(totalPayout))
+
+	// Calculate TSpend signature without SigHashType.
+	privKeyBytes := privKey.Serialize()
+	sigscript, err := txscript.TSpendSignatureScript(msgTx, privKeyBytes)
+	if err != nil {
+		return "", err
+	}
+	msgTx.TxIn[0].SignatureScript = sigscript
+
+	_, _, err = stake.CheckTSpend(msgTx)
+	if err != nil {
+		return "", err
+	}
+
+	// Send to dcrd.
+	n, ok := s.walletLoader.NetworkBackend()
+	if !ok {
+		return "", errNoNetwork
+	}
+	err = n.PublishTransactions(ctx, msgTx)
+	if err != nil {
+		return "", err
+	}
+
+	return msgTx.TxHash().String(), nil
+}
+
 // redeemMultiSigOut receives a transaction hash/idx and fetches the first output
 // index or indices with known script hashes from the transaction. It then
 // construct a transaction with a single P2PKH paying to a specified address.
@@ -2827,7 +3002,7 @@ func (s *Server) redeemMultiSigOut(ctx context.Context, icmd interface{}) (inter
 		return nil, err
 	}
 	sc := txscript.GetScriptClass(0,
-		p2shOutput.RedeemScript)
+		p2shOutput.RedeemScript, true) // Yes treasury
 	if sc != txscript.MultiSigTy {
 		return nil, errors.E("P2SH redeem script is not multisig")
 	}
@@ -3078,7 +3253,7 @@ func (s *Server) ticketInfo(ctx context.Context, icmd interface{}) (interface{},
 				Status:      status.String(),
 			}
 			_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
-				out.PkScript, w.ChainParams())
+				out.PkScript, w.ChainParams(), true) // Yes treasury
 			if err != nil {
 				return false, err
 			}
@@ -3315,6 +3490,44 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 		"transaction %v", tx.MsgTx.TxHash().String())
 
 	return result, nil
+}
+
+// sendToTreasury handles a sendtotreasury RPC request by creating a new
+// transaction spending unspent transaction outputs for a wallet to the
+// treasury.  Leftover inputs not sent to the payment address or a fee for the
+// miner are sent back to a new address in the wallet.  Upon success, the TxID
+// for the created transaction is returned.
+func (s *Server) sendToTreasury(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.SendToTreasuryCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	amt, err := dcrutil.NewAmount(cmd.Amount)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check that signed integer parameters are positive.
+	if amt <= 0 {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative amount")
+	}
+
+	// sendtotreasury always spends from the default account.
+	return s.sendAmountToTreasury(ctx, w, amt, udb.DefaultAccountNum, 1)
+}
+
+// transaction spending treasury balance.
+// Upon success, the TxID for the created transaction is returned.
+func (s *Server) sendFromTreasury(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.SendFromTreasuryCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	return s.sendOutputsFromTreasury(ctx, w, *cmd)
 }
 
 // setTxFee sets the transaction fee per kilobyte added to transactions.
@@ -3851,7 +4064,7 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 		// further information available, so just set the script type
 		// a non-standard and break out now.
 		class, addrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
-			0, script, w.ChainParams())
+			0, script, w.ChainParams(), true) // Yes treasury
 		if err != nil {
 			result.Script = txscript.NonStandardTy.String()
 			break

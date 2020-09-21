@@ -11,10 +11,10 @@ import (
 	"sync"
 
 	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/internal/compat"
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v3"
-	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/hdkeychain/v3"
@@ -72,7 +72,7 @@ func lookupInputAccount(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails,
 		return 0
 	}
 	prevOut := prev.MsgTx.TxOut[prevOP.Index]
-	_, addrs, _, err := txscript.ExtractPkScriptAddrs(prevOut.Version, prevOut.PkScript, w.chainParams)
+	_, addrs, _, err := txscript.ExtractPkScriptAddrs(prevOut.Version, prevOut.PkScript, w.chainParams, true) // Yes treasury
 	var inputAcct uint32
 	if err == nil && len(addrs) > 0 {
 		inputAcct, err = w.manager.AddrAccount(addrmgrNs, addrs[0])
@@ -91,7 +91,7 @@ func lookupOutputChain(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails,
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
 	output := details.MsgTx.TxOut[cred.Index]
-	_, addrs, _, err := txscript.ExtractPkScriptAddrs(output.Version, output.PkScript, w.chainParams)
+	_, addrs, _, err := txscript.ExtractPkScriptAddrs(output.Version, output.PkScript, w.chainParams, true) // Yes treasury
 	var ma udb.ManagedAddress
 	if err == nil && len(addrs) > 0 {
 		ma, err = w.manager.Address(addrmgrNs, addrs[0])
@@ -187,7 +187,7 @@ func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]dcrutil.Amount)
 		output := unspent[i]
 		var outputAcct uint32
 		_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-			0, output.PkScript, w.chainParams)
+			0, output.PkScript, w.chainParams, true) // Yes treasury
 		if err == nil && len(addrs) > 0 {
 			outputAcct, err = w.manager.AddrAccount(addrmgrNs, addrs[0])
 		}
@@ -426,11 +426,11 @@ const (
 
 // TxTransactionType returns the correct TransactionType given a wire transaction
 func TxTransactionType(tx *wire.MsgTx) TransactionType {
-	if blockchain.IsCoinBaseTx(tx) {
+	if compat.IsEitherCoinBaseTx(tx) {
 		return TransactionTypeCoinbase
 	} else if stake.IsSStx(tx) {
 		return TransactionTypeTicketPurchase
-	} else if stake.IsSSGen(tx) {
+	} else if stake.IsSSGen(tx, true /* Yes treasury */) {
 		return TransactionTypeVote
 	} else if stake.IsSSRtx(tx) {
 		return TransactionTypeRevocation

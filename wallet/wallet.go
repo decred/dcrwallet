@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"runtime"
 	"sort"
 	"strconv"
@@ -27,7 +28,8 @@ import (
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v3"
-	blockchain "github.com/decred/dcrd/blockchain/standalone"
+
+	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/crypto/blake256"
@@ -102,6 +104,8 @@ type Wallet struct {
 	stakePoolEnabled   bool
 	stakePoolColdAddrs map[string]struct{}
 	subsidyCache       *blockchain.SubsidyCache
+	tspends            map[chainhash.Hash]wire.MsgTx
+	tspendVotePolicy   map[string]stake.TreasuryVoteT // [pikey]vote_policy
 
 	// Start up flags/settings
 	gapLimit        uint32
@@ -190,6 +194,39 @@ func (w *Wallet) VotingEnabled() bool {
 	return enabled
 }
 
+// AddTSpend adds a tspend to the cache.
+func (w *Wallet) AddTSpend(tx wire.MsgTx) error {
+	hash := tx.TxHash()
+	log.Infof("TSpend arrived: %v", hash)
+	w.stakeSettingsLock.Lock()
+	defer w.stakeSettingsLock.Unlock()
+
+	if _, ok := w.tspends[hash]; ok {
+		return fmt.Errorf("tspend already cached")
+	}
+	w.tspends[hash] = tx
+	return nil
+}
+
+// GetAllTSpends returns all tspends currently in the cache.
+// Note: currently the tspend list does not get culled.
+func (w *Wallet) GetAllTSpends(ctx context.Context) []*wire.MsgTx {
+	_, height := w.MainChainTip(ctx)
+	w.stakeSettingsLock.Lock()
+	defer w.stakeSettingsLock.Unlock()
+
+	txs := make([]*wire.MsgTx, 0, len(w.tspends))
+	for k := range w.tspends {
+		v := w.tspends[k]
+		if uint32(height) > v.Expiry {
+			delete(w.tspends, k)
+			continue
+		}
+		txs = append(txs, &v)
+	}
+	return txs
+}
+
 func voteVersion(params *chaincfg.Params) uint32 {
 	switch params.Net {
 	case wire.MainNet:
@@ -274,6 +311,10 @@ func (w *Wallet) readDBTicketVoteBits(dbtx walletdb.ReadTx, ticketHash *chainhas
 		}
 	}
 	return tvb, hasSavedPrefs
+}
+
+func (w *Wallet) readDBTreasuryPolicies(dbtx walletdb.ReadTx) (map[string]stake.TreasuryVoteT, error) {
+	return udb.TreasuryKeyPolicies(dbtx)
 }
 
 // VoteBits returns the vote bits that are described by the currently set agenda
@@ -454,6 +495,47 @@ func (w *Wallet) SetAgendaChoices(ctx context.Context, ticketHash *chainhash.Has
 	}
 
 	return voteBits, nil
+}
+
+// TreasuryKeyPolicy returns a vote policy for provided Pi key. If there is
+// no policy return TreasuryVoteInvalid.
+func (w *Wallet) TreasuryKeyPolicy(pikey []byte) stake.TreasuryVoteT {
+	w.stakeSettingsLock.Lock()
+	defer w.stakeSettingsLock.Unlock()
+
+	// Zero value means abstain, just return as is.
+	return w.tspendVotePolicy[string(pikey)]
+}
+
+// SetTreasuryKeyPolicy sets a tspend vote policy for a specific Politeia
+// instance key.
+func (w *Wallet) SetTreasuryKeyPolicy(ctx context.Context, pikey []byte,
+	policy stake.TreasuryVoteT) error {
+
+	switch policy {
+	case stake.TreasuryVoteInvalid, stake.TreasuryVoteNo, stake.TreasuryVoteYes:
+	default:
+		err := errors.Errorf("invalid treasury vote policy %#x", policy)
+		return errors.E(errors.Invalid, err)
+	}
+
+	defer w.stakeSettingsLock.Unlock()
+	w.stakeSettingsLock.Lock()
+
+	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		return udb.SetTreasuryKeyPolicy(dbtx, pikey, policy)
+	})
+	if err != nil {
+		return err
+	}
+
+	if policy == stake.TreasuryVoteInvalid {
+		delete(w.tspendVotePolicy, string(pikey))
+		return nil
+	}
+
+	w.tspendVotePolicy[string(pikey)] = policy
+	return nil
 }
 
 // RelayFee returns the current minimum relay fee (per kB of serialized
@@ -2025,7 +2107,7 @@ func (c CreditCategory) String() string {
 // TODO: This is intended for use by the RPC server and should be moved out of
 // this package at a later time.
 func recvCategory(details *udb.TxDetails, syncHeight int32, chainParams *chaincfg.Params) CreditCategory {
-	if blockchain.IsCoinBaseTx(&details.MsgTx) {
+	if compat.IsEitherCoinBaseTx(&details.MsgTx) {
 		if coinbaseMatured(chainParams, details.Block.Height, syncHeight) {
 			return CreditGenerate
 		}
@@ -2054,7 +2136,7 @@ func listTransactions(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb.M
 
 	txHashStr := details.Hash.String()
 	received := details.Received.Unix()
-	generated := blockchain.IsCoinBaseTx(&details.MsgTx)
+	generated := compat.IsEitherCoinBaseTx(&details.MsgTx)
 	recvCat := recvCategory(details, syncHeight, net).String()
 
 	send := len(details.Debits) != 0
@@ -2103,7 +2185,7 @@ outputs:
 		var address string
 		var accountName string
 		_, addrs, _, _ := txscript.ExtractPkScriptAddrs(output.Version,
-			output.PkScript, net)
+			output.PkScript, net, true) // Yes treasury
 		if len(addrs) == 1 {
 			addr := addrs[0]
 			address = addr.Address()
@@ -2275,7 +2357,7 @@ func (w *Wallet) ListAddressTransactions(ctx context.Context, pkHashes map[strin
 				for _, cred := range detail.Credits {
 					pkScript := detail.MsgTx.TxOut[cred.Index].PkScript
 					_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-						0, pkScript, w.chainParams)
+						0, pkScript, w.chainParams, true) // Yes treasury
 					if err != nil || len(addrs) != 1 {
 						continue
 					}
@@ -3061,7 +3143,7 @@ func (w *Wallet) Accounts(ctx context.Context) (*AccountsResult, error) {
 			output := unspent[i]
 			var outputAcct uint32
 			_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				0, output.PkScript, w.chainParams)
+				0, output.PkScript, w.chainParams, true) // Yes treasury
 			if err == nil && len(addrs) > 0 {
 				outputAcct, err = w.manager.AddrAccount(addrmgrNs, addrs[0])
 			}
@@ -3211,7 +3293,7 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 			// grouped under the associated account in the db.
 			acctName := defaultAccountName
 			sc, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				0, output.PkScript, w.chainParams)
+				0, output.PkScript, w.chainParams, true) // Yes treasury
 			if err != nil {
 				continue
 			}
@@ -3318,26 +3400,32 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 	return results, nil
 }
 
+func (w *Wallet) LoadPrivateKey(ctx context.Context, addr dcrutil.Address) (key *secp256k1.PrivateKey,
+	zero func(), err error) {
+
+	const op errors.Op = "wallet.LoadPrivateKey"
+	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
+		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
+		var err error
+		key, zero, err = w.manager.PrivateKey(addrmgrNs, addr)
+		return err
+	})
+	if err != nil {
+		return nil, nil, errors.E(op, err)
+	}
+
+	return key, zero, nil
+}
+
 // DumpWIFPrivateKey returns the WIF encoded private key for a
 // single wallet address.
 func (w *Wallet) DumpWIFPrivateKey(ctx context.Context, addr dcrutil.Address) (string, error) {
 	const op errors.Op = "wallet.DumpWIFPrivateKey"
-	var privKey *secp256k1.PrivateKey
-	var done func()
-	defer func() {
-		if done != nil {
-			done()
-		}
-	}()
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
-		var err error
-		privKey, done, err = w.manager.PrivateKey(addrmgrNs, addr)
-		return err
-	})
+	privKey, zero, err := w.LoadPrivateKey(ctx, addr)
 	if err != nil {
 		return "", errors.E(op, err)
 	}
+	defer zero()
 	wif, err := dcrutil.NewWIF(privKey.Serialize(), w.chainParams.PrivateKeyID,
 		dcrec.STEcdsaSecp256k1)
 	if err != nil {
@@ -3494,11 +3582,15 @@ type StakeInfoData struct {
 }
 
 func isVote(tx *wire.MsgTx) bool {
-	return stake.IsSSGen(tx)
+	return stake.IsSSGen(tx, true) // Yes treasury XXX this is not right when treasury activates
 }
 
 func isRevocation(tx *wire.MsgTx) bool {
 	return stake.IsSSRtx(tx)
+}
+
+func isTreasurySpend(tx *wire.MsgTx) bool {
+	return stake.IsTSpend(tx)
 }
 
 // hasVotingAuthority returns whether the 0th output of a ticket purchase can be
@@ -3506,7 +3598,7 @@ func isRevocation(tx *wire.MsgTx) bool {
 func (w *Wallet) hasVotingAuthority(addrmgrNs walletdb.ReadBucket, ticketPurchase *wire.MsgTx) (bool, error) {
 	out := ticketPurchase.TxOut[0]
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
-		out.PkScript, w.chainParams)
+		out.PkScript, w.chainParams, true) // Yes treasury
 	if err != nil {
 		return false, err
 	}
@@ -3849,7 +3941,7 @@ func (w *Wallet) LockedOutpoints(ctx context.Context, accountName string) ([]dcr
 			if !allAccts {
 				// Lookup the associated account for the output.
 				_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-					0, output.PkScript, w.chainParams)
+					0, output.PkScript, w.chainParams, true) // Yes treasury
 				if err != nil {
 					continue
 				}
@@ -4030,7 +4122,7 @@ func (w *Wallet) TotalReceivedForAccounts(ctx context.Context, minConf int32) ([
 					pkScript := detail.MsgTx.TxOut[cred.Index].PkScript
 					var outputAcct uint32
 					_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkVersion,
-						pkScript, w.chainParams)
+						pkScript, w.chainParams, true) // Yes treasury
 					if err == nil && len(addrs) > 0 {
 						outputAcct, err = w.manager.AddrAccount(
 							addrmgrNs, addrs[0])
@@ -4085,7 +4177,7 @@ func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr dcrutil.Address,
 					pkVersion := detail.MsgTx.TxOut[cred.Index].Version
 					pkScript := detail.MsgTx.TxOut[cred.Index].PkScript
 					_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkVersion,
-						pkScript, w.chainParams)
+						pkScript, w.chainParams, true) // Yes treasury
 					// An error creating addresses from the output script only
 					// indicates a non-standard script, so ignore this credit.
 					if err != nil {
@@ -4126,7 +4218,7 @@ func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account
 		return nil, err
 	}
 	defer heldUnlock.release()
-	tx, watch, err := w.txToOutputs(ctx, op, outputs, account, changeAccount, minconf, true, relayFee, false)
+	tx, watch, err := w.txToOutputs(ctx, op, outputs, account, changeAccount, minconf, true, relayFee, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -4134,7 +4226,36 @@ func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account
 	if err != nil {
 		return nil, err
 	}
+	hash := tx.Tx.TxHash()
+	return &hash, nil
+}
 
+// transaction hash upon success
+func (w *Wallet) SendOutputsToTreasury(ctx context.Context, outputs []*wire.TxOut, account, changeAccount uint32, minconf int32) (*chainhash.Hash, error) {
+	const op errors.Op = "wallet.SendOutputsToTreasury"
+	relayFee := w.RelayFee()
+	for _, output := range outputs {
+		err := txrules.CheckOutput(output, relayFee)
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+	}
+
+	heldUnlock, err := w.holdUnlock()
+	if err != nil {
+		return nil, err
+	}
+	defer heldUnlock.release()
+	tx, watch, err := w.txToOutputs(ctx, op, outputs, account, changeAccount,
+		minconf, false, relayFee, false, true)
+	if err != nil {
+		return nil, err
+	}
+
+	err = w.publishAndWatch(ctx, op, nil, tx, watch)
+	if err != nil {
+		return nil, err
+	}
 	hash := tx.Tx.TxHash()
 	return &hash, nil
 }
@@ -4186,7 +4307,7 @@ func (w *Wallet) SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType t
 			// For an SSGen tx, skip the first input as it is a stake base
 			// and doesn't need to be signed.  The transaction is expected
 			// to already contain the consensus-validated stakebase script.
-			if i == 0 && stake.IsSSGen(tx) {
+			if i == 0 && stake.IsSSGen(tx, true) { // Yes treasury
 				continue
 			}
 
@@ -4248,7 +4369,7 @@ func (w *Wallet) SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType t
 				txscript.SigHashSingle || i < len(tx.TxOut) {
 
 				script, err := txscript.SignTxOutput(w.ChainParams(),
-					tx, i, prevOutScript, hashType, source, source, txIn.SignatureScript)
+					tx, i, prevOutScript, hashType, source, source, txIn.SignatureScript, true) // Yes treasury
 				// Failure to sign isn't an error, it just means that
 				// the tx isn't complete.
 				if err != nil {
@@ -4273,13 +4394,13 @@ func (w *Wallet) SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType t
 				class, addr, _, _ := txscript.ExtractPkScriptAddrs(
 					0,
 					additionalPrevScripts[txIn.PreviousOutPoint],
-					w.ChainParams())
+					w.ChainParams(), true) // Yes treasury
 
 				if errors.Is(err, txscript.ErrInvalidStackOperation) &&
 					class == txscript.ScriptHashTy {
 					redeemScript, _ := source.script(addr[0])
 					redeemClass := txscript.GetScriptClass(
-						0, redeemScript)
+						0, redeemScript, true) // Yes treasury
 					if redeemClass == txscript.MultiSigTy {
 						multisigNotEnoughSigs = true
 					}
@@ -4362,7 +4483,7 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 	}
 	for _, out := range tx.TxOut {
 		_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
-			out.PkScript, w.chainParams)
+			out.PkScript, w.chainParams, true) // Yes treasury
 		if err != nil {
 			continue
 		}
@@ -4405,7 +4526,7 @@ func (w *Wallet) appendRelevantOutpoints(relevant []wire.OutPoint, dbtx walletdb
 	op := wire.OutPoint{
 		Hash: txHash,
 	}
-	isTicket := stake.DetermineTxType(tx) == stake.TxTypeSStx
+	isTicket := stake.DetermineTxType(tx, true /* Yes treasury */) == stake.TxTypeSStx
 	var watchedTicketOutputZero bool
 	for i, out := range tx.TxOut {
 		if isTicket && i > 0 && i&1 == 1 && !watchedTicketOutputZero {
@@ -4423,7 +4544,7 @@ func (w *Wallet) appendRelevantOutpoints(relevant []wire.OutPoint, dbtx walletdb
 		}
 
 		class, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
-			out.PkScript, w.chainParams)
+			out.PkScript, w.chainParams, true) // Yes treasury
 		if err != nil {
 			continue
 		}
@@ -4820,11 +4941,13 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		db: db,
 
 		// StakeOptions
-		votingEnabled: cfg.VotingEnabled,
-		addressReuse:  cfg.AddressReuse,
-		ticketAddress: cfg.VotingAddress,
-		poolAddress:   cfg.PoolAddress,
-		poolFees:      cfg.PoolFees,
+		votingEnabled:    cfg.VotingEnabled,
+		addressReuse:     cfg.AddressReuse,
+		ticketAddress:    cfg.VotingAddress,
+		poolAddress:      cfg.PoolAddress,
+		poolFees:         cfg.PoolFees,
+		tspends:          make(map[chainhash.Hash]wire.MsgTx),
+		tspendVotePolicy: make(map[string]stake.TreasuryVoteT),
 
 		// LoaderOptions
 		gapLimit:                cfg.GapLimit,
@@ -4851,6 +4974,7 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 	log.Infof("Opened wallet") // TODO: log balance? last sync height?
 
 	var vb stake.VoteBits
+	var treasuryPolicy map[string]stake.TreasuryVoteT
 	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrNamespaceKey)
 		lastAcct, err := w.manager.LastAccount(ns)
@@ -4902,6 +5026,11 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 
 		vb = w.readDBVoteBits(tx)
 
+		treasuryPolicy, err = w.readDBTreasuryPolicies(tx)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -4910,6 +5039,7 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 
 	w.NtfnServer = newNotificationServer(w)
 	w.defaultVoteBits = vb
+	w.tspendVotePolicy = treasuryPolicy
 
 	w.stakePoolColdAddrs, err = decodeStakePoolColdExtKey(cfg.StakePoolColdExtKey,
 		cfg.Params)
@@ -4946,7 +5076,7 @@ func (w *Wallet) getCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, 
 						continue
 					}
 					_, addrs, _, _ := txscript.ExtractPkScriptAddrs(output.Version,
-						output.PkScript, w.chainParams)
+						output.PkScript, w.chainParams, true) // Yes treasury
 					if len(addrs) == 1 {
 						acct, err := w.manager.AddrAccount(addrmgrNs, addrs[0])
 						// mixed output belongs to wallet.

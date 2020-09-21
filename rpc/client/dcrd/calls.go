@@ -170,6 +170,33 @@ func (r *RPC) MempoolCount(ctx context.Context, kind string) (int, error) {
 	return len(hashStrings), nil
 }
 
+// getRawTransaction retrieve a transaction by hash"
+func (r *RPC) getRawTransaction(ctx context.Context, hash string) (*wire.MsgTx, error) {
+	tx := new(wire.MsgTx)
+	err := r.Call(ctx, "getrawtransaction", unhex(tx), hash)
+	return tx, err
+}
+
+// GetMempoolTSpends retrieves all mempool tspends.
+func (r *RPC) GetMempoolTSpends(ctx context.Context) ([]*wire.MsgTx, error) {
+	const op errors.Op = "dcrd.GetMempoolTSpends"
+	var hashStrings []string
+	err := r.Call(ctx, "getrawmempool", &hashStrings, false, "tspend")
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	txs := make([]*wire.MsgTx, 0, len(hashStrings))
+	for _, h := range hashStrings {
+		tx, err := r.getRawTransaction(ctx, h)
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+		txs = append(txs, tx)
+	}
+	return txs, nil
+}
+
 // PublishTransaction submits the transaction to dcrd mempool for acceptance.
 // If accepted, the transaction is published to other peers.
 // The transaction may not be an orphan.

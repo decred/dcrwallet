@@ -38,7 +38,7 @@ func IsDustAmount(amount dcrutil.Amount, scriptSize int, relayFeePerKb dcrutil.A
 // with default policies.
 func IsDustOutput(output *wire.TxOut, relayFeePerKb dcrutil.Amount) bool {
 	// Unspendable outputs which solely carry data are not checked for dust.
-	if txscript.GetScriptClass(output.Version, output.PkScript) == txscript.NullDataTy {
+	if txscript.GetScriptClass(output.Version, output.PkScript, true) == txscript.NullDataTy { // Yes treasury
 		return false
 	}
 

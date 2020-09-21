@@ -9,7 +9,7 @@ package validate
 
 import (
 	"decred.org/dcrwallet/errors"
-	blockchain "github.com/decred/dcrd/blockchain/standalone"
+	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/wire"

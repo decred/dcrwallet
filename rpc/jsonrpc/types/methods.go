@@ -874,6 +874,34 @@ func NewSendToMultiSigCmd(fromaccount string, amount float64, pubkeys []string,
 	}
 }
 
+// SendToTreasuryCmd defines the sendtotreasury JSON-RPC command.
+type SendToTreasuryCmd struct {
+	Amount float64
+}
+
+// NewSendToTreasurymd returns a new instance which can be used to issue a
+// sendtotreasury JSON-RPC command.
+func NewSendToTreasuryCmd(amount float64, comment, commentTo *string) *SendToTreasuryCmd {
+	return &SendToTreasuryCmd{
+		Amount: amount,
+	}
+}
+
+// SendFromTreasuryCmd defines the sendfromtreasury JSON-RPC command.
+type SendFromTreasuryCmd struct {
+	Key     string
+	Amounts map[string]float64
+}
+
+// NewSendFromTreasurymd returns a new instance which can be used to issue a
+// sendfromtreasury JSON-RPC command.
+func NewSendFromTreasuryCmd(pubkey string, amounts map[string]float64) *SendFromTreasuryCmd {
+	return &SendFromTreasuryCmd{
+		Key:     pubkey,
+		Amounts: amounts,
+	}
+}
+
 // SetTxFeeCmd defines the settxfee JSON-RPC command.
 type SetTxFeeCmd struct {
 	Amount float64 // In DCR
@@ -1151,9 +1179,11 @@ func init() {
 		{"rescanwallet", (*RescanWalletCmd)(nil)},
 		{"revoketickets", (*RevokeTicketsCmd)(nil)},
 		{"sendfrom", (*SendFromCmd)(nil)},
+		{"sendfromtreasury", (*SendFromTreasuryCmd)(nil)},
 		{"sendmany", (*SendManyCmd)(nil)},
 		{"sendtoaddress", (*SendToAddressCmd)(nil)},
 		{"sendtomultisig", (*SendToMultiSigCmd)(nil)},
+		{"sendtotreasury", (*SendToTreasuryCmd)(nil)},
 		{"getcoinjoinsbyacct", (*GetCoinjoinsByAcctCmd)(nil)},
 		{"settxfee", (*SetTxFeeCmd)(nil)},
 		{"setvotechoice", (*SetVoteChoiceCmd)(nil)},

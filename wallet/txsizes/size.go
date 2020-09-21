@@ -65,6 +65,20 @@ const (
 	//   - OP_CHECKSIG
 	P2PKHPkScriptSize = 1 + 1 + 1 + 20 + 1 + 1
 
+	// P2PKHPkTreasruryScriptSize is the size of a transaction output
+	// script that pays stake change to a compressed pubkey hash.  This is
+	// used when a user sends coins to the treasury via OP_TADD.  It is
+	// calculated as:
+	//
+	//   - OP_SSTXCHANGE
+	//   - OP_DUP
+	//   - OP_HASH160
+	//   - OP_DATA_20
+	//   - 20 bytes pubkey hash
+	//   - OP_EQUALVERIFY
+	//   - OP_CHECKSIG
+	P2PKHPkTreasruryScriptSize = 1 + 1 + 1 + 1 + 20 + 1 + 1
+
 	// P2SHPkScriptSize is the size of a transaction output script that
 	// pays to a script hash.  It is calculated as:
 	//
@@ -92,6 +106,15 @@ const (
 	//   - 1 byte compact int encoding value 25
 	//   - 25 bytes P2PKH output script
 	P2PKHOutputSize = 8 + 2 + 1 + 25
+
+	// TSPENDInputSize
+	//
+	//   - OP_DATA_73
+	//   - 73 bytes signature
+	//   - OP_DATA_33
+	//   - 33 bytes serialized compressed pubkey
+	//   - 1 byte OP_TSPEND
+	TSPENDInputSize = 1 + 73 + 1 + 33 + 1
 )
 
 func sumOutputSerializeSizes(outputs []*wire.TxOut) (serializeSize int) {

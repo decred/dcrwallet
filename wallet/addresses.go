@@ -383,18 +383,17 @@ func (x *xpubAddress) payRevokeCommitment() (script []byte, version uint16) {
 // addressScript returns an output script paying to address.  This func is
 // always preferred over direct usage of txscript.PayToAddrScript due to the
 // latter failing on unexpected concrete types.
-func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err error) {
+func addressScript(addr dcrutil.Address) (script []byte, vers uint16, err error) {
 	type scripter interface {
 		PaymentScript() (uint16, []byte)
 	}
 	switch addr := addr.(type) {
 	case scripter:
-		vers, script := addr.PaymentScript()
-		return script, vers, nil
+		vers, script = addr.PaymentScript()
 	default:
-		pkScript, err = txscript.PayToAddrScript(addr)
-		return pkScript, 0, err
+		script, err = txscript.PayToAddrScript(addr)
 	}
+	return script, vers, err
 }
 
 func voteRightsScript(addr dcrutil.Address) (script []byte, version uint16, err error) {
@@ -985,6 +984,44 @@ func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
 
 func (src *p2PKHChangeSource) ScriptSize() int {
 	return txsizes.P2PKHPkScriptSize
+}
+
+// p2PKHTreasuryChangeSource is the change source that shall be used when there
+// is change on an OP_TADD treasury send.
+type p2PKHTreasuryChangeSource struct {
+	persist   persistReturnedChildFunc
+	account   uint32
+	wallet    *Wallet
+	ctx       context.Context
+	gapPolicy gapPolicy
+}
+
+// Script returns the treasury change script and is required for change source
+// interface.
+func (src *p2PKHTreasuryChangeSource) Script() ([]byte, uint16, error) {
+	const accountName = "" // not returned, so can be faked.
+	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.persist,
+		accountName, src.account, src.gapPolicy)
+	if err != nil {
+		return nil, 0, err
+	}
+	script, vers, err := addressScript(changeAddress)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Prefix script with OP_SSTXCHANGE.
+	s := make([]byte, len(script)+1)
+	s[0] = txscript.OP_SSTXCHANGE
+	copy(s[1:], script)
+
+	return s, vers, err
+}
+
+// ScriptSize returns the treasury change script size. This function is
+// required for the change source interface.
+func (src *p2PKHTreasuryChangeSource) ScriptSize() int {
+	return txsizes.P2PKHPkTreasruryScriptSize
 }
 
 func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32, params *chaincfg.Params) ([]dcrutil.Address, error) {
