@@ -3513,6 +3513,16 @@ func (s *Server) sendRawTransaction(ctx context.Context, icmd interface{}) (inte
 		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
 	}
 
+	if !*cmd.AllowHighFees {
+		highFees, err := txrules.TxPaysHighFees(msgtx)
+		if err != nil {
+			return nil, err
+		}
+		if highFees {
+			return nil, errors.E(errors.Policy, "high fees")
+		}
+	}
+
 	txHash, err := w.PublishTransaction(ctx, msgtx, n)
 	if err != nil {
 		return nil, err
