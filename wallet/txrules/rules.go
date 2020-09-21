@@ -103,3 +103,21 @@ func PaysHighFees(totalInput dcrutil.Amount, tx *wire.MsgTx) bool {
 	maxFee := FeeForSerializeSize(1000*DefaultRelayFeePerKb, tx.SerializeSize())
 	return fee > maxFee
 }
+
+// TxPaysHighFees checks whether the signed transaction pays insanely high fees.
+// Transactons are defined to have a high fee if they have pay a fee rate that
+// is 1000 time higher than the default fee.  Total transaction input value is
+// determined by summing the ValueIn fields of each input, and an error is returned
+// if any input values were the null value.
+func TxPaysHighFees(tx *wire.MsgTx) (bool, error) {
+	var input dcrutil.Amount
+	for i, in := range tx.TxIn {
+		if in.ValueIn < 0 {
+			err := errors.Errorf("transaction input %d does not "+
+				"specify the input value", i)
+			return false, errors.E(errors.Invalid, err)
+		}
+		input += dcrutil.Amount(in.ValueIn)
+	}
+	return PaysHighFees(input, tx), nil
+}

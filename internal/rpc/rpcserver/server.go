@@ -1537,14 +1537,25 @@ func (s *walletServer) PublishTransaction(ctx context.Context, req *pb.PublishTr
 		return nil, err
 	}
 
-	var msgTx wire.MsgTx
+	msgTx := new(wire.MsgTx)
 	err = msgTx.Deserialize(bytes.NewReader(req.SignedTransaction))
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"Bytes do not represent a valid raw transaction: %v", err)
 	}
 
-	txHash, err := s.wallet.PublishTransaction(ctx, &msgTx, n)
+	if !s.wallet.AllowsHighFees() {
+		highFees, err := txrules.TxPaysHighFees(msgTx)
+		if err != nil {
+			return nil, translateError(err)
+		}
+		if highFees {
+			err := errors.E(errors.Policy, "high fees")
+			return nil, translateError(err)
+		}
+	}
+
+	txHash, err := s.wallet.PublishTransaction(ctx, msgTx, n)
 	if err != nil {
 		return nil, translateError(err)
 	}

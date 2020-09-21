@@ -3636,37 +3636,3 @@ func (s *Store) AccountBalances(dbtx walletdb.ReadTx, minConf int32) (map[uint32
 	_, syncHeight := s.MainChainTip(dbtx)
 	return s.balanceFullScan(dbtx, minConf, syncHeight)
 }
-
-// TotalInput calculates the input value referenced by all transaction inputs.
-// If this is not calculable, this returns 0.
-func (s *Store) TotalInput(dbtx walletdb.ReadTx, tx *wire.MsgTx) (dcrutil.Amount, error) {
-	ns := dbtx.ReadBucket(wtxmgrBucketKey)
-
-	var total dcrutil.Amount
-	for _, in := range tx.TxIn {
-		var tx wire.MsgTx
-		if v := existsRawUnmined(ns, in.PreviousOutPoint.Hash[:]); v != nil {
-			err := tx.Deserialize(bytes.NewReader(extractRawUnminedTx(v)))
-			if err != nil {
-				return 0, errors.E(errors.IO, err)
-			}
-		} else if _, v := latestTxRecord(ns, in.PreviousOutPoint.Hash[:]); v != nil {
-			err := readRawTxRecordMsgTx(&in.PreviousOutPoint.Hash, v, &tx)
-			if err != nil {
-				return 0, err
-			}
-		} else {
-			return 0, nil
-		}
-
-		if in.PreviousOutPoint.Index >= uint32(len(tx.TxOut)) {
-			idx := in.PreviousOutPoint.Index
-			hash := &in.PreviousOutPoint.Hash
-			return 0, errors.E(errors.Invalid, errors.Errorf("previous output index %d does not exist in transaction %v", idx, hash))
-		}
-
-		total += dcrutil.Amount(tx.TxOut[in.PreviousOutPoint.Index].Value)
-	}
-
-	return total, nil
-}

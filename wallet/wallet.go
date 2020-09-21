@@ -4603,9 +4603,20 @@ func (w *Wallet) AbandonTransaction(ctx context.Context, hash *chainhash.Hash) e
 	return nil
 }
 
+// AllowsHighFees returns whether the wallet is configured to allow or prevent
+// the creation and publishing of transactions with very large fees.
+func (w *Wallet) AllowsHighFees() bool {
+	return w.allowHighFees
+}
+
 // PublishTransaction saves (if relevant) and sends the transaction to the
 // consensus RPC server so it can be propagated to other nodes and eventually
 // mined.  If the send fails, the transaction is not added to the wallet.
+//
+// This method does not check if a transaction pays high fees or not, and it is
+// the caller's responsibility to check this using either the current wallet
+// policy or other configuration parameters.  See txrules.TxPaysHighFees for a
+// check for insanely high transaction fees.
 func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, n NetworkBackend) (*chainhash.Hash, error) {
 	const opf = "wallet.PublishTransaction(%v)"
 
@@ -4614,20 +4625,6 @@ func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, n Netwo
 	var relevant bool
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		relevant = w.isRelevantTx(dbtx, tx)
-
-		// Prevent high fee transactions from being published, if disabled and
-		// the fee can be calculated.
-		if relevant && !w.allowHighFees {
-			totalInput, err := w.txStore.TotalInput(dbtx, tx)
-			if err != nil {
-				return err
-			}
-			err = w.checkHighFees(totalInput, tx)
-			if err != nil {
-				return err
-			}
-		}
-
 		return nil
 	})
 	if err != nil {
