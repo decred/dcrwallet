@@ -48,9 +48,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "8.3.0"
+	jsonrpcSemverString = "8.4.0"
 	jsonrpcSemverMajor  = 8
-	jsonrpcSemverMinor  = 3
+	jsonrpcSemverMinor  = 4
 	jsonrpcSemverPatch  = 0
 )
 
@@ -148,9 +148,10 @@ var handlers = map[string]handler{
 	"walletpassphrasechange":  {fn: (*Server).walletPassphraseChange},
 
 	// Extensions to the reference client JSON-RPC API
-	"getbestblock":     {fn: (*Server).getBestBlock},
-	"createnewaccount": {fn: (*Server).createNewAccount},
-	"getpeerinfo":      {fn: (*Server).getPeerInfo},
+	"getbestblock":       {fn: (*Server).getBestBlock},
+	"createnewaccount":   {fn: (*Server).createNewAccount},
+	"getpeerinfo":        {fn: (*Server).getPeerInfo},
+	"sendrawtransaction": {fn: (*Server).sendRawTransaction},
 	// This was an extension but the reference implementation added it as
 	// well, but with a different API (no account parameter).  It's listed
 	// here because it hasn't been update to use the reference
@@ -3490,6 +3491,44 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 		"transaction %v", tx.MsgTx.TxHash().String())
 
 	return result, nil
+}
+
+// sendRawTransaction handles a sendrawtransaction RPC request by decoding hex
+// transaction and sending it to the network backend for propagation.
+func (s *Server) sendRawTransaction(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrdtypes.SendRawTransactionCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	msgtx := wire.NewMsgTx()
+	err = msgtx.Deserialize(hex.NewDecoder(strings.NewReader(cmd.HexTx)))
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
+	}
+
+	if !*cmd.AllowHighFees {
+		highFees, err := txrules.TxPaysHighFees(msgtx)
+		if err != nil {
+			return nil, err
+		}
+		if highFees {
+			return nil, errors.E(errors.Policy, "high fees")
+		}
+	}
+
+	txHash, err := w.PublishTransaction(ctx, msgtx, n)
+	if err != nil {
+		return nil, err
+	}
+
+	return txHash.String(), nil
 }
 
 // sendToTreasury handles a sendtotreasury RPC request by creating a new

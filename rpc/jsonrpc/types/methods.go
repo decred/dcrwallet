@@ -1217,6 +1217,7 @@ func init() {
 		{"getinfo", (*dcrdtypes.GetInfoCmd)(nil)},
 		{"getpeerinfo", (*dcrdtypes.GetPeerInfoCmd)(nil)},
 		{"help", (*dcrdtypes.HelpCmd)(nil)},
+		{"sendrawtransaction", (*dcrdtypes.SendRawTransactionCmd)(nil)},
 		{"ticketsforaddress", (*dcrdtypes.TicketsForAddressCmd)(nil)},
 		{"validateaddress", (*dcrdtypes.ValidateAddressCmd)(nil)},
 		{"verifymessage", (*dcrdtypes.VerifyMessageCmd)(nil)},

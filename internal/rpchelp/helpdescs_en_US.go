@@ -533,6 +533,12 @@ var helpDescsEnUS = map[string]string{
 	"sendtomultisig-comment":     "Unused",
 	"sendtomultisig--result0":    "The transaction hash of the sent transaction",
 
+	// SendRawTransactionCmd help.
+	"sendrawtransaction--synopsis":     "Submits the serialized, hex-encoded transaction to the local peer and relays it to the network.",
+	"sendrawtransaction-hextx":         "Serialized, hex-encoded signed transaction",
+	"sendrawtransaction-allowhighfees": "Whether or not to allow insanely high fees",
+	"sendrawtransaction--result0":      "The transaction hash of the sent transaction",
+
 	// SetGenerate help
 	"setgenerate--synopsis":    "Enable or disable stake mining",
 	"setgenerate-generate":     "True to enable stake mining, false to disable.",

@@ -93,6 +93,7 @@ var Methods = []struct {
 	{"sendtoaddress", returnsString},
 	{"sendtomultisig", returnsString},
 	{"sendtotreasury", returnsString},
+	{"sendrawtransaction", returnsString},
 	{"getcoinjoinsbyacct", []interface{}{(*map[string]uint32)(nil)}},
 	{"settxfee", returnsBool},
 	{"setvotechoice", nil},
