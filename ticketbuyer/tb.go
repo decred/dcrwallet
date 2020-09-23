@@ -266,8 +266,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	} else if limit > 0 && buy > limit {
 		buy = limit
 	}
-
-	tix, err := w.PurchaseTickets(ctx, n, &wallet.PurchaseTicketsRequest{
+	purchaseTicketReq := &wallet.PurchaseTicketsRequest{
 		Count:         buy,
 		SourceAccount: account,
 		VotingAddress: votingAddr,
@@ -286,7 +285,13 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		// VSPs
 		VSPAddress: poolFeeAddr,
 		VSPFees:    poolFees,
-	})
+	}
+	// If VSP is configured, we need to set the methods for vsp fee processment.
+	if tb.cfg.VSP != nil {
+		purchaseTicketReq.VSPFeePaymentProcess = tb.cfg.VSP.Process
+		purchaseTicketReq.VSPFeeProcess = tb.cfg.VSP.PoolFee
+	}
+	tix, err := w.PurchaseTickets(ctx, n, purchaseTicketReq)
 	if tix != nil {
 		for _, hash := range tix.TicketHashes {
 			log.Infof("Purchased ticket %v at stake difficulty %v", hash, sdiff)
