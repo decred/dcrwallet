@@ -1564,7 +1564,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	if req.VSPFeePaymentProcess != nil {
 		unlockCredits = false
 		for i, ticketHash := range purchaseTicketsResponse.TicketHashes {
-			_, err = req.VSPFeePaymentProcess(ctx, ticketHash, vspFeeCredits[i])
+			_, err = req.VSPFeePaymentProcess(ctx, *ticketHash, vspFeeCredits[i])
 			if err != nil {
 				// unlock outpoints in case of error
 				log.Errorf("vsp ticket %v fee proccessment failed: %v", ticketHash, err)

@@ -18,8 +18,8 @@ import (
 	"github.com/decred/dcrd/txscript/v3"
 )
 
-func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash *chainhash.Hash) (dcrutil.Amount, error) {
-	txs, _, err := v.w.GetTransactionsByHashes(ctx, []*chainhash.Hash{ticketHash})
+func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash chainhash.Hash) (dcrutil.Amount, error) {
+	txs, _, err := v.w.GetTransactionsByHashes(ctx, []*chainhash.Hash{&ticketHash})
 	if err != nil {
 		log.Errorf("failed to retrieve ticket %v: %v", ticketHash, err)
 		return 0, err
@@ -152,7 +152,7 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash *chainhash.Hash) (dc
 	}
 
 	v.ticketToFeeMu.Lock()
-	v.ticketToFeeMap[*ticketHash] = PendingFee{
+	v.ticketToFeeMap[ticketHash] = PendingFee{
 		CommitmentAddress: commitmentAddr,
 		VotingAddress:     votingAddress,
 		FeeAddress:        feeAddress,

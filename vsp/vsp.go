@@ -229,13 +229,13 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 }
 
 type queueEntry struct {
-	TicketHash *chainhash.Hash
+	TicketHash chainhash.Hash
 	FeeTx      *wire.MsgTx
 }
 
 func (v *VSP) Queue(ctx context.Context, ticketHash chainhash.Hash, feeTx *wire.MsgTx) {
 	queuedTicket := &queueEntry{
-		TicketHash: &ticketHash,
+		TicketHash: ticketHash,
 		FeeTx:      feeTx,
 	}
 	select {
@@ -277,7 +277,7 @@ func (v *VSP) Sync(ctx context.Context) {
 	}
 }
 
-func (v *VSP) Process(ctx context.Context, ticketHash *chainhash.Hash, credits []wallet.Input) (*wire.MsgTx, error) {
+func (v *VSP) Process(ctx context.Context, ticketHash chainhash.Hash, credits []wallet.Input) (*wire.MsgTx, error) {
 	feeAmount, err := v.GetFeeAddress(ctx, ticketHash)
 	if err != nil {
 		return nil, err
@@ -286,7 +286,7 @@ func (v *VSP) Process(ctx context.Context, ticketHash *chainhash.Hash, credits [
 	var totalValue int64
 	if credits == nil {
 		const minconf = 1
-		credits, err := v.w.ReserveOutputsForAmount(ctx, v.purchaseAccount, feeAmount, minconf)
+		credits, err = v.w.ReserveOutputsForAmount(ctx, v.purchaseAccount, feeAmount, minconf)
 		if err != nil {
 			return nil, err
 		}

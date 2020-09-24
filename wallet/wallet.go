@@ -1477,7 +1477,7 @@ type PurchaseTicketsRequest struct {
 	VSPFeeProcess func(context.Context) (float64, error)
 	// VSPFeePaymentProcess processes the payment of the vsp fee and returns
 	// the paid fee tx.
-	VSPFeePaymentProcess func(context.Context, *chainhash.Hash, []Input) (*wire.MsgTx, error)
+	VSPFeePaymentProcess func(context.Context, chainhash.Hash, []Input) (*wire.MsgTx, error)
 }
 
 // PurchaseTicketsResponse describes the response for purchasing tickets request.
