@@ -22,16 +22,13 @@ import (
 	"github.com/decred/dcrd/wire"
 )
 
-func (v *VSP) CreateFeeTx(ctx context.Context, ticketHash *chainhash.Hash, credits []wallet.Input) (*wire.MsgTx, error) {
-	if ticketHash == nil {
-		return nil, fmt.Errorf("nil tickethash")
-	}
+func (v *VSP) CreateFeeTx(ctx context.Context, ticketHash chainhash.Hash, credits []wallet.Input) (*wire.MsgTx, error) {
 	if len(credits) == 0 {
 		return nil, fmt.Errorf("no credits passed")
 	}
 
 	v.ticketToFeeMu.Lock()
-	feeInfo, exists := v.ticketToFeeMap[*ticketHash]
+	feeInfo, exists := v.ticketToFeeMap[ticketHash]
 	v.ticketToFeeMu.Unlock()
 	if !exists {
 		_, err := v.GetFeeAddress(ctx, ticketHash)
@@ -39,7 +36,7 @@ func (v *VSP) CreateFeeTx(ctx context.Context, ticketHash *chainhash.Hash, credi
 			return nil, err
 		}
 		v.ticketToFeeMu.Lock()
-		feeInfo, exists = v.ticketToFeeMap[*ticketHash]
+		feeInfo, exists = v.ticketToFeeMap[ticketHash]
 		v.ticketToFeeMu.Unlock()
 		if !exists {
 			return nil, fmt.Errorf("failed to find fee info for ticket %v", ticketHash)
@@ -168,10 +165,7 @@ func (v *VSP) CreateFeeTx(ctx context.Context, ticketHash *chainhash.Hash, credi
 
 // PayFee receives an unsigned fee tx, signs it and make a pays fee request to
 // the vsp, so the ticket get registered.
-func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx) (*wire.MsgTx, error) {
-	if ticketHash == nil {
-		return nil, fmt.Errorf("nil tickethash")
-	}
+func (v *VSP) PayFee(ctx context.Context, ticketHash chainhash.Hash, feeTx *wire.MsgTx) (*wire.MsgTx, error) {
 	if feeTx == nil {
 		return nil, fmt.Errorf("nil fee tx")
 	}
@@ -185,7 +179,7 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wir
 	}
 
 	v.ticketToFeeMu.Lock()
-	feeInfo, exists := v.ticketToFeeMap[*ticketHash]
+	feeInfo, exists := v.ticketToFeeMap[ticketHash]
 	v.ticketToFeeMu.Unlock()
 	if !exists {
 		return nil, fmt.Errorf("call GetFeeAddress first")
@@ -263,9 +257,9 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wir
 
 	v.ticketToFeeMu.Lock()
 	feeInfo.FeeTx = feeTx
-	v.ticketToFeeMap[*ticketHash] = feeInfo
+	v.ticketToFeeMap[ticketHash] = feeInfo
 	v.ticketToFeeMu.Unlock()
-	v.c.Watch([]*chainhash.Hash{ticketHash}, requiredConfs)
+	v.c.Watch([]*chainhash.Hash{&ticketHash}, requiredConfs)
 
 	log.Infof("successfully processed %v", ticketHash)
 
