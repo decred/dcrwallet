@@ -1850,9 +1850,10 @@ func (s *Server) getPeerInfo(ctx context.Context, icmd interface{}) (interface{}
 		return resp, nil
 	}
 
-	infos := make([]*types.GetPeerInfoResult, 0, len(syncer.GetRemotePeers()))
+	rps := syncer.GetRemotePeers()
+	infos := make([]*types.GetPeerInfoResult, 0, len(rps))
 
-	for _, rp := range syncer.GetRemotePeers() {
+	for _, rp := range rps {
 		info := &types.GetPeerInfoResult{
 			ID:             int32(rp.ID()),
 			Addr:           rp.RemoteAddr().String(),
