@@ -1355,8 +1355,19 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 		fee := txrules.StakePoolTicketFee(ticketPrice, ticketFee,
 			int32(tipHeight), feePrice, w.ChainParams())
+
 		// Reserve outputs for number of buys.
 		vspFeeCredits = make([][]Input, 0, req.Count)
+		defer func() {
+			if unlockCredits {
+				for _, credit := range vspFeeCredits {
+					for _, c := range credit {
+						log.Debugf("unlocked unneeded credit for vsp fee tx: %v", c.OutPoint.String())
+						w.UnlockOutpoint(&c.OutPoint.Hash, c.OutPoint.Index)
+					}
+				}
+			}
+		}()
 		for i := 0; i < req.Count; i++ {
 			credit, err := w.ReserveOutputsForAmount(ctx, req.SourceAccount, fee, req.MinConf)
 			if err != nil {
@@ -1372,16 +1383,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			}
 		}
 	}
-	defer func() {
-		if unlockCredits {
-			for _, credit := range vspFeeCredits {
-				for _, c := range credit {
-					log.Debugf("unlocked unneeded credit for vsp fee tx: %v", c.OutPoint.String())
-					w.UnlockOutpoint(&c.OutPoint.Hash, c.OutPoint.Index)
-				}
-			}
-		}
-	}()
 
 	purchaseTicketsResponse := &PurchaseTicketsResponse{}
 	var splitTx *wire.MsgTx
