@@ -4960,6 +4960,7 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		allowHighFees:           cfg.AllowHighFees,
 		accountGapLimit:         cfg.AccountGapLimit,
 		disableCoinTypeUpgrades: cfg.DisableCoinTypeUpgrades,
+		manualTickets:           cfg.ManualTickets,
 
 		// Chain params
 		subsidyCache: blockchain.NewSubsidyCache(cfg.Params),
