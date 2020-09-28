@@ -214,9 +214,11 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 				feeTx, err := v.Process(ctx, queuedItem.TicketHash, nil)
 				if err != nil {
 					log.Warnf("Failed to process queued ticket %v, err: %v", queuedItem.TicketHash, err)
-					for _, input := range queuedItem.FeeTx.TxIn {
-						outpoint := input.PreviousOutPoint
-						go func() { w.UnlockOutpoint(&outpoint.Hash, outpoint.Index) }()
+					if queuedItem.FeeTx != nil {
+						for _, input := range queuedItem.FeeTx.TxIn {
+							outpoint := input.PreviousOutPoint
+							go func() { w.UnlockOutpoint(&outpoint.Hash, outpoint.Index) }()
+						}
 					}
 					continue
 				}
