@@ -16,7 +16,6 @@ import (
 	"decred.org/dcrwallet/wallet/txauthor"
 	"decred.org/dcrwallet/wallet/txsizes"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
@@ -191,9 +190,17 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash chainhash.Hash, feeTx *wire
 		return nil, err
 	}
 
-	// PayFee
+	// Retrieve voting preferences
+	agendaChoices, _, err := v.w.AgendaChoices(ctx, &ticketHash)
+	if err != nil {
+		log.Errorf("failed to retrieve agenda choices for %v: %v", ticketHash, err)
+		return nil, err
+	}
+
 	voteChoices := make(map[string]string)
-	voteChoices[chaincfg.VoteIDHeaderCommitments] = "yes"
+	for _, agendaChoice := range agendaChoices {
+		voteChoices[agendaChoice.AgendaID] = agendaChoice.ChoiceID
+	}
 
 	payRequest := PayFeeRequest{
 		Timestamp:   time.Now().Unix(),
