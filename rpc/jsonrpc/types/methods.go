@@ -1105,7 +1105,9 @@ type ImportCFiltersV2Cmd struct {
 }
 
 // TicketInfoCmd defines the ticketinfo JSON-RPC command.
-type TicketInfoCmd struct{}
+type TicketInfoCmd struct {
+	StartHeight *int32 `json:"startheight" jsonrpcdefault:"0"`
+}
 
 // WalletPubPassphraseChangeCmd defines the walletpubpassphrasechange JSON-RPC command.
 type WalletPubPassphraseChangeCmd struct {

@@ -3224,6 +3224,7 @@ func (s *Server) stakePoolUserInfo(ctx context.Context, icmd interface{}) (inter
 }
 
 func (s *Server) ticketInfo(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.TicketInfoCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
@@ -3231,7 +3232,7 @@ func (s *Server) ticketInfo(ctx context.Context, icmd interface{}) (interface{},
 
 	res := make([]types.TicketInfoResult, 0)
 
-	start := wallet.NewBlockIdentifierFromHeight(0)
+	start := wallet.NewBlockIdentifierFromHeight(*cmd.StartHeight)
 	end := wallet.NewBlockIdentifierFromHeight(-1)
 	tmptx := new(wire.MsgTx)
 	err := w.GetTickets(ctx, func(ts []*wallet.TicketSummary, h *wire.BlockHeader) (bool, error) {

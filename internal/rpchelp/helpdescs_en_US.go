@@ -769,6 +769,7 @@ var helpDescsEnUS = map[string]string{
 
 	// TicketInfoCmd help.
 	"ticketinfo--synopsis":           "Returns details of each wallet ticket transaction",
+	"ticketinfo-startheight":         "Specify the starting block height to scan from",
 	"ticketinfo--result0":            "Array of objects describing each ticket",
 	"ticketinforesult-hash":          "Transaction hash of the ticket",
 	"ticketinforesult-cost":          "Amount paid to purchase the ticket; this may be greater than the ticket price at time of purchase",
