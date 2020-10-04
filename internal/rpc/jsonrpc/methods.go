@@ -2809,7 +2809,7 @@ func (s *Server) sendAmountToTreasury(ctx context.Context, w *wallet.Wallet, amo
 	}
 
 	outputs := []*wire.TxOut{
-		&wire.TxOut{
+		{
 			Value:    int64(amount),
 			PkScript: []byte{txscript.OP_TADD},
 			Version:  wire.DefaultPkScriptVersion,

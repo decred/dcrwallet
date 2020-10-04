@@ -15,8 +15,6 @@ import (
 )
 
 func (v *VSP) TicketStatus(ctx context.Context, hash *chainhash.Hash) (*TicketStatusResponse, error) {
-	url := protocol + v.hostname + "/api/v3/ticketstatus"
-
 	txs, _, err := v.w.GetTransactionsByHashes(ctx, []*chainhash.Hash{hash})
 	if err != nil {
 		log.Errorf("failed to retrieve ticket %v: %v", hash, err)
@@ -44,7 +42,8 @@ func (v *VSP) TicketStatus(ctx context.Context, hash *chainhash.Hash) (*TicketSt
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(requestBody))
+	reqURL := v.vspURL.String() + "/api/v3/ticketstatus"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewReader(requestBody))
 	if err != nil {
 		log.Errorf("failed to create new fee address request: %v", err)
 		return nil, err

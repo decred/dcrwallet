@@ -242,7 +242,7 @@ func run(ctx context.Context) error {
 			passphrase = startPromptPass(ctx, w)
 		}
 
-		if cfg.EnableTicketBuyer && cfg.VSPOpts.Server != "" {
+		if cfg.EnableTicketBuyer && cfg.VSPOpts.URL != "" {
 			changeAccountName := cfg.ChangeAccount
 			if changeAccountName == "" && cfg.CSPPServer == "" {
 				log.Warnf("Change account not set, using "+
@@ -263,7 +263,7 @@ func run(ctx context.Context) error {
 					cfg.PurchaseAccount, err)
 				return err
 			}
-			vspServer, err = vsp.New(cfg.VSPOpts.Server, cfg.VSPOpts.PubKey,
+			vspServer, err = vsp.New(cfg.VSPOpts.URL, cfg.VSPOpts.PubKey,
 				purchaseAcct, changeAcct, cfg.dial, w, activeNet.Params)
 			if err != nil {
 				log.Errorf("vsp: %v", err)

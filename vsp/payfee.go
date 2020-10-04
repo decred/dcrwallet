@@ -216,8 +216,8 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash chainhash.Hash, feeTx *wire
 		return nil, err
 	}
 
-	url := protocol + v.hostname + "/api/v3/payfee"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(requestBody))
+	reqURL := v.vspURL.String() + "/api/v3/payfee"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewReader(requestBody))
 	if err != nil {
 		log.Errorf("failed to create new http request: %v", err)
 		return nil, err

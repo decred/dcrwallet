@@ -10,9 +10,8 @@ import (
 )
 
 func (v *VSP) PoolFee(ctx context.Context) (float64, error) {
-	url := protocol + v.hostname + apiVSPInfo
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	reqURL := v.vspURL.String() + apiVSPInfo
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		log.Errorf("failed to create new fee address request: %v", err)
 		return -1, err

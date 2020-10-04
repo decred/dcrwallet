@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -23,8 +24,6 @@ const (
 
 	serverSignature = "VSP-Server-Signature"
 	requiredConfs   = 6 + 2
-
-	protocol = "https://"
 )
 
 type PendingFee struct {
@@ -36,7 +35,7 @@ type PendingFee struct {
 }
 
 type VSP struct {
-	hostname        string
+	vspURL          *url.URL
 	pubKey          ed25519.PublicKey
 	httpClient      *http.Client
 	params          *chaincfg.Params
@@ -58,7 +57,11 @@ type VSP struct {
 
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
-func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dialer DialFunc, w *wallet.Wallet, params *chaincfg.Params) (*VSP, error) {
+func New(vspURL, pubKeyStr string, purchaseAccount, changeAccount uint32, dialer DialFunc, w *wallet.Wallet, params *chaincfg.Params) (*VSP, error) {
+	u, err := url.Parse(vspURL)
+	if err != nil {
+		return nil, err
+	}
 	pubKey, err := base64.StdEncoding.DecodeString(pubKeyStr)
 	if err != nil {
 		return nil, err
@@ -75,7 +78,7 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 	ctx := context.Background()
 	c := w.NtfnServer.ConfirmationNotifications(ctx)
 	v := &VSP{
-		hostname:        hostname,
+		vspURL:          u,
 		pubKey:          ed25519.PublicKey(pubKey),
 		httpClient:      httpClient,
 		params:          params,
