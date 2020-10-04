@@ -175,7 +175,7 @@ type ticketBuyerOptions struct {
 
 type vspOptions struct {
 	// VSP - TODO: VSPServer to a []string to support multiple VSPs
-	Server string `long:"server" description:"Network address of VSP server"`
+	URL    string `long:"url" description:"Base URL of the VSP server"`
 	PubKey string `long:"pubkey" description:"VSP server pubkey"`
 	Sync   bool   `long:"sync" description:"sync tickets to vsp"`
 }
