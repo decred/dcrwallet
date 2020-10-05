@@ -23,6 +23,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"sort"
 	"sync/atomic"
 	"time"
 
@@ -3542,4 +3543,49 @@ func (s *walletServer) LockWallet(ctx context.Context, req *pb.LockWalletRequest
 
 	s.wallet.Lock()
 	return &pb.LockWalletResponse{}, nil
+}
+
+// getPeerInfo responds to the getpeerinfo request.
+// It gets the network backend and views the data on remote peers when in spv mode
+func (s *walletServer) GetPeerInfo(ctx context.Context, req *pb.GetPeerInfoRequest) (*pb.GetPeerInfoResponse, error) {
+	n, err := s.wallet.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+	syncer, ok := n.(*spv.Syncer)
+	if !ok {
+		var resp []*pb.GetPeerInfoResponse_PeerInfo
+		if rpc, ok := n.(*dcrd.RPC); ok {
+			err := rpc.Call(ctx, "getpeerinfo", &resp)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return &pb.GetPeerInfoResponse{
+			PeerInfo: resp,
+		}, nil
+	}
+
+	rps := syncer.GetRemotePeers()
+	infos := make([]*pb.GetPeerInfoResponse_PeerInfo, 0, len(rps))
+
+	for _, rp := range rps {
+		info := &pb.GetPeerInfoResponse_PeerInfo{
+			Id:             int32(rp.ID()),
+			Addr:           rp.RemoteAddr().String(),
+			AddrLocal:      rp.LocalAddr().String(),
+			Services:       fmt.Sprintf("%08d", uint64(rp.Services())),
+			Version:        rp.Pver(),
+			SubVer:         rp.UA(),
+			StartingHeight: int64(rp.InitialHeight()),
+			BanScore:       int32(rp.BanScore()),
+		}
+		infos = append(infos, info)
+	}
+	sort.Slice(infos, func(i, j int) bool {
+		return infos[i].Id < infos[j].Id
+	})
+	return &pb.GetPeerInfoResponse{
+		PeerInfo: infos,
+	}, nil
 }

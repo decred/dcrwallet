@@ -38,6 +38,7 @@ service WalletService {
 	rpc BestBlock (BestBlockRequest) returns (BestBlockResponse);
 	rpc Spender (SpenderRequest) returns (SpenderResponse);
 	rpc GetCFilters (GetCFiltersRequest) returns (stream GetCFiltersResponse);
+	rpc GetPeerInfo(GetPeerInfoRequest) returns (GetPeerInfoResponse);
 
 	// Notifications
 	rpc TransactionNotifications (TransactionNotificationsRequest) returns (stream TransactionNotificationsResponse);
@@ -1228,3 +1229,18 @@ message UnlockWalletResponse {}
 
 message LockWalletRequest {}
 message LockWalletResponse {}
+
+message GetPeerInfoRequest {}
+message GetPeerInfoResponse {
+	message PeerInfo {
+		int32 id = 1;
+		string addr = 2;
+		string addr_local = 3;
+		string services = 4;
+		uint32 version = 5;
+		string sub_ver = 6;
+		int64 starting_height = 7;
+		int32 ban_score = 8;
+	}
+	repeated PeerInfo peer_info = 1;
+}
