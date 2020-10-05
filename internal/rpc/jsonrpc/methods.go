@@ -146,6 +146,9 @@ var handlers = map[string]handler{
 	"walletlock":              {fn: (*Server).walletLock},
 	"walletpassphrase":        {fn: (*Server).walletPassphrase},
 	"walletpassphrasechange":  {fn: (*Server).walletPassphraseChange},
+	"setaccountpassphrase":    {fn: (*Server).setAccountPassphrase},
+	"unlockaccount":           {fn: (*Server).unlockAccount},
+	"lockaccount":             {fn: (*Server).lockAccount},
 
 	// Extensions to the reference client JSON-RPC API
 	"getbestblock":       {fn: (*Server).getBestBlock},
@@ -4427,6 +4430,76 @@ func (s *Server) walletPubPassphraseChange(ctx context.Context, icmd interface{}
 	if errors.Is(errors.Passphrase, err) {
 		return nil, rpcErrorf(dcrjson.ErrRPCWalletPassphraseIncorrect, "incorrect passphrase")
 	}
+	return nil, err
+}
+
+func (s *Server) setAccountPassphrase(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.SetAccountPassphraseCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	account, err := w.AccountNumber(ctx, cmd.Account)
+	if err != nil {
+		if errors.Is(err, errors.NotExist) {
+			return nil, errAccountNotFound
+		}
+		return nil, err
+	}
+	err = w.SetAccountPassphrase(ctx, account, []byte(cmd.Passphrase))
+	return nil, err
+}
+
+func (s *Server) unlockAccount(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.UnlockAccountCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	account, err := w.AccountNumber(ctx, cmd.Account)
+	if err != nil {
+		if errors.Is(err, errors.NotExist) {
+			return nil, errAccountNotFound
+		}
+		return nil, err
+	}
+	err = w.UnlockAccount(ctx, account, []byte(cmd.Passphrase))
+	return nil, err
+}
+
+func (s *Server) lockAccount(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.LockAccountCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	if cmd.Account == "*" {
+		a, err := w.Accounts(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, acct := range a.Accounts {
+			if acct.AccountEncrypted && acct.AccountUnlocked {
+				err = w.LockAccount(ctx, acct.AccountNumber)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+		return nil, nil
+	}
+
+	account, err := w.AccountNumber(ctx, cmd.Account)
+	if err != nil {
+		if errors.Is(err, errors.NotExist) {
+			return nil, errAccountNotFound
+		}
+		return nil, err
+	}
+	err = w.LockAccount(ctx, account)
 	return nil, err
 }
 

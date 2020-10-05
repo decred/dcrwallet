@@ -64,11 +64,7 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		return errors.E(op, err)
 	}
 
-	hold, err := w.holdUnlock()
-	if err != nil {
-		return errors.E(op, err)
-	}
-	defer hold.release()
+	defer w.holdUnlock().release()
 
 	w.lockedOutpointMu.Lock()
 	if _, exists := w.lockedOutpoints[outpoint{output.Hash, output.Index}]; exists {
@@ -233,16 +229,12 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver string, changeAccount, mixAccount, mixBranch uint32) error {
 	const op errors.Op = "wallet.MixAccount"
 
-	hold, err := w.holdUnlock()
-	if err != nil {
-		return errors.E(op, err)
-	}
-	defer hold.release()
+	defer w.holdUnlock().release()
 
 	_, tipHeight := w.MainChainTip(ctx)
 	w.lockedOutpointMu.Lock()
 	var credits []Input
-	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
 		credits, err = w.findEligibleOutputs(dbtx, changeAccount, 1, tipHeight)
 		return err

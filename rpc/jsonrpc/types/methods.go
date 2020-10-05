@@ -1115,6 +1115,20 @@ type WalletPubPassphraseChangeCmd struct {
 	NewPassphrase string
 }
 
+type SetAccountPassphraseCmd struct {
+	Account    string
+	Passphrase string
+}
+
+type UnlockAccountCmd struct {
+	Account    string
+	Passphrase string
+}
+
+type LockAccountCmd struct {
+	Account string
+}
+
 type registeredMethod struct {
 	method string
 	cmd    interface{}
@@ -1202,6 +1216,9 @@ func init() {
 		{"walletpassphrase", (*WalletPassphraseCmd)(nil)},
 		{"walletpassphrasechange", (*WalletPassphraseChangeCmd)(nil)},
 		{"walletpubpassphrasechange", (*WalletPubPassphraseChangeCmd)(nil)},
+		{"setaccountpassphrase", (*SetAccountPassphraseCmd)(nil)},
+		{"unlockaccount", (*UnlockAccountCmd)(nil)},
+		{"lockaccount", (*LockAccountCmd)(nil)},
 	}
 	for i := range register {
 		dcrjson.MustRegister(register[i].method, register[i].cmd, dcrjsonv2WalletOnly)

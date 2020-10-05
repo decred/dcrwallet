@@ -39,26 +39,17 @@ func testUnlock(t *testing.T, w *Wallet) {
 	if !w.Locked() {
 		t.Fatal("expected wallet to be locked")
 	}
-	_, err := w.holdUnlock()
-	if err == nil {
-		t.Fatal("expected error when holding unlocked state when locked")
-	}
+	hold0 := w.holdUnlock()
 	// Unlock without timeout
-	err = w.Unlock(ctx, testPrivPass, nil)
+	err := w.Unlock(ctx, testPrivPass, nil)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
 	}
 	if w.Locked() {
 		t.Fatal("expected wallet to be unlocked")
 	}
-	hold1, err := w.holdUnlock()
-	if err != nil {
-		t.Fatal("expected to hold unlock")
-	}
-	hold2, err := w.holdUnlock()
-	if err != nil {
-		t.Fatal("expected to hold unlock")
-	}
+	hold1 := w.holdUnlock()
+	hold2 := w.holdUnlock()
 	if w.Locked() {
 		t.Fatal("expected wallet to be unlocked")
 	}
@@ -87,6 +78,7 @@ func testUnlock(t *testing.T, w *Wallet) {
 		t.Fatal("expected wallet to be unlocked")
 	}
 	hold2.release()
+	hold0.release()
 	select {
 	case <-completedLock:
 	case <-time.After(100 * time.Millisecond):
@@ -115,10 +107,7 @@ func testLockOnBadPassphrase(t *testing.T, w *Wallet) {
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
 	}
-	hold, err := w.holdUnlock()
-	if err != nil {
-		t.Fatal("expected to hold unlock")
-	}
+	hold := w.holdUnlock()
 	c := make(chan error)
 	go func() {
 		c <- w.Unlock(ctx, []byte("incorrect"), nil)
@@ -219,11 +208,7 @@ func testHoldDoesNotBlockSuccessfulUnlock(t *testing.T, w *Wallet) {
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
 	}
-	hold, err := w.holdUnlock()
-	if err != nil {
-		t.Fatal("expected to hold unlock")
-	}
-	defer hold.release()
+	defer w.holdUnlock().release()
 	err = w.Unlock(ctx, testPrivPass, nil)
 	if err != nil {
 		t.Fatal("expected Unlock to return without error")
@@ -244,10 +229,7 @@ func testHoldBlocksBadUnlock(t *testing.T, w *Wallet) {
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
 	}
-	hold, err := w.holdUnlock()
-	if err != nil {
-		t.Fatal("expected to hold unlock")
-	}
+	hold := w.holdUnlock()
 	c := make(chan error)
 	go func() {
 		c <- w.Unlock(ctx, []byte("incorrect"), nil)

@@ -1429,22 +1429,14 @@ func (w *Wallet) FetchHeaders(ctx context.Context, p Peer) (count int, rescanFro
 // If that many UTXOs can not be found, it will use the maximum it finds. This
 // will only compress UTXOs in the default account
 func (w *Wallet) Consolidate(ctx context.Context, inputs int, account uint32, address dcrutil.Address) (*chainhash.Hash, error) {
-	heldUnlock, err := w.holdUnlock()
-	if err != nil {
-		return nil, err
-	}
-	defer heldUnlock.release()
+	defer w.holdUnlock().release()
 	return w.compressWallet(ctx, "wallet.Consolidate", inputs, account, address)
 }
 
 // CreateMultisigTx creates and signs a multisig transaction.
 func (w *Wallet) CreateMultisigTx(ctx context.Context, account uint32, amount dcrutil.Amount,
 	pubkeys []*dcrutil.AddressSecpPubKey, nrequired int8, minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
-	heldUnlock, err := w.holdUnlock()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	defer heldUnlock.release()
+	defer w.holdUnlock().release()
 	return w.txToMultisig(ctx, "wallet.CreateMultisigTx", account, amount, pubkeys, nrequired, minconf)
 }
 
@@ -1494,11 +1486,7 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	const op errors.Op = "wallet.PurchaseTicketsWithResponse"
 
 	if !req.DontSignTx {
-		heldUnlock, err := w.holdUnlock()
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
-		defer heldUnlock.release()
+		defer w.holdUnlock().release()
 	}
 
 	return w.purchaseTickets(ctx, op, n, req)
@@ -1538,8 +1526,8 @@ func (w *Wallet) Unlock(ctx context.Context, passphrase []byte, timeout <-chan t
 	default:
 		return errors.E(op, err)
 	case errors.Is(err, errors.Locked):
-		defer w.passphraseUsedMu.Unlock()
-		w.passphraseUsedMu.Lock()
+		defer w.passphraseUsedMu.RUnlock()
+		w.passphraseUsedMu.RLock()
 		err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 			addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 			return w.manager.Unlock(addrmgrNs, passphrase)
@@ -1551,6 +1539,51 @@ func (w *Wallet) Unlock(ctx context.Context, passphrase []byte, timeout <-chan t
 	}
 	w.replacePassphraseTimeout(wasLocked, timeout)
 	return nil
+}
+
+// SetAccountPassphrase individually-encrypts or changes the passphrase for
+// account private keys.
+//
+// If the passphrase has zero length, the private keys are re-encrypted with the
+// manager's global passphrase.
+func (w *Wallet) SetAccountPassphrase(ctx context.Context, account uint32, passphrase []byte) error {
+	return walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		return w.manager.SetAccountPassphrase(dbtx, account, passphrase)
+	})
+}
+
+// UnlockAccount decrypts a uniquely-encrypted account's private keys.
+func (w *Wallet) UnlockAccount(ctx context.Context, account uint32, passphrase []byte) error {
+	return walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		return w.manager.UnlockAccount(dbtx, account, passphrase)
+	})
+}
+
+// LockAccount locks an individually-encrypted account by removing private key
+// access until unlocked again.
+func (w *Wallet) LockAccount(ctx context.Context, account uint32) error {
+	return walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		return w.manager.LockAccount(dbtx, account)
+	})
+}
+
+// AccountUnlocked returns whether an individually-encrypted account is unlocked.
+func (w *Wallet) AccountUnlocked(ctx context.Context, account uint32) (bool, error) {
+	const op errors.Op = "wallet.AccountUnlocked"
+	var unlocked bool
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		var encrypted bool
+		encrypted, unlocked = w.manager.AccountHasPassphrase(dbtx, account)
+		if !encrypted {
+			const s = "account is not individually encrypted"
+			return errors.E(errors.Invalid, s)
+		}
+		return nil
+	})
+	if err != nil {
+		return false, errors.E(op, err)
+	}
+	return unlocked, nil
 }
 
 func (w *Wallet) replacePassphraseTimeout(wasLocked bool, newTimeout <-chan time.Time) {
@@ -1605,25 +1638,25 @@ func (w *Wallet) Locked() bool {
 	return w.manager.IsLocked()
 }
 
+// Unlocked returns whether the account manager for a wallet is unlocked.
+func (w *Wallet) Unlocked() bool {
+	return !w.Locked()
+}
+
 // holdUnlock prevents the wallet from being locked.  The heldUnlock object
 // *must* be released, or the wallet will forever remain unlocked.
 //
 // TODO: To prevent the above scenario, perhaps closures should be passed
 // to the walletLocker goroutine and disallow callers from explicitly
 // handling the locking mechanism.
-func (w *Wallet) holdUnlock() (heldUnlock, error) {
+func (w *Wallet) holdUnlock() heldUnlock {
 	w.passphraseUsedMu.RLock()
-	locked := w.manager.IsLocked()
-	if locked {
-		w.passphraseUsedMu.RUnlock()
-		return nil, errors.E(errors.Locked)
-	}
 	hold := make(heldUnlock)
 	go func() {
 		<-hold
 		w.passphraseUsedMu.RUnlock()
 	}()
-	return hold, nil
+	return hold
 }
 
 // release releases the hold on the unlocked-state of the wallet and allows the
@@ -3088,6 +3121,8 @@ type AccountProperties struct {
 	LastReturnedExternalIndex uint32
 	LastReturnedInternalIndex uint32
 	ImportedKeyCount          uint32
+	AccountEncrypted          bool
+	AccountUnlocked           bool
 }
 
 // AccountResult is a single account result for the AccountsResult type.
@@ -4222,11 +4257,7 @@ func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account
 		}
 	}
 
-	heldUnlock, err := w.holdUnlock()
-	if err != nil {
-		return nil, err
-	}
-	defer heldUnlock.release()
+	defer w.holdUnlock().release()
 	tx, watch, err := w.txToOutputs(ctx, op, outputs, account, changeAccount, minconf, true, relayFee, false, false)
 	if err != nil {
 		return nil, err
@@ -4250,11 +4281,7 @@ func (w *Wallet) SendOutputsToTreasury(ctx context.Context, outputs []*wire.TxOu
 		}
 	}
 
-	heldUnlock, err := w.holdUnlock()
-	if err != nil {
-		return nil, err
-	}
-	defer heldUnlock.release()
+	defer w.holdUnlock().release()
 	tx, watch, err := w.txToOutputs(ctx, op, outputs, account, changeAccount,
 		minconf, false, relayFee, false, true)
 	if err != nil {

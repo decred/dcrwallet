@@ -7,12 +7,15 @@ package udb
 
 import (
 	"crypto/rand"
-	"crypto/sha512"
+	"crypto/subtle"
 	"fmt"
+	"hash"
+	"io"
 	"sync"
 
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/internal/compat"
+	"decred.org/dcrwallet/kdf"
 	"decred.org/dcrwallet/wallet/internal/snacl"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -20,6 +23,9 @@ import (
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/wire"
+	"golang.org/x/crypto/blake2b"
+	"golang.org/x/crypto/chacha20poly1305"
+	"golang.org/x/crypto/ripemd160"
 )
 
 const (
@@ -78,10 +84,6 @@ const (
 	// style hierarchical deterministic key derivation for the internal
 	// branch.
 	InternalBranch uint32 = 1
-
-	// saltSize is the number of bytes of the salt used when hashing
-	// private passphrases.
-	saltSize = 32
 )
 
 // isReservedAccountName returns true if the account name is reserved.  Reserved
@@ -138,10 +140,75 @@ type accountInfo struct {
 
 	// The account key is used to derive the branches which in turn derive
 	// the internal and external addresses.
-	// The accountKeyPriv will be nil when the address manager is locked.
+	// The accountKeyPriv will be nil when the address manager is locked,
+	// or the account is uniquely encrypted and not currently unlocked.
+	// acctKeyEncrypted is the encrypted account key, sealed using snacl
+	// when the account is protected by the wallet global passphrase,
+	// and sealed using XChaCha20Poly1305 with an Argon2id-derived key
+	// when uniquely encrypted separate from the global passphrase.
 	acctKeyEncrypted []byte
 	acctKeyPriv      *hdkeychain.ExtendedKey
 	acctKeyPub       *hdkeychain.ExtendedKey
+	uniqueKey        *kdf.Argon2idParams
+	uniquePassHasher hash.Hash // blake2b-256 keyed hash with random bytes
+	uniquePassHash   []byte
+	uniqueKeyPrivs   map[[ripemd160.Size]byte]*secp256k1.PrivateKey
+}
+
+func argon2idKey(password []byte, k *kdf.Argon2idParams) keyType {
+	return keyType(kdf.DeriveKey(password, k, 32))
+}
+
+const (
+	xchacha20NonceSize        = 24
+	poly1305TagSize           = 16
+	xchacha20poly1305Overhead = xchacha20NonceSize + poly1305TagSize
+)
+
+// improves type safety for seal and unseal funcs with a new type for
+// argon2id-derived keys.
+type keyType []byte
+
+func seal(rand io.Reader, key keyType, plaintext []byte) ([]byte, error) {
+	sealedLen := len(plaintext) + xchacha20poly1305Overhead
+	nonce := make([]byte, xchacha20NonceSize, sealedLen)
+	_, err := io.ReadFull(rand, nonce)
+	if err != nil {
+		return nil, errors.E(errors.IO, err)
+	}
+
+	aead, err := chacha20poly1305.NewX(key)
+	if err != nil {
+		// wrong key len; this is always a programming mistake
+		// (bad type conversion to keyType).
+		panic(err)
+	}
+	sealed := aead.Seal(nonce, nonce, plaintext, nil)
+	return sealed, nil
+}
+
+func unseal(key keyType, ciphertext []byte) ([]byte, error) {
+	aead, err := chacha20poly1305.NewX(key)
+	if err != nil {
+		// wrong key len; this is always a programming mistake
+		// (bad type conversion to keyType).
+		panic(err)
+	}
+	if len(ciphertext) < xchacha20poly1305Overhead {
+		e := errors.Errorf("ciphertext too short (len %d) "+
+			"to encode nonce and MAC tag", len(ciphertext))
+		return nil, errors.E(errors.Crypto, e)
+	}
+	nonce := ciphertext[:xchacha20NonceSize]
+	ciphertext = ciphertext[xchacha20NonceSize:]
+	plaintext, err := aead.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		// technically the ciphertext may have been tampered with, but
+		// to improve UX we report authentication failures as incorrect
+		// passphrases.
+		return nil, errors.E(errors.Passphrase)
+	}
+	return plaintext, nil
 }
 
 // AccountProperties contains properties associated with each account, such as
@@ -156,6 +223,8 @@ type AccountProperties = struct {
 	LastReturnedExternalIndex uint32
 	LastReturnedInternalIndex uint32
 	ImportedKeyCount          uint32
+	AccountEncrypted          bool
+	AccountUnlocked           bool
 }
 
 // defaultNewSecretKey returns a new secret key.  See newSecretKey.
@@ -265,11 +334,11 @@ type Manager struct {
 	cryptoKeyPrivEncrypted []byte
 	cryptoKeyPriv          EncryptorDecryptor
 
-	// privPassphraseSalt and hashedPrivPassphrase allow for the secure
-	// detection of a correct passphrase on manager unlock when the
-	// manager is already unlocked.  The hash is zeroed each lock.
-	privPassphraseSalt   [saltSize]byte
-	hashedPrivPassphrase [sha512.Size]byte
+	// privPassphraseHasher is a blake2b-256 hasher (keyed with random
+	// bytes) to hash passphrases, to compare for correct passphrases when
+	// unlocking an already unlocked wallet without deriving another key.
+	privPassphraseHasher hash.Hash
+	privPassphraseHash   []byte
 }
 
 func zero(b []byte) {
@@ -295,15 +364,13 @@ func (m *Manager) lock() {
 	m.cryptoKeyPriv.Zero()
 	m.masterKeyPriv.Zero()
 
-	// Zero the hashed passphrase.
-	m.hashedPrivPassphrase = [64]byte{}
-
 	// NOTE: m.cryptoKeyPub is intentionally not cleared here as the address
 	// manager needs to be able to continue to read and decrypt public data
 	// which uses a separate derived key from the database even when it is
 	// locked.
 
 	m.locked = true
+	m.privPassphraseHash = nil
 }
 
 // zeroSensitivePublicData performs a best try effort to remove and zero all
@@ -372,7 +439,12 @@ func deriveKey(acctInfo *accountInfo, branch, index uint32, private bool) (*hdke
 	acctKey := acctInfo.acctKeyPub
 	if private {
 		if acctInfo.acctKeyPriv == nil {
-			return nil, errors.Errorf("no private key for %s/%d/%d", acctInfo.acctName, branch, index)
+			if acctInfo.uniqueKey != nil {
+				return nil, errors.E(errors.Locked,
+					"account with unique passphrase is locked")
+			}
+			return nil, errors.Errorf("no private key for %s/%d/%d",
+				acctInfo.acctName, branch, index)
 		}
 		acctKey = acctInfo.acctKeyPriv
 	}
@@ -425,11 +497,24 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 		acctInfo.acctName = row.name
 		acctInfo.acctKeyEncrypted = row.privKeyEncrypted
 		acctInfo.acctKeyPub = acctKeyPub
+		acctInfo.uniqueKey = row.uniqueKey
+		if acctInfo.uniqueKey != nil { // a passphrase hasher is required
+			hashKey := make([]byte, 32)
+			_, err = io.ReadFull(rand.Reader, hashKey)
+			if err != nil {
+				return nil, errors.E(errors.IO, err)
+			}
+			hasher, err := blake2b.New256(hashKey)
+			if err != nil {
+				return nil, errors.E(errors.IO, err)
+			}
+			acctInfo.uniquePassHasher = hasher
+		}
 	default:
 		return nil, errors.Errorf("unknown account type %T", row)
 	}
 
-	if !m.locked && len(acctInfo.acctKeyEncrypted) != 0 {
+	if !m.locked && len(acctInfo.acctKeyEncrypted) != 0 && acctInfo.uniqueKey == nil {
 		// Use the crypto private key to decrypt the account private
 		// extended keys.
 		decrypted, err := m.cryptoKeyPriv.Decrypt(acctInfo.acctKeyEncrypted)
@@ -508,6 +593,8 @@ func (m *Manager) AccountProperties(ns walletdb.ReadBucket, account uint32) (*Ac
 		props.ImportedKeyCount = importedKeyCount
 	}
 
+	props.AccountEncrypted, props.AccountUnlocked = m.accountHasPassphrase(ns, account)
+
 	return props, nil
 }
 
@@ -540,23 +627,18 @@ func (m *Manager) AccountExtendedPrivKey(dbtx walletdb.ReadTx, account uint32) (
 
 	ns := dbtx.ReadBucket(waddrmgrBucketKey)
 
-	var (
-		acctInfo *accountInfo
-		err      error
-	)
+	defer m.mtx.Unlock()
 	m.mtx.Lock()
-	if m.locked {
-		err = errors.E(errors.Locked, "locked address manager cannot fetch extended privkey")
-	} else {
-		acctInfo, err = m.loadAccountInfo(ns, account)
-	}
-	m.mtx.Unlock()
+
+	acctInfo, err := m.loadAccountInfo(ns, account)
 	if err != nil {
 		return nil, err
 	}
-
-	if acctInfo.acctKeyPriv == nil {
+	if acctInfo.acctKeyPriv == nil && account > ImportedAddrAccount {
 		return nil, errors.E(errors.Invalid, "imported xpub account has no extended privkey")
+	}
+	if acctInfo.acctKeyPriv == nil {
+		return nil, errors.E(errors.Locked, "unable to access account extended privkey")
 	}
 
 	return acctInfo.acctKeyPriv, nil
@@ -963,12 +1045,15 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 		// fast, and it's less cyclomatic complexity to simply decrypt
 		// in either case.
 
-		// Create a new salt that will be used for hashing the new
-		// passphrase each unlock.
-		var passphraseSalt [saltSize]byte
-		_, err := rand.Read(passphraseSalt[:])
+		// Create a new passphrase hasher.
+		hashKey := make([]byte, 32)
+		_, err := io.ReadFull(rand.Reader, hashKey)
 		if err != nil {
 			return errors.E(errors.IO, err)
+		}
+		passHasher, err := blake2b.New256(hashKey)
+		if err != nil {
+			return err
 		}
 
 		// Re-encrypt the crypto private key using the new master
@@ -986,15 +1071,14 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 		// When the manager is locked, ensure the new clear text master
 		// key is cleared from memory now that it is no longer needed.
 		// If unlocked, create the new passphrase hash with the new
-		// passphrase and salt.
-		var hashedPassphrase [sha512.Size]byte
+		// keyed hash.
+		var passHash []byte
 		if m.locked {
 			newMasterKey.Zero()
 		} else {
-			saltedPassphrase := append(passphraseSalt[:],
-				newPassphrase...)
-			hashedPassphrase = sha512.Sum512(saltedPassphrase)
-			zero(saltedPassphrase)
+			passHasher.Reset()
+			passHasher.Write(newPassphrase)
+			passHash = passHasher.Sum(nil)
 		}
 
 		// Save the new keys and params to the the db in a single
@@ -1014,8 +1098,8 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 		copy(m.cryptoKeyPrivEncrypted[:], encPriv)
 		m.masterKeyPriv.Zero() // Clear the old key.
 		m.masterKeyPriv = newMasterKey
-		m.privPassphraseSalt = passphraseSalt
-		m.hashedPrivPassphrase = hashedPassphrase
+		m.privPassphraseHasher = passHasher
+		m.privPassphraseHash = passHash
 	} else {
 		// Re-encrypt the crypto public key using the new master public
 		// key.
@@ -1328,10 +1412,11 @@ func (m *Manager) UnlockedWithPassphrase(passphrase []byte) error {
 		return errors.E(errors.Locked)
 	}
 
-	saltedPassphrase := append(m.privPassphraseSalt[:], passphrase...)
-	hashedPassphrase := sha512.Sum512(saltedPassphrase)
-	zero(saltedPassphrase)
-	if hashedPassphrase != m.hashedPrivPassphrase {
+	m.privPassphraseHasher.Reset()
+	m.privPassphraseHasher.Write(passphrase)
+	passHash := m.privPassphraseHasher.Sum(nil)
+
+	if subtle.ConstantTimeCompare(passHash, m.privPassphraseHash) != 1 {
 		return errors.E(errors.Passphrase)
 	}
 
@@ -1355,14 +1440,15 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 		return errors.E(errors.WatchingOnly, "cannot unlock watching wallet")
 	}
 
+	m.privPassphraseHasher.Reset()
+	m.privPassphraseHasher.Write(passphrase)
+	passHash := m.privPassphraseHasher.Sum(nil)
+
 	// Avoid actually unlocking if the manager is already unlocked
 	// and the passphrases match.
 	if !m.locked {
-		saltedPassphrase := append(m.privPassphraseSalt[:],
-			passphrase...)
-		hashedPassphrase := sha512.Sum512(saltedPassphrase)
-		zero(saltedPassphrase)
-		if hashedPassphrase != m.hashedPrivPassphrase {
+		// compare passphrase hashes
+		if subtle.ConstantTimeCompare(passHash, m.privPassphraseHash) != 1 {
 			m.lock()
 			return errors.E(errors.Passphrase)
 		}
@@ -1390,6 +1476,10 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 		if len(acctInfo.acctKeyEncrypted) == 0 {
 			continue
 		}
+		if acctInfo.uniqueKey != nil {
+			// not encrypted by m.cryptoKeyPriv
+			continue
+		}
 		decrypted, err := m.cryptoKeyPriv.Decrypt(acctInfo.acctKeyEncrypted)
 		if err != nil {
 			m.lock()
@@ -1406,10 +1496,272 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 	}
 
 	m.locked = false
-	saltedPassphrase := append(m.privPassphraseSalt[:], passphrase...)
-	m.hashedPrivPassphrase = sha512.Sum512(saltedPassphrase)
-	zero(saltedPassphrase)
+	m.privPassphraseHash = passHash
 	return nil
+}
+
+// UnlockAccount decrypts a uniquely-encrypted account's private keys.
+func (m *Manager) UnlockAccount(dbtx walletdb.ReadTx, account uint32,
+	passphrase []byte) error {
+
+	ns := dbtx.ReadBucket(waddrmgrBucketKey)
+
+	defer m.mtx.Unlock()
+	m.mtx.Lock()
+
+	// A watching-only address manager can't be unlocked.
+	if m.watchingOnly {
+		return errors.E(errors.WatchingOnly,
+			"cannot unlock watching wallet")
+	}
+
+	acctInfo, err := m.loadAccountInfo(ns, account)
+	if err != nil {
+		return err
+	}
+	if acctInfo.uniqueKey == nil {
+		return errors.E(errors.Crypto, "account is not "+
+			"encrypted with a unique passphrase")
+	}
+
+	// Using a hash object (keyed at runtime with random bytes), hash the
+	// passphrase to compare with an existing unlocked account, or to record
+	// its passphrase hash for later authentication of an already unlocked
+	// account without deriving a key.
+	acctInfo.uniquePassHasher.Reset()
+	acctInfo.uniquePassHasher.Write(passphrase)
+	passHash := acctInfo.uniquePassHasher.Sum(nil)
+
+	if acctInfo.acctKeyPriv != nil {
+		// already unlocked. compare passphrase hashes.
+		if subtle.ConstantTimeCompare(passHash, acctInfo.uniquePassHash) != 1 {
+			return errors.E(errors.Passphrase)
+		}
+		return nil
+	}
+	kdfp := acctInfo.uniqueKey
+	key := argon2idKey(passphrase, kdfp)
+	defer zero(key)
+	plaintext, err := unseal(key, acctInfo.acctKeyEncrypted)
+	defer zero(plaintext)
+	if err != nil {
+		return err
+	}
+
+	acctKeyPriv, err := hdkeychain.NewKeyFromString(string(plaintext),
+		m.chainParams)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	acctInfo.acctKeyPriv = acctKeyPriv
+	acctInfo.uniquePassHash = passHash
+
+	return nil
+}
+
+// LockAccount locks an individually-encrypted account by removing private key
+// access until unlocked again.
+func (m *Manager) LockAccount(dbtx walletdb.ReadTx, account uint32) error {
+	ns := dbtx.ReadBucket(waddrmgrBucketKey)
+
+	defer m.mtx.Unlock()
+	m.mtx.Lock()
+
+	// A watching-only address manager can't be locked.
+	if m.watchingOnly {
+		return errors.E(errors.WatchingOnly,
+			"cannot lock watching wallet")
+	}
+
+	acctInfo, err := m.loadAccountInfo(ns, account)
+	if err != nil {
+		return err
+	}
+	if acctInfo.uniqueKey == nil {
+		return errors.E(errors.Crypto, "account is not "+
+			"encrypted with a unique passphrase")
+	}
+	if acctInfo.acctKeyPriv == nil {
+		return errors.E(errors.Locked, "account is already locked")
+	}
+	acctInfo.acctKeyPriv.Zero()
+	acctInfo.acctKeyPriv = nil
+
+	return nil
+}
+
+// SetAccountPassphrase individually-encrypts or changes the passphrase for
+// account private keys.
+//
+// If the passphrase has zero length, the private keys are re-encrypted with the
+// manager's global passphrase.
+func (m *Manager) SetAccountPassphrase(dbtx walletdb.ReadWriteTx, account uint32,
+	passphrase []byte) error {
+
+	ns := dbtx.ReadWriteBucket(waddrmgrBucketKey)
+
+	defer m.mtx.Unlock()
+	m.mtx.Lock()
+
+	// A watching-only address manager stores no privkeys.
+	if m.watchingOnly {
+		return errors.E(errors.WatchingOnly,
+			"cannot set passphrase for watching wallet")
+	}
+
+	acctInfo, err := m.loadAccountInfo(ns, account)
+	if err != nil {
+		return err
+	}
+	var needUnlocked string
+	switch {
+	case acctInfo.acctKeyPriv == nil && acctInfo.uniqueKey == nil:
+		needUnlocked = "wallet"
+	case acctInfo.acctKeyPriv == nil: // uniqueKey != nil
+		needUnlocked = "account"
+	}
+	if needUnlocked != "" {
+		err := errors.Errorf("%s must be unlocked to set a "+
+			"unique account passphrase", needUnlocked)
+		return errors.E(errors.Locked, err)
+	}
+
+	if len(passphrase) == 0 {
+		return m.removeAccountPassphrase(ns, account, acctInfo)
+	}
+
+	// Create a new passphase hasher from a new key, and hash the new
+	// passphrase.
+	hashKey := make([]byte, 32)
+	_, err = io.ReadFull(rand.Reader, hashKey)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	hasher, err := blake2b.New256(hashKey)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	hasher.Write(passphrase)
+	passHash := hasher.Sum(nil)
+
+	// Encrypt the account xpriv with a new key.
+	kdfp, err := kdf.NewArgon2idParams(rand.Reader)
+	if err != nil {
+		return err
+	}
+	plaintext := []byte(acctInfo.acctKeyPriv.String())
+	key := argon2idKey(passphrase, kdfp)
+	ciphertext, err := seal(rand.Reader, key, plaintext)
+	zero(plaintext)
+	if err != nil {
+		return err
+	}
+
+	// Record the KDF parameters.
+	acctKey := uint32ToBytes(account)
+	vars := ns.NestedReadWriteBucket(acctVarsBucketName).
+		NestedReadWriteBucket(acctKey)
+	err = putAccountKDFVar(vars, acctVarKDF, kdfp)
+	if err != nil {
+		return err
+	}
+
+	// Write a new account row with the new xpriv ciphertext.
+	dbAcct, err := fetchDBAccount(ns, account, DBVersion)
+	if err != nil {
+		return err
+	}
+	switch a := dbAcct.(type) {
+	case *dbBIP0044Account:
+		a.privKeyEncrypted = ciphertext
+		a.rawData = a.serializeRow()
+		err := putAccountRow(ns, account, &a.dbAccountRow)
+		if err != nil {
+			return err
+		}
+	default:
+		return errors.Errorf("unknown account type %T", a)
+	}
+
+	acctInfo.acctKeyEncrypted = ciphertext
+	acctInfo.uniqueKey = kdfp
+	acctInfo.uniquePassHasher = hasher
+	acctInfo.uniquePassHash = passHash
+
+	return nil
+}
+
+func (m *Manager) removeAccountPassphrase(ns walletdb.ReadWriteBucket, account uint32,
+	acctInfo *accountInfo) error {
+
+	if m.locked {
+		return errors.E(errors.Locked, "wallet must be unlocked "+
+			"to remove account's unique passphrase")
+	}
+
+	plaintext := []byte(acctInfo.acctKeyPriv.String())
+	ciphertext, err := m.cryptoKeyPriv.Encrypt(plaintext)
+	zero(plaintext)
+	if err != nil {
+		err := errors.Errorf("encrypt account %d privkey: %v", account, err)
+		return errors.E(errors.Crypto, err)
+	}
+
+	acctKey := uint32ToBytes(account)
+	vars := ns.NestedReadWriteBucket(acctVarsBucketName).
+		NestedReadWriteBucket(acctKey)
+	err = vars.Delete(acctVarKDF)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	// Write a new account row with the new xpriv ciphertext.
+	dbAcct, err := fetchDBAccount(ns, account, DBVersion)
+	if err != nil {
+		return err
+	}
+	switch a := dbAcct.(type) {
+	case *dbBIP0044Account:
+		a.privKeyEncrypted = ciphertext
+		a.rawData = a.serializeRow()
+		err := putAccountRow(ns, account, &a.dbAccountRow)
+		if err != nil {
+			return err
+		}
+	default:
+		return errors.Errorf("unknown account type %T", a)
+	}
+
+	acctInfo.acctKeyEncrypted = ciphertext
+	acctInfo.uniqueKey = nil
+	acctInfo.uniquePassHasher = nil
+	acctInfo.uniquePassHash = nil
+
+	return nil
+}
+
+// AccountHasPassphrase returns whether an account's keys are currently
+// protected by a per-account passphrase, and if so, whether the account is
+// currently locked or unlocked.
+func (m *Manager) AccountHasPassphrase(dbtx walletdb.ReadTx, account uint32) (hasPassphrase, unlocked bool) {
+	defer m.mtx.RUnlock()
+	m.mtx.RLock()
+
+	ns := dbtx.ReadBucket(waddrmgrBucketKey)
+
+	return m.accountHasPassphrase(ns, account)
+}
+
+func (m *Manager) accountHasPassphrase(ns walletdb.ReadBucket, account uint32) (hasPassphrase, unlocked bool) {
+	acctInfo, err := m.loadAccountInfo(ns, account)
+	if err != nil {
+		return
+	}
+	hasPassphrase = acctInfo.uniqueKey != nil
+	if hasPassphrase {
+		unlocked = acctInfo.acctKeyPriv != nil
+	}
+	return
 }
 
 func maxUint32(a, b uint32) uint32 {
@@ -1887,10 +2239,6 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 		return nil, nil, errors.E(errors.WatchingOnly)
 	}
 
-	if m.locked {
-		return nil, nil, errors.E(errors.Locked)
-	}
-
 	// At this point, there are two types of addresses that must be handled:
 	// those that are derived from a BIP0044 account and addresses for imported
 	// keys.  For BIP0044 addresses, the private key must be derived using the
@@ -2024,7 +2372,7 @@ func (m *Manager) Decrypt(keyType CryptoKeyType, in []byte) ([]byte, error) {
 // newManager returns a new locked address manager with the given parameters.
 func newManager(chainParams *chaincfg.Params, masterKeyPub *snacl.SecretKey,
 	masterKeyPriv *snacl.SecretKey, cryptoKeyPub EncryptorDecryptor,
-	cryptoKeyPrivEncrypted []byte, privPassphraseSalt [saltSize]byte) *Manager {
+	cryptoKeyPrivEncrypted []byte, privPassphraseHasher hash.Hash) *Manager {
 
 	return &Manager{
 		chainParams:            chainParams,
@@ -2035,7 +2383,7 @@ func newManager(chainParams *chaincfg.Params, masterKeyPub *snacl.SecretKey,
 		cryptoKeyPub:           cryptoKeyPub,
 		cryptoKeyPrivEncrypted: cryptoKeyPrivEncrypted,
 		cryptoKeyPriv:          &cryptoKey{},
-		privPassphraseSalt:     privPassphraseSalt,
+		privPassphraseHasher:   privPassphraseHasher,
 	}
 }
 
@@ -2160,18 +2508,22 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte, chainParams *chai
 	cryptoKeyPub.CopyBytes(cryptoKeyPubCT)
 	zero(cryptoKeyPubCT)
 
-	// Generate private passphrase salt.
-	var privPassphraseSalt [saltSize]byte
-	_, err = rand.Read(privPassphraseSalt[:])
+	// Generate a private passphrase hasher.
+	hasherKey := make([]byte, 32)
+	_, err = io.ReadFull(rand.Reader, hasherKey)
 	if err != nil {
 		return nil, errors.E(errors.IO, err)
+	}
+	passHasher, err := blake2b.New256(hasherKey)
+	if err != nil {
+		return nil, err
 	}
 
 	// Create new address manager with the given parameters.  Also, override
 	// the defaults for the additional fields which are not specified in the
 	// call to new with the values loaded from the database.
 	mgr := newManager(chainParams, &masterKeyPub, &masterKeyPriv,
-		cryptoKeyPub, cryptoKeyPrivEnc, privPassphraseSalt)
+		cryptoKeyPub, cryptoKeyPrivEnc, passHasher)
 	mgr.watchingOnly = watchingOnly
 	return mgr, nil
 }
@@ -2292,15 +2644,6 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 		return err
 	}
 	defer masterKeyPriv.Zero()
-
-	// Generate the private passphrase salt.  This is used when hashing
-	// passwords to detect whether an unlock can be avoided when the manager
-	// is already unlocked.
-	var privPassphraseSalt [saltSize]byte
-	_, err = rand.Read(privPassphraseSalt[:])
-	if err != nil {
-		return errors.E(errors.IO, err)
-	}
 
 	// Generate new crypto public and private keys.  These keys are used to
 	// protect the actual public and private data such as addresses, and
@@ -2502,15 +2845,6 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase
 		return err
 	}
 	defer masterKeyPriv.Zero()
-
-	// Generate the private passphrase salt.  This is used when hashing
-	// passwords to detect whether an unlock can be avoided when the manager
-	// is already unlocked.
-	var privPassphraseSalt [saltSize]byte
-	_, err = rand.Read(privPassphraseSalt[:])
-	if err != nil {
-		return errors.E(errors.IO, err)
-	}
 
 	// Generate new crypto public and private keys.  These keys are
 	// used to protect the actual public and private data such as addresses
