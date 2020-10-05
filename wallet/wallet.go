@@ -1586,6 +1586,19 @@ func (w *Wallet) AccountUnlocked(ctx context.Context, account uint32) (bool, err
 	return unlocked, nil
 }
 
+func (w *Wallet) AccountHasPassphrase(ctx context.Context, account uint32) (bool, error) {
+	const op errors.Op = "wallet.AccountHasPassphrase"
+	var encrypted bool
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		encrypted, _ = w.manager.AccountHasPassphrase(dbtx, account)
+		return nil
+	})
+	if err != nil {
+		return false, errors.E(op, err)
+	}
+	return encrypted, nil
+}
+
 func (w *Wallet) replacePassphraseTimeout(wasLocked bool, newTimeout <-chan time.Time) {
 	defer w.passphraseTimeoutMu.Unlock()
 	w.passphraseTimeoutMu.Lock()
