@@ -169,7 +169,10 @@ const (
 	// top-level bucket for recording voting policy on treasury-spending
 	// transactions.
 	tspendPolicyVersion = 19
-	//
+
+	// vspBucketVersion is the 20th version of the database. It adds a
+	// a top-level bucket for recording vsp ticket hashes as key and its
+	// related fee txs hash.
 	vspBucketVersion = 20
 
 	// DBVersion is the latest version of the database that is understood by the
@@ -1432,14 +1435,14 @@ func tspendPolicyUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, param
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
-// vspBucketUpgrade updates the wallet db from version 17 to 18. It creates
-// a new vspBucket and two subbuckets.
+// vspBucketUpgrade updates the wallet db from version 19 to 20. It creates
+// a new top level vspBucket.
 func vspBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
 	const oldVersion = 19
 	const newVersion = 20
 
 	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
-	// Assert that this function is only called on version 18 databases.
+	// Assert that this function is only called on version 19 databases.
 	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
 	if err != nil {
 		return err
