@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 
 	"decred.org/dcrwallet/wallet"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -212,9 +214,11 @@ func New(hostname, pubKeyStr string, purchaseAccount, changeAccount uint32, dial
 				feeTx, err := v.Process(ctx, queuedItem.TicketHash, nil)
 				if err != nil {
 					log.Warnf("Failed to process queued ticket %v, err: %v", queuedItem.TicketHash, err)
-					for _, input := range queuedItem.FeeTx.TxIn {
-						outpoint := input.PreviousOutPoint
-						go func() { w.UnlockOutpoint(&outpoint.Hash, outpoint.Index) }()
+					if queuedItem.FeeTx != nil {
+						for _, input := range queuedItem.FeeTx.TxIn {
+							outpoint := input.PreviousOutPoint
+							go func() { w.UnlockOutpoint(&outpoint.Hash, outpoint.Index) }()
+						}
 					}
 					continue
 				}
@@ -280,6 +284,10 @@ func (v *VSP) Sync(ctx context.Context) {
 func (v *VSP) Process(ctx context.Context, ticketHash chainhash.Hash, credits []wallet.Input) (*wire.MsgTx, error) {
 	feeAmount, err := v.GetFeeAddress(ctx, ticketHash)
 	if err != nil {
+		if strings.Contains(err.Error(), "ticket transaction could not be broadcast") {
+			time.Sleep(2 * time.Minute)
+			v.Queue(ctx, ticketHash, nil)
+		}
 		return nil, err
 	}
 

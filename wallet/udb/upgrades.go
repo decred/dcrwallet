@@ -170,10 +170,15 @@ const (
 	// transactions.
 	tspendPolicyVersion = 19
 
+	// vspBucketVersion is the 20th version of the database. It adds a
+	// a top-level bucket for recording vsp ticket hashes as key and its
+	// related fee txs hash.
+	vspBucketVersion = 20
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = tspendPolicyVersion
+	DBVersion = vspBucketVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -198,6 +203,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	accountVariablesVersion - 1:           accountVariablesUpgrade,
 	unpublishedTxsVersion - 1:             unpublishedTxsUpgrade,
 	tspendPolicyVersion - 1:               tspendPolicyUpgrade,
+	vspBucketVersion - 1:                  vspBucketUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -1423,6 +1429,32 @@ func tspendPolicyUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, param
 	_, err = tx.CreateTopLevelBucket(treasuryPolicyBucketKey)
 	if err != nil {
 		return errors.E(errors.IO, err)
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+// vspBucketUpgrade updates the wallet db from version 19 to 20. It creates
+// a new top level vspBucket.
+func vspBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 19
+	const newVersion = 20
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	// Assert that this function is only called on version 19 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "vspBucketUpgrade inappropriately called")
+	}
+
+	// Create the vsp tickets bucket.
+	_, err = tx.CreateTopLevelBucket(vspBucketKey)
+	if err != nil {
+		return err
 	}
 
 	// Write the new database version.
