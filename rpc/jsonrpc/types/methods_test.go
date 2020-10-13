@@ -34,7 +34,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "addmultisigaddress",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("addmultisigaddress", 2, []string{"031234", "035678"})
+				return dcrjson.NewCmd(Method("addmultisigaddress"), 2, []string{"031234", "035678"})
 			},
 			staticCmd: func() interface{} {
 				keys := []string{"031234", "035678"}
@@ -50,7 +50,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "addmultisigaddress optional",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("addmultisigaddress", 2, []string{"031234", "035678"}, "test")
+				return dcrjson.NewCmd(Method("addmultisigaddress"), 2, []string{"031234", "035678"}, "test")
 			},
 			staticCmd: func() interface{} {
 				keys := []string{"031234", "035678"}
@@ -66,7 +66,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "createmultisig",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("createmultisig", 2, []string{"031234", "035678"})
+				return dcrjson.NewCmd(Method("createmultisig"), 2, []string{"031234", "035678"})
 			},
 			staticCmd: func() interface{} {
 				keys := []string{"031234", "035678"}
@@ -81,7 +81,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "createnewaccount",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("createnewaccount", "acct")
+				return dcrjson.NewCmd(Method("createnewaccount"), "acct")
 			},
 			staticCmd: func() interface{} {
 				return NewCreateNewAccountCmd("acct")
@@ -94,7 +94,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "dumpprivkey",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("dumpprivkey", "1Address")
+				return dcrjson.NewCmd(Method("dumpprivkey"), "1Address")
 			},
 			staticCmd: func() interface{} {
 				return NewDumpPrivKeyCmd("1Address")
@@ -107,7 +107,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getaccount",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getaccount", "1Address")
+				return dcrjson.NewCmd(Method("getaccount"), "1Address")
 			},
 			staticCmd: func() interface{} {
 				return NewGetAccountCmd("1Address")
@@ -120,7 +120,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getaccountaddress",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getaccountaddress", "acct")
+				return dcrjson.NewCmd(Method("getaccountaddress"), "acct")
 			},
 			staticCmd: func() interface{} {
 				return NewGetAccountAddressCmd("acct")
@@ -133,7 +133,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getaddressesbyaccount",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getaddressesbyaccount", "acct")
+				return dcrjson.NewCmd(Method("getaddressesbyaccount"), "acct")
 			},
 			staticCmd: func() interface{} {
 				return NewGetAddressesByAccountCmd("acct")
@@ -146,7 +146,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getbalance",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getbalance")
+				return dcrjson.NewCmd(Method("getbalance"))
 			},
 			staticCmd: func() interface{} {
 				return NewGetBalanceCmd(nil, nil)
@@ -160,7 +160,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getbalance optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getbalance", "acct")
+				return dcrjson.NewCmd(Method("getbalance"), "acct")
 			},
 			staticCmd: func() interface{} {
 				return NewGetBalanceCmd(dcrjson.String("acct"), nil)
@@ -174,7 +174,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getbalance optional2",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getbalance", "acct", 6)
+				return dcrjson.NewCmd(Method("getbalance"), "acct", 6)
 			},
 			staticCmd: func() interface{} {
 				return NewGetBalanceCmd(dcrjson.String("acct"), dcrjson.Int(6))
@@ -188,7 +188,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getnewaddress",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getnewaddress")
+				return dcrjson.NewCmd(Method("getnewaddress"))
 			},
 			staticCmd: func() interface{} {
 				return NewGetNewAddressCmd(nil, nil)
@@ -202,7 +202,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getnewaddress optional",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getnewaddress", "acct", "ignore")
+				return dcrjson.NewCmd(Method("getnewaddress"), "acct", "ignore")
 			},
 			staticCmd: func() interface{} {
 				return NewGetNewAddressCmd(dcrjson.String("acct"), dcrjson.String("ignore"))
@@ -216,7 +216,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getrawchangeaddress",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getrawchangeaddress")
+				return dcrjson.NewCmd(Method("getrawchangeaddress"))
 			},
 			staticCmd: func() interface{} {
 				return NewGetRawChangeAddressCmd(nil)
@@ -229,7 +229,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getrawchangeaddress optional",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getrawchangeaddress", "acct")
+				return dcrjson.NewCmd(Method("getrawchangeaddress"), "acct")
 			},
 			staticCmd: func() interface{} {
 				return NewGetRawChangeAddressCmd(dcrjson.String("acct"))
@@ -242,7 +242,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getreceivedbyaccount",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getreceivedbyaccount", "acct")
+				return dcrjson.NewCmd(Method("getreceivedbyaccount"), "acct")
 			},
 			staticCmd: func() interface{} {
 				return NewGetReceivedByAccountCmd("acct", nil)
@@ -256,7 +256,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getreceivedbyaccount optional",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getreceivedbyaccount", "acct", 6)
+				return dcrjson.NewCmd(Method("getreceivedbyaccount"), "acct", 6)
 			},
 			staticCmd: func() interface{} {
 				return NewGetReceivedByAccountCmd("acct", dcrjson.Int(6))
@@ -270,7 +270,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getreceivedbyaddress",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getreceivedbyaddress", "1Address")
+				return dcrjson.NewCmd(Method("getreceivedbyaddress"), "1Address")
 			},
 			staticCmd: func() interface{} {
 				return NewGetReceivedByAddressCmd("1Address", nil)
@@ -284,7 +284,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "getreceivedbyaddress optional",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getreceivedbyaddress", "1Address", 6)
+				return dcrjson.NewCmd(Method("getreceivedbyaddress"), "1Address", 6)
 			},
 			staticCmd: func() interface{} {
 				return NewGetReceivedByAddressCmd("1Address", dcrjson.Int(6))
@@ -298,7 +298,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "gettransaction",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("gettransaction", "123")
+				return dcrjson.NewCmd(Method("gettransaction"), "123")
 			},
 			staticCmd: func() interface{} {
 				return NewGetTransactionCmd("123", nil)
@@ -312,7 +312,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "gettransaction optional",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("gettransaction", "123", true)
+				return dcrjson.NewCmd(Method("gettransaction"), "123", true)
 			},
 			staticCmd: func() interface{} {
 				return NewGetTransactionCmd("123", dcrjson.Bool(true))
@@ -326,7 +326,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "importprivkey",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("importprivkey", "abc")
+				return dcrjson.NewCmd(Method("importprivkey"), "abc")
 			},
 			staticCmd: func() interface{} {
 				return NewImportPrivKeyCmd("abc", nil, nil, nil)
@@ -341,7 +341,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "importprivkey optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("importprivkey", "abc", "label")
+				return dcrjson.NewCmd(Method("importprivkey"), "abc", "label")
 			},
 			staticCmd: func() interface{} {
 				return NewImportPrivKeyCmd("abc", dcrjson.String("label"), nil, nil)
@@ -356,7 +356,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "importprivkey optional2",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("importprivkey", "abc", "label", false)
+				return dcrjson.NewCmd(Method("importprivkey"), "abc", "label", false)
 			},
 			staticCmd: func() interface{} {
 				return NewImportPrivKeyCmd("abc", dcrjson.String("label"), dcrjson.Bool(false), nil)
@@ -371,7 +371,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "importprivkey optional3",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("importprivkey", "abc", "label", false, 12345)
+				return dcrjson.NewCmd(Method("importprivkey"), "abc", "label", false, 12345)
 			},
 			staticCmd: func() interface{} {
 				return NewImportPrivKeyCmd("abc", dcrjson.String("label"), dcrjson.Bool(false), dcrjson.Int(12345))
@@ -387,7 +387,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listaccounts",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listaccounts")
+				return dcrjson.NewCmd(Method("listaccounts"))
 			},
 			staticCmd: func() interface{} {
 				return NewListAccountsCmd(nil)
@@ -400,7 +400,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listaccounts optional",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listaccounts", 6)
+				return dcrjson.NewCmd(Method("listaccounts"), 6)
 			},
 			staticCmd: func() interface{} {
 				return NewListAccountsCmd(dcrjson.Int(6))
@@ -413,7 +413,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listlockunspent",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listlockunspent")
+				return dcrjson.NewCmd(Method("listlockunspent"))
 			},
 			staticCmd: func() interface{} {
 				return NewListLockUnspentCmd()
@@ -424,7 +424,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listreceivedbyaccount",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listreceivedbyaccount")
+				return dcrjson.NewCmd(Method("listreceivedbyaccount"))
 			},
 			staticCmd: func() interface{} {
 				return NewListReceivedByAccountCmd(nil, nil, nil)
@@ -439,7 +439,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listreceivedbyaccount optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listreceivedbyaccount", 6)
+				return dcrjson.NewCmd(Method("listreceivedbyaccount"), 6)
 			},
 			staticCmd: func() interface{} {
 				return NewListReceivedByAccountCmd(dcrjson.Int(6), nil, nil)
@@ -454,7 +454,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listreceivedbyaccount optional2",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listreceivedbyaccount", 6, true)
+				return dcrjson.NewCmd(Method("listreceivedbyaccount"), 6, true)
 			},
 			staticCmd: func() interface{} {
 				return NewListReceivedByAccountCmd(dcrjson.Int(6), dcrjson.Bool(true), nil)
@@ -469,7 +469,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listreceivedbyaccount optional3",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listreceivedbyaccount", 6, true, false)
+				return dcrjson.NewCmd(Method("listreceivedbyaccount"), 6, true, false)
 			},
 			staticCmd: func() interface{} {
 				return NewListReceivedByAccountCmd(dcrjson.Int(6), dcrjson.Bool(true), dcrjson.Bool(false))
@@ -484,7 +484,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listreceivedbyaddress",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listreceivedbyaddress")
+				return dcrjson.NewCmd(Method("listreceivedbyaddress"))
 			},
 			staticCmd: func() interface{} {
 				return NewListReceivedByAddressCmd(nil, nil, nil)
@@ -499,7 +499,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listreceivedbyaddress optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listreceivedbyaddress", 6)
+				return dcrjson.NewCmd(Method("listreceivedbyaddress"), 6)
 			},
 			staticCmd: func() interface{} {
 				return NewListReceivedByAddressCmd(dcrjson.Int(6), nil, nil)
@@ -514,7 +514,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listreceivedbyaddress optional2",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listreceivedbyaddress", 6, true)
+				return dcrjson.NewCmd(Method("listreceivedbyaddress"), 6, true)
 			},
 			staticCmd: func() interface{} {
 				return NewListReceivedByAddressCmd(dcrjson.Int(6), dcrjson.Bool(true), nil)
@@ -529,7 +529,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listreceivedbyaddress optional3",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listreceivedbyaddress", 6, true, false)
+				return dcrjson.NewCmd(Method("listreceivedbyaddress"), 6, true, false)
 			},
 			staticCmd: func() interface{} {
 				return NewListReceivedByAddressCmd(dcrjson.Int(6), dcrjson.Bool(true), dcrjson.Bool(false))
@@ -544,7 +544,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listsinceblock",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listsinceblock")
+				return dcrjson.NewCmd(Method("listsinceblock"))
 			},
 			staticCmd: func() interface{} {
 				return NewListSinceBlockCmd(nil, nil, nil)
@@ -559,7 +559,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listsinceblock optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listsinceblock", "123")
+				return dcrjson.NewCmd(Method("listsinceblock"), "123")
 			},
 			staticCmd: func() interface{} {
 				return NewListSinceBlockCmd(dcrjson.String("123"), nil, nil)
@@ -574,7 +574,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listsinceblock optional2",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listsinceblock", "123", 6)
+				return dcrjson.NewCmd(Method("listsinceblock"), "123", 6)
 			},
 			staticCmd: func() interface{} {
 				return NewListSinceBlockCmd(dcrjson.String("123"), dcrjson.Int(6), nil)
@@ -589,7 +589,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listsinceblock optional3",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listsinceblock", "123", 6, true)
+				return dcrjson.NewCmd(Method("listsinceblock"), "123", 6, true)
 			},
 			staticCmd: func() interface{} {
 				return NewListSinceBlockCmd(dcrjson.String("123"), dcrjson.Int(6), dcrjson.Bool(true))
@@ -604,7 +604,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listtransactions",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listtransactions")
+				return dcrjson.NewCmd(Method("listtransactions"))
 			},
 			staticCmd: func() interface{} {
 				return NewListTransactionsCmd(nil, nil, nil, nil)
@@ -620,7 +620,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listtransactions optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listtransactions", "acct")
+				return dcrjson.NewCmd(Method("listtransactions"), "acct")
 			},
 			staticCmd: func() interface{} {
 				return NewListTransactionsCmd(dcrjson.String("acct"), nil, nil, nil)
@@ -636,7 +636,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listtransactions optional2",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listtransactions", "acct", 20)
+				return dcrjson.NewCmd(Method("listtransactions"), "acct", 20)
 			},
 			staticCmd: func() interface{} {
 				return NewListTransactionsCmd(dcrjson.String("acct"), dcrjson.Int(20), nil, nil)
@@ -652,7 +652,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listtransactions optional3",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listtransactions", "acct", 20, 1)
+				return dcrjson.NewCmd(Method("listtransactions"), "acct", 20, 1)
 			},
 			staticCmd: func() interface{} {
 				return NewListTransactionsCmd(dcrjson.String("acct"), dcrjson.Int(20),
@@ -669,7 +669,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listtransactions optional4",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listtransactions", "acct", 20, 1, true)
+				return dcrjson.NewCmd(Method("listtransactions"), "acct", 20, 1, true)
 			},
 			staticCmd: func() interface{} {
 				return NewListTransactionsCmd(dcrjson.String("acct"), dcrjson.Int(20),
@@ -686,7 +686,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listunspent",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listunspent")
+				return dcrjson.NewCmd(Method("listunspent"))
 			},
 			staticCmd: func() interface{} {
 				return NewListUnspentCmd(nil, nil, nil)
@@ -701,7 +701,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listunspent optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listunspent", 6)
+				return dcrjson.NewCmd(Method("listunspent"), 6)
 			},
 			staticCmd: func() interface{} {
 				return NewListUnspentCmd(dcrjson.Int(6), nil, nil)
@@ -716,7 +716,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listunspent optional2",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listunspent", 6, 100)
+				return dcrjson.NewCmd(Method("listunspent"), 6, 100)
 			},
 			staticCmd: func() interface{} {
 				return NewListUnspentCmd(dcrjson.Int(6), dcrjson.Int(100), nil)
@@ -731,7 +731,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "listunspent optional3",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listunspent", 6, 100, []string{"1Address", "1Address2"})
+				return dcrjson.NewCmd(Method("listunspent"), 6, 100, []string{"1Address", "1Address2"})
 			},
 			staticCmd: func() interface{} {
 				return NewListUnspentCmd(dcrjson.Int(6), dcrjson.Int(100),
@@ -747,7 +747,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "lockunspent",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("lockunspent", true, `[{"txid":"123","vout":1}]`)
+				return dcrjson.NewCmd(Method("lockunspent"), true, `[{"txid":"123","vout":1}]`)
 			},
 			staticCmd: func() interface{} {
 				txInputs := []dcrdtypes.TransactionInput{
@@ -766,7 +766,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "renameaccount",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("renameaccount", "oldacct", "newacct")
+				return dcrjson.NewCmd(Method("renameaccount"), "oldacct", "newacct")
 			},
 			staticCmd: func() interface{} {
 				return NewRenameAccountCmd("oldacct", "newacct")
@@ -780,7 +780,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendfrom",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendfrom", "from", "1Address", 0.5)
+				return dcrjson.NewCmd(Method("sendfrom"), "from", "1Address", 0.5)
 			},
 			staticCmd: func() interface{} {
 				return NewSendFromCmd("from", "1Address", 0.5, nil, nil, nil)
@@ -798,7 +798,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendfrom optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendfrom", "from", "1Address", 0.5, 6)
+				return dcrjson.NewCmd(Method("sendfrom"), "from", "1Address", 0.5, 6)
 			},
 			staticCmd: func() interface{} {
 				return NewSendFromCmd("from", "1Address", 0.5, dcrjson.Int(6), nil, nil)
@@ -816,7 +816,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendfrom optional2",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendfrom", "from", "1Address", 0.5, 6, "comment")
+				return dcrjson.NewCmd(Method("sendfrom"), "from", "1Address", 0.5, 6, "comment")
 			},
 			staticCmd: func() interface{} {
 				return NewSendFromCmd("from", "1Address", 0.5, dcrjson.Int(6),
@@ -835,7 +835,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendfrom optional3",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendfrom", "from", "1Address", 0.5, 6, "comment", "commentto")
+				return dcrjson.NewCmd(Method("sendfrom"), "from", "1Address", 0.5, 6, "comment", "commentto")
 			},
 			staticCmd: func() interface{} {
 				return NewSendFromCmd("from", "1Address", 0.5, dcrjson.Int(6),
@@ -854,7 +854,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendmany",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendmany", "from", `{"1Address":0.5}`)
+				return dcrjson.NewCmd(Method("sendmany"), "from", `{"1Address":0.5}`)
 			},
 			staticCmd: func() interface{} {
 				amounts := map[string]float64{"1Address": 0.5}
@@ -871,7 +871,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendmany optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendmany", "from", `{"1Address":0.5}`, 6)
+				return dcrjson.NewCmd(Method("sendmany"), "from", `{"1Address":0.5}`, 6)
 			},
 			staticCmd: func() interface{} {
 				amounts := map[string]float64{"1Address": 0.5}
@@ -888,7 +888,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendmany optional2",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendmany", "from", `{"1Address":0.5}`, 6, "comment")
+				return dcrjson.NewCmd(Method("sendmany"), "from", `{"1Address":0.5}`, 6, "comment")
 			},
 			staticCmd: func() interface{} {
 				amounts := map[string]float64{"1Address": 0.5}
@@ -905,7 +905,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendtoaddress",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendtoaddress", "1Address", 0.5)
+				return dcrjson.NewCmd(Method("sendtoaddress"), "1Address", 0.5)
 			},
 			staticCmd: func() interface{} {
 				return NewSendToAddressCmd("1Address", 0.5, nil, nil)
@@ -921,7 +921,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendtoaddress optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendtoaddress", "1Address", 0.5, "comment", "commentto")
+				return dcrjson.NewCmd(Method("sendtoaddress"), "1Address", 0.5, "comment", "commentto")
 			},
 			staticCmd: func() interface{} {
 				return NewSendToAddressCmd("1Address", 0.5, dcrjson.String("comment"),
@@ -938,7 +938,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendfromtreasury",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendfromtreasury", "key", `{"1Address":0.5}`)
+				return dcrjson.NewCmd(Method("sendfromtreasury"), "key", `{"1Address":0.5}`)
 			},
 			staticCmd: func() interface{} {
 				var debits = map[string]float64{"1Address": 0.5}
@@ -953,7 +953,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendtotreasury",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sendtotreasury", 0.5)
+				return dcrjson.NewCmd(Method("sendtotreasury"), 0.5)
 			},
 			staticCmd: func() interface{} {
 				return NewSendToTreasuryCmd(0.5, nil, nil)
@@ -966,7 +966,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "settxfee",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("settxfee", 0.0001)
+				return dcrjson.NewCmd(Method("settxfee"), 0.0001)
 			},
 			staticCmd: func() interface{} {
 				return NewSetTxFeeCmd(0.0001)
@@ -979,7 +979,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "signmessage",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("signmessage", "1Address", "message")
+				return dcrjson.NewCmd(Method("signmessage"), "1Address", "message")
 			},
 			staticCmd: func() interface{} {
 				return NewSignMessageCmd("1Address", "message")
@@ -993,7 +993,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "signrawtransaction",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("signrawtransaction", "001122")
+				return dcrjson.NewCmd(Method("signrawtransaction"), "001122")
 			},
 			staticCmd: func() interface{} {
 				return NewSignRawTransactionCmd("001122", nil, nil, nil)
@@ -1009,7 +1009,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "signrawtransaction optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("signrawtransaction", "001122", `[{"txid":"123","vout":1,"tree":0,"scriptPubKey":"00","redeemScript":"01"}]`)
+				return dcrjson.NewCmd(Method("signrawtransaction"), "001122", `[{"txid":"123","vout":1,"tree":0,"scriptPubKey":"00","redeemScript":"01"}]`)
 			},
 			staticCmd: func() interface{} {
 				txInputs := []RawTxInput{
@@ -1041,7 +1041,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "signrawtransaction optional2",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("signrawtransaction", "001122", `[]`, `["abc"]`)
+				return dcrjson.NewCmd(Method("signrawtransaction"), "001122", `[]`, `["abc"]`)
 			},
 			staticCmd: func() interface{} {
 				txInputs := []RawTxInput{}
@@ -1059,7 +1059,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "signrawtransaction optional3",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("signrawtransaction", "001122", `[]`, `[]`, "ALL")
+				return dcrjson.NewCmd(Method("signrawtransaction"), "001122", `[]`, `[]`, "ALL")
 			},
 			staticCmd: func() interface{} {
 				txInputs := []RawTxInput{}
@@ -1078,7 +1078,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sweepaccount - optionals provided",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sweepaccount", "default", "DsUZxxoHJSty8DCfwfartwTYbuhmVct7tJu", 6, 0.05)
+				return dcrjson.NewCmd(Method("sweepaccount"), "default", "DsUZxxoHJSty8DCfwfartwTYbuhmVct7tJu", 6, 0.05)
 			},
 			staticCmd: func() interface{} {
 				return NewSweepAccountCmd("default", "DsUZxxoHJSty8DCfwfartwTYbuhmVct7tJu",
@@ -1096,7 +1096,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sweepaccount - optionals omitted",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("sweepaccount", "default", "DsUZxxoHJSty8DCfwfartwTYbuhmVct7tJu")
+				return dcrjson.NewCmd(Method("sweepaccount"), "default", "DsUZxxoHJSty8DCfwfartwTYbuhmVct7tJu")
 			},
 			staticCmd: func() interface{} {
 				return NewSweepAccountCmd("default", "DsUZxxoHJSty8DCfwfartwTYbuhmVct7tJu", nil, nil)
@@ -1110,7 +1110,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "walletlock",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("walletlock")
+				return dcrjson.NewCmd(Method("walletlock"))
 			},
 			staticCmd: func() interface{} {
 				return NewWalletLockCmd()
@@ -1121,7 +1121,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "walletpassphrase",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("walletpassphrase", "pass", 60)
+				return dcrjson.NewCmd(Method("walletpassphrase"), "pass", 60)
 			},
 			staticCmd: func() interface{} {
 				return NewWalletPassphraseCmd("pass", 60)
@@ -1135,7 +1135,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "walletpassphrasechange",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("walletpassphrasechange", "old", "new")
+				return dcrjson.NewCmd(Method("walletpassphrasechange"), "old", "new")
 			},
 			staticCmd: func() interface{} {
 				return NewWalletPassphraseChangeCmd("old", "new")
@@ -1149,7 +1149,7 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "walletpubpassphrasechange",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("walletpubpassphrasechange", "old", "new")
+				return dcrjson.NewCmd(Method("walletpubpassphrasechange"), "old", "new")
 			},
 			staticCmd: func() interface{} {
 				return &WalletPubPassphraseChangeCmd{OldPassphrase: "old", NewPassphrase: "new"}
@@ -1212,7 +1212,7 @@ func TestWalletSvrCmds(t *testing.T) {
 			continue
 		}
 
-		cmd, err = dcrjson.ParseParams(request.Method, request.Params)
+		cmd, err = dcrjson.ParseParams(Method(request.Method), request.Params)
 		if err != nil {
 			t.Errorf("UnmarshalCmd #%d (%s) unexpected error: %v", i,
 				test.name, err)

@@ -1137,8 +1137,6 @@ type registeredMethod struct {
 type GetCoinjoinsByAcctCmd struct{}
 
 func init() {
-	const dcrjsonv2WalletOnly = 1
-
 	// Wallet-specific methods
 	register := []registeredMethod{
 		{"abandontransaction", (*AbandonTransactionCmd)(nil)},
@@ -1221,13 +1219,11 @@ func init() {
 		{"lockaccount", (*LockAccountCmd)(nil)},
 	}
 	for i := range register {
-		dcrjson.MustRegister(register[i].method, register[i].cmd, dcrjsonv2WalletOnly)
 		dcrjson.MustRegister(Method(register[i].method), register[i].cmd, 0)
 	}
 
 	// dcrd methods also implemented by dcrwallet
 	register = []registeredMethod{
-		{"authenticate", (*dcrdtypes.AuthenticateCmd)(nil)},
 		{"createrawtransaction", (*dcrdtypes.CreateRawTransactionCmd)(nil)},
 		{"getbestblock", (*dcrdtypes.GetBestBlockCmd)(nil)},
 		{"getbestblockhash", (*dcrdtypes.GetBestBlockHashCmd)(nil)},
@@ -1244,5 +1240,14 @@ func init() {
 	}
 	for i := range register {
 		dcrjson.MustRegister(Method(register[i].method), register[i].cmd, 0)
+	}
+
+	// Websocket-specific methods implemented by dcrwallet
+	register = []registeredMethod{
+		{"authenticate", (*dcrdtypes.AuthenticateCmd)(nil)},
+	}
+	for i := range register {
+		dcrjson.MustRegister(Method(register[i].method), register[i].cmd,
+			dcrjson.UFWebsocketOnly)
 	}
 }
