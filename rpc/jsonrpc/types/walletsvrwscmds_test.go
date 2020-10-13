@@ -33,7 +33,7 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		{
 			name: "getunconfirmedbalance",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getunconfirmedbalance")
+				return dcrjson.NewCmd(Method("getunconfirmedbalance"))
 			},
 			staticCmd: func() interface{} {
 				return NewGetUnconfirmedBalanceCmd(nil)
@@ -46,7 +46,7 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		{
 			name: "getunconfirmedbalance optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("getunconfirmedbalance", "acct")
+				return dcrjson.NewCmd(Method("getunconfirmedbalance"), "acct")
 			},
 			staticCmd: func() interface{} {
 				return NewGetUnconfirmedBalanceCmd(dcrjson.String("acct"))
@@ -59,7 +59,7 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		{
 			name: "listaddresstransactions",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listaddresstransactions", `["1Address"]`)
+				return dcrjson.NewCmd(Method("listaddresstransactions"), `["1Address"]`)
 			},
 			staticCmd: func() interface{} {
 				return NewListAddressTransactionsCmd([]string{"1Address"}, nil)
@@ -73,7 +73,7 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		{
 			name: "listaddresstransactions optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listaddresstransactions", `["1Address"]`, "acct")
+				return dcrjson.NewCmd(Method("listaddresstransactions"), `["1Address"]`, "acct")
 			},
 			staticCmd: func() interface{} {
 				return NewListAddressTransactionsCmd([]string{"1Address"},
@@ -88,7 +88,7 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		{
 			name: "listalltransactions",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listalltransactions")
+				return dcrjson.NewCmd(Method("listalltransactions"))
 			},
 			staticCmd: func() interface{} {
 				return NewListAllTransactionsCmd(nil)
@@ -101,7 +101,7 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		{
 			name: "listalltransactions optional",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("listalltransactions", "acct")
+				return dcrjson.NewCmd(Method("listalltransactions"), "acct")
 			},
 			staticCmd: func() interface{} {
 				return NewListAllTransactionsCmd(dcrjson.String("acct"))
@@ -114,7 +114,7 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		{
 			name: "walletislocked",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd("walletislocked")
+				return dcrjson.NewCmd(Method("walletislocked"))
 			},
 			staticCmd: func() interface{} {
 				return NewWalletIsLockedCmd()
@@ -174,7 +174,7 @@ func TestWalletSvrWsCmds(t *testing.T) {
 			continue
 		}
 
-		cmd, err = dcrjson.ParseParams(request.Method, request.Params)
+		cmd, err = dcrjson.ParseParams(Method(request.Method), request.Params)
 		if err != nil {
 			t.Errorf("UnmarshalCmd #%d (%s) unexpected error: %v", i,
 				test.name, err)
