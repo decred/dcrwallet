@@ -1597,9 +1597,32 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	var poolAddr dcrutil.Address
 	var poolFees float64
 	if req.PoolAddress != "" {
+		if req.VspHost != "" || req.VspPubkey != "" {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"request contains both legacy stakepoold and vspd options.")
+		}
 		poolAddr, err = decodeAddress(req.PoolAddress, params)
 		if err != nil {
 			return nil, err
+		}
+	}
+
+	// new vspd request
+	var vspHost string
+	var vspPubKey string
+	var vspServer *vsp.VSP
+	if req.VspHost != "" || req.VspPubkey != "" {
+		vspHost = req.VspHost
+		vspPubKey = req.VspPubkey
+		if vspPubKey == "" {
+			return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
+		}
+		if vspHost == "" {
+			return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
+		}
+		vspServer, err = vsp.New(vspHost, vspPubKey, req.Account, req.Account, nil, s.wallet, params)
+		if err != nil {
+			return nil, status.Errorf(codes.Unknown, "VSP Server instance failed to start. Error: %v", err)
 		}
 	}
 
@@ -1685,6 +1708,11 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		MixedAccountBranch: mixedAccountBranch,
 		MixedSplitAccount:  mixedSplitAccount,
 		ChangeAccount:      changeAccount,
+	}
+
+	if vspServer != nil {
+		request.VSPFeePaymentProcess = vspServer.Process
+		request.VSPFeeProcess = vspServer.PoolFee
 	}
 
 	// If dontSignTx is false we unlock the wallet so we can sign the tx.
