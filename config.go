@@ -40,6 +40,7 @@ const (
 	defaultLogFilename             = "dcrwallet.log"
 	defaultRPCMaxClients           = 10
 	defaultRPCMaxWebsockets        = 25
+	defaultAuthType                = "basic"
 	defaultEnableTicketBuyer       = false
 	defaultEnableVoting            = false
 	defaultPurchaseAccount         = "default"
@@ -60,12 +61,13 @@ const (
 )
 
 var (
-	dcrdDefaultCAFile  = filepath.Join(dcrutil.AppDataDir("dcrd", false), "rpc.cert")
-	defaultAppDataDir  = dcrutil.AppDataDir("dcrwallet", false)
-	defaultConfigFile  = filepath.Join(defaultAppDataDir, defaultConfigFilename)
-	defaultRPCKeyFile  = filepath.Join(defaultAppDataDir, "rpc.key")
-	defaultRPCCertFile = filepath.Join(defaultAppDataDir, "rpc.cert")
-	defaultLogDir      = filepath.Join(defaultAppDataDir, defaultLogDirname)
+	dcrdDefaultCAFile      = filepath.Join(dcrutil.AppDataDir("dcrd", false), "rpc.cert")
+	defaultAppDataDir      = dcrutil.AppDataDir("dcrwallet", false)
+	defaultConfigFile      = filepath.Join(defaultAppDataDir, defaultConfigFilename)
+	defaultRPCKeyFile      = filepath.Join(defaultAppDataDir, "rpc.key")
+	defaultRPCCertFile     = filepath.Join(defaultAppDataDir, "rpc.cert")
+	defaultRPCClientCAFile = filepath.Join(defaultAppDataDir, "clients.pem")
+	defaultLogDir          = filepath.Join(defaultAppDataDir, defaultLogDirname)
 )
 
 type config struct {
@@ -106,6 +108,7 @@ type config struct {
 	// RPC client options
 	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Network address of dcrd RPC server"`
 	CAFile           *cfgutil.ExplicitString `long:"cafile" description:"dcrd RPC Certificate Authority"`
+	ClientCAFile     string                  `long:"clientcafile" description:"Certficate Authority to verify TLS client certificates"`
 	DisableClientTLS bool                    `long:"noclienttls" description:"Disable TLS for dcrd RPC; only allowed when connecting to localhost"`
 	DcrdUsername     string                  `long:"dcrdusername" description:"dcrd RPC username; overrides --username"`
 	DcrdPassword     string                  `long:"dcrdpassword" default-mask:"-" description:"dcrd RPC password; overrides --password"`
@@ -138,11 +141,13 @@ type config struct {
 	LegacyRPCMaxWebsockets int64                   `long:"rpcmaxwebsockets" description:"Max JSON-RPC websocket clients"`
 	Username               string                  `short:"u" long:"username" description:"JSON-RPC username and default dcrd RPC username"`
 	Password               string                  `short:"P" long:"password" default-mask:"-" description:"JSON-RPC password and default dcrd RPC password"`
+	AuthType               string                  `long:"authtype" description:"Method for client authentication (basic or clientcert)"`
 
 	// IPC options
 	PipeTx            *uint `long:"pipetx" description:"File descriptor or handle of write end pipe to enable child -> parent process communication"`
 	PipeRx            *uint `long:"piperx" description:"File descriptor or handle of read end pipe to enable parent -> child process communication"`
 	RPCListenerEvents bool  `long:"rpclistenerevents" description:"Notify JSON-RPC and gRPC listener addresses over the TX pipe"`
+	IssueClientCert   bool  `long:"issueclientcert" description:"Notify a client cert and key over the TX pipe for RPC authentication"`
 
 	// CSPP
 	CSPPServer         string `long:"csppserver" description:"Network address of CoinShuffle++ server"`
@@ -328,6 +333,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		LogDir:                  cfgutil.NewExplicitString(defaultLogDir),
 		WalletPass:              wallet.InsecurePubPassphrase,
 		CAFile:                  cfgutil.NewExplicitString(""),
+		ClientCAFile:            defaultRPCClientCAFile,
 		dial:                    new(net.Dialer).DialContext,
 		lookup:                  net.LookupIP,
 		PromptPass:              defaultPromptPass,
@@ -338,6 +344,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		TLSCurve:                cfgutil.NewCurveFlag(cfgutil.PreferredCurve),
 		LegacyRPCMaxClients:     defaultRPCMaxClients,
 		LegacyRPCMaxWebsockets:  defaultRPCMaxWebsockets,
+		AuthType:                defaultAuthType,
 		EnableTicketBuyer:       defaultEnableTicketBuyer,
 		EnableVoting:            defaultEnableVoting,
 		PurchaseAccount:         defaultPurchaseAccount,
@@ -914,6 +921,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	cfg.CAFile.Value = cleanAndExpandPath(cfg.CAFile.Value)
 	cfg.RPCCert.Value = cleanAndExpandPath(cfg.RPCCert.Value)
 	cfg.RPCKey.Value = cleanAndExpandPath(cfg.RPCKey.Value)
+	cfg.ClientCAFile = cleanAndExpandPath(cfg.ClientCAFile)
 
 	// If the dcrd username or password are unset, use the same auth as for
 	// the client.  The two settings were previously shared for dcrd and
@@ -924,6 +932,15 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	}
 	if cfg.DcrdPassword == "" {
 		cfg.DcrdPassword = cfg.Password
+	}
+
+	switch cfg.AuthType {
+	case "basic", "clientcert":
+	default:
+		err := fmt.Errorf("unknown authtype %q", cfg.AuthType)
+		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, usageMessage)
+		return loadConfigError(err)
 	}
 
 	// Warn if user still has an old ticket buyer configuration file.

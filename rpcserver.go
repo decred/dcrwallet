@@ -1,14 +1,21 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net"
 	"os"
 	"path/filepath"
@@ -17,6 +24,7 @@ import (
 	"time"
 
 	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/internal/cfgutil"
 	"decred.org/dcrwallet/internal/loader"
 	"decred.org/dcrwallet/internal/rpc/jsonrpc"
 	"decred.org/dcrwallet/internal/rpc/rpcserver"
@@ -104,6 +112,130 @@ func generateRPCKeyPair(writeKey bool) (tls.Certificate, error) {
 	return keyPair, nil
 }
 
+func randomX509SerialNumber() (*big.Int, error) {
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate serial number: %s", err)
+	}
+	return serialNumber, nil
+}
+
+// End of ASN.1 time
+var endOfTime = time.Date(2049, 12, 31, 23, 59, 59, 0, time.UTC)
+
+type ClientCA struct {
+	CertBlock  []byte
+	Cert       *x509.Certificate
+	PrivateKey interface{}
+}
+
+func generateAuthority(pub, priv interface{}) (*ClientCA, error) {
+	validUntil := time.Now().Add(time.Hour * 24 * 365 * 10)
+	now := time.Now()
+	if validUntil.After(endOfTime) {
+		validUntil = endOfTime
+	}
+	if validUntil.Before(now) {
+		return nil, fmt.Errorf("valid until date %v already elapsed", validUntil)
+	}
+	serialNumber, err := randomX509SerialNumber()
+	if err != nil {
+		return nil, err
+	}
+	template := &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName:         "dcrwallet",
+			Organization:       []string{"dcrwallet"},
+			OrganizationalUnit: []string{"dcrwallet certificate authority"},
+		},
+		NotBefore:             now.Add(-time.Hour * 24),
+		NotAfter:              validUntil,
+		KeyUsage:              x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	cert, err := x509.CreateCertificate(rand.Reader, template, template, pub, priv)
+	if err != nil {
+		return nil, err
+	}
+	buf := new(bytes.Buffer)
+	err = pem.Encode(buf, &pem.Block{Type: "CERTIFICATE", Bytes: cert})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode certificate: %v", err)
+	}
+	certBlock := buf.Bytes()
+
+	x509Cert, err := x509.ParseCertificate(cert)
+	if err != nil {
+		return nil, err
+	}
+
+	clientCA := &ClientCA{
+		CertBlock:  certBlock,
+		Cert:       x509Cert,
+		PrivateKey: priv,
+	}
+	return clientCA, nil
+}
+
+func marshalPrivateKey(key interface{}) ([]byte, error) {
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal private key: %v", err)
+	}
+	buf := new(bytes.Buffer)
+	err = pem.Encode(buf, &pem.Block{Type: "PRIVATE KEY", Bytes: der})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode private key: %v", err)
+	}
+	return buf.Bytes(), nil
+}
+
+func createSignedClientCert(pub, caPriv interface{}, ca *x509.Certificate) ([]byte, error) {
+	serialNumber, err := randomX509SerialNumber()
+	if err != nil {
+		return nil, err
+	}
+	template := &x509.Certificate{
+		SerialNumber: serialNumber,
+		NotBefore:    time.Now().Add(-time.Hour * 24),
+		NotAfter:     ca.NotAfter,
+		Subject: pkix.Name{
+			CommonName:         "dcrwallet",
+			Organization:       []string{"dcrwallet"},
+			OrganizationalUnit: []string{"dcrwallet client certificate"},
+		},
+	}
+	cert, err := x509.CreateCertificate(rand.Reader, template, ca, pub, caPriv)
+	if err != nil {
+		return nil, err
+	}
+	buf := new(bytes.Buffer)
+	err = pem.Encode(buf, &pem.Block{Type: "CERTIFICATE", Bytes: cert})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode certificate: %v", err)
+	}
+	return buf.Bytes(), nil
+}
+
+func generateClientKeyPair(caPriv interface{}, ca *x509.Certificate) (cert, key []byte, err error) {
+	pub, priv, err := cfg.TLSCurve.GenerateKeyPair(rand.Reader)
+	if err != nil {
+		return
+	}
+	key, err = marshalPrivateKey(priv)
+	if err != nil {
+		return
+	}
+	cert, err = createSignedClientCert(pub, caPriv, ca)
+	if err != nil {
+		return
+	}
+	return cert, key, nil
+}
+
 func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server, error) {
 	var jsonrpcAddrNotifier jsonrpcListenerEventServer
 	var grpcAddrNotifier grpcListenerEventServer
@@ -127,25 +259,56 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 			return nil, nil, err
 		}
 
-		// Change the standard net.Listen function to the tls one.
 		tlsConfig := &tls.Config{
 			Certificates: []tls.Certificate{keyPair},
 			MinVersion:   tls.VersionTLS12,
-			NextProtos:   []string{"h2"}, // HTTP/2 over TLS
 		}
+		if cfg.AuthType == "clientcert" {
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+			tlsConfig.ClientCAs = x509.NewCertPool()
+			if exists, _ := cfgutil.FileExists(cfg.ClientCAFile); exists {
+				cafile, err := ioutil.ReadFile(cfg.ClientCAFile)
+				if err != nil {
+					return nil, nil, err
+				}
+				if !tlsConfig.ClientCAs.AppendCertsFromPEM(cafile) {
+					log.Warnf("No certificates added from CA file %v",
+						cfg.ClientCAFile)
+				}
+			}
+		}
+		if cfg.AuthType == "clientcert" && cfg.IssueClientCert {
+			pub, priv, err := cfg.TLSCurve.GenerateKeyPair(rand.Reader)
+			if err != nil {
+				return nil, nil, err
+			}
+			ca, err := generateAuthority(pub, priv)
+			if err != nil {
+				return nil, nil, err
+			}
+			certBlock, keyBlock, err := generateClientKeyPair(ca.PrivateKey, ca.Cert)
+			if err != nil {
+				return nil, nil, err
+			}
+			tlsConfig.ClientCAs.AddCert(ca.Cert)
+
+			s := newIssuedClientCertEventServer(outgoingPipeMessages)
+			s.notify(keyBlock, certBlock, ca.CertBlock)
+		}
+
+		// Change the standard net.Listen function to the tls one.
 		jsonrpcListen = func(net string, laddr string) (net.Listener, error) {
 			return tls.Listen(net, laddr, tlsConfig)
 		}
 
-		if len(cfg.GRPCListeners) != 0 {
+		if cfg.AuthType == "clientcert" && len(cfg.GRPCListeners) != 0 {
 			listeners := makeListeners(cfg.GRPCListeners, net.Listen)
 			if len(listeners) == 0 {
 				err := errors.New("failed to create listeners for RPC server")
 				return nil, nil, err
 			}
-			creds := credentials.NewServerTLSFromCert(&keyPair)
 			server = grpc.NewServer(
-				grpc.Creds(creds),
+				grpc.Creds(credentials.NewTLS(tlsConfig)),
 				grpc.StreamInterceptor(interceptStreaming),
 				grpc.UnaryInterceptor(interceptUnary),
 			)
@@ -169,7 +332,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 		}
 	}
 
-	if cfg.Username == "" || cfg.Password == "" {
+	if cfg.AuthType == "basic" && (cfg.Username == "" || cfg.Password == "") {
 		log.Info("JSON-RPC server disabled (requires username and password)")
 	} else if len(cfg.LegacyRPCListeners) != 0 {
 		listeners := makeListeners(cfg.LegacyRPCListeners, jsonrpcListen)

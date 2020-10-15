@@ -5,7 +5,10 @@
 package cfgutil
 
 import (
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
+	"io"
 	"time"
 
 	"decred.org/dcrwallet/errors"
@@ -91,6 +94,29 @@ func (f *CurveFlag) UnmarshalFlag(value string) error {
 		return errors.Errorf("unrecognized curve %v", value)
 	}
 	return nil
+}
+
+func (f *CurveFlag) GenerateKeyPair(rand io.Reader) (pub, priv interface{}, err error) {
+	if ec, ok := f.ECDSACurve(); ok {
+		var key *ecdsa.PrivateKey
+		key, err = ecdsa.GenerateKey(ec, rand)
+		if err != nil {
+			return
+		}
+		pub, priv = key.Public(), key
+		return
+	}
+	if f.curveID == Ed25519 {
+		seed := make([]byte, ed25519.SeedSize)
+		_, err = io.ReadFull(rand, seed)
+		if err != nil {
+			return
+		}
+		key := ed25519.NewKeyFromSeed(seed)
+		pub, priv = key.Public(), key
+		return
+	}
+	return nil, nil, errors.New("unknown curve ID")
 }
 
 func (f *CurveFlag) CertGen(org string, validUntil time.Time, extraHosts []string) (cert, key []byte, err error) {

@@ -8,6 +8,9 @@ import "os"
 
 // FileExists reports whether the named file or directory exists.
 func FileExists(filePath string) (bool, error) {
+	if filePath == "" {
+		return false, nil
+	}
 	_, err := os.Stat(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {

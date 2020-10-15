@@ -65,7 +65,7 @@ type Server struct {
 	httpServer   http.Server
 	walletLoader *loader.Loader
 	listeners    []net.Listener
-	authsha      [sha256.Size]byte
+	authsha      *[sha256.Size]byte // nil when basic auth is disabled
 	upgrader     websocket.Upgrader
 
 	cfg Options
@@ -108,7 +108,6 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 		listeners:    listeners,
 		// A hash of the HTTP basic auth string is used for a constant
 		// time comparison.
-		authsha: sha256.Sum256(httpBasicAuth(opts.Username, opts.Password)),
 		upgrader: websocket.Upgrader{
 			// Allow all origins.
 			CheckOrigin: func(r *http.Request) bool { return true },
@@ -116,6 +115,10 @@ func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.L
 		quit:                make(chan struct{}),
 		requestShutdownChan: make(chan struct{}, 1),
 		activeNet:           activeNet,
+	}
+	if opts.Username != "" && opts.Password != "" {
+		h := sha256.Sum256(httpBasicAuth(opts.Username, opts.Password))
+		server.authsha = &h
 	}
 
 	serveMux.Handle("/", throttledFn(opts.MaxPOSTClients,
@@ -247,11 +250,14 @@ func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) l
 // due to a missing Authorization HTTP header.
 var errNoAuth = errors.E("missing Authorization header")
 
-// checkAuthHeader checks the HTTP Basic authentication supplied by a client
+// checkAuthHeader checks any HTTP Basic authentication supplied by a client
 // in the HTTP request r.
 //
 // The authentication comparison is time constant.
 func (s *Server) checkAuthHeader(r *http.Request) error {
+	if s.authsha == nil {
+		return nil
+	}
 	authhdr := r.Header["Authorization"]
 	if len(authhdr) == 0 {
 		return errNoAuth
@@ -312,6 +318,10 @@ func (s *Server) invalidAuth(req *dcrjson.Request) bool {
 	authCmd, ok := cmd.(*dcrdtypes.AuthenticateCmd)
 	if !ok {
 		return false
+	}
+	// Authenticate commands are invalid when no basic auth is used
+	if s.authsha == nil {
+		return true
 	}
 	// Check credentials.
 	login := authCmd.Username + ":" + authCmd.Passphrase
