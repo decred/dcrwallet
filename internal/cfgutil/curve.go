@@ -20,8 +20,7 @@ type CurveID int
 
 // Recognized curve IDs.
 const (
-	CurveP224 CurveID = iota
-	CurveP256
+	CurveP256 CurveID = iota
 	CurveP384
 	CurveP521
 	Ed25519
@@ -45,8 +44,6 @@ func NewCurveFlag(defaultValue CurveID) *CurveFlag {
 // curve is not one of the elliptic curves suitable for ECDSA.
 func (f *CurveFlag) ECDSACurve() (elliptic.Curve, bool) {
 	switch f.curveID {
-	case CurveP224:
-		return elliptic.P224(), true
 	case CurveP256:
 		return elliptic.P256(), true
 	case CurveP384:
@@ -61,8 +58,6 @@ func (f *CurveFlag) ECDSACurve() (elliptic.Curve, bool) {
 // MarshalFlag satisfies the flags.Marshaler interface.
 func (f *CurveFlag) MarshalFlag() (name string, err error) {
 	switch f.curveID {
-	case CurveP224:
-		name = "P-224"
 	case CurveP256:
 		name = "P-256"
 	case CurveP384:
@@ -80,8 +75,6 @@ func (f *CurveFlag) MarshalFlag() (name string, err error) {
 // UnmarshalFlag satisfies the flags.Unmarshaler interface.
 func (f *CurveFlag) UnmarshalFlag(value string) error {
 	switch value {
-	case "P-224":
-		f.curveID = CurveP224
 	case "P-256":
 		f.curveID = CurveP256
 	case "P-384":
