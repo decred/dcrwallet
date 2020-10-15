@@ -181,7 +181,8 @@ func TestUntrustedClientCert(t *testing.T) {
 		return
 	}
 	if !strings.HasSuffix(err.Error(), "tls: bad certificate") {
-		t.Errorf("server did not report bad certificate error")
+		t.Errorf("server did not report bad certificate error; "+
+			"instead errored with: %v", err)
 		return
 	}
 }
