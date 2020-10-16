@@ -41,7 +41,7 @@ var uaVersion = version.String()
 const minPver = wire.CFilterV2Version
 
 // Pver is the maximum protocol version implemented by the LocalPeer.
-const Pver = wire.CFilterV2Version
+const Pver = wire.InitStateVersion
 
 const maxOutboundConns = 8
 
@@ -170,6 +170,7 @@ func (lp *LocalPeer) newMsgVersion(pver uint32, extaddr net.Addr, c net.Conn) (*
 	}
 	v := wire.NewMsgVersion(la, ra, nonce, 0)
 	v.AddUserAgent(uaName, uaVersion)
+	v.ProtocolVersion = int32(pver)
 	return v, nil
 }
 
