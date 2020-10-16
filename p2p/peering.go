@@ -716,6 +716,10 @@ func (rp *RemotePeer) readMessages(ctx context.Context) error {
 				}
 			case *wire.MsgReject:
 				log.Warnf("%v reject(%v, %v, %v): %v", rp.raddr, m.Cmd, m.Code, &m.Hash, m.Reason)
+			case *wire.MsgGetMiningState:
+				rp.receivedGetMiningState(ctx)
+			case *wire.MsgGetInitState:
+				rp.receivedGetInitState(ctx)
 			case *wire.MsgPing:
 				pong(ctx, m, rp)
 			case *wire.MsgPong:
@@ -1021,6 +1025,26 @@ func (rp *RemotePeer) receivedGetData(ctx context.Context, msg *wire.MsgGetData)
 
 	if rp.lp.messageIsMasked(MaskGetData) {
 		rp.lp.receivedGetData <- newInMsg(rp, msg)
+	}
+}
+
+func (rp *RemotePeer) receivedGetMiningState(ctx context.Context) {
+	// Send an empty miningstate reply.
+	m := wire.NewMsgMiningState()
+	select {
+	case <-ctx.Done():
+	case <-rp.errc:
+	case rp.out <- &msgAck{m, nil}:
+	}
+}
+
+func (rp *RemotePeer) receivedGetInitState(ctx context.Context) {
+	// Send an empty initstate reply.
+	m := wire.NewMsgInitState()
+	select {
+	case <-ctx.Done():
+	case <-rp.errc:
+	case rp.out <- &msgAck{m, nil}:
 	}
 }
 
