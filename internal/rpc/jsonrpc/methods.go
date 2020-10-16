@@ -2869,7 +2869,7 @@ func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, 
 	msgTx.AddTxOut(wire.NewTxOut(0, opretScript))
 
 	// Calculate expiry.
-	msgTx.Expiry = blockchain.CalculateTSpendExpiry(int64(tipHeight+1),
+	msgTx.Expiry = blockchain.CalcTSpendExpiry(int64(tipHeight+1),
 		w.ChainParams().TreasuryVoteInterval,
 		w.ChainParams().TreasuryVoteIntervalMultiplier)
 
