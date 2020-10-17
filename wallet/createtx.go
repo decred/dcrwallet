@@ -11,6 +11,7 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"net"
+	"sort"
 	"time"
 
 	"decred.org/cspp"
@@ -1368,13 +1369,57 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 				}
 			}
 		}()
+		var lowBalance bool
 		for i := 0; i < req.Count; i++ {
 			credit, err := w.ReserveOutputsForAmount(ctx, req.SourceAccount, fee, req.MinConf)
+			if errors.Is(err, errors.InsufficientBalance) {
+				lowBalance = true
+				break
+			}
 			if err != nil {
 				log.Errorf("ReserveOutputsForAmount failed: %v", err)
 				return nil, err
 			}
 			vspFeeCredits = append(vspFeeCredits, credit)
+		}
+		if lowBalance {
+			// When there is UTXO contention between reserved fee
+			// UTXOs and the tickets that can be purchased, UTXOs
+			// which were selected for paying VSP fees are instead
+			// allocated towards purchasing tickets.  We sort the
+			// UTXOs picked for fees by decreasing amounts and
+			// incrementally reserve them for ticket purchases while
+			// reducing the total number of fees (and therefore
+			// tickets) that will be purchased.
+			sort.Slice(vspFeeCredits, func(i, j int) bool {
+				total := func(ins []Input) (v int64) {
+					for _, in := range ins {
+						v += in.PrevOut.Value
+					}
+					return
+				}
+				// Comparing i > j in this less func sorts by
+				// decreasing order
+				return total(vspFeeCredits[i]) > total(vspFeeCredits[j])
+			})
+			var freedBalance int64
+			req.Count = len(vspFeeCredits)
+			for req.Count > 0 {
+				for _, in := range vspFeeCredits[0] {
+					freedBalance += in.PrevOut.Value
+					w.UnlockOutpoint(&in.OutPoint.Hash, in.OutPoint.Index)
+				}
+				req.Count--
+				vspFeeCredits = vspFeeCredits[1:]
+				// XXX this is a bad estimate because it doesn't
+				// consider the transaction fees
+				if int64(ticketPrice)*int64(req.Count) < freedBalance {
+					break
+				}
+			}
+			if req.Count == 0 {
+				return nil, errors.E(errors.InsufficientBalance)
+			}
 		}
 		log.Infof("Reserved credits for %d tickets: total fee: %v", req.Count, fee)
 		for _, credit := range vspFeeCredits {
