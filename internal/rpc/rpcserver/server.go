@@ -3572,15 +3572,15 @@ func (s *walletServer) GetPeerInfo(ctx context.Context, req *pb.GetPeerInfoReque
 		}
 		grpcResp := []*pb.GetPeerInfoResponse_PeerInfo{}
 		for _, peerInfo := range resp {
-			peerInfo := &pb.GetPeerInfoResponse_PeerInfo {
-				Id: peerInfo.ID,
-				Addr: peerInfo.Addr,
-				AddrLocal: peerInfo.AddrLocal,
-				Services:peerInfo.Services,
-				Version:peerInfo.Version,
-				SubVer:peerInfo.SubVer,
-				StartingHeight:peerInfo.StartingHeight,
-				BanScore :peerInfo.BanScore,
+			peerInfo := &pb.GetPeerInfoResponse_PeerInfo{
+				Id:             peerInfo.ID,
+				Addr:           peerInfo.Addr,
+				AddrLocal:      peerInfo.AddrLocal,
+				Services:       peerInfo.Services,
+				Version:        peerInfo.Version,
+				SubVer:         peerInfo.SubVer,
+				StartingHeight: peerInfo.StartingHeight,
+				BanScore:       peerInfo.BanScore,
 			}
 			grpcResp = append(grpcResp, peerInfo)
 		}
