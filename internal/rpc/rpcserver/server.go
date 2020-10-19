@@ -3616,7 +3616,20 @@ func (s *walletServer) GetPeerInfo(ctx context.Context, req *pb.GetPeerInfoReque
 
 func (s *walletServer) GetVSPTicketsByFeeStatus(ctx context.Context, req *pb.GetVSPTicketsByFeeStatusRequest) (
 	*pb.GetVSPTicketsByFeeStatusResponse, error) {
-	failedTicketsFee, err := s.wallet.GetVSPTicketsByFeeStatus(ctx, int(req.FeeStatus))
+
+	var feeStatus int
+	switch req.FeeStatus {
+	case udb.VSPFeeProcessStarted:
+		feeStatus = 0
+	case udb.VSPFeeProcessPaid:
+		feeStatus = 1
+	case udb.VSPFeeProcessErrored:
+		feeStatus = 2
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "fee status=%v", req.FeeStatus)
+	}
+
+	failedTicketsFee, err := s.wallet.GetVSPTicketsByFeeStatus(ctx, feeStatus)
 	if err != nil {
 		return nil, err
 	}
