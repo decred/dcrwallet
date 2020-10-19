@@ -1440,8 +1440,6 @@ func tspendPolicyUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, param
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
-// vspBucketUpgrade updates the wallet db from version 19 to 20. It creates
-// a new top level vspBucket.
 func vspBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
 	const oldVersion = 19
 	const newVersion = 20
@@ -1466,8 +1464,6 @@ func vspBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
-// vspStatusUpgrade updates the wallet db from version 19 to 20. It creates
-// a new top level vspBucket.
 func vspStatusUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
 	const oldVersion = 20
 	const newVersion = 21
