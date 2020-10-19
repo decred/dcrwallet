@@ -55,7 +55,6 @@ import (
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/hdkeychain/v3"
-	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
 	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
 )
@@ -3527,17 +3526,6 @@ func (s *walletServer) LockAccount(ctx context.Context, req *pb.LockAccountReque
 	}
 	return &pb.LockAccountResponse{}, nil
 }
-// GetPeerInfoResult models the data returned from the getpeerinfo command.
-type GetPeerInfoResult struct {
-	ID             int32  `json:"id"`
-	Addr           string `json:"addr"`
-	AddrLocal      string `json:"addrlocal"`
-	Services       string `json:"services"`
-	Version        uint32 `json:"version"`
-	SubVer         string `json:"subver"`
-	StartingHeight int64  `json:"startingheight"`
-	BanScore       int32  `json:"banscore"`
-}
 
 func (s *walletServer) UnlockWallet(ctx context.Context, req *pb.UnlockWalletRequest) (
 	*pb.UnlockWalletResponse, error) {
@@ -3566,7 +3554,16 @@ func (s *walletServer) GetPeerInfo(ctx context.Context, req *pb.GetPeerInfoReque
 	}
 	syncer, ok := n.(*spv.Syncer)
 	if !ok {
-		var resp []*dcrdtypes.GetPeerInfoResult
+		var resp []*struct {
+			ID             int32  `json:"id"`
+			Addr           string `json:"addr"`
+			AddrLocal      string `json:"addrlocal"`
+			Services       string `json:"services"`
+			Version        uint32 `json:"version"`
+			SubVer         string `json:"subver"`
+			StartingHeight int64  `json:"startingheight"`
+			BanScore       int32  `json:"banscore"`
+		}
 		if rpc, ok := n.(*dcrd.RPC); ok {
 			err := rpc.Call(ctx, "getpeerinfo", &resp)
 			if err != nil {
