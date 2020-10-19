@@ -1432,16 +1432,29 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	purchaseTicketsResponse := &PurchaseTicketsResponse{}
 	var splitTx *wire.MsgTx
 	var splitOutputIndexes []int
-	switch {
-	case req.CSPPServer != "":
-		splitTx, splitOutputIndexes, err = w.mixedSplit(ctx, req, neededPerTicket)
-	case req.VSPAddress != nil:
-		splitTx, splitOutputIndexes, err = w.vspSplit(ctx, req, neededPerTicket, vspFee)
-	default:
-		splitTx, splitOutputIndexes, err = w.individualSplit(ctx, req, neededPerTicket)
-	}
-	if err != nil {
-		return nil, errors.E(op, err)
+	for {
+		switch {
+		case req.CSPPServer != "":
+			splitTx, splitOutputIndexes, err = w.mixedSplit(ctx, req, neededPerTicket)
+		case req.VSPAddress != nil:
+			splitTx, splitOutputIndexes, err = w.vspSplit(ctx, req, neededPerTicket, vspFee)
+		default:
+			splitTx, splitOutputIndexes, err = w.individualSplit(ctx, req, neededPerTicket)
+		}
+		if errors.Is(err, errors.InsufficientBalance) && req.Count > 1 {
+			req.Count--
+			if len(vspFeeCredits) > 0 {
+				for _, in := range vspFeeCredits[0] {
+					w.UnlockOutpoint(&in.OutPoint.Hash, in.OutPoint.Index)
+				}
+				vspFeeCredits = vspFeeCredits[1:]
+			}
+			continue
+		}
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+		break
 	}
 	purchaseTicketsResponse.SplitTx = splitTx
 
