@@ -16,7 +16,7 @@ var (
 const (
 	// VSP_FEE_PROCESS_STARTED represents the state which process has being
 	// called but fee still not paid.
-	VSP_FEE_PROCESS_STARTED   = 0
+	VSP_FEE_PROCESS_STARTED = 0
 	// VSP_FEE_PROCESSING represents the state where the process has being
 	// paid, but not published.
 	VSP_FEE_PROCESS_PAID = 1
