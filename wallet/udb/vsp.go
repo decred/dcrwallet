@@ -13,14 +13,18 @@ var (
 	vspBucketKey = []byte("vsp")
 )
 
+// FeeStatus represents the current fee status of a ticket.
+type FeeStatus int
+
+// FeeStatus types
 const (
 	// VSPFeeProcessStarted represents the state which process has being
 	// called but fee still not paid.
-	VSPFeeProcessStarted = 0
+	VSPFeeProcessStarted FeeStatus = iota
 	// VSPFeeProcessPaid represents the state where the process has being
 	// paid, but not published.
-	VSPFeeProcessPaid    = 1
-	VSPFeeProcessErrored = 2
+	VSPFeeProcessPaid
+	VSPFeeProcessErrored
 )
 
 type VSPTicket struct {

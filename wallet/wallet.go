@@ -5215,7 +5215,7 @@ func (w *Wallet) UpdateVspTicketFeeToPaid(ctx context.Context, ticketHash *chain
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
 			FeeHash:     *feeHash,
-			FeeTxStatus: udb.VSPFeeProcessPaid,
+			FeeTxStatus: uint32(udb.VSPFeeProcessPaid),
 		})
 		return err
 	})

@@ -1482,7 +1482,7 @@ func vspStatusUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *
 	tix := make(map[string][]byte)
 	cursor := bucket.ReadCursor()
 	statusBytes := make([]byte, 4)
-	byteOrder.PutUint32(statusBytes, VSPFeeProcessErrored)
+	byteOrder.PutUint32(statusBytes, uint32(VSPFeeProcessErrored))
 	for k, v := cursor.First(); v != nil; k, v = cursor.Next() {
 		tix[string(k)] = append(v[:len(v):len(v)], statusBytes...)
 	}

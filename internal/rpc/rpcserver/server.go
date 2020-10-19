@@ -3619,12 +3619,12 @@ func (s *walletServer) GetVSPTicketsByFeeStatus(ctx context.Context, req *pb.Get
 
 	var feeStatus int
 	switch req.FeeStatus {
-	case udb.VSPFeeProcessStarted:
-		feeStatus = 0
-	case udb.VSPFeeProcessPaid:
-		feeStatus = 1
-	case udb.VSPFeeProcessErrored:
-		feeStatus = 2
+	case pb.GetVSPTicketsByFeeStatusRequest_VSP_FEE_PROCESS_STARTED:
+		feeStatus = int(udb.VSPFeeProcessStarted)
+	case pb.GetVSPTicketsByFeeStatusRequest_VSP_FEE_PROCESS_PAID:
+		feeStatus = int(udb.VSPFeeProcessPaid)
+	case pb.GetVSPTicketsByFeeStatusRequest_VSP_FEE_PROCESS_ERRORED:
+		feeStatus = int(udb.VSPFeeProcessErrored)
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "fee status=%v", req.FeeStatus)
 	}
@@ -3646,7 +3646,7 @@ func (s *walletServer) GetVSPTicketsByFeeStatus(ctx context.Context, req *pb.Get
 
 func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSPTicketsRequest) (
 	*pb.SyncVSPTicketsResponse, error) {
-	failedTicketsFee, err := s.wallet.GetVSPTicketsByFeeStatus(ctx, udb.VSPFeeProcessErrored)
+	failedTicketsFee, err := s.wallet.GetVSPTicketsByFeeStatus(ctx, int(udb.VSPFeeProcessErrored))
 	if err != nil {
 		return nil, err
 	}
