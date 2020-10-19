@@ -1259,8 +1259,7 @@ message GetVSPTicketsByFeeStatusRequest {
 	enum FeeStatus {
 		VSP_FEE_PROCESS_STARTED = 0;
 		VSP_FEE_PROCESS_PAID = 1;
-		VSP_FEE_PROCESS_PUBLISHED = 2;
-		VSP_FEE_PROCESS_ERRORED = 3;
+		VSP_FEE_PROCESS_ERRORED = 2;
 	}
 }
 

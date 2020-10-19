@@ -19,10 +19,8 @@ const (
 	VSPFeeProcessStarted = 0
 	// VSPFeeProcessPaid represents the state where the process has being
 	// paid, but not published.
-	VSPFeeProcessPaid = 1
-	// TODO change fee status to published, once fee tx is published.
-	VSPFeeProcessPublished = 2
-	VSPFeeProcessErrored   = 3
+	VSPFeeProcessPaid    = 1
+	VSPFeeProcessErrored = 2
 )
 
 type VSPTicket struct {
