@@ -14,9 +14,9 @@ var (
 )
 
 const (
-	// VSPFeeProccesStarted represents the state which process has being
+	// VSPFeeProcessStarted represents the state which process has being
 	// called but fee still not paid.
-	VSPFeeProccesStarted = 0
+	VSPFeeProcessStarted = 0
 	// VSPFeeProcessPaid represents the state where the process has being
 	// paid, but not published.
 	VSPFeeProcessPaid = 1
