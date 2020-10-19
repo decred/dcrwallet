@@ -1456,9 +1456,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 		break
 	}
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
 	purchaseTicketsResponse.SplitTx = splitTx
 
 	// Process and publish split tx.
