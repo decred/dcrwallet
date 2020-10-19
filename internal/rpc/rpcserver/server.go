@@ -447,13 +447,15 @@ func (s *walletServer) NextAccount(ctx context.Context, req *pb.NextAccountReque
 		return nil, status.Errorf(codes.InvalidArgument, "account name may not be empty")
 	}
 
-	lock := make(chan time.Time, 1)
-	defer func() {
-		lock <- time.Time{} // send matters, not the value
-	}()
-	err := s.wallet.Unlock(ctx, req.Passphrase, lock)
-	if err != nil {
-		return nil, translateError(err)
+	if len(req.Passphrase) > 0 {
+		lock := make(chan time.Time, 1)
+		defer func() {
+			lock <- time.Time{} // send matters, not the value
+		}()
+		err := s.wallet.Unlock(ctx, req.Passphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
 	}
 
 	account, err := s.wallet.NextAccount(ctx, req.AccountName)
@@ -530,13 +532,15 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 			"Invalid WIF-encoded private key: %v", err)
 	}
 
-	lock := make(chan time.Time, 1)
-	defer func() {
-		lock <- time.Time{} // send matters, not the value
-	}()
-	err = s.wallet.Unlock(ctx, req.Passphrase, lock)
-	if err != nil {
-		return nil, translateError(err)
+	if len(req.Passphrase) > 0 {
+		lock := make(chan time.Time, 1)
+		defer func() {
+			lock <- time.Time{} // send matters, not the value
+		}()
+		err = s.wallet.Unlock(ctx, req.Passphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
 	}
 
 	// At the moment, only the special-cased import account can be used to
@@ -1074,17 +1078,19 @@ func (s *walletServer) GetAccountExtendedPubKey(ctx context.Context, req *pb.Get
 }
 
 func (s *walletServer) GetAccountExtendedPrivKey(ctx context.Context, req *pb.GetAccountExtendedPrivKeyRequest) (*pb.GetAccountExtendedPrivKeyResponse, error) {
-	lock := make(chan time.Time, 1)
-	lockWallet := func() {
-		lock <- time.Time{}
-		zero(req.Passphrase)
-	}
+	if len(req.Passphrase) > 0 {
+		lock := make(chan time.Time, 1)
+		lockWallet := func() {
+			lock <- time.Time{}
+			zero(req.Passphrase)
+		}
 
-	err := s.wallet.Unlock(ctx, req.Passphrase, lock)
-	if err != nil {
-		return nil, translateError(err)
+		err := s.wallet.Unlock(ctx, req.Passphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
+		defer lockWallet()
 	}
-	defer lockWallet()
 
 	accExtendedPrivKey, err := s.wallet.AccountXpriv(ctx, req.AccountNumber)
 	if err != nil {
@@ -1377,13 +1383,15 @@ func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransact
 			"Bytes do not represent a valid raw transaction: %v", err)
 	}
 
-	lock := make(chan time.Time, 1)
-	defer func() {
-		lock <- time.Time{} // send matters, not the value
-	}()
-	err = s.wallet.Unlock(ctx, req.Passphrase, lock)
-	if err != nil {
-		return nil, translateError(err)
+	if len(req.Passphrase) > 0 {
+		lock := make(chan time.Time, 1)
+		defer func() {
+			lock <- time.Time{} // send matters, not the value
+		}()
+		err = s.wallet.Unlock(ctx, req.Passphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
 	}
 
 	var additionalPkScripts map[wire.OutPoint][]byte
@@ -1430,13 +1438,15 @@ func (s *walletServer) SignTransactions(ctx context.Context, req *pb.SignTransac
 	*pb.SignTransactionsResponse, error) {
 	defer zero(req.Passphrase)
 
-	lock := make(chan time.Time, 1)
-	defer func() {
-		lock <- time.Time{} // send matters, not the value
-	}()
-	err := s.wallet.Unlock(ctx, req.Passphrase, lock)
-	if err != nil {
-		return nil, translateError(err)
+	if len(req.Passphrase) > 0 {
+		lock := make(chan time.Time, 1)
+		defer func() {
+			lock <- time.Time{} // send matters, not the value
+		}()
+		err := s.wallet.Unlock(ctx, req.Passphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
 	}
 
 	var additionalPkScripts map[wire.OutPoint][]byte
@@ -1508,13 +1518,15 @@ func (s *walletServer) CreateSignature(ctx context.Context, req *pb.CreateSignat
 			"transaction input %d does not exist", req.InputIndex)
 	}
 
-	lock := make(chan time.Time, 1)
-	defer func() {
-		lock <- time.Time{} // send matters, not the value
-	}()
-	err = s.wallet.Unlock(ctx, req.Passphrase, lock)
-	if err != nil {
-		return nil, translateError(err)
+	if len(req.Passphrase) > 0 {
+		lock := make(chan time.Time, 1)
+		defer func() {
+			lock <- time.Time{} // send matters, not the value
+		}()
+		err = s.wallet.Unlock(ctx, req.Passphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
 	}
 
 	addr, err := decodeAddress(req.Address, s.wallet.ChainParams())
@@ -1716,7 +1728,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}
 
 	// If dontSignTx is false we unlock the wallet so we can sign the tx.
-	if !dontSignTx {
+	if !dontSignTx && len(req.Passphrase) > 0 {
 		lock := make(chan time.Time, 1)
 		defer func() {
 			lock <- time.Time{} // send matters, not the value
@@ -1767,13 +1779,15 @@ func (s *walletServer) RevokeTickets(ctx context.Context, req *pb.RevokeTicketsR
 		return nil, err
 	}
 
-	lock := make(chan time.Time, 1)
-	defer func() {
-		lock <- time.Time{} // send matters, not the value
-	}()
-	err = s.wallet.Unlock(ctx, req.Passphrase, lock)
-	if err != nil {
-		return nil, translateError(err)
+	if len(req.Passphrase) > 0 {
+		lock := make(chan time.Time, 1)
+		defer func() {
+			lock <- time.Time{} // send matters, not the value
+		}()
+		err = s.wallet.Unlock(ctx, req.Passphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
 	}
 
 	// The wallet is not locally aware of when tickets are selected to vote and
@@ -1885,13 +1899,15 @@ WrongAddrKind:
 }
 
 func (s *walletServer) SignMessage(ctx context.Context, req *pb.SignMessageRequest) (*pb.SignMessageResponse, error) {
-	lock := make(chan time.Time, 1)
-	defer func() {
-		lock <- time.Time{} // send matters, not the value
-	}()
-	err := s.wallet.Unlock(ctx, req.Passphrase, lock)
-	if err != nil {
-		return nil, translateError(err)
+	if len(req.Passphrase) > 0 {
+		lock := make(chan time.Time, 1)
+		defer func() {
+			lock <- time.Time{} // send matters, not the value
+		}()
+		err := s.wallet.Unlock(ctx, req.Passphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
 	}
 
 	sig, err := s.signMessage(ctx, req.Address, req.Message)
@@ -1903,13 +1919,15 @@ func (s *walletServer) SignMessage(ctx context.Context, req *pb.SignMessageReque
 }
 
 func (s *walletServer) SignMessages(ctx context.Context, req *pb.SignMessagesRequest) (*pb.SignMessagesResponse, error) {
-	lock := make(chan time.Time, 1)
-	defer func() {
-		lock <- time.Time{} // send matters, not the value
-	}()
-	err := s.wallet.Unlock(ctx, req.Passphrase, lock)
-	if err != nil {
-		return nil, translateError(err)
+	if len(req.Passphrase) > 0 {
+		lock := make(chan time.Time, 1)
+		defer func() {
+			lock <- time.Time{} // send matters, not the value
+		}()
+		err := s.wallet.Unlock(ctx, req.Passphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
 	}
 
 	smr := pb.SignMessagesResponse{
@@ -2411,20 +2429,22 @@ func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr
 		c.MixChange = true
 	})
 
-	lock := make(chan time.Time, 1)
+	if len(req.Passphrase) > 0 {
+		lock := make(chan time.Time, 1)
 
-	lockWallet := func() {
-		lock <- time.Time{}
-		zero(req.Passphrase)
+		lockWallet := func() {
+			lock <- time.Time{}
+			zero(req.Passphrase)
+		}
+
+		err := wallet.Unlock(svr.Context(), req.Passphrase, lock)
+		if err != nil {
+			return translateError(err)
+		}
+		defer lockWallet()
 	}
 
-	err := wallet.Unlock(svr.Context(), req.Passphrase, lock)
-	if err != nil {
-		return translateError(err)
-	}
-	defer lockWallet()
-
-	err = tb.Run(svr.Context(), req.Passphrase)
+	err := tb.Run(svr.Context(), req.Passphrase)
 	if err != nil {
 		if svr.Context().Err() != nil {
 			return status.Errorf(codes.Canceled, "AccountMixer instance canceled, account number: %v", req.MixedAccount)
@@ -2519,18 +2539,20 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		c.Limit = limit
 	})
 
-	lock := make(chan time.Time, 1)
+	if len(req.Passphrase) > 0 {
+		lock := make(chan time.Time, 1)
 
-	lockWallet := func() {
-		lock <- time.Time{}
-		zero(req.Passphrase)
-	}
+		lockWallet := func() {
+			lock <- time.Time{}
+			zero(req.Passphrase)
+		}
 
-	err = wallet.Unlock(svr.Context(), req.Passphrase, lock)
-	if err != nil {
-		return translateError(err)
+		err = wallet.Unlock(svr.Context(), req.Passphrase, lock)
+		if err != nil {
+			return translateError(err)
+		}
+		defer lockWallet()
 	}
-	defer lockWallet()
 
 	err = tb.Run(svr.Context(), req.Passphrase)
 	if err != nil {
@@ -3300,13 +3322,15 @@ func (s *walletServer) BestBlock(ctx context.Context, req *pb.BestBlockRequest) 
 }
 
 func (s *walletServer) SignHashes(ctx context.Context, req *pb.SignHashesRequest) (*pb.SignHashesResponse, error) {
-	lock := make(chan time.Time, 1)
-	defer func() {
-		lock <- time.Time{} // send matters, not the value
-	}()
-	err := s.wallet.Unlock(ctx, req.Passphrase, lock)
-	if err != nil {
-		return nil, translateError(err)
+	if len(req.Passphrase) > 0 {
+		lock := make(chan time.Time, 1)
+		defer func() {
+			lock <- time.Time{} // send matters, not the value
+		}()
+		err := s.wallet.Unlock(ctx, req.Passphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
 	}
 
 	addr, err := decodeAddress(req.Address, s.wallet.ChainParams())
@@ -3442,7 +3466,7 @@ func (s *walletServer) SetAccountPassphrase(ctx context.Context, req *pb.SetAcco
 
 	// if account is not encrypted we need to unlock the wallet. Otherwise it is
 	// used the account passphrase for it.
-	if encryptedAcct {
+	if encryptedAcct && len(req.AccountPassphrase) > 0 {
 		err = s.wallet.UnlockAccount(ctx, req.AccountNumber, req.AccountPassphrase)
 		if err != nil {
 			return nil, translateError(err)
@@ -3451,7 +3475,7 @@ func (s *walletServer) SetAccountPassphrase(ctx context.Context, req *pb.SetAcco
 			zero(req.AccountPassphrase)
 			err = s.wallet.LockAccount(ctx, req.AccountNumber)
 		}()
-	} else {
+	} else if len(req.WalletPassphrase) > 0 {
 		lock := make(chan time.Time, 1)
 		defer func() {
 			zero(req.WalletPassphrase)
