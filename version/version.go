@@ -18,8 +18,8 @@ const semverAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrst
 // Constants defining the application version number.
 const (
 	Major = 1
-	Minor = 5
-	Patch = 2
+	Minor = 6
+	Patch = 0
 )
 
 // Integer is an integer encoding of the major.minor.patch version.
