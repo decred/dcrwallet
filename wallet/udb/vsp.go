@@ -14,15 +14,15 @@ var (
 )
 
 const (
-	// VSP_FEE_PROCESS_STARTED represents the state which process has being
+	// VSPFeeProccesStarted represents the state which process has being
 	// called but fee still not paid.
-	VSP_FEE_PROCESS_STARTED = 0
-	// VSP_FEE_PROCESSING represents the state where the process has being
+	VSPFeeProccesStarted = 0
+	// VSPFeeProcessPaid represents the state where the process has being
 	// paid, but not published.
-	VSP_FEE_PROCESS_PAID = 1
+	VSPFeeProcessPaid = 1
 	// TODO change fee status to published, once fee tx is published.
-	VSP_FEE_PROCESS_PUBLISHED = 2
-	VSP_FEE_PROCESS_ERRORED   = 3
+	VSPFeeProcessPublished = 2
+	VSPFeeProcessErrored   = 3
 )
 
 type VSPTicket struct {

@@ -1256,7 +1256,12 @@ message SyncVSPTicketsRequest {
 message SyncVSPTicketsResponse {}
 
 message GetVSPTicketsByFeeStatusRequest {
-	int32 fee_status = 1;
+	enum FeeStatus {
+		VSP_FEE_PROCESS_STARTED = 0;
+		VSP_FEE_PROCESS_PAID = 1;
+		VSP_FEE_PROCESS_PUBLISHED = 2;
+		VSP_FEE_PROCESS_ERRORED = 3;
+	}
 }
 
 message GetVSPTicketsByFeeStatusResponse {

@@ -1629,7 +1629,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			// set vsp fee as processing, so we can know it started to be
 			// processed.
 			rec := udb.VSPTicket{
-				FeeTxStatus: udb.VSP_FEE_PROCESS_STARTED,
+				FeeTxStatus: udb.VSPFeeProccesStarted,
 			}
 			err = w.UpdateVSPTicket(ctx, ticketHash, rec)
 			if err != nil {
@@ -1637,7 +1637,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			}
 			feeTx, err := req.VSPFeePaymentProcess(ctx, *ticketHash, vspFeeCredits[i])
 			if err != nil {
-				rec.FeeTxStatus = udb.VSP_FEE_PROCESS_ERRORED
+				rec.FeeTxStatus = udb.VSPFeeProcessErrored
 				err = w.UpdateVSPTicket(ctx, ticketHash, rec)
 				if err != nil {
 					return nil, err

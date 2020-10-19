@@ -3633,7 +3633,7 @@ func (s *walletServer) GetVSPTicketsByFeeStatus(ctx context.Context, req *pb.Get
 
 func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSPTicketsRequest) (
 	*pb.SyncVSPTicketsResponse, error) {
-	failedTicketsFee, err := s.wallet.GetVSPTicketsByFeeStatus(ctx, udb.VSP_FEE_PROCESS_ERRORED)
+	failedTicketsFee, err := s.wallet.GetVSPTicketsByFeeStatus(ctx, udb.VSPFeeProcessErrored)
 	if err != nil {
 		return nil, err
 	}
