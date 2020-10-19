@@ -13,8 +13,23 @@ var (
 	vspBucketKey = []byte("vsp")
 )
 
+// FeeStatus represents the current fee status of a ticket.
+type FeeStatus int
+
+// FeeStatus types
+const (
+	// VSPFeeProcessStarted represents the state which process has being
+	// called but fee still not paid.
+	VSPFeeProcessStarted FeeStatus = iota
+	// VSPFeeProcessPaid represents the state where the process has being
+	// paid, but not published.
+	VSPFeeProcessPaid
+	VSPFeeProcessErrored
+)
+
 type VSPTicket struct {
-	FeeHash chainhash.Hash
+	FeeHash     chainhash.Hash
+	FeeTxStatus uint32
 }
 
 // SetVSPTicket sets a VSPTicket record into the db.
@@ -35,23 +50,51 @@ func GetVSPTicket(dbtx walletdb.ReadTx, tickethash chainhash.Hash) (*VSPTicket, 
 	return ticket, nil
 }
 
+// GetVSPTicketsByFeeStatus gets all vsp tickets which have
+// FeeTxStatus == feeStatus.
+func GetVSPTicketsByFeeStatus(dbtx walletdb.ReadTx, feeStatus int) (map[chainhash.Hash]*VSPTicket, error) {
+	bucket := dbtx.ReadBucket(vspBucketKey)
+	tickets := make(map[chainhash.Hash]*VSPTicket)
+	err := bucket.ForEach(func(k, v []byte) error {
+		ticket := deserializeVSPTicket(v)
+		if int(ticket.FeeTxStatus) == feeStatus {
+			var hash chainhash.Hash
+			hash.SetBytes(k)
+			tickets[hash] = ticket
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return tickets, nil
+}
+
 // deserializeUserTicket deserializes the passed serialized user
 // ticket information.
 func deserializeVSPTicket(serializedTicket []byte) *VSPTicket {
-
+	// ticket stores hash size and an uint32 representing the fee processment
+	// status.
+	curPos := 0
 	vspTicket := &VSPTicket{}
-	copy(vspTicket.FeeHash[:], serializedTicket[:])
+	copy(vspTicket.FeeHash[:], serializedTicket[curPos:hashSize])
+	curPos += hashSize
+	vspTicket.FeeTxStatus = byteOrder.Uint32(serializedTicket[curPos : curPos+4])
+
 	return vspTicket
 }
 
 // serializeUserTicket returns the serialization of a single stake pool
 // user ticket.
 func serializeVSPTicket(record *VSPTicket) []byte {
-	buf := make([]byte, hashSize)
+	// ticket hash size + fee processment status
+	buf := make([]byte, hashSize+4)
 	curPos := 0
-
 	// Write the fee hash.
 	copy(buf[curPos:curPos+hashSize], record.FeeHash[:])
+	curPos += hashSize
+	// Write the fee tx status
+	byteOrder.PutUint32(buf[curPos:curPos+4], record.FeeTxStatus)
 
 	return buf
 }

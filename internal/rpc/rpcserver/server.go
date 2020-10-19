@@ -3613,3 +3613,66 @@ func (s *walletServer) GetPeerInfo(ctx context.Context, req *pb.GetPeerInfoReque
 		PeerInfo: infos,
 	}, nil
 }
+
+func (s *walletServer) GetVSPTicketsByFeeStatus(ctx context.Context, req *pb.GetVSPTicketsByFeeStatusRequest) (
+	*pb.GetVSPTicketsByFeeStatusResponse, error) {
+
+	var feeStatus int
+	switch req.FeeStatus {
+	case pb.GetVSPTicketsByFeeStatusRequest_VSP_FEE_PROCESS_STARTED:
+		feeStatus = int(udb.VSPFeeProcessStarted)
+	case pb.GetVSPTicketsByFeeStatusRequest_VSP_FEE_PROCESS_PAID:
+		feeStatus = int(udb.VSPFeeProcessPaid)
+	case pb.GetVSPTicketsByFeeStatusRequest_VSP_FEE_PROCESS_ERRORED:
+		feeStatus = int(udb.VSPFeeProcessErrored)
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "fee status=%v", req.FeeStatus)
+	}
+
+	failedTicketsFee, err := s.wallet.GetVSPTicketsByFeeStatus(ctx, feeStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	hashes := make([][]byte, len(failedTicketsFee))
+	for i, hash := range failedTicketsFee {
+		hashes[i] = hash[:]
+	}
+
+	return &pb.GetVSPTicketsByFeeStatusResponse{
+		TicketsHashes: hashes,
+	}, nil
+}
+
+func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSPTicketsRequest) (
+	*pb.SyncVSPTicketsResponse, error) {
+	failedTicketsFee, err := s.wallet.GetVSPTicketsByFeeStatus(ctx, int(udb.VSPFeeProcessErrored))
+	if err != nil {
+		return nil, err
+	}
+
+	vspHost := req.VspHost
+	vspPubKey := req.VspPubkey
+	if vspPubKey == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
+	}
+	if vspHost == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
+	}
+	vspServer, err := vsp.New(
+		vspHost, vspPubKey, req.Account, req.Account, nil, s.wallet, s.wallet.ChainParams())
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
+	}
+
+	// process tickets fee if needed.
+	for _, ticketHash := range failedTicketsFee {
+		_, err := vspServer.Process(ctx, ticketHash, nil)
+		// if it fails to process again, we log it and continue with
+		// the wallet start.
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &pb.SyncVSPTicketsResponse{}, nil
+}

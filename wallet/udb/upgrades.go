@@ -175,10 +175,14 @@ const (
 	// related fee txs hash.
 	vspBucketVersion = 20
 
+	// vspStatusVersion is the 21st version of the database.  It adds a
+	// status field to tracked vspd tickets.
+	vspStatusVersion = 21
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = vspBucketVersion
+	DBVersion = vspStatusVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -204,6 +208,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	unpublishedTxsVersion - 1:             unpublishedTxsUpgrade,
 	tspendPolicyVersion - 1:               tspendPolicyUpgrade,
 	vspBucketVersion - 1:                  vspBucketUpgrade,
+	vspStatusVersion - 1:                  vspStatusUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -1435,8 +1440,6 @@ func tspendPolicyUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, param
 	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
 }
 
-// vspBucketUpgrade updates the wallet db from version 19 to 20. It creates
-// a new top level vspBucket.
 func vspBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
 	const oldVersion = 19
 	const newVersion = 20
@@ -1455,6 +1458,40 @@ func vspBucketUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *
 	_, err = tx.CreateTopLevelBucket(vspBucketKey)
 	if err != nil {
 		return err
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func vspStatusUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 20
+	const newVersion = 21
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+	// Assert that this function is only called on version 20 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "vspStatusUpgrade inappropriately called")
+	}
+
+	bucket := tx.ReadWriteBucket(vspBucketKey)
+	tix := make(map[string][]byte)
+	cursor := bucket.ReadCursor()
+	statusBytes := make([]byte, 4)
+	byteOrder.PutUint32(statusBytes, uint32(VSPFeeProcessErrored))
+	for k, v := cursor.First(); v != nil; k, v = cursor.Next() {
+		tix[string(k)] = append(v[:len(v):len(v)], statusBytes...)
+	}
+	cursor.Close()
+	for k, v := range tix {
+		err := bucket.Put([]byte(k), v)
+		if err != nil {
+			return errors.E(errors.IO, err)
+		}
 	}
 
 	// Write the new database version.
