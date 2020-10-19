@@ -74,6 +74,8 @@ service WalletService {
 	rpc SetAccountPassphrase (SetAccountPassphraseRequest) returns (SetAccountPassphraseResponse);
 	rpc UnlockAccount (UnlockAccountRequest) returns (UnlockAccountResponse);
 	rpc LockAccount (LockAccountRequest) returns (LockAccountResponse);
+	rpc UnlockWallet (UnlockWalletRequest) returns (UnlockWalletResponse);
+	rpc LockWallet (LockWalletRequest) returns (LockWalletResponse);
 }
 
 service WalletLoaderService {
@@ -1218,3 +1220,11 @@ message SetAccountPassphraseResponse {}
 message UnlockAccountResponse {}
 
 message LockAccountResponse {}
+
+message UnlockWalletRequest {
+	bytes passphrase = 1;
+}
+message UnlockWalletResponse {}
+
+message LockWalletRequest {}
+message LockWalletResponse {}

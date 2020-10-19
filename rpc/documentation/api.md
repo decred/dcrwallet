@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 7.5.x
+Version: 7.6.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](https://www.grpc.io/docs/guides/concepts.html)
@@ -436,6 +436,10 @@ The service provides the following methods:
 - [`SweepAccount`](#sweepaccount)
 - [`SignHashes`](#signhashes)
 - [`GetCFilters`](#GetCFilters)
+- [`UnlockWallet`](#UnlockWallet)
+- [`LockWallet`](#LockWallet)
+- [`UnlockAccount`](#UnlockAccount)
+- [`LockAccount`](#LockAccount)
 
 #### `Ping`
 
@@ -2447,6 +2451,78 @@ returned fields for each element are:
 
 - `InvalidArgument`: When both `ending_block_hash` and `ending_block_height` are
   specified.
+
+___
+
+#### `UnlockWallet`
+
+The `UnlockWallet` method allows the wallet to be persistently unlocked, until
+`LockWallet` is used, or an incorrect passphrase is provided later.
+
+**Request:** `UnlockWalletRequest`
+
+- `bytes passphrase`: The passphrase to unlock the wallet.
+
+**Response:** `UnlockWalletResponse`
+
+**Expected errors:**
+
+- `InvalidArgument`: The private passphrase is incorrect.
+
+___
+
+#### `LockWallet`
+
+The `LockWallet` request locks the wallet, preventing use of any keys protected
+by the private passphrase.  This does not affect accounts which are encrypted
+with a separate passphrase.
+
+**Request:** `LockWalletRequest`
+
+**Response:** `LockWalletResponse`
+
+**Expected errors:** None
+
+___
+
+#### `UnlockAccount`
+
+The `UnlockAccount` method unlocks keys for a separately encrypted account with
+its own passphrase.  Keys remain available until `LockAccount` is used, or an
+incorrect passphrase is provided later by this method.
+
+**Request:** `UnlockAccountRequest`
+
+- `bytes passphrase`: The passphrase to unlock an account.
+
+- `uint32 account_number`: The account to unlock.
+
+**Response:** `UnlockAccountResponse`
+
+**Expected errors:**
+
+- `FailedPrecondition`: The account is not encrypted with an individual
+  passphrase.
+
+- `InvalidArgument`: The private passphrase is incorrect.
+
+___
+
+#### `LockAccount`
+
+The `LockAccount` request locks an account, preventing use of any keys protected
+by the private passphrase.  This does not affect any other accounts.
+
+**Request:** `LockAccountRequest`
+
+- `uint32 account_number`: The account to lock.
+
+**Response:** `LockAccountResponse`
+
+**Expected errors:** 
+
+- `FailedPrecondition`: The account is not encrypted with an individual
+  passphrase.
 
 
 ## `SeedService`

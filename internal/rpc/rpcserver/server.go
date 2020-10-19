@@ -60,9 +60,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.5.0"
+	semverString = "7.6.0"
 	semverMajor  = 7
-	semverMinor  = 5
+	semverMinor  = 6
 	semverPatch  = 0
 )
 
@@ -3524,4 +3524,22 @@ func (s *walletServer) LockAccount(ctx context.Context, req *pb.LockAccountReque
 		return nil, translateError(err)
 	}
 	return &pb.LockAccountResponse{}, nil
+}
+
+func (s *walletServer) UnlockWallet(ctx context.Context, req *pb.UnlockWalletRequest) (
+	*pb.UnlockWalletResponse, error) {
+
+	defer zero(req.Passphrase)
+	err := s.wallet.Unlock(ctx, req.Passphrase, nil)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.UnlockWalletResponse{}, nil
+}
+
+func (s *walletServer) LockWallet(ctx context.Context, req *pb.LockWalletRequest) (
+	*pb.LockWalletResponse, error) {
+
+	s.wallet.Lock()
+	return &pb.LockWalletResponse{}, nil
 }
