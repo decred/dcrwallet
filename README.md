@@ -13,16 +13,6 @@ disk.  dcrwallet uses the
 HD path for all derived addresses, as described by
 [BIP0044](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki).
 
-Due to the sensitive nature of public data in a BIP0032 wallet,
-dcrwallet provides the option of encrypting not just private keys, but
-public data as well.  This is intended to thwart privacy risks where a
-wallet file is compromised without exposing all current and future
-addresses (public keys) managed by the wallet. While access to this
-information would not allow an attacker to spend or steal coins, it
-does mean they could track all transactions involving your addresses
-and therefore know your exact balance.  In a future release, public data
-encryption will extend to transactions as well.
-
 dcrwallet provides two modes of operation to connect to the Decred
 network.  The first (and default) is to communicate with a single
 trusted `dcrd` instance using JSON-RPC.  The second is a
