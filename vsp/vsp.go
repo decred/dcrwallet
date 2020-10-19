@@ -55,6 +55,11 @@ type VSP struct {
 	ticketToFeeMap map[chainhash.Hash]PendingFee
 }
 
+type VSPTicket struct {
+	FeeHash     chainhash.Hash
+	FeeTxStatus uint32
+}
+
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
 func New(vspURL, pubKeyStr string, purchaseAccount, changeAccount uint32, dialer DialFunc, w *wallet.Wallet, params *chaincfg.Params) (*VSP, error) {
@@ -314,7 +319,17 @@ func (v *VSP) Process(ctx context.Context, ticketHash chainhash.Hash, credits []
 	if err != nil {
 		return nil, err
 	}
+	// set fee tx as unpublished, because it will be published by the vsp.
+	feeHash := feeTx.TxHash()
+	err = v.w.SetPublished(ctx, &feeHash, false)
+	if err != nil {
+		return nil, err
+	}
 	paidTx, err := v.PayFee(ctx, ticketHash, feeTx)
+	if err != nil {
+		return nil, err
+	}
+	err = v.w.UpdateVspTicketFeeToPaid(ctx, &ticketHash, &feeHash)
 	if err != nil {
 		return nil, err
 	}

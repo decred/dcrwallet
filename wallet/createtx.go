@@ -1456,6 +1456,9 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 		break
 	}
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
 	purchaseTicketsResponse.SplitTx = splitTx
 
 	// Process and publish split tx.
@@ -1623,8 +1626,22 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	if req.VSPFeePaymentProcess != nil {
 		unlockCredits = false
 		for i, ticketHash := range purchaseTicketsResponse.TicketHashes {
+			// set vsp fee as processing, so we can know it started to be
+			// processed.
+			rec := udb.VSPTicket{
+				FeeTxStatus: udb.VSP_FEE_PROCESS_STARTED,
+			}
+			err = w.UpdateVSPTicket(ctx, ticketHash, rec)
+			if err != nil {
+				return nil, err
+			}
 			feeTx, err := req.VSPFeePaymentProcess(ctx, *ticketHash, vspFeeCredits[i])
 			if err != nil {
+				rec.FeeTxStatus = udb.VSP_FEE_PROCESS_ERRORED
+				err = w.UpdateVSPTicket(ctx, ticketHash, rec)
+				if err != nil {
+					return nil, err
+				}
 				// unlock outpoints in case of error
 				log.Errorf("vsp ticket %v fee proccessment failed: %v", ticketHash, err)
 				for _, outpoint := range vspFeeCredits[i] {
@@ -1637,19 +1654,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			if err != nil {
 				return nil, err
 			}
-			w.lockedOutpointMu.Lock()
-			err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-				// set vsp feeTx as unpublished tx, as the vsp will publish
-				// it and not the wallet.
-				feeHash := feeTx.TxHash()
-				err = w.txStore.SetPublished(dbtx, &feeHash, false)
-				feeRec := &udb.VSPTicket{
-					FeeHash: feeHash,
-				}
-				err = udb.SetVSPTicket(dbtx, ticketHash, feeRec)
-				return err
-			})
-			w.lockedOutpointMu.Unlock()
 			if err != nil {
 				return nil, err
 			}

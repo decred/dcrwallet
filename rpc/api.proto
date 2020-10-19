@@ -77,6 +77,8 @@ service WalletService {
 	rpc LockAccount (LockAccountRequest) returns (LockAccountResponse);
 	rpc UnlockWallet (UnlockWalletRequest) returns (UnlockWalletResponse);
 	rpc LockWallet (LockWalletRequest) returns (LockWalletResponse);
+	rpc SyncVSPFailedTickets(SyncVSPTicketsRequest) returns (SyncVSPTicketsResponse);
+	rpc GetVSPTicketsByFeeStatus (GetVSPTicketsByFeeStatusRequest) returns (GetVSPTicketsByFeeStatusResponse);
 }
 
 service WalletLoaderService {
@@ -1243,4 +1245,20 @@ message GetPeerInfoResponse {
 		int32 ban_score = 8;
 	}
 	repeated PeerInfo peer_info = 1;
+}
+
+message SyncVSPTicketsRequest {
+	string vsp_host = 1;
+	string vsp_pubkey = 2;
+	uint32 account = 3;
+}
+
+message SyncVSPTicketsResponse {}
+
+message GetVSPTicketsByFeeStatusRequest {
+	int32 fee_status = 1;
+}
+
+message GetVSPTicketsByFeeStatusResponse {
+	repeated bytes tickets_hashes = 1;
 }

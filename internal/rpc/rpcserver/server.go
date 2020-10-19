@@ -3613,3 +3613,53 @@ func (s *walletServer) GetPeerInfo(ctx context.Context, req *pb.GetPeerInfoReque
 		PeerInfo: infos,
 	}, nil
 }
+
+func (s *walletServer) GetVSPTicketsByFeeStatus(ctx context.Context, req *pb.GetVSPTicketsByFeeStatusRequest) (
+	*pb.GetVSPTicketsByFeeStatusResponse, error) {
+	failedTicketsFee, err := s.wallet.GetVSPTicketsByFeeStatus(ctx, int(req.FeeStatus))
+	if err != nil {
+		return nil, err
+	}
+
+	hashes := make([][]byte, len(failedTicketsFee))
+	for i, hash := range failedTicketsFee {
+		hashes[i] = hash[:]
+	}
+
+	return &pb.GetVSPTicketsByFeeStatusResponse{
+		TicketsHashes: hashes,
+	}, nil
+}
+
+func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSPTicketsRequest) (
+	*pb.SyncVSPTicketsResponse, error) {
+	failedTicketsFee, err := s.wallet.GetVSPTicketsByFeeStatus(ctx, udb.VSP_FEE_PROCESS_ERRORED)
+	if err != nil {
+		return nil, err
+	}
+	// start vspd server if it is not started
+	vspHost := req.VspHost
+	vspPubKey := req.VspPubkey
+	if vspPubKey == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
+	}
+	if vspHost == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
+	}
+	vspServer, err := vsp.New(
+		vspHost, vspPubKey, req.Account, req.Account, nil, s.wallet, s.wallet.ChainParams())
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
+	}
+
+	// process tickets fee if needed.
+	for _, ticketHash := range failedTicketsFee {
+		_, err := vspServer.Process(ctx, ticketHash, nil)
+		// if it fails to process again, we log it and continue with
+		// the wallet start.
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, nil
+}

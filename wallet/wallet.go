@@ -5155,3 +5155,74 @@ func (w *Wallet) GetCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, 
 
 	return allTxsByAcct, nil
 }
+
+// GetVSPTicketsByFeeStatus returns the ticket hashes of tickets with the
+// informed fee status.
+func (w *Wallet) GetVSPTicketsByFeeStatus(ctx context.Context, feeStatus int) ([]chainhash.Hash, error) {
+	const op errors.Op = "wallet.GetVSPTicketsByFeeStatus"
+	tickets := make(map[chainhash.Hash]*udb.VSPTicket)
+	var err error
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		tickets, err = udb.GetVSPTicketsByFeeStatus(dbtx, feeStatus)
+		return err
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	response := make([]chainhash.Hash, len(tickets))
+	i := 0
+	for hash := range tickets {
+		copy(response[i][:], hash[:])
+		i++
+	}
+
+	return response, nil
+}
+
+// UpdateVSPTicket updates the vsp ticket for the informed tickethash.
+func (w *Wallet) UpdateVSPTicket(ctx context.Context, ticketHash *chainhash.Hash, vspTicket udb.VSPTicket) error {
+	var err error
+	w.lockedOutpointMu.Lock()
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err = udb.SetVSPTicket(dbtx, ticketHash, &vspTicket)
+		return err
+	})
+	w.lockedOutpointMu.Unlock()
+
+	return err
+}
+
+// SetPublished sets the informed hash as true or false.
+func (w *Wallet) SetPublished(ctx context.Context, hash *chainhash.Hash, published bool) error {
+	var err error
+	w.lockedOutpointMu.Lock()
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		hash := hash
+		err := w.txStore.SetPublished(dbtx, hash, published)
+		if err != nil {
+			return  err
+		}
+		return nil
+	})
+	w.lockedOutpointMu.Unlock()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *Wallet) UpdateVspTicketFeeToPaid(ctx context.Context, ticketHash *chainhash.Hash, feeHash *chainhash.Hash) error {
+	var err error
+	w.lockedOutpointMu.Lock()
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
+			FeeHash: *feeHash,
+			FeeTxStatus: udb.VSP_FEE_PROCESS_PAID,
+		})
+		return err
+	})
+	w.lockedOutpointMu.Unlock()
+
+	return err
+}
