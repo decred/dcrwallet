@@ -3650,7 +3650,7 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	if err != nil {
 		return nil, err
 	}
-	// start vspd server if it is not started
+
 	vspHost := req.VspHost
 	vspPubKey := req.VspPubkey
 	if vspPubKey == "" {
@@ -3674,5 +3674,5 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 			return nil, err
 		}
 	}
-	return nil, nil
+	return &pb.SyncVSPTicketsResponse{}, nil
 }
