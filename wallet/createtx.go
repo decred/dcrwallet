@@ -1634,13 +1634,13 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			}
 			feeTx, err := req.VSPFeePaymentProcess(ctx, *ticketHash, vspFeeCredits[i])
 			if err != nil {
+				log.Errorf("vsp ticket %v fee proccessment failed: %v", ticketHash, err)
 				rec.FeeTxStatus = uint32(udb.VSPFeeProcessErrored)
 				err = w.UpdateVSPTicket(ctx, ticketHash, rec)
 				if err != nil {
 					return nil, err
 				}
 				// unlock outpoints in case of error
-				log.Errorf("vsp ticket %v fee proccessment failed: %v", ticketHash, err)
 				for _, outpoint := range vspFeeCredits[i] {
 					w.UnlockOutpoint(&outpoint.OutPoint.Hash, outpoint.OutPoint.Index)
 				}
