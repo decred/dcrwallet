@@ -3667,10 +3667,10 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	// process tickets fee if needed.
 	for _, ticketHash := range failedTicketsFee {
 		_, err := vspServer.Process(ctx, ticketHash, nil)
-		// if it fails to process again, we log it and continue with
-		// the wallet start.
 		if err != nil {
-			return nil, err
+			// if it fails to process again, we log it and continue with
+			// the wallet start.
+			// Not sure we need to log here since it's already warned elsewhere
 		}
 	}
 	return &pb.SyncVSPTicketsResponse{}, nil
