@@ -8,7 +8,7 @@ import (
 	"context"
 	"net"
 
-	"decred.org/dcrwallet/vsp"
+	"decred.org/dcrwallet/internal/vsp"
 )
 
 // Options contains the required options for running the legacy RPC server.

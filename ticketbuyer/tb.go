@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"decred.org/dcrwallet/errors"
-	"decred.org/dcrwallet/vsp"
+	"decred.org/dcrwallet/internal/vsp"
 	"decred.org/dcrwallet/wallet"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/wire"
