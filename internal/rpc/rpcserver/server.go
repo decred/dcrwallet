@@ -3635,8 +3635,8 @@ func (s *walletServer) GetVSPTicketsByFeeStatus(ctx context.Context, req *pb.Get
 	}
 
 	hashes := make([][]byte, len(failedTicketsFee))
-	for i, hash := range failedTicketsFee {
-		hashes[i] = hash[:]
+	for i := range failedTicketsFee {
+		hashes[i] = failedTicketsFee[i][:]
 	}
 
 	return &pb.GetVSPTicketsByFeeStatusResponse{
