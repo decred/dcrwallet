@@ -1676,7 +1676,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	var mixedAccount uint32
 	var mixedAccountBranch uint32
 	var mixedSplitAccount uint32
-	var changeAccount uint32
+	var changeAccount = req.ChangeAccount
 
 	if req.CsppServer != "" {
 		csppServer = req.CsppServer
@@ -1697,7 +1697,6 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 			return nil, status.Errorf(codes.InvalidArgument,
 				"CSPP Server set, but error on mixedSplitAccount: %v", err)
 		}
-		changeAccount = req.ChangeAccount
 		_, err = s.wallet.AccountName(ctx, changeAccount)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument,
