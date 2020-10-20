@@ -355,9 +355,13 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 			err := errors.New("failed to create listeners for JSON-RPC server")
 			return nil, nil, err
 		}
+		var user, pass string
+		if cfg.JSONRPCAuthType == "basic" {
+			user, pass = cfg.Username, cfg.Password
+		}
 		opts := jsonrpc.Options{
-			Username:            cfg.Username,
-			Password:            cfg.Password,
+			Username:            user,
+			Password:            pass,
 			MaxPOSTClients:      cfg.LegacyRPCMaxClients,
 			MaxWebsocketClients: cfg.LegacyRPCMaxWebsockets,
 			CSPPServer:          cfg.CSPPServer,
