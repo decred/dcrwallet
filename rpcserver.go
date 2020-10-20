@@ -245,11 +245,12 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 	}
 
 	var (
-		server        *grpc.Server
-		jsonrpcServer *jsonrpc.Server
-		jsonrpcListen = net.Listen
-		keyPair       tls.Certificate
-		err           error
+		server         *grpc.Server
+		jsonrpcServer  *jsonrpc.Server
+		jsonrpcListen  = net.Listen
+		keyPair        tls.Certificate
+		clientCAsExist bool
+		err            error
 	)
 	if cfg.DisableServerTLS {
 		log.Info("Server TLS is disabled.  Only JSON-RPC may be used")
@@ -262,22 +263,23 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 		tlsConfig := &tls.Config{
 			Certificates: []tls.Certificate{keyPair},
 			MinVersion:   tls.VersionTLS12,
+			ClientCAs:    x509.NewCertPool(),
 		}
-		if cfg.AuthType == "clientcert" {
-			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
-			tlsConfig.ClientCAs = x509.NewCertPool()
-			if exists, _ := cfgutil.FileExists(cfg.ClientCAFile); exists {
-				cafile, err := ioutil.ReadFile(cfg.ClientCAFile)
-				if err != nil {
-					return nil, nil, err
-				}
-				if !tlsConfig.ClientCAs.AppendCertsFromPEM(cafile) {
-					log.Warnf("No certificates added from CA file %v",
-						cfg.ClientCAFile)
-				}
+		clientCAsExist, _ = cfgutil.FileExists(cfg.ClientCAFile)
+		if clientCAsExist {
+			cafile, err := ioutil.ReadFile(cfg.ClientCAFile)
+			if err != nil {
+				return nil, nil, err
+			}
+			if !tlsConfig.ClientCAs.AppendCertsFromPEM(cafile) {
+				log.Warnf("No certificates added from CA file %v",
+					cfg.ClientCAFile)
 			}
 		}
-		if cfg.AuthType == "clientcert" && cfg.IssueClientCert {
+		if cfg.JSONRPCAuthType == "clientcert" {
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		}
+		if cfg.IssueClientCert {
 			pub, priv, err := cfg.TLSCurve.GenerateKeyPair(rand.Reader)
 			if err != nil {
 				return nil, nil, err
@@ -301,7 +303,14 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 			return tls.Listen(net, laddr, tlsConfig)
 		}
 
-		if cfg.AuthType == "clientcert" && len(cfg.GRPCListeners) != 0 {
+		clientCAsExist = clientCAsExist || cfg.IssueClientCert
+		if !clientCAsExist && len(cfg.GRPCListeners) != 0 {
+			log.Warnf("gRPC server is configured with listeners, but no "+
+				"trusted client certificates exist (looked in %v)",
+				cfg.ClientCAFile)
+		} else if clientCAsExist && len(cfg.GRPCListeners) != 0 {
+			tlsConfig := tlsConfig.Clone()
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 			listeners := makeListeners(cfg.GRPCListeners, net.Listen)
 			if len(listeners) == 0 {
 				err := errors.New("failed to create listeners for RPC server")
@@ -332,8 +341,14 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 		}
 	}
 
-	if cfg.AuthType == "basic" && (cfg.Username == "" || cfg.Password == "") {
-		log.Info("JSON-RPC server disabled (requires username and password)")
+	if !cfg.DisableServerTLS && len(cfg.LegacyRPCListeners) != 0 &&
+		cfg.JSONRPCAuthType == "clientcert" && !clientCAsExist {
+		log.Warnf("JSON-RPC TLS server is configured with listeners and "+
+			"client cert auth, but no trusted client certificates exist "+
+			"(looked in %v)", cfg.ClientCAFile)
+	} else if cfg.JSONRPCAuthType == "basic" && (cfg.Username == "" || cfg.Password == "") {
+		log.Info("JSON-RPC server disabled (basic auth requires username and " +
+			"password, and client cert authentication is not enabled)")
 	} else if len(cfg.LegacyRPCListeners) != 0 {
 		listeners := makeListeners(cfg.LegacyRPCListeners, jsonrpcListen)
 		if len(listeners) == 0 {

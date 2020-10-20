@@ -141,7 +141,7 @@ type config struct {
 	LegacyRPCMaxWebsockets int64                   `long:"rpcmaxwebsockets" description:"Max JSON-RPC websocket clients"`
 	Username               string                  `short:"u" long:"username" description:"JSON-RPC username and default dcrd RPC username"`
 	Password               string                  `short:"P" long:"password" default-mask:"-" description:"JSON-RPC password and default dcrd RPC password"`
-	AuthType               string                  `long:"authtype" description:"Method for client authentication (basic or clientcert)"`
+	JSONRPCAuthType        string                  `long:"jsonrpcauthtype" description:"Method for JSON-RPC client authentication (basic or clientcert)"`
 
 	// IPC options
 	PipeTx            *uint `long:"pipetx" description:"File descriptor or handle of write end pipe to enable child -> parent process communication"`
@@ -344,7 +344,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		TLSCurve:                cfgutil.NewCurveFlag(cfgutil.PreferredCurve),
 		LegacyRPCMaxClients:     defaultRPCMaxClients,
 		LegacyRPCMaxWebsockets:  defaultRPCMaxWebsockets,
-		AuthType:                defaultAuthType,
+		JSONRPCAuthType:         defaultAuthType,
 		EnableTicketBuyer:       defaultEnableTicketBuyer,
 		EnableVoting:            defaultEnableVoting,
 		PurchaseAccount:         defaultPurchaseAccount,
@@ -934,10 +934,10 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		cfg.DcrdPassword = cfg.Password
 	}
 
-	switch cfg.AuthType {
+	switch cfg.JSONRPCAuthType {
 	case "basic", "clientcert":
 	default:
-		err := fmt.Errorf("unknown authtype %q", cfg.AuthType)
+		err := fmt.Errorf("unknown authtype %q", cfg.JSONRPCAuthType)
 		fmt.Fprintln(os.Stderr, err)
 		fmt.Fprintln(os.Stderr, usageMessage)
 		return loadConfigError(err)
