@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -19,6 +20,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 type keygen func(t *testing.T) (pub, priv interface{}, name string)
@@ -170,19 +172,43 @@ func TestUntrustedClientCert(t *testing.T) {
 	tr := client.Transport.(*http.Transport)
 	tr.TLSClientConfig.Certificates = []tls.Certificate{keypair2}
 
-	req, err := http.NewRequest("PUT", s.URL, strings.NewReader("balls"))
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	_, err = s.Client().Do(req)
-	if err == nil {
-		t.Errorf("request with bad client cert did not error")
-		return
-	}
-	if !strings.HasSuffix(err.Error(), "tls: bad certificate") {
-		t.Errorf("server did not report bad certificate error; "+
-			"instead errored with: %v", err)
-		return
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	errChan := make(chan error, 2)
+	timeout := time.After(time.Second * 5)
+	for {
+		go func() {
+			req, err := http.NewRequest("PUT", s.URL, strings.NewReader("test"))
+			if err != nil {
+				errChan <- err
+				return
+			}
+			req = req.WithContext(ctx)
+			_, err = s.Client().Do(req)
+			errChan <- err
+		}()
+
+		select {
+		case err := <-errChan:
+			if err == nil {
+				t.Fatalf("request with bad client cert did not error")
+			}
+			if strings.HasSuffix(err.Error(), "reset by peer") ||
+				strings.Contains(err.Error(), "connection was forcibly closed") {
+
+				// Retry.
+				continue
+			}
+			if !strings.HasSuffix(err.Error(), "tls: bad certificate") {
+				t.Fatalf("server did not report bad certificate error; "+
+					"instead errored with: %v (%T)", err, err)
+			}
+
+			// Success.
+			return
+
+		case <-timeout:
+			t.Fatal("Did not receive response before timeout")
+		}
 	}
 }
