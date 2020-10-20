@@ -62,7 +62,7 @@ type VSPTicket struct {
 
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
-func New(vspURL, pubKeyStr string, purchaseAccount, changeAccount uint32, dialer DialFunc, w *wallet.Wallet, params *chaincfg.Params) (*VSP, error) {
+func New(ctx context.Context, vspURL, pubKeyStr string, purchaseAccount, changeAccount uint32, dialer DialFunc, w *wallet.Wallet, params *chaincfg.Params) (*VSP, error) {
 	u, err := url.Parse(vspURL)
 	if err != nil {
 		return nil, err
@@ -79,8 +79,6 @@ func New(vspURL, pubKeyStr string, purchaseAccount, changeAccount uint32, dialer
 		Transport: &transport,
 	}
 
-	// TODO ctx
-	ctx := context.Background()
 	c := w.NtfnServer.ConfirmationNotifications(ctx)
 	v := &VSP{
 		vspURL:          u,

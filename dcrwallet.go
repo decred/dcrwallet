@@ -263,7 +263,7 @@ func run(ctx context.Context) error {
 					cfg.PurchaseAccount, err)
 				return err
 			}
-			vspServer, err = vsp.New(cfg.VSPOpts.URL, cfg.VSPOpts.PubKey,
+			vspServer, err = vsp.New(ctx, cfg.VSPOpts.URL, cfg.VSPOpts.PubKey,
 				purchaseAcct, changeAcct, cfg.dial, w, activeNet.Params)
 			if err != nil {
 				log.Errorf("vsp: %v", err)

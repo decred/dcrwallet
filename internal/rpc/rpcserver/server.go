@@ -1633,7 +1633,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		if vspHost == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 		}
-		vspServer, err = vsp.New(vspHost, vspPubKey, req.Account, req.Account, nil, s.wallet, params)
+		vspServer, err = vsp.New(ctx, vspHost, vspPubKey, req.Account, req.Account, nil, s.wallet, params)
 		if err != nil {
 			return nil, status.Errorf(codes.Unknown, "VSP Server instance failed to start. Error: %v", err)
 		}
@@ -2512,7 +2512,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		if vspHost == "" {
 			return status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 		}
-		vspServer, err = vsp.New(vspHost, vspPubKey, req.Account, req.Account, nil, wallet, params)
+		vspServer, err = vsp.New(svr.Context(), vspHost, vspPubKey, req.Account, req.Account, nil, wallet, params)
 		if err != nil {
 			return status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
 		}
@@ -3660,7 +3660,7 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 	}
 	vspServer, err := vsp.New(
-		vspHost, vspPubKey, req.Account, req.Account, nil, s.wallet, s.wallet.ChainParams())
+		ctx, vspHost, vspPubKey, req.Account, req.Account, nil, s.wallet, s.wallet.ChainParams())
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
 	}
