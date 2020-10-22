@@ -163,6 +163,7 @@ func run(ctx context.Context) error {
 	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.Amount,
 		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, cfg.ManualTickets)
+	loader.DialCSPPServer = cfg.dialCSPPServer
 
 	// Stop any services started by the loader after the shutdown procedure is
 	// initialized and this function returns.
@@ -382,7 +383,7 @@ func run(ctx context.Context) error {
 		// Start wallet, voting and network gRPC services after a
 		// wallet is loaded.
 		loader.RunAfterLoad(func(w *wallet.Wallet) {
-			rpcserver.StartWalletService(gRPCServer, w)
+			rpcserver.StartWalletService(gRPCServer, w, cfg.dialCSPPServer)
 			rpcserver.StartNetworkService(gRPCServer, w)
 			rpcserver.StartVotingService(gRPCServer, w)
 		})

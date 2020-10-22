@@ -148,8 +148,9 @@ type versionServer struct{}
 
 // walletServer provides wallet services for RPC clients.
 type walletServer struct {
-	ready  uint32 // atomic
-	wallet *wallet.Wallet
+	ready          uint32 // atomic
+	wallet         *wallet.Wallet
+	dialCSPPServer func(ctx context.Context, network, addr string) (net.Conn, error)
 }
 
 // loaderServer provides RPC clients with the ability to load and close wallets,
@@ -281,12 +282,15 @@ func (*versionServer) Version(ctx context.Context, req *pb.VersionRequest) (*pb.
 	}, nil
 }
 
+type dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
+
 // StartWalletService starts the WalletService.
-func StartWalletService(server *grpc.Server, wallet *wallet.Wallet) {
-	walletService.wallet = wallet
+func StartWalletService(server *grpc.Server, wallet *wallet.Wallet, dialCSPP dialFunc) {
 	if atomic.SwapUint32(&walletService.ready, 1) != 0 {
 		panic("service already started")
 	}
+	walletService.wallet = wallet
+	walletService.dialCSPPServer = dialCSPP
 }
 
 func (s *walletServer) checkReady() bool {
@@ -1725,6 +1729,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 
 		// CSPP
 		CSPPServer:         csppServer,
+		DialCSPPServer:     s.dialCSPPServer,
 		MixedAccount:       mixedAccount,
 		MixedAccountBranch: mixedAccountBranch,
 		MixedSplitAccount:  mixedSplitAccount,
@@ -2434,6 +2439,7 @@ func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr
 		c.MixedAccount = req.MixedAccount
 		c.ChangeAccount = req.ChangeAccount
 		c.CSPPServer = req.CsppServer
+		c.DialCSPPServer = t.loader.DialCSPPServer
 		c.BuyTickets = false
 		c.MixChange = true
 	})
@@ -2592,6 +2598,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		c.MixedAccount = mixedAccount
 		c.MixChange = mixedChange
 		c.CSPPServer = csppServer
+		c.DialCSPPServer = t.loader.DialCSPPServer
 		c.ChangeAccount = changeAccount
 		c.MixedAccountBranch = mixedAccountBranch
 		c.TicketSplitAccount = mixedSplitAccount

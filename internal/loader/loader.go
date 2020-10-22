@@ -7,6 +7,7 @@ package loader
 
 import (
 	"context"
+	"net"
 	"os"
 	"path/filepath"
 	"sync"
@@ -46,6 +47,8 @@ type Loader struct {
 	relayFee                dcrutil.Amount
 
 	mu sync.Mutex
+
+	DialCSPPServer DialFunc
 }
 
 // StakeOptions contains the various options necessary for stake mining.
@@ -57,6 +60,11 @@ type StakeOptions struct {
 	PoolFees            float64
 	StakePoolColdExtKey string
 }
+
+// DialFunc provides a method to dial a network connection.
+// If the dialed network connection is secured by TLS, TLS
+// configuration is provided by the method, not the caller.
+type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, gapLimit uint32,
