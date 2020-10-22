@@ -19,7 +19,7 @@ import (
 )
 
 func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash chainhash.Hash) (dcrutil.Amount, error) {
-	txs, _, err := v.w.GetTransactionsByHashes(ctx, []*chainhash.Hash{&ticketHash})
+	txs, _, err := v.cfg.Wallet.GetTransactionsByHashes(ctx, []*chainhash.Hash{&ticketHash})
 	if err != nil {
 		log.Errorf("failed to retrieve ticket %v: %v", ticketHash, err)
 		return 0, err
@@ -28,7 +28,7 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash chainhash.Hash) (dcr
 
 	const scriptVersion = 0
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(scriptVersion,
-		ticketTx.TxOut[0].PkScript, v.params, true) // Yes treasury
+		ticketTx.TxOut[0].PkScript, v.cfg.Params, true) // Yes treasury
 	if err != nil {
 		log.Errorf("failed to extract stake submission address from %v: %v", ticketHash, err)
 		return 0, err
@@ -39,7 +39,7 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash chainhash.Hash) (dcr
 	}
 	votingAddress := addrs[0]
 
-	commitmentAddr, err := stake.AddrFromSStxPkScrCommitment(ticketTx.TxOut[1].PkScript, v.params)
+	commitmentAddr, err := stake.AddrFromSStxPkScrCommitment(ticketTx.TxOut[1].PkScript, v.cfg.Params)
 	if err != nil {
 		log.Errorf("failed to extract script addr from %v: %v", ticketHash, err)
 		return 0, err
@@ -72,7 +72,7 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash chainhash.Hash) (dcr
 		return 0, err
 	}
 
-	signature, err := v.w.SignMessage(ctx, string(requestBody), commitmentAddr)
+	signature, err := v.cfg.Wallet.SignMessage(ctx, string(requestBody), commitmentAddr)
 	if err != nil {
 		log.Errorf("failed to sign feeAddress request: %v", err)
 		return 0, err
@@ -133,7 +133,7 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash chainhash.Hash) (dcr
 	}
 	// TODO - validate server timestamp?
 
-	feeAddress, err := dcrutil.DecodeAddress(feeResponse.FeeAddress, v.params)
+	feeAddress, err := dcrutil.DecodeAddress(feeResponse.FeeAddress, v.cfg.Params)
 	if err != nil {
 		log.Warnf("server fee address invalid: %v", err)
 		return 0, fmt.Errorf("server fee address invalid: %v", err)

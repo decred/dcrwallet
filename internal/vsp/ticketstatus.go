@@ -15,7 +15,7 @@ import (
 )
 
 func (v *VSP) TicketStatus(ctx context.Context, hash *chainhash.Hash) (*TicketStatusResponse, error) {
-	txs, _, err := v.w.GetTransactionsByHashes(ctx, []*chainhash.Hash{hash})
+	txs, _, err := v.cfg.Wallet.GetTransactionsByHashes(ctx, []*chainhash.Hash{hash})
 	if err != nil {
 		log.Errorf("failed to retrieve ticket %v: %v", hash, err)
 		return nil, err
@@ -26,7 +26,7 @@ func (v *VSP) TicketStatus(ctx context.Context, hash *chainhash.Hash) (*TicketSt
 		log.Errorf("%v is not a ticket", hash)
 		return nil, fmt.Errorf("%v is not a ticket", hash)
 	}
-	commitmentAddr, err := stake.AddrFromSStxPkScrCommitment(ticketTx.TxOut[1].PkScript, v.params)
+	commitmentAddr, err := stake.AddrFromSStxPkScrCommitment(ticketTx.TxOut[1].PkScript, v.cfg.Params)
 	if err != nil {
 		log.Errorf("failed to extract script addr from %v: %v", hash, err)
 		return nil, err
@@ -49,7 +49,7 @@ func (v *VSP) TicketStatus(ctx context.Context, hash *chainhash.Hash) (*TicketSt
 		return nil, err
 	}
 
-	signature, err := v.w.SignMessage(ctx, string(requestBody), commitmentAddr)
+	signature, err := v.cfg.Wallet.SignMessage(ctx, string(requestBody), commitmentAddr)
 	if err != nil {
 		log.Errorf("failed to sign feeAddress request: %v", err)
 		return nil, err

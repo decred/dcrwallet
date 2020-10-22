@@ -1633,9 +1633,18 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		if vspHost == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 		}
-		vspServer, err = vsp.New(ctx, vspHost, vspPubKey, req.Account, req.Account, nil, s.wallet, params)
+		cfg := vsp.Config{
+			URL:             vspHost,
+			PubKey:          vspPubKey,
+			PurchaseAccount: req.Account,
+			ChangeAccount:   req.Account,
+			Dialer:          nil,
+			Wallet:          s.wallet,
+			Params:          params,
+		}
+		vspServer, err = vsp.New(ctx, cfg)
 		if err != nil {
-			return nil, status.Errorf(codes.Unknown, "VSP Server instance failed to start. Error: %v", err)
+			return nil, status.Errorf(codes.Unknown, "VSP Server instance failed to start: %v", err)
 		}
 	}
 
@@ -2512,7 +2521,16 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		if vspHost == "" {
 			return status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 		}
-		vspServer, err = vsp.New(svr.Context(), vspHost, vspPubKey, req.Account, req.Account, nil, wallet, params)
+		cfg := vsp.Config{
+			URL:             vspHost,
+			PubKey:          vspPubKey,
+			PurchaseAccount: req.Account,
+			ChangeAccount:   req.Account,
+			Dialer:          nil,
+			Wallet:          wallet,
+			Params:          params,
+		}
+		vspServer, err = vsp.New(svr.Context(), cfg)
 		if err != nil {
 			return status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
 		}
@@ -3699,8 +3717,16 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	if vspHost == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 	}
-	vspServer, err := vsp.New(
-		ctx, vspHost, vspPubKey, req.Account, req.Account, nil, s.wallet, s.wallet.ChainParams())
+	cfg := vsp.Config{
+		URL:             vspHost,
+		PubKey:          vspPubKey,
+		PurchaseAccount: req.Account,
+		ChangeAccount:   req.Account,
+		Dialer:          nil,
+		Wallet:          s.wallet,
+		Params:          s.wallet.ChainParams(),
+	}
+	vspServer, err := vsp.New(ctx, cfg)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
 	}

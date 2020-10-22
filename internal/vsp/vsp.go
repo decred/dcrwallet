@@ -35,18 +35,38 @@ type PendingFee struct {
 	FeeTx             *wire.MsgTx
 }
 
-type VSP struct {
-	vspURL          *url.URL
-	pubKey          ed25519.PublicKey
-	httpClient      *http.Client
-	params          *chaincfg.Params
-	c               *wallet.ConfirmationNotificationsClient
-	w               *wallet.Wallet
-	purchaseAccount uint32
-	changeAccount   uint32
+type Config struct {
+	// URL specifies the base URL of the VSP
+	URL string
 
-	queueMtx sync.Mutex
-	queue    chan *queueEntry
+	// PubKey specifies the VSP's base64 encoded public key
+	PubKey string
+
+	// PurchaseAccount specifies the purchase account to pay fees from.
+	PurchaseAccount uint32
+
+	// ChangeAccount specifies the change account when creating fee transactions.
+	ChangeAccount uint32
+
+	// Dialer specifies an optional dialer when connecting to the VSP.
+	Dialer DialFunc
+
+	// Wallet specifies a loaded wallet.
+	Wallet *wallet.Wallet
+
+	// Params specifies the configured network.
+	Params *chaincfg.Params
+}
+
+type VSP struct {
+	cfg *Config
+
+	vspURL     *url.URL
+	pubKey     ed25519.PublicKey
+	httpClient *http.Client
+	c          *wallet.ConfirmationNotificationsClient
+
+	queue chan *queueEntry
 
 	outpointsMu sync.Mutex
 	outpoints   map[chainhash.Hash]*wire.MsgTx
@@ -63,37 +83,38 @@ type VSPTicket struct {
 
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
-func New(ctx context.Context, vspURL, pubKeyStr string, purchaseAccount, changeAccount uint32, dialer DialFunc, w *wallet.Wallet, params *chaincfg.Params) (*VSP, error) {
-	u, err := url.Parse(vspURL)
+func New(ctx context.Context, cfg Config) (*VSP, error) {
+	u, err := url.Parse(cfg.URL)
 	if err != nil {
 		return nil, err
 	}
-	pubKey, err := base64.StdEncoding.DecodeString(pubKeyStr)
+	pubKey, err := base64.StdEncoding.DecodeString(cfg.PubKey)
 	if err != nil {
 		return nil, err
+	}
+	if cfg.Wallet == nil {
+		return nil, fmt.Errorf("wallet option not set")
+	}
+	if cfg.Params == nil {
+		return nil, fmt.Errorf("params option not set")
 	}
 
-	transport := http.Transport{
-		DialContext: dialer,
-	}
+	c := cfg.Wallet.NtfnServer.ConfirmationNotifications(ctx)
 	httpClient := &http.Client{
-		Transport: &transport,
+		Transport: &http.Transport{
+			DialContext: cfg.Dialer,
+		},
 	}
-
-	c := w.NtfnServer.ConfirmationNotifications(ctx)
 	v := &VSP{
-		vspURL:          u,
-		pubKey:          ed25519.PublicKey(pubKey),
-		httpClient:      httpClient,
-		params:          params,
-		w:               w,
-		c:               c,
-		queue:           make(chan *queueEntry, 256),
-		purchaseAccount: purchaseAccount,
-		changeAccount:   changeAccount,
-		outpoints:       make(map[chainhash.Hash]*wire.MsgTx),
-		feeToTicketMap:  make(map[chainhash.Hash]chainhash.Hash),
-		ticketToFeeMap:  make(map[chainhash.Hash]PendingFee),
+		cfg:            &cfg,
+		vspURL:         u,
+		pubKey:         ed25519.PublicKey(pubKey),
+		httpClient:     httpClient,
+		c:              c,
+		queue:          make(chan *queueEntry, 256),
+		outpoints:      make(map[chainhash.Hash]*wire.MsgTx),
+		feeToTicketMap: make(map[chainhash.Hash]chainhash.Hash),
+		ticketToFeeMap: make(map[chainhash.Hash]PendingFee),
 	}
 
 	go func() {
@@ -166,7 +187,8 @@ func New(ctx context.Context, vspURL, pubKeyStr string, purchaseAccount, changeA
 					var txs []*chainhash.Hash
 					for txHash, feeHash := range watch {
 						log.Infof("Ticket %s reached %d confirmations -- watching for feetx %s", txHash, requiredConfs, feeHash)
-						txs = append(txs, &feeHash)
+						hash := feeHash
+						txs = append(txs, &hash)
 					}
 					c.Watch(txs, requiredConfs)
 				}()
@@ -176,9 +198,9 @@ func New(ctx context.Context, vspURL, pubKeyStr string, purchaseAccount, changeA
 
 	// Launch routine to process notifications
 	go func() {
-		t := w.NtfnServer.TransactionNotifications()
+		t := cfg.Wallet.NtfnServer.TransactionNotifications()
 		defer t.Done()
-		r := w.NtfnServer.RemovedTransactionNotifications()
+		r := cfg.Wallet.NtfnServer.RemovedTransactionNotifications()
 		defer r.Done()
 		for {
 			select {
@@ -200,7 +222,7 @@ func New(ctx context.Context, vspURL, pubKeyStr string, purchaseAccount, changeA
 					go func() {
 						for _, input := range credits.TxIn {
 							outpoint := input.PreviousOutPoint
-							w.UnlockOutpoint(&outpoint.Hash, outpoint.Index)
+							cfg.Wallet.UnlockOutpoint(&outpoint.Hash, outpoint.Index)
 							log.Infof("unlocked outpoint %v for deleted ticket %s",
 								outpoint, txHash)
 						}
@@ -226,7 +248,7 @@ func New(ctx context.Context, vspURL, pubKeyStr string, purchaseAccount, changeA
 					if queuedItem.FeeTx != nil {
 						for _, input := range queuedItem.FeeTx.TxIn {
 							outpoint := input.PreviousOutPoint
-							go func() { w.UnlockOutpoint(&outpoint.Hash, outpoint.Index) }()
+							go func() { cfg.Wallet.UnlockOutpoint(&outpoint.Hash, outpoint.Index) }()
 						}
 					}
 					continue
@@ -258,13 +280,13 @@ func (v *VSP) queueItem(ctx context.Context, ticketHash chainhash.Hash, feeTx *w
 }
 
 func (v *VSP) Sync(ctx context.Context) {
-	_, blockHeight := v.w.MainChainTip(ctx)
+	_, blockHeight := v.cfg.Wallet.MainChainTip(ctx)
 
 	if blockHeight < 0 {
 		return
 	}
 
-	startBlockNum := blockHeight - int32(v.params.TicketExpiry+uint32(v.params.TicketMaturity)-requiredConfs)
+	startBlockNum := blockHeight - int32(v.cfg.Params.TicketExpiry+uint32(v.cfg.Params.TicketMaturity)-requiredConfs)
 	startBlock := wallet.NewBlockIdentifierFromHeight(startBlockNum)
 	endBlock := wallet.NewBlockIdentifierFromHeight(blockHeight)
 
@@ -284,7 +306,7 @@ func (v *VSP) Sync(ctx context.Context) {
 		return false, nil
 	}
 
-	err := v.w.GetTickets(ctx, f, startBlock, endBlock)
+	err := v.cfg.Wallet.GetTickets(ctx, f, startBlock, endBlock)
 	if err != nil {
 		log.Errorf("failed to sync tickets: %v", err)
 	}
@@ -310,7 +332,7 @@ func (v *VSP) Process(ctx context.Context, ticketHash chainhash.Hash, credits []
 	var totalValue int64
 	if credits == nil {
 		const minconf = 1
-		credits, err = v.w.ReserveOutputsForAmount(ctx, v.purchaseAccount, feeAmount, minconf)
+		credits, err = v.cfg.Wallet.ReserveOutputsForAmount(ctx, v.cfg.PurchaseAccount, feeAmount, minconf)
 		if err != nil {
 			return nil, err
 		}
@@ -329,7 +351,7 @@ func (v *VSP) Process(ctx context.Context, ticketHash chainhash.Hash, credits []
 	}
 	// set fee tx as unpublished, because it will be published by the vsp.
 	feeHash := feeTx.TxHash()
-	err = v.w.SetPublished(ctx, &feeHash, false)
+	err = v.cfg.Wallet.SetPublished(ctx, &feeHash, false)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +359,7 @@ func (v *VSP) Process(ctx context.Context, ticketHash chainhash.Hash, credits []
 	if err != nil {
 		return nil, err
 	}
-	err = v.w.UpdateVspTicketFeeToPaid(ctx, &ticketHash, &feeHash)
+	err = v.cfg.Wallet.UpdateVspTicketFeeToPaid(ctx, &ticketHash, &feeHash)
 	if err != nil {
 		return nil, err
 	}
