@@ -93,8 +93,7 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash chainhash.Hash) (dcr
 		return 0, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		log.Warnf("vsp responded with an error: %v", string(responseBody))
-		return 0, fmt.Errorf("vsp with an error (%v): %v", resp.StatusCode, string(responseBody))
+		return 0, fmt.Errorf("vsp http status code %v", resp.StatusCode)
 	}
 
 	serverSigStr := resp.Header.Get(serverSignature)
