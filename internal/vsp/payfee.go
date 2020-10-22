@@ -57,7 +57,7 @@ func (v *VSP) CreateFeeTx(ctx context.Context, ticketHash chainhash.Hash, credit
 		return nil, err
 	}
 
-	a, err := v.w.NewChangeAddress(ctx, v.changeAccount)
+	a, err := v.cfg.Wallet.NewChangeAddress(ctx, v.cfg.ChangeAccount)
 	if err != nil {
 		log.Warnf("failed to get new change address: %v", err)
 		return nil, err
@@ -140,7 +140,7 @@ func (v *VSP) CreateFeeTx(ctx context.Context, ticketHash chainhash.Hash, credit
 	}
 
 	txOut := []*wire.TxOut{wire.NewTxOut(int64(feeInfo.FeeAmount), pkScript)}
-	feeTx, err := v.w.NewUnsignedTransaction(ctx, txOut, v.w.RelayFee(), v.purchaseAccount, 6,
+	feeTx, err := v.cfg.Wallet.NewUnsignedTransaction(ctx, txOut, v.cfg.Wallet.RelayFee(), v.cfg.PurchaseAccount, 6,
 		wallet.OutputSelectionAlgorithmDefault, cs, inputSource)
 	if err != nil {
 		log.Warnf("failed to create fee transaction: %v", err)
@@ -150,7 +150,7 @@ func (v *VSP) CreateFeeTx(ctx context.Context, ticketHash chainhash.Hash, credit
 		feeTx.RandomizeChangePosition()
 	}
 
-	sigErrs, err := v.w.SignTransaction(ctx, feeTx.Tx, txscript.SigHashAll, nil, nil, nil)
+	sigErrs, err := v.cfg.Wallet.SignTransaction(ctx, feeTx.Tx, txscript.SigHashAll, nil, nil, nil)
 	if err != nil {
 		log.Errorf("failed to sign transaction: %v", err)
 		for _, sigErr := range sigErrs {
@@ -184,14 +184,14 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash chainhash.Hash, feeTx *wire
 		return nil, fmt.Errorf("call GetFeeAddress first")
 	}
 
-	votingKeyWIF, err := v.w.DumpWIFPrivateKey(ctx, feeInfo.VotingAddress)
+	votingKeyWIF, err := v.cfg.Wallet.DumpWIFPrivateKey(ctx, feeInfo.VotingAddress)
 	if err != nil {
 		log.Errorf("failed to retrieve privkey for %v: %v", feeInfo.VotingAddress, err)
 		return nil, err
 	}
 
 	// Retrieve voting preferences
-	agendaChoices, _, err := v.w.AgendaChoices(ctx, &ticketHash)
+	agendaChoices, _, err := v.cfg.Wallet.AgendaChoices(ctx, &ticketHash)
 	if err != nil {
 		log.Errorf("failed to retrieve agenda choices for %v: %v", ticketHash, err)
 		return nil, err
@@ -222,7 +222,7 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash chainhash.Hash, feeTx *wire
 		log.Errorf("failed to create new http request: %v", err)
 		return nil, err
 	}
-	signature, err := v.w.SignMessage(ctx, string(requestBody), feeInfo.CommitmentAddress)
+	signature, err := v.cfg.Wallet.SignMessage(ctx, string(requestBody), feeInfo.CommitmentAddress)
 	if err != nil {
 		log.Errorf("failed to sign feeAddress request: %v", err)
 		return nil, err
