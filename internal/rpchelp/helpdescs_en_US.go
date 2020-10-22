@@ -31,6 +31,7 @@ var helpDescsEnUS = map[string]string{
 	"addmultisigaddress-nrequired": "The number of signatures required to redeem outputs paid to this address",
 	"addmultisigaddress--result0":  "The imported pay-to-script-hash address",
 
+	// AddTransactionCmd help.
 	"addtransaction--synopsis":   "Manually record a transaction mined in a main chain block",
 	"addtransaction-blockhash":   "Hash of block which mines transaction",
 	"addtransaction-transaction": "Hex-encoded serialized transaction",
@@ -58,6 +59,15 @@ var helpDescsEnUS = map[string]string{
 	"createmultisigresult-address":      "The generated pay-to-script-hash address",
 	"createmultisigresult-redeemScript": "The script required to redeem outputs paid to the multisig address",
 
+	// CreateMultisigResult help.
+	"createsignatureresult-signature": "The hex encoded signature.",
+	"createsignatureresult-publickey": "The hex encoded serialized compressed pubkey of the address.",
+
+	// CreateNewAccountCmd help.
+	"createnewaccount--synopsis": "Creates a new account.\n" +
+		"The wallet must be unlocked for this request to succeed.",
+	"createnewaccount-account": "Name of the new account",
+
 	// CreateRawTransactionCmd help.
 	"createrawtransaction--synopsis": "Returns a new transaction spending the provided inputs and sending to the provided addresses.\n" +
 		"The transaction inputs are not signed in the created transaction.\n" +
@@ -70,10 +80,6 @@ var helpDescsEnUS = map[string]string{
 	"createrawtransaction-locktime":       "Locktime value; a non-zero value will also locktime-activate the inputs",
 	"createrawtransaction-expiry":         "Expiry value; a non-zero value when the transaction expiry",
 	"createrawtransaction--result0":       "Hex-encoded bytes of the serialized transaction",
-
-	// CreateMultisigResult help.
-	"createsignatureresult-signature": "The hex encoded signature.",
-	"createsignatureresult-publickey": "The hex encoded serialized compressed pubkey of the address.",
 
 	// CreateSignatureCmd help.
 	"createsignature--synopsis":             "Generate a signature for a transaction input script.",
@@ -114,16 +120,16 @@ var helpDescsEnUS = map[string]string{
 	"generatevote-votebitsext": "The extended voteBits to set for the ticket",
 	"generatevoteresult-hex":   "The hex encoded transaction",
 
-	// GetAccountCmd help.
-	"getaccount--synopsis": "Lookup the account name that some wallet address belongs to.",
-	"getaccount-address":   "The address to query the account for",
-	"getaccount--result0":  "The name of the account that 'address' belongs to",
-
 	// GetAccountAddressCmd help.
 	"getaccountaddress--synopsis": "DEPRECATED -- Returns the most recent external payment address for an account that has not been seen publicly.\n" +
 		"A new address is generated for the account if the most recently generated address has been seen on the blockchain or in mempool.",
 	"getaccountaddress-account":  "The account of the returned address",
 	"getaccountaddress--result0": "The unused address for 'account'",
+
+	// GetAccountCmd help.
+	"getaccount--synopsis": "Lookup the account name that some wallet address belongs to.",
+	"getaccount-address":   "The address to query the account for",
+	"getaccount--result0":  "The name of the account that 'address' belongs to",
 
 	// GetAddressesByAccountCmd help.
 	"getaddressesbyaccount--synopsis": "DEPRECATED -- Returns all addresses strings controlled by a single account.",
@@ -153,9 +159,20 @@ var helpDescsEnUS = map[string]string{
 	"getbalanceresult-totalunconfirmed":               "Total number of unconfirmed coins.",
 	"getbalanceresult-totalvotingauthority":           "Total number of coins for voting authority.",
 
+	// GetBalanceToMaintainCmd help.
+	"getbalancetomaintain--synopsis": "Get the current balance to maintain",
+	"getbalancetomaintain--result0":  "The current balancetomaintain",
+
+	// GetBestBlockCmd help.
+	"getbestblock--synopsis": "Returns the hash and height of the newest block in the best chain that wallet has finished syncing with.",
+
 	// GetBestBlockHashCmd help.
 	"getbestblockhash--synopsis": "Returns the hash of the newest block in the best chain that wallet has finished syncing with.",
 	"getbestblockhash--result0":  "The hash of the most recent synced-to block",
+
+	// GetBestBlockResult help.
+	"getbestblockresult-hash":   "The hash of the block",
+	"getbestblockresult-height": "The blockchain height of the block",
 
 	// GetBlockCountCmd help.
 	"getblockcount--synopsis": "Returns the blockchain height of the newest block in the best chain that wallet has finished syncing with.",
@@ -165,6 +182,9 @@ var helpDescsEnUS = map[string]string{
 	"getblockhash--synopsis": "Returns the hash of a main chain block at some height",
 	"getblockhash-index":     "The block height",
 	"getblockhash--result0":  "The main chain block hash",
+
+	// GetInfoCmd help.
+	"getinfo--synopsis": "Returns a JSON object containing various state info.",
 
 	// GetMasterPubkey help.
 	"getmasterpubkey--synopsis": "Requests the master pubkey from the wallet.",
@@ -189,6 +209,12 @@ var helpDescsEnUS = map[string]string{
 	"getmultisigoutinforesult-redeemscript": "Hex of the redeeming script.",
 	"getmultisigoutinforesult-address":      "Script address.",
 
+	// GetNewAddressCmd help.
+	"getnewaddress--synopsis": "Generates and returns a new payment address.",
+	"getnewaddress-account":   "Account name the new address will belong to (default=\"default\")",
+	"getnewaddress-gappolicy": `String defining the policy to use when the BIP0044 gap limit would be violated, may be "error", "ignore", or "wrap"`,
+	"getnewaddress--result0":  "The payment address",
+
 	// GetPeerInfoCmd help.
 	"getpeerinfo--synopsis": "Returns data on remote peers when in spv mode.",
 
@@ -201,6 +227,23 @@ var helpDescsEnUS = map[string]string{
 	"getpeerinforesult-subver":         "The user agent of the peer",
 	"getpeerinforesult-startingheight": "The latest block height the peer knew about when the connection was established",
 	"getpeerinforesult-banscore":       "The ban score",
+
+	// GetRawChangeAddressCmd help.
+	"getrawchangeaddress--synopsis": "Generates and returns a new internal payment address for use as a change address in raw transactions.",
+	"getrawchangeaddress-account":   "Account name the new internal address will belong to (default=\"default\")",
+	"getrawchangeaddress--result0":  "The internal payment address",
+
+	// GetReceivedByAccountCmd help.
+	"getreceivedbyaccount--synopsis": "Returns the total amount received by addresses of some account, including spent outputs.",
+	"getreceivedbyaccount-account":   "Account name to query total received amount for",
+	"getreceivedbyaccount-minconf":   "Minimum number of block confirmations required before an output's value is included in the total",
+	"getreceivedbyaccount--result0":  "The total received amount valued in decred",
+
+	// GetReceivedByAddressCmd help.
+	"getreceivedbyaddress--synopsis": "Returns the total amount received by a single address, including spent outputs.",
+	"getreceivedbyaddress-address":   "Payment address which received outputs to include in total",
+	"getreceivedbyaddress-minconf":   "Minimum number of block confirmations required before an output's value is included in the total",
+	"getreceivedbyaddress--result0":  "The total received amount valued in decred",
 
 	// GetStakeInfo help.
 	"getstakeinfo--synopsis": "Returns statistics about staking from the wallet.",
@@ -223,87 +266,30 @@ var helpDescsEnUS = map[string]string{
 	"getstakeinforesult-unspent":          "Number of unspent tickets",
 	"getstakeinforesult-unspentexpired":   "Number of unspent tickets which are past expiry",
 
-	// GetTickets help.
-	"gettickets--synopsis":       "Returning the hashes of the tickets currently owned by wallet.",
-	"gettickets-includeimmature": "If true include immature tickets in the results.",
-
-	// GetVoteChoices help.
-	"getvotechoices--synopsis":  "Retrieve the currently configured default vote choices for the latest supported stake agendas",
-	"getvotechoices-tickethash": "The hash of the ticket to return vote choices for. If the ticket has no choices set, the default vote choices are returned",
-
-	// GetVoteChoicesResult help.
-	"getvotechoicesresult-version": "The latest stake version supported by the software and the version of the included agendas",
-	"getvotechoicesresult-choices": "The currently configured agenda vote choices, including abstaining votes",
-
-	// VoteChoice help.
-	"votechoice-agendaid":          "The ID for the agenda the choice concerns",
-	"votechoice-agendadescription": "A description of the agenda the choice concerns",
-	"votechoice-choiceid":          "The ID of the current choice for this agenda",
-	"votechoice-choicedescription": "A description of the current choice for this agenda",
-
 	// GetTicketMaxPrice help.
 	"getticketmaxprice--synopsis": "Returns the max price the wallet will pay for a ticket.",
 	"getticketmaxprice--result0":  "Max price wallet will spend on a ticket.",
 
+	// GetTickets help.
+	"gettickets--synopsis":       "Returning the hashes of the tickets currently owned by wallet.",
+	"gettickets-includeimmature": "If true include immature tickets in the results.",
+
 	// GetTicketsResult help.
 	"getticketsresult-hashes": "Hashes of the tickets owned by the wallet encoded as strings",
-
-	// GetInfoCmd help.
-	"getinfo--synopsis": "Returns a JSON object containing various state info.",
-
-	// InfoResult help.
-	"inforesult-version":         "The version of the server",
-	"inforesult-protocolversion": "The latest supported protocol version",
-	"inforesult-blocks":          "The number of blocks processed",
-	"inforesult-timeoffset":      "The time offset",
-	"inforesult-connections":     "The number of connected peers",
-	"inforesult-proxy":           "The proxy used by the server",
-	"inforesult-difficulty":      "The current target difficulty",
-	"inforesult-testnet":         "Whether or not server is using testnet",
-	"inforesult-relayfee":        "The minimum relay fee for non-free transactions in DCR/KB",
-	"inforesult-errors":          "Any current errors",
-	"inforesult-paytxfee":        "The fee per kB of the serialized tx size used each time more fee is required for an authored transaction",
-	"inforesult-balance":         "The balance of all accounts calculated with one block confirmation",
-	"inforesult-walletversion":   "The version of the address manager database",
-	"inforesult-unlocked_until":  "Unset",
-	"inforesult-keypoolsize":     "Unset",
-	"inforesult-keypoololdest":   "Unset",
-
-	// GetNewAddressCmd help.
-	"getnewaddress--synopsis": "Generates and returns a new payment address.",
-	"getnewaddress-account":   "Account name the new address will belong to (default=\"default\")",
-	"getnewaddress-gappolicy": `String defining the policy to use when the BIP0044 gap limit would be violated, may be "error", "ignore", or "wrap"`,
-	"getnewaddress--result0":  "The payment address",
-
-	// GetRawChangeAddressCmd help.
-	"getrawchangeaddress--synopsis": "Generates and returns a new internal payment address for use as a change address in raw transactions.",
-	"getrawchangeaddress-account":   "Account name the new internal address will belong to (default=\"default\")",
-	"getrawchangeaddress--result0":  "The internal payment address",
-
-	// GetReceivedByAccountCmd help.
-	"getreceivedbyaccount--synopsis": "Returns the total amount received by addresses of some account, including spent outputs.",
-	"getreceivedbyaccount-account":   "Account name to query total received amount for",
-	"getreceivedbyaccount-minconf":   "Minimum number of block confirmations required before an output's value is included in the total",
-	"getreceivedbyaccount--result0":  "The total received amount valued in decred",
-
-	// GetReceivedByAddressCmd help.
-	"getreceivedbyaddress--synopsis": "Returns the total amount received by a single address, including spent outputs.",
-	"getreceivedbyaddress-address":   "Payment address which received outputs to include in total",
-	"getreceivedbyaddress-minconf":   "Minimum number of block confirmations required before an output's value is included in the total",
-	"getreceivedbyaddress--result0":  "The total received amount valued in decred",
 
 	// GetTransactionCmd help.
 	"gettransaction--synopsis":        "Returns a JSON object with details regarding a transaction relevant to this wallet.",
 	"gettransaction-txid":             "Hash of the transaction to query",
 	"gettransaction-includewatchonly": "Also consider transactions involving watched addresses",
 
-	// HelpCmd help.
-	"help--synopsis":   "Returns a list of all commands or help for a specified command.",
-	"help-command":     "The command to retrieve help for",
-	"help--condition0": "no command provided",
-	"help--condition1": "command specified",
-	"help--result0":    "List of commands",
-	"help--result1":    "Help for specified command",
+	// GetTransactionDetailsResult help.
+	"gettransactiondetailsresult-account":           "DEPRECATED -- Unset",
+	"gettransactiondetailsresult-address":           "The address an output was paid to, or the empty string if the output is nonstandard or this detail is regarding a transaction input",
+	"gettransactiondetailsresult-category":          `The kind of detail: "send" for sent transactions, "immature" for immature coinbase outputs, "generate" for mature coinbase outputs, or "recv" for all other received outputs`,
+	"gettransactiondetailsresult-amount":            "The amount of a received output",
+	"gettransactiondetailsresult-fee":               "The included fee for a sent transaction",
+	"gettransactiondetailsresult-vout":              "The transaction output index",
+	"gettransactiondetailsresult-involveswatchonly": "Unset",
 
 	// GetTransactionResult help.
 	"gettransactionresult-amount":          "The total amount this transaction credits to the wallet, valued in decred",
@@ -321,14 +307,30 @@ var helpDescsEnUS = map[string]string{
 	"gettransactionresult-type":            "The type of transaction (regular, ticket, vote, or revocation)",
 	"gettransactionresult-ticketstatus":    "Status of ticket (if transaction is a ticket)",
 
-	// GetTransactionDetailsResult help.
-	"gettransactiondetailsresult-account":           "DEPRECATED -- Unset",
-	"gettransactiondetailsresult-address":           "The address an output was paid to, or the empty string if the output is nonstandard or this detail is regarding a transaction input",
-	"gettransactiondetailsresult-category":          `The kind of detail: "send" for sent transactions, "immature" for immature coinbase outputs, "generate" for mature coinbase outputs, or "recv" for all other received outputs`,
-	"gettransactiondetailsresult-amount":            "The amount of a received output",
-	"gettransactiondetailsresult-fee":               "The included fee for a sent transaction",
-	"gettransactiondetailsresult-vout":              "The transaction output index",
-	"gettransactiondetailsresult-involveswatchonly": "Unset",
+	// GetUnconfirmedBalanceCmd help.
+	"getunconfirmedbalance--synopsis": "Calculates the unspent output value of all unmined transaction outputs for an account.",
+	"getunconfirmedbalance-account":   "The account to query the unconfirmed balance for (default=\"default\")",
+	"getunconfirmedbalance--result0":  "Total amount of all unmined unspent outputs of the account valued in decred.",
+
+	// GetVoteChoices help.
+	"getvotechoices--synopsis":  "Retrieve the currently configured default vote choices for the latest supported stake agendas",
+	"getvotechoices-tickethash": "The hash of the ticket to return vote choices for. If the ticket has no choices set, the default vote choices are returned",
+
+	// GetVoteChoicesResult help.
+	"getvotechoicesresult-version": "The latest stake version supported by the software and the version of the included agendas",
+	"getvotechoicesresult-choices": "The currently configured agenda vote choices, including abstaining votes",
+
+	// GetWalletFeeCmd help.
+	"getwalletfee--synopsis": "Get currently set transaction fee for the wallet",
+	"getwalletfee--result0":  "Current tx fee (in DCR)",
+
+	// HelpCmd help.
+	"help--synopsis":   "Returns a list of all commands or help for a specified command.",
+	"help-command":     "The command to retrieve help for",
+	"help--condition0": "no command provided",
+	"help--condition1": "command specified",
+	"help--result0":    "List of commands",
+	"help--result1":    "Help for specified command",
 
 	// ImportCFiltersV2Cmd help.
 	"importcfiltersv2--synopsis":   "Imports a list of v2 cfilters into the wallet. Does not perform validation on the filters",
@@ -353,17 +355,23 @@ var helpDescsEnUS = map[string]string{
 	"importxpub-name":      "Name of new account",
 	"importxpub-xpub":      "Extended public key",
 
-	// MixAccount help.
-	"mixaccount--synopsis": "Mix all outputs of an account.",
-	"mixaccount-account":   "Account to mix",
-
-	// MixOutput help.
-	"mixoutput--synopsis": "Mix a specific output.",
-	"mixoutput-outpoint":  `Outpoint (in form "txhash:index") to mix`,
-
-	// LockAccountCmd help.
-	"lockaccount--synopsis": "Lock an individually-encrypted account",
-	"lockaccount-account":   "Account to lock",
+	// InfoResult help.
+	"inforesult-version":         "The version of the server",
+	"inforesult-protocolversion": "The latest supported protocol version",
+	"inforesult-blocks":          "The number of blocks processed",
+	"inforesult-timeoffset":      "The time offset",
+	"inforesult-connections":     "The number of connected peers",
+	"inforesult-proxy":           "The proxy used by the server",
+	"inforesult-difficulty":      "The current target difficulty",
+	"inforesult-testnet":         "Whether or not server is using testnet",
+	"inforesult-relayfee":        "The minimum relay fee for non-free transactions in DCR/KB",
+	"inforesult-errors":          "Any current errors",
+	"inforesult-paytxfee":        "The fee per kB of the serialized tx size used each time more fee is required for an authored transaction",
+	"inforesult-balance":         "The balance of all accounts calculated with one block confirmation",
+	"inforesult-walletversion":   "The version of the address manager database",
+	"inforesult-unlocked_until":  "Unset",
+	"inforesult-keypoolsize":     "Unset",
+	"inforesult-keypoololdest":   "Unset",
 
 	// ListAccountsCmd help.
 	"listaccounts--synopsis":       "DEPRECATED -- Returns a JSON object of all accounts and their balances.",
@@ -372,15 +380,18 @@ var helpDescsEnUS = map[string]string{
 	"listaccounts--result0--key":   "The account name",
 	"listaccounts--result0--value": "The account balance valued in decred",
 
+	// ListAddressTransactionsCmd help.
+	"listaddresstransactions--synopsis": "Returns a JSON array of objects containing verbose details for wallet transactions pertaining some addresses.",
+	"listaddresstransactions-addresses": "Addresses to filter transaction results by",
+	"listaddresstransactions-account":   "Unused (must be unset or \"*\")",
+
+	// ListAllTransactionsCmd help.
+	"listalltransactions--synopsis": "Returns a JSON array of objects in the same format as 'listtransactions' without limiting the number of returned objects.",
+	"listalltransactions-account":   "Unused (must be unset or \"*\")",
+
 	// ListLockUnspentCmd help.
 	"listlockunspent--synopsis": "Returns a JSON array of outpoints marked as locked (with lockunspent) for this wallet session.",
 	"listlockunspent-account":   "If set, only returns outpoints from this account that are marked as locked",
-
-	// TransactionInput help.
-	"transactioninput-amount": "The the previous output amount",
-	"transactioninput-txid":   "The transaction hash of the referenced output",
-	"transactioninput-vout":   "The output index of the referenced output",
-	"transactioninput-tree":   "The tree to generate transaction for",
 
 	// ListReceivedByAccountCmd help.
 	"listreceivedbyaccount--synopsis":        "Returns a JSON array of objects listing all accounts and the total amount received by each account.",
@@ -421,6 +432,13 @@ var helpDescsEnUS = map[string]string{
 	"listsinceblockresult-transactions": "JSON array of objects containing verbose details of the each transaction",
 	"listsinceblockresult-lastblock":    "Hash of the latest-synced block to be used in later calls to listsinceblock",
 
+	// ListTransactionsCmd help.
+	"listtransactions--synopsis":        "Returns a JSON array of objects containing verbose details for wallet transactions.",
+	"listtransactions-account":          "DEPRECATED -- Unused (must be unset or \"*\")",
+	"listtransactions-count":            "Maximum number of transactions to create results from",
+	"listtransactions-from":             "Number of transactions to skip before results are created",
+	"listtransactions-includewatchonly": "Unused",
+
 	// ListTransactionsResult help.
 	"listtransactionsresult-account":           "DEPRECATED -- Unset",
 	"listtransactionsresult-address":           "Payment address for a transaction output",
@@ -442,13 +460,6 @@ var helpDescsEnUS = map[string]string{
 	"listtransactionsresult-otheraccount":      "Unset",
 	"listtransactionsresult-txtype":            "The type of tx (regular tx, stake tx)",
 
-	// ListTransactionsCmd help.
-	"listtransactions--synopsis":        "Returns a JSON array of objects containing verbose details for wallet transactions.",
-	"listtransactions-account":          "DEPRECATED -- Unused (must be unset or \"*\")",
-	"listtransactions-count":            "Maximum number of transactions to create results from",
-	"listtransactions-from":             "Number of transactions to skip before results are created",
-	"listtransactions-includewatchonly": "Unused",
-
 	// ListUnspentCmd help.
 	"listunspent--synopsis": "Returns a JSON array of objects representing unlocked unspent outputs controlled by wallet keys.",
 	"listunspent-minconf":   "Minimum number of block confirmations required before a transaction output is considered",
@@ -469,6 +480,10 @@ var helpDescsEnUS = map[string]string{
 	"listunspentresult-txtype":        "The type of the transaction",
 	"listunspentresult-tree":          "The tree the transaction comes from",
 
+	// LockAccountCmd help.
+	"lockaccount--synopsis": "Lock an individually-encrypted account",
+	"lockaccount-account":   "Account to lock",
+
 	// LockUnspentCmd help.
 	"lockunspent--synopsis": "Locks or unlocks an unspent output.\n" +
 		"Locked outputs are not chosen for transaction inputs of authored transactions and are not included in 'listunspent' results.\n" +
@@ -477,6 +492,58 @@ var helpDescsEnUS = map[string]string{
 	"lockunspent-unlock":       "True to unlock outputs, false to lock",
 	"lockunspent-transactions": "Transaction outputs to lock or unlock",
 	"lockunspent--result0":     "The boolean 'true'",
+
+	// MixAccount help.
+	"mixaccount--synopsis": "Mix all outputs of an account.",
+	"mixaccount-account":   "Account to mix",
+
+	// MixOutput help.
+	"mixoutput--synopsis": "Mix a specific output.",
+	"mixoutput-outpoint":  `Outpoint (in form "txhash:index") to mix`,
+
+	// PurchaseTicketCmd help.
+	"purchaseticket--synopsis":          "Purchase ticket using available funds.",
+	"purchaseticket--result0":           "Hash of the resulting ticket",
+	"purchaseticket-spendlimit":         "Limit on the amount to spend on ticket",
+	"purchaseticket-fromaccount":        "The account to use for purchase (default=\"default\")",
+	"purchaseticket-minconf":            "Minimum number of block confirmations required",
+	"purchaseticket-ticketaddress":      "Override the ticket address to which voting rights are given",
+	"purchaseticket-numtickets":         "The number of tickets to purchase",
+	"purchaseticket-pooladdress":        "The address to pay stake pool fees to",
+	"purchaseticket-poolfees":           "The amount of fees to pay to the stake pool",
+	"purchaseticket-expiry":             "Height at which the purchase tickets expire",
+	"purchaseticket-nosplittransaction": "Use ticket purchase change outputs instead of a split transaction",
+	"purchaseticket-comment":            "Unused",
+	"purchaseticket-dontsigntx":         "Return unsigned split and ticket transactions instead of signing and publishing",
+
+	// RedeemMultiSigout help.
+	"redeemmultisigout--synopsis": "Takes the input and constructs a P2PKH paying to the specified address.",
+	"redeemmultisigout-address":   "Address to pay to.",
+	"redeemmultisigout-tree":      "Tree the transaction is on.",
+	"redeemmultisigout-index":     "Idx of the input transaction",
+	"redeemmultisigout-hash":      "Hash of the input transaction",
+
+	"redeemmultisigoutresult-errors":   "Any errors generated.",
+	"redeemmultisigoutresult-complete": "Shows if opperation was completed.",
+	"redeemmultisigoutresult-hex":      "Resulting hash.",
+
+	// RedeemMultiSigouts help.
+	"redeemmultisigouts--synopsis":      "Takes a hash, looks up all unspent outpoints and generates list artially signed transactions spending to either an address specified or internal addresses",
+	"redeemmultisigouts-number":         "Number of outpoints found.",
+	"redeemmultisigouts-toaddress":      "Address to look for (if not internal addresses).",
+	"redeemmultisigouts-fromscraddress": "Input script hash address.",
+
+	// RenameAccountCmd help.
+	"renameaccount--synopsis":  "Renames an account.",
+	"renameaccount-oldaccount": "The old account name to rename",
+	"renameaccount-newaccount": "The new name for the account",
+
+	// RescanWallet help.
+	"rescanwallet--synopsis":   "Rescan the block chain for wallet data, blocking until the rescan completes or exits with an error",
+	"rescanwallet-beginheight": "The height of the first block to begin the rescan from",
+
+	// RevokeTickets help.
+	"revoketickets--synopsis": "Requests the wallet create revovactions for any previously missed tickets.  Wallet must be unlocked.",
 
 	// SendFromCmd help.
 	"sendfrom--synopsis": "Authors, signs, and sends a transaction that outputs some amount to a payment address.\n" +
@@ -498,11 +565,6 @@ var helpDescsEnUS = map[string]string{
 	"sendfromtreasury-amounts--value": "Amount to send to the payment address valued in decred",
 	"sendfromtreasury--result0":       "The transaction hash of the sent transaction",
 
-	// SendToTreasuryCmd help.
-	"sendtotreasury--synopsis": "Send decred to treasury",
-	"sendtotreasury-amount":    "Amount to send to treasury",
-	"sendtotreasury--result0":  "The transaction hash of the sent transaction",
-
 	// SendManyCmd help.
 	"sendmany--synopsis": "Authors, signs, and sends a transaction that outputs to many payment addresses.\n" +
 		"A change output is automatically included to send extra output value back to the original account.",
@@ -514,6 +576,12 @@ var helpDescsEnUS = map[string]string{
 	"sendmany-minconf":        "Minimum number of block confirmations required before a transaction output is eligible to be spent",
 	"sendmany-comment":        "Unused",
 	"sendmany--result0":       "The transaction hash of the sent transaction",
+
+	// SendRawTransactionCmd help.
+	"sendrawtransaction--synopsis":     "Submits the serialized, hex-encoded transaction to the local peer and relays it to the network.",
+	"sendrawtransaction-hextx":         "Serialized, hex-encoded signed transaction",
+	"sendrawtransaction-allowhighfees": "Whether or not to allow insanely high fees",
+	"sendrawtransaction--result0":      "The transaction hash of the sent transaction",
 
 	// SendToAddressCmd help.
 	"sendtoaddress--synopsis": "Authors, signs, and sends a transaction that outputs some amount to a payment address.\n" +
@@ -537,21 +605,32 @@ var helpDescsEnUS = map[string]string{
 	"sendtomultisig-comment":     "Unused",
 	"sendtomultisig--result0":    "The transaction hash of the sent transaction",
 
+	// SendToTreasuryCmd help.
+	"sendtotreasury--synopsis": "Send decred to treasury",
+	"sendtotreasury-amount":    "Amount to send to treasury",
+	"sendtotreasury--result0":  "The transaction hash of the sent transaction",
+
+	// SetAccountPassphraseCmd help.
 	"setaccountpassphrase--synopsis": "Individually encrypt or change per-account passphrase",
 	"setaccountpassphrase-account":   "Account to modify",
 	"setaccountpassphrase-passphrase": "New passphrase to use.\n" +
 		"If this is the empty string, the account passphrase is removed and the account becomes encrypted by the global wallet passhprase.",
 
-	// SendRawTransactionCmd help.
-	"sendrawtransaction--synopsis":     "Submits the serialized, hex-encoded transaction to the local peer and relays it to the network.",
-	"sendrawtransaction-hextx":         "Serialized, hex-encoded signed transaction",
-	"sendrawtransaction-allowhighfees": "Whether or not to allow insanely high fees",
-	"sendrawtransaction--result0":      "The transaction hash of the sent transaction",
+	// SetBalanceToMaintainCmd help.
+	"setbalancetomaintain--synopsis": "Modify the balance for wallet to maintain for automatic ticket purchasing",
+	"setbalancetomaintain-balance":   "The new balance for wallet to maintain for automatic ticket purchasing",
+	"setbalancetomaintain--result0":  "Should return nothing",
 
 	// SetGenerate help
 	"setgenerate--synopsis":    "Enable or disable stake mining",
 	"setgenerate-generate":     "True to enable stake mining, false to disable.",
 	"setgenerate-genproclimit": "Not used for stake mining",
+
+	// SetMixedAccountCmd help.
+	"getcoinjoinsbyacct--synopsis":       "Get coinjoin outputs by account.",
+	"getcoinjoinsbyacct--result0--desc":  "Return a map of account's name and its coinjoin outputs sum.",
+	"getcoinjoinsbyacct--result0--value": "Coinjoin outputs sum.",
+	"getcoinjoinsbyacct--result0--key":   "Accounts name",
 
 	// SetTicketMaxPrice help.
 	"setticketmaxprice--synopsis": "Set the max price user is willing to pay for a ticket.",
@@ -582,17 +661,17 @@ var helpDescsEnUS = map[string]string{
 	"signrawtransaction-privkeys": "Additional WIF-encoded private keys to use when creating signatures",
 	"signrawtransaction-flags":    "Sighash flags",
 
-	// SignRawTransactionResult help.
-	"signrawtransactionresult-hex":      "The resulting transaction encoded as a hexadecimal string",
-	"signrawtransactionresult-complete": "Whether all input signatures have been created",
-	"signrawtransactionresult-errors":   "Script verification errors (if exists)",
-
 	// SignRawTransactionError help.
 	"signrawtransactionerror-error":     "Verification or signing error related to the input",
 	"signrawtransactionerror-sequence":  "Script sequence number",
 	"signrawtransactionerror-scriptSig": "The hex-encoded signature script",
 	"signrawtransactionerror-txid":      "The transaction hash of the referenced previous output",
 	"signrawtransactionerror-vout":      "The output index of the referenced previous output",
+
+	// SignRawTransactionResult help.
+	"signrawtransactionresult-hex":      "The resulting transaction encoded as a hexadecimal string",
+	"signrawtransactionresult-complete": "Whether all input signatures have been created",
+	"signrawtransactionresult-errors":   "Script verification errors (if exists)",
 
 	// SignRawTransactions help.
 	"signrawtransactions--synopsis": "Signs transaction inputs using private keys from this wallet and request for a list of transactions.\n",
@@ -604,6 +683,19 @@ var helpDescsEnUS = map[string]string{
 	"signedtransaction-txhash":          "The hash of the signed tx.",
 	"signedtransaction-sent":            "Tells if the transaction was sent.",
 	"signedtransaction-signingresult":   "Success or failure of signing.",
+
+	// StakePoolUserInfoCmd help.
+	"stakepooluserinfo--synopsis": "Get user info for stakepool",
+	"stakepooluserinfo-user":      "The id of the user to be looked up",
+
+	"stakepooluserinforesult-invalid": "A list of invalid tickets that the user has added",
+	"stakepooluserinforesult-tickets": "A list of valid tickets that the user has added",
+
+	"pooluserticket-spentbyheight": "The height in which the ticket was spent",
+	"pooluserticket-spentby":       "The vote in which the ticket was spent",
+	"pooluserticket-ticketheight":  "The height in which the ticket was added",
+	"pooluserticket-ticket":        "The hash of the added ticket",
+	"pooluserticket-status":        "The current status of the added ticket",
 
 	// SweepAccount help.
 	"sweepaccount--synopsis":             "Moves as much value as possible in a transaction from an account.\n",
@@ -617,6 +709,31 @@ var helpDescsEnUS = map[string]string{
 	"sweepaccountresult-totalpreviousoutputamount": "The total transaction input amount.",
 	"sweepaccountresult-totaloutputamount":         "The total transaction output amount.",
 	"sweepaccountresult-estimatedsignedsize":       "The estimated size of the transaction when signed.",
+
+	// TicketInfoCmd help.
+	"ticketinfo--synopsis":           "Returns details of each wallet ticket transaction",
+	"ticketinfo-startheight":         "Specify the starting block height to scan from",
+	"ticketinfo--result0":            "Array of objects describing each ticket",
+	"ticketinforesult-hash":          "Transaction hash of the ticket",
+	"ticketinforesult-cost":          "Amount paid to purchase the ticket; this may be greater than the ticket price at time of purchase",
+	"ticketinforesult-votingaddress": "Address of 0th output, which describes the requirements to spend the ticket",
+	"ticketinforesult-status":        "Description of ticket status (unknown, unmined, immature, mature, live, voted, missed, expired, unspent, revoked)",
+	"ticketinforesult-blockhash":     "Hash of block ticket is mined in",
+	"ticketinforesult-blockheight":   "Height of block ticket is mined in",
+	"ticketinforesult-vote":          "Transaction hash of vote which spends the ticket",
+	"ticketinforesult-revocation":    "Transaction hash of revocation which spends the ticket",
+	"ticketinforesult-choices":       "Vote preferences set for the ticket",
+
+	// TicketsForAddressCmd help.
+	"ticketsforaddress--synopsis": "Request all the tickets for an address.",
+	"ticketsforaddress-address":   "Address to look for.",
+	"ticketsforaddress--result0":  "Tickets owned by the specified address.",
+
+	// TransactionInput help.
+	"transactioninput-amount": "The the previous output amount",
+	"transactioninput-txid":   "The transaction hash of the referenced output",
+	"transactioninput-vout":   "The output index of the referenced output",
+	"transactioninput-tree":   "The tree to generate transaction for",
 
 	// UnlockAccountCmd help.
 	"unlockaccount--synopsis":  "Unlock an individually-encrypted account",
@@ -664,82 +781,11 @@ var helpDescsEnUS = map[string]string{
 	"version--result0--key":   "Program or API name",
 	"version--result0--value": "Object containing the semantic version",
 
-	// WalletLockCmd help.
-	"walletlock--synopsis": "Lock the wallet.",
-
-	// WalletPassphraseCmd help.
-	"walletpassphrase--synopsis":  "Unlock the wallet.",
-	"walletpassphrase-passphrase": "The wallet passphrase",
-	"walletpassphrase-timeout":    "The number of seconds to wait before the wallet automatically locks",
-
-	// WalletPubPassPhraseChangeCmd help
-	"walletpubpassphrasechange--synopsis":     "Change the wallet's public passphrase.",
-	"walletpubpassphrasechange-oldpassphrase": "The old wallet passphrase",
-	"walletpubpassphrasechange-newpassphrase": "The new wallet passphrase",
-
-	// WalletPassphraseChangeCmd help.
-	"walletpassphrasechange--synopsis":     "Change the wallet passphrase.",
-	"walletpassphrasechange-oldpassphrase": "The old wallet passphrase",
-	"walletpassphrasechange-newpassphrase": "The new wallet passphrase",
-
-	// CreateNewAccountCmd help.
-	"createnewaccount--synopsis": "Creates a new account.\n" +
-		"The wallet must be unlocked for this request to succeed.",
-	"createnewaccount-account": "Name of the new account",
-
-	// GetBestBlockCmd help.
-	"getbestblock--synopsis": "Returns the hash and height of the newest block in the best chain that wallet has finished syncing with.",
-
-	// GetBestBlockResult help.
-	"getbestblockresult-hash":   "The hash of the block",
-	"getbestblockresult-height": "The blockchain height of the block",
-
-	// GetUnconfirmedBalanceCmd help.
-	"getunconfirmedbalance--synopsis": "Calculates the unspent output value of all unmined transaction outputs for an account.",
-	"getunconfirmedbalance-account":   "The account to query the unconfirmed balance for (default=\"default\")",
-	"getunconfirmedbalance--result0":  "Total amount of all unmined unspent outputs of the account valued in decred.",
-
-	// ListAddressTransactionsCmd help.
-	"listaddresstransactions--synopsis": "Returns a JSON array of objects containing verbose details for wallet transactions pertaining some addresses.",
-	"listaddresstransactions-addresses": "Addresses to filter transaction results by",
-	"listaddresstransactions-account":   "Unused (must be unset or \"*\")",
-
-	// ListAllTransactionsCmd help.
-	"listalltransactions--synopsis": "Returns a JSON array of objects in the same format as 'listtransactions' without limiting the number of returned objects.",
-	"listalltransactions-account":   "Unused (must be unset or \"*\")",
-
-	// RedeemMultiSigout help.
-	"redeemmultisigout--synopsis": "Takes the input and constructs a P2PKH paying to the specified address.",
-	"redeemmultisigout-address":   "Address to pay to.",
-	"redeemmultisigout-tree":      "Tree the transaction is on.",
-	"redeemmultisigout-index":     "Idx of the input transaction",
-	"redeemmultisigout-hash":      "Hash of the input transaction",
-
-	"redeemmultisigoutresult-errors":   "Any errors generated.",
-	"redeemmultisigoutresult-complete": "Shows if opperation was completed.",
-	"redeemmultisigoutresult-hex":      "Resulting hash.",
-
-	// RedeemMultiSigouts help.
-	"redeemmultisigouts--synopsis":      "Takes a hash, looks up all unspent outpoints and generates list artially signed transactions spending to either an address specified or internal addresses",
-	"redeemmultisigouts-number":         "Number of outpoints found.",
-	"redeemmultisigouts-toaddress":      "Address to look for (if not internal addresses).",
-	"redeemmultisigouts-fromscraddress": "Input script hash address.",
-
-	// RescanWallet help.
-	"rescanwallet--synopsis":   "Rescan the block chain for wallet data, blocking until the rescan completes or exits with an error",
-	"rescanwallet-beginheight": "The height of the first block to begin the rescan from",
-
-	// RevokeTickets help.
-	"revoketickets--synopsis": "Requests the wallet create revovactions for any previously missed tickets.  Wallet must be unlocked.",
-
-	// RenameAccountCmd help.
-	"renameaccount--synopsis":  "Renames an account.",
-	"renameaccount-oldaccount": "The old account name to rename",
-	"renameaccount-newaccount": "The new name for the account",
-
-	// WalletIsLockedCmd help.
-	"walletislocked--synopsis": "Returns whether or not the wallet is locked.",
-	"walletislocked--result0":  "Whether the wallet is locked",
+	// VoteChoice help.
+	"votechoice-agendaid":          "The ID for the agenda the choice concerns",
+	"votechoice-agendadescription": "A description of the agenda the choice concerns",
+	"votechoice-choiceid":          "The ID of the current choice for this agenda",
+	"votechoice-choicedescription": "A description of the current choice for this agenda",
 
 	// WalletInfoCmd help.
 	"walletinfo--synopsis":              "Returns global information about the wallet",
@@ -753,75 +799,25 @@ var helpDescsEnUS = map[string]string{
 	"walletinforesult-voting":           "Whether or not the wallet is currently voting tickets",
 	"walletinforesult-manualtickets":    "Whether or not the wallet is only accepting tickets manually",
 
-	// TODO Alphabetize
+	// WalletIsLockedCmd help.
+	"walletislocked--synopsis": "Returns whether or not the wallet is locked.",
+	"walletislocked--result0":  "Whether the wallet is locked",
 
-	// GetWalletFeeCmd help.
-	"getwalletfee--synopsis": "Get currently set transaction fee for the wallet",
-	"getwalletfee--result0":  "Current tx fee (in DCR)",
+	// WalletLockCmd help.
+	"walletlock--synopsis": "Lock the wallet.",
 
-	// StakePoolUserInfoCmd help.
-	"stakepooluserinfo--synopsis": "Get user info for stakepool",
-	"stakepooluserinfo-user":      "The id of the user to be looked up",
+	// WalletPassphraseChangeCmd help.
+	"walletpassphrasechange--synopsis":     "Change the wallet passphrase.",
+	"walletpassphrasechange-oldpassphrase": "The old wallet passphrase",
+	"walletpassphrasechange-newpassphrase": "The new wallet passphrase",
 
-	"stakepooluserinforesult-invalid": "A list of invalid tickets that the user has added",
-	"stakepooluserinforesult-tickets": "A list of valid tickets that the user has added",
+	// WalletPassphraseCmd help.
+	"walletpassphrase--synopsis":  "Unlock the wallet.",
+	"walletpassphrase-passphrase": "The wallet passphrase",
+	"walletpassphrase-timeout":    "The number of seconds to wait before the wallet automatically locks",
 
-	"pooluserticket-spentbyheight": "The height in which the ticket was spent",
-	"pooluserticket-spentby":       "The vote in which the ticket was spent",
-	"pooluserticket-ticketheight":  "The height in which the ticket was added",
-	"pooluserticket-ticket":        "The hash of the added ticket",
-	"pooluserticket-status":        "The current status of the added ticket",
-
-	"scriptinfo-redeemscript": "The redeem script",
-	"scriptinfo-address":      "The script address",
-	"scriptinfo-hash160":      "The script hash",
-
-	// TicketsForAddressCmd help.
-	"ticketsforaddress--synopsis": "Request all the tickets for an address.",
-	"ticketsforaddress-address":   "Address to look for.",
-	"ticketsforaddress--result0":  "Tickets owned by the specified address.",
-
-	// TicketInfoCmd help.
-	"ticketinfo--synopsis":           "Returns details of each wallet ticket transaction",
-	"ticketinfo-startheight":         "Specify the starting block height to scan from",
-	"ticketinfo--result0":            "Array of objects describing each ticket",
-	"ticketinforesult-hash":          "Transaction hash of the ticket",
-	"ticketinforesult-cost":          "Amount paid to purchase the ticket; this may be greater than the ticket price at time of purchase",
-	"ticketinforesult-votingaddress": "Address of 0th output, which describes the requirements to spend the ticket",
-	"ticketinforesult-status":        "Description of ticket status (unknown, unmined, immature, mature, live, voted, missed, expired, unspent, revoked)",
-	"ticketinforesult-blockhash":     "Hash of block ticket is mined in",
-	"ticketinforesult-blockheight":   "Height of block ticket is mined in",
-	"ticketinforesult-vote":          "Transaction hash of vote which spends the ticket",
-	"ticketinforesult-revocation":    "Transaction hash of revocation which spends the ticket",
-	"ticketinforesult-choices":       "Vote preferences set for the ticket",
-
-	// PurchaseTicketCmd help.
-	"purchaseticket--synopsis":          "Purchase ticket using available funds.",
-	"purchaseticket--result0":           "Hash of the resulting ticket",
-	"purchaseticket-spendlimit":         "Limit on the amount to spend on ticket",
-	"purchaseticket-fromaccount":        "The account to use for purchase (default=\"default\")",
-	"purchaseticket-minconf":            "Minimum number of block confirmations required",
-	"purchaseticket-ticketaddress":      "Override the ticket address to which voting rights are given",
-	"purchaseticket-numtickets":         "The number of tickets to purchase",
-	"purchaseticket-pooladdress":        "The address to pay stake pool fees to",
-	"purchaseticket-poolfees":           "The amount of fees to pay to the stake pool",
-	"purchaseticket-expiry":             "Height at which the purchase tickets expire",
-	"purchaseticket-nosplittransaction": "Use ticket purchase change outputs instead of a split transaction",
-	"purchaseticket-comment":            "Unused",
-	"purchaseticket-dontsigntx":         "Return unsigned split and ticket transactions instead of signing and publishing",
-
-	// SetBalanceToMaintainCmd help.
-	"setbalancetomaintain--synopsis": "Modify the balance for wallet to maintain for automatic ticket purchasing",
-	"setbalancetomaintain-balance":   "The new balance for wallet to maintain for automatic ticket purchasing",
-	"setbalancetomaintain--result0":  "Should return nothing",
-
-	// GetBalanceToMaintainCmd help.
-	"getbalancetomaintain--synopsis": "Get the current balance to maintain",
-	"getbalancetomaintain--result0":  "The current balancetomaintain",
-
-	// SetMixedAccountCmd help.
-	"getcoinjoinsbyacct--synopsis":       "Get coinjoin outputs by account.",
-	"getcoinjoinsbyacct--result0--desc":  "Return a map of account's name and its coinjoin outputs sum.",
-	"getcoinjoinsbyacct--result0--value": "Coinjoin outputs sum.",
-	"getcoinjoinsbyacct--result0--key":   "Accounts name",
+	// WalletPubPassPhraseChangeCmd help
+	"walletpubpassphrasechange--synopsis":     "Change the wallet's public passphrase.",
+	"walletpubpassphrasechange-oldpassphrase": "The old wallet passphrase",
+	"walletpubpassphrasechange-newpassphrase": "The new wallet passphrase",
 }

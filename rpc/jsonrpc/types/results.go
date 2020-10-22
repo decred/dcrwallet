@@ -185,14 +185,6 @@ type InfoResult struct {
 // InfoWalletResult aliases InfoResult.
 type InfoWalletResult = InfoResult
 
-// ScriptInfo is the structure representing a redeem script, its hash,
-// and its address.
-type ScriptInfo struct {
-	Hash160      string `json:"hash160"`
-	Address      string `json:"address"`
-	RedeemScript string `json:"redeemscript"`
-}
-
 // ListTransactionsTxType defines the type used in the listtransactions JSON-RPC
 // result for the TxType command field.
 type ListTransactionsTxType string
