@@ -2475,6 +2475,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	}
 	params := wallet.ChainParams()
 
+	ctx := svr.Context()
 	// Legacy vsp request. After stopping supporting the old vsp version, this
 	// code can be removed.
 	// Confirm validity of provided voting addresses and pool addresses.
@@ -2519,12 +2520,46 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	if req.BalanceToMaintain < 0 {
 		return status.Errorf(codes.InvalidArgument, "Negative balance to maintain given")
 	}
+
+	var csppServer string
+	var mixedAccount uint32
+	var mixedAccountBranch uint32
+	var mixedSplitAccount uint32
+	var changeAccount = req.ChangeAccount
+	var mixedChange = false
+
+	if req.CsppServer != "" {
+		mixedChange = true
+		csppServer = req.CsppServer
+		mixedAccount = req.MixedAccount
+		_, err = wallet.AccountName(ctx, mixedAccount)
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument,
+				"CSPP Server set, but error on mixed account: %v", err)
+		}
+		mixedAccountBranch = req.MixedAccountBranch
+		if mixedAccountBranch != 0 && mixedAccountBranch != 1 {
+			return status.Errorf(codes.InvalidArgument,
+				"MixedAccountBranch should be 0 or 1.")
+		}
+		mixedSplitAccount = req.MixedSplitAccount
+		_, err = wallet.AccountName(ctx, mixedSplitAccount)
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument,
+				"CSPP Server set, but error on mixedSplitAccount: %v", err)
+		}
+		_, err = wallet.AccountName(ctx, changeAccount)
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument,
+				"CSPP Server set, but error on changeAccount: %v", err)
+		}
+	}
+
 	// set limit. If it is not informed by the request it is used 0, which
 	// is defaulted to 20.
 	limit := int(req.Limit)
 
 	tb := ticketbuyer.New(wallet)
-
 	// Set ticketbuyerV2 config
 	tb.AccessConfig(func(c *ticketbuyer.Config) {
 		c.BuyTickets = true
@@ -2536,6 +2571,12 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		c.PoolFeeAddr = poolAddress
 		c.PoolFees = req.PoolFees
 		c.VSP = vspServer
+		c.MixedAccount = mixedAccount
+		c.MixChange = mixedChange
+		c.CSPPServer = csppServer
+		c.ChangeAccount = changeAccount
+		c.MixedAccountBranch = mixedAccountBranch
+		c.TicketSplitAccount = mixedSplitAccount
 		c.Limit = limit
 	})
 

@@ -838,6 +838,11 @@ message RunTicketBuyerRequest {
 	string vsp_host = 8;
 	string vsp_pubkey = 9;
 	int32 limit = 10;
+	string cspp_server = 11;
+	uint32 mixed_account = 12;
+	uint32 mixed_account_branch = 13;
+	uint32 mixed_split_account = 14;
+	uint32 change_account = 15;
 }
 
 message RunTicketBuyerResponse {}
