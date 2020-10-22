@@ -507,6 +507,28 @@ func (w *Wallet) TreasuryKeyPolicy(pikey []byte) stake.TreasuryVoteT {
 	return w.tspendVotePolicy[string(pikey)]
 }
 
+// TreasuryKeyPolicy records the voting policy for treasury spend transactions
+// by a particular key.
+type TreasuryKeyPolicy struct {
+	PiKey  []byte
+	Policy stake.TreasuryVoteT
+}
+
+// TreasuryKeyPolicies returns all configured policies for treasury keys.
+func (w *Wallet) TreasuryKeyPolicies() []TreasuryKeyPolicy {
+	w.stakeSettingsLock.Lock()
+	defer w.stakeSettingsLock.Unlock()
+
+	policies := make([]TreasuryKeyPolicy, 0, len(w.tspendVotePolicy))
+	for pikey, policy := range w.tspendVotePolicy {
+		policies = append(policies, TreasuryKeyPolicy{
+			PiKey:  []byte(pikey),
+			Policy: policy,
+		})
+	}
+	return policies
+}
+
 // SetTreasuryKeyPolicy sets a tspend vote policy for a specific Politeia
 // instance key.
 func (w *Wallet) SetTreasuryKeyPolicy(ctx context.Context, pikey []byte,

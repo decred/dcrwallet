@@ -902,6 +902,19 @@ func NewSendFromTreasuryCmd(pubkey string, amounts map[string]float64) *SendFrom
 	}
 }
 
+// TreasuryPolicyCmd defines the parameters for the treasurypolicy JSON-RPC
+// command.
+type TreasuryPolicyCmd struct {
+	Key *string
+}
+
+// SetTreasuryPolicyCmd defines the parameters for the settreasurypolicy
+// JSON-RPC command.
+type SetTreasuryPolicyCmd struct {
+	Key    string
+	Policy string
+}
+
 // SetTxFeeCmd defines the settxfee JSON-RPC command.
 type SetTxFeeCmd struct {
 	Amount float64 // In DCR
@@ -1201,6 +1214,7 @@ func init() {
 		{"sendtomultisig", (*SendToMultiSigCmd)(nil)},
 		{"sendtotreasury", (*SendToTreasuryCmd)(nil)},
 		{"setaccountpassphrase", (*SetAccountPassphraseCmd)(nil)},
+		{"settreasurypolicy", (*SetTreasuryPolicyCmd)(nil)},
 		{"settxfee", (*SetTxFeeCmd)(nil)},
 		{"setvotechoice", (*SetVoteChoiceCmd)(nil)},
 		{"signmessage", (*SignMessageCmd)(nil)},
@@ -1209,6 +1223,7 @@ func init() {
 		{"stakepooluserinfo", (*StakePoolUserInfoCmd)(nil)},
 		{"sweepaccount", (*SweepAccountCmd)(nil)},
 		{"ticketinfo", (*TicketInfoCmd)(nil)},
+		{"treasurypolicy", (*TreasuryPolicyCmd)(nil)},
 		{"unlockaccount", (*UnlockAccountCmd)(nil)},
 		{"validatepredcp0005cf", (*ValidatePreDCP0005CFCmd)(nil)},
 		{"walletinfo", (*WalletInfoCmd)(nil)},

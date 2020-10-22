@@ -360,6 +360,12 @@ type TicketInfoResult struct {
 	Choices       []VoteChoice `json:"choices,omitempty"`
 }
 
+// TreasuryPolicyResult models objects returned by the treasurypolicy command.
+type TreasuryPolicyResult struct {
+	Key    string `json:"key"`
+	Policy string `json:"policy"`
+}
+
 // ValidateAddressResult models the data returned by the wallet server
 // validateaddress command.
 type ValidateAddressResult struct {

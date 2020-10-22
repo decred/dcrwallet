@@ -636,6 +636,11 @@ var helpDescsEnUS = map[string]string{
 	"setticketmaxprice--synopsis": "Set the max price user is willing to pay for a ticket.",
 	"setticketmaxprice-max":       "The max price (in dcr).",
 
+	// SetTreasuryPolicyCmd help.
+	"settreasurypolicy--synopsis": "Set a voting policy for treasury spends by a particular key",
+	"settreasurypolicy-key":       "Treasury key to set policy for",
+	"settreasurypolicy-policy":    "Voting policy for a treasury key (invalid/abstain, yes, or no)",
+
 	// SetTxFeeCmd help.
 	"settxfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored transaction.",
 	"settxfee-amount":    "The new fee per kB of the serialized tx size valued in decred",
@@ -734,6 +739,17 @@ var helpDescsEnUS = map[string]string{
 	"transactioninput-txid":   "The transaction hash of the referenced output",
 	"transactioninput-vout":   "The output index of the referenced output",
 	"transactioninput-tree":   "The tree to generate transaction for",
+
+	// TreasuryPolicyCmd help.
+	"treasurypolicy--synopsis":   "Return voting policies for treasury spend transactions by key",
+	"treasurypolicy-key":         "Return the policy for a particular key",
+	"treasurypolicy--condition0": "no key provided",
+	"treasurypolicy--condition1": "key specified",
+	"treasurypolicy--result0":    "Array of all non-abstaining voting policies",
+	"treasurypolicy--result1":    "Voting policy for a particular treasury key",
+
+	"treasurypolicyresult-key":    "Treasury key associated with a policy",
+	"treasurypolicyresult-policy": "Voting policy description (abstain, yes, or no)",
 
 	// UnlockAccountCmd help.
 	"unlockaccount--synopsis":  "Unlock an individually-encrypted account",

@@ -138,6 +138,7 @@ var handlers = map[string]handler{
 	"sendtomultisig":          {fn: (*Server).sendToMultiSig},
 	"sendtotreasury":          {fn: (*Server).sendToTreasury},
 	"setaccountpassphrase":    {fn: (*Server).setAccountPassphrase},
+	"settreasurypolicy":       {fn: (*Server).setTreasuryPolicy},
 	"settxfee":                {fn: (*Server).setTxFee},
 	"setvotechoice":           {fn: (*Server).setVoteChoice},
 	"signmessage":             {fn: (*Server).signMessage},
@@ -147,6 +148,7 @@ var handlers = map[string]handler{
 	"sweepaccount":            {fn: (*Server).sweepAccount},
 	"ticketinfo":              {fn: (*Server).ticketInfo},
 	"ticketsforaddress":       {fn: (*Server).ticketsForAddress},
+	"treasurypolicy":          {fn: (*Server).treasuryPolicy},
 	"unlockaccount":           {fn: (*Server).unlockAccount},
 	"validateaddress":         {fn: (*Server).validateAddress},
 	"validatepredcp0005cf":    {fn: (*Server).validatePreDCP0005CF},
@@ -2949,6 +2951,89 @@ func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, 
 	}
 
 	return msgTx.TxHash().String(), nil
+}
+
+// treasuryPolicy returns voting policies for treasury spends by a particular
+// key.  If a key is specified, that policy is returned; otherwise the policies
+// for all keys are returned in an array.
+func (s *Server) treasuryPolicy(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.TreasuryPolicyCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	if cmd.Key != nil && *cmd.Key != "" {
+		pikey, err := hex.DecodeString(*cmd.Key)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+		}
+		var policy string
+		switch w.TreasuryKeyPolicy(pikey) {
+		case stake.TreasuryVoteYes:
+			policy = "yes"
+		case stake.TreasuryVoteNo:
+			policy = "no"
+		default:
+			policy = "abstain"
+		}
+		res := &types.TreasuryPolicyResult{
+			Key:    *cmd.Key,
+			Policy: policy,
+		}
+		return res, nil
+	}
+
+	policies := w.TreasuryKeyPolicies()
+	res := make([]types.TreasuryPolicyResult, 0, len(policies))
+	for i := range policies {
+		var policy string
+		switch policies[i].Policy {
+		case stake.TreasuryVoteYes:
+			policy = "yes"
+		case stake.TreasuryVoteNo:
+			policy = "no"
+		}
+		res = append(res, types.TreasuryPolicyResult{
+			Key:    hex.EncodeToString(policies[i].PiKey),
+			Policy: policy,
+		})
+	}
+	return res, nil
+}
+
+// setTreasuryPolicy saves the voting policy for treasury spends by a particular
+// key.
+func (s *Server) setTreasuryPolicy(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.SetTreasuryPolicyCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	pikey, err := hex.DecodeString(cmd.Key)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+	if len(pikey) != 32 {
+		err := errors.New("treasury key must be 32 bytes")
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+	}
+	var policy stake.TreasuryVoteT
+	switch cmd.Policy {
+	case "abstain", "invalid", "":
+		policy = stake.TreasuryVoteInvalid
+	case "yes":
+		policy = stake.TreasuryVoteYes
+	case "no":
+		policy = stake.TreasuryVoteNo
+	default:
+		err := fmt.Errorf("unknown policy %q", cmd.Policy)
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+	}
+
+	err = w.SetTreasuryKeyPolicy(ctx, pikey, policy)
+	return nil, err
 }
 
 // redeemMultiSigOut receives a transaction hash/idx and fetches the first output
