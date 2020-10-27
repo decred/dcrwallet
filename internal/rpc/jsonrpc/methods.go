@@ -37,6 +37,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v3"
 	"github.com/decred/dcrd/dcrjson/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/hdkeychain/v3"
@@ -3015,8 +3016,8 @@ func (s *Server) setTreasuryPolicy(ctx context.Context, icmd interface{}) (inter
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 	}
-	if len(pikey) != 32 {
-		err := errors.New("treasury key must be 32 bytes")
+	if len(pikey) != secp256k1.PubKeyBytesLenCompressed {
+		err := errors.New("treasury key must be 33 bytes")
 		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 	}
 	var policy stake.TreasuryVoteT
