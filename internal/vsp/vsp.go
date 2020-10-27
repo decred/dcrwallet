@@ -2,7 +2,6 @@ package vsp
 
 import (
 	"context"
-	"crypto/ed25519"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -61,10 +60,9 @@ type Config struct {
 type VSP struct {
 	cfg *Config
 
-	vspURL     *url.URL
-	pubKey     ed25519.PublicKey
-	httpClient *http.Client
-	c          *wallet.ConfirmationNotificationsClient
+	*client
+
+	c *wallet.ConfirmationNotificationsClient
 
 	queue chan *queueEntry
 
@@ -100,16 +98,15 @@ func New(ctx context.Context, cfg Config) (*VSP, error) {
 	}
 
 	c := cfg.Wallet.NtfnServer.ConfirmationNotifications(ctx)
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			DialContext: cfg.Dialer,
-		},
+
+	client := newClient(u.String(), pubKey, cfg.Wallet)
+	client.Transport = &http.Transport{
+		DialContext: cfg.Dialer,
 	}
+
 	v := &VSP{
 		cfg:            &cfg,
-		vspURL:         u,
-		pubKey:         ed25519.PublicKey(pubKey),
-		httpClient:     httpClient,
+		client:         client,
 		c:              c,
 		queue:          make(chan *queueEntry, 256),
 		outpoints:      make(map[chainhash.Hash]*wire.MsgTx),

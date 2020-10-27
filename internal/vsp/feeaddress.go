@@ -3,13 +3,9 @@ package vsp
 import (
 	"bytes"
 	"context"
-	"crypto/ed25519"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"time"
 
 	"github.com/decred/dcrd/blockchain/stake/v3"
@@ -53,81 +49,25 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash chainhash.Hash) (dcr
 		return 0, err
 	}
 
-	feeAddressRequest := FeeAddressRequest{
+	var feeResponse FeeAddressResponse
+	requestBody, err := json.Marshal(&FeeAddressRequest{
 		Timestamp:  time.Now().Unix(),
 		TicketHash: ticketHash.String(),
 		TicketHex:  hex.EncodeToString(txBuf.Bytes()),
-	}
-
-	requestBody, err := json.Marshal(feeAddressRequest)
+	})
 	if err != nil {
-		log.Errorf("failed to marshal fee address request: %v", err)
 		return 0, err
 	}
-
-	reqURL := v.vspURL.String() + "/api/v3/feeaddress"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewReader(requestBody))
+	err = v.client.post(ctx, "/api/v3/feeaddress", commitmentAddr, &feeResponse,
+		json.RawMessage(requestBody))
 	if err != nil {
-		log.Errorf("failed to create new fee address request: %v", err)
-		return 0, err
-	}
-
-	signature, err := v.cfg.Wallet.SignMessage(ctx, string(requestBody), commitmentAddr)
-	if err != nil {
-		log.Errorf("failed to sign feeAddress request: %v", err)
-		return 0, err
-	}
-	req.Header.Set("VSP-Client-Signature", base64.StdEncoding.EncodeToString(signature))
-
-	resp, err := v.httpClient.Do(req)
-	if err != nil {
-		log.Errorf("fee address request failed: %v", err)
-		return 0, err
-	}
-	// TODO - Add numBytes resp check
-
-	responseBody, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		log.Errorf("failed to read fee address response: %v", err)
-		return 0, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("vsp http status code %v", resp.StatusCode)
-	}
-
-	serverSigStr := resp.Header.Get(serverSignature)
-	if serverSigStr == "" {
-		log.Warnf("feeaddress missing server signature")
-		return 0, fmt.Errorf("server signature missing from feeaddress response")
-	}
-	serverSig, err := base64.StdEncoding.DecodeString(serverSigStr)
-	if err != nil {
-		log.Warnf("failed to decode server signature: %v", err)
-		return 0, err
-	}
-
-	if !ed25519.Verify(v.pubKey, responseBody, serverSig) {
-		log.Warnf("server failed verification")
-		return 0, fmt.Errorf("server failed verification")
-	}
-
-	var feeResponse FeeAddressResponse
-	err = json.Unmarshal(responseBody, &feeResponse)
-	if err != nil {
-		log.Warnf("failed to unmarshal feeaddress response: %v", err)
 		return 0, err
 	}
 
 	// verify initial request matches server
-	serverRequestBody, err := json.Marshal(feeResponse.Request)
-	if err != nil {
-		log.Warnf("failed to marshal response request: %v", err)
-		return 0, err
-	}
-	if !bytes.Equal(requestBody, serverRequestBody) {
+	if !bytes.Equal(requestBody, feeResponse.Request) {
 		log.Warnf("server response has differing request: %#v != %#v",
-			requestBody, serverRequestBody)
+			requestBody, feeResponse.Request)
 		return 0, fmt.Errorf("server response contains differing request")
 	}
 	// TODO - validate server timestamp?

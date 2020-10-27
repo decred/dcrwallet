@@ -3,13 +3,9 @@ package vsp
 import (
 	"bytes"
 	"context"
-	"crypto/ed25519"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"time"
 
 	"decred.org/dcrwallet/wallet"
@@ -202,65 +198,30 @@ func (v *VSP) PayFee(ctx context.Context, ticketHash chainhash.Hash, feeTx *wire
 		voteChoices[agendaChoice.AgendaID] = agendaChoice.ChoiceID
 	}
 
-	payRequest := PayFeeRequest{
+	var payfeeResponse PayFeeResponse
+	requestBody, err := json.Marshal(&PayFeeRequest{
 		Timestamp:   time.Now().Unix(),
 		TicketHash:  ticketHash.String(),
 		FeeTx:       hex.EncodeToString(txBuf.Bytes()),
 		VotingKey:   votingKeyWIF,
 		VoteChoices: voteChoices,
-	}
-
-	requestBody, err := json.Marshal(payRequest)
+	})
 	if err != nil {
-		log.Errorf("failed to marshal pay request: %v", err)
 		return nil, err
 	}
-
-	reqURL := v.vspURL.String() + "/api/v3/payfee"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewReader(requestBody))
+	err = v.client.post(ctx, "/api/v3/payfee", feeInfo.CommitmentAddress,
+		&payfeeResponse, json.RawMessage(requestBody))
 	if err != nil {
-		log.Errorf("failed to create new http request: %v", err)
-		return nil, err
-	}
-	signature, err := v.cfg.Wallet.SignMessage(ctx, string(requestBody), feeInfo.CommitmentAddress)
-	if err != nil {
-		log.Errorf("failed to sign feeAddress request: %v", err)
-		return nil, err
-	}
-	req.Header.Set("VSP-Client-Signature", base64.StdEncoding.EncodeToString(signature))
-
-	resp, err := v.httpClient.Do(req)
-	if err != nil {
-		log.Errorf("payfee request failed: %v", err)
-		return nil, err
-	}
-	serverSigStr := resp.Header.Get(serverSignature)
-	if serverSigStr == "" {
-		log.Warnf("pay fee response missing server signature")
-		return nil, err
-	}
-	serverSig, err := base64.StdEncoding.DecodeString(serverSigStr)
-	if err != nil {
-		log.Warnf("failed to decode server signature: %v", err)
 		return nil, err
 	}
 
-	// TODO - Add numBytes resp check
-	responseBody, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		log.Errorf("failed to read response body: %v", err)
-		return nil, err
+	// verify initial request matches server
+	if !bytes.Equal(requestBody, payfeeResponse.Request) {
+		log.Warnf("server response has differing request: %#v != %#v",
+			requestBody, payfeeResponse.Request)
+		return nil, fmt.Errorf("server response contains differing request")
 	}
-	if resp.StatusCode != http.StatusOK {
-		log.Warnf("vsp responded with an error: %v", string(responseBody))
-		return nil, fmt.Errorf("vsp responded with an error (%v): %v", resp.StatusCode, string(responseBody))
-	}
-
-	if !ed25519.Verify(v.pubKey, responseBody, serverSig) {
-		log.Warnf("server failed verification")
-		return nil, fmt.Errorf("server failed verification")
-	}
+	// TODO - validate server timestamp?
 
 	v.ticketToFeeMu.Lock()
 	feeInfo.FeeTx = feeTx
