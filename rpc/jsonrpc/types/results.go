@@ -366,6 +366,12 @@ type TreasuryPolicyResult struct {
 	Policy string `json:"policy"`
 }
 
+// TSpendPolicyResult models objects returned by the tspendpolicy command.
+type TSpendPolicyResult struct {
+	Hash   string `json:"hash"`
+	Policy string `json:"policy"`
+}
+
 // ValidateAddressResult models the data returned by the wallet server
 // validateaddress command.
 type ValidateAddressResult struct {

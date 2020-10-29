@@ -17,7 +17,6 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v3"
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrec/secp256k1/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	gcs2 "github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/txscript/v3"
@@ -904,15 +903,15 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 					continue
 				}
 
-				// Get policy for Pi key.
-				piKey := v.TxIn[0].SignatureScript[66 : 66+secp256k1.PubKeyBytesLenCompressed]
-				tspendVote := w.TreasuryKeyPolicy(piKey)
+				// Get policy for tspend, falling back to any
+				// policy for the Pi key.
+				tspendHash := v.TxHash()
+				tspendVote := w.TSpendPolicy(&tspendHash)
 				if tspendVote == stake.TreasuryVoteInvalid {
 					continue
 				}
 
 				// Append tspend hash and vote bits
-				tspendHash := v.TxHash()
 				tVotes = append(tVotes[:], tspendHash[:]...)
 				tVotes = append(tVotes[:], byte(tspendVote))
 			}

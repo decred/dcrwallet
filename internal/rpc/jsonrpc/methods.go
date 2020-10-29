@@ -140,6 +140,7 @@ var handlers = map[string]handler{
 	"sendtotreasury":          {fn: (*Server).sendToTreasury},
 	"setaccountpassphrase":    {fn: (*Server).setAccountPassphrase},
 	"settreasurypolicy":       {fn: (*Server).setTreasuryPolicy},
+	"settspendpolicy":         {fn: (*Server).setTSpendPolicy},
 	"settxfee":                {fn: (*Server).setTxFee},
 	"setvotechoice":           {fn: (*Server).setVoteChoice},
 	"signmessage":             {fn: (*Server).signMessage},
@@ -150,6 +151,7 @@ var handlers = map[string]handler{
 	"ticketinfo":              {fn: (*Server).ticketInfo},
 	"ticketsforaddress":       {fn: (*Server).ticketsForAddress},
 	"treasurypolicy":          {fn: (*Server).treasuryPolicy},
+	"tspendpolicy":            {fn: (*Server).tspendPolicy},
 	"unlockaccount":           {fn: (*Server).unlockAccount},
 	"validateaddress":         {fn: (*Server).validateAddress},
 	"validatepredcp0005cf":    {fn: (*Server).validatePreDCP0005CF},
@@ -3034,6 +3036,90 @@ func (s *Server) setTreasuryPolicy(ctx context.Context, icmd interface{}) (inter
 	}
 
 	err = w.SetTreasuryKeyPolicy(ctx, pikey, policy)
+	return nil, err
+}
+
+// tspendPolicy returns voting policies for particular treasury spends
+// transactions.  If a tspend transaction hash is specified, that policy is
+// returned; otherwise the policies for all known tspends are returned in an
+// array.
+func (s *Server) tspendPolicy(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.TSpendPolicyCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	if cmd.Hash != nil && *cmd.Hash != "" {
+		hash, err := chainhash.NewHashFromStr(*cmd.Hash)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+		}
+		var policy string
+		switch w.TSpendPolicy(hash) {
+		case stake.TreasuryVoteYes:
+			policy = "yes"
+		case stake.TreasuryVoteNo:
+			policy = "no"
+		default:
+			policy = "abstain"
+		}
+		res := &types.TSpendPolicyResult{
+			Hash:   *cmd.Hash,
+			Policy: policy,
+		}
+		return res, nil
+	}
+
+	tspends := w.GetAllTSpends(ctx)
+	res := make([]types.TSpendPolicyResult, 0, len(tspends))
+	for i := range tspends {
+		tspendHash := tspends[i].TxHash()
+		p := w.TSpendPolicy(&tspendHash)
+
+		var policy string
+		switch p {
+		case stake.TreasuryVoteYes:
+			policy = "yes"
+		case stake.TreasuryVoteNo:
+			policy = "no"
+		}
+		res = append(res, types.TSpendPolicyResult{
+			Hash:   tspendHash.String(),
+			Policy: policy,
+		})
+	}
+	return res, nil
+}
+
+// setTSpendPolicy saves the voting policy for a particular tspend transaction
+// hash.
+func (s *Server) setTSpendPolicy(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.SetTSpendPolicyCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	hash, err := chainhash.NewHashFromStr(cmd.Hash)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+
+	var policy stake.TreasuryVoteT
+	switch cmd.Policy {
+	case "abstain", "invalid", "":
+		policy = stake.TreasuryVoteInvalid
+	case "yes":
+		policy = stake.TreasuryVoteYes
+	case "no":
+		policy = stake.TreasuryVoteNo
+	default:
+		err := fmt.Errorf("unknown policy %q", cmd.Policy)
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+	}
+
+	err = w.SetTSpendPolicy(ctx, hash, policy)
 	return nil, err
 }
 

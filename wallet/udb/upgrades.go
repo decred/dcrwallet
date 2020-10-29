@@ -179,10 +179,15 @@ const (
 	// status field to tracked vspd tickets.
 	vspStatusVersion = 21
 
+	// tspendHashPolicyVersion is the 22nd version of the database.  It adds a
+	// top-level bucket for recording voting policy on treasury-spending
+	// transactions by transaction hash, rather than by pi key.
+	tspendHashPolicyVersion = 22
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = vspStatusVersion
+	DBVersion = tspendHashPolicyVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -209,6 +214,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	tspendPolicyVersion - 1:               tspendPolicyUpgrade,
 	vspBucketVersion - 1:                  vspBucketUpgrade,
 	vspStatusVersion - 1:                  vspStatusUpgrade,
+	tspendHashPolicyVersion - 1:           tspendHashPolicyUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -1492,6 +1498,30 @@ func vspStatusUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *
 		if err != nil {
 			return errors.E(errors.IO, err)
 		}
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func tspendHashPolicyUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 21
+	const newVersion = 22
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 21 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "tspendHashPolicyUpgrade inappropriately called")
+	}
+
+	_, err = tx.CreateTopLevelBucket(tspendPolicyBucketKey)
+	if err != nil {
+		return errors.E(errors.IO, err)
 	}
 
 	// Write the new database version.

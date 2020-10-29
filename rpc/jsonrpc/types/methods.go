@@ -915,6 +915,19 @@ type SetTreasuryPolicyCmd struct {
 	Policy string
 }
 
+// TSpendPolicyCmd defines the parameters for the tspendpolicy JSON-RPC
+// command.
+type TSpendPolicyCmd struct {
+	Hash *string
+}
+
+// SetTSpendPolicyCmd defines the parameters for the settspendpolicy
+// JSON-RPC command.
+type SetTSpendPolicyCmd struct {
+	Hash   string
+	Policy string
+}
+
 // SetTxFeeCmd defines the settxfee JSON-RPC command.
 type SetTxFeeCmd struct {
 	Amount float64 // In DCR
@@ -1215,6 +1228,7 @@ func init() {
 		{"sendtotreasury", (*SendToTreasuryCmd)(nil)},
 		{"setaccountpassphrase", (*SetAccountPassphraseCmd)(nil)},
 		{"settreasurypolicy", (*SetTreasuryPolicyCmd)(nil)},
+		{"settspendpolicy", (*SetTSpendPolicyCmd)(nil)},
 		{"settxfee", (*SetTxFeeCmd)(nil)},
 		{"setvotechoice", (*SetVoteChoiceCmd)(nil)},
 		{"signmessage", (*SignMessageCmd)(nil)},
@@ -1224,6 +1238,7 @@ func init() {
 		{"sweepaccount", (*SweepAccountCmd)(nil)},
 		{"ticketinfo", (*TicketInfoCmd)(nil)},
 		{"treasurypolicy", (*TreasuryPolicyCmd)(nil)},
+		{"tspendpolicy", (*TSpendPolicyCmd)(nil)},
 		{"unlockaccount", (*UnlockAccountCmd)(nil)},
 		{"validatepredcp0005cf", (*ValidatePreDCP0005CFCmd)(nil)},
 		{"walletinfo", (*WalletInfoCmd)(nil)},

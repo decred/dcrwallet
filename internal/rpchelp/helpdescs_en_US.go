@@ -641,6 +641,11 @@ var helpDescsEnUS = map[string]string{
 	"settreasurypolicy-key":       "Treasury key to set policy for",
 	"settreasurypolicy-policy":    "Voting policy for a treasury key (invalid/abstain, yes, or no)",
 
+	// SetTSpendPolicyCmd help.
+	"settspendpolicy--synopsis": "Set a voting policy for a treasury spend transaction",
+	"settspendpolicy-hash":      "Hash of treasury spend transaction to set policy for",
+	"settspendpolicy-policy":    "Voting policy for a tspend transaction (invalid/abstain, yes, or no)",
+
 	// SetTxFeeCmd help.
 	"settxfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored transaction.",
 	"settxfee-amount":    "The new fee per kB of the serialized tx size valued in decred",
@@ -750,6 +755,17 @@ var helpDescsEnUS = map[string]string{
 
 	"treasurypolicyresult-key":    "Treasury key associated with a policy",
 	"treasurypolicyresult-policy": "Voting policy description (abstain, yes, or no)",
+
+	// TSpendPolicyCmd help.
+	"tspendpolicy--synopsis":   "Return voting policies for treasury spend transactions",
+	"tspendpolicy-hash":        "Return the policy for a particular tspend hash",
+	"tspendpolicy--condition0": "no tspend hash provided",
+	"tspendpolicy--condition1": "tspend hash specified",
+	"tspendpolicy--result0":    "Array of all non-abstaining policies for known tspends",
+	"tspendpolicy--result1":    "Voting policy for a particular tspend hash",
+
+	"tspendpolicyresult-hash":   "Treasury spend transaction hash",
+	"tspendpolicyresult-policy": "Voting policy description (abstain, yes, or no)",
 
 	// UnlockAccountCmd help.
 	"unlockaccount--synopsis":  "Unlock an individually-encrypted account",
