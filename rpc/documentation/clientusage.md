@@ -77,7 +77,7 @@ func main() {
 		return
 	}
 	if !serverCAs.AppendCertsFromPEM(serverCert) {
-		fmt.Println("AppendCertsFromPEM error")
+		fmt.Printf("no certificates found in %s\n", certificateFile)
 		return
 	}
 	keypair, err := tls.LoadX509KeyPair(walletClientCertFile, walletClientKeyFile)
