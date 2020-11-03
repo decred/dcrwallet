@@ -49,7 +49,10 @@ required to generate Go bindings.
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 
 	pb "decred.org/dcrwallet/rpc/walletrpc"
@@ -60,14 +63,32 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 )
 
-var certificateFile = filepath.Join(dcrutil.AppDataDir("dcrwallet", false), "rpc.cert")
+var (
+	certificateFile      = filepath.Join(dcrutil.AppDataDir("dcrwallet", false), "rpc.cert")
+	walletClientCertFile = filepath.Join(dcrutil.AppDataDir("dcrwallet", false), "client.pem")
+	walletClientKeyFile  = filepath.Join(dcrutil.AppDataDir("dcrwallet", false), "client-key.pem")
+)
 
 func main() {
-	creds, err := credentials.NewClientTLSFromFile(certificateFile, "localhost")
+	serverCAs := x509.NewCertPool()
+	serverCert, err := ioutil.ReadFile(certificateFile)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	if !serverCAs.AppendCertsFromPEM(serverCert) {
+		fmt.Printf("no certificates found in %s\n", certificateFile)
+		return
+	}
+	keypair, err := tls.LoadX509KeyPair(walletClientCertFile, walletClientKeyFile)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	creds := credentials.NewTLS(&tls.Config{
+		Certificates: []tls.Certificate{keypair},
+		RootCAs:      serverCAs,
+	})
 	conn, err := grpc.Dial("localhost:19111", grpc.WithTransportCredentials(creds))
 	if err != nil {
 		fmt.Println(err)
