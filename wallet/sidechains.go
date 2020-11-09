@@ -14,7 +14,7 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	gcs2 "github.com/decred/dcrd/gcs/v2"
+	"github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -34,7 +34,7 @@ type SidechainForest struct {
 type BlockNode struct {
 	Header   *wire.BlockHeader
 	Hash     *chainhash.Hash
-	FilterV2 *gcs2.FilterV2
+	FilterV2 *gcs.FilterV2
 	parent   *BlockNode
 	workSum  *big.Int
 }
@@ -62,7 +62,7 @@ func newSideChainRootedTree(root *BlockNode) *sidechainRootedTree {
 }
 
 // NewBlockNode creates a block node for usage with a SidechainForest.
-func NewBlockNode(header *wire.BlockHeader, hash *chainhash.Hash, filter *gcs2.FilterV2) *BlockNode {
+func NewBlockNode(header *wire.BlockHeader, hash *chainhash.Hash, filter *gcs.FilterV2) *BlockNode {
 	return &BlockNode{
 		Header:   header,
 		Hash:     hash,
