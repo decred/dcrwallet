@@ -75,18 +75,13 @@ func (w *Wallet) extendMainChain(ctx context.Context, op errors.Op, dbtx walletd
 // blocks (if any) is returned.  If relevantTxs is non-nil, the block marker for
 // the latest block with processed transactions is updated for the new tip
 // block.
-func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain []*BlockNode, relevantTxs map[chainhash.Hash][]*wire.MsgTx) ([]*BlockNode, error) {
+func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain []*BlockNode,
+	relevantTxs map[chainhash.Hash][]*wire.MsgTx) ([]*BlockNode, error) {
 	const op errors.Op = "wallet.ChainSwitch"
 
 	if len(chain) == 0 {
 		return nil, errors.E(op, errors.Invalid, "zero-length chain")
 	}
-
-	w.recentlyPublishedMu.Lock()
-	for txHash := range relevantTxs {
-		delete(w.recentlyPublished, txHash)
-	}
-	w.recentlyPublishedMu.Unlock()
 
 	chainTipChanges := &MainTipChangedNotification{
 		AttachedBlocks: make([]*chainhash.Hash, 0, len(chain)),
@@ -209,6 +204,15 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
+
+	w.recentlyPublishedMu.Lock()
+	for _, node := range chain {
+		for _, tx := range relevantTxs[*node.Hash] {
+			txHash := tx.TxHash()
+			delete(w.recentlyPublished, txHash)
+		}
+	}
+	w.recentlyPublishedMu.Unlock()
 
 	if n, err := w.NetworkBackend(); err == nil {
 		_, err = w.watchHDAddrs(ctx, false, n)
