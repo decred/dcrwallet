@@ -103,6 +103,10 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 
 		tipHash, tipHeight := w.txStore.MainChainTip(dbtx)
 
+		if tipHash == *chain[len(chain)-1].Hash {
+			return nil
+		}
+
 		if sideChainForkHeight <= tipHeight {
 			chainTipChanges.DetachedBlocks = make([]*chainhash.Hash, tipHeight-sideChainForkHeight+1)
 			prevChain = make([]*BlockNode, tipHeight-sideChainForkHeight+1)
@@ -205,14 +209,16 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 		return nil, errors.E(op, err)
 	}
 
-	w.recentlyPublishedMu.Lock()
-	for _, node := range chain {
-		for _, tx := range relevantTxs[*node.Hash] {
-			txHash := tx.TxHash()
-			delete(w.recentlyPublished, txHash)
+	if len(chainTipChanges.AttachedBlocks) != 0 {
+		w.recentlyPublishedMu.Lock()
+		for _, node := range chain {
+			for _, tx := range relevantTxs[*node.Hash] {
+				txHash := tx.TxHash()
+				delete(w.recentlyPublished, txHash)
+			}
 		}
+		w.recentlyPublishedMu.Unlock()
 	}
-	w.recentlyPublishedMu.Unlock()
 
 	if n, err := w.NetworkBackend(); err == nil {
 		_, err = w.watchHDAddrs(ctx, false, n)
