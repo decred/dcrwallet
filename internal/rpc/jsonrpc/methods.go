@@ -3174,7 +3174,7 @@ func (s *Server) redeemMultiSigOut(ctx context.Context, icmd interface{}) (inter
 	if sc != txscript.MultiSigTy {
 		return nil, errors.E("P2SH redeem script is not multisig")
 	}
-	var msgTx wire.MsgTx
+	msgTx := wire.NewMsgTx()
 	txIn := wire.NewTxIn(&op, int64(p2shOutput.OutputAmount), nil)
 	msgTx.AddTxIn(txIn)
 
@@ -3183,7 +3183,7 @@ func (s *Server) redeemMultiSigOut(ctx context.Context, icmd interface{}) (inter
 		return nil, err
 	}
 
-	err = w.PrepareRedeemMultiSigOutTxOutput(&msgTx, p2shOutput, &pkScript)
+	err = w.PrepareRedeemMultiSigOutTxOutput(msgTx, p2shOutput, &pkScript)
 	if err != nil {
 		return nil, err
 	}
