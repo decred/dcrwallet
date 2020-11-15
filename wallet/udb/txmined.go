@@ -20,12 +20,12 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/crypto/ripemd160"
 	"github.com/decred/dcrd/dcrutil/v3"
 	gcs2 "github.com/decred/dcrd/gcs/v2"
 	"github.com/decred/dcrd/gcs/v2/blockcf2"
 	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
-	"golang.org/x/crypto/ripemd160"
 )
 
 const opNonstake = txscript.OP_NOP10

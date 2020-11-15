@@ -19,13 +19,13 @@ import (
 	"decred.org/dcrwallet/wallet/internal/snacl"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/crypto/ripemd160"
 	"github.com/decred/dcrd/dcrec/secp256k1/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/chacha20poly1305"
-	"golang.org/x/crypto/ripemd160"
 )
 
 const (
