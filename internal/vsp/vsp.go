@@ -348,6 +348,10 @@ func (v *VSP) Process(ctx context.Context, ticketHash chainhash.Hash, credits []
 	}
 	// set fee tx as unpublished, because it will be published by the vsp.
 	feeHash := feeTx.TxHash()
+	err = v.cfg.Wallet.AddTransaction(ctx, feeTx, nil)
+	if err != nil {
+		return nil, err
+	}
 	err = v.cfg.Wallet.SetPublished(ctx, &feeHash, false)
 	if err != nil {
 		return nil, err
