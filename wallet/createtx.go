@@ -121,7 +121,7 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 				minConf, tipHeight, ignoreInput)
 			switch algo {
 			case OutputSelectionAlgorithmDefault:
-				inputSource = sourceImpl.SelectInputs
+				inputSource = randomInputSource(sourceImpl.SelectInputs)
 			case OutputSelectionAlgorithmAll:
 				// Wrap the source with one that always fetches the max amount
 				// available and ignores insufficient balance issues.
@@ -382,7 +382,8 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 		}
 		var err error
 		atx, err = txauthor.NewUnsignedTransaction(outputs, txFee,
-			inputSource.SelectInputs, changeSource, w.chainParams.MaxTxSize)
+			randomInputSource(inputSource.SelectInputs), changeSource,
+			w.chainParams.MaxTxSize)
 		if err != nil {
 			return err
 		}
