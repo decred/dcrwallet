@@ -15,12 +15,22 @@ import (
 )
 
 func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash chainhash.Hash) (dcrutil.Amount, error) {
+	// Fetch ticket
 	txs, _, err := v.cfg.Wallet.GetTransactionsByHashes(ctx, []*chainhash.Hash{&ticketHash})
 	if err != nil {
 		log.Errorf("failed to retrieve ticket %v: %v", ticketHash, err)
 		return 0, err
 	}
 	ticketTx := txs[0]
+
+	// Fetch parent transaction
+	parentHash := ticketTx.TxIn[0].PreviousOutPoint.Hash
+	parentTxs, _, err := v.cfg.Wallet.GetTransactionsByHashes(ctx, []*chainhash.Hash{&parentHash})
+	if err != nil {
+		log.Errorf("failed to retrieve parent %v of ticket %v: %v", parentHash, ticketHash, err)
+		return 0, err
+	}
+	parentTx := parentTxs[0]
 
 	const scriptVersion = 0
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(scriptVersion,
@@ -41,6 +51,7 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash chainhash.Hash) (dcr
 		return 0, err
 	}
 
+	// Serialize ticket
 	txBuf := new(bytes.Buffer)
 	txBuf.Grow(ticketTx.SerializeSize())
 	err = ticketTx.Serialize(txBuf)
@@ -48,12 +59,24 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash chainhash.Hash) (dcr
 		log.Errorf("failed to serialize ticket %v: %v", ticketHash, err)
 		return 0, err
 	}
+	ticketHex := hex.EncodeToString(txBuf.Bytes())
+
+	// Serialize parent
+	txBuf.Reset()
+	txBuf.Grow(parentTx.SerializeSize())
+	err = parentTx.Serialize(txBuf)
+	if err != nil {
+		log.Errorf("failed to serialize parent %v of ticket %v: %v", parentHash, ticketHash, err)
+		return 0, err
+	}
+	parentHex := hex.EncodeToString(txBuf.Bytes())
 
 	var feeResponse FeeAddressResponse
 	requestBody, err := json.Marshal(&FeeAddressRequest{
 		Timestamp:  time.Now().Unix(),
 		TicketHash: ticketHash.String(),
-		TicketHex:  hex.EncodeToString(txBuf.Bytes()),
+		TicketHex:  ticketHex,
+		ParentHex:  parentHex,
 	})
 	if err != nil {
 		return 0, err
