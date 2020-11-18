@@ -2754,7 +2754,7 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 // All errors are returned in dcrjson.RPCError format
 func (s *Server) sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32) (string, error) {
 	changeAccount := account
-	if s.cfg.CSPPServer != "" {
+	if s.cfg.CSPPServer != "" && s.cfg.MixAccount != "" && s.cfg.MixChangeAccount != "" {
 		mixAccount, err := w.AccountNumber(ctx, s.cfg.MixAccount)
 		if err != nil {
 			return "", err
