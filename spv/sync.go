@@ -331,6 +331,9 @@ func (s *Syncer) Run(ctx context.Context) error {
 	return g.Wait()
 }
 
+// peerCandidate returns a peer address that we shall attempt to connect to.
+// Only peers not already remotes or in the process of connecting are returned.
+// Any address returned is marked in s.connectingRemotes before returning.
 func (s *Syncer) peerCandidate(svcs wire.ServiceFlag) (*wire.NetAddress, error) {
 	// Try to obtain peer candidates at random, decreasing the requirements
 	// as more tries are performed.
@@ -341,26 +344,27 @@ func (s *Syncer) peerCandidate(svcs wire.ServiceFlag) (*wire.NetAddress, error) 
 		}
 		na := kaddr.NetAddress()
 
-		// Skip peer if already connected
-		// TODO: this should work with network blocks, not exact addresses.
 		k := addrmgr.NetAddressKey(na)
 		s.remotesMu.Lock()
 		_, isConnecting := s.connectingRemotes[k]
 		_, isRemote := s.remotes[k]
-		s.remotesMu.Unlock()
-		if isConnecting || isRemote {
-			continue
-		}
 
+		switch {
+		// Skip peer if already connected, or in process of connecting
+		// TODO: this should work with network blocks, not exact addresses.
+		case isConnecting || isRemote:
+			fallthrough
 		// Only allow recent nodes (10mins) after we failed 30 times
-		if tries < 30 && time.Since(kaddr.LastAttempt()) < 10*time.Minute {
+		case tries < 30 && time.Since(kaddr.LastAttempt()) < 10*time.Minute:
+			fallthrough
+		// Skip peers without matching service flags for the first 50 tries.
+		case tries < 50 && kaddr.NetAddress().Services&svcs != svcs:
+			s.remotesMu.Unlock()
 			continue
 		}
 
-		// Skip peers without matching service flags for the first 50 tries.
-		if tries < 50 && kaddr.NetAddress().Services&svcs != svcs {
-			continue
-		}
+		s.connectingRemotes[k] = struct{}{}
+		s.remotesMu.Unlock()
 
 		return na, nil
 	}
@@ -457,10 +461,6 @@ func (s *Syncer) connectToCandidates(ctx context.Context) error {
 			port := strconv.FormatUint(uint64(na.Port), 10)
 			raddr := net.JoinHostPort(na.IP.String(), port)
 			k := addrmgr.NetAddressKey(na)
-
-			s.remotesMu.Lock()
-			s.connectingRemotes[k] = struct{}{}
-			s.remotesMu.Unlock()
 
 			rp, err := s.lp.ConnectOutbound(ctx, raddr, reqSvcs)
 			if err != nil {
