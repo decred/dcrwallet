@@ -1122,9 +1122,11 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 	if err != nil {
 		return
 	}
-	err = w.publishAndWatch(ctx, "individualSplit", nil, splitTx, watch)
-	if err != nil {
-		return
+	if !req.DontSignTx {
+		err = w.publishAndWatch(ctx, "individualSplit", nil, splitTx, watch)
+		if err != nil {
+			return
+		}
 	}
 
 	tx = splitTx.Tx
@@ -1174,9 +1176,11 @@ func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, need
 	if err != nil {
 		return
 	}
-	err = w.publishAndWatch(ctx, "vspSplit", nil, splitTx, watch)
-	if err != nil {
-		return
+	if !req.DontSignTx {
+		err = w.publishAndWatch(ctx, "vspSplit", nil, splitTx, watch)
+		if err != nil {
+			return
+		}
 	}
 
 	tx = splitTx.Tx
@@ -1614,14 +1618,16 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 		// TODO: Send all tickets, and all split transactions, together.  Purge
 		// transactions from DB if tickets cannot be sent.
-		err = n.PublishTransactions(ctx, ticket)
-		if err != nil {
-			return purchaseTicketsResponse, errors.E(op, err)
+		if !req.DontSignTx {
+			err = n.PublishTransactions(ctx, ticket)
+			if err != nil {
+				return purchaseTicketsResponse, errors.E(op, err)
+			}
+			log.Infof("Published ticket purchase %v", ticket.TxHash())
 		}
-		log.Infof("Published ticket purchase %v", ticket.TxHash())
 	}
 
-	if req.VSPFeePaymentProcess != nil {
+	if !req.DontSignTx && req.VSPFeePaymentProcess != nil {
 		unlockCredits = false
 		for i, ticketHash := range purchaseTicketsResponse.TicketHashes {
 			// set vsp fee as processing, so we can know it started to be
