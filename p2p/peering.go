@@ -38,7 +38,7 @@ var uaVersion = version.String()
 
 // minPver is the minimum protocol version we require remote peers to
 // implement.
-const minPver = wire.CFilterV2Version
+const minPver = wire.InitStateVersion
 
 // Pver is the maximum protocol version implemented by the LocalPeer.
 const Pver = wire.InitStateVersion
