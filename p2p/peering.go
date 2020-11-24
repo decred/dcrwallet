@@ -558,6 +558,10 @@ func (lp *LocalPeer) connectOutbound(ctx context.Context, id uint64, addr string
 		if err == nil {
 			break
 		}
+		var netErr net.Error
+		if errors.As(err, &netErr) && !netErr.Temporary() {
+			return nil, err
+		}
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
