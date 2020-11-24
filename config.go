@@ -108,7 +108,7 @@ type config struct {
 	// RPC client options
 	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Network address of dcrd RPC server"`
 	CAFile           *cfgutil.ExplicitString `long:"cafile" description:"dcrd RPC Certificate Authority"`
-	ClientCAFile     string                  `long:"clientcafile" description:"Certficate Authority to verify TLS client certificates"`
+	ClientCAFile     *cfgutil.ExplicitString `long:"clientcafile" description:"Certficate Authority to verify TLS client certificates"`
 	DisableClientTLS bool                    `long:"noclienttls" description:"Disable TLS for dcrd RPC; only allowed when connecting to localhost"`
 	DcrdUsername     string                  `long:"dcrdusername" description:"dcrd RPC username; overrides --username"`
 	DcrdPassword     string                  `long:"dcrdpassword" default-mask:"-" description:"dcrd RPC password; overrides --password"`
@@ -333,7 +333,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		LogDir:                  cfgutil.NewExplicitString(defaultLogDir),
 		WalletPass:              wallet.InsecurePubPassphrase,
 		CAFile:                  cfgutil.NewExplicitString(""),
-		ClientCAFile:            defaultRPCClientCAFile,
+		ClientCAFile:            cfgutil.NewExplicitString(defaultRPCClientCAFile),
 		dial:                    new(net.Dialer).DialContext,
 		lookup:                  net.LookupIP,
 		PromptPass:              defaultPromptPass,
@@ -432,6 +432,9 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		}
 		if !cfg.RPCCert.ExplicitlySet() {
 			cfg.RPCCert.Value = filepath.Join(cfg.AppDataDir.Value, "rpc.cert")
+		}
+		if !cfg.ClientCAFile.ExplicitlySet() {
+			cfg.ClientCAFile.Value = filepath.Join(cfg.AppDataDir.Value, "clients.pem")
 		}
 		if !cfg.LogDir.ExplicitlySet() {
 			cfg.LogDir.Value = filepath.Join(cfg.AppDataDir.Value, defaultLogDirname)
@@ -921,7 +924,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	cfg.CAFile.Value = cleanAndExpandPath(cfg.CAFile.Value)
 	cfg.RPCCert.Value = cleanAndExpandPath(cfg.RPCCert.Value)
 	cfg.RPCKey.Value = cleanAndExpandPath(cfg.RPCKey.Value)
-	cfg.ClientCAFile = cleanAndExpandPath(cfg.ClientCAFile)
+	cfg.ClientCAFile.Value = cleanAndExpandPath(cfg.ClientCAFile.Value)
 
 	// If the dcrd username or password are unset, use the same auth as for
 	// the client.  The two settings were previously shared for dcrd and

@@ -265,9 +265,9 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 			MinVersion:   tls.VersionTLS12,
 			ClientCAs:    x509.NewCertPool(),
 		}
-		clientCAsExist, _ = cfgutil.FileExists(cfg.ClientCAFile)
+		clientCAsExist, _ = cfgutil.FileExists(cfg.ClientCAFile.Value)
 		if clientCAsExist {
-			cafile, err := ioutil.ReadFile(cfg.ClientCAFile)
+			cafile, err := ioutil.ReadFile(cfg.ClientCAFile.Value)
 			if err != nil {
 				return nil, nil, err
 			}
