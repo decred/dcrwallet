@@ -266,10 +266,22 @@ func (s *Syncer) tipChanged(tip *wire.BlockHeader, reorgDepth int32, matchingTxs
 	}
 }
 
+// setRequiredHeight sets the required height a peer must advertise as their
+// last height.  Initial height 6 blocks below the current chain tip height
+// result in a handshake error.
+func (s *Syncer) setRequiredHeight(tipHeight int32) {
+	requireHeight := tipHeight
+	if requireHeight > 6 {
+		requireHeight -= 6
+	}
+	s.lp.RequirePeerHeight(requireHeight)
+}
+
 // Run synchronizes the wallet, returning when synchronization fails or the
 // context is cancelled.
 func (s *Syncer) Run(ctx context.Context) error {
 	tipHash, tipHeight := s.wallet.MainChainTip(ctx)
+	s.setRequiredHeight(tipHeight)
 	rescanPoint, err := s.wallet.RescanPoint(ctx)
 	if err != nil {
 		return err
@@ -1000,7 +1012,9 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 				s.sidechains.AddBlockNode(n)
 			}
 		}
-		s.tipChanged(bestChain[len(bestChain)-1].Header, int32(len(prevChain)), matchingTxs)
+		tipHeader := bestChain[len(bestChain)-1].Header
+		s.setRequiredHeight(int32(tipHeader.Height))
+		s.tipChanged(tipHeader, int32(len(prevChain)), matchingTxs)
 
 		return nil
 	}()

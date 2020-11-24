@@ -123,6 +123,7 @@ type LocalPeer struct {
 	// atomics
 	atomicMask          uint64
 	atomicPeerIDCounter uint64
+	atomicRequireHeight int32
 
 	dialer net.Dialer
 
@@ -174,6 +175,13 @@ func (lp *LocalPeer) newMsgVersion(pver uint32, extaddr net.Addr, c net.Conn) (*
 	return v, nil
 }
 
+// RequirePeerHeight sets the minimum height a peer must advertise during its
+// handshake.  Peers advertising below this height will error during the
+// handshake, and will not be marked as good peers in the address manager.
+func (lp *LocalPeer) RequirePeerHeight(requiredHeight int32) {
+	atomic.StoreInt32(&lp.atomicRequireHeight, requiredHeight)
+}
+
 // ConnectOutbound establishes a connection to a remote peer by their remote TCP
 // address.  The peer is serviced in the background until the context is
 // cancelled, the RemotePeer disconnects, times out, misbehaves, or the
@@ -189,7 +197,16 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 	// Generate a unique ID for this peer and add the initial connection state.
 	id := atomic.AddUint64(&lp.atomicPeerIDCounter, 1)
 
-	rp, err := lp.connectOutbound(connectCtx, id, addr)
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a net address with assumed services.
+	na := wire.NewNetAddressTimestamp(time.Now(), wire.SFNodeNetwork,
+		tcpAddr.IP, uint16(tcpAddr.Port))
+
+	rp, err := lp.connectOutbound(connectCtx, id, addr, na)
 	if err != nil {
 		op := errors.Opf(opf, addr)
 		return nil, errors.E(op, err)
@@ -222,6 +239,24 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 		}()
 		return nil, err
 	}
+
+	// Disconnect from the peer if its advertised last height is below our
+	// required minimum.
+	reqHeight := atomic.LoadInt32(&lp.atomicRequireHeight)
+	if rp.initHeight < reqHeight {
+		op := errors.Opf(opf, rp.raddr)
+		err := errors.E(op, "peer is not synced")
+		go func() {
+			if waitForAddrs != nil {
+				<-waitForAddrs
+			}
+			rp.Disconnect(err)
+		}()
+		return nil, err
+	}
+
+	// Mark this as a good address.
+	lp.amgr.Good(na)
 
 	return rp, nil
 }
@@ -505,19 +540,13 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *wire.NetAddres
 	return rp, nil
 }
 
-func (lp *LocalPeer) connectOutbound(ctx context.Context, id uint64, addr string) (*RemotePeer, error) {
-	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a net address with assumed services.
-	na := wire.NewNetAddressTimestamp(time.Now(),
-		wire.SFNodeNetwork|wire.SFNodeCF, tcpAddr.IP, uint16(tcpAddr.Port))
+func (lp *LocalPeer) connectOutbound(ctx context.Context, id uint64, addr string,
+	na *wire.NetAddress) (*RemotePeer, error) {
 
 	var c net.Conn
 	var retryDuration = 5 * time.Second
 	timer := time.NewTimer(retryDuration)
+	var err error
 	for {
 		// Mark the connection attempt.
 		lp.amgr.Attempt(na)
@@ -558,9 +587,6 @@ func (lp *LocalPeer) connectOutbound(ctx context.Context, id uint64, addr string
 
 	// The real services of the net address are now known.
 	na.Services = rp.services
-
-	// Mark this as a good address.
-	lp.amgr.Good(na)
 
 	return rp, nil
 }
