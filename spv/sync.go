@@ -29,7 +29,7 @@ import (
 // reqSvcs defines the services that must be supported by outbounded peers.
 // After fetching more addresses (if needed), peers are disconnected from if
 // they do not provide each of these services.
-const reqSvcs = wire.SFNodeNetwork | wire.SFNodeCF
+const reqSvcs = wire.SFNodeNetwork
 
 // Syncer implements wallet synchronization services by over the Decred wire
 // protocol using Simplified Payment Verification (SPV) with compact filters.
