@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Decred developers
+ * Copyright (c) 2016-2020 The Decred developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,13 +24,13 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/decred/dcrd/chaincfg"
+	"decred.org/dcrwallet/rpc/jsonrpc/types"
+	"decred.org/dcrwallet/wallet/txauthor"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/wallet/txauthor"
 )
 
 // params is the global representing the chain parameters. It is assigned
@@ -49,7 +49,7 @@ func saneOutputValue(amount dcrutil.Amount) bool {
 	return amount >= 0 && amount <= dcrutil.MaxAmount
 }
 
-func parseOutPoint(input *dcrjson.ListUnspentResult) (wire.OutPoint, error) {
+func parseOutPoint(input *types.ListUnspentResult) (wire.OutPoint, error) {
 	txHash, err := chainhash.NewHashFromStr(input.TxID)
 	if err != nil {
 		return wire.OutPoint{}, err
@@ -70,7 +70,7 @@ func (noInputValue) Error() string { return "no input value" }
 // output is consumed.  The InputSource does not return any previous output
 // scripts as they are not needed for creating the unsinged transaction and are
 // looked up again by the wallet during the call to signrawtransaction.
-func makeInputSource(outputs []dcrjson.ListUnspentResult) (dcrutil.Amount, txauthor.InputSource) {
+func makeInputSource(outputs []types.ListUnspentResult) (dcrutil.Amount, txauthor.InputSource) {
 	var (
 		totalInputValue   dcrutil.Amount
 		inputs            = make([]*wire.TxIn, 0, len(outputs))
@@ -130,7 +130,7 @@ func main() {
 		return
 	}
 
-	var utxos []dcrjson.ListUnspentResult
+	var utxos []types.ListUnspentResult
 
 	jsonParser := json.NewDecoder(unspentFile)
 	if err = jsonParser.Decode(&utxos); err != nil {
@@ -157,17 +157,17 @@ func main() {
 
 	switch cfg.Network {
 	case "testnet":
-		params = &chaincfg.TestNet3Params
+		params = chaincfg.TestNet3Params()
 	case "mainnet":
-		params = &chaincfg.MainNetParams
+		params = chaincfg.MainNetParams()
 	case "simnet":
-		params = &chaincfg.SimNetParams
+		params = chaincfg.SimNetParams()
 	default:
 		fmt.Printf("unknown network specified: %s", cfg.Network)
 		return
 	}
 
-	addr, err := dcrutil.DecodeAddress(cfg.SendToAddress)
+	addr, err := dcrutil.DecodeAddress(cfg.SendToAddress, params)
 	if err != nil {
 		fmt.Printf("failed to parse address %s: %v", cfg.SendToAddress, err)
 		return
@@ -187,7 +187,7 @@ func main() {
 	}
 
 	txOuts := []*wire.TxOut{wire.NewTxOut(int64(targetAmount-fee), pkScript)}
-	atx, err := txauthor.NewUnsignedTransaction(txOuts, fee, inputSource, nil)
+	atx, err := txauthor.NewUnsignedTransaction(txOuts, fee, inputSource, nil, params.MaxTxSize)
 	if err != nil {
 		fmt.Printf("failed to create unsigned transaction: %s", err)
 		return

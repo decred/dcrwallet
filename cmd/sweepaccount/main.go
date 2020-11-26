@@ -1,11 +1,14 @@
 // Copyright (c) 2015-2016 The btcsuite developers
-// Copyright (c) 2016-2017 The Decred developers
+// Copyright (c) 2016-2020 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package main
 
 import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -13,20 +16,23 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/decred/dcrd/chaincfg"
+	"decred.org/dcrwallet/rpc/jsonrpc/types"
+	"decred.org/dcrwallet/wallet/txauthor"
+	"decred.org/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrd/dcrutil"
-	dcrrpcclient "github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/txscript/v3"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrwallet/wallet/txauthor"
-	"github.com/decred/dcrwallet/wallet/txrules"
 	"github.com/jessevdk/go-flags"
+	"github.com/jrick/wsrpc/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
+const defaultScriptVersion = 0
+
 var (
+	activeNet           = chaincfg.MainNetParams()
 	walletDataDirectory = dcrutil.AppDataDir("dcrwallet", false)
 	newlineBytes        = []byte{'\n'}
 )
@@ -122,11 +128,10 @@ func init() {
 	if opts.TestNet && opts.SimNet {
 		fatalf("Multiple decred networks may not be used simultaneously")
 	}
-	var activeNet = &chaincfg.MainNetParams
 	if opts.TestNet {
-		activeNet = &chaincfg.TestNet3Params
+		activeNet = chaincfg.TestNet3Params()
 	} else if opts.SimNet {
-		activeNet = &chaincfg.SimNetParams
+		activeNet = chaincfg.SimNetParams()
 	}
 
 	if opts.RPCConnect == "" {
@@ -183,7 +188,7 @@ func (noInputValue) Error() string { return "no input value" }
 // output is consumed.  The InputSource does not return any previous output
 // scripts as they are not needed for creating the unsinged transaction and are
 // looked up again by the wallet during the call to signrawtransaction.
-func makeInputSource(outputs []dcrjson.ListUnspentResult) txauthor.InputSource {
+func makeInputSource(outputs []types.ListUnspentResult) txauthor.InputSource {
 	var (
 		totalInputValue   dcrutil.Amount
 		inputs            = make([]*wire.TxIn, 0, len(outputs))
@@ -239,12 +244,19 @@ func makeInputSource(outputs []dcrjson.ListUnspentResult) txauthor.InputSource {
 // all correlated previous input value.
 type destinationScriptSourceToAccount struct {
 	accountName string
-	rpcClient   *dcrrpcclient.Client
+	rpcClient   *wsrpc.Client
 }
 
 // Source creates a non-change address.
 func (src *destinationScriptSourceToAccount) Script() ([]byte, uint16, error) {
-	destinationAddress, err := src.rpcClient.GetNewAddress(src.accountName)
+	var destinationAddressStr string
+	err := src.rpcClient.Call(context.Background(), "getnewaddress", &destinationAddressStr,
+		src.accountName)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	destinationAddress, err := dcrutil.DecodeAddress(destinationAddressStr, activeNet)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -254,7 +266,7 @@ func (src *destinationScriptSourceToAccount) Script() ([]byte, uint16, error) {
 		return nil, 0, err
 	}
 
-	return script, txscript.DefaultScriptVersion, nil
+	return script, defaultScriptVersion, nil
 }
 
 func (src *destinationScriptSourceToAccount) ScriptSize() int {
@@ -269,12 +281,12 @@ type destinationScriptSourceToAddress struct {
 
 // Source creates a non-change address.
 func (src *destinationScriptSourceToAddress) Script() ([]byte, uint16, error) {
-	destinationAddress, err := dcrutil.DecodeAddress(src.address)
+	destinationAddress, err := dcrutil.DecodeAddress(src.address, activeNet)
 	if err != nil {
 		return nil, 0, err
 	}
 	script, err := txscript.PayToAddrScript(destinationAddress)
-	return script, txscript.DefaultScriptVersion, err
+	return script, defaultScriptVersion, err
 }
 
 func (src *destinationScriptSourceToAddress) ScriptSize() int {
@@ -282,13 +294,14 @@ func (src *destinationScriptSourceToAddress) ScriptSize() int {
 }
 
 func main() {
-	err := sweep()
+	ctx := context.Background()
+	err := sweep(ctx)
 	if err != nil {
 		fatalf("%v", err)
 	}
 }
 
-func sweep() error {
+func sweep(ctx context.Context) error {
 	rpcPassword := opts.RPCPassword
 
 	if rpcPassword == "" {
@@ -305,27 +318,32 @@ func sweep() error {
 	if err != nil {
 		return errContext(err, "failed to read RPC certificate")
 	}
-	rpcClient, err := dcrrpcclient.New(&dcrrpcclient.ConnConfig{
-		Host:         opts.RPCConnect,
-		User:         opts.RPCUsername,
-		Pass:         rpcPassword,
-		Certificates: rpcCertificate,
-		HTTPPostMode: true,
-	}, nil)
+	caPool := x509.NewCertPool()
+	if ok := caPool.AppendCertsFromPEM(rpcCertificate); !ok {
+		err := errors.New("unparsable certificate authority")
+		return errContext(err, err.Error())
+	}
+	tc := &tls.Config{RootCAs: caPool}
+	tlsOpt := wsrpc.WithTLSConfig(tc)
+
+	authOpt := wsrpc.WithBasicAuth(opts.RPCUsername, rpcPassword)
+
+	rpcClient, err := wsrpc.Dial(ctx, opts.RPCConnect, tlsOpt, authOpt)
 	if err != nil {
 		return errContext(err, "failed to create RPC client")
 	}
-	defer rpcClient.Shutdown()
+	defer rpcClient.Close()
 
 	// Fetch all unspent outputs, ignore those not from the source
 	// account, and group by their destination address.  Each grouping of
 	// outputs will be used as inputs for a single transaction sending to a
 	// new destination account address.
-	unspentOutputs, err := rpcClient.ListUnspent()
+	var unspentOutputs []types.ListUnspentResult
+	err = rpcClient.Call(ctx, "listunspent", &unspentOutputs)
 	if err != nil {
 		return errContext(err, "failed to fetch unspent outputs")
 	}
-	sourceOutputs := make(map[string][]dcrjson.ListUnspentResult)
+	sourceOutputs := make(map[string][]types.ListUnspentResult)
 	for _, unspentOutput := range unspentOutputs {
 		if !unspentOutput.Spendable {
 			continue
@@ -382,7 +400,7 @@ func sweep() error {
 				rpcClient:   rpcClient,
 			}
 			atx, err = txauthor.NewUnsignedTransaction(nil, feeRate,
-				inputSource, destinationSourceToAccount)
+				inputSource, destinationSourceToAccount, activeNet.MaxTxSize)
 		}
 
 		if opts.DestinationAddress != "" {
@@ -390,7 +408,7 @@ func sweep() error {
 				address: opts.DestinationAddress,
 			}
 			atx, err = txauthor.NewUnsignedTransaction(nil, feeRate,
-				inputSource, destinationSourceToAddress)
+				inputSource, destinationSourceToAddress, activeNet.MaxTxSize)
 		}
 
 		if err != nil {
@@ -401,18 +419,20 @@ func sweep() error {
 		}
 
 		// Unlock the wallet, sign the transaction, and immediately lock.
-		err = rpcClient.WalletPassphrase(privatePassphrase, 60)
+		err = rpcClient.Call(ctx, "walletpassphrase", nil, privatePassphrase, 60)
 		if err != nil {
 			reportError("Failed to unlock wallet: %v", err)
 			continue
 		}
-		signedTransaction, complete, err := rpcClient.SignRawTransaction(atx.Tx)
-		_ = rpcClient.WalletLock()
+
+		var srtResult types.SignRawTransactionResult
+		err = rpcClient.Call(ctx, "signrawtransaction", &srtResult, atx.Tx)
+		_ = rpcClient.Call(ctx, "walletlock", nil)
 		if err != nil {
 			reportError("Failed to sign transaction: %v", err)
 			continue
 		}
-		if !complete {
+		if !srtResult.Complete {
 			reportError("Failed to sign every input")
 			continue
 		}
@@ -422,13 +442,14 @@ func sweep() error {
 		if opts.DryRun {
 			fmt.Printf("DRY RUN: not actually sending transaction\n")
 		} else {
-			hash, err := rpcClient.SendRawTransaction(signedTransaction, false)
+			var hash string
+			err := rpcClient.Call(ctx, "sendrawtransaction", &hash, srtResult.Hex, false)
 			if err != nil {
 				reportError("Failed to publish transaction: %v", err)
 				continue
 			}
 
-			txHash = hash.String()
+			txHash = hash
 		}
 
 		outputAmount := dcrutil.Amount(atx.Tx.TxOut[0].Value)
@@ -465,7 +486,7 @@ func saneOutputValue(amount dcrutil.Amount) bool {
 	return amount >= 0 && amount <= dcrutil.MaxAmount
 }
 
-func parseOutPoint(input *dcrjson.ListUnspentResult) (wire.OutPoint, error) {
+func parseOutPoint(input *types.ListUnspentResult) (wire.OutPoint, error) {
 	txHash, err := chainhash.NewHashFromStr(input.TxID)
 	if err != nil {
 		return wire.OutPoint{}, err
