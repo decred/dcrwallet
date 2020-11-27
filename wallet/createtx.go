@@ -1658,9 +1658,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			if err != nil {
 				return nil, err
 			}
-			if err != nil {
-				return nil, err
-			}
 		}
 	}
 
