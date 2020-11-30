@@ -5297,9 +5297,24 @@ func (w *Wallet) SetPublished(ctx context.Context, hash *chainhash.Hash, publish
 	return nil
 }
 
+// VSPFeeHashForTicket returns the hash of the fee transaction associated with a
+// VSP payment.
+func (w *Wallet) VSPFeeHashForTicket(ctx context.Context, ticketHash *chainhash.Hash) (chainhash.Hash, error) {
+	var feeHash chainhash.Hash
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		data, err := udb.GetVSPTicket(dbtx, *ticketHash)
+		if err != nil {
+			return err
+		}
+		feeHash = data.FeeHash
+		return nil
+	})
+	return feeHash, err
+}
+
 // UpdateVspTicketFeeToPaid updates a vsp ticket fee status to paid.
 // This is needed when finishing the fee payment on VSPs Process.
-func (w *Wallet) UpdateVspTicketFeeToPaid(ctx context.Context, ticketHash *chainhash.Hash, feeHash *chainhash.Hash) error {
+func (w *Wallet) UpdateVspTicketFeeToPaid(ctx context.Context, ticketHash, feeHash *chainhash.Hash) error {
 	var err error
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{

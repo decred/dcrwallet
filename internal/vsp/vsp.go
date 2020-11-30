@@ -312,6 +312,7 @@ func (v *VSP) Sync(ctx context.Context) {
 func (v *VSP) Process(ctx context.Context, ticketHash chainhash.Hash, credits []wallet.Input) (*wire.MsgTx, error) {
 	var feeAmount dcrutil.Amount
 	var err error
+	var apiErr *BadRequestError
 	for i := 0; i < 2; i++ {
 		feeAmount, err = v.GetFeeAddress(ctx, ticketHash)
 		if err == nil {
@@ -320,6 +321,27 @@ func (v *VSP) Process(ctx context.Context, ticketHash chainhash.Hash, credits []
 		const broadcastMsg = "ticket transaction could not be broadcast"
 		if err != nil && i == 0 && strings.Contains(err.Error(), broadcastMsg) {
 			time.Sleep(2 * time.Minute)
+		}
+	}
+	if errors.As(err, &apiErr) {
+		switch apiErr.Code {
+		case codeFeeAlreadyReceived:
+			w := v.cfg.Wallet
+			feeHash, err := w.VSPFeeHashForTicket(ctx, &ticketHash)
+			if err != nil {
+				return nil, fmt.Errorf("no known fee hash for "+
+					"successfully processed ticket %v: %w",
+					&ticketHash, err)
+			}
+			err = w.SetPublished(ctx, &feeHash, true)
+			if err != nil {
+				return nil, err
+			}
+			err = w.UpdateVspTicketFeeToPaid(ctx, &ticketHash, &feeHash)
+			if err != nil {
+				return nil, err
+			}
+			return nil, nil
 		}
 	}
 	if err != nil {
