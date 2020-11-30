@@ -47,6 +47,11 @@ type Config struct {
 	// ChangeAccount specifies the change account when creating fee transactions.
 	ChangeAccount uint32
 
+	// MaxFee specifies the maximum allowed fee which the VSP may require.
+	// Fees exceeding this value will result in the fee transaction not
+	// being paid to the VSP.
+	MaxFee dcrutil.Amount
+
 	// Dialer specifies an optional dialer when connecting to the VSP.
 	Dialer DialFunc
 

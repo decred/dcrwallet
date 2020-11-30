@@ -269,6 +269,7 @@ func run(ctx context.Context) error {
 				PubKey:          cfg.VSPOpts.PubKey,
 				PurchaseAccount: purchaseAcct,
 				ChangeAccount:   changeAcct,
+				MaxFee:          cfg.VSPOpts.MaxFee.Amount,
 				Dialer:          cfg.dial,
 				Wallet:          w,
 				Params:          activeNet.Params,

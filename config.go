@@ -175,9 +175,10 @@ type ticketBuyerOptions struct {
 
 type vspOptions struct {
 	// VSP - TODO: VSPServer to a []string to support multiple VSPs
-	URL    string `long:"url" description:"Base URL of the VSP server"`
-	PubKey string `long:"pubkey" description:"VSP server pubkey"`
-	Sync   bool   `long:"sync" description:"sync tickets to vsp"`
+	URL    string              `long:"url" description:"Base URL of the VSP server"`
+	PubKey string              `long:"pubkey" description:"VSP server pubkey"`
+	Sync   bool                `long:"sync" description:"sync tickets to vsp"`
+	MaxFee *cfgutil.AmountFlag `long:"maxfee" description:"Maximum VSP fee"`
 }
 
 // cleanAndExpandPath expands environement variables and leading ~ in the
@@ -361,6 +362,10 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		TBOpts: ticketBuyerOptions{
 			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
 			VotingAddress:             cfgutil.NewAddressFlag(),
+		},
+
+		VSPOpts: vspOptions{
+			MaxFee: cfgutil.NewAmountFlag(0.1e8),
 		},
 	}
 

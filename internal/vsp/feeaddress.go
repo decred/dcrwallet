@@ -102,15 +102,11 @@ func (v *VSP) GetFeeAddress(ctx context.Context, ticketHash chainhash.Hash) (dcr
 	}
 	feeAmount := dcrutil.Amount(feeResponse.FeeAmount)
 
-	// TODO - convert to vsp.maxfee config option
-	maxFee, err := dcrutil.NewAmount(0.1)
-	if err != nil {
+	log.Infof("VSP requires fee %v", feeAmount)
+	if feeAmount > v.cfg.MaxFee {
+		err := fmt.Errorf("server fee amount too high: %v > %v", feeAmount, v.cfg.MaxFee)
+		log.Warn(err)
 		return 0, err
-	}
-
-	if feeAmount > maxFee {
-		log.Warnf("fee amount too high: %v > %v", feeAmount, maxFee)
-		return 0, fmt.Errorf("server fee amount too high: %v > %v", feeAmount, maxFee)
 	}
 
 	v.ticketToFeeMu.Lock()
