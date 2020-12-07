@@ -1795,6 +1795,9 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 	if err != nil {
 		return nil, err
 	}
+	shuffle(len(unspent), func(i, j int) {
+		unspent[i], unspent[j] = unspent[j], unspent[i]
+	})
 
 	eligible := make([]Input, 0, len(unspent))
 	var outTotal dcrutil.Amount
