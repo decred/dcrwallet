@@ -4353,15 +4353,25 @@ func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account
 	}
 
 	defer w.holdUnlock().release()
-	tx, watch, err := w.txToOutputs(ctx, op, outputs, account, changeAccount, minconf, true, relayFee, false, false)
+	a := &authorTx{
+		outputs:            outputs,
+		account:            account,
+		changeAccount:      changeAccount,
+		minconf:            minconf,
+		randomizeChangeIdx: true,
+		txFee:              relayFee,
+		dontSignTx:         false,
+		isTreasury:         false,
+	}
+	err := w.authorTx(ctx, op, a)
 	if err != nil {
 		return nil, err
 	}
-	err = w.publishAndWatch(ctx, op, nil, tx, watch)
+	err = w.publishAndWatch(ctx, op, nil, a.atx, a.watch)
 	if err != nil {
 		return nil, err
 	}
-	hash := tx.Tx.TxHash()
+	hash := a.atx.Tx.TxHash()
 	return &hash, nil
 }
 
@@ -4377,17 +4387,25 @@ func (w *Wallet) SendOutputsToTreasury(ctx context.Context, outputs []*wire.TxOu
 	}
 
 	defer w.holdUnlock().release()
-	tx, watch, err := w.txToOutputs(ctx, op, outputs, account, changeAccount,
-		minconf, false, relayFee, false, true)
+	a := &authorTx{
+		outputs:            outputs,
+		account:            account,
+		changeAccount:      changeAccount,
+		minconf:            minconf,
+		randomizeChangeIdx: false,
+		txFee:              relayFee,
+		dontSignTx:         false,
+		isTreasury:         true,
+	}
+	err := w.authorTx(ctx, op, a)
 	if err != nil {
 		return nil, err
 	}
-
-	err = w.publishAndWatch(ctx, op, nil, tx, watch)
+	err = w.publishAndWatch(ctx, op, nil, a.atx, a.watch)
 	if err != nil {
 		return nil, err
 	}
-	hash := tx.Tx.TxHash()
+	hash := a.atx.Tx.TxHash()
 	return &hash, nil
 }
 

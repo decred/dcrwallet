@@ -330,15 +330,28 @@ func (w *Wallet) publishAndWatch(ctx context.Context, op errors.Op, n NetworkBac
 	return nil
 }
 
-// txToOutputs creates a signed transaction which includes each output
+type authorTx struct {
+	outputs            []*wire.TxOut
+	account            uint32
+	changeAccount      uint32
+	minconf            int32
+	randomizeChangeIdx bool
+	txFee              dcrutil.Amount
+	dontSignTx         bool
+	isTreasury         bool
+
+	atx                 *txauthor.AuthoredTx
+	changeSourceUpdates []func(walletdb.ReadWriteTx) error
+	watch               []wire.OutPoint
+}
+
+// authorTx creates a (typically signed) transaction which includes each output
 // from outputs.  Previous outputs to redeem are chosen from the passed
 // account's UTXO set and minconf policy. An additional output may be added to
 // return change to the wallet.  An appropriate fee is included based on the
 // wallet's current relay fee.  The wallet must be unlocked to create the
 // transaction.
-func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.TxOut, account, changeAccount uint32, minconf int32,
-	randomizeChangeIdx bool, txFee dcrutil.Amount, dontSignTx bool, isTreasury bool) (*txauthor.AuthoredTx, []wire.OutPoint, error) {
-
+func (w *Wallet) authorTx(ctx context.Context, op errors.Op, a *authorTx) error {
 	var unlockOutpoints []*wire.OutPoint
 	defer func() {
 		for _, op := range unlockOutpoints {
@@ -360,14 +373,14 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 
 		// Create the unsigned transaction.
 		_, tipHeight := w.txStore.MainChainTip(dbtx)
-		inputSource := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, account,
-			minconf, tipHeight, ignoreInput)
+		inputSource := w.txStore.MakeInputSource(txmgrNs, addrmgrNs,
+			a.account, a.minconf, tipHeight, ignoreInput)
 		var changeSource txauthor.ChangeSource
-		if isTreasury {
+		if a.isTreasury {
 			changeSource = &p2PKHTreasuryChangeSource{
 				persist: w.deferPersistReturnedChild(ctx,
 					&changeSourceUpdates),
-				account: changeAccount,
+				account: a.changeAccount,
 				wallet:  w,
 				ctx:     ctx,
 			}
@@ -375,13 +388,13 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 			changeSource = &p2PKHChangeSource{
 				persist: w.deferPersistReturnedChild(ctx,
 					&changeSourceUpdates),
-				account: changeAccount,
+				account: a.changeAccount,
 				wallet:  w,
 				ctx:     ctx,
 			}
 		}
 		var err error
-		atx, err = txauthor.NewUnsignedTransaction(outputs, txFee,
+		atx, err = txauthor.NewUnsignedTransaction(a.outputs, a.txFee,
 			randomInputSource(inputSource.SelectInputs), changeSource,
 			w.chainParams.MaxTxSize)
 		if err != nil {
@@ -396,12 +409,12 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 		// Randomize change position, if change exists, before signing.
 		// This doesn't affect the serialize size, so the change amount
 		// will still be valid.
-		if atx.ChangeIndex >= 0 && randomizeChangeIdx {
+		if atx.ChangeIndex >= 0 && a.randomizeChangeIdx {
 			atx.RandomizeChangePosition()
 		}
 
 		// TADDs need to use version 3 txs.
-		if isTreasury {
+		if a.isTreasury {
 			// This check ensures that if NewUnsignedTransaction is
 			// updated to generate a different transaction version
 			// we error out loudly instead of failing to validate
@@ -416,7 +429,7 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 			atx.Tx.Version = wire.TxVersionTreasury
 		}
 
-		if !dontSignTx {
+		if !a.dontSignTx {
 			// Sign the transaction.
 			secrets := &secretSource{Manager: w.manager, addrmgrNs: addrmgrNs}
 			err = atx.AddAllInputScripts(secrets)
@@ -427,12 +440,12 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 		return err
 	})
 	if err != nil {
-		return nil, nil, errors.E(op, err)
+		return errors.E(op, err)
 	}
 
 	// Warn when spending UTXOs controlled by imported keys created change for
 	// the default account.
-	if atx.ChangeIndex >= 0 && account == udb.ImportedAddrAccount {
+	if atx.ChangeIndex >= 0 && a.account == udb.ImportedAddrAccount {
 		changeAmount := dcrutil.Amount(atx.Tx.TxOut[atx.ChangeIndex].Value)
 		log.Warnf("Spend from imported account produced change: moving"+
 			" %v from imported account into default account.", changeAmount)
@@ -440,23 +453,26 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 
 	err = w.checkHighFees(atx.TotalInput, atx.Tx)
 	if err != nil {
-		return nil, nil, errors.E(op, err)
+		return errors.E(op, err)
 	}
 
+	a.atx = atx
+	a.changeSourceUpdates = changeSourceUpdates
+
 	// if no need to sign it, we do not publish the transaction.
-	if dontSignTx {
-		return atx, nil, nil
+	if a.dontSignTx {
+		return nil
 	}
 
 	// Ensure valid signatures were created.
 	err = validateMsgTx(op, atx.Tx, atx.PrevScripts)
 	if err != nil {
-		return nil, nil, errors.E(op, err)
+		return errors.E(op, err)
 	}
 
 	rec, err := udb.NewTxRecordFromMsgTx(atx.Tx, time.Now())
 	if err != nil {
-		return nil, nil, errors.E(op, err)
+		return errors.E(op, err)
 	}
 
 	// To avoid a race between publishing a transaction and potentially opening
@@ -478,10 +494,11 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 		return err
 	})
 	if err != nil {
-		return nil, nil, errors.E(op, err)
+		return errors.E(op, err)
 	}
 
-	return atx, watch, nil
+	a.watch = watch
+	return nil
 }
 
 // txToMultisig spends funds to a multisig output, partially signs the
@@ -1116,20 +1133,29 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 		outIndexes = append(outIndexes, i)
 	}
 
-	txFee := w.RelayFee()
-	splitTx, watch, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
-		false, txFee, req.DontSignTx, false)
+	const op errors.Op = "individualSplit"
+	a := &authorTx{
+		outputs:            splitOuts,
+		account:            req.SourceAccount,
+		changeAccount:      req.ChangeAccount,
+		minconf:            req.MinConf,
+		randomizeChangeIdx: false,
+		txFee:              w.RelayFee(),
+		dontSignTx:         req.DontSignTx,
+		isTreasury:         false,
+	}
+	err = w.authorTx(ctx, op, a)
 	if err != nil {
 		return
 	}
 	if !req.DontSignTx {
-		err = w.publishAndWatch(ctx, "individualSplit", nil, splitTx, watch)
+		err = w.publishAndWatch(ctx, op, nil, a.atx, a.watch)
 		if err != nil {
 			return
 		}
 	}
 
-	tx = splitTx.Tx
+	tx = a.atx.Tx
 	return
 }
 
@@ -1149,7 +1175,7 @@ func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, need
 		return
 	}
 
-	// Create the split transaction by using txToOutputs. This varies
+	// Create the split transaction by using authorTx. This varies
 	// based upon whether or not the user is using a stake pool or not.
 	// For the default stake pool implementation, the user pays out the
 	// first ticket commitment of a smaller amount to the pool, while
@@ -1170,20 +1196,29 @@ func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, need
 		outIndexes = append(outIndexes, i*2)
 	}
 
-	txFee := w.RelayFee()
-	splitTx, watch, err := w.txToOutputs(ctx, "", splitOuts, req.SourceAccount, req.ChangeAccount, req.MinConf,
-		false, txFee, req.DontSignTx, false)
+	const op errors.Op = "vspSplit"
+	a := &authorTx{
+		outputs:            splitOuts,
+		account:            req.SourceAccount,
+		changeAccount:      req.ChangeAccount,
+		minconf:            req.MinConf,
+		randomizeChangeIdx: false,
+		txFee:              w.RelayFee(),
+		dontSignTx:         req.DontSignTx,
+		isTreasury:         false,
+	}
+	err = w.authorTx(ctx, op, a)
 	if err != nil {
 		return
 	}
 	if !req.DontSignTx {
-		err = w.publishAndWatch(ctx, "vspSplit", nil, splitTx, watch)
+		err = w.publishAndWatch(ctx, op, nil, a.atx, a.watch)
 		if err != nil {
 			return
 		}
 	}
 
-	tx = splitTx.Tx
+	tx = a.atx.Tx
 	return
 }
 
