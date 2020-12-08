@@ -456,21 +456,27 @@ func (w *Wallet) authorTx(ctx context.Context, op errors.Op, a *authorTx) error 
 		return errors.E(op, err)
 	}
 
+	if !a.dontSignTx {
+		// Ensure valid signatures were created.
+		err = validateMsgTx(op, atx.Tx, atx.PrevScripts)
+		if err != nil {
+			return errors.E(op, err)
+		}
+	}
+
 	a.atx = atx
 	a.changeSourceUpdates = changeSourceUpdates
+	return nil
+}
 
-	// if no need to sign it, we do not publish the transaction.
-	if a.dontSignTx {
-		return nil
-	}
-
-	// Ensure valid signatures were created.
-	err = validateMsgTx(op, atx.Tx, atx.PrevScripts)
-	if err != nil {
-		return errors.E(op, err)
-	}
-
-	rec, err := udb.NewTxRecordFromMsgTx(atx.Tx, time.Now())
+// recordAuthoredTx records an authored transaction to the wallet's database.  It
+// also updates the database for change addresses used by the new transaction.
+//
+// As a side effect of recording the transaction to the wallet, clients
+// subscribed to new tx notifications will also be notified of the new
+// transaction.
+func (w *Wallet) recordAuthoredTx(ctx context.Context, op errors.Op, a *authorTx) error {
+	rec, err := udb.NewTxRecordFromMsgTx(a.atx.Tx, time.Now())
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -480,7 +486,7 @@ func (w *Wallet) authorTx(ctx context.Context, op errors.Op, a *authorTx) error 
 	// before publishing the transaction to the network.
 	var watch []wire.OutPoint
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		for _, up := range changeSourceUpdates {
+		for _, up := range a.changeSourceUpdates {
 			err := up(dbtx)
 			if err != nil {
 				return err
@@ -1148,6 +1154,10 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 	if err != nil {
 		return
 	}
+	err = w.recordAuthoredTx(ctx, op, a)
+	if err != nil {
+		return
+	}
 	if !req.DontSignTx {
 		err = w.publishAndWatch(ctx, op, nil, a.atx, a.watch)
 		if err != nil {
@@ -1208,6 +1218,10 @@ func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, need
 		isTreasury:         false,
 	}
 	err = w.authorTx(ctx, op, a)
+	if err != nil {
+		return
+	}
+	err = w.recordAuthoredTx(ctx, op, a)
 	if err != nil {
 		return
 	}

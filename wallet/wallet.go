@@ -4367,6 +4367,10 @@ func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account
 	if err != nil {
 		return nil, err
 	}
+	err = w.recordAuthoredTx(ctx, op, a)
+	if err != nil {
+		return nil, err
+	}
 	err = w.publishAndWatch(ctx, op, nil, a.atx, a.watch)
 	if err != nil {
 		return nil, err
@@ -4398,6 +4402,10 @@ func (w *Wallet) SendOutputsToTreasury(ctx context.Context, outputs []*wire.TxOu
 		isTreasury:         true,
 	}
 	err := w.authorTx(ctx, op, a)
+	if err != nil {
+		return nil, err
+	}
+	err = w.recordAuthoredTx(ctx, op, a)
 	if err != nil {
 		return nil, err
 	}
