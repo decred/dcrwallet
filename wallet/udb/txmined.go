@@ -2285,6 +2285,12 @@ func (s *Store) UnspentOutputs(dbtx walletdb.ReadTx) ([]*Credit, error) {
 			continue
 		}
 
+		// Skip outputs from unpublished transactions.
+		txHash := k[:32]
+		if existsUnpublished(ns, txHash) {
+			continue
+		}
+
 		err = readUnspentBlock(v, &block)
 		if err != nil {
 			c.Close()
@@ -2350,6 +2356,12 @@ func (s *Store) ForEachUnspentOutpoint(dbtx walletdb.ReadTx, f func(*wire.OutPoi
 			continue
 		}
 
+		// Skip outputs from unpublished transactions.
+		txHash := k[:32]
+		if existsUnpublished(ns, txHash) {
+			continue
+		}
+
 		block := new(Block)
 		err = readUnspentBlock(v, block)
 		if err != nil {
@@ -2401,6 +2413,12 @@ func (s *Store) ForEachUnspentOutpoint(dbtx walletdb.ReadTx, f func(*wire.OutPoi
 // IsUnspentOutpoint returns whether the outpoint is recorded as a wallet UTXO.
 func (s *Store) IsUnspentOutpoint(dbtx walletdb.ReadTx, op *wire.OutPoint) bool {
 	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+
+	// Outputs from unpublished transactions are not UTXOs yet.
+	if existsUnpublished(ns, op.Hash[:]) {
+		return false
+	}
+
 	k := canonicalOutPoint(&op.Hash, op.Index)
 	if v := ns.NestedReadBucket(bucketUnspent); v != nil {
 		// Output is mined and not spent by any other mined tx, but may be spent
@@ -2974,6 +2992,12 @@ func (s *Store) UnspentOutputsForAmount(ns, addrmgrNs walletdb.ReadBucket, neede
 				continue
 			}
 
+			// Skip outputs from unpublished transactions.
+			txHash := k[:32]
+			if existsUnpublished(ns, txHash) {
+				continue
+			}
+
 			// Check the account matches.
 			pkScript, err := s.fastCreditPkScriptLookup(ns, nil, k)
 			if err != nil {
@@ -3304,6 +3328,12 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			// Make sure this output was not spent by an unmined transaction.
 			// If it was, skip this credit.
 			if existsRawUnminedInput(ns, k) != nil {
+				continue
+			}
+
+			// Skip outputs from unpublished transactions.
+			txHash := k[:32]
+			if existsUnpublished(ns, txHash) {
 				continue
 			}
 
