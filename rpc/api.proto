@@ -52,6 +52,7 @@ service WalletService {
 	rpc NextAccount (NextAccountRequest) returns (NextAccountResponse);
 	rpc NextAddress (NextAddressRequest) returns (NextAddressResponse);
 	rpc ImportPrivateKey (ImportPrivateKeyRequest) returns (ImportPrivateKeyResponse);
+	rpc ImportVotingAccountFromSeed (ImportVotingAccountFromSeedRequest) returns (ImportVotingAccountFromSeedResponse);
 	rpc ImportScript(ImportScriptRequest) returns (ImportScriptResponse);
 	rpc FundTransaction (FundTransactionRequest) returns (FundTransactionResponse);
 	rpc UnspentOutputs (UnspentOutputsRequest) returns (stream UnspentOutputResponse);
@@ -280,6 +281,18 @@ message ImportPrivateKeyRequest {
 }
 message ImportPrivateKeyResponse {
 }
+
+message ImportVotingAccountFromSeedRequest {
+	bytes seed = 1;
+	string name = 2;
+	bytes passphrase = 3;
+	bool rescan = 4;
+	int32 scan_from = 5;
+}
+message ImportVotingAccountFromSeedResponse {
+	uint32 account = 1;
+}
+
 
 message ImportScriptRequest {
 	bytes passphrase = 1;

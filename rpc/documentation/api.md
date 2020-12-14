@@ -411,6 +411,7 @@ The service provides the following methods:
 - [`NextAddress`](#nextaddress)
 - [`ImportPrivateKey`](#importprivatekey)
 - [`ImportScript`](#importscript)
+- [`ImportVotingAccountFromSeed`](#importvotingaccountfromseed)
 - [`FundTransaction`](#fundtransaction)
 - [`UnspentOutputs`](#unspentoutputs)
 - [`ConstructTransaction`](#constructtransaction)
@@ -1158,6 +1159,46 @@ as an output or in a P2SH input.
 
 - `FailedPrecondition`: A multisig script was required to be redeemable by the
   wallet but is not without additional secrets.
+
+___
+
+#### `ImportVotingAccountFromSeed`
+The `ImportVotingAccountFromSeed` method imports bytes that become the master
+seed for a hierarchical deterministic private key that is imported into the
+wallet with the supplied name and locked with the supplied password. Addresses
+derived from this account MUST NOT be sent any funds. They are solely for the
+use of creating stake submission scripts. A rescan may optionally be started to
+search for tickets using submission scripts derived from this account.
+
+**Request:** `ImportVotingAccountFromSeedRequest`
+
+- `bytes seed`: The bytes to be used in the master seed.
+
+- `bytes passphrase`: The wallet's private passphrase.
+
+- `string name`: A name to use for the account. Must be unique.
+
+- `bool rescan`: Whether or not to perform a blockchain rescan for the imported
+  key.
+
+- `int32 scan_from`: The block height to begin a rescan from.
+
+**Response:** `ImportPrivateKeyResponse`
+
+- `uint32 account`: The account number of the account.
+
+**Expected errors:**
+
+- `InvalidArgument`: Passphrase not supplied.
+
+- `InvalidArgument`: The seed supplied is invalid.
+
+- `InvalidArgument`: Duplicate name.
+
+- `InvalidArgument`: A rescan height was specified, but the rescan option was
+  not set.
+
+- `InvalidArgument`: A negative rescan height was passed.
 
 ___
 
