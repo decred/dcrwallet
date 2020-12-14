@@ -655,10 +655,46 @@ func (s *walletServer) ImportScript(ctx context.Context,
 func (s *walletServer) ImportVotingAccountFromSeed(ctx context.Context, req *pb.ImportVotingAccountFromSeedRequest) (
 	*pb.ImportVotingAccountFromSeedResponse, error) {
 
-	defer zero(req.Passphrase)
+	defer func() {
+		zero(req.Passphrase)
+		zero(req.Seed)
+	}()
 
-	return nil, status.Errorf(codes.Unimplemented,
-		"ImportVotingAccountFromSeed not yet implemented")
+	seedSize := len(req.Seed)
+	if seedSize < hdkeychain.MinSeedBytes || seedSize > hdkeychain.MaxSeedBytes {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid seed length")
+	}
+
+	if req.ScanFrom < 0 {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"Attempted to scan from a negative block height")
+	}
+
+	if req.ScanFrom > 0 && req.Rescan {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"Passed a rescan height without rescan set")
+	}
+
+	n, err := s.requireNetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	acctKeyPriv, err := s.wallet.VotingXprivFromSeed(req.Seed)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	accountN, err := s.wallet.ImportVotingAccount(ctx, acctKeyPriv, req.Passphrase, req.Name)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	if req.Rescan {
+		go s.wallet.RescanFromHeight(context.Background(), n, req.ScanFrom)
+	}
+
+	return &pb.ImportVotingAccountFromSeedResponse{Account: accountN}, nil
 }
 
 func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
