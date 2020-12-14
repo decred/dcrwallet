@@ -1899,14 +1899,16 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}
 
 	request := &wallet.PurchaseTicketsRequest{
-		Count:         numTickets,
-		SourceAccount: req.Account,
-		VotingAddress: ticketAddr,
-		MinConf:       minConf,
-		Expiry:        expiry,
-		DontSignTx:    dontSignTx,
-		VSPAddress:    poolAddr,
-		VSPFees:       poolFees,
+		Count:            numTickets,
+		SourceAccount:    req.Account,
+		VotingAddress:    ticketAddr,
+		MinConf:          minConf,
+		Expiry:           expiry,
+		DontSignTx:       dontSignTx,
+		VSPAddress:       poolAddr,
+		VSPFees:          poolFees,
+		UseVotingAccount: req.UseVotingAccount,
+		VotingAccount:    req.VotingAccount,
 
 		// CSPP
 		CSPPServer:         csppServer,

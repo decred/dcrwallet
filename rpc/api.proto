@@ -653,6 +653,8 @@ message PurchaseTicketsRequest {
 	uint32 change_account = 17;
 	string vsp_host = 18;
 	string vsp_pubkey = 19;
+	bool use_voting_account = 20;
+	uint32 voting_account = 21;
 }
 message PurchaseTicketsResponse {
 	repeated bytes ticket_hashes = 1;
