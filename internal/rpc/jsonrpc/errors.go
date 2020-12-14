@@ -101,7 +101,7 @@ var (
 
 	errWalletUnlockNeeded = &dcrjson.RPCError{
 		Code:    dcrjson.ErrRPCWalletUnlockNeeded,
-		Message: "enter the wallet passphrase with walletpassphrase first",
+		Message: "wallet or account locked; use walletpassphrase or unlockaccount first",
 	}
 
 	errReservedAccountName = &dcrjson.RPCError{

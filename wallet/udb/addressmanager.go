@@ -443,6 +443,11 @@ func deriveKey(acctInfo *accountInfo, branch, index uint32, private bool) (*hdke
 				return nil, errors.E(errors.Locked,
 					"account with unique passphrase is locked")
 			}
+			if len(acctInfo.acctKeyEncrypted) != 0 {
+				return nil, errors.E(errors.Locked,
+					"private key %s/%d/%d is locked",
+					acctInfo.acctName, branch, index)
+			}
 			return nil, errors.Errorf("no private key for %s/%d/%d",
 				acctInfo.acctName, branch, index)
 		}
