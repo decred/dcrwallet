@@ -5,9 +5,11 @@
 package wallet
 
 import (
+	"encoding/hex"
 	"math"
 	"testing"
 
+	"decred.org/dcrwallet/v2/errors"
 	"github.com/decred/dcrd/chaincfg/v3"
 )
 
@@ -88,6 +90,51 @@ func TestTicketExpired(t *testing.T) {
 		result := ticketExpired(params, test.txHeight, test.tipHeight)
 		if result != test.expired {
 			t.Errorf("test %d: result (%v) != expected (%v)", i, result, test.expired)
+		}
+	}
+}
+
+// TestVotingXprivFromSeed tests that creating voting xprivs works properly.
+func TestVotingXprivFromSeed(t *testing.T) {
+	seed, err := hex.DecodeString("0000000000000000000000000000000000000" +
+		"000000000000000000000000000")
+	if err != nil {
+		t.Fatalf("unable to create seed: %v", err)
+	}
+	wantXpriv := "dprv3oaf1h1hLxLZNHn6Gn9AaUaMJxhpHAj2KGMMHTi2AnoiHdRhCc" +
+		"iKbwf3dB6zpPEq8ffdT4NZ7gjtrZBQhSWDm2RVXbphmpdPnbq299ddB8a"
+
+	tests := []struct {
+		name, want string
+		seed       []byte
+		wantErr    *errors.Error
+	}{{
+		name: "ok",
+		seed: seed,
+		want: wantXpriv,
+	}, {
+		name:    "bad seed",
+		seed:    seed[:1],
+		wantErr: &errors.Error{Kind: errors.Invalid},
+	}}
+
+	for _, test := range tests {
+		got, err := votingXprivFromSeed(test.seed, chaincfg.MainNetParams())
+		if test.wantErr != nil {
+			if err == nil {
+				t.Fatalf("wanted error %v but got none", test.wantErr)
+			}
+			kind := err.(*errors.Error).Kind
+			if !test.wantErr.Is(kind) {
+				t.Fatalf("wanted error %v but got %v", test.wantErr, kind)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.String() != test.want {
+			t.Fatalf("wanted xpriv %v but got %v", test.want, got)
 		}
 	}
 }
