@@ -53,6 +53,7 @@ service WalletService {
 	rpc NextAddress (NextAddressRequest) returns (NextAddressResponse);
 	rpc ImportPrivateKey (ImportPrivateKeyRequest) returns (ImportPrivateKeyResponse);
 	rpc ImportExtendedPublicKey (ImportExtendedPublicKeyRequest) returns (ImportExtendedPublicKeyResponse);
+	rpc ImportVotingAccountFromSeed (ImportVotingAccountFromSeedRequest) returns (ImportVotingAccountFromSeedResponse);
 	rpc ImportScript(ImportScriptRequest) returns (ImportScriptResponse);
 	rpc FundTransaction (FundTransactionRequest) returns (FundTransactionResponse);
 	rpc UnspentOutputs (UnspentOutputsRequest) returns (stream UnspentOutputResponse);
@@ -290,6 +291,20 @@ message ImportExtendedPublicKeyRequest {
 	int32 scan_from = 4;
 }
 message ImportExtendedPublicKeyResponse {
+}
+
+message ImportVotingAccountFromSeedRequest {
+	bytes seed = 1;
+	string name = 2;
+	bytes passphrase = 3;
+	bool rescan = 4;
+	int32 scan_from = 5;
+	bool discover_usage = 6;
+	int32 discover_from = 7;
+	int32 discover_gap_limit = 8;
+}
+message ImportVotingAccountFromSeedResponse {
+	uint32 account = 1;
 }
 
 message ImportScriptRequest {

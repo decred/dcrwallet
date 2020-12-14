@@ -680,6 +680,15 @@ func (s *walletServer) ImportScript(ctx context.Context,
 	return &pb.ImportScriptResponse{P2ShAddress: p2sh.String(), Redeemable: redeemable}, nil
 }
 
+func (s *walletServer) ImportVotingAccountFromSeed(ctx context.Context, req *pb.ImportVotingAccountFromSeedRequest) (
+	*pb.ImportVotingAccountFromSeedResponse, error) {
+
+	defer zero(req.Passphrase)
+
+	return nil, status.Errorf(codes.Unimplemented,
+		"ImportVotingAccountFromSeed not yet implemented")
+}
+
 func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
 	*pb.BalanceResponse, error) {
 
