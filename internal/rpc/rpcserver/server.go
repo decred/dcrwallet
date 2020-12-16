@@ -3752,3 +3752,42 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	}
 	return &pb.SyncVSPTicketsResponse{}, nil
 }
+
+func (s *walletServer) SyncVSPTicketByHash(ctx context.Context, req *pb.SyncVSPTicketByHashRequest) (
+	*pb.SyncVSPTicketByHashResponse, error) {
+	vspHost := req.VspHost
+	vspPubKey := req.VspPubkey
+	if vspPubKey == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
+	}
+	if vspHost == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
+	}
+	cfg := vsp.Config{
+		URL:             vspHost,
+		PubKey:          vspPubKey,
+		PurchaseAccount: req.Account,
+		ChangeAccount:   req.Account,
+		MaxFee:          0.1e8,
+		Dialer:          nil,
+		Wallet:          s.wallet,
+		Params:          s.wallet.ChainParams(),
+	}
+	vspServer, err := vsp.New(ctx, cfg)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
+	}
+	ticketHash, err := chainhash.NewHash(req.TicketHash)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid transaction hash: %v", err)
+	}
+
+	fmt.Printf("tcikethash: %+v\n", ticketHash)
+	_, err = vspServer.Process(ctx, *ticketHash, nil)
+	if err != nil {
+		// if it fails to process again, we log it and continue with
+		// the wallet start.
+		// Not sure we need to log here since it's already warned elsewhere
+	}
+	return &pb.SyncVSPTicketByHashResponse{}, nil
+}
