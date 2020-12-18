@@ -13,7 +13,7 @@ import (
 // Source returns cryptographically-secure pseudorandom numbers with uniform
 // distribution.
 type Source struct {
-	buf    [4]byte
+	buf    [8]byte
 	cipher *chacha20.Cipher
 }
 
@@ -37,7 +37,7 @@ func RandSource(rand io.Reader) (*Source, error) {
 
 // Uint32 returns a pseudo-random uint32.
 func (s *Source) Uint32() uint32 {
-	b := s.buf[:]
+	b := s.buf[:4]
 	for i := range b {
 		b[i] = 0
 	}
@@ -56,6 +56,34 @@ func (s *Source) Uint32n(n uint32) uint32 {
 		u := s.Uint32() & mask
 		if u <= n {
 			return u
+		}
+	}
+}
+
+// Int63 returns a pseudo-random 63-bit positive integer as an int64 without
+// modulo bias.
+func (s *Source) Int63() int64 {
+	b := s.buf[:]
+	for i := range b {
+		b[i] = 0
+	}
+	s.cipher.XORKeyStream(b, b)
+	return int64(binary.LittleEndian.Uint64(b) &^ (1 << 63))
+}
+
+// Int63n returns, as an int64, a pseudo-random 63-bit positive integer in [0,n)
+// without modulo bias.
+// It panics if n <= 0.
+func (s *Source) Int63n(n int64) int64 {
+	if n <= 0 {
+		panic("invalid argument to Int63n")
+	}
+	n--
+	mask := int64(^uint64(0) >> bits.LeadingZeros64(uint64(n)))
+	for {
+		i := s.Int63() & mask
+		if i <= n {
+			return i
 		}
 	}
 }
