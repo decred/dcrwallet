@@ -3752,3 +3752,36 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	}
 	return &pb.SyncVSPTicketsResponse{}, nil
 }
+
+func (s *walletServer) StartVSPClient(ctx context.Context, req *pb.StartVSPClientRequest) (
+	*pb.StartVSPClientResponse, error) {
+
+	vspHost := req.VspHost
+	vspPubKey := req.VspPubkey
+	if vspPubKey == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
+	}
+	if vspHost == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
+	}
+	policy := vsp.Policy{
+		MaxFee:     0.1e8,
+		FeeAcct:    req.FeeAccount,
+		ChangeAcct: req.ChangeAccount,
+	}
+	cfg := vsp.Config{
+		URL:    vspHost,
+		PubKey: vspPubKey,
+		Dialer: nil,
+		Wallet: s.wallet,
+		Policy: policy,
+	}
+	vspClient, err := vsp.New(cfg) // XXX create lazily
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
+	}
+
+	vspClient.ProcessManagedTickets(ctx, policy)
+
+	return &pb.StartVSPClientResponse{}, nil
+}

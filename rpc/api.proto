@@ -79,6 +79,7 @@ service WalletService {
 	rpc LockWallet (LockWalletRequest) returns (LockWalletResponse);
 	rpc SyncVSPFailedTickets(SyncVSPTicketsRequest) returns (SyncVSPTicketsResponse);
 	rpc GetVSPTicketsByFeeStatus (GetVSPTicketsByFeeStatusRequest) returns (GetVSPTicketsByFeeStatusResponse);
+	rpc StartVSPClient (StartVSPClientRequest) returns (StartVSPClientResponse);
 }
 
 service WalletLoaderService {
@@ -1272,3 +1273,12 @@ message GetVSPTicketsByFeeStatusRequest {
 message GetVSPTicketsByFeeStatusResponse {
 	repeated bytes tickets_hashes = 1;
 }
+
+message StartVSPClientRequest {
+	string vsp_host = 1;
+	string vsp_pubkey = 2;
+	uint32 fee_account = 3;
+	uint32 change_account = 4;
+}
+
+message StartVSPClientResponse {}
