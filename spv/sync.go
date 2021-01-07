@@ -1337,7 +1337,7 @@ func (s *Syncer) handleMempool(ctx context.Context) error {
 				select {
 				case <-ctx.Done():
 				case <-time.After(mempoolEvictionTimeout):
-					s.mempool.Delete(txHash)
+					s.mempool.Delete(*txHash)
 				}
 			}()
 		case <-ctx.Done():
