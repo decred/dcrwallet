@@ -127,7 +127,9 @@ func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, include
 			// gettxout is used first as an optimization to check that output 0
 			// of the ticket is unspent.
 			var txOut *dcrdtypes.GetTxOutResult
-			err := rpcCaller.Call(ctx, "gettxout", &txOut, extraTickets[i].String(), 0)
+			const index = 0
+			const tree = 1
+			err := rpcCaller.Call(ctx, "gettxout", &txOut, extraTickets[i].String(), index, tree)
 			if err != nil || txOut == nil {
 				return nil
 			}

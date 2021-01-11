@@ -3926,10 +3926,11 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 			requestedGroup.Go(func() error {
 				hash := txIn.PreviousOutPoint.Hash.String()
 				index := txIn.PreviousOutPoint.Index
+				tree := txIn.PreviousOutPoint.Tree
 				// gettxout returns null without error if the output exists
 				// but is spent.  A double pointer is used to handle this case.
 				var res *dcrdtypes.GetTxOutResult
-				err := rpc.Call(gctx, "gettxout", &res, hash, index, true)
+				err := rpc.Call(gctx, "gettxout", &res, hash, index, tree, true)
 				if err != nil {
 					return errors.E(errors.Op("dcrd.jsonrpc.gettxout"), err)
 				}

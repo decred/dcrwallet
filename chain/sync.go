@@ -25,7 +25,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var requiredAPIVersion = semver{Major: 6, Minor: 0, Patch: 0}
+var requiredAPIVersion = semver{Major: 7, Minor: 0, Patch: 0}
 
 // Syncer implements wallet synchronization services by processing
 // notifications from a dcrd JSON-RPC server.
