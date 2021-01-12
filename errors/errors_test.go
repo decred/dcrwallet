@@ -89,3 +89,14 @@ func TestCause(t *testing.T) {
 		}
 	}
 }
+
+func TestDoubleWrappedErrorWithKind(t *testing.T) {
+	err := E(Invalid, "abc")
+	// Wrap the error again
+	err = E(err, "def")
+	// Now try to match against the kind
+	if !Is(err, Invalid) {
+		t.Errorf("Is returned false for error object: %T %+[1]v", err)
+		t.Errorf("Wrapped error: %T %+[1]v", err.(*Error).Unwrap())
+	}
+}

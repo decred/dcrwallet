@@ -204,6 +204,9 @@ func E(args ...interface{}) error {
 			e.bottom = true
 		case *Error:
 			prev = arg
+			if e.Kind == 0 {
+				e.Kind = arg.Kind
+			}
 			e.Err = arg
 			e.bottom = false
 		case error:
