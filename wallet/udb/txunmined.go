@@ -141,6 +141,12 @@ func (s *Store) SetPublished(dbtx walletdb.ReadWriteTx, txHash *chainhash.Hash, 
 	return putUnpublished(ns, txHash[:])
 }
 
+// ExistsUnpublished exported method of exists Unpublished
+func (s *Store) ExistsUnpublished(dbtx walletdb.ReadTx, txHash *chainhash.Hash) bool {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	return existsUnpublished(ns, txHash[:])
+}
+
 // removeDoubleSpends checks for any unmined transactions which would introduce
 // a double spend if tx was added to the store (either as a confirmed or unmined
 // transaction).  Each conflicting transaction and all transactions which spend

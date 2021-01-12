@@ -566,8 +566,13 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 	}
 
 	// Skip unlocking outpoints if the transaction is a vote or revocation as the lock
-	// is not held.
-	skipOutpoints := rec.TxType == stake.TxTypeSSGen || rec.TxType == stake.TxTypeSSRtx
+	// is not held. Also if it is an unpublished tx.
+	var isUnpublished bool
+	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
+		isUnpublished = w.txStore.ExistsUnpublished(tx, &rec.Hash)
+		return nil
+	})
+	skipOutpoints := rec.TxType == stake.TxTypeSSGen || rec.TxType == stake.TxTypeSSRtx || isUnpublished
 
 	// Handle input scripts that contain P2PKs that we care about.
 	for i, input := range rec.MsgTx.TxIn {
