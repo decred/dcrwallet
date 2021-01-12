@@ -5230,6 +5230,9 @@ func (w *Wallet) getCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, 
 		_, tipHeight := w.txStore.MainChainTip(dbtx)
 		rangeFn := func(details []udb.TxDetails) (bool, error) {
 			for _, detail := range details {
+				if detail.TxType != stake.TxTypeRegular {
+					continue
+				}
 				isMixedTx, mixDenom, _ := PossibleCoinJoin(&detail.MsgTx)
 				if !isMixedTx {
 					continue
