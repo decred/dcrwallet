@@ -62,9 +62,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.6.0"
+	semverString = "7.7.0"
 	semverMajor  = 7
-	semverMinor  = 6
+	semverMinor  = 7
 	semverPatch  = 0
 )
 
@@ -3787,4 +3787,85 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 		}
 	}
 	return &pb.SyncVSPTicketsResponse{}, nil
+}
+
+func (s *walletServer) ProcessManagedTickets(ctx context.Context, req *pb.ProcessManagedTicketsRequest) (
+	*pb.ProcessManagedTicketsResponse, error) {
+
+	vspHost := req.VspHost
+	vspPubKey := req.VspPubkey
+	if vspPubKey == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
+	}
+	if vspHost == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
+	}
+	policy := vsp.Policy{
+		MaxFee:     0.1e8,
+		FeeAcct:    req.FeeAccount,
+		ChangeAcct: req.ChangeAccount,
+	}
+	cfg := vsp.Config{
+		URL:    vspHost,
+		PubKey: vspPubKey,
+		Dialer: nil,
+		Wallet: s.wallet,
+		Policy: policy,
+	}
+	vspClient, err := getVSP(cfg)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
+	}
+
+	err = vspClient.ProcessManagedTickets(ctx, policy)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "ProcessManagedTickets failed. Error: %v", err)
+	}
+
+	return &pb.ProcessManagedTicketsResponse{}, nil
+}
+
+func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.ProcessUnmanagedTicketsRequest) (
+	*pb.ProcessUnmanagedTicketsResponse, error) {
+
+	vspHost := req.VspHost
+	vspPubKey := req.VspPubkey
+	if vspPubKey == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
+	}
+	if vspHost == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
+	}
+	policy := vsp.Policy{
+		MaxFee:     0.1e8,
+		FeeAcct:    req.FeeAccount,
+		ChangeAcct: req.ChangeAccount,
+	}
+	cfg := vsp.Config{
+		URL:    vspHost,
+		PubKey: vspPubKey,
+		Dialer: nil,
+		Wallet: s.wallet,
+		Policy: policy,
+	}
+	vspClient, err := getVSP(cfg)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
+	}
+
+	errUnmanagedTickets := errors.New("unmanaged tickets")
+	err = vspClient.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+		_, err := s.wallet.VSPFeeHashForTicket(ctx, hash)
+		if errors.Is(err, errors.NotExist) {
+			return errUnmanagedTickets
+		}
+		return nil
+	})
+	if errors.Is(err, errUnmanagedTickets) && s.wallet.Locked() {
+		return nil, status.Errorf(codes.Unknown, "Wallet must be unlocked for ProcessUnprocessedTickets %v", err)
+	} else if errors.Is(err, errUnmanagedTickets) {
+		vspClient.ProcessUnprocessedTickets(ctx, policy)
+	}
+
+	return &pb.ProcessUnmanagedTicketsResponse{}, nil
 }

@@ -48,7 +48,7 @@ func GetVSPTicket(dbtx walletdb.ReadTx, tickethash chainhash.Hash) (*VSPTicket, 
 	serializedTicket := bucket.Get(tickethash[:])
 	if serializedTicket == nil {
 		err := errors.Errorf("no VSP info for ticket %v", &tickethash)
-		return nil, errors.E(err, errors.NotExist)
+		return nil, errors.E(errors.NotExist, err)
 	}
 	ticket := deserializeVSPTicket(serializedTicket)
 
