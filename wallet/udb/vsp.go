@@ -5,6 +5,7 @@
 package udb
 
 import (
+	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 )
@@ -45,6 +46,10 @@ func SetVSPTicket(dbtx walletdb.ReadWriteTx, ticketHash *chainhash.Hash, record 
 func GetVSPTicket(dbtx walletdb.ReadTx, tickethash chainhash.Hash) (*VSPTicket, error) {
 	bucket := dbtx.ReadBucket(vspBucketKey)
 	serializedTicket := bucket.Get(tickethash[:])
+	if serializedTicket == nil {
+		err := errors.Errorf("no VSP info for ticket %v", &tickethash)
+		return nil, errors.E(err, errors.NotExist)
+	}
 	ticket := deserializeVSPTicket(serializedTicket)
 
 	return ticket, nil

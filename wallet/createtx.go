@@ -1688,7 +1688,13 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			if err != nil {
 				return nil, err
 			}
-			feeTx, err := req.VSPFeePaymentProcess(ctx, *ticketHash, vspFeeCredits[i])
+
+			feeTx := wire.NewMsgTx()
+			for _, in := range vspFeeCredits[i] {
+				feeTx.AddTxIn(wire.NewTxIn(&in.OutPoint, in.PrevOut.Value, nil))
+			}
+
+			err = req.VSPFeePaymentProcess(ctx, ticketHash, feeTx)
 			if err != nil {
 				log.Errorf("vsp ticket %v fee proccessment failed: %v", ticketHash, err)
 				rec.FeeTxStatus = uint32(udb.VSPFeeProcessErrored)

@@ -3,35 +3,36 @@ package vsp
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"sync"
-	"time"
 
+	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v3"
 	"github.com/decred/dcrd/wire"
 )
 
-const (
-	apiVSPInfo = "/api/v3/vspinfo"
+const requiredConfs = 6 + 2
 
-	serverSignature = "VSP-Server-Signature"
-	requiredConfs   = 6 + 2
-)
+type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
-type PendingFee struct {
-	CommitmentAddress dcrutil.Address
-	VotingAddress     dcrutil.Address
-	FeeAddress        dcrutil.Address
-	FeeAmount         dcrutil.Amount
-	FeeTx             *wire.MsgTx
+type Policy struct {
+	MaxFee     dcrutil.Amount
+	ChangeAcct uint32 // to derive fee addresses
+	FeeAcct    uint32 // to pay fees from, if inputs are not provided to Process
+}
+
+type Client struct {
+	Wallet *wallet.Wallet
+	Policy Policy
+	*client
+
+	mu   sync.Mutex
+	jobs map[chainhash.Hash]*feePayment
 }
 
 type Config struct {
@@ -41,52 +42,18 @@ type Config struct {
 	// PubKey specifies the VSP's base64 encoded public key
 	PubKey string
 
-	// PurchaseAccount specifies the purchase account to pay fees from.
-	PurchaseAccount uint32
-
-	// ChangeAccount specifies the change account when creating fee transactions.
-	ChangeAccount uint32
-
-	// MaxFee specifies the maximum allowed fee which the VSP may require.
-	// Fees exceeding this value will result in the fee transaction not
-	// being paid to the VSP.
-	MaxFee dcrutil.Amount
-
 	// Dialer specifies an optional dialer when connecting to the VSP.
 	Dialer DialFunc
 
 	// Wallet specifies a loaded wallet.
 	Wallet *wallet.Wallet
 
-	// Params specifies the configured network.
-	Params *chaincfg.Params
+	// Default policy for fee payments unless another is provided by the
+	// caller.
+	Policy Policy
 }
 
-type VSP struct {
-	cfg *Config
-
-	*client
-
-	c *wallet.ConfirmationNotificationsClient
-
-	queue chan *queueEntry
-
-	outpointsMu sync.Mutex
-	outpoints   map[chainhash.Hash]*wire.MsgTx
-
-	ticketToFeeMu  sync.Mutex
-	feeToTicketMap map[chainhash.Hash]chainhash.Hash
-	ticketToFeeMap map[chainhash.Hash]PendingFee
-}
-
-type VSPTicket struct {
-	FeeHash     chainhash.Hash
-	FeeTxStatus uint32
-}
-
-type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
-
-func New(ctx context.Context, cfg Config) (*VSP, error) {
+func New(cfg Config) (*Client, error) {
 	u, err := url.Parse(cfg.URL)
 	if err != nil {
 		return nil, err
@@ -98,201 +65,41 @@ func New(ctx context.Context, cfg Config) (*VSP, error) {
 	if cfg.Wallet == nil {
 		return nil, fmt.Errorf("wallet option not set")
 	}
-	if cfg.Params == nil {
-		return nil, fmt.Errorf("params option not set")
-	}
-
-	c := cfg.Wallet.NtfnServer.ConfirmationNotifications(ctx)
 
 	client := newClient(u.String(), pubKey, cfg.Wallet)
 	client.Transport = &http.Transport{
 		DialContext: cfg.Dialer,
 	}
 
-	v := &VSP{
-		cfg:            &cfg,
-		client:         client,
-		c:              c,
-		queue:          make(chan *queueEntry, 256),
-		outpoints:      make(map[chainhash.Hash]*wire.MsgTx),
-		feeToTicketMap: make(map[chainhash.Hash]chainhash.Hash),
-		ticketToFeeMap: make(map[chainhash.Hash]PendingFee),
+	v := &Client{
+		Wallet: cfg.Wallet,
+		Policy: cfg.Policy,
+		client: client,
+		jobs:   make(map[chainhash.Hash]*feePayment),
 	}
-
-	go func() {
-		for {
-			ntfns, err := c.Recv()
-			if err != nil {
-				if !errors.Is(err, context.Canceled) {
-					log.Errorf("Recv failed: %v", err)
-				}
-				break
-			}
-			watch := make(map[chainhash.Hash]chainhash.Hash)
-			v.ticketToFeeMu.Lock()
-			for _, confirmed := range ntfns {
-				if confirmed.Confirmations != requiredConfs {
-					continue
-				}
-				txHash := confirmed.TxHash
-
-				// Is it a ticket?
-				if pendingFee, exists := v.ticketToFeeMap[*txHash]; exists {
-					delete(v.ticketToFeeMap, *txHash)
-					feeTx := pendingFee.FeeTx
-					feeHash := feeTx.TxHash()
-
-					// check VSP
-					ticketStatus, err := v.TicketStatus(ctx, txHash)
-					if err != nil {
-						log.Errorf("Failed to get ticket status for %v: %v", txHash, err)
-						continue
-					}
-					switch ticketStatus.FeeTxStatus {
-					case "broadcast":
-						log.Infof("VSP has successfully sent the fee tx for %v", txHash)
-
-						// Begin watching for feetx
-						v.feeToTicketMap[feeHash] = *txHash
-						watch[*txHash] = feeHash
-
-					case "confirmed":
-						log.Infof("VSP has successfully confirmed the fee tx for %v", txHash)
-					case "error":
-						log.Warnf("VSP failed to broadcast feetx for %v -- restarting process", txHash)
-						v.queueItem(ctx, *txHash, nil)
-					default:
-						log.Warnf("VSP responded with %v for %v", ticketStatus.FeeTxStatus, txHash)
-						continue
-					}
-				} else if ticketHash, exists := v.feeToTicketMap[*txHash]; exists {
-					delete(v.feeToTicketMap, *txHash)
-					log.Infof("Fee transaction %s for ticket %s confirmed", txHash, ticketHash)
-
-					ticketStatus, err := v.TicketStatus(ctx, &ticketHash)
-					if err != nil {
-						log.Errorf("Failed to check status of ticket '%s': %v", ticketHash, err)
-						continue
-					}
-					switch ticketStatus.FeeTxStatus {
-					case "confirmed":
-						log.Infof("VSP has successfully confirmed fee tx for %v", ticketHash)
-					default:
-						log.Warnf("Unexpected VSP server status for ticket '%s': %q", ticketHash, ticketStatus.FeeTxStatus)
-					}
-				}
-			}
-			v.ticketToFeeMu.Unlock()
-
-			if len(watch) > 0 {
-				go func() {
-					var txs []*chainhash.Hash
-					for txHash, feeHash := range watch {
-						log.Infof("Ticket %s reached %d confirmations -- watching for feetx %s", txHash, requiredConfs, feeHash)
-						hash := feeHash
-						txs = append(txs, &hash)
-					}
-					c.Watch(txs, requiredConfs)
-				}()
-			}
-		}
-	}()
-
-	// Launch routine to process notifications
-	go func() {
-		t := cfg.Wallet.NtfnServer.TransactionNotifications()
-		defer t.Done()
-		r := cfg.Wallet.NtfnServer.RemovedTransactionNotifications()
-		defer r.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case added := <-t.C:
-				v.outpointsMu.Lock()
-				for _, addedHash := range added.UnminedTransactionHashes {
-					delete(v.outpoints, *addedHash)
-				}
-				v.outpointsMu.Unlock()
-			case removed := <-r.C:
-				txHash := removed.TxHash
-
-				v.outpointsMu.Lock()
-				credits, exists := v.outpoints[txHash]
-				if exists {
-					delete(v.outpoints, txHash)
-					go func() {
-						for _, input := range credits.TxIn {
-							outpoint := input.PreviousOutPoint
-							cfg.Wallet.UnlockOutpoint(&outpoint.Hash, outpoint.Index)
-							log.Infof("unlocked outpoint %v for deleted ticket %s",
-								outpoint, txHash)
-						}
-					}()
-				}
-				v.outpointsMu.Unlock()
-			}
-		}
-	}()
-
-	// Launch routine to pay fee of processed tickets.
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				close(v.queue)
-				return
-
-			case queuedItem := <-v.queue:
-				feeTx, err := v.Process(ctx, queuedItem.TicketHash, nil)
-				if err != nil {
-					log.Warnf("Failed to process queued ticket %v, err: %v", queuedItem.TicketHash, err)
-					if queuedItem.FeeTx != nil {
-						for _, input := range queuedItem.FeeTx.TxIn {
-							outpoint := input.PreviousOutPoint
-							go func() { cfg.Wallet.UnlockOutpoint(&outpoint.Hash, outpoint.Index) }()
-						}
-					}
-					continue
-				}
-				v.outpointsMu.Lock()
-				v.outpoints[feeTx.TxHash()] = queuedItem.FeeTx
-				v.outpointsMu.Unlock()
-			}
-		}
-	}()
-
 	return v, nil
 }
 
-type queueEntry struct {
-	TicketHash chainhash.Hash
-	FeeTx      *wire.MsgTx
+func (c *Client) FeePercentage(ctx context.Context) (float64, error) {
+	var resp struct {
+		FeePercentage float64 `json:"feepercentage"`
+	}
+	err := c.get(ctx, "/api/v3/vspinfo", &resp)
+	if err != nil {
+		return -1, err
+	}
+	return resp.FeePercentage, nil
 }
 
-func (v *VSP) queueItem(ctx context.Context, ticketHash chainhash.Hash, feeTx *wire.MsgTx) {
-	queuedTicket := &queueEntry{
-		TicketHash: ticketHash,
-		FeeTx:      feeTx,
-	}
-	select {
-	case v.queue <- queuedTicket:
-	case <-ctx.Done():
-	}
-}
+// ForUnspentUnexpiredTickets performs a function on every unexpired and unspent
+// ticket from the wallet.
+func (c *Client) ForUnspentUnexpiredTickets(ctx context.Context,
+	f func(hash *chainhash.Hash) error) error {
 
-func (v *VSP) Sync(ctx context.Context) {
-	_, blockHeight := v.cfg.Wallet.MainChainTip(ctx)
+	w := c.Wallet
+	params := w.ChainParams()
 
-	if blockHeight < 0 {
-		return
-	}
-
-	startBlockNum := blockHeight - int32(v.cfg.Params.TicketExpiry+uint32(v.cfg.Params.TicketMaturity)-requiredConfs)
-	startBlock := wallet.NewBlockIdentifierFromHeight(startBlockNum)
-	endBlock := wallet.NewBlockIdentifierFromHeight(blockHeight)
-
-	f := func(ticketSummaries []*wallet.TicketSummary, _ *wire.BlockHeader) (bool, error) {
+	iter := func(ticketSummaries []*wallet.TicketSummary, _ *wire.BlockHeader) (bool, error) {
 		for _, ticketSummary := range ticketSummaries {
 			switch ticketSummary.Status {
 			case wallet.TicketStatusLive:
@@ -301,95 +108,136 @@ func (v *VSP) Sync(ctx context.Context) {
 			default:
 				continue
 			}
-			// TODO get unpublished fee txs here and sync them
-			v.queueItem(ctx, *ticketSummary.Ticket.Hash, nil)
+
+			ticketHash := *ticketSummary.Ticket.Hash
+			err := f(&ticketHash)
+			if err != nil {
+				return false, err
+			}
 		}
 
 		return false, nil
 	}
 
-	err := v.cfg.Wallet.GetTickets(ctx, f, startBlock, endBlock)
-	if err != nil {
-		log.Errorf("failed to sync tickets: %v", err)
-	}
+	_, blockHeight := w.MainChainTip(ctx)
+	startBlockNum := blockHeight -
+		int32(params.TicketExpiry+uint32(params.TicketMaturity)-requiredConfs)
+	startBlock := wallet.NewBlockIdentifierFromHeight(startBlockNum)
+	endBlock := wallet.NewBlockIdentifierFromHeight(blockHeight)
+	return w.GetTickets(ctx, iter, startBlock, endBlock)
 }
 
-func (v *VSP) Process(ctx context.Context, ticketHash chainhash.Hash, credits []wallet.Input) (*wire.MsgTx, error) {
-	var feeAmount dcrutil.Amount
-	var err error
-	var apiErr *BadRequestError
-	for i := 0; i < 2; i++ {
-		feeAmount, err = v.GetFeeAddress(ctx, ticketHash)
+// ProcessUnprocessedTickets ...
+func (c *Client) ProcessUnprocessedTickets(ctx context.Context, policy Policy) {
+	var wg sync.WaitGroup
+	c.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+		// Skip tickets which have a fee tx already associated with
+		// them; they are already processed by some vsp.
+		_, err := c.Wallet.VSPFeeHashForTicket(ctx, hash)
 		if err == nil {
-			break
+			return nil
 		}
-		const broadcastMsg = "ticket transaction could not be broadcast"
-		if err != nil && i == 0 && strings.Contains(err.Error(), broadcastMsg) {
-			time.Sleep(2 * time.Minute)
-		}
-	}
-	if errors.As(err, &apiErr) {
-		switch apiErr.Code {
-		case codeFeeAlreadyReceived:
-			w := v.cfg.Wallet
-			feeHash, err := w.VSPFeeHashForTicket(ctx, &ticketHash)
-			if err != nil {
-				return nil, fmt.Errorf("no known fee hash for "+
-					"successfully processed ticket %v: %w",
-					&ticketHash, err)
-			}
-			err = w.SetPublished(ctx, &feeHash, true)
-			if err != nil {
-				return nil, err
-			}
-			err = w.UpdateVspTicketFeeToPaid(ctx, &ticketHash, &feeHash)
-			if err != nil {
-				return nil, err
-			}
-			return nil, nil
-		}
-	}
-	if err != nil {
-		return nil, err
-	}
 
-	var totalValue int64
-	if credits == nil {
-		const minconf = 1
-		credits, err = v.cfg.Wallet.ReserveOutputsForAmount(ctx, v.cfg.PurchaseAccount, feeAmount, minconf)
+		c.mu.Lock()
+		fp := c.jobs[*hash]
+		c.mu.Unlock()
+		if fp != nil {
+			// Already processing this ticket with the VSP.
+			return nil
+		}
+
+		// Start processing in the background.
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := c.Process(ctx, hash, nil)
+			if err != nil {
+				log.Error(err)
+			}
+		}()
+
+		return nil
+	})
+	wg.Wait()
+}
+
+// ProcessManagedTickets discovers tickets which were previously registered with
+// a VSP and begins syncing them in the background.  This is used to recover VSP
+// tracking after seed restores, and is only performed on unspent and unexpired
+// tickets.
+func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error {
+	err := c.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+		c.mu.Lock()
+		_, ok := c.jobs[*hash]
+		c.mu.Unlock()
+		if ok {
+			// Already processing this ticket with the VSP.
+			return nil
+		}
+
+		// Make ticketstatus api call and only continue if ticket is
+		// found managed by this vsp.  The rest is the same codepath as
+		// for processing a new ticket.
+		status, err := c.status(ctx, hash)
 		if err != nil {
-			return nil, err
+			if errors.Is(err, errors.Locked) {
+				return err
+			}
+			return nil
 		}
-		for _, credit := range credits {
-			totalValue += credit.PrevOut.Value
+
+		if status.FeeTxHash != "" {
+			feeHash, err := chainhash.NewHashFromStr(status.FeeTxHash)
+			if err != nil {
+				return err
+			}
+			err = c.Wallet.UpdateVspTicketFeeToPaid(ctx, hash, feeHash)
+			if err != nil {
+				return err
+			}
 		}
-		if dcrutil.Amount(totalValue) < feeAmount {
-			return nil, fmt.Errorf("reserved credits insufficient: %v < %v",
-				dcrutil.Amount(totalValue), feeAmount)
-		}
+
+		_ = c.feePayment(hash, policy)
+		return nil
+	})
+	return err
+}
+
+// Process begins processing a VSP fee payment for a ticket.  If feeTx contains
+// inputs, is used to pay the VSP fee.  Otherwise, new inputs are selected and
+// locked to prevent double spending the fee.
+//
+// feeTx must not be nil, but may point to an empty transaction, and is modified
+// with the inputs and the fee and change outputs before returning without an
+// error.  The fee transaction is also recorded as unpublised in the wallet, and
+// the fee hash is associated with the ticket.
+func (c *Client) Process(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx) error {
+	return c.ProcessWithPolicy(ctx, ticketHash, feeTx, c.Policy)
+}
+
+// ProcessWithPolicy is the same as Process but allows a fee payment policy to
+// be specified, instead of using the client's default policy.
+func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx,
+	policy Policy) error {
+
+	fp := c.feePayment(ticketHash, policy)
+	if fp == nil {
+		return fmt.Errorf("fee payment cannot be processed")
 	}
 
-	feeTx, err := v.CreateFeeTx(ctx, ticketHash, credits)
+	err := fp.receiveFeeAddress()
 	if err != nil {
-		return nil, err
+		// XXX, retry? (old Process retried)
+		// but this may not be necessary any longer as the parent of
+		// the ticket is always relayed to the vsp as well.
+		return err
 	}
-	// set fee tx as unpublished, because it will be published by the vsp.
-	feeHash := feeTx.TxHash()
-	err = v.cfg.Wallet.AddTransaction(ctx, feeTx, nil)
+	err = fp.makeFeeTx(feeTx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	err = v.cfg.Wallet.SetPublished(ctx, &feeHash, false)
-	if err != nil {
-		return nil, err
+	if feeTx != nil {
+		*feeTx = *fp.feeTx
 	}
-	paidTx, err := v.PayFee(ctx, ticketHash, feeTx)
-	if err != nil {
-		return nil, err
-	}
-	err = v.cfg.Wallet.UpdateVspTicketFeeToPaid(ctx, &ticketHash, &feeHash)
-	if err != nil {
-		return nil, err
-	}
-	return paidTx, nil
+	return fp.submitPayment()
 }

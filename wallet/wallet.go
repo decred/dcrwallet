@@ -1551,7 +1551,7 @@ type PurchaseTicketsRequest struct {
 	VSPFeeProcess func(context.Context) (float64, error)
 	// VSPFeePaymentProcess processes the payment of the vsp fee and returns
 	// the paid fee tx.
-	VSPFeePaymentProcess func(context.Context, chainhash.Hash, []Input) (*wire.MsgTx, error)
+	VSPFeePaymentProcess func(context.Context, *chainhash.Hash, *wire.MsgTx) error
 }
 
 // PurchaseTicketsResponse describes the response for purchasing tickets request.
@@ -2175,6 +2175,44 @@ func (w *Wallet) AccountXpriv(ctx context.Context, account uint32) (*hdkeychain.
 	}
 
 	return privKey, nil
+}
+
+// TxBlock returns the hash and height of a block which mines a transaction.
+func (w *Wallet) TxBlock(ctx context.Context, hash *chainhash.Hash) (chainhash.Hash, int32, error) {
+	var blockHash chainhash.Hash
+	var height int32
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		var err error
+		height, err = w.txStore.TxBlockHeight(dbtx, hash)
+		if err != nil {
+			return err
+		}
+		if height == -1 {
+			return nil
+		}
+		blockHash, err = w.txStore.GetMainChainBlockHashForHeight(ns, height)
+		return err
+	})
+	if err != nil {
+		return blockHash, 0, err
+	}
+	return blockHash, height, nil
+}
+
+// TxConfirms returns the current number of block confirmations a transaction.
+func (w *Wallet) TxConfirms(ctx context.Context, hash *chainhash.Hash) (int32, error) {
+	var tip, txheight int32
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		_, tip = w.txStore.MainChainTip(dbtx)
+		var err error
+		txheight, err = w.txStore.TxBlockHeight(dbtx, hash)
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	return confirms(txheight, tip), nil
 }
 
 // GetTransactionsByHashes returns all known transactions identified by a slice
