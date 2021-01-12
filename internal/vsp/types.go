@@ -2,39 +2,11 @@ package vsp
 
 import "encoding/json"
 
-type FeeAddressRequest struct {
-	Timestamp  int64  `json:"timestamp" `
-	TicketHash string `json:"tickethash"`
-	TicketHex  string `json:"tickethex"`
-	ParentHex  string `json:"parenthex"`
-}
-
-type FeeAddressResponse struct {
-	Timestamp  int64           `json:"timestamp"`
-	FeeAddress string          `json:"feeaddress"`
-	FeeAmount  int64           `json:"feeamount"`
-	Expiration int64           `json:"expiration"`
-	Request    json.RawMessage `json:"request"`
-}
-
-type PayFeeRequest struct {
-	Timestamp   int64             `json:"timestamp"`
-	TicketHash  string            `json:"tickethash"`
-	FeeTx       string            `json:"feetx"`
-	VotingKey   string            `json:"votingkey" `
-	VoteChoices map[string]string `json:"votechoices" `
-}
-
-type PayFeeResponse struct {
-	Timestamp int64           `json:"timestamp"`
-	Request   json.RawMessage `json:"request"`
-}
-
-type TicketStatusRequest struct {
+type ticketStatusRequest struct {
 	TicketHash string `json:"tickethash" `
 }
 
-type TicketStatusResponse struct {
+type ticketStatusResponse struct {
 	Timestamp       int64             `json:"timestamp"`
 	TicketConfirmed bool              `json:"ticketconfirmed"`
 	FeeTxStatus     string            `json:"feetxstatus"`
