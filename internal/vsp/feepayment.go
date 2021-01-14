@@ -362,10 +362,10 @@ func (fp *feePayment) receiveFeeAddress() error {
 	}
 
 	var response struct {
-		Timestamp  int64           `json:"timestamp"`
-		FeeAddress string          `json:"feeaddress"`
-		FeeAmount  int64           `json:"feeamount"`
-		Request    json.RawMessage `json:"request"`
+		Timestamp  int64  `json:"timestamp"`
+		FeeAddress string `json:"feeaddress"`
+		FeeAmount  int64  `json:"feeamount"`
+		Request    []byte `json:"request"`
 	}
 	requestBody, err := json.Marshal(&struct {
 		Timestamp  int64          `json:"timestamp"`
@@ -579,7 +579,7 @@ type ticketStatus struct {
 	FeeTxStatus     string            `json:"feetxstatus"`
 	FeeTxHash       string            `json:"feetxhash"`
 	VoteChoices     map[string]string `json:"votechoices"`
-	Request         json.RawMessage   `json:"request"`
+	Request         []byte            `json:"request"`
 }
 
 func (c *Client) status(ctx context.Context, ticketHash *chainhash.Hash) (*ticketStatus, error) {
@@ -772,8 +772,8 @@ func (fp *feePayment) submitPayment() (err error) {
 	}
 
 	var payfeeResponse struct {
-		Timestamp int64           `json:"timestamp"`
-		Request   json.RawMessage `json:"request"`
+		Timestamp int64  `json:"timestamp"`
+		Request   []byte `json:"request"`
 	}
 	requestBody, err := json.Marshal(&struct {
 		Timestamp   int64             `json:"timestamp"`
