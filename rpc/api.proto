@@ -51,6 +51,7 @@ service WalletService {
 	rpc Rescan (RescanRequest) returns (stream RescanResponse);
 	rpc NextAccount (NextAccountRequest) returns (NextAccountResponse);
 	rpc NextAddress (NextAddressRequest) returns (NextAddressResponse);
+	rpc GetReceivedByAddress (GetReceivedByAddressRequest) returns (GetReceivedByAddressResponse);
 	rpc ImportPrivateKey (ImportPrivateKeyRequest) returns (ImportPrivateKeyResponse);
 	rpc ImportScript(ImportScriptRequest) returns (ImportScriptResponse);
 	rpc FundTransaction (FundTransactionRequest) returns (FundTransactionResponse);
@@ -1292,3 +1293,11 @@ message ProcessUnmanagedTicketsRequest {
 }
 
 message ProcessUnmanagedTicketsResponse {}
+
+message GetReceivedByAddressRequest {
+	string address = 1;
+}
+
+message GetReceivedByAddressResponse {
+	int64 amount = 1;
+}
