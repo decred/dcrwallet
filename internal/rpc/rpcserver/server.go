@@ -558,6 +558,24 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	}, nil
 }
 
+func (s *walletServer) GetReceivedByAddress(ctx context.Context, req *pb.GetReceivedByAddressRequest) (
+	*pb.GetReceivedByAddressResponse, error) {
+	w := s.wallet
+	addr, err := decodeAddress(req.Address, w.ChainParams())
+	if err != nil {
+		return nil, err
+	}
+	total, err := w.TotalReceivedForAddr(ctx, addr, 1)
+	if err != nil {
+		if errors.Is(err, errors.NotExist) {
+			return nil, status.Errorf(codes.NotFound, "address not found in wallet")
+		}
+		return nil, translateError(err)
+	}
+
+	return &pb.GetReceivedByAddressResponse{Amount: int64(total)}, nil
+}
+
 func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPrivateKeyRequest) (
 	*pb.ImportPrivateKeyResponse, error) {
 
