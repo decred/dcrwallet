@@ -1235,8 +1235,8 @@ func (s *Server) syncStatus(ctx context.Context, icmd interface{}) (interface{},
 		return nil, err
 	}
 
-	bestHash, bestHeight := w.MainChainTip(ctx)
-	bestBlock, err := w.BlockInfo(ctx, wallet.NewBlockIdentifierFromHash(&bestHash))
+	walletBestHash, walletBestHeight := w.MainChainTip(ctx)
+	bestBlock, err := w.BlockInfo(ctx, wallet.NewBlockIdentifierFromHash(&walletBestHash))
 	if err != nil {
 		return nil, err
 	}
@@ -1244,20 +1244,34 @@ func (s *Server) syncStatus(ctx context.Context, icmd interface{}) (interface{},
 	walletBestBlockTooOld := bestBlock.Timestamp < _24HoursAgo
 
 	var synced bool
+	var targetHeight int32
+
 	if syncer, ok := n.(*spv.Syncer); ok {
 		synced = syncer.Synced()
+		targetHeight = syncer.EstimateMainChainTip()
 	} else if rpc, ok := n.(*dcrd.RPC); ok {
 		var chainInfo *dcrdtypes.GetBlockChainInfoResult
 		err := rpc.Call(ctx, "getblockchaininfo", &chainInfo)
 		if err != nil {
 			return nil, err
 		}
-		synced = chainInfo.Headers == int64(bestHeight)
+		synced = chainInfo.Headers == int64(walletBestHeight)
+		targetHeight = int32(chainInfo.Headers)
+	}
+
+	var headersFetchProgress float32
+	blocksToFetch := targetHeight - walletBestHeight
+	if blocksToFetch <= 0 {
+		headersFetchProgress = 1
+	} else {
+		totalHeadersToFetch := targetHeight - w.InitialHeight()
+		headersFetchProgress = 1 - (float32(blocksToFetch) / float32(totalHeadersToFetch))
 	}
 
 	return &types.SyncStatusResult{
 		Synced:               synced,
 		InitialBlockDownload: walletBestBlockTooOld,
+		HeadersFetchProgress: headersFetchProgress,
 	}, nil
 }
 

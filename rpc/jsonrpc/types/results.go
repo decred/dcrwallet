@@ -163,8 +163,9 @@ type GetVoteChoicesResult struct {
 
 // SyncStatusResult models the data returned by the syncstatus command.
 type SyncStatusResult struct {
-	Synced               bool `json:"synced"`
-	InitialBlockDownload bool `json:"initialblockdownload"`
+	Synced               bool    `json:"synced"`
+	InitialBlockDownload bool    `json:"initialblockdownload"`
+	HeadersFetchProgress float32 `json:"headersfetchprogress"`
 }
 
 // InfoResult models the data returned by the wallet server getinfo

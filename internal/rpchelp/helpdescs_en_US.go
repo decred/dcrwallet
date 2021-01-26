@@ -196,7 +196,8 @@ var helpDescsEnUS = map[string]string{
 
 	// SyncStatusResult help.
 	"syncstatusresult-synced":               "Whether or not the wallet is fully caught up to the network.",
-	"syncstatusresult-initialblockdownload": "Best guess of whether this wallet is in the initial block download mode used to catch up the blockchain when it is far behind",
+	"syncstatusresult-initialblockdownload": "Best guess of whether this wallet is in the initial block download mode used to catch up the blockchain when it is far behind.",
+	"syncstatusresult-headersfetchprogress": "Estimated progress of the headers fetching stage of the current sync process.",
 
 	// GetInfoCmd help.
 	"getinfo--synopsis": "Returns a JSON object containing various state info.",
