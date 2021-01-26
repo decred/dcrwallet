@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020 The Decred developers
+// Copyright (c) 2018-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -147,6 +147,11 @@ func (s *Syncer) synced() {
 		s.notifications.Synced != nil {
 		s.notifications.Synced(true)
 	}
+}
+
+// Synced returns whether this wallet is completely synced to the network.
+func (s *Syncer) Synced() bool {
+	return atomic.LoadUint32(&s.atomicWalletSynced) == 1
 }
 
 // GetRemotePeers returns a map of connected remote peers.

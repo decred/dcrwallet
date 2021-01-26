@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2020 The Decred developers
+// Copyright (c) 2015-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -150,6 +150,7 @@ var handlers = map[string]handler{
 	"signrawtransactions":     {fn: (*Server).signRawTransactions},
 	"stakepooluserinfo":       {fn: (*Server).stakePoolUserInfo},
 	"sweepaccount":            {fn: (*Server).sweepAccount},
+	"syncstatus":              {fn: (*Server).syncStatus},
 	"ticketinfo":              {fn: (*Server).ticketInfo},
 	"ticketsforaddress":       {fn: (*Server).ticketsForAddress},
 	"treasurypolicy":          {fn: (*Server).treasuryPolicy},
@@ -1221,6 +1222,43 @@ func difficultyRatio(bits uint32, params *chaincfg.Params) float64 {
 	target := blockchain.CompactToBig(bits)
 	ratio, _ := new(big.Rat).SetFrac(max, target).Float64()
 	return ratio
+}
+
+// syncStatus handles a syncstatus request.
+func (s *Server) syncStatus(ctx context.Context, icmd interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	bestHash, bestHeight := w.MainChainTip(ctx)
+	bestBlock, err := w.BlockInfo(ctx, wallet.NewBlockIdentifierFromHash(&bestHash))
+	if err != nil {
+		return nil, err
+	}
+	_24HoursAgo := time.Now().UTC().Add(-24 * time.Hour).Unix()
+	walletBestBlockTooOld := bestBlock.Timestamp < _24HoursAgo
+
+	var synced bool
+	if syncer, ok := n.(*spv.Syncer); ok {
+		synced = syncer.Synced()
+	} else if rpc, ok := n.(*dcrd.RPC); ok {
+		var chainInfo *dcrdtypes.GetBlockChainInfoResult
+		err := rpc.Call(ctx, "getblockchaininfo", &chainInfo)
+		if err != nil {
+			return nil, err
+		}
+		synced = chainInfo.Headers == int64(bestHeight)
+	}
+
+	return &types.SyncStatusResult{
+		Synced:               synced,
+		InitialBlockDownload: walletBestBlockTooOld,
+	}, nil
 }
 
 // getInfo handles a getinfo request by returning a structure containing
