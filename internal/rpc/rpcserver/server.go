@@ -3628,6 +3628,24 @@ func (s *walletServer) LockAccount(ctx context.Context, req *pb.LockAccountReque
 	return &pb.LockAccountResponse{}, nil
 }
 
+func (s *walletServer) AccountUnlocked(ctx context.Context, req *pb.AccountUnlockedRequest) (
+	*pb.AccountUnlockedResponse, error) {
+	_, err := s.wallet.AccountName(ctx, req.AccountNumber)
+	if err != nil {
+		if errors.Is(err, errors.NotExist) {
+			return nil, status.Errorf(codes.NotFound, "account not found")
+		}
+		return nil, translateError(err)
+	}
+	unlocked, err := s.wallet.AccountUnlocked(ctx, req.AccountNumber)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.AccountUnlockedResponse{
+		Unlocked: unlocked,
+	}, nil
+}
+
 func (s *walletServer) UnlockWallet(ctx context.Context, req *pb.UnlockWalletRequest) (
 	*pb.UnlockWalletResponse, error) {
 
