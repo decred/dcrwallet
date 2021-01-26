@@ -77,6 +77,7 @@ service WalletService {
 	rpc LockAccount (LockAccountRequest) returns (LockAccountResponse);
 	rpc UnlockWallet (UnlockWalletRequest) returns (UnlockWalletResponse);
 	rpc LockWallet (LockWalletRequest) returns (LockWalletResponse);
+	rpc AccountUnlocked (AccountUnlockedRequest) returns (AccountUnlockedResponse);
 	rpc SyncVSPFailedTickets(SyncVSPTicketsRequest) returns (SyncVSPTicketsResponse);
 	rpc GetVSPTicketsByFeeStatus (GetVSPTicketsByFeeStatusRequest) returns (GetVSPTicketsByFeeStatusResponse);
 	rpc ProcessManagedTickets (ProcessManagedTicketsRequest) returns (ProcessManagedTicketsResponse);
@@ -1230,6 +1231,14 @@ message SetAccountPassphraseResponse {}
 message UnlockAccountResponse {}
 
 message LockAccountResponse {}
+
+message AccountUnlockedRequest {
+	uint32 account_number = 1;
+}
+
+message AccountUnlockedResponse {
+	bool unlocked = 1;
+}
 
 message UnlockWalletRequest {
 	bytes passphrase = 1;
