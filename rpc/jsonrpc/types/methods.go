@@ -1273,6 +1273,7 @@ func init() {
 		{"getbestblockhash", (*GetBestBlockHashCmd)(nil)},
 		{"getblockcount", (*GetBlockCountCmd)(nil)},
 		{"getblockhash", (*GetBlockHashCmd)(nil)},
+		{"getblock", (*GetBlockCmd)(nil)},
 		{"getcfilterv2", (*GetCFilterV2Cmd)(nil)},
 		{"getinfo", (*GetInfoCmd)(nil)},
 		{"getpeerinfo", (*GetPeerInfoCmd)(nil)},
@@ -1306,6 +1307,7 @@ type (
 	GetBestBlockHashCmd     dcrdtypes.GetBestBlockHashCmd
 	GetBlockCountCmd        dcrdtypes.GetBlockCountCmd
 	GetBlockHashCmd         dcrdtypes.GetBlockHashCmd
+	GetBlockCmd             dcrdtypes.GetBlockCmd
 	GetCFilterV2Cmd         dcrdtypes.GetCFilterV2Cmd
 	GetInfoCmd              dcrdtypes.GetInfoCmd
 	GetPeerInfoCmd          dcrdtypes.GetPeerInfoCmd

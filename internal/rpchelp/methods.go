@@ -51,6 +51,7 @@ var Methods = []struct {
 	{"getbestblockhash", returnsString},
 	{"getblockcount", returnsNumber},
 	{"getblockhash", returnsString},
+	{"getblock", []interface{}{(*dcrdtypes.GetBlockVerboseResult)(nil)}},
 	{"getcoinjoinsbyacct", []interface{}{(*map[string]uint32)(nil)}},
 	{"getinfo", []interface{}{(*types.InfoWalletResult)(nil)}},
 	{"getmasterpubkey", []interface{}{(*string)(nil)}},

@@ -56,6 +56,12 @@ const (
 	jsonrpcSemverPatch  = 0
 )
 
+const (
+	// sstxCommitmentString is the string to insert when a verbose
+	// transaction output's pkscript type is a ticket commitment.
+	sstxCommitmentString = "sstxcommitment"
+)
+
 // confirms returns the number of confirmations for a transaction in a block at
 // height txHeight (or -1 for an unconfirmed tx) given the chain height
 // curHeight.
@@ -94,6 +100,7 @@ var handlers = map[string]handler{
 	"getbestblockhash":        {fn: (*Server).getBestBlockHash},
 	"getblockcount":           {fn: (*Server).getBlockCount},
 	"getblockhash":            {fn: (*Server).getBlockHash},
+	"getblock":                {fn: (*Server).getBlock},
 	"getcoinjoinsbyacct":      {fn: (*Server).getcoinjoinsbyacct},
 	"getinfo":                 {fn: (*Server).getInfo},
 	"getmasterpubkey":         {fn: (*Server).getMasterPubkey},
@@ -1215,6 +1222,349 @@ func (s *Server) getBlockHash(ctx context.Context, icmd interface{}) (interface{
 		return nil, err
 	}
 	return info.Hash.String(), nil
+}
+
+// getBlock implements the getblock command.
+func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrdtypes.GetBlockCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	blockHash, err := chainhash.NewHashFromStr(cmd.Hash)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+
+	blocks, err := n.Blocks(ctx, []*chainhash.Hash{blockHash})
+	if err != nil {
+		return nil, err
+	}
+	if len(blocks) == 0 {
+		// Should never happen but protects against a possible panic on
+		// the following code.
+		return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Network returned 0 blocks")
+	}
+
+	blk := blocks[0]
+
+	// When the verbose flag isn't set, simply return the
+	// network-serialized block as a hex-encoded string.
+	if cmd.Verbose != nil && !*cmd.Verbose {
+		blkBytes, err := blk.Bytes()
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Could not serialize block: %v", err)
+		}
+		return hex.EncodeToString(blkBytes), nil
+	}
+
+	// Get next block hash unless there are none.
+	var nextHashString string
+	blockHeader := &blk.Header
+	confirmations := int64(-1)
+	mainChainHasBlock, _, err := w.BlockInMainChain(ctx, blockHash)
+	if err != nil {
+		return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Error checking if block is in mainchain: %v", err)
+	}
+	if mainChainHasBlock {
+		_, bestHeight := w.MainChainTip(ctx)
+		if int32(blockHeader.Height) < bestHeight {
+			nextBlockID := wallet.NewBlockIdentifierFromHeight(int32(blockHeader.Height + 1))
+			nextBlockInfo, err := w.BlockInfo(ctx, nextBlockID)
+			if err != nil {
+				return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Info not found for next block: %v", err)
+			}
+			nextHashString = nextBlockInfo.Hash.String()
+		}
+		confirmations = 1 + int64(bestHeight) - int64(blockHeader.Height)
+	}
+
+	sbitsFloat := float64(blockHeader.SBits) / dcrutil.AtomsPerCoin
+	blockReply := dcrdtypes.GetBlockVerboseResult{
+		Hash:          cmd.Hash,
+		Version:       blockHeader.Version,
+		MerkleRoot:    blockHeader.MerkleRoot.String(),
+		StakeRoot:     blockHeader.StakeRoot.String(),
+		PreviousHash:  blockHeader.PrevBlock.String(),
+		Nonce:         blockHeader.Nonce,
+		VoteBits:      blockHeader.VoteBits,
+		FinalState:    hex.EncodeToString(blockHeader.FinalState[:]),
+		Voters:        blockHeader.Voters,
+		FreshStake:    blockHeader.FreshStake,
+		Revocations:   blockHeader.Revocations,
+		PoolSize:      blockHeader.PoolSize,
+		Time:          blockHeader.Timestamp.Unix(),
+		StakeVersion:  blockHeader.StakeVersion,
+		Confirmations: confirmations,
+		Height:        int64(blockHeader.Height),
+		Size:          int32(blk.Header.Size),
+		Bits:          strconv.FormatInt(int64(blockHeader.Bits), 16),
+		SBits:         sbitsFloat,
+		Difficulty:    difficultyRatio(blockHeader.Bits, w.ChainParams()),
+		ChainWork:     fmt.Sprintf("%064x", blockchain.CalcWork(blockHeader.Bits)),
+		ExtraData:     hex.EncodeToString(blockHeader.ExtraData[:]),
+		NextHash:      nextHashString,
+	}
+
+	// Determine if the treasury rules are active for the block.
+	// A coinbase tx must be version 3 once the treasury agenda is active.
+	// Every block contains a single coinbase transaction in the regular tree,
+	// so there should be at least 1 tx with version 3 if the treasury agenda
+	// is active.
+	var isTreasuryEnabled bool
+	for _, tx := range blk.Transactions {
+		if tx.Version == wire.TxVersionTreasury {
+			isTreasuryEnabled = true
+			break
+		}
+	}
+
+	if cmd.VerboseTx == nil || !*cmd.VerboseTx {
+		transactions := blk.Transactions
+		txNames := make([]string, len(transactions))
+		for i, tx := range transactions {
+			txNames[i] = tx.CachedTxHash().String()
+		}
+		blockReply.Tx = txNames
+
+		stransactions := blk.STransactions
+		stxNames := make([]string, len(stransactions))
+		for i, tx := range stransactions {
+			stxNames[i] = tx.CachedTxHash().String()
+		}
+		blockReply.STx = stxNames
+	} else {
+		txns := blk.Transactions
+		rawTxns := make([]dcrdtypes.TxRawResult, len(txns))
+		for i, tx := range txns {
+			rawTxn, err := createTxRawResult(w.ChainParams(), tx, uint32(i), blockHeader, confirmations, isTreasuryEnabled)
+			if err != nil {
+				return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Could not create transaction: %v", err)
+			}
+			rawTxns[i] = *rawTxn
+		}
+		blockReply.RawTx = rawTxns
+
+		stxns := blk.STransactions
+		rawSTxns := make([]dcrdtypes.TxRawResult, len(stxns))
+		for i, tx := range stxns {
+			rawSTxn, err := createTxRawResult(w.ChainParams(), tx, uint32(i), blockHeader, confirmations, isTreasuryEnabled)
+			if err != nil {
+				return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Could not create stake transaction: %v", err)
+			}
+			rawSTxns[i] = *rawSTxn
+		}
+		blockReply.RawSTx = rawSTxns
+	}
+
+	return blockReply, nil
+}
+
+func createTxRawResult(chainParams *chaincfg.Params, mtx *wire.MsgTx, blkIdx uint32, blkHeader *wire.BlockHeader,
+	confirmations int64, isTreasuryEnabled bool) (*dcrdtypes.TxRawResult, error) {
+
+	mtxBytes, err := mtx.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	txReply := &dcrdtypes.TxRawResult{
+		Hex:         hex.EncodeToString(mtxBytes),
+		Txid:        mtx.CachedHash.String(),
+		Vin:         createVinList(mtx, isTreasuryEnabled),
+		Vout:        createVoutList(mtx, chainParams, nil, isTreasuryEnabled),
+		Version:     int32(mtx.Version),
+		LockTime:    mtx.LockTime,
+		Expiry:      mtx.Expiry,
+		BlockHeight: int64(blkHeader.Height),
+		BlockIndex:  blkIdx,
+	}
+
+	if blkHeader != nil {
+		// This is not a typo, they are identical in bitcoind as well.
+		txReply.Time = blkHeader.Timestamp.Unix()
+		txReply.Blocktime = blkHeader.Timestamp.Unix()
+		txReply.BlockHash = blkHeader.BlockHash().String()
+		txReply.Confirmations = confirmations
+	}
+
+	return txReply, nil
+}
+
+// createVinList returns a slice of JSON objects for the inputs of the passed
+// transaction.
+func createVinList(mtx *wire.MsgTx, isTreasuryEnabled bool) []dcrdtypes.Vin {
+	// Treasurybase transactions only have a single txin by definition.
+	//
+	// NOTE: This check MUST come before the coinbase check because a
+	// treasurybase will be identified as a coinbase as well.
+	vinList := make([]dcrdtypes.Vin, len(mtx.TxIn))
+	if isTreasuryEnabled && blockchain.IsTreasuryBase(mtx) {
+		txIn := mtx.TxIn[0]
+		vinEntry := &vinList[0]
+		vinEntry.Treasurybase = true
+		vinEntry.Sequence = txIn.Sequence
+		vinEntry.AmountIn = dcrutil.Amount(txIn.ValueIn).ToCoin()
+		vinEntry.BlockHeight = txIn.BlockHeight
+		vinEntry.BlockIndex = txIn.BlockIndex
+		return vinList
+	}
+
+	// Coinbase transactions only have a single txin by definition.
+	if blockchain.IsCoinBaseTx(mtx, isTreasuryEnabled) {
+		txIn := mtx.TxIn[0]
+		vinEntry := &vinList[0]
+		vinEntry.Coinbase = hex.EncodeToString(txIn.SignatureScript)
+		vinEntry.Sequence = txIn.Sequence
+		vinEntry.AmountIn = dcrutil.Amount(txIn.ValueIn).ToCoin()
+		vinEntry.BlockHeight = txIn.BlockHeight
+		vinEntry.BlockIndex = txIn.BlockIndex
+		return vinList
+	}
+
+	// Treasury spend transactions only have a single txin by definition.
+	if isTreasuryEnabled && stake.IsTSpend(mtx) {
+		txIn := mtx.TxIn[0]
+		vinEntry := &vinList[0]
+		vinEntry.TreasurySpend = hex.EncodeToString(txIn.SignatureScript)
+		vinEntry.Sequence = txIn.Sequence
+		vinEntry.AmountIn = dcrutil.Amount(txIn.ValueIn).ToCoin()
+		vinEntry.BlockHeight = txIn.BlockHeight
+		vinEntry.BlockIndex = txIn.BlockIndex
+		return vinList
+	}
+
+	// Stakebase transactions (votes) have two inputs: a null stake base
+	// followed by an input consuming a ticket's stakesubmission.
+	isSSGen := stake.IsSSGen(mtx, isTreasuryEnabled)
+
+	for i, txIn := range mtx.TxIn {
+		// Handle only the null input of a stakebase differently.
+		if isSSGen && i == 0 {
+			vinEntry := &vinList[0]
+			vinEntry.Stakebase = hex.EncodeToString(txIn.SignatureScript)
+			vinEntry.Sequence = txIn.Sequence
+			vinEntry.AmountIn = dcrutil.Amount(txIn.ValueIn).ToCoin()
+			vinEntry.BlockHeight = txIn.BlockHeight
+			vinEntry.BlockIndex = txIn.BlockIndex
+			continue
+		}
+
+		// The disassembled string will contain [error] inline
+		// if the script doesn't fully parse, so ignore the
+		// error here.
+		disbuf, _ := txscript.DisasmString(txIn.SignatureScript)
+
+		vinEntry := &vinList[i]
+		vinEntry.Txid = txIn.PreviousOutPoint.Hash.String()
+		vinEntry.Vout = txIn.PreviousOutPoint.Index
+		vinEntry.Tree = txIn.PreviousOutPoint.Tree
+		vinEntry.Sequence = txIn.Sequence
+		vinEntry.AmountIn = dcrutil.Amount(txIn.ValueIn).ToCoin()
+		vinEntry.BlockHeight = txIn.BlockHeight
+		vinEntry.BlockIndex = txIn.BlockIndex
+		vinEntry.ScriptSig = &dcrdtypes.ScriptSig{
+			Asm: disbuf,
+			Hex: hex.EncodeToString(txIn.SignatureScript),
+		}
+	}
+
+	return vinList
+}
+
+// createVoutList returns a slice of JSON objects for the outputs of the passed
+// transaction.
+func createVoutList(mtx *wire.MsgTx, chainParams *chaincfg.Params, filterAddrMap map[string]struct{}, isTreasuryEnabled bool) []dcrdtypes.Vout {
+	txType := stake.DetermineTxType(mtx, isTreasuryEnabled)
+	voutList := make([]dcrdtypes.Vout, 0, len(mtx.TxOut))
+	for i, v := range mtx.TxOut {
+		// The disassembled string will contain [error] inline if the
+		// script doesn't fully parse, so ignore the error here.
+		disbuf, _ := txscript.DisasmString(v.PkScript)
+
+		// Attempt to extract addresses from the public key script.  In
+		// the case of stake submission transactions, the odd outputs
+		// contain a commitment address, so detect that case
+		// accordingly.
+		var addrs []dcrutil.Address
+		var scriptClass string
+		var reqSigs int
+		var commitAmt *dcrutil.Amount
+		if txType == stake.TxTypeSStx && (i%2 != 0) {
+			scriptClass = sstxCommitmentString
+			addr, err := stake.AddrFromSStxPkScrCommitment(v.PkScript,
+				chainParams)
+			if err != nil {
+				log.Warnf("failed to decode ticket "+
+					"commitment addr output for tx hash "+
+					"%v, output idx %v", mtx.TxHash(), i)
+			} else {
+				addrs = []dcrutil.Address{addr}
+			}
+			amt, err := stake.AmountFromSStxPkScrCommitment(v.PkScript)
+			if err != nil {
+				log.Warnf("failed to decode ticket "+
+					"commitment amt output for tx hash %v"+
+					", output idx %v", mtx.TxHash(), i)
+			} else {
+				commitAmt = &amt
+			}
+		} else {
+			// Ignore the error here since an error means the script
+			// couldn't parse and there is no additional information
+			// about it anyways.
+			var sc txscript.ScriptClass
+			sc, addrs, reqSigs, _ = txscript.ExtractPkScriptAddrs(
+				v.Version, v.PkScript, chainParams,
+				isTreasuryEnabled)
+			scriptClass = sc.String()
+		}
+
+		// Encode the addresses while checking if the address passes the
+		// filter when needed.
+		passesFilter := len(filterAddrMap) == 0
+		encodedAddrs := make([]string, len(addrs))
+		for j, addr := range addrs {
+			encodedAddr := addr.Address()
+			encodedAddrs[j] = encodedAddr
+
+			// No need to check the map again if the filter already
+			// passes.
+			if passesFilter {
+				continue
+			}
+			if _, exists := filterAddrMap[encodedAddr]; exists {
+				passesFilter = true
+			}
+		}
+
+		if !passesFilter {
+			continue
+		}
+
+		var vout dcrdtypes.Vout
+		voutSPK := &vout.ScriptPubKey
+		vout.N = uint32(i)
+		vout.Value = dcrutil.Amount(v.Value).ToCoin()
+		vout.Version = v.Version
+		voutSPK.Addresses = encodedAddrs
+		voutSPK.Asm = disbuf
+		voutSPK.Hex = hex.EncodeToString(v.PkScript)
+		voutSPK.Type = scriptClass
+		voutSPK.ReqSigs = int32(reqSigs)
+		if commitAmt != nil {
+			voutSPK.CommitAmt = dcrjson.Float64(commitAmt.ToCoin())
+		}
+
+		voutList = append(voutList, vout)
+	}
+
+	return voutList
 }
 
 // difficultyRatio returns the proof-of-work difficulty as a multiple of the
