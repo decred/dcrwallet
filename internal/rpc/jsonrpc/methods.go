@@ -111,6 +111,7 @@ var handlers = map[string]handler{
 	"getvotechoices":          {fn: (*Server).getVoteChoices},
 	"getwalletfee":            {fn: (*Server).getWalletFee},
 	"help":                    {fn: (*Server).help},
+	"getcfilterv2":            {fn: (*Server).getCFilterV2},
 	"importcfiltersv2":        {fn: (*Server).importCFiltersV2},
 	"importprivkey":           {fn: (*Server).importPrivKey},
 	"importscript":            {fn: (*Server).importScript},
@@ -1448,6 +1449,31 @@ func (s *Server) getUnconfirmedBalance(ctx context.Context, icmd interface{}) (i
 	}
 
 	return (bals.Total - bals.Spendable).ToCoin(), nil
+}
+
+// getCFilterV2 implements the getcfilterv2 command.
+func (s *Server) getCFilterV2(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*dcrdtypes.GetCFilterV2Cmd)
+	blockHash, err := chainhash.NewHashFromStr(cmd.BlockHash)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	key, filter, err := w.CFilterV2(ctx, blockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.GetCFilterV2Result{
+		BlockHash: cmd.BlockHash,
+		Filter:    hex.EncodeToString(filter.Bytes()),
+		Key:       hex.EncodeToString(key[:]),
+	}, nil
 }
 
 // importCFiltersV2 handles an importcfiltersv2 request by parsing the provided

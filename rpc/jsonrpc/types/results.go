@@ -147,6 +147,13 @@ type GetTransactionResult struct {
 	TicketStatus    string                        `json:"ticketstatus,omitempty"`
 }
 
+// GetCFilterV2Result models the data returned from the getcfilterv2 command.
+type GetCFilterV2Result struct {
+	BlockHash string `json:"blockhash"`
+	Filter    string `json:"filter"`
+	Key       string `json:"key"`
+}
+
 // VoteChoice models the data for a vote choice in the getvotechoices result.
 type VoteChoice struct {
 	AgendaID          string `json:"agendaid"`

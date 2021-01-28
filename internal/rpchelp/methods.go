@@ -67,6 +67,7 @@ var Methods = []struct {
 	{"getunconfirmedbalance", returnsNumber},
 	{"getvotechoices", []interface{}{(*types.GetVoteChoicesResult)(nil)}},
 	{"getwalletfee", returnsNumber},
+	{"getcfilterv2", []interface{}{(*types.GetCFilterV2Result)(nil)}},
 	{"help", append(returnsString, returnsString[0])},
 	{"importcfiltersv2", nil},
 	{"importprivkey", nil},

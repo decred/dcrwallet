@@ -191,6 +191,15 @@ var helpDescsEnUS = map[string]string{
 	"getblockhash-index":     "The block height",
 	"getblockhash--result0":  "The main chain block hash",
 
+	// GetCFilterV2Cmd help.
+	"getcfilterv2--synopsis": "Returns the version 2 block filter for the given block along with the key required to query it for matches against committed scripts.",
+	"getcfilterv2-blockhash": "The block hash of the filter to retrieve",
+
+	// GetCFilterV2Result help.
+	"getcfilterv2result-blockhash": "The block hash for which the filter includes data",
+	"getcfilterv2result-filter":    "Hex-encoded bytes of the serialized filter",
+	"getcfilterv2result-key":       "The key required to query the filter for matches against committed scripts",
+
 	// SyncStatusCmd help.
 	"syncstatus--synopsis": "Returns information about this wallet's synchronization to the network.",
 
