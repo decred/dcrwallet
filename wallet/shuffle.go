@@ -8,8 +8,8 @@ import (
 	"crypto/rand"
 	"sync"
 
-	"decred.org/dcrwallet/internal/uniformprng"
-	"decred.org/dcrwallet/wallet/txauthor"
+	"decred.org/dcrwallet/v2/internal/uniformprng"
+	"decred.org/dcrwallet/v2/wallet/txauthor"
 )
 
 var shuffleRand *uniformprng.Source

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"decred.org/dcrwallet/wallet/walletdb"
+	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/wire"
 )

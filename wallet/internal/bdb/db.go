@@ -9,8 +9,8 @@ import (
 	"io"
 	"os"
 
-	"decred.org/dcrwallet/errors"
-	"decred.org/dcrwallet/wallet/walletdb"
+	"decred.org/dcrwallet/v2/errors"
+	"decred.org/dcrwallet/v2/wallet/walletdb"
 	bolt "go.etcd.io/bbolt"
 )
 

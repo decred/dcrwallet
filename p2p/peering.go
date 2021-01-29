@@ -17,9 +17,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"decred.org/dcrwallet/errors"
-	"decred.org/dcrwallet/lru"
-	"decred.org/dcrwallet/version"
+	"decred.org/dcrwallet/v2/errors"
+	"decred.org/dcrwallet/v2/lru"
+	"decred.org/dcrwallet/v2/version"
 	"github.com/decred/dcrd/addrmgr"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"

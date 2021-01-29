@@ -11,7 +11,7 @@ import (
 	"io"
 	"time"
 
-	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/v2/errors"
 	"github.com/decred/dcrd/certgen"
 )
 

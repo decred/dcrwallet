@@ -12,7 +12,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/v2/errors"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/gcs/v3"
 	blockcf "github.com/decred/dcrd/gcs/v3/blockcf2"

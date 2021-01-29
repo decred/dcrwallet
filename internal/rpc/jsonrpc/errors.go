@@ -8,7 +8,7 @@ package jsonrpc
 import (
 	"fmt"
 
-	"decred.org/dcrwallet/errors"
+	"decred.org/dcrwallet/v2/errors"
 	"github.com/decred/dcrd/dcrjson/v3"
 	"github.com/jrick/wsrpc/v2"
 )

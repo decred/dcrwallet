@@ -12,7 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"decred.org/dcrwallet/wallet/walletdb"
+	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
 )
 

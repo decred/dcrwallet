@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"decred.org/dcrwallet/rpc/jsonrpc/types"
+	"decred.org/dcrwallet/v2/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"

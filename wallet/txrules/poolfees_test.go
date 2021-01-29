@@ -3,7 +3,7 @@ package txrules_test
 import (
 	"testing"
 
-	. "decred.org/dcrwallet/wallet/txrules"
+	. "decred.org/dcrwallet/v2/wallet/txrules"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 )

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	_ "decred.org/dcrwallet/wallet/drivers/bdb"
-	"decred.org/dcrwallet/wallet/walletdb"
+	_ "decred.org/dcrwallet/v2/wallet/drivers/bdb"
+	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	gcs2 "github.com/decred/dcrd/gcs/v3"
