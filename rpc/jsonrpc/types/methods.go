@@ -1254,19 +1254,19 @@ func init() {
 
 	// dcrd methods also implemented by dcrwallet
 	register = []registeredMethod{
-		{"createrawtransaction", (*dcrdtypes.CreateRawTransactionCmd)(nil)},
-		{"getbestblock", (*dcrdtypes.GetBestBlockCmd)(nil)},
-		{"getbestblockhash", (*dcrdtypes.GetBestBlockHashCmd)(nil)},
-		{"getblockcount", (*dcrdtypes.GetBlockCountCmd)(nil)},
-		{"getblockhash", (*dcrdtypes.GetBlockHashCmd)(nil)},
-		{"getinfo", (*dcrdtypes.GetInfoCmd)(nil)},
-		{"getpeerinfo", (*dcrdtypes.GetPeerInfoCmd)(nil)},
-		{"help", (*dcrdtypes.HelpCmd)(nil)},
-		{"sendrawtransaction", (*dcrdtypes.SendRawTransactionCmd)(nil)},
-		{"ticketsforaddress", (*dcrdtypes.TicketsForAddressCmd)(nil)},
-		{"validateaddress", (*dcrdtypes.ValidateAddressCmd)(nil)},
-		{"verifymessage", (*dcrdtypes.VerifyMessageCmd)(nil)},
-		{"version", (*dcrdtypes.VersionCmd)(nil)},
+		{"createrawtransaction", (*CreateRawTransactionCmd)(nil)},
+		{"getbestblock", (*GetBestBlockCmd)(nil)},
+		{"getbestblockhash", (*GetBestBlockHashCmd)(nil)},
+		{"getblockcount", (*GetBlockCountCmd)(nil)},
+		{"getblockhash", (*GetBlockHashCmd)(nil)},
+		{"getinfo", (*GetInfoCmd)(nil)},
+		{"getpeerinfo", (*GetPeerInfoCmd)(nil)},
+		{"help", (*HelpCmd)(nil)},
+		{"sendrawtransaction", (*SendRawTransactionCmd)(nil)},
+		{"ticketsforaddress", (*TicketsForAddressCmd)(nil)},
+		{"validateaddress", (*ValidateAddressCmd)(nil)},
+		{"verifymessage", (*VerifyMessageCmd)(nil)},
+		{"version", (*VersionCmd)(nil)},
 	}
 	for i := range register {
 		dcrjson.MustRegister(Method(register[i].method), register[i].cmd, 0)
@@ -1274,10 +1274,28 @@ func init() {
 
 	// Websocket-specific methods implemented by dcrwallet
 	register = []registeredMethod{
-		{"authenticate", (*dcrdtypes.AuthenticateCmd)(nil)},
+		{"authenticate", (*AuthenticateCmd)(nil)},
 	}
 	for i := range register {
 		dcrjson.MustRegister(Method(register[i].method), register[i].cmd,
 			dcrjson.UFWebsocketOnly)
 	}
 }
+
+// newtype definitions of dcrd commands we implement.
+type (
+	AuthenticateCmd         dcrdtypes.AuthenticateCmd
+	CreateRawTransactionCmd dcrdtypes.CreateRawTransactionCmd
+	GetBestBlockCmd         dcrdtypes.GetBestBlockCmd
+	GetBestBlockHashCmd     dcrdtypes.GetBestBlockHashCmd
+	GetBlockCountCmd        dcrdtypes.GetBlockCountCmd
+	GetBlockHashCmd         dcrdtypes.GetBlockHashCmd
+	GetInfoCmd              dcrdtypes.GetInfoCmd
+	GetPeerInfoCmd          dcrdtypes.GetPeerInfoCmd
+	HelpCmd                 dcrdtypes.HelpCmd
+	SendRawTransactionCmd   dcrdtypes.SendRawTransactionCmd
+	TicketsForAddressCmd    dcrdtypes.TicketsForAddressCmd
+	ValidateAddressCmd      dcrdtypes.ValidateAddressCmd
+	VerifyMessageCmd        dcrdtypes.VerifyMessageCmd
+	VersionCmd              dcrdtypes.VersionCmd
+)

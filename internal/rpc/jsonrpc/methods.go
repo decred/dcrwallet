@@ -615,7 +615,7 @@ func (s *Server) createMultiSig(ctx context.Context, icmd interface{}) (interfac
 
 // createRawTransaction handles createrawtransaction commands.
 func (s *Server) createRawTransaction(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrdtypes.CreateRawTransactionCmd)
+	cmd := icmd.(*types.CreateRawTransactionCmd)
 
 	// Validate expiry, if given.
 	if cmd.Expiry != nil && *cmd.Expiry < 0 {
@@ -1197,7 +1197,7 @@ func (s *Server) getBlockCount(ctx context.Context, icmd interface{}) (interface
 // getBlockHash handles a getblockhash request by returning the main chain hash
 // for a block at some height.
 func (s *Server) getBlockHash(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrdtypes.GetBlockHashCmd)
+	cmd := icmd.(*types.GetBlockHashCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
@@ -1839,7 +1839,7 @@ func (s *Server) getPeerInfo(ctx context.Context, icmd interface{}) (interface{}
 
 	syncer, ok := n.(*spv.Syncer)
 	if !ok {
-		var resp []*dcrdtypes.GetPeerInfoResult
+		var resp []*types.GetPeerInfoResult
 		if rpc, ok := n.(*dcrd.RPC); ok {
 			err := rpc.Call(ctx, "getpeerinfo", &resp)
 			if err != nil {
@@ -2132,7 +2132,7 @@ var helpDescsMu sync.Mutex // Help may execute concurrently, so synchronize acce
 // and this is simply a helper function for the HelpNoChainRPC and
 // HelpWithChainRPC handlers.
 func (s *Server) help(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrdtypes.HelpCmd)
+	cmd := icmd.(*types.HelpCmd)
 	// TODO: The "help" RPC should use a HTTP POST client when calling down to
 	// dcrd for additional help methods.  This avoids including websocket-only
 	// requests in the help, which are not callable by wallet JSON-RPC clients.
@@ -3462,7 +3462,7 @@ func (s *Server) ticketInfo(ctx context.Context, icmd interface{}) (interface{},
 // address. It will only return tickets that are in the mempool or blockchain,
 // and should not return pruned tickets.
 func (s *Server) ticketsForAddress(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrdtypes.TicketsForAddressCmd)
+	cmd := icmd.(*types.TicketsForAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
@@ -3664,7 +3664,7 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 // sendRawTransaction handles a sendrawtransaction RPC request by decoding hex
 // transaction and sending it to the network backend for propagation.
 func (s *Server) sendRawTransaction(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrdtypes.SendRawTransactionCmd)
+	cmd := icmd.(*types.SendRawTransactionCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
@@ -4218,7 +4218,7 @@ func (s *Server) sweepAccount(ctx context.Context, icmd interface{}) (interface{
 
 // validateAddress handles the validateaddress command.
 func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrdtypes.ValidateAddressCmd)
+	cmd := icmd.(*types.ValidateAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
@@ -4309,7 +4309,7 @@ func (s *Server) validatePreDCP0005CF(ctx context.Context, icmd interface{}) (in
 // verifyMessage handles the verifymessage command by verifying the provided
 // compact signature for the given address and message.
 func (s *Server) verifyMessage(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrdtypes.VerifyMessageCmd)
+	cmd := icmd.(*types.VerifyMessageCmd)
 
 	var valid bool
 
