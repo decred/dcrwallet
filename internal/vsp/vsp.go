@@ -241,3 +241,29 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 	}
 	return fp.submitPayment()
 }
+
+// SetVoteChoice takes all
+func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choices ...wallet.AgendaChoice) error {
+	c.mu.Lock()
+	_, ok := c.jobs[*hash]
+	c.mu.Unlock()
+	if ok {
+		// Already processing this ticket with the VSP.
+		return nil
+	}
+
+	// Should we check status first ??
+	status, err := c.status(ctx, hash)
+	if err != nil {
+		if errors.Is(err, errors.Locked) {
+			return err
+		}
+		return nil
+	}
+
+	err = c.setVoteStatus(ctx, hash, choices)
+	if err != nil {
+		return err
+	}
+	return nil
+}

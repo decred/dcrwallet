@@ -630,6 +630,70 @@ func (c *Client) status(ctx context.Context, ticketHash *chainhash.Hash) (*ticke
 	return &resp, nil
 }
 
+func (c *Client) setVoteStatus(ctx context.Context, ticketHash *chainhash.Hash, choices ...wallet.AgendaChoice) (*ticketStatus, error) {
+	w := c.Wallet
+	params := w.ChainParams()
+
+	ticketTx, err := c.tx(ctx, ticketHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve ticket %v: %w", ticketHash, err)
+	}
+	if len(ticketTx.TxOut) != 3 {
+		return nil, fmt.Errorf("ticket %v has multiple commitments: %w", ticketHash, errNotSolo)
+	}
+
+	if !stake.IsSStx(ticketTx) {
+		return nil, fmt.Errorf("%v is not a ticket", ticketHash)
+	}
+	commitmentAddr, err := stake.AddrFromSStxPkScrCommitment(ticketTx.TxOut[1].PkScript, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract commitment address from %v: %w",
+			ticketHash, err)
+	}
+
+	agendaChoices := ""
+// Prepare agenda choice 
+	for c, i := choices {
+		if i == 0 {
+			agendaChoices = "{"
+		}
+		agendaChoices += "\"" + c.AgendaID + "\":\"" + c.ChoiceID + "\""
+		if i == len(choices) - 1 {
+			agendaChoices += "}"
+		} else {
+			agendaChoices += ","
+		}
+	}
+
+	var resp ticketStatus
+	requestBody, err := json.Marshal(&struct {
+		TicketHash  string `json:"tickethash"`
+		VoteChoices string `json:"votechoices"`
+	}{
+		TicketHash:  ticketHash.String(),
+		VoteChoices: agendaChoices,
+	})
+	if err != nil {
+		return nil, err
+	}
+	err = c.post(ctx, "/api/v3/setvotestatus", commitmentAddr, &resp,
+		json.RawMessage(requestBody))
+	if err != nil {
+		return nil, err
+	}
+
+	// verify initial request matches server
+	if !bytes.Equal(requestBody, resp.Request) {
+		log.Warnf("server response has differing request: %#v != %#v",
+			requestBody, resp.Request)
+		return nil, fmt.Errorf("server response contains differing request")
+	}
+
+	// XXX validate server timestamp?
+
+	return &resp, nil
+}
+
 func (fp *feePayment) reconcilePayment() error {
 	ctx := fp.ctx
 	w := fp.client.Wallet
