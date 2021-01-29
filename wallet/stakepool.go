@@ -10,7 +10,7 @@ import (
 	"decred.org/dcrwallet/errors"
 	"decred.org/dcrwallet/wallet/udb"
 	"decred.org/dcrwallet/wallet/walletdb"
-	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/dcrutil/v4"
 )
 
 // StakePoolUserInfo returns the stake pool user information for a user

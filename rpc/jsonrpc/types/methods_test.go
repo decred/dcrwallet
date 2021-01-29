@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/dcrjson/v3"
-	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
 )
 
 // TestWalletSvrCmds tests all of the wallet server commands marshal and

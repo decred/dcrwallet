@@ -11,7 +11,7 @@ import (
 
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/dcrutil/v4"
 )
 
 // ValidPoolFeeRate tests to see if a pool fee is a valid percentage from

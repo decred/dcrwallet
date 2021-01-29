@@ -5,7 +5,7 @@ import (
 
 	. "decred.org/dcrwallet/wallet/txrules"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v3"
+	"github.com/decred/dcrd/dcrutil/v4"
 )
 
 func TestStakePoolTicketFee(t *testing.T) {

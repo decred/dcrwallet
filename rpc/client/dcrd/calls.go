@@ -14,8 +14,8 @@ import (
 
 	"decred.org/dcrwallet/errors"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil/v3"
-	"github.com/decred/dcrd/gcs/v2"
+	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/gcs/v3"
 	"github.com/decred/dcrd/wire"
 	"github.com/jrick/bitset"
 	"github.com/jrick/wsrpc/v2"
@@ -292,10 +292,11 @@ type filterProof = struct {
 }
 
 // CFiltersV2 returns the version 2 committed filters for blocks.
+// If this method errors, a partial result of filter proofs may be returned,
+// with nil filters if the query errored.
 func (r *RPC) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]filterProof, error) {
 	const opf = "dcrd.CFiltersV2(%v)"
 
-	// TODO: this is spammy and would be better implemented with a single RPC.
 	filters := make([]filterProof, len(blockHashes))
 	var g errgroup.Group
 	for i := range blockHashes {
@@ -317,10 +318,7 @@ func (r *RPC) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]
 		})
 	}
 	err := g.Wait()
-	if err != nil {
-		return nil, err
-	}
-	return filters, nil
+	return filters, err
 }
 
 // Headers returns the block headers starting at the fork point between the

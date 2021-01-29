@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/decred/dcrd/blockchain/v3/chaingen"
+	"github.com/decred/dcrd/blockchain/v4/chaingen"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/gcs/v2/blockcf2"
-	"github.com/decred/dcrd/txscript/v3"
+	"github.com/decred/dcrd/gcs/v3/blockcf2"
+	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/wire"
 )
 

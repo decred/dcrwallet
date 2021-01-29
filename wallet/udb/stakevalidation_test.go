@@ -12,8 +12,8 @@ import (
 
 	_ "decred.org/dcrwallet/wallet/internal/bdb"
 	"decred.org/dcrwallet/wallet/walletdb"
-	"github.com/decred/dcrd/dcrutil/v3"
-	gcs2 "github.com/decred/dcrd/gcs/v2"
+	"github.com/decred/dcrd/dcrutil/v4"
+	gcs2 "github.com/decred/dcrd/gcs/v3"
 	"github.com/decred/dcrd/wire"
 )
 

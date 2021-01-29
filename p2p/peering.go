@@ -24,8 +24,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/connmgr/v3"
-	"github.com/decred/dcrd/gcs/v2"
-	blockcf "github.com/decred/dcrd/gcs/v2/blockcf2"
+	"github.com/decred/dcrd/gcs/v3"
+	blockcf "github.com/decred/dcrd/gcs/v3/blockcf2"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
 )
