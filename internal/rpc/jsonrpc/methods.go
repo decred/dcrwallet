@@ -1312,17 +1312,9 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 	}
 
 	// Determine if the treasury rules are active for the block.
-	// A coinbase tx must be version 3 once the treasury agenda is active.
-	// Every block contains a single coinbase transaction in the regular tree,
-	// so there should be at least 1 tx with version 3 if the treasury agenda
+	// All txs in the stake tree must be version 3 once the treasury agenda
 	// is active.
-	var isTreasuryEnabled bool
-	for _, tx := range blk.Transactions {
-		if tx.Version == wire.TxVersionTreasury {
-			isTreasuryEnabled = true
-			break
-		}
-	}
+	isTreasuryEnabled := blk.STransactions[0].Version == wire.TxVersionTreasury
 
 	if cmd.VerboseTx == nil || !*cmd.VerboseTx {
 		transactions := blk.Transactions
@@ -1375,7 +1367,7 @@ func createTxRawResult(chainParams *chaincfg.Params, mtx *wire.MsgTx, blkIdx uin
 
 	txReply := &dcrdtypes.TxRawResult{
 		Hex:         hex.EncodeToString(mtxBytes),
-		Txid:        mtx.CachedHash.String(),
+		Txid:        mtx.CachedTxHash().String(),
 		Vin:         createVinList(mtx, isTreasuryEnabled),
 		Vout:        createVoutList(mtx, chainParams, nil, isTreasuryEnabled),
 		Version:     int32(mtx.Version),
