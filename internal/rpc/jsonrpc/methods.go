@@ -1226,7 +1226,7 @@ func (s *Server) getBlockHash(ctx context.Context, icmd interface{}) (interface{
 
 // getBlock implements the getblock command.
 func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrdtypes.GetBlockCmd)
+	cmd := icmd.(*types.GetBlockCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
@@ -1803,7 +1803,7 @@ func (s *Server) getUnconfirmedBalance(ctx context.Context, icmd interface{}) (i
 
 // getCFilterV2 implements the getcfilterv2 command.
 func (s *Server) getCFilterV2(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*dcrdtypes.GetCFilterV2Cmd)
+	cmd := icmd.(*types.GetCFilterV2Cmd)
 	blockHash, err := chainhash.NewHashFromStr(cmd.BlockHash)
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
