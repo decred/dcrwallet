@@ -253,7 +253,7 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choice
 	}
 
 	// Should we check status first ??
-	status, err := c.status(ctx, hash)
+	_, err := c.status(ctx, hash)
 	if err != nil {
 		if errors.Is(err, errors.Locked) {
 			return err

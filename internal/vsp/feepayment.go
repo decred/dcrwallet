@@ -630,35 +630,36 @@ func (c *Client) status(ctx context.Context, ticketHash *chainhash.Hash) (*ticke
 	return &resp, nil
 }
 
-func (c *Client) setVoteStatus(ctx context.Context, ticketHash *chainhash.Hash, choices ...wallet.AgendaChoice) (*ticketStatus, error) {
+func (c *Client) setVoteStatus(ctx context.Context, ticketHash *chainhash.Hash, choices []wallet.AgendaChoice) error {
 	w := c.Wallet
 	params := w.ChainParams()
 
 	ticketTx, err := c.tx(ctx, ticketHash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve ticket %v: %w", ticketHash, err)
+		return fmt.Errorf("failed to retrieve ticket %v: %w", ticketHash, err)
 	}
 	if len(ticketTx.TxOut) != 3 {
-		return nil, fmt.Errorf("ticket %v has multiple commitments: %w", ticketHash, errNotSolo)
+		return fmt.Errorf("ticket %v has multiple commitments: %w", ticketHash, errNotSolo)
 	}
 
 	if !stake.IsSStx(ticketTx) {
-		return nil, fmt.Errorf("%v is not a ticket", ticketHash)
+		return fmt.Errorf("%v is not a ticket", ticketHash)
 	}
 	commitmentAddr, err := stake.AddrFromSStxPkScrCommitment(ticketTx.TxOut[1].PkScript, params)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract commitment address from %v: %w",
+		return fmt.Errorf("failed to extract commitment address from %v: %w",
 			ticketHash, err)
 	}
 
 	agendaChoices := ""
-// Prepare agenda choice 
-	for c, i := choices {
+
+	// Prepare agenda choice
+	for i, c := range choices {
 		if i == 0 {
 			agendaChoices = "{"
 		}
 		agendaChoices += "\"" + c.AgendaID + "\":\"" + c.ChoiceID + "\""
-		if i == len(choices) - 1 {
+		if i == len(choices)-1 {
 			agendaChoices += "}"
 		} else {
 			agendaChoices += ","
@@ -674,24 +675,24 @@ func (c *Client) setVoteStatus(ctx context.Context, ticketHash *chainhash.Hash, 
 		VoteChoices: agendaChoices,
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = c.post(ctx, "/api/v3/setvotestatus", commitmentAddr, &resp,
 		json.RawMessage(requestBody))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// verify initial request matches server
 	if !bytes.Equal(requestBody, resp.Request) {
 		log.Warnf("server response has differing request: %#v != %#v",
 			requestBody, resp.Request)
-		return nil, fmt.Errorf("server response contains differing request")
+		return fmt.Errorf("server response contains differing request")
 	}
 
 	// XXX validate server timestamp?
 
-	return &resp, nil
+	return nil
 }
 
 func (fp *feePayment) reconcilePayment() error {

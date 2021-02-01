@@ -3898,17 +3898,11 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 	if vspHost == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 	}
-	policy := vsp.Policy{
-		MaxFee:     0.1e8,
-		FeeAcct:    req.FeeAccount,
-		ChangeAcct: req.ChangeAccount,
-	}
 	cfg := vsp.Config{
 		URL:    vspHost,
 		PubKey: vspPubKey,
 		Dialer: nil,
 		Wallet: s.wallet,
-		Policy: policy,
 	}
 	vspClient, err := getVSP(cfg)
 	if err != nil {
@@ -3920,14 +3914,14 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 		return nil, err
 	}
 	for _, ticket := range paidTickets {
-		choices, err := s.wallet.AgendaChoices(ctx, ticket)
+		choices, _, err := s.wallet.AgendaChoices(ctx, &ticket)
 		if err != nil {
-			log.Errorf("couldn't get agenda choices for %v %v", ticket, err)
+			//log.Errorf("couldn't get agenda choices for %v %v", ticket, err)
 			continue
 		}
-		err = vspClient.SetVoteChoice(ctx, ticket, choices)
+		err = vspClient.SetVoteChoice(ctx, &ticket, choices...)
 		if err != nil {
-			log.Errorf("couldn't set vote choice for %v %v", ticket, err)
+			//log.Errorf("couldn't set vote choice for %v %v", ticket, err)
 			continue
 		}
 	}
