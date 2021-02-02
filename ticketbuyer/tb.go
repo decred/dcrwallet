@@ -76,9 +76,11 @@ func New(w *wallet.Wallet) *TB {
 // ever becomes incorrect due to a wallet passphrase change, Run exits with an
 // errors.Passphrase error.
 func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
-	err := tb.wallet.Unlock(ctx, passphrase, nil)
-	if err != nil {
-		return err
+	if len(passphrase) > 0 {
+		err := tb.wallet.Unlock(ctx, passphrase, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	c := tb.wallet.NtfnServer.MainTipChangedNotifications()
@@ -211,12 +213,14 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		return err
 	}
 
-	// Ensure wallet is unlocked with the current passphrase.  If the passphase
-	// is changed, the Run exits and TB must be restarted with the new
-	// passphrase.
-	err = w.Unlock(ctx, passphrase, nil)
-	if err != nil {
-		return err
+	if len(passphrase) > 0 {
+		// Ensure wallet is unlocked with the current passphrase.  If the passphase
+		// is changed, the Run exits and TB must be restarted with the new
+		// passphrase.
+		err = w.Unlock(ctx, passphrase, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Read config
