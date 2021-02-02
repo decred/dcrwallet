@@ -1379,8 +1379,6 @@ func (s *walletServer) ChangePassphrase(ctx context.Context, req *pb.ChangePassp
 func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransactionRequest) (
 	*pb.SignTransactionResponse, error) {
 
-	defer zero(req.Passphrase)
-
 	var tx wire.MsgTx
 	err := tx.Deserialize(bytes.NewReader(req.SerializedTransaction))
 	if err != nil {
@@ -1392,6 +1390,7 @@ func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransact
 		lock := make(chan time.Time, 1)
 		defer func() {
 			lock <- time.Time{} // send matters, not the value
+			zero(req.Passphrase)
 		}()
 		err = s.wallet.Unlock(ctx, req.Passphrase, lock)
 		if err != nil {
