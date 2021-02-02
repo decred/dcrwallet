@@ -258,11 +258,12 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choice
 		if errors.Is(err, errors.Locked) {
 			return err
 		}
-		return nil
+		return fmt.Errorf("error on status req for %v %v", hash, err)
 	}
 
 	err = c.setVoteStatus(ctx, hash, choices)
 	if err != nil {
+		fmt.Println(hash, err)
 		return err
 	}
 	return nil

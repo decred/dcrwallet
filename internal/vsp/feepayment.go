@@ -652,7 +652,7 @@ func (c *Client) setVoteStatus(ctx context.Context, ticketHash *chainhash.Hash, 
 	}
 
 	agendaChoices := ""
-
+	fmt.Println("asfsfd", ticketHash)
 	// Prepare agenda choice
 	for i, c := range choices {
 		if i == 0 {
@@ -677,17 +677,21 @@ func (c *Client) setVoteStatus(ctx context.Context, ticketHash *chainhash.Hash, 
 	if err != nil {
 		return err
 	}
-	err = c.post(ctx, "/api/v3/setvotestatus", commitmentAddr, &resp,
+	fmt.Println(ticketHash, "pre req")
+	err = c.post(ctx, "/api/v3/setvotechoices", commitmentAddr, &resp,
 		json.RawMessage(requestBody))
 	if err != nil {
+		fmt.Println(err, ticketHash)
 		return err
 	}
-
+	fmt.Println(ticketHash, resp.Request)
 	// verify initial request matches server
 	if !bytes.Equal(requestBody, resp.Request) {
 		log.Warnf("server response has differing request: %#v != %#v",
 			requestBody, resp.Request)
 		return fmt.Errorf("server response contains differing request")
+	} else {
+		fmt.Println("They match!")
 	}
 
 	// XXX validate server timestamp?
