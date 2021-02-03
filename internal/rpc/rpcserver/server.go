@@ -58,8 +58,6 @@ import (
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/wire"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 // Public API version constants
@@ -3921,7 +3919,6 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 	if err != nil {
 		return nil, err
 	}
-	spew.Dump(paidTickets)
 	for _, ticket := range paidTickets {
 		choices, _, err := s.wallet.AgendaChoices(ctx, &ticket)
 		if err != nil {

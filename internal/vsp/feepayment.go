@@ -651,47 +651,38 @@ func (c *Client) setVoteStatus(ctx context.Context, ticketHash *chainhash.Hash, 
 			ticketHash, err)
 	}
 
-	agendaChoices := ""
-	fmt.Println("asfsfd", ticketHash)
+	agendaChoices := make(map[string]string, len(choices))
+
 	// Prepare agenda choice
-	for i, c := range choices {
-		if i == 0 {
-			agendaChoices = "{"
-		}
-		agendaChoices += "\"" + c.AgendaID + "\":\"" + c.ChoiceID + "\""
-		if i == len(choices)-1 {
-			agendaChoices += "}"
-		} else {
-			agendaChoices += ","
-		}
+	for _, c := range choices {
+		agendaChoices[c.AgendaID] = c.ChoiceID
 	}
 
 	var resp ticketStatus
 	requestBody, err := json.Marshal(&struct {
-		TicketHash  string `json:"tickethash"`
-		VoteChoices string `json:"votechoices"`
+		Timestamp   int64             `json:"timestamp"`
+		TicketHash  string            `json:"tickethash"`
+		VoteChoices map[string]string `json:"votechoices"`
 	}{
+		Timestamp:   time.Now().Unix(),
 		TicketHash:  ticketHash.String(),
 		VoteChoices: agendaChoices,
 	})
 	if err != nil {
 		return err
 	}
-	fmt.Println(ticketHash, "pre req")
+
 	err = c.post(ctx, "/api/v3/setvotechoices", commitmentAddr, &resp,
 		json.RawMessage(requestBody))
 	if err != nil {
-		fmt.Println(err, ticketHash)
 		return err
 	}
-	fmt.Println(ticketHash, resp.Request)
+
 	// verify initial request matches server
 	if !bytes.Equal(requestBody, resp.Request) {
 		log.Warnf("server response has differing request: %#v != %#v",
 			requestBody, resp.Request)
 		return fmt.Errorf("server response contains differing request")
-	} else {
-		fmt.Println("They match!")
 	}
 
 	// XXX validate server timestamp?

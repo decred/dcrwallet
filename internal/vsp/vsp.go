@@ -251,7 +251,6 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choice
 		// Already processing this ticket with the VSP.
 		return nil
 	}
-
 	// Should we check status first ??
 	_, err := c.status(ctx, hash)
 	if err != nil {
@@ -260,10 +259,8 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choice
 		}
 		return fmt.Errorf("error on status req for %v %v", hash, err)
 	}
-
 	err = c.setVoteStatus(ctx, hash, choices)
 	if err != nil {
-		fmt.Println(hash, err)
 		return err
 	}
 	return nil
