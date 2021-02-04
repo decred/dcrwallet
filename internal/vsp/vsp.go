@@ -251,14 +251,15 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choice
 		// Already processing this ticket with the VSP.
 		return nil
 	}
-	// Should we check status first ??
+
 	_, err := c.status(ctx, hash)
 	if err != nil {
 		if errors.Is(err, errors.Locked) {
 			return err
 		}
-		return fmt.Errorf("error on status req for %v %v", hash, err)
+		return nil
 	}
+
 	err = c.setVoteStatus(ctx, hash, choices)
 	if err != nil {
 		return err

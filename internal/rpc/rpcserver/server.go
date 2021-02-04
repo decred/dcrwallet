@@ -3914,23 +3914,15 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
 	}
-	paidTickets, err := s.wallet.GetVSPTicketsByFeeStatus(ctx,
-		int(udb.VSPFeeProcessPaid))
-	if err != nil {
-		return nil, err
-	}
-	for _, ticket := range paidTickets {
-		choices, _, err := s.wallet.AgendaChoices(ctx, &ticket)
+	err = vspClient.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+		// Skip errors here, but should we log at least?
+		choices, _, err := s.wallet.AgendaChoices(ctx, hash)
 		if err != nil {
-			//log.Errorf("couldn't get agenda choices for %v %v", ticket, err)
-			continue
+			return nil
 		}
-		err = vspClient.SetVoteChoice(ctx, &ticket, choices...)
-		if err != nil {
-			//log.Errorf("couldn't set vote choice for %v %v", ticket, err)
-			continue
-		}
-	}
+		_ = vspClient.SetVoteChoice(ctx, hash, choices...)
+		return nil
+	})
 
 	return &pb.SetVspdVoteChoicesResponse{}, nil
 }
