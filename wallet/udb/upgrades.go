@@ -16,7 +16,6 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/decred/dcrd/gcs/v2/blockcf"
 	"github.com/decred/dcrd/gcs/v3/blockcf2"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/txscript/v4"
@@ -849,11 +848,15 @@ func cfUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincf
 	}
 
 	// Record cfilter for genesis block.
-	f, err := blockcf.Regular(params.GenesisBlock)
-	if err != nil {
-		return err
-	}
-	err = putRawCFilter(txmgrBucket, params.GenesisHash[:], f.Bytes())
+	//
+	// Note: This used to record the actual version 1 cfilter for the
+	// genesis block, but this was changed as packages were updated.
+	// Version 1 cfilters can no longer be created using the latest major
+	// version of the gcs module.  Plus, version 1 cfilters are removed in a
+	// later database upgrade, because only version 2 cfilters are used now.
+	// So instead, this upgrade path has been modified to record nil bytes
+	// for this genesis block v1 cfilter.
+	err = putRawCFilter(txmgrBucket, params.GenesisHash[:], nil)
 	if err != nil {
 		return errors.E(errors.IO, err)
 	}
