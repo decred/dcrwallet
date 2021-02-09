@@ -1108,6 +1108,11 @@ func (s *Store) moveMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Read
 		return err
 	}
 
+	err = deleteUnpublished(ns, rec.Hash[:])
+	if err != nil {
+		return err
+	}
+
 	return deleteRawUnmined(ns, rec.Hash[:])
 }
 
@@ -2285,12 +2290,6 @@ func (s *Store) UnspentOutputs(dbtx walletdb.ReadTx) ([]*Credit, error) {
 			continue
 		}
 
-		// Skip outputs from unpublished transactions.
-		txHash := k[:32]
-		if existsUnpublished(ns, txHash) {
-			continue
-		}
-
 		err = readUnspentBlock(v, &block)
 		if err != nil {
 			c.Close()
@@ -2312,6 +2311,12 @@ func (s *Store) UnspentOutputs(dbtx walletdb.ReadTx) ([]*Credit, error) {
 		if existsRawUnminedInput(ns, k) != nil {
 			// Output is spent by an unmined transaction.
 			// Skip to next unmined credit.
+			continue
+		}
+
+		// Skip outputs from unpublished transactions.
+		txHash := k[:32]
+		if existsUnpublished(ns, txHash) {
 			continue
 		}
 
