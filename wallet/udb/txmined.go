@@ -2361,12 +2361,6 @@ func (s *Store) ForEachUnspentOutpoint(dbtx walletdb.ReadTx, f func(*wire.OutPoi
 			continue
 		}
 
-		// Skip outputs from unpublished transactions.
-		txHash := k[:32]
-		if existsUnpublished(ns, txHash) {
-			continue
-		}
-
 		block := new(Block)
 		err = readUnspentBlock(v, block)
 		if err != nil {
@@ -2392,6 +2386,12 @@ func (s *Store) ForEachUnspentOutpoint(dbtx walletdb.ReadTx, f func(*wire.OutPoi
 		if existsRawUnminedInput(ns, k) != nil {
 			// Output is spent by an unmined transaction.
 			// Skip to next unmined credit.
+			continue
+		}
+
+		// Skip outputs from unpublished transactions.
+		txHash := k[:32]
+		if existsUnpublished(ns, txHash) {
 			continue
 		}
 
