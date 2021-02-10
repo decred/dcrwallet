@@ -138,28 +138,6 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		return errors.E(op, err)
 	}
 
-	const (
-		txVersion = 1
-		locktime  = 0
-		expiry    = 0
-	)
-	pairing := coinjoin.EncodeDesc(coinjoin.P2PKHv0, int64(mixValue), txVersion, locktime, expiry)
-	ses, err := cspp.NewSession(rand.Reader, debugLog, pairing, count)
-	if err != nil {
-		return errors.E(op, err)
-	}
-	var conn net.Conn
-	if dialTLS != nil {
-		conn, err = dialTLS(ctx, "tcp", csppserver)
-	} else {
-		conn, err = tls.Dial("tcp", csppserver, nil)
-	}
-	if err != nil {
-		return errors.E(op, err)
-	}
-	defer conn.Close()
-	log.Infof("Dialed CSPPServer %v -> %v", conn.LocalAddr(), conn.RemoteAddr())
-
 	// Create change output from remaining value and contributed fee
 	const P2PKHv0Len = 25
 	feeRate := w.RelayFee()
@@ -190,6 +168,28 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 			Version:  version,
 		}
 	}
+
+	const (
+		txVersion = 1
+		locktime  = 0
+		expiry    = 0
+	)
+	pairing := coinjoin.EncodeDesc(coinjoin.P2PKHv0, int64(mixValue), txVersion, locktime, expiry)
+	ses, err := cspp.NewSession(rand.Reader, debugLog, pairing, count)
+	if err != nil {
+		return errors.E(op, err)
+	}
+	var conn net.Conn
+	if dialTLS != nil {
+		conn, err = dialTLS(ctx, "tcp", csppserver)
+	} else {
+		conn, err = tls.Dial("tcp", csppserver, nil)
+	}
+	if err != nil {
+		return errors.E(op, err)
+	}
+	defer conn.Close()
+	log.Infof("Dialed CSPPServer %v -> %v", conn.LocalAddr(), conn.RemoteAddr())
 
 	log.Infof("Mixing output %v (%v)", output, amount)
 	cj := w.newCsppJoin(ctx, change, mixValue, mixAccount, mixBranch, count)
