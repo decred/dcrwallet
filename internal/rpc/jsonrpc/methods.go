@@ -3827,6 +3827,10 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
 	}
+	if len(tx.TxIn) == 0 {
+		err := errors.New("transaction with no inputs cannot be signed")
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+	}
 
 	var hashType txscript.SigHashType
 	switch *cmd.Flags {
