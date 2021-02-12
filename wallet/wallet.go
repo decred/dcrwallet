@@ -4409,7 +4409,7 @@ func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account
 	if err != nil {
 		return nil, err
 	}
-	err = w.publishAndWatch(ctx, op, nil, a.atx, a.watch)
+	err = w.publishAndWatch(ctx, op, nil, a.atx.Tx, a.watch)
 	if err != nil {
 		return nil, err
 	}
@@ -4447,7 +4447,7 @@ func (w *Wallet) SendOutputsToTreasury(ctx context.Context, outputs []*wire.TxOu
 	if err != nil {
 		return nil, err
 	}
-	err = w.publishAndWatch(ctx, op, nil, a.atx, a.watch)
+	err = w.publishAndWatch(ctx, op, nil, a.atx.Tx, a.watch)
 	if err != nil {
 		return nil, err
 	}
