@@ -251,15 +251,25 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choice
 		// Already processing this ticket with the VSP.
 		return nil
 	}
-
-	_, err := c.status(ctx, hash)
+	status, err := c.status(ctx, hash)
 	if err != nil {
 		if errors.Is(err, errors.Locked) {
 			return err
 		}
 		return nil
 	}
-
+	setVoteChoices := status.VoteChoices
+	update := false
+	for agenda, choice := range setVoteChoices {
+		for _, newChoice := range choices {
+			if agenda == newChoice.AgendaID && choice != newChoice.ChoiceID {
+				update = true
+			}
+		}
+	}
+	if !update {
+		return nil
+	}
 	err = c.setVoteStatus(ctx, hash, choices)
 	if err != nil {
 		return err
