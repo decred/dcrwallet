@@ -62,9 +62,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.7.0"
+	semverString = "7.8.0"
 	semverMajor  = 7
-	semverMinor  = 7
+	semverMinor  = 8
 	semverPatch  = 0
 )
 
@@ -3885,4 +3885,44 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 	}
 
 	return &pb.ProcessUnmanagedTicketsResponse{}, nil
+}
+
+func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVoteChoicesRequest) (
+	*pb.SetVspdVoteChoicesResponse, error) {
+
+	vspHost := req.VspHost
+	vspPubKey := req.VspPubkey
+	if vspPubKey == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
+	}
+	if vspHost == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
+	}
+	policy := vsp.Policy{
+		MaxFee:     0.1e8,
+		FeeAcct:    req.FeeAccount,
+		ChangeAcct: req.ChangeAccount,
+	}
+	cfg := vsp.Config{
+		URL:    vspHost,
+		PubKey: vspPubKey,
+		Dialer: nil,
+		Wallet: s.wallet,
+		Policy: policy,
+	}
+	vspClient, err := getVSP(cfg)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
+	}
+	err = vspClient.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+		// Skip errors here, but should we log at least?
+		choices, _, err := s.wallet.AgendaChoices(ctx, hash)
+		if err != nil {
+			return nil
+		}
+		_ = vspClient.SetVoteChoice(ctx, hash, choices...)
+		return nil
+	})
+
+	return &pb.SetVspdVoteChoicesResponse{}, nil
 }
