@@ -155,7 +155,7 @@ SplitPoints:
 				if remValue < fee {
 					continue
 				}
-				changeValue = remValue - fee
+				changeValue = 0
 			}
 			if txrules.IsDustAmount(changeValue, P2PKHv0Len, feeRate) {
 				changeValue = 0
