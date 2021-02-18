@@ -242,15 +242,10 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 	return fp.submitPayment()
 }
 
-// SetVoteChoice takes all
+// SetVoteChoice takes the provided AgendaChoices and ticket hash, checks the
+// status of the ticket from the connected vsp.  The status provides the
+// current vote choice so we can just update from there if need be.
 func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choices ...wallet.AgendaChoice) error {
-	c.mu.Lock()
-	_, ok := c.jobs[*hash]
-	c.mu.Unlock()
-	if ok {
-		// Already processing this ticket with the VSP.
-		return nil
-	}
 	status, err := c.status(ctx, hash)
 	if err != nil {
 		if errors.Is(err, errors.Locked) {
@@ -270,7 +265,7 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choice
 	if !update {
 		return nil
 	}
-	err = c.setVoteStatus(ctx, hash, choices)
+	err = c.setVoteChoices(ctx, hash, choices)
 	if err != nil {
 		return err
 	}

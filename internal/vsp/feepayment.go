@@ -630,7 +630,7 @@ func (c *Client) status(ctx context.Context, ticketHash *chainhash.Hash) (*ticke
 	return &resp, nil
 }
 
-func (c *Client) setVoteStatus(ctx context.Context, ticketHash *chainhash.Hash, choices []wallet.AgendaChoice) error {
+func (c *Client) setVoteChoices(ctx context.Context, ticketHash *chainhash.Hash, choices []wallet.AgendaChoice) error {
 	w := c.Wallet
 	params := w.ChainParams()
 
@@ -638,13 +638,14 @@ func (c *Client) setVoteStatus(ctx context.Context, ticketHash *chainhash.Hash, 
 	if err != nil {
 		return fmt.Errorf("failed to retrieve ticket %v: %w", ticketHash, err)
 	}
-	if len(ticketTx.TxOut) != 3 {
-		return fmt.Errorf("ticket %v has multiple commitments: %w", ticketHash, errNotSolo)
-	}
 
 	if !stake.IsSStx(ticketTx) {
 		return fmt.Errorf("%v is not a ticket", ticketHash)
 	}
+	if len(ticketTx.TxOut) != 3 {
+		return fmt.Errorf("ticket %v has multiple commitments: %w", ticketHash, errNotSolo)
+	}
+
 	commitmentAddr, err := stake.AddrFromSStxPkScrCommitment(ticketTx.TxOut[1].PkScript, params)
 	if err != nil {
 		return fmt.Errorf("failed to extract commitment address from %v: %w",
