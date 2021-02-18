@@ -99,9 +99,13 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		w.lockedOutpointMu.Unlock()
 	}()
 
-	var count int
-	var mixValue, remValue dcrutil.Amount
-	for i, v := range splitPoints {
+	var i, count int
+	var mixValue, remValue, changeValue dcrutil.Amount
+	var feeRate = w.RelayFee()
+SplitPoints:
+	for i = 0; i < len(splitPoints); i++ {
+		last := i == len(splitPoints)-1
+
 		// When the sdiff is more than this mixed output amount, there
 		// is a smaller common mixed amount with more pairing activity
 		// (due to CoinShuffle++ participation from ticket buyers).
@@ -110,48 +114,72 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		// occurring at all.  The number of mixed outputs is capped to
 		// prevent a single mix being overwhelmingly funded by a single
 		// output, and to conserve memory resources.
-		if i != len(splitPoints)-1 && v >= sdiff {
+		if !last && mixValue >= sdiff {
 			continue
 		}
-		count = int(amount / v)
+
+		mixValue = splitPoints[i]
+		count = int(amount / mixValue)
 		if count > 4 {
 			count = 4
 		}
-		if count > 0 {
-			remValue = amount - dcrutil.Amount(count)*v
-			mixValue = v
-			select {
-			case <-ctx.Done():
-				return errors.E(op, ctx.Err())
-			case splitSems[i] <- struct{}{}:
-				defer func() { <-splitSems[i] }()
-			default:
-				return errThrottledMixRequest
+		for ; count > 0; count-- {
+			remValue = amount - dcrutil.Amount(count)*mixValue
+			if remValue < 0 {
+				continue
 			}
-			break
+
+			// Determine required fee and change value, if possible.
+			// No change is ever included when mixing at the
+			// smallest amount.
+			const P2PKHv0Len = 25
+			inScriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
+			outScriptSizes := make([]int, count)
+			for i := range outScriptSizes {
+				outScriptSizes[i] = P2PKHv0Len
+			}
+			size := txsizes.EstimateSerializeSizeFromScriptSizes(
+				inScriptSizes, outScriptSizes, P2PKHv0Len)
+			fee := txrules.FeeForSerializeSize(feeRate, size)
+			changeValue = remValue - fee
+			if last {
+				changeValue = 0
+			}
+			if changeValue < 0 {
+				// Determine required fee without a change
+				// output.  A lower mix count or amount is
+				// required if the fee is still not payable.
+				size = txsizes.EstimateSerializeSizeFromScriptSizes(
+					inScriptSizes, outScriptSizes, 0)
+				fee = txrules.FeeForSerializeSize(feeRate, size)
+				if remValue < fee {
+					continue
+				}
+				changeValue = remValue - fee
+			}
+			if txrules.IsDustAmount(changeValue, P2PKHv0Len, feeRate) {
+				changeValue = 0
+			}
+
+			break SplitPoints
 		}
 	}
-	if mixValue == splitPoints[len(splitPoints)-1] {
-		remValue = 0
-	}
-	if mixValue == 0 {
+	if i == len(splitPoints) {
 		err := errors.Errorf("output %v (%v): %w", output, amount, errNoSplitDenomination)
 		return errors.E(op, err)
 	}
-
-	// Create change output from remaining value and contributed fee
-	const P2PKHv0Len = 25
-	feeRate := w.RelayFee()
-	inScriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
-	outScriptSizes := make([]int, count)
-	for i := range outScriptSizes {
-		outScriptSizes[i] = P2PKHv0Len
+	select {
+	case <-ctx.Done():
+		return errors.E(op, ctx.Err())
+	case splitSems[i] <- struct{}{}:
+		defer func() { <-splitSems[i] }()
+	default:
+		return errThrottledMixRequest
 	}
-	size := txsizes.EstimateSerializeSizeFromScriptSizes(inScriptSizes, outScriptSizes, P2PKHv0Len)
-	changeValue := remValue - txrules.FeeForSerializeSize(feeRate, size)
+
 	var change *wire.TxOut
 	var updates []func(walletdb.ReadWriteTx) error
-	if !txrules.IsDustAmount(changeValue, P2PKHv0Len, feeRate) {
+	if changeValue > 0 {
 		persist := w.deferPersistReturnedChild(ctx, &updates)
 		const accountName = "" // not used, so can be faked.
 		addr, err := w.nextAddress(ctx, op, persist,
