@@ -294,7 +294,7 @@ func (w *Wallet) checkHighFees(totalInput dcrutil.Amount, tx *wire.MsgTx) error 
 
 // publishAndWatch publishes an authored transaction to the network and begins watching for
 // relevant transactions.
-func (w *Wallet) publishAndWatch(ctx context.Context, op errors.Op, n NetworkBackend, atx *txauthor.AuthoredTx,
+func (w *Wallet) publishAndWatch(ctx context.Context, op errors.Op, n NetworkBackend, tx *wire.MsgTx,
 	watch []wire.OutPoint) error {
 
 	if n == nil {
@@ -305,9 +305,9 @@ func (w *Wallet) publishAndWatch(ctx context.Context, op errors.Op, n NetworkBac
 		}
 	}
 
-	err := n.PublishTransactions(ctx, atx.Tx)
+	err := n.PublishTransactions(ctx, tx)
 	if err != nil {
-		hash := atx.Tx.TxHash()
+		hash := tx.TxHash()
 		log.Errorf("Abandoning transaction %v which failed to publish", &hash)
 		if err := w.AbandonTransaction(ctx, &hash); err != nil {
 			log.Errorf("Cannot abandon %v: %v", &hash, err)
@@ -1159,7 +1159,7 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 		return
 	}
 	if !req.DontSignTx {
-		err = w.publishAndWatch(ctx, op, nil, a.atx, a.watch)
+		err = w.publishAndWatch(ctx, op, nil, a.atx.Tx, a.watch)
 		if err != nil {
 			return
 		}
@@ -1226,7 +1226,7 @@ func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, need
 		return
 	}
 	if !req.DontSignTx {
-		err = w.publishAndWatch(ctx, op, nil, a.atx, a.watch)
+		err = w.publishAndWatch(ctx, op, nil, a.atx.Tx, a.watch)
 		if err != nil {
 			return
 		}

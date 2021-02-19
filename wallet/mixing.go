@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"net"
+	"time"
 
 	"decred.org/cspp"
 	"decred.org/cspp/coinjoin"
@@ -204,6 +205,7 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	cjHash := cj.tx.TxHash()
 	log.Infof("Completed CoinShuffle++ mix of output %v in transaction %v", output, &cjHash)
 
+	var watch []wire.OutPoint
 	w.lockedOutpointMu.Lock()
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for _, f := range updates {
@@ -211,14 +213,25 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 				return err
 			}
 		}
+		rec, err := udb.NewTxRecordFromMsgTx(cj.tx, time.Now())
+		if err != nil {
+			return errors.E(op, err)
+		}
+		watch, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 	w.lockedOutpointMu.Unlock()
 	if err != nil {
 		return errors.E(op, err)
 	}
-
-	return nil
+	n, _ := w.NetworkBackend()
+	if n != nil {
+		err = w.publishAndWatch(ctx, op, n, cj.tx, watch)
+	}
+	return err
 }
 
 // MixAccount individually mixes outputs of an account into standard
