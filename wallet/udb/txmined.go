@@ -3387,6 +3387,11 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 			}
 
 			op.Tree = tree
+
+			if ignore != nil && ignore(&op) {
+				continue
+			}
+
 			input := wire.NewTxIn(&op, int64(amt), nil)
 			var scriptSize int
 
