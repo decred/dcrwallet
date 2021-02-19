@@ -25,6 +25,7 @@ import (
 	"decred.org/dcrwallet/v2/rpc/jsonrpc/types"
 	"decred.org/dcrwallet/v2/validate"
 	"decred.org/dcrwallet/v2/wallet/txrules"
+	"decred.org/dcrwallet/v2/wallet/txsizes"
 	"decred.org/dcrwallet/v2/wallet/udb"
 	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v4"
@@ -1545,6 +1546,7 @@ type PurchaseTicketsRequest struct {
 	VSPFees    float64
 
 	// VSPServer methods
+	// XXX this should be an interface
 
 	// VSPFeeProcessFunc Process the fee price for the vsp to register a ticket
 	// so we can reserve the amount.
@@ -1571,6 +1573,73 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 		defer w.holdUnlock().release()
 	}
 
+	resp, err := w.purchaseTickets(ctx, op, n, req)
+	if err == nil || !errors.Is(err, errVSPFeeRequiresUTXOSplit) || req.DontSignTx {
+		return resp, err
+	}
+
+	// Do not attempt to split utxos for a fee payment when spending from
+	// the mixed account.  This error is rather unlikely anyways, as mixed
+	// accounts probably have very many outputs.
+	if req.CSPPServer != "" && req.MixedAccount == req.SourceAccount {
+		return nil, errors.E(op, errors.InsufficientBalance)
+	}
+
+	feePercent, err := req.VSPFeeProcess(ctx)
+	if err != nil {
+		return nil, err
+	}
+	sdiff, err := w.NextStakeDifficulty(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_, height := w.MainChainTip(ctx)
+	relayFee := w.RelayFee()
+	vspFee := txrules.StakePoolTicketFee(sdiff, relayFee, height, feePercent, w.chainParams)
+	a := &authorTx{
+		outputs:            make([]*wire.TxOut, 0, 2),
+		account:            req.SourceAccount,
+		changeAccount:      req.SourceAccount, // safe-ish; this is not mixed.
+		minconf:            req.MinConf,
+		randomizeChangeIdx: true,
+		txFee:              relayFee,
+	}
+	addr, err := w.NewInternalAddress(ctx, req.SourceAccount)
+	if err != nil {
+		return nil, err
+	}
+	version, script := addr.(Address).PaymentScript()
+	a.outputs = append(a.outputs, &wire.TxOut{Version: version, PkScript: script})
+	txsize := txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHInputSize},
+		a.outputs, txsizes.P2PKHPkScriptSize)
+	txfee := txrules.FeeForSerializeSize(relayFee, txsize)
+	a.outputs[0].Value = int64(vspFee + 2*txfee)
+	err = w.authorTx(ctx, op, a)
+	if err != nil {
+		return nil, err
+	}
+	err = w.recordAuthoredTx(ctx, op, a)
+	if err != nil {
+		return nil, err
+	}
+	err = w.publishAndWatch(ctx, op, nil, a.atx.Tx, a.watch)
+	if err != nil {
+		return nil, err
+	}
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		for _, update := range a.changeSourceUpdates {
+			err := update(dbtx)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	req.MinConf = 0
 	return w.purchaseTickets(ctx, op, n, req)
 }
 
