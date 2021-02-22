@@ -1434,21 +1434,30 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 				}
 			}
 		}()
+		if req.extraSplitOutput != nil {
+			vspFeeCredits = make([][]Input, 1)
+			vspFeeCredits[0] = []Input{*req.extraSplitOutput}
+			op := &req.extraSplitOutput.OutPoint
+			w.LockOutpoint(&op.Hash, op.Index)
+		}
 		var lowBalance bool
 		for i := 0; i < req.Count; i++ {
-			credits, err := w.ReserveOutputsForAmount(ctx, req.SourceAccount, fee,
-				req.MinConf)
-			if errors.Is(err, errors.InsufficientBalance) {
-				lowBalance = true
-				break
-			}
-			if err != nil {
-				log.Errorf("ReserveOutputsForAmount failed: %v", err)
-				return nil, err
-			}
-			vspFeeCredits = append(vspFeeCredits, credits)
+			if req.extraSplitOutput == nil {
+				credits, err := w.ReserveOutputsForAmount(ctx,
+					req.SourceAccount, fee, req.MinConf)
 
-			credits, err = w.ReserveOutputsForAmount(ctx, req.SourceAccount,
+				if errors.Is(err, errors.InsufficientBalance) {
+					lowBalance = true
+					break
+				}
+				if err != nil {
+					log.Errorf("ReserveOutputsForAmount failed: %v", err)
+					return nil, err
+				}
+				vspFeeCredits = append(vspFeeCredits, credits)
+			}
+
+			credits, err := w.ReserveOutputsForAmount(ctx, req.SourceAccount,
 				ticketPrice, req.MinConf)
 			if errors.Is(err, errors.InsufficientBalance) {
 				lowBalance = true
@@ -1472,32 +1481,52 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			// UTXOs and the tickets that can be purchased, UTXOs
 			// which were selected for paying VSP fees are instead
 			// allocated towards purchasing tickets.  We sort the
-			// UTXOs picked for fees by decreasing amounts and
-			// incrementally reserve them for ticket purchases while
-			// reducing the total number of fees (and therefore
-			// tickets) that will be purchased.
-			sort.Slice(vspFeeCredits, func(i, j int) bool {
-				return total(vspFeeCredits[i]) > total(vspFeeCredits[j])
+			// UTXOs picked for fees and tickets by decreasing
+			// amounts and incrementally reserve them for ticket
+			// purchases while reducing the total number of fees
+			// (and therefore tickets) that will be purchased.  The
+			// final UTXOs chosen for ticket purchases must be
+			// unlocked for UTXO selection to work, while all inputs
+			// for fee payments must be locked.
+			credits := vspFeeCredits[:len(vspFeeCredits):len(vspFeeCredits)]
+			credits = append(credits, ticketCredits...)
+			sort.Slice(credits, func(i, j int) bool {
+				return total(credits[i]) > total(credits[j])
 			})
+			if len(credits) == 0 {
+				return nil, errors.E(errors.InsufficientBalance)
+			}
+			if req.Count > len(credits)-1 {
+				req.Count = len(credits) - 1
+			}
 			var freedBalance int64
-			req.Count = len(vspFeeCredits)
 			extraSplit := true
 			for req.Count > 1 {
-				for _, in := range vspFeeCredits[0] {
-					freedBalance += in.PrevOut.Value
-					w.UnlockOutpoint(&in.OutPoint.Hash, in.OutPoint.Index)
+				for _, c := range credits[0] {
+					freedBalance += c.PrevOut.Value
+					w.UnlockOutpoint(&c.OutPoint.Hash, c.OutPoint.Index)
 				}
-				req.Count--
-				vspFeeCredits = vspFeeCredits[1:]
+				credits = credits[1:]
 				// XXX this is a bad estimate because it doesn't
 				// consider the transaction fees
-				if int64(ticketPrice)*int64(req.Count) < freedBalance {
+				if freedBalance > int64(ticketPrice)*int64(req.Count) {
 					extraSplit = false
 					break
 				}
+				req.Count--
 			}
-			if req.Count == 1 && extraSplit {
-				remaining := total(vspFeeCredits[0])
+			vspFeeCredits = credits
+			for _, c := range vspFeeCredits {
+				for i := range c {
+					w.LockOutpoint(&c[i].OutPoint.Hash, c[i].OutPoint.Index)
+				}
+			}
+
+			if req.Count < 2 && extraSplit {
+				var remaining int64
+				if len(vspFeeCredits) > 0 {
+					remaining = total(vspFeeCredits[0])
+				}
 				if int64(ticketPrice) > remaining { // XXX still a bad estimate
 					return nil, errors.E(errors.InsufficientBalance)
 				}
