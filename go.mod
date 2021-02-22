@@ -37,3 +37,6 @@ require (
 	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.23.0
 )
+
+// Contains mixing bug which can result in lost funds.  See issue #2000.
+retract v1.6.1
