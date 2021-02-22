@@ -105,6 +105,7 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 SplitPoints:
 	for i = 0; i < len(splitPoints); i++ {
 		last := i == len(splitPoints)-1
+		mixValue = splitPoints[i]
 
 		// When the sdiff is more than this mixed output amount, there
 		// is a smaller common mixed amount with more pairing activity
@@ -118,7 +119,6 @@ SplitPoints:
 			continue
 		}
 
-		mixValue = splitPoints[i]
 		count = int(amount / mixValue)
 		if count > 4 {
 			count = 4
