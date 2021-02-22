@@ -1554,6 +1554,15 @@ type PurchaseTicketsRequest struct {
 	// VSPFeePaymentProcess processes the payment of the vsp fee and returns
 	// the paid fee tx.
 	VSPFeePaymentProcess func(context.Context, *chainhash.Hash, *wire.MsgTx) error
+
+	// extraSplitOutput is an additional transaction output created during
+	// UTXO contention, to be used as the input to pay a VSP fee
+	// transaction, in order that both VSP fees and a single ticket purchase
+	// may be created by spending distinct outputs.  After purchaseTickets
+	// reentry, this output is locked and UTXO selection is only used to
+	// fund the split transaction for a ticket purchase, without reserving
+	// any additional outputs to pay the VSP fee.
+	extraSplitOutput *Input
 }
 
 // PurchaseTicketsResponse describes the response for purchasing tickets request.
@@ -1640,6 +1649,19 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	}
 
 	req.MinConf = 0
+	req.Count = 1
+	var index uint32 = 0
+	if a.atx.ChangeIndex == 0 {
+		index = 1
+	}
+	req.extraSplitOutput = &Input{
+		OutPoint: wire.OutPoint{
+			Hash:  a.atx.Tx.TxHash(),
+			Index: index,
+			Tree:  0,
+		},
+		PrevOut: *a.atx.Tx.TxOut[index],
+	}
 	return w.purchaseTickets(ctx, op, n, req)
 }
 
