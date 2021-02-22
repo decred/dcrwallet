@@ -3583,9 +3583,12 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 		// Skip ticket outputs, as only SSGen can spend these.
 		opcode := fetchRawUnminedCreditTagOpCode(v)
 
+		txHash := k[:32]
+		unpublished := existsUnpublished(ns, txHash)
+
 		switch opcode {
 		case opNonstake:
-			if minConf == 0 {
+			if minConf == 0 && !unpublished {
 				ab.Spendable += utxoAmt
 			} else if !fetchRawCreditIsCoinbase(v) {
 				ab.Unconfirmed += utxoAmt
