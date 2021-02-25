@@ -1742,7 +1742,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 
 	if !req.DontSignTx && req.VSPFeePaymentProcess != nil {
 		unlockCredits = false
-		feeErrors := make([]string, 0, len(purchaseTicketsResponse.TicketHashes))
+		feeErrors := ""
 		for i, ticketHash := range purchaseTicketsResponse.TicketHashes {
 			// set vsp fee as processing, so we can know it started to be
 			// processed.
@@ -1763,7 +1763,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			err = req.VSPFeePaymentProcess(ctx, ticketHash, feeTx)
 			if err != nil {
 				feeError := fmt.Sprintf("vsp ticket %v fee proccessment failed: %v", ticketHash, err)
-				feeErrors = append(feeErrors, feeError)
+				if feeErrors == "" {
+					feeErrors = feeError
+				} else {
+					feeErrors += ", " + feeError
+				}
 				log.Error(feeError)
 
 				rec.FeeTxStatus = uint32(udb.VSPFeeProcessErrored)
@@ -1783,8 +1787,8 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 				return nil, err
 			}
 		}
-		if len(feeErrors) > 0 {
-			err = errors.E(op, errors.Other, &feeErrors)
+		if feeErrors != "" {
+			err = errors.E(op, errors.Other, feeErrors)
 		}
 	}
 	return purchaseTicketsResponse, err
