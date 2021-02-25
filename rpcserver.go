@@ -396,7 +396,7 @@ func serviceName(method string) string {
 func interceptStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	p, ok := peer.FromContext(ss.Context())
 	if ok {
-		grpcLog.Infof("Streaming method %s invoked by %s", info.FullMethod,
+		grpcLog.Debugf("Streaming method %s invoked by %s", info.FullMethod,
 			p.Addr.String())
 	}
 	err := rpcserver.ServiceReady(serviceName(info.FullMethod))
@@ -414,7 +414,7 @@ func interceptStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.Stream
 func interceptUnary(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 	p, ok := peer.FromContext(ctx)
 	if ok {
-		grpcLog.Infof("Unary method %s invoked by %s", info.FullMethod,
+		grpcLog.Debugf("Unary method %s invoked by %s", info.FullMethod,
 			p.Addr.String())
 	}
 	err = rpcserver.ServiceReady(serviceName(info.FullMethod))
