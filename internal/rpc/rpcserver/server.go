@@ -2623,7 +2623,6 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	tb.AccessConfig(func(c *ticketbuyer.Config) {
 		c.BuyTickets = true
 		c.Account = req.Account
-		c.ChangeAccount = req.Account
 		c.VotingAccount = req.VotingAccount
 		c.Maintain = dcrutil.Amount(req.BalanceToMaintain)
 		c.VotingAddr = votingAddress
