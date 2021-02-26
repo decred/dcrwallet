@@ -74,7 +74,7 @@ https://decred.org/downloads/
 
 ### Build from source (all platforms)
 
-- **Install Go 1.14 or 1.15**
+- **Install Go 1.15 or 1.16**
 
   Installation instructions can be found here: https://golang.org/doc/install.
   Ensure Go was installed properly and is a supported version:
@@ -87,18 +87,28 @@ https://decred.org/downloads/
 
 - **Build or Update dcrwallet**
 
-  Since dcrwallet is a single Go module, it's possible to use a single command to
-  download, build, and install without needing to clone the repo. While outside
-  of any module (`go env GOMOD` prints an empty newline), run:
+  Since dcrwallet is a single Go module, it's possible to use a single command
+  to download, build, and install without needing to clone the repo. If using Go
+  1.16, run
 
   ```sh
-  $ GO111MODULE=on go get decred.org/dcrwallet
+  $ go install decred.org/dcrwallet/v2@master
   ```
 
-  An optional version, branch, or tag may be appended following a `@` character
-  after the package name.  The implicit default is to build `@latest`, which is
-  the latest semantic version tag.  Building `@master` will build the latest
-  development version.  See `go help module-get` for more details.
+  to build the latest master branch, or:
+
+  ```sh
+  $ go install decred.org/dcrwallet@latest
+  ```
+
+  for the latest released version.
+
+  Any version, branch, or tag may be appended following a `@` character after
+  the package name.  The implicit default is to build `@latest`, which is the
+  latest semantic version tag.  Building `@master` will build the latest
+  development version.  The module name, including any `/vN` suffix, must match
+  the `module` line in the `go.mod` at that version.  See `go help install`
+  for more details.
 
   The `dcrwallet` executable will be installed to `$GOPATH/bin`.  `GOPATH`
   defaults to `$HOME/go` (or `%USERPROFILE%\go` on Windows).
