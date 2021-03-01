@@ -145,7 +145,7 @@ SplitPoints:
 			if last {
 				changeValue = 0
 			}
-			if changeValue < 0 {
+			if changeValue <= 0 {
 				// Determine required fee without a change
 				// output.  A lower mix count or amount is
 				// required if the fee is still not payable.
