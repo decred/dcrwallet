@@ -83,6 +83,7 @@ type config struct {
 	NoInitialLoad      bool                    `long:"noinitialload" description:"Defer wallet creation/opening on startup and enable loading wallets over RPC"`
 	DebugLevel         string                  `short:"d" long:"debuglevel" description:"Logging level {trace, debug, info, warn, error, critical}"`
 	LogDir             *cfgutil.ExplicitString `long:"logdir" description:"Directory to log output."`
+	NoFileLogging      bool                    `long:"nofilelogging" description:"Disable file logging"`
 	Profile            []string                `long:"profile" description:"Enable HTTP profiling this interface/port"`
 	MemProfile         string                  `long:"memprofile" description:"Write mem profile to the specified file"`
 
@@ -465,20 +466,23 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		return loadConfigError(err)
 	}
 
-	// Append the network type to the log directory so it is "namespaced"
-	// per network.
-	cfg.LogDir.Value = cleanAndExpandPath(cfg.LogDir.Value)
-	cfg.LogDir.Value = filepath.Join(cfg.LogDir.Value, activeNet.Params.Name)
+	if !cfg.NoFileLogging {
+		// Append the network type to the log directory so it is
+		// "namespaced" per network.
+		cfg.LogDir.Value = cleanAndExpandPath(cfg.LogDir.Value)
+		cfg.LogDir.Value = filepath.Join(cfg.LogDir.Value,
+			activeNet.Params.Name)
+
+		// Initialize log rotation.  After log rotation has been initialized, the
+		// logger variables may be used.
+		initLogRotator(filepath.Join(cfg.LogDir.Value, defaultLogFilename))
+	}
 
 	// Special show command to list supported subsystems and exit.
 	if cfg.DebugLevel == "show" {
 		fmt.Println("Supported subsystems", supportedSubsystems())
 		os.Exit(0)
 	}
-
-	// Initialize log rotation.  After log rotation has been initialized, the
-	// logger variables may be used.
-	initLogRotator(filepath.Join(cfg.LogDir.Value, defaultLogFilename))
 
 	// Check that no addresses were created for the wrong network
 	for _, a := range []struct {
