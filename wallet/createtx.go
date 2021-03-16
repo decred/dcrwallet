@@ -1461,6 +1461,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 				ticketPrice, req.MinConf)
 			if errors.Is(err, errors.InsufficientBalance) {
 				lowBalance = true
+				credits, _ = w.reserveOutputs(ctx, req.SourceAccount,
+					req.MinConf)
+				if len(credits) != 0 {
+					ticketCredits = append(ticketCredits, credits)
+				}
 				break
 			}
 			if err != nil {
@@ -1796,6 +1801,34 @@ func (w *Wallet) ReserveOutputsForAmount(ctx context.Context, account uint32, am
 
 		var err error
 		outputs, err = w.findEligibleOutputsAmount(dbtx, account, minconf, amount, tipHeight)
+		if err != nil {
+			return err
+		}
+
+		for _, output := range outputs {
+			w.lockedOutpoints[outpoint{output.OutPoint.Hash, output.OutPoint.Index}] = struct{}{}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return outputs, nil
+}
+
+func (w *Wallet) reserveOutputs(ctx context.Context, account uint32, minconf int32) ([]Input, error) {
+	defer w.lockedOutpointMu.Unlock()
+	w.lockedOutpointMu.Lock()
+
+	var outputs []Input
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		// Get current block's height
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
+
+		var err error
+		outputs, err = w.findEligibleOutputs(dbtx, account, minconf, tipHeight)
 		if err != nil {
 			return err
 		}
