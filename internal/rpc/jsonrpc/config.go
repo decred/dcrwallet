@@ -22,4 +22,6 @@ type Options struct {
 	MixAccount       string
 	MixBranch        uint32
 	MixChangeAccount string
+
+	VSPHost string
 }
