@@ -278,7 +278,7 @@ func run(ctx context.Context) error {
 					ChangeAcct: changeAcct,
 				},
 			}
-			vspClient, err = vsp.New(vspCfg)
+			vspClient, err = ldr.VSP(vspCfg)
 			if err != nil {
 				log.Errorf("vsp: %v", err)
 				return err
