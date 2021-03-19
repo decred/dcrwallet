@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"net"
 	"sort"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -141,37 +140,6 @@ func decodeHashes(in [][]byte) ([]*chainhash.Hash, error) {
 		}
 	}
 	return out, nil
-}
-
-// VSP clients, for lazy loading
-var vspClients = struct {
-	mu      sync.Mutex
-	clients map[vspKey]*vsp.Client
-}{
-	clients: make(map[vspKey]*vsp.Client),
-}
-
-type vspKey struct {
-	host   string
-	pubkey string
-}
-
-// getVSP loads or creates a package instance of the VSP client for a host
-// and pubkey.  Clients will be reused when needed by other rpcserver methods
-func getVSP(cfg vsp.Config) (*vsp.Client, error) {
-	key := vspKey{cfg.URL, cfg.PubKey}
-	vspClients.mu.Lock()
-	defer vspClients.mu.Unlock()
-	client, ok := vspClients.clients[key]
-	if ok {
-		return client, nil
-	}
-	client, err := vsp.New(cfg)
-	if err != nil {
-		return nil, err
-	}
-	vspClients.clients[key] = client
-	return client, nil
 }
 
 // versionServer provides RPC clients with the ability to query the RPC server
@@ -1680,7 +1648,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 				ChangeAcct: req.ChangeAccount,
 			},
 		}
-		vspClient, err = getVSP(cfg)
+		vspClient, err = loader.VSP(cfg)
 		if err != nil {
 			return nil, status.Errorf(codes.Unknown, "VSP Server instance failed to start: %v", err)
 		}
@@ -2572,7 +2540,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 				ChangeAcct: req.Account,
 			},
 		}
-		vspClient, err = getVSP(cfg)
+		vspClient, err = loader.VSP(cfg)
 		if err != nil {
 			return status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
 		}
@@ -3771,7 +3739,7 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 			ChangeAcct: req.Account,
 		},
 	}
-	vspClient, err := getVSP(cfg)
+	vspClient, err := loader.VSP(cfg)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
 	}
@@ -3812,7 +3780,7 @@ func (s *walletServer) ProcessManagedTickets(ctx context.Context, req *pb.Proces
 		Wallet: s.wallet,
 		Policy: policy,
 	}
-	vspClient, err := getVSP(cfg)
+	vspClient, err := loader.VSP(cfg)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
 	}
@@ -3848,7 +3816,7 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 		Wallet: s.wallet,
 		Policy: policy,
 	}
-	vspClient, err := getVSP(cfg)
+	vspClient, err := loader.VSP(cfg)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
 	}
@@ -3893,7 +3861,7 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 		Wallet: s.wallet,
 		Policy: policy,
 	}
-	vspClient, err := getVSP(cfg)
+	vspClient, err := loader.VSP(cfg)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
 	}
