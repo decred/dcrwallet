@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"decred.org/dcrwallet/v2/errors"
+	"decred.org/dcrwallet/v2/internal/loader"
 	"decred.org/dcrwallet/v2/p2p"
 	"decred.org/dcrwallet/v2/rpc/client/dcrd"
 	"decred.org/dcrwallet/v2/rpc/jsonrpc/types"
@@ -3762,6 +3763,9 @@ func (s *Server) setTxFee(ctx context.Context, icmd interface{}) (interface{}, e
 
 // setVoteChoice handles a setvotechoice request by modifying the preferred
 // choice for a voting agenda.
+//
+// If a VSP host is configured in the application settings, the voting
+// preferences will also be set with the VSP.
 func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.SetVoteChoiceCmd)
 	w, ok := s.walletLoader.LoadedWallet()
@@ -3778,11 +3782,38 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface
 		ticketHash = hash
 	}
 
-	_, err := w.SetAgendaChoices(ctx, ticketHash, wallet.AgendaChoice{
+	choice := wallet.AgendaChoice{
 		AgendaID: cmd.AgendaID,
 		ChoiceID: cmd.ChoiceID,
+	}
+	_, err := w.SetAgendaChoices(ctx, ticketHash, choice)
+	if err != nil {
+		return nil, err
+	}
+
+	vspHost := s.cfg.VSPHost
+	if vspHost == "" {
+		return nil, nil
+	}
+	vspClient, err := loader.LookupVSP(vspHost)
+	if err != nil {
+		return nil, err
+	}
+	if ticketHash != nil {
+		err = vspClient.SetVoteChoice(ctx, ticketHash, choice)
+		return nil, err
+	}
+	var firstErr error
+	err = vspClient.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+		// Never return errors here, so all tickets are tried.
+		// The first error will be returned to the user.
+		err := vspClient.SetVoteChoice(ctx, hash, choice)
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+		return nil
 	})
-	return nil, err
+	return nil, firstErr
 }
 
 // signMessage signs the given message with the private key for the given
