@@ -1,6 +1,8 @@
 cmd/movefunds/movefunds
 cmd/sweepaccount/sweepaccount
-dcrwallet
+cmd/repaircfilters/repaircfilters
+cmd/treasurykey/treasurykey
+/dcrwallet
 vendor
 *~
 .vscode
