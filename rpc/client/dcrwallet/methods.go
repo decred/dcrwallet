@@ -546,6 +546,20 @@ func (c *Client) ListReceivedByAddressIncludeEmpty(ctx context.Context, minConfi
 	return res, err
 }
 
+func (c *Client) AccountUnlocked(ctx context.Context, account string) (types.AccountUnlockedResult, error) {
+	var res types.AccountUnlockedResult
+	err := c.Call(ctx, "accountunlocked", &res, account)
+	return res, err
+}
+
+func (c *Client) LockAccount(ctx context.Context, account string) error {
+	return c.Call(ctx, "lockaccount", nil, account)
+}
+
+func (c *Client) UnlockAccount(ctx context.Context, account string, passphrase string) error {
+	return c.Call(ctx, "unlockaccount", nil, account, passphrase)
+}
+
 // WalletLock locks the wallet by removing the encryption key from memory.
 //
 // After calling this function, the WalletPassphrase function must be used to
