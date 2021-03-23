@@ -546,6 +546,28 @@ func (c *Client) ListReceivedByAddressIncludeEmpty(ctx context.Context, minConfi
 	return res, err
 }
 
+// AccountUnlocked indicates the encryption and locked status of an account. The
+// Unlocked field of AccountUnlockedResult is only non-nil if Encrypted is true.
+func (c *Client) AccountUnlocked(ctx context.Context, account string) (*types.AccountUnlockedResult, error) {
+	res := new(types.AccountUnlockedResult)
+	err := c.Call(ctx, "accountunlocked", res, account)
+	return res, err
+}
+
+// LockAccount locks an individually-encrypted account. It is an error if the
+// account is not encrypted. It is also an error if the account is already
+// locked, coded by dcrjson.ErrRPCWalletUnlockNeeded.
+func (c *Client) LockAccount(ctx context.Context, account string) error {
+	return c.Call(ctx, "lockaccount", nil, account)
+}
+
+// UnlockAccount unlocks an individually-encrypted account using the passphrase.
+// It is an error if the account is not encrypted. It is not an error if the
+// account is already unlocked.
+func (c *Client) UnlockAccount(ctx context.Context, account, passphrase string) error {
+	return c.Call(ctx, "unlockaccount", nil, account, passphrase)
+}
+
 // WalletLock locks the wallet by removing the encryption key from memory.
 //
 // After calling this function, the WalletPassphrase function must be used to
@@ -557,7 +579,7 @@ func (c *Client) WalletLock(ctx context.Context) error {
 
 // WalletPassphrase unlocks the wallet by using the passphrase to derive the
 // decryption key which is then stored in memory for the specified timeout
-// (in seconds).
+// (in seconds). A timeout of 0 unlocks the wallet without a time limit.
 func (c *Client) WalletPassphrase(ctx context.Context, passphrase string, timeoutSecs int64) error {
 	return c.Call(ctx, "walletpassphrase", nil, passphrase, timeoutSecs)
 }
