@@ -30,6 +30,7 @@ var Methods = []struct {
 	{"abandontransaction", nil},
 	{"accountaddressindex", []interface{}{(*int)(nil)}},
 	{"accountsyncaddressindex", nil},
+	{"accountunlocked", []interface{}{(*types.AccountUnlockedResult)(nil)}},
 	{"addmultisigaddress", returnsString},
 	{"addtransaction", nil},
 	{"auditreuse", []interface{}{(*map[string][]string)(nil)}},

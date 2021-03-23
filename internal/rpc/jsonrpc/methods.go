@@ -50,9 +50,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "8.4.0"
+	jsonrpcSemverString = "8.5.0"
 	jsonrpcSemverMajor  = 8
-	jsonrpcSemverMinor  = 4
+	jsonrpcSemverMinor  = 5
 	jsonrpcSemverPatch  = 0
 )
 
@@ -73,6 +73,7 @@ var handlers = map[string]handler{
 	"abandontransaction":      {fn: (*Server).abandonTransaction},
 	"accountaddressindex":     {fn: (*Server).accountAddressIndex},
 	"accountsyncaddressindex": {fn: (*Server).accountSyncAddressIndex},
+	"accountunlocked":         {fn: (*Server).accountUnlocked},
 	"addmultisigaddress":      {fn: (*Server).addMultiSigAddress},
 	"addtransaction":          {fn: (*Server).addTransaction},
 	"auditreuse":              {fn: (*Server).auditReuse},
@@ -4482,9 +4483,10 @@ func (s *Server) walletLock(ctx context.Context, icmd interface{}) (interface{},
 	return nil, nil
 }
 
-// walletPassphrase responds to the walletpassphrase request by unlocking
-// the wallet.  The decryption key is saved in the wallet until timeout
-// seconds expires, after which the wallet is locked.
+// walletPassphrase responds to the walletpassphrase request by unlocking the
+// wallet. The decryption key is saved in the wallet until timeout seconds
+// expires, after which the wallet is locked. A timeout of 0 leaves the wallet
+// unlocked indefinitely.
 func (s *Server) walletPassphrase(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.WalletPassphraseCmd)
 	w, ok := s.walletLoader.LoadedWallet()
@@ -4648,6 +4650,40 @@ func (s *Server) setAccountPassphrase(ctx context.Context, icmd interface{}) (in
 	}
 	err = w.SetAccountPassphrase(ctx, account, []byte(cmd.Passphrase))
 	return nil, err
+}
+
+func (s *Server) accountUnlocked(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.AccountUnlockedCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	account, err := w.AccountNumber(ctx, cmd.Account)
+	if err != nil {
+		if errors.Is(err, errors.NotExist) {
+			return nil, errAccountNotFound
+		}
+		return nil, err
+	}
+
+	encrypted, err := w.AccountHasPassphrase(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	if !encrypted {
+		return &types.AccountUnlockedResult{}, nil
+	}
+
+	unlocked, err := w.AccountUnlocked(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.AccountUnlockedResult{
+		Encrypted: true,
+		Unlocked:  &unlocked,
+	}, nil
 }
 
 func (s *Server) unlockAccount(ctx context.Context, icmd interface{}) (interface{}, error) {

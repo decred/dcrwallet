@@ -1141,17 +1141,26 @@ type WalletPubPassphraseChangeCmd struct {
 	NewPassphrase string
 }
 
+// SetAccountPassphraseCmd defines the setaccountpassphrase JSON-RPC command
+// arguments.
 type SetAccountPassphraseCmd struct {
 	Account    string
 	Passphrase string
 }
 
+// UnlockAccountCmd defines the unlockaccount JSON-RPC command arguments.
 type UnlockAccountCmd struct {
 	Account    string
 	Passphrase string
 }
 
+// LockAccountCmd defines the lockaccount JSON-RPC command arguments.
 type LockAccountCmd struct {
+	Account string
+}
+
+// AccountUnlockedCmd defines the accountunlocked JSON-RPC command arguments.
+type AccountUnlockedCmd struct {
 	Account string
 }
 
@@ -1168,6 +1177,7 @@ func init() {
 		{"abandontransaction", (*AbandonTransactionCmd)(nil)},
 		{"accountaddressindex", (*AccountAddressIndexCmd)(nil)},
 		{"accountsyncaddressindex", (*AccountSyncAddressIndexCmd)(nil)},
+		{"accountunlocked", (*AccountUnlockedCmd)(nil)},
 		{"addmultisigaddress", (*AddMultisigAddressCmd)(nil)},
 		{"addtransaction", (*AddTransactionCmd)(nil)},
 		{"auditreuse", (*AuditReuseCmd)(nil)},

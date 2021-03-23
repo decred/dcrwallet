@@ -405,3 +405,10 @@ type WalletInfoResult struct {
 	Voting           bool    `json:"voting"`
 	ManualTickets    bool    `json:"manualtickets"`
 }
+
+// AccountUnlockedResult models the data returned by the accountunlocked
+// command. When Encrypted is false, Unlocked should be nil.
+type AccountUnlockedResult struct {
+	Encrypted bool  `json:"encrypted"`
+	Unlocked  *bool `json:"unlocked,omitempty"`
+}
