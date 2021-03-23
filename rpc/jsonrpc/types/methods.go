@@ -1155,6 +1155,10 @@ type LockAccountCmd struct {
 	Account string
 }
 
+type AccountUnlockedCmd struct {
+	Account string
+}
+
 type registeredMethod struct {
 	method string
 	cmd    interface{}
@@ -1168,6 +1172,7 @@ func init() {
 		{"abandontransaction", (*AbandonTransactionCmd)(nil)},
 		{"accountaddressindex", (*AccountAddressIndexCmd)(nil)},
 		{"accountsyncaddressindex", (*AccountSyncAddressIndexCmd)(nil)},
+		{"accountunlocked", (*AccountUnlockedCmd)(nil)},
 		{"addmultisigaddress", (*AddMultisigAddressCmd)(nil)},
 		{"addtransaction", (*AddTransactionCmd)(nil)},
 		{"auditreuse", (*AuditReuseCmd)(nil)},

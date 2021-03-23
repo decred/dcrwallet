@@ -24,6 +24,14 @@ var helpDescsEnUS = map[string]string{
 	"accountsyncaddressindex-branch":    "Number for the branch (0=external, 1=internal)",
 	"accountsyncaddressindex-index":     "The address index to synchronize to",
 
+	// AccountUnlockedCmd help.
+	"accountunlocked--synopsis": "Report account encryption and locked status",
+	"accountunlocked-account":   "String for the account",
+
+	// AccountUnlockedResult help.
+	"accountunlockedresult-encrypted": "If the account is encrypted (can be individually unlocked).",
+	"accountunlockedresult-unlocked":  "If the encrypted account is unlocked. Omitted for unencrypted accounts.",
+
 	// AddMultisigAddressCmd help.
 	"addmultisigaddress--synopsis": "Generates and imports a multisig address and redeeming script to the 'imported' account.",
 	"addmultisigaddress-account":   "DEPRECATED -- Unused (all imported addresses belong to the imported account)",
