@@ -24,6 +24,14 @@ var helpDescsEnUS = map[string]string{
 	"accountsyncaddressindex-branch":    "Number for the branch (0=external, 1=internal)",
 	"accountsyncaddressindex-index":     "The address index to synchronize to",
 
+	// AccountUnlockedCmd help.
+	"accountunlocked--synopsis": "Report account encryption and locked status",
+	"accountunlocked-account":   "Account name",
+
+	// AccountUnlockedResult help.
+	"accountunlockedresult-encrypted": "Whether the account is individually encrypted with a separate passphrase",
+	"accountunlockedresult-unlocked":  "If the individually encrypted account is unlocked. Omitted for unencrypted accounts.",
+
 	// AddMultisigAddressCmd help.
 	"addmultisigaddress--synopsis": "Generates and imports a multisig address and redeeming script to the 'imported' account.",
 	"addmultisigaddress-account":   "DEPRECATED -- Unused (all imported addresses belong to the imported account)",
@@ -846,7 +854,7 @@ var helpDescsEnUS = map[string]string{
 	// WalletPassphraseCmd help.
 	"walletpassphrase--synopsis":  "Unlock the wallet.",
 	"walletpassphrase-passphrase": "The wallet passphrase",
-	"walletpassphrase-timeout":    "The number of seconds to wait before the wallet automatically locks",
+	"walletpassphrase-timeout":    "The number of seconds to wait before the wallet automatically locks. 0 leaves the wallet unlocked indefinitely.",
 
 	// WalletPubPassPhraseChangeCmd help
 	"walletpubpassphrasechange--synopsis":     "Change the wallet's public passphrase.",
