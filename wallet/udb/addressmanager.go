@@ -19,7 +19,6 @@ import (
 	"decred.org/dcrwallet/v2/wallet/internal/snacl"
 	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/crypto/ripemd160"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
@@ -152,7 +151,6 @@ type accountInfo struct {
 	uniqueKey        *kdf.Argon2idParams
 	uniquePassHasher hash.Hash // blake2b-256 keyed hash with random bytes
 	uniquePassHash   []byte
-	uniqueKeyPrivs   map[[ripemd160.Size]byte]*secp256k1.PrivateKey
 }
 
 func argon2idKey(password []byte, k *kdf.Argon2idParams) keyType {
@@ -890,6 +888,8 @@ func (m *Manager) chainAddressRowToManaged(ns walletdb.ReadBucket, row *dbChainA
 	private := !m.locked
 	if row.account > ImportedAddrAccount {
 		private = false
+	} else if set, unlocked := m.accountHasPassphrase(ns, row.account); set {
+		private = unlocked
 	}
 	addressKey, err := m.deriveKeyFromPath(ns, row.account, row.branch,
 		row.index, private)
@@ -1913,9 +1913,6 @@ func (m *Manager) syncAccountToAddrIndex(ns walletdb.ReadWriteBucket, account ui
 		xpubBranch, err = acctInfo.acctKeyPub.Child(branch)
 		if err != nil {
 			return err
-		}
-		if m.locked || account > ImportedAddrAccount {
-			break
 		}
 	default:
 		return errors.E(errors.Invalid, errors.Errorf("account branch %d", branch))
