@@ -482,6 +482,9 @@ func (w *Wallet) recordAuthoredTx(ctx context.Context, op errors.Op, a *authorTx
 		return errors.E(op, err)
 	}
 
+	w.lockedOutpointMu.Lock()
+	defer w.lockedOutpointMu.Unlock()
+
 	// To avoid a race between publishing a transaction and potentially opening
 	// a database view during PublishTransaction, the update must be committed
 	// before publishing the transaction to the network.
