@@ -77,7 +77,7 @@ func (c *client) do(ctx context.Context, method, path string, addr dcrutil.Addre
 		return fmt.Errorf("%s %s: http %v %s", method, httpReq.URL.String(),
 			status, http.StatusText(status))
 	}
-	sigBase64 := reply.Header.Get(serverSignature)
+	sigBase64 := reply.Header.Get("VSP-Server-Signature")
 	if sigBase64 == "" {
 		return fmt.Errorf("cannot authenticate server: no signature")
 	}
