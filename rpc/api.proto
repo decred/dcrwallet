@@ -26,7 +26,7 @@ service WalletService {
 	rpc AccountNumber (AccountNumberRequest) returns (AccountNumberResponse);
 	rpc Accounts (AccountsRequest) returns (AccountsResponse);
 	rpc Balance (BalanceRequest) returns (BalanceResponse);
-	rpc GetAccountExtendedPubKey (GetAccountExtendedPubKeyRequest) returns (GetAccountExtendedPubKeyResponse);	
+	rpc GetAccountExtendedPubKey (GetAccountExtendedPubKeyRequest) returns (GetAccountExtendedPubKeyResponse);
 	rpc GetAccountExtendedPrivKey (GetAccountExtendedPrivKeyRequest) returns (GetAccountExtendedPrivKeyResponse);
 	rpc GetTransaction (GetTransactionRequest) returns (GetTransactionResponse);
 	rpc GetTransactions (GetTransactionsRequest) returns (stream GetTransactionsResponse);
