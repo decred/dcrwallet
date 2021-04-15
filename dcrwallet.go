@@ -30,7 +30,7 @@ import (
 	"decred.org/dcrwallet/v2/ticketbuyer"
 	"decred.org/dcrwallet/v2/version"
 	"decred.org/dcrwallet/v2/wallet"
-	"github.com/decred/dcrd/addrmgr"
+	"github.com/decred/dcrd/addrmgr/v2"
 	"github.com/decred/dcrd/wire"
 )
 

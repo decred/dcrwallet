@@ -18,7 +18,7 @@ import (
 	"decred.org/dcrwallet/v2/p2p"
 	"decred.org/dcrwallet/v2/validate"
 	"decred.org/dcrwallet/v2/wallet"
-	"github.com/decred/dcrd/addrmgr"
+	"github.com/decred/dcrd/addrmgr/v2"
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/gcs/v3/blockcf2"

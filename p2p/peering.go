@@ -20,7 +20,7 @@ import (
 	"decred.org/dcrwallet/v2/errors"
 	"decred.org/dcrwallet/v2/lru"
 	"decred.org/dcrwallet/v2/version"
-	"github.com/decred/dcrd/addrmgr"
+	"github.com/decred/dcrd/addrmgr/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/connmgr/v3"

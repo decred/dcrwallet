@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	decred.org/cspp v0.3.0
-	github.com/decred/dcrd/addrmgr v1.2.0
+	github.com/decred/dcrd/addrmgr/v2 v2.0.0-20210412162101-76f80ba180f0
 	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0-20210129192908-660d0518b4cf
 	github.com/decred/dcrd/blockchain/standalone/v2 v2.0.0
 	github.com/decred/dcrd/blockchain/v4 v4.0.0-20210129200153-14fd1a785bf2
