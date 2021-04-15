@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020 The Decred developers
+// Copyright (c) 2018-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -147,6 +147,26 @@ func (s *Syncer) synced() {
 		s.notifications.Synced != nil {
 		s.notifications.Synced(true)
 	}
+}
+
+// Synced returns whether this wallet is completely synced to the network.
+func (s *Syncer) Synced() bool {
+	return atomic.LoadUint32(&s.atomicWalletSynced) == 1
+}
+
+// EstimateMainChainTip returns an estimated height for the current tip of the
+// blockchain. The estimate is made by comparing the initial height reported by
+// all connected peers and the wallet's current tip. The highest of these values
+// is estimated to be the mainchain's tip height.
+func (s *Syncer) EstimateMainChainTip() int32 {
+	_, chainTip := s.wallet.MainChainTip(context.Background())
+	s.forRemotes(func(rp *p2p.RemotePeer) error {
+		if rp.InitialHeight() > chainTip {
+			chainTip = rp.InitialHeight()
+		}
+		return nil
+	})
+	return chainTip
 }
 
 // GetRemotePeers returns a map of connected remote peers.

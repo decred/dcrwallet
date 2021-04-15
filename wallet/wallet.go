@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2020 The Decred developers
+// Copyright (c) 2015-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -112,6 +112,11 @@ type Wallet struct {
 	// Start up flags/settings
 	gapLimit        uint32
 	accountGapLimit int
+
+	// initialHeight is the wallet's tip height prior to syncing with the
+	// network. Useful for calculating or estimating headers fetch progress
+	// during sync if the target header height is known or can be estimated.
+	initialHeight int32
 
 	networkBackend   NetworkBackend
 	networkBackendMu sync.Mutex
@@ -636,6 +641,11 @@ func (w *Wallet) SetRelayFee(relayFee dcrutil.Amount) {
 	w.relayFeeMu.Lock()
 	w.relayFee = relayFee
 	w.relayFeeMu.Unlock()
+}
+
+// InitialHeight is the wallet's tip height prior to syncing with the network.
+func (w *Wallet) InitialHeight() int32 {
+	return w.initialHeight
 }
 
 // MainChainTip returns the hash and height of the tip-most block in the main
@@ -5342,6 +5352,9 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 
 	// Amounts
 	w.relayFee = cfg.RelayFee
+
+	// Record current tip as initialHeight.
+	_, w.initialHeight = w.MainChainTip(ctx)
 
 	return w, nil
 }
