@@ -26,7 +26,7 @@ service WalletService {
 	rpc AccountNumber (AccountNumberRequest) returns (AccountNumberResponse);
 	rpc Accounts (AccountsRequest) returns (AccountsResponse);
 	rpc Balance (BalanceRequest) returns (BalanceResponse);
-	rpc GetAccountExtendedPubKey (GetAccountExtendedPubKeyRequest) returns (GetAccountExtendedPubKeyResponse);	
+	rpc GetAccountExtendedPubKey (GetAccountExtendedPubKeyRequest) returns (GetAccountExtendedPubKeyResponse);
 	rpc GetAccountExtendedPrivKey (GetAccountExtendedPrivKeyRequest) returns (GetAccountExtendedPrivKeyResponse);
 	rpc GetTransaction (GetTransactionRequest) returns (GetTransactionResponse);
 	rpc GetTransactions (GetTransactionsRequest) returns (stream GetTransactionsResponse);
@@ -1268,6 +1268,7 @@ message SyncVSPTicketsRequest {
 	string vsp_host = 1;
 	string vsp_pubkey = 2;
 	uint32 account = 3;
+	uint32 change_account = 4;
 }
 
 message SyncVSPTicketsResponse {}
@@ -1310,4 +1311,6 @@ message SetVspdVoteChoicesRequest {
 	uint32 change_account = 4;
 }
 
-message SetVspdVoteChoicesResponse {}
+message SetVspdVoteChoicesResponse {}.
+29c
+	rpc GetAccountExtendedPubKey (GetAccountExtendedPubKeyRequest) returns (GetAccountExtendedPubKeyResponse);	
