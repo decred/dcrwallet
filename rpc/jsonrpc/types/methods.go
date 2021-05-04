@@ -1,5 +1,5 @@
 // Copyright (c) 2014 The btcsuite developers
-// Copyright (c) 2015-2020 The Decred developers
+// Copyright (c) 2015-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1048,6 +1048,9 @@ func NewSweepAccountCmd(sourceAccount string, destinationAddress string, require
 	}
 }
 
+// SyncStatusCmd defines the syncstatus JSON-RPC command.
+type SyncStatusCmd struct{}
+
 // WalletInfoCmd defines the walletinfo JSON-RPC command.
 type WalletInfoCmd struct {
 }
@@ -1246,6 +1249,7 @@ func init() {
 		{"signrawtransactions", (*SignRawTransactionsCmd)(nil)},
 		{"stakepooluserinfo", (*StakePoolUserInfoCmd)(nil)},
 		{"sweepaccount", (*SweepAccountCmd)(nil)},
+		{"syncstatus", (*SyncStatusCmd)(nil)},
 		{"ticketinfo", (*TicketInfoCmd)(nil)},
 		{"treasurypolicy", (*TreasuryPolicyCmd)(nil)},
 		{"tspendpolicy", (*TSpendPolicyCmd)(nil)},

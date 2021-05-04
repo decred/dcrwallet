@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -107,6 +107,7 @@ var Methods = []struct {
 	{"signrawtransactions", []interface{}{(*types.SignRawTransactionsResult)(nil)}},
 	{"stakepooluserinfo", []interface{}{(*types.StakePoolUserInfoResult)(nil)}},
 	{"sweepaccount", []interface{}{(*types.SweepAccountResult)(nil)}},
+	{"syncstatus", []interface{}{(*types.SyncStatusResult)(nil)}},
 	{"ticketinfo", []interface{}{(*[]types.TicketInfoResult)(nil)}},
 	{"ticketsforaddress", returnsBool},
 	{"treasurypolicy", []interface{}{(*[]types.TreasuryPolicyResult)(nil), (*types.TreasuryPolicyResult)(nil)}},

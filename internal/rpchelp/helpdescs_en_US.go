@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015-2020 The Decred developers
+// Copyright (c) 2015-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -190,6 +190,14 @@ var helpDescsEnUS = map[string]string{
 	"getblockhash--synopsis": "Returns the hash of a main chain block at some height",
 	"getblockhash-index":     "The block height",
 	"getblockhash--result0":  "The main chain block hash",
+
+	// SyncStatusCmd help.
+	"syncstatus--synopsis": "Returns information about this wallet's synchronization to the network.",
+
+	// SyncStatusResult help.
+	"syncstatusresult-synced":               "Whether or not the wallet is fully caught up to the network.",
+	"syncstatusresult-initialblockdownload": "Best guess of whether this wallet is in the initial block download mode used to catch up the blockchain when it is far behind.",
+	"syncstatusresult-headersfetchprogress": "Estimated progress of the headers fetching stage of the current sync process.",
 
 	// GetInfoCmd help.
 	"getinfo--synopsis": "Returns a JSON object containing various state info.",
