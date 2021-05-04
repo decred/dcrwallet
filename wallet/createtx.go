@@ -1524,18 +1524,17 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 				req.Count--
 			}
 			vspFeeCredits = credits
+			var remaining int64
 			for _, c := range vspFeeCredits {
+				remaining += total(c)
 				for i := range c {
 					w.LockOutpoint(&c[i].OutPoint.Hash, c[i].OutPoint.Index)
 				}
 			}
 
 			if req.Count < 2 && extraSplit {
-				var remaining int64
-				if len(vspFeeCredits) > 0 {
-					remaining = total(vspFeeCredits[0])
-				}
-				if int64(ticketPrice) > remaining { // XXX still a bad estimate
+				// XXX still a bad estimate
+				if int64(ticketPrice) > freedBalance+remaining {
 					return nil, errors.E(errors.InsufficientBalance)
 				}
 				// A new transaction may need to be created to
