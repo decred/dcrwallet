@@ -438,16 +438,23 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 	feeAddr := fp.feeAddr
 	fp.mu.Unlock()
 
-	// Fee transaction is already created
+	// The rest of this function will operate on the tx pointer, with fp.feeTx
+	// assigned to the result on success.
+	// Update tx to use the partially created fpFeeTx if any has been started.
+	// The transaction pointed to by the caller will be dereferenced and modified
+	// when non-nil.
 	if fpFeeTx != nil {
 		if tx != nil {
 			*tx = *fpFeeTx
+		} else {
+			tx = fpFeeTx
 		}
+	}
+	// Fee transaction with outputs is already finished.
+	if fpFeeTx != nil && len(fpFeeTx.TxOut) != 0 {
 		return nil
 	}
-
-	// fp.feeTx will be assigned to tx on success.
-	// Create a new empty transaction if none was provided.
+	// When both transactions are nil, create a new empty transaction.
 	if tx == nil {
 		tx = wire.NewMsgTx()
 	}
