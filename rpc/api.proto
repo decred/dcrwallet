@@ -83,6 +83,7 @@ service WalletService {
 	rpc ProcessManagedTickets (ProcessManagedTicketsRequest) returns (ProcessManagedTicketsResponse);
 	rpc ProcessUnmanagedTickets (ProcessUnmanagedTicketsRequest) returns (ProcessUnmanagedTicketsResponse);
 	rpc SetVspdVoteChoices (SetVspdVoteChoicesRequest) returns (SetVspdVoteChoicesResponse);
+	rpc GetTrackedVSPTickets (GetTrackedVSPTicketsRequest) returns (GetTrackedVSPTicketsResponse);
 }
 
 service WalletLoaderService {
@@ -1312,3 +1313,22 @@ message SetVspdVoteChoicesRequest {
 }
 
 message SetVspdVoteChoicesResponse {}
+
+message GetTrackedVSPTicketsRequest {}
+
+message GetTrackedVSPTicketsResponse {
+	message Ticket {
+		bytes ticket_hash = 1;
+		string voting_address = 2;
+		string commitment_address = 3;
+		uint32 state = 4;
+		int64 fee = 5;
+		bytes fee_hash = 6;
+	}
+	message VSP {
+		string host = 1;
+		repeated Ticket tickets = 2;
+	}
+
+	repeated VSP vsps = 1;
+}

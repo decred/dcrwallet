@@ -272,3 +272,46 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choice
 	}
 	return nil
 }
+
+// TicketInfo stores per-ticket info tracked by a VSP Client instance.
+type TicketInfo struct {
+	TicketHash     chainhash.Hash
+	CommitmentAddr dcrutil.Address
+	VotingAddr     dcrutil.Address
+	State          uint32
+	Fee            dcrutil.Amount
+	FeeHash        chainhash.Hash
+
+	// TODO: include stuff returned by the status() call?
+}
+
+// TrackedTickets returns information about all outstanding tickets tracked by
+// a vsp.Client instance.
+//
+// Currently this returns only info about tickets which fee hasn't been paid or
+// confirmed at enough depth to be considered committed to.
+func (c *Client) TrackedTickets() []*TicketInfo {
+	// Collect all jobs first, to avoid working under two different locks.
+	c.mu.Lock()
+	jobs := make([]*feePayment, 0, len(c.jobs))
+	for _, job := range c.jobs {
+		jobs = append(jobs, job)
+	}
+	c.mu.Unlock()
+
+	tickets := make([]*TicketInfo, 0, len(c.jobs))
+	for _, job := range jobs {
+		job.mu.Lock()
+		tickets = append(tickets, &TicketInfo{
+			TicketHash:     job.ticketHash,
+			CommitmentAddr: job.commitmentAddr,
+			VotingAddr:     job.votingAddr,
+			State:          uint32(job.state),
+			Fee:            job.fee,
+			FeeHash:        job.feeHash,
+		})
+		job.mu.Unlock()
+	}
+
+	return tickets
+}
