@@ -918,6 +918,11 @@ func (fp *feePayment) confirmPayment() (err error) {
 	}
 
 	switch status.FeeTxStatus {
+	case "received":
+		// VSP has received the fee tx but has not yet broadcast it.
+		// VSP will only broadcast the tx when ticket has 6+ confirmations.
+		fp.schedule("confirm payment", fp.confirmPayment)
+		return nil
 	case "broadcast":
 		log.Infof("VSP has successfully sent the fee tx for %v", &fp.ticketHash)
 		// Broadcasted, but not confirmed.
