@@ -3752,7 +3752,7 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 		Policy: vsp.Policy{
 			MaxFee:     0.1e8,
 			FeeAcct:    req.Account,
-			ChangeAcct: req.Account,
+			ChangeAcct: req.ChangeAccount,
 		},
 	}
 	vspClient, err := loader.VSP(cfg)
