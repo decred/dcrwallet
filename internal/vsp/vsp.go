@@ -224,7 +224,11 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 	if fp == nil {
 		return fmt.Errorf("fee payment cannot be processed")
 	}
-
+	fp.mu.Lock()
+	if fp.feeTx == nil {
+		fp.feeTx = feeTx
+	}
+	fp.mu.Unlock()
 	err := fp.receiveFeeAddress()
 	if err != nil {
 		// XXX, retry? (old Process retried)
@@ -235,9 +239,6 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 	err = fp.makeFeeTx(feeTx)
 	if err != nil {
 		return err
-	}
-	if feeTx != nil {
-		*feeTx = *fp.feeTx
 	}
 	return fp.submitPayment()
 }
