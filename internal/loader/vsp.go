@@ -45,3 +45,15 @@ func LookupVSP(host string) (*vsp.Client, error) {
 	}
 	return client, nil
 }
+
+// AllVSPs returns the list of all currently registered VSPs.
+func AllVSPs() map[string]*vsp.Client {
+	// Create a copy to avoid callers mutating the list.
+	vspClients.mu.Lock()
+	defer vspClients.mu.Unlock()
+	res := make(map[string]*vsp.Client, len(vspClients.clients))
+	for host, client := range vspClients.clients {
+		res[host] = client
+	}
+	return res
+}

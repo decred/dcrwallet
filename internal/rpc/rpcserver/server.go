@@ -61,9 +61,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.8.0"
+	semverString = "7.9.0"
 	semverMajor  = 7
-	semverMinor  = 8
+	semverMinor  = 9
 	semverPatch  = 0
 )
 
@@ -3893,4 +3893,36 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 	})
 
 	return &pb.SetVspdVoteChoicesResponse{}, nil
+}
+
+func marshalVSPTrackedTickets(tickets []*vsp.TicketInfo) []*pb.GetTrackedVSPTicketsResponse_Ticket {
+	res := make([]*pb.GetTrackedVSPTicketsResponse_Ticket, len(tickets))
+	for i, ticket := range tickets {
+		res[i] = &pb.GetTrackedVSPTicketsResponse_Ticket{
+			TicketHash:        ticket.TicketHash[:],
+			CommitmentAddress: ticket.CommitmentAddr.Address(),
+			VotingAddress:     ticket.VotingAddr.Address(),
+			State:             ticket.State,
+			Fee:               int64(ticket.Fee),
+			FeeHash:           ticket.FeeHash[:],
+		}
+	}
+	return res
+}
+
+func (w *walletServer) GetTrackedVSPTickets(ctx context.Context, req *pb.GetTrackedVSPTicketsRequest) (*pb.GetTrackedVSPTicketsResponse, error) {
+	vspClients := loader.AllVSPs()
+	res := &pb.GetTrackedVSPTicketsResponse{
+		Vsps: make([]*pb.GetTrackedVSPTicketsResponse_VSP, 0, len(vspClients)),
+	}
+	for host, vspClient := range vspClients {
+		tickets := vspClient.TrackedTickets()
+		vspInfo := &pb.GetTrackedVSPTicketsResponse_VSP{
+			Host:    host,
+			Tickets: marshalVSPTrackedTickets(tickets),
+		}
+		res.Vsps = append(res.Vsps, vspInfo)
+	}
+
+	return res, nil
 }

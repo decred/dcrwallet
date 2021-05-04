@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 7.6.x
+Version: 7.9.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](https://www.grpc.io/docs/guides/concepts.html)
@@ -440,6 +440,7 @@ The service provides the following methods:
 - [`LockWallet`](#LockWallet)
 - [`UnlockAccount`](#UnlockAccount)
 - [`LockAccount`](#LockAccount)
+- [`GetTrackedVSPTickets`](#GetTrackedVSPTickets)
 
 #### `Ping`
 
@@ -2524,6 +2525,39 @@ by the private passphrase.  This does not affect any other accounts.
 - `FailedPrecondition`: The account is not encrypted with an individual
   passphrase.
 
+
+#### `GetTrackedVSPTickets`
+
+The `GetTrackedVSPTickets` request returns the list of tickets currently tracked
+by the VSP client inside dcrwallet. This only applies to tickets purchased
+following the new vspd mode.
+
+**Request** `GetTrackedVSPTicketsRequest`
+
+**Response** `GetTrackedVSPTicketsResponse`
+
+
+- `VSP vsps`: The list of tickets, grouped by VSP.
+
+  Nested message `VSP`:
+
+  - `string host`: URL of the VSP
+
+  - `repeated Ticket tickets`: List of tickets tracked for this VSP.
+
+  Nested message `Ticket`:
+
+  - `bytes ticket hash`: The transaction hash of the corresponding ticket.
+
+  - `string voting_address`: The voting address of the ticket.
+
+  - `string commitment_address`: The commitment address of the ticket.
+
+  - `uint32 state`: The internal state the VSP client believes the ticket to be.
+
+  - `int64 fee`: The amount (in atoms) paid as VSP fee in the fee transaction.
+
+  - `bytes fee_hash`: The hash of the fee transaction that pays to the VSP.
 
 ## `SeedService`
 
