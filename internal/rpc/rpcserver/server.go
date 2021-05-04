@@ -3744,16 +3744,17 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	if vspHost == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 	}
+	policy := vsp.Policy{
+		MaxFee:     0.1e8,
+		FeeAcct:    req.Account,
+		ChangeAcct: req.ChangeAccount,
+	}
 	cfg := vsp.Config{
 		URL:    vspHost,
 		PubKey: vspPubKey,
 		Dialer: nil,
 		Wallet: s.wallet,
-		Policy: vsp.Policy{
-			MaxFee:     0.1e8,
-			FeeAcct:    req.Account,
-			ChangeAcct: req.ChangeAccount,
-		},
+		Policy: policy,
 	}
 	vspClient, err := loader.VSP(cfg)
 	if err != nil {
@@ -3763,7 +3764,7 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	// process tickets fee if needed.
 	for _, ticketHash := range failedTicketsFee {
 		feeTx := new(wire.MsgTx)
-		err := vspClient.Process(ctx, &ticketHash, feeTx)
+		err := vspClient.ProcessWithPolicy(ctx, &ticketHash, feeTx, policy)
 		if err != nil {
 			// if it fails to process again, we log it and continue with
 			// the wallet start.
