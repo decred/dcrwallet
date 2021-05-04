@@ -1268,6 +1268,7 @@ message SyncVSPTicketsRequest {
 	string vsp_host = 1;
 	string vsp_pubkey = 2;
 	uint32 account = 3;
+	uint32 change_account = 4;
 }
 
 message SyncVSPTicketsResponse {}
