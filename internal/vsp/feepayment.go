@@ -184,6 +184,18 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy) (fp *feeP
 		return fp
 	}
 
+	defer func() {
+		c.mu.Lock()
+		fp2 := c.jobs[*ticketHash]
+		if fp2 != nil {
+			fp.stop()
+			fp = fp2
+		} else {
+			c.jobs[*ticketHash] = fp
+		}
+		c.mu.Unlock()
+	}()
+
 	ctx := context.Background()
 	w := c.Wallet
 	params := w.ChainParams()
@@ -258,10 +270,6 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy) (fp *feeP
 	fp.fee = -1            // XXX fee amount (not needed anymore?)
 	fp.state = unprocessed // XXX fee created, but perhaps not submitted with vsp.
 	fp.schedule("reconcile payment", fp.reconcilePayment)
-
-	c.mu.Lock()
-	c.jobs[*ticketHash] = fp
-	c.mu.Unlock()
 
 	return fp
 }
