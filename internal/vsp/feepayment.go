@@ -168,6 +168,7 @@ func (fp *feePayment) removedExpiredOrSpent() bool {
 }
 
 func (fp *feePayment) remove(reason string) {
+	fp.stop()
 	log.Infof("ticket %v is %s; removing from VSP client", &fp.ticketHash, reason)
 	fp.client.mu.Lock()
 	delete(fp.client.jobs, fp.ticketHash)
@@ -288,7 +289,10 @@ func (c *Client) tx(ctx context.Context, hash *chainhash.Hash) (*wire.MsgTx, err
 // Schedule a method to be executed.
 // Any currently-scheduled method is replaced.
 func (fp *feePayment) schedule(name string, method func() error) {
-	delay := fp.next()
+	var delay time.Duration
+	if method != nil {
+		delay = fp.next()
+	}
 
 	fp.timerMu.Lock()
 	defer fp.timerMu.Unlock()
@@ -811,7 +815,7 @@ func (fp *feePayment) submitPayment() (err error) {
 
 	// Reschedule this method for any error
 	defer func() {
-		if err != nil {
+		if err != nil && !errors.Is(err, errStopped) {
 			fp.schedule("submit payment", fp.submitPayment)
 		}
 	}()
@@ -902,7 +906,7 @@ func (fp *feePayment) confirmPayment() (err error) {
 	}
 
 	defer func() {
-		if err != nil {
+		if err != nil && !errors.Is(err, errStopped) {
 			fp.schedule("reconcile payment", fp.reconcilePayment)
 		}
 	}()
