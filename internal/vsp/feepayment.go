@@ -185,6 +185,9 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy) (fp *feeP
 	}
 
 	defer func() {
+		if fp == nil {
+			return
+		}
 		c.mu.Lock()
 		fp2 := c.jobs[*ticketHash]
 		if fp2 != nil {
