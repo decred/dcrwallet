@@ -427,13 +427,8 @@ func (fp *feePayment) receiveFeeAddress() error {
 	fp.feeAddr = feeAddr
 	fp.mu.Unlock()
 
-	err = fp.makeFeeTx(nil)
-	if err != nil {
-		fp.schedule("reconcile payment", fp.reconcilePayment)
-		return nil
-	}
-
-	fp.schedule("submit payment", fp.submitPayment)
+	_ = fp.makeFeeTx(nil)
+	fp.schedule("reconcile payment", fp.reconcilePayment)
 	return nil
 }
 
@@ -813,13 +808,6 @@ func (fp *feePayment) submitPayment() (err error) {
 		return errStopped
 	}
 
-	// Reschedule this method for any error
-	defer func() {
-		if err != nil && !errors.Is(err, errStopped) {
-			fp.schedule("submit payment", fp.submitPayment)
-		}
-	}()
-
 	// submitting a payment requires the fee tx to already be created.
 	fp.mu.Lock()
 	feeTx := fp.feeTx
@@ -890,8 +878,6 @@ func (fp *feePayment) submitPayment() (err error) {
 	// TODO - validate server timestamp?
 
 	log.Infof("successfully processed %v", fp.ticketHash)
-
-	fp.schedule("confirm payment", fp.confirmPayment)
 	return nil
 }
 
@@ -957,7 +943,7 @@ func (fp *feePayment) confirmPayment() (err error) {
 	case "error":
 		log.Warnf("VSP failed to broadcast feetx for %v -- restarting payment",
 			&fp.ticketHash)
-		fp.schedule("submit payment", fp.submitPayment)
+		fp.schedule("reconcile payment", fp.reconcilePayment)
 		return nil
 	default:
 		// XXX put in unknown state
