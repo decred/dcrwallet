@@ -189,6 +189,7 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy) (fp *feeP
 		if fp == nil {
 			return
 		}
+		var schedule bool
 		c.mu.Lock()
 		fp2 := c.jobs[*ticketHash]
 		if fp2 != nil {
@@ -196,8 +197,12 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy) (fp *feeP
 			fp = fp2
 		} else {
 			c.jobs[*ticketHash] = fp
+			schedule = true
 		}
 		c.mu.Unlock()
+		if schedule {
+			fp.schedule("reconcile payment", fp.reconcilePayment)
+		}
 	}()
 
 	ctx := context.Background()
@@ -250,9 +255,9 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy) (fp *feeP
 		return nil
 	}
 
+	fp.state = unprocessed // XXX fee created, but perhaps not submitted with vsp.
 	feeHash, err := w.VSPFeeHashForTicket(ctx, ticketHash)
 	if err != nil {
-		fp.state = unprocessed
 		// caller must schedule next method, as paying the fee may
 		// require using provided transaction inputs.
 		return fp
@@ -271,9 +276,7 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy) (fp *feeP
 	}
 
 	fp.feeTx = fee
-	fp.fee = -1            // XXX fee amount (not needed anymore?)
-	fp.state = unprocessed // XXX fee created, but perhaps not submitted with vsp.
-	fp.schedule("reconcile payment", fp.reconcilePayment)
+	fp.fee = -1 // XXX fee amount (not needed anymore?)
 
 	return fp
 }
@@ -427,8 +430,6 @@ func (fp *feePayment) receiveFeeAddress() error {
 	fp.feeAddr = feeAddr
 	fp.mu.Unlock()
 
-	_ = fp.makeFeeTx(nil)
-	fp.schedule("reconcile payment", fp.reconcilePayment)
 	return nil
 }
 
@@ -471,8 +472,6 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 
 	// XXX fp.fee == -1?
 	if fee == 0 {
-		// XXX locking
-		// this schedules paying the fee
 		err := fp.receiveFeeAddress()
 		if err != nil {
 			return err
@@ -560,12 +559,17 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 
 	// sign
 	sigErrs, err := w.SignTransaction(ctx, tx, txscript.SigHashAll, nil, nil, nil)
-	if err != nil {
+	if err != nil || len(sigErrs) > 0 {
 		log.Errorf("failed to sign transaction: %v", err)
+		sigErrStr := ""
 		for _, sigErr := range sigErrs {
 			log.Errorf("\t%v", sigErr)
+			sigErrStr = fmt.Sprintf("\t%v", sigErr) + " "
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf(sigErrStr)
 	}
 
 	err = w.SetPublished(ctx, &feeHash, false)
@@ -731,6 +735,13 @@ func (fp *feePayment) reconcilePayment() error {
 	if feeTx == nil || len(feeTx.TxOut) == 0 {
 		err := fp.makeFeeTx(nil)
 		if err != nil {
+			var apiErr *BadRequestError
+			if errors.As(err, &apiErr) {
+				if apiErr.Code == codeTicketCannotVote {
+					fp.remove("ticket cannot vote, needs to be revoked")
+					return nil
+				}
+			}
 			fp.schedule("reconcile payment", fp.reconcilePayment)
 			return err
 		}
