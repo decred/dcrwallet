@@ -892,6 +892,20 @@ func (fp *feePayment) submitPayment() (err error) {
 	err = fp.client.post(ctx, "/api/v3/payfee", fp.commitmentAddr,
 		&payfeeResponse, json.RawMessage(requestBody))
 	if err != nil {
+		var apiErr *BadRequestError
+		if errors.As(err, &apiErr) {
+			if apiErr.Code == codeFeeExpired {
+				// Fee has been expired, so abandon current feetx, set fp.feeTx
+				// to nil and retry submit payment to make a new fee tx.
+				feeHash := feeTx.TxHash()
+				err := w.AbandonTransaction(ctx, &feeHash)
+				if err != nil {
+					log.Errorf("error abandoning expired fee tx %v", err)
+				}
+				fp.feeTx = nil
+				fp.submitPayment()
+			}
+		}
 		return fmt.Errorf("payfee: %w", err)
 	}
 
