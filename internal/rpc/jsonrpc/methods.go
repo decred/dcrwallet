@@ -2138,53 +2138,32 @@ func (s *Server) getTxOut(ctx context.Context, icmd interface{}) (interface{}, e
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "Tx tree must be regular or stake")
 	}
 
-	// Check if the transaction is known to wallet.
-	walletTx, err := wallet.UnstableAPI(w).TxDetails(ctx, txHash)
+	// Attempt to read the unspent txout info from wallet.
+	outpoint := wire.OutPoint{Hash: *txHash, Index: cmd.Vout, Tree: cmd.Tree}
+	utxo, err := w.UnspentOutput(ctx, outpoint, *cmd.IncludeMempool)
 	if err != nil && !errors.Is(err, errors.NotExist) {
 		return nil, err
 	}
-	if walletTx == nil {
-		return nil, nil // Tx not found in wallet.
-	}
-	if len(walletTx.MsgTx.TxOut) <= int(cmd.Vout) {
-		return nil, rpcErrorf(dcrjson.ErrRPCInvalidTxVout, "invalid vout %d", cmd.Vout)
+	if utxo == nil {
+		return nil, nil // output is spent or does not exist.
 	}
 
-	tx := &walletTx.MsgTx
-	txTree := wire.TxTreeRegular
-	if stake.DetermineTxType(tx, true) != stake.TxTypeRegular {
-		txTree = wire.TxTreeStake
-	}
-	if txTree != cmd.Tree {
+	if utxo.Tree != cmd.Tree {
 		// Not an error because it is technically possible (though extremely unlikely)
 		// that the required tx (same hash, different tree) exists on the blockchain.
 		return nil, nil
 	}
 
-	// Attempt to read the unspent txout info from wallet.
-	outpoint := wire.OutPoint{Hash: *txHash, Index: cmd.Vout, Tree: cmd.Tree}
-	walletUnspent, err := w.UnspentOutput(ctx, outpoint, *cmd.IncludeMempool)
-	if err != nil && !errors.Is(err, errors.NotExist) {
-		return nil, err
-	}
-	if walletUnspent == nil {
-		return nil, nil // output is spent
-	}
-
-	txout := tx.TxOut[cmd.Vout]
-	pkScript := txout.PkScript
-	scriptVersion := txout.Version
-
 	// Disassemble script into single line printable format.  The
 	// disassembled string will contain [error] inline if the script
 	// doesn't fully parse, so ignore the error here.
-	disbuf, _ := txscript.DisasmString(pkScript)
+	disbuf, _ := txscript.DisasmString(utxo.PkScript)
 
 	// Get further info about the script.  Ignore the error here since an
 	// error means the script couldn't parse and there is no additional
 	// information about it anyways.
 	scriptClass, addrs, reqSigs, _ := txscript.ExtractPkScriptAddrs(
-		scriptVersion, pkScript, s.activeNet, true) // Yes treasury
+		0, utxo.PkScript, s.activeNet, true) // Yes treasury
 	addresses := make([]string, len(addrs))
 	for i, addr := range addrs {
 		addresses[i] = addr.Address()
@@ -2192,22 +2171,22 @@ func (s *Server) getTxOut(ctx context.Context, icmd interface{}) (interface{}, e
 
 	bestHash, bestHeight := w.MainChainTip(ctx)
 	var confirmations int64
-	if walletTx.Block.Height != -1 {
-		confirmations = int64(1 + bestHeight - walletTx.Block.Height)
+	if utxo.Block.Height != -1 {
+		confirmations = int64(confirms(utxo.Block.Height, bestHeight))
 	}
 
 	return &dcrdtypes.GetTxOutResult{
 		BestBlock:     bestHash.String(),
 		Confirmations: confirmations,
-		Value:         dcrutil.Amount(txout.Value).ToUnit(dcrutil.AmountCoin),
+		Value:         utxo.Amount.ToCoin(),
 		ScriptPubKey: dcrdtypes.ScriptPubKeyResult{
 			Asm:       disbuf,
-			Hex:       hex.EncodeToString(pkScript),
+			Hex:       hex.EncodeToString(utxo.PkScript),
 			ReqSigs:   int32(reqSigs),
 			Type:      scriptClass.String(),
 			Addresses: addresses,
 		},
-		Coinbase: blockchain.IsCoinBaseTx(tx, false) || blockchain.IsCoinBaseTx(tx, true),
+		Coinbase: utxo.FromCoinBase,
 	}, nil
 }
 
