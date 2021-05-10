@@ -5481,6 +5481,9 @@ func (w *Wallet) VSPFeeHashForTicket(ctx context.Context, ticketHash *chainhash.
 		feeHash = data.FeeHash
 		return nil
 	})
+	if err == nil && feeHash == (chainhash.Hash{}) {
+		err = errors.E(errors.NotExist)
+	}
 	return feeHash, err
 }
 
