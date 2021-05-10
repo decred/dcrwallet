@@ -70,6 +70,8 @@ func (c *client) do(ctx context.Context, method, path string, addr dcrutil.Addre
 	if err != nil {
 		return fmt.Errorf("%s %s: %w", method, httpReq.URL.String(), err)
 	}
+	defer reply.Body.Close()
+
 	status := reply.StatusCode
 	is200 := status == 200
 	is4xx := status >= 400 && status <= 499
