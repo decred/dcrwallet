@@ -12,6 +12,7 @@ import (
 
 	"decred.org/dcrwallet/v2/errors"
 	"decred.org/dcrwallet/v2/internal/uniformprng"
+	"decred.org/dcrwallet/v2/rpc/client/dcrd"
 	"decred.org/dcrwallet/v2/wallet"
 	"decred.org/dcrwallet/v2/wallet/txrules"
 	"decred.org/dcrwallet/v2/wallet/txsizes"
@@ -189,6 +190,7 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy) (fp *feeP
 		if fp == nil {
 			return
 		}
+		var schedule bool
 		c.mu.Lock()
 		fp2 := c.jobs[*ticketHash]
 		if fp2 != nil {
@@ -196,8 +198,12 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy) (fp *feeP
 			fp = fp2
 		} else {
 			c.jobs[*ticketHash] = fp
+			schedule = true
 		}
 		c.mu.Unlock()
+		if schedule {
+			fp.schedule("reconcile payment", fp.reconcilePayment)
+		}
 	}()
 
 	ctx := context.Background()
@@ -250,9 +256,9 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy) (fp *feeP
 		return nil
 	}
 
+	fp.state = unprocessed // XXX fee created, but perhaps not submitted with vsp.
 	feeHash, err := w.VSPFeeHashForTicket(ctx, ticketHash)
 	if err != nil {
-		fp.state = unprocessed
 		// caller must schedule next method, as paying the fee may
 		// require using provided transaction inputs.
 		return fp
@@ -271,9 +277,7 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy) (fp *feeP
 	}
 
 	fp.feeTx = fee
-	fp.fee = -1            // XXX fee amount (not needed anymore?)
-	fp.state = unprocessed // XXX fee created, but perhaps not submitted with vsp.
-	fp.schedule("reconcile payment", fp.reconcilePayment)
+	fp.fee = -1 // XXX fee amount (not needed anymore?)
 
 	return fp
 }
@@ -427,8 +431,6 @@ func (fp *feePayment) receiveFeeAddress() error {
 	fp.feeAddr = feeAddr
 	fp.mu.Unlock()
 
-	_ = fp.makeFeeTx(nil)
-	fp.schedule("reconcile payment", fp.reconcilePayment)
 	return nil
 }
 
@@ -471,8 +473,6 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 
 	// XXX fp.fee == -1?
 	if fee == 0 {
-		// XXX locking
-		// this schedules paying the fee
 		err := fp.receiveFeeAddress()
 		if err != nil {
 			return err
@@ -560,12 +560,17 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 
 	// sign
 	sigErrs, err := w.SignTransaction(ctx, tx, txscript.SigHashAll, nil, nil, nil)
-	if err != nil {
+	if err != nil || len(sigErrs) > 0 {
 		log.Errorf("failed to sign transaction: %v", err)
+		sigErrStr := ""
 		for _, sigErr := range sigErrs {
 			log.Errorf("\t%v", sigErr)
+			sigErrStr = fmt.Sprintf("\t%v", sigErr) + " "
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf(sigErrStr)
 	}
 
 	err = w.SetPublished(ctx, &feeHash, false)
@@ -731,7 +736,23 @@ func (fp *feePayment) reconcilePayment() error {
 	if feeTx == nil || len(feeTx.TxOut) == 0 {
 		err := fp.makeFeeTx(nil)
 		if err != nil {
-			fp.schedule("reconcile payment", fp.reconcilePayment)
+			var apiErr *BadRequestError
+			if errors.As(err, &apiErr) && apiErr.Code == codeTicketCannotVote {
+				fp.remove("ticket cannot vote")
+				// Attempt to Revoke Tickets, we're not returning any errors here
+				// and just logging.
+				n, err := w.NetworkBackend()
+				if err != nil {
+					log.Errorf("unable to get network backend for revoking tickets %v", err)
+				} else {
+					if rpc, ok := n.(*dcrd.RPC); ok {
+						err := w.RevokeTickets(ctx, rpc)
+						if err != nil {
+							log.Errorf("cannot revoke vsp tickets %v", err)
+						}
+					}
+				}
+			}
 			return err
 		}
 	}
@@ -865,6 +886,17 @@ func (fp *feePayment) submitPayment() (err error) {
 	err = fp.client.post(ctx, "/api/v3/payfee", fp.commitmentAddr,
 		&payfeeResponse, json.RawMessage(requestBody))
 	if err != nil {
+		var apiErr *BadRequestError
+		if errors.As(err, &apiErr) && apiErr.Code == codeFeeExpired {
+			// Fee has been expired, so abandon current feetx, set fp.feeTx
+			// to nil and retry submit payment to make a new fee tx.
+			feeHash := feeTx.TxHash()
+			err := w.AbandonTransaction(ctx, &feeHash)
+			if err != nil {
+				log.Errorf("error abandoning expired fee tx %v", err)
+			}
+			fp.feeTx = nil
+		}
 		return fmt.Errorf("payfee: %w", err)
 	}
 
