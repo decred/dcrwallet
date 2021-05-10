@@ -896,7 +896,6 @@ func (fp *feePayment) submitPayment() (err error) {
 				log.Errorf("error abandoning expired fee tx %v", err)
 			}
 			fp.feeTx = nil
-			fp.submitPayment()
 		}
 		return fmt.Errorf("payfee: %w", err)
 	}
