@@ -737,28 +737,22 @@ func (fp *feePayment) reconcilePayment() error {
 		err := fp.makeFeeTx(nil)
 		if err != nil {
 			var apiErr *BadRequestError
-			if errors.As(err, &apiErr) {
-				if apiErr.Code == codeTicketCannotVote {
-					fp.remove("ticket cannot vote")
-					// Attempt to Revoke Tickets, we're not returning any errors here
-					// and just logging.
-					n, err := w.NetworkBackend()
-					if err != nil {
-						log.Errorf("unable to get network backend for revoking tickets %v", err)
-					} else {
-						if rpc, ok := n.(*dcrd.RPC); ok {
-							err := w.RevokeTickets(ctx, rpc)
-							if err != nil {
-								log.Errorf("cannot revoke vsp tickets %v", err)
-							}
-						} else {
-							log.Errorf("cannot revoke ticket since SPV mode")
+			if errors.As(err, &apiErr) && apiErr.Code == codeTicketCannotVote {
+				fp.remove("ticket cannot vote")
+				// Attempt to Revoke Tickets, we're not returning any errors here
+				// and just logging.
+				n, err := w.NetworkBackend()
+				if err != nil {
+					log.Errorf("unable to get network backend for revoking tickets %v", err)
+				} else {
+					if rpc, ok := n.(*dcrd.RPC); ok {
+						err := w.RevokeTickets(ctx, rpc)
+						if err != nil {
+							log.Errorf("cannot revoke vsp tickets %v", err)
 						}
 					}
-					return nil
 				}
 			}
-
 			return err
 		}
 	}
@@ -893,18 +887,16 @@ func (fp *feePayment) submitPayment() (err error) {
 		&payfeeResponse, json.RawMessage(requestBody))
 	if err != nil {
 		var apiErr *BadRequestError
-		if errors.As(err, &apiErr) {
-			if apiErr.Code == codeFeeExpired {
-				// Fee has been expired, so abandon current feetx, set fp.feeTx
-				// to nil and retry submit payment to make a new fee tx.
-				feeHash := feeTx.TxHash()
-				err := w.AbandonTransaction(ctx, &feeHash)
-				if err != nil {
-					log.Errorf("error abandoning expired fee tx %v", err)
-				}
-				fp.feeTx = nil
-				fp.submitPayment()
+		if errors.As(err, &apiErr) && apiErr.Code == codeFeeExpired {
+			// Fee has been expired, so abandon current feetx, set fp.feeTx
+			// to nil and retry submit payment to make a new fee tx.
+			feeHash := feeTx.TxHash()
+			err := w.AbandonTransaction(ctx, &feeHash)
+			if err != nil {
+				log.Errorf("error abandoning expired fee tx %v", err)
 			}
+			fp.feeTx = nil
+			fp.submitPayment()
 		}
 		return fmt.Errorf("payfee: %w", err)
 	}
