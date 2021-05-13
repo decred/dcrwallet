@@ -2148,12 +2148,6 @@ func (s *Server) getTxOut(ctx context.Context, icmd interface{}) (interface{}, e
 		return nil, nil // output is spent or does not exist.
 	}
 
-	if utxo.Tree != cmd.Tree {
-		// Not an error because it is technically possible (though extremely unlikely)
-		// that the required tx (same hash, different tree) exists on the blockchain.
-		return nil, nil
-	}
-
 	// Disassemble script into single line printable format.  The
 	// disassembled string will contain [error] inline if the script
 	// doesn't fully parse, so ignore the error here.
