@@ -50,9 +50,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "8.5.0"
+	jsonrpcSemverString = "8.6.0"
 	jsonrpcSemverMajor  = 8
-	jsonrpcSemverMinor  = 5
+	jsonrpcSemverMinor  = 6
 	jsonrpcSemverPatch  = 0
 )
 
@@ -88,6 +88,7 @@ var handlers = map[string]handler{
 	"createnewaccount":        {fn: (*Server).createNewAccount},
 	"createrawtransaction":    {fn: (*Server).createRawTransaction},
 	"createsignature":         {fn: (*Server).createSignature},
+	"disapprovepercent":       {fn: (*Server).disapprovePercent},
 	"discoverusage":           {fn: (*Server).discoverUsage},
 	"dumpprivkey":             {fn: (*Server).dumpPrivKey},
 	"fundrawtransaction":      {fn: (*Server).fundRawTransaction},
@@ -150,6 +151,7 @@ var handlers = map[string]handler{
 	"sendtomultisig":          {fn: (*Server).sendToMultiSig},
 	"sendtotreasury":          {fn: (*Server).sendToTreasury},
 	"setaccountpassphrase":    {fn: (*Server).setAccountPassphrase},
+	"setdisapprovepercent":    {fn: (*Server).setDisapprovePercent},
 	"settreasurypolicy":       {fn: (*Server).setTreasuryPolicy},
 	"settspendpolicy":         {fn: (*Server).setTSpendPolicy},
 	"settxfee":                {fn: (*Server).setTxFee},
@@ -782,6 +784,15 @@ func (s *Server) createSignature(ctx context.Context, icmd interface{}) (interfa
 		Signature: hex.EncodeToString(sig),
 		PublicKey: hex.EncodeToString(pubkey),
 	}, nil
+}
+
+// disapprovePercent returns the wallets current disapprove percentage.
+func (s *Server) disapprovePercent(ctx context.Context, _ interface{}) (interface{}, error) {
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+	return w.DisapprovePercent(), nil
 }
 
 func (s *Server) discoverUsage(ctx context.Context, icmd interface{}) (interface{}, error) {
@@ -3522,6 +3533,24 @@ func (s *Server) treasuryPolicy(ctx context.Context, icmd interface{}) (interfac
 		})
 	}
 	return res, nil
+}
+
+// setDisapprovePercent sets the wallet's disapprove percentage.
+func (s *Server) setDisapprovePercent(ctx context.Context, icmd interface{}) (interface{}, error) {
+	if s.activeNet.Net == wire.MainNet {
+		return nil, dcrjson.ErrInvalidRequest
+	}
+	cmd := icmd.(*types.SetDisapprovePercentCmd)
+	if cmd.Percent > 100 {
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter,
+			errors.New("percent must be from 0 to 100"))
+	}
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+	w.SetDisapprovePercent(cmd.Percent)
+	return nil, nil
 }
 
 // setTreasuryPolicy saves the voting policy for treasury spends by a particular

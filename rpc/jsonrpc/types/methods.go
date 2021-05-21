@@ -902,6 +902,16 @@ func NewSendFromTreasuryCmd(pubkey string, amounts map[string]float64) *SendFrom
 	}
 }
 
+// DisapprovePercentCmd defines the parameters for the disapprovepercent
+// JSON-RPC command.
+type DisapprovePercentCmd struct{}
+
+// SetDisapprovePercentCmd defines the parameters for the setdisapprovepercent
+// JSON-RPC command.
+type SetDisapprovePercentCmd struct {
+	Percent uint32
+}
+
 // TreasuryPolicyCmd defines the parameters for the treasurypolicy JSON-RPC
 // command.
 type TreasuryPolicyCmd struct {
@@ -1189,6 +1199,7 @@ func init() {
 		{"createnewaccount", (*CreateNewAccountCmd)(nil)},
 		{"createsignature", (*CreateSignatureCmd)(nil)},
 		{"createvotingaccount", (*CreateVotingAccountCmd)(nil)},
+		{"disapprovepercent", (*DisapprovePercentCmd)(nil)},
 		{"discoverusage", (*DiscoverUsageCmd)(nil)},
 		{"dumpprivkey", (*DumpPrivKeyCmd)(nil)},
 		{"fundrawtransaction", (*FundRawTransactionCmd)(nil)},
@@ -1240,6 +1251,7 @@ func init() {
 		{"sendtomultisig", (*SendToMultiSigCmd)(nil)},
 		{"sendtotreasury", (*SendToTreasuryCmd)(nil)},
 		{"setaccountpassphrase", (*SetAccountPassphraseCmd)(nil)},
+		{"setdisapprovepercent", (*SetDisapprovePercentCmd)(nil)},
 		{"settreasurypolicy", (*SetTreasuryPolicyCmd)(nil)},
 		{"settspendpolicy", (*SetTSpendPolicyCmd)(nil)},
 		{"settxfee", (*SetTxFeeCmd)(nil)},

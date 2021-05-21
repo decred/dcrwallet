@@ -97,6 +97,10 @@ var helpDescsEnUS = map[string]string{
 	"createsignature-hashtype":              "The signature hash flags to use.",
 	"createsignature-previouspkscript":      "The the hex encoded previous output script or P2SH redeem script.",
 
+	// DisapprovePercentCmd help.
+	"disapprovepercent--synopsis": "Returns the wallet's current block disapprove percent per vote. i.e. 100 means that all votes disapprove the block they are called on. Only used for testing purposes.",
+	"disapprovepercent--result0":  "The disapprove percent. When voting, this percent of votes will randomly disapprove the block they are called on.",
+
 	// DiscoverUsageCmd help.
 	"discoverusage--synopsis":        "Perform address and/or account discovery",
 	"discoverusage-startblock":       "Hash of block to begin discovery from, or null to scan from the genesis block",
@@ -744,6 +748,10 @@ var helpDescsEnUS = map[string]string{
 	"setbalancetomaintain--synopsis": "Modify the balance for wallet to maintain for automatic ticket purchasing",
 	"setbalancetomaintain-balance":   "The new balance for wallet to maintain for automatic ticket purchasing",
 	"setbalancetomaintain--result0":  "Should return nothing",
+
+	// SetDisapprovePercentCmd help.
+	"setdisapprovepercent--synopsis": "Sets the wallet's block disapprove percent per vote. The wallet will randomly disapprove blocks with this percent of votes. Only used for testing purposes and will fail on mainnet.",
+	"setdisapprovepercent-percent":   "The percent of votes to disapprove blocks. i.e. 100 means that all votes disapprove the block they are called on. Must be between zero and one hundred.",
 
 	// SetGenerate help
 	"setgenerate--synopsis":    "Enable or disable stake mining",
