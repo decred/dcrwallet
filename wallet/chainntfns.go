@@ -889,6 +889,27 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 				ticketVoteBits = tvb
 			}
 
+			// When not on mainnet, randomly disapprove blocks based
+			// on the disapprove percent.
+			dp := w.DisapprovePercent()
+			if dp > 0 {
+				if w.chainParams.Net == wire.MainNet {
+					log.Warnf("block disapprove percent set on mainnet")
+				} else {
+					randSourceMu.Lock()
+					ranN := randSource.Int63n(100)
+					randSourceMu.Unlock()
+					if int64(dp) > ranN {
+						log.Infof("Disapproving block %v voted with ticket %v",
+							blockHash, ticketHash)
+						// Set the BlockValid bit to zero,
+						// disapproving the block.
+						const blockIsValidBit = uint16(0x01)
+						ticketVoteBits.Bits &= ^blockIsValidBit
+					}
+				}
+			}
+
 			// Deal with treasury votes
 			tspends := w.GetAllTSpends(ctx)
 

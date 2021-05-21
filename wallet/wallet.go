@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"decred.org/dcrwallet/v2/deployments"
@@ -89,6 +90,10 @@ type outpoint struct {
 // complete wallet.  It contains the Armory-style key store
 // addresses and keys),
 type Wallet struct {
+	// disapprovePercent is an atomic. It sets the percentage of blocks to
+	// disapprove on simnet or testnet.
+	disapprovePercent uint32
+
 	// Data stores
 	db       walletdb.DB
 	manager  *udb.Manager
@@ -168,6 +173,17 @@ type Config struct {
 	AllowHighFees       bool
 	RelayFee            dcrutil.Amount
 	Params              *chaincfg.Params
+}
+
+// DisapprovePercent returns the wallet's block disapproval percentage.
+func (w *Wallet) DisapprovePercent() uint32 {
+	return atomic.LoadUint32(&w.disapprovePercent)
+}
+
+// SetDisapprovePercent sets the wallet's block disapproval percentage. Do not
+// set on mainnet.
+func (w *Wallet) SetDisapprovePercent(percent uint32) {
+	atomic.StoreUint32(&w.disapprovePercent, percent)
 }
 
 // FetchOutput fetches the associated transaction output given an outpoint.
