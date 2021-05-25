@@ -2341,6 +2341,28 @@ func (s *Store) UnspentOutputs(dbtx walletdb.ReadTx) ([]*Credit, error) {
 	return unspent, nil
 }
 
+// UnspentOutput returns details for an unspent received transaction output.
+// Returns error NotExist if the specified outpoint cannot be found or has been
+// spent by a mined transaction. Mined transactions that are spent by a mempool
+// transaction are not affected by this.
+func (s *Store) UnspentOutput(ns walletdb.ReadBucket, op wire.OutPoint, includeMempool bool) (*Credit, error) {
+	k := canonicalOutPoint(&op.Hash, op.Index)
+	// Check if unspent output is in mempool (if includeMempool == true).
+	if includeMempool && existsRawUnminedCredit(ns, k) != nil {
+		return s.outputCreditInfo(ns, op, nil)
+	}
+	// Check for unspent output in bucket for mined unspents.
+	if v := ns.NestedReadBucket(bucketUnspent).Get(k); v != nil {
+		var block Block
+		err := readUnspentBlock(v, &block)
+		if err != nil {
+			return nil, err
+		}
+		return s.outputCreditInfo(ns, op, &block)
+	}
+	return nil, errors.E(errors.NotExist, errors.Errorf("no unspent output %v", op))
+}
+
 // ForEachUnspentOutpoint calls f on each UTXO outpoint.
 // The order is undefined.
 func (s *Store) ForEachUnspentOutpoint(dbtx walletdb.ReadTx, f func(*wire.OutPoint) error) error {

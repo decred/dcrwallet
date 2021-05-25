@@ -2010,7 +2010,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 		// further information available, so just set the script type
 		// a non-standard and break out now.
 		class, addrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
-			0, script, s.wallet.ChainParams(), false) // No reasury
+			0, script, s.wallet.ChainParams(), false) // No treasury
 		if err != nil {
 			result.ScriptType = pb.ValidateAddressResponse_NonStandardTy
 			break

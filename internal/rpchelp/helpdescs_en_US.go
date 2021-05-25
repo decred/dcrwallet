@@ -348,6 +348,28 @@ var helpDescsEnUS = map[string]string{
 	"help--result0":    "List of commands",
 	"help--result1":    "Help for specified command",
 
+	// GetTxOutCmd help.
+	"gettxout--synopsis":      "Returns information about an unspent transaction output.",
+	"gettxout-txid":           "The hash of the transaction",
+	"gettxout-vout":           "The index of the output",
+	"gettxout-tree":           "The tree of the transaction",
+	"gettxout-includemempool": "Include the mempool when true",
+
+	// GetTxOutResult help.
+	"gettxoutresult-bestblock":     "The block hash that contains the transaction output",
+	"gettxoutresult-confirmations": "The number of confirmations",
+	"gettxoutresult-value":         "The transaction amount in DCR",
+	"gettxoutresult-scriptPubKey":  "The public key script used to pay coins as a JSON object",
+	"gettxoutresult-coinbase":      "Whether or not the transaction is a coinbase",
+
+	// ScriptPubKeyResult help.
+	"scriptpubkeyresult-asm":       "Disassembly of the script",
+	"scriptpubkeyresult-hex":       "Hex-encoded bytes of the script",
+	"scriptpubkeyresult-reqSigs":   "The number of required signatures",
+	"scriptpubkeyresult-type":      "The type of the script (e.g. 'pubkeyhash')",
+	"scriptpubkeyresult-addresses": "The Decred addresses associated with this script",
+	"scriptpubkeyresult-commitamt": "The ticket commitment value if the script is for a staking commitment",
+
 	// ImportCFiltersV2Cmd help.
 	"importcfiltersv2--synopsis":   "Imports a list of v2 cfilters into the wallet. Does not perform validation on the filters",
 	"importcfiltersv2-startheight": "The starting block height for this list of cfilters",

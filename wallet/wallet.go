@@ -3343,6 +3343,21 @@ func (w *Wallet) Spender(ctx context.Context, out *wire.OutPoint) (*wire.MsgTx, 
 	return spender, spenderIndex, err
 }
 
+// UnspentOutput returns information about an unspent received transaction
+// output. Returns error NotExist if the specified outpoint cannot be found or
+// has been spent by a mined transaction. Mined transactions that are spent by
+// a mempool transaction are not affected by this.
+func (w *Wallet) UnspentOutput(ctx context.Context, op wire.OutPoint, includeMempool bool) (*udb.Credit, error) {
+	var utxo *udb.Credit
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+		var err error
+		utxo, err = w.txStore.UnspentOutput(txmgrNs, op, includeMempool)
+		return err
+	})
+	return utxo, err
+}
+
 // AccountProperties contains properties associated with each account, such as
 // the account name, number, and the nubmer of derived and imported keys.  If no
 // address usage has been recorded on any of the external or internal branches,

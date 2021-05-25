@@ -1275,6 +1275,7 @@ func init() {
 		{"getblockhash", (*GetBlockHashCmd)(nil)},
 		{"getinfo", (*GetInfoCmd)(nil)},
 		{"getpeerinfo", (*GetPeerInfoCmd)(nil)},
+		{"gettxout", (*GetTxOutCmd)(nil)},
 		{"help", (*HelpCmd)(nil)},
 		{"sendrawtransaction", (*SendRawTransactionCmd)(nil)},
 		{"ticketsforaddress", (*TicketsForAddressCmd)(nil)},
@@ -1306,6 +1307,7 @@ type (
 	GetBlockHashCmd         dcrdtypes.GetBlockHashCmd
 	GetInfoCmd              dcrdtypes.GetInfoCmd
 	GetPeerInfoCmd          dcrdtypes.GetPeerInfoCmd
+	GetTxOutCmd             dcrdtypes.GetTxOutCmd
 	HelpCmd                 dcrdtypes.HelpCmd
 	SendRawTransactionCmd   dcrdtypes.SendRawTransactionCmd
 	TicketsForAddressCmd    dcrdtypes.TicketsForAddressCmd

@@ -106,6 +106,7 @@ var handlers = map[string]handler{
 	"getstakeinfo":            {fn: (*Server).getStakeInfo},
 	"gettickets":              {fn: (*Server).getTickets},
 	"gettransaction":          {fn: (*Server).getTransaction},
+	"gettxout":                {fn: (*Server).getTxOut},
 	"getunconfirmedbalance":   {fn: (*Server).getUnconfirmedBalance},
 	"getvotechoices":          {fn: (*Server).getVoteChoices},
 	"getwalletfee":            {fn: (*Server).getWalletFee},
@@ -2101,6 +2102,86 @@ func (s *Server) getTransaction(ctx context.Context, icmd interface{}) (interfac
 	}
 
 	return ret, nil
+}
+
+// getTxOut handles a gettxout request by returning details about an unspent
+// output. In SPV mode, details are only returned for transaction outputs that
+// are relevant to the wallet.
+// To match the behavior in RPC mode, (nil, nil) is returned if the transaction
+// output could not be found (never existed or was pruned) or is spent by another
+// transaction already in the main chain.  Mined transactions that are spent by
+// a mempool transaction are not affected by this.
+func (s *Server) getTxOut(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.GetTxOutCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	// Attempt RPC passthrough if connected to DCRD.
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+	if rpc, ok := n.(*dcrd.RPC); ok {
+		var resp json.RawMessage
+		err := rpc.Call(ctx, "gettxout", &resp, cmd.Txid, cmd.Vout, cmd.Tree, cmd.IncludeMempool)
+		return resp, err
+	}
+
+	txHash, err := chainhash.NewHashFromStr(cmd.Txid)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+
+	if cmd.Tree != wire.TxTreeRegular && cmd.Tree != wire.TxTreeStake {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "Tx tree must be regular or stake")
+	}
+
+	// Attempt to read the unspent txout info from wallet.
+	outpoint := wire.OutPoint{Hash: *txHash, Index: cmd.Vout, Tree: cmd.Tree}
+	utxo, err := w.UnspentOutput(ctx, outpoint, *cmd.IncludeMempool)
+	if err != nil && !errors.Is(err, errors.NotExist) {
+		return nil, err
+	}
+	if utxo == nil {
+		return nil, nil // output is spent or does not exist.
+	}
+
+	// Disassemble script into single line printable format.  The
+	// disassembled string will contain [error] inline if the script
+	// doesn't fully parse, so ignore the error here.
+	disbuf, _ := txscript.DisasmString(utxo.PkScript)
+
+	// Get further info about the script.  Ignore the error here since an
+	// error means the script couldn't parse and there is no additional
+	// information about it anyways.
+	scriptClass, addrs, reqSigs, _ := txscript.ExtractPkScriptAddrs(
+		0, utxo.PkScript, s.activeNet, true) // Yes treasury
+	addresses := make([]string, len(addrs))
+	for i, addr := range addrs {
+		addresses[i] = addr.Address()
+	}
+
+	bestHash, bestHeight := w.MainChainTip(ctx)
+	var confirmations int64
+	if utxo.Block.Height != -1 {
+		confirmations = int64(confirms(utxo.Block.Height, bestHeight))
+	}
+
+	return &dcrdtypes.GetTxOutResult{
+		BestBlock:     bestHash.String(),
+		Confirmations: confirmations,
+		Value:         utxo.Amount.ToCoin(),
+		ScriptPubKey: dcrdtypes.ScriptPubKeyResult{
+			Asm:       disbuf,
+			Hex:       hex.EncodeToString(utxo.PkScript),
+			ReqSigs:   int32(reqSigs),
+			Type:      scriptClass.String(),
+			Addresses: addresses,
+		},
+		Coinbase: utxo.FromCoinBase,
+	}, nil
 }
 
 // getVoteChoices handles a getvotechoices request by returning configured vote

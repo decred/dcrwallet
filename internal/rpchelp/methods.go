@@ -63,6 +63,7 @@ var Methods = []struct {
 	{"getstakeinfo", []interface{}{(*types.GetStakeInfoResult)(nil)}},
 	{"gettickets", []interface{}{(*types.GetTicketsResult)(nil)}},
 	{"gettransaction", []interface{}{(*types.GetTransactionResult)(nil)}},
+	{"gettxout", []interface{}{(*dcrdtypes.GetTxOutResult)(nil)}},
 	{"getunconfirmedbalance", returnsNumber},
 	{"getvotechoices", []interface{}{(*types.GetVoteChoicesResult)(nil)}},
 	{"getwalletfee", returnsNumber},
