@@ -1255,12 +1255,14 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 
 	// When the verbose flag isn't set, simply return the
 	// network-serialized block as a hex-encoded string.
-	if cmd.Verbose != nil && !*cmd.Verbose {
-		blkBytes, err := blk.Bytes()
+	if cmd.Verbose == nil || !*cmd.Verbose {
+		b := new(strings.Builder)
+		b.Grow(2 * blk.SerializeSize())
+		err = blk.Serialize(hex.NewEncoder(b))
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Could not serialize block: %v", err)
 		}
-		return hex.EncodeToString(blkBytes), nil
+		return b.String(), nil
 	}
 
 	// Get next block hash unless there are none.
@@ -1272,16 +1274,17 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 		return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Error checking if block is in mainchain: %v", err)
 	}
 	if mainChainHasBlock {
+		blockHeight := int32(blockHeader.Height)
 		_, bestHeight := w.MainChainTip(ctx)
-		if int32(blockHeader.Height) < bestHeight {
-			nextBlockID := wallet.NewBlockIdentifierFromHeight(int32(blockHeader.Height + 1))
+		if blockHeight < bestHeight {
+			nextBlockID := wallet.NewBlockIdentifierFromHeight(blockHeight + 1)
 			nextBlockInfo, err := w.BlockInfo(ctx, nextBlockID)
 			if err != nil {
 				return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Info not found for next block: %v", err)
 			}
 			nextHashString = nextBlockInfo.Hash.String()
 		}
-		confirmations = 1 + int64(bestHeight) - int64(blockHeader.Height)
+		confirmations = int64(confirms(blockHeight, bestHeight))
 	}
 
 	sbitsFloat := float64(blockHeader.SBits) / dcrutil.AtomsPerCoin
@@ -1320,14 +1323,14 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 		transactions := blk.Transactions
 		txNames := make([]string, len(transactions))
 		for i, tx := range transactions {
-			txNames[i] = tx.CachedTxHash().String()
+			txNames[i] = tx.TxHash().String()
 		}
 		blockReply.Tx = txNames
 
 		stransactions := blk.STransactions
 		stxNames := make([]string, len(stransactions))
 		for i, tx := range stransactions {
-			stxNames[i] = tx.CachedTxHash().String()
+			stxNames[i] = tx.TxHash().String()
 		}
 		blockReply.STx = stxNames
 	} else {
@@ -1360,13 +1363,15 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 func createTxRawResult(chainParams *chaincfg.Params, mtx *wire.MsgTx, blkIdx uint32, blkHeader *wire.BlockHeader,
 	confirmations int64, isTreasuryEnabled bool) (*dcrdtypes.TxRawResult, error) {
 
-	mtxBytes, err := mtx.Bytes()
+	b := new(strings.Builder)
+	b.Grow(2 * mtx.SerializeSize())
+	err := mtx.Serialize(hex.NewEncoder(b))
 	if err != nil {
 		return nil, err
 	}
 
 	txReply := &dcrdtypes.TxRawResult{
-		Hex:         hex.EncodeToString(mtxBytes),
+		Hex:         b.String(),
 		Txid:        mtx.CachedTxHash().String(),
 		Vin:         createVinList(mtx, isTreasuryEnabled),
 		Vout:        createVoutList(mtx, chainParams, nil, isTreasuryEnabled),
