@@ -191,6 +191,100 @@ var helpDescsEnUS = map[string]string{
 	"getblockhash-index":     "The block height",
 	"getblockhash--result0":  "The main chain block hash",
 
+	// GetBlockCmd help.
+	"getblock--synopsis":   "Returns information about a block given its hash.",
+	"getblock-hash":        "The hash of the block",
+	"getblock-verbose":     "Specifies the block is returned as a JSON object instead of hex-encoded string",
+	"getblock-verbosetx":   "Specifies that each transaction is returned as a JSON object and only applies if the verbose flag is true (dcrd extension)",
+	"getblock--condition0": "verbose=false",
+	"getblock--condition1": "verbose=true",
+	"getblock--result0":    "Hex-encoded bytes of the serialized block",
+
+	// GetBlockVerboseResult help.
+	"getblockverboseresult-hash":              "The hash of the block (same as provided)",
+	"getblockverboseresult-confirmations":     "The number of confirmations",
+	"getblockverboseresult-size":              "The size of the block",
+	"getblockverboseresult-height":            "The height of the block in the block chain",
+	"getblockverboseresult-version":           "The block version",
+	"getblockverboseresult-merkleroot":        "Root hash of the merkle tree",
+	"getblockverboseresult-tx":                "The transaction hashes (only when verbosetx=false)",
+	"getblockverboseresult-rawtx":             "The transactions as JSON objects (only when verbosetx=true)",
+	"getblockverboseresult-time":              "The block time in seconds since 1 Jan 1970 GMT",
+	"getblockverboseresult-nonce":             "The block nonce",
+	"getblockverboseresult-bits":              "The bits which represent the block difficulty",
+	"getblockverboseresult-difficulty":        "The proof-of-work difficulty as a multiple of the minimum difficulty",
+	"getblockverboseresult-chainwork":         "The total number of hashes expected to produce the chain up to the block in hex",
+	"getblockverboseresult-previousblockhash": "The hash of the previous block",
+	"getblockverboseresult-nextblockhash":     "The hash of the next block (only if there is one)",
+	"getblockverboseresult-sbits":             "The stake difficulty of the block",
+	"getblockverboseresult-poolsize":          "The size of the live ticket pool",
+	"getblockverboseresult-revocations":       "The number of revocations in the block",
+	"getblockverboseresult-freshstake":        "The number of new tickets in the block",
+	"getblockverboseresult-voters":            "The number votes in the block",
+	"getblockverboseresult-votebits":          "The block's voting results",
+	"getblockverboseresult-rawstx":            "The block's raw sstx hashes the were included",
+	"getblockverboseresult-stx":               "The block's sstx hashes the were included",
+	"getblockverboseresult-stakeroot":         "The block's sstx hashes the were included",
+	"getblockverboseresult-finalstate":        "The block's finalstate",
+	"getblockverboseresult-extradata":         "Extra data field for the requested block",
+	"getblockverboseresult-stakeversion":      "Stake Version of the block",
+
+	// TxRawResult help.
+	"txrawresult-hex":           "Hex-encoded transaction",
+	"txrawresult-txid":          "The hash of the transaction",
+	"txrawresult-version":       "The transaction version",
+	"txrawresult-locktime":      "The transaction lock time",
+	"txrawresult-vin":           "The transaction inputs as JSON objects",
+	"txrawresult-vout":          "The transaction outputs as JSON objects",
+	"txrawresult-blockhash":     "The hash of the block that contains the transaction",
+	"txrawresult-confirmations": "Number of confirmations of the block",
+	"txrawresult-time":          "Transaction time in seconds since 1 Jan 1970 GMT",
+	"txrawresult-blocktime":     "Block time in seconds since the 1 Jan 1970 GMT",
+	"txrawresult-blockindex":    "The index within the array of transactions contained by the block",
+	"txrawresult-blockheight":   "The height of the block that contains the transaction",
+	"txrawresult-expiry":        "The transacion expiry",
+
+	// Vin help.
+	"vin-coinbase":      "The hex-encoded bytes of the signature script (coinbase txns only)",
+	"vin-stakebase":     "The hex-encoded bytes of the signature script (vote txns only)",
+	"vin-treasurybase":  "Whether or not the input is a treasury base (treasurybase txns only)",
+	"vin-treasuryspend": "The hex-encoded bytes of the signature script (treasury spend txns only)",
+	"vin-txid":          "The hash of the origin transaction (non-coinbase txns only)",
+	"vin-vout":          "The index of the output being redeemed from the origin transaction (non-coinbase txns only)",
+	"vin-scriptSig":     "The signature script used to redeem the origin transaction as a JSON object (non-coinbase txns only)",
+	"vin-sequence":      "The script sequence number",
+	"vin-tree":          "The tree of the transaction",
+	"vin-blockindex":    "The block idx of the origin transaction",
+	"vin-blockheight":   "The block height of the origin transaction",
+	"vin-amountin":      "The amount in",
+
+	// ScriptSig help.
+	"scriptsig-asm": "Disassembly of the script",
+	"scriptsig-hex": "Hex-encoded bytes of the script",
+
+	// Vout help.
+	"vout-value":        "The amount in DCR",
+	"vout-n":            "The index of this transaction output",
+	"vout-version":      "The version of the public key script",
+	"vout-scriptPubKey": "The public key script used to pay coins as a JSON object",
+
+	// ScriptPubKeyResult help.
+	"scriptpubkeyresult-asm":       "Disassembly of the script",
+	"scriptpubkeyresult-hex":       "Hex-encoded bytes of the script",
+	"scriptpubkeyresult-reqSigs":   "The number of required signatures",
+	"scriptpubkeyresult-type":      "The type of the script (e.g. 'pubkeyhash')",
+	"scriptpubkeyresult-addresses": "The Decred addresses associated with this script",
+	"scriptpubkeyresult-commitamt": "The ticket commitment value if the script is for a staking commitment",
+
+	// GetCFilterV2Cmd help.
+	"getcfilterv2--synopsis": "Returns the version 2 block filter for the given block along with the key required to query it for matches against committed scripts.",
+	"getcfilterv2-blockhash": "The block hash of the filter to retrieve",
+
+	// GetCFilterV2Result help.
+	"getcfilterv2result-blockhash": "The block hash for which the filter includes data",
+	"getcfilterv2result-filter":    "Hex-encoded bytes of the serialized filter",
+	"getcfilterv2result-key":       "The key required to query the filter for matches against committed scripts",
+
 	// SyncStatusCmd help.
 	"syncstatus--synopsis": "Returns information about this wallet's synchronization to the network.",
 
@@ -361,14 +455,6 @@ var helpDescsEnUS = map[string]string{
 	"gettxoutresult-value":         "The transaction amount in DCR",
 	"gettxoutresult-scriptPubKey":  "The public key script used to pay coins as a JSON object",
 	"gettxoutresult-coinbase":      "Whether or not the transaction is a coinbase",
-
-	// ScriptPubKeyResult help.
-	"scriptpubkeyresult-asm":       "Disassembly of the script",
-	"scriptpubkeyresult-hex":       "Hex-encoded bytes of the script",
-	"scriptpubkeyresult-reqSigs":   "The number of required signatures",
-	"scriptpubkeyresult-type":      "The type of the script (e.g. 'pubkeyhash')",
-	"scriptpubkeyresult-addresses": "The Decred addresses associated with this script",
-	"scriptpubkeyresult-commitamt": "The ticket commitment value if the script is for a staking commitment",
 
 	// ImportCFiltersV2Cmd help.
 	"importcfiltersv2--synopsis":   "Imports a list of v2 cfilters into the wallet. Does not perform validation on the filters",
