@@ -5,23 +5,8 @@
 package wallet
 
 import (
-	"crypto/rand"
-	"sync"
-
-	"decred.org/dcrwallet/v2/internal/uniformprng"
 	"decred.org/dcrwallet/v2/wallet/txauthor"
 )
-
-var shuffleRand *uniformprng.Source
-var shuffleMu sync.Mutex
-
-func init() {
-	var err error
-	shuffleRand, err = uniformprng.RandSource(rand.Reader)
-	if err != nil {
-		panic(err)
-	}
-}
 
 func shuffle(n int, swap func(i, j int)) {
 	if n < 0 {
@@ -31,12 +16,12 @@ func shuffle(n int, swap func(i, j int)) {
 		panic("shuffle: large n")
 	}
 
-	defer shuffleMu.Unlock()
-	shuffleMu.Lock()
+	defer randSourceMu.Unlock()
+	randSourceMu.Lock()
 
 	// Fisher-Yates shuffle: https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
 	for i := uint32(0); i < uint32(n); i++ {
-		j := shuffleRand.Uint32n(uint32(n)-i) + i
+		j := randSource.Uint32n(uint32(n)-i) + i
 		swap(int(i), int(j))
 	}
 }
