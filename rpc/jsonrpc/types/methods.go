@@ -659,6 +659,29 @@ func NewListUnspentCmd(minConf, maxConf *int, addresses *[]string) *ListUnspentC
 	}
 }
 
+type SelectUnspentCmd struct {
+	MinConf              int
+	TargetAmount         float64
+	MinAmount            float64
+	AccountName          string
+	SpendAll             bool
+	InputSelectionMethod string
+	SeenTxAddress        *map[string]struct{}
+}
+
+func NewSelectUnspentCmd(minConf int, targetAmount, minAmount float64, accountName string,
+	spendAll bool, inputSelectionMethod string, seenTxAddress *map[string]struct{}) *SelectUnspentCmd {
+	return &SelectUnspentCmd{
+		MinConf:              minConf,
+		TargetAmount:         targetAmount,
+		MinAmount:            minAmount,
+		AccountName:          accountName,
+		SpendAll:             spendAll,
+		InputSelectionMethod: inputSelectionMethod,
+		SeenTxAddress:        seenTxAddress,
+	}
+}
+
 // LockUnspentCmd defines the lockunspent JSON-RPC command.
 type LockUnspentCmd struct {
 	Unlock       bool
@@ -1234,6 +1257,7 @@ func init() {
 		{"listsinceblock", (*ListSinceBlockCmd)(nil)},
 		{"listtransactions", (*ListTransactionsCmd)(nil)},
 		{"listunspent", (*ListUnspentCmd)(nil)},
+		{"selectunspent", (*SelectUnspentCmd)(nil)},
 		{"lockaccount", (*LockAccountCmd)(nil)},
 		{"lockunspent", (*LockUnspentCmd)(nil)},
 		{"mixaccount", (*MixAccountCmd)(nil)},

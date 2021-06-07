@@ -136,6 +136,7 @@ var handlers = map[string]handler{
 	"listsinceblock":          {fn: (*Server).listSinceBlock},
 	"listtransactions":        {fn: (*Server).listTransactions},
 	"listunspent":             {fn: (*Server).listUnspent},
+	"selectunspent":           {fn: (*Server).selectUnspent},
 	"lockaccount":             {fn: (*Server).lockAccount},
 	"lockunspent":             {fn: (*Server).lockUnspent},
 	"mixaccount":              {fn: (*Server).mixAccount},
@@ -3076,6 +3077,46 @@ func (s *Server) listUnspent(ctx context.Context, icmd interface{}) (interface{}
 		if errors.Is(err, errors.NotExist) {
 			return nil, errAddressNotInWallet
 		}
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *Server) selectUnspent(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.SelectUnspentCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	targetAmount, err := dcrutil.NewAmount(cmd.TargetAmount)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+	}
+	if targetAmount < 0 {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative target amount")
+	}
+
+	minAmount, err := dcrutil.NewAmount(cmd.MinAmount)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+	}
+	if minAmount < 0 {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative min amount")
+	}
+
+	if minAmount > targetAmount {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "target amount is less than min amount")
+	}
+
+	seenTxAddress := make(map[string]struct{})
+	if cmd.SeenTxAddress != nil {
+		seenTxAddress = *cmd.SeenTxAddress
+	}
+
+	result, err := w.SelectUnspent(ctx, targetAmount, minAmount, int32(cmd.MinConf), cmd.AccountName,
+		cmd.SpendAll, seenTxAddress, types.InputSelectionMethod(cmd.InputSelectionMethod))
+	if err != nil {
 		return nil, err
 	}
 	return result, nil

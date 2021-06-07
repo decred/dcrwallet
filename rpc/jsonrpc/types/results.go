@@ -265,6 +265,15 @@ type ListSinceBlockResult struct {
 	LastBlock    string                   `json:"lastblock"`
 }
 
+type InputSelectionMethod string
+
+const (
+	RandomInputSelection        InputSelectionMethod = "random"
+	RandomAddressInputSelection InputSelectionMethod = "randomaddress"
+	OneUTXOInputSelection       InputSelectionMethod = "oneutxo"
+	UniqueTxInputSelection      InputSelectionMethod = "uniquetx"
+)
+
 // ListUnspentResult models a successful response from the listunspent request.
 // Contains Decred additions.
 type ListUnspentResult struct {
