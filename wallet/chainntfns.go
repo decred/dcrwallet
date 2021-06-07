@@ -901,10 +901,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 				if w.chainParams.Net == wire.MainNet {
 					log.Warnf("block disapprove percent set on mainnet")
 				} else {
-					randSourceMu.Lock()
-					ranN := randSource.Int63n(100)
-					randSourceMu.Unlock()
-					if int64(dp) > ranN {
+					if int64(dp) > randInt63n(100) {
 						log.Infof("Disapproving block %v voted with ticket %v",
 							blockHash, ticketHash)
 						// Set the BlockValid bit to zero,

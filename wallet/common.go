@@ -5,30 +5,12 @@
 package wallet
 
 import (
-	"crypto/rand"
-	"sync"
 	"time"
 
-	"decred.org/dcrwallet/v2/internal/uniformprng"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
-)
-
-func init() {
-	var err error
-	randSource, err = uniformprng.RandSource(rand.Reader)
-	if err != nil {
-		panic(err)
-	}
-}
-
-var (
-	// randSource is a source of randomness. randSourceMu must be held when
-	// using.
-	randSourceMu sync.Mutex
-	randSource   *uniformprng.Source
 )
 
 // Note: The following common types should never reference the Wallet type.

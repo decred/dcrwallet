@@ -1,12 +1,33 @@
-// Copyright (c) 2019 The Decred developers
+// Copyright (c) 2019-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package wallet
 
 import (
+	"crypto/rand"
+	"sync"
+
+	"decred.org/dcrwallet/v2/internal/uniformprng"
 	"decred.org/dcrwallet/v2/wallet/txauthor"
 )
+
+var prng *uniformprng.Source
+var prngMu sync.Mutex
+
+func init() {
+	var err error
+	prng, err = uniformprng.RandSource(rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func randInt63n(n int64) int64 {
+	defer prngMu.Unlock()
+	prngMu.Lock()
+	return prng.Int63n(n)
+}
 
 func shuffle(n int, swap func(i, j int)) {
 	if n < 0 {
@@ -16,12 +37,12 @@ func shuffle(n int, swap func(i, j int)) {
 		panic("shuffle: large n")
 	}
 
-	defer randSourceMu.Unlock()
-	randSourceMu.Lock()
+	defer prngMu.Unlock()
+	prngMu.Lock()
 
 	// Fisher-Yates shuffle: https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
 	for i := uint32(0); i < uint32(n); i++ {
-		j := randSource.Uint32n(uint32(n)-i) + i
+		j := prng.Uint32n(uint32(n)-i) + i
 		swap(int(i), int(j))
 	}
 }
