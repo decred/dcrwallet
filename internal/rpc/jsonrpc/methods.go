@@ -3485,12 +3485,22 @@ func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, 
 
 // treasuryPolicy returns voting policies for treasury spends by a particular
 // key.  If a key is specified, that policy is returned; otherwise the policies
-// for all keys are returned in an array.
+// for all keys are returned in an array.  If both a key and ticket hash are
+// provided, the per-ticket key policy is returned.
 func (s *Server) treasuryPolicy(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.TreasuryPolicyCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
+	}
+
+	var ticketHash *chainhash.Hash
+	if cmd.Ticket != nil && *cmd.Ticket != "" {
+		var err error
+		ticketHash, err = chainhash.NewHashFromStr(*cmd.Ticket)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+		}
 	}
 
 	if cmd.Key != nil && *cmd.Key != "" {
@@ -3499,7 +3509,7 @@ func (s *Server) treasuryPolicy(ctx context.Context, icmd interface{}) (interfac
 			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 		}
 		var policy string
-		switch w.TreasuryKeyPolicy(pikey) {
+		switch w.TreasuryKeyPolicy(pikey, ticketHash) {
 		case stake.TreasuryVoteYes:
 			policy = "yes"
 		case stake.TreasuryVoteNo:
@@ -3510,6 +3520,9 @@ func (s *Server) treasuryPolicy(ctx context.Context, icmd interface{}) (interfac
 		res := &types.TreasuryPolicyResult{
 			Key:    *cmd.Key,
 			Policy: policy,
+		}
+		if cmd.Ticket != nil {
+			res.Ticket = *cmd.Ticket
 		}
 		return res, nil
 	}
@@ -3524,10 +3537,14 @@ func (s *Server) treasuryPolicy(ctx context.Context, icmd interface{}) (interfac
 		case stake.TreasuryVoteNo:
 			policy = "no"
 		}
-		res = append(res, types.TreasuryPolicyResult{
+		r := types.TreasuryPolicyResult{
 			Key:    hex.EncodeToString(policies[i].PiKey),
 			Policy: policy,
-		})
+		}
+		if policies[i].Ticket != nil {
+			r.Ticket = policies[i].Ticket.String()
+		}
+		res = append(res, r)
 	}
 	return res, nil
 }
@@ -3551,12 +3568,21 @@ func (s *Server) setDisapprovePercent(ctx context.Context, icmd interface{}) (in
 }
 
 // setTreasuryPolicy saves the voting policy for treasury spends by a particular
-// key.
+// key, and optionally, setting the key policy used by a specific ticket.
 func (s *Server) setTreasuryPolicy(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.SetTreasuryPolicyCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
+	}
+
+	var ticketHash *chainhash.Hash
+	if cmd.Ticket != nil && *cmd.Ticket != "" {
+		var err error
+		ticketHash, err = chainhash.NewHashFromStr(*cmd.Ticket)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+		}
 	}
 
 	pikey, err := hex.DecodeString(cmd.Key)
@@ -3580,19 +3606,29 @@ func (s *Server) setTreasuryPolicy(ctx context.Context, icmd interface{}) (inter
 		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 	}
 
-	err = w.SetTreasuryKeyPolicy(ctx, pikey, policy)
+	err = w.SetTreasuryKeyPolicy(ctx, pikey, policy, ticketHash)
 	return nil, err
 }
 
 // tspendPolicy returns voting policies for particular treasury spends
 // transactions.  If a tspend transaction hash is specified, that policy is
 // returned; otherwise the policies for all known tspends are returned in an
-// array.
+// array.  If both a tspend transaction hash and a ticket hash are provided,
+// the per-ticket tspend policy is returned.
 func (s *Server) tspendPolicy(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.TSpendPolicyCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
+	}
+
+	var ticketHash *chainhash.Hash
+	if cmd.Ticket != nil && *cmd.Ticket != "" {
+		var err error
+		ticketHash, err = chainhash.NewHashFromStr(*cmd.Ticket)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+		}
 	}
 
 	if cmd.Hash != nil && *cmd.Hash != "" {
@@ -3601,7 +3637,7 @@ func (s *Server) tspendPolicy(ctx context.Context, icmd interface{}) (interface{
 			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
 		}
 		var policy string
-		switch w.TSpendPolicy(hash) {
+		switch w.TSpendPolicy(hash, ticketHash) {
 		case stake.TreasuryVoteYes:
 			policy = "yes"
 		case stake.TreasuryVoteNo:
@@ -3613,6 +3649,9 @@ func (s *Server) tspendPolicy(ctx context.Context, icmd interface{}) (interface{
 			Hash:   *cmd.Hash,
 			Policy: policy,
 		}
+		if cmd.Ticket != nil {
+			res.Ticket = *cmd.Ticket
+		}
 		return res, nil
 	}
 
@@ -3620,7 +3659,7 @@ func (s *Server) tspendPolicy(ctx context.Context, icmd interface{}) (interface{
 	res := make([]types.TSpendPolicyResult, 0, len(tspends))
 	for i := range tspends {
 		tspendHash := tspends[i].TxHash()
-		p := w.TSpendPolicy(&tspendHash)
+		p := w.TSpendPolicy(&tspendHash, ticketHash)
 
 		var policy string
 		switch p {
@@ -3629,16 +3668,20 @@ func (s *Server) tspendPolicy(ctx context.Context, icmd interface{}) (interface{
 		case stake.TreasuryVoteNo:
 			policy = "no"
 		}
-		res = append(res, types.TSpendPolicyResult{
+		r := types.TSpendPolicyResult{
 			Hash:   tspendHash.String(),
 			Policy: policy,
-		})
+		}
+		if cmd.Ticket != nil {
+			r.Ticket = *cmd.Ticket
+		}
+		res = append(res, r)
 	}
 	return res, nil
 }
 
 // setTSpendPolicy saves the voting policy for a particular tspend transaction
-// hash.
+// hash, and optionally, setting the tspend policy used by a specific ticket.
 func (s *Server) setTSpendPolicy(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.SetTSpendPolicyCmd)
 	w, ok := s.walletLoader.LoadedWallet()
@@ -3649,6 +3692,15 @@ func (s *Server) setTSpendPolicy(ctx context.Context, icmd interface{}) (interfa
 	hash, err := chainhash.NewHashFromStr(cmd.Hash)
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+
+	var ticketHash *chainhash.Hash
+	if cmd.Ticket != nil && *cmd.Ticket != "" {
+		var err error
+		ticketHash, err = chainhash.NewHashFromStr(*cmd.Ticket)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+		}
 	}
 
 	var policy stake.TreasuryVoteT
@@ -3664,7 +3716,7 @@ func (s *Server) setTSpendPolicy(ctx context.Context, icmd interface{}) (interfa
 		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 	}
 
-	err = w.SetTSpendPolicy(ctx, hash, policy)
+	err = w.SetTSpendPolicy(ctx, hash, policy, ticketHash)
 	return nil, err
 }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Decred developers
+// Copyright (c) 2017-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -183,10 +183,16 @@ const (
 	// transactions by transaction hash, rather than by pi key.
 	tspendHashPolicyVersion = 22
 
+	// vspTreasuryPoliciesVersion is the 23rd version of the database.  It
+	// adds top-level buckets for recording the voting policies
+	// treasury-spending transactions for specific customer's tickets served
+	// by a VSP.
+	vspTreasuryPoliciesVersion = 23
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = tspendHashPolicyVersion
+	DBVersion = vspTreasuryPoliciesVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -214,6 +220,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	vspBucketVersion - 1:                  vspBucketUpgrade,
 	vspStatusVersion - 1:                  vspStatusUpgrade,
 	tspendHashPolicyVersion - 1:           tspendHashPolicyUpgrade,
+	vspTreasuryPoliciesVersion - 1:        vspTreasuryPoliciesUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -1526,6 +1533,34 @@ func tspendHashPolicyUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, p
 	}
 
 	_, err = tx.CreateTopLevelBucket(tspendPolicyBucketKey)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func vspTreasuryPoliciesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 22
+	const newVersion = 23
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 22 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "vspTreasuryPoliciesUpgrade inappropriately called")
+	}
+
+	_, err = tx.CreateTopLevelBucket(vspTreasuryPolicyBucketKey)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	_, err = tx.CreateTopLevelBucket(vspTspendPolicyBucketKey)
 	if err != nil {
 		return errors.E(errors.IO, err)
 	}
