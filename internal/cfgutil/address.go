@@ -6,16 +6,17 @@
 package cfgutil
 
 import (
-	"github.com/decred/dcrd/dcrutil/v4"
+	"decred.org/dcrwallet/v2/errors"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 )
 
-// AddressFlag contains a dcrutil.Address and implements the flags.Marshaler and
+// AddressFlag contains a stdaddr.Address and implements the flags.Marshaler and
 // Unmarshaler interfaces so it can be used as a config struct field.
 type AddressFlag struct {
 	str string
 }
 
-// NewAddressFlag creates an AddressFlag with a default dcrutil.Address.
+// NewAddressFlag creates an AddressFlag with a default stdaddr.Address.
 func NewAddressFlag() *AddressFlag {
 	return new(AddressFlag)
 }
@@ -33,9 +34,26 @@ func (a *AddressFlag) UnmarshalFlag(addr string) error {
 
 // Address decodes the address flag for the network described by params.
 // If the flag is the empty string, this returns a nil address.
-func (a *AddressFlag) Address(params dcrutil.AddressParams) (dcrutil.Address, error) {
+func (a *AddressFlag) Address(params stdaddr.AddressParams) (stdaddr.Address, error) {
 	if a.str == "" {
 		return nil, nil
 	}
-	return dcrutil.DecodeAddress(a.str, params)
+	return stdaddr.DecodeAddress(a.str, params)
+}
+
+// StakeAddress decodes the address flag for the network described by
+// params as a stake address.
+// If the flag is the empty string, this returns a nil address.
+func (a *AddressFlag) StakeAddress(params stdaddr.AddressParams) (stdaddr.StakeAddress, error) {
+	addr, err := a.Address(params)
+	if err != nil {
+		return nil, err
+	}
+	if addr == nil {
+		return nil, nil
+	}
+	if saddr, ok := addr.(stdaddr.StakeAddress); ok {
+		return saddr, nil
+	}
+	return nil, errors.Errorf("address is not suitable for stake usage")
 }

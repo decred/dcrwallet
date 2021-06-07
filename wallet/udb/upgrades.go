@@ -945,8 +945,11 @@ func ticketCommitmentsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, 
 					return errors.E(errors.IO, err)
 				}
 
-				acct, err := fetchAddrAccount(addrmgrBucket,
-					normalizeAddress(addr).ScriptAddress())
+				id, err := addressID(normalizeAddress(addr))
+				if err != nil {
+					return errors.E(errors.Bug, err)
+				}
+				acct, err := fetchAddrAccount(addrmgrBucket, id)
 				if err != nil && errors.Is(err, errors.NotExist) {
 					// If this address does not have an account associated
 					// with it, it means it's not owned by the wallet.

@@ -22,6 +22,7 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/chacha20poly1305"
@@ -101,9 +102,9 @@ func isReservedAccountNum(acct uint32) bool {
 // normalizeAddress normalizes addresses for usage by the address manager.  In
 // particular, it converts all pubkeys to pubkey hash addresses so they are
 // interchangeable by callers.
-func normalizeAddress(addr dcrutil.Address) dcrutil.Address {
+func normalizeAddress(addr stdaddr.Address) stdaddr.Address {
 	switch addr := addr.(type) {
-	case *dcrutil.AddressSecpPubKey:
+	case *stdaddr.AddressPubKeyEcdsaSecp256k1V0:
 		return addr.AddressPubKeyHash()
 	default:
 		return addr
@@ -959,12 +960,30 @@ func (m *Manager) rowInterfaceToManaged(ns walletdb.ReadBucket, rowInterface int
 	return nil, errors.E(errors.Invalid, errors.Errorf("address type %T", rowInterface))
 }
 
+// addressID returns the internal database key used to record an address.  This
+// is currently the address' pubkey or script hash160, and other address types
+// are unsupported.
+func addressID(address stdaddr.Address) ([]byte, error) {
+	switch address := address.(type) {
+	case stdaddr.Hash160er:
+		return address.Hash160()[:], nil
+	default:
+		return nil, errors.E(errors.Invalid, errors.Errorf("address "+
+			"id cannot be created from type %T (requires Hash160 method)",
+			address))
+	}
+}
+
 // loadAddress attempts to load the passed address from the database.
 //
 // This function MUST be called with the manager lock held for writes.
-func (m *Manager) loadAddress(ns walletdb.ReadBucket, address dcrutil.Address) (ManagedAddress, error) {
+func (m *Manager) loadAddress(ns walletdb.ReadBucket, address stdaddr.Address) (ManagedAddress, error) {
 	// Attempt to load the raw address information from the database.
-	rowInterface, err := fetchAddress(ns, address.ScriptAddress())
+	id, err := addressID(normalizeAddress(address))
+	if err != nil {
+		return nil, err
+	}
+	rowInterface, err := fetchAddress(ns, id)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
 			return nil, errors.E(errors.NotExist, errors.Errorf("no address %s", address))
@@ -983,7 +1002,7 @@ func (m *Manager) loadAddress(ns walletdb.ReadBucket, address dcrutil.Address) (
 // transactions such as the associated private key for pay-to-pubkey and
 // pay-to-pubkey-hash addresses and the script associated with
 // pay-to-script-hash addresses.
-func (m *Manager) Address(ns walletdb.ReadBucket, address dcrutil.Address) (ManagedAddress, error) {
+func (m *Manager) Address(ns walletdb.ReadBucket, address stdaddr.Address) (ManagedAddress, error) {
 	address = normalizeAddress(address)
 	defer m.mtx.Unlock()
 	m.mtx.Lock()
@@ -992,8 +1011,12 @@ func (m *Manager) Address(ns walletdb.ReadBucket, address dcrutil.Address) (Mana
 }
 
 // AddrAccount returns the account to which the given address belongs.
-func (m *Manager) AddrAccount(ns walletdb.ReadBucket, address dcrutil.Address) (uint32, error) {
-	acct, err := fetchAddrAccount(ns, normalizeAddress(address).ScriptAddress())
+func (m *Manager) AddrAccount(ns walletdb.ReadBucket, address stdaddr.Address) (uint32, error) {
+	id, err := addressID(normalizeAddress(address))
+	if err != nil {
+		return 0, err
+	}
+	acct, err := fetchAddrAccount(ns, id)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
 			return 0, errors.E(errors.NotExist, errors.Errorf("no address %v", address))
@@ -1779,11 +1802,15 @@ func maxUint32(a, b uint32) uint32 {
 // MarkUsed updates usage statistics of a BIP0044 account address so that the
 // last used address index can be tracked.  There is no effect when called on
 // P2SH addresses or any imported addresses.
-func (m *Manager) MarkUsed(tx walletdb.ReadWriteTx, address dcrutil.Address) error {
+func (m *Manager) MarkUsed(tx walletdb.ReadWriteTx, address stdaddr.Address) error {
 	ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 
 	address = normalizeAddress(address)
-	dbAddr, err := fetchAddress(ns, address.Hash160()[:])
+	id, err := addressID(address)
+	if err != nil {
+		return err
+	}
+	dbAddr, err := fetchAddress(ns, id)
 	if err != nil {
 		return err
 	}
@@ -2212,7 +2239,7 @@ func (m *Manager) ForEachActiveAccountAddress(ns walletdb.ReadBucket, account ui
 
 // ForEachActiveAddress calls the given function with each active address
 // stored in the manager, breaking early on error.
-func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr dcrutil.Address) error) error {
+func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr stdaddr.Address) error) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -2230,7 +2257,7 @@ func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr dcru
 // PrivateKey retreives the private key for a P2PK or P2PKH address.  The
 // retured 'done' function should be called after the key is no longer needed to
 // overwrite the key with zeros.
-func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key *secp256k1.PrivateKey, done func(), err error) {
+func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr stdaddr.Address) (key *secp256k1.PrivateKey, done func(), err error) {
 	// Lock the manager mutex for writes.  This protects read access to m.locked
 	// and write access to m.returnedPrivKeys and the cached accounts.
 	defer m.mtx.Unlock()
@@ -2247,7 +2274,11 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 	// account xpriv with the correct branch and child indexes.  For imported
 	// keys, the encrypted private key is simply retreived from the database and
 	// decrypted.
-	addrInterface, err := fetchAddress(ns, addr.Hash160()[:])
+	id, err := addressID(normalizeAddress(addr))
+	if err != nil {
+		return nil, nil, err
+	}
+	addrInterface, err := fetchAddress(ns, id)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2286,8 +2317,12 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr dcrutil.Address) (key 
 
 // RedeemScript retreives the redeem script to redeem an output paid to a P2SH
 // address.
-func (m *Manager) RedeemScript(ns walletdb.ReadBucket, addr dcrutil.Address) ([]byte, error) {
-	return m.redeemScriptForHash160(ns, addr.Hash160()[:])
+func (m *Manager) RedeemScript(ns walletdb.ReadBucket, addr stdaddr.Address) ([]byte, error) {
+	id, err := addressID(normalizeAddress(addr))
+	if err != nil {
+		return nil, err
+	}
+	return m.redeemScriptForHash160(ns, id)
 }
 
 func (m *Manager) redeemScriptForHash160(ns walletdb.ReadBucket, hash160 []byte) ([]byte, error) {

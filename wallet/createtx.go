@@ -29,6 +29,8 @@ import (
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/sign"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -36,9 +38,7 @@ import (
 // Constants and simple functions
 
 const (
-	// defaultTicketFeeLimits is the default byte string for the default
-	// fee limits imposed on a ticket.
-	defaultTicketFeeLimits = 0x5800
+	revocationFeeLimit = 1 << 14
 
 	// maxStandardTxSize is the maximum size allowed for transactions that
 	// are considered standard and will therefore be relayed and considered
@@ -184,7 +184,7 @@ type secretSource struct {
 	doneFuncs []func()
 }
 
-func (s *secretSource) GetKey(addr dcrutil.Address) ([]byte, dcrec.SignatureType, bool, error) {
+func (s *secretSource) GetKey(addr stdaddr.Address) ([]byte, dcrec.SignatureType, bool, error) {
 	privKey, done, err := s.Manager.PrivateKey(s.addrmgrNs, addr)
 	if err != nil {
 		return nil, 0, false, err
@@ -193,7 +193,7 @@ func (s *secretSource) GetKey(addr dcrutil.Address) ([]byte, dcrec.SignatureType
 	return privKey.Serialize(), dcrec.STEcdsaSecp256k1, true, nil
 }
 
-func (s *secretSource) GetScript(addr dcrutil.Address) ([]byte, error) {
+func (s *secretSource) GetScript(addr stdaddr.Address) ([]byte, error) {
 	return s.Manager.RedeemScript(s.addrmgrNs, addr)
 }
 
@@ -201,7 +201,7 @@ func (s *secretSource) GetScript(addr dcrutil.Address) ([]byte, error) {
 // output (if one was added).
 type CreatedTx struct {
 	MsgTx       *wire.MsgTx
-	ChangeAddr  dcrutil.Address
+	ChangeAddr  stdaddr.Address
 	ChangeIndex int // negative if no change
 	Fee         dcrutil.Amount
 }
@@ -513,14 +513,14 @@ func (w *Wallet) recordAuthoredTx(ctx context.Context, op errors.Op, a *authorTx
 
 // txToMultisig spends funds to a multisig output, partially signs the
 // transaction, then returns fund
-func (w *Wallet) txToMultisig(ctx context.Context, op errors.Op, account uint32, amount dcrutil.Amount, pubkeys []*dcrutil.AddressSecpPubKey,
-	nRequired int8, minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
+func (w *Wallet) txToMultisig(ctx context.Context, op errors.Op, account uint32, amount dcrutil.Amount, pubkeys [][]byte,
+	nRequired int8, minconf int32) (*CreatedTx, stdaddr.Address, []byte, error) {
 
 	defer w.lockedOutpointMu.Unlock()
 	w.lockedOutpointMu.Lock()
 
 	var created *CreatedTx
-	var addr dcrutil.Address
+	var addr stdaddr.Address
 	var msScript []byte
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		var err error
@@ -535,11 +535,11 @@ func (w *Wallet) txToMultisig(ctx context.Context, op errors.Op, account uint32,
 }
 
 func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx walletdb.ReadWriteTx, account uint32, amount dcrutil.Amount,
-	pubkeys []*dcrutil.AddressSecpPubKey, nRequired int8, minconf int32) (*CreatedTx, dcrutil.Address, []byte, error) {
+	pubkeys [][]byte, nRequired int8, minconf int32) (*CreatedTx, stdaddr.Address, []byte, error) {
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 
-	txToMultisigError := func(err error) (*CreatedTx, dcrutil.Address, []byte, error) {
+	txToMultisigError := func(err error) (*CreatedTx, stdaddr.Address, []byte, error) {
 		return nil, nil, nil, err
 	}
 
@@ -603,7 +603,7 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 	// Insert a multi-signature output, then insert this P2SH
 	// hash160 into the address manager and the transaction
 	// manager.
-	msScript, err := txscript.MultiSigScript(pubkeys, int(nRequired))
+	msScript, err := txscript.MultiSigScript(int(nRequired), pubkeys...)
 	if err != nil {
 		return txToMultisigError(errors.E(op, err))
 	}
@@ -614,14 +614,11 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 			return txToMultisigError(errors.E(op, err))
 		}
 	}
-	scAddr, err := dcrutil.NewAddressScriptHash(msScript, w.chainParams)
+	scAddr, err := stdaddr.NewAddressScriptHashV0(msScript, w.chainParams)
 	if err != nil {
 		return txToMultisigError(errors.E(op, err))
 	}
-	p2shScript, vers, err := addressScript(scAddr)
-	if err != nil {
-		return txToMultisigError(errors.E(op, err))
-	}
+	vers, p2shScript := scAddr.PaymentScript()
 	txOut := &wire.TxOut{
 		Value:    int64(amount),
 		PkScript: p2shScript,
@@ -647,12 +644,16 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 			ctx:     ctx,
 		}
 
-		pkScript, _, err := changeSource.Script()
+		pkScript, vers, err := changeSource.Script()
 		if err != nil {
 			return txToMultisigError(err)
 		}
 		change := totalInput - (amount + feeEst)
-		msgtx.AddTxOut(wire.NewTxOut(int64(change), pkScript))
+		msgtx.AddTxOut(&wire.TxOut{
+			Value:    int64(change),
+			Version:  vers,
+			PkScript: pkScript,
+		})
 	}
 
 	err = w.signP2PKHMsgTx(msgtx, forSigning, addrmgrNs)
@@ -672,7 +673,7 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 
 	// Request updates from dcrd for new transactions sent to this
 	// script hash address.
-	err = n.LoadTxFilter(ctx, false, []dcrutil.Address{scAddr}, nil)
+	err = n.LoadTxFilter(ctx, false, []stdaddr.Address{scAddr}, nil)
 	if err != nil {
 		return txToMultisigError(errors.E(op, err))
 	}
@@ -724,7 +725,7 @@ func creditScripts(credits []Input) [][]byte {
 
 // compressWallet compresses all the utxos in a wallet into a single change
 // address. For use when it becomes dusty.
-func (w *Wallet) compressWallet(ctx context.Context, op errors.Op, maxNumIns int, account uint32, changeAddr dcrutil.Address) (*chainhash.Hash, error) {
+func (w *Wallet) compressWallet(ctx context.Context, op errors.Op, maxNumIns int, account uint32, changeAddr stdaddr.Address) (*chainhash.Hash, error) {
 	defer w.lockedOutpointMu.Unlock()
 	w.lockedOutpointMu.Lock()
 
@@ -741,7 +742,7 @@ func (w *Wallet) compressWallet(ctx context.Context, op errors.Op, maxNumIns int
 }
 
 func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx walletdb.ReadWriteTx, maxNumIns int, account uint32,
-	changeAddr dcrutil.Address) (*chainhash.Hash, error) {
+	changeAddr stdaddr.Address) (*chainhash.Hash, error) {
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 
@@ -782,10 +783,7 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 			return nil, errors.E(op, err)
 		}
 	}
-	pkScript, vers, err := addressScript(changeAddr)
-	if err != nil {
-		return nil, errors.E(op, errors.Bug, err)
-	}
+	vers, pkScript := changeAddr.PaymentScript()
 	msgtx := wire.NewMsgTx()
 	msgtx.AddTxOut(&wire.TxOut{
 		Value:    0,
@@ -864,8 +862,8 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 // makeTicket creates a ticket from a split transaction output. It can optionally
 // create a ticket that pays a fee to a pool if a pool input and pool address are
 // passed.
-func makeTicket(params *chaincfg.Params, inputPool *Input, input *Input, addrVote dcrutil.Address,
-	addrSubsidy dcrutil.Address, ticketCost int64, addrPool dcrutil.Address) (*wire.MsgTx, error) {
+func makeTicket(params *chaincfg.Params, inputPool *Input, input *Input, addrVote stdaddr.StakeAddress,
+	addrSubsidy stdaddr.StakeAddress, ticketCost int64, addrPool stdaddr.StakeAddress) (*wire.MsgTx, error) {
 
 	mtx := wire.NewMsgTx()
 
@@ -882,10 +880,7 @@ func makeTicket(params *chaincfg.Params, inputPool *Input, input *Input, addrVot
 	if addrVote == nil {
 		return nil, errors.E(errors.Invalid, "nil vote address")
 	}
-	pkScript, vers, err := voteRightsScript(addrVote)
-	if err != nil {
-		return nil, errors.E(errors.Invalid, errors.Errorf("vote address %v", addrVote))
-	}
+	vers, pkScript := addrVote.VotingRightsScript()
 
 	txOut := &wire.TxOut{
 		Value:    ticketCost,
@@ -897,6 +892,7 @@ func makeTicket(params *chaincfg.Params, inputPool *Input, input *Input, addrVot
 	// Obtain the commitment amounts.
 	var amountsCommitted []int64
 	userSubsidyNullIdx := 0
+	var err error
 	if addrPool == nil {
 		_, amountsCommitted, err = stake.SStxNullOutputAmounts(
 			[]int64{input.PrevOut.Value}, []int64{0}, ticketCost)
@@ -915,21 +911,16 @@ func makeTicket(params *chaincfg.Params, inputPool *Input, input *Input, addrVot
 
 	// Zero value P2PKH addr.
 	zeroed := [20]byte{}
-	addrZeroed, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
+	addrZeroed, err := stdaddr.NewAddressPubKeyHashEcdsaSecp256k1V0(zeroed[:], params)
 	if err != nil {
 		return nil, err
 	}
 
 	// 2. (Optional) If we're passed a pool address, make an extra
 	// commitment to the pool.
-	limits := uint16(defaultTicketFeeLimits)
 	if addrPool != nil {
-		pkScript, vers, err := rewardCommitment(addrPool,
-			dcrutil.Amount(amountsCommitted[0]), limits)
-		if err != nil {
-			return nil, errors.E(errors.Invalid,
-				errors.Errorf("pool commitment address %v", addrPool))
-		}
+		vers, pkScript := addrPool.RewardCommitmentScript(
+			amountsCommitted[0], 0, revocationFeeLimit)
 		txout := &wire.TxOut{
 			Value:    0,
 			PkScript: pkScript,
@@ -939,11 +930,7 @@ func makeTicket(params *chaincfg.Params, inputPool *Input, input *Input, addrVot
 
 		// Create a new script which pays to the provided address with an
 		// SStx change tagged output.
-		pkScript, vers, err = ticketChangeScript(addrZeroed)
-		if err != nil {
-			return nil, errors.E(errors.Bug,
-				errors.Errorf("ticket change address %v", addrZeroed))
-		}
+		vers, pkScript = addrZeroed.StakeChangeScript()
 
 		txOut = &wire.TxOut{
 			Value:    0,
@@ -958,8 +945,8 @@ func makeTicket(params *chaincfg.Params, inputPool *Input, input *Input, addrVot
 	// Create an OP_RETURN push containing the pubkeyhash to send rewards to.
 	// Apply limits to revocations for fees while not allowing
 	// fees for votes.
-	pkScript, vers, err = rewardCommitment(addrSubsidy,
-		dcrutil.Amount(amountsCommitted[userSubsidyNullIdx]), limits)
+	vers, pkScript = addrSubsidy.RewardCommitmentScript(
+		amountsCommitted[userSubsidyNullIdx], 0, revocationFeeLimit)
 	if err != nil {
 		return nil, errors.E(errors.Invalid,
 			errors.Errorf("commitment address %v", addrSubsidy))
@@ -973,11 +960,7 @@ func makeTicket(params *chaincfg.Params, inputPool *Input, input *Input, addrVot
 
 	// Create a new script which pays to the provided address with an
 	// SStx change tagged output.
-	pkScript, vers, err = ticketChangeScript(addrZeroed)
-	if err != nil {
-		return nil, errors.E(errors.Bug,
-			errors.Errorf("ticket change address %v", addrZeroed))
-	}
+	vers, pkScript = addrZeroed.StakeChangeScript()
 	txOut = &wire.TxOut{
 		Value:    0,
 		PkScript: pkScript,
@@ -1122,11 +1105,7 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 		return
 	}
 
-	splitPkScript, vers, err := addressScript(splitTxAddr)
-	if err != nil {
-		err = errors.E(errors.Bug, errors.Errorf("split address %v", splitTxAddr))
-		return
-	}
+	vers, splitPkScript := splitTxAddr.PaymentScript()
 
 	// Create the split transaction by using txToOutputs. This varies
 	// based upon whether or not the user is using a stake pool or not.
@@ -1183,11 +1162,7 @@ func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, need
 		return
 	}
 
-	splitPkScript, vers, err := addressScript(splitTxAddr)
-	if err != nil {
-		err = errors.E(errors.Bug, errors.Errorf("split address %v", splitTxAddr))
-		return
-	}
+	vers, splitPkScript := splitTxAddr.PaymentScript()
 
 	// Create the split transaction by using authorTx. This varies
 	// based upon whether or not the user is using a stake pool or not.
@@ -1273,10 +1248,20 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		return nil, errors.E(op, errors.Invalid, "expiry height must be above next block height")
 	}
 
-	addrFunc := func(op errors.Op, account, branch uint32) (dcrutil.Address, error) {
+	stakeAddrFunc := func(op errors.Op, account, branch uint32) (stdaddr.StakeAddress, error) {
 		const accountName = "" // not used, so can be faked.
-		return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil), accountName,
+		a, err := w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil), accountName,
 			account, branch, WithGapPolicyIgnore())
+		if err != nil {
+			return nil, err
+		}
+		switch a := a.(type) {
+		case stdaddr.StakeAddress:
+			return a, nil
+		default:
+			return nil, errors.E(errors.Invalid, "account does "+
+				"not return compatible stake addresses")
+		}
 	}
 
 	if w.addressReuse && req.CSPPServer == "" {
@@ -1285,8 +1270,13 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		if err != nil {
 			err = errors.E(op, err)
 		}
-		addrFunc = func(errors.Op, uint32, uint32) (dcrutil.Address, error) {
-			return addr, err
+		stakeAddr, ok := addr.(stdaddr.StakeAddress)
+		if !ok {
+			err = errors.E(op, errors.Invalid, "account does not return "+
+				"compatible stake addresses")
+		}
+		stakeAddrFunc = func(errors.Op, uint32, uint32) (stdaddr.StakeAddress, error) {
+			return stakeAddr, err
 		}
 	}
 
@@ -1319,9 +1309,9 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 
 	// The stake submission pkScript is tagged by an OP_SSTX.
 	switch req.VotingAddress.(type) {
-	case *dcrutil.AddressScriptHash:
+	case *stdaddr.AddressScriptHashV0:
 		stakeSubmissionPkScriptSize = txsizes.P2SHPkScriptSize + 1
-	case *dcrutil.AddressPubKeyHash, PubKeyHashAddress, nil:
+	case *stdaddr.AddressPubKeyHashEcdsaSecp256k1V0, PubKeyHashAddress, nil:
 		stakeSubmissionPkScriptSize = txsizes.P2PKHPkScriptSize + 1
 	default:
 		return nil, errors.E(op, errors.Invalid,
@@ -1654,7 +1644,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			addrVote = w.ticketAddress
 		}
 		if addrVote == nil {
-			addrVote, err = addrFunc(op, req.VotingAccount, 1)
+			addrVote, err = stakeAddrFunc(op, req.VotingAccount, 1)
 			if err != nil {
 				return nil, err
 			}
@@ -1665,7 +1655,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			subsidyAccount = req.MixedAccount
 			branch = req.MixedAccountBranch
 		}
-		addrSubsidy, err := addrFunc(op, subsidyAccount, branch)
+		addrSubsidy, err := stakeAddrFunc(op, subsidyAccount, branch)
 		if err != nil {
 			return nil, err
 		}
@@ -1928,7 +1918,11 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 			continue
 		}
 
-		txOut := wire.NewTxOut(int64(output.Amount), output.PkScript)
+		txOut := &wire.TxOut{
+			Value:    int64(output.Amount),
+			Version:  wire.DefaultPkScriptVersion, // XXX
+			PkScript: output.PkScript,
+		}
 		eligible = append(eligible, Input{
 			OutPoint: output.OutPoint,
 			PrevOut:  *txOut,
@@ -2017,7 +2011,11 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 			continue
 		}
 
-		txOut := wire.NewTxOut(int64(output.Amount), output.PkScript)
+		txOut := &wire.TxOut{
+			Value:    int64(output.Amount),
+			Version:  wire.DefaultPkScriptVersion, // XXX
+			PkScript: output.PkScript,
+		}
 		eligible = append(eligible, Input{
 			OutPoint: output.OutPoint,
 			PrevOut:  *txOut,
@@ -2051,7 +2049,7 @@ func (w *Wallet) signP2PKHMsgTx(msgtx *wire.MsgTx, prevOutputs []Input, addrmgrN
 		if len(addrs) != 1 {
 			continue
 		}
-		apkh, ok := addrs[0].(*dcrutil.AddressPubKeyHash)
+		apkh, ok := addrs[0].(*stdaddr.AddressPubKeyHashEcdsaSecp256k1V0)
 		if !ok {
 			return errors.E(errors.Bug, "previous output address is not P2PKH")
 		}
@@ -2062,7 +2060,7 @@ func (w *Wallet) signP2PKHMsgTx(msgtx *wire.MsgTx, prevOutputs []Input, addrmgrN
 		}
 		defer done()
 
-		sigscript, err := txscript.SignatureScript(msgtx, i, output.PrevOut.PkScript,
+		sigscript, err := sign.SignatureScript(msgtx, i, output.PrevOut.PkScript,
 			txscript.SigHashAll, privKey.Serialize(), dcrec.STEcdsaSecp256k1, true)
 		if err != nil {
 			return errors.E(errors.Op("txscript.SignatureScript"), err)
@@ -2087,7 +2085,7 @@ func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurch
 
 	// Prepare functions to look up private key and script secrets so signing
 	// can be performed.
-	var getKey txscript.KeyClosure = func(addr dcrutil.Address) ([]byte, dcrec.SignatureType, bool, error) {
+	var getKey sign.KeyClosure = func(addr stdaddr.Address) ([]byte, dcrec.SignatureType, bool, error) {
 		key, done, err := w.manager.PrivateKey(addrmgrNs, addr)
 		if err != nil {
 			return nil, 0, false, err
@@ -2097,7 +2095,7 @@ func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurch
 		// secp256k1 pubkeys are always compressed in Decred
 		return key.Serialize(), dcrec.STEcdsaSecp256k1, true, nil
 	}
-	var getScript txscript.ScriptClosure = func(addr dcrutil.Address) ([]byte, error) {
+	var getScript sign.ScriptClosure = func(addr stdaddr.Address) ([]byte, error) {
 		return w.manager.RedeemScript(addrmgrNs, addr)
 	}
 
@@ -2111,7 +2109,7 @@ func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurch
 
 	// Sign the input.
 	redeemTicketScript := ticketPurchase.TxOut[0].PkScript
-	signedScript, err := txscript.SignTxOutput(w.chainParams, tx, inputToSign,
+	signedScript, err := sign.SignTxOutput(w.chainParams, tx, inputToSign,
 		redeemTicketScript, txscript.SigHashAll, getKey, getScript,
 		tx.TxIn[inputToSign].SignatureScript, true) // Yes treasury
 	if err != nil {
@@ -2183,25 +2181,42 @@ func createUnsignedVote(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx,
 	// This function never errors.
 	blockRefScript, _ := txscript.GenerateSSGenBlockRef(*blockHash,
 		uint32(blockHeight))
-	vote.AddTxOut(wire.NewTxOut(0, blockRefScript))
+	vote.AddTxOut(&wire.TxOut{
+		Value:    0,
+		Version:  wire.DefaultPkScriptVersion, // XXX
+		PkScript: blockRefScript,
+	})
 
 	// The second output contains the votebits encode as a null data script.
 	voteScript, err := newVoteScript(voteBits)
 	if err != nil {
 		return nil, err
 	}
-	vote.AddTxOut(wire.NewTxOut(0, voteScript))
+	vote.AddTxOut(&wire.TxOut{
+		Value:    0,
+		Version:  wire.DefaultPkScriptVersion, // XXX
+		PkScript: voteScript,
+	})
 
 	// All remaining outputs pay to the output destinations and amounts tagged
 	// by the ticket purchase.
 	for i, hash160 := range ticketHash160s {
-		scriptFn := txscript.PayToSSGenPKHDirect
+		var addr stdaddr.StakeAddress
+		var err error
 		if ticketPayKinds[i] { // P2SH
-			scriptFn = txscript.PayToSSGenSHDirect
+			addr, err = stdaddr.NewAddressScriptHashV0FromHash(hash160, params)
+		} else { // P2PKH
+			addr, err = stdaddr.NewAddressPubKeyHashEcdsaSecp256k1V0(hash160, params)
 		}
-		// Error is checking for a nil hash160, just ignore it.
-		script, _ := scriptFn(hash160)
-		vote.AddTxOut(wire.NewTxOut(voteRewardValues[i], script))
+		if err != nil {
+			return nil, err
+		}
+		vers, script := addr.PayVoteCommitmentScript()
+		vote.AddTxOut(&wire.TxOut{
+			Value:    voteRewardValues[i],
+			Version:  vers,
+			PkScript: script,
+		})
 	}
 
 	return vote, nil
@@ -2211,7 +2226,9 @@ func createUnsignedVote(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx,
 // revokes a missed or expired ticket.  Revocations must carry a relay fee and
 // this function can error if the revocation contains no suitable output to
 // decrease the estimated relay fee from.
-func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx, feePerKB dcrutil.Amount) (*wire.MsgTx, error) {
+func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx,
+	feePerKB dcrutil.Amount, params *chaincfg.Params) (*wire.MsgTx, error) {
+
 	// Parse the ticket purchase transaction to determine the required output
 	// destinations for vote rewards or revocations.
 	ticketPayKinds, ticketHash160s, ticketValues, _, _, _ :=
@@ -2236,13 +2253,22 @@ func createUnsignedRevocation(ticketHash *chainhash.Hash, ticketPurchase *wire.M
 	// All remaining outputs pay to the output destinations and amounts tagged
 	// by the ticket purchase.
 	for i, hash160 := range ticketHash160s {
-		scriptFn := txscript.PayToSSRtxPKHDirect
+		var addr stdaddr.StakeAddress
+		var err error
 		if ticketPayKinds[i] { // P2SH
-			scriptFn = txscript.PayToSSRtxSHDirect
+			addr, err = stdaddr.NewAddressScriptHashV0FromHash(hash160, params)
+		} else { // P2PKH
+			addr, err = stdaddr.NewAddressPubKeyHashEcdsaSecp256k1V0(hash160, params)
 		}
-		// Error is checking for a nil hash160, just ignore it.
-		script, _ := scriptFn(hash160)
-		revocation.AddTxOut(wire.NewTxOut(revocationValues[i], script))
+		if err != nil {
+			return nil, err
+		}
+		vers, script := addr.PayRevokeCommitmentScript()
+		revocation.AddTxOut(&wire.TxOut{
+			Value:    revocationValues[i],
+			Version:  vers,
+			PkScript: script,
+		})
 	}
 
 	// Revocations must pay a fee but do so by decreasing one of the output

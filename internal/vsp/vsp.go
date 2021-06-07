@@ -13,6 +13,7 @@ import (
 	"decred.org/dcrwallet/v2/wallet"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -276,8 +277,8 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choice
 // TicketInfo stores per-ticket info tracked by a VSP Client instance.
 type TicketInfo struct {
 	TicketHash     chainhash.Hash
-	CommitmentAddr dcrutil.Address
-	VotingAddr     dcrutil.Address
+	CommitmentAddr stdaddr.StakeAddress
+	VotingAddr     stdaddr.StakeAddress
 	State          uint32
 	Fee            dcrutil.Amount
 	FeeHash        chainhash.Hash

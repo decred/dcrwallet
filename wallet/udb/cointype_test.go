@@ -12,8 +12,8 @@ import (
 	"decred.org/dcrwallet/v2/internal/compat"
 	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 )
 
 func TestCoinTypes(t *testing.T) {
@@ -40,7 +40,7 @@ func TestCoinTypes(t *testing.T) {
 	}
 }
 
-func deriveChildAddress(accountExtKey *hdkeychain.ExtendedKey, branch, child uint32, params *chaincfg.Params) (dcrutil.Address, error) {
+func deriveChildAddress(accountExtKey *hdkeychain.ExtendedKey, branch, child uint32, params *chaincfg.Params) (stdaddr.Address, error) {
 	branchKey, err := accountExtKey.Child(branch)
 	if err != nil {
 		return nil, err
@@ -107,6 +107,8 @@ func TestCoinTypeUpgrade(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	slip0044Account0Address0Hash160 := slip0044Account0Address0.(stdaddr.Hash160er).Hash160()
+	slip0044Account1Address0Hash160 := slip0044Account1Address0.(stdaddr.Hash160er).Hash160()
 
 	err = walletdb.Update(ctx, db, func(dbtx walletdb.ReadWriteTx) error {
 		ns := dbtx.ReadWriteBucket(waddrmgrBucketKey)
@@ -170,7 +172,7 @@ func TestCoinTypeUpgrade(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !m.ExistsHash160(ns, slip0044Account0Address0.Hash160()[:]) {
+		if !m.ExistsHash160(ns, slip0044Account0Address0Hash160[:]) {
 			t.Fatalf("upgraded database does not record SLIP0044-derived account 0 branch 0 address 0")
 		}
 
@@ -191,7 +193,7 @@ func TestCoinTypeUpgrade(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !m.ExistsHash160(ns, slip0044Account1Address0.Hash160()[:]) {
+		if !m.ExistsHash160(ns, slip0044Account1Address0Hash160[:]) {
 			t.Fatalf("upgraded database does not record SLIP0044-derived account 1 branch 0 address 0")
 		}
 

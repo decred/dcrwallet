@@ -21,9 +21,9 @@ import (
 	_ "decred.org/dcrwallet/v2/wallet/drivers/bdb"
 	"decred.org/dcrwallet/v2/walletseed"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -130,7 +130,8 @@ func createWallet(ctx context.Context, cfg *config) error {
 			return err
 		}
 		pkh := dcrutil.Hash160(child.SerializedPubKey())
-		addr, err := dcrutil.NewAddressPubKeyHash(pkh, chaincfg.SimNetParams(), dcrec.STEcdsaSecp256k1)
+		addr, err := stdaddr.NewAddressPubKeyHashEcdsaSecp256k1V0(pkh,
+			chaincfg.SimNetParams())
 		if err != nil {
 			return err
 		}

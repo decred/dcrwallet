@@ -19,6 +19,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -85,7 +86,7 @@ func lookupInputAccount(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails,
 }
 
 func lookupOutputChain(dbtx walletdb.ReadTx, w *Wallet, details *udb.TxDetails,
-	cred udb.CreditRecord) (account uint32, internal bool, address dcrutil.Address,
+	cred udb.CreditRecord) (account uint32, internal bool, address stdaddr.Address,
 	amount int64, outputScript []byte) {
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
@@ -457,7 +458,7 @@ type TransactionSummaryOutput struct {
 	Account      uint32
 	Internal     bool
 	Amount       dcrutil.Amount
-	Address      dcrutil.Address
+	Address      stdaddr.Address
 	OutputScript []byte
 }
 

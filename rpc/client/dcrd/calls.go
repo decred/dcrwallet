@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/gcs/v3"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 	"github.com/jrick/bitset"
 	"github.com/jrick/wsrpc/v2"
@@ -51,7 +52,7 @@ func hashSliceToStrings(hashes []*chainhash.Hash) []string {
 	return s
 }
 
-func addrSliceToStrings(addrs []dcrutil.Address) []string {
+func addrSliceToStrings(addrs []stdaddr.Address) []string {
 	s := make([]string, len(addrs))
 	for i, a := range addrs {
 		s[i] = a.String()
@@ -127,7 +128,7 @@ func (r *RPC) ExistsExpiredMissedTickets(ctx context.Context, tickets []*chainha
 // UsedAddresses returns a bitset identifying whether each address has been
 // publically used on the blockchain.  This feature requires the optional dcrd
 // existsaddress index to be enabled.
-func (r *RPC) UsedAddresses(ctx context.Context, addrs []dcrutil.Address) (bitset.Bytes, error) {
+func (r *RPC) UsedAddresses(ctx context.Context, addrs []stdaddr.Address) (bitset.Bytes, error) {
 	const op errors.Op = "dcrd.UsedAddresses"
 	addrArray, _ := json.Marshal(addrSliceToStrings(addrs))
 	var bits bitset.Bytes
@@ -341,7 +342,7 @@ func (r *RPC) Headers(ctx context.Context, blockLocators []*chainhash.Hash, hash
 // LoadTxFilter loads or reloads the precise server-side transaction filter used
 // for relevant transaction notifications and rescans.
 // Addresses and outpoints are added to an existing filter if reload is false.
-func (r *RPC) LoadTxFilter(ctx context.Context, reload bool, addrs []dcrutil.Address, outpoints []wire.OutPoint) error {
+func (r *RPC) LoadTxFilter(ctx context.Context, reload bool, addrs []stdaddr.Address, outpoints []wire.OutPoint) error {
 	const op errors.Op = "dcrd.LoadTxFilter"
 
 	type outpoint struct {

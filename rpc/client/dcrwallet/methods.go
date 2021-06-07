@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -87,7 +88,7 @@ func (c *Client) ListUnspentMinMax(ctx context.Context, minConf, maxConf int) ([
 // ListUnspentMinMaxAddresses returns all unspent transaction outputs that pay
 // to any of specified addresses in a wallet using the specified number of
 // minimum and maximum number of confirmations as a filter.
-func (c *Client) ListUnspentMinMaxAddresses(ctx context.Context, minConf, maxConf int, addrs []dcrutil.Address) ([]types.ListUnspentResult, error) {
+func (c *Client) ListUnspentMinMaxAddresses(ctx context.Context, minConf, maxConf int, addrs []stdaddr.Address) ([]types.ListUnspentResult, error) {
 	var res []types.ListUnspentResult
 	err := c.Call(ctx, "listunspent", &res, minConf, maxConf, marshalAddresses(addrs))
 	return res, err
@@ -167,7 +168,7 @@ func (c *Client) ListLockUnspent(ctx context.Context) ([]*wire.OutPoint, error) 
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) SendToAddress(ctx context.Context, address dcrutil.Address, amount dcrutil.Amount) (*chainhash.Hash, error) {
+func (c *Client) SendToAddress(ctx context.Context, address stdaddr.Address, amount dcrutil.Amount) (*chainhash.Hash, error) {
 	var res *chainhash.Hash
 	err := c.Call(ctx, "sendtoaddress", unmarshalHash(&res), address.String(), amount.ToCoin())
 	return res, err
@@ -181,7 +182,7 @@ func (c *Client) SendToAddress(ctx context.Context, address dcrutil.Address, amo
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) SendFrom(ctx context.Context, fromAccount string, toAddress dcrutil.Address, amount dcrutil.Amount) (*chainhash.Hash, error) {
+func (c *Client) SendFrom(ctx context.Context, fromAccount string, toAddress stdaddr.Address, amount dcrutil.Amount) (*chainhash.Hash, error) {
 	var res *chainhash.Hash
 	err := c.Call(ctx, "sendfrom", unmarshalHash(&res), fromAccount, toAddress.String(),
 		amount.ToCoin())
@@ -196,7 +197,7 @@ func (c *Client) SendFrom(ctx context.Context, fromAccount string, toAddress dcr
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) SendFromMinConf(ctx context.Context, fromAccount string, toAddress dcrutil.Address, amount dcrutil.Amount, minConfirms int) (*chainhash.Hash, error) {
+func (c *Client) SendFromMinConf(ctx context.Context, fromAccount string, toAddress stdaddr.Address, amount dcrutil.Amount, minConfirms int) (*chainhash.Hash, error) {
 	var res *chainhash.Hash
 	err := c.Call(ctx, "sendfrom", unmarshalHash(&res), fromAccount, toAddress.String(),
 		amount.ToCoin(), minConfirms)
@@ -211,7 +212,7 @@ func (c *Client) SendFromMinConf(ctx context.Context, fromAccount string, toAddr
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) SendMany(ctx context.Context, fromAccount string, amounts map[dcrutil.Address]dcrutil.Amount) (*chainhash.Hash, error) {
+func (c *Client) SendMany(ctx context.Context, fromAccount string, amounts map[stdaddr.Address]dcrutil.Amount) (*chainhash.Hash, error) {
 	amountsObject := make(map[string]float64)
 	for addr, amount := range amounts {
 		amountsObject[addr.String()] = amount.ToCoin()
@@ -229,7 +230,7 @@ func (c *Client) SendMany(ctx context.Context, fromAccount string, amounts map[d
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) SendManyMinConf(ctx context.Context, fromAccount string, amounts map[dcrutil.Address]dcrutil.Amount, minConfirms int) (*chainhash.Hash, error) {
+func (c *Client) SendManyMinConf(ctx context.Context, fromAccount string, amounts map[stdaddr.Address]dcrutil.Amount, minConfirms int) (*chainhash.Hash, error) {
 	amountsObject := make(map[string]float64)
 	for addr, amount := range amounts {
 		amountsObject[addr.String()] = amount.ToCoin()
@@ -243,8 +244,8 @@ func (c *Client) SendManyMinConf(ctx context.Context, fromAccount string, amount
 // parameter, a nil parameter indicates the default value for the optional
 // parameter.
 func (c *Client) PurchaseTicket(ctx context.Context, fromAccount string,
-	spendLimit dcrutil.Amount, minConf *int, ticketAddress dcrutil.Address,
-	numTickets *int, poolAddress dcrutil.Address, poolFees *dcrutil.Amount,
+	spendLimit dcrutil.Amount, minConf *int, ticketAddress stdaddr.Address,
+	numTickets *int, poolAddress stdaddr.Address, poolFees *dcrutil.Amount,
 	expiry *int, ticketChange *bool, ticketFee *dcrutil.Amount) ([]*chainhash.Hash, error) {
 
 	params := make([]interface{}, 2, 10)
@@ -280,8 +281,8 @@ func (c *Client) PurchaseTicket(ctx context.Context, fromAccount string,
 
 // AddMultisigAddress adds a multisignature address that requires the specified
 // number of signatures for the provided addresses to the wallet.
-func (c *Client) AddMultisigAddress(ctx context.Context, requiredSigs int, addresses []dcrutil.Address, account string) (dcrutil.Address, error) {
-	var res dcrutil.Address
+func (c *Client) AddMultisigAddress(ctx context.Context, requiredSigs int, addresses []stdaddr.Address, account string) (stdaddr.Address, error) {
+	var res stdaddr.Address
 	err := c.Call(ctx, "addmultisigaddress", unmarshalAddress(&res, c.net), requiredSigs,
 		marshalAddresses(addresses), account)
 	return res, err
@@ -290,7 +291,7 @@ func (c *Client) AddMultisigAddress(ctx context.Context, requiredSigs int, addre
 // CreateMultisig creates a multisignature address that requires the specified
 // number of signatures for the provided addresses and returns the
 // multisignature address and script needed to redeem it.
-func (c *Client) CreateMultisig(ctx context.Context, requiredSigs int, addresses []dcrutil.Address) (*types.CreateMultiSigResult, error) {
+func (c *Client) CreateMultisig(ctx context.Context, requiredSigs int, addresses []stdaddr.Address) (*types.CreateMultiSigResult, error) {
 	res := new(types.CreateMultiSigResult)
 	err := c.Call(ctx, "createmultisig", res, requiredSigs, marshalAddresses(addresses))
 	return res, err
@@ -314,16 +315,16 @@ const (
 )
 
 // GetNewAddress returns a new address.
-func (c *Client) GetNewAddress(ctx context.Context, account string) (dcrutil.Address, error) {
-	var addr dcrutil.Address
+func (c *Client) GetNewAddress(ctx context.Context, account string) (stdaddr.Address, error) {
+	var addr stdaddr.Address
 	err := c.Call(ctx, "getnewaddress", unmarshalAddress(&addr, c.net), account)
 	return addr, err
 }
 
 // GetNewAddressGapPolicy returns a new address while allowing callers to
 // control the BIP0044 unused address gap limit policy.
-func (c *Client) GetNewAddressGapPolicy(ctx context.Context, account string, gapPolicy GapPolicy) (dcrutil.Address, error) {
-	var addr dcrutil.Address
+func (c *Client) GetNewAddressGapPolicy(ctx context.Context, account string, gapPolicy GapPolicy) (stdaddr.Address, error) {
+	var addr stdaddr.Address
 	err := c.Call(ctx, "getnewaddress", unmarshalAddress(&addr, c.net), account, string(gapPolicy))
 	return addr, err
 }
@@ -331,22 +332,22 @@ func (c *Client) GetNewAddressGapPolicy(ctx context.Context, account string, gap
 // GetRawChangeAddress returns a new address for receiving change that will be
 // associated with the provided account.  Note that this is only for raw
 // transactions and NOT for normal use.
-func (c *Client) GetRawChangeAddress(ctx context.Context, account string, net dcrutil.AddressParams) (dcrutil.Address, error) {
-	var addr dcrutil.Address
+func (c *Client) GetRawChangeAddress(ctx context.Context, account string, net stdaddr.AddressParams) (stdaddr.Address, error) {
+	var addr stdaddr.Address
 	err := c.Call(ctx, "getrawchangeaddress", unmarshalAddress(&addr, c.net), account)
 	return addr, err
 }
 
 // GetAccountAddress returns the current Decred address for receiving payments
 // to the specified account.
-func (c *Client) GetAccountAddress(ctx context.Context, account string) (dcrutil.Address, error) {
-	var addr dcrutil.Address
+func (c *Client) GetAccountAddress(ctx context.Context, account string) (stdaddr.Address, error) {
+	var addr stdaddr.Address
 	err := c.Call(ctx, "getaccountaddress", unmarshalAddress(&addr, c.net), account)
 	return addr, err
 }
 
 // GetAccount returns the account associated with the passed address.
-func (c *Client) GetAccount(ctx context.Context, address dcrutil.Address) (string, error) {
+func (c *Client) GetAccount(ctx context.Context, address stdaddr.Address) (string, error) {
 	var res string
 	err := c.Call(ctx, "getaccount", &res, address.String())
 	return res, err
@@ -354,8 +355,8 @@ func (c *Client) GetAccount(ctx context.Context, address dcrutil.Address) (strin
 
 // GetAddressesByAccount returns the list of addresses associated with the
 // passed account.
-func (c *Client) GetAddressesByAccount(ctx context.Context, account string) ([]dcrutil.Address, error) {
-	var addrs []dcrutil.Address
+func (c *Client) GetAddressesByAccount(ctx context.Context, account string) ([]stdaddr.Address, error) {
+	var addrs []stdaddr.Address
 	err := c.Call(ctx, "getaddressesbyaccount", unmarshalAddresses(&addrs, c.net), account)
 	return addrs, err
 }
@@ -366,7 +367,7 @@ func (c *Client) RenameAccount(ctx context.Context, oldAccount, newAccount strin
 }
 
 // ValidateAddress returns information about the given Decred address.
-func (c *Client) ValidateAddress(ctx context.Context, address dcrutil.Address) (*types.ValidateAddressWalletResult, error) {
+func (c *Client) ValidateAddress(ctx context.Context, address stdaddr.Address) (*types.ValidateAddressWalletResult, error) {
 	res := new(types.ValidateAddressWalletResult)
 	err := c.Call(ctx, "validateaddress", res, address.String())
 	return res, err
@@ -456,7 +457,7 @@ func (c *Client) GetUnconfirmedBalance(ctx context.Context, account string) (dcr
 //
 // See GetReceivedByAddressMinConf to override the minimum number of
 // confirmations.
-func (c *Client) GetReceivedByAddress(ctx context.Context, address dcrutil.Address) (dcrutil.Amount, error) {
+func (c *Client) GetReceivedByAddress(ctx context.Context, address stdaddr.Address) (dcrutil.Amount, error) {
 	var res dcrutil.Amount
 	err := c.Call(ctx, "getreceivedbyaddress", unmarshalAmount(&res), address.String())
 	return res, err
@@ -466,7 +467,7 @@ func (c *Client) GetReceivedByAddress(ctx context.Context, address dcrutil.Addre
 // address with at least the specified number of minimum confirmations.
 //
 // See GetReceivedByAddress to use the default minimum number of confirmations.
-func (c *Client) GetReceivedByAddressMinConf(ctx context.Context, address dcrutil.Address, minConfirms int) (dcrutil.Amount, error) {
+func (c *Client) GetReceivedByAddressMinConf(ctx context.Context, address stdaddr.Address, minConfirms int) (dcrutil.Amount, error) {
 	var res dcrutil.Amount
 	err := c.Call(ctx, "getreceivedbyaddress", unmarshalAmount(&res), address.String(), minConfirms)
 	return res, err
@@ -594,7 +595,7 @@ func (c *Client) WalletPassphraseChange(ctx context.Context, old, new string) er
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) SignMessage(ctx context.Context, address dcrutil.Address, message string) (string, error) {
+func (c *Client) SignMessage(ctx context.Context, address stdaddr.Address, message string) (string, error) {
 	var res string
 	err := c.Call(ctx, "signmessage", &res, address.String(), message)
 	return res, err
@@ -604,7 +605,7 @@ func (c *Client) SignMessage(ctx context.Context, address dcrutil.Address, messa
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) VerifyMessage(ctx context.Context, address dcrutil.Address, signature, message string) (bool, error) {
+func (c *Client) VerifyMessage(ctx context.Context, address stdaddr.Address, signature, message string) (bool, error) {
 	var res bool
 	err := c.Call(ctx, "verifymessage", &res, address.String(), signature, message)
 	return res, err
@@ -615,7 +616,7 @@ func (c *Client) VerifyMessage(ctx context.Context, address dcrutil.Address, sig
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) DumpPrivKey(ctx context.Context, address dcrutil.Address) (*dcrutil.WIF, error) {
+func (c *Client) DumpPrivKey(ctx context.Context, address stdaddr.Address) (*dcrutil.WIF, error) {
 	var res *dcrutil.WIF
 	err := c.Call(ctx, "dumpprivkey", unmarshalWIF(&res, c.net), address.String())
 	return res, err
@@ -760,7 +761,7 @@ func (c *Client) SetVoteChoice(ctx context.Context, agendaID, choiceID string) e
 // If the daemon server is queried, it returns a search of tickets in the
 // live ticket pool. If the wallet server is queried, it searches all tickets
 // owned by the wallet.
-func (c *Client) TicketsForAddress(ctx context.Context, addr dcrutil.Address) (*dcrdtypes.TicketsForAddressResult, error) {
+func (c *Client) TicketsForAddress(ctx context.Context, addr stdaddr.Address) (*dcrdtypes.TicketsForAddressResult, error) {
 	res := new(dcrdtypes.TicketsForAddressResult)
 	err := c.Call(ctx, "ticketsforaddress", res, addr.String())
 	return res, err
@@ -775,7 +776,7 @@ func (c *Client) WalletInfo(ctx context.Context) (*types.WalletInfoResult, error
 
 // ListAddressTransactions returns information about all transactions associated
 // with the provided addresses.
-func (c *Client) ListAddressTransactions(ctx context.Context, addresses []dcrutil.Address, account string) ([]types.ListTransactionsResult, error) {
+func (c *Client) ListAddressTransactions(ctx context.Context, addresses []stdaddr.Address, account string) ([]types.ListTransactionsResult, error) {
 	var res []types.ListTransactionsResult
 	err := c.Call(ctx, "listaddresstransactions", &res, marshalAddresses(addresses), account)
 	return res, err

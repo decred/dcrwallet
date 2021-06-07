@@ -18,8 +18,8 @@ import (
 	"decred.org/dcrwallet/v2/errors"
 	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 )
 
 // testContext is used to store context information about a running test which
@@ -79,10 +79,10 @@ func testManagedPubKeyAddress(tc *testContext, prefix string, gotAddr ManagedPub
 // provided by the passed managed script address matches the corresponding
 // fields in the provided expected address.
 func testManagedScriptAddress(tc *testContext, prefix string, gotAddr ManagedScriptAddress, wantAddr *expectedAddr) bool {
-	if !bytes.Equal(gotAddr.Address().ScriptAddress(),
+	if !bytes.Equal(gotAddr.AddrHash(),
 		dcrutil.Hash160(wantAddr.script)) {
 		tc.t.Errorf("%s Script: unexpected script  - got %x, want "+
-			"%x", prefix, gotAddr.Address().ScriptAddress(),
+			"%x", prefix, gotAddr.AddrHash(),
 			dcrutil.Hash160(wantAddr.script))
 		return false
 	}
@@ -101,9 +101,9 @@ func testAddress(tc *testContext, prefix string, gotAddr ManagedAddress, wantAdd
 		return false
 	}
 
-	if gotAddr.Address().Address() != wantAddr.address {
+	if gotAddr.Address().String() != wantAddr.address {
 		tc.t.Errorf("%s EncodeAddress: unexpected address - got %s, "+
-			"want %s", prefix, gotAddr.Address().Address(),
+			"want %s", prefix, gotAddr.Address().String(),
 			wantAddr.address)
 		return false
 	}
@@ -285,8 +285,8 @@ func testImportPrivateKey(tc *testContext, ns walletdb.ReadWriteBucket) {
 
 			// Use the Address API to retrieve each of the expected
 			// new addresses and ensure they're accurate.
-			utilAddr, err := dcrutil.NewAddressPubKeyHash(
-				test.expected.addressHash, chainParams, dcrec.STEcdsaSecp256k1)
+			utilAddr, err := stdaddr.NewAddressPubKeyHashEcdsaSecp256k1(0,
+				test.expected.addressHash, chainParams)
 			if err != nil {
 				tc.t.Fatalf("%s NewAddressPubKeyHash #%d (%s): "+
 					"unexpected error: %v", prefix, i, test.name, err)
@@ -299,7 +299,7 @@ func testImportPrivateKey(tc *testContext, ns walletdb.ReadWriteBucket) {
 				continue
 			}
 			if !testAddress(tc, taPrefix, ma, &test.expected) {
-				tc.t.Fatalf("testAddress for %v failed", ma.Address().String())
+				tc.t.Fatalf("testAddress for %v failed", ma.Address())
 			}
 		}
 	}
@@ -380,7 +380,7 @@ func testImportScript(tc *testContext, wb walletdb.ReadWriteBucket) {
 		}
 		if !testAddress(tc, prefix, addr, &test.expected) {
 			tc.t.Fatalf("%s: testAddress failed for %v", prefix,
-				addr.Address().String())
+				addr.Address())
 		}
 	}
 
@@ -393,7 +393,7 @@ func testImportScript(tc *testContext, wb walletdb.ReadWriteBucket) {
 
 			// Use the Address API to retrieve each of the expected
 			// new addresses and ensure they're accurate.
-			utilAddr, err := dcrutil.NewAddressScriptHash(test.in,
+			utilAddr, err := stdaddr.NewAddressScriptHashV0(test.in,
 				chainParams)
 			if err != nil {
 				tc.t.Fatalf("%s NewAddressScriptHash #%d (%s): "+
@@ -407,7 +407,7 @@ func testImportScript(tc *testContext, wb walletdb.ReadWriteBucket) {
 			}
 			if !testAddress(tc, taPrefix, ma, &test.expected) {
 				tc.t.Fatalf("%s: testAddress failed for %v", prefix,
-					ma.Address().String())
+					ma.Address())
 			}
 		}
 	}

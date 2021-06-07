@@ -212,11 +212,7 @@ func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, p Peer) er
 				return err
 			}
 			for i, addr := range addrs {
-				scr, _, err := addressScript(addr)
-				if err != nil {
-					log.Errorf("addressScript(%v): %v", addr, err)
-					continue
-				}
+				_, scr := addr.PaymentScript()
 				data = append(data, scr)
 				scrPaths[string(scr)] = scriptPath{
 					usageIndex: usageIndex,
@@ -452,11 +448,7 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blo
 				return 0, err
 			}
 			for _, a := range addrs {
-				script, _, err := addressScript(a)
-				if err != nil {
-					log.Warnf("Failed to create output script for address %v: %v", a, err)
-					continue
-				}
+				_, script := a.PaymentScript()
 				addrScriptAccts[string(script)] = acct
 				addrScripts = append(addrScripts, script)
 			}
@@ -465,11 +457,7 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blo
 				return 0, err
 			}
 			for _, a := range addrs {
-				script, _, err := addressScript(a)
-				if err != nil {
-					log.Warnf("Failed to create output script for address %v: %v", a, err)
-					continue
-				}
+				_, script := a.PaymentScript()
 				addrScriptAccts[string(script)] = acct
 				addrScripts = append(addrScripts, script)
 			}

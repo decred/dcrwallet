@@ -214,6 +214,7 @@ var helpDescsEnUS = map[string]string{
 	"getblockverboseresult-tx":                "The transaction hashes (only when verbosetx=false)",
 	"getblockverboseresult-rawtx":             "The transactions as JSON objects (only when verbosetx=true)",
 	"getblockverboseresult-time":              "The block time in seconds since 1 Jan 1970 GMT",
+	"getblockverboseresult-mediantime":        "The median block time over the last 11 blocks",
 	"getblockverboseresult-nonce":             "The block nonce",
 	"getblockverboseresult-bits":              "The bits which represent the block difficulty",
 	"getblockverboseresult-difficulty":        "The proof-of-work difficulty as a multiple of the minimum difficulty",
@@ -279,6 +280,7 @@ var helpDescsEnUS = map[string]string{
 	"scriptpubkeyresult-type":      "The type of the script (e.g. 'pubkeyhash')",
 	"scriptpubkeyresult-addresses": "The Decred addresses associated with this script",
 	"scriptpubkeyresult-commitamt": "The ticket commitment value if the script is for a staking commitment",
+	"scriptpubkeyresult-version":   "The script version",
 
 	// GetCFilterV2Cmd help.
 	"getcfilterv2--synopsis": "Returns the version 2 block filter for the given block along with the key required to query it for matches against committed scripts.",

@@ -6,8 +6,8 @@
 package udb
 
 import (
-	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 )
 
 // ManagedAddress is an interface that provides acces to information regarding
@@ -18,8 +18,8 @@ type ManagedAddress interface {
 	// Account returns the account the address is associated with.
 	Account() uint32
 
-	// Address returns a dcrutil.Address for the backing address.
-	Address() dcrutil.Address
+	// Address returns a stdaddr.Address for the backing address.
+	Address() stdaddr.Address
 
 	// AddrHash returns the key or script hash related to the address
 	AddrHash() []byte
@@ -63,7 +63,7 @@ type ManagedScriptAddress interface {
 type managedAddress struct {
 	manager  *Manager
 	account  uint32
-	address  *dcrutil.AddressPubKeyHash
+	address  *stdaddr.AddressPubKeyHashEcdsaSecp256k1V0
 	imported bool
 	internal bool
 	multisig bool
@@ -81,11 +81,11 @@ func (a *managedAddress) Account() uint32 {
 	return a.account
 }
 
-// Address returns the dcrutil.Address which represents the managed address.
+// Address returns the stdaddr.Address which represents the managed address.
 // This will be a pay-to-pubkey-hash address.
 //
 // This is part of the ManagedAddress interface implementation.
-func (a *managedAddress) Address() dcrutil.Address {
+func (a *managedAddress) Address() stdaddr.Address {
 	return a.address
 }
 
@@ -139,8 +139,7 @@ func (a *managedAddress) Index() uint32 {
 func newManagedAddressWithoutPrivKey(m *Manager, account uint32, pubKey []byte) (*managedAddress, error) {
 	// Create a pay-to-pubkey-hash address from the public key.
 	pubKeyHash := dcrutil.Hash160(pubKey)
-	address, err := dcrutil.NewAddressPubKeyHash(pubKeyHash, m.chainParams,
-		dcrec.STEcdsaSecp256k1)
+	address, err := stdaddr.NewAddressPubKeyHashEcdsaSecp256k1V0(pubKeyHash, m.chainParams)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +159,7 @@ func newManagedAddressWithoutPrivKey(m *Manager, account uint32, pubKey []byte) 
 type scriptAddress struct {
 	manager      *Manager
 	account      uint32
-	address      *dcrutil.AddressScriptHash
+	address      *stdaddr.AddressScriptHashV0
 	redeemScript []byte
 }
 
@@ -175,11 +174,11 @@ func (a *scriptAddress) Account() uint32 {
 	return a.account
 }
 
-// Address returns the dcrutil.Address which represents the managed address.
+// Address returns the stdaddr.Address which represents the managed address.
 // This will be a pay-to-script-hash address.
 //
 // This is part of the ManagedAddress interface implementation.
-func (a *scriptAddress) Address() dcrutil.Address {
+func (a *scriptAddress) Address() stdaddr.Address {
 	return a.address
 }
 
@@ -222,7 +221,7 @@ func (a *scriptAddress) RedeemScript() (version uint16, script []byte) {
 
 // newScriptAddress initializes and returns a new pay-to-script-hash address.
 func newScriptAddress(m *Manager, account uint32, scriptHash, redeemScript []byte) (*scriptAddress, error) {
-	address, err := dcrutil.NewAddressScriptHashFromHash(scriptHash,
+	address, err := stdaddr.NewAddressScriptHashV0FromHash(scriptHash,
 		m.chainParams)
 	if err != nil {
 		return nil, err

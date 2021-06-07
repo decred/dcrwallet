@@ -17,6 +17,7 @@ import (
 	_ "decred.org/dcrwallet/v2/wallet/drivers/bdb" // driver loaded during init
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 )
 
 const (
@@ -55,8 +56,8 @@ type Loader struct {
 type StakeOptions struct {
 	VotingEnabled       bool
 	AddressReuse        bool
-	VotingAddress       dcrutil.Address
-	PoolAddress         dcrutil.Address
+	VotingAddress       stdaddr.StakeAddress
+	PoolAddress         stdaddr.StakeAddress
 	PoolFees            float64
 	StakePoolColdExtKey string
 }

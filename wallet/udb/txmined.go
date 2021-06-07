@@ -25,6 +25,7 @@ import (
 	gcs2 "github.com/decred/dcrd/gcs/v3"
 	"github.com/decred/dcrd/gcs/v3/blockcf2"
 	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -165,7 +166,7 @@ type Credit struct {
 // transactions.
 type Store struct {
 	chainParams    *chaincfg.Params
-	acctLookupFunc func(walletdb.ReadBucket, dcrutil.Address) (uint32, error)
+	acctLookupFunc func(walletdb.ReadBucket, stdaddr.Address) (uint32, error)
 	manager        *Manager
 }
 
@@ -2683,11 +2684,11 @@ func (s *Store) GetMultisigOutput(ns walletdb.ReadBucket, op *wire.OutPoint) (*M
 
 // UnspentMultisigCreditsForAddress returns all unspent multisignature P2SH
 // credits in the wallet for some specified address.
-func (s *Store) UnspentMultisigCreditsForAddress(dbtx walletdb.ReadTx, addr dcrutil.Address) ([]*MultisigCredit, error) {
+func (s *Store) UnspentMultisigCreditsForAddress(dbtx walletdb.ReadTx, addr stdaddr.Address) ([]*MultisigCredit, error) {
 	ns := dbtx.ReadBucket(wtxmgrBucketKey)
 	addrmgrNs := dbtx.ReadBucket(waddrmgrBucketKey)
 
-	p2shAddr, ok := addr.(*dcrutil.AddressScriptHash)
+	p2shAddr, ok := addr.(*stdaddr.AddressScriptHashV0)
 	if !ok {
 		return nil, errors.E(errors.Invalid, "address must be P2SH")
 	}

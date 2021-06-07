@@ -15,6 +15,7 @@ import (
 	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 )
 
 // expectedAddr is used to house the expected return values from a managed
@@ -165,7 +166,7 @@ func setupWallet(t *testing.T, cfg *Config) (*Wallet, walletdb.DB, func()) {
 	return w, db, teardown
 }
 
-type newAddressFunc func(*Wallet, context.Context, uint32, ...NextAddressCallOption) (dcrutil.Address, error)
+type newAddressFunc func(*Wallet, context.Context, uint32, ...NextAddressCallOption) (stdaddr.Address, error)
 
 func testKnownAddresses(tc *testContext, prefix string, unlock bool, newAddr newAddressFunc, tests []expectedAddr) {
 	w, db, teardown := setupWallet(tc.t, &walletConfig)

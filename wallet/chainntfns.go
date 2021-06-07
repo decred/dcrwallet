@@ -20,6 +20,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	gcs2 "github.com/decred/dcrd/gcs/v3"
 	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -246,7 +247,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 // evaluateStakePoolTicket evaluates a stake pool ticket to see if it's
 // acceptable to the stake pool. The ticket must pay out to the stake
 // pool cold wallet, and must have a sufficient fee.
-func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, poolUser dcrutil.Address) bool {
+func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, poolUser stdaddr.Address) bool {
 	tx := rec.MsgTx
 
 	// Check the first commitment output (txOuts[1])
@@ -283,7 +284,7 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 	}
 	fees := in - out
 
-	_, exists := w.stakePoolColdAddrs[commitAddr.Address()]
+	_, exists := w.stakePoolColdAddrs[commitAddr.String()]
 	if exists {
 		commitAmt, err := stake.AmountFromSStxPkScrCommitment(
 			commitmentOut.PkScript)
@@ -301,7 +302,7 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 			log.Warnf("User %s submitted ticket %v which "+
 				"has less fees than are required to use this "+
 				"stake pool and is being skipped (required: %v"+
-				", found %v)", commitAddr.Address(),
+				", found %v)", commitAddr,
 				tx.TxHash(), feeNeeded, commitAmt)
 
 			// Reject the entire transaction if it didn't
@@ -310,7 +311,7 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 		}
 	} else {
 		log.Warnf("Unknown pool commitment address %s for ticket %v",
-			commitAddr.Address(), tx.TxHash())
+			commitAddr, tx.TxHash())
 		return false
 	}
 
@@ -450,7 +451,12 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 			txOut.PkScript, w.chainParams, true) // Yes treasury
 		insert := false
 		for _, addr := range addrs {
-			if !w.manager.ExistsHash160(addrmgrNs, addr.Hash160()[:]) {
+			switch addr := addr.(type) {
+			case stdaddr.Hash160er:
+				if !w.manager.ExistsHash160(addrmgrNs, addr.Hash160()[:]) {
+					continue
+				}
+			default:
 				continue
 			}
 
@@ -489,8 +495,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				stakemgrNs, addr, &rec.Hash)
 			if err != nil {
 				log.Warnf("Failed to update pool user %v with "+
-					"invalid ticket %v", addr.Address(),
-					rec.Hash)
+					"invalid ticket %v", addr, rec.Hash)
 			}
 		}
 
@@ -525,7 +530,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 			if err != nil {
 				log.Warnf("Failed to update stake pool ticket for "+
 					"stake pool user %s after voting",
-					poolUser.Address())
+					poolUser)
 			} else {
 				log.Debugf("Updated voted stake pool ticket %v "+
 					"for user %v into the stake store database ("+
@@ -556,7 +561,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 			if err != nil {
 				log.Warnf("failed to update stake pool ticket for "+
 					"stake pool user %s after revoking",
-					poolUser.Address())
+					poolUser)
 			} else {
 				log.Debugf("Updated missed stake pool ticket %v "+
 					"for user %v into the stake store database ("+
@@ -619,7 +624,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				case err != nil:
 					return nil, errors.E(op, err)
 				case n != nil:
-					addrs := []dcrutil.Address{addr.Address()}
+					addrs := []stdaddr.Address{addr.Address()}
 					err := n.LoadTxFilter(ctx, false, addrs, nil)
 					if err != nil {
 						return nil, errors.E(op, err)
@@ -684,7 +689,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 					rec.Hash, i)
 				continue
 			}
-			addrs = []dcrutil.Address{addr}
+			addrs = []stdaddr.Address{addr}
 			watchOutPoint = false
 		} else if output.Value == 0 {
 			// The only case of outputs with 0 value that we need to handle are
@@ -737,7 +742,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				if err != nil {
 					log.Debugf("failed to find redeemscript for "+
 						"address %v in address manager: %v",
-						addr.Address(), err)
+						addr, err)
 					continue
 				}
 			}
@@ -1098,7 +1103,7 @@ func (w *Wallet) RevokeOwnedTickets(ctx context.Context, missedTicketHashes []*c
 			}
 
 			revocation, err := createUnsignedRevocation(ticketHash, ticketPurchase,
-				relayFee)
+				relayFee, w.chainParams)
 			if err != nil {
 				log.Errorf("Failed to create revocation transaction for ticket "+
 					"hash %v: %v", ticketHash, err)

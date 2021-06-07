@@ -187,10 +187,7 @@ SplitPoints:
 		if err != nil {
 			return errors.E(op, err)
 		}
-		changeScript, version, err := addressScript(addr)
-		if err != nil {
-			return errors.E(op, err)
-		}
+		version, changeScript := addr.PaymentScript()
 		change = &wire.TxOut{
 			Value:    int64(changeValue),
 			PkScript: changeScript,

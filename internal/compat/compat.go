@@ -2,16 +2,15 @@ package compat
 
 import (
 	"github.com/decred/dcrd/blockchain/standalone/v2"
-	"github.com/decred/dcrd/dcrec"
-	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
-func HD2Address(k *hdkeychain.ExtendedKey, params dcrutil.AddressParams) (*dcrutil.AddressPubKeyHash, error) {
+func HD2Address(k *hdkeychain.ExtendedKey, params stdaddr.AddressParams) (*stdaddr.AddressPubKeyHashEcdsaSecp256k1V0, error) {
 	pk := k.SerializedPubKey()
-	hash := dcrutil.Hash160(pk)
-	return dcrutil.NewAddressPubKeyHash(hash, params, dcrec.STEcdsaSecp256k1)
+	hash := stdaddr.Hash160(pk)
+	return stdaddr.NewAddressPubKeyHashEcdsaSecp256k1V0(hash, params)
 }
 
 // IsEitherCoinBaseTx verifies if a transaction is either a coinbase prior to

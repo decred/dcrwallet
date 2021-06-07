@@ -27,6 +27,7 @@ import (
 	"decred.org/dcrwallet/v2/wallet/txrules"
 	"github.com/decred/dcrd/connmgr/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/go-socks/socks"
 	"github.com/decred/slog"
 	flags "github.com/jessevdk/go-flags"
@@ -96,7 +97,7 @@ type config struct {
 	EnableVoting            bool                 `long:"enablevoting" description:"Automatically create votes and revocations"`
 	PurchaseAccount         string               `long:"purchaseaccount" description:"Account to autobuy tickets from"`
 	PoolAddress             *cfgutil.AddressFlag `long:"pooladdress" description:"VSP fee address"`
-	poolAddress             dcrutil.Address
+	poolAddress             stdaddr.StakeAddress
 	PoolFees                float64             `long:"poolfees" description:"VSP fee percentage (1.00 equals 1.00% fee)"`
 	GapLimit                uint32              `long:"gaplimit" description:"Allowed unused address gap between used addresses of accounts"`
 	StakePoolColdExtKey     string              `long:"stakepoolcoldextkey" description:"xpub:maxindex for fee addresses (VSP-only option)"`
@@ -169,7 +170,7 @@ type config struct {
 type ticketBuyerOptions struct {
 	BalanceToMaintainAbsolute *cfgutil.AmountFlag  `long:"balancetomaintainabsolute" description:"Amount of funds to keep in wallet when purchasing tickets"`
 	VotingAddress             *cfgutil.AddressFlag `long:"votingaddress" description:"Purchase tickets with voting rights assigned to this address"`
-	votingAddress             dcrutil.Address
+	votingAddress             stdaddr.StakeAddress
 	Limit                     uint   `long:"limit" description:"Buy no more than specified number of tickets per block (0 disables limit)"`
 	VotingAccount             string `long:"votingaccount" description:"Account used to derive addresses specifying voting rights"`
 }
@@ -487,12 +488,12 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	// Check that no addresses were created for the wrong network
 	for _, a := range []struct {
 		flag *cfgutil.AddressFlag
-		addr *dcrutil.Address
+		addr *stdaddr.StakeAddress
 	}{
 		{cfg.PoolAddress, &cfg.poolAddress},
 		{cfg.TBOpts.VotingAddress, &cfg.TBOpts.votingAddress},
 	} {
-		addr, err := a.flag.Address(activeNet.Params)
+		addr, err := a.flag.StakeAddress(activeNet.Params)
 		if err != nil {
 			log.Error(err)
 			return loadConfigError(err)

@@ -11,6 +11,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -44,7 +45,7 @@ func addressArrayMarshaler(n int, s func(i int) string) json.Marshaler {
 	})
 }
 
-func marshalAddresses(addrs []dcrutil.Address) json.Marshaler {
+func marshalAddresses(addrs []stdaddr.Address) json.Marshaler {
 	return addressArrayMarshaler(len(addrs), func(i int) string {
 		return addrs[i].String()
 	})
@@ -114,14 +115,14 @@ func unmarshalHashes(hashes *[]*chainhash.Hash) json.Unmarshaler {
 	return &f
 }
 
-func unmarshalAddress(addr *dcrutil.Address, net *chaincfg.Params) json.Unmarshaler {
+func unmarshalAddress(addr *stdaddr.Address, net *chaincfg.Params) json.Unmarshaler {
 	f := unmarshalJSONFunc(func(j []byte) error {
 		var s string
 		err := json.Unmarshal(j, &s)
 		if err != nil {
 			return err
 		}
-		a, err := dcrutil.DecodeAddress(s, net)
+		a, err := stdaddr.DecodeAddress(s, net)
 		if err != nil {
 			return err
 		}
@@ -131,16 +132,16 @@ func unmarshalAddress(addr *dcrutil.Address, net *chaincfg.Params) json.Unmarsha
 	return &f
 }
 
-func unmarshalAddresses(addrs *[]dcrutil.Address, net *chaincfg.Params) json.Unmarshaler {
+func unmarshalAddresses(addrs *[]stdaddr.Address, net *chaincfg.Params) json.Unmarshaler {
 	f := unmarshalJSONFunc(func(j []byte) error {
 		var array []string
 		err := json.Unmarshal(j, &array)
 		if err != nil {
 			return err
 		}
-		*addrs = make([]dcrutil.Address, 0, len(array))
+		*addrs = make([]stdaddr.Address, 0, len(array))
 		for i := range array {
-			a, err := dcrutil.DecodeAddress(array[i], net)
+			a, err := stdaddr.DecodeAddress(array[i], net)
 			if err != nil {
 				return err
 			}

@@ -14,8 +14,8 @@ import (
 	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrutil/v4"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
 )
@@ -190,7 +190,7 @@ func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, include
 // TicketHashesForVotingAddress returns the hashes of all tickets with voting
 // rights delegated to votingAddr.  This function does not return the hashes of
 // pruned tickets.
-func (w *Wallet) TicketHashesForVotingAddress(ctx context.Context, votingAddr dcrutil.Address) ([]chainhash.Hash, error) {
+func (w *Wallet) TicketHashesForVotingAddress(ctx context.Context, votingAddr stdaddr.Address) ([]chainhash.Hash, error) {
 	const op errors.Op = "wallet.TicketHashesForVotingAddress"
 
 	var ticketHashes []chainhash.Hash
@@ -276,7 +276,7 @@ func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 			}
 
 			revocation, err := createUnsignedRevocation(ticketHash,
-				ticketPurchase, feePerKb)
+				ticketPurchase, feePerKb, w.chainParams)
 			if err != nil {
 				return err
 			}
@@ -386,7 +386,7 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 			}
 
 			revocation, err := createUnsignedRevocation(ticketHash,
-				ticketPurchase, feePerKb)
+				ticketPurchase, feePerKb, w.chainParams)
 			if err != nil {
 				return err
 			}

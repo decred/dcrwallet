@@ -13,8 +13,8 @@ import (
 	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -152,11 +152,18 @@ func (s *StakeStore) DumpSStxHashes() []chainhash.Hash {
 }
 
 // dumpSStxHashes dumps the hashes of all owned SStxs for some address.
-func (s *StakeStore) dumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrutil.Address) ([]chainhash.Hash, error) {
+func (s *StakeStore) dumpSStxHashesForAddress(ns walletdb.ReadBucket, addr stdaddr.Address) ([]chainhash.Hash, error) {
 	// Extract the HASH160 script hash; if it's not 20 bytes
 	// long, return an error.
-	hash160 := addr.ScriptAddress()
-	_, addrIsP2SH := addr.(*dcrutil.AddressScriptHash)
+	var hash160 []byte
+	switch addr := addr.(type) {
+	case stdaddr.Hash160er:
+		hash160 = addr.Hash160()[:]
+	default:
+		err := errors.Errorf("cannot get hash160 from address %v", addr)
+		return nil, errors.E(errors.Invalid, err)
+	}
+	_, addrIsP2SH := addr.(*stdaddr.AddressScriptHashV0)
 
 	allTickets := s.dumpSStxHashes()
 	var ticketsForAddr []chainhash.Hash
@@ -181,7 +188,7 @@ func (s *StakeStore) dumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrut
 
 // DumpSStxHashesForAddress returns the hashes of all wallet ticket purchase
 // transactions for an address.
-func (s *StakeStore) DumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrutil.Address) ([]chainhash.Hash, error) {
+func (s *StakeStore) DumpSStxHashesForAddress(ns walletdb.ReadBucket, addr stdaddr.Address) ([]chainhash.Hash, error) {
 	defer s.mtx.RUnlock()
 	s.mtx.RLock()
 
@@ -189,17 +196,17 @@ func (s *StakeStore) DumpSStxHashesForAddress(ns walletdb.ReadBucket, addr dcrut
 }
 
 // sstxAddress returns the address for a given ticket.
-func (s *StakeStore) sstxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (dcrutil.Address, error) {
+func (s *StakeStore) sstxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (stdaddr.Address, error) {
 	// Access the database and store the result locally.
 	thisHash160, p2sh, err := fetchSStxRecordSStxTicketHash160(ns, hash, DBVersion)
 	if err != nil {
 		return nil, err
 	}
-	var addr dcrutil.Address
+	var addr stdaddr.Address
 	if p2sh {
-		addr, err = dcrutil.NewAddressScriptHashFromHash(thisHash160, s.Params)
+		addr, err = stdaddr.NewAddressScriptHashV0FromHash(thisHash160, s.Params)
 	} else {
-		addr, err = dcrutil.NewAddressPubKeyHash(thisHash160, s.Params, dcrec.STEcdsaSecp256k1)
+		addr, err = stdaddr.NewAddressPubKeyHashEcdsaSecp256k1V0(thisHash160, s.Params)
 	}
 	if err != nil {
 		return nil, err
@@ -209,7 +216,7 @@ func (s *StakeStore) sstxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (
 }
 
 // SStxAddress is the exported, concurrency safe version of sstxAddress.
-func (s *StakeStore) SStxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (dcrutil.Address, error) {
+func (s *StakeStore) SStxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (stdaddr.Address, error) {
 	return s.sstxAddress(ns, hash)
 }
 
@@ -231,77 +238,89 @@ func (s *StakeStore) TicketPurchase(dbtx walletdb.ReadTx, hash *chainhash.Hash) 
 // updateStakePoolUserTickets updates a stake pool ticket for a given user.
 // If the ticket does not currently exist in the database, it adds it. If it
 // does exist (the ticket hash exists), it replaces the old record.
-func (s *StakeStore) updateStakePoolUserTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address, ticket *PoolTicket) error {
-	_, isScriptHash := user.(*dcrutil.AddressScriptHash)
-	_, isP2PKH := user.(*dcrutil.AddressPubKeyHash)
-	if !(isScriptHash || isP2PKH) {
+func (s *StakeStore) updateStakePoolUserTickets(ns walletdb.ReadWriteBucket, user stdaddr.Address, ticket *PoolTicket) error {
+	// Address must be a StakeAddress with support for the Hash160 method.
+	var hash160 *[20]byte
+	switch user := user.(type) {
+	case interface {
+		stdaddr.StakeAddress
+		stdaddr.Hash160er
+	}:
+		hash160 = user.Hash160()
+	default:
 		return errors.E(errors.Invalid, errors.Errorf("voting address type %T", user))
 	}
-	scriptHashB := user.ScriptAddress()
-	scriptHash := new([20]byte)
-	copy(scriptHash[:], scriptHashB)
 
-	return updateStakePoolUserTickets(ns, *scriptHash, ticket)
+	return updateStakePoolUserTickets(ns, *hash160, ticket)
 }
 
 // UpdateStakePoolUserTickets is the exported and concurrency safe form of
 // updateStakePoolUserTickets.
-func (s *StakeStore) UpdateStakePoolUserTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address, ticket *PoolTicket) error {
+func (s *StakeStore) UpdateStakePoolUserTickets(ns walletdb.ReadWriteBucket, user stdaddr.Address, ticket *PoolTicket) error {
 	return s.updateStakePoolUserTickets(ns, user, ticket)
 }
 
 // removeStakePoolUserInvalTickets prepares the user.Address and asks stakedb
 // to remove the formerly invalid tickets.
-func (s *StakeStore) removeStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address, ticket *chainhash.Hash) error {
-	_, isScriptHash := user.(*dcrutil.AddressScriptHash)
-	_, isP2PKH := user.(*dcrutil.AddressPubKeyHash)
-	if !(isScriptHash || isP2PKH) {
+func (s *StakeStore) removeStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user stdaddr.Address, ticket *chainhash.Hash) error {
+	// Address must be a StakeAddress with support for the Hash160 method.
+	var hash160 *[20]byte
+	switch user := user.(type) {
+	case interface {
+		stdaddr.StakeAddress
+		Hash160() *[20]byte
+	}:
+		hash160 = user.Hash160()
+	default:
 		return errors.E(errors.Invalid, errors.Errorf("voting address type %T", user))
 	}
-	scriptHashB := user.ScriptAddress()
-	scriptHash := new([20]byte)
-	copy(scriptHash[:], scriptHashB)
 
-	return removeStakePoolInvalUserTickets(ns, *scriptHash, ticket)
+	return removeStakePoolInvalUserTickets(ns, *hash160, ticket)
 }
 
 // RemoveStakePoolUserInvalTickets is the exported and concurrency safe form of
 // removetStakePoolUserInvalTickets.
-func (s *StakeStore) RemoveStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address, ticket *chainhash.Hash) error {
+func (s *StakeStore) RemoveStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user stdaddr.Address, ticket *chainhash.Hash) error {
 	return s.removeStakePoolUserInvalTickets(ns, user, ticket)
 }
 
 // updateStakePoolUserInvalTickets updates the list of invalid stake pool
 // tickets for a given user. If the ticket does not currently exist in the
 // database, it adds it.
-func (s *StakeStore) updateStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address, ticket *chainhash.Hash) error {
-	_, isScriptHash := user.(*dcrutil.AddressScriptHash)
-	_, isP2PKH := user.(*dcrutil.AddressPubKeyHash)
-	if !(isScriptHash || isP2PKH) {
+func (s *StakeStore) updateStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user stdaddr.Address, ticket *chainhash.Hash) error {
+	// Address must be a StakeAddress with support for the Hash160 method.
+	var hash160 *[20]byte
+	switch user := user.(type) {
+	case interface {
+		stdaddr.StakeAddress
+		stdaddr.Hash160er
+	}:
+		hash160 = user.Hash160()
+	default:
 		return errors.E(errors.Invalid, errors.Errorf("voting address type %T", user))
 	}
-	scriptHashB := user.ScriptAddress()
-	scriptHash := new([20]byte)
-	copy(scriptHash[:], scriptHashB)
 
-	return updateStakePoolInvalUserTickets(ns, *scriptHash, ticket)
+	return updateStakePoolInvalUserTickets(ns, *hash160, ticket)
 }
 
 // UpdateStakePoolUserInvalTickets is the exported and concurrency safe form of
 // updateStakePoolUserInvalTickets.
-func (s *StakeStore) UpdateStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user dcrutil.Address, ticket *chainhash.Hash) error {
+func (s *StakeStore) UpdateStakePoolUserInvalTickets(ns walletdb.ReadWriteBucket, user stdaddr.Address, ticket *chainhash.Hash) error {
 	return s.updateStakePoolUserInvalTickets(ns, user, ticket)
 }
 
-func stakePoolUserInfo(ns walletdb.ReadBucket, user dcrutil.Address) (*StakePoolUser, error) {
-	_, isScriptHash := user.(*dcrutil.AddressScriptHash)
-	_, isP2PKH := user.(*dcrutil.AddressPubKeyHash)
-	if !(isScriptHash || isP2PKH) {
+func stakePoolUserInfo(ns walletdb.ReadBucket, user stdaddr.Address) (*StakePoolUser, error) {
+	// Address must be a StakeAddress with support for the Hash160 method.
+	var hash160 *[20]byte
+	switch user := user.(type) {
+	case interface {
+		stdaddr.StakeAddress
+		stdaddr.Hash160er
+	}:
+		hash160 = user.Hash160()
+	default:
 		return nil, errors.E(errors.Invalid, errors.Errorf("voting address type %T", user))
 	}
-	scriptHashB := user.ScriptAddress()
-	scriptHash := new([20]byte)
-	copy(scriptHash[:], scriptHashB)
 
 	stakePoolUser := new(StakePoolUser)
 
@@ -310,7 +329,7 @@ func stakePoolUserInfo(ns walletdb.ReadBucket, user dcrutil.Address) (*StakePool
 	// no entries.
 	missingValidTickets, missingInvalidTickets := false, false
 
-	userTickets, err := fetchStakePoolUserTickets(ns, *scriptHash)
+	userTickets, err := fetchStakePoolUserTickets(ns, *hash160)
 	if err != nil {
 		missingValidTickets = errors.Is(err, errors.NotExist)
 		if !missingValidTickets {
@@ -321,7 +340,7 @@ func stakePoolUserInfo(ns walletdb.ReadBucket, user dcrutil.Address) (*StakePool
 		userTickets = make([]*PoolTicket, 0)
 	}
 
-	invalTickets, err := fetchStakePoolUserInvalTickets(ns, *scriptHash)
+	invalTickets, err := fetchStakePoolUserInvalTickets(ns, *hash160)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
 			missingInvalidTickets = true
@@ -342,7 +361,7 @@ func stakePoolUserInfo(ns walletdb.ReadBucket, user dcrutil.Address) (*StakePool
 
 // StakePoolUserInfo returns the stake pool user information for a given stake
 // pool user, keyed to their P2SH voting address.
-func (s *StakeStore) StakePoolUserInfo(ns walletdb.ReadBucket, user dcrutil.Address) (*StakePoolUser, error) {
+func (s *StakeStore) StakePoolUserInfo(ns walletdb.ReadBucket, user stdaddr.Address) (*StakePoolUser, error) {
 	return stakePoolUserInfo(ns, user)
 }
 

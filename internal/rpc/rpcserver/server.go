@@ -51,11 +51,11 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/gcs/v3"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -122,12 +122,23 @@ func errorCode(err error) codes.Code {
 // decodeAddress decodes an address and verifies it is intended for the active
 // network.  This should be used preferred to direct usage of
 // dcrutil.DecodeAddress, which does not perform the network check.
-func decodeAddress(a string, params *chaincfg.Params) (dcrutil.Address, error) {
-	addr, err := dcrutil.DecodeAddress(a, params)
+func decodeAddress(a string, params *chaincfg.Params) (stdaddr.Address, error) {
+	addr, err := stdaddr.DecodeAddress(a, params)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid address %v: %v", a, err)
 	}
 	return addr, nil
+}
+
+func decodeStakeAddress(s string, params *chaincfg.Params) (stdaddr.StakeAddress, error) {
+	a, err := decodeAddress(s, params)
+	if err != nil {
+		return nil, err
+	}
+	if sa, ok := a.(stdaddr.StakeAddress); ok {
+		return sa, nil
+	}
+	return nil, status.Errorf(codes.InvalidArgument, "invalid stake address %q", s)
 }
 
 func decodeHashes(in [][]byte) ([]*chainhash.Hash, error) {
@@ -488,7 +499,7 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	}
 
 	var (
-		addr dcrutil.Address
+		addr stdaddr.Address
 		err  error
 	)
 	switch req.Kind {
@@ -513,7 +524,8 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	switch addr := addr.(type) {
 	case wallet.PubKeyHashAddress:
 		pubKey := addr.PubKey()
-		pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(pubKey, s.wallet.ChainParams())
+		pubKeyAddr, err := stdaddr.NewAddressPubKeyEcdsaSecp256k1V0Raw(
+			pubKey, s.wallet.ChainParams())
 		if err != nil {
 			return nil, translateError(err)
 		}
@@ -521,7 +533,7 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	}
 
 	return &pb.NextAddressResponse{
-		Address:   addr.Address(),
+		Address:   addr.String(),
 		PublicKey: pubKeyAddrString,
 	}, nil
 }
@@ -632,7 +644,7 @@ func (s *walletServer) ImportScript(ctx context.Context,
 		go s.wallet.RescanFromHeight(context.Background(), n, req.ScanFrom)
 	}
 
-	p2sh, err := dcrutil.NewAddressScriptHash(req.Script, s.wallet.ChainParams())
+	p2sh, err := stdaddr.NewAddressScriptHashV0(req.Script, s.wallet.ChainParams())
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -709,20 +721,6 @@ func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) 
 	}, nil
 }
 
-func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err error) {
-	type scripter interface {
-		PaymentScript() (uint16, []byte)
-	}
-	switch addr := addr.(type) {
-	case scripter:
-		version, script := addr.PaymentScript()
-		return script, version, nil
-	default:
-		pkScript, err = txscript.PayToAddrScript(addr)
-		return pkScript, 0, err
-	}
-}
-
 // scriptChangeSource is a ChangeSource which is used to
 // receive all correlated previous input value.
 type scriptChangeSource struct {
@@ -739,14 +737,11 @@ func (src *scriptChangeSource) ScriptSize() int {
 }
 
 func makeScriptChangeSource(address string, version uint16, params *chaincfg.Params) (*scriptChangeSource, error) {
-	destinationAddress, err := dcrutil.DecodeAddress(address, params)
+	destinationAddress, err := stdaddr.DecodeAddress(address, params)
 	if err != nil {
 		return nil, err
 	}
-	script, version, err := addressScript(destinationAddress)
-	if err != nil {
-		return nil, err
-	}
+	version, script := destinationAddress.PaymentScript()
 	source := &scriptChangeSource{
 		version: version,
 		script:  script,
@@ -930,10 +925,7 @@ func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransact
 		if err != nil {
 			return nil, translateError(err)
 		}
-		changeScript, _, err = addressScript(changeAddr)
-		if err != nil {
-			return nil, translateError(err)
-		}
+		_, changeScript = changeAddr.PaymentScript()
 	}
 
 	return &pb.FundTransactionResponse{
@@ -957,10 +949,7 @@ func decodeDestination(dest *pb.ConstructTransactionRequest_OutputDestination,
 		if err != nil {
 			return nil, 0, err
 		}
-		pkScript, version, err = addressScript(addr)
-		if err != nil {
-			return nil, 0, translateError(err)
-		}
+		version, pkScript = addr.PaymentScript()
 		return pkScript, version, nil
 	case dest.Script != nil:
 		if dest.ScriptVersion > uint32(^uint16(0)) {
@@ -1595,7 +1584,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	minConf := int32(req.RequiredConfirmations)
 	params := s.wallet.ChainParams()
 
-	var ticketAddr dcrutil.Address
+	var ticketAddr stdaddr.StakeAddress
 	var err error
 
 	n, err := s.wallet.NetworkBackend()
@@ -1604,20 +1593,20 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}
 
 	if req.TicketAddress != "" {
-		ticketAddr, err = decodeAddress(req.TicketAddress, params)
+		ticketAddr, err = decodeStakeAddress(req.TicketAddress, params)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	var poolAddr dcrutil.Address
+	var poolAddr stdaddr.StakeAddress
 	var poolFees float64
 	if req.PoolAddress != "" {
 		if req.VspHost != "" || req.VspPubkey != "" {
 			return nil, status.Errorf(codes.InvalidArgument,
 				"request contains both legacy stakepoold and vspd options.")
 		}
-		poolAddr, err = decodeAddress(req.PoolAddress, params)
+		poolAddr, err = decodeStakeAddress(req.PoolAddress, params)
 		if err != nil {
 			return nil, err
 		}
@@ -1892,14 +1881,12 @@ func (s *walletServer) signMessage(ctx context.Context, address, message string)
 	// Addresses must have an associated secp256k1 private key and therefore
 	// must be P2PK or P2PKH (P2SH is not allowed).
 	var sig []byte
-	switch a := addr.(type) {
-	case *dcrutil.AddressSecpPubKey:
-	case *dcrutil.AddressPubKeyHash:
-		if a.DSA() != dcrec.STEcdsaSecp256k1 {
-			goto WrongAddrKind
-		}
+	switch addr.(type) {
+	case *stdaddr.AddressPubKeyEcdsaSecp256k1V0:
+	case *stdaddr.AddressPubKeyHashEcdsaSecp256k1V0:
 	default:
-		goto WrongAddrKind
+		return nil, status.Error(codes.InvalidArgument,
+			"address must be secp256k1 P2PK or P2PKH")
 	}
 
 	sig, err = s.wallet.SignMessage(ctx, message, addr)
@@ -1907,10 +1894,6 @@ func (s *walletServer) signMessage(ctx context.Context, address, message string)
 		return nil, translateError(err)
 	}
 	return sig, nil
-
-WrongAddrKind:
-	return nil, status.Error(codes.InvalidArgument,
-		"address must be secp256k1 P2PK or P2PKH")
 }
 
 func (s *walletServer) SignMessage(ctx context.Context, req *pb.SignMessageRequest) (*pb.SignMessageResponse, error) {
@@ -1994,7 +1977,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 	switch ka := ka.(type) {
 	case wallet.PubKeyHashAddress:
 		result.PubKey = ka.PubKey()
-		pubKeyAddr, err := dcrutil.NewAddressSecpPubKey(result.PubKey,
+		pubKeyAddr, err := stdaddr.NewAddressPubKeyEcdsaSecp256k1V0Raw(result.PubKey,
 			s.wallet.ChainParams())
 		if err != nil {
 			return nil, err
@@ -2018,7 +2001,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 
 		addrStrings := make([]string, len(addrs))
 		for i, a := range addrs {
-			addrStrings[i] = a.Address()
+			addrStrings[i] = a.String()
 		}
 		result.PkScriptAddrs = addrStrings
 
@@ -2495,21 +2478,21 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	// Legacy vsp request. After stopping supporting the old vsp version, this
 	// code can be removed.
 	// Confirm validity of provided voting addresses and pool addresses.
-	var votingAddress dcrutil.Address
+	var votingAddress stdaddr.StakeAddress
 	var err error
 	if req.VotingAddress != "" {
-		votingAddress, err = decodeAddress(req.VotingAddress, params)
+		votingAddress, err = decodeStakeAddress(req.VotingAddress, params)
 		if err != nil {
 			return err
 		}
 	}
-	var poolAddress dcrutil.Address
+	var poolAddress stdaddr.StakeAddress
 	if req.PoolAddress != "" {
 		if req.VspHost != "" || req.VspPubkey != "" {
 			return status.Errorf(codes.InvalidArgument,
 				"request contains both legacy stakepoold and vspd options.")
 		}
-		poolAddress, err = decodeAddress(req.PoolAddress, params)
+		poolAddress, err = decodeStakeAddress(req.PoolAddress, params)
 		if err != nil {
 			return err
 		}
@@ -3231,21 +3214,19 @@ func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.V
 
 	var valid bool
 
-	addr, err := dcrutil.DecodeAddress(req.Address, s.chainParams)
+	addr, err := stdaddr.DecodeAddress(req.Address, s.chainParams)
 	if err != nil {
 		return nil, translateError(err)
 	}
 
 	// Addresses must have an associated secp256k1 private key and therefore
 	// must be P2PK or P2PKH (P2SH is not allowed).
-	switch a := addr.(type) {
-	case *dcrutil.AddressSecpPubKey:
-	case *dcrutil.AddressPubKeyHash:
-		if a.DSA() != dcrec.STEcdsaSecp256k1 {
-			goto WrongAddrKind
-		}
+	switch addr.(type) {
+	case *stdaddr.AddressPubKeyEcdsaSecp256k1V0:
+	case *stdaddr.AddressPubKeyHashEcdsaSecp256k1V0:
 	default:
-		goto WrongAddrKind
+		return nil, status.Error(codes.InvalidArgument,
+			"address must be secp256k1 P2PK or P2PKH")
 	}
 
 	valid, err = wallet.VerifyMessage(req.Message, addr, req.Signature, s.chainParams)
@@ -3253,9 +3234,6 @@ func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.V
 		return nil, translateError(err)
 	}
 	return &pb.VerifyMessageResponse{Valid: valid}, nil
-
-WrongAddrKind:
-	return nil, status.Error(codes.InvalidArgument, "address must be secp256k1 P2PK or P2PKH")
 }
 
 // StartDecodeMessageService starts the MessageDecode service
@@ -3301,7 +3279,7 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 		// the case of stake submission transactions, the odd outputs
 		// contain a commitment address, so detect that case
 		// accordingly.
-		var addrs []dcrutil.Address
+		var addrs []stdaddr.Address
 		var encodedAddrs []string
 		var scriptClass txscript.ScriptClass
 		var reqSigs int
@@ -3316,7 +3294,7 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 						"commitment addr output for tx hash "+
 						"%v, output idx %v", mtx.TxHash(), i)}
 			} else {
-				encodedAddrs = []string{addr.Address()}
+				encodedAddrs = []string{addr.String()}
 			}
 			amt, err := stake.AmountFromSStxPkScrCommitment(v.PkScript)
 			if err != nil {
@@ -3330,7 +3308,7 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 				v.Version, v.PkScript, chainParams, true) // Yes treasury
 			encodedAddrs = make([]string, len(addrs))
 			for j, addr := range addrs {
-				encodedAddrs[j] = addr.Address()
+				encodedAddrs[j] = addr.String()
 			}
 		}
 
@@ -3408,13 +3386,9 @@ func (s *walletServer) SignHashes(ctx context.Context, req *pb.SignHashesRequest
 
 	// Addresses must have an associated secp256k1 private key and therefore
 	// must be P2PK or P2PKH (P2SH is not allowed).
-	switch a := addr.(type) {
-	case *dcrutil.AddressSecpPubKey:
-	case *dcrutil.AddressPubKeyHash:
-		if a.DSA() != dcrec.STEcdsaSecp256k1 {
-			return nil, status.Error(codes.InvalidArgument,
-				"address must be secp256k1 P2PK or P2PKH")
-		}
+	switch addr.(type) {
+	case *stdaddr.AddressPubKeyEcdsaSecp256k1V0:
+	case *stdaddr.AddressPubKeyHashEcdsaSecp256k1V0:
 	default:
 		return nil, status.Error(codes.InvalidArgument,
 			"address must be secp256k1 P2PK or P2PKH")
@@ -3900,8 +3874,8 @@ func marshalVSPTrackedTickets(tickets []*vsp.TicketInfo) []*pb.GetTrackedVSPTick
 	for i, ticket := range tickets {
 		res[i] = &pb.GetTrackedVSPTicketsResponse_Ticket{
 			TicketHash:        ticket.TicketHash[:],
-			CommitmentAddress: ticket.CommitmentAddr.Address(),
-			VotingAddress:     ticket.VotingAddr.Address(),
+			CommitmentAddress: ticket.CommitmentAddr.String(),
+			VotingAddress:     ticket.VotingAddr.String(),
 			State:             ticket.State,
 			Fee:               int64(ticket.Fee),
 			FeeHash:           ticket.FeeHash[:],

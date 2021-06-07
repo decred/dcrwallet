@@ -21,6 +21,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -78,8 +79,8 @@ type feePayment struct {
 
 	// Set at feepayment creation and never changes
 	ticketHash     chainhash.Hash
-	commitmentAddr dcrutil.Address
-	votingAddr     dcrutil.Address
+	commitmentAddr stdaddr.StakeAddress
+	votingAddr     stdaddr.StakeAddress
 	policy         Policy
 
 	// Requires locking for all access outside of Client.feePayment
@@ -88,7 +89,7 @@ type feePayment struct {
 	ticketLive    int32
 	ticketExpires int32
 	fee           dcrutil.Amount
-	feeAddr       dcrutil.Address
+	feeAddr       stdaddr.Address
 	feeHash       chainhash.Hash
 	feeTx         *wire.MsgTx
 	state         state
@@ -109,8 +110,8 @@ const (
 )
 
 func parseTicket(ticket *wire.MsgTx, params *chaincfg.Params) (
-	votingAddr, commitmentAddr dcrutil.Address, err error) {
-	fail := func(err error) (_, _ dcrutil.Address, _ error) {
+	votingAddr, commitmentAddr stdaddr.StakeAddress, err error) {
+	fail := func(err error) (_, _ stdaddr.StakeAddress, _ error) {
 		return nil, nil, err
 	}
 	if !stake.IsSStx(ticket) {
@@ -125,7 +126,12 @@ func parseTicket(ticket *wire.MsgTx, params *chaincfg.Params) (
 	if len(addrs) != 1 {
 		return fail(fmt.Errorf("cannot parse voting addr"))
 	}
-	votingAddr = addrs[0]
+	switch addr := addrs[0].(type) {
+	case stdaddr.StakeAddress:
+		votingAddr = addr
+	default:
+		return fail(fmt.Errorf("address cannot be used for voting rights: %v", err))
+	}
 	commitmentAddr, err = stake.AddrFromSStxPkScrCommitment(ticket.TxOut[1].PkScript, params)
 	if err != nil {
 		return fail(fmt.Errorf("cannot parse commitment address: %w", err))
@@ -413,7 +419,7 @@ func (fp *feePayment) receiveFeeAddress() error {
 	}
 
 	feeAmount := dcrutil.Amount(response.FeeAmount)
-	feeAddr, err := dcrutil.DecodeAddress(response.FeeAddress, params)
+	feeAddr, err := stdaddr.DecodeAddress(response.FeeAddress, params)
 	if err != nil {
 		return fmt.Errorf("server fee address invalid: %w", err)
 	}
@@ -516,12 +522,7 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 		return err
 	}
 
-	feeScript, err := txscript.PayToAddrScript(feeAddr)
-	if err != nil {
-		log.Warnf("failed to generate pay to addr script for %v: %v",
-			feeAddr, err)
-		return err
-	}
+	vers, feeScript := feeAddr.PaymentScript()
 
 	addr, err := w.NewChangeAddress(ctx, fp.policy.ChangeAcct)
 	if err != nil {
@@ -537,7 +538,11 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 		return fmt.Errorf("failed to convert '%T' to wallet.Address", addr)
 	}
 
-	tx.TxOut = append(tx.TxOut[:0], wire.NewTxOut(int64(fee), feeScript))
+	tx.TxOut = append(tx.TxOut[:0], &wire.TxOut{
+		Value:    int64(fee),
+		Version:  vers,
+		PkScript: feeScript,
+	})
 	feeRate := w.RelayFee()
 	scriptSizes := make([]int, len(tx.TxIn))
 	for i := range scriptSizes {
