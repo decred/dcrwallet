@@ -1816,6 +1816,7 @@ func (s *walletServer) RevokeTickets(ctx context.Context, req *pb.RevokeTicketsR
 
 func (s *walletServer) RevokeTicket(ctx context.Context, req *pb.RevokeTicketRequest) (*pb.RevokeTicketResponse, error) {
 	var ticketHash *chainhash.Hash
+	var err error
 	if len(req.TicketHash) != 0 {
 		ticketHash, err = chainhash.NewHash(req.TicketHash)
 		if err != nil {
