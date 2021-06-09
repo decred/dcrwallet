@@ -1814,6 +1814,44 @@ func (s *walletServer) RevokeTickets(ctx context.Context, req *pb.RevokeTicketsR
 	return &pb.RevokeTicketsResponse{}, nil
 }
 
+func (s *walletServer) RevokeTicket(ctx context.Context, req *pb.RevokeTicketRequest) (*pb.RevokeTicketResponse, error) {
+	var ticketHash *chainhash.Hash
+	if len(req.TicketHash) != 0 {
+		ticketHash, err = chainhash.NewHash(req.TicketHash)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
+	}
+
+	if len(req.Passphrase) > 0 {
+		lock := make(chan time.Time, 1)
+		defer func() {
+			lock <- time.Time{} // send matters, not the value
+		}()
+		err = s.wallet.Unlock(ctx, req.Passphrase, lock)
+		if err != nil {
+			return nil, translateError(err)
+		}
+	}
+
+	n, err := s.requireNetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := n.(*dcrd.RPC); ok {
+		return nil, translateError(
+			status.Error(codes.FailedPrecondition,
+				"wallet must be in spv mode to use RevokeTicket request"))
+	}
+
+	err = s.wallet.RevokeTicket(ctx, ticketHash, n)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	return &pb.RevokeTicketResponse{}, nil
+}
+
 func (s *walletServer) LoadActiveDataFilters(ctx context.Context, req *pb.LoadActiveDataFiltersRequest) (
 	*pb.LoadActiveDataFiltersResponse, error) {
 
