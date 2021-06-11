@@ -1822,6 +1822,8 @@ func (s *walletServer) RevokeTicket(ctx context.Context, req *pb.RevokeTicketReq
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 		}
+	} else {
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	if len(req.Passphrase) > 0 {

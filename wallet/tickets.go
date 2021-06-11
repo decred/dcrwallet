@@ -492,12 +492,17 @@ func (w *Wallet) RevokeTicket(ctx context.Context, ticketHash *chainhash.Hash, p
 		// know it is a revocation.
 		watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
 		if err != nil {
-			return errors.E(op, err)
+			return err
 		}
-		revocations := make([]*wire.MsgTx, 0, 1)
-		revocations = append(revocations, revocation)
-		return p.PublishTransactions(ctx, revocations...)
+		return nil
 	})
+	if err != nil {
+		return errors.E(op, err)
+	}
+
+	revocations := make([]*wire.MsgTx, 0, 1)
+	revocations = append(revocations, revocation)
+	err = p.PublishTransactions(ctx, revocations...)
 	if err != nil {
 		return errors.E(op, err)
 	}
