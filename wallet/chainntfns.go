@@ -879,12 +879,12 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 			}
 
 			// Don't create votes when this wallet doesn't have voting
-			// authority.
-			owned, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
+			// authority or the private key to vote.
+			owned, haveKey, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
 			if err != nil {
 				return err
 			}
-			if !owned {
+			if !(owned && haveKey) {
 				continue
 			}
 
@@ -1090,12 +1090,12 @@ func (w *Wallet) RevokeOwnedTickets(ctx context.Context, missedTicketHashes []*c
 			}
 
 			// Don't create revocations when this wallet doesn't have voting
-			// authority.
-			owned, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
+			// authority or the private key to revoke.
+			owned, haveKey, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
 			if err != nil {
 				return err
 			}
-			if !owned {
+			if !(owned && haveKey) {
 				continue
 			}
 

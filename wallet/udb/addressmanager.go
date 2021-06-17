@@ -2315,6 +2315,34 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr stdaddr.Address) (key 
 	return key, key.Zero, nil
 }
 
+// HavePrivateKey returns whether the private key for a P2PK or P2PKH address is
+// available when the wallet or account is unlocked.
+func (m *Manager) HavePrivateKey(ns walletdb.ReadBucket, addr stdaddr.Address) (bool, error) {
+	defer m.mtx.RUnlock()
+	m.mtx.RLock()
+
+	if m.watchingOnly {
+		return false, nil
+	}
+
+	id, err := addressID(addr)
+	if err != nil {
+		return false, nil
+	}
+	addrInterface, err := fetchAddress(ns, id)
+	if err != nil {
+		return false, err
+	}
+	switch a := addrInterface.(type) {
+	case *dbChainAddressRow:
+		return a.account < ImportedAddrAccount, nil
+	case *dbImportedAddressRow:
+		return len(a.encryptedPrivKey) != 0, nil
+	}
+
+	return false, nil
+}
+
 // RedeemScript retreives the redeem script to redeem an output paid to a P2SH
 // address.
 func (m *Manager) RedeemScript(ns walletdb.ReadBucket, addr stdaddr.Address) ([]byte, error) {

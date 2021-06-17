@@ -266,12 +266,12 @@ func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 			}
 
 			// Don't create revocations when this wallet doesn't have voting
-			// authority.
-			owned, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
+			// authority or the private key to revoke.
+			owned, haveKey, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
 			if err != nil {
 				return err
 			}
-			if !owned {
+			if !(owned && haveKey) {
 				continue
 			}
 
@@ -376,12 +376,12 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 			}
 
 			// Don't create revocations when this wallet doesn't have voting
-			// authority.
-			owned, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
+			// authority or the private key to revoke.
+			owned, haveKey, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
 			if err != nil {
 				return err
 			}
-			if !owned {
+			if !(owned && haveKey) {
 				continue
 			}
 

@@ -3911,12 +3911,13 @@ func isTreasurySpend(tx *wire.MsgTx) bool {
 
 // hasVotingAuthority returns whether the 0th output of a ticket purchase can be
 // spent by a vote or revocation created by this wallet.
-func (w *Wallet) hasVotingAuthority(addrmgrNs walletdb.ReadBucket, ticketPurchase *wire.MsgTx) (bool, error) {
+func (w *Wallet) hasVotingAuthority(addrmgrNs walletdb.ReadBucket, ticketPurchase *wire.MsgTx) (
+	mine, havePrivKey bool, err error) {
 	out := ticketPurchase.TxOut[0]
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
 		out.PkScript, w.chainParams, true) // Yes treasury
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	for _, a := range addrs {
 		var hash160 *[20]byte
@@ -3927,10 +3928,11 @@ func (w *Wallet) hasVotingAuthority(addrmgrNs walletdb.ReadBucket, ticketPurchas
 			continue
 		}
 		if w.manager.ExistsHash160(addrmgrNs, hash160[:]) {
-			return true, nil
+			haveKey, err := w.manager.HavePrivateKey(addrmgrNs, a)
+			return true, haveKey, err
 		}
 	}
-	return false, nil
+	return false, false, nil
 }
 
 // StakeInfo collects and returns staking statistics for this wallet.
@@ -3959,7 +3961,7 @@ func (w *Wallet) StakeInfo(ctx context.Context) (*StakeInfoData, error) {
 		defer it.Close()
 		for it.Next() {
 			// Skip tickets which are not owned by this wallet.
-			owned, err := w.hasVotingAuthority(addrmgrNs, &it.MsgTx)
+			owned, _, err := w.hasVotingAuthority(addrmgrNs, &it.MsgTx)
 			if err != nil {
 				return err
 			}
@@ -4067,7 +4069,7 @@ func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpcCaller Caller) (*Stake
 		defer it.Close()
 		for it.Next() {
 			// Skip tickets which are not owned by this wallet.
-			owned, err := w.hasVotingAuthority(addrmgrNs, &it.MsgTx)
+			owned, _, err := w.hasVotingAuthority(addrmgrNs, &it.MsgTx)
 			if err != nil {
 				return err
 			}
