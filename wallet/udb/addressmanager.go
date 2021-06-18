@@ -2325,7 +2325,7 @@ func (m *Manager) HavePrivateKey(ns walletdb.ReadBucket, addr stdaddr.Address) (
 		return false, nil
 	}
 
-	id, err := addressID(addr)
+	id, err := addressID(normalizeAddress(addr))
 	if err != nil {
 		return false, nil
 	}
