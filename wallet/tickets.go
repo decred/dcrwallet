@@ -458,11 +458,11 @@ func (w *Wallet) RevokeTicket(ctx context.Context, ticketHash *chainhash.Hash, p
 
 		// Don't create revocations when this wallet doesn't have voting
 		// authority.
-		owned, haveKey, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
+		owned, havePrivKey, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
 		if err != nil {
 			return err
 		}
-		if !owned || !haveKey {
+		if !owned || !havePrivKey {
 			return nil
 		}
 
