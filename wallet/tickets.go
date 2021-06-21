@@ -500,9 +500,7 @@ func (w *Wallet) RevokeTicket(ctx context.Context, ticketHash *chainhash.Hash, p
 		return errors.E(op, err)
 	}
 
-	revocations := make([]*wire.MsgTx, 0, 1)
-	revocations = append(revocations, revocation)
-	err = p.PublishTransactions(ctx, revocations...)
+	err = p.PublishTransactions(ctx, revocation)
 	if err != nil {
 		return errors.E(op, err)
 	}
