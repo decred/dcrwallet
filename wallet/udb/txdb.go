@@ -159,6 +159,7 @@ var (
 	rootTipBlock     = []byte("tip")
 	rootHaveCFilters = []byte("havecfilters")
 	rootLastTxsBlock = []byte("lasttxsblock")
+	rootVSPHostIndex = []byte("vsphostindex")
 )
 
 // The root bucket's mined balance k/v pair records the total balance for all

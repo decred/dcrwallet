@@ -11,6 +11,7 @@ import (
 
 	"decred.org/dcrwallet/v2/errors"
 	"decred.org/dcrwallet/v2/wallet"
+	"decred.org/dcrwallet/v2/wallet/udb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
@@ -138,6 +139,15 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context, policy Policy) {
 		if err == nil {
 			return nil
 		}
+		confirmed, err := c.Wallet.IsVSPTicketConfirmed(ctx, hash)
+		if err != nil && !errors.Is(err, errors.NotExist) {
+			log.Error(err)
+			return nil
+		}
+
+		if confirmed {
+			return nil
+		}
 
 		c.mu.Lock()
 		fp := c.jobs[*hash]
@@ -168,6 +178,15 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context, policy Policy) {
 // tickets.
 func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error {
 	err := c.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+		// We only want to process tickets that haven't been confirmed yet.
+		confirmed, err := c.Wallet.IsVSPTicketConfirmed(ctx, hash)
+		if err != nil && !errors.Is(err, errors.NotExist) {
+			log.Error(err)
+			return nil
+		}
+		if confirmed {
+			return nil
+		}
 		c.mu.Lock()
 		_, ok := c.jobs[*hash]
 		c.mu.Unlock()
@@ -192,13 +211,13 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error
 			if err != nil {
 				return err
 			}
-			err = c.Wallet.UpdateVspTicketFeeToPaid(ctx, hash, feeHash)
+			err = c.Wallet.UpdateVspTicketFeeToPaid(ctx, hash, feeHash, c.client.url, c.client.pub)
 			if err != nil {
 				return err
 			}
 		}
 
-		_ = c.feePayment(hash, policy)
+		_ = c.feePayment(hash, policy, false)
 		return nil
 	})
 	return err
@@ -221,27 +240,71 @@ func (c *Client) Process(ctx context.Context, ticketHash *chainhash.Hash, feeTx 
 func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx,
 	policy Policy) error {
 
-	fp := c.feePayment(ticketHash, policy)
-	if fp == nil {
-		return fmt.Errorf("fee payment cannot be processed")
-	}
-	fp.mu.Lock()
-	if fp.feeTx == nil {
-		fp.feeTx = feeTx
-	}
-	fp.mu.Unlock()
-	err := fp.receiveFeeAddress()
-	if err != nil {
-		// XXX, retry? (old Process retried)
-		// but this may not be necessary any longer as the parent of
-		// the ticket is always relayed to the vsp as well.
+	vspTicket, err := c.Wallet.VSPTicketInfo(ctx, ticketHash)
+	if err != nil && !errors.Is(err, errors.NotExist) {
 		return err
 	}
-	err = fp.makeFeeTx(feeTx)
-	if err != nil {
-		return err
+	feeStatus := udb.VSPFeeProcessStarted // Will be used if the ticket isn't registered to the vsp yet.
+	if vspTicket != nil {
+		feeStatus = udb.FeeStatus(vspTicket.FeeTxStatus)
 	}
-	return fp.submitPayment()
+
+	switch feeStatus {
+	case udb.VSPFeeProcessStarted, udb.VSPFeeProcessErrored:
+		// If VSPTicket has been started or errored then attempt to create a new fee
+		// transaction, submit it then confirm.
+		fp := c.feePayment(ticketHash, policy, false)
+		if fp == nil {
+			err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.client.url, c.client.pub)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("fee payment cannot be processed")
+		}
+		fp.mu.Lock()
+		if fp.feeTx == nil {
+			fp.feeTx = feeTx
+		}
+		fp.mu.Unlock()
+		err := fp.receiveFeeAddress()
+		if err != nil {
+			err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.client.url, c.client.pub)
+			if err != nil {
+				return err
+			}
+			// XXX, retry? (old Process retried)
+			// but this may not be necessary any longer as the parent of
+			// the ticket is always relayed to the vsp as well.
+			return err
+		}
+		err = fp.makeFeeTx(feeTx)
+		if err != nil {
+			err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.client.url, c.client.pub)
+			if err != nil {
+				return err
+			}
+			return err
+		}
+		return fp.submitPayment()
+	case udb.VSPFeeProcessPaid:
+		// If a VSP ticket has been paid, but confirm payment.
+		if len(vspTicket.Host) > 0 && vspTicket.Host != c.client.url {
+			// Cannot confirm a paid ticket that is already with another VSP.
+			return fmt.Errorf("ticket already paid or confirmed with another vsp")
+		}
+		fp := c.feePayment(ticketHash, policy, true)
+		if fp == nil {
+			// Don't update VSPStatus to Errored if it was already paid or
+			// confirmed.
+			return fmt.Errorf("fee payment cannot be processed")
+		}
+
+		return fp.confirmPayment()
+	case udb.VSPFeeProcessConfirmed:
+		// VSPTicket has already been confirmed, there is nothing to process.
+		return nil
+	}
+	return nil
 }
 
 // SetVoteChoice takes the provided AgendaChoices and ticket hash, checks the
