@@ -21,9 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"decred.org/dcrwallet/v2/errors"
 	"decred.org/dcrwallet/v2/internal/loader"
 	"decred.org/dcrwallet/v2/internal/vsp"
@@ -3214,22 +3211,22 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		csppServer = s.cfg.CSPPServer
 		mixedAccount, err = w.AccountNumber(ctx, s.cfg.MixAccount)
 		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument,
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"CSPP Server set, but error on mixed account: %v", err)
 		}
 		mixedAccountBranch = s.cfg.MixBranch
 		if mixedAccountBranch != 0 && mixedAccountBranch != 1 {
-			return nil, status.Errorf(codes.InvalidArgument,
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"MixedAccountBranch should be 0 or 1.")
 		}
 		_, err = w.AccountNumber(ctx, s.cfg.TicketSplitAccount)
 		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument,
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"CSPP Server set, but error on mixedSplitAccount: %v", err)
 		}
 		_, err = w.AccountNumber(ctx, s.cfg.MixChangeAccount)
 		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument,
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"CSPP Server set, but error on changeAccount: %v", err)
 		}
 	}
@@ -3241,10 +3238,12 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		vspHost = s.cfg.VSPHost
 		vspPubKey = s.cfg.VSPPubKey
 		if vspPubKey == "" {
-			return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"vsp pubkey can not be null")
 		}
 		if vspHost == "" {
-			return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"vsp host can not be null")
 		}
 		cfg := vsp.Config{
 			URL:    vspHost,
@@ -3259,7 +3258,8 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		}
 		vspClient, err = loader.VSP(cfg)
 		if err != nil {
-			return nil, status.Errorf(codes.Unknown, "VSP Server instance failed to start: %v", err)
+			return nil, rpcErrorf(dcrjson.ErrRPCMisc,
+				"VSP Server instance failed to start: %v", err)
 		}
 	}
 
