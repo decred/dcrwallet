@@ -138,6 +138,15 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context, policy Policy) {
 		if err == nil {
 			return nil
 		}
+		confirmed, err := c.Wallet.IsVSPTicketConfirmed(ctx, hash)
+		if err != nil {
+			// Should we just log and return nil here?
+			return err
+		}
+
+		if confirmed {
+			return nil
+		}
 
 		c.mu.Lock()
 		fp := c.jobs[*hash]
@@ -168,6 +177,15 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context, policy Policy) {
 // tickets.
 func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error {
 	err := c.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+		// We only want to process tickets that haven't been confirmed yet.
+		confirmed, err := c.Wallet.IsVSPTicketConfirmed(ctx, hash)
+		if err != nil {
+			// Should we just log and return nil here?
+			return err
+		}
+		if confirmed {
+			return nil
+		}
 		c.mu.Lock()
 		_, ok := c.jobs[*hash]
 		c.mu.Unlock()
@@ -192,7 +210,7 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error
 			if err != nil {
 				return err
 			}
-			err = c.Wallet.UpdateVspTicketFeeToPaid(ctx, hash, feeHash)
+			err = c.Wallet.UpdateVspTicketFeeToPaid(ctx, hash, feeHash, c.client.url, c.client.pub)
 			if err != nil {
 				return err
 			}
@@ -220,9 +238,17 @@ func (c *Client) Process(ctx context.Context, ticketHash *chainhash.Hash, feeTx 
 // be specified, instead of using the client's default policy.
 func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx,
 	policy Policy) error {
-
+	feeHash := feeTx.TxHash()
+	err := c.Wallet.UpdateVspTicketFeeToStarted(ctx, ticketHash, &feeHash, c.client.url, c.client.pub)
+	if err != nil {
+		return err
+	}
 	fp := c.feePayment(ticketHash, policy)
 	if fp == nil {
+		err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, &feeHash, c.client.url, c.client.pub)
+		if err != nil {
+			return err
+		}
 		return fmt.Errorf("fee payment cannot be processed")
 	}
 	fp.mu.Lock()
@@ -230,8 +256,12 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 		fp.feeTx = feeTx
 	}
 	fp.mu.Unlock()
-	err := fp.receiveFeeAddress()
+	err = fp.receiveFeeAddress()
 	if err != nil {
+		err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, &feeHash, c.client.url, c.client.pub)
+		if err != nil {
+			return err
+		}
 		// XXX, retry? (old Process retried)
 		// but this may not be necessary any longer as the parent of
 		// the ticket is always relayed to the vsp as well.
@@ -239,6 +269,10 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 	}
 	err = fp.makeFeeTx(feeTx)
 	if err != nil {
+		err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, &feeHash, c.client.url, c.client.pub)
+		if err != nil {
+			return err
+		}
 		return err
 	}
 	return fp.submitPayment()
