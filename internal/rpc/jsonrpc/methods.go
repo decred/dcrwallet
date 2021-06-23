@@ -21,6 +21,9 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"decred.org/dcrwallet/v2/errors"
 	"decred.org/dcrwallet/v2/internal/loader"
 	"decred.org/dcrwallet/v2/internal/vsp"
@@ -49,8 +52,6 @@ import (
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // API version constants
