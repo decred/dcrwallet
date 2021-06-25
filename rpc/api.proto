@@ -607,8 +607,7 @@ message PurchaseTicketsResponse {
 }
 
 message RevokeTicketRequest {
-	bytes passphrase = 1;
-	bytes ticket_hash = 2;
+	bytes ticket_hash = 1;
 }
 message RevokeTicketResponse {}
 

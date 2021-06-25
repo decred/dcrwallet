@@ -15,6 +15,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
@@ -455,15 +456,47 @@ func (w *Wallet) RevokeTicket(ctx context.Context, ticketHash *chainhash.Hash, p
 		if err != nil {
 			return err
 		}
-
+		_, addrs, _, err := txscript.ExtractPkScriptAddrs(
+			ticketPurchase.TxOut[0].Version, ticketPurchase.TxOut[0].PkScript,
+			w.chainParams, true) // Yes treasury
+		if err != nil {
+			return err
+		}
+		for _, votingAddress := range addrs {
+			account, err := w.manager.AddrAccount(addrmgrNs, votingAddress)
+			if err != nil {
+				return err
+			}
+			unlocked, err := w.AccountUnlocked(ctx, account)
+			if err != nil {
+				if errors.Is(err, errors.Invalid) {
+					// Account doesn't have a lock, now just check to see if
+					// wallet is unlocked
+					if !w.Unlocked() {
+						return errors.Errorf(
+							"wallet is not unlocked to create revocation")
+					}
+				} else {
+					return err
+				}
+			}
+			if !unlocked {
+				return errors.Errorf(
+					"account %v is not unlocked for revocation", account)
+			}
+		}
 		// Don't create revocations when this wallet doesn't have voting
 		// authority.
 		owned, havePrivKey, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
 		if err != nil {
 			return err
 		}
-		if !owned || !havePrivKey {
-			return nil
+		if !owned {
+			return errors.Errorf("%v is not owned", ticketHash)
+		}
+		if !havePrivKey {
+			return errors.Errorf("wallet does not have privkey for %v",
+				ticketHash)
 		}
 
 		revocation, err = createUnsignedRevocation(ticketHash,
@@ -490,7 +523,8 @@ func (w *Wallet) RevokeTicket(ctx context.Context, ticketHash *chainhash.Hash, p
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		// Could be more efficient by avoiding processTransaction, as we
 		// know it is a revocation.
-		watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
+		watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, rec, nil,
+			nil)
 		if err != nil {
 			return err
 		}

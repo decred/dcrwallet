@@ -1826,17 +1826,6 @@ func (s *walletServer) RevokeTicket(ctx context.Context, req *pb.RevokeTicketReq
 		return nil, status.Errorf(codes.InvalidArgument, "tickethash is required to revoke ticket")
 	}
 
-	if len(req.Passphrase) > 0 {
-		lock := make(chan time.Time, 1)
-		defer func() {
-			lock <- time.Time{} // send matters, not the value
-		}()
-		err = s.wallet.Unlock(ctx, req.Passphrase, lock)
-		if err != nil {
-			return nil, translateError(err)
-		}
-	}
-
 	n, err := s.requireNetworkBackend()
 	if err != nil {
 		return nil, err
