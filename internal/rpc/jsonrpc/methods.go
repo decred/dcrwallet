@@ -1942,7 +1942,7 @@ func (s *Server) importPrivKey(ctx context.Context, icmd interface{}) (interface
 }
 
 // importPubKey handles an importpubkey request by parsing
-// a WIF-encoded private key and adding it to an account.
+// a hex encoded compressed SEC pubkey
 func (s *Server) importPubKey(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.ImportPubKeyCmd)
 	w, ok := s.walletLoader.LoadedWallet()
