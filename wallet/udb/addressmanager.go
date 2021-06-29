@@ -1294,6 +1294,51 @@ func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF
 	return managedAddr, nil
 }
 
+// pubkey has to be serialized pubkey (serialized compressed SEC: y sign + 32B BigEndian x)
+func (m *Manager) ImportPublicKey(ns walletdb.ReadWriteBucket, pubkey []byte) (ManagedPubKeyAddress, error) {
+	defer m.mtx.Unlock()
+	m.mtx.Lock()
+
+	// The manager must be unlocked to encrypt the imported private key.
+	if !m.watchingOnly && m.locked {
+		return nil, errors.E(errors.Locked)
+	}
+
+	// Prevent duplicates.
+	serializedPubKey := pubkey
+	pubKeyHash := dcrutil.Hash160(serializedPubKey)
+	if existsAddress(ns, pubKeyHash) {
+		return nil, errors.E(errors.Exist, "address for private key already exists")
+	}
+
+	// Encrypt public key.
+	encryptedPubKey, err := m.cryptoKeyPub.Encrypt(serializedPubKey)
+	if err != nil {
+		return nil, errors.E(errors.Crypto, errors.Errorf("encrypt imported pubkey: %v", err))
+	}
+
+	// Encrypt the private key when not a watching-only address manager.
+	// NOT USED HERE.
+	var encryptedPrivKey []byte
+
+	// Save the new imported address to the db and update start block (if
+	// needed) in a single transaction.
+	err = putImportedAddress(ns, pubKeyHash, ImportedAddrAccount,
+		encryptedPubKey, encryptedPrivKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a new managed address based on the imported address.
+	managedAddr, err := newManagedAddressWithoutPrivKey(m, ImportedAddrAccount,
+		serializedPubKey)
+	if err != nil {
+		return nil, err
+	}
+	managedAddr.imported = true
+	return managedAddr, nil
+}
+
 // ImportScript imports a user-provided script into the address manager.  The
 // imported script will act as a pay-to-script-hash address.
 //

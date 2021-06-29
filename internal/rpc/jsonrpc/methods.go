@@ -124,6 +124,7 @@ var handlers = map[string]handler{
 	"getcfilterv2":            {fn: (*Server).getCFilterV2},
 	"importcfiltersv2":        {fn: (*Server).importCFiltersV2},
 	"importprivkey":           {fn: (*Server).importPrivKey},
+	"importpubkey":            {fn: (*Server).importPubKey},
 	"importscript":            {fn: (*Server).importScript},
 	"importxpub":              {fn: (*Server).importXpub},
 	"listaccounts":            {fn: (*Server).listAccounts},
@@ -1919,6 +1920,59 @@ func (s *Server) importPrivKey(ctx context.Context, icmd interface{}) (interface
 
 	// Import the private key, handling any errors.
 	_, err = w.ImportPrivateKey(ctx, wif)
+	if err != nil {
+		switch {
+		case errors.Is(err, errors.Exist):
+			// Do not return duplicate key errors to the client.
+			return nil, nil
+		case errors.Is(err, errors.Locked):
+			return nil, errWalletUnlockNeeded
+		default:
+			return nil, err
+		}
+	}
+
+	if rescan {
+		// TODO: This is not synchronized with process shutdown and
+		// will cause panics when the DB is closed mid-transaction.
+		go w.RescanFromHeight(context.Background(), n, scanFrom)
+	}
+
+	return nil, nil
+}
+
+// importPubKey handles an importpubkey request by parsing
+// a hex encoded compressed SEC pubkey
+func (s *Server) importPubKey(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.ImportPubKeyCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	rescan := true
+	if cmd.Rescan != nil {
+		rescan = *cmd.Rescan
+	}
+	scanFrom := int32(0)
+	if cmd.ScanFrom != nil {
+		scanFrom = int32(*cmd.ScanFrom)
+	}
+	n, ok := s.walletLoader.NetworkBackend()
+	if rescan && !ok {
+		return nil, errNoNetwork
+	}
+
+	if cmd.Label != nil && *cmd.Label != udb.ImportedAddrAccountName {
+		return nil, errNotImportedAccount
+	}
+
+	pubkey_hex := cmd.PubKey // For compatibility: HEX encoded pubkey
+
+	// Import the public key, handling any errors.
+	pubkey := make([]byte, hex.DecodedLen(len(pubkey_hex)))
+	hex.Decode(pubkey, []byte(pubkey_hex))
+	_, err := w.ImportPublicKey(ctx, pubkey)
 	if err != nil {
 		switch {
 		case errors.Is(err, errors.Exist):
