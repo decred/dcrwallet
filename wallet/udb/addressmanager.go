@@ -2604,6 +2604,85 @@ func CoinTypes(params *chaincfg.Params) (legacyCoinType, slip0044CoinType uint32
 	return params.LegacyCoinType, params.SLIP0044CoinType
 }
 
+// HDKeysFromSeed creates legacy and slip0044 coin keys and accout zero keys
+// from seed. Keys are zeroed upon any error.
+func HDKeysFromSeed(seed []byte, params *chaincfg.Params) (coinTypeLegacyKeyPriv, coinTypeSLIP0044KeyPriv, acctKeyLegacyPriv, acctKeySLIP0044Priv *hdkeychain.ExtendedKey, err error) {
+	// fail will zero any successfully created keys before returning.
+	fail := func(err error) (*hdkeychain.ExtendedKey, *hdkeychain.ExtendedKey, *hdkeychain.ExtendedKey, *hdkeychain.ExtendedKey, error) {
+		zero := func(hdkey *hdkeychain.ExtendedKey) {
+			if hdkey != nil {
+				hdkey.Zero()
+			}
+		}
+		zero(coinTypeLegacyKeyPriv)
+		zero(coinTypeSLIP0044KeyPriv)
+		zero(acctKeyLegacyPriv)
+		zero(acctKeySLIP0044Priv)
+		return nil, nil, nil, nil, err
+	}
+
+	// Derive the master extended key from the seed.
+	root, err := hdkeychain.NewMaster(seed, params)
+	if err != nil {
+		return fail(err)
+	}
+
+	// Derive the cointype keys according to BIP0044.
+	legacyCoinType, slip0044CoinType := CoinTypes(params)
+	coinTypeLegacyKeyPriv, err = deriveCoinTypeKey(root, legacyCoinType)
+	if err != nil {
+		return fail(err)
+	}
+	coinTypeSLIP0044KeyPriv, err = deriveCoinTypeKey(root, slip0044CoinType)
+	if err != nil {
+		return fail(err)
+	}
+
+	// Derive the account key for the first account according to BIP0044.
+	acctKeyLegacyPriv, err = deriveAccountKey(coinTypeLegacyKeyPriv, 0)
+	if err != nil {
+		// The seed is unusable if the any of the children in the
+		// required hierarchy can't be derived due to invalid child.
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
+			return fail(errors.E(errors.Seed, hdkeychain.ErrUnusableSeed))
+		}
+
+		return fail(err)
+	}
+	acctKeySLIP0044Priv, err = deriveAccountKey(coinTypeSLIP0044KeyPriv, 0)
+	if err != nil {
+		// The seed is unusable if the any of the children in the
+		// required hierarchy can't be derived due to invalid child.
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
+			return fail(errors.E(errors.Seed, hdkeychain.ErrUnusableSeed))
+		}
+
+		return fail(err)
+	}
+
+	// Ensure the branch keys can be derived for the provided seed according
+	// to BIP0044.
+	if err := checkBranchKeys(acctKeyLegacyPriv); err != nil {
+		// The seed is unusable if the any of the children in the
+		// required hierarchy can't be derived due to invalid child.
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
+			return fail(errors.E(errors.Seed, hdkeychain.ErrUnusableSeed))
+		}
+
+		return fail(err)
+	}
+	if err := checkBranchKeys(acctKeySLIP0044Priv); err != nil {
+		// The seed is unusable if the any of the children in the
+		// required hierarchy can't be derived due to invalid child.
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
+			return fail(errors.E(errors.Seed, hdkeychain.ErrUnusableSeed))
+		}
+
+		return fail(err)
+	}
+	return coinTypeLegacyKeyPriv, coinTypeSLIP0044KeyPriv, acctKeyLegacyPriv, acctKeySLIP0044Priv, nil
+}
+
 // createAddressManager creates a new address manager in the given namespace.
 // The seed must conform to the standards described in hdkeychain.NewMaster and
 // will be used to create the master root node from which all hierarchical
@@ -2634,68 +2713,12 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 
 	// Generate the BIP0044 HD key structure to ensure the provided seed
 	// can generate the required structure with no issues.
-
-	// Derive the master extended key from the seed.
-	root, err := hdkeychain.NewMaster(seed, chainParams)
-	if err != nil {
-		return err
-	}
-
-	// Derive the cointype keys according to BIP0044.
-	legacyCoinType, slip0044CoinType := CoinTypes(chainParams)
-	coinTypeLegacyKeyPriv, err := deriveCoinTypeKey(root, legacyCoinType)
+	coinTypeLegacyKeyPriv, coinTypeSLIP0044KeyPriv, acctKeyLegacyPriv, acctKeySLIP0044Priv, err := HDKeysFromSeed(seed, chainParams)
 	if err != nil {
 		return err
 	}
 	defer coinTypeLegacyKeyPriv.Zero()
-	coinTypeSLIP0044KeyPriv, err := deriveCoinTypeKey(root, slip0044CoinType)
-	if err != nil {
-		return err
-	}
 	defer coinTypeSLIP0044KeyPriv.Zero()
-
-	// Derive the account key for the first account according to BIP0044.
-	acctKeyLegacyPriv, err := deriveAccountKey(coinTypeLegacyKeyPriv, 0)
-	if err != nil {
-		// The seed is unusable if the any of the children in the
-		// required hierarchy can't be derived due to invalid child.
-		if errors.Is(err, hdkeychain.ErrInvalidChild) {
-			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
-		}
-
-		return err
-	}
-	acctKeySLIP0044Priv, err := deriveAccountKey(coinTypeSLIP0044KeyPriv, 0)
-	if err != nil {
-		// The seed is unusable if the any of the children in the
-		// required hierarchy can't be derived due to invalid child.
-		if errors.Is(err, hdkeychain.ErrInvalidChild) {
-			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
-		}
-
-		return err
-	}
-
-	// Ensure the branch keys can be derived for the provided seed according
-	// to BIP0044.
-	if err := checkBranchKeys(acctKeyLegacyPriv); err != nil {
-		// The seed is unusable if the any of the children in the
-		// required hierarchy can't be derived due to invalid child.
-		if errors.Is(err, hdkeychain.ErrInvalidChild) {
-			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
-		}
-
-		return err
-	}
-	if err := checkBranchKeys(acctKeySLIP0044Priv); err != nil {
-		// The seed is unusable if the any of the children in the
-		// required hierarchy can't be derived due to invalid child.
-		if errors.Is(err, hdkeychain.ErrInvalidChild) {
-			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
-		}
-
-		return err
-	}
 
 	// The address manager needs the public extended key for the account.
 	acctKeyLegacyPub := acctKeyLegacyPriv.Neuter()
