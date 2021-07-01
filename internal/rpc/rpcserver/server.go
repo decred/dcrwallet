@@ -3820,9 +3820,7 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 		}
 		return nil
 	})
-	if errors.Is(err, errUnmanagedTickets) && s.wallet.Locked() {
-		return nil, status.Errorf(codes.Unknown, "Wallet must be unlocked for ProcessUnprocessedTickets %v", err)
-	} else if errors.Is(err, errUnmanagedTickets) {
+	if errors.Is(err, errUnmanagedTickets) {
 		vspClient.ProcessUnprocessedTickets(ctx, policy)
 	}
 
