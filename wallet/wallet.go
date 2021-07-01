@@ -5587,11 +5587,11 @@ func (w *Wallet) UpdateVspTicketFeeToStarted(ctx context.Context, ticketHash, fe
 	return err
 }
 
-func (w *Wallet) UpdateVspTicketFeeToErrored(ctx context.Context, ticketHash, feeHash *chainhash.Hash, host string, pubkey []byte) error {
+func (w *Wallet) UpdateVspTicketFeeToErrored(ctx context.Context, ticketHash *chainhash.Hash, host string, pubkey []byte) error {
 	var err error
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
-			FeeHash:     *feeHash,
+			FeeHash:     chainhash.Hash{},
 			FeeTxStatus: uint32(udb.VSPFeeProcessErrored),
 			Host:        host,
 			PubKey:      pubkey,

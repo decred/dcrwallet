@@ -139,7 +139,7 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context, policy Policy) {
 			return nil
 		}
 		confirmed, err := c.Wallet.IsVSPTicketConfirmed(ctx, hash)
-		if err != nil {
+		if err != nil && !errors.Is(err, errors.NotExist) {
 			// Should we just log and return nil here?
 			return err
 		}
@@ -238,14 +238,9 @@ func (c *Client) Process(ctx context.Context, ticketHash *chainhash.Hash, feeTx 
 // be specified, instead of using the client's default policy.
 func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx,
 	policy Policy) error {
-	feeHash := feeTx.TxHash()
-	err := c.Wallet.UpdateVspTicketFeeToStarted(ctx, ticketHash, &feeHash, c.client.url, c.client.pub)
-	if err != nil {
-		return err
-	}
 	fp := c.feePayment(ticketHash, policy)
 	if fp == nil {
-		err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, &feeHash, c.client.url, c.client.pub)
+		err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.client.url, c.client.pub)
 		if err != nil {
 			return err
 		}
@@ -256,9 +251,9 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 		fp.feeTx = feeTx
 	}
 	fp.mu.Unlock()
-	err = fp.receiveFeeAddress()
+	err := fp.receiveFeeAddress()
 	if err != nil {
-		err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, &feeHash, c.client.url, c.client.pub)
+		err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.client.url, c.client.pub)
 		if err != nil {
 			return err
 		}
@@ -269,7 +264,7 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 	}
 	err = fp.makeFeeTx(feeTx)
 	if err != nil {
-		err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, &feeHash, c.client.url, c.client.pub)
+		err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.client.url, c.client.pub)
 		if err != nil {
 			return err
 		}

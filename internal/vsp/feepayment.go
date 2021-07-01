@@ -282,6 +282,11 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy) (fp *feeP
 		return fp
 	}
 
+	err = w.UpdateVspTicketFeeToStarted(ctx, ticketHash, &feeHash, c.client.url, c.client.pub)
+	if err != nil {
+		return fp
+	}
+
 	fp.feeTx = fee
 	fp.fee = -1 // XXX fee amount (not needed anymore?)
 
@@ -791,7 +796,7 @@ func (fp *feePayment) reconcilePayment() error {
 			}
 			err = nil
 		case codeInvalidFeeTx, codeCannotBroadcastFee:
-			err := w.UpdateVspTicketFeeToErrored(ctx, &fp.ticketHash, nil, fp.client.url, fp.client.pub)
+			err := w.UpdateVspTicketFeeToErrored(ctx, &fp.ticketHash, fp.client.url, fp.client.pub)
 			if err != nil {
 				return err
 			}
