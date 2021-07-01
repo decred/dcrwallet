@@ -336,8 +336,9 @@ type Manager struct {
 	// privPassphraseHasher is a blake2b-256 hasher (keyed with random
 	// bytes) to hash passphrases, to compare for correct passphrases when
 	// unlocking an already unlocked wallet without deriving another key.
-	privPassphraseHasher hash.Hash
-	privPassphraseHash   []byte
+	privPassphraseHasher   hash.Hash
+	privPassphraseHasherMu sync.Mutex // protects privPassphraseHasher
+	privPassphraseHash     []byte     // protected by m.mtx, not privPassphraseHasherMu
 }
 
 func zero(b []byte) {
@@ -1440,9 +1441,11 @@ func (m *Manager) UnlockedWithPassphrase(passphrase []byte) error {
 		return errors.E(errors.Locked)
 	}
 
+	m.privPassphraseHasherMu.Lock()
 	m.privPassphraseHasher.Reset()
 	m.privPassphraseHasher.Write(passphrase)
 	passHash := m.privPassphraseHasher.Sum(nil)
+	m.privPassphraseHasherMu.Unlock()
 
 	if subtle.ConstantTimeCompare(passHash, m.privPassphraseHash) != 1 {
 		return errors.E(errors.Passphrase)
@@ -1468,9 +1471,11 @@ func (m *Manager) Unlock(ns walletdb.ReadBucket, passphrase []byte) error {
 		return errors.E(errors.WatchingOnly, "cannot unlock watching wallet")
 	}
 
+	m.privPassphraseHasherMu.Lock()
 	m.privPassphraseHasher.Reset()
 	m.privPassphraseHasher.Write(passphrase)
 	passHash := m.privPassphraseHasher.Sum(nil)
+	m.privPassphraseHasherMu.Unlock()
 
 	// Avoid actually unlocking if the manager is already unlocked
 	// and the passphrases match.
