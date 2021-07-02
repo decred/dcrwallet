@@ -2187,9 +2187,6 @@ func (m *Manager) ImportVotingAccount(dbtx walletdb.ReadWriteTx, acctKeyPriv *hd
 		return 0, errors.Errorf("unknown account type %T", a)
 	}
 
-	// TODO: Increment external index for known used stake submission
-	// scripts.
-
 	return account, nil
 }
 
