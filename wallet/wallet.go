@@ -3847,7 +3847,7 @@ func votingXprivFromSeed(seed []byte, params *chaincfg.Params) (*hdkeychain.Exte
 
 // ImportVotingAccount imports a voting account to the wallet. A password and
 // unique name must be supplied. The xpriv must be for the current running
-// network. Only external addresses are expected to be used.
+// network.
 func (w *Wallet) ImportVotingAccount(ctx context.Context, xpriv *hdkeychain.ExtendedKey,
 	passphrase []byte, name string) (uint32, error) {
 	const op errors.Op = "wallet.ImportVotingAccount"
@@ -3871,17 +3871,8 @@ func (w *Wallet) ImportVotingAccount(ctx context.Context, xpriv *hdkeychain.Exte
 		return 0, errors.E(op, err)
 	}
 
-	if n, err := w.NetworkBackend(); err == nil {
-		// Internal addresses are never used from the voting account.
-		extAddrs, err := deriveChildAddresses(extKey, 0, w.gapLimit, w.chainParams)
-		if err != nil {
-			return 0, errors.E(op, err)
-		}
-		err = n.LoadTxFilter(ctx, false, extAddrs, nil)
-		if err != nil {
-			return 0, errors.E(op, err)
-		}
-	}
+	// TODO: Increment external and internal indexes for known used stake
+	// submission scripts.
 
 	defer w.addressBuffersMu.Unlock()
 	w.addressBuffersMu.Lock()
