@@ -3871,8 +3871,18 @@ func (w *Wallet) ImportVotingAccount(ctx context.Context, xpriv *hdkeychain.Exte
 		return 0, errors.E(op, err)
 	}
 
-	// TODO: Increment external and internal indexes for known used stake
-	// submission scripts.
+	// Internal addresses are used in signing messages and are not expected
+	// to be found used on chain.
+	if n, err := w.NetworkBackend(); err == nil {
+		extAddrs, err := deriveChildAddresses(extKey, 0, w.gapLimit, w.chainParams)
+		if err != nil {
+			return 0, errors.E(op, err)
+		}
+		err = n.LoadTxFilter(ctx, false, extAddrs, nil)
+		if err != nil {
+			return 0, errors.E(op, err)
+		}
+	}
 
 	defer w.addressBuffersMu.Unlock()
 	w.addressBuffersMu.Lock()
