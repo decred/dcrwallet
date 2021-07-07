@@ -61,9 +61,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.9.0"
+	semverString = "7.10.0"
 	semverMajor  = 7
-	semverMinor  = 9
+	semverMinor  = 10
 	semverPatch  = 0
 )
 
@@ -3897,4 +3897,28 @@ func (w *walletServer) GetTrackedVSPTickets(ctx context.Context, req *pb.GetTrac
 	}
 
 	return res, nil
+}
+
+func (w *walletServer) DiscoverUsage(ctx context.Context, req *pb.DiscoverUsageRequest) (*pb.DiscoverUsageResponse, error) {
+	n, err := w.requireNetworkBackend()
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "Unable to retrieve network backend. Error: %v", err)
+	}
+
+	startBlock := w.wallet.ChainParams().GenesisHash
+	if req.StartingBlockHash != nil {
+		h, err := chainhash.NewHash(req.StartingBlockHash)
+		if err != nil {
+			return nil, status.Errorf(codes.Unknown, "Invalid starting block hash provided. Error: %v", err)
+		}
+		startBlock = *h
+	}
+
+	gapLimit := w.wallet.GapLimit()
+	if req.GapLimit != 0 {
+		gapLimit = req.GapLimit
+	}
+
+	err = w.wallet.DiscoverActiveAddresses(ctx, n, &startBlock, req.DiscoverAccounts, gapLimit)
+	return nil, err
 }
