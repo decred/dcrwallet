@@ -3920,5 +3920,9 @@ func (w *walletServer) DiscoverUsage(ctx context.Context, req *pb.DiscoverUsageR
 	}
 
 	err = w.wallet.DiscoverActiveAddresses(ctx, n, &startBlock, req.DiscoverAccounts, gapLimit)
-	return nil, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.DiscoverUsageResponse{}, nil
 }
