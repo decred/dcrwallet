@@ -84,6 +84,7 @@ service WalletService {
 	rpc ProcessUnmanagedTickets (ProcessUnmanagedTicketsRequest) returns (ProcessUnmanagedTicketsResponse);
 	rpc SetVspdVoteChoices (SetVspdVoteChoicesRequest) returns (SetVspdVoteChoicesResponse);
 	rpc GetTrackedVSPTickets (GetTrackedVSPTicketsRequest) returns (GetTrackedVSPTicketsResponse);
+	rpc DiscoverUsage (DiscoverUsageRequest) returns (DiscoverUsageResponse);
 }
 
 service WalletLoaderService {
@@ -1332,3 +1333,11 @@ message GetTrackedVSPTicketsResponse {
 
 	repeated VSP vsps = 1;
 }
+
+message DiscoverUsageRequest {
+	bool discover_accounts = 1;
+	uint32 gap_limit = 2;
+	bytes starting_block_hash = 3;
+}
+
+message DiscoverUsageResponse {}
