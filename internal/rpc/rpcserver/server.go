@@ -538,6 +538,11 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	}, nil
 }
 
+func (s *walletServer) Address(ctx context.Context, req *pb.AddressRequest) (
+	*pb.AddressResponse, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPrivateKeyRequest) (
 	*pb.ImportPrivateKeyResponse, error) {
 
