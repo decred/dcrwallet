@@ -1248,18 +1248,22 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		return nil, errors.E(op, errors.Invalid, "expiry height must be above next block height")
 	}
 
-	stakeAddrFunc := func(op errors.Op, account, branch uint32) (stdaddr.StakeAddress, error) {
+	stakeAddrFunc := func(op errors.Op, account, branch uint32) (stdaddr.StakeAddress, uint32, error) {
 		const accountName = "" // not used, so can be faked.
 		a, err := w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil), accountName,
 			account, branch, WithGapPolicyIgnore())
 		if err != nil {
-			return nil, err
+			return nil, 0, err
+		}
+		var idx uint32
+		if xpa, ok := a.(*xpubAddress); ok {
+			idx = xpa.child
 		}
 		switch a := a.(type) {
 		case stdaddr.StakeAddress:
-			return a, nil
+			return a, idx, nil
 		default:
-			return nil, errors.E(errors.Invalid, "account does "+
+			return nil, 0, errors.E(errors.Invalid, "account does "+
 				"not return compatible stake addresses")
 		}
 	}
@@ -1275,8 +1279,8 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			err = errors.E(op, errors.Invalid, "account does not return "+
 				"compatible stake addresses")
 		}
-		stakeAddrFunc = func(errors.Op, uint32, uint32) (stdaddr.StakeAddress, error) {
-			return stakeAddr, err
+		stakeAddrFunc = func(errors.Op, uint32, uint32) (stdaddr.StakeAddress, uint32, error) {
+			return stakeAddr, 0, err
 		}
 	}
 
@@ -1601,6 +1605,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	ticketHashes := make([]*chainhash.Hash, 0, req.Count)
 	tickets := make([]*wire.MsgTx, 0, req.Count)
 	outpoint := wire.OutPoint{Hash: splitTx.TxHash()}
+
 	for _, index := range splitOutputIndexes {
 		// Generate the extended outpoints that we need to use for ticket
 		// inputs. There are two inputs for pool tickets corresponding to the
@@ -1639,14 +1644,28 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		// request first, then check the ticket address
 		// stored from the configuation. Finally, generate
 		// an address.
-		addrVote := req.VotingAddress
-		if addrVote == nil && req.CSPPServer == "" {
-			addrVote = w.ticketAddress
-		}
-		if addrVote == nil {
-			addrVote, err = stakeAddrFunc(op, req.VotingAccount, 1)
+		var addrVote stdaddr.StakeAddress
+		if req.UseVotingAccount {
+			var idx uint32
+			addrVote, idx, err = stakeAddrFunc(op, req.VotingAccount, udb.ExternalBranch)
 			if err != nil {
 				return nil, err
+			}
+			// TODO: Loop for bad children.
+			_, err := w.signingAddressAtIdx(ctx, op, w.persistReturnedChild(ctx, nil), req.VotingAccount, idx)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			addrVote = req.VotingAddress
+			if addrVote == nil && req.CSPPServer == "" {
+				addrVote = w.ticketAddress
+			}
+			if addrVote == nil {
+				addrVote, _, err = stakeAddrFunc(op, req.VotingAccount, 1)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 		subsidyAccount := req.SourceAccount
@@ -1655,7 +1674,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			subsidyAccount = req.MixedAccount
 			branch = req.MixedAccountBranch
 		}
-		addrSubsidy, err := stakeAddrFunc(op, subsidyAccount, branch)
+		addrSubsidy, _, err := stakeAddrFunc(op, subsidyAccount, branch)
 		if err != nil {
 			return nil, err
 		}

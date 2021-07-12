@@ -871,7 +871,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 //
 // This function MUST be called with the manager lock held for writes.
 func (m *Manager) deriveKeyFromPath(ns walletdb.ReadBucket, account, branch, index uint32, private bool) (*hdkeychain.ExtendedKey, error) {
-	if private && account > ImportedAddrAccount {
+	if private && account == ImportedAddrAccount {
 		return nil, errors.E(errors.Invalid, "account does not record private keys")
 	}
 
@@ -2413,9 +2413,9 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr stdaddr.Address) (key 
 	m.mtx.Lock()
 
 	// No private keys are available for a watching-only address manager.
-	if m.watchingOnly {
-		return nil, nil, errors.E(errors.WatchingOnly)
-	}
+	//if m.watchingOnly {
+	//	return nil, nil, errors.E(errors.WatchingOnly)
+	//}
 
 	// At this point, there are two types of addresses that must be handled:
 	// those that are derived from a BIP0044 account and addresses for imported

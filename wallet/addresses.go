@@ -630,6 +630,19 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 	}
 }
 
+func (w *Wallet) signingAddressAtIdx(ctx context.Context, op errors.Op, persist persistReturnedChildFunc, account, childIdx uint32) (stdaddr.Address, error) {
+	addr, err := w.AddressAtIdx(ctx, account, udb.InternalBranch, childIdx)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	// Write the returned child index to the database.
+	err = persist(account, udb.InternalBranch, childIdx)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return addr, nil
+}
+
 // AddressAtIndex returns the address at branch and childIdx. It does not persist
 // the returned address in the database.
 func (w *Wallet) AddressAtIdx(ctx context.Context, account, branch,
