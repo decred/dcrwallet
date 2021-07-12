@@ -630,6 +630,50 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 	}
 }
 
+// AddressAtIndex returns the address at branch and childIdx. It does not persist
+// the returned address in the database.
+func (w *Wallet) AddressAtIdx(ctx context.Context, account, branch,
+	childIdx uint32) (stdaddr.Address, error) {
+	const op errors.Op = "wallet.AddressAtIdx"
+	defer w.addressBuffersMu.Unlock()
+	w.addressBuffersMu.Lock()
+	ad, ok := w.addressBuffers[account]
+	if !ok {
+		return nil, errors.E(op, errors.NotExist, errors.Errorf("account %d", account))
+	}
+
+	var alb *addressBuffer
+	switch branch {
+	case udb.ExternalBranch:
+		alb = &ad.albExternal
+	case udb.InternalBranch:
+		alb = &ad.albInternal
+	default:
+		return nil, errors.E(op, errors.Invalid, "branch must be external (0) or internal (1)")
+	}
+
+	if childIdx >= hdkeychain.HardenedKeyStart {
+		return nil, errors.E(op, errors.Errorf("child out of range"))
+	}
+	child, err := alb.branchXpub.Child(childIdx)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	apkh, err := compat.HD2Address(child, w.chainParams)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	addr := &xpubAddress{
+		AddressPubKeyHashEcdsaSecp256k1V0: apkh,
+		xpub:                              ad.xpub,
+		account:                           account,
+		branch:                            udb.InternalBranch,
+		child:                             childIdx,
+	}
+	log.Infof("Returning address (account=%v branch=%v child=%v)", account, branch, childIdx)
+	return addr, nil
+}
+
 func (w *Wallet) nextImportedXpubAddress(ctx context.Context, op errors.Op,
 	maybeDBTX walletdb.ReadWriteTx, accountName string, account uint32, branch uint32,
 	callOpts ...NextAddressCallOption) (addr stdaddr.Address, err error) {
