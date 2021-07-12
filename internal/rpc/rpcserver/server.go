@@ -570,6 +570,11 @@ func (s *walletServer) Address(ctx context.Context, req *pb.AddressRequest) (
 	}, nil
 }
 
+func (s *walletServer) DumpPrivateKey(ctx context.Context, req *pb.DumpPrivateKeyRequest) (
+	*pb.DumpPrivateKeyResponse, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPrivateKeyRequest) (
 	*pb.ImportPrivateKeyResponse, error) {
 
