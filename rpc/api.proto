@@ -40,6 +40,7 @@ service WalletService {
 	rpc Spender (SpenderRequest) returns (SpenderResponse);
 	rpc GetCFilters (GetCFiltersRequest) returns (stream GetCFiltersResponse);
 	rpc GetPeerInfo(GetPeerInfoRequest) returns (GetPeerInfoResponse);
+	rpc DumpPrivateKey (DumpPrivateKeyRequest) returns (DumpPrivateKeyResponse);
 
 	// Notifications
 	rpc TransactionNotifications (TransactionNotificationsRequest) returns (stream TransactionNotificationsResponse);
@@ -311,6 +312,13 @@ message ImportExtendedPublicKeyRequest {
 	int32 scan_from = 4;
 }
 message ImportExtendedPublicKeyResponse {
+}
+
+message DumpPrivateKeyRequest {
+	string address = 1;
+}
+message DumpPrivateKeyResponse {
+	string private_key_wif = 1;
 }
 
 message ImportVotingAccountFromSeedRequest {

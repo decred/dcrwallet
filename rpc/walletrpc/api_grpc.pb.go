@@ -129,6 +129,7 @@ type WalletServiceClient interface {
 	Spender(ctx context.Context, in *SpenderRequest, opts ...grpc.CallOption) (*SpenderResponse, error)
 	GetCFilters(ctx context.Context, in *GetCFiltersRequest, opts ...grpc.CallOption) (WalletService_GetCFiltersClient, error)
 	GetPeerInfo(ctx context.Context, in *GetPeerInfoRequest, opts ...grpc.CallOption) (*GetPeerInfoResponse, error)
+	DumpPrivateKey(ctx context.Context, in *DumpPrivateKeyRequest, opts ...grpc.CallOption) (*DumpPrivateKeyResponse, error)
 	// Notifications
 	TransactionNotifications(ctx context.Context, in *TransactionNotificationsRequest, opts ...grpc.CallOption) (WalletService_TransactionNotificationsClient, error)
 	AccountNotifications(ctx context.Context, in *AccountNotificationsRequest, opts ...grpc.CallOption) (WalletService_AccountNotificationsClient, error)
@@ -429,6 +430,15 @@ func (x *walletServiceGetCFiltersClient) Recv() (*GetCFiltersResponse, error) {
 func (c *walletServiceClient) GetPeerInfo(ctx context.Context, in *GetPeerInfoRequest, opts ...grpc.CallOption) (*GetPeerInfoResponse, error) {
 	out := new(GetPeerInfoResponse)
 	err := c.cc.Invoke(ctx, "/walletrpc.WalletService/GetPeerInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *walletServiceClient) DumpPrivateKey(ctx context.Context, in *DumpPrivateKeyRequest, opts ...grpc.CallOption) (*DumpPrivateKeyResponse, error) {
+	out := new(DumpPrivateKeyResponse)
+	err := c.cc.Invoke(ctx, "/walletrpc.WalletService/DumpPrivateKey", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -979,6 +989,7 @@ type WalletServiceServer interface {
 	Spender(context.Context, *SpenderRequest) (*SpenderResponse, error)
 	GetCFilters(*GetCFiltersRequest, WalletService_GetCFiltersServer) error
 	GetPeerInfo(context.Context, *GetPeerInfoRequest) (*GetPeerInfoResponse, error)
+	DumpPrivateKey(context.Context, *DumpPrivateKeyRequest) (*DumpPrivateKeyResponse, error)
 	// Notifications
 	TransactionNotifications(*TransactionNotificationsRequest, WalletService_TransactionNotificationsServer) error
 	AccountNotifications(*AccountNotificationsRequest, WalletService_AccountNotificationsServer) error
@@ -1092,6 +1103,9 @@ func (UnimplementedWalletServiceServer) GetCFilters(*GetCFiltersRequest, WalletS
 }
 func (UnimplementedWalletServiceServer) GetPeerInfo(context.Context, *GetPeerInfoRequest) (*GetPeerInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPeerInfo not implemented")
+}
+func (UnimplementedWalletServiceServer) DumpPrivateKey(context.Context, *DumpPrivateKeyRequest) (*DumpPrivateKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DumpPrivateKey not implemented")
 }
 func (UnimplementedWalletServiceServer) TransactionNotifications(*TransactionNotificationsRequest, WalletService_TransactionNotificationsServer) error {
 	return status.Errorf(codes.Unimplemented, "method TransactionNotifications not implemented")
@@ -1606,6 +1620,24 @@ func _WalletService_GetPeerInfo_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(WalletServiceServer).GetPeerInfo(ctx, req.(*GetPeerInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WalletService_DumpPrivateKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DumpPrivateKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).DumpPrivateKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/walletrpc.WalletService/DumpPrivateKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).DumpPrivateKey(ctx, req.(*DumpPrivateKeyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2514,6 +2546,10 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPeerInfo",
 			Handler:    _WalletService_GetPeerInfo_Handler,
+		},
+		{
+			MethodName: "DumpPrivateKey",
+			Handler:    _WalletService_DumpPrivateKey_Handler,
 		},
 		{
 			MethodName: "ChangePassphrase",
