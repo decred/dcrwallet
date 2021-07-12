@@ -2484,10 +2484,7 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr stdaddr.Address) (key 
 	defer m.mtx.Unlock()
 	m.mtx.Lock()
 
-	// No private keys are available for a watching-only address manager.
-	if m.watchingOnly {
-		return nil, nil, errors.E(errors.WatchingOnly)
-	}
+	// NOTE: A watching only Manager may have imported private data.
 
 	// At this point, there are two types of addresses that must be handled:
 	// those that are derived from a BIP0044 account and addresses for imported

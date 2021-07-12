@@ -1755,6 +1755,25 @@ ticker_address, pool_address, expiry, tx_fee, ticket_fee.
 
 - `bool dont_sign_tx`: If the tickets tx should be signed or not.
 
+- `string cspp_server`: The cspp server to use.
+
+- `uint32 mixed_account`: The mixed account.
+
+- `uint32 mixed_account_branch`: The mixed account branch.
+
+- `uint32 mixed_split_account`: The mixed split account.
+
+- `uint32 change_account`: The change account.
+
+- `string vsp_host`: The vsp host.
+
+- `string vsp_pubkey`: The vsp pubkey.
+
+- `bool use_voting_account`: Whether to force use of the voting account to
+  derive submission scripts.
+
+- `uint32 voting_account`: The account to derive submission scripts from.
+
 **Response:** `PurchaseTicketsResponse`
 
 - `repeated bytes ticket_hashes`: The transaction hashes of the generated tickets.

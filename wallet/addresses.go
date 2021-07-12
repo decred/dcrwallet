@@ -630,6 +630,23 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 	}
 }
 
+// signingAddressAtIdx returns accounts's external branch's address at childIdx
+// and persists that idx in the database. This address is never used on chain,
+// but is used when signing messages sent to a vspd.
+func (w *Wallet) signingAddressAtIdx(ctx context.Context, op errors.Op,
+	persist persistReturnedChildFunc, account, childIdx uint32) (stdaddr.Address, error) {
+	addr, err := w.AddressAtIdx(ctx, account, 0, childIdx)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	// Write the returned child index to the database.
+	err = persist(account, 0, childIdx)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return addr, nil
+}
+
 // AddressAtIndex returns the address at branch and childIdx. It does not persist
 // the returned address in the database.
 func (w *Wallet) AddressAtIdx(ctx context.Context, account, branch,

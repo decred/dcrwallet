@@ -1586,13 +1586,14 @@ func (w *Wallet) CreateMultisigTx(ctx context.Context, account uint32, amount dc
 
 // PurchaseTicketsRequest describes the parameters for purchasing tickets.
 type PurchaseTicketsRequest struct {
-	Count         int
-	SourceAccount uint32
-	VotingAddress stdaddr.StakeAddress
-	MinConf       int32
-	Expiry        int32
-	VotingAccount uint32 // Used when VotingAddress == nil, or CSPPServer != ""
-	DontSignTx    bool
+	Count            int
+	SourceAccount    uint32
+	VotingAddress    stdaddr.StakeAddress
+	MinConf          int32
+	Expiry           int32
+	VotingAccount    uint32 // Used when VotingAddress == nil, or CSPPServer != ""
+	UseVotingAccount bool   // Forces use of supplied voting account.
+	DontSignTx       bool
 
 	// Mixed split buying through CoinShuffle++
 	CSPPServer         string
