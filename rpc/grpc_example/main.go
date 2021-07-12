@@ -194,6 +194,30 @@ func run() error {
 		fmt.Println(prototext.MarshalOptions{Multiline: true}.Format(validateAddrResp))
 	}
 
+	fmt.Println("Address...")
+	fmt.Println()
+
+	for _, path := range addrPaths {
+		addrRequest := &pb.AddressRequest{
+			Account: path.acct,
+			Kind:    pb.AddressRequest_Kind(path.branch),
+			Index:   path.idx,
+		}
+		fmt.Printf("Name: %s\n", path.name)
+		addrResp, err := wsClient.Address(context.Background(), addrRequest)
+		if path.wantErr {
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			return fmt.Errorf("Address: expected error for %v", path.name)
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Println(prototext.MarshalOptions{Multiline: true}.Format(addrResp))
+	}
+
 	return nil
 }
 
@@ -252,4 +276,19 @@ type nextAddr struct {
 
 var nextAddrs = []nextAddr{{
 	name: "default external",
+}}
+
+var addrPaths = []struct {
+	name              string
+	acct, branch, idx uint32
+	wantErr           bool
+}{{
+	name: "all zeros",
+}, {
+	name:   "internal branch",
+	branch: 1,
+}, {
+	name:    "bad branch",
+	branch:  2,
+	wantErr: true,
 }}

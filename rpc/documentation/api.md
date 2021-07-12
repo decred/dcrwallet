@@ -442,6 +442,7 @@ The service provides the following methods:
 - [`UnlockAccount`](#UnlockAccount)
 - [`LockAccount`](#LockAccount)
 - [`GetTrackedVSPTickets`](#GetTrackedVSPTickets)
+- [`Address`](#Address)
 
 #### `Ping`
 
@@ -2611,6 +2612,43 @@ following the new vspd mode.
   - `int64 fee`: The amount (in atoms) paid as VSP fee in the fee transaction.
 
   - `bytes fee_hash`: The hash of the fee transaction that pays to the VSP.
+
+___
+
+#### `Address`
+
+The `Address` method queries the wallet for an address and public key from a
+certain account, branch, and index.
+
+**Request:** `AddressRequest`
+
+- `uint32 account`: The account number.
+
+- `Kind kind`: The branch.
+
+  **Nested enum:** `Kind`
+
+  - `BIP0044_EXTERNAL`: The request specifies to use the account's BIP0044
+    external key chain.
+
+  - `BIP0044_INTERNAL`: The request specifies to use the account's BIP0044
+    internal key chain.
+
+- `uint32 index`: The address index.
+
+**Response:** `AddressResponse`
+
+- `string address`: The address's p2pkh.
+
+- `string pulic_key`: The address's pkh if available.
+
+**Expected errors:**
+
+- `InvalidArgument`: Kind is not 0 or 1.
+
+- `NotFound`: Unknown account.
+
+- `Unknown`: Index is out of range.
 
 ## `SeedService`
 

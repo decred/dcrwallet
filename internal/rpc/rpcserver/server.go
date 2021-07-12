@@ -564,6 +564,38 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	}, nil
 }
 
+func (s *walletServer) Address(ctx context.Context, req *pb.AddressRequest) (
+	*pb.AddressResponse, error) {
+	var branch uint32
+	switch req.Kind {
+	case pb.AddressRequest_BIP0044_EXTERNAL:
+	case pb.AddressRequest_BIP0044_INTERNAL:
+		branch = 1
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "kind=%v", req.Kind)
+	}
+	addr, err := s.wallet.AddressAtIdx(ctx, req.Account, branch, req.Index)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	var pubKeyAddrString string
+	switch addr := addr.(type) {
+	case wallet.PubKeyHashAddress:
+		pubKey := addr.PubKey()
+		pubKeyAddr, err := stdaddr.NewAddressPubKeyEcdsaSecp256k1V0Raw(
+			pubKey, s.wallet.ChainParams())
+		if err != nil {
+			return nil, translateError(err)
+		}
+		pubKeyAddrString = pubKeyAddr.String()
+	}
+
+	return &pb.AddressResponse{
+		Address:   addr.String(),
+		PublicKey: pubKeyAddrString,
+	}, nil
+}
+
 func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPrivateKeyRequest) (
 	*pb.ImportPrivateKeyResponse, error) {
 

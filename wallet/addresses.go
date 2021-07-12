@@ -630,6 +630,119 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 	}
 }
 
+// AddressAtIndex returns the address at branch and childIdx. It does not persist
+// the returned address in the database.
+func (w *Wallet) AddressAtIdx(ctx context.Context, account, branch,
+	childIdx uint32) (stdaddr.Address, error) {
+	const op errors.Op = "wallet.AddressAtIdx"
+	defer w.addressBuffersMu.Unlock()
+	w.addressBuffersMu.Lock()
+	ad, ok := w.addressBuffers[account]
+	if !ok {
+		return nil, errors.E(op, errors.NotExist, errors.Errorf("account %d", account))
+	}
+
+	var alb *addressBuffer
+	switch branch {
+	case 0:
+		alb = &ad.albExternal
+	case 1:
+		alb = &ad.albInternal
+	default:
+		return nil, errors.E(op, errors.Invalid, "branch must be external (0) or internal (1)")
+	}
+
+	if childIdx >= hdkeychain.HardenedKeyStart {
+		return nil, errors.E(op, errors.Errorf("child out of range"))
+	}
+	child, err := alb.branchXpub.Child(childIdx)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	apkh, err := compat.HD2Address(child, w.chainParams)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	addr := &xpubAddress{
+		AddressPubKeyHashEcdsaSecp256k1V0: apkh,
+		xpub:                              ad.xpub,
+		account:                           account,
+		branch:                            branch,
+		child:                             childIdx,
+	}
+	log.Infof("Returning address (account=%v branch=%v child=%v)", account, branch, childIdx)
+	return addr, nil
+}
+
+func (w *Wallet) nextImportedXpubAddress(ctx context.Context, op errors.Op,
+	maybeDBTX walletdb.ReadWriteTx, accountName string, account uint32, branch uint32,
+	callOpts ...NextAddressCallOption) (addr stdaddr.Address, err error) {
+
+	dbtx := maybeDBTX
+	if dbtx == nil {
+		dbtx, err = w.db.BeginReadWriteTx()
+		if err != nil {
+			return nil, err
+		}
+		defer func() {
+			if err == nil {
+				err = dbtx.Commit()
+			} else {
+				dbtx.Rollback()
+			}
+		}()
+	}
+
+	ns := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
+	xpub, err := w.manager.AccountExtendedPubKey(dbtx, account)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	props, err := w.manager.AccountProperties(ns, account)
+	branchKey, err := xpub.Child(branch)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	var childKey *hdkeychain.ExtendedKey
+	var child uint32
+	switch branch {
+	case 0:
+		child = props.LastReturnedExternalIndex + 1
+	case 1:
+		child = props.LastReturnedInternalIndex + 1
+	default:
+		return nil, errors.E(op, "branch is required to be 0 or 1")
+	}
+	for {
+		childKey, err = branchKey.Child(child)
+		if err == hdkeychain.ErrInvalidChild {
+			child++
+			continue
+		}
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+		break
+	}
+	pkh := dcrutil.Hash160(childKey.SerializedPubKey())
+	apkh, err := stdaddr.NewAddressPubKeyHashEcdsaSecp256k1V0(pkh, w.chainParams)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	addr = &xpubAddress{
+		AddressPubKeyHashEcdsaSecp256k1V0: apkh,
+		xpub:                              xpub,
+		account:                           account,
+		branch:                            branch,
+		child:                             child,
+	}
+	err = w.manager.MarkReturnedChildIndex(dbtx, account, branch, child)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return addr, nil
+}
+
 func minUint32(a, b uint32) uint32 {
 	if a < b {
 		return a
