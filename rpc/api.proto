@@ -25,6 +25,7 @@ service WalletService {
 	rpc CoinType (CoinTypeRequest) returns (CoinTypeResponse);
 	rpc AccountNumber (AccountNumberRequest) returns (AccountNumberResponse);
 	rpc Accounts (AccountsRequest) returns (AccountsResponse);
+	rpc Address (AddressRequest) returns (AddressResponse);
 	rpc Balance (BalanceRequest) returns (BalanceResponse);
 	rpc GetAccountExtendedPubKey (GetAccountExtendedPubKeyRequest) returns (GetAccountExtendedPubKeyResponse);
 	rpc GetAccountExtendedPrivKey (GetAccountExtendedPrivKeyRequest) returns (GetAccountExtendedPrivKeyResponse);
@@ -235,6 +236,21 @@ message AccountsResponse {
 	bytes current_block_hash = 2;
 	int32 current_block_height = 3;
 }
+
+message AddressRequest {
+	uint32 account = 1;
+	enum Kind {
+	     BIP0044_EXTERNAL = 0;
+	     BIP0044_INTERNAL = 1;
+	}
+	Kind kind = 2;
+	uint32 index = 3;
+}
+message AddressResponse {
+	string address = 1;
+	string public_key = 2;
+}
+
 
 message RenameAccountRequest {
 	uint32 account_number = 1;
