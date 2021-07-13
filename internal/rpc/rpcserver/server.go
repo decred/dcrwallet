@@ -538,6 +538,53 @@ func (s *walletServer) NextAddress(ctx context.Context, req *pb.NextAddressReque
 	}, nil
 }
 
+func (s *walletServer) Address(ctx context.Context, req *pb.AddressRequest) (
+	*pb.AddressResponse, error) {
+	var branch uint32
+	switch req.Kind {
+	case pb.AddressRequest_BIP0044_EXTERNAL:
+	case pb.AddressRequest_BIP0044_INTERNAL:
+		branch = 1
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "kind=%v", req.Kind)
+	}
+	addr, err := s.wallet.AddressAtIdx(ctx, req.Account, branch, req.Index)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	var pubKeyAddrString string
+	switch addr := addr.(type) {
+	case wallet.PubKeyHashAddress:
+		pubKey := addr.PubKey()
+		pubKeyAddr, err := stdaddr.NewAddressPubKeyEcdsaSecp256k1V0Raw(
+			pubKey, s.wallet.ChainParams())
+		if err != nil {
+			return nil, translateError(err)
+		}
+		pubKeyAddrString = pubKeyAddr.String()
+	}
+
+	return &pb.AddressResponse{
+		Address:   addr.String(),
+		PublicKey: pubKeyAddrString,
+	}, nil
+}
+
+func (s *walletServer) DumpPrivateKey(ctx context.Context, req *pb.DumpPrivateKeyRequest) (
+	*pb.DumpPrivateKeyResponse, error) {
+
+	addr, err := decodeAddress(req.Address, s.wallet.ChainParams())
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := s.wallet.DumpWIFPrivateKey(ctx, addr)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.DumpPrivateKeyResponse{PrivateKeyWif: key}, nil
+}
+
 func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPrivateKeyRequest) (
 	*pb.ImportPrivateKeyResponse, error) {
 
@@ -650,6 +697,51 @@ func (s *walletServer) ImportScript(ctx context.Context,
 	}
 
 	return &pb.ImportScriptResponse{P2ShAddress: p2sh.String(), Redeemable: redeemable}, nil
+}
+
+func (s *walletServer) ImportVotingAccountFromSeed(ctx context.Context, req *pb.ImportVotingAccountFromSeedRequest) (
+	*pb.ImportVotingAccountFromSeedResponse, error) {
+
+	defer func() {
+		zero(req.Passphrase)
+		zero(req.Seed)
+	}()
+
+	seedSize := len(req.Seed)
+	if seedSize < hdkeychain.MinSeedBytes || seedSize > hdkeychain.MaxSeedBytes {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid seed length")
+	}
+
+	if req.ScanFrom < 0 {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"Attempted to scan from a negative block height")
+	}
+
+	if req.ScanFrom > 0 && req.Rescan {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"Passed a rescan height without rescan set")
+	}
+
+	n, err := s.requireNetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	acctKeyPriv, err := s.wallet.VotingXprivFromSeed(req.Seed)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	accountN, err := s.wallet.ImportVotingAccount(ctx, acctKeyPriv, req.Passphrase, req.Name)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	if req.Rescan {
+		go s.wallet.RescanFromHeight(context.Background(), n, req.ScanFrom)
+	}
+
+	return &pb.ImportVotingAccountFromSeedResponse{Account: accountN}, nil
 }
 
 func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
@@ -1708,14 +1800,16 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}
 
 	request := &wallet.PurchaseTicketsRequest{
-		Count:         numTickets,
-		SourceAccount: req.Account,
-		VotingAddress: ticketAddr,
-		MinConf:       minConf,
-		Expiry:        expiry,
-		DontSignTx:    dontSignTx,
-		VSPAddress:    poolAddr,
-		VSPFees:       poolFees,
+		Count:            numTickets,
+		SourceAccount:    req.Account,
+		VotingAddress:    ticketAddr,
+		MinConf:          minConf,
+		Expiry:           expiry,
+		DontSignTx:       dontSignTx,
+		VSPAddress:       poolAddr,
+		VSPFees:          poolFees,
+		UseVotingAccount: req.UseVotingAccount,
+		VotingAccount:    req.VotingAccount,
 
 		// CSPP
 		CSPPServer:         csppServer,
@@ -3920,5 +4014,9 @@ func (w *walletServer) DiscoverUsage(ctx context.Context, req *pb.DiscoverUsageR
 	}
 
 	err = w.wallet.DiscoverActiveAddresses(ctx, n, &startBlock, req.DiscoverAccounts, gapLimit)
-	return nil, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.DiscoverUsageResponse{}, nil
 }

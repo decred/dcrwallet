@@ -25,6 +25,7 @@ service WalletService {
 	rpc CoinType (CoinTypeRequest) returns (CoinTypeResponse);
 	rpc AccountNumber (AccountNumberRequest) returns (AccountNumberResponse);
 	rpc Accounts (AccountsRequest) returns (AccountsResponse);
+	rpc Address (AddressRequest) returns (AddressResponse);
 	rpc Balance (BalanceRequest) returns (BalanceResponse);
 	rpc GetAccountExtendedPubKey (GetAccountExtendedPubKeyRequest) returns (GetAccountExtendedPubKeyResponse);
 	rpc GetAccountExtendedPrivKey (GetAccountExtendedPrivKeyRequest) returns (GetAccountExtendedPrivKeyResponse);
@@ -39,6 +40,7 @@ service WalletService {
 	rpc Spender (SpenderRequest) returns (SpenderResponse);
 	rpc GetCFilters (GetCFiltersRequest) returns (stream GetCFiltersResponse);
 	rpc GetPeerInfo(GetPeerInfoRequest) returns (GetPeerInfoResponse);
+	rpc DumpPrivateKey (DumpPrivateKeyRequest) returns (DumpPrivateKeyResponse);
 
 	// Notifications
 	rpc TransactionNotifications (TransactionNotificationsRequest) returns (stream TransactionNotificationsResponse);
@@ -52,6 +54,7 @@ service WalletService {
 	rpc NextAccount (NextAccountRequest) returns (NextAccountResponse);
 	rpc NextAddress (NextAddressRequest) returns (NextAddressResponse);
 	rpc ImportPrivateKey (ImportPrivateKeyRequest) returns (ImportPrivateKeyResponse);
+	rpc ImportVotingAccountFromSeed (ImportVotingAccountFromSeedRequest) returns (ImportVotingAccountFromSeedResponse);
 	rpc ImportScript(ImportScriptRequest) returns (ImportScriptResponse);
 	rpc FundTransaction (FundTransactionRequest) returns (FundTransactionResponse);
 	rpc UnspentOutputs (UnspentOutputsRequest) returns (stream UnspentOutputResponse);
@@ -229,6 +232,21 @@ message AccountsResponse {
 	int32 current_block_height = 3;
 }
 
+message AddressRequest {
+	uint32 account = 1;
+	enum Kind {
+	     BIP0044_EXTERNAL = 0;
+	     BIP0044_INTERNAL = 1;
+	}
+	Kind kind = 2;
+	uint32 index = 3;
+}
+message AddressResponse {
+	string address = 1;
+	string public_key = 2;
+}
+
+
 message RenameAccountRequest {
 	uint32 account_number = 1;
 	string new_name = 2;
@@ -280,6 +298,25 @@ message ImportPrivateKeyRequest {
 }
 message ImportPrivateKeyResponse {
 }
+
+message DumpPrivateKeyRequest {
+	string address = 1;
+}
+message DumpPrivateKeyResponse {
+	string private_key_wif = 1;
+}
+
+message ImportVotingAccountFromSeedRequest {
+	bytes seed = 1;
+	string name = 2;
+	bytes passphrase = 3;
+	bool rescan = 4;
+	int32 scan_from = 5;
+}
+message ImportVotingAccountFromSeedResponse {
+	uint32 account = 1;
+}
+
 
 message ImportScriptRequest {
 	bytes passphrase = 1;
@@ -598,6 +635,8 @@ message PurchaseTicketsRequest {
 	uint32 change_account = 17;
 	string vsp_host = 18;
 	string vsp_pubkey = 19;
+	bool use_voting_account = 20;
+	uint32 voting_account = 21;
 }
 message PurchaseTicketsResponse {
 	repeated bytes ticket_hashes = 1;
