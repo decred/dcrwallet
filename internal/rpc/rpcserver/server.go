@@ -572,7 +572,17 @@ func (s *walletServer) Address(ctx context.Context, req *pb.AddressRequest) (
 
 func (s *walletServer) DumpPrivateKey(ctx context.Context, req *pb.DumpPrivateKeyRequest) (
 	*pb.DumpPrivateKeyResponse, error) {
-	return nil, errors.New("not implemented")
+
+	addr, err := decodeAddress(req.Address, s.wallet.ChainParams())
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := s.wallet.DumpWIFPrivateKey(ctx, addr)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	return &pb.DumpPrivateKeyResponse{PrivateKeyWif: key}, nil
 }
 
 func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPrivateKeyRequest) (
