@@ -109,11 +109,11 @@ type addrFinder struct {
 	mu          sync.RWMutex
 }
 
-func newAddrFinder(ctx context.Context, w *Wallet) (*addrFinder, error) {
+func newAddrFinder(ctx context.Context, w *Wallet, gapLimit uint32) (*addrFinder, error) {
 	a := &addrFinder{
 		w:           w,
-		gaplimit:    w.gapLimit,
-		segments:    hd.HardenedKeyStart / w.gapLimit,
+		gaplimit:    gapLimit,
+		segments:    hd.HardenedKeyStart / gapLimit,
 		commitments: make(blockCommitmentCache),
 	}
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
@@ -829,7 +829,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 
 	// Discover address usage within known accounts
 	// Usage recorded in finder.usage
-	finder, err := newAddrFinder(ctx, w)
+	finder, err := newAddrFinder(ctx, w, gapLimit)
 	if err != nil {
 		return errors.E(op, err)
 	}
