@@ -443,6 +443,7 @@ The service provides the following methods:
 - [`LockAccount`](#LockAccount)
 - [`GetTrackedVSPTickets`](#GetTrackedVSPTickets)
 - [`Address`](#Address)
+- [`DumpPrivateKey`](#DumpPrivateKey)
 
 #### `Ping`
 
@@ -2649,6 +2650,31 @@ certain account, branch, and index.
 - `NotFound`: Unknown account.
 
 - `Unknown`: Index is out of range.
+
+___
+
+#### `DumpPrivateKey`
+
+The `DumpPrivateKey` method returns the private key for an address. The wallet
+or account must be unlocked.
+
+**Request:** `DumpPrivateKeyRequest`
+
+- `string address`: The address to retrieve the private key for.
+
+**Response:** `DumpPrivateKeyResponse`
+
+- `string private_key_wif`: The address's private key in wif format.
+
+**Expected errors:**
+
+- `InvalidArgument`: Unable to decode address.
+
+- `NotFound`: Address not found.
+
+- `FailedPrecondition`: Account locked.
+
+- `InvalidArgument`: Watching only wallet.
 
 ## `SeedService`
 

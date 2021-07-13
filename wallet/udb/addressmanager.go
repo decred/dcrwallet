@@ -877,7 +877,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 //
 // This function MUST be called with the manager lock held for writes.
 func (m *Manager) deriveKeyFromPath(ns walletdb.ReadBucket, account, branch, index uint32, private bool) (*hdkeychain.ExtendedKey, error) {
-	if private && account > ImportedAddrAccount {
+	if private && account == ImportedAddrAccount {
 		return nil, errors.E(errors.Invalid, "account does not record private keys")
 	}
 

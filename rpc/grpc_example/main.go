@@ -218,6 +218,19 @@ func run() error {
 		fmt.Println(prototext.MarshalOptions{Multiline: true}.Format(addrResp))
 	}
 
+	_, err = wsClient.UnlockAccount(ctx, &pb.UnlockAccountRequest{Passphrase: acctPass, AccountNumber: acctN})
+	if err != nil {
+		return err
+	}
+
+	pKey, err := wsClient.DumpPrivateKey(ctx, &pb.DumpPrivateKeyRequest{Address: importedAcctAddr})
+	if err != nil {
+		return err
+	}
+
+	fmt.Println()
+	fmt.Println("Private key is", pKey.PrivateKeyWif)
+
 	return nil
 }
 
@@ -248,6 +261,8 @@ var importScripts = []string{
 	"01",
 }
 
+var importedAcctAddr = "TsSAzyUaa2KSytEuu1hiGdeYJqu4om63ZQb" // Address at imported account/0/0
+
 var validateAddrs = []string{
 	"TcpEWwGdCN3RCNAQUhBn8f2Xdko2JzcQSQs",
 
@@ -264,7 +279,7 @@ var validateAddrs = []string{
 	"TcrzaAVMbFURm1PpukWru8yE2uBTjvQePoa", // 2 of 2 multisig
 	"TckSpBht36nMZgnDDjv7xaHUrgCyJpxQiLA", // NonStandard
 
-	"TsSAzyUaa2KSytEuu1hiGdeYJqu4om63ZQb", // Address at imported account/0/0
+	importedAcctAddr,
 }
 
 type nextAddr struct {
