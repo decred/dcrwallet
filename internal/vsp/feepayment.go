@@ -282,6 +282,11 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy) (fp *feeP
 		return fp
 	}
 
+	err = w.UpdateVspTicketFeeToStarted(ctx, ticketHash, &feeHash, c.client.url, c.client.pub)
+	if err != nil {
+		return fp
+	}
+
 	fp.feeTx = fee
 	fp.fee = -1 // XXX fee amount (not needed anymore?)
 
@@ -586,7 +591,7 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 	if err != nil {
 		return err
 	}
-	err = w.UpdateVspTicketFeeToPaid(ctx, &fp.ticketHash, &feeHash)
+	err = w.UpdateVspTicketFeeToPaid(ctx, &fp.ticketHash, &feeHash, fp.client.url, fp.client.pub)
 	if err != nil {
 		return err
 	}
@@ -785,12 +790,16 @@ func (fp *feePayment) reconcilePayment() error {
 			if err != nil {
 				return err
 			}
-			err = w.UpdateVspTicketFeeToPaid(ctx, &fp.ticketHash, &feeHash)
+			err = w.UpdateVspTicketFeeToPaid(ctx, &fp.ticketHash, &feeHash, fp.client.url, fp.client.pub)
 			if err != nil {
 				return err
 			}
 			err = nil
 		case codeInvalidFeeTx, codeCannotBroadcastFee:
+			err := w.UpdateVspTicketFeeToErrored(ctx, &fp.ticketHash, fp.client.url, fp.client.pub)
+			if err != nil {
+				return err
+			}
 			// Attempt to create a new fee transaction
 			fp.mu.Lock()
 			fp.feeHash = chainhash.Hash{}
@@ -805,7 +814,7 @@ func (fp *feePayment) reconcilePayment() error {
 		return err
 	}
 
-	err = w.UpdateVspTicketFeeToPaid(ctx, &fp.ticketHash, &feeHash)
+	err = w.UpdateVspTicketFeeToPaid(ctx, &fp.ticketHash, &feeHash, fp.client.url, fp.client.pub)
 	if err != nil {
 		return err
 	}
@@ -956,6 +965,10 @@ func (fp *feePayment) confirmPayment() (err error) {
 		}
 		if confs >= 6 {
 			fp.remove("confirmed")
+			err = w.UpdateVspTicketFeeToConfirmed(ctx, &fp.ticketHash, &feeHash, fp.client.url, fp.client.pub)
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 		fp.schedule("confirm payment", fp.confirmPayment)
@@ -976,6 +989,10 @@ func (fp *feePayment) confirmPayment() (err error) {
 	case "confirmed":
 		fp.remove("confirmed by VSP")
 		// nothing scheduled
+		err = w.UpdateVspTicketFeeToConfirmed(ctx, &fp.ticketHash, &fp.feeHash, fp.client.url, fp.client.pub)
+		if err != nil {
+			return err
+		}
 		return nil
 	case "error":
 		log.Warnf("VSP failed to broadcast feetx for %v -- restarting payment",
