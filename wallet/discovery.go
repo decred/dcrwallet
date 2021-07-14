@@ -109,11 +109,11 @@ type addrFinder struct {
 	mu          sync.RWMutex
 }
 
-func newAddrFinder(ctx context.Context, w *Wallet) (*addrFinder, error) {
+func newAddrFinder(ctx context.Context, w *Wallet, gapLimit uint32) (*addrFinder, error) {
 	a := &addrFinder{
 		w:           w,
-		gaplimit:    w.gapLimit,
-		segments:    hd.HardenedKeyStart / w.gapLimit,
+		gaplimit:    gapLimit,
+		segments:    hd.HardenedKeyStart / gapLimit,
 		commitments: make(blockCommitmentCache),
 	}
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
@@ -536,8 +536,9 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blo
 // existsAddrIndexFinder implements address and account discovery using the
 // exists address index of a trusted dcrd RPC server.
 type existsAddrIndexFinder struct {
-	wallet *Wallet
-	rpc    *dcrd.RPC
+	wallet   *Wallet
+	rpc      *dcrd.RPC
+	gapLimit uint32
 }
 
 func (f *existsAddrIndexFinder) findLastUsedAccount(ctx context.Context, coinTypeXpriv *hd.ExtendedKey) (uint32, error) {
@@ -644,7 +645,7 @@ func (f *existsAddrIndexFinder) branchUsed(ctx context.Context, branchXpub *hd.E
 func (f *existsAddrIndexFinder) findLastUsedAddress(ctx context.Context, xpub *hd.ExtendedKey) (uint32, error) {
 	var (
 		lastUsed        = ^uint32(0)
-		scanLen         = f.wallet.gapLimit
+		scanLen         = f.gapLimit
 		segments        = hd.HardenedKeyStart / scanLen
 		lo, hi   uint32 = 0, segments - 1
 	)
@@ -771,7 +772,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 		var lastUsed uint32
 		rpc, ok := rpcFromPeer(p)
 		if ok {
-			f := existsAddrIndexFinder{w, rpc}
+			f := existsAddrIndexFinder{w, rpc, gapLimit}
 			lastUsed, err = f.findLastUsedAccount(ctx, coinTypePrivKey)
 		} else {
 			lastUsed, err = w.findLastUsedAccount(ctx, p, blockAddresses, coinTypePrivKey, gapLimit)
@@ -829,7 +830,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 
 	// Discover address usage within known accounts
 	// Usage recorded in finder.usage
-	finder, err := newAddrFinder(ctx, w)
+	finder, err := newAddrFinder(ctx, w, gapLimit)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -837,7 +838,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 	lastUsed := append([]accountUsage(nil), finder.usage...)
 	rpc, ok := rpcFromPeer(p)
 	if ok {
-		f := existsAddrIndexFinder{w, rpc}
+		f := existsAddrIndexFinder{w, rpc, gapLimit}
 		err = f.find(ctx, finder)
 	} else {
 		err = finder.find(ctx, startBlock, p)
