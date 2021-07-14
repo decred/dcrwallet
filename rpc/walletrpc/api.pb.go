@@ -527,7 +527,7 @@ func (x DecodedTransaction_Input_TreeType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use DecodedTransaction_Input_TreeType.Descriptor instead.
 func (DecodedTransaction_Input_TreeType) EnumDescriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{147, 0, 0}
+	return file_api_proto_rawDescGZIP(), []int{149, 0, 0}
 }
 
 type DecodedTransaction_Output_ScriptClass int32
@@ -603,7 +603,7 @@ func (x DecodedTransaction_Output_ScriptClass) Number() protoreflect.EnumNumber 
 
 // Deprecated: Use DecodedTransaction_Output_ScriptClass.Descriptor instead.
 func (DecodedTransaction_Output_ScriptClass) EnumDescriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{147, 1, 0}
+	return file_api_proto_rawDescGZIP(), []int{149, 1, 0}
 }
 
 type ValidateAddressResponse_ScriptType int32
@@ -679,7 +679,7 @@ func (x ValidateAddressResponse_ScriptType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ValidateAddressResponse_ScriptType.Descriptor instead.
 func (ValidateAddressResponse_ScriptType) EnumDescriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{151, 0}
+	return file_api_proto_rawDescGZIP(), []int{153, 0}
 }
 
 type GetVSPTicketsByFeeStatusRequest_FeeStatus int32
@@ -728,7 +728,7 @@ func (x GetVSPTicketsByFeeStatusRequest_FeeStatus) Number() protoreflect.EnumNum
 
 // Deprecated: Use GetVSPTicketsByFeeStatusRequest_FeeStatus.Descriptor instead.
 func (GetVSPTicketsByFeeStatusRequest_FeeStatus) EnumDescriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{191, 0}
+	return file_api_proto_rawDescGZIP(), []int{193, 0}
 }
 
 type VersionRequest struct {
@@ -4661,6 +4661,91 @@ func (x *PurchaseTicketsResponse) GetSplitTx() []byte {
 	return nil
 }
 
+type RevokeTicketRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	TicketHash []byte `protobuf:"bytes,1,opt,name=ticket_hash,json=ticketHash,proto3" json:"ticket_hash,omitempty"`
+}
+
+func (x *RevokeTicketRequest) Reset() {
+	*x = RevokeTicketRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_api_proto_msgTypes[63]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RevokeTicketRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeTicketRequest) ProtoMessage() {}
+
+func (x *RevokeTicketRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_msgTypes[63]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeTicketRequest.ProtoReflect.Descriptor instead.
+func (*RevokeTicketRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *RevokeTicketRequest) GetTicketHash() []byte {
+	if x != nil {
+		return x.TicketHash
+	}
+	return nil
+}
+
+type RevokeTicketResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *RevokeTicketResponse) Reset() {
+	*x = RevokeTicketResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_api_proto_msgTypes[64]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RevokeTicketResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeTicketResponse) ProtoMessage() {}
+
+func (x *RevokeTicketResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_msgTypes[64]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeTicketResponse.ProtoReflect.Descriptor instead.
+func (*RevokeTicketResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_rawDescGZIP(), []int{64}
+}
+
 type RevokeTicketsRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -4672,7 +4757,7 @@ type RevokeTicketsRequest struct {
 func (x *RevokeTicketsRequest) Reset() {
 	*x = RevokeTicketsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[63]
+		mi := &file_api_proto_msgTypes[65]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -4685,7 +4770,7 @@ func (x *RevokeTicketsRequest) String() string {
 func (*RevokeTicketsRequest) ProtoMessage() {}
 
 func (x *RevokeTicketsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[63]
+	mi := &file_api_proto_msgTypes[65]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4698,7 +4783,7 @@ func (x *RevokeTicketsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeTicketsRequest.ProtoReflect.Descriptor instead.
 func (*RevokeTicketsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{63}
+	return file_api_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *RevokeTicketsRequest) GetPassphrase() []byte {
@@ -4717,7 +4802,7 @@ type RevokeTicketsResponse struct {
 func (x *RevokeTicketsResponse) Reset() {
 	*x = RevokeTicketsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[64]
+		mi := &file_api_proto_msgTypes[66]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -4730,7 +4815,7 @@ func (x *RevokeTicketsResponse) String() string {
 func (*RevokeTicketsResponse) ProtoMessage() {}
 
 func (x *RevokeTicketsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[64]
+	mi := &file_api_proto_msgTypes[66]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4743,7 +4828,7 @@ func (x *RevokeTicketsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeTicketsResponse.ProtoReflect.Descriptor instead.
 func (*RevokeTicketsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{64}
+	return file_api_proto_rawDescGZIP(), []int{66}
 }
 
 type LoadActiveDataFiltersRequest struct {
@@ -4755,7 +4840,7 @@ type LoadActiveDataFiltersRequest struct {
 func (x *LoadActiveDataFiltersRequest) Reset() {
 	*x = LoadActiveDataFiltersRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[65]
+		mi := &file_api_proto_msgTypes[67]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -4768,7 +4853,7 @@ func (x *LoadActiveDataFiltersRequest) String() string {
 func (*LoadActiveDataFiltersRequest) ProtoMessage() {}
 
 func (x *LoadActiveDataFiltersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[65]
+	mi := &file_api_proto_msgTypes[67]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4781,7 +4866,7 @@ func (x *LoadActiveDataFiltersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoadActiveDataFiltersRequest.ProtoReflect.Descriptor instead.
 func (*LoadActiveDataFiltersRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{65}
+	return file_api_proto_rawDescGZIP(), []int{67}
 }
 
 type LoadActiveDataFiltersResponse struct {
@@ -4793,7 +4878,7 @@ type LoadActiveDataFiltersResponse struct {
 func (x *LoadActiveDataFiltersResponse) Reset() {
 	*x = LoadActiveDataFiltersResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[66]
+		mi := &file_api_proto_msgTypes[68]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -4806,7 +4891,7 @@ func (x *LoadActiveDataFiltersResponse) String() string {
 func (*LoadActiveDataFiltersResponse) ProtoMessage() {}
 
 func (x *LoadActiveDataFiltersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[66]
+	mi := &file_api_proto_msgTypes[68]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4819,7 +4904,7 @@ func (x *LoadActiveDataFiltersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoadActiveDataFiltersResponse.ProtoReflect.Descriptor instead.
 func (*LoadActiveDataFiltersResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{66}
+	return file_api_proto_rawDescGZIP(), []int{68}
 }
 
 type SignMessageRequest struct {
@@ -4835,7 +4920,7 @@ type SignMessageRequest struct {
 func (x *SignMessageRequest) Reset() {
 	*x = SignMessageRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[67]
+		mi := &file_api_proto_msgTypes[69]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -4848,7 +4933,7 @@ func (x *SignMessageRequest) String() string {
 func (*SignMessageRequest) ProtoMessage() {}
 
 func (x *SignMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[67]
+	mi := &file_api_proto_msgTypes[69]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4861,7 +4946,7 @@ func (x *SignMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignMessageRequest.ProtoReflect.Descriptor instead.
 func (*SignMessageRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{67}
+	return file_api_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *SignMessageRequest) GetAddress() string {
@@ -4896,7 +4981,7 @@ type SignMessageResponse struct {
 func (x *SignMessageResponse) Reset() {
 	*x = SignMessageResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[68]
+		mi := &file_api_proto_msgTypes[70]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -4909,7 +4994,7 @@ func (x *SignMessageResponse) String() string {
 func (*SignMessageResponse) ProtoMessage() {}
 
 func (x *SignMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[68]
+	mi := &file_api_proto_msgTypes[70]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4922,7 +5007,7 @@ func (x *SignMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignMessageResponse.ProtoReflect.Descriptor instead.
 func (*SignMessageResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{68}
+	return file_api_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *SignMessageResponse) GetSignature() []byte {
@@ -4944,7 +5029,7 @@ type SignMessagesRequest struct {
 func (x *SignMessagesRequest) Reset() {
 	*x = SignMessagesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[69]
+		mi := &file_api_proto_msgTypes[71]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -4957,7 +5042,7 @@ func (x *SignMessagesRequest) String() string {
 func (*SignMessagesRequest) ProtoMessage() {}
 
 func (x *SignMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[69]
+	mi := &file_api_proto_msgTypes[71]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4970,7 +5055,7 @@ func (x *SignMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignMessagesRequest.ProtoReflect.Descriptor instead.
 func (*SignMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{69}
+	return file_api_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *SignMessagesRequest) GetPassphrase() []byte {
@@ -4998,7 +5083,7 @@ type SignMessagesResponse struct {
 func (x *SignMessagesResponse) Reset() {
 	*x = SignMessagesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[70]
+		mi := &file_api_proto_msgTypes[72]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5011,7 +5096,7 @@ func (x *SignMessagesResponse) String() string {
 func (*SignMessagesResponse) ProtoMessage() {}
 
 func (x *SignMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[70]
+	mi := &file_api_proto_msgTypes[72]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5024,7 +5109,7 @@ func (x *SignMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignMessagesResponse.ProtoReflect.Descriptor instead.
 func (*SignMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{70}
+	return file_api_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *SignMessagesResponse) GetReplies() []*SignMessagesResponse_SignReply {
@@ -5043,7 +5128,7 @@ type TransactionNotificationsRequest struct {
 func (x *TransactionNotificationsRequest) Reset() {
 	*x = TransactionNotificationsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[71]
+		mi := &file_api_proto_msgTypes[73]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5056,7 +5141,7 @@ func (x *TransactionNotificationsRequest) String() string {
 func (*TransactionNotificationsRequest) ProtoMessage() {}
 
 func (x *TransactionNotificationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[71]
+	mi := &file_api_proto_msgTypes[73]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5069,7 +5154,7 @@ func (x *TransactionNotificationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionNotificationsRequest.ProtoReflect.Descriptor instead.
 func (*TransactionNotificationsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{71}
+	return file_api_proto_rawDescGZIP(), []int{73}
 }
 
 type TransactionNotificationsResponse struct {
@@ -5099,7 +5184,7 @@ type TransactionNotificationsResponse struct {
 func (x *TransactionNotificationsResponse) Reset() {
 	*x = TransactionNotificationsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[72]
+		mi := &file_api_proto_msgTypes[74]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5112,7 +5197,7 @@ func (x *TransactionNotificationsResponse) String() string {
 func (*TransactionNotificationsResponse) ProtoMessage() {}
 
 func (x *TransactionNotificationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[72]
+	mi := &file_api_proto_msgTypes[74]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5125,7 +5210,7 @@ func (x *TransactionNotificationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionNotificationsResponse.ProtoReflect.Descriptor instead.
 func (*TransactionNotificationsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{72}
+	return file_api_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *TransactionNotificationsResponse) GetAttachedBlocks() []*BlockDetails {
@@ -5172,7 +5257,7 @@ type AccountNotificationsRequest struct {
 func (x *AccountNotificationsRequest) Reset() {
 	*x = AccountNotificationsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[73]
+		mi := &file_api_proto_msgTypes[75]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5185,7 +5270,7 @@ func (x *AccountNotificationsRequest) String() string {
 func (*AccountNotificationsRequest) ProtoMessage() {}
 
 func (x *AccountNotificationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[73]
+	mi := &file_api_proto_msgTypes[75]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5198,7 +5283,7 @@ func (x *AccountNotificationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountNotificationsRequest.ProtoReflect.Descriptor instead.
 func (*AccountNotificationsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{73}
+	return file_api_proto_rawDescGZIP(), []int{75}
 }
 
 type AccountNotificationsResponse struct {
@@ -5216,7 +5301,7 @@ type AccountNotificationsResponse struct {
 func (x *AccountNotificationsResponse) Reset() {
 	*x = AccountNotificationsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[74]
+		mi := &file_api_proto_msgTypes[76]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5229,7 +5314,7 @@ func (x *AccountNotificationsResponse) String() string {
 func (*AccountNotificationsResponse) ProtoMessage() {}
 
 func (x *AccountNotificationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[74]
+	mi := &file_api_proto_msgTypes[76]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5242,7 +5327,7 @@ func (x *AccountNotificationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountNotificationsResponse.ProtoReflect.Descriptor instead.
 func (*AccountNotificationsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{74}
+	return file_api_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *AccountNotificationsResponse) GetAccountNumber() uint32 {
@@ -5292,7 +5377,7 @@ type ConfirmationNotificationsRequest struct {
 func (x *ConfirmationNotificationsRequest) Reset() {
 	*x = ConfirmationNotificationsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[75]
+		mi := &file_api_proto_msgTypes[77]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5305,7 +5390,7 @@ func (x *ConfirmationNotificationsRequest) String() string {
 func (*ConfirmationNotificationsRequest) ProtoMessage() {}
 
 func (x *ConfirmationNotificationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[75]
+	mi := &file_api_proto_msgTypes[77]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5318,7 +5403,7 @@ func (x *ConfirmationNotificationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmationNotificationsRequest.ProtoReflect.Descriptor instead.
 func (*ConfirmationNotificationsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{75}
+	return file_api_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *ConfirmationNotificationsRequest) GetTxHashes() [][]byte {
@@ -5346,7 +5431,7 @@ type ConfirmationNotificationsResponse struct {
 func (x *ConfirmationNotificationsResponse) Reset() {
 	*x = ConfirmationNotificationsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[76]
+		mi := &file_api_proto_msgTypes[78]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5359,7 +5444,7 @@ func (x *ConfirmationNotificationsResponse) String() string {
 func (*ConfirmationNotificationsResponse) ProtoMessage() {}
 
 func (x *ConfirmationNotificationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[76]
+	mi := &file_api_proto_msgTypes[78]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5372,7 +5457,7 @@ func (x *ConfirmationNotificationsResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ConfirmationNotificationsResponse.ProtoReflect.Descriptor instead.
 func (*ConfirmationNotificationsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{76}
+	return file_api_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *ConfirmationNotificationsResponse) GetConfirmations() []*ConfirmationNotificationsResponse_TransactionConfirmations {
@@ -5395,7 +5480,7 @@ type CreateWalletRequest struct {
 func (x *CreateWalletRequest) Reset() {
 	*x = CreateWalletRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[77]
+		mi := &file_api_proto_msgTypes[79]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5408,7 +5493,7 @@ func (x *CreateWalletRequest) String() string {
 func (*CreateWalletRequest) ProtoMessage() {}
 
 func (x *CreateWalletRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[77]
+	mi := &file_api_proto_msgTypes[79]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5421,7 +5506,7 @@ func (x *CreateWalletRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWalletRequest.ProtoReflect.Descriptor instead.
 func (*CreateWalletRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{77}
+	return file_api_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *CreateWalletRequest) GetPublicPassphrase() []byte {
@@ -5454,7 +5539,7 @@ type CreateWalletResponse struct {
 func (x *CreateWalletResponse) Reset() {
 	*x = CreateWalletResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[78]
+		mi := &file_api_proto_msgTypes[80]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5467,7 +5552,7 @@ func (x *CreateWalletResponse) String() string {
 func (*CreateWalletResponse) ProtoMessage() {}
 
 func (x *CreateWalletResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[78]
+	mi := &file_api_proto_msgTypes[80]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5480,7 +5565,7 @@ func (x *CreateWalletResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWalletResponse.ProtoReflect.Descriptor instead.
 func (*CreateWalletResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{78}
+	return file_api_proto_rawDescGZIP(), []int{80}
 }
 
 type CreateWatchingOnlyWalletRequest struct {
@@ -5495,7 +5580,7 @@ type CreateWatchingOnlyWalletRequest struct {
 func (x *CreateWatchingOnlyWalletRequest) Reset() {
 	*x = CreateWatchingOnlyWalletRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[79]
+		mi := &file_api_proto_msgTypes[81]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5508,7 +5593,7 @@ func (x *CreateWatchingOnlyWalletRequest) String() string {
 func (*CreateWatchingOnlyWalletRequest) ProtoMessage() {}
 
 func (x *CreateWatchingOnlyWalletRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[79]
+	mi := &file_api_proto_msgTypes[81]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5521,7 +5606,7 @@ func (x *CreateWatchingOnlyWalletRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWatchingOnlyWalletRequest.ProtoReflect.Descriptor instead.
 func (*CreateWatchingOnlyWalletRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{79}
+	return file_api_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *CreateWatchingOnlyWalletRequest) GetExtendedPubKey() string {
@@ -5547,7 +5632,7 @@ type CreateWatchingOnlyWalletResponse struct {
 func (x *CreateWatchingOnlyWalletResponse) Reset() {
 	*x = CreateWatchingOnlyWalletResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[80]
+		mi := &file_api_proto_msgTypes[82]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5560,7 +5645,7 @@ func (x *CreateWatchingOnlyWalletResponse) String() string {
 func (*CreateWatchingOnlyWalletResponse) ProtoMessage() {}
 
 func (x *CreateWatchingOnlyWalletResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[80]
+	mi := &file_api_proto_msgTypes[82]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5573,7 +5658,7 @@ func (x *CreateWatchingOnlyWalletResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWatchingOnlyWalletResponse.ProtoReflect.Descriptor instead.
 func (*CreateWatchingOnlyWalletResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{80}
+	return file_api_proto_rawDescGZIP(), []int{82}
 }
 
 type OpenWalletRequest struct {
@@ -5587,7 +5672,7 @@ type OpenWalletRequest struct {
 func (x *OpenWalletRequest) Reset() {
 	*x = OpenWalletRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[81]
+		mi := &file_api_proto_msgTypes[83]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5600,7 +5685,7 @@ func (x *OpenWalletRequest) String() string {
 func (*OpenWalletRequest) ProtoMessage() {}
 
 func (x *OpenWalletRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[81]
+	mi := &file_api_proto_msgTypes[83]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5613,7 +5698,7 @@ func (x *OpenWalletRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenWalletRequest.ProtoReflect.Descriptor instead.
 func (*OpenWalletRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{81}
+	return file_api_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *OpenWalletRequest) GetPublicPassphrase() []byte {
@@ -5634,7 +5719,7 @@ type OpenWalletResponse struct {
 func (x *OpenWalletResponse) Reset() {
 	*x = OpenWalletResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[82]
+		mi := &file_api_proto_msgTypes[84]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5647,7 +5732,7 @@ func (x *OpenWalletResponse) String() string {
 func (*OpenWalletResponse) ProtoMessage() {}
 
 func (x *OpenWalletResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[82]
+	mi := &file_api_proto_msgTypes[84]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5660,7 +5745,7 @@ func (x *OpenWalletResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenWalletResponse.ProtoReflect.Descriptor instead.
 func (*OpenWalletResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{82}
+	return file_api_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *OpenWalletResponse) GetWatchingOnly() bool {
@@ -5679,7 +5764,7 @@ type CloseWalletRequest struct {
 func (x *CloseWalletRequest) Reset() {
 	*x = CloseWalletRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[83]
+		mi := &file_api_proto_msgTypes[85]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5692,7 +5777,7 @@ func (x *CloseWalletRequest) String() string {
 func (*CloseWalletRequest) ProtoMessage() {}
 
 func (x *CloseWalletRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[83]
+	mi := &file_api_proto_msgTypes[85]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5705,7 +5790,7 @@ func (x *CloseWalletRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseWalletRequest.ProtoReflect.Descriptor instead.
 func (*CloseWalletRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{83}
+	return file_api_proto_rawDescGZIP(), []int{85}
 }
 
 type CloseWalletResponse struct {
@@ -5717,7 +5802,7 @@ type CloseWalletResponse struct {
 func (x *CloseWalletResponse) Reset() {
 	*x = CloseWalletResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[84]
+		mi := &file_api_proto_msgTypes[86]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5730,7 +5815,7 @@ func (x *CloseWalletResponse) String() string {
 func (*CloseWalletResponse) ProtoMessage() {}
 
 func (x *CloseWalletResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[84]
+	mi := &file_api_proto_msgTypes[86]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5743,7 +5828,7 @@ func (x *CloseWalletResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseWalletResponse.ProtoReflect.Descriptor instead.
 func (*CloseWalletResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{84}
+	return file_api_proto_rawDescGZIP(), []int{86}
 }
 
 type WalletExistsRequest struct {
@@ -5755,7 +5840,7 @@ type WalletExistsRequest struct {
 func (x *WalletExistsRequest) Reset() {
 	*x = WalletExistsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[85]
+		mi := &file_api_proto_msgTypes[87]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5768,7 +5853,7 @@ func (x *WalletExistsRequest) String() string {
 func (*WalletExistsRequest) ProtoMessage() {}
 
 func (x *WalletExistsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[85]
+	mi := &file_api_proto_msgTypes[87]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5781,7 +5866,7 @@ func (x *WalletExistsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WalletExistsRequest.ProtoReflect.Descriptor instead.
 func (*WalletExistsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{85}
+	return file_api_proto_rawDescGZIP(), []int{87}
 }
 
 type WalletExistsResponse struct {
@@ -5795,7 +5880,7 @@ type WalletExistsResponse struct {
 func (x *WalletExistsResponse) Reset() {
 	*x = WalletExistsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[86]
+		mi := &file_api_proto_msgTypes[88]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5808,7 +5893,7 @@ func (x *WalletExistsResponse) String() string {
 func (*WalletExistsResponse) ProtoMessage() {}
 
 func (x *WalletExistsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[86]
+	mi := &file_api_proto_msgTypes[88]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5821,7 +5906,7 @@ func (x *WalletExistsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WalletExistsResponse.ProtoReflect.Descriptor instead.
 func (*WalletExistsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{86}
+	return file_api_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *WalletExistsResponse) GetExists() bool {
@@ -5845,7 +5930,7 @@ type StartConsensusRpcRequest struct {
 func (x *StartConsensusRpcRequest) Reset() {
 	*x = StartConsensusRpcRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[87]
+		mi := &file_api_proto_msgTypes[89]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5858,7 +5943,7 @@ func (x *StartConsensusRpcRequest) String() string {
 func (*StartConsensusRpcRequest) ProtoMessage() {}
 
 func (x *StartConsensusRpcRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[87]
+	mi := &file_api_proto_msgTypes[89]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5871,7 +5956,7 @@ func (x *StartConsensusRpcRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartConsensusRpcRequest.ProtoReflect.Descriptor instead.
 func (*StartConsensusRpcRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{87}
+	return file_api_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *StartConsensusRpcRequest) GetNetworkAddress() string {
@@ -5911,7 +5996,7 @@ type StartConsensusRpcResponse struct {
 func (x *StartConsensusRpcResponse) Reset() {
 	*x = StartConsensusRpcResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[88]
+		mi := &file_api_proto_msgTypes[90]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5924,7 +6009,7 @@ func (x *StartConsensusRpcResponse) String() string {
 func (*StartConsensusRpcResponse) ProtoMessage() {}
 
 func (x *StartConsensusRpcResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[88]
+	mi := &file_api_proto_msgTypes[90]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5937,7 +6022,7 @@ func (x *StartConsensusRpcResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartConsensusRpcResponse.ProtoReflect.Descriptor instead.
 func (*StartConsensusRpcResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{88}
+	return file_api_proto_rawDescGZIP(), []int{90}
 }
 
 type DiscoverAddressesRequest struct {
@@ -5953,7 +6038,7 @@ type DiscoverAddressesRequest struct {
 func (x *DiscoverAddressesRequest) Reset() {
 	*x = DiscoverAddressesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[89]
+		mi := &file_api_proto_msgTypes[91]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -5966,7 +6051,7 @@ func (x *DiscoverAddressesRequest) String() string {
 func (*DiscoverAddressesRequest) ProtoMessage() {}
 
 func (x *DiscoverAddressesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[89]
+	mi := &file_api_proto_msgTypes[91]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5979,7 +6064,7 @@ func (x *DiscoverAddressesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverAddressesRequest.ProtoReflect.Descriptor instead.
 func (*DiscoverAddressesRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{89}
+	return file_api_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *DiscoverAddressesRequest) GetDiscoverAccounts() bool {
@@ -6012,7 +6097,7 @@ type DiscoverAddressesResponse struct {
 func (x *DiscoverAddressesResponse) Reset() {
 	*x = DiscoverAddressesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[90]
+		mi := &file_api_proto_msgTypes[92]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6025,7 +6110,7 @@ func (x *DiscoverAddressesResponse) String() string {
 func (*DiscoverAddressesResponse) ProtoMessage() {}
 
 func (x *DiscoverAddressesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[90]
+	mi := &file_api_proto_msgTypes[92]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6038,7 +6123,7 @@ func (x *DiscoverAddressesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverAddressesResponse.ProtoReflect.Descriptor instead.
 func (*DiscoverAddressesResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{90}
+	return file_api_proto_rawDescGZIP(), []int{92}
 }
 
 type FetchMissingCFiltersRequest struct {
@@ -6050,7 +6135,7 @@ type FetchMissingCFiltersRequest struct {
 func (x *FetchMissingCFiltersRequest) Reset() {
 	*x = FetchMissingCFiltersRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[91]
+		mi := &file_api_proto_msgTypes[93]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6063,7 +6148,7 @@ func (x *FetchMissingCFiltersRequest) String() string {
 func (*FetchMissingCFiltersRequest) ProtoMessage() {}
 
 func (x *FetchMissingCFiltersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[91]
+	mi := &file_api_proto_msgTypes[93]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6076,7 +6161,7 @@ func (x *FetchMissingCFiltersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FetchMissingCFiltersRequest.ProtoReflect.Descriptor instead.
 func (*FetchMissingCFiltersRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{91}
+	return file_api_proto_rawDescGZIP(), []int{93}
 }
 
 type FetchMissingCFiltersResponse struct {
@@ -6088,7 +6173,7 @@ type FetchMissingCFiltersResponse struct {
 func (x *FetchMissingCFiltersResponse) Reset() {
 	*x = FetchMissingCFiltersResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[92]
+		mi := &file_api_proto_msgTypes[94]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6101,7 +6186,7 @@ func (x *FetchMissingCFiltersResponse) String() string {
 func (*FetchMissingCFiltersResponse) ProtoMessage() {}
 
 func (x *FetchMissingCFiltersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[92]
+	mi := &file_api_proto_msgTypes[94]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6114,7 +6199,7 @@ func (x *FetchMissingCFiltersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FetchMissingCFiltersResponse.ProtoReflect.Descriptor instead.
 func (*FetchMissingCFiltersResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{92}
+	return file_api_proto_rawDescGZIP(), []int{94}
 }
 
 type SubscribeToBlockNotificationsRequest struct {
@@ -6126,7 +6211,7 @@ type SubscribeToBlockNotificationsRequest struct {
 func (x *SubscribeToBlockNotificationsRequest) Reset() {
 	*x = SubscribeToBlockNotificationsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[93]
+		mi := &file_api_proto_msgTypes[95]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6139,7 +6224,7 @@ func (x *SubscribeToBlockNotificationsRequest) String() string {
 func (*SubscribeToBlockNotificationsRequest) ProtoMessage() {}
 
 func (x *SubscribeToBlockNotificationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[93]
+	mi := &file_api_proto_msgTypes[95]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6152,7 +6237,7 @@ func (x *SubscribeToBlockNotificationsRequest) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use SubscribeToBlockNotificationsRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeToBlockNotificationsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{93}
+	return file_api_proto_rawDescGZIP(), []int{95}
 }
 
 type SubscribeToBlockNotificationsResponse struct {
@@ -6164,7 +6249,7 @@ type SubscribeToBlockNotificationsResponse struct {
 func (x *SubscribeToBlockNotificationsResponse) Reset() {
 	*x = SubscribeToBlockNotificationsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[94]
+		mi := &file_api_proto_msgTypes[96]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6177,7 +6262,7 @@ func (x *SubscribeToBlockNotificationsResponse) String() string {
 func (*SubscribeToBlockNotificationsResponse) ProtoMessage() {}
 
 func (x *SubscribeToBlockNotificationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[94]
+	mi := &file_api_proto_msgTypes[96]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6190,7 +6275,7 @@ func (x *SubscribeToBlockNotificationsResponse) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use SubscribeToBlockNotificationsResponse.ProtoReflect.Descriptor instead.
 func (*SubscribeToBlockNotificationsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{94}
+	return file_api_proto_rawDescGZIP(), []int{96}
 }
 
 type FetchHeadersRequest struct {
@@ -6202,7 +6287,7 @@ type FetchHeadersRequest struct {
 func (x *FetchHeadersRequest) Reset() {
 	*x = FetchHeadersRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[95]
+		mi := &file_api_proto_msgTypes[97]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6215,7 +6300,7 @@ func (x *FetchHeadersRequest) String() string {
 func (*FetchHeadersRequest) ProtoMessage() {}
 
 func (x *FetchHeadersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[95]
+	mi := &file_api_proto_msgTypes[97]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6228,7 +6313,7 @@ func (x *FetchHeadersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FetchHeadersRequest.ProtoReflect.Descriptor instead.
 func (*FetchHeadersRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{95}
+	return file_api_proto_rawDescGZIP(), []int{97}
 }
 
 type FetchHeadersResponse struct {
@@ -6246,7 +6331,7 @@ type FetchHeadersResponse struct {
 func (x *FetchHeadersResponse) Reset() {
 	*x = FetchHeadersResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[96]
+		mi := &file_api_proto_msgTypes[98]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6259,7 +6344,7 @@ func (x *FetchHeadersResponse) String() string {
 func (*FetchHeadersResponse) ProtoMessage() {}
 
 func (x *FetchHeadersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[96]
+	mi := &file_api_proto_msgTypes[98]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6272,7 +6357,7 @@ func (x *FetchHeadersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FetchHeadersResponse.ProtoReflect.Descriptor instead.
 func (*FetchHeadersResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{96}
+	return file_api_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *FetchHeadersResponse) GetFetchedHeadersCount() uint32 {
@@ -6322,7 +6407,7 @@ type FetchHeadersNotification struct {
 func (x *FetchHeadersNotification) Reset() {
 	*x = FetchHeadersNotification{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[97]
+		mi := &file_api_proto_msgTypes[99]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6335,7 +6420,7 @@ func (x *FetchHeadersNotification) String() string {
 func (*FetchHeadersNotification) ProtoMessage() {}
 
 func (x *FetchHeadersNotification) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[97]
+	mi := &file_api_proto_msgTypes[99]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6348,7 +6433,7 @@ func (x *FetchHeadersNotification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FetchHeadersNotification.ProtoReflect.Descriptor instead.
 func (*FetchHeadersNotification) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{97}
+	return file_api_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *FetchHeadersNotification) GetFetchedHeadersCount() int32 {
@@ -6377,7 +6462,7 @@ type FetchMissingCFiltersNotification struct {
 func (x *FetchMissingCFiltersNotification) Reset() {
 	*x = FetchMissingCFiltersNotification{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[98]
+		mi := &file_api_proto_msgTypes[100]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6390,7 +6475,7 @@ func (x *FetchMissingCFiltersNotification) String() string {
 func (*FetchMissingCFiltersNotification) ProtoMessage() {}
 
 func (x *FetchMissingCFiltersNotification) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[98]
+	mi := &file_api_proto_msgTypes[100]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6403,7 +6488,7 @@ func (x *FetchMissingCFiltersNotification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FetchMissingCFiltersNotification.ProtoReflect.Descriptor instead.
 func (*FetchMissingCFiltersNotification) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{98}
+	return file_api_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *FetchMissingCFiltersNotification) GetFetchedCfiltersStartHeight() int32 {
@@ -6431,7 +6516,7 @@ type RescanProgressNotification struct {
 func (x *RescanProgressNotification) Reset() {
 	*x = RescanProgressNotification{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[99]
+		mi := &file_api_proto_msgTypes[101]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6444,7 +6529,7 @@ func (x *RescanProgressNotification) String() string {
 func (*RescanProgressNotification) ProtoMessage() {}
 
 func (x *RescanProgressNotification) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[99]
+	mi := &file_api_proto_msgTypes[101]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6457,7 +6542,7 @@ func (x *RescanProgressNotification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RescanProgressNotification.ProtoReflect.Descriptor instead.
 func (*RescanProgressNotification) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{99}
+	return file_api_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *RescanProgressNotification) GetRescannedThrough() int32 {
@@ -6479,7 +6564,7 @@ type PeerNotification struct {
 func (x *PeerNotification) Reset() {
 	*x = PeerNotification{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[100]
+		mi := &file_api_proto_msgTypes[102]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6492,7 +6577,7 @@ func (x *PeerNotification) String() string {
 func (*PeerNotification) ProtoMessage() {}
 
 func (x *PeerNotification) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[100]
+	mi := &file_api_proto_msgTypes[102]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6505,7 +6590,7 @@ func (x *PeerNotification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerNotification.ProtoReflect.Descriptor instead.
 func (*PeerNotification) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{100}
+	return file_api_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *PeerNotification) GetPeerCount() int32 {
@@ -6538,7 +6623,7 @@ type RpcSyncRequest struct {
 func (x *RpcSyncRequest) Reset() {
 	*x = RpcSyncRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[101]
+		mi := &file_api_proto_msgTypes[103]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6551,7 +6636,7 @@ func (x *RpcSyncRequest) String() string {
 func (*RpcSyncRequest) ProtoMessage() {}
 
 func (x *RpcSyncRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[101]
+	mi := &file_api_proto_msgTypes[103]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6564,7 +6649,7 @@ func (x *RpcSyncRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RpcSyncRequest.ProtoReflect.Descriptor instead.
 func (*RpcSyncRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{101}
+	return file_api_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *RpcSyncRequest) GetNetworkAddress() string {
@@ -6625,7 +6710,7 @@ type RpcSyncResponse struct {
 func (x *RpcSyncResponse) Reset() {
 	*x = RpcSyncResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[102]
+		mi := &file_api_proto_msgTypes[104]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6638,7 +6723,7 @@ func (x *RpcSyncResponse) String() string {
 func (*RpcSyncResponse) ProtoMessage() {}
 
 func (x *RpcSyncResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[102]
+	mi := &file_api_proto_msgTypes[104]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6651,7 +6736,7 @@ func (x *RpcSyncResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RpcSyncResponse.ProtoReflect.Descriptor instead.
 func (*RpcSyncResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{102}
+	return file_api_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *RpcSyncResponse) GetSynced() bool {
@@ -6709,7 +6794,7 @@ type SpvSyncRequest struct {
 func (x *SpvSyncRequest) Reset() {
 	*x = SpvSyncRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[103]
+		mi := &file_api_proto_msgTypes[105]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6722,7 +6807,7 @@ func (x *SpvSyncRequest) String() string {
 func (*SpvSyncRequest) ProtoMessage() {}
 
 func (x *SpvSyncRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[103]
+	mi := &file_api_proto_msgTypes[105]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6735,7 +6820,7 @@ func (x *SpvSyncRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpvSyncRequest.ProtoReflect.Descriptor instead.
 func (*SpvSyncRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{103}
+	return file_api_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *SpvSyncRequest) GetDiscoverAccounts() bool {
@@ -6775,7 +6860,7 @@ type SpvSyncResponse struct {
 func (x *SpvSyncResponse) Reset() {
 	*x = SpvSyncResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[104]
+		mi := &file_api_proto_msgTypes[106]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6788,7 +6873,7 @@ func (x *SpvSyncResponse) String() string {
 func (*SpvSyncResponse) ProtoMessage() {}
 
 func (x *SpvSyncResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[104]
+	mi := &file_api_proto_msgTypes[106]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6801,7 +6886,7 @@ func (x *SpvSyncResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpvSyncResponse.ProtoReflect.Descriptor instead.
 func (*SpvSyncResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{104}
+	return file_api_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *SpvSyncResponse) GetSynced() bool {
@@ -6855,7 +6940,7 @@ type RescanPointRequest struct {
 func (x *RescanPointRequest) Reset() {
 	*x = RescanPointRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[105]
+		mi := &file_api_proto_msgTypes[107]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6868,7 +6953,7 @@ func (x *RescanPointRequest) String() string {
 func (*RescanPointRequest) ProtoMessage() {}
 
 func (x *RescanPointRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[105]
+	mi := &file_api_proto_msgTypes[107]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6881,7 +6966,7 @@ func (x *RescanPointRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RescanPointRequest.ProtoReflect.Descriptor instead.
 func (*RescanPointRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{105}
+	return file_api_proto_rawDescGZIP(), []int{107}
 }
 
 type RescanPointResponse struct {
@@ -6895,7 +6980,7 @@ type RescanPointResponse struct {
 func (x *RescanPointResponse) Reset() {
 	*x = RescanPointResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[106]
+		mi := &file_api_proto_msgTypes[108]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6908,7 +6993,7 @@ func (x *RescanPointResponse) String() string {
 func (*RescanPointResponse) ProtoMessage() {}
 
 func (x *RescanPointResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[106]
+	mi := &file_api_proto_msgTypes[108]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6921,7 +7006,7 @@ func (x *RescanPointResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RescanPointResponse.ProtoReflect.Descriptor instead.
 func (*RescanPointResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{106}
+	return file_api_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *RescanPointResponse) GetRescanPointHash() []byte {
@@ -6942,7 +7027,7 @@ type GenerateRandomSeedRequest struct {
 func (x *GenerateRandomSeedRequest) Reset() {
 	*x = GenerateRandomSeedRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[107]
+		mi := &file_api_proto_msgTypes[109]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -6955,7 +7040,7 @@ func (x *GenerateRandomSeedRequest) String() string {
 func (*GenerateRandomSeedRequest) ProtoMessage() {}
 
 func (x *GenerateRandomSeedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[107]
+	mi := &file_api_proto_msgTypes[109]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6968,7 +7053,7 @@ func (x *GenerateRandomSeedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateRandomSeedRequest.ProtoReflect.Descriptor instead.
 func (*GenerateRandomSeedRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{107}
+	return file_api_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *GenerateRandomSeedRequest) GetSeedLength() uint32 {
@@ -6991,7 +7076,7 @@ type GenerateRandomSeedResponse struct {
 func (x *GenerateRandomSeedResponse) Reset() {
 	*x = GenerateRandomSeedResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[108]
+		mi := &file_api_proto_msgTypes[110]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7004,7 +7089,7 @@ func (x *GenerateRandomSeedResponse) String() string {
 func (*GenerateRandomSeedResponse) ProtoMessage() {}
 
 func (x *GenerateRandomSeedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[108]
+	mi := &file_api_proto_msgTypes[110]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7017,7 +7102,7 @@ func (x *GenerateRandomSeedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateRandomSeedResponse.ProtoReflect.Descriptor instead.
 func (*GenerateRandomSeedResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{108}
+	return file_api_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *GenerateRandomSeedResponse) GetSeedBytes() []byte {
@@ -7052,7 +7137,7 @@ type DecodeSeedRequest struct {
 func (x *DecodeSeedRequest) Reset() {
 	*x = DecodeSeedRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[109]
+		mi := &file_api_proto_msgTypes[111]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7065,7 +7150,7 @@ func (x *DecodeSeedRequest) String() string {
 func (*DecodeSeedRequest) ProtoMessage() {}
 
 func (x *DecodeSeedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[109]
+	mi := &file_api_proto_msgTypes[111]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7078,7 +7163,7 @@ func (x *DecodeSeedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecodeSeedRequest.ProtoReflect.Descriptor instead.
 func (*DecodeSeedRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{109}
+	return file_api_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *DecodeSeedRequest) GetUserInput() string {
@@ -7099,7 +7184,7 @@ type DecodeSeedResponse struct {
 func (x *DecodeSeedResponse) Reset() {
 	*x = DecodeSeedResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[110]
+		mi := &file_api_proto_msgTypes[112]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7112,7 +7197,7 @@ func (x *DecodeSeedResponse) String() string {
 func (*DecodeSeedResponse) ProtoMessage() {}
 
 func (x *DecodeSeedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[110]
+	mi := &file_api_proto_msgTypes[112]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7125,7 +7210,7 @@ func (x *DecodeSeedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecodeSeedResponse.ProtoReflect.Descriptor instead.
 func (*DecodeSeedResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{110}
+	return file_api_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *DecodeSeedResponse) GetDecodedSeed() []byte {
@@ -7160,7 +7245,7 @@ type RunTicketBuyerRequest struct {
 func (x *RunTicketBuyerRequest) Reset() {
 	*x = RunTicketBuyerRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[111]
+		mi := &file_api_proto_msgTypes[113]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7173,7 +7258,7 @@ func (x *RunTicketBuyerRequest) String() string {
 func (*RunTicketBuyerRequest) ProtoMessage() {}
 
 func (x *RunTicketBuyerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[111]
+	mi := &file_api_proto_msgTypes[113]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7186,7 +7271,7 @@ func (x *RunTicketBuyerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunTicketBuyerRequest.ProtoReflect.Descriptor instead.
 func (*RunTicketBuyerRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{111}
+	return file_api_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *RunTicketBuyerRequest) GetPassphrase() []byte {
@@ -7303,7 +7388,7 @@ type RunTicketBuyerResponse struct {
 func (x *RunTicketBuyerResponse) Reset() {
 	*x = RunTicketBuyerResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[112]
+		mi := &file_api_proto_msgTypes[114]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7316,7 +7401,7 @@ func (x *RunTicketBuyerResponse) String() string {
 func (*RunTicketBuyerResponse) ProtoMessage() {}
 
 func (x *RunTicketBuyerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[112]
+	mi := &file_api_proto_msgTypes[114]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7329,7 +7414,7 @@ func (x *RunTicketBuyerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunTicketBuyerResponse.ProtoReflect.Descriptor instead.
 func (*RunTicketBuyerResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{112}
+	return file_api_proto_rawDescGZIP(), []int{114}
 }
 
 type RunAccountMixerRequest struct {
@@ -7347,7 +7432,7 @@ type RunAccountMixerRequest struct {
 func (x *RunAccountMixerRequest) Reset() {
 	*x = RunAccountMixerRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[113]
+		mi := &file_api_proto_msgTypes[115]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7360,7 +7445,7 @@ func (x *RunAccountMixerRequest) String() string {
 func (*RunAccountMixerRequest) ProtoMessage() {}
 
 func (x *RunAccountMixerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[113]
+	mi := &file_api_proto_msgTypes[115]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7373,7 +7458,7 @@ func (x *RunAccountMixerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunAccountMixerRequest.ProtoReflect.Descriptor instead.
 func (*RunAccountMixerRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{113}
+	return file_api_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *RunAccountMixerRequest) GetPassphrase() []byte {
@@ -7420,7 +7505,7 @@ type RunAccountMixerResponse struct {
 func (x *RunAccountMixerResponse) Reset() {
 	*x = RunAccountMixerResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[114]
+		mi := &file_api_proto_msgTypes[116]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7433,7 +7518,7 @@ func (x *RunAccountMixerResponse) String() string {
 func (*RunAccountMixerResponse) ProtoMessage() {}
 
 func (x *RunAccountMixerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[114]
+	mi := &file_api_proto_msgTypes[116]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7446,7 +7531,7 @@ func (x *RunAccountMixerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunAccountMixerResponse.ProtoReflect.Descriptor instead.
 func (*RunAccountMixerResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{114}
+	return file_api_proto_rawDescGZIP(), []int{116}
 }
 
 type StartAutoBuyerRequest struct {
@@ -7469,7 +7554,7 @@ type StartAutoBuyerRequest struct {
 func (x *StartAutoBuyerRequest) Reset() {
 	*x = StartAutoBuyerRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[115]
+		mi := &file_api_proto_msgTypes[117]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7482,7 +7567,7 @@ func (x *StartAutoBuyerRequest) String() string {
 func (*StartAutoBuyerRequest) ProtoMessage() {}
 
 func (x *StartAutoBuyerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[115]
+	mi := &file_api_proto_msgTypes[117]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7495,7 +7580,7 @@ func (x *StartAutoBuyerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartAutoBuyerRequest.ProtoReflect.Descriptor instead.
 func (*StartAutoBuyerRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{115}
+	return file_api_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *StartAutoBuyerRequest) GetPassphrase() []byte {
@@ -7577,7 +7662,7 @@ type StartAutoBuyerResponse struct {
 func (x *StartAutoBuyerResponse) Reset() {
 	*x = StartAutoBuyerResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[116]
+		mi := &file_api_proto_msgTypes[118]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7590,7 +7675,7 @@ func (x *StartAutoBuyerResponse) String() string {
 func (*StartAutoBuyerResponse) ProtoMessage() {}
 
 func (x *StartAutoBuyerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[116]
+	mi := &file_api_proto_msgTypes[118]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7603,7 +7688,7 @@ func (x *StartAutoBuyerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartAutoBuyerResponse.ProtoReflect.Descriptor instead.
 func (*StartAutoBuyerResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{116}
+	return file_api_proto_rawDescGZIP(), []int{118}
 }
 
 type StopAutoBuyerRequest struct {
@@ -7615,7 +7700,7 @@ type StopAutoBuyerRequest struct {
 func (x *StopAutoBuyerRequest) Reset() {
 	*x = StopAutoBuyerRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[117]
+		mi := &file_api_proto_msgTypes[119]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7628,7 +7713,7 @@ func (x *StopAutoBuyerRequest) String() string {
 func (*StopAutoBuyerRequest) ProtoMessage() {}
 
 func (x *StopAutoBuyerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[117]
+	mi := &file_api_proto_msgTypes[119]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7641,7 +7726,7 @@ func (x *StopAutoBuyerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopAutoBuyerRequest.ProtoReflect.Descriptor instead.
 func (*StopAutoBuyerRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{117}
+	return file_api_proto_rawDescGZIP(), []int{119}
 }
 
 type StopAutoBuyerResponse struct {
@@ -7653,7 +7738,7 @@ type StopAutoBuyerResponse struct {
 func (x *StopAutoBuyerResponse) Reset() {
 	*x = StopAutoBuyerResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[118]
+		mi := &file_api_proto_msgTypes[120]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7666,7 +7751,7 @@ func (x *StopAutoBuyerResponse) String() string {
 func (*StopAutoBuyerResponse) ProtoMessage() {}
 
 func (x *StopAutoBuyerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[118]
+	mi := &file_api_proto_msgTypes[120]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7679,7 +7764,7 @@ func (x *StopAutoBuyerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopAutoBuyerResponse.ProtoReflect.Descriptor instead.
 func (*StopAutoBuyerResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{118}
+	return file_api_proto_rawDescGZIP(), []int{120}
 }
 
 type TicketBuyerConfigRequest struct {
@@ -7691,7 +7776,7 @@ type TicketBuyerConfigRequest struct {
 func (x *TicketBuyerConfigRequest) Reset() {
 	*x = TicketBuyerConfigRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[119]
+		mi := &file_api_proto_msgTypes[121]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7704,7 +7789,7 @@ func (x *TicketBuyerConfigRequest) String() string {
 func (*TicketBuyerConfigRequest) ProtoMessage() {}
 
 func (x *TicketBuyerConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[119]
+	mi := &file_api_proto_msgTypes[121]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7717,7 +7802,7 @@ func (x *TicketBuyerConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TicketBuyerConfigRequest.ProtoReflect.Descriptor instead.
 func (*TicketBuyerConfigRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{119}
+	return file_api_proto_rawDescGZIP(), []int{121}
 }
 
 type TicketBuyerConfigResponse struct {
@@ -7750,7 +7835,7 @@ type TicketBuyerConfigResponse struct {
 func (x *TicketBuyerConfigResponse) Reset() {
 	*x = TicketBuyerConfigResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[120]
+		mi := &file_api_proto_msgTypes[122]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7763,7 +7848,7 @@ func (x *TicketBuyerConfigResponse) String() string {
 func (*TicketBuyerConfigResponse) ProtoMessage() {}
 
 func (x *TicketBuyerConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[120]
+	mi := &file_api_proto_msgTypes[122]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7776,7 +7861,7 @@ func (x *TicketBuyerConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TicketBuyerConfigResponse.ProtoReflect.Descriptor instead.
 func (*TicketBuyerConfigResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{120}
+	return file_api_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *TicketBuyerConfigResponse) GetAccount() uint32 {
@@ -7930,7 +8015,7 @@ type SetAccountRequest struct {
 func (x *SetAccountRequest) Reset() {
 	*x = SetAccountRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[121]
+		mi := &file_api_proto_msgTypes[123]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7943,7 +8028,7 @@ func (x *SetAccountRequest) String() string {
 func (*SetAccountRequest) ProtoMessage() {}
 
 func (x *SetAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[121]
+	mi := &file_api_proto_msgTypes[123]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7956,7 +8041,7 @@ func (x *SetAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetAccountRequest.ProtoReflect.Descriptor instead.
 func (*SetAccountRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{121}
+	return file_api_proto_rawDescGZIP(), []int{123}
 }
 
 func (x *SetAccountRequest) GetAccount() uint32 {
@@ -7975,7 +8060,7 @@ type SetAccountResponse struct {
 func (x *SetAccountResponse) Reset() {
 	*x = SetAccountResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[122]
+		mi := &file_api_proto_msgTypes[124]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -7988,7 +8073,7 @@ func (x *SetAccountResponse) String() string {
 func (*SetAccountResponse) ProtoMessage() {}
 
 func (x *SetAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[122]
+	mi := &file_api_proto_msgTypes[124]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8001,7 +8086,7 @@ func (x *SetAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetAccountResponse.ProtoReflect.Descriptor instead.
 func (*SetAccountResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{122}
+	return file_api_proto_rawDescGZIP(), []int{124}
 }
 
 type SetBalanceToMaintainRequest struct {
@@ -8015,7 +8100,7 @@ type SetBalanceToMaintainRequest struct {
 func (x *SetBalanceToMaintainRequest) Reset() {
 	*x = SetBalanceToMaintainRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[123]
+		mi := &file_api_proto_msgTypes[125]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8028,7 +8113,7 @@ func (x *SetBalanceToMaintainRequest) String() string {
 func (*SetBalanceToMaintainRequest) ProtoMessage() {}
 
 func (x *SetBalanceToMaintainRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[123]
+	mi := &file_api_proto_msgTypes[125]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8041,7 +8126,7 @@ func (x *SetBalanceToMaintainRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetBalanceToMaintainRequest.ProtoReflect.Descriptor instead.
 func (*SetBalanceToMaintainRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{123}
+	return file_api_proto_rawDescGZIP(), []int{125}
 }
 
 func (x *SetBalanceToMaintainRequest) GetBalanceToMaintain() int64 {
@@ -8060,7 +8145,7 @@ type SetBalanceToMaintainResponse struct {
 func (x *SetBalanceToMaintainResponse) Reset() {
 	*x = SetBalanceToMaintainResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[124]
+		mi := &file_api_proto_msgTypes[126]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8073,7 +8158,7 @@ func (x *SetBalanceToMaintainResponse) String() string {
 func (*SetBalanceToMaintainResponse) ProtoMessage() {}
 
 func (x *SetBalanceToMaintainResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[124]
+	mi := &file_api_proto_msgTypes[126]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8086,7 +8171,7 @@ func (x *SetBalanceToMaintainResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetBalanceToMaintainResponse.ProtoReflect.Descriptor instead.
 func (*SetBalanceToMaintainResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{124}
+	return file_api_proto_rawDescGZIP(), []int{126}
 }
 
 type SetMaxFeeRequest struct {
@@ -8100,7 +8185,7 @@ type SetMaxFeeRequest struct {
 func (x *SetMaxFeeRequest) Reset() {
 	*x = SetMaxFeeRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[125]
+		mi := &file_api_proto_msgTypes[127]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8113,7 +8198,7 @@ func (x *SetMaxFeeRequest) String() string {
 func (*SetMaxFeeRequest) ProtoMessage() {}
 
 func (x *SetMaxFeeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[125]
+	mi := &file_api_proto_msgTypes[127]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8126,7 +8211,7 @@ func (x *SetMaxFeeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetMaxFeeRequest.ProtoReflect.Descriptor instead.
 func (*SetMaxFeeRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{125}
+	return file_api_proto_rawDescGZIP(), []int{127}
 }
 
 func (x *SetMaxFeeRequest) GetMaxFeePerKb() int64 {
@@ -8145,7 +8230,7 @@ type SetMaxFeeResponse struct {
 func (x *SetMaxFeeResponse) Reset() {
 	*x = SetMaxFeeResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[126]
+		mi := &file_api_proto_msgTypes[128]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8158,7 +8243,7 @@ func (x *SetMaxFeeResponse) String() string {
 func (*SetMaxFeeResponse) ProtoMessage() {}
 
 func (x *SetMaxFeeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[126]
+	mi := &file_api_proto_msgTypes[128]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8171,7 +8256,7 @@ func (x *SetMaxFeeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetMaxFeeResponse.ProtoReflect.Descriptor instead.
 func (*SetMaxFeeResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{126}
+	return file_api_proto_rawDescGZIP(), []int{128}
 }
 
 type SetMaxPriceRelativeRequest struct {
@@ -8185,7 +8270,7 @@ type SetMaxPriceRelativeRequest struct {
 func (x *SetMaxPriceRelativeRequest) Reset() {
 	*x = SetMaxPriceRelativeRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[127]
+		mi := &file_api_proto_msgTypes[129]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8198,7 +8283,7 @@ func (x *SetMaxPriceRelativeRequest) String() string {
 func (*SetMaxPriceRelativeRequest) ProtoMessage() {}
 
 func (x *SetMaxPriceRelativeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[127]
+	mi := &file_api_proto_msgTypes[129]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8211,7 +8296,7 @@ func (x *SetMaxPriceRelativeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetMaxPriceRelativeRequest.ProtoReflect.Descriptor instead.
 func (*SetMaxPriceRelativeRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{127}
+	return file_api_proto_rawDescGZIP(), []int{129}
 }
 
 func (x *SetMaxPriceRelativeRequest) GetMaxPriceRelative() float64 {
@@ -8230,7 +8315,7 @@ type SetMaxPriceRelativeResponse struct {
 func (x *SetMaxPriceRelativeResponse) Reset() {
 	*x = SetMaxPriceRelativeResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[128]
+		mi := &file_api_proto_msgTypes[130]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8243,7 +8328,7 @@ func (x *SetMaxPriceRelativeResponse) String() string {
 func (*SetMaxPriceRelativeResponse) ProtoMessage() {}
 
 func (x *SetMaxPriceRelativeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[128]
+	mi := &file_api_proto_msgTypes[130]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8256,7 +8341,7 @@ func (x *SetMaxPriceRelativeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetMaxPriceRelativeResponse.ProtoReflect.Descriptor instead.
 func (*SetMaxPriceRelativeResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{128}
+	return file_api_proto_rawDescGZIP(), []int{130}
 }
 
 type SetMaxPriceAbsoluteRequest struct {
@@ -8270,7 +8355,7 @@ type SetMaxPriceAbsoluteRequest struct {
 func (x *SetMaxPriceAbsoluteRequest) Reset() {
 	*x = SetMaxPriceAbsoluteRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[129]
+		mi := &file_api_proto_msgTypes[131]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8283,7 +8368,7 @@ func (x *SetMaxPriceAbsoluteRequest) String() string {
 func (*SetMaxPriceAbsoluteRequest) ProtoMessage() {}
 
 func (x *SetMaxPriceAbsoluteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[129]
+	mi := &file_api_proto_msgTypes[131]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8296,7 +8381,7 @@ func (x *SetMaxPriceAbsoluteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetMaxPriceAbsoluteRequest.ProtoReflect.Descriptor instead.
 func (*SetMaxPriceAbsoluteRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{129}
+	return file_api_proto_rawDescGZIP(), []int{131}
 }
 
 func (x *SetMaxPriceAbsoluteRequest) GetMaxPriceAbsolute() int64 {
@@ -8315,7 +8400,7 @@ type SetMaxPriceAbsoluteResponse struct {
 func (x *SetMaxPriceAbsoluteResponse) Reset() {
 	*x = SetMaxPriceAbsoluteResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[130]
+		mi := &file_api_proto_msgTypes[132]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8328,7 +8413,7 @@ func (x *SetMaxPriceAbsoluteResponse) String() string {
 func (*SetMaxPriceAbsoluteResponse) ProtoMessage() {}
 
 func (x *SetMaxPriceAbsoluteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[130]
+	mi := &file_api_proto_msgTypes[132]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8341,7 +8426,7 @@ func (x *SetMaxPriceAbsoluteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetMaxPriceAbsoluteResponse.ProtoReflect.Descriptor instead.
 func (*SetMaxPriceAbsoluteResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{130}
+	return file_api_proto_rawDescGZIP(), []int{132}
 }
 
 type SetVotingAddressRequest struct {
@@ -8355,7 +8440,7 @@ type SetVotingAddressRequest struct {
 func (x *SetVotingAddressRequest) Reset() {
 	*x = SetVotingAddressRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[131]
+		mi := &file_api_proto_msgTypes[133]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8368,7 +8453,7 @@ func (x *SetVotingAddressRequest) String() string {
 func (*SetVotingAddressRequest) ProtoMessage() {}
 
 func (x *SetVotingAddressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[131]
+	mi := &file_api_proto_msgTypes[133]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8381,7 +8466,7 @@ func (x *SetVotingAddressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetVotingAddressRequest.ProtoReflect.Descriptor instead.
 func (*SetVotingAddressRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{131}
+	return file_api_proto_rawDescGZIP(), []int{133}
 }
 
 func (x *SetVotingAddressRequest) GetVotingAddress() string {
@@ -8400,7 +8485,7 @@ type SetVotingAddressResponse struct {
 func (x *SetVotingAddressResponse) Reset() {
 	*x = SetVotingAddressResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[132]
+		mi := &file_api_proto_msgTypes[134]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8413,7 +8498,7 @@ func (x *SetVotingAddressResponse) String() string {
 func (*SetVotingAddressResponse) ProtoMessage() {}
 
 func (x *SetVotingAddressResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[132]
+	mi := &file_api_proto_msgTypes[134]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8426,7 +8511,7 @@ func (x *SetVotingAddressResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetVotingAddressResponse.ProtoReflect.Descriptor instead.
 func (*SetVotingAddressResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{132}
+	return file_api_proto_rawDescGZIP(), []int{134}
 }
 
 type SetPoolAddressRequest struct {
@@ -8440,7 +8525,7 @@ type SetPoolAddressRequest struct {
 func (x *SetPoolAddressRequest) Reset() {
 	*x = SetPoolAddressRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[133]
+		mi := &file_api_proto_msgTypes[135]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8453,7 +8538,7 @@ func (x *SetPoolAddressRequest) String() string {
 func (*SetPoolAddressRequest) ProtoMessage() {}
 
 func (x *SetPoolAddressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[133]
+	mi := &file_api_proto_msgTypes[135]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8466,7 +8551,7 @@ func (x *SetPoolAddressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPoolAddressRequest.ProtoReflect.Descriptor instead.
 func (*SetPoolAddressRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{133}
+	return file_api_proto_rawDescGZIP(), []int{135}
 }
 
 func (x *SetPoolAddressRequest) GetPoolAddress() string {
@@ -8485,7 +8570,7 @@ type SetPoolAddressResponse struct {
 func (x *SetPoolAddressResponse) Reset() {
 	*x = SetPoolAddressResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[134]
+		mi := &file_api_proto_msgTypes[136]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8498,7 +8583,7 @@ func (x *SetPoolAddressResponse) String() string {
 func (*SetPoolAddressResponse) ProtoMessage() {}
 
 func (x *SetPoolAddressResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[134]
+	mi := &file_api_proto_msgTypes[136]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8511,7 +8596,7 @@ func (x *SetPoolAddressResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPoolAddressResponse.ProtoReflect.Descriptor instead.
 func (*SetPoolAddressResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{134}
+	return file_api_proto_rawDescGZIP(), []int{136}
 }
 
 type SetPoolFeesRequest struct {
@@ -8525,7 +8610,7 @@ type SetPoolFeesRequest struct {
 func (x *SetPoolFeesRequest) Reset() {
 	*x = SetPoolFeesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[135]
+		mi := &file_api_proto_msgTypes[137]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8538,7 +8623,7 @@ func (x *SetPoolFeesRequest) String() string {
 func (*SetPoolFeesRequest) ProtoMessage() {}
 
 func (x *SetPoolFeesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[135]
+	mi := &file_api_proto_msgTypes[137]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8551,7 +8636,7 @@ func (x *SetPoolFeesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPoolFeesRequest.ProtoReflect.Descriptor instead.
 func (*SetPoolFeesRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{135}
+	return file_api_proto_rawDescGZIP(), []int{137}
 }
 
 func (x *SetPoolFeesRequest) GetPoolFees() float64 {
@@ -8570,7 +8655,7 @@ type SetPoolFeesResponse struct {
 func (x *SetPoolFeesResponse) Reset() {
 	*x = SetPoolFeesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[136]
+		mi := &file_api_proto_msgTypes[138]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8583,7 +8668,7 @@ func (x *SetPoolFeesResponse) String() string {
 func (*SetPoolFeesResponse) ProtoMessage() {}
 
 func (x *SetPoolFeesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[136]
+	mi := &file_api_proto_msgTypes[138]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8596,7 +8681,7 @@ func (x *SetPoolFeesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPoolFeesResponse.ProtoReflect.Descriptor instead.
 func (*SetPoolFeesResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{136}
+	return file_api_proto_rawDescGZIP(), []int{138}
 }
 
 type SetMaxPerBlockRequest struct {
@@ -8610,7 +8695,7 @@ type SetMaxPerBlockRequest struct {
 func (x *SetMaxPerBlockRequest) Reset() {
 	*x = SetMaxPerBlockRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[137]
+		mi := &file_api_proto_msgTypes[139]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8623,7 +8708,7 @@ func (x *SetMaxPerBlockRequest) String() string {
 func (*SetMaxPerBlockRequest) ProtoMessage() {}
 
 func (x *SetMaxPerBlockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[137]
+	mi := &file_api_proto_msgTypes[139]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8636,7 +8721,7 @@ func (x *SetMaxPerBlockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetMaxPerBlockRequest.ProtoReflect.Descriptor instead.
 func (*SetMaxPerBlockRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{137}
+	return file_api_proto_rawDescGZIP(), []int{139}
 }
 
 func (x *SetMaxPerBlockRequest) GetMaxPerBlock() int64 {
@@ -8655,7 +8740,7 @@ type SetMaxPerBlockResponse struct {
 func (x *SetMaxPerBlockResponse) Reset() {
 	*x = SetMaxPerBlockResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[138]
+		mi := &file_api_proto_msgTypes[140]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8668,7 +8753,7 @@ func (x *SetMaxPerBlockResponse) String() string {
 func (*SetMaxPerBlockResponse) ProtoMessage() {}
 
 func (x *SetMaxPerBlockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[138]
+	mi := &file_api_proto_msgTypes[140]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8681,7 +8766,7 @@ func (x *SetMaxPerBlockResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetMaxPerBlockResponse.ProtoReflect.Descriptor instead.
 func (*SetMaxPerBlockResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{138}
+	return file_api_proto_rawDescGZIP(), []int{140}
 }
 
 type AgendasRequest struct {
@@ -8693,7 +8778,7 @@ type AgendasRequest struct {
 func (x *AgendasRequest) Reset() {
 	*x = AgendasRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[139]
+		mi := &file_api_proto_msgTypes[141]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8706,7 +8791,7 @@ func (x *AgendasRequest) String() string {
 func (*AgendasRequest) ProtoMessage() {}
 
 func (x *AgendasRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[139]
+	mi := &file_api_proto_msgTypes[141]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8719,7 +8804,7 @@ func (x *AgendasRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgendasRequest.ProtoReflect.Descriptor instead.
 func (*AgendasRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{139}
+	return file_api_proto_rawDescGZIP(), []int{141}
 }
 
 type AgendasResponse struct {
@@ -8734,7 +8819,7 @@ type AgendasResponse struct {
 func (x *AgendasResponse) Reset() {
 	*x = AgendasResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[140]
+		mi := &file_api_proto_msgTypes[142]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8747,7 +8832,7 @@ func (x *AgendasResponse) String() string {
 func (*AgendasResponse) ProtoMessage() {}
 
 func (x *AgendasResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[140]
+	mi := &file_api_proto_msgTypes[142]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8760,7 +8845,7 @@ func (x *AgendasResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgendasResponse.ProtoReflect.Descriptor instead.
 func (*AgendasResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{140}
+	return file_api_proto_rawDescGZIP(), []int{142}
 }
 
 func (x *AgendasResponse) GetVersion() uint32 {
@@ -8788,7 +8873,7 @@ type VoteChoicesRequest struct {
 func (x *VoteChoicesRequest) Reset() {
 	*x = VoteChoicesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[141]
+		mi := &file_api_proto_msgTypes[143]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8801,7 +8886,7 @@ func (x *VoteChoicesRequest) String() string {
 func (*VoteChoicesRequest) ProtoMessage() {}
 
 func (x *VoteChoicesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[141]
+	mi := &file_api_proto_msgTypes[143]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8814,7 +8899,7 @@ func (x *VoteChoicesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VoteChoicesRequest.ProtoReflect.Descriptor instead.
 func (*VoteChoicesRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{141}
+	return file_api_proto_rawDescGZIP(), []int{143}
 }
 
 func (x *VoteChoicesRequest) GetTicketHash() []byte {
@@ -8837,7 +8922,7 @@ type VoteChoicesResponse struct {
 func (x *VoteChoicesResponse) Reset() {
 	*x = VoteChoicesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[142]
+		mi := &file_api_proto_msgTypes[144]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8850,7 +8935,7 @@ func (x *VoteChoicesResponse) String() string {
 func (*VoteChoicesResponse) ProtoMessage() {}
 
 func (x *VoteChoicesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[142]
+	mi := &file_api_proto_msgTypes[144]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8863,7 +8948,7 @@ func (x *VoteChoicesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VoteChoicesResponse.ProtoReflect.Descriptor instead.
 func (*VoteChoicesResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{142}
+	return file_api_proto_rawDescGZIP(), []int{144}
 }
 
 func (x *VoteChoicesResponse) GetVersion() uint32 {
@@ -8899,7 +8984,7 @@ type SetVoteChoicesRequest struct {
 func (x *SetVoteChoicesRequest) Reset() {
 	*x = SetVoteChoicesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[143]
+		mi := &file_api_proto_msgTypes[145]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8912,7 +8997,7 @@ func (x *SetVoteChoicesRequest) String() string {
 func (*SetVoteChoicesRequest) ProtoMessage() {}
 
 func (x *SetVoteChoicesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[143]
+	mi := &file_api_proto_msgTypes[145]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8925,7 +9010,7 @@ func (x *SetVoteChoicesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetVoteChoicesRequest.ProtoReflect.Descriptor instead.
 func (*SetVoteChoicesRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{143}
+	return file_api_proto_rawDescGZIP(), []int{145}
 }
 
 func (x *SetVoteChoicesRequest) GetChoices() []*SetVoteChoicesRequest_Choice {
@@ -8953,7 +9038,7 @@ type SetVoteChoicesResponse struct {
 func (x *SetVoteChoicesResponse) Reset() {
 	*x = SetVoteChoicesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[144]
+		mi := &file_api_proto_msgTypes[146]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -8966,7 +9051,7 @@ func (x *SetVoteChoicesResponse) String() string {
 func (*SetVoteChoicesResponse) ProtoMessage() {}
 
 func (x *SetVoteChoicesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[144]
+	mi := &file_api_proto_msgTypes[146]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8979,7 +9064,7 @@ func (x *SetVoteChoicesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetVoteChoicesResponse.ProtoReflect.Descriptor instead.
 func (*SetVoteChoicesResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{144}
+	return file_api_proto_rawDescGZIP(), []int{146}
 }
 
 func (x *SetVoteChoicesResponse) GetVotebits() uint32 {
@@ -9002,7 +9087,7 @@ type VerifyMessageRequest struct {
 func (x *VerifyMessageRequest) Reset() {
 	*x = VerifyMessageRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[145]
+		mi := &file_api_proto_msgTypes[147]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9015,7 +9100,7 @@ func (x *VerifyMessageRequest) String() string {
 func (*VerifyMessageRequest) ProtoMessage() {}
 
 func (x *VerifyMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[145]
+	mi := &file_api_proto_msgTypes[147]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9028,7 +9113,7 @@ func (x *VerifyMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyMessageRequest.ProtoReflect.Descriptor instead.
 func (*VerifyMessageRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{145}
+	return file_api_proto_rawDescGZIP(), []int{147}
 }
 
 func (x *VerifyMessageRequest) GetAddress() string {
@@ -9063,7 +9148,7 @@ type VerifyMessageResponse struct {
 func (x *VerifyMessageResponse) Reset() {
 	*x = VerifyMessageResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[146]
+		mi := &file_api_proto_msgTypes[148]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9076,7 +9161,7 @@ func (x *VerifyMessageResponse) String() string {
 func (*VerifyMessageResponse) ProtoMessage() {}
 
 func (x *VerifyMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[146]
+	mi := &file_api_proto_msgTypes[148]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9089,7 +9174,7 @@ func (x *VerifyMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyMessageResponse.ProtoReflect.Descriptor instead.
 func (*VerifyMessageResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{146}
+	return file_api_proto_rawDescGZIP(), []int{148}
 }
 
 func (x *VerifyMessageResponse) GetValid() bool {
@@ -9116,7 +9201,7 @@ type DecodedTransaction struct {
 func (x *DecodedTransaction) Reset() {
 	*x = DecodedTransaction{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[147]
+		mi := &file_api_proto_msgTypes[149]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9129,7 +9214,7 @@ func (x *DecodedTransaction) String() string {
 func (*DecodedTransaction) ProtoMessage() {}
 
 func (x *DecodedTransaction) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[147]
+	mi := &file_api_proto_msgTypes[149]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9142,7 +9227,7 @@ func (x *DecodedTransaction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecodedTransaction.ProtoReflect.Descriptor instead.
 func (*DecodedTransaction) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{147}
+	return file_api_proto_rawDescGZIP(), []int{149}
 }
 
 func (x *DecodedTransaction) GetTransactionHash() []byte {
@@ -9205,7 +9290,7 @@ type DecodeRawTransactionRequest struct {
 func (x *DecodeRawTransactionRequest) Reset() {
 	*x = DecodeRawTransactionRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[148]
+		mi := &file_api_proto_msgTypes[150]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9218,7 +9303,7 @@ func (x *DecodeRawTransactionRequest) String() string {
 func (*DecodeRawTransactionRequest) ProtoMessage() {}
 
 func (x *DecodeRawTransactionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[148]
+	mi := &file_api_proto_msgTypes[150]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9231,7 +9316,7 @@ func (x *DecodeRawTransactionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecodeRawTransactionRequest.ProtoReflect.Descriptor instead.
 func (*DecodeRawTransactionRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{148}
+	return file_api_proto_rawDescGZIP(), []int{150}
 }
 
 func (x *DecodeRawTransactionRequest) GetSerializedTransaction() []byte {
@@ -9252,7 +9337,7 @@ type DecodeRawTransactionResponse struct {
 func (x *DecodeRawTransactionResponse) Reset() {
 	*x = DecodeRawTransactionResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[149]
+		mi := &file_api_proto_msgTypes[151]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9265,7 +9350,7 @@ func (x *DecodeRawTransactionResponse) String() string {
 func (*DecodeRawTransactionResponse) ProtoMessage() {}
 
 func (x *DecodeRawTransactionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[149]
+	mi := &file_api_proto_msgTypes[151]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9278,7 +9363,7 @@ func (x *DecodeRawTransactionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecodeRawTransactionResponse.ProtoReflect.Descriptor instead.
 func (*DecodeRawTransactionResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{149}
+	return file_api_proto_rawDescGZIP(), []int{151}
 }
 
 func (x *DecodeRawTransactionResponse) GetTransaction() *DecodedTransaction {
@@ -9299,7 +9384,7 @@ type ValidateAddressRequest struct {
 func (x *ValidateAddressRequest) Reset() {
 	*x = ValidateAddressRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[150]
+		mi := &file_api_proto_msgTypes[152]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9312,7 +9397,7 @@ func (x *ValidateAddressRequest) String() string {
 func (*ValidateAddressRequest) ProtoMessage() {}
 
 func (x *ValidateAddressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[150]
+	mi := &file_api_proto_msgTypes[152]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9325,7 +9410,7 @@ func (x *ValidateAddressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateAddressRequest.ProtoReflect.Descriptor instead.
 func (*ValidateAddressRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{150}
+	return file_api_proto_rawDescGZIP(), []int{152}
 }
 
 func (x *ValidateAddressRequest) GetAddress() string {
@@ -9357,7 +9442,7 @@ type ValidateAddressResponse struct {
 func (x *ValidateAddressResponse) Reset() {
 	*x = ValidateAddressResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[151]
+		mi := &file_api_proto_msgTypes[153]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9370,7 +9455,7 @@ func (x *ValidateAddressResponse) String() string {
 func (*ValidateAddressResponse) ProtoMessage() {}
 
 func (x *ValidateAddressResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[151]
+	mi := &file_api_proto_msgTypes[153]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9383,7 +9468,7 @@ func (x *ValidateAddressResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateAddressResponse.ProtoReflect.Descriptor instead.
 func (*ValidateAddressResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{151}
+	return file_api_proto_rawDescGZIP(), []int{153}
 }
 
 func (x *ValidateAddressResponse) GetIsValid() bool {
@@ -9481,7 +9566,7 @@ type CommittedTicketsRequest struct {
 func (x *CommittedTicketsRequest) Reset() {
 	*x = CommittedTicketsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[152]
+		mi := &file_api_proto_msgTypes[154]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9494,7 +9579,7 @@ func (x *CommittedTicketsRequest) String() string {
 func (*CommittedTicketsRequest) ProtoMessage() {}
 
 func (x *CommittedTicketsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[152]
+	mi := &file_api_proto_msgTypes[154]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9507,7 +9592,7 @@ func (x *CommittedTicketsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommittedTicketsRequest.ProtoReflect.Descriptor instead.
 func (*CommittedTicketsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{152}
+	return file_api_proto_rawDescGZIP(), []int{154}
 }
 
 func (x *CommittedTicketsRequest) GetTickets() [][]byte {
@@ -9528,7 +9613,7 @@ type GetAccountExtendedPubKeyRequest struct {
 func (x *GetAccountExtendedPubKeyRequest) Reset() {
 	*x = GetAccountExtendedPubKeyRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[153]
+		mi := &file_api_proto_msgTypes[155]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9541,7 +9626,7 @@ func (x *GetAccountExtendedPubKeyRequest) String() string {
 func (*GetAccountExtendedPubKeyRequest) ProtoMessage() {}
 
 func (x *GetAccountExtendedPubKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[153]
+	mi := &file_api_proto_msgTypes[155]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9554,7 +9639,7 @@ func (x *GetAccountExtendedPubKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAccountExtendedPubKeyRequest.ProtoReflect.Descriptor instead.
 func (*GetAccountExtendedPubKeyRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{153}
+	return file_api_proto_rawDescGZIP(), []int{155}
 }
 
 func (x *GetAccountExtendedPubKeyRequest) GetAccountNumber() uint32 {
@@ -9575,7 +9660,7 @@ type GetAccountExtendedPubKeyResponse struct {
 func (x *GetAccountExtendedPubKeyResponse) Reset() {
 	*x = GetAccountExtendedPubKeyResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[154]
+		mi := &file_api_proto_msgTypes[156]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9588,7 +9673,7 @@ func (x *GetAccountExtendedPubKeyResponse) String() string {
 func (*GetAccountExtendedPubKeyResponse) ProtoMessage() {}
 
 func (x *GetAccountExtendedPubKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[154]
+	mi := &file_api_proto_msgTypes[156]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9601,7 +9686,7 @@ func (x *GetAccountExtendedPubKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAccountExtendedPubKeyResponse.ProtoReflect.Descriptor instead.
 func (*GetAccountExtendedPubKeyResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{154}
+	return file_api_proto_rawDescGZIP(), []int{156}
 }
 
 func (x *GetAccountExtendedPubKeyResponse) GetAccExtendedPubKey() string {
@@ -9623,7 +9708,7 @@ type GetAccountExtendedPrivKeyRequest struct {
 func (x *GetAccountExtendedPrivKeyRequest) Reset() {
 	*x = GetAccountExtendedPrivKeyRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[155]
+		mi := &file_api_proto_msgTypes[157]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9636,7 +9721,7 @@ func (x *GetAccountExtendedPrivKeyRequest) String() string {
 func (*GetAccountExtendedPrivKeyRequest) ProtoMessage() {}
 
 func (x *GetAccountExtendedPrivKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[155]
+	mi := &file_api_proto_msgTypes[157]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9649,7 +9734,7 @@ func (x *GetAccountExtendedPrivKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAccountExtendedPrivKeyRequest.ProtoReflect.Descriptor instead.
 func (*GetAccountExtendedPrivKeyRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{155}
+	return file_api_proto_rawDescGZIP(), []int{157}
 }
 
 func (x *GetAccountExtendedPrivKeyRequest) GetAccountNumber() uint32 {
@@ -9677,7 +9762,7 @@ type GetAccountExtendedPrivKeyResponse struct {
 func (x *GetAccountExtendedPrivKeyResponse) Reset() {
 	*x = GetAccountExtendedPrivKeyResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[156]
+		mi := &file_api_proto_msgTypes[158]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9690,7 +9775,7 @@ func (x *GetAccountExtendedPrivKeyResponse) String() string {
 func (*GetAccountExtendedPrivKeyResponse) ProtoMessage() {}
 
 func (x *GetAccountExtendedPrivKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[156]
+	mi := &file_api_proto_msgTypes[158]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9703,7 +9788,7 @@ func (x *GetAccountExtendedPrivKeyResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetAccountExtendedPrivKeyResponse.ProtoReflect.Descriptor instead.
 func (*GetAccountExtendedPrivKeyResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{156}
+	return file_api_proto_rawDescGZIP(), []int{158}
 }
 
 func (x *GetAccountExtendedPrivKeyResponse) GetAccExtendedPrivKey() string {
@@ -9724,7 +9809,7 @@ type CommittedTicketsResponse struct {
 func (x *CommittedTicketsResponse) Reset() {
 	*x = CommittedTicketsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[157]
+		mi := &file_api_proto_msgTypes[159]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9737,7 +9822,7 @@ func (x *CommittedTicketsResponse) String() string {
 func (*CommittedTicketsResponse) ProtoMessage() {}
 
 func (x *CommittedTicketsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[157]
+	mi := &file_api_proto_msgTypes[159]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9750,7 +9835,7 @@ func (x *CommittedTicketsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommittedTicketsResponse.ProtoReflect.Descriptor instead.
 func (*CommittedTicketsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{157}
+	return file_api_proto_rawDescGZIP(), []int{159}
 }
 
 func (x *CommittedTicketsResponse) GetTicketAddresses() []*CommittedTicketsResponse_TicketAddress {
@@ -9769,7 +9854,7 @@ type BestBlockRequest struct {
 func (x *BestBlockRequest) Reset() {
 	*x = BestBlockRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[158]
+		mi := &file_api_proto_msgTypes[160]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9782,7 +9867,7 @@ func (x *BestBlockRequest) String() string {
 func (*BestBlockRequest) ProtoMessage() {}
 
 func (x *BestBlockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[158]
+	mi := &file_api_proto_msgTypes[160]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9795,7 +9880,7 @@ func (x *BestBlockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BestBlockRequest.ProtoReflect.Descriptor instead.
 func (*BestBlockRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{158}
+	return file_api_proto_rawDescGZIP(), []int{160}
 }
 
 type BestBlockResponse struct {
@@ -9810,7 +9895,7 @@ type BestBlockResponse struct {
 func (x *BestBlockResponse) Reset() {
 	*x = BestBlockResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[159]
+		mi := &file_api_proto_msgTypes[161]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9823,7 +9908,7 @@ func (x *BestBlockResponse) String() string {
 func (*BestBlockResponse) ProtoMessage() {}
 
 func (x *BestBlockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[159]
+	mi := &file_api_proto_msgTypes[161]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9836,7 +9921,7 @@ func (x *BestBlockResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BestBlockResponse.ProtoReflect.Descriptor instead.
 func (*BestBlockResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{159}
+	return file_api_proto_rawDescGZIP(), []int{161}
 }
 
 func (x *BestBlockResponse) GetHeight() uint32 {
@@ -9867,7 +9952,7 @@ type SweepAccountRequest struct {
 func (x *SweepAccountRequest) Reset() {
 	*x = SweepAccountRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[160]
+		mi := &file_api_proto_msgTypes[162]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9880,7 +9965,7 @@ func (x *SweepAccountRequest) String() string {
 func (*SweepAccountRequest) ProtoMessage() {}
 
 func (x *SweepAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[160]
+	mi := &file_api_proto_msgTypes[162]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9893,7 +9978,7 @@ func (x *SweepAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SweepAccountRequest.ProtoReflect.Descriptor instead.
 func (*SweepAccountRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{160}
+	return file_api_proto_rawDescGZIP(), []int{162}
 }
 
 func (x *SweepAccountRequest) GetSourceAccount() string {
@@ -9938,7 +10023,7 @@ type SweepAccountResponse struct {
 func (x *SweepAccountResponse) Reset() {
 	*x = SweepAccountResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[161]
+		mi := &file_api_proto_msgTypes[163]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -9951,7 +10036,7 @@ func (x *SweepAccountResponse) String() string {
 func (*SweepAccountResponse) ProtoMessage() {}
 
 func (x *SweepAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[161]
+	mi := &file_api_proto_msgTypes[163]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9964,7 +10049,7 @@ func (x *SweepAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SweepAccountResponse.ProtoReflect.Descriptor instead.
 func (*SweepAccountResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{161}
+	return file_api_proto_rawDescGZIP(), []int{163}
 }
 
 func (x *SweepAccountResponse) GetUnsignedTransaction() []byte {
@@ -10006,7 +10091,7 @@ type AbandonTransactionRequest struct {
 func (x *AbandonTransactionRequest) Reset() {
 	*x = AbandonTransactionRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[162]
+		mi := &file_api_proto_msgTypes[164]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10019,7 +10104,7 @@ func (x *AbandonTransactionRequest) String() string {
 func (*AbandonTransactionRequest) ProtoMessage() {}
 
 func (x *AbandonTransactionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[162]
+	mi := &file_api_proto_msgTypes[164]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10032,7 +10117,7 @@ func (x *AbandonTransactionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbandonTransactionRequest.ProtoReflect.Descriptor instead.
 func (*AbandonTransactionRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{162}
+	return file_api_proto_rawDescGZIP(), []int{164}
 }
 
 func (x *AbandonTransactionRequest) GetTransactionHash() []byte {
@@ -10051,7 +10136,7 @@ type AbandonTransactionResponse struct {
 func (x *AbandonTransactionResponse) Reset() {
 	*x = AbandonTransactionResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[163]
+		mi := &file_api_proto_msgTypes[165]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10064,7 +10149,7 @@ func (x *AbandonTransactionResponse) String() string {
 func (*AbandonTransactionResponse) ProtoMessage() {}
 
 func (x *AbandonTransactionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[163]
+	mi := &file_api_proto_msgTypes[165]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10077,7 +10162,7 @@ func (x *AbandonTransactionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbandonTransactionResponse.ProtoReflect.Descriptor instead.
 func (*AbandonTransactionResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{163}
+	return file_api_proto_rawDescGZIP(), []int{165}
 }
 
 type SignHashesRequest struct {
@@ -10093,7 +10178,7 @@ type SignHashesRequest struct {
 func (x *SignHashesRequest) Reset() {
 	*x = SignHashesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[164]
+		mi := &file_api_proto_msgTypes[166]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10106,7 +10191,7 @@ func (x *SignHashesRequest) String() string {
 func (*SignHashesRequest) ProtoMessage() {}
 
 func (x *SignHashesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[164]
+	mi := &file_api_proto_msgTypes[166]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10119,7 +10204,7 @@ func (x *SignHashesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignHashesRequest.ProtoReflect.Descriptor instead.
 func (*SignHashesRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{164}
+	return file_api_proto_rawDescGZIP(), []int{166}
 }
 
 func (x *SignHashesRequest) GetPassphrase() []byte {
@@ -10155,7 +10240,7 @@ type SignHashesResponse struct {
 func (x *SignHashesResponse) Reset() {
 	*x = SignHashesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[165]
+		mi := &file_api_proto_msgTypes[167]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10168,7 +10253,7 @@ func (x *SignHashesResponse) String() string {
 func (*SignHashesResponse) ProtoMessage() {}
 
 func (x *SignHashesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[165]
+	mi := &file_api_proto_msgTypes[167]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10181,7 +10266,7 @@ func (x *SignHashesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignHashesResponse.ProtoReflect.Descriptor instead.
 func (*SignHashesResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{165}
+	return file_api_proto_rawDescGZIP(), []int{167}
 }
 
 func (x *SignHashesResponse) GetPublicKey() []byte {
@@ -10210,7 +10295,7 @@ type SpenderRequest struct {
 func (x *SpenderRequest) Reset() {
 	*x = SpenderRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[166]
+		mi := &file_api_proto_msgTypes[168]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10223,7 +10308,7 @@ func (x *SpenderRequest) String() string {
 func (*SpenderRequest) ProtoMessage() {}
 
 func (x *SpenderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[166]
+	mi := &file_api_proto_msgTypes[168]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10236,7 +10321,7 @@ func (x *SpenderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpenderRequest.ProtoReflect.Descriptor instead.
 func (*SpenderRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{166}
+	return file_api_proto_rawDescGZIP(), []int{168}
 }
 
 func (x *SpenderRequest) GetTransactionHash() []byte {
@@ -10265,7 +10350,7 @@ type SpenderResponse struct {
 func (x *SpenderResponse) Reset() {
 	*x = SpenderResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[167]
+		mi := &file_api_proto_msgTypes[169]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10278,7 +10363,7 @@ func (x *SpenderResponse) String() string {
 func (*SpenderResponse) ProtoMessage() {}
 
 func (x *SpenderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[167]
+	mi := &file_api_proto_msgTypes[169]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10291,7 +10376,7 @@ func (x *SpenderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpenderResponse.ProtoReflect.Descriptor instead.
 func (*SpenderResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{167}
+	return file_api_proto_rawDescGZIP(), []int{169}
 }
 
 func (x *SpenderResponse) GetSpenderTransaction() []byte {
@@ -10322,7 +10407,7 @@ type GetCFiltersRequest struct {
 func (x *GetCFiltersRequest) Reset() {
 	*x = GetCFiltersRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[168]
+		mi := &file_api_proto_msgTypes[170]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10335,7 +10420,7 @@ func (x *GetCFiltersRequest) String() string {
 func (*GetCFiltersRequest) ProtoMessage() {}
 
 func (x *GetCFiltersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[168]
+	mi := &file_api_proto_msgTypes[170]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10348,7 +10433,7 @@ func (x *GetCFiltersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCFiltersRequest.ProtoReflect.Descriptor instead.
 func (*GetCFiltersRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{168}
+	return file_api_proto_rawDescGZIP(), []int{170}
 }
 
 func (x *GetCFiltersRequest) GetStartingBlockHash() []byte {
@@ -10392,7 +10477,7 @@ type GetCFiltersResponse struct {
 func (x *GetCFiltersResponse) Reset() {
 	*x = GetCFiltersResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[169]
+		mi := &file_api_proto_msgTypes[171]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10405,7 +10490,7 @@ func (x *GetCFiltersResponse) String() string {
 func (*GetCFiltersResponse) ProtoMessage() {}
 
 func (x *GetCFiltersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[169]
+	mi := &file_api_proto_msgTypes[171]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10418,7 +10503,7 @@ func (x *GetCFiltersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCFiltersResponse.ProtoReflect.Descriptor instead.
 func (*GetCFiltersResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{169}
+	return file_api_proto_rawDescGZIP(), []int{171}
 }
 
 func (x *GetCFiltersResponse) GetKey() []byte {
@@ -10454,7 +10539,7 @@ type GetRawBlockRequest struct {
 func (x *GetRawBlockRequest) Reset() {
 	*x = GetRawBlockRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[170]
+		mi := &file_api_proto_msgTypes[172]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10467,7 +10552,7 @@ func (x *GetRawBlockRequest) String() string {
 func (*GetRawBlockRequest) ProtoMessage() {}
 
 func (x *GetRawBlockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[170]
+	mi := &file_api_proto_msgTypes[172]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10480,7 +10565,7 @@ func (x *GetRawBlockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRawBlockRequest.ProtoReflect.Descriptor instead.
 func (*GetRawBlockRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{170}
+	return file_api_proto_rawDescGZIP(), []int{172}
 }
 
 func (x *GetRawBlockRequest) GetBlockHash() []byte {
@@ -10508,7 +10593,7 @@ type GetRawBlockResponse struct {
 func (x *GetRawBlockResponse) Reset() {
 	*x = GetRawBlockResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[171]
+		mi := &file_api_proto_msgTypes[173]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10521,7 +10606,7 @@ func (x *GetRawBlockResponse) String() string {
 func (*GetRawBlockResponse) ProtoMessage() {}
 
 func (x *GetRawBlockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[171]
+	mi := &file_api_proto_msgTypes[173]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10534,7 +10619,7 @@ func (x *GetRawBlockResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRawBlockResponse.ProtoReflect.Descriptor instead.
 func (*GetRawBlockResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{171}
+	return file_api_proto_rawDescGZIP(), []int{173}
 }
 
 func (x *GetRawBlockResponse) GetBlock() []byte {
@@ -10553,7 +10638,7 @@ type GetCoinjoinOutputspByAcctRequest struct {
 func (x *GetCoinjoinOutputspByAcctRequest) Reset() {
 	*x = GetCoinjoinOutputspByAcctRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[172]
+		mi := &file_api_proto_msgTypes[174]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10566,7 +10651,7 @@ func (x *GetCoinjoinOutputspByAcctRequest) String() string {
 func (*GetCoinjoinOutputspByAcctRequest) ProtoMessage() {}
 
 func (x *GetCoinjoinOutputspByAcctRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[172]
+	mi := &file_api_proto_msgTypes[174]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10579,7 +10664,7 @@ func (x *GetCoinjoinOutputspByAcctRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCoinjoinOutputspByAcctRequest.ProtoReflect.Descriptor instead.
 func (*GetCoinjoinOutputspByAcctRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{172}
+	return file_api_proto_rawDescGZIP(), []int{174}
 }
 
 type CoinjoinTxsSumByAcct struct {
@@ -10594,7 +10679,7 @@ type CoinjoinTxsSumByAcct struct {
 func (x *CoinjoinTxsSumByAcct) Reset() {
 	*x = CoinjoinTxsSumByAcct{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[173]
+		mi := &file_api_proto_msgTypes[175]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10607,7 +10692,7 @@ func (x *CoinjoinTxsSumByAcct) String() string {
 func (*CoinjoinTxsSumByAcct) ProtoMessage() {}
 
 func (x *CoinjoinTxsSumByAcct) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[173]
+	mi := &file_api_proto_msgTypes[175]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10620,7 +10705,7 @@ func (x *CoinjoinTxsSumByAcct) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoinjoinTxsSumByAcct.ProtoReflect.Descriptor instead.
 func (*CoinjoinTxsSumByAcct) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{173}
+	return file_api_proto_rawDescGZIP(), []int{175}
 }
 
 func (x *CoinjoinTxsSumByAcct) GetAccountNumber() uint32 {
@@ -10648,7 +10733,7 @@ type GetCoinjoinOutputspByAcctResponse struct {
 func (x *GetCoinjoinOutputspByAcctResponse) Reset() {
 	*x = GetCoinjoinOutputspByAcctResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[174]
+		mi := &file_api_proto_msgTypes[176]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10661,7 +10746,7 @@ func (x *GetCoinjoinOutputspByAcctResponse) String() string {
 func (*GetCoinjoinOutputspByAcctResponse) ProtoMessage() {}
 
 func (x *GetCoinjoinOutputspByAcctResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[174]
+	mi := &file_api_proto_msgTypes[176]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10674,7 +10759,7 @@ func (x *GetCoinjoinOutputspByAcctResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetCoinjoinOutputspByAcctResponse.ProtoReflect.Descriptor instead.
 func (*GetCoinjoinOutputspByAcctResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{174}
+	return file_api_proto_rawDescGZIP(), []int{176}
 }
 
 func (x *GetCoinjoinOutputspByAcctResponse) GetData() []*CoinjoinTxsSumByAcct {
@@ -10699,7 +10784,7 @@ type SetAccountPassphraseRequest struct {
 func (x *SetAccountPassphraseRequest) Reset() {
 	*x = SetAccountPassphraseRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[175]
+		mi := &file_api_proto_msgTypes[177]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10712,7 +10797,7 @@ func (x *SetAccountPassphraseRequest) String() string {
 func (*SetAccountPassphraseRequest) ProtoMessage() {}
 
 func (x *SetAccountPassphraseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[175]
+	mi := &file_api_proto_msgTypes[177]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10725,7 +10810,7 @@ func (x *SetAccountPassphraseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetAccountPassphraseRequest.ProtoReflect.Descriptor instead.
 func (*SetAccountPassphraseRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{175}
+	return file_api_proto_rawDescGZIP(), []int{177}
 }
 
 func (x *SetAccountPassphraseRequest) GetAccountPassphrase() []byte {
@@ -10768,7 +10853,7 @@ type UnlockAccountRequest struct {
 func (x *UnlockAccountRequest) Reset() {
 	*x = UnlockAccountRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[176]
+		mi := &file_api_proto_msgTypes[178]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10781,7 +10866,7 @@ func (x *UnlockAccountRequest) String() string {
 func (*UnlockAccountRequest) ProtoMessage() {}
 
 func (x *UnlockAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[176]
+	mi := &file_api_proto_msgTypes[178]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10794,7 +10879,7 @@ func (x *UnlockAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlockAccountRequest.ProtoReflect.Descriptor instead.
 func (*UnlockAccountRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{176}
+	return file_api_proto_rawDescGZIP(), []int{178}
 }
 
 func (x *UnlockAccountRequest) GetPassphrase() []byte {
@@ -10822,7 +10907,7 @@ type LockAccountRequest struct {
 func (x *LockAccountRequest) Reset() {
 	*x = LockAccountRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[177]
+		mi := &file_api_proto_msgTypes[179]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10835,7 +10920,7 @@ func (x *LockAccountRequest) String() string {
 func (*LockAccountRequest) ProtoMessage() {}
 
 func (x *LockAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[177]
+	mi := &file_api_proto_msgTypes[179]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10848,7 +10933,7 @@ func (x *LockAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LockAccountRequest.ProtoReflect.Descriptor instead.
 func (*LockAccountRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{177}
+	return file_api_proto_rawDescGZIP(), []int{179}
 }
 
 func (x *LockAccountRequest) GetAccountNumber() uint32 {
@@ -10867,7 +10952,7 @@ type SetAccountPassphraseResponse struct {
 func (x *SetAccountPassphraseResponse) Reset() {
 	*x = SetAccountPassphraseResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[178]
+		mi := &file_api_proto_msgTypes[180]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10880,7 +10965,7 @@ func (x *SetAccountPassphraseResponse) String() string {
 func (*SetAccountPassphraseResponse) ProtoMessage() {}
 
 func (x *SetAccountPassphraseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[178]
+	mi := &file_api_proto_msgTypes[180]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10893,7 +10978,7 @@ func (x *SetAccountPassphraseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetAccountPassphraseResponse.ProtoReflect.Descriptor instead.
 func (*SetAccountPassphraseResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{178}
+	return file_api_proto_rawDescGZIP(), []int{180}
 }
 
 type UnlockAccountResponse struct {
@@ -10905,7 +10990,7 @@ type UnlockAccountResponse struct {
 func (x *UnlockAccountResponse) Reset() {
 	*x = UnlockAccountResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[179]
+		mi := &file_api_proto_msgTypes[181]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10918,7 +11003,7 @@ func (x *UnlockAccountResponse) String() string {
 func (*UnlockAccountResponse) ProtoMessage() {}
 
 func (x *UnlockAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[179]
+	mi := &file_api_proto_msgTypes[181]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10931,7 +11016,7 @@ func (x *UnlockAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlockAccountResponse.ProtoReflect.Descriptor instead.
 func (*UnlockAccountResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{179}
+	return file_api_proto_rawDescGZIP(), []int{181}
 }
 
 type LockAccountResponse struct {
@@ -10943,7 +11028,7 @@ type LockAccountResponse struct {
 func (x *LockAccountResponse) Reset() {
 	*x = LockAccountResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[180]
+		mi := &file_api_proto_msgTypes[182]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10956,7 +11041,7 @@ func (x *LockAccountResponse) String() string {
 func (*LockAccountResponse) ProtoMessage() {}
 
 func (x *LockAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[180]
+	mi := &file_api_proto_msgTypes[182]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10969,7 +11054,7 @@ func (x *LockAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LockAccountResponse.ProtoReflect.Descriptor instead.
 func (*LockAccountResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{180}
+	return file_api_proto_rawDescGZIP(), []int{182}
 }
 
 type AccountUnlockedRequest struct {
@@ -10983,7 +11068,7 @@ type AccountUnlockedRequest struct {
 func (x *AccountUnlockedRequest) Reset() {
 	*x = AccountUnlockedRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[181]
+		mi := &file_api_proto_msgTypes[183]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -10996,7 +11081,7 @@ func (x *AccountUnlockedRequest) String() string {
 func (*AccountUnlockedRequest) ProtoMessage() {}
 
 func (x *AccountUnlockedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[181]
+	mi := &file_api_proto_msgTypes[183]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11009,7 +11094,7 @@ func (x *AccountUnlockedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountUnlockedRequest.ProtoReflect.Descriptor instead.
 func (*AccountUnlockedRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{181}
+	return file_api_proto_rawDescGZIP(), []int{183}
 }
 
 func (x *AccountUnlockedRequest) GetAccountNumber() uint32 {
@@ -11030,7 +11115,7 @@ type AccountUnlockedResponse struct {
 func (x *AccountUnlockedResponse) Reset() {
 	*x = AccountUnlockedResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[182]
+		mi := &file_api_proto_msgTypes[184]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11043,7 +11128,7 @@ func (x *AccountUnlockedResponse) String() string {
 func (*AccountUnlockedResponse) ProtoMessage() {}
 
 func (x *AccountUnlockedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[182]
+	mi := &file_api_proto_msgTypes[184]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11056,7 +11141,7 @@ func (x *AccountUnlockedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountUnlockedResponse.ProtoReflect.Descriptor instead.
 func (*AccountUnlockedResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{182}
+	return file_api_proto_rawDescGZIP(), []int{184}
 }
 
 func (x *AccountUnlockedResponse) GetUnlocked() bool {
@@ -11077,7 +11162,7 @@ type UnlockWalletRequest struct {
 func (x *UnlockWalletRequest) Reset() {
 	*x = UnlockWalletRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[183]
+		mi := &file_api_proto_msgTypes[185]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11090,7 +11175,7 @@ func (x *UnlockWalletRequest) String() string {
 func (*UnlockWalletRequest) ProtoMessage() {}
 
 func (x *UnlockWalletRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[183]
+	mi := &file_api_proto_msgTypes[185]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11103,7 +11188,7 @@ func (x *UnlockWalletRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlockWalletRequest.ProtoReflect.Descriptor instead.
 func (*UnlockWalletRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{183}
+	return file_api_proto_rawDescGZIP(), []int{185}
 }
 
 func (x *UnlockWalletRequest) GetPassphrase() []byte {
@@ -11122,7 +11207,7 @@ type UnlockWalletResponse struct {
 func (x *UnlockWalletResponse) Reset() {
 	*x = UnlockWalletResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[184]
+		mi := &file_api_proto_msgTypes[186]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11135,7 +11220,7 @@ func (x *UnlockWalletResponse) String() string {
 func (*UnlockWalletResponse) ProtoMessage() {}
 
 func (x *UnlockWalletResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[184]
+	mi := &file_api_proto_msgTypes[186]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11148,7 +11233,7 @@ func (x *UnlockWalletResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlockWalletResponse.ProtoReflect.Descriptor instead.
 func (*UnlockWalletResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{184}
+	return file_api_proto_rawDescGZIP(), []int{186}
 }
 
 type LockWalletRequest struct {
@@ -11160,7 +11245,7 @@ type LockWalletRequest struct {
 func (x *LockWalletRequest) Reset() {
 	*x = LockWalletRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[185]
+		mi := &file_api_proto_msgTypes[187]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11173,7 +11258,7 @@ func (x *LockWalletRequest) String() string {
 func (*LockWalletRequest) ProtoMessage() {}
 
 func (x *LockWalletRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[185]
+	mi := &file_api_proto_msgTypes[187]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11186,7 +11271,7 @@ func (x *LockWalletRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LockWalletRequest.ProtoReflect.Descriptor instead.
 func (*LockWalletRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{185}
+	return file_api_proto_rawDescGZIP(), []int{187}
 }
 
 type LockWalletResponse struct {
@@ -11198,7 +11283,7 @@ type LockWalletResponse struct {
 func (x *LockWalletResponse) Reset() {
 	*x = LockWalletResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[186]
+		mi := &file_api_proto_msgTypes[188]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11211,7 +11296,7 @@ func (x *LockWalletResponse) String() string {
 func (*LockWalletResponse) ProtoMessage() {}
 
 func (x *LockWalletResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[186]
+	mi := &file_api_proto_msgTypes[188]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11224,7 +11309,7 @@ func (x *LockWalletResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LockWalletResponse.ProtoReflect.Descriptor instead.
 func (*LockWalletResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{186}
+	return file_api_proto_rawDescGZIP(), []int{188}
 }
 
 type GetPeerInfoRequest struct {
@@ -11236,7 +11321,7 @@ type GetPeerInfoRequest struct {
 func (x *GetPeerInfoRequest) Reset() {
 	*x = GetPeerInfoRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[187]
+		mi := &file_api_proto_msgTypes[189]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11249,7 +11334,7 @@ func (x *GetPeerInfoRequest) String() string {
 func (*GetPeerInfoRequest) ProtoMessage() {}
 
 func (x *GetPeerInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[187]
+	mi := &file_api_proto_msgTypes[189]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11262,7 +11347,7 @@ func (x *GetPeerInfoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPeerInfoRequest.ProtoReflect.Descriptor instead.
 func (*GetPeerInfoRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{187}
+	return file_api_proto_rawDescGZIP(), []int{189}
 }
 
 type GetPeerInfoResponse struct {
@@ -11276,7 +11361,7 @@ type GetPeerInfoResponse struct {
 func (x *GetPeerInfoResponse) Reset() {
 	*x = GetPeerInfoResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[188]
+		mi := &file_api_proto_msgTypes[190]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11289,7 +11374,7 @@ func (x *GetPeerInfoResponse) String() string {
 func (*GetPeerInfoResponse) ProtoMessage() {}
 
 func (x *GetPeerInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[188]
+	mi := &file_api_proto_msgTypes[190]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11302,7 +11387,7 @@ func (x *GetPeerInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPeerInfoResponse.ProtoReflect.Descriptor instead.
 func (*GetPeerInfoResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{188}
+	return file_api_proto_rawDescGZIP(), []int{190}
 }
 
 func (x *GetPeerInfoResponse) GetPeerInfo() []*GetPeerInfoResponse_PeerInfo {
@@ -11326,7 +11411,7 @@ type SyncVSPTicketsRequest struct {
 func (x *SyncVSPTicketsRequest) Reset() {
 	*x = SyncVSPTicketsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[189]
+		mi := &file_api_proto_msgTypes[191]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11339,7 +11424,7 @@ func (x *SyncVSPTicketsRequest) String() string {
 func (*SyncVSPTicketsRequest) ProtoMessage() {}
 
 func (x *SyncVSPTicketsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[189]
+	mi := &file_api_proto_msgTypes[191]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11352,7 +11437,7 @@ func (x *SyncVSPTicketsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncVSPTicketsRequest.ProtoReflect.Descriptor instead.
 func (*SyncVSPTicketsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{189}
+	return file_api_proto_rawDescGZIP(), []int{191}
 }
 
 func (x *SyncVSPTicketsRequest) GetVspHost() string {
@@ -11392,7 +11477,7 @@ type SyncVSPTicketsResponse struct {
 func (x *SyncVSPTicketsResponse) Reset() {
 	*x = SyncVSPTicketsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[190]
+		mi := &file_api_proto_msgTypes[192]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11405,7 +11490,7 @@ func (x *SyncVSPTicketsResponse) String() string {
 func (*SyncVSPTicketsResponse) ProtoMessage() {}
 
 func (x *SyncVSPTicketsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[190]
+	mi := &file_api_proto_msgTypes[192]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11418,7 +11503,7 @@ func (x *SyncVSPTicketsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncVSPTicketsResponse.ProtoReflect.Descriptor instead.
 func (*SyncVSPTicketsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{190}
+	return file_api_proto_rawDescGZIP(), []int{192}
 }
 
 type GetVSPTicketsByFeeStatusRequest struct {
@@ -11432,7 +11517,7 @@ type GetVSPTicketsByFeeStatusRequest struct {
 func (x *GetVSPTicketsByFeeStatusRequest) Reset() {
 	*x = GetVSPTicketsByFeeStatusRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[191]
+		mi := &file_api_proto_msgTypes[193]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11445,7 +11530,7 @@ func (x *GetVSPTicketsByFeeStatusRequest) String() string {
 func (*GetVSPTicketsByFeeStatusRequest) ProtoMessage() {}
 
 func (x *GetVSPTicketsByFeeStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[191]
+	mi := &file_api_proto_msgTypes[193]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11458,7 +11543,7 @@ func (x *GetVSPTicketsByFeeStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVSPTicketsByFeeStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetVSPTicketsByFeeStatusRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{191}
+	return file_api_proto_rawDescGZIP(), []int{193}
 }
 
 func (x *GetVSPTicketsByFeeStatusRequest) GetFeeStatus() GetVSPTicketsByFeeStatusRequest_FeeStatus {
@@ -11479,7 +11564,7 @@ type GetVSPTicketsByFeeStatusResponse struct {
 func (x *GetVSPTicketsByFeeStatusResponse) Reset() {
 	*x = GetVSPTicketsByFeeStatusResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[192]
+		mi := &file_api_proto_msgTypes[194]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11492,7 +11577,7 @@ func (x *GetVSPTicketsByFeeStatusResponse) String() string {
 func (*GetVSPTicketsByFeeStatusResponse) ProtoMessage() {}
 
 func (x *GetVSPTicketsByFeeStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[192]
+	mi := &file_api_proto_msgTypes[194]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11505,7 +11590,7 @@ func (x *GetVSPTicketsByFeeStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVSPTicketsByFeeStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetVSPTicketsByFeeStatusResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{192}
+	return file_api_proto_rawDescGZIP(), []int{194}
 }
 
 func (x *GetVSPTicketsByFeeStatusResponse) GetTicketsHashes() [][]byte {
@@ -11529,7 +11614,7 @@ type ProcessManagedTicketsRequest struct {
 func (x *ProcessManagedTicketsRequest) Reset() {
 	*x = ProcessManagedTicketsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[193]
+		mi := &file_api_proto_msgTypes[195]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11542,7 +11627,7 @@ func (x *ProcessManagedTicketsRequest) String() string {
 func (*ProcessManagedTicketsRequest) ProtoMessage() {}
 
 func (x *ProcessManagedTicketsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[193]
+	mi := &file_api_proto_msgTypes[195]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11555,7 +11640,7 @@ func (x *ProcessManagedTicketsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessManagedTicketsRequest.ProtoReflect.Descriptor instead.
 func (*ProcessManagedTicketsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{193}
+	return file_api_proto_rawDescGZIP(), []int{195}
 }
 
 func (x *ProcessManagedTicketsRequest) GetVspHost() string {
@@ -11595,7 +11680,7 @@ type ProcessManagedTicketsResponse struct {
 func (x *ProcessManagedTicketsResponse) Reset() {
 	*x = ProcessManagedTicketsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[194]
+		mi := &file_api_proto_msgTypes[196]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11608,7 +11693,7 @@ func (x *ProcessManagedTicketsResponse) String() string {
 func (*ProcessManagedTicketsResponse) ProtoMessage() {}
 
 func (x *ProcessManagedTicketsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[194]
+	mi := &file_api_proto_msgTypes[196]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11621,7 +11706,7 @@ func (x *ProcessManagedTicketsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessManagedTicketsResponse.ProtoReflect.Descriptor instead.
 func (*ProcessManagedTicketsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{194}
+	return file_api_proto_rawDescGZIP(), []int{196}
 }
 
 type ProcessUnmanagedTicketsRequest struct {
@@ -11638,7 +11723,7 @@ type ProcessUnmanagedTicketsRequest struct {
 func (x *ProcessUnmanagedTicketsRequest) Reset() {
 	*x = ProcessUnmanagedTicketsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[195]
+		mi := &file_api_proto_msgTypes[197]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11651,7 +11736,7 @@ func (x *ProcessUnmanagedTicketsRequest) String() string {
 func (*ProcessUnmanagedTicketsRequest) ProtoMessage() {}
 
 func (x *ProcessUnmanagedTicketsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[195]
+	mi := &file_api_proto_msgTypes[197]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11664,7 +11749,7 @@ func (x *ProcessUnmanagedTicketsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessUnmanagedTicketsRequest.ProtoReflect.Descriptor instead.
 func (*ProcessUnmanagedTicketsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{195}
+	return file_api_proto_rawDescGZIP(), []int{197}
 }
 
 func (x *ProcessUnmanagedTicketsRequest) GetVspHost() string {
@@ -11704,7 +11789,7 @@ type ProcessUnmanagedTicketsResponse struct {
 func (x *ProcessUnmanagedTicketsResponse) Reset() {
 	*x = ProcessUnmanagedTicketsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[196]
+		mi := &file_api_proto_msgTypes[198]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11717,7 +11802,7 @@ func (x *ProcessUnmanagedTicketsResponse) String() string {
 func (*ProcessUnmanagedTicketsResponse) ProtoMessage() {}
 
 func (x *ProcessUnmanagedTicketsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[196]
+	mi := &file_api_proto_msgTypes[198]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11730,7 +11815,7 @@ func (x *ProcessUnmanagedTicketsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessUnmanagedTicketsResponse.ProtoReflect.Descriptor instead.
 func (*ProcessUnmanagedTicketsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{196}
+	return file_api_proto_rawDescGZIP(), []int{198}
 }
 
 type SetVspdVoteChoicesRequest struct {
@@ -11747,7 +11832,7 @@ type SetVspdVoteChoicesRequest struct {
 func (x *SetVspdVoteChoicesRequest) Reset() {
 	*x = SetVspdVoteChoicesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[197]
+		mi := &file_api_proto_msgTypes[199]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11760,7 +11845,7 @@ func (x *SetVspdVoteChoicesRequest) String() string {
 func (*SetVspdVoteChoicesRequest) ProtoMessage() {}
 
 func (x *SetVspdVoteChoicesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[197]
+	mi := &file_api_proto_msgTypes[199]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11773,7 +11858,7 @@ func (x *SetVspdVoteChoicesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetVspdVoteChoicesRequest.ProtoReflect.Descriptor instead.
 func (*SetVspdVoteChoicesRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{197}
+	return file_api_proto_rawDescGZIP(), []int{199}
 }
 
 func (x *SetVspdVoteChoicesRequest) GetVspHost() string {
@@ -11813,7 +11898,7 @@ type SetVspdVoteChoicesResponse struct {
 func (x *SetVspdVoteChoicesResponse) Reset() {
 	*x = SetVspdVoteChoicesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[198]
+		mi := &file_api_proto_msgTypes[200]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11826,7 +11911,7 @@ func (x *SetVspdVoteChoicesResponse) String() string {
 func (*SetVspdVoteChoicesResponse) ProtoMessage() {}
 
 func (x *SetVspdVoteChoicesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[198]
+	mi := &file_api_proto_msgTypes[200]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11839,7 +11924,7 @@ func (x *SetVspdVoteChoicesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetVspdVoteChoicesResponse.ProtoReflect.Descriptor instead.
 func (*SetVspdVoteChoicesResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{198}
+	return file_api_proto_rawDescGZIP(), []int{200}
 }
 
 type GetTrackedVSPTicketsRequest struct {
@@ -11851,7 +11936,7 @@ type GetTrackedVSPTicketsRequest struct {
 func (x *GetTrackedVSPTicketsRequest) Reset() {
 	*x = GetTrackedVSPTicketsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[199]
+		mi := &file_api_proto_msgTypes[201]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11864,7 +11949,7 @@ func (x *GetTrackedVSPTicketsRequest) String() string {
 func (*GetTrackedVSPTicketsRequest) ProtoMessage() {}
 
 func (x *GetTrackedVSPTicketsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[199]
+	mi := &file_api_proto_msgTypes[201]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11877,7 +11962,7 @@ func (x *GetTrackedVSPTicketsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTrackedVSPTicketsRequest.ProtoReflect.Descriptor instead.
 func (*GetTrackedVSPTicketsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{199}
+	return file_api_proto_rawDescGZIP(), []int{201}
 }
 
 type GetTrackedVSPTicketsResponse struct {
@@ -11891,7 +11976,7 @@ type GetTrackedVSPTicketsResponse struct {
 func (x *GetTrackedVSPTicketsResponse) Reset() {
 	*x = GetTrackedVSPTicketsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[200]
+		mi := &file_api_proto_msgTypes[202]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11904,7 +11989,7 @@ func (x *GetTrackedVSPTicketsResponse) String() string {
 func (*GetTrackedVSPTicketsResponse) ProtoMessage() {}
 
 func (x *GetTrackedVSPTicketsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[200]
+	mi := &file_api_proto_msgTypes[202]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11917,7 +12002,7 @@ func (x *GetTrackedVSPTicketsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTrackedVSPTicketsResponse.ProtoReflect.Descriptor instead.
 func (*GetTrackedVSPTicketsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{200}
+	return file_api_proto_rawDescGZIP(), []int{202}
 }
 
 func (x *GetTrackedVSPTicketsResponse) GetVsps() []*GetTrackedVSPTicketsResponse_VSP {
@@ -11940,7 +12025,7 @@ type DiscoverUsageRequest struct {
 func (x *DiscoverUsageRequest) Reset() {
 	*x = DiscoverUsageRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[201]
+		mi := &file_api_proto_msgTypes[203]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -11953,7 +12038,7 @@ func (x *DiscoverUsageRequest) String() string {
 func (*DiscoverUsageRequest) ProtoMessage() {}
 
 func (x *DiscoverUsageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[201]
+	mi := &file_api_proto_msgTypes[203]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11966,7 +12051,7 @@ func (x *DiscoverUsageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverUsageRequest.ProtoReflect.Descriptor instead.
 func (*DiscoverUsageRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{201}
+	return file_api_proto_rawDescGZIP(), []int{203}
 }
 
 func (x *DiscoverUsageRequest) GetDiscoverAccounts() bool {
@@ -11999,7 +12084,7 @@ type DiscoverUsageResponse struct {
 func (x *DiscoverUsageResponse) Reset() {
 	*x = DiscoverUsageResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[202]
+		mi := &file_api_proto_msgTypes[204]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12012,7 +12097,7 @@ func (x *DiscoverUsageResponse) String() string {
 func (*DiscoverUsageResponse) ProtoMessage() {}
 
 func (x *DiscoverUsageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[202]
+	mi := &file_api_proto_msgTypes[204]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12025,7 +12110,7 @@ func (x *DiscoverUsageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverUsageResponse.ProtoReflect.Descriptor instead.
 func (*DiscoverUsageResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{202}
+	return file_api_proto_rawDescGZIP(), []int{204}
 }
 
 type TransactionDetails_Input struct {
@@ -12041,7 +12126,7 @@ type TransactionDetails_Input struct {
 func (x *TransactionDetails_Input) Reset() {
 	*x = TransactionDetails_Input{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[203]
+		mi := &file_api_proto_msgTypes[205]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12054,7 +12139,7 @@ func (x *TransactionDetails_Input) String() string {
 func (*TransactionDetails_Input) ProtoMessage() {}
 
 func (x *TransactionDetails_Input) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[203]
+	mi := &file_api_proto_msgTypes[205]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12107,7 +12192,7 @@ type TransactionDetails_Output struct {
 func (x *TransactionDetails_Output) Reset() {
 	*x = TransactionDetails_Output{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[204]
+		mi := &file_api_proto_msgTypes[206]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12120,7 +12205,7 @@ func (x *TransactionDetails_Output) String() string {
 func (*TransactionDetails_Output) ProtoMessage() {}
 
 func (x *TransactionDetails_Output) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[204]
+	mi := &file_api_proto_msgTypes[206]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12196,7 +12281,7 @@ type AccountsResponse_Account struct {
 func (x *AccountsResponse_Account) Reset() {
 	*x = AccountsResponse_Account{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[205]
+		mi := &file_api_proto_msgTypes[207]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12209,7 +12294,7 @@ func (x *AccountsResponse_Account) String() string {
 func (*AccountsResponse_Account) ProtoMessage() {}
 
 func (x *AccountsResponse_Account) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[205]
+	mi := &file_api_proto_msgTypes[207]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12294,7 +12379,7 @@ type GetTicketsResponse_TicketDetails struct {
 func (x *GetTicketsResponse_TicketDetails) Reset() {
 	*x = GetTicketsResponse_TicketDetails{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[206]
+		mi := &file_api_proto_msgTypes[208]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12307,7 +12392,7 @@ func (x *GetTicketsResponse_TicketDetails) String() string {
 func (*GetTicketsResponse_TicketDetails) ProtoMessage() {}
 
 func (x *GetTicketsResponse_TicketDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[206]
+	mi := &file_api_proto_msgTypes[208]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12357,7 +12442,7 @@ type GetTicketsResponse_BlockDetails struct {
 func (x *GetTicketsResponse_BlockDetails) Reset() {
 	*x = GetTicketsResponse_BlockDetails{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[207]
+		mi := &file_api_proto_msgTypes[209]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12370,7 +12455,7 @@ func (x *GetTicketsResponse_BlockDetails) String() string {
 func (*GetTicketsResponse_BlockDetails) ProtoMessage() {}
 
 func (x *GetTicketsResponse_BlockDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[207]
+	mi := &file_api_proto_msgTypes[209]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12424,7 +12509,7 @@ type FundTransactionResponse_PreviousOutput struct {
 func (x *FundTransactionResponse_PreviousOutput) Reset() {
 	*x = FundTransactionResponse_PreviousOutput{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[208]
+		mi := &file_api_proto_msgTypes[210]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12437,7 +12522,7 @@ func (x *FundTransactionResponse_PreviousOutput) String() string {
 func (*FundTransactionResponse_PreviousOutput) ProtoMessage() {}
 
 func (x *FundTransactionResponse_PreviousOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[208]
+	mi := &file_api_proto_msgTypes[210]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12515,7 +12600,7 @@ type ConstructTransactionRequest_OutputDestination struct {
 func (x *ConstructTransactionRequest_OutputDestination) Reset() {
 	*x = ConstructTransactionRequest_OutputDestination{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[209]
+		mi := &file_api_proto_msgTypes[211]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12528,7 +12613,7 @@ func (x *ConstructTransactionRequest_OutputDestination) String() string {
 func (*ConstructTransactionRequest_OutputDestination) ProtoMessage() {}
 
 func (x *ConstructTransactionRequest_OutputDestination) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[209]
+	mi := &file_api_proto_msgTypes[211]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12577,7 +12662,7 @@ type ConstructTransactionRequest_Output struct {
 func (x *ConstructTransactionRequest_Output) Reset() {
 	*x = ConstructTransactionRequest_Output{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[210]
+		mi := &file_api_proto_msgTypes[212]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12590,7 +12675,7 @@ func (x *ConstructTransactionRequest_Output) String() string {
 func (*ConstructTransactionRequest_Output) ProtoMessage() {}
 
 func (x *ConstructTransactionRequest_Output) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[210]
+	mi := &file_api_proto_msgTypes[212]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12634,7 +12719,7 @@ type SignTransactionRequest_AdditionalScript struct {
 func (x *SignTransactionRequest_AdditionalScript) Reset() {
 	*x = SignTransactionRequest_AdditionalScript{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[211]
+		mi := &file_api_proto_msgTypes[213]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12647,7 +12732,7 @@ func (x *SignTransactionRequest_AdditionalScript) String() string {
 func (*SignTransactionRequest_AdditionalScript) ProtoMessage() {}
 
 func (x *SignTransactionRequest_AdditionalScript) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[211]
+	mi := &file_api_proto_msgTypes[213]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12705,7 +12790,7 @@ type SignTransactionsRequest_AdditionalScript struct {
 func (x *SignTransactionsRequest_AdditionalScript) Reset() {
 	*x = SignTransactionsRequest_AdditionalScript{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[212]
+		mi := &file_api_proto_msgTypes[214]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12718,7 +12803,7 @@ func (x *SignTransactionsRequest_AdditionalScript) String() string {
 func (*SignTransactionsRequest_AdditionalScript) ProtoMessage() {}
 
 func (x *SignTransactionsRequest_AdditionalScript) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[212]
+	mi := &file_api_proto_msgTypes[214]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12773,7 +12858,7 @@ type SignTransactionsRequest_UnsignedTransaction struct {
 func (x *SignTransactionsRequest_UnsignedTransaction) Reset() {
 	*x = SignTransactionsRequest_UnsignedTransaction{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[213]
+		mi := &file_api_proto_msgTypes[215]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12786,7 +12871,7 @@ func (x *SignTransactionsRequest_UnsignedTransaction) String() string {
 func (*SignTransactionsRequest_UnsignedTransaction) ProtoMessage() {}
 
 func (x *SignTransactionsRequest_UnsignedTransaction) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[213]
+	mi := &file_api_proto_msgTypes[215]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12821,7 +12906,7 @@ type SignTransactionsResponse_SignedTransaction struct {
 func (x *SignTransactionsResponse_SignedTransaction) Reset() {
 	*x = SignTransactionsResponse_SignedTransaction{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[214]
+		mi := &file_api_proto_msgTypes[216]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12834,7 +12919,7 @@ func (x *SignTransactionsResponse_SignedTransaction) String() string {
 func (*SignTransactionsResponse_SignedTransaction) ProtoMessage() {}
 
 func (x *SignTransactionsResponse_SignedTransaction) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[214]
+	mi := &file_api_proto_msgTypes[216]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12876,7 +12961,7 @@ type SignMessagesRequest_Message struct {
 func (x *SignMessagesRequest_Message) Reset() {
 	*x = SignMessagesRequest_Message{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[215]
+		mi := &file_api_proto_msgTypes[217]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12889,7 +12974,7 @@ func (x *SignMessagesRequest_Message) String() string {
 func (*SignMessagesRequest_Message) ProtoMessage() {}
 
 func (x *SignMessagesRequest_Message) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[215]
+	mi := &file_api_proto_msgTypes[217]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12902,7 +12987,7 @@ func (x *SignMessagesRequest_Message) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignMessagesRequest_Message.ProtoReflect.Descriptor instead.
 func (*SignMessagesRequest_Message) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{69, 0}
+	return file_api_proto_rawDescGZIP(), []int{71, 0}
 }
 
 func (x *SignMessagesRequest_Message) GetAddress() string {
@@ -12931,7 +13016,7 @@ type SignMessagesResponse_SignReply struct {
 func (x *SignMessagesResponse_SignReply) Reset() {
 	*x = SignMessagesResponse_SignReply{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[216]
+		mi := &file_api_proto_msgTypes[218]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -12944,7 +13029,7 @@ func (x *SignMessagesResponse_SignReply) String() string {
 func (*SignMessagesResponse_SignReply) ProtoMessage() {}
 
 func (x *SignMessagesResponse_SignReply) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[216]
+	mi := &file_api_proto_msgTypes[218]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12957,7 +13042,7 @@ func (x *SignMessagesResponse_SignReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignMessagesResponse_SignReply.ProtoReflect.Descriptor instead.
 func (*SignMessagesResponse_SignReply) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{70, 0}
+	return file_api_proto_rawDescGZIP(), []int{72, 0}
 }
 
 func (x *SignMessagesResponse_SignReply) GetSignature() []byte {
@@ -12988,7 +13073,7 @@ type ConfirmationNotificationsResponse_TransactionConfirmations struct {
 func (x *ConfirmationNotificationsResponse_TransactionConfirmations) Reset() {
 	*x = ConfirmationNotificationsResponse_TransactionConfirmations{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[217]
+		mi := &file_api_proto_msgTypes[219]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -13001,7 +13086,7 @@ func (x *ConfirmationNotificationsResponse_TransactionConfirmations) String() st
 func (*ConfirmationNotificationsResponse_TransactionConfirmations) ProtoMessage() {}
 
 func (x *ConfirmationNotificationsResponse_TransactionConfirmations) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[217]
+	mi := &file_api_proto_msgTypes[219]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13014,7 +13099,7 @@ func (x *ConfirmationNotificationsResponse_TransactionConfirmations) ProtoReflec
 
 // Deprecated: Use ConfirmationNotificationsResponse_TransactionConfirmations.ProtoReflect.Descriptor instead.
 func (*ConfirmationNotificationsResponse_TransactionConfirmations) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{76, 0}
+	return file_api_proto_rawDescGZIP(), []int{78, 0}
 }
 
 func (x *ConfirmationNotificationsResponse_TransactionConfirmations) GetTxHash() []byte {
@@ -13061,7 +13146,7 @@ type AgendasResponse_Agenda struct {
 func (x *AgendasResponse_Agenda) Reset() {
 	*x = AgendasResponse_Agenda{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[218]
+		mi := &file_api_proto_msgTypes[220]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -13074,7 +13159,7 @@ func (x *AgendasResponse_Agenda) String() string {
 func (*AgendasResponse_Agenda) ProtoMessage() {}
 
 func (x *AgendasResponse_Agenda) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[218]
+	mi := &file_api_proto_msgTypes[220]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13087,7 +13172,7 @@ func (x *AgendasResponse_Agenda) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgendasResponse_Agenda.ProtoReflect.Descriptor instead.
 func (*AgendasResponse_Agenda) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{140, 0}
+	return file_api_proto_rawDescGZIP(), []int{142, 0}
 }
 
 func (x *AgendasResponse_Agenda) GetId() string {
@@ -13147,7 +13232,7 @@ type AgendasResponse_Choice struct {
 func (x *AgendasResponse_Choice) Reset() {
 	*x = AgendasResponse_Choice{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[219]
+		mi := &file_api_proto_msgTypes[221]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -13160,7 +13245,7 @@ func (x *AgendasResponse_Choice) String() string {
 func (*AgendasResponse_Choice) ProtoMessage() {}
 
 func (x *AgendasResponse_Choice) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[219]
+	mi := &file_api_proto_msgTypes[221]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13173,7 +13258,7 @@ func (x *AgendasResponse_Choice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgendasResponse_Choice.ProtoReflect.Descriptor instead.
 func (*AgendasResponse_Choice) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{140, 1}
+	return file_api_proto_rawDescGZIP(), []int{142, 1}
 }
 
 func (x *AgendasResponse_Choice) GetId() string {
@@ -13225,7 +13310,7 @@ type VoteChoicesResponse_Choice struct {
 func (x *VoteChoicesResponse_Choice) Reset() {
 	*x = VoteChoicesResponse_Choice{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[220]
+		mi := &file_api_proto_msgTypes[222]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -13238,7 +13323,7 @@ func (x *VoteChoicesResponse_Choice) String() string {
 func (*VoteChoicesResponse_Choice) ProtoMessage() {}
 
 func (x *VoteChoicesResponse_Choice) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[220]
+	mi := &file_api_proto_msgTypes[222]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13251,7 +13336,7 @@ func (x *VoteChoicesResponse_Choice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VoteChoicesResponse_Choice.ProtoReflect.Descriptor instead.
 func (*VoteChoicesResponse_Choice) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{142, 0}
+	return file_api_proto_rawDescGZIP(), []int{144, 0}
 }
 
 func (x *VoteChoicesResponse_Choice) GetAgendaId() string {
@@ -13294,7 +13379,7 @@ type SetVoteChoicesRequest_Choice struct {
 func (x *SetVoteChoicesRequest_Choice) Reset() {
 	*x = SetVoteChoicesRequest_Choice{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[221]
+		mi := &file_api_proto_msgTypes[223]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -13307,7 +13392,7 @@ func (x *SetVoteChoicesRequest_Choice) String() string {
 func (*SetVoteChoicesRequest_Choice) ProtoMessage() {}
 
 func (x *SetVoteChoicesRequest_Choice) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[221]
+	mi := &file_api_proto_msgTypes[223]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13320,7 +13405,7 @@ func (x *SetVoteChoicesRequest_Choice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetVoteChoicesRequest_Choice.ProtoReflect.Descriptor instead.
 func (*SetVoteChoicesRequest_Choice) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{143, 0}
+	return file_api_proto_rawDescGZIP(), []int{145, 0}
 }
 
 func (x *SetVoteChoicesRequest_Choice) GetAgendaId() string {
@@ -13356,7 +13441,7 @@ type DecodedTransaction_Input struct {
 func (x *DecodedTransaction_Input) Reset() {
 	*x = DecodedTransaction_Input{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[222]
+		mi := &file_api_proto_msgTypes[224]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -13369,7 +13454,7 @@ func (x *DecodedTransaction_Input) String() string {
 func (*DecodedTransaction_Input) ProtoMessage() {}
 
 func (x *DecodedTransaction_Input) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[222]
+	mi := &file_api_proto_msgTypes[224]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13382,7 +13467,7 @@ func (x *DecodedTransaction_Input) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecodedTransaction_Input.ProtoReflect.Descriptor instead.
 func (*DecodedTransaction_Input) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{147, 0}
+	return file_api_proto_rawDescGZIP(), []int{149, 0}
 }
 
 func (x *DecodedTransaction_Input) GetPreviousTransactionHash() []byte {
@@ -13467,7 +13552,7 @@ type DecodedTransaction_Output struct {
 func (x *DecodedTransaction_Output) Reset() {
 	*x = DecodedTransaction_Output{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[223]
+		mi := &file_api_proto_msgTypes[225]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -13480,7 +13565,7 @@ func (x *DecodedTransaction_Output) String() string {
 func (*DecodedTransaction_Output) ProtoMessage() {}
 
 func (x *DecodedTransaction_Output) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[223]
+	mi := &file_api_proto_msgTypes[225]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13493,7 +13578,7 @@ func (x *DecodedTransaction_Output) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecodedTransaction_Output.ProtoReflect.Descriptor instead.
 func (*DecodedTransaction_Output) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{147, 1}
+	return file_api_proto_rawDescGZIP(), []int{149, 1}
 }
 
 func (x *DecodedTransaction_Output) GetValue() int64 {
@@ -13571,7 +13656,7 @@ type CommittedTicketsResponse_TicketAddress struct {
 func (x *CommittedTicketsResponse_TicketAddress) Reset() {
 	*x = CommittedTicketsResponse_TicketAddress{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[224]
+		mi := &file_api_proto_msgTypes[226]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -13584,7 +13669,7 @@ func (x *CommittedTicketsResponse_TicketAddress) String() string {
 func (*CommittedTicketsResponse_TicketAddress) ProtoMessage() {}
 
 func (x *CommittedTicketsResponse_TicketAddress) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[224]
+	mi := &file_api_proto_msgTypes[226]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13597,7 +13682,7 @@ func (x *CommittedTicketsResponse_TicketAddress) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use CommittedTicketsResponse_TicketAddress.ProtoReflect.Descriptor instead.
 func (*CommittedTicketsResponse_TicketAddress) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{157, 0}
+	return file_api_proto_rawDescGZIP(), []int{159, 0}
 }
 
 func (x *CommittedTicketsResponse_TicketAddress) GetTicket() []byte {
@@ -13632,7 +13717,7 @@ type GetPeerInfoResponse_PeerInfo struct {
 func (x *GetPeerInfoResponse_PeerInfo) Reset() {
 	*x = GetPeerInfoResponse_PeerInfo{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[225]
+		mi := &file_api_proto_msgTypes[227]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -13645,7 +13730,7 @@ func (x *GetPeerInfoResponse_PeerInfo) String() string {
 func (*GetPeerInfoResponse_PeerInfo) ProtoMessage() {}
 
 func (x *GetPeerInfoResponse_PeerInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[225]
+	mi := &file_api_proto_msgTypes[227]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13658,7 +13743,7 @@ func (x *GetPeerInfoResponse_PeerInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPeerInfoResponse_PeerInfo.ProtoReflect.Descriptor instead.
 func (*GetPeerInfoResponse_PeerInfo) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{188, 0}
+	return file_api_proto_rawDescGZIP(), []int{190, 0}
 }
 
 func (x *GetPeerInfoResponse_PeerInfo) GetId() int32 {
@@ -13733,7 +13818,7 @@ type GetTrackedVSPTicketsResponse_Ticket struct {
 func (x *GetTrackedVSPTicketsResponse_Ticket) Reset() {
 	*x = GetTrackedVSPTicketsResponse_Ticket{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[226]
+		mi := &file_api_proto_msgTypes[228]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -13746,7 +13831,7 @@ func (x *GetTrackedVSPTicketsResponse_Ticket) String() string {
 func (*GetTrackedVSPTicketsResponse_Ticket) ProtoMessage() {}
 
 func (x *GetTrackedVSPTicketsResponse_Ticket) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[226]
+	mi := &file_api_proto_msgTypes[228]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13759,7 +13844,7 @@ func (x *GetTrackedVSPTicketsResponse_Ticket) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use GetTrackedVSPTicketsResponse_Ticket.ProtoReflect.Descriptor instead.
 func (*GetTrackedVSPTicketsResponse_Ticket) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{200, 0}
+	return file_api_proto_rawDescGZIP(), []int{202, 0}
 }
 
 func (x *GetTrackedVSPTicketsResponse_Ticket) GetTicketHash() []byte {
@@ -13816,7 +13901,7 @@ type GetTrackedVSPTicketsResponse_VSP struct {
 func (x *GetTrackedVSPTicketsResponse_VSP) Reset() {
 	*x = GetTrackedVSPTicketsResponse_VSP{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_msgTypes[227]
+		mi := &file_api_proto_msgTypes[229]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -13829,7 +13914,7 @@ func (x *GetTrackedVSPTicketsResponse_VSP) String() string {
 func (*GetTrackedVSPTicketsResponse_VSP) ProtoMessage() {}
 
 func (x *GetTrackedVSPTicketsResponse_VSP) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[227]
+	mi := &file_api_proto_msgTypes[229]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13842,7 +13927,7 @@ func (x *GetTrackedVSPTicketsResponse_VSP) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTrackedVSPTicketsResponse_VSP.ProtoReflect.Descriptor instead.
 func (*GetTrackedVSPTicketsResponse_VSP) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{200, 1}
+	return file_api_proto_rawDescGZIP(), []int{202, 1}
 }
 
 func (x *GetTrackedVSPTicketsResponse_VSP) GetHost() string {
@@ -14590,7 +14675,12 @@ var file_api_proto_rawDesc = []byte{
 	0x68, 0x65, 0x73, 0x12, 0x18, 0x0a, 0x07, 0x74, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x18, 0x02,
 	0x20, 0x03, 0x28, 0x0c, 0x52, 0x07, 0x74, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x12, 0x19, 0x0a,
 	0x08, 0x73, 0x70, 0x6c, 0x69, 0x74, 0x5f, 0x74, 0x78, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52,
-	0x07, 0x73, 0x70, 0x6c, 0x69, 0x74, 0x54, 0x78, 0x22, 0x36, 0x0a, 0x14, 0x52, 0x65, 0x76, 0x6f,
+	0x07, 0x73, 0x70, 0x6c, 0x69, 0x74, 0x54, 0x78, 0x22, 0x36, 0x0a, 0x13, 0x52, 0x65, 0x76, 0x6f,
+	0x6b, 0x65, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
+	0x1f, 0x0a, 0x0b, 0x74, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x5f, 0x68, 0x61, 0x73, 0x68, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x0c, 0x52, 0x0a, 0x74, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x48, 0x61, 0x73, 0x68,
+	0x22, 0x16, 0x0a, 0x14, 0x52, 0x65, 0x76, 0x6f, 0x6b, 0x65, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x36, 0x0a, 0x14, 0x52, 0x65, 0x76, 0x6f,
 	0x6b, 0x65, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
 	0x12, 0x1e, 0x0a, 0x0a, 0x70, 0x61, 0x73, 0x73, 0x70, 0x68, 0x72, 0x61, 0x73, 0x65, 0x18, 0x01,
 	0x20, 0x01, 0x28, 0x0c, 0x52, 0x0a, 0x70, 0x61, 0x73, 0x73, 0x70, 0x68, 0x72, 0x61, 0x73, 0x65,
@@ -15667,7 +15757,7 @@ var file_api_proto_rawDesc = []byte{
 	0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x19, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70,
 	0x63, 0x2e, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
 	0x1a, 0x1a, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x56, 0x65, 0x72,
-	0x73, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0xc2, 0x2a, 0x0a,
+	0x73, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x93, 0x2b, 0x0a,
 	0x0d, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x37,
 	0x0a, 0x04, 0x50, 0x69, 0x6e, 0x67, 0x12, 0x16, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72,
 	0x70, 0x63, 0x2e, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x17,
@@ -15874,317 +15964,322 @@ var file_api_proto_rawDesc = []byte{
 	0x65, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
 	0x22, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x50, 0x75, 0x72, 0x63,
 	0x68, 0x61, 0x73, 0x65, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x12, 0x52, 0x0a, 0x0d, 0x52, 0x65, 0x76, 0x6f, 0x6b, 0x65, 0x54, 0x69, 0x63,
-	0x6b, 0x65, 0x74, 0x73, 0x12, 0x1f, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63,
-	0x2e, 0x52, 0x65, 0x76, 0x6f, 0x6b, 0x65, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x20, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70,
+	0x6e, 0x73, 0x65, 0x12, 0x4f, 0x0a, 0x0c, 0x52, 0x65, 0x76, 0x6f, 0x6b, 0x65, 0x54, 0x69, 0x63,
+	0x6b, 0x65, 0x74, 0x12, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e,
+	0x52, 0x65, 0x76, 0x6f, 0x6b, 0x65, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e,
+	0x52, 0x65, 0x76, 0x6f, 0x6b, 0x65, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x52, 0x0a, 0x0d, 0x52, 0x65, 0x76, 0x6f, 0x6b, 0x65, 0x54, 0x69,
+	0x63, 0x6b, 0x65, 0x74, 0x73, 0x12, 0x1f, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70,
 	0x63, 0x2e, 0x52, 0x65, 0x76, 0x6f, 0x6b, 0x65, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x6a, 0x0a, 0x15, 0x4c, 0x6f, 0x61, 0x64, 0x41,
-	0x63, 0x74, 0x69, 0x76, 0x65, 0x44, 0x61, 0x74, 0x61, 0x46, 0x69, 0x6c, 0x74, 0x65, 0x72, 0x73,
-	0x12, 0x27, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4c, 0x6f, 0x61,
-	0x64, 0x41, 0x63, 0x74, 0x69, 0x76, 0x65, 0x44, 0x61, 0x74, 0x61, 0x46, 0x69, 0x6c, 0x74, 0x65,
-	0x72, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x28, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
-	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4c, 0x6f, 0x61, 0x64, 0x41, 0x63, 0x74, 0x69, 0x76, 0x65,
-	0x44, 0x61, 0x74, 0x61, 0x46, 0x69, 0x6c, 0x74, 0x65, 0x72, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x12, 0x4c, 0x0a, 0x0b, 0x53, 0x69, 0x67, 0x6e, 0x4d, 0x65, 0x73, 0x73, 0x61,
-	0x67, 0x65, 0x12, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53,
-	0x69, 0x67, 0x6e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x1a, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x69,
-	0x67, 0x6e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x12, 0x4f, 0x0a, 0x0c, 0x53, 0x69, 0x67, 0x6e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65,
-	0x73, 0x12, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x69,
-	0x67, 0x6e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x1a, 0x1f, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x69,
-	0x67, 0x6e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
-	0x73, 0x65, 0x12, 0x58, 0x0a, 0x0f, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x65, 0x41, 0x64,
-	0x64, 0x72, 0x65, 0x73, 0x73, 0x12, 0x21, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70,
-	0x63, 0x2e, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x65, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73,
-	0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65,
-	0x74, 0x72, 0x70, 0x63, 0x2e, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x65, 0x41, 0x64, 0x64,
-	0x72, 0x65, 0x73, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x5b, 0x0a, 0x10,
-	0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73,
-	0x12, 0x22, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x6f, 0x6d,
-	0x6d, 0x69, 0x74, 0x74, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63,
-	0x2e, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74,
-	0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4f, 0x0a, 0x0c, 0x53, 0x77, 0x65,
-	0x65, 0x70, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x12, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
-	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x77, 0x65, 0x65, 0x70, 0x41, 0x63, 0x63, 0x6f, 0x75,
-	0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
-	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x77, 0x65, 0x65, 0x70, 0x41, 0x63, 0x63, 0x6f, 0x75,
-	0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x61, 0x0a, 0x12, 0x41, 0x62,
-	0x61, 0x6e, 0x64, 0x6f, 0x6e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e,
-	0x12, 0x24, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x41, 0x62, 0x61,
-	0x6e, 0x64, 0x6f, 0x6e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x25, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72,
-	0x70, 0x63, 0x2e, 0x41, 0x62, 0x61, 0x6e, 0x64, 0x6f, 0x6e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61,
-	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x49, 0x0a,
-	0x0a, 0x53, 0x69, 0x67, 0x6e, 0x48, 0x61, 0x73, 0x68, 0x65, 0x73, 0x12, 0x1c, 0x2e, 0x77, 0x61,
-	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x69, 0x67, 0x6e, 0x48, 0x61, 0x73, 0x68,
-	0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
-	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x69, 0x67, 0x6e, 0x48, 0x61, 0x73, 0x68, 0x65, 0x73,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x76, 0x0a, 0x19, 0x47, 0x65, 0x74, 0x43,
-	0x6f, 0x69, 0x6e, 0x6a, 0x6f, 0x69, 0x6e, 0x4f, 0x75, 0x74, 0x70, 0x75, 0x74, 0x73, 0x70, 0x42,
-	0x79, 0x41, 0x63, 0x63, 0x74, 0x12, 0x2b, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70,
-	0x63, 0x2e, 0x47, 0x65, 0x74, 0x43, 0x6f, 0x69, 0x6e, 0x6a, 0x6f, 0x69, 0x6e, 0x4f, 0x75, 0x74,
-	0x70, 0x75, 0x74, 0x73, 0x70, 0x42, 0x79, 0x41, 0x63, 0x63, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x1a, 0x2c, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47,
-	0x65, 0x74, 0x43, 0x6f, 0x69, 0x6e, 0x6a, 0x6f, 0x69, 0x6e, 0x4f, 0x75, 0x74, 0x70, 0x75, 0x74,
-	0x73, 0x70, 0x42, 0x79, 0x41, 0x63, 0x63, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x12, 0x67, 0x0a, 0x14, 0x53, 0x65, 0x74, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x50, 0x61,
-	0x73, 0x73, 0x70, 0x68, 0x72, 0x61, 0x73, 0x65, 0x12, 0x26, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65,
-	0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x50,
-	0x61, 0x73, 0x73, 0x70, 0x68, 0x72, 0x61, 0x73, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x1a, 0x27, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74,
-	0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x50, 0x61, 0x73, 0x73, 0x70, 0x68, 0x72, 0x61, 0x73,
-	0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x52, 0x0a, 0x0d, 0x55, 0x6e, 0x6c,
-	0x6f, 0x63, 0x6b, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x12, 0x1f, 0x2e, 0x77, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x41, 0x63, 0x63,
-	0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x20, 0x2e, 0x77, 0x61,
-	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x41, 0x63,
-	0x63, 0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4c, 0x0a,
-	0x0b, 0x4c, 0x6f, 0x63, 0x6b, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x12, 0x1d, 0x2e, 0x77,
-	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4c, 0x6f, 0x63, 0x6b, 0x41, 0x63, 0x63,
-	0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x77, 0x61,
-	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4c, 0x6f, 0x63, 0x6b, 0x41, 0x63, 0x63, 0x6f,
-	0x75, 0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4f, 0x0a, 0x0c, 0x55,
-	0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x12, 0x1e, 0x2e, 0x77, 0x61,
-	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x57, 0x61,
-	0x6c, 0x6c, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x77, 0x61,
-	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x57, 0x61,
-	0x6c, 0x6c, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x49, 0x0a, 0x0a,
-	0x4c, 0x6f, 0x63, 0x6b, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x12, 0x1c, 0x2e, 0x77, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4c, 0x6f, 0x63, 0x6b, 0x57, 0x61, 0x6c, 0x6c, 0x65,
-	0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65,
-	0x74, 0x72, 0x70, 0x63, 0x2e, 0x4c, 0x6f, 0x63, 0x6b, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x58, 0x0a, 0x0f, 0x41, 0x63, 0x63, 0x6f, 0x75,
-	0x6e, 0x74, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x65, 0x64, 0x12, 0x21, 0x2e, 0x77, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x55, 0x6e,
-	0x6c, 0x6f, 0x63, 0x6b, 0x65, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e,
-	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e,
-	0x74, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x65, 0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x12, 0x5b, 0x0a, 0x14, 0x53, 0x79, 0x6e, 0x63, 0x56, 0x53, 0x50, 0x46, 0x61, 0x69, 0x6c,
-	0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x12, 0x20, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
-	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x79, 0x6e, 0x63, 0x56, 0x53, 0x50, 0x54, 0x69, 0x63,
-	0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x77, 0x61,
-	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x79, 0x6e, 0x63, 0x56, 0x53, 0x50, 0x54,
-	0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x73,
-	0x0a, 0x18, 0x47, 0x65, 0x74, 0x56, 0x53, 0x50, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x42,
-	0x79, 0x46, 0x65, 0x65, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x2a, 0x2e, 0x77, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x56, 0x53, 0x50, 0x54, 0x69, 0x63,
-	0x6b, 0x65, 0x74, 0x73, 0x42, 0x79, 0x46, 0x65, 0x65, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2b, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72,
-	0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x56, 0x53, 0x50, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73,
-	0x42, 0x79, 0x46, 0x65, 0x65, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x12, 0x6a, 0x0a, 0x15, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x4d, 0x61,
-	0x6e, 0x61, 0x67, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x12, 0x27, 0x2e, 0x77,
-	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73,
-	0x4d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x28, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70,
-	0x63, 0x2e, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x4d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x64,
-	0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
-	0x70, 0x0a, 0x17, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x55, 0x6e, 0x6d, 0x61, 0x6e, 0x61,
-	0x67, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x12, 0x29, 0x2e, 0x77, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x55, 0x6e,
-	0x6d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2a, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70,
-	0x63, 0x2e, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x55, 0x6e, 0x6d, 0x61, 0x6e, 0x61, 0x67,
-	0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x12, 0x61, 0x0a, 0x12, 0x53, 0x65, 0x74, 0x56, 0x73, 0x70, 0x64, 0x56, 0x6f, 0x74, 0x65,
-	0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x12, 0x24, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74,
-	0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x56, 0x73, 0x70, 0x64, 0x56, 0x6f, 0x74, 0x65, 0x43,
-	0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x25, 0x2e,
-	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x56, 0x73, 0x70,
-	0x64, 0x56, 0x6f, 0x74, 0x65, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x67, 0x0a, 0x14, 0x47, 0x65, 0x74, 0x54, 0x72, 0x61, 0x63, 0x6b,
-	0x65, 0x64, 0x56, 0x53, 0x50, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x12, 0x26, 0x2e, 0x77,
-	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x54, 0x72, 0x61, 0x63,
-	0x6b, 0x65, 0x64, 0x56, 0x53, 0x50, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x1a, 0x27, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63,
-	0x2e, 0x47, 0x65, 0x74, 0x54, 0x72, 0x61, 0x63, 0x6b, 0x65, 0x64, 0x56, 0x53, 0x50, 0x54, 0x69,
-	0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x52, 0x0a,
-	0x0d, 0x44, 0x69, 0x73, 0x63, 0x6f, 0x76, 0x65, 0x72, 0x55, 0x73, 0x61, 0x67, 0x65, 0x12, 0x1f,
-	0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x44, 0x69, 0x73, 0x63, 0x6f,
-	0x76, 0x65, 0x72, 0x55, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x20, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x44, 0x69, 0x73, 0x63,
-	0x6f, 0x76, 0x65, 0x72, 0x55, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x32, 0x9b, 0x05, 0x0a, 0x13, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x4c, 0x6f, 0x61, 0x64,
-	0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x4f, 0x0a, 0x0c, 0x57, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x45, 0x78, 0x69, 0x73, 0x74, 0x73, 0x12, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
-	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x45, 0x78, 0x69, 0x73,
-	0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
-	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x45, 0x78, 0x69, 0x73,
-	0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4f, 0x0a, 0x0c, 0x43, 0x72,
-	0x65, 0x61, 0x74, 0x65, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x12, 0x1e, 0x2e, 0x77, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x77, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x73, 0x0a, 0x18, 0x43,
-	0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x61, 0x74, 0x63, 0x68, 0x69, 0x6e, 0x67, 0x4f, 0x6e, 0x6c,
-	0x79, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x12, 0x2a, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74,
-	0x72, 0x70, 0x63, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x61, 0x74, 0x63, 0x68, 0x69,
-	0x6e, 0x67, 0x4f, 0x6e, 0x6c, 0x79, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75,
-	0x65, 0x73, 0x74, 0x1a, 0x2b, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e,
-	0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x61, 0x74, 0x63, 0x68, 0x69, 0x6e, 0x67, 0x4f, 0x6e,
-	0x6c, 0x79, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x12, 0x49, 0x0a, 0x0a, 0x4f, 0x70, 0x65, 0x6e, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x12, 0x1c,
-	0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4f, 0x70, 0x65, 0x6e, 0x57,
-	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1d, 0x2e, 0x77,
-	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4f, 0x70, 0x65, 0x6e, 0x57, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4c, 0x0a, 0x0b, 0x43,
-	0x6c, 0x6f, 0x73, 0x65, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x12, 0x1d, 0x2e, 0x77, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x6c, 0x6f, 0x73, 0x65, 0x57, 0x61, 0x6c, 0x6c,
-	0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
-	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x6c, 0x6f, 0x73, 0x65, 0x57, 0x61, 0x6c, 0x6c, 0x65,
-	0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x42, 0x0a, 0x07, 0x53, 0x70, 0x76,
-	0x53, 0x79, 0x6e, 0x63, 0x12, 0x19, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63,
-	0x2e, 0x53, 0x70, 0x76, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x1a, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x70, 0x76, 0x53,
-	0x79, 0x6e, 0x63, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x30, 0x01, 0x12, 0x42, 0x0a,
-	0x07, 0x52, 0x70, 0x63, 0x53, 0x79, 0x6e, 0x63, 0x12, 0x19, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65,
-	0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x70, 0x63, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x71, 0x75,
-	0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e,
-	0x52, 0x70, 0x63, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x30,
-	0x01, 0x12, 0x4c, 0x0a, 0x0b, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x50, 0x6f, 0x69, 0x6e, 0x74,
-	0x12, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x65, 0x73,
-	0x63, 0x61, 0x6e, 0x50, 0x6f, 0x69, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x65, 0x73, 0x63,
-	0x61, 0x6e, 0x50, 0x6f, 0x69, 0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32,
-	0x71, 0x0a, 0x13, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x4d, 0x69, 0x78, 0x65, 0x72, 0x53,
-	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x5a, 0x0a, 0x0f, 0x52, 0x75, 0x6e, 0x41, 0x63, 0x63,
-	0x6f, 0x75, 0x6e, 0x74, 0x4d, 0x69, 0x78, 0x65, 0x72, 0x12, 0x21, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
-	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x75, 0x6e, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74,
-	0x4d, 0x69, 0x78, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x77,
-	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x75, 0x6e, 0x41, 0x63, 0x63, 0x6f,
-	0x75, 0x6e, 0x74, 0x4d, 0x69, 0x78, 0x65, 0x72, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x30, 0x01, 0x32, 0x6f, 0x0a, 0x14, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x42, 0x75, 0x79, 0x65,
-	0x72, 0x56, 0x32, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x57, 0x0a, 0x0e, 0x52, 0x75,
-	0x6e, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x42, 0x75, 0x79, 0x65, 0x72, 0x12, 0x20, 0x2e, 0x77,
-	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x75, 0x6e, 0x54, 0x69, 0x63, 0x6b,
-	0x65, 0x74, 0x42, 0x75, 0x79, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21,
-	0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x75, 0x6e, 0x54, 0x69,
-	0x63, 0x6b, 0x65, 0x74, 0x42, 0x75, 0x79, 0x65, 0x72, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x30, 0x01, 0x32, 0xc0, 0x08, 0x0a, 0x12, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x42, 0x75,
-	0x79, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x55, 0x0a, 0x0e, 0x53, 0x74,
-	0x61, 0x72, 0x74, 0x41, 0x75, 0x74, 0x6f, 0x42, 0x75, 0x79, 0x65, 0x72, 0x12, 0x20, 0x2e, 0x77,
-	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x74, 0x61, 0x72, 0x74, 0x41, 0x75,
-	0x74, 0x6f, 0x42, 0x75, 0x79, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21,
-	0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x74, 0x61, 0x72, 0x74,
-	0x41, 0x75, 0x74, 0x6f, 0x42, 0x75, 0x79, 0x65, 0x72, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x12, 0x52, 0x0a, 0x0d, 0x53, 0x74, 0x6f, 0x70, 0x41, 0x75, 0x74, 0x6f, 0x42, 0x75, 0x79,
-	0x65, 0x72, 0x12, 0x1f, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53,
-	0x74, 0x6f, 0x70, 0x41, 0x75, 0x74, 0x6f, 0x42, 0x75, 0x79, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75,
-	0x65, 0x73, 0x74, 0x1a, 0x20, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e,
-	0x53, 0x74, 0x6f, 0x70, 0x41, 0x75, 0x74, 0x6f, 0x42, 0x75, 0x79, 0x65, 0x72, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x5e, 0x0a, 0x11, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x42,
-	0x75, 0x79, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x23, 0x2e, 0x77, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x42, 0x75, 0x79,
-	0x65, 0x72, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x24, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x54, 0x69, 0x63, 0x6b,
-	0x65, 0x74, 0x42, 0x75, 0x79, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x49, 0x0a, 0x0a, 0x53, 0x65, 0x74, 0x41, 0x63, 0x63, 0x6f,
-	0x75, 0x6e, 0x74, 0x12, 0x1c, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e,
-	0x53, 0x65, 0x74, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x1a, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65,
-	0x74, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x12, 0x67, 0x0a, 0x14, 0x53, 0x65, 0x74, 0x42, 0x61, 0x6c, 0x61, 0x6e, 0x63, 0x65, 0x54, 0x6f,
-	0x4d, 0x61, 0x69, 0x6e, 0x74, 0x61, 0x69, 0x6e, 0x12, 0x26, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65,
-	0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x42, 0x61, 0x6c, 0x61, 0x6e, 0x63, 0x65, 0x54,
-	0x6f, 0x4d, 0x61, 0x69, 0x6e, 0x74, 0x61, 0x69, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x1a, 0x27, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74,
-	0x42, 0x61, 0x6c, 0x61, 0x6e, 0x63, 0x65, 0x54, 0x6f, 0x4d, 0x61, 0x69, 0x6e, 0x74, 0x61, 0x69,
-	0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x46, 0x0a, 0x09, 0x53, 0x65, 0x74,
-	0x4d, 0x61, 0x78, 0x46, 0x65, 0x65, 0x12, 0x1b, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72,
-	0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x46, 0x65, 0x65, 0x52, 0x65, 0x71, 0x75,
-	0x65, 0x73, 0x74, 0x1a, 0x1c, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e,
-	0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x46, 0x65, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x12, 0x64, 0x0a, 0x13, 0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x50, 0x72, 0x69, 0x63, 0x65,
-	0x52, 0x65, 0x6c, 0x61, 0x74, 0x69, 0x76, 0x65, 0x12, 0x25, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65,
-	0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x50, 0x72, 0x69, 0x63, 0x65,
-	0x52, 0x65, 0x6c, 0x61, 0x74, 0x69, 0x76, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x26, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x4d,
-	0x61, 0x78, 0x50, 0x72, 0x69, 0x63, 0x65, 0x52, 0x65, 0x6c, 0x61, 0x74, 0x69, 0x76, 0x65, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x64, 0x0a, 0x13, 0x53, 0x65, 0x74, 0x4d, 0x61,
-	0x78, 0x50, 0x72, 0x69, 0x63, 0x65, 0x41, 0x62, 0x73, 0x6f, 0x6c, 0x75, 0x74, 0x65, 0x12, 0x25,
-	0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x4d, 0x61,
-	0x78, 0x50, 0x72, 0x69, 0x63, 0x65, 0x41, 0x62, 0x73, 0x6f, 0x6c, 0x75, 0x74, 0x65, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x26, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70,
-	0x63, 0x2e, 0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x50, 0x72, 0x69, 0x63, 0x65, 0x41, 0x62, 0x73,
-	0x6f, 0x6c, 0x75, 0x74, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x5b, 0x0a,
-	0x10, 0x53, 0x65, 0x74, 0x56, 0x6f, 0x74, 0x69, 0x6e, 0x67, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73,
-	0x73, 0x12, 0x22, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65,
-	0x74, 0x56, 0x6f, 0x74, 0x69, 0x6e, 0x67, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x52, 0x65,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x20, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72,
+	0x70, 0x63, 0x2e, 0x52, 0x65, 0x76, 0x6f, 0x6b, 0x65, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x6a, 0x0a, 0x15, 0x4c, 0x6f, 0x61, 0x64,
+	0x41, 0x63, 0x74, 0x69, 0x76, 0x65, 0x44, 0x61, 0x74, 0x61, 0x46, 0x69, 0x6c, 0x74, 0x65, 0x72,
+	0x73, 0x12, 0x27, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4c, 0x6f,
+	0x61, 0x64, 0x41, 0x63, 0x74, 0x69, 0x76, 0x65, 0x44, 0x61, 0x74, 0x61, 0x46, 0x69, 0x6c, 0x74,
+	0x65, 0x72, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x28, 0x2e, 0x77, 0x61, 0x6c,
+	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4c, 0x6f, 0x61, 0x64, 0x41, 0x63, 0x74, 0x69, 0x76,
+	0x65, 0x44, 0x61, 0x74, 0x61, 0x46, 0x69, 0x6c, 0x74, 0x65, 0x72, 0x73, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4c, 0x0a, 0x0b, 0x53, 0x69, 0x67, 0x6e, 0x4d, 0x65, 0x73, 0x73,
+	0x61, 0x67, 0x65, 0x12, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e,
+	0x53, 0x69, 0x67, 0x6e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53,
+	0x69, 0x67, 0x6e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x12, 0x4f, 0x0a, 0x0c, 0x53, 0x69, 0x67, 0x6e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67,
+	0x65, 0x73, 0x12, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53,
+	0x69, 0x67, 0x6e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53,
+	0x69, 0x67, 0x6e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x58, 0x0a, 0x0f, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x65, 0x41,
+	0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x12, 0x21, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72,
+	0x70, 0x63, 0x2e, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x65, 0x41, 0x64, 0x64, 0x72, 0x65,
+	0x73, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
+	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x65, 0x41, 0x64,
+	0x64, 0x72, 0x65, 0x73, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x5b, 0x0a,
+	0x10, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74,
+	0x73, 0x12, 0x22, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x6f,
+	0x6d, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65,
 	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70,
-	0x63, 0x2e, 0x53, 0x65, 0x74, 0x56, 0x6f, 0x74, 0x69, 0x6e, 0x67, 0x41, 0x64, 0x64, 0x72, 0x65,
-	0x73, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x55, 0x0a, 0x0e, 0x53, 0x65,
-	0x74, 0x50, 0x6f, 0x6f, 0x6c, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x12, 0x20, 0x2e, 0x77,
-	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x50, 0x6f, 0x6f, 0x6c,
-	0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21,
-	0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x50, 0x6f,
-	0x6f, 0x6c, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x12, 0x4c, 0x0a, 0x0b, 0x53, 0x65, 0x74, 0x50, 0x6f, 0x6f, 0x6c, 0x46, 0x65, 0x65, 0x73,
-	0x12, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74,
-	0x50, 0x6f, 0x6f, 0x6c, 0x46, 0x65, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x50,
-	0x6f, 0x6f, 0x6c, 0x46, 0x65, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
-	0x55, 0x0a, 0x0e, 0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x50, 0x65, 0x72, 0x42, 0x6c, 0x6f, 0x63,
-	0x6b, 0x12, 0x20, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65,
-	0x74, 0x4d, 0x61, 0x78, 0x50, 0x65, 0x72, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x75,
-	0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e,
-	0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x50, 0x65, 0x72, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0xbb, 0x01, 0x0a, 0x0b, 0x53, 0x65, 0x65, 0x64, 0x53,
-	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x61, 0x0a, 0x12, 0x47, 0x65, 0x6e, 0x65, 0x72, 0x61,
-	0x74, 0x65, 0x52, 0x61, 0x6e, 0x64, 0x6f, 0x6d, 0x53, 0x65, 0x65, 0x64, 0x12, 0x24, 0x2e, 0x77,
-	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74,
-	0x65, 0x52, 0x61, 0x6e, 0x64, 0x6f, 0x6d, 0x53, 0x65, 0x65, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x1a, 0x25, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47,
-	0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x52, 0x61, 0x6e, 0x64, 0x6f, 0x6d, 0x53, 0x65, 0x65,
-	0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x49, 0x0a, 0x0a, 0x44, 0x65, 0x63,
-	0x6f, 0x64, 0x65, 0x53, 0x65, 0x65, 0x64, 0x12, 0x1c, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74,
-	0x72, 0x70, 0x63, 0x2e, 0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x53, 0x65, 0x65, 0x64, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70,
-	0x63, 0x2e, 0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x53, 0x65, 0x65, 0x64, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x32, 0x51, 0x0a, 0x0d, 0x41, 0x67, 0x65, 0x6e, 0x64, 0x61, 0x53, 0x65,
-	0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x40, 0x0a, 0x07, 0x41, 0x67, 0x65, 0x6e, 0x64, 0x61, 0x73,
-	0x12, 0x19, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x41, 0x67, 0x65,
-	0x6e, 0x64, 0x61, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x77, 0x61,
-	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x41, 0x67, 0x65, 0x6e, 0x64, 0x61, 0x73, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0xb4, 0x01, 0x0a, 0x0d, 0x56, 0x6f, 0x74, 0x69,
-	0x6e, 0x67, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x4c, 0x0a, 0x0b, 0x56, 0x6f, 0x74,
-	0x65, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x12, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65,
+	0x63, 0x2e, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65,
+	0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4f, 0x0a, 0x0c, 0x53, 0x77,
+	0x65, 0x65, 0x70, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x12, 0x1e, 0x2e, 0x77, 0x61, 0x6c,
+	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x77, 0x65, 0x65, 0x70, 0x41, 0x63, 0x63, 0x6f,
+	0x75, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x77, 0x61, 0x6c,
+	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x77, 0x65, 0x65, 0x70, 0x41, 0x63, 0x63, 0x6f,
+	0x75, 0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x61, 0x0a, 0x12, 0x41,
+	0x62, 0x61, 0x6e, 0x64, 0x6f, 0x6e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f,
+	0x6e, 0x12, 0x24, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x41, 0x62,
+	0x61, 0x6e, 0x64, 0x6f, 0x6e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x25, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74,
+	0x72, 0x70, 0x63, 0x2e, 0x41, 0x62, 0x61, 0x6e, 0x64, 0x6f, 0x6e, 0x54, 0x72, 0x61, 0x6e, 0x73,
+	0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x49,
+	0x0a, 0x0a, 0x53, 0x69, 0x67, 0x6e, 0x48, 0x61, 0x73, 0x68, 0x65, 0x73, 0x12, 0x1c, 0x2e, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x69, 0x67, 0x6e, 0x48, 0x61, 0x73,
+	0x68, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1d, 0x2e, 0x77, 0x61, 0x6c,
+	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x69, 0x67, 0x6e, 0x48, 0x61, 0x73, 0x68, 0x65,
+	0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x76, 0x0a, 0x19, 0x47, 0x65, 0x74,
+	0x43, 0x6f, 0x69, 0x6e, 0x6a, 0x6f, 0x69, 0x6e, 0x4f, 0x75, 0x74, 0x70, 0x75, 0x74, 0x73, 0x70,
+	0x42, 0x79, 0x41, 0x63, 0x63, 0x74, 0x12, 0x2b, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72,
+	0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x43, 0x6f, 0x69, 0x6e, 0x6a, 0x6f, 0x69, 0x6e, 0x4f, 0x75,
+	0x74, 0x70, 0x75, 0x74, 0x73, 0x70, 0x42, 0x79, 0x41, 0x63, 0x63, 0x74, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x1a, 0x2c, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e,
+	0x47, 0x65, 0x74, 0x43, 0x6f, 0x69, 0x6e, 0x6a, 0x6f, 0x69, 0x6e, 0x4f, 0x75, 0x74, 0x70, 0x75,
+	0x74, 0x73, 0x70, 0x42, 0x79, 0x41, 0x63, 0x63, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x12, 0x67, 0x0a, 0x14, 0x53, 0x65, 0x74, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x50,
+	0x61, 0x73, 0x73, 0x70, 0x68, 0x72, 0x61, 0x73, 0x65, 0x12, 0x26, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
+	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74,
+	0x50, 0x61, 0x73, 0x73, 0x70, 0x68, 0x72, 0x61, 0x73, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x27, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65,
+	0x74, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x50, 0x61, 0x73, 0x73, 0x70, 0x68, 0x72, 0x61,
+	0x73, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x52, 0x0a, 0x0d, 0x55, 0x6e,
+	0x6c, 0x6f, 0x63, 0x6b, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x12, 0x1f, 0x2e, 0x77, 0x61,
+	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x41, 0x63,
+	0x63, 0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x20, 0x2e, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x41,
+	0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4c,
+	0x0a, 0x0b, 0x4c, 0x6f, 0x63, 0x6b, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x12, 0x1d, 0x2e,
+	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4c, 0x6f, 0x63, 0x6b, 0x41, 0x63,
+	0x63, 0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4c, 0x6f, 0x63, 0x6b, 0x41, 0x63, 0x63,
+	0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4f, 0x0a, 0x0c,
+	0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x12, 0x1e, 0x2e, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x57,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x57,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x49, 0x0a,
+	0x0a, 0x4c, 0x6f, 0x63, 0x6b, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x12, 0x1c, 0x2e, 0x77, 0x61,
+	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4c, 0x6f, 0x63, 0x6b, 0x57, 0x61, 0x6c, 0x6c,
+	0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
+	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4c, 0x6f, 0x63, 0x6b, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x58, 0x0a, 0x0f, 0x41, 0x63, 0x63, 0x6f,
+	0x75, 0x6e, 0x74, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x65, 0x64, 0x12, 0x21, 0x2e, 0x77, 0x61,
+	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x55,
+	0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x65, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22,
+	0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x41, 0x63, 0x63, 0x6f, 0x75,
+	0x6e, 0x74, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x65, 0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x12, 0x5b, 0x0a, 0x14, 0x53, 0x79, 0x6e, 0x63, 0x56, 0x53, 0x50, 0x46, 0x61, 0x69,
+	0x6c, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x12, 0x20, 0x2e, 0x77, 0x61, 0x6c,
+	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x79, 0x6e, 0x63, 0x56, 0x53, 0x50, 0x54, 0x69,
+	0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x79, 0x6e, 0x63, 0x56, 0x53, 0x50,
+	0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
+	0x73, 0x0a, 0x18, 0x47, 0x65, 0x74, 0x56, 0x53, 0x50, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73,
+	0x42, 0x79, 0x46, 0x65, 0x65, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x2a, 0x2e, 0x77, 0x61,
+	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x56, 0x53, 0x50, 0x54, 0x69,
+	0x63, 0x6b, 0x65, 0x74, 0x73, 0x42, 0x79, 0x46, 0x65, 0x65, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2b, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74,
+	0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x56, 0x53, 0x50, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74,
+	0x73, 0x42, 0x79, 0x46, 0x65, 0x65, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x6a, 0x0a, 0x15, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x4d,
+	0x61, 0x6e, 0x61, 0x67, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x12, 0x27, 0x2e,
+	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73,
+	0x73, 0x4d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x28, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72,
+	0x70, 0x63, 0x2e, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x4d, 0x61, 0x6e, 0x61, 0x67, 0x65,
+	0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x12, 0x70, 0x0a, 0x17, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x55, 0x6e, 0x6d, 0x61, 0x6e,
+	0x61, 0x67, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x12, 0x29, 0x2e, 0x77, 0x61,
+	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x55,
+	0x6e, 0x6d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2a, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72,
+	0x70, 0x63, 0x2e, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x55, 0x6e, 0x6d, 0x61, 0x6e, 0x61,
+	0x67, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x12, 0x61, 0x0a, 0x12, 0x53, 0x65, 0x74, 0x56, 0x73, 0x70, 0x64, 0x56, 0x6f, 0x74,
+	0x65, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x12, 0x24, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65,
+	0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x56, 0x73, 0x70, 0x64, 0x56, 0x6f, 0x74, 0x65,
+	0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x25,
+	0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x56, 0x73,
+	0x70, 0x64, 0x56, 0x6f, 0x74, 0x65, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x67, 0x0a, 0x14, 0x47, 0x65, 0x74, 0x54, 0x72, 0x61, 0x63,
+	0x6b, 0x65, 0x64, 0x56, 0x53, 0x50, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x12, 0x26, 0x2e,
+	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x54, 0x72, 0x61,
+	0x63, 0x6b, 0x65, 0x64, 0x56, 0x53, 0x50, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x27, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70,
+	0x63, 0x2e, 0x47, 0x65, 0x74, 0x54, 0x72, 0x61, 0x63, 0x6b, 0x65, 0x64, 0x56, 0x53, 0x50, 0x54,
+	0x69, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x52,
+	0x0a, 0x0d, 0x44, 0x69, 0x73, 0x63, 0x6f, 0x76, 0x65, 0x72, 0x55, 0x73, 0x61, 0x67, 0x65, 0x12,
+	0x1f, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x44, 0x69, 0x73, 0x63,
+	0x6f, 0x76, 0x65, 0x72, 0x55, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x20, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x44, 0x69, 0x73,
+	0x63, 0x6f, 0x76, 0x65, 0x72, 0x55, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x32, 0x9b, 0x05, 0x0a, 0x13, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x4c, 0x6f, 0x61,
+	0x64, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x4f, 0x0a, 0x0c, 0x57, 0x61,
+	0x6c, 0x6c, 0x65, 0x74, 0x45, 0x78, 0x69, 0x73, 0x74, 0x73, 0x12, 0x1e, 0x2e, 0x77, 0x61, 0x6c,
+	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x45, 0x78, 0x69,
+	0x73, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x77, 0x61, 0x6c,
+	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x45, 0x78, 0x69,
+	0x73, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4f, 0x0a, 0x0c, 0x43,
+	0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x12, 0x1e, 0x2e, 0x77, 0x61,
+	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x61,
+	0x6c, 0x6c, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x77, 0x61,
+	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x61,
+	0x6c, 0x6c, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x73, 0x0a, 0x18,
+	0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x61, 0x74, 0x63, 0x68, 0x69, 0x6e, 0x67, 0x4f, 0x6e,
+	0x6c, 0x79, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x12, 0x2a, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65,
+	0x74, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x61, 0x74, 0x63, 0x68,
+	0x69, 0x6e, 0x67, 0x4f, 0x6e, 0x6c, 0x79, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x2b, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63,
+	0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x61, 0x74, 0x63, 0x68, 0x69, 0x6e, 0x67, 0x4f,
+	0x6e, 0x6c, 0x79, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x12, 0x49, 0x0a, 0x0a, 0x4f, 0x70, 0x65, 0x6e, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x12,
+	0x1c, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4f, 0x70, 0x65, 0x6e,
+	0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1d, 0x2e,
+	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x4f, 0x70, 0x65, 0x6e, 0x57, 0x61,
+	0x6c, 0x6c, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4c, 0x0a, 0x0b,
+	0x43, 0x6c, 0x6f, 0x73, 0x65, 0x57, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x12, 0x1d, 0x2e, 0x77, 0x61,
+	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x6c, 0x6f, 0x73, 0x65, 0x57, 0x61, 0x6c,
+	0x6c, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x77, 0x61, 0x6c,
+	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x6c, 0x6f, 0x73, 0x65, 0x57, 0x61, 0x6c, 0x6c,
+	0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x42, 0x0a, 0x07, 0x53, 0x70,
+	0x76, 0x53, 0x79, 0x6e, 0x63, 0x12, 0x19, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70,
+	0x63, 0x2e, 0x53, 0x70, 0x76, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x1a, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x70, 0x76,
+	0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x30, 0x01, 0x12, 0x42,
+	0x0a, 0x07, 0x52, 0x70, 0x63, 0x53, 0x79, 0x6e, 0x63, 0x12, 0x19, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
+	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x70, 0x63, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63,
+	0x2e, 0x52, 0x70, 0x63, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x30, 0x01, 0x12, 0x4c, 0x0a, 0x0b, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x50, 0x6f, 0x69, 0x6e,
+	0x74, 0x12, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x65,
+	0x73, 0x63, 0x61, 0x6e, 0x50, 0x6f, 0x69, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x65, 0x73,
+	0x63, 0x61, 0x6e, 0x50, 0x6f, 0x69, 0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x32, 0x71, 0x0a, 0x13, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x4d, 0x69, 0x78, 0x65, 0x72,
+	0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x5a, 0x0a, 0x0f, 0x52, 0x75, 0x6e, 0x41, 0x63,
+	0x63, 0x6f, 0x75, 0x6e, 0x74, 0x4d, 0x69, 0x78, 0x65, 0x72, 0x12, 0x21, 0x2e, 0x77, 0x61, 0x6c,
+	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x75, 0x6e, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e,
+	0x74, 0x4d, 0x69, 0x78, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e,
+	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x75, 0x6e, 0x41, 0x63, 0x63,
+	0x6f, 0x75, 0x6e, 0x74, 0x4d, 0x69, 0x78, 0x65, 0x72, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x30, 0x01, 0x32, 0x6f, 0x0a, 0x14, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x42, 0x75, 0x79,
+	0x65, 0x72, 0x56, 0x32, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x57, 0x0a, 0x0e, 0x52,
+	0x75, 0x6e, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x42, 0x75, 0x79, 0x65, 0x72, 0x12, 0x20, 0x2e,
+	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x75, 0x6e, 0x54, 0x69, 0x63,
+	0x6b, 0x65, 0x74, 0x42, 0x75, 0x79, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
+	0x21, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x52, 0x75, 0x6e, 0x54,
+	0x69, 0x63, 0x6b, 0x65, 0x74, 0x42, 0x75, 0x79, 0x65, 0x72, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x30, 0x01, 0x32, 0xc0, 0x08, 0x0a, 0x12, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x42,
+	0x75, 0x79, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x55, 0x0a, 0x0e, 0x53,
+	0x74, 0x61, 0x72, 0x74, 0x41, 0x75, 0x74, 0x6f, 0x42, 0x75, 0x79, 0x65, 0x72, 0x12, 0x20, 0x2e,
+	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x74, 0x61, 0x72, 0x74, 0x41,
+	0x75, 0x74, 0x6f, 0x42, 0x75, 0x79, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
+	0x21, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x74, 0x61, 0x72,
+	0x74, 0x41, 0x75, 0x74, 0x6f, 0x42, 0x75, 0x79, 0x65, 0x72, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x12, 0x52, 0x0a, 0x0d, 0x53, 0x74, 0x6f, 0x70, 0x41, 0x75, 0x74, 0x6f, 0x42, 0x75,
+	0x79, 0x65, 0x72, 0x12, 0x1f, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e,
+	0x53, 0x74, 0x6f, 0x70, 0x41, 0x75, 0x74, 0x6f, 0x42, 0x75, 0x79, 0x65, 0x72, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x20, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63,
+	0x2e, 0x53, 0x74, 0x6f, 0x70, 0x41, 0x75, 0x74, 0x6f, 0x42, 0x75, 0x79, 0x65, 0x72, 0x52, 0x65,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x5e, 0x0a, 0x11, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74,
+	0x42, 0x75, 0x79, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x23, 0x2e, 0x77, 0x61,
+	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x42, 0x75,
+	0x79, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x24, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x54, 0x69, 0x63,
+	0x6b, 0x65, 0x74, 0x42, 0x75, 0x79, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x49, 0x0a, 0x0a, 0x53, 0x65, 0x74, 0x41, 0x63, 0x63,
+	0x6f, 0x75, 0x6e, 0x74, 0x12, 0x1c, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63,
+	0x2e, 0x53, 0x65, 0x74, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53,
+	0x65, 0x74, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x12, 0x67, 0x0a, 0x14, 0x53, 0x65, 0x74, 0x42, 0x61, 0x6c, 0x61, 0x6e, 0x63, 0x65, 0x54,
+	0x6f, 0x4d, 0x61, 0x69, 0x6e, 0x74, 0x61, 0x69, 0x6e, 0x12, 0x26, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
+	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x42, 0x61, 0x6c, 0x61, 0x6e, 0x63, 0x65,
+	0x54, 0x6f, 0x4d, 0x61, 0x69, 0x6e, 0x74, 0x61, 0x69, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x27, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65,
+	0x74, 0x42, 0x61, 0x6c, 0x61, 0x6e, 0x63, 0x65, 0x54, 0x6f, 0x4d, 0x61, 0x69, 0x6e, 0x74, 0x61,
+	0x69, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x46, 0x0a, 0x09, 0x53, 0x65,
+	0x74, 0x4d, 0x61, 0x78, 0x46, 0x65, 0x65, 0x12, 0x1b, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74,
+	0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x46, 0x65, 0x65, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x1c, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63,
+	0x2e, 0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x46, 0x65, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x12, 0x64, 0x0a, 0x13, 0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x50, 0x72, 0x69, 0x63,
+	0x65, 0x52, 0x65, 0x6c, 0x61, 0x74, 0x69, 0x76, 0x65, 0x12, 0x25, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
+	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x50, 0x72, 0x69, 0x63,
+	0x65, 0x52, 0x65, 0x6c, 0x61, 0x74, 0x69, 0x76, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x26, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74,
+	0x4d, 0x61, 0x78, 0x50, 0x72, 0x69, 0x63, 0x65, 0x52, 0x65, 0x6c, 0x61, 0x74, 0x69, 0x76, 0x65,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x64, 0x0a, 0x13, 0x53, 0x65, 0x74, 0x4d,
+	0x61, 0x78, 0x50, 0x72, 0x69, 0x63, 0x65, 0x41, 0x62, 0x73, 0x6f, 0x6c, 0x75, 0x74, 0x65, 0x12,
+	0x25, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x4d,
+	0x61, 0x78, 0x50, 0x72, 0x69, 0x63, 0x65, 0x41, 0x62, 0x73, 0x6f, 0x6c, 0x75, 0x74, 0x65, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x26, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72,
+	0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x50, 0x72, 0x69, 0x63, 0x65, 0x41, 0x62,
+	0x73, 0x6f, 0x6c, 0x75, 0x74, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x5b,
+	0x0a, 0x10, 0x53, 0x65, 0x74, 0x56, 0x6f, 0x74, 0x69, 0x6e, 0x67, 0x41, 0x64, 0x64, 0x72, 0x65,
+	0x73, 0x73, 0x12, 0x22, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53,
+	0x65, 0x74, 0x56, 0x6f, 0x74, 0x69, 0x6e, 0x67, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72,
+	0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x56, 0x6f, 0x74, 0x69, 0x6e, 0x67, 0x41, 0x64, 0x64, 0x72,
+	0x65, 0x73, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x55, 0x0a, 0x0e, 0x53,
+	0x65, 0x74, 0x50, 0x6f, 0x6f, 0x6c, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x12, 0x20, 0x2e,
+	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x50, 0x6f, 0x6f,
+	0x6c, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
+	0x21, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x50,
+	0x6f, 0x6f, 0x6c, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x12, 0x4c, 0x0a, 0x0b, 0x53, 0x65, 0x74, 0x50, 0x6f, 0x6f, 0x6c, 0x46, 0x65, 0x65,
+	0x73, 0x12, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65,
+	0x74, 0x50, 0x6f, 0x6f, 0x6c, 0x46, 0x65, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74,
+	0x50, 0x6f, 0x6f, 0x6c, 0x46, 0x65, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x12, 0x55, 0x0a, 0x0e, 0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x50, 0x65, 0x72, 0x42, 0x6c, 0x6f,
+	0x63, 0x6b, 0x12, 0x20, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53,
+	0x65, 0x74, 0x4d, 0x61, 0x78, 0x50, 0x65, 0x72, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63,
+	0x2e, 0x53, 0x65, 0x74, 0x4d, 0x61, 0x78, 0x50, 0x65, 0x72, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0xbb, 0x01, 0x0a, 0x0b, 0x53, 0x65, 0x65, 0x64,
+	0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x61, 0x0a, 0x12, 0x47, 0x65, 0x6e, 0x65, 0x72,
+	0x61, 0x74, 0x65, 0x52, 0x61, 0x6e, 0x64, 0x6f, 0x6d, 0x53, 0x65, 0x65, 0x64, 0x12, 0x24, 0x2e,
+	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x6e, 0x65, 0x72, 0x61,
+	0x74, 0x65, 0x52, 0x61, 0x6e, 0x64, 0x6f, 0x6d, 0x53, 0x65, 0x65, 0x64, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x1a, 0x25, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e,
+	0x47, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x52, 0x61, 0x6e, 0x64, 0x6f, 0x6d, 0x53, 0x65,
+	0x65, 0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x49, 0x0a, 0x0a, 0x44, 0x65,
+	0x63, 0x6f, 0x64, 0x65, 0x53, 0x65, 0x65, 0x64, 0x12, 0x1c, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65,
+	0x74, 0x72, 0x70, 0x63, 0x2e, 0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x53, 0x65, 0x65, 0x64, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72,
+	0x70, 0x63, 0x2e, 0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x53, 0x65, 0x65, 0x64, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x51, 0x0a, 0x0d, 0x41, 0x67, 0x65, 0x6e, 0x64, 0x61, 0x53,
+	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x40, 0x0a, 0x07, 0x41, 0x67, 0x65, 0x6e, 0x64, 0x61,
+	0x73, 0x12, 0x19, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x41, 0x67,
+	0x65, 0x6e, 0x64, 0x61, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x41, 0x67, 0x65, 0x6e, 0x64, 0x61, 0x73,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0xb4, 0x01, 0x0a, 0x0d, 0x56, 0x6f, 0x74,
+	0x69, 0x6e, 0x67, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x4c, 0x0a, 0x0b, 0x56, 0x6f,
+	0x74, 0x65, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x12, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
+	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x56, 0x6f, 0x74, 0x65, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65,
+	0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65,
 	0x74, 0x72, 0x70, 0x63, 0x2e, 0x56, 0x6f, 0x74, 0x65, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74,
-	0x72, 0x70, 0x63, 0x2e, 0x56, 0x6f, 0x74, 0x65, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x55, 0x0a, 0x0e, 0x53, 0x65, 0x74, 0x56, 0x6f,
-	0x74, 0x65, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x12, 0x20, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
-	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x56, 0x6f, 0x74, 0x65, 0x43, 0x68, 0x6f,
-	0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x77, 0x61,
-	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x56, 0x6f, 0x74, 0x65, 0x43,
-	0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x70,
-	0x0a, 0x1a, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x56, 0x65, 0x72, 0x69, 0x66, 0x69, 0x63,
-	0x61, 0x74, 0x69, 0x6f, 0x6e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x52, 0x0a, 0x0d,
-	0x56, 0x65, 0x72, 0x69, 0x66, 0x79, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x1f, 0x2e,
-	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x56, 0x65, 0x72, 0x69, 0x66, 0x79,
-	0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x20,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x55, 0x0a, 0x0e, 0x53, 0x65, 0x74, 0x56,
+	0x6f, 0x74, 0x65, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x12, 0x20, 0x2e, 0x77, 0x61, 0x6c,
+	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x56, 0x6f, 0x74, 0x65, 0x43, 0x68,
+	0x6f, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x56, 0x6f, 0x74, 0x65,
+	0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32,
+	0x70, 0x0a, 0x1a, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x56, 0x65, 0x72, 0x69, 0x66, 0x69,
+	0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x52, 0x0a,
+	0x0d, 0x56, 0x65, 0x72, 0x69, 0x66, 0x79, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x1f,
 	0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x56, 0x65, 0x72, 0x69, 0x66,
-	0x79, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x32, 0x5e, 0x0a, 0x0e, 0x4e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x53, 0x65, 0x72, 0x76, 0x69,
-	0x63, 0x65, 0x12, 0x4c, 0x0a, 0x0b, 0x47, 0x65, 0x74, 0x52, 0x61, 0x77, 0x42, 0x6c, 0x6f, 0x63,
-	0x6b, 0x12, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65,
-	0x74, 0x52, 0x61, 0x77, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x1a, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74,
-	0x52, 0x61, 0x77, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x32, 0x7f, 0x0a, 0x14, 0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67,
-	0x65, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x67, 0x0a, 0x14, 0x44, 0x65, 0x63, 0x6f,
-	0x64, 0x65, 0x52, 0x61, 0x77, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e,
-	0x12, 0x26, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x44, 0x65, 0x63,
+	0x79, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
+	0x20, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x56, 0x65, 0x72, 0x69,
+	0x66, 0x79, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x32, 0x5e, 0x0a, 0x0e, 0x4e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x53, 0x65, 0x72, 0x76,
+	0x69, 0x63, 0x65, 0x12, 0x4c, 0x0a, 0x0b, 0x47, 0x65, 0x74, 0x52, 0x61, 0x77, 0x42, 0x6c, 0x6f,
+	0x63, 0x6b, 0x12, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47,
+	0x65, 0x74, 0x52, 0x61, 0x77, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65,
+	0x74, 0x52, 0x61, 0x77, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x32, 0x7f, 0x0a, 0x14, 0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x4d, 0x65, 0x73, 0x73, 0x61,
+	0x67, 0x65, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x67, 0x0a, 0x14, 0x44, 0x65, 0x63,
 	0x6f, 0x64, 0x65, 0x52, 0x61, 0x77, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f,
-	0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x27, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65,
-	0x74, 0x72, 0x70, 0x63, 0x2e, 0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x52, 0x61, 0x77, 0x54, 0x72,
-	0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x42, 0x24, 0x5a, 0x22, 0x64, 0x65, 0x63, 0x72, 0x65, 0x64, 0x2e, 0x6f, 0x72, 0x67, 0x2f,
-	0x64, 0x63, 0x72, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x2f, 0x72, 0x70, 0x63, 0x2f, 0x77, 0x61,
-	0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6e, 0x12, 0x26, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x44, 0x65,
+	0x63, 0x6f, 0x64, 0x65, 0x52, 0x61, 0x77, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69,
+	0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x27, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
+	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x52, 0x61, 0x77, 0x54,
+	0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x42, 0x24, 0x5a, 0x22, 0x64, 0x65, 0x63, 0x72, 0x65, 0x64, 0x2e, 0x6f, 0x72, 0x67,
+	0x2f, 0x64, 0x63, 0x72, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x2f, 0x72, 0x70, 0x63, 0x2f, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -16200,7 +16295,7 @@ func file_api_proto_rawDescGZIP() []byte {
 }
 
 var file_api_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
-var file_api_proto_msgTypes = make([]protoimpl.MessageInfo, 228)
+var file_api_proto_msgTypes = make([]protoimpl.MessageInfo, 230)
 var file_api_proto_goTypes = []interface{}{
 	(SyncNotificationType)(0),                                          // 0: walletrpc.SyncNotificationType
 	(TransactionDetails_TransactionType)(0),                            // 1: walletrpc.TransactionDetails.TransactionType
@@ -16277,232 +16372,234 @@ var file_api_proto_goTypes = []interface{}{
 	(*PublishUnminedTransactionsResponse)(nil),                         // 72: walletrpc.PublishUnminedTransactionsResponse
 	(*PurchaseTicketsRequest)(nil),                                     // 73: walletrpc.PurchaseTicketsRequest
 	(*PurchaseTicketsResponse)(nil),                                    // 74: walletrpc.PurchaseTicketsResponse
-	(*RevokeTicketsRequest)(nil),                                       // 75: walletrpc.RevokeTicketsRequest
-	(*RevokeTicketsResponse)(nil),                                      // 76: walletrpc.RevokeTicketsResponse
-	(*LoadActiveDataFiltersRequest)(nil),                               // 77: walletrpc.LoadActiveDataFiltersRequest
-	(*LoadActiveDataFiltersResponse)(nil),                              // 78: walletrpc.LoadActiveDataFiltersResponse
-	(*SignMessageRequest)(nil),                                         // 79: walletrpc.SignMessageRequest
-	(*SignMessageResponse)(nil),                                        // 80: walletrpc.SignMessageResponse
-	(*SignMessagesRequest)(nil),                                        // 81: walletrpc.SignMessagesRequest
-	(*SignMessagesResponse)(nil),                                       // 82: walletrpc.SignMessagesResponse
-	(*TransactionNotificationsRequest)(nil),                            // 83: walletrpc.TransactionNotificationsRequest
-	(*TransactionNotificationsResponse)(nil),                           // 84: walletrpc.TransactionNotificationsResponse
-	(*AccountNotificationsRequest)(nil),                                // 85: walletrpc.AccountNotificationsRequest
-	(*AccountNotificationsResponse)(nil),                               // 86: walletrpc.AccountNotificationsResponse
-	(*ConfirmationNotificationsRequest)(nil),                           // 87: walletrpc.ConfirmationNotificationsRequest
-	(*ConfirmationNotificationsResponse)(nil),                          // 88: walletrpc.ConfirmationNotificationsResponse
-	(*CreateWalletRequest)(nil),                                        // 89: walletrpc.CreateWalletRequest
-	(*CreateWalletResponse)(nil),                                       // 90: walletrpc.CreateWalletResponse
-	(*CreateWatchingOnlyWalletRequest)(nil),                            // 91: walletrpc.CreateWatchingOnlyWalletRequest
-	(*CreateWatchingOnlyWalletResponse)(nil),                           // 92: walletrpc.CreateWatchingOnlyWalletResponse
-	(*OpenWalletRequest)(nil),                                          // 93: walletrpc.OpenWalletRequest
-	(*OpenWalletResponse)(nil),                                         // 94: walletrpc.OpenWalletResponse
-	(*CloseWalletRequest)(nil),                                         // 95: walletrpc.CloseWalletRequest
-	(*CloseWalletResponse)(nil),                                        // 96: walletrpc.CloseWalletResponse
-	(*WalletExistsRequest)(nil),                                        // 97: walletrpc.WalletExistsRequest
-	(*WalletExistsResponse)(nil),                                       // 98: walletrpc.WalletExistsResponse
-	(*StartConsensusRpcRequest)(nil),                                   // 99: walletrpc.StartConsensusRpcRequest
-	(*StartConsensusRpcResponse)(nil),                                  // 100: walletrpc.StartConsensusRpcResponse
-	(*DiscoverAddressesRequest)(nil),                                   // 101: walletrpc.DiscoverAddressesRequest
-	(*DiscoverAddressesResponse)(nil),                                  // 102: walletrpc.DiscoverAddressesResponse
-	(*FetchMissingCFiltersRequest)(nil),                                // 103: walletrpc.FetchMissingCFiltersRequest
-	(*FetchMissingCFiltersResponse)(nil),                               // 104: walletrpc.FetchMissingCFiltersResponse
-	(*SubscribeToBlockNotificationsRequest)(nil),                       // 105: walletrpc.SubscribeToBlockNotificationsRequest
-	(*SubscribeToBlockNotificationsResponse)(nil),                      // 106: walletrpc.SubscribeToBlockNotificationsResponse
-	(*FetchHeadersRequest)(nil),                                        // 107: walletrpc.FetchHeadersRequest
-	(*FetchHeadersResponse)(nil),                                       // 108: walletrpc.FetchHeadersResponse
-	(*FetchHeadersNotification)(nil),                                   // 109: walletrpc.FetchHeadersNotification
-	(*FetchMissingCFiltersNotification)(nil),                           // 110: walletrpc.FetchMissingCFiltersNotification
-	(*RescanProgressNotification)(nil),                                 // 111: walletrpc.RescanProgressNotification
-	(*PeerNotification)(nil),                                           // 112: walletrpc.PeerNotification
-	(*RpcSyncRequest)(nil),                                             // 113: walletrpc.RpcSyncRequest
-	(*RpcSyncResponse)(nil),                                            // 114: walletrpc.RpcSyncResponse
-	(*SpvSyncRequest)(nil),                                             // 115: walletrpc.SpvSyncRequest
-	(*SpvSyncResponse)(nil),                                            // 116: walletrpc.SpvSyncResponse
-	(*RescanPointRequest)(nil),                                         // 117: walletrpc.RescanPointRequest
-	(*RescanPointResponse)(nil),                                        // 118: walletrpc.RescanPointResponse
-	(*GenerateRandomSeedRequest)(nil),                                  // 119: walletrpc.GenerateRandomSeedRequest
-	(*GenerateRandomSeedResponse)(nil),                                 // 120: walletrpc.GenerateRandomSeedResponse
-	(*DecodeSeedRequest)(nil),                                          // 121: walletrpc.DecodeSeedRequest
-	(*DecodeSeedResponse)(nil),                                         // 122: walletrpc.DecodeSeedResponse
-	(*RunTicketBuyerRequest)(nil),                                      // 123: walletrpc.RunTicketBuyerRequest
-	(*RunTicketBuyerResponse)(nil),                                     // 124: walletrpc.RunTicketBuyerResponse
-	(*RunAccountMixerRequest)(nil),                                     // 125: walletrpc.RunAccountMixerRequest
-	(*RunAccountMixerResponse)(nil),                                    // 126: walletrpc.RunAccountMixerResponse
-	(*StartAutoBuyerRequest)(nil),                                      // 127: walletrpc.StartAutoBuyerRequest
-	(*StartAutoBuyerResponse)(nil),                                     // 128: walletrpc.StartAutoBuyerResponse
-	(*StopAutoBuyerRequest)(nil),                                       // 129: walletrpc.StopAutoBuyerRequest
-	(*StopAutoBuyerResponse)(nil),                                      // 130: walletrpc.StopAutoBuyerResponse
-	(*TicketBuyerConfigRequest)(nil),                                   // 131: walletrpc.TicketBuyerConfigRequest
-	(*TicketBuyerConfigResponse)(nil),                                  // 132: walletrpc.TicketBuyerConfigResponse
-	(*SetAccountRequest)(nil),                                          // 133: walletrpc.SetAccountRequest
-	(*SetAccountResponse)(nil),                                         // 134: walletrpc.SetAccountResponse
-	(*SetBalanceToMaintainRequest)(nil),                                // 135: walletrpc.SetBalanceToMaintainRequest
-	(*SetBalanceToMaintainResponse)(nil),                               // 136: walletrpc.SetBalanceToMaintainResponse
-	(*SetMaxFeeRequest)(nil),                                           // 137: walletrpc.SetMaxFeeRequest
-	(*SetMaxFeeResponse)(nil),                                          // 138: walletrpc.SetMaxFeeResponse
-	(*SetMaxPriceRelativeRequest)(nil),                                 // 139: walletrpc.SetMaxPriceRelativeRequest
-	(*SetMaxPriceRelativeResponse)(nil),                                // 140: walletrpc.SetMaxPriceRelativeResponse
-	(*SetMaxPriceAbsoluteRequest)(nil),                                 // 141: walletrpc.SetMaxPriceAbsoluteRequest
-	(*SetMaxPriceAbsoluteResponse)(nil),                                // 142: walletrpc.SetMaxPriceAbsoluteResponse
-	(*SetVotingAddressRequest)(nil),                                    // 143: walletrpc.SetVotingAddressRequest
-	(*SetVotingAddressResponse)(nil),                                   // 144: walletrpc.SetVotingAddressResponse
-	(*SetPoolAddressRequest)(nil),                                      // 145: walletrpc.SetPoolAddressRequest
-	(*SetPoolAddressResponse)(nil),                                     // 146: walletrpc.SetPoolAddressResponse
-	(*SetPoolFeesRequest)(nil),                                         // 147: walletrpc.SetPoolFeesRequest
-	(*SetPoolFeesResponse)(nil),                                        // 148: walletrpc.SetPoolFeesResponse
-	(*SetMaxPerBlockRequest)(nil),                                      // 149: walletrpc.SetMaxPerBlockRequest
-	(*SetMaxPerBlockResponse)(nil),                                     // 150: walletrpc.SetMaxPerBlockResponse
-	(*AgendasRequest)(nil),                                             // 151: walletrpc.AgendasRequest
-	(*AgendasResponse)(nil),                                            // 152: walletrpc.AgendasResponse
-	(*VoteChoicesRequest)(nil),                                         // 153: walletrpc.VoteChoicesRequest
-	(*VoteChoicesResponse)(nil),                                        // 154: walletrpc.VoteChoicesResponse
-	(*SetVoteChoicesRequest)(nil),                                      // 155: walletrpc.SetVoteChoicesRequest
-	(*SetVoteChoicesResponse)(nil),                                     // 156: walletrpc.SetVoteChoicesResponse
-	(*VerifyMessageRequest)(nil),                                       // 157: walletrpc.VerifyMessageRequest
-	(*VerifyMessageResponse)(nil),                                      // 158: walletrpc.VerifyMessageResponse
-	(*DecodedTransaction)(nil),                                         // 159: walletrpc.DecodedTransaction
-	(*DecodeRawTransactionRequest)(nil),                                // 160: walletrpc.DecodeRawTransactionRequest
-	(*DecodeRawTransactionResponse)(nil),                               // 161: walletrpc.DecodeRawTransactionResponse
-	(*ValidateAddressRequest)(nil),                                     // 162: walletrpc.ValidateAddressRequest
-	(*ValidateAddressResponse)(nil),                                    // 163: walletrpc.ValidateAddressResponse
-	(*CommittedTicketsRequest)(nil),                                    // 164: walletrpc.CommittedTicketsRequest
-	(*GetAccountExtendedPubKeyRequest)(nil),                            // 165: walletrpc.GetAccountExtendedPubKeyRequest
-	(*GetAccountExtendedPubKeyResponse)(nil),                           // 166: walletrpc.GetAccountExtendedPubKeyResponse
-	(*GetAccountExtendedPrivKeyRequest)(nil),                           // 167: walletrpc.GetAccountExtendedPrivKeyRequest
-	(*GetAccountExtendedPrivKeyResponse)(nil),                          // 168: walletrpc.GetAccountExtendedPrivKeyResponse
-	(*CommittedTicketsResponse)(nil),                                   // 169: walletrpc.CommittedTicketsResponse
-	(*BestBlockRequest)(nil),                                           // 170: walletrpc.BestBlockRequest
-	(*BestBlockResponse)(nil),                                          // 171: walletrpc.BestBlockResponse
-	(*SweepAccountRequest)(nil),                                        // 172: walletrpc.SweepAccountRequest
-	(*SweepAccountResponse)(nil),                                       // 173: walletrpc.SweepAccountResponse
-	(*AbandonTransactionRequest)(nil),                                  // 174: walletrpc.AbandonTransactionRequest
-	(*AbandonTransactionResponse)(nil),                                 // 175: walletrpc.AbandonTransactionResponse
-	(*SignHashesRequest)(nil),                                          // 176: walletrpc.SignHashesRequest
-	(*SignHashesResponse)(nil),                                         // 177: walletrpc.SignHashesResponse
-	(*SpenderRequest)(nil),                                             // 178: walletrpc.SpenderRequest
-	(*SpenderResponse)(nil),                                            // 179: walletrpc.SpenderResponse
-	(*GetCFiltersRequest)(nil),                                         // 180: walletrpc.GetCFiltersRequest
-	(*GetCFiltersResponse)(nil),                                        // 181: walletrpc.GetCFiltersResponse
-	(*GetRawBlockRequest)(nil),                                         // 182: walletrpc.GetRawBlockRequest
-	(*GetRawBlockResponse)(nil),                                        // 183: walletrpc.GetRawBlockResponse
-	(*GetCoinjoinOutputspByAcctRequest)(nil),                           // 184: walletrpc.GetCoinjoinOutputspByAcctRequest
-	(*CoinjoinTxsSumByAcct)(nil),                                       // 185: walletrpc.coinjoinTxsSumByAcct
-	(*GetCoinjoinOutputspByAcctResponse)(nil),                          // 186: walletrpc.GetCoinjoinOutputspByAcctResponse
-	(*SetAccountPassphraseRequest)(nil),                                // 187: walletrpc.SetAccountPassphraseRequest
-	(*UnlockAccountRequest)(nil),                                       // 188: walletrpc.UnlockAccountRequest
-	(*LockAccountRequest)(nil),                                         // 189: walletrpc.LockAccountRequest
-	(*SetAccountPassphraseResponse)(nil),                               // 190: walletrpc.SetAccountPassphraseResponse
-	(*UnlockAccountResponse)(nil),                                      // 191: walletrpc.UnlockAccountResponse
-	(*LockAccountResponse)(nil),                                        // 192: walletrpc.LockAccountResponse
-	(*AccountUnlockedRequest)(nil),                                     // 193: walletrpc.AccountUnlockedRequest
-	(*AccountUnlockedResponse)(nil),                                    // 194: walletrpc.AccountUnlockedResponse
-	(*UnlockWalletRequest)(nil),                                        // 195: walletrpc.UnlockWalletRequest
-	(*UnlockWalletResponse)(nil),                                       // 196: walletrpc.UnlockWalletResponse
-	(*LockWalletRequest)(nil),                                          // 197: walletrpc.LockWalletRequest
-	(*LockWalletResponse)(nil),                                         // 198: walletrpc.LockWalletResponse
-	(*GetPeerInfoRequest)(nil),                                         // 199: walletrpc.GetPeerInfoRequest
-	(*GetPeerInfoResponse)(nil),                                        // 200: walletrpc.GetPeerInfoResponse
-	(*SyncVSPTicketsRequest)(nil),                                      // 201: walletrpc.SyncVSPTicketsRequest
-	(*SyncVSPTicketsResponse)(nil),                                     // 202: walletrpc.SyncVSPTicketsResponse
-	(*GetVSPTicketsByFeeStatusRequest)(nil),                            // 203: walletrpc.GetVSPTicketsByFeeStatusRequest
-	(*GetVSPTicketsByFeeStatusResponse)(nil),                           // 204: walletrpc.GetVSPTicketsByFeeStatusResponse
-	(*ProcessManagedTicketsRequest)(nil),                               // 205: walletrpc.ProcessManagedTicketsRequest
-	(*ProcessManagedTicketsResponse)(nil),                              // 206: walletrpc.ProcessManagedTicketsResponse
-	(*ProcessUnmanagedTicketsRequest)(nil),                             // 207: walletrpc.ProcessUnmanagedTicketsRequest
-	(*ProcessUnmanagedTicketsResponse)(nil),                            // 208: walletrpc.ProcessUnmanagedTicketsResponse
-	(*SetVspdVoteChoicesRequest)(nil),                                  // 209: walletrpc.SetVspdVoteChoicesRequest
-	(*SetVspdVoteChoicesResponse)(nil),                                 // 210: walletrpc.SetVspdVoteChoicesResponse
-	(*GetTrackedVSPTicketsRequest)(nil),                                // 211: walletrpc.GetTrackedVSPTicketsRequest
-	(*GetTrackedVSPTicketsResponse)(nil),                               // 212: walletrpc.GetTrackedVSPTicketsResponse
-	(*DiscoverUsageRequest)(nil),                                       // 213: walletrpc.DiscoverUsageRequest
-	(*DiscoverUsageResponse)(nil),                                      // 214: walletrpc.DiscoverUsageResponse
-	(*TransactionDetails_Input)(nil),                                   // 215: walletrpc.TransactionDetails.Input
-	(*TransactionDetails_Output)(nil),                                  // 216: walletrpc.TransactionDetails.Output
-	(*AccountsResponse_Account)(nil),                                   // 217: walletrpc.AccountsResponse.Account
-	(*GetTicketsResponse_TicketDetails)(nil),                           // 218: walletrpc.GetTicketsResponse.TicketDetails
-	(*GetTicketsResponse_BlockDetails)(nil),                            // 219: walletrpc.GetTicketsResponse.BlockDetails
-	(*FundTransactionResponse_PreviousOutput)(nil),                     // 220: walletrpc.FundTransactionResponse.PreviousOutput
-	(*ConstructTransactionRequest_OutputDestination)(nil),              // 221: walletrpc.ConstructTransactionRequest.OutputDestination
-	(*ConstructTransactionRequest_Output)(nil),                         // 222: walletrpc.ConstructTransactionRequest.Output
-	(*SignTransactionRequest_AdditionalScript)(nil),                    // 223: walletrpc.SignTransactionRequest.AdditionalScript
-	(*SignTransactionsRequest_AdditionalScript)(nil),                   // 224: walletrpc.SignTransactionsRequest.AdditionalScript
-	(*SignTransactionsRequest_UnsignedTransaction)(nil),                // 225: walletrpc.SignTransactionsRequest.UnsignedTransaction
-	(*SignTransactionsResponse_SignedTransaction)(nil),                 // 226: walletrpc.SignTransactionsResponse.SignedTransaction
-	(*SignMessagesRequest_Message)(nil),                                // 227: walletrpc.SignMessagesRequest.Message
-	(*SignMessagesResponse_SignReply)(nil),                             // 228: walletrpc.SignMessagesResponse.SignReply
-	(*ConfirmationNotificationsResponse_TransactionConfirmations)(nil), // 229: walletrpc.ConfirmationNotificationsResponse.TransactionConfirmations
-	(*AgendasResponse_Agenda)(nil),                                     // 230: walletrpc.AgendasResponse.Agenda
-	(*AgendasResponse_Choice)(nil),                                     // 231: walletrpc.AgendasResponse.Choice
-	(*VoteChoicesResponse_Choice)(nil),                                 // 232: walletrpc.VoteChoicesResponse.Choice
-	(*SetVoteChoicesRequest_Choice)(nil),                               // 233: walletrpc.SetVoteChoicesRequest.Choice
-	(*DecodedTransaction_Input)(nil),                                   // 234: walletrpc.DecodedTransaction.Input
-	(*DecodedTransaction_Output)(nil),                                  // 235: walletrpc.DecodedTransaction.Output
-	(*CommittedTicketsResponse_TicketAddress)(nil),                     // 236: walletrpc.CommittedTicketsResponse.TicketAddress
-	(*GetPeerInfoResponse_PeerInfo)(nil),                               // 237: walletrpc.GetPeerInfoResponse.PeerInfo
-	(*GetTrackedVSPTicketsResponse_Ticket)(nil),                        // 238: walletrpc.GetTrackedVSPTicketsResponse.Ticket
-	(*GetTrackedVSPTicketsResponse_VSP)(nil),                           // 239: walletrpc.GetTrackedVSPTicketsResponse.VSP
+	(*RevokeTicketRequest)(nil),                                        // 75: walletrpc.RevokeTicketRequest
+	(*RevokeTicketResponse)(nil),                                       // 76: walletrpc.RevokeTicketResponse
+	(*RevokeTicketsRequest)(nil),                                       // 77: walletrpc.RevokeTicketsRequest
+	(*RevokeTicketsResponse)(nil),                                      // 78: walletrpc.RevokeTicketsResponse
+	(*LoadActiveDataFiltersRequest)(nil),                               // 79: walletrpc.LoadActiveDataFiltersRequest
+	(*LoadActiveDataFiltersResponse)(nil),                              // 80: walletrpc.LoadActiveDataFiltersResponse
+	(*SignMessageRequest)(nil),                                         // 81: walletrpc.SignMessageRequest
+	(*SignMessageResponse)(nil),                                        // 82: walletrpc.SignMessageResponse
+	(*SignMessagesRequest)(nil),                                        // 83: walletrpc.SignMessagesRequest
+	(*SignMessagesResponse)(nil),                                       // 84: walletrpc.SignMessagesResponse
+	(*TransactionNotificationsRequest)(nil),                            // 85: walletrpc.TransactionNotificationsRequest
+	(*TransactionNotificationsResponse)(nil),                           // 86: walletrpc.TransactionNotificationsResponse
+	(*AccountNotificationsRequest)(nil),                                // 87: walletrpc.AccountNotificationsRequest
+	(*AccountNotificationsResponse)(nil),                               // 88: walletrpc.AccountNotificationsResponse
+	(*ConfirmationNotificationsRequest)(nil),                           // 89: walletrpc.ConfirmationNotificationsRequest
+	(*ConfirmationNotificationsResponse)(nil),                          // 90: walletrpc.ConfirmationNotificationsResponse
+	(*CreateWalletRequest)(nil),                                        // 91: walletrpc.CreateWalletRequest
+	(*CreateWalletResponse)(nil),                                       // 92: walletrpc.CreateWalletResponse
+	(*CreateWatchingOnlyWalletRequest)(nil),                            // 93: walletrpc.CreateWatchingOnlyWalletRequest
+	(*CreateWatchingOnlyWalletResponse)(nil),                           // 94: walletrpc.CreateWatchingOnlyWalletResponse
+	(*OpenWalletRequest)(nil),                                          // 95: walletrpc.OpenWalletRequest
+	(*OpenWalletResponse)(nil),                                         // 96: walletrpc.OpenWalletResponse
+	(*CloseWalletRequest)(nil),                                         // 97: walletrpc.CloseWalletRequest
+	(*CloseWalletResponse)(nil),                                        // 98: walletrpc.CloseWalletResponse
+	(*WalletExistsRequest)(nil),                                        // 99: walletrpc.WalletExistsRequest
+	(*WalletExistsResponse)(nil),                                       // 100: walletrpc.WalletExistsResponse
+	(*StartConsensusRpcRequest)(nil),                                   // 101: walletrpc.StartConsensusRpcRequest
+	(*StartConsensusRpcResponse)(nil),                                  // 102: walletrpc.StartConsensusRpcResponse
+	(*DiscoverAddressesRequest)(nil),                                   // 103: walletrpc.DiscoverAddressesRequest
+	(*DiscoverAddressesResponse)(nil),                                  // 104: walletrpc.DiscoverAddressesResponse
+	(*FetchMissingCFiltersRequest)(nil),                                // 105: walletrpc.FetchMissingCFiltersRequest
+	(*FetchMissingCFiltersResponse)(nil),                               // 106: walletrpc.FetchMissingCFiltersResponse
+	(*SubscribeToBlockNotificationsRequest)(nil),                       // 107: walletrpc.SubscribeToBlockNotificationsRequest
+	(*SubscribeToBlockNotificationsResponse)(nil),                      // 108: walletrpc.SubscribeToBlockNotificationsResponse
+	(*FetchHeadersRequest)(nil),                                        // 109: walletrpc.FetchHeadersRequest
+	(*FetchHeadersResponse)(nil),                                       // 110: walletrpc.FetchHeadersResponse
+	(*FetchHeadersNotification)(nil),                                   // 111: walletrpc.FetchHeadersNotification
+	(*FetchMissingCFiltersNotification)(nil),                           // 112: walletrpc.FetchMissingCFiltersNotification
+	(*RescanProgressNotification)(nil),                                 // 113: walletrpc.RescanProgressNotification
+	(*PeerNotification)(nil),                                           // 114: walletrpc.PeerNotification
+	(*RpcSyncRequest)(nil),                                             // 115: walletrpc.RpcSyncRequest
+	(*RpcSyncResponse)(nil),                                            // 116: walletrpc.RpcSyncResponse
+	(*SpvSyncRequest)(nil),                                             // 117: walletrpc.SpvSyncRequest
+	(*SpvSyncResponse)(nil),                                            // 118: walletrpc.SpvSyncResponse
+	(*RescanPointRequest)(nil),                                         // 119: walletrpc.RescanPointRequest
+	(*RescanPointResponse)(nil),                                        // 120: walletrpc.RescanPointResponse
+	(*GenerateRandomSeedRequest)(nil),                                  // 121: walletrpc.GenerateRandomSeedRequest
+	(*GenerateRandomSeedResponse)(nil),                                 // 122: walletrpc.GenerateRandomSeedResponse
+	(*DecodeSeedRequest)(nil),                                          // 123: walletrpc.DecodeSeedRequest
+	(*DecodeSeedResponse)(nil),                                         // 124: walletrpc.DecodeSeedResponse
+	(*RunTicketBuyerRequest)(nil),                                      // 125: walletrpc.RunTicketBuyerRequest
+	(*RunTicketBuyerResponse)(nil),                                     // 126: walletrpc.RunTicketBuyerResponse
+	(*RunAccountMixerRequest)(nil),                                     // 127: walletrpc.RunAccountMixerRequest
+	(*RunAccountMixerResponse)(nil),                                    // 128: walletrpc.RunAccountMixerResponse
+	(*StartAutoBuyerRequest)(nil),                                      // 129: walletrpc.StartAutoBuyerRequest
+	(*StartAutoBuyerResponse)(nil),                                     // 130: walletrpc.StartAutoBuyerResponse
+	(*StopAutoBuyerRequest)(nil),                                       // 131: walletrpc.StopAutoBuyerRequest
+	(*StopAutoBuyerResponse)(nil),                                      // 132: walletrpc.StopAutoBuyerResponse
+	(*TicketBuyerConfigRequest)(nil),                                   // 133: walletrpc.TicketBuyerConfigRequest
+	(*TicketBuyerConfigResponse)(nil),                                  // 134: walletrpc.TicketBuyerConfigResponse
+	(*SetAccountRequest)(nil),                                          // 135: walletrpc.SetAccountRequest
+	(*SetAccountResponse)(nil),                                         // 136: walletrpc.SetAccountResponse
+	(*SetBalanceToMaintainRequest)(nil),                                // 137: walletrpc.SetBalanceToMaintainRequest
+	(*SetBalanceToMaintainResponse)(nil),                               // 138: walletrpc.SetBalanceToMaintainResponse
+	(*SetMaxFeeRequest)(nil),                                           // 139: walletrpc.SetMaxFeeRequest
+	(*SetMaxFeeResponse)(nil),                                          // 140: walletrpc.SetMaxFeeResponse
+	(*SetMaxPriceRelativeRequest)(nil),                                 // 141: walletrpc.SetMaxPriceRelativeRequest
+	(*SetMaxPriceRelativeResponse)(nil),                                // 142: walletrpc.SetMaxPriceRelativeResponse
+	(*SetMaxPriceAbsoluteRequest)(nil),                                 // 143: walletrpc.SetMaxPriceAbsoluteRequest
+	(*SetMaxPriceAbsoluteResponse)(nil),                                // 144: walletrpc.SetMaxPriceAbsoluteResponse
+	(*SetVotingAddressRequest)(nil),                                    // 145: walletrpc.SetVotingAddressRequest
+	(*SetVotingAddressResponse)(nil),                                   // 146: walletrpc.SetVotingAddressResponse
+	(*SetPoolAddressRequest)(nil),                                      // 147: walletrpc.SetPoolAddressRequest
+	(*SetPoolAddressResponse)(nil),                                     // 148: walletrpc.SetPoolAddressResponse
+	(*SetPoolFeesRequest)(nil),                                         // 149: walletrpc.SetPoolFeesRequest
+	(*SetPoolFeesResponse)(nil),                                        // 150: walletrpc.SetPoolFeesResponse
+	(*SetMaxPerBlockRequest)(nil),                                      // 151: walletrpc.SetMaxPerBlockRequest
+	(*SetMaxPerBlockResponse)(nil),                                     // 152: walletrpc.SetMaxPerBlockResponse
+	(*AgendasRequest)(nil),                                             // 153: walletrpc.AgendasRequest
+	(*AgendasResponse)(nil),                                            // 154: walletrpc.AgendasResponse
+	(*VoteChoicesRequest)(nil),                                         // 155: walletrpc.VoteChoicesRequest
+	(*VoteChoicesResponse)(nil),                                        // 156: walletrpc.VoteChoicesResponse
+	(*SetVoteChoicesRequest)(nil),                                      // 157: walletrpc.SetVoteChoicesRequest
+	(*SetVoteChoicesResponse)(nil),                                     // 158: walletrpc.SetVoteChoicesResponse
+	(*VerifyMessageRequest)(nil),                                       // 159: walletrpc.VerifyMessageRequest
+	(*VerifyMessageResponse)(nil),                                      // 160: walletrpc.VerifyMessageResponse
+	(*DecodedTransaction)(nil),                                         // 161: walletrpc.DecodedTransaction
+	(*DecodeRawTransactionRequest)(nil),                                // 162: walletrpc.DecodeRawTransactionRequest
+	(*DecodeRawTransactionResponse)(nil),                               // 163: walletrpc.DecodeRawTransactionResponse
+	(*ValidateAddressRequest)(nil),                                     // 164: walletrpc.ValidateAddressRequest
+	(*ValidateAddressResponse)(nil),                                    // 165: walletrpc.ValidateAddressResponse
+	(*CommittedTicketsRequest)(nil),                                    // 166: walletrpc.CommittedTicketsRequest
+	(*GetAccountExtendedPubKeyRequest)(nil),                            // 167: walletrpc.GetAccountExtendedPubKeyRequest
+	(*GetAccountExtendedPubKeyResponse)(nil),                           // 168: walletrpc.GetAccountExtendedPubKeyResponse
+	(*GetAccountExtendedPrivKeyRequest)(nil),                           // 169: walletrpc.GetAccountExtendedPrivKeyRequest
+	(*GetAccountExtendedPrivKeyResponse)(nil),                          // 170: walletrpc.GetAccountExtendedPrivKeyResponse
+	(*CommittedTicketsResponse)(nil),                                   // 171: walletrpc.CommittedTicketsResponse
+	(*BestBlockRequest)(nil),                                           // 172: walletrpc.BestBlockRequest
+	(*BestBlockResponse)(nil),                                          // 173: walletrpc.BestBlockResponse
+	(*SweepAccountRequest)(nil),                                        // 174: walletrpc.SweepAccountRequest
+	(*SweepAccountResponse)(nil),                                       // 175: walletrpc.SweepAccountResponse
+	(*AbandonTransactionRequest)(nil),                                  // 176: walletrpc.AbandonTransactionRequest
+	(*AbandonTransactionResponse)(nil),                                 // 177: walletrpc.AbandonTransactionResponse
+	(*SignHashesRequest)(nil),                                          // 178: walletrpc.SignHashesRequest
+	(*SignHashesResponse)(nil),                                         // 179: walletrpc.SignHashesResponse
+	(*SpenderRequest)(nil),                                             // 180: walletrpc.SpenderRequest
+	(*SpenderResponse)(nil),                                            // 181: walletrpc.SpenderResponse
+	(*GetCFiltersRequest)(nil),                                         // 182: walletrpc.GetCFiltersRequest
+	(*GetCFiltersResponse)(nil),                                        // 183: walletrpc.GetCFiltersResponse
+	(*GetRawBlockRequest)(nil),                                         // 184: walletrpc.GetRawBlockRequest
+	(*GetRawBlockResponse)(nil),                                        // 185: walletrpc.GetRawBlockResponse
+	(*GetCoinjoinOutputspByAcctRequest)(nil),                           // 186: walletrpc.GetCoinjoinOutputspByAcctRequest
+	(*CoinjoinTxsSumByAcct)(nil),                                       // 187: walletrpc.coinjoinTxsSumByAcct
+	(*GetCoinjoinOutputspByAcctResponse)(nil),                          // 188: walletrpc.GetCoinjoinOutputspByAcctResponse
+	(*SetAccountPassphraseRequest)(nil),                                // 189: walletrpc.SetAccountPassphraseRequest
+	(*UnlockAccountRequest)(nil),                                       // 190: walletrpc.UnlockAccountRequest
+	(*LockAccountRequest)(nil),                                         // 191: walletrpc.LockAccountRequest
+	(*SetAccountPassphraseResponse)(nil),                               // 192: walletrpc.SetAccountPassphraseResponse
+	(*UnlockAccountResponse)(nil),                                      // 193: walletrpc.UnlockAccountResponse
+	(*LockAccountResponse)(nil),                                        // 194: walletrpc.LockAccountResponse
+	(*AccountUnlockedRequest)(nil),                                     // 195: walletrpc.AccountUnlockedRequest
+	(*AccountUnlockedResponse)(nil),                                    // 196: walletrpc.AccountUnlockedResponse
+	(*UnlockWalletRequest)(nil),                                        // 197: walletrpc.UnlockWalletRequest
+	(*UnlockWalletResponse)(nil),                                       // 198: walletrpc.UnlockWalletResponse
+	(*LockWalletRequest)(nil),                                          // 199: walletrpc.LockWalletRequest
+	(*LockWalletResponse)(nil),                                         // 200: walletrpc.LockWalletResponse
+	(*GetPeerInfoRequest)(nil),                                         // 201: walletrpc.GetPeerInfoRequest
+	(*GetPeerInfoResponse)(nil),                                        // 202: walletrpc.GetPeerInfoResponse
+	(*SyncVSPTicketsRequest)(nil),                                      // 203: walletrpc.SyncVSPTicketsRequest
+	(*SyncVSPTicketsResponse)(nil),                                     // 204: walletrpc.SyncVSPTicketsResponse
+	(*GetVSPTicketsByFeeStatusRequest)(nil),                            // 205: walletrpc.GetVSPTicketsByFeeStatusRequest
+	(*GetVSPTicketsByFeeStatusResponse)(nil),                           // 206: walletrpc.GetVSPTicketsByFeeStatusResponse
+	(*ProcessManagedTicketsRequest)(nil),                               // 207: walletrpc.ProcessManagedTicketsRequest
+	(*ProcessManagedTicketsResponse)(nil),                              // 208: walletrpc.ProcessManagedTicketsResponse
+	(*ProcessUnmanagedTicketsRequest)(nil),                             // 209: walletrpc.ProcessUnmanagedTicketsRequest
+	(*ProcessUnmanagedTicketsResponse)(nil),                            // 210: walletrpc.ProcessUnmanagedTicketsResponse
+	(*SetVspdVoteChoicesRequest)(nil),                                  // 211: walletrpc.SetVspdVoteChoicesRequest
+	(*SetVspdVoteChoicesResponse)(nil),                                 // 212: walletrpc.SetVspdVoteChoicesResponse
+	(*GetTrackedVSPTicketsRequest)(nil),                                // 213: walletrpc.GetTrackedVSPTicketsRequest
+	(*GetTrackedVSPTicketsResponse)(nil),                               // 214: walletrpc.GetTrackedVSPTicketsResponse
+	(*DiscoverUsageRequest)(nil),                                       // 215: walletrpc.DiscoverUsageRequest
+	(*DiscoverUsageResponse)(nil),                                      // 216: walletrpc.DiscoverUsageResponse
+	(*TransactionDetails_Input)(nil),                                   // 217: walletrpc.TransactionDetails.Input
+	(*TransactionDetails_Output)(nil),                                  // 218: walletrpc.TransactionDetails.Output
+	(*AccountsResponse_Account)(nil),                                   // 219: walletrpc.AccountsResponse.Account
+	(*GetTicketsResponse_TicketDetails)(nil),                           // 220: walletrpc.GetTicketsResponse.TicketDetails
+	(*GetTicketsResponse_BlockDetails)(nil),                            // 221: walletrpc.GetTicketsResponse.BlockDetails
+	(*FundTransactionResponse_PreviousOutput)(nil),                     // 222: walletrpc.FundTransactionResponse.PreviousOutput
+	(*ConstructTransactionRequest_OutputDestination)(nil),              // 223: walletrpc.ConstructTransactionRequest.OutputDestination
+	(*ConstructTransactionRequest_Output)(nil),                         // 224: walletrpc.ConstructTransactionRequest.Output
+	(*SignTransactionRequest_AdditionalScript)(nil),                    // 225: walletrpc.SignTransactionRequest.AdditionalScript
+	(*SignTransactionsRequest_AdditionalScript)(nil),                   // 226: walletrpc.SignTransactionsRequest.AdditionalScript
+	(*SignTransactionsRequest_UnsignedTransaction)(nil),                // 227: walletrpc.SignTransactionsRequest.UnsignedTransaction
+	(*SignTransactionsResponse_SignedTransaction)(nil),                 // 228: walletrpc.SignTransactionsResponse.SignedTransaction
+	(*SignMessagesRequest_Message)(nil),                                // 229: walletrpc.SignMessagesRequest.Message
+	(*SignMessagesResponse_SignReply)(nil),                             // 230: walletrpc.SignMessagesResponse.SignReply
+	(*ConfirmationNotificationsResponse_TransactionConfirmations)(nil), // 231: walletrpc.ConfirmationNotificationsResponse.TransactionConfirmations
+	(*AgendasResponse_Agenda)(nil),                                     // 232: walletrpc.AgendasResponse.Agenda
+	(*AgendasResponse_Choice)(nil),                                     // 233: walletrpc.AgendasResponse.Choice
+	(*VoteChoicesResponse_Choice)(nil),                                 // 234: walletrpc.VoteChoicesResponse.Choice
+	(*SetVoteChoicesRequest_Choice)(nil),                               // 235: walletrpc.SetVoteChoicesRequest.Choice
+	(*DecodedTransaction_Input)(nil),                                   // 236: walletrpc.DecodedTransaction.Input
+	(*DecodedTransaction_Output)(nil),                                  // 237: walletrpc.DecodedTransaction.Output
+	(*CommittedTicketsResponse_TicketAddress)(nil),                     // 238: walletrpc.CommittedTicketsResponse.TicketAddress
+	(*GetPeerInfoResponse_PeerInfo)(nil),                               // 239: walletrpc.GetPeerInfoResponse.PeerInfo
+	(*GetTrackedVSPTicketsResponse_Ticket)(nil),                        // 240: walletrpc.GetTrackedVSPTicketsResponse.Ticket
+	(*GetTrackedVSPTicketsResponse_VSP)(nil),                           // 241: walletrpc.GetTrackedVSPTicketsResponse.VSP
 }
 var file_api_proto_depIdxs = []int32{
-	215, // 0: walletrpc.TransactionDetails.debits:type_name -> walletrpc.TransactionDetails.Input
-	216, // 1: walletrpc.TransactionDetails.credits:type_name -> walletrpc.TransactionDetails.Output
+	217, // 0: walletrpc.TransactionDetails.debits:type_name -> walletrpc.TransactionDetails.Input
+	218, // 1: walletrpc.TransactionDetails.credits:type_name -> walletrpc.TransactionDetails.Output
 	1,   // 2: walletrpc.TransactionDetails.transaction_type:type_name -> walletrpc.TransactionDetails.TransactionType
 	14,  // 3: walletrpc.BlockDetails.transactions:type_name -> walletrpc.TransactionDetails
-	217, // 4: walletrpc.AccountsResponse.accounts:type_name -> walletrpc.AccountsResponse.Account
+	219, // 4: walletrpc.AccountsResponse.accounts:type_name -> walletrpc.AccountsResponse.Account
 	2,   // 5: walletrpc.NextAddressRequest.kind:type_name -> walletrpc.NextAddressRequest.Kind
 	3,   // 6: walletrpc.NextAddressRequest.gap_policy:type_name -> walletrpc.NextAddressRequest.GapPolicy
 	14,  // 7: walletrpc.GetTransactionResponse.transaction:type_name -> walletrpc.TransactionDetails
 	15,  // 8: walletrpc.GetTransactionsResponse.mined_transactions:type_name -> walletrpc.BlockDetails
 	14,  // 9: walletrpc.GetTransactionsResponse.unmined_transactions:type_name -> walletrpc.TransactionDetails
-	218, // 10: walletrpc.GetTicketsResponse.ticket:type_name -> walletrpc.GetTicketsResponse.TicketDetails
-	219, // 11: walletrpc.GetTicketsResponse.block:type_name -> walletrpc.GetTicketsResponse.BlockDetails
+	220, // 10: walletrpc.GetTicketsResponse.ticket:type_name -> walletrpc.GetTicketsResponse.TicketDetails
+	221, // 11: walletrpc.GetTicketsResponse.block:type_name -> walletrpc.GetTicketsResponse.BlockDetails
 	5,   // 12: walletrpc.ChangePassphraseRequest.key:type_name -> walletrpc.ChangePassphraseRequest.Key
-	220, // 13: walletrpc.FundTransactionResponse.selected_outputs:type_name -> walletrpc.FundTransactionResponse.PreviousOutput
+	222, // 13: walletrpc.FundTransactionResponse.selected_outputs:type_name -> walletrpc.FundTransactionResponse.PreviousOutput
 	6,   // 14: walletrpc.ConstructTransactionRequest.output_selection_algorithm:type_name -> walletrpc.ConstructTransactionRequest.OutputSelectionAlgorithm
-	222, // 15: walletrpc.ConstructTransactionRequest.non_change_outputs:type_name -> walletrpc.ConstructTransactionRequest.Output
-	221, // 16: walletrpc.ConstructTransactionRequest.change_destination:type_name -> walletrpc.ConstructTransactionRequest.OutputDestination
-	223, // 17: walletrpc.SignTransactionRequest.additional_scripts:type_name -> walletrpc.SignTransactionRequest.AdditionalScript
-	225, // 18: walletrpc.SignTransactionsRequest.transactions:type_name -> walletrpc.SignTransactionsRequest.UnsignedTransaction
-	224, // 19: walletrpc.SignTransactionsRequest.additional_scripts:type_name -> walletrpc.SignTransactionsRequest.AdditionalScript
-	226, // 20: walletrpc.SignTransactionsResponse.transactions:type_name -> walletrpc.SignTransactionsResponse.SignedTransaction
+	224, // 15: walletrpc.ConstructTransactionRequest.non_change_outputs:type_name -> walletrpc.ConstructTransactionRequest.Output
+	223, // 16: walletrpc.ConstructTransactionRequest.change_destination:type_name -> walletrpc.ConstructTransactionRequest.OutputDestination
+	225, // 17: walletrpc.SignTransactionRequest.additional_scripts:type_name -> walletrpc.SignTransactionRequest.AdditionalScript
+	227, // 18: walletrpc.SignTransactionsRequest.transactions:type_name -> walletrpc.SignTransactionsRequest.UnsignedTransaction
+	226, // 19: walletrpc.SignTransactionsRequest.additional_scripts:type_name -> walletrpc.SignTransactionsRequest.AdditionalScript
+	228, // 20: walletrpc.SignTransactionsResponse.transactions:type_name -> walletrpc.SignTransactionsResponse.SignedTransaction
 	7,   // 21: walletrpc.CreateSignatureRequest.hash_type:type_name -> walletrpc.CreateSignatureRequest.SigHashType
-	227, // 22: walletrpc.SignMessagesRequest.messages:type_name -> walletrpc.SignMessagesRequest.Message
-	228, // 23: walletrpc.SignMessagesResponse.replies:type_name -> walletrpc.SignMessagesResponse.SignReply
+	229, // 22: walletrpc.SignMessagesRequest.messages:type_name -> walletrpc.SignMessagesRequest.Message
+	230, // 23: walletrpc.SignMessagesResponse.replies:type_name -> walletrpc.SignMessagesResponse.SignReply
 	15,  // 24: walletrpc.TransactionNotificationsResponse.attached_blocks:type_name -> walletrpc.BlockDetails
 	14,  // 25: walletrpc.TransactionNotificationsResponse.unmined_transactions:type_name -> walletrpc.TransactionDetails
 	16,  // 26: walletrpc.TransactionNotificationsResponse.detached_block_headers:type_name -> walletrpc.DetachedBlockDetails
-	229, // 27: walletrpc.ConfirmationNotificationsResponse.confirmations:type_name -> walletrpc.ConfirmationNotificationsResponse.TransactionConfirmations
+	231, // 27: walletrpc.ConfirmationNotificationsResponse.confirmations:type_name -> walletrpc.ConfirmationNotificationsResponse.TransactionConfirmations
 	0,   // 28: walletrpc.RpcSyncResponse.notification_type:type_name -> walletrpc.SyncNotificationType
-	109, // 29: walletrpc.RpcSyncResponse.fetch_headers:type_name -> walletrpc.FetchHeadersNotification
-	110, // 30: walletrpc.RpcSyncResponse.fetch_missing_cfilters:type_name -> walletrpc.FetchMissingCFiltersNotification
-	111, // 31: walletrpc.RpcSyncResponse.rescan_progress:type_name -> walletrpc.RescanProgressNotification
-	112, // 32: walletrpc.RpcSyncResponse.peer_information:type_name -> walletrpc.PeerNotification
+	111, // 29: walletrpc.RpcSyncResponse.fetch_headers:type_name -> walletrpc.FetchHeadersNotification
+	112, // 30: walletrpc.RpcSyncResponse.fetch_missing_cfilters:type_name -> walletrpc.FetchMissingCFiltersNotification
+	113, // 31: walletrpc.RpcSyncResponse.rescan_progress:type_name -> walletrpc.RescanProgressNotification
+	114, // 32: walletrpc.RpcSyncResponse.peer_information:type_name -> walletrpc.PeerNotification
 	0,   // 33: walletrpc.SpvSyncResponse.notification_type:type_name -> walletrpc.SyncNotificationType
-	109, // 34: walletrpc.SpvSyncResponse.fetch_headers:type_name -> walletrpc.FetchHeadersNotification
-	110, // 35: walletrpc.SpvSyncResponse.fetch_missing_cfilters:type_name -> walletrpc.FetchMissingCFiltersNotification
-	111, // 36: walletrpc.SpvSyncResponse.rescan_progress:type_name -> walletrpc.RescanProgressNotification
-	112, // 37: walletrpc.SpvSyncResponse.peer_information:type_name -> walletrpc.PeerNotification
-	230, // 38: walletrpc.AgendasResponse.agendas:type_name -> walletrpc.AgendasResponse.Agenda
-	232, // 39: walletrpc.VoteChoicesResponse.choices:type_name -> walletrpc.VoteChoicesResponse.Choice
-	233, // 40: walletrpc.SetVoteChoicesRequest.choices:type_name -> walletrpc.SetVoteChoicesRequest.Choice
+	111, // 34: walletrpc.SpvSyncResponse.fetch_headers:type_name -> walletrpc.FetchHeadersNotification
+	112, // 35: walletrpc.SpvSyncResponse.fetch_missing_cfilters:type_name -> walletrpc.FetchMissingCFiltersNotification
+	113, // 36: walletrpc.SpvSyncResponse.rescan_progress:type_name -> walletrpc.RescanProgressNotification
+	114, // 37: walletrpc.SpvSyncResponse.peer_information:type_name -> walletrpc.PeerNotification
+	232, // 38: walletrpc.AgendasResponse.agendas:type_name -> walletrpc.AgendasResponse.Agenda
+	234, // 39: walletrpc.VoteChoicesResponse.choices:type_name -> walletrpc.VoteChoicesResponse.Choice
+	235, // 40: walletrpc.SetVoteChoicesRequest.choices:type_name -> walletrpc.SetVoteChoicesRequest.Choice
 	1,   // 41: walletrpc.DecodedTransaction.transaction_type:type_name -> walletrpc.TransactionDetails.TransactionType
-	234, // 42: walletrpc.DecodedTransaction.inputs:type_name -> walletrpc.DecodedTransaction.Input
-	235, // 43: walletrpc.DecodedTransaction.outputs:type_name -> walletrpc.DecodedTransaction.Output
-	159, // 44: walletrpc.DecodeRawTransactionResponse.transaction:type_name -> walletrpc.DecodedTransaction
+	236, // 42: walletrpc.DecodedTransaction.inputs:type_name -> walletrpc.DecodedTransaction.Input
+	237, // 43: walletrpc.DecodedTransaction.outputs:type_name -> walletrpc.DecodedTransaction.Output
+	161, // 44: walletrpc.DecodeRawTransactionResponse.transaction:type_name -> walletrpc.DecodedTransaction
 	10,  // 45: walletrpc.ValidateAddressResponse.script_type:type_name -> walletrpc.ValidateAddressResponse.ScriptType
-	236, // 46: walletrpc.CommittedTicketsResponse.ticketAddresses:type_name -> walletrpc.CommittedTicketsResponse.TicketAddress
-	185, // 47: walletrpc.GetCoinjoinOutputspByAcctResponse.data:type_name -> walletrpc.coinjoinTxsSumByAcct
-	237, // 48: walletrpc.GetPeerInfoResponse.peer_info:type_name -> walletrpc.GetPeerInfoResponse.PeerInfo
+	238, // 46: walletrpc.CommittedTicketsResponse.ticketAddresses:type_name -> walletrpc.CommittedTicketsResponse.TicketAddress
+	187, // 47: walletrpc.GetCoinjoinOutputspByAcctResponse.data:type_name -> walletrpc.coinjoinTxsSumByAcct
+	239, // 48: walletrpc.GetPeerInfoResponse.peer_info:type_name -> walletrpc.GetPeerInfoResponse.PeerInfo
 	11,  // 49: walletrpc.GetVSPTicketsByFeeStatusRequest.fee_status:type_name -> walletrpc.GetVSPTicketsByFeeStatusRequest.FeeStatus
-	239, // 50: walletrpc.GetTrackedVSPTicketsResponse.vsps:type_name -> walletrpc.GetTrackedVSPTicketsResponse.VSP
+	241, // 50: walletrpc.GetTrackedVSPTicketsResponse.vsps:type_name -> walletrpc.GetTrackedVSPTicketsResponse.VSP
 	14,  // 51: walletrpc.GetTicketsResponse.TicketDetails.ticket:type_name -> walletrpc.TransactionDetails
 	14,  // 52: walletrpc.GetTicketsResponse.TicketDetails.spender:type_name -> walletrpc.TransactionDetails
 	4,   // 53: walletrpc.GetTicketsResponse.TicketDetails.ticket_status:type_name -> walletrpc.GetTicketsResponse.TicketDetails.TicketStatus
-	221, // 54: walletrpc.ConstructTransactionRequest.Output.destination:type_name -> walletrpc.ConstructTransactionRequest.OutputDestination
-	231, // 55: walletrpc.AgendasResponse.Agenda.choices:type_name -> walletrpc.AgendasResponse.Choice
+	223, // 54: walletrpc.ConstructTransactionRequest.Output.destination:type_name -> walletrpc.ConstructTransactionRequest.OutputDestination
+	233, // 55: walletrpc.AgendasResponse.Agenda.choices:type_name -> walletrpc.AgendasResponse.Choice
 	8,   // 56: walletrpc.DecodedTransaction.Input.tree:type_name -> walletrpc.DecodedTransaction.Input.TreeType
 	9,   // 57: walletrpc.DecodedTransaction.Output.script_class:type_name -> walletrpc.DecodedTransaction.Output.ScriptClass
-	238, // 58: walletrpc.GetTrackedVSPTicketsResponse.VSP.tickets:type_name -> walletrpc.GetTrackedVSPTicketsResponse.Ticket
+	240, // 58: walletrpc.GetTrackedVSPTicketsResponse.VSP.tickets:type_name -> walletrpc.GetTrackedVSPTicketsResponse.Ticket
 	12,  // 59: walletrpc.VersionService.Version:input_type -> walletrpc.VersionRequest
 	18,  // 60: walletrpc.WalletService.Ping:input_type -> walletrpc.PingRequest
 	20,  // 61: walletrpc.WalletService.Network:input_type -> walletrpc.NetworkRequest
@@ -16510,8 +16607,8 @@ var file_api_proto_depIdxs = []int32{
 	24,  // 63: walletrpc.WalletService.AccountNumber:input_type -> walletrpc.AccountNumberRequest
 	26,  // 64: walletrpc.WalletService.Accounts:input_type -> walletrpc.AccountsRequest
 	40,  // 65: walletrpc.WalletService.Balance:input_type -> walletrpc.BalanceRequest
-	165, // 66: walletrpc.WalletService.GetAccountExtendedPubKey:input_type -> walletrpc.GetAccountExtendedPubKeyRequest
-	167, // 67: walletrpc.WalletService.GetAccountExtendedPrivKey:input_type -> walletrpc.GetAccountExtendedPrivKeyRequest
+	167, // 66: walletrpc.WalletService.GetAccountExtendedPubKey:input_type -> walletrpc.GetAccountExtendedPubKeyRequest
+	169, // 67: walletrpc.WalletService.GetAccountExtendedPrivKey:input_type -> walletrpc.GetAccountExtendedPrivKeyRequest
 	42,  // 68: walletrpc.WalletService.GetTransaction:input_type -> walletrpc.GetTransactionRequest
 	44,  // 69: walletrpc.WalletService.GetTransactions:input_type -> walletrpc.GetTransactionsRequest
 	46,  // 70: walletrpc.WalletService.GetTicket:input_type -> walletrpc.GetTicketRequest
@@ -16519,13 +16616,13 @@ var file_api_proto_depIdxs = []int32{
 	49,  // 72: walletrpc.WalletService.TicketPrice:input_type -> walletrpc.TicketPriceRequest
 	51,  // 73: walletrpc.WalletService.StakeInfo:input_type -> walletrpc.StakeInfoRequest
 	53,  // 74: walletrpc.WalletService.BlockInfo:input_type -> walletrpc.BlockInfoRequest
-	170, // 75: walletrpc.WalletService.BestBlock:input_type -> walletrpc.BestBlockRequest
-	178, // 76: walletrpc.WalletService.Spender:input_type -> walletrpc.SpenderRequest
-	180, // 77: walletrpc.WalletService.GetCFilters:input_type -> walletrpc.GetCFiltersRequest
-	199, // 78: walletrpc.WalletService.GetPeerInfo:input_type -> walletrpc.GetPeerInfoRequest
-	83,  // 79: walletrpc.WalletService.TransactionNotifications:input_type -> walletrpc.TransactionNotificationsRequest
-	85,  // 80: walletrpc.WalletService.AccountNotifications:input_type -> walletrpc.AccountNotificationsRequest
-	87,  // 81: walletrpc.WalletService.ConfirmationNotifications:input_type -> walletrpc.ConfirmationNotificationsRequest
+	172, // 75: walletrpc.WalletService.BestBlock:input_type -> walletrpc.BestBlockRequest
+	180, // 76: walletrpc.WalletService.Spender:input_type -> walletrpc.SpenderRequest
+	182, // 77: walletrpc.WalletService.GetCFilters:input_type -> walletrpc.GetCFiltersRequest
+	201, // 78: walletrpc.WalletService.GetPeerInfo:input_type -> walletrpc.GetPeerInfoRequest
+	85,  // 79: walletrpc.WalletService.TransactionNotifications:input_type -> walletrpc.TransactionNotificationsRequest
+	87,  // 80: walletrpc.WalletService.AccountNotifications:input_type -> walletrpc.AccountNotificationsRequest
+	89,  // 81: walletrpc.WalletService.ConfirmationNotifications:input_type -> walletrpc.ConfirmationNotificationsRequest
 	55,  // 82: walletrpc.WalletService.ChangePassphrase:input_type -> walletrpc.ChangePassphraseRequest
 	28,  // 83: walletrpc.WalletService.RenameAccount:input_type -> walletrpc.RenameAccountRequest
 	30,  // 84: walletrpc.WalletService.Rescan:input_type -> walletrpc.RescanRequest
@@ -16542,153 +16639,155 @@ var file_api_proto_depIdxs = []int32{
 	69,  // 95: walletrpc.WalletService.PublishTransaction:input_type -> walletrpc.PublishTransactionRequest
 	71,  // 96: walletrpc.WalletService.PublishUnminedTransactions:input_type -> walletrpc.PublishUnminedTransactionsRequest
 	73,  // 97: walletrpc.WalletService.PurchaseTickets:input_type -> walletrpc.PurchaseTicketsRequest
-	75,  // 98: walletrpc.WalletService.RevokeTickets:input_type -> walletrpc.RevokeTicketsRequest
-	77,  // 99: walletrpc.WalletService.LoadActiveDataFilters:input_type -> walletrpc.LoadActiveDataFiltersRequest
-	79,  // 100: walletrpc.WalletService.SignMessage:input_type -> walletrpc.SignMessageRequest
-	81,  // 101: walletrpc.WalletService.SignMessages:input_type -> walletrpc.SignMessagesRequest
-	162, // 102: walletrpc.WalletService.ValidateAddress:input_type -> walletrpc.ValidateAddressRequest
-	164, // 103: walletrpc.WalletService.CommittedTickets:input_type -> walletrpc.CommittedTicketsRequest
-	172, // 104: walletrpc.WalletService.SweepAccount:input_type -> walletrpc.SweepAccountRequest
-	174, // 105: walletrpc.WalletService.AbandonTransaction:input_type -> walletrpc.AbandonTransactionRequest
-	176, // 106: walletrpc.WalletService.SignHashes:input_type -> walletrpc.SignHashesRequest
-	184, // 107: walletrpc.WalletService.GetCoinjoinOutputspByAcct:input_type -> walletrpc.GetCoinjoinOutputspByAcctRequest
-	187, // 108: walletrpc.WalletService.SetAccountPassphrase:input_type -> walletrpc.SetAccountPassphraseRequest
-	188, // 109: walletrpc.WalletService.UnlockAccount:input_type -> walletrpc.UnlockAccountRequest
-	189, // 110: walletrpc.WalletService.LockAccount:input_type -> walletrpc.LockAccountRequest
-	195, // 111: walletrpc.WalletService.UnlockWallet:input_type -> walletrpc.UnlockWalletRequest
-	197, // 112: walletrpc.WalletService.LockWallet:input_type -> walletrpc.LockWalletRequest
-	193, // 113: walletrpc.WalletService.AccountUnlocked:input_type -> walletrpc.AccountUnlockedRequest
-	201, // 114: walletrpc.WalletService.SyncVSPFailedTickets:input_type -> walletrpc.SyncVSPTicketsRequest
-	203, // 115: walletrpc.WalletService.GetVSPTicketsByFeeStatus:input_type -> walletrpc.GetVSPTicketsByFeeStatusRequest
-	205, // 116: walletrpc.WalletService.ProcessManagedTickets:input_type -> walletrpc.ProcessManagedTicketsRequest
-	207, // 117: walletrpc.WalletService.ProcessUnmanagedTickets:input_type -> walletrpc.ProcessUnmanagedTicketsRequest
-	209, // 118: walletrpc.WalletService.SetVspdVoteChoices:input_type -> walletrpc.SetVspdVoteChoicesRequest
-	211, // 119: walletrpc.WalletService.GetTrackedVSPTickets:input_type -> walletrpc.GetTrackedVSPTicketsRequest
-	213, // 120: walletrpc.WalletService.DiscoverUsage:input_type -> walletrpc.DiscoverUsageRequest
-	97,  // 121: walletrpc.WalletLoaderService.WalletExists:input_type -> walletrpc.WalletExistsRequest
-	89,  // 122: walletrpc.WalletLoaderService.CreateWallet:input_type -> walletrpc.CreateWalletRequest
-	91,  // 123: walletrpc.WalletLoaderService.CreateWatchingOnlyWallet:input_type -> walletrpc.CreateWatchingOnlyWalletRequest
-	93,  // 124: walletrpc.WalletLoaderService.OpenWallet:input_type -> walletrpc.OpenWalletRequest
-	95,  // 125: walletrpc.WalletLoaderService.CloseWallet:input_type -> walletrpc.CloseWalletRequest
-	115, // 126: walletrpc.WalletLoaderService.SpvSync:input_type -> walletrpc.SpvSyncRequest
-	113, // 127: walletrpc.WalletLoaderService.RpcSync:input_type -> walletrpc.RpcSyncRequest
-	117, // 128: walletrpc.WalletLoaderService.RescanPoint:input_type -> walletrpc.RescanPointRequest
-	125, // 129: walletrpc.AccountMixerService.RunAccountMixer:input_type -> walletrpc.RunAccountMixerRequest
-	123, // 130: walletrpc.TicketBuyerV2Service.RunTicketBuyer:input_type -> walletrpc.RunTicketBuyerRequest
-	127, // 131: walletrpc.TicketBuyerService.StartAutoBuyer:input_type -> walletrpc.StartAutoBuyerRequest
-	129, // 132: walletrpc.TicketBuyerService.StopAutoBuyer:input_type -> walletrpc.StopAutoBuyerRequest
-	131, // 133: walletrpc.TicketBuyerService.TicketBuyerConfig:input_type -> walletrpc.TicketBuyerConfigRequest
-	133, // 134: walletrpc.TicketBuyerService.SetAccount:input_type -> walletrpc.SetAccountRequest
-	135, // 135: walletrpc.TicketBuyerService.SetBalanceToMaintain:input_type -> walletrpc.SetBalanceToMaintainRequest
-	137, // 136: walletrpc.TicketBuyerService.SetMaxFee:input_type -> walletrpc.SetMaxFeeRequest
-	139, // 137: walletrpc.TicketBuyerService.SetMaxPriceRelative:input_type -> walletrpc.SetMaxPriceRelativeRequest
-	141, // 138: walletrpc.TicketBuyerService.SetMaxPriceAbsolute:input_type -> walletrpc.SetMaxPriceAbsoluteRequest
-	143, // 139: walletrpc.TicketBuyerService.SetVotingAddress:input_type -> walletrpc.SetVotingAddressRequest
-	145, // 140: walletrpc.TicketBuyerService.SetPoolAddress:input_type -> walletrpc.SetPoolAddressRequest
-	147, // 141: walletrpc.TicketBuyerService.SetPoolFees:input_type -> walletrpc.SetPoolFeesRequest
-	149, // 142: walletrpc.TicketBuyerService.SetMaxPerBlock:input_type -> walletrpc.SetMaxPerBlockRequest
-	119, // 143: walletrpc.SeedService.GenerateRandomSeed:input_type -> walletrpc.GenerateRandomSeedRequest
-	121, // 144: walletrpc.SeedService.DecodeSeed:input_type -> walletrpc.DecodeSeedRequest
-	151, // 145: walletrpc.AgendaService.Agendas:input_type -> walletrpc.AgendasRequest
-	153, // 146: walletrpc.VotingService.VoteChoices:input_type -> walletrpc.VoteChoicesRequest
-	155, // 147: walletrpc.VotingService.SetVoteChoices:input_type -> walletrpc.SetVoteChoicesRequest
-	157, // 148: walletrpc.MessageVerificationService.VerifyMessage:input_type -> walletrpc.VerifyMessageRequest
-	182, // 149: walletrpc.NetworkService.GetRawBlock:input_type -> walletrpc.GetRawBlockRequest
-	160, // 150: walletrpc.DecodeMessageService.DecodeRawTransaction:input_type -> walletrpc.DecodeRawTransactionRequest
-	13,  // 151: walletrpc.VersionService.Version:output_type -> walletrpc.VersionResponse
-	19,  // 152: walletrpc.WalletService.Ping:output_type -> walletrpc.PingResponse
-	21,  // 153: walletrpc.WalletService.Network:output_type -> walletrpc.NetworkResponse
-	23,  // 154: walletrpc.WalletService.CoinType:output_type -> walletrpc.CoinTypeResponse
-	25,  // 155: walletrpc.WalletService.AccountNumber:output_type -> walletrpc.AccountNumberResponse
-	27,  // 156: walletrpc.WalletService.Accounts:output_type -> walletrpc.AccountsResponse
-	41,  // 157: walletrpc.WalletService.Balance:output_type -> walletrpc.BalanceResponse
-	166, // 158: walletrpc.WalletService.GetAccountExtendedPubKey:output_type -> walletrpc.GetAccountExtendedPubKeyResponse
-	168, // 159: walletrpc.WalletService.GetAccountExtendedPrivKey:output_type -> walletrpc.GetAccountExtendedPrivKeyResponse
-	43,  // 160: walletrpc.WalletService.GetTransaction:output_type -> walletrpc.GetTransactionResponse
-	45,  // 161: walletrpc.WalletService.GetTransactions:output_type -> walletrpc.GetTransactionsResponse
-	48,  // 162: walletrpc.WalletService.GetTicket:output_type -> walletrpc.GetTicketsResponse
-	48,  // 163: walletrpc.WalletService.GetTickets:output_type -> walletrpc.GetTicketsResponse
-	50,  // 164: walletrpc.WalletService.TicketPrice:output_type -> walletrpc.TicketPriceResponse
-	52,  // 165: walletrpc.WalletService.StakeInfo:output_type -> walletrpc.StakeInfoResponse
-	54,  // 166: walletrpc.WalletService.BlockInfo:output_type -> walletrpc.BlockInfoResponse
-	171, // 167: walletrpc.WalletService.BestBlock:output_type -> walletrpc.BestBlockResponse
-	179, // 168: walletrpc.WalletService.Spender:output_type -> walletrpc.SpenderResponse
-	181, // 169: walletrpc.WalletService.GetCFilters:output_type -> walletrpc.GetCFiltersResponse
-	200, // 170: walletrpc.WalletService.GetPeerInfo:output_type -> walletrpc.GetPeerInfoResponse
-	84,  // 171: walletrpc.WalletService.TransactionNotifications:output_type -> walletrpc.TransactionNotificationsResponse
-	86,  // 172: walletrpc.WalletService.AccountNotifications:output_type -> walletrpc.AccountNotificationsResponse
-	88,  // 173: walletrpc.WalletService.ConfirmationNotifications:output_type -> walletrpc.ConfirmationNotificationsResponse
-	56,  // 174: walletrpc.WalletService.ChangePassphrase:output_type -> walletrpc.ChangePassphraseResponse
-	29,  // 175: walletrpc.WalletService.RenameAccount:output_type -> walletrpc.RenameAccountResponse
-	31,  // 176: walletrpc.WalletService.Rescan:output_type -> walletrpc.RescanResponse
-	33,  // 177: walletrpc.WalletService.NextAccount:output_type -> walletrpc.NextAccountResponse
-	35,  // 178: walletrpc.WalletService.NextAddress:output_type -> walletrpc.NextAddressResponse
-	37,  // 179: walletrpc.WalletService.ImportPrivateKey:output_type -> walletrpc.ImportPrivateKeyResponse
-	39,  // 180: walletrpc.WalletService.ImportScript:output_type -> walletrpc.ImportScriptResponse
-	58,  // 181: walletrpc.WalletService.FundTransaction:output_type -> walletrpc.FundTransactionResponse
-	60,  // 182: walletrpc.WalletService.UnspentOutputs:output_type -> walletrpc.UnspentOutputResponse
-	62,  // 183: walletrpc.WalletService.ConstructTransaction:output_type -> walletrpc.ConstructTransactionResponse
-	64,  // 184: walletrpc.WalletService.SignTransaction:output_type -> walletrpc.SignTransactionResponse
-	66,  // 185: walletrpc.WalletService.SignTransactions:output_type -> walletrpc.SignTransactionsResponse
-	68,  // 186: walletrpc.WalletService.CreateSignature:output_type -> walletrpc.CreateSignatureResponse
-	70,  // 187: walletrpc.WalletService.PublishTransaction:output_type -> walletrpc.PublishTransactionResponse
-	72,  // 188: walletrpc.WalletService.PublishUnminedTransactions:output_type -> walletrpc.PublishUnminedTransactionsResponse
-	74,  // 189: walletrpc.WalletService.PurchaseTickets:output_type -> walletrpc.PurchaseTicketsResponse
-	76,  // 190: walletrpc.WalletService.RevokeTickets:output_type -> walletrpc.RevokeTicketsResponse
-	78,  // 191: walletrpc.WalletService.LoadActiveDataFilters:output_type -> walletrpc.LoadActiveDataFiltersResponse
-	80,  // 192: walletrpc.WalletService.SignMessage:output_type -> walletrpc.SignMessageResponse
-	82,  // 193: walletrpc.WalletService.SignMessages:output_type -> walletrpc.SignMessagesResponse
-	163, // 194: walletrpc.WalletService.ValidateAddress:output_type -> walletrpc.ValidateAddressResponse
-	169, // 195: walletrpc.WalletService.CommittedTickets:output_type -> walletrpc.CommittedTicketsResponse
-	173, // 196: walletrpc.WalletService.SweepAccount:output_type -> walletrpc.SweepAccountResponse
-	175, // 197: walletrpc.WalletService.AbandonTransaction:output_type -> walletrpc.AbandonTransactionResponse
-	177, // 198: walletrpc.WalletService.SignHashes:output_type -> walletrpc.SignHashesResponse
-	186, // 199: walletrpc.WalletService.GetCoinjoinOutputspByAcct:output_type -> walletrpc.GetCoinjoinOutputspByAcctResponse
-	190, // 200: walletrpc.WalletService.SetAccountPassphrase:output_type -> walletrpc.SetAccountPassphraseResponse
-	191, // 201: walletrpc.WalletService.UnlockAccount:output_type -> walletrpc.UnlockAccountResponse
-	192, // 202: walletrpc.WalletService.LockAccount:output_type -> walletrpc.LockAccountResponse
-	196, // 203: walletrpc.WalletService.UnlockWallet:output_type -> walletrpc.UnlockWalletResponse
-	198, // 204: walletrpc.WalletService.LockWallet:output_type -> walletrpc.LockWalletResponse
-	194, // 205: walletrpc.WalletService.AccountUnlocked:output_type -> walletrpc.AccountUnlockedResponse
-	202, // 206: walletrpc.WalletService.SyncVSPFailedTickets:output_type -> walletrpc.SyncVSPTicketsResponse
-	204, // 207: walletrpc.WalletService.GetVSPTicketsByFeeStatus:output_type -> walletrpc.GetVSPTicketsByFeeStatusResponse
-	206, // 208: walletrpc.WalletService.ProcessManagedTickets:output_type -> walletrpc.ProcessManagedTicketsResponse
-	208, // 209: walletrpc.WalletService.ProcessUnmanagedTickets:output_type -> walletrpc.ProcessUnmanagedTicketsResponse
-	210, // 210: walletrpc.WalletService.SetVspdVoteChoices:output_type -> walletrpc.SetVspdVoteChoicesResponse
-	212, // 211: walletrpc.WalletService.GetTrackedVSPTickets:output_type -> walletrpc.GetTrackedVSPTicketsResponse
-	214, // 212: walletrpc.WalletService.DiscoverUsage:output_type -> walletrpc.DiscoverUsageResponse
-	98,  // 213: walletrpc.WalletLoaderService.WalletExists:output_type -> walletrpc.WalletExistsResponse
-	90,  // 214: walletrpc.WalletLoaderService.CreateWallet:output_type -> walletrpc.CreateWalletResponse
-	92,  // 215: walletrpc.WalletLoaderService.CreateWatchingOnlyWallet:output_type -> walletrpc.CreateWatchingOnlyWalletResponse
-	94,  // 216: walletrpc.WalletLoaderService.OpenWallet:output_type -> walletrpc.OpenWalletResponse
-	96,  // 217: walletrpc.WalletLoaderService.CloseWallet:output_type -> walletrpc.CloseWalletResponse
-	116, // 218: walletrpc.WalletLoaderService.SpvSync:output_type -> walletrpc.SpvSyncResponse
-	114, // 219: walletrpc.WalletLoaderService.RpcSync:output_type -> walletrpc.RpcSyncResponse
-	118, // 220: walletrpc.WalletLoaderService.RescanPoint:output_type -> walletrpc.RescanPointResponse
-	126, // 221: walletrpc.AccountMixerService.RunAccountMixer:output_type -> walletrpc.RunAccountMixerResponse
-	124, // 222: walletrpc.TicketBuyerV2Service.RunTicketBuyer:output_type -> walletrpc.RunTicketBuyerResponse
-	128, // 223: walletrpc.TicketBuyerService.StartAutoBuyer:output_type -> walletrpc.StartAutoBuyerResponse
-	130, // 224: walletrpc.TicketBuyerService.StopAutoBuyer:output_type -> walletrpc.StopAutoBuyerResponse
-	132, // 225: walletrpc.TicketBuyerService.TicketBuyerConfig:output_type -> walletrpc.TicketBuyerConfigResponse
-	134, // 226: walletrpc.TicketBuyerService.SetAccount:output_type -> walletrpc.SetAccountResponse
-	136, // 227: walletrpc.TicketBuyerService.SetBalanceToMaintain:output_type -> walletrpc.SetBalanceToMaintainResponse
-	138, // 228: walletrpc.TicketBuyerService.SetMaxFee:output_type -> walletrpc.SetMaxFeeResponse
-	140, // 229: walletrpc.TicketBuyerService.SetMaxPriceRelative:output_type -> walletrpc.SetMaxPriceRelativeResponse
-	142, // 230: walletrpc.TicketBuyerService.SetMaxPriceAbsolute:output_type -> walletrpc.SetMaxPriceAbsoluteResponse
-	144, // 231: walletrpc.TicketBuyerService.SetVotingAddress:output_type -> walletrpc.SetVotingAddressResponse
-	146, // 232: walletrpc.TicketBuyerService.SetPoolAddress:output_type -> walletrpc.SetPoolAddressResponse
-	148, // 233: walletrpc.TicketBuyerService.SetPoolFees:output_type -> walletrpc.SetPoolFeesResponse
-	150, // 234: walletrpc.TicketBuyerService.SetMaxPerBlock:output_type -> walletrpc.SetMaxPerBlockResponse
-	120, // 235: walletrpc.SeedService.GenerateRandomSeed:output_type -> walletrpc.GenerateRandomSeedResponse
-	122, // 236: walletrpc.SeedService.DecodeSeed:output_type -> walletrpc.DecodeSeedResponse
-	152, // 237: walletrpc.AgendaService.Agendas:output_type -> walletrpc.AgendasResponse
-	154, // 238: walletrpc.VotingService.VoteChoices:output_type -> walletrpc.VoteChoicesResponse
-	156, // 239: walletrpc.VotingService.SetVoteChoices:output_type -> walletrpc.SetVoteChoicesResponse
-	158, // 240: walletrpc.MessageVerificationService.VerifyMessage:output_type -> walletrpc.VerifyMessageResponse
-	183, // 241: walletrpc.NetworkService.GetRawBlock:output_type -> walletrpc.GetRawBlockResponse
-	161, // 242: walletrpc.DecodeMessageService.DecodeRawTransaction:output_type -> walletrpc.DecodeRawTransactionResponse
-	151, // [151:243] is the sub-list for method output_type
-	59,  // [59:151] is the sub-list for method input_type
+	75,  // 98: walletrpc.WalletService.RevokeTicket:input_type -> walletrpc.RevokeTicketRequest
+	77,  // 99: walletrpc.WalletService.RevokeTickets:input_type -> walletrpc.RevokeTicketsRequest
+	79,  // 100: walletrpc.WalletService.LoadActiveDataFilters:input_type -> walletrpc.LoadActiveDataFiltersRequest
+	81,  // 101: walletrpc.WalletService.SignMessage:input_type -> walletrpc.SignMessageRequest
+	83,  // 102: walletrpc.WalletService.SignMessages:input_type -> walletrpc.SignMessagesRequest
+	164, // 103: walletrpc.WalletService.ValidateAddress:input_type -> walletrpc.ValidateAddressRequest
+	166, // 104: walletrpc.WalletService.CommittedTickets:input_type -> walletrpc.CommittedTicketsRequest
+	174, // 105: walletrpc.WalletService.SweepAccount:input_type -> walletrpc.SweepAccountRequest
+	176, // 106: walletrpc.WalletService.AbandonTransaction:input_type -> walletrpc.AbandonTransactionRequest
+	178, // 107: walletrpc.WalletService.SignHashes:input_type -> walletrpc.SignHashesRequest
+	186, // 108: walletrpc.WalletService.GetCoinjoinOutputspByAcct:input_type -> walletrpc.GetCoinjoinOutputspByAcctRequest
+	189, // 109: walletrpc.WalletService.SetAccountPassphrase:input_type -> walletrpc.SetAccountPassphraseRequest
+	190, // 110: walletrpc.WalletService.UnlockAccount:input_type -> walletrpc.UnlockAccountRequest
+	191, // 111: walletrpc.WalletService.LockAccount:input_type -> walletrpc.LockAccountRequest
+	197, // 112: walletrpc.WalletService.UnlockWallet:input_type -> walletrpc.UnlockWalletRequest
+	199, // 113: walletrpc.WalletService.LockWallet:input_type -> walletrpc.LockWalletRequest
+	195, // 114: walletrpc.WalletService.AccountUnlocked:input_type -> walletrpc.AccountUnlockedRequest
+	203, // 115: walletrpc.WalletService.SyncVSPFailedTickets:input_type -> walletrpc.SyncVSPTicketsRequest
+	205, // 116: walletrpc.WalletService.GetVSPTicketsByFeeStatus:input_type -> walletrpc.GetVSPTicketsByFeeStatusRequest
+	207, // 117: walletrpc.WalletService.ProcessManagedTickets:input_type -> walletrpc.ProcessManagedTicketsRequest
+	209, // 118: walletrpc.WalletService.ProcessUnmanagedTickets:input_type -> walletrpc.ProcessUnmanagedTicketsRequest
+	211, // 119: walletrpc.WalletService.SetVspdVoteChoices:input_type -> walletrpc.SetVspdVoteChoicesRequest
+	213, // 120: walletrpc.WalletService.GetTrackedVSPTickets:input_type -> walletrpc.GetTrackedVSPTicketsRequest
+	215, // 121: walletrpc.WalletService.DiscoverUsage:input_type -> walletrpc.DiscoverUsageRequest
+	99,  // 122: walletrpc.WalletLoaderService.WalletExists:input_type -> walletrpc.WalletExistsRequest
+	91,  // 123: walletrpc.WalletLoaderService.CreateWallet:input_type -> walletrpc.CreateWalletRequest
+	93,  // 124: walletrpc.WalletLoaderService.CreateWatchingOnlyWallet:input_type -> walletrpc.CreateWatchingOnlyWalletRequest
+	95,  // 125: walletrpc.WalletLoaderService.OpenWallet:input_type -> walletrpc.OpenWalletRequest
+	97,  // 126: walletrpc.WalletLoaderService.CloseWallet:input_type -> walletrpc.CloseWalletRequest
+	117, // 127: walletrpc.WalletLoaderService.SpvSync:input_type -> walletrpc.SpvSyncRequest
+	115, // 128: walletrpc.WalletLoaderService.RpcSync:input_type -> walletrpc.RpcSyncRequest
+	119, // 129: walletrpc.WalletLoaderService.RescanPoint:input_type -> walletrpc.RescanPointRequest
+	127, // 130: walletrpc.AccountMixerService.RunAccountMixer:input_type -> walletrpc.RunAccountMixerRequest
+	125, // 131: walletrpc.TicketBuyerV2Service.RunTicketBuyer:input_type -> walletrpc.RunTicketBuyerRequest
+	129, // 132: walletrpc.TicketBuyerService.StartAutoBuyer:input_type -> walletrpc.StartAutoBuyerRequest
+	131, // 133: walletrpc.TicketBuyerService.StopAutoBuyer:input_type -> walletrpc.StopAutoBuyerRequest
+	133, // 134: walletrpc.TicketBuyerService.TicketBuyerConfig:input_type -> walletrpc.TicketBuyerConfigRequest
+	135, // 135: walletrpc.TicketBuyerService.SetAccount:input_type -> walletrpc.SetAccountRequest
+	137, // 136: walletrpc.TicketBuyerService.SetBalanceToMaintain:input_type -> walletrpc.SetBalanceToMaintainRequest
+	139, // 137: walletrpc.TicketBuyerService.SetMaxFee:input_type -> walletrpc.SetMaxFeeRequest
+	141, // 138: walletrpc.TicketBuyerService.SetMaxPriceRelative:input_type -> walletrpc.SetMaxPriceRelativeRequest
+	143, // 139: walletrpc.TicketBuyerService.SetMaxPriceAbsolute:input_type -> walletrpc.SetMaxPriceAbsoluteRequest
+	145, // 140: walletrpc.TicketBuyerService.SetVotingAddress:input_type -> walletrpc.SetVotingAddressRequest
+	147, // 141: walletrpc.TicketBuyerService.SetPoolAddress:input_type -> walletrpc.SetPoolAddressRequest
+	149, // 142: walletrpc.TicketBuyerService.SetPoolFees:input_type -> walletrpc.SetPoolFeesRequest
+	151, // 143: walletrpc.TicketBuyerService.SetMaxPerBlock:input_type -> walletrpc.SetMaxPerBlockRequest
+	121, // 144: walletrpc.SeedService.GenerateRandomSeed:input_type -> walletrpc.GenerateRandomSeedRequest
+	123, // 145: walletrpc.SeedService.DecodeSeed:input_type -> walletrpc.DecodeSeedRequest
+	153, // 146: walletrpc.AgendaService.Agendas:input_type -> walletrpc.AgendasRequest
+	155, // 147: walletrpc.VotingService.VoteChoices:input_type -> walletrpc.VoteChoicesRequest
+	157, // 148: walletrpc.VotingService.SetVoteChoices:input_type -> walletrpc.SetVoteChoicesRequest
+	159, // 149: walletrpc.MessageVerificationService.VerifyMessage:input_type -> walletrpc.VerifyMessageRequest
+	184, // 150: walletrpc.NetworkService.GetRawBlock:input_type -> walletrpc.GetRawBlockRequest
+	162, // 151: walletrpc.DecodeMessageService.DecodeRawTransaction:input_type -> walletrpc.DecodeRawTransactionRequest
+	13,  // 152: walletrpc.VersionService.Version:output_type -> walletrpc.VersionResponse
+	19,  // 153: walletrpc.WalletService.Ping:output_type -> walletrpc.PingResponse
+	21,  // 154: walletrpc.WalletService.Network:output_type -> walletrpc.NetworkResponse
+	23,  // 155: walletrpc.WalletService.CoinType:output_type -> walletrpc.CoinTypeResponse
+	25,  // 156: walletrpc.WalletService.AccountNumber:output_type -> walletrpc.AccountNumberResponse
+	27,  // 157: walletrpc.WalletService.Accounts:output_type -> walletrpc.AccountsResponse
+	41,  // 158: walletrpc.WalletService.Balance:output_type -> walletrpc.BalanceResponse
+	168, // 159: walletrpc.WalletService.GetAccountExtendedPubKey:output_type -> walletrpc.GetAccountExtendedPubKeyResponse
+	170, // 160: walletrpc.WalletService.GetAccountExtendedPrivKey:output_type -> walletrpc.GetAccountExtendedPrivKeyResponse
+	43,  // 161: walletrpc.WalletService.GetTransaction:output_type -> walletrpc.GetTransactionResponse
+	45,  // 162: walletrpc.WalletService.GetTransactions:output_type -> walletrpc.GetTransactionsResponse
+	48,  // 163: walletrpc.WalletService.GetTicket:output_type -> walletrpc.GetTicketsResponse
+	48,  // 164: walletrpc.WalletService.GetTickets:output_type -> walletrpc.GetTicketsResponse
+	50,  // 165: walletrpc.WalletService.TicketPrice:output_type -> walletrpc.TicketPriceResponse
+	52,  // 166: walletrpc.WalletService.StakeInfo:output_type -> walletrpc.StakeInfoResponse
+	54,  // 167: walletrpc.WalletService.BlockInfo:output_type -> walletrpc.BlockInfoResponse
+	173, // 168: walletrpc.WalletService.BestBlock:output_type -> walletrpc.BestBlockResponse
+	181, // 169: walletrpc.WalletService.Spender:output_type -> walletrpc.SpenderResponse
+	183, // 170: walletrpc.WalletService.GetCFilters:output_type -> walletrpc.GetCFiltersResponse
+	202, // 171: walletrpc.WalletService.GetPeerInfo:output_type -> walletrpc.GetPeerInfoResponse
+	86,  // 172: walletrpc.WalletService.TransactionNotifications:output_type -> walletrpc.TransactionNotificationsResponse
+	88,  // 173: walletrpc.WalletService.AccountNotifications:output_type -> walletrpc.AccountNotificationsResponse
+	90,  // 174: walletrpc.WalletService.ConfirmationNotifications:output_type -> walletrpc.ConfirmationNotificationsResponse
+	56,  // 175: walletrpc.WalletService.ChangePassphrase:output_type -> walletrpc.ChangePassphraseResponse
+	29,  // 176: walletrpc.WalletService.RenameAccount:output_type -> walletrpc.RenameAccountResponse
+	31,  // 177: walletrpc.WalletService.Rescan:output_type -> walletrpc.RescanResponse
+	33,  // 178: walletrpc.WalletService.NextAccount:output_type -> walletrpc.NextAccountResponse
+	35,  // 179: walletrpc.WalletService.NextAddress:output_type -> walletrpc.NextAddressResponse
+	37,  // 180: walletrpc.WalletService.ImportPrivateKey:output_type -> walletrpc.ImportPrivateKeyResponse
+	39,  // 181: walletrpc.WalletService.ImportScript:output_type -> walletrpc.ImportScriptResponse
+	58,  // 182: walletrpc.WalletService.FundTransaction:output_type -> walletrpc.FundTransactionResponse
+	60,  // 183: walletrpc.WalletService.UnspentOutputs:output_type -> walletrpc.UnspentOutputResponse
+	62,  // 184: walletrpc.WalletService.ConstructTransaction:output_type -> walletrpc.ConstructTransactionResponse
+	64,  // 185: walletrpc.WalletService.SignTransaction:output_type -> walletrpc.SignTransactionResponse
+	66,  // 186: walletrpc.WalletService.SignTransactions:output_type -> walletrpc.SignTransactionsResponse
+	68,  // 187: walletrpc.WalletService.CreateSignature:output_type -> walletrpc.CreateSignatureResponse
+	70,  // 188: walletrpc.WalletService.PublishTransaction:output_type -> walletrpc.PublishTransactionResponse
+	72,  // 189: walletrpc.WalletService.PublishUnminedTransactions:output_type -> walletrpc.PublishUnminedTransactionsResponse
+	74,  // 190: walletrpc.WalletService.PurchaseTickets:output_type -> walletrpc.PurchaseTicketsResponse
+	76,  // 191: walletrpc.WalletService.RevokeTicket:output_type -> walletrpc.RevokeTicketResponse
+	78,  // 192: walletrpc.WalletService.RevokeTickets:output_type -> walletrpc.RevokeTicketsResponse
+	80,  // 193: walletrpc.WalletService.LoadActiveDataFilters:output_type -> walletrpc.LoadActiveDataFiltersResponse
+	82,  // 194: walletrpc.WalletService.SignMessage:output_type -> walletrpc.SignMessageResponse
+	84,  // 195: walletrpc.WalletService.SignMessages:output_type -> walletrpc.SignMessagesResponse
+	165, // 196: walletrpc.WalletService.ValidateAddress:output_type -> walletrpc.ValidateAddressResponse
+	171, // 197: walletrpc.WalletService.CommittedTickets:output_type -> walletrpc.CommittedTicketsResponse
+	175, // 198: walletrpc.WalletService.SweepAccount:output_type -> walletrpc.SweepAccountResponse
+	177, // 199: walletrpc.WalletService.AbandonTransaction:output_type -> walletrpc.AbandonTransactionResponse
+	179, // 200: walletrpc.WalletService.SignHashes:output_type -> walletrpc.SignHashesResponse
+	188, // 201: walletrpc.WalletService.GetCoinjoinOutputspByAcct:output_type -> walletrpc.GetCoinjoinOutputspByAcctResponse
+	192, // 202: walletrpc.WalletService.SetAccountPassphrase:output_type -> walletrpc.SetAccountPassphraseResponse
+	193, // 203: walletrpc.WalletService.UnlockAccount:output_type -> walletrpc.UnlockAccountResponse
+	194, // 204: walletrpc.WalletService.LockAccount:output_type -> walletrpc.LockAccountResponse
+	198, // 205: walletrpc.WalletService.UnlockWallet:output_type -> walletrpc.UnlockWalletResponse
+	200, // 206: walletrpc.WalletService.LockWallet:output_type -> walletrpc.LockWalletResponse
+	196, // 207: walletrpc.WalletService.AccountUnlocked:output_type -> walletrpc.AccountUnlockedResponse
+	204, // 208: walletrpc.WalletService.SyncVSPFailedTickets:output_type -> walletrpc.SyncVSPTicketsResponse
+	206, // 209: walletrpc.WalletService.GetVSPTicketsByFeeStatus:output_type -> walletrpc.GetVSPTicketsByFeeStatusResponse
+	208, // 210: walletrpc.WalletService.ProcessManagedTickets:output_type -> walletrpc.ProcessManagedTicketsResponse
+	210, // 211: walletrpc.WalletService.ProcessUnmanagedTickets:output_type -> walletrpc.ProcessUnmanagedTicketsResponse
+	212, // 212: walletrpc.WalletService.SetVspdVoteChoices:output_type -> walletrpc.SetVspdVoteChoicesResponse
+	214, // 213: walletrpc.WalletService.GetTrackedVSPTickets:output_type -> walletrpc.GetTrackedVSPTicketsResponse
+	216, // 214: walletrpc.WalletService.DiscoverUsage:output_type -> walletrpc.DiscoverUsageResponse
+	100, // 215: walletrpc.WalletLoaderService.WalletExists:output_type -> walletrpc.WalletExistsResponse
+	92,  // 216: walletrpc.WalletLoaderService.CreateWallet:output_type -> walletrpc.CreateWalletResponse
+	94,  // 217: walletrpc.WalletLoaderService.CreateWatchingOnlyWallet:output_type -> walletrpc.CreateWatchingOnlyWalletResponse
+	96,  // 218: walletrpc.WalletLoaderService.OpenWallet:output_type -> walletrpc.OpenWalletResponse
+	98,  // 219: walletrpc.WalletLoaderService.CloseWallet:output_type -> walletrpc.CloseWalletResponse
+	118, // 220: walletrpc.WalletLoaderService.SpvSync:output_type -> walletrpc.SpvSyncResponse
+	116, // 221: walletrpc.WalletLoaderService.RpcSync:output_type -> walletrpc.RpcSyncResponse
+	120, // 222: walletrpc.WalletLoaderService.RescanPoint:output_type -> walletrpc.RescanPointResponse
+	128, // 223: walletrpc.AccountMixerService.RunAccountMixer:output_type -> walletrpc.RunAccountMixerResponse
+	126, // 224: walletrpc.TicketBuyerV2Service.RunTicketBuyer:output_type -> walletrpc.RunTicketBuyerResponse
+	130, // 225: walletrpc.TicketBuyerService.StartAutoBuyer:output_type -> walletrpc.StartAutoBuyerResponse
+	132, // 226: walletrpc.TicketBuyerService.StopAutoBuyer:output_type -> walletrpc.StopAutoBuyerResponse
+	134, // 227: walletrpc.TicketBuyerService.TicketBuyerConfig:output_type -> walletrpc.TicketBuyerConfigResponse
+	136, // 228: walletrpc.TicketBuyerService.SetAccount:output_type -> walletrpc.SetAccountResponse
+	138, // 229: walletrpc.TicketBuyerService.SetBalanceToMaintain:output_type -> walletrpc.SetBalanceToMaintainResponse
+	140, // 230: walletrpc.TicketBuyerService.SetMaxFee:output_type -> walletrpc.SetMaxFeeResponse
+	142, // 231: walletrpc.TicketBuyerService.SetMaxPriceRelative:output_type -> walletrpc.SetMaxPriceRelativeResponse
+	144, // 232: walletrpc.TicketBuyerService.SetMaxPriceAbsolute:output_type -> walletrpc.SetMaxPriceAbsoluteResponse
+	146, // 233: walletrpc.TicketBuyerService.SetVotingAddress:output_type -> walletrpc.SetVotingAddressResponse
+	148, // 234: walletrpc.TicketBuyerService.SetPoolAddress:output_type -> walletrpc.SetPoolAddressResponse
+	150, // 235: walletrpc.TicketBuyerService.SetPoolFees:output_type -> walletrpc.SetPoolFeesResponse
+	152, // 236: walletrpc.TicketBuyerService.SetMaxPerBlock:output_type -> walletrpc.SetMaxPerBlockResponse
+	122, // 237: walletrpc.SeedService.GenerateRandomSeed:output_type -> walletrpc.GenerateRandomSeedResponse
+	124, // 238: walletrpc.SeedService.DecodeSeed:output_type -> walletrpc.DecodeSeedResponse
+	154, // 239: walletrpc.AgendaService.Agendas:output_type -> walletrpc.AgendasResponse
+	156, // 240: walletrpc.VotingService.VoteChoices:output_type -> walletrpc.VoteChoicesResponse
+	158, // 241: walletrpc.VotingService.SetVoteChoices:output_type -> walletrpc.SetVoteChoicesResponse
+	160, // 242: walletrpc.MessageVerificationService.VerifyMessage:output_type -> walletrpc.VerifyMessageResponse
+	185, // 243: walletrpc.NetworkService.GetRawBlock:output_type -> walletrpc.GetRawBlockResponse
+	163, // 244: walletrpc.DecodeMessageService.DecodeRawTransaction:output_type -> walletrpc.DecodeRawTransactionResponse
+	152, // [152:245] is the sub-list for method output_type
+	59,  // [59:152] is the sub-list for method input_type
 	59,  // [59:59] is the sub-list for extension type_name
 	59,  // [59:59] is the sub-list for extension extendee
 	0,   // [0:59] is the sub-list for field type_name
@@ -17457,7 +17556,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[63].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RevokeTicketsRequest); i {
+			switch v := v.(*RevokeTicketRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17469,7 +17568,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[64].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RevokeTicketsResponse); i {
+			switch v := v.(*RevokeTicketResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17481,7 +17580,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[65].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*LoadActiveDataFiltersRequest); i {
+			switch v := v.(*RevokeTicketsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17493,7 +17592,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[66].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*LoadActiveDataFiltersResponse); i {
+			switch v := v.(*RevokeTicketsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17505,7 +17604,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[67].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignMessageRequest); i {
+			switch v := v.(*LoadActiveDataFiltersRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17517,7 +17616,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[68].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignMessageResponse); i {
+			switch v := v.(*LoadActiveDataFiltersResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17529,7 +17628,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[69].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignMessagesRequest); i {
+			switch v := v.(*SignMessageRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17541,7 +17640,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[70].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignMessagesResponse); i {
+			switch v := v.(*SignMessageResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17553,7 +17652,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[71].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionNotificationsRequest); i {
+			switch v := v.(*SignMessagesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17565,7 +17664,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[72].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionNotificationsResponse); i {
+			switch v := v.(*SignMessagesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17577,7 +17676,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[73].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AccountNotificationsRequest); i {
+			switch v := v.(*TransactionNotificationsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17589,7 +17688,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[74].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AccountNotificationsResponse); i {
+			switch v := v.(*TransactionNotificationsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17601,7 +17700,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[75].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ConfirmationNotificationsRequest); i {
+			switch v := v.(*AccountNotificationsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17613,7 +17712,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[76].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ConfirmationNotificationsResponse); i {
+			switch v := v.(*AccountNotificationsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17625,7 +17724,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[77].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateWalletRequest); i {
+			switch v := v.(*ConfirmationNotificationsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17637,7 +17736,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[78].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateWalletResponse); i {
+			switch v := v.(*ConfirmationNotificationsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17649,7 +17748,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[79].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateWatchingOnlyWalletRequest); i {
+			switch v := v.(*CreateWalletRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17661,7 +17760,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[80].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateWatchingOnlyWalletResponse); i {
+			switch v := v.(*CreateWalletResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17673,7 +17772,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[81].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*OpenWalletRequest); i {
+			switch v := v.(*CreateWatchingOnlyWalletRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17685,7 +17784,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[82].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*OpenWalletResponse); i {
+			switch v := v.(*CreateWatchingOnlyWalletResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17697,7 +17796,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[83].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CloseWalletRequest); i {
+			switch v := v.(*OpenWalletRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17709,7 +17808,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[84].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CloseWalletResponse); i {
+			switch v := v.(*OpenWalletResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17721,7 +17820,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[85].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*WalletExistsRequest); i {
+			switch v := v.(*CloseWalletRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17733,7 +17832,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[86].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*WalletExistsResponse); i {
+			switch v := v.(*CloseWalletResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17745,7 +17844,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[87].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StartConsensusRpcRequest); i {
+			switch v := v.(*WalletExistsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17757,7 +17856,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[88].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StartConsensusRpcResponse); i {
+			switch v := v.(*WalletExistsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17769,7 +17868,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[89].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DiscoverAddressesRequest); i {
+			switch v := v.(*StartConsensusRpcRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17781,7 +17880,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[90].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DiscoverAddressesResponse); i {
+			switch v := v.(*StartConsensusRpcResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17793,7 +17892,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[91].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FetchMissingCFiltersRequest); i {
+			switch v := v.(*DiscoverAddressesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17805,7 +17904,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[92].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FetchMissingCFiltersResponse); i {
+			switch v := v.(*DiscoverAddressesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17817,7 +17916,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[93].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SubscribeToBlockNotificationsRequest); i {
+			switch v := v.(*FetchMissingCFiltersRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17829,7 +17928,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[94].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SubscribeToBlockNotificationsResponse); i {
+			switch v := v.(*FetchMissingCFiltersResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17841,7 +17940,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[95].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FetchHeadersRequest); i {
+			switch v := v.(*SubscribeToBlockNotificationsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17853,7 +17952,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[96].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FetchHeadersResponse); i {
+			switch v := v.(*SubscribeToBlockNotificationsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17865,7 +17964,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[97].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FetchHeadersNotification); i {
+			switch v := v.(*FetchHeadersRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17877,7 +17976,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[98].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FetchMissingCFiltersNotification); i {
+			switch v := v.(*FetchHeadersResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17889,7 +17988,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[99].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RescanProgressNotification); i {
+			switch v := v.(*FetchHeadersNotification); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17901,7 +18000,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[100].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PeerNotification); i {
+			switch v := v.(*FetchMissingCFiltersNotification); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17913,7 +18012,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[101].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RpcSyncRequest); i {
+			switch v := v.(*RescanProgressNotification); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17925,7 +18024,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[102].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RpcSyncResponse); i {
+			switch v := v.(*PeerNotification); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17937,7 +18036,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[103].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SpvSyncRequest); i {
+			switch v := v.(*RpcSyncRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17949,7 +18048,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[104].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SpvSyncResponse); i {
+			switch v := v.(*RpcSyncResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17961,7 +18060,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[105].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RescanPointRequest); i {
+			switch v := v.(*SpvSyncRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17973,7 +18072,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[106].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RescanPointResponse); i {
+			switch v := v.(*SpvSyncResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17985,7 +18084,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[107].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GenerateRandomSeedRequest); i {
+			switch v := v.(*RescanPointRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -17997,7 +18096,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[108].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GenerateRandomSeedResponse); i {
+			switch v := v.(*RescanPointResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18009,7 +18108,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[109].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DecodeSeedRequest); i {
+			switch v := v.(*GenerateRandomSeedRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18021,7 +18120,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[110].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DecodeSeedResponse); i {
+			switch v := v.(*GenerateRandomSeedResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18033,7 +18132,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[111].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RunTicketBuyerRequest); i {
+			switch v := v.(*DecodeSeedRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18045,7 +18144,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[112].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RunTicketBuyerResponse); i {
+			switch v := v.(*DecodeSeedResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18057,7 +18156,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[113].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RunAccountMixerRequest); i {
+			switch v := v.(*RunTicketBuyerRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18069,7 +18168,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[114].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RunAccountMixerResponse); i {
+			switch v := v.(*RunTicketBuyerResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18081,7 +18180,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[115].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StartAutoBuyerRequest); i {
+			switch v := v.(*RunAccountMixerRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18093,7 +18192,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[116].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StartAutoBuyerResponse); i {
+			switch v := v.(*RunAccountMixerResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18105,7 +18204,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[117].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StopAutoBuyerRequest); i {
+			switch v := v.(*StartAutoBuyerRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18117,7 +18216,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[118].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StopAutoBuyerResponse); i {
+			switch v := v.(*StartAutoBuyerResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18129,7 +18228,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[119].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TicketBuyerConfigRequest); i {
+			switch v := v.(*StopAutoBuyerRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18141,7 +18240,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[120].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TicketBuyerConfigResponse); i {
+			switch v := v.(*StopAutoBuyerResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18153,7 +18252,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[121].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetAccountRequest); i {
+			switch v := v.(*TicketBuyerConfigRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18165,7 +18264,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[122].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetAccountResponse); i {
+			switch v := v.(*TicketBuyerConfigResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18177,7 +18276,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[123].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetBalanceToMaintainRequest); i {
+			switch v := v.(*SetAccountRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18189,7 +18288,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[124].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetBalanceToMaintainResponse); i {
+			switch v := v.(*SetAccountResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18201,7 +18300,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[125].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetMaxFeeRequest); i {
+			switch v := v.(*SetBalanceToMaintainRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18213,7 +18312,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[126].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetMaxFeeResponse); i {
+			switch v := v.(*SetBalanceToMaintainResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18225,7 +18324,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[127].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetMaxPriceRelativeRequest); i {
+			switch v := v.(*SetMaxFeeRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18237,7 +18336,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[128].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetMaxPriceRelativeResponse); i {
+			switch v := v.(*SetMaxFeeResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18249,7 +18348,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[129].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetMaxPriceAbsoluteRequest); i {
+			switch v := v.(*SetMaxPriceRelativeRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18261,7 +18360,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[130].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetMaxPriceAbsoluteResponse); i {
+			switch v := v.(*SetMaxPriceRelativeResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18273,7 +18372,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[131].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetVotingAddressRequest); i {
+			switch v := v.(*SetMaxPriceAbsoluteRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18285,7 +18384,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[132].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetVotingAddressResponse); i {
+			switch v := v.(*SetMaxPriceAbsoluteResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18297,7 +18396,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[133].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetPoolAddressRequest); i {
+			switch v := v.(*SetVotingAddressRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18309,7 +18408,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[134].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetPoolAddressResponse); i {
+			switch v := v.(*SetVotingAddressResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18321,7 +18420,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[135].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetPoolFeesRequest); i {
+			switch v := v.(*SetPoolAddressRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18333,7 +18432,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[136].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetPoolFeesResponse); i {
+			switch v := v.(*SetPoolAddressResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18345,7 +18444,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[137].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetMaxPerBlockRequest); i {
+			switch v := v.(*SetPoolFeesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18357,7 +18456,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[138].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetMaxPerBlockResponse); i {
+			switch v := v.(*SetPoolFeesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18369,7 +18468,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[139].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AgendasRequest); i {
+			switch v := v.(*SetMaxPerBlockRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18381,7 +18480,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[140].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AgendasResponse); i {
+			switch v := v.(*SetMaxPerBlockResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18393,7 +18492,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[141].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*VoteChoicesRequest); i {
+			switch v := v.(*AgendasRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18405,7 +18504,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[142].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*VoteChoicesResponse); i {
+			switch v := v.(*AgendasResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18417,7 +18516,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[143].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetVoteChoicesRequest); i {
+			switch v := v.(*VoteChoicesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18429,7 +18528,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[144].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetVoteChoicesResponse); i {
+			switch v := v.(*VoteChoicesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18441,7 +18540,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[145].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*VerifyMessageRequest); i {
+			switch v := v.(*SetVoteChoicesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18453,7 +18552,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[146].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*VerifyMessageResponse); i {
+			switch v := v.(*SetVoteChoicesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18465,7 +18564,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[147].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DecodedTransaction); i {
+			switch v := v.(*VerifyMessageRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18477,7 +18576,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[148].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DecodeRawTransactionRequest); i {
+			switch v := v.(*VerifyMessageResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18489,7 +18588,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[149].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DecodeRawTransactionResponse); i {
+			switch v := v.(*DecodedTransaction); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18501,7 +18600,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[150].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ValidateAddressRequest); i {
+			switch v := v.(*DecodeRawTransactionRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18513,7 +18612,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[151].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ValidateAddressResponse); i {
+			switch v := v.(*DecodeRawTransactionResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18525,7 +18624,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[152].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CommittedTicketsRequest); i {
+			switch v := v.(*ValidateAddressRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18537,7 +18636,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[153].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetAccountExtendedPubKeyRequest); i {
+			switch v := v.(*ValidateAddressResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18549,7 +18648,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[154].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetAccountExtendedPubKeyResponse); i {
+			switch v := v.(*CommittedTicketsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18561,7 +18660,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[155].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetAccountExtendedPrivKeyRequest); i {
+			switch v := v.(*GetAccountExtendedPubKeyRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18573,7 +18672,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[156].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetAccountExtendedPrivKeyResponse); i {
+			switch v := v.(*GetAccountExtendedPubKeyResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18585,7 +18684,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[157].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CommittedTicketsResponse); i {
+			switch v := v.(*GetAccountExtendedPrivKeyRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18597,7 +18696,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[158].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*BestBlockRequest); i {
+			switch v := v.(*GetAccountExtendedPrivKeyResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18609,7 +18708,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[159].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*BestBlockResponse); i {
+			switch v := v.(*CommittedTicketsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18621,7 +18720,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[160].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SweepAccountRequest); i {
+			switch v := v.(*BestBlockRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18633,7 +18732,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[161].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SweepAccountResponse); i {
+			switch v := v.(*BestBlockResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18645,7 +18744,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[162].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AbandonTransactionRequest); i {
+			switch v := v.(*SweepAccountRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18657,7 +18756,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[163].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AbandonTransactionResponse); i {
+			switch v := v.(*SweepAccountResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18669,7 +18768,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[164].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignHashesRequest); i {
+			switch v := v.(*AbandonTransactionRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18681,7 +18780,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[165].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignHashesResponse); i {
+			switch v := v.(*AbandonTransactionResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18693,7 +18792,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[166].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SpenderRequest); i {
+			switch v := v.(*SignHashesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18705,7 +18804,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[167].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SpenderResponse); i {
+			switch v := v.(*SignHashesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18717,7 +18816,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[168].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetCFiltersRequest); i {
+			switch v := v.(*SpenderRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18729,7 +18828,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[169].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetCFiltersResponse); i {
+			switch v := v.(*SpenderResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18741,7 +18840,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[170].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetRawBlockRequest); i {
+			switch v := v.(*GetCFiltersRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18753,7 +18852,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[171].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetRawBlockResponse); i {
+			switch v := v.(*GetCFiltersResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18765,7 +18864,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[172].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetCoinjoinOutputspByAcctRequest); i {
+			switch v := v.(*GetRawBlockRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18777,7 +18876,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[173].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CoinjoinTxsSumByAcct); i {
+			switch v := v.(*GetRawBlockResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18789,7 +18888,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[174].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetCoinjoinOutputspByAcctResponse); i {
+			switch v := v.(*GetCoinjoinOutputspByAcctRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18801,7 +18900,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[175].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetAccountPassphraseRequest); i {
+			switch v := v.(*CoinjoinTxsSumByAcct); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18813,7 +18912,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[176].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UnlockAccountRequest); i {
+			switch v := v.(*GetCoinjoinOutputspByAcctResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18825,7 +18924,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[177].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*LockAccountRequest); i {
+			switch v := v.(*SetAccountPassphraseRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18837,7 +18936,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[178].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetAccountPassphraseResponse); i {
+			switch v := v.(*UnlockAccountRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18849,7 +18948,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[179].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UnlockAccountResponse); i {
+			switch v := v.(*LockAccountRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18861,7 +18960,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[180].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*LockAccountResponse); i {
+			switch v := v.(*SetAccountPassphraseResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18873,7 +18972,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[181].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AccountUnlockedRequest); i {
+			switch v := v.(*UnlockAccountResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18885,7 +18984,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[182].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AccountUnlockedResponse); i {
+			switch v := v.(*LockAccountResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18897,7 +18996,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[183].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UnlockWalletRequest); i {
+			switch v := v.(*AccountUnlockedRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18909,7 +19008,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[184].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UnlockWalletResponse); i {
+			switch v := v.(*AccountUnlockedResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18921,7 +19020,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[185].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*LockWalletRequest); i {
+			switch v := v.(*UnlockWalletRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18933,7 +19032,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[186].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*LockWalletResponse); i {
+			switch v := v.(*UnlockWalletResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18945,7 +19044,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[187].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetPeerInfoRequest); i {
+			switch v := v.(*LockWalletRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18957,7 +19056,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[188].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetPeerInfoResponse); i {
+			switch v := v.(*LockWalletResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18969,7 +19068,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[189].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SyncVSPTicketsRequest); i {
+			switch v := v.(*GetPeerInfoRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18981,7 +19080,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[190].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SyncVSPTicketsResponse); i {
+			switch v := v.(*GetPeerInfoResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -18993,7 +19092,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[191].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetVSPTicketsByFeeStatusRequest); i {
+			switch v := v.(*SyncVSPTicketsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19005,7 +19104,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[192].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetVSPTicketsByFeeStatusResponse); i {
+			switch v := v.(*SyncVSPTicketsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19017,7 +19116,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[193].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ProcessManagedTicketsRequest); i {
+			switch v := v.(*GetVSPTicketsByFeeStatusRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19029,7 +19128,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[194].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ProcessManagedTicketsResponse); i {
+			switch v := v.(*GetVSPTicketsByFeeStatusResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19041,7 +19140,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[195].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ProcessUnmanagedTicketsRequest); i {
+			switch v := v.(*ProcessManagedTicketsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19053,7 +19152,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[196].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ProcessUnmanagedTicketsResponse); i {
+			switch v := v.(*ProcessManagedTicketsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19065,7 +19164,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[197].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetVspdVoteChoicesRequest); i {
+			switch v := v.(*ProcessUnmanagedTicketsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19077,7 +19176,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[198].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetVspdVoteChoicesResponse); i {
+			switch v := v.(*ProcessUnmanagedTicketsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19089,7 +19188,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[199].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetTrackedVSPTicketsRequest); i {
+			switch v := v.(*SetVspdVoteChoicesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19101,7 +19200,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[200].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetTrackedVSPTicketsResponse); i {
+			switch v := v.(*SetVspdVoteChoicesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19113,7 +19212,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[201].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DiscoverUsageRequest); i {
+			switch v := v.(*GetTrackedVSPTicketsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19125,7 +19224,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[202].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DiscoverUsageResponse); i {
+			switch v := v.(*GetTrackedVSPTicketsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19137,7 +19236,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[203].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionDetails_Input); i {
+			switch v := v.(*DiscoverUsageRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19149,7 +19248,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[204].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionDetails_Output); i {
+			switch v := v.(*DiscoverUsageResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19161,7 +19260,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[205].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AccountsResponse_Account); i {
+			switch v := v.(*TransactionDetails_Input); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19173,7 +19272,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[206].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetTicketsResponse_TicketDetails); i {
+			switch v := v.(*TransactionDetails_Output); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19185,7 +19284,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[207].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetTicketsResponse_BlockDetails); i {
+			switch v := v.(*AccountsResponse_Account); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19197,7 +19296,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[208].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FundTransactionResponse_PreviousOutput); i {
+			switch v := v.(*GetTicketsResponse_TicketDetails); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19209,7 +19308,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[209].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ConstructTransactionRequest_OutputDestination); i {
+			switch v := v.(*GetTicketsResponse_BlockDetails); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19221,7 +19320,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[210].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ConstructTransactionRequest_Output); i {
+			switch v := v.(*FundTransactionResponse_PreviousOutput); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19233,7 +19332,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[211].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignTransactionRequest_AdditionalScript); i {
+			switch v := v.(*ConstructTransactionRequest_OutputDestination); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19245,7 +19344,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[212].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignTransactionsRequest_AdditionalScript); i {
+			switch v := v.(*ConstructTransactionRequest_Output); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19257,7 +19356,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[213].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignTransactionsRequest_UnsignedTransaction); i {
+			switch v := v.(*SignTransactionRequest_AdditionalScript); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19269,7 +19368,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[214].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignTransactionsResponse_SignedTransaction); i {
+			switch v := v.(*SignTransactionsRequest_AdditionalScript); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19281,7 +19380,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[215].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignMessagesRequest_Message); i {
+			switch v := v.(*SignTransactionsRequest_UnsignedTransaction); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19293,7 +19392,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[216].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignMessagesResponse_SignReply); i {
+			switch v := v.(*SignTransactionsResponse_SignedTransaction); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19305,7 +19404,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[217].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ConfirmationNotificationsResponse_TransactionConfirmations); i {
+			switch v := v.(*SignMessagesRequest_Message); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19317,7 +19416,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[218].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AgendasResponse_Agenda); i {
+			switch v := v.(*SignMessagesResponse_SignReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19329,7 +19428,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[219].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AgendasResponse_Choice); i {
+			switch v := v.(*ConfirmationNotificationsResponse_TransactionConfirmations); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19341,7 +19440,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[220].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*VoteChoicesResponse_Choice); i {
+			switch v := v.(*AgendasResponse_Agenda); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19353,7 +19452,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[221].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetVoteChoicesRequest_Choice); i {
+			switch v := v.(*AgendasResponse_Choice); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19365,7 +19464,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[222].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DecodedTransaction_Input); i {
+			switch v := v.(*VoteChoicesResponse_Choice); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19377,7 +19476,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[223].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DecodedTransaction_Output); i {
+			switch v := v.(*SetVoteChoicesRequest_Choice); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19389,7 +19488,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[224].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CommittedTicketsResponse_TicketAddress); i {
+			switch v := v.(*DecodedTransaction_Input); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19401,7 +19500,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[225].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetPeerInfoResponse_PeerInfo); i {
+			switch v := v.(*DecodedTransaction_Output); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19413,7 +19512,7 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[226].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetTrackedVSPTicketsResponse_Ticket); i {
+			switch v := v.(*CommittedTicketsResponse_TicketAddress); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -19425,6 +19524,30 @@ func file_api_proto_init() {
 			}
 		}
 		file_api_proto_msgTypes[227].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetPeerInfoResponse_PeerInfo); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_api_proto_msgTypes[228].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetTrackedVSPTicketsResponse_Ticket); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_api_proto_msgTypes[229].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*GetTrackedVSPTicketsResponse_VSP); i {
 			case 0:
 				return &v.state
@@ -19443,7 +19566,7 @@ func file_api_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_api_proto_rawDesc,
 			NumEnums:      12,
-			NumMessages:   228,
+			NumMessages:   230,
 			NumExtensions: 0,
 			NumServices:   12,
 		},
@@ -19583,6 +19706,7 @@ type WalletServiceClient interface {
 	PublishTransaction(ctx context.Context, in *PublishTransactionRequest, opts ...grpc.CallOption) (*PublishTransactionResponse, error)
 	PublishUnminedTransactions(ctx context.Context, in *PublishUnminedTransactionsRequest, opts ...grpc.CallOption) (*PublishUnminedTransactionsResponse, error)
 	PurchaseTickets(ctx context.Context, in *PurchaseTicketsRequest, opts ...grpc.CallOption) (*PurchaseTicketsResponse, error)
+	RevokeTicket(ctx context.Context, in *RevokeTicketRequest, opts ...grpc.CallOption) (*RevokeTicketResponse, error)
 	RevokeTickets(ctx context.Context, in *RevokeTicketsRequest, opts ...grpc.CallOption) (*RevokeTicketsResponse, error)
 	LoadActiveDataFilters(ctx context.Context, in *LoadActiveDataFiltersRequest, opts ...grpc.CallOption) (*LoadActiveDataFiltersResponse, error)
 	SignMessage(ctx context.Context, in *SignMessageRequest, opts ...grpc.CallOption) (*SignMessageResponse, error)
@@ -20141,6 +20265,15 @@ func (c *walletServiceClient) PurchaseTickets(ctx context.Context, in *PurchaseT
 	return out, nil
 }
 
+func (c *walletServiceClient) RevokeTicket(ctx context.Context, in *RevokeTicketRequest, opts ...grpc.CallOption) (*RevokeTicketResponse, error) {
+	out := new(RevokeTicketResponse)
+	err := c.cc.Invoke(ctx, "/walletrpc.WalletService/RevokeTicket", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *walletServiceClient) RevokeTickets(ctx context.Context, in *RevokeTicketsRequest, opts ...grpc.CallOption) (*RevokeTicketsResponse, error) {
 	out := new(RevokeTicketsResponse)
 	err := c.cc.Invoke(ctx, "/walletrpc.WalletService/RevokeTickets", in, out, opts...)
@@ -20391,6 +20524,7 @@ type WalletServiceServer interface {
 	PublishTransaction(context.Context, *PublishTransactionRequest) (*PublishTransactionResponse, error)
 	PublishUnminedTransactions(context.Context, *PublishUnminedTransactionsRequest) (*PublishUnminedTransactionsResponse, error)
 	PurchaseTickets(context.Context, *PurchaseTicketsRequest) (*PurchaseTicketsResponse, error)
+	RevokeTicket(context.Context, *RevokeTicketRequest) (*RevokeTicketResponse, error)
 	RevokeTickets(context.Context, *RevokeTicketsRequest) (*RevokeTicketsResponse, error)
 	LoadActiveDataFilters(context.Context, *LoadActiveDataFiltersRequest) (*LoadActiveDataFiltersResponse, error)
 	SignMessage(context.Context, *SignMessageRequest) (*SignMessageResponse, error)
@@ -20533,6 +20667,9 @@ func (*UnimplementedWalletServiceServer) PublishUnminedTransactions(context.Cont
 }
 func (*UnimplementedWalletServiceServer) PurchaseTickets(context.Context, *PurchaseTicketsRequest) (*PurchaseTicketsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PurchaseTickets not implemented")
+}
+func (*UnimplementedWalletServiceServer) RevokeTicket(context.Context, *RevokeTicketRequest) (*RevokeTicketResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RevokeTicket not implemented")
 }
 func (*UnimplementedWalletServiceServer) RevokeTickets(context.Context, *RevokeTicketsRequest) (*RevokeTicketsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RevokeTickets not implemented")
@@ -21321,6 +21458,24 @@ func _WalletService_PurchaseTickets_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WalletService_RevokeTicket_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeTicketRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).RevokeTicket(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/walletrpc.WalletService/RevokeTicket",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).RevokeTicket(ctx, req.(*RevokeTicketRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _WalletService_RevokeTickets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RevokeTicketsRequest)
 	if err := dec(in); err != nil {
@@ -21858,6 +22013,10 @@ var _WalletService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PurchaseTickets",
 			Handler:    _WalletService_PurchaseTickets_Handler,
+		},
+		{
+			MethodName: "RevokeTicket",
+			Handler:    _WalletService_RevokeTicket_Handler,
 		},
 		{
 			MethodName: "RevokeTickets",

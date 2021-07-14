@@ -61,9 +61,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.10.0"
+	semverString = "7.11.0"
 	semverMajor  = 7
-	semverMinor  = 10
+	semverMinor  = 11
 	semverPatch  = 0
 )
 
@@ -1812,6 +1812,36 @@ func (s *walletServer) RevokeTickets(ctx context.Context, req *pb.RevokeTicketsR
 	}
 
 	return &pb.RevokeTicketsResponse{}, nil
+}
+
+func (s *walletServer) RevokeTicket(ctx context.Context, req *pb.RevokeTicketRequest) (*pb.RevokeTicketResponse, error) {
+	var ticketHash *chainhash.Hash
+	var err error
+	if len(req.TicketHash) != 0 {
+		ticketHash, err = chainhash.NewHash(req.TicketHash)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
+	} else {
+		return nil, status.Errorf(codes.InvalidArgument, "tickethash is required to revoke ticket")
+	}
+
+	n, err := s.requireNetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := n.(*dcrd.RPC); ok {
+		return nil, translateError(
+			status.Error(codes.FailedPrecondition,
+				"wallet must be in spv mode to use RevokeTicket request"))
+	}
+
+	err = s.wallet.RevokeTicket(ctx, ticketHash, n)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	return &pb.RevokeTicketResponse{}, nil
 }
 
 func (s *walletServer) LoadActiveDataFilters(ctx context.Context, req *pb.LoadActiveDataFiltersRequest) (
