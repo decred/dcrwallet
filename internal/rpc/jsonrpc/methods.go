@@ -141,6 +141,7 @@ var handlers = map[string]handler{
 	"mixaccount":              {fn: (*Server).mixAccount},
 	"mixoutput":               {fn: (*Server).mixOutput},
 	"purchaseticket":          {fn: (*Server).purchaseTicket},
+	"processunmanagedticket":  {fn: (*Server).processUnmanagedTicket},
 	"redeemmultisigout":       {fn: (*Server).redeemMultiSigOut},
 	"redeemmultisigouts":      {fn: (*Server).redeemMultiSigOuts},
 	"renameaccount":           {fn: (*Server).renameAccount},
@@ -3329,6 +3330,39 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		UnsignedTickets: unsignedTickets,
 		SplitTx:         splitTxString,
 	}, nil
+}
+
+// processUnmanagedTicket takes a ticket hash as an argument and attempts to
+// start managing it for the set vsp client from the config.
+func (s *Server) processUnmanagedTicket(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.ProcessUnmanagedTicketCmd)
+
+	var ticketHash *chainhash.Hash
+	if cmd.TicketHash != nil {
+		hash, err := chainhash.NewHashFromStr(*cmd.TicketHash)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+		}
+		ticketHash = hash
+	} else {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "ticket hash must be provided")
+	}
+	vspHost := s.cfg.VSPHost
+	if vspHost == "" {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "vsphost must be set in options")
+	}
+	vspClient, err := loader.LookupVSP(vspHost)
+	if err != nil {
+		return nil, err
+	}
+
+	err = vspClient.ProcessTicket(ctx, ticketHash)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+
 }
 
 // makeOutputs creates a slice of transaction outputs from a pair of address

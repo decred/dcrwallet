@@ -246,7 +246,7 @@ func run(ctx context.Context) error {
 			passphrase = startPromptPass(ctx, w)
 		}
 
-		if cfg.EnableTicketBuyer && cfg.VSPOpts.URL != "" {
+		if cfg.VSPOpts.URL != "" {
 			changeAccountName := cfg.ChangeAccount
 			if changeAccountName == "" && cfg.CSPPServer == "" {
 				log.Warnf("Change account not set, using "+
