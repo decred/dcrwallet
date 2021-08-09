@@ -26,4 +26,5 @@ type Options struct {
 
 	VSPHost   string
 	VSPPubKey string
+	Dial      func(ctx context.Context, network, addr string) (net.Conn, error)
 }

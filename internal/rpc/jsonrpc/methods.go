@@ -3248,7 +3248,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		cfg := vsp.Config{
 			URL:    vspHost,
 			PubKey: vspPubKey,
-			Dialer: nil,
+			Dialer: s.cfg.Dial,
 			Wallet: w,
 			Policy: vsp.Policy{
 				MaxFee:     0.1e8,
