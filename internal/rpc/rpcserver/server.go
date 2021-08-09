@@ -357,11 +357,12 @@ func (s *walletServer) Accounts(ctx context.Context, req *pb.AccountsRequest) (*
 	for i := range resp.Accounts {
 		a := &resp.Accounts[i]
 		accounts[i] = &pb.AccountsResponse_Account{
-			AccountNumber:    a.AccountNumber,
-			AccountName:      a.AccountName,
-			TotalBalance:     int64(a.TotalBalance),
-			ExternalKeyCount: a.LastUsedExternalIndex + 20, // Add gap limit
-			InternalKeyCount: a.LastUsedInternalIndex + 20,
+			AccountNumber: a.AccountNumber,
+			AccountName:   a.AccountName,
+			TotalBalance:  int64(a.TotalBalance),
+			// indexes are zero based, add 1 for the count
+			ExternalKeyCount: a.LastReturnedExternalIndex + 1,
+			InternalKeyCount: a.LastReturnedInternalIndex + 1,
 			ImportedKeyCount: a.ImportedKeyCount,
 			AccountEncrypted: a.AccountEncrypted,
 			AccountUnlocked:  a.AccountUnlocked,
