@@ -17,11 +17,14 @@ type Options struct {
 	MaxPOSTClients      int64
 	MaxWebsocketClients int64
 
-	CSPPServer       string
-	DialCSPPServer   func(ctx context.Context, network, addr string) (net.Conn, error)
-	MixAccount       string
-	MixBranch        uint32
-	MixChangeAccount string
+	CSPPServer         string
+	DialCSPPServer     func(ctx context.Context, network, addr string) (net.Conn, error)
+	MixAccount         string
+	MixBranch          uint32
+	MixChangeAccount   string
+	TicketSplitAccount string
 
-	VSPHost string
+	VSPHost   string
+	VSPPubKey string
+	Dial      func(ctx context.Context, network, addr string) (net.Conn, error)
 }

@@ -23,6 +23,7 @@ import (
 
 	"decred.org/dcrwallet/v2/errors"
 	"decred.org/dcrwallet/v2/internal/loader"
+	"decred.org/dcrwallet/v2/internal/vsp"
 	"decred.org/dcrwallet/v2/p2p"
 	"decred.org/dcrwallet/v2/rpc/client/dcrd"
 	"decred.org/dcrwallet/v2/rpc/jsonrpc/types"
@@ -3200,6 +3201,68 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		dontSignTx = *cmd.DontSignTx
 	}
 
+	var csppServer string
+	var mixedAccount uint32
+	var mixedAccountBranch uint32
+	var mixedSplitAccount uint32
+	var changeAccount = account
+
+	if s.cfg.CSPPServer != "" {
+		csppServer = s.cfg.CSPPServer
+		mixedAccount, err = w.AccountNumber(ctx, s.cfg.MixAccount)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"CSPP Server set, but error on mixed account: %v", err)
+		}
+		mixedAccountBranch = s.cfg.MixBranch
+		if mixedAccountBranch != 0 && mixedAccountBranch != 1 {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"MixedAccountBranch should be 0 or 1.")
+		}
+		_, err = w.AccountNumber(ctx, s.cfg.TicketSplitAccount)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"CSPP Server set, but error on mixedSplitAccount: %v", err)
+		}
+		_, err = w.AccountNumber(ctx, s.cfg.MixChangeAccount)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"CSPP Server set, but error on changeAccount: %v", err)
+		}
+	}
+
+	var vspHost string
+	var vspPubKey string
+	var vspClient *vsp.Client
+	if s.cfg.VSPHost != "" || s.cfg.VSPPubKey != "" {
+		vspHost = s.cfg.VSPHost
+		vspPubKey = s.cfg.VSPPubKey
+		if vspPubKey == "" {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"vsp pubkey can not be null")
+		}
+		if vspHost == "" {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"vsp host can not be null")
+		}
+		cfg := vsp.Config{
+			URL:    vspHost,
+			PubKey: vspPubKey,
+			Dialer: s.cfg.Dial,
+			Wallet: w,
+			Policy: vsp.Policy{
+				MaxFee:     0.1e8,
+				FeeAcct:    account,
+				ChangeAcct: changeAccount,
+			},
+		}
+		vspClient, err = loader.VSP(cfg)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCMisc,
+				"VSP Server instance failed to start: %v", err)
+		}
+	}
+
 	request := &wallet.PurchaseTicketsRequest{
 		Count:         numTickets,
 		SourceAccount: account,
@@ -3209,7 +3272,21 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		DontSignTx:    dontSignTx,
 		VSPAddress:    poolAddr,
 		VSPFees:       poolFee,
+
+		// CSPP
+		CSPPServer:         csppServer,
+		DialCSPPServer:     s.cfg.DialCSPPServer,
+		MixedAccount:       mixedAccount,
+		MixedAccountBranch: mixedAccountBranch,
+		MixedSplitAccount:  mixedSplitAccount,
+		ChangeAccount:      changeAccount,
 	}
+
+	if vspClient != nil {
+		request.VSPFeePaymentProcess = vspClient.Process
+		request.VSPFeeProcess = vspClient.FeePercentage
+	}
+
 	ticketsResponse, err := w.PurchaseTickets(ctx, n, request)
 	if err != nil {
 		return nil, err
