@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math/rand"
 	"runtime"
 	"sort"
 	"strconv"
@@ -3716,6 +3717,14 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 	return results, nil
 }
 
+// SelectUnspent returns a slice of objects representing the unspent wallet
+// transactions fitting the given criteria and enough to pay the target amount.
+// The transaction amount and confirmations will be more than the amount & minconf
+// parameter, only transactions matching the accountName will be returned if it's
+// not empty and the targetAmount is ignored if spendAll is true. The
+// inputSelectionMethod method determines how and what inputs should be selected
+// and the seenTxIDs can only be used with UniqueTxInputSelection to determine what
+// transaction hash or address should be skipped.
 func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcrutil.Amount, minconf int32, accountName string,
 	spendAll bool, seenTxIDs map[string]struct{}, inputSelectionMethod types.InputSelectionMethod) ([]*types.ListUnspentResult, error) {
 	const op errors.Op = "wallet.SelectUnspent"
@@ -3742,6 +3751,10 @@ func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcru
 		if err != nil {
 			return err
 		}
+
+		// Shuffe utxos
+		rand.Seed(time.Now().UnixNano())
+		rand.Shuffle(len(unspent), func(i, j int) { unspent[i], unspent[j] = unspent[j], unspent[i] })
 
 		// used for RandomAddressInputSelection
 		var randomUnspent *types.ListUnspentResult

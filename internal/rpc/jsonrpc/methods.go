@@ -3082,6 +3082,7 @@ func (s *Server) listUnspent(ctx context.Context, icmd interface{}) (interface{}
 	return result, nil
 }
 
+// selectUnspent handles the selectunspent command.
 func (s *Server) selectUnspent(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.SelectUnspentCmd)
 	w, ok := s.walletLoader.LoadedWallet()
