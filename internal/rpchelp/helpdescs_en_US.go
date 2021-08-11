@@ -610,6 +610,19 @@ var helpDescsEnUS = map[string]string{
 	"listunspentresult-txtype":        "The type of the transaction",
 	"listunspentresult-tree":          "The tree the transaction comes from",
 
+	// SelectUnspentCmd help.
+	"selectunspent--synopsis":            "Returns a JSON array of objects representing unlocked unspent outputs controlled by wallet keys enough to pay the target amount.",
+	"selectunspent-targetamount":         "The minimum total output value of all returned inputs",
+	"selectunspent-minamount":            "The minimum amount output value of transaction output should have before it is considered",
+	"selectunspent-minconf":              "Minimum number of block confirmations required before a transaction output is considered",
+	"selectunspent-account":              "If set, only return unspent outputs from this account",
+	"selectunspent-spendall":             "If set, the target amount will be ignored and eligible inputs will be returned",
+	"selectunspent-inputselectionmethod": "Method to specify what inputs are returned",
+	"selectunspent-seentxaddress":        "Addresses or transaction hashes to be skipped when using UniqueTxInputSelection",
+	"selectunspent-seentxaddress--desc":  "JSON object using addresses or transaction hashes as keys and empty structs as values to specify seen utxos",
+	"selectunspent-seentxaddress--key":   "Address or transaction hash",
+	"selectunspent-seentxaddress--value": "Empty struct",
+
 	// LockAccountCmd help.
 	"lockaccount--synopsis": "Lock an individually-encrypted account",
 	"lockaccount-account":   "Account to lock",

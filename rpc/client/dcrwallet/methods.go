@@ -94,10 +94,10 @@ func (c *Client) ListUnspentMinMaxAddresses(ctx context.Context, minConf, maxCon
 	return res, err
 }
 
-func (c *Client) SelectUnspent(ctx context.Context, minConf int, targetAmount, minAmount dcrutil.Amount,
-	accountName string, spendAll bool, inputSelectionMethod string, seenTxAddress map[string]struct{}) ([]types.ListUnspentResult, error) {
+func (c *Client) SelectUnspent(ctx context.Context, targetAmount, minAmount dcrutil.Amount, minConf int,
+	account string, spendAll bool, inputSelectionMethod string, seenTxAddress map[string]struct{}) ([]types.ListUnspentResult, error) {
 	var res []types.ListUnspentResult
-	err := c.Call(ctx, "selectunspent", &res, minConf, targetAmount.ToCoin(), minAmount.ToCoin(), accountName, spendAll, inputSelectionMethod, seenTxAddress)
+	err := c.Call(ctx, "selectunspent", &res, targetAmount.ToCoin(), minAmount.ToCoin(), minConf, account, spendAll, inputSelectionMethod, seenTxAddress)
 	return res, err
 }
 

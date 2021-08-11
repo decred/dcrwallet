@@ -660,22 +660,22 @@ func NewListUnspentCmd(minConf, maxConf *int, addresses *[]string) *ListUnspentC
 }
 
 type SelectUnspentCmd struct {
-	MinConf              int
 	TargetAmount         float64
-	MinAmount            float64
-	AccountName          string
-	SpendAll             bool
-	InputSelectionMethod string
-	SeenTxAddress        *map[string]struct{}
+	MinAmount            *float64             `jsonrpcdefault:"0"`
+	MinConf              *int                 `jsonrpcdefault:"1"`
+	Account              *string              `jsonrpcdefault:"\"\""`
+	SpendAll             *bool                `jsonrpcdefault:"false"`
+	InputSelectionMethod *string              `jsonrpcdefault:"\"random\""`
+	SeenTxAddress        *map[string]struct{} `jsonrpcusage:"{\"address\":{},\"txhash\":{},...}"`
 }
 
-func NewSelectUnspentCmd(minConf int, targetAmount, minAmount float64, accountName string,
-	spendAll bool, inputSelectionMethod string, seenTxAddress *map[string]struct{}) *SelectUnspentCmd {
+func NewSelectUnspentCmd(targetAmount float64, minAmount *float64, minConf *int, account *string,
+	spendAll *bool, inputSelectionMethod *string, seenTxAddress *map[string]struct{}) *SelectUnspentCmd {
 	return &SelectUnspentCmd{
-		MinConf:              minConf,
 		TargetAmount:         targetAmount,
+		MinConf:              minConf,
 		MinAmount:            minAmount,
-		AccountName:          accountName,
+		Account:              account,
 		SpendAll:             spendAll,
 		InputSelectionMethod: inputSelectionMethod,
 		SeenTxAddress:        seenTxAddress,

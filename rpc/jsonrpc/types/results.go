@@ -272,12 +272,12 @@ type InputSelectionMethod string
 const (
 	// RandomInputSelection indicates any random utxo can be selected.
 	RandomInputSelection InputSelectionMethod = "random"
-	// RandomAddressInputSelection indicates utxos should be selected from
-	// one randomly selected address.
+	// RandomAddressInputSelection indicates that only utxos matching a randomly selected
+	// address should be selected.
 	RandomAddressInputSelection InputSelectionMethod = "randomaddress"
-	// OneUTXOInputSelection indicates only one utxo should be selected.
+	// OneUTXOInputSelection indicates that only one utxo should be selected.
 	OneUTXOInputSelection InputSelectionMethod = "oneutxo"
-	// UniqueTxInputSelection indicates only utxos with unique address
+	// UniqueTxInputSelection indicates that only utxos with unique address
 	// and hash should be selected.
 	UniqueTxInputSelection InputSelectionMethod = "uniquetx"
 )
