@@ -930,7 +930,23 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 		return 0, deriveError
 	}
 	err = <-watchError
-	return count, err
+	if err != nil {
+		return 0, err
+	}
+
+	w.addressBuffersMu.Lock()
+	for acct, hd := range hdAccounts {
+		ad := w.addressBuffers[acct]
+		if ad.albExternal.lastWatched < hd.externalCount {
+			ad.albExternal.lastWatched = hd.externalCount
+		}
+		if ad.albInternal.lastWatched < hd.internalCount {
+			ad.albInternal.lastWatched = hd.internalCount
+		}
+	}
+	w.addressBuffersMu.Unlock()
+
+	return count, nil
 }
 
 // CoinType returns the active BIP0044 coin type. For watching-only wallets,
