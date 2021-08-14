@@ -3736,6 +3736,7 @@ func (s *walletServer) GetVSPTicketsByFeeStatus(ctx context.Context, req *pb.Get
 
 func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSPTicketsRequest) (
 	*pb.SyncVSPTicketsResponse, error) {
+	var err error
 	failedTicketsFee, err := s.wallet.GetVSPTicketsByFeeStatus(ctx, int(udb.VSPFeeProcessErrored))
 	if err != nil {
 		return nil, err
@@ -3763,20 +3764,29 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	}
 	vspClient, err := loader.VSP(cfg)
 	if err != nil {
-		return nil, status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
+		return nil, status.Errorf(codes.Unknown, "vsp client instance failed to start. Error: %v", err)
 	}
 
 	// process tickets fee if needed.
+	feeErrors := ""
 	for _, ticketHash := range failedTicketsFee {
 		feeTx := new(wire.MsgTx)
 		err := vspClient.ProcessWithPolicy(ctx, &ticketHash, feeTx, policy)
 		if err != nil {
+			if feeErrors == "" {
+				feeErrors = err.Error()
+			} else {
+				feeErrors += ", " + err.Error()
+			}
 			// if it fails to process again, we log it and continue with
 			// the wallet start.
 			// Not sure we need to log here since it's already warned elsewhere
 		}
 	}
-	return &pb.SyncVSPTicketsResponse{}, nil
+	if feeErrors != "" {
+		err = status.Errorf(codes.Unknown, feeErrors)
+	}
+	return &pb.SyncVSPTicketsResponse{}, err
 }
 
 func (s *walletServer) ProcessManagedTickets(ctx context.Context, req *pb.ProcessManagedTicketsRequest) (
