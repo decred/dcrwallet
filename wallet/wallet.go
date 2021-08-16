@@ -3718,12 +3718,12 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 }
 
 // SelectUnspent returns a slice of objects representing the unspent wallet
-// transactions fitting the given criteria and enough to pay the target amount.
-// The transaction amount and confirmations will be more than the amount & minconf
-// parameter, only transactions matching the accountName will be returned if it's
-// not empty and the targetAmount is ignored if spendAll is true. The
-// inputSelectionMethod method determines how and what inputs should be selected
-// and the seenTxIDs can only be used with UniqueTxInputSelection to determine what
+// transactions for the given criteria that are enough to pay the target amount.
+// The transaction amount and confirmations will be greater than the amount
+// & minconf parameters. Only utxos matching the accountName will be returned if
+// that parameter is used. targetAmount is ignored if spendAll is set to true. The
+// inputSelectionMethod determines how inputs should be selected and the
+// seenTxIDs is for use with the UniqueTxInputSelection parameter to determine what
 // transaction hash or address should be skipped.
 func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcrutil.Amount, minconf int32, accountName string,
 	spendAll bool, seenTxIDs map[string]struct{}, inputSelectionMethod types.InputSelectionMethod) ([]*types.ListUnspentResult, error) {
