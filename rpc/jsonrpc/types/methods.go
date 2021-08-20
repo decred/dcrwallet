@@ -1177,6 +1177,11 @@ type AccountUnlockedCmd struct {
 	Account string
 }
 
+// ProcessUnmanagedTicket defines the processunmanagedticket JSON-RPC command arguments.
+type ProcessUnmanagedTicketCmd struct {
+	TicketHash *string
+}
+
 type registeredMethod struct {
 	method string
 	cmd    interface{}
@@ -1239,6 +1244,7 @@ func init() {
 		{"mixaccount", (*MixAccountCmd)(nil)},
 		{"mixoutput", (*MixOutputCmd)(nil)},
 		{"purchaseticket", (*PurchaseTicketCmd)(nil)},
+		{"processunmanagedticket", (*ProcessUnmanagedTicketCmd)(nil)},
 		{"redeemmultisigout", (*RedeemMultiSigOutCmd)(nil)},
 		{"redeemmultisigouts", (*RedeemMultiSigOutsCmd)(nil)},
 		{"renameaccount", (*RenameAccountCmd)(nil)},

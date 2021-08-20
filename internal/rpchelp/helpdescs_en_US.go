@@ -646,6 +646,10 @@ var helpDescsEnUS = map[string]string{
 	"purchaseticket-comment":            "Unused",
 	"purchaseticket-dontsigntx":         "Return unsigned split and ticket transactions instead of signing and publishing",
 
+	// ProcessUnmanagedTicket help.
+	"processunmanagedticket--synopsis":  "Processes tickets for vsp client based on ticket hash.",
+	"processunmanagedticket-tickethash": "The ticket hash of ticket to be processed by the vsp client.",
+
 	// RedeemMultiSigout help.
 	"redeemmultisigout--synopsis": "Takes the input and constructs a P2PKH paying to the specified address.",
 	"redeemmultisigout-address":   "Address to pay to.",

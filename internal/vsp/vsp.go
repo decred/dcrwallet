@@ -129,7 +129,8 @@ func (c *Client) ForUnspentUnexpiredTickets(ctx context.Context,
 	return w.GetTickets(ctx, iter, startBlock, endBlock)
 }
 
-// ProcessUnprocessedTickets ...
+// ProcessUnprocessedTickets processes all tickets that don't currently have
+// any association with a VSP.
 func (c *Client) ProcessUnprocessedTickets(ctx context.Context, policy Policy) {
 	var wg sync.WaitGroup
 	c.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
@@ -170,6 +171,15 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context, policy Policy) {
 		return nil
 	})
 	wg.Wait()
+}
+
+// ProcessTicket attempts to process a given ticket based on the hash provided.
+func (c *Client) ProcessTicket(ctx context.Context, hash *chainhash.Hash) error {
+	err := c.Process(ctx, hash, nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // ProcessManagedTickets discovers tickets which were previously registered with

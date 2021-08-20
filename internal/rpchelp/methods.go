@@ -89,6 +89,7 @@ var Methods = []struct {
 	{"mixaccount", nil},
 	{"mixoutput", nil},
 	{"purchaseticket", returnsString},
+	{"processunmanagedticket", nil},
 	{"redeemmultisigout", []interface{}{(*types.RedeemMultiSigOutResult)(nil)}},
 	{"redeemmultisigouts", []interface{}{(*types.RedeemMultiSigOutResult)(nil)}},
 	{"renameaccount", nil},
