@@ -1739,16 +1739,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	if !req.DontSignTx && req.VSPFeePaymentProcess != nil {
 		unlockCredits = false
 		for i, ticketHash := range purchaseTicketsResponse.TicketHashes {
-			// set vsp fee as processing, so we can know it started to be
-			// processed.
-			rec := udb.VSPTicket{
-				FeeTxStatus: uint32(udb.VSPFeeProcessStarted),
-			}
-			err = w.UpdateVSPTicket(ctx, ticketHash, rec)
-			if err != nil {
-				return nil, err
-			}
-
 			feeTx := wire.NewMsgTx()
 			for j := range vspFeeCredits[i] {
 				in := &vspFeeCredits[i][j]
@@ -1757,12 +1747,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 
 			err = req.VSPFeePaymentProcess(ctx, ticketHash, feeTx)
 			if err != nil {
-				log.Errorf("vsp ticket %v fee proccessment failed: %v", ticketHash, err)
-				rec.FeeTxStatus = uint32(udb.VSPFeeProcessErrored)
-				err = w.UpdateVSPTicket(ctx, ticketHash, rec)
-				if err != nil {
-					return nil, err
-				}
 				// unlock outpoints in case of error
 				for _, outpoint := range vspFeeCredits[i] {
 					w.UnlockOutpoint(&outpoint.OutPoint.Hash, outpoint.OutPoint.Index)

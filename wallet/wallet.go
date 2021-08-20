@@ -5519,17 +5519,6 @@ func (w *Wallet) GetVSPTicketsByFeeStatus(ctx context.Context, feeStatus int) ([
 	return response, nil
 }
 
-// UpdateVSPTicket updates the vsp ticket for the informed tickethash.
-func (w *Wallet) UpdateVSPTicket(ctx context.Context, ticketHash *chainhash.Hash, vspTicket udb.VSPTicket) error {
-	var err error
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		err = udb.SetVSPTicket(dbtx, ticketHash, &vspTicket)
-		return err
-	})
-
-	return err
-}
-
 // SetPublished sets the informed hash as true or false.
 func (w *Wallet) SetPublished(ctx context.Context, hash *chainhash.Hash, published bool) error {
 	var err error
@@ -5545,6 +5534,41 @@ func (w *Wallet) SetPublished(ctx context.Context, hash *chainhash.Hash, publish
 		return err
 	}
 	return nil
+}
+
+type VSPTicket struct {
+	FeeHash     chainhash.Hash
+	FeeTxStatus uint32
+	VSPHostID   uint32
+	Host        string
+	PubKey      []byte
+}
+
+// VSPTicketInfo returns the various information for a given vsp ticket
+func (w *Wallet) VSPTicketInfo(ctx context.Context, ticketHash *chainhash.Hash) (*VSPTicket, error) {
+	var data *udb.VSPTicket
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		var err error
+		data, err = udb.GetVSPTicket(dbtx, *ticketHash)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err == nil && data == nil {
+		err = errors.E(errors.NotExist)
+		return nil, err
+	} else if data == nil {
+		return nil, err
+	}
+	convertedData := &VSPTicket{
+		FeeHash:     data.FeeHash,
+		FeeTxStatus: data.FeeTxStatus,
+		VSPHostID:   data.VSPHostID,
+		Host:        data.Host,
+		PubKey:      data.PubKey,
+	}
+	return convertedData, err
 }
 
 // VSPFeeHashForTicket returns the hash of the fee transaction associated with a
@@ -5565,14 +5589,95 @@ func (w *Wallet) VSPFeeHashForTicket(ctx context.Context, ticketHash *chainhash.
 	return feeHash, err
 }
 
+// VSPHostForTicket returns the current vsp host associated with VSP Ticket.
+func (w *Wallet) VSPHostForTicket(ctx context.Context, ticketHash *chainhash.Hash) (string, error) {
+	var host string
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		data, err := udb.GetVSPTicket(dbtx, *ticketHash)
+		if err != nil {
+			return err
+		}
+		host = data.Host
+		return nil
+	})
+	if err == nil && host == "" {
+		err = errors.E(errors.NotExist)
+	}
+	return host, err
+}
+
+// IsVSPTicketConfirmed returns whether or not a VSP ticket has been confirmed
+// by a VSP.
+func (w *Wallet) IsVSPTicketConfirmed(ctx context.Context, ticketHash *chainhash.Hash) (bool, error) {
+	confirmed := false
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		data, err := udb.GetVSPTicket(dbtx, *ticketHash)
+		if err != nil {
+			return err
+		}
+		if data.FeeTxStatus == uint32(udb.VSPFeeProcessConfirmed) {
+			confirmed = true
+		}
+		return nil
+	})
+	return confirmed, err
+}
+
 // UpdateVspTicketFeeToPaid updates a vsp ticket fee status to paid.
 // This is needed when finishing the fee payment on VSPs Process.
-func (w *Wallet) UpdateVspTicketFeeToPaid(ctx context.Context, ticketHash, feeHash *chainhash.Hash) error {
+func (w *Wallet) UpdateVspTicketFeeToPaid(ctx context.Context, ticketHash, feeHash *chainhash.Hash, host string, pubkey []byte) error {
 	var err error
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
 			FeeHash:     *feeHash,
 			FeeTxStatus: uint32(udb.VSPFeeProcessPaid),
+			Host:        host,
+			PubKey:      pubkey,
+		})
+		return err
+	})
+
+	return err
+}
+
+func (w *Wallet) UpdateVspTicketFeeToStarted(ctx context.Context, ticketHash, feeHash *chainhash.Hash, host string, pubkey []byte) error {
+	var err error
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
+			FeeHash:     *feeHash,
+			FeeTxStatus: uint32(udb.VSPFeeProcessStarted),
+			Host:        host,
+			PubKey:      pubkey,
+		})
+		return err
+	})
+
+	return err
+}
+
+func (w *Wallet) UpdateVspTicketFeeToErrored(ctx context.Context, ticketHash *chainhash.Hash, host string, pubkey []byte) error {
+	var err error
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
+			FeeHash:     chainhash.Hash{},
+			FeeTxStatus: uint32(udb.VSPFeeProcessErrored),
+			Host:        host,
+			PubKey:      pubkey,
+		})
+		return err
+	})
+
+	return err
+}
+
+func (w *Wallet) UpdateVspTicketFeeToConfirmed(ctx context.Context, ticketHash, feeHash *chainhash.Hash, host string, pubkey []byte) error {
+	var err error
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
+			FeeHash:     *feeHash,
+			FeeTxStatus: uint32(udb.VSPFeeProcessConfirmed),
+			Host:        host,
+			PubKey:      pubkey,
 		})
 		return err
 	})

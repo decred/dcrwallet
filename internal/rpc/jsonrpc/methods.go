@@ -4066,6 +4066,12 @@ func (s *Server) ticketInfo(ctx context.Context, icmd interface{}) (interface{},
 				info.Choices[i].ChoiceID = choices[i].ChoiceID
 			}
 
+			host, err := w.VSPHostForTicket(ctx, t.Ticket.Hash)
+			if err != nil && !errors.Is(err, errors.NotExist) {
+				return false, err
+			}
+			info.VSPHost = host
+
 			res = append(res, info)
 		}
 		return false, nil

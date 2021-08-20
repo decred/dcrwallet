@@ -867,6 +867,7 @@ var helpDescsEnUS = map[string]string{
 	"ticketinforesult-vote":          "Transaction hash of vote which spends the ticket",
 	"ticketinforesult-revocation":    "Transaction hash of revocation which spends the ticket",
 	"ticketinforesult-choices":       "Vote preferences set for the ticket",
+	"ticketinforesult-vsphost":       "VSP Host associated with the ticket (if any)",
 
 	// TicketsForAddressCmd help.
 	"ticketsforaddress--synopsis": "Request all the tickets for an address.",

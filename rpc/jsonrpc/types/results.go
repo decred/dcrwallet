@@ -372,6 +372,7 @@ type TicketInfoResult struct {
 	Vote          string       `json:"vote,omitempty"`
 	Revocation    string       `json:"revocation,omitempty"`
 	Choices       []VoteChoice `json:"choices,omitempty"`
+	VSPHost       string       `json:"vsphost,omitempty"`
 }
 
 // TreasuryPolicyResult models objects returned by the treasurypolicy command.
