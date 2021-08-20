@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math/rand"
 	"runtime"
 	"sort"
 	"strconv"
@@ -3726,6 +3727,276 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return results, nil
+}
+
+// SelectUnspent returns a slice of objects representing the unspent wallet
+// transactions for the given criteria that are enough to pay the target amount.
+// The transaction amount and confirmations will be greater than the amount
+// & minconf parameters. Only utxos matching the accountName will be returned if
+// that parameter is used. targetAmount is ignored if spendAll is set to true. The
+// inputSelectionMethod determines how inputs should be selected and the
+// seenTxIDs is for use with the UniqueTxInputSelection parameter to determine what
+// transaction hash or address should be skipped.
+func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcrutil.Amount, minconf int32, accountName string,
+	spendAll bool, seenTxIDs map[string]struct{}, inputSelectionMethod types.InputSelectionMethod) ([]*types.ListUnspentResult, error) {
+	const op errors.Op = "wallet.SelectUnspent"
+
+	var (
+		currentTotal dcrutil.Amount
+		results      []*types.ListUnspentResult
+	)
+
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
+
+		unspent, err := w.txStore.UnspentOutputs(dbtx)
+		if err != nil {
+			return err
+		}
+		sort.Sort(sort.Reverse(creditSlice(unspent)))
+
+		defaultAccountName, err := w.manager.AccountName(
+			addrmgrNs, udb.DefaultAccountNum)
+		if err != nil {
+			return err
+		}
+
+		// Shuffe utxos
+		rand.Seed(time.Now().UnixNano())
+		rand.Shuffle(len(unspent), func(i, j int) { unspent[i], unspent[j] = unspent[j], unspent[i] })
+
+		// used for RandomAddressInputSelection
+		var randomUnspent *types.ListUnspentResult
+
+		for i := range unspent {
+			output := unspent[i]
+
+			if output.Amount < minAmount {
+				log.Infof("Skipping utxo %s, amount: %s, min: %s", output.Hash.String(), output.Amount, minAmount)
+				continue
+			}
+
+			if inputSelectionMethod == types.OneUTXOInputSelection {
+				// We're selecting only one utxo so this loop will run until we find
+				// a single utxo that can pay the target amount.
+
+				if targetAmount > output.Amount {
+					// continue if this utxo cannot pay the require amount
+					continue
+				}
+			} else if inputSelectionMethod == types.UniqueTxInputSelection {
+				// skip duplicate tx id
+				_, seenTxID := seenTxIDs[output.Hash.String()]
+				if seenTxID {
+					log.Infof("Skipping duplicate txid: %s:%d", output.Hash.String(), output.Index)
+					continue
+				}
+			}
+
+			details, err := w.txStore.TxDetails(txmgrNs, &output.Hash)
+			if err != nil {
+				return err
+			}
+
+			// Outputs with fewer confirmations than the minimum are excluded.
+			confs := confirms(output.Height, tipHeight)
+			if confs < minconf {
+				continue
+			}
+
+			// Only mature coinbase outputs are included.
+			if output.FromCoinBase {
+				if !coinbaseMatured(w.chainParams, output.Height, tipHeight) {
+					continue
+				}
+			}
+
+			switch details.TxRecord.TxType {
+			case stake.TxTypeSStx:
+				// Ticket commitment, only spendable after ticket maturity.
+				if output.Index == 0 {
+					if !ticketMatured(w.chainParams, details.Height(), tipHeight) {
+						continue
+					}
+				}
+				// Change outputs.
+				if (output.Index > 0) && (output.Index%2 == 0) {
+					if !ticketChangeMatured(w.chainParams, details.Height(), tipHeight) {
+						continue
+					}
+				}
+			case stake.TxTypeSSGen:
+				// All non-OP_RETURN outputs for SSGen tx are only spendable
+				// after coinbase maturity many blocks.
+				if !coinbaseMatured(w.chainParams, details.Height(), tipHeight) {
+					continue
+				}
+			case stake.TxTypeSSRtx:
+				// All outputs for SSRtx tx are only spendable
+				// after coinbase maturity many blocks.
+				if !coinbaseMatured(w.chainParams, details.Height(), tipHeight) {
+					continue
+				}
+			}
+
+			// Exclude locked outputs from the result set.
+			if w.LockedOutpoint(&output.OutPoint.Hash, output.OutPoint.Index) {
+				continue
+			}
+
+			// Lookup the associated account for the output.  Use the
+			// default account name in case there is no associated account
+			// for some reason, although this should never happen.
+			//
+			// This will be unnecessary once transactions and outputs are
+			// grouped under the associated account in the db.
+			acctName := defaultAccountName
+			sc, addrs, _, err := txscript.ExtractPkScriptAddrs(
+				0, output.PkScript, w.chainParams, true) // Yes treasury
+			if err != nil {
+				continue
+			}
+			if len(addrs) > 0 {
+				acct, err := w.manager.AddrAccount(
+					addrmgrNs, addrs[0])
+				if err == nil {
+					s, err := w.manager.AccountName(
+						addrmgrNs, acct)
+					if err == nil {
+						acctName = s
+					}
+				}
+
+				if inputSelectionMethod == types.UniqueTxInputSelection {
+					// skip duplicate address
+					_, seenAddress := seenTxIDs[addrs[0].String()]
+					if seenAddress {
+						log.Info("Skipping duplicate address:", addrs[0].String())
+						continue
+					}
+				}
+			}
+
+			if accountName != "" && accountName != acctName {
+				continue
+			}
+
+			if randomUnspent != nil { // random address input selection
+				for _, addr := range addrs {
+					if randomUnspent.Address == addr.String() {
+						goto include
+					}
+				}
+
+				continue
+			}
+
+		include:
+			// At the moment watch-only addresses are not supported, so all
+			// recorded outputs that are not multisig are "spendable".
+			// Multisig outputs are only "spendable" if all keys are
+			// controlled by this wallet.
+			//
+			// TODO: Each case will need updates when watch-only addrs
+			// is added.  For P2PK, P2PKH, and P2SH, the address must be
+			// looked up and not be watching-only.  For multisig, all
+			// pubkeys must belong to the manager with the associated
+			// private key (currently it only checks whether the pubkey
+			// exists, since the private key is required at the moment).
+			var spendable bool
+			var redeemScript []byte
+		scSwitch:
+			switch sc {
+			case txscript.PubKeyHashTy:
+				spendable = true
+			case txscript.PubKeyTy:
+				spendable = true
+			case txscript.ScriptHashTy:
+				spendable = true
+				if len(addrs) != 1 {
+					return errors.Errorf("invalid address count for pay-to-script-hash output")
+				}
+				redeemScript, err = w.manager.RedeemScript(addrmgrNs, addrs[0])
+				if err != nil {
+					return err
+				}
+			case txscript.StakeGenTy:
+				spendable = true
+			case txscript.StakeRevocationTy:
+				spendable = true
+			case txscript.StakeSubChangeTy:
+				spendable = true
+			case txscript.MultiSigTy:
+				for _, a := range addrs {
+					_, err := w.manager.Address(addrmgrNs, a)
+					if err == nil {
+						continue
+					}
+					if errors.Is(err, errors.NotExist) {
+						break scSwitch
+					}
+					return err
+				}
+				spendable = true
+			}
+
+			if !spendable {
+				continue
+			}
+
+			result := &types.ListUnspentResult{
+				TxID:          output.OutPoint.Hash.String(),
+				Vout:          output.OutPoint.Index,
+				Tree:          output.OutPoint.Tree,
+				Account:       acctName,
+				ScriptPubKey:  hex.EncodeToString(output.PkScript),
+				RedeemScript:  hex.EncodeToString(redeemScript),
+				TxType:        int(details.TxType),
+				Amount:        output.Amount.ToCoin(),
+				Confirmations: int64(confs),
+				Spendable:     spendable,
+			}
+
+			if len(addrs) > 0 {
+				result.Address = addrs[0].String()
+				seenTxIDs[result.Address] = struct{}{}
+			}
+			results = append(results, result)
+
+			currentTotal += output.Amount
+			seenTxIDs[result.TxID] = struct{}{}
+
+			if inputSelectionMethod == types.RandomAddressInputSelection && randomUnspent == nil {
+				randomUnspent = result
+			}
+
+			if inputSelectionMethod == types.OneUTXOInputSelection {
+				return nil
+			} else if currentTotal >= targetAmount {
+				if spendAll {
+					continue
+				}
+
+				return nil
+			}
+		}
+
+		if inputSelectionMethod == types.RandomAddressInputSelection {
+			return fmt.Errorf("insufficient balance, selected address does not have enough utxos to pay %s", targetAmount)
+		} else if inputSelectionMethod == types.OneUTXOInputSelection {
+			return fmt.Errorf("insufficient balance, no utxo is available to pay %s", targetAmount)
+		}
+
+		return nil
+	})
+
 	if err != nil {
 		return nil, errors.E(op, err)
 	}

@@ -94,6 +94,13 @@ func (c *Client) ListUnspentMinMaxAddresses(ctx context.Context, minConf, maxCon
 	return res, err
 }
 
+func (c *Client) SelectUnspent(ctx context.Context, targetAmount, minAmount dcrutil.Amount, minConf int,
+	account string, spendAll bool, inputSelectionMethod string, seenTxAddress map[string]struct{}) ([]types.ListUnspentResult, error) {
+	var res []types.ListUnspentResult
+	err := c.Call(ctx, "selectunspent", &res, targetAmount.ToCoin(), minAmount.ToCoin(), minConf, account, spendAll, inputSelectionMethod, seenTxAddress)
+	return res, err
+}
+
 // ListSinceBlock returns all transactions added in blocks since the specified
 // block hash, or all transactions if it is nil, using the default number of
 // minimum confirmations as a filter.

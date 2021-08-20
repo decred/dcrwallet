@@ -265,6 +265,23 @@ type ListSinceBlockResult struct {
 	LastBlock    string                   `json:"lastblock"`
 }
 
+// InputSelectionMethod defines the type used in the selectunspent JSON-RPC
+// result for the InputSelectionMethod command field.
+type InputSelectionMethod string
+
+const (
+	// RandomInputSelection indicates any random utxo can be selected.
+	RandomInputSelection InputSelectionMethod = "random"
+	// RandomAddressInputSelection indicates that only utxos matching a randomly selected
+	// address should be selected.
+	RandomAddressInputSelection InputSelectionMethod = "randomaddress"
+	// OneUTXOInputSelection indicates that only one utxo should be selected.
+	OneUTXOInputSelection InputSelectionMethod = "oneutxo"
+	// UniqueTxInputSelection indicates that only utxos with unique address
+	// and hash should be selected.
+	UniqueTxInputSelection InputSelectionMethod = "uniquetx"
+)
+
 // ListUnspentResult models a successful response from the listunspent request.
 // Contains Decred additions.
 type ListUnspentResult struct {

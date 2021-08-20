@@ -84,6 +84,7 @@ var Methods = []struct {
 	{"listsinceblock", []interface{}{(*types.ListSinceBlockResult)(nil)}},
 	{"listtransactions", returnsLTRArray},
 	{"listunspent", []interface{}{(*types.ListUnspentResult)(nil)}},
+	{"selectunspent", []interface{}{(*types.ListUnspentResult)(nil)}},
 	{"lockaccount", nil},
 	{"lockunspent", returnsBool},
 	{"mixaccount", nil},
