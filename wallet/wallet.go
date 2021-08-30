@@ -1561,14 +1561,12 @@ func (w *Wallet) FetchHeaders(ctx context.Context, p Peer) (count int, rescanFro
 // If that many UTXOs can not be found, it will use the maximum it finds. This
 // will only compress UTXOs in the default account
 func (w *Wallet) Consolidate(ctx context.Context, inputs int, account uint32, address stdaddr.Address) (*chainhash.Hash, error) {
-	defer w.holdUnlock().release()
 	return w.compressWallet(ctx, "wallet.Consolidate", inputs, account, address)
 }
 
 // CreateMultisigTx creates and signs a multisig transaction.
 func (w *Wallet) CreateMultisigTx(ctx context.Context, account uint32, amount dcrutil.Amount,
 	pubkeys [][]byte, nrequired int8, minconf int32) (*CreatedTx, stdaddr.Address, []byte, error) {
-	defer w.holdUnlock().release()
 	return w.txToMultisig(ctx, "wallet.CreateMultisigTx", account, amount, pubkeys, nrequired, minconf)
 }
 
@@ -1626,10 +1624,6 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	req *PurchaseTicketsRequest) (*PurchaseTicketsResponse, error) {
 
 	const op errors.Op = "wallet.PurchaseTicketsWithResponse"
-
-	if !req.DontSignTx {
-		defer w.holdUnlock().release()
-	}
 
 	resp, err := w.purchaseTickets(ctx, op, n, req)
 	if err == nil || !errors.Is(err, errVSPFeeRequiresUTXOSplit) || req.DontSignTx {
@@ -1713,12 +1707,6 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	}
 	return w.purchaseTickets(ctx, op, n, req)
 }
-
-// heldUnlock is a tool to prevent the wallet from automatically locking after
-// some timeout before an operation which needed the unlocked wallet has
-// finished.  Any acquired heldUnlock *must* be released (preferably with a
-// defer) or the wallet will forever remain unlocked.
-type heldUnlock chan struct{}
 
 // Unlock unlocks the wallet, allowing access to private keys and secret scripts.
 // An unlocked wallet will be locked before returning with a Passphrase error if
@@ -1876,29 +1864,6 @@ func (w *Wallet) Locked() bool {
 // Unlocked returns whether the account manager for a wallet is unlocked.
 func (w *Wallet) Unlocked() bool {
 	return !w.Locked()
-}
-
-// holdUnlock prevents the wallet from being locked.  The heldUnlock object
-// *must* be released, or the wallet will forever remain unlocked.
-//
-// TODO: To prevent the above scenario, perhaps closures should be passed
-// to the walletLocker goroutine and disallow callers from explicitly
-// handling the locking mechanism.
-func (w *Wallet) holdUnlock() heldUnlock {
-	w.passphraseUsedMu.RLock()
-	hold := make(heldUnlock)
-	go func() {
-		<-hold
-		w.passphraseUsedMu.RUnlock()
-	}()
-	return hold
-}
-
-// release releases the hold on the unlocked-state of the wallet and allows the
-// wallet to be locked again.  If a lock timeout has already expired, the
-// wallet is locked again as soon as release is called.
-func (c heldUnlock) release() {
-	c <- struct{}{}
 }
 
 // WatchingOnly returns whether the wallet only contains public keys.
@@ -4554,7 +4519,6 @@ func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account
 		}
 	}
 
-	defer w.holdUnlock().release()
 	a := &authorTx{
 		outputs:            outputs,
 		account:            account,
@@ -4592,7 +4556,6 @@ func (w *Wallet) SendOutputsToTreasury(ctx context.Context, outputs []*wire.TxOu
 		}
 	}
 
-	defer w.holdUnlock().release()
 	a := &authorTx{
 		outputs:            outputs,
 		account:            account,

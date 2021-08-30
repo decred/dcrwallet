@@ -65,8 +65,6 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		return errors.E(op, err)
 	}
 
-	defer w.holdUnlock().release()
-
 	w.lockedOutpointMu.Lock()
 	if _, exists := w.lockedOutpoints[outpoint{output.Hash, output.Index}]; exists {
 		w.lockedOutpointMu.Unlock()
@@ -266,8 +264,6 @@ SplitPoints:
 // function may throttle how many of the outputs are mixed each call.
 func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver string, changeAccount, mixAccount, mixBranch uint32) error {
 	const op errors.Op = "wallet.MixAccount"
-
-	defer w.holdUnlock().release()
 
 	_, tipHeight := w.MainChainTip(ctx)
 	w.lockedOutpointMu.Lock()
