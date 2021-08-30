@@ -76,7 +76,15 @@ func (t *sidechainRootedTree) duplicateNode(n *BlockNode) bool {
 	if *t.root.Hash == *n.Hash {
 		return true
 	}
-	_, ok := t.children[*n.Hash]
+	old, ok := t.children[*n.Hash]
+
+	// Copy the cfilter to the older node if it doesn't exist there yet.
+	// This happens when we received sidechains that are about to become a
+	// mainchain.
+	if ok && n.FilterV2 != nil && old.FilterV2 == nil {
+		old.FilterV2 = n.FilterV2
+	}
+
 	return ok
 }
 
@@ -239,6 +247,74 @@ func (f *SidechainForest) PruneTree(root *chainhash.Hash) {
 			return
 		}
 	}
+}
+
+// HasSideChainBlock returns true if the given block hash is contained in the
+// sidechain forest at any level.
+func (f *SidechainForest) HasSideChainBlock(blockHash *chainhash.Hash) bool {
+	for _, tree := range f.trees {
+		if *blockHash == *tree.root.Hash {
+			return true
+		}
+		if _, ok := tree.children[*blockHash]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// FullSideChain returns the sidechain which starts at one of the existing
+// roots and ends with the set of passed new blocks.
+func (f *SidechainForest) FullSideChain(newBlocks []*BlockNode) ([]*BlockNode, error) {
+	const op errors.Op = "wallet.EvaluateBestChain"
+
+	if len(newBlocks) == 0 {
+		return newBlocks, nil
+	}
+
+	wantParent := newBlocks[0].Header.PrevBlock
+
+	for _, tree := range f.trees {
+		if wantParent == *tree.root.Hash {
+			// Connects to this root directly.
+			return append([]*BlockNode{tree.root}, newBlocks...), nil
+		}
+
+		parent, ok := tree.children[wantParent]
+		if !ok {
+			// Parent is not in this tree.
+			continue
+		}
+
+		// Shouldn't happen due to the invariants maintained by
+		// SidechainForest, but be cautious to avoid a large loop below
+		// due to wrapping uint32.
+		if parent.Header.Height <= tree.root.Header.Height {
+			err := errors.E(op, "broken assumption of height > parent.Height")
+			return nil, err
+		}
+
+		// Iterate backwards, from parent down to the root to
+		// accumulate the prefix chain.
+		prefixLen := parent.Header.Height - tree.root.Header.Height + 1
+		res := make([]*BlockNode, prefixLen, prefixLen+uint32(len(newBlocks)))
+		for i := int(prefixLen) - 1; i >= 0; i-- {
+			if parent == nil {
+				err := errors.E(op, "broken assumption about "+
+					"connectedness of sidechain nodes")
+				return nil, err
+			}
+			res[i] = parent
+			parent = parent.parent
+		}
+
+		// Add the newBlocks suffix chain.
+		res = append(res, newBlocks...)
+		return res, nil
+	}
+
+	// New sidechain.
+	return newBlocks, nil
 }
 
 // EvaluateBestChain returns block nodes to create the best main chain.  These

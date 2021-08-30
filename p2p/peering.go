@@ -958,10 +958,25 @@ func (rp *RemotePeer) deleteRequestedHeaders() {
 func (rp *RemotePeer) receivedHeaders(ctx context.Context, msg *wire.MsgHeaders) {
 	const opf = "remotepeer(%v).receivedHeaders"
 	rp.requestedHeadersMu.Lock()
-	for _, h := range msg.Headers {
+	var prevHash chainhash.Hash
+	var prevHeight uint32
+	for i, h := range msg.Headers {
 		hash := h.BlockHash() // Must be type chainhash.Hash
 		rp.knownHeaders.Add(hash)
+
+		// Sanity check the headers connect to each other in sequence.
+		if i > 0 && (!prevHash.IsEqual(&h.PrevBlock) || h.Height != prevHeight+1) {
+			op := errors.Opf(opf, rp.raddr)
+			err := errors.E(op, errors.Protocol, "received out-of-sequence headers")
+			rp.Disconnect(err)
+			rp.requestedHeadersMu.Unlock()
+			return
+		}
+
+		prevHash = hash
+		prevHeight = h.Height
 	}
+
 	if rp.sendheaders {
 		rp.requestedHeadersMu.Unlock()
 		select {
@@ -1523,6 +1538,48 @@ func (rp *RemotePeer) Headers(ctx context.Context, blockLocators []*chainhash.Ha
 	}
 }
 
+// HeadersAsync requests block headers from the RemotePeer with getheaders.
+// Block headers can not be requested concurrently from the same peer.  This
+// can only be used _after_ the sendheaders msg was sent and does _not_ wait
+// for a reply from the remote peer. Headers will be delivered via the
+// ReceiveHeaderAnnouncements call.
+func (rp *RemotePeer) HeadersAsync(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) error {
+	const opf = "remotepeer(%v).Headers"
+
+	rp.requestedHeadersMu.Lock()
+	sendheaders := rp.sendheaders
+	rp.requestedHeadersMu.Unlock()
+	if !sendheaders {
+		op := errors.Opf(opf, rp.raddr)
+		return errors.E(op, errors.Invalid, "asynchronous getheaders before sendheaders is unsupported")
+	}
+
+	m := &wire.MsgGetHeaders{
+		ProtocolVersion:    rp.pver,
+		BlockLocatorHashes: blockLocators,
+		HashStop:           *hashStop,
+	}
+	stalled := time.NewTimer(stallTimeout)
+	out := rp.out
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-stalled.C:
+			op := errors.Opf(opf, rp.raddr)
+			err := errors.E(op, errors.IO, "peer appears stalled")
+			rp.Disconnect(err)
+			return err
+		case <-rp.errc:
+			stalled.Stop()
+			return rp.err
+		case out <- &msgAck{m, nil}:
+			out = nil
+			return nil
+		}
+	}
+}
+
 // PublishTransactions pushes an inventory message advertising transaction
 // hashes of txs.
 func (rp *RemotePeer) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error {
@@ -1572,4 +1629,25 @@ func (rp *RemotePeer) sendMessageAck(ctx context.Context, msg wire.Message) erro
 		<-ack
 		return nil
 	}
+}
+
+// ReceivedOrphanHeader increases the banscore for a peer due to them sending
+// an orphan header. Returns an error if the banscore has been breached.
+func (rp *RemotePeer) ReceivedOrphanHeader() error {
+	// Allow up to 10 orphan header chain announcements.
+	delta := uint32(banThreshold / 10)
+	bs := rp.banScore.Increase(0, delta)
+	if bs > banThreshold {
+		return errors.E(errors.Protocol, "ban score reached due to orphan header")
+	}
+	return nil
+}
+
+// SendHeadersSent returns whether this peer was already instructed to send new
+// headers via the sendheaders message.
+func (rp *RemotePeer) SendHeadersSent() bool {
+	rp.requestedHeadersMu.Lock()
+	sent := rp.sendheaders
+	rp.requestedHeadersMu.Unlock()
+	return sent
 }
