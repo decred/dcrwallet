@@ -216,7 +216,17 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error
 			return nil
 		}
 
-		if status.FeeTxHash != "" {
+		if status.FeeTxStatus == "confirmed" {
+			feeHash, err := chainhash.NewHashFromStr(status.FeeTxHash)
+			if err != nil {
+				return err
+			}
+			err = c.Wallet.UpdateVspTicketFeeToConfirmed(ctx, hash, feeHash, c.client.url, c.client.pub)
+			if err != nil {
+				return err
+			}
+			return nil
+		} else if status.FeeTxHash != "" {
 			feeHash, err := chainhash.NewHashFromStr(status.FeeTxHash)
 			if err != nil {
 				return err
@@ -225,9 +235,12 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error
 			if err != nil {
 				return err
 			}
+			_ = c.feePayment(hash, policy, true)
+		} else {
+			// Fee hasn't been paid at the provided VSP, so this should do that if needed.
+			_ = c.feePayment(hash, policy, false)
 		}
 
-		_ = c.feePayment(hash, policy, false)
 		return nil
 	})
 	return err

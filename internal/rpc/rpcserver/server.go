@@ -61,9 +61,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.11.0"
+	semverString = "7.12.0"
 	semverMajor  = 7
-	semverMinor  = 11
+	semverMinor  = 12
 	semverPatch  = 0
 )
 
@@ -3706,7 +3706,6 @@ func (s *walletServer) GetPeerInfo(ctx context.Context, req *pb.GetPeerInfoReque
 
 func (s *walletServer) GetVSPTicketsByFeeStatus(ctx context.Context, req *pb.GetVSPTicketsByFeeStatusRequest) (
 	*pb.GetVSPTicketsByFeeStatusResponse, error) {
-
 	var feeStatus int
 	switch req.FeeStatus {
 	case pb.GetVSPTicketsByFeeStatusRequest_VSP_FEE_PROCESS_STARTED:
@@ -3715,6 +3714,8 @@ func (s *walletServer) GetVSPTicketsByFeeStatus(ctx context.Context, req *pb.Get
 		feeStatus = int(udb.VSPFeeProcessPaid)
 	case pb.GetVSPTicketsByFeeStatusRequest_VSP_FEE_PROCESS_ERRORED:
 		feeStatus = int(udb.VSPFeeProcessErrored)
+	case pb.GetVSPTicketsByFeeStatusRequest_VSP_FEE_PROCESS_CONFIRMED:
+		feeStatus = int(udb.VSPFeeProcessConfirmed)
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "fee status=%v", req.FeeStatus)
 	}
@@ -3728,7 +3729,6 @@ func (s *walletServer) GetVSPTicketsByFeeStatus(ctx context.Context, req *pb.Get
 	for i := range failedTicketsFee {
 		hashes[i] = failedTicketsFee[i][:]
 	}
-
 	return &pb.GetVSPTicketsByFeeStatusResponse{
 		TicketsHashes: hashes,
 	}, nil
