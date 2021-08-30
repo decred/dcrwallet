@@ -3801,11 +3801,9 @@ func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcru
 
 			switch details.TxRecord.TxType {
 			case stake.TxTypeSStx:
-				// Ticket commitment, only spendable after ticket maturity.
+				// Ticket commitment, not spendable by regular transactions.
 				if output.Index == 0 {
-					if !ticketMatured(w.chainParams, details.Height(), tipHeight) {
-						continue
-					}
+					continue
 				}
 				// Change outputs.
 				if (output.Index > 0) && (output.Index%2 == 0) {
@@ -3816,11 +3814,13 @@ func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcru
 			case stake.TxTypeSSGen:
 				// All non-OP_RETURN outputs for SSGen tx are only spendable
 				// after coinbase maturity many blocks.
-				if !coinbaseMatured(w.chainParams, details.Height(), tipHeight) {
-					continue
-				}
+				fallthrough
 			case stake.TxTypeSSRtx:
 				// All outputs for SSRtx tx are only spendable
+				// after coinbase maturity many blocks.
+				fallthrough
+			case stake.TxTypeTSpend:
+				// All non-OP_RETURN outputs for TGen tx are only spendable
 				// after coinbase maturity many blocks.
 				if !coinbaseMatured(w.chainParams, details.Height(), tipHeight) {
 					continue
