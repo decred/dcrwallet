@@ -11,7 +11,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
 	"runtime"
 	"sort"
 	"strconv"
@@ -3719,14 +3718,14 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 
 // SelectUnspent returns a slice of objects representing the unspent wallet
 // transactions for the given criteria that are enough to pay the target amount.
-// The transaction amount and confirmations will be greater than the amount
+// The output amount and confirmations will be greater than the amount
 // & minconf parameters. Only utxos matching the accountName will be returned if
 // that parameter is used. targetAmount is ignored if spendAll is set to true. The
-// inputSelectionMethod determines how inputs should be selected and the
-// seenTxIDs is for use with the UniqueTxInputSelection parameter to determine what
-// transaction hash or address should be skipped.
+// inputMethod determines how inputs should be selected and theseenTxIDs is for
+// use with the UniqueTxInputSelection parameter to determine what transaction hash
+// or address should be skipped.
 func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcrutil.Amount, minconf int32, accountName string,
-	spendAll bool, seenTxIDs map[string]struct{}, inputSelectionMethod types.InputSelectionMethod) ([]*types.ListUnspentResult, error) {
+	spendAll bool, skipTxAddress map[string]struct{}, inputMethod types.InputSelectionMethod) ([]*types.ListUnspentResult, error) {
 	const op errors.Op = "wallet.SelectUnspent"
 
 	var (
@@ -3744,7 +3743,6 @@ func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcru
 		if err != nil {
 			return err
 		}
-		sort.Sort(sort.Reverse(creditSlice(unspent)))
 
 		defaultAccountName, err := w.manager.AccountName(
 			addrmgrNs, udb.DefaultAccountNum)
@@ -3753,8 +3751,7 @@ func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcru
 		}
 
 		// Shuffe utxos
-		rand.Seed(time.Now().UnixNano())
-		rand.Shuffle(len(unspent), func(i, j int) { unspent[i], unspent[j] = unspent[j], unspent[i] })
+		shuffle(len(unspent), func(i, j int) { unspent[i], unspent[j] = unspent[j], unspent[i] })
 
 		// used for RandomAddressInputSelection
 		var randomUnspent *types.ListUnspentResult
@@ -3763,11 +3760,11 @@ func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcru
 			output := unspent[i]
 
 			if output.Amount < minAmount {
-				log.Infof("Skipping utxo %s, amount: %s, min: %s", output.Hash.String(), output.Amount, minAmount)
+				log.Tracef("Skipping utxo %s, amount: %s, min: %s", output.Hash.String(), output.Amount, minAmount)
 				continue
 			}
 
-			if inputSelectionMethod == types.OneUTXOInputSelection {
+			if inputMethod == types.OneUTXOInputSelection {
 				// We're selecting only one utxo so this loop will run until we find
 				// a single utxo that can pay the target amount.
 
@@ -3775,11 +3772,11 @@ func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcru
 					// continue if this utxo cannot pay the require amount
 					continue
 				}
-			} else if inputSelectionMethod == types.UniqueTxInputSelection {
+			} else if inputMethod == types.UniqueTxInputSelection {
 				// skip duplicate tx id
-				_, seenTxID := seenTxIDs[output.Hash.String()]
-				if seenTxID {
-					log.Infof("Skipping duplicate txid: %s:%d", output.Hash.String(), output.Index)
+				_, skipTx := skipTxAddress[output.Hash.String()]
+				if skipTx {
+					log.Tracef("Skipping duplicate txid: %s:%d", output.Hash.String(), output.Index)
 					continue
 				}
 			}
@@ -3858,11 +3855,11 @@ func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcru
 					}
 				}
 
-				if inputSelectionMethod == types.UniqueTxInputSelection {
+				if inputMethod == types.UniqueTxInputSelection {
 					// skip duplicate address
-					_, seenAddress := seenTxIDs[addrs[0].String()]
-					if seenAddress {
-						log.Info("Skipping duplicate address:", addrs[0].String())
+					_, skipAddress := skipTxAddress[addrs[0].String()]
+					if skipAddress {
+						log.Trace("Skipping duplicate address:", addrs[0].String())
 						continue
 					}
 				}
@@ -3950,18 +3947,18 @@ func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcru
 
 			if len(addrs) > 0 {
 				result.Address = addrs[0].String()
-				seenTxIDs[result.Address] = struct{}{}
+				skipTxAddress[result.Address] = struct{}{}
 			}
 			results = append(results, result)
 
 			currentTotal += output.Amount
-			seenTxIDs[result.TxID] = struct{}{}
+			skipTxAddress[result.TxID] = struct{}{}
 
-			if inputSelectionMethod == types.RandomAddressInputSelection && randomUnspent == nil {
+			if inputMethod == types.RandomAddressInputSelection && randomUnspent == nil {
 				randomUnspent = result
 			}
 
-			if inputSelectionMethod == types.OneUTXOInputSelection {
+			if inputMethod == types.OneUTXOInputSelection {
 				return nil
 			} else if currentTotal >= targetAmount {
 				if spendAll {
@@ -3972,9 +3969,9 @@ func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcru
 			}
 		}
 
-		if inputSelectionMethod == types.RandomAddressInputSelection {
+		if inputMethod == types.RandomAddressInputSelection {
 			return fmt.Errorf("insufficient balance, selected address does not have enough utxos to pay %s", targetAmount)
-		} else if inputSelectionMethod == types.OneUTXOInputSelection {
+		} else if inputMethod == types.OneUTXOInputSelection {
 			return fmt.Errorf("insufficient balance, no utxo is available to pay %s", targetAmount)
 		}
 

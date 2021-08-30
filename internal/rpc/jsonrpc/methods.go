@@ -3125,17 +3125,17 @@ func (s *Server) selectUnspent(ctx context.Context, icmd interface{}) (interface
 	}
 
 	var inputMethod = types.RandomInputSelection
-	if cmd.InputSelectionMethod != nil {
-		inputMethod = types.InputSelectionMethod(*cmd.InputSelectionMethod)
+	if cmd != nil {
+		inputMethod = types.InputSelectionMethod(*cmd.InputMethod)
 	}
 
-	seenTxAddress := make(map[string]struct{})
-	if cmd.SeenTxAddress != nil {
-		seenTxAddress = *cmd.SeenTxAddress
+	skipTxAddress := make(map[string]struct{})
+	if cmd.SkipTxAddress != nil {
+		skipTxAddress = *cmd.SkipTxAddress
 	}
 
 	result, err := w.SelectUnspent(ctx, targetAmount, minAmount, int32(*cmd.MinConf), account,
-		spendAll, seenTxAddress, inputMethod)
+		spendAll, skipTxAddress, inputMethod)
 	if err != nil {
 		return nil, err
 	}
