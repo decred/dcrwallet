@@ -3845,14 +3845,16 @@ func (w *Wallet) SelectUnspent(ctx context.Context, targetAmount, minAmount dcru
 				continue
 			}
 			if len(addrs) > 0 {
-				acct, err := w.manager.AddrAccount(
-					addrmgrNs, addrs[0])
+				acct, err := w.manager.AddrAccount(addrmgrNs, addrs[0])
 				if err == nil {
-					s, err := w.manager.AccountName(
-						addrmgrNs, acct)
+					var s string
+					s, err = w.manager.AccountName(addrmgrNs, acct)
 					if err == nil {
 						acctName = s
 					}
+				}
+				if err != nil && !errors.Is(err, errors.NotExist) {
+					return err
 				}
 
 				if inputMethod == types.UniqueTxInputSelection {
