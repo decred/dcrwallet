@@ -6,7 +6,6 @@ package wallet
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -25,7 +24,7 @@ var basicWalletConfig = Config{
 
 func testWallet(t *testing.T, cfg *Config) (w *Wallet, teardown func()) {
 	ctx := context.Background()
-	f, err := ioutil.TempFile("", "dcrwallet.testdb")
+	f, err := os.CreateTemp("", "dcrwallet.testdb")
 	if err != nil {
 		t.Fatal(err)
 	}

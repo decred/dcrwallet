@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
@@ -87,7 +86,7 @@ func (c *client) do(ctx context.Context, method, path string, addr stdaddr.Addre
 	if err != nil {
 		return fmt.Errorf("cannot authenticate server: %w", err)
 	}
-	respBody, err := ioutil.ReadAll(reply.Body)
+	respBody, err := io.ReadAll(reply.Body)
 	if err != nil {
 		return fmt.Errorf("read response body: %w", err)
 	}

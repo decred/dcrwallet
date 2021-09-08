@@ -10,7 +10,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/user"
@@ -756,7 +755,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	}
 	if cfg.CSPPServerCA != "" {
 		cfg.CSPPServerCA = cleanAndExpandPath(cfg.CSPPServerCA)
-		ca, err := ioutil.ReadFile(cfg.CSPPServerCA)
+		ca, err := os.ReadFile(cfg.CSPPServerCA)
 		if err != nil {
 			err := errors.Errorf("Cannot read CoinShuffle++ "+
 				"Certificate Authority file: %v", err)

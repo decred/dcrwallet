@@ -12,7 +12,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"runtime/trace"
@@ -530,7 +529,7 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 	ctx := withRemoteAddr(r.Context(), r.RemoteAddr)
 
 	body := http.MaxBytesReader(w, r.Body, maxRequestSize)
-	rpcRequest, err := ioutil.ReadAll(body)
+	rpcRequest, err := io.ReadAll(body)
 	if err != nil {
 		// TODO: what if the underlying reader errored?
 		log.Warnf("Request from client %v exceeds maximum size", r.RemoteAddr)

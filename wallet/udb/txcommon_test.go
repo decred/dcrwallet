@@ -6,7 +6,6 @@ package udb
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -21,7 +20,7 @@ import (
 )
 
 func tempDB(t *testing.T) (db walletdb.DB, teardown func()) {
-	f, err := ioutil.TempFile("", "udb")
+	f, err := os.CreateTemp("", "udb")
 	if err != nil {
 		t.Fatal(err)
 	}

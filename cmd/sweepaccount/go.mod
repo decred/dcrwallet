@@ -1,5 +1,7 @@
 module github.com/decred/dcrwallet/cmd/sweepaccount
 
+go 1.16
+
 require (
 	decred.org/dcrwallet v1.6.0-rc4
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.2
@@ -11,5 +13,3 @@ require (
 	github.com/jrick/wsrpc/v2 v2.3.4
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 )
-
-go 1.13

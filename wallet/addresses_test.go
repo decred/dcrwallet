@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -132,7 +131,7 @@ var (
 )
 
 func setupWallet(t *testing.T, cfg *Config) (*Wallet, walletdb.DB, func()) {
-	f, err := ioutil.TempFile("", "testwallet.db")
+	f, err := os.CreateTemp("", "testwallet.db")
 	if err != nil {
 		t.Fatal(err)
 	}

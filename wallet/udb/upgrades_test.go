@@ -11,7 +11,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,7 +45,7 @@ func TestUpgrades(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	d, err := ioutil.TempDir("", "dcrwallet_udb_TestUpgrades")
+	d, err := os.MkdirTemp("", "dcrwallet_udb_TestUpgrades")
 	if err != nil {
 		t.Fatal(err)
 	}

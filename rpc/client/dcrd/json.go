@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"strings"
 
 	"decred.org/dcrwallet/v2/errors"
@@ -55,7 +54,7 @@ type cfilterV2 struct {
 }
 
 func (f *cfilterV2) Deserialize(r io.Reader) error {
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}

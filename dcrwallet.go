@@ -9,7 +9,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -575,7 +574,7 @@ func readCAFile() []byte {
 	var certs []byte
 	if !cfg.DisableClientTLS {
 		var err error
-		certs, err = ioutil.ReadFile(cfg.CAFile.Value)
+		certs, err = os.ReadFile(cfg.CAFile.Value)
 		if err != nil {
 			log.Warnf("Cannot open CA file: %v", err)
 			// If there's an error reading the CA file, continue

@@ -21,7 +21,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 
 	"decred.org/dcrwallet/v2/rpc/jsonrpc/types"
@@ -230,7 +230,7 @@ func main() {
 	}
 	buf.WriteString("]' ")
 	buf.WriteString("| jq -r .hex")
-	err = ioutil.WriteFile("sign.sh", buf.Bytes(), 0755)
+	err = os.WriteFile("sign.sh", buf.Bytes(), 0755)
 	if err != nil {
 		fmt.Println("Failed to write signing script: ", err.Error())
 		return

@@ -14,7 +14,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"io"
-	"io/ioutil"
 	logpkg "log"
 	"net/http"
 	"net/http/httptest"
@@ -112,7 +111,7 @@ func testClientCert(t *testing.T, pub, priv interface{}, name string) {
 		t.Errorf("algorithm %s: %v", name, err)
 		return
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Error(err)
 		return
@@ -157,7 +156,7 @@ func TestUntrustedClientCert(t *testing.T) {
 	s := httptest.NewUnstartedServer(http.HandlerFunc(echo))
 	s.Config = &http.Server{
 		// Don't log remote cert errors for this negative test
-		ErrorLog: logpkg.New(ioutil.Discard, "", 0),
+		ErrorLog: logpkg.New(io.Discard, "", 0),
 	}
 	s.TLS = &tls.Config{
 		MinVersion: tls.VersionTLS12,

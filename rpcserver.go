@@ -14,7 +14,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"os"
@@ -92,12 +91,12 @@ func generateRPCKeyPair(writeKey bool) (tls.Certificate, error) {
 	}
 
 	// Write cert and (potentially) the key files.
-	err = ioutil.WriteFile(cfg.RPCCert.Value, cert, 0600)
+	err = os.WriteFile(cfg.RPCCert.Value, cert, 0600)
 	if err != nil {
 		return tls.Certificate{}, err
 	}
 	if writeKey {
-		err = ioutil.WriteFile(cfg.RPCKey.Value, key, 0600)
+		err = os.WriteFile(cfg.RPCKey.Value, key, 0600)
 		if err != nil {
 			rmErr := os.Remove(cfg.RPCCert.Value)
 			if rmErr != nil {
@@ -267,7 +266,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 		}
 		clientCAsExist, _ = cfgutil.FileExists(cfg.ClientCAFile.Value)
 		if clientCAsExist {
-			cafile, err := ioutil.ReadFile(cfg.ClientCAFile.Value)
+			cafile, err := os.ReadFile(cfg.ClientCAFile.Value)
 			if err != nil {
 				return nil, nil, err
 			}

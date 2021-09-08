@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1006,7 +1005,7 @@ func TestManager(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	testDir, err := ioutil.TempDir("", "udb-")
+	testDir, err := os.MkdirTemp("", "udb-")
 	if err != nil {
 		fmt.Printf("Unable to create temp directory: %v", err)
 		os.Exit(1)
