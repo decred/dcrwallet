@@ -95,16 +95,19 @@ var subsystemLoggers = map[string]slog.Logger{
 }
 
 // initLogRotator initializes the logging rotater to write logs to logFile and
-// create roll files in the same directory.  It must be called before the
-// package-global log rotater variables are used.
-func initLogRotator(logFile string) {
+// create roll files in the same directory.  logSize is the size in KiB after
+// which a log file will be rotated and compressed.
+//
+// This function must be called before the package-global log rotater variables
+// are used.
+func initLogRotator(logFile string, logSize int64) {
 	logDir, _ := filepath.Split(logFile)
 	err := os.MkdirAll(logDir, 0700)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create log directory: %v\n", err)
 		os.Exit(1)
 	}
-	r, err := rotator.New(logFile, 10*1024, false, 0)
+	r, err := rotator.New(logFile, logSize, false, 0)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create file rotator: %v\n", err)
 		os.Exit(1)
