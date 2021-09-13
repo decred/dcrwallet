@@ -626,11 +626,12 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 	}
 	msgtx.AddTxOut(txOut)
 
-	// Add change if we need it. The case in which
-	// totalInput == amount+feeEst is skipped because
-	// we don't need to add a change output in this
-	// case.
-	feeSize := txsizes.EstimateSerializeSize(scriptSizes, msgtx.TxOut, 0)
+	// Add change if we need it.
+	changeSize := 0
+	if totalInput > amount+feeEstForTx {
+		changeSize = txsizes.P2PKHPkScriptSize
+	}
+	feeSize := txsizes.EstimateSerializeSize(scriptSizes, msgtx.TxOut, changeSize)
 	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), feeSize)
 
 	if totalInput < amount+feeEst {
