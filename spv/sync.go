@@ -6,9 +6,7 @@ package spv
 
 import (
 	"context"
-	"net"
 	"runtime"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -366,7 +364,7 @@ func (s *Syncer) Run(ctx context.Context) error {
 // peerCandidate returns a peer address that we shall attempt to connect to.
 // Only peers not already remotes or in the process of connecting are returned.
 // Any address returned is marked in s.connectingRemotes before returning.
-func (s *Syncer) peerCandidate(svcs wire.ServiceFlag) (*wire.NetAddress, error) {
+func (s *Syncer) peerCandidate(svcs wire.ServiceFlag) (*addrmgr.NetAddress, error) {
 	// Try to obtain peer candidates at random, decreasing the requirements
 	// as more tries are performed.
 	for tries := 0; tries < 100; tries++ {
@@ -376,7 +374,7 @@ func (s *Syncer) peerCandidate(svcs wire.ServiceFlag) (*wire.NetAddress, error) 
 		}
 		na := kaddr.NetAddress()
 
-		k := addrmgr.NetAddressKey(na)
+		k := na.Key()
 		s.remotesMu.Lock()
 		_, isConnecting := s.connectingRemotes[k]
 		_, isRemote := s.remotes[k]
@@ -418,7 +416,7 @@ func (s *Syncer) connectToPersistent(ctx context.Context, raddr string) error {
 			}
 			log.Infof("New peer %v %v %v", raddr, rp.UA(), rp.Services())
 
-			k := addrmgr.NetAddressKey(rp.NA())
+			k := rp.NA().Key()
 			s.remotesMu.Lock()
 			s.remotes[k] = rp
 			n := len(s.remotes)
@@ -490,14 +488,11 @@ func (s *Syncer) connectToCandidates(ctx context.Context) error {
 			}()
 
 			// Make outbound connections to remote peers.
-			port := strconv.FormatUint(uint64(na.Port), 10)
-			raddr := net.JoinHostPort(na.IP.String(), port)
-			k := addrmgr.NetAddressKey(na)
-
+			raddr := na.String()
 			rp, err := s.lp.ConnectOutbound(ctx, raddr, reqSvcs)
 			if err != nil {
 				s.remotesMu.Lock()
-				delete(s.connectingRemotes, k)
+				delete(s.connectingRemotes, raddr)
 				s.remotesMu.Unlock()
 				if ctx.Err() == nil {
 					log.Warnf("Peering attempt failed: %v", err)
@@ -507,11 +502,11 @@ func (s *Syncer) connectToCandidates(ctx context.Context) error {
 			log.Infof("New peer %v %v %v", raddr, rp.UA(), rp.Services())
 
 			s.remotesMu.Lock()
-			delete(s.connectingRemotes, k)
-			s.remotes[k] = rp
+			delete(s.connectingRemotes, raddr)
+			s.remotes[raddr] = rp
 			n := len(s.remotes)
 			s.remotesMu.Unlock()
-			s.peerConnected(n, k)
+			s.peerConnected(n, raddr)
 
 			wait := make(chan struct{})
 			go func() {
@@ -529,10 +524,10 @@ func (s *Syncer) connectToCandidates(ctx context.Context) error {
 
 			<-wait
 			s.remotesMu.Lock()
-			delete(s.remotes, k)
+			delete(s.remotes, raddr)
 			n = len(s.remotes)
 			s.remotesMu.Unlock()
-			s.peerDisconnected(n, k)
+			s.peerDisconnected(n, raddr)
 		}()
 	}
 }

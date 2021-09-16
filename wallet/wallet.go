@@ -3759,7 +3759,12 @@ func isVote(tx *wire.MsgTx) bool {
 }
 
 func isRevocation(tx *wire.MsgTx) bool {
-	return stake.IsSSRtx(tx)
+	// isAutoRevocationsEnabled is set false to keep manually generated
+	// revocations still considered to be valid revocations.  Enabling this
+	// flag would cause legacy revocations to not be flagged as such.
+	// Enabling the flag only adds additional checks, so it's not necessary
+	// to make the call twice with the flag enabled and disabled.
+	return stake.IsSSRtx(tx, false)
 }
 
 func isTreasurySpend(tx *wire.MsgTx) bool {
@@ -4731,7 +4736,7 @@ func (w *Wallet) appendRelevantOutpoints(relevant []wire.OutPoint, dbtx walletdb
 	op := wire.OutPoint{
 		Hash: txHash,
 	}
-	isTicket := stake.DetermineTxType(tx, true /* Yes treasury */) == stake.TxTypeSStx
+	isTicket := stake.DetermineTxType(tx, true, false) == stake.TxTypeSStx
 	var watchedTicketOutputZero bool
 	for i, out := range tx.TxOut {
 		if isTicket && i > 0 && i&1 == 1 && !watchedTicketOutputZero {

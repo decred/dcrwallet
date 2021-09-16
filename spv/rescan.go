@@ -27,7 +27,7 @@ func (s *Syncer) rescanCheckTransactions(matches *[]*wire.MsgTx, fadded *blockcf
 
 		txty := stake.TxTypeRegular
 		if tree == wire.TxTreeStake {
-			txty = stake.DetermineTxType(tx, true) // Yes treasury
+			txty = stake.DetermineTxType(tx, true, false)
 		}
 
 		// Coinbases and stakebases are handled specially: all inputs of a

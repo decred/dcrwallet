@@ -35,7 +35,7 @@ func blockCommitments(block *wire.MsgBlock) map[string]struct{} {
 		}
 	}
 	for _, tx := range block.STransactions {
-		switch stake.DetermineTxType(tx, true) { // yes treasury
+		switch stake.DetermineTxType(tx, true, false) {
 		case stake.TxTypeSStx: // Ticket purchase
 			for i := 2; i < len(tx.TxOut); i += 2 { // Iterate change outputs
 				out := tx.TxOut[i]

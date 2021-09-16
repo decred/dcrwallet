@@ -3299,7 +3299,7 @@ func marshalDecodedTxInputs(mtx *wire.MsgTx) []*pb.DecodedTransaction_Input {
 
 func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*pb.DecodedTransaction_Output {
 	outputs := make([]*pb.DecodedTransaction_Output, len(mtx.TxOut))
-	txType := stake.DetermineTxType(mtx, true) // Yes treasury
+	txType := stake.DetermineTxType(mtx, true, false)
 
 	for i, v := range mtx.TxOut {
 		// The disassembled string will contain [error] inline if the

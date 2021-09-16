@@ -83,7 +83,7 @@ type RemotePeer struct {
 	pver       uint32
 	initHeight int32
 	raddr      net.Addr
-	na         *wire.NetAddress
+	na         *addrmgr.NetAddress
 
 	// io
 	c       net.Conn
@@ -203,8 +203,8 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 	}
 
 	// Create a net address with assumed services.
-	na := wire.NewNetAddressTimestamp(time.Now(), wire.SFNodeNetwork,
-		tcpAddr.IP, uint16(tcpAddr.Port))
+	na := addrmgr.NewNetAddressIPPort(tcpAddr.IP, uint16(tcpAddr.Port), wire.SFNodeNetwork)
+	na.Timestamp = time.Now()
 
 	rp, err := lp.connectOutbound(connectCtx, id, addr, na)
 	if err != nil {
@@ -265,7 +265,7 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 func (lp *LocalPeer) AddrManager() *addrmgr.AddrManager { return lp.amgr }
 
 // NA returns the remote peer's net address.
-func (rp *RemotePeer) NA() *wire.NetAddress { return rp.na }
+func (rp *RemotePeer) NA() *addrmgr.NetAddress { return rp.na }
 
 // UA returns the remote peer's user agent.
 func (rp *RemotePeer) UA() string { return rp.ua }
@@ -330,7 +330,7 @@ func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
 			resps <- resp
 		}()
 	}
-	var na []*wire.NetAddress
+	var na []*addrmgr.NetAddress
 	for range seeders {
 		resp := <-resps
 		if resp == nil {
@@ -372,11 +372,11 @@ func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
 			}
 			log.Debugf("Discovered peer %v from seeder %v", apiResponse.Host,
 				seeder)
-			na = append(na, &wire.NetAddress{
-				Timestamp: time.Now(),
-				Services:  wire.ServiceFlag(apiResponse.Services),
+			na = append(na, &addrmgr.NetAddress{
 				IP:        ip,
 				Port:      uint16(portNum),
+				Timestamp: time.Now(),
+				Services:  wire.ServiceFlag(apiResponse.Services),
 			})
 		}
 		resp.Body.Close()
@@ -452,7 +452,7 @@ func (mw *msgWriter) write(ctx context.Context, msg wire.Message, pver uint32) e
 	}
 }
 
-func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *wire.NetAddress, c net.Conn) (*RemotePeer, error) {
+func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *addrmgr.NetAddress, c net.Conn) (*RemotePeer, error) {
 	const op errors.Op = "p2p.handshake"
 
 	rp := &RemotePeer{
@@ -541,7 +541,7 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *wire.NetAddres
 }
 
 func (lp *LocalPeer) connectOutbound(ctx context.Context, id uint64, addr string,
-	na *wire.NetAddress) (*RemotePeer, error) {
+	na *addrmgr.NetAddress) (*RemotePeer, error) {
 
 	var c net.Conn
 	var retryDuration = 5 * time.Second
@@ -727,7 +727,7 @@ func (rp *RemotePeer) readMessages(ctx context.Context) error {
 		go func() {
 			switch m := msg.(type) {
 			case *wire.MsgAddr:
-				rp.lp.amgr.AddAddresses(m.AddrList, rp.na)
+				rp.receivedAddr(ctx, m)
 			case *wire.MsgBlock:
 				rp.receivedBlock(ctx, m)
 			case *wire.MsgCFilterV2:
@@ -880,6 +880,19 @@ func (rp *RemotePeer) receivedPong(ctx context.Context, msg *wire.MsgPong) {
 	case <-ctx.Done():
 	case rp.pongs <- msg:
 	}
+}
+
+func (rp *RemotePeer) receivedAddr(ctx context.Context, msg *wire.MsgAddr) {
+	addrs := make([]*addrmgr.NetAddress, len(msg.AddrList))
+	for i, a := range msg.AddrList {
+		addrs[i] = &addrmgr.NetAddress{
+			IP:        a.IP,
+			Port:      a.Port,
+			Services:  a.Services,
+			Timestamp: a.Timestamp,
+		}
+	}
+	rp.lp.amgr.AddAddresses(addrs, rp.na)
 }
 
 func (rp *RemotePeer) receivedBlock(ctx context.Context, msg *wire.MsgBlock) {

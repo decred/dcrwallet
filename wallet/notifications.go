@@ -433,7 +433,7 @@ func TxTransactionType(tx *wire.MsgTx) TransactionType {
 		return TransactionTypeTicketPurchase
 	} else if stake.IsSSGen(tx, true /* Yes treasury */) {
 		return TransactionTypeVote
-	} else if stake.IsSSRtx(tx) {
+	} else if isRevocation(tx) {
 		return TransactionTypeRevocation
 	} else {
 		return TransactionTypeRegular

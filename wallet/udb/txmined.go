@@ -106,7 +106,7 @@ func NewTxRecord(serializedTx []byte, received time.Time) (*TxRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	rec.TxType = stake.DetermineTxType(&rec.MsgTx, true) // Yes treasury
+	rec.TxType = stake.DetermineTxType(&rec.MsgTx, true, false)
 	hash := rec.MsgTx.TxHash()
 	copy(rec.Hash[:], hash[:])
 	return rec, nil
@@ -126,7 +126,7 @@ func NewTxRecordFromMsgTx(msgTx *wire.MsgTx, received time.Time) (*TxRecord, err
 		Received:     received,
 		SerializedTx: buf.Bytes(),
 	}
-	rec.TxType = stake.DetermineTxType(&rec.MsgTx, true) // Yes treasury
+	rec.TxType = stake.DetermineTxType(&rec.MsgTx, true, false)
 	hash := rec.MsgTx.TxHash()
 	copy(rec.Hash[:], hash[:])
 	return rec, nil
@@ -1151,7 +1151,7 @@ func (s *Store) InsertMinedTx(dbtx walletdb.ReadWriteTx, rec *TxRecord, blockHas
 		},
 		// index set for each iteration below
 	}
-	txType := stake.DetermineTxType(&rec.MsgTx, true) // Yes treasury
+	txType := stake.DetermineTxType(&rec.MsgTx, true, false)
 
 	invalidated := false
 	if txType == stake.TxTypeRegular {
